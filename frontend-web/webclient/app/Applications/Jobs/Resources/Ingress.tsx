@@ -28,7 +28,6 @@ export const IngressResource: React.FunctionComponent<{
     provider?: string;
     setErrors: (errors: Record<string, string>) => void;
 }> = ({application, bindLinkToPort, params, errors, onAdd, onRemove, provider, setErrors}) => {
-    console.log({bindLinkToPort});
     if (!ingressResourceAllowed(application, bindLinkToPort)) return null;
 
     return <Card>

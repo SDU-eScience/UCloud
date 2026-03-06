@@ -802,18 +802,8 @@ func openWebSession(job *orc.Job, sessionType orc.InteractiveSessionType, rank i
 				}
 
 				if !shared.K8sInCluster {
-					podName := ""
-					pods := shared.JobPods.List()
-					for _, pod := range pods {
-						jobId := pod.Labels["ucloud.dk/jobId"]
-						if jobId == job.Id {
-							podName = pod.Name
-							break
-						}
-					}
-
 					address.Address = "127.0.0.1"
-					address.Port = shared.EstablishTunnel(podName, int(resource.Port))
+					address.Port = shared.EstablishTunnel(vmName(job.Id, rank), int(resource.Port))
 					flags |= ctrl.RegisteredIngressFlagsNoPersist
 				}
 

@@ -10,6 +10,7 @@ import {useCloudCommand} from "@/Authentication/DataHook";
 import {
     api as JobsApi,
     ComputeSupport,
+    InteractiveSession,
     Job,
     JobState,
     JobStatus,
@@ -24,7 +25,7 @@ import {RichSelect, RichSelectChildComponent} from "@/ui-components/RichSelect";
 import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
 import {VirtualMachineFolders} from "./VirtualMachineFolders";
-import {compute} from "@/UCloud";
+import {BulkResponse, compute} from "@/UCloud";
 import {format} from "date-fns";
 import * as JobViz from "@/Applications/Jobs/JobViz";
 import {useJobVizProperties} from "@/Applications/Jobs/JobViz/StreamProcessor";
@@ -79,8 +80,10 @@ export const VirtualMachineStatus: React.FunctionComponent<{
     updatesState: VmUpdatesState;
 }> = ({job, status, interfaceTargets, defaultInterfaceName, updates, updatesState}) => {
     const [loading, invokeCommand] = useCloudCommand();
+    const [, invokeBackgroundCommand] = useCloudCommand();
     const [optimisticPowerState, setOptimisticPowerState] = useState<OptimisticPowerState>(null);
     const [statusDotCount, setStatusDotCount] = useState(0);
+    const [publicLinkTargets, setPublicLinkTargets] = useState<InterfaceTarget[]>([]);
     const restartObservedNonRunningState = useRef(false);
     const [hasPendingFolderRestart, setHasPendingFolderRestart] = useState(false);
     const stream = useMemo(() => new JobViz.StreamProcessor(), [job.id]);
@@ -94,18 +97,33 @@ export const VirtualMachineStatus: React.FunctionComponent<{
     const supportsSuspension = support?.virtualMachine.suspension === true;
     const supportsVnc = support?.virtualMachine.vnc === true;
 
+    const resources = job.specification.resources ?? [];
+    const peers = useMemo(() => {
+        return resources.filter(it => it.type === "peer") as { hostname: string; jobId: string; }[];
+    }, [resources]);
+    const ingresses = useMemo(() => {
+        return resources.filter(it => it.type === "ingress") as compute.AppParameterValueNS.Ingress[];
+    }, [resources]);
+
+    const combinedInterfaceTargets = useMemo(() => {
+        const all = [...interfaceTargets, ...publicLinkTargets];
+        const seen = new Set<string>();
+        return all.filter(it => {
+            const key = `${it.link ?? ""}::${it.rank}::${it.target ?? ""}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        });
+    }, [interfaceTargets, publicLinkTargets]);
+
     const desktopTarget = useMemo(() => {
-        let defaultInterfaceId = interfaceTargets.findIndex(link => !link.target && link.rank === 0);
+        let defaultInterfaceId = combinedInterfaceTargets.findIndex(link => !link.target && link.rank === 0);
         if (defaultInterfaceId < 0) {
-            defaultInterfaceId = interfaceTargets.findIndex(it => !it.target);
+            defaultInterfaceId = combinedInterfaceTargets.findIndex(it => !it.target);
             if (defaultInterfaceId < 0) defaultInterfaceId = 0;
         }
-        return interfaceTargets[defaultInterfaceId];
-    }, [interfaceTargets]);
-
-    const resources = job.specification.resources ?? [];
-    const peers = resources.filter(it => it.type === "peer") as { hostname: string; jobId: string; }[];
-    const ingresses = resources.filter(it => it.type === "ingress") as { id: string; }[];
+        return combinedInterfaceTargets[defaultInterfaceId];
+    }, [combinedInterfaceTargets]);
 
     const sshCommand = useMemo(() => parseSshCommand(updates), [updates]);
 
@@ -224,14 +242,14 @@ export const VirtualMachineStatus: React.FunctionComponent<{
     const appTitle = job.specification.name ?? job.status.resolvedApplication?.metadata?.title ?? "Virtual machine";
     const appVersion = job.status.resolvedApplication?.metadata?.version ?? "";
     const alternativeInterfaces = useMemo(() => {
-        return interfaceTargets.filter(it => it !== desktopTarget && it.link);
-    }, [interfaceTargets, desktopTarget]);
+        return combinedInterfaceTargets.filter(it => it !== desktopTarget && it.link);
+    }, [combinedInterfaceTargets, desktopTarget]);
     const hasLaunchMenu = alternativeInterfaces.length > 0 || supportsTerminal;
 
     const launchMenuItems = useMemo<VmActionItem[]>(() => {
         const result: VmActionItem[] = alternativeInterfaces.map(it => ({
             key: `iface:${it.link}`,
-            value: (it.target ?? defaultInterfaceName ?? "Open interface") + ` (Node ${it.rank + 1})`,
+            value: it.target ?? ((defaultInterfaceName ?? "Open interface") + ` (Node ${it.rank + 1})`),
             icon: "heroArrowTopRightOnSquare",
             color: "textPrimary",
         }));
@@ -312,6 +330,47 @@ export const VirtualMachineStatus: React.FunctionComponent<{
             : powerTone === "warning"
                 ? classConcat(SplitDropdownTrigger, DangerSplitDropdownTrigger)
                 : SplitDropdownTrigger;
+
+    useEffect(() => {
+        if (status.state !== "RUNNING" || ingresses.length === 0) {
+            setPublicLinkTargets([]);
+            return;
+        }
+
+        const requests = ingresses.map(ingress => ({
+            sessionType: "WEB" as const,
+            id: job.id,
+            rank: 0,
+            port: ingress.port,
+        }));
+
+        invokeBackgroundCommand<BulkResponse<InteractiveSession>>(
+            JobsApi.openInteractiveSession(bulkRequestOf(...requests)),
+            {defaultErrorHandler: false}
+        )
+            .then(result => {
+                const responses = result?.responses ?? [];
+                const newTargets: InterfaceTarget[] = [];
+
+                for (let i = 0; i < responses.length; i++) {
+                    const session = responses[i]?.session;
+                    const ingress = ingresses[i];
+                    if (!session || !ingress || !("redirectClientTo" in session)) continue;
+
+                    newTargets.push({
+                        rank: session.rank,
+                        type: "WEB",
+                        port: ingress.port,
+                        link: session.redirectClientTo,
+                    });
+                }
+
+                setPublicLinkTargets(newTargets);
+            })
+            .catch(() => {
+                setPublicLinkTargets([]);
+            });
+    }, [status.state, job.id, ingresses, invokeBackgroundCommand]);
 
     useEffect(() => {
         if (!isPowerTransitioning) {

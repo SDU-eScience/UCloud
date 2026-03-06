@@ -1011,7 +1011,6 @@ function findTargetRequests(job: Job): TargetRequests {
                         id: job.id,
                         rank: parsedTarget.rank,
                         target: parsedTarget.target,
-                        port: parsedTarget.port
                     });
                 } else if (canShowVnc && job.status.state === "RUNNING") {
                     fixedTargets.push({
