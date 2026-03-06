@@ -236,7 +236,7 @@ export const VirtualMachineStatus: React.FunctionComponent<{
             color: "textPrimary",
         }));
         if (supportsTerminal) {
-            result.push({key: "terminal", value: "Open serial console", icon: "heroCommandLine", color: "textPrimary"});
+            result.push({key: "terminal", value: "Open terminal", icon: "heroCommandLine", color: "textPrimary"});
         }
         return result;
     }, [alternativeInterfaces, defaultInterfaceName, supportsTerminal]);

@@ -443,7 +443,7 @@ func requestDynamicParameters(owner orc.ResourceOwner, app *orc.Application) []o
 	return []orc.ApplicationParameter{param}
 }
 
-func openWebSession(job *orc.Job, rank int, target util.Option[string]) (controller.ConfiguredWebSession, *util.HttpError) {
+func openWebSession(job *orc.Job, sessionType orc.InteractiveSessionType, rank int, target util.Option[string]) (controller.ConfiguredWebSessionResult, *util.HttpError) {
 	podName := idAndRankToPodName(job.Id, rank)
 
 	app := &job.Status.ResolvedApplication.Value.Invocation
@@ -484,17 +484,17 @@ func openWebSession(job *orc.Job, rank int, target util.Option[string]) (control
 	}
 
 	address := config.HostInfo{
-		Address: jobHostName(job, rank),
+		Address: shared.JobHostName(job, rank),
 		Port:    int(port),
 	}
 
 	if !shared.K8sInCluster {
 		address.Address = "127.0.0.1"
-		address.Port = establishTunnel(podName, int(port))
+		address.Port = shared.EstablishTunnel(podName, int(port))
 		flags |= controller.RegisteredIngressFlagsNoPersist
 	}
 
-	return controller.ConfiguredWebSession{
+	return controller.ConfiguredWebSessionResult{
 		Host:  address,
 		Flags: flags,
 	}, nil

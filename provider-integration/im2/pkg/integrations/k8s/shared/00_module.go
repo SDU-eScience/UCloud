@@ -100,3 +100,22 @@ func IsSensitiveProject(project string) bool {
 
 	return slices.Contains(ServiceConfig.SensitiveProjects, project)
 }
+
+func JobHostName(job *orc.Job, rank int) string {
+	dnsConfig, err := PrivateNetworkCreateDnsConfig(job)
+	if err == nil && dnsConfig.PodDns != nil {
+		hostname := dnsConfig.Hostname
+		if rank != 0 {
+			hostname += fmt.Sprintf("-%d", rank)
+		}
+		return fmt.Sprintf("%s.%s.%s.svc.cluster.local", hostname, dnsConfig.Subdomain, ServiceConfig.Compute.Namespace)
+	} else {
+		return fmt.Sprintf(
+			"j-%v-job-%v.j-%v.%v.svc.cluster.local",
+			job.Id,
+			rank,
+			job.Id,
+			ServiceConfig.Compute.Namespace,
+		)
+	}
+}

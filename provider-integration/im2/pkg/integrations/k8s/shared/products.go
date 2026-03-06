@@ -140,6 +140,7 @@ func initProducts() {
 			support.VirtualMachine.Peers = true
 			support.VirtualMachine.TimeExtension = false
 			support.VirtualMachine.Suspension = true
+			support.VirtualMachine.BindLinkToPort = true
 		}
 
 		MachineSupport = append(MachineSupport, support)

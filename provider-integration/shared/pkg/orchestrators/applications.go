@@ -503,6 +503,7 @@ type AppParameterValue struct {
 	Id            string                `json:"id" yaml:"id"`
 	Specification WorkflowSpecification `json:"specification" yaml:"specification"`
 	Modules       []string              `json:"modules" yaml:"modules"`
+	Port          int                   `json:"port" yaml:"port"`
 }
 
 type AppParameterValueType string

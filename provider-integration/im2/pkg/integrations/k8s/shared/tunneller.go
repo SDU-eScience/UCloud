@@ -1,4 +1,4 @@
-package containers
+package shared
 
 import (
 	"fmt"
@@ -17,13 +17,13 @@ var tunnelPortAllocator = atomic.Int32{}
 var tunnels = map[string]int{}
 var tunnelMutex = sync.Mutex{}
 
-// establishTunnel will port-forward to the pod identified by podName on a given port. A new local port is returned
+// EstablishTunnel will port-forward to the pod identified by podName on a given port. A new local port is returned
 // which can be used instead. The function is goroutine safe. The port is not guaranteed to be ready after the function
 // returns.
 //
 // NOTE(Dan): This is not supposed to be used in production. It will leak memory from old tunnels. It will also
 // eventually run out of ports.
-func establishTunnel(podName string, port int) int {
+func EstablishTunnel(podName string, port int) int {
 	key := fmt.Sprintf("%v:%v", podName, port)
 	tunnelMutex.Lock()
 	myPort, ok := tunnels[key]
@@ -39,7 +39,7 @@ func establishTunnel(podName string, port int) int {
 		request := K8sClient.CoreV1().RESTClient().
 			Post().
 			Resource("pods").
-			Namespace(Namespace).
+			Namespace(ServiceConfig.Compute.Namespace).
 			Name(podName).
 			SubResource("portforward")
 

@@ -41,7 +41,7 @@ type JobsService struct {
 	Follow                   func(session *FollowJobSession)
 	HandleShell              func(session *ShellSession, cols, rows int)
 	ServerFindIngress        func(job *orcapi.Job, rank int, suffix util.Option[string]) []ConfiguredWebIngress
-	OpenWebSession           func(job *orcapi.Job, rank int, target util.Option[string]) (ConfiguredWebSession, *util.HttpError)
+	OpenWebSession           func(job *orcapi.Job, sessionType orcapi.InteractiveSessionType, rank int, target util.Option[string]) (ConfiguredWebSessionResult, *util.HttpError)
 	RequestDynamicParameters func(owner orcapi.ResourceOwner, app *orcapi.Application) []orcapi.ApplicationParameter
 	HandleBuiltInVnc         func(job *orcapi.Job, rank int, conn *ws.Conn)
 	AttachFolder             func(job *orcapi.Job, folder string, readOnly bool) *util.HttpError
@@ -75,6 +75,23 @@ type PrivateNetworkService struct {
 	Create           func(network *orcapi.PrivateNetwork) *util.HttpError
 	Delete           func(network *orcapi.PrivateNetwork) *util.HttpError
 	RetrieveProducts func() []orcapi.PrivateNetworkSupport
+}
+
+type ConfiguredWebSessionResult struct {
+	Host  cfg.HostInfo
+	Flags RegisteredIngressFlags
+
+	ByDomain map[string]ConfiguredWebSession
+}
+
+func (r *ConfiguredWebSessionResult) All() map[string]ConfiguredWebSession {
+	if r.ByDomain != nil {
+		return r.ByDomain
+	} else {
+		return map[string]ConfiguredWebSession{
+			"": {Host: r.Host, Flags: r.Flags},
+		}
+	}
 }
 
 type ConfiguredWebSession struct {
@@ -380,35 +397,42 @@ func initJobs() {
 					isVnc := item.SessionType == orcapi.InteractiveSessionTypeVnc
 					var flags RegisteredIngressFlags
 
-					target, err := Jobs.OpenWebSession(&item.Job, item.Rank, item.Target)
+					targetResult, err := Jobs.OpenWebSession(&item.Job, item.SessionType, item.Rank, item.Target)
 					if err != nil {
 						errors = append(errors, err)
 					} else {
-						flags = target.Flags
-						if flags == 0 {
-							if isVnc {
-								flags |= RegisteredIngressFlagsVnc
-							} else {
-								flags |= RegisteredIngressFlagsWeb
+						targets := targetResult.All()
+						didWriteResponse := false
+						for _, target := range targets {
+							flags = target.Flags
+							if flags == 0 {
+								if isVnc {
+									flags |= RegisteredIngressFlagsVnc
+								} else {
+									flags |= RegisteredIngressFlagsWeb
+								}
 							}
-						}
 
-						redirect, err := IngressRegisterWithJob(&item.Job, item.Rank, target.Host, item.Target, flags)
-						if err != nil {
-							errors = append(errors, err)
-						} else {
-							if isVnc {
-								password := item.Job.Status.ResolvedApplication.Value.Invocation.Vnc.Value.Password
-
-								responses = append(
-									responses,
-									orcapi.OpenSessionVnc(item.Job.Id, item.Rank, redirect, password, ""),
-								)
+							redirect, err := IngressRegisterWithJob(&item.Job, item.Rank, target.Host, item.Target, flags)
+							if err != nil {
+								errors = append(errors, err)
 							} else {
-								responses = append(
-									responses,
-									orcapi.OpenSessionWeb(item.Job.Id, item.Rank, redirect, ""),
-								)
+								if !didWriteResponse {
+									didWriteResponse = true
+									if isVnc {
+										password := item.Job.Status.ResolvedApplication.Value.Invocation.Vnc.Value.Password
+
+										responses = append(
+											responses,
+											orcapi.OpenSessionVnc(item.Job.Id, item.Rank, redirect, password, ""),
+										)
+									} else {
+										responses = append(
+											responses,
+											orcapi.OpenSessionWeb(item.Job.Id, item.Rank, redirect, ""),
+										)
+									}
+								}
 							}
 						}
 					}

@@ -94,6 +94,7 @@ const setters: WidgetSetter[] = [
 export interface WidgetProps {
     application: Application;
     provider?: string;
+    bindLinkToPort?: boolean;
     parameter: ApplicationParameter;
     errors: Record<string, string>;
     setWarning?: (warning: string) => void;

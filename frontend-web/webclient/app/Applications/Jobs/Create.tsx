@@ -50,7 +50,7 @@ import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {NetworkIPResource, networkIPResourceAllowed} from "@/Applications/Jobs/Resources/NetworkIPs";
 import {getQueryParam} from "@/Utilities/URIUtilities";
 import {default as JobsApi, DynamicParameters, JobSpecification} from "@/UCloud/JobsApi";
-import {BulkResponse, FindByStringId, mail} from "@/UCloud";
+import {BulkResponse, compute, FindByStringId, mail} from "@/UCloud";
 import {explainWallet, priceToString, ProductV2, UNABLE_TO_USE_FULL_ALLOC_MESSAGE, WalletV2} from "@/Accounting";
 import {SshWidget} from "@/Applications/Jobs/Widgets/Ssh";
 import {connectionState} from "@/Providers/ConnectionState";
@@ -130,6 +130,10 @@ export const Create: React.FunctionComponent = () => {
         {noop: true},
         null
     );
+    const [machineSupport, fetchMachineSupport] = useCloudAPI<compute.JobsRetrieveProductsResponse>(
+        {noop: true},
+        {productsByProvider: {}}
+    );
     const [workflowInjectedParameters, setWorkflowInjectParameters] = useState<ApplicationParameter[]>([]);
 
     const application = applicationResp?.data?.status?.applications?.find(it => it.metadata.name === appName);
@@ -157,6 +161,7 @@ export const Create: React.FunctionComponent = () => {
     const [initialSshEnabled, setInitialSshEnabled] = useState<boolean | undefined>(undefined);
     const [sshEnabled, setSshEnabled] = useState(false);
     const [sshValid, setSshValid] = useState(true);
+    const [bindLinkToPort, setBindLinkToPort] = useState(false);
     const displayWallet = useMemo(() => {
         const wallet = estimatedCost.wallet;
         if (wallet === null) return null;
@@ -185,6 +190,54 @@ export const Create: React.FunctionComponent = () => {
         setHasCustomDnsHostname(true);
         setDnsHostname(sanitized);
     }, []);
+
+    useEffect(() => {
+        const product = estimatedCost.product;
+        if (!product || product.productType !== "COMPUTE") {
+            setBindLinkToPort(false);
+            return;
+        }
+
+        fetchMachineSupport(compute.jobs.retrieveProducts({
+            providers: product.category.provider,
+        }));
+    }, [estimatedCost.product, fetchMachineSupport]);
+
+    useEffect(() => {
+        const product = estimatedCost.product;
+        if (!product || product.productType !== "COMPUTE") {
+            setBindLinkToPort(false);
+            return;
+        }
+
+        const providerProducts = machineSupport.data.productsByProvider[product.category.provider] ?? [];
+        const selectedSupport = providerProducts.find(item =>
+            item.product.category.provider === product.category.provider &&
+            item.product.category.name === product.category.name &&
+            item.product.name === product.name
+        )?.support;
+
+        if (!selectedSupport) {
+            setBindLinkToPort(false);
+            return;
+        }
+
+        const backend = application?.invocation.tool.tool?.description?.backend ?? "DOCKER";
+        switch (backend) {
+            case "DOCKER":
+                setBindLinkToPort(selectedSupport.docker.bindLinkToPort === true);
+                break;
+            case "NATIVE":
+                setBindLinkToPort(selectedSupport.native.bindLinkToPort === true);
+                break;
+            case "VIRTUAL_MACHINE":
+                setBindLinkToPort(selectedSupport.virtualMachine.bindLinkToPort === true);
+                break;
+            default:
+                setBindLinkToPort(false);
+                break;
+        }
+    }, [estimatedCost.product, machineSupport.data, application]);
 
     const provider = getProviderField();
 
@@ -466,7 +519,7 @@ export const Create: React.FunctionComponent = () => {
             const newSpace = createSpaceForLoadedResources(peers, resources, "peer");
             setTimeout(() => injectResources(newSpace, resources, "peer"), 0);
         }
-        if (ingressResourceAllowed(application)) {
+        if (ingressResourceAllowed(application, bindLinkToPort)) {
             const newSpace = createSpaceForLoadedResources(ingress, resources, "ingress");
             setTimeout(() => injectResources(newSpace, resources, "ingress"), 0);
         }
@@ -486,7 +539,7 @@ export const Create: React.FunctionComponent = () => {
         privateNetworks.setErrors({});
         setErrors({});
         setReservationErrors({});
-    }, [application, activeOptParams, folders, peers, networks, ingress, privateNetworks, parameters]);
+    }, [application, activeOptParams, folders, peers, networks, ingress, privateNetworks, parameters, bindLinkToPort]);
 
     const reloadCount = 3;
     const onLoadParameters = useCallback((importedJob: Partial<JobSpecification>) => {
@@ -893,6 +946,7 @@ export const Create: React.FunctionComponent = () => {
                         <IngressResource
                             {...ingress}
                             application={application}
+                            bindLinkToPort={bindLinkToPort}
                         />
 
                         <PeerResource

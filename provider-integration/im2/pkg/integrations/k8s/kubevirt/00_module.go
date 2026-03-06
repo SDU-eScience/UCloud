@@ -22,7 +22,7 @@ import (
 	k8score "k8s.io/api/core/v1"
 	k8snetwork "k8s.io/api/networking/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/resource"
+	k8sresource "k8s.io/apimachinery/pkg/api/resource"
 	k8smeta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kvcore "kubevirt.io/api/core/v1"
 	kvclient "kubevirt.io/client-go/kubecli"
@@ -82,7 +82,7 @@ func Init() ctrl.JobsService {
 		RetrieveProducts:         nil, // handled by main instance
 		Follow:                   follow,
 		HandleShell:              handleShell,
-		ServerFindIngress:        nil,
+		ServerFindIngress:        serverFindIngress,
 		OpenWebSession:           openWebSession,
 		RequestDynamicParameters: requestDynamicParameters,
 		Suspend:                  suspend,
@@ -780,10 +780,74 @@ func requestDynamicParameters(_ orc.ResourceOwner, _ *orc.Application) []orc.App
 	}
 }
 
-func openWebSession(_ *orc.Job, _ int, _ util.Option[string]) (ctrl.ConfiguredWebSession, *util.HttpError) {
-	return ctrl.ConfiguredWebSession{
-		Flags: ctrl.RegisteredIngressFlagsVnc | ctrl.RegisteredIngressFlagsNoGatewayConfig,
-	}, nil
+func openWebSession(job *orc.Job, sessionType orc.InteractiveSessionType, rank int, suffix util.Option[string]) (ctrl.ConfiguredWebSessionResult, *util.HttpError) {
+	switch sessionType {
+	case orc.InteractiveSessionTypeWeb:
+		result := ctrl.ConfiguredWebSessionResult{
+			ByDomain: map[string]ctrl.ConfiguredWebSession{},
+		}
+
+		for _, resource := range job.Specification.Resources {
+			if resource.Type == orc.AppParameterValueTypeIngress {
+				if resource.Port == 0 {
+					continue
+				}
+
+				ingress := ctrl.LinkRetrieve(resource.Id)
+				flags := ctrl.RegisteredIngressFlagsWeb
+
+				address := cfg.HostInfo{
+					Address: shared.JobHostName(job, rank),
+					Port:    int(resource.Port),
+				}
+
+				if !shared.K8sInCluster {
+					podName := ""
+					pods := shared.JobPods.List()
+					for _, pod := range pods {
+						jobId := pod.Labels["ucloud.dk/jobId"]
+						if jobId == job.Id {
+							podName = pod.Name
+							break
+						}
+					}
+
+					address.Address = "127.0.0.1"
+					address.Port = shared.EstablishTunnel(podName, int(resource.Port))
+					flags |= ctrl.RegisteredIngressFlagsNoPersist
+				}
+
+				result.ByDomain[ingress.Specification.Domain] = ctrl.ConfiguredWebSession{
+					Host:  address,
+					Flags: flags,
+				}
+			}
+		}
+
+		return result, nil
+
+	case orc.InteractiveSessionTypeVnc:
+		return ctrl.ConfiguredWebSessionResult{
+			Flags: ctrl.RegisteredIngressFlagsVnc | ctrl.RegisteredIngressFlagsNoGatewayConfig,
+		}, nil
+	}
+
+	return ctrl.ConfiguredWebSessionResult{}, nil
+}
+
+func serverFindIngress(job *orc.Job, rank int, suffix util.Option[string]) []ctrl.ConfiguredWebIngress {
+	result := []ctrl.ConfiguredWebIngress{}
+	for _, resource := range job.Specification.Resources {
+		if resource.Type == orc.AppParameterValueTypeIngress {
+			ingress := ctrl.LinkRetrieve(resource.Id)
+
+			result = append(result, ctrl.ConfiguredWebIngress{
+				IsPublic:     true,
+				TargetDomain: ingress.Specification.Domain,
+			})
+		}
+	}
+	return result
 }
 
 func handleVnc(job *orc.Job, rank int, conn *ws.Conn) {
@@ -1002,7 +1066,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 					Threads: max(1, uint32(machine.Cpu)),
 				},
 				Memory: &kvcore.Memory{
-					Guest: resource.NewScaledQuantity(int64(machine.MemoryInGigs), resource.Giga),
+					Guest: k8sresource.NewScaledQuantity(int64(machine.MemoryInGigs), k8sresource.Giga),
 				},
 				Devices: kvcore.Devices{
 					Disks: []kvcore.Disk{

@@ -360,7 +360,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 
 		appendLine("echo '%d' > /etc/ucloud/number_of_nodes.txt", job.Specification.Replicas)
 		for rank := 0; rank < job.Specification.Replicas; rank++ {
-			hostname := jobHostName(job, rank)
+			hostname := shared.JobHostName(job, rank)
 
 			appendLine("echo '%v' > /etc/ucloud/node-%v.txt", hostname, rank)
 			appendLine("echo '%v' >> /etc/ucloud/nodes.txt", hostname)
@@ -570,23 +570,4 @@ func podNameToIdAndRank(podName string) (util.Tuple2[string, int], bool) {
 	}
 
 	return util.Tuple2[string, int]{parts[0], rank}, true
-}
-
-func jobHostName(job *orc.Job, rank int) string {
-	dnsConfig, err := shared.PrivateNetworkCreateDnsConfig(job)
-	if err == nil && dnsConfig.PodDns != nil {
-		hostname := dnsConfig.Hostname
-		if rank != 0 {
-			hostname += fmt.Sprintf("-%d", rank)
-		}
-		return fmt.Sprintf("%s.%s.%s.svc.cluster.local", hostname, dnsConfig.Subdomain, ServiceConfig.Compute.Namespace)
-	} else {
-		return fmt.Sprintf(
-			"j-%v-job-%v.j-%v.%v.svc.cluster.local",
-			job.Id,
-			rank,
-			job.Id,
-			ServiceConfig.Compute.Namespace,
-		)
-	}
 }

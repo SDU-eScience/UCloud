@@ -404,13 +404,14 @@ const (
 )
 
 type UniversalBackendSupport struct {
-	Enabled       bool `json:"enabled,omitempty"`
-	Web           bool `json:"web,omitempty"`
-	Vnc           bool `json:"vnc,omitempty"`
-	Logs          bool `json:"logs,omitempty"`
-	Terminal      bool `json:"terminal,omitempty"`
-	Peers         bool `json:"peers,omitempty"`
-	TimeExtension bool `json:"timeExtension,omitempty"`
+	Enabled        bool `json:"enabled,omitempty"`
+	Web            bool `json:"web,omitempty"`
+	Vnc            bool `json:"vnc,omitempty"`
+	Logs           bool `json:"logs,omitempty"`
+	Terminal       bool `json:"terminal,omitempty"`
+	Peers          bool `json:"peers,omitempty"`
+	TimeExtension  bool `json:"timeExtension,omitempty"`
+	BindLinkToPort bool `json:"bindLinkToPort,omitempty"`
 }
 
 // Job API

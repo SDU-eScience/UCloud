@@ -114,6 +114,7 @@ export interface NativeSupport {
     terminal?: boolean;
     timeExtension?: boolean;
     utilization?: boolean;
+    bindLinkToPort?: boolean;
 }
 
 export interface DockerSupport {
@@ -125,6 +126,7 @@ export interface DockerSupport {
     peers?: boolean;
     timeExtension?: boolean;
     utilization?: boolean;
+    bindLinkToPort?: boolean;
 }
 
 export interface VirtualMachineSupport {
@@ -135,6 +137,7 @@ export interface VirtualMachineSupport {
     timeExtension?: boolean;
     suspension?: boolean;
     utilization?: boolean;
+    bindLinkToPort?: boolean;
 }
 
 export interface CpuAndMemory {

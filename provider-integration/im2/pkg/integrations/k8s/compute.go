@@ -406,8 +406,8 @@ func serverFindIngress(job *orc.Job, rank int, suffix util.Option[string]) []con
 	return backend(job).ServerFindIngress(job, rank, suffix)
 }
 
-func openWebSession(job *orc.Job, rank int, target util.Option[string]) (controller.ConfiguredWebSession, *util.HttpError) {
-	return backend(job).OpenWebSession(job, rank, target)
+func openWebSession(job *orc.Job, sessionType orc.InteractiveSessionType, rank int, target util.Option[string]) (controller.ConfiguredWebSessionResult, *util.HttpError) {
+	return backend(job).OpenWebSession(job, sessionType, rank, target)
 }
 
 func requestDynamicParameters(owner orc.ResourceOwner, app *orc.Application) []orc.ApplicationParameter {

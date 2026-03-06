@@ -882,15 +882,15 @@ func serverFindIngress(job *orc.Job, rank int, suffix util.Option[string]) []con
 	}
 }
 
-func openWebSession(job *orc.Job, rank int, target util.Option[string]) (controller.ConfiguredWebSession, *util.HttpError) {
+func openWebSession(job *orc.Job, sessionType orc.InteractiveSessionType, rank int, target util.Option[string]) (controller.ConfiguredWebSessionResult, *util.HttpError) {
 	parsedId, ok := parseJobProviderId(job.ProviderGeneratedId)
 	if !ok {
-		return controller.ConfiguredWebSession{}, util.ServerHttpError("could not parse provider id")
+		return controller.ConfiguredWebSessionResult{}, util.ServerHttpError("could not parse provider id")
 	}
 
 	nodes := SlurmClient.JobGetNodeList(parsedId.SlurmId)
 	if len(nodes) <= rank {
-		return controller.ConfiguredWebSession{}, util.ServerHttpError("could not find slurm node")
+		return controller.ConfiguredWebSessionResult{}, util.ServerHttpError("could not find slurm node")
 	}
 
 	if target.Present {
@@ -907,7 +907,7 @@ func openWebSession(job *orc.Job, rank int, target util.Option[string]) (control
 				}
 
 				if dynTarget.Target == target.Value && dynTarget.Rank == rank {
-					return controller.ConfiguredWebSession{
+					return controller.ConfiguredWebSessionResult{
 						Host: config.HostInfo{
 							Address: nodes[rank],
 							Port:    dynTarget.Port,
@@ -918,26 +918,26 @@ func openWebSession(job *orc.Job, rank int, target util.Option[string]) (control
 			}
 		}
 
-		return controller.ConfiguredWebSession{}, util.ServerHttpError("unknown target supplied: %v", target.Value)
+		return controller.ConfiguredWebSessionResult{}, util.ServerHttpError("unknown target supplied: %v", target.Value)
 	}
 
 	jobFolder, ok := FindJobFolder(orc.ResourceOwnerToWalletOwner(job.Resource))
 	if !ok {
-		return controller.ConfiguredWebSession{}, util.ServerHttpError("could not resolve internal folder needed for logs: %v", jobFolder)
+		return controller.ConfiguredWebSessionResult{}, util.ServerHttpError("could not resolve internal folder needed for logs: %v", jobFolder)
 	}
 
 	outputFolder := filepath.Join(jobFolder, job.Id)
 	portFilePath := filepath.Join(outputFolder, AllocatedPortFile)
 	portFileData, err := os.ReadFile(portFilePath)
 	if err != nil {
-		return controller.ConfiguredWebSession{}, util.ServerHttpError("could not read port file: %v", err)
+		return controller.ConfiguredWebSessionResult{}, util.ServerHttpError("could not read port file: %v", err)
 	}
 	allocatedPort, err := strconv.Atoi(strings.TrimSpace(string(portFileData)))
 	if err != nil {
-		return controller.ConfiguredWebSession{}, util.ServerHttpError("corrupt port file: %v", err)
+		return controller.ConfiguredWebSessionResult{}, util.ServerHttpError("corrupt port file: %v", err)
 	}
 
-	return controller.ConfiguredWebSession{
+	return controller.ConfiguredWebSessionResult{
 		Host: config.HostInfo{
 			Address: nodes[rank],
 			Port:    allocatedPort,

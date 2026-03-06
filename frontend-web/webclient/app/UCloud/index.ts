@@ -2506,6 +2506,10 @@ export interface Docker {
      * Flag to enable/disable the retrieveUtilization of jobs
      */
     utilization?: boolean,
+    /**
+     * Flag to enable/disable binding public links to a specific port
+     */
+    bindLinkToPort?: boolean,
 }
 export interface VirtualMachine {
     /**
@@ -2538,6 +2542,10 @@ export interface VirtualMachine {
      * Flag to enable/disable the retrieveUtilization of jobs
      */
     utilization?: boolean,
+    /**
+     * Flag to enable/disable binding public links to a specific port
+     */
+    bindLinkToPort?: boolean,
 }
 }
 export namespace AppParameterValueNS {
@@ -2695,6 +2703,7 @@ export interface Network {
 export interface Ingress {
     id: string,
     type: ("ingress"),
+    port?: number,
 }
 
 export interface Workflow {

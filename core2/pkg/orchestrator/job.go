@@ -1405,6 +1405,10 @@ func jobsValidateForSubmission(actor rpc.Actor, spec *orcapi.JobSpecification) *
 					return util.HttpErr(http.StatusBadRequest, "incorrect parameter type for '%s'", name)
 				}
 
+				if value.Port != 0 && !support.Has(jobFeatureBindLinkToPortByBackend[tool.Backend]) {
+					return util.HttpErr(http.StatusBadRequest, "'%s' has a port specified, but this is not supported by the provider", name)
+				}
+
 			case orcapi.ApplicationParameterTypeNetworkIp:
 				if value.Type != orcapi.AppParameterValueTypeNetwork {
 					return util.HttpErr(http.StatusBadRequest, "incorrect parameter type for '%s'", name)
