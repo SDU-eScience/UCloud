@@ -56,7 +56,6 @@ func Init() controller.JobsService {
 		RetrieveProducts:         nil, // handled by main instance
 		Follow:                   follow,
 		HandleShell:              handleShell,
-		ServerFindIngress:        serverFindIngress,
 		OpenWebSession:           openWebSession,
 		RequestDynamicParameters: requestDynamicParameters,
 	}
@@ -494,10 +493,34 @@ func openWebSession(job *orc.Job, sessionType orc.InteractiveSessionType, rank i
 		flags |= controller.RegisteredIngressFlagsNoPersist
 	}
 
-	return controller.ConfiguredWebSessionResult{
-		Host:  address,
-		Flags: flags,
-	}, nil
+	if (flags & controller.RegisteredIngressFlagsVnc) != 0 {
+		return controller.ConfiguredWebSessionResult{
+			Endpoints: []controller.ConfiguredWebEndpoint{{
+				Host:         address,
+				TargetDomain: config.Provider.Hosts.SelfPublic.Address,
+				Flags:        flags,
+				IsPublic:     false,
+			}},
+		}, nil
+	}
+
+	resolvedSuffix := util.OptNone[string]()
+	if target.Present {
+		resolvedSuffix.Set("-" + controller.ToHostnameSafe(target.Value))
+	}
+
+	ingressConfigs := serverFindIngress(job, rank, resolvedSuffix)
+	endpoints := make([]controller.ConfiguredWebEndpoint, 0, len(ingressConfigs))
+	for _, ingress := range ingressConfigs {
+		endpoints = append(endpoints, controller.ConfiguredWebEndpoint{
+			Host:         address,
+			TargetDomain: ingress.TargetDomain,
+			Flags:        flags,
+			IsPublic:     ingress.IsPublic,
+		})
+	}
+
+	return controller.ConfiguredWebSessionResult{Endpoints: endpoints}, nil
 }
 
 func serverFindIngress(job *orc.Job, rank int, suffix util.Option[string]) []controller.ConfiguredWebIngress {

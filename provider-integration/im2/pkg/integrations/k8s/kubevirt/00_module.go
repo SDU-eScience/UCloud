@@ -82,7 +82,6 @@ func Init() ctrl.JobsService {
 		RetrieveProducts:         nil, // handled by main instance
 		Follow:                   follow,
 		HandleShell:              handleShell,
-		ServerFindIngress:        serverFindIngress,
 		OpenWebSession:           openWebSession,
 		RequestDynamicParameters: requestDynamicParameters,
 		Suspend:                  suspend,
@@ -784,7 +783,7 @@ func openWebSession(job *orc.Job, sessionType orc.InteractiveSessionType, rank i
 	switch sessionType {
 	case orc.InteractiveSessionTypeWeb:
 		result := ctrl.ConfiguredWebSessionResult{
-			ByDomain: map[string]ctrl.ConfiguredWebSession{},
+			Endpoints: []ctrl.ConfiguredWebEndpoint{},
 		}
 
 		for _, resource := range job.Specification.Resources {
@@ -807,10 +806,12 @@ func openWebSession(job *orc.Job, sessionType orc.InteractiveSessionType, rank i
 					flags |= ctrl.RegisteredIngressFlagsNoPersist
 				}
 
-				result.ByDomain[ingress.Specification.Domain] = ctrl.ConfiguredWebSession{
-					Host:  address,
-					Flags: flags,
-				}
+				result.Endpoints = append(result.Endpoints, ctrl.ConfiguredWebEndpoint{
+					Host:         address,
+					TargetDomain: ingress.Specification.Domain,
+					Flags:        flags,
+					IsPublic:     true,
+				})
 			}
 		}
 
@@ -818,26 +819,15 @@ func openWebSession(job *orc.Job, sessionType orc.InteractiveSessionType, rank i
 
 	case orc.InteractiveSessionTypeVnc:
 		return ctrl.ConfiguredWebSessionResult{
-			Flags: ctrl.RegisteredIngressFlagsVnc | ctrl.RegisteredIngressFlagsNoGatewayConfig,
+			Endpoints: []ctrl.ConfiguredWebEndpoint{{
+				TargetDomain: cfg.Provider.Hosts.SelfPublic.Address,
+				Flags:        ctrl.RegisteredIngressFlagsVnc | ctrl.RegisteredIngressFlagsNoGatewayConfig,
+				IsPublic:     false,
+			}},
 		}, nil
 	}
 
 	return ctrl.ConfiguredWebSessionResult{}, nil
-}
-
-func serverFindIngress(job *orc.Job, rank int, suffix util.Option[string]) []ctrl.ConfiguredWebIngress {
-	result := []ctrl.ConfiguredWebIngress{}
-	for _, resource := range job.Specification.Resources {
-		if resource.Type == orc.AppParameterValueTypeIngress {
-			ingress := ctrl.LinkRetrieve(resource.Id)
-
-			result = append(result, ctrl.ConfiguredWebIngress{
-				IsPublic:     true,
-				TargetDomain: ingress.Specification.Domain,
-			})
-		}
-	}
-	return result
 }
 
 func handleVnc(job *orc.Job, rank int, conn *ws.Conn) {

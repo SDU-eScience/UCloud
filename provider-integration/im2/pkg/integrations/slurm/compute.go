@@ -106,7 +106,6 @@ func InitCompute() controller.JobsService {
 		Follow:                   follow,
 		HandleShell:              handleShell,
 		OpenWebSession:           openWebSession,
-		ServerFindIngress:        serverFindIngress,
 		RequestDynamicParameters: requestDynamicParameters,
 	}
 }
@@ -883,6 +882,42 @@ func serverFindIngress(job *orc.Job, rank int, suffix util.Option[string]) []con
 }
 
 func openWebSession(job *orc.Job, sessionType orc.InteractiveSessionType, rank int, target util.Option[string]) (controller.ConfiguredWebSessionResult, *util.HttpError) {
+	flags := controller.RegisteredIngressFlagsWeb
+	if sessionType == orc.InteractiveSessionTypeVnc {
+		flags = controller.RegisteredIngressFlagsVnc
+	}
+
+	toResult := func(host config.HostInfo, endpointFlags controller.RegisteredIngressFlags) controller.ConfiguredWebSessionResult {
+		if (endpointFlags & controller.RegisteredIngressFlagsVnc) != 0 {
+			return controller.ConfiguredWebSessionResult{
+				Endpoints: []controller.ConfiguredWebEndpoint{{
+					Host:         host,
+					TargetDomain: config.Provider.Hosts.SelfPublic.Address,
+					Flags:        endpointFlags,
+					IsPublic:     false,
+				}},
+			}
+		}
+
+		resolvedSuffix := util.OptNone[string]()
+		if target.Present {
+			resolvedSuffix.Set("-" + controller.ToHostnameSafe(target.Value))
+		}
+
+		ingressConfigs := serverFindIngress(job, rank, resolvedSuffix)
+		endpoints := make([]controller.ConfiguredWebEndpoint, 0, len(ingressConfigs))
+		for _, ingress := range ingressConfigs {
+			endpoints = append(endpoints, controller.ConfiguredWebEndpoint{
+				Host:         host,
+				TargetDomain: ingress.TargetDomain,
+				Flags:        endpointFlags,
+				IsPublic:     ingress.IsPublic,
+			})
+		}
+
+		return controller.ConfiguredWebSessionResult{Endpoints: endpoints}
+	}
+
 	parsedId, ok := parseJobProviderId(job.ProviderGeneratedId)
 	if !ok {
 		return controller.ConfiguredWebSessionResult{}, util.ServerHttpError("could not parse provider id")
@@ -907,13 +942,16 @@ func openWebSession(job *orc.Job, sessionType orc.InteractiveSessionType, rank i
 				}
 
 				if dynTarget.Target == target.Value && dynTarget.Rank == rank {
-					return controller.ConfiguredWebSessionResult{
-						Host: config.HostInfo{
-							Address: nodes[rank],
-							Port:    dynTarget.Port,
-							Scheme:  "http",
-						},
-					}, nil
+					dynFlags := flags
+					if dynTarget.Type == orc.InteractiveSessionTypeVnc {
+						dynFlags = controller.RegisteredIngressFlagsVnc
+					}
+
+					return toResult(config.HostInfo{
+						Address: nodes[rank],
+						Port:    dynTarget.Port,
+						Scheme:  "http",
+					}, dynFlags), nil
 				}
 			}
 		}
@@ -937,13 +975,11 @@ func openWebSession(job *orc.Job, sessionType orc.InteractiveSessionType, rank i
 		return controller.ConfiguredWebSessionResult{}, util.ServerHttpError("corrupt port file: %v", err)
 	}
 
-	return controller.ConfiguredWebSessionResult{
-		Host: config.HostInfo{
-			Address: nodes[rank],
-			Port:    allocatedPort,
-			Scheme:  "http",
-		},
-	}, nil
+	return toResult(config.HostInfo{
+		Address: nodes[rank],
+		Port:    allocatedPort,
+		Scheme:  "http",
+	}, flags), nil
 }
 
 func FindJobFolder(owner apm.WalletOwner) (string, bool) {

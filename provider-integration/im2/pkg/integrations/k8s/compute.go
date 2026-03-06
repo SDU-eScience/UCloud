@@ -41,7 +41,6 @@ func InitCompute() controller.JobsService {
 		RetrieveProducts:         retrieveProducts,
 		Follow:                   follow,
 		HandleShell:              handleShell,
-		ServerFindIngress:        serverFindIngress,
 		OpenWebSession:           openWebSession,
 		RequestDynamicParameters: requestDynamicParameters,
 		Suspend:                  suspend,
@@ -400,10 +399,6 @@ func handleShell(session *controller.ShellSession, cols int, rows int) {
 	} else {
 		backend(session.Job).HandleShell(session, cols, rows)
 	}
-}
-
-func serverFindIngress(job *orc.Job, rank int, suffix util.Option[string]) []controller.ConfiguredWebIngress {
-	return backend(job).ServerFindIngress(job, rank, suffix)
 }
 
 func openWebSession(job *orc.Job, sessionType orc.InteractiveSessionType, rank int, target util.Option[string]) (controller.ConfiguredWebSessionResult, *util.HttpError) {
