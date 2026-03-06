@@ -49,7 +49,9 @@ function download(filename: string, text: string) {
     elem.style.display = "none";
     document.body.appendChild(elem);
     elem.click()
-    document.body.removeChild(elem);
+    if (elem.parentNode === document.body) {
+        document.body.removeChild(elem);
+    }
 }
 
 export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grants.Application> & {both?: boolean}}): React.ReactNode {

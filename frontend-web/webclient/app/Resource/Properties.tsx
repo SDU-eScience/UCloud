@@ -57,15 +57,17 @@ const Container = injectStyle("container", k => `
         max-width: 2200px;
     }
 
-    ${k} {
-        ${device("xs")} {
+    ${device("xs")} {
+        ${k} {
             margin-left: 0;
             margin-right: 0;
         }
+    }
     
-        ${device("sm")} {
-        margin-left: 0;
-        margin-right: 0;
+    ${device("sm")} {
+        ${k} {
+            margin-left: 0;
+            margin-right: 0;
         }
     }
 

@@ -676,6 +676,61 @@ func GrantsSubmitRevisionEx(actor rpc.Actor, req accapi.GrantsSubmitRevisionRequ
 	}
 
 	if err == nil {
+		allocationStart := now
+		if period.Present && period.Value.Start.Present {
+			allocationStart = period.Value.Start.Value.Time()
+		}
+
+		availabilityError := func(wallet accapi.WalletV2, category accapi.ProductCategory, at time.Time) *util.HttpError {
+			var earliestFuture util.Option[time.Time]
+			hasPastAvailability := false
+
+			for _, group := range wallet.AllocationGroups {
+				for _, alloc := range group.Group.Allocations {
+					if alloc.Retired {
+						continue
+					}
+
+					start := alloc.StartDate.Time()
+					end := alloc.EndDate.Time()
+
+					if start.After(at) {
+						if !earliestFuture.Present || start.Before(earliestFuture.Value) {
+							earliestFuture.Set(start)
+						}
+					} else if !end.After(at) {
+						hasPastAvailability = true
+					}
+				}
+			}
+
+			if earliestFuture.Present {
+				return util.HttpErr(
+					http.StatusBadRequest,
+					"%s/%s is not available for the requested start date and will become available on %s",
+					category.Name,
+					category.Provider,
+					earliestFuture.Value.Format(time.RFC3339),
+				)
+			}
+
+			if hasPastAvailability {
+				return util.HttpErr(
+					http.StatusBadRequest,
+					"%s/%s is no longer available for the requested start date",
+					category.Name,
+					category.Provider,
+				)
+			}
+
+			return util.HttpErr(
+				http.StatusBadRequest,
+				"%s/%s cannot be requested in this application",
+				category.Name,
+				category.Provider,
+			)
+		}
+
 		senderActor, ok := actor, true
 		if actor.Username != app.Application.CreatedBy {
 			senderActor, ok = rpc.LookupActor(app.Application.CreatedBy)
@@ -694,14 +749,18 @@ func GrantsSubmitRevisionEx(actor rpc.Actor, req accapi.GrantsSubmitRevisionRequ
 				for _, cat := range categories {
 					aBucket := internalBucketOrInit(cat)
 					w := internalWalletByOwner(aBucket, now, owner.Id)
-					quota, ok := internalWalletTotalQuotaContributing(aBucket, w)
+					quota, ok := internalWalletTotalQuotaContributingAt(aBucket, w, allocationStart)
 					if quota == 0 || !ok {
-						err = util.HttpErr(
-							http.StatusBadRequest,
-							"%s/%s cannot be requested in this application",
-							cat.Name,
-							cat.Provider,
-						)
+						wallets := internalRetrieveWallets(now, grantGiver, walletFilter{
+							Provider: util.OptValue(cat.Provider),
+							Category: util.OptValue(cat.Name),
+						})
+
+						if len(wallets) > 0 {
+							err = availabilityError(wallets[0], cat, allocationStart)
+						} else {
+							err = availabilityError(accapi.WalletV2{}, cat, allocationStart)
+						}
 						break outer
 					}
 				}
@@ -1492,6 +1551,7 @@ func grantRetrieveApplicationHistoryOfReceiver(actor rpc.Actor, app *grantApplic
 
 func GrantsRetrieveGrantGivers(actor rpc.Actor, req accapi.RetrieveGrantGiversRequest) ([]accapi.GrantGiver, *util.HttpError) {
 	now := time.Now()
+	defaultAvailabilityHorizon := now.AddDate(1, 0, 0)
 
 	recipient := accapi.Recipient{}
 	parents := map[string]util.Empty{}
@@ -1554,13 +1614,25 @@ func GrantsRetrieveGrantGivers(actor rpc.Actor, req accapi.RetrieveGrantGiversRe
 	// -----------------------------------------------------------------------------------------------------------------
 
 	var result []accapi.GrantGiver
+	walletHasAllocationInDefaultWindow := func(wallet accapi.WalletV2) bool {
+		for _, group := range wallet.AllocationGroups {
+			for _, alloc := range group.Group.Allocations {
+				if !alloc.Retired && (alloc.StartDate.Time().Before(defaultAvailabilityHorizon) || alloc.StartDate.Time().Equal(defaultAvailabilityHorizon)) && alloc.EndDate.Time().After(now) {
+					return true
+				}
+			}
+		}
+		return false
+	}
 
 	lAddPotentialGrantGiver := func(b *grantSettingsBucket, grantGiver string) {
 		if grantsCanApply(applicantActor, recipient, grantGiver) {
-			wallets := internalRetrieveWallets(now, grantGiver, walletFilter{RequireActive: true})
+			wallets := internalRetrieveWallets(now, grantGiver, walletFilter{RequireActive: false})
 			var categories []accapi.ProductCategory
 			for _, wallet := range wallets {
-				categories = append(categories, wallet.PaysFor)
+				if walletHasAllocationInDefaultWindow(wallet) {
+					categories = append(categories, wallet.PaysFor)
+				}
 			}
 
 			gg := accapi.GrantGiver{

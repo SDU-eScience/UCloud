@@ -183,7 +183,7 @@ func initJobs() {
 					}
 
 					if shouldApply {
-						if s := update.State; s.Present {
+						if s := update.State; s.Present && job.State != s.Value {
 							job.State = s.Value
 
 							if job.State == orcapi.JobStateRunning {
@@ -658,7 +658,7 @@ func initJobs() {
 			}
 		}
 
-		if failureCount == len(relevantProviders) {
+		if failureCount == len(relevantProviders) && lastError != nil {
 			return orcapi.JobsRequestDynamicParametersResponse{}, lastError
 		}
 

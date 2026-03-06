@@ -1,6 +1,8 @@
 package orchestrators
 
 import (
+	"net/http"
+
 	apm "ucloud.dk/shared/pkg/accounting"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
@@ -38,4 +40,31 @@ var ProviderBrandingBrowse = rpc.Call[util.Empty, ProviderBrandingBrowseResponse
 	BaseContext: providerBrandingBaseContext,
 	Convention:  rpc.ConventionBrowse,
 	Roles:       rpc.RolesPublic,
+}
+
+// In the context of the Provider
+//==================================================================================================================
+
+const providerBrandingNamespace = "ucloud/" + rpc.ProviderPlaceholder + "/provider/branding"
+
+var ProviderBrandingRetrieve = rpc.Call[util.Empty, ProviderBranding]{
+	BaseContext: providerBrandingNamespace,
+	Convention:  rpc.ConventionRetrieve,
+	Roles:       rpc.RolesService,
+	Operation:   "info",
+}
+
+type ProviderBrandingImageRequest struct {
+	Name string `json:"name"`
+}
+
+var ProviderBrandingRetrieveImage = rpc.Call[ProviderBrandingImageRequest, []byte]{
+	BaseContext: providerBrandingNamespace,
+	Convention:  rpc.ConventionQueryParameters,
+	Roles:       rpc.RolesPublic,
+	Operation:   "image",
+	CustomServerProducer: func(response []byte, err *util.HttpError, w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "image/*")
+		w.Write(response)
+	},
 }

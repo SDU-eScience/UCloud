@@ -147,7 +147,9 @@ async function onRemoteClipboard(ev: CustomEvent): Promise<void> {
         document.body.appendChild(el);
         el.select();
         document.execCommand("copy");
-        document.body.removeChild(el);
+        if (el.parentNode === document.body) {
+            document.body.removeChild(el);
+        }
     }
 }
 
