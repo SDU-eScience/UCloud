@@ -136,6 +136,8 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		userContainer.Image = tool.Description.Container
 	}
 
+	enableAuditlog(spec, userContainer, tool)
+
 	// Setting up network policy and service
 	// -----------------------------------------------------------------------------------------------------------------
 	// Only rank 0 is responsible for creating these additional resources. Their pointers will be nil if they should
@@ -611,4 +613,45 @@ func jobHostName(jobId string, rank int) string {
 		jobId,
 		ServiceConfig.Compute.Namespace,
 	)
+}
+
+func enableAuditlog(spec *core.PodSpec, userContainer *core.Container, tool *orc.Tool) {
+
+	spec.Containers = append(spec.Containers, core.Container{
+		Name: ContainerAuditLog,
+	})
+
+	auditLogContainer := &spec.Containers[len(spec.Containers)-1]
+	auditLogContainer.ImagePullPolicy = core.PullIfNotPresent
+	auditLogContainer.Resources.Limits = map[core.ResourceName]resource.Quantity{}
+	auditLogContainer.Resources.Requests = map[core.ResourceName]resource.Quantity{}
+	auditLogContainer.SecurityContext = &core.SecurityContext{}
+	auditLogContainer.Command = []string{"tail", "-f", "/dev/null"}
+	userContainer.Image = tool.Description.Image
+	if userContainer.Image == "" {
+		userContainer.Image = tool.Description.Container
+	}
+
+	//auditVolumeName := "ucloud-audit"
+	//spec.Volumes = append(spec.Volumes, core.Volume{
+	//	Name: auditVolumeName,
+	//	VolumeSource: core.VolumeSource{
+	//		HostPath: &core.HostPathVolumeSource{
+	//			Path: "/mnt/storage/audit",
+	//			Type: util.Pointer(core.HostPathDirectoryOrCreate),
+	//		},
+	//	},
+	//})
+
+	//userContainer.VolumeMounts = append(userContainer.VolumeMounts, core.VolumeMount{
+	//	Name:      auditVolumeName,
+	//	ReadOnly:  true,
+	//	MountPath: "/audit",
+	//})
+	//
+	//auditLogContainer.VolumeMounts = append(auditLogContainer.VolumeMounts, core.VolumeMount{
+	//	Name:      auditVolumeName,
+	//	ReadOnly:  false,
+	//	MountPath: "/audit",
+	//})
 }

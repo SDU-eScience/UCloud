@@ -554,5 +554,6 @@ func JobAnnotations(job *orc.Job, rank int) map[string]string {
 }
 
 const (
-	ContainerUserJob = "user-job"
+	ContainerUserJob  = "user-job"
+	ContainerAuditLog = "audit-log"
 )
