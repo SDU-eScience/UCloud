@@ -685,7 +685,7 @@ export const Runs = {
 
         const testInfo = test.info();
         test.setTimeout(testInfo.timeout + 60_000);
-        await page.getByText("is now running").first().hover();
+        await page.getByText("is now running").first().waitFor();
     },
 
     async extendTimeBy(page: Page, extension: 1 | 8 | 24) {
