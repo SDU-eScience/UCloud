@@ -107,15 +107,15 @@ type JobStatus struct {
 }
 
 type JobUpdate struct {
-	State                  util.Option[JobState] `json:"state"`
-	OutputFolder           util.Option[string]   `json:"outputFolder"`
-	Status                 util.Option[string]   `json:"status"`
-	ExpectedState          util.Option[JobState] `json:"expectedState"`
-	ExpectedDifferentState util.Option[bool]     `json:"expectedDifferentState"`
-	NewTimeAllocation      util.Option[int64]    `json:"newTimeAllocation"`
-	AllowRestart           util.Option[bool]     `json:"allowRestart"` // deprecated
-	MountList              util.Option[[]string] `json:"mountList"`
-	Timestamp              fnd.Timestamp         `json:"timestamp"`
+	State                  util.Option[JobState]            `json:"state"`
+	OutputFolder           util.Option[string]              `json:"outputFolder"`
+	Status                 util.Option[string]              `json:"status"`
+	ExpectedState          util.Option[JobState]            `json:"expectedState"`
+	ExpectedDifferentState util.Option[bool]                `json:"expectedDifferentState"`
+	NewTimeAllocation      util.Option[int64]               `json:"newTimeAllocation"`
+	AllowRestart           util.Option[bool]                `json:"allowRestart"` // deprecated
+	ResourceList           util.Option[[]AppParameterValue] `json:"resourceList"`
+	Timestamp              fnd.Timestamp                    `json:"timestamp"`
 }
 
 type JobSpecification struct {
@@ -582,28 +582,28 @@ type JobsFollowMessage struct {
 	InitialJob util.Option[Job]       `json:"initialJob"`
 }
 
-type JobsAttachFolderRequest struct {
-	JobId  string `json:"jobId"`
-	Folder string `json:"folder"`
+type JobsAttachResourceRequest struct {
+	JobId    string            `json:"jobId"`
+	Resource AppParameterValue `json:"resource"`
 }
 
-var JobsAttachFolder = rpc.Call[JobsAttachFolderRequest, util.Empty]{
+var JobsAttachResource = rpc.Call[JobsAttachResourceRequest, util.Empty]{
 	BaseContext: jobNamespace,
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesEndUser,
-	Operation:   "attachFolder",
+	Operation:   "attachResource",
 }
 
-type JobsDetachFolderRequest struct {
-	JobId  string `json:"jobId"`
-	Folder string `json:"folder"`
+type JobsDetachResourceRequest struct {
+	JobId    string            `json:"jobId"`
+	Resource AppParameterValue `json:"resource"`
 }
 
-var JobsDetachFolder = rpc.Call[JobsDetachFolderRequest, util.Empty]{
+var JobsDetachResource = rpc.Call[JobsDetachResourceRequest, util.Empty]{
 	BaseContext: jobNamespace,
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesEndUser,
-	Operation:   "detachFolder",
+	Operation:   "detachResource",
 }
 
 // Job Control API
@@ -797,27 +797,26 @@ type JobsProviderFollowRequest struct {
 	Job  Job    `json:"job"`
 }
 
-type JobsProviderAttachFolderRequest struct {
-	Job      Job    `json:"job"`
-	Folder   string `json:"folder"`
-	ReadOnly bool   `json:"readOnly"`
+type JobsProviderAttachResourceRequest struct {
+	Job      Job               `json:"job"`
+	Resource AppParameterValue `json:"resource"`
 }
 
-var JobsProviderAttachFolder = rpc.Call[JobsProviderAttachFolderRequest, util.Empty]{
+var JobsProviderAttachResource = rpc.Call[JobsProviderAttachResourceRequest, util.Empty]{
 	BaseContext: jobProviderNamespace,
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesPrivileged,
-	Operation:   "attachFolder",
+	Operation:   "attachResource",
 }
 
-type JobsProviderDetachFolderRequest struct {
-	Job    Job    `json:"job"`
-	Folder string `json:"folder"`
+type JobsProviderDetachResourceRequest struct {
+	Job      Job               `json:"job"`
+	Resource AppParameterValue `json:"resource"`
 }
 
-var JobsProviderDetachFolder = rpc.Call[JobsProviderDetachFolderRequest, util.Empty]{
+var JobsProviderDetachResource = rpc.Call[JobsProviderDetachResourceRequest, util.Empty]{
 	BaseContext: jobProviderNamespace,
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesPrivileged,
-	Operation:   "detachFolder",
+	Operation:   "detachResource",
 }

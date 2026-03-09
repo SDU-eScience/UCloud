@@ -174,14 +174,14 @@ export interface OpenTerminalInFolderRequest {
     folder: string;
 }
 
-export interface AttachFolderRequest {
+export interface AttachResourceRequest {
     jobId: string;
-    folder: string;
+    resource: AppParameterValue;
 }
 
-export interface DetachFolderRequest {
+export interface DetachResourceRequest {
     jobId: string;
-    folder: string;
+    resource: AppParameterValue;
 }
 
 export interface InteractiveSession {
@@ -406,12 +406,12 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
         return apiRetrieve(request, this.baseContext, "settingsRetrieve")
     }
 
-    attachFolder(request: AttachFolderRequest): APICallParameters<AttachFolderRequest, any | null> {
-        return apiUpdate(request, this.baseContext, "attachFolder");
+    attachResource(request: AttachResourceRequest): APICallParameters<AttachResourceRequest, any | null> {
+        return apiUpdate(request, this.baseContext, "attachResource");
     }
 
-    detachFolder(request: DetachFolderRequest): APICallParameters<DetachFolderRequest, any | null> {
-        return apiUpdate(request, this.baseContext, "detachFolder");
+    detachResource(request: DetachResourceRequest): APICallParameters<DetachResourceRequest, any | null> {
+        return apiUpdate(request, this.baseContext, "detachResource");
     }
 }
 

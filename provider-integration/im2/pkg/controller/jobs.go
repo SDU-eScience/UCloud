@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	filepath "path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 	"sync"
@@ -43,8 +44,8 @@ type JobsService struct {
 	OpenWebSession           func(job *orcapi.Job, sessionType orcapi.InteractiveSessionType, rank int, target util.Option[string]) (ConfiguredWebSessionResult, *util.HttpError)
 	RequestDynamicParameters func(owner orcapi.ResourceOwner, app *orcapi.Application) []orcapi.ApplicationParameter
 	HandleBuiltInVnc         func(job *orcapi.Job, rank int, conn *ws.Conn)
-	AttachFolder             func(job *orcapi.Job, folder string, readOnly bool) *util.HttpError
-	DetachFolder             func(job *orcapi.Job, folder string) *util.HttpError
+	AttachResource           func(job *orcapi.Job, resource orcapi.AppParameterValue) *util.HttpError
+	DetachResource           func(job *orcapi.Job, resource orcapi.AppParameterValue) *util.HttpError
 
 	PublicIPs       PublicIPService
 	Ingresses       IngressService
@@ -118,6 +119,36 @@ type ShellEvent struct {
 
 type ShellEventInput struct {
 	Data string
+}
+
+func appParameterValuesMatch(a, b orcapi.AppParameterValue) bool {
+	if a.Type != b.Type {
+		return false
+	}
+
+	switch a.Type {
+	case orcapi.AppParameterValueTypeFile:
+		return filepath.Clean(a.Path) == filepath.Clean(b.Path)
+
+	case orcapi.AppParameterValueTypePeer:
+		return a.Hostname == b.Hostname && a.JobId == b.JobId
+
+	case orcapi.AppParameterValueTypeLicense,
+		orcapi.AppParameterValueTypeBlockStorage,
+		orcapi.AppParameterValueTypeNetwork,
+		orcapi.AppParameterValueTypeIngress,
+		orcapi.AppParameterValueTypePrivateNetwork:
+		return a.Id == b.Id
+
+	case orcapi.AppParameterValueTypeModuleList:
+		return slices.Equal(a.Modules, b.Modules)
+
+	case orcapi.AppParameterValueTypeWorkflow:
+		return reflect.DeepEqual(a.Specification, b.Specification)
+
+	default:
+		return reflect.DeepEqual(a.Value, b.Value)
+	}
 }
 
 type ShellEventResize struct {
@@ -741,34 +772,26 @@ func initJobs() {
 			return orcapi.JobsProviderRequestDynamicParametersResponse{Parameters: resp}, nil
 		})
 
-		orcapi.JobsProviderAttachFolder.Handler(func(info rpc.RequestInfo, request orcapi.JobsProviderAttachFolderRequest) (util.Empty, *util.HttpError) {
+		orcapi.JobsProviderAttachResource.Handler(func(info rpc.RequestInfo, request orcapi.JobsProviderAttachResourceRequest) (util.Empty, *util.HttpError) {
 			if !RunsServerCode() {
 				return util.Empty{}, util.HttpErr(http.StatusBadRequest, "operation not supported")
 			}
 
-			fn := Jobs.AttachFolder
+			fn := Jobs.AttachResource
 
 			err := util.HttpErr(http.StatusBadRequest, "operation not supported")
 			if fn != nil {
-				err = fn(&request.Job, request.Folder, request.ReadOnly)
+				err = fn(&request.Job, request.Resource)
 			}
 
 			if err == nil {
-				newMounts := []string{}
-				for _, resc := range request.Job.Specification.Resources {
-					if resc.Type == orcapi.AppParameterValueTypeFile {
-						newMounts = append(newMounts, resc.Path)
-					}
-				}
-
-				newMounts = append(newMounts, request.Folder)
-				request.Job.Specification.Resources = append(request.Job.Specification.Resources, orcapi.AppParameterValueFile(request.Folder, request.ReadOnly))
+				request.Job.Specification.Resources = append(request.Job.Specification.Resources, request.Resource)
 				JobTrackNew(request.Job)
 				_ = JobTrackRawUpdates([]orcapi.ResourceUpdateAndId[orcapi.JobUpdate]{
 					{
 						Id: request.Job.Id,
 						Update: orcapi.JobUpdate{
-							MountList: util.OptValue(newMounts),
+							ResourceList: util.OptValue(request.Job.Specification.Resources),
 						},
 					},
 				})
@@ -777,29 +800,21 @@ func initJobs() {
 			return util.Empty{}, err
 		})
 
-		orcapi.JobsProviderDetachFolder.Handler(func(info rpc.RequestInfo, request orcapi.JobsProviderDetachFolderRequest) (util.Empty, *util.HttpError) {
-			fn := Jobs.DetachFolder
+		orcapi.JobsProviderDetachResource.Handler(func(info rpc.RequestInfo, request orcapi.JobsProviderDetachResourceRequest) (util.Empty, *util.HttpError) {
+			fn := Jobs.DetachResource
 
 			err := util.HttpErr(http.StatusBadRequest, "operation not supported")
 			if fn != nil {
-				err = fn(&request.Job, request.Folder)
+				err = fn(&request.Job, request.Resource)
 			}
 
 			if err == nil {
-				newMounts := []string{}
 				newResources := []orcapi.AppParameterValue{}
 
 				for _, resc := range request.Job.Specification.Resources {
-					if resc.Type != orcapi.AppParameterValueTypeFile {
-						newResources = append(newResources, resc)
+					if appParameterValuesMatch(resc, request.Resource) {
 						continue
 					}
-
-					if filepath.Clean(resc.Path) == filepath.Clean(request.Folder) {
-						continue
-					}
-
-					newMounts = append(newMounts, resc.Path)
 					newResources = append(newResources, resc)
 				}
 
@@ -809,7 +824,7 @@ func initJobs() {
 					{
 						Id: request.Job.Id,
 						Update: orcapi.JobUpdate{
-							MountList: util.OptValue(newMounts),
+							ResourceList: util.OptValue(newResources),
 						},
 					},
 				})

@@ -46,8 +46,8 @@ func InitCompute() controller.JobsService {
 		Suspend:                  suspend,
 		Unsuspend:                unsuspend,
 		HandleBuiltInVnc:         handleBuiltInVnc,
-		AttachFolder:             attachFolder,
-		DetachFolder:             detachFolder,
+		AttachResource:           attachResource,
+		DetachResource:           detachResource,
 		PublicIPs: controller.PublicIPService{
 			Create:           createPublicIp,
 			Delete:           deletePublicIp,
@@ -437,19 +437,19 @@ func handleBuiltInVnc(job *orc.Job, rank int, conn *ws.Conn) {
 	}
 }
 
-func attachFolder(job *orc.Job, folder string, readOnly bool) *util.HttpError {
-	fn := backend(job).AttachFolder
+func attachResource(job *orc.Job, resource orc.AppParameterValue) *util.HttpError {
+	fn := backend(job).AttachResource
 	if fn != nil {
-		return fn(job, folder, readOnly)
+		return fn(job, resource)
 	} else {
 		return util.HttpErr(http.StatusBadRequest, "unsupported operation")
 	}
 }
 
-func detachFolder(job *orc.Job, folder string) *util.HttpError {
-	fn := backend(job).DetachFolder
+func detachResource(job *orc.Job, resource orc.AppParameterValue) *util.HttpError {
+	fn := backend(job).DetachResource
 	if fn != nil {
-		return fn(job, folder)
+		return fn(job, resource)
 	} else {
 		return util.HttpErr(http.StatusBadRequest, "unsupported operation")
 	}

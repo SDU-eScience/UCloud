@@ -292,9 +292,9 @@ export const VirtualMachineStatus: React.FunctionComponent<{
 
     const onFolderAdded = useCallback(async (newFolders: compute.AppParameterValueNS.File[], addedFolder: compute.AppParameterValueNS.File) => {
         try {
-            await invokeCommand(JobsApi.attachFolder({
+            await invokeCommand(JobsApi.attachResource({
                 jobId: job.id,
-                folder: addedFolder.path,
+                resource: addedFolder,
             }));
             setHasPendingFolderRestart(true);
         } catch (e) {
@@ -305,9 +305,9 @@ export const VirtualMachineStatus: React.FunctionComponent<{
 
     const onFolderRemoved = useCallback(async (newFolders: compute.AppParameterValueNS.File[], removedFolder: compute.AppParameterValueNS.File) => {
         try {
-            await invokeCommand(JobsApi.detachFolder({
+            await invokeCommand(JobsApi.detachResource({
                 jobId: job.id,
-                folder: removedFolder.path,
+                resource: removedFolder,
             }));
             setHasPendingFolderRestart(true);
         } catch (e) {

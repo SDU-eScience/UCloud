@@ -165,17 +165,16 @@ func initJobs() {
 		}
 
 		for jobId, updates := range updatesById {
-			newFileResources := util.OptNone[[]orcapi.AppParameterValue]()
+			validatedResources := util.OptNone[[]orcapi.AppParameterValue]()
 			{
-				mountList := util.OptNone[[]string]()
+				resourceList := util.OptNone[[]orcapi.AppParameterValue]()
 				for _, update := range updates {
-					if update.MountList.Present {
-						mountList.Set(update.MountList.Value)
+					if update.ResourceList.Present {
+						resourceList.Set(update.ResourceList.Value)
 					}
 				}
 
-				if mountList.Present {
-
+				if resourceList.Present {
 					job, err := JobsRetrieve(info.Actor, jobId, orcapi.JobFlags{
 						ResourceFlags:      orcapi.ResourceFlagsIncludeAll(),
 						IncludeApplication: true,
@@ -187,13 +186,12 @@ func initJobs() {
 							toolBackend := job.Status.ResolvedApplication.Value.Invocation.Tool.Tool.Value.Description.Backend
 							jobOwner, ok := rpc.LookupActor(job.Owner.CreatedBy)
 							if ok {
-								newFileResources.Present = true
+								validatedResources.Present = true
 
-								for _, path := range mountList.Value {
-									value := orcapi.AppParameterValueFile(path, false)
+								for _, value := range resourceList.Value {
 									err = jobValidateValue(jobOwner, &value, toolBackend, support)
 									if err == nil {
-										newFileResources.Value = append(newFileResources.Value, value)
+										validatedResources.Value = append(validatedResources.Value, value)
 									}
 								}
 							}
@@ -250,15 +248,8 @@ func initJobs() {
 							job.TimeAllocation.Set(orcapi.SimpleDurationFromMillis(update.NewTimeAllocation.Value))
 						}
 
-						if newFileResources.Present {
-							newResources := []orcapi.AppParameterValue{}
-							for _, param := range job.Resources {
-								if param.Type != orcapi.AppParameterValueTypeFile {
-									newResources = append(newResources, param)
-								}
-							}
-
-							job.Resources = util.Combined(newResources, newFileResources.Value)
+						if validatedResources.Present {
+							job.Resources = validatedResources.Value
 						}
 
 						job.Updates = append(job.Updates, update)
@@ -569,45 +560,39 @@ func initJobs() {
 		return fndapi.BulkResponse[util.Empty]{Responses: make([]util.Empty, len(request.Items))}, nil
 	})
 
-	orcapi.JobsAttachFolder.Handler(func(info rpc.RequestInfo, request orcapi.JobsAttachFolderRequest) (util.Empty, *util.HttpError) {
-		driveId, ok := orcapi.DriveIdFromUCloudPath(request.Folder)
-		if !ok {
-			return util.Empty{}, util.HttpErr(http.StatusNotFound, "invalid folder requested: %s", request.Folder)
-		}
-
-		drive, _, _, err := ResourceRetrieveEx[orcapi.Drive](
-			info.Actor,
-			driveType,
-			ResourceParseId(driveId),
-			orcapi.PermissionRead,
-			orcapi.ResourceFlags{IncludeOthers: true},
-		)
-
-		if err != nil {
-			return util.Empty{}, util.HttpErr(http.StatusNotFound, "invalid folder requested: %s", request.Folder)
-		}
-
+	orcapi.JobsAttachResource.Handler(func(info rpc.RequestInfo, request orcapi.JobsAttachResourceRequest) (util.Empty, *util.HttpError) {
 		resc, _, _, err := ResourceRetrieveEx[orcapi.Job](
 			info.Actor,
 			jobType,
 			ResourceParseId(request.JobId),
 			orcapi.PermissionEdit,
-			orcapi.ResourceFlags{IncludeProduct: true},
+			orcapi.ResourceFlagsIncludeAll(),
 		)
 
 		if err != nil {
 			return util.Empty{}, util.HttpErr(http.StatusNotFound, "permission denied or job not found (%v)", request.JobId)
 		}
 
+		support, ok := SupportByProduct[orcapi.JobSupport](jobType, resc.Specification.Product)
+		if !ok {
+			return util.Empty{}, util.HttpErr(http.StatusBadRequest, "bad machine type requested")
+		}
+
+		resource := request.Resource
+		toolBackend := resc.Status.ResolvedApplication.Value.Invocation.Tool.Tool.Value.Description.Backend
+		err = jobValidateValue(info.Actor, &resource, toolBackend, support)
+		if err != nil {
+			return util.Empty{}, err
+		}
+
 		provider := resc.Specification.Product.Provider
 
 		_, err = InvokeProvider(
 			provider,
-			orcapi.JobsProviderAttachFolder,
-			orcapi.JobsProviderAttachFolderRequest{
+			orcapi.JobsProviderAttachResource,
+			orcapi.JobsProviderAttachResourceRequest{
 				Job:      resc,
-				Folder:   request.Folder,
-				ReadOnly: !slices.Contains(drive.Permissions.Value.Myself, orcapi.PermissionEdit),
+				Resource: resource,
 			},
 			ProviderCallOpts{
 				Username: util.OptValue(info.Actor.Username),
@@ -618,44 +603,40 @@ func initJobs() {
 		return util.Empty{}, err
 	})
 
-	orcapi.JobsDetachFolder.Handler(func(info rpc.RequestInfo, request orcapi.JobsDetachFolderRequest) (util.Empty, *util.HttpError) {
-		driveId, ok := orcapi.DriveIdFromUCloudPath(request.Folder)
-		if !ok {
-			return util.Empty{}, util.HttpErr(http.StatusNotFound, "invalid folder requested: %s", request.Folder)
-		}
-
-		_, _, _, err := ResourceRetrieveEx[orcapi.Drive](
-			info.Actor,
-			driveType,
-			ResourceParseId(driveId),
-			orcapi.PermissionRead,
-			orcapi.ResourceFlags{IncludeOthers: true},
-		)
-
-		if err != nil {
-			return util.Empty{}, util.HttpErr(http.StatusNotFound, "invalid folder requested: %s", request.Folder)
-		}
+	orcapi.JobsDetachResource.Handler(func(info rpc.RequestInfo, request orcapi.JobsDetachResourceRequest) (util.Empty, *util.HttpError) {
+		resource := request.Resource
 
 		resc, _, _, err := ResourceRetrieveEx[orcapi.Job](
 			info.Actor,
 			jobType,
 			ResourceParseId(request.JobId),
 			orcapi.PermissionEdit,
-			orcapi.ResourceFlags{IncludeProduct: true},
+			orcapi.ResourceFlagsIncludeAll(),
 		)
 
 		if err != nil {
 			return util.Empty{}, util.HttpErr(http.StatusNotFound, "permission denied or job not found (%v)", request.JobId)
 		}
 
+		support, ok := SupportByProduct[orcapi.JobSupport](jobType, resc.Specification.Product)
+		if !ok {
+			return util.Empty{}, util.HttpErr(http.StatusBadRequest, "bad machine type requested")
+		}
+
+		toolBackend := resc.Status.ResolvedApplication.Value.Invocation.Tool.Tool.Value.Description.Backend
+		err = jobValidateValue(info.Actor, &resource, toolBackend, support)
+		if err != nil {
+			return util.Empty{}, err
+		}
+
 		provider := resc.Specification.Product.Provider
 
 		_, err = InvokeProvider(
 			provider,
-			orcapi.JobsProviderDetachFolder,
-			orcapi.JobsProviderDetachFolderRequest{
-				Job:    resc,
-				Folder: request.Folder,
+			orcapi.JobsProviderDetachResource,
+			orcapi.JobsProviderDetachResourceRequest{
+				Job:      resc,
+				Resource: resource,
 			},
 			ProviderCallOpts{
 				Username: util.OptValue(info.Actor.Username),
