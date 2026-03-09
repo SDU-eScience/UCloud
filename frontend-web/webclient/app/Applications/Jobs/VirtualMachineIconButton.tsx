@@ -2,12 +2,12 @@ import * as React from "react";
 import {injectStyle} from "@/Unstyled";
 import Icon, {IconName} from "@/ui-components/Icon";
 import {TooltipV2} from "@/ui-components/Tooltip";
+import {ThemeColor} from "@/ui-components/theme";
 
 const style = injectStyle("vm-icon-button", k => `
     ${k} {
         border: 0;
         background: transparent;
-        color: var(--textSecondary);
         cursor: pointer;
         display: inline-flex;
         align-items: center;
@@ -33,10 +33,12 @@ export const VirtualMachineIconButton: React.FunctionComponent<{
     tooltip: string;
     onClick: () => void;
     icon: IconName;
+    color?: ThemeColor;
 }> = props => {
+    const color = props.color ?? "textSecondary";
     return <TooltipV2 tooltip={props.tooltip}>
         <button type="button" className={style} onClick={props.onClick} aria-label={props.tooltip}>
-            <Icon name={props.icon} />
+            <Icon name={props.icon} color={color} />
         </button>
     </TooltipV2>
 }

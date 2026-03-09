@@ -1,7 +1,7 @@
 import * as React from "react";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import * as Heading from "@/ui-components/Heading";
-import {Box, Button, Card, Flex, Icon, Link} from "@/ui-components";
+import {Box, Button, Card, Flex, Icon, Input, Link} from "@/ui-components";
 import {classConcat, injectStyle} from "@/Unstyled";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {copyToClipboard, displayErrorMessageOrDefault, doNothing, shortUUID} from "@/UtilityFunctions";
@@ -404,9 +404,13 @@ export const VirtualMachineStatus: React.FunctionComponent<{
         if (resource.type === "network") setAccessPublicIps(prev => update(prev));
     }, []);
 
-    const attachAccessResource = useCallback(async (resource: compute.AppParameterValue) => {
+    const attachAccessResource = useCallback(async (resource: compute.AppParameterValue, extra?: string) => {
         setAccessResourcesByType(resource, "attach");
         try {
+            if (resource.type === "ingress" && extra) {
+                resource.port = parseInt(extra);
+            }
+
             await invokeCommand(JobsApi.attachResource({jobId: job.id, resource}));
             setHasPendingAccessRestart(true);
         } catch (e) {
@@ -428,13 +432,13 @@ export const VirtualMachineStatus: React.FunctionComponent<{
     }, [invokeCommand, job.id, setAccessResourcesByType]);
 
     const publicLinkSelector = useMemo(() => {
-        return (onSelect: (resource: compute.AppParameterValue) => void) => {
+        return (onSelect: (resource: compute.AppParameterValue, title: string) => void) => {
             return <PublicLinkBrowse
                 opts={{
                     selection: {
                         text: "Attach",
                         onClick: (link) => {
-                            onSelect({type: "ingress", id: link.id});
+                            onSelect({type: "ingress", id: link.id}, link.specification.domain);
                         },
                         show: res => {
                             if (res.specification.product.provider !== job.specification.product.provider) {
@@ -466,13 +470,13 @@ export const VirtualMachineStatus: React.FunctionComponent<{
     }, []);
 
     const privateNetworkSelector = useMemo(() => {
-        return (onSelect: (resource: compute.AppParameterValue) => void) => {
+        return (onSelect: (resource: compute.AppParameterValue, title: string) => void) => {
             return <PrivateNetworkBrowse
                 opts={{
                     selection: {
                         text: "Attach",
                         onClick: network => {
-                            onSelect({type: "private_network", id: network.id});
+                            onSelect({type: "private_network", id: network.id}, network.specification.name);
                         },
                         show: res => {
                             if (res.specification.product.provider !== job.specification.product.provider) {
@@ -503,13 +507,13 @@ export const VirtualMachineStatus: React.FunctionComponent<{
     }, []);
 
     const publicIpSelector = useMemo(() => {
-        return (onSelect: (resource: compute.AppParameterValue) => void) => {
+        return (onSelect: (resource: compute.AppParameterValue, title: string) => void) => {
             return <NetworkIPBrowse
                 opts={{
                     selection: {
                         text: "Attach",
                         onClick: ip => {
-                            onSelect({type: "network", id: ip.id});
+                            onSelect({type: "network", id: ip.id}, ip.status.ipAddress ?? "");
                         },
                         show: res => {
                             if (res.specification.product.provider !== job.specification.product.provider) {
@@ -699,6 +703,7 @@ export const VirtualMachineStatus: React.FunctionComponent<{
                     onAttach={attachAccessResource}
                     onRemove={detachAccessResource}
                     labelForResource={resource => vmAccessResourceLabel(resource, publicLinksById, privateNetworksById, publicIpsById)}
+                    inlineCreationLabel={"Port"}
                 />
             }
             {accessDialog !== "private_network" ? null :
@@ -969,21 +974,48 @@ const VmAccessResourceManagerDialog: React.FunctionComponent<{
     selectTitle: string;
     attached: compute.AppParameterValue[];
     emptyMessage: string;
-    renderSelector: (onSelect: (resource: compute.AppParameterValue) => void) => React.ReactNode;
-    onAttach: (resource: compute.AppParameterValue) => Promise<void>;
+    renderSelector: (onSelect: (resource: compute.AppParameterValue, title: string) => void) => React.ReactNode;
+    onAttach: (resource: compute.AppParameterValue, inlineCreationValue?: string) => Promise<void>;
     onRemove: (resource: compute.AppParameterValue) => Promise<void>;
     labelForResource: (resource: compute.AppParameterValue) => string;
-}> = ({title, selectTitle, attached, emptyMessage, renderSelector, onAttach, onRemove, labelForResource}) => {
+    inlineCreationLabel?: string;
+}> = ({title, selectTitle, attached, emptyMessage, renderSelector, onAttach, onRemove, labelForResource, inlineCreationLabel}) => {
     const [isSelecting, setIsSelecting] = useState(false);
+    const [inlineCreationValue, setInlineCreationValue] = useState("");
+    const [inlineResourceBeingCreated, setInlineResourceBeingCreated] = useState<compute.AppParameterValue | null>(null);
+    const [inlineTitle, setInlineTitle] = useState<string | null>(null);
+
+    const closeInlineCreation = useCallback(() => {
+        setInlineCreationValue("");
+        setInlineResourceBeingCreated(null);
+        setInlineTitle(null);
+    }, []);
+
+    const onInlineCreationConfirm = useCallback((e?: React.SyntheticEvent) => {
+        e?.preventDefault();
+        if (inlineResourceBeingCreated) {
+            onAttach(inlineResourceBeingCreated, inlineCreationValue);
+        }
+        closeInlineCreation();
+    }, [inlineResourceBeingCreated, inlineCreationValue, closeInlineCreation]);
 
     const onAddResource = useCallback(() => {
         setIsSelecting(true);
     }, []);
 
-    const onSelectFromBrowse = useCallback((resource: compute.AppParameterValue) => {
+    const onSelectFromBrowse = useCallback((resource: compute.AppParameterValue, title: string) => {
         setIsSelecting(false);
-        onAttach(resource);
-    }, [onAttach]);
+        if (inlineCreationLabel) {
+            setInlineResourceBeingCreated(resource);
+            setInlineTitle(title);
+        } else {
+            onAttach(resource);
+        }
+    }, [onAttach, inlineCreationLabel]);
+
+    const inlineCreationOnChange = useCallback((e: React.SyntheticEvent) => {
+        setInlineCreationValue((e.target as HTMLInputElement).value);
+    }, []);
 
     const onBackToManage = useCallback(() => {
         setIsSelecting(false);
@@ -1006,6 +1038,8 @@ const VmAccessResourceManagerDialog: React.FunctionComponent<{
         </div>;
     }
 
+    const isEmpty = inlineResourceBeingCreated === null && attached.length === 0;
+
     return <div className={VmAccessManagerDialogBody}>
         <div className={VmAccessManagerHeader}>
             <Heading.h3>{title}</Heading.h3>
@@ -1014,10 +1048,30 @@ const VmAccessResourceManagerDialog: React.FunctionComponent<{
             </div>
         </div>
 
-        {attached.length === 0 ? (
+        {isEmpty ? (
             <Box color="textSecondary">{emptyMessage}</Box>
         ) : (
             <div className={VmAccessManagerList}>
+                {inlineResourceBeingCreated === null ? null :
+                    <Flex gap={"8px"} alignItems={"center"}>
+                        <Box flexGrow={1}>{inlineTitle}</Box>
+                        <form onSubmit={onInlineCreationConfirm}>
+                            <Input autoFocus={true} width={"150px"} placeholder={inlineCreationLabel} value={inlineCreationValue} onChange={inlineCreationOnChange} />
+                        </form>
+                        <VirtualMachineIconButton
+                            tooltip={"Confirm"}
+                            onClick={onInlineCreationConfirm}
+                            icon={"heroCheck"}
+                            color={"successMain"}
+                        />
+                        <VirtualMachineIconButton
+                            tooltip={"Cancel"}
+                            onClick={closeInlineCreation}
+                            icon={"heroMinus"}
+                            color={"errorMain"}
+                        />
+                    </Flex>
+                }
                 {attached.map((resource, idx) => (
                     <Flex key={`${vmAccessResourceKey(resource)}-${idx}`} gap={"8px"}>
                         <Box flexGrow={1}>{labelForResource(resource)}</Box>
