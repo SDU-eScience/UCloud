@@ -44,38 +44,36 @@ TestContexts.map(ctx => {
             if (!userCtx) await Drive.delete(page, driveName);
         });
 
-        test.describe("Drives - check change permissions works", () => {
-            test("check change permissions works", async ({page: adminPage, browser}) => {
-                if (ctx === "Project User" || ctx === "Personal Workspace") test.skip();
+        test("Drives - check change permissions works", async ({page: adminPage, browser}) => {
+            if (ctx === "Project User" || ctx === "Personal Workspace") test.skip();
 
-                const userPage = await (await browser.newContext()).newPage();
-                if (!userPage) throw Error("Failed to create user page");
-                const userInfo = ctxUser("Project User")!;
-                const projectName = sharedTestProjectName();
-                await User.login(userPage, userInfo);
+            const userPage = await (await browser.newContext()).newPage();
+            if (!userPage) throw Error("Failed to create user page");
+            const userInfo = ctxUser("Project User")!;
+            const projectName = sharedTestProjectName();
+            await User.login(userPage, userInfo);
 
-                // Create drive
-                const driveName = Drive.newDriveNameOrMemberFiles(ctx);
-                // Project User will not reach here, so we can safely create
-                await Drive.create(adminPage, driveName);
+            // Create drive
+            const driveName = Drive.newDriveNameOrMemberFiles(ctx);
+            // Project User will not reach here, so we can safely create
+            await Drive.create(adminPage, driveName);
 
-                // See that drive is not visible for project user
-                await Project.changeTo(userPage, projectName);
-                await Drive.goToDrives(userPage);
-                /* TODO(Jonas): Find a different approach */
-                await userPage.waitForLoadState("networkidle");
+            // See that drive is not visible for project user
+            await Project.changeTo(userPage, projectName);
+            await Drive.goToDrives(userPage);
+            /* TODO(Jonas): Find a different approach */
+            await userPage.waitForLoadState("networkidle");
 
-                // Change rights for user to allow viewing
-                await Drive.openPermissions(adminPage, driveName);
-                await adminPage.locator(`div[data-group='All users']`).locator("#Read").click();
+            // Change rights for user to allow viewing
+            await Drive.openPermissions(adminPage, driveName);
+            await adminPage.locator(`div[data-group='All users']`).locator("#Read").click();
 
-                // Reload drives for user, see drive appears
-                await userPage.waitForTimeout(1_000)
-                await Components.clickRefreshAndWait(userPage);
-                await Rows.actionByRowTitle(userPage, driveName, "hover");
+            // Reload drives for user, see drive appears
+            await userPage.waitForTimeout(1_000)
+            await Components.clickRefreshAndWait(userPage);
+            await Rows.actionByRowTitle(userPage, driveName, "hover");
 
-                await Drive.delete(adminPage, driveName);
-            });
+            await Drive.delete(adminPage, driveName);
         });
     });
 });
