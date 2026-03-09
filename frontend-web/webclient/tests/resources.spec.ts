@@ -25,50 +25,46 @@ TestContexts.map(ctx => {
             });
 
 
-            test.describe("interface(s) connectivity", () => {
-                test("Create public link, mount link for job, open interface, check that link is available, stop job, delete public link", async ({page}) => {
-                    test.setTimeout(120_000);
-                    const publicLinkName = await PublicLinks.createNew(page);
-                    await Applications.openAppBySearch(page, Applications.AppNames.TestApplication);
-                    await Components.selectAvailableMachineType(page);
-                    await Runs.JobResources.addPublicLink(page, publicLinkName);
-                    await Runs.submitAndWaitForRunning(page);
+            test("interface(s) connectivity", async ({page}) => {
+                test.setTimeout(120_000);
+                const publicLinkName = await PublicLinks.createNew(page);
+                await Applications.openAppBySearch(page, Applications.AppNames.TestApplication);
+                await Components.selectAvailableMachineType(page);
+                await Runs.JobResources.addPublicLink(page, publicLinkName);
+                await Runs.submitAndWaitForRunning(page);
 
-                    const interfacePage = page.waitForEvent("popup");
-                    await page.getByRole("link", {name: "Open interface", exact: true}).click();
-                    const followedInterface = await interfacePage;
-                    await followedInterface.getByText("Directory listing for /").hover();
-                    await followedInterface.close();
+                const interfacePage = page.waitForEvent("popup");
+                await page.getByRole("link", {name: "Open interface", exact: true}).click();
+                const followedInterface = await interfacePage;
+                await followedInterface.getByText("Directory listing for /").hover();
+                await followedInterface.close();
 
-                    await page.getByText("Links (1)").click();
-                    const publicLinkPagePromise = page.waitForEvent("popup");
-                    await page.getByRole("link", {name: publicLinkName, exact: false}).click();
-                    const followedPublicLink = await publicLinkPagePromise;
-                    await followedPublicLink.getByText("Directory listing for /").hover();
-                    await followedPublicLink.close();
+                await page.getByText("Links (1)").click();
+                const publicLinkPagePromise = page.waitForEvent("popup");
+                await page.getByRole("link", {name: publicLinkName, exact: false}).click();
+                const followedPublicLink = await publicLinkPagePromise;
+                await followedPublicLink.getByText("Directory listing for /").hover();
+                await followedPublicLink.close();
 
-                    await Runs.terminateViewedRun(page);
+                await Runs.terminateViewedRun(page);
 
-                    await Resources.goTo(page, "Links");
-                    await PublicLinks.delete(page, publicLinkName);
-                });
+                await Resources.goTo(page, "Links");
+                await PublicLinks.delete(page, publicLinkName);
             });
         });
 
         /* Resources.IPs */
-        test.describe("Public IPs - check public IPs work", () => {
-            test("Create public IP, view properties, attach to job, ensure it's visible on job/properties-page", async ({page}) => {
-                const publicIp = await IPs.createNew(page);
-                await Rows.actionByRowTitle(page, publicIp, "dblclick");
+        test("Public IPs - check public IPs work", async ({page}) => {
+            const publicIp = await IPs.createNew(page);
+            await Rows.actionByRowTitle(page, publicIp, "dblclick");
 
-                await Applications.goToApplications(page);
-                await Applications.openAppBySearch(page, "Test application");
-                await Components.selectAvailableMachineType(page);
-                await Runs.JobResources.addPublicIP(page, publicIp);
-                await Runs.submitAndWaitForRunning(page);
-                await page.getByText(`Successfully attached the following IP addresses: ${publicIp}`).hover();
-                await Runs.terminateViewedRun(page);
-            });
+            await Applications.goToApplications(page);
+            await Applications.openAppBySearch(page, "Test application");
+            await Components.selectAvailableMachineType(page);
+            await Runs.JobResources.addPublicIP(page, publicIp);
+            await Runs.submitAndWaitForRunning(page);
+            await page.getByText(`Successfully attached the following IP addresses: ${publicIp}`).hover();
+            await Runs.terminateViewedRun(page);
         });
 
         test("Create ssh key, delete ssh key", async ({page}) => {
@@ -79,32 +75,30 @@ TestContexts.map(ctx => {
             await expect(page.getByText(sshkey)).toHaveCount(0);
         });
 
-        test.describe("SSH - check SSH connections work", () => {
-            test("Create SSH key, add to job, poll job through terminal to validate it being present, delete key, stop run", async ({page}) => {
-                test.setTimeout(60_000);
-                await Resources.goTo(page, "SSH keys");
-                const sshkey = await SSHKeys.createNew(page);
-                await Applications.openAppBySearch(page, "Test application");
-                await Components.selectAvailableMachineType(page);
-                await Runs.JobResources.toggleEnableSSHServer(page);
-                const jobname = Runs.newJobName();
-                await Runs.setJobTitle(page, jobname);
-                await Runs.submitAndWaitForRunning(page);
+        test("SSH - check SSH connections work", async ({page}) => {
+            test.setTimeout(60_000);
+            await Resources.goTo(page, "SSH keys");
+            const sshkey = await SSHKeys.createNew(page);
+            await Applications.openAppBySearch(page, "Test application");
+            await Components.selectAvailableMachineType(page);
+            await Runs.JobResources.toggleEnableSSHServer(page);
+            const jobname = Runs.newJobName();
+            await Runs.setJobTitle(page, jobname);
+            await Runs.submitAndWaitForRunning(page);
 
-                // check for tab that contains ssh
-                await page.locator("nav > div:nth-child(4)").click();
-                const terminalPage = await Runs.openTerminal(page);
+            // check for tab that contains ssh
+            await page.locator("nav > div:nth-child(4)").click();
+            const terminalPage = await Runs.openTerminal(page);
 
-                await Terminal.enterCmd(terminalPage, "cat /etc/ucloud/ssh/authorized_keys.ucloud");
-                await terminalPage.getByText(Resources.SSHKeys.DefaultSSHKey).first().hover();
-                await terminalPage.close();
+            await Terminal.enterCmd(terminalPage, "cat /etc/ucloud/ssh/authorized_keys.ucloud");
+            await terminalPage.getByText(Resources.SSHKeys.DefaultSSHKey).first().hover();
+            await terminalPage.close();
 
-                await Runs.terminateViewedRun(page);
+            await Runs.terminateViewedRun(page);
 
-                await Resources.goTo(page, "SSH keys");
-                await SSHKeys.delete(page, sshkey);
+            await Resources.goTo(page, "SSH keys");
+            await SSHKeys.delete(page, sshkey);
 
-            });
         });
     });
 });
