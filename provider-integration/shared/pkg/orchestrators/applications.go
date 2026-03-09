@@ -2,6 +2,9 @@ package orchestrators
 
 import (
 	"encoding/json"
+	"path/filepath"
+	"reflect"
+	"slices"
 
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/util"
@@ -504,6 +507,36 @@ type AppParameterValue struct {
 	Specification WorkflowSpecification `json:"specification" yaml:"specification"`
 	Modules       []string              `json:"modules" yaml:"modules"`
 	Port          int                   `json:"port" yaml:"port"`
+}
+
+func (a *AppParameterValue) Equal(b AppParameterValue) bool {
+	if a.Type != b.Type {
+		return false
+	}
+
+	switch a.Type {
+	case AppParameterValueTypeFile:
+		return filepath.Clean(a.Path) == filepath.Clean(b.Path)
+
+	case AppParameterValueTypePeer:
+		return a.Hostname == b.Hostname && a.JobId == b.JobId
+
+	case AppParameterValueTypeLicense,
+		AppParameterValueTypeBlockStorage,
+		AppParameterValueTypeNetwork,
+		AppParameterValueTypeIngress,
+		AppParameterValueTypePrivateNetwork:
+		return a.Id == b.Id
+
+	case AppParameterValueTypeModuleList:
+		return slices.Equal(a.Modules, b.Modules)
+
+	case AppParameterValueTypeWorkflow:
+		return reflect.DeepEqual(a.Specification, b.Specification)
+
+	default:
+		return reflect.DeepEqual(a.Value, b.Value)
+	}
 }
 
 type AppParameterValueType string

@@ -659,7 +659,7 @@ func PublicIpBindToJob(job *orc.Job) ([]orc.PublicIp, []net.IP, error) {
 			if len(ip.Status.BoundTo) > 0 {
 				for _, jobId := range ip.Status.BoundTo {
 					boundtoJob, ok := JobRetrieve(jobId)
-					if ok && !boundtoJob.Status.State.IsFinal() {
+					if jobId != job.Id && ok && !boundtoJob.Status.State.IsFinal() {
 						err = util.UserHttpError(
 							"%s (%v) is already bound to job %s",
 							ip.Status.IpAddress.Value,

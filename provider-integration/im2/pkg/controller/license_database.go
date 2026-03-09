@@ -517,6 +517,19 @@ func LicenseBuildParameter(id string) string {
 	return result
 }
 
+func LicenseRetrieveInstance(id string) (*orc.License, bool) {
+	licenseMutex.Lock()
+	license, ok := licenses[id]
+	licenseMutex.Unlock()
+
+	if ok {
+		copied := *license
+		return &copied, ok
+	} else {
+		return &orc.License{}, false
+	}
+}
+
 func licenseCliPrintHelp() {
 	f := termio.Frame{}
 

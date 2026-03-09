@@ -249,7 +249,22 @@ func initJobs() {
 						}
 
 						if validatedResources.Present {
+							oldResources := job.Resources
 							job.Resources = validatedResources.Value
+
+							for _, old := range oldResources {
+								found := false
+								for _, newResource := range job.Resources {
+									if old.Equal(newResource) {
+										found = true
+										break
+									}
+								}
+
+								if !found {
+									jobUnbindResource(jobId, old)
+								}
+							}
 						}
 
 						job.Updates = append(job.Updates, update)

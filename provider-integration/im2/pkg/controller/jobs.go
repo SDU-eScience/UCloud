@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	filepath "path/filepath"
-	"reflect"
 	"slices"
 	"strings"
 	"sync"
@@ -119,36 +117,6 @@ type ShellEvent struct {
 
 type ShellEventInput struct {
 	Data string
-}
-
-func appParameterValuesMatch(a, b orcapi.AppParameterValue) bool {
-	if a.Type != b.Type {
-		return false
-	}
-
-	switch a.Type {
-	case orcapi.AppParameterValueTypeFile:
-		return filepath.Clean(a.Path) == filepath.Clean(b.Path)
-
-	case orcapi.AppParameterValueTypePeer:
-		return a.Hostname == b.Hostname && a.JobId == b.JobId
-
-	case orcapi.AppParameterValueTypeLicense,
-		orcapi.AppParameterValueTypeBlockStorage,
-		orcapi.AppParameterValueTypeNetwork,
-		orcapi.AppParameterValueTypeIngress,
-		orcapi.AppParameterValueTypePrivateNetwork:
-		return a.Id == b.Id
-
-	case orcapi.AppParameterValueTypeModuleList:
-		return slices.Equal(a.Modules, b.Modules)
-
-	case orcapi.AppParameterValueTypeWorkflow:
-		return reflect.DeepEqual(a.Specification, b.Specification)
-
-	default:
-		return reflect.DeepEqual(a.Value, b.Value)
-	}
 }
 
 type ShellEventResize struct {
@@ -812,10 +780,33 @@ func initJobs() {
 				newResources := []orcapi.AppParameterValue{}
 
 				for _, resc := range request.Job.Specification.Resources {
-					if appParameterValuesMatch(resc, request.Resource) {
+					if resc.Equal(request.Resource) {
 						continue
 					}
 					newResources = append(newResources, resc)
+				}
+
+				switch request.Resource.Type {
+				case orcapi.AppParameterValueTypeIngress:
+					link := LinkRetrieve(request.Resource.Id)
+					if link.Id != "" {
+						link.Status.BoundTo = util.RemoveFirst(link.Status.BoundTo, request.Job.Id)
+						LinkTrack(link)
+					}
+
+				case orcapi.AppParameterValueTypeNetwork:
+					ip, ok := PublicIpRetrieve(request.Resource.Id)
+					if ok {
+						ip.Status.BoundTo = util.RemoveFirst(ip.Status.BoundTo, request.Job.Id)
+						PublicIpTrackNew(*ip)
+					}
+
+				case orcapi.AppParameterValueTypeLicense:
+					license, ok := LicenseRetrieveInstance(request.Resource.Id)
+					if ok {
+						license.Status.BoundTo = util.RemoveFirst(license.Status.BoundTo, request.Job.Id)
+						LicenseTrack(*license)
+					}
 				}
 
 				request.Job.Specification.Resources = newResources
