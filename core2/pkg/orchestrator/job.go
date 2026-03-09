@@ -265,6 +265,20 @@ func initJobs() {
 									jobUnbindResource(jobId, old)
 								}
 							}
+
+							for _, newResource := range job.Resources {
+								found := false
+								for _, old := range oldResources {
+									if old.Equal(newResource) {
+										found = true
+										break
+									}
+								}
+
+								if !found {
+									jobBindResource(jobId, newResource)
+								}
+							}
 						}
 
 						job.Updates = append(job.Updates, update)
