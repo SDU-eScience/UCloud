@@ -26,7 +26,7 @@ test("Ensure data protection link works", async ({page}) => {
     const dataProtectionPagePromise = page.waitForEvent("popup");
     await page.getByText("SDU Data Protection").click();
     const dataProtectionPage = await dataProtectionPagePromise;
-    await expect(dataProtectionPage.getByText("Databeskyttelse")).toHaveCount(1);
+    await dataProtectionPage.getByText("Data protection at SDU").first().waitFor();
     expect(dataProtectionPage.url()).toMatch("https://www.sdu.dk/en/om_dette_websted/databeskyttelse");
     await dataProtectionPage.close();
     await page.close();

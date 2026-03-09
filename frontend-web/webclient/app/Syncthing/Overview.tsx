@@ -310,6 +310,11 @@ const NewOverview: React.FunctionComponent = () => {
         deviceToggleSet.uncheckAll();
     }, [uiState.devices]);
 
+    const eTagRef = useRef(uiState.etag);
+    React.useEffect(() => {
+        eTagRef.current = uiState.etag;
+    }, [uiState.etag])
+
     useEffect(() => {
         let didCancel = false;
         (async () => {
@@ -320,7 +325,7 @@ const NewOverview: React.FunctionComponent = () => {
                 await callAPI(Sync.api.updateConfiguration({
                     productId: selectedProduct.product.name,
                     provider: provider,
-                    expectedETag: uiState.etag,
+                    expectedETag: eTagRef.current,
                     config: {
                         devices: devices,
                         folders: folders,

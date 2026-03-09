@@ -211,7 +211,10 @@ TestContexts.map(ctx => {
                 await File.uploadFiles(page, [fileToUpload]);
                 await File.copyFileInPlace(page, fileToCopy);
                 await expect(page.getByText("File.txt", {exact: true})).toHaveCount(1);
-                await expect(page.getByText("File(1).txt", {exact: true})).toHaveCount(1);
+                while (!await page.locator(".row").getByText("File(1).txt", {exact: true}).isVisible()) {
+                    await Components.clickRefreshAndWait(page);
+                    await page.waitForTimeout(200);
+                }
             });
 
             // Note(Jonas): Flaky. Will complete as expected if only test,

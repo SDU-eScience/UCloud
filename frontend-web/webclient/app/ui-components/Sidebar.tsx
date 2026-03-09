@@ -879,20 +879,19 @@ function SecondarySidebar({
 
     const canConsume = checkCanConsumeResources(projectId ?? null, {api: FilesApi});
     useEffect(() => {
-        (async () => {
-            const discoverHasChanged =
-                discoveryMode.discovery !== oldDiscoveryMode.current?.discovery ||
-                discoveryMode.selected !== oldDiscoveryMode.current?.selected;
+        const wasReset = landingPage === AppStore.emptyLandingPage;
+        const discoverHasChanged =
+            discoveryMode.discovery !== oldDiscoveryMode.current?.discovery ||
+            discoveryMode.selected !== oldDiscoveryMode.current?.selected;
 
-            const projectHasChanged = oldProjectId.current != projectId;
+        const projectHasChanged = oldProjectId.current != projectId;
 
-            if (discoverHasChanged || projectHasChanged) {
-                callAPI(AppStore.retrieveLandingPage(discoveryMode)).then(setLandingPage);
-            }
+        if (discoverHasChanged || projectHasChanged || wasReset) {
+            callAPI(AppStore.retrieveLandingPage(discoveryMode)).then(setLandingPage);
+        }
 
-            oldDiscoveryMode.current = discoveryMode;
-            oldProjectId.current = projectId ?? null;
-        })();
+        oldDiscoveryMode.current = discoveryMode;
+        oldProjectId.current = projectId ?? null;
     }, [projectId, discoveryMode, landingPage]);
 
     useEffectSkipMount(() => {
