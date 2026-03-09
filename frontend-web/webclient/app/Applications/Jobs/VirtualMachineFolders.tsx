@@ -12,6 +12,8 @@ import {UFile} from "@/UCloud/UFile";
 import {compute} from "@/UCloud";
 import {usePrettyFilePath} from "@/Files/FilePath";
 import {TooltipV2} from "@/ui-components/Tooltip";
+import {VirtualMachineRestartReminder} from "./VirtualMachineRestartReminder";
+import {VirtualMachineIconButton} from "@/Applications/Jobs/VirtualMachineIconButton";
 
 type VmFolder = compute.AppParameterValueNS.File;
 
@@ -23,7 +25,8 @@ export const VirtualMachineFolders: React.FunctionComponent<{
     onFolderAdded?: (newFolders: VmFolder[], addedFolder: VmFolder) => Promise<void> | void;
     onFolderRemoved?: (newFolders: VmFolder[], removedFolder: VmFolder) => Promise<void> | void;
     showRestartIndicator?: boolean;
-}> = ({jobId, providerId, parameters, resources, onFolderAdded, onFolderRemoved, showRestartIndicator}) => {
+    onRestartRequested?: () => void;
+}> = ({jobId, providerId, parameters, resources, onFolderAdded, onFolderRemoved, showRestartIndicator, onRestartRequested}) => {
     const initialFolders = useMemo(() => extractFolders(parameters, resources), [parameters, resources]);
     const [folders, setFolders] = useState<VmFolder[]>(initialFolders);
 
@@ -135,18 +138,14 @@ export const VirtualMachineFolders: React.FunctionComponent<{
         rightControls={
             <div className={VmFolderControls}>
                 {!showRestartIndicator ? null : (
-                    <TooltipV2 tooltip={"Restart the machine for folder changes to take effect"}>
-                        <span className={RestartIndicator} aria-label="Restart required for folder changes">
-                            <Icon name="heroArrowPath" color="warningMain" />
-                        </span>
-                    </TooltipV2>
+                    <VirtualMachineRestartReminder
+                        tooltip="Restart the machine for folder changes to take effect"
+                        ariaLabel="Restart required for folder changes"
+                        onClick={onRestartRequested}
+                    />
                 )}
 
-                <TooltipV2 tooltip={"Attach folder"}>
-                    <button type="button" className={AddFolderControl} onClick={openFolderSelector} aria-label="Attach folder">
-                        <Icon name="heroPlus" />
-                    </button>
-                </TooltipV2>
+                <VirtualMachineIconButton tooltip={"Attach folder"} onClick={openFolderSelector} icon={"heroPlus"} />
             </div>
         }
     >
@@ -177,11 +176,7 @@ const FolderRow: React.FunctionComponent<{
     return <div className={VmFolderRow} >
         <Icon name={"ftFolder"} size={"24px"} color={"FtFolderColor"} color2={"FtFolderColor2"} />
         <div className={VmFolderPath} title={path}>{path}</div>
-        <TooltipV2 tooltip={"Remove folder"}>
-            <button type="button" className={AddFolderControl} onClick={onRemoveFolder} aria-label="Remove folder">
-                <Icon name="heroMinus" />
-            </button>
-        </TooltipV2>
+        <VirtualMachineIconButton tooltip={"Remove folder"} onClick={onRemoveFolder} icon={"heroMinus"} />
     </div>;
 }
 
@@ -198,49 +193,11 @@ const VmFoldersBody = injectStyle("vm-folders-body", k => `
     }
 `);
 
-const AddFolderControl = injectStyle("add-folder-control", k => `
-    ${k} {
-        border: 0;
-        background: transparent;
-        color: var(--textSecondary);
-        cursor: pointer;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 28px;
-        height: 28px;
-        border-radius: 6px;
-        transition: background-color 120ms ease-in-out, color 120ms ease-in-out;
-    }
-
-    ${k}:hover {
-        background: color-mix(in srgb, var(--primaryMain) 12%, transparent);
-        color: var(--textPrimary);
-    }
-
-    ${k}:focus-visible {
-        outline: 2px solid var(--primaryMain);
-        outline-offset: 1px;
-    }
-`);
-
 const VmFolderControls = injectStyle("vm-folder-controls", k => `
     ${k} {
         display: inline-flex;
         align-items: center;
         gap: 4px;
-    }
-`);
-
-const RestartIndicator = injectStyle("restart-indicator", k => `
-    ${k} {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 28px;
-        height: 28px;
-        border-radius: 6px;
-        background: color-mix(in srgb, var(--warningMain) 12%, transparent);
     }
 `);
 

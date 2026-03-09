@@ -4,9 +4,9 @@ import * as Heading from "@/ui-components/Heading";
 import {Box, Button, Card, Flex, Icon, Link} from "@/ui-components";
 import {classConcat, injectStyle} from "@/Unstyled";
 import {dateToString} from "@/Utilities/DateUtilities";
-import {displayErrorMessageOrDefault, shortUUID} from "@/UtilityFunctions";
+import {copyToClipboard, displayErrorMessageOrDefault, doNothing, shortUUID} from "@/UtilityFunctions";
 import {bulkRequestOf} from "@/UtilityFunctions";
-import {useCloudCommand} from "@/Authentication/DataHook";
+import {noopCall, useCloudCommand} from "@/Authentication/DataHook";
 import {
     api as JobsApi,
     ComputeSupport,
@@ -29,6 +29,13 @@ import {BulkResponse, compute} from "@/UCloud";
 import {format} from "date-fns";
 import * as JobViz from "@/Applications/Jobs/JobViz";
 import {useJobVizProperties} from "@/Applications/Jobs/JobViz/StreamProcessor";
+import {dialogStore} from "@/Dialog/DialogStore";
+import {largeModalStyle} from "@/Utilities/ModalUtilities";
+import {PublicLinkBrowse} from "@/Applications/PublicLinks/PublicLinkBrowse";
+import {PrivateNetworkBrowse} from "@/Applications/PrivateNetwork/PrivateNetworkBrowse";
+import {NetworkIPBrowse} from "@/Applications/NetworkIP/NetworkIPBrowse";
+import {VirtualMachineRestartReminder} from "./VirtualMachineRestartReminder";
+import {VirtualMachineIconButton} from "@/Applications/Jobs/VirtualMachineIconButton";
 
 interface InterfaceTarget {
     rank: number;
@@ -86,6 +93,7 @@ export const VirtualMachineStatus: React.FunctionComponent<{
     const [publicLinkTargets, setPublicLinkTargets] = useState<InterfaceTarget[]>([]);
     const restartObservedNonRunningState = useRef(false);
     const [hasPendingFolderRestart, setHasPendingFolderRestart] = useState(false);
+    const [hasPendingAccessRestart, setHasPendingAccessRestart] = useState(false);
     const stream = useMemo(() => new JobViz.StreamProcessor(), [job.id]);
     const streamProperties = useJobVizProperties(stream);
 
@@ -98,11 +106,14 @@ export const VirtualMachineStatus: React.FunctionComponent<{
     const supportsVnc = support?.virtualMachine.vnc === true;
 
     const resources = job.specification.resources ?? [];
-    const peers = useMemo(() => {
-        return resources.filter(it => it.type === "peer") as { hostname: string; jobId: string; }[];
-    }, [resources]);
     const ingresses = useMemo(() => {
         return resources.filter(it => it.type === "ingress") as compute.AppParameterValueNS.Ingress[];
+    }, [resources]);
+    const privateNetworks = useMemo(() => {
+        return resources.filter(it => it.type === "private_network") as compute.AppParameterValueNS.PrivateNetwork[];
+    }, [resources]);
+    const publicIps = useMemo(() => {
+        return resources.filter(it => it.type === "network") as compute.AppParameterValueNS.Network[];
     }, [resources]);
 
     const combinedInterfaceTargets = useMemo(() => {
@@ -205,6 +216,7 @@ export const VirtualMachineStatus: React.FunctionComponent<{
             await invokeCommand(JobsApi.suspend(bulkRequestOf({id: job.id})));
             await invokeCommand(JobsApi.unsuspend(bulkRequestOf({id: job.id})));
             setHasPendingFolderRestart(false);
+            setHasPendingAccessRestart(false);
         } catch (e) {
             setOptimisticPowerState(null);
             displayErrorMessageOrDefault(e, "Failed to restart VM.");
@@ -315,6 +327,137 @@ export const VirtualMachineStatus: React.FunctionComponent<{
             throw e;
         }
     }, [invokeCommand, job.id]);
+
+    const attachAccessResource = useCallback(async (resource: compute.AppParameterValue) => {
+        try {
+            await invokeCommand(JobsApi.attachResource({jobId: job.id, resource}));
+            setHasPendingAccessRestart(true);
+        } catch (e) {
+            displayErrorMessageOrDefault(e, "Failed to attach resource.");
+            throw e;
+        }
+    }, [invokeCommand, job.id]);
+
+    const detachAccessResource = useCallback(async (resource: compute.AppParameterValue) => {
+        try {
+            await invokeCommand(JobsApi.detachResource({jobId: job.id, resource}));
+            setHasPendingAccessRestart(true);
+        } catch (e) {
+            displayErrorMessageOrDefault(e, "Failed to detach resource.");
+            throw e;
+        }
+    }, [invokeCommand, job.id]);
+
+    const openPublicLinksManager = useCallback(() => {
+        const openSelector = (onSelect: (resource: compute.AppParameterValue) => void) => {
+            dialogStore.addDialog(<PublicLinkBrowse
+                opts={{
+                    selection: {
+                        text: "Attach",
+                        onClick: (link) => {
+                            onSelect({type: "ingress", id: link.id});
+                            dialogStore.success();
+                        },
+                        show: res => {
+                            if (res.specification.product.provider !== job.specification.product.provider) {
+                                return "Public link must be on the same provider as this VM";
+                            }
+
+                            return res.status.boundTo.length === 0 || "This public link is already in use";
+                        },
+                    },
+                    isModal: true,
+                    additionalFilters: {
+                        filterProvider: job.specification.product.provider,
+                        filterState: "READY",
+                    },
+                }}
+            />, noopCall, true, largeModalStyle);
+        };
+
+        dialogStore.addDialog(<VmAccessResourceManagerDialog
+            title="Manage public links"
+            attached={ingresses}
+            emptyMessage="No public links are currently attached to this VM."
+            onAdd={openSelector}
+            onAttach={attachAccessResource}
+            onRemove={detachAccessResource}
+            labelForResource={vmAccessResourceLabel}
+        />, doNothing, true, largeModalStyle);
+    }, [attachAccessResource, detachAccessResource, ingresses, job.specification.product.provider]);
+
+    const openPrivateNetworksManager = useCallback(() => {
+        const openSelector = (onSelect: (resource: compute.AppParameterValue) => void) => {
+            dialogStore.addDialog(<PrivateNetworkBrowse
+                opts={{
+                    selection: {
+                        text: "Attach",
+                        onClick: network => {
+                            onSelect({type: "private_network", id: network.id});
+                            dialogStore.success();
+                        },
+                        show: res => {
+                            if (res.specification.product.provider !== job.specification.product.provider) {
+                                return "Network must be on the same provider as this VM";
+                            }
+                            return true;
+                        },
+                    },
+                    isModal: true,
+                    additionalFilters: {
+                        filterProvider: job.specification.product.provider,
+                    },
+                }}
+            />, noopCall, true, largeModalStyle);
+        };
+
+        dialogStore.addDialog(<VmAccessResourceManagerDialog
+            title="Manage connected networks"
+            attached={privateNetworks}
+            emptyMessage="No private networks are currently attached to this VM."
+            onAdd={openSelector}
+            onAttach={attachAccessResource}
+            onRemove={detachAccessResource}
+            labelForResource={vmAccessResourceLabel}
+        />, doNothing, true, largeModalStyle);
+    }, [attachAccessResource, detachAccessResource, job.specification.product.provider, privateNetworks]);
+
+    const openPublicIpsManager = useCallback(() => {
+        const openSelector = (onSelect: (resource: compute.AppParameterValue) => void) => {
+            dialogStore.addDialog(<NetworkIPBrowse
+                opts={{
+                    selection: {
+                        text: "Attach",
+                        onClick: ip => {
+                            onSelect({type: "network", id: ip.id});
+                            dialogStore.success();
+                        },
+                        show: res => {
+                            if (res.specification.product.provider !== job.specification.product.provider) {
+                                return "Public IP must be on the same provider as this VM";
+                            }
+                            return res.status.boundTo.length === 0 || "This public IP is already in use";
+                        },
+                    },
+                    isModal: true,
+                    additionalFilters: {
+                        filterProvider: job.specification.product.provider,
+                        filterState: "READY",
+                    },
+                }}
+            />, noopCall, true, largeModalStyle);
+        };
+
+        dialogStore.addDialog(<VmAccessResourceManagerDialog
+            title="Manage public IPs"
+            attached={publicIps}
+            emptyMessage="No public IPs are currently attached to this VM."
+            onAdd={openSelector}
+            onAttach={attachAccessResource}
+            onRemove={detachAccessResource}
+            labelForResource={vmAccessResourceLabel}
+        />, doNothing, true, largeModalStyle);
+    }, [attachAccessResource, detachAccessResource, job.specification.product.provider, publicIps]);
 
     const interfaceDisabled = !desktopTarget?.link || isTerminalState;
 
@@ -558,18 +701,52 @@ export const VirtualMachineStatus: React.FunctionComponent<{
 
         <div className={VmContentGrid}>
             {!showRuntimePanels ? null : (
-                <TabbedCard style={{minHeight: "240px"}}>
+                <TabbedCard
+                    style={{minHeight: "240px"}}
+                    rightControls={!hasPendingAccessRestart ? undefined : (
+                        <VirtualMachineRestartReminder
+                            tooltip="Restart the machine for access resource changes to take effect"
+                            ariaLabel="Restart required for access resource changes"
+                            onClick={confirmRestart}
+                        />
+                    )}
+                >
                     <TabbedCardTab icon="heroSignal" name="Access">
                         <div className={VmTabBody}>
                             <div className={VmDetails}>
                                 <dt>SSH access</dt>
-                                <dd>{sshCommand ?? "Not announced by provider yet"}</dd>
+                                <dd className={VmDetailRowWithAction}>
+                                    <code
+                                        style={{cursor: "pointer"}}
+                                        onClick={() => sshCommand ? copyToClipboard({value: sshCommand, message: "Copied to clipboard!"}) : undefined}
+                                        title={sshCommand ?? undefined}
+                                    >
+                                        {sshCommand ?? "Not announced by provider yet"}
+                                    </code>
+                                    <VirtualMachineIconButton
+                                        tooltip={"Copy to clipboard"}
+                                        onClick={() => sshCommand ? copyToClipboard({value: sshCommand, message: "Copied to clipboard!"}) : undefined}
+                                        icon={"heroDocumentDuplicate"}
+                                    />
+                                </dd>
 
                                 <dt>Public links</dt>
-                                <dd>{ingresses.length > 0 ? ingresses.length : "None"}</dd>
+                                <dd className={VmDetailRowWithAction}>
+                                    <span>{ingresses.length > 0 ? ingresses.length : "None"}</span>
+                                    <VirtualMachineIconButton tooltip={"Manage"} onClick={openPublicLinksManager} icon={"heroWrenchScrewdriver"} />
+                                </dd>
 
-                                <dt>Connected peers</dt>
-                                <dd>{peers.length > 0 ? peers.length : "None"}</dd>
+                                <dt>Public IPs</dt>
+                                <dd className={VmDetailRowWithAction}>
+                                    <span>{publicIps.length > 0 ? publicIps.length : "None"}</span>
+                                    <VirtualMachineIconButton tooltip={"Manage"} onClick={openPublicIpsManager} icon={"heroWrenchScrewdriver"} />
+                                </dd>
+
+                                <dt>Connected networks</dt>
+                                <dd className={VmDetailRowWithAction}>
+                                    <span>{privateNetworks.length > 0 ? privateNetworks.length : "None"}</span>
+                                    <VirtualMachineIconButton tooltip={"Manage"} onClick={openPrivateNetworksManager} icon={"heroWrenchScrewdriver"} />
+                                </dd>
                             </div>
                         </div>
                     </TabbedCardTab>
@@ -613,6 +790,7 @@ export const VirtualMachineStatus: React.FunctionComponent<{
                     onFolderAdded={onFolderAdded}
                     onFolderRemoved={onFolderRemoved}
                     showRestartIndicator={hasPendingFolderRestart}
+                    onRestartRequested={confirmRestart}
                 />
             }
 
@@ -657,6 +835,87 @@ export const VirtualMachineStatus: React.FunctionComponent<{
 function renderUpdate(update: JobUpdate): string {
     if (update.state) return `State changed to ${stateToTitle(update.state)}`;
     return update.status ?? "Status updated";
+}
+
+const VmAccessResourceManagerDialog: React.FunctionComponent<{
+    title: string;
+    attached: compute.AppParameterValue[];
+    emptyMessage: string;
+    onAdd: (onSelect: (resource: compute.AppParameterValue) => void) => void;
+    onAttach: (resource: compute.AppParameterValue) => Promise<void>;
+    onRemove: (resource: compute.AppParameterValue) => Promise<void>;
+    labelForResource: (resource: compute.AppParameterValue) => string;
+}> = ({title, attached, emptyMessage, onAdd, onAttach, onRemove, labelForResource}) => {
+    const [items, setItems] = useState<compute.AppParameterValue[]>(attached);
+
+    useEffect(() => {
+        setItems(attached);
+    }, [attached]);
+
+    const onAddResource = useCallback(() => {
+        onAdd((resource: compute.AppParameterValue) => {
+            console.log("onAdd", resource);
+            const key = vmAccessResourceKey(resource);
+            const alreadyAttached = items.some(item => vmAccessResourceKey(item) === key);
+            if (alreadyAttached) return;
+
+            setItems(prev => [...prev, resource]);
+            onAttach(resource).catch(() => {
+                setItems(prev => prev.filter(item => vmAccessResourceKey(item) !== key));
+            });
+        });
+    }, [items, onAdd, onAttach]);
+
+    const onRemoveResource = useCallback((resource: compute.AppParameterValue) => {
+        const key = vmAccessResourceKey(resource);
+        setItems(prev => prev.filter(item => vmAccessResourceKey(item) !== key));
+        onRemove(resource).catch(() => {
+            setItems(prev => {
+                const exists = prev.some(item => vmAccessResourceKey(item) === key);
+                if (exists) return prev;
+                return [...prev, resource];
+            });
+        });
+    }, [onRemove]);
+
+    return <div className={VmAccessManagerDialogBody}>
+        <Heading.h3>{title}</Heading.h3>
+
+        {items.length === 0 ? (
+            <Box color="textSecondary">{emptyMessage}</Box>
+        ) : (
+            <div className={VmAccessManagerList}>
+                {items.map((resource, idx) => (
+                    <div key={`${vmAccessResourceKey(resource)}-${idx}`} className={VmAccessManagerRow}>
+                        <span className={VmAccessManagerResourceLabel}>{labelForResource(resource)}</span>
+                        <Button onClick={() => onRemoveResource(resource)}>
+                            Remove
+                        </Button>
+                    </div>
+                ))}
+            </div>
+        )}
+
+        <Flex justifyContent="flex-end">
+            <Button onClick={onAddResource}>Attach</Button>
+        </Flex>
+    </div>;
+};
+
+function vmAccessResourceKey(resource: compute.AppParameterValue): string {
+    return `${resource.type}:${resource["id"]}`;
+}
+
+function vmAccessResourceLabel(resource: compute.AppParameterValue): string {
+    if (resource.type === "ingress") {
+        return resource.port ? `${resource.id} (port ${resource.port})` : resource.id;
+    }
+
+    if (resource.type === "network" || resource.type === "private_network") {
+        return resource.id;
+    }
+
+    return resource.type;
 }
 
 function parseSshCommand(updates: JobUpdate[]): string | null {
@@ -934,6 +1193,55 @@ const VmDetails = injectStyle("vm-details", k => `
     ${k} dd {
         margin: 0;
         overflow-wrap: anywhere;
+    }
+`);
+
+const VmDetailRowWithAction = injectStyle("vm-detail-row-with-action", k => `
+    ${k} {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    ${k} > :first-child {
+        min-width: 0;
+        flex: 1;
+    }
+`);
+
+const VmAccessManagerDialogBody = injectStyle("vm-access-manager-dialog-body", k => `
+    ${k} {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        min-height: 260px;
+    }
+`);
+
+const VmAccessManagerList = injectStyle("vm-access-manager-list", k => `
+    ${k} {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        max-height: 320px;
+        overflow-y: auto;
+    }
+`);
+
+const VmAccessManagerRow = injectStyle("vm-access-manager-row", k => `
+    ${k} {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 12px;
+        align-items: center;
+    }
+`);
+
+const VmAccessManagerResourceLabel = injectStyle("vm-access-manager-resource-label", k => `
+    ${k} {
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
     }
 `);
 

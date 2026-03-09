@@ -376,7 +376,7 @@ interface CopyToClipboard {
 }
 
 /**
- * Copies a string to the users clipboard.
+ * Copies a string to the user's clipboard.
  * @param param contains the value to be copied and the message to show the user on success.
  */
 export async function copyToClipboard({value, message}: CopyToClipboard): Promise<void> {
