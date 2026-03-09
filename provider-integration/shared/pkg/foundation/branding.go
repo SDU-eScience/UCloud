@@ -1,6 +1,8 @@
 package foundation
 
 import (
+	"net/http"
+
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -45,4 +47,19 @@ var BrandingRetrieve = rpc.Call[util.Empty, Branding]{
 	BaseContext: brandingBaseContext,
 	Convention:  rpc.ConventionRetrieve,
 	Roles:       rpc.RolesPublic,
+}
+
+type BrandingImageRequest struct {
+	Name string `json:"name"`
+}
+
+var BrandingRetrieveImage = rpc.Call[BrandingImageRequest, []byte]{
+	BaseContext: brandingBaseContext,
+	Convention:  rpc.ConventionQueryParameters,
+	Roles:       rpc.RolesPublic,
+	Operation:   "image",
+	CustomServerProducer: func(response []byte, err *util.HttpError, w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "image/*")
+		w.Write(response)
+	},
 }
