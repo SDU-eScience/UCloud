@@ -190,21 +190,17 @@ func taskJobReconciler() {
 
 					switch cond.Type {
 					case k8sbatch.JobComplete:
-						log.Info("Cond complete")
 						finalState, done = fndapi.TaskStateSuccess, true
 					case k8sbatch.JobFailed:
-						log.Info("Cond failed")
 						finalState, done = fndapi.TaskStateFailure, true
 					}
 				}
 
 				if job.Status.Succeeded > 0 {
-					log.Info("success")
 					finalState, done = fndapi.TaskStateSuccess, true
 				}
 
 				if job.Status.Failed > 0 {
-					log.Info("failed")
 					finalState, done = fndapi.TaskStateFailure, true
 				}
 			}
