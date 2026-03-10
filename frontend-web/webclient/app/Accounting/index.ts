@@ -1404,6 +1404,7 @@ export function browseWalletsV2(
     request: PaginationRequestV2 & {
         filterType?: ProductType;
         includeChildren?: boolean;
+        filterChildrenByIdleTimeInDays?: number;
     }
 ): APICallParameters<unknown, PageV2<WalletV2>> {
     return apiBrowse(request, baseContextV2, "wallets");

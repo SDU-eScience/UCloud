@@ -1408,7 +1408,7 @@ func internalRetrieveWallet(
 
 		ownerId := w.OwnedBy
 		owner := accGlobals.OwnersById[ownerId].WalletOwner()
-		apiWallet := lInternalWalletToApi(now, b, w, owner, includeChildren)
+		apiWallet := lInternalWalletToApi(now, b, w, owner, includeChildren, util.OptNone[int]())
 
 		b.Mu.RUnlock()
 		accGlobals.Mu.RUnlock()
@@ -1423,6 +1423,7 @@ func lInternalWalletToApi(
 	w *internalWallet,
 	owner accapi.WalletOwner,
 	includeChildren bool,
+	filterChildrenByIdleTimeInDays util.Option[int],
 ) accapi.WalletV2 {
 	groups := w.AllocationsByParent
 	apiWallet := accapi.WalletV2{
@@ -1535,7 +1536,19 @@ func lInternalWalletToApi(
 	}
 
 	if includeChildren {
+		activeChildren := map[AccWalletId]util.Empty{}
+		if filterChildrenByIdleTimeInDays.Present && filterChildrenByIdleTimeInDays.Value > 0 {
+			from := now.AddDate(0, 0, -filterChildrenByIdleTimeInDays.Value)
+			activeChildren = lUsageActiveChildrenInWindow(from, now, w.Id)
+		}
+
 		for childId, _ := range w.ChildrenUsage {
+			if len(activeChildren) > 0 {
+				if _, isActive := activeChildren[childId]; isActive {
+					continue
+				}
+			}
+
 			childWallet := b.WalletsById[childId]
 			childOwner := accGlobals.OwnersById[childWallet.OwnedBy]
 			g := childWallet.AllocationsByParent[w.Id]
@@ -1574,7 +1587,7 @@ func internalRetrieveWalletByAllocationId(
 			if iWallet != nil {
 				owner := accGlobals.OwnersById[iWallet.OwnedBy]
 				if owner != nil {
-					wallet = lInternalWalletToApi(now, bucket, iWallet, owner.WalletOwner(), false)
+					wallet = lInternalWalletToApi(now, bucket, iWallet, owner.WalletOwner(), false, util.OptNone[int]())
 					wId = walletId
 					found = true
 					bucket.Mu.RUnlock()
@@ -1596,6 +1609,23 @@ type walletFilter struct {
 
 	IncludeChildren bool
 	RequireActive   bool
+
+	FilterChildrenByIdleTimeInDays util.Option[int]
+}
+
+func lUsageActiveChildrenInWindow(from time.Time, until time.Time, parentWallet AccWalletId) map[AccWalletId]util.Empty {
+	result := map[AccWalletId]util.Empty{}
+
+	reports := usageRetrieveHistoricReports(from, until, parentWallet)
+	for _, report := range reports {
+		for _, item := range report.UsageOverTime.Delta {
+			if item.Child.Present && item.Change != 0 {
+				result[item.Child.Value] = util.Empty{}
+			}
+		}
+	}
+
+	return result
 }
 
 func internalRetrieveWallets(
@@ -1645,7 +1675,14 @@ func internalRetrieveWallets(
 		}
 
 		if shouldInclude {
-			apiWallet := lInternalWalletToApi(now, b, w, owner.WalletOwner(), filter.IncludeChildren)
+			apiWallet := lInternalWalletToApi(
+				now,
+				b,
+				w,
+				owner.WalletOwner(),
+				filter.IncludeChildren,
+				filter.FilterChildrenByIdleTimeInDays,
+			)
 			wallets = append(wallets, apiWallet)
 		}
 
@@ -1706,7 +1743,7 @@ func lRetrieveAncestorWallets(bucket *internalBucket, now time.Time, root AccWal
 	var wallets []accapi.WalletV2
 	for _, w := range relevantWallets {
 		owner := accGlobals.OwnersById[w.OwnedBy].WalletOwner()
-		wallets = append(wallets, lInternalWalletToApi(now, bucket, w, owner, false))
+		wallets = append(wallets, lInternalWalletToApi(now, bucket, w, owner, false, util.OptNone[int]()))
 	}
 
 	return wallets

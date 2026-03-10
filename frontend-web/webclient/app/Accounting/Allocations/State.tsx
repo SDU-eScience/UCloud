@@ -127,6 +127,65 @@ function productCategoryKey(category: Accounting.ProductCategoryV2): string {
     return `${category.name}/${category.provider}`;
 }
 
+function idleFilterToDays(selected: string | undefined): number | undefined {
+    if (!selected) return undefined;
+
+    const months = Number.parseInt(selected, 10);
+    if (!Number.isFinite(months) || months <= 0) return undefined;
+
+    return months * 30;
+}
+
+const AllocationStatusOptions = {
+    ALL: "All allocations",
+    ACTIVE_ONLY: "Active allocations",
+    EXPIRED_ONLY: "Expired allocations",
+    ALL_EXPIRED_ONLY: "All allocations expired",
+} as const;
+
+function recipientMatchesAllocationStatus(
+    recipient: AllocationDisplayTreeRecipient,
+    selected: string | undefined,
+    now: number,
+): boolean {
+    if (!selected || selected === AllocationStatusOptions.ALL) {
+        return true;
+    }
+
+    if (selected === AllocationStatusOptions.ALL_EXPIRED_ONLY) {
+        let foundAnyAllocation = false;
+
+        for (const group of recipient.groups) {
+            for (const allocation of group.allocations) {
+                foundAnyAllocation = true;
+                const isExpired = allocation.end < now;
+                if (!isExpired) {
+                    return false;
+                }
+            }
+        }
+
+        return foundAnyAllocation;
+    }
+
+    for (const group of recipient.groups) {
+        for (const allocation of group.allocations) {
+            const isExpired = allocation.end < now;
+            const isActive = allocation.start <= now && allocation.end >= now;
+
+            if (selected === AllocationStatusOptions.EXPIRED_ONLY && isExpired) {
+                return true;
+            }
+
+            if (selected === AllocationStatusOptions.ACTIVE_ONLY && isActive) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
 function searchAndFilteringQueryMatches(recipient: AllocationDisplayTreeRecipient, state: State, query: string): boolean {
     if (recipient.owner.reference.type === "user" && state.viewOnlyProjects) return false;
     if (recipient.owner.reference.type === "project" && !state.viewOnlyProjects) return false;
@@ -166,6 +225,14 @@ function searchAndFilteringQueryMatches(recipient: AllocationDisplayTreeRecipien
             }
         }
         if (!anyFound) return false;
+    }
+
+    const allocationStatusSetting = state.subprojectFilters[SubProjectFilterSetting.EXPIRED_ALLOCATIONS];
+    if (allocationStatusSetting.enabled) {
+        const now = Date.now();
+        if (!recipientMatchesAllocationStatus(recipient, allocationStatusSetting.selected, now)) {
+            return false;
+        }
     }
 
     if (query === "") return true;
@@ -686,17 +753,22 @@ export function useEventReducer(didCancel: React.RefObject<boolean>, doDispatch:
             doDispatch(ev);
         }
 
+        function loadWallets(filterChildrenByIdleTimeInDays?: number) {
+            fetchAll(next =>
+                callAPI(Accounting.browseWalletsV2({
+                    itemsPerPage: 250,
+                    next,
+                    includeChildren: true,
+                    ...(filterChildrenByIdleTimeInDays !== undefined ? {filterChildrenByIdleTimeInDays} : {}),
+                }))
+            ).then(wallets => {
+                dispatch({type: "WalletsLoaded", wallets});
+            });
+        }
+
         switch (event.type) {
             case "Init": {
-                fetchAll(next =>
-                    callAPI(Accounting.browseWalletsV2({
-                        itemsPerPage: 250,
-                        next,
-                        includeChildren: true,
-                    }))
-                ).then(wallets => {
-                    dispatch({type: "WalletsLoaded", wallets});
-                });
+                loadWallets();
 
                 fetchManagedProviders().then(providers => {
                     dispatch({type: "ManagedProvidersLoaded", providerIds: providers});
@@ -740,6 +812,26 @@ export function useEventReducer(didCancel: React.RefObject<boolean>, doDispatch:
                     dispatch({type: "UsageReportLoaded", reports: result.reports});
                 });
 
+                break;
+            }
+
+            case "SubProjectFilterSettingsLoad": {
+                dispatch(event);
+
+                const idleSetting = event.settings[SubProjectFilterSetting.IDLE_SUB_PROJECTS];
+                if (idleSetting?.enabled) {
+                    loadWallets(idleFilterToDays(idleSetting.selected));
+                }
+                break;
+            }
+
+            case "SubProjectFilterSettingUpdated": {
+                dispatch(event);
+
+                if (event.setting === SubProjectFilterSetting.IDLE_SUB_PROJECTS) {
+                    const filterDays = event.enabled ? idleFilterToDays(event.newValue) : undefined;
+                    loadWallets(filterDays);
+                }
                 break;
             }
 
@@ -824,9 +916,14 @@ export const subProjectsDefaultSettings: Record<string, SubProjectFilter> = {
     },
     [SubProjectFilterSetting.EXPIRED_ALLOCATIONS]: {
         setting: SubProjectFilterSetting.EXPIRED_ALLOCATIONS,
-        title: "Expired allocations",
-        description: "Shows only sub-projects with expired allocations",
-        options: [],
+        title: "Allocation status",
+        description: "Shows sub-projects by allocation state",
+        options: [
+            AllocationStatusOptions.ALL,
+            AllocationStatusOptions.ACTIVE_ONLY,
+            AllocationStatusOptions.EXPIRED_ONLY,
+            AllocationStatusOptions.ALL_EXPIRED_ONLY,
+        ],
         selected: undefined,
         enabled: false,
         feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,

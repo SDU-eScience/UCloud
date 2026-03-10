@@ -713,15 +713,19 @@ export const KeyMetrics: React.FunctionComponent<{
                                         </Flex>
                                     }
                                     right={<Flex flexDirection={"row"} gap={"8px"}>
-                                        {tree.usageAndQuota.map((uq, idx) =>
-                                            <React.Fragment key={idx}>
-                                                <AllocationBar
-                                                    label={` ${okPercentage}% Ok | ${atRiskPercentage}% At risk | ${underusedPercentage}% Underused`}
-                                                    okPercentage={okPercentage}
-                                                    atRiskPercentage={atRiskPercentage}
-                                                    underusedPercentage={underusedPercentage}
-                                                />
-                                            </React.Fragment>
+                                        {tree.usageAndQuota.map((uq, idx) => {
+                                            let label = `${okPercentage.toFixed(2)}% Ok` +
+                                                ` | ${atRiskPercentage.toFixed(2)}% At risk` +
+                                                ` | ${underusedPercentage.toFixed(2)}% Underused`;
+                                            return <React.Fragment key={idx}>
+                                                    <AllocationBar
+                                                        label={label}
+                                                        okPercentage={okPercentage}
+                                                        atRiskPercentage={atRiskPercentage}
+                                                        underusedPercentage={underusedPercentage}
+                                                    />
+                                                </React.Fragment>;
+                                            }
                                         )}
                                     </Flex>}
                                     indent={indent}
@@ -1140,6 +1144,7 @@ const SubProjectFiltersRow: React.FunctionComponent<{
                     onSelect={onSelectOption}
                     selected={selectedOpt}
                     dropdownWidth={"300px"}
+                    searchable={false}
                 />
             </div>}
 
