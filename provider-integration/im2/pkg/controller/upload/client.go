@@ -29,7 +29,6 @@ const chanBufferSize = 1024 * 32
 type ClientSession struct {
 	Endpoint       string
 	ConflictPolicy orc.WriteConflictPolicy
-	Path           string
 	Metrics        ClientMetrics
 }
 

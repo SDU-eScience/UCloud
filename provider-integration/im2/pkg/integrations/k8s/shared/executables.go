@@ -14,6 +14,8 @@ import (
 	"ucloud.dk/shared/pkg/util"
 )
 
+var ProviderHostname = ""
+
 func InitExecutables() {
 	// Small utility function to put ucmetrics, ucviz and similar into a shared directory which can be mounted by jobs
 	// to gain access to these applications.
@@ -44,14 +46,16 @@ func InitExecutables() {
 		}()
 
 		if len(ips) > 0 {
-			_ = os.WriteFile(providerHostnamePath, []byte(ips[0].String()), 0644)
+			ProviderHostname = ips[0].String()
 		}
 	} else {
-		_ = os.WriteFile(providerHostnamePath, []byte(conf.ProviderDns), 0644)
 		if conf.ProviderDns == "" {
+			ProviderHostname = conf.ProviderDns
 			log.Fatal("ProviderDns must be set for production providers!")
 		}
 	}
+
+	_ = os.WriteFile(providerHostnamePath, []byte(ProviderHostname), 0644)
 }
 
 func exeCopy(name string, targetDir string) {

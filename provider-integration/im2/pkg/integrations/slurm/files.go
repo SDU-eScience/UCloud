@@ -191,7 +191,6 @@ func processTransferTask(task *TaskInfo) TaskProcessingResult {
 	uploadSession := upload.ClientSession{
 		Endpoint:       parameters.Endpoint,
 		ConflictPolicy: orc.WriteConflictPolicyMergeRename,
-		Path:           session.SourcePath,
 	}
 
 	internalSource, ok := UCloudToInternal(session.SourcePath)

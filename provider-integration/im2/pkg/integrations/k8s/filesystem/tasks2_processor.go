@@ -58,6 +58,8 @@ func TaskProcessor() {
 	switch spec.Type {
 	case TaskSpecTypeCopy:
 		err = task2ProcessCopy(spec)
+	case TaskSpecTypeTransfer:
+		err = task2ProcessTransfer(spec)
 	}
 
 	last := taskProcessorState.LastStatus.Load()

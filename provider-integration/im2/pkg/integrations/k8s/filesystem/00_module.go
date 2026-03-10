@@ -922,16 +922,29 @@ func transferDestinationInitiate(request orc.FilesProviderTransferRequestInitiat
 }
 
 func transferSourceBegin(request orc.FilesProviderTransferRequestStart, session controller.FileTransferSession) *util.HttpError {
-	err := RegisterTask(TaskInfoSpecification{
-		Type:           FileTaskTransfer,
-		UCloudUsername: session.Username,
-		UCloudSource:   util.OptValue[string](session.SourcePath),
-		MoreInfo:       util.OptValue[string](session.Id),
-		HasUCloudTask:  true,
-		Icon:           "heroPaperAirplane",
-	})
+	var parameters controller.TransferBuiltInParameters
 
-	return err
+	err := json.Unmarshal(session.ProtocolParameters, &parameters)
+	if err != nil {
+		return util.ServerHttpError("malformed request")
+	}
+
+	if util.DevelopmentModeEnabled() && strings.Contains(parameters.Endpoint, "k8s:8889") {
+		parameters.Endpoint = strings.ReplaceAll(parameters.Endpoint, "k8s:8889", shared.ProviderHostname+":8889")
+	}
+
+	spec := Task2Spec{
+		Type:             TaskSpecTypeTransfer,
+		Source:           session.SourcePath,
+		TransferEndpoint: parameters.Endpoint,
+		Mounts: []Task2SpecMount{
+			{UCloudPath: session.SourcePath},
+		},
+	}
+	spec.CreationState.Icon = "heroPaperAirplane"
+	spec.CreationState.Username = session.Username
+
+	return TaskSubmit(spec)
 }
 
 func processTransferTask(task *TaskInfo) TaskProcessingResult {
@@ -957,7 +970,6 @@ func processTransferTask(task *TaskInfo) TaskProcessingResult {
 	uploadSession := upload.ClientSession{
 		Endpoint:       parameters.Endpoint,
 		ConflictPolicy: orc.WriteConflictPolicyMergeRename,
-		Path:           session.SourcePath,
 	}
 
 	internalSource, ok, _ := UCloudToInternal(session.SourcePath)
