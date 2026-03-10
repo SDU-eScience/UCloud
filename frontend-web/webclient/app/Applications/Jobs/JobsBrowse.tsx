@@ -231,7 +231,7 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                     } else {
                         row.stat2.innerText = dateToDateStringOrTime(job.createdAt ?? timestampUnixMs());
                     }
-                    
+
                     // Time left in stat3
                     if (!simpleView) {
                         switch (job.status.state) {
@@ -272,7 +272,7 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                             }
                         }
                     }
-                    
+
                     setIcon(AppStore.retrieveAppLogo({
                         name: job.specification.application.name,
                         darkMode: !isLightThemeStored(),

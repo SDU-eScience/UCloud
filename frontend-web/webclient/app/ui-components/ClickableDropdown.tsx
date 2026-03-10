@@ -193,7 +193,6 @@ function ClickableDropdown<T>({
             top = boundingClientRect.top + boundingClientRect.height;
         }
     }
-
     let left = !props.useMousePositioning ? props.left : location[0];
     if (props.rightAligned) {
         left = extractLeftAlignedPosition(dropdownRef.current, width) ?? left;
@@ -219,32 +218,17 @@ function ClickableDropdown<T>({
         // Fixed positioning, but not based on the mouse. We need to push the content around to make sure that we have
         // space for it.
 
-        const screenHeight = window.innerHeight;
         const screenWidth = window.innerWidth;
 
         let x = parseInt((left ?? "0")?.toString().replace("px", ""));
         if (isNaN(x)) x = 0;
-
-        let y = parseInt((top ?? dropdownRef.current?.getBoundingClientRect().y ?? "0")?.toString().replace("px", ""));
-        if (isNaN(y)) y = 0;
-
         const widthAsNumber = parseInt((width ?? 300).toString().replace("px", ""));
-        let heightAsNumber = 38 * children.length;
-        if (props.height) {
-            heightAsNumber = Math.max(props.height, heightAsNumber);
-        }
+
 
         if (x + widthAsNumber >= screenWidth) {
             left = x - widthAsNumber;
         }
 
-        if (props.height) {
-            if (y + props.height! >= screenHeight) {
-                top = y - props.height!;
-            }
-        } else if (y + heightAsNumber >= screenHeight) {
-            top = y - heightAsNumber;
-        }
     }
 
     const dropdownContent = <DropdownContent
@@ -255,7 +239,7 @@ function ClickableDropdown<T>({
         {...(props as any)}
         top={top}
         left={left}
-        fixed={props.rightAligned || props.useMousePositioning}
+        fixed={props.useMousePositioning}
         maxHeight={`${props.height}px`}
         width={width}
         hover={false}
@@ -297,7 +281,7 @@ function extractLeftAlignedPosition(el: HTMLDivElement | null, width: string | n
     if (!el) return null;
     const rect = el.getBoundingClientRect();
     if (width === undefined || width === "100%") return rect.x + "px";
-    return `calc(${rect.x + rect.width}px - ${width})`;
+    return `calc(${rect.width}px - ${width})`;
 }
 
 export default ClickableDropdown;

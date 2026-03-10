@@ -4,7 +4,7 @@ import {useCloudCommand} from "@/Authentication/DataHook";
 import {Icon} from "@/ui-components";
 import {useDispatch} from "react-redux";
 import {toggleAppFavorite} from "./Redux/Actions";
-import {Application, ApplicationWithFavoriteAndTags} from "@/Applications/AppStoreApi";
+import {Application} from "@/Applications/AppStoreApi";
 import * as AppStore from "@/Applications/AppStoreApi";
 import {useIsLightThemeStored} from "@/ui-components/theme";
 
