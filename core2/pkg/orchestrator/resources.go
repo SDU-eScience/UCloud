@@ -672,6 +672,19 @@ func ResourceBrowse[T any](
 			resc, ok, perms := resourcesReadEx(actor, typeName, orcapi.PermissionRead, b, id, idx)
 			readAccSeconds += t.Mark().Seconds()
 
+			// NOTE(Dan): In personal workspaces, the user might be added directly to an index even if they are not
+			// the owner. As a result, we cannot rely entirely on the index to do the workspace filtering, do additional
+			// workspace filtering here to ensure we only see the correct resources.
+			if actor.Project.Present {
+				if string(actor.Project.GetOrDefault("")) != resc.Owner.Project.Value {
+					continue
+				}
+			} else {
+				if resc.Owner.Project.Present {
+					continue
+				}
+			}
+
 			if ok {
 				shouldBreak := false
 
