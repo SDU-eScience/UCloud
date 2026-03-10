@@ -10,6 +10,8 @@ func HandleCliWithoutConfig(command string) bool {
 	switch command {
 	case "script-gen":
 		HandleScriptGen()
+	case "audit-log":
+		EnableAuditLogging()
 	default:
 		return false
 	}
