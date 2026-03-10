@@ -19,9 +19,9 @@ import {TooltipV2} from "@/ui-components/Tooltip";
 import {useLocation, useNavigate} from "react-router-dom";
 import {getQueryParam} from "@/Utilities/URIUtilities";
 import AppRoutes from "@/Routes";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {ScaffoldedForm, ScaffoldedFormObject} from "@/ui-components/ScaffoldedForm";
 import {GroupSelector} from "@/Applications/Studio/GroupSelector";
+import {sendSuccessNotification} from "@/Notifications";
 
 const SpotlightForm: ScaffoldedFormObject = {
     type: "Form",
@@ -269,7 +269,7 @@ const SpotlightsEditor: React.FunctionComponent = () => {
 
 
 
-        snackbarStore.addSuccess("Spotlight has been saved", false);
+        sendSuccessNotification("Spotlight has been saved");
 
         if (didCreate) navigate(AppRoutes.appStudio.spotlightsEditor(actualId));
     }, [data, id]);

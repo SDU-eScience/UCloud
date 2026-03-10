@@ -1,6 +1,5 @@
 import * as React from "react";
 import {Flex, Input} from "@/ui-components";
-import {default as ReactModal} from "react-modal";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {findElement, widgetId, WidgetProps, WidgetSetProvider, WidgetSetter, WidgetValidator} from "@/Applications/Jobs/Widgets/index";
 import {useCallback, useLayoutEffect, useState} from "react";
@@ -8,11 +7,11 @@ import {compute} from "@/UCloud";
 import AppParameterValueNS = compute.AppParameterValueNS;
 import {noopCall, useCloudCommand} from "@/Authentication/DataHook";
 import PublicLinkApi, {PublicLink} from "@/UCloud/PublicLinkApi";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {checkProviderMismatch} from "../Create";
 import {PublicLinkBrowse} from "@/Applications/PublicLinks/PublicLinkBrowse";
 import {ApplicationParameterNS} from "@/Applications/AppStoreApi";
 import {dialogStore} from "@/Dialog/DialogStore";
+import {sendFailureNotification} from "@/Notifications";
 
 interface IngressProps extends WidgetProps {
     parameter: ApplicationParameterNS.Ingress;
@@ -71,7 +70,7 @@ export const IngressParameter: React.FunctionComponent<IngressProps> = props => 
                         const ingress = await invokeCommand<PublicLink>(PublicLinkApi.retrieve({id: id}), {defaultErrorHandler: false});
                         visual.value = ingress?.specification.domain ?? "Address not found";
                     } catch (e) {
-                        snackbarStore.addFailure("Failed to import custom links.", false);
+                        sendFailureNotification("Failed to import custom links.");
                         visual.value = "Address not found";
                     }
                 }

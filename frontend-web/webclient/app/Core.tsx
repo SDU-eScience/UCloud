@@ -57,7 +57,6 @@ const Connection = React.lazy(() => import("@/Providers/Connection"));
 
 import {Sidebar} from "@/ui-components/Sidebar";
 import Uploader from "@/Files/Uploader";
-import Snackbars from "@/Snackbar";
 import {Dialog} from "@/Dialog/Dialog";
 import {inDevEnvironment} from "@/UtilityFunctions";
 import {ErrorBoundary} from "@/ErrorBoundary/ErrorBoundary";
@@ -98,7 +97,6 @@ const NotFound = (): React.ReactNode => (<MainContainer main={<div><h1>Not found
 const Core = (): React.ReactNode => (
     <>
         <Dialog />
-        <Snackbars />
         <Uploader />
         <RightPopIn />
         <div data-component="router-wrapper" className={RouteWrapperClass}>

@@ -4,7 +4,7 @@ import {usePage} from "@/Navigation/Redux";
 import PromiseKeeper from "@/PromiseKeeper";
 import * as React from "react";
 import {useDispatch} from "react-redux";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
+
 import {Box, Button, Flex, Label, Select} from "@/ui-components";
 import {findAvatarQuery} from "@/Utilities/AvatarUtilities";
 import {errorMessageOrDefault} from "@/UtilityFunctions";
@@ -14,6 +14,7 @@ import {avatarState} from "@/AvataaarLib/hook";
 import {AvatarType, defaultAvatar} from "@/AvataaarLib";
 import Avatar from "@/AvataaarLib/avatar";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {sendFailureNotification} from "@/Notifications";
 
 function Modification(): React.ReactNode {
     const [avatar, setAvatar] = React.useState(defaultAvatar);
@@ -159,7 +160,7 @@ function Modification(): React.ReactNode {
             setAvatar(r.response);
         } catch (e) {
             if (!e.isCanceled)
-                snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred fetching current Avatar"), false);
+                sendFailureNotification(errorMessageOrDefault(e, "An error occurred fetching current Avatar"));
         } finally {
             setLoading(false);
         }

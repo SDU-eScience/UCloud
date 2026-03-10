@@ -1,8 +1,6 @@
 import {Client, WSFactory} from "@/Authentication/HttpClientInstance";
 import {formatDistance} from "date-fns";
 import * as React from "react";
-import {Snack} from "@/Snackbar/Snackbars";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Absolute, Box, Flex, Icon, Relative} from "@/ui-components";
 import {IconName} from "@/ui-components/Icon";
 import {TextSpan} from "@/ui-components/Text";
@@ -247,10 +245,8 @@ function onNotificationAction(notification: Notification, navigate: NavigateFunc
 
 // NOTE(Dan): The code of this module contain all the relevant logic and components to control the notification system
 // of UCloud. A notification is UCloud acts as a hint to the user that an interesting event has occured, in doing so
-// it invites the user to take action in response to said event. This is the main difference between the "Snackbar"
-// functionality of UCloud which is only meant to notify the user of some event which does not require any user
-// action.
-//
+// it invites the user to take action in response to said event. 
+// 
 // The anatomy of an notification is roughly as follows:
 //
 //
@@ -282,9 +278,6 @@ function onNotificationAction(notification: Notification, navigate: NavigateFunc
 //    WebSocket subscription.
 // 2. From the `sendNotification` call. This allows the frontend to generate its own notifications. This is currently
 //    the only way of generating a pinned notification.
-// 3. From the `snackbarStore`. This is done mostly for legacy reasons with the old snackbars, which could optionally
-//    be added to the notification tray. Using the snackbars this way will no longer generate a snackbar, since this
-//    would have caused two distinct popups instead of one.
 //
 // All notifications, regardless of source, are normalized using the `normalizeNotification()` function. The output of
 // this function is used throughout all the other components. These notifications are stored in the
@@ -298,8 +291,7 @@ function renderNotifications() {
     }
 }
 
-// NOTE(Dan): The frontend can generate its own notification through `sendNotification()`. This is generally preferred
-// over using the `snackbar` functions, as these allow for greater flexibility.
+// NOTE(Dan): The frontend can generate its own notification through `sendNotification()`.
 export function sendNotification(notification: NormalizedNotification, forceShow: boolean = false) {
     const normalized = normalizeNotification(notification);
     const existing = notificationStore.find(item => item.uniqueId === normalized.uniqueId);
@@ -324,7 +316,6 @@ export function sendNotification(notification: NormalizedNotification, forceShow
 // function is responsible for pulling information from these sources and pushing it into the `notificationStore`.
 // When UI updates are required, then this function will invoke `renderNotifications()` to trigger a UI update in all
 // relevant components.
-let snackbarSubscription: (snack?: Snack) => void = () => {};
 let snoozeLoop: any;
 function initializeStore() {
     // NOTE(Dan): We first fetch a history of old events. These are only added to the tray and do not trigger a popup.
@@ -338,22 +329,6 @@ function initializeStore() {
         renderNotifications();
     });
 
-    // NOTE(Dan): Sets up the subscriber to the snackbarStore. This is here mostly for legacy reasons. Generally you
-    // should prefer generating frontend notifications through `sendNotification()`.
-    snackbarSubscription = (snack?: Snack): void => {
-        if (snack && snack.addAsNotification) {
-            sendNotification(normalizeNotification({
-                id: -new Date().getTime(),
-                message: snack.message,
-                read: false,
-                type: "info",
-                ts: new Date().getTime(),
-                meta: ""
-            }));
-        }
-    };
-    snackbarStore.subscribe(snackbarSubscription);
-
     // NOTE(Dan): A pinned notification which has been snoozed should automatically re-appear as a popup after some
     // time. This small `setInterval()` handler is responsible for doing this.
     snoozeLoop = setInterval(() => {
@@ -366,11 +341,58 @@ function initializeStore() {
     }, 500);
 }
 
+
+export const enum SnackType {
+    Success,
+    Information,
+    Failure,
+    Custom
+}
+
+interface IconColorAndName {
+    name: IconName;
+    color: ThemeColor;
+    color2: ThemeColor;
+}
+
+const iconNameAndColorFromSnack: Record<Exclude<SnackType, SnackType.Custom>, IconColorAndName> = {
+    [SnackType.Success]: {name: "check", color: "successMain", color2: "successMain"},
+    [SnackType.Information]: {name: "heroInformationCircle", color: "backgroundDefault", color2: "backgroundDefault"},
+    [SnackType.Failure]: {name: "close", color: "errorMain", color2: "errorMain"},
+};
+
+function snackToNotification(message: string, kind: SnackType) {
+    const {name, color, color2}: IconColorAndName = iconNameAndColorFromSnack[kind];
+
+    return normalizeNotification({
+        id: -new Date().getTime(),
+        message: message,
+        read: false,
+        type: "info",
+        ts: new Date().getTime(),
+        meta: "",
+        icon: name,
+        iconColor: color,
+        iconColor2: color2,
+    })
+}
+
+export function sendSuccessNotification(message: string) {
+    return sendNotification(snackToNotification(message, SnackType.Success));
+}
+
+export function sendFailureNotification(message: string) {
+    return sendNotification(snackToNotification(message, SnackType.Failure));
+}
+
+export function sendInformationNotification(message: string) {
+    return sendNotification(snackToNotification(message, SnackType.Information));
+}
+
 function deinitStore() {
     notificationStore.length = 0;
 
     if (snoozeLoop) clearInterval(snoozeLoop);
-    snackbarStore.unsubscribe(snackbarSubscription);
 }
 
 // NOTE(Dan): Whenever a user has read a message, we mark it as read and notify the backend (if relevant). This is
@@ -685,7 +707,7 @@ function NotificationEntry(props: NotificationEntryProps): React.ReactNode {
         <div className={classConcatArray(NotificationWrapper, classes)} onClick={onAction}>
             {props.notification.avatar === undefined ?
                 <Icon name={notification.icon} size="24px" color={notification.iconColor ?? "iconColor"}
-                      color2={notification.iconColor2 ?? "iconColor2"} /> :
+                    color2={notification.iconColor2 ?? "iconColor2"} /> :
                 <Box flexShrink={0}>
                     <AvatarForUser username={props.notification.avatar} height="24px" width="24px" mx={"0px"}></AvatarForUser>
                 </Box>

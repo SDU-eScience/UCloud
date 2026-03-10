@@ -30,7 +30,6 @@ import Button from "@/ui-components/Button";
 import Input from "@/ui-components/Input";
 import Text from "@/ui-components/Text";
 import {Box, ExternalLink, Label} from "@/ui-components";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {FindByStringId} from "@/UCloud";
 import {addProjectListener, removeProjectListener} from "@/Project/ReduxState";
 import {LicenseSupport} from "@/UCloud/LicenseApi";
@@ -43,6 +42,7 @@ import {isAdminOrPI} from "@/Project";
 import {getShortProviderTitle} from "@/Providers/ProviderTitle";
 import {useEffect} from "react";
 import {useProjectId} from "@/Project/Api";
+import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -301,7 +301,7 @@ export function PublicLinkBrowse({opts}: {opts?: ResourceBrowserOpts<PublicLink>
                                                 }
                                             })))).responses[0] as unknown as FindByStringId;
 
-                                            snackbarStore.addSuccess("Public link created for " + domain, false);
+                                            sendSuccessNotification("Public link created for " + domain);
 
                                             if (response) {
                                                 for (const permission of entry.permissions.others ?? []) {
@@ -328,7 +328,7 @@ export function PublicLinkBrowse({opts}: {opts?: ResourceBrowserOpts<PublicLink>
                                                 browser.refresh();
                                             }
                                         } catch (e) {
-                                            snackbarStore.addFailure("Failed to create public link. " + extractErrorMessage(e), false);
+                                            sendFailureNotification("Failed to create public link. " + extractErrorMessage(e));
                                             browser.refresh();
                                             return;
                                         }
