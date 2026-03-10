@@ -126,6 +126,11 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		Name: ContainerUserJob,
 	})
 
+	spec.Containers = append(spec.Containers, core.Container{
+		Name:  ContainerAuditLog,
+		Image: "alpine:latest",
+	})
+
 	userContainer := &spec.Containers[0]
 	userContainer.ImagePullPolicy = core.PullIfNotPresent
 	userContainer.Resources.Limits = map[core.ResourceName]resource.Quantity{}
@@ -136,7 +141,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		userContainer.Image = tool.Description.Container
 	}
 
-	enableAuditlog(spec, userContainer, tool)
+	setupAuditlog(spec, userContainer)
 
 	// Setting up network policy and service
 	// -----------------------------------------------------------------------------------------------------------------
@@ -615,11 +620,7 @@ func jobHostName(jobId string, rank int) string {
 	)
 }
 
-func enableAuditlog(spec *core.PodSpec, userContainer *core.Container, tool *orc.Tool) {
-
-	spec.Containers = append(spec.Containers, core.Container{
-		Name: ContainerAuditLog,
-	})
+func setupAuditlog(spec *core.PodSpec, userContainer *core.Container) {
 
 	auditLogContainer := &spec.Containers[len(spec.Containers)-1]
 	auditLogContainer.ImagePullPolicy = core.PullIfNotPresent
@@ -627,31 +628,27 @@ func enableAuditlog(spec *core.PodSpec, userContainer *core.Container, tool *orc
 	auditLogContainer.Resources.Requests = map[core.ResourceName]resource.Quantity{}
 	auditLogContainer.SecurityContext = &core.SecurityContext{}
 	auditLogContainer.Command = []string{"tail", "-f", "/dev/null"}
-	userContainer.Image = tool.Description.Image
-	if userContainer.Image == "" {
-		userContainer.Image = tool.Description.Container
-	}
 
-	//auditVolumeName := "ucloud-audit"
-	//spec.Volumes = append(spec.Volumes, core.Volume{
-	//	Name: auditVolumeName,
-	//	VolumeSource: core.VolumeSource{
-	//		HostPath: &core.HostPathVolumeSource{
-	//			Path: "/mnt/storage/audit",
-	//			Type: util.Pointer(core.HostPathDirectoryOrCreate),
-	//		},
-	//	},
-	//})
+	auditVolumeName := "ucloud-audit"
+	spec.Volumes = append(spec.Volumes, core.Volume{
+		Name: auditVolumeName,
+		VolumeSource: core.VolumeSource{
+			HostPath: &core.HostPathVolumeSource{
+				Path: "/mnt/storage/audit",
+				Type: util.Pointer(core.HostPathDirectoryOrCreate),
+			},
+		},
+	})
 
-	//userContainer.VolumeMounts = append(userContainer.VolumeMounts, core.VolumeMount{
-	//	Name:      auditVolumeName,
-	//	ReadOnly:  true,
-	//	MountPath: "/audit",
-	//})
-	//
-	//auditLogContainer.VolumeMounts = append(auditLogContainer.VolumeMounts, core.VolumeMount{
-	//	Name:      auditVolumeName,
-	//	ReadOnly:  false,
-	//	MountPath: "/audit",
-	//})
+	userContainer.VolumeMounts = append(userContainer.VolumeMounts, core.VolumeMount{
+		Name:      auditVolumeName,
+		ReadOnly:  true,
+		MountPath: "/audit",
+	})
+
+	auditLogContainer.VolumeMounts = append(auditLogContainer.VolumeMounts, core.VolumeMount{
+		Name:      auditVolumeName,
+		ReadOnly:  false,
+		MountPath: "/audit",
+	})
 }
