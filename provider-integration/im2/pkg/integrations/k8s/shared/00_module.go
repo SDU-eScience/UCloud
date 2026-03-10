@@ -5,6 +5,7 @@ import (
 	"slices"
 	"time"
 
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
@@ -13,6 +14,7 @@ import (
 )
 
 var JobPods *K8sResourceTracker[*corev1.Pod]
+var BatchBackgroundJobs *K8sResourceTracker[*batchv1.Job]
 
 func Init() {
 	InitClients()
@@ -26,6 +28,16 @@ func Init() {
 		},
 		func(resource *corev1.Pod) string {
 			return resource.Name
+		},
+	)
+
+	BatchBackgroundJobs = NewResourceTracker[*batchv1.Job](
+		"",
+		func(factory informers.SharedInformerFactory) cache.SharedIndexInformer {
+			return factory.Batch().V1().Jobs().Informer()
+		},
+		func(resource *batchv1.Job) string {
+			return resource.Namespace + "/" + resource.Name
 		},
 	)
 }

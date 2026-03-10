@@ -51,9 +51,11 @@ type Task2Spec struct {
 	}
 }
 
-var TaskNamespace = "ucloud-apps"
-
 const taskStorageMountDir = "/mnt/storage"
+
+const (
+	task2LabelKey = "ucloud.dk/backgroundTask"
+)
 
 type tasksInternalPostStatusRequest struct {
 	Token  string
@@ -73,68 +75,72 @@ var tasksInternalPostStatus = rpc.Call[tasksInternalPostStatusRequest, util.Empt
 	},
 }
 
-func initTasks2() {
-	cacheMu := sync.RWMutex{}
-	cache := map[string]int{} // token to ucloud task id
+var taskState struct {
+	Mu    sync.RWMutex
+	Cache map[string]int // token to ucloud task id
+}
 
-	getTaskId := func(token string) (int, bool) {
-		cacheMu.RLock()
-		taskId, ok := cache[token]
-		cacheMu.RUnlock()
+func taskGetUCloudTaskIdFromToken(token string) (int, bool) {
+	taskState.Mu.RLock()
+	taskId, ok := taskState.Cache[token]
+	taskState.Mu.RUnlock()
 
-		if !ok {
-			cacheMu.Lock()
-			taskId, ok = db.NewTx2(func(tx *db.Transaction) (int, bool) {
-				row, ok := db.Get[struct {
-					UCloudTaskId int
-				}](
-					tx,
-					`
+	if !ok {
+		taskState.Mu.Lock()
+		taskId, ok = db.NewTx2(func(tx *db.Transaction) (int, bool) {
+			row, ok := db.Get[struct {
+				UCloudTaskId int
+			}](
+				tx,
+				`
 						select ucloud_task_id
 						from k8s.tasks_v2
 						where api_token = :tok
 				    `,
-					db.Params{
-						"tok": token,
-					},
-				)
+				db.Params{
+					"tok": token,
+				},
+			)
 
-				return row.UCloudTaskId, ok
-			})
+			return row.UCloudTaskId, ok
+		})
 
-			if ok {
-				cache[token] = taskId
-			}
-			cacheMu.Unlock()
-		}
-
-		return taskId, ok
-	}
-
-	cleanupTask := func(token string) {
-		_, ok := getTaskId(token)
 		if ok {
-			db.NewTx0(func(tx *db.Transaction) {
-				db.Exec(
-					tx,
-					`
-						delete from k8s.tasks_v2
-						where api_token = :tok
-				    `,
-					db.Params{
-						"tok": token,
-					},
-				)
-			})
-
-			cacheMu.Lock()
-			delete(cache, token)
-			cacheMu.Unlock()
+			taskState.Cache[token] = taskId
 		}
+		taskState.Mu.Unlock()
 	}
+
+	return taskId, ok
+}
+
+func taskCleanupByToken(token string) {
+	_, ok := taskGetUCloudTaskIdFromToken(token)
+	if ok {
+		db.NewTx0(func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					delete from k8s.tasks_v2
+					where api_token = :tok
+				`,
+				db.Params{
+					"tok": token,
+				},
+			)
+		})
+
+		taskState.Mu.Lock()
+		delete(taskState.Cache, token)
+		taskState.Mu.Unlock()
+	}
+}
+
+func initTasks2() {
+	taskState.Cache = map[string]int{}
 
 	tasksInternalPostStatus.Handler(func(info rpc.RequestInfo, request tasksInternalPostStatusRequest) (util.Empty, *util.HttpError) {
-		ucloudTaskId, ok := getTaskId(request.Token)
+		ucloudTaskId, ok := taskGetUCloudTaskIdFromToken(request.Token)
 		if !ok {
 			return util.Empty{}, util.HttpErr(http.StatusForbidden, "invalid token")
 		}
@@ -152,11 +158,115 @@ func initTasks2() {
 		}
 
 		if request.Update.State == fndapi.TaskStateSuccess || request.Update.State == fndapi.TaskStateFailure {
-			cleanupTask(request.Token)
+			taskCleanupByToken(request.Token)
 		}
 
 		return util.Empty{}, nil
 	})
+
+	go taskJobReconciler()
+}
+
+func taskJobReconciler() {
+	ticker := time.NewTicker(3 * time.Second)
+	defer ticker.Stop()
+
+	for util.IsAlive {
+		<-ticker.C
+
+		for _, job := range shared.BatchBackgroundJobs.List() {
+			if job.Labels[task2LabelKey] != "true" {
+				continue
+			}
+
+			finalState := fndapi.TaskStateSuccess
+			done := false
+
+			{
+				for _, cond := range job.Status.Conditions {
+					if cond.Status != k8score.ConditionTrue {
+						continue
+					}
+
+					switch cond.Type {
+					case k8sbatch.JobComplete:
+						log.Info("Cond complete")
+						finalState, done = fndapi.TaskStateSuccess, true
+					case k8sbatch.JobFailed:
+						log.Info("Cond failed")
+						finalState, done = fndapi.TaskStateFailure, true
+					}
+				}
+
+				if job.Status.Succeeded > 0 {
+					log.Info("success")
+					finalState, done = fndapi.TaskStateSuccess, true
+				}
+
+				if job.Status.Failed > 0 {
+					log.Info("failed")
+					finalState, done = fndapi.TaskStateFailure, true
+				}
+			}
+
+			if !done {
+				continue
+			}
+
+			// NOTE(Dan): We expect most to _not_ have a task at this point, since it should have posted a status
+			// update prior to this completing it. This code is here to send a status update in case it completes while
+			// the IM is down.
+
+			ucloudTaskId, apiToken, ok := db.NewTx3(func(tx *db.Transaction) (int, string, bool) {
+				result, resultOk := db.Get[struct {
+					UCloudTaskId int
+					ApiToken     string
+				}](
+					tx,
+					`
+							select ucloud_task_id, api_token
+							from k8s.tasks_v2
+							where id = :id
+						`,
+					db.Params{
+						"id": job.Name,
+					},
+				)
+
+				return result.UCloudTaskId, result.ApiToken, resultOk
+			})
+
+			if ok {
+				_, err := fndapi.TasksPostStatus.Invoke(fndapi.TasksPostStatusRequest{
+					Update: fndapi.TasksPostStatusRequestUpdate{
+						Id:         ucloudTaskId,
+						ModifiedAt: fndapi.Timestamp(time.Now()),
+						NewStatus: fndapi.TaskStatus{
+							Title:              util.OptValue("Task has completed"),
+							Body:               util.OptValue("This task has completed while the system was being updated."),
+							ProgressPercentage: util.OptValue(100.0),
+							State:              finalState,
+						},
+					},
+				})
+
+				if err == nil {
+					taskCleanupByToken(apiToken)
+
+				} else {
+					log.Warn("Task reconciler: failed to post status for %s: %s", job.Name, err)
+					continue
+				}
+			}
+
+			k8sErr := shared.K8sClient.BatchV1().Jobs(job.Namespace).Delete(context.Background(), job.Name, k8smeta.DeleteOptions{
+				PropagationPolicy: util.Pointer(k8smeta.DeletePropagationBackground),
+			})
+			if k8sErr != nil {
+				log.Warn("Task reconciler: failed to delete completed job %s/%s: %s", job.Namespace, job.Name, k8sErr)
+			}
+		}
+	}
 }
 
 func TaskSubmit(spec Task2Spec) *util.HttpError {
@@ -200,7 +310,10 @@ func TaskSubmit(spec Task2Spec) *util.HttpError {
 	job := k8sbatch.Job{
 		ObjectMeta: k8smeta.ObjectMeta{
 			Name:      spec.Id,
-			Namespace: TaskNamespace,
+			Namespace: shared.ServiceConfig.Compute.Namespace,
+			Labels: map[string]string{
+				task2LabelKey: "true",
+			},
 		},
 		Spec: k8sbatch.JobSpec{
 			Template: k8score.PodTemplateSpec{
@@ -287,9 +400,9 @@ func TaskSubmit(spec Task2Spec) *util.HttpError {
 		},
 	}
 
-	_, kerr := shared.K8sClient.BatchV1().Jobs(TaskNamespace).Create(context.Background(), &job, k8smeta.CreateOptions{})
+	_, kerr := shared.K8sClient.BatchV1().Jobs(shared.ServiceConfig.Compute.Namespace).Create(context.Background(), &job, k8smeta.CreateOptions{})
 	if kerr != nil {
-		log.Warn("K8s background task failed: %s", err)
+		log.Warn("K8s background task failed: %s", kerr)
 		return util.HttpErr(http.StatusInternalServerError, "failed to create background task")
 	}
 
