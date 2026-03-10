@@ -46,6 +46,7 @@ func InitFiles() controller.FileService {
 	browseCache = lru.NewLRU[string, []cachedDirEntry](256, nil, 5*time.Minute)
 	loadStorageProducts()
 
+	initTasks2()
 	initScanQueue()
 	go func() {
 		for util.IsAlive {

@@ -171,6 +171,10 @@ func Launch() {
 			return rpc.Actor{}, util.HttpErr(http.StatusUnauthorized, "unauthorized")
 		}
 
+		if r.Header.Get("x-jwt-payload") == "" && strings.HasPrefix(r.RequestURI, "/api/internal/") {
+			return rpc.Actor{Role: rpc.RoleGuest}, nil
+		}
+
 		payloadHeader := r.Header.Get("x-jwt-payload")
 		payloadDecoded, err := base64.RawURLEncoding.DecodeString(payloadHeader)
 		if err != nil {

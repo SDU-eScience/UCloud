@@ -177,6 +177,10 @@ type refreshRequestItem struct {
 }
 
 func (c *Client) RetrieveAccessTokenOrRefresh() string {
+	if c.RefreshToken == "" && ServerProviderId == "" && !c.CoreForProvider.Present {
+		return ""
+	}
+
 	if !shouldRenewTokenNow(c.AccessToken) {
 		return c.AccessToken
 	}
@@ -356,7 +360,10 @@ func CallViaQueryEx(c *Client, path string, parameters []string, opts InvokeOpts
 		return Response{StatusCode: http.StatusBadGateway}
 	}
 
-	request.Header.Set("Authorization", fmt.Sprintf("Bearer %v", c.RetrieveAccessTokenOrRefresh()))
+	accessToken := c.RetrieveAccessTokenOrRefresh()
+	if accessToken != "" {
+		request.Header.Set("Authorization", fmt.Sprintf("Bearer %v", accessToken))
+	}
 	handleOpts(request, opts)
 	do, err := c.Client.Do(request)
 	if err != nil {

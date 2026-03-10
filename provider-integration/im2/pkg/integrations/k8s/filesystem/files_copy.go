@@ -14,11 +14,65 @@ import (
 	"golang.org/x/sys/unix"
 	ctrl "ucloud.dk/pkg/controller"
 	fnd "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/log"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
 
+func copyFiles(actor rpc.Actor, request orc.FilesProviderMoveOrCopyRequest) *util.HttpError {
+	if !AllowUCloudPathsTogether([]string{request.OldId, request.NewId}) {
+		return util.ServerHttpError("Some of these files cannot be used together. One or more are sensitive.")
+	}
+
+	_, ok1, _ := UCloudToInternal(request.OldId)
+	destPath, ok2, destDrive := UCloudToInternal(request.NewId)
+	if !ok1 || !ok2 {
+		return &util.HttpError{
+			StatusCode: http.StatusNotFound,
+			Why:        "Unable to copy files. Request or destination is unknown.",
+		}
+	}
+
+	if ctrl.ResourceIsLocked(destDrive.Resource, request.ResolvedNewCollection.Specification.Product) {
+		return util.PaymentError()
+	}
+
+	task := Task2Spec{
+		Type:           TaskSpecTypeCopy,
+		Source:         request.OldId,
+		Destination:    request.NewId,
+		ConflictPolicy: string(request.ConflictPolicy),
+		Mounts: []Task2SpecMount{
+			{UCloudPath: request.OldId},
+			{UCloudPath: request.NewId},
+		},
+	}
+	task.CreationState.Username = actor.Username
+	task.CreationState.Icon = "copy"
+
+	if request.ConflictPolicy == orc.WriteConflictPolicyRename {
+		newPath, err := findAvailableNameOnRename(destPath)
+		destPath = newPath
+
+		if err != nil {
+			return &util.HttpError{
+				StatusCode: http.StatusBadRequest,
+				Why:        "Unable to copy file (too many duplicates?)",
+			}
+		}
+
+		newInternalDest, ok := InternalToUCloudWithDrive(&request.ResolvedNewCollection, destPath)
+		if !ok {
+			return util.UserHttpError("Unable to copy files. Unknown drive")
+		}
+		task.Destination = newInternalDest
+	}
+
+	return TaskSubmit(task)
+}
+
+/*
 func copyFiles(actor rpc.Actor, request orc.FilesProviderMoveOrCopyRequest) *util.HttpError {
 	if !AllowUCloudPathsTogether([]string{request.OldId, request.NewId}) {
 		return util.ServerHttpError("Some of these files cannot be used together. One or more are sensitive.")
@@ -68,6 +122,7 @@ func copyFiles(actor rpc.Actor, request orc.FilesProviderMoveOrCopyRequest) *uti
 
 	return RegisterTask(task)
 }
+*/
 
 func processCopyTask(task *TaskInfo) TaskProcessingResult {
 	sourcePath, ok1, _ := UCloudToInternal(task.UCloudSource.Value)
@@ -285,20 +340,27 @@ outer:
 type copyWorker struct {
 	DestFileFd     int
 	FilesCompleted atomic.Int64
+	FilesFailed    atomic.Int64
 	BytesProcessed atomic.Int64
 }
 
-func (w *copyWorker) Process(ctx context.Context, backendQueue chan discoveredFile) {
+func (w *copyWorker) Process(ctx context.Context, backendQueue <-chan discoveredFile) {
 outer:
 	for util.IsAlive {
 		select {
 		case <-ctx.Done():
 			break outer
-		case entry := <-backendQueue:
-			w.copyFile(entry)
-			w.FilesCompleted.Add(1)
-			if entry.LinkTo == "" && !entry.FileInfo.IsDir() {
-				w.BytesProcessed.Add(entry.FileInfo.Size())
+		case entry, ok := <-backendQueue:
+			if !ok {
+				break outer
+			}
+
+			bytesCopied, copied := w.copyFile(entry)
+			if copied {
+				w.FilesCompleted.Add(1)
+				w.BytesProcessed.Add(bytesCopied)
+			} else {
+				w.FilesFailed.Add(1)
 			}
 
 			if entry.InternalPath != "" {
@@ -308,21 +370,26 @@ outer:
 	}
 }
 
-func (w *copyWorker) copyFile(entry discoveredFile) bool {
+func (w *copyWorker) copyFile(entry discoveredFile) (int64, bool) {
 	var err error = nil
 	destFileFd := w.DestFileFd
+
+	if entry.InternalPath == "" && entry.LinkTo == "" && entry.FileInfo != nil && entry.FileInfo.IsDir() {
+		return 0, true
+	}
 
 	for i := 0; i < len(entry.InternalPath); i++ {
 		if entry.InternalPath[i] == '/' {
 			err := unix.Mkdirat(destFileFd, entry.InternalPath[:i], 0770)
-			if !errors.Is(err, unix.ENOTDIR) && !errors.Is(err, unix.EEXIST) {
-				return false
+			if err != nil && !errors.Is(err, unix.ENOTDIR) && !errors.Is(err, unix.EEXIST) {
+				log.Info("Failed to create directory: %s (%#v)", err, entry)
+				return 0, false
 			}
 		}
 	}
 
 	if entry.LinkTo != "" {
-		return unix.Symlinkat(entry.LinkTo, destFileFd, entry.InternalPath) == nil
+		return 0, unix.Symlinkat(entry.LinkTo, destFileFd, entry.InternalPath) == nil
 	} else if !entry.FileInfo.IsDir() {
 		fd := int(0)
 		if entry.InternalPath == "" {
@@ -330,25 +397,31 @@ func (w *copyWorker) copyFile(entry discoveredFile) bool {
 		} else {
 			fd, err = unix.Openat(destFileFd, entry.InternalPath, unix.O_RDWR|unix.O_TRUNC|unix.O_CREAT, 0660)
 			if err != nil {
-				return false
+				log.Info("Failed to open: %s (%#v)", err, entry)
+				return 0, false
 			}
 		}
 
 		_ = unix.Fchmod(fd, uint32(entry.FileInfo.Mode().Perm()))
 		_ = unix.Fchown(fd, FileUid(entry.FileInfo), FileGid(entry.FileInfo))
 		file := os.NewFile(uintptr(fd), entry.InternalPath)
-		_, err = io.Copy(file, entry.FileDescriptor)
+		bytesCopied, err := io.Copy(file, entry.FileDescriptor)
 		_ = file.Close()
 		if err != nil {
-			return false
+			log.Info("Failed to copy: %s (%#v)", err, entry)
+			return 0, false
 		}
+
+		return bytesCopied, true
 	} else {
 		_ = unix.Mkdirat(destFileFd, entry.InternalPath, 0770)
 		_ = unix.Fchownat(destFileFd, entry.InternalPath, FileUid(entry.FileInfo), FileGid(entry.FileInfo), 0)
-		return unix.Fchmodat(destFileFd, entry.InternalPath, uint32(entry.FileInfo.Mode().Perm()), 0) == nil
+		err := unix.Fchmodat(destFileFd, entry.InternalPath, uint32(entry.FileInfo.Mode().Perm()), 0)
+		if err != nil {
+			log.Info("Failed to copy: %s (%#v)", err, entry)
+		}
+		return 0, err == nil
 	}
-
-	return true
 }
 
 type discoveredFile struct {
@@ -409,7 +482,7 @@ outer:
 					buf := make([]byte, bufSize+1)
 
 					n, err := unix.Readlinkat(int(rootFile.Fd()), entry, buf)
-					if n == bufSize && err == nil {
+					if err == nil && n >= 0 && n <= bufSize {
 						df := discoveredFile{
 							InternalPath: entry,
 							LinkTo:       string(buf[:n]),
