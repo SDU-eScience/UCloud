@@ -285,15 +285,17 @@ type ProviderBranding struct {
 	Sections            []ProviderBrandingSection            `yaml:"sections"`
 	ProductDescription  []ProviderBrandingProductDescription `yaml:"productDescription"`
 }
+type AuditLog struct {
+	RetentionPeriodInDays int `yaml:"retentionPeriodInDays"`
+}
+
 type ProviderConfiguration struct {
 	Id string
 
 	ProviderBranding                  ProviderBranding `yaml:"providerBranding"`
 	ProviderBrandingImageAbsolutePath map[string]string
 
-	AuditLog struct {
-		retentionPeriodInDays int `yaml:"retentionPeriodInDays"`
-	}
+	AuditLog AuditLog `yaml:"auditLog"`
 
 	Hosts struct {
 		UCloud       HostInfo
