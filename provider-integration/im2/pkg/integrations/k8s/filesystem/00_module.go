@@ -666,9 +666,29 @@ func createUpload(request orc.FilesProviderCreateUploadRequest) (string, *util.H
 
 type uploaderFileSystem struct{}
 type uploaderFile struct {
+	Path     string
 	File     *os.File
 	Metadata upload.FileMetadata
 	err      error
+}
+
+func (u *uploaderFile) ensureOpen() error {
+	if u.err != nil {
+		return u.err
+	}
+
+	if u.File != nil {
+		return nil
+	}
+
+	file, ok := OpenFile(u.Path, unix.O_RDWR|unix.O_TRUNC|unix.O_CREAT, 0660)
+	if !ok {
+		u.err = fmt.Errorf("unable to open upload destination")
+		return u.err
+	}
+
+	u.File = file
+	return nil
 }
 
 func (u *uploaderFileSystem) OpenFileIfNeeded(session upload.ServerSession, fileMeta upload.FileMetadata) upload.ServerFile {
@@ -676,10 +696,14 @@ func (u *uploaderFileSystem) OpenFileIfNeeded(session upload.ServerSession, file
 	internalPath := filepath.Join(rootPath, fileMeta.InternalPath)
 
 	fd, ok := OpenFile(internalPath, unix.O_RDONLY, 0)
-	info, err := fd.Stat()
-	util.SilentClose(fd)
-	if !ok || err != nil {
-		err = DoCreateFolder(filepath.Dir(internalPath)).AsError()
+	var info os.FileInfo
+	if ok {
+		info, _ = fd.Stat()
+		util.SilentClose(fd)
+	}
+
+	if !ok || info == nil {
+		err := DoCreateFolder(filepath.Dir(internalPath)).AsError()
 		if err != nil {
 			return nil
 		}
@@ -689,12 +713,7 @@ func (u *uploaderFileSystem) OpenFileIfNeeded(session upload.ServerSession, file
 		}
 	}
 
-	file, ok := OpenFile(internalPath, unix.O_RDWR|unix.O_TRUNC|unix.O_CREAT, 0660)
-	if !ok {
-		return nil
-	}
-
-	return &uploaderFile{file, fileMeta, nil}
+	return &uploaderFile{Path: internalPath, Metadata: fileMeta, err: nil}
 }
 
 func (u *uploaderFileSystem) OnSessionClose(session upload.ServerSession, success bool) {
@@ -718,7 +737,12 @@ func (u *uploaderFile) Write(_ context.Context, data []byte) error {
 		return u.err
 	}
 
-	_, err := u.File.Write(data)
+	err := u.ensureOpen()
+	if err != nil {
+		return err
+	}
+
+	_, err = u.File.Write(data)
 
 	if err != nil {
 		u.err = err
@@ -727,6 +751,10 @@ func (u *uploaderFile) Write(_ context.Context, data []byte) error {
 }
 
 func (u *uploaderFile) Close() {
+	if u.Metadata.Size == 0 && u.File == nil {
+		_ = u.ensureOpen()
+	}
+
 	if u.err == nil {
 		t := u.Metadata.ModifiedAt.Time()
 
@@ -734,7 +762,9 @@ func (u *uploaderFile) Close() {
 			unix.NsecToTimeval(t.UnixNano()),
 			unix.NsecToTimeval(t.UnixNano()),
 		}
-		_ = unix.Futimes(int(u.File.Fd()), utimes)
+		if u.File != nil {
+			_ = unix.Futimes(int(u.File.Fd()), utimes)
+		}
 	}
 	util.SilentClose(u.File)
 }
@@ -1015,20 +1045,32 @@ func processTransferTask(task *TaskInfo) TaskProcessingResult {
 			Type:         ftype,
 		}
 
-		cancelChannel := make(chan util.Empty)
+		transferCtx, cancelTransfer := context.WithCancel(context.Background())
 		go func() {
-			for !task.Done.Load() {
-				newState := task.UserRequestedState.Load()
-				if newState != nil {
-					cancelChannel <- util.Empty{}
-					break
-				}
+			ticker := time.NewTicker(1 * time.Second)
+			defer ticker.Stop()
 
-				time.Sleep(1 * time.Second)
+			for {
+				select {
+				case <-transferCtx.Done():
+					return
+
+				case <-ticker.C:
+					if task.Done.Load() {
+						return
+					}
+
+					newState := task.UserRequestedState.Load()
+					if newState != nil {
+						cancelTransfer()
+						return
+					}
+				}
 			}
 		}()
 
-		report := upload.ProcessClient(uploadSession, uploaderRoot, rootMetadata, &task.Status, cancelChannel)
+		report := upload.ProcessClient(transferCtx, uploadSession, uploaderRoot, rootMetadata, &task.Status)
+		cancelTransfer()
 
 		if report.WasCancelledByUser {
 			uploadErr = nil

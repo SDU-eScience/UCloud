@@ -237,20 +237,32 @@ func processTransferTask(task *TaskInfo) TaskProcessingResult {
 			Type:         ftype,
 		}
 
-		cancelChannel := make(chan util.Empty)
+		transferCtx, cancelTransfer := context.WithCancel(context.Background())
 		go func() {
-			for !task.Done.Load() {
-				newState := task.UserRequestedState.Load()
-				if newState != nil {
-					cancelChannel <- util.Empty{}
-					break
-				}
+			ticker := time.NewTicker(1 * time.Second)
+			defer ticker.Stop()
 
-				time.Sleep(1 * time.Second)
+			for {
+				select {
+				case <-transferCtx.Done():
+					return
+
+				case <-ticker.C:
+					if task.Done.Load() {
+						return
+					}
+
+					newState := task.UserRequestedState.Load()
+					if newState != nil {
+						cancelTransfer()
+						return
+					}
+				}
 			}
 		}()
 
-		report := upload.ProcessClient(uploadSession, uploaderRoot, rootMetadata, &task.Status, cancelChannel)
+		report := upload.ProcessClient(transferCtx, uploadSession, uploaderRoot, rootMetadata, &task.Status)
+		cancelTransfer()
 
 		if report.WasCancelledByUser {
 			uploadErr = nil

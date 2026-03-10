@@ -1,6 +1,7 @@
 package filesystem
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"os"
@@ -61,32 +62,43 @@ func task2ProcessTransfer(spec Task2Spec) *util.HttpError {
 
 		status := atomic.Pointer[fnd.TaskStatus]{}
 
-		cancelChannel := make(chan util.Empty)
+		transferCtx, cancelTransfer := context.WithCancel(context.Background())
+		statusDone := make(chan struct{})
 		go func() {
-			// TODO This loop will run forever
+			defer close(statusDone)
+			ticker := time.NewTicker(250 * time.Millisecond)
+			defer ticker.Stop()
+
 			var lastStatus *fnd.TaskStatus
 
 			for {
-				if taskProcessorIsCancelled() {
-					cancelChannel <- util.Empty{}
-				}
+				select {
+				case <-transferCtx.Done():
+					return
 
-				taskStatus := status.Load()
-				if taskStatus != nil && lastStatus != taskStatus {
-					lastStatus = taskStatus
-					copied := *taskStatus
-					if !copied.Title.Present {
-						copied.Title.Set(fmt.Sprintf("File transfer of %s", util.FileName(spec.Source)))
+				case <-ticker.C:
+					if taskProcessorIsCancelled() {
+						cancelTransfer()
+						continue
 					}
 
-					taskProcessorPostUpdate(copied)
-				}
+					taskStatus := status.Load()
+					if taskStatus != nil && lastStatus != taskStatus {
+						lastStatus = taskStatus
+						copied := *taskStatus
+						if !copied.Title.Present {
+							copied.Title.Set(fmt.Sprintf("File transfer of %s", util.FileName(spec.Source)))
+						}
 
-				time.Sleep(250 * time.Millisecond)
+						taskProcessorPostUpdate(copied)
+					}
+				}
 			}
 		}()
 
-		report := upload.ProcessClient(uploadSession, uploaderRoot, rootMetadata, &status, cancelChannel)
+		report := upload.ProcessClient(transferCtx, uploadSession, uploaderRoot, rootMetadata, &status)
+		cancelTransfer()
+		<-statusDone
 
 		if report.WasCancelledByUser {
 			uploadErr = nil
@@ -94,8 +106,9 @@ func task2ProcessTransfer(spec Task2Spec) *util.HttpError {
 		}
 
 		if !report.NormalExit {
-			uploadErr = util.ServerHttpError("an abnormal error occurred during the transfer process")
-			break
+			i--
+			time.Sleep(5 * time.Second)
+			continue
 		}
 
 		if report.BytesTransferred == 0 && report.NewFilesUploaded == 0 {
