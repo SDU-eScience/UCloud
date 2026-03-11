@@ -131,6 +131,7 @@ func TestReadAndWritePath(t *testing.T) {
 	assert.False(t, p.Next.Present)
 
 	doc = p.Items[0]
+	permissions = doc.Permissions.GetOrDefault(orcapi.ResourcePermissions{})
 	assert.Nil(t, err)
 	assert.NotEqual(t, "", doc.Id)
 	assert.Equal(t, u.Username, doc.Owner.CreatedBy)
