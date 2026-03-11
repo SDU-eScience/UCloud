@@ -206,7 +206,7 @@ export const NotificationPopups: React.FunctionComponent = () => {
         elems.push(
             <NotificationCard
                 key={i}
-                top={`${baseOffset + (CARD_SIZE + CARD_GAP) * i}px`}
+                bottom={`${baseOffset + (CARD_SIZE + CARD_GAP) * i}px`}
                 exit={slot.needsExit}
                 callbackItem={slot}
                 {...slot.notification}
@@ -221,7 +221,7 @@ export const NotificationPopups: React.FunctionComponent = () => {
             elems.push(
                 <NotificationCard
                     key={slot.uniqueId}
-                    top={`${baseOffset + (CARD_SIZE + CARD_GAP) * i}px`}
+                    bottom={`${baseOffset + (CARD_SIZE + CARD_GAP) * i}px`}
                     exit={slot.needsExit}
                     {...slot.notification}
                     callbackItem={slot}

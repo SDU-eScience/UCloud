@@ -5,7 +5,6 @@ import {Box, Flex} from "@/ui-components";
 import {classConcat, injectStyle} from "@/Unstyled";
 import Card, {CardClass} from "@/ui-components/Card";
 import {ThemeColor} from "@/ui-components/theme";
-import {avatar} from "@/UCloud";
 import {AvatarForUser} from "@/AvataaarLib/UserAvatar";
 
 export interface NotificationProps {
@@ -23,7 +22,7 @@ export interface NotificationProps {
 }
 
 export const NotificationCard: React.FunctionComponent<NotificationProps & {
-    top: string;
+    bottom: string;
     exit?: boolean;
     callbackItem?: any;
     onMouseEnter?: (callbackItem?: any) => void;
@@ -46,16 +45,16 @@ export const NotificationCard: React.FunctionComponent<NotificationProps & {
 
     return <div
         className={classConcat(Style, props.exit ? "exit" : undefined)}
-        style={{position: "fixed", top: props.top, right: "16px"}}
+        style={{position: "fixed", bottom: props.bottom, right: "16px"}}
         onMouseEnter={onMouseEnterMemo}
         onMouseLeave={onMouseLeaveMemo}
         onClick={props.onAction}
     >
-        <Card backgroundColor={`${props.isPinned ? "var(--warningMain)" : "var(--backgroundDefault)" }`}>
+        <Card backgroundColor={`${props.isPinned ? "var(--warningMain)" : "var(--backgroundDefault)"}`}>
             <div className="notification-inner">
                 {props.avatar === undefined ?
                     <Icon name={props.icon} size="32px" color={props.iconColor ?? "iconColor"}
-                          color2={props.iconColor2 ?? "iconColor2"} /> :
+                        color2={props.iconColor2 ?? "iconColor2"} /> :
                     <Box flexShrink={0}>
                         <AvatarForUser username={props.avatar} height="32px" width="32px" mx="0px"></AvatarForUser>
                     </Box>
@@ -122,8 +121,8 @@ const Style = injectStyle("notification", k => `
     }
 
     ${k} .notification-inner .snooze, ${k} .notification-inner .time {
-            font-size: 12px;
-        }
+        font-size: 12px;
+    }
 
     ${k} .notification-inner a, ${k} .notification-inner .snooze {
         color: var(--primary);

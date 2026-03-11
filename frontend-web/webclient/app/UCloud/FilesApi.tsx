@@ -296,6 +296,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 primary: true,
                 enabled: (selected, cb) => {
                     if (cb.isSearch) return false;
+                    if (cb.creationDisabled) return "Fetching folder...";
                     if (selected.length !== 0 || cb.startCreation == null) return false;
                     if (cb.isCreating) return "You are already creating a folder";
                     const support = cb.collection?.status.resolvedSupport?.support;

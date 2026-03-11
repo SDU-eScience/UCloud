@@ -52,7 +52,7 @@ export function useGlobal<Property extends keyof HookStore>(
     }, [dispatch]);
 
     return [
-        ((value === undefined || value === null) ? defaultValue : value) as NonNullable<HookStore[Property]>,
+        ((value == null) ? defaultValue : value) as NonNullable<HookStore[Property]>,
         setter,
         merger
     ];

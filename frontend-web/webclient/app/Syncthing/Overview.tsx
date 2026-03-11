@@ -310,6 +310,11 @@ const NewOverview: React.FunctionComponent = () => {
         deviceToggleSet.uncheckAll();
     }, [uiState.devices]);
 
+    const eTagRef = useRef(uiState.etag);
+    React.useEffect(() => {
+        eTagRef.current = uiState.etag;
+    }, [uiState.etag])
+
     useEffect(() => {
         let didCancel = false;
         (async () => {
@@ -320,7 +325,7 @@ const NewOverview: React.FunctionComponent = () => {
                 await callAPI(Sync.api.updateConfiguration({
                     productId: selectedProduct.product.name,
                     provider: provider,
-                    expectedETag: uiState.etag,
+                    expectedETag: eTagRef.current,
                     config: {
                         devices: devices,
                         folders: folders,
@@ -1000,7 +1005,7 @@ const AddDeviceWizard: React.FunctionComponent<{
 
                     <form onSubmit={tutorialNext}>
                         <Label>
-                            Device Name
+                            Device name
                             <Input inputRef={deviceNameRef} placeholder={"My phone"} error={deviceNameError !== null} />
                             {!deviceNameError ?
                                 <Text color="textSecondary">
@@ -1011,7 +1016,7 @@ const AddDeviceWizard: React.FunctionComponent<{
                         </Label>
 
                         <Label mt="8px">
-                            My Device ID
+                            My device ID
                             <Input
                                 inputRef={deviceIdRef}
                                 placeholder="XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX"
