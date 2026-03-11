@@ -10,11 +10,11 @@ import (
 	"ucloud.dk/shared/pkg/log"
 )
 
-var auditLogFolder = "/mnt/storage/audit"
+var jobAuditLogFolder = "/mnt/storage/audit"
 
-func initAuditLog() {
+func initJobAuditLog() {
 
-	retentionDays := config.Provider.AuditLog.RetentionPeriodInDays
+	retentionDays := config.Provider.JobAuditLog.RetentionPeriodInDays
 	go func() {
 		cleanupLogs(retentionDays) // run once at startup
 
@@ -28,7 +28,7 @@ func initAuditLog() {
 }
 
 func cleanupLogs(retentionDays int) {
-	files, err := os.ReadDir(auditLogFolder)
+	files, err := os.ReadDir(jobAuditLogFolder)
 	if err != nil {
 		log.Error("Could not read audit log folder: %s", err)
 		return
@@ -55,7 +55,7 @@ func cleanupLogs(retentionDays int) {
 			continue
 		}
 		if fileDate.Before(cutoff) {
-			fullPath := filepath.Join(auditLogFolder, name)
+			fullPath := filepath.Join(jobAuditLogFolder, name)
 			err := os.Remove(fullPath)
 			if err != nil {
 				log.Error("Could not remove file: %s", err)

@@ -285,7 +285,7 @@ type ProviderBranding struct {
 	Sections            []ProviderBrandingSection            `yaml:"sections"`
 	ProductDescription  []ProviderBrandingProductDescription `yaml:"productDescription"`
 }
-type AuditLog struct {
+type JobAuditLog struct {
 	RetentionPeriodInDays int `yaml:"retentionPeriodInDays"`
 }
 
@@ -295,7 +295,7 @@ type ProviderConfiguration struct {
 	ProviderBranding                  ProviderBranding `yaml:"providerBranding"`
 	ProviderBrandingImageAbsolutePath map[string]string
 
-	AuditLog AuditLog `yaml:"auditLog"`
+	JobAuditLog JobAuditLog `yaml:"jobAuditLog"`
 
 	Hosts struct {
 		UCloud       HostInfo
@@ -402,10 +402,10 @@ func parseProvider(filePath string, provider *yaml.Node) (bool, ProviderConfigur
 			populateProviderBranding(&cfg, filePath, providerBranding)
 		}
 
-		// Audit log section
-		auditLog, _ := cfgutil.GetChildOrNil(filePath, provider, "auditLog")
-		if auditLog != nil {
-			cfgutil.Decode(filePath, auditLog, &cfg.AuditLog, &success)
+		// Job audit log section
+		jobAuditLog, _ := cfgutil.GetChildOrNil(filePath, provider, "jobAuditLog")
+		if jobAuditLog != nil {
+			cfgutil.Decode(filePath, jobAuditLog, &cfg.JobAuditLog, &success)
 		}
 
 		// Hosts section
