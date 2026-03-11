@@ -24,7 +24,8 @@ func writeJobAuditLog(event JobAuditEvent, rank string) error {
 	filename := fmt.Sprintf(
 		"%s/audit-%s-%s.jsonl",
 		jobAuditLogFolder,
-		time.Now().Format("2006-01-02"), rank,
+		rank,
+		time.Now().Format("2006-01-02"),
 	)
 
 	f, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
