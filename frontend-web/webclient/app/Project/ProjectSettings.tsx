@@ -271,9 +271,10 @@ export const ProjectSettings: React.FunctionComponent = () => {
                             <Icon
                                 name="heroDocumentDuplicate"
                                 ml="10px"
-                                onClick={() =>
-                                    copyToClipboard({value: projectId, message: "Copied project ID to clipboard"})
-                                }
+                                onClick={() => {
+                                    copyToClipboard(projectId);
+                                    sendSuccessNotification("Copied project ID to clipboard!");
+                                }}
                             />
                         </Flex>
                     </> : null}

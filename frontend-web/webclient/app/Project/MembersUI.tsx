@@ -34,6 +34,7 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {addStandardDialog} from "@/UtilityComponents";
 import {SimpleRichItem, SimpleRichSelect} from "@/ui-components/RichSelect";
 import BaseLink from "@/ui-components/BaseLink";
+import {sendInformationNotification} from "@/Notifications";
 
 export const TwoColumnLayout = injectStyle("two-column-layout", k => `
     ${k} {
@@ -407,6 +408,7 @@ const LinkInviteCard: React.FunctionComponent<{
     onInvite: (username: string) => void;
 }> = props => {
     const [activeLinkId, setActiveLinkId] = useState<string | null>(null);
+    const [copiedLinkIndex, setCopiedLinkIndex] = useState(-1);
     const activeLink = props.links.find(it => it.token === activeLinkId);
     const [expiry, setExpiry] = useState<SimpleRichItem>({
         key: "30",
@@ -606,7 +608,7 @@ const LinkInviteCard: React.FunctionComponent<{
                 </Flex>
             </> : null}
 
-            {props.links.map(link =>
+            {props.links.map((link, idx) =>
                 <Box key={link.token}>
                     <Flex padding={"8px 0px"} gap={"8px"}>
                         <Input
@@ -615,32 +617,31 @@ const LinkInviteCard: React.FunctionComponent<{
                             readOnly={true}
                             style={{cursor: "pointer"}}
                             onClick={() => {
-                                copyToClipboard({
-                                    value: inviteLinkFromToken(link.token),
-                                    message: "Invite link copied to clipboard"
-                                })
+                                copyToClipboard(inviteLinkFromToken(link.token));
+                                setCopiedLinkIndex(idx);
                             }}
-                        >
-                        </Input>
-                        <Button
-                            onClick={() =>
-                                copyToClipboard({
-                                    value: inviteLinkFromToken(link.token),
-                                    message: "Invite link copied to clipboard"
-                                })
-                            }
-                            width={"48px"}
-                        >
-                            <Icon name={"heroDocumentDuplicate"} />
-                        </Button>
-                        <Button
-                            onClick={() => {
-                                setActiveLinkId(link.token);
-                            }}
-                            width={"48px"}
-                        >
-                            <Icon name={"heroCog6Tooth"} />
-                        </Button>
+                        />
+                        <TooltipV2 tooltip="Copy to clipboard" contentWidth={150}>
+                            <Button
+                                onClick={() => {
+                                    copyToClipboard(inviteLinkFromToken(link.token));
+                                    setCopiedLinkIndex(idx);
+                                }}
+                                width={"48px"}
+                            >
+                                <Icon name={"heroDocumentDuplicate"} />
+                            </Button>
+                        </TooltipV2>
+                        <TooltipV2 tooltip={"Link settings"} contentWidth={120}>
+                            <Button
+                                onClick={() => {
+                                    setActiveLinkId(link.token);
+                                }}
+                                width={"48px"}
+                            >
+                                <Icon name={"heroCog6Tooth"} />
+                            </Button>
+                        </TooltipV2>
                         <Button
                             onClick={() => props.onDeleteLink(link.token)}
                             width={"48px"}
@@ -649,13 +650,19 @@ const LinkInviteCard: React.FunctionComponent<{
                             <Icon name={"heroTrash"} />
                         </Button>
                     </Flex>
-                    <div style={{marginBottom: "8px", color: "var(--textSecondary)"}}>This link will automatically
-                        expire in {daysLeftToTimestamp(link.expires)} days
-                    </div>
+                    <Flex width="auto">
+                        <Box mb="8px" color="textSecondary" width="70%">
+                            This link will automatically expire in {daysLeftToTimestamp(link.expires)} days
+                        </Box>
+                        <Box textAlign="end" mb="8px" color="textSecondary" width="30%">
+                            {copiedLinkIndex === idx ? <>Copied! <Icon name="check" color="successMain" /></> : null}
+                        </Box>
+                    </Flex>
                 </Box>
             )}
-        </>}
-    </div>
+        </>
+        }
+    </div >
 }
 
 const MemberCard: React.FunctionComponent<{
@@ -839,7 +846,10 @@ const GroupCard: React.FunctionComponent<{
                         text: "Copy ID",
                         icon: "id",
                         enabled: () => Client.userIsAdmin,
-                        onClick: () => copyToClipboard({value: props.group.id, message: "Copied group ID to clipboard"}),
+                        onClick: () => {
+                            copyToClipboard(props.group.id);
+                            sendInformationNotification("Copied group ID to clipboard!");
+                        },
                         shortcut: ShortcutKey.C
                     },
                     {

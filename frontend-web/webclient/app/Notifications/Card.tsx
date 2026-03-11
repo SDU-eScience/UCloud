@@ -6,6 +6,7 @@ import {classConcat, injectStyle} from "@/Unstyled";
 import Card, {CardClass} from "@/ui-components/Card";
 import {ThemeColor} from "@/ui-components/theme";
 import {AvatarForUser} from "@/AvataaarLib/UserAvatar";
+import {copyToClipboard} from "@/UtilityFunctions";
 
 export interface NotificationProps {
     icon: IconName;
@@ -29,6 +30,7 @@ export const NotificationCard: React.FunctionComponent<NotificationProps & {
     onMouseLeave?: (callbackItem?: any) => void;
     onSnooze?: (callbackItem?: any) => void;
 }> = (props) => {
+    const [copied, setCopied] = React.useState(false);
     const onMouseEnterMemo = useCallback(() => {
         props.onMouseEnter?.(props.callbackItem);
     }, [props.callbackItem, props.onMouseEnter]);
@@ -69,6 +71,10 @@ export const NotificationCard: React.FunctionComponent<NotificationProps & {
                     </Flex>
 
                     <div className="notification-body">{props.body}</div>
+                    <Box onClick={() => {
+                        copyToClipboard(props.title + "\n" + props.body);
+                        setCopied(true);
+                    }} textAlign={"end"} fontSize={10} mt={"-6px"} mr="18px">{copied ? <>Copied!<Icon name="check" ml="2px" mt="-2px" size={12} color="successMain" /></> : "Copy to clipboard"}</Box>
                 </div>
             </div>
         </Card>

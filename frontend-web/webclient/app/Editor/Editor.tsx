@@ -27,7 +27,7 @@ import {FileWriteFailure, WriteFailureEvent} from "@/Files/Uploader";
 import {IconName} from "@/ui-components/Icon";
 import ITextModel = editor.ITextModel;
 import EndOfLineSequence = editor.EndOfLineSequence;
-import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
+import {sendFailureNotification, sendInformationNotification, sendSuccessNotification} from "@/Notifications";
 
 export interface Vfs {
     isReal(): boolean;
@@ -1427,7 +1427,10 @@ function tabOperations(
         shortcut: ShortcutKey.U,
     }, {
         text: "Copy path to clipboard",
-        onClick: () => copyToClipboard({value: tabPath, message: ""}),
+        onClick: () => {
+            copyToClipboard(tabPath);
+            sendInformationNotification("Path copied!")
+        },
         enabled: () => true,
         shortcut: ShortcutKey.U,
     }, {

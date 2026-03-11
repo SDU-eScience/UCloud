@@ -46,7 +46,7 @@ import Table, {TableCell, TableHeaderCell, TableRow} from "@/ui-components/Table
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {PageV2} from "@/UCloud";
 import {addStandardDialog} from "@/UtilityComponents";
-import {sendFailureNotification} from "@/Notifications";
+import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
 
 let permissionProblems: Record<string, boolean> = {};
 
@@ -790,7 +790,8 @@ function DeviceBrowse({devices, dispatch, opts}: {
                         handlers: {
                             onClick: e => {
                                 e.stopPropagation();
-                                copyToClipboard({value: device.deviceId, message: "Device ID copied to clipboard!"});
+                                copyToClipboard(device.deviceId);
+                                sendSuccessNotification("Device ID copied to clipboard");
                             }
                         },
                         children: [{
@@ -1059,7 +1060,8 @@ const deviceOperations: Operation<SyncthingDevice, OperationCallbacks>[] = [
         icon: "id",
         enabled: selected => selected.length === 1,
         onClick: ([device]) => {
-            copyToClipboard({value: device.deviceId, message: "Device ID copied to clipboard!"});
+            copyToClipboard(device.deviceId);
+            sendSuccessNotification("Device ID copied to clipboard!");
         },
         shortcut: ShortcutKey.C
     },
