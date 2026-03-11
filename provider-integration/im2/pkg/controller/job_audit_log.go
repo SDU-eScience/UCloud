@@ -3,7 +3,7 @@ package controller
 import (
 	"os"
 	"path/filepath"
-	"strings"
+	"regexp"
 	"time"
 
 	"ucloud.dk/pkg/config"
@@ -11,6 +11,7 @@ import (
 )
 
 var jobAuditLogFolder = "/mnt/storage/audit"
+var jobAuditFileRegex = regexp.MustCompile(`^audit-(\d+)-(\d{4}-\d{2}-\d{2})\.jsonl$`)
 
 func initJobAuditLog() {
 
@@ -40,11 +41,14 @@ func cleanupLogs(retentionDays int) {
 	for _, file := range files {
 		name := file.Name()
 
-		if !strings.HasPrefix(name, "audit-") || !strings.HasSuffix(name, ".log") {
+		matches := jobAuditFileRegex.FindStringSubmatch(name)
+		if matches == nil {
 			continue
 		}
 
-		dateStr := strings.TrimSuffix(strings.TrimPrefix(name, "audit-"), ".log")
+		// matches[1] = rank (string)
+		// matches[2] = date
+		dateStr := matches[2]
 
 		if dateStr == today {
 			continue
@@ -54,6 +58,7 @@ func cleanupLogs(retentionDays int) {
 		if err != nil {
 			continue
 		}
+
 		if fileDate.Before(cutoff) {
 			fullPath := filepath.Join(jobAuditLogFolder, name)
 			err := os.Remove(fullPath)
