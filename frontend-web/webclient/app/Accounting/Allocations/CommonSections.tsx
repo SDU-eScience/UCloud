@@ -341,28 +341,79 @@ const keyMetricsStyle = injectStyle("key-metrics", k => `
     }
     
     ${k} .key-metrics-setting-text {
+        display: flex;
         flex-direction: column;
+        flex: 1 1 auto;
+        min-width: 0;
         padding-left: 10px;
     }
-    
+
     ${k} .key-metrics-setting-title {
         font-size: 11pt;
+        margin: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
-    
+
     ${k} .key-metrics-setting-description {
-       font-size: 8pt;
+        font-size: 8pt;
+        margin: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        white-space: normal;
     }
-    
+
     ${k} .key-metrics-checkbox {
         padding: 0 5px 0 0;
     }
-    
+
     ${k} .key-metrics-selector {
         padding-right: 6px;
+        max-width: 100%;
     }
-    
+
+    ${k} .key-metrics-selector > * {
+        max-width: 100%;
+    }
+
     ${k} .${ListRowClass} {
         padding: 10px 0;
+    }
+
+    ${k} .${ListRowClass} .row-left {
+        min-width: 0;
+    }
+
+    ${k} .${ListRowClass} .row-left-wrapper {
+        min-width: 0;
+        width: 100%;
+    }
+
+    ${k} .${ListRowClass} .row-left-content {
+        white-space: normal;
+    }
+
+    @media (max-width: 880px) {
+        ${k} .${ListRowClass} {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 8px;
+        }
+
+        ${k} .${ListRowClass} .row-right {
+            margin-right: 0;
+            width: 100%;
+            justify-content: flex-start;
+        }
+
+        ${k} .key-metrics-selector {
+            padding-right: 0;
+            flex: 1 1 auto;
+        }
     }
 `);
 
@@ -412,11 +463,61 @@ const subProjectsStyle = injectStyle("sub-projects", k => `
     }
     
     ${k} .sub-project-filter-title {
-        font-size: 11pt;
+        font-size: 11pt; 
+        margin: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
-    
+
     ${k} .sub-project-filter-description {
         font-size: 8pt;
+        margin: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        white-space: normal;
+    }
+
+    ${k} .sub-project-filter-text {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+    }
+
+    ${k} .${ListRowClass} .row-left {
+        min-width: 0;
+    }
+
+    ${k} .${ListRowClass} .row-left-wrapper {
+        min-width: 0;
+        width: 100%;
+    }
+
+    ${k} .${ListRowClass} .row-left-content {
+        white-space: normal;
+    }
+
+    @media (max-width: 880px) {
+        ${k} .${ListRowClass} {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 8px;
+        }
+
+        ${k} .${ListRowClass} .row-right {
+            margin-right: 0;
+            width: 100%;
+            justify-content: flex-start;
+        }
+
+        ${k} .key-metrics-selector {
+            padding-right: 0;
+            flex: 1 1 auto;
+            max-width: 100%;
+        }
     }
 `);
 
@@ -457,7 +558,7 @@ const KeyMetricSettingsRow: React.FunctionComponent<{
 
     let selectedOpt = props.setting.selected;
     return <ListRow
-        left={<Flex alignItems="center">
+        left={<Flex alignItems="center" minWidth={0}>
             <Icon
                 name={props.setting.starred ? "starFilled" : "starEmpty"}
                 color={props.setting.starred ? "favoriteColor" : "favoriteColorEmpty"}
@@ -475,7 +576,7 @@ const KeyMetricSettingsRow: React.FunctionComponent<{
                     items={props.setting.options.map((it) => ({key: it, value: it}))}
                     onSelect={onSelectOption}
                     selected={selectedOpt ? {key: selectedOpt, value: selectedOpt} : undefined}
-                    dropdownWidth={"300px"}
+                    dropdownWidth={"min(300px, calc(100vw - 80px))"}
                 />
             </div>}
 
@@ -656,14 +757,14 @@ export const KeyMetrics: React.FunctionComponent<{
                 */}
             </Flex>
 
-            {Object.values(settings).map(setting => (
-                <KeyMetricSettingsRow key={setting.title} setting={setting} onChange={onSettingsChanged}/>
-            ))}
-
-            <Box flexGrow={1}/>
+            <Box flexGrow={1} minHeight={0} overflowY={"auto"}>
+                {Object.values(settings).map(setting => (
+                    <KeyMetricSettingsRow key={setting.title} setting={setting} onChange={onSettingsChanged}/>
+                ))}
+            </Box>
 
             <Flex justifyContent="end" px={"20px"} py={"12px"} margin={"-20px"} background={"var(--dialogToolbar)"}
-                  gap={"8px"}>
+                  zIndex={10000} gap={"8px"}>
                 <Button color={"successMain"} type="button" onClick={closeFilters}>Apply</Button>
             </Flex>
         </Flex>
@@ -1130,8 +1231,8 @@ const SubProjectFiltersRow: React.FunctionComponent<{
         {key: NoneSelectedOptionKey, value: "None selected"};
 
     return <ListRow
-        left={<Flex alignItems="center">
-            <div>
+        left={<Flex alignItems="center" minWidth={0}>
+            <div className="sub-project-filter-text">
                 <h3 className="sub-project-filter-title">{props.setting.title}</h3>
                 <h3 className="sub-project-filter-description">{props.setting.description}</h3>
             </div>
@@ -1143,7 +1244,7 @@ const SubProjectFiltersRow: React.FunctionComponent<{
                     items={selectorItems}
                     onSelect={onSelectOption}
                     selected={selectedOpt}
-                    dropdownWidth={"300px"}
+                    dropdownWidth={"min(300px, calc(100vw - 80px))"}
                     searchable={false}
                 />
             </div>}
@@ -1229,53 +1330,53 @@ export const SubProjectFilters: React.FunctionComponent<{
                 </div>
                 */}
             </Flex>
-            {Object.values(settings).map(setting => (
-                setting.feature === undefined || hasFeature(setting.feature) ?
-                    <SubProjectFiltersRow
-                        key={setting.title}
-                        setting={setting}
-                        onChange={onSettingsChanged}
-                        dispatchEvent={dispatchEvent}
-                        state={state}
-                    /> : null
-            ))}
-            <Divider/>
-            <div className="sub-projects-sorting-container">
-                <div className="sub-projects-sorting-headers">
-                    <h3>Sort by</h3>
-                    <h4 style={{color: "var(--textSecondary)"}}>Select sorting criteria to apply</h4>
-                </div>
-                <div className="sub-projects-sorting-selector">
-                    <SimpleRichSelect
-                        items={
-                            [
-                                {key: "title", value: "Title"},
-                                {key: "PI", value: "PI"},
-                                {key: "age", value: "Age"},
-                                {key: "usagePercentageCompute", value: "Usage percentage (Compute)"},
-                                {key: "usagePercentageStorage", value: "Usage percentage (Storage)"},
-                                {key: "usagePercentagePublicIP", value: "Usage percentage (Public IP)"},
-                                {key: "usagePercentageLicence", value: "Usage percentage (Application license)"},
-                            ]
-                        }
-                        onSelect={setSortBy}
-                        selected={sortBy}
-                        dropdownWidth={"300px"}>
-                    </SimpleRichSelect>
-                    <div className="sort-button">
-                        <TooltipV2 tooltip={ascending ? "Set to ascending" : "Set to descending"}>
-                            <SmallIconButton
-                                icon={ascending ? "heroBarsArrowUp" : "heroBarsArrowDown"}
-                                onClick={onSortingToggle}/>
-                        </TooltipV2>
+            <Box flexGrow={1} minHeight={0} overflowY={"auto"}>
+                {Object.values(settings).map(setting => (
+                    setting.feature === undefined || hasFeature(setting.feature) ?
+                        <SubProjectFiltersRow
+                            key={setting.title}
+                            setting={setting}
+                            onChange={onSettingsChanged}
+                            dispatchEvent={dispatchEvent}
+                            state={state}
+                        /> : null
+                ))}
+                <Divider/>
+                <div className="sub-projects-sorting-container">
+                    <div className="sub-projects-sorting-headers">
+                        <h3>Sort by</h3>
+                        <h4 style={{color: "var(--textSecondary)"}}>Select sorting criteria to apply</h4>
+                    </div>
+                    <div className="sub-projects-sorting-selector">
+                        <SimpleRichSelect
+                            items={
+                                [
+                                    {key: "title", value: "Title"},
+                                    {key: "PI", value: "PI"},
+                                    {key: "age", value: "Age"},
+                                    {key: "usagePercentageCompute", value: "Usage percentage (Compute)"},
+                                    {key: "usagePercentageStorage", value: "Usage percentage (Storage)"},
+                                    {key: "usagePercentagePublicIP", value: "Usage percentage (Public IP)"},
+                                    {key: "usagePercentageLicence", value: "Usage percentage (Application license)"},
+                                ]
+                            }
+                            onSelect={setSortBy}
+                            selected={sortBy}
+                            dropdownWidth={"min(300px, calc(100vw - 80px))"}>
+                        </SimpleRichSelect>
+                        <div className="sort-button">
+                            <TooltipV2 tooltip={ascending ? "Set to ascending" : "Set to descending"}>
+                                <SmallIconButton
+                                    icon={ascending ? "heroBarsArrowUp" : "heroBarsArrowDown"}
+                                    onClick={onSortingToggle}/>
+                            </TooltipV2>
+                        </div>
                     </div>
                 </div>
-            </div>
-
-            <Box flexGrow={1}/>
+            </Box>
 
             <Flex justifyContent="end" px={"20px"} py={"12px"} margin={"-20px"} background={"var(--dialogToolbar)"}
-                  gap={"8px"}>
+                  zIndex={10000} gap={"8px"}>
                 <Button color={"successMain"} type="button" onClick={closeFilters}>Apply</Button>
             </Flex>
         </Flex>
