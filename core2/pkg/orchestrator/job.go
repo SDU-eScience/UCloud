@@ -1519,6 +1519,10 @@ func jobValidateValue(actor rpc.Actor, value *orcapi.AppParameterValue, backend 
 			return util.HttpErr(http.StatusForbidden, "this link is already in use with %v", resc.Status.BoundTo[0])
 		}
 
+		if value.Port != 0 && value.Port < 0 || value.Port > 65535 {
+			return util.HttpErr(http.StatusBadRequest, "port must be a number between 1 and 65535")
+		}
+
 	case orcapi.AppParameterValueTypeLicense:
 		_, _, _, err := ResourceRetrieveEx[orcapi.License](actor, licenseType, ResourceParseId(value.Id),
 			orcapi.PermissionEdit, orcapi.ResourceFlags{})
