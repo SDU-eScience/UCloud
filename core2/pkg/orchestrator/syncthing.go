@@ -1,10 +1,37 @@
 package orchestrator
 
 import (
+	"fmt"
+	"net/http"
+
+	"ucloud.dk/shared/pkg/foundation"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
+
+func syncthingIsRestricted(actor rpc.Actor) bool {
+	if actor.Project.Present {
+		policies, hasRestriction := policiesByProject(actor.Project.String())[foundation.RestrictIntegratedApplications.String()]
+		fmt.Printf("has them: %v policies: %v\n", hasRestriction, policies)
+		if hasRestriction {
+			for _, property := range policies.Properties {
+				isRestricted := true
+				if property.Name == "allowList" {
+					for _, element := range property.TextElements {
+						if element == "syncthing" {
+							isRestricted = false
+							break
+						}
+					}
+				}
+				fmt.Printf("isRestricted: %v \n", isRestricted)
+				return isRestricted
+			}
+		}
+	}
+	return false
+}
 
 func initSyncthing() {
 	// !! NOTE(Dan): The comment below is potentially outdated and has simply been moved from the old Core. !!
@@ -54,7 +81,22 @@ func initSyncthing() {
 	orcapi.SyncthingUpdateConfiguration.Handler(func(info rpc.RequestInfo, request orcapi.IAppUpdateConfigurationRequest[orcapi.SyncthingConfig]) (util.Empty, *util.HttpError) {
 		// NOTE(Dan): This used to do permission checks in the Core, but this is no longer required since the provider
 		// will do this instead.
-
+		for _, folder := range request.Config.Folders {
+			driveID, found := orcapi.DriveIdFromUCloudPath(folder.UCloudPath)
+			if found {
+				dInfo, err := ResourceRetrieve[orcapi.Drive](info.Actor, driveType, ResourceParseId(driveID), orcapi.ResourceFlags{})
+				if err != nil {
+					return util.Empty{}, err
+				}
+				if dInfo.Owner.Project.Present {
+					actorWithProject := info.Actor
+					actorWithProject.Project.Set(rpc.ProjectId(dInfo.Owner.Project.Value))
+					if syncthingIsRestricted(actorWithProject) {
+						return util.Empty{}, util.HttpErr(http.StatusForbidden, "Project does not allow users to use Syncthing")
+					}
+				}
+			}
+		}
 		_, err := InvokeProvider(
 			request.Provider,
 			orcapi.SyncthingProviderUpdateConfiguration,

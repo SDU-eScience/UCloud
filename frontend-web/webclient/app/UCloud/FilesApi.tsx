@@ -9,7 +9,21 @@ import {
 } from "@/UCloud/ResourceApi";
 import {BulkRequest, BulkResponse, PageV2} from "@/UCloud/index";
 import FileCollectionsApi, {FileCollection, FileCollectionSupport} from "@/UCloud/FileCollectionsApi";
-import {Box, Button, Card, ExternalLink, Flex, FtIcon, Icon, MainContainer, Markdown, Select, Text, TextArea, Truncate} from "@/ui-components";
+import {
+    Box,
+    Button,
+    Card,
+    ExternalLink,
+    Flex,
+    FtIcon,
+    Icon,
+    MainContainer,
+    Markdown,
+    Select,
+    Text,
+    TextArea,
+    Truncate
+} from "@/ui-components";
 import * as React from "react";
 import {useCallback, useEffect, useMemo, useState} from "react";
 import {fileName, getParentPath, readableUnixMode, sizeToString} from "@/Utilities/FileUtilities";
@@ -20,7 +34,7 @@ import {
     errorMessageOrDefault,
     extensionFromPath,
     ExtensionType,
-    extensionType,
+    extensionType, extractErrorMessage,
     inDevEnvironment,
     onDevSite,
     prettierString,
@@ -32,7 +46,7 @@ import * as Heading from "@/ui-components/Heading";
 import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {ItemRenderer} from "@/ui-components/Browse";
-import {PrettyFilePath, prettyFilePath, usePrettyFilePath} from "@/Files/FilePath";
+import {prettyFilePath, usePrettyFilePath} from "@/Files/FilePath";
 import {OpenWithBrowser} from "@/Applications/OpenWith";
 import {addStandardDialog, addStandardInputDialog} from "@/UtilityComponents";
 import {ProductStorage} from "@/Accounting";
@@ -200,8 +214,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
 
     public idIsUriEncoded = true;
 
-    renderer: ItemRenderer<UFile, ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks> = {
-    };
+    renderer: ItemRenderer<UFile, ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks> = {};
 
     private defaultRetrieveFlags: Partial<UFileIncludeFlags> = {
         includeMetadata: true,
@@ -212,7 +225,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
     };
 
     public Properties = () => {
-        const {id} = useParams<{id?: string}>();
+        const {id} = useParams<{ id?: string }>();
 
         const [fileData, fetchFile] = useCloudAPI<UFile | null>({noop: true}, null);
 
@@ -229,10 +242,11 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
 
         const file = fileData.data;
 
-        if (!id) return <MainContainer main={<h1>Missing file id.</h1>} />;
-        if (!file) return <MainContainer main={<h1><Link to={AppRoutes.files.drives()}>File not found. Click to go to drives.</Link></h1>} />;
+        if (!id) return <MainContainer main={<h1>Missing file id.</h1>}/>;
+        if (!file) return <MainContainer
+            main={<h1><Link to={AppRoutes.files.drives()}>File not found. Click to go to drives.</Link></h1>}/>;
 
-        return <FilePreview initialFile={file} />
+        return <FilePreview initialFile={file}/>
     }
 
     public retrieveOperations(): Operation<UFile, ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks>[] {
@@ -317,7 +331,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 enabled: (selected, cb) => selected.length === 1 && cb.collection != null,
                 onClick: (selected) => {
                     dialogStore.addDialog(
-                        <OpenWithBrowser opts={{isModal: true}} file={selected[0]} />,
+                        <OpenWithBrowser opts={{isModal: true}} file={selected[0]}/>,
                         doNothing,
                         true,
                         this.fileSelectorModalStyle,
@@ -426,7 +440,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                                 }
                             },
                             initialPath: pathRef.current,
-                        }} />,
+                        }}/>,
                         doNothing,
                         true,
                         this.fileSelectorModalStyle
@@ -621,6 +635,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     const folder = cb.directory?.id ?? "/";
 
                     cb.dispatch({type: "TerminalOpen"});
+                    //TODO(HENRIK) handle if denied by policy
                     cb.dispatch({type: "TerminalOpenTab", payload: {tab: {title: providerTitle, folder}}});
                 },
                 shortcut: ShortcutKey.O
@@ -737,7 +752,10 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
             this.createDownload(bulkRequestOf(
                 ...ids.map(id => ({id})),
             ))
-        );
+        ).catch(err => {
+            snackbarStore.addFailure(extractErrorMessage(err), false);
+        });
+        ;
 
         const responses = result?.responses ?? [];
         for (const {endpoint} of responses) {
@@ -781,7 +799,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     filterProvider: provider
                 },
                 initialPath: pathRef.current,
-            }} />,
+            }}/>,
             doNothing,
             true,
             this.fileSelectorModalStyle
@@ -821,7 +839,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 },
                 initialPath: pathRef.current,
                 additionalFilters: {filterProvider: provider}
-            }} />,
+            }}/>,
             doNothing,
             true,
             this.fileSelectorModalStyle
@@ -839,8 +857,9 @@ function handleSyncthingWarning(files: UFile[], cb: ExtraFileCallbacks, op: () =
                 {operationText} the folder(s) will break Syncthing synchronization for this folder.
                 {(["Moving", "Renaming"] as typeof operationText[]).includes(operationText) ?
                     <div>
-                        <br />
-                        To learn how to move a folder or rename a folder with Syncthing, click <ExternalLink href={"https://docs.syncthing.net/users/faq.html#how-do-i-rename-move-a-synced-folder"}>here</ExternalLink>.
+                        <br/>
+                        To learn how to move a folder or rename a folder with Syncthing, click <ExternalLink
+                        href={"https://docs.syncthing.net/users/faq.html#how-do-i-rename-move-a-synced-folder"}>here</ExternalLink>.
                     </div> : null}
             </div>,
             onConfirm: op,
@@ -1083,10 +1102,10 @@ export async function addFileSensitivityDialog(file: UFile, invokeCommand: Invok
         dialogStore.addDialog(
             <>
                 <Heading.h2>
-                    Sensitive files not supported <Icon name="warning" color="errorMain" size="32" />
+                    Sensitive files not supported <Icon name="warning" color="errorMain" size="32"/>
                 </Heading.h2>
                 <p>
-                    This provider (<ProviderTitle providerId={file.specification.product.provider} />) has declared
+                    This provider (<ProviderTitle providerId={file.specification.product.provider}/>) has declared
                     that they do not support sensitive data. This means that you <b>cannot/should not</b>:
 
                     <ul>
@@ -1114,7 +1133,7 @@ export async function addFileSensitivityDialog(file: UFile, invokeCommand: Invok
     }
 
     dialogStore.addDialog(<SensitivityDialog file={file} invokeCommand={invokeCommand}
-        onUpdated={onUpdated} />, () => undefined, true);
+                                             onUpdated={onUpdated}/>, () => undefined, true);
 }
 
 const api = new FilesApi();
@@ -1168,7 +1187,7 @@ export function FilePreview({initialFile}: {
         })
     }, []);
 
-    const mediaFileMetadata: null | {type: ExtensionType, data: string, error: string | null} = useMemo(() => {
+    const mediaFileMetadata: null | { type: ExtensionType, data: string, error: string | null } = useMemo(() => {
         let [file, contentBuffer] = openFile;
 
         const isSvg = extensionFromPath(file) === "svg";
@@ -1259,15 +1278,17 @@ export function FilePreview({initialFile}: {
                 return null;
             case "image":
                 // Note(Jonas): extensions like .HEIC will fall back to just showing the alt.
-                return <img key={elementKey} className={Image} alt={elementKey} src={mediaFileMetadata.data} />
+                return <img key={elementKey} className={Image} alt={elementKey} src={mediaFileMetadata.data}/>
             case "audio":
-                return <audio key={elementKey} className={Audio} controls src={mediaFileMetadata.data} />;
+                return <audio key={elementKey} className={Audio} controls src={mediaFileMetadata.data}/>;
             case "video":
-                return <video key={elementKey} className={Video} src={mediaFileMetadata.data} controls />;
+                return <video key={elementKey} className={Video} src={mediaFileMetadata.data} controls/>;
             case "pdf":
-                return <object key={elementKey} type="application/pdf" className={classConcat("fullscreen", PreviewObject)} data={mediaFileMetadata.data} />;
+                return <object key={elementKey} type="application/pdf"
+                               className={classConcat("fullscreen", PreviewObject)} data={mediaFileMetadata.data}/>;
             case "markdown":
-                return <div key={elementKey} className={MarkdownStyling}><Markdown>{mediaFileMetadata.data}</Markdown></div>;
+                return <div key={elementKey} className={MarkdownStyling}><Markdown>{mediaFileMetadata.data}</Markdown>
+                </div>;
         }
 
         return null;
@@ -1372,7 +1393,11 @@ export function FilePreview({initialFile}: {
         }, 1000);
     }, [openFile[0]]);
 
-    const onRename = React.useCallback(async ({newAbsolutePath, oldAbsolutePath, cancel}: {newAbsolutePath: string, oldAbsolutePath: string, cancel: boolean}): Promise<boolean> => {
+    const onRename = React.useCallback(async ({newAbsolutePath, oldAbsolutePath, cancel}: {
+        newAbsolutePath: string,
+        oldAbsolutePath: string,
+        cancel: boolean
+    }): Promise<boolean> => {
         let success = false;
         if (cancel) {
             setRenamingFile(undefined);
@@ -1505,7 +1530,9 @@ export function FilePreview({initialFile}: {
                 enabled: () => vfs.isReal(),
                 onClick() {
                     vfs.getFileInfo(file.absolutePath).then(ufile => {
-                        dispatch(setPopInChild({el: <FileProperties routingNamespace={api.routingNamespace} file={ufile} inPopIn />}));
+                        dispatch(setPopInChild({
+                            el: <FileProperties routingNamespace={api.routingNamespace} file={ufile} inPopIn/>
+                        }));
                     });
                 },
                 shortcut: ShortcutKey.V,
@@ -1516,7 +1543,7 @@ export function FilePreview({initialFile}: {
     const navigate = useNavigate();
 
     if (initialFile.status.type === "DIRECTORY") {
-        return <MainContainer main={<FileProperties file={initialFile} routingNamespace={api.routingNamespace} />} />
+        return <MainContainer main={<FileProperties file={initialFile} routingNamespace={api.routingNamespace}/>}/>
     }
 
     return <Editor
@@ -1573,8 +1600,8 @@ export function FilePreview({initialFile}: {
         operations={operations}
         fileHeaderOperations={
             <>
-                <Icon name="heroDocumentPlus" cursor="pointer" size="18px" onClick={() => newFile(initialFile.id)} />
-                <Icon name="heroFolderPlus" cursor="pointer" size="18px" onClick={() => newFolder(initialFile.id)} />
+                <Icon name="heroDocumentPlus" cursor="pointer" size="18px" onClick={() => newFile(initialFile.id)}/>
+                <Icon name="heroFolderPlus" cursor="pointer" size="18px" onClick={() => newFolder(initialFile.id)}/>
             </>
         }
         help={
@@ -1585,7 +1612,9 @@ export function FilePreview({initialFile}: {
                         <Button mx="auto" onClick={() => newFile(initialFile.id)}>New file</Button>
                         <Button mx="auto" onClick={() => newFolder(initialFile.id)}>New folder</Button>
                     </Flex>
-                    <Button width="95%" m="5px" onClick={() => navigate(AppRoutes.files.path(getParentPath(initialFile.id)))}>Go to parent folder</Button>
+                    <Button width="95%" m="5px"
+                            onClick={() => navigate(AppRoutes.files.path(getParentPath(initialFile.id)))}>Go to parent
+                        folder</Button>
                 </Box>
             </Flex>
         }
@@ -1719,7 +1748,8 @@ class PreviewVfs implements Vfs {
 
         if (file.status.type !== "FILE") {
             throw window.Error("Only files can be previewed");
-        };
+        }
+        ;
 
         if (file.status.sizeInBytes === 0) {
             return "";
@@ -1773,13 +1803,18 @@ export interface WriteToFileEventProps {
     content: string;
 }
 
-function FileProperties({file, routingNamespace, inPopIn}: {file: UFile, routingNamespace: string, inPopIn?: boolean;}) {
+function FileProperties({file, routingNamespace, inPopIn}: {
+    file: UFile,
+    routingNamespace: string,
+    inPopIn?: boolean;
+}) {
     const prettyPath = usePrettyFilePath(file.id);
 
     return <>
         <Flex maxWidth={inPopIn ? `var(--popInWidth)` : undefined}>
-            <FtIcon fileIcon={{type: file.status.type, ext: extensionFromPath(file.id)}} size={128} />
-            <Box maxWidth={inPopIn ? `calc(var(--popInWidth) - 128px - 32px)` : undefined} ml={inPopIn ? "16px" : "32px"}>
+            <FtIcon fileIcon={{type: file.status.type, ext: extensionFromPath(file.id)}} size={128}/>
+            <Box maxWidth={inPopIn ? `calc(var(--popInWidth) - 128px - 32px)` : undefined}
+                 ml={inPopIn ? "16px" : "32px"}>
                 <Truncate fontSize={25}>{fileName(file.id)}</Truncate>
                 <Truncate fontSize={20}>{prettierString(file.status.type)}</Truncate>
             </Box>
@@ -1795,7 +1830,7 @@ function FileProperties({file, routingNamespace, inPopIn}: {file: UFile, routing
             </div>
             <Flex gap="8px">
                 <b>Provider: </b>
-                <ProviderTitle providerId={file.specification.product.provider} />
+                <ProviderTitle providerId={file.specification.product.provider}/>
             </Flex>
             <div><b>Created at:</b> {dateToString(file.createdAt)}</div>
             {file.status.modifiedAt ?

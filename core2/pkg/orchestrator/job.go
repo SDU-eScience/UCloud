@@ -666,6 +666,27 @@ func initJobs() {
 	})
 
 	orcapi.JobsOpenTerminalInFolder.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.JobsOpenTerminalInFolderRequestItem]) (fndapi.BulkResponse[orcapi.OpenSessionWithProvider], *util.HttpError) {
+		if info.Actor.Project.Present {
+			policies := policiesByProject(info.Actor.Project.String())
+			specifications, ok := policies[fndapi.RestrictIntegratedApplications.String()]
+			if ok {
+				for _, property := range specifications.Properties {
+					if property.Name == "allowList" {
+						restricted := true
+						for _, element := range property.TextElements {
+							if element == "terminal" {
+								restricted = false
+								break
+							}
+						}
+						if restricted {
+							return fndapi.BulkResponse[orcapi.OpenSessionWithProvider]{}, util.HttpErr(http.StatusForbidden, "Project does not allow users to use the integrated terminal")
+						}
+					}
+				}
+			}
+		}
+
 		updatesByProvider := map[string][]orcapi.JobsOpenTerminalInFolderRequestItem{}
 		indicesByProvider := map[string][]int{}
 
@@ -1104,6 +1125,35 @@ func jobsValidateForSubmission(actor rpc.Actor, spec *orcapi.JobSpecification) *
 	app, ok := AppRetrieve(actor, spec.Application.Name, spec.Application.Version, AppDiscoveryAll, 0)
 	if !ok {
 		return util.HttpErr(http.StatusBadRequest, "unknown application requested")
+	}
+
+	if actor.Project.Present {
+		var allowedApps []string
+		polices := policiesByProject(actor.Project.String())
+		specification, restricted := polices[fndapi.RestrictApplications.String()]
+		if restricted {
+			for _, property := range specification.Properties {
+				if property.Name == "applications" {
+					allowedApps = property.TextElements
+					break
+				}
+			}
+			allowed := false
+			if len(allowedApps) == 0 {
+				return util.HttpErr(http.StatusForbidden, "Application is not allowed to run in this project context.")
+			} else {
+				for _, allowedApp := range allowedApps {
+					println(allowedApp)
+					if allowedApp == app.Metadata.Name {
+						allowed = true
+						break
+					}
+				}
+			}
+			if !allowed {
+				return util.HttpErr(http.StatusForbidden, "Application is not allowed to run in this project context.")
+			}
+		}
 	}
 
 	support, ok := SupportByProduct[orcapi.JobSupport](jobType, spec.Product)
