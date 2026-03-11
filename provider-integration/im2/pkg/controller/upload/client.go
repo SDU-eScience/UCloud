@@ -275,7 +275,7 @@ outer:
 
 						if isDone {
 							if err != nil {
-								if errors.Is(err, io.EOF) {
+								if errors.Is(err, io.EOF) && err.Error() != "EOF" {
 									w.Metrics.SkipFile(err.Error(), work.Metadata.InternalPath)
 								}
 							}
@@ -283,11 +283,7 @@ outer:
 						}
 
 						// Reload size recommendation
-						oldSize := size
 						size = recommendedChunkSize.Load()
-						if size != oldSize {
-							log.Info("New size! %v -> %v", oldSize, size)
-						}
 						chunkBytes1 = rawChunkBytes1[:size]
 						chunkBytes2 = rawChunkBytes2[:size]
 
@@ -356,6 +352,8 @@ outer:
 }
 
 func goDiscoverClientWork(ctx context.Context, root ClientFile, rootMetadata FileMetadata, output chan *clientWork) {
+	defer close(output)
+
 	idAcc := int32(0)
 	stack := []ClientFile{}
 
@@ -386,6 +384,7 @@ outer:
 		for _, child := range children {
 			meta, file := dir.OpenChild(ctx, child)
 			if file == nil {
+				log.Info("Skipping file because it could not be opened: %v %s", dir, child)
 				continue
 			}
 
@@ -414,13 +413,6 @@ outer:
 	// In case we are breaking due to an error, close all files we currently have open
 	for _, file := range stack {
 		file.Close()
-	}
-
-	select {
-	case <-ctx.Done():
-		// All good
-	case output <- nil:
-		// All good
 	}
 }
 
@@ -672,8 +664,8 @@ outer:
 		case <-statTicker.C:
 			flushStats()
 
-		case work := <-discoveredWorkForUs:
-			if work == nil {
+		case work, ok := <-discoveredWorkForUs:
+			if !ok {
 				filesDiscoveredDone.Store(true)
 			} else {
 				activeWork[work.Id] = work

@@ -25,6 +25,7 @@ import (
 	"ucloud.dk/pkg/integrations/k8s/shared"
 	apm "ucloud.dk/shared/pkg/accounting"
 	fnd "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/log"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -775,9 +776,31 @@ type uploaderClientFile struct {
 }
 
 func (u *uploaderClientFile) ListChildren(ctx context.Context) []string {
-	names, err := u.File.Readdirnames(0)
-	if err != nil {
-		return nil
+	names := make([]string, 0, 128)
+	for {
+		if ctx.Err() != nil {
+			break
+		}
+
+		part, err := u.File.Readdirnames(1024)
+		if len(part) > 0 {
+			names = append(names, part...)
+		}
+
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+
+			if len(names) == 0 {
+				return nil
+			}
+			break
+		}
+
+		if len(part) == 0 {
+			break
+		}
 	}
 	return names
 }
@@ -785,11 +808,14 @@ func (u *uploaderClientFile) ListChildren(ctx context.Context) []string {
 func (u *uploaderClientFile) OpenChild(ctx context.Context, name string) (upload.FileMetadata, upload.ClientFile) {
 	file, err := FileOpenAt(u.File, name, unix.O_RDONLY|unix.O_NOFOLLOW, 0)
 	if err != nil {
+		log.Info("Failed to open file '%v %s': %s", u, name, err)
 		return upload.FileMetadata{}, nil
 	}
 
 	finfo, err := file.Stat()
 	if err != nil {
+		_ = file.Close()
+		log.Info("Failed to open file '%v %s': %s", u, name, err)
 		return upload.FileMetadata{}, nil
 	}
 

@@ -1141,9 +1141,31 @@ type uploaderClientFile struct {
 }
 
 func (u *uploaderClientFile) ListChildren(ctx context.Context) []string {
-	names, err := u.File.Readdirnames(0)
-	if err != nil {
-		return nil
+	names := make([]string, 0, 128)
+	for {
+		if ctx.Err() != nil {
+			break
+		}
+
+		part, err := u.File.Readdirnames(1024)
+		if len(part) > 0 {
+			names = append(names, part...)
+		}
+
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+
+			if len(names) == 0 {
+				return nil
+			}
+			break
+		}
+
+		if len(part) == 0 {
+			break
+		}
 	}
 	return names
 }
@@ -1156,6 +1178,7 @@ func (u *uploaderClientFile) OpenChild(ctx context.Context, name string) (upload
 
 	finfo, err := file.Stat()
 	if err != nil {
+		_ = file.Close()
 		return upload.FileMetadata{}, nil
 	}
 
