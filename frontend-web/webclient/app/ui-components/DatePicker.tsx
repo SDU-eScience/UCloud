@@ -26,10 +26,7 @@ export const DatePickerClass = injectStyle("date-picker", k => `
     ${k}::placeholder {
         color: var(--borderColor, #f00);
     }
-    
-    ${k}::-ms-clear {
-        display: none;
-    }
+
     
     ${k}:disabled {
         background: var(--backgroundDisabled);

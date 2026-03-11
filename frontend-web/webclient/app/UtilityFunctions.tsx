@@ -390,6 +390,7 @@ export function errorMessageOrDefault(
 ): string {
     if (!navigator.onLine) return "You seem to be offline.";
     try {
+        // Note(Jonas): Should be `if (Error.isError(err))` instead, but Safari is behind on the feature
         if (err instanceof Error) return err.toString();
         if (typeof err === "string") return err;
         if ("status" in err) {

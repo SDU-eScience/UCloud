@@ -104,7 +104,7 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
                 browserRef.current.renderOperations();
             }
         }
-    }, [projectId]);
+    }, [projectId, project.fetch()]);
 
     useLayoutEffect(() => {
         const mount = mountRef.current;
@@ -215,7 +215,7 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
                         invokeCommand: call => callAPI(call),
                         api: FileCollectionsApi,
                         isCreating: false,
-                        creationDisabled: browser.browseFilters[memberFilesKey] === "true",
+                        creationDisabled: browser.browseFilters[memberFilesKey] === "true" || browser.cachedData[browser.currentPath] == null,
                     };
 
                     return callbacks;
@@ -468,7 +468,7 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
                         }))
                     ).then(res => {
                         browser.registerPage(res, newPath, true);
-                        browser.renderRows();
+                        browser.rerender();
                     });
                 });
 

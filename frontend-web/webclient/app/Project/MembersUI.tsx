@@ -296,7 +296,7 @@ export const MembersContainer: React.FunctionComponent<{
                                     onSubmit={handleCreateGroup}
                                 >
                                     <Input
-                                        placeholder={"New group name ..."}
+                                        placeholder={"New group name..."}
                                         autoFocus={true}
                                         value={newGroupName}
                                         onChange={(event) => {

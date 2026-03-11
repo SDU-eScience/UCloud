@@ -247,7 +247,6 @@ const keyMetricsStyle = injectStyle("key-metrics", k => `
     
     ${k} .key-metrics-header-container {
         display: flex;
-        align
         flex-direction: row;
         gap: 14px;
         margin-top: 14px;
@@ -260,7 +259,6 @@ const keyMetricsStyle = injectStyle("key-metrics", k => `
     
     ${k} .key-metrics-container {
         display: flex;
-        align
         flex-direction: row;
         gap: 14px;
         margin-top: 14px;

@@ -223,7 +223,7 @@ export function LicenseBrowse({opts}: {opts?: ResourceBrowserOpts<License>}): Re
                     const create = operations.find(it => it.tag === CREATE_TAG);
                     if (create) {
                         create.enabled = () => true;
-                        create.onClick = onCreateStart
+                        create.onClick = onCreateStart;
                     }
                     return operations.filter(it => it.enabled(entries, callbacks as any, entries))
                 });
@@ -233,10 +233,11 @@ export function LicenseBrowse({opts}: {opts?: ResourceBrowserOpts<License>}): Re
                     return a.specification.product.id.localeCompare(b.specification.product.id);
                 }));
 
-                function onCreateStart() {
+                async function onCreateStart() {
+                    const products = (await supportByProvider.retrieve(Client.projectId ?? "", () => retrieveSupportV2(LicenseApi))).newProducts;
                     dialogStore.addDialog(
                         <ProductSelectorWithPermissions
-                            products={supportByProvider.retrieveFromCacheOnly(Client.projectId ?? "")?.newProducts ?? []}
+                            products={products}
                             placeholder="Type url..."
                             dummyEntry={dummyEntry}
                             title={LicenseApi.title}

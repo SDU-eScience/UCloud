@@ -606,9 +606,6 @@ function useSidebarFilesPage(): [
     }))));
 
     React.useEffect(() => {
-    }, [favorites])
-
-    React.useEffect(() => {
         favorites.items.filter(it => fileTypeCache[it.path] == null).forEach(async file => {
             try {
                 const f = await callAPI(FilesApi.retrieve({id: file.path}))
@@ -832,11 +829,10 @@ function SecondarySidebar({
 }: SecondarySidebarProps): React.ReactNode {
     const [drives, favoriteFiles] = useSidebarFilesPage();
     const recentRuns = useSidebarRunsPage();
-    const activeProjectId = useProjectId();
-    const lastHover = React.useRef(SidebarTabId.NONE);
-    const isPersonalWorkspace = !activeProjectId;
-    const project = useProject();
     const projectId = useProjectId();
+    const lastHover = React.useRef(SidebarTabId.NONE);
+    const isPersonalWorkspace = !projectId;
+    const project = useProject();
     const canApply = isPersonalWorkspace || isAdminOrPI(project.fetch().status.myRole);
 
     const onClear = useCallback(() => {
@@ -866,12 +862,12 @@ function SecondarySidebar({
             });
         }
 
-        if (activeProjectId) {
+        if (projectId) {
             projectActivations.push(myWorkspaceProjectCommand(navigate, dispatch));
         }
 
         return projectActivations;
-    }, [projects?.items, activeProjectId]);
+    }, [projects?.items, projectId]);
 
     useProvideCommands(staticProvider(projectCommands));
 
@@ -880,24 +876,23 @@ function SecondarySidebar({
     const oldProjectId = React.useRef<string | null>(null);
     const oldDiscoveryMode = React.useRef<AppStore.CatalogDiscovery | null>(null);
 
+
     const canConsume = checkCanConsumeResources(projectId ?? null, {api: FilesApi});
     useEffect(() => {
-        (async () => {
-            const discoverHasChanged =
-                discoveryMode.discovery !== oldDiscoveryMode.current?.discovery ||
-                discoveryMode.selected !== oldDiscoveryMode.current?.selected;
+        const wasReset = landingPage === AppStore.emptyLandingPage;
+        const discoverHasChanged =
+            discoveryMode.discovery !== oldDiscoveryMode.current?.discovery ||
+            discoveryMode.selected !== oldDiscoveryMode.current?.selected;
 
-            const projectHasChanged = oldProjectId.current !== projectId;
+        const projectHasChanged = oldProjectId.current != projectId;
 
-            if (discoverHasChanged || projectHasChanged) {
-                const page = await callAPI(AppStore.retrieveLandingPage(discoveryMode));
-                setLandingPage(page);
-            }
+        if (discoverHasChanged || projectHasChanged || wasReset) {
+            callAPI(AppStore.retrieveLandingPage(discoveryMode)).then(setLandingPage);
+        }
 
-            oldDiscoveryMode.current = discoveryMode;
-            oldProjectId.current = projectId ?? null;
-        })();
-    }, [projectId, discoveryMode]);
+        oldDiscoveryMode.current = discoveryMode;
+        oldProjectId.current = projectId ?? null;
+    }, [projectId, discoveryMode, landingPage]);
 
     useEffectSkipMount(() => {
         fetchFavoriteApps(AppStore.retrieveStars({})).then(doNothing);

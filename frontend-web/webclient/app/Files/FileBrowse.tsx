@@ -183,6 +183,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
         let searching = "";
         let lastActiveFilePath = "";
         let shares: Record<string, OutgoingShareGroup> = {};
+        let initialFetchDone = false;
         if (mount && !browserRef.current) {
             new ResourceBrowser<UFile>(mount, RESOURCE_NAME, opts).init(browserRef, features, undefined, browser => {
                 browser.setColumns(rowTitles);
@@ -702,6 +703,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                         startCreation(): void {
                             showCreateDirectory();
                         },
+                        creationDisabled: !initialFetchDone,
                         cancelCreation: doNothing,
                         startRenaming(resource: UFile): void {
                             startRenaming(resource.id);
@@ -1137,6 +1139,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                         )
                             .then(result => {
                                 browser.registerPage(result, path, true);
+                                initialFetchDone = true;
                                 return false;
                             }).catch(err => {
                                 // TODO(Dan): This partially contains logic which can be re-used.
@@ -1244,7 +1247,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                         // NOTE(Dan): When wasCached is true, then the previous renderPage() already had the correct data.
                         if (wasCached) return;
                         if (browser.currentPath !== newPath) return;
-                        browser.renderRows();
+                        browser.rerender();
                     });
 
                 });
