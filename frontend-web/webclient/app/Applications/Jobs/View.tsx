@@ -41,7 +41,7 @@ import {SillyParser} from "@/Utilities/SillyParser";
 import Warning from "@/ui-components/Warning";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import {getProviderTitle, ProviderTitle} from "@/Providers/ProviderTitle";
-import {classConcat, injectStyle, makeClassName, makeKeyframe, unbox} from "@/Unstyled";
+import {classConcat, injectStyle, makeKeyframe, unbox} from "@/Unstyled";
 import {ButtonClass} from "@/ui-components/Button";
 import FileBrowse from "@/Files/FileBrowse";
 import {LogOutput} from "@/UtilityComponents";
@@ -129,21 +129,6 @@ const zoomInAnim = makeKeyframe("zoom-in-anim", `
   }
 `);
 
-const logoWrapper = makeClassName("logo-wrapper");
-const logoScale = makeClassName("logo-scale");
-const fakeLogo = makeClassName("fake-logo");
-const active = makeClassName("active");
-const data = makeClassName("data");
-const dataEnterDone = makeClassName("data-enter-done");
-const dataEnterActive = makeClassName("data-enter-active");
-const header = makeClassName("headers");
-const headerText = makeClassName("header-text");
-const dataExitActive = makeClassName("data-exit-active");
-const dataExit = makeClassName("data-exit");
-const logo = makeClassName("logo");
-const running = makeClassName("running");
-const topButtons = makeClassName("top-buttons");
-
 const Container = injectStyle("job-container", k => `
     ${k} {
         --logoScale: 1;
@@ -166,24 +151,24 @@ const Container = injectStyle("job-container", k => `
         position: relative;
     }
 
-  ${k} > ${logoWrapper.dot} {
+  ${k} > .logo-wrapper {
     position: absolute;
     left: 0;
     top: 0;
     animation: 800ms ${zoomInAnim};
   }
 
-  ${k} > ${logoWrapper.dot}${active.dot} {
+  ${k} > .logo-wrapper.active {
     transition: scale 1000ms cubic-bezier(0.57, 0.10, 0.28, 0.84);
   }
 
-  ${k} > ${logoWrapper.dot}${active.dot} > ${logoScale.dot} {
+  ${k} > .logo-wrapper.active > .logo-scale {
     transition: transform 300ms cubic-bezier(0.57, 0.10, 0.28, 0.84);
     transform: scale(var(--logoScale));
     transform-origin: top left;
   }
 
-  ${k} ${fakeLogo.dot} {
+  ${k} .fake-logo {
     /* NOTE(Dan): the fake logo takes the same amount of space as the actual logo, 
     this basically fixes our document flow */
     display: block;
@@ -192,32 +177,32 @@ const Container = injectStyle("job-container", k => `
     content: '';
   }
 
-  ${k} ${data.dot}${dataEnterDone.dot} {
+  ${k} .data.data-enter-done {
     opacity: 1;
     transform: none;
   }
 
-  ${k} ${data.dot}${dataEnterActive.dot} {
+  ${k} .data.data-enter-active {
     opacity: 1;
     transform: translate3d(0, 0, 0);
     transition: transform 1000ms cubic-bezier(0.57, 0.10, 0.28, 0.84);
   }
 
-  ${k} ${data.dot}${dataExit.dot} {
+  ${k} .data.data-exit {
     opacity: 1;
   }
 
-  ${k} ${data.dot}${dataExitActive.dot} {
+  ${k} .data.data-exit-active {
     display: none;
   }
 
-  ${k} ${data.dot} {
+  ${k} .data {
     width: 100%; /* fix info card width */
     opacity: 0;
     transform: translate3d(0, 50vh, 0);
   }
 
-  ${k} ${headerText.dot} {
+  ${k} .header-text {
     margin-left: 32px;
     width: calc(100% - var(--logoSize) - 32px);
     height: var(--logoSize);
@@ -226,26 +211,26 @@ const Container = injectStyle("job-container", k => `
   }
 
   ${deviceBreakpoint({maxWidth: "1000px"})} {
-    ${k} ${fakeLogo.dot} {
+    ${k} .fake-logo {
       width: 100%; /* force the header to wrap */
     }
 
-    ${k} ${logoWrapper.dot} {
+    ${k} .logo-wrapper {
       left: calc(50% - var(--logoSize) / 2);
     }
 
-    ${k} ${header.dot} {
+    ${k} .header {
       text-align: center;
     }
 
-    ${k} ${headerText.dot} {
+    ${k} .header-text {
       margin-left: 0;
       margin-top: 0;
       width: 100%;
     }
   }
 
-  ${k}.IN_QUEUE ${logo.dot} {
+  ${k}.IN_QUEUE .logo {
     animation: 2s ${enterAnimation} infinite;
   }
   
@@ -253,11 +238,7 @@ const Container = injectStyle("job-container", k => `
     --logoSize: 96px;
   }
 
-  ${k}${running.dot} {
-    --logoScale: 0.5;
-  }
-
-  ${k} ${topButtons.dot} {
+  ${k} .top-buttons {
     display: flex;
     gap: 8px;
     height: 23px;
@@ -521,8 +502,8 @@ export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode
 
     const main = (
         <div className={classConcat(Container, status?.state ?? "state-loading")}>
-            <div className={`${logoWrapper.class} ${active.class}`}>
-                <div className={logoScale.class}>
+            <div className={"logo-wrapper active"}>
+                <div className="logo-scale">
                     <div className="logo">
                         <SafeLogo name={job?.specification?.application?.name ?? appNameHint}
                             type={"APPLICATION"}
@@ -538,13 +519,13 @@ export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode
                         enter: 1000,
                         exit: 0,
                     }}
-                    classNames={data.class}
+                    classNames={"data"}
                     unmountOnExit
                 >
-                    <div ref={transitionRefOne} className={data.class}>
+                    <div ref={transitionRefOne} className={"data"}>
                         <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
-                            <div className={fakeLogo.class} />
-                            <div className={headerText.class}>
+                            <div className={"fake-logo"} />
+                            <div className={"header-text"}>
                                 <InQueueText job={job} state={status.state ?? "IN_QUEUE"} />
                             </div>
                         </Flex>
@@ -565,13 +546,13 @@ export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode
                     nodeRef={transitionRefTwo}
                     in={(status?.state === "RUNNING" || (isVirtualMachine && !isJobStateTerminal(status.state))) && dataAnimationAllowed}
                     timeout={{enter: 1000, exit: 0}}
-                    classNames={data.class}
+                    classNames={"data"}
                     unmountOnExit
                 >
-                    <div ref={transitionRefTwo} className={data.class}>
-                        <Flex flexDirection={"row"} flexWrap={"wrap"} className={header.class}>
-                            <div className={fakeLogo.class} />
-                            <div className={headerText.class}>
+                    <div ref={transitionRefTwo} className={"data"}>
+                        <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
+                            <div className={"fake-logo"} />
+                            <div className={"header-text"}>
                                 <RunningText job={job} interfaceLinks={interfaceTargets} defaultInterfaceName={targetRequests.defaultName} />
                             </div>
                         </Flex>
@@ -590,13 +571,13 @@ export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode
                     nodeRef={transitionRefThree}
                     in={isJobStateTerminal(status.state) && dataAnimationAllowed}
                     timeout={{enter: 1000, exit: 0}}
-                    classNames={data.class}
+                    classNames={"data"}
                     unmountOnExit
                 >
-                    <div ref={transitionRefThree} className={data.class}>
-                        <Flex flexDirection={"row"} flexWrap={"wrap"} className={header.class}>
-                            <div className={fakeLogo.class} />
-                            <div className={headerText.class}>
+                    <div ref={transitionRefThree} className={"data"}>
+                        <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
+                            <div className={"fake-logo"} />
+                            <div className={"header-text"}>
                                 <CompletedText job={job} state={status.state} />
                             </div>
                         </Flex>
@@ -749,7 +730,7 @@ const BusyWrapper = injectStyle("busy-wrapper", k => `
         flex-grow: 1;
     }
 
-    ${k}${active.dot} {
+    ${k}.active {
         animation: 1s ${busyAnim};
         display: flex;
     }
@@ -771,7 +752,7 @@ const Busy: React.FunctionComponent<{
         };
     }, []);
 
-    return <Box className={classConcat(BusyWrapper, isActive ? active.class : undefined)}>
+    return <Box className={classConcat(BusyWrapper, isActive ? "active" : undefined)}>
         {state === "IN_QUEUE" &&
             <Box>We are currently preparing your job. This step might take a few minutes.</Box>
         }
@@ -1701,7 +1682,7 @@ const RunningButtonGroup: React.FunctionComponent<{
         window.open(`/applications/shell/${target.jobId}/${target.rank}?hide-frame`, "_blank");
     }, []);
 
-    return <div className={topButtons.class}>
+    return <div className={"top-buttons"}>
         {!supportTerminal ? null : (
             <Flex>
                 <Link to={`/applications/shell/${job.id}/0?hide-frame`} target={"_blank"}>
