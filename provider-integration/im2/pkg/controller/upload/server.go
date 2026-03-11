@@ -400,6 +400,7 @@ outer:
 
 	fs.OnSessionClose(session, wasClosed)
 
+	metrics.lock.Lock()
 	if metrics.FilesCompleted != 0 || metrics.FilesSkipped != 0 || metrics.BytesTransferred != 0 {
 		b := strings.Builder{}
 		b.WriteString(fmt.Sprintf(
@@ -419,8 +420,9 @@ outer:
 		}
 
 		output := b.String()
-		log.Info(output)
+		log.Info("%s", output)
 	}
+	metrics.lock.Unlock()
 	return wasClosed
 }
 

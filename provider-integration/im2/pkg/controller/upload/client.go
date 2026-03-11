@@ -792,7 +792,7 @@ outer:
 		}
 
 		output := b.String()
-		log.Info(output)
+		log.Info("%s", output)
 	}
 
 	return StatusReport{

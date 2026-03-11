@@ -96,7 +96,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		}
 
 		if rejectionMessage.Present {
-			return util.ServerHttpError("%s", rejectionMessage)
+			return util.ServerHttpError("%s", rejectionMessage.Value)
 		}
 	}
 
