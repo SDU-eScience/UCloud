@@ -93,10 +93,14 @@ type Policy struct {
 
 const policiesBaseContext = "projects/v2/policies"
 
-var PoliciesRetrieve = rpc.Call[util.Empty, map[string]Policy]{
+type RetrievePoliciesRequest struct {
+	ProjectId string `json:"projectId"`
+}
+
+var PoliciesRetrieve = rpc.Call[RetrievePoliciesRequest, map[string]Policy]{
 	BaseContext: policiesBaseContext,
 	Convention:  rpc.ConventionRetrieve,
-	Roles:       rpc.RolesEndUser,
+	Roles:       rpc.RolesAuthenticated,
 }
 
 type PoliciesUpdateRequest struct {

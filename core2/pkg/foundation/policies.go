@@ -30,8 +30,8 @@ func initPolicies() {
 	policyPopulateSchemaCache()
 	loadProjectPoliciesFromDB()
 
-	fndapi.PoliciesRetrieve.Handler(func(info rpc.RequestInfo, request util.Empty) (map[string]fndapi.Policy, *util.HttpError) {
-		return policiesRetrieve(info.Actor)
+	fndapi.PoliciesRetrieve.Handler(func(info rpc.RequestInfo, request fndapi.RetrievePoliciesRequest) (map[string]fndapi.Policy, *util.HttpError) {
+		return policiesRetrieve(info.Actor, request)
 	})
 
 	fndapi.PoliciesUpdate.Handler(func(info rpc.RequestInfo, request fndapi.PoliciesUpdateRequest) (util.Empty, *util.HttpError) {
@@ -111,18 +111,26 @@ func loadProjectPoliciesFromDB() {
 	})
 }
 
-func policiesRetrieve(actor rpc.Actor) (map[string]fndapi.Policy, *util.HttpError) {
-	if !actor.Project.Present {
-		return nil, util.HttpErr(http.StatusBadRequest, "Polices only applicable to projects")
-	}
-	if !actor.Membership[actor.Project.Value].Satisfies(rpc.ProjectRoleAdmin) {
-		return nil, util.HttpErr(http.StatusForbidden, "Only PIs and Admins may list the policies")
+func policiesRetrieve(actor rpc.Actor, request fndapi.RetrievePoliciesRequest) (map[string]fndapi.Policy, *util.HttpError) {
+	projectId := request.ProjectId
+	if actor.Role != rpc.RoleProvider {
+		if !actor.Project.Present {
+			return nil, util.HttpErr(http.StatusBadRequest, "Polices only applicable to projects")
+		}
+		if !actor.Membership[actor.Project.Value].Satisfies(rpc.ProjectRoleAdmin) {
+			return nil, util.HttpErr(http.StatusForbidden, "Only PIs and Admins may list the policies")
+		}
+		projectId = actor.Project.String()
 	}
 
 	result := make(map[string]fndapi.Policy, len(policySchemas))
 
 	projectPolicies.Mu.RLock()
-	policies := maps.Clone(projectPolicies.PoliciesByProject[string(actor.Project.Value)].EnabledPolices)
+	_, ok := projectPolicies.PoliciesByProject[projectId]
+	if !ok {
+		projectPolicies.PoliciesByProject[projectId] = &AssociatedPolicies{}
+	}
+	policies := maps.Clone(projectPolicies.PoliciesByProject[projectId].EnabledPolices)
 	projectPolicies.Mu.RUnlock()
 	for name, schema := range policySchemas {
 

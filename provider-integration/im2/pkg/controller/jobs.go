@@ -422,6 +422,36 @@ func initJobs() {
 		})
 
 		orcapi.JobsProviderOpenTerminalInFolder.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.JobsOpenTerminalInFolderRequestItem]) (fnd.BulkResponse[orcapi.OpenSession], *util.HttpError) {
+			for _, item := range request.Items {
+				driveId, ok := orcapi.DriveIdFromUCloudPath(item.Folder)
+				if ok {
+					dInfo, found := DriveRetrieve(driveId)
+					if found {
+						policies := RetrievePoliciesByProject(dInfo.Owner.Project.String())
+						specs, hasIntegratedRestrictions := policies[fnd.RestrictIntegratedApplications.String()]
+						if hasIntegratedRestrictions {
+							isRestricted := true
+							for _, property := range specs.Properties {
+								if property.Name == "allowList" {
+									for _, element := range property.TextElements {
+										if element == "terminal" {
+											isRestricted = false
+											break
+										}
+									}
+									break
+								}
+							}
+							if isRestricted {
+								return fnd.BulkResponse[orcapi.OpenSession]{}, util.HttpErr(http.StatusForbidden, "Project does not allow integrated terminal (IM side)")
+							}
+						}
+					} else {
+						return fnd.BulkResponse[orcapi.OpenSession]{}, util.HttpErr(http.StatusNotFound, "Folder cannot be found")
+					}
+				}
+			}
+
 			var errors []*util.HttpError
 			var responses []orcapi.OpenSession
 

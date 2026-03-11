@@ -192,7 +192,9 @@ func eventHandleNotification(nType EventNotificationMessageType, notification an
 		eventUpdateReplayFromToNow()
 
 	case EventNotificationMessagePolicesUpdated:
+		fmt.Printf("%v \n", notification)
 		update := notification.(*EventPoliciesUpdated)
+		fmt.Printf("UPDTA: %+v \n", update)
 		updatePolicyCacheForProject(update.ProjectId, update.PoliciesSpecifications)
 	}
 }
@@ -366,8 +368,8 @@ func eventHandleSession(session *ws.Conn, userReplayChannel chan string, replayF
 					policies[ref] = projectPolicies
 
 					notification := EventPoliciesUpdated{
-						projectPolicies.ProjectId,
-						projectPolicies.PoliciesByName,
+						ProjectId:              projectPolicies.ProjectId,
+						PoliciesSpecifications: projectPolicies.PoliciesByName,
 					}
 
 					eventHandleNotification(EventNotificationMessagePolicesUpdated, &notification)
@@ -833,22 +835,21 @@ var policyCache struct {
 	PoliciesByProject map[string]map[string]*fnd.PolicySpecification
 }
 
-func policiesByProject(projectId string) map[string]*fnd.PolicySpecification {
+func RetrievePoliciesByProject(projectId string) map[string]*fnd.PolicySpecification {
 	if RunsServerCode() {
 		projectPolicies := map[string]*fnd.PolicySpecification{}
 		policyCache.Mu.Lock()
 		projectPolicies, ok := policyCache.PoliciesByProject[projectId]
 		if !ok {
 			log.Debug("No policies for project %v", projectId)
-			db.NewTx0(func(tx *db.Transaction) {
-				policySpecifications, policiesOk := policySpecificationsRetrieveFromDatabase(tx, projectId)
-				if policiesOk {
-					policyCache.PoliciesByProject[projectId] = policySpecifications
-					projectPolicies = policySpecifications
-				} else {
-					log.Debug("No policies for project %v found in DB", projectId)
-				}
-			})
+			policySpecifications, policiesOk := policySpecificationsRetrieveFromCore(projectId)
+			if policiesOk {
+				policyCache.PoliciesByProject[projectId] = policySpecifications
+				projectPolicies = policySpecifications
+			} else {
+				log.Debug("No policies for project %v found in DB", projectId)
+			}
+
 		}
 		policyCache.Mu.Unlock()
 		return projectPolicies
@@ -857,37 +858,17 @@ func policiesByProject(projectId string) map[string]*fnd.PolicySpecification {
 	}
 }
 
-func policySpecificationsRetrieveFromDatabase(tx *db.Transaction, projectId string) (map[string]*fnd.PolicySpecification, bool) {
-	rows := db.Select[struct {
-		ProjectId        string
-		PolicyName       string
-		PolicyProperties string
-	}](
-		tx,
-		`
-			select project_id, policy_name, policy_properties 
-			from project.policies
-			where project_id = :id
-		`,
-		db.Params{
-			"id": projectId,
-		},
-	)
+func policySpecificationsRetrieveFromCore(projectId string) (map[string]*fnd.PolicySpecification, bool) {
+	println("PULLING FROM CORE")
+	retrievedPolices, err := fnd.PoliciesRetrieve.Invoke(fnd.RetrievePoliciesRequest{ProjectId: projectId})
+	if err != nil {
+		fmt.Printf("Error %v\n", err)
+		return nil, false
+	}
+	fmt.Printf("%v \n ", retrievedPolices)
 	var policies = make(map[string]*fnd.PolicySpecification)
-	for _, row := range rows {
-		properties := []fnd.PolicyPropertyValue{}
-		err := json.Unmarshal([]byte(row.PolicyProperties), &properties)
-		if err != nil {
-			log.Debug("Error unmarshalling policy properties on update")
-			return nil, false
-		}
-		specification := fnd.PolicySpecification{
-			Schema:     row.PolicyName,
-			Project:    rpc.ProjectId(row.ProjectId),
-			Properties: properties,
-		}
-
-		policies[specification.Schema] = &specification
+	for _, policy := range retrievedPolices {
+		policies[policy.Specification.Schema] = &policy.Specification
 	}
 	return policies, true
 }

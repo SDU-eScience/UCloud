@@ -26,10 +26,26 @@ func policiesV1() db.MigrationScript {
 				`,
 				`
 					create trigger policy_update_trigger
-					after insert or update or delete
+					after insert or update
 					on project.policies
 					for each row
 					execute function project.notify_policy_change();
+				`,
+				`
+					create or replace function project.notify_policy_deleted()
+					returns trigger as $$
+					begin
+						perform pg_notify('policy_deleted', old.project_id::text);
+						return old;
+					end;
+					$$ language plpgsql;
+				`,
+				`
+					create trigger policy_delete_trigger
+					after delete
+					on project.policies
+					for each row
+					execute function project.notify_policy_deleted();
 				`,
 			}
 

@@ -67,6 +67,7 @@ func initProviderNotifications() {
 			var walletOk bool
 
 			var policySpecifications map[string]*fndapi.PolicySpecification
+			var projectIdForPolices string
 			var policiesOk bool
 
 			select {
@@ -87,6 +88,7 @@ func initProviderNotifications() {
 				db.NewTx0(func(tx *db.Transaction) {
 					policySpecifications, policiesOk = coreutil.PolicySpecificationsRetrieveFromDatabase(tx, projectId)
 				})
+				projectIdForPolices = projectId
 			}
 
 			if projectOk {
@@ -134,7 +136,7 @@ func initProviderNotifications() {
 					}
 				}
 			} else if policiesOk {
-				relevantProviders := retrieveRelevantProviders(project.Id)
+				relevantProviders := retrieveRelevantProviders(projectIdForPolices)
 				var allChannels []chan fndapi.PoliciesForProject
 
 				providerNotifications.Mu.Lock()
@@ -150,11 +152,11 @@ func initProviderNotifications() {
 
 				providerNotifications.Mu.Unlock()
 
-				updatePolicyCacheForProject(project.Id, policySpecifications)
+				updatePolicyCacheForProject(projectIdForPolices, policySpecifications)
 
 				for _, ch := range allChannels {
 					select {
-					case ch <- fndapi.PoliciesForProject{project.Id, policySpecifications}:
+					case ch <- fndapi.PoliciesForProject{projectIdForPolices, policySpecifications}:
 					case <-time.After(200 * time.Millisecond):
 					}
 				}
@@ -531,15 +533,15 @@ func providerNotificationHandleClient(conn *ws.Conn) {
 
 			policyCache.Mu.Lock()
 			currentPolices := policyCache.PoliciesByProject[project]
-			var specifications []fndapi.PolicySpecification
-			for _, specification := range currentPolices {
-				specifications = append(specifications, *specification)
+			projectPolicies := fndapi.PoliciesForProject{
+				project,
+				currentPolices,
 			}
-			currentPolicesSpecificationsJson, _ := json.Marshal(specifications)
+			currentProjectPoliciesJson, _ := json.Marshal(projectPolicies)
 			policyCache.Mu.Unlock()
 			out.WriteU8(opPolicyChange)
 			out.WriteU32(uint32(policyRef))
-			out.WriteString(string(currentPolicesSpecificationsJson))
+			out.WriteString(string(currentProjectPoliciesJson))
 		}
 
 		for categoryRef, _ := range categoriesToSend {

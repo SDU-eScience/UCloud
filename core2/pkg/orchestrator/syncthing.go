@@ -1,9 +1,6 @@
 package orchestrator
 
 import (
-	"fmt"
-	"net/http"
-
 	"ucloud.dk/shared/pkg/foundation"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/rpc"
@@ -13,10 +10,9 @@ import (
 func syncthingIsRestricted(actor rpc.Actor) bool {
 	if actor.Project.Present {
 		policies, hasRestriction := policiesByProject(actor.Project.String())[foundation.RestrictIntegratedApplications.String()]
-		fmt.Printf("has them: %v policies: %v\n", hasRestriction, policies)
 		if hasRestriction {
+			isRestricted := true
 			for _, property := range policies.Properties {
-				isRestricted := true
 				if property.Name == "allowList" {
 					for _, element := range property.TextElements {
 						if element == "syncthing" {
@@ -25,9 +21,8 @@ func syncthingIsRestricted(actor rpc.Actor) bool {
 						}
 					}
 				}
-				fmt.Printf("isRestricted: %v \n", isRestricted)
-				return isRestricted
 			}
+			return isRestricted
 		}
 	}
 	return false
@@ -91,9 +86,9 @@ func initSyncthing() {
 				if dInfo.Owner.Project.Present {
 					actorWithProject := info.Actor
 					actorWithProject.Project.Set(rpc.ProjectId(dInfo.Owner.Project.Value))
-					if syncthingIsRestricted(actorWithProject) {
+					/*if syncthingIsRestricted(actorWithProject) {
 						return util.Empty{}, util.HttpErr(http.StatusForbidden, "Project does not allow users to use Syncthing")
-					}
+					}*/
 				}
 			}
 		}
