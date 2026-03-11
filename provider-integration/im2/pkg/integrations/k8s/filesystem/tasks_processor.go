@@ -1,26 +1,58 @@
 package filesystem
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
 	"sync/atomic"
 	"time"
 
-	fnd "ucloud.dk/shared/pkg/foundation"
+	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
 
+type tasksInternalPostStatusRequest struct {
+	Token  string
+	Update fndapi.TaskStatus
+}
+
+var tasksInternalPostStatus = rpc.Call[tasksInternalPostStatusRequest, util.Empty]{
+	BaseContext: "internal/tasks",
+	Convention:  rpc.ConventionUpdate,
+	Operation:   "post",
+	Roles:       rpc.RolesPublic,
+	Audit: rpc.AuditRules{
+		Transformer: func(request any) json.RawMessage {
+			return json.RawMessage("{}")
+		},
+		RetentionDays: util.OptValue(1),
+	},
+}
+
+var tasksInternalIsCancelled = rpc.Call[fndapi.FindByStringId, bool]{
+	BaseContext: "internal/tasks",
+	Convention:  rpc.ConventionUpdate,
+	Operation:   "isPaused",
+	Roles:       rpc.RolesPublic,
+	Audit: rpc.AuditRules{
+		Transformer: func(request any) json.RawMessage {
+			return json.RawMessage("{}")
+		},
+		RetentionDays: util.OptValue(1),
+	},
+}
+
 var taskProcessorState struct {
 	ProviderHostname string
 	TaskToken        string
-	LastStatus       atomic.Pointer[fnd.TaskStatus]
+	LastStatus       atomic.Pointer[fndapi.TaskStatus]
 }
 
 func TaskProcessor() {
-	spec := Task2Spec{
+	spec := TaskSpec{
 		Type:             Task2SpecType(os.Getenv(taskEnvType)),
 		Id:               os.Getenv(taskEnvId),
 		Source:           os.Getenv(taskEnvSource),
@@ -63,14 +95,14 @@ func TaskProcessor() {
 	}
 
 	last := taskProcessorState.LastStatus.Load()
-	status := fnd.TaskStatus{}
+	status := fndapi.TaskStatus{}
 	if last != nil {
 		status = *last
 	}
 	if err == nil {
-		status.State = fnd.TaskStateSuccess
+		status.State = fndapi.TaskStateSuccess
 	} else {
-		status.State = fnd.TaskStateFailure
+		status.State = fndapi.TaskStateFailure
 		status.Body.Set(err.Why)
 	}
 	taskProcessorPostUpdate(status)
@@ -78,7 +110,7 @@ func TaskProcessor() {
 	log.Info("Done")
 }
 
-func taskProcessorPostUpdate(status fnd.TaskStatus) {
+func taskProcessorPostUpdate(status fndapi.TaskStatus) {
 	taskProcessorState.LastStatus.Store(&status)
 
 	_, err := tasksInternalPostStatus.Invoke(tasksInternalPostStatusRequest{
@@ -91,8 +123,14 @@ func taskProcessorPostUpdate(status fnd.TaskStatus) {
 	}
 }
 
+var taskProcessorIsCancelledCache = util.NewCache[util.Empty, bool](1 * time.Second)
+
 func taskProcessorIsCancelled() bool {
-	return false // TODO
+	result, ok := taskProcessorIsCancelledCache.Get(util.Empty{}, func() (bool, error) {
+		return tasksInternalIsCancelled.Invoke(fndapi.FindByStringId{Id: taskProcessorState.TaskToken})
+	})
+
+	return result && ok
 }
 
 const (

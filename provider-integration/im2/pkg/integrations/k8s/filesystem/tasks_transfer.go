@@ -16,7 +16,7 @@ import (
 	"ucloud.dk/shared/pkg/util"
 )
 
-func task2ProcessTransfer(spec Task2Spec) *util.HttpError {
+func task2ProcessTransfer(spec TaskSpec) *util.HttpError {
 	if os.Getenv(taskEnvId) == "" {
 		log.Fatal("This code can only run inside of a task.")
 		return util.HttpErr(http.StatusInternalServerError, "internal error")
