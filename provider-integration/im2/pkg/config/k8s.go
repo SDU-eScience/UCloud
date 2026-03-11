@@ -14,6 +14,7 @@ import (
 type ServicesConfigurationKubernetes struct {
 	FileSystem        KubernetesFileSystem
 	Compute           KubernetesCompute
+	ProviderDns       string
 	SensitiveProjects []string
 }
 
@@ -190,6 +191,8 @@ type K8sMachineConfiguration struct {
 func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, services *yaml.Node) (bool, ServicesConfigurationKubernetes) {
 	cfg := ServicesConfigurationKubernetes{}
 	success := true
+
+	cfg.ProviderDns = cfgutil.OptionalChildText(filePath, services, "providerDns", &success)
 
 	sensitiveProjects, _ := cfgutil.GetChildOrNil(filePath, services, "sensitiveProjects")
 	if sensitiveProjects != nil {

@@ -54,6 +54,11 @@ func Launch() {
 		cliCommand = os.Args[1]
 	}
 
+	if cliCommand == "generate-report" {
+		reportGenerator()
+		return
+	}
+
 	DocumentationStartRenderer()
 
 	repoRootPath := ""

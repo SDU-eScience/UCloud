@@ -68,7 +68,9 @@ export const ApplicationGroups: React.FunctionComponent = () => {
                                     element.setAttribute("href", s);
                                     document.body.appendChild(element);
                                     element.click();
-                                    document.body.removeChild(element);
+                                    if (element.parentNode === document.body) {
+                                        document.body.removeChild(element);
+                                    }
                                 });
                             }}>
                                 Export to ZIP

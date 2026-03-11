@@ -279,7 +279,7 @@ func (c *Client) JobSubmit(pathToScript string) (int, error) {
 		} else {
 			return -1, (&util.HttpError{
 				StatusCode: http.StatusBadRequest,
-				Why:        fmt.Sprintf(errorMessage),
+				Why:        fmt.Sprintf("%s", errorMessage),
 			}).AsError()
 		}
 	}

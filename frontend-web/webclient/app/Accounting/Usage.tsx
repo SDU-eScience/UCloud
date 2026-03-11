@@ -140,7 +140,9 @@ function UsageExport<T extends object>(
             `${Config.PRODUCT_NAME} - ${projectTitle ? projectTitle : "My workspace"} - ${formatDate(new Date(), DATE_FORMAT)}.${format}`;
         document.body.appendChild(a);
         a.click();
-        document.body.removeChild(a);
+        if (a.parentNode === document.body) {
+            document.body.removeChild(a);
+        }
     }
 }
 
@@ -169,4 +171,3 @@ export const PeriodStyle = injectStyle("period-selector", k => `
         border: 1px solid var(--borderColorHover);
     }
 `);
-

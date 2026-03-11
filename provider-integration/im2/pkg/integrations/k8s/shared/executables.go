@@ -14,6 +14,8 @@ import (
 	"ucloud.dk/shared/pkg/util"
 )
 
+var ProviderHostname = ""
+
 func InitExecutables() {
 	// Small utility function to put ucmetrics, ucviz and similar into a shared directory which can be mounted by jobs
 	// to gain access to these applications.
@@ -29,6 +31,7 @@ func InitExecutables() {
 	exeCopy("ucviz", dirPath)
 	exeCopy("vmagent", dirPath)
 
+	providerHostnamePath := filepath.Join(dirPath, "provider-hostname.txt")
 	if util.DevelopmentModeEnabled() {
 		// NOTE(Dan): The development setup has various issues with connecting the K8s DNS to the Docker Compose DNS.
 		// As a result, it is much simpler to just point the VMs directly at the IP address of the integration module.
@@ -44,9 +47,16 @@ func InitExecutables() {
 		}()
 
 		if len(ips) > 0 {
-			_ = os.WriteFile(filepath.Join(dirPath, "provider-ip.txt"), []byte(ips[0].String()), 0644)
+			ProviderHostname = ips[0].String()
+		}
+	} else {
+		if conf.ProviderDns == "" {
+			ProviderHostname = conf.ProviderDns
+			log.Fatal("ProviderDns must be set for production providers!")
 		}
 	}
+
+	_ = os.WriteFile(providerHostnamePath, []byte(ProviderHostname), 0644)
 }
 
 func exeCopy(name string, targetDir string) {

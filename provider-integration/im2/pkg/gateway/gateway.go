@@ -128,7 +128,7 @@ func Initialize(config Config, channel chan []byte) {
 			message := ConfigurationMessage{}
 			err := gob.NewDecoder(bytes.NewBuffer(binMessage)).Decode(&message)
 			if err != nil {
-				log.Warn("Failed to decode message: %", err)
+				log.Warn("Failed to decode message: %s", err)
 				continue
 			}
 

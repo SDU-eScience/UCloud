@@ -31,7 +31,7 @@ export const HexSpinWrapper = injectStyle("hex-spinner", k => `
         animation-name: ${SPINNER_ANIMATION_NAME}; 
     }
 
-    ${createCSS(`${k} > svg `)};
+    ${createCSS(`${k} > svg `)}
 
 `);
 

@@ -1073,7 +1073,9 @@ function downloadFile(url: string, usePopup: boolean) {
     if (usePopup) element.setAttribute("target", "_blank");
     document.body.appendChild(element);
     element.click();
-    document.body.removeChild(element);
+    if (element.parentNode === document.body) {
+        document.body.removeChild(element);
+    }
 }
 
 export async function addFileSensitivityDialog(file: UFile, invokeCommand: InvokeCommand, onUpdated: (value: SensitivityLevelMap) => void): Promise<void> {

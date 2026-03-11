@@ -16,7 +16,7 @@ const ProgressBaseClass = injectStyle("progress-base", k => `
         background-color: var(--progressColor, #f00);
         width: 100%;
         
-        --progressColor: var(--successMain):
+        --progressColor: var(--successMain);
     }
     
     ${k}[data-active="false"] {

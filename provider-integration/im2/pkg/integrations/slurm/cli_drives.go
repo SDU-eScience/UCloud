@@ -44,10 +44,10 @@ func HandleDrivesCommand() {
 		t.AppendHeader("Project (local)")
 
 		for _, drive := range drives {
-			t.Cell(cli.FormatTime(drive.Drive.CreatedAt))
-			t.Cell(drive.Drive.Id)
-			t.Cell(drive.LocalPath)
-			t.Cell(drive.LocalGroupName)
+			t.Cell("%v", cli.FormatTime(drive.Drive.CreatedAt))
+			t.Cell("%v", drive.Drive.Id)
+			t.Cell("%v", drive.LocalPath)
+			t.Cell("%v", drive.LocalGroupName)
 		}
 
 		t.Print()
