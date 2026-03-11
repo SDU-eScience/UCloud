@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -15,16 +16,33 @@ import (
 )
 
 var jobAuditLogFolder = "/mnt/storage/audit"
+var ucloudRank int64
+var ucloudJobId int64
+var ucloudWorkspaceId string
 
 func StartJobAuditLogging() {
+	ucloudRank = getIntEnv("UCLOUD_RANK")
+	ucloudJobId = getIntEnv("UCLOUD_JOB_ID")
+	ucloudWorkspaceId = os.Getenv("UCLOUD_WORKSPACE_ID")
 	startServer()
 }
 
-func writeJobAuditLog(event JobAuditEvent, rank string) error {
+func getIntEnv(env string) int64 {
+	value := os.Getenv(env)
+	if value != "" {
+		value, err := strconv.ParseInt(value, 10, 64)
+		if err == nil {
+			return value
+		}
+	}
+	return 0
+}
+
+func writeJobAuditLog(event JobAuditEvent) error {
 	filename := fmt.Sprintf(
-		"%s/audit-%s-%s.jsonl",
+		"%s/audit-%d-%s.jsonl",
 		jobAuditLogFolder,
-		rank,
+		ucloudRank,
 		time.Now().Format("2006-01-02"),
 	)
 
@@ -40,7 +58,7 @@ func writeJobAuditLog(event JobAuditEvent, rank string) error {
 
 type JobAuditEvent struct {
 	Ts          time.Time            `json:"ts"`
-	JobID       string               `json:"jobId"`
+	JobID       int64                `json:"jobId"`
 	WorkspaceID string               `json:"workspaceId"`
 	Event       string               `json:"event"`
 	Message     string               `json:"message"`
@@ -96,12 +114,12 @@ func startServer() {
 	JobAuditLogAppendLog.Handler(func(info rpc.RequestInfo, request JobAuditLogAppendRequest) (util.Empty, *util.HttpError) {
 		err := writeJobAuditLog(JobAuditEvent{
 			Ts:          time.Now().UTC(),
-			JobID:       "MyJOB",
-			WorkspaceID: "MyWorkspace",
+			JobID:       ucloudJobId,
+			WorkspaceID: ucloudWorkspaceId,
 			Event:       request.Event,
 			Message:     request.Message,
 			Meta:        request.Meta,
-		}, "UCLOUD_RANK")
+		})
 
 		if err != nil {
 			return util.Empty{}, &util.HttpError{

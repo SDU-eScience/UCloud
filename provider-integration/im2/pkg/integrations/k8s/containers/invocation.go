@@ -133,6 +133,11 @@ func prepareInvocationOnJobCreate(
 		Value: job.Id,
 	})
 
+	container.Env = append(container.Env, k8score.EnvVar{
+		Name:  "UCLOUD_WORKSPACE_ID",
+		Value: job.Owner.Project.GetOrDefault(job.Owner.CreatedBy),
+	})
+
 	replicaNames := []string{
 		"UCLOUD_TASK_COUNT",
 		"VC_JOB_NUM",
