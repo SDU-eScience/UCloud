@@ -211,7 +211,7 @@ func assertEqualMaxUsable(t *testing.T, e *env, owner string, want int64) {
 }
 
 func (e *env) UpdateAllocation(t *testing.T, owner *internalOwner, now int, allocationId accAllocId, newQuota util.Option[int64], newStart util.Option[fndapi.Timestamp], newEnd util.Option[fndapi.Timestamp]) *util.HttpError {
-	_, _, err := internalUpdateAllocation(owner, e.Tm(now), e.Bucket, allocationId, newQuota, newStart, newEnd)
+	_, _, err := internalUpdateAllocation(owner, e.Tm(now), e.Bucket, allocationId, newQuota, newStart, newEnd, "testing")
 	return err
 }
 

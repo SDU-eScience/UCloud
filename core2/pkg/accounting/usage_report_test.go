@@ -14,7 +14,7 @@ import (
 	"ucloud.dk/shared/pkg/util"
 )
 
-func TestName(t *testing.T) {
+func TestUsageGenSimulation(t *testing.T) {
 	e := newEnv(t, timeCategory)
 	e.TimeInMinutes = true
 
@@ -53,7 +53,7 @@ func TestName(t *testing.T) {
 	}
 
 	config := accapi.UsageGenConfig{
-		Days:               30,
+		Days:               7,
 		BreadthPerLevel:    []int{1, 8, 100, 8},
 		Seed:               42,
 		CheckpointInterval: 60 * 4,

@@ -8,16 +8,277 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sync"
 	"sync/atomic"
 	"time"
 
 	"golang.org/x/sys/unix"
 	ctrl "ucloud.dk/pkg/controller"
 	fnd "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/log"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
+
+func task2ProcessCopy(spec TaskSpec) *util.HttpError {
+	if os.Getenv(taskEnvId) == "" {
+		log.Fatal("This code can only run inside of a task.")
+		return util.HttpErr(http.StatusInternalServerError, "internal error")
+	}
+
+	sourcePath := spec.Source
+	destPath := spec.Destination
+
+	sourceFile, ok := OpenFile(sourcePath, unix.O_RDONLY, 0)
+	if !ok {
+		return util.HttpErr(http.StatusBadRequest, "invalid source file supplied - it no longer exists")
+	}
+	defer util.SilentClose(sourceFile)
+
+	sourceStat, err := sourceFile.Stat()
+	if err != nil {
+		return util.HttpErr(http.StatusBadRequest, "invalid source file supplied - it no longer exists")
+	}
+
+	destFlags := unix.O_RDONLY
+	destMode := uint32(0770)
+	if !sourceStat.IsDir() {
+		destMode = 0660
+		destFlags = unix.O_RDWR | unix.O_TRUNC | unix.O_CREAT
+	}
+
+	destFile, ok := OpenFile(destPath, destFlags, destMode)
+	if !ok && sourceStat.IsDir() {
+		herr := DoCreateFolder(destPath)
+		if herr != nil {
+			return util.HttpErr(http.StatusBadRequest, "unable to open destination file")
+		}
+
+		destFile, ok = OpenFile(destPath, destFlags, destMode)
+		if !ok {
+			return util.HttpErr(http.StatusBadRequest, "unable to open destination file")
+		}
+
+		defer util.SilentClose(destFile)
+	} else if !ok {
+		return util.HttpErr(http.StatusBadRequest, "unable to open destination file")
+	}
+
+	destFileFd := int(destFile.Fd())
+	destStat, err := destFile.Stat()
+	if destStat != nil && err == nil {
+		if sourceStat.IsDir() != destStat.IsDir() {
+			return util.HttpErr(http.StatusBadRequest, "destination already exists and has the wrong type")
+		}
+	}
+
+	title := util.OptValue(fmt.Sprintf(
+		"Copying %s to %s",
+		util.FileName(sourcePath),
+		util.FileName(filepath.Dir(destPath)),
+	))
+
+	taskProcessorPostUpdate(fnd.TaskStatus{
+		State:              fnd.TaskStateRunning,
+		Title:              title,
+		Body:               util.OptValue(""),
+		Progress:           util.OptValue(""),
+		ProgressPercentage: util.OptValue(0.0),
+	})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	var filesDiscovered atomic.Int64
+	var bytesDiscovered atomic.Int64
+	var filesDiscoveredDone atomic.Bool
+	var workersDone atomic.Bool
+
+	var workersWg sync.WaitGroup
+	var producerWg sync.WaitGroup
+
+	lastStatMeasurement := time.Now()
+	filesPerSecond := float64(0)
+	bytesPerSecond := float64(0)
+	lastFilesCompleted := int64(0)
+	lastBytesTransferred := int64(0)
+
+	encounteredErrors := int64(0)
+
+	frontendQueue := make(chan discoveredFile, 256)
+	backendQueue := make(chan discoveredFile, 256)
+
+	producerWg.Add(1)
+	go func() {
+		defer producerWg.Done()
+		defer close(backendQueue)
+
+	outer:
+		for util.IsAlive {
+			select {
+			case <-ctx.Done():
+				break outer
+
+			case df, ok := <-frontendQueue:
+				if !ok {
+					break outer
+				}
+
+				filesDiscovered.Add(1)
+				if df.LinkTo == "" {
+					if !df.FileInfo.IsDir() {
+						bytesDiscovered.Add(df.FileInfo.Size())
+					}
+				}
+
+				select {
+				case <-ctx.Done():
+					break outer
+
+				case backendQueue <- df:
+				}
+			}
+		}
+
+		filesDiscoveredDone.Store(true)
+	}()
+
+	producerWg.Add(1)
+	go func() {
+		defer producerWg.Done()
+		defer close(frontendQueue)
+		normalFileWalk(ctx, frontendQueue, sourceFile, sourceStat)
+	}()
+
+	var workers []*copyWorker
+	for i := 0; i < 8; i++ {
+		w := &copyWorker{
+			DestFileFd: destFileFd,
+		}
+		workers = append(workers, w)
+
+		workersWg.Add(1)
+		go func(worker *copyWorker) {
+			defer workersWg.Done()
+			worker.Process(ctx, backendQueue)
+		}(w)
+	}
+
+	go func() {
+		workersWg.Wait()
+		workersDone.Store(true)
+	}()
+
+	flushStats := func() {
+		now := time.Now()
+		dt := now.Sub(lastStatMeasurement)
+		lastStatMeasurement = now
+
+		bytesTransferred := int64(0)
+		filesCompleted := int64(0)
+		filesFailed := int64(0)
+		for _, w := range workers {
+			filesCompleted += w.FilesCompleted.Load()
+			filesFailed += w.FilesFailed.Load()
+			bytesTransferred += w.BytesProcessed.Load()
+		}
+		filesSeen := filesDiscovered.Load()
+		bytesSeen := bytesDiscovered.Load()
+
+		filesPerSecond = util.SmoothMeasure(filesPerSecond, float64(filesCompleted-lastFilesCompleted)/dt.Seconds())
+
+		f := float64(bytesTransferred - lastBytesTransferred)
+		seconds := dt.Seconds()
+		bytesPerSecond = util.SmoothMeasure(bytesPerSecond, f/seconds)
+
+		lastFilesCompleted = filesCompleted
+		lastBytesTransferred = bytesTransferred
+
+		readableSpeed := util.SizeToHumanReadableWithUnit(bytesPerSecond)
+
+		percentage := float64(0)
+		if bytesSeen > 0 {
+			percentage = (float64(bytesTransferred) / float64(bytesSeen)) * 100
+		}
+
+		if !filesDiscoveredDone.Load() {
+			percentage = -1
+		}
+
+		readableDataTransferred := util.SizeToHumanReadableWithUnit(float64(bytesTransferred))
+		readableDiscoveredDataSize := util.SizeToHumanReadableWithUnit(float64(bytesSeen))
+
+		body := fmt.Sprintf(
+			"%.2f %v/%.2f %v | %v / %v files",
+			readableDataTransferred.Size,
+			readableDataTransferred.Unit,
+			readableDiscoveredDataSize.Size,
+			readableDiscoveredDataSize.Unit,
+			filesCompleted,
+			filesSeen,
+		)
+		if filesFailed > 0 {
+			body += fmt.Sprintf(" | %v failed", filesFailed)
+		}
+
+		newStatus := fnd.TaskStatus{
+			State: fnd.TaskStateRunning,
+			Title: title,
+			Body:  util.OptValue(body),
+			Progress: util.OptValue(fmt.Sprintf(
+				"%.2f %v/s | %.2f files/s",
+				readableSpeed.Size,
+				readableSpeed.Unit,
+				filesPerSecond,
+			)),
+			ProgressPercentage: util.OptValue(percentage),
+		}
+		taskProcessorPostUpdate(newStatus)
+	}
+
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+
+outer:
+	for util.IsAlive {
+		select {
+		case <-ctx.Done():
+			break outer
+
+		case <-ticker.C:
+			flushStats()
+
+			if workersDone.Load() {
+				break outer
+			}
+
+			if taskProcessorIsCancelled() {
+				cancel()
+			}
+		}
+	}
+
+	cancel()
+	producerWg.Wait()
+	workersWg.Wait()
+	flushStats()
+
+	for _, w := range workers {
+		encounteredErrors += w.FilesFailed.Load()
+	}
+
+	util.SilentClose(sourceFile)
+	util.SilentClose(destFile)
+
+	if encounteredErrors > 0 {
+		return util.HttpErr(http.StatusInternalServerError, "copy finished with %d failed entries", encounteredErrors)
+	}
+
+	if taskProcessorIsCancelled() {
+		return util.HttpErr(http.StatusRequestTimeout, "task was cancelled")
+	}
+
+	return nil
+}
 
 func copyFiles(actor rpc.Actor, request orc.FilesProviderMoveOrCopyRequest) *util.HttpError {
 	if !AllowUCloudPathsTogether([]string{request.OldId, request.NewId}) {
@@ -37,18 +298,20 @@ func copyFiles(actor rpc.Actor, request orc.FilesProviderMoveOrCopyRequest) *uti
 		return util.PaymentError()
 	}
 
-	task := TaskInfoSpecification{
-		Type:              FileTaskTypeCopy,
-		CreatedAt:         fnd.Timestamp(time.Now()),
-		UCloudUsername:    actor.Username,
-		UCloudSource:      util.OptValue(request.OldId),
-		UCloudDestination: util.OptValue(request.NewId),
-		ConflictPolicy:    request.ConflictPolicy,
-		HasUCloudTask:     true,
-		Icon:              "copy",
+	task := TaskSpec{
+		Type:           TaskSpecTypeCopy,
+		Source:         request.OldId,
+		Destination:    request.NewId,
+		ConflictPolicy: string(request.ConflictPolicy),
+		Mounts: []TaskMount{
+			{UCloudPath: request.OldId},
+			{UCloudPath: request.NewId},
+		},
 	}
+	task.CreationState.Username = actor.Username
+	task.CreationState.Icon = "copy"
 
-	if task.ConflictPolicy == orc.WriteConflictPolicyRename {
+	if request.ConflictPolicy == orc.WriteConflictPolicyRename {
 		newPath, err := findAvailableNameOnRename(destPath)
 		destPath = newPath
 
@@ -63,242 +326,36 @@ func copyFiles(actor rpc.Actor, request orc.FilesProviderMoveOrCopyRequest) *uti
 		if !ok {
 			return util.UserHttpError("Unable to copy files. Unknown drive")
 		}
-		task.UCloudDestination.Set(newInternalDest)
+		task.Destination = newInternalDest
 	}
 
-	return RegisterTask(task)
-}
-
-func processCopyTask(task *TaskInfo) TaskProcessingResult {
-	sourcePath, ok1, _ := UCloudToInternal(task.UCloudSource.Value)
-	destPath, ok2, _ := UCloudToInternal(task.UCloudDestination.Value)
-	if !ok1 || !ok2 {
-		return TaskProcessingResult{
-			Error: fmt.Errorf("Invalid source or destination supplied"),
-		}
-	}
-
-	sourceFile, ok := OpenFile(sourcePath, unix.O_RDONLY, 0)
-	if !ok {
-		return TaskProcessingResult{
-			Error: fmt.Errorf("Invalid source file supplied. It no longer exists."),
-		}
-	}
-	defer util.SilentClose(sourceFile)
-
-	sourceStat, err := sourceFile.Stat()
-	if err != nil {
-		return TaskProcessingResult{
-			Error: fmt.Errorf("Invalid source file supplied. It no longer exists."),
-		}
-	}
-
-	destFlags := unix.O_RDONLY
-	destMode := uint32(0770)
-	if !sourceStat.IsDir() {
-		destMode = 0660
-		destFlags = unix.O_RDWR | unix.O_TRUNC | unix.O_CREAT
-	}
-
-	destFile, ok := OpenFile(destPath, destFlags, destMode)
-	if !ok && sourceStat.IsDir() {
-		herr := DoCreateFolder(destPath)
-		if herr != nil {
-			return TaskProcessingResult{
-				Error: fmt.Errorf("Unable to open destination file"),
-			}
-		}
-
-		destFile, ok = OpenFile(destPath, destFlags, destMode)
-		if !ok {
-			return TaskProcessingResult{
-				Error: fmt.Errorf("Unable to open destination file"),
-			}
-		}
-
-		defer util.SilentClose(destFile)
-	} else if err != nil {
-		return TaskProcessingResult{
-			Error: fmt.Errorf("Unable to open destination file"),
-		}
-	}
-
-	destFileFd := int(destFile.Fd())
-	destStat, err := destFile.Stat()
-	if destStat != nil && err == nil {
-		if sourceStat.IsDir() != destStat.IsDir() {
-			return TaskProcessingResult{
-				Error: fmt.Errorf("destination already exists and has the wrong type"),
-			}
-		}
-	}
-
-	title := util.OptValue(fmt.Sprintf(
-		"Copying %s to %s",
-		util.FileName(sourcePath),
-		util.FileName(filepath.Dir(destPath)),
-	))
-
-	task.Status.Store(&fnd.TaskStatus{
-		State:              fnd.TaskStateRunning,
-		Title:              title,
-		Body:               util.OptValue(""),
-		Progress:           util.OptValue(""),
-		ProgressPercentage: util.OptValue(0.0),
-	})
-
-	ctx, cancel := context.WithCancel(context.Background())
-	filesDiscovered := int64(0)
-	bytesDiscovered := int64(0)
-	filesDiscoveredDone := false
-
-	lastStatMeasurement := time.Now()
-	filesPerSecond := float64(0)
-	bytesPerSecond := float64(0)
-	lastFilesCompleted := int64(0)
-	lastBytesTransferred := int64(0)
-
-	// wasCancelledByUser := false
-
-	frontendQueue := make(chan discoveredFile, 256)
-	backendQueue := make(chan discoveredFile, 256)
-
-	go func() {
-	outer:
-		for util.IsAlive {
-			select {
-			case <-ctx.Done():
-				break outer
-
-			case df := <-frontendQueue:
-				filesDiscovered++
-				if df.LinkTo == "" {
-					if !df.FileInfo.IsDir() {
-						bytesDiscovered += df.FileInfo.Size()
-					}
-				}
-
-				select {
-				case <-ctx.Done():
-					break outer
-
-				case backendQueue <- df:
-				}
-			}
-		}
-	}()
-
-	go func() {
-		normalFileWalk(ctx, frontendQueue, sourceFile, sourceStat)
-		filesDiscoveredDone = true
-	}()
-
-	var workers []*copyWorker
-	for i := 0; i < 8; i++ {
-		w := &copyWorker{
-			DestFileFd: destFileFd,
-		}
-		workers = append(workers, w)
-
-		go w.Process(ctx, backendQueue)
-	}
-
-	flushStats := func() {
-		now := time.Now()
-		dt := now.Sub(lastStatMeasurement)
-		lastStatMeasurement = now
-
-		bytesTransferred := int64(0)
-		filesCompleted := int64(0)
-		for _, w := range workers {
-			filesCompleted += w.FilesCompleted.Load()
-			bytesTransferred += w.BytesProcessed.Load()
-		}
-
-		filesPerSecond = util.SmoothMeasure(filesPerSecond, float64(filesCompleted-lastFilesCompleted)/dt.Seconds())
-
-		f := float64(bytesTransferred - lastBytesTransferred)
-		seconds := dt.Seconds()
-		bytesPerSecond = util.SmoothMeasure(bytesPerSecond, f/seconds)
-
-		lastFilesCompleted = filesCompleted
-		lastBytesTransferred = bytesTransferred
-
-		readableSpeed := util.SizeToHumanReadableWithUnit(bytesPerSecond)
-
-		percentage := (float64(bytesTransferred) / float64(bytesDiscovered)) * 100
-		if !filesDiscoveredDone {
-			percentage = -1
-		}
-
-		readableDataTransferred := util.SizeToHumanReadableWithUnit(float64(bytesTransferred))
-		readableDiscoveredDataSize := util.SizeToHumanReadableWithUnit(float64(bytesDiscovered))
-
-		newStatus := &fnd.TaskStatus{
-			State: fnd.TaskStateRunning,
-			Title: title,
-			Body: util.OptValue(fmt.Sprintf(
-				"%.2f %v/%.2f %v | %v / %v files",
-				readableDataTransferred.Size,
-				readableDataTransferred.Unit,
-				readableDiscoveredDataSize.Size,
-				readableDiscoveredDataSize.Unit,
-				filesCompleted,
-				filesDiscovered,
-			)),
-			Progress: util.OptValue(fmt.Sprintf(
-				"%.2f %v/s | %.2f files/s",
-				readableSpeed.Size,
-				readableSpeed.Unit,
-				filesPerSecond,
-			)),
-			ProgressPercentage: util.OptValue(percentage),
-		}
-		task.Status.Store(newStatus)
-	}
-
-	ticker := time.NewTicker(100 * time.Millisecond)
-
-outer:
-	for util.IsAlive {
-		select {
-		case <-ctx.Done():
-			break outer
-
-		case <-ticker.C:
-			flushStats()
-
-			if filesDiscoveredDone && lastFilesCompleted == filesDiscovered {
-				cancel()
-			}
-		}
-	}
-
-	cancel()
-
-	util.SilentClose(sourceFile)
-	util.SilentClose(destFile)
-
-	return TaskProcessingResult{}
+	return TaskSubmit(task)
 }
 
 type copyWorker struct {
 	DestFileFd     int
 	FilesCompleted atomic.Int64
+	FilesFailed    atomic.Int64
 	BytesProcessed atomic.Int64
 }
 
-func (w *copyWorker) Process(ctx context.Context, backendQueue chan discoveredFile) {
+func (w *copyWorker) Process(ctx context.Context, backendQueue <-chan discoveredFile) {
 outer:
 	for util.IsAlive {
 		select {
 		case <-ctx.Done():
 			break outer
-		case entry := <-backendQueue:
-			w.copyFile(entry)
-			w.FilesCompleted.Add(1)
-			if entry.LinkTo == "" && !entry.FileInfo.IsDir() {
-				w.BytesProcessed.Add(entry.FileInfo.Size())
+		case entry, ok := <-backendQueue:
+			if !ok {
+				break outer
+			}
+
+			bytesCopied, copied := w.copyFile(entry)
+			if copied {
+				w.FilesCompleted.Add(1)
+				w.BytesProcessed.Add(bytesCopied)
+			} else {
+				w.FilesFailed.Add(1)
 			}
 
 			if entry.InternalPath != "" {
@@ -308,21 +365,26 @@ outer:
 	}
 }
 
-func (w *copyWorker) copyFile(entry discoveredFile) bool {
+func (w *copyWorker) copyFile(entry discoveredFile) (int64, bool) {
 	var err error = nil
 	destFileFd := w.DestFileFd
+
+	if entry.InternalPath == "" && entry.LinkTo == "" && entry.FileInfo != nil && entry.FileInfo.IsDir() {
+		return 0, true
+	}
 
 	for i := 0; i < len(entry.InternalPath); i++ {
 		if entry.InternalPath[i] == '/' {
 			err := unix.Mkdirat(destFileFd, entry.InternalPath[:i], 0770)
-			if !errors.Is(err, unix.ENOTDIR) && !errors.Is(err, unix.EEXIST) {
-				return false
+			if err != nil && !errors.Is(err, unix.ENOTDIR) && !errors.Is(err, unix.EEXIST) {
+				log.Info("Failed to create directory: %s (%#v)", err, entry)
+				return 0, false
 			}
 		}
 	}
 
 	if entry.LinkTo != "" {
-		return unix.Symlinkat(entry.LinkTo, destFileFd, entry.InternalPath) == nil
+		return 0, unix.Symlinkat(entry.LinkTo, destFileFd, entry.InternalPath) == nil
 	} else if !entry.FileInfo.IsDir() {
 		fd := int(0)
 		if entry.InternalPath == "" {
@@ -330,25 +392,31 @@ func (w *copyWorker) copyFile(entry discoveredFile) bool {
 		} else {
 			fd, err = unix.Openat(destFileFd, entry.InternalPath, unix.O_RDWR|unix.O_TRUNC|unix.O_CREAT, 0660)
 			if err != nil {
-				return false
+				log.Info("Failed to open: %s (%#v)", err, entry)
+				return 0, false
 			}
 		}
 
 		_ = unix.Fchmod(fd, uint32(entry.FileInfo.Mode().Perm()))
 		_ = unix.Fchown(fd, FileUid(entry.FileInfo), FileGid(entry.FileInfo))
 		file := os.NewFile(uintptr(fd), entry.InternalPath)
-		_, err = io.Copy(file, entry.FileDescriptor)
+		bytesCopied, err := io.Copy(file, entry.FileDescriptor)
 		_ = file.Close()
 		if err != nil {
-			return false
+			log.Info("Failed to copy: %s (%#v)", err, entry)
+			return 0, false
 		}
+
+		return bytesCopied, true
 	} else {
 		_ = unix.Mkdirat(destFileFd, entry.InternalPath, 0770)
 		_ = unix.Fchownat(destFileFd, entry.InternalPath, FileUid(entry.FileInfo), FileGid(entry.FileInfo), 0)
-		return unix.Fchmodat(destFileFd, entry.InternalPath, uint32(entry.FileInfo.Mode().Perm()), 0) == nil
+		err := unix.Fchmodat(destFileFd, entry.InternalPath, uint32(entry.FileInfo.Mode().Perm()), 0)
+		if err != nil {
+			log.Info("Failed to copy: %s (%#v)", err, entry)
+		}
+		return 0, err == nil
 	}
-
-	return true
 }
 
 type discoveredFile struct {
@@ -409,7 +477,7 @@ outer:
 					buf := make([]byte, bufSize+1)
 
 					n, err := unix.Readlinkat(int(rootFile.Fd()), entry, buf)
-					if n == bufSize && err == nil {
+					if err == nil && n >= 0 && n <= bufSize {
 						df := discoveredFile{
 							InternalPath: entry,
 							LinkTo:       string(buf[:n]),
