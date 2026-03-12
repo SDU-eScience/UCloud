@@ -17,14 +17,25 @@ import (
 
 var jobAuditLogFolder = "/mnt/storage/audit"
 var ucloudRank int64
-var ucloudJobId int64
+var ucloudJobId string
 var ucloudWorkspaceId string
 
-func StartJobAuditLogging() {
+func StartJobAuditLogServer() {
 	ucloudRank = getIntEnv("UCLOUD_RANK")
-	ucloudJobId = getIntEnv("UCLOUD_JOB_ID")
+	ucloudJobId = os.Getenv("UCLOUD_JOB_ID")
 	ucloudWorkspaceId = os.Getenv("UCLOUD_WORKSPACE_ID")
-	startServer()
+
+	var ourArgs []string
+	if len(os.Args) > 1 {
+		ourArgs = os.Args[2:]
+	}
+	serverPort, err := strconv.ParseInt(ourArgs[0], 10, 64)
+	if err != nil {
+		log.Error("Could not parse port: %v", err)
+		return
+	}
+	log.Info("Starting job audit log server on port %d", serverPort)
+	startServer(serverPort)
 }
 
 func getIntEnv(env string) int64 {
@@ -58,7 +69,7 @@ func writeJobAuditLog(event JobAuditEvent) error {
 
 type JobAuditEvent struct {
 	Ts          time.Time            `json:"ts"`
-	JobID       int64                `json:"jobId"`
+	JobID       string               `json:"jobId"`
 	WorkspaceID string               `json:"workspaceId"`
 	Event       string               `json:"event"`
 	Message     string               `json:"message"`
@@ -82,18 +93,10 @@ var JobAuditLogAppendLog = rpc.Call[JobAuditLogAppendRequest, util.Empty]{
 	Operation:   "append",
 }
 
-var JobAuditLogTest = rpc.Call[util.Empty, util.Empty]{
-	BaseContext: "",
-	Convention:  rpc.ConventionRetrieve,
-	Roles:       rpc.RolesPublic,
-	Operation:   "test",
-}
-
 var defaultServer rpc.Server
 
-func startServer() {
+func startServer(serverPort int64) {
 	defaultServer.Mux = http.NewServeMux()
-	serverPort := 48291
 
 	s := &http.Server{
 		Addr: fmt.Sprintf(":%v", serverPort),
@@ -129,12 +132,6 @@ func startServer() {
 		}
 		return util.Empty{}, nil
 	})
-
-	JobAuditLogTest.Handler(func(info rpc.RequestInfo, empty util.Empty) (util.Empty, *util.HttpError) {
-		log.Info("Simple call")
-		return util.Empty{}, nil
-	})
-
 }
 
 func collapseServerSlashes(next http.Handler) http.Handler {

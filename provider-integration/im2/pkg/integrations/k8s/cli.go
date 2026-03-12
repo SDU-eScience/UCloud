@@ -10,8 +10,8 @@ func HandleCliWithoutConfig(command string) bool {
 	switch command {
 	case "script-gen":
 		HandleScriptGen()
-	case "start-job-audit-log":
-		StartJobAuditLogging()
+	case "start-job-audit-log-server":
+		StartJobAuditLogServer()
 	default:
 		return false
 	}
