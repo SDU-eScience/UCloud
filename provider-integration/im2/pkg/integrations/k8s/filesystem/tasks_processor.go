@@ -32,19 +32,6 @@ var tasksInternalPostStatus = rpc.Call[tasksInternalPostStatusRequest, util.Empt
 	},
 }
 
-var tasksInternalIsCancelled = rpc.Call[fndapi.FindByStringId, bool]{
-	BaseContext: "internal/tasks",
-	Convention:  rpc.ConventionUpdate,
-	Operation:   "isPaused",
-	Roles:       rpc.RolesPublic,
-	Audit: rpc.AuditRules{
-		Transformer: func(request any) json.RawMessage {
-			return json.RawMessage("{}")
-		},
-		RetentionDays: util.OptValue(1),
-	},
-}
-
 var taskProcessorState struct {
 	ProviderHostname string
 	TaskToken        string
@@ -53,7 +40,7 @@ var taskProcessorState struct {
 
 func TaskProcessor() {
 	spec := TaskSpec{
-		Type:             Task2SpecType(os.Getenv(taskEnvType)),
+		Type:             TaskType(os.Getenv(taskEnvType)),
 		Id:               os.Getenv(taskEnvId),
 		Source:           os.Getenv(taskEnvSource),
 		Destination:      os.Getenv(taskEnvDestination),
@@ -73,14 +60,14 @@ func TaskProcessor() {
 		return
 	}
 
-	log.Info("Processing task: %#v", spec)
+	log.Info("Processing task: %v %v %v", spec.Type, spec.Source, spec.Destination)
 	log.Info("I can find the provider at: %s", providerHostname)
 
 	taskProcessorState.ProviderHostname = providerHostname
 	taskProcessorState.TaskToken = spec.TaskToken
 	rpc.DefaultClient = &rpc.Client{
 		RefreshToken: "",
-		BasePath:     fmt.Sprintf("http://%s:8889", providerHostname),
+		BasePath:     fmt.Sprintf("http://%s:42000", providerHostname),
 		Client: &http.Client{
 			Timeout: 10 * time.Second,
 		},
@@ -88,9 +75,9 @@ func TaskProcessor() {
 
 	var err *util.HttpError
 	switch spec.Type {
-	case TaskSpecTypeCopy:
+	case TaskTypeCopy:
 		err = task2ProcessCopy(spec)
-	case TaskSpecTypeTransfer:
+	case TaskTypeTransfer:
 		err = task2ProcessTransfer(spec)
 	}
 
@@ -121,16 +108,6 @@ func taskProcessorPostUpdate(status fndapi.TaskStatus) {
 	if err != nil {
 		log.Info("Failed to post status update: %s", err)
 	}
-}
-
-var taskProcessorIsCancelledCache = util.NewCache[util.Empty, bool](1 * time.Second)
-
-func taskProcessorIsCancelled() bool {
-	result, ok := taskProcessorIsCancelledCache.Get(util.Empty{}, func() (bool, error) {
-		return tasksInternalIsCancelled.Invoke(fndapi.FindByStringId{Id: taskProcessorState.TaskToken})
-	})
-
-	return result && ok
 }
 
 const (

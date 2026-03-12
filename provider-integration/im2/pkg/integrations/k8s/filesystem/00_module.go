@@ -47,7 +47,7 @@ func InitFiles() controller.FileService {
 	browseCache = lru.NewLRU[string, []cachedDirEntry](256, nil, 5*time.Minute)
 	loadStorageProducts()
 
-	initTasks2()
+	initTasks()
 	initScanQueue()
 	go func() {
 		for util.IsAlive {
@@ -967,12 +967,12 @@ func transferSourceBegin(request orc.FilesProviderTransferRequestStart, session 
 		return util.ServerHttpError("malformed request")
 	}
 
-	if util.DevelopmentModeEnabled() && strings.Contains(parameters.Endpoint, "k8s:8889") {
-		parameters.Endpoint = strings.ReplaceAll(parameters.Endpoint, "k8s:8889", shared.ProviderHostname+":8889")
+	if util.DevelopmentModeEnabled() && strings.Contains(parameters.Endpoint, "k8s:42000") {
+		parameters.Endpoint = strings.ReplaceAll(parameters.Endpoint, "k8s:42000", shared.ProviderHostname+":42000")
 	}
 
 	spec := TaskSpec{
-		Type:             TaskSpecTypeTransfer,
+		Type:             TaskTypeTransfer,
 		Source:           session.SourcePath,
 		TransferEndpoint: parameters.Endpoint,
 		Mounts: []TaskMount{

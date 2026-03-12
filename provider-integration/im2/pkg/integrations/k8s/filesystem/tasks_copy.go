@@ -7,7 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -74,9 +74,8 @@ func task2ProcessCopy(spec TaskSpec) *util.HttpError {
 	}
 
 	title := util.OptValue(fmt.Sprintf(
-		"Copying %s to %s",
-		util.FileName(sourcePath),
-		util.FileName(filepath.Dir(destPath)),
+		"Copying %s",
+		strings.ReplaceAll(util.FileName(sourcePath), "-0", ""),
 	))
 
 	taskProcessorPostUpdate(fnd.TaskStatus{
@@ -250,10 +249,6 @@ outer:
 			if workersDone.Load() {
 				break outer
 			}
-
-			if taskProcessorIsCancelled() {
-				cancel()
-			}
 		}
 	}
 
@@ -271,10 +266,6 @@ outer:
 
 	if encounteredErrors > 0 {
 		return util.HttpErr(http.StatusInternalServerError, "copy finished with %d failed entries", encounteredErrors)
-	}
-
-	if taskProcessorIsCancelled() {
-		return util.HttpErr(http.StatusRequestTimeout, "task was cancelled")
 	}
 
 	return nil
@@ -299,7 +290,7 @@ func copyFiles(actor rpc.Actor, request orc.FilesProviderMoveOrCopyRequest) *uti
 	}
 
 	task := TaskSpec{
-		Type:           TaskSpecTypeCopy,
+		Type:           TaskTypeCopy,
 		Source:         request.OldId,
 		Destination:    request.NewId,
 		ConflictPolicy: string(request.ConflictPolicy),
