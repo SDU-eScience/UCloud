@@ -260,9 +260,9 @@ export const MembersContainer: React.FunctionComponent<{
                 {props.activeGroup ?
                     <>
                         <Flex gap={"8px"} marginBottom={"8px"}>
-                            <BaseLink href={"#"} color={"textPrimary"}>
+                            <Link to={"/projects/members"} color={"textPrimary"}>
                                 <Heading.h3>Groups</Heading.h3>
-                            </BaseLink>
+                            </Link>
                             <Heading.h3>
                                 <Flex gap={"8px"}>
                                     /

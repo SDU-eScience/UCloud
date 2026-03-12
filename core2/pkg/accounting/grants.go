@@ -150,6 +150,13 @@ func GrantApplicationProcess(actor rpc.Actor, app accapi.GrantApplication) accap
 	recipient := app.CurrentRevision.Document.Recipient
 	if recipient.Type == accapi.RecipientTypeExistingProject {
 		projectInfo, ok := grantsProjectCache.Get(recipient.Id.Value, func() (grantsProjectInfo, error) {
+			if grantGlobals.Testing.Enabled {
+				return grantsProjectInfo{
+					Pi:    "_ucloud",
+					Title: recipient.Id.Value,
+				}, nil
+			}
+
 			project := db.NewTx(func(tx *db.Transaction) fndapi.Project {
 				project, _ := coreutil.ProjectRetrieveFromDatabase(tx, recipient.Id.Value)
 				return project
@@ -215,30 +222,37 @@ func grantGetUserBucket(username string) *grantUserBucket {
 		return b
 	}
 
-	b.Mu.Lock()
-	dbResult := db.NewTx(func(tx *db.Transaction) map[accGrantId]time.Time {
-		result := map[accGrantId]time.Time{}
-		rows := db.Select[struct {
-			ApplicationId accGrantId
-			LastVisitedAt time.Time
-		}](
-			tx,
-			`
-				select application_id, last_visited_at
-				from "grant".user_application_visits
-				where username = :user;`,
-			db.Params{
-				"user": username,
-			},
-		)
-		for _, row := range rows {
-			result[row.ApplicationId] = row.LastVisitedAt
-		}
+	if !grantGlobals.Testing.Enabled {
+		b.Mu.Lock()
+		dbResult := db.NewTx(func(tx *db.Transaction) map[accGrantId]time.Time {
+			result := map[accGrantId]time.Time{}
+			rows := db.Select[struct {
+				ApplicationId accGrantId
+				LastVisitedAt time.Time
+			}](
+				tx,
+				`
+					select application_id, last_visited_at
+					from "grant".user_application_visits
+					where username = :user;
+				`,
+				db.Params{
+					"user": username,
+				},
+			)
+			for _, row := range rows {
+				result[row.ApplicationId] = row.LastVisitedAt
+			}
 
-		return result
-	})
-	b.LastTimeVisited[username] = dbResult
-	b.Mu.Unlock()
+			return result
+		})
+		b.LastTimeVisited[username] = dbResult
+		b.Mu.Unlock()
+	} else {
+		b.Mu.Lock()
+		b.LastTimeVisited[username] = map[accGrantId]time.Time{}
+		b.Mu.Unlock()
+	}
 	return b
 }
 
@@ -1210,27 +1224,32 @@ func grantRecordUserApplicationVisit(grantId string, username string) {
 	idActual := accGrantId(idRaw)
 
 	now := time.Now()
-	db.NewTx0(func(tx *db.Transaction) {
-		db.Exec(tx,
-			`insert into "grant".user_application_visits (
-				application_id,
-				username,
-				last_visited_at
+	if !grantGlobals.Testing.Enabled {
+		db.NewTx0(func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					insert into "grant".user_application_visits (
+						application_id,
+						username,
+						last_visited_at
+					)
+					values (
+						:application,
+						:user,
+						:last_visited_at
+					)
+					on conflict (application_id, username)
+					do update set last_visited_at = excluded.last_visited_at;
+				`,
+				db.Params{
+					"application":     grantId,
+					"user":            username,
+					"last_visited_at": now,
+				},
 			)
-			values (
-				:application,
-				:user,
-				:last_visited_at
-			)
-			on conflict (application_id, username)
-			do update set last_visited_at = excluded.last_visited_at;`,
-			db.Params{
-				"application":     grantId,
-				"user":            username,
-				"last_visited_at": now,
-			},
-		)
-	})
+		})
+	}
 
 	grantUpdateUserCache(username, idActual, now)
 }
