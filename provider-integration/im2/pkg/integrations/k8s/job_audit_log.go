@@ -15,16 +15,13 @@ import (
 	"ucloud.dk/shared/pkg/util"
 )
 
-var jobAuditLogFolder = "/mnt/storage/audit"
+var jobAuditLogFolder = "/audit"
 var ucloudRank int64
 var ucloudJobId string
 var ucloudWorkspaceId string
 
 func StartJobAuditLogServer() {
-	ucloudRank = getIntEnv("UCLOUD_RANK")
-	ucloudJobId = os.Getenv("UCLOUD_JOB_ID")
-	ucloudWorkspaceId = os.Getenv("UCLOUD_WORKSPACE_ID")
-
+	readEnv()
 	var ourArgs []string
 	if len(os.Args) > 1 {
 		ourArgs = os.Args[2:]
@@ -36,6 +33,11 @@ func StartJobAuditLogServer() {
 	}
 	log.Info("Starting job audit log server on port %d", serverPort)
 	startServer(serverPort)
+}
+func readEnv() {
+	ucloudRank = getIntEnv("UCLOUD_RANK")
+	ucloudJobId = os.Getenv("UCLOUD_JOB_ID")
+	ucloudWorkspaceId = os.Getenv("UCLOUD_WORKSPACE_ID")
 }
 
 func getIntEnv(env string) int64 {

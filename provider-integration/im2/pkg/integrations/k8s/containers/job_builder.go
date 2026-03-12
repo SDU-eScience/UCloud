@@ -126,10 +126,12 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		Name: ContainerUserJob,
 	})
 
-	spec.Containers = append(spec.Containers, core.Container{
-		Name:  ContainerAuditLog,
-		Image: "alpine:latest",
-	})
+	if isJobAuditLogEnabled(&resolvedApplication.Invocation) {
+		spec.Containers = append(spec.Containers, core.Container{
+			Name:  ContainerAuditLog,
+			Image: "alpine:latest",
+		})
+	}
 
 	userContainer := &spec.Containers[0]
 	userContainer.ImagePullPolicy = core.PullIfNotPresent
@@ -141,7 +143,9 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		userContainer.Image = tool.Description.Container
 	}
 
-	setupJobAuditlog(job, spec, userContainer, "48291")
+	if isJobAuditLogEnabled(&resolvedApplication.Invocation) {
+		setupJobAuditLog(job, rank, spec, userContainer, "48291")
+	}
 
 	// Setting up network policy and service
 	// -----------------------------------------------------------------------------------------------------------------
@@ -496,6 +500,10 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	return herr
 }
 
+func isJobAuditLogEnabled(description *orc.ApplicationInvocationDescription) bool {
+	return description.EnableJobAuditLog.Present && description.EnableJobAuditLog.Value
+}
+
 func allowNetworkFrom(policy *networking.NetworkPolicy, jobId string) {
 	selector := k8PodSelectorForJob(jobId)
 	spec := &policy.Spec
@@ -620,7 +628,7 @@ func jobHostName(jobId string, rank int) string {
 	)
 }
 
-func setupJobAuditlog(job *orc.Job, spec *core.PodSpec, userContainer *core.Container, serverPort string) {
+func setupJobAuditLog(job *orc.Job, rank int, spec *core.PodSpec, userContainer *core.Container, serverPort string) {
 	subpath := fmt.Sprintf("audit/%s", job.Id)
 	_ = filesystem.DoCreateFolder(filepath.Join(ServiceConfig.FileSystem.MountPoint, subpath))
 	container := &spec.Containers[len(spec.Containers)-1]
@@ -650,5 +658,20 @@ func setupJobAuditlog(job *orc.Job, spec *core.PodSpec, userContainer *core.Cont
 		ReadOnly:  false,
 		MountPath: "/audit",
 		SubPath:   subpath,
+	})
+
+	container.Env = append(container.Env, core.EnvVar{
+		Name:  "UCLOUD_RANK",
+		Value: fmt.Sprint(rank),
+	})
+
+	container.Env = append(container.Env, core.EnvVar{
+		Name:  "UCLOUD_JOB_ID",
+		Value: job.Id,
+	})
+
+	container.Env = append(container.Env, core.EnvVar{
+		Name:  "UCLOUD_WORKSPACE_ID",
+		Value: job.Owner.Project.GetOrDefault(job.Owner.CreatedBy),
 	})
 }

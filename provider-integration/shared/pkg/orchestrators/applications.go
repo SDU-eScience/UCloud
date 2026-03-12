@@ -183,6 +183,7 @@ type ApplicationInvocationDescription struct {
 	AllowMultiNode        util.Option[bool]              `json:"allowMultiNode" yaml:"allowMultiNode"`
 	AllowPublicIp         util.Option[bool]              `json:"allowPublicIp" yaml:"allowPublicIp"`
 	AllowPublicLink       util.Option[bool]              `json:"allowPublicLink" yaml:"allowPublicLink"`
+	EnableJobAuditLog     util.Option[bool]              `json:"enableJobAuditLog" yaml:"enableJobAuditLog"`
 	FileExtensions        []string                       `json:"fileExtensions" yaml:"fileExtensions"`
 	LicenseServers        []string                       `json:"licenseServers" yaml:"licenseServers"`
 	Modules               util.Option[ModulesSection]    `json:"modules" yaml:"modules"`
