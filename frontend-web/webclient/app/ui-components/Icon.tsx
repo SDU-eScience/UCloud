@@ -7,7 +7,7 @@ import {classConcat, injectStyle, unbox} from "@/Unstyled";
 import {CSSProperties} from "react";
 import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
 
-const IconBase = ({name, size, squared, color2, spin, hoverColor, ...props}: IconBaseProps): React.ReactNode => {
+const IconBase = ({name, size, squared, color2, spin, hoverColor, color, ...props}: IconBaseProps): React.ReactNode => {
     let Component = icons[name];
     if (!Component) {
         if (name === "bug") {
