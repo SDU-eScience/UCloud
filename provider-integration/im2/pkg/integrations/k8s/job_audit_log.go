@@ -93,25 +93,10 @@ var JobAuditLogAppendLog = rpc.Call[JobAuditLogAppendRequest, util.Empty]{
 	Operation:   "append",
 }
 
-var defaultServer rpc.Server
-
 func startServer(serverPort int64) {
-	defaultServer.Mux = http.NewServeMux()
-
-	s := &http.Server{
-		Addr: fmt.Sprintf(":%v", serverPort),
-		Handler: collapseServerSlashes(
-			http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-				handler, _ := rpc.DefaultServer.Mux.Handler(request)
-				handler.ServeHTTP(writer, request)
-			}),
-		),
-	}
-	err := s.ListenAndServe()
-
-	if err != nil {
-		fmt.Printf("Failed to start listener on port %v\n", gateway.ServerClusterPort)
-		os.Exit(1)
+	rpc.DefaultServer.Mux = http.NewServeMux()
+	rpc.ServerAuthenticator = func(r *http.Request) (rpc.Actor, *util.HttpError) {
+		return rpc.Actor{Role: rpc.RoleGuest}, nil
 	}
 
 	JobAuditLogAppendLog.Handler(func(info rpc.RequestInfo, request JobAuditLogAppendRequest) (util.Empty, *util.HttpError) {
@@ -132,6 +117,19 @@ func startServer(serverPort int64) {
 		}
 		return util.Empty{}, nil
 	})
+
+	s := &http.Server{
+		Addr: fmt.Sprintf("127.0.0.1:%v", serverPort),
+		Handler: collapseServerSlashes(
+			http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+				handler, _ := rpc.DefaultServer.Mux.Handler(request)
+				handler.ServeHTTP(writer, request)
+			}),
+		),
+	}
+
+	err := s.ListenAndServe()
+	log.Fatal("Failed to start listener on port %v: %s\n", gateway.ServerClusterPort, err)
 }
 
 func collapseServerSlashes(next http.Handler) http.Handler {

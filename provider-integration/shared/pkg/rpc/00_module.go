@@ -163,7 +163,9 @@ type Call[Req any, Resp any] struct {
 }
 
 func rpcBaseContext(context string) string {
-	if !strings.HasPrefix(context, "auth") && !strings.HasPrefix(context, "ucloud/") {
+	if context == "" {
+		return ""
+	} else if !strings.HasPrefix(context, "auth") && !strings.HasPrefix(context, "ucloud/") {
 		return fmt.Sprintf("api/%s", context)
 	} else {
 		return context
@@ -389,6 +391,11 @@ func (c *Call[Req, Resp]) HandlerEx(server *Server, handler ServerHandler[Req, R
 
 	path, _ = strings.CutSuffix(path, "/")
 	path = strings.ReplaceAll(path, ProviderPlaceholder, ServerProviderId)
+	if strings.HasPrefix(path, "//") {
+		path, _ = strings.CutPrefix(path, "/")
+	}
+
+	log.Info("path: %s", path)
 
 	handlerGroup, hasExisting := server.handlers[path]
 	if !hasExisting {
