@@ -317,7 +317,9 @@ const Allocations: React.FunctionComponent = () => {
             {/*<ResourcesGranted state={state} allocationTree={allocationTree} sortedAllocations={sortedAllocations}*/}
             {/*                  indent={indent} avatars={avatars}/>*/}
 
-            <KeyMetrics allocations={sortedAllocations} indent={indent} reports={reports} state={state} />
+            {/*
+                <KeyMetrics allocations={sortedAllocations} indent={indent} reports={reports} state={state} />
+            */}
 
             <SubProjectList
                 projectId={projectId} onNewSubProject={onNewSubProject} projectRole={projectRole}

@@ -72,7 +72,16 @@ import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import DatePicker from "react-datepicker";
 import {callAPIWithErrorHandler} from "@/Authentication/DataHook";
 import {DatePickerClass} from "@/ui-components/DatePicker";
-import {getProviderTitle} from "@/Providers/ProviderTitle";
+import {getProviderTitle, getShortProviderTitle} from "@/Providers/ProviderTitle";
+
+const allocationFiltersModalStyle: ReactModal.Styles = {
+    ...largeModalStyle,
+    content: {
+        ...largeModalStyle.content,
+        left: "max(5px, calc(50vw - 450px))",
+        transform: "none",
+    },
+};
 
 interface Datapoint {
     product: string;
@@ -535,21 +544,18 @@ const KeyMetricSettingsRow: React.FunctionComponent<{
     onChange: (setting: KeyMetricSetting) => void;
 }> = (props) => {
 
-    /* TODO implement checking/unchecking a key metric functionality for this callback function */
     const onChecked = useCallback(() => {
         props.onChange(produce(props.setting, draft => {
             draft.enabled = !draft.enabled;
         }))
     }, [props.setting, props.onChange])
 
-    /* TODO implement selecting options functionality for this callback function. See selectedOpt   */
     const onSelectOption = useCallback((item: SimpleRichItem) => {
         props.onChange(produce(props.setting, draft => {
             draft.selected = item.key
         }))
     }, [props.setting, props.onChange])
 
-    /* TODO implement starring/unstarring functionality for this callback function */
     const onStarring = useCallback(() => {
         props.onChange(produce(props.setting, draft => {
             draft.starred = !draft.starred;
@@ -732,7 +738,7 @@ export const KeyMetrics: React.FunctionComponent<{
             isOpen={filtersShown}
             shouldCloseOnEsc
             onRequestClose={closeFilters}
-            style={largeModalStyle}
+            style={allocationFiltersModalStyle}
             ariaHideApp={false}
             className={classConcat(CardClass, keyMetricsStyle)}
         >
@@ -1224,9 +1230,10 @@ const SubProjectFiltersRow: React.FunctionComponent<{
 
     const selectorItems: SimpleRichItem[] = [
         {key: NoneSelectedOptionKey, value: "None selected"},
-        ...props.setting.options.map(it => ({key: it, value: it})),
+        ...props.setting.options.map(it => ({key: it.key, value: it.title})),
     ];
     const selectedOpt = props.setting.selected ?
+        selectorItems.find(it => it.key === props.setting.selected) ??
         {key: props.setting.selected, value: props.setting.selected} :
         {key: NoneSelectedOptionKey, value: "None selected"};
 
@@ -1307,7 +1314,7 @@ export const SubProjectFilters: React.FunctionComponent<{
         isOpen={filtersShown}
         shouldCloseOnEsc
         onRequestClose={closeFilters}
-        style={largeModalStyle}
+        style={allocationFiltersModalStyle}
         ariaHideApp={false}
         className={classConcat(CardClass, keyMetricsStyle, subProjectsStyle)}
     >

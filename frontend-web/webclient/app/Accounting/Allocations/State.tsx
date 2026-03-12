@@ -25,6 +25,7 @@ import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {classConcat} from "@/Unstyled";
 import {CardClass} from "@/ui-components/Card";
 import {Flex, Icon, Input} from "@/ui-components";
+import {getProviderTitle, getShortProviderTitle} from "@/Providers/ProviderTitle";
 
 const fuzzyMatcher = newFuzzyMatchFuse<{title: string}, "title">(["title"]);
 
@@ -67,11 +68,16 @@ export interface State extends Accounting.AllocationDisplayTree {
     subprojectFilters: Record<string, SubProjectFilter>;
 }
 
+export interface SubProjectKeyValue {
+    key: string;
+    title: string;
+}
+
 export interface SubProjectFilter {
     setting: SubProjectFilterSetting;
     title: string;
     description: string;
-    options: string[];
+    options: SubProjectKeyValue[];
     selected?: string;
     enabled: boolean;
     feature?: Feature;
@@ -513,7 +519,7 @@ export function stateReducer(state: State, action: UIAction): State {
     function rebuildTree(state: State): State {
         const newTree = Accounting.buildAllocationDisplayTree((state.remoteData.wallets ?? []));
 
-        const providerOptions = (() => {
+        const providerOptions: SubProjectKeyValue[] = (() => {
             const providers = new Set<string>();
 
             for (const provider of state.remoteData.managedProviders ?? []) {
@@ -532,19 +538,31 @@ export function stateReducer(state: State, action: UIAction): State {
                 }
             }
 
-            return [...providers].sort((a, b) => a.localeCompare(b));
+            return [...providers]
+                .map(providerId => ({key: providerId, title: getProviderTitle(providerId)}))
+                .sort((a, b) => a.title.localeCompare(b.title));
         })();
 
-        const productOptions = (() => {
-            const products = new Set<string>();
+        const productOptions: SubProjectKeyValue[] = (() => {
+            const result: SubProjectKeyValue[] = [];
 
             for (const recipient of newTree.subAllocations.recipients) {
                 for (const group of recipient.groups) {
-                    products.add(productCategoryKey(group.category));
+                    let key = productCategoryKey(group.category);
+                    if (!result.some(it => it.key === key)) {
+                        result.push({
+                            key: key,
+                            title: `${getShortProviderTitle(group.category.provider)}: ${group.category.name}`,
+                        });
+                    }
                 }
             }
 
-            return [...products].sort((a, b) => a.localeCompare(b));
+            if (result.length === 0) {
+                result.push({ key: "nooptions", title: "No options available" });
+            }
+
+            return result.sort((a, b) => a.title.localeCompare(b.title));
         })();
 
         const currentProductTypeFilter =
@@ -552,7 +570,7 @@ export function stateReducer(state: State, action: UIAction): State {
             subProjectsDefaultSettings[SubProjectFilterSetting.ALLOCATED_BY_PRODUCT_TYPE];
         const selectedProductType = currentProductTypeFilter.selected;
         const productTypeSelectionIsValid =
-            selectedProductType !== undefined && currentProductTypeFilter.options.includes(selectedProductType);
+            selectedProductType !== undefined && currentProductTypeFilter.options.map(it => it.key).includes(selectedProductType);
         const normalizedProductTypeSelection =
             productTypeSelectionIsValid ? selectedProductType : undefined;
         const normalizedProductTypeEnabled =
@@ -574,12 +592,12 @@ export function stateReducer(state: State, action: UIAction): State {
             subprojectFilters[SubProjectFilterSetting.ALLOCATED_BY_PRODUCT] ??
             subProjectsDefaultSettings[SubProjectFilterSetting.ALLOCATED_BY_PRODUCT];
         const selectedProduct = currentProductFilter.selected;
-        const productSelectionIsValid = selectedProduct !== undefined && productOptions.includes(selectedProduct);
+        const productSelectionIsValid = selectedProduct !== undefined && productOptions.map(it => it.key).includes(selectedProduct);
         const normalizedProductSelection = productSelectionIsValid ? selectedProduct : undefined;
         const normalizedProductEnabled = normalizedProductSelection !== undefined && currentProductFilter.enabled;
         const productOptionsUnchanged =
             currentProductFilter.options.length === productOptions.length &&
-            currentProductFilter.options.every((it, idx) => it === productOptions[idx]);
+            currentProductFilter.options.every((it, idx) => it.key === productOptions[idx].key);
         const productFilterUnchanged =
             productOptionsUnchanged &&
             currentProductFilter.selected === normalizedProductSelection &&
@@ -601,12 +619,12 @@ export function stateReducer(state: State, action: UIAction): State {
             subprojectFilters[SubProjectFilterSetting.ALLOCATED_BY_PROVIDER] ??
             subProjectsDefaultSettings[SubProjectFilterSetting.ALLOCATED_BY_PROVIDER];
         const selectedProvider = currentProviderFilter.selected;
-        const providerSelectionIsValid = selectedProvider !== undefined && providerOptions.includes(selectedProvider);
+        const providerSelectionIsValid = selectedProvider !== undefined && providerOptions.map(it => it.key).includes(selectedProvider);
         const normalizedProviderSelection = providerSelectionIsValid ? selectedProvider : undefined;
         const normalizedProviderEnabled = normalizedProviderSelection !== undefined && currentProviderFilter.enabled;
         const providerOptionsUnchanged =
             currentProviderFilter.options.length === providerOptions.length &&
-            currentProviderFilter.options.every((it, idx) => it === providerOptions[idx]);
+            currentProviderFilter.options.every((it, idx) => it.key === providerOptions[idx].key);
         const providerFilterUnchanged =
             providerOptionsUnchanged &&
             currentProviderFilter.selected === normalizedProviderSelection &&
@@ -882,7 +900,7 @@ export const subProjectsDefaultSettings: Record<string, SubProjectFilter> = {
         title: "Idle sub-projects",
         description: "Shows sub-projects which resources are not in use",
         setting: SubProjectFilterSetting.IDLE_SUB_PROJECTS,
-        options: ["1 month", "2 months", "3 months", "6 months"],
+        options: ["1 month", "2 months", "3 months", "6 months"].map(it => ({key: it, title: it})),
         selected: undefined,
         enabled: false,
         feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
@@ -891,7 +909,7 @@ export const subProjectsDefaultSettings: Record<string, SubProjectFilter> = {
         setting: SubProjectFilterSetting.ALLOCATED_BY_PRODUCT_TYPE,
         title: "Allocated resource by product type",
         description: "Shows sub-projects which are allocated resources for a specific product type",
-        options: productTypes.map(it => productTypeToName(it)),
+        options: productTypes.map(it => productTypeToName(it)).map(it => ({key: it, title: it})),
         selected: undefined,
         enabled: false,
         feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
@@ -923,7 +941,7 @@ export const subProjectsDefaultSettings: Record<string, SubProjectFilter> = {
             AllocationStatusOptions.ACTIVE_ONLY,
             AllocationStatusOptions.EXPIRED_ONLY,
             AllocationStatusOptions.ALL_EXPIRED_ONLY,
-        ],
+        ].map(it => ({key: it, title: it})),
         selected: undefined,
         enabled: false,
         feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
