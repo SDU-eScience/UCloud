@@ -29,44 +29,64 @@ func initJobAuditLog() {
 }
 
 func cleanupLogs(retentionDays int) {
-	files, err := os.ReadDir(jobAuditLogFolder)
-	if err != nil {
-		log.Error("Could not read audit log folder: %s", err)
-		return
-	}
-
 	cutoff := time.Now().AddDate(0, 0, -retentionDays)
 	today := time.Now().Format("2006-01-02")
 
-	for _, file := range files {
-		name := file.Name()
-
-		matches := jobAuditFileRegex.FindStringSubmatch(name)
-		if matches == nil {
-			continue
-		}
-
-		// matches[1] = rank (string)
-		// matches[2] = date
-		dateStr := matches[2]
-
-		if dateStr == today {
-			continue
-		}
-
-		fileDate, err := time.Parse("2006-01-02", dateStr)
+	walkErr := filepath.WalkDir(jobAuditLogFolder, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
-			continue
+			log.Error("Walk error: %s", err)
+			return nil
+		}
+		// Only process files
+		if !d.IsDir() {
+			name := d.Name()
+			matches := jobAuditFileRegex.FindStringSubmatch(name)
+			if matches == nil {
+				return nil
+			}
+
+			dateStr := matches[2]
+
+			if dateStr == today {
+				return nil
+			}
+
+			fileDate, err := time.Parse("2006-01-02", dateStr)
+			if err != nil {
+				return nil
+			}
+
+			if fileDate.Before(cutoff) {
+				err := os.Remove(path)
+				if err != nil {
+					log.Error("Could not remove file: %s", err)
+				} else {
+					log.Info("Removed audit log file: %s, since it is older than %d days", path, retentionDays)
+				}
+			}
+
+			return nil
+		}
+		// After walking a directory, check if it's empty (skip root)
+		if path == jobAuditLogFolder {
+			return nil
 		}
 
-		if fileDate.Before(cutoff) {
-			fullPath := filepath.Join(jobAuditLogFolder, name)
-			err := os.Remove(fullPath)
-			if err != nil {
-				log.Error("Could not remove file: %s", err)
-			} else {
-				log.Info("Removed audit log file: %s, since it's older than %d days", fullPath, retentionDays)
+		entries, err := os.ReadDir(path)
+		if err != nil {
+			return nil
+		}
+
+		// Delete the child folder if it is empty
+		if len(entries) == 0 {
+			err := os.Remove(path)
+			if err == nil {
+				log.Info("Removed empty audit log folder: %s", path)
 			}
 		}
+		return nil
+	})
+	if walkErr != nil {
+		log.Error("Error cleaning up job audit logs: %s", walkErr)
 	}
 }
