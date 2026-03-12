@@ -40,7 +40,7 @@ import {FlexClass} from "@/ui-components/Flex";
 import {OldProjectRole, isAdminOrPI} from ".";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import AppRoutes from "@/Routes";
-import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
+import {sendFailureNotification, sendInformationNotification, sendSuccessNotification} from "@/Notifications";
 
 const wayfIdpsPairs = WAYF.wayfIdps.map(it => ({value: it, content: it}));
 
@@ -273,7 +273,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
                                 ml="10px"
                                 onClick={() => {
                                     copyToClipboard(projectId);
-                                    sendSuccessNotification("Copied project ID to clipboard!");
+                                    sendInformationNotification("Copied project ID to clipboard!");
                                 }}
                             />
                         </Flex>
