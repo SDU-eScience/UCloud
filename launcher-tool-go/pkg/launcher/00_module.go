@@ -22,7 +22,7 @@ import (
 	"ucloud.dk/shared/pkg/util"
 )
 
-const ImDevImage = "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2025.4.165"
+const ImDevImage = "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2026.2.15"
 const SlurmImage = "dreg.cloud.sdu.dk/ucloud-dev/slurm:2025.4.165"
 
 var Version string

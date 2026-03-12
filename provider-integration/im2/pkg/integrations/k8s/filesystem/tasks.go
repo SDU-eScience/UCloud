@@ -74,10 +74,10 @@ func taskGetUCloudTaskIdFromToken(token string) (int, bool) {
 			}](
 				tx,
 				`
-						select ucloud_task_id
-						from k8s.tasks_v2
-						where api_token = :tok
-				    `,
+					select ucloud_task_id
+					from k8s.tasks_v2
+					where api_token = :tok
+				`,
 				db.Params{
 					"tok": token,
 				},
@@ -179,12 +179,12 @@ func initTasks2() {
 				}
 
 				k8sErr := shared.K8sClient.BatchV1().
-					Jobs(shared.ServiceConfig.Compute.Namespace).
+					Jobs(shared.ServiceConfig.Compute.TaskNamespace).
 					Delete(context.Background(), jobName, deleteOpts)
 
 				if k8sErr != nil {
 					log.Warn("Task cancellation: failed to delete completed job %s/%s: %s",
-						shared.ServiceConfig.Compute.Namespace, jobName, k8sErr)
+						shared.ServiceConfig.Compute.TaskNamespace, jobName, k8sErr)
 				}
 			}
 			return nil
@@ -330,7 +330,7 @@ func TaskSubmit(spec TaskSpec) *util.HttpError {
 		)
 	})
 
-	taskSelector := map[string]string{} // TODO from config
+	taskSelector := shared.ServiceConfig.Compute.TaskNodeSelector
 
 	storageVolumeMounts, internalToPod := resolveTaskMounts(spec)
 	sourcePath := mapUCloudPathToTaskPath(spec.Source, internalToPod)
@@ -339,7 +339,7 @@ func TaskSubmit(spec TaskSpec) *util.HttpError {
 	job := k8sbatch.Job{
 		ObjectMeta: k8smeta.ObjectMeta{
 			Name:      spec.Id,
-			Namespace: shared.ServiceConfig.Compute.Namespace,
+			Namespace: shared.ServiceConfig.Compute.TaskNamespace,
 			Labels: map[string]string{
 				taskJobLabel: "true",
 			},
@@ -408,11 +408,11 @@ func TaskSubmit(spec TaskSpec) *util.HttpError {
 							Resources: k8score.ResourceRequirements{
 								Limits: map[k8score.ResourceName]resource.Quantity{
 									k8score.ResourceCPU:    *resource.NewMilliQuantity(8000, resource.DecimalExponent),
-									k8score.ResourceMemory: *resource.NewScaledQuantity(512, resource.Mega),
+									k8score.ResourceMemory: *resource.NewScaledQuantity(1024*16, resource.Mega),
 								},
 								Requests: map[k8score.ResourceName]resource.Quantity{
 									k8score.ResourceCPU:    *resource.NewMilliQuantity(500, resource.DecimalExponent),
-									k8score.ResourceMemory: *resource.NewScaledQuantity(256, resource.Mega),
+									k8score.ResourceMemory: *resource.NewScaledQuantity(2048, resource.Mega),
 								},
 							},
 							VolumeMounts: append(storageVolumeMounts, k8score.VolumeMount{
@@ -429,7 +429,7 @@ func TaskSubmit(spec TaskSpec) *util.HttpError {
 		},
 	}
 
-	_, kerr := shared.K8sClient.BatchV1().Jobs(shared.ServiceConfig.Compute.Namespace).Create(context.Background(), &job, k8smeta.CreateOptions{})
+	_, kerr := shared.K8sClient.BatchV1().Jobs(shared.ServiceConfig.Compute.TaskNamespace).Create(context.Background(), &job, k8smeta.CreateOptions{})
 	if kerr != nil {
 		log.Warn("K8s background task failed: %s", kerr)
 		return util.HttpErr(http.StatusInternalServerError, "failed to create background task")
