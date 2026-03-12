@@ -2,8 +2,9 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {MainContainer} from "@/ui-components/MainContainer";
 import * as React from "react";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {Box, Button, TextArea} from "@/ui-components";
+import {Box, Button, Flex, TextArea} from "@/ui-components";
 import {errorMessageOrDefault} from "@/UtilityFunctions";
+import {PRODUCT_NAME} from "@/../site.config.json" with {type: "json"};
 
 interface ErrorBoundaryState {
     hasError: boolean;
@@ -43,18 +44,27 @@ export class ErrorBoundary extends React.Component<{children: React.ReactNode}, 
                             <div>An error occurred. Would you like to submit an error report?</div>
                             <Box mb="0.5em">
                                 <TextArea
-                                    placeholder="Please enter any information regarding the action you performed that caused an error"
+                                    placeholder="Please enter any information about the action you performed that caused an error"
                                     rows={5}
                                     width="100%"
                                     inputRef={this.ref}
                                 />
                             </Box>
-                            <Button mr="1em" onClick={this.submitError} color="primaryMain">Submit</Button>
-                            <Button onClick={ErrorBoundary.redirectToDashboard}>Go to dashboard</Button>
+                            <Flex>
+                                <Button mr="1em" onClick={this.submitError} color="primaryMain">Submit</Button>
+                                <Button onClick={ErrorBoundary.redirectToDashboard}>Go to dashboard</Button>
+                            </Flex>
+                            <Box pt="10px">
+                                Clicking submit will send your username, a list of your
+                                projects, browser, operating system, and debug info that can help us
+                                solve the issue.
+                            </Box>
 
-                            <Box pt="10px">We support Chrome, Edge, Firefox and Safari.
+                            <Box pt="10px">
+                                {PRODUCT_NAME} supports Chrome, Edge, Firefox and Safari.
                                 Outdated browsers can in some cases cause issues.
-                                Please keep your browser updated.</Box>
+                                Please keep your browser updated.
+                            </Box>
                         </Box>
                     )}
                 />
