@@ -1178,6 +1178,14 @@ function SidebarSectionEmptyHeader(): React.ReactNode {
 
 function Username(): React.ReactNode {
     const [copied, setCopied] = React.useState(false);
+    const timeoutId = React.useRef(-1);
+    React.useEffect(() => {
+        return () => {
+            if (timeoutId.current === -1) return;
+            window.clearTimeout(timeoutId.current);
+        }
+    }, []);
+
     if (!Client.isLoggedIn) return null;
     return <Tooltip
         trigger={(
@@ -1188,6 +1196,9 @@ function Username(): React.ReactNode {
                     e.stopPropagation();
                     copyUserName();
                     setCopied(true);
+                    timeoutId.current = window.setTimeout(() => {
+                        setCopied(false);
+                    }, 1_200);
                 }}
                 width={"100%"}
             >
@@ -1203,6 +1214,13 @@ function Username(): React.ReactNode {
 function ProjectID(): React.ReactNode {
     const projectId = useProjectId();
     const [copied, setCopied] = React.useState(false);
+    const timeoutId = React.useRef(-1);
+    React.useEffect(() => {
+        return () => {
+            if (timeoutId.current === -1) return;
+            window.clearTimeout(timeoutId.current);
+        }
+    }, []);
 
     const project = useProject();
 
@@ -1214,6 +1232,9 @@ function ProjectID(): React.ReactNode {
     const copyProjectPath = useCallback(() => {
         copyToClipboard(projectPath);
         setCopied(true);
+        timeoutId.current = window.setTimeout(() => {
+            setCopied(false);
+        }, 1_200);
     }, [projectPath]);
 
     if (!projectId) return null;
