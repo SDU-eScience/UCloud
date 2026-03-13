@@ -95,6 +95,8 @@ export interface ExtraFileCallbacks {
     collection?: FileCollection;
     directory?: UFile;
     isModal?: boolean;
+    startFileCreation(): void;
+    startFolderCreation(): void;
     isSearch: boolean;
     // HACK(Jonas): This is because resource view is technically embedded, but is not in dialog, so it's allowed in
     // special case.
@@ -297,7 +299,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 enabled: (selected, cb) => {
                     if (cb.isSearch) return false;
                     if (cb.creationDisabled) return "Fetching folder...";
-                    if (selected.length !== 0 || cb.startCreation == null) return false;
+                    if (selected.length !== 0 || cb.startFolderCreation == null) return false;
                     if (cb.isCreating) return "You are already creating a folder";
                     const support = cb.collection?.status.resolvedSupport?.support;
                     if (!support) return false;
@@ -309,8 +311,31 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     }
                     return true;
                 },
-                onClick: (selected, cb) => cb.startCreation!(),
+                onClick: (selected, cb) => cb.startFolderCreation!(),
                 shortcut: ShortcutKey.F
+            },
+            {
+                text: "Create file",
+                icon: "heroDocumentPlus",
+                enabled(selected, cb) {
+                    if (cb.isSearch) return false;
+                    if (cb.creationDisabled) return "Fetching folder...";
+                    if (selected.length !== 0 || cb.startFileCreation == null) return false;
+                    if (cb.isCreating) return "You are already creating a folder";
+                    const support = cb.collection?.status.resolvedSupport?.support;
+                    if (!support) return false;
+                    if ((support as FileCollectionSupport).files.isReadOnly) {
+                        return "File system is read-only";
+                    }
+                    if (cb.collection?.permissions?.myself?.some(perm => perm === "ADMIN" || perm === "EDIT") != true) {
+                        return "You do not have write permissions in this folder";
+                    }
+                    return true;
+                },
+                onClick: (selected, cb) => {
+                    cb.startFileCreation!();
+                },
+                shortcut: ShortcutKey.L
             },
             {
                 text: "Launch with...",
@@ -1360,12 +1385,7 @@ export function FilePreview({initialFile}: {
         })).result;
 
         const newPath = getParentPath(path) + name;
-        window.dispatchEvent(new CustomEvent<WriteToFileEventProps>(EventKeys.WriteToFile, {
-            detail: {
-                path: newPath,
-                content: " ",
-            }
-        }));
+        initEmptyFileUpload(newPath);
 
         setTimeout(() => {
             editorRef.current?.invalidateTree?.(getParentPath(path));
@@ -1592,6 +1612,15 @@ export function FilePreview({initialFile}: {
         }
         readOnly={!allowEditing()}
     />;
+}
+
+export function initEmptyFileUpload(filePath: string): void {
+    window.dispatchEvent(new CustomEvent<WriteToFileEventProps>(EventKeys.WriteToFile, {
+        detail: {
+            path: filePath,
+            content: " ",
+        }
+    }));
 }
 
 export async function downloadFileContent(path: string): Promise<Blob> {

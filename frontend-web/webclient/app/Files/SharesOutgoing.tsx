@@ -641,7 +641,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                         onClick([selection]: [OutgoingShareGroupPreview]) {
                             navigate(AppRoutes.resource.properties("shares", selection.shareId));
                         },
-                        shortcut: ShortcutKey.P
+                        shortcut: ShortcutKey.O
                     }, {
                         icon: "properties",
                         text: "Manage share",
@@ -651,7 +651,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                         onClick([selection]: [OutgoingShareGroup]) {
                             navigate(`/shares/outgoing?path=${selection.sourceFilePath}`);
                         },
-                        shortcut: ShortcutKey.P
+                        shortcut: ShortcutKey.O
                     }];
                     return operations.filter(it => it.enabled(entries, callbacks, entries));
                 });
