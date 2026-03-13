@@ -56,11 +56,11 @@ import {useForcedRender} from "@/Utilities/ReactUtilities";
 import {Feature, hasFeature} from "@/Features";
 import {dialogStore} from "@/Dialog/DialogStore";
 import * as Heading from "@/ui-components/Heading";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import DatePicker from "react-datepicker";
 import {callAPIWithErrorHandler} from "@/Authentication/DataHook";
 import {DatePickerClass} from "@/ui-components/DatePicker";
 import {getProviderTitle} from "@/Providers/ProviderTitle";
+import {sendFailureNotification, sendInformationNotification, sendNotification, sendSuccessNotification, SnackType} from "@/Notifications";
 
 interface Datapoint {
     product: string;
@@ -725,10 +725,10 @@ function openUpdater(
             ev.preventDefault();
             ev.stopPropagation();
             if (quota == originalQuota && originalStart == periodRef.start && originalEnd == periodRef.end) {
-                snackbarStore.addInformation("No changes made", false);
+                sendInformationNotification("No changes made");
                 dialogStore.success()
             } else if (reason === "") {
-                snackbarStore.addFailure("Missing reason", false);
+                sendFailureNotification("Missing reason");
             } else {
                 const success = (await callAPIWithErrorHandler(
                     Accounting.updateAllocationV2(bulkRequestOf({
@@ -750,7 +750,7 @@ function openUpdater(
                         newStart: periodRef.start ?? new Date(),
                         newEnd: periodRef.end ?? new Date(),
                     });
-                    snackbarStore.addSuccess("Update Success", false);
+                    sendSuccessNotification("Update Success");
                     dialogStore.success();
                 }
             }

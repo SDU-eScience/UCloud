@@ -14,13 +14,14 @@ import {emptyPageV2, fetchAll} from "@/Utilities/PageUtilities";
 import {OldProjectRole, Project, ProjectRole} from ".";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {MembersContainer} from "@/Project/MembersUI";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
+
 import AppRoutes from "@/Routes";
 import {useDispatch} from "react-redux";
 import {dispatchSetProjectAction, getStoredProject} from "./ReduxState";
 import {addStandardDialog} from "@/UtilityComponents";
 import {MainContainer} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
+import {sendFailureNotification} from "@/Notifications";
 
 // UI state management
 // ================================================================================
@@ -668,7 +669,7 @@ export const ProjectMembers: React.FunctionComponent = () => {
                     projectOverride: project.id
                 }) != null;
                 if (!success) {
-                    snackbarStore.addFailure("Could not duplicate group", false);
+                    sendFailureNotification("Could not duplicate group");
                     return;
                 }
                 reload();

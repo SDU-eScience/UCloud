@@ -1,11 +1,13 @@
 import * as React from "react";
 import {useCallback} from "react";
 import Icon, {IconName} from "@/ui-components/Icon";
-import {Box, Flex} from "@/ui-components";
-import {classConcat, injectStyle} from "@/Unstyled";
+import {Absolute, Box, Flex} from "@/ui-components";
+import {classConcat, injectStyle, injectStyleSimple, makeKeyframe} from "@/Unstyled";
 import Card, {CardClass} from "@/ui-components/Card";
 import {ThemeColor} from "@/ui-components/theme";
 import {AvatarForUser} from "@/AvataaarLib/UserAvatar";
+import {copyToClipboard} from "@/UtilityFunctions";
+import {TooltipV2} from "@/ui-components/Tooltip";
 
 export interface NotificationProps {
     icon: IconName;
@@ -28,7 +30,9 @@ export const NotificationCard: React.FunctionComponent<NotificationProps & {
     onMouseEnter?: (callbackItem?: any) => void;
     onMouseLeave?: (callbackItem?: any) => void;
     onSnooze?: (callbackItem?: any) => void;
+    onDismiss?: (callbackItem?: any) => void;
 }> = (props) => {
+    const [copied, setCopied] = React.useState(false);
     const onMouseEnterMemo = useCallback(() => {
         props.onMouseEnter?.(props.callbackItem);
     }, [props.callbackItem, props.onMouseEnter]);
@@ -50,6 +54,30 @@ export const NotificationCard: React.FunctionComponent<NotificationProps & {
         onMouseLeave={onMouseLeaveMemo}
         onClick={props.onAction}
     >
+        <div className={DefaultHidden} data-tag="operations">
+            {props.onDismiss ?
+                <Absolute className={NotificationOperation} top="8px" left="-15px" onClick={e => {
+                    e.stopPropagation();
+                    props.onDismiss?.(props.callbackItem)
+                }}>
+                    <TooltipV2 tooltip="Dismiss" contentWidth={80}>
+                        <Icon name="close" marginLeft={"5px"} marginBottom="1px" size={12} />
+                    </TooltipV2>
+                </Absolute> : null}
+            <Absolute className={NotificationOperation} top="44px" left="-15px" onClick={e => {
+                e.stopPropagation();
+                let content = props.title;
+                if (typeof props.body === "string") {
+                    content += `\n${props.body}`;
+                }
+                copyToClipboard(content);
+                setCopied(true);
+            }}>
+                <TooltipV2 tooltip="Copy to clipboard" contentWidth={150}>
+                    <Icon name={copied ? "check" : "heroDocumentDuplicate"} color={copied ? "successMain" : undefined} marginLeft={"5px"} marginBottom="1px" size={12} />
+                </TooltipV2>
+            </Absolute>
+        </div>
         <Card backgroundColor={`${props.isPinned ? "var(--warningMain)" : "var(--backgroundDefault)"}`}>
             <div className="notification-inner">
                 {props.avatar === undefined ?
@@ -75,12 +103,41 @@ export const NotificationCard: React.FunctionComponent<NotificationProps & {
     </div>;
 };
 
+const fadeInAnimation = makeKeyframe("fade-in-animation", `
+  from {
+    opacity: 0%;
+  }
+  to {
+    opacity: 100%;
+  }
+`);
+
+const DefaultHidden = injectStyleSimple("default-hidden", `
+    display: none;    
+`);
+
+const NotificationOperation = injectStyleSimple("notification-operation", `
+    background-color: var(--backgroundDefault);
+    border: var(--defaultCardBorder);
+    border-radius: 25px;
+    margin-top: -1px;
+    margin-left: 4px;
+    cursor: pointer;
+    width: 24px;
+    height: 24px;
+`);
+
 const Style = injectStyle("notification", k => `
+    ${k}:hover > div[data-tag=operations] {
+        display: block;
+        animation: 0.3s ${fadeInAnimation};
+    }
+
     ${k} {
         cursor: pointer;
         animation: 0.5s ease-in notification-enter;
         width: 450px;
-        z-index: 1;
+        z-index: 1000;
         color: var(--textPrimary);
     }
 

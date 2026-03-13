@@ -3,7 +3,6 @@ import * as UCloud from "@/UCloud";
 import {default as ReactModal} from "react-modal";
 import {defaultModalStyle, largeModalStyle} from "@/Utilities/ModalUtilities";
 import {Box, Button, Flex, Icon} from "@/ui-components";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import CONF from "../../../../site.config.json";
 import {useCallback, useState} from "react";
 import {errorMessageOrDefault} from "@/UtilityFunctions";
@@ -23,6 +22,7 @@ import {CardClass} from "@/ui-components/Card";
 import {ShortcutKey} from "@/ui-components/Operation";
 import {FilesCreateDownloadResponseItem, UFile} from "@/UCloud/UFile";
 import {Application} from "@/Applications/AppStoreApi";
+import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
 
 export function ImportParameters({application, onImport, importDialogOpen, onImportDialogClose, setImportDialogOpen}: React.PropsWithChildren<{
     application: Application;
@@ -40,7 +40,7 @@ export function ImportParameters({application, onImport, importDialogOpen, onImp
             callAPI(JobsApi.retrieve({id: jobId})).then(it => {
                 if (!didLoadParameters.current) {
                     readParsedJSON(it.status.jobParametersJson).then(() => {
-                        snackbarStore.addSuccess("Imported job parameters", false, 5000);
+                        sendSuccessNotification("Imported job parameters");
                     });
                 }
             }).catch(it => {
@@ -89,11 +89,9 @@ export function ImportParameters({application, onImport, importDialogOpen, onImp
             } catch (e) {
                 console.warn(e);
                 if (!file.name.endsWith(".json")) {
-                    snackbarStore.addFailure(
-                        errorMessageOrDefault(e, "An error occurred. The file format must be JSON."), false
-                    );
+                    sendFailureNotification(errorMessageOrDefault(e, "An error occurred. The file format must be JSON."));
                 } else {
-                    snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred"), false);
+                    sendFailureNotification(errorMessageOrDefault(e, "An error occurred"));
                 }
             }
         };
@@ -166,7 +164,7 @@ export function ImportParameters({application, onImport, importDialogOpen, onImp
                             if (files) {
                                 const file = files[0];
                                 if (file.size > 10_000_000) {
-                                    snackbarStore.addFailure("File exceeds 10 MB. Not allowed.", false);
+                                    sendFailureNotification("File exceeds 10 MB. Not allowed.");
                                 } else {
                                     importParameters(file);
                                 }

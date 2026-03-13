@@ -1,6 +1,5 @@
 import {dialogStore} from "@/Dialog/DialogStore";
 import * as React from "react";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {
     Box, Button, Divider, Flex, ButtonGroup, Link, Text,
     ExternalLink,
@@ -21,6 +20,7 @@ import {injectStyle, injectStyleSimple, makeKeyframe} from "./Unstyled";
 import AppRoutes from "./Routes";
 import {SITE_DOCUMENTATION_URL} from "../site.config.json";
 import {TextP, TextSpan} from "@/ui-components/Text";
+import {sendFailureNotification} from "./Notifications";
 
 enum KeyCode {
     ENTER = 13,
@@ -138,7 +138,7 @@ export async function addStandardInputDialog({
                 if (validator(elem.value)) {
                     dialogStore.success();
                     return resolve({result: elem.value});
-                } else snackbarStore.addFailure(validationFailureMessage, false);
+                } else sendFailureNotification(validationFailureMessage);
             }
         }>
             <div>
@@ -206,7 +206,7 @@ export const NamingField: React.FunctionComponent<{
         e.preventDefault();
         const value = props.inputRef.current?.value ?? "";
         if (!value.trim()) {
-            snackbarStore.addFailure("Title can't be empty or blank", false);
+            sendFailureNotification("Title can't be empty or blank");
             return;
         }
         props.onSubmit(e);

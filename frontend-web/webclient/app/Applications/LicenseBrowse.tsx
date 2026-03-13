@@ -22,7 +22,6 @@ import AppRoutes from "@/Routes";
 import {AsyncCache} from "@/Utilities/AsyncCache";
 import {productTypeToIcon, ProductV2License} from "@/Accounting";
 import {bulkRequestOf} from "@/UtilityFunctions";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {FindByStringId} from "@/UCloud";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
@@ -31,6 +30,7 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {ProductSelectorWithPermissions} from "./PublicLinks/PublicLinkBrowse";
 import {slimModalStyle} from "@/Utilities/ModalUtilities";
+import {sendFailureNotification} from "@/Notifications";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -287,7 +287,7 @@ export function LicenseBrowse({opts}: {opts?: ResourceBrowserOpts<License>}): Re
                                         browser.refresh();
                                     }
                                 } catch (e) {
-                                    snackbarStore.addFailure("Failed to create license. " + extractErrorMessage(e), false);
+                                    sendFailureNotification("Failed to create license. " + extractErrorMessage(e));
                                     browser.refresh();
                                     return;
                                 }

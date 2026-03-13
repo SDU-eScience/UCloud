@@ -1,11 +1,12 @@
 import {callAPI} from "@/Authentication/DataHook";
 import * as React from "react";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
+
 import {Button, Checkbox, Input, Label, Select, TextArea} from "@/ui-components";
 import {InputLabel} from "@/ui-components/Input";
 import {errorMessageOrDefault, stopPropagation, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import {useLayoutEffect, useState} from "react";
 import {BoxProps} from "@/ui-components/Types";
+import {sendFailureNotification} from "@/Notifications";
 
 export interface DataType {
     required: string[];
@@ -175,9 +176,9 @@ export default class ResourceForm<Request, Response> extends React.Component<{
         if (missingFields.length > 0) {
             if (missingFields.length > 0 && this.props.formatError) {
                 const error = this.props.formatError(missingFields);
-                snackbarStore.addFailure(error, false);
+                sendFailureNotification(error);
             } else {
-                snackbarStore.addFailure(`Fields ${missingFields.join(", ")} are invalid`, false);
+                sendFailureNotification(`Fields ${missingFields.join(", ")} are invalid`);
             }
         }
 

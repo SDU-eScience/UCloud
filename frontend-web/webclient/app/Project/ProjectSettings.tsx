@@ -19,7 +19,6 @@ import {useNavigate} from "react-router-dom";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {MainContainer} from "@/ui-components/MainContainer";
 import {usePage} from "@/Navigation/Redux";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {useCallback, useEffect, useRef, useState} from "react";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import ProjectAPI, {useProjectId} from "@/Project/Api";
@@ -41,6 +40,7 @@ import {FlexClass} from "@/ui-components/Flex";
 import {OldProjectRole, isAdminOrPI} from ".";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import AppRoutes from "@/Routes";
+import {sendFailureNotification, sendInformationNotification, sendSuccessNotification} from "@/Notifications";
 
 const wayfIdpsPairs = WAYF.wayfIdps.map(it => ({value: it, content: it}));
 
@@ -215,7 +215,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
             })
         );
 
-        snackbarStore.addSuccess("Project settings saved!", false);
+        sendSuccessNotification("Project settings saved!");
     }, [settings]);
 
     if (!projectId || !project) return null;
@@ -271,9 +271,10 @@ export const ProjectSettings: React.FunctionComponent = () => {
                             <Icon
                                 name="heroDocumentDuplicate"
                                 ml="10px"
-                                onClick={() =>
-                                    copyToClipboard({value: projectId, message: "Copied project ID to clipboard"})
-                                }
+                                onClick={() => {
+                                    copyToClipboard(projectId);
+                                    sendInformationNotification("Copied project ID to clipboard!");
+                                }}
                             />
                         </Flex>
                     </> : null}
@@ -396,11 +397,11 @@ export function ChangeProjectTitle(props: ChangeProjectTitleProps): React.ReactN
                 const titleValue = titleField.value;
 
                 if (titleValue === "") {
-                    snackbarStore.addFailure("Project name cannot be empty", false);
+                    sendFailureNotification("Project name cannot be empty");
                     return;
                 }
                 if (titleValue.trim().length != titleValue.length) {
-                    snackbarStore.addFailure("Project name cannot end or start with whitespace.", false);
+                    sendFailureNotification("Project name cannot end or start with whitespace.");
                     return;
                 }
 
@@ -411,9 +412,9 @@ export function ChangeProjectTitle(props: ChangeProjectTitleProps): React.ReactN
 
                 if (success) {
                     props.onSuccess();
-                    snackbarStore.addSuccess("Project renamed successfully", true);
+                    sendSuccessNotification("Project renamed successfully");
                 } else {
-                    snackbarStore.addFailure("Renaming of project failed", true);
+                    sendFailureNotification("Renaming of project failed");
                 }
             }}>
                 <Flex flexGrow={1}>
@@ -621,11 +622,11 @@ export function UpdateProjectLogo(): React.ReactNode {
                         const file = target.files[0];
                         target.value = "";
                         if (file.size > 1024 * 512) {
-                            snackbarStore.addFailure("File exceeds 512KB. Not allowed.", false);
+                            sendFailureNotification("File exceeds 512KB. Not allowed.");
                         } else {
                             if (await uploadProjectLogo({file, projectId})) {
                                 setLogoCacheBust("" + Date.now());
-                                snackbarStore.addSuccess("Logo changed, refresh to see changes", false);
+                                sendSuccessNotification("Logo changed, refresh to see changes");
                             }
                         }
                         dialogStore.success();
@@ -744,11 +745,11 @@ const UserCriteriaRowEditor: React.FunctionComponent<{
         switch (type.type) {
             case "email":
                 if (inputRef.current!.value.indexOf(".") === -1 || inputRef.current!.value.indexOf(" ") !== -1) {
-                    snackbarStore.addFailure("This does not look like a valid email domain. Try again.", false);
+                    sendFailureNotification("This does not look like a valid email domain. Try again.");
                     return;
                 }
                 if (inputRef.current!.value.indexOf("@") !== -1) {
-                    snackbarStore.addFailure("Only the domain should be added. Example: 'sdu.dk'.", false);
+                    sendFailureNotification("Only the domain should be added. Example: 'sdu.dk'.");
                     return;
                 }
 
@@ -760,7 +761,7 @@ const UserCriteriaRowEditor: React.FunctionComponent<{
                 break;
             case "wayf":
                 if (selectedWayfOrg === "") {
-                    snackbarStore.addFailure("You must select a WAYF organization", false);
+                    sendFailureNotification("You must select a WAYF organization");
                     return;
                 }
                 props.onSubmit({type: "wayf", org: selectedWayfOrg});
@@ -865,7 +866,7 @@ async function uploadProjectLogo(props: UploadLogoProps): Promise<boolean> {
                         // Do nothing
                     }
 
-                    snackbarStore.addFailure(message, false);
+                    sendFailureNotification(message);
                     resolve(false);
                 } else {
                     resolve(true);

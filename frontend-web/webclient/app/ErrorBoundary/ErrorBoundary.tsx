@@ -1,10 +1,10 @@
 import {Client} from "@/Authentication/HttpClientInstance";
 import {MainContainer} from "@/ui-components/MainContainer";
 import * as React from "react";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {PRODUCT_NAME} from "@/../site.config.json" with {type: "json"};
 import {Box, Button, Flex, TextArea} from "@/ui-components";
 import {errorMessageOrDefault} from "@/UtilityFunctions";
-import {PRODUCT_NAME} from "@/../site.config.json" with {type: "json"};
+import {sendFailureNotification} from "@/Notifications";
 
 interface ErrorBoundaryState {
     hasError: boolean;
@@ -82,7 +82,7 @@ export class ErrorBoundary extends React.Component<{children: React.ReactNode}, 
                 message: `ERROR: ${error},\nSTACK: ${errorInfo!.componentStack},\nPathname: ${window.location},\nAdditional info: ${textAreaContent}`
             });
         } catch (e) {
-            snackbarStore.addFailure(errorMessageOrDefault(e, `Failed to submit.${navigator.onLine ? "" : " You are offline."}`), false);
+            sendFailureNotification(errorMessageOrDefault(e, `Failed to submit.${navigator.onLine ? "" : " You are offline."}`));
         }
         ErrorBoundary.redirectToDashboard();
     }
