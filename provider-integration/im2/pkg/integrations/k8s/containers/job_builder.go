@@ -501,7 +501,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 }
 
 func isJobAuditLogEnabled(description *orc.ApplicationInvocationDescription) bool {
-	return description.EnableJobAuditLog.Present && description.EnableJobAuditLog.Value
+	return description.JobAuditLogEnabled.Present && description.JobAuditLogEnabled.Value
 }
 
 func allowNetworkFrom(policy *networking.NetworkPolicy, jobId string) {
