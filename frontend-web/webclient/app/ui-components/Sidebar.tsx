@@ -356,8 +356,8 @@ function UserMenu({avatar, dialog, setOpenDialog}: {
             <UserMenuExternalLink close={close.current} href={CONF.DATA_PROTECTION_LINK} icon="heroShieldCheck"
                 text={CONF.DATA_PROTECTION_TEXT} />
             <Divider />
-            <Username close={close.current} />
-            <ProjectID close={close.current} />
+            <Username />
+            <ProjectID />
             <CommandPaletteEntry />
             <Divider />
             <Flex className={HoverClass} onClick={() => Client.logout()} data-component={"logout-button"}>
@@ -1176,20 +1176,33 @@ function SidebarSectionEmptyHeader(): React.ReactNode {
     return <Box height="11px" />
 }
 
-function Username({close}: {close(): void}): React.ReactNode {
+function Username(): React.ReactNode {
+    const [copied, setCopied] = React.useState(false);
+    const timeoutId = React.useRef(-1);
+    React.useEffect(() => {
+        return () => {
+            if (timeoutId.current === -1) return;
+            window.clearTimeout(timeoutId.current);
+        }
+    }, []);
+
     if (!Client.isLoggedIn) return null;
     return <Tooltip
         trigger={(
             <EllipsedText
                 className={HoverClass}
                 cursor="pointer"
-                onClick={() => {
+                onClick={e => {
+                    e.stopPropagation();
                     copyUserName();
-                    close();
+                    setCopied(true);
+                    timeoutId.current = window.setTimeout(() => {
+                        setCopied(false);
+                    }, 1_200);
                 }}
                 width={"100%"}
             >
-                <Icon name="heroIdentification" mr="0.5em" my="0.2em" size="1.3em" />{Client.username}
+                <Icon color={copied ? "successMain" : undefined} name={copied ? "check" : "heroIdentification"} mr="0.5em" my="0.2em" size="1.3em" />{Client.username}
             </EllipsedText>
         )}
     >
@@ -1198,8 +1211,16 @@ function Username({close}: {close(): void}): React.ReactNode {
     </Tooltip>
 }
 
-function ProjectID({close}: {close(): void}): React.ReactNode {
+function ProjectID(): React.ReactNode {
     const projectId = useProjectId();
+    const [copied, setCopied] = React.useState(false);
+    const timeoutId = React.useRef(-1);
+    React.useEffect(() => {
+        return () => {
+            if (timeoutId.current === -1) return;
+            window.clearTimeout(timeoutId.current);
+        }
+    }, []);
 
     const project = useProject();
 
@@ -1209,7 +1230,11 @@ function ProjectID({close}: {close(): void}): React.ReactNode {
     );
 
     const copyProjectPath = useCallback(() => {
-        copyToClipboard({value: projectPath, message: "Project copied to clipboard!"});
+        copyToClipboard(projectPath);
+        setCopied(true);
+        timeoutId.current = window.setTimeout(() => {
+            setCopied(false);
+        }, 1_200);
     }, [projectPath]);
 
     if (!projectId) return null;
@@ -1218,13 +1243,13 @@ function ProjectID({close}: {close(): void}): React.ReactNode {
             <EllipsedText
                 className={HoverClass}
                 cursor="pointer"
-                onClick={() => {
+                onClick={e => {
                     copyProjectPath();
-                    close();
+                    e.stopPropagation();
                 }}
                 width={"100%"}
             >
-                <Icon key={projectId} name={"heroUserGroup"} mr="0.5em" my="0.2em"
+                <Icon key={projectId} color={copied ? "successMain" : undefined} name={copied ? "check" : "heroUserGroup"} mr="0.5em" my="0.2em"
                     size="1.3em" />{projectPath}
             </EllipsedText>
         }
@@ -1265,10 +1290,8 @@ function Downtimes(): React.ReactNode {
 }
 
 function copyUserName(): void {
-    copyToClipboard({
-        value: Client.username,
-        message: "Username copied to clipboard"
-    });
+    if (!Client.username) return;
+    copyToClipboard(Client.username);
 }
 
 function useSidebarReduxProps(): SidebarStateProps {

@@ -50,7 +50,7 @@ import {injectStyle} from "@/Unstyled";
 import {SimpleAvatarComponentCache} from "@/Files/Shares";
 import {divText} from "@/Utilities/HTMLUtilities";
 import {TruncateClass} from "@/ui-components/Truncate";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {sendFailureNotification} from "@/Notifications";
 
 const defaultRetrieveFlags: {itemsPerPage: number} = {
     itemsPerPage: 250,
@@ -231,7 +231,7 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                     } else {
                         row.stat2.innerText = dateToDateStringOrTime(job.createdAt ?? timestampUnixMs());
                     }
-                    
+
                     // Time left in stat3
                     if (!simpleView) {
                         switch (job.status.state) {
@@ -272,7 +272,7 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                             }
                         }
                     }
-                    
+
                     setIcon(AppStore.retrieveAppLogo({
                         name: job.specification.application.name,
                         darkMode: !isLightThemeStored(),
@@ -320,7 +320,7 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                                     id: job.id,
                                     newTitle: job.specification.name,
                                 }))).catch(err => {
-                                    snackbarStore.addFailure(extractErrorMessage(err), false);
+                                    sendFailureNotification(extractErrorMessage(err));
                                     browser.refresh();
                                 });
 

@@ -1,9 +1,9 @@
 import {Store} from "redux";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {b64DecodeUnicode, inRange, inSuccessRange, is5xxStatusCode} from "@/UtilityFunctions";
 import {setStoredProject} from "@/Project/ReduxState";
 import {CallParameters} from "./CallParameters";
 import {signIntentToCall, clearSigningKey} from "@/Authentication/MessageSigning";
+import {sendFailureNotification} from "@/Notifications";
 
 /**
  * Used to parse and validate the structure of the JWT. If the JWT is invalid, the function returns null, otherwise as
@@ -215,7 +215,7 @@ export class HttpClient {
             });
         } catch (e) {
             console.warn(e);
-            if (!this.isPublicPage) snackbarStore.addFailure("Could not refresh login token.", false);
+            if (!this.isPublicPage) sendFailureNotification("Could not refresh login token.");
             if ([401, 403].includes(e.status)) HttpClient.clearTokens();
         }
     }
@@ -386,7 +386,7 @@ export class HttpClient {
         await this.receiveAccessTokenOrRefreshIt();
     }
 
-    public createOneTimeTokenWithPermission(permission): Promise<any> {
+    public async createOneTimeTokenWithPermission(permission: string): Promise<string> {
         return this.receiveAccessTokenOrRefreshIt()
             .then(token => {
                 const oneTimeToken = this.computeURL(this.authContext, `/request?audience=${permission}`);
@@ -539,7 +539,7 @@ export class HttpClient {
             }
             throw Error("The server was unreachable, please try again later.");
         } catch (err) {
-            snackbarStore.addFailure(err.message, false);
+            sendFailureNotification(err.message);
         }
     }
 

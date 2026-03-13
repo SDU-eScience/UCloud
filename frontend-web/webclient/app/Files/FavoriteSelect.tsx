@@ -6,8 +6,9 @@ import FilesApi, {ExtraFileCallbacks} from "@/UCloud/FilesApi";
 import {callAPIWithErrorHandler} from "@/Authentication/DataHook";
 import FavoritesBrowse from "./FavoritesBrowse";
 import {Operation, ShortcutKey} from "@/ui-components/Operation";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
+
 import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
+import {sendFailureNotification} from "@/Notifications";
 
 
 
@@ -22,7 +23,7 @@ export function addFavoriteSelect(onSelect: (file: UFile) => void, isFileAllowed
                     const allowed = isFileAllowed(result);
 
                     if (typeof allowed === "string") {
-                        snackbarStore.addFailure(allowed, false);
+                        sendFailureNotification(allowed);
                     } else if (allowed) {
                         onSelect(result);
                     } else {

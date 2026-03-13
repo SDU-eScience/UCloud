@@ -43,7 +43,6 @@ import {addStandardDialog, OverallocationLink, WalletWarning} from "@/UtilityCom
 import {ImportParameters} from "@/Applications/Jobs/Widgets/ImportParameters";
 import LoadingIcon from "@/LoadingIcon/LoadingIcon";
 import {usePage} from "@/Navigation/Redux";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {NetworkIPResource, networkIPResourceAllowed} from "@/Applications/Jobs/Resources/NetworkIPs";
 import {bulkRequestOf} from "@/UtilityFunctions";
 import {getQueryParam} from "@/Utilities/URIUtilities";
@@ -78,6 +77,7 @@ import {mail} from "@/UCloud";
 import retrieveEmailSettings = mail.retrieveEmailSettings;
 import toggleEmailSettings = mail.toggleEmailSettings;
 import {useDiscovery} from "@/Applications/Hooks";
+import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
 
 interface InsufficientFunds {
     why?: string;
@@ -252,9 +252,9 @@ export const Create: React.FunctionComponent = () => {
         }))) !== null;
 
         if (!wasSuccessful) {
-            snackbarStore.addFailure("Failed to update user email settings", false);
+            sendFailureNotification("Failed to update user email settings");
         } else {
-            snackbarStore.addSuccess("User email settings updated", false);
+            sendSuccessNotification("User email settings updated");
         }
 
     }, [emailNotifications]);
@@ -287,7 +287,7 @@ export const Create: React.FunctionComponent = () => {
                 ...Object.values(networkResources.errors).map(it => "IPs: " + it),
                 ...Object.values(ingressResources.errors).map(it => "Public link: " + it)
             ]) {
-                snackbarStore.addFailure(err, false);
+                sendFailureNotification(err);
             }
 
             appParams.current = [application.metadata.groupId, {
@@ -526,7 +526,7 @@ export const Create: React.FunctionComponent = () => {
 
                 const ids = response?.responses;
                 if (!ids || ids.length === 0) {
-                    snackbarStore.addFailure("UCloud failed to submit the job", false);
+                    sendFailureNotification("UCloud failed to submit the job");
                     return;
                 }
 
