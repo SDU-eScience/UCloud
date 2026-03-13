@@ -58,6 +58,7 @@ func initProviderNotifications() {
 		projectUpdates := db.Listen(context.Background(), "project_updates")
 		groupUpdates := db.Listen(context.Background(), "project_group_updates")
 		policyUpdates := db.Listen(context.Background(), "policy_updates")
+		policyDeletes := db.Listen(context.Background(), "policy_deleted")
 
 		for {
 			var project fndapi.Project
@@ -85,6 +86,12 @@ func initProviderNotifications() {
 				walletOk = true
 
 			case projectId := <-policyUpdates:
+				db.NewTx0(func(tx *db.Transaction) {
+					policySpecifications, policiesOk = coreutil.PolicySpecificationsRetrieveFromDatabase(tx, projectId)
+				})
+				projectIdForPolices = projectId
+
+			case projectId := <-policyDeletes:
 				db.NewTx0(func(tx *db.Transaction) {
 					policySpecifications, policiesOk = coreutil.PolicySpecificationsRetrieveFromDatabase(tx, projectId)
 				})
@@ -156,7 +163,7 @@ func initProviderNotifications() {
 
 				for _, ch := range allChannels {
 					select {
-					case ch <- fndapi.PoliciesForProject{projectIdForPolices, policySpecifications}:
+					case ch <- fndapi.PoliciesForProject{ProjectId: projectIdForPolices, PoliciesByName: policySpecifications}:
 					case <-time.After(200 * time.Millisecond):
 					}
 				}

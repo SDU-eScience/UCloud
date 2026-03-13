@@ -27,16 +27,25 @@ func initPolicySubscriptions() {
 
 	go func() {
 		policyUpdates := db.Listen(context.Background(), "policy_updates")
+		policyDeletes := db.Listen(context.Background(), "policy_deleted")
 
+		var projectId string
 		var policySpecifications map[string]*fndapi.PolicySpecification
 		var policiesOk bool
 
 		for {
-			projectId := <-policyUpdates
+			select {
+			case projectId = <-policyUpdates:
 
-			db.NewTx0(func(tx *db.Transaction) {
-				policySpecifications, policiesOk = coreutil.PolicySpecificationsRetrieveFromDatabase(tx, projectId)
-			})
+				db.NewTx0(func(tx *db.Transaction) {
+					policySpecifications, policiesOk = coreutil.PolicySpecificationsRetrieveFromDatabase(tx, projectId)
+				})
+			case projectId = <-policyDeletes:
+
+				db.NewTx0(func(tx *db.Transaction) {
+					policySpecifications, policiesOk = coreutil.PolicySpecificationsRetrieveFromDatabase(tx, projectId)
+				})
+			}
 
 			if policiesOk {
 				updatePolicyCacheForProject(projectId, policySpecifications)

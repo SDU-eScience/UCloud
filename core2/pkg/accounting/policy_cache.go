@@ -1,6 +1,7 @@
 package accounting
 
 import (
+	"context"
 	"net"
 	"sync"
 
@@ -16,6 +17,41 @@ import (
 var policyCache struct {
 	Mu                sync.RWMutex
 	PoliciesByProject map[string]map[string]*fndapi.PolicySpecification
+}
+
+func initPolicySubscriptions() {
+
+	policyCache.Mu.Lock()
+	policyCache.PoliciesByProject = make(map[string]map[string]*fndapi.PolicySpecification)
+	policyCache.Mu.Unlock()
+
+	go func() {
+		policyUpdates := db.Listen(context.Background(), "policy_updates")
+		policyDeletes := db.Listen(context.Background(), "policy_deleted")
+
+		var projectId string
+		var policySpecifications map[string]*fndapi.PolicySpecification
+		var policiesOk bool
+
+		for {
+			select {
+			case projectId = <-policyUpdates:
+				db.NewTx0(func(tx *db.Transaction) {
+					policySpecifications, policiesOk = coreutil.PolicySpecificationsRetrieveFromDatabase(tx, projectId)
+				})
+			case projectId = <-policyDeletes:
+				db.NewTx0(func(tx *db.Transaction) {
+
+					policySpecifications, policiesOk = coreutil.PolicySpecificationsRetrieveFromDatabase(tx, projectId)
+				})
+			}
+
+			if policiesOk {
+				updatePolicyCacheForProject(projectId, policySpecifications)
+			}
+		}
+
+	}()
 }
 
 // policiesByProject returns mapping of [schema Name] => PolicySpecification. If no policy is cached for the project it
