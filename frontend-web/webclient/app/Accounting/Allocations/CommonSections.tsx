@@ -163,7 +163,7 @@ export const YourAllocations: React.FunctionComponent<{
                                     </Flex>}
                                     right={<Flex flexDirection={"row"} gap={"8px"}>
                                         {tree.usageAndQuota.map((uq, idx) => <React.Fragment key={idx}>
-                                                <ProgressBar uq={uq}/>
+                                                <ProgressBar uq={uq} responsive/>
                                             </React.Fragment>
                                         )}
                                     </Flex>}
@@ -177,7 +177,7 @@ export const YourAllocations: React.FunctionComponent<{
                                                 <code>{wallet.category.name}</code>
                                             </Flex>}
                                             right={<Flex flexDirection={"row"} gap={"8px"}>
-                                                <ProgressBar uq={wallet.usageAndQuota}/>
+                                                <ProgressBar uq={wallet.usageAndQuota} responsive/>
                                             </Flex>}
                                             indent={indent * 2}
                                         >
@@ -847,7 +847,7 @@ export const KeyMetrics: React.FunctionComponent<{
                                             </Flex>
                                         }
                                         right={<Flex flexDirection={"row"} gap={"8px"}>
-                                            <ProgressBar uq={usageAndQuotaByProduct[productCategoryKey(wallet.category)]} />
+                                            <ProgressBar uq={usageAndQuotaByProduct[productCategoryKey(wallet.category)]} responsive />
                                         </Flex>}
                                     >
                                     </TreeNode>
@@ -914,7 +914,7 @@ const FilteredUsageAndQuota: React.FunctionComponent<{
     return <>
         {filteredEntries.map((uq, idx) => {
             if (idx > 2) return null;
-            return <ProgressBar key={idx} uq={uq}/>;
+            return <ProgressBar key={idx} uq={uq} responsive/>;
         })}
     </>
 }
@@ -1116,7 +1116,7 @@ const SubProjectListRow: React.FunctionComponent<{
                         </Flex>
                     </Flex>}
                     right={<div className={"sub-alloc"}>
-                        <ProgressBar uq={g.usageAndQuota}/>
+                        <ProgressBar uq={g.usageAndQuota} responsive/>
                         <Box width={25} height={25}/>
                     </div>}
                     onActivate={open => {
