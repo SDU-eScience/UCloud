@@ -1139,7 +1139,7 @@ func jobsValidateForSubmission(actor rpc.Actor, spec *orcapi.JobSpecification) *
 		return util.HttpErr(http.StatusBadRequest, "this application does not support SSH but it is required")
 	}
 
-	if app.Invocation.JobAuditLogEnabled.Present && app.Invocation.JobAuditLogEnabled.Value {
+	if app.Invocation.JobAuditLogIsEnabled.Present && app.Invocation.JobAuditLogIsEnabled.Value {
 		spec.SshEnabled = false
 	}
 

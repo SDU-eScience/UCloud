@@ -10,18 +10,29 @@ import (
 	"time"
 
 	"ucloud.dk/pkg/gateway"
+	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
 
-var jobAuditLogFolder = "/audit"
-var ucloudRank int64
-var ucloudJobId string
-var ucloudWorkspaceId string
+const jobAuditLogFolder = "/audit"
 
-func StartJobAuditLogServer() {
-	readEnv()
+var auditLogServer struct {
+	JobId       string
+	Rank        int64
+	WorkspaceId string
+}
+
+var jobAuditLogChannel chan JobAuditEvent
+
+func JobAuditLogServerStart() {
+	jobAuditLogChannel = make(chan JobAuditEvent, 1000) // buffered
+	go jobAuditLogWriter()
+
+	auditLogServer.Rank = getIntEnv("UCLOUD_RANK")
+	auditLogServer.JobId = os.Getenv("UCLOUD_JOB_ID")
+	auditLogServer.WorkspaceId = os.Getenv("UCLOUD_WORKSPACE_ID")
 	var ourArgs []string
 	if len(os.Args) > 1 {
 		ourArgs = os.Args[2:]
@@ -32,80 +43,17 @@ func StartJobAuditLogServer() {
 		return
 	}
 	log.Info("Starting job audit log server on port %d", serverPort)
-	startServer(serverPort)
-}
-func readEnv() {
-	ucloudRank = getIntEnv("UCLOUD_RANK")
-	ucloudJobId = os.Getenv("UCLOUD_JOB_ID")
-	ucloudWorkspaceId = os.Getenv("UCLOUD_WORKSPACE_ID")
-}
 
-func getIntEnv(env string) int64 {
-	value := os.Getenv(env)
-	if value != "" {
-		value, err := strconv.ParseInt(value, 10, 64)
-		if err == nil {
-			return value
-		}
-	}
-	return 0
-}
-
-func writeJobAuditLog(event JobAuditEvent) error {
-	filename := fmt.Sprintf(
-		"%s/audit-%d-%s.jsonl",
-		jobAuditLogFolder,
-		ucloudRank,
-		time.Now().Format("2006-01-02"),
-	)
-
-	f, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	encoder := json.NewEncoder(f)
-	return encoder.Encode(event)
-}
-
-type JobAuditEvent struct {
-	Ts          time.Time            `json:"ts"`
-	JobID       string               `json:"jobId"`
-	WorkspaceID string               `json:"workspaceId"`
-	Event       string               `json:"event"`
-	Message     string               `json:"message"`
-	Meta        JobAuditMetadataType `json:"meta"`
-}
-
-type JobAuditMetadataType struct {
-	Path string `json:"path"`
-	Rows int    `json:"rows"`
-}
-type JobAuditLogAppendRequest struct {
-	Event   string               `json:"event"`
-	Message string               `json:"message"`
-	Meta    JobAuditMetadataType `json:"meta"`
-}
-
-var JobAuditLogAppendLog = rpc.Call[JobAuditLogAppendRequest, util.Empty]{
-	BaseContext: "",
-	Convention:  rpc.ConventionUpdate,
-	Roles:       rpc.RolesPublic,
-	Operation:   "append",
-}
-
-func startServer(serverPort int64) {
 	rpc.DefaultServer.Mux = http.NewServeMux()
 	rpc.ServerAuthenticator = func(r *http.Request) (rpc.Actor, *util.HttpError) {
 		return rpc.Actor{Role: rpc.RoleGuest}, nil
 	}
 
 	JobAuditLogAppendLog.Handler(func(info rpc.RequestInfo, request JobAuditLogAppendRequest) (util.Empty, *util.HttpError) {
-		err := writeJobAuditLog(JobAuditEvent{
-			Ts:          time.Now().UTC(),
-			JobID:       ucloudJobId,
-			WorkspaceID: ucloudWorkspaceId,
+		err := jobAuditLogAppend(JobAuditEvent{
+			Ts:          fnd.Timestamp(time.Now()),
+			JobID:       auditLogServer.JobId,
+			WorkspaceID: auditLogServer.WorkspaceId,
 			Event:       request.Event,
 			Message:     request.Message,
 			Meta:        request.Meta,
@@ -130,8 +78,90 @@ func startServer(serverPort int64) {
 		),
 	}
 
-	err := s.ListenAndServe()
-	log.Fatal("Failed to start listener on port %v: %s\n", gateway.ServerClusterPort, err)
+	listenErr := s.ListenAndServe()
+	log.Fatal("Failed to start listener on port %v: %s\n", gateway.ServerClusterPort, listenErr)
+}
+
+func getIntEnv(env string) int64 {
+	value := os.Getenv(env)
+	if value != "" {
+		value, err := strconv.ParseInt(value, 10, 64)
+		if err == nil {
+			return value
+		}
+	}
+	return 0
+}
+
+func jobAuditLogAppend(event JobAuditEvent) error {
+	select {
+	case jobAuditLogChannel <- event:
+		return nil
+	default:
+		return fmt.Errorf("audit log channel full")
+	}
+}
+
+func jobAuditLogWriter() {
+	var (
+		currentDate string
+		f           *os.File
+		encoder     *json.Encoder
+		err         error
+	)
+
+	for event := range jobAuditLogChannel {
+
+		date := time.Now().Format("2006-01-02")
+
+		if f == nil || date != currentDate {
+			if f != nil {
+				f.Close()
+			}
+
+			filename := fmt.Sprintf(
+				"%s/audit-%d-%s.jsonl",
+				jobAuditLogFolder,
+				auditLogServer.Rank,
+				date,
+			)
+
+			f, err = os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+			if err != nil {
+				log.Error("audit log open error: %v", err)
+				continue
+			}
+
+			encoder = json.NewEncoder(f)
+			currentDate = date
+		}
+
+		if err := encoder.Encode(event); err != nil {
+			log.Error("audit log write error: %v", err)
+		}
+	}
+}
+
+type JobAuditEvent struct {
+	Ts          fnd.Timestamp   `json:"ts"`
+	JobID       string          `json:"jobId"`
+	WorkspaceID string          `json:"workspaceId"`
+	Event       string          `json:"event"`
+	Message     string          `json:"message"`
+	Meta        json.RawMessage `json:"meta"`
+}
+
+type JobAuditLogAppendRequest struct {
+	Event   string          `json:"event"`
+	Message string          `json:"message"`
+	Meta    json.RawMessage `json:"meta"`
+}
+
+var JobAuditLogAppendLog = rpc.Call[JobAuditLogAppendRequest, util.Empty]{
+	BaseContext: "",
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesPublic,
+	Operation:   "append",
 }
 
 func collapseServerSlashes(next http.Handler) http.Handler {

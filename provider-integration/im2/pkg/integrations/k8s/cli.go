@@ -11,7 +11,7 @@ func HandleCliWithoutConfig(command string) bool {
 	case "script-gen":
 		HandleScriptGen()
 	case "start-job-audit-log-server":
-		StartJobAuditLogServer()
+		JobAuditLogServerStart()
 	default:
 		return false
 	}

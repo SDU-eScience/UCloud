@@ -825,7 +825,7 @@ func (y *A2Yaml) Normalize() (orcapi.Application, *util.HttpError) {
 					AllowMultiNode:        util.OptValue(y.Features.Value.MultiNode),
 					AllowPublicIp:         y.Features.Value.IPAddresses,
 					AllowPublicLink:       y.Features.Value.Links,
-					JobAuditLogEnabled:    y.Features.Value.JobAuditLog,
+					JobAuditLogIsEnabled:  y.Features.Value.JobAuditLog,
 
 					Environment:    mappedEnvironment,
 					Modules:        mappedModules,

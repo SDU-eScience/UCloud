@@ -144,7 +144,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	}
 
 	if isJobAuditLogEnabled(&resolvedApplication.Invocation) {
-		setupJobAuditLog(job, rank, spec, userContainer, "48291")
+		jobAuditLogSetup(job, rank, spec, userContainer, "48291")
 	}
 
 	// Setting up network policy and service
@@ -501,7 +501,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 }
 
 func isJobAuditLogEnabled(description *orc.ApplicationInvocationDescription) bool {
-	return description.JobAuditLogEnabled.Present && description.JobAuditLogEnabled.Value
+	return description.JobAuditLogIsEnabled.Present && description.JobAuditLogIsEnabled.Value
 }
 
 func allowNetworkFrom(policy *networking.NetworkPolicy, jobId string) {
@@ -628,7 +628,7 @@ func jobHostName(jobId string, rank int) string {
 	)
 }
 
-func setupJobAuditLog(job *orc.Job, rank int, spec *core.PodSpec, userContainer *core.Container, serverPort string) {
+func jobAuditLogSetup(job *orc.Job, rank int, spec *core.PodSpec, userContainer *core.Container, serverPort string) {
 	subpath := fmt.Sprintf("audit/%s", job.Id)
 	_ = filesystem.DoCreateFolder(filepath.Join(ServiceConfig.FileSystem.MountPoint, subpath))
 	container := &spec.Containers[len(spec.Containers)-1]
