@@ -67,6 +67,7 @@ func ApiTokenCreate(actor rpc.Actor, request orcapi.ApiTokenSpecification) (orca
 	util.ValidateString(&request.Description, "description", util.StringValidationAllowEmpty, &err)
 	util.ValidateStringIfPresent(&request.Provider, "provider", 0, &err)
 
+	// TODO Send request for provider to create API token
 	if err == nil && request.Provider.Present {
 		err = util.HttpErr(http.StatusForbidden, "not yet implemented")
 	}

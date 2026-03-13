@@ -247,6 +247,7 @@ func inferenceReportUsage(owner apm.WalletOwner, promptTokens int, completionTok
 	})
 }
 
+// TODO modify function to let provider create API token upon request (not automatically)
 func inferenceHandleApmEvent(update *controller.EventWalletUpdated) {
 	if update.Category.Name == inferenceGlobals.Product.Category.Name {
 		owner := update.Owner.ProjectId
