@@ -14,12 +14,13 @@ import {Spacer} from "@/ui-components/Spacer";
 import {DatePicker} from "@/ui-components/DatePicker";
 import {Categories, DATE_FORMAT} from "@/Admin/NewsManagement";
 import {capitalized, errorMessageOrDefault} from "@/UtilityFunctions";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
+
 import {addStandardDialog} from "@/UtilityComponents";
 import Fuse from "fuse.js";
 import {Toggle} from "@/ui-components/Toggle";
 import {NewsPost} from ".";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
 
 function getByIdRequest(payload: {id: string}): APICallParameters<{id: string}> {
     return {
@@ -67,7 +68,7 @@ export const DetailedNews: React.FC = () => {
                         <Text><Flex>By: <Text mx="6px" bold>{newsPost.data.postedBy}</Text></Flex></Text>
                         <Text><Flex>Posted {format(newsPost.data.showFrom, "HH:mm dd/MM/yy")}</Flex></Text>
                         <Link to={`/news/list/${newsPost.data.category}`}>
-                            <Tag label={newsPost.data.category}/>
+                            <Tag label={newsPost.data.category} />
                         </Link>
                     </Box>
                     <Markdown unwrapDisallowed>
@@ -85,10 +86,10 @@ export const DetailedNews: React.FC = () => {
             onConfirm: async () => {
                 try {
                     await Client.delete("/news/delete", {id});
-                    snackbarStore.addSuccess("Deleted news post.", false);
+                    sendSuccessNotification("Deleted news post.");
                     navigate("/news/list/");
                 } catch (err) {
-                    snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to deleted news post."), false);
+                    sendFailureNotification(errorMessageOrDefault(err, "Failed to deleted news post."));
                 }
             }
         });
@@ -219,19 +220,19 @@ function Editing(props: {post: NewsPost; stopEditing: (reload: boolean) => void;
         let category = categoryRef.current?.value;
 
         if (title == null || title === "") {
-            snackbarStore.addFailure("Title can't be empty", false);
+            sendFailureNotification("Title can't be empty");
             return;
         } else if (subtitle == null || subtitle === "") {
-            snackbarStore.addFailure("Subtitle can't be empty", false);
+            sendFailureNotification("Subtitle can't be empty");
             return;
         } else if (body == null || body === "") {
-            snackbarStore.addFailure("Body can't be empty.", false);
+            sendFailureNotification("Body can't be empty.");
             return;
         } else if (hideFrom != null && showFrom.getTime() > hideFrom.getTime()) {
-            snackbarStore.addFailure("End time cannot be before start.", false);
+            sendFailureNotification("End time cannot be before start.");
             return;
         } else if (category == null || category === "") {
-            snackbarStore.addFailure("Please add a category.", false);
+            sendFailureNotification("Please add a category.");
             return;
         }
 
@@ -259,7 +260,7 @@ function Editing(props: {post: NewsPost; stopEditing: (reload: boolean) => void;
             } as NewsPost);
             props.stopEditing(true);
         } catch (err) {
-            snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to update post."), false);
+            sendFailureNotification(errorMessageOrDefault(err, "Failed to update post."));
         }
     }
 }

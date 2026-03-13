@@ -5,6 +5,7 @@ import {TooltipV2} from "@/ui-components/Tooltip";
 import {Relative} from "@/ui-components/index";
 import {useCallback, useRef} from "react";
 import {copyToClipboard} from "@/UtilityFunctions";
+import {sendSuccessNotification} from "@/Notifications";
 
 const Style = injectStyle("code-snippet", k => `
     ${k} {
@@ -40,10 +41,8 @@ const CodeSnippet: React.FunctionComponent<{children: React.ReactNode, maxHeight
     const doCopy = useCallback((e: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
         e.preventDefault();
         e.stopPropagation();
-        copyToClipboard({
-            value: preRef.current?.textContent ?? "",
-            message: "Copied to clipboard!"
-        });
+        copyToClipboard(preRef.current?.textContent ?? "");
+        sendSuccessNotification("Copied to clipboard!");
     }, []);
 
     return <div className={Style} style={{maxHeight}}>

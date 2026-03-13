@@ -1,6 +1,6 @@
 import * as React from "react";
 import {useRef, useState} from "react";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
+
 import * as Heading from "@/ui-components/Heading";
 import {doNothing, errorMessageOrDefault} from "@/UtilityFunctions";
 import CONF from "../../site.config.json";
@@ -19,6 +19,7 @@ import {apiUpdate, useCloudCommand} from "@/Authentication/DataHook";
 import Error from "./Error";
 import Input from "./Input";
 import {SidebarDialog} from "./Sidebar";
+import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
 
 type SystemStatus = "Decomissioned" | "Operational" | "Degraded" | "Down";
 
@@ -41,13 +42,13 @@ export default function Support({dialog, setOpenDialog}: SidebarDialog): React.R
                 await invokeCommand(submitTicket({subject: title, message: text}));
                 setTextArea("");
                 setTitleArea("");
-                snackbarStore.addSuccess("Support ticket submitted!", false);
+                sendSuccessNotification("Support ticket submitted!");
                 closeRef.current();
             } catch (e) {
-                snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred submitting the message"), false);
+                sendFailureNotification(errorMessageOrDefault(e, "An error occurred submitting the message"));
             }
         } else {
-            snackbarStore.addFailure("Support message can't be empty.", false);
+            sendFailureNotification("Support message can't be empty.");
         }
     }
 

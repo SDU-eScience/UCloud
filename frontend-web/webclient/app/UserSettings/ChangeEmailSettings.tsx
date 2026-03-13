@@ -3,13 +3,14 @@ import * as React from "react";
 import {useCallback, useEffect, useState} from "react";
 import {Box} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
+
 import {bulkRequestOf} from "@/UtilityFunctions";
 import {mail} from "@/UCloud";
 import EmailSettings = mail.EmailSettings;
 import retrieveEmailSettings = mail.retrieveEmailSettings;
 import toggleEmailSettings = mail.toggleEmailSettings;
 import {SettingsCheckboxRow, SettingsSection} from "./SettingsComponents";
+import {sendFailureNotification} from "@/Notifications";
 
 export interface UserDetailsState {
     settings: EmailSettings
@@ -184,7 +185,7 @@ export const ChangeEmailSettings: React.FunctionComponent<ChangeEmailSettingsPro
 
             if (!wasSuccessful) {
                 setSettings(previousSettings);
-                snackbarStore.addFailure("Failed to update user email settings", false);
+                sendFailureNotification("Failed to update user email settings");
             }
         })();
     }, [commandLoading, settings, invokeCommand]);

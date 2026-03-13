@@ -1,7 +1,7 @@
 import {useCloudCommand} from "@/Authentication/DataHook";
 import * as React from "react";
 import {useCallback, useEffect, useState} from "react";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
+
 import {Box, Select} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {SettingsCheckboxRow, SettingsSection} from "./SettingsComponents";
@@ -11,6 +11,7 @@ import {
     retrieveJobReportSettings,
     updateJobReportSettings,
 } from "./settingsApi";
+import {sendFailureNotification} from "@/Notifications";
 
 interface ChangeJobReportSettingsProps {
     setLoading: (loading: boolean) => void;
@@ -88,7 +89,7 @@ export const ChangeJobReportSettings: React.FunctionComponent<ChangeJobReportSet
 
             if (!wasSuccessful) {
                 setSettings(previousSettings);
-                snackbarStore.addFailure("Failed to update job report settings", false);
+                sendFailureNotification("Failed to update job report settings");
             }
         })();
     }, [commandLoading, settings, invokeCommand]);

@@ -1,7 +1,6 @@
 import * as React from "react";
 import * as UCloud from "@/UCloud";
 import jobs = UCloud.compute.jobs;
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import {errorMessageOrDefault, isAbsoluteUrl, shortUUID} from "@/UtilityFunctions";
 import {usePage} from "@/Navigation/Redux";
@@ -15,6 +14,7 @@ import {Box, Button} from "@/ui-components";
 import {TermAndShellWrapper} from "@/Applications/Jobs/TermAndShellWrapper";
 import {bulkRequestOf} from "@/UtilityFunctions";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {sendFailureNotification} from "@/Notifications";
 
 interface ConnectionDetails {
     url: string;
@@ -22,7 +22,7 @@ interface ConnectionDetails {
 }
 
 export const Vnc: React.FunctionComponent = () => {
-    const params = useParams<{ jobId: string, rank: string }>();
+    const params = useParams<{jobId: string, rank: string}>();
     const jobId = params.jobId!;
     const rank = params.rank!;
     const [isConnected, setConnected] = React.useState(false);
@@ -40,10 +40,7 @@ export const Vnc: React.FunctionComponent = () => {
         if (sessionResp.data !== null && sessionResp.data.responses.length > 0) {
             const {providerDomain, session} = sessionResp.data.responses[0];
             if (session.type !== "vnc") {
-                snackbarStore.addFailure(
-                    "Unexpected response from UCloud. Unable to open remote desktop!",
-                    false
-                );
+                sendFailureNotification("Unexpected response from UCloud. Unable to open remote desktop!");
                 return;
             }
 
@@ -102,10 +99,7 @@ export const Vnc: React.FunctionComponent = () => {
             setConnected(true);
         } catch (e) {
             console.warn(e);
-            snackbarStore.addFailure(
-                errorMessageOrDefault(e, "An error occurred connecting to the remote desktop"),
-                false
-            );
+            sendFailureNotification(errorMessageOrDefault(e, "An error occurred connecting to the remote desktop"));
         }
     }, [connectionDetails]);
 
@@ -121,7 +115,7 @@ export const Vnc: React.FunctionComponent = () => {
             </div>
         )}
 
-        <div className={"contents"}/>
+        <div className={"contents"} />
     </TermAndShellWrapper>;
 };
 
@@ -134,7 +128,7 @@ export const Vnc: React.FunctionComponent = () => {
  * block the Clipboard API without a user gesture.
  */
 async function onRemoteClipboard(ev: CustomEvent): Promise<void> {
-    const text = (ev.detail as { text?: string }).text ?? "";
+    const text = (ev.detail as {text?: string}).text ?? "";
     if (!text) return;
 
     try {
