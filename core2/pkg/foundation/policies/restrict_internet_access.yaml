@@ -14,5 +14,5 @@ configuration:
     type: "Subnet"
     title: "Allowed subnets"
     description: >
-      Only the specified destination subnets are reachable. An empty list means 
+      Only the specified destination subnets are reachable. An empty string means 
       no Internet access is allowed.

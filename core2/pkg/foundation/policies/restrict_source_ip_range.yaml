@@ -17,4 +17,4 @@ configuration:
     title: "Allowed client subnets"
     description: >
       Only clients originating from these subnets are permitted. An empty 
-      list blocks all external access.
+      string blocks all external access.
