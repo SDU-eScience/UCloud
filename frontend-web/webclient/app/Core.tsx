@@ -91,6 +91,7 @@ import SupportPage, {
 } from "./Admin/SupportPage";
 import {useEffect} from "react";
 import {deinitNotifications, initTaskAndNotificationStream} from "@/Services/TaskAndNotificationStream";
+import {NotificationPopups} from "./Notifications/Popups";
 
 const NotFound = (): React.ReactNode => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
 
@@ -98,6 +99,7 @@ const Core = (): React.ReactNode => (
     <>
         <Dialog />
         <Uploader />
+        <NotificationPopups />
         <RightPopIn />
         <div data-component="router-wrapper" className={RouteWrapperClass}>
             <React.Suspense fallback={<MainContainer main={<div>Loading...</div>} />}>

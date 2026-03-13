@@ -54,15 +54,23 @@ export const NotificationCard: React.FunctionComponent<NotificationProps & {
         onMouseLeave={onMouseLeaveMemo}
         onClick={props.onAction}
     >
-        <div hidden data-tag="operations">
+        <div className={DefaultHidden} data-tag="operations">
             {props.onDismiss ?
-                <Absolute className={NotificationOperation} top="8px" left="-15px" onClick={() => props.onDismiss?.(props.callbackItem)}>
+                <Absolute className={NotificationOperation} top="8px" left="-15px" onClick={e => {
+                    e.stopPropagation();
+                    props.onDismiss?.(props.callbackItem)
+                }}>
                     <TooltipV2 tooltip="Dismiss" contentWidth={80}>
                         <Icon name="close" marginLeft={"5px"} marginBottom="1px" size={12} />
                     </TooltipV2>
                 </Absolute> : null}
-            <Absolute className={NotificationOperation} top="44px" left="-15px" onClick={() => {
-                copyToClipboard(props.title + "\n" + props.body);
+            <Absolute className={NotificationOperation} top="44px" left="-15px" onClick={e => {
+                e.stopPropagation();
+                let content = props.title;
+                if (typeof props.body === "string") {
+                    content += `\n${props.body}`;
+                }
+                copyToClipboard(content);
                 setCopied(true);
             }}>
                 <TooltipV2 tooltip="Copy to clipboard" contentWidth={150}>
@@ -104,6 +112,10 @@ const fadeInAnimation = makeKeyframe("fade-in-animation", `
   }
 `);
 
+const DefaultHidden = injectStyleSimple("default-hidden", `
+    display: none;    
+`);
+
 const NotificationOperation = injectStyleSimple("notification-operation", `
     background-color: var(--backgroundDefault);
     border: var(--defaultCardBorder);
@@ -125,7 +137,7 @@ const Style = injectStyle("notification", k => `
         cursor: pointer;
         animation: 0.5s ease-in notification-enter;
         width: 450px;
-        z-index: 1;
+        z-index: 1000;
         color: var(--textPrimary);
     }
 

@@ -1,4 +1,4 @@
-import {sendFailureNotification} from "@/Notifications";
+import {sendInformationNotification} from "@/Notifications";
 import {HttpClient} from "./lib";
 import {WebSocketFactory} from "./ws";
 import {onDevSite} from "@/UtilityFunctions";
@@ -18,7 +18,7 @@ if (onDevSite() || localStorage.getItem("ALLOW_JWT_COPY")) {
             if (e.code === "KeyK") {
                 await Client.receiveAccessTokenOrRefreshIt();
                 await navigator.clipboard.writeText(`localStorage.accessToken="${localStorage.accessToken}";localStorage.csrfToken="${localStorage.csrfToken}";`);
-                sendFailureNotification("Copied CSRF and access token to clipboard");
+                sendInformationNotification("Copied CSRF and access token to clipboard");
             } else if (e.code === "KeyL") {
 
                 // Not allowed on Firefox!

@@ -10,13 +10,12 @@ import {NotificationProps as NormalizedNotification} from "./Card";
 import * as Snooze from "./Snooze";
 import {callAPI} from "@/Authentication/DataHook";
 import {buildQueryString} from "@/Utilities/URIUtilities";
-import {triggerNotificationPopup, NotificationPopups} from "./Popups";
+import {triggerNotificationPopup} from "./Popups";
 import {useForcedRender} from "@/Utilities/ReactUtilities";
 import {timestampUnixMs} from "@/UtilityFunctions";
 import {Dispatch} from "redux";
 import {Location, NavigateFunction, useLocation, useNavigate} from "react-router-dom";
 import {useDispatch} from "react-redux";
-import {WebSocketConnection} from "@/Authentication/ws";
 import AppRoutes from "@/Routes";
 import {classConcatArray, injectStyle} from "@/Unstyled";
 import {useRefresh} from "@/Utilities/ReduxUtilities";
@@ -186,8 +185,14 @@ function resolveNotification(event: Notification): {
                 modifiedTitle: jobsFailedTitle,
                 modifiedMessage: jobsFailedMessage
             };
+        case "info":
+            return {icon: "heroInformationCircle", color: "iconColor", color2: "iconColor", modifiedTitle: UF.capitalized(event.type)};
+        case "success":
+            return {icon: "check", color: "successMain", color2: "successMain", modifiedTitle: UF.capitalized(event.type)};
+        case "failure":
+            return {icon: "close", color: "errorMain", color2: "errorMain", modifiedTitle: UF.capitalized(event.type)};
         default:
-            return {icon: "heroInformationCircle", color: "iconColor", color2: "iconColor2"};
+            return {icon: "heroInformationCircle", color: "iconColor", color2: "iconColor2", modifiedTitle: UF.capitalized(event.type)};
     }
 }
 
@@ -345,36 +350,30 @@ function initializeStore() {
 export const enum SnackType {
     Success,
     Information,
-    Failure,
-    Custom
+    Failure
 }
 
-interface IconColorAndName {
-    name: IconName;
-    color: ThemeColor;
-    color2: ThemeColor;
-}
-
-const iconNameAndColorFromSnack: Record<Exclude<SnackType, SnackType.Custom>, IconColorAndName> = {
-    [SnackType.Success]: {name: "check", color: "successMain", color2: "successMain"},
-    [SnackType.Information]: {name: "heroInformationCircle", color: "backgroundDefault", color2: "backgroundDefault"},
-    [SnackType.Failure]: {name: "close", color: "errorMain", color2: "errorMain"},
-};
-
-function snackToNotification(message: string, kind: SnackType) {
-    const {name, color, color2}: IconColorAndName = iconNameAndColorFromSnack[kind];
-
+function snackToNotification(message: string, kind: SnackType): NormalizedNotification {
+    let type = "";
+    switch (kind) {
+        case SnackType.Failure:
+            type = "failure";
+            break;
+        case SnackType.Success:
+            type = "success";
+            break;
+        case SnackType.Information:
+            type = "info";
+            break;
+    }
     return normalizeNotification({
-        id: -new Date().getTime(),
+        id: UF.randomUUID(),
         message: message,
         read: false,
-        type: "info",
+        type,
         ts: new Date().getTime(),
-        meta: "",
-        icon: name,
-        iconColor: color,
-        iconColor2: color2,
-    })
+        meta: ""
+    });
 }
 
 export function sendSuccessNotification(message: string) {
@@ -518,7 +517,6 @@ export const Notifications: React.FunctionComponent<SidebarDialog> = props => {
     const unreadLength = notificationStore.filter(e => !e.read).length;
 
     return <>
-        <NotificationPopups />
         <Flex onClick={toggleNotifications} data-component="notifications" data-key="notifications-icon" cursor="pointer">
             <Relative top={0} left={0}>
                 <Flex justifyContent="center" width="48px">
@@ -626,7 +624,7 @@ const NoNotifications = (): React.ReactNode => <TextSpan>No notifications</TextS
 
 export interface Notification {
     type: string;
-    id: number;
+    id: string;
     message: string;
     ts: number;
     read: boolean;
@@ -665,7 +663,7 @@ export function normalizeNotification(
         isPinned: false,
         ts: notification.ts,
         read: notification.read,
-        uniqueId: `${notification.id}`,
+        uniqueId: notification.id,
         avatar: resolved.avatar,
         onSnooze: () => Snooze.snooze(`${notification.id}`),
     };

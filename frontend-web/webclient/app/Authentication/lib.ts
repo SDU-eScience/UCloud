@@ -386,7 +386,7 @@ export class HttpClient {
         await this.receiveAccessTokenOrRefreshIt();
     }
 
-    public createOneTimeTokenWithPermission(permission): Promise<any> {
+    public async createOneTimeTokenWithPermission(permission: string): Promise<string> {
         return this.receiveAccessTokenOrRefreshIt()
             .then(token => {
                 const oneTimeToken = this.computeURL(this.authContext, `/request?audience=${permission}`);
