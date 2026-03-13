@@ -30,10 +30,16 @@ func initApiTokens() {
 	)
 
 	orcapi.ApiTokenCreate.Handler(func(info rpc.RequestInfo, request orcapi.ApiTokenSpecification) (orcapi.ApiToken, *util.HttpError) {
+		if sourceIPisRestricted(info) {
+			return orcapi.ApiToken{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
+		}
 		return ApiTokenCreate(info.Actor, request)
 	})
 
 	orcapi.ApiTokenBrowse.Handler(func(info rpc.RequestInfo, request orcapi.ApiTokenBrowseRequest) (fndapi.PageV2[orcapi.ApiToken], *util.HttpError) {
+		if sourceIPisRestricted(info) {
+			return fndapi.PageV2[orcapi.ApiToken]{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
+		}
 		return ApiTokenBrowse(info.Actor, request)
 	})
 
@@ -42,6 +48,9 @@ func initApiTokens() {
 	})
 
 	orcapi.ApiTokenRevoke.Handler(func(info rpc.RequestInfo, request fndapi.FindByStringId) (util.Empty, *util.HttpError) {
+		if sourceIPisRestricted(info) {
+			return util.Empty{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
+		}
 		return util.Empty{}, ApiTokenRevoke(info.Actor, ResourceParseId(request.Id))
 	})
 

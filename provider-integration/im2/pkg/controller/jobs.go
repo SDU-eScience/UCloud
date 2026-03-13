@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"slices"
 	"strings"
@@ -300,29 +301,6 @@ func initJobs() {
 			}
 		})
 
-		orcapi.JobsProviderUnsuspend.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.JobsProviderUnsuspendRequestItem]) (fnd.BulkResponse[util.Empty], *util.HttpError) {
-			var errors []*util.HttpError
-
-			for _, item := range request.Items {
-				err := Jobs.Unsuspend(item.Job)
-
-				if err != nil {
-					errors = append(errors, err)
-				}
-			}
-
-			if len(errors) > 0 {
-				return fnd.BulkResponse[util.Empty]{}, errors[0]
-			} else {
-				var response fnd.BulkResponse[util.Empty]
-				for i := 0; i < len(request.Items); i++ {
-					response.Responses = append(response.Responses, util.Empty{})
-				}
-
-				return response, nil
-			}
-		})
-
 		orcapi.JobsProviderExtend.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.JobsProviderExtendRequestItem]) (fnd.BulkResponse[util.Empty], *util.HttpError) {
 			var errors []*util.HttpError
 
@@ -428,10 +406,10 @@ func initJobs() {
 					dInfo, found := DriveRetrieve(driveId)
 					if found {
 						policies := RetrievePoliciesByProject(dInfo.Owner.Project.String())
-						specs, hasIntegratedRestrictions := policies[fnd.RestrictIntegratedApplications.String()]
+						iAppSpecs, hasIntegratedRestrictions := policies[fnd.RestrictIntegratedApplications.String()]
 						if hasIntegratedRestrictions {
 							isRestricted := true
-							for _, property := range specs.Properties {
+							for _, property := range iAppSpecs.Properties {
 								if property.Name == "allowList" {
 									for _, element := range property.TextElements {
 										if element == "terminal" {
@@ -445,6 +423,9 @@ func initJobs() {
 							if isRestricted {
 								return fnd.BulkResponse[orcapi.OpenSession]{}, util.HttpErr(http.StatusForbidden, "Project does not allow integrated terminal (IM side)")
 							}
+						}
+						if IsSourceIPRestricted(policies, info) {
+							return fnd.BulkResponse[orcapi.OpenSession]{}, util.HttpErr(http.StatusForbidden, "Client IP is not allowed")
 						}
 					} else {
 						return fnd.BulkResponse[orcapi.OpenSession]{}, util.HttpErr(http.StatusNotFound, "Folder cannot be found")
@@ -1767,4 +1748,26 @@ func jobRoutesRefresh() {
 	}
 
 	webSessionsMutex.Unlock()
+}
+
+func IsSourceIPRestricted(projectPolices map[string]*fnd.PolicySpecification, info rpc.RequestInfo) bool {
+	sourceIPSpecs, hasSourceIpRestriction := projectPolices[fnd.RestrictSourceIPRange.String()]
+	if hasSourceIpRestriction {
+		isRestricted := true
+		for _, property := range sourceIPSpecs.Properties {
+			if property.Name == "allowedClientSubnets" {
+				allowedIps := property.Text
+				if allowedIps == "" {
+					break
+				}
+				_, subnet, _ := net.ParseCIDR(allowedIps)
+				ip := net.ParseIP(util.ClientIP(info.HttpRequest).String())
+				if subnet.Contains(ip) {
+					isRestricted = false
+				}
+			}
+		}
+		return isRestricted
+	}
+	return false
 }

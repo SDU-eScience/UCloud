@@ -91,6 +91,9 @@ func initSyncthing() {
 					if syncthingIsRestricted(actorWithProject) {
 						return util.Empty{}, util.HttpErr(http.StatusForbidden, "Project does not allow users to use Syncthing")
 					}
+					if sourceIPisRestricted(info) {
+						return util.Empty{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
+					}
 				}
 			}
 		}

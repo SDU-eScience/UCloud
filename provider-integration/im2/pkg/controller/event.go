@@ -192,9 +192,7 @@ func eventHandleNotification(nType EventNotificationMessageType, notification an
 		eventUpdateReplayFromToNow()
 
 	case EventNotificationMessagePolicesUpdated:
-		fmt.Printf("%v \n", notification)
 		update := notification.(*EventPoliciesUpdated)
-		fmt.Printf("UPDTA: %+v \n", update)
 		updatePolicyCacheForProject(update.ProjectId, update.PoliciesSpecifications)
 	}
 }
@@ -854,18 +852,16 @@ func RetrievePoliciesByProject(projectId string) map[string]*fnd.PolicySpecifica
 		policyCache.Mu.Unlock()
 		return projectPolicies
 	} else {
-		panic("PoliciesByProject is only implemented for server mode")
+		panic("RetrievePoliciesByProject is only implemented for server mode")
 	}
 }
 
 func policySpecificationsRetrieveFromCore(projectId string) (map[string]*fnd.PolicySpecification, bool) {
-	println("PULLING FROM CORE")
 	retrievedPolices, err := fnd.PoliciesRetrieve.Invoke(fnd.RetrievePoliciesRequest{ProjectId: projectId})
 	if err != nil {
 		fmt.Printf("Error %v\n", err)
 		return nil, false
 	}
-	fmt.Printf("%v \n ", retrievedPolices)
 	var policies = make(map[string]*fnd.PolicySpecification)
 	for _, policy := range retrievedPolices {
 		policies[policy.Specification.Schema] = &policy.Specification

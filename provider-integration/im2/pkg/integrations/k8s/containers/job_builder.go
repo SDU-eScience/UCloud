@@ -160,12 +160,26 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		allowNetworkTo(firewall, job.Id)
 
 		if job.Owner.Project.Present {
-			policySpec, hasRestriction := controller.RetrievePoliciesByProject(job.Owner.Project.String())[foundation.RestrictInternetAccess.String()]
+			policyAccessSpec, hasRestriction := controller.RetrievePoliciesByProject(job.Owner.Project.String())[foundation.RestrictInternetAccess.String()]
 			if hasRestriction {
-				for _, prop := range policySpec.Properties {
+				for _, prop := range policyAccessSpec.Properties {
 					if prop.Name == "allowedSubnets" {
 						if prop.Text == "" {
 							firewall.Spec.PolicyTypes = []networking.PolicyType{networking.PolicyTypeEgress}
+						} else {
+							allowNetworkToSubnet(firewall, prop.Text)
+						}
+						break
+					}
+				}
+			}
+
+			policySourceSpec, hasRestriction := controller.RetrievePoliciesByProject(job.Owner.Project.String())[foundation.RestrictSourceIPRange.String()]
+			if hasRestriction {
+				for _, prop := range policySourceSpec.Properties {
+					if prop.Name == "allowedSubnets" {
+						if prop.Text == "" {
+							firewall.Spec.PolicyTypes = []networking.PolicyType{networking.PolicyTypeIngress}
 						} else {
 							allowNetworkToSubnet(firewall, prop.Text)
 						}

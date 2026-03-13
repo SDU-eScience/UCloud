@@ -1,12 +1,15 @@
 package accounting
 
 import (
+	"net"
 	"sync"
 
 	"ucloud.dk/core/pkg/coreutil"
 	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
+	"ucloud.dk/shared/pkg/rpc"
+	"ucloud.dk/shared/pkg/util"
 )
 
 // policyCache is a mapping of projectId -> map[schemaName] -> PolicySpecification
@@ -41,4 +44,28 @@ func updatePolicyCacheForProject(projectId string, policySpecifications map[stri
 	policyCache.Mu.Lock()
 	policyCache.PoliciesByProject[projectId] = policySpecifications
 	policyCache.Mu.Unlock()
+}
+
+func sourceIPisRestricted(info rpc.RequestInfo) bool {
+	if info.Actor.Project.Present {
+		sourceIpSpecs, hasSourceRestriction := policiesByProject(info.Actor.Project.String())[fndapi.RestrictSourceIPRange.String()]
+		if hasSourceRestriction {
+			isRestricted := true
+			for _, property := range sourceIpSpecs.Properties {
+				if property.Name == "allowedClientSubnets" {
+					allowedIps := property.Text
+					if allowedIps == "" {
+						break
+					}
+					_, subnet, _ := net.ParseCIDR(allowedIps)
+					ip := net.ParseIP(util.ClientIP(info.HttpRequest).String())
+					if subnet.Contains(ip) {
+						isRestricted = false
+					}
+				}
+			}
+			return isRestricted
+		}
+	}
+	return false
 }

@@ -19,6 +19,9 @@ import (
 
 func initSsh() {
 	orcapi.SshCreate.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.SshKeySpecification]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
+		if sourceIPisRestricted(info) {
+			return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
+		}
 		result, err := SshKeyCreate(info.Actor, request.Items)
 		if err != nil {
 			return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
@@ -28,21 +31,33 @@ func initSsh() {
 	})
 
 	orcapi.SshRetrieve.Handler(func(info rpc.RequestInfo, request fndapi.FindByStringId) (orcapi.SshKey, *util.HttpError) {
+		if sourceIPisRestricted(info) {
+			return orcapi.SshKey{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
+		}
 		result, err := SshKeyRetrieve(info.Actor, request.Id)
 		return result, err
 	})
 
 	orcapi.SshBrowse.Handler(func(info rpc.RequestInfo, request orcapi.SshKeysBrowseRequest) (fndapi.PageV2[orcapi.SshKey], *util.HttpError) {
+		if sourceIPisRestricted(info) {
+			return fndapi.PageV2[orcapi.SshKey]{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
+		}
 		result := SshKeyBrowse(info.Actor, request)
 		return result, nil
 	})
 
 	orcapi.SshDelete.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[fndapi.FindByStringId]) (util.Empty, *util.HttpError) {
+		if sourceIPisRestricted(info) {
+			return util.Empty{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
+		}
 		err := SshKeyDelete(info.Actor, request.Items)
 		return util.Empty{}, err
 	})
 
 	orcapi.JobsControlBrowseSshKeys.Handler(func(info rpc.RequestInfo, request orcapi.JobsControlBrowseSshKeysRequest) (fndapi.PageV2[orcapi.SshKey], *util.HttpError) {
+		if sourceIPisRestricted(info) {
+			return fndapi.PageV2[orcapi.SshKey]{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
+		}
 		keys, err := SshKeyRetrieveByJob(info.Actor, request.JobId)
 		if err != nil {
 			return fndapi.PageV2[orcapi.SshKey]{}, err

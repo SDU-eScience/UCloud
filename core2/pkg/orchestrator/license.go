@@ -27,6 +27,10 @@ func initLicenses() {
 	)
 
 	orcapi.LicensesBrowse.Handler(func(info rpc.RequestInfo, request orcapi.LicensesBrowseRequest) (fndapi.PageV2[orcapi.License], *util.HttpError) {
+		if sourceIPisRestricted(info) {
+			return fndapi.PageV2[orcapi.License]{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
+		}
+
 		sortByFn := ResourceDefaultComparator(func(item orcapi.License) orcapi.Resource {
 			return item.Resource
 		}, request.ResourceFlags)
@@ -59,6 +63,10 @@ func initLicenses() {
 	})
 
 	orcapi.LicensesCreate.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.LicenseSpecification]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
+		if sourceIPisRestricted(info) {
+			return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
+		}
+
 		var result []fndapi.FindByStringId
 		for _, item := range request.Items {
 			license, err := ResourceCreateThroughProvider(
@@ -80,6 +88,10 @@ func initLicenses() {
 	})
 
 	orcapi.LicensesDelete.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[fndapi.FindByStringId]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
+		if sourceIPisRestricted(info) {
+			return fndapi.BulkResponse[util.Empty]{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
+		}
+
 		for _, item := range request.Items {
 			err := ResourceDeleteThroughProvider(info.Actor, licenseType, item.Id, orcapi.LicensesProviderDelete)
 			if err != nil {
@@ -105,6 +117,10 @@ func initLicenses() {
 	})
 
 	orcapi.LicensesRetrieve.Handler(func(info rpc.RequestInfo, request orcapi.LicensesRetrieveRequest) (orcapi.License, *util.HttpError) {
+		if sourceIPisRestricted(info) {
+			return orcapi.License{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
+		}
+
 		return ResourceRetrieve[orcapi.License](info.Actor, licenseType, ResourceParseId(request.Id), request.ResourceFlags)
 	})
 
@@ -113,6 +129,10 @@ func initLicenses() {
 	})
 
 	orcapi.LicensesUpdateAcl.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.UpdatedAcl]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
+		if sourceIPisRestricted(info) {
+			return fndapi.BulkResponse[util.Empty]{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
+		}
+
 		for _, item := range request.Items {
 			err := ResourceUpdateAcl(info.Actor, licenseType, item)
 			if err != nil {

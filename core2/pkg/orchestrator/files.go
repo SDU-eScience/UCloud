@@ -21,51 +21,87 @@ import (
 
 func initFiles() {
 	orcapi.FilesBrowse.Handler(func(info rpc.RequestInfo, request orcapi.FilesBrowseRequest) (fndapi.PageV2[orcapi.UFile], *util.HttpError) {
+		if sourceIPisRestricted(info) {
+			return fndapi.PageV2[orcapi.UFile]{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
+		}
 		return FilesBrowse(info.Actor, request)
 	})
 
 	orcapi.FilesRetrieve.Handler(func(info rpc.RequestInfo, request orcapi.FilesRetrieveRequest) (orcapi.UFile, *util.HttpError) {
+		if sourceIPisRestricted(info) {
+			return orcapi.UFile{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
+		}
 		return FilesRetrieve(info.Actor, request)
 	})
 
 	orcapi.FilesMove.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.FilesSourceAndDestination]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
+		if sourceIPisRestricted(info) {
+			return fndapi.BulkResponse[util.Empty]{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
+		}
 		return FilesMove(info.Actor, request)
 	})
 
 	orcapi.FilesCopy.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.FilesSourceAndDestination]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
+		if sourceIPisRestricted(info) {
+			return fndapi.BulkResponse[util.Empty]{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
+		}
 		return FilesCopy(info.Actor, request)
 	})
 
 	orcapi.FilesCreateUpload.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.FilesCreateUploadRequest]) (fndapi.BulkResponse[orcapi.FilesCreateUploadResponse], *util.HttpError) {
+		if sourceIPisRestricted(info) {
+			return fndapi.BulkResponse[orcapi.FilesCreateUploadResponse]{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
+		}
 		return FilesCreateUpload(info.Actor, request)
 	})
 
 	orcapi.FilesCreateDownload.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[fndapi.FindByStringId]) (fndapi.BulkResponse[orcapi.FilesCreateDownloadResponse], *util.HttpError) {
+		if sourceIPisRestricted(info) {
+			return fndapi.BulkResponse[orcapi.FilesCreateDownloadResponse]{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
+		}
 		return FilesCreateDownload(info.Actor, request)
 	})
 
 	orcapi.FilesCreateFolder.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.FilesCreateFolderRequest]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
+		if sourceIPisRestricted(info) {
+			return fndapi.BulkResponse[util.Empty]{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
+		}
 		return FilesCreateFolder(info.Actor, request)
 	})
 
 	orcapi.FilesDelete.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[fndapi.FindByStringId]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
+		if sourceIPisRestricted(info) {
+			return fndapi.BulkResponse[util.Empty]{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
+		}
 		return FilesDelete(info.Actor, request)
 	})
 
 	orcapi.FilesTrash.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[fndapi.FindByStringId]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
+		if sourceIPisRestricted(info) {
+			return fndapi.BulkResponse[util.Empty]{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
+		}
 		return FilesMoveToTrash(info.Actor, request)
 	})
 
 	orcapi.FilesEmptyTrash.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[fndapi.FindByStringId]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
+		if sourceIPisRestricted(info) {
+			return fndapi.BulkResponse[util.Empty]{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
+		}
 		return FilesEmptyTrash(info.Actor, request)
 	})
 
 	orcapi.FilesStreamingSearch.Handler(func(info rpc.RequestInfo, request util.Empty) (util.Empty, *util.HttpError) {
+		if sourceIPisRestricted(info) {
+			return util.Empty{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
+		}
 		FilesStreamingSearch(info.WebSocket)
 		return util.Empty{}, nil
 	})
 
 	orcapi.FilesTransfer.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.FilesTransferRequest]) (util.Empty, *util.HttpError) {
+		if sourceIPisRestricted(info) {
+			return util.Empty{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
+		}
 		for _, reqItem := range request.Items {
 			err := FilesTransfer(info.Actor, reqItem)
 			if err != nil {
