@@ -19,7 +19,7 @@ func initJobAuditLog() {
 	go func() {
 		cleanupLogs(retentionDays) // run once at startup
 
-		ticker := time.NewTicker(24 * time.Hour)
+		ticker := time.NewTicker(4 * time.Hour)
 		defer ticker.Stop()
 
 		for range ticker.C {
