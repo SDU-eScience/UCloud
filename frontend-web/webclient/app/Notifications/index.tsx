@@ -299,6 +299,7 @@ function renderNotifications() {
 // NOTE(Dan): The frontend can generate its own notification through `sendNotification()`.
 export function sendNotification(notification: NormalizedNotification, forceShow: boolean = false) {
     const normalized = normalizeNotification(notification);
+    normalized.read = true;
     const existing = notificationStore.find(item => item.uniqueId === normalized.uniqueId);
     if (existing) {
         if (forceShow) Snooze.wakeNotification(normalized.uniqueId);
