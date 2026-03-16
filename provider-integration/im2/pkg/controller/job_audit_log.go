@@ -13,12 +13,12 @@ import (
 var jobAuditFileRegex = regexp.MustCompile(`^audit-(\d+)-(\d{4}-\d{2}-\d{2})\.jsonl$`)
 
 func initJobAuditLog() {
-	cfgK8s := config.Services.Kubernetes()
-	if cfgK8s == nil {
-		log.Error("Job audit log server failed to initialize Kubernetes config")
+	k8sCfg := config.Services.Kubernetes()
+	if k8sCfg == nil {
+		log.Error("Job audit log server failed to get Kubernetes config")
 		return
 	}
-	jobAuditLogFolder := filepath.Join(cfgK8s.FileSystem.MountPoint, "audit")
+	jobAuditLogFolder := filepath.Join(k8sCfg.FileSystem.MountPoint, "audit")
 	retentionDays := config.Provider.JobAuditLog.RetentionPeriodInDays
 	go func() {
 		cleanupLogs(jobAuditLogFolder, retentionDays) // run once at startup
