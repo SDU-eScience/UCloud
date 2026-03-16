@@ -117,8 +117,8 @@ func policiesRetrieve(actor rpc.Actor, request fndapi.RetrievePoliciesRequest) (
 		if !actor.Project.Present {
 			return nil, util.HttpErr(http.StatusBadRequest, "Polices only applicable to projects")
 		}
-		if !actor.Membership[actor.Project.Value].Satisfies(rpc.ProjectRoleAdmin) {
-			return nil, util.HttpErr(http.StatusForbidden, "Only PIs and Admins may list the policies")
+		if !actor.Membership[actor.Project.Value].Equals(rpc.ProjectRoleDataManager) {
+			return nil, util.HttpErr(http.StatusForbidden, "Only data managers may list the policies")
 		}
 		projectId = actor.Project.String()
 	}
@@ -155,8 +155,8 @@ func policiesUpdate(actor rpc.Actor, request fndapi.PoliciesUpdateRequest) (util
 	if !actor.Project.Present {
 		return util.Empty{}, util.HttpErr(http.StatusBadRequest, "Polices only applicable to projects")
 	}
-	if !actor.Membership[actor.Project.Value].Satisfies(rpc.ProjectRolePI) {
-		return util.Empty{}, util.HttpErr(http.StatusForbidden, "Only PIs may update the policies")
+	if !actor.Membership[actor.Project.Value].Equals(rpc.ProjectRoleDataManager) {
+		return util.Empty{}, util.HttpErr(http.StatusForbidden, "Only data managers may update the policies")
 	}
 
 	filteredUpdates := map[string]map[string]fndapi.PolicySpecification{}
