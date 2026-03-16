@@ -247,39 +247,9 @@ func inferenceReportUsage(owner apm.WalletOwner, promptTokens int, completionTok
 	})
 }
 
-// TODO modify function to let provider create API token upon request (not automatically)
-func inferenceHandleApmEvent(update *controller.EventWalletUpdated) {
-	if update.Category.Name == inferenceGlobals.Product.Category.Name {
-		owner := update.Owner.ProjectId
-		if owner == "" {
-			owner = update.Owner.Username
-		}
+// TODO make function to let provider create API token upon request (not automatically)
+func inferenceProviderCreateToken() {
 
-		db.NewTx0(func(tx *db.Transaction) {
-			_, hasKey := db.Get[struct{ Owner string }](
-				tx,
-				`select owner from inference_api_keys where owner = :owner`,
-				db.Params{
-					"owner": owner,
-				},
-			)
-
-			if !hasKey {
-				newKey := util.SecureToken()
-				db.Exec(
-					tx,
-					`
-						insert into inference_api_keys(api_key, owner)
-						values (:key, :owner)
-				    `,
-					db.Params{
-						"owner": owner,
-						"key":   newKey,
-					},
-				)
-			}
-		})
-	}
 }
 
 var inferenceApiKeysCache = util.NewCache[string, string](1 * time.Hour)

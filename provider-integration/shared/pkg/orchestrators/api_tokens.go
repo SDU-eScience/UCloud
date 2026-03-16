@@ -91,5 +91,11 @@ var ApiTokenProviderRetrieveOptions = rpc.Call[util.Empty, ApiTokenRetrieveOptio
 	Roles:       rpc.RolesService,
 }
 
+var ApiTokenProviderCreate = rpc.Call[ApiToken, ApiTokenStatus]{
+	BaseContext: apiTokenContext,
+	Convention:  rpc.ConventionCreate,
+	Roles:       rpc.RolesService,
+}
+
 // NOTE(Dan): There is no ACL endpoint because this API doesn't actually save the token. It saves, at most (in the
 // case of UCloud/Core tokens), a hash of the token. As a result, there would be nothing to give access to.

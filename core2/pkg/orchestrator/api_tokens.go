@@ -67,11 +67,6 @@ func ApiTokenCreate(actor rpc.Actor, request orcapi.ApiTokenSpecification) (orca
 	util.ValidateString(&request.Description, "description", util.StringValidationAllowEmpty, &err)
 	util.ValidateStringIfPresent(&request.Provider, "provider", 0, &err)
 
-	// TODO Send request for provider to create API token
-	if err == nil && request.Provider.Present {
-		err = util.HttpErr(http.StatusForbidden, "not yet implemented")
-	}
-
 	if err == nil && request.ExpiresAt.Time().Before(time.Now()) {
 		err = util.HttpErr(http.StatusBadRequest, "requested token has already expired")
 	}
@@ -109,28 +104,53 @@ func ApiTokenCreate(actor rpc.Actor, request orcapi.ApiTokenSpecification) (orca
 		return orcapi.ApiToken{}, err
 	}
 
-	userToken := util.SecureToken()
-	hashedToken := util.HashPassword(userToken, util.GenSalt())
-
 	itok := &internalApiToken{
 		Provider:    request.Provider,
 		Title:       request.Title,
 		Description: request.Description,
 		Permissions: request.RequestedPermissions,
 		ExpiresAt:   request.ExpiresAt.Time(),
-		TokenHash:   hashedToken.HashedPassword,
-		TokenSalt:   hashedToken.Salt,
 	}
 
-	tokId, tok, err := ResourceCreate[orcapi.ApiToken](actor, apiTokenType, util.OptNone[accapi.ProductReference](), itok)
-	if err != nil {
-		return orcapi.ApiToken{}, err
+	var tokId ResourceId
+	var tok orcapi.ApiToken
+	var userToken string
+
+	if request.Provider.Present {
+		tokId, tok, err = ResourceCreate[orcapi.ApiToken](actor, apiTokenType, util.OptNone[accapi.ProductReference](), itok)
+		if err != nil {
+			return orcapi.ApiToken{}, err
+		}
+
+		status, err := InvokeProvider(request.Provider.Value, orcapi.ApiTokenProviderCreate, tok, ProviderCallOpts{
+			Username: util.OptValue(actor.Username),
+		})
+
+		if err != nil {
+			ResourceDelete(actor, apiTokenType, tokId)
+			return orcapi.ApiToken{}, err
+		}
+
+		tok.Status = status
+		ResourceConfirm(apiTokenType, tokId)
+
+	} else {
+		userToken = util.SecureToken()
+		hashedToken := util.HashPassword(userToken, util.GenSalt())
+
+		itok.TokenHash = hashedToken.HashedPassword
+		itok.TokenSalt = hashedToken.Salt
+
+		tokId, tok, err = ResourceCreate[orcapi.ApiToken](actor, apiTokenType, util.OptNone[accapi.ProductReference](), itok)
+		if err != nil {
+			return orcapi.ApiToken{}, err
+		}
+
+		ResourceConfirm(apiTokenType, tokId)
+
+		userTokenToUse := fmt.Sprintf("uc%x-%s", int(tokId), userToken)
+		tok.Status.Token.Set(userTokenToUse)
 	}
-
-	ResourceConfirm(apiTokenType, tokId)
-
-	userTokenToUse := fmt.Sprintf("uc%x-%s", int(tokId), userToken)
-	tok.Status.Token.Set(userTokenToUse)
 
 	return tok, nil
 }
