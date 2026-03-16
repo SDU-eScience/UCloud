@@ -126,10 +126,12 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		Name: ContainerUserJob,
 	})
 
-	spec.Containers = append(spec.Containers, core.Container{
-		Name:  ContainerAuditLog,
-		Image: "alpine:latest",
-	})
+	if isJobAuditLogEnabled(&resolvedApplication.Invocation) {
+		spec.Containers = append(spec.Containers, core.Container{
+			Name:  ContainerAuditLog,
+			Image: "alpine:latest",
+		})
+	}
 
 	userContainer := &spec.Containers[0]
 	userContainer.ImagePullPolicy = core.PullIfNotPresent
@@ -141,7 +143,9 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		userContainer.Image = tool.Description.Container
 	}
 
-	setupAuditlog(spec, userContainer)
+	if isJobAuditLogEnabled(&resolvedApplication.Invocation) {
+		jobAuditLogSetup(job, rank, spec, userContainer, "48291")
+	}
 
 	// Setting up network policy and service
 	// -----------------------------------------------------------------------------------------------------------------
@@ -496,6 +500,10 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	return herr
 }
 
+func isJobAuditLogEnabled(description *orc.ApplicationInvocationDescription) bool {
+	return description.JobAuditLogIsEnabled.Present && description.JobAuditLogIsEnabled.Value
+}
+
 func allowNetworkFrom(policy *networking.NetworkPolicy, jobId string) {
 	selector := k8PodSelectorForJob(jobId)
 	spec := &policy.Spec
@@ -620,35 +628,50 @@ func jobHostName(jobId string, rank int) string {
 	)
 }
 
-func setupAuditlog(spec *core.PodSpec, userContainer *core.Container) {
+func jobAuditLogSetup(job *orc.Job, rank int, spec *core.PodSpec, userContainer *core.Container, serverPort string) {
+	subpath := fmt.Sprintf("audit/%s", job.Id)
+	_ = filesystem.DoCreateFolder(filepath.Join(ServiceConfig.FileSystem.MountPoint, subpath))
+	container := &spec.Containers[len(spec.Containers)-1]
+	container.ImagePullPolicy = core.PullIfNotPresent
+	container.Resources.Limits = map[core.ResourceName]resource.Quantity{}
+	container.Resources.Requests = map[core.ResourceName]resource.Quantity{}
+	container.SecurityContext = &core.SecurityContext{}
+	container.Command = []string{"/opt/ucloud/ucloud", "start-job-audit-log-server", serverPort}
 
-	auditLogContainer := &spec.Containers[len(spec.Containers)-1]
-	auditLogContainer.ImagePullPolicy = core.PullIfNotPresent
-	auditLogContainer.Resources.Limits = map[core.ResourceName]resource.Quantity{}
-	auditLogContainer.Resources.Requests = map[core.ResourceName]resource.Quantity{}
-	auditLogContainer.SecurityContext = &core.SecurityContext{}
-	auditLogContainer.Command = []string{"tail", "-f", "/dev/null"}
-
-	auditVolumeName := "ucloud-audit"
-	spec.Volumes = append(spec.Volumes, core.Volume{
-		Name: auditVolumeName,
-		VolumeSource: core.VolumeSource{
-			HostPath: &core.HostPathVolumeSource{
-				Path: "/mnt/storage/audit",
-				Type: util.Pointer(core.HostPathDirectoryOrCreate),
-			},
-		},
+	container.VolumeMounts = append(container.VolumeMounts, core.VolumeMount{
+		Name:      "ucloud-filesystem",
+		ReadOnly:  true,
+		MountPath: "/opt/ucloud",
+		SubPath:   shared.ExecutablesDir,
 	})
 
+	auditVolumeName := "ucloud-filesystem"
 	userContainer.VolumeMounts = append(userContainer.VolumeMounts, core.VolumeMount{
 		Name:      auditVolumeName,
 		ReadOnly:  true,
 		MountPath: "/audit",
+		SubPath:   subpath,
 	})
 
-	auditLogContainer.VolumeMounts = append(auditLogContainer.VolumeMounts, core.VolumeMount{
+	container.VolumeMounts = append(container.VolumeMounts, core.VolumeMount{
 		Name:      auditVolumeName,
 		ReadOnly:  false,
 		MountPath: "/audit",
+		SubPath:   subpath,
+	})
+
+	container.Env = append(container.Env, core.EnvVar{
+		Name:  "UCLOUD_RANK",
+		Value: fmt.Sprint(rank),
+	})
+
+	container.Env = append(container.Env, core.EnvVar{
+		Name:  "UCLOUD_JOB_ID",
+		Value: job.Id,
+	})
+
+	container.Env = append(container.Env, core.EnvVar{
+		Name:  "UCLOUD_WORKSPACE_ID",
+		Value: job.Owner.Project.GetOrDefault(job.Owner.CreatedBy),
 	})
 }
