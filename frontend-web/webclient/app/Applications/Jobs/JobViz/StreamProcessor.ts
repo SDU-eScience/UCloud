@@ -18,6 +18,7 @@ interface EventMap {
     "updateProgress": UpdateEvent<WidgetProgressBar>;
     "delete": DeleteEvent;
     "appendRow": {row: number[], channel: string};
+    "resetChannel": {channel: string};
     "kvPropertiesUpdated": {newProperties: Record<string, string>};
 }
 
@@ -77,6 +78,11 @@ export class StreamProcessor {
             case "utilization-data": {
                 const row = data.split(",").map(it => parseFloat(it));
                 this.dispatch("appendRow", {row, channel});
+                break;
+            }
+
+            case "utilization-data-reset": {
+                this.dispatch("resetChannel", {channel: "utilization-data"});
                 break;
             }
 

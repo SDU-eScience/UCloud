@@ -102,7 +102,7 @@ func FsRingCreate[T any](
 		return nil, errors.New("slot too small")
 	}
 
-	fd, err := unix.Open(path, unix.O_CREAT|unix.O_RDWR, 0644)
+	fd, err := unix.Open(path, unix.O_CREAT|unix.O_RDWR|unix.O_TRUNC, 0644)
 	if err != nil {
 		return nil, err
 	}
@@ -220,9 +220,11 @@ type FsRingReader[T any] struct {
 	slotSize   uint32
 	indexBase  int64
 	dataBase   int64
+	created    uint64
 	nextSeq    uint64
 	serializer FsRingSerializer[T]
 	cancelFn   func()
+	OnReset    func()
 }
 
 // FsRingOpen opens an existing ring and positions nextSeq to follow new data.
@@ -248,12 +250,15 @@ func FsRingOpen[T any](path string, serializer FsRingSerializer[T]) (*FsRingRead
 	indexBase := int64(ringSuperSize)
 	dataBase := int64(ringSuperSize) + int64(slots)*8
 
+	created := binary.BigEndian.Uint64(sb[24:32])
+
 	r := &FsRingReader[T]{
 		f:          f,
 		slots:      uint64(slots),
 		slotSize:   slotSize,
 		indexBase:  indexBase,
 		dataBase:   dataBase,
+		created:    created,
 		serializer: serializer,
 	}
 
@@ -295,6 +300,7 @@ func (r *FsRingReader[T]) Follow(ctx context.Context, out chan<- T, startFromTai
 	hdr := make([]byte, FsRingHeaderSize)
 	payload := make([]byte, r.slotSize-FsRingHeaderSize)
 	idx := make([]byte, 8)
+	consecutiveMisses := 0
 
 	for {
 		select {
@@ -315,14 +321,30 @@ func (r *FsRingReader[T]) Follow(ctx context.Context, out chan<- T, startFromTai
 
 		if cur == 0 || cur < seq {
 			// Not yet written. Wait and retry.
+			consecutiveMisses++
+			if consecutiveMisses >= 250 {
+				newCreated, err := fsRingReadCreated(r.f)
+				if err == nil && newCreated != r.created {
+					r.created = newCreated
+					r.nextSeq = 1
+					consecutiveMisses = 0
+					if r.OnReset != nil {
+						r.OnReset()
+					}
+					continue
+				}
+				consecutiveMisses = 0
+			}
 			time.Sleep(2 * time.Millisecond)
 			continue
 		}
 		if cur > seq {
 			// Overrun: writer lapped us. Jump forward.
 			r.nextSeq = cur
+			consecutiveMisses = 0
 			continue
 		}
+		consecutiveMisses = 0
 
 		dataOff := r.dataBase + int64(slot)*int64(r.slotSize)
 
@@ -362,6 +384,17 @@ func (r *FsRingReader[T]) Follow(ctx context.Context, out chan<- T, startFromTai
 
 func (r *FsRingReader[T]) Close() error {
 	err := r.f.Close()
-	r.cancelFn()
+	if r.cancelFn != nil {
+		r.cancelFn()
+	}
 	return err
+}
+
+func fsRingReadCreated(f *os.File) (uint64, error) {
+	buf := make([]byte, 8)
+	_, err := f.ReadAt(buf, 24)
+	if err != nil {
+		return 0, err
+	}
+	return binary.BigEndian.Uint64(buf), nil
 }

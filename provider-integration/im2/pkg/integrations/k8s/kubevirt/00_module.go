@@ -405,6 +405,7 @@ func follow(session *ctrl.FollowJobSession) {
 	}
 
 	utilizationChannel := make(chan []float64)
+	utilizationResetChannel := make(chan util.Empty, 8)
 	utilizationDataTracked := false
 	var utilizationData *util.FsRingReader[[]float64]
 	utilSerializer := util.FsRingSerializer[[]float64]{
@@ -453,6 +454,13 @@ func follow(session *ctrl.FollowJobSession) {
 			path := filepath.Join(logsFolder, ".ucviz-utilization-data")
 			ring, err := util.FsRingOpen(path, utilSerializer)
 			if err == nil {
+				ring.OnReset = func() {
+					select {
+					case utilizationResetChannel <- util.Empty{}:
+					default:
+					}
+				}
+
 				utilizationData = ring
 				utilizationDataTracked = true
 
@@ -511,6 +519,9 @@ func follow(session *ctrl.FollowJobSession) {
 		loop:
 			for {
 				select {
+				case <-utilizationResetChannel:
+					session.EmitLogs(0, util.OptValue(""), util.OptNone[string](), util.OptValue("utilization-data-reset"))
+
 				case row := <-utilizationChannel:
 					b := strings.Builder{}
 					for i, elem := range row {
