@@ -2,13 +2,30 @@ import * as Accounting from "@/Accounting";
 import * as Gifts from "@/Accounting/Gifts";
 import {deepCopy, newFuzzyMatchFuse} from "@/Utilities/CollectionUtilities";
 import * as React from "react";
-import {useCallback} from "react";
+import {useCallback, useEffect, useState} from "react";
 import {fetchAll} from "@/Utilities/PageUtilities";
 import {callAPI} from "@/Authentication/DataHook";
 import ProvidersApi from "@/UCloud/ProvidersApi";
-import {AllocationDisplayTreeRecipient, ProductType} from "@/Accounting";
+import {
+    AllocationDisplayTreeRecipient,
+    ProductType,
+    productTypeFromName,
+    productTypes,
+    productTypeToName
+} from "@/Accounting";
 import {ProjectInfo, projectInfoPi, projectInfoTitle} from "@/Project/InfoCache";
 import {Client} from "@/Authentication/HttpClientInstance";
+import UsageCore2, {UsageReport, usageReportRetrieve} from "@/Accounting/UsageCore2";
+import {timestampUnixMs} from "@/UtilityFunctions";
+import {useImmerState} from "@/Utilities/Immer";
+import {produce} from "immer";
+import {Feature} from "@/Features";
+import {SimpleRichItem} from "@/ui-components/RichSelect";
+import {largeModalStyle} from "@/Utilities/ModalUtilities";
+import {classConcat} from "@/Unstyled";
+import {CardClass} from "@/ui-components/Card";
+import {Flex, Icon, Input} from "@/ui-components";
+import {getProviderTitle, getShortProviderTitle} from "@/Providers/ProviderTitle";
 
 const fuzzyMatcher = newFuzzyMatchFuse<{title: string}, "title">(["title"]);
 
@@ -20,6 +37,7 @@ export interface State extends Accounting.AllocationDisplayTree {
         managedProviders?: string[];
         managedProducts?: Record<string, Accounting.ProductCategoryV2[]>;
         gifts?: Gifts.GiftWithCriteria[];
+        reports?: UsageReport[];
     };
 
     searchQuery: string;
@@ -46,6 +64,23 @@ export interface State extends Accounting.AllocationDisplayTree {
     viewOnlyProjects: boolean;
 
     filteredSubProjectIndices: number[]; // Indices into the subAllocations.recipients array
+
+    subprojectFilters: Record<string, SubProjectFilter>;
+}
+
+export interface SubProjectKeyValue {
+    key: string;
+    title: string;
+}
+
+export interface SubProjectFilter {
+    setting: SubProjectFilterSetting;
+    title: string;
+    description: string;
+    options: SubProjectKeyValue[];
+    selected?: string;
+    enabled: boolean;
+    feature?: Feature;
 }
 
 // State reducer
@@ -67,7 +102,20 @@ export type UIAction =
     | { type: "ToggleViewOnlyProjects" }
     | { type: "SortSubprojects", sortBy?: string, ascending: boolean }
     | { type: "SubProjectData", projects: Record<string, ProjectInfo | null> }
+    | { type: "UsageReportLoaded", reports: UsageReport[] }
+    | { type: "SubProjectFilterSettingUpdated", setting: SubProjectFilterSetting, newValue: string | undefined, enabled: boolean}
+    | { type: "SubProjectFilterSettingsLoad", settings: Record<SubProjectFilterSetting, SubProjectFilter> }
     ;
+
+export enum SubProjectFilterSetting {
+    IDLE_SUB_PROJECTS = "Idle sub-projects",
+    ALLOCATED_BY_PRODUCT_TYPE = "Allocated resource by product type",
+    ALLOCATED_BY_PRODUCT = "Allocated resource by product",
+    ALLOCATED_BY_PROVIDER = "Allocated resource by provider",
+    EXPIRED_ALLOCATIONS = "Expired allocations",
+    OVERALLOCATION_AT_RISK = "Overallocations at risk",
+    PERSONAL_WORKSPACES = "Personal workspaces"
+}
 
 function recipientTitle(recipient: AllocationDisplayTreeRecipient, state: State): string {
     return recipient.owner.reference.type === "user" ?
@@ -81,12 +129,120 @@ function recipientPrimaryUsername(recipient: AllocationDisplayTreeRecipient, sta
         projectInfoPi(state.subprojectInfo[recipient.owner.reference.projectId], recipient.owner.primaryUsername) ?? "-";
 }
 
-function searchQueryMatches(recipient: AllocationDisplayTreeRecipient, state: State, query: string) {
+function productCategoryKey(category: Accounting.ProductCategoryV2): string {
+    return `${category.name}/${category.provider}`;
+}
+
+function idleFilterToDays(selected: string | undefined): number | undefined {
+    if (!selected) return undefined;
+
+    const months = Number.parseInt(selected, 10);
+    if (!Number.isFinite(months) || months <= 0) return undefined;
+
+    return months * 30;
+}
+
+const AllocationStatusOptions = {
+    ALL: "All allocations",
+    ACTIVE_ONLY: "Active allocations",
+    EXPIRED_ONLY: "Expired allocations",
+    ALL_EXPIRED_ONLY: "All allocations expired",
+} as const;
+
+function recipientMatchesAllocationStatus(
+    recipient: AllocationDisplayTreeRecipient,
+    selected: string | undefined,
+    now: number,
+): boolean {
+    if (!selected || selected === AllocationStatusOptions.ALL) {
+        return true;
+    }
+
+    if (selected === AllocationStatusOptions.ALL_EXPIRED_ONLY) {
+        let foundAnyAllocation = false;
+
+        for (const group of recipient.groups) {
+            for (const allocation of group.allocations) {
+                foundAnyAllocation = true;
+                const isExpired = allocation.end < now;
+                if (!isExpired) {
+                    return false;
+                }
+            }
+        }
+
+        return foundAnyAllocation;
+    }
+
+    for (const group of recipient.groups) {
+        for (const allocation of group.allocations) {
+            const isExpired = allocation.end < now;
+            const isActive = allocation.start <= now && allocation.end >= now;
+
+            if (selected === AllocationStatusOptions.EXPIRED_ONLY && isExpired) {
+                return true;
+            }
+
+            if (selected === AllocationStatusOptions.ACTIVE_ONLY && isActive) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+function searchAndFilteringQueryMatches(recipient: AllocationDisplayTreeRecipient, state: State, query: string): boolean {
     if (recipient.owner.reference.type === "user" && state.viewOnlyProjects) return false;
     if (recipient.owner.reference.type === "project" && !state.viewOnlyProjects) return false;
+
+    let byTypeSetting = state.subprojectFilters[SubProjectFilterSetting.ALLOCATED_BY_PRODUCT_TYPE];
+    if (byTypeSetting.enabled && byTypeSetting.selected) {
+        const productType = productTypeFromName(byTypeSetting.selected);
+        let anyFound = false;
+        for (const group of recipient.groups) {
+            if (productType === group.category.productType) {
+                anyFound = true;
+                break;
+            }
+        }
+        if (!anyFound) return false;
+    }
+
+    const byProductSetting = state.subprojectFilters[SubProjectFilterSetting.ALLOCATED_BY_PRODUCT];
+    if (byProductSetting.enabled && byProductSetting.selected) {
+        let anyFound = false;
+        for (const group of recipient.groups) {
+            if (productCategoryKey(group.category) === byProductSetting.selected) {
+                anyFound = true;
+                break;
+            }
+        }
+        if (!anyFound) return false;
+    }
+
+    const byProviderSetting = state.subprojectFilters[SubProjectFilterSetting.ALLOCATED_BY_PROVIDER];
+    if (byProviderSetting.enabled && byProviderSetting.selected) {
+        let anyFound = false;
+        for (const group of recipient.groups) {
+            if (group.category.provider === byProviderSetting.selected) {
+                anyFound = true;
+                break;
+            }
+        }
+        if (!anyFound) return false;
+    }
+
+    const allocationStatusSetting = state.subprojectFilters[SubProjectFilterSetting.EXPIRED_ALLOCATIONS];
+    if (allocationStatusSetting.enabled) {
+        const now = Date.now();
+        if (!recipientMatchesAllocationStatus(recipient, allocationStatusSetting.selected, now)) {
+            return false;
+        }
+    }
+
     if (query === "") return true;
     const title = recipientTitle(recipient, state);
-
     fuzzyMatcher.setCollection([{title}]);
     return fuzzyMatcher.search(query).length > 0;
 }
@@ -289,6 +445,22 @@ export function stateReducer(state: State, action: UIAction): State {
             return rebuildTree({...state, viewOnlyProjects: !state.viewOnlyProjects});
         }
 
+        case "SubProjectFilterSettingsLoad": {
+            const newState = produce(state, draft => {
+                draft.subprojectFilters = action.settings;
+            });
+
+            return rebuildTree(newState);
+        }
+
+        case "SubProjectFilterSettingUpdated": {
+            return rebuildTree(produce(state, draft => {
+                draft.subprojectFilters[action.setting].selected = action.newValue;
+                draft.subprojectFilters[action.setting].enabled = action.enabled;
+                draft.subprojectFilters[action.setting].setting = action.setting;
+            }));
+        }
+
         case "UpdateAllocation": {
             const recipient = getOrNull(state.subAllocations.recipients, action.recipientIdx);
             if (!recipient) return state;
@@ -324,6 +496,14 @@ export function stateReducer(state: State, action: UIAction): State {
             return rebuildTree(newState);
         }
 
+        case "UsageReportLoaded": {
+            const newState= produce(state, draft => {
+                draft.remoteData.reports = action.reports;
+            });
+
+            return rebuildTree(newState);
+        }
+
         case "Reset": {
             return initialState();
         }
@@ -338,6 +518,129 @@ export function stateReducer(state: State, action: UIAction): State {
 
     function rebuildTree(state: State): State {
         const newTree = Accounting.buildAllocationDisplayTree((state.remoteData.wallets ?? []));
+
+        const providerOptions: SubProjectKeyValue[] = (() => {
+            const providers = new Set<string>();
+
+            for (const provider of state.remoteData.managedProviders ?? []) {
+                providers.add(provider);
+            }
+
+            for (const v of Object.values(state.yourAllocations)) {
+                for (const wallet of v.wallets) {
+                    providers.add(wallet.category.provider);
+                }
+            }
+
+            for (const recipient of newTree.subAllocations.recipients) {
+                for (const group of recipient.groups) {
+                    providers.add(group.category.provider);
+                }
+            }
+
+            return [...providers]
+                .map(providerId => ({key: providerId, title: getProviderTitle(providerId)}))
+                .sort((a, b) => a.title.localeCompare(b.title));
+        })();
+
+        const productOptions: SubProjectKeyValue[] = (() => {
+            const result: SubProjectKeyValue[] = [];
+
+            for (const recipient of newTree.subAllocations.recipients) {
+                for (const group of recipient.groups) {
+                    let key = productCategoryKey(group.category);
+                    if (!result.some(it => it.key === key)) {
+                        result.push({
+                            key: key,
+                            title: `${getShortProviderTitle(group.category.provider)}: ${group.category.name}`,
+                        });
+                    }
+                }
+            }
+
+            if (result.length === 0) {
+                result.push({ key: "nooptions", title: "No options available" });
+            }
+
+            return result.sort((a, b) => a.title.localeCompare(b.title));
+        })();
+
+        const currentProductTypeFilter =
+            state.subprojectFilters[SubProjectFilterSetting.ALLOCATED_BY_PRODUCT_TYPE] ??
+            subProjectsDefaultSettings[SubProjectFilterSetting.ALLOCATED_BY_PRODUCT_TYPE];
+        const selectedProductType = currentProductTypeFilter.selected;
+        const productTypeSelectionIsValid =
+            selectedProductType !== undefined && currentProductTypeFilter.options.map(it => it.key).includes(selectedProductType);
+        const normalizedProductTypeSelection =
+            productTypeSelectionIsValid ? selectedProductType : undefined;
+        const normalizedProductTypeEnabled =
+            normalizedProductTypeSelection !== undefined && currentProductTypeFilter.enabled;
+        const productTypeFilterChanged =
+            currentProductTypeFilter.selected !== normalizedProductTypeSelection ||
+            currentProductTypeFilter.enabled !== normalizedProductTypeEnabled;
+
+        let subprojectFilters = productTypeFilterChanged ? {
+            ...state.subprojectFilters,
+            [SubProjectFilterSetting.ALLOCATED_BY_PRODUCT_TYPE]: {
+                ...currentProductTypeFilter,
+                selected: normalizedProductTypeSelection,
+                enabled: normalizedProductTypeEnabled,
+            }
+        } : state.subprojectFilters;
+
+        const currentProductFilter =
+            subprojectFilters[SubProjectFilterSetting.ALLOCATED_BY_PRODUCT] ??
+            subProjectsDefaultSettings[SubProjectFilterSetting.ALLOCATED_BY_PRODUCT];
+        const selectedProduct = currentProductFilter.selected;
+        const productSelectionIsValid = selectedProduct !== undefined && productOptions.map(it => it.key).includes(selectedProduct);
+        const normalizedProductSelection = productSelectionIsValid ? selectedProduct : undefined;
+        const normalizedProductEnabled = normalizedProductSelection !== undefined && currentProductFilter.enabled;
+        const productOptionsUnchanged =
+            currentProductFilter.options.length === productOptions.length &&
+            currentProductFilter.options.every((it, idx) => it.key === productOptions[idx].key);
+        const productFilterUnchanged =
+            productOptionsUnchanged &&
+            currentProductFilter.selected === normalizedProductSelection &&
+            currentProductFilter.enabled === normalizedProductEnabled;
+
+        if (!productFilterUnchanged) {
+            subprojectFilters = {
+                ...subprojectFilters,
+                [SubProjectFilterSetting.ALLOCATED_BY_PRODUCT]: {
+                    ...currentProductFilter,
+                    options: productOptions,
+                    selected: normalizedProductSelection,
+                    enabled: normalizedProductEnabled,
+                }
+            };
+        }
+
+        const currentProviderFilter =
+            subprojectFilters[SubProjectFilterSetting.ALLOCATED_BY_PROVIDER] ??
+            subProjectsDefaultSettings[SubProjectFilterSetting.ALLOCATED_BY_PROVIDER];
+        const selectedProvider = currentProviderFilter.selected;
+        const providerSelectionIsValid = selectedProvider !== undefined && providerOptions.map(it => it.key).includes(selectedProvider);
+        const normalizedProviderSelection = providerSelectionIsValid ? selectedProvider : undefined;
+        const normalizedProviderEnabled = normalizedProviderSelection !== undefined && currentProviderFilter.enabled;
+        const providerOptionsUnchanged =
+            currentProviderFilter.options.length === providerOptions.length &&
+            currentProviderFilter.options.every((it, idx) => it.key === providerOptions[idx].key);
+        const providerFilterUnchanged =
+            providerOptionsUnchanged &&
+            currentProviderFilter.selected === normalizedProviderSelection &&
+            currentProviderFilter.enabled === normalizedProviderEnabled;
+
+        if (!providerFilterUnchanged) {
+            subprojectFilters = {
+                ...subprojectFilters,
+                [SubProjectFilterSetting.ALLOCATED_BY_PROVIDER]: {
+                    ...currentProviderFilter,
+                    options: providerOptions,
+                    selected: normalizedProviderSelection,
+                    enabled: normalizedProviderEnabled,
+                }
+            };
+        }
 
         newTree.subAllocations.recipients.sort((a, b) => {
             let naturalOrderResult = (() => {
@@ -431,11 +734,15 @@ export function stateReducer(state: State, action: UIAction): State {
         });
 
         const query = state.searchQuery;
+        const stateForFiltering = subprojectFilters === state.subprojectFilters ? state : {
+            ...state,
+            subprojectFilters,
+        };
 
         const filteredSubProjectIndices: number[] = [];
         for (let i = 0; i < newTree.subAllocations.recipients.length; i++) {
             const recipient = newTree.subAllocations.recipients[i];
-            if (searchQueryMatches(recipient, state, query)) {
+            if (searchAndFilteringQueryMatches(recipient, stateForFiltering, query)) {
                 filteredSubProjectIndices.push(i);
             }
         }
@@ -445,6 +752,7 @@ export function stateReducer(state: State, action: UIAction): State {
             yourAllocations: newTree.yourAllocations,
             subAllocations: newTree.subAllocations,
             filteredSubProjectIndices,
+            subprojectFilters,
         };
     }
 }
@@ -463,17 +771,22 @@ export function useEventReducer(didCancel: React.RefObject<boolean>, doDispatch:
             doDispatch(ev);
         }
 
+        function loadWallets(filterChildrenByIdleTimeInDays?: number) {
+            fetchAll(next =>
+                callAPI(Accounting.browseWalletsV2({
+                    itemsPerPage: 250,
+                    next,
+                    includeChildren: true,
+                    ...(filterChildrenByIdleTimeInDays !== undefined ? {filterChildrenByIdleTimeInDays} : {}),
+                }))
+            ).then(wallets => {
+                dispatch({type: "WalletsLoaded", wallets});
+            });
+        }
+
         switch (event.type) {
             case "Init": {
-                fetchAll(next =>
-                    callAPI(Accounting.browseWalletsV2({
-                        itemsPerPage: 250,
-                        next,
-                        includeChildren: true,
-                    }))
-                ).then(wallets => {
-                    dispatch({type: "WalletsLoaded", wallets});
-                });
+                loadWallets();
 
                 fetchManagedProviders().then(providers => {
                     dispatch({type: "ManagedProvidersLoaded", providerIds: providers});
@@ -510,6 +823,33 @@ export function useEventReducer(didCancel: React.RefObject<boolean>, doDispatch:
                     });
                 });
 
+                callAPI(usageReportRetrieve({
+                    start: timestampUnixMs() - (1000 * 60 * 60 * 24 * 7),
+                    end: timestampUnixMs()
+                })).then(result => {
+                    dispatch({type: "UsageReportLoaded", reports: result.reports});
+                });
+
+                break;
+            }
+
+            case "SubProjectFilterSettingsLoad": {
+                dispatch(event);
+
+                const idleSetting = event.settings[SubProjectFilterSetting.IDLE_SUB_PROJECTS];
+                if (idleSetting?.enabled) {
+                    loadWallets(idleFilterToDays(idleSetting.selected));
+                }
+                break;
+            }
+
+            case "SubProjectFilterSettingUpdated": {
+                dispatch(event);
+
+                if (event.setting === SubProjectFilterSetting.IDLE_SUB_PROJECTS) {
+                    const filterDays = event.enabled ? idleFilterToDays(event.newValue) : undefined;
+                    loadWallets(filterDays);
+                }
                 break;
             }
 
@@ -551,5 +891,79 @@ export function initialState(): State {
         filteredSubProjectIndices: [],
         subprojectSortByAscending: true,
         subprojectInfo: {},
+        subprojectFilters: subProjectsDefaultSettings,
     };
 }
+
+export const subProjectsDefaultSettings: Record<string, SubProjectFilter> = {
+    [SubProjectFilterSetting.IDLE_SUB_PROJECTS]: {
+        title: "Idle sub-projects",
+        description: "Shows sub-projects which resources are not in use",
+        setting: SubProjectFilterSetting.IDLE_SUB_PROJECTS,
+        options: ["1 month", "2 months", "3 months", "6 months"].map(it => ({key: it, title: it})),
+        selected: undefined,
+        enabled: false,
+        feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
+    },
+    [SubProjectFilterSetting.ALLOCATED_BY_PRODUCT_TYPE]: {
+        setting: SubProjectFilterSetting.ALLOCATED_BY_PRODUCT_TYPE,
+        title: "Allocated resource by product type",
+        description: "Shows sub-projects which are allocated resources for a specific product type",
+        options: productTypes.map(it => productTypeToName(it)).map(it => ({key: it, title: it})),
+        selected: undefined,
+        enabled: false,
+        feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
+    },
+    [SubProjectFilterSetting.ALLOCATED_BY_PRODUCT]: {
+        setting: SubProjectFilterSetting.ALLOCATED_BY_PRODUCT,
+        title: "Allocated resource by product",
+        description: "Shows sub-projects which are allocated resources for a specific product",
+        options: [],
+        selected: undefined,
+        enabled: false,
+        feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
+    },
+    [SubProjectFilterSetting.ALLOCATED_BY_PROVIDER]: {
+        setting: SubProjectFilterSetting.ALLOCATED_BY_PROVIDER,
+        title: "Allocated resource by provider",
+        description: "Shows sub-projects which are allocated resources from a specific provider",
+        options: [],
+        selected: undefined,
+        enabled: false,
+        feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
+    },
+    [SubProjectFilterSetting.EXPIRED_ALLOCATIONS]: {
+        setting: SubProjectFilterSetting.EXPIRED_ALLOCATIONS,
+        title: "Allocation status",
+        description: "Shows sub-projects by allocation state",
+        options: [
+            AllocationStatusOptions.ALL,
+            AllocationStatusOptions.ACTIVE_ONLY,
+            AllocationStatusOptions.EXPIRED_ONLY,
+            AllocationStatusOptions.ALL_EXPIRED_ONLY,
+        ].map(it => ({key: it, title: it})),
+        selected: undefined,
+        enabled: false,
+        feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
+    },
+    [SubProjectFilterSetting.PERSONAL_WORKSPACES]: {
+        setting: SubProjectFilterSetting.PERSONAL_WORKSPACES,
+        title: "Personal workspaces",
+        description: "Shows only personal workspaces",
+        options: [],
+        selected: undefined,
+        enabled: false,
+    },
+    /*
+    Note(Louise): Leave this code disabled until we decide if it is needed or not
+     [SubProjectFilterSetting.OVERALLOCATION_AT_RISK]: {
+        setting: SubProjectFilterSetting.OVERALLOCATION_AT_RISK,
+        title: "Overallocations at risk",
+        description: "Shows the distribution of how resources of sub-projects are used: at risk of running out, underused or ok",
+        options: [],
+        selected: undefined,
+        enabled: false,
+        feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
+    },
+    */
+};

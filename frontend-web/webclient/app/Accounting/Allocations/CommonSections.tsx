@@ -1,4 +1,6 @@
 import * as React from "react";
+import {useCallback, useEffect, useMemo, useRef, useState} from "react";
+import * as Accounting from "@/Accounting";
 import {
     AllocationDisplayTreeRecipient,
     AllocationDisplayTreeYourAllocation,
@@ -7,7 +9,9 @@ import {
     normalizedBalanceToRaw,
     ProductCategoryV2,
     ProductType,
-    UsageAndQuota,
+    productTypes,
+    productTypeToName,
+    UsageAndQuota
 } from "@/Accounting";
 import {Tree, TreeAction, TreeApi, TreeNode} from "@/ui-components/Tree";
 import {
@@ -17,20 +21,28 @@ import {
     Divider,
     Flex,
     Icon,
-    Input, Label,
+    Input,
+    Label,
     Link,
     Relative,
-    Text, TextArea,
+    Text,
+    TextArea,
     Truncate
 } from "@/ui-components";
 import AppRoutes from "@/Routes";
-import * as Accounting from "@/Accounting";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {bulkRequestOf, chunkedString, doNothing, timestampUnixMs} from "@/UtilityFunctions";
 import {dateToStringNoTime} from "@/Utilities/DateUtilities";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {OldProjectRole} from "@/Project";
-import {State, UIAction, UIEvent} from "@/Accounting/Allocations/State";
+import {
+    State,
+    SubProjectFilter,
+    SubProjectFilterSetting,
+    subProjectsDefaultSettings,
+    UIAction,
+    UIEvent
+} from "@/Accounting/Allocations/State";
 import {VariableSizeList} from "react-window";
 import {AvatarState} from "@/AvataaarLib/hook";
 import AutoSizer from "react-virtualized-auto-sizer";
@@ -38,12 +50,11 @@ import Avatar from "@/AvataaarLib/avatar";
 import {classConcat, extractDataTags, injectStyle} from "@/Unstyled";
 import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
-import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {ProgressBar} from "@/Accounting/Allocations/ProgressBar";
 import {default as ReactModal} from "react-modal";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {CardClass} from "@/ui-components/Card";
-import {ListRow} from "@/ui-components/List";
+import {ListRow, ListRowClass} from "@/ui-components/List";
 import {SimpleRichItem, SimpleRichSelect} from "@/ui-components/RichSelect";
 import {produce} from "immer";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
@@ -54,13 +65,23 @@ import {AllocationBar} from "@/Accounting/Allocations/AllocationBar";
 import {projectInfoPi, projectInfoTitle, useProjectInfo, useProjectInfos} from "@/Project/InfoCache";
 import {useForcedRender} from "@/Utilities/ReactUtilities";
 import {Feature, hasFeature} from "@/Features";
+import {UsageReport} from "@/Accounting/UsageCore2";
 import {dialogStore} from "@/Dialog/DialogStore";
 import * as Heading from "@/ui-components/Heading";
 import DatePicker from "react-datepicker";
 import {callAPIWithErrorHandler} from "@/Authentication/DataHook";
 import {DatePickerClass} from "@/ui-components/DatePicker";
-import {getProviderTitle} from "@/Providers/ProviderTitle";
+import {getProviderTitle, getShortProviderTitle} from "@/Providers/ProviderTitle";
 import {sendFailureNotification, sendInformationNotification, sendNotification, sendSuccessNotification, SnackType} from "@/Notifications";
+
+const allocationFiltersModalStyle: ReactModal.Styles = {
+    ...largeModalStyle,
+    content: {
+        ...largeModalStyle.content,
+        left: "max(5px, calc(50vw - 450px))",
+        transform: "none",
+    },
+};
 
 interface Datapoint {
     product: string;
@@ -142,8 +163,8 @@ export const YourAllocations: React.FunctionComponent<{
                                     </Flex>}
                                     right={<Flex flexDirection={"row"} gap={"8px"}>
                                         {tree.usageAndQuota.map((uq, idx) => <React.Fragment key={idx}>
-                                            <ProgressBar uq={uq} />
-                                        </React.Fragment>
+                                                <ProgressBar uq={uq} responsive/>
+                                            </React.Fragment>
                                         )}
                                     </Flex>}
                                     indent={indent}
@@ -156,7 +177,7 @@ export const YourAllocations: React.FunctionComponent<{
                                                 <code>{wallet.category.name}</code>
                                             </Flex>}
                                             right={<Flex flexDirection={"row"} gap={"8px"}>
-                                                <ProgressBar uq={wallet.usageAndQuota} />
+                                                <ProgressBar uq={wallet.usageAndQuota} responsive/>
                                             </Flex>}
                                             indent={indent * 2}
                                         >
@@ -326,17 +347,80 @@ const keyMetricsStyle = injectStyle("key-metrics", k => `
         flex-grow: 1;
     }
     
-    ${k} .key-metrics-setting-title {
-        font-size: 11pt;
+    ${k} .key-metrics-setting-text {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        min-width: 0;
         padding-left: 10px;
     }
-    
+
+    ${k} .key-metrics-setting-title {
+        font-size: 11pt;
+        margin: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    ${k} .key-metrics-setting-description {
+        font-size: 8pt;
+        margin: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        white-space: normal;
+    }
+
     ${k} .key-metrics-checkbox {
         padding: 0 5px 0 0;
     }
-    
+
     ${k} .key-metrics-selector {
         padding-right: 6px;
+        max-width: 100%;
+    }
+
+    ${k} .key-metrics-selector > * {
+        max-width: 100%;
+    }
+
+    ${k} .${ListRowClass} {
+        padding: 10px 0;
+    }
+
+    ${k} .${ListRowClass} .row-left {
+        min-width: 0;
+    }
+
+    ${k} .${ListRowClass} .row-left-wrapper {
+        min-width: 0;
+        width: 100%;
+    }
+
+    ${k} .${ListRowClass} .row-left-content {
+        white-space: normal;
+    }
+
+    @media (max-width: 880px) {
+        ${k} .${ListRowClass} {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 8px;
+        }
+
+        ${k} .${ListRowClass} .row-right {
+            margin-right: 0;
+            width: 100%;
+            justify-content: flex-start;
+        }
+
+        ${k} .key-metrics-selector {
+            padding-right: 0;
+            flex: 1 1 auto;
+        }
     }
 `);
 
@@ -384,10 +468,69 @@ const subProjectsStyle = injectStyle("sub-projects", k => `
     ${k} .sort-button {
         padding-right: 22px;
     }
+    
+    ${k} .sub-project-filter-title {
+        font-size: 11pt; 
+        margin: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    ${k} .sub-project-filter-description {
+        font-size: 8pt;
+        margin: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        white-space: normal;
+    }
+
+    ${k} .sub-project-filter-text {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+    }
+
+    ${k} .${ListRowClass} .row-left {
+        min-width: 0;
+    }
+
+    ${k} .${ListRowClass} .row-left-wrapper {
+        min-width: 0;
+        width: 100%;
+    }
+
+    ${k} .${ListRowClass} .row-left-content {
+        white-space: normal;
+    }
+
+    @media (max-width: 880px) {
+        ${k} .${ListRowClass} {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 8px;
+        }
+
+        ${k} .${ListRowClass} .row-right {
+            margin-right: 0;
+            width: 100%;
+            justify-content: flex-start;
+        }
+
+        ${k} .key-metrics-selector {
+            padding-right: 0;
+            flex: 1 1 auto;
+            max-width: 100%;
+        }
+    }
 `);
 
 interface KeyMetricSetting {
     title: string;
+    description: string;
     options: string[];
     selected?: string;
     starred: boolean;
@@ -419,13 +562,16 @@ const KeyMetricSettingsRow: React.FunctionComponent<{
 
     let selectedOpt = props.setting.selected;
     return <ListRow
-        left={<Flex>
+        left={<Flex alignItems="center" minWidth={0}>
             <Icon
                 name={props.setting.starred ? "starFilled" : "starEmpty"}
                 color={props.setting.starred ? "favoriteColor" : "favoriteColorEmpty"}
                 onClick={onStarring}
             />
-            <h3 className="key-metrics-setting-title">{props.setting.title}</h3>
+            <div className="key-metrics-setting-text">
+                <h3 className="key-metrics-setting-title">{props.setting.title}</h3>
+                <h3 className="key-metrics-setting-description">{props.setting.description}</h3>
+            </div>
         </Flex>
         }
         right={<>
@@ -434,7 +580,7 @@ const KeyMetricSettingsRow: React.FunctionComponent<{
                     items={props.setting.options.map((it) => ({key: it, value: it}))}
                     onSelect={onSelectOption}
                     selected={selectedOpt ? {key: selectedOpt, value: selectedOpt} : undefined}
-                    dropdownWidth={"300px"}
+                    dropdownWidth={"min(300px, calc(100vw - 80px))"}
                 />
             </div>}
 
@@ -455,6 +601,7 @@ const KeyMetricSettingsRow: React.FunctionComponent<{
 const keyMetricDefaultSettings: Record<string, KeyMetricSetting> = {
     "Idle sub-projects": {
         title: "Idle sub-projects",
+        description: "Shows the amount of subprojects that have been idle for a selected amount of time",
         options: ["1 month", "2 months", "3 months"],
         selected: "1 month",
         starred: true,
@@ -462,6 +609,7 @@ const keyMetricDefaultSettings: Record<string, KeyMetricSetting> = {
     },
     "Sub-project resource utilization": {
         title: "Sub-project resource utilization",
+        description: "Shows utilization of selected resource for your sub-projects",
         options: ["Core-hours", "GPU-hours", "Storage"],
         selected: "Core-hours",
         starred: true,
@@ -469,6 +617,7 @@ const keyMetricDefaultSettings: Record<string, KeyMetricSetting> = {
     },
     "Your resource utilization": {
         title: "Your resource utilization",
+        description: "Shows your utilization of selected resource",
         options: ["Core-hours", "GPU-hours", "Storage"],
         selected: "Core-hours",
         starred: false,
@@ -476,24 +625,31 @@ const keyMetricDefaultSettings: Record<string, KeyMetricSetting> = {
     },
     "Allocation expiration": {
         title: "Allocation expiration",
+        description: "Shows allocations that expire within a selected interval",
         options: ["1 month", "2 months", "3 months", "6 months", "1 year"],
         selected: "1 month",
         starred: false,
         enabled: false
     },
-    "Overallocation indicators": {
+    /*
+    Note(Louise): Leave this code disabled until we decide if it is needed or not
+     "Overallocation indicators": {
         title: "Overallocation indicators",
+        description: "Shows the distribution of how your resources are used: at risk of running out, underused or ok",
         options: [],
         selected: "",
         starred: false,
         enabled: false
     },
+    */
 };
 
-export const SubProjectAllocations: React.FunctionComponent<{
+export const KeyMetrics: React.FunctionComponent<{
     allocations: [string, AllocationDisplayTreeYourAllocation][];
     indent: number;
-}> = ({allocations, indent}) => {
+    reports: UsageReport[];
+    state: State;
+}> = ({allocations, indent, reports, state}) => {
     const treeApi = useRef<TreeApi>(null);
     const [filtersShown, setFiltersShown] = useState(false);
     const closeFilters = useCallback(() => {
@@ -513,6 +669,66 @@ export const SubProjectAllocations: React.FunctionComponent<{
         });
     }, []);
 
+    const productCategoryKey = (category: ProductCategoryV2): string =>
+        `${category.name}/${category.provider}`;
+
+    let usageByProduct: Record<string, number> = {};
+    for (const wallet of state.remoteData.wallets ?? []) {
+        let totalQuota = 0;
+        for (const child of wallet.children ?? []) {
+            totalQuota += child.group.usage ?? 0
+        }
+        usageByProduct[productCategoryKey(wallet.paysFor)] = totalQuota;
+    }
+
+    let quotaByProduct: Record<string, number> = {};
+    for (const wallet of state.remoteData.wallets ?? []) {
+        let totalQuota = 0;
+        for (const child of wallet.children ?? []) {
+            totalQuota += child.group.activeQuota ?? 0
+        }
+        quotaByProduct[productCategoryKey(wallet.paysFor)] = totalQuota;
+    }
+
+    let usageAndQuotaByProduct: Record<string, UsageAndQuota> = {};
+    for (const wallet of state.remoteData.wallets ?? []) {
+        const key = productCategoryKey(wallet.paysFor);
+        const quotaBalanceThing = combineBalances([{
+            category: wallet.paysFor,
+            balance: quotaByProduct[key]
+        }])[0];
+
+        const usageBalanceThing = combineBalances([{
+            category: wallet.paysFor,
+            balance: usageByProduct[key]
+        }])[0];
+
+        const uq = new UsageAndQuota({
+            usage: usageBalanceThing.normalizedBalance,
+            quota: quotaBalanceThing.normalizedBalance,
+            unit: usageBalanceThing.unit,
+            maxUsable: quotaBalanceThing.normalizedBalance,
+            retiredAmount: 0,
+            retiredAmountStillCounts: false,
+            type: usageBalanceThing.productType,
+            ownedByPersonalProviderProject: false,
+        });
+
+        usageAndQuotaByProduct[key] = uq;
+    }
+
+    const computeReport = reports.find(it => it.title === "Core-hours");
+
+    const ok = computeReport?.subProjectHealth.ok ?? 0;
+    const atRisk = computeReport?.subProjectHealth.atRisk ?? 0;
+    const underused = computeReport?.subProjectHealth.underUtilized ?? 0;
+
+    const total = ok + atRisk + underused;
+
+    const okPercentage = total > 0 ? (ok / total) * 100 : 0;
+    const atRiskPercentage = total > 0 ? (atRisk / total) * 100 : 0;
+    const underusedPercentage = underused > 0 ? (underused / total) * 100 : 0;
+
     if (!hasFeature(Feature.ALLOCATIONS_PAGE_IMPROVEMENTS)) return null;
 
     return <>
@@ -520,16 +736,18 @@ export const SubProjectAllocations: React.FunctionComponent<{
             isOpen={filtersShown}
             shouldCloseOnEsc
             onRequestClose={closeFilters}
-            style={largeModalStyle}
+            style={allocationFiltersModalStyle}
             ariaHideApp={false}
             className={classConcat(CardClass, keyMetricsStyle)}
         >
-
-            <Flex>
+        <Flex flexDirection={"column"} height={"100%"} width={"100%"}>
+            <Flex mb="12px">
                 <div className="key-metrics-settings-container">
                     <h3>Key metrics settings</h3>
                     <h4 style={{color: "var(--textSecondary)"}}>Select key metrics to display</h4>
                 </div>
+                {/*
+                Note(Louise): Leave this code disabled until we decide if it is needed or not
                 <div className="key-metrics-input">
                     <div className="key-metrics-search-box">
                         <Input placeholder="Search in your key metrics"></Input>
@@ -539,13 +757,22 @@ export const SubProjectAllocations: React.FunctionComponent<{
                             </div>
                         </div>
                     </div>
-                    <Button onClick={closeFilters}>Apply</Button>
                 </div>
+                */}
             </Flex>
 
-            {Object.values(settings).map(setting => (
-                <KeyMetricSettingsRow key={setting.title} setting={setting} onChange={onSettingsChanged} />
-            ))}
+            <Box flexGrow={1} minHeight={0} overflowY={"auto"}>
+                {Object.values(settings).map(setting => (
+                    <KeyMetricSettingsRow key={setting.title} setting={setting} onChange={onSettingsChanged}/>
+                ))}
+            </Box>
+
+            <Flex justifyContent="end" px={"20px"} py={"12px"} margin={"-20px"} background={"var(--dialogToolbar)"}
+                  zIndex={10000} gap={"8px"}>
+                <Button color={"successMain"} type="button" onClick={closeFilters}>Apply</Button>
+            </Flex>
+        </Flex>
+
         </ReactModal>
 
         <Box mt={32} mb={10} className={keyMetricsStyle}>
@@ -569,48 +796,67 @@ export const SubProjectAllocations: React.FunctionComponent<{
             <div className="key-metrics-container">
                 <div className="sub-project-allocations-container">
                     <h3>Sub-project allocations</h3>
-                    <Tree apiRef={treeApi}>
-                        {allocations.map(([rawType, tree]) => {
-                            const type = rawType as ProductType;
+                    {state.remoteData.wallets === undefined ? <>
+                        <HexSpin size={64} />
+                        </> : <>
+                    <div>
+                        {allocations.length !== 0 ? null :
+                            <div style={{marginLeft: "20px", marginTop: "10px"}}>
+                                You do not have given out allocated any resources at this time.
+                                When you approve grant applications, the allocated resources will be shown here.
+                            </div>}
+                            <Tree apiRef={treeApi}>
+                            {allocations.map(([rawType, tree]) => {
+                                const type = rawType as ProductType;
 
-                            return <TreeNode
-                                key={rawType}
-                                left={
-                                    <Flex gap={"4px"}>
-                                        <Icon name={Accounting.productTypeToIcon(type)} size={20} />
-                                        {Accounting.productAreaTitle(type)}
-                                    </Flex>
-                                }
-                                right={<Flex flexDirection={"row"} gap={"8px"}>
-                                    {tree.usageAndQuota.map((uq, idx) =>
-                                        <React.Fragment key={idx}>
-                                            <AllocationBar label={"65% Ok | 5% At risk | 30% Underused"}
-                                                okPercentage={65} atRiskPercentage={5}
-                                                underusedPercentage={30} />
-                                        </React.Fragment>
-                                    )}
-                                </Flex>}
-                                indent={indent}
-                            >
-                                <TreeNode
+                                return <TreeNode
+                                    key={rawType}
                                     left={
                                         <Flex gap={"4px"}>
-                                            <ProviderLogo providerId={"ucloud"} size={20} />
-                                            <h3>u1-cephfs</h3>
+                                            <Icon name={Accounting.productTypeToIcon(type)} size={20} />
+                                            {Accounting.productAreaTitle(type)}
                                         </Flex>
                                     }
                                     right={<Flex flexDirection={"row"} gap={"8px"}>
-                                        {tree.usageAndQuota.map((uq, idx) => <React.Fragment key={idx}>
-                                            <ProgressBar uq={uq} />
-                                        </React.Fragment>
+                                        {tree.usageAndQuota.map((uq, idx) => {
+                                            let label = `${okPercentage.toFixed(2)}% Ok` +
+                                                ` | ${atRiskPercentage.toFixed(2)}% At risk` +
+                                                ` | ${underusedPercentage.toFixed(2)}% Underused`;
+                                            return <React.Fragment key={idx}>
+                                                    <AllocationBar
+                                                        label={label}
+                                                        okPercentage={okPercentage}
+                                                        atRiskPercentage={atRiskPercentage}
+                                                        underusedPercentage={underusedPercentage}
+                                                    />
+                                                </React.Fragment>;
+                                            }
                                         )}
                                     </Flex>}
+                                    indent={indent}
                                 >
-                                </TreeNode>
-                            </TreeNode>;
-                        })}
-                    </Tree>
+                                    {tree.wallets.map((wallet, idx) =>
+                                    <TreeNode
+                                        key={idx}
+                                        left={
+                                            <Flex gap={"4px"}>
+                                                <ProviderLogo providerId={wallet.category.provider} size={20} />
+                                                <code>{wallet.category.name}</code>
+                                            </Flex>
+                                        }
+                                        right={<Flex flexDirection={"row"} gap={"8px"}>
+                                            <ProgressBar uq={usageAndQuotaByProduct[productCategoryKey(wallet.category)]} responsive />
+                                        </Flex>}
+                                    >
+                                    </TreeNode>
+                                    )}
+                                </TreeNode>;
+                                })}
+                            </Tree>
+                        </div>
+                    </>}
                 </div>
+
                 <div className="key-metrics-card-container">
                     <div className="key-metrics-card">
                         <h3>41%</h3>
@@ -618,9 +864,11 @@ export const SubProjectAllocations: React.FunctionComponent<{
                         <h3>Storage <br /> utilization</h3>
                     </div>
                     <div className="key-metrics-card">
-                        <h3>73</h3>
+                        <h3>{computeReport?.subProjectHealth.idle}</h3>
                         <br />
-                        <h3>Idle <br /> projects</h3>
+                        <h3>Idle <br />
+                            {computeReport?.subProjectHealth.idle === 1 ? "project" : "projects"}
+                        </h3>
                     </div>
                     <div className="key-metrics-list">
                         <div className="key-metrics-line">
@@ -664,7 +912,7 @@ const FilteredUsageAndQuota: React.FunctionComponent<{
     return <>
         {filteredEntries.map((uq, idx) => {
             if (idx > 2) return null;
-            return <ProgressBar key={idx} uq={uq} />;
+            return <ProgressBar key={idx} uq={uq} responsive/>;
         })}
     </>
 }
@@ -866,8 +1114,8 @@ const SubProjectListRow: React.FunctionComponent<{
                         </Flex>
                     </Flex>}
                     right={<div className={"sub-alloc"}>
-                        <ProgressBar uq={g.usageAndQuota} />
-                        <Box width={25} height={25} />
+                        <ProgressBar uq={g.usageAndQuota} responsive/>
+                        <Box width={25} height={25}/>
                     </div>}
                     onActivate={open => {
                         if (open) setNodeState(TreeAction.OPEN, workspaceId, g.category.name);
@@ -945,13 +1193,6 @@ const SubProjectListRow: React.FunctionComponent<{
     </div>;
 }
 
-interface SubProjectFilter {
-    title: string;
-    options: string[];
-    selected?: string;
-    enabled: boolean;
-    feature?: Feature;
-}
 
 const SubProjectFiltersRow: React.FunctionComponent<{
     setting: SubProjectFilter;
@@ -959,6 +1200,7 @@ const SubProjectFiltersRow: React.FunctionComponent<{
     state: State;
     dispatchEvent: (action: UIAction) => void;
 }> = (props) => {
+    const hasSelector = props.setting.options.length > 0;
 
     const onChecked = useCallback(() => {
         if (props.setting.title === SingleUserProjects) {
@@ -974,27 +1216,45 @@ const SubProjectFiltersRow: React.FunctionComponent<{
 
     const onSelectOption = useCallback((item: SimpleRichItem) => {
         props.onChange(produce(props.setting, draft => {
-            draft.selected = item.key
+            if (item.key === NoneSelectedOptionKey) {
+                draft.selected = undefined;
+                draft.enabled = false;
+            } else {
+                draft.selected = item.key;
+                draft.enabled = true;
+            }
         }))
     }, [props.setting, props.onChange])
 
-    let selectedOpt = props.setting.selected;
+    const selectorItems: SimpleRichItem[] = [
+        {key: NoneSelectedOptionKey, value: "None selected"},
+        ...props.setting.options.map(it => ({key: it.key, value: it.title})),
+    ];
+    const selectedOpt = props.setting.selected ?
+        selectorItems.find(it => it.key === props.setting.selected) ??
+        {key: props.setting.selected, value: props.setting.selected} :
+        {key: NoneSelectedOptionKey, value: "None selected"};
+
     return <ListRow
-        left={<Flex>
-            <h3 className="sub-project-filter-title">{props.setting.title}</h3>
+        left={<Flex alignItems="center" minWidth={0}>
+            <div className="sub-project-filter-text">
+                <h3 className="sub-project-filter-title">{props.setting.title}</h3>
+                <h3 className="sub-project-filter-description">{props.setting.description}</h3>
+            </div>
         </Flex>
         }
         right={<>
-            {props.setting.options.length === 0 ? null : <div className="key-metrics-selector">
+            {!hasSelector ? null : <div className="key-metrics-selector">
                 <SimpleRichSelect
-                    items={props.setting.options.map((it) => ({key: it, value: it}))}
+                    items={selectorItems}
                     onSelect={onSelectOption}
-                    selected={selectedOpt ? {key: selectedOpt, value: selectedOpt} : undefined}
-                    dropdownWidth={"300px"}
+                    selected={selectedOpt}
+                    dropdownWidth={"min(300px, calc(100vw - 80px))"}
+                    searchable={false}
                 />
             </div>}
 
-            <div className="key-metrics-checkbox">
+            {hasSelector ? null : <div className="key-metrics-checkbox">
                 <Checkbox
                     size={30}
                     checked={props.setting.title === SingleUserProjects ?
@@ -1002,65 +1262,16 @@ const SubProjectFiltersRow: React.FunctionComponent<{
                     handleWrapperClick={onChecked}
                     onChange={onChecked}
                 />
-            </div>
+            </div>}
         </>
         }
     >
     </ListRow>
 }
 
+const NoneSelectedOptionKey = "None selected";
 const SingleUserProjects = "Personal workspaces"
 
-const subProjectsDefaultSettings: Record<string, SubProjectFilter> = {
-    "Idle sub-projects": {
-        title: "Idle sub-projects",
-        options: ["1 month", "2 months", "3 months", "6 months"],
-        selected: "1 month",
-        enabled: false,
-        feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
-    },
-    "Allocated resource by product type": {
-        title: "Allocated resource by product type",
-        options: ["Compute", "Storage", "Public IP", "Application licence"],
-        selected: "Compute",
-        enabled: false,
-        feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
-    },
-    "Allocated resource by product": {
-        title: "Allocated resource by product",
-        options: [/*TODO list products here*/],
-        selected: "u1-standard-h",
-        enabled: false,
-        feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
-    },
-    "Allocated resource by provider": {
-        title: "Allocated resource by provider",
-        options: ["SDU/K8s", "AAU/K8s", "AAU/VM"],
-        selected: "SDU/K8s",
-        enabled: false,
-        feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
-    },
-    "Expired allocations": {
-        title: "Expired allocations",
-        options: [],
-        selected: "",
-        enabled: false,
-        feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
-    },
-    [SingleUserProjects]: {
-        title: "Personal workspaces",
-        options: [],
-        selected: "",
-        enabled: false,
-    },
-    "Overallocations at risk": {
-        title: "Overallocations at risk",
-        options: [],
-        selected: "",
-        enabled: false,
-        feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
-    },
-};
 
 export const SubProjectFilters: React.FunctionComponent<{
     filtersShown: boolean;
@@ -1068,15 +1279,19 @@ export const SubProjectFilters: React.FunctionComponent<{
     state: State;
     dispatchEvent: (event: UIEvent) => unknown;
 }> = ({filtersShown, closeFilters, dispatchEvent, state}) => {
-    const [settings, setSettings] = useState<Record<string, SubProjectFilter>>(subProjectsDefaultSettings);
-
-    const onSettingsChanged = useCallback((setting: SubProjectFilter) => {
-        setSettings(prev => {
-            return produce(prev, draft => {
-                draft[setting.title] = setting;
-            });
+    const settings = state.subprojectFilters;
+    const onSettingsChanged = useCallback((updated: SubProjectFilter) => {
+        dispatchEvent({
+            type: "SubProjectFilterSettingUpdated",
+            setting: updated.setting,
+            newValue: updated.selected,
+            enabled: updated.enabled
         });
-    }, [setSettings]);
+    }, []);
+
+    useEffect(() => {
+        dispatchEvent({ type: "SubProjectFilterSettingsLoad", settings: subProjectsDefaultSettings });
+    }, []);
 
     const [ascending, setAscending] = useState<boolean>(true);
     const [sortBy, setSortBy] = useState<SimpleRichItem>({key: "title", value: "Title"});
@@ -1097,73 +1312,76 @@ export const SubProjectFilters: React.FunctionComponent<{
         isOpen={filtersShown}
         shouldCloseOnEsc
         onRequestClose={closeFilters}
-        style={largeModalStyle}
+        style={allocationFiltersModalStyle}
         ariaHideApp={false}
         className={classConcat(CardClass, keyMetricsStyle, subProjectsStyle)}
     >
         <Flex flexDirection={"column"} height={"100%"} width={"100%"}>
-            <Flex>
+            <Flex mb="12px">
                 <div className="key-metrics-settings-container">
                     <h3>Sub-project filters</h3>
                 </div>
-                {/*<div className="key-metrics-input">*/}
-                {/*    <div className="key-metrics-search-box">*/}
-                {/*        <Input placeholder="Search in your sub-project filters"></Input>*/}
-                {/*        <div style={{position: "relative"}}>*/}
-                {/*            <div style={{position: "absolute", top: "5px", right: "10px"}}>*/}
-                {/*                <Icon name={"heroMagnifyingGlass"}/>*/}
-                {/*            </div>*/}
-                {/*        </div>*/}
-                {/*    </div>*/}
-                {/*</div>*/}
-            </Flex>
-            {Object.values(settings).map(setting => (
-                setting.feature === undefined || hasFeature(setting.feature) ?
-                    <SubProjectFiltersRow
-                        key={setting.title}
-                        setting={setting}
-                        onChange={onSettingsChanged}
-                        dispatchEvent={dispatchEvent}
-                        state={state}
-                    /> : null
-            ))}
-            <Divider />
-            <div className="sub-projects-sorting-container">
-                <div className="sub-projects-sorting-headers">
-                    <h3>Sort by</h3>
-                    <h4 style={{color: "var(--textSecondary)"}}>Select sorting criteria to apply</h4>
-                </div>
-                <div className="sub-projects-sorting-selector">
-                    <SimpleRichSelect
-                        items={
-                            [
-                                {key: "title", value: "Title"},
-                                {key: "PI", value: "PI"},
-                                {key: "age", value: "Age"},
-                                {key: "usagePercentageCompute", value: "Usage percentage (Compute)"},
-                                {key: "usagePercentageStorage", value: "Usage percentage (Storage)"},
-                                {key: "usagePercentagePublicIP", value: "Usage percentage (Public IP)"},
-                                {key: "usagePercentageLicence", value: "Usage percentage (Application license)"},
-                            ]
-                        }
-                        onSelect={setSortBy}
-                        selected={sortBy}
-                        dropdownWidth={"300px"}>
-                    </SimpleRichSelect>
-                    <div className="sort-button">
-                        <TooltipV2 tooltip={ascending ? "Set to ascending" : "Set to descending"}>
-                            <SmallIconButton
-                                icon={ascending ? "heroBarsArrowUp" : "heroBarsArrowDown"}
-                                onClick={onSortingToggle} />
-                        </TooltipV2>
+                {/*
+                Note(Louise): Leave this code disabled until we decide if it is needed or not
+                <div className="key-metrics-input">
+                    <div className="key-metrics-search-box">
+                        <Input placeholder="Search in your sub-project filters"></Input>
+                        <div style={{position: "relative"}}>
+                            <div style={{position: "absolute", top: "5px", right: "10px"}}>
+                                <Icon name={"heroMagnifyingGlass"}/>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
-
-            <Box flexGrow={1} />
+                */}
+            </Flex>
+            <Box flexGrow={1} minHeight={0} overflowY={"auto"}>
+                {Object.values(settings).map(setting => (
+                    setting.feature === undefined || hasFeature(setting.feature) ?
+                        <SubProjectFiltersRow
+                            key={setting.title}
+                            setting={setting}
+                            onChange={onSettingsChanged}
+                            dispatchEvent={dispatchEvent}
+                            state={state}
+                        /> : null
+                ))}
+                <Divider/>
+                <div className="sub-projects-sorting-container">
+                    <div className="sub-projects-sorting-headers">
+                        <h3>Sort by</h3>
+                        <h4 style={{color: "var(--textSecondary)"}}>Select sorting criteria to apply</h4>
+                    </div>
+                    <div className="sub-projects-sorting-selector">
+                        <SimpleRichSelect
+                            items={
+                                [
+                                    {key: "title", value: "Title"},
+                                    {key: "PI", value: "PI"},
+                                    {key: "age", value: "Age"},
+                                    {key: "usagePercentageCompute", value: "Usage percentage (Compute)"},
+                                    {key: "usagePercentageStorage", value: "Usage percentage (Storage)"},
+                                    {key: "usagePercentagePublicIP", value: "Usage percentage (Public IP)"},
+                                    {key: "usagePercentageLicence", value: "Usage percentage (Application license)"},
+                                ]
+                            }
+                            onSelect={setSortBy}
+                            selected={sortBy}
+                            dropdownWidth={"min(300px, calc(100vw - 80px))"}>
+                        </SimpleRichSelect>
+                        <div className="sort-button">
+                            <TooltipV2 tooltip={ascending ? "Set to ascending" : "Set to descending"}>
+                                <SmallIconButton
+                                    icon={ascending ? "heroBarsArrowUp" : "heroBarsArrowDown"}
+                                    onClick={onSortingToggle}/>
+                            </TooltipV2>
+                        </div>
+                    </div>
+                </div>
+            </Box>
 
             <Flex justifyContent="end" px={"20px"} py={"12px"} margin={"-20px"} background={"var(--dialogToolbar)"}
-                gap={"8px"}>
+                  zIndex={10000} gap={"8px"}>
                 <Button color={"successMain"} type="button" onClick={closeFilters}>Apply</Button>
             </Flex>
         </Flex>

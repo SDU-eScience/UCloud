@@ -155,10 +155,11 @@ var UpdateAllocation = rpc.Call[fnd.BulkRequest[UpdateAllocationRequest], util.E
 }
 
 type WalletsBrowseRequest struct {
-	ItemsPerPage    int                      `json:"itemsPerPage"`
-	Next            util.Option[string]      `json:"next"`
-	FilterType      util.Option[ProductType] `json:"filterType"`
-	IncludeChildren bool                     `json:"includeChildren"`
+	ItemsPerPage                   int                      `json:"itemsPerPage"`
+	Next                           util.Option[string]      `json:"next"`
+	FilterType                     util.Option[ProductType] `json:"filterType"`
+	IncludeChildren                bool                     `json:"includeChildren"`
+	FilterChildrenByIdleTimeInDays util.Option[int]         `json:"filterChildrenByIdleTimeInDays"`
 }
 
 var WalletsBrowse = rpc.Call[WalletsBrowseRequest, fnd.PageV2[WalletV2]]{
