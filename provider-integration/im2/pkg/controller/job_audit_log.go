@@ -10,25 +10,29 @@ import (
 	"ucloud.dk/shared/pkg/log"
 )
 
-var jobAuditLogFolder = "/mnt/storage/audit"
 var jobAuditFileRegex = regexp.MustCompile(`^audit-(\d+)-(\d{4}-\d{2}-\d{2})\.jsonl$`)
 
 func initJobAuditLog() {
-
+	cfgK8s := config.Services.Kubernetes()
+	if cfgK8s == nil {
+		log.Error("Job audit log server failed to initialize Kubernetes config")
+		return
+	}
+	jobAuditLogFolder := filepath.Join(cfgK8s.FileSystem.MountPoint, "audit")
 	retentionDays := config.Provider.JobAuditLog.RetentionPeriodInDays
 	go func() {
-		cleanupLogs(retentionDays) // run once at startup
+		cleanupLogs(jobAuditLogFolder, retentionDays) // run once at startup
 
 		ticker := time.NewTicker(4 * time.Hour)
 		defer ticker.Stop()
 
 		for range ticker.C {
-			cleanupLogs(retentionDays)
+			cleanupLogs(jobAuditLogFolder, retentionDays)
 		}
 	}()
 }
 
-func cleanupLogs(retentionDays int) {
+func cleanupLogs(jobAuditLogFolder string, retentionDays int) {
 	cutoff := time.Now().AddDate(0, 0, -retentionDays)
 	today := time.Now().Format("2006-01-02")
 
