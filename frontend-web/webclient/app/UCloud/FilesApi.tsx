@@ -314,29 +314,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 onClick: (selected, cb) => cb.startFolderCreation!(),
                 shortcut: ShortcutKey.F
             },
-            {
-                text: "Create file",
-                icon: "heroDocumentPlus",
-                enabled(selected, cb) {
-                    if (cb.isSearch) return false;
-                    if (cb.creationDisabled) return "Fetching folder...";
-                    if (selected.length !== 0 || cb.startFileCreation == null) return false;
-                    if (cb.isCreating) return "You are already creating a folder";
-                    const support = cb.collection?.status.resolvedSupport?.support;
-                    if (!support) return false;
-                    if ((support as FileCollectionSupport).files.isReadOnly) {
-                        return "File system is read-only";
-                    }
-                    if (cb.collection?.permissions?.myself?.some(perm => perm === "ADMIN" || perm === "EDIT") != true) {
-                        return "You do not have write permissions in this folder";
-                    }
-                    return true;
-                },
-                onClick: (selected, cb) => {
-                    cb.startFileCreation!();
-                },
-                shortcut: ShortcutKey.L
-            },
+
             {
                 text: "Launch with...",
                 icon: "open",
@@ -650,6 +628,29 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     cb.dispatch({type: "TerminalOpenTab", payload: {tab: {title: providerTitle, folder}}});
                 },
                 shortcut: ShortcutKey.O
+            },
+            {
+                text: "Create file",
+                icon: "heroDocumentPlus",
+                enabled(selected, cb) {
+                    if (cb.isSearch) return false;
+                    if (cb.creationDisabled) return "Fetching folder...";
+                    if (selected.length !== 0 || cb.startFileCreation == null) return false;
+                    if (cb.isCreating) return "You are already creating a folder";
+                    const support = cb.collection?.status.resolvedSupport?.support;
+                    if (!support) return false;
+                    if ((support as FileCollectionSupport).files.isReadOnly) {
+                        return "File system is read-only";
+                    }
+                    if (cb.collection?.permissions?.myself?.some(perm => perm === "ADMIN" || perm === "EDIT") != true) {
+                        return "You do not have write permissions in this folder";
+                    }
+                    return true;
+                },
+                onClick: (selected, cb) => {
+                    cb.startFileCreation!();
+                },
+                shortcut: ShortcutKey.L
             },
             {
                 icon: "trash",
