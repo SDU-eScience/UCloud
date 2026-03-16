@@ -21,8 +21,7 @@ type IngressSupport struct {
 }
 
 type IngressSpecification struct {
-	Domain  string               `json:"domain"`
-	Product apm.ProductReference `json:"product"`
+	Domain string `json:"domain"`
 	ResourceSpecification
 }
 

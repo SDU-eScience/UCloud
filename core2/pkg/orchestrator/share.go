@@ -8,7 +8,6 @@ import (
 	"slices"
 	"strings"
 
-	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
@@ -394,7 +393,7 @@ func ShareCreate(actor rpc.Actor, item orcapi.ShareSpecification) (string, *util
 	share, err := ResourceCreateThroughProvider(
 		actor,
 		shareType,
-		item.Product,
+		orcapi.ResourceSpecification{Product: item.Product},
 		&internalShare{
 			SharedWith:       item.SharedWith,
 			Permissions:      item.Permissions,
@@ -582,7 +581,7 @@ func sharePersist(b *db.Batch, r *resource) {
 
 func shareTransform(
 	r orcapi.Resource,
-	product util.Option[accapi.ProductReference],
+	specification orcapi.ResourceSpecification,
 	extra any,
 	flags orcapi.ResourceFlags,
 	actor rpc.Actor,
@@ -594,7 +593,7 @@ func shareTransform(
 			SharedWith:     share.SharedWith,
 			SourceFilePath: share.OriginalFilePath,
 			Permissions:    share.Permissions,
-			Product:        product.Value,
+			Product:        specification.Product,
 		},
 		Status: orcapi.ShareStatus{
 			State:            share.State,

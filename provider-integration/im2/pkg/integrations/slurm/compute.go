@@ -345,9 +345,11 @@ func loopComputeMonitoring() {
 
 		newJobResource := orc.ProviderRegisteredResource[orc.JobSpecification]{
 			Spec: orc.JobSpecification{
-				Name:           safeName,
-				Application:    unknownApplication,
-				Product:        slurmCfg.Value.EstimatedProduct,
+				Name:        safeName,
+				Application: unknownApplication,
+				ResourceSpecification: orc.ResourceSpecification{
+					Product: slurmCfg.Value.EstimatedProduct,
+				},
 				Replicas:       slurmCfg.Value.EstimatedNodeCount,
 				Parameters:     make(map[string]orc.AppParameterValue),
 				Resources:      []orc.AppParameterValue{},

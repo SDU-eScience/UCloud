@@ -28,7 +28,7 @@ const (
 	elementCount          = 64 // NOTE(Dan): Update follow function if changing this
 	csvCpuLimit           = -1
 	csvMemLimit           = -2
-	DefaultSampleInterval = 250 * time.Millisecond
+	DefaultSampleInterval = 0 * time.Millisecond
 )
 
 type Config struct {

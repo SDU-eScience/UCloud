@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"strings"
 
-	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
@@ -64,7 +63,7 @@ func initLicenses() {
 			license, err := ResourceCreateThroughProvider(
 				info.Actor,
 				licenseType,
-				item.Product,
+				item.ResourceSpecification,
 				&internalLicense{},
 				orcapi.LicensesProviderCreate,
 			)
@@ -154,7 +153,7 @@ func initLicenses() {
 					Project:   reqItem.Project,
 				},
 				nil,
-				util.OptValue(reqItem.Spec.Product),
+				reqItem.Spec.ResourceSpecification,
 				reqItem.ProviderGeneratedId,
 				&internalLicense{},
 				flags,
@@ -256,7 +255,7 @@ func licensePersist(b *db.Batch, r *resource) {
 
 func licenseTransform(
 	r orcapi.Resource,
-	product util.Option[accapi.ProductReference],
+	specification orcapi.ResourceSpecification,
 	extra any,
 	flags orcapi.ResourceFlags,
 	actor rpc.Actor,
@@ -265,7 +264,7 @@ func licenseTransform(
 	result := orcapi.License{
 		Resource: r,
 		Specification: orcapi.LicenseSpecification{
-			Product: product.Value,
+			ResourceSpecification: specification,
 		},
 		Status: orcapi.LicenseStatus{
 			State:   "READY",
@@ -273,8 +272,8 @@ func licenseTransform(
 		},
 	}
 
-	if flags.IncludeSupport || flags.IncludeProduct {
-		supp, _ := SupportByProduct[orcapi.LicenseSupport](licenseType, product.Value)
+	if (flags.IncludeSupport || flags.IncludeProduct) && resourceSpecificationHasProduct(specification) {
+		supp, _ := SupportByProduct[orcapi.LicenseSupport](licenseType, specification.Product)
 
 		if flags.IncludeProduct {
 			result.Status.ResolvedProduct.Set(supp.Product)

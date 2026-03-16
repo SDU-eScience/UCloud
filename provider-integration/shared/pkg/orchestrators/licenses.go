@@ -15,7 +15,7 @@ type License struct {
 }
 
 type LicenseSpecification struct {
-	Product apm.ProductReference `json:"product"`
+	ResourceSpecification
 }
 
 type LicenseStatus struct {

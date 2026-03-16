@@ -6,7 +6,6 @@ import (
 	"regexp"
 	"strings"
 
-	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
@@ -78,7 +77,7 @@ func initPrivateNetworks() {
 			network, err := ResourceCreateThroughProvider(
 				info.Actor,
 				privateNetworkType,
-				item.Product,
+				item.ResourceSpecification,
 				&internalPrivateNetwork{
 					Name:      item.Name,
 					Subdomain: item.Subdomain,
@@ -181,7 +180,7 @@ func initPrivateNetworks() {
 					Project:   util.OptStringIfNotEmpty(reqItem.Project.Value),
 				},
 				nil,
-				util.OptValue(reqItem.Spec.Product),
+				reqItem.Spec.ResourceSpecification,
 				reqItem.ProviderGeneratedId,
 				&internalPrivateNetwork{
 					Name:      spec.Name,
@@ -264,7 +263,7 @@ func privateNetworkPersist(b *db.Batch, resource *resource) {
 
 func privateNetworkTransform(
 	r orcapi.Resource,
-	product util.Option[accapi.ProductReference],
+	specification orcapi.ResourceSpecification,
 	extra any,
 	flags orcapi.ResourceFlags,
 	actor rpc.Actor,
@@ -274,19 +273,17 @@ func privateNetworkTransform(
 	result := orcapi.PrivateNetwork{
 		Resource: r,
 		Specification: orcapi.PrivateNetworkSpecification{
-			Name:      network.Name,
-			Subdomain: network.Subdomain,
-			ResourceSpecification: orcapi.ResourceSpecification{
-				Product: product.Value,
-			},
+			Name:                  network.Name,
+			Subdomain:             network.Subdomain,
+			ResourceSpecification: specification,
 		},
 		Status: orcapi.PrivateNetworkStatus{
 			Members: []string{},
 		},
 	}
 
-	if flags.IncludeProduct || flags.IncludeSupport {
-		support, _ := SupportByProduct[orcapi.PrivateNetworkSupport](privateNetworkType, product.Value)
+	if (flags.IncludeProduct || flags.IncludeSupport) && resourceSpecificationHasProduct(specification) {
+		support, _ := SupportByProduct[orcapi.PrivateNetworkSupport](privateNetworkType, specification.Product)
 		result.Status.ResourceStatus = orcapi.ResourceStatus[orcapi.PrivateNetworkSupport]{
 			ResolvedSupport: util.OptValue(support.ToApi()),
 			ResolvedProduct: util.OptValue(support.Product),

@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"strings"
 
-	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
@@ -180,7 +179,7 @@ func initDrives() {
 					Project:   util.OptStringIfNotEmpty(reqItem.Project.Value),
 				},
 				nil,
-				util.OptValue(reqItem.Spec.Product),
+				reqItem.Spec.ResourceSpecification,
 				reqItem.ProviderGeneratedId,
 				&driveInfo{
 					Title: reqItem.Spec.Title,
@@ -252,7 +251,7 @@ func DriveCreate(actor rpc.Actor, item orcapi.DriveSpecification) (orcapi.Drive,
 	}
 
 	info := &driveInfo{Title: title}
-	return ResourceCreateThroughProvider(actor, driveType, p, info, orcapi.DrivesProviderCreate)
+	return ResourceCreateThroughProvider(actor, driveType, item.ResourceSpecification, info, orcapi.DrivesProviderCreate)
 }
 
 type driveInfo struct {
@@ -281,7 +280,7 @@ func driveLoad(tx *db.Transaction, ids []int64, resources map[ResourceId]*resour
 	}
 }
 
-func driveTransform(r orcapi.Resource, product util.Option[accapi.ProductReference], extra any, flags orcapi.ResourceFlags, actor rpc.Actor) any {
+func driveTransform(r orcapi.Resource, specification orcapi.ResourceSpecification, extra any, flags orcapi.ResourceFlags, actor rpc.Actor) any {
 	info := extra.(*driveInfo)
 
 	isPreferred := r.Owner.CreatedBy == actor.Username &&
@@ -290,8 +289,8 @@ func driveTransform(r orcapi.Resource, product util.Option[accapi.ProductReferen
 	result := orcapi.Drive{
 		Resource: r,
 		Specification: orcapi.DriveSpecification{
-			Title:   info.Title,
-			Product: product.Value,
+			Title:                 info.Title,
+			ResourceSpecification: specification,
 		},
 		Status: orcapi.DriveStatus{
 			PreferredDrive: isPreferred,
@@ -299,8 +298,8 @@ func driveTransform(r orcapi.Resource, product util.Option[accapi.ProductReferen
 		Updates: make([]orcapi.ResourceUpdate, 0),
 	}
 
-	if flags.IncludeProduct || flags.IncludeSupport {
-		support, _ := SupportByProduct[orcapi.FSSupport](driveType, product.Value)
+	if (flags.IncludeProduct || flags.IncludeSupport) && resourceSpecificationHasProduct(specification) {
+		support, _ := SupportByProduct[orcapi.FSSupport](driveType, specification.Product)
 		result.Status.ResourceStatus = orcapi.ResourceStatus[orcapi.FSSupport]{
 			ResolvedSupport: util.OptValue(support.ToApi()),
 			ResolvedProduct: util.OptValue(support.Product),

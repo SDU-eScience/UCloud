@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"strings"
 
-	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
@@ -100,7 +99,7 @@ func initPublicIps() {
 			resc, err := ResourceCreateThroughProvider[orcapi.PublicIp](
 				info.Actor,
 				publicIpType,
-				item.Product,
+				item.ResourceSpecification,
 				ip,
 				orcapi.PublicIpsProviderCreate,
 			)
@@ -182,7 +181,7 @@ func initPublicIps() {
 					Project:   reqItem.Project,
 				},
 				nil,
-				util.OptValue(reqItem.Spec.Product),
+				reqItem.Spec.ResourceSpecification,
 				reqItem.ProviderGeneratedId,
 				&internalPublicIp{
 					Firewall: reqItem.Spec.Firewall.GetOrDefault(orcapi.Firewall{}),
@@ -419,7 +418,7 @@ func publicIpPersist(b *db.Batch, r *resource) {
 
 func publicIpTransform(
 	r orcapi.Resource,
-	product util.Option[accapi.ProductReference],
+	specification orcapi.ResourceSpecification,
 	extra any,
 	flags orcapi.ResourceFlags,
 	actor rpc.Actor,
@@ -428,8 +427,8 @@ func publicIpTransform(
 	result := orcapi.PublicIp{
 		Resource: r,
 		Specification: orcapi.PublicIPSpecification{
-			Product:  product.Value,
-			Firewall: util.OptValue(ip.Firewall),
+			Firewall:              util.OptValue(ip.Firewall),
+			ResourceSpecification: specification,
 		},
 		Status: orcapi.PublicIpStatus{
 			State:     "READY",
@@ -438,8 +437,8 @@ func publicIpTransform(
 		},
 	}
 
-	if flags.IncludeSupport || flags.IncludeProduct {
-		supp, _ := SupportByProduct[orcapi.PublicIpSupport](publicIpType, product.Value)
+	if (flags.IncludeSupport || flags.IncludeProduct) && resourceSpecificationHasProduct(specification) {
+		supp, _ := SupportByProduct[orcapi.PublicIpSupport](publicIpType, specification.Product)
 
 		if flags.IncludeProduct {
 			result.Status.ResolvedProduct.Set(supp.Product)

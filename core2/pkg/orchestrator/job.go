@@ -137,7 +137,7 @@ func initJobs() {
 				Updates:   nil,
 			}
 
-			job, err := ResourceCreateThroughProvider(info.Actor, jobType, spec.Product, extra, orcapi.JobsProviderCreate)
+			job, err := ResourceCreateThroughProvider(info.Actor, jobType, spec.ResourceSpecification, extra, orcapi.JobsProviderCreate)
 			if err != nil {
 				return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
 			}
@@ -359,7 +359,7 @@ func initJobs() {
 					Project:   util.OptStringIfNotEmpty(reqItem.Project.Value),
 				},
 				nil,
-				util.OptValue(reqItem.Spec.Product),
+				reqItem.Spec.ResourceSpecification,
 				reqItem.ProviderGeneratedId,
 				&internalJob{
 					Application:    spec.Application,
@@ -2057,7 +2057,7 @@ func jobPersistCommitted(r *resource) {
 
 func jobTransform(
 	r orcapi.Resource,
-	product util.Option[accapi.ProductReference],
+	specification orcapi.ResourceSpecification,
 	extra any,
 	flags orcapi.ResourceFlags,
 	actor rpc.Actor,
@@ -2068,16 +2068,16 @@ func jobTransform(
 		Resource: r,
 		Updates:  util.NonNilSlice(info.Updates),
 		Specification: orcapi.JobSpecification{
-			Product:        product.Value,
-			Application:    info.Application,
-			Name:           info.Name,
-			Hostname:       info.Hostname,
-			Replicas:       info.Replicas,
-			Parameters:     info.Parameters,
-			Resources:      info.Resources,
-			TimeAllocation: info.TimeAllocation,
-			OpenedFile:     info.OpenedFile,
-			SshEnabled:     info.SshEnabled,
+			Application:           info.Application,
+			Name:                  info.Name,
+			Hostname:              info.Hostname,
+			Replicas:              info.Replicas,
+			Parameters:            info.Parameters,
+			Resources:             info.Resources,
+			TimeAllocation:        info.TimeAllocation,
+			OpenedFile:            info.OpenedFile,
+			SshEnabled:            info.SshEnabled,
+			ResourceSpecification: specification,
 		},
 		Status: orcapi.JobStatus{
 			State:             info.State,
@@ -2089,8 +2089,8 @@ func jobTransform(
 		},
 	}
 
-	if flags.IncludeProduct || flags.IncludeSupport {
-		support, _ := SupportByProduct[orcapi.JobSupport](jobType, product.Value)
+	if (flags.IncludeProduct || flags.IncludeSupport) && resourceSpecificationHasProduct(specification) {
+		support, _ := SupportByProduct[orcapi.JobSupport](jobType, specification.Product)
 		result.Status.ResolvedProduct.Set(support.Product)
 		result.Status.ResolvedSupport.Set(support.ToApi())
 	}

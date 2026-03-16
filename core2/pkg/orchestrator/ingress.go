@@ -9,7 +9,6 @@ import (
 	"strings"
 	"sync"
 
-	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
@@ -157,7 +156,7 @@ func initIngresses() {
 			ing, err := ResourceCreateThroughProvider(
 				info.Actor,
 				ingressType,
-				item.Product,
+				item.ResourceSpecification,
 				&internalIngress{
 					Domain: item.Domain,
 				},
@@ -259,7 +258,7 @@ func initIngresses() {
 					Project:   util.OptStringIfNotEmpty(reqItem.Project.Value),
 				},
 				nil,
-				util.OptValue(reqItem.Spec.Product),
+				reqItem.Spec.ResourceSpecification,
 				reqItem.ProviderGeneratedId,
 				&internalIngress{
 					Domain: reqItem.Spec.Domain,
@@ -422,13 +421,13 @@ func ingressPersist(b *db.Batch, r *resource) {
 	}
 }
 
-func ingressTransform(r orcapi.Resource, product util.Option[accapi.ProductReference], extra any, flags orcapi.ResourceFlags, actor rpc.Actor) any {
+func ingressTransform(r orcapi.Resource, specification orcapi.ResourceSpecification, extra any, flags orcapi.ResourceFlags, actor rpc.Actor) any {
 	ing := extra.(*internalIngress)
 	result := orcapi.Ingress{
 		Resource: r,
 		Specification: orcapi.IngressSpecification{
-			Domain:  ing.Domain,
-			Product: product.Value,
+			Domain:                ing.Domain,
+			ResourceSpecification: specification,
 		},
 		Status: orcapi.IngressStatus{
 			BoundTo: util.NonNilSlice(ing.BoundTo),
@@ -436,8 +435,8 @@ func ingressTransform(r orcapi.Resource, product util.Option[accapi.ProductRefer
 		},
 	}
 
-	if flags.IncludeProduct || flags.IncludeSupport {
-		support, _ := SupportByProduct[orcapi.IngressSupport](ingressType, product.Value)
+	if (flags.IncludeProduct || flags.IncludeSupport) && resourceSpecificationHasProduct(specification) {
+		support, _ := SupportByProduct[orcapi.IngressSupport](ingressType, specification.Product)
 		result.Status.ResourceStatus = orcapi.ResourceStatus[orcapi.IngressSupport]{
 			ResolvedSupport: util.OptValue(support.ToApi()),
 			ResolvedProduct: util.OptValue(support.Product),

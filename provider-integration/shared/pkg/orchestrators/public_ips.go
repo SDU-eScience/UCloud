@@ -8,7 +8,7 @@ import (
 )
 
 type PublicIPSpecification struct {
-	Product  apm.ProductReference  `json:"product"`
+	ResourceSpecification
 	Firewall util.Option[Firewall] `json:"firewall"`
 }
 

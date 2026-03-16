@@ -89,7 +89,7 @@ type resource struct {
 	MarkedForDeletion bool
 	Confirmed         bool
 
-	Product util.Option[accapi.ProductReference]
+	BaseSpec orcapi.ResourceSpecification
 
 	// NOTE(Dan): Updates and status are now managed by the caller
 }
@@ -156,7 +156,7 @@ type resourceTypeGlobal struct {
 	OnLoad             func(tx *db.Transaction, ids []int64, resources map[ResourceId]*resource)
 	OnPersist          func(b *db.Batch, resources *resource)
 	OnPersistCommitted func(r *resource)
-	Transformer        func(r orcapi.Resource, product util.Option[accapi.ProductReference], extra any, flags orcapi.ResourceFlags, actor rpc.Actor) any
+	Transformer        func(r orcapi.Resource, baseSpec orcapi.ResourceSpecification, extra any, flags orcapi.ResourceFlags, actor rpc.Actor) any
 
 	IndexersMu sync.RWMutex
 	Indexers   []func(r *resource) ResourceIndexer
@@ -240,7 +240,7 @@ func InitResourceType(
 	flags resourceTypeFlags,
 	doLoad func(tx *db.Transaction, ids []int64, resources map[ResourceId]*resource),
 	doPersist func(b *db.Batch, r *resource),
-	transformer func(r orcapi.Resource, product util.Option[accapi.ProductReference], extra any, flags orcapi.ResourceFlags, actor rpc.Actor) any,
+	transformer func(r orcapi.Resource, specification orcapi.ResourceSpecification, extra any, flags orcapi.ResourceFlags, actor rpc.Actor) any,
 	persistCommitted func(r *resource),
 ) {
 	if !resourceGlobals.Testing.Enabled {
@@ -322,8 +322,8 @@ func resourcesReadEx(
 			providerId, isProvider := strings.CutPrefix(actor.Username, fndapi.ProviderSubjectPrefix)
 
 			if isProvider {
-				if r.Product.Present {
-					if r.Product.Value.Provider == providerId {
+				if resourceSpecificationHasProduct(r.BaseSpec) {
+					if r.BaseSpec.Product.Provider == providerId {
 						permissions = orcapi.PermissionsAdd(permissions, orcapi.PermissionRead)
 						permissions = orcapi.PermissionsAdd(permissions, orcapi.PermissionProvider)
 					}
@@ -392,8 +392,8 @@ func resourcesReadEx(
 
 func lResourceApplyFlags(r *resource, myPerms []orcapi.Permission, flags orcapi.ResourceFlags) (orcapi.Resource, bool) {
 	var result orcapi.Resource
-	if r.Product.Present {
-		prod := r.Product.Value
+	if resourceSpecificationHasProduct(r.BaseSpec) {
+		prod := r.BaseSpec.Product
 		if flags.FilterProvider.Present && prod.Provider != flags.FilterProvider.Value {
 			return result, false
 		}
@@ -505,7 +505,7 @@ func ResourceRetrieveEx[T any](
 	pId ResourceId,
 	requiredPermission orcapi.Permission,
 	flags orcapi.ResourceFlags,
-) (T, orcapi.Resource, util.Option[accapi.ProductReference], *util.HttpError) {
+) (T, orcapi.Resource, orcapi.ResourceSpecification, *util.HttpError) {
 	var result T
 
 	g := resourceGetGlobals(typeName)
@@ -516,12 +516,12 @@ func ResourceRetrieveEx[T any](
 		b.Mu.RLock()
 		mapped, ok := lResourceApplyFlags(r, perms, flags)
 		if ok {
-			rawResult := g.Transformer(mapped, r.Product, r.Extra, flags, actor)
+			rawResult := g.Transformer(mapped, r.BaseSpec, r.Extra, flags, actor)
 			result = rawResult.(T)
 		}
 		b.Mu.RUnlock()
 		if ok {
-			return result, r.ToApi(perms), r.Product, nil
+			return result, r.ToApi(perms), r.BaseSpec, nil
 		}
 	}
 
@@ -529,7 +529,7 @@ func ResourceRetrieveEx[T any](
 	if perms == nil && !ok {
 		errorMessage = util.HttpErr(http.StatusForbidden, "write permission is required")
 	}
-	return result, orcapi.Resource{}, util.OptNone[accapi.ProductReference](), errorMessage
+	return result, orcapi.Resource{}, orcapi.ResourceSpecification{}, errorMessage
 }
 
 type ResourceSortByFn[T any] func(a T, b T) int
@@ -678,7 +678,7 @@ func ResourceBrowse[T any](
 				b.Mu.RLock()
 				mapped, ok := lResourceApplyFlags(resc, perms, flags)
 				if ok {
-					item := g.Transformer(mapped, resc.Product, resc.Extra, flags, actor).(T)
+					item := g.Transformer(mapped, resc.BaseSpec, resc.Extra, flags, actor).(T)
 					if filter == nil || filter(item) {
 						if sortComparator == nil && len(items) >= itemsPerPage {
 							newNext.Set(fmt.Sprint(prevId))
@@ -769,7 +769,7 @@ func ResourceUpdate[T any](
 		if !ok {
 			log.Fatal("resource was not supposed to be filtered here")
 		}
-		mapped := g.Transformer(apiResc, resc.Product, resc.Extra, orcapi.ResourceFlags{}, actor).(T)
+		mapped := g.Transformer(apiResc, resc.BaseSpec, resc.Extra, orcapi.ResourceFlags{}, actor).(T)
 
 		// Indexing before modification
 		var indexers []ResourceIndexer
@@ -959,7 +959,7 @@ func ResourceCreateEx[T any](
 	typeName string,
 	owner orcapi.ResourceOwner,
 	acl []orcapi.ResourceAclEntry,
-	product util.Option[accapi.ProductReference],
+	baseSpec orcapi.ResourceSpecification,
 	providerId util.Option[string],
 	extra any,
 	flags resourceCreateFlags,
@@ -979,9 +979,9 @@ func ResourceCreateEx[T any](
 		}
 	}
 
-	if product.Present && providerId.Present {
+	if resourceSpecificationHasProduct(baseSpec) && providerId.Present {
 		isReserved := false
-		providerBucket := resourceGetProvider(product.Value.Provider)
+		providerBucket := resourceGetProvider(baseSpec.Product.Provider)
 		providerBucket.Mu.Lock()
 		_, isReserved = providerBucket.ProviderIds[providerId.Value]
 		if !isReserved {
@@ -993,6 +993,30 @@ func ResourceCreateEx[T any](
 			var t T
 			return 0, t, util.HttpErr(http.StatusConflict, "already exists")
 		}
+	}
+
+	if baseSpec.Labels == nil {
+		baseSpec.Labels = map[string]string{}
+	}
+
+	{
+		var empty T
+		normalizedLabels := map[string]string{}
+		for k, v := range baseSpec.Labels {
+			normalizedKey := strings.ToLower(k)
+			if _, exists := normalizedLabels[normalizedKey]; exists {
+				return 0, empty, util.HttpErr(http.StatusBadRequest, "duplicate key in labels: %s", k)
+			}
+
+			err := util.ValidateStringE(&normalizedKey, fmt.Sprintf("labels[%s]", normalizedKey), util.StringValidationRequireShort256)
+			if err != nil {
+				return 0, empty, err
+			}
+
+			normalizedLabels[normalizedKey] = v
+		}
+
+		baseSpec.Labels = normalizedLabels
 	}
 
 	{
@@ -1018,7 +1042,7 @@ func ResourceCreateEx[T any](
 		Type:       typeName,
 		Extra:      extra,
 		Confirmed:  false,
-		Product:    product,
+		BaseSpec:   baseSpec,
 	}
 	b.Resources[id] = r
 	resourceFlags := orcapi.ResourceFlags{
@@ -1044,7 +1068,7 @@ func ResourceCreateEx[T any](
 	}
 
 	apiResc, _ := lResourceApplyFlags(r, nil, resourceFlags)
-	mapped := g.Transformer(apiResc, r.Product, r.Extra, resourceFlags, rpc.ActorSystem).(T)
+	mapped := g.Transformer(apiResc, r.BaseSpec, r.Extra, resourceFlags, rpc.ActorSystem).(T)
 
 	var indexers []ResourceIndexer
 	g.IndexersMu.RLock()
@@ -1070,7 +1094,7 @@ func ResourceCreateEx[T any](
 func ResourceCreate[T any](
 	actor rpc.Actor,
 	typeName string,
-	product util.Option[accapi.ProductReference],
+	specification orcapi.ResourceSpecification,
 	extra any,
 ) (ResourceId, T, *util.HttpError) {
 	g := resourceGetGlobals(typeName)
@@ -1097,7 +1121,11 @@ func ResourceCreate[T any](
 		}),
 	}
 
-	return ResourceCreateEx[T](typeName, owner, nil, product, util.OptNone[string](), extra, 0)
+	return ResourceCreateEx[T](typeName, owner, nil, specification, util.OptNone[string](), extra, 0)
+}
+
+func resourceSpecificationHasProduct(specification orcapi.ResourceSpecification) bool {
+	return specification.Product != (accapi.ProductReference{})
 }
 
 func ResourceConfirm(typeName string, id ResourceId) {

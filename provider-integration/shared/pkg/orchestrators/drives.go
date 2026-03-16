@@ -30,8 +30,8 @@ func DriveIdFromUCloudPath(path string) (string, bool) {
 }
 
 type DriveSpecification struct {
-	Title   string               `json:"title"`
-	Product acc.ProductReference `json:"product"`
+	Title string `json:"title"`
+	ResourceSpecification
 }
 
 type FSSupport struct {

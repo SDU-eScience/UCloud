@@ -6,7 +6,6 @@ import (
 	"sync"
 	"testing"
 
-	accapi "ucloud.dk/shared/pkg/accounting"
 	"ucloud.dk/shared/pkg/assert"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/rpc"
@@ -52,7 +51,7 @@ const testResource = "test"
 func initResourceTest(t *testing.T) {
 	resourceGlobals.Testing.Enabled = true
 	InitResources()
-	InitResourceType(testResource, 0, nil, nil, func(r orcapi.Resource, product util.Option[accapi.ProductReference], extra any, flags orcapi.ResourceFlags, actor rpc.Actor) any {
+	InitResourceType(testResource, 0, nil, nil, func(r orcapi.Resource, specification orcapi.ResourceSpecification, extra any, flags orcapi.ResourceFlags, actor rpc.Actor) any {
 		d := extra.(*TestResourceData)
 		return TestResource{
 			Resource: r,
@@ -95,7 +94,7 @@ func TestReadAndWritePath(t *testing.T) {
 	id, doc, err := ResourceCreate[TestResource](
 		*u,
 		testResource,
-		util.OptNone[accapi.ProductReference](),
+		orcapi.ResourceSpecification{},
 		&TestResourceData{
 			A: 1,
 			B: 2,
@@ -186,7 +185,7 @@ func TestPagination(t *testing.T) {
 		id, _, err := ResourceCreate[TestResource](
 			*u,
 			testResource,
-			util.OptNone[accapi.ProductReference](),
+			orcapi.ResourceSpecification{},
 			&TestResourceData{
 				A: 1,
 				B: 2,
@@ -306,7 +305,7 @@ func TestPaginationWithSorter(t *testing.T) {
 		id, _, err := ResourceCreate[TestResource](
 			*u,
 			testResource,
-			util.OptNone[accapi.ProductReference](),
+			orcapi.ResourceSpecification{},
 			&TestResourceData{
 				A: 1,
 				B: 2,

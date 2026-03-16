@@ -5,7 +5,6 @@ import (
 	"regexp"
 	"sync"
 
-	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
@@ -78,7 +77,7 @@ func initProviderManagement() {
 			_, provider, err := ResourceCreate[orcapi.Provider](
 				info.Actor,
 				providerType,
-				util.OptNone[accapi.ProductReference](),
+				orcapi.ResourceSpecification{},
 				&internalProvider{
 					UniqueName:   item.Id,
 					Domain:       item.Domain,
@@ -296,7 +295,7 @@ func providerPersist(b *db.Batch, r *resource) {
 
 func providerTransform(
 	r orcapi.Resource,
-	product util.Option[accapi.ProductReference],
+	specification orcapi.ResourceSpecification,
 	extra any,
 	flags orcapi.ResourceFlags,
 	actor rpc.Actor,

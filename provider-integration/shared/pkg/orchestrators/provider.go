@@ -19,11 +19,11 @@ type Provider struct {
 }
 
 type ProviderSpecification struct {
-	Id      string               `json:"id"`
-	Domain  string               `json:"domain"`
-	Https   bool                 `json:"https"`
-	Port    int                  `json:"port"`
-	Product acc.ProductReference `json:"product"` // Deprecated
+	Id     string `json:"id"`
+	Domain string `json:"domain"`
+	Https  bool   `json:"https"`
+	Port   int    `json:"port"`
+	ResourceSpecification
 }
 
 const providerBaseContext = "providers"

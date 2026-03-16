@@ -1075,10 +1075,12 @@ func createShare(share orc.Share) (string, *util.HttpError) {
 	driveIdResp, herr := orc.DrivesControlRegister.Invoke(fnd.BulkRequestOf(orc.ProviderRegisteredResource[orc.DriveSpecification]{
 		Spec: orc.DriveSpecification{
 			Title: title,
-			Product: apm.ProductReference{
-				Id:       "share",
-				Category: shared.ServiceConfig.FileSystem.Name,
-				Provider: cfg.Provider.Id,
+			ResourceSpecification: orc.ResourceSpecification{
+				Product: apm.ProductReference{
+					Id:       "share",
+					Category: shared.ServiceConfig.FileSystem.Name,
+					Provider: cfg.Provider.Id,
+				},
 			},
 		},
 		ProviderGeneratedId: util.OptValue(fmt.Sprintf("s-%s", share.Id)),

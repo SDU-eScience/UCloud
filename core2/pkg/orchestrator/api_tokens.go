@@ -9,7 +9,6 @@ import (
 	"time"
 
 	cfg "ucloud.dk/core/pkg/config"
-	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
@@ -121,7 +120,7 @@ func ApiTokenCreate(actor rpc.Actor, request orcapi.ApiTokenSpecification) (orca
 		TokenSalt:   hashedToken.Salt,
 	}
 
-	tokId, tok, err := ResourceCreate[orcapi.ApiToken](actor, apiTokenType, util.OptNone[accapi.ProductReference](), itok)
+	tokId, tok, err := ResourceCreate[orcapi.ApiToken](actor, apiTokenType, orcapi.ResourceSpecification{}, itok)
 	if err != nil {
 		return orcapi.ApiToken{}, err
 	}
@@ -255,7 +254,7 @@ func apiTokensLoad(tx *db.Transaction, ids []int64, resources map[ResourceId]*re
 
 func apiTokensTransform(
 	r orcapi.Resource,
-	product util.Option[accapi.ProductReference],
+	specification orcapi.ResourceSpecification,
 	extra any,
 	flags orcapi.ResourceFlags,
 	actor rpc.Actor,

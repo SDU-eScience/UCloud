@@ -119,7 +119,7 @@ type JobUpdate struct {
 }
 
 type JobSpecification struct {
-	Product           apm.ProductReference         `json:"product"`
+	ResourceSpecification
 	Application       NameAndVersion               `json:"application"`
 	Name              string                       `json:"name,omitempty"`
 	Hostname          util.Option[string]          `json:"hostname"`
