@@ -23,7 +23,9 @@ import FilesApi, {
     addFileSensitivityDialog,
     ExtraFileCallbacks,
     FileSensitivityNamespace,
-    FileSensitivityVersion, isReadonly,
+    FileSensitivityVersion,
+    initEmptyFileUpload,
+    isReadonly,
     isSensitivitySupported,
 } from "@/UCloud/FilesApi";
 import {fileName, getParentPath, pathComponents, resolvePath, sizeToString} from "@/Utilities/FileUtilities";
@@ -46,7 +48,7 @@ import {ThemeColor} from "@/ui-components/theme";
 import {SvgFt} from "@/ui-components/FtIcon";
 import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
 import {dateToDateStringOrTime, dateToString} from "@/Utilities/DateUtilities";
-import {callAPI as baseCallAPI} from "@/Authentication/DataHook";
+import {callAPI as baseCallAPI, noopCall} from "@/Authentication/DataHook";
 import {accounting, BulkResponse, compute, FindByStringId, PageV2} from "@/UCloud";
 import MetadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/MetadataNamespaceApi";
 import {bulkRequestOf} from "@/UtilityFunctions";
@@ -547,6 +549,36 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                     shouldRemoveFakeDirectory = true;
                 };
 
+                const showCreateFile = () => {
+                    const fakePath = resolvePath(browser.currentPath) + "/" + fakeFileName.split("/")[0];
+                    browser.removeEntryFromCurrentPage(it => it.id === fakePath);
+                    shouldRemoveFakeDirectory = false;
+                    insertFakeEntry(fakeFileName, {type: "FILE"});
+                    const idx = browser.findVirtualRowIndex(it => it.id === fakePath);
+                    if (idx !== null) browser.ensureRowIsVisible(idx, true);
+
+                    browser.showRenameField(
+                        it => it.id === fakePath,
+                        () => {
+                            browser.removeEntryFromCurrentPage(it => it.id === fakePath);
+                            if (!browser.renameValue) return;
+
+                            const realPath = resolvePath(browser.currentPath) + "/" + browser.renameValue;
+                            insertFakeEntry(browser.renameValue.split("/")[0], {type: "FILE"});
+                            const idx = browser.findVirtualRowIndex(it => it.id === realPath);
+                            if (idx !== null) {
+                                browser.ensureRowIsVisible(idx, true, true);
+                                browser.select(idx, SelectionMode.SINGLE);
+                            }
+
+                            initEmptyFileUpload(realPath);
+                        },
+                        noopCall,
+                        ""
+                    );
+                };
+
+
                 const startRenaming = (path: string) => {
                     browser.showRenameField(
                         it => it.id === path,
@@ -700,8 +732,11 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                                 defaultErrorHandler(e);
                             });
                         },
-                        startCreation(): void {
+                        startFolderCreation(): void {
                             showCreateDirectory();
+                        },
+                        startFileCreation(): void {
+                            showCreateFile();
                         },
                         creationDisabled: !initialFetchDone,
                         cancelCreation: doNothing,
