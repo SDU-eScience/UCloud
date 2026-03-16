@@ -1,5 +1,5 @@
 import {Store} from "redux";
-import {b64DecodeUnicode, inRange, inSuccessRange, is5xxStatusCode} from "@/UtilityFunctions";
+import {b64DecodeUnicode, displayErrorMessageOrDefault, inRange, inSuccessRange, is5xxStatusCode} from "@/UtilityFunctions";
 import {setStoredProject} from "@/Project/ReduxState";
 import {CallParameters} from "./CallParameters";
 import {signIntentToCall, clearSigningKey} from "@/Authentication/MessageSigning";
@@ -28,6 +28,8 @@ export function parseJWT(encodedJWT: string): JWT | null {
 
     return parsed;
 }
+
+let nextAllowedFailureNotificationTS = 0;
 
 /**
  * Represents an instance of the HTTPClient object used for contacting the backend, implicitly using JWTs.
@@ -215,8 +217,14 @@ export class HttpClient {
             });
         } catch (e) {
             console.warn(e);
-            if (!this.isPublicPage) sendFailureNotification("Could not refresh login token.");
-            if ([401, 403].includes(e.status)) HttpClient.clearTokens();
+            if (!this.isPublicPage) {
+                if (nextAllowedFailureNotificationTS < new Date().getTime()) {
+                    nextAllowedFailureNotificationTS = new Date().getTime() + 1_000;
+                    sendFailureNotification("Could not refresh login token.");
+                }
+            } else if ([401, 403].includes(e.status)) {
+                HttpClient.clearTokens();
+            }
         }
     }
 
