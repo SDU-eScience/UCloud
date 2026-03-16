@@ -758,6 +758,10 @@ func terminate(request ctrl.JobTerminateRequest) *util.HttpError {
 }
 
 func unsuspend(job orc.Job) *util.HttpError {
+	if reason := shared.IsJobLocked(&job); reason.Present {
+		return util.HttpErr(http.StatusPaymentRequired, "You do not have any resources to run the machine.")
+	}
+
 	shared.RequestSchedule(&job)
 	return nil
 }
