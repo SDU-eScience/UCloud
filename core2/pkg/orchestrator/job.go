@@ -189,7 +189,7 @@ func initJobs() {
 								validatedResources.Present = true
 
 								for _, value := range resourceList.Value {
-									err = jobValidateValue(jobOwner, &value, toolBackend, support)
+									err = jobValidateValue(jobOwner, &value, toolBackend, support, util.OptValue(job.Id))
 									if err == nil {
 										validatedResources.Value = append(validatedResources.Value, value)
 									}
@@ -609,7 +609,7 @@ func initJobs() {
 
 		resource := request.Resource
 		toolBackend := resc.Status.ResolvedApplication.Value.Invocation.Tool.Tool.Value.Description.Backend
-		err = jobValidateValue(info.Actor, &resource, toolBackend, support)
+		err = jobValidateValue(info.Actor, &resource, toolBackend, support, util.OptValue(resc.Id))
 		if err != nil {
 			return util.Empty{}, err
 		}
@@ -653,7 +653,7 @@ func initJobs() {
 		}
 
 		toolBackend := resc.Status.ResolvedApplication.Value.Invocation.Tool.Tool.Value.Description.Backend
-		err = jobValidateValue(info.Actor, &resource, toolBackend, support)
+		err = jobValidateValue(info.Actor, &resource, toolBackend, support, util.OptValue(resc.Id))
 		if err != nil {
 			return util.Empty{}, err
 		}
@@ -1348,7 +1348,7 @@ func jobsValidateForSubmission(actor rpc.Actor, spec *orcapi.JobSpecification) *
 
 	for i, value := range spec.Resources {
 		newValue := value
-		err := jobValidateValue(actor, &newValue, tool.Backend, support)
+		err := jobValidateValue(actor, &newValue, tool.Backend, support, util.OptNone[string]())
 		if err != nil {
 			return err
 		} else {
@@ -1392,7 +1392,7 @@ func jobsValidateForSubmission(actor rpc.Actor, spec *orcapi.JobSpecification) *
 
 	for name, value := range spec.Parameters {
 		newValue := value
-		err := jobValidateValue(actor, &newValue, tool.Backend, support)
+		err := jobValidateValue(actor, &newValue, tool.Backend, support, util.OptNone[string]())
 		if err != nil {
 			return err
 		} else {
@@ -1486,7 +1486,13 @@ func jobsValidateForSubmission(actor rpc.Actor, spec *orcapi.JobSpecification) *
 	return nil
 }
 
-func jobValidateValue(actor rpc.Actor, value *orcapi.AppParameterValue, backend orcapi.ToolBackend, support ProductSupport[orcapi.JobSupport]) *util.HttpError {
+func jobValidateValue(
+	actor rpc.Actor,
+	value *orcapi.AppParameterValue,
+	backend orcapi.ToolBackend,
+	support ProductSupport[orcapi.JobSupport],
+	jobId util.Option[string],
+) *util.HttpError {
 	switch value.Type {
 	case orcapi.AppParameterValueTypeFile:
 		path := value.Path
@@ -1533,8 +1539,10 @@ func jobValidateValue(actor rpc.Actor, value *orcapi.AppParameterValue, backend 
 			return util.HttpErr(http.StatusForbidden, "you cannot use this IP address")
 		}
 
-		if len(resc.Status.BoundTo) > 0 {
-			return util.HttpErr(http.StatusForbidden, "this IP is already in use with %v", resc.Status.BoundTo[0])
+		for _, id := range resc.Status.BoundTo {
+			if !jobId.Present || id != jobId.Value {
+				return util.HttpErr(http.StatusForbidden, "this link is already in use with %v", id)
+			}
 		}
 
 	case orcapi.AppParameterValueTypeIngress:
@@ -1545,8 +1553,10 @@ func jobValidateValue(actor rpc.Actor, value *orcapi.AppParameterValue, backend 
 			return util.HttpErr(http.StatusForbidden, "you cannot use this link")
 		}
 
-		if len(resc.Status.BoundTo) > 0 {
-			return util.HttpErr(http.StatusForbidden, "this link is already in use with %v", resc.Status.BoundTo[0])
+		for _, id := range resc.Status.BoundTo {
+			if !jobId.Present || id != jobId.Value {
+				return util.HttpErr(http.StatusForbidden, "this link is already in use with %v", id)
+			}
 		}
 
 		if value.Port != 0 && value.Port < 0 || value.Port > 65535 {

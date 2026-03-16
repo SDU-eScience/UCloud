@@ -1493,9 +1493,11 @@ func JobFolder(job *orc.Job) (string, *util.HttpError) {
 }
 
 func attachResource(job *orc.Job, resource orc.AppParameterValue) *util.HttpError {
+	// Nothing to do
 	return nil
 }
 
 func detachResource(job *orc.Job, resource orc.AppParameterValue) *util.HttpError {
+	// Nothing to do
 	return nil
 }

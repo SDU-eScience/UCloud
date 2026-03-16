@@ -200,25 +200,34 @@ func vmDetachLockedResources(job *orc.Job) (int, *util.HttpError) {
 		}
 	}
 
-	if len(lockedDrives) == 0 {
-		return 0, nil
-	}
-
 	updatedJob := *job
 	updatedJob.Specification.Resources = slices.Clone(job.Specification.Resources)
 
 	detachedCount := 0
 	for _, resource := range job.Specification.Resources {
-		if resource.Type != orc.AppParameterValueTypeFile {
-			continue
+		shouldDetach := false
+
+		switch resource.Type {
+		case orc.AppParameterValueTypeFile:
+			driveId, ok := filesystem.DriveIdFromUCloudPath(resource.Path)
+			if !ok {
+				continue
+			}
+
+			_, shouldDetach = lockedDrives[driveId]
+
+		case orc.AppParameterValueTypeNetwork,
+			orc.AppParameterValueTypeIngress,
+			orc.AppParameterValueTypeLicense,
+			orc.AppParameterValueTypePrivateNetwork:
+			accessible, _, _ := controller.JobResourceIsAccessible(job.Owner, resource)
+			shouldDetach = !accessible
+
+		default:
+			shouldDetach = false
 		}
 
-		driveId, ok := filesystem.DriveIdFromUCloudPath(resource.Path)
-		if !ok {
-			continue
-		}
-
-		if _, shouldDetach := lockedDrives[driveId]; !shouldDetach {
+		if !shouldDetach {
 			continue
 		}
 
