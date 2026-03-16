@@ -157,15 +157,17 @@ func prepareInvocationOnJobCreate(
 	}
 
 	ingress := serverFindIngress(job, rank, util.OptNone[string]())
-	ingressNames := []string{
-		"BASE_URL",
-		"UCLOUD_BASE_URL",
-	}
-	for _, name := range ingressNames {
-		container.Env = append(container.Env, k8score.EnvVar{
-			Name:  name,
-			Value: fmt.Sprintf("https://%s", ingress.TargetDomain),
-		})
+	if len(ingress) > 0 {
+		ingressNames := []string{
+			"BASE_URL",
+			"UCLOUD_BASE_URL",
+		}
+		for _, name := range ingressNames {
+			container.Env = append(container.Env, k8score.EnvVar{
+				Name:  name,
+				Value: fmt.Sprintf("https://%s", ingress[0].TargetDomain),
+			})
+		}
 	}
 }
 

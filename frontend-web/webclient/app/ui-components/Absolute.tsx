@@ -10,6 +10,7 @@ const Absolute: React.FunctionComponent<BoxProps & {
     bottom?: number | string;
     right?: number | string;
     style?: CSSProperties;
+    className?: string;
     children?: React.ReactNode;
 }> = props => {
     const style: CSSProperties = {...(props.style ?? {}), position: "absolute"};

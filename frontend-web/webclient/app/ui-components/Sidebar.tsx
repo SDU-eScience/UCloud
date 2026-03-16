@@ -356,8 +356,8 @@ function UserMenu({avatar, dialog, setOpenDialog}: {
             <UserMenuExternalLink close={close.current} href={CONF.DATA_PROTECTION_LINK} icon="heroShieldCheck"
                 text={CONF.DATA_PROTECTION_TEXT} />
             <Divider />
-            <Username close={close.current} />
-            <ProjectID close={close.current} />
+            <Username />
+            <ProjectID />
             <CommandPaletteEntry />
             <Divider />
             <Flex className={HoverClass} onClick={() => Client.logout()} data-component={"logout-button"}>
@@ -606,9 +606,6 @@ function useSidebarFilesPage(): [
     }))));
 
     React.useEffect(() => {
-    }, [favorites])
-
-    React.useEffect(() => {
         favorites.items.filter(it => fileTypeCache[it.path] == null).forEach(async file => {
             try {
                 const f = await callAPI(FilesApi.retrieve({id: file.path}))
@@ -832,11 +829,10 @@ function SecondarySidebar({
 }: SecondarySidebarProps): React.ReactNode {
     const [drives, favoriteFiles] = useSidebarFilesPage();
     const recentRuns = useSidebarRunsPage();
-    const activeProjectId = useProjectId();
-    const lastHover = React.useRef(SidebarTabId.NONE);
-    const isPersonalWorkspace = !activeProjectId;
-    const project = useProject();
     const projectId = useProjectId();
+    const lastHover = React.useRef(SidebarTabId.NONE);
+    const isPersonalWorkspace = !projectId;
+    const project = useProject();
     const canApply = isPersonalWorkspace || isAdminOrPI(project.fetch().status.myRole);
 
     const onClear = useCallback(() => {
@@ -866,12 +862,12 @@ function SecondarySidebar({
             });
         }
 
-        if (activeProjectId) {
+        if (projectId) {
             projectActivations.push(myWorkspaceProjectCommand(navigate, dispatch));
         }
 
         return projectActivations;
-    }, [projects?.items, activeProjectId]);
+    }, [projects?.items, projectId]);
 
     useProvideCommands(staticProvider(projectCommands));
 
@@ -880,24 +876,23 @@ function SecondarySidebar({
     const oldProjectId = React.useRef<string | null>(null);
     const oldDiscoveryMode = React.useRef<AppStore.CatalogDiscovery | null>(null);
 
+
     const canConsume = checkCanConsumeResources(projectId ?? null, {api: FilesApi});
     useEffect(() => {
-        (async () => {
-            const discoverHasChanged =
-                discoveryMode.discovery !== oldDiscoveryMode.current?.discovery ||
-                discoveryMode.selected !== oldDiscoveryMode.current?.selected;
+        const wasReset = landingPage === AppStore.emptyLandingPage;
+        const discoverHasChanged =
+            discoveryMode.discovery !== oldDiscoveryMode.current?.discovery ||
+            discoveryMode.selected !== oldDiscoveryMode.current?.selected;
 
-            const projectHasChanged = oldProjectId.current !== projectId;
+        const projectHasChanged = oldProjectId.current != projectId;
 
-            if (discoverHasChanged || projectHasChanged) {
-                const page = await callAPI(AppStore.retrieveLandingPage(discoveryMode));
-                setLandingPage(page);
-            }
+        if (discoverHasChanged || projectHasChanged || wasReset) {
+            callAPI(AppStore.retrieveLandingPage(discoveryMode)).then(setLandingPage);
+        }
 
-            oldDiscoveryMode.current = discoveryMode;
-            oldProjectId.current = projectId ?? null;
-        })();
-    }, [projectId, discoveryMode]);
+        oldDiscoveryMode.current = discoveryMode;
+        oldProjectId.current = projectId ?? null;
+    }, [projectId, discoveryMode, landingPage]);
 
     useEffectSkipMount(() => {
         fetchFavoriteApps(AppStore.retrieveStars({})).then(doNothing);
@@ -1181,20 +1176,33 @@ function SidebarSectionEmptyHeader(): React.ReactNode {
     return <Box height="11px" />
 }
 
-function Username({close}: {close(): void}): React.ReactNode {
+function Username(): React.ReactNode {
+    const [copied, setCopied] = React.useState(false);
+    const timeoutId = React.useRef(-1);
+    React.useEffect(() => {
+        return () => {
+            if (timeoutId.current === -1) return;
+            window.clearTimeout(timeoutId.current);
+        }
+    }, []);
+
     if (!Client.isLoggedIn) return null;
     return <Tooltip
         trigger={(
             <EllipsedText
                 className={HoverClass}
                 cursor="pointer"
-                onClick={() => {
+                onClick={e => {
+                    e.stopPropagation();
                     copyUserName();
-                    close();
+                    setCopied(true);
+                    timeoutId.current = window.setTimeout(() => {
+                        setCopied(false);
+                    }, 1_200);
                 }}
                 width={"100%"}
             >
-                <Icon name="heroIdentification" mr="0.5em" my="0.2em" size="1.3em" />{Client.username}
+                <Icon color={copied ? "successMain" : undefined} name={copied ? "check" : "heroIdentification"} mr="0.5em" my="0.2em" size="1.3em" />{Client.username}
             </EllipsedText>
         )}
     >
@@ -1203,8 +1211,16 @@ function Username({close}: {close(): void}): React.ReactNode {
     </Tooltip>
 }
 
-function ProjectID({close}: {close(): void}): React.ReactNode {
+function ProjectID(): React.ReactNode {
     const projectId = useProjectId();
+    const [copied, setCopied] = React.useState(false);
+    const timeoutId = React.useRef(-1);
+    React.useEffect(() => {
+        return () => {
+            if (timeoutId.current === -1) return;
+            window.clearTimeout(timeoutId.current);
+        }
+    }, []);
 
     const project = useProject();
 
@@ -1214,7 +1230,11 @@ function ProjectID({close}: {close(): void}): React.ReactNode {
     );
 
     const copyProjectPath = useCallback(() => {
-        copyToClipboard({value: projectPath, message: "Project copied to clipboard!"});
+        copyToClipboard(projectPath);
+        setCopied(true);
+        timeoutId.current = window.setTimeout(() => {
+            setCopied(false);
+        }, 1_200);
     }, [projectPath]);
 
     if (!projectId) return null;
@@ -1223,13 +1243,13 @@ function ProjectID({close}: {close(): void}): React.ReactNode {
             <EllipsedText
                 className={HoverClass}
                 cursor="pointer"
-                onClick={() => {
+                onClick={e => {
                     copyProjectPath();
-                    close();
+                    e.stopPropagation();
                 }}
                 width={"100%"}
             >
-                <Icon key={projectId} name={"heroUserGroup"} mr="0.5em" my="0.2em"
+                <Icon key={projectId} color={copied ? "successMain" : undefined} name={copied ? "check" : "heroUserGroup"} mr="0.5em" my="0.2em"
                     size="1.3em" />{projectPath}
             </EllipsedText>
         }
@@ -1270,10 +1290,8 @@ function Downtimes(): React.ReactNode {
 }
 
 function copyUserName(): void {
-    copyToClipboard({
-        value: Client.username,
-        message: "Username copied to clipboard"
-    });
+    if (!Client.username) return;
+    copyToClipboard(Client.username);
 }
 
 function useSidebarReduxProps(): SidebarStateProps {

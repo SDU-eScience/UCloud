@@ -169,7 +169,7 @@ func vmiFsMutator() {
 						volPath, ok1 := annotations[fmt.Sprintf("ucloud.dk/vmVolPath-%s", mount.Name)]
 						readOnly, ok2 := annotations[fmt.Sprintf("ucloud.dk/vmVolReadOnly-%s", mount.Name)]
 						if !ok1 && !ok2 {
-							log.Info("Rejecting %s because annotations are not present on VM: %s, %s", volPath, readOnly)
+							log.Info("Rejecting because annotations are not present on VM: %s, %s", volPath, readOnly)
 							allowed = false
 						} else {
 							ops = append(ops, jsonPatchOp{

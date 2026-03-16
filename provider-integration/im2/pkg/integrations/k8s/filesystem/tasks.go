@@ -1,587 +1,583 @@
 package filesystem
 
 import (
+	"context"
 	"fmt"
-	"sync/atomic"
+	"net/http"
+	"path/filepath"
+	"slices"
+	"strings"
+	"sync"
 	"time"
 
+	k8sbatch "k8s.io/api/batch/v1"
+	k8score "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+	k8smeta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "ucloud.dk/pkg/controller"
+	"ucloud.dk/pkg/integrations/k8s/shared"
 	db "ucloud.dk/shared/pkg/database"
-	fnd "ucloud.dk/shared/pkg/foundation"
+	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
-	orc "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
-
-type TaskProcessingResult struct {
-	Error error
-
-	// If Error is not nil then AllowReschedule can be used to reschedule the task at a later point in time. This value
-	// is always ignored if Error is nil.
-	AllowReschedule bool
-}
 
 type TaskType string
 
 const (
-	FileTaskTypeCopy            TaskType = "copy"
-	FileTaskTransfer            TaskType = "file_transfer"
-	FileTaskTransferDestination TaskType = "file_transfer_destination"
+	TaskTypeCopy     TaskType = "copy"
+	TaskTypeTransfer TaskType = "file_transfer"
 )
 
-type TaskInfo struct {
-	Id                 int
-	UCloudTaskId       util.Option[int]
-	BackoffSeconds     int
-	Done               atomic.Bool
-	Status             atomic.Pointer[fnd.TaskStatus]
-	UserRequestedState atomic.Pointer[fnd.TaskState]
-	Paused             bool
-	TaskInfoSpecification
+type TaskMount struct {
+	UCloudPath string
 }
 
-type TaskInfoSpecification struct {
-	Type              TaskType
-	CreatedAt         fnd.Timestamp
-	UCloudSource      util.Option[string]
-	UCloudDestination util.Option[string]
-	ConflictPolicy    orc.WriteConflictPolicy
-	MoreInfo          util.Option[string]
-	HasUCloudTask     bool
-	Icon              string
-	UCloudUsername    string
-}
+type TaskSpec struct {
+	Type      TaskType
+	Id        string
+	Mounts    []TaskMount
+	TaskToken string
 
-func (spec *TaskInfoSpecification) DefaultStatus() fnd.TaskStatus {
-	sourceSimple := util.FileName(spec.UCloudSource.Value)
-	destSimple := util.FileName(spec.UCloudDestination.Value)
+	Source           string // UCloud path prior to submission, mount path in job task
+	Destination      string // UCloud path prior to submission, mount path in job task
+	TransferEndpoint string
+	ConflictPolicy   string
 
-	progress := ""
-	operation := ""
-	switch spec.Type {
-	case FileTaskTransfer:
-		operation = fmt.Sprintf("Transferring %s to another provider", sourceSimple)
-
-	case FileTaskTypeCopy:
-		operation = fmt.Sprintf("Copying %s to %s", sourceSimple, destSimple)
-	}
-
-	return fnd.TaskStatus{
-		State:              fnd.TaskStateRunning,
-		Title:              util.OptValue(operation),
-		Progress:           util.OptValue(progress),
-		ProgressPercentage: util.OptValue(0.0),
+	CreationState struct {
+		Username string
+		Icon     string
 	}
 }
 
-type TaskStatusUpdate struct {
-	Id            int
-	NewOperation  util.Option[string]
-	NewBody       util.Option[string]
-	NewProgress   util.Option[string]
-	NewPercentage util.Option[float64] // 0 - 100 both inclusive
-	NewState      util.Option[fnd.TaskState]
+const (
+	taskJobLabel        = "ucloud.dk/backgroundTask"
+	taskStorageMountDir = "/mnt/storage"
+)
+
+var taskState struct {
+	Mu    sync.RWMutex
+	Cache map[string]int // token to ucloud task id
 }
 
-var taskFrontendQueue chan *TaskInfo
+func taskGetUCloudTaskIdFromToken(token string) (int, bool) {
+	taskState.Mu.RLock()
+	taskId, ok := taskState.Cache[token]
+	taskState.Mu.RUnlock()
 
-func InitTaskSystem() {
-	type userStateTransition struct {
-		Id    int
-		State fnd.TaskState
-	}
-	taskStateTransition := make(chan userStateTransition)
-	taskFrontendQueue = make(chan *TaskInfo, 100)
-	taskBackendQueue := make(chan *TaskInfo, 100)
+	if !ok {
+		taskState.Mu.Lock()
+		taskId, ok = db.NewTx2(func(tx *db.Transaction) (int, bool) {
+			row, ok := db.Get[struct {
+				UCloudTaskId int
+			}](
+				tx,
+				`
+					select ucloud_task_id
+					from k8s.tasks_v2
+					where api_token = :tok
+				`,
+				db.Params{
+					"tok": token,
+				},
+			)
 
-	doTransition := func(id int, state fnd.TaskState) *util.HttpError {
-		taskStateTransition <- userStateTransition{
-			Id:    id,
-			State: state,
+			return row.UCloudTaskId, ok
+		})
+
+		if ok {
+			taskState.Cache[token] = taskId
 		}
-		return nil
+		taskState.Mu.Unlock()
 	}
+
+	return taskId, ok
+}
+
+func taskCleanupByToken(token string) (string, bool) {
+	_, ok := taskGetUCloudTaskIdFromToken(token)
+	if ok {
+		jobName, ok := db.NewTx2(func(tx *db.Transaction) (string, bool) {
+			row, ok := db.Get[struct{ Id string }](
+				tx,
+				`
+					delete from k8s.tasks_v2
+					where api_token = :tok
+					returning id
+				`,
+				db.Params{
+					"tok": token,
+				},
+			)
+			return row.Id, ok
+		})
+
+		taskState.Mu.Lock()
+		delete(taskState.Cache, token)
+		taskState.Mu.Unlock()
+		return jobName, ok
+	}
+
+	return "", false
+}
+
+func initTasks() {
+	taskState.Cache = map[string]int{}
+
+	tasksInternalPostStatus.Handler(func(info rpc.RequestInfo, request tasksInternalPostStatusRequest) (util.Empty, *util.HttpError) {
+		ucloudTaskId, ok := taskGetUCloudTaskIdFromToken(request.Token)
+		if !ok {
+			return util.Empty{}, util.HttpErr(http.StatusForbidden, "invalid token")
+		}
+
+		_, err := fndapi.TasksPostStatus.Invoke(fndapi.TasksPostStatusRequest{
+			Update: fndapi.TasksPostStatusRequestUpdate{
+				Id:         ucloudTaskId,
+				ModifiedAt: fndapi.Timestamp(time.Now()),
+				NewStatus:  request.Update,
+			},
+		})
+
+		if err != nil {
+			return util.Empty{}, err
+		}
+
+		if request.Update.State == fndapi.TaskStateSuccess || request.Update.State == fndapi.TaskStateFailure {
+			taskCleanupByToken(request.Token)
+		}
+
+		return util.Empty{}, nil
+	})
 
 	ctrl.Tasks = ctrl.TaskService{
 		OnCancel: func(id int) *util.HttpError {
-			return doTransition(id, fnd.TaskStateCancelled)
+			apiTok, ok := db.NewTx2(func(tx *db.Transaction) (string, bool) {
+				row, ok := db.Get[struct{ ApiToken string }](
+					tx,
+					`
+						select api_token
+						from k8s.tasks_v2
+						where ucloud_task_id = :task_id
+				    `,
+					db.Params{
+						"task_id": id,
+					},
+				)
+				return row.ApiToken, ok
+			})
+
+			jobName, ok := taskCleanupByToken(apiTok)
+			if ok {
+				deleteOpts := k8smeta.DeleteOptions{
+					PropagationPolicy: util.Pointer(k8smeta.DeletePropagationBackground),
+				}
+
+				k8sErr := shared.K8sClient.BatchV1().
+					Jobs(shared.ServiceConfig.Compute.TaskNamespace).
+					Delete(context.Background(), jobName, deleteOpts)
+
+				if k8sErr != nil {
+					log.Warn("Task cancellation: failed to delete completed job %s/%s: %s",
+						shared.ServiceConfig.Compute.TaskNamespace, jobName, k8sErr)
+				} else {
+					_, err := fndapi.TasksPostStatus.Invoke(fndapi.TasksPostStatusRequest{
+						Update: fndapi.TasksPostStatusRequestUpdate{
+							Id:         id,
+							ModifiedAt: fndapi.Timestamp(time.Now()),
+							NewStatus: fndapi.TaskStatus{
+								Title:              util.OptValue("Task has been cancelled"),
+								Body:               util.OptValue("The task has been cancelled"),
+								ProgressPercentage: util.OptValue(100.0),
+								State:              fndapi.TaskStateCancelled,
+							},
+						},
+					})
+
+					if err != nil {
+						log.Warn("Task cancellation: failed to post final message: %s", err)
+					}
+				}
+			}
+			return nil
 		},
 		OnPause: func(id int) *util.HttpError {
-			return doTransition(id, fnd.TaskStateSuspended)
+			return util.HttpErr(http.StatusBadRequest, "operation not supported")
 		},
 		OnResume: func(id int) *util.HttpError {
-			return doTransition(id, fnd.TaskStateRunning)
+			return util.HttpErr(http.StatusBadRequest, "operation not supported")
 		},
 	}
 
-	go func() {
-		knownTasks := map[int]*TaskInfo{}
-		knownStatus := map[int]fnd.TaskStatus{}
+	go taskJobReconciler()
+}
 
-		ticker := time.NewTicker(250 * time.Millisecond)
+func taskJobReconciler() {
+	ticker := time.NewTicker(3 * time.Second)
+	defer ticker.Stop()
 
-		for util.IsAlive {
-			select {
-			case transition := <-taskStateTransition:
-				if transition.State == fnd.TaskStateRunning {
-					tasks := ListAllActiveTasks()
-					for _, task := range tasks {
-						if task.UCloudTaskId.Present && task.UCloudTaskId.Value == transition.Id {
-							_ = PostTaskStatus(task.UCloudUsername, TaskStatusUpdate{
-								Id:            task.Id,
-								NewBody:       util.OptValue(""),
-								NewProgress:   util.OptValue("Task is being resumed..."),
-								NewPercentage: util.OptValue(-1.0),
-								NewState:      util.OptValue(fnd.TaskStateInQueue),
-							})
-							taskFrontendQueue <- task
-							break
-						}
-					}
-				} else {
-					var foundTask *TaskInfo = nil
-					for _, task := range knownTasks {
-						if task.HasUCloudTask && task.UCloudTaskId.Value == transition.Id {
-							foundTask = task
-							break
-						}
-					}
+	for util.IsAlive {
+		<-ticker.C
 
-					if foundTask != nil {
-						status := foundTask.Status.Load()
-						_ = PostTaskStatus(foundTask.UCloudUsername, TaskStatusUpdate{
-							Id:            foundTask.Id,
-							NewBody:       status.Body,
-							NewProgress:   status.Progress,
-							NewPercentage: status.ProgressPercentage,
-							NewState:      util.OptValue(transition.State),
-						})
-
-						foundTask.UserRequestedState.Store(&transition.State)
-					} else {
-						// TODO Somehow send a terminate message. This is a bit more complicated since we do not have
-						//   a way of checking permissions. Probably some IPC which terminates the task if it is
-						//   unknown.
-					}
-				}
-
-			case task := <-taskFrontendQueue:
-				if task.HasUCloudTask {
-					knownTasks[task.Id] = task
-					load := task.Status.Load()
-					if load == nil {
-						defaultStatus := task.DefaultStatus()
-						load = &defaultStatus
-					}
-					knownStatus[task.Id] = *load
-				}
-				taskBackendQueue <- task
-
-			case <-ticker.C:
-				for id, task := range knownTasks {
-					if task.Done.Load() {
-						delete(knownTasks, id)
-						delete(knownStatus, id)
-					} else {
-						newStatusPtr := task.Status.Load()
-						if newStatusPtr == nil {
-							defaultStatus := task.DefaultStatus()
-							newStatusPtr = &defaultStatus
-						}
-						newStatus := *newStatusPtr
-
-						oldStatus, _ := knownStatus[id]
-						if newStatus != oldStatus {
-							err := PostTaskStatus(task.UCloudUsername, TaskStatusUpdate{
-								Id:            id,
-								NewOperation:  newStatus.Title,
-								NewProgress:   newStatus.Progress,
-								NewPercentage: newStatus.ProgressPercentage,
-								NewBody:       newStatus.Body,
-								NewState:      util.OptValue(newStatus.State),
-							})
-
-							if err == nil {
-								knownStatus[id] = newStatus
-							}
-						}
-					}
-				}
-			}
-		}
-	}()
-
-	for i := 0; i < 10; i++ {
-		go func() {
-			for util.IsAlive {
-				task := <-taskBackendQueue
-
-				result := TaskProcessingResult{}
-
-				switch task.Type {
-				case FileTaskTypeCopy:
-					result = processCopyTask(task)
-
-				case FileTaskTransfer:
-					result = processTransferTask(task)
-
-				// The following tasks are handled externally and not through a process task. These must register
-				// that they are done through a manual PostTaskStatus.
-				case FileTaskTransferDestination:
-					continue
-				}
-
-				wasRescheduled := false
-				reschedule := func() {
-					wasRescheduled = true
-
-					go func() {
-						seconds := task.BackoffSeconds
-						if seconds <= 0 {
-							seconds = 4
-						}
-						task.BackoffSeconds = seconds * 2
-						if task.BackoffSeconds >= 60*5 {
-							task.BackoffSeconds = 60 * 5
-						}
-
-						// NOTE(Dan): Rescheduling skips the frontend queue since the task is still active,
-						// just sleeping for a bit.
-						for seconds > 0 {
-							currentStatus := task.Status.Load()
-							task.Status.Store(&fnd.TaskStatus{
-								State:              fnd.TaskStateInQueue,
-								Title:              currentStatus.Title,
-								Progress:           util.OptValue(fmt.Sprintf("Retrying in %v seconds", seconds)),
-								Body:               util.OptValue(""),
-								ProgressPercentage: util.OptValue(-1.0),
-							})
-
-							time.Sleep(time.Duration(1) * time.Second)
-							seconds--
-						}
-
-						taskBackendQueue <- task
-					}()
-				}
-
-				requestedState := task.UserRequestedState.Load()
-				if requestedState != nil {
-					if result.Error != nil && !result.AllowReschedule {
-						// Ignore that the user requested a state transition, force an error
-						_ = PostTaskStatus(task.UCloudUsername, TaskStatusUpdate{
-							Id:            task.Id,
-							NewBody:       util.OptValue(""),
-							NewProgress:   util.OptValue(result.Error.Error()),
-							NewPercentage: util.OptValue(100.0),
-							NewState:      util.OptValue(fnd.TaskStateFailure),
-						})
-
-						task.Done.Store(true)
-					} else {
-						// NOTE(Dan): This intentionally ignores the error if we are pausing the task.
-						msg := "Task has been paused"
-						if *requestedState == fnd.TaskStateCancelled {
-							msg = "Task has been cancelled"
-							if result.Error != nil {
-								msg = result.Error.Error()
-							}
-						}
-
-						_ = PostTaskStatus(task.UCloudUsername, TaskStatusUpdate{
-							Id:            task.Id,
-							NewBody:       util.OptValue(""),
-							NewProgress:   util.OptValue(msg),
-							NewPercentage: util.OptValue(0.0),
-							NewState:      util.OptValue(*requestedState),
-						})
-
-						task.Done.Store(true)
-					}
-				} else {
-					shouldPost := true
-					operation := task.DefaultStatus().Title
-					progress := "Task has been completed."
-					taskState := fnd.TaskStateSuccess
-					if result.Error != nil {
-						if result.AllowReschedule {
-							shouldPost = false
-							reschedule()
-						}
-
-						taskState = fnd.TaskStateFailure
-						progress = result.Error.Error()
-					}
-
-					if shouldPost {
-						err := PostTaskStatus(task.UCloudUsername, TaskStatusUpdate{
-							Id:            task.Id,
-							NewProgress:   util.OptValue(progress),
-							NewPercentage: util.OptValue(100.0),
-							NewState:      util.OptValue(taskState),
-							NewBody:       util.OptValue(""),
-							NewOperation:  operation,
-						})
-
-						if err != nil {
-							log.Warn("Failed to post final status update for task: %s", err)
-							reschedule()
-						}
-					}
-
-					if !wasRescheduled {
-						task.Done.Store(true)
-					}
-				}
-			}
-		}()
-	}
-
-	tasks := ListAllActiveTasks()
-	if len(tasks) > 0 {
-		log.Info("Restarting %v tasks", len(tasks))
-		for _, task := range tasks {
-			if task.Paused {
+		for _, job := range shared.BatchBackgroundJobs.List() {
+			if job.Labels[taskJobLabel] != "true" {
 				continue
 			}
-			taskFrontendQueue <- task
+
+			finalState := fndapi.TaskStateSuccess
+			done := false
+
+			{
+				for _, cond := range job.Status.Conditions {
+					if cond.Status != k8score.ConditionTrue {
+						continue
+					}
+
+					switch cond.Type {
+					case k8sbatch.JobComplete:
+						finalState, done = fndapi.TaskStateSuccess, true
+					case k8sbatch.JobFailed:
+						finalState, done = fndapi.TaskStateFailure, true
+					}
+				}
+
+				if job.Status.Succeeded > 0 {
+					finalState, done = fndapi.TaskStateSuccess, true
+				}
+
+				if job.Status.Failed > 0 {
+					finalState, done = fndapi.TaskStateFailure, true
+				}
+			}
+
+			if !done {
+				continue
+			}
+
+			// NOTE(Dan): We expect most to _not_ have a task at this point, since it should have posted a status
+			// update prior to this completing it. This code is here to send a status update in case it completes while
+			// the IM is down.
+
+			ucloudTaskId, apiToken, ok := db.NewTx3(func(tx *db.Transaction) (int, string, bool) {
+				result, resultOk := db.Get[struct {
+					UCloudTaskId int
+					ApiToken     string
+				}](
+					tx,
+					`
+							select ucloud_task_id, api_token
+							from k8s.tasks_v2
+							where id = :id
+						`,
+					db.Params{
+						"id": job.Name,
+					},
+				)
+
+				return result.UCloudTaskId, result.ApiToken, resultOk
+			})
+
+			if ok {
+				_, err := fndapi.TasksPostStatus.Invoke(fndapi.TasksPostStatusRequest{
+					Update: fndapi.TasksPostStatusRequestUpdate{
+						Id:         ucloudTaskId,
+						ModifiedAt: fndapi.Timestamp(time.Now()),
+						NewStatus: fndapi.TaskStatus{
+							Title:              util.OptValue("Task has completed"),
+							Body:               util.OptValue("This task has completed while the system was being updated."),
+							ProgressPercentage: util.OptValue(100.0),
+							State:              finalState,
+						},
+					},
+				})
+
+				if err == nil {
+					taskCleanupByToken(apiToken)
+
+				} else {
+					log.Warn("Task reconciler: failed to post status for %s: %s", job.Name, err)
+					continue
+				}
+			}
+
+			k8sErr := shared.K8sClient.BatchV1().Jobs(job.Namespace).Delete(context.Background(), job.Name, k8smeta.DeleteOptions{
+				PropagationPolicy: util.Pointer(k8smeta.DeletePropagationBackground),
+			})
+			if k8sErr != nil {
+				log.Warn("Task reconciler: failed to delete completed job %s/%s: %s", job.Namespace, job.Name, k8sErr)
+			}
 		}
 	}
 }
 
-func RegisterTask(spec TaskInfoSpecification) *util.HttpError {
-	ucloudTaskId := util.OptNone[int]()
-	if spec.HasUCloudTask {
-		flags := fnd.TaskFlags(0)
-		switch spec.Type {
-		case FileTaskTransfer:
-			flags |= fnd.TaskFlagCanCancel | fnd.TaskFlagCanPause
+func TaskSubmit(spec TaskSpec) *util.HttpError {
+	spec.Id = fmt.Sprintf("task-%s", util.RandomToken(8))
+	spec.TaskToken = util.SecureToken()
 
-		default:
-		}
+	resp, err := fndapi.TasksCreate.Invoke(fndapi.TasksCreateRequest{
+		User:      spec.CreationState.Username,
+		Title:     util.OptValue("Task is starting"),
+		Body:      util.OptValue("One of your operations is being scheduled..."),
+		CanCancel: true,
+		Icon:      util.OptValue(spec.CreationState.Icon),
+	})
 
-		status := spec.DefaultStatus()
-
-		id, err := fnd.TasksCreate.Invoke(
-			fnd.TasksCreateRequest{
-				User:      spec.UCloudUsername,
-				Title:     status.Title,
-				Progress:  status.Progress,
-				CanPause:  flags&fnd.TaskFlagCanPause != 0,
-				CanCancel: flags&fnd.TaskFlagCanCancel != 0,
-				Icon:      util.OptStringIfNotEmpty(spec.Icon),
-			},
-		)
-
-		if err != nil {
-			return util.ServerHttpError("Could not create task in UCloud: %s", err)
-		}
-
-		ucloudTaskId.Set(id.Id)
+	if err != nil {
+		log.Warn("Failed to create background task: %s", err)
+		return util.HttpErr(http.StatusInternalServerError, "failed to create background task")
 	}
 
-	taskId, ok := db.NewTx2[int, bool](func(tx *db.Transaction) (int, bool) {
-		result, ok := db.Get[struct{ Id int }](
+	ucloudTaskId := resp.Id
+
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
 			tx,
 			`
-				insert into k8s.tasks(ucloud_task_id, ucloud_username, task_type, ucloud_source,
-					ucloud_destination, conflict_policy, more_info) 
-				values (:ucloud_task, :owner_username, :type, :source, :dest, :conflict, :info)
-				returning id
-			`,
+				insert into k8s.tasks_v2(id, ucloud_task_id, api_token)
+				values (:id, :ucloud_task, :tok)
+		    `,
 			db.Params{
-				"type":           spec.Type,
-				"ucloud_task":    ucloudTaskId.GetPtrOrNil(),
-				"owner_username": spec.UCloudUsername,
-				"source":         spec.UCloudSource.GetPtrOrNil(),
-				"dest":           spec.UCloudDestination.GetPtrOrNil(),
-				"conflict":       spec.ConflictPolicy,
-				"info":           spec.MoreInfo.GetPtrOrNil(),
+				"id":          spec.Id,
+				"ucloud_task": ucloudTaskId,
+				"tok":         spec.TaskToken,
 			},
 		)
+	})
 
+	taskSelector := shared.ServiceConfig.Compute.TaskNodeSelector
+
+	storageVolumeMounts, internalToPod := resolveTaskMounts(spec)
+	sourcePath := mapUCloudPathToTaskPath(spec.Source, internalToPod)
+	destinationPath := mapUCloudPathToTaskPath(spec.Destination, internalToPod)
+
+	job := k8sbatch.Job{
+		ObjectMeta: k8smeta.ObjectMeta{
+			Name:      spec.Id,
+			Namespace: shared.ServiceConfig.Compute.TaskNamespace,
+			Labels: map[string]string{
+				taskJobLabel: "true",
+			},
+		},
+		Spec: k8sbatch.JobSpec{
+			Template: k8score.PodTemplateSpec{
+				Spec: k8score.PodSpec{
+					AutomountServiceAccountToken: util.Pointer(false),
+					EnableServiceLinks:           util.Pointer(false),
+					Volumes: []k8score.Volume{
+						{
+							Name: "ucloud-filesystem",
+							VolumeSource: k8score.VolumeSource{
+								PersistentVolumeClaim: &k8score.PersistentVolumeClaimVolumeSource{
+									ClaimName: shared.ServiceConfig.FileSystem.ClaimName,
+								},
+							},
+						},
+						{
+							Name: "ucloud-opt",
+							VolumeSource: k8score.VolumeSource{
+								EmptyDir: &k8score.EmptyDirVolumeSource{},
+							},
+						},
+					},
+					InitContainers: []k8score.Container{
+						{
+							Name:            "ucloud-executables",
+							Image:           "alpine:latest",
+							ImagePullPolicy: k8score.PullIfNotPresent,
+							Command: []string{
+								"sh",
+								"-c",
+								"cp /mnt/exe/ucloud /opt/ucloud/ucloud ; cp /mnt/exe/provider-hostname.txt /opt/ucloud/provider-hostname.txt",
+							},
+							VolumeMounts: []k8score.VolumeMount{
+								{
+									Name:      "ucloud-opt",
+									MountPath: "/opt/ucloud",
+								},
+								{
+									Name:      "ucloud-filesystem",
+									ReadOnly:  true,
+									MountPath: "/mnt/exe",
+									SubPath:   shared.ExecutablesDir,
+								},
+							},
+						},
+					},
+					Containers: []k8score.Container{
+						{
+							Name:            "job",
+							Image:           "alpine:latest",
+							Command:         []string{"/opt/ucloud/ucloud", "task-processor"},
+							WorkingDir:      "/",
+							ImagePullPolicy: k8score.PullIfNotPresent,
+							Env: []k8score.EnvVar{
+								{Name: taskEnvType, Value: string(spec.Type)},
+								{Name: taskEnvId, Value: spec.Id},
+								{Name: taskEnvSource, Value: sourcePath},
+								{Name: taskEnvDestination, Value: destinationPath},
+								{Name: taskEnvTransferEndpoint, Value: spec.TransferEndpoint},
+								{Name: taskEnvTaskToken, Value: spec.TaskToken},
+								{Name: taskEnvConflictPolicy, Value: spec.ConflictPolicy},
+							},
+							Resources: k8score.ResourceRequirements{
+								Limits: map[k8score.ResourceName]resource.Quantity{
+									k8score.ResourceCPU:    *resource.NewMilliQuantity(8000, resource.DecimalExponent),
+									k8score.ResourceMemory: *resource.NewScaledQuantity(1024*16, resource.Mega),
+								},
+								Requests: map[k8score.ResourceName]resource.Quantity{
+									k8score.ResourceCPU:    *resource.NewMilliQuantity(500, resource.DecimalExponent),
+									k8score.ResourceMemory: *resource.NewScaledQuantity(2048, resource.Mega),
+								},
+							},
+							VolumeMounts: append(storageVolumeMounts, k8score.VolumeMount{
+								Name:      "ucloud-opt",
+								MountPath: "/opt/ucloud",
+								ReadOnly:  true,
+							}),
+						},
+					},
+					RestartPolicy: k8score.RestartPolicyNever,
+					NodeSelector:  taskSelector,
+				},
+			},
+		},
+	}
+
+	_, kerr := shared.K8sClient.BatchV1().Jobs(shared.ServiceConfig.Compute.TaskNamespace).Create(context.Background(), &job, k8smeta.CreateOptions{})
+	if kerr != nil {
+		log.Warn("K8s background task failed: %s", kerr)
+		return util.HttpErr(http.StatusInternalServerError, "failed to create background task")
+	}
+
+	return nil
+}
+
+func resolveTaskMounts(spec TaskSpec) ([]k8score.VolumeMount, map[string]string) {
+	type candidateMount struct {
+		InternalPath string
+		SubPath      string
+		PodPath      string
+		ReadOnly     bool
+	}
+
+	resolvedMounts := map[string][]util.Tuple2[string, bool]{}
+	internalToPod := map[string]string{}
+
+	internalToSubpath := func(internalPath string) (string, bool) {
+		subpath, ok := strings.CutPrefix(internalPath, filepath.Clean(shared.ServiceConfig.FileSystem.MountPoint)+"/")
 		if !ok {
-			return 0, false
+			return "", false
 		}
 
-		return result.Id, true
-	})
+		return subpath, true
+	}
 
+	addMount := func(containerPath, subpath string, readOnly bool) {
+		existing, _ := resolvedMounts[containerPath]
+		existing = append(existing, util.Tuple2[string, bool]{subpath, readOnly})
+		resolvedMounts[containerPath] = existing
+	}
+
+	addUCloudMount := func(containerPath, ucloudPath string, readOnly bool) {
+		internalPath, ok, _ := UCloudToInternal(ucloudPath)
+		if !ok {
+			return
+		}
+
+		subpath, ok := internalToSubpath(internalPath)
+		if !ok {
+			return
+		}
+
+		addMount(containerPath, subpath, readOnly)
+	}
+
+	for _, mount := range spec.Mounts {
+		ucloudPath := mount.UCloudPath
+		comps := util.Components(ucloudPath)
+		compsLen := len(comps)
+		if compsLen == 0 {
+			continue
+		}
+
+		title := comps[compsLen-1]
+		if compsLen == 1 {
+			drive, ok := ResolveDrive(comps[0])
+			if !ok {
+				continue
+			}
+
+			title = strings.ReplaceAll(drive.Specification.Title, "Member Files: ", "")
+		}
+
+		containerPath := filepath.Join(taskStorageMountDir, title)
+		addUCloudMount(containerPath, ucloudPath, false)
+	}
+
+	var folders []candidateMount
+	for containerPath, mounts := range resolvedMounts {
+		if len(mounts) == 1 {
+			mount := mounts[0]
+			internalPath := shared.ServiceConfig.FileSystem.MountPoint + "/" + mount.First
+			folders = append(folders, candidateMount{
+				InternalPath: internalPath,
+				SubPath:      mount.First,
+				PodPath:      containerPath,
+				ReadOnly:     mount.Second,
+			})
+		} else {
+			slices.SortFunc(mounts, func(a, b util.Tuple2[string, bool]) int {
+				return strings.Compare(a.First, b.First)
+			})
+
+			for i, mount := range mounts {
+				resolvedContainerPath := fmt.Sprintf("%s-%d", containerPath, i)
+				internalPath := shared.ServiceConfig.FileSystem.MountPoint + "/" + mount.First
+				folders = append(folders, candidateMount{
+					InternalPath: internalPath,
+					SubPath:      mount.First,
+					PodPath:      resolvedContainerPath,
+					ReadOnly:     mount.Second,
+				})
+			}
+		}
+	}
+
+	volumeMounts := make([]k8score.VolumeMount, 0, len(folders))
+	for _, folder := range folders {
+		volumeMounts = append(volumeMounts, k8score.VolumeMount{
+			Name:      "ucloud-filesystem",
+			ReadOnly:  folder.ReadOnly,
+			MountPath: folder.PodPath,
+			SubPath:   folder.SubPath,
+		})
+
+		internalToPod[folder.InternalPath] = folder.PodPath
+	}
+
+	return volumeMounts, internalToPod
+}
+
+func mapUCloudPathToTaskPath(ucloudPath string, internalToPod map[string]string) string {
+	internalPath, ok, _ := UCloudToInternal(ucloudPath)
 	if !ok {
-		return util.ServerHttpError("Failed to register task")
+		return "/dev/null"
 	}
 
-	t := &TaskInfo{
-		Id:                    taskId,
-		UCloudTaskId:          ucloudTaskId,
-		TaskInfoSpecification: spec,
+	if podPath, ok := internalToPod[internalPath]; ok {
+		return podPath
 	}
 
-	defaultStatus := t.DefaultStatus()
-	t.Status.Store(&defaultStatus)
-	taskFrontendQueue <- t
-
-	return nil
-}
-
-func ListAllActiveTasks() []*TaskInfo {
-	return ListActiveTasks("")
-}
-
-func ListActiveTasks(username string) []*TaskInfo {
-	result := db.NewTx(func(tx *db.Transaction) []*TaskInfo {
-		rows := db.Select[struct {
-			Id                int
-			TaskType          string
-			UCloudSource      string
-			UCloudDestination string
-			ConflictPolicy    string
-			MoreInfo          string
-			UCloudTaskId      int64
-			Paused            bool
-			UCloudUsername    string
-		}](
-			tx,
-			`
-				select
-					id,
-					task_type,
-					coalesce(ucloud_source, '') as ucloud_source,
-					coalesce(ucloud_destination, '') as ucloud_destination,
-					coalesce(conflict_policy, '') as conflict_policy,
-					coalesce(more_info, '') as more_info,
-					coalesce(ucloud_task_id, -1) as ucloud_task_id,
-					paused,
-					ucloud_username
-				from
-					k8s.tasks
-				where
-					:username = ''
-					or ucloud_username = :username
-			`,
-			db.Params{
-				"username": username,
-			},
-		)
-
-		var result []*TaskInfo
-		for _, row := range rows {
-			info := &TaskInfo{
-				Id:           row.Id,
-				UCloudTaskId: util.OptValue(int(row.UCloudTaskId)),
-				Paused:       row.Paused,
-				TaskInfoSpecification: TaskInfoSpecification{
-					Type:           TaskType(row.TaskType),
-					ConflictPolicy: orc.WriteConflictPolicy(row.ConflictPolicy),
-					HasUCloudTask:  row.UCloudTaskId != -1,
-					UCloudUsername: row.UCloudUsername,
-				},
-			}
-
-			if row.UCloudSource != "" {
-				info.UCloudSource.Set(row.UCloudSource)
-			}
-
-			if row.UCloudDestination != "" {
-				info.UCloudDestination.Set(row.UCloudDestination)
-			}
-
-			if row.MoreInfo != "" {
-				info.MoreInfo.Set(row.MoreInfo)
-			}
-
-			result = append(result, info)
-		}
-
-		return result
-	})
-
-	return result
-}
-
-func PostTaskStatus(username string, status TaskStatusUpdate) *util.HttpError {
-	ucloudTaskId, ok := db.NewTx2(func(tx *db.Transaction) (int, bool) {
-		row, ok := db.Get[struct {
-			UCloudTaskId int
-		}](
-			tx,
-			`
-				select
-					coalesce(ucloud_task_id, -1) as ucloud_task_id
-				from
-					k8s.tasks
-				where
-					id = :id
-					and ucloud_username = :username
-			`,
-			db.Params{
-				"id":       status.Id,
-				"username": username,
-			},
-		)
-
-		return row.UCloudTaskId, ok
-	})
-
+	parent := util.Parent(ucloudPath)
+	parentInternalPath, ok, _ := UCloudToInternal(parent)
 	if !ok {
-		return util.UserHttpError("unknown task supplied")
+		return "/dev/null"
 	}
 
-	// TODO: Change this once the API is more stable
-
-	newState := fnd.TaskStateRunning
-	if status.NewState.Present {
-		newState = status.NewState.Value
+	podPath, ok := internalToPod[parentInternalPath]
+	if !ok {
+		return "/dev/null"
 	}
 
-	if ucloudTaskId >= 0 {
-		_, err := fnd.TasksPostStatus.Invoke(fnd.TasksPostStatusRequest{Update: fnd.TasksPostStatusRequestUpdate{
-			Id: ucloudTaskId,
-			NewStatus: fnd.TaskStatus{
-				State:              newState,
-				Title:              status.NewOperation,
-				Progress:           status.NewProgress,
-				ProgressPercentage: status.NewPercentage,
-				Body:               status.NewBody,
-			},
-		}})
-
-		if err != nil {
-			return err
-		}
-	}
-
-	if newState == fnd.TaskStateSuspended {
-		db.NewTx0(func(tx *db.Transaction) {
-			db.Exec(
-				tx,
-				`update k8s.tasks set paused = true where id = :id`,
-				db.Params{
-					"id": status.Id,
-				},
-			)
-		})
-	} else if newState == fnd.TaskStateSuccess || newState == fnd.TaskStateFailure || newState == fnd.TaskStateCancelled {
-		db.NewTx0(func(tx *db.Transaction) {
-			db.Exec(
-				tx,
-				`delete from k8s.tasks where id = :id`,
-				db.Params{
-					"id": status.Id,
-				},
-			)
-		})
-	} else {
-		db.NewTx0(func(tx *db.Transaction) {
-			db.Exec(
-				tx,
-				`update k8s.tasks set paused = false where id = :id`,
-				db.Params{
-					"id": status.Id,
-				},
-			)
-		})
-	}
-
-	return nil
+	return filepath.Join(podPath, util.FileName(ucloudPath))
 }

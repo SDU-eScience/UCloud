@@ -500,21 +500,28 @@ func openWebSession(job *orc.Job, rank int, target util.Option[string]) (control
 	}, nil
 }
 
-func serverFindIngress(job *orc.Job, rank int, suffix util.Option[string]) controller.ConfiguredWebIngress {
+func serverFindIngress(job *orc.Job, rank int, suffix util.Option[string]) []controller.ConfiguredWebIngress {
+	result := []controller.ConfiguredWebIngress{}
 	for _, resource := range job.Specification.Resources {
 		if resource.Type == orc.AppParameterValueTypeIngress {
 			ingress := controller.LinkRetrieve(resource.Id)
 
-			return controller.ConfiguredWebIngress{
+			result = append(result, controller.ConfiguredWebIngress{
 				IsPublic:     true,
 				TargetDomain: ingress.Specification.Domain,
-			}
+			})
 		}
 	}
 
-	return controller.ConfiguredWebIngress{
-		IsPublic:     false,
-		TargetDomain: ServiceConfig.Compute.Web.Prefix + job.Id + "-" + fmt.Sprint(rank) + suffix.Value + ServiceConfig.Compute.Web.Suffix,
+	if len(result) > 0 {
+		return result
+	} else {
+		return []controller.ConfiguredWebIngress{
+			{
+				IsPublic:     false,
+				TargetDomain: ServiceConfig.Compute.Web.Prefix + job.Id + "-" + fmt.Sprint(rank) + suffix.Value + ServiceConfig.Compute.Web.Suffix,
+			},
+		}
 	}
 }
 

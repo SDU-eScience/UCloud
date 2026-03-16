@@ -19,7 +19,7 @@ export const USER_LOGOUT = "USER_LOGOUT";
 export type UserActionType = typeof USER_LOGIN | typeof USER_LOGOUT | typeof CONTEXT_SWITCH
 
 
-export function confStore(
+function confStore(
     initialObject: ReduxObject,
     reducers: ReducersMapObject<ReduxObject, Action>,
 ): EnhancedStore<ReduxObject> {
@@ -57,7 +57,7 @@ function loading(state = false, action: {type: string}): boolean {
 }
 
 export const refreshFunctionCache = new class {
-    private refresh: () => void = () => void 0;
+    private refresh: (() => void) | undefined = undefined;
     private subscribers: (() => void)[] = [];
 
     public subscribe(subscription: () => void) {
@@ -68,7 +68,7 @@ export const refreshFunctionCache = new class {
     }
 
     public getSnapshot(): () => void {
-        return this.refresh;
+        return this.refresh ?? noopCall;
     }
 
     public emitChange(): void {

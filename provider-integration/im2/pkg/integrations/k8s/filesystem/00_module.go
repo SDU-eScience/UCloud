@@ -25,6 +25,7 @@ import (
 	"ucloud.dk/pkg/integrations/k8s/shared"
 	apm "ucloud.dk/shared/pkg/accounting"
 	fnd "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/log"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -46,6 +47,7 @@ func InitFiles() controller.FileService {
 	browseCache = lru.NewLRU[string, []cachedDirEntry](256, nil, 5*time.Minute)
 	loadStorageProducts()
 
+	initTasks()
 	initScanQueue()
 	go func() {
 		for util.IsAlive {
@@ -665,9 +667,29 @@ func createUpload(request orc.FilesProviderCreateUploadRequest) (string, *util.H
 
 type uploaderFileSystem struct{}
 type uploaderFile struct {
+	Path     string
 	File     *os.File
 	Metadata upload.FileMetadata
 	err      error
+}
+
+func (u *uploaderFile) ensureOpen() error {
+	if u.err != nil {
+		return u.err
+	}
+
+	if u.File != nil {
+		return nil
+	}
+
+	file, ok := OpenFile(u.Path, unix.O_RDWR|unix.O_TRUNC|unix.O_CREAT, 0660)
+	if !ok {
+		u.err = fmt.Errorf("unable to open upload destination")
+		return u.err
+	}
+
+	u.File = file
+	return nil
 }
 
 func (u *uploaderFileSystem) OpenFileIfNeeded(session upload.ServerSession, fileMeta upload.FileMetadata) upload.ServerFile {
@@ -675,10 +697,14 @@ func (u *uploaderFileSystem) OpenFileIfNeeded(session upload.ServerSession, file
 	internalPath := filepath.Join(rootPath, fileMeta.InternalPath)
 
 	fd, ok := OpenFile(internalPath, unix.O_RDONLY, 0)
-	info, err := fd.Stat()
-	util.SilentClose(fd)
-	if !ok || err != nil {
-		err = DoCreateFolder(filepath.Dir(internalPath)).AsError()
+	var info os.FileInfo
+	if ok {
+		info, _ = fd.Stat()
+		util.SilentClose(fd)
+	}
+
+	if !ok || info == nil {
+		err := DoCreateFolder(filepath.Dir(internalPath)).AsError()
 		if err != nil {
 			return nil
 		}
@@ -688,28 +714,11 @@ func (u *uploaderFileSystem) OpenFileIfNeeded(session upload.ServerSession, file
 		}
 	}
 
-	file, ok := OpenFile(internalPath, unix.O_RDWR|unix.O_TRUNC|unix.O_CREAT, 0660)
-	if !ok {
-		return nil
-	}
-
-	return &uploaderFile{file, fileMeta, nil}
+	return &uploaderFile{Path: internalPath, Metadata: fileMeta, err: nil}
 }
 
 func (u *uploaderFileSystem) OnSessionClose(session upload.ServerSession, success bool) {
-	if success {
-		tasks := ListAllActiveTasks()
-		for _, task := range tasks {
-			if task.Type == FileTaskTransferDestination && task.MoreInfo.Present {
-				if strings.Contains(task.MoreInfo.Value, session.Id) {
-					_ = PostTaskStatus(task.UCloudUsername, TaskStatusUpdate{
-						Id:       task.Id,
-						NewState: util.OptValue(fnd.TaskStateSuccess),
-					})
-				}
-			}
-		}
-	}
+
 }
 
 func (u *uploaderFile) Write(_ context.Context, data []byte) error {
@@ -717,7 +726,12 @@ func (u *uploaderFile) Write(_ context.Context, data []byte) error {
 		return u.err
 	}
 
-	_, err := u.File.Write(data)
+	err := u.ensureOpen()
+	if err != nil {
+		return err
+	}
+
+	_, err = u.File.Write(data)
 
 	if err != nil {
 		u.err = err
@@ -726,6 +740,10 @@ func (u *uploaderFile) Write(_ context.Context, data []byte) error {
 }
 
 func (u *uploaderFile) Close() {
+	if u.Metadata.Size == 0 && u.File == nil {
+		_ = u.ensureOpen()
+	}
+
 	if u.err == nil {
 		t := u.Metadata.ModifiedAt.Time()
 
@@ -733,7 +751,9 @@ func (u *uploaderFile) Close() {
 			unix.NsecToTimeval(t.UnixNano()),
 			unix.NsecToTimeval(t.UnixNano()),
 		}
-		_ = unix.Futimes(int(u.File.Fd()), utimes)
+		if u.File != nil {
+			_ = unix.Futimes(int(u.File.Fd()), utimes)
+		}
 	}
 	util.SilentClose(u.File)
 }
@@ -744,9 +764,31 @@ type uploaderClientFile struct {
 }
 
 func (u *uploaderClientFile) ListChildren(ctx context.Context) []string {
-	names, err := u.File.Readdirnames(0)
-	if err != nil {
-		return nil
+	names := make([]string, 0, 128)
+	for {
+		if ctx.Err() != nil {
+			break
+		}
+
+		part, err := u.File.Readdirnames(1024)
+		if len(part) > 0 {
+			names = append(names, part...)
+		}
+
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+
+			if len(names) == 0 {
+				return nil
+			}
+			break
+		}
+
+		if len(part) == 0 {
+			break
+		}
 	}
 	return names
 }
@@ -754,11 +796,14 @@ func (u *uploaderClientFile) ListChildren(ctx context.Context) []string {
 func (u *uploaderClientFile) OpenChild(ctx context.Context, name string) (upload.FileMetadata, upload.ClientFile) {
 	file, err := FileOpenAt(u.File, name, unix.O_RDONLY|unix.O_NOFOLLOW, 0)
 	if err != nil {
+		log.Info("Failed to open file '%v %s': %s", u, name, err)
 		return upload.FileMetadata{}, nil
 	}
 
 	finfo, err := file.Stat()
 	if err != nil {
+		_ = file.Close()
+		log.Info("Failed to open file '%v %s': %s", u, name, err)
 		return upload.FileMetadata{}, nil
 	}
 
@@ -905,12 +950,6 @@ func transferDestinationInitiate(request orc.FilesProviderTransferRequestInitiat
 		target = strings.Replace(target, cfg.Provider.Hosts.SelfPublic.ToWebSocketUrl(), cfg.Provider.Hosts.Self.ToWebSocketUrl(), 1)
 	}
 
-	_ = RegisterTask(TaskInfoSpecification{
-		Type:          FileTaskTransferDestination,
-		MoreInfo:      util.OptValue(target),
-		HasUCloudTask: false,
-	})
-
 	return controller.FilesTransferResponseInitiateDestination(
 		"built-in",
 		controller.TransferBuiltInParameters{
@@ -921,135 +960,29 @@ func transferDestinationInitiate(request orc.FilesProviderTransferRequestInitiat
 }
 
 func transferSourceBegin(request orc.FilesProviderTransferRequestStart, session controller.FileTransferSession) *util.HttpError {
-	err := RegisterTask(TaskInfoSpecification{
-		Type:           FileTaskTransfer,
-		UCloudUsername: session.Username,
-		UCloudSource:   util.OptValue[string](session.SourcePath),
-		MoreInfo:       util.OptValue[string](session.Id),
-		HasUCloudTask:  true,
-		Icon:           "heroPaperAirplane",
-	})
-
-	return err
-}
-
-func processTransferTask(task *TaskInfo) TaskProcessingResult {
-	sessionId := task.MoreInfo.Value
-	session, ok := controller.FileRetrieveTransferSession(sessionId)
-	if !ok {
-		return TaskProcessingResult{
-			Error:           fmt.Errorf("unknown file transfer session, it might have expired"),
-			AllowReschedule: false,
-		}
-	}
-
 	var parameters controller.TransferBuiltInParameters
 
 	err := json.Unmarshal(session.ProtocolParameters, &parameters)
 	if err != nil {
-		return TaskProcessingResult{
-			Error:           fmt.Errorf("malformed request"),
-			AllowReschedule: false,
-		}
+		return util.ServerHttpError("malformed request")
 	}
 
-	uploadSession := upload.ClientSession{
-		Endpoint:       parameters.Endpoint,
-		ConflictPolicy: orc.WriteConflictPolicyMergeRename,
-		Path:           session.SourcePath,
+	if util.DevelopmentModeEnabled() && strings.Contains(parameters.Endpoint, "k8s:42000") {
+		parameters.Endpoint = strings.ReplaceAll(parameters.Endpoint, "k8s:42000", shared.ProviderHostname+":42000")
 	}
 
-	internalSource, ok, _ := UCloudToInternal(session.SourcePath)
-	if !ok {
-		return TaskProcessingResult{
-			Error:           fmt.Errorf("unable to open source file"),
-			AllowReschedule: false,
-		}
+	spec := TaskSpec{
+		Type:             TaskTypeTransfer,
+		Source:           session.SourcePath,
+		TransferEndpoint: parameters.Endpoint,
+		Mounts: []TaskMount{
+			{UCloudPath: session.SourcePath},
+		},
 	}
+	spec.CreationState.Icon = "heroPaperAirplane"
+	spec.CreationState.Username = session.Username
 
-	const numberOfAttempts = 10
-	var uploadErr error = nil
-	for i := 0; i < numberOfAttempts; i++ {
-		// NOTE(Dan): The rootFile is automatically closed by the uploader
-		rootFile, ok := OpenFile(internalSource, unix.O_RDONLY, 0)
-		if !ok {
-			return TaskProcessingResult{
-				Error:           fmt.Errorf("unable to open source file"),
-				AllowReschedule: false,
-			}
-		}
-
-		uploaderRoot := &uploaderClientFile{
-			Path: "",
-			File: rootFile,
-		}
-
-		finfo, err := rootFile.Stat()
-		if err != nil {
-			return TaskProcessingResult{
-				Error:           fmt.Errorf("unable to open source file"),
-				AllowReschedule: false,
-			}
-		}
-		ftype := upload.FileTypeFile
-		if finfo.IsDir() {
-			ftype = upload.FileTypeDirectory
-		}
-		rootMetadata := upload.FileMetadata{
-			Size:         finfo.Size(),
-			ModifiedAt:   fnd.Timestamp(finfo.ModTime()),
-			InternalPath: "",
-			Type:         ftype,
-		}
-
-		cancelChannel := make(chan util.Empty)
-		go func() {
-			for !task.Done.Load() {
-				newState := task.UserRequestedState.Load()
-				if newState != nil {
-					cancelChannel <- util.Empty{}
-					break
-				}
-
-				time.Sleep(1 * time.Second)
-			}
-		}()
-
-		report := upload.ProcessClient(uploadSession, uploaderRoot, rootMetadata, &task.Status, cancelChannel)
-
-		if report.WasCancelledByUser {
-			uploadErr = nil
-			break
-		}
-
-		if !report.NormalExit {
-			uploadErr = fmt.Errorf("an abnormal error occured during the transfer process")
-			break
-		}
-
-		if report.BytesTransferred == 0 && report.NewFilesUploaded == 0 {
-			uploadErr = nil
-			break
-		}
-
-		if i == numberOfAttempts-1 {
-			uploadErr = fmt.Errorf("unable to upload all files")
-		}
-	}
-
-	if uploadErr == nil {
-		if !upload.CloseSessionFromClient(uploadSession) {
-			return TaskProcessingResult{
-				Error:           fmt.Errorf("failed to close upload session"),
-				AllowReschedule: true,
-			}
-		}
-	}
-
-	return TaskProcessingResult{
-		Error:           uploadErr,
-		AllowReschedule: true,
-	}
+	return TaskSubmit(spec)
 }
 
 func search(ctx context.Context, query, folder string, flags orc.FileFlags, output chan orc.ProviderFile) {

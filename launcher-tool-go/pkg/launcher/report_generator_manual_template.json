@@ -1,0 +1,133 @@
+{
+  "tests": [
+    {
+      "requirement": "K9-1",
+      "name": "hardware check",
+      "status": "passed",
+      "context": "Manual",
+      "comment_en": "Verified via manual testing procedure.",
+      "comment_da": "Verificeret via manuel testing procedure."
+    },
+    {
+      "requirement": "K9-2",
+      "name": "networking hardware check",
+      "status": "passed",
+      "context": "Manual",
+      "comment_en": "Verified via manual testing procedure.",
+      "comment_da": "Verificeret via manuel testing procedure."
+    },
+    {
+      "requirement": "K9-3",
+      "name": "K-9 internal network speed check",
+      "status": "passed",
+      "context": "Manual",
+      "comment_en": "Verified via manual testing procedure.",
+      "comment_da": "Verificeret via manuel testing procedure."
+    },
+    {
+      "requirement": "K9-4",
+      "name": "internet connectivity check",
+      "status": "passed",
+      "context": "Manual",
+      "comment_en": "Verified via manual testing procedure.",
+      "comment_da": "Verificeret via manuel testing procedure."
+    },
+    {
+      "requirement": "K10-1",
+      "name": "OS component check",
+      "status": "passed",
+      "context": "Manual",
+      "comment_en": "Verified via manual testing procedure.",
+      "comment_da": "Verificeret via manuel testing procedure."
+    },
+    {
+      "requirement": "K10-2",
+      "name": "management services check",
+      "status": "passed",
+      "context": "Manual",
+      "comment_en": "Verified via manual testing procedure.",
+      "comment_da": "Verificeret via manuel testing procedure."
+    },
+    {
+      "requirement": "K10-3",
+      "name": "compute software check",
+      "status": "passed",
+      "context": "Manual",
+      "comment_en": "Verified via manual testing procedure.",
+      "comment_da": "Verificeret via manuel testing procedure."
+    },
+    {
+      "requirement": "K10-4",
+      "name": "K8s health check",
+      "status": "passed",
+      "context": "Manual",
+      "comment_en": "Verified via manual testing procedure.",
+      "comment_da": "Verificeret via manuel testing procedure."
+    },
+    {
+      "requirement": "K10-5",
+      "name": "K8s network connectivity check",
+      "status": "passed",
+      "context": "Manual",
+      "comment_en": "Verified via manual testing procedure.",
+      "comment_da": "Verificeret via manuel testing procedure."
+    },
+    {
+      "requirement": "K11-1",
+      "name": "storage system health check",
+      "status": "passed",
+      "context": "Manual",
+      "comment_en": "Verified via manual testing procedure.",
+      "comment_da": "Verificeret via manuel testing procedure."
+    },
+    {
+      "requirement": "K11-2",
+      "name": "storage clients check",
+      "status": "passed",
+      "context": "Manual",
+      "comment_en": "Verified via manual testing procedure.",
+      "comment_da": "Verificeret via manuel testing procedure."
+    },
+    {
+      "requirement": "K11-3",
+      "name": "K8s storage integration check",
+      "status": "passed",
+      "context": "Manual",
+      "comment_en": "Verified via manual testing procedure.",
+      "comment_da": "Verificeret via manuel testing procedure."
+    },
+    {
+      "requirement": "K12-1",
+      "name": "UCloud/Core, UCloud/IM and required databases are correctly deployed and healthy",
+      "status": "passed",
+      "context": "Manual",
+      "comment_en": "Verified via manual testing procedure.",
+      "comment_da": "Verificeret via manuel testing procedure."
+    },
+    {
+      "requirement": "K12-2",
+      "name": "UCloud API endpoints are healthy",
+      "status": "passed",
+      "context": "Manual",
+      "comment_en": "Verified via manual testing procedure.",
+      "comment_da": "Verificeret via manuel testing procedure."
+    },
+    {
+      "requirement": "K13-18",
+      "name": "Sensitive data projects are isolated",
+      "status": "passed",
+      "context": "Manual",
+      "comment_en": "Verified via manual testing procedure.",
+      "comment_da": "Verificeret via manuel testing procedure."
+    }
+  ],
+  "comments": [
+    "Verified by the UCloud team through established manual procedures."
+  ],
+
+  "title_da": "UCloud testrapport",
+  "subtitle_da": "Formel validering af service",
+
+  "title_en": "UCloud Test Report",
+  "subtitle_en": "Formal software test validation"
+}

@@ -1,7 +1,7 @@
+import {sendInformationNotification} from "@/Notifications";
 import {HttpClient} from "./lib";
 import {WebSocketFactory} from "./ws";
 import {onDevSite} from "@/UtilityFunctions";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
 
 export const Client = new HttpClient();
 export const WSFactory = new WebSocketFactory(Client);
@@ -18,7 +18,7 @@ if (onDevSite() || localStorage.getItem("ALLOW_JWT_COPY")) {
             if (e.code === "KeyK") {
                 await Client.receiveAccessTokenOrRefreshIt();
                 await navigator.clipboard.writeText(`localStorage.accessToken="${localStorage.accessToken}";localStorage.csrfToken="${localStorage.csrfToken}";`);
-                snackbarStore.addFailure("Copied CSRF and access token to clipboard", false);
+                sendInformationNotification("Copied CSRF and access token to clipboard");
             } else if (e.code === "KeyL") {
 
                 // Not allowed on Firefox!

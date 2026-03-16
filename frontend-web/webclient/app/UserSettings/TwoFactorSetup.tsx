@@ -1,7 +1,6 @@
 import {Client} from "@/Authentication/HttpClientInstance";
 import {SetStatusLoading} from "@/Navigation/Redux";
 import * as React from "react";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Button, Divider, ExternalLink, Flex, Input} from "@/ui-components";
 import Box from "@/ui-components/Box";
 import * as Heading from "@/ui-components/Heading";
@@ -11,6 +10,7 @@ import {SettingsSection} from "./SettingsComponents";
 
 import googlePlay from "@/Assets/Images/google-play-badge.png";
 import appStore from "@/Assets/Images/app-store-badge.png";
+import {sendFailureNotification} from "@/Notifications";
 
 interface TwoFactorSetupProps {
     loading: boolean;
@@ -46,7 +46,7 @@ export class TwoFactorSetup extends React.Component<SetStatusLoading & TwoFactor
             this.setState(() => ({isConnectedToAccount: res.response.connected}));
         } catch (res) {
             const why: string = res.response.why ?? "";
-            snackbarStore.addFailure(`Could not fetch 2FA status. ${why}`, false);
+            sendFailureNotification(`Could not fetch 2FA status. ${why}`);
         } finally {
             this.props.setLoading(false);
         }
@@ -197,7 +197,7 @@ export class TwoFactorSetup extends React.Component<SetStatusLoading & TwoFactor
         } catch (res) {
             const response = res.response;
             const why: string = response?.why ?? "Could not submit verification code. Try again later";
-            snackbarStore.addFailure(why, false);
+            sendFailureNotification(why);
         } finally {
             this.props.setLoading(false);
         }

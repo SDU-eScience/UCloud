@@ -12,7 +12,6 @@ import {capitalized, copyToClipboard, errorMessageOrDefault, extensionFromPath, 
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {usePrettyFilePath} from "@/Files/FilePath";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Operation, Operations, ShortcutKey} from "@/ui-components/Operation";
 import IStandaloneCodeEditor = editor.IStandaloneCodeEditor;
 import EditorOption = editor.EditorOption;
@@ -28,6 +27,7 @@ import {FileWriteFailure, WriteFailureEvent} from "@/Files/Uploader";
 import {IconName} from "@/ui-components/Icon";
 import ITextModel = editor.ITextModel;
 import EndOfLineSequence = editor.EndOfLineSequence;
+import {sendFailureNotification, sendInformationNotification, sendSuccessNotification} from "@/Notifications";
 
 export interface Vfs {
     isReal(): boolean;
@@ -490,7 +490,7 @@ export const Editor: React.FunctionComponent<{
                             onConfirm() {
                                 for (const p of pathsAndContent) {
                                     if (p.content == null) {
-                                        snackbarStore.addFailure(`${p.path} failed to save`, false);
+                                        sendFailureNotification(`${p.path} failed to save`);
                                         continue;
                                     }
                                     props.vfs.setDirtyFileContent(p.path, p.content);
@@ -499,7 +499,7 @@ export const Editor: React.FunctionComponent<{
                                     const onFileWriteFailure = (e: WriteFailureEvent) => {
                                         const failedUpload = e.detail.find(it => it.targetPath + it.name === p.path);
                                         if (failedUpload) {
-                                            snackbarStore.addFailure(failedUpload.error ?? "Upload for file " + fileName(failedUpload.name) + " failed.", false);
+                                            sendFailureNotification(failedUpload.error ?? "Upload for file " + fileName(failedUpload.name) + " failed.");
                                         }
                                         window.removeEventListener(FileWriteFailure, onFileWriteFailure)
                                     }
@@ -690,7 +690,7 @@ export const Editor: React.FunctionComponent<{
 
             return true;
         } catch (error) {
-            snackbarStore.addFailure(errorMessageOrDefault(error, "Failed to fetch file"), false);
+            sendFailureNotification(errorMessageOrDefault(error, "Failed to fetch file"));
             return true; // What does true or false mean in this context?
         }
     }, [state, props.vfs, dispatch, reloadBuffer, readBuffer, props.onOpenFile, dirtyFiles, state.sidebar.root, state.cachedFiles]);
@@ -1427,7 +1427,10 @@ function tabOperations(
         shortcut: ShortcutKey.U,
     }, {
         text: "Copy path to clipboard",
-        onClick: () => copyToClipboard({value: tabPath, message: ""}),
+        onClick: () => {
+            copyToClipboard(tabPath);
+            sendInformationNotification("Path copied!")
+        },
         enabled: () => true,
         shortcut: ShortcutKey.U,
     }, {
@@ -1830,7 +1833,7 @@ function VimKeyBindings() {
             storeVimKeyBindings(rows);
             return rows;
         });
-        snackbarStore.addSuccess("Bindings updated", false);
+        sendSuccessNotification("Bindings updated");
     }, []);
 
     const unmapBinding = React.useCallback((key: number) => {

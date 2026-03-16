@@ -150,6 +150,13 @@ func GrantApplicationProcess(actor rpc.Actor, app accapi.GrantApplication) accap
 	recipient := app.CurrentRevision.Document.Recipient
 	if recipient.Type == accapi.RecipientTypeExistingProject {
 		projectInfo, ok := grantsProjectCache.Get(recipient.Id.Value, func() (grantsProjectInfo, error) {
+			if grantGlobals.Testing.Enabled {
+				return grantsProjectInfo{
+					Pi:    "_ucloud",
+					Title: recipient.Id.Value,
+				}, nil
+			}
+
 			project := db.NewTx(func(tx *db.Transaction) fndapi.Project {
 				project, _ := coreutil.ProjectRetrieveFromDatabase(tx, recipient.Id.Value)
 				return project
@@ -215,30 +222,37 @@ func grantGetUserBucket(username string) *grantUserBucket {
 		return b
 	}
 
-	b.Mu.Lock()
-	dbResult := db.NewTx(func(tx *db.Transaction) map[accGrantId]time.Time {
-		result := map[accGrantId]time.Time{}
-		rows := db.Select[struct {
-			ApplicationId accGrantId
-			LastVisitedAt time.Time
-		}](
-			tx,
-			`
-				select application_id, last_visited_at
-				from "grant".user_application_visits
-				where username = :user;`,
-			db.Params{
-				"user": username,
-			},
-		)
-		for _, row := range rows {
-			result[row.ApplicationId] = row.LastVisitedAt
-		}
+	if !grantGlobals.Testing.Enabled {
+		b.Mu.Lock()
+		dbResult := db.NewTx(func(tx *db.Transaction) map[accGrantId]time.Time {
+			result := map[accGrantId]time.Time{}
+			rows := db.Select[struct {
+				ApplicationId accGrantId
+				LastVisitedAt time.Time
+			}](
+				tx,
+				`
+					select application_id, last_visited_at
+					from "grant".user_application_visits
+					where username = :user;
+				`,
+				db.Params{
+					"user": username,
+				},
+			)
+			for _, row := range rows {
+				result[row.ApplicationId] = row.LastVisitedAt
+			}
 
-		return result
-	})
-	b.LastTimeVisited[username] = dbResult
-	b.Mu.Unlock()
+			return result
+		})
+		b.LastTimeVisited[username] = dbResult
+		b.Mu.Unlock()
+	} else {
+		b.Mu.Lock()
+		b.LastTimeVisited[username] = map[accGrantId]time.Time{}
+		b.Mu.Unlock()
+	}
 	return b
 }
 
@@ -676,6 +690,61 @@ func GrantsSubmitRevisionEx(actor rpc.Actor, req accapi.GrantsSubmitRevisionRequ
 	}
 
 	if err == nil {
+		allocationStart := now
+		if period.Present && period.Value.Start.Present {
+			allocationStart = period.Value.Start.Value.Time()
+		}
+
+		availabilityError := func(wallet accapi.WalletV2, category accapi.ProductCategory, at time.Time) *util.HttpError {
+			var earliestFuture util.Option[time.Time]
+			hasPastAvailability := false
+
+			for _, group := range wallet.AllocationGroups {
+				for _, alloc := range group.Group.Allocations {
+					if alloc.Retired {
+						continue
+					}
+
+					start := alloc.StartDate.Time()
+					end := alloc.EndDate.Time()
+
+					if start.After(at) {
+						if !earliestFuture.Present || start.Before(earliestFuture.Value) {
+							earliestFuture.Set(start)
+						}
+					} else if !end.After(at) {
+						hasPastAvailability = true
+					}
+				}
+			}
+
+			if earliestFuture.Present {
+				return util.HttpErr(
+					http.StatusBadRequest,
+					"%s/%s is not available for the requested start date and will become available on %s",
+					category.Name,
+					category.Provider,
+					earliestFuture.Value.Format(time.RFC3339),
+				)
+			}
+
+			if hasPastAvailability {
+				return util.HttpErr(
+					http.StatusBadRequest,
+					"%s/%s is no longer available for the requested start date",
+					category.Name,
+					category.Provider,
+				)
+			}
+
+			return util.HttpErr(
+				http.StatusBadRequest,
+				"%s/%s cannot be requested in this application",
+				category.Name,
+				category.Provider,
+			)
+		}
+
 		senderActor, ok := actor, true
 		if actor.Username != app.Application.CreatedBy {
 			senderActor, ok = rpc.LookupActor(app.Application.CreatedBy)
@@ -694,14 +763,18 @@ func GrantsSubmitRevisionEx(actor rpc.Actor, req accapi.GrantsSubmitRevisionRequ
 				for _, cat := range categories {
 					aBucket := internalBucketOrInit(cat)
 					w := internalWalletByOwner(aBucket, now, owner.Id)
-					quota, ok := internalWalletTotalQuotaContributing(aBucket, w)
+					quota, ok := internalWalletTotalQuotaContributingAt(aBucket, w, allocationStart)
 					if quota == 0 || !ok {
-						err = util.HttpErr(
-							http.StatusBadRequest,
-							"%s/%s cannot be requested in this application",
-							cat.Name,
-							cat.Provider,
-						)
+						wallets := internalRetrieveWallets(now, grantGiver, walletFilter{
+							Provider: util.OptValue(cat.Provider),
+							Category: util.OptValue(cat.Name),
+						})
+
+						if len(wallets) > 0 {
+							err = availabilityError(wallets[0], cat, allocationStart)
+						} else {
+							err = availabilityError(accapi.WalletV2{}, cat, allocationStart)
+						}
 						break outer
 					}
 				}
@@ -1151,27 +1224,32 @@ func grantRecordUserApplicationVisit(grantId string, username string) {
 	idActual := accGrantId(idRaw)
 
 	now := time.Now()
-	db.NewTx0(func(tx *db.Transaction) {
-		db.Exec(tx,
-			`insert into "grant".user_application_visits (
-				application_id,
-				username,
-				last_visited_at
+	if !grantGlobals.Testing.Enabled {
+		db.NewTx0(func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					insert into "grant".user_application_visits (
+						application_id,
+						username,
+						last_visited_at
+					)
+					values (
+						:application,
+						:user,
+						:last_visited_at
+					)
+					on conflict (application_id, username)
+					do update set last_visited_at = excluded.last_visited_at;
+				`,
+				db.Params{
+					"application":     grantId,
+					"user":            username,
+					"last_visited_at": now,
+				},
 			)
-			values (
-				:application,
-				:user,
-				:last_visited_at
-			)
-			on conflict (application_id, username)
-			do update set last_visited_at = excluded.last_visited_at;`,
-			db.Params{
-				"application":     grantId,
-				"user":            username,
-				"last_visited_at": now,
-			},
-		)
-	})
+		})
+	}
 
 	grantUpdateUserCache(username, idActual, now)
 }
@@ -1492,6 +1570,7 @@ func grantRetrieveApplicationHistoryOfReceiver(actor rpc.Actor, app *grantApplic
 
 func GrantsRetrieveGrantGivers(actor rpc.Actor, req accapi.RetrieveGrantGiversRequest) ([]accapi.GrantGiver, *util.HttpError) {
 	now := time.Now()
+	defaultAvailabilityHorizon := now.AddDate(1, 0, 0)
 
 	recipient := accapi.Recipient{}
 	parents := map[string]util.Empty{}
@@ -1554,13 +1633,25 @@ func GrantsRetrieveGrantGivers(actor rpc.Actor, req accapi.RetrieveGrantGiversRe
 	// -----------------------------------------------------------------------------------------------------------------
 
 	var result []accapi.GrantGiver
+	walletHasAllocationInDefaultWindow := func(wallet accapi.WalletV2) bool {
+		for _, group := range wallet.AllocationGroups {
+			for _, alloc := range group.Group.Allocations {
+				if !alloc.Retired && (alloc.StartDate.Time().Before(defaultAvailabilityHorizon) || alloc.StartDate.Time().Equal(defaultAvailabilityHorizon)) && alloc.EndDate.Time().After(now) {
+					return true
+				}
+			}
+		}
+		return false
+	}
 
 	lAddPotentialGrantGiver := func(b *grantSettingsBucket, grantGiver string) {
 		if grantsCanApply(applicantActor, recipient, grantGiver) {
-			wallets := internalRetrieveWallets(now, grantGiver, walletFilter{RequireActive: true})
+			wallets := internalRetrieveWallets(now, grantGiver, walletFilter{RequireActive: false})
 			var categories []accapi.ProductCategory
 			for _, wallet := range wallets {
-				categories = append(categories, wallet.PaysFor)
+				if walletHasAllocationInDefaultWindow(wallet) {
+					categories = append(categories, wallet.PaysFor)
+				}
 			}
 
 			gg := accapi.GrantGiver{

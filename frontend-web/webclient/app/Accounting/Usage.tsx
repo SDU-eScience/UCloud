@@ -8,11 +8,11 @@ import {
 import * as Config from "../../site.config.json";
 import {formatDate} from "date-fns";
 import {GradientWithPolygons} from "@/ui-components/GradientBackground";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {DATE_FORMAT} from "@/Admin/NewsManagement";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {slimModalStyle} from "@/Utilities/ModalUtilities";
 import {Toggle} from "@/ui-components/Toggle";
+import {sendFailureNotification} from "@/Notifications";
 
 // TODO(Louise): move this somewhere else
 export interface ExportHeader<T> {
@@ -34,13 +34,13 @@ export function exportUsage<T extends object>(
     }
 ): void {
     if (!chartData?.length) {
-        snackbarStore.addFailure("No data to export found", false);
+        sendFailureNotification("No data to export found");
         return;
     }
 
     dialogStore.addDialog(
         <UsageExport chartData={chartData} headers={headers} projectTitle={projectTitle}
-                     formats={opts?.formats} fileName={opts?.fileName} csvData={opts?.csvData} />,
+            formats={opts?.formats} fileName={opts?.fileName} csvData={opts?.csvData} />,
         doNothing,
         true,
         slimModalStyle
@@ -77,13 +77,13 @@ function UsageExport<T extends object>(
                             ch[i] = !prevValue
                             return [...ch];
                         })
-                    }}/>
+                    }} />
                     <Text ml="8px">{h.value}</Text>
                 </Label>
             )}
         </Box>
         <Flex justifyContent="end" px={"20px"} py={"12px"} margin={"-20px"} background={"var(--dialogToolbar)"}
-              gap={"8px"}>
+            gap={"8px"}>
             <Button onClick={() => dialogStore.failure()} color="errorMain">Cancel</Button>
             {formats?.indexOf("json") !== -1 ? <Button onClick={() => startExport("json")} color="successMain">Export JSON</Button> : null}
             {formats?.indexOf("csv") !== -1 ? <Button onClick={() => startExport("csv")} color="successMain">Export CSV</Button> : null}
@@ -140,7 +140,9 @@ function UsageExport<T extends object>(
             `${Config.PRODUCT_NAME} - ${projectTitle ? projectTitle : "My workspace"} - ${formatDate(new Date(), DATE_FORMAT)}.${format}`;
         document.body.appendChild(a);
         a.click();
-        document.body.removeChild(a);
+        if (a.parentNode === document.body) {
+            document.body.removeChild(a);
+        }
     }
 }
 
@@ -169,4 +171,3 @@ export const PeriodStyle = injectStyle("period-selector", k => `
         border: 1px solid var(--borderColorHover);
     }
 `);
-

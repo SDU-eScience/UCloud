@@ -34,16 +34,18 @@ export const ProductSelector: React.FunctionComponent<{
         portalRef.current = document.createElement("div");
     }
 
-    const [isPortalMounted, setIsPortalMounted] = React.useState(false);
-    React.useLayoutEffect(() => {
+    React.useEffect(() => {
         const portal = portalRef.current;
         if (!portal) return;
 
-        document.body.appendChild(portal);
-        setIsPortalMounted(true);
+        if (portal.parentNode !== document.body) {
+            document.body.appendChild(portal);
+        }
 
         return () => {
-            portal.remove();
+            if (portal.parentNode === document.body) {
+                document.body.removeChild(portal);
+            }
         };
     }, []);
 
@@ -107,6 +109,15 @@ export const ProductSelector: React.FunctionComponent<{
         let lastCategory = "";
         for (const product of sortedProducts) {
             let categoryName = product.category.name;
+            if (categoryName === "cpu-amd-zen5" || categoryName === "gpu-nvidia-b200") {
+                const now = new Date();
+                const expectedLaunchDate = new Date(Date.UTC(2026, 4, 1, 0, 0, 0, 0));
+
+                if (now < expectedLaunchDate) {
+                    continue;
+                }
+            }
+
             const numberSuffix = product.name.match(/(^.*)-(\d+)$/);
             if (numberSuffix != null) {
                 categoryName = numberSuffix[1];
@@ -282,7 +293,7 @@ export const ProductSelector: React.FunctionComponent<{
             <Icon name="heroChevronDown" />
         </div>
 
-        {!isOpen || !isPortalMounted ? null :
+        {!isOpen ? null :
             ReactDOM.createPortal(
                 <div className={SelectorDialog} style={{left: dialogX, top: dialogY, width: dialogWidth, height: dialogHeight}} onClick={stopPropagation}>
                     {props.loading && props.products.length === 0 ? <>

@@ -13,6 +13,7 @@ echo "flag" > /mnt/storage/modules/flag.txt
 sed -i s/127.0.0.1/im2k3/g /mnt/k3s/kubeconfig.yaml
 
 kubectl --kubeconfig /mnt/k3s/kubeconfig.yaml create namespace ucloud-apps
+kubectl --kubeconfig /mnt/k3s/kubeconfig.yaml create namespace ucloud-tasks
 
 cat > /tmp/pvc.yml << EOF
 ---
@@ -42,6 +43,36 @@ spec:
     - ReadWriteMany
   storageClassName: ""
   volumeName: cephfs
+  resources:
+    requests:
+      storage: 1000Gi
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: cephfs-tasks
+  namespace: ucloud-tasks
+spec:
+  capacity:
+    storage: 1000Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""
+  hostPath:
+    path: "/mnt/storage"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: cephfs
+  namespace: ucloud-tasks
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: ""
+  volumeName: cephfs-tasks
   resources:
     requests:
       storage: 1000Gi

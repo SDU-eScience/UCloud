@@ -14,12 +14,12 @@ import {RichSelect, RichSelectProps} from "@/ui-components/RichSelect";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {ProjectSwitcher} from "@/Project/ProjectSwitcher";
 import {displayErrorMessageOrDefault, doNothing} from "@/UtilityFunctions";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {ApiToken, ApiTokenStatus} from "./api";
 import * as Heading from "@/ui-components/Heading";
 import AppRoutes from "@/Routes";
 import Routes from "@/Routes";
 import {getStoredProject} from "@/Project/ReduxState";
+import {sendFailureNotification} from "@/Notifications";
 
 const API_TOKEN_TITLE_KEY = "api-title";
 const API_TOKEN_DESCRIPTION_KEY = "api-description";
@@ -60,17 +60,17 @@ function Add() {
 
         if (!title) {
             titleElement.setAttribute("data-error", "true");
-            snackbarStore.addFailure("Title is required", false);
+            sendFailureNotification("Title is required");
             return;
         }
 
         if (date == null) {
-            snackbarStore.addFailure("Expiration date cannot be empty", false);
+            sendFailureNotification("Expiration date cannot be empty");
             return;
         }
 
         if (date.getTime() < new Date().getTime()) {
-            snackbarStore.addFailure("Expiration date cannot be in the past", false);
+            sendFailureNotification("Expiration date cannot be in the past");
             return;
         }
 
@@ -107,9 +107,9 @@ function Add() {
                 <Heading.h3>API token created</Heading.h3>
                 <Box><b>Server: </b> <code>{tokenStatus.server}</code></Box>
                 <Box><b>Token: </b> <code>{tokenStatus.token}</code></Box>
-                <br/>
+                <br />
                 <Box>You must save the token now, as it will not be available after existing this screen.</Box>
-                <br/>
+                <br />
                 <Link to={AppRoutes.resources.apiTokens()}><Button>Back to overview</Button></Link>
             </Box>
         </Flex>;
@@ -124,13 +124,13 @@ function Add() {
 
             <div>
                 <GenericTextField name={API_TOKEN_TITLE_KEY} title={"Title"} optional={false}
-                                  placeholder={"My API token"}/>
+                    placeholder={"My API token"} />
                 <GenericTextArea name={API_TOKEN_DESCRIPTION_KEY} title={"Description"} optional={true}
-                                 placeholder={"This token is used in one of my scripts."}/>
+                    placeholder={"This token is used in one of my scripts."} />
             </div>
             <Flex>
                 <div className={ServiceProviderSelector} data-has-service-provider={!!serviceProvider}>
-                    Service provider <MandatoryField/>
+                    Service provider <MandatoryField />
                     <RichSelect
                         fullWidth
                         elementHeight={38}
@@ -147,18 +147,18 @@ function Add() {
                 </div>
                 {serviceProvider !== "" ? null :
                     <div style={{gap: 0}}>
-                        Available for <MandatoryField/>
+                        Available for <MandatoryField />
                         <ProjectSwitcher managed={{
                             initialProject: projectId,
                             setLocalProject: setProjectId
-                        }}/>
+                        }} />
                     </div>
                 }
             </Flex>
             <div>
-                Expiration <MandatoryField/>
+                Expiration <MandatoryField />
                 <div>
-                    <ExpirationSelector date={date} onChange={setDate}/>
+                    <ExpirationSelector date={date} onChange={setDate} />
                 </div>
             </div>
             {serviceProviders.length == 0 || availablePermissions.length === 0 ? null : <div>
@@ -182,7 +182,7 @@ function Add() {
                             </ClickableDropdown>
                         </Box>
                     </div>
-                    {activePermissions.size > 0 ? <Divider m={"0px"}/> : null}
+                    {activePermissions.size > 0 ? <Divider m={"0px"} /> : null}
                     <div style={{maxHeight: "400px", overflowY: "auto"}}>
                         {[...activePermissions].map(p =>
                             <ActivePermissions clearPermission={() => {
@@ -190,7 +190,7 @@ function Add() {
                                     permissions.delete(p);
                                     return new Set([...permissions]);
                                 })
-                            }} permission={p} availablePermissions={availablePermissions}/>
+                            }} permission={p} availablePermissions={availablePermissions} />
                         )}
                     </div>
                 </div>
@@ -204,7 +204,7 @@ function Add() {
         </div>;
     }
 
-    return <MainContainer main={main}/>;
+    return <MainContainer main={main} />;
 }
 
 const ActivePermissionClass = makeClassName("active-permission");
@@ -269,7 +269,7 @@ function ActivePermissions(props: {
                     return <option value={value}>{value}</option>
                 })}
             </Select>
-            <Icon onClick={props.clearPermission} cursor="pointer" name="close" mt="auto" ml="12px" mb="10px"/>
+            <Icon onClick={props.clearPermission} cursor="pointer" name="close" mt="auto" ml="12px" mb="10px" />
         </Flex>
     </Flex>
 }
@@ -285,22 +285,22 @@ function Permission(props: Api.ApiTokenPermissionSpecification & {
 
 const UCLOUD_CORE = "UCloud";
 
-function ServiceProviderItem(props: RichSelectProps<{ key: string }>): React.ReactNode {
+function ServiceProviderItem(props: RichSelectProps<{key: string}>): React.ReactNode {
     const height = props.dataProps == null ? "31.5px" : "38px";
     const key = props.element?.key;
     if (key == null) return null;
     const serviceProvider = !key ? UCLOUD_CORE : key;
     return <Flex height={height} pl="8px" key={key}  {...props.dataProps} onClick={props.onSelect} alignItems={"center"}
-                 gap={"8px"}>
+        gap={"8px"}>
         {!key ?
             <>
                 <ProviderLogoWrapper size={24} className="provider-logo" tooltip={UCLOUD_CORE}>
-                    <Image src={"/Images/ucloud.png"} alt={`Logo for ${UCLOUD_CORE}`}/>
+                    <Image src={"/Images/ucloud.png"} alt={`Logo for ${UCLOUD_CORE}`} />
                 </ProviderLogoWrapper>
                 {UCLOUD_CORE}
             </> : <>
-                <ProviderLogo className={"provider-logo"} providerId={serviceProvider} size={24}/>
-                <ProviderTitle providerId={key}/>
+                <ProviderLogo className={"provider-logo"} providerId={serviceProvider} size={24} />
+                <ProviderTitle providerId={key} />
             </>}
     </Flex>
 }
@@ -330,7 +330,7 @@ export function formatTs(ts: number): string {
     }
 }
 
-function ExpirationSelector(props: { date: Date | null; onChange(d: Date): void }): React.ReactNode {
+function ExpirationSelector(props: {date: Date | null; onChange(d: Date): void}): React.ReactNode {
 
     const onRelativeUpdated = React.useCallback((ev: React.SyntheticEvent) => {
         let today = new Date();
@@ -372,7 +372,7 @@ function ExpirationSelector(props: { date: Date | null; onChange(d: Date): void 
         trigger={
             <div className={PeriodStyle}>
                 <div style={{width: "182px"}}>{props.date == null ? null : formatTs(props.date.getTime())}</div>
-                <Icon name="heroChevronDown" size="14px" ml="4px" mt="4px"/>
+                <Icon name="heroChevronDown" size="14px" ml="4px" mt="4px" />
             </div>
         }
     >
@@ -380,26 +380,26 @@ function ExpirationSelector(props: { date: Date | null; onChange(d: Date): void 
             <div onClick={e => e.stopPropagation()}>
                 <b>Specific date</b>
                 <Input pl="8px" pr="8px" className={"start"} onChange={onChange} type={"date"}
-                       value={props.date == null ? undefined : formatTs(props.date.getTime())}/>
+                    value={props.date == null ? undefined : formatTs(props.date.getTime())} />
             </div>
-            <Divider/>
+            <Divider />
             <div>
                 <b>Relative date</b>
 
                 <div onClick={onRelativeUpdated} className={"relative"} data-relative-unit={"day"}
-                     data-unit={"7"}>7 days from today
+                    data-unit={"7"}>7 days from today
                 </div>
                 <div onClick={onRelativeUpdated} className={"relative"} data-relative-unit={"day"}
-                     data-unit={"30"}>30 days from today
+                    data-unit={"30"}>30 days from today
                 </div>
                 <div onClick={onRelativeUpdated} className={"relative"} data-relative-unit={"day"}
-                     data-unit={"90"}>90 days from today
+                    data-unit={"90"}>90 days from today
                 </div>
                 <div onClick={onRelativeUpdated} className={"relative"} data-relative-unit={"month"}
-                     data-unit={"6"}>6 months from today
+                    data-unit={"6"}>6 months from today
                 </div>
                 <div onClick={onRelativeUpdated} className={"relative"} data-relative-unit={"month"}
-                     data-unit={"12"}>12 months from today
+                    data-unit={"12"}>12 months from today
                 </div>
             </div>
         </div>

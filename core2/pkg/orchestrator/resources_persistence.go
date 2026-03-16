@@ -351,10 +351,16 @@ func lResourcePersist(r *resource) {
 }
 
 func resourceLoadIndex(b *resourceIndexBucket, typeName string, reference string) {
-	ref := reference
-	providerId, isProvider := strings.CutPrefix(reference, fndapi.ProviderSubjectPrefix)
+	actorRef := reference
+	providerRef := ""
+	providerParam := sql.NullString{}
+	actorParam := sql.NullString{}
+	_, isProvider := strings.CutPrefix(reference, fndapi.ProviderSubjectPrefix)
 	if isProvider {
-		ref = providerId
+		providerRef = strings.TrimPrefix(reference, fndapi.ProviderSubjectPrefix)
+		providerParam = sql.NullString{Valid: true, String: providerRef}
+	} else {
+		actorParam = sql.NullString{Valid: true, String: actorRef}
 	}
 
 	resources := db.NewTx(func(tx *db.Transaction) map[ResourceId]*resource {
@@ -377,22 +383,30 @@ func resourceLoadIndex(b *resourceIndexBucket, typeName string, reference string
 					left join accounting.product_categories pc on p.category = pc.id
 					left join provider.resource_acl_entry acl on 
 						r.id = acl.resource_id 
-						and acl.username = :reference 
+						and acl.username = cast(:actor_reference as text)
 						and r.project is null
 				where
 					(
-						(r.created_by = :reference and r.project is null and pc.provider is distinct from :reference)
-						or (r.project = :reference and r.created_by != :reference and pc.provider is distinct from :reference)
-						or (pc.provider is not distinct from :reference and r.created_by is distinct from :reference and r.project is distinct from :reference)
-						or (acl.username = :reference)
+						-- I am a user and I have created it
+						(r.created_by = cast(:actor_reference as text) and r.project is null and cast(:provider_reference as text) is null)
+
+						-- I am a user and listed in the ACL
+						or (acl.username = cast(:actor_reference as text) and cast(:provider_reference as text) is null)
+
+						-- I am a project and it belongs to me
+						or (r.project = cast(:actor_reference as text) and r.created_by != cast(:actor_reference as text) and cast(:provider_reference as text) is null)
+
+						-- I am a provider and it belongs to me
+						or (cast(:actor_reference as text) is null and pc.provider = cast(:provider_reference as text))
 					)
 					and r.type = :type
 					and r.confirmed_by_provider
 				order by r.id
 		    `,
 			db.Params{
-				"reference": ref,
-				"type":      typeName,
+				"actor_reference":    actorParam,
+				"provider_reference": providerParam,
+				"type":               typeName,
 			},
 		)
 

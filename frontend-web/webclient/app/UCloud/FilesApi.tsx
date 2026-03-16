@@ -43,7 +43,6 @@ import metadataDocumentApi from "@/UCloud/MetadataDocumentApi";
 import {Spacer} from "@/ui-components/Spacer";
 import metadataNamespaceApi from "@/UCloud/MetadataNamespaceApi";
 import MetadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/MetadataNamespaceApi";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {SyncthingConfig, SyncthingDevice, SyncthingFolder} from "@/Syncthing/api";
 import {Link, useNavigate, useParams} from "react-router-dom";
 import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
@@ -80,6 +79,7 @@ import {buildQueryString} from "@/Utilities/URIUtilities";
 import {setPopInChild} from "@/ui-components/PopIn";
 import {FileWriteFailure, WriteFailureEvent} from "@/Files/Uploader";
 import {GuessedFile} from "magic-bytes.js/dist/model/tree";
+import {sendFailureNotification, sendInformationNotification, sendSuccessNotification} from "@/Notifications";
 
 export function normalizeDownloadEndpoint(endpoint: string): string {
     const e = endpoint.replace("integration-module:8889", "localhost:8889");
@@ -95,6 +95,8 @@ export interface ExtraFileCallbacks {
     collection?: FileCollection;
     directory?: UFile;
     isModal?: boolean;
+    startFileCreation(): void;
+    startFolderCreation(): void;
     isSearch: boolean;
     // HACK(Jonas): This is because resource view is technically embedded, but is not in dialog, so it's allowed in
     // special case.
@@ -296,7 +298,8 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 primary: true,
                 enabled: (selected, cb) => {
                     if (cb.isSearch) return false;
-                    if (selected.length !== 0 || cb.startCreation == null) return false;
+                    if (cb.creationDisabled) return "Fetching folder...";
+                    if (selected.length !== 0 || cb.startFolderCreation == null) return false;
                     if (cb.isCreating) return "You are already creating a folder";
                     const support = cb.collection?.status.resolvedSupport?.support;
                     if (!support) return false;
@@ -308,8 +311,31 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     }
                     return true;
                 },
-                onClick: (selected, cb) => cb.startCreation!(),
+                onClick: (selected, cb) => cb.startFolderCreation!(),
                 shortcut: ShortcutKey.F
+            },
+            {
+                text: "Create file",
+                icon: "heroDocumentPlus",
+                enabled(selected, cb) {
+                    if (cb.isSearch) return false;
+                    if (cb.creationDisabled) return "Fetching folder...";
+                    if (selected.length !== 0 || cb.startFileCreation == null) return false;
+                    if (cb.isCreating) return "You are already creating a folder";
+                    const support = cb.collection?.status.resolvedSupport?.support;
+                    if (!support) return false;
+                    if ((support as FileCollectionSupport).files.isReadOnly) {
+                        return "File system is read-only";
+                    }
+                    if (cb.collection?.permissions?.myself?.some(perm => perm === "ADMIN" || perm === "EDIT") != true) {
+                        return "You do not have write permissions in this folder";
+                    }
+                    return true;
+                },
+                onClick: (selected, cb) => {
+                    cb.startFileCreation!();
+                },
+                shortcut: ShortcutKey.L
             },
             {
                 text: "Launch with...",
@@ -419,7 +445,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                                         );
                                         cb.reload();
                                         dialogStore.success();
-                                        snackbarStore.addSuccess("Files are now transferring...", false);
+                                        sendSuccessNotification("Files are now transferring...");
                                     } catch (e) {
                                         displayErrorMessageOrDefault(e, "Failed to move to folder");
                                     }
@@ -730,7 +756,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
     // TODO(Dan): We should probably add a feature flag for file types
     public async download(ids: string[]) {
         if (ids.length > 1) {
-            snackbarStore.addInformation("For downloading multiple files, you may need to enable pop-ups.", false, 8000);
+            sendInformationNotification("For downloading multiple files, you may need to enable pop-ups.");
         }
 
         const result = await callAPI<BulkResponse<FilesCreateDownloadResponseItem>>(
@@ -769,7 +795,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                             );
                             reload(result);
                             dialogStore.success();
-                            snackbarStore.addSuccess("Files copied", false);
+                            sendSuccessNotification("Files copied");
                             return true;
                         } catch (e) {
                             displayErrorMessageOrDefault(e, "Failed to move to folder");
@@ -813,7 +839,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                             );
                             reload(result);
                             dialogStore.success();
-                            snackbarStore.addSuccess("Files moved", false);
+                            sendSuccessNotification("Files moved");
                         } catch (e) {
                             displayErrorMessageOrDefault(e, "Failed to move to folder");
                         }
@@ -914,7 +940,7 @@ async function synchronizationOpOnClick(files: UFile[], cb: ResourceBrowseCallba
 
         for (const folder of resolvedFiles) {
             if (synchronizedFolderNames.includes(folder.id.split("/").pop())) {
-                snackbarStore.addFailure("Folder with same name already exist in Syncthing", false)
+                sendFailureNotification("Folder with same name already exist in Syncthing");
                 return;
             }
         }
@@ -922,7 +948,7 @@ async function synchronizationOpOnClick(files: UFile[], cb: ResourceBrowseCallba
         for (const folder of resolvedFiles) {
             const sensitivity = await findSensitivity(folder);
             if (sensitivity == "SENSITIVE") {
-                snackbarStore.addFailure("Folder marked as sensitive cannot be added to Syncthing", false)
+                sendFailureNotification("Folder marked as sensitive cannot be added to Syncthing");
                 return;
             }
         }
@@ -939,7 +965,7 @@ async function synchronizationOpOnClick(files: UFile[], cb: ResourceBrowseCallba
 
     cb.setSynchronization(files, !allSynchronized);
 
-    snackbarStore.addSuccess(`${allSynchronized ? "Removed from" : "Added to"} Syncthing`, false);
+    sendSuccessNotification(`${allSynchronized ? "Removed from" : "Added to"} Syncthing`);
 }
 
 export function isReadonly(entries: Permission[]): boolean {
@@ -1012,7 +1038,7 @@ function SensitivityDialog({file, invokeCommand, onUpdated}: {
                 if (!sensitivityTemplateId) {
                     sensitivityTemplateId = await queryTemplateName(sensitivityTemplateId, invokeCommand);
                     if (!sensitivityTemplateId) {
-                        snackbarStore.addFailure("Failed to change sensitivity.", false);
+                        sendFailureNotification("Failed to change sensitivity.");
                         return;
                     }
                 }
@@ -1073,7 +1099,9 @@ function downloadFile(url: string, usePopup: boolean) {
     if (usePopup) element.setAttribute("target", "_blank");
     document.body.appendChild(element);
     element.click();
-    document.body.removeChild(element);
+    if (element.parentNode === document.body) {
+        document.body.removeChild(element);
+    }
 }
 
 export async function addFileSensitivityDialog(file: UFile, invokeCommand: InvokeCommand, onUpdated: (value: SensitivityLevelMap) => void): Promise<void> {
@@ -1286,7 +1314,7 @@ export function FilePreview({initialFile}: {
             const failedUpload = e.detail.find(it => it.targetPath + it.name === path);
             if (failedUpload) {
                 revert();
-                snackbarStore.addFailure(failedUpload.error ?? "Upload for file " + fileName(failedUpload.name) + " failed.", false);
+                sendFailureNotification(failedUpload.error ?? "Upload for file " + fileName(failedUpload.name) + " failed.");
             }
         }
 
@@ -1357,12 +1385,7 @@ export function FilePreview({initialFile}: {
         })).result;
 
         const newPath = getParentPath(path) + name;
-        window.dispatchEvent(new CustomEvent<WriteToFileEventProps>(EventKeys.WriteToFile, {
-            detail: {
-                path: newPath,
-                content: " ",
-            }
-        }));
+        initEmptyFileUpload(newPath);
 
         setTimeout(() => {
             editorRef.current?.invalidateTree?.(getParentPath(path));
@@ -1464,7 +1487,7 @@ export function FilePreview({initialFile}: {
                     );
                     editorRef.current?.onFileDeleted(file.absolutePath);
                     reload();
-                    snackbarStore.addSuccess("File(s) moved to trash", false);
+                    sendSuccessNotification("File(s) moved to trash");
                 },
                 shortcut: ShortcutKey.R
             },
@@ -1589,6 +1612,15 @@ export function FilePreview({initialFile}: {
         }
         readOnly={!allowEditing()}
     />;
+}
+
+export function initEmptyFileUpload(filePath: string): void {
+    window.dispatchEvent(new CustomEvent<WriteToFileEventProps>(EventKeys.WriteToFile, {
+        detail: {
+            path: filePath,
+            content: " ",
+        }
+    }));
 }
 
 export async function downloadFileContent(path: string): Promise<Blob> {

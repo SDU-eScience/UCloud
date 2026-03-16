@@ -4,60 +4,59 @@ import {Dispatch} from "redux";
 import {Provider, useDispatch} from "react-redux";
 import {BrowserRouter} from "react-router-dom";
 
-const App = React.lazy(() => import("@/Applications/Studio/Applications"));
-const ApplicationsOverview = React.lazy(() => import("./Applications/Category"));
-const ApplicationsLanding = React.lazy(() => import("./Applications/Landing"));
-const ApplicationsGroup = React.lazy(() => import("@/Applications/Group"));
-const ApplicationSearch = React.lazy(() => import("@/Applications/Search"));
-const AvataaarModification = React.lazy(() => import("@/UserSettings/Avataaar"));
-const Dashboard = React.lazy(() => import("@/Dashboard/Dashboard"));
-const DetailedNews = React.lazy(() => import("@/NewsPost/DetailedNews"));
-const ProviderRouter = React.lazy(() => import("@/Admin/Providers/Router"));
-const SharesAcceptLink = React.lazy(() => import("@/Files/SharesAcceptLink"));
-const JobShell = React.lazy(() => import("@/Applications/Jobs/Shell"));
-const JobVnc = React.lazy(() => import("@/Applications/Jobs/Vnc"));
-const LoginPage = React.lazy(() => import("@/Login/Login"));
-const Registration = React.lazy(() => import("@/Login/Registration"));
-const VerifyEmail = React.lazy(() => import("@/Login/VerifyEmail"));
-const VerifyResult = React.lazy(() => import("@/Login/VerifyResult"));
-const NewsList = React.lazy(() => import("@/NewsPost/NewsList"));
-const NewsManagement = React.lazy(() => import("@/Admin/NewsManagement"));
-const Playground = React.lazy(() => import("@/Playground/Playground"));
-const Products = React.lazy(() => import("@/Products/Products"));
-const ProjectSettings = React.lazy(() => import("@/Project/ProjectSettings"));
-const ProjectMembers = React.lazy(() => import("@/Project/Members"));
-const ProjectAcceptInviteLink = React.lazy(() => import("@/Project/AcceptInviteLink"));
-const ServiceLicenseAgreement = React.lazy(() => import("@/ServiceLicenseAgreement"));
-const StudioGroup = React.lazy(() => import("@/Applications/Studio/Group"));
-const StudioGroups = React.lazy(() => import("@/Applications/Studio/Groups"));
-const StudioCategories = React.lazy(() => import("@/Applications/Studio/Categories"));
-const StudioSpotlightsEditor = React.lazy(() => import("@/Applications/Studio/SpotlightsEditor"));
-const StudioSpotlights = React.lazy(() => import("@/Applications/Studio/Spotlights"));
-const StudioHero = React.lazy(() => import("@/Applications/Studio/HeroEditor"));
-const StudioTopPicks = React.lazy(() => import("@/Applications/Studio/TopPicksEditor"));
-const UserCreation = React.lazy(() => import("@/Admin/UserCreation"));
-const UserSettings = React.lazy(() => import("@/UserSettings/UserSettings"));
-const Wayf = React.lazy(() => import("@/Login/Wayf"));
-const Demo = React.lazy(() => import("@/Playground/Demo"));
-const LagTest = React.lazy(() => import("@/Playground/LagTest"));
-const Providers = React.lazy(() => import("@/Admin/Providers/Browse"));
-const CreateProvider = React.lazy(() => import("@/Admin/Providers/Save"));
-const EditProvider = React.lazy(() => import("@/Admin/Providers/Save"));
-const ProviderConnection = React.lazy(() => import("@/Providers/Connect"));
-const ProviderOverview = React.lazy(() => import("@/Providers/Overview"));
-const ProviderDetailed = React.lazy(() => import("@/Providers/Detailed"));
-const NetworkIPsRouter = React.lazy(() => import("@/Applications/NetworkIP/Router"));
-const SyncthingOverview = React.lazy(() => import("@/Syncthing/Overview"));
-const SshKeyCreate = React.lazy(() => import("@/Applications/SshKeys/Add"));
-const ApiTokenCreate = React.lazy(() => import("@/Applications/ApiTokens/Add"));
-const GrantEditor = React.lazy(() => import("@/Grants/Editor"));
-const ResourceUsage = React.lazy(() => import("@/Accounting/UsageCore2"));
-const ResourceAllocations = React.lazy(() => import("@/Accounting/Allocations"));
-const Connection = React.lazy(() => import("@/Providers/Connection"));
+import App from "@/Applications/Studio/Applications";
+import ApplicationsOverview from "./Applications/Category";
+import ApplicationsLanding from "./Applications/Landing";
+import ApplicationsGroup from "@/Applications/Group";
+import ApplicationSearch from "@/Applications/Search";
+import AvataaarModification from "@/UserSettings/Avataaar";
+import Dashboard from "@/Dashboard/Dashboard";
+import DetailedNews from "@/NewsPost/DetailedNews";
+import ProviderRouter from "@/Admin/Providers/Router";
+import SharesAcceptLink from "@/Files/SharesAcceptLink";
+import JobShell from "@/Applications/Jobs/Shell";
+import JobVnc from "@/Applications/Jobs/Vnc";
+import LoginPage from "@/Login/Login";
+import Registration from "@/Login/Registration";
+import VerifyEmail from "@/Login/VerifyEmail";
+import VerifyResult from "@/Login/VerifyResult";
+import NewsList from "@/NewsPost/NewsList";
+import NewsManagement from "@/Admin/NewsManagement";
+import Playground from "@/Playground/Playground";
+import Products from "@/Products/Products";
+import ProjectSettings from "@/Project/ProjectSettings";
+import ProjectMembers from "@/Project/Members";
+import ProjectAcceptInviteLink from "@/Project/AcceptInviteLink";
+import ServiceLicenseAgreement from "@/ServiceLicenseAgreement";
+import StudioGroup from "@/Applications/Studio/Group";
+import StudioGroups from "@/Applications/Studio/Groups";
+import StudioCategories from "@/Applications/Studio/Categories";
+import StudioSpotlightsEditor from "@/Applications/Studio/SpotlightsEditor";
+import StudioSpotlights from "@/Applications/Studio/Spotlights";
+import StudioHero from "@/Applications/Studio/HeroEditor";
+import StudioTopPicks from "@/Applications/Studio/TopPicksEditor";
+import UserCreation from "@/Admin/UserCreation";
+import UserSettings from "@/UserSettings/UserSettings";
+import Wayf from "@/Login/Wayf";
+import Demo from "@/Playground/Demo";
+import LagTest from "@/Playground/LagTest";
+import Providers from "@/Admin/Providers/Browse";
+import CreateProvider from "@/Admin/Providers/Save";
+import EditProvider from "@/Admin/Providers/Save";
+import ProviderConnection from "@/Providers/Connect";
+import ProviderOverview from "@/Providers/Overview";
+import ProviderDetailed from "@/Providers/Detailed";
+import NetworkIPsRouter from "@/Applications/NetworkIP/Router";
+import SyncthingOverview from "@/Syncthing/Overview";
+import SshKeyCreate from "@/Applications/SshKeys/Add";
+import ApiTokenCreate from "@/Applications/ApiTokens/Add";
+import GrantEditor from "@/Grants/Editor";
+import ResourceUsage from "@/Accounting/UsageCore2";
+import ResourceAllocations from "@/Accounting/Allocations";
+import Connection from "@/Providers/Connection";
 
 import {Sidebar} from "@/ui-components/Sidebar";
 import Uploader from "@/Files/Uploader";
-import Snackbars from "@/Snackbar";
 import {Dialog} from "@/Dialog/Dialog";
 import {inDevEnvironment} from "@/UtilityFunctions";
 import {ErrorBoundary} from "@/ErrorBoundary/ErrorBoundary";
@@ -92,14 +91,15 @@ import SupportPage, {
 } from "./Admin/SupportPage";
 import {useEffect} from "react";
 import {deinitNotifications, initTaskAndNotificationStream} from "@/Services/TaskAndNotificationStream";
+import {NotificationPopups} from "./Notifications/Popups";
 
 const NotFound = (): React.ReactNode => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
 
 const Core = (): React.ReactNode => (
     <>
         <Dialog />
-        <Snackbars />
         <Uploader />
+        <NotificationPopups />
         <RightPopIn />
         <div data-component="router-wrapper" className={RouteWrapperClass}>
             <React.Suspense fallback={<MainContainer main={<div>Loading...</div>} />}>

@@ -19,13 +19,14 @@ import AppRoutes from "@/Routes";
 import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {ButtonClass} from "@/ui-components/Button";
 import {arrayToPage} from "@/Types";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
+
 import {fileName} from "@/Utilities/FileUtilities";
 import {bulkRequestOf} from "@/UtilityFunctions";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {useProjectId} from "@/Project/Api";
 import {FlexClass} from "@/ui-components/Flex";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {sendFailureNotification} from "@/Notifications";
 
 enum ShareValidateState {
     NOT_VALIDATED,
@@ -199,7 +200,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                                     page.push({permissions: share.permissions, shareId: id, sharedWith, state: "PENDING"})
                                     browser.rerender();
                                 }).catch(err => {
-                                    snackbarStore.addFailure(extractErrorMessage(err), false);
+                                    sendFailureNotification(extractErrorMessage(err));
                                 });
                         },
                         () => {
@@ -641,7 +642,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                         onClick([selection]: [OutgoingShareGroupPreview]) {
                             navigate(AppRoutes.resource.properties("shares", selection.shareId));
                         },
-                        shortcut: ShortcutKey.P
+                        shortcut: ShortcutKey.O
                     }, {
                         icon: "properties",
                         text: "Manage share",
@@ -651,7 +652,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                         onClick([selection]: [OutgoingShareGroup]) {
                             navigate(`/shares/outgoing?path=${selection.sourceFilePath}`);
                         },
-                        shortcut: ShortcutKey.P
+                        shortcut: ShortcutKey.O
                     }];
                     return operations.filter(it => it.enabled(entries, callbacks, entries));
                 });

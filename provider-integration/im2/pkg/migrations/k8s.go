@@ -43,3 +43,23 @@ func k8sV1() db.MigrationScript {
 		},
 	}
 }
+
+func k8sV2() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "k8sv2",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					create table k8s.tasks_v2(
+						id text primary key,
+						ucloud_task_id int8,
+						api_token text not null unique,
+						created_at timestamptz not null default now()
+					)
+			    `,
+				db.Params{},
+			)
+		},
+	}
+}

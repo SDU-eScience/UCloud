@@ -53,6 +53,7 @@ import {HTMLTooltip} from "@/ui-components/Tooltip";
 import {TruncateClass} from "@/ui-components/Truncate";
 import {defaultAvatar} from "@/AvataaarLib";
 import {SvgCache} from "@/Utilities/SvgCache";
+import {sendInformationNotification} from "@/Notifications";
 
 export const sharesLinksInfo: LinkInfo[] = [
     {text: "Shared with me", to: AppRoutes.shares.sharedWithMe(), icon: "share", tab: SidebarTabId.FILES, defaultHidden: true},
@@ -129,7 +130,7 @@ export const SimpleAvatarComponentCache = new class {
                     height: "40px",
                     backgroundImage: `url(${avatarCompUrl})`,
                     backgroundSize: "contain",
-                }}/>;
+                }} />;
             }).promise;
             if (!isDefaultAvatar) this.setAvatar(username, avatarComponent);
             const avatarElement = avatarComponent.clone();
@@ -307,7 +308,8 @@ const ShareModal: React.FunctionComponent<{
                                             readOnly
                                             style={{"cursor": "pointer"}}
                                             onClick={() => {
-                                                copyToClipboard({value: inviteLinkFromToken(link.token), message: "Link copied to clipboard"})
+                                                copyToClipboard(inviteLinkFromToken(link.token));
+                                                sendInformationNotification("Invite link copied!");
                                             }}
                                             mr={10}
                                             value={inviteLinkFromToken(link.token)}

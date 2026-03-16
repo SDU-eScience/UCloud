@@ -26,8 +26,9 @@ import {NavigateFunction} from "react-router-dom";
 import {fetchAll} from "@/Utilities/PageUtilities";
 import * as Accounting from "@/Accounting";
 import {EmbeddedSettings} from "@/ui-components/ResourceBrowser";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
+
 import {MainContainer} from "@/ui-components";
+import {sendFailureNotification} from "@/Notifications";
 
 export interface ProductSupport {
     product: ProductReference;
@@ -316,7 +317,7 @@ export abstract class ResourceApi<Res extends Resource,
                             cb.navigate(`/${cb.api.routingNamespace}`)
                         }
                     } catch (e) {
-                        snackbarStore.addFailure(errorMessageOrDefault(e, "Failed to delete item"), false);
+                        sendFailureNotification(errorMessageOrDefault(e, "Failed to delete item"));
                     }
                 },
                 tag: DELETE_TAG,

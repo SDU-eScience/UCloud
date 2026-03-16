@@ -68,11 +68,11 @@ import {Feature, hasFeature} from "@/Features";
 import {UsageReport} from "@/Accounting/UsageCore2";
 import {dialogStore} from "@/Dialog/DialogStore";
 import * as Heading from "@/ui-components/Heading";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import DatePicker from "react-datepicker";
 import {callAPIWithErrorHandler} from "@/Authentication/DataHook";
 import {DatePickerClass} from "@/ui-components/DatePicker";
 import {getProviderTitle, getShortProviderTitle} from "@/Providers/ProviderTitle";
+import {sendFailureNotification, sendInformationNotification, sendNotification, sendSuccessNotification, SnackType} from "@/Notifications";
 
 const allocationFiltersModalStyle: ReactModal.Styles = {
     ...largeModalStyle,
@@ -138,13 +138,13 @@ export const YourAllocations: React.FunctionComponent<{
             <div className="your-allocations-header">
                 <h3>Your allocations</h3>
                 <Button onClick={onExportData}>
-                    <Icon name={"heroArrowDownTray"} mr={8}/>
+                    <Icon name={"heroArrowDownTray"} mr={8} />
                     Export
                 </Button>
             </div>
             <div className="your-allocations-container">
                 {state.remoteData.wallets === undefined ? <>
-                    <HexSpin size={64}/>
+                    <HexSpin size={64} />
                 </> : <>
                     <div>
                         {allocations.length !== 0 ? null : <div style={{marginLeft: "20px", marginTop: "10px"}}>
@@ -158,7 +158,7 @@ export const YourAllocations: React.FunctionComponent<{
                                 return <TreeNode
                                     key={rawType}
                                     left={<Flex gap={"4px"}>
-                                        <Icon name={Accounting.productTypeToIcon(type)} size={20}/>
+                                        <Icon name={Accounting.productTypeToIcon(type)} size={20} />
                                         {Accounting.productAreaTitle(type)}
                                     </Flex>}
                                     right={<Flex flexDirection={"row"} gap={"8px"}>
@@ -173,7 +173,7 @@ export const YourAllocations: React.FunctionComponent<{
                                         <TreeNode
                                             key={idx}
                                             left={<Flex gap={"4px"}>
-                                                <ProviderLogo providerId={wallet.category.provider} size={20}/>
+                                                <ProviderLogo providerId={wallet.category.provider} size={20} />
                                                 <code>{wallet.category.name}</code>
                                             </Flex>}
                                             right={<Flex flexDirection={"row"} gap={"8px"}>
@@ -188,7 +188,7 @@ export const YourAllocations: React.FunctionComponent<{
                                                         className={alloc.note?.rowShouldBeGreyedOut ? "disabled-alloc" : undefined}
                                                         left={<Flex gap={"32px"}>
                                                             <Flex width={"200px"}>
-                                                                <Icon name={"heroBanknotes"} ml={"8px"} mr={4}/>
+                                                                <Icon name={"heroBanknotes"} ml={"8px"} mr={4} />
                                                                 <div>
                                                                     <b>Allocation ID:</b>
                                                                     {" "}
@@ -206,9 +206,9 @@ export const YourAllocations: React.FunctionComponent<{
 
                                                             {alloc.grantedIn && <>
                                                                 <Link target={"_blank"}
-                                                                      to={AppRoutes.grants.editor(alloc.grantedIn)}>
+                                                                    to={AppRoutes.grants.editor(alloc.grantedIn)}>
                                                                     View grant application{" "}
-                                                                    <Icon name={"heroArrowTopRightOnSquare"} mt={-6}/>
+                                                                    <Icon name={"heroArrowTopRightOnSquare"} mt={-6} />
                                                                 </Link>
                                                             </>}
                                                         </Flex>}
@@ -216,7 +216,7 @@ export const YourAllocations: React.FunctionComponent<{
                                                             {alloc.note && <>
                                                                 <TooltipV2 tooltip={alloc.note.text}>
                                                                     <Icon name={alloc.note.icon}
-                                                                          color={alloc.note.iconColor}/>
+                                                                        color={alloc.note.iconColor} />
                                                                 </TooltipV2>
                                                             </>}
                                                             <div className="low-opaqueness">
@@ -268,7 +268,6 @@ const keyMetricsStyle = injectStyle("key-metrics", k => `
     
     ${k} .key-metrics-header-container {
         display: flex;
-        align
         flex-direction: row;
         gap: 14px;
         margin-top: 14px;
@@ -281,7 +280,6 @@ const keyMetricsStyle = injectStyle("key-metrics", k => `
     
     ${k} .key-metrics-container {
         display: flex;
-        align
         flex-direction: row;
         gap: 14px;
         margin-top: 14px;
@@ -755,7 +753,7 @@ export const KeyMetrics: React.FunctionComponent<{
                         <Input placeholder="Search in your key metrics"></Input>
                         <div style={{position: "relative"}}>
                             <div style={{position: "absolute", top: "5px", right: "10px"}}>
-                                <Icon name={"heroMagnifyingGlass"}/>
+                                <Icon name={"heroMagnifyingGlass"} />
                             </div>
                         </div>
                     </div>
@@ -785,13 +783,13 @@ export const KeyMetrics: React.FunctionComponent<{
                         <Input placeholder="Search in your key metrics"></Input>
                         <div style={{position: "relative"}}>
                             <div style={{position: "absolute", top: "5px", right: "10px"}}>
-                                <Icon name={"heroMagnifyingGlass"}/>
+                                <Icon name={"heroMagnifyingGlass"} />
                             </div>
                         </div>
                     </div>
 
                     <Button className="filters-button" onClick={openFilters}>
-                        <Icon name={"heroAdjustmentsHorizontal"}/>
+                        <Icon name={"heroAdjustmentsHorizontal"} />
                     </Button>
                 </div>
             </div>
@@ -862,8 +860,8 @@ export const KeyMetrics: React.FunctionComponent<{
                 <div className="key-metrics-card-container">
                     <div className="key-metrics-card">
                         <h3>41%</h3>
-                        <br/>
-                        <h3>Storage <br/> utilization</h3>
+                        <br />
+                        <h3>Storage <br /> utilization</h3>
                     </div>
                     <div className="key-metrics-card">
                         <h3>{computeReport?.subProjectHealth.idle}</h3>
@@ -919,7 +917,7 @@ const FilteredUsageAndQuota: React.FunctionComponent<{
     </>
 }
 
-function DurationSelector(props: { periodRef: { start: Date | null; end: Date | null } }) {
+function DurationSelector(props: {periodRef: {start: Date | null; end: Date | null}}) {
     const originalStart = useMemo(() => props.periodRef.start, []);
     const originalEnd = useMemo(() => props.periodRef.end, []);
     const [startDate, setStartDate] = useState<Date | null>(props.periodRef.start);
@@ -936,7 +934,7 @@ function DurationSelector(props: { periodRef: { start: Date | null; end: Date | 
     return <Label>
         Allocation period
         (Current: {dateToStringNoTime(originalStart?.getTime() ?? new Date().getTime())} - {dateToStringNoTime(originalEnd?.getTime() ?? new Date().getTime())})
-        <br/>
+        <br />
         <DatePicker
             selected={startDate}
             onChange={onChange}
@@ -975,10 +973,10 @@ function openUpdater(
             ev.preventDefault();
             ev.stopPropagation();
             if (quota == originalQuota && originalStart == periodRef.start && originalEnd == periodRef.end) {
-                snackbarStore.addInformation("No changes made", false);
+                sendInformationNotification("No changes made");
                 dialogStore.success()
             } else if (reason === "") {
-                snackbarStore.addFailure("Missing reason", false);
+                sendFailureNotification("Missing reason");
             } else {
                 const success = (await callAPIWithErrorHandler(
                     Accounting.updateAllocationV2(bulkRequestOf({
@@ -1000,7 +998,7 @@ function openUpdater(
                         newStart: periodRef.start ?? new Date(),
                         newEnd: periodRef.end ?? new Date(),
                     });
-                    snackbarStore.addSuccess("Update Success", false);
+                    sendSuccessNotification("Update Success");
                     dialogStore.success();
                 }
             }
@@ -1009,19 +1007,19 @@ function openUpdater(
                 <div>
                     <Heading.h3>Update {category.name} ({getProviderTitle(category.provider)}) allocation
                         (ID: {allocationId}) belonging to "{workspaceTitle}"</Heading.h3>
-                    <Divider/>
+                    <Divider />
                     <Flex mb={"16px"} flexDirection={"row"}>
-                        <DurationSelector periodRef={periodRef}/>
+                        <DurationSelector periodRef={periodRef} />
                         <Label ml={"auto"}>
                             Allocation quota (Current: {Accounting.balanceToString(category, quota)})
                             <Input type="number" defaultValue={explainUnit(category).balanceFactor * quota} min={0}
-                                   onChange={e => quota = normalizedBalanceToRaw(category, e.target.valueAsNumber)}/>
+                                onChange={e => quota = normalizedBalanceToRaw(category, e.target.valueAsNumber)} />
                         </Label>
                     </Flex>
                     <Label mb={"16px"}>
-                        Reason <Required/>
+                        Reason <Required />
                         <TextArea required rows={4} width={1} height={1} type={"text"} autoFocus
-                                  placeholder={"Reason for update..."} onChange={e => reason = e.target.value}/>
+                            placeholder={"Reason for update..."} onChange={e => reason = e.target.value} />
                     </Label>
                     <Button mt={"16px"} type={"submit"} fullWidth>
                         Update allocation
@@ -1067,8 +1065,8 @@ const SubProjectListRow: React.FunctionComponent<{
             left={<Flex gap={"4px"} alignItems={"center"}>
                 <TooltipV2 tooltip={`Project PI: ${pi}`}>
                     <Avatar {...avatars.avatarFromCache(pi)}
-                            style={{height: "32px", width: "auto", marginTop: "-4px"}}
-                            avatarStyle={"Circle"}/>
+                        style={{height: "32px", width: "auto", marginTop: "-4px"}}
+                        avatarStyle={"Circle"} />
                 </TooltipV2>
                 <Truncate
                     title={title}
@@ -1078,7 +1076,7 @@ const SubProjectListRow: React.FunctionComponent<{
                 </Truncate>
             </Flex>}
             right={<div className={"sub-alloc"}>
-                <FilteredUsageAndQuota entries={recipient.usageAndQuota}/>
+                <FilteredUsageAndQuota entries={recipient.usageAndQuota} />
                 {recipient.owner.reference.type === "project" &&
                     <Link
                         to={AppRoutes.grants.grantGiverInitiatedEditor({
@@ -1091,10 +1089,10 @@ const SubProjectListRow: React.FunctionComponent<{
                         })}
                     >
                         <SmallIconButton tooltip="Allocate more resources"
-                                         icon={"heroBanknotes"}
-                                         subIcon={"heroPlusCircle"}
-                                         subColor1={"primaryContrast"}
-                                         subColor2={"primaryContrast"}/>
+                            icon={"heroBanknotes"}
+                            subIcon={"heroPlusCircle"}
+                            subColor1={"primaryContrast"}
+                            subColor2={"primaryContrast"} />
                     </Link>
                 }
             </div>}
@@ -1108,10 +1106,10 @@ const SubProjectListRow: React.FunctionComponent<{
                     data-open={openNodes[makeCategoryKeyFromWorkspaceId(workspaceId, g.category.name)]}
                     left={<Flex gap={"4px"}>
                         <Flex gap={"4px"} width={"200px"}>
-                            <ProviderLogo providerId={g.category.provider} size={20}/>
+                            <ProviderLogo providerId={g.category.provider} size={20} />
                             <Icon
                                 name={Accounting.productTypeToIcon(g.category.productType)}
-                                size={20}/>
+                                size={20} />
                             <code>{g.category.name}</code>
                         </Flex>
                     </Flex>}
@@ -1134,7 +1132,7 @@ const SubProjectListRow: React.FunctionComponent<{
                                 data-grant-id={alloc.grantedIn}
                                 left={<Flex>
                                     <Flex width={"200px"}>
-                                        <Icon name={"heroBanknotes"} ml="8px" mr={4}/>
+                                        <Icon name={"heroBanknotes"} ml="8px" mr={4} />
                                         <div>
                                             <b>Allocation ID:</b>
                                             {" "}
@@ -1152,10 +1150,10 @@ const SubProjectListRow: React.FunctionComponent<{
 
                                     {alloc.grantedIn && <>
                                         <Link target={"_blank"}
-                                              to={AppRoutes.grants.editor(alloc.grantedIn)}>
+                                            to={AppRoutes.grants.editor(alloc.grantedIn)}>
                                             View grant application{" "}
                                             <Icon name={"heroArrowTopRightOnSquare"}
-                                                  mt={-6}/>
+                                                mt={-6} />
                                         </Link>
                                     </>}
                                 </Flex>}
@@ -1163,7 +1161,7 @@ const SubProjectListRow: React.FunctionComponent<{
                                     {alloc.note && <>
                                         <TooltipV2 tooltip={alloc.note.text}>
                                             <Icon name={alloc.note.icon}
-                                                  color={alloc.note.iconColor}/>
+                                                color={alloc.note.iconColor} />
                                         </TooltipV2>
                                     </>}
                                     <Text>
@@ -1185,7 +1183,7 @@ const SubProjectListRow: React.FunctionComponent<{
                                         )}
                                         disabled={alloc.end < new Date().getTime()}
                                         data-ridx={recipientIdx} data-idx={idx}
-                                        data-gidx={gidx}/>
+                                        data-gidx={gidx} />
                                 </Flex>}
                             />
                         )
@@ -1419,268 +1417,268 @@ export const SubProjectList: React.FunctionComponent<{
         avatars
     }
 ) => {
-    const [filtersShown, setFiltersShown] = useState(false);
-    const closeFilters = useCallback(() => {
-        setFiltersShown(false);
-    }, []);
-    const openFilters = useCallback(() => {
-        setFiltersShown(true);
-    }, []);
+        const [filtersShown, setFiltersShown] = useState(false);
+        const closeFilters = useCallback(() => {
+            setFiltersShown(false);
+        }, []);
+        const openFilters = useCallback(() => {
+            setFiltersShown(true);
+        }, []);
 
-    const rerender = useForcedRender();
-    const setNodeStateHack = useCallback((action: TreeAction, reference: string, group?: string | null) => {
-        setNodeState(action, reference, group);
-        rerender();
-    }, []);
+        const rerender = useForcedRender();
+        const setNodeStateHack = useCallback((action: TreeAction, reference: string, group?: string | null) => {
+            setNodeState(action, reference, group);
+            rerender();
+        }, []);
 
-    const childProjectIds = useMemo(() => {
-        const ids: string[] = [];
-        for (const recipient of state.subAllocations.recipients) {
-            if (recipient.owner.reference.type === "project") {
-                ids.push(recipient.owner.reference.projectId);
-            }
-        }
-        return ids;
-    }, [state.subAllocations.recipients]);
-
-    const childProjectInfo = useProjectInfos(childProjectIds);
-
-    const onExportData = useCallback(() => {
-        interface Allocation {
-            id: number;
-            grantApplication?: number;
-            start: number;
-            end: number;
-            quota: number;
-        }
-
-        interface Row {
-            workspace: string;
-            category: string;
-            provider: string;
-            usage: number;
-            quota: number;
-            allocations: Allocation[];
-        }
-
-        type AllocationField = keyof Allocation;
-
-        type AllocationFlatColumns = {
-            [K in `allocation${number}_${AllocationField}`]?: number;
-        };
-
-        type FlattenedRow = Omit<Row, "allocations"> & AllocationFlatColumns;
-
-        function flattenAllocations(row: Row, maxAllocations?: number): FlattenedRow {
-            const {allocations, ...rest} = row;
-
-            const limit = maxAllocations ?? allocations.length;
-
-            const flattenedAllocations = allocations.slice(0, limit).reduce((acc, allocation, index) => {
-                const n = index + 1;
-
-                acc[`allocation${n}_id`] = allocation.id;
-                acc[`allocation${n}_grantApplication`] = allocation.grantApplication;
-                acc[`allocation${n}_start`] = allocation.start;
-                acc[`allocation${n}_end`] = allocation.end;
-                acc[`allocation${n}_quota`] = allocation.quota;
-
-                return acc;
-            }, {} as AllocationFlatColumns);
-
-            return {
-                ...rest,
-                ...flattenedAllocations,
-            };
-        }
-
-        const rows: Row[] = [];
-        let maxAllocations = 0;
-
-        for (const recipient of state.subAllocations.recipients) {
-            for (const g of recipient.groups) {
-                maxAllocations = Math.max(maxAllocations, g.allocations.length);
-                let title = recipient.owner.title;
+        const childProjectIds = useMemo(() => {
+            const ids: string[] = [];
+            for (const recipient of state.subAllocations.recipients) {
                 if (recipient.owner.reference.type === "project") {
-                    title = childProjectInfo.data[recipient.owner.reference.projectId]?.title ?? title;
+                    ids.push(recipient.owner.reference.projectId);
                 }
+            }
+            return ids;
+        }, [state.subAllocations.recipients]);
+
+        const childProjectInfo = useProjectInfos(childProjectIds);
+
+        const onExportData = useCallback(() => {
+            interface Allocation {
+                id: number;
+                grantApplication?: number;
+                start: number;
+                end: number;
+                quota: number;
+            }
+
+            interface Row {
+                workspace: string;
+                category: string;
+                provider: string;
+                usage: number;
+                quota: number;
+                allocations: Allocation[];
+            }
+
+            type AllocationField = keyof Allocation;
+
+            type AllocationFlatColumns = {
+                [K in `allocation${number}_${AllocationField}`]?: number;
+            };
+
+            type FlattenedRow = Omit<Row, "allocations"> & AllocationFlatColumns;
+
+            function flattenAllocations(row: Row, maxAllocations?: number): FlattenedRow {
+                const {allocations, ...rest} = row;
+
+                const limit = maxAllocations ?? allocations.length;
+
+                const flattenedAllocations = allocations.slice(0, limit).reduce((acc, allocation, index) => {
+                    const n = index + 1;
+
+                    acc[`allocation${n}_id`] = allocation.id;
+                    acc[`allocation${n}_grantApplication`] = allocation.grantApplication;
+                    acc[`allocation${n}_start`] = allocation.start;
+                    acc[`allocation${n}_end`] = allocation.end;
+                    acc[`allocation${n}_quota`] = allocation.quota;
+
+                    return acc;
+                }, {} as AllocationFlatColumns);
+
+                return {
+                    ...rest,
+                    ...flattenedAllocations,
+                };
+            }
+
+            const rows: Row[] = [];
+            let maxAllocations = 0;
+
+            for (const recipient of state.subAllocations.recipients) {
+                for (const g of recipient.groups) {
+                    maxAllocations = Math.max(maxAllocations, g.allocations.length);
+                    let title = recipient.owner.title;
+                    if (recipient.owner.reference.type === "project") {
+                        title = childProjectInfo.data[recipient.owner.reference.projectId]?.title ?? title;
+                    }
 
 
-                rows.push({
-                    workspace: title,
-                    category: g.category.name,
-                    provider: g.category.provider,
-                    usage: g.usageAndQuota.raw.usage,
-                    quota: g.usageAndQuota.raw.quota,
-                    allocations: g.allocations.map(alloc => {
-                        const normQuota = combineBalances([{
-                            category: g.category,
-                            balance: alloc.quota
-                        }])[0].normalizedBalance;
+                    rows.push({
+                        workspace: title,
+                        category: g.category.name,
+                        provider: g.category.provider,
+                        usage: g.usageAndQuota.raw.usage,
+                        quota: g.usageAndQuota.raw.quota,
+                        allocations: g.allocations.map(alloc => {
+                            const normQuota = combineBalances([{
+                                category: g.category,
+                                balance: alloc.quota
+                            }])[0].normalizedBalance;
 
-                        return ({
-                            id: alloc.allocationId,
-                            grantApplication: alloc.grantedIn,
-                            start: alloc.start,
-                            end: alloc.end,
-                            quota: normQuota,
-                        });
+                            return ({
+                                id: alloc.allocationId,
+                                grantApplication: alloc.grantedIn,
+                                start: alloc.start,
+                                end: alloc.end,
+                                quota: normQuota,
+                            });
+                        })
                     })
-                })
+                }
             }
-        }
 
-        // Builds the export columns, including the right flat allocation column names
-        function buildExportColumns(maxAllocations: number): ExportHeader<Row>[] {
-            const base = [
-                {key: "workspace", value: "Workspace", defaultChecked: true},
-                {key: "category", value: "Category", defaultChecked: true},
-                {key: "provider", value: "Provider", defaultChecked: true},
-                {key: "usage", value: "Usage", defaultChecked: true},
-                {key: "quota", value: "Quota", defaultChecked: true},
-            ] as const;
+            // Builds the export columns, including the right flat allocation column names
+            function buildExportColumns(maxAllocations: number): ExportHeader<Row>[] {
+                const base = [
+                    {key: "workspace", value: "Workspace", defaultChecked: true},
+                    {key: "category", value: "Category", defaultChecked: true},
+                    {key: "provider", value: "Provider", defaultChecked: true},
+                    {key: "usage", value: "Usage", defaultChecked: true},
+                    {key: "quota", value: "Quota", defaultChecked: true},
+                ] as const;
 
-            const allocationFields: readonly AllocationField[] = [
-                "id",
-                "grantApplication",
-                "start",
-                "end",
-                "quota",
-            ] as const;
+                const allocationFields: readonly AllocationField[] = [
+                    "id",
+                    "grantApplication",
+                    "start",
+                    "end",
+                    "quota",
+                ] as const;
 
-            const allocationCols = Array.from({length: maxAllocations}).flatMap((_, i) => {
-                const n = i + 1;
-                return allocationFields.map((field) => ({
-                    key: `allocation${n}_${field}` as const,
-                    value: `Allocation ${n} ${field}`,
-                    defaultChecked: true,
-                    hidden: true,
-                }));
-            });
+                const allocationCols = Array.from({length: maxAllocations}).flatMap((_, i) => {
+                    const n = i + 1;
+                    return allocationFields.map((field) => ({
+                        key: `allocation${n}_${field}` as const,
+                        value: `Allocation ${n} ${field}`,
+                        defaultChecked: true,
+                        hidden: true,
+                    }));
+                });
 
-            return [...base, ...allocationCols] as ExportHeader<Row>[];
-        }
-
-        exportUsage(
-            rows,
-            buildExportColumns(maxAllocations),
-            undefined,
-            {
-                fileName: "sub-projects-export",
-                csvData: rows.map((r) => flattenAllocations(r, maxAllocations)),
+                return [...base, ...allocationCols] as ExportHeader<Row>[];
             }
-        );
-    }, [state.subAllocations, childProjectInfo]);
 
-    return <>
-        <SubProjectFilters filtersShown={filtersShown} closeFilters={closeFilters}
-                           dispatchEvent={dispatchEvent} state={state}/>
+            exportUsage(
+                rows,
+                buildExportColumns(maxAllocations),
+                undefined,
+                {
+                    fileName: "sub-projects-export",
+                    csvData: rows.map((r) => flattenAllocations(r, maxAllocations)),
+                }
+            );
+        }, [state.subAllocations, childProjectInfo]);
 
-        <div className={subProjectsStyle}>
-            {projectId !== undefined && <>
-                <Flex mt={32} mb={10} alignItems={"center"} gap={"8px"}>
-                    <h3 style={{margin: 0}}>Sub-projects</h3>
-                    <div className="sub-projects-search-bar-container">
-                        <Box flexGrow={1}/>
-                        <Button onClick={onExportData}>
-                            <Icon name={"heroArrowDownTray"} mr={8}/>
-                            Export
-                        </Button>
-                        <Button className="new-sub-project-button" height={35} onClick={onNewSubProject}
+        return <>
+            <SubProjectFilters filtersShown={filtersShown} closeFilters={closeFilters}
+                dispatchEvent={dispatchEvent} state={state} />
+
+            <div className={subProjectsStyle}>
+                {projectId !== undefined && <>
+                    <Flex mt={32} mb={10} alignItems={"center"} gap={"8px"}>
+                        <h3 style={{margin: 0}}>Sub-projects</h3>
+                        <div className="sub-projects-search-bar-container">
+                            <Box flexGrow={1} />
+                            <Button onClick={onExportData}>
+                                <Icon name={"heroArrowDownTray"} mr={8} />
+                                Export
+                            </Button>
+                            <Button className="new-sub-project-button" height={35} onClick={onNewSubProject}
                                 disabled={projectRole == OldProjectRole.USER}>
-                            <Icon name={"heroPlus"} mr={8}/>
-                            New sub-project
-                        </Button>
-                        <Box width={"355px"}>
-                            <Input
-                                placeholder={"Search in your sub-projects"}
-                                height={35}
-                                value={state.searchQuery}
-                                onInput={onSearchInput}
-                                onKeyDown={onSearchKey}
-                                disabled={state.editControlsDisabled}
-                                inputRef={searchBox}
-                            />
-                            <div style={{position: "relative"}}>
-                                <div style={{position: "absolute", top: "-30px", right: "11px"}}>
-                                    <Icon name={"heroMagnifyingGlass"}/>
+                                <Icon name={"heroPlus"} mr={8} />
+                                New sub-project
+                            </Button>
+                            <Box width={"355px"}>
+                                <Input
+                                    placeholder={"Search in your sub-projects"}
+                                    height={35}
+                                    value={state.searchQuery}
+                                    onInput={onSearchInput}
+                                    onKeyDown={onSearchKey}
+                                    disabled={state.editControlsDisabled}
+                                    inputRef={searchBox}
+                                />
+                                <div style={{position: "relative"}}>
+                                    <div style={{position: "absolute", top: "-30px", right: "11px"}}>
+                                        <Icon name={"heroMagnifyingGlass"} />
+                                    </div>
                                 </div>
-                            </div>
-                        </Box>
-                        <Button className="filters-button" onClick={openFilters}>
-                            <Icon name={"heroAdjustmentsHorizontal"}/>
-                        </Button>
-                    </div>
-                </Flex>
+                            </Box>
+                            <Button className="filters-button" onClick={openFilters}>
+                                <Icon name={"heroAdjustmentsHorizontal"} />
+                            </Button>
+                        </div>
+                    </Flex>
 
-                <div className="sub-projects-container" style={{height: "500px", width: "100%"}}>
-                    {state.remoteData.wallets === undefined ? <>
-                        <HexSpin size={64}/>
-                    </> : <>
-                        {state.filteredSubProjectIndices.length !== 0 ? null :
-                            <div style={{marginLeft: "20px", marginTop: "10px"}}>
-                                You do not have any
-                                sub-allocations {state.searchQuery ? "with the active search" : ""} at
-                                the moment. {" "}
-                                {projectRole === OldProjectRole.USER ? null : <>
-                                    You can create a sub-project by clicking <a href="#"
-                                                                                onClick={onNewSubProject}>here</a>.
-                                </>}
-                            </div>}
-                        <AutoSizer>
-                            {({height, width}) => (
-                                <Tree
-                                    apiRef={suballocationTree}
-                                    onAction={(row, action) => {
-                                        if (![TreeAction.TOGGLE, TreeAction.OPEN, TreeAction.CLOSE].includes(action)) return;
-                                        const grantId = row.getAttribute("data-grant-id");
-                                        if (grantId && TreeAction.TOGGLE === action) {
-                                            // Note(Jonas): Just `window.open(AppRoutes...)` will omit the `/app` part, so we add it this way.
-                                            window.open(window.origin + "/app" + AppRoutes.grants.editor(grantId), "_blank");
-                                        } else {
-                                            const recipient = row.getAttribute("data-recipient");
-                                            if (!recipient) return;
-                                            const group = row.getAttribute("data-group");
-                                            setNodeState(action, recipient, group);
-                                            listRef.current?.resetAfterIndex(0);
-                                        }
-                                    }}
-                                    unhandledShortcut={onSubAllocationShortcut}
-                                >
-                                    <VariableSizeList
-                                        itemSize={(idx) => calculateHeightInPx(idx, state)}
-                                        height={height}
-                                        width={width}
-                                        ref={listRef}
-                                        itemCount={state.filteredSubProjectIndices.length}
-                                        itemData={state.filteredSubProjectIndices}
-                                    >
-                                        {({index: rowIdx, style, data}) => {
-                                            const recipientIdx = data[rowIdx];
-                                            const recipient = state.subAllocations.recipients[recipientIdx];
-
-                                            return <SubProjectListRow
-                                                style={style}
-                                                recipient={recipient}
-                                                dispatchEvent={dispatchEvent}
-                                                listRef={listRef}
-                                                rowIdx={rowIdx}
-                                                recipientIdx={recipientIdx}
-                                                avatars={avatars}
-                                                state={state}
-                                                setNodeState={setNodeStateHack}
-                                            />
+                    <div className="sub-projects-container" style={{height: "500px", width: "100%"}}>
+                        {state.remoteData.wallets === undefined ? <>
+                            <HexSpin size={64} />
+                        </> : <>
+                            {state.filteredSubProjectIndices.length !== 0 ? null :
+                                <div style={{marginLeft: "20px", marginTop: "10px"}}>
+                                    You do not have any
+                                    sub-allocations {state.searchQuery ? "with the active search" : ""} at
+                                    the moment. {" "}
+                                    {projectRole === OldProjectRole.USER ? null : <>
+                                        You can create a sub-project by clicking <a href="#"
+                                            onClick={onNewSubProject}>here</a>.
+                                    </>}
+                                </div>}
+                            <AutoSizer>
+                                {({height, width}) => (
+                                    <Tree
+                                        apiRef={suballocationTree}
+                                        onAction={(row, action) => {
+                                            if (![TreeAction.TOGGLE, TreeAction.OPEN, TreeAction.CLOSE].includes(action)) return;
+                                            const grantId = row.getAttribute("data-grant-id");
+                                            if (grantId && TreeAction.TOGGLE === action) {
+                                                // Note(Jonas): Just `window.open(AppRoutes...)` will omit the `/app` part, so we add it this way.
+                                                window.open(window.origin + "/app" + AppRoutes.grants.editor(grantId), "_blank");
+                                            } else {
+                                                const recipient = row.getAttribute("data-recipient");
+                                                if (!recipient) return;
+                                                const group = row.getAttribute("data-group");
+                                                setNodeState(action, recipient, group);
+                                                listRef.current?.resetAfterIndex(0);
+                                            }
                                         }}
-                                    </VariableSizeList>
-                                </Tree>
-                            )}
-                        </AutoSizer>
-                    </>}
-                </div>
-            </>}
-        </div>
-    </>;
-}
+                                        unhandledShortcut={onSubAllocationShortcut}
+                                    >
+                                        <VariableSizeList
+                                            itemSize={(idx) => calculateHeightInPx(idx, state)}
+                                            height={height}
+                                            width={width}
+                                            ref={listRef}
+                                            itemCount={state.filteredSubProjectIndices.length}
+                                            itemData={state.filteredSubProjectIndices}
+                                        >
+                                            {({index: rowIdx, style, data}) => {
+                                                const recipientIdx = data[rowIdx];
+                                                const recipient = state.subAllocations.recipients[recipientIdx];
+
+                                                return <SubProjectListRow
+                                                    style={style}
+                                                    recipient={recipient}
+                                                    dispatchEvent={dispatchEvent}
+                                                    listRef={listRef}
+                                                    rowIdx={rowIdx}
+                                                    recipientIdx={recipientIdx}
+                                                    avatars={avatars}
+                                                    state={state}
+                                                    setNodeState={setNodeStateHack}
+                                                />
+                                            }}
+                                        </VariableSizeList>
+                                    </Tree>
+                                )}
+                            </AutoSizer>
+                        </>}
+                    </div>
+                </>}
+            </div>
+        </>;
+    }
 
 function setNodeState(action: TreeAction, recipient: string, group?: string | null): void {
     const key = group ? makeCategoryKeyFromWorkspaceId(recipient, group) : recipient;
@@ -1802,12 +1800,12 @@ const SmallIconButton: React.FunctionComponent<{
         data-has-sub={props.subIcon !== undefined}
         {...extractDataTags(props)}
     >
-        <Icon name={props.icon} hoverColor={"primaryContrast"}/>
+        <Icon name={props.icon} hoverColor={"primaryContrast"} />
         {props.subIcon &&
             <Relative>
                 <div className={"sub"}>
                     <Icon name={props.subIcon} hoverColor={props.subColor1} color={props.subColor1}
-                          color2={props.subColor2}/>
+                        color2={props.subColor2} />
                 </div>
             </Relative>
         }
@@ -1829,5 +1827,5 @@ const req = injectStyle("required", cl => `
 `)
 
 function Required(): React.ReactNode {
-    return <span className={req}/>
+    return <span className={req} />
 }
