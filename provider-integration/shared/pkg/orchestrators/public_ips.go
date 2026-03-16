@@ -156,6 +156,18 @@ var PublicIpsUpdateAcl = rpc.Call[fnd.BulkRequest[UpdatedAcl], fnd.BulkResponse[
 	Operation:   "updateAcl",
 }
 
+type PublicIpsUpdateLabelsRequest struct {
+	Id     string            `json:"id"`
+	Labels map[string]string `json:"labels"`
+}
+
+var PublicIpsUpdateLabels = rpc.Call[fnd.BulkRequest[PublicIpsUpdateLabelsRequest], util.Empty]{
+	BaseContext: publicIpNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "updateLabels",
+}
+
 var PublicIpsRetrieveProducts = rpc.Call[util.Empty, SupportByProvider[PublicIpSupport]]{
 	BaseContext: publicIpNamespace,
 	Convention:  rpc.ConventionRetrieve,
@@ -218,6 +230,13 @@ var PublicIpsControlAddUpdate = rpc.Call[fnd.BulkRequest[ResourceUpdateAndId[Pub
 	Operation:   "update",
 }
 
+var PublicIpsControlUpdateLabels = rpc.Call[fnd.BulkRequest[PublicIpsUpdateLabelsRequest], util.Empty]{
+	BaseContext: publicIpControlNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesProvider,
+	Operation:   "updateLabels",
+}
+
 // Public IP Provider API
 // =====================================================================================================================
 
@@ -266,4 +285,11 @@ var PublicIpsProviderUpdateFirewall = rpc.Call[fnd.BulkRequest[PublicIpProviderU
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesPrivileged,
 	Operation:   "firewall",
+}
+
+var PublicIpsProviderOnUpdatedLabels = rpc.Call[fnd.BulkRequest[PublicIp], util.Empty]{
+	BaseContext: publicIpProviderNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesPrivileged,
+	Operation:   "onUpdatedLabels",
 }

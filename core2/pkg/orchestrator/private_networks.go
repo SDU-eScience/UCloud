@@ -147,6 +147,27 @@ func initPrivateNetworks() {
 		return fndapi.BulkResponse[util.Empty]{Responses: make([]util.Empty, len(request.Items))}, nil
 	})
 
+	orcapi.PrivateNetworksUpdateLabels.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.PrivateNetworksUpdateLabelsRequest]) (util.Empty, *util.HttpError) {
+		for _, reqItem := range request.Items {
+			err := ResourceUpdateLabelsThroughProvider[orcapi.PrivateNetwork](
+				info.Actor,
+				privateNetworkType,
+				reqItem.Id,
+				reqItem.Labels,
+				func(t *orcapi.PrivateNetwork, labels map[string]string) {
+					t.Specification.Labels = labels
+				},
+				orcapi.PrivateNetworksProviderOnUpdatedLabels,
+			)
+
+			if err != nil {
+				return util.Empty{}, err
+			}
+		}
+
+		return util.Empty{}, nil
+	})
+
 	orcapi.PrivateNetworksRetrieveProducts.Handler(func(info rpc.RequestInfo, request util.Empty) (orcapi.SupportByProvider[orcapi.PrivateNetworkSupport], *util.HttpError) {
 		return SupportRetrieveProducts[orcapi.PrivateNetworkSupport](privateNetworkType), nil
 	})
@@ -198,6 +219,17 @@ func initPrivateNetworks() {
 		}
 
 		return fndapi.BulkResponse[fndapi.FindByStringId]{Responses: responses}, nil
+	})
+
+	orcapi.PrivateNetworksControlUpdateLabels.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.PrivateNetworksUpdateLabelsRequest]) (util.Empty, *util.HttpError) {
+		for _, reqItem := range request.Items {
+			err := ResourceUpdateLabels(info.Actor, privateNetworkType, reqItem.Id, reqItem.Labels, orcapi.PermissionProvider)
+			if err != nil {
+				return util.Empty{}, err
+			}
+		}
+
+		return util.Empty{}, nil
 	})
 }
 

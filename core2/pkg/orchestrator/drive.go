@@ -122,6 +122,27 @@ func initDrives() {
 		return fndapi.BulkResponse[util.Empty]{Responses: responses}, nil
 	})
 
+	orcapi.DrivesUpdateLabels.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.DrivesUpdateLabelsRequest]) (util.Empty, *util.HttpError) {
+		for _, reqItem := range request.Items {
+			err := ResourceUpdateLabelsThroughProvider[orcapi.Drive](
+				info.Actor,
+				driveType,
+				reqItem.Id,
+				reqItem.Labels,
+				func(t *orcapi.Drive, labels map[string]string) {
+					t.Specification.Labels = labels
+				},
+				orcapi.DrivesProviderOnUpdatedLabels,
+			)
+
+			if err != nil {
+				return util.Empty{}, err
+			}
+		}
+
+		return util.Empty{}, nil
+	})
+
 	orcapi.DrivesDelete.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[fndapi.FindByStringId]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
 		var responses []util.Empty
 		for _, item := range request.Items {
@@ -196,6 +217,17 @@ func initDrives() {
 		}
 
 		return fndapi.BulkResponse[fndapi.FindByStringId]{Responses: responses}, nil
+	})
+
+	orcapi.DrivesControlUpdateLabels.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.DrivesUpdateLabelsRequest]) (util.Empty, *util.HttpError) {
+		for _, reqItem := range request.Items {
+			err := ResourceUpdateLabels(info.Actor, driveType, reqItem.Id, reqItem.Labels, orcapi.PermissionProvider)
+			if err != nil {
+				return util.Empty{}, err
+			}
+		}
+
+		return util.Empty{}, nil
 	})
 }
 

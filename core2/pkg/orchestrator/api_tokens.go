@@ -44,6 +44,17 @@ func initApiTokens() {
 		return util.Empty{}, ApiTokenRevoke(info.Actor, ResourceParseId(request.Id))
 	})
 
+	orcapi.ApiTokenUpdateLabels.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ApiTokenUpdateLabelsRequest]) (util.Empty, *util.HttpError) {
+		for _, reqItem := range request.Items {
+			err := ResourceUpdateLabels(info.Actor, apiTokenType, reqItem.Id, reqItem.Labels, orcapi.PermissionEdit)
+			if err != nil {
+				return util.Empty{}, err
+			}
+		}
+
+		return util.Empty{}, nil
+	})
+
 	go func() {
 		for {
 			db.NewTx0(func(tx *db.Transaction) {

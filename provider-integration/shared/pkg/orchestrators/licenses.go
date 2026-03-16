@@ -109,6 +109,18 @@ var LicensesUpdateAcl = rpc.Call[fnd.BulkRequest[UpdatedAcl], fnd.BulkResponse[u
 	Operation:   "updateAcl",
 }
 
+type LicensesUpdateLabelsRequest struct {
+	Id     string            `json:"id"`
+	Labels map[string]string `json:"labels"`
+}
+
+var LicensesUpdateLabels = rpc.Call[fnd.BulkRequest[LicensesUpdateLabelsRequest], util.Empty]{
+	BaseContext: licenseNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "updateLabels",
+}
+
 var LicensesRetrieveProducts = rpc.Call[util.Empty, SupportByProvider[LicenseSupport]]{
 	BaseContext: licenseNamespace,
 	Convention:  rpc.ConventionRetrieve,
@@ -159,6 +171,13 @@ var LicensesControlAddUpdate = rpc.Call[fnd.BulkRequest[ResourceUpdateAndId[Lice
 	Operation:   "update",
 }
 
+var LicensesControlUpdateLabels = rpc.Call[fnd.BulkRequest[LicensesUpdateLabelsRequest], util.Empty]{
+	BaseContext: licenseControlNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesProvider,
+	Operation:   "updateLabels",
+}
+
 // License Provider API
 // =====================================================================================================================
 
@@ -195,4 +214,11 @@ var LicensesProviderUpdateAcl = rpc.Call[fnd.BulkRequest[UpdatedAclWithResource[
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesPrivileged,
 	Operation:   "updateAcl",
+}
+
+var LicensesProviderOnUpdatedLabels = rpc.Call[fnd.BulkRequest[License], util.Empty]{
+	BaseContext: licenseProviderNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesPrivileged,
+	Operation:   "onUpdatedLabels",
 }

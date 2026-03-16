@@ -122,6 +122,27 @@ func initLicenses() {
 		return fndapi.BulkResponse[util.Empty]{Responses: make([]util.Empty, len(request.Items))}, nil
 	})
 
+	orcapi.LicensesUpdateLabels.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.LicensesUpdateLabelsRequest]) (util.Empty, *util.HttpError) {
+		for _, reqItem := range request.Items {
+			err := ResourceUpdateLabelsThroughProvider[orcapi.License](
+				info.Actor,
+				licenseType,
+				reqItem.Id,
+				reqItem.Labels,
+				func(t *orcapi.License, labels map[string]string) {
+					t.Specification.Labels = labels
+				},
+				orcapi.LicensesProviderOnUpdatedLabels,
+			)
+
+			if err != nil {
+				return util.Empty{}, err
+			}
+		}
+
+		return util.Empty{}, nil
+	})
+
 	orcapi.LicensesRetrieveProducts.Handler(func(info rpc.RequestInfo, request util.Empty) (orcapi.SupportByProvider[orcapi.LicenseSupport], *util.HttpError) {
 		return SupportRetrieveProducts[orcapi.LicenseSupport](licenseType), nil
 	})
@@ -186,6 +207,17 @@ func initLicenses() {
 				return util.Empty{}, util.HttpErr(http.StatusNotFound, "not found or permission denied (%v)", item.Id)
 			}
 		}
+		return util.Empty{}, nil
+	})
+
+	orcapi.LicensesControlUpdateLabels.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.LicensesUpdateLabelsRequest]) (util.Empty, *util.HttpError) {
+		for _, reqItem := range request.Items {
+			err := ResourceUpdateLabels(info.Actor, licenseType, reqItem.Id, reqItem.Labels, orcapi.PermissionProvider)
+			if err != nil {
+				return util.Empty{}, err
+			}
+		}
+
 		return util.Empty{}, nil
 	})
 }

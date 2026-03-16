@@ -227,6 +227,27 @@ func initIngresses() {
 		return fndapi.BulkResponse[util.Empty]{Responses: make([]util.Empty, len(request.Items))}, nil
 	})
 
+	orcapi.IngressesUpdateLabels.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.IngressesUpdateLabelsRequest]) (util.Empty, *util.HttpError) {
+		for _, reqItem := range request.Items {
+			err := ResourceUpdateLabelsThroughProvider[orcapi.Ingress](
+				info.Actor,
+				ingressType,
+				reqItem.Id,
+				reqItem.Labels,
+				func(t *orcapi.Ingress, labels map[string]string) {
+					t.Specification.Labels = labels
+				},
+				orcapi.IngressesProviderOnUpdatedLabels,
+			)
+
+			if err != nil {
+				return util.Empty{}, err
+			}
+		}
+
+		return util.Empty{}, nil
+	})
+
 	orcapi.IngressesRetrieveProducts.Handler(func(info rpc.RequestInfo, request util.Empty) (orcapi.SupportByProvider[orcapi.IngressSupport], *util.HttpError) {
 		return SupportRetrieveProducts[orcapi.IngressSupport](ingressType), nil
 	})
@@ -291,6 +312,17 @@ func initIngresses() {
 
 			if !ok {
 				return util.Empty{}, util.HttpErr(http.StatusNotFound, "not found or permission denied (ID: %v)", item.Id)
+			}
+		}
+
+		return util.Empty{}, nil
+	})
+
+	orcapi.IngressesControlUpdateLabels.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.IngressesUpdateLabelsRequest]) (util.Empty, *util.HttpError) {
+		for _, reqItem := range request.Items {
+			err := ResourceUpdateLabels(info.Actor, ingressType, reqItem.Id, reqItem.Labels, orcapi.PermissionProvider)
+			if err != nil {
+				return util.Empty{}, err
 			}
 		}
 

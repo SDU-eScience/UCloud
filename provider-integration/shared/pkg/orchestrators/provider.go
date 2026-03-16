@@ -99,3 +99,15 @@ var ProviderUpdateAcl = rpc.Call[fnd.BulkRequest[UpdatedAcl], fnd.BulkResponse[u
 	Roles:       rpc.RolesEndUser,
 	Operation:   "updateAcl",
 }
+
+type ProviderUpdateLabelsRequest struct {
+	Id     string            `json:"id"`
+	Labels map[string]string `json:"labels"`
+}
+
+var ProviderUpdateLabels = rpc.Call[fnd.BulkRequest[ProviderUpdateLabelsRequest], util.Empty]{
+	BaseContext: providerBaseContext,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "updateLabels",
+}

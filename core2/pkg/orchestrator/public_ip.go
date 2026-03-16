@@ -150,6 +150,27 @@ func initPublicIps() {
 		return fndapi.BulkResponse[util.Empty]{Responses: make([]util.Empty, len(request.Items))}, nil
 	})
 
+	orcapi.PublicIpsUpdateLabels.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.PublicIpsUpdateLabelsRequest]) (util.Empty, *util.HttpError) {
+		for _, reqItem := range request.Items {
+			err := ResourceUpdateLabelsThroughProvider[orcapi.PublicIp](
+				info.Actor,
+				publicIpType,
+				reqItem.Id,
+				reqItem.Labels,
+				func(t *orcapi.PublicIp, labels map[string]string) {
+					t.Specification.Labels = labels
+				},
+				orcapi.PublicIpsProviderOnUpdatedLabels,
+			)
+
+			if err != nil {
+				return util.Empty{}, err
+			}
+		}
+
+		return util.Empty{}, nil
+	})
+
 	orcapi.PublicIpsRetrieveProducts.Handler(func(info rpc.RequestInfo, request util.Empty) (orcapi.SupportByProvider[orcapi.PublicIpSupport], *util.HttpError) {
 		return SupportRetrieveProducts[orcapi.PublicIpSupport](publicIpType), nil
 	})
@@ -219,6 +240,17 @@ func initPublicIps() {
 
 			if !ok {
 				return util.Empty{}, util.HttpErr(http.StatusNotFound, "not found or permission denied")
+			}
+		}
+
+		return util.Empty{}, nil
+	})
+
+	orcapi.PublicIpsControlUpdateLabels.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.PublicIpsUpdateLabelsRequest]) (util.Empty, *util.HttpError) {
+		for _, reqItem := range request.Items {
+			err := ResourceUpdateLabels(info.Actor, publicIpType, reqItem.Id, reqItem.Labels, orcapi.PermissionProvider)
+			if err != nil {
+				return util.Empty{}, err
 			}
 		}
 

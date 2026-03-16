@@ -103,6 +103,18 @@ var PrivateNetworksUpdateAcl = rpc.Call[fnd.BulkRequest[UpdatedAcl], fnd.BulkRes
 	Operation:   "updateAcl",
 }
 
+type PrivateNetworksUpdateLabelsRequest struct {
+	Id     string            `json:"id"`
+	Labels map[string]string `json:"labels"`
+}
+
+var PrivateNetworksUpdateLabels = rpc.Call[fnd.BulkRequest[PrivateNetworksUpdateLabelsRequest], util.Empty]{
+	BaseContext: privateNetworkContext,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "updateLabels",
+}
+
 var PrivateNetworksRetrieveProducts = rpc.Call[util.Empty, SupportByProvider[PrivateNetworkSupport]]{
 	BaseContext: privateNetworkContext,
 	Convention:  rpc.ConventionRetrieve,
@@ -146,6 +158,13 @@ var PrivateNetworksControlRegister = rpc.Call[fnd.BulkRequest[ProviderRegistered
 	Operation:   "register",
 }
 
+var PrivateNetworksControlUpdateLabels = rpc.Call[fnd.BulkRequest[PrivateNetworksUpdateLabelsRequest], util.Empty]{
+	BaseContext: privateNetworkControlNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesProvider,
+	Operation:   "updateLabels",
+}
+
 // Private Network Provider API
 // =====================================================================================================================
 
@@ -175,4 +194,11 @@ var PrivateNetworksProviderUpdateAcl = rpc.Call[fnd.BulkRequest[UpdatedAclWithRe
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesPrivileged,
 	Operation:   "updateAcl",
+}
+
+var PrivateNetworksProviderOnUpdatedLabels = rpc.Call[fnd.BulkRequest[PrivateNetwork], util.Empty]{
+	BaseContext: privateNetworkProviderNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesPrivileged,
+	Operation:   "onUpdatedLabels",
 }
