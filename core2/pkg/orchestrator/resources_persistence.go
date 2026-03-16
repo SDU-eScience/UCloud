@@ -287,7 +287,8 @@ func lResourcePersist(r *resource) {
 						:project, :id, product_id, :provider_id, true, false, :labels
 					from products
 					on conflict (id) do update set
-						provider_generated_id = excluded.provider_generated_id
+						provider_generated_id = excluded.provider_generated_id,
+						labels = excluded.labels
 			    `,
 				db.Params{
 					"type":             r.Type,

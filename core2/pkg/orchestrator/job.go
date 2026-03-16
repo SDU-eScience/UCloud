@@ -1010,6 +1010,36 @@ func initJobs() {
 		return util.Empty{}, nil
 	})
 
+	orcapi.JobsUpdateLabels.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.JobsUpdateLabelsRequest]) (util.Empty, *util.HttpError) {
+		for _, reqItem := range request.Items {
+			err := ResourceUpdateLabelsThroughProvider[orcapi.Job](
+				info.Actor,
+				jobType,
+				reqItem.Id,
+				reqItem.Labels,
+				func(t *orcapi.Job, labels map[string]string) {
+					t.Specification.Labels = labels
+				},
+				orcapi.JobsProviderOnUpdatedLabels,
+			)
+
+			if err != nil {
+				return util.Empty{}, err
+			}
+		}
+		return util.Empty{}, nil
+	})
+
+	orcapi.JobsControlUpdateLabels.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.JobsUpdateLabelsRequest]) (util.Empty, *util.HttpError) {
+		for _, reqItem := range request.Items {
+			err := ResourceUpdateLabels(info.Actor, jobType, reqItem.Id, reqItem.Labels, orcapi.PermissionProvider)
+			if err != nil {
+				return util.Empty{}, err
+			}
+		}
+		return util.Empty{}, nil
+	})
+
 	wsUpgrader := ws.Upgrader{
 		ReadBufferSize:  1024 * 4,
 		WriteBufferSize: 1024 * 4,

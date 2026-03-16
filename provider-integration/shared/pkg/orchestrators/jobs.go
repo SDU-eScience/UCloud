@@ -606,6 +606,18 @@ var JobsDetachResource = rpc.Call[JobsDetachResourceRequest, util.Empty]{
 	Operation:   "detachResource",
 }
 
+type JobsUpdateLabelsRequest struct {
+	Id     string            `json:"id"`
+	Labels map[string]string `json:"labels"`
+}
+
+var JobsUpdateLabels = rpc.Call[fnd.BulkRequest[JobsUpdateLabelsRequest], util.Empty]{
+	BaseContext: jobNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "updateLabels",
+}
+
 // Job Control API
 // =====================================================================================================================
 
@@ -684,6 +696,13 @@ var JobsControlCheckCredits = rpc.Call[fnd.BulkRequest[JobsLegacyCheckCreditsReq
 	BaseContext: jobControlNamespace,
 	Convention:  rpc.ConventionUpdate,
 	Operation:   "checkCredits",
+	Roles:       rpc.RoleProvider,
+}
+
+var JobsControlUpdateLabels = rpc.Call[fnd.BulkRequest[JobsUpdateLabelsRequest], util.Empty]{
+	BaseContext: jobControlNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Operation:   "updateLabels",
 	Roles:       rpc.RoleProvider,
 }
 
@@ -819,4 +838,11 @@ var JobsProviderDetachResource = rpc.Call[JobsProviderDetachResourceRequest, uti
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesPrivileged,
 	Operation:   "detachResource",
+}
+
+var JobsProviderOnUpdatedLabels = rpc.Call[fnd.BulkRequest[Job], util.Empty]{
+	BaseContext: jobProviderNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesPrivileged,
+	Operation:   "onUpdatedLabels",
 }

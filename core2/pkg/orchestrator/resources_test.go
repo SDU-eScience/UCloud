@@ -1,6 +1,7 @@
 package orchestrator
 
 import (
+	"net/http"
 	"slices"
 	"strings"
 	"sync"
@@ -39,6 +40,7 @@ func actor(username, project string) *rpc.Actor {
 type TestResource struct {
 	orcapi.Resource
 	Status int
+	Labels map[string]string
 }
 
 type TestResourceData struct {
@@ -56,6 +58,7 @@ func initResourceTest(t *testing.T) {
 		return TestResource{
 			Resource: r,
 			Status:   d.A + d.B,
+			Labels:   specification.Labels,
 		}
 	}, nil)
 
@@ -394,4 +397,92 @@ func TestPaginationWithSorter(t *testing.T) {
 		},
 		comparator,
 	)
+}
+
+func TestResourceValidateLabels(t *testing.T) {
+	normalized, err := ResourceValidateLabels(map[string]string{
+		"Team": "cloud",
+		"ENV":  "prod",
+	})
+
+	if assert.Nil(t, err) {
+		assert.Equal(t, 2, len(normalized))
+		assert.Equal(t, "cloud", normalized["team"])
+		assert.Equal(t, "prod", normalized["env"])
+	}
+
+	normalized, err = ResourceValidateLabels(nil)
+	if assert.Nil(t, err) {
+		assert.Equal(t, 0, len(normalized))
+	}
+
+	_, err = ResourceValidateLabels(map[string]string{
+		"Owner": "a",
+		"owner": "b",
+	})
+
+	if assert.NotNil(t, err) {
+		assert.Equal(t, http.StatusBadRequest, err.StatusCode)
+	}
+}
+
+func TestResourceCreateAndUpdateLabels(t *testing.T) {
+	initResourceTest(t)
+
+	owner := actor("owner", "")
+	other := actor("other", "")
+
+	id, created, err := ResourceCreate[TestResource](
+		*owner,
+		testResource,
+		orcapi.ResourceSpecification{
+			Labels: map[string]string{
+				"Team": "cloud",
+			},
+		},
+		&TestResourceData{A: 1, B: 2},
+	)
+
+	if assert.Nil(t, err) {
+		ResourceConfirm(testResource, id)
+	}
+
+	assert.Equal(t, "cloud", created.Labels["team"])
+	_, hasOriginalKey := created.Labels["Team"]
+	assert.False(t, hasOriginalKey)
+
+	err = ResourceUpdateLabels(*other, testResource, created.Id, map[string]string{"Env": "dev"}, orcapi.PermissionEdit)
+	if assert.NotNil(t, err) {
+		assert.Equal(t, http.StatusForbidden, err.StatusCode)
+	}
+
+	err = ResourceUpdateAcl(*owner, testResource, orcapi.UpdatedAcl{
+		Id: created.Id,
+		Added: []orcapi.ResourceAclEntry{
+			{
+				Entity:      orcapi.AclEntityUser(other.Username),
+				Permissions: []orcapi.Permission{orcapi.PermissionProvider},
+			},
+		},
+	})
+	assert.Nil(t, err)
+
+	err = ResourceUpdateLabels(*other, testResource, created.Id, map[string]string{"Env": "dev"}, orcapi.PermissionProvider)
+	assert.Nil(t, err)
+
+	retrieved, err := ResourceRetrieve[TestResource](*owner, testResource, id, orcapi.ResourceFlags{})
+	if assert.Nil(t, err) {
+		assert.Equal(t, 1, len(retrieved.Labels))
+		assert.Equal(t, "dev", retrieved.Labels["env"])
+		_, hasOriginalKey = retrieved.Labels["Env"]
+		assert.False(t, hasOriginalKey)
+	}
+
+	err = ResourceUpdateLabels(*owner, testResource, created.Id, nil, orcapi.PermissionEdit)
+	assert.Nil(t, err)
+
+	retrieved, err = ResourceRetrieve[TestResource](*owner, testResource, id, orcapi.ResourceFlags{})
+	if assert.Nil(t, err) {
+		assert.Equal(t, 0, len(retrieved.Labels))
+	}
 }

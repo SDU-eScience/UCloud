@@ -948,6 +948,53 @@ func ResourceUpdateAcl(
 	}
 }
 
+func ResourceUpdateLabels(
+	actor rpc.Actor,
+	typeName string,
+	id string,
+	labels map[string]string,
+	permissionRequired orcapi.Permission,
+) *util.HttpError {
+	normalized, err := ResourceValidateLabels(labels)
+	if err != nil {
+		return err
+	}
+
+	ok := ResourceUpdate[any](actor, typeName, ResourceParseId(id), permissionRequired, func(r *resource, mapped any) {
+		r.ModifiedAt = time.Now()
+		r.BaseSpec.Labels = normalized
+	})
+
+	if !ok {
+		return util.HttpErr(http.StatusForbidden, "failed to update labels - permission denied")
+	} else {
+		return nil
+	}
+}
+
+func ResourceValidateLabels(labels map[string]string) (map[string]string, *util.HttpError) {
+	normalizedLabels := map[string]string{}
+	if labels == nil {
+		labels = map[string]string{}
+	}
+
+	for k, v := range labels {
+		normalizedKey := strings.ToLower(k)
+		if _, exists := normalizedLabels[normalizedKey]; exists {
+			return nil, util.HttpErr(http.StatusBadRequest, "duplicate key in labels: %s", k)
+		}
+
+		err := util.ValidateStringE(&normalizedKey, fmt.Sprintf("labels[%s]", normalizedKey), util.StringValidationRequireShort256)
+		if err != nil {
+			return nil, err
+		}
+
+		normalizedLabels[normalizedKey] = v
+	}
+
+	return normalizedLabels, nil
+}
+
 type resourceCreateFlags int64
 
 const (
@@ -995,28 +1042,11 @@ func ResourceCreateEx[T any](
 		}
 	}
 
-	if baseSpec.Labels == nil {
-		baseSpec.Labels = map[string]string{}
-	}
-
-	{
+	var err *util.HttpError
+	baseSpec.Labels, err = ResourceValidateLabels(baseSpec.Labels)
+	if err != nil {
 		var empty T
-		normalizedLabels := map[string]string{}
-		for k, v := range baseSpec.Labels {
-			normalizedKey := strings.ToLower(k)
-			if _, exists := normalizedLabels[normalizedKey]; exists {
-				return 0, empty, util.HttpErr(http.StatusBadRequest, "duplicate key in labels: %s", k)
-			}
-
-			err := util.ValidateStringE(&normalizedKey, fmt.Sprintf("labels[%s]", normalizedKey), util.StringValidationRequireShort256)
-			if err != nil {
-				return 0, empty, err
-			}
-
-			normalizedLabels[normalizedKey] = v
-		}
-
-		baseSpec.Labels = normalizedLabels
+		return 0, empty, err
 	}
 
 	{

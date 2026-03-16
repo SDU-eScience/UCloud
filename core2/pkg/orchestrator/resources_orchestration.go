@@ -96,3 +96,62 @@ func ResourceDeleteThroughProvider[T any](
 	}
 	return err
 }
+
+func ResourceUpdateLabelsThroughProvider[T any](
+	actor rpc.Actor,
+	typeName string,
+	id string,
+	labels map[string]string,
+	mutatorFn func(t *T, labels map[string]string),
+	call rpc.Call[fndapi.BulkRequest[T], util.Empty],
+) *util.HttpError {
+	resc, _, specification, err := ResourceRetrieveEx[T](
+		actor,
+		typeName,
+		ResourceParseId(id),
+		orcapi.PermissionEdit,
+		orcapi.ResourceFlags{
+			IncludeOthers:  true,
+			IncludeUpdates: true,
+			IncludeSupport: true,
+			IncludeProduct: true,
+		},
+	)
+
+	originalResource := resc
+
+	if err != nil {
+		return err
+	}
+
+	if !resourceSpecificationHasProduct(specification) {
+		panic("ResourceUpdateLabelsThroughProvider called but with no product returned")
+	}
+
+	normalized, err := ResourceValidateLabels(labels)
+	if err != nil {
+		return err
+	}
+
+	mutatorFn(&resc, normalized)
+
+	_, err = InvokeProvider(specification.Product.Provider, call, fndapi.BulkRequestOf(resc), ProviderCallOpts{
+		Username: util.OptValue(actor.Username),
+		Reason:   util.OptValue("User initiated label update"),
+	})
+
+	if err != nil && err.StatusCode != http.StatusNotFound {
+		return err
+	} else {
+		err = ResourceUpdateLabels(actor, typeName, id, normalized, orcapi.PermissionEdit)
+		if err != nil {
+			_, _ = InvokeProvider(specification.Product.Provider, call, fndapi.BulkRequestOf(originalResource), ProviderCallOpts{
+				Username: util.OptValue(actor.Username),
+				Reason:   util.OptValue("Rolling back label changes"),
+			})
+			return err
+		} else {
+			return nil
+		}
+	}
+}
