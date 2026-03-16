@@ -49,9 +49,10 @@ type FileService struct {
 	Search                      func(ctx context.Context, query, folder string, flags orcapi.FileFlags, outputChannel chan orcapi.ProviderFile)
 	Uploader                    upload.ServerFileSystem
 
-	CreateDrive func(drive orcapi.Drive) *util.HttpError
-	DeleteDrive func(drive orcapi.Drive) *util.HttpError
-	RenameDrive func(drive orcapi.Drive) *util.HttpError
+	CreateDrive          func(drive orcapi.Drive) *util.HttpError
+	DeleteDrive          func(drive orcapi.Drive) *util.HttpError
+	RenameDrive          func(drive orcapi.Drive) *util.HttpError
+	OnUpdatedDriveLabels func(drive orcapi.Drive) *util.HttpError
 
 	CreateShare func(share orcapi.Share) (driveId string, err *util.HttpError)
 }
@@ -696,6 +697,22 @@ func initFiles() {
 			}
 
 			return resp, nil
+		})
+
+		orcapi.DrivesProviderOnUpdatedLabels.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.Drive]) (util.Empty, *util.HttpError) {
+			for _, item := range request.Items {
+				fn := Files.OnUpdatedDriveLabels
+				if fn != nil {
+					err := fn(item)
+					if err != nil {
+						return util.Empty{}, err
+					}
+				}
+
+				DriveTrack(&item)
+			}
+
+			return util.Empty{}, nil
 		})
 
 		orcapi.SharesProviderCreate.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.Share]) (fnd.BulkResponse[fnd.FindByStringId], *util.HttpError) {

@@ -77,6 +77,7 @@ func Init() ctrl.JobsService {
 	}
 
 	return ctrl.JobsService{
+		OnUpdatedLabels:          nil,
 		Terminate:                terminate,
 		Extend:                   nil,
 		RetrieveProducts:         nil, // handled by main instance

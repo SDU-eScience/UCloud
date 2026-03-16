@@ -75,6 +75,7 @@ func InitFiles() controller.FileService {
 		CreateDrive:                 createDrive,
 		DeleteDrive:                 deleteDrive,
 		RenameDrive:                 renameDrive,
+		OnUpdatedDriveLabels:        nil,
 		CreateShare:                 createShare,
 	}
 }

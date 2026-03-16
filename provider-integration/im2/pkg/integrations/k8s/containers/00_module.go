@@ -51,6 +51,7 @@ func Init() controller.JobsService {
 	loadIApps()
 
 	return controller.JobsService{
+		OnUpdatedLabels:          nil,
 		Terminate:                terminate,
 		Extend:                   extend,
 		RetrieveProducts:         nil, // handled by main instance

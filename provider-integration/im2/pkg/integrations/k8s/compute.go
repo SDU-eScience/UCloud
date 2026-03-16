@@ -36,6 +36,7 @@ func InitCompute() controller.JobsService {
 
 	return controller.JobsService{
 		Submit:                   submit,
+		OnUpdatedLabels:          nil,
 		Terminate:                terminate,
 		Extend:                   extend,
 		RetrieveProducts:         retrieveProducts,
@@ -51,21 +52,25 @@ func InitCompute() controller.JobsService {
 		PublicIPs: controller.PublicIPService{
 			Create:           createPublicIp,
 			Delete:           deletePublicIp,
+			OnUpdatedLabels:  nil,
 			RetrieveProducts: retrievePublicIpProducts,
 		},
 		Ingresses: controller.IngressService{
 			Create:           createIngress,
 			Delete:           deleteIngress,
+			OnUpdatedLabels:  nil,
 			RetrieveProducts: retrieveIngressProducts,
 		},
 		Licenses: controller.LicenseService{
 			Create:           activateLicense,
 			Delete:           deleteLicense,
+			OnUpdatedLabels:  nil,
 			RetrieveProducts: retrieveLicenseProducts,
 		},
 		PrivateNetworks: controller.PrivateNetworkService{
 			Create:           shared.PrivateNetworkCreate,
 			Delete:           shared.PrivateNetworkDelete,
+			OnUpdatedLabels:  nil,
 			RetrieveProducts: shared.PrivateNetworkRetrieveProducts,
 		},
 	}

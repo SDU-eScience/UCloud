@@ -32,6 +32,7 @@ var Jobs JobsService
 
 type JobsService struct {
 	Submit                   func(request orcapi.Job) (util.Option[string], *util.HttpError)
+	OnUpdatedLabels          func(request orcapi.Job) *util.HttpError
 	Terminate                func(request JobTerminateRequest) *util.HttpError
 	Suspend                  func(request orcapi.Job) *util.HttpError
 	Unsuspend                func(request orcapi.Job) *util.HttpError
@@ -54,24 +55,28 @@ type JobsService struct {
 type PublicIPService struct {
 	Create           func(ip *orcapi.PublicIp) *util.HttpError
 	Delete           func(ip *orcapi.PublicIp) *util.HttpError
+	OnUpdatedLabels  func(ip *orcapi.PublicIp) *util.HttpError
 	RetrieveProducts func() []orcapi.PublicIpSupport
 }
 
 type LicenseService struct {
 	Create           func(license *orcapi.License) *util.HttpError
 	Delete           func(license *orcapi.License) *util.HttpError
+	OnUpdatedLabels  func(license *orcapi.License) *util.HttpError
 	RetrieveProducts func() []orcapi.LicenseSupport
 }
 
 type IngressService struct {
 	Create           func(ingress *orcapi.Ingress) *util.HttpError
 	Delete           func(ingress *orcapi.Ingress) *util.HttpError
+	OnUpdatedLabels  func(ingress *orcapi.Ingress) *util.HttpError
 	RetrieveProducts func() []orcapi.IngressSupport
 }
 
 type PrivateNetworkService struct {
 	Create           func(network *orcapi.PrivateNetwork) *util.HttpError
 	Delete           func(network *orcapi.PrivateNetwork) *util.HttpError
+	OnUpdatedLabels  func(network *orcapi.PrivateNetwork) *util.HttpError
 	RetrieveProducts func() []orcapi.PrivateNetworkSupport
 }
 
@@ -266,6 +271,22 @@ func initJobs() {
 			}
 
 			return resp, nil
+		})
+
+		orcapi.JobsProviderOnUpdatedLabels.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.Job]) (util.Empty, *util.HttpError) {
+			for _, item := range request.Items {
+				fn := Jobs.OnUpdatedLabels
+				if fn != nil {
+					err := fn(item)
+					if err != nil {
+						return util.Empty{}, err
+					}
+				}
+
+				JobTrackNew(item)
+			}
+
+			return util.Empty{}, nil
 		})
 
 		orcapi.JobsProviderTerminate.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.Job]) (fnd.BulkResponse[util.Empty], *util.HttpError) {
@@ -948,6 +969,22 @@ func initJobs() {
 			return resp, nil
 		})
 
+		orcapi.PublicIpsProviderOnUpdatedLabels.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.PublicIp]) (util.Empty, *util.HttpError) {
+			for _, item := range request.Items {
+				fn := Jobs.PublicIPs.OnUpdatedLabels
+				if fn != nil {
+					err := fn(&item)
+					if err != nil {
+						return util.Empty{}, err
+					}
+				}
+
+				PublicIpTrackNew(item)
+			}
+
+			return util.Empty{}, nil
+		})
+
 		orcapi.IngressesProviderCreate.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.Ingress]) (fnd.BulkResponse[fnd.FindByStringId], *util.HttpError) {
 			var errors []*util.HttpError
 			var providerIds []fnd.FindByStringId
@@ -1048,6 +1085,22 @@ func initJobs() {
 			}
 
 			return resp, nil
+		})
+
+		orcapi.IngressesProviderOnUpdatedLabels.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.Ingress]) (util.Empty, *util.HttpError) {
+			for _, item := range request.Items {
+				fn := Jobs.Ingresses.OnUpdatedLabels
+				if fn != nil {
+					err := fn(&item)
+					if err != nil {
+						return util.Empty{}, err
+					}
+				}
+
+				LinkTrack(item)
+			}
+
+			return util.Empty{}, nil
 		})
 
 		orcapi.LicensesProviderCreate.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.License]) (fnd.BulkResponse[fnd.FindByStringId], *util.HttpError) {
@@ -1158,6 +1211,22 @@ func initJobs() {
 			return resp, nil
 		})
 
+		orcapi.LicensesProviderOnUpdatedLabels.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.License]) (util.Empty, *util.HttpError) {
+			for _, item := range request.Items {
+				fn := Jobs.Licenses.OnUpdatedLabels
+				if fn != nil {
+					err := fn(&item)
+					if err != nil {
+						return util.Empty{}, err
+					}
+				}
+
+				LicenseTrack(item)
+			}
+
+			return util.Empty{}, nil
+		})
+
 		orcapi.PrivateNetworksProviderCreate.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.PrivateNetwork]) (fnd.BulkResponse[fnd.FindByStringId], *util.HttpError) {
 			var errors []*util.HttpError
 			var providerIds []fnd.FindByStringId
@@ -1259,6 +1328,22 @@ func initJobs() {
 			}
 
 			return resp, nil
+		})
+
+		orcapi.PrivateNetworksProviderOnUpdatedLabels.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.PrivateNetwork]) (util.Empty, *util.HttpError) {
+			for _, item := range request.Items {
+				fn := Jobs.PrivateNetworks.OnUpdatedLabels
+				if fn != nil {
+					err := fn(&item)
+					if err != nil {
+						return util.Empty{}, err
+					}
+				}
+
+				PrivateNetworkTrackNew(item)
+			}
+
+			return util.Empty{}, nil
 		})
 	}
 

@@ -100,6 +100,7 @@ func InitCompute() controller.JobsService {
 
 	return controller.JobsService{
 		Submit:                   submitJob,
+		OnUpdatedLabels:          nil,
 		Terminate:                terminateJob,
 		Extend:                   extendJob,
 		RetrieveProducts:         retrieveMachineSupport,
