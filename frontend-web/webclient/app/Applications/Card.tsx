@@ -20,7 +20,7 @@ interface ApplicationCardProps {
     application?: ApplicationSummaryWithFavorite
 }
 
-export const Tag = ({label, bg = "infoMain"}: { label: string; bg?: ThemeColor }): React.ReactNode => (
+export const Tag = ({label, bg = "infoMain"}: {label: string; bg?: ThemeColor}): React.ReactNode => (
     <div style={{
         marginRight: "3px",
         background: `var(--${bg})`,
@@ -37,7 +37,7 @@ export const Tag = ({label, bg = "infoMain"}: { label: string; bg?: ThemeColor }
     </div>
 );
 
-const MultiLineTruncateClass = injectStyleSimple("multiline-truncate", `
+export const MultiLineTruncateClass = injectStyleSimple("multiline-truncate", `
     display: -webkit-box;
     -webkit-box-orient: vertical;
     overflow: hidden;
@@ -107,7 +107,7 @@ const ApplicationCardClass = injectStyle("application-card", k => `
     }
 `);
 
-function MultiLineTruncate(props: React.PropsWithChildren<{ lines: number }>): React.ReactNode {
+function MultiLineTruncate(props: React.PropsWithChildren<{lines: number}>): React.ReactNode {
     const {lines, ...p} = props;
     return <div className={MultiLineTruncateClass} style={{
         WebkitLineClamp: props.lines,
