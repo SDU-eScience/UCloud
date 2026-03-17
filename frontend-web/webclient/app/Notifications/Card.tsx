@@ -8,6 +8,7 @@ import {ThemeColor} from "@/ui-components/theme";
 import {AvatarForUser} from "@/AvataaarLib/UserAvatar";
 import {copyToClipboard} from "@/UtilityFunctions";
 import {TooltipV2} from "@/ui-components/Tooltip";
+import {MultiLineTruncateClass} from "@/Applications/Card";
 
 export interface NotificationProps {
     icon: IconName;
@@ -89,14 +90,14 @@ export const NotificationCard: React.FunctionComponent<NotificationProps & {
                 }
 
                 <div className="notification-content">
-                    <Flex pr="20px">
+                    <Flex pr="12px">
                         <h3>{props.title}</h3>
                         <div className={props.isPinned ? "snooze" : "time"} onClick={onSnooze}>
                             {props.isPinned ? "Snooze" : "Now"}
                         </div>
                     </Flex>
 
-                    <div className="notification-body">{props.body}</div>
+                    <div className={classConcat("notification-body", MultiLineTruncateClass)}>{props.body}</div>
                 </div>
             </div>
         </Card>
@@ -146,6 +147,7 @@ const Style = injectStyle("notification", k => `
     }
 
     ${k} .notification-inner {
+        height: 56px;
         display: flex;
         gap: 10px;
         align-items: center;
@@ -153,7 +155,7 @@ const Style = injectStyle("notification", k => `
 
     ${k} .notification-inner h3 {
         margin: 0;
-        font-size: 18px;
+        font-size: 16px;
         flex-grow: 1;
 
         text-overflow: ellipsis;
@@ -163,16 +165,13 @@ const Style = injectStyle("notification", k => `
     }
     
     ${k} > .${CardClass} {
-        padding: 12px;
+        padding: 8px;
         border-radius: 8px;
     }
 
     ${k} .notification-inner .notification-body {
         font-size: 12px;
         margin-bottom: 5px;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        overflow: hidden;
         width: calc(450px - 30px - 32px);
         margin-top: -3px;
     }
