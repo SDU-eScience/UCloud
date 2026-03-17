@@ -673,8 +673,17 @@ func loopMonitoring() {
 	for _, entry := range entriesToSubmit {
 		sched, ok := getSchedulerByJob(entry)
 		if ok {
+			if len(sched.JobReplicaEntries(entry.Id)) > 0 {
+				shared.RequestSchedule(entry)
+				continue
+			}
+
 			sched.RegisterJobInQueue(entry.Id, shared.JobDimensions(entry),
 				entry.Specification.Replicas, nil, entry.CreatedAt, timeAllocationOrDefault(entry.Specification.TimeAllocation))
+
+			if !sched.JobInQueue(entry.Id) {
+				shared.RequestSchedule(entry)
+			}
 		}
 	}
 	metricMonitoring.WithLabelValues("RegisterInQueue").Observe(timer.Mark().Seconds())
