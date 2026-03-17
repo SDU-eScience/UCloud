@@ -266,7 +266,7 @@ function ActivePermissions(props: {
             <Select ml="auto" width="180px" data-permission={props.permission}>
                 {actionKeys.map(key => {
                     const value = permissionSpecification.actions[key];
-                    return <option value={value}>{value}</option>
+                    return <option value={key}>{value}</option>
                 })}
             </Select>
             <Icon onClick={props.clearPermission} cursor="pointer" name="close" mt="auto" ml="12px" mb="10px"/>

@@ -19,6 +19,8 @@ import (
 	db "ucloud.dk/shared/pkg/database"
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
+	orcapi "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -247,31 +249,42 @@ func inferenceReportUsage(owner apm.WalletOwner, promptTokens int, completionTok
 	})
 }
 
-// TODO make function to let provider create API token upon request (not automatically)
-func inferenceProviderCreateToken() {
-
-}
-
 var inferenceApiKeysCache = util.NewCache[string, string](1 * time.Hour)
 
 func inferenceApiKeyValidate(key string) (apm.WalletOwner, *util.HttpError) {
+	tokenId, secret, ok := inferenceParseToken(key)
+	if !ok {
+		return apm.WalletOwner{}, util.HttpErr(http.StatusForbidden, "invalid key")
+	}
+
 	ownerRef, ok := inferenceApiKeysCache.Get(key, func() (string, error) {
-		owner, ok := db.NewTx2(func(tx *db.Transaction) (string, bool) {
-			owner, hasKey := db.Get[struct{ Owner string }](
+		type rowType struct {
+			Owner     string
+			TokenHash []byte
+			TokenSalt []byte
+		}
+		row, ok := db.NewTx2(func(tx *db.Transaction) (rowType, bool) {
+			return db.Get[rowType](
 				tx,
-				`select owner from inference_api_keys where api_key = :key`,
+				`
+					select owner, token_hash, token_salt
+					from inference_api_keys
+					where token_id = :token_id and now() <= expires_at
+				`,
 				db.Params{
-					"key": key,
+					"token_id": tokenId,
 				},
 			)
-
-			return owner.Owner, hasKey
 		})
+
+		if !ok || !util.CheckPassword(row.TokenHash, row.TokenSalt, secret) {
+			return "", util.HttpErr(http.StatusForbidden, "invalid key").AsError()
+		}
 
 		if !ok {
 			return "", util.HttpErr(http.StatusForbidden, "invalid key").AsError()
 		} else {
-			return owner, nil
+			return row.Owner, nil
 		}
 	})
 
@@ -285,4 +298,113 @@ func inferenceApiKeyValidate(key string) (apm.WalletOwner, *util.HttpError) {
 	} else {
 		return owner, nil
 	}
+}
+
+func inferenceInitApiTokens() controller.ApiTokenService {
+	return controller.ApiTokenService{
+		Create: inferenceCreateApiToken,
+		Revoke: inferenceRevokeApiToken,
+	}
+}
+
+func inferenceCreateApiToken(info rpc.RequestInfo, request orcapi.ApiToken) (orcapi.ApiTokenStatus, *util.HttpError) {
+	_ = info
+
+	if !inferenceGlobals.Ready.Load() {
+		return orcapi.ApiTokenStatus{}, util.HttpErr(http.StatusServiceUnavailable, "inference service is not available")
+	}
+
+	if request.Specification.ExpiresAt.Time().Before(time.Now()) {
+		return orcapi.ApiTokenStatus{}, util.HttpErr(http.StatusBadRequest, "requested token has already expired")
+	}
+
+	if err := inferenceValidateRequestedPermissions(request.Specification.RequestedPermissions); err != nil {
+		return orcapi.ApiTokenStatus{}, err
+	}
+
+	secret := util.SecureToken()
+	hashedToken := util.HashPassword(secret, util.GenSalt())
+
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				insert into inference_api_keys(token_id, owner, token_hash, token_salt, expires_at)
+				values (:token_id, :owner, :token_hash, :token_salt, :expires_at)
+				on conflict (token_id) do update
+				set
+					owner = excluded.owner,
+					token_hash = excluded.token_hash,
+					token_salt = excluded.token_salt,
+					expires_at = excluded.expires_at
+			`,
+			db.Params{
+				"token_id":   request.Id,
+				"owner":      request.Owner.Project.GetOrDefault(request.Owner.CreatedBy),
+				"token_hash": hashedToken.HashedPassword,
+				"token_salt": hashedToken.Salt,
+				"expires_at": request.Specification.ExpiresAt.Time(),
+			},
+		)
+	})
+
+	status := orcapi.ApiTokenStatus{Server: inferenceServerBase()}
+	status.Token.Set(fmt.Sprintf("uci-%s-%s", request.Id, secret))
+	return status, nil
+}
+
+func inferenceServerBase() string {
+	scheme, _, ok := strings.Cut(cfg.Provider.Hosts.SelfPublic.ToURL(), "://")
+	if !ok {
+		scheme = "https"
+	}
+
+	return fmt.Sprintf("%s://chat%s/v1", scheme, shared.ServiceConfig.Compute.Web.Suffix)
+}
+
+func inferenceParseToken(raw string) (tokenId string, secret string, ok bool) {
+	payload, hasPrefix := strings.CutPrefix(raw, "uci-")
+	if !hasPrefix {
+		return "", "", false
+	}
+
+	tokenId, secret, ok = strings.Cut(payload, "-")
+	if !ok || tokenId == "" || secret == "" {
+		return "", "", false
+	}
+
+	return tokenId, secret, true
+}
+
+func inferenceValidateRequestedPermissions(perms []orcapi.ApiTokenPermission) *util.HttpError {
+	for _, perm := range perms {
+		if perm.Name != "inference" {
+			return util.HttpErr(
+				http.StatusBadRequest,
+				"invalid token requested, %s/%s is not available",
+				perm.Name,
+				perm.Action,
+			)
+		}
+	}
+
+	return nil
+}
+
+func inferenceRevokeApiToken(info rpc.RequestInfo, request fnd.FindByStringId) (util.Empty, *util.HttpError) {
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+			delete from inference_api_keys where token_id = :id
+		    `,
+			db.Params{
+				"token_id": request.Id,
+			},
+		)
+	})
+
+	status := orcapi.ApiTokenStatus{Server: inferenceServerBase()}
+	status.Token.IsEmpty()
+	return status, nil
 }

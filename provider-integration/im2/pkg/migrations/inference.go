@@ -22,7 +22,7 @@ func inferenceV2() db.MigrationScript {
 			db.Exec(
 				tx,
 				`
-				drop table inference_api_keys
+					drop table if exists inference_api_keys
 			    `,
 				db.Params{},
 			)
@@ -31,6 +31,7 @@ func inferenceV2() db.MigrationScript {
 				tx,
 				`
 				create table inference_api_keys (
+				    token_id text primary key,
 				    owner text not null,
 				    token_hash bytea not null,
 				    token_salt bytea not null,

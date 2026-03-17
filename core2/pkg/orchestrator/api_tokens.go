@@ -189,7 +189,7 @@ func ApiTokenRetrieveOptions(actor rpc.Actor) orcapi.ApiTokenRetrieveOptionsResp
 					},
 				},
 
-				"ucloud": {
+				"k8s": {
 					AvailablePermissions: []orcapi.ApiTokenPermissionSpecification{
 						{
 							Name:        "inference",
@@ -215,6 +215,12 @@ func ApiTokenRetrieveOptions(actor rpc.Actor) orcapi.ApiTokenRetrieveOptionsResp
 }
 
 func ApiTokenRevoke(actor rpc.Actor, id ResourceId) *util.HttpError {
+
+	if actor.Role == rpc.RoleProvider {
+		provider := "fie"
+		_, err := InvokeProvider(provider, orcapi.ApiTokenProviderRevoke, fndapi.FindByStringId{Id: <resource-id-string>}, ProviderCallOpts{Username: util.OptValue(actor.Username), Reason: util.OptValue()})
+	}
+
 	ok := ResourceDelete(actor, apiTokenType, id)
 	if !ok {
 		return util.HttpErr(http.StatusNotFound, "permission denied or unknown token specified")
