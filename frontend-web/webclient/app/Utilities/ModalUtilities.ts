@@ -4,16 +4,14 @@ export const largeModalStyle: ReactModal.Styles = {
     content: {
         borderRadius: "6px",
         width: "900px",
-        minHeight: "min(400px, calc(100vh - 40px))",
+        minHeight: "400px",
         height: "80vh",
         maxHeight: "80vh",
         maxWidth: "calc(100vw - 10px)",
         position: "fixed",
-        top: "max(10px, 10vh)",
-        left: "50%",
-        transform: "translateX(-50%)",
+        top: "10vh",
+        left: `calc(50vw - 450px)`,
         outline: "none",
-        overflow: "auto",
     },
     overlay: {
         backgroundColor: "var(--modalShadow)"
