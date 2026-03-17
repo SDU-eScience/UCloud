@@ -105,6 +105,19 @@ func waitForIntervalOrShutdown(ctx context.Context, interval time.Duration) bool
 
 func initStartup() {
 	driveSynchronizeWithFstab()
+	err := ApplyMountOverrides(
+		context.Background(),
+		[]string{"/work", "/etc/ucloud", "/opt/ucloud"},
+		MountOverrideOptions{
+			TimeoutSec:   "1s",
+			LazyUnmount:  true,
+			ForceUnmount: false,
+		},
+	)
+
+	if err != nil {
+		log.Info("Failed to apply systemd mount overrides: %s", err)
+	}
 }
 
 func startExecutableUpdateWatcher(interval time.Duration) {

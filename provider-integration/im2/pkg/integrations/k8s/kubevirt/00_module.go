@@ -1355,7 +1355,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 			} else {
 				mountPath = filepath.Join(bucket[0].mountFolder, title)
 				cinit.Mounts = append(cinit.Mounts, []string{
-					item.volName, mountPath, "virtiofs", "nofail", "0", "0",
+					item.volName, mountPath, "virtiofs", "_netdev,nofail", "0", "0",
 				})
 			}
 		}
