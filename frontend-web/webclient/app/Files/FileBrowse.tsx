@@ -18,6 +18,8 @@ import {
     SelectionMode,
     checkCanConsumeResources,
     favoriteRowIcon,
+    ResourceBrowseHeaderControls,
+    createProjectSwitcherPortal,
 } from "@/ui-components/ResourceBrowser";
 import FilesApi, {
     addFileSensitivityDialog,
@@ -126,7 +128,13 @@ type SortById = "PATH" | "MODIFIED_AT" | "SIZE";
 const rowTitles: ColumnTitleList<SortById> = [{name: "Name", sortById: "PATH"}, {name: "", columnWidth: 32}, {name: "Modified at", sortById: "MODIFIED_AT", columnWidth: 160}, {name: "Size", sortById: "SIZE", columnWidth: 100}];
 
 const RESOURCE_NAME = "File";
-function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResourceBrowserOpts}): React.ReactNode {
+function FileBrowse({
+    opts,
+    headerControls,
+}: {
+    opts?: ResourceBrowserOpts<UFile> & AdditionalResourceBrowserOpts;
+    headerControls?: ResourceBrowseHeaderControls;
+}): React.ReactNode {
     const navigate = useNavigate();
     const location = useLocation();
     const mountRef = useRef<HTMLDivElement | null>(null);
@@ -176,6 +184,13 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
     const didUnmount = useDidUnmount();
 
     const [switcher, setSwitcherWorkaround] = React.useState<React.ReactNode>(<></>);
+
+    useEffect(() => {
+        headerControls?.setRefresh?.(() => browserRef.current?.refresh());
+        return () => {
+            headerControls?.setRefresh?.(undefined);
+        };
+    }, [headerControls]);
 
     useLayoutEffect(() => {
         const mount = mountRef.current;
@@ -1501,7 +1516,12 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
     return <MainContainer
         main={<>
             <div ref={mountRef} />
-            {switcher}
+            {headerControls?.projectSwitcherTarget
+                ? createProjectSwitcherPortal(
+                    headerControls.projectSwitcherTarget,
+                    setLocalProject ? {setLocalProject, initialProject: activeProject.current} : undefined,
+                )
+                : switcher}
         </>}
     />;
 

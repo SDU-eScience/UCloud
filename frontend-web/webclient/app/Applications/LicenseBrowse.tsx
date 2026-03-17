@@ -3,7 +3,8 @@ import MainContainer from "@/ui-components/MainContainer";
 import {usePage} from "@/Navigation/Redux";
 import {
     EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts,
-    addProjectSwitcherInPortal, checkIsWorkspaceAdmin, dateRangeFilters, getFilterStorageValue,
+    ResourceBrowseHeaderControls,
+    addProjectSwitcherInPortal, checkIsWorkspaceAdmin, createProjectSwitcherPortal, dateRangeFilters, getFilterStorageValue,
     providerIcon, setFilterStorageValue
 } from "@/ui-components/ResourceBrowser";
 import * as React from "react";
@@ -54,12 +55,25 @@ const supportByProvider = new AsyncCache<SupportByProviderV2<ProductV2License, L
 });
 
 const PROJECT_CHANGE_LISTENER_ID = "license-project-listener";
-export function LicenseBrowse({opts}: {opts?: ResourceBrowserOpts<License>}): React.ReactNode {
+export function LicenseBrowse({
+    opts,
+    headerControls,
+}: {
+    opts?: ResourceBrowserOpts<License>;
+    headerControls?: ResourceBrowseHeaderControls;
+}): React.ReactNode {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<License> | null>(null);
     const dispatch = useDispatch();
     const navigate = useNavigate();
     const [switcher, setSwitcherWorkaround] = React.useState<React.ReactNode>(<></>);
+
+    React.useEffect(() => {
+        headerControls?.setRefresh?.(() => browserRef.current?.refresh());
+        return () => {
+            headerControls?.setRefresh?.(undefined);
+        };
+    }, [headerControls]);
 
     if (!opts?.isModal) {
         usePage("Licenses", SidebarTabId.RESOURCES);
@@ -315,7 +329,9 @@ export function LicenseBrowse({opts}: {opts?: ResourceBrowserOpts<License>}): Re
     return <MainContainer
         main={<>
             <div ref={mountRef} />
-            {switcher}
+            {headerControls?.projectSwitcherTarget
+                ? createProjectSwitcherPortal(headerControls.projectSwitcherTarget)
+                : switcher}
         </>}
     />
 }

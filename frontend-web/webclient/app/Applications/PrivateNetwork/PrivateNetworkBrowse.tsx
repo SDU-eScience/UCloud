@@ -17,9 +17,11 @@ import {
     checkIsWorkspaceAdmin,
     dateRangeFilters,
     EmptyReasonTag,
+    ResourceBrowseHeaderControls,
     ResourceBrowseFeatures,
     ResourceBrowser,
     ResourceBrowserOpts,
+    createProjectSwitcherPortal,
 } from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {useDispatch} from "react-redux";
@@ -67,13 +69,26 @@ const supportByProvider = new AsyncCache<SupportByProviderV2<ProductV2PrivateNet
     globalTtl: 60_000
 });
 
-export function PrivateNetworkBrowse({opts}: { opts?: ResourceBrowserOpts<PrivateNetwork> }): React.ReactNode {
+export function PrivateNetworkBrowse({
+    opts,
+    headerControls,
+}: {
+    opts?: ResourceBrowserOpts<PrivateNetwork>;
+    headerControls?: ResourceBrowseHeaderControls;
+}): React.ReactNode {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<PrivateNetwork> | null>(null);
     const dispatch = useDispatch();
     const navigate = useNavigate();
     usePage("Private networks", SidebarTabId.RESOURCES);
     const [switcher, setSwitcherWorkaround] = React.useState<React.ReactNode>(<></>);
+
+    React.useEffect(() => {
+        headerControls?.setRefresh?.(() => browserRef.current?.refresh());
+        return () => {
+            headerControls?.setRefresh?.(undefined);
+        };
+    }, [headerControls]);
 
     const dateRanges = dateRangeFilters("Date created");
 
@@ -323,7 +338,9 @@ export function PrivateNetworkBrowse({opts}: { opts?: ResourceBrowserOpts<Privat
     return <MainContainer
         main={<>
             <div ref={mountRef}/>
-            {switcher}
+            {headerControls?.projectSwitcherTarget
+                ? createProjectSwitcherPortal(headerControls.projectSwitcherTarget)
+                : switcher}
         </>}
     />;
 }

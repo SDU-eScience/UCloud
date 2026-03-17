@@ -14,7 +14,18 @@ import {
     SupportByProviderV2,
 } from "@/UCloud/ResourceApi";
 import {bulkRequestOf, createHTMLElements, doNothing, extractErrorMessage, stopPropagation, timestampUnixMs} from "@/UtilityFunctions";
-import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, addProjectSwitcherInPortal, checkIsWorkspaceAdmin, dateRangeFilters, providerIcon} from "@/ui-components/ResourceBrowser";
+import {
+    EmptyReasonTag,
+    ResourceBrowseFeatures,
+    ResourceBrowser,
+    ResourceBrowserOpts,
+    ResourceBrowseHeaderControls,
+    addProjectSwitcherInPortal,
+    createProjectSwitcherPortal,
+    checkIsWorkspaceAdmin,
+    dateRangeFilters,
+    providerIcon,
+} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {useDispatch} from "react-redux";
 import {useNavigate} from "react-router-dom";
@@ -62,7 +73,13 @@ const FEATURES: ResourceBrowseFeatures = {
 
 const RESOURCE_NAME = "Public Links";
 const PROJECT_CHANGE_LISTENER_ID = "public-links";
-export function PublicLinkBrowse({opts}: {opts?: ResourceBrowserOpts<PublicLink>}): React.ReactNode {
+export function PublicLinkBrowse({
+    opts,
+    headerControls,
+}: {
+    opts?: ResourceBrowserOpts<PublicLink>;
+    headerControls?: ResourceBrowseHeaderControls;
+}): React.ReactNode {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<PublicLink> | null>(null);
     const dispatch = useDispatch();
@@ -71,6 +88,13 @@ export function PublicLinkBrowse({opts}: {opts?: ResourceBrowserOpts<PublicLink>
         usePage("Public links", SidebarTabId.RESOURCES);
     }
     const [switcher, setSwitcherWorkaround] = React.useState<React.ReactNode>(<></>);
+
+    React.useEffect(() => {
+        headerControls?.setRefresh?.(() => browserRef.current?.refresh());
+        return () => {
+            headerControls?.setRefresh?.(undefined);
+        };
+    }, [headerControls]);
 
     const dateRanges = dateRangeFilters("Date created");
 
@@ -359,7 +383,9 @@ export function PublicLinkBrowse({opts}: {opts?: ResourceBrowserOpts<PublicLink>
     return <MainContainer
         main={<>
             <div ref={mountRef} />
-            {switcher}
+            {headerControls?.projectSwitcherTarget
+                ? createProjectSwitcherPortal(headerControls.projectSwitcherTarget)
+                : switcher}
         </>}
     />
 }

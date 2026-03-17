@@ -40,7 +40,9 @@ import PrivateNetworkApi, {PrivateNetwork} from "@/UCloud/PrivateNetworkApi";
 import NetworkIPApi, {NetworkIP} from "@/UCloud/NetworkIPApi";
 import ReactModal from "react-modal";
 import {CardClass} from "@/ui-components/Card";
+import {ResourceBrowseHeaderControls} from "@/ui-components/ResourceBrowser";
 import AppParameterValue = compute.AppParameterValue;
+import {RefreshButton} from "@/Navigation/UtilityBar";
 
 interface InterfaceTarget {
     rank: number;
@@ -432,8 +434,12 @@ export const VirtualMachineStatus: React.FunctionComponent<{
     }, [invokeCommand, job.id, setAccessResourcesByType]);
 
     const publicLinkSelector = useMemo(() => {
-        return (onSelect: (resource: compute.AppParameterValue, title: string) => void) => {
+        return (
+            onSelect: (resource: compute.AppParameterValue, title: string) => void,
+            headerControls?: ResourceBrowseHeaderControls,
+        ) => {
             return <PublicLinkBrowse
+                headerControls={headerControls}
                 opts={{
                     selection: {
                         text: "Attach",
@@ -470,8 +476,12 @@ export const VirtualMachineStatus: React.FunctionComponent<{
     }, []);
 
     const privateNetworkSelector = useMemo(() => {
-        return (onSelect: (resource: compute.AppParameterValue, title: string) => void) => {
+        return (
+            onSelect: (resource: compute.AppParameterValue, title: string) => void,
+            headerControls?: ResourceBrowseHeaderControls,
+        ) => {
             return <PrivateNetworkBrowse
+                headerControls={headerControls}
                 opts={{
                     selection: {
                         text: "Attach",
@@ -507,8 +517,12 @@ export const VirtualMachineStatus: React.FunctionComponent<{
     }, []);
 
     const publicIpSelector = useMemo(() => {
-        return (onSelect: (resource: compute.AppParameterValue, title: string) => void) => {
+        return (
+            onSelect: (resource: compute.AppParameterValue, title: string) => void,
+            headerControls?: ResourceBrowseHeaderControls,
+        ) => {
             return <NetworkIPBrowse
+                headerControls={headerControls}
                 opts={{
                     selection: {
                         text: "Attach",
@@ -974,7 +988,10 @@ const VmAccessResourceManagerDialog: React.FunctionComponent<{
     selectTitle: string;
     attached: compute.AppParameterValue[];
     emptyMessage: string;
-    renderSelector: (onSelect: (resource: compute.AppParameterValue, title: string) => void) => React.ReactNode;
+    renderSelector: (
+        onSelect: (resource: compute.AppParameterValue, title: string) => void,
+        headerControls?: ResourceBrowseHeaderControls,
+    ) => React.ReactNode;
     onAttach: (resource: compute.AppParameterValue, inlineCreationValue?: string) => Promise<void>;
     onRemove: (resource: compute.AppParameterValue) => Promise<void>;
     labelForResource: (resource: compute.AppParameterValue) => string;
@@ -984,6 +1001,13 @@ const VmAccessResourceManagerDialog: React.FunctionComponent<{
     const [inlineCreationValue, setInlineCreationValue] = useState("");
     const [inlineResourceBeingCreated, setInlineResourceBeingCreated] = useState<compute.AppParameterValue | null>(null);
     const [inlineTitle, setInlineTitle] = useState<string | null>(null);
+    const [selectorRefresh, setSelectorRefresh] = useState<(() => void) | undefined>(undefined);
+    const [selectorProjectSwitcherTarget, setSelectorProjectSwitcherTarget] = useState<HTMLDivElement | null>(null);
+
+    const selectorHeaderControls = useMemo<ResourceBrowseHeaderControls>(() => ({
+        setRefresh: refresh => setSelectorRefresh(() => refresh),
+        projectSwitcherTarget: selectorProjectSwitcherTarget,
+    }), [selectorProjectSwitcherTarget]);
 
     const closeInlineCreation = useCallback(() => {
         setInlineCreationValue("");
@@ -1000,10 +1024,12 @@ const VmAccessResourceManagerDialog: React.FunctionComponent<{
     }, [inlineResourceBeingCreated, inlineCreationValue, closeInlineCreation]);
 
     const onAddResource = useCallback(() => {
+        setSelectorRefresh(undefined);
         setIsSelecting(true);
     }, []);
 
     const onSelectFromBrowse = useCallback((resource: compute.AppParameterValue, title: string) => {
+        setSelectorRefresh(undefined);
         setIsSelecting(false);
         if (inlineCreationLabel) {
             setInlineResourceBeingCreated(resource);
@@ -1018,6 +1044,7 @@ const VmAccessResourceManagerDialog: React.FunctionComponent<{
     }, []);
 
     const onBackToManage = useCallback(() => {
+        setSelectorRefresh(undefined);
         setIsSelecting(false);
     }, []);
 
@@ -1028,13 +1055,21 @@ const VmAccessResourceManagerDialog: React.FunctionComponent<{
     if (isSelecting) {
         return <div className={VmAccessManagerDialogBody}>
             <div className={VmAccessManagerHeader}>
-                <Heading.h3>{selectTitle}</Heading.h3>
+                <Heading.h3>
+                    <Flex gap={"8px"} alignItems={"center"}>
+                        <VirtualMachineIconButton tooltip={"Back"} onClick={onBackToManage} icon={"heroArrowLeft"} />
+                        {selectTitle}
+                    </Flex>
+                </Heading.h3>
                 <div className={VmAccessManagerControls}>
-                    <VirtualMachineIconButton tooltip={"Back"} onClick={onBackToManage} icon={"heroArrowLeft"} />
+                    {selectorRefresh == null ? null : (
+                        <RefreshButton loading={false} refresh={selectorRefresh} />
+                    )}
+                    <div ref={setSelectorProjectSwitcherTarget} />
                 </div>
             </div>
 
-            <div>{renderSelector(onSelectFromBrowse)}</div>
+            <div>{renderSelector(onSelectFromBrowse, selectorHeaderControls)}</div>
         </div>;
     }
 
@@ -1431,7 +1466,8 @@ const VmAccessManagerControls = injectStyle("vm-access-manager-controls", k => `
         margin-left: auto;
         display: inline-flex;
         align-items: center;
-        gap: 4px;
+        gap: 16px;
+        flex-wrap: wrap;
     }
 `);
 
