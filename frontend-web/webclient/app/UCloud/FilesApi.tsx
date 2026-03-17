@@ -390,7 +390,8 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     !cb.isSearch &&
                     (cb.isModal !== true || !!cb.allowMoveCopyOverride) &&
                     selected.length > 0 &&
-                    selected.every(it => it.permissions.myself.some(p => p === "READ" || p === "ADMIN")),
+                    selected.every(it => it.permissions.myself.some(p => p === "READ" || p === "ADMIN")) &&
+                    selected.every(it => it.status.type === "DIRECTORY"),
                 onClick: (selected, cb) => {
                     const pathRef = {current: getParentPath(selected[0].id)};
                     dialogStore.addDialog(
@@ -796,7 +797,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                             );
                             reload(result);
                             dialogStore.success();
-                            sendSuccessNotification("Files copied");
+                            sendSuccessNotification("File copy will begin soon");
                             return true;
                         } catch (e) {
                             displayErrorMessageOrDefault(e, "Failed to move to folder");

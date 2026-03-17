@@ -967,8 +967,8 @@ func transferSourceBegin(request orc.FilesProviderTransferRequestStart, session 
 		return util.ServerHttpError("malformed request")
 	}
 
-	if util.DevelopmentModeEnabled() && strings.Contains(parameters.Endpoint, "k8s:42000") {
-		parameters.Endpoint = strings.ReplaceAll(parameters.Endpoint, "k8s:42000", shared.ProviderHostname+":42000")
+	if util.DevelopmentModeEnabled() && strings.Contains(parameters.Endpoint, "k8s:8889") {
+		parameters.Endpoint = strings.ReplaceAll(parameters.Endpoint, "k8s:8889", shared.ProviderHostname+":8889")
 	}
 
 	spec := TaskSpec{
