@@ -180,13 +180,13 @@ export const ListRowClass = injectStyle("list-item", k => `
   
     ${deviceBreakpoint({minWidth: "767px", maxWidth: "1279px"})} {
       ${k} .row-left{
-        max-width: calc(100vw - var(${CSSVarCurrentSidebarWidth}));
+        max-width: 100vw;
       }
     }
 
     ${deviceBreakpoint({maxWidth: "767px"})} {
         ${k} .row-left {
-            max-width: calc(100vw - var(${CSSVarCurrentSidebarWidth}));
+            max-width: 100vw;
         }
     }
 
