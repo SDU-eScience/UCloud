@@ -409,7 +409,7 @@ export function markAsRead(notifications: NormalizedNotification[]) {
 
     const idsToUpdate: string[] = [];
     for (const notification of notifications) {
-        if (!notification.isPinned && notification.uniqueId.indexOf("-") !== 0) {
+        if (!notification.isPinned && notification.uniqueId.toString().indexOf("-") !== 0) {
             idsToUpdate.push(notification.uniqueId);
         }
     }
@@ -635,7 +635,6 @@ export interface Notification {
 export function normalizeNotification(
     notification: Notification | NormalizedNotification,
 ): NormalizedNotification & {onSnooze?: () => void} {
-    const {location, refresh, navigate, dispatch} = normalizationDependencies!;
 
     if ("isPinned" in notification) {
         const result = {
@@ -643,13 +642,17 @@ export function normalizeNotification(
             onSnooze: () => Snooze.snooze(notification.uniqueId),
         };
         result.onAction = () => {
-            const before = location.pathname;
+            const location = normalizationDependencies?.location;
+            const refresh = normalizationDependencies?.refresh;
+            if (location && refresh) {
+                const before = location.pathname;
 
-            markAsRead([result]);
-            notification.onAction?.();
+                markAsRead([result]);
+                notification.onAction?.();
 
-            const after = location.pathname;
-            if (before === after && refresh.current) refresh.current();
+                const after = location.pathname;
+                if (before === after && refresh.current) refresh.current();
+            }
         };
         return result;
     }
@@ -670,13 +673,18 @@ export function normalizeNotification(
     };
 
     result.onAction = () => {
+        const navigate = normalizationDependencies?.navigate;
+        const dispatch = normalizationDependencies?.dispatch;
+        const refresh = normalizationDependencies?.refresh;
         const before = location.pathname;
 
         markAsRead([result]);
-        onNotificationAction(notification, navigate, dispatch);
+        if (navigate && dispatch) {
+            onNotificationAction(notification, navigate, dispatch);
+        }
 
         const after = location.pathname;
-        if (before === after && refresh.current) refresh.current();
+        if (before === after && refresh?.current) refresh.current();
     };
 
     return result;
