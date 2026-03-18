@@ -10,8 +10,9 @@ import (
 var ApiTokens ApiTokenService
 
 type ApiTokenService struct {
-	Create func(info rpc.RequestInfo, request orcapi.ApiToken) (orcapi.ApiTokenStatus, *util.HttpError)
-	Revoke func(info rpc.RequestInfo, request fnd.FindByStringId) (util.Empty, *util.HttpError)
+	Create          func(info rpc.RequestInfo, request orcapi.ApiToken) (orcapi.ApiTokenStatus, *util.HttpError)
+	Revoke          func(info rpc.RequestInfo, request fnd.FindByStringId) (util.Empty, *util.HttpError)
+	RetrieveOptions func(info rpc.RequestInfo, request util.Empty) (orcapi.ApiTokenOptions, *util.HttpError)
 }
 
 func initApiTokens() {
@@ -27,8 +28,17 @@ func initApiTokens() {
 
 		orcapi.ApiTokenProviderRevoke.Handler(func(info rpc.RequestInfo, request fnd.FindByStringId) (util.Empty, *util.HttpError) {
 			handler := ApiTokens.Revoke
-			if ApiTokens.Revoke == nil {
+			if handler == nil {
 				return util.Empty{}, util.ServerHttpError("API token revocation not supported")
+			}
+
+			return handler(info, request)
+		})
+
+		orcapi.ApiTokenProviderRetrieveOptions.Handler(func(info rpc.RequestInfo, request util.Empty) (orcapi.ApiTokenOptions, *util.HttpError) {
+			handler := ApiTokens.RetrieveOptions
+			if handler == nil {
+				return orcapi.ApiTokenOptions{}, util.ServerHttpError("API token options retrieval not supported")
 			}
 
 			return handler(info, request)

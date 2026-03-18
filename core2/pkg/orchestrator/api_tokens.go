@@ -12,6 +12,7 @@ import (
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
@@ -171,38 +172,53 @@ func ApiTokenBrowse(actor rpc.Actor, request orcapi.ApiTokenBrowseRequest) (fnda
 	), nil
 }
 
+var ApiTokensOptionsCache = util.NewCache[string, orcapi.ApiTokenOptions](5 * time.Minute)
+
 func ApiTokenRetrieveOptions(actor rpc.Actor) orcapi.ApiTokenRetrieveOptionsResponse {
 	if util.DevelopmentModeEnabled() {
-		return orcapi.ApiTokenRetrieveOptionsResponse{
-			ByProvider: map[string]orcapi.ApiTokenOptions{
-				"": {
-					AvailablePermissions: []orcapi.ApiTokenPermissionSpecification{
-						{
-							Name:        "drives",
-							Title:       "Drives",
-							Description: "Permission required to read and manage drives and files",
-							Actions: map[string]string{
-								"read":  "Read only",
-								"write": "Read-write access",
-							},
-						},
-					},
-				},
+		providers, err := accapi.FindRelevantProviders.Invoke(fndapi.BulkRequestOf(accapi.FindRelevantProvidersRequest{
+			Username:         actor.Username,
+			IncludeFreeToUse: util.OptValue(false),
+			UseProject:       false,
+		}))
 
-				"k8s": {
-					AvailablePermissions: []orcapi.ApiTokenPermissionSpecification{
-						{
-							Name:        "inference",
-							Title:       "Inference",
-							Description: "API token required for inference services",
-							Actions: map[string]string{
-								"use": "Use",
-							},
+		optionsByProvider := map[string]orcapi.ApiTokenOptions{}
+		if err == nil {
+			for _, providerId := range providers.Responses[0].Providers {
+				if providerId == "" {
+					continue
+				}
+
+				options, ok := ApiTokensOptionsCache.Get(providerId, func() (orcapi.ApiTokenOptions, error) {
+					resp, err := InvokeProvider(
+						providerId,
+						orcapi.ApiTokenProviderRetrieveOptions,
+						util.Empty{},
+						ProviderCallOpts{
+							Username: util.OptValue(actor.Username),
+							Reason:   util.OptValue("Retrieving API token options"),
 						},
-					},
-				},
-			},
+					)
+					if err != nil {
+						return orcapi.ApiTokenOptions{}, err.AsError()
+					} else {
+						return resp, nil
+					}
+				})
+
+				if !ok {
+					log.Warn("No API Token options found for provider %s", providerId)
+					continue
+				}
+
+				options.AvailablePermissions = util.NonNilSlice(options.AvailablePermissions)
+				optionsByProvider[providerId] = options
+			}
 		}
+
+		optionsByProvider[""] = orcapi.ApiTokenOptions{}
+
+		return orcapi.ApiTokenRetrieveOptionsResponse{ByProvider: optionsByProvider}
 	} else {
 		return orcapi.ApiTokenRetrieveOptionsResponse{
 			ByProvider: map[string]orcapi.ApiTokenOptions{
@@ -215,10 +231,34 @@ func ApiTokenRetrieveOptions(actor rpc.Actor) orcapi.ApiTokenRetrieveOptionsResp
 }
 
 func ApiTokenRevoke(actor rpc.Actor, id ResourceId) *util.HttpError {
+	tok, _, _, err := ResourceRetrieveEx[orcapi.ApiToken](
+		actor,
+		apiTokenType,
+		id,
+		orcapi.PermissionEdit,
+		orcapi.ResourceFlags{},
+	)
+	if err != nil {
+		return err
+	}
 
-	if actor.Role == rpc.RoleProvider {
-		provider := "fie"
-		_, err := InvokeProvider(provider, orcapi.ApiTokenProviderRevoke, fndapi.FindByStringId{Id: <resource-id-string>}, ProviderCallOpts{Username: util.OptValue(actor.Username), Reason: util.OptValue()})
+	if tok.Specification.Provider.Present {
+		provider := tok.Specification.Provider.Value
+		log.Info("Revoking API token through provider: provider=%s tokenId=%s user=%s", provider, tok.Id, actor.Username)
+
+		_, err := InvokeProvider(
+			provider,
+			orcapi.ApiTokenProviderRevoke,
+			fndapi.FindByStringId{Id: tok.Id},
+			ProviderCallOpts{
+				Username: util.OptValue(actor.Username),
+				Reason:   util.OptValue("Deleting resource: " + apiTokenType),
+			},
+		)
+		if err != nil {
+			log.Warn("Provider API token revoke failed: provider=%s tokenId=%s user=%s err=%v", provider, tok.Id, actor.Username, err)
+			return err
+		}
 	}
 
 	ok := ResourceDelete(actor, apiTokenType, id)

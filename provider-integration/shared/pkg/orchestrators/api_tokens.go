@@ -84,21 +84,23 @@ var ApiTokenRetrieveOptions = rpc.Call[util.Empty, ApiTokenRetrieveOptionsRespon
 	Roles:       rpc.RolesEndUser,
 }
 
-var ApiTokenProviderRetrieveOptions = rpc.Call[util.Empty, ApiTokenRetrieveOptionsResponse]{
-	BaseContext: apiTokenContext,
+var apiTokenProviderContext = "ucloud/" + rpc.ProviderPlaceholder + "/tokens"
+
+var ApiTokenProviderRetrieveOptions = rpc.Call[util.Empty, ApiTokenOptions]{
+	BaseContext: apiTokenProviderContext,
 	Convention:  rpc.ConventionRetrieve,
 	Operation:   "options",
 	Roles:       rpc.RolesService,
 }
 
 var ApiTokenProviderCreate = rpc.Call[ApiToken, ApiTokenStatus]{
-	BaseContext: apiTokenContext,
+	BaseContext: apiTokenProviderContext,
 	Convention:  rpc.ConventionCreate,
 	Roles:       rpc.RolesService,
 }
 
 var ApiTokenProviderRevoke = rpc.Call[fnd.FindByStringId, util.Empty]{
-	BaseContext: apiTokenContext,
+	BaseContext: apiTokenProviderContext,
 	Convention:  rpc.ConventionUpdate,
 	Operation:   "revoke",
 	Roles:       rpc.RolesService,

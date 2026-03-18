@@ -250,6 +250,7 @@ func inferenceReportUsage(owner apm.WalletOwner, promptTokens int, completionTok
 }
 
 var inferenceApiKeysCache = util.NewCache[string, string](1 * time.Hour)
+var inferenceTokenIdToKey = util.NewCache[string, string](1 * time.Hour)
 
 func inferenceApiKeyValidate(key string) (apm.WalletOwner, *util.HttpError) {
 	tokenId, secret, ok := inferenceParseToken(key)
@@ -284,6 +285,7 @@ func inferenceApiKeyValidate(key string) (apm.WalletOwner, *util.HttpError) {
 		if !ok {
 			return "", util.HttpErr(http.StatusForbidden, "invalid key").AsError()
 		} else {
+			inferenceTokenIdToKey.Set(tokenId, key)
 			return row.Owner, nil
 		}
 	})
@@ -291,6 +293,8 @@ func inferenceApiKeyValidate(key string) (apm.WalletOwner, *util.HttpError) {
 	if !ok {
 		return apm.WalletOwner{}, util.HttpErr(http.StatusForbidden, "invalid key")
 	}
+
+	inferenceTokenIdToKey.Set(tokenId, key)
 
 	owner := apm.WalletOwnerFromReference(ownerRef)
 	if controller.WalletIsLocked(owner, inferenceGlobals.Product.Category.Name) {
@@ -302,8 +306,9 @@ func inferenceApiKeyValidate(key string) (apm.WalletOwner, *util.HttpError) {
 
 func inferenceInitApiTokens() controller.ApiTokenService {
 	return controller.ApiTokenService{
-		Create: inferenceCreateApiToken,
-		Revoke: inferenceRevokeApiToken,
+		Create:          inferenceCreateApiToken,
+		Revoke:          inferenceRevokeApiToken,
+		RetrieveOptions: inferenceRetrieveApiTokenOptions,
 	}
 }
 
@@ -392,11 +397,13 @@ func inferenceValidateRequestedPermissions(perms []orcapi.ApiTokenPermission) *u
 }
 
 func inferenceRevokeApiToken(info rpc.RequestInfo, request fnd.FindByStringId) (util.Empty, *util.HttpError) {
+	log.Info("Revoking inference API token: tokenId=%s user=%s", request.Id, info.Actor.Username)
+
 	db.NewTx0(func(tx *db.Transaction) {
 		db.Exec(
 			tx,
 			`
-			delete from inference_api_keys where token_id = :id
+			delete from inference_api_keys where token_id = :token_id
 		    `,
 			db.Params{
 				"token_id": request.Id,
@@ -404,7 +411,29 @@ func inferenceRevokeApiToken(info rpc.RequestInfo, request fnd.FindByStringId) (
 		)
 	})
 
-	status := orcapi.ApiTokenStatus{Server: inferenceServerBase()}
-	status.Token.IsEmpty()
-	return status, nil
+	if cacheKey, ok := inferenceTokenIdToKey.GetNow(request.Id); ok {
+		inferenceApiKeysCache.Invalidate(cacheKey)
+	}
+
+	inferenceTokenIdToKey.Invalidate(request.Id)
+
+	return util.Empty{}, nil
+}
+
+func inferenceRetrieveApiTokenOptions(info rpc.RequestInfo, request util.Empty) (orcapi.ApiTokenOptions, *util.HttpError) {
+	_ = info
+	_ = request
+
+	return orcapi.ApiTokenOptions{
+		AvailablePermissions: []orcapi.ApiTokenPermissionSpecification{
+			{
+				Name:        "inference",
+				Title:       "Inference",
+				Description: "API token required for inference services",
+				Actions: map[string]string{
+					"use": "Use",
+				},
+			},
+		},
+	}, nil
 }
