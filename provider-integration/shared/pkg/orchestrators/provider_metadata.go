@@ -17,6 +17,7 @@ type ProviderBranding struct {
 	ShortDescription   string                               `json:"shortDescription"`
 	Description        string                               `json:"description"`
 	Url                string                               `json:"url"`
+	Logo               util.Option[string]                  `json:"logo"`
 	Sections           []ProviderBrandingSection            `json:"sections"` // renamed from texts
 	ProductDescription []ProviderBrandingProductDescription `json:"productDescription"`
 }

@@ -25,10 +25,12 @@ func initProviderBranding() {
 		orcapi.ProviderBrandingRetrieve.Handler(func(info rpc.RequestInfo, request util.Empty) (orcapi.ProviderBranding, *util.HttpError) {
 			pb := cfg.Provider.ProviderBranding
 			providerBranding := orcapi.ProviderBranding{
+				Id:               cfg.Provider.Id,
 				Title:            pb.Title,
 				ShortTitle:       pb.ShortTitle,
 				ShortDescription: pb.ShortDescription,
 				Description:      pb.DescriptionFilePath,
+				Logo:             pb.Logo,
 			}
 			for _, section := range pb.Sections {
 				providerBranding.Sections = append(providerBranding.Sections, orcapi.ProviderBrandingSection{
