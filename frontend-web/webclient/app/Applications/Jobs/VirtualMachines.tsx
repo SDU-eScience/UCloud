@@ -72,7 +72,7 @@ interface VmUpdatesState {
     };
 }
 
-type OptimisticPowerState = "POWERING_ON" | "POWERING_OFF" | "RESTARTING" | null;
+type OptimisticPowerState = "POWERING_ON" | "POWERING_OFF" | "RESTARTING";
 type PowerTone = "success" | "warning" | "neutral";
 
 const VmActionRow: RichSelectChildComponent<VmActionItem> = ({element, onSelect, dataProps}) => {
@@ -127,7 +127,7 @@ export const VirtualMachineStatus: React.FunctionComponent<{
 }> = ({job, status, interfaceTargets, defaultInterfaceName, updates, updatesState}) => {
     const [loading, invokeCommand] = useCloudCommand();
     const [, invokeBackgroundCommand] = useCloudCommand();
-    const [optimisticPowerState, setOptimisticPowerState] = useState<OptimisticPowerState>(null);
+    const [optimisticPowerState, setOptimisticPowerState] = useState<OptimisticPowerState | null>(null);
     const [statusDotCount, setStatusDotCount] = useState(0);
     const [publicLinkTargets, setPublicLinkTargets] = useState<InterfaceTarget[]>([]);
     const restartObservedNonRunningState = useRef(false);
@@ -312,7 +312,7 @@ export const VirtualMachineStatus: React.FunctionComponent<{
     const isPowerTransitioning = optimisticPowerState != null;
     const powerActionDisabled = loading || isPowerTransitioning || isTerminalState;
     const showRuntimePanels = !isTerminalState;
-    const effectiveState: JobState | "POWERING_ON" | "POWERING_OFF" | "RESTARTING" = optimisticPowerState ?? status.state;
+    const effectiveState: JobState | OptimisticPowerState = optimisticPowerState ?? status.state;
     const appTitle = job.specification.name ?? job.status.resolvedApplication?.metadata?.title ?? "Virtual machine";
     const appVersion = job.status.resolvedApplication?.metadata?.version ?? "";
     const alternativeInterfaces = useMemo(() => {
@@ -979,7 +979,7 @@ export const VirtualMachineStatus: React.FunctionComponent<{
 };
 
 function renderUpdate(update: JobUpdate): string {
-    if (update.state) return `State changed to ${stateToTitle(update.state)}`;
+    if (update.state) return stateToMessage[update.state];
     return update.status ?? "Status updated";
 }
 
@@ -1176,7 +1176,20 @@ function parseSshCommand(updates: JobUpdate[]): string | null {
     return null;
 }
 
-function stateToTitle(state: JobState | "POWERING_ON" | "POWERING_OFF" | "RESTARTING"): string {
+const stateToMessage: Record<JobState | OptimisticPowerState, string> = {
+    "POWERING_ON": "Your machine is starting up",
+    "POWERING_OFF": "Your machine is shutting down",
+    "RESTARTING": "Your machine is restarting",
+    "IN_QUEUE": "Your machine is currently waiting in the queue",
+    "RUNNING": "Your machine is now running",
+    "SUSPENDED": "Your machine is powered off",
+    "CANCELING": "Your machine is shutting down for deletion",
+    "SUCCESS": "Your machine has been deleted",
+    "FAILURE": "Your machine has been deleted",
+    "EXPIRED": "Your machine has been deleted",
+};
+
+function stateToTitle(state: JobState | OptimisticPowerState): string {
     switch (state) {
         case "POWERING_ON":
             return "Powering on";
