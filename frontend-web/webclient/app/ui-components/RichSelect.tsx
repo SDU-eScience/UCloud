@@ -219,6 +219,7 @@ export function RichSelect<T, K extends keyof T>(props: {
                 : <></>
         }
         onOpeningTriggerClick={onTriggerClick}
+        rightAligned
         height={height}
         closeFnRef={closeFn}
         paddingControlledByContent
