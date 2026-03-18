@@ -100,6 +100,10 @@ export function ApiTokenBrowse(props: {opts?: ResourceBrowserOpts<Api.ApiToken>}
                     row.stat3.style.marginTop = row.stat3.style.marginBottom = "auto"
                 });
 
+                browser.on("endRenderPage", () => {
+                    SimpleAvatarComponentCache.fetchMissingAvatars();
+                });
+
                 browser.on("generateBreadcrumbs", () => [{title: browser.resourceName, absolutePath: ""}]);
 
                 browser.on("renderEmptyPage", reason => {

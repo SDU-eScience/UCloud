@@ -70,14 +70,14 @@ function inviteLinkFromToken(token: string): string {
 
 
 export const SimpleAvatarComponentCache = new class {
-    defaultAvatar: ReactStaticRenderer;
+    private defaultAvatarURL: string;
     private svgCache: SvgCache;
 
     constructor() {
         this.svgCache = new SvgCache();
-        new ReactStaticRenderer(() =>
-            <Avatar style={{height: "40px", width: "40px"}} avatarStyle="Circle" {...defaultAvatar} />
-        ).promise.then(it => this.defaultAvatar = it)
+        this.svgCache.renderSvg("__defaultAvatar__", () => {
+            return <Avatar style={{height: "80px", width: "80px"}} avatarStyle="Circle" {...defaultAvatar} />;
+        }, 80, 80);
     }
 
     private componentCache: Record<string, ReactStaticRenderer> = {};
@@ -106,9 +106,15 @@ export const SimpleAvatarComponentCache = new class {
         this.componentCache[username] = avatar;
     }
 
+    deleteCachedAvatar(username: string) {
+        delete this.componentCache[username];
+        // HACK(Jonas): A way of clearing an outdated entry in the cache.
+        delete this.svgCache["cache"]["cache"][username];
+    }
+
     async appendTo(el: HTMLElement, username: string, tooltipText: string, wrapperStyle?: Partial<CSSStyleDeclaration>): Promise<HTMLDivElement> {
         this.addToBeFetch(username);
-        const avatar = avatarState.avatarFromCache(username);
+        const avatar = avatarState.avatar(username);
         const isDefaultAvatar = avatar === defaultAvatar;
         const avatarWrapper = createHTMLElements<HTMLDivElement>({tagType: "div", style: wrapperStyle});
         el.append(avatarWrapper);
@@ -120,11 +126,11 @@ export const SimpleAvatarComponentCache = new class {
         } else {
             // NOTE(Dan): Rasterize at double resolution. This has a clear impact on image quality and little
             // impact on performance.
-            const avatarCompUrl = await this.svgCache.renderSvg(username, () => {
+            const avatarCompUrl = isDefaultAvatar ? this.defaultAvatarURL : await this.svgCache.renderSvg(username, () => {
                 return <Avatar style={{height: "80px", width: "80px"}} avatarStyle="Circle" {...avatar} />;
             }, 80, 80);
 
-            const avatarComponent = isDefaultAvatar ? this.defaultAvatar : await new ReactStaticRenderer(() => {
+            const avatarComponent = await new ReactStaticRenderer(() => {
                 return <div style={{
                     width: "40px",
                     height: "40px",

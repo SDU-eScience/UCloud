@@ -15,6 +15,7 @@ import {AvatarType, defaultAvatar} from "@/AvataaarLib";
 import Avatar from "@/AvataaarLib/avatar";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {sendFailureNotification} from "@/Notifications";
+import {SimpleAvatarComponentCache} from "@/Files/Shares";
 
 function Modification(): React.ReactNode {
     const [avatar, setAvatar] = React.useState(defaultAvatar);
@@ -46,8 +47,9 @@ function Modification(): React.ReactNode {
                     ml="auto"
                     mr="auto"
                     onClick={async () => {
+                        SimpleAvatarComponentCache.deleteCachedAvatar(Client.username!);
+                        avatarState.setAvatar(Client.username!, avatar);
                         dispatch(await saveAvatar(avatar));
-                        avatarState.invalidateAndUpdate([Client.username!]);
                     }}
                     mt="5px"
                     mb="5px"
