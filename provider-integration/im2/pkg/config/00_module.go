@@ -282,6 +282,7 @@ type ProviderBranding struct {
 	ShortDescription    string                               `yaml:"shortDescription"`
 	DescriptionFilePath string                               `yaml:"description"`
 	Url                 string                               `yaml:"url"`
+	Logo                util.Option[string]                  `yaml:"logo"`
 	Sections            []ProviderBrandingSection            `yaml:"sections"`
 	ProductDescription  []ProviderBrandingProductDescription `yaml:"productDescription"`
 }
@@ -352,6 +353,8 @@ func populateProviderBranding(cfg *ProviderConfiguration, filePath string, node 
 	providerBranding.Sections = []ProviderBrandingSection{}
 	providerBranding.ProductDescription = []ProviderBrandingProductDescription{}
 	providerBranding.Url = cfgutil.RequireChildText(filePath, node, "url", &success)
+
+	providerBranding.Logo = util.OptValue(storeAndGenerateProviderBrandingImageURI(cfg, cfgutil.RequireChildText(filePath, node, "logo", &success)))
 
 	sectionsNode, _ := cfgutil.GetChildOrNil(filePath, node, "sections")
 	if sectionsNode != nil {
