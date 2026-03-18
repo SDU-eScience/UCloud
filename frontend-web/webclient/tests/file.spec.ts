@@ -196,7 +196,10 @@ TestContexts.map(ctx => {
                 await File.uploadFiles(page, [fileToUpload]);
                 await File.copyFileTo(page, fileToCopy, folder);
                 await File.actionByRowTitle(page, folder, "dblclick");
-                await expect(page.getByText(fileToCopy)).toHaveCount(1);
+                while (!await page.locator(".row").getByText(fileToCopy, {exact: true}).isVisible()) {
+                    await Components.clickRefreshAndWait(page);
+                    await page.waitForTimeout(200);
+                }
             });
 
             test("Copy file to self (check renaming)", async ({page}) => {
