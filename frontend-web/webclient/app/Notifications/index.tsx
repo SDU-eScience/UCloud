@@ -402,17 +402,16 @@ export function markAllAsRead() {
 }
 
 export function markAsRead(notifications: NormalizedNotification[]) {
-    for (const notification of notifications) {
-        notification.read = true;
-    }
-    renderNotifications();
 
     const idsToUpdate: string[] = [];
     for (const notification of notifications) {
-        if (!notification.isPinned && notification.uniqueId.toString().indexOf("-") !== 0) {
+        if (!notification.isPinned && notification.uniqueId.toString().indexOf("-") !== 0 && !notification.read) {
             idsToUpdate.push(notification.uniqueId);
         }
+        notification.read = true;
     }
+
+    renderNotifications();
 
     if (idsToUpdate.length > 0) {
         callAPI({
@@ -647,7 +646,6 @@ export function normalizeNotification(
             if (location && refresh) {
                 const before = location.pathname;
 
-                markAsRead([result]);
                 notification.onAction?.();
 
                 const after = location.pathname;
@@ -670,22 +668,21 @@ export function normalizeNotification(
         uniqueId: notification.id,
         avatar: resolved.avatar,
         onSnooze: () => Snooze.snooze(`${notification.id}`),
-    };
+        onAction: () => {
+            const navigate = normalizationDependencies?.navigate;
+            const dispatch = normalizationDependencies?.dispatch;
+            const refresh = normalizationDependencies?.refresh;
+            const before = location.pathname;
 
-    result.onAction = () => {
-        const navigate = normalizationDependencies?.navigate;
-        const dispatch = normalizationDependencies?.dispatch;
-        const refresh = normalizationDependencies?.refresh;
-        const before = location.pathname;
+            if (navigate && dispatch) {
+                onNotificationAction(notification, navigate, dispatch);
+            }
 
-        markAsRead([result]);
-        if (navigate && dispatch) {
-            onNotificationAction(notification, navigate, dispatch);
+            const after = location.pathname;
+            if (before === after && refresh?.current) refresh.current();
         }
-
-        const after = location.pathname;
-        if (before === after && refresh?.current) refresh.current();
     };
+
 
     return result;
 }
