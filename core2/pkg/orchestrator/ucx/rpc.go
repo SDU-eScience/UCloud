@@ -10,6 +10,18 @@ type Rpc[Req any, Resp any] struct {
 	CallName string
 }
 
+func (r *Rpc[Req, Resp]) Invoke(session *Session, req Req) (Resp, error) {
+	return r.InvokeEx(context.Background(), session, req)
+}
+
+func (r *Rpc[Req, Resp]) InvokeEx(ctx context.Context, session *Session, req Req) (Resp, error) {
+	return RpcInvoke(ctx, session, *r, req)
+}
+
+func (r *Rpc[Req, Resp]) Handler(session *Session, handler func(ctx context.Context, request Req) (Resp, error)) {
+	RpcHandle(session, *r, handler)
+}
+
 const (
 	RpcStatusOk         = 0
 	RpcStatusBadRequest = 1

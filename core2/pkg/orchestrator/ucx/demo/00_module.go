@@ -239,10 +239,20 @@ func handleIncomingFrame(ctx context.Context, mu *sync.Mutex, state *demoState, 
 	}
 }
 
+type PingRpcRequest struct {
+	Message string
+}
+
+type PingRpcResponse struct {
+	Ok   bool
+	From string
+	Echo string
+}
+
+var PingRpc = ucx.Rpc[PingRpcRequest, PingRpcResponse]{CallName: "client.ping"}
+
 func invokeClientPing(ctx context.Context, mu *sync.Mutex, state *demoState, session *ucx.Session, replyTo int64, message string) {
-	payload, err := session.InvokeRpc(ctx, "client.ping", map[string]ucx.Value{
-		"message": ucx.VString(message),
-	})
+	payload, err := PingRpc.Invoke(session, PingRpcRequest{Message: message})
 
 	log.Info("Got response from UI: %v %v", payload, err)
 
@@ -253,9 +263,9 @@ func invokeClientPing(ctx context.Context, mu *sync.Mutex, state *demoState, ses
 	if err != nil {
 		state.RpcStatus = fmt.Sprintf("RPC failed: %v", err)
 	} else {
-		ok := ucx.ValueAsBool(payload["ok"])
-		from := strings.TrimSpace(ucx.ValueAsString(payload["from"]))
-		echo := strings.TrimSpace(ucx.ValueAsString(payload["echo"]))
+		ok := payload.Ok
+		from := strings.TrimSpace(payload.From)
+		echo := strings.TrimSpace(payload.Echo)
 		if from == "" {
 			from = "unknown"
 		}
