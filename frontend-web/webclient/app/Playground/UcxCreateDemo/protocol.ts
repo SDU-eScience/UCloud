@@ -4,6 +4,16 @@ export enum Opcode {
     UiMount = 0x12,
     ModelPatch = 0x13,
     ModelInput = 0x14,
+    RpcRequest = 0x20,
+    RpcResponse = 0x21,
+}
+
+export enum RpcStatus {
+    Ok = 0,
+    BadRequest = 1,
+    NotFound = 2,
+    Internal = 3,
+    Canceled = 4,
 }
 
 export enum ValueKind {
@@ -71,6 +81,9 @@ export interface Frame {
     uiMount?: UiMount;
     modelPatch?: ModelPatch;
     modelInput?: ModelInput;
+    rpcRequestName?: string;
+    rpcPayload?: Record<string, Value>;
+    rpcStatus?: number;
 }
 
 class BinaryWriter {
@@ -192,6 +205,14 @@ export function encodeFrame(frame: Frame): Uint8Array {
         case Opcode.ModelInput:
             encodeModelInput(w, frame.modelInput!);
             break;
+        case Opcode.RpcRequest:
+            w.writeString(frame.rpcRequestName ?? "");
+            writeValueMap(w, frame.rpcPayload ?? {});
+            break;
+        case Opcode.RpcResponse:
+            w.writeU8(frame.rpcStatus ?? 0);
+            writeValueMap(w, frame.rpcPayload ?? {});
+            break;
     }
 
     return w.toBytes();
@@ -224,6 +245,14 @@ export function decodeFrame(input: Uint8Array): Frame {
             break;
         case Opcode.ModelInput:
             frame.modelInput = decodeModelInput(r);
+            break;
+        case Opcode.RpcRequest:
+            frame.rpcRequestName = r.readString();
+            frame.rpcPayload = readValueMap(r);
+            break;
+        case Opcode.RpcResponse:
+            frame.rpcStatus = r.readU8();
+            frame.rpcPayload = readValueMap(r);
             break;
     }
 

@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 
 	"ucloud.dk/core/pkg/orchestrator/ucx"
+	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -26,21 +28,24 @@ func Init() {
 		defer cancel()
 
 		state := newDemoState()
-		serverSeq := int64(1)
+		stateMu := sync.Mutex{}
 		hasMounted := false
 
-		ucx.RunAppWebSocket(conn, ctx, func(ctx context.Context, incoming chan ucx.Frame, outgoing <-chan ucx.Frame) {
+		ucx.RunAppWebSocket(conn, ctx, func(ctx context.Context, session *ucx.Session) {
 			for {
 				select {
 				case <-ctx.Done():
 					return
-				case frame, ok := <-outgoing:
+				case frame, ok := <-session.Incoming():
 					if !ok {
 						return
 					}
 
 					if !hasMounted && frame.Opcode == ucx.OpSysHello {
-						ucx.SendUiMount(incoming, &serverSeq, frame.Seq, state.uiMount())
+						stateMu.Lock()
+						mount := state.uiMount()
+						stateMu.Unlock()
+						session.SendUiMount(frame.Seq, mount)
 						hasMounted = true
 						continue
 					}
@@ -49,7 +54,7 @@ func Init() {
 						continue
 					}
 
-					handleIncomingFrame(state, frame, &serverSeq, incoming)
+					handleIncomingFrame(ctx, &stateMu, state, frame, session)
 				}
 			}
 		})
@@ -68,6 +73,8 @@ type demoState struct {
 	JobName           string
 	CPU               int64
 	Notify            bool
+	RpcMessage        string
+	RpcStatus         string
 	TodoDraft         string
 	Todos             []todoItem
 	Errors            map[string]string
@@ -86,6 +93,8 @@ func newDemoState() *demoState {
 		JobName:     "",
 		CPU:         4,
 		Notify:      true,
+		RpcMessage:  "hello from server",
+		RpcStatus:   "",
 		TodoDraft:   "",
 		Todos:       []todoItem{},
 		Errors:      map[string]string{},
@@ -121,6 +130,15 @@ func (s *demoState) uiTree() ucx.UiNode {
 		ucx.TextBound("cpu:error", "errors.cpu").Sx(ucx.SxColor(ucx.ColorErrorMain)),
 
 		ucx.Checkbox("notify", "Notify me when the job starts", "notify", true),
+
+		ucx.Flex("rpcSection", ucx.FlexProps{Direction: "column", Gap: 6}).Children(
+			ucx.Heading("rpcTitle", "Client RPC", 4),
+			ucx.Flex("rpcInputRow", ucx.FlexProps{Gap: 8}).Children(
+				ucx.InputText("rpcMessage", "Message", "Enter RPC message", "rpcMessage"),
+				ucx.Button("rpcPing", "Ping client", ucx.ColorSecondaryMain),
+			),
+			ucx.TextBound("rpcStatus", "rpcStatus").Sx(ucx.SxColor(ucx.ColorTextSecondary)),
+		),
 
 		ucx.Flex(
 			"todoSection",
@@ -182,23 +200,74 @@ func (s *demoState) modelMap() map[string]ucx.Value {
 	return result
 }
 
-func handleIncomingFrame(state *demoState, incoming ucx.Frame, serverSeq *int64, outgoing chan<- ucx.Frame) {
+func handleIncomingFrame(ctx context.Context, mu *sync.Mutex, state *demoState, incoming ucx.Frame, session *ucx.Session) {
+	mu.Lock()
+	defer mu.Unlock()
+
 	switch incoming.Opcode {
 	case ucx.OpSysHello:
-		ucx.SendUiMount(outgoing, serverSeq, incoming.Seq, state.uiMount())
+		session.SendUiMount(incoming.Seq, state.uiMount())
 
 	case ucx.OpModelInput:
 		before := state.modelMap()
 		handleModelInput(state, incoming.ModelInput)
 		after := state.modelMap()
-		ucx.SendModelDiff(outgoing, serverSeq, incoming.Seq, state.Version, before, after)
+		session.SendModelDiff(incoming.Seq, state.Version, before, after)
 
 	case ucx.OpUiEvent:
+		if incoming.UiEvent.NodeId == "rpcPing" && incoming.UiEvent.Event == "click" {
+			before := state.modelMap()
+			message := strings.TrimSpace(state.RpcMessage)
+			if message == "" {
+				message = "hello from server"
+			}
+
+			state.RpcStatus = "Calling client RPC..."
+			state.Version++
+			after := state.modelMap()
+			version := state.Version
+			session.SendModelDiff(incoming.Seq, version, before, after)
+
+			go invokeClientPing(ctx, mu, state, session, incoming.Seq, message)
+			return
+		}
+
 		before := state.modelMap()
 		handleUiEvent(state, incoming.UiEvent)
 		after := state.modelMap()
-		ucx.SendModelDiff(outgoing, serverSeq, incoming.Seq, state.Version, before, after)
+		session.SendModelDiff(incoming.Seq, state.Version, before, after)
 	}
+}
+
+func invokeClientPing(ctx context.Context, mu *sync.Mutex, state *demoState, session *ucx.Session, replyTo int64, message string) {
+	payload, err := session.InvokeRpc(ctx, "client.ping", map[string]ucx.Value{
+		"message": ucx.VString(message),
+	})
+
+	log.Info("Got response from UI: %v %v", payload, err)
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	before := state.modelMap()
+	if err != nil {
+		state.RpcStatus = fmt.Sprintf("RPC failed: %v", err)
+	} else {
+		ok := ucx.ValueAsBool(payload["ok"])
+		from := strings.TrimSpace(ucx.ValueAsString(payload["from"]))
+		echo := strings.TrimSpace(ucx.ValueAsString(payload["echo"]))
+		if from == "" {
+			from = "unknown"
+		}
+		if echo == "" {
+			echo = message
+		}
+		state.RpcStatus = fmt.Sprintf("RPC result from %s (ok=%t): %s", from, ok, echo)
+	}
+	state.Version++
+	after := state.modelMap()
+	version := state.Version
+	session.SendModelDiff(replyTo, version, before, after)
 }
 
 func handleModelInput(state *demoState, input ucx.ModelInput) {
@@ -209,6 +278,8 @@ func handleModelInput(state *demoState, input ucx.ModelInput) {
 		state.CPU = ucx.ValueAsS64(input.Value)
 	case "notify":
 		state.Notify = ucx.ValueAsBool(input.Value)
+	case "rpcMessage":
+		state.RpcMessage = ucx.ValueAsString(input.Value)
 	case "todoDraft":
 		state.TodoDraft = ucx.ValueAsString(input.Value)
 	case "todos":

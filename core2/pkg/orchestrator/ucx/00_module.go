@@ -11,11 +11,13 @@ import (
 type Opcode uint8
 
 const (
-	OpSysHello   Opcode = 0x01
-	OpUiEvent    Opcode = 0x11
-	OpUiMount    Opcode = 0x12
-	OpModelPatch Opcode = 0x13
-	OpModelInput Opcode = 0x14
+	OpSysHello    Opcode = 0x01
+	OpUiEvent     Opcode = 0x11
+	OpUiMount     Opcode = 0x12
+	OpModelPatch  Opcode = 0x13
+	OpModelInput  Opcode = 0x14
+	OpRpcRequest  Opcode = 0x20
+	OpRpcResponse Opcode = 0x21
 )
 
 type Frame struct {
@@ -23,11 +25,14 @@ type Frame struct {
 	ReplyToSeq int64
 	Opcode     Opcode
 
-	SysHello   SysHello
-	UiEvent    UiEvent
-	UiMount    UiMount
-	ModelPatch ModelPatch
-	ModelInput ModelInput
+	SysHello       SysHello
+	UiEvent        UiEvent
+	UiMount        UiMount
+	ModelPatch     ModelPatch
+	ModelInput     ModelInput
+	RpcRequestName string
+	RpcPayload     map[string]Value
+	RpcStatus      int
 }
 
 type SysHello struct {
@@ -79,6 +84,12 @@ func FrameEncode(f Frame) ([]byte, error) {
 		ModelPatchEncode(buf, f.ModelPatch)
 	case OpModelInput:
 		ModelInputEncode(buf, f.ModelInput)
+	case OpRpcRequest:
+		buf.WriteString(f.RpcRequestName)
+		RpcPayloadEncode(buf, f.RpcPayload)
+	case OpRpcResponse:
+		buf.WriteU8(uint8(f.RpcStatus))
+		RpcPayloadEncode(buf, f.RpcPayload)
 	default:
 		return nil, fmt.Errorf("unknown opcode: %d", f.Opcode)
 	}
@@ -108,6 +119,12 @@ func FrameDecode(data []byte) (Frame, error) {
 		result.ModelPatch = ModelPatchDecode(buf)
 	case OpModelInput:
 		result.ModelInput = ModelInputDecode(buf)
+	case OpRpcRequest:
+		result.RpcRequestName = buf.ReadString()
+		result.RpcPayload = RpcPayloadDecode(buf)
+	case OpRpcResponse:
+		result.RpcStatus = int(buf.ReadU8())
+		result.RpcPayload = RpcPayloadDecode(buf)
 	default:
 		return Frame{}, fmt.Errorf("unknown opcode: %d", op)
 	}
@@ -230,4 +247,12 @@ func UiEventDecode(buf *util.UBuffer) UiEvent {
 		Event:  buf.ReadString(),
 		Value:  ValueDecode(buf),
 	}
+}
+
+func RpcPayloadEncode(buf *util.UBuffer, msg map[string]Value) {
+	ValueMapEncode(buf, msg)
+}
+
+func RpcPayloadDecode(buf *util.UBuffer) map[string]Value {
+	return ValueMapDecode(buf)
 }

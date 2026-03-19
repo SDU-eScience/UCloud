@@ -133,3 +133,92 @@ func TestStructToModelSerializesListsOfStructsAsObjects(t *testing.T) {
 		t.Fatalf("unexpected text value: %#v", first.Object["text"])
 	}
 }
+
+func TestModelToStructDeserializesScalarsAndNestedFields(t *testing.T) {
+	type nested struct {
+		Field string
+	}
+
+	type model struct {
+		JobName string
+		CPU     int64
+		Notify  bool
+		Nested  nested
+		Alias   string `ucx:"custom.key"`
+	}
+
+	input := map[string]Value{
+		"jobName":      VString("demo"),
+		"cpu":          VS64(8),
+		"notify":       VBool(true),
+		"nested.field": VString("value"),
+		"custom.key":   VString("alias"),
+	}
+
+	var out model
+	if err := ModelToStruct(input, &out); err != nil {
+		t.Fatalf("ModelToStruct returned error: %v", err)
+	}
+
+	if out.JobName != "demo" {
+		t.Fatalf("unexpected jobName: got %q want %q", out.JobName, "demo")
+	}
+	if out.CPU != 8 {
+		t.Fatalf("unexpected cpu: got %d want %d", out.CPU, 8)
+	}
+	if !out.Notify {
+		t.Fatalf("unexpected notify: got %v want true", out.Notify)
+	}
+	if out.Nested.Field != "value" {
+		t.Fatalf("unexpected nested.field: got %q want %q", out.Nested.Field, "value")
+	}
+	if out.Alias != "alias" {
+		t.Fatalf("unexpected alias: got %q want %q", out.Alias, "alias")
+	}
+}
+
+func TestModelToStructDeserializesContainers(t *testing.T) {
+	type todoItem struct {
+		Id   string
+		Text string
+	}
+
+	type model struct {
+		Errors map[string]string
+		Todos  []todoItem
+	}
+
+	input := map[string]Value{
+		"errors": VObject(map[string]Value{
+			"jobName": VString("invalid"),
+			"cpu":     VString("range"),
+		}),
+		"todos": VList([]Value{
+			VObject(map[string]Value{
+				"id":   VString("1"),
+				"text": VString("first"),
+			}),
+		}),
+	}
+
+	var out model
+	if err := ModelToStruct(input, &out); err != nil {
+		t.Fatalf("ModelToStruct returned error: %v", err)
+	}
+
+	if got := out.Errors["jobName"]; got != "invalid" {
+		t.Fatalf("unexpected errors.jobName: got %q want %q", got, "invalid")
+	}
+	if got := out.Errors["cpu"]; got != "range" {
+		t.Fatalf("unexpected errors.cpu: got %q want %q", got, "range")
+	}
+	if len(out.Todos) != 1 {
+		t.Fatalf("unexpected todos length: got %d want %d", len(out.Todos), 1)
+	}
+	if out.Todos[0].Id != "1" {
+		t.Fatalf("unexpected todo id: got %q want %q", out.Todos[0].Id, "1")
+	}
+	if out.Todos[0].Text != "first" {
+		t.Fatalf("unexpected todo text: got %q want %q", out.Todos[0].Text, "first")
+	}
+}

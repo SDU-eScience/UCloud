@@ -4,13 +4,14 @@ import {MainContainer, Button, Card, Checkbox, Flex, Icon, Input, Text} from "@/
 import {injectStyle} from "@/Unstyled";
 import {
     decodeFrame,
-    encodeFrame,
+    Frame,
     Opcode,
     UiNode,
     Value,
     ValueKind,
 } from "@/Playground/UcxCreateDemo/protocol";
 import {Client} from "@/Authentication/HttpClientInstance";
+import {UcxSession} from "@/Playground/UcxCreateDemo/session";
 
 const UcxCreateDemo: React.FunctionComponent = () => {
     const [connected, setConnected] = useState(false);
@@ -20,7 +21,7 @@ const UcxCreateDemo: React.FunctionComponent = () => {
     const [transportError, setTransportError] = useState("");
 
     const connRef = useRef<WebSocket | null>(null);
-    const seqRef = useRef(1);
+    const sessionRef = useRef<UcxSession | null>(null);
     const eventIdRef = useRef(1);
     const reconnectAttemptRef = useRef(0);
     const reconnectTimerRef = useRef<number | null>(null);
@@ -38,15 +39,8 @@ const UcxCreateDemo: React.FunctionComponent = () => {
         modelVersionRef.current = modelVersion;
     }, [modelVersion]);
 
-    const sendFrame = useCallback((payloadBuilder: (seq: number) => Uint8Array) => {
-        const conn = connRef.current;
-        if (!conn || conn.readyState !== WebSocket.OPEN) {
-            return;
-        }
-
-        const seq = seqRef.current++;
-        const bytes = payloadBuilder(seq);
-        conn.send(bytes);
+    const sendFrame = useCallback((frame: Omit<Frame, "seq">) => {
+        sessionRef.current?.send(frame);
     }, []);
 
     const applyModelChangeLocally = useCallback((path: string, value: Value) => {
@@ -61,8 +55,7 @@ const UcxCreateDemo: React.FunctionComponent = () => {
         }
 
         const eventId = eventIdRef.current++;
-        sendFrame(seq => encodeFrame({
-            seq,
+        sendFrame({
             replyToSeq: 0,
             opcode: Opcode.ModelInput,
             modelInput: {
@@ -72,12 +65,11 @@ const UcxCreateDemo: React.FunctionComponent = () => {
                 value,
                 baseVersion: modelVersionRef.current,
             },
-        }));
+        });
     }, [applyModelChangeLocally, sendFrame]);
 
     const sendUiClick = useCallback((nodeId: string, value?: Value) => {
-        sendFrame(seq => encodeFrame({
-            seq,
+        sendFrame({
             replyToSeq: 0,
             opcode: Opcode.UiEvent,
             uiEvent: {
@@ -85,7 +77,7 @@ const UcxCreateDemo: React.FunctionComponent = () => {
                 event: "click",
                 value: value ?? {kind: ValueKind.Null},
             },
-        }));
+        });
     }, [sendFrame]);
 
     const resendModelAfterReconnect = useCallback((snapshot: Record<string, Value>, mount: {version: number; root: UiNode}) => {
@@ -101,8 +93,7 @@ const UcxCreateDemo: React.FunctionComponent = () => {
             }
 
             const eventId = eventIdRef.current++;
-            sendFrame(seq => encodeFrame({
-                seq,
+            sendFrame({
                 replyToSeq: 0,
                 opcode: Opcode.ModelInput,
                 modelInput: {
@@ -112,7 +103,7 @@ const UcxCreateDemo: React.FunctionComponent = () => {
                     value,
                     baseVersion: mount.version,
                 },
-            }));
+            });
         }
     }, [sendFrame]);
 
@@ -161,6 +152,12 @@ const UcxCreateDemo: React.FunctionComponent = () => {
             const socket = new WebSocket(url);
             socket.binaryType = "arraybuffer";
             connRef.current = socket;
+            sessionRef.current = new UcxSession(bytes => {
+                if (socket.readyState !== WebSocket.OPEN) {
+                    return;
+                }
+                socket.send(bytes);
+            });
 
             socket.onopen = () => {
                 reconnectAttemptRef.current = 0;
@@ -173,16 +170,23 @@ const UcxCreateDemo: React.FunctionComponent = () => {
                 }
                 everConnectedRef.current = true;
 
-                const hello = encodeFrame({
-                    seq: seqRef.current++,
+                sendFrame({
                     replyToSeq: 0,
                     opcode: Opcode.SysHello,
                     sysHello: {
                         host: "webclient",
-                        features: ["binary", "ui-mount", "model-patch", "model-input", "optimistic", "reconnect"],
+                        features: ["binary", "ui-mount", "model-patch", "model-input", "optimistic", "reconnect", "rpc"],
                     },
                 });
-                socket.send(hello);
+
+                sessionRef.current?.registerRpcHandler("client.ping", async payload => {
+                    console.log("Running client.ping", payload);
+                    return {
+                        ok: {kind: ValueKind.Bool, bool: true},
+                        from: {kind: ValueKind.String, string: "webclient"},
+                        echo: payload["message"] ?? {kind: ValueKind.Null},
+                    };
+                });
             };
 
             socket.onmessage = event => {
@@ -194,6 +198,12 @@ const UcxCreateDemo: React.FunctionComponent = () => {
                     const bytes = new Uint8Array(event.data);
 
                     const frame = decodeFrame(bytes);
+                    sessionRef.current?.setNextSeq(frame.seq + 1);
+
+                    if (sessionRef.current?.handleIncoming(frame)) {
+                        return;
+                    }
+
                     if (frame.opcode === Opcode.UiMount && frame.uiMount) {
                         const mount = frame.uiMount;
                         const rehydrateSnapshot = pendingRehydrateModelRef.current;
@@ -232,6 +242,8 @@ const UcxCreateDemo: React.FunctionComponent = () => {
                 if (connRef.current === socket) {
                     connRef.current = null;
                 }
+                sessionRef.current?.close("WebSocket closed");
+                sessionRef.current = null;
                 setConnected(false);
                 if (!disposed) {
                     scheduleReconnect();
@@ -249,6 +261,8 @@ const UcxCreateDemo: React.FunctionComponent = () => {
         return () => {
             disposed = true;
             clearReconnectTimer();
+            sessionRef.current?.close("UCX session disposed");
+            sessionRef.current = null;
             const conn = connRef.current;
             connRef.current = null;
             if (conn) {
