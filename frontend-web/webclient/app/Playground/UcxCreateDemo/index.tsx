@@ -1,26 +1,23 @@
 import * as React from "react";
-import {useCallback, useEffect, useRef, useState} from "react";
-import {Client} from "@/Authentication/HttpClientInstance";
+import {JSX, useCallback, useEffect, useRef, useState} from "react";
 import {MainContainer, Button, Card, Checkbox, Flex, Icon, Input, Text} from "@/ui-components";
 import {injectStyle} from "@/Unstyled";
 import {
     decodeFrame,
     encodeFrame,
-    FormActionRes,
     Opcode,
     UiNode,
     Value,
     ValueKind,
 } from "@/Playground/UcxCreateDemo/protocol";
+import {Client} from "@/Authentication/HttpClientInstance";
 
 const UcxCreateDemo: React.FunctionComponent = () => {
     const [connected, setConnected] = useState(false);
     const [root, setRoot] = useState<UiNode | null>(null);
-    const [interfaceId, setInterfaceId] = useState("job-create-demo");
     const [model, setModel] = useState<Record<string, Value>>({});
     const [modelVersion, setModelVersion] = useState(0);
     const [transportError, setTransportError] = useState("");
-    const [lastAction, setLastAction] = useState<FormActionRes | null>(null);
 
     const connRef = useRef<WebSocket | null>(null);
     const seqRef = useRef(1);
@@ -32,7 +29,6 @@ const UcxCreateDemo: React.FunctionComponent = () => {
 
     const modelRef = useRef<Record<string, Value>>({});
     const modelVersionRef = useRef(0);
-    const interfaceIdRef = useRef("job-create-demo");
 
     useEffect(() => {
         modelRef.current = model;
@@ -41,10 +37,6 @@ const UcxCreateDemo: React.FunctionComponent = () => {
     useEffect(() => {
         modelVersionRef.current = modelVersion;
     }, [modelVersion]);
-
-    useEffect(() => {
-        interfaceIdRef.current = interfaceId;
-    }, [interfaceId]);
 
     const sendFrame = useCallback((payloadBuilder: (seq: number) => Uint8Array) => {
         const conn = connRef.current;
@@ -92,22 +84,6 @@ const UcxCreateDemo: React.FunctionComponent = () => {
                 nodeId,
                 event: "click",
                 value: value ?? {kind: ValueKind.Null},
-            },
-        }));
-    }, [sendFrame]);
-
-    const submitFormAction = useCallback(() => {
-        sendFrame(seq => encodeFrame({
-            seq,
-            replyToSeq: 0,
-            opcode: Opcode.FormActionReq,
-            formActionReq: {
-                interfaceId: interfaceIdRef.current,
-                action: "submit",
-                fields: modelRef.current,
-                context: {
-                    username: {kind: ValueKind.String, string: Client.activeUsername ?? "anonymous"},
-                },
             },
         }));
     }, [sendFrame]);
@@ -222,7 +198,6 @@ const UcxCreateDemo: React.FunctionComponent = () => {
                         const mount = frame.uiMount;
                         const rehydrateSnapshot = pendingRehydrateModelRef.current;
 
-                        setInterfaceId(mount.interfaceId);
                         setRoot(mount.root);
                         setModel(mount.model);
                         setModelVersion(mount.version);
@@ -247,8 +222,6 @@ const UcxCreateDemo: React.FunctionComponent = () => {
                             return next;
                         });
                         setModelVersion(frame.modelPatch.version);
-                    } else if (frame.opcode === Opcode.FormActionRes && frame.formActionRes) {
-                        setLastAction(frame.formActionRes);
                     }
                 } catch (err) {
                     setTransportError(err instanceof Error ? err.message : "Failed to decode frame");
@@ -300,13 +273,8 @@ const UcxCreateDemo: React.FunctionComponent = () => {
                         model={model}
                         sendBoundInput={sendBoundInput}
                         sendUiClick={sendUiClick}
-                        submitFormAction={submitFormAction}
                     />
                 }
-
-                {lastAction == null ? null : <Text mt="12px">
-                    {lastAction.ok ? "Form action accepted" : `Form action failed: ${lastAction.errorMessage}`}
-                </Text>}
             </Card>
         </div>}
     />;
@@ -318,8 +286,7 @@ const NodeRenderer: React.FunctionComponent<{
     scope?: Record<string, Value>;
     sendBoundInput: (node: UiNode, value: Value) => void;
     sendUiClick: (nodeId: string, value?: Value) => void;
-    submitFormAction: () => void;
-}> = ({node, model, scope, sendBoundInput, sendUiClick, submitFormAction}) => {
+}> = ({node, model, scope, sendBoundInput, sendUiClick}) => {
     switch (node.component) {
         case "flex": {
             const direction = stringProp(node, "direction", "column");
@@ -340,7 +307,6 @@ const NodeRenderer: React.FunctionComponent<{
                         scope={scope}
                         sendBoundInput={sendBoundInput}
                         sendUiClick={sendUiClick}
-                        submitFormAction={submitFormAction}
                     />
                 )}
             </div>;
@@ -433,12 +399,8 @@ const NodeRenderer: React.FunctionComponent<{
             const eventValue = eventValuePath ? modelValue(model, eventValuePath, scope) : undefined;
             return <Button
                 color={color as any}
-                style={sxStyle(node)}
                 onClick={() => {
                     sendUiClick(node.id, eventValue);
-                    if (node.id === "submitForm") {
-                        submitFormAction();
-                    }
                 }}
             >
                 {iconLeft ? <Icon name={iconLeft as any} /> : null}
@@ -468,7 +430,6 @@ const NodeRenderer: React.FunctionComponent<{
                                 scope={itemScope}
                                 sendBoundInput={sendBoundInput}
                                 sendUiClick={sendUiClick}
-                                submitFormAction={submitFormAction}
                             />
                         )}
                     </li>;

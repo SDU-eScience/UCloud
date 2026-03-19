@@ -11,13 +11,11 @@ import (
 type Opcode uint8
 
 const (
-	OpSysHello      Opcode = 0x01
-	OpUiEvent       Opcode = 0x11
-	OpUiMount       Opcode = 0x12
-	OpModelPatch    Opcode = 0x13
-	OpModelInput    Opcode = 0x14
-	OpFormActionReq Opcode = 0x30
-	OpFormActionRes Opcode = 0x31
+	OpSysHello   Opcode = 0x01
+	OpUiEvent    Opcode = 0x11
+	OpUiMount    Opcode = 0x12
+	OpModelPatch Opcode = 0x13
+	OpModelInput Opcode = 0x14
 )
 
 type Frame struct {
@@ -25,13 +23,11 @@ type Frame struct {
 	ReplyToSeq int64
 	Opcode     Opcode
 
-	SysHello      SysHello
-	UiEvent       UiEvent
-	UiMount       UiMount
-	ModelPatch    ModelPatch
-	ModelInput    ModelInput
-	FormActionReq FormActionReq
-	FormActionRes FormActionRes
+	SysHello   SysHello
+	UiEvent    UiEvent
+	UiMount    UiMount
+	ModelPatch ModelPatch
+	ModelInput ModelInput
 }
 
 type SysHello struct {
@@ -41,8 +37,6 @@ type SysHello struct {
 
 type UiMount struct {
 	// InterfaceId identifies the mounted UCX interface instance.
-	// Clients must echo this value in FormActionReq to scope actions to the
-	// currently mounted interface.
 	InterfaceId string
 	Root        UiNode
 	Version     int64
@@ -68,22 +62,6 @@ type UiEvent struct {
 	Value  Value
 }
 
-type FormActionReq struct {
-	// InterfaceId must match the interface id received in UiMount.
-	InterfaceId string
-	Action      string
-	Fields      map[string]Value
-	Context     map[string]Value
-}
-
-type FormActionRes struct {
-	Ok           bool
-	ErrorCode    string
-	ErrorMessage string
-	FieldErrors  map[string]string
-	Result       map[string]Value
-}
-
 func FrameEncode(f Frame) ([]byte, error) {
 	buf := util.NewBuffer(&bytes.Buffer{})
 	buf.WriteU8(uint8(f.Opcode))
@@ -101,10 +79,6 @@ func FrameEncode(f Frame) ([]byte, error) {
 		ModelPatchEncode(buf, f.ModelPatch)
 	case OpModelInput:
 		ModelInputEncode(buf, f.ModelInput)
-	case OpFormActionReq:
-		FormActionRequestEncode(buf, f.FormActionReq)
-	case OpFormActionRes:
-		FormActionResponseEncode(buf, f.FormActionRes)
 	default:
 		return nil, fmt.Errorf("unknown opcode: %d", f.Opcode)
 	}
@@ -134,10 +108,6 @@ func FrameDecode(data []byte) (Frame, error) {
 		result.ModelPatch = ModelPatchDecode(buf)
 	case OpModelInput:
 		result.ModelInput = ModelInputDecode(buf)
-	case OpFormActionReq:
-		result.FormActionReq = FormActionRequestDecode(buf)
-	case OpFormActionRes:
-		result.FormActionRes = FormActionResponseDecode(buf)
 	default:
 		return Frame{}, fmt.Errorf("unknown opcode: %d", op)
 	}
@@ -259,43 +229,5 @@ func UiEventDecode(buf *util.UBuffer) UiEvent {
 		NodeId: buf.ReadString(),
 		Event:  buf.ReadString(),
 		Value:  ValueDecode(buf),
-	}
-}
-
-func FormActionRequestEncode(buf *util.UBuffer, msg FormActionReq) {
-	buf.WriteString(msg.InterfaceId)
-	buf.WriteString(msg.Action)
-	ValueMapEncode(buf, msg.Fields)
-	ValueMapEncode(buf, msg.Context)
-}
-
-func FormActionRequestDecode(buf *util.UBuffer) FormActionReq {
-	return FormActionReq{
-		InterfaceId: buf.ReadString(),
-		Action:      buf.ReadString(),
-		Fields:      ValueMapDecode(buf),
-		Context:     ValueMapDecode(buf),
-	}
-}
-
-func FormActionResponseEncode(buf *util.UBuffer, msg FormActionRes) {
-	if msg.Ok {
-		buf.WriteU8(1)
-	} else {
-		buf.WriteU8(0)
-	}
-	buf.WriteString(msg.ErrorCode)
-	buf.WriteString(msg.ErrorMessage)
-	StringMapEncode(buf, msg.FieldErrors)
-	ValueMapEncode(buf, msg.Result)
-}
-
-func FormActionResponseDecode(buf *util.UBuffer) FormActionRes {
-	return FormActionRes{
-		Ok:           buf.ReadU8() != 0,
-		ErrorCode:    buf.ReadString(),
-		ErrorMessage: buf.ReadString(),
-		FieldErrors:  StringMapDecode(buf),
-		Result:       ValueMapDecode(buf),
 	}
 }

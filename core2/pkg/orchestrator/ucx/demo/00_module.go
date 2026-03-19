@@ -3,7 +3,6 @@ package demo
 import (
 	"context"
 	"fmt"
-	"maps"
 	"strconv"
 	"strings"
 
@@ -160,7 +159,7 @@ func (s *demoState) uiTree() ucx.UiNode {
 		),
 
 		ucx.TextBound("todos:error", "errors.todos").Sx(ucx.SxColor(ucx.ColorErrorMain)),
-		ucx.Button("submitForm", "Submit Form Action", ucx.ColorPrimaryMain),
+		ucx.Button("submitForm", "Submit", ucx.ColorPrimaryMain),
 		ucx.TextBound("validationMessage", "validationMessage"),
 		ucx.TextBound("lastActionMessage", "lastActionMessage"),
 		ucx.TextBound("submissionMessage", "submissionMessage").Sx(ucx.SxColor(ucx.ColorSuccessMain)),
@@ -199,13 +198,6 @@ func handleIncomingFrame(state *demoState, incoming ucx.Frame, serverSeq *int64,
 		handleUiEvent(state, incoming.UiEvent)
 		after := state.modelMap()
 		ucx.SendModelDiff(outgoing, serverSeq, incoming.Seq, state.Version, before, after)
-
-	case ucx.OpFormActionReq:
-		before := state.modelMap()
-		res := handleFormAction(state, incoming.FormActionReq)
-		after := state.modelMap()
-		ucx.SendFormActionResponse(outgoing, serverSeq, incoming.Seq, res)
-		ucx.SendModelDiff(outgoing, serverSeq, incoming.Seq, state.Version, before, after)
 	}
 }
 
@@ -241,6 +233,9 @@ func handleUiEvent(state *demoState, ev ucx.UiEvent) {
 			state.NextTodoId++
 			state.TodoDraft = ""
 		}
+		state.Errors = validateState(state)
+		state.SubmissionMessage = ""
+		state.Version++
 
 	case ev.NodeId == "removeTodo" && ev.Event == "click":
 		id := strings.TrimSpace(ucx.ValueAsString(ev.Value))
@@ -254,73 +249,26 @@ func handleUiEvent(state *demoState, ev ucx.UiEvent) {
 			}
 		}
 		state.Todos = newTodos
-	}
-
-	state.Errors = validateState(state)
-	state.SubmissionMessage = ""
-	state.Version++
-}
-
-func handleFormAction(state *demoState, req ucx.FormActionReq) ucx.FormActionRes {
-	if req.Action != "submit" {
-		state.LastActionMessage = fmt.Sprintf("Unknown action: %s", req.Action)
-		state.Version++
-		return ucx.FormActionRes{
-			Ok:           false,
-			ErrorCode:    "UNKNOWN_ACTION",
-			ErrorMessage: "Unsupported action",
-			FieldErrors:  map[string]string{},
-			Result:       map[string]ucx.Value{},
-		}
-	}
-
-	if name, ok := req.Fields["jobName"]; ok {
-		state.JobName = strings.TrimSpace(ucx.ValueAsString(name))
-	}
-	if cpu, ok := req.Fields["cpu"]; ok {
-		state.CPU = ucx.ValueAsS64(cpu)
-	}
-	if notify, ok := req.Fields["notify"]; ok {
-		state.Notify = ucx.ValueAsBool(notify)
-	}
-
-	if todos, ok := req.Fields["todos"]; ok {
-		state.Todos = todosFromValue(todos)
-		state.NextTodoId = int64(len(state.Todos) + 1)
-	}
-
-	state.Errors = validateState(state)
-	if len(state.Errors) > 0 {
+		state.Errors = validateState(state)
 		state.SubmissionMessage = ""
-		state.LastActionMessage = "Submit rejected by validation"
 		state.Version++
-		return ucx.FormActionRes{
-			Ok:           false,
-			ErrorCode:    "VALIDATION",
-			ErrorMessage: "One or more fields are invalid",
-			FieldErrors:  maps.Clone(state.Errors),
-			Result:       map[string]ucx.Value{},
+
+	case ev.NodeId == "submitForm" && ev.Event == "click":
+		state.Errors = validateState(state)
+		if len(state.Errors) > 0 {
+			state.SubmissionMessage = ""
+			state.LastActionMessage = "Submit rejected by validation"
+		} else {
+			state.SubmissionMessage = fmt.Sprintf(
+				"Submitted job '%s' with %d CPU and %d todo item(s). Notify=%t",
+				state.JobName,
+				state.CPU,
+				len(state.Todos),
+				state.Notify,
+			)
+			state.LastActionMessage = "Submit accepted"
 		}
-	}
-
-	state.SubmissionMessage = fmt.Sprintf(
-		"Submitted job '%s' with %d CPU and %d todo item(s). Notify=%t",
-		state.JobName,
-		state.CPU,
-		len(state.Todos),
-		state.Notify,
-	)
-	state.LastActionMessage = "Submit accepted"
-	state.Version++
-
-	return ucx.FormActionRes{
-		Ok:          true,
-		FieldErrors: map[string]string{},
-		Result: map[string]ucx.Value{
-			"jobId":     ucx.VString("demo-" + strings.ToLower(strings.ReplaceAll(state.JobName, " ", "-"))),
-			"todoCount": ucx.VS64(int64(len(state.Todos))),
-			"notify":    ucx.VBool(state.Notify),
-		},
+		state.Version++
 	}
 }
 

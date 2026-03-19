@@ -16,11 +16,12 @@ func RunAppRaw(ctx context.Context, handler AppHandler) {
 
 func RunAppWebSocket(conn *ws.Conn, ctx context.Context, handler AppHandler) {
 	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 
 	toWebsocket := make(chan Frame, 16)
 	fromWebsocket := make(chan Frame, 16)
 
-	done := make(chan struct{}, 2)
+	done := make(chan struct{}, 3)
 
 	go func() {
 		defer close(fromWebsocket)
@@ -39,6 +40,7 @@ func RunAppWebSocket(conn *ws.Conn, ctx context.Context, handler AppHandler) {
 
 	go func() {
 		defer close(toWebsocket)
+		defer func() { done <- struct{}{} }()
 		handler(ctx, toWebsocket, fromWebsocket)
 		cancel()
 	}()
@@ -47,6 +49,10 @@ func RunAppWebSocket(conn *ws.Conn, ctx context.Context, handler AppHandler) {
 		<-ctx.Done()
 		_ = conn.Close()
 	}()
+
+	<-done
+	<-done
+	<-done
 }
 
 func pumpFramesFromWebsocket(ctx context.Context, conn *ws.Conn, outgoing chan<- Frame) {
@@ -144,15 +150,4 @@ func SendModelDiff(outgoing chan<- Frame, serverSeq *int64, replyTo int64, versi
 	}
 	*serverSeq = *serverSeq + 1
 	outgoing <- patch
-}
-
-func SendFormActionResponse(outgoing chan<- Frame, serverSeq *int64, replyTo int64, res FormActionRes) {
-	responseFrame := Frame{
-		Seq:           *serverSeq,
-		ReplyToSeq:    replyTo,
-		Opcode:        OpFormActionRes,
-		FormActionRes: res,
-	}
-	*serverSeq = *serverSeq + 1
-	outgoing <- responseFrame
 }

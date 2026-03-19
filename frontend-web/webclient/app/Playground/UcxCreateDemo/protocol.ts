@@ -4,8 +4,6 @@ export enum Opcode {
     UiMount = 0x12,
     ModelPatch = 0x13,
     ModelInput = 0x14,
-    FormActionReq = 0x30,
-    FormActionRes = 0x31,
 }
 
 export enum ValueKind {
@@ -38,7 +36,6 @@ export interface UiNode {
 
 export interface UiMount {
     // interfaceId identifies the mounted UCX interface instance.
-    // Clients must echo this id in FormActionReq so actions are scoped to the mounted interface.
     interfaceId: string;
     root: UiNode;
     version: number;
@@ -64,21 +61,6 @@ export interface UiEvent {
     value: Value;
 }
 
-export interface FormActionReq {
-    interfaceId: string;
-    action: string;
-    fields: Record<string, Value>;
-    context: Record<string, Value>;
-}
-
-export interface FormActionRes {
-    ok: boolean;
-    errorCode: string;
-    errorMessage: string;
-    fieldErrors: Record<string, string>;
-    result: Record<string, Value>;
-}
-
 export interface Frame {
     opcode: Opcode;
     seq: number;
@@ -89,8 +71,6 @@ export interface Frame {
     uiMount?: UiMount;
     modelPatch?: ModelPatch;
     modelInput?: ModelInput;
-    formActionReq?: FormActionReq;
-    formActionRes?: FormActionRes;
 }
 
 class BinaryWriter {
@@ -212,12 +192,6 @@ export function encodeFrame(frame: Frame): Uint8Array {
         case Opcode.ModelInput:
             encodeModelInput(w, frame.modelInput!);
             break;
-        case Opcode.FormActionReq:
-            encodeFormActionReq(w, frame.formActionReq!);
-            break;
-        case Opcode.FormActionRes:
-            encodeFormActionRes(w, frame.formActionRes!);
-            break;
     }
 
     return w.toBytes();
@@ -250,12 +224,6 @@ export function decodeFrame(input: Uint8Array): Frame {
             break;
         case Opcode.ModelInput:
             frame.modelInput = decodeModelInput(r);
-            break;
-        case Opcode.FormActionReq:
-            frame.formActionReq = decodeFormActionReq(r);
-            break;
-        case Opcode.FormActionRes:
-            frame.formActionRes = decodeFormActionRes(r);
             break;
     }
 
@@ -338,35 +306,6 @@ function decodeUiEvent(r: BinaryReader): UiEvent {
     return {nodeId: r.readString(), event: r.readString(), value: decodeValue(r)};
 }
 
-function encodeFormActionReq(w: BinaryWriter, req: FormActionReq) {
-    w.writeString(req.interfaceId);
-    w.writeString(req.action);
-    writeValueMap(w, req.fields);
-    writeValueMap(w, req.context);
-}
-
-function decodeFormActionReq(r: BinaryReader): FormActionReq {
-    return {interfaceId: r.readString(), action: r.readString(), fields: readValueMap(r), context: readValueMap(r)};
-}
-
-function encodeFormActionRes(w: BinaryWriter, res: FormActionRes) {
-    w.writeU8(res.ok ? 1 : 0);
-    w.writeString(res.errorCode);
-    w.writeString(res.errorMessage);
-    writeStringMap(w, res.fieldErrors);
-    writeValueMap(w, res.result);
-}
-
-function decodeFormActionRes(r: BinaryReader): FormActionRes {
-    return {
-        ok: r.readU8() !== 0,
-        errorCode: r.readString(),
-        errorMessage: r.readString(),
-        fieldErrors: readStringMap(r),
-        result: readValueMap(r),
-    };
-}
-
 function encodeValue(w: BinaryWriter, value: Value) {
     w.writeU8(value.kind);
     switch (value.kind) {
@@ -418,22 +357,6 @@ function decodeValue(r: BinaryReader): Value {
         default:
             return {kind: ValueKind.Null};
     }
-}
-
-function writeStringMap(w: BinaryWriter, map: Record<string, string>) {
-    const keys = Object.keys(map).sort();
-    w.writeU32(keys.length);
-    for (const key of keys) {
-        w.writeString(key);
-        w.writeString(map[key] ?? "");
-    }
-}
-
-function readStringMap(r: BinaryReader): Record<string, string> {
-    const count = r.readU32();
-    const result: Record<string, string> = {};
-    for (let i = 0; i < count; i++) result[r.readString()] = r.readString();
-    return result;
 }
 
 function writeValueMap(w: BinaryWriter, map: Record<string, Value>) {
