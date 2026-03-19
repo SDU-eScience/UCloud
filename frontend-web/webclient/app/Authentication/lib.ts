@@ -468,7 +468,7 @@ export class HttpClient {
                     if (inSuccessRange(req.status)) {
                         resolve(JSON.parse(req.response));
                     } else {
-                        if (req.status === 401 || req.status === 400) {
+                        if ([400, 401, 403].includes(req.status)) {
                             HttpClient.clearTokens();
                             this.openBrowserLoginPage();
                         }
