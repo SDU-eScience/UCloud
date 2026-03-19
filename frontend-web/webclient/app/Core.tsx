@@ -40,6 +40,7 @@ const UserSettings = React.lazy(() => import("@/UserSettings/UserSettings"));
 const Wayf = React.lazy(() => import("@/Login/Wayf"));
 const Demo = React.lazy(() => import("@/Playground/Demo"));
 const LagTest = React.lazy(() => import("@/Playground/LagTest"));
+const UcxCreateDemo = React.lazy(() => import("@/Playground/UcxCreateDemo"));
 const Providers = React.lazy(() => import("@/Admin/Providers/Browse"));
 const CreateProvider = React.lazy(() => import("@/Admin/Providers/Save"));
 const EditProvider = React.lazy(() => import("@/Admin/Providers/Save"));
@@ -166,6 +167,7 @@ const Core = (): React.ReactNode => (
                     {!inDevEnvironment() ? null : <Route path={"/playground"} element={<Playground />} />}
                     {!inDevEnvironment() ? null : <Route path={"/playground/demo"} element={<Demo />} />}
                     {!inDevEnvironment() ? null : <Route path={"/playground/lag"} element={<LagTest />} />}
+                    {!inDevEnvironment() ? null : <Route path={"/playground/ucx-create"} element={<UcxCreateDemo />} />}
 
                     <Route path={AppRoutes.admin.userCreation()}
                         element={React.createElement(requireAuth(UserCreation))} />

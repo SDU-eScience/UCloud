@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"ucloud.dk/core/pkg/coreutil"
+	"ucloud.dk/core/pkg/orchestrator/ucx/demo"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -94,6 +95,9 @@ func Init() {
 
 	initSyncthing()
 	times["Syncthing"] = t.Mark()
+
+	demo.Init()
+	times["UcxCreateDemo"] = t.Mark()
 
 	coreutil.PrintStartupTimes("Orchestrator", times)
 }

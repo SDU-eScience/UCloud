@@ -1,0 +1,430 @@
+package demo
+
+import (
+	"fmt"
+	"maps"
+	"strconv"
+	"strings"
+
+	ws "github.com/gorilla/websocket"
+	"ucloud.dk/core/pkg/orchestrator/ucx"
+	"ucloud.dk/shared/pkg/rpc"
+	"ucloud.dk/shared/pkg/util"
+)
+
+func Init() {
+	streamCall := rpc.Call[util.Empty, util.Empty]{
+		BaseContext: "ucxCreateDemo",
+		Convention:  rpc.ConventionWebSocket,
+		Roles:       rpc.RolesPublic,
+	}
+
+	streamCall.Handler(func(info rpc.RequestInfo, request util.Empty) (util.Empty, *util.HttpError) {
+		runSession(info.WebSocket)
+		return util.Empty{}, nil
+	})
+}
+
+type todoItem struct {
+	Id   string
+	Text string
+}
+
+type demoState struct {
+	InterfaceId       string `ucx:"-"`
+	Title             string `ucx:"-"`
+	JobName           string
+	CPU               int64
+	Notify            bool
+	TodoDraft         string
+	Todos             []todoItem
+	Errors            map[string]string
+	SubmissionMessage string
+	LastActionMessage string
+	ValidationMessage string
+	TodoHeader        string
+	Version           int64 `ucx:"-"`
+	NextTodoId        int64 `ucx:"-"`
+}
+
+func newDemoState() *demoState {
+	return &demoState{
+		InterfaceId: "job-create-demo",
+		Title:       "UCX Create Prototype",
+		JobName:     "",
+		CPU:         4,
+		Notify:      true,
+		TodoDraft:   "",
+		Todos:       []todoItem{},
+		Errors:      map[string]string{},
+		Version:     1,
+		NextTodoId:  1,
+	}
+}
+
+func (s *demoState) uiMount() ucx.UiMount {
+	return ucx.UiMount{
+		InterfaceId: s.InterfaceId,
+		Root:        s.uiTree(),
+		Version:     s.Version,
+		Model:       s.modelMap(),
+	}
+}
+
+func (s *demoState) uiTree() ucx.UiNode {
+	return ucx.Flex("root", ucx.FlexProps{
+		Direction: "column",
+		Gap:       8,
+	}).Sx(ucx.SxP(4)).Children(
+		ucx.Flex("titleRow", ucx.FlexProps{Direction: "row", Gap: 8}).Sx(ucx.SxAlignItemsCenter).Children(
+			ucx.Icon("titleIcon", ucx.IconHeroCake, ucx.ColorPrimaryMain, 20),
+			ucx.H2("title", s.Title).Sx(ucx.SxColor(ucx.ColorPrimaryMain)),
+		),
+		ucx.Text("subtitle", "UI layout is mounted once and state streams in").Sx(ucx.SxColor(ucx.ColorTextSecondary)),
+
+		ucx.InputText("jobName", "Job name", "Name your job", "jobName"),
+		ucx.TextBound("jobName:error", "errors.jobName").Sx(ucx.SxColor(ucx.ColorErrorMain)),
+
+		ucx.InputNumber("cpu", "CPU", "cpu", 1, 128),
+		ucx.TextBound("cpu:error", "errors.cpu").Sx(ucx.SxColor(ucx.ColorErrorMain)),
+
+		ucx.Checkbox("notify", "Notify me when the job starts", "notify", true),
+
+		ucx.Flex(
+			"todoSection",
+			ucx.FlexProps{
+				Direction: "column",
+				Gap:       6,
+			},
+		).Children(
+			ucx.HeadingBound("todoHeader", "todoHeader", 4),
+			ucx.Flex(
+				"todoInputRow",
+				ucx.FlexProps{Gap: 8},
+			).Children(
+				ucx.InputText("todoDraft", "New todo", "Add task", "todoDraft"),
+				ucx.ButtonEx("addTodo", "Add", ucx.ColorSecondaryMain, ucx.IconHeroPlus, "", ""),
+			),
+		),
+
+		ucx.List(
+			"todoList",
+			"todos",
+			"No items yet.",
+		).Sx(
+			ucx.SxMt(4),
+		).Children(
+			ucx.Flex(
+				"todoItemRow",
+				ucx.FlexProps{Gap: 8},
+			).Sx(
+				ucx.SxAlignItemsCenter,
+				ucx.SxJustifySpaceBetween,
+			).Children(
+				ucx.TextBound("todoItemText", "./text"),
+				ucx.ButtonEx("removeTodo", "Remove", ucx.ColorErrorMain, ucx.IconHeroTrash, "", "./id"),
+			),
+		),
+
+		ucx.TextBound("todos:error", "errors.todos").Sx(ucx.SxColor(ucx.ColorErrorMain)),
+		ucx.Button("submitForm", "Submit Form Action", ucx.ColorPrimaryMain),
+		ucx.TextBound("validationMessage", "validationMessage"),
+		ucx.TextBound("lastActionMessage", "lastActionMessage"),
+		ucx.TextBound("submissionMessage", "submissionMessage").Sx(ucx.SxColor(ucx.ColorSuccessMain)),
+	)
+}
+
+func (s *demoState) modelMap() map[string]ucx.Value {
+	validationMessage := "Fill out the form and add at least one todo item, then submit."
+	if len(s.Errors) == 0 {
+		validationMessage = "No validation errors."
+	}
+	s.ValidationMessage = validationMessage
+	s.TodoHeader = fmt.Sprintf("Todo List (%d)", len(s.Todos))
+
+	result, err := ucx.StructToModel(*s)
+	if err != nil {
+		return map[string]ucx.Value{}
+	}
+
+	return result
+}
+
+func runSession(conn *ws.Conn) {
+	defer util.SilentClose(conn)
+
+	state := newDemoState()
+	serverSeq := int64(1)
+	hasMounted := false
+
+	for {
+		messageType, rawMessage, err := conn.ReadMessage()
+		if err != nil {
+			return
+		}
+		if messageType != ws.BinaryMessage {
+			continue
+		}
+
+		incoming, err := ucx.FrameDecode(rawMessage)
+		if err != nil {
+			continue
+		}
+
+		if !hasMounted && incoming.Opcode == ucx.OpSysHello {
+			sendUiMount(conn, &serverSeq, incoming.Seq, state)
+			hasMounted = true
+			continue
+		}
+
+		if !hasMounted {
+			continue
+		}
+
+		handleIncomingFrame(state, incoming, &serverSeq, conn)
+	}
+}
+
+func handleIncomingFrame(state *demoState, incoming ucx.Frame, serverSeq *int64, conn *ws.Conn) {
+	switch incoming.Opcode {
+	case ucx.OpSysHello:
+		sendUiMount(conn, serverSeq, incoming.Seq, state)
+
+	case ucx.OpModelInput:
+		before := state.modelMap()
+		handleModelInput(state, incoming.ModelInput)
+		after := state.modelMap()
+		sendModelDiff(conn, serverSeq, incoming.Seq, state, before, after)
+
+	case ucx.OpUiEvent:
+		before := state.modelMap()
+		handleUiEvent(state, incoming.UiEvent)
+		after := state.modelMap()
+		sendModelDiff(conn, serverSeq, incoming.Seq, state, before, after)
+
+	case ucx.OpFormActionReq:
+		before := state.modelMap()
+		res := handleFormAction(state, incoming.FormActionReq)
+		after := state.modelMap()
+		sendFormActionResponse(conn, serverSeq, incoming.Seq, res)
+		sendModelDiff(conn, serverSeq, incoming.Seq, state, before, after)
+	}
+}
+
+func handleModelInput(state *demoState, input ucx.ModelInput) {
+	switch input.Path {
+	case "jobName":
+		state.JobName = strings.TrimSpace(ucx.ValueAsString(input.Value))
+	case "cpu":
+		state.CPU = ucx.ValueAsS64(input.Value)
+	case "notify":
+		state.Notify = ucx.ValueAsBool(input.Value)
+	case "todoDraft":
+		state.TodoDraft = ucx.ValueAsString(input.Value)
+	case "todos":
+		state.Todos = todosFromValue(input.Value)
+		state.NextTodoId = int64(len(state.Todos) + 1)
+	}
+
+	state.Errors = validateState(state)
+	state.SubmissionMessage = ""
+	state.Version++
+}
+
+func handleUiEvent(state *demoState, ev ucx.UiEvent) {
+	switch {
+	case ev.NodeId == "addTodo" && ev.Event == "click":
+		draft := strings.TrimSpace(state.TodoDraft)
+		if draft != "" {
+			state.Todos = append(state.Todos, todoItem{
+				Id:   strconv.FormatInt(state.NextTodoId, 10),
+				Text: draft,
+			})
+			state.NextTodoId++
+			state.TodoDraft = ""
+		}
+
+	case ev.NodeId == "removeTodo" && ev.Event == "click":
+		id := strings.TrimSpace(ucx.ValueAsString(ev.Value))
+		if id == "" {
+			break
+		}
+		newTodos := make([]todoItem, 0, len(state.Todos))
+		for _, it := range state.Todos {
+			if it.Id != id {
+				newTodos = append(newTodos, it)
+			}
+		}
+		state.Todos = newTodos
+	}
+
+	state.Errors = validateState(state)
+	state.SubmissionMessage = ""
+	state.Version++
+}
+
+func handleFormAction(state *demoState, req ucx.FormActionReq) ucx.FormActionRes {
+	if req.Action != "submit" {
+		state.LastActionMessage = fmt.Sprintf("Unknown action: %s", req.Action)
+		state.Version++
+		return ucx.FormActionRes{
+			Ok:           false,
+			ErrorCode:    "UNKNOWN_ACTION",
+			ErrorMessage: "Unsupported action",
+			FieldErrors:  map[string]string{},
+			Result:       map[string]ucx.Value{},
+		}
+	}
+
+	if name, ok := req.Fields["jobName"]; ok {
+		state.JobName = strings.TrimSpace(ucx.ValueAsString(name))
+	}
+	if cpu, ok := req.Fields["cpu"]; ok {
+		state.CPU = ucx.ValueAsS64(cpu)
+	}
+	if notify, ok := req.Fields["notify"]; ok {
+		state.Notify = ucx.ValueAsBool(notify)
+	}
+
+	if todos, ok := req.Fields["todos"]; ok {
+		state.Todos = todosFromValue(todos)
+		state.NextTodoId = int64(len(state.Todos) + 1)
+	}
+
+	state.Errors = validateState(state)
+	if len(state.Errors) > 0 {
+		state.SubmissionMessage = ""
+		state.LastActionMessage = "Submit rejected by validation"
+		state.Version++
+		return ucx.FormActionRes{
+			Ok:           false,
+			ErrorCode:    "VALIDATION",
+			ErrorMessage: "One or more fields are invalid",
+			FieldErrors:  maps.Clone(state.Errors),
+			Result:       map[string]ucx.Value{},
+		}
+	}
+
+	state.SubmissionMessage = fmt.Sprintf(
+		"Submitted job '%s' with %d CPU and %d todo item(s). Notify=%t",
+		state.JobName,
+		state.CPU,
+		len(state.Todos),
+		state.Notify,
+	)
+	state.LastActionMessage = "Submit accepted"
+	state.Version++
+
+	return ucx.FormActionRes{
+		Ok:          true,
+		FieldErrors: map[string]string{},
+		Result: map[string]ucx.Value{
+			"jobId":     ucx.VString("demo-" + strings.ToLower(strings.ReplaceAll(state.JobName, " ", "-"))),
+			"todoCount": ucx.VS64(int64(len(state.Todos))),
+			"notify":    ucx.VBool(state.Notify),
+		},
+	}
+}
+
+func validateState(state *demoState) map[string]string {
+	errors := map[string]string{}
+	if len(strings.TrimSpace(state.JobName)) < 3 {
+		errors["jobName"] = "Job name must be at least 3 characters"
+	}
+	if state.CPU < 1 || state.CPU > 128 {
+		errors["cpu"] = "CPU must be between 1 and 128"
+	}
+	if len(state.Todos) == 0 {
+		errors["todos"] = "Add at least one todo item"
+	}
+	return errors
+}
+
+func todosFromValue(v ucx.Value) []todoItem {
+	if v.Kind != ucx.ValueList {
+		return []todoItem{}
+	}
+
+	out := make([]todoItem, 0, len(v.List))
+	for idx, item := range v.List {
+		if item.Kind != ucx.ValueObject {
+			continue
+		}
+
+		text := strings.TrimSpace(ucx.ValueAsString(item.Object["text"]))
+		if text == "" {
+			continue
+		}
+
+		id := strings.TrimSpace(ucx.ValueAsString(item.Object["id"]))
+		if id == "" {
+			id = strconv.Itoa(idx + 1)
+		}
+
+		out = append(out, todoItem{Id: id, Text: text})
+	}
+
+	return out
+}
+
+func sendUiMount(conn *ws.Conn, serverSeq *int64, replyTo int64, state *demoState) {
+	mount := ucx.Frame{
+		Seq:        *serverSeq,
+		ReplyToSeq: replyTo,
+		Opcode:     ucx.OpUiMount,
+		UiMount:    state.uiMount(),
+	}
+	*serverSeq = *serverSeq + 1
+	sendBinaryFrame(conn, mount)
+}
+
+func sendModelDiff(conn *ws.Conn, serverSeq *int64, replyTo int64, state *demoState, before map[string]ucx.Value, after map[string]ucx.Value) {
+	changes := map[string]ucx.Value{}
+	for key, afterVal := range after {
+		beforeVal, ok := before[key]
+		if !ok || !ucx.ValuesEqual(beforeVal, afterVal) {
+			changes[key] = afterVal
+		}
+	}
+
+	for key := range before {
+		if _, ok := after[key]; !ok {
+			changes[key] = ucx.VNull()
+		}
+	}
+
+	if len(changes) == 0 {
+		return
+	}
+
+	patch := ucx.Frame{
+		Seq:        *serverSeq,
+		ReplyToSeq: replyTo,
+		Opcode:     ucx.OpModelPatch,
+		ModelPatch: ucx.ModelPatch{
+			Version: state.Version,
+			Changes: changes,
+		},
+	}
+	*serverSeq = *serverSeq + 1
+	sendBinaryFrame(conn, patch)
+}
+
+func sendFormActionResponse(conn *ws.Conn, serverSeq *int64, replyTo int64, res ucx.FormActionRes) {
+	responseFrame := ucx.Frame{
+		Seq:           *serverSeq,
+		ReplyToSeq:    replyTo,
+		Opcode:        ucx.OpFormActionRes,
+		FormActionRes: res,
+	}
+	*serverSeq = *serverSeq + 1
+	sendBinaryFrame(conn, responseFrame)
+}
+
+func sendBinaryFrame(conn *ws.Conn, msg ucx.Frame) {
+	frameBytes, err := ucx.FrameEncode(msg)
+	if err != nil {
+		return
+	}
+	_ = conn.WriteMessage(ws.BinaryMessage, frameBytes)
+}
