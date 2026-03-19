@@ -3,6 +3,7 @@ package demo
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strconv"
 	"strings"
 	"sync"
@@ -14,52 +15,89 @@ import (
 )
 
 func Init() {
+	upstreamServer := &rpc.Server{
+		Mux: http.NewServeMux(),
+	}
+
 	streamCall := rpc.Call[util.Empty, util.Empty]{
 		BaseContext: "ucxCreateDemo",
 		Convention:  rpc.ConventionWebSocket,
 		Roles:       rpc.RolesPublic,
 	}
 
-	streamCall.Handler(func(info rpc.RequestInfo, request util.Empty) (util.Empty, *util.HttpError) {
-		conn := info.WebSocket
+	streamCall.HandlerEx(upstreamServer, func(info rpc.RequestInfo, request util.Empty) (util.Empty, *util.HttpError) {
+		return runDemoSession(info)
+	})
 
-		defer util.SilentClose(conn)
+	go func() {
+		s := &http.Server{
+			Addr:    fmt.Sprintf(":%v", 32912),
+			Handler: upstreamServer.Mux,
+		}
+		_ = s.ListenAndServe()
+	}()
+
+	streamCall.Handler(func(info rpc.RequestInfo, request util.Empty) (util.Empty, *util.HttpError) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		state := newDemoState()
-		stateMu := sync.Mutex{}
-		hasMounted := false
-
-		ucx.RunAppWebSocket(conn, ctx, func(ctx context.Context, session *ucx.Session) {
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				case frame, ok := <-session.Incoming():
-					if !ok {
-						return
-					}
-
-					if !hasMounted && frame.Opcode == ucx.OpSysHello {
-						stateMu.Lock()
-						mount := state.uiMount()
-						stateMu.Unlock()
-						session.SendUiMount(frame.Seq, mount)
-						hasMounted = true
-						continue
-					}
-
-					if !hasMounted {
-						continue
-					}
-
-					handleIncomingFrame(ctx, &stateMu, state, frame, session)
-				}
-			}
+		proxyServer := ucx.NewProxy("ws://127.0.0.1:32912/api/ucxCreateDemo")
+		PingRpc.HandlerProxy(proxyServer, func(ctx context.Context, request PingRpcRequest) (PingRpcResponse, error) {
+			return PingRpcResponse{
+				Ok:   true,
+				From: "proxy",
+				Echo: fmt.Sprintf("Hello from proxy. You said: %s", request.Message),
+			}, nil
 		})
+
+		err := proxyServer.Run(ctx, info.WebSocket)
+		if err != nil {
+			return util.Empty{}, util.HttpErr(http.StatusBadGateway, "%s", err.Error())
+		}
+
 		return util.Empty{}, nil
 	})
+}
+
+func runDemoSession(info rpc.RequestInfo) (util.Empty, *util.HttpError) {
+	conn := info.WebSocket
+
+	defer util.SilentClose(conn)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	state := newDemoState()
+	stateMu := sync.Mutex{}
+	hasMounted := false
+
+	ucx.RunAppWebSocket(conn, ctx, func(ctx context.Context, session *ucx.Session) {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case frame, ok := <-session.Incoming():
+				if !ok {
+					return
+				}
+
+				if !hasMounted && frame.Opcode == ucx.OpSysHello {
+					stateMu.Lock()
+					mount := state.uiMount()
+					stateMu.Unlock()
+					session.SendUiMount(frame.Seq, mount)
+					hasMounted = true
+					continue
+				}
+
+				if !hasMounted {
+					continue
+				}
+
+				handleIncomingFrame(ctx, &stateMu, state, frame, session)
+			}
+		}
+	})
+	return util.Empty{}, nil
 }
 
 type todoItem struct {

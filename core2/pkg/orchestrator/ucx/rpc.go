@@ -22,6 +22,30 @@ func (r *Rpc[Req, Resp]) Handler(session *Session, handler func(ctx context.Cont
 	RpcHandle(session, *r, handler)
 }
 
+func (r *Rpc[Req, Resp]) HandlerProxy(proxy *Proxy, handler func(ctx context.Context, request Req) (Resp, error)) {
+	proxy.RegisterRpcHandler(r.CallName, func(ctx context.Context, payload map[string]Value) (int, map[string]Value) {
+		var request Req
+		if err := ModelToStruct(payload, &request); err != nil {
+			return RpcStatusBadRequest, map[string]Value{"error": VString(err.Error())}
+		}
+
+		response, err := handler(ctx, request)
+		if err != nil {
+			if errors.Is(err, context.Canceled) {
+				return RpcStatusCanceled, map[string]Value{"error": VString(err.Error())}
+			}
+			return RpcStatusInternal, map[string]Value{"error": VString(err.Error())}
+		}
+
+		encoded, err := StructToModel(response)
+		if err != nil {
+			return RpcStatusInternal, map[string]Value{"error": VString(err.Error())}
+		}
+
+		return RpcStatusOk, encoded
+	})
+}
+
 const (
 	RpcStatusOk         = 0
 	RpcStatusBadRequest = 1
