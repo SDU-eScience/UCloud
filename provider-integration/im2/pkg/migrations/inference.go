@@ -35,7 +35,8 @@ func inferenceV2() db.MigrationScript {
 				    owner text not null,
 				    token_hash bytea not null,
 				    token_salt bytea not null,
-				    expires_at timestamptz not null
+				    expires_at timestamptz not null,
+				    last_used_at timestamptz not null default now()
 				)
 			    `,
 				db.Params{},

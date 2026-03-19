@@ -282,6 +282,16 @@ func inferenceApiKeyValidate(key string) (apm.WalletOwner, *util.HttpError) {
 			return "", util.HttpErr(http.StatusForbidden, "invalid key").AsError()
 		}
 
+		db.NewTx0(func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`update inference_api_keys set last_used_at = now() where token_id = :token_id`,
+				db.Params{
+					"token_id": tokenId,
+				},
+			)
+		})
+
 		if !ok {
 			return "", util.HttpErr(http.StatusForbidden, "invalid key").AsError()
 		} else {

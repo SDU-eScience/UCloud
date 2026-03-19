@@ -135,6 +135,15 @@ func ApiTokenCreate(actor rpc.Actor, request orcapi.ApiTokenSpecification) (orca
 		tok.Status = status
 		ResourceConfirm(apiTokenType, tokId)
 
+		ResourceUpdate(rpc.ActorSystem, apiTokenType, tokId, orcapi.PermissionEdit, func(r *resource, mapped orcapi.ApiToken) {
+			itok := r.Extra.(*internalApiToken)
+			itok.Server = status.Server
+		})
+
+		if status.Server == "" {
+			log.Warn("Provider returned empty token server: provider=%s tokenId=%s", request.Provider.Value, tokId)
+		}
+
 	} else {
 		userToken = util.SecureToken()
 		hashedToken := util.HashPassword(userToken, util.GenSalt())
@@ -175,59 +184,49 @@ func ApiTokenBrowse(actor rpc.Actor, request orcapi.ApiTokenBrowseRequest) (fnda
 var ApiTokensOptionsCache = util.NewCache[string, orcapi.ApiTokenOptions](5 * time.Minute)
 
 func ApiTokenRetrieveOptions(actor rpc.Actor) orcapi.ApiTokenRetrieveOptionsResponse {
-	if util.DevelopmentModeEnabled() {
-		providers, err := accapi.FindRelevantProviders.Invoke(fndapi.BulkRequestOf(accapi.FindRelevantProvidersRequest{
-			Username:         actor.Username,
-			IncludeFreeToUse: util.OptValue(false),
-			UseProject:       false,
-		}))
+	providers, err := accapi.FindRelevantProviders.Invoke(fndapi.BulkRequestOf(accapi.FindRelevantProvidersRequest{
+		Username:         actor.Username,
+		IncludeFreeToUse: util.OptValue(false),
+		UseProject:       false,
+	}))
 
-		optionsByProvider := map[string]orcapi.ApiTokenOptions{}
-		if err == nil {
-			for _, providerId := range providers.Responses[0].Providers {
-				if providerId == "" {
-					continue
-				}
-
-				options, ok := ApiTokensOptionsCache.Get(providerId, func() (orcapi.ApiTokenOptions, error) {
-					resp, err := InvokeProvider(
-						providerId,
-						orcapi.ApiTokenProviderRetrieveOptions,
-						util.Empty{},
-						ProviderCallOpts{
-							Username: util.OptValue(actor.Username),
-							Reason:   util.OptValue("Retrieving API token options"),
-						},
-					)
-					if err != nil {
-						return orcapi.ApiTokenOptions{}, err.AsError()
-					} else {
-						return resp, nil
-					}
-				})
-
-				if !ok {
-					log.Warn("No API Token options found for provider %s", providerId)
-					continue
-				}
-
-				options.AvailablePermissions = util.NonNilSlice(options.AvailablePermissions)
-				optionsByProvider[providerId] = options
+	optionsByProvider := map[string]orcapi.ApiTokenOptions{}
+	if err == nil {
+		for _, providerId := range providers.Responses[0].Providers {
+			if providerId == "" {
+				continue
 			}
-		}
 
-		optionsByProvider[""] = orcapi.ApiTokenOptions{}
+			options, ok := ApiTokensOptionsCache.Get(providerId, func() (orcapi.ApiTokenOptions, error) {
+				resp, err := InvokeProvider(
+					providerId,
+					orcapi.ApiTokenProviderRetrieveOptions,
+					util.Empty{},
+					ProviderCallOpts{
+						Username: util.OptValue(actor.Username),
+						Reason:   util.OptValue("Retrieving API token options"),
+					},
+				)
+				if err != nil {
+					return orcapi.ApiTokenOptions{}, err.AsError()
+				} else {
+					return resp, nil
+				}
+			})
 
-		return orcapi.ApiTokenRetrieveOptionsResponse{ByProvider: optionsByProvider}
-	} else {
-		return orcapi.ApiTokenRetrieveOptionsResponse{
-			ByProvider: map[string]orcapi.ApiTokenOptions{
-				"": {
-					AvailablePermissions: []orcapi.ApiTokenPermissionSpecification{},
-				},
-			},
+			if !ok {
+				log.Warn("No API Token options found for provider %s", providerId)
+				continue
+			}
+
+			options.AvailablePermissions = util.NonNilSlice(options.AvailablePermissions)
+			optionsByProvider[providerId] = options
 		}
 	}
+
+	optionsByProvider[""] = orcapi.ApiTokenOptions{}
+
+	return orcapi.ApiTokenRetrieveOptionsResponse{ByProvider: optionsByProvider}
 }
 
 func ApiTokenRevoke(actor rpc.Actor, id ResourceId) *util.HttpError {
@@ -276,6 +275,7 @@ type internalApiToken struct {
 	ExpiresAt   time.Time
 	TokenHash   []byte
 	TokenSalt   []byte
+	Server      string
 }
 
 // =====================================================================================================================
@@ -286,6 +286,7 @@ func apiTokensLoad(tx *db.Transaction, ids []int64, resources map[ResourceId]*re
 		Title       string
 		Description string
 		Provider    sql.Null[string]
+		Server      sql.Null[string]
 		Permissions string
 		TokenHash   sql.Null[[]byte]
 		TokenSalt   sql.Null[[]byte]
@@ -293,7 +294,7 @@ func apiTokensLoad(tx *db.Transaction, ids []int64, resources map[ResourceId]*re
 	}](
 		tx,
 		`
-			select resource, title, description, provider, permissions, token_hash, token_salt, expires_at
+			select resource, title, description, provider, server, permissions, token_hash, token_salt, expires_at
 			from provider.api_tokens
 			where resource = some(:ids::int8[])
 	    `,
@@ -310,6 +311,7 @@ func apiTokensLoad(tx *db.Transaction, ids []int64, resources map[ResourceId]*re
 			Provider:    util.SqlNullToOpt(row.Provider),
 			Title:       row.Title,
 			Description: row.Description,
+			Server:      util.SqlNullToOpt(row.Server).GetOrDefault(""),
 			Permissions: permissions,
 			ExpiresAt:   row.ExpiresAt,
 			TokenHash:   util.SqlNullToOpt(row.TokenHash).GetOrDefault(nil),
@@ -333,7 +335,7 @@ func apiTokensTransform(
 	if !tok.Provider.Present {
 		server = cfg.Configuration.SelfPublic.ToURL()
 	} else {
-		// TODO
+		server = tok.Server
 	}
 
 	return orcapi.ApiToken{
@@ -375,8 +377,17 @@ func apiTokensPersist(b *db.Batch, r *resource) {
 		db.BatchExec(
 			b,
 			`
-				insert into provider.api_tokens(resource, title, description, provider, permissions, token_hash, token_salt, expires_at) 
-				values (:resource, :title, :description, :provider, :permissions, :token_hash, :token_salt, :expires_at)
+				insert into provider.api_tokens(resource, title, description, provider, permissions, token_hash, token_salt, expires_at, server) 
+				values (:resource, :title, :description, :provider, :permissions, :token_hash, :token_salt, :expires_at, :server)
+				on conflict (resource) do update set 
+					title = excluded.title,
+					description = excluded.description,
+					provider = excluded.provider,
+					permissions = excluded.permissions,
+					token_hash = excluded.token_hash,
+					token_salt = excluded.token_salt,
+					expires_at = excluded.expires_at,
+					server = excluded.server
 		    `,
 			db.Params{
 				"resource":    r.Id,
@@ -387,6 +398,7 @@ func apiTokensPersist(b *db.Batch, r *resource) {
 				"token_hash":  tokHash.Sql(),
 				"token_salt":  tokSalt.Sql(),
 				"expires_at":  tok.ExpiresAt,
+				"server":      tok.Server,
 			},
 		)
 	}
