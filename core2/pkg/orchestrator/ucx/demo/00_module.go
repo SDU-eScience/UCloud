@@ -1,12 +1,12 @@
 package demo
 
 import (
+	"context"
 	"fmt"
 	"maps"
 	"strconv"
 	"strings"
 
-	ws "github.com/gorilla/websocket"
 	"ucloud.dk/core/pkg/orchestrator/ucx"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
@@ -20,7 +20,40 @@ func Init() {
 	}
 
 	streamCall.Handler(func(info rpc.RequestInfo, request util.Empty) (util.Empty, *util.HttpError) {
-		runSession(info.WebSocket)
+		conn := info.WebSocket
+
+		defer util.SilentClose(conn)
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		state := newDemoState()
+		serverSeq := int64(1)
+		hasMounted := false
+
+		ucx.RunAppWebSocket(conn, ctx, func(ctx context.Context, incoming chan ucx.Frame, outgoing <-chan ucx.Frame) {
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case frame, ok := <-outgoing:
+					if !ok {
+						return
+					}
+
+					if !hasMounted && frame.Opcode == ucx.OpSysHello {
+						ucx.SendUiMount(incoming, &serverSeq, frame.Seq, state.uiMount())
+						hasMounted = true
+						continue
+					}
+
+					if !hasMounted {
+						continue
+					}
+
+					handleIncomingFrame(state, frame, &serverSeq, incoming)
+				}
+			}
+		})
 		return util.Empty{}, nil
 	})
 }
@@ -150,64 +183,29 @@ func (s *demoState) modelMap() map[string]ucx.Value {
 	return result
 }
 
-func runSession(conn *ws.Conn) {
-	defer util.SilentClose(conn)
-
-	state := newDemoState()
-	serverSeq := int64(1)
-	hasMounted := false
-
-	for {
-		messageType, rawMessage, err := conn.ReadMessage()
-		if err != nil {
-			return
-		}
-		if messageType != ws.BinaryMessage {
-			continue
-		}
-
-		incoming, err := ucx.FrameDecode(rawMessage)
-		if err != nil {
-			continue
-		}
-
-		if !hasMounted && incoming.Opcode == ucx.OpSysHello {
-			sendUiMount(conn, &serverSeq, incoming.Seq, state)
-			hasMounted = true
-			continue
-		}
-
-		if !hasMounted {
-			continue
-		}
-
-		handleIncomingFrame(state, incoming, &serverSeq, conn)
-	}
-}
-
-func handleIncomingFrame(state *demoState, incoming ucx.Frame, serverSeq *int64, conn *ws.Conn) {
+func handleIncomingFrame(state *demoState, incoming ucx.Frame, serverSeq *int64, outgoing chan<- ucx.Frame) {
 	switch incoming.Opcode {
 	case ucx.OpSysHello:
-		sendUiMount(conn, serverSeq, incoming.Seq, state)
+		ucx.SendUiMount(outgoing, serverSeq, incoming.Seq, state.uiMount())
 
 	case ucx.OpModelInput:
 		before := state.modelMap()
 		handleModelInput(state, incoming.ModelInput)
 		after := state.modelMap()
-		sendModelDiff(conn, serverSeq, incoming.Seq, state, before, after)
+		ucx.SendModelDiff(outgoing, serverSeq, incoming.Seq, state.Version, before, after)
 
 	case ucx.OpUiEvent:
 		before := state.modelMap()
 		handleUiEvent(state, incoming.UiEvent)
 		after := state.modelMap()
-		sendModelDiff(conn, serverSeq, incoming.Seq, state, before, after)
+		ucx.SendModelDiff(outgoing, serverSeq, incoming.Seq, state.Version, before, after)
 
 	case ucx.OpFormActionReq:
 		before := state.modelMap()
 		res := handleFormAction(state, incoming.FormActionReq)
 		after := state.modelMap()
-		sendFormActionResponse(conn, serverSeq, incoming.Seq, res)
-		sendModelDiff(conn, serverSeq, incoming.Seq, state, before, after)
+		ucx.SendFormActionResponse(outgoing, serverSeq, incoming.Seq, res)
+		ucx.SendModelDiff(outgoing, serverSeq, incoming.Seq, state.Version, before, after)
 	}
 }
 
@@ -365,66 +363,4 @@ func todosFromValue(v ucx.Value) []todoItem {
 	}
 
 	return out
-}
-
-func sendUiMount(conn *ws.Conn, serverSeq *int64, replyTo int64, state *demoState) {
-	mount := ucx.Frame{
-		Seq:        *serverSeq,
-		ReplyToSeq: replyTo,
-		Opcode:     ucx.OpUiMount,
-		UiMount:    state.uiMount(),
-	}
-	*serverSeq = *serverSeq + 1
-	sendBinaryFrame(conn, mount)
-}
-
-func sendModelDiff(conn *ws.Conn, serverSeq *int64, replyTo int64, state *demoState, before map[string]ucx.Value, after map[string]ucx.Value) {
-	changes := map[string]ucx.Value{}
-	for key, afterVal := range after {
-		beforeVal, ok := before[key]
-		if !ok || !ucx.ValuesEqual(beforeVal, afterVal) {
-			changes[key] = afterVal
-		}
-	}
-
-	for key := range before {
-		if _, ok := after[key]; !ok {
-			changes[key] = ucx.VNull()
-		}
-	}
-
-	if len(changes) == 0 {
-		return
-	}
-
-	patch := ucx.Frame{
-		Seq:        *serverSeq,
-		ReplyToSeq: replyTo,
-		Opcode:     ucx.OpModelPatch,
-		ModelPatch: ucx.ModelPatch{
-			Version: state.Version,
-			Changes: changes,
-		},
-	}
-	*serverSeq = *serverSeq + 1
-	sendBinaryFrame(conn, patch)
-}
-
-func sendFormActionResponse(conn *ws.Conn, serverSeq *int64, replyTo int64, res ucx.FormActionRes) {
-	responseFrame := ucx.Frame{
-		Seq:           *serverSeq,
-		ReplyToSeq:    replyTo,
-		Opcode:        ucx.OpFormActionRes,
-		FormActionRes: res,
-	}
-	*serverSeq = *serverSeq + 1
-	sendBinaryFrame(conn, responseFrame)
-}
-
-func sendBinaryFrame(conn *ws.Conn, msg ucx.Frame) {
-	frameBytes, err := ucx.FrameEncode(msg)
-	if err != nil {
-		return
-	}
-	_ = conn.WriteMessage(ws.BinaryMessage, frameBytes)
 }
