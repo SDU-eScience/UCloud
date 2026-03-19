@@ -208,7 +208,7 @@ export function ChangeOrganizationDetails(props: ChangeOrganizationDetailsProps)
         (async () => {
             const info = await callAPI<OptionalInfo>(optionalInfoRequest());
 
-            if (info.organizationFullName && orgFullNameRef.current) {
+            if ((info.organizationFullName || Client.orgId) && orgFullNameRef.current) {
                 const orgId = Client.orgId ? Client.orgId : info.organizationFullName;
                 const orgMapping = orgId ? (OrgMapping[orgId] ?? orgId) : undefined;
                 setOrg(orgMapping ?? "");
