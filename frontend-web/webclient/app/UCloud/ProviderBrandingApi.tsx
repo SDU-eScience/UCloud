@@ -5,13 +5,8 @@ export interface ProviderBrandingSection {
     image?: string
 }
 
-export interface ProviderBrandingCategory {
-    name: string
-    provider: string
-}
-
 export interface ProviderBrandingProductDescription {
-    category: ProviderBrandingCategory
+    category: string
     shortDescription: string
     section: ProviderBrandingSection
 }

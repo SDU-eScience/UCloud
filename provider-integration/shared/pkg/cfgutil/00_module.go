@@ -3,12 +3,13 @@ package cfgutil
 import (
 	"errors"
 	"fmt"
-	"gopkg.in/yaml.v3"
 	"os"
 	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -304,6 +305,7 @@ const (
 	FileCheckWrite FileCheckFlags = 1 << 1
 
 	FileCheckReadWrite = FileCheckRead | FileCheckWrite
+	FileReadContent    = 1 << 2 // Will read the files content.
 )
 
 func RequireChildFile(filePath string, node *yaml.Node, child string, flags FileCheckFlags, success *bool) string {
@@ -317,6 +319,24 @@ func RequireChildFile(filePath string, node *yaml.Node, child string, flags File
 		ReportError(filePath, node, "Expected this value to point to a valid regular file, but %v is not a regular file!", text)
 		*success = false
 		return ""
+	}
+
+	if flags&FileReadContent != 0 {
+		data, err := os.ReadFile(text)
+		if err != nil {
+			ReportError(
+				filePath,
+				node,
+				"Expected '%v' to able to read file content [UID=%v GID=%v] (%v).",
+				text,
+				os.Getuid(),
+				os.Getgid(),
+				err.Error(),
+			)
+			*success = false
+			return ""
+		}
+		return string(data)
 	}
 
 	if flags&FileCheckRead != 0 {
