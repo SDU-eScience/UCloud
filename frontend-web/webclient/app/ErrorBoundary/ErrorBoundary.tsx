@@ -76,10 +76,10 @@ export class ErrorBoundary extends React.Component<{children: React.ReactNode}, 
 
     private submitError = async (): Promise<void> => {
         const {error, errorInfo} = this.state;
-        const textAreaContent = this.ref.current ? this.ref.current.value : "None";
+        const textAreaContent = this.ref.current?.value ? this.ref.current.value : "None";
         try {
             await Client.post("/support/ticket", {
-                message: `ERROR: ${error},\nSTACK: ${errorInfo!.componentStack},\nPathname: ${window.location},\nAdditional info: ${textAreaContent}`
+                message: `ERROR: ${error},\nERROR-STACK: ${error?.stack},\nCOMPONENT-STACK: ${errorInfo!.componentStack},\nPathname: ${window.location},\nAdditional info: ${textAreaContent}`
             });
         } catch (e) {
             sendFailureNotification(errorMessageOrDefault(e, `Failed to submit.${navigator.onLine ? "" : " You are offline."}`));
