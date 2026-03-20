@@ -9,6 +9,7 @@ import {AvatarForUser} from "@/AvataaarLib/UserAvatar";
 import {copyToClipboard} from "@/UtilityFunctions";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {MultiLineTruncateClass} from "@/Applications/Card";
+import {markAsRead} from ".";
 
 export interface NotificationProps {
     icon: IconName;
@@ -48,12 +49,17 @@ export const NotificationCard: React.FunctionComponent<NotificationProps & {
         }
     }, [props.callbackItem, props.onSnooze, props.isPinned]);
 
+    const onAction = React.useCallback(() => {
+        markAsRead([props.callbackItem.notification]);
+        props.onAction?.();
+    }, []);
+
     return <div
         className={classConcat(Style, props.exit ? "exit" : undefined)}
         style={{position: "fixed", bottom: props.bottom, right: "16px"}}
         onMouseEnter={onMouseEnterMemo}
         onMouseLeave={onMouseLeaveMemo}
-        onClick={props.onAction}
+        onClick={onAction}
     >
         <div className={DefaultHidden} data-tag="operations">
             {props.onDismiss ?
