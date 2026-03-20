@@ -4,7 +4,6 @@ import (
 	"os"
 
 	cfg "ucloud.dk/pkg/config"
-	apm "ucloud.dk/shared/pkg/accounting"
 	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/rpc"
@@ -43,7 +42,7 @@ func initProviderBranding() {
 				providerBranding.ProductDescription = append(providerBranding.ProductDescription, orcapi.ProviderBrandingProductDescription{
 					ShortDescription: prodDescription.ShortDescription,
 					Section:          orcapi.ProviderBrandingSection{Description: prodDescription.Section.Description, Image: prodDescription.Section.Image},
-					Category:         apm.ProductCategoryIdV2{Name: prodDescription.Category.Name, Provider: prodDescription.Category.Provider},
+					Category:         prodDescription.Category,
 				})
 			}
 			return providerBranding, nil
