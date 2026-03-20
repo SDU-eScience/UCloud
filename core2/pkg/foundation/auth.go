@@ -305,7 +305,7 @@ func initAuth() {
 		// Henrik: Still gives the frontend the needed info to determine if success or failed
 		for _, response := range result {
 			if response.Created == false {
-				return result, util.HttpErr(http.StatusBadRequest, response.Error)
+				return result, util.HttpErr(http.StatusBadRequest, "%s", response.Error)
 			}
 		}
 		return result, nil

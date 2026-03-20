@@ -52,8 +52,6 @@ func Init(config *cfg.ServicesConfigurationKubernetes) {
 	controller.Files = filesystem.InitFiles()
 	controller.Jobs = InitCompute()
 
-	filesystem.InitTaskSystem()
-
 	controller.IdentityManagement.HandleProjectNotification = func(updated *controller.EventProjectUpdated) bool {
 		ok := true
 		for _, member := range updated.MembersAddedToProject {
@@ -69,12 +67,11 @@ func Init(config *cfg.ServicesConfigurationKubernetes) {
 		if !update.Project.Present {
 			_, _, _ = filesystem.InitializeMemberFiles(update.Owner.Username, util.OptNone[string]())
 		}
-
-		inferenceHandleApmEvent(update)
 	}
 
 	initStorageScanCli()
 	initInference()
+	controller.ApiTokens = inferenceInitApiTokens()
 	shared.InitExecutables()
 
 	controller.ProductsRegister(shared.Machines)

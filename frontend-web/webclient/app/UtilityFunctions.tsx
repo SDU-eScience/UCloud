@@ -2,17 +2,7 @@ import {useEffect, useState} from "react";
 import CONF from "../site.config.json";
 import {UPLOAD_LOCALSTORAGE_PREFIX} from "@/Files/ChunkedFileReader";
 import {BulkRequest, BulkResponse, PageV2} from "./UCloud";
-
-// HACK(Dan): Breaks a circular dependency between the snackstore and utility functions
-let successCallback: (message: string) => void = doNothing;
-let failureCallback: (message: string) => void = doNothing;
-export function hackySetFailureCallback(callback: (message: string) => void) {
-    failureCallback = callback;
-}
-
-export function hackySetSuccessCallback(callback: (message: string) => void) {
-    successCallback = callback;
-}
+import {sendFailureNotification} from "./Notifications";
 
 /**
  * Toggles CSS classes to use dark theme.
@@ -331,7 +321,7 @@ export function defaultErrorHandler(
 
     if (request) {
         const why = extractErrorMessage(error)
-        failureCallback(why);
+        sendFailureNotification(why);
         return request.status;
     }
     return 500;
@@ -370,18 +360,12 @@ export function humanReadableNumber(
         .replace(regex, "$&" + sectionDelim);
 }
 
-interface CopyToClipboard {
-    value: string | undefined;
-    message: string;
-}
-
 /**
  * Copies a string to the users clipboard.
  * @param param contains the value to be copied and the message to show the user on success.
  */
-export async function copyToClipboard({value, message}: CopyToClipboard): Promise<void> {
-    await navigator.clipboard.writeText(value ?? "");
-    if (message) successCallback(message);
+export async function copyToClipboard(value: string): Promise<void> {
+    await navigator.clipboard.writeText(value);
 }
 
 export function errorMessageOrDefault(
@@ -390,6 +374,7 @@ export function errorMessageOrDefault(
 ): string {
     if (!navigator.onLine) return "You seem to be offline.";
     try {
+        // Note(Jonas): Should be `if (Error.isError(err))` instead, but Safari is behind on the feature
         if (err instanceof Error) return err.toString();
         if (typeof err === "string") return err;
         if ("status" in err) {
@@ -413,10 +398,15 @@ export function delay(ms: number): Promise<void> {
  * A function used to check if the DEVELOPMENT_ENV variable is set to true. Used to block features that are in progress,
  * even if the code may be deployed on production.
  */
-export const inDevEnvironment = (): boolean => DEVELOPMENT_ENV;
-export const onDevSite = (): boolean => window.location.host === CONF.DEV_SITE || window.location.hostname === "localhost"
-    || window.location.hostname === "127.0.0.1" || window.location.hostname === "ucloud.localhost.direct"
-    || window.location.hostname === "sandbox.dev.cloud.sdu.dk";
+export function inDevEnvironment(): boolean {
+    return DEVELOPMENT_ENV;
+}
+
+export function onDevSite(): boolean {
+    return window.location.host === CONF.DEV_SITE || window.location.hostname === "localhost"
+        || window.location.hostname === "127.0.0.1" || window.location.hostname === "ucloud.localhost.direct"
+        || window.location.hostname === "sandbox.dev.cloud.sdu.dk";
+}
 
 export function onSandbox() {
     return window.location.hostname === "sandbox.dev.cloud.sdu.dk" || localStorage.getItem("sandbox");
@@ -464,7 +454,7 @@ export function stopPropagationAndPreventDefault(e: {preventDefault(): void; sto
 }
 
 export function displayErrorMessageOrDefault(e: any, fallback: string): void {
-    failureCallback(errorMessageOrDefault(e, fallback));
+    sendFailureNotification(errorMessageOrDefault(e, fallback));
 }
 
 /**

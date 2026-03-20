@@ -160,6 +160,10 @@ func Launch() {
 			Role string `json:"role"`
 		}
 
+		if r.Header.Get("x-jwt-payload") == "" && strings.HasPrefix(r.RequestURI, "/api/internal/") {
+			return rpc.Actor{Role: rpc.RoleGuest}, nil
+		}
+
 		checkEnvoySecret := func(r *http.Request) bool {
 			if r.Header.Get("ucloud-secret") != cfg.OwnEnvoySecret {
 				return false

@@ -1,9 +1,9 @@
 import {Store} from "redux";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {b64DecodeUnicode, inRange, inSuccessRange, is5xxStatusCode} from "@/UtilityFunctions";
+import {b64DecodeUnicode, displayErrorMessageOrDefault, inRange, inSuccessRange, is5xxStatusCode} from "@/UtilityFunctions";
 import {setStoredProject} from "@/Project/ReduxState";
 import {CallParameters} from "./CallParameters";
 import {signIntentToCall, clearSigningKey} from "@/Authentication/MessageSigning";
+import {sendFailureNotification} from "@/Notifications";
 
 /**
  * Used to parse and validate the structure of the JWT. If the JWT is invalid, the function returns null, otherwise as
@@ -28,6 +28,8 @@ export function parseJWT(encodedJWT: string): JWT | null {
 
     return parsed;
 }
+
+let nextAllowedFailureNotificationTS = 0;
 
 /**
  * Represents an instance of the HTTPClient object used for contacting the backend, implicitly using JWTs.
@@ -215,8 +217,14 @@ export class HttpClient {
             });
         } catch (e) {
             console.warn(e);
-            if (!this.isPublicPage) snackbarStore.addFailure("Could not refresh login token.", false);
-            if ([401, 403].includes(e.status)) HttpClient.clearTokens();
+            if (!this.isPublicPage) {
+                if (nextAllowedFailureNotificationTS < new Date().getTime()) {
+                    nextAllowedFailureNotificationTS = new Date().getTime() + 1_000;
+                    sendFailureNotification("Could not refresh login token.");
+                }
+            } else if ([401, 403].includes(e.status)) {
+                HttpClient.clearTokens();
+            }
         }
     }
 
@@ -386,7 +394,7 @@ export class HttpClient {
         await this.receiveAccessTokenOrRefreshIt();
     }
 
-    public createOneTimeTokenWithPermission(permission): Promise<any> {
+    public async createOneTimeTokenWithPermission(permission: string): Promise<string> {
         return this.receiveAccessTokenOrRefreshIt()
             .then(token => {
                 const oneTimeToken = this.computeURL(this.authContext, `/request?audience=${permission}`);
@@ -460,7 +468,7 @@ export class HttpClient {
                     if (inSuccessRange(req.status)) {
                         resolve(JSON.parse(req.response));
                     } else {
-                        if (req.status === 401 || req.status === 400) {
+                        if ([400, 401, 403].includes(req.status)) {
                             HttpClient.clearTokens();
                             this.openBrowserLoginPage();
                         }
@@ -539,7 +547,7 @@ export class HttpClient {
             }
             throw Error("The server was unreachable, please try again later.");
         } catch (err) {
-            snackbarStore.addFailure(err.message, false);
+            sendFailureNotification(err.message);
         }
     }
 

@@ -10,7 +10,6 @@ import * as Heading from "@/ui-components/Heading";
 import {doNothing, inDevEnvironment} from "@/UtilityFunctions";
 import {ButtonClass} from "@/ui-components/Button";
 import {HiddenInputField} from "@/ui-components/Input";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
@@ -19,6 +18,7 @@ import {ProjectSwitcher} from "@/Project/ProjectSwitcher";
 import {fetchAll} from "@/Utilities/PageUtilities";
 import {useProjectId} from "@/Project/Api";
 import {UploadAppAndTool} from "@/Applications/Studio/Uploader";
+import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
 
 export const ApplicationGroups: React.FunctionComponent = () => {
     const projectId = useProjectId();
@@ -30,7 +30,7 @@ export const ApplicationGroups: React.FunctionComponent = () => {
     const filterRef = React.useRef<HTMLInputElement>(null);
 
     const [allGroups, setGroups] = React.useState<AppStore.ApplicationGroup[]>([]);
-    
+
     React.useEffect(() => {
         fetchGroups();
     }, [projectId]);
@@ -88,13 +88,13 @@ export const ApplicationGroups: React.FunctionComponent = () => {
                                             const file = target.files[0];
                                             target.value = "";
                                             if (file.size > 1024 * 1024 * 64) {
-                                                snackbarStore.addFailure("File exceeds 512KB. Not allowed.", false);
+                                                sendFailureNotification("File exceeds 512KB. Not allowed.");
                                             } else {
                                                 const error = (await AppStore.doImport(file)).error;
                                                 if (error != null) {
                                                     setErrorMessage(error);
                                                 } else {
-                                                    snackbarStore.addSuccess("Tool uploaded successfully", false);
+                                                    sendSuccessNotification("Tool uploaded successfully");
                                                     setErrorMessage(null);
                                                 }
                                             }
@@ -159,17 +159,17 @@ export const ApplicationGroups: React.FunctionComponent = () => {
                                 navigate={() => navigate(`/applications/studio/g/${group.metadata.id}`)}
                                 left={
                                     <Flex justifyContent="left">
-                                        <SafeLogo name={group.metadata.id.toString()} type="GROUP" size="25px"/>
+                                        <SafeLogo name={group.metadata.id.toString()} type="GROUP" size="25px" />
                                         <Box ml="10px" mt="5px">
                                             {group.specification.title}
                                         </Box>
                                     </Flex>
                                 } right={
-                                <ConfirmationButton onAction={() => {
-                                    invokeCommand(AppStore.deleteGroup({id: group.metadata.id})).then(doNothing);
-                                    fetchGroups();
-                                }} icon="heroTrash" />
-                            }
+                                    <ConfirmationButton onAction={() => {
+                                        invokeCommand(AppStore.deleteGroup({id: group.metadata.id})).then(doNothing);
+                                        fetchGroups();
+                                    }} icon="heroTrash" />
+                                }
                             />
                         ))}
                     </List>

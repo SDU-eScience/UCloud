@@ -1,0 +1,19 @@
+{
+    "Project PI": {
+        "username": "",
+        "password": ""
+    },
+    "Project Admin": {
+        "username": "",
+        "password": ""
+    },
+    "Project User": {
+        "username": "",
+        "password": ""
+    },
+    "Personal Workspace": {
+        "password": "",
+        "username": ""
+    },
+    "projectName": ""
+}

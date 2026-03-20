@@ -156,7 +156,7 @@ func ProviderIntegrationBrowse(actor rpc.Actor) (fndapi.PageV2[orcapi.ProviderIn
 			manifest, _, ok := ManifestByProvider(provider)
 
 			_, isActuallyConnected := connectedTo[provider]
-			isConnected := isActuallyConnected || provider == "aau" || provider == "ucloud" || (ok && !manifest.Enabled)
+			isConnected := isActuallyConnected || provider == "aau" || provider == "ucloud" || provider == "k8s" || (ok && !manifest.Enabled)
 
 			result = append(result, orcapi.ProviderIntegrationBrowseResponse{
 				Provider:      provider, // This used to be the numeric id

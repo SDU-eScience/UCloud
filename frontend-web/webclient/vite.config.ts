@@ -1,5 +1,5 @@
 import {defineConfig, UserConfigExport} from "vite";
-import react from "@vitejs/plugin-react";
+import react from "@vitejs/plugin-react-refresh";
 //@ts-ignore
 import path from "path";
 import {PRODUCTION_SITE, DEV_SITE, SANDBOX_SITE} from "./site.config.json";

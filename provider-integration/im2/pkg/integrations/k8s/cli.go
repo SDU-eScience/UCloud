@@ -4,6 +4,7 @@ import (
 	"os"
 
 	"ucloud.dk/pkg/controller"
+	"ucloud.dk/pkg/integrations/k8s/filesystem"
 )
 
 func HandleCliWithoutConfig(command string) bool {
@@ -12,6 +13,8 @@ func HandleCliWithoutConfig(command string) bool {
 		HandleScriptGen()
 	case "start-job-audit-log-server":
 		JobAuditLogServerStart()
+	case "task-processor":
+		filesystem.TaskProcessor()
 	default:
 		return false
 	}

@@ -2,12 +2,12 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {setLoading, usePage} from "@/Navigation/Redux";
 import {usePromiseKeeper} from "@/PromiseKeeper";
 import * as React from "react";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Button, Input, Label, MainContainer} from "@/ui-components";
 import {defaultErrorHandler} from "@/UtilityFunctions";
 import {UserCreationState} from ".";
 import {useDispatch} from "react-redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
 
 const initialState: UserCreationState = {
     username: "",
@@ -58,7 +58,7 @@ function UserCreation(): React.ReactNode {
     const [submitted, setSubmitted] = React.useState(false);
     const promiseKeeper = usePromiseKeeper();
 
-    usePage("User Creation", SidebarTabId.ADMIN);
+    usePage("User creation", SidebarTabId.ADMIN);
 
     if (!Client.userIsAdmin) return null;
 
@@ -79,7 +79,7 @@ function UserCreation(): React.ReactNode {
     return (
         <MainContainer
             main={<>
-                <h3 className="title">User Creation</h3>
+                <h3 className="title">User creation</h3>
                 <p>Admins can create new users on this page.</p>
                 <form autoComplete="off" onSubmit={e => submit(e)}>
                     <Label mb="1em">
@@ -123,7 +123,7 @@ function UserCreation(): React.ReactNode {
                         />
                     </Label>
                     <Label mb="1em">
-                        First Names
+                        First names
                         <Input
                             value={firstnames}
                             type="firstnames"
@@ -133,7 +133,7 @@ function UserCreation(): React.ReactNode {
                         />
                     </Label>
                     <Label mb="1em">
-                        Last Name
+                        Last name
                         <Input
                             value={lastname}
                             type="lastname"
@@ -167,19 +167,19 @@ function UserCreation(): React.ReactNode {
         if (!username) hasUsernameError = true;
         if (!password || password !== repeatedPassword) {
             hasPasswordError = true;
-            snackbarStore.addFailure("Passwords do not match.", false);
+            sendFailureNotification("Passwords do not match.");
         }
         if (!email) {
             hasEmailError = true;
-            snackbarStore.addFailure("Email is required", false);
+            sendFailureNotification("Email is required");
         }
         if (!firstnames) {
             hasFirstnamesError = true;
-            snackbarStore.addFailure("First names is required", false);
+            sendFailureNotification("First names is required");
         }
         if (!lastname) {
             hasLastnameError = true;
-            snackbarStore.addFailure("Last name is required", false);
+            sendFailureNotification("Last name is required");
         }
         dispatch({
             type: "UpdateErrors",
@@ -199,7 +199,7 @@ function UserCreation(): React.ReactNode {
                 await promiseKeeper.makeCancelable(
                     Client.post("/auth/users/register", [{username, password, email, firstnames, lastname}], "")
                 ).promise;
-                snackbarStore.addSuccess(`User '${username}' successfully created`, false);
+                sendSuccessNotification(`User '${username}' successfully created`);
                 dispatch({type: "Reset", payload: {}});
             } catch (err) {
                 const status = defaultErrorHandler(err);

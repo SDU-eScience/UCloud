@@ -191,7 +191,6 @@ func processTransferTask(task *TaskInfo) TaskProcessingResult {
 	uploadSession := upload.ClientSession{
 		Endpoint:       parameters.Endpoint,
 		ConflictPolicy: orc.WriteConflictPolicyMergeRename,
-		Path:           session.SourcePath,
 	}
 
 	internalSource, ok := UCloudToInternal(session.SourcePath)
@@ -238,20 +237,32 @@ func processTransferTask(task *TaskInfo) TaskProcessingResult {
 			Type:         ftype,
 		}
 
-		cancelChannel := make(chan util.Empty)
+		transferCtx, cancelTransfer := context.WithCancel(context.Background())
 		go func() {
-			for !task.Done.Load() {
-				newState := task.UserRequestedState.Load()
-				if newState != nil {
-					cancelChannel <- util.Empty{}
-					break
-				}
+			ticker := time.NewTicker(1 * time.Second)
+			defer ticker.Stop()
 
-				time.Sleep(1 * time.Second)
+			for {
+				select {
+				case <-transferCtx.Done():
+					return
+
+				case <-ticker.C:
+					if task.Done.Load() {
+						return
+					}
+
+					newState := task.UserRequestedState.Load()
+					if newState != nil {
+						cancelTransfer()
+						return
+					}
+				}
 			}
 		}()
 
-		report := upload.ProcessClient(uploadSession, uploaderRoot, rootMetadata, &task.Status, cancelChannel)
+		report := upload.ProcessClient(transferCtx, uploadSession, uploaderRoot, rootMetadata, &task.Status)
+		cancelTransfer()
 
 		if report.WasCancelledByUser {
 			uploadErr = nil
@@ -1130,9 +1141,31 @@ type uploaderClientFile struct {
 }
 
 func (u *uploaderClientFile) ListChildren(ctx context.Context) []string {
-	names, err := u.File.Readdirnames(0)
-	if err != nil {
-		return nil
+	names := make([]string, 0, 128)
+	for {
+		if ctx.Err() != nil {
+			break
+		}
+
+		part, err := u.File.Readdirnames(1024)
+		if len(part) > 0 {
+			names = append(names, part...)
+		}
+
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+
+			if len(names) == 0 {
+				return nil
+			}
+			break
+		}
+
+		if len(part) == 0 {
+			break
+		}
 	}
 	return names
 }
@@ -1145,6 +1178,7 @@ func (u *uploaderClientFile) OpenChild(ctx context.Context, name string) (upload
 
 	finfo, err := file.Stat()
 	if err != nil {
+		_ = file.Close()
 		return upload.FileMetadata{}, nil
 	}
 

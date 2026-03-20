@@ -29,7 +29,6 @@ const chanBufferSize = 1024 * 32
 type ClientSession struct {
 	Endpoint       string
 	ConflictPolicy orc.WriteConflictPolicy
-	Path           string
 	Metrics        ClientMetrics
 }
 
@@ -149,12 +148,20 @@ func (w *clientWorker) Process() {
 
 			case work, ok := <-w.AssignedWork:
 				if ok {
-					combinedTaskQueue <- work
+					select {
+					case combinedTaskQueue <- work:
+					case <-w.Ctx.Done():
+						break loop
+					}
 				}
 
 			case work, ok := <-w.OpenWork:
 				if ok {
-					combinedTaskQueue <- work
+					select {
+					case combinedTaskQueue <- work:
+					case <-w.Ctx.Done():
+						break loop
+					}
 				}
 			}
 		}
@@ -166,7 +173,9 @@ func (w *clientWorker) Process() {
 	attemptToSendPing := func() bool {
 		now := time.Now()
 		if now.After(nextPing) {
-			err := w.Connection.WriteMessage(ws.TextMessage, []byte("ping"))
+			err1 := w.Connection.SetWriteDeadline(time.Now().Add(chunkIoDeadline))
+			err2 := w.Connection.WriteMessage(ws.TextMessage, []byte("ping"))
+			err := util.FindError(err1, err2)
 			if err != nil {
 				// TODO(Dan): This shouldn't be needed, but it seems like we often fail a ping right as the
 				//   connection is shutting down and this is causing some issues with the entire transfer.
@@ -176,6 +185,8 @@ func (w *clientWorker) Process() {
 					log.Warn("Uploader client failed to send ping: %v", err)
 					return false
 				}
+			} else {
+				pingFailures = 0
 			}
 
 			nextPing = nextPing.Add(chunkIoDeadline / 2)
@@ -232,6 +243,8 @@ outer:
 				writeBuffers := make(chan []byte, 2)
 
 				go func() {
+					defer close(writeBuffers)
+
 					size := recommendedChunkSize.Load()
 					chunkBytes1 := rawChunkBytes1[:size]
 					chunkBytes2 := rawChunkBytes2[:size]
@@ -253,25 +266,24 @@ outer:
 							w.BytesTransferred.Add(int64(count))
 
 							data := chunkBytes[:5+count]
-							writeBuffers <- data
+							select {
+							case writeBuffers <- data:
+							case <-w.Ctx.Done():
+								return
+							}
 						}
 
 						if isDone {
 							if err != nil {
-								if errors.Is(err, io.EOF) {
+								if errors.Is(err, io.EOF) && err.Error() != "EOF" {
 									w.Metrics.SkipFile(err.Error(), work.Metadata.InternalPath)
 								}
 							}
-							writeBuffers <- nil
-							break
+							return
 						}
 
 						// Reload size recommendation
-						oldSize := size
 						size = recommendedChunkSize.Load()
-						if size != oldSize {
-							log.Info("New size! %v -> %v", oldSize, size)
-						}
 						chunkBytes1 = rawChunkBytes1[:size]
 						chunkBytes2 = rawChunkBytes2[:size]
 
@@ -286,24 +298,7 @@ outer:
 				}()
 
 				chunkStartTime := time.Now()
-				for {
-					data := <-writeBuffers
-					if data == nil {
-						if work.Metadata.Size != written {
-							skipBuffer.Reset()
-							(&messageSkip{FileId: work.Id}).Marshal(skipBuffer, true)
-
-							err1 := w.Connection.SetWriteDeadline(time.Now().Add(chunkIoDeadline))
-							err2 := w.Connection.WriteMessage(ws.BinaryMessage, skipBuffer.ReadRemainingBytes())
-							if err := util.FindError(err1, err2); err != nil {
-								_ = w.Connection.Close()
-								log.Warn("Uploader client failed to send message: %v", err)
-								break outer
-							}
-						}
-
-						break
-					}
+				for data := range writeBuffers {
 
 					if !attemptToSendPing() {
 						break outer
@@ -327,6 +322,19 @@ outer:
 					readBuffersAvailable.Release(1)
 				}
 
+				if work.Metadata.Size != written {
+					skipBuffer.Reset()
+					(&messageSkip{FileId: work.Id}).Marshal(skipBuffer, true)
+
+					err1 := w.Connection.SetWriteDeadline(time.Now().Add(chunkIoDeadline))
+					err2 := w.Connection.WriteMessage(ws.BinaryMessage, skipBuffer.ReadRemainingBytes())
+					if err := util.FindError(err1, err2); err != nil {
+						_ = w.Connection.Close()
+						log.Warn("Uploader client failed to send message: %v", err)
+						break outer
+					}
+				}
+
 				work.Done.Swap(true)
 				w.FilesCompleted.Add(1)
 				work.File.Close()
@@ -344,6 +352,8 @@ outer:
 }
 
 func goDiscoverClientWork(ctx context.Context, root ClientFile, rootMetadata FileMetadata, output chan *clientWork) {
+	defer close(output)
+
 	idAcc := int32(0)
 	stack := []ClientFile{}
 
@@ -374,6 +384,7 @@ outer:
 		for _, child := range children {
 			meta, file := dir.OpenChild(ctx, child)
 			if file == nil {
+				log.Info("Skipping file because it could not be opened: %v %s", dir, child)
 				continue
 			}
 
@@ -403,8 +414,6 @@ outer:
 	for _, file := range stack {
 		file.Close()
 	}
-
-	output <- nil
 }
 
 type StatusReport struct {
@@ -429,11 +438,11 @@ type StatusReport struct {
 }
 
 func ProcessClient(
+	ctx context.Context,
 	session ClientSession,
 	rootFile ClientFile,
 	rootMetadata FileMetadata,
 	status *atomic.Pointer[fnd.TaskStatus],
-	requestCancel chan util.Empty,
 ) StatusReport {
 	initialStatus := fnd.TaskStatus{}
 	if status != nil {
@@ -477,9 +486,14 @@ func ProcessClient(
 	var workers []*clientWorker
 	activeWork := map[int32]*clientWork{}
 
-	sessionContext, cancel := context.WithCancel(context.Background())
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	sessionContext, cancel := context.WithCancel(ctx)
 
 	statTicker := time.NewTicker(500 * time.Millisecond)
+	defer statTicker.Stop()
 	discoveredWorkForUs := make(chan *clientWork, chanBufferSize)
 	discoveredWorkForWorkers := make(chan *clientWork, chanBufferSize)
 	incomingWebsocket := make(chan incomingMessage)
@@ -488,7 +502,7 @@ func ProcessClient(
 	// -----------------------------------------------------------------------------------------------------------------
 	bytesDiscovered := int64(0)
 	filesDiscovered := int64(0)
-	filesDiscoveredDone := false
+	filesDiscoveredDone := atomic.Bool{}
 	var filesCompletedFromServer []int32
 	filesBeingSentOnWire := int64(0)
 
@@ -529,6 +543,7 @@ func ProcessClient(
 			activeWorkerCount.Add(1)
 
 			go func() {
+			forRead:
 				for {
 					err := socket.SetReadDeadline(time.Now().Add(chunkIoDeadline * 4))
 					wsType, data, readErr := socket.ReadMessage()
@@ -540,16 +555,15 @@ func ProcessClient(
 						break
 					}
 
-					incomingWebsocket <- incomingMessage{
-						Sender:  whoami,
-						Message: data,
+					select {
+					case incomingWebsocket <- incomingMessage{Sender: whoami, Message: data}:
+					case <-sessionContext.Done():
+						break forRead
 					}
 				}
 
 				activeWorkerCount.Add(-1)
-				if !filesDiscoveredDone || activeWorkerCount.Load() == 0 {
-					// NOTE(Dan): This is not always a critical failure since it might just have been closed due to
-					// _this_ connection no longer having any work.
+				if activeWorkerCount.Load() == 0 {
 					cancel()
 				}
 			}()
@@ -567,10 +581,7 @@ func ProcessClient(
 			workers = append(workers, worker)
 			filesCompletedFromServer = append(filesCompletedFromServer, 0)
 
-			go func() {
-				worker.Process()
-				cancel()
-			}()
+			go worker.Process()
 		}
 	}
 
@@ -606,7 +617,7 @@ func ProcessClient(
 
 		if status != nil {
 			percentage := (float64(bytesTransferred) / float64(bytesDiscovered)) * 100
-			if !filesDiscoveredDone {
+			if !filesDiscoveredDone.Load() {
 				percentage = -1
 			}
 
@@ -643,7 +654,7 @@ func ProcessClient(
 outer:
 	for {
 		select {
-		case <-requestCancel:
+		case <-ctx.Done():
 			wasCancelledByUser = true
 			break outer
 
@@ -653,9 +664,9 @@ outer:
 		case <-statTicker.C:
 			flushStats()
 
-		case work := <-discoveredWorkForUs:
-			if work == nil {
-				filesDiscoveredDone = true
+		case work, ok := <-discoveredWorkForUs:
+			if !ok {
+				filesDiscoveredDone.Store(true)
 			} else {
 				activeWork[work.Id] = work
 				select {
@@ -688,7 +699,7 @@ outer:
 					for _, f := range filesCompletedFromServer {
 						totalFilesCompleted += f
 					}
-					if filesDiscoveredDone && int32(filesDiscovered) == totalFilesCompleted {
+					if filesDiscoveredDone.Load() && int32(filesDiscovered) == totalFilesCompleted {
 						break outer
 					}
 
@@ -781,7 +792,7 @@ outer:
 		}
 
 		output := b.String()
-		log.Info(output)
+		log.Info("%s", output)
 	}
 
 	return StatusReport{
@@ -789,7 +800,7 @@ outer:
 		TotalFilesProcessed: filesDiscovered,
 		BytesTransferred:    lastBytesTransferred,
 		TotalBytesProcessed: bytesDiscovered,
-		NormalExit:          filesDiscoveredDone && filesDiscovered == totalFilesCompleted,
+		NormalExit:          filesDiscoveredDone.Load() && filesDiscovered == totalFilesCompleted,
 		WasCancelledByUser:  wasCancelledByUser,
 	}
 }

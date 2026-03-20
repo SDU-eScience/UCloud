@@ -11,9 +11,9 @@ import {usePage} from "@/Navigation/Redux";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import ProvidersApi, {Provider} from "@/UCloud/ProvidersApi";
 import {useCloudAPI} from "@/Authentication/DataHook";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {placeholderProduct} from "@/UCloud/ResourceApi";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {sendFailureNotification} from "@/Notifications";
 
 function getByIdRequest(payload: {id: string}): APICallParameters<{id: string}> {
     return {
@@ -71,7 +71,7 @@ function Save(): React.ReactNode {
                     }
                 }}
                 onSubmitError={(error) => {
-                    snackbarStore.addFailure(error, false);
+                    sendFailureNotification(error);
                 }}
             >
                 <RS.Text
@@ -97,7 +97,7 @@ function Save(): React.ReactNode {
                         label="Port"
                         step="1"
                         min={1}
-                        max={(2 ** 16)-1}
+                        max={(2 ** 16) - 1}
                         styling={{ml: "8px", width: "20%"}}
                         defaultValue={provider.data?.specification.port ?? ""}
                     />

@@ -29,9 +29,9 @@ func retrieveProviders() ([]string, []int) {
 		}](
 			tx,
 			`
-						select resource, unique_name as provider_name
-						from provider.providers
-				    `,
+				select resource, unique_name as provider_name
+				from provider.providers
+			`,
 			db.Params{},
 		)
 

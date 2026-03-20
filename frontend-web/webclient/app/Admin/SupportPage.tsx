@@ -1,4 +1,3 @@
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Box, Button, Divider, Error, Flex, Heading, Icon, Input, Label, Link, MainContainer} from "@/ui-components";
 import {buildQueryString, getQueryParam} from "@/Utilities/URIUtilities";
 import * as React from "react";
@@ -22,6 +21,7 @@ import RenderMermaid from "react-x-mermaid";
 import {dialogStore} from "@/Dialog/DialogStore";
 import Warning from "@/ui-components/Warning";
 import EmailSettings = mail.EmailSettings;
+import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
 
 const {supportAssist} = AppRoutes;
 
@@ -38,7 +38,7 @@ export default function () {
 
     const navigateTo = React.useCallback((url: string, id: string | undefined, additional?: Record<string, any>) => {
         if (!id) {
-            snackbarStore.addFailure("Field cannot be empty", false);
+            sendFailureNotification("Field cannot be empty");
             return;
         }
         navigate(buildQueryString(url, {id, ...additional}));
@@ -195,12 +195,12 @@ export function UserSupportContent() {
 
                 {userInfo.info?.map(it => <div key={it.username}>
                     <h3>Personal Info:</h3>
-                    <hr/>
+                    <hr />
                     <div>Name: {it.firstNames} {it.lastName}</div>
                     <div>Email: {it.email}</div>
-                    <br/>
+                    <br />
                     <h3>Reset 2FA</h3>
-                    <hr/>
+                    <hr />
                     <div>
                         <ConfirmationButton
                             actionText={"Reset 2FA"}
@@ -226,14 +226,14 @@ export function UserSupportContent() {
                                                     ev.stopPropagation();
                                                     const written = document.querySelector<HTMLInputElement>("#collectionName")?.value ?? "";
                                                     if (written !== requiredText) {
-                                                        snackbarStore.addFailure(`Please type '${requiredText}' to confirm.`, false);
+                                                        sendFailureNotification(`Please type '${requiredText}' to confirm.`);
                                                     } else {
                                                         callAPI(reset2fa({username: written})).then(
                                                             result => {
-                                                                snackbarStore.addSuccess("2FA reset.", false)
+                                                                sendSuccessNotification("2FA reset.");
                                                                 dialogStore.success();
                                                             }
-                                                        ).catch(e => snackbarStore.addFailure(errorMessageOrDefault(e, "Failed to reset 2FA"), false))
+                                                        ).catch(e => sendFailureNotification(errorMessageOrDefault(e, "Failed to reset 2FA")))
                                                     }
                                                 }}>
                                                     <Input id={"collectionName"} mb={"8px"} />
@@ -248,67 +248,67 @@ export function UserSupportContent() {
                             }}
                         />
                     </div>
-                    <br/>
+                    <br />
 
                     <h3>E-mail settings:</h3>
-                    <hr/>
+                    <hr />
                     <div>
-                        <ul style={{ listStyle: "none" }}>
+                        <ul style={{listStyle: "none"}}>
                             {Object.keys(it.emailSettings).map(key =>
                                 <li key={key}>
-                                    <input type={"checkbox"} checked={it.emailSettings[key]}/> {capitalized(key)}
+                                    <input type={"checkbox"} checked={it.emailSettings[key]} /> {capitalized(key)}
                                 </li>
                             )}
                         </ul>
                     </div>
-                    <br/>
+                    <br />
 
-                    { it.associatedProjects != null ? <>
+                    {it.associatedProjects != null ? <>
                         <h3>Associated projects:</h3>
-                        <hr/>
+                        <hr />
                         <div>
                             <table>
                                 <thead>
-                                <tr>
-                                    <th align={"left"}>Project Title</th>
-                                    <th style={{width: "20px"}}></th>
-                                    <th align={"left"}>Project ID</th>
-                                    <th style={{width: "20px"}}></th>
-                                    <th>Role</th>
-                                </tr>
+                                    <tr>
+                                        <th align={"left"}>Project Title</th>
+                                        <th style={{width: "20px"}}></th>
+                                        <th align={"left"}>Project ID</th>
+                                        <th style={{width: "20px"}}></th>
+                                        <th>Role</th>
+                                    </tr>
                                 </thead>
                                 <tbody>
-                                { sortedAssociatedProjects.map((info) => <>{
-                                    info.username === info.username ? info.associatedProject.map(project => <tr key={project.id}>
+                                    {sortedAssociatedProjects.map((info) => <>{
+                                        info.username === info.username ? info.associatedProject.map(project => <tr key={project.id}>
                                             <td>{project.specification.title}</td>
-                                            <td/>
+                                            <td />
                                             <td>{project.id}
                                                 <Link target={"_blank"}
-                                                      to={buildQueryString(supportAssist.project(), {id: project.id})}>
-                                                    <Icon name={"heroArrowTopRightOnSquare"} mt={-6}/>
+                                                    to={buildQueryString(supportAssist.project(), {id: project.id})}>
+                                                    <Icon name={"heroArrowTopRightOnSquare"} mt={-6} />
                                                 </Link>
                                             </td>
-                                            <td/>
+                                            <td />
                                             {project.status.members?.map(member =>
                                                 member.username === it.username ? <td>{member.role}</td> : null
                                             )}
                                         </tr>
-                                    ) : null
-                                }</>)}
+                                        ) : null
+                                    }</>)}
                                 </tbody>
                             </table>
                         </div>
-                        <br/>
+                        <br />
                     </> : null}
 
                     <h3>Grants:</h3>
-                    <hr/>
-                    <GrantsTable grants={it.activeGrants}/>
-                    <br/>
+                    <hr />
+                    <GrantsTable grants={it.activeGrants} />
+                    <br />
 
                     <h3>Personal project resources</h3>
-                    <hr/>
-                    <WalletTable wallets={it.personalProjectResources}/>
+                    <hr />
+                    <WalletTable wallets={it.personalProjectResources} />
                 </div>)}
             </div>
         </>}
@@ -361,19 +361,19 @@ export function ProjectSupportContent() {
             {Error}
             <div>
                 <h3>Project Information</h3>
-                <hr/>
+                <hr />
                 <div>Project Title: {project.project.specification.title}</div>
                 <div>Created at: {dateToString(project.project.createdAt)} </div>
                 <div>Is allowed to use resources: {project.project.specification.canConsumeResources ? "YES" : "NO"}</div>
                 <div>{(project.project.specification.parent !== undefined && project.project.specification.parent !== null) ? <>
-                    Parent project: <ProjectTitleForNewCore id={project.project.specification.parent  ?? ""}/> ({project.project.specification.parent})
+                    Parent project: <ProjectTitleForNewCore id={project.project.specification.parent ?? ""} /> ({project.project.specification.parent})
                     <Link target={"_blank"}
-                          to={buildQueryString(supportAssist.project(), {id: project.project.specification.parent})}>
-                    <Icon name={"heroArrowTopRightOnSquare"} mt={-6}/>
-                </Link>
+                        to={buildQueryString(supportAssist.project(), {id: project.project.specification.parent})}>
+                        <Icon name={"heroArrowTopRightOnSquare"} mt={-6} />
+                    </Link>
                 </> : null}
                 </div>
-                <br/>
+                <br />
 
                 <div>
                     <h3>Project Members:</h3>
@@ -390,16 +390,16 @@ export function ProjectSupportContent() {
                                 {project.project.status.members.map(member => <tr key={member.username}>
                                     <td>{member.username}
                                         <Link target={"_blank"}
-                                              to={buildQueryString(supportAssist.user(), {id: member.username})}>
-                                        <Icon name={"heroArrowTopRightOnSquare"} mt={-6}/>
-                                    </Link></td> <td/>
+                                            to={buildQueryString(supportAssist.user(), {id: member.username})}>
+                                            <Icon name={"heroArrowTopRightOnSquare"} mt={-6} />
+                                        </Link></td> <td />
                                     <td>{member.role}</td>
                                 </tr>)}
                             </> : null}
                         </tbody>
                     </table>
                 </div>
-                <br/>
+                <br />
 
                 {project.projectWallets != null ? <>
                     <div>
@@ -407,59 +407,59 @@ export function ProjectSupportContent() {
                         {Object.values(getProjectChildren(project.projectWallets)).length > 0 ? <>
                             <table>
                                 <thead>
-                                <tr>
-                                    <th>ID</th>
-                                    <th style={{width: "20px"}}></th>
-                                    <th>Title</th>
-                                </tr>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th style={{width: "20px"}}></th>
+                                        <th>Title</th>
+                                    </tr>
                                 </thead>
                                 <tbody>
-                                {Object.values(getProjectChildren(project.projectWallets)).map(id =>
-                                    <tr key={id}>
-                                        <td><ProjectTitleForNewCore id={id}/></td> <td/>
-                                        <td>{id}
-                                            <Link target={"_blank"}
-                                                  to={buildQueryString(supportAssist.project(), {id: id})}>
-                                                <Icon name={"heroArrowTopRightOnSquare"} mt={-6}/>
-                                            </Link></td>
-                                    </tr>
-                                )}
+                                    {Object.values(getProjectChildren(project.projectWallets)).map(id =>
+                                        <tr key={id}>
+                                            <td><ProjectTitleForNewCore id={id} /></td> <td />
+                                            <td>{id}
+                                                <Link target={"_blank"}
+                                                    to={buildQueryString(supportAssist.project(), {id: id})}>
+                                                    <Icon name={"heroArrowTopRightOnSquare"} mt={-6} />
+                                                </Link></td>
+                                        </tr>
+                                    )}
                                 </tbody>
                             </table>
                         </> : <>No children found</>}
                     </div>
-                    <br/>
-                </> : null }
+                    <br />
+                </> : null}
 
                 <h3>Wallets</h3>
-                <hr/>
+                <hr />
                 <WalletTable wallets={project.projectWallets} />
 
                 <h3>Grants</h3>
-                <hr/>
-                <GrantsTable grants={project.activeGrants}/>
-                <br/>
+                <hr />
+                <GrantsTable grants={project.activeGrants} />
+                <br />
                 <h3>Possible reasons to limited resources</h3>
-                <hr/>
+                <hr />
                 <div>
                     {project.accountingIssues !== null && project.accountingIssues !== undefined ? project.accountingIssues.map(issue => <>
                         {issue.allocationGroups !== null ? <>
                             <div>Product Category: {issue.paysFor.name} ({issue.paysFor.provider})</div>
                             <div>Problem in project: {issue.owner.type == "user" ? issue.owner.username : issue.owner.projectId} {issue.owner.type == "project" ? <>
-                                    <Link target={"_blank"}
-                                          to={buildQueryString(supportAssist.project(), {id: issue.owner.projectId})}>
-                                    <Icon name={"heroArrowTopRightOnSquare"} mt={-6}/>
-                                    </Link>
-                                </> : null}
+                                <Link target={"_blank"}
+                                    to={buildQueryString(supportAssist.project(), {id: issue.owner.projectId})}>
+                                    <Icon name={"heroArrowTopRightOnSquare"} mt={-6} />
+                                </Link>
+                            </> : null}
                             </div>
-                            <br/>
+                            <br />
                         </> : null}
                     </>) : null}
                 </div>
-                <br/>
+                <br />
 
                 <h3>Jobs</h3>
-                <hr/>
+                <hr />
                 <div>
                     <table>
                         <thead>
@@ -479,24 +479,24 @@ export function ProjectSupportContent() {
                         </thead>
                         <tbody>
                             {project.jobs != null ? project.jobs.map(it => <tr key={it.id}>
-                                    <td align={"center"}>{it.id}
-                                        <Link target={"_blank"}
-                                           to={buildQueryString(supportAssist.job(), {id: it.id})}>
-                                        <Icon name={"heroArrowTopRightOnSquare"} mt={-6}/>
-                                        </Link>
-                                    </td><td/>
-                                    <td align={"center"}>{dateToString(it.createdAt)}</td><td/>
-                                    <td align={"center"}>{it.owner.createdBy}
-                                        <Link target={"_blank"}
-                                            to={buildQueryString(supportAssist.user(), {id: it.owner.createdBy})}>
+                                <td align={"center"}>{it.id}
+                                    <Link target={"_blank"}
+                                        to={buildQueryString(supportAssist.job(), {id: it.id})}>
+                                        <Icon name={"heroArrowTopRightOnSquare"} mt={-6} />
+                                    </Link>
+                                </td><td />
+                                <td align={"center"}>{dateToString(it.createdAt)}</td><td />
+                                <td align={"center"}>{it.owner.createdBy}
+                                    <Link target={"_blank"}
+                                        to={buildQueryString(supportAssist.user(), {id: it.owner.createdBy})}>
                                         {" "}
-                                        <Icon name={"heroArrowTopRightOnSquare"} mt={-6}/>
-                                    </Link></td><td/>
-                                    <td align={"center"}>{it.status.state}</td><td/>
-                                    <td align={"right"}>{it.specification.application.name}</td><td/>
-                                    <td align={"right"}>{it.specification.application.version}</td>
-                                </tr>
-                            ) : null }
+                                        <Icon name={"heroArrowTopRightOnSquare"} mt={-6} />
+                                    </Link></td><td />
+                                <td align={"center"}>{it.status.state}</td><td />
+                                <td align={"right"}>{it.specification.application.name}</td><td />
+                                <td align={"right"}>{it.specification.application.version}</td>
+                            </tr>
+                            ) : null}
                         </tbody>
                     </table>
                 </div>
@@ -533,19 +533,19 @@ export function JobSupportContent() {
         main={<>
             {Error}
             <h3>Job Info</h3>
-            <hr/>
+            <hr />
             <div> ID: {job.jobInfo.id} </div>
             <div> Created: {dateToString(job.jobInfo.createdAt)} </div>
             <div> Created By: {job.jobInfo.owner.createdBy}
                 <Link target={"_blank"}
-                      to={buildQueryString(supportAssist.user(), {id: job.jobInfo.owner.createdBy})}>
-                <Icon name={"heroArrowTopRightOnSquare"} mt={-6}/>
-            </Link> </div>
+                    to={buildQueryString(supportAssist.user(), {id: job.jobInfo.owner.createdBy})}>
+                    <Icon name={"heroArrowTopRightOnSquare"} mt={-6} />
+                </Link> </div>
             {job.jobInfo.owner.project !== undefined && job.jobInfo.owner.project !== null ? <> Project Scope: {job.jobInfo.owner.project}
                 <Link target={"_blank"}
-                      to={buildQueryString(supportAssist.project(), {id: job.jobInfo.owner.project})}>
-                <Icon name={"heroArrowTopRightOnSquare"} mt={-6}/>
-            </Link> </> : null}
+                    to={buildQueryString(supportAssist.project(), {id: job.jobInfo.owner.project})}>
+                    <Icon name={"heroArrowTopRightOnSquare"} mt={-6} />
+                </Link> </> : null}
             <div> Current status: {job.jobInfo.status.state} </div>
             {job.jobInfo.specification.name != undefined && job.jobInfo.specification.name !== null ? <> Job Name: {job.jobInfo.specification.name} </> : null}
             <div>Application: {job.jobInfo.specification.application.name} (Version: {job.jobInfo.specification.application.version})</div>
@@ -569,7 +569,7 @@ export function JobSupportContent() {
             <div>
                 SSH is enabled: {job.jobInfo.specification.sshEnabled ? 'YES' : 'NO'}
             </div>
-            <br/>
+            <br />
             <div>
                 Job Updates:
                 <ul>
@@ -626,40 +626,40 @@ export function AllocationSupportContent() {
         main={<>
             {Error}
             <h3>Wallet Owner</h3>
-            <hr/>
+            <hr />
             <div>
                 Type: {allocation.wallet.owner.type}
             </div>
             <div>
                 Title: {allocation.wallet.owner.type === "user" ? allocation.wallet.owner.username
-                : <ProjectTitleForNewCore id={allocation.wallet.owner.projectId ?? ""}/>}
+                    : <ProjectTitleForNewCore id={allocation.wallet.owner.projectId ?? ""} />}
             </div>
             <div>
                 {allocation.wallet.owner.type === "project" ? <>
                     ID: {allocation.wallet.owner.projectId}
-                        <Link target={"_blank"}
-                              to={buildQueryString(supportAssist.project(), {id: allocation.wallet.owner.projectId})}>
-                            <Icon name={"heroArrowTopRightOnSquare"} mt={-6}/>
-                        </Link>
-                    </>
+                    <Link target={"_blank"}
+                        to={buildQueryString(supportAssist.project(), {id: allocation.wallet.owner.projectId})}>
+                        <Icon name={"heroArrowTopRightOnSquare"} mt={-6} />
+                    </Link>
+                </>
                     : ""
                 }
             </div>
-            <br/>
+            <br />
 
             <h3>Wallet Info</h3>
-            <hr/>
+            <hr />
             <WalletTable wallets={new Array(allocation.wallet)} />
 
 
 
             <h3>Accounting Graph</h3>
-            <hr/>
-            <br/>
+            <hr />
+            <br />
 
             {allocation.accountingGraph != null ? <div className="mermaid">
                 <RenderMermaid mermaidCode={allocation.accountingGraph} mermaidConfig={{theme: "dark"}} />
-            </div> : null }
+            </div> : null}
         </>}
     />
 }
@@ -676,56 +676,56 @@ function WalletTable(props: {wallets?: WalletV2[]}): React.ReactNode {
     return <>
         <table>
             <thead>
-            <tr>
-                <th>
-                    Resource
-                </th>
-                <th style={{width: "20px"}}></th>
-                <th>
-                    Quota
-                </th>
-                <th style={{width: "20px"}}></th>
-                <th>
-                    Local Usage
-                </th>
-                <th style={{width: "20px"}}></th>
-                <th>
-                    Total Usage
-                </th>
-                <th style={{width: "20px"}}></th>
-                <th>
-                    Max Usage
-                </th>
-                <th style={{width: "20px"}}></th>
-                <th>
-                    Allocated to subprojects
-                </th>
-            </tr>
+                <tr>
+                    <th>
+                        Resource
+                    </th>
+                    <th style={{width: "20px"}}></th>
+                    <th>
+                        Quota
+                    </th>
+                    <th style={{width: "20px"}}></th>
+                    <th>
+                        Local Usage
+                    </th>
+                    <th style={{width: "20px"}}></th>
+                    <th>
+                        Total Usage
+                    </th>
+                    <th style={{width: "20px"}}></th>
+                    <th>
+                        Max Usage
+                    </th>
+                    <th style={{width: "20px"}}></th>
+                    <th>
+                        Allocated to subprojects
+                    </th>
+                </tr>
             </thead>
             {
                 wallets?.map(resource =>
                     <tbody>
-                    <tr key={resource.paysFor.name + "("+resource.paysFor.provider+")"}>
-                        <td align={"left"}> {resource.paysFor.name} ({resource.paysFor.provider}) {resource.paysFor.accountingUnit.name} {normalizeFrequency(resource.paysFor.accountingFrequency)} </td> <td/>
-                        <td align={"right"}> {resource.quota} </td> <td/>
-                        <td align={"right"}> {resource.localUsage} </td> <td/>
-                        <td align={"right"}> {resource.totalUsage} </td> <td/>
-                        <td align={"right"}> {resource.maxUsable} </td> <td/>
-                        <td align={"right"}> {resource.totalAllocated}</td> <td/>
-                        <td align={"right"}> {(resource.maxUsable + resource.totalUsage - resource.quota) !== 0 ? <Icon name={"heroExclamationTriangle"} color={"warningMain"} /> : null } </td>
-                    </tr>
+                        <tr key={resource.paysFor.name + "(" + resource.paysFor.provider + ")"}>
+                            <td align={"left"}> {resource.paysFor.name} ({resource.paysFor.provider}) {resource.paysFor.accountingUnit.name} {normalizeFrequency(resource.paysFor.accountingFrequency)} </td> <td />
+                            <td align={"right"}> {resource.quota} </td> <td />
+                            <td align={"right"}> {resource.localUsage} </td> <td />
+                            <td align={"right"}> {resource.totalUsage} </td> <td />
+                            <td align={"right"}> {resource.maxUsable} </td> <td />
+                            <td align={"right"}> {resource.totalAllocated}</td> <td />
+                            <td align={"right"}> {(resource.maxUsable + resource.totalUsage - resource.quota) !== 0 ? <Icon name={"heroExclamationTriangle"} color={"warningMain"} /> : null} </td>
+                        </tr>
                     </tbody>
                 )
             }
         </table>
-        <br/>
+        <br />
         <h3>Allocations</h3>
-        <hr/>
+        <hr />
         {wallets?.map(resource => resource.allocationGroups.length !== 0 ? <>
             <u>{resource.paysFor.name} ({resource.paysFor.provider})</u>
-                <br/>
-                    <table>
-                    <thead>
+            <br />
+            <table>
+                <thead>
                     <tr>
                         <th>
                             Id
@@ -751,33 +751,33 @@ function WalletTable(props: {wallets?: WalletV2[]}): React.ReactNode {
                             Granted In
                         </th>
                     </tr>
-                    </thead>
-                        <tbody>
-                        {
+                </thead>
+                <tbody>
+                    {
                         resource.allocationGroups.map(group =>
                             group.group?.allocations.map(alloc =>
                                 <tr key={alloc.id}>
                                     <td align={"right"}> {alloc.id}
                                         <Link target={"_blank"}
-                                              to={buildQueryString(supportAssist.allocation(), {id: alloc.id})}>
-                                        {" "}
-                                        <Icon name={"heroArrowTopRightOnSquare"} mt={-6}/>
-                                    </Link> </td>
-                                    <td/>
+                                            to={buildQueryString(supportAssist.allocation(), {id: alloc.id})}>
+                                            {" "}
+                                            <Icon name={"heroArrowTopRightOnSquare"} mt={-6} />
+                                        </Link> </td>
+                                    <td />
                                     <td align={"left"}> {resource.paysFor.name} ({resource.paysFor.provider}) {resource.paysFor.accountingUnit.name} {normalizeFrequency(resource.paysFor.accountingFrequency)} </td>
-                                    <td/>
+                                    <td />
                                     <td align={"right"}> {alloc.quota} </td>
-                                    <td/>
+                                    <td />
                                     <td align={"right"}> {dateToString(alloc.startDate)} </td>
-                                    <td/>
+                                    <td />
                                     <td align={"right"}> {dateToString(alloc.endDate)} </td>
-                                    <td/>
+                                    <td />
                                     <td align={"right"}> {alloc.grantedIn}
                                         {alloc.grantedIn && <>
                                             <Link target={"_blank"}
-                                                  to={AppRoutes.grants.editor(alloc.grantedIn)}>
+                                                to={AppRoutes.grants.editor(alloc.grantedIn)}>
                                                 {" "}
-                                                <Icon name={"heroArrowTopRightOnSquare"} mt={-6}/>
+                                                <Icon name={"heroArrowTopRightOnSquare"} mt={-6} />
                                             </Link>
                                         </>}
                                     </td>
@@ -785,77 +785,77 @@ function WalletTable(props: {wallets?: WalletV2[]}): React.ReactNode {
                             )
                         )
                     }
-                    </tbody>
-                </table>
-            <br/>
-            </> : null
+                </tbody>
+            </table>
+            <br />
+        </> : null
         )}
-        <br/>
+        <br />
     </>
 }
 
 function GrantsTable(props: {grants?: Application[]}): React.ReactNode {
     const grants = props.grants;
     return <table>
-            <thead>
-                <tr>
-                    <th align={"left"}>Application ID</th>
-                    <th style={{width: "20px"}}></th>
-                    <th align={"left"}>Created By</th>
-                    <th style={{width: "20px"}}></th>
-                    <th align={"left"}>Creation Time</th>
-                    <th style={{width: "20px"}}></th>
-                    <th align={"left"}>Last Update</th>
-                    <th style={{width: "20px"}}></th>
-                    <th align={"left"}>Resources requested</th>
-                    <th style={{width: "20px"}}></th>
-                    <th align={"center"}>Status</th>
-                </tr>
-            </thead>
-            {
-                (grants != null ) ? grants.map(it =>
-                    <tbody>
-                        <tr>
-                            <td align={"right"}>
-                                {it.id}
-                                <Link target={"_blank"}
-                                      to={AppRoutes.grants.editor(it.id)}>
-                                    {" "}
-                                    <Icon name={"heroArrowTopRightOnSquare"} mt={-6}/>
-                                </Link>
-                            </td>
-                            <td/>
-                            <td align={"center"}>
-                                {it.createdBy}
-                                <Link target={"_blank"}
-                                      to={buildQueryString(supportAssist.user(), {id: it.createdBy})}>
-                                    <Icon name={"heroArrowTopRightOnSquare"} mt={-6}/>
-                                </Link>
-                            </td>
-                            <td/>
-                            <td align={"center"}>
-                                {dateToString(it.createdAt)}
-                            </td>
-                            <td/>
-                            <td align={"center"}>
-                                {dateToString(it.updatedAt)}
-                            </td>
-                            <td/>
-                            <td align={"center"}>
-                                <hr/>
-                                {it.currentRevision.document.allocationRequests.map(request =>
-                                    <>{request.category} ({request.provider})<br/></>
-                                )}
-                                <hr/>
-                            </td>
-                            <td/>
-                            <td align={"center"}>
-                                {it.status.overallState}
-                            </td>
-                        </tr>
-                    </tbody>
-                ) : null }
-        </table>
+        <thead>
+            <tr>
+                <th align={"left"}>Application ID</th>
+                <th style={{width: "20px"}}></th>
+                <th align={"left"}>Created By</th>
+                <th style={{width: "20px"}}></th>
+                <th align={"left"}>Creation Time</th>
+                <th style={{width: "20px"}}></th>
+                <th align={"left"}>Last Update</th>
+                <th style={{width: "20px"}}></th>
+                <th align={"left"}>Resources requested</th>
+                <th style={{width: "20px"}}></th>
+                <th align={"center"}>Status</th>
+            </tr>
+        </thead>
+        {
+            (grants != null) ? grants.map(it =>
+                <tbody>
+                    <tr>
+                        <td align={"right"}>
+                            {it.id}
+                            <Link target={"_blank"}
+                                to={AppRoutes.grants.editor(it.id)}>
+                                {" "}
+                                <Icon name={"heroArrowTopRightOnSquare"} mt={-6} />
+                            </Link>
+                        </td>
+                        <td />
+                        <td align={"center"}>
+                            {it.createdBy}
+                            <Link target={"_blank"}
+                                to={buildQueryString(supportAssist.user(), {id: it.createdBy})}>
+                                <Icon name={"heroArrowTopRightOnSquare"} mt={-6} />
+                            </Link>
+                        </td>
+                        <td />
+                        <td align={"center"}>
+                            {dateToString(it.createdAt)}
+                        </td>
+                        <td />
+                        <td align={"center"}>
+                            {dateToString(it.updatedAt)}
+                        </td>
+                        <td />
+                        <td align={"center"}>
+                            <hr />
+                            {it.currentRevision.document.allocationRequests.map(request =>
+                                <>{request.category} ({request.provider})<br /></>
+                            )}
+                            <hr />
+                        </td>
+                        <td />
+                        <td align={"center"}>
+                            {it.status.overallState}
+                        </td>
+                    </tr>
+                </tbody>
+            ) : null}
+    </table>
 
 }
 
