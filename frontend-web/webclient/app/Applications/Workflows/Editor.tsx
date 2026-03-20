@@ -18,8 +18,8 @@ import * as AppStore from "@/Applications/AppStoreApi";
 import {ApplicationParameter} from "@/Applications/AppStoreApi";
 import EnumOption = AppStore.ApplicationParameterNS.EnumOption;
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {VirtualFile} from "@/Files/FileTree";
+import {sendFailureNotification} from "@/Notifications";
 
 const WorkflowEditor: React.FunctionComponent<{
     initialExistingPath?: string | null;
@@ -95,7 +95,7 @@ const WorkflowEditor: React.FunctionComponent<{
 
         setError(error);
         if (error) {
-            snackbarStore.addFailure(error, false);
+            sendFailureNotification(error);
             return null;
         }
 

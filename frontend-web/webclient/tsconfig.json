@@ -9,7 +9,7 @@
         "allowSyntheticDefaultImports": true,
         "allowUnreachableCode": false,
         "noFallthroughCasesInSwitch": true,
-        "allowUnusedLabels": true,
+        "allowUnusedLabels": false,
         "module": "esnext",
         "lib": [
             "ESNext",

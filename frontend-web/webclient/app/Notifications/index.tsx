@@ -1,8 +1,6 @@
 import {Client, WSFactory} from "@/Authentication/HttpClientInstance";
 import {formatDistance} from "date-fns";
 import * as React from "react";
-import {Snack} from "@/Snackbar/Snackbars";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Absolute, Box, Flex, Icon, Relative} from "@/ui-components";
 import {IconName} from "@/ui-components/Icon";
 import {TextSpan} from "@/ui-components/Text";
@@ -12,13 +10,12 @@ import {NotificationProps as NormalizedNotification} from "./Card";
 import * as Snooze from "./Snooze";
 import {callAPI} from "@/Authentication/DataHook";
 import {buildQueryString} from "@/Utilities/URIUtilities";
-import {triggerNotificationPopup, NotificationPopups} from "./Popups";
+import {triggerNotificationPopup} from "./Popups";
 import {useForcedRender} from "@/Utilities/ReactUtilities";
 import {timestampUnixMs} from "@/UtilityFunctions";
 import {Dispatch} from "redux";
 import {Location, NavigateFunction, useLocation, useNavigate} from "react-router-dom";
 import {useDispatch} from "react-redux";
-import {WebSocketConnection} from "@/Authentication/ws";
 import AppRoutes from "@/Routes";
 import {classConcatArray, injectStyle} from "@/Unstyled";
 import {useRefresh} from "@/Utilities/ReduxUtilities";
@@ -188,8 +185,14 @@ function resolveNotification(event: Notification): {
                 modifiedTitle: jobsFailedTitle,
                 modifiedMessage: jobsFailedMessage
             };
+        case "info":
+            return {icon: "heroInformationCircle", color: "iconColor", color2: "iconColor", modifiedTitle: UF.capitalized(event.type)};
+        case "success":
+            return {icon: "check", color: "successMain", color2: "successMain", modifiedTitle: UF.capitalized(event.type)};
+        case "failure":
+            return {icon: "close", color: "errorMain", color2: "errorMain", modifiedTitle: UF.capitalized(event.type)};
         default:
-            return {icon: "heroInformationCircle", color: "iconColor", color2: "iconColor2"};
+            return {icon: "heroInformationCircle", color: "iconColor", color2: "iconColor2", modifiedTitle: UF.capitalized(event.type)};
     }
 }
 
@@ -247,10 +250,8 @@ function onNotificationAction(notification: Notification, navigate: NavigateFunc
 
 // NOTE(Dan): The code of this module contain all the relevant logic and components to control the notification system
 // of UCloud. A notification is UCloud acts as a hint to the user that an interesting event has occured, in doing so
-// it invites the user to take action in response to said event. This is the main difference between the "Snackbar"
-// functionality of UCloud which is only meant to notify the user of some event which does not require any user
-// action.
-//
+// it invites the user to take action in response to said event. 
+// 
 // The anatomy of an notification is roughly as follows:
 //
 //
@@ -282,9 +283,6 @@ function onNotificationAction(notification: Notification, navigate: NavigateFunc
 //    WebSocket subscription.
 // 2. From the `sendNotification` call. This allows the frontend to generate its own notifications. This is currently
 //    the only way of generating a pinned notification.
-// 3. From the `snackbarStore`. This is done mostly for legacy reasons with the old snackbars, which could optionally
-//    be added to the notification tray. Using the snackbars this way will no longer generate a snackbar, since this
-//    would have caused two distinct popups instead of one.
 //
 // All notifications, regardless of source, are normalized using the `normalizeNotification()` function. The output of
 // this function is used throughout all the other components. These notifications are stored in the
@@ -298,10 +296,10 @@ function renderNotifications() {
     }
 }
 
-// NOTE(Dan): The frontend can generate its own notification through `sendNotification()`. This is generally preferred
-// over using the `snackbar` functions, as these allow for greater flexibility.
+// NOTE(Dan): The frontend can generate its own notification through `sendNotification()`.
 export function sendNotification(notification: NormalizedNotification, forceShow: boolean = false) {
     const normalized = normalizeNotification(notification);
+    normalized.read = true;
     const existing = notificationStore.find(item => item.uniqueId === normalized.uniqueId);
     if (existing) {
         if (forceShow) Snooze.wakeNotification(normalized.uniqueId);
@@ -324,7 +322,6 @@ export function sendNotification(notification: NormalizedNotification, forceShow
 // function is responsible for pulling information from these sources and pushing it into the `notificationStore`.
 // When UI updates are required, then this function will invoke `renderNotifications()` to trigger a UI update in all
 // relevant components.
-let snackbarSubscription: (snack?: Snack) => void = () => {};
 let snoozeLoop: any;
 function initializeStore() {
     // NOTE(Dan): We first fetch a history of old events. These are only added to the tray and do not trigger a popup.
@@ -338,22 +335,6 @@ function initializeStore() {
         renderNotifications();
     });
 
-    // NOTE(Dan): Sets up the subscriber to the snackbarStore. This is here mostly for legacy reasons. Generally you
-    // should prefer generating frontend notifications through `sendNotification()`.
-    snackbarSubscription = (snack?: Snack): void => {
-        if (snack && snack.addAsNotification) {
-            sendNotification(normalizeNotification({
-                id: -new Date().getTime(),
-                message: snack.message,
-                read: false,
-                type: "info",
-                ts: new Date().getTime(),
-                meta: ""
-            }));
-        }
-    };
-    snackbarStore.subscribe(snackbarSubscription);
-
     // NOTE(Dan): A pinned notification which has been snoozed should automatically re-appear as a popup after some
     // time. This small `setInterval()` handler is responsible for doing this.
     snoozeLoop = setInterval(() => {
@@ -366,11 +347,52 @@ function initializeStore() {
     }, 500);
 }
 
+
+export const enum SnackType {
+    Success,
+    Information,
+    Failure
+}
+
+function snackToNotification(message: string, kind: SnackType): NormalizedNotification {
+    let type = "";
+    switch (kind) {
+        case SnackType.Failure:
+            type = "failure";
+            break;
+        case SnackType.Success:
+            type = "success";
+            break;
+        case SnackType.Information:
+            type = "info";
+            break;
+    }
+    return normalizeNotification({
+        id: UF.randomUUID(),
+        message: message,
+        read: false,
+        type,
+        ts: new Date().getTime(),
+        meta: ""
+    });
+}
+
+export function sendSuccessNotification(message: string) {
+    return sendNotification(snackToNotification(message, SnackType.Success));
+}
+
+export function sendFailureNotification(message: string) {
+    return sendNotification(snackToNotification(message, SnackType.Failure));
+}
+
+export function sendInformationNotification(message: string) {
+    return sendNotification(snackToNotification(message, SnackType.Information));
+}
+
 function deinitStore() {
     notificationStore.length = 0;
 
     if (snoozeLoop) clearInterval(snoozeLoop);
-    snackbarStore.unsubscribe(snackbarSubscription);
 }
 
 // NOTE(Dan): Whenever a user has read a message, we mark it as read and notify the backend (if relevant). This is
@@ -380,17 +402,16 @@ export function markAllAsRead() {
 }
 
 export function markAsRead(notifications: NormalizedNotification[]) {
-    for (const notification of notifications) {
-        notification.read = true;
-    }
-    renderNotifications();
 
     const idsToUpdate: string[] = [];
     for (const notification of notifications) {
-        if (!notification.isPinned && notification.uniqueId.indexOf("-") !== 0) {
+        if (!notification.isPinned && notification.uniqueId.toString().indexOf("-") !== 0 && !notification.read) {
             idsToUpdate.push(notification.uniqueId);
         }
+        notification.read = true;
     }
+
+    renderNotifications();
 
     if (idsToUpdate.length > 0) {
         callAPI({
@@ -496,7 +517,6 @@ export const Notifications: React.FunctionComponent<SidebarDialog> = props => {
     const unreadLength = notificationStore.filter(e => !e.read).length;
 
     return <>
-        <NotificationPopups />
         <Flex onClick={toggleNotifications} data-component="notifications" data-key="notifications-icon" cursor="pointer">
             <Relative top={0} left={0}>
                 <Flex justifyContent="center" width="48px">
@@ -604,7 +624,7 @@ const NoNotifications = (): React.ReactNode => <TextSpan>No notifications</TextS
 
 export interface Notification {
     type: string;
-    id: number;
+    id: string;
     message: string;
     ts: number;
     read: boolean;
@@ -614,7 +634,6 @@ export interface Notification {
 export function normalizeNotification(
     notification: Notification | NormalizedNotification,
 ): NormalizedNotification & {onSnooze?: () => void} {
-    const {location, refresh, navigate, dispatch} = normalizationDependencies!;
 
     if ("isPinned" in notification) {
         const result = {
@@ -622,13 +641,16 @@ export function normalizeNotification(
             onSnooze: () => Snooze.snooze(notification.uniqueId),
         };
         result.onAction = () => {
-            const before = location.pathname;
+            const location = normalizationDependencies?.location;
+            const refresh = normalizationDependencies?.refresh;
+            if (location && refresh) {
+                const before = location.pathname;
 
-            markAsRead([result]);
-            notification.onAction?.();
+                notification.onAction?.();
 
-            const after = location.pathname;
-            if (before === after && refresh.current) refresh.current();
+                const after = location.pathname;
+                if (before === after && refresh.current) refresh.current();
+            }
         };
         return result;
     }
@@ -643,20 +665,24 @@ export function normalizeNotification(
         isPinned: false,
         ts: notification.ts,
         read: notification.read,
-        uniqueId: `${notification.id}`,
+        uniqueId: notification.id,
         avatar: resolved.avatar,
         onSnooze: () => Snooze.snooze(`${notification.id}`),
+        onAction: () => {
+            const navigate = normalizationDependencies?.navigate;
+            const dispatch = normalizationDependencies?.dispatch;
+            const refresh = normalizationDependencies?.refresh;
+            const before = location.pathname;
+
+            if (navigate && dispatch) {
+                onNotificationAction(notification, navigate, dispatch);
+            }
+
+            const after = location.pathname;
+            if (before === after && refresh?.current) refresh.current();
+        }
     };
 
-    result.onAction = () => {
-        const before = location.pathname;
-
-        markAsRead([result]);
-        onNotificationAction(notification, navigate, dispatch);
-
-        const after = location.pathname;
-        if (before === after && refresh.current) refresh.current();
-    };
 
     return result;
 }
@@ -685,7 +711,7 @@ function NotificationEntry(props: NotificationEntryProps): React.ReactNode {
         <div className={classConcatArray(NotificationWrapper, classes)} onClick={onAction}>
             {props.notification.avatar === undefined ?
                 <Icon name={notification.icon} size="24px" color={notification.iconColor ?? "iconColor"}
-                      color2={notification.iconColor2 ?? "iconColor2"} /> :
+                    color2={notification.iconColor2 ?? "iconColor2"} /> :
                 <Box flexShrink={0}>
                     <AvatarForUser username={props.notification.avatar} height="24px" width="24px" mx={"0px"}></AvatarForUser>
                 </Box>

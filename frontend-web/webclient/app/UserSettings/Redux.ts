@@ -1,11 +1,12 @@
 import {Client} from "@/Authentication/HttpClientInstance";
 import {Action} from "redux";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
+
 import {findAvatarQuery, saveAvatarQuery} from "@/Utilities/AvatarUtilities";
 import {errorMessageOrDefault} from "@/UtilityFunctions";
 import {initAvatar} from "@/DefaultObjects";
 import {AvatarType} from "@/AvataaarLib";
 import {PayloadAction} from "@reduxjs/toolkit";
+import {sendFailureNotification, sendNotification, sendSuccessNotification} from "@/Notifications";
 
 export type AvatarActions = SaveAvataaar | SetAvatarError;
 
@@ -20,10 +21,10 @@ function saveAvataaar(avatar: AvatarType): SaveAvataaar {
 export async function saveAvatar(avatar: AvatarType): Promise<SaveAvataaar | SetAvatarError> {
     try {
         await Client.post(saveAvatarQuery, avatar, undefined);
-        snackbarStore.addSuccess("Avatar updated", false);
+        sendSuccessNotification("Avatar updated");
         return saveAvataaar(avatar);
     } catch (e) {
-        snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred saving the avatar"), false);
+        sendFailureNotification(errorMessageOrDefault(e, "An error occurred saving the avatar"));
         return setAvatarError();
     }
 }
@@ -40,9 +41,7 @@ export async function findAvatar(): Promise<SaveAvataaar | null> {
         const res = await Client.get<AvatarType>(findAvatarQuery, undefined);
         return saveAvataaar(res.response);
     } catch (e) {
-        snackbarStore.addFailure(
-            `Fetching avatar: ${errorMessageOrDefault(e, "An error occurred fetching your avatar.")}`, false
-        );
+        sendFailureNotification(`Fetching avatar: ${errorMessageOrDefault(e, "An error occurred fetching your avatar.")}`);
         return null;
     }
 }

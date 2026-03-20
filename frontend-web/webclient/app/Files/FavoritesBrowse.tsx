@@ -25,11 +25,12 @@ import AppRoutes from "@/Routes";
 import {image} from "@/Utilities/HTMLUtilities";
 import {isLikelyDirectory, sidebarFavoriteCache} from "./FavoriteCache";
 import {callAPI} from "@/Authentication/DataHook";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
+
 import {UFile} from "@/UCloud/UFile";
 import {FileIconHint} from ".";
 import {ShortcutKey} from "@/ui-components/Operation";
 import {getLastActivePath} from "@/Applications/Jobs/Widgets/GenericFiles";
+import {sendFailureNotification} from "@/Notifications";
 
 const FEATURES: ResourceBrowseFeatures = {
     dragToSelect: true,
@@ -254,7 +255,7 @@ function FavoriteBrowse({selection, navigateToFolder}: {
                             ));
                             sidebarFavoriteCache.remove(entry.path);
                         } catch (e) {
-                            snackbarStore.addFailure("Failed to remove favorite", false)
+                            sendFailureNotification("Failed to remove favorite");
                         }
                     })();
                 });

@@ -3,9 +3,10 @@ import * as React from "react";
 import {useCallback, useEffect, useState} from "react";
 import {Box} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
+
 import {NotificationSettings, retrieveNotificationSettings, updateNotificationSettings} from "./settingsApi";
 import {SettingsCheckboxRow, SettingsSection} from "./SettingsComponents";
+import {sendFailureNotification} from "@/Notifications";
 
 export const defaultNotificationSettings: NotificationSettings = {
     jobStarted: true,
@@ -64,7 +65,7 @@ export const ChangeNotificationSettings: React.FunctionComponent<ChangeNotificat
 
             if (!wasSuccessful) {
                 setSettings(previousSettings);
-                snackbarStore.addFailure("Failed to update user notification settings", false);
+                sendFailureNotification("Failed to update user notification settings");
             }
         })();
     }, [commandLoading, settings, invokeCommand]);

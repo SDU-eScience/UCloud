@@ -5,8 +5,8 @@ import {PageV2, provider} from "@/UCloud";
 import IntegrationApi = provider.im;
 import {hasUploadedSigningKeyToProvider, retrieveOrInitializePublicSigningKey, markSigningKeyAsUploadedToProvider} from "@/Authentication/MessageSigning";
 import {LocalStorageCache} from "@/Utilities/LocalStorageCache";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {sendNotification} from "@/Notifications";
+
+import {sendFailureNotification, sendNotification} from "@/Notifications";
 import React from "react";
 import BaseLink from "@/ui-components/BaseLink";
 import {ProviderTitle} from "./ProviderTitle";
@@ -135,10 +135,7 @@ class ConnectionState extends UState<ConnectionState> {
                             document.location.href = redirectTo;
                         })
                         .catch(() => {
-                            snackbarStore.addFailure(
-                                "UCloud was not able to initiate a connection. Try again later.",
-                                true
-                            );
+                            sendFailureNotification("UCloud was not able to initiate a connection. Try again later.");
                         });
                 } else {
                     document.location.href = res.redirectTo;

@@ -3,7 +3,6 @@ import {usePage} from "@/Navigation/Redux";
 import {Gradient, GradientWithPolygons} from "@/ui-components/GradientBackground";
 import {classConcat, injectStyle} from "@/Unstyled";
 import {Box, Button, Card, ExternalLink, Flex, Grid, Icon, MainContainer, Markdown, Relative} from "@/ui-components";
-import TitledCard from "@/ui-components/HighlightedCard";
 import {AppLogoRaw, SafeLogo} from "@/Applications/AppToolLogo";
 import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
 import {UtilityBar} from "@/Navigation/UtilityBar";
@@ -21,7 +20,6 @@ import {shade, tint} from "@/ui-components/GlobalStyle";
 import {LogoWithText} from "@/Applications/LogoWithText";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {CatalogDiscoveryModeSwitcher} from "@/Applications/Jobs/CatalogDiscoveryMode";
-import {Feature, hasFeature} from "@/Features";
 import {useGlobal} from "@/Utilities/ReduxHooks";
 import {useProjectId} from "@/Project/Api";
 import {useDiscovery} from "@/Applications/Hooks";
@@ -318,10 +316,6 @@ export const Hero: React.FunctionComponent<{
         }
     }
 
-    const navigation = React.useCallback(() => {
-        if (slideLink) navigate(slideLink);
-    }, [slideLink]);
-
     if (slides.length == 0) return null;
 
     const imageLink = imageLinks?.[index] ?? AppStore.retrieveCarrouselImage({index, slideTitle: slide.title});
@@ -572,10 +566,6 @@ const AppCardGridStyle = injectStyle("app-card-grid", k => `
         --appCardBorderColor: transparent;
     }
 `);
-
-const AppCardGrid: React.FunctionComponent<{children: React.ReactNode}> = ({children}) => {
-    return <div className={AppCardGridStyle}>{children}</div>;
-}
 
 const CategoryCardStyle = injectStyle("category-card", k => `
     ${k} {

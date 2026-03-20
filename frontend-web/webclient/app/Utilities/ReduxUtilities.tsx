@@ -19,7 +19,7 @@ export const USER_LOGOUT = "USER_LOGOUT";
 export type UserActionType = typeof USER_LOGIN | typeof USER_LOGOUT | typeof CONTEXT_SWITCH
 
 
-export function confStore(
+function confStore(
     initialObject: ReduxObject,
     reducers: ReducersMapObject<ReduxObject, Action>,
 ): EnhancedStore<ReduxObject> {

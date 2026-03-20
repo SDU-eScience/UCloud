@@ -170,18 +170,15 @@ func loginAllowed(tx *db.Transaction, request *http.Request, username string) bo
 }
 
 type loginCooldown struct {
-	Username         string
-	ExpiresAt        time.Time
 	AllowLoginsAfter time.Time
 	Severity         int
-	Id               int8
 }
 
 func findLoginAttemptCooldown(tx *db.Transaction, username string) (loginCooldown, bool) {
 	return db.Get[loginCooldown](
 		tx,
 		`
-			select *
+			select severity, allow_logins_after
 			from auth.login_cooldown
 			where
 				username = :username

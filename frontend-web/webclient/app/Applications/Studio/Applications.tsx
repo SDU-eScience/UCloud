@@ -5,7 +5,6 @@ import {MainContainer} from "@/ui-components/MainContainer";
 import {useCallback, useEffect} from "react";
 import * as React from "react";
 import {useState} from "react";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Button, Checkbox, Flex, Label, Link, Select, Text} from "@/ui-components";
 import Box from "@/ui-components/Box";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
@@ -26,6 +25,7 @@ import * as AppStore from "@/Applications/AppStoreApi";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {ProjectTitleForNewCore} from "@/Project/InfoCache";
+import {sendSuccessNotification} from "@/Notifications";
 
 interface AppVersion {
     version: string;
@@ -67,7 +67,7 @@ function prettifyEntityType(entityType: AccessEntityType): string {
 
 function LeftAlignedTableHeader(props: React.PropsWithChildren): React.ReactNode {
     return <thead className={LeftAlignedTableHeaderClass}>
-    {props.children}
+        {props.children}
     </thead>
 }
 
@@ -76,7 +76,7 @@ const LeftAlignedTableHeaderClass = injectStyleSimple("table-header", `
 `);
 
 export const App: React.FunctionComponent = () => {
-    const name = useParams<{ name: string }>().name!;
+    const name = useParams<{name: string}>().name!;
 
     const [commandLoading, invokeCommand] = useCloudCommand();
     const [access, setAccess] = React.useState<ApplicationAccessRight>("LAUNCH");
@@ -90,10 +90,10 @@ export const App: React.FunctionComponent = () => {
 
     const [permissionEntries, fetchPermissionEntries] = useCloudAPI(
         AppStore.retrieveAcl({name: name}),
-        { entries: [] }
+        {entries: []}
     );
 
-    const [apps, setAppParameters] = useCloudAPI<{ versions: AppStore.Application[] }>(
+    const [apps, setAppParameters] = useCloudAPI<{versions: AppStore.Application[]}>(
         AppStore.findStudioApplication({name}),
         {versions: []}
     );
@@ -181,7 +181,7 @@ export const App: React.FunctionComponent = () => {
         <MainContainer
             header={(
                 <Flex justifyContent="left" verticalAlign="center" maxWidth="800px" ml="auto" mr="auto">
-                    <SafeLogo name={name} type={"APPLICATION"} size={"48px"}/>
+                    <SafeLogo name={name} type={"APPLICATION"} size={"48px"} />
                     <Heading.h3 pt="15px" pl="15px">
                         {appTitle}
                     </Heading.h3>
@@ -193,16 +193,16 @@ export const App: React.FunctionComponent = () => {
                     <Box maxWidth="800px" width="100%" ml="auto" mr="auto" mt="25px">
                         <Label>Group</Label>
                         <Box mb="20px" textAlign="right">
-                                <Select
-                                    name="group" 
-                                    value={selectedGroup}
-                                    onChange={(event) => setSelectedGroup(event.target.value)}
-                                >
-                                    <option value="0"></option>
-                                    {groupOptions.map(it => (
-                                        <option value={it.value}>{it.text}</option>
-                                    ))}
-                                </Select>
+                            <Select
+                                name="group"
+                                value={selectedGroup}
+                                onChange={(event) => setSelectedGroup(event.target.value)}
+                            >
+                                <option value="0"></option>
+                                {groupOptions.map(it => (
+                                    <option value={it.value}>{it.text}</option>
+                                ))}
+                            </Select>
                             {selectedGroup > 0 ? (
                                 <Link to={`/applications/studio/g/${selectedGroup}`}>Go to group management page</Link>
                             ) : <></>}
@@ -210,7 +210,7 @@ export const App: React.FunctionComponent = () => {
 
                         <Label>Flavor (name)</Label>
                         <Flex>
-                            <Input rightLabel inputRef={flavorField} defaultValue={flavorName}/>
+                            <Input rightLabel inputRef={flavorField} defaultValue={flavorName} />
                             <Button
                                 attachedRight
                                 onClick={async () => {
@@ -226,7 +226,7 @@ export const App: React.FunctionComponent = () => {
                                     }));
 
                                     if (res) {
-                                        snackbarStore.addSuccess("Saved flavor", false);
+                                        sendSuccessNotification("Saved flavor");
                                     }
 
                                     refresh();
@@ -362,43 +362,43 @@ export const App: React.FunctionComponent = () => {
                                             </TableRow>
                                         </LeftAlignedTableHeader>
                                         <tbody>
-                                        {permissionEntries.data.entries.map((permissionEntry, index) => (
-                                            <TableRow key={index}>
-                                                <TableCell>
-                                                    {(permissionEntry.entity.user) ? (
-                                                        permissionEntry.entity.user
-                                                    ) : (
-                                                       <>
-                                                       <ProjectTitleForNewCore id={permissionEntry.entity.project?.id ?? ""}/>/{permissionEntry.entity.group?.id}
-                                                       </>
-                                                    )}</TableCell>
-                                                <TableCell>{prettifyAccessRight(permissionEntry.permission)}</TableCell>
-                                                <TableCell>
-                                                    <Flex justifyContent="right">
-                                                        <ConfirmationButton
-                                                            icon="heroTrash"
-                                                            onAction={async () => {
-                                                                await invokeCommand(AppStore.updateAcl({
-                                                                    name: name,
-                                                                    changes: [
-                                                                        {
-                                                                            entity: {
-                                                                                user: permissionEntry.entity.user,
-                                                                                project: permissionEntry.entity.project?.id,
-                                                                                group: permissionEntry.entity.group?.id
-                                                                            },
-                                                                            rights: permissionEntry.permission,
-                                                                            revoke: true
-                                                                        }
-                                                                    ]
-                                                                }));
-                                                                fetchPermissionEntries(AppStore.retrieveAcl({name}));
-                                                            }}
-                                                        />
-                                                    </Flex>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
+                                            {permissionEntries.data.entries.map((permissionEntry, index) => (
+                                                <TableRow key={index}>
+                                                    <TableCell>
+                                                        {(permissionEntry.entity.user) ? (
+                                                            permissionEntry.entity.user
+                                                        ) : (
+                                                            <>
+                                                                <ProjectTitleForNewCore id={permissionEntry.entity.project?.id ?? ""} />/{permissionEntry.entity.group?.id}
+                                                            </>
+                                                        )}</TableCell>
+                                                    <TableCell>{prettifyAccessRight(permissionEntry.permission)}</TableCell>
+                                                    <TableCell>
+                                                        <Flex justifyContent="right">
+                                                            <ConfirmationButton
+                                                                icon="heroTrash"
+                                                                onAction={async () => {
+                                                                    await invokeCommand(AppStore.updateAcl({
+                                                                        name: name,
+                                                                        changes: [
+                                                                            {
+                                                                                entity: {
+                                                                                    user: permissionEntry.entity.user,
+                                                                                    project: permissionEntry.entity.project?.id,
+                                                                                    group: permissionEntry.entity.group?.id
+                                                                                },
+                                                                                rights: permissionEntry.permission,
+                                                                                revoke: true
+                                                                            }
+                                                                        ]
+                                                                    }));
+                                                                    fetchPermissionEntries(AppStore.retrieveAcl({name}));
+                                                                }}
+                                                            />
+                                                        </Flex>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
                                         </tbody>
                                     </Table>
                                 ) : (
@@ -418,50 +418,50 @@ export const App: React.FunctionComponent = () => {
                                     </TableRow>
                                 </LeftAlignedTableHeader>
                                 <tbody>
-                                {versions.map(version => (
-                                    <TableRow key={version.version}>
-                                        <TableCell>
-                                            <div className={WordBreakDivClass}>
-                                                {version.version}
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Box mb={26} mt={16}>
-                                                <Label>
-                                                    <Flex>
-                                                        <Checkbox
-                                                            checked={version.isPublic}
-                                                            onChange={stopPropagation}
-                                                            onClick={() => {
-                                                                callAPI(AppStore.updatePublicFlag({
-                                                                    name,
-                                                                    version: version.version,
-                                                                    public: !version.isPublic
-                                                                }));
+                                    {versions.map(version => (
+                                        <TableRow key={version.version}>
+                                            <TableCell>
+                                                <div className={WordBreakDivClass}>
+                                                    {version.version}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Box mb={26} mt={16}>
+                                                    <Label>
+                                                        <Flex>
+                                                            <Checkbox
+                                                                checked={version.isPublic}
+                                                                onChange={stopPropagation}
+                                                                onClick={() => {
+                                                                    callAPI(AppStore.updatePublicFlag({
+                                                                        name,
+                                                                        version: version.version,
+                                                                        public: !version.isPublic
+                                                                    }));
 
-                                                                setVersions(versions.map(v =>
-                                                                    (v.version === version.version) ?
-                                                                        {
-                                                                            version: v.version,
-                                                                            isPublic: !v.isPublic
-                                                                        } : v
-                                                                ));
-                                                            }}
-                                                        />
-                                                        <Box ml={8} mt="2px">Public</Box>
-                                                    </Flex>
-                                                </Label>
-                                                {version.isPublic ? (
-                                                    <Box ml={28}>Everyone can see and launch this version
-                                                        of {appTitle}.</Box>
-                                                ) : (
-                                                    <Box ml={28}>Access to this version is restricted as defined in
-                                                        Permissions.</Box>
-                                                )}
-                                            </Box>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
+                                                                    setVersions(versions.map(v =>
+                                                                        (v.version === version.version) ?
+                                                                            {
+                                                                                version: v.version,
+                                                                                isPublic: !v.isPublic
+                                                                            } : v
+                                                                    ));
+                                                                }}
+                                                            />
+                                                            <Box ml={8} mt="2px">Public</Box>
+                                                        </Flex>
+                                                    </Label>
+                                                    {version.isPublic ? (
+                                                        <Box ml={28}>Everyone can see and launch this version
+                                                            of {appTitle}.</Box>
+                                                    ) : (
+                                                        <Box ml={28}>Access to this version is restricted as defined in
+                                                            Permissions.</Box>
+                                                    )}
+                                                </Box>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
                                 </tbody>
                             </Table>
                         </Box>

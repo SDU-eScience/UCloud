@@ -287,7 +287,7 @@ func TestFailingGpu(t *testing.T) {
 
 	submit := func(jobId string, gpuCount int) {
 		s.RegisterJobInQueue(
-			"initial",
+			jobId,
 			shared.SchedulerDimensions{
 				CpuMillis:     1000 * coresPerGpu * gpuCount,
 				MemoryInBytes: memoryPerCore * coresPerGpu * gpuCount,
@@ -345,9 +345,9 @@ func TestFailingGpu(t *testing.T) {
 	}
 
 	// Recover the node fully
-	s.RegisterNode("gpu-node", initialDims, initialDims, true)
+	s.RegisterNode("gpu-node", initialDims, initialDims, false)
 	scheduled = s.Schedule()
-	if len(scheduled) != 0 {
+	if len(scheduled) != 1 {
 		t.Errorf("expected the third job to schedule in the end")
 	}
 }
