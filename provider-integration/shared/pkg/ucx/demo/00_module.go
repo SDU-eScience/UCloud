@@ -8,9 +8,9 @@ import (
 	"strings"
 	"sync"
 
-	"ucloud.dk/core/pkg/orchestrator/ucx"
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/rpc"
+	"ucloud.dk/shared/pkg/ucx"
 	"ucloud.dk/shared/pkg/util"
 )
 

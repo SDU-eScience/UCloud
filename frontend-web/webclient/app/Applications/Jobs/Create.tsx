@@ -70,6 +70,7 @@ import {useDiscovery} from "@/Applications/Hooks";
 import {Feature, hasFeature} from "@/Features";
 import retrieveEmailSettings = mail.retrieveEmailSettings;
 import toggleEmailSettings = mail.toggleEmailSettings;
+import {CreateUcxJob} from "@/Applications/Jobs/CreateUcx";
 
 interface InsufficientFunds {
     why?: string;
@@ -652,6 +653,10 @@ export const Create: React.FunctionComponent = () => {
                 main={<Heading.h3>Unable to find application &apos;{appName}&apos;</Heading.h3>}
             />
         );
+    }
+
+    if (application.invocation.tool.tool?.description.backend === "UCX") {
+        return <CreateUcxJob application={application} appGroup={applicationResp?.data ?? null} />;
     }
 
     let mandatoryWorkflow = parameters.filter(it => !it.optional && it.type === "workflow");

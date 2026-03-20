@@ -23,7 +23,7 @@ export interface NormalizedToolDescription {
     authors: string[];
     title: string;
     description: string;
-    backend: ("SINGULARITY" | "DOCKER" | "VIRTUAL_MACHINE" | "NATIVE");
+    backend: ("SINGULARITY" | "DOCKER" | "VIRTUAL_MACHINE" | "NATIVE" | "UCX");
     license: string;
     image?: string;
     supportedProviders?: string[];

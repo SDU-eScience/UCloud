@@ -7,11 +7,11 @@ import (
 	"slices"
 	"strings"
 
-	"ucloud.dk/core/pkg/orchestrator/ucx"
 	accapi "ucloud.dk/shared/pkg/accounting"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/rpc"
+	"ucloud.dk/shared/pkg/ucx"
 	"ucloud.dk/shared/pkg/util"
 )
 

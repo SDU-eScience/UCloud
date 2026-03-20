@@ -1,6 +1,8 @@
 package ucx
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestStructToModelSerializesScalarsAndTags(t *testing.T) {
 	type model struct {

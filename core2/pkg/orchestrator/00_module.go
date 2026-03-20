@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"ucloud.dk/core/pkg/coreutil"
-	"ucloud.dk/core/pkg/orchestrator/ucx/demo"
+	"ucloud.dk/shared/pkg/ucx/demo"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -68,6 +68,9 @@ func Init() {
 
 	initAppCatalog()
 	times["AppCatalog"] = t.Mark()
+
+	initAppUcx()
+	times["AppUcx"] = t.Mark()
 
 	initJobs()
 	times["Jobs"] = t.Mark()
