@@ -15,6 +15,7 @@ import {formatTs} from "./Add";
 import {SimpleAvatarComponentCache} from "@/Files/Shares";
 import {divText} from "@/Utilities/HTMLUtilities";
 import {TruncateClass} from "@/ui-components/Truncate";
+import {copyToClipboard} from "@/UtilityFunctions";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -42,7 +43,7 @@ export function ApiTokenBrowse(props: {opts?: ResourceBrowserOpts<Api.ApiToken>}
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<Api.ApiToken>(mount, "API tokens", props.opts).init(browserRef, FEATURES, "", browser => {
-                browser.setColumns([{name: "Title"}, {name: "Created by", columnWidth: 200}, {name: "Expires at", columnWidth: 200}, {name: "Permissions", columnWidth: 150}]);
+                browser.setColumns([{name: "Title"}, {name: "Created by", columnWidth: 200}, {name: "Expires at", columnWidth: 200}, {name: "Server URL", columnWidth: 320}]);
 
                 browser.on("skipOpen", (oldPath, path, resource) => resource != null);
 
@@ -96,7 +97,11 @@ export function ApiTokenBrowse(props: {opts?: ResourceBrowserOpts<Api.ApiToken>}
 
                     row.stat2.append(formatTs(token.specification.expiresAt));
 
-                    row.stat3.append(`${token.specification.requestedPermissions.length} permissions`);
+                    const serverUrl = token.status.server?.trim() || "Not available";
+                    const serverElement = divText(serverUrl);
+                    serverElement.classList.add(TruncateClass);
+                    serverElement.title = serverUrl;
+                    row.stat3.append(serverElement);
                     row.stat3.style.marginTop = row.stat3.style.marginBottom = "auto"
                 });
 
@@ -180,6 +185,18 @@ function retrieveOperations(): Operation<Api.ApiToken, StandardCallbacks<Api.Api
             cb.navigate(AppRoutes.resources.apiTokensCreate());
         },
         shortcut: ShortcutKey.N,
+    },
+    {
+        icon: "copy",
+        text: "Copy server URL",
+        enabled: (selected) => selected.length === 1 && !!selected[0].status.server?.trim(),
+        onClick: ([selected]) => {
+            copyToClipboard({
+                value: selected.status.server,
+                message: "Server URL copied to clipboard"
+            });
+        },
+        shortcut: ShortcutKey.C,
     },
     {
         icon: "trash",

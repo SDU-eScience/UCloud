@@ -43,13 +43,28 @@ func (c *AsyncCache[K, V]) Invalidate(key K) {
 }
 
 func (c *AsyncCache[K, V]) Get(key K, valueGetter func() (V, error)) (V, bool) {
+	result := c.GetEx(key, valueGetter)
+	return result.Value, result.Ok
+}
+
+type AsyncCacheResult[V any] struct {
+	Value     V
+	Ok        bool
+	WasCached bool
+}
+
+func (c *AsyncCache[K, V]) GetEx(key K, valueGetter func() (V, error)) AsyncCacheResult[V] {
 	// Attempt purge prior to retrieving from the cache
 	c.attemptPurge()
 
 	// Attempt to get the result immediately, without waiting
 	res, ok := c.GetNow(key)
 	if ok {
-		return res, true
+		return AsyncCacheResult[V]{
+			Value:     res,
+			Ok:        true,
+			WasCached: true,
+		}
 	}
 
 	// If not, we must try to submit it
@@ -61,7 +76,11 @@ func (c *AsyncCache[K, V]) Get(key K, valueGetter func() (V, error)) (V, bool) {
 		// Someone did, so read the result from the entry. Unlocking immediately to avoid blocking others.
 		c.mutex.Unlock()
 		res, ok = cachedEntry.Result()
-		return res, ok
+		return AsyncCacheResult[V]{
+			Value:     res,
+			Ok:        true,
+			WasCached: false,
+		}
 	}
 
 	// We got here first, so we should submit it
@@ -85,7 +104,12 @@ func (c *AsyncCache[K, V]) Get(key K, valueGetter func() (V, error)) (V, bool) {
 
 	// Unlock the mutex and then wait for the result
 	c.mutex.Unlock()
-	return entry.Result()
+	res, ok = entry.Result()
+	return AsyncCacheResult[V]{
+		Value:     res,
+		Ok:        true,
+		WasCached: false,
+	}
 }
 
 func (c *AsyncCache[K, V]) getEntry(key K) (*cacheEntry[V], bool) {
