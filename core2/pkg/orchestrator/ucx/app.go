@@ -10,6 +10,7 @@ import (
 )
 
 type AppHandler func(ctx context.Context, session *Session)
+type SessionAuthHandler func(ctx context.Context, token string) bool
 
 type Session struct {
 	rawIncoming <-chan Frame
@@ -97,15 +98,15 @@ func (s *Session) pumpIncoming() {
 	}
 }
 
-func (s *Session) SendUiMount(replyTo int64, uiMount UiMount) {
+func (s *Session) SendUiMount(uiMount UiMount) {
 	s.Send(Frame{
-		ReplyToSeq: replyTo,
+		ReplyToSeq: 0,
 		Opcode:     OpUiMount,
 		UiMount:    uiMount,
 	})
 }
 
-func (s *Session) SendModelDiff(replyTo int64, version int64, before map[string]Value, after map[string]Value) {
+func (s *Session) SendModelDiff(before map[string]Value, after map[string]Value) {
 	changes := map[string]Value{}
 	for key, afterVal := range after {
 		beforeVal, ok := before[key]
@@ -125,10 +126,9 @@ func (s *Session) SendModelDiff(replyTo int64, version int64, before map[string]
 	}
 
 	s.Send(Frame{
-		ReplyToSeq: replyTo,
+		ReplyToSeq: 0,
 		Opcode:     OpModelPatch,
 		ModelPatch: ModelPatch{
-			Version: version,
 			Changes: changes,
 		},
 	})
@@ -141,9 +141,14 @@ func RunAppRaw(ctx context.Context, handler AppHandler) {
 	handler(ctx, session)
 }
 
-func RunAppWebSocket(conn *ws.Conn, ctx context.Context, handler AppHandler) {
+func RunAppWebSocket(conn *ws.Conn, ctx context.Context, authHandler SessionAuthHandler, handler AppHandler) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
+
+	if !performServerAuthHandshake(ctx, conn, authHandler) {
+		_ = conn.Close()
+		return
+	}
 
 	toWebsocket := make(chan Frame, 16)
 	fromWebsocket := make(chan Frame, 16)
@@ -181,6 +186,35 @@ func RunAppWebSocket(conn *ws.Conn, ctx context.Context, handler AppHandler) {
 	<-done
 	<-done
 	<-done
+}
+
+func performServerAuthHandshake(ctx context.Context, conn *ws.Conn, authHandler SessionAuthHandler) bool {
+	messageType, rawMessage, err := conn.ReadMessage()
+	if err != nil {
+		return false
+	}
+
+	if messageType != ws.TextMessage {
+		_ = conn.WriteMessage(ws.TextMessage, []byte("Forbidden"))
+		return false
+	}
+
+	token := string(rawMessage)
+	allowed := true
+	if authHandler != nil {
+		allowed = authHandler(ctx, token)
+	}
+
+	if !allowed {
+		_ = conn.WriteMessage(ws.TextMessage, []byte("Forbidden"))
+		return false
+	}
+
+	if err := conn.WriteMessage(ws.TextMessage, []byte("OK")); err != nil {
+		return false
+	}
+
+	return true
 }
 
 func pumpFramesFromWebsocket(ctx context.Context, conn *ws.Conn, outgoing chan<- Frame) {

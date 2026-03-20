@@ -39,6 +39,13 @@ func Flex(id string, props FlexProps) UiNode {
 	}
 }
 
+func Box(id string) UiNode {
+	return UiNode{
+		Id:        id,
+		Component: "box",
+	}
+}
+
 func Text(id string, text string) UiNode {
 	return UiNode{
 		Id:        id,

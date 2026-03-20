@@ -13,11 +13,13 @@ import {
 import {Client} from "@/Authentication/HttpClientInstance";
 import {UcxSession} from "@/Playground/UcxCreateDemo/session";
 
+const UCX_DEMO_AUTH_TOKEN = "ucx-demo-proxy-token";
+const UCX_DEMO_SYSHELLO = "ucx-demo-webclient-syshello";
+
 const UcxCreateDemo: React.FunctionComponent = () => {
     const [connected, setConnected] = useState(false);
     const [root, setRoot] = useState<UiNode | null>(null);
     const [model, setModel] = useState<Record<string, Value>>({});
-    const [modelVersion, setModelVersion] = useState(0);
     const [transportError, setTransportError] = useState("");
 
     const connRef = useRef<WebSocket | null>(null);
@@ -27,17 +29,13 @@ const UcxCreateDemo: React.FunctionComponent = () => {
     const reconnectTimerRef = useRef<number | null>(null);
     const everConnectedRef = useRef(false);
     const pendingRehydrateModelRef = useRef<Record<string, Value> | null>(null);
+    const authCompleteRef = useRef(false);
 
     const modelRef = useRef<Record<string, Value>>({});
-    const modelVersionRef = useRef(0);
 
     useEffect(() => {
         modelRef.current = model;
     }, [model]);
-
-    useEffect(() => {
-        modelVersionRef.current = modelVersion;
-    }, [modelVersion]);
 
     const sendFrame = useCallback((frame: Omit<Frame, "seq">) => {
         sessionRef.current?.send(frame);
@@ -63,7 +61,6 @@ const UcxCreateDemo: React.FunctionComponent = () => {
                 nodeId: node.id,
                 path: node.bindPath,
                 value,
-                baseVersion: modelVersionRef.current,
             },
         });
     }, [applyModelChangeLocally, sendFrame]);
@@ -80,7 +77,7 @@ const UcxCreateDemo: React.FunctionComponent = () => {
         });
     }, [sendFrame]);
 
-    const resendModelAfterReconnect = useCallback((snapshot: Record<string, Value>, mount: {version: number; root: UiNode}) => {
+    const resendModelAfterReconnect = useCallback((snapshot: Record<string, Value>, mount: {root: UiNode}) => {
         const bindPaths = collectInputBindPaths(mount.root);
         if (bindPaths.size === 0) {
             return;
@@ -101,7 +98,6 @@ const UcxCreateDemo: React.FunctionComponent = () => {
                     nodeId: `rehydrate:${path}`,
                     path,
                     value,
-                    baseVersion: mount.version,
                 },
             });
         }
@@ -162,39 +158,63 @@ const UcxCreateDemo: React.FunctionComponent = () => {
             socket.onopen = () => {
                 reconnectAttemptRef.current = 0;
                 clearReconnectTimer();
-                setConnected(true);
-                setTransportError("");
+                authCompleteRef.current = false;
 
-                if (everConnectedRef.current && Object.keys(modelRef.current).length > 0) {
-                    pendingRehydrateModelRef.current = {...modelRef.current};
-                }
-                everConnectedRef.current = true;
+                socket.send(UCX_DEMO_AUTH_TOKEN);
 
                 sendFrame({
                     replyToSeq: 0,
                     opcode: Opcode.SysHello,
-                    sysHello: {
-                        host: "webclient",
-                        features: ["binary", "ui-mount", "model-patch", "model-input", "optimistic", "reconnect", "rpc"],
-                    },
-                });
-
-                sessionRef.current?.registerRpcHandler("client.ping", async payload => {
-                    console.log("Running client.ping", payload);
-                    return {
-                        ok: {kind: ValueKind.Bool, bool: true},
-                        from: {kind: ValueKind.String, string: "webclient"},
-                        echo: payload["message"] ?? {kind: ValueKind.Null},
-                    };
+                    sysHello: UCX_DEMO_SYSHELLO,
                 });
             };
 
             socket.onmessage = event => {
                 try {
+                    if (typeof event.data === "string") {
+                        if (authCompleteRef.current) {
+                            return;
+                        }
+
+                        if (event.data !== "OK") {
+                            setTransportError("Authentication failed");
+                            socket.close();
+                            return;
+                        }
+
+                        authCompleteRef.current = true;
+
+                        setConnected(true);
+                        setTransportError("");
+
+                        if (everConnectedRef.current && Object.keys(modelRef.current).length > 0) {
+                            pendingRehydrateModelRef.current = {...modelRef.current};
+                        }
+                        everConnectedRef.current = true;
+
+                        sessionRef.current?.registerRpcHandler("client.ping", async payload => {
+                            console.log("Running client.ping", payload);
+                            return {
+                                ok: {kind: ValueKind.Bool, bool: true},
+                                from: {kind: ValueKind.String, string: "webclient"},
+                                echo: payload["message"] ?? {kind: ValueKind.Null},
+                            };
+                        });
+
+                        return;
+                    }
+
                     if (!(event.data instanceof ArrayBuffer)) {
                         setTransportError("Received non-binary websocket frame");
                         return;
                     }
+
+                    if (!authCompleteRef.current) {
+                        setTransportError("Received binary frame before authentication");
+                        socket.close();
+                        return;
+                    }
+
                     const bytes = new Uint8Array(event.data);
 
                     const frame = decodeFrame(bytes);
@@ -210,12 +230,10 @@ const UcxCreateDemo: React.FunctionComponent = () => {
 
                         setRoot(mount.root);
                         setModel(mount.model);
-                        setModelVersion(mount.version);
 
                         if (rehydrateSnapshot) {
                             pendingRehydrateModelRef.current = null;
                             resendModelAfterReconnect(rehydrateSnapshot, {
-                                version: mount.version,
                                 root: mount.root,
                             });
                         }
@@ -231,7 +249,6 @@ const UcxCreateDemo: React.FunctionComponent = () => {
                             }
                             return next;
                         });
-                        setModelVersion(frame.modelPatch.version);
                     }
                 } catch (err) {
                     setTransportError(err instanceof Error ? err.message : "Failed to decode frame");
@@ -278,7 +295,6 @@ const UcxCreateDemo: React.FunctionComponent = () => {
                 <Text color={connected ? "successMain" : "warningMain"}>
                     {connected ? "Connected" : "Connecting..."}
                 </Text>
-                <Text>Model version: {modelVersion}</Text>
                 {transportError === "" ? null : <Text color="errorMain">Transport error: {transportError}</Text>}
 
                 {root == null ? <Text>Waiting for UI mount...</Text> :
@@ -313,6 +329,21 @@ const NodeRenderer: React.FunctionComponent<{
                 ...sxStyle(node),
             };
             return <div style={stackStyle}>
+                {node.children.map(child =>
+                    <NodeRenderer
+                        key={child.id}
+                        node={child}
+                        model={model}
+                        scope={scope}
+                        sendBoundInput={sendBoundInput}
+                        sendUiClick={sendUiClick}
+                    />
+                )}
+            </div>;
+        }
+
+        case "box": {
+            return <div style={sxStyle(node)}>
                 {node.children.map(child =>
                     <NodeRenderer
                         key={child.id}

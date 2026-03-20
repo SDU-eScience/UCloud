@@ -8,6 +8,8 @@ import (
 	"ucloud.dk/shared/pkg/util"
 )
 
+const maxSysHelloPayloadBytes = 64 * 1024
+
 type Opcode uint8
 
 const (
@@ -36,29 +38,25 @@ type Frame struct {
 }
 
 type SysHello struct {
-	Host     string
-	Features []string
+	Payload string
 }
 
 type UiMount struct {
 	// InterfaceId identifies the mounted UCX interface instance.
 	InterfaceId string
 	Root        UiNode
-	Version     int64
 	Model       map[string]Value
 }
 
 type ModelPatch struct {
-	Version int64
 	Changes map[string]Value
 }
 
 type ModelInput struct {
-	EventId     int64
-	NodeId      string
-	Path        string
-	Value       Value
-	BaseVersion int64
+	EventId int64
+	NodeId  string
+	Path    string
+	Value   Value
 }
 
 type UiEvent struct {
@@ -140,20 +138,19 @@ func FrameDecode(data []byte) (Frame, error) {
 }
 
 func SysHelloEncode(buf *util.UBuffer, msg SysHello) {
-	buf.WriteString(msg.Host)
-	buf.WriteU32(uint32(len(msg.Features)))
-	for _, it := range msg.Features {
-		buf.WriteString(it)
+	payloadBytes := []byte(msg.Payload)
+	if len(payloadBytes) >= maxSysHelloPayloadBytes {
+		buf.Error = fmt.Errorf("ucx syshello payload too large: %d bytes", len(payloadBytes))
+		return
 	}
+
+	buf.WriteString(msg.Payload)
 }
 
 func SysHelloDecode(buf *util.UBuffer) SysHello {
-	result := SysHello{}
-	result.Host = buf.ReadString()
-	count := buf.ReadU32()
-	result.Features = make([]string, count)
-	for i := uint32(0); i < count; i++ {
-		result.Features[i] = buf.ReadString()
+	result := SysHello{Payload: buf.ReadString()}
+	if len([]byte(result.Payload)) >= maxSysHelloPayloadBytes {
+		buf.Error = fmt.Errorf("ucx syshello payload too large: %d bytes", len([]byte(result.Payload)))
 	}
 	return result
 }
@@ -161,7 +158,6 @@ func SysHelloDecode(buf *util.UBuffer) SysHello {
 func UiMountEncode(buf *util.UBuffer, msg UiMount) {
 	buf.WriteString(msg.InterfaceId)
 	UiNodeEncode(buf, msg.Root)
-	buf.WriteS64(msg.Version)
 	ValueMapEncode(buf, msg.Model)
 }
 
@@ -169,7 +165,6 @@ func UiMountDecode(buf *util.UBuffer) UiMount {
 	result := UiMount{}
 	result.InterfaceId = buf.ReadString()
 	result.Root = UiNodeDecode(buf)
-	result.Version = buf.ReadS64()
 	result.Model = ValueMapDecode(buf)
 	return result
 }
@@ -206,13 +201,11 @@ func UiNodeDecode(buf *util.UBuffer) UiNode {
 }
 
 func ModelPatchEncode(buf *util.UBuffer, msg ModelPatch) {
-	buf.WriteS64(msg.Version)
 	ValueMapEncode(buf, msg.Changes)
 }
 
 func ModelPatchDecode(buf *util.UBuffer) ModelPatch {
 	return ModelPatch{
-		Version: buf.ReadS64(),
 		Changes: ValueMapDecode(buf),
 	}
 }
@@ -222,16 +215,14 @@ func ModelInputEncode(buf *util.UBuffer, msg ModelInput) {
 	buf.WriteString(msg.NodeId)
 	buf.WriteString(msg.Path)
 	ValueEncode(buf, msg.Value)
-	buf.WriteS64(msg.BaseVersion)
 }
 
 func ModelInputDecode(buf *util.UBuffer) ModelInput {
 	return ModelInput{
-		EventId:     buf.ReadS64(),
-		NodeId:      buf.ReadString(),
-		Path:        buf.ReadString(),
-		Value:       ValueDecode(buf),
-		BaseVersion: buf.ReadS64(),
+		EventId: buf.ReadS64(),
+		NodeId:  buf.ReadString(),
+		Path:    buf.ReadString(),
+		Value:   ValueDecode(buf),
 	}
 }
 

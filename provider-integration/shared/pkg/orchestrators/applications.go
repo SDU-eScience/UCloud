@@ -54,6 +54,7 @@ const (
 	ToolBackendDocker         ToolBackend = "DOCKER"
 	ToolBackendVirtualMachine ToolBackend = "VIRTUAL_MACHINE"
 	ToolBackendNative         ToolBackend = "NATIVE"
+	ToolBackendUcx            ToolBackend = "UCX"
 )
 
 type ToolDescription struct {

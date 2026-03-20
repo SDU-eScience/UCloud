@@ -48,12 +48,10 @@ export interface UiMount {
     // interfaceId identifies the mounted UCX interface instance.
     interfaceId: string;
     root: UiNode;
-    version: number;
     model: Record<string, Value>;
 }
 
 export interface ModelPatch {
-    version: number;
     changes: Record<string, Value>;
 }
 
@@ -62,7 +60,6 @@ export interface ModelInput {
     nodeId: string;
     path: string;
     value: Value;
-    baseVersion: number;
 }
 
 export interface UiEvent {
@@ -76,7 +73,7 @@ export interface Frame {
     seq: number;
     replyToSeq: number;
 
-    sysHello?: { host: string; features: string[] };
+    sysHello?: string;
     uiEvent?: UiEvent;
     uiMount?: UiMount;
     modelPatch?: ModelPatch;
@@ -117,6 +114,10 @@ class BinaryWriter {
         const encoded = this.encoder.encode(v);
         this.writeU32(encoded.length);
         for (const b of encoded) this.bytes.push(b);
+    }
+
+    stringByteLength(v: string): number {
+        return this.encoder.encode(v).length;
     }
 
     toBytes(): Uint8Array { return new Uint8Array(this.bytes); }
@@ -187,10 +188,12 @@ export function encodeFrame(frame: Frame): Uint8Array {
 
     switch (frame.opcode) {
         case Opcode.SysHello: {
-            const hello = frame.sysHello ?? {host: "webclient", features: []};
-            w.writeString(hello.host);
-            w.writeU32(hello.features.length);
-            for (const f of hello.features) w.writeString(f);
+            const payload = frame.sysHello ?? "";
+            const payloadBytes = w.stringByteLength(payload);
+            if (payloadBytes >= 64 * 1024) {
+                throw new Error(`sys hello payload too large (${payloadBytes} bytes)`);
+            }
+            w.writeString(payload);
             break;
         }
         case Opcode.UiEvent:
@@ -227,11 +230,12 @@ export function decodeFrame(input: Uint8Array): Frame {
     const frame: Frame = {opcode, seq, replyToSeq};
     switch (opcode) {
         case Opcode.SysHello: {
-            const host = r.readString();
-            const count = r.readU32();
-            const features: string[] = [];
-            for (let i = 0; i < count; i++) features.push(r.readString());
-            frame.sysHello = {host, features};
+            const payload = r.readString();
+            const payloadBytes = new TextEncoder().encode(payload).length;
+            if (payloadBytes >= 64 * 1024) {
+                throw new Error(`sys hello payload too large (${payloadBytes} bytes)`);
+            }
+            frame.sysHello = payload;
             break;
         }
         case Opcode.UiEvent:
@@ -263,7 +267,6 @@ export function decodeFrame(input: Uint8Array): Frame {
 function encodeUiMount(w: BinaryWriter, mount: UiMount) {
     w.writeString(mount.interfaceId);
     encodeUiNode(w, mount.root);
-    w.writeS64(mount.version);
     writeValueMap(w, mount.model);
 }
 
@@ -271,7 +274,6 @@ function decodeUiMount(r: BinaryReader): UiMount {
     return {
         interfaceId: r.readString(),
         root: decodeUiNode(r),
-        version: r.readS64(),
         model: readValueMap(r),
     };
 }
@@ -299,12 +301,11 @@ function decodeUiNode(r: BinaryReader): UiNode {
 }
 
 function encodeModelPatch(w: BinaryWriter, patch: ModelPatch) {
-    w.writeS64(patch.version);
     writeValueMap(w, patch.changes);
 }
 
 function decodeModelPatch(r: BinaryReader): ModelPatch {
-    return {version: r.readS64(), changes: readValueMap(r)};
+    return {changes: readValueMap(r)};
 }
 
 function encodeModelInput(w: BinaryWriter, input: ModelInput) {
@@ -312,7 +313,6 @@ function encodeModelInput(w: BinaryWriter, input: ModelInput) {
     w.writeString(input.nodeId);
     w.writeString(input.path);
     encodeValue(w, input.value);
-    w.writeS64(input.baseVersion);
 }
 
 function decodeModelInput(r: BinaryReader): ModelInput {
@@ -321,7 +321,6 @@ function decodeModelInput(r: BinaryReader): ModelInput {
         nodeId: r.readString(),
         path: r.readString(),
         value: decodeValue(r),
-        baseVersion: r.readS64(),
     };
 }
 

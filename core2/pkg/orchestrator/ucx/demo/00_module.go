@@ -14,6 +14,12 @@ import (
 	"ucloud.dk/shared/pkg/util"
 )
 
+const (
+	proxyAuthToken    = "ucx-demo-proxy-token"
+	upstreamAuthToken = "ucx-demo-upstream-token"
+	proxySysHello     = "ucx-demo-proxy-syshello"
+)
+
 func Init() {
 	upstreamServer := &rpc.Server{
 		Mux: http.NewServeMux(),
@@ -42,6 +48,19 @@ func Init() {
 		defer cancel()
 
 		proxyServer := ucx.NewProxy("ws://127.0.0.1:32912/api/ucxCreateDemo")
+		proxyServer.RegisterUpstreamSelector(func(ctx context.Context, downstreamToken string, downstreamSysHello string) ucx.ProxyUpstreamSelection {
+			if downstreamToken != proxyAuthToken {
+				return ucx.ProxyUpstreamSelection{Allowed: false}
+			}
+
+			return ucx.ProxyUpstreamSelection{
+				Allowed:          true,
+				UpstreamUrl:      "ws://127.0.0.1:32912/api/ucxCreateDemo",
+				UpstreamToken:    upstreamAuthToken,
+				UpstreamSysHello: proxySysHello,
+			}
+		})
+
 		PingRpc.HandlerProxy(proxyServer, func(ctx context.Context, request PingRpcRequest) (PingRpcResponse, error) {
 			return PingRpcResponse{
 				Ok:   true,
@@ -70,7 +89,9 @@ func runDemoSession(info rpc.RequestInfo) (util.Empty, *util.HttpError) {
 	stateMu := sync.Mutex{}
 	hasMounted := false
 
-	ucx.RunAppWebSocket(conn, ctx, func(ctx context.Context, session *ucx.Session) {
+	ucx.RunAppWebSocket(conn, ctx, func(ctx context.Context, token string) bool {
+		return token == upstreamAuthToken
+	}, func(ctx context.Context, session *ucx.Session) {
 		for {
 			select {
 			case <-ctx.Done():
@@ -84,7 +105,7 @@ func runDemoSession(info rpc.RequestInfo) (util.Empty, *util.HttpError) {
 					stateMu.Lock()
 					mount := state.uiMount()
 					stateMu.Unlock()
-					session.SendUiMount(frame.Seq, mount)
+					session.SendUiMount(mount)
 					hasMounted = true
 					continue
 				}
@@ -120,7 +141,6 @@ type demoState struct {
 	LastActionMessage string
 	ValidationMessage string
 	TodoHeader        string
-	Version           int64 `ucx:"-"`
 	NextTodoId        int64 `ucx:"-"`
 }
 
@@ -136,7 +156,6 @@ func newDemoState() *demoState {
 		TodoDraft:   "",
 		Todos:       []todoItem{},
 		Errors:      map[string]string{},
-		Version:     1,
 		NextTodoId:  1,
 	}
 }
@@ -145,7 +164,6 @@ func (s *demoState) uiMount() ucx.UiMount {
 	return ucx.UiMount{
 		InterfaceId: s.InterfaceId,
 		Root:        s.uiTree(),
-		Version:     s.Version,
 		Model:       s.modelMap(),
 	}
 }
@@ -244,13 +262,13 @@ func handleIncomingFrame(ctx context.Context, mu *sync.Mutex, state *demoState, 
 
 	switch incoming.Opcode {
 	case ucx.OpSysHello:
-		session.SendUiMount(incoming.Seq, state.uiMount())
+		session.SendUiMount(state.uiMount())
 
 	case ucx.OpModelInput:
 		before := state.modelMap()
 		handleModelInput(state, incoming.ModelInput)
 		after := state.modelMap()
-		session.SendModelDiff(incoming.Seq, state.Version, before, after)
+		session.SendModelDiff(before, after)
 
 	case ucx.OpUiEvent:
 		if incoming.UiEvent.NodeId == "rpcPing" && incoming.UiEvent.Event == "click" {
@@ -261,19 +279,17 @@ func handleIncomingFrame(ctx context.Context, mu *sync.Mutex, state *demoState, 
 			}
 
 			state.RpcStatus = "Calling client RPC..."
-			state.Version++
 			after := state.modelMap()
-			version := state.Version
-			session.SendModelDiff(incoming.Seq, version, before, after)
+			session.SendModelDiff(before, after)
 
-			go invokeClientPing(ctx, mu, state, session, incoming.Seq, message)
+			go invokeClientPing(ctx, mu, state, session, message)
 			return
 		}
 
 		before := state.modelMap()
 		handleUiEvent(state, incoming.UiEvent)
 		after := state.modelMap()
-		session.SendModelDiff(incoming.Seq, state.Version, before, after)
+		session.SendModelDiff(before, after)
 	}
 }
 
@@ -289,7 +305,7 @@ type PingRpcResponse struct {
 
 var PingRpc = ucx.Rpc[PingRpcRequest, PingRpcResponse]{CallName: "client.ping"}
 
-func invokeClientPing(ctx context.Context, mu *sync.Mutex, state *demoState, session *ucx.Session, replyTo int64, message string) {
+func invokeClientPing(ctx context.Context, mu *sync.Mutex, state *demoState, session *ucx.Session, message string) {
 	payload, err := PingRpc.Invoke(session, PingRpcRequest{Message: message})
 
 	log.Info("Got response from UI: %v %v", payload, err)
@@ -312,10 +328,8 @@ func invokeClientPing(ctx context.Context, mu *sync.Mutex, state *demoState, ses
 		}
 		state.RpcStatus = fmt.Sprintf("RPC result from %s (ok=%t): %s", from, ok, echo)
 	}
-	state.Version++
 	after := state.modelMap()
-	version := state.Version
-	session.SendModelDiff(replyTo, version, before, after)
+	session.SendModelDiff(before, after)
 }
 
 func handleModelInput(state *demoState, input ucx.ModelInput) {
@@ -337,7 +351,6 @@ func handleModelInput(state *demoState, input ucx.ModelInput) {
 
 	state.Errors = validateState(state)
 	state.SubmissionMessage = ""
-	state.Version++
 }
 
 func handleUiEvent(state *demoState, ev ucx.UiEvent) {
@@ -354,7 +367,6 @@ func handleUiEvent(state *demoState, ev ucx.UiEvent) {
 		}
 		state.Errors = validateState(state)
 		state.SubmissionMessage = ""
-		state.Version++
 
 	case ev.NodeId == "removeTodo" && ev.Event == "click":
 		id := strings.TrimSpace(ucx.ValueAsString(ev.Value))
@@ -370,7 +382,6 @@ func handleUiEvent(state *demoState, ev ucx.UiEvent) {
 		state.Todos = newTodos
 		state.Errors = validateState(state)
 		state.SubmissionMessage = ""
-		state.Version++
 
 	case ev.NodeId == "submitForm" && ev.Event == "click":
 		state.Errors = validateState(state)
@@ -387,7 +398,6 @@ func handleUiEvent(state *demoState, ev ucx.UiEvent) {
 			)
 			state.LastActionMessage = "Submit accepted"
 		}
-		state.Version++
 	}
 }
 
