@@ -38,7 +38,7 @@ func initApiTokens() {
 		orcapi.ApiTokenProviderRetrieveOptions.Handler(func(info rpc.RequestInfo, request util.Empty) (orcapi.ApiTokenOptions, *util.HttpError) {
 			handler := ApiTokens.RetrieveOptions
 			if handler == nil {
-				return orcapi.ApiTokenOptions{}, util.ServerHttpError("API token options retrieval not supported")
+				return orcapi.ApiTokenOptions{}, util.ServerHttpError("API token option retrieval not supported")
 			}
 
 			return handler(info, request)
