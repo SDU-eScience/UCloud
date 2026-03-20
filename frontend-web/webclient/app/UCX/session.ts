@@ -1,4 +1,4 @@
-import {encodeFrame, Frame, Opcode, RpcStatus, Value, ValueKind} from "@/Playground/UcxCreateDemo/protocol";
+import {encodeFrame, Frame, Opcode, RpcStatus, Value, ValueKind} from "@/UCX/protocol";
 
 export type RpcPayload = Record<string, Value>;
 export type RpcHandler = (payload: RpcPayload) => Promise<RpcPayload | void> | RpcPayload | void;
