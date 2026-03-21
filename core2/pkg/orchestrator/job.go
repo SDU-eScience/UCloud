@@ -1139,6 +1139,10 @@ func jobsValidateForSubmission(actor rpc.Actor, spec *orcapi.JobSpecification) *
 		return util.HttpErr(http.StatusBadRequest, "this application does not support SSH but it is required")
 	}
 
+	if app.Invocation.JobAuditLogIsEnabled.Present && app.Invocation.JobAuditLogIsEnabled.Value {
+		spec.SshEnabled = false
+	}
+
 	if spec.Replicas <= 0 {
 		return util.HttpErr(http.StatusBadRequest, "you must request at least 1 node")
 	}
