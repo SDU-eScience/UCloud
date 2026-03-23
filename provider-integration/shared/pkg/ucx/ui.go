@@ -27,6 +27,11 @@ type FlexProps struct {
 	Gap       int
 }
 
+type Option struct {
+	Key   string
+	Value string
+}
+
 func Flex(id string, props FlexProps) UiNode {
 	if props.Direction == "" {
 		props.Direction = "row"
@@ -166,10 +171,17 @@ func Button(id string, label string, color Color) UiNode {
 		Id:        id,
 		Component: "button",
 		Props: map[string]Value{
-			"label": VString(label),
-			"color": VColor(color),
+			"label":  VString(label),
+			"color":  VColor(color),
+			"submit": VBool(false),
 		},
 	}
+}
+
+func SubmitButton(id string, label string, color Color) UiNode {
+	node := Button(id, label, color)
+	node.Props["submit"] = VBool(true)
+	return node
 }
 
 func ButtonEx(id string, label string, color Color, iconLeft IconName, iconRight IconName, eventValuePath string) UiNode {
@@ -192,4 +204,136 @@ func ButtonEx(id string, label string, color Color, iconLeft IconName, iconRight
 		Component: "button",
 		Props:     props,
 	}
+}
+
+func TextArea(id string, label string, placeholder string, bindPath string, rows int64) UiNode {
+	return UiNode{
+		Id:         id,
+		Component:  "textarea",
+		BindPath:   bindPath,
+		Optimistic: true,
+		Props: map[string]Value{
+			"label":       VString(label),
+			"placeholder": VString(placeholder),
+			"rows":        VS64(rows),
+		},
+	}
+}
+
+func Select(id string, label string, bindPath string, options []Option) UiNode {
+	return UiNode{
+		Id:         id,
+		Component:  "select",
+		BindPath:   bindPath,
+		Optimistic: true,
+		Props: map[string]Value{
+			"label":   VString(label),
+			"options": optionsToValue(options),
+		},
+	}
+}
+
+func RadioGroup(id string, label string, bindPath string, options []Option) UiNode {
+	return UiNode{
+		Id:         id,
+		Component:  "radio_group",
+		BindPath:   bindPath,
+		Optimistic: true,
+		Props: map[string]Value{
+			"label":   VString(label),
+			"options": optionsToValue(options),
+		},
+	}
+}
+
+func ToggleInput(id string, label string, bindPath string, optimistic bool) UiNode {
+	return UiNode{
+		Id:         id,
+		Component:  "toggle",
+		BindPath:   bindPath,
+		Optimistic: optimistic,
+		Props: map[string]Value{
+			"label": VString(label),
+		},
+	}
+}
+
+func DividerNode(id string) UiNode {
+	return UiNode{Id: id, Component: "divider"}
+}
+
+func Spinner(id string, size int64) UiNode {
+	return UiNode{
+		Id:        id,
+		Component: "spinner",
+		Props: map[string]Value{
+			"size": VS64(size),
+		},
+	}
+}
+
+func TableNode(id string, bindPath string, columns []Option) UiNode {
+	return UiNode{
+		Id:        id,
+		Component: "table",
+		BindPath:  bindPath,
+		Props: map[string]Value{
+			"columns": optionsToValue(columns),
+		},
+	}
+}
+
+func Tabs(id string) UiNode {
+	return UiNode{Id: id, Component: "tabs"}
+}
+
+func Tab(id string, name string, icon IconName) UiNode {
+	return UiNode{
+		Id:        id,
+		Component: "box",
+		Props: map[string]Value{
+			"name": VString(name),
+			"icon": VIcon(icon),
+		},
+	}
+}
+
+func AccordionNode(id string, title string, open bool) UiNode {
+	return UiNode{
+		Id:        id,
+		Component: "accordion",
+		Props: map[string]Value{
+			"title": VString(title),
+			"open":  VBool(open),
+		},
+	}
+}
+
+func Form(id string) UiNode {
+	return UiNode{Id: id, Component: "form"}
+}
+
+func Code(id string, text string) UiNode {
+	return UiNode{
+		Id:        id,
+		Component: "code",
+		Props: map[string]Value{
+			"text": VString(text),
+		},
+	}
+}
+
+func CodeBound(id string, bindPath string) UiNode {
+	return UiNode{Id: id, Component: "code", BindPath: bindPath}
+}
+
+func optionsToValue(options []Option) Value {
+	list := make([]Value, 0, len(options))
+	for _, option := range options {
+		list = append(list, VObject(map[string]Value{
+			"key":   VString(option.Key),
+			"value": VString(option.Value),
+		}))
+	}
+	return VList(list)
 }

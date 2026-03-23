@@ -1,6 +1,12 @@
 import * as React from "react";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
-import {Button, Checkbox, Flex, Icon, Input, Text} from "@/ui-components";
+import {Accordion, Button, Checkbox, Divider, Flex, Icon, Input, Radio, Text, TextArea} from "@/ui-components";
+import {SimpleRichSelect} from "@/ui-components/RichSelect";
+import {Table, TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-components/Table";
+import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
+import CodeSnippet from "@/ui-components/CodeSnippet";
+import {Toggle} from "@/ui-components/Toggle";
+import HexSpin from "@/LoadingIcon/LoadingIcon";
 import {decodeFrame, Frame, Opcode, plainMapToValue, PlainValue, UiNode, Value, valueMapToPlain, ValueKind} from "@/UCX/protocol";
 import {UcxSession} from "@/UCX/session";
 
@@ -535,11 +541,13 @@ const baseComponents: UcxComponentRegistry = {
         const color = stringProp(node, "color", "primaryMain");
         const iconLeft = stringProp(node, "iconLeft", "");
         const iconRight = stringProp(node, "iconRight", "");
+        const submit = boolProp(node, "submit", false);
         const eventValuePath = stringProp(node, "eventValuePath", "");
         const eventValue = eventValuePath ? modelValue(model, eventValuePath, scope) : undefined;
         return <Button
             color={color as any}
-            onClick={() => fn.sendUiEvent(node.id, "click", eventValue)}
+            type={submit ? "submit" : "button"}
+            onClick={submit ? undefined : (() => fn.sendUiEvent(node.id, "click", eventValue))}
         >
             {iconLeft ? <Icon name={iconLeft as any} /> : null}
             {label}
@@ -563,6 +571,130 @@ const baseComponents: UcxComponentRegistry = {
                 </li>;
             })}
         </ul>;
+    },
+    textarea: ({node, model, scope, fn}) => {
+        const label = stringProp(node, "label", "");
+        const placeholder = stringProp(node, "placeholder", "");
+        const rows = numberProp(node, "rows", 4);
+        const value = modelString(model, node.bindPath, scope);
+        return <>
+            {label === "" ? null : <FieldLabel>{label}</FieldLabel>}
+            <TextArea
+                value={value}
+                rows={rows}
+                placeholder={placeholder}
+                onChange={ev => fn.sendBoundInput(node, {kind: ValueKind.String, string: ev.currentTarget.value}, model, scope)}
+            />
+        </>;
+    },
+    select: ({node, model, scope, fn}) => {
+        const label = stringProp(node, "label", "");
+        const options = simpleOptionsProp(node, "options");
+        const selectedKey = modelString(model, node.bindPath, scope);
+        const selected = options.find(option => option.key === selectedKey);
+        return <>
+            {label === "" ? null : <FieldLabel>{label}</FieldLabel>}
+            <SimpleRichSelect
+                items={options}
+                selected={selected}
+                onSelect={item => fn.sendBoundInput(node, {kind: ValueKind.String, string: item.key}, model, scope)}
+                placeholder={stringProp(node, "placeholder", "Select...")}
+            />
+        </>;
+    },
+    radio_group: ({node, model, scope, fn}) => {
+        const label = stringProp(node, "label", "");
+        const options = simpleOptionsProp(node, "options");
+        const selectedKey = modelString(model, node.bindPath, scope);
+        return <div style={fn.sxStyle(node)}>
+            {label === "" ? null : <FieldLabel>{label}</FieldLabel>}
+            <div style={{display: "flex", flexDirection: "column", gap: 8}}>
+                {options.map(option =>
+                    <label key={option.key} style={{display: "flex", alignItems: "center", gap: 6, cursor: "pointer"}}>
+                        <Radio
+                            checked={selectedKey === option.key}
+                            onChange={() => fn.sendBoundInput(node, {kind: ValueKind.String, string: option.key}, model, scope)}
+                        />
+                        <span>{option.value}</span>
+                    </label>
+                )}
+            </div>
+        </div>;
+    },
+    toggle: ({node, model, scope, fn}) => {
+        const label = stringProp(node, "label", "");
+        const checked = modelBool(model, node.bindPath, scope);
+        return <Flex alignItems="center" gap="8px" style={fn.sxStyle(node)}>
+            <Toggle checked={checked} onChange={() => fn.sendBoundInput(node, {kind: ValueKind.Bool, bool: !checked}, model, scope)} />
+            {label === "" ? null : <span>{label}</span>}
+        </Flex>;
+    },
+    divider: ({node, fn}) => <Divider />,
+    spinner: ({node}) => <HexSpin size={numberProp(node, "size", 32)} margin={optionalStringProp(node, "margin")} />,
+    table: ({node, model, scope, fn}) => {
+        const rows = modelList(model, node.bindPath, scope)
+            .filter(it => it.kind === ValueKind.Object)
+            .map(it => it.object);
+        const columns = tableColumnsProp(node, rows);
+
+        return <div style={fn.sxStyle(node)}>
+            <Table tableType="presentation">
+                <TableHeader>
+                    <TableRow>
+                        {columns.map(col => <TableHeaderCell key={col.key}>{col.label}</TableHeaderCell>)}
+                    </TableRow>
+                </TableHeader>
+                <tbody>
+                    {rows.map((row, rowIdx) =>
+                        <TableRow key={`row-${rowIdx}`}>
+                            {columns.map(col => <TableCell key={`${rowIdx}-${col.key}`}>{displayValue(row[col.key])}</TableCell>)}
+                        </TableRow>
+                    )}
+                </tbody>
+            </Table>
+        </div>;
+    },
+    tabs: ({node, renderChildren, fn}) => {
+        const renderedChildren = React.Children.toArray(renderChildren());
+        return <div style={fn.sxStyle(node)}>
+            <TabbedCard>
+                {node.children.map((child, idx) =>
+                    <TabbedCardTab
+                        key={child.id}
+                        name={stringProp(child, "name", `Tab ${idx + 1}`)}
+                        icon={stringProp(child, "icon", "heroSquares2x2") as any}
+                    >
+                        {renderedChildren[idx]}
+                    </TabbedCardTab>
+                )}
+            </TabbedCard>
+        </div>;
+    },
+    accordion: ({node, model, scope, fn, renderChildren}) => {
+        const title = node.bindPath ? modelString(model, node.bindPath, scope) : stringProp(node, "title", "Section");
+        return <div style={fn.sxStyle(node)}>
+            <Accordion title={title} forceOpen={boolProp(node, "open", false)}>
+                {renderChildren()}
+            </Accordion>
+        </div>;
+    },
+    form: ({node, fn, renderChildren}) => {
+        return <form
+            style={fn.sxStyle(node)}
+            onSubmit={ev => {
+                ev.preventDefault();
+                fn.sendUiEvent(node.id, "submit", {kind: ValueKind.Null});
+            }}
+        >
+            {renderChildren()}
+        </form>;
+    },
+    code: ({node, model, scope, fn}) => {
+        const code = node.bindPath ? modelString(model, node.bindPath, scope) : stringProp(node, "text", "");
+        const maxHeight = stringProp(node, "maxHeight", "400px");
+        return <div style={fn.sxStyle(node)}>
+            <CodeSnippet maxHeight={maxHeight}>{code}</CodeSnippet>
+        </div>;
     },
 };
 
@@ -615,7 +747,7 @@ function modelValue(model: Record<string, Value>, path: string, scope?: Record<s
 
 function collectInputBindPaths(root: UiNode): Set<string> {
     const result = new Set<string>();
-    const rehydratable = new Set(["input_text", "input_number", "checkbox", "textarea", "select", "toggle", "list"]);
+    const rehydratable = new Set(["input_text", "input_number", "checkbox", "textarea", "select", "toggle", "radio_group", "list"]);
 
     const walk = (node: UiNode) => {
         if (node.bindPath && rehydratable.has(node.component) && !node.bindPath.startsWith("./")) {
@@ -648,6 +780,14 @@ function sxStyle(node: UiNode): React.CSSProperties {
             case "m":
                 style.margin = px(primitive);
                 break;
+            case "mx":
+                style.marginLeft = px(primitive);
+                style.marginRight = px(primitive);
+                break;
+            case "my":
+                style.marginTop = px(primitive);
+                style.marginBottom = px(primitive);
+                break;
             case "mt":
                 style.marginTop = px(primitive);
                 break;
@@ -662,6 +802,14 @@ function sxStyle(node: UiNode): React.CSSProperties {
                 break;
             case "p":
                 style.padding = px(primitive);
+                break;
+            case "px":
+                style.paddingLeft = px(primitive);
+                style.paddingRight = px(primitive);
+                break;
+            case "py":
+                style.paddingTop = px(primitive);
+                style.paddingBottom = px(primitive);
                 break;
             case "pt":
                 style.paddingTop = px(primitive);
@@ -690,8 +838,68 @@ function sxStyle(node: UiNode): React.CSSProperties {
             case "maxWidth":
                 style.maxWidth = px(primitive);
                 break;
+            case "minHeight":
+                style.minHeight = px(primitive);
+                break;
+            case "maxHeight":
+                style.maxHeight = px(primitive);
+                break;
+            case "overflow":
+                style.overflow = String(primitive) as React.CSSProperties["overflow"];
+                break;
+            case "overflowX":
+                style.overflowX = String(primitive) as React.CSSProperties["overflowX"];
+                break;
+            case "overflowY":
+                style.overflowY = String(primitive) as React.CSSProperties["overflowY"];
+                break;
+            case "position":
+                style.position = String(primitive) as React.CSSProperties["position"];
+                break;
+            case "top":
+                style.top = px(primitive);
+                break;
+            case "right":
+                style.right = px(primitive);
+                break;
+            case "bottom":
+                style.bottom = px(primitive);
+                break;
+            case "left":
+                style.left = px(primitive);
+                break;
+            case "zIndex":
+                style.zIndex = Number(primitive);
+                break;
             case "display":
                 style.display = String(primitive) as React.CSSProperties["display"];
+                break;
+            case "gridTemplateColumns":
+                style.gridTemplateColumns = String(primitive);
+                break;
+            case "gridTemplateRows":
+                style.gridTemplateRows = String(primitive);
+                break;
+            case "gridColumn":
+                style.gridColumn = String(primitive);
+                break;
+            case "gridRow":
+                style.gridRow = String(primitive);
+                break;
+            case "flex":
+                style.flex = String(primitive);
+                break;
+            case "flexGrow":
+                style.flexGrow = Number(primitive);
+                break;
+            case "flexShrink":
+                style.flexShrink = Number(primitive);
+                break;
+            case "flexBasis":
+                style.flexBasis = px(primitive);
+                break;
+            case "alignSelf":
+                style.alignSelf = String(primitive) as React.CSSProperties["alignSelf"];
                 break;
             case "alignItems":
                 style.alignItems = String(primitive) as React.CSSProperties["alignItems"];
@@ -701,6 +909,15 @@ function sxStyle(node: UiNode): React.CSSProperties {
                 break;
             case "flexWrap":
                 style.flexWrap = String(primitive) as React.CSSProperties["flexWrap"];
+                break;
+            case "whiteSpace":
+                style.whiteSpace = String(primitive) as React.CSSProperties["whiteSpace"];
+                break;
+            case "wordBreak":
+                style.wordBreak = String(primitive) as React.CSSProperties["wordBreak"];
+                break;
+            case "textOverflow":
+                style.textOverflow = String(primitive) as React.CSSProperties["textOverflow"];
                 break;
             case "borderRadius":
                 style.borderRadius = px(primitive);
@@ -714,8 +931,59 @@ function sxStyle(node: UiNode): React.CSSProperties {
             case "borderColor":
                 style.borderColor = toCssColor(String(primitive));
                 break;
+            case "borderTopWidth":
+                style.borderTopWidth = px(primitive);
+                break;
+            case "borderRightWidth":
+                style.borderRightWidth = px(primitive);
+                break;
+            case "borderBottomWidth":
+                style.borderBottomWidth = px(primitive);
+                break;
+            case "borderLeftWidth":
+                style.borderLeftWidth = px(primitive);
+                break;
+            case "borderTopColor":
+                style.borderTopColor = toCssColor(String(primitive));
+                break;
+            case "borderRightColor":
+                style.borderRightColor = toCssColor(String(primitive));
+                break;
+            case "borderBottomColor":
+                style.borderBottomColor = toCssColor(String(primitive));
+                break;
+            case "borderLeftColor":
+                style.borderLeftColor = toCssColor(String(primitive));
+                break;
+            case "opacity":
+                style.opacity = Number(primitive);
+                break;
+            case "boxShadow":
+                style.boxShadow = String(primitive);
+                break;
+            case "outline":
+                style.outline = String(primitive);
+                break;
+            case "outlineColor":
+                style.outlineColor = toCssColor(String(primitive));
+                break;
+            case "outlineWidth":
+                style.outlineWidth = px(primitive);
+                break;
+            case "background":
+                style.background = String(primitive);
+                break;
             case "backgroundColor":
                 style.backgroundColor = toCssColor(String(primitive));
+                break;
+            case "backgroundImage":
+                style.backgroundImage = String(primitive);
+                break;
+            case "backgroundSize":
+                style.backgroundSize = String(primitive);
+                break;
+            case "backgroundPosition":
+                style.backgroundPosition = String(primitive);
                 break;
             case "color":
                 style.color = toCssColor(String(primitive));
@@ -725,6 +993,15 @@ function sxStyle(node: UiNode): React.CSSProperties {
                 break;
             case "fontWeight":
                 style.fontWeight = String(primitive) as React.CSSProperties["fontWeight"];
+                break;
+            case "fontFamily":
+                style.fontFamily = toAllowedFontFamily(String(primitive));
+                break;
+            case "letterSpacing":
+                style.letterSpacing = px(primitive);
+                break;
+            case "textTransform":
+                style.textTransform = String(primitive) as React.CSSProperties["textTransform"];
                 break;
             case "lineHeight":
                 style.lineHeight = String(primitive) as React.CSSProperties["lineHeight"];
@@ -768,6 +1045,14 @@ function toCssColor(value: string): string {
         return value;
     }
     return `var(--${value})`;
+}
+
+function toAllowedFontFamily(value: string): string {
+    const key = value.trim();
+    if (key === "sansSerif" || key === "monospace") {
+        return `var(--${key})`;
+    }
+    return "var(--sansSerif)";
 }
 
 function traverseObjectPath(root: Record<string, Value>, path: string): Value | undefined {
@@ -830,6 +1115,71 @@ function numberProp(node: UiNode, key: string, fallback: number): number {
     if (value.kind === ValueKind.S64) return value.s64;
     if (value.kind === ValueKind.F64) return value.f64;
     return fallback;
+}
+
+function boolProp(node: UiNode, key: string, fallback: boolean): boolean {
+    const value = prop(node, key);
+    if (!value) return fallback;
+    if (value.kind === ValueKind.Bool) return value.bool;
+    return fallback;
+}
+
+function optionalStringProp(node: UiNode, key: string): string | undefined {
+    const value = prop(node, key);
+    if (value && value.kind === ValueKind.String) {
+        return value.string;
+    }
+    return undefined;
+}
+
+function simpleOptionsProp(node: UiNode, key: string): {key: string; value: string}[] {
+    const raw = prop(node, key);
+    if (!raw || raw.kind !== ValueKind.List) {
+        return [];
+    }
+
+    const out: {key: string; value: string}[] = [];
+    for (const item of raw.list) {
+        if (item.kind !== ValueKind.Object) continue;
+        const optionKey = asString(item.object["key"], "");
+        const optionValue = asString(item.object["value"], optionKey);
+        if (optionKey === "") continue;
+        out.push({key: optionKey, value: optionValue});
+    }
+    return out;
+}
+
+function tableColumnsProp(node: UiNode, rows: Record<string, Value>[]): {key: string; label: string}[] {
+    const options = simpleOptionsProp(node, "columns");
+    if (options.length > 0) {
+        return options.map(it => ({key: it.key, label: it.value}));
+    }
+
+    if (rows.length > 0) {
+        return Object.keys(rows[0]).map(key => ({key, label: key}));
+    }
+
+    return [];
+}
+
+function displayValue(value: Value | undefined): string {
+    if (!value) return "";
+    switch (value.kind) {
+        case ValueKind.Null:
+            return "";
+        case ValueKind.Bool:
+            return value.bool ? "true" : "false";
+        case ValueKind.S64:
+            return String(value.s64);
+        case ValueKind.F64:
+            return String(value.f64);
+        case ValueKind.String:
+            return value.string;
+        case ValueKind.List:
+            return `[${value.list.map(displayValue).join(", ")}]`;
+        case ValueKind.Object:
+            return "[object]";
+    }
 }
 
 function asString(value: Value | undefined, fallback: string): string {

@@ -466,6 +466,7 @@ func collectInputBindPaths(root UiNode) []string {
 		"textarea":     true,
 		"select":       true,
 		"toggle":       true,
+		"radio_group":  true,
 		"list":         true,
 	}
 
