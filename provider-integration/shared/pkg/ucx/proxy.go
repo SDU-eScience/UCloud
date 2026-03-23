@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	ws "github.com/gorilla/websocket"
 )
@@ -82,77 +84,35 @@ func (p *Proxy) Run(ctx context.Context, downstream *ws.Conn) error {
 	}
 
 	downstreamHelloPayload := downstreamHelloFrame.SysHello.Payload
-	selection := p.selectUpstream(ctx, downstreamToken, downstreamHelloPayload)
-	if !selection.Allowed {
-		_ = downstream.WriteMessage(ws.TextMessage, []byte("Forbidden"))
-		_ = downstream.Close()
-		return nil
-	}
-
-	header := http.Header(nil)
-	if selection.UpstreamTokenInBearer {
-		header = http.Header{"Authorization": []string{fmt.Sprintf("Bearer %s", selection.UpstreamToken)}}
-	}
-
-	upstream, _, err := ws.DefaultDialer.Dial(selection.UpstreamUrl, header)
-	if err != nil {
-		return err
-	}
-
-	downstreamHelloFrame.SysHello.Payload = selection.UpstreamSysHello
-	encodedHello, err := FrameEncode(downstreamHelloFrame)
-	if err != nil {
-		_ = downstream.WriteMessage(ws.TextMessage, []byte("Forbidden"))
-		_ = downstream.Close()
-		_ = upstream.Close()
-		return nil
-	}
-
-	if !authenticateUpstream(upstream, selection.UpstreamToken, encodedHello) {
-		_ = downstream.WriteMessage(ws.TextMessage, []byte("Forbidden"))
-		_ = downstream.Close()
-		_ = upstream.Close()
-		return nil
-	}
-
-	if err := downstream.WriteMessage(ws.TextMessage, []byte("OK")); err != nil {
-		_ = downstream.Close()
-		_ = upstream.Close()
-		return nil
-	}
-
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-
 	defer func() { _ = downstream.Close() }()
-	defer func() { _ = upstream.Close() }()
 
-	downstreamIncoming := make(chan Frame, 16)
-	downstreamOutgoing := make(chan Frame, 16)
-	upstreamIncoming := make(chan Frame, 16)
-	upstreamOutgoing := make(chan Frame, 16)
-
-	go proxyReadFrames(ctx, cancel, downstream, downstreamIncoming)
-	go proxyWriteFrames(ctx, cancel, downstream, downstreamOutgoing)
-	go proxyReadFrames(ctx, cancel, upstream, upstreamIncoming)
-	go proxyWriteFrames(ctx, cancel, upstream, upstreamOutgoing)
+	downstreamIncoming := make(chan Frame, 32)
+	downstreamOutgoing := make(chan Frame, 32)
 
 	go func() {
+		defer close(downstreamIncoming)
 		for {
+			messageType, rawMessage, err := downstream.ReadMessage()
+			if err != nil {
+				cancel()
+				return
+			}
+
+			if messageType != ws.BinaryMessage {
+				continue
+			}
+
+			decoded, err := FrameDecode(rawMessage)
+			if err != nil {
+				continue
+			}
+
 			select {
 			case <-ctx.Done():
 				return
-			case frame, ok := <-downstreamIncoming:
-				if !ok {
-					cancel()
-					return
-				}
-
-				select {
-				case <-ctx.Done():
-					return
-				case upstreamOutgoing <- frame:
-				}
+			case downstreamIncoming <- decoded:
 			}
 		}
 	}()
@@ -162,27 +122,188 @@ func (p *Proxy) Run(ctx context.Context, downstream *ws.Conn) error {
 			select {
 			case <-ctx.Done():
 				return
-			case frame, ok := <-upstreamIncoming:
+			case msg, ok := <-downstreamOutgoing:
 				if !ok {
-					cancel()
 					return
 				}
 
-				if p.handleProxyRpc(ctx, frame, upstreamOutgoing) {
+				encoded, err := FrameEncode(msg)
+				if err != nil {
 					continue
 				}
 
-				select {
-				case <-ctx.Done():
+				if err := downstream.WriteMessage(ws.BinaryMessage, encoded); err != nil {
+					cancel()
 					return
-				case downstreamOutgoing <- frame:
 				}
 			}
 		}
 	}()
 
-	<-ctx.Done()
-	return nil
+	connectedUpstream := (*ws.Conn)(nil)
+	upstreamIncoming := (<-chan Frame)(nil)
+	upstreamOutgoing := (chan Frame)(nil)
+	upstreamClosed := (<-chan struct{})(nil)
+	reconnectTimer := time.After(0)
+	acknowledgedDownstream := false
+
+	pendingDownstream := []Frame{}
+	latestModel := map[string]Value{}
+	hasMount := false
+	rehydrateSnapshot := map[string]Value(nil)
+	awaitingMountForRehydrate := false
+
+	for {
+		select {
+		case <-ctx.Done():
+			if upstreamOutgoing != nil {
+				close(upstreamOutgoing)
+			}
+			if connectedUpstream != nil {
+				_ = connectedUpstream.Close()
+			}
+			close(downstreamOutgoing)
+			return nil
+
+		case frame, ok := <-downstreamIncoming:
+			if !ok {
+				cancel()
+				continue
+			}
+
+			if upstreamOutgoing == nil {
+				pendingDownstream = append(pendingDownstream, frame)
+				continue
+			}
+
+			select {
+			case <-ctx.Done():
+			case upstreamOutgoing <- frame:
+			}
+
+		case <-upstreamClosed:
+			if upstreamOutgoing != nil {
+				close(upstreamOutgoing)
+			}
+			if connectedUpstream != nil {
+				_ = connectedUpstream.Close()
+			}
+
+			connectedUpstream = nil
+			upstreamIncoming = nil
+			upstreamOutgoing = nil
+			upstreamClosed = nil
+
+			if hasMount && len(latestModel) > 0 {
+				rehydrateSnapshot = cloneModel(latestModel)
+				awaitingMountForRehydrate = true
+			}
+
+			reconnectTimer = time.After(1 * time.Second)
+
+		case frame, ok := <-upstreamIncoming:
+			if !ok {
+				continue
+			}
+
+			switch frame.Opcode {
+			case OpUiMount:
+				hasMount = true
+				latestModel = cloneModel(frame.UiMount.Model)
+
+			case OpModelPatch:
+				if !hasMount {
+					hasMount = true
+					latestModel = map[string]Value{}
+				}
+
+				for key, value := range frame.ModelPatch.Changes {
+					if value.Kind == ValueNull {
+						delete(latestModel, key)
+					} else {
+						latestModel[key] = cloneValue(value)
+					}
+				}
+			}
+
+			if p.handleProxyRpc(ctx, frame, upstreamOutgoing) {
+				continue
+			}
+
+			select {
+			case <-ctx.Done():
+			case downstreamOutgoing <- frame:
+			}
+
+			if frame.Opcode == OpUiMount && awaitingMountForRehydrate && upstreamOutgoing != nil {
+				sendRehydrateModel(ctx, p, upstreamOutgoing, rehydrateSnapshot, frame.UiMount.Root)
+				awaitingMountForRehydrate = false
+				rehydrateSnapshot = nil
+			}
+
+		case <-reconnectTimer:
+			selection := p.selectUpstream(ctx, downstreamToken, downstreamHelloPayload)
+			if !selection.Allowed {
+				_ = downstream.WriteMessage(ws.TextMessage, []byte("Forbidden"))
+				cancel()
+				continue
+			}
+
+			header := http.Header(nil)
+			if selection.UpstreamTokenInBearer {
+				header = http.Header{"Authorization": []string{fmt.Sprintf("Bearer %s", selection.UpstreamToken)}}
+			}
+
+			upstream, _, err := ws.DefaultDialer.Dial(selection.UpstreamUrl, header)
+			if err != nil {
+				reconnectTimer = time.After(1 * time.Second)
+				continue
+			}
+
+			downstreamHelloFrame.SysHello.Payload = selection.UpstreamSysHello
+			encodedHello, err := FrameEncode(downstreamHelloFrame)
+			if err != nil {
+				_ = upstream.Close()
+				reconnectTimer = time.After(1 * time.Second)
+				continue
+			}
+
+			authResult := authenticateUpstream(upstream, selection.UpstreamToken, encodedHello)
+			if authResult == upstreamAuthForbidden {
+				_ = downstream.WriteMessage(ws.TextMessage, []byte("Forbidden"))
+				_ = upstream.Close()
+				cancel()
+				continue
+			}
+			if authResult != upstreamAuthOK {
+				_ = upstream.Close()
+				reconnectTimer = time.After(1 * time.Second)
+				continue
+			}
+
+			if !acknowledgedDownstream {
+				if err := downstream.WriteMessage(ws.TextMessage, []byte("OK")); err != nil {
+					_ = upstream.Close()
+					cancel()
+					continue
+				}
+				acknowledgedDownstream = true
+			}
+
+			connectedUpstream = upstream
+			upstreamIncoming, upstreamOutgoing, upstreamClosed = startUpstreamPumps(ctx, upstream)
+
+			for _, pending := range pendingDownstream {
+				select {
+				case <-ctx.Done():
+				case upstreamOutgoing <- pending:
+				}
+			}
+			pendingDownstream = pendingDownstream[:0]
+
+			reconnectTimer = nil
+		}
+	}
 }
 
 func (p *Proxy) authenticateDownstream(downstream *ws.Conn) (string, bool) {
@@ -198,25 +319,209 @@ func (p *Proxy) authenticateDownstream(downstream *ws.Conn) (string, bool) {
 	return string(rawMessage), true
 }
 
-func authenticateUpstream(upstream *ws.Conn, token string, encodedSysHello []byte) bool {
+type upstreamAuthResult int
+
+const (
+	upstreamAuthOK upstreamAuthResult = iota
+	upstreamAuthForbidden
+	upstreamAuthFailed
+)
+
+func authenticateUpstream(upstream *ws.Conn, token string, encodedSysHello []byte) upstreamAuthResult {
 	if err := upstream.WriteMessage(ws.TextMessage, []byte(token)); err != nil {
-		return false
+		return upstreamAuthFailed
 	}
 
 	if err := upstream.WriteMessage(ws.BinaryMessage, encodedSysHello); err != nil {
-		return false
+		return upstreamAuthFailed
 	}
 
 	messageType, rawMessage, err := upstream.ReadMessage()
 	if err != nil {
-		return false
+		return upstreamAuthFailed
 	}
 
 	if messageType != ws.TextMessage {
-		return false
+		return upstreamAuthFailed
 	}
 
-	return string(rawMessage) == "OK"
+	message := string(rawMessage)
+	if message == "OK" {
+		return upstreamAuthOK
+	}
+	if message == "Forbidden" {
+		return upstreamAuthForbidden
+	}
+
+	return upstreamAuthFailed
+}
+
+func startUpstreamPumps(ctx context.Context, conn *ws.Conn) (<-chan Frame, chan Frame, <-chan struct{}) {
+	incoming := make(chan Frame, 32)
+	outgoing := make(chan Frame, 32)
+	closed := make(chan struct{})
+
+	var closeOnce sync.Once
+	signalClosed := func() {
+		closeOnce.Do(func() {
+			_ = conn.Close()
+			close(closed)
+		})
+	}
+
+	go func() {
+		defer close(incoming)
+		for {
+			messageType, rawMessage, err := conn.ReadMessage()
+			if err != nil {
+				signalClosed()
+				return
+			}
+
+			if messageType != ws.BinaryMessage {
+				continue
+			}
+
+			decoded, err := FrameDecode(rawMessage)
+			if err != nil {
+				continue
+			}
+
+			select {
+			case <-ctx.Done():
+				return
+			case <-closed:
+				return
+			case incoming <- decoded:
+			}
+		}
+	}()
+
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-closed:
+				return
+			case msg, ok := <-outgoing:
+				if !ok {
+					return
+				}
+
+				encoded, err := FrameEncode(msg)
+				if err != nil {
+					continue
+				}
+
+				if err := conn.WriteMessage(ws.BinaryMessage, encoded); err != nil {
+					signalClosed()
+					return
+				}
+			}
+		}
+	}()
+
+	return incoming, outgoing, closed
+}
+
+func sendRehydrateModel(ctx context.Context, p *Proxy, upstreamOutgoing chan<- Frame, snapshot map[string]Value, root UiNode) {
+	if len(snapshot) == 0 {
+		return
+	}
+
+	bindPaths := collectInputBindPaths(root)
+	for _, path := range bindPaths {
+		value, ok := modelValueAtPath(snapshot, path)
+		if !ok {
+			continue
+		}
+
+		eventId := p.syntheticSeq()
+		frame := Frame{
+			Seq:        p.syntheticSeq(),
+			ReplyToSeq: 0,
+			Opcode:     OpModelInput,
+			ModelInput: ModelInput{
+				EventId: eventId,
+				NodeId:  fmt.Sprintf("rehydrate:%s", path),
+				Path:    path,
+				Value:   cloneValue(value),
+			},
+		}
+
+		select {
+		case <-ctx.Done():
+			return
+		case upstreamOutgoing <- frame:
+		}
+	}
+}
+
+func collectInputBindPaths(root UiNode) []string {
+	rehydratable := map[string]bool{
+		"input_text":   true,
+		"input_number": true,
+		"checkbox":     true,
+		"textarea":     true,
+		"select":       true,
+		"toggle":       true,
+		"list":         true,
+	}
+
+	seen := map[string]bool{}
+	result := []string{}
+
+	var walk func(node UiNode)
+	walk = func(node UiNode) {
+		if node.BindPath != "" && rehydratable[node.Component] && !strings.HasPrefix(node.BindPath, "./") {
+			if !seen[node.BindPath] {
+				seen[node.BindPath] = true
+				result = append(result, node.BindPath)
+			}
+		}
+
+		for _, child := range node.ChildNodes {
+			walk(child)
+		}
+	}
+
+	walk(root)
+	return result
+}
+
+func modelValueAtPath(model map[string]Value, path string) (Value, bool) {
+	if path == "" {
+		return Value{}, false
+	}
+
+	if direct, ok := model[path]; ok {
+		return direct, true
+	}
+
+	parts := strings.Split(path, ".")
+	if len(parts) == 0 {
+		return Value{}, false
+	}
+
+	current, ok := model[parts[0]]
+	if !ok {
+		return Value{}, false
+	}
+
+	for i := 1; i < len(parts); i++ {
+		if current.Kind != ValueObject || current.Object == nil {
+			return Value{}, false
+		}
+
+		next, ok := current.Object[parts[i]]
+		if !ok {
+			return Value{}, false
+		}
+		current = next
+	}
+
+	return current, true
 }
 
 func (p *Proxy) upstreamSysHelloPayload(ctx context.Context, downstreamPayload string) string {

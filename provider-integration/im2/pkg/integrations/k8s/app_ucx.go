@@ -75,7 +75,7 @@ func ucxOnConnect(conn *ws.Conn) {
 	})
 
 	ucxsvc.IM.HandlerProxy(proxy, func(ctx context.Context, request ucxsvc.Message) (ucxsvc.Message, error) {
-		log.Info("Got a message from '%s': %s", info.Owner, request.Message)
+		log.Info("Got a message from '%#v': %s", info.Owner, request.Message)
 		return ucxsvc.Message{"Hello from the provider!"}, nil
 	})
 
