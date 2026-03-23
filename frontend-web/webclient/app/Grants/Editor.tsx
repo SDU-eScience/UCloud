@@ -2143,7 +2143,7 @@ export function Editor(): React.ReactNode {
                                             if (currentProvider) {
                                                 productDescription = currentProvider.productDescription.find(it => it.category.name === category.category.name);
                                             }
-                                            const showDescriptions: Boolean = productDescription != undefined;
+                                            const showDescriptions = productDescription != undefined;
 
 
                                             return <FormField
