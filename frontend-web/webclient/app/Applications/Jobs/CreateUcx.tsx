@@ -8,10 +8,8 @@ import {Application, ApplicationGroup} from "@/Applications/AppStoreApi";
 import {AppHeader} from "@/Applications/View";
 import {UtilityBar} from "@/Navigation/UtilityBar";
 import {useMemo} from "react";
-import {RpcHandler} from "@/UCX/session";
-import {sendNotification} from "@/Notifications";
+import {UcxRpcHandler} from "@/UCX/UcxView";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {ValueKind} from "@/UCX/protocol";
 
 interface CreateUcxJobProps {
     application: Application;
@@ -23,13 +21,13 @@ export const CreateUcxJob: React.FunctionComponent<CreateUcxJobProps> = ({applic
         .replace("http://", "ws://")
         .replace("https://", "wss://");
 
-    const handlers = useMemo<Record<string, RpcHandler>>(() => {
+    const handlers = useMemo<Record<string, UcxRpcHandler>>(() => {
         return {
             "frontend": payload => {
                 console.log(payload)
                 snackbarStore.addSuccess("Testing", true);
                 return {
-                    "message": {kind: ValueKind.String, string: "hello from frontend!"}
+                    "message": "hello from frontend!"
                 };
             }
         }

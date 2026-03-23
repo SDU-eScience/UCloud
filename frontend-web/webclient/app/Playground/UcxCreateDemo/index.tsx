@@ -3,7 +3,6 @@ import {Card, MainContainer, Text} from "@/ui-components";
 import {injectStyle} from "@/Unstyled";
 import {Client} from "@/Authentication/HttpClientInstance";
 import UcxView from "@/UCX/UcxView";
-import {ValueKind} from "@/UCX/protocol";
 
 const UCX_DEMO_AUTH_TOKEN = "ucx-demo-proxy-token";
 const UCX_DEMO_SYSHELLO = "ucx-demo-webclient-syshello";
@@ -19,9 +18,9 @@ const UcxCreateDemo: React.FunctionComponent = () => {
         sysHello={UCX_DEMO_SYSHELLO}
         rpcHandlers={{
             "client.ping": async payload => ({
-                ok: {kind: ValueKind.Bool, bool: true},
-                from: {kind: ValueKind.String, string: "webclient"},
-                echo: payload["message"] ?? {kind: ValueKind.Null},
+                ok: true,
+                from: "webclient",
+                echo: payload["message"] ?? null,
             }),
         }}
         renderFrame={({connected, transportError, content}) => <MainContainer

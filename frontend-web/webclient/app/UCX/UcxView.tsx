@@ -1,15 +1,17 @@
 import * as React from "react";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {Button, Checkbox, Flex, Icon, Input, Text} from "@/ui-components";
-import {decodeFrame, Frame, Opcode, UiNode, Value, ValueKind} from "@/UCX/protocol";
-import {RpcHandler, UcxSession} from "@/UCX/session";
+import {decodeFrame, Frame, Opcode, plainMapToValue, PlainValue, UiNode, Value, valueMapToPlain, ValueKind} from "@/UCX/protocol";
+import {UcxSession} from "@/UCX/session";
 
 type ValueProvider = string | (() => string | Promise<string>);
+export type UcxRpcPayload = Record<string, PlainValue>;
+export type UcxRpcHandler = (payload: UcxRpcPayload) => Promise<UcxRpcPayload | void> | UcxRpcPayload | void;
 
 export interface UcxFunctionRegistry {
     sendBoundInput: (node: UiNode, value: Value, model: Record<string, Value>, scope?: Record<string, Value>) => void;
     sendUiEvent: (nodeId: string, event?: string, value?: Value) => void;
-    invokeRpc: (name: string, payload?: Record<string, Value>, timeoutMs?: number) => Promise<Record<string, Value>>;
+    invokeRpc: (name: string, payload?: UcxRpcPayload, timeoutMs?: number) => Promise<UcxRpcPayload>;
     modelValue: (model: Record<string, Value>, path: string, scope?: Record<string, Value>) => Value | undefined;
     sxStyle: (node: UiNode) => React.CSSProperties;
     [key: string]: unknown;
@@ -40,7 +42,7 @@ export interface UcxViewProps {
     renderFrame?: (args: UcxFrameRenderArgs) => React.ReactNode;
     components?: Partial<UcxComponentRegistry>;
     functions?: Partial<UcxFunctionRegistry>;
-    rpcHandlers?: Record<string, RpcHandler>;
+    rpcHandlers?: Record<string, UcxRpcHandler>;
     onConnected?: () => void;
     onDisconnected?: (reason: string) => void;
     onTransportError?: (message: string) => void;
@@ -75,7 +77,7 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
     const modelRef = useRef<Record<string, Value>>({});
     const authTokenRef = useRef<ValueProvider>(authToken);
     const sysHelloRef = useRef<ValueProvider>(sysHello);
-    const rpcHandlersRef = useRef<Record<string, RpcHandler> | undefined>(rpcHandlers);
+    const rpcHandlersRef = useRef<Record<string, UcxRpcHandler> | undefined>(rpcHandlers);
     const onConnectedRef = useRef<typeof onConnected>(onConnected);
     const onDisconnectedRef = useRef<typeof onDisconnected>(onDisconnected);
     const onTransportErrorRef = useRef<typeof onTransportError>(onTransportError);
@@ -144,11 +146,11 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
         });
     }, [sendFrame]);
 
-    const invokeRpc = useCallback((name: string, payload: Record<string, Value> = {}, timeoutMs = 30000) => {
+    const invokeRpc = useCallback((name: string, payload: UcxRpcPayload = {}, timeoutMs = 30000) => {
         if (!sessionRef.current) {
             return Promise.reject(new Error("UCX session is not connected"));
         }
-        return sessionRef.current.invokeRpc(name, payload, timeoutMs);
+        return sessionRef.current.invokeRpc(name, plainMapToValue(payload), timeoutMs).then(valueMapToPlain);
     }, []);
 
     const baseFunctions = useMemo<UcxFunctionRegistry>(() => ({
@@ -255,7 +257,11 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
                 const handlers = rpcHandlersRef.current;
                 if (handlers) {
                     for (const [name, handler] of Object.entries(handlers)) {
-                        sessionRef.current?.registerRpcHandler(name, handler);
+                        sessionRef.current?.registerRpcHandler(name, payload => {
+                            return Promise.resolve(handler(valueMapToPlain(payload))).then(result => {
+                                return plainMapToValue(result ?? {});
+                            });
+                        });
                     }
                 }
 

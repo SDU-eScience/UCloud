@@ -35,6 +35,8 @@ export type Value =
     | { kind: ValueKind.List; list: Value[] }
     | { kind: ValueKind.Object; object: Record<string, Value> };
 
+export type PlainValue = null | boolean | number | string | PlainValue[] | { [key: string]: PlainValue };
+
 export interface UiNode {
     id: string;
     component: string;
@@ -414,4 +416,75 @@ export function fromBase64(base64: string): Uint8Array {
     const out = new Uint8Array(binary.length);
     for (let i = 0; i < binary.length; i++) out[i] = binary.charCodeAt(i);
     return out;
+}
+
+export function valueToPlain(value: Value): PlainValue {
+    switch (value.kind) {
+        case ValueKind.Null:
+            return null;
+        case ValueKind.Bool:
+            return value.bool;
+        case ValueKind.S64:
+            return value.s64;
+        case ValueKind.F64:
+            return value.f64;
+        case ValueKind.String:
+            return value.string;
+        case ValueKind.List:
+            return value.list.map(valueToPlain);
+        case ValueKind.Object: {
+            const result: {[key: string]: PlainValue} = {};
+            for (const [key, item] of Object.entries(value.object)) {
+                result[key] = valueToPlain(item);
+            }
+            return result;
+        }
+    }
+}
+
+export function plainToValue(value: PlainValue): Value {
+    if (value === null || value === undefined) {
+        return {kind: ValueKind.Null};
+    }
+
+    if (typeof value === "boolean") {
+        return {kind: ValueKind.Bool, bool: value};
+    }
+
+    if (typeof value === "number") {
+        if (Number.isFinite(value) && Number.isInteger(value)) {
+            return {kind: ValueKind.S64, s64: value};
+        }
+        return {kind: ValueKind.F64, f64: value};
+    }
+
+    if (typeof value === "string") {
+        return {kind: ValueKind.String, string: value};
+    }
+
+    if (Array.isArray(value)) {
+        return {kind: ValueKind.List, list: value.map(plainToValue)};
+    }
+
+    const object: Record<string, Value> = {};
+    for (const [key, item] of Object.entries(value)) {
+        object[key] = plainToValue(item as PlainValue);
+    }
+    return {kind: ValueKind.Object, object};
+}
+
+export function valueMapToPlain(input: Record<string, Value>): Record<string, PlainValue> {
+    const result: Record<string, PlainValue> = {};
+    for (const [key, value] of Object.entries(input)) {
+        result[key] = valueToPlain(value);
+    }
+    return result;
+}
+
+export function plainMapToValue(input: Record<string, PlainValue>): Record<string, Value> {
+    const result: Record<string, Value> = {};
+    for (const [key, value] of Object.entries(input)) {
+        result[key] = plainToValue(value);
+    }
+    return result;
 }
