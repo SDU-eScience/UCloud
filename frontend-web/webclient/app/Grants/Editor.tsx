@@ -2150,7 +2150,7 @@ export function Editor(): React.ReactNode {
                                                 title={<code>{category.category.name}</code>}
                                                 id={`${providerId}/${category.category.name}/${checkedAllocators[0]}`}
                                                 key={`${providerId}/${category.category.name}`}
-                                                description={productDescription?.shortDescription || ""}
+                                                description={productDescription?.shortDescription ?? ""}
                                                 icon={Accounting.productTypeToIcon(category.category.productType)}
                                                 showDescriptionInEditMode={!!showDescriptions}
                                             >
