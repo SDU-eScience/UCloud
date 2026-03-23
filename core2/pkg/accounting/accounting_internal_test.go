@@ -272,6 +272,31 @@ func TestOverConsumptionFollowedByAllocation(t *testing.T) {
 	})
 }
 
+func TestCapacityOverConsumptionAndReturnBelowLimit(t *testing.T) {
+	runTable(t, []accapi.ProductCategory{timeCategory, capacityCategory}, func(e *env) {
+		e.AllocateEx(0, 0, 10, 100, "P1", "")
+		e.AllocateEx(0, 0, 100, 10, "P2", "P1")
+
+		e.ReportAbs(1, "P2", 1)
+		e.ExpectMany(map[string]want{
+			"P1": {PUsage: 1, Locked: false},
+			"P2": {PUsage: 1, Locked: false},
+		})
+
+		e.ReportAbs(3, "P2", 15)
+		e.ExpectMany(map[string]want{
+			"P1": {PUsage: 10, Locked: false},
+			"P2": {PUsage: 10, Locked: true},
+		})
+
+		e.ReportAbs(5, "P2", 1)
+		e.ExpectMany(map[string]want{
+			"P1": {PUsage: 1, Locked: false},
+			"P2": {PUsage: 1, Locked: false},
+		})
+	})
+}
+
 func TestCapacityParentRetireAfterChildOverspend(t *testing.T) {
 	e := newEnv(t, capacityCategory)
 

@@ -282,7 +282,9 @@ func internalReportUsage(now time.Time, request accapi.ReportUsageRequest) (bool
 		fmt.Printf("Delta is negative\n")
 		// Check if there is local excess which should counter-act the decrease
 		propagated := lInternalWalletTotalPropagatedUsage(b, w)
+		fmt.Printf("propagated: %d\n", propagated)
 		inNode := lInternalWalletTotalUsageInNode(b, w)
+		fmt.Printf("inNode: %d\n", inNode)
 		excess := min(inNode-propagated, w.LocalUsage)
 
 		fmt.Printf("exces usage: %d\n", excess)
@@ -293,7 +295,7 @@ func internalReportUsage(now time.Time, request accapi.ReportUsageRequest) (bool
 	}
 
 	_, visitedWallets := lInternalReportUsage(b, now, w, deltaToReport)
-	fmt.Printf("visited wallets: %d\n", visitedWallets)
+	fmt.Printf("visited wallets: %v\n", visitedWallets)
 	w.LocalUsage += delta
 	w.Dirty = true
 
@@ -766,9 +768,10 @@ func lInternalWalletByOwner(b *internalBucket, now time.Time, owner accOwnerId) 
 // The graph algorithms themselves are implemented in `accounting_graph.go`.
 
 func lInternalReportUsage(b *internalBucket, now time.Time, w *internalWallet, delta int64) (int64, map[AccWalletId]bool) {
-	fmt.Printf("lInternalReportUsage called for wallet %s with delta: %v\n", w.Id, delta)
+	fmt.Printf("lInternalReportUsage called for wallet %v with delta: %v\n", w.Id, delta)
 	chargeGraph := lInternalBuildGraph(b, now, w, internalGraphWithOverAllocation)
 
+	println(chargeGraph.ToMermaid())
 	rootVertex := chargeGraph.WalletToVertex[internalGraphRoot]
 	walletVertex := chargeGraph.WalletToVertex[w.Id]
 
@@ -813,6 +816,7 @@ func lInternalReportUsage(b *internalBucket, now time.Time, w *internalWallet, d
 			}
 		}
 	}
+	println(chargeGraph.ToMermaid())
 
 	return maxUsable, walletsUpdated
 }
