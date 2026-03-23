@@ -31,6 +31,7 @@ func InitExecutables() {
 	exeCopy("ucviz", dirPath)
 	exeCopy("vmagent", dirPath)
 	exeCopy("ucloud-job-introspection", dirPath)
+	exeCopy("ucx-demo", dirPath)
 
 	providerHostnamePath := filepath.Join(dirPath, "provider-hostname.txt")
 	if util.DevelopmentModeEnabled() {

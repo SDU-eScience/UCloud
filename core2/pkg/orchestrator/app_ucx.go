@@ -9,9 +9,11 @@ import (
 
 	accapi "ucloud.dk/shared/pkg/accounting"
 	fndapi "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/ucx"
+	"ucloud.dk/shared/pkg/ucx/ucxsvc"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -111,14 +113,28 @@ func initAppUcx() {
 
 			upstreamTok := client.RetrieveAccessTokenOrRefresh()
 
-			sysHello, _ := json.Marshal(orcapi.AppUcxConnectProviderRequest{Application: app})
+			sysHello, _ := json.Marshal(orcapi.AppUcxConnectProviderRequest{
+				Application: app,
+				Owner: orcapi.ResourceOwner{
+					CreatedBy: actor.Username,
+					Project: util.OptMap(actor.Project, func(value rpc.ProjectId) string {
+						return string(value)
+					}),
+				},
+			})
 
 			return ucx.ProxyUpstreamSelection{
-				Allowed:          true,
-				UpstreamUrl:      upstreamUrl,
-				UpstreamToken:    upstreamTok,
-				UpstreamSysHello: string(sysHello),
+				Allowed:               true,
+				UpstreamUrl:           upstreamUrl,
+				UpstreamToken:         upstreamTok,
+				UpstreamTokenInBearer: true,
+				UpstreamSysHello:      string(sysHello),
 			}
+		})
+
+		ucxsvc.Core.HandlerProxy(proxy, func(ctx context.Context, request ucxsvc.Message) (ucxsvc.Message, error) {
+			log.Info("Got a message from '%s': %s", actor, request)
+			return ucxsvc.Message{"Hello from the Core!"}, nil
 		})
 
 		gerr := proxy.Run(context.Background(), info.WebSocket)

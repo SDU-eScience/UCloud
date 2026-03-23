@@ -51,6 +51,7 @@ func Init(config *cfg.ServicesConfigurationKubernetes) {
 
 	controller.Files = filesystem.InitFiles()
 	controller.Jobs = InitCompute()
+	controller.UcxApplications = initAppUcx()
 
 	controller.IdentityManagement.HandleProjectNotification = func(updated *controller.EventProjectUpdated) bool {
 		ok := true

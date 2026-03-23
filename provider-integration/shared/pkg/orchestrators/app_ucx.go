@@ -25,11 +25,12 @@ const appUcxContextProvider = "ucloud/" + rpc.ProviderPlaceholder + "/hpc/apps/u
 
 // AppUcxConnectProviderRequest is passed as part of the SysHello message.
 type AppUcxConnectProviderRequest struct {
-	Application Application `json:"application"`
+	Application Application   `json:"application"`
+	Owner       ResourceOwner `json:"owner"`
 }
 
 var AppUcxConnectProvider = rpc.Call[util.Empty, util.Empty]{
-	BaseContext: appUcxContext,
+	BaseContext: appUcxContextProvider,
 	Convention:  rpc.ConventionWebSocket,
 	Operation:   "connect",
 	Roles:       rpc.RolesPublic,

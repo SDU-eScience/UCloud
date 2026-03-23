@@ -107,6 +107,15 @@ type KubernetesInferenceConfiguration struct {
 	OllamaDevMode bool
 }
 
+type KubernetesUcxDevelopmentApp struct {
+	Name    string `json:"name" yaml:"name"`
+	Version string `json:"version" yaml:"version"`
+}
+
+type KubernetesUcxConfiguration struct {
+	Development []KubernetesUcxDevelopmentApp `json:"development" yaml:"development"`
+}
+
 type KubernetesCompute struct {
 	Machines                        map[string]K8sMachineCategory
 	MachineImpersonation            map[string]string
@@ -121,6 +130,7 @@ type KubernetesCompute struct {
 	VirtualMachines                 KubernetesVirtualMachines
 	Modules                         map[string]KubernetesModuleEntry
 	Inference                       KubernetesInferenceConfiguration
+	Ucx                             KubernetesUcxConfiguration
 }
 
 func (c *KubernetesCompute) ResolveMachine(name, category string) (K8sMachineCategory, K8sMachineCategoryGroup, K8sMachineConfiguration, bool) {
@@ -242,6 +252,14 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 
 	if cfg.Compute.Namespace == "" {
 		cfg.Compute.Namespace = "ucloud-apps"
+	}
+
+	ucxNode, _ := cfgutil.GetChildOrNil(filePath, computeNode, "ucx")
+	if ucxNode != nil {
+		developmentNode, _ := cfgutil.GetChildOrNil(filePath, ucxNode, "development")
+		if developmentNode != nil {
+			cfgutil.Decode(filePath, developmentNode, &cfg.Compute.Ucx.Development, &success)
+		}
 	}
 
 	inferenceNode, _ := cfgutil.GetChildOrNil(filePath, computeNode, "inference")

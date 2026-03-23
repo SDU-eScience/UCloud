@@ -7,10 +7,12 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/ucx"
+	"ucloud.dk/shared/pkg/ucx/ucxsvc"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -32,7 +34,7 @@ func Init() {
 	}
 
 	streamCall.HandlerEx(upstreamServer, func(info rpc.RequestInfo, request util.Empty) (util.Empty, *util.HttpError) {
-		return runDemoSession(info)
+		return RunDemoSession(info)
 	})
 
 	go func() {
@@ -78,46 +80,65 @@ func Init() {
 	})
 }
 
-func runDemoSession(info rpc.RequestInfo) (util.Empty, *util.HttpError) {
+func RunDemoSession(info rpc.RequestInfo) (util.Empty, *util.HttpError) {
 	conn := info.WebSocket
 
 	defer util.SilentClose(conn)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	state := newDemoState()
-	stateMu := sync.Mutex{}
+	state := &demoState{
+		InterfaceId: "job-create-demo",
+		Title:       "UCX Create Prototype",
+		JobName:     "",
+		CPU:         4,
+		Notify:      true,
+		RpcMessage:  "hello from server",
+		RpcStatus:   "",
+		TodoDraft:   "",
+		Todos:       []todoItem{},
+		Errors:      map[string]string{},
+		NextTodoId:  1,
+	}
+
+	stateMu := &state.Mu
 	hasMounted := false
 
-	ucx.RunAppWebSocket(conn, ctx, func(ctx context.Context, token string) bool {
-		return token == upstreamAuthToken
-	}, func(ctx context.Context, session *ucx.Session) {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case frame, ok := <-session.Incoming():
-				if !ok {
+	ucx.RunAppWebSocket(
+		conn,
+		ctx,
+		func(ctx context.Context, token string) bool {
+			return true
+		},
+		func(ctx context.Context, session *ucx.Session) {
+			state.Session = session
+			for {
+				select {
+				case <-ctx.Done():
 					return
-				}
+				case frame, ok := <-session.Incoming():
+					if !ok {
+						return
+					}
 
-				if !hasMounted && frame.Opcode == ucx.OpSysHello {
-					stateMu.Lock()
-					mount := state.uiMount()
-					stateMu.Unlock()
-					session.SendUiMount(mount)
-					hasMounted = true
-					continue
-				}
+					if !hasMounted && frame.Opcode == ucx.OpSysHello {
+						stateMu.Lock()
+						mount := state.uiMount()
+						stateMu.Unlock()
+						session.SendUiMount(mount)
+						hasMounted = true
+						continue
+					}
 
-				if !hasMounted {
-					continue
-				}
+					if !hasMounted {
+						continue
+					}
 
-				handleIncomingFrame(ctx, &stateMu, state, frame, session)
+					handleIncomingFrame(ctx, stateMu, state, frame, session)
+				}
 			}
-		}
-	})
+		},
+	)
 	return util.Empty{}, nil
 }
 
@@ -141,23 +162,14 @@ type demoState struct {
 	LastActionMessage string
 	ValidationMessage string
 	TodoHeader        string
-	NextTodoId        int64 `ucx:"-"`
+	FnText            string
+	NextTodoId        int64        `ucx:"-"`
+	Mu                sync.Mutex   `ucx:"-"`
+	Session           *ucx.Session `ucx:"-"`
 }
 
-func newDemoState() *demoState {
-	return &demoState{
-		InterfaceId: "job-create-demo",
-		Title:       "UCX Create Prototype",
-		JobName:     "",
-		CPU:         4,
-		Notify:      true,
-		RpcMessage:  "hello from server",
-		RpcStatus:   "",
-		TodoDraft:   "",
-		Todos:       []todoItem{},
-		Errors:      map[string]string{},
-		NextTodoId:  1,
-	}
+func (s *demoState) UpdateModel() {
+	s.Session.SendModel(s.modelMap())
 }
 
 func (s *demoState) uiMount() ucx.UiMount {
@@ -237,6 +249,13 @@ func (s *demoState) uiTree() ucx.UiNode {
 		ucx.TextBound("validationMessage", "validationMessage"),
 		ucx.TextBound("lastActionMessage", "lastActionMessage"),
 		ucx.TextBound("submissionMessage", "submissionMessage").Sx(ucx.SxColor(ucx.ColorSuccessMain)),
+
+		ucx.Flex("fnButtons", ucx.FlexProps{Direction: "row", Gap: 6}).Children(
+			ucx.Button("fnFrontend", "Frontend RPC", ucx.ColorSuccessMain),
+			ucx.Button("fnCore", "Core RPC", ucx.ColorWarningMain),
+			ucx.Button("fnIm", "IM RPC", ucx.ColorErrorMain),
+		),
+		ucx.TextBound("fnText", "fnText"),
 	)
 }
 
@@ -265,31 +284,25 @@ func handleIncomingFrame(ctx context.Context, mu *sync.Mutex, state *demoState, 
 		session.SendUiMount(state.uiMount())
 
 	case ucx.OpModelInput:
-		before := state.modelMap()
 		handleModelInput(state, incoming.ModelInput)
-		after := state.modelMap()
-		session.SendModelDiff(before, after)
+		state.UpdateModel()
 
 	case ucx.OpUiEvent:
 		if incoming.UiEvent.NodeId == "rpcPing" && incoming.UiEvent.Event == "click" {
-			before := state.modelMap()
 			message := strings.TrimSpace(state.RpcMessage)
 			if message == "" {
 				message = "hello from server"
 			}
 
 			state.RpcStatus = "Calling client RPC..."
-			after := state.modelMap()
-			session.SendModelDiff(before, after)
+			state.UpdateModel()
 
 			go invokeClientPing(ctx, mu, state, session, message)
 			return
 		}
 
-		before := state.modelMap()
-		handleUiEvent(state, incoming.UiEvent)
-		after := state.modelMap()
-		session.SendModelDiff(before, after)
+		handleUiEvent(session, state, incoming.UiEvent)
+		state.UpdateModel()
 	}
 }
 
@@ -313,7 +326,6 @@ func invokeClientPing(ctx context.Context, mu *sync.Mutex, state *demoState, ses
 	mu.Lock()
 	defer mu.Unlock()
 
-	before := state.modelMap()
 	if err != nil {
 		state.RpcStatus = fmt.Sprintf("RPC failed: %v", err)
 	} else {
@@ -328,8 +340,7 @@ func invokeClientPing(ctx context.Context, mu *sync.Mutex, state *demoState, ses
 		}
 		state.RpcStatus = fmt.Sprintf("RPC result from %s (ok=%t): %s", from, ok, echo)
 	}
-	after := state.modelMap()
-	session.SendModelDiff(before, after)
+	state.UpdateModel()
 }
 
 func handleModelInput(state *demoState, input ucx.ModelInput) {
@@ -353,7 +364,7 @@ func handleModelInput(state *demoState, input ucx.ModelInput) {
 	state.SubmissionMessage = ""
 }
 
-func handleUiEvent(state *demoState, ev ucx.UiEvent) {
+func handleUiEvent(session *ucx.Session, state *demoState, ev ucx.UiEvent) {
 	switch {
 	case ev.NodeId == "addTodo" && ev.Event == "click":
 		draft := strings.TrimSpace(state.TodoDraft)
@@ -398,6 +409,39 @@ func handleUiEvent(state *demoState, ev ucx.UiEvent) {
 			)
 			state.LastActionMessage = "Submit accepted"
 		}
+
+	case ev.NodeId == "fnFrontend" && ev.Event == "click":
+		go func() {
+			resp, err := ucxsvc.Frontend.Invoke(session, ucxsvc.Message{fmt.Sprintf("Hello frontend! %v", time.Now())})
+			if err == nil {
+				state.Mu.Lock()
+				state.FnText = resp.Message
+				state.Mu.Unlock()
+				state.UpdateModel()
+			}
+		}()
+
+	case ev.NodeId == "fnCore" && ev.Event == "click":
+		go func() {
+			resp, err := ucxsvc.Core.Invoke(session, ucxsvc.Message{fmt.Sprintf("Hello core! %v", time.Now())})
+			if err == nil {
+				state.Mu.Lock()
+				state.FnText = resp.Message
+				state.Mu.Unlock()
+				state.UpdateModel()
+			}
+		}()
+
+	case ev.NodeId == "fnIm" && ev.Event == "click":
+		go func() {
+			resp, err := ucxsvc.IM.Invoke(session, ucxsvc.Message{fmt.Sprintf("Hello IM! %v", time.Now())})
+			if err == nil {
+				state.Mu.Lock()
+				state.FnText = resp.Message
+				state.Mu.Unlock()
+				state.UpdateModel()
+			}
+		}()
 	}
 }
 

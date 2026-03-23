@@ -18,12 +18,14 @@ type Session struct {
 	outgoing    chan<- Frame
 	serverSeq   int64
 	ctx         context.Context
+	sentModel   map[string]Value
 
 	mu             sync.RWMutex
 	rpcHandlers    map[string]RpcHandler
 	rpcPending     map[int64]chan rpcResponse
 	rpcPendingDone bool
 	startOnce      sync.Once
+	modelMu        sync.Mutex
 }
 
 func NewSession(outgoing chan<- Frame, incoming <-chan Frame) *Session {
@@ -99,6 +101,11 @@ func (s *Session) pumpIncoming() {
 }
 
 func (s *Session) SendUiMount(uiMount UiMount) {
+	s.modelMu.Lock()
+	defer s.modelMu.Unlock()
+
+	s.sentModel = cloneModel(uiMount.Model)
+
 	s.Send(Frame{
 		ReplyToSeq: 0,
 		Opcode:     OpUiMount,
@@ -106,7 +113,17 @@ func (s *Session) SendUiMount(uiMount UiMount) {
 	})
 }
 
-func (s *Session) SendModelDiff(before map[string]Value, after map[string]Value) {
+func (s *Session) SendModel(newModel map[string]Value) {
+	s.modelMu.Lock()
+	defer s.modelMu.Unlock()
+
+	previous := s.sentModel
+	next := cloneModel(newModel)
+	s.sendModelDiff(previous, next)
+	s.sentModel = next
+}
+
+func (s *Session) sendModelDiff(before map[string]Value, after map[string]Value) {
 	changes := map[string]Value{}
 	for key, afterVal := range after {
 		beforeVal, ok := before[key]
@@ -132,6 +149,39 @@ func (s *Session) SendModelDiff(before map[string]Value, after map[string]Value)
 			Changes: changes,
 		},
 	})
+}
+
+func cloneModel(input map[string]Value) map[string]Value {
+	if input == nil {
+		return map[string]Value{}
+	}
+
+	result := make(map[string]Value, len(input))
+	for key, value := range input {
+		result[key] = cloneValue(value)
+	}
+
+	return result
+}
+
+func cloneValue(v Value) Value {
+	clone := v
+
+	if v.List != nil {
+		clone.List = make([]Value, len(v.List))
+		for i, item := range v.List {
+			clone.List[i] = cloneValue(item)
+		}
+	}
+
+	if v.Object != nil {
+		clone.Object = make(map[string]Value, len(v.Object))
+		for key, item := range v.Object {
+			clone.Object[key] = cloneValue(item)
+		}
+	}
+
+	return clone
 }
 
 func RunAppRaw(ctx context.Context, handler AppHandler) {

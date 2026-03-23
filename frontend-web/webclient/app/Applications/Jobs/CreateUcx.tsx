@@ -7,6 +7,11 @@ import {getStoredProject} from "@/Project/ReduxState";
 import {Application, ApplicationGroup} from "@/Applications/AppStoreApi";
 import {AppHeader} from "@/Applications/View";
 import {UtilityBar} from "@/Navigation/UtilityBar";
+import {useMemo} from "react";
+import {RpcHandler} from "@/UCX/session";
+import {sendNotification} from "@/Notifications";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {ValueKind} from "@/UCX/protocol";
 
 interface CreateUcxJobProps {
     application: Application;
@@ -17,6 +22,18 @@ export const CreateUcxJob: React.FunctionComponent<CreateUcxJobProps> = ({applic
     const url = Client.computeURL("/api", "/hpc/apps/ucx/connect")
         .replace("http://", "ws://")
         .replace("https://", "wss://");
+
+    const handlers = useMemo<Record<string, RpcHandler>>(() => {
+        return {
+            "frontend": payload => {
+                console.log(payload)
+                snackbarStore.addSuccess("Testing", true);
+                return {
+                    "message": {kind: ValueKind.String, string: "hello from frontend!"}
+                };
+            }
+        }
+    }, []);
 
     return <UcxView
         url={url}
@@ -29,6 +46,7 @@ export const CreateUcxJob: React.FunctionComponent<CreateUcxJobProps> = ({applic
             name: application.metadata.name,
             version: application.metadata.version,
         })}
+        rpcHandlers={handlers}
         renderFrame={({connected, transportError, content}) => (
             <MainContainer
                 main={<>

@@ -2,6 +2,8 @@ package ucx
 
 import (
 	"context"
+	"fmt"
+	"net/http"
 	"sync"
 	"sync/atomic"
 
@@ -14,10 +16,11 @@ type ProxySysHelloHandler func(ctx context.Context, downstreamPayload string) st
 type ProxyUpstreamSelector func(ctx context.Context, downstreamToken string, downstreamSysHello string) ProxyUpstreamSelection
 
 type ProxyUpstreamSelection struct {
-	Allowed          bool
-	UpstreamUrl      string
-	UpstreamToken    string
-	UpstreamSysHello string
+	Allowed               bool
+	UpstreamUrl           string
+	UpstreamToken         string
+	UpstreamSysHello      string
+	UpstreamTokenInBearer bool
 }
 
 type Proxy struct {
@@ -86,16 +89,14 @@ func (p *Proxy) Run(ctx context.Context, downstream *ws.Conn) error {
 		return nil
 	}
 
-	upstream, _, err := ws.DefaultDialer.Dial(selection.UpstreamUrl, nil)
-	if err != nil {
-		return err
+	header := http.Header(nil)
+	if selection.UpstreamTokenInBearer {
+		header = http.Header{"Authorization": []string{fmt.Sprintf("Bearer %s", selection.UpstreamToken)}}
 	}
 
-	if !authenticateUpstream(upstream, selection.UpstreamToken) {
-		_ = downstream.WriteMessage(ws.TextMessage, []byte("Forbidden"))
-		_ = downstream.Close()
-		_ = upstream.Close()
-		return nil
+	upstream, _, err := ws.DefaultDialer.Dial(selection.UpstreamUrl, header)
+	if err != nil {
+		return err
 	}
 
 	downstreamHelloFrame.SysHello.Payload = selection.UpstreamSysHello
@@ -107,7 +108,7 @@ func (p *Proxy) Run(ctx context.Context, downstream *ws.Conn) error {
 		return nil
 	}
 
-	if err := upstream.WriteMessage(ws.BinaryMessage, encodedHello); err != nil {
+	if !authenticateUpstream(upstream, selection.UpstreamToken, encodedHello) {
 		_ = downstream.WriteMessage(ws.TextMessage, []byte("Forbidden"))
 		_ = downstream.Close()
 		_ = upstream.Close()
@@ -197,8 +198,12 @@ func (p *Proxy) authenticateDownstream(downstream *ws.Conn) (string, bool) {
 	return string(rawMessage), true
 }
 
-func authenticateUpstream(upstream *ws.Conn, token string) bool {
+func authenticateUpstream(upstream *ws.Conn, token string, encodedSysHello []byte) bool {
 	if err := upstream.WriteMessage(ws.TextMessage, []byte(token)); err != nil {
+		return false
+	}
+
+	if err := upstream.WriteMessage(ws.BinaryMessage, encodedSysHello); err != nil {
 		return false
 	}
 
@@ -247,9 +252,6 @@ func (p *Proxy) selectUpstream(ctx context.Context, downstreamToken string, down
 		selection := selector(ctx, downstreamToken, downstreamSysHello)
 		if selection.UpstreamUrl == "" {
 			selection.UpstreamUrl = p.upstreamUrl
-		}
-		if selection.UpstreamToken == "" {
-			selection.UpstreamToken = downstreamToken
 		}
 		if selection.UpstreamSysHello == "" {
 			selection.UpstreamSysHello = downstreamSysHello

@@ -80,6 +80,7 @@ startsvc() {
         CGO_ENABLED=0 $GO build -gcflags "all=-N -l" -o /usr/bin/ucviz -trimpath ucloud.dk/cmd/ucviz
         CGO_ENABLED=0 $GO build -gcflags "all=-N -l" -o /usr/bin/vmagent -trimpath ucloud.dk/cmd/vmagent
         CGO_ENABLED=0 $GO build -gcflags "all=-N -l" -o /usr/bin/ucloud-job-introspection -trimpath ucloud.dk/cmd/ucloud-job-introspection
+        CGO_ENABLED=0 $GO build -gcflags "all=-N -l" -o /usr/bin/ucx-demo -trimpath ucloud.dk/cmd/ucx-demo
 
         if [ -f "/etc/ucloud/gpfs_mock.yml" ]; then
             pkill gpfs-mock || true

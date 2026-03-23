@@ -115,7 +115,7 @@ func (s *A2Software) UnmarshalYAML(n *yaml.Node) error {
 		if err := n.Decode(&v); err != nil {
 			return err
 		}
-		s.Type = "VirtualMachine"
+		s.Type = "UCX"
 		s.Ucx = &v
 		return nil
 
@@ -515,13 +515,13 @@ func (y *A2Yaml) Normalize() (orcapi.Application, *util.HttpError) {
 		if y.Software.Ucx == nil {
 			err = util.MergeHttpErr(err, util.HttpErr(
 				http.StatusBadRequest,
-				"missing native information in 'software'",
+				"missing ucx information in 'software'",
 			))
 		} else {
-			util.ValidateString(&y.Software.VirtualMachine.Image, "software.image", 0, &err)
+			util.ValidateString(&y.Software.Ucx.Image, "software.image", 0, &err)
 
-			mappedTool.Container = y.Software.VirtualMachine.Image
-			mappedTool.Image = y.Software.VirtualMachine.Image
+			mappedTool.Container = y.Software.Ucx.Image
+			mappedTool.Image = y.Software.Ucx.Image
 		}
 	}
 

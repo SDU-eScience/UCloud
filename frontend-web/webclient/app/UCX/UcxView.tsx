@@ -73,10 +73,40 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
     const pendingRehydrateModelRef = useRef<Record<string, Value> | null>(null);
     const authCompleteRef = useRef(false);
     const modelRef = useRef<Record<string, Value>>({});
+    const authTokenRef = useRef<ValueProvider>(authToken);
+    const sysHelloRef = useRef<ValueProvider>(sysHello);
+    const rpcHandlersRef = useRef<Record<string, RpcHandler> | undefined>(rpcHandlers);
+    const onConnectedRef = useRef<typeof onConnected>(onConnected);
+    const onDisconnectedRef = useRef<typeof onDisconnected>(onDisconnected);
+    const onTransportErrorRef = useRef<typeof onTransportError>(onTransportError);
 
     useEffect(() => {
         modelRef.current = model;
     }, [model]);
+
+    useEffect(() => {
+        authTokenRef.current = authToken;
+    }, [authToken]);
+
+    useEffect(() => {
+        sysHelloRef.current = sysHello;
+    }, [sysHello]);
+
+    useEffect(() => {
+        rpcHandlersRef.current = rpcHandlers;
+    }, [rpcHandlers]);
+
+    useEffect(() => {
+        onConnectedRef.current = onConnected;
+    }, [onConnected]);
+
+    useEffect(() => {
+        onDisconnectedRef.current = onDisconnected;
+    }, [onDisconnected]);
+
+    useEffect(() => {
+        onTransportErrorRef.current = onTransportError;
+    }, [onTransportError]);
 
     const sendFrame = useCallback((frame: Omit<Frame, "seq">) => {
         sessionRef.current?.send(frame);
@@ -174,7 +204,7 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
 
         const setError = (message: string) => {
             setTransportError(message);
-            onTransportError?.(message);
+            onTransportErrorRef.current?.(message);
         };
 
         const scheduleReconnect = () => {
@@ -222,16 +252,17 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
                 clearReconnectTimer();
                 authCompleteRef.current = false;
 
-                if (rpcHandlers) {
-                    for (const [name, handler] of Object.entries(rpcHandlers)) {
+                const handlers = rpcHandlersRef.current;
+                if (handlers) {
+                    for (const [name, handler] of Object.entries(handlers)) {
                         sessionRef.current?.registerRpcHandler(name, handler);
                     }
                 }
 
                 void (async () => {
                     try {
-                        const token = await resolveProvider(authToken);
-                        const hello = await resolveProvider(sysHello);
+                        const token = await resolveProvider(authTokenRef.current);
+                        const hello = await resolveProvider(sysHelloRef.current);
 
                         socket.send(token);
                         sendFrame({
@@ -264,7 +295,7 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
                         setConnected(true);
                         setReconnectingInSeconds(undefined);
                         setTransportError("");
-                        onConnected?.();
+                        onConnectedRef.current?.();
 
                         if (everConnectedRef.current && Object.keys(modelRef.current).length > 0) {
                             pendingRehydrateModelRef.current = {...modelRef.current};
@@ -330,7 +361,7 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
                 sessionRef.current?.close("WebSocket closed");
                 sessionRef.current = null;
                 setConnected(false);
-                onDisconnected?.("WebSocket closed");
+                onDisconnectedRef.current?.("WebSocket closed");
                 if (!disposed) {
                     scheduleReconnect();
                 }
@@ -355,7 +386,7 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
                 conn.close();
             }
         };
-    }, [authToken, onConnected, onDisconnected, onTransportError, resendModelAfterReconnect, rpcHandlers, sendFrame, sysHello, url]);
+    }, [resendModelAfterReconnect, sendFrame, url]);
 
     const content = root == null ? <Text>Waiting for UI mount...</Text> :
         <NodeRenderer
