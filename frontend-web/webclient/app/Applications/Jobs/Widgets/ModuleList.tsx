@@ -19,6 +19,7 @@ import {threadDeferLike, useEffectSkipMount} from "@/UtilityFunctions";
 import {Toggle} from "@/ui-components/Toggle";
 import {compute} from "@/UCloud";
 import AppParameterValueNS = compute.AppParameterValueNS;
+import {ColorProps} from "styled-system";
 
 interface ModuleListProps extends WidgetProps {
     parameter: ApplicationParameterNS.ModuleList;
@@ -158,7 +159,7 @@ const highlightChange = injectStyle("highlight-change", k => `
     }
 `);
 
-const HighlightedSelected: React.FunctionComponent<SelectProps & {children: React.ReactNode;}> = ({children, ...props}) => {
+const HighlightedSelected: React.FunctionComponent<Omit<SelectProps, "color"> & {children: React.ReactNode;}> = ({children, ...props}) => {
     const ref = useRef<HTMLSelectElement>(null);
     useEffectSkipMount(() => {
         const s = ref.current;

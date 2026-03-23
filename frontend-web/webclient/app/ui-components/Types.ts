@@ -1,10 +1,11 @@
 import {WithEventHandlers} from "@/Unstyled";
 import {
-    AlignItemsProps, ColorProps, HeightProps, MaxHeightProps, MaxWidthProps, MinHeightProps, MinWidthProps,
+    AlignItemsProps, HeightProps, ColorProps as StyledSystemsColorProps, MaxHeightProps, MaxWidthProps, MinHeightProps, MinWidthProps,
     OverflowProps, TextAlignProps, WidthProps, ZIndexProps, BackgroundProps, JustifyContentProps,
     BorderRadiusProps, VerticalAlignProps, FontSizeProps, SpaceProps,
     BorderProps
 } from "styled-system";
+import {HexColor, ThemeColor} from "./theme";
 
 export type Cursor = "auto" | "default" | "none" | "context-menu" | "help" | "pointer" | "progress" | "wait" | "cell" |
     "crosshair" | "text" | "vertical-text" | "alias" | "copy" | "move" | "no-drop" | "not-allowed" | "e-resize" |
@@ -22,6 +23,12 @@ interface FlexGrowProps {
 interface FlexShrinkProps {
     flexShrink?: number;
 }
+
+type UCloudColor = ThemeColor | HexColor;
+
+type ColorProps = {
+    color?: UCloudColor;
+} & Exclude<StyledSystemsColorProps, "color">
 
 export type BoxProps =
     SpaceProps &

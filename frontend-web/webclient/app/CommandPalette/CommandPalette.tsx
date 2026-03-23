@@ -257,7 +257,7 @@ function EntryWrapper({command, active, onClick}: {
                 <Truncate
                     maxWidth={"200px"}
                     ml="4px"
-                    color={active ? "var(--primaryLight)" : "var(--secondaryDark)"}
+                    color={active ? "primaryLight" : "secondaryDark"}
                     title={command.description}
                 >
                     ― {command.description}

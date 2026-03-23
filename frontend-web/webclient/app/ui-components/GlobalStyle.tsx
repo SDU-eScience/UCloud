@@ -960,15 +960,6 @@ textarea {
 }
 
 /**
- * Remove the inner border and padding of focus outlines in Firefox.
- */
-
-::-moz-focus-inner {
-  border-style: none;
-  padding: 0;
-}
-
-/**
  * Restore the focus outline styles unset by the previous rule in Firefox.
  */
 

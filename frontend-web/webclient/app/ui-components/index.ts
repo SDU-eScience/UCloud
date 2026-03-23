@@ -24,7 +24,6 @@ export {default as Tooltip} from "./Tooltip";
 export {default as Truncate} from "./Truncate";
 export {default as Checkbox} from "./Checkbox";
 export {default as ContainerForText} from "./ContainerForText";
-export {default as ProgressBarWithLabel} from "./ProgressBarWithLabel";
 export {default as List} from "./List";
 export {default as ButtonGroup} from "./ButtonGroup";
 export {default as DataList} from "./DataList";

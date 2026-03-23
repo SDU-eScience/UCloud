@@ -3,7 +3,6 @@ import {classConcat, classConcatMult, extractDataTags, extractEventHandlers, inj
 import {CSSProperties} from "react";
 import {FontWeightProps} from "styled-system";
 import {BoxProps} from "./Types";
-import {ThemeColor} from "./theme";
 
 export interface TextProps extends BoxProps, FontWeightProps {
     align?: "left" | "right";
@@ -15,7 +14,6 @@ export interface TextProps extends BoxProps, FontWeightProps {
     title?: string;
     style?: CSSProperties;
     className?: string;
-    color?: string | ThemeColor;
 }
 
 export const TextClass = injectStyle("text", () => ``);

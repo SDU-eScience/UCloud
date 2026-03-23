@@ -281,7 +281,7 @@ function UserMenuLink(props: {icon: IconName; text: string; to: string; close():
         <Flex className={HoverClass}>
             <Icon name={props.icon} mr="0.5em" my="0.2em"
                 size="1.3em" />
-            <TextSpan color="var(--textPrimary)">{props.text}</TextSpan>
+            <TextSpan color="textPrimary">{props.text}</TextSpan>
         </Flex>
     </Link>
 }
@@ -304,7 +304,6 @@ function UserMenuExternalLink(props: {
 function UserMenu({avatar, dialog, setOpenDialog}: {
     avatar: AvatarType;
 } & SidebarDialog) {
-
     const close = React.useRef(() => undefined);
     React.useEffect(() => {
         function closeOnEscape(e: KeyboardEvent) {

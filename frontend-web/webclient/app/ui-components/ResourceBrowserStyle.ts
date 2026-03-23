@@ -561,7 +561,6 @@ export const ShortcutClass = injectStyle("shortcut", k => `
         border-radius: 5px;
         border: .5px solid var(--shortcutBorderColor);
         border-bottom: 2px solid var(--shortcutBorderColor);
-        mix-blend-mode: invert;
         font-size: 12px;
         min-width: 18px;
         height: 18px;

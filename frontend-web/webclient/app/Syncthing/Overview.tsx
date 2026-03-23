@@ -941,7 +941,7 @@ const AddDeviceWizard: React.FunctionComponent<{
             tutorialContent = (
                 <>
                     <Heading.h3>Installing Syncthing</Heading.h3>
-                    <Box borderRadius="6px" backgroundColor="warningMain" color="white" p={16} mt={16}>
+                    <Box borderRadius="6px" backgroundColor="warningMain" p={16} mt={16}>
                         The synchronization feature is experimental. Please report any errors through the Support Form.
                     </Box>
                     <p>
