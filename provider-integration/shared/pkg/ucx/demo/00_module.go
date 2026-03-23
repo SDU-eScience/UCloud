@@ -181,81 +181,73 @@ func (s *demoState) uiMount() ucx.UiMount {
 }
 
 func (s *demoState) uiTree() ucx.UiNode {
-	return ucx.Flex("root", ucx.FlexProps{
+	return ucx.Flex(ucx.FlexProps{
 		Direction: "column",
 		Gap:       8,
 	}).Sx(ucx.SxP(4)).Children(
-		ucx.Flex("titleRow", ucx.FlexProps{Direction: "row", Gap: 8}).Sx(ucx.SxAlignItemsCenter).Children(
-			ucx.Icon("titleIcon", ucx.IconHeroCake, ucx.ColorPrimaryMain, 20),
-			ucx.H2("title", s.Title).Sx(ucx.SxColor(ucx.ColorPrimaryMain)),
+		ucx.Flex(ucx.FlexProps{Direction: "row", Gap: 8}).Sx(ucx.SxAlignItemsCenter).Children(
+			ucx.IconEx("titleIcon", ucx.IconHeroCake, ucx.ColorPrimaryMain, 20),
+			ucx.H2Ex("title", s.Title).Sx(ucx.SxColor(ucx.ColorPrimaryMain)),
 		),
-		ucx.Text("subtitle", "UI layout is mounted once and state streams in").Sx(ucx.SxColor(ucx.ColorTextSecondary)),
+		ucx.Text("UI layout is mounted once and state streams in").Sx(ucx.SxColor(ucx.ColorTextSecondary)),
 
 		ucx.InputText("jobName", "Job name", "Name your job", "jobName"),
-		ucx.TextBound("jobName:error", "errors.jobName").Sx(ucx.SxColor(ucx.ColorErrorMain)),
+		ucx.TextBound("errors.jobName").Sx(ucx.SxColor(ucx.ColorErrorMain)),
 
 		ucx.InputNumber("cpu", "CPU", "cpu", 1, 128),
-		ucx.TextBound("cpu:error", "errors.cpu").Sx(ucx.SxColor(ucx.ColorErrorMain)),
+		ucx.TextBound("errors.cpu").Sx(ucx.SxColor(ucx.ColorErrorMain)),
 
 		ucx.Checkbox("notify", "Notify me when the job starts", "notify", true),
 
-		ucx.Flex("rpcSection", ucx.FlexProps{Direction: "column", Gap: 6}).Children(
-			ucx.Heading("rpcTitle", "Client RPC", 4),
-			ucx.Flex("rpcInputRow", ucx.FlexProps{Gap: 8}).Children(
+		ucx.Flex(ucx.FlexProps{Direction: "column", Gap: 6}).Children(
+			ucx.Heading("Client RPC", 4),
+			ucx.Flex(ucx.FlexProps{Gap: 8}).Children(
 				ucx.InputText("rpcMessage", "Message", "Enter RPC message", "rpcMessage"),
 				ucx.Button("rpcPing", "Ping client", ucx.ColorSecondaryMain),
 			),
-			ucx.TextBound("rpcStatus", "rpcStatus").Sx(ucx.SxColor(ucx.ColorTextSecondary)),
+			ucx.TextBound("rpcStatus").Sx(ucx.SxColor(ucx.ColorTextSecondary)),
 		),
 
 		ucx.Flex(
-			"todoSection",
 			ucx.FlexProps{
 				Direction: "column",
 				Gap:       6,
 			},
 		).Children(
-			ucx.HeadingBound("todoHeader", "todoHeader", 4),
-			ucx.Flex(
-				"todoInputRow",
-				ucx.FlexProps{Gap: 8},
-			).Children(
+			ucx.HeadingBound("todoHeader", 4),
+			ucx.Flex(ucx.FlexProps{Gap: 8}).Children(
 				ucx.InputText("todoDraft", "New todo", "Add task", "todoDraft"),
 				ucx.ButtonEx("addTodo", "Add", ucx.ColorSecondaryMain, ucx.IconHeroPlus, "", ""),
 			),
 		),
 
 		ucx.List(
-			"todoList",
 			"todos",
 			"No items yet.",
 		).Sx(
 			ucx.SxMt(4),
 		).Children(
-			ucx.Flex(
-				"todoItemRow",
-				ucx.FlexProps{Gap: 8},
-			).Sx(
+			ucx.Flex(ucx.FlexProps{Gap: 8}).Sx(
 				ucx.SxAlignItemsCenter,
 				ucx.SxJustifySpaceBetween,
 			).Children(
-				ucx.TextBound("todoItemText", "./text"),
+				ucx.TextBoundEx("todoItemText", "./text"),
 				ucx.ButtonEx("removeTodo", "Remove", ucx.ColorErrorMain, ucx.IconHeroTrash, "", "./id"),
 			),
 		),
 
-		ucx.TextBound("todos:error", "errors.todos").Sx(ucx.SxColor(ucx.ColorErrorMain)),
+		ucx.TextBound("errors.todos").Sx(ucx.SxColor(ucx.ColorErrorMain)),
 		ucx.Button("submitForm", "Submit", ucx.ColorPrimaryMain),
-		ucx.TextBound("validationMessage", "validationMessage"),
-		ucx.TextBound("lastActionMessage", "lastActionMessage"),
-		ucx.TextBound("submissionMessage", "submissionMessage").Sx(ucx.SxColor(ucx.ColorSuccessMain)),
+		ucx.TextBound("validationMessage"),
+		ucx.TextBound("lastActionMessage"),
+		ucx.TextBound("submissionMessage").Sx(ucx.SxColor(ucx.ColorSuccessMain)),
 
-		ucx.Flex("fnButtons", ucx.FlexProps{Direction: "row", Gap: 6}).Children(
+		ucx.Flex(ucx.FlexProps{Direction: "row", Gap: 6}).Children(
 			ucx.Button("fnFrontend", "Frontend RPC", ucx.ColorSuccessMain),
 			ucx.Button("fnCore", "Core RPC", ucx.ColorWarningMain),
 			ucx.Button("fnIm", "IM RPC", ucx.ColorErrorMain),
 		),
-		ucx.TextBound("fnText", "fnText"),
+		ucx.TextBound("fnText"),
 	)
 }
 

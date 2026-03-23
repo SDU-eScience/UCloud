@@ -101,6 +101,8 @@ func (s *Session) pumpIncoming() {
 }
 
 func (s *Session) SendUiMount(uiMount UiMount) {
+	uiMount.Root = NormalizeUiTree(uiMount.Root)
+
 	s.modelMu.Lock()
 	defer s.modelMu.Unlock()
 

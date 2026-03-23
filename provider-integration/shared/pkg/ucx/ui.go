@@ -1,5 +1,11 @@
 package ucx
 
+import (
+	"fmt"
+
+	"ucloud.dk/shared/pkg/util"
+)
+
 type UiNode struct {
 	Id         string
 	Component  string
@@ -7,6 +13,53 @@ type UiNode struct {
 	BindPath   string
 	Optimistic bool
 	ChildNodes []UiNode
+}
+
+var interactiveComponents = map[string]bool{
+	"input_text":   true,
+	"input_number": true,
+	"checkbox":     true,
+	"button":       true,
+	"textarea":     true,
+	"select":       true,
+	"radio_group":  true,
+	"toggle":       true,
+	"form":         true,
+}
+
+func NormalizeUiTree(root UiNode) UiNode {
+	return normalizeUiNode(root, "root", 0)
+}
+
+func normalizeUiNode(node UiNode, parentPath string, siblingIndex int) UiNode {
+	pathToken := ""
+	if node.Id == "" {
+		if interactiveComponents[node.Component] {
+			panic(fmt.Sprintf("ucx: component '%s' requires explicit id", node.Component))
+		}
+
+		pathToken = fmt.Sprintf("%s/%d:%s", parentPath, siblingIndex, node.Component)
+		node.Id = implicitUiId(pathToken)
+	} else {
+		pathToken = fmt.Sprintf("%s/%s", parentPath, node.Id)
+	}
+
+	for idx, child := range node.ChildNodes {
+		node.ChildNodes[idx] = normalizeUiNode(child, pathToken, idx)
+	}
+
+	return node
+}
+
+func implicitUiId(pathToken string) string {
+	hash := util.Sha256([]byte(pathToken))
+	return "auto-" + hash[:12]
+}
+
+func requireExplicitId(id string, component string) {
+	if id == "" {
+		panic(fmt.Sprintf("ucx: component '%s' requires explicit id", component))
+	}
 }
 
 func (n UiNode) Sx(opts ...SxOption) UiNode {
@@ -32,7 +85,11 @@ type Option struct {
 	Value string
 }
 
-func Flex(id string, props FlexProps) UiNode {
+func Flex(props FlexProps) UiNode {
+	return FlexEx("", props)
+}
+
+func FlexEx(id string, props FlexProps) UiNode {
 	if props.Direction == "" {
 		props.Direction = "row"
 	}
@@ -44,14 +101,22 @@ func Flex(id string, props FlexProps) UiNode {
 	}
 }
 
-func Box(id string) UiNode {
+func Box() UiNode {
+	return BoxEx("")
+}
+
+func BoxEx(id string) UiNode {
 	return UiNode{
 		Id:        id,
 		Component: "box",
 	}
 }
 
-func Text(id string, text string) UiNode {
+func Text(text string) UiNode {
+	return TextEx("", text)
+}
+
+func TextEx(id string, text string) UiNode {
 	return UiNode{
 		Id:        id,
 		Component: "text",
@@ -61,31 +126,59 @@ func Text(id string, text string) UiNode {
 	}
 }
 
-func H1(id string, text string) UiNode {
-	return Heading(id, text, 1)
+func H1(text string) UiNode {
+	return Heading(text, 1)
 }
 
-func H2(id string, text string) UiNode {
-	return Heading(id, text, 2)
+func H1Ex(id string, text string) UiNode {
+	return HeadingEx(id, text, 1)
 }
 
-func H3(id string, text string) UiNode {
-	return Heading(id, text, 3)
+func H2(text string) UiNode {
+	return Heading(text, 2)
 }
 
-func H4(id string, text string) UiNode {
-	return Heading(id, text, 4)
+func H2Ex(id string, text string) UiNode {
+	return HeadingEx(id, text, 2)
 }
 
-func H5(id string, text string) UiNode {
-	return Heading(id, text, 5)
+func H3(text string) UiNode {
+	return Heading(text, 3)
 }
 
-func H6(id string, text string) UiNode {
-	return Heading(id, text, 6)
+func H3Ex(id string, text string) UiNode {
+	return HeadingEx(id, text, 3)
 }
 
-func Heading(id string, text string, level int64) UiNode {
+func H4(text string) UiNode {
+	return Heading(text, 4)
+}
+
+func H4Ex(id string, text string) UiNode {
+	return HeadingEx(id, text, 4)
+}
+
+func H5(text string) UiNode {
+	return Heading(text, 5)
+}
+
+func H5Ex(id string, text string) UiNode {
+	return HeadingEx(id, text, 5)
+}
+
+func H6(text string) UiNode {
+	return Heading(text, 6)
+}
+
+func H6Ex(id string, text string) UiNode {
+	return HeadingEx(id, text, 6)
+}
+
+func Heading(text string, level int64) UiNode {
+	return HeadingEx("", text, level)
+}
+
+func HeadingEx(id string, text string, level int64) UiNode {
 	return UiNode{
 		Id:        id,
 		Component: "heading",
@@ -96,7 +189,11 @@ func Heading(id string, text string, level int64) UiNode {
 	}
 }
 
-func HeadingBound(id string, bindPath string, level int64) UiNode {
+func HeadingBound(bindPath string, level int64) UiNode {
+	return HeadingBoundEx("", bindPath, level)
+}
+
+func HeadingBoundEx(id string, bindPath string, level int64) UiNode {
 	return UiNode{
 		Id:        id,
 		Component: "heading",
@@ -107,11 +204,17 @@ func HeadingBound(id string, bindPath string, level int64) UiNode {
 	}
 }
 
-func TextBound(id string, bindPath string) UiNode {
+func TextBound(bindPath string) UiNode {
+	return TextBoundEx("", bindPath)
+}
+
+func TextBoundEx(id string, bindPath string) UiNode {
 	return UiNode{Id: id, Component: "text", BindPath: bindPath}
 }
 
 func InputText(id string, label string, placeholder string, bindPath string) UiNode {
+	requireExplicitId(id, "input_text")
+
 	return UiNode{
 		Id:         id,
 		Component:  "input_text",
@@ -125,6 +228,8 @@ func InputText(id string, label string, placeholder string, bindPath string) UiN
 }
 
 func InputNumber(id string, label string, bindPath string, min int64, max int64) UiNode {
+	requireExplicitId(id, "input_number")
+
 	return UiNode{
 		Id:         id,
 		Component:  "input_number",
@@ -139,6 +244,8 @@ func InputNumber(id string, label string, bindPath string, min int64, max int64)
 }
 
 func Checkbox(id string, label string, bindPath string, optimistic bool) UiNode {
+	requireExplicitId(id, "checkbox")
+
 	return UiNode{
 		Id:         id,
 		Component:  "checkbox",
@@ -150,11 +257,19 @@ func Checkbox(id string, label string, bindPath string, optimistic bool) UiNode 
 	}
 }
 
-func List(id string, bindPath string, emptyText string) UiNode {
+func List(bindPath string, emptyText string) UiNode {
+	return ListEx("", bindPath, emptyText)
+}
+
+func ListEx(id string, bindPath string, emptyText string) UiNode {
 	return UiNode{Id: id, Component: "list", BindPath: bindPath}
 }
 
-func Icon(id string, name IconName, color Color, size int64) UiNode {
+func Icon(name IconName, color Color, size int64) UiNode {
+	return IconEx("", name, color, size)
+}
+
+func IconEx(id string, name IconName, color Color, size int64) UiNode {
 	return UiNode{
 		Id:        id,
 		Component: "icon",
@@ -167,6 +282,8 @@ func Icon(id string, name IconName, color Color, size int64) UiNode {
 }
 
 func Button(id string, label string, color Color) UiNode {
+	requireExplicitId(id, "button")
+
 	return UiNode{
 		Id:        id,
 		Component: "button",
@@ -207,6 +324,8 @@ func ButtonEx(id string, label string, color Color, iconLeft IconName, iconRight
 }
 
 func TextArea(id string, label string, placeholder string, bindPath string, rows int64) UiNode {
+	requireExplicitId(id, "textarea")
+
 	return UiNode{
 		Id:         id,
 		Component:  "textarea",
@@ -221,6 +340,8 @@ func TextArea(id string, label string, placeholder string, bindPath string, rows
 }
 
 func Select(id string, label string, bindPath string, options []Option) UiNode {
+	requireExplicitId(id, "select")
+
 	return UiNode{
 		Id:         id,
 		Component:  "select",
@@ -234,6 +355,8 @@ func Select(id string, label string, bindPath string, options []Option) UiNode {
 }
 
 func RadioGroup(id string, label string, bindPath string, options []Option) UiNode {
+	requireExplicitId(id, "radio_group")
+
 	return UiNode{
 		Id:         id,
 		Component:  "radio_group",
@@ -247,6 +370,8 @@ func RadioGroup(id string, label string, bindPath string, options []Option) UiNo
 }
 
 func ToggleInput(id string, label string, bindPath string, optimistic bool) UiNode {
+	requireExplicitId(id, "toggle")
+
 	return UiNode{
 		Id:         id,
 		Component:  "toggle",
@@ -258,11 +383,19 @@ func ToggleInput(id string, label string, bindPath string, optimistic bool) UiNo
 	}
 }
 
-func DividerNode(id string) UiNode {
+func DividerNode() UiNode {
+	return DividerNodeEx("")
+}
+
+func DividerNodeEx(id string) UiNode {
 	return UiNode{Id: id, Component: "divider"}
 }
 
-func Spinner(id string, size int64) UiNode {
+func Spinner(size int64) UiNode {
+	return SpinnerEx("", size)
+}
+
+func SpinnerEx(id string, size int64) UiNode {
 	return UiNode{
 		Id:        id,
 		Component: "spinner",
@@ -272,7 +405,11 @@ func Spinner(id string, size int64) UiNode {
 	}
 }
 
-func TableNode(id string, bindPath string, columns []Option) UiNode {
+func TableNode(bindPath string, columns []Option) UiNode {
+	return TableNodeEx("", bindPath, columns)
+}
+
+func TableNodeEx(id string, bindPath string, columns []Option) UiNode {
 	return UiNode{
 		Id:        id,
 		Component: "table",
@@ -283,11 +420,19 @@ func TableNode(id string, bindPath string, columns []Option) UiNode {
 	}
 }
 
-func Tabs(id string) UiNode {
+func Tabs() UiNode {
+	return TabsEx("")
+}
+
+func TabsEx(id string) UiNode {
 	return UiNode{Id: id, Component: "tabs"}
 }
 
-func Tab(id string, name string, icon IconName) UiNode {
+func Tab(name string, icon IconName) UiNode {
+	return TabEx("", name, icon)
+}
+
+func TabEx(id string, name string, icon IconName) UiNode {
 	return UiNode{
 		Id:        id,
 		Component: "box",
@@ -298,7 +443,11 @@ func Tab(id string, name string, icon IconName) UiNode {
 	}
 }
 
-func AccordionNode(id string, title string, open bool) UiNode {
+func AccordionNode(title string, open bool) UiNode {
+	return AccordionNodeEx("", title, open)
+}
+
+func AccordionNodeEx(id string, title string, open bool) UiNode {
 	return UiNode{
 		Id:        id,
 		Component: "accordion",
@@ -310,10 +459,16 @@ func AccordionNode(id string, title string, open bool) UiNode {
 }
 
 func Form(id string) UiNode {
+	requireExplicitId(id, "form")
+
 	return UiNode{Id: id, Component: "form"}
 }
 
-func Code(id string, text string) UiNode {
+func Code(text string) UiNode {
+	return CodeEx("", text)
+}
+
+func CodeEx(id string, text string) UiNode {
 	return UiNode{
 		Id:        id,
 		Component: "code",
@@ -323,7 +478,11 @@ func Code(id string, text string) UiNode {
 	}
 }
 
-func CodeBound(id string, bindPath string) UiNode {
+func CodeBound(bindPath string) UiNode {
+	return CodeBoundEx("", bindPath)
+}
+
+func CodeBoundEx(id string, bindPath string) UiNode {
 	return UiNode{Id: id, Component: "code", BindPath: bindPath}
 }
 
