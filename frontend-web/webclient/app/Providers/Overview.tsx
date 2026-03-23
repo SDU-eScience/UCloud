@@ -10,7 +10,7 @@ import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {classConcat, injectStyle} from "@/Unstyled";
 import {CardClass} from "@/ui-components/Card";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
-import {ProviderBranding, ProviderBrandingResponse} from "@/UCloud/ProviderBrandingApi";
+import {ProviderBranding} from "@/UCloud/ProviderBrandingApi";
 import {useSelector} from "react-redux";
 
 export function ProviderEntry(props: {provider: ProviderBranding}): React.ReactNode {
@@ -35,7 +35,7 @@ export function ProviderEntry(props: {provider: ProviderBranding}): React.ReactN
 }
 
 function useProviderBrandings(): Record<string,ProviderBranding> | undefined {
-    const data = useSelector((it: ReduxObject) => it.providerBrandings) as ProviderBrandingResponse;
+    const data = useSelector((it: ReduxObject) => it.providerBrandings);
     return data.providers;
 }
 
