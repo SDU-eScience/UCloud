@@ -276,13 +276,32 @@ func copyFiles(actor rpc.Actor, request orc.FilesProviderMoveOrCopyRequest) *uti
 		return util.ServerHttpError("Some of these files cannot be used together. One or more are sensitive.")
 	}
 
-	_, ok1, _ := UCloudToInternal(request.OldId)
+	sourceInternalPath, ok1, _ := UCloudToInternal(request.OldId)
 	destPath, ok2, destDrive := UCloudToInternal(request.NewId)
 	if !ok1 || !ok2 {
 		return &util.HttpError{
 			StatusCode: http.StatusNotFound,
 			Why:        "Unable to copy files. Request or destination is unknown.",
 		}
+	}
+
+	sourceMount := request.OldId
+	sourceFd, ok := OpenFile(sourceInternalPath, 0, 0)
+	if !ok {
+		return util.HttpErr(http.StatusNotFound, "unknown source file")
+	}
+	defer util.SilentClose(sourceFd)
+	sourceInfo, err := sourceFd.Stat()
+	if err == nil && !sourceInfo.IsDir() {
+		sourceParent := util.Parent(request.OldId)
+		if sourceParent != "/" {
+			sourceMount = sourceParent
+		}
+	}
+
+	destMount := request.NewId
+	if util.Parent(request.NewId) != "/" {
+		destMount = util.Parent(request.NewId)
 	}
 
 	if ctrl.ResourceIsLocked(destDrive.Resource, request.ResolvedNewCollection.Specification.Product) {
@@ -295,8 +314,8 @@ func copyFiles(actor rpc.Actor, request orc.FilesProviderMoveOrCopyRequest) *uti
 		Destination:    request.NewId,
 		ConflictPolicy: string(request.ConflictPolicy),
 		Mounts: []TaskMount{
-			{UCloudPath: request.OldId},
-			{UCloudPath: request.NewId},
+			{UCloudPath: sourceMount},
+			{UCloudPath: destMount},
 		},
 	}
 	task.CreationState.Username = actor.Username

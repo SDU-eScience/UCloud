@@ -43,7 +43,8 @@ export enum ShortcutKey {
     M = "KeyM",
     N = "KeyN",
     O = "KeyO",
-    P = "KeyP",
+    // Reserved for Command Palette shortcut
+    // P = "KeyP",
     Q = "KeyQ",
     R = "KeyR",
     S = "KeyS",

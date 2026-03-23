@@ -40,7 +40,7 @@ import {
     createLocalStorageUploadKey,
     UPLOAD_LOCALSTORAGE_PREFIX
 } from "@/Files/ChunkedFileReader";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
+
 import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {classConcat, injectStyle, injectStyleSimple} from "@/Unstyled";
@@ -57,6 +57,7 @@ import {NewAndImprovedProgress} from "@/ui-components/Progress";
 import {UploadConfig} from "@/Files/Upload";
 import {ProgressCircle} from "@/Services/BackgroundTasks/BackgroundTask";
 import {getStartOfDay} from "@/Utilities/DateUtilities";
+import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
 
 interface LocalStorageFileUploadInfo {
     offset: number;
@@ -360,7 +361,7 @@ function protocolHandlerWebSocketV2(
                     }
                 }
             } catch (e) {
-                snackbarStore.addFailure(`Error occurred while uploading file ${theFile.fullPath}. Content might be corrupt or missing.`, false);
+                sendFailureNotification(`Error occurred while uploading file ${theFile.fullPath}. Content might be corrupt or missing.`);
                 const rawBuffer = new ArrayBuffer(5);
                 const buffer = new DataView(rawBuffer);
                 buffer.setInt8(0, FolderUploadMessageType.SKIP);
@@ -802,7 +803,7 @@ const Uploader: React.FunctionComponent = () => {
             if (shouldReload && uploaderVisible && window.location.pathname === "/app/files") {
                 refresh?.();
             } else if (shouldReload) {
-                snackbarStore.addSuccess("File upload(s) finished.", true);
+                sendSuccessNotification("File upload(s) finished.");
             }
         }
     }, [lookForNewUploads, startUploads, refresh, uploadPath, uploaderVisible]);

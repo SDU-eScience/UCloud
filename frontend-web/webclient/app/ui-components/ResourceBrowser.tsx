@@ -23,7 +23,7 @@ import HexSpin from "@/LoadingIcon/LoadingIcon";
 import * as React from "react";
 import {fileName, resolvePath} from "@/Utilities/FileUtilities";
 import {visualizeWhitespaces} from "@/Utilities/TextUtilities";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
+
 import {PageV2} from "@/UCloud";
 import {injectStyle as unstyledInjectStyle} from "@/Unstyled";
 import {InputClass} from "./Input";
@@ -50,6 +50,7 @@ import {callAPI, noopCall} from "@/Authentication/DataHook";
 import {injectResourceBrowserStyle, ShortcutClass} from "./ResourceBrowserStyle";
 import {ASC, DESC, Filter, FilterCheckbox, FilterInput, FilterOption, FilterWithOptions, MultiOption, MultiOptionFilter, SORT_BY, SORT_DIRECTION} from "./ResourceBrowserFilters";
 import {ProviderBranding, providerBrandingApi, ProviderBrandingResponse} from "@/UCloud/ProviderBrandingApi";
+import {sendInformationNotification} from "@/Notifications";
 
 const CLEAR_FILTER_VALUE = "\n\nCLEAR_FILTER\n\n";
 const UTILITY_COLOR: ThemeColor = "textPrimary";
@@ -2640,10 +2641,7 @@ export class ResourceBrowser<T> {
 
                         if (newClipboard.length) {
                             const key = isLikelyMac ? "⌘" : "Ctrl + ";
-                            snackbarStore.addInformation(
-                                `${newClipboard.length} copied to clipboard. Use ${key}V to insert.`,
-                                false
-                            );
+                            sendInformationNotification(`${newClipboard.length} copied to clipboard. Use ${key}V to insert.`);
                         }
                     }
                     break;

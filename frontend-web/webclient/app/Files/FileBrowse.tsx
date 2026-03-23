@@ -23,7 +23,9 @@ import FilesApi, {
     addFileSensitivityDialog,
     ExtraFileCallbacks,
     FileSensitivityNamespace,
-    FileSensitivityVersion, isReadonly,
+    FileSensitivityVersion,
+    initEmptyFileUpload,
+    isReadonly,
     isSensitivitySupported,
 } from "@/UCloud/FilesApi";
 import {fileName, getParentPath, pathComponents, resolvePath, sizeToString} from "@/Utilities/FileUtilities";
@@ -46,12 +48,12 @@ import {ThemeColor} from "@/ui-components/theme";
 import {SvgFt} from "@/ui-components/FtIcon";
 import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
 import {dateToDateStringOrTime, dateToString} from "@/Utilities/DateUtilities";
-import {callAPI as baseCallAPI} from "@/Authentication/DataHook";
+import {callAPI as baseCallAPI, noopCall} from "@/Authentication/DataHook";
 import {accounting, BulkResponse, compute, FindByStringId, PageV2} from "@/UCloud";
 import MetadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/MetadataNamespaceApi";
 import {bulkRequestOf} from "@/UtilityFunctions";
 import metadataDocumentApi, {FileMetadataDocument, FileMetadataDocumentOrDeleted, FileMetadataHistory} from "@/UCloud/MetadataDocumentApi";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
+
 import {ResourceBrowseCallbacks, ResourceOwner, ResourcePermissions, SupportByProvider} from "@/UCloud/ResourceApi";
 import {Client, WSFactory} from "@/Authentication/HttpClientInstance";
 import ProductReference = accounting.ProductReference;
@@ -71,6 +73,7 @@ import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {HTMLTooltip} from "@/ui-components/Tooltip";
 import {Feature, hasFeature} from "@/Features";
 import SharesApi, {OutgoingShareGroup} from "@/UCloud/SharesApi";
+import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
 
 export enum SensitivityLevel {
     "INHERIT" = "Inherit",
@@ -448,7 +451,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                         FilesApi.copy(requestPayload);
 
                     callAPI(call).catch(err => {
-                        snackbarStore.addFailure(extractErrorMessage(err), false);
+                        sendFailureNotification(extractErrorMessage(err));
                         browser.refresh();
                     });
 
@@ -500,7 +503,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
 
                         browser.renderRows();
                         await callAPI(FilesApi.trash(bulkRequestOf(...files.map(it => ({id: it.id})))));
-                        snackbarStore.addSuccess(`${files.length} file(s) moved to trash.`, false)
+                        sendSuccessNotification(`${files.length} file(s) moved to trash.`);
                     } catch (e) {
                         displayErrorMessageOrDefault(e, "Failed to delete files");
                         browser.refresh();
@@ -533,7 +536,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
 
                             callAPI(FilesApi.createFolder(bulkRequestOf({id: realPath, conflictPolicy: "RENAME"})))
                                 .catch(err => {
-                                    snackbarStore.addFailure(extractErrorMessage(err), false);
+                                    sendFailureNotification(extractErrorMessage(err));
                                     browser.refresh();
                                 });
                         },
@@ -545,6 +548,36 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
 
                     shouldRemoveFakeDirectory = true;
                 };
+
+                const showCreateFile = () => {
+                    const fakePath = resolvePath(browser.currentPath) + "/" + fakeFileName.split("/")[0];
+                    browser.removeEntryFromCurrentPage(it => it.id === fakePath);
+                    shouldRemoveFakeDirectory = false;
+                    insertFakeEntry(fakeFileName, {type: "FILE"});
+                    const idx = browser.findVirtualRowIndex(it => it.id === fakePath);
+                    if (idx !== null) browser.ensureRowIsVisible(idx, true);
+
+                    browser.showRenameField(
+                        it => it.id === fakePath,
+                        () => {
+                            browser.removeEntryFromCurrentPage(it => it.id === fakePath);
+                            if (!browser.renameValue) return;
+
+                            const realPath = resolvePath(browser.currentPath) + "/" + browser.renameValue;
+                            insertFakeEntry(browser.renameValue.split("/")[0], {type: "FILE"});
+                            const idx = browser.findVirtualRowIndex(it => it.id === realPath);
+                            if (idx !== null) {
+                                browser.ensureRowIsVisible(idx, true, true);
+                                browser.select(idx, SelectionMode.SINGLE);
+                            }
+
+                            initEmptyFileUpload(realPath);
+                        },
+                        noopCall,
+                        ""
+                    );
+                };
+
 
                 const startRenaming = (path: string) => {
                     browser.showRenameField(
@@ -573,7 +606,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                                     newId: actualFile.id,
                                     conflictPolicy: "REJECT"
                                 }))).catch(err => {
-                                    snackbarStore.addFailure(extractErrorMessage(err), false);
+                                    sendFailureNotification(extractErrorMessage(err));
                                     sidebarFavoriteCache.renameInCached(actualFile.id, oldId); // Revert on failure
                                     browser.refresh();
                                 });
@@ -699,8 +732,11 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                                 defaultErrorHandler(e);
                             });
                         },
-                        startCreation(): void {
+                        startFolderCreation(): void {
                             showCreateDirectory();
+                        },
+                        startFileCreation(): void {
+                            showCreateFile();
                         },
                         creationDisabled: !initialFetchDone,
                         cancelCreation: doNothing,

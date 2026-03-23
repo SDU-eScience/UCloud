@@ -19,7 +19,6 @@ import * as Heading from "@/ui-components/Heading";
 import {useNavigate, useParams} from "react-router-dom";
 import {ButtonClass} from "@/ui-components/Button";
 import {HiddenInputField} from "@/ui-components/Input";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {SafeLogo} from "../AppToolLogo";
 import {doNothing, stopPropagation} from "@/UtilityFunctions";
 import ReactModal from "react-modal";
@@ -38,6 +37,7 @@ import {Toggle} from "@/ui-components/Toggle";
 import {UploadAppAndTool} from "@/Applications/Studio/Uploader";
 import {injectStyle, makeKeyframe} from "@/Unstyled";
 import {Feature, hasFeature} from "@/Features";
+import {sendFailureNotification, sendInformationNotification, sendSuccessNotification} from "@/Notifications";
 
 export const AppGroup: React.FunctionComponent = () => {
     const id = parseInt(useParams<{id: string}>().id ?? "-1");
@@ -47,8 +47,8 @@ export const AppGroup: React.FunctionComponent = () => {
     const [reloadId, setReloadId] = useState(0);
     const [appUploadError, setAppUploadErr] = useState<string | null>(null);
     const [appList, fetchAppList] = useCloudAPI<Page<AppStore.NameAndVersion>>(
-        { noop: true },
-        { items: [], itemsInTotal: 0, itemsPerPage: 0, pageNumber: 0 },
+        {noop: true},
+        {items: [], itemsInTotal: 0, itemsPerPage: 0, pageNumber: 0},
     );
 
     usePage("Edit group", SidebarTabId.APPLICATION_STUDIO);
@@ -153,7 +153,7 @@ export const AppGroup: React.FunctionComponent = () => {
             dropEl.onanimationend = () => dropEl.classList.remove(MovedAnimation);
         }
 
-        snackbarStore.addInformation("Backend support is not yet implemented for custom sort ordering.", false);
+        sendInformationNotification("Backend support is not yet implemented for custom sort ordering.");
 
         forceRender();
     }, [group]);
@@ -182,16 +182,16 @@ export const AppGroup: React.FunctionComponent = () => {
                             setFilter(searchValue);
                         }}>
                             <Flex>
-                                <Input placeholder="Search..." inputRef={appSearchField} width="300px" type="text"/>
+                                <Input placeholder="Search..." inputRef={appSearchField} width="300px" type="text" />
                                 <Relative right="30px" top="8px" width="0px" height="0px">
                                     <button type="submit" style={{border: "none", background: "none"}}><Icon
-                                        name="search"/></button>
+                                        name="search" /></button>
                                 </Relative>
                             </Flex>
                         </form>
                     </Flex>
 
-                    {!uniqueApps? <>No apps found</> : (
+                    {!uniqueApps ? <>No apps found</> : (
                         <List width="100%" height="calc(80vh - 75px)" minHeight="325px" overflow="auto">
                             {uniqueApps.map(appName => (
                                 group.data?.status?.applications?.map(app => app.metadata.name).includes(appName) ? null : (
@@ -199,7 +199,7 @@ export const AppGroup: React.FunctionComponent = () => {
                                         key={appName}
                                         left={
                                             <Flex gap="10px">
-                                                <SafeLogo name={appName} type="APPLICATION" size="30px" cacheBust={reloadId.toString()}/>
+                                                <SafeLogo name={appName} type="APPLICATION" size="30px" cacheBust={reloadId.toString()} />
                                                 {appName}
                                             </Flex>
                                         }
@@ -237,12 +237,12 @@ export const AppGroup: React.FunctionComponent = () => {
                             <Box maxWidth="800px" width="100%" ml="auto" mr="auto">
                                 <Label>Title
                                     <Input mb="20px" inputRef={groupTitleField} type="text"
-                                           defaultValue={group.data?.specification.title}/>
+                                        defaultValue={group.data?.specification.title} />
                                 </Label>
 
                                 <Label>Description
                                     <TextArea mb="20px" inputRef={groupDescriptionField}
-                                              defaultValue={group.data?.specification.description}/>
+                                        defaultValue={group.data?.specification.description} />
                                 </Label>
 
                                 <Flex justifyContent="right" mb="30px">
@@ -254,7 +254,7 @@ export const AppGroup: React.FunctionComponent = () => {
 
                                         const newTitle = titleField.value;
                                         if (newTitle === "") {
-                                            snackbarStore.addFailure("Title cannot be empty", false);
+                                            sendFailureNotification("Title cannot be empty");
                                             return;
                                         }
 
@@ -275,14 +275,14 @@ export const AppGroup: React.FunctionComponent = () => {
                                         refresh();
 
                                         if (success) {
-                                            snackbarStore.addSuccess("Changes saved", false);
+                                            sendSuccessNotification("Changes saved");
                                         }
                                     }}>Save changes</Button>
                                 </Flex>
 
                                 <Heading.h4>Logo</Heading.h4>
                                 <Flex justifyContent="space-between">
-                                    <Box><SafeLogo name={id.toString()} type="GROUP" size={"32px"} cacheBust={reloadId.toString()}/></Box>
+                                    <Box><SafeLogo name={id.toString()} type="GROUP" size={"32px"} cacheBust={reloadId.toString()} /></Box>
                                     <Flex justifyContent="right" gap={"8px"}>
                                         <label className={ButtonClass}>
                                             Upload
@@ -294,7 +294,7 @@ export const AppGroup: React.FunctionComponent = () => {
                                                         const file = target.files[0];
                                                         target.value = "";
                                                         if (file.size > 1024 * 512) {
-                                                            snackbarStore.addFailure("File exceeds 512KB. Not allowed.", false);
+                                                            sendFailureNotification("File exceeds 512KB. Not allowed.");
                                                         } else {
                                                             await AppStore.addLogoToGroup(id, file)
                                                         }
@@ -339,8 +339,8 @@ export const AppGroup: React.FunctionComponent = () => {
 
                                         return <Flex alignItems={"center"} key={cat}>
                                             <div>{resolved.specification.title}</div>
-                                            <Box flexGrow={1}/>
-                                            <ConfirmationButton icon={"heroTrash"} color={"errorMain"} actionKey={cat.toString()} onAction={removeCategory}/>
+                                            <Box flexGrow={1} />
+                                            <ConfirmationButton icon={"heroTrash"} color={"errorMain"} actionKey={cat.toString()} onAction={removeCategory} />
                                         </Flex>
                                     })}
                                 </Flex>

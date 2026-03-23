@@ -313,7 +313,15 @@ export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode
         usePage(`Job ${shortUUID(id)}`, SidebarTabId.RUNS);
     }
 
+    const [dataAnimationAllowed, setDataAnimationAllowed] = useState<boolean>(false);
+    const [status, setStatus] = useState<JobStatus | null>(null);
+    const jobUpdateState = useRef<JobUpdates>({updateQueue: [], logQueue: [], statusQueue: [], subscriptions: []});
+    const didUnmount = useDidUnmount();
+
     useEffect(() => {
+        setStatus(null);
+        setDataAnimationAllowed(false);
+        jobUpdateState.current = {updateQueue: [], logQueue: [], statusQueue: [], subscriptions: []};
         fetchJob(JobsApi.retrieve({
             id,
             includeApplication: true,
@@ -321,11 +329,6 @@ export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode
             includeSupport: true,
         }));
     }, [id]);
-
-    const [dataAnimationAllowed, setDataAnimationAllowed] = useState<boolean>(false);
-    const [status, setStatus] = useState<JobStatus | null>(null);
-    const jobUpdateState = useRef<JobUpdates>({updateQueue: [], logQueue: [], statusQueue: [], subscriptions: []});
-    const didUnmount = useDidUnmount();
 
     const targetRequests = useMemo(() => {
         if (!job) return {requestsToMake: [], fixedTargets: []};

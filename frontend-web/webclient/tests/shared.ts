@@ -313,7 +313,7 @@ export const File = {
         await NetworkCalls.awaitResponse(page, "**/api/files/copy", async () => {
             await page.getByText("Use this folder").first().click();
         });
-        await page.getByRole("dialog", {name: "Files copied"}).waitFor({state: "hidden"});
+        await page.getByRole("dialog", {name: "File copy will begin soon"}).waitFor({state: "hidden"});
     },
 
     async moveFileToTrash(page: Page, fileName: string): Promise<void> {

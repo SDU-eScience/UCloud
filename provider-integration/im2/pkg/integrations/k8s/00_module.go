@@ -67,12 +67,11 @@ func Init(config *cfg.ServicesConfigurationKubernetes) {
 		if !update.Project.Present {
 			_, _, _ = filesystem.InitializeMemberFiles(update.Owner.Username, util.OptNone[string]())
 		}
-
-		inferenceHandleApmEvent(update)
 	}
 
 	initStorageScanCli()
 	initInference()
+	controller.ApiTokens = inferenceInitApiTokens()
 	shared.InitExecutables()
 
 	controller.ProductsRegister(shared.Machines)

@@ -18,7 +18,6 @@ import {
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
 import AppRoutes from "@/Routes";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {PageV2} from "@/UCloud";
 import {classConcat, injectStyle, makeClassName} from "@/Unstyled";
 import {createRecordFromArray, deepCopy} from "@/Utilities/CollectionUtilities";
@@ -47,6 +46,7 @@ import * as Grants from ".";
 import {ChangeOrganizationDetails, OptionalInfo, optionalInfoRequest, optionalInfoUpdate} from "@/UserSettings/ChangeUserDetails";
 import {ProviderBranding, ProviderBrandingProductDescription, ProviderBrandingResponse} from "@/UCloud/ProviderBrandingApi";
 import {useSelector} from "react-redux";
+import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
 
 // State model
 // =====================================================================================================================
@@ -621,11 +621,11 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             const newRevisionId = action.revision;
 
             if (currentRevisionId === newRevisionId) {
-                snackbarStore.addFailure("This grant revision is already active.", false);
+                sendFailureNotification("This grant revision is already active.");
                 return state;
             }
 
-            snackbarStore.addSuccess("Grant revision loaded.", false);
+            sendSuccessNotification("Grant revision loaded.");
 
             return loadRevision({
                 ...state,
@@ -1576,7 +1576,7 @@ export function Editor(): React.ReactNode {
                 if (!isValid) return;
                 const result = await callAPIWithErrorHandler(optionalInfoUpdate(values));
                 if (result === null) {
-                    snackbarStore.addFailure("An error occurred, please try and submit again.", false);
+                    sendFailureNotification("An error occurred, please try and submit again");
                     return;
                 }
                 setMissingUserInfo(false);
@@ -1650,10 +1650,7 @@ export function Editor(): React.ReactNode {
         }
 
         if (isGrantGiverInitiated && Object.values(state.applicationDocument).length === 0) {
-            snackbarStore.addFailure(
-                "Missing description (see application section)",
-                false,
-            );
+            sendFailureNotification("Missing description (see application section)");
             return false;
         }
 
@@ -1686,7 +1683,7 @@ export function Editor(): React.ReactNode {
             await onUpdate(false);
         } else {
             // TODO(Dan) FIXME
-            snackbarStore.addFailure("Validation error, see the form for details", false);
+            sendFailureNotification("Validation error, see the form for details");
         }
     }, [onUpdate]);
 

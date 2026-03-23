@@ -5,7 +5,6 @@ import JobsApi from "@/UCloud/JobsApi";
 import {Button} from "@/ui-components";
 import {bulkRequestOf, isLightThemeStored} from "@/UtilityFunctions";
 import {getParentPath} from "@/Utilities/FileUtilities";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {useNavigate} from "react-router-dom";
 import {browseWalletsV2, ProductV2, ProductV2Compute, WalletV2} from "@/Accounting";
 import {dialogStore} from "@/Dialog/DialogStore";
@@ -28,6 +27,7 @@ import {UFile} from "@/UCloud/UFile";
 import {emptyPageV2} from "@/Utilities/PageUtilities";
 import * as AppStore from "@/Applications/AppStoreApi";
 import {ApplicationWithExtension} from "@/Applications/AppStoreApi";
+import {sendFailureNotification} from "@/Notifications";
 
 export function OpenWithBrowser({opts, file}: {file: UFile, opts?: ResourceBrowserOpts<ApplicationWithExtension>}): React.ReactNode {
     const [selectedProduct, setSelectedProduct] = useState<ProductV2 | null>(null);
@@ -220,13 +220,13 @@ export function OpenWithBrowser({opts, file}: {file: UFile, opts?: ResourceBrows
 
                     const ids = response?.responses;
                     if (!ids || ids.length === 0) {
-                        snackbarStore.addFailure("UCloud failed to submit the job", false);
+                        sendFailureNotification("UCloud failed to submit the job");
                         return;
                     }
 
                     navigate(`/jobs/properties/${ids[0]?.id}?app=${selectedApp.metadata.name}`);
                 } catch (e) {
-                    snackbarStore.addFailure("UCloud failed to submit the job", false);
+                    sendFailureNotification("UCloud failed to submit the job");
                 }
             }} disabled={!selectedProduct}>Launch {isActiveProject(activeProject.current)}</Button>
         </> : null}

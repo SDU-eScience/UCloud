@@ -27,7 +27,7 @@ import syncthingScreen1 from "@/Assets/Images/syncthing/syncthing-1.png";
 import syncthingScreen2 from "@/Assets/Images/syncthing/syncthing-2.png";
 import syncthingScreen3 from "@/Assets/Images/syncthing/syncthing-3.png";
 import syncthingScreen4 from "@/Assets/Images/syncthing/syncthing-4.png";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
+
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import FileBrowse from "@/Files/FileBrowse";
 import {CardClass} from "@/ui-components/Card";
@@ -46,6 +46,7 @@ import Table, {TableCell, TableHeaderCell, TableRow} from "@/ui-components/Table
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {PageV2} from "@/UCloud";
 import {addStandardDialog} from "@/UtilityComponents";
+import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
 
 let permissionProblems: Record<string, boolean> = {};
 
@@ -147,7 +148,7 @@ function uiReducer(state: UIState, action: UIAction): UIState {
         case "AddFolder": {
             const folders = copy.folders ?? [];
             if (folders.map(it => it.ucloudPath).includes(action.folderPath)) {
-                snackbarStore.addFailure("Folder is already added to synchronization", false);
+                sendFailureNotification("Folder is already added to synchronization");
             } else {
                 folders.push({id: randomUUID(), ucloudPath: action.folderPath});
                 copy.folders = folders;
@@ -277,13 +278,13 @@ const NewOverview: React.FunctionComponent = () => {
                         },
                         async onClick(res) {
                             if (res.specification.product.provider != provider) {
-                                snackbarStore.addFailure("Only folders hosted at the same provider as the Syncthing server can be added", false);
+                                sendFailureNotification("Only folders hosted at the same provider as the Syncthing server can be added");
                                 return;
                             }
 
                             const sensitivity = await findSensitivity(res);
                             if (sensitivity == "SENSITIVE") {
-                                snackbarStore.addFailure("Folder marked as sensitive cannot be added to Syncthing", false);
+                                sendFailureNotification("Folder marked as sensitive cannot be added to Syncthing");
                                 return;
                             }
                             const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
@@ -789,7 +790,8 @@ function DeviceBrowse({devices, dispatch, opts}: {
                         handlers: {
                             onClick: e => {
                                 e.stopPropagation();
-                                copyToClipboard({value: device.deviceId, message: "Device ID copied to clipboard!"});
+                                copyToClipboard(device.deviceId);
+                                sendSuccessNotification("Device ID copied to clipboard");
                             }
                         },
                         children: [{
@@ -1058,7 +1060,8 @@ const deviceOperations: Operation<SyncthingDevice, OperationCallbacks>[] = [
         icon: "id",
         enabled: selected => selected.length === 1,
         onClick: ([device]) => {
-            copyToClipboard({value: device.deviceId, message: "Device ID copied to clipboard!"});
+            copyToClipboard(device.deviceId);
+            sendSuccessNotification("Device ID copied to clipboard!");
         },
         shortcut: ShortcutKey.C
     },
