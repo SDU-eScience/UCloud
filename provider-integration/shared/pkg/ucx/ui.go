@@ -139,7 +139,7 @@ func FlexEx(id string, props FlexProps) UiNode {
 	return UiNode{
 		Id:        id,
 		Component: "flex",
-		Props:     StructToModelOrLog(props),
+		Props:     ValueMarshalOrLog(props),
 	}
 }
 

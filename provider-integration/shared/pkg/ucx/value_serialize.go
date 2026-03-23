@@ -10,17 +10,17 @@ import (
 	"ucloud.dk/shared/pkg/log"
 )
 
-// StructToModel serializes a struct into a model map.
+// ValueMarshal serializes a struct into a model map.
 //
 // Field names default to lowerCamelCase (for example JobName -> jobName).
 // Use `ucx:"name"` to override a key and `ucx:"-"` to ignore a field.
 // Nested structs are flattened using dot notation.
 // Maps are serialized as ValueObject values.
-func StructToModel(input any) (map[string]Value, error) {
+func ValueMarshal(input any) (map[string]Value, error) {
 	v := reflect.ValueOf(input)
 	v = derefValue(v)
 	if !v.IsValid() || v.Kind() != reflect.Struct {
-		return nil, fmt.Errorf("ucx: StructToModel expects a struct, got %T", input)
+		return nil, fmt.Errorf("ucx: ValueMarshal expects a struct, got %T", input)
 	}
 
 	out := map[string]Value{}
@@ -30,8 +30,8 @@ func StructToModel(input any) (map[string]Value, error) {
 	return out, nil
 }
 
-func StructToModelOrLog(input any) map[string]Value {
-	result, err := StructToModel(input)
+func ValueMarshalOrLog(input any) map[string]Value {
+	result, err := ValueMarshal(input)
 	if err != nil {
 		log.Warn("Failed to serialize to value: %s", err)
 		return map[string]Value{}
@@ -39,14 +39,14 @@ func StructToModelOrLog(input any) map[string]Value {
 	return result
 }
 
-// ModelToStruct deserializes a model map into a struct.
+// ValueUnmarshal deserializes a model map into a struct.
 //
 // Top-level keys are expected to use dot notation for nested structs
-// (for example nested.field), matching StructToModel output.
-func ModelToStruct(input map[string]Value, output any) error {
+// (for example nested.field), matching ValueMarshal output.
+func ValueUnmarshal(input map[string]Value, output any) error {
 	v := reflect.ValueOf(output)
 	if !v.IsValid() || v.Kind() != reflect.Pointer || v.IsNil() {
-		return fmt.Errorf("ucx: ModelToStruct expects a non-nil pointer to struct, got %T", output)
+		return fmt.Errorf("ucx: ValueUnmarshal expects a non-nil pointer to struct, got %T", output)
 	}
 
 	for v.Kind() == reflect.Pointer {
@@ -57,7 +57,7 @@ func ModelToStruct(input map[string]Value, output any) error {
 	}
 
 	if !v.IsValid() || v.Kind() != reflect.Struct {
-		return fmt.Errorf("ucx: ModelToStruct expects a pointer to struct, got %T", output)
+		return fmt.Errorf("ucx: ValueUnmarshal expects a pointer to struct, got %T", output)
 	}
 
 	if input == nil {
@@ -65,6 +65,19 @@ func ModelToStruct(input map[string]Value, output any) error {
 	}
 
 	return populateStructFromFlatModel(input, "", v)
+}
+
+// ApplyModelInput applies a partial model input update to a struct.
+//
+// It only updates the path present in input.Path and leaves all other fields untouched.
+// Fields tagged with `ucx:"-"` are never modified.
+func ApplyModelInput(target any, input ModelInput) error {
+	if strings.TrimSpace(input.Path) == "" {
+		return nil
+	}
+
+	patch := map[string]Value{input.Path: input.Value}
+	return ValueUnmarshal(patch, target)
 }
 
 func populateStructFromFlatModel(input map[string]Value, prefix string, out reflect.Value) error {

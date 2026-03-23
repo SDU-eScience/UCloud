@@ -224,3 +224,68 @@ func TestModelToStructDeserializesContainers(t *testing.T) {
 		t.Fatalf("unexpected todo text: got %q want %q", out.Todos[0].Text, "first")
 	}
 }
+
+func TestApplyModelInputIsPartialAndLeavesOtherFieldsUntouched(t *testing.T) {
+	type model struct {
+		JobName string
+		CPU     int64
+		Hidden  string `ucx:"-"`
+	}
+
+	state := model{
+		JobName: "existing",
+		CPU:     4,
+		Hidden:  "secret",
+	}
+
+	err := ApplyModelInput(&state, ModelInput{
+		Path:  "jobName",
+		Value: VString("updated"),
+	})
+	if err != nil {
+		t.Fatalf("ApplyModelInput returned error: %v", err)
+	}
+
+	if state.JobName != "updated" {
+		t.Fatalf("unexpected jobName: got %q want %q", state.JobName, "updated")
+	}
+	if state.CPU != 4 {
+		t.Fatalf("unexpected cpu mutation: got %d want %d", state.CPU, 4)
+	}
+	if state.Hidden != "secret" {
+		t.Fatalf("unexpected hidden mutation: got %q want %q", state.Hidden, "secret")
+	}
+}
+
+func TestApplyModelInputDeserializesSliceOfStructs(t *testing.T) {
+	type todoItem struct {
+		Id   string
+		Text string
+	}
+
+	type model struct {
+		Todos []todoItem
+	}
+
+	state := model{}
+	err := ApplyModelInput(&state, ModelInput{
+		Path: "todos",
+		Value: VList([]Value{
+			VObject(map[string]Value{"id": VString("1"), "text": VString("first")}),
+			VObject(map[string]Value{"id": VString("2"), "text": VString("second")}),
+		}),
+	})
+	if err != nil {
+		t.Fatalf("ApplyModelInput returned error: %v", err)
+	}
+
+	if len(state.Todos) != 2 {
+		t.Fatalf("unexpected todos length: got %d want %d", len(state.Todos), 2)
+	}
+	if state.Todos[0].Id != "1" || state.Todos[0].Text != "first" {
+		t.Fatalf("unexpected first todo: %#v", state.Todos[0])
+	}
+	if state.Todos[1].Id != "2" || state.Todos[1].Text != "second" {
+		t.Fatalf("unexpected second todo: %#v", state.Todos[1])
+	}
+}

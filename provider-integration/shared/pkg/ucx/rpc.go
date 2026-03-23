@@ -25,7 +25,7 @@ func (r *Rpc[Req, Resp]) Handler(session *Session, handler func(ctx context.Cont
 func (r *Rpc[Req, Resp]) HandlerProxy(proxy *Proxy, handler func(ctx context.Context, request Req) (Resp, error)) {
 	proxy.RegisterRpcHandler(r.CallName, func(ctx context.Context, payload map[string]Value) (int, map[string]Value) {
 		var request Req
-		if err := ModelToStruct(payload, &request); err != nil {
+		if err := ValueUnmarshal(payload, &request); err != nil {
 			return RpcStatusBadRequest, map[string]Value{"error": VString(err.Error())}
 		}
 
@@ -37,7 +37,7 @@ func (r *Rpc[Req, Resp]) HandlerProxy(proxy *Proxy, handler func(ctx context.Con
 			return RpcStatusInternal, map[string]Value{"error": VString(err.Error())}
 		}
 
-		encoded, err := StructToModel(response)
+		encoded, err := ValueMarshal(response)
 		if err != nil {
 			return RpcStatusInternal, map[string]Value{"error": VString(err.Error())}
 		}
@@ -83,7 +83,7 @@ func (s *Session) RegisterRpcHandler(callName string, handler RpcHandler) {
 func RpcHandle[Req any, Resp any](session *Session, rpc Rpc[Req, Resp], handler func(ctx context.Context, request Req) (Resp, error)) {
 	session.RegisterRpcHandler(rpc.CallName, func(ctx context.Context, payload map[string]Value) (int, map[string]Value) {
 		var request Req
-		if err := ModelToStruct(payload, &request); err != nil {
+		if err := ValueUnmarshal(payload, &request); err != nil {
 			return RpcStatusBadRequest, map[string]Value{"error": VString(err.Error())}
 		}
 
@@ -95,7 +95,7 @@ func RpcHandle[Req any, Resp any](session *Session, rpc Rpc[Req, Resp], handler 
 			return RpcStatusInternal, map[string]Value{"error": VString(err.Error())}
 		}
 
-		encoded, err := StructToModel(response)
+		encoded, err := ValueMarshal(response)
 		if err != nil {
 			return RpcStatusInternal, map[string]Value{"error": VString(err.Error())}
 		}
@@ -105,7 +105,7 @@ func RpcHandle[Req any, Resp any](session *Session, rpc Rpc[Req, Resp], handler 
 }
 
 func RpcInvoke[Req any, Resp any](ctx context.Context, session *Session, rpc Rpc[Req, Resp], request Req) (Resp, error) {
-	requestPayload, err := StructToModel(request)
+	requestPayload, err := ValueMarshal(request)
 	if err != nil {
 		var zero Resp
 		return zero, err
@@ -118,7 +118,7 @@ func RpcInvoke[Req any, Resp any](ctx context.Context, session *Session, rpc Rpc
 	}
 
 	var result Resp
-	if err := ModelToStruct(responsePayload, &result); err != nil {
+	if err := ValueUnmarshal(responsePayload, &result); err != nil {
 		var zero Resp
 		return zero, err
 	}

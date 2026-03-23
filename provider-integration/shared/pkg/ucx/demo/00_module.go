@@ -36,7 +36,6 @@ func RunDemoSession(info rpc.RequestInfo) (util.Empty, *util.HttpError) {
 	}
 
 	stateMu := &state.Mu
-	hasMounted := false
 
 	ucx.RunAppWebSocket(
 		conn,
@@ -53,19 +52,6 @@ func RunDemoSession(info rpc.RequestInfo) (util.Empty, *util.HttpError) {
 				case frame, ok := <-session.Incoming():
 					if !ok {
 						return
-					}
-
-					if !hasMounted && frame.Opcode == ucx.OpSysHello {
-						stateMu.Lock()
-						mount := state.uiMount()
-						stateMu.Unlock()
-						session.SendUiMount(mount)
-						hasMounted = true
-						continue
-					}
-
-					if !hasMounted {
-						continue
 					}
 
 					handleIncomingFrame(ctx, stateMu, state, frame, session)
@@ -258,7 +244,7 @@ func (s *demoState) modelMap() map[string]ucx.Value {
 	s.ValidationMessage = validationMessage
 	s.TodoHeader = fmt.Sprintf("Todo List (%d)", len(s.Todos))
 
-	result, err := ucx.StructToModel(*s)
+	result, err := ucx.ValueMarshal(*s)
 	if err != nil {
 		return map[string]ucx.Value{}
 	}
@@ -267,16 +253,12 @@ func (s *demoState) modelMap() map[string]ucx.Value {
 }
 
 func handleIncomingFrame(ctx context.Context, mu *sync.Mutex, state *demoState, incoming ucx.Frame, session *ucx.Session) {
-	mu.Lock()
-	defer mu.Unlock()
-
 	switch incoming.Opcode {
 	case ucx.OpSysHello:
 		session.SendUiMount(state.uiMount())
 
 	case ucx.OpModelInput:
 		handleModelInput(state, incoming.ModelInput)
-		state.UpdateModel()
 
 	case ucx.OpUiEvent:
 		if session.DispatchUiEvent(incoming.UiEvent) {
@@ -287,24 +269,19 @@ func handleIncomingFrame(ctx context.Context, mu *sync.Mutex, state *demoState, 
 }
 
 func handleModelInput(state *demoState, input ucx.ModelInput) {
-	switch input.Path {
-	case "jobName":
-		state.JobName = strings.TrimSpace(ucx.ValueAsString(input.Value))
-	case "cpu":
-		state.CPU = ucx.ValueAsS64(input.Value)
-	case "notify":
-		state.Notify = ucx.ValueAsBool(input.Value)
-	case "rpcMessage":
-		state.RpcMessage = ucx.ValueAsString(input.Value)
-	case "todoDraft":
-		state.TodoDraft = ucx.ValueAsString(input.Value)
-	case "todos":
-		state.Todos = todosFromValue(input.Value)
-		state.NextTodoId = int64(len(state.Todos) + 1)
+	state.Mu.Lock()
+	defer state.Mu.Unlock()
+
+	if err := ucx.ApplyModelInput(state, input); err != nil {
+		return
 	}
+
+	state.JobName = strings.TrimSpace(state.JobName)
+	state.NextTodoId = int64(len(state.Todos) + 1)
 
 	state.Errors = validateState(state)
 	state.SubmissionMessage = ""
+	state.UpdateModel()
 }
 
 func validateState(state *demoState) map[string]string {
@@ -319,31 +296,4 @@ func validateState(state *demoState) map[string]string {
 		errors["todos"] = "Add at least one todo item"
 	}
 	return errors
-}
-
-func todosFromValue(v ucx.Value) []todoItem {
-	if v.Kind != ucx.ValueList {
-		return []todoItem{}
-	}
-
-	out := make([]todoItem, 0, len(v.List))
-	for idx, item := range v.List {
-		if item.Kind != ucx.ValueObject {
-			continue
-		}
-
-		text := strings.TrimSpace(ucx.ValueAsString(item.Object["text"]))
-		if text == "" {
-			continue
-		}
-
-		id := strings.TrimSpace(ucx.ValueAsString(item.Object["id"]))
-		if id == "" {
-			id = strconv.Itoa(idx + 1)
-		}
-
-		out = append(out, todoItem{Id: id, Text: text})
-	}
-
-	return out
 }
