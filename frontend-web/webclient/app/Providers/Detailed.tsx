@@ -11,7 +11,7 @@ import {ProviderTitle} from "./ProviderTitle";
 import TitledCard from "@/ui-components/HighlightedCard";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {useSelector} from "react-redux";
-import {ProviderBranding, ProviderBrandingResponse} from "@/UCloud/ProviderBrandingApi";
+import {ProviderBranding} from "@/UCloud/ProviderBrandingApi";
 
 function useProviderBranding(id?: string): ProviderBranding | undefined {
     const data = useSelector((it: ReduxObject) => it.providerBrandings);
@@ -50,7 +50,7 @@ export default function DetailedProvider() {
                     <Flex>
                         {section.image !== "" ? <Flex flexDirection="column" mr="24px" my="8px">
                             <Box flexGrow={1} />
-                            <img alt={`Section Image`}  style={{height: "150px", objectFit: "scale-down"}} src={section.image} />
+                            <img alt={`Provider detail image`}  style={{height: "150px", objectFit: "scale-down"}} src={section.image} />
                             <Box flexGrow={1} />
                         </Flex> : <Box />}
                         <div>
@@ -76,8 +76,9 @@ export default function DetailedProvider() {
                     <div>
                         <img alt={`Product Section Image`}  style={{height: "150px", objectFit: "scale-down"}} src={prod.section.image} />
                     </div>
-                    <Box flexGrow={0.04}/>
                     <div>
+                        <br/>
+                        <br/>
                         <Markdown>
                             {prod.section.description}
                         </Markdown>
