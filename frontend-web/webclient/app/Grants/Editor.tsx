@@ -1370,7 +1370,7 @@ export function Editor(): React.ReactNode {
     const isForSubAllocator = getQueryParam(location.search, "subAllocator") == "true";
     useProjectId(); // FIXME(Jonas): Is this some refresh-thing that breaks stuff if you remove it?
 
-    const providerBrandingData = useSelector<ReduxObject>(it => it.providerBrandings) as ProviderBrandingResponse;
+    const providerBrandingData = useSelector((it: ReduxObject) => it.providerBrandings);
     const [missingUserInfo, setMissingUserInfo] = React.useState(false);
     React.useEffect(() => {
         (async () => {
