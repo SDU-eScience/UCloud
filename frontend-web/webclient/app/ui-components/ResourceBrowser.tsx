@@ -49,7 +49,6 @@ import {isAdminOrPI} from "@/Project";
 import {callAPI, noopCall} from "@/Authentication/DataHook";
 import {injectResourceBrowserStyle, ShortcutClass} from "./ResourceBrowserStyle";
 import {ASC, DESC, Filter, FilterCheckbox, FilterInput, FilterOption, FilterWithOptions, MultiOption, MultiOptionFilter, SORT_BY, SORT_DIRECTION} from "./ResourceBrowserFilters";
-import {ProviderBranding, providerBrandingApi, ProviderBrandingResponse} from "@/UCloud/ProviderBrandingApi";
 import {sendInformationNotification} from "@/Notifications";
 
 const CLEAR_FILTER_VALUE = "\n\nCLEAR_FILTER\n\n";

@@ -13,17 +13,15 @@ import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {useSelector} from "react-redux";
 import {ProviderBranding, ProviderBrandingResponse} from "@/UCloud/ProviderBrandingApi";
 
-function fetchProviderBrandingFromCache(id?: string): ProviderBranding | undefined {
-    if (!id) {
-        return;
-    }
+function useProviderBranding(id?: string): ProviderBranding | undefined {
     const data = useSelector<ReduxObject>(it => it.providerBrandings) as ProviderBrandingResponse;
+    if (!id) return undefined;
     return data.providers[id];
 }
 
 export default function DetailedProvider() {
     const params = useParams<{id: string}>();
-    const entry = fetchProviderBrandingFromCache(params.id);
+    const entry = useProviderBranding(params.id);
 
     usePage(entry?.title ?? params.id!, SidebarTabId.NONE);
 
