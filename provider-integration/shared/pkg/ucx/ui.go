@@ -13,7 +13,10 @@ type UiNode struct {
 	BindPath   string
 	Optimistic bool
 	ChildNodes []UiNode
+	handlers   map[string]UiEventHandler
 }
+
+type UiEventHandler func(session *Session, ev UiEvent)
 
 var interactiveComponents = map[string]bool{
 	"input_text":   true,
@@ -72,6 +75,45 @@ func (n UiNode) Sx(opts ...SxOption) UiNode {
 
 func (n UiNode) Children(children ...UiNode) UiNode {
 	n.ChildNodes = children
+	return n
+}
+
+func (n UiNode) On(event UiEventType, handler UiEventHandler) UiNode {
+	return n.OnEx(event, 0, handler)
+}
+
+type EventHandlerFlag uint64
+
+const (
+	EventHandlerBlocking EventHandlerFlag = 1 << iota
+)
+
+func (n UiNode) OnEx(event UiEventType, flags EventHandlerFlag, handler UiEventHandler) UiNode {
+	if event == "" {
+		panic("ucx: empty event type in UiNode.On")
+	}
+	if handler == nil {
+		panic("ucx: nil handler in UiNode.On")
+	}
+
+	if n.handlers == nil {
+		n.handlers = map[string]UiEventHandler{}
+	}
+
+	if _, exists := n.handlers[string(event)]; exists {
+		panic(fmt.Sprintf("ucx: duplicate handler on node '%s' for event '%s'", n.Id, event))
+	}
+
+	modifiedHandler := handler
+	if flags&EventHandlerBlocking == 0 {
+		modifiedHandler = func(session *Session, ev UiEvent) {
+			go func() {
+				handler(session, ev)
+			}()
+		}
+	}
+
+	n.handlers[string(event)] = modifiedHandler
 	return n
 }
 

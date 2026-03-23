@@ -59,6 +59,16 @@ type ModelInput struct {
 	Value   Value
 }
 
+type UiEventType string
+
+const (
+	UiEventClick  UiEventType = "click"
+	UiEventSubmit UiEventType = "submit"
+	UiEventChange UiEventType = "change"
+	UiEventFocus  UiEventType = "focus"
+	UiEventBlur   UiEventType = "blur"
+)
+
 type UiEvent struct {
 	NodeId string
 	Event  string

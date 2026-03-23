@@ -26,6 +26,8 @@ type Session struct {
 	rpcPendingDone bool
 	startOnce      sync.Once
 	modelMu        sync.Mutex
+	uiHandlerMu    sync.RWMutex
+	uiHandlers     map[string]map[string]UiEventHandler
 }
 
 func NewSession(outgoing chan<- Frame, incoming <-chan Frame) *Session {
@@ -41,6 +43,7 @@ func NewSessionWithContext(ctx context.Context, outgoing chan<- Frame, incoming 
 		ctx:         ctx,
 		rpcHandlers: map[string]RpcHandler{},
 		rpcPending:  map[int64]chan rpcResponse{},
+		uiHandlers:  map[string]map[string]UiEventHandler{},
 	}
 	s.Start()
 	return s
@@ -102,6 +105,7 @@ func (s *Session) pumpIncoming() {
 
 func (s *Session) SendUiMount(uiMount UiMount) {
 	uiMount.Root = NormalizeUiTree(uiMount.Root)
+	s.rebuildUiHandlers(uiMount.Root)
 
 	s.modelMu.Lock()
 	defer s.modelMu.Unlock()
@@ -113,6 +117,53 @@ func (s *Session) SendUiMount(uiMount UiMount) {
 		Opcode:     OpUiMount,
 		UiMount:    uiMount,
 	})
+}
+
+func (s *Session) DispatchUiEvent(ev UiEvent) bool {
+	s.uiHandlerMu.RLock()
+	perNode := s.uiHandlers[ev.NodeId]
+	if perNode == nil {
+		s.uiHandlerMu.RUnlock()
+		return false
+	}
+
+	handler := perNode[ev.Event]
+	s.uiHandlerMu.RUnlock()
+
+	if handler == nil {
+		return false
+	}
+
+	handler(s, ev)
+	return true
+}
+
+func (s *Session) rebuildUiHandlers(root UiNode) {
+	next := map[string]map[string]UiEventHandler{}
+	collectUiHandlers(root, next)
+
+	s.uiHandlerMu.Lock()
+	s.uiHandlers = next
+	s.uiHandlerMu.Unlock()
+}
+
+func collectUiHandlers(node UiNode, target map[string]map[string]UiEventHandler) {
+	if len(node.handlers) > 0 {
+		if _, exists := target[node.Id]; !exists {
+			target[node.Id] = map[string]UiEventHandler{}
+		}
+
+		for event, handler := range node.handlers {
+			if _, exists := target[node.Id][event]; exists {
+				panic("ucx: duplicate event handler registration for node '" + node.Id + "' and event '" + event + "'")
+			}
+			target[node.Id][event] = handler
+		}
+	}
+
+	for _, child := range node.ChildNodes {
+		collectUiHandlers(child, target)
+	}
 }
 
 func (s *Session) SendModel(newModel map[string]Value) {

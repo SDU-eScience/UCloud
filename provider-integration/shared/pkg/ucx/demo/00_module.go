@@ -3,82 +3,16 @@ package demo
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/ucx"
 	"ucloud.dk/shared/pkg/ucx/ucxsvc"
 	"ucloud.dk/shared/pkg/util"
 )
-
-const (
-	proxyAuthToken    = "ucx-demo-proxy-token"
-	upstreamAuthToken = "ucx-demo-upstream-token"
-	proxySysHello     = "ucx-demo-proxy-syshello"
-)
-
-func Init() {
-	upstreamServer := &rpc.Server{
-		Mux: http.NewServeMux(),
-	}
-
-	streamCall := rpc.Call[util.Empty, util.Empty]{
-		BaseContext: "ucxCreateDemo",
-		Convention:  rpc.ConventionWebSocket,
-		Roles:       rpc.RolesPublic,
-	}
-
-	streamCall.HandlerEx(upstreamServer, func(info rpc.RequestInfo, request util.Empty) (util.Empty, *util.HttpError) {
-		return RunDemoSession(info)
-	})
-
-	go func() {
-		s := &http.Server{
-			Addr:    fmt.Sprintf(":%v", 32912),
-			Handler: upstreamServer.Mux,
-		}
-		_ = s.ListenAndServe()
-	}()
-
-	streamCall.Handler(func(info rpc.RequestInfo, request util.Empty) (util.Empty, *util.HttpError) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-
-		proxyServer := ucx.NewProxy("ws://127.0.0.1:32912/api/ucxCreateDemo")
-		proxyServer.RegisterUpstreamSelector(func(ctx context.Context, downstreamToken string, downstreamSysHello string) ucx.ProxyUpstreamSelection {
-			if downstreamToken != proxyAuthToken {
-				return ucx.ProxyUpstreamSelection{Allowed: false}
-			}
-
-			return ucx.ProxyUpstreamSelection{
-				Allowed:          true,
-				UpstreamUrl:      "ws://127.0.0.1:32912/api/ucxCreateDemo",
-				UpstreamToken:    upstreamAuthToken,
-				UpstreamSysHello: proxySysHello,
-			}
-		})
-
-		PingRpc.HandlerProxy(proxyServer, func(ctx context.Context, request PingRpcRequest) (PingRpcResponse, error) {
-			return PingRpcResponse{
-				Ok:   true,
-				From: "proxy",
-				Echo: fmt.Sprintf("Hello from proxy. You said: %s", request.Message),
-			}, nil
-		})
-
-		err := proxyServer.Run(ctx, info.WebSocket)
-		if err != nil {
-			return util.Empty{}, util.HttpErr(http.StatusBadGateway, "%s", err.Error())
-		}
-
-		return util.Empty{}, nil
-	})
-}
 
 func RunDemoSession(info rpc.RequestInfo) (util.Empty, *util.HttpError) {
 	conn := info.WebSocket
@@ -186,8 +120,8 @@ func (s *demoState) uiTree() ucx.UiNode {
 		Gap:       8,
 	}).Sx(ucx.SxP(4)).Children(
 		ucx.Flex(ucx.FlexProps{Direction: "row", Gap: 8}).Sx(ucx.SxAlignItemsCenter).Children(
-			ucx.IconEx("titleIcon", ucx.IconHeroCake, ucx.ColorPrimaryMain, 20),
-			ucx.H2Ex("title", s.Title).Sx(ucx.SxColor(ucx.ColorPrimaryMain)),
+			ucx.Icon(ucx.IconHeroCake, ucx.ColorPrimaryMain, 20),
+			ucx.H2(s.Title).Sx(ucx.SxColor(ucx.ColorPrimaryMain)),
 		),
 		ucx.Text("UI layout is mounted once and state streams in").Sx(ucx.SxColor(ucx.ColorTextSecondary)),
 
@@ -199,15 +133,6 @@ func (s *demoState) uiTree() ucx.UiNode {
 
 		ucx.Checkbox("notify", "Notify me when the job starts", "notify", true),
 
-		ucx.Flex(ucx.FlexProps{Direction: "column", Gap: 6}).Children(
-			ucx.Heading("Client RPC", 4),
-			ucx.Flex(ucx.FlexProps{Gap: 8}).Children(
-				ucx.InputText("rpcMessage", "Message", "Enter RPC message", "rpcMessage"),
-				ucx.Button("rpcPing", "Ping client", ucx.ColorSecondaryMain),
-			),
-			ucx.TextBound("rpcStatus").Sx(ucx.SxColor(ucx.ColorTextSecondary)),
-		),
-
 		ucx.Flex(
 			ucx.FlexProps{
 				Direction: "column",
@@ -217,7 +142,19 @@ func (s *demoState) uiTree() ucx.UiNode {
 			ucx.HeadingBound("todoHeader", 4),
 			ucx.Flex(ucx.FlexProps{Gap: 8}).Children(
 				ucx.InputText("todoDraft", "New todo", "Add task", "todoDraft"),
-				ucx.ButtonEx("addTodo", "Add", ucx.ColorSecondaryMain, ucx.IconHeroPlus, "", ""),
+				ucx.ButtonEx("addTodo", "Add", ucx.ColorSecondaryMain, ucx.IconHeroPlus, "", "").On(ucx.UiEventClick, func(session *ucx.Session, ev ucx.UiEvent) {
+					draft := strings.TrimSpace(s.TodoDraft)
+					if draft != "" {
+						s.Todos = append(s.Todos, todoItem{
+							Id:   strconv.FormatInt(s.NextTodoId, 10),
+							Text: draft,
+						})
+						s.NextTodoId++
+						s.TodoDraft = ""
+					}
+					s.Errors = validateState(s)
+					s.SubmissionMessage = ""
+				}),
 			),
 		),
 
@@ -232,20 +169,82 @@ func (s *demoState) uiTree() ucx.UiNode {
 				ucx.SxJustifySpaceBetween,
 			).Children(
 				ucx.TextBoundEx("todoItemText", "./text"),
-				ucx.ButtonEx("removeTodo", "Remove", ucx.ColorErrorMain, ucx.IconHeroTrash, "", "./id"),
+				ucx.ButtonEx("removeTodo", "Remove", ucx.ColorErrorMain, ucx.IconHeroTrash, "", "./id").On(ucx.UiEventClick, func(session *ucx.Session, ev ucx.UiEvent) {
+					s.Mu.Lock()
+					defer s.Mu.Unlock()
+
+					id := strings.TrimSpace(ucx.ValueAsString(ev.Value))
+					if id == "" {
+						return
+					}
+					newTodos := make([]todoItem, 0, len(s.Todos))
+					for _, it := range s.Todos {
+						if it.Id != id {
+							newTodos = append(newTodos, it)
+						}
+					}
+					s.Todos = newTodos
+					s.Errors = validateState(s)
+					s.SubmissionMessage = ""
+					s.UpdateModel()
+				}),
 			),
 		),
 
 		ucx.TextBound("errors.todos").Sx(ucx.SxColor(ucx.ColorErrorMain)),
-		ucx.Button("submitForm", "Submit", ucx.ColorPrimaryMain),
+		ucx.Button("submitForm", "Submit", ucx.ColorPrimaryMain).On(ucx.UiEventClick, func(session *ucx.Session, ev ucx.UiEvent) {
+			s.Mu.Lock()
+			defer s.Mu.Unlock()
+
+			s.Errors = validateState(s)
+			if len(s.Errors) > 0 {
+				s.SubmissionMessage = ""
+				s.LastActionMessage = "Submit rejected by validation"
+			} else {
+				s.SubmissionMessage = fmt.Sprintf(
+					"Submitted job '%s' with %d CPU and %d todo item(s). Notify=%t",
+					s.JobName,
+					s.CPU,
+					len(s.Todos),
+					s.Notify,
+				)
+				s.LastActionMessage = "Submit accepted"
+			}
+
+			s.UpdateModel()
+		}),
 		ucx.TextBound("validationMessage"),
 		ucx.TextBound("lastActionMessage"),
 		ucx.TextBound("submissionMessage").Sx(ucx.SxColor(ucx.ColorSuccessMain)),
 
 		ucx.Flex(ucx.FlexProps{Direction: "row", Gap: 6}).Children(
-			ucx.Button("fnFrontend", "Frontend RPC", ucx.ColorSuccessMain),
-			ucx.Button("fnCore", "Core RPC", ucx.ColorWarningMain),
-			ucx.Button("fnIm", "IM RPC", ucx.ColorErrorMain),
+			ucx.Button("fnFrontend", "Frontend RPC", ucx.ColorSuccessMain).On(ucx.UiEventClick, func(session *ucx.Session, ev ucx.UiEvent) {
+				resp, err := ucxsvc.Frontend.Invoke(session, ucxsvc.Message{fmt.Sprintf("Hello frontend! %v", time.Now())})
+				if err == nil {
+					s.Mu.Lock()
+					s.FnText = resp.Message
+					s.Mu.Unlock()
+					s.UpdateModel()
+				}
+			}),
+			ucx.Button("fnCore", "Core RPC", ucx.ColorWarningMain).On(ucx.UiEventClick, func(session *ucx.Session, ev ucx.UiEvent) {
+				resp, err := ucxsvc.Core.Invoke(session, ucxsvc.Message{fmt.Sprintf("Hello core! %v", time.Now())})
+				if err == nil {
+					s.Mu.Lock()
+					s.FnText = resp.Message
+					s.Mu.Unlock()
+					s.UpdateModel()
+				}
+			}),
+			ucx.Button("fnIm", "IM RPC", ucx.ColorErrorMain).On(ucx.UiEventClick, func(session *ucx.Session, ev ucx.UiEvent) {
+				resp, err := ucxsvc.IM.Invoke(session, ucxsvc.Message{fmt.Sprintf("Hello IM! %v", time.Now())})
+				if err == nil {
+					s.Mu.Lock()
+					s.FnText = resp.Message
+					s.Mu.Unlock()
+					s.UpdateModel()
+				}
+			}),
 		),
 		ucx.TextBound("fnText"),
 	)
@@ -280,59 +279,11 @@ func handleIncomingFrame(ctx context.Context, mu *sync.Mutex, state *demoState, 
 		state.UpdateModel()
 
 	case ucx.OpUiEvent:
-		if incoming.UiEvent.NodeId == "rpcPing" && incoming.UiEvent.Event == "click" {
-			message := strings.TrimSpace(state.RpcMessage)
-			if message == "" {
-				message = "hello from server"
-			}
-
-			state.RpcStatus = "Calling client RPC..."
+		if session.DispatchUiEvent(incoming.UiEvent) {
 			state.UpdateModel()
-
-			go invokeClientPing(ctx, mu, state, session, message)
 			return
 		}
-
-		handleUiEvent(session, state, incoming.UiEvent)
-		state.UpdateModel()
 	}
-}
-
-type PingRpcRequest struct {
-	Message string
-}
-
-type PingRpcResponse struct {
-	Ok   bool
-	From string
-	Echo string
-}
-
-var PingRpc = ucx.Rpc[PingRpcRequest, PingRpcResponse]{CallName: "client.ping"}
-
-func invokeClientPing(ctx context.Context, mu *sync.Mutex, state *demoState, session *ucx.Session, message string) {
-	payload, err := PingRpc.Invoke(session, PingRpcRequest{Message: message})
-
-	log.Info("Got response from UI: %v %v", payload, err)
-
-	mu.Lock()
-	defer mu.Unlock()
-
-	if err != nil {
-		state.RpcStatus = fmt.Sprintf("RPC failed: %v", err)
-	} else {
-		ok := payload.Ok
-		from := strings.TrimSpace(payload.From)
-		echo := strings.TrimSpace(payload.Echo)
-		if from == "" {
-			from = "unknown"
-		}
-		if echo == "" {
-			echo = message
-		}
-		state.RpcStatus = fmt.Sprintf("RPC result from %s (ok=%t): %s", from, ok, echo)
-	}
-	state.UpdateModel()
 }
 
 func handleModelInput(state *demoState, input ucx.ModelInput) {
@@ -354,87 +305,6 @@ func handleModelInput(state *demoState, input ucx.ModelInput) {
 
 	state.Errors = validateState(state)
 	state.SubmissionMessage = ""
-}
-
-func handleUiEvent(session *ucx.Session, state *demoState, ev ucx.UiEvent) {
-	switch {
-	case ev.NodeId == "addTodo" && ev.Event == "click":
-		draft := strings.TrimSpace(state.TodoDraft)
-		if draft != "" {
-			state.Todos = append(state.Todos, todoItem{
-				Id:   strconv.FormatInt(state.NextTodoId, 10),
-				Text: draft,
-			})
-			state.NextTodoId++
-			state.TodoDraft = ""
-		}
-		state.Errors = validateState(state)
-		state.SubmissionMessage = ""
-
-	case ev.NodeId == "removeTodo" && ev.Event == "click":
-		id := strings.TrimSpace(ucx.ValueAsString(ev.Value))
-		if id == "" {
-			break
-		}
-		newTodos := make([]todoItem, 0, len(state.Todos))
-		for _, it := range state.Todos {
-			if it.Id != id {
-				newTodos = append(newTodos, it)
-			}
-		}
-		state.Todos = newTodos
-		state.Errors = validateState(state)
-		state.SubmissionMessage = ""
-
-	case ev.NodeId == "submitForm" && ev.Event == "click":
-		state.Errors = validateState(state)
-		if len(state.Errors) > 0 {
-			state.SubmissionMessage = ""
-			state.LastActionMessage = "Submit rejected by validation"
-		} else {
-			state.SubmissionMessage = fmt.Sprintf(
-				"Submitted job '%s' with %d CPU and %d todo item(s). Notify=%t",
-				state.JobName,
-				state.CPU,
-				len(state.Todos),
-				state.Notify,
-			)
-			state.LastActionMessage = "Submit accepted"
-		}
-
-	case ev.NodeId == "fnFrontend" && ev.Event == "click":
-		go func() {
-			resp, err := ucxsvc.Frontend.Invoke(session, ucxsvc.Message{fmt.Sprintf("Hello frontend! %v", time.Now())})
-			if err == nil {
-				state.Mu.Lock()
-				state.FnText = resp.Message
-				state.Mu.Unlock()
-				state.UpdateModel()
-			}
-		}()
-
-	case ev.NodeId == "fnCore" && ev.Event == "click":
-		go func() {
-			resp, err := ucxsvc.Core.Invoke(session, ucxsvc.Message{fmt.Sprintf("Hello core! %v", time.Now())})
-			if err == nil {
-				state.Mu.Lock()
-				state.FnText = resp.Message
-				state.Mu.Unlock()
-				state.UpdateModel()
-			}
-		}()
-
-	case ev.NodeId == "fnIm" && ev.Event == "click":
-		go func() {
-			resp, err := ucxsvc.IM.Invoke(session, ucxsvc.Message{fmt.Sprintf("Hello IM! %v", time.Now())})
-			if err == nil {
-				state.Mu.Lock()
-				state.FnText = resp.Message
-				state.Mu.Unlock()
-				state.UpdateModel()
-			}
-		}()
-	}
 }
 
 func validateState(state *demoState) map[string]string {
