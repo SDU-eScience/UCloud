@@ -14,7 +14,7 @@ import {useSelector} from "react-redux";
 import {ProviderBranding, ProviderBrandingResponse} from "@/UCloud/ProviderBrandingApi";
 
 function useProviderBranding(id?: string): ProviderBranding | undefined {
-    const data = useSelector<ReduxObject>(it => it.providerBrandings) as ProviderBrandingResponse;
+    const data = useSelector((it: ReduxObject) => it.providerBrandings);
     if (!id) return undefined;
     return data.providers[id];
 }
