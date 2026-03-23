@@ -34,14 +34,14 @@ export function ProviderEntry(props: {provider: ProviderBranding}): React.ReactN
     );
 }
 
-function fetchProviderBrandings(): Record<string,ProviderBranding> | undefined {
-    const data = useSelector<ReduxObject>(it => it.providerBrandings) as ProviderBrandingResponse;
+function useProviderBrandings(): Record<string,ProviderBranding> | undefined {
+    const data = useSelector((it: ReduxObject) => it.providerBrandings) as ProviderBrandingResponse;
     return data.providers;
 }
 
 export default function ProviderOverview() {
     usePage("Provider overview", SidebarTabId.NONE);
-    const providers = fetchProviderBrandings();
+    const providers = useProviderBrandings();
     if (!providers) {
         return;
     }
