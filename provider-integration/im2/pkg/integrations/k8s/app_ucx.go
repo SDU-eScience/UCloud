@@ -85,7 +85,7 @@ func ucxOnConnect(conn *ws.Conn) {
 }
 
 func ensureUcxBackendAndResolveUpstream(ctx context.Context, app *orcapi.Application) (string, error) {
-	namespace := shared.ServiceConfig.Compute.Namespace
+	namespace := shared.ServiceConfig.Compute.TaskNamespace
 	deploymentName := ucxDeploymentName(app.Metadata.Name, app.Metadata.Version)
 	serviceName := deploymentName
 	selector := ucxSelectorLabels(deploymentName)
@@ -194,20 +194,19 @@ func ensureUcxDeployment(
 		})
 	}
 
-	replicas := int32(1)
 	deployment := &appsv1.Deployment{
 		ObjectMeta: meta.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
 		},
 		Spec: appsv1.DeploymentSpec{
-			Replicas: &replicas,
+			Replicas: new(int32(1)),
 			Selector: &meta.LabelSelector{MatchLabels: selector},
 			Template: k8score.PodTemplateSpec{
 				ObjectMeta: meta.ObjectMeta{Labels: selector},
 				Spec: k8score.PodSpec{
 					Volumes:      volumes,
-					NodeSelector: ucxTaskNodeSelector(),
+					NodeSelector: shared.ServiceConfig.Compute.TaskNodeSelector,
 					Containers: []k8score.Container{
 						{
 							Name:            "ucx-app",
@@ -240,8 +239,7 @@ func ensureUcxDeployment(
 	}
 
 	if existing.Spec.Replicas == nil || *existing.Spec.Replicas != 1 {
-		replicaCount := int32(1)
-		existing.Spec.Replicas = &replicaCount
+		existing.Spec.Replicas = new(int32(1))
 		_, updateErr := shared.K8sClient.AppsV1().Deployments(namespace).Update(ctx, existing, meta.UpdateOptions{})
 		if updateErr != nil {
 			return updateErr
@@ -392,8 +390,4 @@ func ucxIsInDevelopmentMode(app *orcapi.Application) bool {
 	}
 
 	return false
-}
-
-func ucxTaskNodeSelector() map[string]string {
-	return map[string]string{} // TODO Change this after merging master
 }

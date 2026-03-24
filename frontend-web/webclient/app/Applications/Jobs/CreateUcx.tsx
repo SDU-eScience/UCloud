@@ -9,7 +9,7 @@ import {AppHeader} from "@/Applications/View";
 import {UtilityBar} from "@/Navigation/UtilityBar";
 import {useMemo} from "react";
 import {UcxRpcHandler} from "@/UCX/UcxView";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {sendSuccessNotification} from "@/Notifications";
 
 interface CreateUcxJobProps {
     application: Application;
@@ -25,7 +25,7 @@ export const CreateUcxJob: React.FunctionComponent<CreateUcxJobProps> = ({applic
         return {
             "frontend": payload => {
                 console.log(payload)
-                snackbarStore.addSuccess("Testing", true);
+                sendSuccessNotification("Testing");
                 return {
                     "message": "hello from frontend!"
                 };

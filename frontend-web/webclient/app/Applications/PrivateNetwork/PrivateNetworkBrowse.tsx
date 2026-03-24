@@ -30,7 +30,6 @@ import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {Box, Button, Flex, Input, Label, Text} from "@/ui-components";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {slimModalStyle} from "@/Utilities/ModalUtilities";
 import {injectStyle} from "@/Unstyled";
 import * as Heading from "@/ui-components/Heading";
@@ -46,6 +45,7 @@ import {AsyncCache} from "@/Utilities/AsyncCache";
 import {getShortProviderTitle} from "@/Providers/ProviderTitle";
 import ProductReference = accounting.ProductReference;
 import {useEffect} from "react";
+import {sendFailureNotification} from "@/Notifications";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -292,7 +292,7 @@ export function PrivateNetworkBrowse({
                                             dialogStore.success();
                                             browser.refresh();
                                         } catch (e) {
-                                            snackbarStore.addFailure("Failed to create private network. " + extractErrorMessage(e), false);
+                                            sendFailureNotification("Failed to create private network. " + extractErrorMessage(e));
                                             browser.refresh();
                                         }
                                     }}
@@ -466,11 +466,11 @@ function PrivateNetworkCreate({onCreate, onCancel, products}: PrivateNetworkCrea
                 disabled={!isNameValid || !isSubdomainValid}
                 onClick={() => {
                     if (!isNameValid || !isSubdomainValid) {
-                        snackbarStore.addFailure("Please provide a valid name and subdomain", false);
+                        sendFailureNotification("Please provide a valid name and subdomain");
                         return;
                     }
                     if (!product) {
-                        snackbarStore.addFailure("Please select a product", false);
+                        sendFailureNotification("Please select a product");
                         return;
                     }
                     onCreate(name.trim(),
