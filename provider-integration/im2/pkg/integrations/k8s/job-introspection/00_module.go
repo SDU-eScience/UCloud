@@ -53,12 +53,12 @@ func Launch() {
 	}
 
 	{
-		ipBytes, err := os.ReadFile("/opt/ucloud/provider-ip.txt")
+		ipBytes, err := os.ReadFile("/opt/ucloud/provider-hostname.txt")
 		cli.HandleError("reading provider ip", err)
 
 		providerIP := strings.TrimSpace(string(ipBytes))
 		rpc.DefaultClient = &rpc.Client{
-			BasePath: fmt.Sprintf("http://%s:8889", providerIP),
+			BasePath: fmt.Sprintf("http://%s:42000", providerIP),
 			Client: &http.Client{
 				Timeout: 10 * time.Second,
 			},

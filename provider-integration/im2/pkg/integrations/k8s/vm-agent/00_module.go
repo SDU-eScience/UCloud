@@ -26,7 +26,7 @@ func Launch() {
 
 	startExecutableUpdateWatcher(5 * time.Second)
 
-	ipBytes, err := os.ReadFile("/opt/ucloud/provider-ip.txt")
+	ipBytes, err := os.ReadFile("/opt/ucloud/provider-hostname.txt")
 	if err != nil {
 		log.Fatal("Could not find provider IP")
 	}
@@ -43,7 +43,9 @@ func Launch() {
 	token := tokLines[0]
 	srvTok := tokLines[1]
 
-	providerHost = fmt.Sprintf("ws://%s:8889", string(ipBytes))
+	providerHost = fmt.Sprintf("ws://%s:42000", string(ipBytes))
+
+	_, _, _ = util.RunCommand([]string{"sudo", "ln", "-s", "/opt/ucloud/ucloud-job-introspection", "/usr/bin/ucloud"})
 
 	initStartup()
 
