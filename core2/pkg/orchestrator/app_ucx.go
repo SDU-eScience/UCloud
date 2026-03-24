@@ -133,6 +133,7 @@ func initAppUcx() {
 		})
 
 		ucxsvc.Core.HandlerProxy(proxy, func(ctx context.Context, request ucxsvc.Message) (ucxsvc.Message, error) {
+
 			log.Info("Got a message from '%s': %s", actor, request)
 			return ucxsvc.Message{"Hello from the Core!"}, nil
 		})

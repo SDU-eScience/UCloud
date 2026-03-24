@@ -9,6 +9,8 @@ import {Toggle} from "@/ui-components/Toggle";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
 import {decodeFrame, Frame, Opcode, plainMapToValue, PlainValue, UiNode, Value, valueMapToPlain, ValueKind} from "@/UCX/protocol";
 import {UcxSession} from "@/UCX/session";
+import {stopPropagation} from "@/UtilityFunctions";
+import Label from "@/ui-components/Label";
 
 type ValueProvider = string | (() => string | Promise<string>);
 export type UcxRpcPayload = Record<string, PlainValue>;
@@ -529,11 +531,14 @@ const baseComponents: UcxComponentRegistry = {
         const label = stringProp(node, "label", "");
         const checked = modelBool(model, node.bindPath, scope);
         return <Flex mt="8px" mb="12px" alignItems="center">
-            <Checkbox
-                checked={checked}
-                onChange={ev => fn.sendBoundInput(node, {kind: ValueKind.Bool, bool: ev.currentTarget.checked}, model, scope)}
-            />
-            {label}
+            <Label>
+                <Checkbox
+                    checked={checked}
+                    onClick={() => fn.sendBoundInput(node, {kind: ValueKind.Bool, bool: !checked}, model, scope)}
+                    onChange={stopPropagation}
+                />
+                {label}
+            </Label>
         </Flex>;
     },
     button: ({node, model, scope, fn}) => {
