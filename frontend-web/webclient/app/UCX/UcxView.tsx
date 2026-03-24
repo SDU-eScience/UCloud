@@ -214,6 +214,7 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
 
         const setError = (message: string) => {
             setTransportError(message);
+            console.error(`[UCX] ${message}`);
             onTransportErrorRef.current?.(message);
         };
 
@@ -299,7 +300,7 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
                         }
 
                         if (event.data !== "OK") {
-                            setError("Authentication failed");
+                            setError(`Authentication failed: ${event.data}`);
                             socket.close();
                             return;
                         }
@@ -368,14 +369,15 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
                 }
             };
 
-            socket.onclose = () => {
+            socket.onclose = event => {
                 if (connRef.current === socket) {
                     connRef.current = null;
                 }
                 sessionRef.current?.close("WebSocket closed");
                 sessionRef.current = null;
                 setConnected(false);
-                onDisconnectedRef.current?.("WebSocket closed");
+                const closeReason = `WebSocket closed (code=${event.code}, clean=${event.wasClean}, reason=${event.reason || "none"})`;
+                onDisconnectedRef.current?.(closeReason);
                 if (!disposed) {
                     scheduleReconnect();
                 }

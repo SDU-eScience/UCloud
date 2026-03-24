@@ -23,13 +23,17 @@ var tunnelPortAllocator = atomic.Int32{}
 var tunnels = map[string]int{}
 var tunnelMutex = sync.Mutex{}
 
+func EstablishTunnel(name string, port int) int {
+	return EstablishTunnelEx(name, ServiceConfig.Compute.Namespace, port)
+}
+
 // EstablishTunnel will port-forward to the target identified by name on a given port. A new local port is returned
 // which can be used instead. The function is goroutine safe. The port is not guaranteed to be ready after the function
 // returns. The target can be either a Pod or a KubeVirt VirtualMachineInstance.
 //
 // NOTE(Dan): This is not supposed to be used in production. It will leak memory from old tunnels. It will also
 // eventually run out of ports.
-func EstablishTunnel(name string, port int) int {
+func EstablishTunnelEx(name string, namespace string, port int) int {
 	key := fmt.Sprintf("%v:%v", name, port)
 	tunnelMutex.Lock()
 	myPort, ok := tunnels[key]
@@ -42,14 +46,14 @@ func EstablishTunnel(name string, port int) int {
 	if ok {
 		return myPort
 	} else {
-		request, targetType, err := resolvePortForwardRequest(name)
+		request, targetType, err := resolvePortForwardRequest(name, namespace)
 		if err != nil {
 			log.Warn("Failed to establish tunnel to %v:%v %s", name, port, err)
 			return myPort
 		}
 
 		if targetType == "virtualmachine" {
-			err = establishVirtualMachineTunnel(name, port, myPort)
+			err = establishVirtualMachineTunnel(name, namespace, port, myPort)
 			if err != nil {
 				log.Warn("Failed to establish tunnel to %v(%v):%v %s", targetType, name, port, err)
 			}
@@ -97,7 +101,7 @@ func EstablishTunnel(name string, port int) int {
 	}
 }
 
-func establishVirtualMachineTunnel(name string, port int, localPort int) error {
+func establishVirtualMachineTunnel(name string, namespace string, port int, localPort int) error {
 	listener, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", localPort))
 	if err != nil {
 		return err
@@ -112,7 +116,7 @@ func establishVirtualMachineTunnel(name string, port int, localPort int) error {
 			}
 
 			go func(localConn net.Conn) {
-				stream, err := KubevirtClient.VirtualMachine(ServiceConfig.Compute.Namespace).PortForward(name, port, "")
+				stream, err := KubevirtClient.VirtualMachine(namespace).PortForward(name, port, "")
 				if err != nil {
 					_ = localConn.Close()
 					log.Warn("Failed to open VM portforward stream %v:%v %s", name, port, err)
@@ -142,9 +146,7 @@ func establishVirtualMachineTunnel(name string, port int, localPort int) error {
 	return nil
 }
 
-func resolvePortForwardRequest(name string) (request *rest.Request, targetType string, err error) {
-	ns := ServiceConfig.Compute.Namespace
-
+func resolvePortForwardRequest(name string, ns string) (request *rest.Request, targetType string, err error) {
 	_, err = K8sClient.CoreV1().Pods(ns).Get(context.Background(), name, metav1.GetOptions{})
 	if err == nil {
 		return K8sClient.CoreV1().RESTClient().

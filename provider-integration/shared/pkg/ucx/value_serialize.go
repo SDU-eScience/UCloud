@@ -80,6 +80,24 @@ func ApplyModelInput(target any, input ModelInput) error {
 	return ValueUnmarshal(patch, target)
 }
 
+// StructToModel serializes a struct into a model map.
+// Deprecated: use ValueMarshal.
+func StructToModel(input any) (map[string]Value, error) {
+	return ValueMarshal(input)
+}
+
+// StructToModelOrLog serializes a struct into a model map and logs on failure.
+// Deprecated: use ValueMarshalOrLog.
+func StructToModelOrLog(input any) map[string]Value {
+	return ValueMarshalOrLog(input)
+}
+
+// ModelToStruct deserializes a model map into a struct.
+// Deprecated: use ValueUnmarshal.
+func ModelToStruct(input map[string]Value, output any) error {
+	return ValueUnmarshal(input, output)
+}
+
 func populateStructFromFlatModel(input map[string]Value, prefix string, out reflect.Value) error {
 	t := out.Type()
 	for i := 0; i < t.NumField(); i++ {

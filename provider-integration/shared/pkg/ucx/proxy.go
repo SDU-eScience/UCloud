@@ -10,6 +10,7 @@ import (
 	"time"
 
 	ws "github.com/gorilla/websocket"
+	"ucloud.dk/shared/pkg/log"
 )
 
 type ProxyRpcHandler func(ctx context.Context, payload map[string]Value) (status int, response map[string]Value)
@@ -71,6 +72,7 @@ func (p *Proxy) RegisterUpstreamSelector(selector ProxyUpstreamSelector) {
 func (p *Proxy) Run(ctx context.Context, downstream *ws.Conn) error {
 	downstreamToken, ok := p.authenticateDownstream(downstream)
 	if !ok {
+		log.Warn("UCX proxy: downstream authentication failed")
 		_ = downstream.WriteMessage(ws.TextMessage, []byte("Forbidden"))
 		_ = downstream.Close()
 		return nil
@@ -78,6 +80,7 @@ func (p *Proxy) Run(ctx context.Context, downstream *ws.Conn) error {
 
 	downstreamHelloFrame, ok := readInitialDownstreamSysHello(downstream)
 	if !ok {
+		log.Warn("UCX proxy: missing/invalid initial downstream SysHello frame")
 		_ = downstream.WriteMessage(ws.TextMessage, []byte("Forbidden"))
 		_ = downstream.Close()
 		return nil
@@ -182,6 +185,7 @@ func (p *Proxy) Run(ctx context.Context, downstream *ws.Conn) error {
 			}
 
 		case <-upstreamClosed:
+			log.Warn("UCX proxy: upstream closed, scheduling reconnect")
 			if upstreamOutgoing != nil {
 				close(upstreamOutgoing)
 			}
@@ -244,6 +248,7 @@ func (p *Proxy) Run(ctx context.Context, downstream *ws.Conn) error {
 		case <-reconnectTimer:
 			selection := p.selectUpstream(ctx, downstreamToken, downstreamHelloPayload)
 			if !selection.Allowed {
+				log.Warn("UCX proxy: upstream selector rejected connection")
 				_ = downstream.WriteMessage(ws.TextMessage, []byte("Forbidden"))
 				cancel()
 				continue
@@ -256,6 +261,7 @@ func (p *Proxy) Run(ctx context.Context, downstream *ws.Conn) error {
 
 			upstream, _, err := ws.DefaultDialer.Dial(selection.UpstreamUrl, header)
 			if err != nil {
+				log.Warn("UCX proxy: failed to dial upstream %q: %v", selection.UpstreamUrl, err)
 				reconnectTimer = time.After(1 * time.Second)
 				continue
 			}
@@ -263,6 +269,7 @@ func (p *Proxy) Run(ctx context.Context, downstream *ws.Conn) error {
 			downstreamHelloFrame.SysHello.Payload = selection.UpstreamSysHello
 			encodedHello, err := FrameEncode(downstreamHelloFrame)
 			if err != nil {
+				log.Warn("UCX proxy: failed to encode upstream SysHello: %v", err)
 				_ = upstream.Close()
 				reconnectTimer = time.After(1 * time.Second)
 				continue
@@ -270,12 +277,14 @@ func (p *Proxy) Run(ctx context.Context, downstream *ws.Conn) error {
 
 			authResult := authenticateUpstream(upstream, selection.UpstreamToken, encodedHello)
 			if authResult == upstreamAuthForbidden {
+				log.Warn("UCX proxy: upstream authentication returned Forbidden")
 				_ = downstream.WriteMessage(ws.TextMessage, []byte("Forbidden"))
 				_ = upstream.Close()
 				cancel()
 				continue
 			}
 			if authResult != upstreamAuthOK {
+				log.Warn("UCX proxy: upstream authentication failed")
 				_ = upstream.Close()
 				reconnectTimer = time.After(1 * time.Second)
 				continue
@@ -283,6 +292,7 @@ func (p *Proxy) Run(ctx context.Context, downstream *ws.Conn) error {
 
 			if !acknowledgedDownstream {
 				if err := downstream.WriteMessage(ws.TextMessage, []byte("OK")); err != nil {
+					log.Warn("UCX proxy: failed to send downstream authentication OK: %v", err)
 					_ = upstream.Close()
 					cancel()
 					continue
@@ -309,10 +319,12 @@ func (p *Proxy) Run(ctx context.Context, downstream *ws.Conn) error {
 func (p *Proxy) authenticateDownstream(downstream *ws.Conn) (string, bool) {
 	messageType, rawMessage, err := downstream.ReadMessage()
 	if err != nil {
+		log.Warn("UCX proxy: failed to read downstream auth frame: %v", err)
 		return "", false
 	}
 
 	if messageType != ws.TextMessage {
+		log.Warn("UCX proxy: downstream auth frame was not text")
 		return "", false
 	}
 
@@ -329,19 +341,23 @@ const (
 
 func authenticateUpstream(upstream *ws.Conn, token string, encodedSysHello []byte) upstreamAuthResult {
 	if err := upstream.WriteMessage(ws.TextMessage, []byte(token)); err != nil {
+		log.Warn("UCX proxy: failed writing upstream auth token: %v", err)
 		return upstreamAuthFailed
 	}
 
 	if err := upstream.WriteMessage(ws.BinaryMessage, encodedSysHello); err != nil {
+		log.Warn("UCX proxy: failed writing upstream SysHello frame: %v", err)
 		return upstreamAuthFailed
 	}
 
 	messageType, rawMessage, err := upstream.ReadMessage()
 	if err != nil {
+		log.Warn("UCX proxy: failed reading upstream auth response: %v", err)
 		return upstreamAuthFailed
 	}
 
 	if messageType != ws.TextMessage {
+		log.Warn("UCX proxy: upstream auth response was not text")
 		return upstreamAuthFailed
 	}
 
@@ -352,6 +368,8 @@ func authenticateUpstream(upstream *ws.Conn, token string, encodedSysHello []byt
 	if message == "Forbidden" {
 		return upstreamAuthForbidden
 	}
+
+	log.Warn("UCX proxy: unexpected upstream auth response %q", message)
 
 	return upstreamAuthFailed
 }
@@ -384,6 +402,7 @@ func startUpstreamPumps(ctx context.Context, conn *ws.Conn) (<-chan Frame, chan 
 
 			decoded, err := FrameDecode(rawMessage)
 			if err != nil {
+				log.Warn("UCX proxy: failed to decode upstream frame: %v", err)
 				continue
 			}
 
@@ -411,6 +430,7 @@ func startUpstreamPumps(ctx context.Context, conn *ws.Conn) (<-chan Frame, chan 
 
 				encoded, err := FrameEncode(msg)
 				if err != nil {
+					log.Warn("UCX proxy: failed to encode upstream frame: %v", err)
 					continue
 				}
 
@@ -599,19 +619,23 @@ func readInitialDownstreamSysHello(downstream *ws.Conn) (Frame, bool) {
 	for {
 		messageType, rawMessage, err := downstream.ReadMessage()
 		if err != nil {
+			log.Warn("UCX proxy: failed to read downstream SysHello frame: %v", err)
 			return Frame{}, false
 		}
 
 		if messageType != ws.BinaryMessage {
+			log.Warn("UCX proxy: expected binary SysHello frame from downstream")
 			return Frame{}, false
 		}
 
 		decoded, err := FrameDecode(rawMessage)
 		if err != nil {
+			log.Warn("UCX proxy: failed to decode downstream frame while waiting for SysHello: %v", err)
 			continue
 		}
 
 		if decoded.Opcode != OpSysHello {
+			log.Warn("UCX proxy: expected SysHello opcode, got %d", decoded.Opcode)
 			return Frame{}, false
 		}
 

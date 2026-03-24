@@ -93,6 +93,7 @@ func ensureUcxBackendAndResolveUpstream(ctx context.Context, app *orcapi.Applica
 
 	isRunning, err := ucxDeploymentRunning(ctx, namespace, deploymentName)
 	if err != nil {
+		log.Warn("UCX provider: failed deployment lookup for %s/%s: %v", namespace, deploymentName, err)
 		return "", err
 	}
 
@@ -108,29 +109,34 @@ func ensureUcxBackendAndResolveUpstream(ctx context.Context, app *orcapi.Applica
 		}
 
 		if err := ensureUcxService(ctx, namespace, serviceName, selector); err != nil {
+			log.Warn("UCX provider: failed ensuring service %s/%s: %v", namespace, serviceName, err)
 			return "", err
 		}
 
 		if err := ensureUcxDeployment(ctx, namespace, deploymentName, image, script, selector, inDevelopmentMode); err != nil {
+			log.Warn("UCX provider: failed ensuring deployment %s/%s: %v", namespace, deploymentName, err)
 			return "", err
 		}
 	} else {
 		if err := ensureUcxService(ctx, namespace, serviceName, selector); err != nil {
+			log.Warn("UCX provider: failed ensuring service %s/%s: %v", namespace, serviceName, err)
 			return "", err
 		}
 	}
 
 	if err := waitForUcxDeploymentReady(ctx, namespace, deploymentName, 90*time.Second); err != nil {
+		log.Warn("UCX provider: deployment did not become ready %s/%s: %v", namespace, deploymentName, err)
 		return "", err
 	}
 
 	if util.DevelopmentModeEnabled() {
 		podName, err := findReadyUcxPod(ctx, namespace, selector)
 		if err != nil {
+			log.Warn("UCX provider: failed finding ready pod in dev mode for %s/%s: %v", namespace, deploymentName, err)
 			return "", err
 		}
 
-		tunnelPort := shared.EstablishTunnel(podName, int(ucxBackendPort))
+		tunnelPort := shared.EstablishTunnelEx(podName, namespace, int(ucxBackendPort))
 		return fmt.Sprintf("ws://127.0.0.1:%d/", tunnelPort), nil
 	}
 
@@ -200,7 +206,7 @@ func ensureUcxDeployment(
 			Namespace: namespace,
 		},
 		Spec: appsv1.DeploymentSpec{
-			Replicas: new(int32(1)),
+			Replicas: util.Pointer[int32](1),
 			Selector: &meta.LabelSelector{MatchLabels: selector},
 			Template: k8score.PodTemplateSpec{
 				ObjectMeta: meta.ObjectMeta{Labels: selector},
@@ -239,7 +245,7 @@ func ensureUcxDeployment(
 	}
 
 	if existing.Spec.Replicas == nil || *existing.Spec.Replicas != 1 {
-		existing.Spec.Replicas = new(int32(1))
+		existing.Spec.Replicas = util.Pointer[int32](1)
 		_, updateErr := shared.K8sClient.AppsV1().Deployments(namespace).Update(ctx, existing, meta.UpdateOptions{})
 		if updateErr != nil {
 			return updateErr
