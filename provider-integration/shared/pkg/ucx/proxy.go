@@ -185,7 +185,7 @@ func (p *Proxy) Run(ctx context.Context, downstream *ws.Conn) error {
 			}
 
 		case <-upstreamClosed:
-			log.Warn("UCX proxy: upstream closed, scheduling reconnect")
+			log.Warn("UCX proxy: upstream closed, forcing downstream reconnect for fresh auth")
 			if upstreamOutgoing != nil {
 				close(upstreamOutgoing)
 			}
@@ -197,13 +197,8 @@ func (p *Proxy) Run(ctx context.Context, downstream *ws.Conn) error {
 			upstreamIncoming = nil
 			upstreamOutgoing = nil
 			upstreamClosed = nil
-
-			if hasMount && len(latestModel) > 0 {
-				rehydrateSnapshot = cloneModel(latestModel)
-				awaitingMountForRehydrate = true
-			}
-
-			reconnectTimer = time.After(1 * time.Second)
+			cancel()
+			continue
 
 		case frame, ok := <-upstreamIncoming:
 			if !ok {
@@ -284,9 +279,9 @@ func (p *Proxy) Run(ctx context.Context, downstream *ws.Conn) error {
 				continue
 			}
 			if authResult != upstreamAuthOK {
-				log.Warn("UCX proxy: upstream authentication failed")
+				log.Warn("UCX proxy: upstream authentication failed, forcing downstream reconnect for fresh auth")
 				_ = upstream.Close()
-				reconnectTimer = time.After(1 * time.Second)
+				cancel()
 				continue
 			}
 
