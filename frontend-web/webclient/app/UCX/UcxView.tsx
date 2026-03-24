@@ -7,13 +7,23 @@ import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
 import CodeSnippet from "@/ui-components/CodeSnippet";
 import {Toggle} from "@/ui-components/Toggle";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
-import {decodeFrame, Frame, Opcode, plainMapToValue, PlainValue, UiNode, Value, valueMapToPlain, ValueKind} from "@/UCX/protocol";
+import {
+    decodeFrame,
+    Frame,
+    Opcode,
+    plainPayloadToValueMap,
+    PlainValue,
+    UiNode,
+    Value,
+    valueMapToPlainPayload,
+    ValueKind,
+} from "@/UCX/protocol";
 import {UcxSession} from "@/UCX/session";
 import {stopPropagation} from "@/UtilityFunctions";
 import Label from "@/ui-components/Label";
 
 type ValueProvider = string | (() => string | Promise<string>);
-export type UcxRpcPayload = Record<string, PlainValue>;
+export type UcxRpcPayload = PlainValue;
 export type UcxRpcHandler = (payload: UcxRpcPayload) => Promise<UcxRpcPayload | void> | UcxRpcPayload | void;
 
 export interface UcxFunctionRegistry {
@@ -158,7 +168,7 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
         if (!sessionRef.current) {
             return Promise.reject(new Error("UCX session is not connected"));
         }
-        return sessionRef.current.invokeRpc(name, plainMapToValue(payload), timeoutMs).then(valueMapToPlain);
+        return sessionRef.current.invokeRpc(name, plainPayloadToValueMap(payload), timeoutMs).then(valueMapToPlainPayload);
     }, []);
 
     const baseFunctions = useMemo<UcxFunctionRegistry>(() => ({
@@ -267,8 +277,8 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
                 if (handlers) {
                     for (const [name, handler] of Object.entries(handlers)) {
                         sessionRef.current?.registerRpcHandler(name, payload => {
-                            return Promise.resolve(handler(valueMapToPlain(payload))).then(result => {
-                                return plainMapToValue(result ?? {});
+                            return Promise.resolve(handler(valueMapToPlainPayload(payload))).then(result => {
+                                return plainPayloadToValueMap(result ?? {});
                             });
                         });
                     }

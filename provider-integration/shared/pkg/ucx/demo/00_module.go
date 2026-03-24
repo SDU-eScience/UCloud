@@ -8,6 +8,9 @@ import (
 	"sync"
 	"time"
 
+	accapi "ucloud.dk/shared/pkg/accounting"
+	"ucloud.dk/shared/pkg/log"
+	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/ucx"
 	"ucloud.dk/shared/pkg/ucx/ucxsvc"
@@ -233,6 +236,60 @@ func (s *demoState) uiTree() ucx.UiNode {
 			}),
 		),
 		ucx.TextBound("fnText"),
+
+		ucx.Button("stack", "Create a stack", ucx.ColorPrimaryMain).On(ucx.UiEventClick, func(session *ucx.Session, ev ucx.UiEvent) {
+			stackResp, err := ucxsvc.StackCreate.Invoke(session, ucxsvc.StackCreateRequest{StackName: "kubernetes"})
+			if err != nil {
+				log.Warn("Could not create stack: %s", err)
+				return
+			}
+
+			log.Info("Stack has been created: %#v", stackResp)
+
+			products, err := ucxsvc.JobsRetrieveProducts.Invoke(session, util.Empty{})
+			if err != nil || len(products) == 0 {
+				log.Warn("Could not retrieve products: %s", err)
+				return
+			}
+
+			log.Info("Found products: %#v", products)
+
+			selectedProduct := util.OptNone[accapi.ProductReference]()
+			for _, supp := range products {
+				if supp.Support.VirtualMachine.Enabled && supp.Product.Cpu == 1 {
+					selectedProduct.Set(supp.Product.ToReference())
+				}
+			}
+
+			if !selectedProduct.Present {
+				log.Warn("Could not decide on a product!")
+				return
+			}
+
+			job, err := ucxsvc.JobsCreate.Invoke(session, []orcapi.JobSpecification{
+				{
+					ResourceSpecification: orcapi.ResourceSpecification{
+						Product: selectedProduct.Value,
+						Labels:  stackResp.Labels,
+					},
+					Application: orcapi.NameAndVersion{
+						Name:    "ubuntu-vm2",
+						Version: "24.04b",
+					},
+					Replicas:  1,
+					Hostname:  util.OptValue("controlplane-1"),
+					Name:      "controlplane-1",
+					Resources: stackResp.Mounts,
+				},
+			})
+
+			if err != nil {
+				log.Warn("Could not create job: %s", err)
+				return
+			}
+
+			log.Info("Got job: %#v", job)
+		}),
 	)
 }
 

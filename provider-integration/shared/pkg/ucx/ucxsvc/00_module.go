@@ -91,17 +91,18 @@ type StackCreateRequest struct {
 }
 
 type StackCreateResponse struct {
-	Id     string
-	Labels map[string]string
-	Mounts []orcapi.AppParameterValue
+	InstanceId string
+	Labels     map[string]string
+	Mounts     []orcapi.AppParameterValue
 }
 
 var StackCreate = ucx.Rpc[StackCreateRequest, StackCreateResponse]{CallName: "stackCreate"}
 
 type StackDataWriteRequest struct {
-	Path string
-	Data string
-	Mode int
+	InstanceId string
+	Path       string
+	Data       string
+	Mode       int
 }
 
 var StackDataWrite = ucx.Rpc[StackDataWriteRequest, util.Empty]{CallName: "stackDataWrite"}

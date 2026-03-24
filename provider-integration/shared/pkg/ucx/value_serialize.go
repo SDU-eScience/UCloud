@@ -4,23 +4,36 @@ import (
 	"fmt"
 	"math"
 	"reflect"
+	"strconv"
 	"strings"
 	"unicode"
 
 	"ucloud.dk/shared/pkg/log"
 )
 
-// ValueMarshal serializes a struct into a model map.
+const valueRootKey = ""
+
+// ValueMarshal serializes a value into a model map.
 //
 // Field names default to lowerCamelCase (for example JobName -> jobName).
 // Use `ucx:"name"` to override a key and `ucx:"-"` to ignore a field.
 // Nested structs are flattened using dot notation.
 // Maps are serialized as ValueObject values.
+// Non-struct roots (for example primitives, slices, and arrays) are encoded
+// under the empty-string key.
 func ValueMarshal(input any) (map[string]Value, error) {
 	v := reflect.ValueOf(input)
 	v = derefValue(v)
-	if !v.IsValid() || v.Kind() != reflect.Struct {
-		return nil, fmt.Errorf("ucx: ValueMarshal expects a struct, got %T", input)
+	if !v.IsValid() {
+		return nil, fmt.Errorf("ucx: ValueMarshal expects a non-nil input, got %T", input)
+	}
+
+	if v.Kind() != reflect.Struct {
+		encoded, err := valueFromReflect(v)
+		if err != nil {
+			return nil, err
+		}
+		return map[string]Value{valueRootKey: encoded}, nil
 	}
 
 	out := map[string]Value{}
@@ -39,14 +52,15 @@ func ValueMarshalOrLog(input any) map[string]Value {
 	return result
 }
 
-// ValueUnmarshal deserializes a model map into a struct.
+// ValueUnmarshal deserializes a model map into an output pointer.
 //
 // Top-level keys are expected to use dot notation for nested structs
 // (for example nested.field), matching ValueMarshal output.
+// Non-struct roots are expected under the empty-string key.
 func ValueUnmarshal(input map[string]Value, output any) error {
 	v := reflect.ValueOf(output)
 	if !v.IsValid() || v.Kind() != reflect.Pointer || v.IsNil() {
-		return fmt.Errorf("ucx: ValueUnmarshal expects a non-nil pointer to struct, got %T", output)
+		return fmt.Errorf("ucx: ValueUnmarshal expects a non-nil pointer, got %T", output)
 	}
 
 	for v.Kind() == reflect.Pointer {
@@ -56,15 +70,30 @@ func ValueUnmarshal(input map[string]Value, output any) error {
 		v = v.Elem()
 	}
 
-	if !v.IsValid() || v.Kind() != reflect.Struct {
-		return fmt.Errorf("ucx: ValueUnmarshal expects a pointer to struct, got %T", output)
+	if !v.IsValid() {
+		return fmt.Errorf("ucx: ValueUnmarshal expects a pointer target, got %T", output)
 	}
 
 	if input == nil {
 		return nil
 	}
 
-	return populateStructFromFlatModel(input, "", v)
+	if v.Kind() == reflect.Struct {
+		return populateStructFromFlatModel(input, "", v)
+	}
+
+	raw, ok := input[valueRootKey]
+	if !ok {
+		return fmt.Errorf("ucx: ValueUnmarshal expects key %q for non-struct target %T", valueRootKey, output)
+	}
+
+	decoded, err := valueToReflect(raw, v.Type())
+	if err != nil {
+		return err
+	}
+
+	v.Set(decoded)
+	return nil
 }
 
 // ApplyModelInput applies a partial model input update to a struct.
@@ -276,19 +305,21 @@ func valueToReflect(input Value, targetType reflect.Type) (reflect.Value, error)
 		return result, nil
 
 	case reflect.Map:
-		if targetType.Key().Kind() != reflect.String {
-			return reflect.Value{}, fmt.Errorf("unsupported map key type %s", targetType.Key())
-		}
 		if input.Kind != ValueObject {
 			return reflect.Value{}, fmt.Errorf("expected object, got %v", input.Kind)
 		}
 		result := reflect.MakeMapWithSize(targetType, len(input.Object))
 		for k, item := range input.Object {
+			decodedKey, err := mapStringToReflectKey(k, targetType.Key())
+			if err != nil {
+				return reflect.Value{}, fmt.Errorf("map key %q: %w", k, err)
+			}
+
 			decoded, err := valueToReflect(item, targetType.Elem())
 			if err != nil {
 				return reflect.Value{}, fmt.Errorf("map key %q: %w", k, err)
 			}
-			result.SetMapIndex(reflect.ValueOf(k), decoded)
+			result.SetMapIndex(decodedKey, decoded)
 		}
 		return result, nil
 
@@ -465,19 +496,21 @@ func valueFromReflect(v reflect.Value) (Value, error) {
 		return VList(result), nil
 
 	case reflect.Map:
-		if v.Type().Key().Kind() != reflect.String {
-			return Value{}, fmt.Errorf("unsupported map key type %s", v.Type().Key())
-		}
 		if v.IsNil() {
 			return VObject(nil), nil
 		}
 		result := map[string]Value{}
 		for _, k := range v.MapKeys() {
+			encodedKey, err := mapReflectKeyToString(k)
+			if err != nil {
+				return Value{}, err
+			}
+
 			it, err := valueFromReflectInContainer(v.MapIndex(k))
 			if err != nil {
 				return Value{}, err
 			}
-			result[k.String()] = it
+			result[encodedKey] = it
 		}
 		return VObject(result), nil
 
@@ -525,6 +558,65 @@ func valueFromReflectInContainer(v reflect.Value) (Value, error) {
 		return VNull(), nil
 	}
 	return valueFromReflect(v)
+}
+
+func mapReflectKeyToString(key reflect.Value) (string, error) {
+	key = derefValue(key)
+	if !key.IsValid() {
+		return "", fmt.Errorf("unsupported map key type <nil>")
+	}
+
+	switch key.Kind() {
+	case reflect.String:
+		return key.String(), nil
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return strconv.FormatInt(key.Int(), 10), nil
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		return strconv.FormatUint(key.Uint(), 10), nil
+	default:
+		return "", fmt.Errorf("unsupported map key type %s", key.Type())
+	}
+}
+
+func mapStringToReflectKey(input string, targetType reflect.Type) (reflect.Value, error) {
+	result := reflect.New(targetType).Elem()
+
+	switch targetType.Kind() {
+	case reflect.String:
+		result.SetString(input)
+		return result, nil
+
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		bitSize := int(targetType.Bits())
+		if bitSize == 0 {
+			bitSize = strconv.IntSize
+		}
+
+		parsed, err := strconv.ParseInt(input, 10, bitSize)
+		if err != nil {
+			return reflect.Value{}, fmt.Errorf("expected decimal integer for %s", targetType)
+		}
+
+		result.SetInt(parsed)
+		return result, nil
+
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		bitSize := int(targetType.Bits())
+		if bitSize == 0 {
+			bitSize = strconv.IntSize
+		}
+
+		parsed, err := strconv.ParseUint(input, 10, bitSize)
+		if err != nil {
+			return reflect.Value{}, fmt.Errorf("expected decimal unsigned integer for %s", targetType)
+		}
+
+		result.SetUint(parsed)
+		return result, nil
+
+	default:
+		return reflect.Value{}, fmt.Errorf("unsupported map key type %s", targetType)
+	}
 }
 
 func parseUcxFieldTag(tag string, fieldName string) (name string, omitEmpty bool, skip bool) {

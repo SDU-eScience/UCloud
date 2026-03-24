@@ -93,3 +93,50 @@ func TestInvokeRpcMatchesResponseAsynchronously(t *testing.T) {
 		t.Fatalf("unexpected rpc result: %#v", result)
 	}
 }
+
+func TestRpcInvokeSupportsBareArrayPayloads(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	outgoing := make(chan Frame, 16)
+	incoming := make(chan Frame, 16)
+	session := NewSessionWithContext(ctx, outgoing, incoming)
+
+	rpc := Rpc[[]string, []string]{CallName: "echo.list"}
+
+	go func() {
+		request := <-outgoing
+		if request.Opcode != OpRpcRequest {
+			return
+		}
+
+		payload, ok := request.RpcPayload[""]
+		if !ok {
+			incoming <- Frame{
+				Seq:        701,
+				ReplyToSeq: request.Seq,
+				Opcode:     OpRpcResponse,
+				RpcStatus:  RpcStatusBadRequest,
+				RpcPayload: map[string]Value{"error": VString("missing root payload")},
+			}
+			return
+		}
+
+		incoming <- Frame{
+			Seq:        701,
+			ReplyToSeq: request.Seq,
+			Opcode:     OpRpcResponse,
+			RpcStatus:  RpcStatusOk,
+			RpcPayload: map[string]Value{"": payload},
+		}
+	}()
+
+	result, err := RpcInvoke(ctx, session, rpc, []string{"a", "b"})
+	if err != nil {
+		t.Fatalf("invoke rpc failed: %v", err)
+	}
+
+	if len(result) != 2 || result[0] != "a" || result[1] != "b" {
+		t.Fatalf("unexpected rpc result: %#v", result)
+	}
+}

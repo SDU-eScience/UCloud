@@ -94,6 +94,39 @@ func TestStructToModelFlattensStructsAndKeepsMapsAsObjects(t *testing.T) {
 	}
 }
 
+func TestStructToModelSerializesIntegerKeyMapsAsDecimalStrings(t *testing.T) {
+	type model struct {
+		ByIndex map[int]string
+	}
+
+	input := model{
+		ByIndex: map[int]string{
+			-2: "neg",
+			7:  "pos",
+		},
+	}
+
+	got, err := StructToModel(input)
+	if err != nil {
+		t.Fatalf("StructToModel returned error: %v", err)
+	}
+
+	byIndex, ok := got["byIndex"]
+	if !ok {
+		t.Fatalf("missing key: byIndex")
+	}
+	if byIndex.Kind != ValueObject {
+		t.Fatalf("byIndex kind: got %v want %v", byIndex.Kind, ValueObject)
+	}
+
+	if !ValuesEqual(byIndex.Object["-2"], VString("neg")) {
+		t.Fatalf("unexpected byIndex[-2]: %#v", byIndex.Object["-2"])
+	}
+	if !ValuesEqual(byIndex.Object["7"], VString("pos")) {
+		t.Fatalf("unexpected byIndex[7]: %#v", byIndex.Object["7"])
+	}
+}
+
 func TestStructToModelSerializesListsOfStructsAsObjects(t *testing.T) {
 	type todoItem struct {
 		Id   string
@@ -225,6 +258,38 @@ func TestModelToStructDeserializesContainers(t *testing.T) {
 	}
 }
 
+func TestModelToStructDeserializesIntegerKeyMapsFromDecimalStrings(t *testing.T) {
+	type model struct {
+		ByIndex map[int]string
+		ByPort  map[uint16]bool
+	}
+
+	input := map[string]Value{
+		"byIndex": VObject(map[string]Value{
+			"-2": VString("neg"),
+			"7":  VString("pos"),
+		}),
+		"byPort": VObject(map[string]Value{
+			"443": VBool(true),
+		}),
+	}
+
+	var out model
+	if err := ModelToStruct(input, &out); err != nil {
+		t.Fatalf("ModelToStruct returned error: %v", err)
+	}
+
+	if got := out.ByIndex[-2]; got != "neg" {
+		t.Fatalf("unexpected byIndex[-2]: got %q want %q", got, "neg")
+	}
+	if got := out.ByIndex[7]; got != "pos" {
+		t.Fatalf("unexpected byIndex[7]: got %q want %q", got, "pos")
+	}
+	if got := out.ByPort[443]; !got {
+		t.Fatalf("unexpected byPort[443]: got %v want true", got)
+	}
+}
+
 func TestApplyModelInputIsPartialAndLeavesOtherFieldsUntouched(t *testing.T) {
 	type model struct {
 		JobName string
@@ -287,5 +352,42 @@ func TestApplyModelInputDeserializesSliceOfStructs(t *testing.T) {
 	}
 	if state.Todos[1].Id != "2" || state.Todos[1].Text != "second" {
 		t.Fatalf("unexpected second todo: %#v", state.Todos[1])
+	}
+}
+
+func TestValueMarshalSupportsBarePrimitiveAndArrayRoots(t *testing.T) {
+	primitive, err := ValueMarshal("hello")
+	if err != nil {
+		t.Fatalf("ValueMarshal primitive returned error: %v", err)
+	}
+	if !ValuesEqual(primitive[""], VString("hello")) {
+		t.Fatalf("unexpected primitive payload: %#v", primitive[""])
+	}
+
+	array, err := ValueMarshal([2]int{7, 9})
+	if err != nil {
+		t.Fatalf("ValueMarshal array returned error: %v", err)
+	}
+	wantArray := VList([]Value{VS64(7), VS64(9)})
+	if !ValuesEqual(array[""], wantArray) {
+		t.Fatalf("unexpected array payload: got %#v want %#v", array[""], wantArray)
+	}
+}
+
+func TestValueUnmarshalSupportsBarePrimitiveAndArrayRoots(t *testing.T) {
+	var primitive int64
+	if err := ValueUnmarshal(map[string]Value{"": VS64(42)}, &primitive); err != nil {
+		t.Fatalf("ValueUnmarshal primitive returned error: %v", err)
+	}
+	if primitive != 42 {
+		t.Fatalf("unexpected primitive value: got %d want %d", primitive, 42)
+	}
+
+	var array [3]string
+	if err := ValueUnmarshal(map[string]Value{"": VList([]Value{VString("a"), VString("b"), VString("c")})}, &array); err != nil {
+		t.Fatalf("ValueUnmarshal array returned error: %v", err)
+	}
+	if array != [3]string{"a", "b", "c"} {
+		t.Fatalf("unexpected array value: got %#v", array)
 	}
 }

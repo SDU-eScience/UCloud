@@ -4,13 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
 
 	ws "github.com/gorilla/websocket"
+	"golang.org/x/sys/unix"
 	"ucloud.dk/gonja/v2/exec"
 	ctrl "ucloud.dk/pkg/controller"
+	"ucloud.dk/pkg/integrations/k8s/filesystem"
 	"ucloud.dk/pkg/integrations/k8s/shared"
 	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
@@ -72,6 +75,84 @@ func ucxOnConnect(conn *ws.Conn) {
 			UpstreamToken:    "",
 			UpstreamSysHello: downstreamSysHello,
 		}
+	})
+
+	ucxsvc.StackCreate.HandlerProxy(proxy, func(ctx context.Context, request ucxsvc.StackCreateRequest) (ucxsvc.StackCreateResponse, error) {
+		if err := util.ValidateStringE(&request.StackName, "stackName", 0); err != nil {
+			return ucxsvc.StackCreateResponse{}, err.AsError()
+		}
+
+		instanceId := util.SecureToken()
+
+		internalPathMemberFiles, drive, err := filesystem.InitializeMemberFiles(info.Owner.CreatedBy, info.Owner.Project)
+		if err != nil {
+			return ucxsvc.StackCreateResponse{}, err.AsError()
+		}
+
+		instanceFolder := filepath.Join(internalPathMemberFiles, "Jobs", "Stacks", instanceId)
+		err = filesystem.DoCreateFolder(instanceFolder)
+		if err != nil {
+			return ucxsvc.StackCreateResponse{}, err.AsError()
+		}
+
+		ucloudPath, ok := filesystem.InternalToUCloudWithDrive(drive, instanceFolder)
+		if !ok {
+			return ucxsvc.StackCreateResponse{}, fmt.Errorf("internal error")
+		}
+
+		return ucxsvc.StackCreateResponse{
+			InstanceId: instanceId,
+			Labels: map[string]string{
+				"ucloud.dk/stackname":     request.StackName,
+				"ucloud.dk/stackinstance": instanceId,
+			},
+			Mounts: []orcapi.AppParameterValue{
+				orcapi.AppParameterValueFile(ucloudPath, false),
+			},
+		}, nil
+	})
+
+	ucxsvc.StackDataWrite.HandlerProxy(proxy, func(ctx context.Context, request ucxsvc.StackDataWriteRequest) (util.Empty, error) {
+		if len(request.Data) >= 1024*64 {
+			return util.Empty{}, fmt.Errorf("input data is too large")
+		}
+
+		internalPathMemberFiles, _, err := filesystem.InitializeMemberFiles(info.Owner.CreatedBy, info.Owner.Project)
+		if err != nil {
+			return util.Empty{}, err.AsError()
+		}
+
+		requestedPath := filepath.Join(internalPathMemberFiles, "Jobs", "Stacks", request.InstanceId)
+		err = filesystem.DoCreateFolder(requestedPath)
+		if err != nil {
+			return util.Empty{}, err.AsError()
+		}
+
+		pathComponents := util.Components(request.Path)
+		for _, comp := range pathComponents {
+			if comp != "." && comp != ".." {
+				requestedPath = filepath.Join(requestedPath, comp)
+			}
+		}
+
+		parentPath := util.Parent(requestedPath)
+		if err = filesystem.DoCreateFolder(parentPath); err != nil {
+			return util.Empty{}, err.AsError()
+		}
+
+		file, ok := filesystem.OpenFile(requestedPath, request.Mode, unix.O_CREAT|unix.O_WRONLY|unix.O_TRUNC)
+		if !ok {
+			return util.Empty{}, fmt.Errorf("unable to write data")
+		}
+
+		defer util.SilentClose(file)
+
+		_, gerr := file.WriteString(request.Data)
+		if gerr != nil {
+			return util.Empty{}, fmt.Errorf("unable to write data: %s", gerr)
+		}
+
+		return util.Empty{}, nil
 	})
 
 	ucxsvc.IM.HandlerProxy(proxy, func(ctx context.Context, request ucxsvc.Message) (ucxsvc.Message, error) {

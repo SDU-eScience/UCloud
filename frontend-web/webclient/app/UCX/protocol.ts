@@ -37,6 +37,8 @@ export type Value =
 
 export type PlainValue = null | boolean | number | string | PlainValue[] | { [key: string]: PlainValue };
 
+const valueRootKey = "";
+
 export interface UiNode {
     id: string;
     component: string;
@@ -487,4 +489,23 @@ export function plainMapToValue(input: Record<string, PlainValue>): Record<strin
         result[key] = plainToValue(value);
     }
     return result;
+}
+
+export function plainPayloadToValueMap(input: PlainValue): Record<string, Value> {
+    if (input !== null && typeof input === "object" && !Array.isArray(input)) {
+        return plainMapToValue(input as Record<string, PlainValue>);
+    }
+
+    return {
+        [valueRootKey]: plainToValue(input),
+    };
+}
+
+export function valueMapToPlainPayload(input: Record<string, Value>): PlainValue {
+    const keys = Object.keys(input);
+    if (keys.length === 1 && keys[0] === valueRootKey) {
+        return valueToPlain(input[valueRootKey]);
+    }
+
+    return valueMapToPlain(input);
 }
