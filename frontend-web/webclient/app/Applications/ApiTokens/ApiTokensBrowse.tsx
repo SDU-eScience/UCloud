@@ -16,6 +16,7 @@ import {SimpleAvatarComponentCache} from "@/Files/Shares";
 import {divText} from "@/Utilities/HTMLUtilities";
 import {TruncateClass} from "@/ui-components/Truncate";
 import {copyToClipboard} from "@/UtilityFunctions";
+import {sendInformationNotification} from "@/Notifications";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -191,10 +192,8 @@ function retrieveOperations(): Operation<Api.ApiToken, StandardCallbacks<Api.Api
         text: "Copy server URL",
         enabled: (selected) => selected.length === 1 && !!selected[0].status.server?.trim(),
         onClick: ([selected]) => {
-            copyToClipboard({
-                value: selected.status.server,
-                message: "Server URL copied to clipboard"
-            });
+            copyToClipboard(selected.status.server);
+            sendInformationNotification("Server URL copied to clipboard");
         },
         shortcut: ShortcutKey.C,
     },
