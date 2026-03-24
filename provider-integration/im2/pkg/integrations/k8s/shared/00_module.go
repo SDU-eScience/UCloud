@@ -33,7 +33,7 @@ func Init() {
 	)
 
 	BatchBackgroundJobs = NewResourceTracker[*batchv1.Job](
-		"",
+		ServiceConfig.Compute.TaskNamespace,
 		func(factory informers.SharedInformerFactory) cache.SharedIndexInformer {
 			return factory.Batch().V1().Jobs().Informer()
 		},

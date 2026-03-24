@@ -7,7 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -74,9 +74,8 @@ func task2ProcessCopy(spec TaskSpec) *util.HttpError {
 	}
 
 	title := util.OptValue(fmt.Sprintf(
-		"Copying %s to %s",
-		util.FileName(sourcePath),
-		util.FileName(filepath.Dir(destPath)),
+		"Copying %s",
+		strings.ReplaceAll(util.FileName(sourcePath), "-0", ""),
 	))
 
 	taskProcessorPostUpdate(fnd.TaskStatus{
@@ -250,10 +249,6 @@ outer:
 			if workersDone.Load() {
 				break outer
 			}
-
-			if taskProcessorIsCancelled() {
-				cancel()
-			}
 		}
 	}
 
@@ -273,10 +268,6 @@ outer:
 		return util.HttpErr(http.StatusInternalServerError, "copy finished with %d failed entries", encounteredErrors)
 	}
 
-	if taskProcessorIsCancelled() {
-		return util.HttpErr(http.StatusRequestTimeout, "task was cancelled")
-	}
-
 	return nil
 }
 
@@ -285,7 +276,7 @@ func copyFiles(actor rpc.Actor, request orc.FilesProviderMoveOrCopyRequest) *uti
 		return util.ServerHttpError("Some of these files cannot be used together. One or more are sensitive.")
 	}
 
-	_, ok1, _ := UCloudToInternal(request.OldId)
+	sourceInternalPath, ok1, _ := UCloudToInternal(request.OldId)
 	destPath, ok2, destDrive := UCloudToInternal(request.NewId)
 	if !ok1 || !ok2 {
 		return &util.HttpError{
@@ -294,18 +285,37 @@ func copyFiles(actor rpc.Actor, request orc.FilesProviderMoveOrCopyRequest) *uti
 		}
 	}
 
+	sourceMount := request.OldId
+	sourceFd, ok := OpenFile(sourceInternalPath, 0, 0)
+	if !ok {
+		return util.HttpErr(http.StatusNotFound, "unknown source file")
+	}
+	defer util.SilentClose(sourceFd)
+	sourceInfo, err := sourceFd.Stat()
+	if err == nil && !sourceInfo.IsDir() {
+		sourceParent := util.Parent(request.OldId)
+		if sourceParent != "/" {
+			sourceMount = sourceParent
+		}
+	}
+
+	destMount := request.NewId
+	if util.Parent(request.NewId) != "/" {
+		destMount = util.Parent(request.NewId)
+	}
+
 	if ctrl.ResourceIsLocked(destDrive.Resource, request.ResolvedNewCollection.Specification.Product) {
 		return util.PaymentError()
 	}
 
 	task := TaskSpec{
-		Type:           TaskSpecTypeCopy,
+		Type:           TaskTypeCopy,
 		Source:         request.OldId,
 		Destination:    request.NewId,
 		ConflictPolicy: string(request.ConflictPolicy),
 		Mounts: []TaskMount{
-			{UCloudPath: request.OldId},
-			{UCloudPath: request.NewId},
+			{UCloudPath: sourceMount},
+			{UCloudPath: destMount},
 		},
 	}
 	task.CreationState.Username = actor.Username

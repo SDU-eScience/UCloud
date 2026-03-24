@@ -37,7 +37,6 @@ import {ProductSelector} from "@/Products/Selector";
 import {Box, Button, ExternalLink, Flex, Label, Text} from "@/ui-components";
 import {FirewallTable, parseAndValidatePorts} from "./FirewallEditor";
 import {compute, FindByStringId} from "@/UCloud";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {slimModalStyle} from "@/Utilities/ModalUtilities";
 import {useEffect} from "react";
 import {injectStyle} from "@/Unstyled";
@@ -49,6 +48,7 @@ import {PermissionsTable} from "@/Resource/PermissionEditor";
 import {useProject} from "@/Project/cache";
 import Routes from "@/Routes";
 import {useProjectId} from "@/Project/Api";
+import {sendFailureNotification} from "@/Notifications";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -312,7 +312,7 @@ export function NetworkIPBrowse({
                                                 dialogStore.success();
                                                 browser.refresh();
                                             } catch (e) {
-                                                snackbarStore.addFailure("Failed to activate public IP. " + extractErrorMessage(e), false);
+                                                sendFailureNotification("Failed to activate public IP. " + extractErrorMessage(e));
                                                 browser.refresh();
                                                 return;
                                             }

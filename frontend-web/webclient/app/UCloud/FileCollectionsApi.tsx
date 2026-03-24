@@ -21,7 +21,8 @@ import {dialogStore} from "@/Dialog/DialogStore";
 import * as Heading from "@/ui-components/Heading";
 import Warning from "@/ui-components/Warning";
 import {doNothing} from "@/UtilityFunctions";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {sendFailureNotification} from "@/Notifications";
+
 
 export type FileCollection = Resource<FileCollectionUpdate, FileCollectionStatus, FileCollectionSpecification>;
 
@@ -218,7 +219,7 @@ class FileCollectionsApi extends ResourceApi<FileCollection, ProductStorage, Fil
                                     ev.stopPropagation();
                                     const written = (document.querySelector("#collectionName") as HTMLInputElement).value;
                                     if (written !== requiredText) {
-                                        snackbarStore.addFailure(`Please type '${requiredText}' to confirm.`, false);
+                                        sendFailureNotification(`Please type '${requiredText}' to confirm.`);
                                     } else {
                                         if (singleDrive && selected.length !== 1) {
                                             console.log("Something went wrong. Cancelling deletion to ensure correctness.")

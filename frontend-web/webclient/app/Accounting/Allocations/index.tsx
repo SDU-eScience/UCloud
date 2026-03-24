@@ -19,7 +19,6 @@ import {
 } from "@/Accounting";
 import {useProjectId} from "@/Project/Api";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
-import {callAPIWithErrorHandler} from "@/Authentication/DataHook";
 import AppRoutes from "@/Routes";
 import {
     bulkRequestOf,
@@ -30,7 +29,6 @@ import {useNavigate} from "react-router-dom";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {useAvatars} from "@/AvataaarLib/hook";
 import {TreeApi} from "@/ui-components/Tree";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {dialogStore} from "@/Dialog/DialogStore";
 import * as Heading from "@/ui-components/Heading";
 import {checkCanConsumeResources} from "@/ui-components/ResourceBrowser";
@@ -45,9 +43,10 @@ import {
     YourAllocations,
     SubProjectList,
     resetOpenNodes,
-    SubProjectAllocations
+    KeyMetrics
 } from "./CommonSections";
 import {projectInfoPi, useProjectInfos} from "@/Project/InfoCache";
+import {sendFailureNotification, sendNotification, SnackType} from "@/Notifications";
 
 // Styling
 // =====================================================================================================================
@@ -96,6 +95,7 @@ const Allocations: React.FunctionComponent = () => {
     const searchBox = useRef<HTMLInputElement>(null);
     const projectState = useProject();
     const projectRole = projectState.fetch().status.myRole ?? OldProjectRole.USER;
+    const reports = state.remoteData.reports ?? [];
 
     usePage("Allocations", SidebarTabId.PROJECT);
 
@@ -188,7 +188,7 @@ const Allocations: React.FunctionComponent = () => {
                 const name = document.querySelector<HTMLInputElement>("#subproject-name");
                 if (!name) return;
                 if (!name.value) {
-                    snackbarStore.addFailure("Missing name", false);
+                    sendFailureNotification("Missing name");
                     return;
                 }
 
@@ -316,7 +316,9 @@ const Allocations: React.FunctionComponent = () => {
             {/*<ResourcesGranted state={state} allocationTree={allocationTree} sortedAllocations={sortedAllocations}*/}
             {/*                  indent={indent} avatars={avatars}/>*/}
 
-            <SubProjectAllocations allocations={sortedAllocations} indent={indent} />
+            {/*
+                <KeyMetrics allocations={sortedAllocations} indent={indent} reports={reports} state={state} />
+            */}
 
             <SubProjectList
                 projectId={projectId} onNewSubProject={onNewSubProject} projectRole={projectRole}

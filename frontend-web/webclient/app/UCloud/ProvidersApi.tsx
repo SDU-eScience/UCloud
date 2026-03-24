@@ -145,7 +145,7 @@ class ProviderApi extends ResourceApi<Provider, Product, ProviderSpecification, 
                     cb.viewProperties!(selected[0]);
                 },
                 tag: PROPERTIES_TAG,
-                shortcut: ShortcutKey.P
+                shortcut: ShortcutKey.O
             }
         ];
     }

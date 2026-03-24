@@ -11,6 +11,7 @@ import (
 	cfg "ucloud.dk/core/pkg/config"
 	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
@@ -77,10 +78,6 @@ func ApiTokenCreate(actor rpc.Actor, request orcapi.ApiTokenSpecification) (orca
 	util.ValidateString(&request.Description, "description", util.StringValidationAllowEmpty, &err)
 	util.ValidateStringIfPresent(&request.Provider, "provider", 0, &err)
 
-	if err == nil && request.Provider.Present {
-		err = util.HttpErr(http.StatusForbidden, "not yet implemented")
-	}
-
 	if err == nil && request.ExpiresAt.Time().Before(time.Now()) {
 		err = util.HttpErr(http.StatusBadRequest, "requested token has already expired")
 	}
@@ -118,28 +115,62 @@ func ApiTokenCreate(actor rpc.Actor, request orcapi.ApiTokenSpecification) (orca
 		return orcapi.ApiToken{}, err
 	}
 
-	userToken := util.SecureToken()
-	hashedToken := util.HashPassword(userToken, util.GenSalt())
-
 	itok := &internalApiToken{
 		Provider:    request.Provider,
 		Title:       request.Title,
 		Description: request.Description,
 		Permissions: request.RequestedPermissions,
 		ExpiresAt:   request.ExpiresAt.Time(),
-		TokenHash:   hashedToken.HashedPassword,
-		TokenSalt:   hashedToken.Salt,
 	}
 
-	tokId, tok, err := ResourceCreate[orcapi.ApiToken](actor, apiTokenType, orcapi.ResourceSpecification{}, itok)
-	if err != nil {
-		return orcapi.ApiToken{}, err
+	var tokId ResourceId
+	var tok orcapi.ApiToken
+	var userToken string
+
+	if request.Provider.Present {
+		tokId, tok, err = ResourceCreate[orcapi.ApiToken](actor, apiTokenType, orcapi.ResourceSpecification{}, itok)
+		if err != nil {
+			return orcapi.ApiToken{}, err
+		}
+
+		status, err := InvokeProvider(request.Provider.Value, orcapi.ApiTokenProviderCreate, tok, ProviderCallOpts{
+			Username: util.OptValue(actor.Username),
+		})
+
+		if err != nil {
+			ResourceDelete(actor, apiTokenType, tokId)
+			return orcapi.ApiToken{}, err
+		}
+
+		tok.Status = status
+		ResourceConfirm(apiTokenType, tokId)
+
+		ResourceUpdate(rpc.ActorSystem, apiTokenType, tokId, orcapi.PermissionEdit, func(r *resource, mapped orcapi.ApiToken) {
+			itok := r.Extra.(*internalApiToken)
+			itok.Server = status.Server
+		})
+
+		if status.Server == "" {
+			log.Warn("Provider returned empty token server: provider=%s tokenId=%s", request.Provider.Value, tokId)
+		}
+
+	} else {
+		userToken = util.SecureToken()
+		hashedToken := util.HashPassword(userToken, util.GenSalt())
+
+		itok.TokenHash = hashedToken.HashedPassword
+		itok.TokenSalt = hashedToken.Salt
+
+		tokId, tok, err = ResourceCreate[orcapi.ApiToken](actor, apiTokenType, orcapi.ResourceSpecification{}, itok)
+		if err != nil {
+			return orcapi.ApiToken{}, err
+		}
+
+		ResourceConfirm(apiTokenType, tokId)
+
+		userTokenToUse := fmt.Sprintf("uc%x-%s", int(tokId), userToken)
+		tok.Status.Token.Set(userTokenToUse)
 	}
-
-	ResourceConfirm(apiTokenType, tokId)
-
-	userTokenToUse := fmt.Sprintf("uc%x-%s", int(tokId), userToken)
-	tok.Status.Token.Set(userTokenToUse)
 
 	return tok, nil
 }
@@ -160,50 +191,85 @@ func ApiTokenBrowse(actor rpc.Actor, request orcapi.ApiTokenBrowseRequest) (fnda
 	), nil
 }
 
-func ApiTokenRetrieveOptions(actor rpc.Actor) orcapi.ApiTokenRetrieveOptionsResponse {
-	if util.DevelopmentModeEnabled() {
-		return orcapi.ApiTokenRetrieveOptionsResponse{
-			ByProvider: map[string]orcapi.ApiTokenOptions{
-				"": {
-					AvailablePermissions: []orcapi.ApiTokenPermissionSpecification{
-						{
-							Name:        "drives",
-							Title:       "Drives",
-							Description: "Permission required to read and manage drives and files",
-							Actions: map[string]string{
-								"read":  "Read only",
-								"write": "Read-write access",
-							},
-						},
-					},
-				},
+var ApiTokensOptionsCache = util.NewCache[string, orcapi.ApiTokenOptions](5 * time.Minute)
 
-				"ucloud": {
-					AvailablePermissions: []orcapi.ApiTokenPermissionSpecification{
-						{
-							Name:        "inference",
-							Title:       "Inference",
-							Description: "API token required for inference services",
-							Actions: map[string]string{
-								"use": "Use",
-							},
-						},
+func ApiTokenRetrieveOptions(actor rpc.Actor) orcapi.ApiTokenRetrieveOptionsResponse {
+	providers, err := accapi.FindRelevantProviders.Invoke(fndapi.BulkRequestOf(accapi.FindRelevantProvidersRequest{
+		Username:         actor.Username,
+		IncludeFreeToUse: util.OptValue(false),
+		UseProject:       false,
+	}))
+
+	optionsByProvider := map[string]orcapi.ApiTokenOptions{}
+	if err == nil {
+		for _, providerId := range providers.Responses[0].Providers {
+			if providerId == "" {
+				continue
+			}
+
+			options, ok := ApiTokensOptionsCache.Get(providerId, func() (orcapi.ApiTokenOptions, error) {
+				resp, err := InvokeProvider(
+					providerId,
+					orcapi.ApiTokenProviderRetrieveOptions,
+					util.Empty{},
+					ProviderCallOpts{
+						Username: util.OptValue(actor.Username),
+						Reason:   util.OptValue("Retrieving API token options"),
 					},
-				},
-			},
-		}
-	} else {
-		return orcapi.ApiTokenRetrieveOptionsResponse{
-			ByProvider: map[string]orcapi.ApiTokenOptions{
-				"": {
-					AvailablePermissions: []orcapi.ApiTokenPermissionSpecification{},
-				},
-			},
+				)
+				if err != nil {
+					return orcapi.ApiTokenOptions{}, err.AsError()
+				} else {
+					return resp, nil
+				}
+			})
+
+			if !ok {
+				log.Warn("No API Token options found for provider %s", providerId)
+				continue
+			}
+
+			options.AvailablePermissions = util.NonNilSlice(options.AvailablePermissions)
+			optionsByProvider[providerId] = options
 		}
 	}
+
+	optionsByProvider[""] = orcapi.ApiTokenOptions{}
+
+	return orcapi.ApiTokenRetrieveOptionsResponse{ByProvider: optionsByProvider}
 }
 
 func ApiTokenRevoke(actor rpc.Actor, id ResourceId) *util.HttpError {
+	tok, _, _, err := ResourceRetrieveEx[orcapi.ApiToken](
+		actor,
+		apiTokenType,
+		id,
+		orcapi.PermissionEdit,
+		orcapi.ResourceFlags{},
+	)
+	if err != nil {
+		return err
+	}
+
+	if tok.Specification.Provider.Present {
+		provider := tok.Specification.Provider.Value
+		log.Info("Revoking API token through provider: provider=%s tokenId=%s user=%s", provider, tok.Id, actor.Username)
+
+		_, err := InvokeProvider(
+			provider,
+			orcapi.ApiTokenProviderRevoke,
+			fndapi.FindByStringId{Id: tok.Id},
+			ProviderCallOpts{
+				Username: util.OptValue(actor.Username),
+				Reason:   util.OptValue("Deleting resource: " + apiTokenType),
+			},
+		)
+		if err != nil {
+			log.Warn("Provider API token revoke failed: provider=%s tokenId=%s user=%s err=%v", provider, tok.Id, actor.Username, err)
+			return err
+		}
+	}
+
 	ok := ResourceDelete(actor, apiTokenType, id)
 	if !ok {
 		return util.HttpErr(http.StatusNotFound, "permission denied or unknown token specified")
@@ -219,6 +285,7 @@ type internalApiToken struct {
 	ExpiresAt   time.Time
 	TokenHash   []byte
 	TokenSalt   []byte
+	Server      string
 }
 
 // =====================================================================================================================
@@ -229,6 +296,7 @@ func apiTokensLoad(tx *db.Transaction, ids []int64, resources map[ResourceId]*re
 		Title       string
 		Description string
 		Provider    sql.Null[string]
+		Server      sql.Null[string]
 		Permissions string
 		TokenHash   sql.Null[[]byte]
 		TokenSalt   sql.Null[[]byte]
@@ -236,7 +304,7 @@ func apiTokensLoad(tx *db.Transaction, ids []int64, resources map[ResourceId]*re
 	}](
 		tx,
 		`
-			select resource, title, description, provider, permissions, token_hash, token_salt, expires_at
+			select resource, title, description, provider, server, permissions, token_hash, token_salt, expires_at
 			from provider.api_tokens
 			where resource = some(:ids::int8[])
 	    `,
@@ -253,6 +321,7 @@ func apiTokensLoad(tx *db.Transaction, ids []int64, resources map[ResourceId]*re
 			Provider:    util.SqlNullToOpt(row.Provider),
 			Title:       row.Title,
 			Description: row.Description,
+			Server:      util.SqlNullToOpt(row.Server).GetOrDefault(""),
 			Permissions: permissions,
 			ExpiresAt:   row.ExpiresAt,
 			TokenHash:   util.SqlNullToOpt(row.TokenHash).GetOrDefault(nil),
@@ -276,7 +345,7 @@ func apiTokensTransform(
 	if !tok.Provider.Present {
 		server = cfg.Configuration.SelfPublic.ToURL()
 	} else {
-		// TODO
+		server = tok.Server
 	}
 
 	return orcapi.ApiToken{
@@ -318,8 +387,17 @@ func apiTokensPersist(b *db.Batch, r *resource) {
 		db.BatchExec(
 			b,
 			`
-				insert into provider.api_tokens(resource, title, description, provider, permissions, token_hash, token_salt, expires_at) 
-				values (:resource, :title, :description, :provider, :permissions, :token_hash, :token_salt, :expires_at)
+				insert into provider.api_tokens(resource, title, description, provider, permissions, token_hash, token_salt, expires_at, server) 
+				values (:resource, :title, :description, :provider, :permissions, :token_hash, :token_salt, :expires_at, :server)
+				on conflict (resource) do update set 
+					title = excluded.title,
+					description = excluded.description,
+					provider = excluded.provider,
+					permissions = excluded.permissions,
+					token_hash = excluded.token_hash,
+					token_salt = excluded.token_salt,
+					expires_at = excluded.expires_at,
+					server = excluded.server
 		    `,
 			db.Params{
 				"resource":    r.Id,
@@ -330,6 +408,7 @@ func apiTokensPersist(b *db.Batch, r *resource) {
 				"token_hash":  tokHash.Sql(),
 				"token_salt":  tokSalt.Sql(),
 				"expires_at":  tok.ExpiresAt,
+				"server":      tok.Server,
 			},
 		)
 	}

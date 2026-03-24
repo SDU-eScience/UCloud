@@ -94,8 +94,8 @@ class MetadataNamespaceApi extends ResourceApi<FileMetadataTemplateNamespace, Pr
     templateRenderer: ItemRenderer<FileMetadataTemplate, TemplateCallbacks> = {
         Icon({resource, size}) {
             return <SvgFt width={size} height={size} type={"text"} ext={""}
-                          color={getCssPropertyValue("FtIconColor")} color2={getCssPropertyValue("FtIconColor2")}
-                          hasExt={false} />
+                color={getCssPropertyValue("FtIconColor")} color2={getCssPropertyValue("FtIconColor2")}
+                hasExt={false} />
         },
         MainTitle({resource}) {return !resource ? null : <>{resource.title}</>},
         Stats({resource}) {
@@ -134,7 +134,7 @@ class MetadataNamespaceApi extends ResourceApi<FileMetadataTemplateNamespace, Pr
             onClick: (selected, cb) => {
                 cb.setPreviewing(selected[0]);
             },
-            shortcut: ShortcutKey.P
+            shortcut: ShortcutKey.O
         }
     ];
 

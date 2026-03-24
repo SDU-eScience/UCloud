@@ -47,7 +47,7 @@ func InitFiles() controller.FileService {
 	browseCache = lru.NewLRU[string, []cachedDirEntry](256, nil, 5*time.Minute)
 	loadStorageProducts()
 
-	initTasks2()
+	initTasks()
 	initScanQueue()
 	go func() {
 		for util.IsAlive {
@@ -973,7 +973,7 @@ func transferSourceBegin(request orc.FilesProviderTransferRequestStart, session 
 	}
 
 	spec := TaskSpec{
-		Type:             TaskSpecTypeTransfer,
+		Type:             TaskTypeTransfer,
 		Source:           session.SourcePath,
 		TransferEndpoint: parameters.Endpoint,
 		Mounts: []TaskMount{

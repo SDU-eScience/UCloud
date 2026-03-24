@@ -52,9 +52,8 @@ func InitExecutables() {
 			ProviderHostname = ips[0].String()
 		}
 	} else {
-		if conf.ProviderDns == "" {
-			ProviderHostname = conf.ProviderDns
-			log.Fatal("ProviderDns must be set for production providers!")
+		if ProviderHostname = os.Getenv("UCLOUD_IM_SERVICE_NAME"); ProviderHostname == "" {
+			log.Fatal("UCLOUD_IM_SERVICE_NAME must be set for production providers!")
 		}
 	}
 

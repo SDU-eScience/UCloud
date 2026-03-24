@@ -40,9 +40,13 @@ export class AvatarState extends UState<AvatarState> {
         this.updateCache([username]);
         return this.cache[username] ?? defaultAvatar;
     }
-    
+
     avatarFromCache(username: string): AvatarType {
         return this.cache[username] ?? defaultAvatar;
+    }
+
+    setAvatar(username: string, avatar: AvatarType) {
+        this.cache[username] = avatar;
     }
 }
 

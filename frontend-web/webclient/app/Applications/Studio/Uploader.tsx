@@ -1,10 +1,10 @@
 import * as React from "react";
 import {ButtonClass} from "@/ui-components/Button";
 import {HiddenInputField} from "@/ui-components/Input";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import * as AppStore from "@/Applications/AppStoreApi";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {CSSProperties} from "react";
+import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
 
 export const UploadAppAndTool: React.FunctionComponent<{
     onError: (errorMessage: string | null) => void;
@@ -22,13 +22,13 @@ export const UploadAppAndTool: React.FunctionComponent<{
                         const file = target.files[0];
                         target.value = "";
                         if (file.size > 1024 * 1024 * 5) {
-                            snackbarStore.addFailure("File exceeds 5MB. Not allowed.", false);
+                            sendFailureNotification("File exceeds 5MB. Not allowed.");
                         } else {
                             const error = (await AppStore.create(file)).error;
                             if (error != null) {
                                 props.onError(error);
                             } else {
-                                snackbarStore.addSuccess("Application uploaded successfully", false);
+                                sendSuccessNotification("Application uploaded successfully");
                                 props.onError(null);
                             }
                         }
@@ -50,13 +50,13 @@ export const UploadAppAndTool: React.FunctionComponent<{
                         const file = target.files[0];
                         target.value = "";
                         if (file.size > 1024 * 512) {
-                            snackbarStore.addFailure("File exceeds 512KB. Not allowed.", false);
+                            sendFailureNotification("File exceeds 512KB. Not allowed.");
                         } else {
                             const error = (await AppStore.createTool(file)).error;
                             if (error != null) {
                                 props.onError(error);
                             } else {
-                                snackbarStore.addSuccess("Tool uploaded successfully", false);
+                                sendSuccessNotification("Tool uploaded successfully");
                                 props.onError(null);
                             }
                         }

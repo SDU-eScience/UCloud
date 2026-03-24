@@ -36,4 +36,5 @@ func Init() {
 	db.AddMigration(kubevirtV1())
 	db.AddMigration(privateNetworkDatabaseV1())
 	db.AddMigration(k8sV2())
+	db.AddMigration(inferenceV2())
 }

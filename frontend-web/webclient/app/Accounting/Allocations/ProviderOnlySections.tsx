@@ -10,10 +10,10 @@ import WAYF from "@/Grants/wayf-idps.json";
 import {injectStyle} from "@/Unstyled";
 import {useCallback, useRef} from "react";
 import {removePrefixFrom} from "@/Utilities/TextUtilities";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {callAPI} from "@/Authentication/DataHook";
 import * as Gifts from "@/Accounting/Gifts";
 import {Client} from "@/Authentication/HttpClientInstance";
+import {sendFailureNotification, sendNotification, sendSuccessNotification, SnackType} from "@/Notifications";
 
 const wayfIdpsPairs = WAYF.wayfIdps.map(it => ({value: it, content: it}));
 
@@ -95,7 +95,7 @@ export const ProviderOnlySections: React.FunctionComponent<{
                 const [category, provider] = categoryAndProvider.split("/");
                 const resolvedCategory = products[provider]?.find(it => it.name === category);
                 if (!resolvedCategory) {
-                    snackbarStore.addFailure("Internal failure while creating a root allocation. Try reloading the page!", false);
+                    sendFailureNotification("Internal failure while creating a root allocation. Try reloading the page!");
                     return;
                 }
 
@@ -113,11 +113,11 @@ export const ProviderOnlySections: React.FunctionComponent<{
             }
 
             await callAPI(Accounting.rootAllocate(bulkRequestOf(...requests)));
-            snackbarStore.addSuccess("Root allocation has been created", false);
+            sendSuccessNotification("Root allocation has been created");
             dispatchEvent({type: "ResetRootAllocation"});
             dispatchEvent({type: "Init"});
         } catch (e) {
-            snackbarStore.addFailure("Failed to create root allocation: " + extractErrorMessage(e), false);
+            sendFailureNotification("Failed to create root allocation: " + extractErrorMessage(e));
             return;
         } finally {
             creatingRootAllocation.current = false;
@@ -222,7 +222,7 @@ export const ProviderOnlySections: React.FunctionComponent<{
             const [category, provider] = categoryAndProvider.split("/");
             const resolvedCategory = products[provider]?.find(it => it.name === category);
             if (!resolvedCategory) {
-                snackbarStore.addFailure("Internal failure while creating gift. Try reloading the page!", false);
+                sendFailureNotification("Internal failure while creating gift. Try reloading the page!");
                 return;
             }
             const unit = Accounting.explainUnit(resolvedCategory);
@@ -239,12 +239,12 @@ export const ProviderOnlySections: React.FunctionComponent<{
         }
 
         if (gift.criteria.length === 0) {
-            snackbarStore.addFailure("Missing user criteria. You must define at least one!", false);
+            sendFailureNotification("Missing user criteria. You must define at least one!");
             return;
         }
 
         if (gift.resources.length === 0) {
-            snackbarStore.addFailure("A gift must contain at least one resource!", false);
+            sendFailureNotification("A gift must contain at least one resource!");
             return;
         }
 
@@ -253,9 +253,9 @@ export const ProviderOnlySections: React.FunctionComponent<{
             const {id} = await callAPI(Gifts.create(gift));
             gift.id = id;
             dispatchEvent({type: "GiftCreated", gift});
-            snackbarStore.addSuccess("Gift Created", false);
+            sendSuccessNotification("Gift Created");
         } catch (e) {
-            snackbarStore.addFailure("Failed to create a gift: " + extractErrorMessage(e), false);
+            sendFailureNotification("Failed to create a gift: " + extractErrorMessage(e));
         } finally {
             creatingGift.current = false;
         }
@@ -269,7 +269,7 @@ export const ProviderOnlySections: React.FunctionComponent<{
         try {
             await callAPI(Gifts.remove({giftId: id}));
         } catch (e) {
-            snackbarStore.addFailure("Failed to delete gift: " + extractErrorMessage(e), false);
+            sendFailureNotification("Failed to delete gift: " + extractErrorMessage(e));
             return;
         }
 
@@ -314,7 +314,7 @@ export const ProviderOnlySections: React.FunctionComponent<{
                                 {page.map(cat => <TreeNode
                                     key={cat.name + cat.provider}
                                     left={<Flex gap={"4px"}>
-                                        <Icon name={Accounting.productTypeToIcon(cat.productType)} size={20}/>
+                                        <Icon name={Accounting.productTypeToIcon(cat.productType)} size={20} />
                                         <code>{cat.name} / {cat.provider}</code>
                                     </Flex>}
                                     right={<Flex gap={"4px"}>
@@ -335,7 +335,7 @@ export const ProviderOnlySections: React.FunctionComponent<{
                     <Button my={16} onClick={onCreateRootAllocation}>Create root allocations</Button>
                 </Accordion>
 
-                <Box mt={32}/>
+                <Box mt={32} />
             </>}
 
             {state.gifts && <>
@@ -360,59 +360,59 @@ export const ProviderOnlySections: React.FunctionComponent<{
                             >
                                 <table className={giftClass}>
                                     <tbody>
-                                    <tr>
-                                        <th>Description</th>
-                                        <td>{g.description}</td>
-                                    </tr>
-                                    <tr>
-                                        <th>Criteria</th>
-                                        <td>
-                                            <ul>
-                                                {g.criteria.map(c => {
-                                                    switch (c.type) {
-                                                        case "anyone":
-                                                            return <li key={c.type}>All UCloud users</li>
-                                                        case "wayf":
-                                                            return <li key={c.org + "wayf"}>Users
-                                                                from <i>{c.org}</i></li>
-                                                        case "email":
-                                                            return <li key={c.domain + "email"}>@{c.domain}</li>
-                                                    }
-                                                })}
-                                            </ul>
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <th>Resources</th>
-                                        <td>
-                                            <ul>
-                                                {g.resources.map((r, idx) => {
-                                                    const pc = (state.remoteData.managedProducts ?? {})[r.provider]?.find(it => it.name === r.category);
-                                                    if (!pc) return null;
-                                                    return <li key={idx}>
-                                                        {r.category} / {r.provider}: {Accounting.balanceToString(pc, r.balanceRequested)}
-                                                    </li>
-                                                })}
-                                            </ul>
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <th>Granted</th>
-                                        <td>
-                                            {g.renewEvery == 0 ? "Once" : (g.renewEvery == 1 ? "Every month" : "Every " + g.renewEvery.toString() + " months")}
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <th>Delete</th>
-                                        <td>
-                                            <ConfirmationButton
-                                                actionText={"Delete"}
-                                                icon={"heroTrash"}
-                                                onAction={onDeleteGift}
-                                                actionKey={g.id.toString()}
-                                            />
-                                        </td>
-                                    </tr>
+                                        <tr>
+                                            <th>Description</th>
+                                            <td>{g.description}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Criteria</th>
+                                            <td>
+                                                <ul>
+                                                    {g.criteria.map(c => {
+                                                        switch (c.type) {
+                                                            case "anyone":
+                                                                return <li key={c.type}>All UCloud users</li>
+                                                            case "wayf":
+                                                                return <li key={c.org + "wayf"}>Users
+                                                                    from <i>{c.org}</i></li>
+                                                            case "email":
+                                                                return <li key={c.domain + "email"}>@{c.domain}</li>
+                                                        }
+                                                    })}
+                                                </ul>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th>Resources</th>
+                                            <td>
+                                                <ul>
+                                                    {g.resources.map((r, idx) => {
+                                                        const pc = (state.remoteData.managedProducts ?? {})[r.provider]?.find(it => it.name === r.category);
+                                                        if (!pc) return null;
+                                                        return <li key={idx}>
+                                                            {r.category} / {r.provider}: {Accounting.balanceToString(pc, r.balanceRequested)}
+                                                        </li>
+                                                    })}
+                                                </ul>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th>Granted</th>
+                                            <td>
+                                                {g.renewEvery == 0 ? "Once" : (g.renewEvery == 1 ? "Every month" : "Every " + g.renewEvery.toString() + " months")}
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th>Delete</th>
+                                            <td>
+                                                <ConfirmationButton
+                                                    actionText={"Delete"}
+                                                    icon={"heroTrash"}
+                                                    onAction={onDeleteGift}
+                                                    actionKey={g.id.toString()}
+                                                />
+                                            </td>
+                                        </tr>
                                     </tbody>
                                 </table>
                             </TreeNode>
@@ -424,7 +424,7 @@ export const ProviderOnlySections: React.FunctionComponent<{
                     <form onSubmit={onCreateGift}>
                         <Flex gap={"8px"} flexDirection={"column"}>
                             <Label>
-                                Title <MandatoryField/>
+                                Title <MandatoryField />
                                 <Input
                                     name={"gift-title"}
                                     value={state.gifts.title}
@@ -445,7 +445,7 @@ export const ProviderOnlySections: React.FunctionComponent<{
                                 />
                             </Label>
                             <Label>
-                                Is this gift periodically renewed or a one-time grant? <MandatoryField/>
+                                Is this gift periodically renewed or a one-time grant? <MandatoryField />
                                 <Select
                                     name={"gift-renewal"}
                                     slim
@@ -487,7 +487,7 @@ export const ProviderOnlySections: React.FunctionComponent<{
                                             key={cat.name + cat.provider}
                                             left={<Flex gap={"4px"}>
                                                 <Icon name={Accounting.productTypeToIcon(cat.productType)}
-                                                      size={20}/>
+                                                    size={20} />
                                                 <code>{cat.name} / {cat.provider}</code>
                                             </Flex>}
                                             right={<Flex gap={"4px"}>
@@ -511,7 +511,7 @@ export const ProviderOnlySections: React.FunctionComponent<{
                     </form>
                 </Accordion>
 
-                <Box mt={32}/>
+                <Box mt={32} />
             </>}
         </>}
     </>;

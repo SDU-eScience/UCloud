@@ -23,11 +23,11 @@ import (
 	"ucloud.dk/shared/pkg/util"
 )
 
-type Task2SpecType string
+type TaskType string
 
 const (
-	TaskSpecTypeCopy     Task2SpecType = "copy"
-	TaskSpecTypeTransfer Task2SpecType = "file_transfer"
+	TaskTypeCopy     TaskType = "copy"
+	TaskTypeTransfer TaskType = "file_transfer"
 )
 
 type TaskMount struct {
@@ -35,7 +35,7 @@ type TaskMount struct {
 }
 
 type TaskSpec struct {
-	Type      Task2SpecType
+	Type      TaskType
 	Id        string
 	Mounts    []TaskMount
 	TaskToken string
@@ -74,10 +74,10 @@ func taskGetUCloudTaskIdFromToken(token string) (int, bool) {
 			}](
 				tx,
 				`
-						select ucloud_task_id
-						from k8s.tasks_v2
-						where api_token = :tok
-				    `,
+					select ucloud_task_id
+					from k8s.tasks_v2
+					where api_token = :tok
+				`,
 				db.Params{
 					"tok": token,
 				},
@@ -122,7 +122,7 @@ func taskCleanupByToken(token string) (string, bool) {
 	return "", false
 }
 
-func initTasks2() {
+func initTasks() {
 	taskState.Cache = map[string]int{}
 
 	tasksInternalPostStatus.Handler(func(info rpc.RequestInfo, request tasksInternalPostStatusRequest) (util.Empty, *util.HttpError) {
@@ -150,11 +150,6 @@ func initTasks2() {
 		return util.Empty{}, nil
 	})
 
-	tasksInternalIsCancelled.Handler(func(info rpc.RequestInfo, request fndapi.FindByStringId) (bool, *util.HttpError) {
-		_, ok := taskGetUCloudTaskIdFromToken(request.Id)
-		return ok, nil
-	})
-
 	ctrl.Tasks = ctrl.TaskService{
 		OnCancel: func(id int) *util.HttpError {
 			apiTok, ok := db.NewTx2(func(tx *db.Transaction) (string, bool) {
@@ -179,12 +174,29 @@ func initTasks2() {
 				}
 
 				k8sErr := shared.K8sClient.BatchV1().
-					Jobs(shared.ServiceConfig.Compute.Namespace).
+					Jobs(shared.ServiceConfig.Compute.TaskNamespace).
 					Delete(context.Background(), jobName, deleteOpts)
 
 				if k8sErr != nil {
 					log.Warn("Task cancellation: failed to delete completed job %s/%s: %s",
-						shared.ServiceConfig.Compute.Namespace, jobName, k8sErr)
+						shared.ServiceConfig.Compute.TaskNamespace, jobName, k8sErr)
+				} else {
+					_, err := fndapi.TasksPostStatus.Invoke(fndapi.TasksPostStatusRequest{
+						Update: fndapi.TasksPostStatusRequestUpdate{
+							Id:         id,
+							ModifiedAt: fndapi.Timestamp(time.Now()),
+							NewStatus: fndapi.TaskStatus{
+								Title:              util.OptValue("Task has been cancelled"),
+								Body:               util.OptValue("The task has been cancelled"),
+								ProgressPercentage: util.OptValue(100.0),
+								State:              fndapi.TaskStateCancelled,
+							},
+						},
+					})
+
+					if err != nil {
+						log.Warn("Task cancellation: failed to post final message: %s", err)
+					}
 				}
 			}
 			return nil
@@ -304,6 +316,8 @@ func TaskSubmit(spec TaskSpec) *util.HttpError {
 
 	resp, err := fndapi.TasksCreate.Invoke(fndapi.TasksCreateRequest{
 		User:      spec.CreationState.Username,
+		Title:     util.OptValue("Task is starting"),
+		Body:      util.OptValue("One of your operations is being scheduled..."),
 		CanCancel: true,
 		Icon:      util.OptValue(spec.CreationState.Icon),
 	})
@@ -330,7 +344,7 @@ func TaskSubmit(spec TaskSpec) *util.HttpError {
 		)
 	})
 
-	taskSelector := map[string]string{} // TODO from config
+	taskSelector := shared.ServiceConfig.Compute.TaskNodeSelector
 
 	storageVolumeMounts, internalToPod := resolveTaskMounts(spec)
 	sourcePath := mapUCloudPathToTaskPath(spec.Source, internalToPod)
@@ -339,7 +353,7 @@ func TaskSubmit(spec TaskSpec) *util.HttpError {
 	job := k8sbatch.Job{
 		ObjectMeta: k8smeta.ObjectMeta{
 			Name:      spec.Id,
-			Namespace: shared.ServiceConfig.Compute.Namespace,
+			Namespace: shared.ServiceConfig.Compute.TaskNamespace,
 			Labels: map[string]string{
 				taskJobLabel: "true",
 			},
@@ -408,11 +422,11 @@ func TaskSubmit(spec TaskSpec) *util.HttpError {
 							Resources: k8score.ResourceRequirements{
 								Limits: map[k8score.ResourceName]resource.Quantity{
 									k8score.ResourceCPU:    *resource.NewMilliQuantity(8000, resource.DecimalExponent),
-									k8score.ResourceMemory: *resource.NewScaledQuantity(512, resource.Mega),
+									k8score.ResourceMemory: *resource.NewScaledQuantity(1024*16, resource.Mega),
 								},
 								Requests: map[k8score.ResourceName]resource.Quantity{
 									k8score.ResourceCPU:    *resource.NewMilliQuantity(500, resource.DecimalExponent),
-									k8score.ResourceMemory: *resource.NewScaledQuantity(256, resource.Mega),
+									k8score.ResourceMemory: *resource.NewScaledQuantity(2048, resource.Mega),
 								},
 							},
 							VolumeMounts: append(storageVolumeMounts, k8score.VolumeMount{
@@ -429,7 +443,7 @@ func TaskSubmit(spec TaskSpec) *util.HttpError {
 		},
 	}
 
-	_, kerr := shared.K8sClient.BatchV1().Jobs(shared.ServiceConfig.Compute.Namespace).Create(context.Background(), &job, k8smeta.CreateOptions{})
+	_, kerr := shared.K8sClient.BatchV1().Jobs(shared.ServiceConfig.Compute.TaskNamespace).Create(context.Background(), &job, k8smeta.CreateOptions{})
 	if kerr != nil {
 		log.Warn("K8s background task failed: %s", kerr)
 		return util.HttpErr(http.StatusInternalServerError, "failed to create background task")

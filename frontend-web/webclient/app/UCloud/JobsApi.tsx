@@ -330,7 +330,7 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
                 cb.navigate(AppRoutes.jobs.create(specification.application.name, specification.application.version, id)),
             icon: "play",
             text: "Run application again",
-            shortcut: ShortcutKey.P
+            shortcut: ShortcutKey.B
         }];
 
         ourOps.push({
@@ -394,7 +394,7 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
         return apiUpdate(req, this.baseContext, "requestDynamicParameters")
     }
 
-    rename(request: BulkRequest<{ id: string; newTitle: string; }>) {
+    rename(request: BulkRequest<{id: string; newTitle: string;}>) {
         return apiUpdate(request, this.baseContext, "rename");
     }
 

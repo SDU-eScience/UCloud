@@ -77,11 +77,6 @@ func task2ProcessTransfer(spec TaskSpec) *util.HttpError {
 					return
 
 				case <-ticker.C:
-					if taskProcessorIsCancelled() {
-						cancelTransfer()
-						continue
-					}
-
 					taskStatus := status.Load()
 					if taskStatus != nil && lastStatus != taskStatus {
 						lastStatus = taskStatus

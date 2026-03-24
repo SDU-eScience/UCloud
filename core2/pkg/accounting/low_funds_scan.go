@@ -44,8 +44,8 @@ func lowFundsScan(lowFundsLimitInPercent float32) {
 		relevantWallets := db.Select[struct {
 			WalletId            int
 			LowBalanceNotified  bool
-			CurrentUsage        int64
-			CurrentQuota        int64
+			ActiveUsage         int64
+			ActiveQuota         int64
 			ProductType         accapi.ProductType
 			AccountingFrequency accapi.AccountingFrequency
 			CategoryName        string
@@ -70,21 +70,26 @@ func lowFundsScan(lowFundsLimitInPercent float32) {
 						order by w.id
 					),
 					active_usage as (
-						select
-							w.id,
-							sum(ag.tree_usage) current_usage
-						from accounting.wallet_allocations_v2 alloc join
-							 accounting.allocation_groups ag on alloc.associated_allocation_group = ag.id join
-							 accounting.wallets_v2 w on ag.associated_wallet = w.id
-						where
-							alloc.allocation_start_time <= now() and alloc.allocation_end_time >= now()
-						group by w.id
-						order by w.id
+						select wallet_id, sum(current_usage) usage
+						from (
+							select
+								distinct ag.id,
+								w.id wallet_id,
+								ag.tree_usage current_usage
+							from accounting.wallet_allocations_v2 alloc join
+								 accounting.allocation_groups ag on alloc.associated_allocation_group = ag.id join
+								 accounting.wallets_v2 w on ag.associated_wallet = w.id
+							where
+								alloc.allocation_start_time <= now() and alloc.allocation_end_time >= now()
+							group by ag.id, w.id
+							order by ag.id
+						) as calc
+						group by wallet_id
 					)
 				select
 					w.id wallet_id,
 					w.low_balance_notified,
-					au.current_usage active_usage,
+					au.usage active_usage,
 					aq.current_quota active_quota,
 					pc.product_type,
 					pc.accounting_frequency,
@@ -95,7 +100,7 @@ func lowFundsScan(lowFundsLimitInPercent float32) {
 					coalesce(p.title, concat('Personal workspace - ', wo.username)) project_title
 				from
 					accounting.wallets_v2 w join
-					active_usage au on w.id = au.id join
+					active_usage au on w.id = au.wallet_id join
 					active_quota aq on w.id = aq.id join
 					accounting.product_categories pc on w.product_category = pc.id join
 					accounting.wallet_owner wo on w.wallet_owner = wo.id left join
@@ -113,10 +118,10 @@ func lowFundsScan(lowFundsLimitInPercent float32) {
 
 		for _, row := range relevantWallets {
 			// Converting to more readable format for the mail
-			currentQuota := float32(row.CurrentQuota)
-			currentUsage := float32(row.CurrentUsage)
+			currentQuota := float32(row.ActiveQuota)
+			currentUsage := float32(row.ActiveUsage)
 			lowBalanceNotified := row.LowBalanceNotified
-			if row.CurrentQuota == 0 {
+			if row.ActiveQuota == 0 {
 				continue
 			}
 			percentageRemaining := (currentQuota - currentUsage) / currentQuota * 100.0
@@ -156,11 +161,14 @@ func lowFundsScan(lowFundsLimitInPercent float32) {
 		)
 	}
 
-	_, err := fndapi.MailSendToUser.Invoke(bulkRequest)
+	// Only attempt to send if there is anything to send
+	if len(bulkRequest.Items) > 0 {
+		_, err := fndapi.MailSendToUser.Invoke(bulkRequest)
 
-	if err != nil {
-		log.Warn("Failed to send low-funds email: %s", err)
-		return
+		if err != nil {
+			log.Warn("Failed to send low-funds email: %s", err)
+			return
+		}
 	}
 
 	if len(WalletsToNotify) > 0 || len(WalletsToResetNotification) > 0 {

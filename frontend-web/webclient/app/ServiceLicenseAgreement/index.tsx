@@ -3,11 +3,12 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {LoadingMainContainer} from "@/ui-components/MainContainer";
 import {useCallback} from "react";
 import * as React from "react";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
+
 import {Button, Markdown} from "@/ui-components";
 import {addStandardDialog} from "@/UtilityComponents";
 import {useNavigate} from "react-router-dom";
 import {injectStyleSimple} from "@/Unstyled";
+import {sendFailureNotification} from "@/Notifications";
 
 function fetchSla(): APICallParameters {
     return {
@@ -49,7 +50,7 @@ const ServiceLicenseAgreement: React.FunctionComponent = () => {
         } catch (res) {
             const response = res.response;
             const why: string = response?.why ?? "Error while attempting to accept agreement";
-            snackbarStore.addFailure(why, false);
+            sendFailureNotification(why);
         }
     }, [sla, invokeCommand, navigate]);
 

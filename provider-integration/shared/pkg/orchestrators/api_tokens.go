@@ -96,5 +96,28 @@ var ApiTokenUpdateLabels = rpc.Call[fnd.BulkRequest[ApiTokenUpdateLabelsRequest]
 	Roles:       rpc.RolesEndUser,
 }
 
+var apiTokenProviderContext = "ucloud/" + rpc.ProviderPlaceholder + "/tokens"
+
+var ApiTokenProviderRetrieveOptions = rpc.Call[util.Empty, ApiTokenOptions]{
+	BaseContext: apiTokenProviderContext,
+	Convention:  rpc.ConventionRetrieve,
+	Operation:   "options",
+	Roles:       rpc.RolesService,
+}
+
+var ApiTokenProviderCreate = rpc.Call[ApiToken, ApiTokenStatus]{
+	BaseContext: apiTokenProviderContext,
+	Convention:  rpc.ConventionCreate,
+	Roles:       rpc.RolesService,
+}
+
+var ApiTokenProviderRevoke = rpc.Call[fnd.FindByStringId, util.Empty]{
+	BaseContext: apiTokenProviderContext,
+	Convention:  rpc.ConventionUpdate,
+	Operation:   "revoke",
+	Roles:       rpc.RolesService,
+}
+
+
 // NOTE(Dan): There is no ACL endpoint because this API doesn't actually save the token. It saves, at most (in the
 // case of UCloud/Core tokens), a hash of the token. As a result, there would be nothing to give access to.
