@@ -126,7 +126,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		Name: ContainerUserJob,
 	})
 
-	if isJobAuditLogEnabled(&resolvedApplication.Invocation) {
+	if jobAuditLogIsEnabled(&resolvedApplication.Invocation) {
 		spec.Containers = append(spec.Containers, core.Container{
 			Name:  ContainerAuditLog,
 			Image: "alpine:latest",
@@ -143,7 +143,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		userContainer.Image = tool.Description.Container
 	}
 
-	if isJobAuditLogEnabled(&resolvedApplication.Invocation) {
+	if jobAuditLogIsEnabled(&resolvedApplication.Invocation) {
 		jobAuditLogSetup(job, rank, spec, userContainer, "48291")
 	}
 
@@ -500,7 +500,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	return herr
 }
 
-func isJobAuditLogEnabled(description *orc.ApplicationInvocationDescription) bool {
+func jobAuditLogIsEnabled(description *orc.ApplicationInvocationDescription) bool {
 	return description.JobAuditLogIsEnabled.Present && description.JobAuditLogIsEnabled.Value
 }
 
