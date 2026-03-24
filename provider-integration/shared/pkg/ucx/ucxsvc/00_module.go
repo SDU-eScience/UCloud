@@ -21,8 +21,8 @@ var IM = ucx.Rpc[Message, Message]{CallName: "im"}
 // Private networks
 // ---------------------------------------------------------------------------------------------------------------------
 
-var PrivateNetworksCreate = ucx.Rpc[fndapi.BulkRequest[orcapi.PrivateNetworkSpecification], fndapi.BulkResponse[orcapi.PrivateNetwork]]{CallName: "privateNetworksCreate"}
-var PrivateNetworksDelete = ucx.Rpc[fndapi.BulkRequest[fndapi.FindByStringId], util.Empty]{CallName: "privateNetworksDelete"}
+var PrivateNetworksCreate = ucx.Rpc[[]orcapi.PrivateNetworkSpecification, []orcapi.PrivateNetwork]{CallName: "privateNetworksCreate"}
+var PrivateNetworksDelete = ucx.Rpc[[]string, util.Empty]{CallName: "privateNetworksDelete"}
 var PrivateNetworksBrowse = ucx.Rpc[orcapi.PrivateNetworksBrowseRequest, fndapi.PageV2[orcapi.PrivateNetwork]]{CallName: "privateNetworksBrowse"}
 var PrivateNetworksRetrieve = ucx.Rpc[orcapi.PrivateNetworksRetrieveRequest, orcapi.PrivateNetwork]{CallName: "privateNetworksRetrieve"}
 var PrivateNetworksUpdateLabels = ucx.Rpc[fndapi.BulkRequest[orcapi.PrivateNetworksUpdateLabelsRequest], util.Empty]{CallName: "privateNetworksUpdateLabels"}
@@ -31,8 +31,8 @@ var PrivateNetworksRetrieveProducts = ucx.Rpc[util.Empty, []orcapi.ResolvedSuppo
 // Public IPs
 // ---------------------------------------------------------------------------------------------------------------------
 
-var PublicIpsCreate = ucx.Rpc[fndapi.BulkRequest[orcapi.PublicIPSpecification], fndapi.BulkResponse[fndapi.FindByStringId]]{CallName: "publicIpsCreate"}
-var PublicIpsDelete = ucx.Rpc[fndapi.BulkRequest[fndapi.FindByStringId], fndapi.BulkResponse[util.Empty]]{CallName: "publicIpsDelete"}
+var PublicIpsCreate = ucx.Rpc[[]orcapi.PublicIPSpecification, []orcapi.PublicIp]{CallName: "publicIpsCreate"}
+var PublicIpsDelete = ucx.Rpc[[]string, util.Empty]{CallName: "publicIpsDelete"}
 var PublicIpsBrowse = ucx.Rpc[orcapi.PublicIpsBrowseRequest, fndapi.PageV2[orcapi.PublicIp]]{CallName: "publicIpsBrowse"}
 var PublicIpsRetrieve = ucx.Rpc[orcapi.PublicIpsRetrieveRequest, orcapi.PublicIp]{CallName: "publicIpsRetrieve"}
 var PublicIpsUpdateLabels = ucx.Rpc[fndapi.BulkRequest[orcapi.PublicIpsUpdateLabelsRequest], util.Empty]{CallName: "publicIpsUpdateLabels"}
@@ -42,8 +42,8 @@ var PublicIpsRetrieveProducts = ucx.Rpc[util.Empty, []orcapi.ResolvedSupport[orc
 // PublicLinks (public links)
 // ---------------------------------------------------------------------------------------------------------------------
 
-var PublicLinksCreate = ucx.Rpc[fndapi.BulkRequest[orcapi.IngressSpecification], fndapi.BulkResponse[fndapi.FindByStringId]]{CallName: "publicLinksCreate"}
-var PublicLinksDelete = ucx.Rpc[fndapi.BulkRequest[fndapi.FindByStringId], fndapi.BulkResponse[util.Empty]]{CallName: "publicLinksDelete"}
+var PublicLinksCreate = ucx.Rpc[[]orcapi.IngressSpecification, []orcapi.Ingress]{CallName: "publicLinksCreate"}
+var PublicLinksDelete = ucx.Rpc[[]string, util.Empty]{CallName: "publicLinksDelete"}
 var PublicLinksBrowse = ucx.Rpc[orcapi.IngressesBrowseRequest, fndapi.PageV2[orcapi.Ingress]]{CallName: "publicLinksBrowse"}
 var PublicLinksRetrieve = ucx.Rpc[orcapi.IngressesRetrieveRequest, orcapi.Ingress]{CallName: "publicLinksRetrieve"}
 var PublicLinksUpdateLabels = ucx.Rpc[fndapi.BulkRequest[orcapi.IngressesUpdateLabelsRequest], util.Empty]{CallName: "publicLinksUpdateLabels"}
@@ -52,8 +52,8 @@ var PublicLinksRetrieveProducts = ucx.Rpc[util.Empty, []orcapi.ResolvedSupport[o
 // Licenses
 // ---------------------------------------------------------------------------------------------------------------------
 
-var LicensesCreate = ucx.Rpc[fndapi.BulkRequest[orcapi.LicenseSpecification], fndapi.BulkResponse[fndapi.FindByStringId]]{CallName: "licensesCreate"}
-var LicensesDelete = ucx.Rpc[fndapi.BulkRequest[fndapi.FindByStringId], fndapi.BulkResponse[util.Empty]]{CallName: "licensesDelete"}
+var LicensesCreate = ucx.Rpc[[]orcapi.LicenseSpecification, []orcapi.License]{CallName: "licensesCreate"}
+var LicensesDelete = ucx.Rpc[[]string, util.Empty]{CallName: "licensesDelete"}
 var LicensesBrowse = ucx.Rpc[orcapi.LicensesBrowseRequest, fndapi.PageV2[orcapi.License]]{CallName: "licensesBrowse"}
 var LicensesRetrieve = ucx.Rpc[orcapi.LicensesRetrieveRequest, orcapi.License]{CallName: "licensesRetrieve"}
 var LicensesUpdateLabels = ucx.Rpc[fndapi.BulkRequest[orcapi.LicensesUpdateLabelsRequest], util.Empty]{CallName: "licensesUpdateLabels"}
@@ -62,8 +62,8 @@ var LicensesRetrieveProducts = ucx.Rpc[util.Empty, []orcapi.ResolvedSupport[orca
 // Drives
 // ---------------------------------------------------------------------------------------------------------------------
 
-var DrivesCreate = ucx.Rpc[fndapi.BulkRequest[orcapi.DriveSpecification], fndapi.BulkResponse[fndapi.FindByStringId]]{CallName: "drivesCreate"}
-var DrivesDelete = ucx.Rpc[fndapi.BulkRequest[fndapi.FindByStringId], fndapi.BulkResponse[util.Empty]]{CallName: "drivesDelete"}
+var DrivesCreate = ucx.Rpc[[]orcapi.DriveSpecification, []orcapi.Drive]{CallName: "drivesCreate"}
+var DrivesDelete = ucx.Rpc[[]string, util.Empty]{CallName: "drivesDelete"}
 var DrivesBrowse = ucx.Rpc[orcapi.DrivesBrowseRequest, fndapi.PageV2[orcapi.Drive]]{CallName: "drivesBrowse"}
 var DrivesRetrieve = ucx.Rpc[orcapi.DrivesRetrieveRequest, orcapi.Drive]{CallName: "drivesRetrieve"}
 var DrivesRename = ucx.Rpc[fndapi.BulkRequest[orcapi.DriveRenameRequest], util.Empty]{CallName: "drivesRename"}
@@ -73,7 +73,7 @@ var DrivesRetrieveProducts = ucx.Rpc[util.Empty, []orcapi.ResolvedSupport[orcapi
 // Jobs
 // ---------------------------------------------------------------------------------------------------------------------
 
-var JobsCreate = ucx.Rpc[fndapi.BulkRequest[orcapi.JobSpecification], fndapi.BulkResponse[fndapi.FindByStringId]]{CallName: "jobsCreate"}
+var JobsCreate = ucx.Rpc[[]orcapi.JobSpecification, []orcapi.Job]{CallName: "jobsCreate"}
 var JobsBrowse = ucx.Rpc[orcapi.JobsBrowseRequest, fndapi.PageV2[orcapi.Job]]{CallName: "jobsBrowse"}
 var JobsRetrieve = ucx.Rpc[orcapi.JobsRetrieveRequest, orcapi.Job]{CallName: "jobsRetrieve"}
 var JobsRename = ucx.Rpc[fndapi.BulkRequest[orcapi.JobRenameRequest], util.Empty]{CallName: "jobsRename"}

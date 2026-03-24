@@ -58,98 +58,13 @@ func initJobs() {
 	go jobNotificationsLoopSendPending()
 
 	orcapi.JobsCreate.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.JobSpecification]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
-		var ids []fndapi.FindByStringId
-		jobSettings := JobSettingsRetrieve(info.Actor)
+		created, err := JobCreate(info.Actor, request)
+		if err != nil {
+			return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
+		}
 
-		for _, item := range request.Items {
-			spec := item
-			err := jobsValidateForSubmission(info.Actor, &spec)
-			if err != nil {
-				return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
-			}
-
-			support, ok := SupportByProduct[orcapi.JobSupport](jobType, spec.Product)
-			if !ok {
-				return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(http.StatusInternalServerError, "internal error")
-			}
-
-			encodedParams, _ := json.Marshal(spec.Parameters)
-			encodedResources, _ := json.Marshal(spec.Resources)
-			encodedProduct, _ := json.Marshal(support.Product)
-			encodedSupport, _ := json.Marshal(support.ResolvedSupport)
-			encodedMachineType, _ := json.Marshal(map[string]any{
-				"cpu":          support.Product.Cpu,
-				"memoryInGigs": support.Product.MemoryInGigs,
-			})
-
-			if spec.Parameters == nil {
-				spec.Parameters = map[string]orcapi.AppParameterValue{}
-			}
-
-			if _, hasSampleRateOverride := spec.Parameters[jobMetricSampleRateParam]; !hasSampleRateOverride {
-				effectiveSampleRate := jobMetricSampleRateDisabled
-
-				if jobSettings.Toggled {
-					effectiveSampleRate = jobMetricSampleRateDefault
-					if jobSettings.SampleRateValue.Present {
-						effectiveSampleRate = jobSettings.SampleRateValue.Value
-					}
-				}
-
-				spec.Parameters[jobMetricSampleRateParam] = orcapi.AppParameterValueText(effectiveSampleRate)
-			}
-			if item.Product.Provider == "aau" {
-				delete(spec.Parameters, jobMetricSampleRateParam)
-			}
-
-			extra := &internalJob{
-				Application:    spec.Application,
-				Name:           spec.Name,
-				Hostname:       spec.Hostname,
-				Replicas:       spec.Replicas,
-				Parameters:     spec.Parameters,
-				Resources:      spec.Resources,
-				TimeAllocation: spec.TimeAllocation,
-				OpenedFile:     spec.OpenedFile,
-				SshEnabled:     spec.SshEnabled,
-				State:          orcapi.JobStateInQueue,
-				JobParametersJson: orcapi.ExportedParameters{
-					SiteVersion: 3,
-					Request: orcapi.ExportedParametersRequest{
-						Application:       spec.Application,
-						Product:           spec.Product,
-						Name:              spec.Name,
-						Replicas:          spec.Replicas,
-						Parameters:        encodedParams,
-						Resources:         encodedResources,
-						TimeAllocation:    spec.TimeAllocation.GetOrDefault(orcapi.SimpleDuration{}),
-						ResolvedProduct:   encodedProduct,
-						ResolvedSupport:   encodedSupport,
-						AllowDuplicateJob: false,
-						SshEnabled:        spec.SshEnabled,
-					},
-					ResolvedResources: orcapi.ExportedParametersResources{
-						// TODO
-					},
-					MachineType: encodedMachineType,
-				},
-				StartedAt: util.OptNone[fndapi.Timestamp](),
-				Updates:   nil,
-			}
-
-			job, err := ResourceCreateThroughProvider(info.Actor, jobType, spec.ResourceSpecification, extra, orcapi.JobsProviderCreate)
-			if err != nil {
-				return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
-			}
-
-			for _, param := range spec.Parameters {
-				jobBindResource(job.Id, param)
-			}
-
-			for _, resc := range spec.Resources {
-				jobBindResource(job.Id, resc)
-			}
-
+		ids := make([]fndapi.FindByStringId, 0, len(created))
+		for _, job := range created {
 			ids = append(ids, fndapi.FindByStringId{Id: job.Id})
 		}
 
@@ -296,7 +211,7 @@ func initJobs() {
 	})
 
 	orcapi.JobsBrowse.Handler(func(info rpc.RequestInfo, request orcapi.JobsBrowseRequest) (fndapi.PageV2[orcapi.Job], *util.HttpError) {
-		return JobsBrowse(info.Actor, request.Next, request.ItemsPerPage, request.JobFlags)
+		return JobBrowse(info.Actor, request)
 	})
 
 	orcapi.JobsControlBrowse.Handler(func(info rpc.RequestInfo, request orcapi.JobsControlBrowseRequest) (fndapi.PageV2[orcapi.Job], *util.HttpError) {
@@ -421,172 +336,19 @@ func initJobs() {
 	})
 
 	orcapi.JobsExtend.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.JobsExtendRequestItem]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
-		updatesByProvider := map[string][]orcapi.JobsProviderExtendRequestItem{}
-
-		for _, item := range request.Items {
-			resc, _, _, err := ResourceRetrieveEx[orcapi.Job](
-				info.Actor,
-				jobType,
-				ResourceParseId(item.JobId),
-				orcapi.PermissionEdit,
-				orcapi.ResourceFlags{IncludeProduct: true},
-			)
-
-			if err != nil {
-				return fndapi.BulkResponse[util.Empty]{}, util.HttpErr(http.StatusNotFound, "permission denied or job not found (%v)", item.JobId)
-			}
-
-			app, _ := AppRetrieve(info.Actor, resc.Specification.Application.Name,
-				resc.Specification.Application.Version, AppDiscoveryAll, 0)
-			appBackend := app.Invocation.Tool.Tool.Value.Description.Backend
-
-			support, ok := SupportByProduct[orcapi.JobSupport](jobType, resc.Specification.Product)
-			if !ok || !support.Has(jobFeatureExtensionByBackend[appBackend]) {
-				return fndapi.BulkResponse[util.Empty]{}, util.HttpErr(http.StatusBadRequest, "time extension is not supported by this provider")
-			}
-
-			provider := resc.Specification.Product.Provider
-			updatesByProvider[provider] = append(updatesByProvider[provider], orcapi.JobsProviderExtendRequestItem{
-				Job:           resc,
-				RequestedTime: item.RequestedTime,
-			})
-		}
-
-		for provider, requests := range updatesByProvider {
-			_, err := InvokeProvider(
-				provider,
-				orcapi.JobsProviderExtend,
-				fndapi.BulkRequestOf(requests...),
-				ProviderCallOpts{
-					Username: util.OptValue(info.Actor.Username),
-					Reason:   util.OptValue("user initiated extension"),
-				},
-			)
-
-			if err != nil {
-				return fndapi.BulkResponse[util.Empty]{}, err
-			}
-		}
-
-		return fndapi.BulkResponse[util.Empty]{Responses: make([]util.Empty, len(request.Items))}, nil
+		return JobsExtendBulk(info.Actor, request)
 	})
 
 	orcapi.JobsTerminate.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[fndapi.FindByStringId]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
-		updatesByProvider := map[string][]orcapi.Job{}
-
-		for _, item := range request.Items {
-			resc, _, _, err := ResourceRetrieveEx[orcapi.Job](
-				info.Actor,
-				jobType,
-				ResourceParseId(item.Id),
-				orcapi.PermissionEdit,
-				orcapi.ResourceFlags{IncludeProduct: true},
-			)
-
-			if err != nil {
-				return fndapi.BulkResponse[util.Empty]{}, util.HttpErr(http.StatusNotFound, "permission denied or job not found (%v)", item.Id)
-			}
-
-			provider := resc.Specification.Product.Provider
-			updatesByProvider[provider] = append(updatesByProvider[provider], resc)
-		}
-
-		for provider, requests := range updatesByProvider {
-			_, err := InvokeProvider(
-				provider,
-				orcapi.JobsProviderTerminate,
-				fndapi.BulkRequestOf(requests...),
-				ProviderCallOpts{
-					Username: util.OptValue(info.Actor.Username),
-					Reason:   util.OptValue("user initiated termination"),
-				},
-			)
-
-			if err != nil {
-				log.Info("Failed to terminate job: %s", err)
-				return fndapi.BulkResponse[util.Empty]{}, err
-			}
-		}
-
-		return fndapi.BulkResponse[util.Empty]{Responses: make([]util.Empty, len(request.Items))}, nil
+		return JobsTerminateBulk(info.Actor, request)
 	})
 
 	orcapi.JobsSuspend.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[fndapi.FindByStringId]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
-		updatesByProvider := map[string][]orcapi.JobsProviderSuspendRequestItem{}
-
-		for _, item := range request.Items {
-			resc, _, _, err := ResourceRetrieveEx[orcapi.Job](
-				info.Actor,
-				jobType,
-				ResourceParseId(item.Id),
-				orcapi.PermissionEdit,
-				orcapi.ResourceFlags{IncludeProduct: true},
-			)
-
-			if err != nil {
-				return fndapi.BulkResponse[util.Empty]{}, util.HttpErr(http.StatusNotFound, "permission denied or job not found (%v)", item.Id)
-			}
-
-			provider := resc.Specification.Product.Provider
-			updatesByProvider[provider] = append(updatesByProvider[provider], orcapi.JobsProviderSuspendRequestItem{Job: resc})
-		}
-
-		for provider, requests := range updatesByProvider {
-			_, err := InvokeProvider(
-				provider,
-				orcapi.JobsProviderSuspend,
-				fndapi.BulkRequestOf(requests...),
-				ProviderCallOpts{
-					Username: util.OptValue(info.Actor.Username),
-					Reason:   util.OptValue("user initiated suspension"),
-				},
-			)
-
-			if err != nil {
-				return fndapi.BulkResponse[util.Empty]{}, err
-			}
-		}
-
-		return fndapi.BulkResponse[util.Empty]{Responses: make([]util.Empty, len(request.Items))}, nil
+		return JobsSuspendBulk(info.Actor, request)
 	})
 
 	orcapi.JobsUnsuspend.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[fndapi.FindByStringId]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
-		updatesByProvider := map[string][]orcapi.JobsProviderUnsuspendRequestItem{}
-
-		for _, item := range request.Items {
-			resc, _, _, err := ResourceRetrieveEx[orcapi.Job](
-				info.Actor,
-				jobType,
-				ResourceParseId(item.Id),
-				orcapi.PermissionEdit,
-				orcapi.ResourceFlags{IncludeProduct: true},
-			)
-
-			if err != nil {
-				return fndapi.BulkResponse[util.Empty]{}, util.HttpErr(http.StatusNotFound, "permission denied or job not found (%v)", item.Id)
-			}
-
-			provider := resc.Specification.Product.Provider
-			updatesByProvider[provider] = append(updatesByProvider[provider], orcapi.JobsProviderUnsuspendRequestItem{Job: resc})
-		}
-
-		for provider, requests := range updatesByProvider {
-			_, err := InvokeProvider(
-				provider,
-				orcapi.JobsProviderUnsuspend,
-				fndapi.BulkRequestOf(requests...),
-				ProviderCallOpts{
-					Username: util.OptValue(info.Actor.Username),
-					Reason:   util.OptValue("user initiated suspension"),
-				},
-			)
-
-			if err != nil {
-				return fndapi.BulkResponse[util.Empty]{}, err
-			}
-		}
-
-		return fndapi.BulkResponse[util.Empty]{Responses: make([]util.Empty, len(request.Items))}, nil
+		return JobsUnsuspendBulk(info.Actor, request)
 	})
 
 	orcapi.JobsAttachResource.Handler(func(info rpc.RequestInfo, request orcapi.JobsAttachResourceRequest) (util.Empty, *util.HttpError) {
@@ -884,19 +646,7 @@ func initJobs() {
 	})
 
 	orcapi.JobsRename.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.JobRenameRequest]) (util.Empty, *util.HttpError) {
-		for _, item := range request.Items {
-			ResourceUpdate(
-				info.Actor,
-				jobType,
-				ResourceParseId(item.Id),
-				orcapi.PermissionEdit,
-				func(r *resource, mapped orcapi.Job) {
-					job := r.Extra.(*internalJob)
-					job.Name = item.NewTitle
-				},
-			)
-		}
-		return util.Empty{}, nil
+		return util.Empty{}, JobsRenameBulk(info.Actor, request)
 	})
 
 	orcapi.JobsControlCheckCredits.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.JobsLegacyCheckCreditsRequest]) (orcapi.JobsLegacyCheckCreditsResponse, *util.HttpError) {
@@ -1011,23 +761,7 @@ func initJobs() {
 	})
 
 	orcapi.JobsUpdateLabels.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.JobsUpdateLabelsRequest]) (util.Empty, *util.HttpError) {
-		for _, reqItem := range request.Items {
-			err := ResourceUpdateLabelsThroughProvider[orcapi.Job](
-				info.Actor,
-				jobType,
-				reqItem.Id,
-				reqItem.Labels,
-				func(t *orcapi.Job, labels map[string]string) {
-					t.Specification.Labels = labels
-				},
-				orcapi.JobsProviderOnUpdatedLabels,
-			)
-
-			if err != nil {
-				return util.Empty{}, err
-			}
-		}
-		return util.Empty{}, nil
+		return util.Empty{}, JobsUpdateLabelsBulk(info.Actor, request)
 	})
 
 	orcapi.JobsControlUpdateLabels.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.JobsUpdateLabelsRequest]) (util.Empty, *util.HttpError) {
@@ -1059,6 +793,315 @@ func initJobs() {
 
 		return util.Empty{}, nil
 	})
+}
+
+func JobCreate(actor rpc.Actor, request fndapi.BulkRequest[orcapi.JobSpecification]) ([]orcapi.Job, *util.HttpError) {
+	created := make([]orcapi.Job, 0, len(request.Items))
+	jobSettings := JobSettingsRetrieve(actor)
+
+	for _, item := range request.Items {
+		spec := item
+		err := jobsValidateForSubmission(actor, &spec)
+		if err != nil {
+			return nil, err
+		}
+
+		support, ok := SupportByProduct[orcapi.JobSupport](jobType, spec.Product)
+		if !ok {
+			return nil, util.HttpErr(http.StatusInternalServerError, "internal error")
+		}
+
+		encodedParams, _ := json.Marshal(spec.Parameters)
+		encodedResources, _ := json.Marshal(spec.Resources)
+		encodedProduct, _ := json.Marshal(support.Product)
+		encodedSupport, _ := json.Marshal(support.ResolvedSupport)
+		encodedMachineType, _ := json.Marshal(map[string]any{
+			"cpu":          support.Product.Cpu,
+			"memoryInGigs": support.Product.MemoryInGigs,
+		})
+
+		if spec.Parameters == nil {
+			spec.Parameters = map[string]orcapi.AppParameterValue{}
+		}
+
+		if _, hasSampleRateOverride := spec.Parameters[jobMetricSampleRateParam]; !hasSampleRateOverride {
+			effectiveSampleRate := jobMetricSampleRateDisabled
+
+			if jobSettings.Toggled {
+				effectiveSampleRate = jobMetricSampleRateDefault
+				if jobSettings.SampleRateValue.Present {
+					effectiveSampleRate = jobSettings.SampleRateValue.Value
+				}
+			}
+
+			spec.Parameters[jobMetricSampleRateParam] = orcapi.AppParameterValueText(effectiveSampleRate)
+		}
+		if item.Product.Provider == "aau" {
+			delete(spec.Parameters, jobMetricSampleRateParam)
+		}
+
+		extra := &internalJob{
+			Application:    spec.Application,
+			Name:           spec.Name,
+			Hostname:       spec.Hostname,
+			Replicas:       spec.Replicas,
+			Parameters:     spec.Parameters,
+			Resources:      spec.Resources,
+			TimeAllocation: spec.TimeAllocation,
+			OpenedFile:     spec.OpenedFile,
+			SshEnabled:     spec.SshEnabled,
+			State:          orcapi.JobStateInQueue,
+			JobParametersJson: orcapi.ExportedParameters{
+				SiteVersion: 3,
+				Request: orcapi.ExportedParametersRequest{
+					Application:       spec.Application,
+					Product:           spec.Product,
+					Name:              spec.Name,
+					Replicas:          spec.Replicas,
+					Parameters:        encodedParams,
+					Resources:         encodedResources,
+					TimeAllocation:    spec.TimeAllocation.GetOrDefault(orcapi.SimpleDuration{}),
+					ResolvedProduct:   encodedProduct,
+					ResolvedSupport:   encodedSupport,
+					AllowDuplicateJob: false,
+					SshEnabled:        spec.SshEnabled,
+				},
+				ResolvedResources: orcapi.ExportedParametersResources{
+					// TODO
+				},
+				MachineType: encodedMachineType,
+			},
+			StartedAt: util.OptNone[fndapi.Timestamp](),
+			Updates:   nil,
+		}
+
+		job, err := ResourceCreateThroughProvider(actor, jobType, spec.ResourceSpecification, extra, orcapi.JobsProviderCreate)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, param := range spec.Parameters {
+			jobBindResource(job.Id, param)
+		}
+
+		for _, resc := range spec.Resources {
+			jobBindResource(job.Id, resc)
+		}
+
+		created = append(created, job)
+	}
+
+	return created, nil
+}
+
+func JobBrowse(actor rpc.Actor, request orcapi.JobsBrowseRequest) (fndapi.PageV2[orcapi.Job], *util.HttpError) {
+	return JobsBrowse(actor, request.Next, request.ItemsPerPage, request.JobFlags)
+}
+
+func JobsRenameBulk(actor rpc.Actor, request fndapi.BulkRequest[orcapi.JobRenameRequest]) *util.HttpError {
+	for _, item := range request.Items {
+		ResourceUpdate(
+			actor,
+			jobType,
+			ResourceParseId(item.Id),
+			orcapi.PermissionEdit,
+			func(r *resource, mapped orcapi.Job) {
+				job := r.Extra.(*internalJob)
+				job.Name = item.NewTitle
+			},
+		)
+	}
+	return nil
+}
+
+func JobsUpdateLabelsBulk(actor rpc.Actor, request fndapi.BulkRequest[orcapi.JobsUpdateLabelsRequest]) *util.HttpError {
+	for _, reqItem := range request.Items {
+		err := ResourceUpdateLabelsThroughProvider[orcapi.Job](
+			actor,
+			jobType,
+			reqItem.Id,
+			reqItem.Labels,
+			func(t *orcapi.Job, labels map[string]string) {
+				t.Specification.Labels = labels
+			},
+			orcapi.JobsProviderOnUpdatedLabels,
+		)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func JobsExtendBulk(actor rpc.Actor, request fndapi.BulkRequest[orcapi.JobsExtendRequestItem]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
+	updatesByProvider := map[string][]orcapi.JobsProviderExtendRequestItem{}
+
+	for _, item := range request.Items {
+		resc, _, _, err := ResourceRetrieveEx[orcapi.Job](
+			actor,
+			jobType,
+			ResourceParseId(item.JobId),
+			orcapi.PermissionEdit,
+			orcapi.ResourceFlags{IncludeProduct: true},
+		)
+
+		if err != nil {
+			return fndapi.BulkResponse[util.Empty]{}, util.HttpErr(http.StatusNotFound, "permission denied or job not found (%v)", item.JobId)
+		}
+
+		app, _ := AppRetrieve(actor, resc.Specification.Application.Name,
+			resc.Specification.Application.Version, AppDiscoveryAll, 0)
+		appBackend := app.Invocation.Tool.Tool.Value.Description.Backend
+
+		support, ok := SupportByProduct[orcapi.JobSupport](jobType, resc.Specification.Product)
+		if !ok || !support.Has(jobFeatureExtensionByBackend[appBackend]) {
+			return fndapi.BulkResponse[util.Empty]{}, util.HttpErr(http.StatusBadRequest, "time extension is not supported by this provider")
+		}
+
+		provider := resc.Specification.Product.Provider
+		updatesByProvider[provider] = append(updatesByProvider[provider], orcapi.JobsProviderExtendRequestItem{
+			Job:           resc,
+			RequestedTime: item.RequestedTime,
+		})
+	}
+
+	for provider, requests := range updatesByProvider {
+		_, err := InvokeProvider(
+			provider,
+			orcapi.JobsProviderExtend,
+			fndapi.BulkRequestOf(requests...),
+			ProviderCallOpts{
+				Username: util.OptValue(actor.Username),
+				Reason:   util.OptValue("user initiated extension"),
+			},
+		)
+
+		if err != nil {
+			return fndapi.BulkResponse[util.Empty]{}, err
+		}
+	}
+
+	return fndapi.BulkResponse[util.Empty]{Responses: make([]util.Empty, len(request.Items))}, nil
+}
+
+func JobsTerminateBulk(actor rpc.Actor, request fndapi.BulkRequest[fndapi.FindByStringId]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
+	updatesByProvider := map[string][]orcapi.Job{}
+
+	for _, item := range request.Items {
+		resc, _, _, err := ResourceRetrieveEx[orcapi.Job](
+			actor,
+			jobType,
+			ResourceParseId(item.Id),
+			orcapi.PermissionEdit,
+			orcapi.ResourceFlags{IncludeProduct: true},
+		)
+
+		if err != nil {
+			return fndapi.BulkResponse[util.Empty]{}, util.HttpErr(http.StatusNotFound, "permission denied or job not found (%v)", item.Id)
+		}
+
+		provider := resc.Specification.Product.Provider
+		updatesByProvider[provider] = append(updatesByProvider[provider], resc)
+	}
+
+	for provider, requests := range updatesByProvider {
+		_, err := InvokeProvider(
+			provider,
+			orcapi.JobsProviderTerminate,
+			fndapi.BulkRequestOf(requests...),
+			ProviderCallOpts{
+				Username: util.OptValue(actor.Username),
+				Reason:   util.OptValue("user initiated termination"),
+			},
+		)
+
+		if err != nil {
+			log.Info("Failed to terminate job: %s", err)
+			return fndapi.BulkResponse[util.Empty]{}, err
+		}
+	}
+
+	return fndapi.BulkResponse[util.Empty]{Responses: make([]util.Empty, len(request.Items))}, nil
+}
+
+func JobsSuspendBulk(actor rpc.Actor, request fndapi.BulkRequest[fndapi.FindByStringId]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
+	updatesByProvider := map[string][]orcapi.JobsProviderSuspendRequestItem{}
+
+	for _, item := range request.Items {
+		resc, _, _, err := ResourceRetrieveEx[orcapi.Job](
+			actor,
+			jobType,
+			ResourceParseId(item.Id),
+			orcapi.PermissionEdit,
+			orcapi.ResourceFlags{IncludeProduct: true},
+		)
+
+		if err != nil {
+			return fndapi.BulkResponse[util.Empty]{}, util.HttpErr(http.StatusNotFound, "permission denied or job not found (%v)", item.Id)
+		}
+
+		provider := resc.Specification.Product.Provider
+		updatesByProvider[provider] = append(updatesByProvider[provider], orcapi.JobsProviderSuspendRequestItem{Job: resc})
+	}
+
+	for provider, requests := range updatesByProvider {
+		_, err := InvokeProvider(
+			provider,
+			orcapi.JobsProviderSuspend,
+			fndapi.BulkRequestOf(requests...),
+			ProviderCallOpts{
+				Username: util.OptValue(actor.Username),
+				Reason:   util.OptValue("user initiated suspension"),
+			},
+		)
+
+		if err != nil {
+			return fndapi.BulkResponse[util.Empty]{}, err
+		}
+	}
+
+	return fndapi.BulkResponse[util.Empty]{Responses: make([]util.Empty, len(request.Items))}, nil
+}
+
+func JobsUnsuspendBulk(actor rpc.Actor, request fndapi.BulkRequest[fndapi.FindByStringId]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
+	updatesByProvider := map[string][]orcapi.JobsProviderUnsuspendRequestItem{}
+
+	for _, item := range request.Items {
+		resc, _, _, err := ResourceRetrieveEx[orcapi.Job](
+			actor,
+			jobType,
+			ResourceParseId(item.Id),
+			orcapi.PermissionEdit,
+			orcapi.ResourceFlags{IncludeProduct: true},
+		)
+
+		if err != nil {
+			return fndapi.BulkResponse[util.Empty]{}, util.HttpErr(http.StatusNotFound, "permission denied or job not found (%v)", item.Id)
+		}
+
+		provider := resc.Specification.Product.Provider
+		updatesByProvider[provider] = append(updatesByProvider[provider], orcapi.JobsProviderUnsuspendRequestItem{Job: resc})
+	}
+
+	for provider, requests := range updatesByProvider {
+		_, err := InvokeProvider(
+			provider,
+			orcapi.JobsProviderUnsuspend,
+			fndapi.BulkRequestOf(requests...),
+			ProviderCallOpts{
+				Username: util.OptValue(actor.Username),
+				Reason:   util.OptValue("user initiated suspension"),
+			},
+		)
+
+		if err != nil {
+			return fndapi.BulkResponse[util.Empty]{}, err
+		}
+	}
+
+	return fndapi.BulkResponse[util.Empty]{Responses: make([]util.Empty, len(request.Items))}, nil
 }
 
 func jobBindResource(jobId string, resc orcapi.AppParameterValue) {

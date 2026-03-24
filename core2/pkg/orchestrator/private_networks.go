@@ -26,21 +26,7 @@ func initPrivateNetworks() {
 	)
 
 	orcapi.PrivateNetworksBrowse.Handler(func(info rpc.RequestInfo, request orcapi.PrivateNetworksBrowseRequest) (fndapi.PageV2[orcapi.PrivateNetwork], *util.HttpError) {
-		sortByFn := ResourceDefaultComparator(func(item orcapi.PrivateNetwork) orcapi.Resource {
-			return item.Resource
-		}, request.ResourceFlags)
-
-		return ResourceBrowse[orcapi.PrivateNetwork](
-			info.Actor,
-			privateNetworkType,
-			request.Next,
-			request.ItemsPerPage,
-			request.ResourceFlags,
-			func(item orcapi.PrivateNetwork) bool {
-				return true
-			},
-			sortByFn,
-		), nil
+		return PrivateNetworkBrowse(info.Actor, request), nil
 	})
 
 	orcapi.PrivateNetworksControlBrowse.Handler(func(info rpc.RequestInfo, request orcapi.PrivateNetworksControlBrowseRequest) (fndapi.PageV2[orcapi.PrivateNetwork], *util.HttpError) {
@@ -58,78 +44,20 @@ func initPrivateNetworks() {
 	})
 
 	orcapi.PrivateNetworksCreate.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.PrivateNetworkSpecification]) (fndapi.BulkResponse[orcapi.PrivateNetwork], *util.HttpError) {
-		var responses []orcapi.PrivateNetwork
-
-		for _, item := range request.Items {
-			_, ok := SupportByProduct[orcapi.PrivateNetworkSupport](privateNetworkType, item.Product)
-			if !ok {
-				return fndapi.BulkResponse[orcapi.PrivateNetwork]{}, util.HttpErr(http.StatusBadRequest, "unsupported operation")
-			}
-
-			item.Name = strings.TrimSpace(item.Name)
-			item.Subdomain = strings.ToLower(strings.TrimSpace(item.Subdomain))
-
-			err := privateNetworkValidateSpecification(item)
-			if err != nil {
-				return fndapi.BulkResponse[orcapi.PrivateNetwork]{}, err
-			}
-
-			network, err := ResourceCreateThroughProvider(
-				info.Actor,
-				privateNetworkType,
-				item.ResourceSpecification,
-				&internalPrivateNetwork{
-					Name:      item.Name,
-					Subdomain: item.Subdomain,
-				},
-				orcapi.PrivateNetworksProviderCreate,
-			)
-
-			if err != nil {
-				return fndapi.BulkResponse[orcapi.PrivateNetwork]{}, err
-			}
-
-			responses = append(responses, network)
-		}
-
-		return fndapi.BulkResponse[orcapi.PrivateNetwork]{Responses: responses}, nil
+		responses, err := PrivateNetworkCreate(info.Actor, request)
+		return fndapi.BulkResponse[orcapi.PrivateNetwork]{Responses: responses}, err
 	})
 
 	orcapi.PrivateNetworksDelete.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[fndapi.FindByStringId]) (util.Empty, *util.HttpError) {
-		for _, item := range request.Items {
-			err := ResourceDeleteThroughProvider(info.Actor, privateNetworkType, item.Id, orcapi.PrivateNetworksProviderDelete)
-			if err != nil {
-				return util.Empty{}, err
-			}
-		}
-
-		return util.Empty{}, nil
+		return util.Empty{}, PrivateNetworkDelete(info.Actor, request)
 	})
 
 	orcapi.PrivateNetworksSearch.Handler(func(info rpc.RequestInfo, request orcapi.PrivateNetworksSearchRequest) (fndapi.PageV2[orcapi.PrivateNetwork], *util.HttpError) {
-		query := strings.ToLower(request.Query)
-		return ResourceBrowse[orcapi.PrivateNetwork](
-			info.Actor,
-			privateNetworkType,
-			request.Next,
-			request.ItemsPerPage,
-			request.ResourceFlags,
-			func(item orcapi.PrivateNetwork) bool {
-				name := strings.ToLower(item.Specification.Name)
-				subdomain := strings.ToLower(item.Specification.Subdomain)
-
-				if strings.Contains(name, query) {
-					return true
-				}
-
-				return strings.Contains(subdomain, query)
-			},
-			nil,
-		), nil
+		return PrivateNetworkSearch(info.Actor, request), nil
 	})
 
 	orcapi.PrivateNetworksRetrieve.Handler(func(info rpc.RequestInfo, request orcapi.PrivateNetworksRetrieveRequest) (orcapi.PrivateNetwork, *util.HttpError) {
-		return ResourceRetrieve[orcapi.PrivateNetwork](info.Actor, privateNetworkType, ResourceParseId(request.Id), request.ResourceFlags)
+		return PrivateNetworkRetrieve(info.Actor, request)
 	})
 
 	orcapi.PrivateNetworksControlRetrieve.Handler(func(info rpc.RequestInfo, request orcapi.PrivateNetworksControlRetrieveRequest) (orcapi.PrivateNetwork, *util.HttpError) {
@@ -148,28 +76,11 @@ func initPrivateNetworks() {
 	})
 
 	orcapi.PrivateNetworksUpdateLabels.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.PrivateNetworksUpdateLabelsRequest]) (util.Empty, *util.HttpError) {
-		for _, reqItem := range request.Items {
-			err := ResourceUpdateLabelsThroughProvider[orcapi.PrivateNetwork](
-				info.Actor,
-				privateNetworkType,
-				reqItem.Id,
-				reqItem.Labels,
-				func(t *orcapi.PrivateNetwork, labels map[string]string) {
-					t.Specification.Labels = labels
-				},
-				orcapi.PrivateNetworksProviderOnUpdatedLabels,
-			)
-
-			if err != nil {
-				return util.Empty{}, err
-			}
-		}
-
-		return util.Empty{}, nil
+		return util.Empty{}, PrivateNetworkUpdateLabels(info.Actor, request)
 	})
 
 	orcapi.PrivateNetworksRetrieveProducts.Handler(func(info rpc.RequestInfo, request util.Empty) (orcapi.SupportByProvider[orcapi.PrivateNetworkSupport], *util.HttpError) {
-		return SupportRetrieveProducts[orcapi.PrivateNetworkSupport](privateNetworkType), nil
+		return PrivateNetworkRetrieveProducts(info.Actor), nil
 	})
 
 	orcapi.PrivateNetworksControlRegister.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ProviderRegisteredResource[orcapi.PrivateNetworkSpecification]]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
@@ -231,6 +142,123 @@ func initPrivateNetworks() {
 
 		return util.Empty{}, nil
 	})
+}
+
+func PrivateNetworkCreate(actor rpc.Actor, request fndapi.BulkRequest[orcapi.PrivateNetworkSpecification]) ([]orcapi.PrivateNetwork, *util.HttpError) {
+	var responses []orcapi.PrivateNetwork
+
+	for _, item := range request.Items {
+		_, ok := SupportByProduct[orcapi.PrivateNetworkSupport](privateNetworkType, item.Product)
+		if !ok {
+			return nil, util.HttpErr(http.StatusBadRequest, "unsupported operation")
+		}
+
+		item.Name = strings.TrimSpace(item.Name)
+		item.Subdomain = strings.ToLower(strings.TrimSpace(item.Subdomain))
+
+		err := privateNetworkValidateSpecification(item)
+		if err != nil {
+			return nil, err
+		}
+
+		network, err := ResourceCreateThroughProvider(
+			actor,
+			privateNetworkType,
+			item.ResourceSpecification,
+			&internalPrivateNetwork{
+				Name:      item.Name,
+				Subdomain: item.Subdomain,
+			},
+			orcapi.PrivateNetworksProviderCreate,
+		)
+
+		if err != nil {
+			return nil, err
+		}
+
+		responses = append(responses, network)
+	}
+	return responses, nil
+}
+
+func PrivateNetworkBrowse(actor rpc.Actor, request orcapi.PrivateNetworksBrowseRequest) fndapi.PageV2[orcapi.PrivateNetwork] {
+	sortByFn := ResourceDefaultComparator(func(item orcapi.PrivateNetwork) orcapi.Resource {
+		return item.Resource
+	}, request.ResourceFlags)
+
+	return ResourceBrowse[orcapi.PrivateNetwork](
+		actor,
+		privateNetworkType,
+		request.Next,
+		request.ItemsPerPage,
+		request.ResourceFlags,
+		func(item orcapi.PrivateNetwork) bool {
+			return true
+		},
+		sortByFn,
+	)
+}
+
+func PrivateNetworkDelete(actor rpc.Actor, request fndapi.BulkRequest[fndapi.FindByStringId]) *util.HttpError {
+	for _, item := range request.Items {
+		err := ResourceDeleteThroughProvider(actor, privateNetworkType, item.Id, orcapi.PrivateNetworksProviderDelete)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func PrivateNetworkSearch(actor rpc.Actor, request orcapi.PrivateNetworksSearchRequest) fndapi.PageV2[orcapi.PrivateNetwork] {
+	query := strings.ToLower(request.Query)
+	return ResourceBrowse[orcapi.PrivateNetwork](
+		actor,
+		privateNetworkType,
+		request.Next,
+		request.ItemsPerPage,
+		request.ResourceFlags,
+		func(item orcapi.PrivateNetwork) bool {
+			name := strings.ToLower(item.Specification.Name)
+			subdomain := strings.ToLower(item.Specification.Subdomain)
+
+			if strings.Contains(name, query) {
+				return true
+			}
+
+			return strings.Contains(subdomain, query)
+		},
+		nil,
+	)
+}
+
+func PrivateNetworkRetrieve(actor rpc.Actor, request orcapi.PrivateNetworksRetrieveRequest) (orcapi.PrivateNetwork, *util.HttpError) {
+	return ResourceRetrieve[orcapi.PrivateNetwork](actor, privateNetworkType, ResourceParseId(request.Id), request.ResourceFlags)
+}
+
+func PrivateNetworkUpdateLabels(actor rpc.Actor, request fndapi.BulkRequest[orcapi.PrivateNetworksUpdateLabelsRequest]) *util.HttpError {
+	for _, reqItem := range request.Items {
+		err := ResourceUpdateLabelsThroughProvider[orcapi.PrivateNetwork](
+			actor,
+			privateNetworkType,
+			reqItem.Id,
+			reqItem.Labels,
+			func(t *orcapi.PrivateNetwork, labels map[string]string) {
+				t.Specification.Labels = labels
+			},
+			orcapi.PrivateNetworksProviderOnUpdatedLabels,
+		)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func PrivateNetworkRetrieveProducts(actor rpc.Actor) orcapi.SupportByProvider[orcapi.PrivateNetworkSupport] {
+	return SupportRetrieveProducts[orcapi.PrivateNetworkSupport](privateNetworkType)
 }
 
 type internalPrivateNetwork struct {

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"sync"
 
 	accapi "ucloud.dk/shared/pkg/accounting"
 	fndapi "ucloud.dk/shared/pkg/foundation"
@@ -17,13 +18,63 @@ import (
 	"ucloud.dk/shared/pkg/util"
 )
 
+type appUcxSessionState struct {
+	Mu      sync.RWMutex
+	actor   rpc.Actor
+	reqInfo orcapi.AppUcxConnectRequest
+	Stacks  map[string]util.Empty
+}
+
+func (s *appUcxSessionState) Actor() rpc.Actor {
+	s.Mu.RLock()
+	result := s.actor
+	s.Mu.RUnlock()
+	return result
+}
+
+func (s *appUcxSessionState) Provider() string {
+	s.Mu.RLock()
+	provider := s.reqInfo.Provider.GetOrDefault("")
+	s.Mu.RUnlock()
+	return provider
+}
+
+func (s *appUcxSessionState) registerStacksFromLabels(labels map[string]string) {
+	if labels == nil {
+		return
+	}
+
+	stack := strings.TrimSpace(labels[resourceLabelStackInstance])
+	if stack == "" {
+		return
+	}
+
+	s.Mu.Lock()
+	s.Stacks[stack] = util.Empty{}
+	s.Mu.Unlock()
+}
+
+func (s *appUcxSessionState) StackInstances() []string {
+	s.Mu.RLock()
+	instances := make([]string, 0, len(s.Stacks))
+	for stack := range s.Stacks {
+		instances = append(instances, stack)
+	}
+	s.Mu.RUnlock()
+	slices.Sort(instances)
+	return instances
+}
+
 func initAppUcx() {
 	orcapi.AppUcxConnect.Handler(func(info rpc.RequestInfo, _ util.Empty) (util.Empty, *util.HttpError) {
 		proxy := ucx.NewProxy("ws://pending")
-		reqInfo := orcapi.AppUcxConnectRequest{}
-		actor := rpc.Actor{Role: rpc.RoleGuest}
+		state := &appUcxSessionState{
+			actor:  rpc.Actor{Role: rpc.RoleGuest},
+			Stacks: map[string]util.Empty{},
+		}
 
 		proxy.RegisterUpstreamSelector(func(ctx context.Context, downstreamToken string, downstreamSysHello string) ucx.ProxyUpstreamSelection {
+			reqInfo := orcapi.AppUcxConnectRequest{}
 			if err := json.Unmarshal([]byte(downstreamSysHello), &reqInfo); err != nil {
 				log.Warn("UCX core: invalid syshello payload: %v", err)
 				return ucx.ProxyUpstreamSelection{
@@ -40,7 +91,6 @@ func initAppUcx() {
 			}
 
 			bearerActor, authErr := rpc.BearerAuthenticator(tok[0], tok[1])
-			actor = bearerActor
 			if authErr != nil {
 				log.Warn("UCX core: downstream bearer authentication failed: %v", authErr)
 				return ucx.ProxyUpstreamSelection{
@@ -48,14 +98,14 @@ func initAppUcx() {
 				}
 			}
 
-			if actor.Role&rpc.RolesEndUser == 0 {
+			if bearerActor.Role&rpc.RolesEndUser == 0 {
 				log.Warn("UCX core: downstream actor is not an end user")
 				return ucx.ProxyUpstreamSelection{
 					Allowed: false,
 				}
 			}
 
-			app, ok := AppRetrieve(actor, reqInfo.Name, reqInfo.Version, AppDiscoveryAll, 0)
+			app, ok := AppRetrieve(bearerActor, reqInfo.Name, reqInfo.Version, AppDiscoveryAll, 0)
 			if !ok {
 				log.Warn("UCX core: app not found: %s@%s", reqInfo.Name, reqInfo.Version)
 				return ucx.ProxyUpstreamSelection{
@@ -78,11 +128,11 @@ func initAppUcx() {
 			}
 
 			providerResp, err := accapi.FindRelevantProviders.Invoke(fndapi.BulkRequestOf(accapi.FindRelevantProvidersRequest{
-				Username: actor.Username,
-				Project: util.OptMap(actor.Project, func(value rpc.ProjectId) string {
+				Username: bearerActor.Username,
+				Project: util.OptMap(bearerActor.Project, func(value rpc.ProjectId) string {
 					return string(value)
 				}),
-				UseProject:        actor.Project.Present,
+				UseProject:        bearerActor.Project.Present,
 				FilterProductType: util.OptValue(accapi.ProductTypeCompute),
 			}))
 
@@ -95,7 +145,7 @@ func initAppUcx() {
 
 			providers := providerResp.Responses[0].Providers
 			if len(providers) == 0 {
-				log.Warn("UCX core: no providers available for actor=%s", actor.Username)
+				log.Warn("UCX core: no providers available for actor=%s", bearerActor.Username)
 				return ucx.ProxyUpstreamSelection{
 					Allowed: false,
 				}
@@ -146,8 +196,8 @@ func initAppUcx() {
 			sysHello, marshalErr := json.Marshal(orcapi.AppUcxConnectProviderRequest{
 				Application: app,
 				Owner: orcapi.ResourceOwner{
-					CreatedBy: actor.Username,
-					Project: util.OptMap(actor.Project, func(value rpc.ProjectId) string {
+					CreatedBy: bearerActor.Username,
+					Project: util.OptMap(bearerActor.Project, func(value rpc.ProjectId) string {
 						return string(value)
 					}),
 				},
@@ -156,6 +206,11 @@ func initAppUcx() {
 				log.Warn("UCX core: failed to marshal provider syshello: %v", marshalErr)
 				return ucx.ProxyUpstreamSelection{Allowed: false}
 			}
+
+			state.Mu.Lock()
+			state.actor = bearerActor
+			state.reqInfo = reqInfo
+			state.Mu.Unlock()
 
 			return ucx.ProxyUpstreamSelection{
 				Allowed:               true,
@@ -166,8 +221,11 @@ func initAppUcx() {
 			}
 		})
 
+		appUcxResourceHandlers(state, proxy)
+
 		ucxsvc.Core.HandlerProxy(proxy, func(ctx context.Context, request ucxsvc.Message) (ucxsvc.Message, error) {
-			log.Info("Got a message from '%s': %s", actor, request)
+			actor := state.Actor()
+			log.Info("Got a message from '%v': %s", actor, request)
 			return ucxsvc.Message{"Hello from the Core!"}, nil
 		})
 

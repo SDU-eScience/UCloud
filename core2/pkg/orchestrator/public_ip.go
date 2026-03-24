@@ -28,21 +28,7 @@ func initPublicIps() {
 	)
 
 	orcapi.PublicIpsBrowse.Handler(func(info rpc.RequestInfo, request orcapi.PublicIpsBrowseRequest) (fndapi.PageV2[orcapi.PublicIp], *util.HttpError) {
-		sortByFn := ResourceDefaultComparator(func(item orcapi.PublicIp) orcapi.Resource {
-			return item.Resource
-		}, request.ResourceFlags)
-
-		return ResourceBrowse(
-			info.Actor,
-			publicIpType,
-			request.Next,
-			request.ItemsPerPage,
-			request.ResourceFlags,
-			func(item orcapi.PublicIp) bool {
-				return true
-			},
-			sortByFn,
-		), nil
+		return PublicIpBrowse(info.Actor, request), nil
 	})
 
 	orcapi.PublicIpsControlBrowse.Handler(func(info rpc.RequestInfo, request orcapi.PublicIpsControlBrowseRequest) (fndapi.PageV2[orcapi.PublicIp], *util.HttpError) {
@@ -60,54 +46,17 @@ func initPublicIps() {
 	})
 
 	orcapi.PublicIpsDelete.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[fndapi.FindByStringId]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
-		for _, item := range request.Items {
-			err := ResourceDeleteThroughProvider(info.Actor, publicIpType, item.Id, orcapi.PublicIpsProviderDelete)
-			if err != nil {
-				return fndapi.BulkResponse[util.Empty]{}, err
-			}
-		}
-
-		return fndapi.BulkResponse[util.Empty]{Responses: make([]util.Empty, len(request.Items))}, nil
+		return PublicIpDelete(info.Actor, request)
 	})
 
 	orcapi.PublicIpsCreate.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.PublicIPSpecification]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
-		var ids []fndapi.FindByStringId
-		for _, item := range request.Items {
-			supp, ok := SupportByProduct[orcapi.PublicIpSupport](publicIpType, item.Product)
-			if !ok {
-				return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(
-					http.StatusNotFound,
-					"unknown product requested",
-				)
-			}
+		created, err := PublicIpCreate(info.Actor, request)
+		if err != nil {
+			return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
+		}
 
-			if item.Firewall.Present {
-				if !supp.Has(publicIpFeatureFirewall) {
-					return fndapi.BulkResponse[fndapi.FindByStringId]{}, featureNotSupportedError
-				}
-
-				err := publicIpValidateFirewall(item.Firewall.Value)
-				if err != nil {
-					return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
-				}
-			}
-
-			ip := &internalPublicIp{
-				Firewall: item.Firewall.GetOrDefault(orcapi.Firewall{}),
-			}
-
-			resc, err := ResourceCreateThroughProvider[orcapi.PublicIp](
-				info.Actor,
-				publicIpType,
-				item.ResourceSpecification,
-				ip,
-				orcapi.PublicIpsProviderCreate,
-			)
-
-			if err != nil {
-				return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
-			}
-
+		ids := make([]fndapi.FindByStringId, 0, len(created))
+		for _, resc := range created {
 			ids = append(ids, fndapi.FindByStringId{Id: resc.Id})
 		}
 
@@ -151,24 +100,7 @@ func initPublicIps() {
 	})
 
 	orcapi.PublicIpsUpdateLabels.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.PublicIpsUpdateLabelsRequest]) (util.Empty, *util.HttpError) {
-		for _, reqItem := range request.Items {
-			err := ResourceUpdateLabelsThroughProvider[orcapi.PublicIp](
-				info.Actor,
-				publicIpType,
-				reqItem.Id,
-				reqItem.Labels,
-				func(t *orcapi.PublicIp, labels map[string]string) {
-					t.Specification.Labels = labels
-				},
-				orcapi.PublicIpsProviderOnUpdatedLabels,
-			)
-
-			if err != nil {
-				return util.Empty{}, err
-			}
-		}
-
-		return util.Empty{}, nil
+		return util.Empty{}, PublicIpUpdateLabels(info.Actor, request)
 	})
 
 	orcapi.PublicIpsRetrieveProducts.Handler(func(info rpc.RequestInfo, request util.Empty) (orcapi.SupportByProvider[orcapi.PublicIpSupport], *util.HttpError) {
@@ -258,68 +190,166 @@ func initPublicIps() {
 	})
 
 	orcapi.PublicIpsUpdateFirewall.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.PublicIpUpdateFirewallRequest]) (util.Empty, *util.HttpError) {
-		byProvider := map[string][]orcapi.PublicIpProviderUpdateFirewallRequest{}
-		for _, item := range request.Items {
-			resc, _, _, err := ResourceRetrieveEx[orcapi.PublicIp](
-				info.Actor,
-				publicIpType,
-				ResourceParseId(item.Id),
-				orcapi.PermissionEdit,
-				orcapi.ResourceFlags{},
-			)
-
-			if err != nil {
-				return util.Empty{}, err
-			}
-
-			supp, ok := SupportByProduct[orcapi.PublicIpSupport](publicIpType, resc.Specification.Product)
-			if !ok || !supp.Has(publicIpFeatureFirewall) {
-				return util.Empty{}, featureNotSupportedError
-			}
-
-			err = publicIpValidateFirewall(item.Firewall)
-			if err != nil {
-				return util.Empty{}, err
-			}
-
-			provider := resc.Specification.Product.Provider
-			byProvider[provider] = append(byProvider[provider], orcapi.PublicIpProviderUpdateFirewallRequest{
-				PublicIp: resc,
-				Firewall: item.Firewall,
-			})
-		}
-
-		for providerId, items := range byProvider {
-			_, err := InvokeProvider(
-				providerId,
-				orcapi.PublicIpsProviderUpdateFirewall,
-				fndapi.BulkRequestOf(items...),
-				ProviderCallOpts{
-					Username: util.OptValue(info.Actor.Username),
-					Reason:   util.OptValue("user initiated firewall update"),
-				},
-			)
-
-			if err == nil {
-				for _, item := range items {
-					_ = ResourceUpdate(
-						info.Actor,
-						publicIpType,
-						ResourceParseId(item.PublicIp.Id),
-						orcapi.PermissionEdit,
-						func(r *resource, mapped orcapi.PublicIp) {
-							ip := r.Extra.(*internalPublicIp)
-							ip.Firewall = item.Firewall
-						},
-					)
-				}
-			} else {
-				return util.Empty{}, err
-			}
-		}
-
-		return util.Empty{}, nil
+		return util.Empty{}, PublicIpUpdateFirewall(info.Actor, request)
 	})
+}
+
+func PublicIpUpdateLabels(actor rpc.Actor, request fndapi.BulkRequest[orcapi.PublicIpsUpdateLabelsRequest]) *util.HttpError {
+	for _, reqItem := range request.Items {
+		err := ResourceUpdateLabelsThroughProvider[orcapi.PublicIp](
+			actor,
+			publicIpType,
+			reqItem.Id,
+			reqItem.Labels,
+			func(t *orcapi.PublicIp, labels map[string]string) {
+				t.Specification.Labels = labels
+			},
+			orcapi.PublicIpsProviderOnUpdatedLabels,
+		)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func PublicIpUpdateFirewall(actor rpc.Actor, request fndapi.BulkRequest[orcapi.PublicIpUpdateFirewallRequest]) *util.HttpError {
+	byProvider := map[string][]orcapi.PublicIpProviderUpdateFirewallRequest{}
+	for _, item := range request.Items {
+		resc, _, _, err := ResourceRetrieveEx[orcapi.PublicIp](
+			actor,
+			publicIpType,
+			ResourceParseId(item.Id),
+			orcapi.PermissionEdit,
+			orcapi.ResourceFlags{},
+		)
+
+		if err != nil {
+			return err
+		}
+
+		supp, ok := SupportByProduct[orcapi.PublicIpSupport](publicIpType, resc.Specification.Product)
+		if !ok || !supp.Has(publicIpFeatureFirewall) {
+			return featureNotSupportedError
+		}
+
+		err = publicIpValidateFirewall(item.Firewall)
+		if err != nil {
+			return err
+		}
+
+		provider := resc.Specification.Product.Provider
+		byProvider[provider] = append(byProvider[provider], orcapi.PublicIpProviderUpdateFirewallRequest{
+			PublicIp: resc,
+			Firewall: item.Firewall,
+		})
+	}
+
+	for providerId, items := range byProvider {
+		_, err := InvokeProvider(
+			providerId,
+			orcapi.PublicIpsProviderUpdateFirewall,
+			fndapi.BulkRequestOf(items...),
+			ProviderCallOpts{
+				Username: util.OptValue(actor.Username),
+				Reason:   util.OptValue("user initiated firewall update"),
+			},
+		)
+
+		if err == nil {
+			for _, item := range items {
+				_ = ResourceUpdate(
+					actor,
+					publicIpType,
+					ResourceParseId(item.PublicIp.Id),
+					orcapi.PermissionEdit,
+					func(r *resource, mapped orcapi.PublicIp) {
+						ip := r.Extra.(*internalPublicIp)
+						ip.Firewall = item.Firewall
+					},
+				)
+			}
+		} else {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func PublicIpCreate(actor rpc.Actor, request fndapi.BulkRequest[orcapi.PublicIPSpecification]) ([]orcapi.PublicIp, *util.HttpError) {
+	var created []orcapi.PublicIp
+	for _, item := range request.Items {
+		supp, ok := SupportByProduct[orcapi.PublicIpSupport](publicIpType, item.Product)
+		if !ok {
+			return nil, util.HttpErr(
+				http.StatusNotFound,
+				"unknown product requested",
+			)
+		}
+
+		if item.Firewall.Present {
+			if !supp.Has(publicIpFeatureFirewall) {
+				return nil, featureNotSupportedError
+			}
+
+			err := publicIpValidateFirewall(item.Firewall.Value)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		ip := &internalPublicIp{
+			Firewall: item.Firewall.GetOrDefault(orcapi.Firewall{}),
+		}
+
+		resc, err := ResourceCreateThroughProvider[orcapi.PublicIp](
+			actor,
+			publicIpType,
+			item.ResourceSpecification,
+			ip,
+			orcapi.PublicIpsProviderCreate,
+		)
+
+		if err != nil {
+			return nil, err
+		}
+
+		created = append(created, resc)
+	}
+
+	return created, nil
+}
+
+func PublicIpBrowse(actor rpc.Actor, request orcapi.PublicIpsBrowseRequest) fndapi.PageV2[orcapi.PublicIp] {
+	sortByFn := ResourceDefaultComparator(func(item orcapi.PublicIp) orcapi.Resource {
+		return item.Resource
+	}, request.ResourceFlags)
+
+	return ResourceBrowse(
+		actor,
+		publicIpType,
+		request.Next,
+		request.ItemsPerPage,
+		request.ResourceFlags,
+		func(item orcapi.PublicIp) bool {
+			return true
+		},
+		sortByFn,
+	)
+}
+
+func PublicIpDelete(actor rpc.Actor, request fndapi.BulkRequest[fndapi.FindByStringId]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
+	for _, item := range request.Items {
+		err := ResourceDeleteThroughProvider(actor, publicIpType, item.Id, orcapi.PublicIpsProviderDelete)
+		if err != nil {
+			return fndapi.BulkResponse[util.Empty]{}, err
+		}
+	}
+
+	return fndapi.BulkResponse[util.Empty]{Responses: make([]util.Empty, len(request.Items))}, nil
 }
 
 func PublicIpBind(id string, jobId string) {

@@ -26,21 +26,7 @@ func initLicenses() {
 	)
 
 	orcapi.LicensesBrowse.Handler(func(info rpc.RequestInfo, request orcapi.LicensesBrowseRequest) (fndapi.PageV2[orcapi.License], *util.HttpError) {
-		sortByFn := ResourceDefaultComparator(func(item orcapi.License) orcapi.Resource {
-			return item.Resource
-		}, request.ResourceFlags)
-
-		return ResourceBrowse[orcapi.License](
-			info.Actor,
-			licenseType,
-			request.Next,
-			request.ItemsPerPage,
-			request.ResourceFlags,
-			func(item orcapi.License) bool {
-				return true
-			},
-			sortByFn,
-		), nil
+		return LicenseBrowse(info.Actor, request), nil
 	})
 
 	orcapi.LicensesControlBrowse.Handler(func(info rpc.RequestInfo, request orcapi.LicensesControlBrowseRequest) (fndapi.PageV2[orcapi.License], *util.HttpError) {
@@ -58,20 +44,13 @@ func initLicenses() {
 	})
 
 	orcapi.LicensesCreate.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.LicenseSpecification]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
-		var result []fndapi.FindByStringId
-		for _, item := range request.Items {
-			license, err := ResourceCreateThroughProvider(
-				info.Actor,
-				licenseType,
-				item.ResourceSpecification,
-				&internalLicense{},
-				orcapi.LicensesProviderCreate,
-			)
+		created, err := LicenseCreate(info.Actor, request)
+		if err != nil {
+			return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
+		}
 
-			if err != nil {
-				return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
-			}
-
+		result := make([]fndapi.FindByStringId, 0, len(created))
+		for _, license := range created {
 			result = append(result, fndapi.FindByStringId{Id: license.Id})
 		}
 
@@ -79,14 +58,7 @@ func initLicenses() {
 	})
 
 	orcapi.LicensesDelete.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[fndapi.FindByStringId]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
-		for _, item := range request.Items {
-			err := ResourceDeleteThroughProvider(info.Actor, licenseType, item.Id, orcapi.LicensesProviderDelete)
-			if err != nil {
-				return fndapi.BulkResponse[util.Empty]{}, err
-			}
-		}
-
-		return fndapi.BulkResponse[util.Empty]{Responses: make([]util.Empty, len(request.Items))}, nil
+		return LicenseDelete(info.Actor, request)
 	})
 
 	orcapi.LicensesSearch.Handler(func(info rpc.RequestInfo, request orcapi.LicensesSearchRequest) (fndapi.PageV2[orcapi.License], *util.HttpError) {
@@ -123,24 +95,7 @@ func initLicenses() {
 	})
 
 	orcapi.LicensesUpdateLabels.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.LicensesUpdateLabelsRequest]) (util.Empty, *util.HttpError) {
-		for _, reqItem := range request.Items {
-			err := ResourceUpdateLabelsThroughProvider[orcapi.License](
-				info.Actor,
-				licenseType,
-				reqItem.Id,
-				reqItem.Labels,
-				func(t *orcapi.License, labels map[string]string) {
-					t.Specification.Labels = labels
-				},
-				orcapi.LicensesProviderOnUpdatedLabels,
-			)
-
-			if err != nil {
-				return util.Empty{}, err
-			}
-		}
-
-		return util.Empty{}, nil
+		return util.Empty{}, LicenseUpdateLabels(info.Actor, request)
 	})
 
 	orcapi.LicensesRetrieveProducts.Handler(func(info rpc.RequestInfo, request util.Empty) (orcapi.SupportByProvider[orcapi.LicenseSupport], *util.HttpError) {
@@ -220,6 +175,77 @@ func initLicenses() {
 
 		return util.Empty{}, nil
 	})
+}
+
+func LicenseCreate(actor rpc.Actor, request fndapi.BulkRequest[orcapi.LicenseSpecification]) ([]orcapi.License, *util.HttpError) {
+	var created []orcapi.License
+	for _, item := range request.Items {
+		license, err := ResourceCreateThroughProvider(
+			actor,
+			licenseType,
+			item.ResourceSpecification,
+			&internalLicense{},
+			orcapi.LicensesProviderCreate,
+		)
+
+		if err != nil {
+			return nil, err
+		}
+
+		created = append(created, license)
+	}
+
+	return created, nil
+}
+
+func LicenseBrowse(actor rpc.Actor, request orcapi.LicensesBrowseRequest) fndapi.PageV2[orcapi.License] {
+	sortByFn := ResourceDefaultComparator(func(item orcapi.License) orcapi.Resource {
+		return item.Resource
+	}, request.ResourceFlags)
+
+	return ResourceBrowse[orcapi.License](
+		actor,
+		licenseType,
+		request.Next,
+		request.ItemsPerPage,
+		request.ResourceFlags,
+		func(item orcapi.License) bool {
+			return true
+		},
+		sortByFn,
+	)
+}
+
+func LicenseDelete(actor rpc.Actor, request fndapi.BulkRequest[fndapi.FindByStringId]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
+	for _, item := range request.Items {
+		err := ResourceDeleteThroughProvider(actor, licenseType, item.Id, orcapi.LicensesProviderDelete)
+		if err != nil {
+			return fndapi.BulkResponse[util.Empty]{}, err
+		}
+	}
+
+	return fndapi.BulkResponse[util.Empty]{Responses: make([]util.Empty, len(request.Items))}, nil
+}
+
+func LicenseUpdateLabels(actor rpc.Actor, request fndapi.BulkRequest[orcapi.LicensesUpdateLabelsRequest]) *util.HttpError {
+	for _, reqItem := range request.Items {
+		err := ResourceUpdateLabelsThroughProvider[orcapi.License](
+			actor,
+			licenseType,
+			reqItem.Id,
+			reqItem.Labels,
+			func(t *orcapi.License, labels map[string]string) {
+				t.Specification.Labels = labels
+			},
+			orcapi.LicensesProviderOnUpdatedLabels,
+		)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 type internalLicense struct {
