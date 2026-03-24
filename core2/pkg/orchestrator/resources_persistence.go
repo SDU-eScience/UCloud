@@ -439,8 +439,13 @@ func resourceLoadIndex(b *resourceIndexBucket, typeName string, reference string
 	})
 
 	var ids []ResourceId
+	labelsByOwner := map[string][]ResourceId{}
 	for id := range resources {
 		ids = append(ids, id)
+		r := resources[id]
+		if r != nil {
+			labelsByOwner[reference] = append(labelsByOwner[reference], id)
+		}
 	}
 	slices.Sort(ids)
 
@@ -448,6 +453,16 @@ func resourceLoadIndex(b *resourceIndexBucket, typeName string, reference string
 		b.Mu.Lock()
 		if _, exists := b.ByOwner[reference]; !exists {
 			b.ByOwner[reference] = ids
+			if _, exists := b.ByOwnerLabels[reference]; !exists {
+				b.ByOwnerLabels[reference] = map[string][]ResourceId{}
+			}
+
+			for _, id := range labelsByOwner[reference] {
+				r := resources[id]
+				if r != nil {
+					resourceIndexLabelsAddLocked(b, reference, r.Id, r.BaseSpec.Labels)
+				}
+			}
 		}
 		b.Mu.Unlock()
 	}

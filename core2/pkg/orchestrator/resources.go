@@ -113,8 +113,9 @@ type resourceBucket struct {
 }
 
 type resourceIndexBucket struct {
-	Mu      sync.RWMutex
-	ByOwner map[string][]ResourceId // Sorted by ID ascending (newest last)
+	Mu            sync.RWMutex
+	ByOwner       map[string][]ResourceId // Sorted by ID ascending (newest last)
+	ByOwnerLabels map[string]map[string][]ResourceId
 }
 
 type resourceProvider struct {
@@ -134,6 +135,16 @@ var resourceGlobals struct {
 
 	IdAcc atomic.Int64 // does not require mutex
 }
+
+var resourceLabelIndex struct {
+	Mu         sync.RWMutex
+	IndexedKey map[string]util.Empty
+}
+
+const (
+	resourceLabelStackName     = "ucloud.dk/stackname"
+	resourceLabelStackInstance = "ucloud.dk/stackinstance"
+)
 
 type resourceTypeFlags int64
 
@@ -219,6 +230,9 @@ func InitResources() {
 	resourceGlobals.IdAcc.Store(1)
 	resourceGlobals.ByType = map[string]*resourceTypeGlobal{}
 	resourceGlobals.Providers = map[string]*resourceProvider{}
+	resourceLabelIndex.IndexedKey = map[string]util.Empty{}
+	ResourceRegisterIndexedLabelKey(resourceLabelStackName)
+	ResourceRegisterIndexedLabelKey(resourceLabelStackInstance)
 
 	if !resourceGlobals.Testing.Enabled {
 		db.NewTx0(func(tx *db.Transaction) {
@@ -233,6 +247,24 @@ func InitResources() {
 			}
 		})
 	}
+}
+
+func ResourceRegisterIndexedLabelKey(key string) {
+	normalized := strings.ToLower(strings.TrimSpace(key))
+	if normalized == "" {
+		return
+	}
+
+	resourceLabelIndex.Mu.Lock()
+	resourceLabelIndex.IndexedKey[normalized] = util.Empty{}
+	resourceLabelIndex.Mu.Unlock()
+}
+
+func resourceIsLabelIndexed(key string) bool {
+	resourceLabelIndex.Mu.RLock()
+	_, ok := resourceLabelIndex.IndexedKey[strings.ToLower(strings.TrimSpace(key))]
+	resourceLabelIndex.Mu.RUnlock()
+	return ok
 }
 
 func InitResourceType(
@@ -274,9 +306,14 @@ func InitResourceType(
 		})
 
 		tGlobals.Indexes = append(tGlobals.Indexes, &resourceIndexBucket{
-			ByOwner: map[string][]ResourceId{},
+			ByOwner:       map[string][]ResourceId{},
+			ByOwnerLabels: map[string]map[string][]ResourceId{},
 		})
 	}
+
+	tGlobals.Indexers = append(tGlobals.Indexers, func(r *resource) ResourceIndexer {
+		return &resourceLabelIndexer{TypeName: typeName, Resource: r}
+	})
 
 	resourceGlobals.Mu.Unlock()
 }
@@ -421,6 +458,20 @@ func lResourceApplyFlags(r *resource, myPerms []orcapi.Permission, flags orcapi.
 
 	if flags.FilterCreatedBy.Present && flags.FilterCreatedBy.Value != r.Owner.CreatedBy {
 		return result, false
+	}
+
+	if len(flags.FilterLabels) > 0 {
+		for key, expectedValue := range flags.FilterLabels {
+			normalizedKey := strings.ToLower(strings.TrimSpace(key))
+			if normalizedKey == "" {
+				return result, false
+			}
+
+			actualValue, ok := r.BaseSpec.Labels[normalizedKey]
+			if !ok || actualValue != expectedValue {
+				return result, false
+			}
+		}
 	}
 
 	if flags.FilterCreatedAfter.Present && r.CreatedAt.Before(fndapi.TimeFromUnixMilli(flags.FilterCreatedAfter.Value).Time()) {
@@ -638,6 +689,13 @@ func ResourceBrowse[T any](
 		idxBucket.Mu.RLock()
 		idx := append([]ResourceId(nil), idxBucket.ByOwner[ref]...) // deep copy under lock
 
+		if len(flags.FilterLabels) > 0 {
+			filtered, ok := resourceFilterByIndexedLabelsLocked(idxBucket, ref, idx, flags.FilterLabels)
+			if ok {
+				idx = filtered
+			}
+		}
+
 		if len(idx) > 10_000 {
 			// NOTE(Dan): We refuse to run anything but the default sort if there are too many expected results.
 			// We will have to add a better solution if this ever becomes an issue.
@@ -844,6 +902,7 @@ func ResourceUpdate[T any](
 			idxBucket.Mu.Lock()
 			idx := idxBucket.ByOwner[rescOwnerRef]
 			idxBucket.ByOwner[rescOwnerRef] = util.RemoveFirst(idx, id)
+			resourceIndexLabelsRemoveLocked(idxBucket, rescOwnerRef, id, resc.BaseSpec.Labels)
 			idxBucket.Mu.Unlock()
 		}
 
@@ -946,12 +1005,25 @@ func ResourceUpdateAcl(
 	})
 
 	if len(addedUsers) > 0 {
+		b := resourceGetBucket(typeName, pId)
+		b.Mu.RLock()
+		resc := b.Resources[pId]
+		rescLabels := map[string]string{}
+		if resc != nil {
+			for k, v := range resc.BaseSpec.Labels {
+				rescLabels[k] = v
+			}
+		}
+		b.Mu.RUnlock()
+
 		for _, user := range addedUsers {
 			idx := resourceGetAndLoadIndex(typeName, user)
 
 			idx.Mu.Lock()
 			idx.ByOwner[user] = util.AppendUnique(idx.ByOwner[user], pId)
 			slices.Sort(idx.ByOwner[user])
+			resourceIndexLabelsAddLocked(idx, user, pId, rescLabels)
+
 			idx.Mu.Unlock()
 		}
 	}
@@ -1196,6 +1268,162 @@ func ResourceDelete(actor rpc.Actor, typeName string, id ResourceId) bool {
 			r.MarkedForDeletion = true
 		},
 	)
+}
+
+func resourceFilterByIndexedLabelsLocked(
+	b *resourceIndexBucket,
+	ownerRef string,
+	all []ResourceId,
+	labels map[string]string,
+) ([]ResourceId, bool) {
+	if len(labels) == 0 {
+		return all, false
+	}
+
+	indexed := b.ByOwnerLabels[ownerRef]
+	if indexed == nil {
+		return nil, true
+	}
+
+	var current []ResourceId
+	initialized := false
+
+	for key, value := range labels {
+		normalizedKey := strings.ToLower(strings.TrimSpace(key))
+		if !resourceIsLabelIndexed(normalizedKey) {
+			return all, false
+		}
+
+		labelKey := resourceLabelIndexPairKey(normalizedKey, value)
+		ids := indexed[labelKey]
+		if ids == nil {
+			return nil, true
+		}
+
+		if !initialized {
+			current = append([]ResourceId(nil), ids...)
+			initialized = true
+		} else {
+			current = resourceIntersectSorted(current, ids)
+		}
+
+		if len(current) == 0 {
+			return nil, true
+		}
+	}
+
+	if !initialized {
+		return all, false
+	}
+
+	return current, true
+}
+
+func resourceIntersectSorted(a []ResourceId, b []ResourceId) []ResourceId {
+	result := make([]ResourceId, 0, min(len(a), len(b)))
+	i := 0
+	j := 0
+
+	for i < len(a) && j < len(b) {
+		if a[i] == b[j] {
+			result = append(result, a[i])
+			i++
+			j++
+		} else if a[i] < b[j] {
+			i++
+		} else {
+			j++
+		}
+	}
+
+	return result
+}
+
+func resourceLabelIndexPairKey(key string, value string) string {
+	return key + "\x1f" + value
+}
+
+func resourceIndexLabelsAddLocked(idx *resourceIndexBucket, ownerRef string, id ResourceId, labels map[string]string) {
+	if len(labels) == 0 {
+		return
+	}
+
+	perOwner := idx.ByOwnerLabels[ownerRef]
+	if perOwner == nil {
+		perOwner = map[string][]ResourceId{}
+		idx.ByOwnerLabels[ownerRef] = perOwner
+	}
+
+	for key, value := range labels {
+		normalizedKey := strings.ToLower(strings.TrimSpace(key))
+		if !resourceIsLabelIndexed(normalizedKey) {
+			continue
+		}
+
+		pairKey := resourceLabelIndexPairKey(normalizedKey, value)
+		perOwner[pairKey] = util.AppendUnique(perOwner[pairKey], id)
+		slices.Sort(perOwner[pairKey])
+	}
+}
+
+func resourceIndexLabelsRemoveLocked(idx *resourceIndexBucket, ownerRef string, id ResourceId, labels map[string]string) {
+	if len(labels) == 0 {
+		return
+	}
+
+	perOwner := idx.ByOwnerLabels[ownerRef]
+	if perOwner == nil {
+		return
+	}
+
+	for key, value := range labels {
+		normalizedKey := strings.ToLower(strings.TrimSpace(key))
+		if !resourceIsLabelIndexed(normalizedKey) {
+			continue
+		}
+
+		pairKey := resourceLabelIndexPairKey(normalizedKey, value)
+		ids := perOwner[pairKey]
+		if len(ids) == 0 {
+			continue
+		}
+
+		ids = util.RemoveFirst(ids, id)
+		if len(ids) == 0 {
+			delete(perOwner, pairKey)
+		} else {
+			perOwner[pairKey] = ids
+		}
+	}
+
+	if len(perOwner) == 0 {
+		delete(idx.ByOwnerLabels, ownerRef)
+	}
+}
+
+type resourceLabelIndexer struct {
+	TypeName string
+	Resource *resource
+	bucket   *resourceIndexBucket
+	ownerRef string
+}
+
+func (i *resourceLabelIndexer) Begin() {
+	i.ownerRef = i.Resource.Owner.Project.GetOrDefault(i.Resource.Owner.CreatedBy)
+	i.bucket = resourceGetAndLoadIndex(i.TypeName, i.ownerRef)
+	i.bucket.Mu.Lock()
+}
+
+func (i *resourceLabelIndexer) Add() {
+	resourceIndexLabelsAddLocked(i.bucket, i.ownerRef, i.Resource.Id, i.Resource.BaseSpec.Labels)
+}
+
+func (i *resourceLabelIndexer) Remove() {
+	resourceIndexLabelsRemoveLocked(i.bucket, i.ownerRef, i.Resource.Id, i.Resource.BaseSpec.Labels)
+}
+
+func (i *resourceLabelIndexer) Commit() {
+	i.bucket.Mu.Unlock()
 }
 
 type ResourceIndexer interface {

@@ -89,6 +89,21 @@ func convertType(name string, value reflect.Value) []string {
 			iface := value.Interface()
 			return StructToParameters(iface)
 		}
+	case reflect.Map:
+		if value.Type().Key().Kind() != reflect.String || value.Type().Elem().Kind() != reflect.String {
+			log.Info("Unable to convert map value of type %v to query parameters from %v", value.Type(), name)
+			return []string{}
+		}
+
+		if value.IsNil() {
+			return []string{}
+		}
+
+		var result []string
+		for _, mapKey := range value.MapKeys() {
+			result = append(result, name+"."+mapKey.String(), value.MapIndex(mapKey).String())
+		}
+		return result
 	default:
 		log.Info("Unable to convert value of type %v to parameter from %v %v", value.Kind(), name, value)
 		return []string{}

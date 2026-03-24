@@ -486,3 +486,50 @@ func TestResourceCreateAndUpdateLabels(t *testing.T) {
 		assert.Equal(t, 0, len(retrieved.Labels))
 	}
 }
+
+func TestResourceBrowseFilterLabels(t *testing.T) {
+	initResourceTest(t)
+
+	owner := actor("owner", "")
+
+	create := func(labels map[string]string) {
+		id, _, err := ResourceCreate[TestResource](
+			*owner,
+			testResource,
+			orcapi.ResourceSpecification{Labels: labels},
+			&TestResourceData{A: 1, B: 1},
+		)
+		if assert.Nil(t, err) {
+			ResourceConfirm(testResource, id)
+		}
+	}
+
+	create(map[string]string{"ucloud.dk/stackName": "alpha", "ucloud.dk/stackInstance": "1"})
+	create(map[string]string{"ucloud.dk/stackName": "alpha", "ucloud.dk/stackInstance": "2"})
+	create(map[string]string{"ucloud.dk/stackName": "beta", "ucloud.dk/stackInstance": "1"})
+
+	browse := func(filter map[string]string) []TestResource {
+		page := ResourceBrowse(
+			*owner,
+			testResource,
+			util.OptNone[string](),
+			100,
+			orcapi.ResourceFlags{FilterLabels: filter},
+			func(item TestResource) bool { return true },
+			nil,
+		)
+		return page.Items
+	}
+
+	items := browse(map[string]string{"ucloud.dk/stackName": "alpha"})
+	assert.Equal(t, 2, len(items))
+
+	items = browse(map[string]string{"ucloud.dk/stackInstance": "1"})
+	assert.Equal(t, 2, len(items))
+
+	items = browse(map[string]string{"ucloud.dk/stackName": "alpha", "ucloud.dk/stackInstance": "1"})
+	assert.Equal(t, 1, len(items))
+
+	items = browse(map[string]string{"ucloud.dk/stackName": "gamma"})
+	assert.Equal(t, 0, len(items))
+}
