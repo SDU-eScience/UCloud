@@ -2139,7 +2139,7 @@ export function Editor(): React.ReactNode {
                                             if (hideZeroFields && !anyNonZeroValues) return null;
 
                                             const currentProvider = providerBrandingData.providers[providerId];
-                                            const productDescription = currentProvider?.productDescription.find(it => it.category.name === category.category.name);
+                                            const productDescription = currentProvider?.productDescription.find(it => it.category === category.category.name);
                                             const showDescriptions = productDescription != undefined;
 
 

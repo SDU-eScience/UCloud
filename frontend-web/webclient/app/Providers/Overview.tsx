@@ -43,7 +43,7 @@ export default function ProviderOverview() {
     usePage("Provider overview", SidebarTabId.NONE);
     const providers = useProviderBrandings();
     if (!providers) {
-        return;
+        return null;
     }
 
     const main = <Box m="12px 24px">

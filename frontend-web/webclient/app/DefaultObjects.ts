@@ -53,7 +53,7 @@ export function initObject(): ReduxObject {
         avatar: initAvatar(),
         project: ProjectRedux.initialState,
         terminal: initTerminalState(),
-        providerBrandings: {providers: {}},
+        providerBrandings: initProviderBranding(),
         popinChild: null,
         loading: false,
         sidebar: {favorites: [], theme: getThemeOrDefaultValue()}
