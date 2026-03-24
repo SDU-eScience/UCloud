@@ -278,6 +278,7 @@ func internalReportUsage(now time.Time, request accapi.ReportUsageRequest) (bool
 
 	deltaToReport := delta
 	fmt.Printf("deltaToReport: %d\n", deltaToReport)
+
 	if delta < 0 {
 		fmt.Printf("Delta is negative\n")
 		// Check if there is local excess which should counter-act the decrease
@@ -299,12 +300,25 @@ func internalReportUsage(now time.Time, request accapi.ReportUsageRequest) (bool
 	w.LocalUsage += delta
 	w.Dirty = true
 
+	lInternalRepairBrokenPropagation(b, now, w)
+
 	for visitedId, _ := range visitedWallets {
 		visited := b.WalletsById[visitedId]
 		lInternalReevaluate(b, now, visited, false)
 	}
 
 	return !w.WasLocked, nil
+}
+
+func lInternalRepairBrokenPropagation(b *internalBucket, now time.Time, wallet *internalWallet) {
+	propagated := lInternalWalletTotalPropagatedUsage(b, wallet)
+	inNode := lInternalWalletTotalUsageInNode(b, wallet)
+	if propagated <= inNode {
+		return
+	}
+
+	toRelease := propagated - inNode
+	_, _ = lInternalReportUsage(b, now, wallet, -toRelease)
 }
 
 // If grantedIn is specified, then the allocations will not be committed to the database before
@@ -769,7 +783,11 @@ func lInternalWalletByOwner(b *internalBucket, now time.Time, owner accOwnerId) 
 
 func lInternalReportUsage(b *internalBucket, now time.Time, w *internalWallet, delta int64) (int64, map[AccWalletId]bool) {
 	fmt.Printf("lInternalReportUsage called for wallet %v with delta: %v\n", w.Id, delta)
-	chargeGraph := lInternalBuildGraph(b, now, w, internalGraphWithOverAllocation)
+	flags := internalGraphWithOverAllocation
+	if delta < 0 {
+		flags |= internalGraphDeltaIsNegative
+	}
+	chargeGraph := lInternalBuildGraph(b, now, w, flags)
 
 	println(chargeGraph.ToMermaid())
 	rootVertex := chargeGraph.WalletToVertex[internalGraphRoot]
@@ -869,6 +887,19 @@ func lInternalBuildGraph(b *internalBucket, now time.Time, leaf *internalWallet,
 		g.VertexToWallet = vertexToWallet
 		g.WalletToVertex = walletToVertex
 
+		retirementCost := internalGraphRetirementCost
+		overallocationCost := internalGraphOverAllocationEdgeCost
+
+		if flags&internalGraphDeltaIsNegative != 0 {
+			// NOTE(Dan, Henrik): We want the retirement edge to always be taken when the delta is positive, but this
+			// is not the case when the delta is negative. We choose to take the retirement edge when positive to
+			// ensure that the tree is charged as much as possible, to not allow for free credits to easily.
+			// However, we want to maintain the property that when reducing the usage in the tree, then the excess
+			// usage is always removed first.
+			retirementCost = internalGraphOverAllocationEdgeCost
+			overallocationCost = internalGraphRetirementCost
+		}
+
 		for walletId, vertexIndex := range walletToVertex {
 			if walletId == internalGraphRoot {
 				continue
@@ -908,7 +939,7 @@ func lInternalBuildGraph(b *internalBucket, now time.Time, leaf *internalWallet,
 					cost := (&big.Int{}).Mul(big.NewInt(balanceFactor), big.NewInt(timeFactor))
 
 					if timeFactor < 0 || activeQuota < allocationGroup.TreeUsage {
-						cost = internalGraphRetirementCost
+						cost = retirementCost
 					} else if cost.Cmp(big.NewInt(0)) == -1 {
 						panic("expected cost to be >= 0")
 					}
@@ -940,11 +971,11 @@ func lInternalBuildGraph(b *internalBucket, now time.Time, leaf *internalWallet,
 
 						// Add edge between root and the over-allocation node
 						g.AddEdge(rootVertex, overAllocationNode, overAllocationUsed-overAllocationUsed, overAllocationUsed)
-						g.AddEdgeCost(rootVertex, overAllocationNode, internalGraphOverAllocationEdgeCost)
+						g.AddEdgeCost(rootVertex, overAllocationNode, overallocationCost)
 
 						// Add edge between our wallet node and the over-allocation node
 						g.AddEdge(overAllocationNode, vertexIndex, overAllocationUsed-overAllocationUsed, overAllocationUsed)
-						g.AddEdgeCost(overAllocationNode, vertexIndex, internalGraphOverAllocationEdgeCost)
+						g.AddEdgeCost(overAllocationNode, vertexIndex, overallocationCost)
 					}
 				}
 			}
@@ -1973,6 +2004,7 @@ type internalGraphFlag int
 
 const (
 	internalGraphWithOverAllocation internalGraphFlag = 1 << iota
+	internalGraphDeltaIsNegative
 )
 
 const (
