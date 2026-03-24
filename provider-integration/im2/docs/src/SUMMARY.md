@@ -44,6 +44,7 @@
 - [Integrated applications](./k8s/integrated-applications.md)
   - [Syncthing](./k8s/syncthing.md)
   - [Integrated terminal](./k8s/integrated-terminal.md)
+  - [Job Audit Log](./k8s/job-audit-log.md)
 - [Reference](./k8s/reference.md)
     - [Configuration](./k8s/config-reference.md)
 
