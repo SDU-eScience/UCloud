@@ -4,6 +4,9 @@ import {Dispatch} from "redux";
 import {Provider, useDispatch} from "react-redux";
 import {BrowserRouter} from "react-router-dom";
 
+import "@/Assets/Colors.css";
+import "@/Assets/GlobalStyle.css";
+
 import App from "@/Applications/Studio/Applications";
 import ApplicationsOverview from "./Applications/Category";
 import ApplicationsLanding from "./Applications/Landing";
@@ -62,7 +65,7 @@ import {inDevEnvironment} from "@/UtilityFunctions";
 import {ErrorBoundary} from "@/ErrorBoundary/ErrorBoundary";
 import {MainContainer} from "@/ui-components/MainContainer";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {Flex, UIGlobalStyle} from "@/ui-components";
+import {Flex} from "@/ui-components";
 import {findAvatar} from "@/UserSettings/Redux";
 import {USER_LOGIN, UserActionType, store} from "@/Utilities/ReduxUtilities";
 import {removeExpiredFileUploads} from "@/UtilityFunctions";
@@ -306,12 +309,6 @@ async function onLogin(dispatch: Dispatch): Promise<void> {
     const action = await findAvatar();
     if (action !== null) dispatch(action);
 }
-
-(() => {
-    const globalStyle = document.createElement("style");
-    globalStyle.innerHTML = UIGlobalStyle;
-    document.head.append(globalStyle);
-})();
 
 Client.initializeStore(store);
 removeExpiredFileUploads();

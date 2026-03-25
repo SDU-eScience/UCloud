@@ -39,9 +39,11 @@ export function initStatus(): StatusReduxObject {
     });
 }
 
-export const initDashboard = (): DashboardStateProps => ({
-    loading: false,
-});
+export function initDashboard(): DashboardStateProps {
+    return {
+        loading: false,
+    }
+}
 
 export function initObject(): ReduxObject {
     return {
