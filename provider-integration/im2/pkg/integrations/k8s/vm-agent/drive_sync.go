@@ -30,9 +30,16 @@ func driveSynchronizeWithFstab() {
 			continue
 		}
 
-		_ = os.MkdirAll(mount[1], 0750)
-		command := []string{"sudo", "mount", "-t", "virtiofs", mount[0], mount[1]}
+		command := []string{"sudo", "mkdir", "-p", mount[1]}
 		stdout, stderr, ok := util.RunCommand(command)
+		if !ok {
+			log.Info("Failed to run command '%v': %s %s", command, stdout, stderr)
+			return
+		}
+
+		_ = os.MkdirAll(mount[1], 0750)
+		command = []string{"sudo", "mount", "-t", "virtiofs", mount[0], mount[1]}
+		stdout, stderr, ok = util.RunCommand(command)
 		if !ok {
 			log.Info("Failed to run command '%v': %s %s", command, stdout, stderr)
 			return

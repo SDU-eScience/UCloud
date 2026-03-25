@@ -145,6 +145,29 @@ type JobTerminateRequest struct {
 	IsCleanup bool
 }
 
+func validateFileMountPathsOnSubmission(job *orcapi.Job) *util.HttpError {
+	fileMounts := make([]orcapi.AppParameterValue, 0, len(job.Specification.Parameters)+len(job.Specification.Resources))
+
+	for _, value := range job.Specification.Parameters {
+		if value.Type == orcapi.AppParameterValueTypeFile {
+			fileMounts = append(fileMounts, value)
+		}
+	}
+
+	for _, value := range job.Specification.Resources {
+		if value.Type == orcapi.AppParameterValueTypeFile {
+			fileMounts = append(fileMounts, value)
+		}
+	}
+
+	ok, reason := orcapi.ValidateExplicitFileMountPaths(fileMounts)
+	if !ok {
+		return util.HttpErr(http.StatusBadRequest, "%s", reason)
+	}
+
+	return nil
+}
+
 var (
 	metricJobsSubmitted = promauto.NewCounter(prometheus.CounterOpts{
 		Namespace: "ucloud_im",
@@ -197,6 +220,12 @@ func initJobs() {
 			for _, item := range request.Items {
 				if item.Specification.Application.Name == "unknown" {
 					errors = append(errors, util.HttpErr(http.StatusBadRequest, "Invalid application specified"))
+					continue
+				}
+
+				if err := validateFileMountPathsOnSubmission(&item); err != nil {
+					errors = append(errors, err)
+					providerIds = append(providerIds, fnd.FindByStringId{})
 					continue
 				}
 

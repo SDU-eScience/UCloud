@@ -244,6 +244,17 @@ func (s *demoState) uiTree() ucx.UiNode {
 				return
 			}
 
+			_, err = ucxsvc.StackDataWrite.Invoke(session, ucxsvc.StackDataWriteRequest{
+				InstanceId: stackResp.InstanceId,
+				Path:       "join-token.txt",
+				Data:       util.SecureToken(),
+				Perm:       0660,
+			})
+			if err != nil {
+				log.Warn("Could not write join token: %s", err)
+				return
+			}
+
 			log.Info("Stack has been created: %#v", stackResp)
 
 			products, err := ucxsvc.JobsRetrieveProducts.Invoke(session, util.Empty{})

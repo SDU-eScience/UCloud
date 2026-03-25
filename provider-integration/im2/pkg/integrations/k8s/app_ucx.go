@@ -107,7 +107,7 @@ func ucxOnConnect(conn *ws.Conn) {
 				"ucloud.dk/stackinstance": instanceId,
 			},
 			Mounts: []orcapi.AppParameterValue{
-				orcapi.AppParameterValueFile(ucloudPath, false),
+				orcapi.AppParameterValueFileWithMountPath(ucloudPath, false, "/etc/ucloud-stack"),
 			},
 		}, nil
 	})
@@ -140,9 +140,9 @@ func ucxOnConnect(conn *ws.Conn) {
 			return util.Empty{}, err.AsError()
 		}
 
-		file, ok := filesystem.OpenFile(requestedPath, request.Mode, unix.O_CREAT|unix.O_WRONLY|unix.O_TRUNC)
+		file, ok := filesystem.OpenFile(requestedPath, unix.O_CREAT|unix.O_WRONLY|unix.O_TRUNC, request.Perm)
 		if !ok {
-			return util.Empty{}, fmt.Errorf("unable to write data")
+			return util.Empty{}, fmt.Errorf("unable to write data at: %s", requestedPath)
 		}
 
 		defer util.SilentClose(file)

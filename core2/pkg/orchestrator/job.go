@@ -1340,6 +1340,27 @@ func jobsValidateForSubmission(actor rpc.Actor, spec *orcapi.JobSpecification) *
 		return util.HttpErr(http.StatusBadRequest, "bad machine type requested")
 	}
 
+	{
+		fileMounts := make([]orcapi.AppParameterValue, 0, len(spec.Parameters)+len(spec.Resources))
+
+		for _, value := range spec.Parameters {
+			if value.Type == orcapi.AppParameterValueTypeFile {
+				fileMounts = append(fileMounts, value)
+			}
+		}
+
+		for _, value := range spec.Resources {
+			if value.Type == orcapi.AppParameterValueTypeFile {
+				fileMounts = append(fileMounts, value)
+			}
+		}
+
+		ok, reason := orcapi.ValidateExplicitFileMountPaths(fileMounts)
+		if !ok {
+			return util.HttpErr(http.StatusBadRequest, "%s", reason)
+		}
+	}
+
 	toolSupported := false
 	tool := app.Invocation.Tool.Tool.Value.Description
 	switch tool.Backend {

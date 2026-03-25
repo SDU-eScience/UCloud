@@ -1112,10 +1112,11 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	tplSpec := &vm.Spec.Template.Spec
 
 	type mountEntry struct {
-		volName     string
-		subpath     string
-		mountFolder string
-		title       string
+		volName           string
+		subpath           string
+		mountFolder       string
+		title             string
+		explicitMountPath string
 	}
 	mountsByName := map[string][]mountEntry{}
 
@@ -1123,6 +1124,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		SubPath       string
 		ReadOnly      bool
 		UCloudPath    string
+		MountPath     string
 		Title         string
 		MountFolder   string
 		PersistentTag string
@@ -1144,6 +1146,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 				SubPath:    subpath,
 				ReadOnly:   param.ReadOnly,
 				UCloudPath: param.Path,
+				MountPath:  param.MountPath,
 			})
 		}
 	}
@@ -1274,8 +1277,29 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		}
 	}
 
+	explicitMountPaths := map[string]string{}
 	for _, param := range unpreparedMounts {
 		subpath := param.SubPath
+		explicitMountPath := ""
+		if strings.TrimSpace(param.MountPath) != "" {
+			normalizedMountPath, ok := shared.ValidateFileMountPath(param.MountPath)
+			if !ok {
+				return util.HttpErr(http.StatusBadRequest, "Invalid mount path. Mount paths cannot be /etc/ucloud, /opt/ucloud, /work, or under /work.")
+			}
+
+			if existingUCloudPath, exists := explicitMountPaths[normalizedMountPath]; exists && existingUCloudPath != param.UCloudPath {
+				return util.HttpErr(
+					http.StatusBadRequest,
+					"Conflicting mount path '%s' requested for '%s' and '%s'.",
+					normalizedMountPath,
+					existingUCloudPath,
+					param.UCloudPath,
+				)
+			}
+
+			explicitMountPath = normalizedMountPath
+			explicitMountPaths[normalizedMountPath] = param.UCloudPath
+		}
 
 		volName := fmt.Sprintf("ucloud-r%s%d", util.RandomTokenNoTs(4), fsIdx)
 		if param.PersistentTag != "" {
@@ -1318,9 +1342,20 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 			title = param.Title
 		}
 
-		bucket, _ := mountsByName[title]
-		bucket = append(bucket, mountEntry{volName: volName, subpath: subpath, mountFolder: param.MountFolder, title: title})
-		mountsByName[param.MountFolder+title] = bucket
+		bucketKey := param.MountFolder + title
+		if explicitMountPath != "" {
+			bucketKey = "explicit:" + explicitMountPath
+		}
+
+		bucket, _ := mountsByName[bucketKey]
+		bucket = append(bucket, mountEntry{
+			volName:           volName,
+			subpath:           subpath,
+			mountFolder:       param.MountFolder,
+			title:             title,
+			explicitMountPath: explicitMountPath,
+		})
+		mountsByName[bucketKey] = bucket
 
 		fsIdx++
 	}
@@ -1330,6 +1365,22 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	}
 
 	for _, bucket := range mountsByName {
+		if bucket[0].explicitMountPath != "" {
+			if len(bucket) > 1 {
+				return util.HttpErr(
+					http.StatusBadRequest,
+					"Conflicting mount path '%s' was requested more than once.",
+					bucket[0].explicitMountPath,
+				)
+			}
+
+			userDrives.Mounts = append(userDrives.Mounts, []string{
+				bucket[0].volName,
+				bucket[0].explicitMountPath,
+			})
+			continue
+		}
+
 		useSuffix := len(bucket) > 1
 		requestedTitle := bucket[0].title
 

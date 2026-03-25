@@ -2,9 +2,11 @@ package orchestrators
 
 import (
 	"encoding/json"
+	"fmt"
 	"path/filepath"
 	"reflect"
 	"slices"
+	"strings"
 
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/util"
@@ -500,6 +502,7 @@ func ApplicationParameterPrivateNetwork(name string, optional bool, title string
 type AppParameterValue struct {
 	Type          AppParameterValueType `json:"type" yaml:"type"`
 	Path          string                `json:"path" yaml:"path"`
+	MountPath     string                `json:"mountPath" yaml:"mountPath"`
 	ReadOnly      bool                  `json:"readOnly" yaml:"readOnly"`
 	Value         any                   `json:"value" yaml:"value"`
 	Hostname      string                `json:"hostname" yaml:"hostname"`
@@ -578,6 +581,64 @@ func AppParameterValueFile(path string, readOnly bool) AppParameterValue {
 		Path:     path,
 		ReadOnly: readOnly,
 	}
+}
+
+func AppParameterValueFileWithMountPath(path string, readOnly bool, mountPath string) AppParameterValue {
+	return AppParameterValue{
+		Type:      AppParameterValueTypeFile,
+		Path:      path,
+		MountPath: mountPath,
+		ReadOnly:  readOnly,
+	}
+}
+
+func ValidateFileMountPath(path string) (string, bool) {
+	trimmed := strings.TrimSpace(path)
+	if trimmed == "" {
+		return "", true
+	}
+
+	cleaned := filepath.Clean(trimmed)
+	if !filepath.IsAbs(cleaned) {
+		return "", false
+	}
+
+	if cleaned == "/etc/ucloud" || cleaned == "/opt/ucloud" || cleaned == "/work" || strings.HasPrefix(cleaned, "/work/") {
+		return "", false
+	}
+
+	return cleaned, true
+}
+
+func ValidateExplicitFileMountPaths(values []AppParameterValue) (bool, string) {
+	explicitMountPaths := map[string]string{}
+
+	for _, value := range values {
+		if value.Type != AppParameterValueTypeFile || strings.TrimSpace(value.MountPath) == "" {
+			continue
+		}
+
+		normalized, ok := ValidateFileMountPath(value.MountPath)
+		if !ok {
+			return false, fmt.Sprintf(
+				"Invalid mount path '%s'. Mount paths cannot be /etc/ucloud, /opt/ucloud, /work, or under /work.",
+				value.MountPath,
+			)
+		}
+
+		if existingPath, exists := explicitMountPaths[normalized]; exists && existingPath != value.Path {
+			return false, fmt.Sprintf(
+				"Conflicting mount path '%s' requested for '%s' and '%s'.",
+				normalized,
+				existingPath,
+				value.Path,
+			)
+		}
+
+		explicitMountPaths[normalized] = value.Path
+	}
+
+	return true, ""
 }
 
 func AppParameterValueBoolean(value bool) AppParameterValue {

@@ -102,7 +102,7 @@ type StackDataWriteRequest struct {
 	InstanceId string
 	Path       string
 	Data       string
-	Mode       int
+	Perm       uint32
 }
 
 var StackDataWrite = ucx.Rpc[StackDataWriteRequest, util.Empty]{CallName: "stackDataWrite"}
