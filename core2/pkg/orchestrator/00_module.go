@@ -86,6 +86,12 @@ func Init() {
 	initPrivateNetworks()
 	times["PrivateNetworks"] = t.Mark()
 
+	initResourceCatalogs()
+	times["ResourceCatalogs"] = t.Mark()
+
+	initStacks()
+	times["Stacks"] = t.Mark()
+
 	initSupportAssistsOrc()
 	times["SupportAssistsOrc"] = t.Mark()
 

@@ -228,7 +228,7 @@ const sideBarMenuElements: [
             {icon: "heroUserGroup", label: SidebarTabId.PROJECT, to: AppRoutes.project.allocations()},
             {icon: "heroSquaresPlus", label: SidebarTabId.RESOURCES, to: AppRoutes.resources.publicLinks()},
             {icon: "heroShoppingBag", label: SidebarTabId.APPLICATIONS, to: AppRoutes.apps.landing()},
-            {icon: "heroServer", label: SidebarTabId.RUNS, to: AppRoutes.jobs.list()}
+            {icon: "heroServer", label: SidebarTabId.RUNS, to: AppRoutes.compute.jobs()}
         ],
         predicate: () => Client.isLoggedIn
     },
@@ -427,7 +427,7 @@ function sidebarSubEntries(canApply: boolean, isPersonalWorkspace: boolean, proj
         [SidebarTabId.PROJECT]: projectSidebarSubLinks(canApply, isPersonalWorkspace, projectId),
         [SidebarTabId.RESOURCES]: ResourceSubLinksEntries,
         [SidebarTabId.APPLICATIONS]: [],
-        [SidebarTabId.RUNS]: [],
+        [SidebarTabId.RUNS]: ComputeSubLinksEntries,
         [SidebarTabId.ADMIN]: [],
         [SidebarTabId.APPLICATION_STUDIO]: ApplicationStudioSubLinksEntries,
         [SidebarTabId.NONE]: [],
@@ -764,6 +764,27 @@ function ProjectSubLinks({canApply, isPersonalWorkspace, projectId}: {
         [canApply, isPersonalWorkspace, projectId]);
     return sublinks.map(it => <SidebarEntry key={it.text} {...it} />);
 }
+
+function ComputeSubLinks(): React.ReactNode {
+    return ComputeSubLinksEntries.map(it => <SidebarEntry key={it.text} {...it} />);
+}
+
+const ComputeSubLinksEntries: LinkInfo[] = [{
+    to: AppRoutes.compute.jobs(),
+    text: "Jobs",
+    icon: "heroServer",
+    tab: SidebarTabId.RUNS,
+}, {
+    to: AppRoutes.compute.virtualMachines(),
+    text: "Virtual machines",
+    icon: "heroComputerDesktop",
+    tab: SidebarTabId.RUNS,
+}, {
+    to: AppRoutes.compute.stacks(),
+    text: "Stacks",
+    icon: "heroServerStack",
+    tab: SidebarTabId.RUNS,
+}];
 
 function projectSidebarSubLinks(canApply: boolean, isPersonalWorkspace: boolean, projectId?: string): LinkInfo[] {
     const tab = SidebarTabId.PROJECT;
@@ -1138,6 +1159,8 @@ function SecondarySidebar({
 
             {/* Note(Jonas) Do it this way to ensure that the frontend doesn't fetch icons every time this is shown. */}
             <div style={{display: active !== SidebarTabId.RUNS ? "none" : undefined}}>
+                <SidebarSectionEmptyHeader/>
+                <ComputeSubLinks />
                 <SidebarSectionHeader tab={SidebarTabId.RUNS}>Running jobs</SidebarSectionHeader>
                 {recentRuns.length === 0 && <>
                     <SidebarEmpty>No running jobs</SidebarEmpty>

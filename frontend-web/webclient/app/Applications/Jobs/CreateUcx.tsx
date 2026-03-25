@@ -9,7 +9,9 @@ import {AppHeader} from "@/Applications/View";
 import {UtilityBar} from "@/Navigation/UtilityBar";
 import {useMemo} from "react";
 import {UcxRpcHandler} from "@/UCX/UcxView";
-import {sendSuccessNotification} from "@/Notifications";
+import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
+import {useNavigate} from "react-router-dom";
+import AppRoutes from "@/Routes";
 
 interface CreateUcxJobProps {
     application: Application;
@@ -21,6 +23,8 @@ export const CreateUcxJob: React.FunctionComponent<CreateUcxJobProps> = ({applic
         .replace("http://", "ws://")
         .replace("https://", "wss://");
 
+    const navigate = useNavigate();
+
     const handlers = useMemo<Record<string, UcxRpcHandler>>(() => {
         return {
             "frontend": payload => {
@@ -29,9 +33,21 @@ export const CreateUcxJob: React.FunctionComponent<CreateUcxJobProps> = ({applic
                 return {
                     "message": "hello from frontend!"
                 };
+            },
+            "uiSendMessage": raw => {
+                const payload = raw as {message: string, success: boolean};
+                if (payload.success) {
+                    sendSuccessNotification(payload.message);
+                } else {
+                    sendFailureNotification(payload.message);
+                }
+            },
+            "stackOpen": raw => {
+                const payload = raw as {id: string};
+                navigate(AppRoutes.stacks.view(payload.id));
             }
         }
-    }, []);
+    }, [navigate]);
 
     return <UcxView
         url={url}

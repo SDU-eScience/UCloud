@@ -18,6 +18,11 @@ var IM = ucx.Rpc[Message, Message]{CallName: "im"}
 // Core
 // =====================================================================================================================
 
+// Stacks
+// ---------------------------------------------------------------------------------------------------------------------
+
+var StackAvailable = ucx.Rpc[fndapi.FindByStringId, bool]{CallName: "stackAvailable"}
+
 // Private networks
 // ---------------------------------------------------------------------------------------------------------------------
 
@@ -39,7 +44,7 @@ var PublicIpsUpdateLabels = ucx.Rpc[fndapi.BulkRequest[orcapi.PublicIpsUpdateLab
 var PublicIpsUpdateFirewall = ucx.Rpc[fndapi.BulkRequest[orcapi.PublicIpUpdateFirewallRequest], util.Empty]{CallName: "publicIpsUpdateFirewall"}
 var PublicIpsRetrieveProducts = ucx.Rpc[util.Empty, []orcapi.ResolvedSupport[orcapi.PublicIpSupport]]{CallName: "publicIpsRetrieveProducts"}
 
-// PublicLinks (public links)
+// Public links
 // ---------------------------------------------------------------------------------------------------------------------
 
 var PublicLinksCreate = ucx.Rpc[[]orcapi.IngressSpecification, []orcapi.Ingress]{CallName: "publicLinksCreate"}
@@ -87,13 +92,14 @@ var JobsRetrieveProducts = ucx.Rpc[util.Empty, []orcapi.ResolvedSupport[orcapi.J
 // =====================================================================================================================
 
 type StackCreateRequest struct {
-	StackName string
+	StackType string
+	StackId   string
 }
 
 type StackCreateResponse struct {
 	InstanceId string
 	Labels     map[string]string
-	Mounts     []orcapi.AppParameterValue
+	Mount      orcapi.AppParameterValue
 }
 
 var StackCreate = ucx.Rpc[StackCreateRequest, StackCreateResponse]{CallName: "stackCreate"}
@@ -107,7 +113,29 @@ type StackDataWriteRequest struct {
 
 var StackDataWrite = ucx.Rpc[StackDataWriteRequest, util.Empty]{CallName: "stackDataWrite"}
 
+var StackConfirm = ucx.Rpc[fndapi.FindByStringId, util.Empty]{CallName: "stackConfirm"}
+
 // Frontend
 // =====================================================================================================================
 
 var StackOpen = ucx.Rpc[fndapi.FindByStringId, util.Empty]{CallName: "stackOpen"}
+
+type UiSendMessageRequest struct {
+	Message string
+	Success bool
+}
+
+var UiSendMessage = ucx.Rpc[UiSendMessageRequest, util.Empty]{CallName: "uiSendMessage"}
+
+func UiSendFailure(session *ucx.Session, message string) {
+	_, _ = UiSendMessage.Invoke(session, UiSendMessageRequest{Message: message, Success: false})
+}
+
+func UiSendSuccess(session *ucx.Session, message string) {
+	_, _ = UiSendMessage.Invoke(session, UiSendMessageRequest{Message: message, Success: true})
+}
+
+func StackConfirmAndOpen(session *ucx.Session, id string) {
+	_, _ = StackConfirm.Invoke(session, fndapi.FindByStringId{Id: id})
+	_, _ = StackOpen.Invoke(session, fndapi.FindByStringId{Id: id})
+}

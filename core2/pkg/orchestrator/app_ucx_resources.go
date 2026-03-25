@@ -493,7 +493,7 @@ func appUcxResourceHandlers(state *appUcxSessionState, proxy *ucx.Proxy) {
 			return &req.JobFlags.ResourceFlags
 		},
 		func(actor rpc.Actor, request orcapi.JobsBrowseRequest) (fndapi.PageV2[orcapi.Job], *util.HttpError) {
-			return JobBrowse(actor, request)
+			return JobsBrowse(actor, request.Next, request.ItemsPerPage, request.JobFlags)
 		},
 	)
 

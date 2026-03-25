@@ -94,6 +94,7 @@ import SupportPage, {
 import {useEffect} from "react";
 import {deinitNotifications, initTaskAndNotificationStream} from "@/Services/TaskAndNotificationStream";
 import {NotificationPopups} from "./Notifications/Popups";
+import {StacksRouter} from "@/Stacks";
 
 const NotFound = (): React.ReactNode => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
 
@@ -136,6 +137,7 @@ const Core = (): React.ReactNode => (
                     <Route path={AppRoutes.apps.search()} element={React.createElement(requireAuth(ApplicationSearch))} />
 
                     <Route path="/jobs/*" element={React.createElement(requireAuth(JobsRouter))} />
+                    <Route path="/stacks/*" element={React.createElement(requireAuth(StacksRouter))} />
 
                     <Route path={AppRoutes.apps.shell(":jobId", ":rank")}
                         element={React.createElement(requireAuth(JobShell))} />

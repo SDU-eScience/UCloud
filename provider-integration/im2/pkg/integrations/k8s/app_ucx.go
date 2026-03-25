@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	ws "github.com/gorilla/websocket"
@@ -15,6 +16,7 @@ import (
 	ctrl "ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/integrations/k8s/filesystem"
 	"ucloud.dk/pkg/integrations/k8s/shared"
+	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/ucx"
@@ -77,12 +79,15 @@ func ucxOnConnect(conn *ws.Conn) {
 		}
 	})
 
+	mu := sync.Mutex{}
+	stackToDeletionRequest := map[string]int{}
+
 	ucxsvc.StackCreate.HandlerProxy(proxy, func(ctx context.Context, request ucxsvc.StackCreateRequest) (ucxsvc.StackCreateResponse, error) {
-		if err := util.ValidateStringE(&request.StackName, "stackName", 0); err != nil {
+		if err := util.ValidateStringE(&request.StackType, "stackType", 0); err != nil {
 			return ucxsvc.StackCreateResponse{}, err.AsError()
 		}
 
-		instanceId := util.SecureToken()
+		instanceId := request.StackId
 
 		internalPathMemberFiles, drive, err := filesystem.InitializeMemberFiles(info.Owner.CreatedBy, info.Owner.Project)
 		if err != nil {
@@ -100,15 +105,28 @@ func ucxOnConnect(conn *ws.Conn) {
 			return ucxsvc.StackCreateResponse{}, fmt.Errorf("internal error")
 		}
 
+		id, err := orcapi.StacksControlRequestDeletion.Invoke(orcapi.StacksControlRequestDeletionRequest{
+			Id:             instanceId,
+			ActivationTime: util.OptValue[fnd.Timestamp](fnd.Timestamp(time.Now().Add(2 * time.Minute))),
+			Owner:          info.Owner,
+		})
+
+		if err != nil {
+			return ucxsvc.StackCreateResponse{}, err.AsError()
+		}
+
+		mu.Lock()
+		stackToDeletionRequest[instanceId] = id.Id
+		mu.Unlock()
+
 		return ucxsvc.StackCreateResponse{
 			InstanceId: instanceId,
 			Labels: map[string]string{
-				"ucloud.dk/stackname":     request.StackName,
+				"ucloud.dk/stack":         "true",
+				"ucloud.dk/stackname":     request.StackType,
 				"ucloud.dk/stackinstance": instanceId,
 			},
-			Mounts: []orcapi.AppParameterValue{
-				orcapi.AppParameterValueFileWithMountPath(ucloudPath, false, "/etc/ucloud-stack"),
-			},
+			Mount: orcapi.AppParameterValueFileWithMountPath(ucloudPath, false, "/etc/ucloud-stack"),
 		}, nil
 	})
 
@@ -152,6 +170,20 @@ func ucxOnConnect(conn *ws.Conn) {
 			return util.Empty{}, fmt.Errorf("unable to write data: %s", gerr)
 		}
 
+		return util.Empty{}, nil
+	})
+
+	ucxsvc.StackConfirm.HandlerProxy(proxy, func(ctx context.Context, request fnd.FindByStringId) (util.Empty, error) {
+		mu.Lock()
+		deletionReqId, ok := stackToDeletionRequest[request.Id]
+		mu.Unlock()
+		if ok {
+			_, err := orcapi.StacksControlCancelDeletion.Invoke(fnd.FindByIntId{Id: deletionReqId})
+
+			if err != nil {
+				return util.Empty{}, err.AsError()
+			}
+		}
 		return util.Empty{}, nil
 	})
 

@@ -82,6 +82,17 @@ const jobs = {
     results: () => `/applications/results`,
 };
 
+const stacks = {
+    list: () => "/stacks",
+    view: (id: string) => `/stacks/${encodeURIComponent(id)}`,
+};
+
+const compute = {
+    jobs: () => jobs.list(),
+    virtualMachines: () => "/virtual-machines",
+    stacks: () => stacks.list(),
+};
+
 const login = {
     login: () => "/login",
     loginSuccess: () => "/loginSuccess",
@@ -148,6 +159,8 @@ const AppRoutes = {
     resources,
     login,
     jobs,
+    stacks,
+    compute,
     syncthing,
     grants,
     accounting,

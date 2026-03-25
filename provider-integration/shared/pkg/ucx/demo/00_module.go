@@ -9,6 +9,7 @@ import (
 	"time"
 
 	accapi "ucloud.dk/shared/pkg/accounting"
+	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/rpc"
@@ -27,7 +28,7 @@ func RunDemoSession(info rpc.RequestInfo) (util.Empty, *util.HttpError) {
 	state := &demoState{
 		InterfaceId: "job-create-demo",
 		Title:       "UCX Create Prototype",
-		JobName:     "",
+		JobName:     fmt.Sprintf("K8s-%s", util.RandomTokenNoTs(4)),
 		CPU:         4,
 		Notify:      true,
 		RpcMessage:  "hello from server",
@@ -238,9 +239,24 @@ func (s *demoState) uiTree() ucx.UiNode {
 		ucx.TextBound("fnText"),
 
 		ucx.Button("stack", "Create a stack", ucx.ColorPrimaryMain).On(ucx.UiEventClick, func(session *ucx.Session, ev ucx.UiEvent) {
-			stackResp, err := ucxsvc.StackCreate.Invoke(session, ucxsvc.StackCreateRequest{StackName: "kubernetes"})
+			s.Mu.Lock()
+			stackId := s.JobName
+			s.Mu.Unlock()
+
+			available, _ := ucxsvc.StackAvailable.Invoke(session, fndapi.FindByStringId{Id: stackId})
+			if !available {
+				log.Warn("Sending failure!")
+				ucxsvc.UiSendFailure(session, "Kubernetes name is not available!")
+				return
+			}
+
+			stackResp, err := ucxsvc.StackCreate.Invoke(session, ucxsvc.StackCreateRequest{
+				StackId:   stackId,
+				StackType: "Kubernetes",
+			})
+
 			if err != nil {
-				log.Warn("Could not create stack: %s", err)
+				ucxsvc.UiSendFailure(session, fmt.Sprintf("Could not create stack: %s", err))
 				return
 			}
 
@@ -251,7 +267,7 @@ func (s *demoState) uiTree() ucx.UiNode {
 				Perm:       0660,
 			})
 			if err != nil {
-				log.Warn("Could not write join token: %s", err)
+				ucxsvc.UiSendFailure(session, fmt.Sprintf("Could not write join token: %s", err))
 				return
 			}
 
@@ -259,7 +275,7 @@ func (s *demoState) uiTree() ucx.UiNode {
 
 			products, err := ucxsvc.JobsRetrieveProducts.Invoke(session, util.Empty{})
 			if err != nil || len(products) == 0 {
-				log.Warn("Could not retrieve products: %s", err)
+				ucxsvc.UiSendFailure(session, fmt.Sprintf("Could not retrieve products: %s", err))
 				return
 			}
 
@@ -273,7 +289,7 @@ func (s *demoState) uiTree() ucx.UiNode {
 			}
 
 			if !selectedProduct.Present {
-				log.Warn("Could not decide on a product!")
+				ucxsvc.UiSendFailure(session, "Could not decide on a product!")
 				return
 			}
 
@@ -290,7 +306,7 @@ func (s *demoState) uiTree() ucx.UiNode {
 					Replicas:  1,
 					Hostname:  util.OptValue("controlplane-1"),
 					Name:      "controlplane-1",
-					Resources: stackResp.Mounts,
+					Resources: []orcapi.AppParameterValue{stackResp.Mount},
 				},
 			})
 
@@ -300,6 +316,8 @@ func (s *demoState) uiTree() ucx.UiNode {
 			}
 
 			log.Info("Got job: %#v", job)
+
+			ucxsvc.StackConfirmAndOpen(session, stackId)
 		}),
 	)
 }

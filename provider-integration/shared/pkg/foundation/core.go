@@ -157,3 +157,20 @@ func ItemsPerPage(number int) int {
 		return 1000
 	}
 }
+
+func BrowseAll[T any](limit int, browser func(next util.Option[string]) PageV2[T]) []T {
+	var result []T
+	next := util.OptNone[string]()
+	for {
+		page := browser(next)
+		result = util.Combined(result, page.Items)
+		next = page.Next
+		if !next.Present {
+			break
+		}
+		if limit > 0 && len(result) >= limit {
+			break
+		}
+	}
+	return result
+}

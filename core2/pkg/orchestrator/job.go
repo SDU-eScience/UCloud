@@ -211,7 +211,7 @@ func initJobs() {
 	})
 
 	orcapi.JobsBrowse.Handler(func(info rpc.RequestInfo, request orcapi.JobsBrowseRequest) (fndapi.PageV2[orcapi.Job], *util.HttpError) {
-		return JobBrowse(info.Actor, request)
+		return JobsBrowse(info.Actor, request.Next, request.ItemsPerPage, request.JobFlags)
 	})
 
 	orcapi.JobsControlBrowse.Handler(func(info rpc.RequestInfo, request orcapi.JobsControlBrowseRequest) (fndapi.PageV2[orcapi.Job], *util.HttpError) {
@@ -892,10 +892,6 @@ func JobCreate(actor rpc.Actor, request fndapi.BulkRequest[orcapi.JobSpecificati
 	}
 
 	return created, nil
-}
-
-func JobBrowse(actor rpc.Actor, request orcapi.JobsBrowseRequest) (fndapi.PageV2[orcapi.Job], *util.HttpError) {
-	return JobsBrowse(actor, request.Next, request.ItemsPerPage, request.JobFlags)
 }
 
 func JobsRenameBulk(actor rpc.Actor, request fndapi.BulkRequest[orcapi.JobRenameRequest]) *util.HttpError {

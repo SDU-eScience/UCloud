@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"slices"
 	"strings"
 	"sync"
@@ -222,6 +223,12 @@ func initAppUcx() {
 		})
 
 		appUcxResourceHandlers(state, proxy)
+
+		ucxsvc.StackAvailable.HandlerProxy(proxy, func(ctx context.Context, request fndapi.FindByStringId) (bool, error) {
+			actor := state.Actor()
+			_, err := StacksRetrieve(actor, request.Id)
+			return err != nil && err.StatusCode == http.StatusNotFound, nil
+		})
 
 		ucxsvc.Core.HandlerProxy(proxy, func(ctx context.Context, request ucxsvc.Message) (ucxsvc.Message, error) {
 			actor := state.Actor()
