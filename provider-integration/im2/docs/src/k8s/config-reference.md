@@ -319,8 +319,10 @@ physical files on the hard drive, these properties are:
 * `description`, points to a Markdown file on the disk.
 * `logo`, points to a logo image file on the disk.
 * `image`, points to an image file on the disk.
-* `sections`, are used to describe the provider in more detail.
-* `productDescription`, are used to describe the products that the provider offers.
+
+The provider is able to describe itself in more detail by using the following properties:
+* `sections`, supplementary information about the provider.
+* `productDescription`, information about the provider's products.
 ---
 
 ## `services`
