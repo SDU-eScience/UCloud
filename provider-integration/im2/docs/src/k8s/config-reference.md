@@ -156,6 +156,30 @@ The `port` will default to 5432 if not defined.
 provider:
   id: my-k8s-provider
 
+  providerBranding:
+    title: My Provider title
+    shortTitle: Short provider title
+    shortDescription: My short provider description
+    description: /etc/ucloud/description.md
+    url: https://myprovider.com
+    logo: "/etc/ucloud/images/provider_logo.png"
+    sections:
+      - description: /etc/ucloud/section1.md
+        image: "/etc/ucloud/images/firsts-section.png"
+      - description: /etc/ucloud/section2.md
+        image: "/etc/ucloud/images/firsts-section.png"
+    productDescription:
+      - category: "u1-standard"
+        shortDescription: u1-standard provides computation
+        section:
+          description: /etc/ucloud/aproduct.md
+          image: "/etc/ucloud/images/a-cpu.png"
+      - category: "storage"
+        shortDescription: Provides storage
+        section:
+          description: /etc/ucloud/bproduct.md
+          image: "/etc/ucloud/images/a-hardrive.png"
+
   hosts:
     ucloud:
       address: cloud.sdu.dk
@@ -285,6 +309,18 @@ Example `config.yml` file for Kubernetes.
 </figcaption>
 </figure>
 
+---
+## `providerBranding`
+Defines the provider’s branding information and the services it exposes.
+
+Many of the properties are self-explanatory, but some properties point at 
+physical files on the hard drive, these properties are:
+
+* `description`, points to a Markdown file on the disk.
+* `logo`, points to a logo image file on the disk.
+* `image`, points to an image file on the disk.
+* `sections`, are used to describe the provider in more detail.
+* `productDescription`, are used to describe the products that the provider offers.
 ---
 
 ## `services`
