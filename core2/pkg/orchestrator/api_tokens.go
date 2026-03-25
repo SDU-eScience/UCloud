@@ -141,7 +141,7 @@ func ApiTokenCreate(actor rpc.Actor, request orcapi.ApiTokenSpecification) (orca
 		})
 
 		if status.Server == "" {
-			log.Warn("Provider returned empty token server: provider=%s tokenId=%s", request.Provider.Value, tokId)
+			log.Warn("Provider returned empty token server: provider=%v tokenId=%v", request.Provider.Value, tokId)
 		}
 
 	} else {

@@ -476,14 +476,32 @@ func licenseRetrieve(productId string) (LicenseEntry, bool) {
 	return license, ok
 }
 
-func LicenseBuildParameter(id string) string {
+func licenseRetrieveResource(id string) (*orc.License, bool) {
 	licenseMutex.Lock()
-	defer licenseMutex.Unlock()
-
 	resource, ok := licenses[id]
+	licenseMutex.Unlock()
+
+	if ok {
+		return resource, true
+	}
+
+	resourceFromCore, err := orc.LicensesControlRetrieve.Invoke(orc.LicensesControlRetrieveRequest{Id: id})
+	if err != nil {
+		return nil, false
+	}
+
+	licenseMutex.Lock()
+	licenses[id] = &resourceFromCore
+	licenseMutex.Unlock()
+
+	return &resourceFromCore, true
+}
+
+func LicenseBuildParameter(id string) string {
+	resource, ok := licenseRetrieveResource(id)
 
 	if !ok {
-		log.Warn("No license product found")
+		log.Warn("No license product found for id: %s", id)
 		return id
 	}
 
