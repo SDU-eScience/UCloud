@@ -29,6 +29,7 @@ import {DELETE_TAG, Permission, ResourceAclEntry} from "@/UCloud/ResourceApi";
 
 import * as StackApi from "./api";
 import Flex from "@/ui-components/Flex";
+import {stackLogoUrl} from "@/Stacks/Logos";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 250,
@@ -94,13 +95,18 @@ export default function StacksBrowse(): React.ReactNode {
                 browser.on("renderRow", (stack, row) => {
                     const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
                     row.title.append(icon);
-                    ResourceBrowser.icons.renderIcon({
-                        name: "heroServerStack",
-                        color: "textPrimary",
-                        color2: "textPrimary",
-                        width: 64,
-                        height: 64,
-                    }).then(setIcon);
+                    const logoUrl = stackLogoUrl(stack.type ?? "");
+                    if (logoUrl) {
+                        setIcon(logoUrl);
+                    } else {
+                        ResourceBrowser.icons.renderIcon({
+                            name: "heroServerStack",
+                            color: "textPrimary",
+                            color2: "textPrimary",
+                            width: 64,
+                            height: 64,
+                        }).then(setIcon);
+                    }
 
                     row.title.append(ResourceBrowser.defaultTitleRenderer(stack.id, row));
                     row.stat1.textContent = stack.type ?? stack.name ?? "Unknown";

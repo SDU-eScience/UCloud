@@ -8,7 +8,7 @@ import (
 
 type Stack struct {
 	Id          string                   `json:"id"`
-	Type        string                   `json:"name"`
+	Type        string                   `json:"type"`
 	CreatedAt   fnd.Timestamp            `json:"createdAt"`
 	Permissions ResourcePermissions      `json:"permissions"`
 	Status      util.Option[StackStatus] `json:"status"`

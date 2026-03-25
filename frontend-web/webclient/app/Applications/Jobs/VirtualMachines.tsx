@@ -21,9 +21,7 @@ import {ProviderTitle} from "@/Providers/ProviderTitle";
 import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
 import {addStandardDialog} from "@/UtilityComponents";
 import {SafeLogo} from "@/Applications/AppToolLogo";
-import {RichSelect, RichSelectChildComponent} from "@/ui-components/RichSelect";
-import {IconName} from "@/ui-components/Icon";
-import {ThemeColor} from "@/ui-components/theme";
+import {RichSelect} from "@/ui-components/RichSelect";
 import {VirtualMachineFolders} from "./VirtualMachineFolders";
 import {BulkResponse, compute} from "@/UCloud";
 import {format} from "date-fns";
@@ -35,6 +33,8 @@ import {PrivateNetworkBrowse} from "@/Applications/PrivateNetwork/PrivateNetwork
 import {NetworkIPBrowse} from "@/Applications/NetworkIP/NetworkIPBrowse";
 import {VirtualMachineRestartReminder} from "./VirtualMachineRestartReminder";
 import {VirtualMachineIconButton} from "@/Applications/Jobs/VirtualMachineIconButton";
+import {HeroHeaderCard, HeroHeaderGrid, HeroMetric} from "@/Applications/Jobs/HeroHeader";
+import {SplitDropdownTrigger, VmActionItem, VmActionRow, VmActionSplitButton} from "@/Applications/Jobs/VmActionSplitButton";
 import PublicLinkApi, {PublicLink} from "@/UCloud/PublicLinkApi";
 import PrivateNetworkApi, {PrivateNetwork} from "@/UCloud/PrivateNetworkApi";
 import NetworkIPApi, {NetworkIP} from "@/UCloud/NetworkIPApi";
@@ -52,13 +52,6 @@ interface InterfaceTarget {
     link?: string;
 }
 
-interface VmActionItem {
-    key: string;
-    value: string;
-    icon: IconName;
-    color: ThemeColor;
-}
-
 interface VmLogMessage {
     stdout?: string | null;
     stderr?: string | null;
@@ -73,18 +66,6 @@ interface VmUpdatesState {
 }
 
 type OptimisticPowerState = "POWERING_ON" | "POWERING_OFF" | "RESTARTING";
-type PowerTone = "success" | "warning" | "neutral";
-
-const VmActionRow: RichSelectChildComponent<VmActionItem> = ({element, onSelect, dataProps}) => {
-    if (!element) return null;
-    return <Box p="8px" onClick={onSelect} {...dataProps}>
-        <Flex gap="8px" alignItems="center">
-            <Icon name={element.icon} color={element.color}/>
-            <span>{element.value}</span>
-        </Flex>
-    </Box>;
-};
-
 function useResourcesById<T>(
     params: AppParameterValue[],
     retrieve: (id: string) => Promise<T>,
@@ -560,18 +541,12 @@ export const VirtualMachineStatus: React.FunctionComponent<{
 
     const interfaceDisabled = !desktopTarget?.link || isTerminalState;
 
-    const powerTone: PowerTone = !supportsSuspension || isTerminalState
+    const powerTone: "success" | "warning" | "neutral" = !supportsSuspension || isTerminalState
         ? "neutral"
         : isSuspended
             ? "success"
             : "warning";
     const powerButtonColor = powerTone === "success" ? "successMain" : "warningMain";
-    const powerDropdownClass =
-        powerTone === "success"
-            ? classConcat(SplitDropdownTrigger, SuccessSplitDropdownTrigger)
-            : powerTone === "warning"
-                ? classConcat(SplitDropdownTrigger, DangerSplitDropdownTrigger)
-                : SplitDropdownTrigger;
 
     useEffect(() => {
         if (status.state !== "RUNNING" || ingresses.length === 0) {
@@ -745,7 +720,7 @@ export const VirtualMachineStatus: React.FunctionComponent<{
                 />
             }
         </ReactModal>
-        <Card className={classConcat(VmHero, effectiveState)} p="24px">
+        <Card className={classConcat(HeroHeaderCard, effectiveState)} p="24px">
             <Flex alignItems="center" gap="16px" flexWrap="wrap">
                 <Box>
                     <Flex gap={"8px"} alignItems={"center"}>
@@ -787,42 +762,24 @@ export const VirtualMachineStatus: React.FunctionComponent<{
                         )}
                     </Flex>
 
-                    <Flex>
-                        {supportsSuspension && !isTerminalState ? (
-                            isSuspended ?
-                                <Button color={powerButtonColor} onClick={unsuspend} disabled={powerActionDisabled}
-                                        attachedLeft>
-                                    <Icon name="heroPower" mr="8px"/>
-                                    {optimisticPowerState === "POWERING_ON" ? "Powering on..." : "Power on"}
-                                </Button> :
-                                <Button color={powerButtonColor} onClick={confirmSuspend} disabled={powerActionDisabled}
-                                        attachedLeft>
-                                    <Icon name="heroPower" mr="8px"/>
-                                    {optimisticPowerState === "POWERING_OFF" ? "Powering off..." : "Power off"}
-                                </Button>
-                        ) : (
-                            <Button attachedLeft disabled={powerActionDisabled}>
-                                <Icon name="heroCog6Tooth" mr="8px"/>
-                                Actions
-                            </Button>
-                        )}
-
-                        <RichSelect
-                            items={dangerMenuItems}
-                            keys={["value"]}
-                            RenderRow={VmActionRow}
-                            onSelect={onSelectDangerMenuItem}
-                            showSearchField={false}
-                            dropdownWidth="260px"
-                            matchTriggerWidth={false}
-                            disabled={powerActionDisabled}
-                            trigger={
-                                <div className={powerDropdownClass} data-disabled={powerActionDisabled}>
-                                    <Icon name="heroChevronDown"/>
-                                </div>
-                            }
-                        />
-                    </Flex>
+                    <VmActionSplitButton
+                        tone={powerTone}
+                        disabled={powerActionDisabled}
+                        buttonColor={supportsSuspension && !isTerminalState ? powerButtonColor : "primaryMain"}
+                        buttonIcon={supportsSuspension && !isTerminalState ? "heroPower" : "heroCog6Tooth"}
+                        buttonText={supportsSuspension && !isTerminalState
+                            ? (isSuspended
+                                ? (optimisticPowerState === "POWERING_ON" ? "Powering on..." : "Power on")
+                                : (optimisticPowerState === "POWERING_OFF" ? "Powering off..." : "Power off"))
+                            : "Actions"
+                        }
+                        onButtonClick={supportsSuspension && !isTerminalState
+                            ? (isSuspended ? unsuspend : confirmSuspend)
+                            : doNothing
+                        }
+                        menuItems={dangerMenuItems}
+                        onSelectMenuItem={onSelectDangerMenuItem}
+                    />
                 </Flex>
 
                 <div className={StatusBadge} data-state={effectiveState}>
@@ -833,15 +790,15 @@ export const VirtualMachineStatus: React.FunctionComponent<{
                 </div>
             </Flex>
 
-            <div className={VmHeroGrid}>
-                <Metric title={"ID"}>{shortUUID(job.id)}</Metric>
-                <Metric title="Provider">
+            <div className={HeroHeaderGrid}>
+                <HeroMetric title={"ID"}>{shortUUID(job.id)}</HeroMetric>
+                <HeroMetric title="Provider">
                     <ProviderTitle providerId={job.specification.product.provider}/>
-                </Metric>
-                <Metric title="Machine type">{job.specification.product.id}</Metric>
-                <Metric title="Launched by">{job.owner.createdBy}</Metric>
-                <Metric title="Created at">{dateToString(job.createdAt)}</Metric>
-                <Metric title="Started at">{status.startedAt ? dateToString(status.startedAt) : "Pending"}</Metric>
+                </HeroMetric>
+                <HeroMetric title="Machine type">{job.specification.product.id}</HeroMetric>
+                <HeroMetric title="Launched by">{job.owner.createdBy}</HeroMetric>
+                <HeroMetric title="Created at">{dateToString(job.createdAt)}</HeroMetric>
+                <HeroMetric title="Started at">{status.startedAt ? dateToString(status.startedAt) : "Pending"}</HeroMetric>
             </div>
         </Card>
 
@@ -864,14 +821,14 @@ export const VirtualMachineStatus: React.FunctionComponent<{
                                 <dd className={VmDetailRowWithAction}>
                                     <code
                                         style={{cursor: "pointer"}}
-                                        onClick={() => sshCommand ? copyToClipboard({value: sshCommand, message: "Copied to clipboard!"}) : undefined}
+                                        onClick={() => sshCommand ? copyToClipboard(sshCommand) : undefined}
                                         title={sshCommand ?? undefined}
                                     >
                                         {sshCommand ?? "Not announced by provider yet"}
                                     </code>
                                     <VirtualMachineIconButton
                                         tooltip={"Copy to clipboard"}
-                                        onClick={() => sshCommand ? copyToClipboard({value: sshCommand, message: "Copied to clipboard!"}) : undefined}
+                                        onClick={() => sshCommand ? copyToClipboard(sshCommand) : undefined}
                                         icon={"heroDocumentDuplicate"}
                                     />
                                 </dd>
@@ -1214,71 +1171,12 @@ function stateToTitle(state: JobState | OptimisticPowerState): string {
     }
 }
 
-const Metric: React.FunctionComponent<React.PropsWithChildren<{ title: string; }>> = ({title, children}) => {
-    return <div>
-        <div className={VmMetricTitle}>{title}</div>
-        <div>{children}</div>
-    </div>;
-};
-
 const VmLayout = injectStyle("vm-layout", k => `
     ${k} {
         display: flex;
         flex-direction: column;
         gap: 16px;
         margin-top: 20px;
-    }
-`);
-
-const VmHero = injectStyle("vm-hero", k => `
-    ${k} {
-        border: 1px solid color-mix(in srgb, var(--primaryMain) 25%, transparent);
-        --jobStateColor1: var(--successLight);
-        --jobStateColor2: var(--successDark);
-        
-        background: linear-gradient(115deg,
-            color-mix(in srgb, var(--jobStateColor1) 8%, transparent),
-            color-mix(in srgb, var(--jobStateColor2) 12%, transparent)
-        );
-    }
-
-    ${k}.POWERING_ON,
-    ${k}.RUNNING {
-        border-color: color-mix(in srgb, var(--successMain) 40%, transparent);
-    }
-
-    ${k}.IN_QUEUE,
-    ${k}.POWERING_OFF,
-    ${k}.RESTARTING,
-    ${k}.SUSPENDED {
-        border-color: color-mix(in srgb, var(--warningMain) 45%, transparent);
-        --jobStateColor1: var(--warningLight);
-        --jobStateColor2: var(--warningDark);
-    }
-
-    ${k}.SUCCESS,
-    ${k}.EXPIRED,
-    ${k}.FAILURE {
-        --jobStateColor1: var(--errorLight);
-        --jobStateColor2: var(--errorDark);
-        border-color: color-mix(in srgb, var(--errorMain) 45%, transparent);
-    }
-`);
-
-const VmHeroGrid = injectStyle("vm-hero-grid", k => `
-    ${k} {
-        margin-top: 32px;
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-        gap: 10px 16px;
-    }
-`);
-
-const VmMetricTitle = injectStyle("vm-metric-title", k => `
-    ${k} {
-        color: var(--textSecondary);
-        font-size: 12px;
-        margin-bottom: 3px;
     }
 `);
 
@@ -1339,80 +1237,6 @@ const VmContentGrid = injectStyle("vm-content-grid", k => `
 const VmMetricsRow = injectStyle("vm-metrics-row", k => `
     ${k} {
         grid-column: 1 / -1;
-    }
-`);
-
-const SplitDropdownTrigger = injectStyle("split-dropdown-trigger", k => `
-    ${k} {
-        position: relative;
-        width: 35px;
-        height: 35px;
-        border-radius: 8px;
-        user-select: none;
-        -webkit-user-select: none;
-        background: var(--primaryMain);
-        box-shadow: inset 0 .0625em .125em rgba(10,10,10,.05);
-        padding: 6px;
-        border-top-left-radius: 0;
-        border-bottom-left-radius: 0;
-        cursor: pointer;
-    }
-
-    ${k}:hover {
-        background: var(--primaryDark);
-    }
-
-    ${k}[data-disabled="true"] {
-        opacity: 0.25;
-        cursor: not-allowed;
-    }
-
-    ${k}[data-disabled="true"]:hover {
-        background: var(--primaryMain);
-    }
-
-    ${k} > svg {
-        color: var(--primaryContrast);
-        position: absolute;
-        bottom: 9px;
-        right: 10px;
-        height: 16px;
-    }
-`);
-
-const DangerSplitDropdownTrigger = injectStyle("danger-split-dropdown-trigger", k => `
-    ${k} {
-        background: var(--warningMain);
-    }
-
-    ${k}:hover {
-        background: var(--warningDark);
-    }
-
-    ${k}[data-disabled="true"]:hover {
-        background: var(--warningMain);
-    }
-
-    ${k} > svg {
-        color: var(--warningContrast);
-    }
-`);
-
-const SuccessSplitDropdownTrigger = injectStyle("success-split-dropdown-trigger", k => `
-    ${k} {
-        background: var(--successMain);
-    }
-
-    ${k}:hover {
-        background: var(--successDark);
-    }
-
-    ${k}[data-disabled="true"]:hover {
-        background: var(--successMain);
-    }
-
-    ${k} > svg {
-        color: var(--successContrast);
     }
 `);
 

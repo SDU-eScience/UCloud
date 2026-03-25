@@ -184,7 +184,7 @@ func StacksRetrieve(actor rpc.Actor, id string) (orcapi.Stack, *util.HttpError) 
 		// needed to make the cleanup procedure easier in case of a partial failure where all the jobs are stopped,
 		// but some of the other resources are left dangling.
 
-		page, pageErr := ResourceCatalogs.Jobs.Browse(actor, 250, next, flags)
+		page, pageErr := JobsBrowse(actor, next, 250, orcapi.JobFlags{IncludeApplication: true, ResourceFlags: flags})
 		err = util.MergeHttpErr(err, pageErr)
 		return page
 	})

@@ -293,29 +293,86 @@ func (s *demoState) uiTree() ucx.UiNode {
 				return
 			}
 
-			job, err := ucxsvc.JobsCreate.Invoke(session, []orcapi.JobSpecification{
-				{
-					ResourceSpecification: orcapi.ResourceSpecification{
-						Product: selectedProduct.Value,
-						Labels:  stackResp.Labels,
-					},
-					Application: orcapi.NameAndVersion{
-						Name:    "ubuntu-vm2",
-						Version: "24.04b",
-					},
-					Replicas:  1,
-					Hostname:  util.OptValue("controlplane-1"),
-					Name:      "controlplane-1",
-					Resources: []orcapi.AppParameterValue{stackResp.Mount},
-				},
-			})
-
-			if err != nil {
-				log.Warn("Could not create job: %s", err)
+			linkProducts, _ := ucxsvc.PublicLinksRetrieveProducts.Invoke(session, util.Empty{})
+			if len(linkProducts) == 0 {
+				ucxsvc.UiSendFailure(session, "Could not decide on a product!")
 				return
 			}
 
-			log.Info("Got job: %#v", job)
+			links, err := ucxsvc.PublicLinksCreate.Invoke(session, []orcapi.IngressSpecification{
+				{
+					Domain: fmt.Sprintf("%s%s%s", linkProducts[0].Support.Prefix, stackId, linkProducts[0].Support.Suffix),
+					ResourceSpecification: orcapi.ResourceSpecification{
+						Product: linkProducts[0].Product.ToReference(),
+						Labels:  stackResp.Labels,
+					},
+				},
+			})
+
+			if len(links) == 0 || err != nil {
+				ucxsvc.UiSendFailure(session, "Could not create a link!")
+				return
+			}
+
+			linkAttachment := orcapi.AppParameterValueIngress(links[0].Id)
+
+			networkProducts, _ := ucxsvc.PrivateNetworksRetrieveProducts.Invoke(session, util.Empty{})
+			if len(networkProducts) == 0 {
+				ucxsvc.UiSendFailure(session, "Could not decide on a product!")
+				return
+			}
+
+			networks, err := ucxsvc.PrivateNetworksCreate.Invoke(session, []orcapi.PrivateNetworkSpecification{
+				{
+					Name:      stackId,
+					Subdomain: stackId,
+					ResourceSpecification: orcapi.ResourceSpecification{
+						Product: networkProducts[0].Product.ToReference(),
+						Labels:  stackResp.Labels,
+					},
+				},
+			})
+
+			if len(networks) == 0 || err != nil {
+				ucxsvc.UiSendFailure(session, "Could not create a network!")
+				return
+			}
+
+			networkAttachment := orcapi.AppParameterValuePrivateNetwork(networks[0].Id)
+
+			for i := 1; i <= 3; i++ {
+				attachments := []orcapi.AppParameterValue{
+					stackResp.Mount,
+					networkAttachment,
+				}
+
+				if i == 1 {
+					attachments = append(attachments, linkAttachment)
+				}
+
+				_, serr := ucxsvc.JobsCreate.Invoke(session, []orcapi.JobSpecification{
+					{
+						ResourceSpecification: orcapi.ResourceSpecification{
+							Product: selectedProduct.Value,
+							Labels:  stackResp.Labels,
+						},
+						Application: orcapi.NameAndVersion{
+							Name:    "ubuntu-vm2",
+							Version: "24.04b",
+						},
+						Replicas:  1,
+						Hostname:  util.OptValue(fmt.Sprintf("controlplane-%v", i)),
+						Name:      fmt.Sprintf("controlplane-%v", i),
+						Resources: attachments,
+					},
+				})
+				err = util.MergeError(err, serr)
+			}
+
+			if err != nil {
+				ucxsvc.UiSendFailure(session, fmt.Sprintf("Failed to start cluster: %s", err))
+				return
+			}
 
 			ucxsvc.StackConfirmAndOpen(session, stackId)
 		}),
