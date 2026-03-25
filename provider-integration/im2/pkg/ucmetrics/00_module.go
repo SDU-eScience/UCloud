@@ -13,18 +13,41 @@ import (
 
 func ReadMemoryUsage() uint64 {
 	if isMemoryRestrictedByCgroup() {
-		line := readFirstLine("/sys/fs/cgroup/memory.current")
-		if line == "" {
-			line = readFirstLine("/sys/fs/cgroup/memory/memory.usage_in_bytes")
-		}
-
-		memoryUsed, err := strconv.ParseUint(line, 10, 64)
-		if err == nil {
+		memoryUsed, ok := readCgroupMemoryUsageWithoutFileCache()
+		if ok {
 			return memoryUsed
 		}
 	}
 
 	return readSystemMemoryUsage()
+}
+
+func readCgroupMemoryUsageWithoutFileCache() (uint64, bool) {
+	line := readFirstLine("/sys/fs/cgroup/memory.current")
+	if line == "" {
+		line = readFirstLine("/sys/fs/cgroup/memory/memory.usage_in_bytes")
+	}
+
+	memoryUsed, err := strconv.ParseUint(line, 10, 64)
+	if err != nil {
+		return 0, false
+	}
+
+	inactiveFile := uint64(0)
+	if isCgroupV2() {
+		inactiveFile = readMemoryStatValue("/sys/fs/cgroup/memory.stat", "inactive_file")
+	} else {
+		inactiveFile = readMemoryStatValue("/sys/fs/cgroup/memory/memory.stat", "total_inactive_file")
+		if inactiveFile == 0 {
+			inactiveFile = readMemoryStatValue("/sys/fs/cgroup/memory/memory.stat", "inactive_file")
+		}
+	}
+
+	if inactiveFile >= memoryUsed {
+		return 0, true
+	}
+
+	return memoryUsed - inactiveFile, true
 }
 
 func ReadMemoryLimit() uint64 {
@@ -275,6 +298,31 @@ func readSystemMemoryUsage() uint64 {
 	}
 
 	return usedKb * 1024
+}
+
+func readMemoryStatValue(path string, key string) uint64 {
+	file, err := os.Open(path)
+	if err != nil {
+		return 0
+	}
+	defer util.SilentClose(file)
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		fields := strings.Fields(scanner.Text())
+		if len(fields) != 2 || fields[0] != key {
+			continue
+		}
+
+		value, err := strconv.ParseUint(fields[1], 10, 64)
+		if err == nil {
+			return value
+		}
+
+		return 0
+	}
+
+	return 0
 }
 
 func readSystemMemoryLimit() uint64 {
