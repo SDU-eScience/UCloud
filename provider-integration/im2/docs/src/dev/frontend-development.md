@@ -1,0 +1,167 @@
+<!--General notes
+    - Useful functions (e.g. callAPI)
+    - Files, Apps, Jobs, Resources, Accounting, Projects, Client (lib.ts)-->
+
+# UCloud frontend development
+
+## Introduction
+
+<!-- Already covered in introduction.md? -->
+The UCloud frontend is the default way of communicating with the UCloud platform.
+
+The UI acts as a centralised point, that can communicate with different connected providers to make use of the features available, taking in to account what features are not.
+
+Managing of drives, files, runs, and other resources are available to the user through the interface, with the resource's assosiated actions. 
+
+## Technologies
+
+The UCloud UI is written in Typescript, with the front-end library React. Some use of the library Redux exists in the codebase, but it is rarely used when developing new features.
+
+Where the performance of React has not been adequate, Vanilla TypeScript has been used instead. An example of this is the Resource Browser component, where very little use of React is present.
+
+## Installation
+
+### Running the UI
+
+For a local dev environment, the `launcher`-tool, available in the root folder of the project, can be run, that will automatically start the environment.
+The UI will be available at `ucloud.localhost.direct` and will use the local environment as the backend. An admin user will be generated with the following login info:
+
+- Username: user
+- Password: mypassword
+
+If using another backend is required, the frontend can be run by opening the folder at `/frontend-web/webclient/` and running two commands:
+
+First:
+- `npm i`
+
+And depending on what backend is needed:
+- For `dev` run `npm run start` (requires VPN)
+- For `sandbox` run `npm run start:sandbox` 
+- For `production` run `npm run start:prod`
+
+Some editors will only run typechecking on open files and not the entire project. To have the compiler typecheck the frontend, run `npm run watch`.
+
+## On using NPM packages
+
+Adding NPM packages to `package.json`:
+
+Preferably keep new NPM packages to a minimum as they are something to be maintained, increasingly through issues with security.
+Whether or not to add a package will be up to the programmer, depending on saving time through offloading the complexity to the package or similar.
+If a package is added to `package.json` file, the version must only consist of the version number, fixing it to that version.
+
+This means no `~`, `^`, `>=`, `>`, `<=`, `<`, `x`, `*` or `latest`, as this provides less control over which package will be installed.
+
+## Styling
+
+Styling for the frontend is mostly done with the function `injectStyle`. This function dynamically injects CSS rules to a stylesheet at run-time.
+
+The injected CSS is mostly injected as is, with the exception of the interpolation of the classnames.
+
+### Creating a class with rules:
+
+```typescript
+const NameOfClass = injectStyle("class-name", cl => `
+    ${cl} {
+        background-color: var(--errorMain);
+    }
+
+    ${cl}:hover {
+        background-color: var(--primaryMain);
+    }
+`);
+```
+
+### Using the class:
+
+
+```typescript
+function Component(): React.ReactNode {
+    return <div className={NameOfClass} />
+}
+```
+
+The function `injectStyleSimple` can also be used if the code doesn't require pseudo-classes, for instance:
+
+```typescript
+const NameOfClass = injectStyleSimple("class-name", `
+    background-color: red;
+`);
+```
+
+Using the class is the same as previously described above.
+
+The function appends a number, as to ensure uniqueness. The above could for instance return the string `class-name90`. This is don't to ensure classnames don't collide.
+
+If just a classname is needed without any existing rules, see `makeClassName` function.
+
+## Color references and icons
+
+The `Playground` component can be accessed at `app/playground` and has a list of colors used on the site.
+Additionally, every icon currently available can be viewed here, showing the name of it by hovering with the mouse.
+
+Icons can be added to the site, by adding the file as an SVG in the folder `frontend/webclient/app/ui-components/icons`, then running the command `npm run refresh-icons`.
+The icon is now available in the `name` parameter for the Icon-component.
+
+The `Playground` component is intended for experimenting and anything present in this file will not be present on the production builds of the website.
+
+## Baseline for CSS features
+
+Most of the CSS used for UCloud is written and injected with the `injectStyle`-function, which means the CSS rules will not be transformed in any way to adhere to the quirks of different browser, or delayed deployments of features in one browser over another.
+
+Because of this, no bleeding edge CSS features are to be used for development, with at least a 95 % target. See [caniuse.com](http://caniuse.com). <!-- Re-phrase? Different value? -->
+
+
+## Testing
+
+UCloud has an E2E-testing suite that will run automatically after an update to the `master`-branch. This can be triggered by the admin (Note: correct role?) of the UCloud Github repository.
+
+To run the tests for your local environment, the following commands are available:
+
+| Command                           | Uses                                                                                                                                                         |
+|-----------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `npx playwright test`             | Runs the tests in the terminal.                                                                                                                              | 
+| `npx playwright test --ui`        |  **Recommended** Opens a user-friendly interface in a browser window, that shows images of the running tests and allows for viewing relevant network-calls.  |
+| `npx playwright test --headed`    | Runs every test, opening a new browser instance for each.                                                                                                    |
+| `npx playwright show-report`      | Opens the report generated by a previously run test suite.                                                                                                   |
+
+To add tests to the suite, the files are located in [UCloud/tree/master/frontend-web/webclient/tests](https://github.com/SDU-eScience/UCloud/tree/master/frontend-web/webclient/tests).
+
+The suite consists of files mapping to different parts of UCloud functionality. These are:
+
+| Test-file            | Area                                                                                                                                               |
+|----------------------|----------------------------------------------------------------------------------------------------------------------------------------------------|
+| `accounting.spec.ts` | Applying for resources and accounting validation                                                                                                   |
+| `compute.spec.ts`    | Running jobs, checking restrictions are correctly applied for optional parameters, and mounting folders, multinode, connecting to other jobs, etc. |
+| `drive.spec.ts`      | Drives and drive-operations                                                                                                                        |
+| `file.spec.ts`       | Files and file-operations                                                                                                                          |
+| `resources.spec.ts`  | Creating resources (SSH-keys, public links, etc.) and using them with compute resources.                                                           |
+| `user.spec.ts`       | Logging in, validating that links in user-menu works, and links on login page.                                                                     |
+
+The other notable files in the test folder are `user.setup.ts` and `shared.ts`.
+
+The first of the two, `user.setup.ts`. This is the script that sets up the different contexts of users to be used in the tests. Four users in total: a personal workspace user, a project PI, a project admin, and a project user. The created users are required for the majority of the tests, so it rarely makes sense to not have the script run prior to running the tests.
+
+`shared.ts` is a library that aims to match function-calls with actions on UCloud, e.g. `Files.upload()` that will upload a file, `Applications.toggleFavorite()` used for favoriting an application.
+When writing a test for a feature, most of it should consist of calls to this library. If the functionality for an aciton isn't there, it's likely it should be added.
+
+Tests can be added to the existing test suite, but tests must not be removed, as most are part of a compliance requirement. <!--(link to?)-->
+
+### Coding-style preferences
+
+`let` is to be used over `var`, due to the reduced lifetime of `let`.
+
+For function definitions, TypeScript/ECMAScript allows using both `function` and `const`. `function` is preferred, due to the different lifetimes and positioning requirements in files between the two options.
+If the function is exported, `function` usually the one to use. If the function is local to the file, the `const` approach is fine to use.
+
+If a magic string/number is present more than once, it's to be extracted into a constant. This is not the case for styling (pixels, colors, etc.) in components. <!--(This is probably a given. Remove?)-->
+
+<!--
+### Icon strategy
+
+This is something we probably should discuss offline, but finding a good icon when needed seems to increasingly hard, but the solution might just be to not have them at all in some cases.
+
+A [blog](https://tonsky.me/blog/tahoe-icons/) wrote about this issue on MacOS, and it seems reasonable. This would also involve simplifying some icons. Not sure why I never wondered why "Create" operation has "upload" as its default icon. Something like this could probably be replaced by a +-symbol that's usable among all resources.
+
+So what this section should contain is how to gauge whether or not using an icon is needed.
+
+!-->
