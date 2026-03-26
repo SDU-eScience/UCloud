@@ -1576,6 +1576,7 @@ export type AppParameterValue =
     | AppParameterValueNS.Ingress
     | AppParameterValueNS.Workflow
     | AppParameterValueNS.ModuleList
+    | AppParameterValueNS.PrivateNetwork
     ;
 export interface SimpleDuration {
     hours: number /* int32 */,
@@ -2505,6 +2506,10 @@ export interface Docker {
      * Flag to enable/disable the retrieveUtilization of jobs
      */
     utilization?: boolean,
+    /**
+     * Flag to enable/disable binding public links to a specific port
+     */
+    bindLinkToPort?: boolean,
 }
 export interface VirtualMachine {
     /**
@@ -2537,6 +2542,10 @@ export interface VirtualMachine {
      * Flag to enable/disable the retrieveUtilization of jobs
      */
     utilization?: boolean,
+    /**
+     * Flag to enable/disable binding public links to a specific port
+     */
+    bindLinkToPort?: boolean,
 }
 }
 export namespace AppParameterValueNS {
@@ -2694,6 +2703,7 @@ export interface Network {
 export interface Ingress {
     id: string,
     type: ("ingress"),
+    port?: number,
 }
 
 export interface Workflow {
@@ -2704,6 +2714,11 @@ export interface Workflow {
 export interface ModuleList {
     type: ("modules"),
     modules: string[];
+}
+
+export interface PrivateNetwork {
+    id: string,
+    type: ("private_network"),
 }
 }
 export namespace NetworkIPSpecificationNS {

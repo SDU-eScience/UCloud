@@ -21,10 +21,20 @@ const reservationName = "reservation-name";
 const reservationHours = "reservation-hours";
 const reservationReplicas = "reservation-replicas";
 
-export function ReservationParameter({application, errors, onEstimatedCostChange}: React.PropsWithChildren<{
+export function ReservationParameter({
+    application,
+    errors,
+    onEstimatedCostChange,
+    nameLabelAction,
+    additionalNameInput,
+    onJobNameChange
+}: React.PropsWithChildren<{
     application: Application;
     errors: ReservationErrors;
     onEstimatedCostChange?: (durationInMinutes: number, numberOfNodes: number, wallet: Accounting.WalletV2 | null, product: ProductV2 | null) => void;
+    nameLabelAction?: React.ReactNode;
+    additionalNameInput?: React.ReactNode;
+    onJobNameChange?: (name: string) => void;
 }>): React.ReactNode {
     // Estimated cost
     const [selectedMachine, setSelectedMachine] = useState<ProductV2Compute | null>(null);
@@ -125,14 +135,19 @@ export function ReservationParameter({application, errors, onEstimatedCostChange
     return <div>
         <Flex justifyContent="space-between" gap="15px">
             <Label>
-                Job name
+                <Flex gap="8px" alignItems="center">
+                    <span>Job name</span>
+                    {nameLabelAction ?? null}
+                </Flex>
                 <Input
                     className={classConcat(JobCreateInput, "name-kind")}
                     id={reservationName}
                     placeholder={"Example: Run with parameters XYZ"}
+                    onChange={ev => onJobNameChange?.((ev.target as HTMLInputElement).value)}
                 />
                 {errors["name"] ? <TextP color={"errorMain"}>{errors["name"]}</TextP> : null}
             </Label>
+            {additionalNameInput ?? null}
             {toolBackend === "DOCKER" || toolBackend === "NATIVE" ?
                 <Flex gap={"8px"} alignItems={"end"}>
                     <Label>

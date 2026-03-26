@@ -422,7 +422,7 @@ func syncthingMutateFirewall(job *orc.Job, configuration json.RawMessage, firewa
 		return util.ServerHttpError("no syncthing port")
 	}
 
-	allowNetworkFromWorld(firewall, []orc.PortRangeAndProto{
+	shared.AllowNetworkFromWorld(firewall, []orc.PortRangeAndProto{
 		{
 			Protocol: orc.IpProtocolTcp,
 			Start:    port.Value,

@@ -106,6 +106,13 @@ function RefreshIcon(): React.ReactNode {
     const refresh = useRefresh();
     const spin = useSelector((it: ReduxObject) => it.loading);
     const loading = useSelector((it: ReduxObject) => it.status.loading);
+    return <RefreshButton loading={loading || spin} refresh={refresh} />;
+}
+
+export const RefreshButton: React.FunctionComponent<{
+    loading: boolean;
+    refresh: () => void;
+}> = ({loading, refresh}) => {
     const delayedRefresh = useCallback(() => {
         if (!refresh) return;
         const icon = document.querySelector<HTMLElement>("#refresh-icon");
@@ -126,8 +133,10 @@ function RefreshIcon(): React.ReactNode {
             icon.style.transform = "rotate(405deg)";
         }
     }, [refresh]);
+
     if (!refresh) return null;
     if (refresh === noopCall) return null;
-    return <Icon cursor="pointer" size={24} onClick={delayedRefresh} spin={spin || loading}
-        id={"refresh-icon"} className={refreshIconClass} color="textPrimary" name="heroArrowPath" />
+
+    return <Icon cursor="pointer" size={24} onClick={delayedRefresh} spin={loading}
+                 id={"refresh-icon"} className={refreshIconClass} color="textPrimary" name="heroArrowPath" />;
 }

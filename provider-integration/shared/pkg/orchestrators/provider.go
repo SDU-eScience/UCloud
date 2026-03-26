@@ -19,11 +19,11 @@ type Provider struct {
 }
 
 type ProviderSpecification struct {
-	Id      string               `json:"id"`
-	Domain  string               `json:"domain"`
-	Https   bool                 `json:"https"`
-	Port    int                  `json:"port"`
-	Product acc.ProductReference `json:"product"` // Deprecated
+	Id     string `json:"id"`
+	Domain string `json:"domain"`
+	Https  bool   `json:"https"`
+	Port   int    `json:"port"`
+	ResourceSpecification
 }
 
 const providerBaseContext = "providers"
@@ -98,4 +98,16 @@ var ProviderUpdateAcl = rpc.Call[fnd.BulkRequest[UpdatedAcl], fnd.BulkResponse[u
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesEndUser,
 	Operation:   "updateAcl",
+}
+
+type ProviderUpdateLabelsRequest struct {
+	Id     string            `json:"id"`
+	Labels map[string]string `json:"labels"`
+}
+
+var ProviderUpdateLabels = rpc.Call[fnd.BulkRequest[ProviderUpdateLabelsRequest], util.Empty]{
+	BaseContext: providerBaseContext,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "updateLabels",
 }
