@@ -1,7 +1,3 @@
-<!--General notes
-    - Useful functions (e.g. callAPI)
-    - Files, Apps, Jobs, Resources, Accounting, Projects, Client (lib.ts)-->
-
 # UCloud frontend development
 
 ## Introduction
@@ -11,13 +7,13 @@ The UCloud frontend is the default way of communicating with the UCloud platform
 
 The UI acts as a centralised point, that can communicate with different connected providers to make use of the features available, taking in to account what features are not.
 
-Managing of drives, files, runs, and other resources are available to the user through the interface, with the resource's assosiated actions. 
+Managing of drives, files, runs, and other resources are available to the user through the interface, with the resource's relevant actions. 
 
 ## Technologies
 
 The UCloud UI is written in Typescript, with the front-end library React. Some use of the library Redux exists in the codebase, but it is rarely used when developing new features.
 
-Where the performance of React has not been adequate, Vanilla TypeScript has been used instead. An example of this is the Resource Browser component, where very little use of React is present.
+Where the performance of React has not been adequate, Vanilla TypeScript/ECMAScript has been used instead. An example of this is the ResourceBrowser component, where very little use of React is present.
 
 ## Installation
 
@@ -39,17 +35,17 @@ And depending on what backend is needed:
 - For `sandbox` run `npm run start:sandbox` 
 - For `production` run `npm run start:prod`
 
-Some editors will only run typechecking on open files and not the entire project. To have the compiler typecheck the frontend, run `npm run watch`.
+Logins for these can be provided upon request.
 
-## On using NPM packages
+Some editors will only run type checking on open files and not the entire project. To have the compiler type check the frontend, run `npm run watch`.
 
-Adding NPM packages to `package.json`:
+## On adding NPM packages
 
-Preferably keep new NPM packages to a minimum as they are something to be maintained, increasingly through issues with security.
+Preferably keep new NPM packages to a minimum as they are something might need to be updated, increasingly through issues with security.
 Whether or not to add a package will be up to the programmer, depending on saving time through offloading the complexity to the package or similar.
 If a package is added to `package.json` file, the version must only consist of the version number, fixing it to that version.
 
-This means no `~`, `^`, `>=`, `>`, `<=`, `<`, `x`, `*` or `latest`, as this provides less control over which package will be installed.
+This means no `~`, `^`, `>=`, `>`, `<=`, `<`, `x`, `*` or `latest`, as this provides less control over which version of the package will be installed.
 
 ## Styling
 
@@ -94,21 +90,48 @@ The function appends a number, as to ensure uniqueness. The above could for inst
 
 If just a classname is needed without any existing rules, see `makeClassName` function.
 
+## Network calls
+
+The `callAPI`-function is used for contacting the backend, fetching data and posting updates.
+
+
+## Adding a route to a component
+
+When creating a new component that needs its own route-path, the approach to follow is in the file `Core.tsx`.
+
+If frontend authentication is required for accessing the component, the component should be wrapped in the function `requireAuth`, like so:
+
+```jsx
+<Route 
+    path={AppRoutes.dev.pathForAuthenticatedComponent()}
+    element={React.createElement(requireAuth(MyNewComponent))} 
+/>
+```
+
+If authentication is not needed, this can be omitted, like so:
+
+```jsx
+<Route path={AppRoutes.dev.pathForComponent()} element={<MyNewComponent />} />
+```
+
+The route-path must be added to the `AppRoutes`.
+
 ## Color references and icons
 
 The `Playground` component can be accessed at `app/playground` and has a list of colors used on the site.
 Additionally, every icon currently available can be viewed here, showing the name of it by hovering with the mouse.
 
-Icons can be added to the site, by adding the file as an SVG in the folder `frontend/webclient/app/ui-components/icons`, then running the command `npm run refresh-icons`.
-The icon is now available in the `name` parameter for the Icon-component.
+The component is intended for experimenting and the component is not available on any non-local environment.
 
-The `Playground` component is intended for experimenting and anything present in this file will not be present on the production builds of the website.
+Icons can be added to the site, by adding the file as an SVG in the folder `frontend/webclient/app/ui-components/icons`, then running the command `npm run refresh-icons`.
+The icon is now available to use in the `name` parameter for the Icon-component.
+
 
 ## Baseline for CSS features
 
 Most of the CSS used for UCloud is written and injected with the `injectStyle`-function, which means the CSS rules will not be transformed in any way to adhere to the quirks of different browser, or delayed deployments of features in one browser over another.
 
-Because of this, no bleeding edge CSS features are to be used for development, with at least a 95 % target. See [caniuse.com](http://caniuse.com). <!-- Re-phrase? Different value? -->
+Because of this, no bleeding edge CSS features are to be used for development, with at least a 95 % target. See [caniuse.com](http://caniuse.com). <!-- Re-phrase? Different value? Worth bringing up at all? -->
 
 
 ## Testing
@@ -139,12 +162,12 @@ The suite consists of files mapping to different parts of UCloud functionality. 
 
 The other notable files in the test folder are `user.setup.ts` and `shared.ts`.
 
-The first of the two, `user.setup.ts`. This is the script that sets up the different contexts of users to be used in the tests. Four users in total: a personal workspace user, a project PI, a project admin, and a project user. The created users are required for the majority of the tests, so it rarely makes sense to not have the script run prior to running the tests.
+The first of the two, `user.setup.ts`. This is the script that sets up the different contexts of users to be used in the tests. The contexts refers to four users in total: a personal workspace user, a project PI, a project admin, and a project user. The created users are required for the majority of the tests, so it rarely makes sense to not have the script run prior to running the tests.
 
 `shared.ts` is a library that aims to match function-calls with actions on UCloud, e.g. `Files.upload()` that will upload a file, `Applications.toggleFavorite()` used for favoriting an application.
 When writing a test for a feature, most of it should consist of calls to this library. If the functionality for an aciton isn't there, it's likely it should be added.
 
-Tests can be added to the existing test suite, but tests must not be removed, as most are part of a compliance requirement. <!--(link to?)-->
+Tests can be added to the existing test suite, but tests must not be removed, as most are part of a compliance requirement. <!--(link to PDF?)-->
 
 ### Coding-style preferences
 
@@ -158,7 +181,7 @@ If a magic string/number is present more than once, it's to be extracted into a 
 <!--
 ### Icon strategy
 
-This is something we probably should discuss offline, but finding a good icon when needed seems to increasingly hard, but the solution might just be to not have them at all in some cases.
+This is something we probably should discuss offline, but finding a good icon when needed seems increasingly hard, but the solution might just be to not have them at all in some cases.
 
 A [blog](https://tonsky.me/blog/tahoe-icons/) wrote about this issue on MacOS, and it seems reasonable. This would also involve simplifying some icons. Not sure why I never wondered why "Create" operation has "upload" as its default icon. Something like this could probably be replaced by a +-symbol that's usable among all resources.
 
