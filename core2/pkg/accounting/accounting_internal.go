@@ -209,7 +209,6 @@ type scopedUsage struct {
 // As always, locking a wallet is considered a significant update and thus triggers a message to relevant service
 // providers.
 func internalReportUsage(now time.Time, request accapi.ReportUsageRequest) (bool, *util.HttpError) {
-	fmt.Printf("this is the request %v\n", request)
 	accGlobals.Mu.RLock()
 	b, ok := accGlobals.BucketsByCategory[request.CategoryIdV2]
 	accGlobals.Mu.RUnlock()
@@ -241,8 +240,6 @@ func internalReportUsage(now time.Time, request accapi.ReportUsageRequest) (bool
 	b.Mu.Lock()
 	defer b.Mu.Unlock()
 
-	fmt.Printf("Scope is nil: %v\n", scope == nil)
-
 	if scope != nil {
 		scope.Mu.Lock()
 		defer scope.Mu.Unlock()
@@ -252,24 +249,16 @@ func internalReportUsage(now time.Time, request accapi.ReportUsageRequest) (bool
 
 	var currentUsage, delta int64
 	if scope == nil {
-		fmt.Printf("Using local\n")
 		currentUsage = w.LocalUsage
 	} else {
-		fmt.Printf("Using scope\n")
 		currentUsage = scope.Usage
 	}
-	fmt.Printf("current usage: %d\n", currentUsage)
 
 	if request.IsDeltaCharge {
-		fmt.Printf("IS Delta\n")
 		delta = request.Usage
 	} else {
-		fmt.Printf("IS not Delta\n")
-
 		delta = request.Usage - currentUsage
 	}
-
-	fmt.Printf("delta: %d\n", delta)
 
 	if scope != nil {
 		scope.Usage = currentUsage + delta
@@ -277,33 +266,27 @@ func internalReportUsage(now time.Time, request accapi.ReportUsageRequest) (bool
 	}
 
 	deltaToReport := delta
-	fmt.Printf("deltaToReport: %d\n", deltaToReport)
-
 	if delta < 0 {
-		fmt.Printf("Delta is negative\n")
 		// Check if there is local excess which should counter-act the decrease
 		propagated := lInternalWalletTotalPropagatedUsage(b, w)
-		fmt.Printf("propagated: %d\n", propagated)
 		inNode := lInternalWalletTotalUsageInNode(b, w)
-		fmt.Printf("inNode: %d\n", inNode)
 		excess := min(inNode-propagated, w.LocalUsage)
 
-		fmt.Printf("exces usage: %d\n", excess)
 		if excess > 0 {
 			deltaToReport = min(0, deltaToReport+excess)
 		}
-		fmt.Printf("deltaToReport checkup: %d\n", deltaToReport)
 	}
 
 	_, visitedWallets := lInternalReportUsage(b, now, w, deltaToReport)
-	fmt.Printf("visited wallets: %v\n", visitedWallets)
 	w.LocalUsage += delta
 	w.Dirty = true
 
 	lInternalRepairBrokenPropagation(b, now, w)
-
+	fmt.Printf("request: %v \n", request)
+	fmt.Printf("visited: %v\n", visitedWallets)
 	for visitedId, _ := range visitedWallets {
 		visited := b.WalletsById[visitedId]
+		fmt.Printf("visited: %v\n", visited)
 		lInternalReevaluate(b, now, visited, false)
 	}
 
@@ -782,14 +765,12 @@ func lInternalWalletByOwner(b *internalBucket, now time.Time, owner accOwnerId) 
 // The graph algorithms themselves are implemented in `accounting_graph.go`.
 
 func lInternalReportUsage(b *internalBucket, now time.Time, w *internalWallet, delta int64) (int64, map[AccWalletId]bool) {
-	fmt.Printf("lInternalReportUsage called for wallet %v with delta: %v\n", w.Id, delta)
 	flags := internalGraphWithOverAllocation
 	if delta < 0 {
 		flags |= internalGraphDeltaIsNegative
 	}
 	chargeGraph := lInternalBuildGraph(b, now, w, flags)
 
-	println(chargeGraph.ToMermaid())
 	rootVertex := chargeGraph.WalletToVertex[internalGraphRoot]
 	walletVertex := chargeGraph.WalletToVertex[w.Id]
 
@@ -799,7 +780,6 @@ func lInternalReportUsage(b *internalBucket, now time.Time, w *internalWallet, d
 	} else {
 		maxUsable = chargeGraph.MinCostFlow(rootVertex, walletVertex, delta)
 	}
-	fmt.Printf("maxUsable is : %v\n", maxUsable)
 
 	walletsUpdated := map[AccWalletId]bool{}
 	walletsUpdated[w.Id] = true
@@ -810,31 +790,27 @@ func lInternalReportUsage(b *internalBucket, now time.Time, w *internalWallet, d
 		for senderVertex := 0; senderVertex < gSize; senderVertex++ {
 			senderWalletId := chargeGraph.VertexToWallet[senderVertex]
 			senderWallet := b.WalletsById[senderWalletId]
-			fmt.Printf("senderWallet is : %v\n", senderWallet)
 			for receiverVertex := 0; receiverVertex < gSize; receiverVertex++ {
 				if chargeGraph.Original[receiverVertex][senderVertex] {
 					receiverWalletId := chargeGraph.VertexToWallet[receiverVertex]
 					receiverWallet := b.WalletsById[receiverWalletId]
-					fmt.Printf("receiverWallet is : %v\n", receiverWallet)
 					amount := chargeGraph.Adjacent[senderVertex][receiverVertex]
-					fmt.Printf("amount : %v\n", amount)
 					if senderWallet != nil {
 						group := senderWallet.AllocationsByParent[receiverWalletId]
-						fmt.Printf("Set group tree usage : %v\n", amount)
 						group.TreeUsage = amount
+						walletsUpdated[senderWallet.Id] = true
 						group.Dirty = true
 					}
 
 					if receiverWallet != nil {
 						receiverWallet.ChildrenUsage[senderWalletId] = amount
-						fmt.Printf("Set children Usage: %v\n", amount)
+						walletsUpdated[receiverWallet.Id] = true
 						receiverWallet.Dirty = true
 					}
 				}
 			}
 		}
 	}
-	println(chargeGraph.ToMermaid())
 
 	return maxUsable, walletsUpdated
 }
@@ -1080,7 +1056,6 @@ func lInternalRebalanceEx(b *internalBucket, now time.Time, wallet *internalWall
 // ensure that the lock flag is correctly set. If rebalance is true, then excess usage is reflown and retired balance
 // is balanced to other parts of the graph.
 func lInternalReevaluate(b *internalBucket, now time.Time, wallet *internalWallet, rebalance bool) {
-	fmt.Printf("InternalReevalutaing: %v, with reblance %v \n", wallet.Id, rebalance)
 	if b.disableEvaluation {
 		return
 	}
@@ -1101,8 +1076,6 @@ func lInternalReevaluate(b *internalBucket, now time.Time, wallet *internalWalle
 		visited[next.Id] = util.Empty{}
 
 		maxUsable := lInternalMaxUsable(b, now, next)
-		fmt.Printf("MaxUsable for %v is %v\n", next.Id, maxUsable)
-		fmt.Printf("next is locked: %v \n", next.WasLocked)
 		if maxUsable <= 0 && !next.WasLocked {
 			next.WasLocked = true
 			lInternalMarkSignificantUpdate(b, now, next)
@@ -1115,7 +1088,6 @@ func lInternalReevaluate(b *internalBucket, now time.Time, wallet *internalWalle
 			if _, hasVisited := visited[childId]; !hasVisited {
 				child := b.WalletsById[childId]
 				queue = append(queue, child)
-				fmt.Printf("Appending %v in queue \n", child.Id)
 			}
 		}
 	}

@@ -297,6 +297,89 @@ func TestCapacityOverConsumptionAndReturnBelowLimit(t *testing.T) {
 	})
 }
 
+func TestCapacityOverConsumptionAndReturnBelowLimitMultipleLevels(t *testing.T) {
+	runTable(t, []accapi.ProductCategory{timeCategory, capacityCategory}, func(e *env) {
+		e.AllocateEx(0, 0, 1000, 1000, "P1", "")
+		e.AllocateEx(0, 0, 100, 10, "P2", "P1")
+		e.AllocateEx(0, 0, 100, 20, "P3", "P1")
+		e.AllocateEx(0, 0, 100, 20, "P3Sub", "P3")
+
+		e.ReportAbs(1, "P2", 1)
+		e.ReportAbs(1, "P3", 1)
+		e.ReportAbs(1, "P3Sub", 1)
+
+		e.ExpectMany(map[string]want{
+			"P1":    {PUsage: 3, Locked: false},
+			"P2":    {PUsage: 1, Locked: false},
+			"P3":    {PUsage: 2, Locked: false},
+			"P3Sub": {PUsage: 1, Locked: false},
+		})
+
+		e.ReportAbs(5, "P3Sub", 25)
+		e.ExpectMany(map[string]want{
+			"P1":    {PUsage: 21, Locked: false},
+			"P2":    {PUsage: 1, Locked: false},
+			"P3":    {PUsage: 20, Locked: true},
+			"P3Sub": {PUsage: 19, Locked: true}, // Only sends 19 since P3 is using 1 (Over allocation)
+		})
+
+		e.ReportAbs(10, "P3Sub", 4)
+		e.ExpectMany(map[string]want{
+			"P1":    {PUsage: 6, Locked: false},
+			"P2":    {PUsage: 1, Locked: false},
+			"P3":    {PUsage: 5, Locked: false},
+			"P3Sub": {PUsage: 4, Locked: false},
+		})
+	})
+}
+
+func TestCapacityOverConsumptionAndReturnBelowLimitMultipleAllocationGroups(t *testing.T) {
+	runTable(t, []accapi.ProductCategory{timeCategory, capacityCategory}, func(e *env) {
+		e.AllocateEx(0, 0, 1000, 1000, "P1", "")
+		e.AllocateEx(0, 0, 100, 10, "P2", "P1")
+		e.AllocateEx(0, 0, 100, 20, "P3", "P1")
+		e.AllocateEx(0, 0, 100, 15, "P3Sub", "P3")
+		e.AllocateEx(0, 0, 50, 5, "P3Sub", "P1")
+
+		e.ReportAbs(1, "P2", 1)
+		e.ReportAbs(1, "P3", 1)
+		e.ReportAbs(1, "P3Sub", 1)
+
+		e.ExpectMany(map[string]want{
+			"P1":    {PUsage: 3, Locked: false},
+			"P2":    {PUsage: 1, Locked: false},
+			"P3":    {PUsage: 1, Locked: false},
+			"P3Sub": {PUsage: 1, Locked: false},
+		})
+
+		e.ReportAbs(5, "P3Sub", 6)
+		e.ExpectMany(map[string]want{
+			"P1":    {PUsage: 8, Locked: false},
+			"P2":    {PUsage: 1, Locked: false},
+			"P3":    {PUsage: 2, Locked: false},
+			"P3Sub": {PUsage: 6, Locked: false},
+		})
+
+		e.ReportAbs(10, "P3Sub", 25)
+		e.ExpectMany(map[string]want{
+			"P1":    {PUsage: 22, Locked: false},
+			"P2":    {PUsage: 1, Locked: false},
+			"P3":    {PUsage: 16, Locked: false},
+			"P3Sub": {PUsage: 20, Locked: true},
+		})
+
+		//Would expect that the short path P1 -> P3Sub would be used instead of P1->P3->P3Sub
+
+		e.ReportAbs(15, "P3Sub", 2)
+		e.ExpectMany(map[string]want{
+			"P1":    {PUsage: 4, Locked: false},
+			"P2":    {PUsage: 1, Locked: false},
+			"P3":    {PUsage: 1, Locked: false},
+			"P3Sub": {PUsage: 2, Locked: false},
+		})
+	})
+}
+
 func TestCapacityParentRetireAfterChildOverspend(t *testing.T) {
 	e := newEnv(t, capacityCategory)
 
