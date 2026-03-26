@@ -506,6 +506,107 @@ func TestInjectResourcesAfterRetirement(t *testing.T) {
 	}
 }
 
+func TestProviderExpireAndNewPeriodStartsCapacity(t *testing.T) {
+	e := newEnv(t, capacityCategory)
+	testProviderExpireAndNewPeriodStarts(*e, true)
+}
+
+func TestProviderExpireAndNewPeriodStartsTime(t *testing.T) {
+	e := newEnv(t, capacityCategory)
+	testProviderExpireAndNewPeriodStarts(*e, false)
+}
+
+// Pretty standard operation that we do every time a period ends on UCloud
+func testProviderExpireAndNewPeriodStarts(e env, isCapacityBased bool) {
+	e.AllocateEx(0, 0, 1_000, 1_000, "provider", "")
+	e.AllocateEx(0, 1_000, 3_000, 1_000, "provider", "")
+	e.AllocateEx(0, 0, 2_000, 50, "A", "provider")
+	e.AllocateEx(0, 0, 1_500, 10, "B", "provider")
+	e.AllocateEx(0, 0, 3_000, 20, "C", "provider")
+
+	e.ReportAbs(10, "A", 10)
+	e.ReportAbs(15, "B", 5)
+	e.ReportAbs(20, "C", 20)
+
+	e.ExpectMany(map[string]want{
+		"provider": {PUsage: 35, Locked: false},
+		"A":        {PUsage: 10, Locked: false},
+		"B":        {PUsage: 5, Locked: false},
+		"C":        {PUsage: 20, Locked: true},
+	})
+
+	e.Scan(1_000)
+
+	e.ExpectMany(map[string]want{
+		"provider": {PUsage: 35, Locked: false},
+		"A":        {PUsage: 10, Locked: false},
+		"B":        {PUsage: 5, Locked: false},
+		"C":        {PUsage: 20, Locked: true},
+	})
+
+	if isCapacityBased {
+		e.ReportDelta(1_300, "C", -10)
+		e.ExpectMany(map[string]want{
+			"provider": {PUsage: 25, Locked: false},
+			"C":        {PUsage: 10, Locked: false},
+		})
+
+		e.ReportDelta(1_310, "A", 1)
+		e.ExpectMany(map[string]want{
+			"provider": {PUsage: 26, Locked: false},
+			"A":        {PUsage: 11, Locked: false},
+		})
+	} else {
+		e.ReportDelta(1_300, "A", 11)
+		e.ExpectMany(map[string]want{
+			"provider": {PUsage: 46, Locked: false},
+			"A":        {PUsage: 21, Locked: false},
+		})
+	}
+
+}
+
+func TestProviderExpireAndNewPeriodStartsDelayedScan(t *testing.T) {
+	runTable(t, []accapi.ProductCategory{timeCategory, capacityCategory}, func(e *env) {
+		e.AllocateEx(0, 0, 1_000, 1_000, "provider", "")
+		e.AllocateEx(0, 1_000, 3_000, 1_000, "provider", "")
+		e.AllocateEx(0, 0, 2_000, 50, "A", "provider")
+		e.AllocateEx(0, 0, 1_500, 10, "B", "provider")
+		e.AllocateEx(0, 0, 3_000, 20, "C", "provider")
+
+		e.ReportAbs(10, "A", 10)
+		e.ReportAbs(15, "B", 5)
+		e.ReportAbs(20, "C", 20)
+
+		e.ExpectMany(map[string]want{
+			"provider": {PUsage: 35, Locked: false},
+			"A":        {PUsage: 10, Locked: false},
+			"B":        {PUsage: 5, Locked: false},
+			"C":        {PUsage: 20, Locked: true},
+		})
+
+		e.ReportAbs(1_100, "A", 15)
+		e.ReportAbs(1_105, "B", 2)
+		e.ReportAbs(1_020, "C", 10)
+
+		e.ExpectMany(map[string]want{
+			"provider": {PUsage: 27, Locked: false},
+			"A":        {PUsage: 15, Locked: false},
+			"B":        {PUsage: 2, Locked: false},
+			"C":        {PUsage: 10, Locked: false},
+		})
+
+		e.Scan(1_200)
+
+		e.ExpectMany(map[string]want{
+			"provider": {PUsage: 27, Locked: false},
+			"A":        {PUsage: 15, Locked: false},
+			"B":        {PUsage: 2, Locked: false},
+			"C":        {PUsage: 10, Locked: false},
+		})
+	})
+}
+
 func TestInjectResourcesAfterTotalUsage(t *testing.T) {
 	type cfg struct {
 		massiveOvercharge       bool

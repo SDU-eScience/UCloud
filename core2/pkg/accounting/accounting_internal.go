@@ -282,11 +282,8 @@ func internalReportUsage(now time.Time, request accapi.ReportUsageRequest) (bool
 	w.Dirty = true
 
 	lInternalRepairBrokenPropagation(b, now, w)
-	fmt.Printf("request: %v \n", request)
-	fmt.Printf("visited: %v\n", visitedWallets)
 	for visitedId, _ := range visitedWallets {
 		visited := b.WalletsById[visitedId]
-		fmt.Printf("visited: %v\n", visited)
 		lInternalReevaluate(b, now, visited, false)
 	}
 
