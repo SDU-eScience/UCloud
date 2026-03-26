@@ -1,141 +1,297 @@
 package ucxsvc
 
 import (
+	"fmt"
+	"path/filepath"
+	"slices"
+
+	accapi "ucloud.dk/shared/pkg/accounting"
 	fndapi "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/ucx"
+	"ucloud.dk/shared/pkg/ucx/ucxapi"
 	"ucloud.dk/shared/pkg/util"
 )
 
-type Message struct {
-	Message string
-}
-
-var Frontend = ucx.Rpc[Message, Message]{CallName: "frontend"}
-var Core = ucx.Rpc[Message, Message]{CallName: "core"}
-var IM = ucx.Rpc[Message, Message]{CallName: "im"}
-
-// Core
+// Stacks
 // =====================================================================================================================
 
-// Stacks
-// ---------------------------------------------------------------------------------------------------------------------
+type Stack struct {
+	InstanceId string
+	MountPath  string
+	baseMount  orcapi.AppParameterValue
+	baseLabels map[string]string
+	app        ucx.Application
+	Ok         bool
+}
 
-var StackAvailable = ucx.Rpc[fndapi.FindByStringId, bool]{CallName: "stackAvailable"}
+func (s *Stack) Labels() map[string]string {
+	if !s.Ok {
+		return map[string]string{}
+	}
 
-// Private networks
-// ---------------------------------------------------------------------------------------------------------------------
+	return s.baseLabels
+}
 
-var PrivateNetworksCreate = ucx.Rpc[[]orcapi.PrivateNetworkSpecification, []orcapi.PrivateNetwork]{CallName: "privateNetworksCreate"}
-var PrivateNetworksDelete = ucx.Rpc[[]string, util.Empty]{CallName: "privateNetworksDelete"}
-var PrivateNetworksBrowse = ucx.Rpc[orcapi.PrivateNetworksBrowseRequest, fndapi.PageV2[orcapi.PrivateNetwork]]{CallName: "privateNetworksBrowse"}
-var PrivateNetworksRetrieve = ucx.Rpc[orcapi.PrivateNetworksRetrieveRequest, orcapi.PrivateNetwork]{CallName: "privateNetworksRetrieve"}
-var PrivateNetworksUpdateLabels = ucx.Rpc[fndapi.BulkRequest[orcapi.PrivateNetworksUpdateLabelsRequest], util.Empty]{CallName: "privateNetworksUpdateLabels"}
-var PrivateNetworksRetrieveProducts = ucx.Rpc[util.Empty, []orcapi.ResolvedSupport[orcapi.PrivateNetworkSupport]]{CallName: "privateNetworksRetrieveProducts"}
+func (s *Stack) Mount() orcapi.AppParameterValue {
+	if !s.Ok {
+		return orcapi.AppParameterValue{}
+	}
+
+	mount := s.baseMount
+	mount.MountPath = s.MountPath
+	return mount
+}
+
+func StackCreate(app ucx.Application, id string) (*Stack, bool) {
+	session := *app.Session()
+	ok, err := ucxapi.StackAvailable.Invoke(session, fndapi.FindByStringId{Id: id})
+	if err != nil {
+		UiSendFailure(app, "Unable to start application stack, try again later.")
+		return &Stack{}, false
+	} else if !ok {
+		UiSendFailure(app, "An application stack with this name already exists, try another.")
+		return &Stack{}, false
+	} else {
+		stack, err := ucxapi.StackCreate.Invoke(session, ucxapi.StackCreateRequest{StackId: id})
+		if err != nil {
+			UiSendFailure(app, "Unable to start application stack, try again later.")
+			return &Stack{}, false
+		} else {
+			return &Stack{
+				InstanceId: id,
+				MountPath:  "/etc/ucloud-stack",
+				baseMount:  stack.Mount,
+				baseLabels: stack.Labels,
+				app:        app,
+				Ok:         true,
+			}, true
+		}
+	}
+}
+
+func StackWriteFile(stack *Stack, path string, data string) {
+	StackWriteFileEx(stack, path, data, 0660)
+}
+
+func StackWriteFileEx(stack *Stack, path string, data string, mode uint32) {
+	if !stack.Ok {
+		return
+	}
+
+	session := *stack.app.Session()
+	_, err := ucxapi.StackDataWrite.Invoke(session, ucxapi.StackDataWriteRequest{
+		InstanceId: stack.InstanceId,
+		Path:       path,
+		Data:       data,
+		Perm:       mode,
+	})
+
+	if err != nil {
+		log.Warn("Could not write file: %s", err)
+		UiSendFailure(stack.app, "Unable start application stack, try again later.")
+		stack.Ok = false
+		return
+	}
+}
+
+func StackWriteInitScript(stack *Stack, initScript string) map[string]string {
+	if !stack.Ok {
+		return map[string]string{}
+	}
+
+	initName := fmt.Sprintf(".init-%s.sh", util.SecureToken())
+	StackWriteFileEx(stack, initName, initScript, 0770)
+	if !stack.Ok {
+		return map[string]string{}
+	}
+
+	return map[string]string{
+		"ucloud.dk/initscript": filepath.Join(stack.MountPath, initName),
+	}
+}
+
+func StackConfirmAndOpen(stack *Stack) {
+	if !stack.Ok {
+		return
+	}
+	session := *stack.app.Session()
+
+	_, _ = ucxapi.StackConfirm.Invoke(session, fndapi.FindByStringId{Id: stack.InstanceId})
+	_, _ = ucxapi.StackOpen.Invoke(session, fndapi.FindByStringId{Id: stack.InstanceId})
+}
 
 // Public IPs
-// ---------------------------------------------------------------------------------------------------------------------
+// =====================================================================================================================
 
-var PublicIpsCreate = ucx.Rpc[[]orcapi.PublicIPSpecification, []orcapi.PublicIp]{CallName: "publicIpsCreate"}
-var PublicIpsDelete = ucx.Rpc[[]string, util.Empty]{CallName: "publicIpsDelete"}
-var PublicIpsBrowse = ucx.Rpc[orcapi.PublicIpsBrowseRequest, fndapi.PageV2[orcapi.PublicIp]]{CallName: "publicIpsBrowse"}
-var PublicIpsRetrieve = ucx.Rpc[orcapi.PublicIpsRetrieveRequest, orcapi.PublicIp]{CallName: "publicIpsRetrieve"}
-var PublicIpsUpdateLabels = ucx.Rpc[fndapi.BulkRequest[orcapi.PublicIpsUpdateLabelsRequest], util.Empty]{CallName: "publicIpsUpdateLabels"}
-var PublicIpsUpdateFirewall = ucx.Rpc[fndapi.BulkRequest[orcapi.PublicIpUpdateFirewallRequest], util.Empty]{CallName: "publicIpsUpdateFirewall"}
-var PublicIpsRetrieveProducts = ucx.Rpc[util.Empty, []orcapi.ResolvedSupport[orcapi.PublicIpSupport]]{CallName: "publicIpsRetrieveProducts"}
+func PublicIpCreate(stack *Stack) orcapi.AppParameterValue {
+	if !stack.Ok {
+		return orcapi.AppParameterValue{}
+	}
+
+	session := *stack.app.Session()
+	linkProducts, _ := ucxapi.PublicIpsRetrieveProducts.Invoke(session, util.Empty{})
+	if len(linkProducts) == 0 {
+		stack.Ok = false
+		UiSendFailure(stack.app, "Could not find a suitable public ip product, but this stack requires it.")
+		return orcapi.AppParameterValue{}
+	}
+
+	ips, err := ucxapi.PublicIpsCreate.Invoke(session, []orcapi.PublicIPSpecification{
+		{
+			ResourceSpecification: orcapi.ResourceSpecification{
+				Product: linkProducts[0].Product.ToReference(),
+				Labels:  stack.Labels(),
+			},
+		},
+	})
+
+	if len(ips) == 0 || err != nil {
+		stack.Ok = false
+		UiSendFailure(stack.app, fmt.Sprintf("Could not create a public ip! %s", err))
+		return orcapi.AppParameterValue{}
+	}
+
+	return orcapi.AppParameterValueNetwork(ips[0].Id)
+}
 
 // Public links
-// ---------------------------------------------------------------------------------------------------------------------
+// =====================================================================================================================
 
-var PublicLinksCreate = ucx.Rpc[[]orcapi.IngressSpecification, []orcapi.Ingress]{CallName: "publicLinksCreate"}
-var PublicLinksDelete = ucx.Rpc[[]string, util.Empty]{CallName: "publicLinksDelete"}
-var PublicLinksBrowse = ucx.Rpc[orcapi.IngressesBrowseRequest, fndapi.PageV2[orcapi.Ingress]]{CallName: "publicLinksBrowse"}
-var PublicLinksRetrieve = ucx.Rpc[orcapi.IngressesRetrieveRequest, orcapi.Ingress]{CallName: "publicLinksRetrieve"}
-var PublicLinksUpdateLabels = ucx.Rpc[fndapi.BulkRequest[orcapi.IngressesUpdateLabelsRequest], util.Empty]{CallName: "publicLinksUpdateLabels"}
-var PublicLinksRetrieveProducts = ucx.Rpc[util.Empty, []orcapi.ResolvedSupport[orcapi.IngressSupport]]{CallName: "publicLinksRetrieveProducts"}
+func PublicLinkCreate(stack *Stack, name string) orcapi.AppParameterValue {
+	if !stack.Ok {
+		return orcapi.AppParameterValue{}
+	}
 
-// Licenses
-// ---------------------------------------------------------------------------------------------------------------------
+	session := *stack.app.Session()
+	linkProducts, _ := ucxapi.PublicLinksRetrieveProducts.Invoke(session, util.Empty{})
+	if len(linkProducts) == 0 {
+		stack.Ok = false
+		UiSendFailure(stack.app, "Could not find a suitable public link product, but this stack requires it.")
+		return orcapi.AppParameterValue{}
+	}
 
-var LicensesCreate = ucx.Rpc[[]orcapi.LicenseSpecification, []orcapi.License]{CallName: "licensesCreate"}
-var LicensesDelete = ucx.Rpc[[]string, util.Empty]{CallName: "licensesDelete"}
-var LicensesBrowse = ucx.Rpc[orcapi.LicensesBrowseRequest, fndapi.PageV2[orcapi.License]]{CallName: "licensesBrowse"}
-var LicensesRetrieve = ucx.Rpc[orcapi.LicensesRetrieveRequest, orcapi.License]{CallName: "licensesRetrieve"}
-var LicensesUpdateLabels = ucx.Rpc[fndapi.BulkRequest[orcapi.LicensesUpdateLabelsRequest], util.Empty]{CallName: "licensesUpdateLabels"}
-var LicensesRetrieveProducts = ucx.Rpc[util.Empty, []orcapi.ResolvedSupport[orcapi.LicenseSupport]]{CallName: "licensesRetrieveProducts"}
+	links, err := ucxapi.PublicLinksCreate.Invoke(session, []orcapi.IngressSpecification{
+		{
+			Domain: fmt.Sprintf("%s%s%s", linkProducts[0].Support.Prefix, name, linkProducts[0].Support.Suffix),
+			ResourceSpecification: orcapi.ResourceSpecification{
+				Product: linkProducts[0].Product.ToReference(),
+				Labels:  stack.Labels(),
+			},
+		},
+	})
 
-// Drives
-// ---------------------------------------------------------------------------------------------------------------------
+	if len(links) == 0 || err != nil {
+		stack.Ok = false
+		UiSendFailure(stack.app, fmt.Sprintf("Could not create a link! %s", err))
+		return orcapi.AppParameterValue{}
+	}
 
-var DrivesCreate = ucx.Rpc[[]orcapi.DriveSpecification, []orcapi.Drive]{CallName: "drivesCreate"}
-var DrivesDelete = ucx.Rpc[[]string, util.Empty]{CallName: "drivesDelete"}
-var DrivesBrowse = ucx.Rpc[orcapi.DrivesBrowseRequest, fndapi.PageV2[orcapi.Drive]]{CallName: "drivesBrowse"}
-var DrivesRetrieve = ucx.Rpc[orcapi.DrivesRetrieveRequest, orcapi.Drive]{CallName: "drivesRetrieve"}
-var DrivesRename = ucx.Rpc[fndapi.BulkRequest[orcapi.DriveRenameRequest], util.Empty]{CallName: "drivesRename"}
-var DrivesUpdateLabels = ucx.Rpc[fndapi.BulkRequest[orcapi.DrivesUpdateLabelsRequest], util.Empty]{CallName: "drivesUpdateLabels"}
-var DrivesRetrieveProducts = ucx.Rpc[util.Empty, []orcapi.ResolvedSupport[orcapi.FSSupport]]{CallName: "drivesRetrieveProducts"}
+	return orcapi.AppParameterValueIngress(links[0].Id)
+}
+
+// Private networks
+// =====================================================================================================================
+
+func PrivateNetworkCreate(stack *Stack, name string) orcapi.AppParameterValue {
+	session := *stack.app.Session()
+	products, _ := ucxapi.PrivateNetworksRetrieveProducts.Invoke(session, util.Empty{})
+	if len(products) == 0 {
+		stack.Ok = false
+		UiSendFailure(stack.app, "Could not find a suitable private network product, but this stack requires it.")
+		return orcapi.AppParameterValue{}
+	}
+
+	networks, err := ucxapi.PrivateNetworksCreate.Invoke(session, []orcapi.PrivateNetworkSpecification{
+		{
+			Name:      name,
+			Subdomain: fmt.Sprintf("net-%s", util.RandomTokenNoTs(4)),
+			ResourceSpecification: orcapi.ResourceSpecification{
+				Product: products[0].Product.ToReference(),
+				Labels:  stack.Labels(),
+			},
+		},
+	})
+
+	if len(networks) == 0 || err != nil {
+		stack.Ok = false
+		UiSendFailure(stack.app, fmt.Sprintf("Could not create a network! %s", err))
+		return orcapi.AppParameterValue{}
+	}
+
+	return orcapi.AppParameterValuePrivateNetwork(networks[0].Id)
+}
 
 // Jobs
-// ---------------------------------------------------------------------------------------------------------------------
-
-var JobsCreate = ucx.Rpc[[]orcapi.JobSpecification, []orcapi.Job]{CallName: "jobsCreate"}
-var JobsBrowse = ucx.Rpc[orcapi.JobsBrowseRequest, fndapi.PageV2[orcapi.Job]]{CallName: "jobsBrowse"}
-var JobsRetrieve = ucx.Rpc[orcapi.JobsRetrieveRequest, orcapi.Job]{CallName: "jobsRetrieve"}
-var JobsRename = ucx.Rpc[fndapi.BulkRequest[orcapi.JobRenameRequest], util.Empty]{CallName: "jobsRename"}
-var JobsTerminate = ucx.Rpc[fndapi.BulkRequest[fndapi.FindByStringId], fndapi.BulkResponse[util.Empty]]{CallName: "jobsTerminate"}
-var JobsExtend = ucx.Rpc[fndapi.BulkRequest[orcapi.JobsExtendRequestItem], fndapi.BulkResponse[util.Empty]]{CallName: "jobsExtend"}
-var JobsSuspend = ucx.Rpc[fndapi.BulkRequest[fndapi.FindByStringId], fndapi.BulkResponse[util.Empty]]{CallName: "jobsSuspend"}
-var JobsUnsuspend = ucx.Rpc[fndapi.BulkRequest[fndapi.FindByStringId], fndapi.BulkResponse[util.Empty]]{CallName: "jobsUnsuspend"}
-var JobsRetrieveProducts = ucx.Rpc[util.Empty, []orcapi.ResolvedSupport[orcapi.JobSupport]]{CallName: "jobsRetrieveProducts"}
-
-// Provider
 // =====================================================================================================================
 
-type StackCreateRequest struct {
-	StackType string
-	StackId   string
+func JobCreate(stack *Stack, spec orcapi.JobSpecification) string {
+	if !stack.Ok {
+		return "0"
+	}
+
+	session := *stack.app.Session()
+
+	spec.Labels = util.MapMerge(spec.Labels, stack.Labels())
+	resp, serr := ucxapi.JobsCreate.Invoke(session, []orcapi.JobSpecification{spec})
+	if serr != nil {
+		stack.Ok = false
+		UiSendFailure(stack.app, fmt.Sprintf("Failed to create job: %s", serr))
+		return "0"
+	} else {
+		return resp[0].Id
+	}
 }
 
-type StackCreateResponse struct {
-	InstanceId string
-	Labels     map[string]string
-	Mount      orcapi.AppParameterValue
+type VirtualMachineSpec struct {
+	Labels         map[string]string
+	Product        accapi.ProductReference
+	Image          orcapi.NameAndVersion
+	Hostname       string
+	Attachments    []orcapi.AppParameterValue
+	DiskSize       util.Option[int]
+	SkipStackState bool
 }
 
-var StackCreate = ucx.Rpc[StackCreateRequest, StackCreateResponse]{CallName: "stackCreate"}
+func VirtualMachineCreate(stack *Stack, spec VirtualMachineSpec) string {
+	attachments := slices.Clone(spec.Attachments)
+	if !spec.SkipStackState {
+		attachments = append(attachments, stack.Mount())
+	}
 
-type StackDataWriteRequest struct {
-	InstanceId string
-	Path       string
-	Data       string
-	Perm       uint32
+	return JobCreate(stack, orcapi.JobSpecification{
+		ResourceSpecification: orcapi.ResourceSpecification{
+			Product: spec.Product,
+			Labels:  spec.Labels,
+		},
+		Application: spec.Image,
+		Name:        spec.Hostname,
+		Hostname:    util.OptValue[string](spec.Hostname),
+		Parameters: map[string]orcapi.AppParameterValue{
+			"diskSize": orcapi.AppParameterValueInteger(int64(spec.DiskSize.GetOrDefault(50))),
+		},
+		Replicas:  1,
+		Resources: attachments,
+	})
 }
 
-var StackDataWrite = ucx.Rpc[StackDataWriteRequest, util.Empty]{CallName: "stackDataWrite"}
+var (
+	VmImageUbuntu24_04 = orcapi.NameAndVersion{
+		Name:    "ubuntu-vm2",
+		Version: "24.04b",
+	}
+)
 
-var StackConfirm = ucx.Rpc[fndapi.FindByStringId, util.Empty]{CallName: "stackConfirm"}
-
-// Frontend
+// User-interface
 // =====================================================================================================================
 
-var StackOpen = ucx.Rpc[fndapi.FindByStringId, util.Empty]{CallName: "stackOpen"}
-
-type UiSendMessageRequest struct {
-	Message string
-	Success bool
+func UiSendFailure(app ucx.Application, message string) {
+	session := *app.Session()
+	_, _ = ucxapi.UiSendMessage.Invoke(session, ucxapi.UiSendMessageRequest{Message: message, Success: false})
 }
 
-var UiSendMessage = ucx.Rpc[UiSendMessageRequest, util.Empty]{CallName: "uiSendMessage"}
-
-func UiSendFailure(session *ucx.Session, message string) {
-	_, _ = UiSendMessage.Invoke(session, UiSendMessageRequest{Message: message, Success: false})
-}
-
-func UiSendSuccess(session *ucx.Session, message string) {
-	_, _ = UiSendMessage.Invoke(session, UiSendMessageRequest{Message: message, Success: true})
-}
-
-func StackConfirmAndOpen(session *ucx.Session, id string) {
-	_, _ = StackConfirm.Invoke(session, fndapi.FindByStringId{Id: id})
-	_, _ = StackOpen.Invoke(session, fndapi.FindByStringId{Id: id})
+func UiSendSuccess(app ucx.Application, message string) {
+	session := *app.Session()
+	_, _ = ucxapi.UiSendMessage.Invoke(session, ucxapi.UiSendMessageRequest{Message: message, Success: true})
 }

@@ -12,7 +12,7 @@ import (
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/ucx"
-	"ucloud.dk/shared/pkg/ucx/ucxsvc"
+	"ucloud.dk/shared/pkg/ucx/ucxapi"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -20,7 +20,7 @@ func appUcxResourceHandlers(state *appUcxSessionState, proxy *ucx.Proxy) {
 	appUcxCreateResource[orcapi.PrivateNetworkSpecification, orcapi.PrivateNetwork](
 		state,
 		proxy,
-		ucxsvc.PrivateNetworksCreate,
+		ucxapi.PrivateNetworksCreate,
 		func(actor rpc.Actor, specs []orcapi.PrivateNetworkSpecification) ([]orcapi.PrivateNetwork, *util.HttpError) {
 			return PrivateNetworkCreate(actor, fndapi.BulkRequestOf(specs...))
 		},
@@ -32,7 +32,7 @@ func appUcxResourceHandlers(state *appUcxSessionState, proxy *ucx.Proxy) {
 	appUcxDeleteResource[orcapi.PrivateNetwork](
 		state,
 		proxy,
-		ucxsvc.PrivateNetworksDelete,
+		ucxapi.PrivateNetworksDelete,
 		func(actor rpc.Actor, id string) (orcapi.PrivateNetwork, *util.HttpError) {
 			return PrivateNetworkRetrieve(actor, orcapi.PrivateNetworksRetrieveRequest{Id: id})
 		},
@@ -47,7 +47,7 @@ func appUcxResourceHandlers(state *appUcxSessionState, proxy *ucx.Proxy) {
 	appUcxBrowseResource[orcapi.PrivateNetworksBrowseRequest, orcapi.PrivateNetwork](
 		state,
 		proxy,
-		ucxsvc.PrivateNetworksBrowse,
+		ucxapi.PrivateNetworksBrowse,
 		func(req orcapi.PrivateNetworksBrowseRequest) util.Option[string] { return req.Next },
 		func(req *orcapi.PrivateNetworksBrowseRequest, next util.Option[string]) { req.Next = next },
 		func(req orcapi.PrivateNetworksBrowseRequest) int { return req.ItemsPerPage },
@@ -63,7 +63,7 @@ func appUcxResourceHandlers(state *appUcxSessionState, proxy *ucx.Proxy) {
 	appUcxRetrieveResource[orcapi.PrivateNetworksRetrieveRequest, orcapi.PrivateNetwork](
 		state,
 		proxy,
-		ucxsvc.PrivateNetworksRetrieve,
+		ucxapi.PrivateNetworksRetrieve,
 		func(request orcapi.PrivateNetworksRetrieveRequest) string {
 			return request.Id
 		},
@@ -78,7 +78,7 @@ func appUcxResourceHandlers(state *appUcxSessionState, proxy *ucx.Proxy) {
 	appUcxUpdateLabelsResource[orcapi.PrivateNetworksUpdateLabelsRequest, orcapi.PrivateNetwork](
 		state,
 		proxy,
-		ucxsvc.PrivateNetworksUpdateLabels,
+		ucxapi.PrivateNetworksUpdateLabels,
 		func(request orcapi.PrivateNetworksUpdateLabelsRequest) string {
 			return request.Id
 		},
@@ -94,7 +94,7 @@ func appUcxResourceHandlers(state *appUcxSessionState, proxy *ucx.Proxy) {
 	appUcxRetrieveProducts[orcapi.PrivateNetworkSupport](
 		state,
 		proxy,
-		ucxsvc.PrivateNetworksRetrieveProducts,
+		ucxapi.PrivateNetworksRetrieveProducts,
 		func(actor rpc.Actor) orcapi.SupportByProvider[orcapi.PrivateNetworkSupport] {
 			return PrivateNetworkRetrieveProducts(actor)
 		},
@@ -103,7 +103,7 @@ func appUcxResourceHandlers(state *appUcxSessionState, proxy *ucx.Proxy) {
 	appUcxCreateResource[orcapi.PublicIPSpecification, orcapi.PublicIp](
 		state,
 		proxy,
-		ucxsvc.PublicIpsCreate,
+		ucxapi.PublicIpsCreate,
 		func(actor rpc.Actor, specs []orcapi.PublicIPSpecification) ([]orcapi.PublicIp, *util.HttpError) {
 			return PublicIpCreate(actor, fndapi.BulkRequestOf(specs...))
 		},
@@ -115,7 +115,7 @@ func appUcxResourceHandlers(state *appUcxSessionState, proxy *ucx.Proxy) {
 	appUcxDeleteResource[orcapi.PublicIp](
 		state,
 		proxy,
-		ucxsvc.PublicIpsDelete,
+		ucxapi.PublicIpsDelete,
 		func(actor rpc.Actor, id string) (orcapi.PublicIp, *util.HttpError) {
 			return ResourceRetrieve[orcapi.PublicIp](actor, publicIpType, ResourceParseId(id), orcapi.ResourceFlags{})
 		},
@@ -131,7 +131,7 @@ func appUcxResourceHandlers(state *appUcxSessionState, proxy *ucx.Proxy) {
 	appUcxBrowseResource[orcapi.PublicIpsBrowseRequest, orcapi.PublicIp](
 		state,
 		proxy,
-		ucxsvc.PublicIpsBrowse,
+		ucxapi.PublicIpsBrowse,
 		func(req orcapi.PublicIpsBrowseRequest) util.Option[string] { return req.Next },
 		func(req *orcapi.PublicIpsBrowseRequest, next util.Option[string]) { req.Next = next },
 		func(req orcapi.PublicIpsBrowseRequest) int { return req.ItemsPerPage },
@@ -147,7 +147,7 @@ func appUcxResourceHandlers(state *appUcxSessionState, proxy *ucx.Proxy) {
 	appUcxRetrieveResource[orcapi.PublicIpsRetrieveRequest, orcapi.PublicIp](
 		state,
 		proxy,
-		ucxsvc.PublicIpsRetrieve,
+		ucxapi.PublicIpsRetrieve,
 		func(request orcapi.PublicIpsRetrieveRequest) string {
 			return request.Id
 		},
@@ -162,7 +162,7 @@ func appUcxResourceHandlers(state *appUcxSessionState, proxy *ucx.Proxy) {
 	appUcxUpdateLabelsResource[orcapi.PublicIpsUpdateLabelsRequest, orcapi.PublicIp](
 		state,
 		proxy,
-		ucxsvc.PublicIpsUpdateLabels,
+		ucxapi.PublicIpsUpdateLabels,
 		func(request orcapi.PublicIpsUpdateLabelsRequest) string {
 			return request.Id
 		},
@@ -175,7 +175,7 @@ func appUcxResourceHandlers(state *appUcxSessionState, proxy *ucx.Proxy) {
 		},
 	)
 
-	ucxsvc.PublicIpsUpdateFirewall.HandlerProxy(proxy, func(ctx context.Context, request fndapi.BulkRequest[orcapi.PublicIpUpdateFirewallRequest]) (util.Empty, error) {
+	ucxapi.PublicIpsUpdateFirewall.HandlerProxy(proxy, func(ctx context.Context, request fndapi.BulkRequest[orcapi.PublicIpUpdateFirewallRequest]) (util.Empty, error) {
 		actor := state.Actor()
 		allowed := make([]orcapi.PublicIpUpdateFirewallRequest, 0, len(request.Items))
 		for _, reqItem := range request.Items {
@@ -198,7 +198,7 @@ func appUcxResourceHandlers(state *appUcxSessionState, proxy *ucx.Proxy) {
 	appUcxRetrieveProducts[orcapi.PublicIpSupport](
 		state,
 		proxy,
-		ucxsvc.PublicIpsRetrieveProducts,
+		ucxapi.PublicIpsRetrieveProducts,
 		func(actor rpc.Actor) orcapi.SupportByProvider[orcapi.PublicIpSupport] {
 			return SupportRetrieveProducts[orcapi.PublicIpSupport](publicIpType)
 		},
@@ -207,7 +207,7 @@ func appUcxResourceHandlers(state *appUcxSessionState, proxy *ucx.Proxy) {
 	appUcxCreateResource[orcapi.IngressSpecification, orcapi.Ingress](
 		state,
 		proxy,
-		ucxsvc.PublicLinksCreate,
+		ucxapi.PublicLinksCreate,
 		func(actor rpc.Actor, specs []orcapi.IngressSpecification) ([]orcapi.Ingress, *util.HttpError) {
 			return IngressCreate(actor, fndapi.BulkRequestOf(specs...))
 		},
@@ -219,7 +219,7 @@ func appUcxResourceHandlers(state *appUcxSessionState, proxy *ucx.Proxy) {
 	appUcxDeleteResource[orcapi.Ingress](
 		state,
 		proxy,
-		ucxsvc.PublicLinksDelete,
+		ucxapi.PublicLinksDelete,
 		func(actor rpc.Actor, id string) (orcapi.Ingress, *util.HttpError) {
 			return ResourceRetrieve[orcapi.Ingress](actor, ingressType, ResourceParseId(id), orcapi.ResourceFlags{})
 		},
@@ -235,7 +235,7 @@ func appUcxResourceHandlers(state *appUcxSessionState, proxy *ucx.Proxy) {
 	appUcxBrowseResource[orcapi.IngressesBrowseRequest, orcapi.Ingress](
 		state,
 		proxy,
-		ucxsvc.PublicLinksBrowse,
+		ucxapi.PublicLinksBrowse,
 		func(req orcapi.IngressesBrowseRequest) util.Option[string] { return req.Next },
 		func(req *orcapi.IngressesBrowseRequest, next util.Option[string]) { req.Next = next },
 		func(req orcapi.IngressesBrowseRequest) int { return req.ItemsPerPage },
@@ -251,7 +251,7 @@ func appUcxResourceHandlers(state *appUcxSessionState, proxy *ucx.Proxy) {
 	appUcxRetrieveResource[orcapi.IngressesRetrieveRequest, orcapi.Ingress](
 		state,
 		proxy,
-		ucxsvc.PublicLinksRetrieve,
+		ucxapi.PublicLinksRetrieve,
 		func(request orcapi.IngressesRetrieveRequest) string {
 			return request.Id
 		},
@@ -266,7 +266,7 @@ func appUcxResourceHandlers(state *appUcxSessionState, proxy *ucx.Proxy) {
 	appUcxUpdateLabelsResource[orcapi.IngressesUpdateLabelsRequest, orcapi.Ingress](
 		state,
 		proxy,
-		ucxsvc.PublicLinksUpdateLabels,
+		ucxapi.PublicLinksUpdateLabels,
 		func(request orcapi.IngressesUpdateLabelsRequest) string {
 			return request.Id
 		},
@@ -282,7 +282,7 @@ func appUcxResourceHandlers(state *appUcxSessionState, proxy *ucx.Proxy) {
 	appUcxRetrieveProducts[orcapi.IngressSupport](
 		state,
 		proxy,
-		ucxsvc.PublicLinksRetrieveProducts,
+		ucxapi.PublicLinksRetrieveProducts,
 		func(actor rpc.Actor) orcapi.SupportByProvider[orcapi.IngressSupport] {
 			return SupportRetrieveProducts[orcapi.IngressSupport](ingressType)
 		},
@@ -291,7 +291,7 @@ func appUcxResourceHandlers(state *appUcxSessionState, proxy *ucx.Proxy) {
 	appUcxCreateResource[orcapi.LicenseSpecification, orcapi.License](
 		state,
 		proxy,
-		ucxsvc.LicensesCreate,
+		ucxapi.LicensesCreate,
 		func(actor rpc.Actor, specs []orcapi.LicenseSpecification) ([]orcapi.License, *util.HttpError) {
 			return LicenseCreate(actor, fndapi.BulkRequestOf(specs...))
 		},
@@ -303,7 +303,7 @@ func appUcxResourceHandlers(state *appUcxSessionState, proxy *ucx.Proxy) {
 	appUcxDeleteResource[orcapi.License](
 		state,
 		proxy,
-		ucxsvc.LicensesDelete,
+		ucxapi.LicensesDelete,
 		func(actor rpc.Actor, id string) (orcapi.License, *util.HttpError) {
 			return ResourceRetrieve[orcapi.License](actor, licenseType, ResourceParseId(id), orcapi.ResourceFlags{})
 		},
@@ -319,7 +319,7 @@ func appUcxResourceHandlers(state *appUcxSessionState, proxy *ucx.Proxy) {
 	appUcxBrowseResource[orcapi.LicensesBrowseRequest, orcapi.License](
 		state,
 		proxy,
-		ucxsvc.LicensesBrowse,
+		ucxapi.LicensesBrowse,
 		func(req orcapi.LicensesBrowseRequest) util.Option[string] { return req.Next },
 		func(req *orcapi.LicensesBrowseRequest, next util.Option[string]) { req.Next = next },
 		func(req orcapi.LicensesBrowseRequest) int { return req.ItemsPerPage },
@@ -335,7 +335,7 @@ func appUcxResourceHandlers(state *appUcxSessionState, proxy *ucx.Proxy) {
 	appUcxRetrieveResource[orcapi.LicensesRetrieveRequest, orcapi.License](
 		state,
 		proxy,
-		ucxsvc.LicensesRetrieve,
+		ucxapi.LicensesRetrieve,
 		func(request orcapi.LicensesRetrieveRequest) string {
 			return request.Id
 		},
@@ -350,7 +350,7 @@ func appUcxResourceHandlers(state *appUcxSessionState, proxy *ucx.Proxy) {
 	appUcxUpdateLabelsResource[orcapi.LicensesUpdateLabelsRequest, orcapi.License](
 		state,
 		proxy,
-		ucxsvc.LicensesUpdateLabels,
+		ucxapi.LicensesUpdateLabels,
 		func(request orcapi.LicensesUpdateLabelsRequest) string {
 			return request.Id
 		},
@@ -366,7 +366,7 @@ func appUcxResourceHandlers(state *appUcxSessionState, proxy *ucx.Proxy) {
 	appUcxRetrieveProducts[orcapi.LicenseSupport](
 		state,
 		proxy,
-		ucxsvc.LicensesRetrieveProducts,
+		ucxapi.LicensesRetrieveProducts,
 		func(actor rpc.Actor) orcapi.SupportByProvider[orcapi.LicenseSupport] {
 			return SupportRetrieveProducts[orcapi.LicenseSupport](licenseType)
 		},
@@ -375,7 +375,7 @@ func appUcxResourceHandlers(state *appUcxSessionState, proxy *ucx.Proxy) {
 	appUcxCreateResource[orcapi.DriveSpecification, orcapi.Drive](
 		state,
 		proxy,
-		ucxsvc.DrivesCreate,
+		ucxapi.DrivesCreate,
 		func(actor rpc.Actor, specs []orcapi.DriveSpecification) ([]orcapi.Drive, *util.HttpError) {
 			return DriveCreateBulk(actor, fndapi.BulkRequestOf(specs...))
 		},
@@ -387,7 +387,7 @@ func appUcxResourceHandlers(state *appUcxSessionState, proxy *ucx.Proxy) {
 	appUcxDeleteResource[orcapi.Drive](
 		state,
 		proxy,
-		ucxsvc.DrivesDelete,
+		ucxapi.DrivesDelete,
 		func(actor rpc.Actor, id string) (orcapi.Drive, *util.HttpError) {
 			return ResourceRetrieve[orcapi.Drive](actor, driveType, ResourceParseId(id), orcapi.ResourceFlags{})
 		},
@@ -403,7 +403,7 @@ func appUcxResourceHandlers(state *appUcxSessionState, proxy *ucx.Proxy) {
 	appUcxBrowseResource[orcapi.DrivesBrowseRequest, orcapi.Drive](
 		state,
 		proxy,
-		ucxsvc.DrivesBrowse,
+		ucxapi.DrivesBrowse,
 		func(req orcapi.DrivesBrowseRequest) util.Option[string] { return req.Next },
 		func(req *orcapi.DrivesBrowseRequest, next util.Option[string]) { req.Next = next },
 		func(req orcapi.DrivesBrowseRequest) int { return req.ItemsPerPage },
@@ -419,7 +419,7 @@ func appUcxResourceHandlers(state *appUcxSessionState, proxy *ucx.Proxy) {
 	appUcxRetrieveResource[orcapi.DrivesRetrieveRequest, orcapi.Drive](
 		state,
 		proxy,
-		ucxsvc.DrivesRetrieve,
+		ucxapi.DrivesRetrieve,
 		func(request orcapi.DrivesRetrieveRequest) string {
 			return request.Id
 		},
@@ -434,7 +434,7 @@ func appUcxResourceHandlers(state *appUcxSessionState, proxy *ucx.Proxy) {
 	appUcxUpdateLabelsResource[orcapi.DrivesUpdateLabelsRequest, orcapi.Drive](
 		state,
 		proxy,
-		ucxsvc.DrivesUpdateLabels,
+		ucxapi.DrivesUpdateLabels,
 		func(request orcapi.DrivesUpdateLabelsRequest) string {
 			return request.Id
 		},
@@ -447,7 +447,7 @@ func appUcxResourceHandlers(state *appUcxSessionState, proxy *ucx.Proxy) {
 		},
 	)
 
-	ucxsvc.DrivesRename.HandlerProxy(proxy, func(ctx context.Context, request fndapi.BulkRequest[orcapi.DriveRenameRequest]) (util.Empty, error) {
+	ucxapi.DrivesRename.HandlerProxy(proxy, func(ctx context.Context, request fndapi.BulkRequest[orcapi.DriveRenameRequest]) (util.Empty, error) {
 		actor := state.Actor()
 		for _, reqItem := range request.Items {
 			resc, err := ResourceRetrieve[orcapi.Drive](actor, driveType, ResourceParseId(reqItem.Id), orcapi.ResourceFlags{})
@@ -463,7 +463,7 @@ func appUcxResourceHandlers(state *appUcxSessionState, proxy *ucx.Proxy) {
 	appUcxRetrieveProducts[orcapi.FSSupport](
 		state,
 		proxy,
-		ucxsvc.DrivesRetrieveProducts,
+		ucxapi.DrivesRetrieveProducts,
 		func(actor rpc.Actor) orcapi.SupportByProvider[orcapi.FSSupport] {
 			return SupportRetrieveProducts[orcapi.FSSupport](driveType)
 		},
@@ -472,7 +472,7 @@ func appUcxResourceHandlers(state *appUcxSessionState, proxy *ucx.Proxy) {
 	appUcxCreateResource[orcapi.JobSpecification, orcapi.Job](
 		state,
 		proxy,
-		ucxsvc.JobsCreate,
+		ucxapi.JobsCreate,
 		func(actor rpc.Actor, specs []orcapi.JobSpecification) ([]orcapi.Job, *util.HttpError) {
 			return JobCreate(actor, fndapi.BulkRequestOf(specs...))
 		},
@@ -484,7 +484,7 @@ func appUcxResourceHandlers(state *appUcxSessionState, proxy *ucx.Proxy) {
 	appUcxBrowseResource[orcapi.JobsBrowseRequest, orcapi.Job](
 		state,
 		proxy,
-		ucxsvc.JobsBrowse,
+		ucxapi.JobsBrowse,
 		func(req orcapi.JobsBrowseRequest) util.Option[string] { return req.Next },
 		func(req *orcapi.JobsBrowseRequest, next util.Option[string]) { req.Next = next },
 		func(req orcapi.JobsBrowseRequest) int { return req.ItemsPerPage },
@@ -500,7 +500,7 @@ func appUcxResourceHandlers(state *appUcxSessionState, proxy *ucx.Proxy) {
 	appUcxRetrieveResource[orcapi.JobsRetrieveRequest, orcapi.Job](
 		state,
 		proxy,
-		ucxsvc.JobsRetrieve,
+		ucxapi.JobsRetrieve,
 		func(request orcapi.JobsRetrieveRequest) string {
 			return request.Id
 		},
@@ -512,7 +512,7 @@ func appUcxResourceHandlers(state *appUcxSessionState, proxy *ucx.Proxy) {
 		},
 	)
 
-	ucxsvc.JobsRename.HandlerProxy(proxy, func(ctx context.Context, request fndapi.BulkRequest[orcapi.JobRenameRequest]) (util.Empty, error) {
+	ucxapi.JobsRename.HandlerProxy(proxy, func(ctx context.Context, request fndapi.BulkRequest[orcapi.JobRenameRequest]) (util.Empty, error) {
 		actor := state.Actor()
 		allowed := make([]orcapi.JobRenameRequest, 0, len(request.Items))
 		for _, reqItem := range request.Items {
@@ -531,7 +531,7 @@ func appUcxResourceHandlers(state *appUcxSessionState, proxy *ucx.Proxy) {
 		return util.Empty{}, nil
 	})
 
-	ucxsvc.JobsTerminate.HandlerProxy(proxy, func(ctx context.Context, request fndapi.BulkRequest[fndapi.FindByStringId]) (fndapi.BulkResponse[util.Empty], error) {
+	ucxapi.JobsTerminate.HandlerProxy(proxy, func(ctx context.Context, request fndapi.BulkRequest[fndapi.FindByStringId]) (fndapi.BulkResponse[util.Empty], error) {
 		actor := state.Actor()
 		allowed := make([]fndapi.FindByStringId, 0, len(request.Items))
 		for _, reqItem := range request.Items {
@@ -551,7 +551,7 @@ func appUcxResourceHandlers(state *appUcxSessionState, proxy *ucx.Proxy) {
 		return resp, nil
 	})
 
-	ucxsvc.JobsExtend.HandlerProxy(proxy, func(ctx context.Context, request fndapi.BulkRequest[orcapi.JobsExtendRequestItem]) (fndapi.BulkResponse[util.Empty], error) {
+	ucxapi.JobsExtend.HandlerProxy(proxy, func(ctx context.Context, request fndapi.BulkRequest[orcapi.JobsExtendRequestItem]) (fndapi.BulkResponse[util.Empty], error) {
 		actor := state.Actor()
 		allowed := make([]orcapi.JobsExtendRequestItem, 0, len(request.Items))
 		for _, reqItem := range request.Items {
@@ -571,7 +571,7 @@ func appUcxResourceHandlers(state *appUcxSessionState, proxy *ucx.Proxy) {
 		return resp, nil
 	})
 
-	ucxsvc.JobsSuspend.HandlerProxy(proxy, func(ctx context.Context, request fndapi.BulkRequest[fndapi.FindByStringId]) (fndapi.BulkResponse[util.Empty], error) {
+	ucxapi.JobsSuspend.HandlerProxy(proxy, func(ctx context.Context, request fndapi.BulkRequest[fndapi.FindByStringId]) (fndapi.BulkResponse[util.Empty], error) {
 		actor := state.Actor()
 		allowed := make([]fndapi.FindByStringId, 0, len(request.Items))
 		for _, reqItem := range request.Items {
@@ -591,7 +591,7 @@ func appUcxResourceHandlers(state *appUcxSessionState, proxy *ucx.Proxy) {
 		return resp, nil
 	})
 
-	ucxsvc.JobsUnsuspend.HandlerProxy(proxy, func(ctx context.Context, request fndapi.BulkRequest[fndapi.FindByStringId]) (fndapi.BulkResponse[util.Empty], error) {
+	ucxapi.JobsUnsuspend.HandlerProxy(proxy, func(ctx context.Context, request fndapi.BulkRequest[fndapi.FindByStringId]) (fndapi.BulkResponse[util.Empty], error) {
 		actor := state.Actor()
 		allowed := make([]fndapi.FindByStringId, 0, len(request.Items))
 		for _, reqItem := range request.Items {
@@ -614,7 +614,7 @@ func appUcxResourceHandlers(state *appUcxSessionState, proxy *ucx.Proxy) {
 	appUcxRetrieveProducts[orcapi.JobSupport](
 		state,
 		proxy,
-		ucxsvc.JobsRetrieveProducts,
+		ucxapi.JobsRetrieveProducts,
 		func(actor rpc.Actor) orcapi.SupportByProvider[orcapi.JobSupport] {
 			return SupportRetrieveProducts[orcapi.JobSupport](jobType)
 		},

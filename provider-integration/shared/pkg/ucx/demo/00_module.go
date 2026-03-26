@@ -7,13 +7,10 @@ import (
 	"sync"
 	"time"
 
-	"maps"
-
 	accapi "ucloud.dk/shared/pkg/accounting"
-	fndapi "ucloud.dk/shared/pkg/foundation"
-	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/ucx"
+	"ucloud.dk/shared/pkg/ucx/ucxapi"
 	"ucloud.dk/shared/pkg/ucx/ucxsvc"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -168,19 +165,19 @@ func (app *demoApp) UserInterface() ucx.UiNode {
 
 		ucx.Flex(ucx.FlexProps{Direction: "row", Gap: 6}).Children(
 			ucx.Button("fnFrontend", "Frontend RPC", ucx.ColorSuccessMain).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
-				resp, err := ucxsvc.Frontend.Invoke(session, ucxsvc.Message{fmt.Sprintf("Hello frontend! %v", time.Now())})
+				resp, err := ucxapi.Frontend.Invoke(session, ucxapi.Message{fmt.Sprintf("Hello frontend! %v", time.Now())})
 				if err == nil {
 					app.FnText = resp.Message
 				}
 			}),
 			ucx.Button("fnCore", "Core RPC", ucx.ColorWarningMain).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
-				resp, err := ucxsvc.Core.Invoke(session, ucxsvc.Message{fmt.Sprintf("Hello core! %v", time.Now())})
+				resp, err := ucxapi.Core.Invoke(session, ucxapi.Message{fmt.Sprintf("Hello core! %v", time.Now())})
 				if err == nil {
 					app.FnText = resp.Message
 				}
 			}),
 			ucx.Button("fnIm", "IM RPC", ucx.ColorErrorMain).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
-				resp, err := ucxsvc.IM.Invoke(session, ucxsvc.Message{fmt.Sprintf("Hello IM! %v", time.Now())})
+				resp, err := ucxapi.IM.Invoke(session, ucxapi.Message{fmt.Sprintf("Hello IM! %v", time.Now())})
 				if err == nil {
 					app.FnText = resp.Message
 				}
@@ -190,55 +187,22 @@ func (app *demoApp) UserInterface() ucx.UiNode {
 
 		ucx.Button("stack", "Create a stack", ucx.ColorPrimaryMain).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
 			stackId := app.JobName
+			stack, ok := ucxsvc.StackCreate(app, stackId)
 
-			available, _ := ucxsvc.StackAvailable.Invoke(session, fndapi.FindByStringId{Id: stackId})
-			if !available {
-				log.Warn("Sending failure!")
-				ucxsvc.UiSendFailure(session, "Kubernetes name is not available!")
+			if !ok {
 				return
 			}
 
-			stackResp, err := ucxsvc.StackCreate.Invoke(session, ucxsvc.StackCreateRequest{
-				StackId:   stackId,
-				StackType: "Kubernetes",
-			})
+			ucxsvc.StackWriteFile(stack, "join-token.txt", util.SecureToken())
+			initLabels := ucxsvc.StackWriteInitScript(stack, `
+				cat /etc/ucloud-stack/join-token.txt > /var/lib/ucloud/join-token.txt
+			`)
 
-			if err != nil {
-				ucxsvc.UiSendFailure(session, fmt.Sprintf("Could not create stack: %s", err))
-				return
-			}
-
-			_, err = ucxsvc.StackDataWrite.Invoke(session, ucxsvc.StackDataWriteRequest{
-				InstanceId: stackResp.InstanceId,
-				Path:       "join-token.txt",
-				Data:       util.SecureToken(),
-				Perm:       0660,
-			})
-			if err != nil {
-				ucxsvc.UiSendFailure(session, fmt.Sprintf("Could not write join token: %s", err))
-				return
-			}
-
-			_, err = ucxsvc.StackDataWrite.Invoke(session, ucxsvc.StackDataWriteRequest{
-				InstanceId: stackResp.InstanceId,
-				Path:       "init.sh",
-				Data:       "cat /etc/ucloud-stack/join-token.txt > /var/lib/ucloud/join-token.txt",
-				Perm:       0770,
-			})
-			if err != nil {
-				ucxsvc.UiSendFailure(session, fmt.Sprintf("Could not write init script: %s", err))
-				return
-			}
-
-			log.Info("Stack has been created: %#v", stackResp)
-
-			products, err := ucxsvc.JobsRetrieveProducts.Invoke(session, util.Empty{})
+			products, err := ucxapi.JobsRetrieveProducts.Invoke(session, util.Empty{})
 			if err != nil || len(products) == 0 {
-				ucxsvc.UiSendFailure(session, fmt.Sprintf("Could not retrieve products: %s", err))
+				ucxsvc.UiSendFailure(app, fmt.Sprintf("Could not retrieve products: %s", err))
 				return
 			}
-
-			log.Info("Found products: %#v", products)
 
 			selectedProduct := util.OptNone[accapi.ProductReference]()
 			for _, supp := range products {
@@ -248,63 +212,15 @@ func (app *demoApp) UserInterface() ucx.UiNode {
 			}
 
 			if !selectedProduct.Present {
-				ucxsvc.UiSendFailure(session, "Could not decide on a product!")
+				ucxsvc.UiSendFailure(app, "Could not decide on a product!")
 				return
 			}
 
-			linkProducts, _ := ucxsvc.PublicLinksRetrieveProducts.Invoke(session, util.Empty{})
-			if len(linkProducts) == 0 {
-				ucxsvc.UiSendFailure(session, "Could not decide on a product!")
-				return
-			}
-
-			links, err := ucxsvc.PublicLinksCreate.Invoke(session, []orcapi.IngressSpecification{
-				{
-					Domain: fmt.Sprintf("%s%s%s", linkProducts[0].Support.Prefix, stackId, linkProducts[0].Support.Suffix),
-					ResourceSpecification: orcapi.ResourceSpecification{
-						Product: linkProducts[0].Product.ToReference(),
-						Labels:  stackResp.Labels,
-					},
-				},
-			})
-
-			if len(links) == 0 || err != nil {
-				ucxsvc.UiSendFailure(session, "Could not create a link!")
-				return
-			}
-
-			linkAttachment := orcapi.AppParameterValueIngress(links[0].Id)
-
-			networkProducts, _ := ucxsvc.PrivateNetworksRetrieveProducts.Invoke(session, util.Empty{})
-			if len(networkProducts) == 0 {
-				ucxsvc.UiSendFailure(session, "Could not decide on a product!")
-				return
-			}
-
-			networks, err := ucxsvc.PrivateNetworksCreate.Invoke(session, []orcapi.PrivateNetworkSpecification{
-				{
-					Name:      stackId,
-					Subdomain: stackId,
-					ResourceSpecification: orcapi.ResourceSpecification{
-						Product: networkProducts[0].Product.ToReference(),
-						Labels:  stackResp.Labels,
-					},
-				},
-			})
-
-			if len(networks) == 0 || err != nil {
-				ucxsvc.UiSendFailure(session, "Could not create a network!")
-				return
-			}
-
-			networkAttachment := orcapi.AppParameterValuePrivateNetwork(networks[0].Id)
-
-			jobLabels := maps.Clone(stackResp.Labels)
-			jobLabels["ucloud.dk/initscript"] = "/etc/ucloud-stack/init.sh"
+			linkAttachment := ucxsvc.PublicLinkCreate(stack, stackId)
+			networkAttachment := ucxsvc.PrivateNetworkCreate(stack, stackId)
 
 			for i := 1; i <= 3; i++ {
 				attachments := []orcapi.AppParameterValue{
-					stackResp.Mount,
 					networkAttachment,
 				}
 
@@ -312,31 +228,16 @@ func (app *demoApp) UserInterface() ucx.UiNode {
 					attachments = append(attachments, linkAttachment)
 				}
 
-				_, serr := ucxsvc.JobsCreate.Invoke(session, []orcapi.JobSpecification{
-					{
-						ResourceSpecification: orcapi.ResourceSpecification{
-							Product: selectedProduct.Value,
-							Labels:  jobLabels,
-						},
-						Application: orcapi.NameAndVersion{
-							Name:    "ubuntu-vm2",
-							Version: "24.04b",
-						},
-						Replicas:  1,
-						Hostname:  util.OptValue(fmt.Sprintf("controlplane-%v", i)),
-						Name:      fmt.Sprintf("controlplane-%v", i),
-						Resources: attachments,
-					},
+				ucxsvc.VirtualMachineCreate(stack, ucxsvc.VirtualMachineSpec{
+					Labels:      initLabels,
+					Product:     selectedProduct.Value,
+					Image:       ucxsvc.VmImageUbuntu24_04,
+					Hostname:    fmt.Sprintf("controlplane-%v", i),
+					Attachments: attachments,
 				})
-				err = util.MergeError(err, serr)
 			}
 
-			if err != nil {
-				ucxsvc.UiSendFailure(session, fmt.Sprintf("Failed to start cluster: %s", err))
-				return
-			}
-
-			ucxsvc.StackConfirmAndOpen(session, stackId)
+			ucxsvc.StackConfirmAndOpen(stack)
 		}),
 	)
 }

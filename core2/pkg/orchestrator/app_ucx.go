@@ -15,7 +15,7 @@ import (
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/ucx"
-	"ucloud.dk/shared/pkg/ucx/ucxsvc"
+	"ucloud.dk/shared/pkg/ucx/ucxapi"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -224,16 +224,16 @@ func initAppUcx() {
 
 		appUcxResourceHandlers(state, proxy)
 
-		ucxsvc.StackAvailable.HandlerProxy(proxy, func(ctx context.Context, request fndapi.FindByStringId) (bool, error) {
+		ucxapi.StackAvailable.HandlerProxy(proxy, func(ctx context.Context, request fndapi.FindByStringId) (bool, error) {
 			actor := state.Actor()
 			_, err := StacksRetrieve(actor, request.Id)
 			return err != nil && err.StatusCode == http.StatusNotFound, nil
 		})
 
-		ucxsvc.Core.HandlerProxy(proxy, func(ctx context.Context, request ucxsvc.Message) (ucxsvc.Message, error) {
+		ucxapi.Core.HandlerProxy(proxy, func(ctx context.Context, request ucxapi.Message) (ucxapi.Message, error) {
 			actor := state.Actor()
 			log.Info("Got a message from '%v': %s", actor, request)
-			return ucxsvc.Message{"Hello from the Core!"}, nil
+			return ucxapi.Message{"Hello from the Core!"}, nil
 		})
 
 		if gerr := proxy.Run(context.Background(), info.WebSocket); gerr != nil {
