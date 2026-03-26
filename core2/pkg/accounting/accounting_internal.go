@@ -1479,6 +1479,12 @@ func lInternalWalletToApi(
 	filterChildrenByIdleTimeInDays util.Option[int],
 ) accapi.WalletV2 {
 	groups := w.AllocationsByParent
+	activeUsage := int64(0)
+	if b.Category.AccountingFrequency.IsPeriodic() {
+		activeUsage = lInternalWalletTotalUsageFromActiveAllocationsUiOnly(b, w)
+	} else {
+		activeUsage = lInternalWalletTotalUsageInNode(b, w)
+	}
 	apiWallet := accapi.WalletV2{
 		Owner:                   owner,
 		PaysFor:                 b.Category,
@@ -1489,7 +1495,7 @@ func lInternalWalletToApi(
 		MaxUsable:               lInternalMaxUsable(b, now, w),
 		Quota:                   lInternalWalletTotalQuotaContributing(b, w),
 		TotalAllocated:          lInternalWalletTotalAllocatedContributing(b, w),
-		UiOnlyActiveUsage:       lInternalWalletTotalUsageFromActiveAllocationsUiOnly(b, w),
+		UiOnlyActiveUsage:       activeUsage,
 		UiOnlyActiveQuota:       lInternalWalletTotalQuotaFromActiveAllocations(b, w),
 		LastSignificantUpdateAt: fndapi.Timestamp(w.LastSignificantUpdate),
 	}
