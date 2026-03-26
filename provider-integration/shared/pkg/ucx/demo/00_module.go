@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"maps"
+
 	accapi "ucloud.dk/shared/pkg/accounting"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
@@ -271,6 +273,17 @@ func (s *demoState) uiTree() ucx.UiNode {
 				return
 			}
 
+			_, err = ucxsvc.StackDataWrite.Invoke(session, ucxsvc.StackDataWriteRequest{
+				InstanceId: stackResp.InstanceId,
+				Path:       "init.sh",
+				Data:       "cat /etc/ucloud-stack/join-token.txt > /var/lib/ucloud/join-token.txt",
+				Perm:       0770,
+			})
+			if err != nil {
+				ucxsvc.UiSendFailure(session, fmt.Sprintf("Could not write init script: %s", err))
+				return
+			}
+
 			log.Info("Stack has been created: %#v", stackResp)
 
 			products, err := ucxsvc.JobsRetrieveProducts.Invoke(session, util.Empty{})
@@ -340,6 +353,9 @@ func (s *demoState) uiTree() ucx.UiNode {
 
 			networkAttachment := orcapi.AppParameterValuePrivateNetwork(networks[0].Id)
 
+			jobLabels := maps.Clone(stackResp.Labels)
+			jobLabels["ucloud.dk/initscript"] = "/etc/ucloud-stack/init.sh"
+
 			for i := 1; i <= 3; i++ {
 				attachments := []orcapi.AppParameterValue{
 					stackResp.Mount,
@@ -354,7 +370,7 @@ func (s *demoState) uiTree() ucx.UiNode {
 					{
 						ResourceSpecification: orcapi.ResourceSpecification{
 							Product: selectedProduct.Value,
-							Labels:  stackResp.Labels,
+							Labels:  jobLabels,
 						},
 						Application: orcapi.NameAndVersion{
 							Name:    "ubuntu-vm2",

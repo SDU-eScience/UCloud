@@ -305,7 +305,7 @@ export default function StackView(): React.ReactNode {
                                         <TableHeader>
                                             <TableRow>
                                                 <TableHeaderCell width={"300px"}>Name</TableHeaderCell>
-                                                <TableHeaderCell width="100px">State</TableHeaderCell>
+                                                <TableHeaderCell width="135px">State</TableHeaderCell>
                                                 <TableHeaderCell>Machine type</TableHeaderCell>
                                                 <TableHeaderCell width="300px">Actions</TableHeaderCell>
                                             </TableRow>
@@ -616,7 +616,6 @@ const JobStateBadge = injectStyle("stack-view-job-state-badge", k => `
         white-space: nowrap;
         border-radius: 999px;
         padding: 2px 10px;
-        font-size: 12px;
         background: var(--rowHover);
         color: var(--textPrimary);
     }
@@ -641,6 +640,5 @@ const JobStateBadge = injectStyle("stack-view-job-state-badge", k => `
 const JobMetaInline = injectStyle("stack-view-job-meta-inline", k => `
     ${k} {
         color: var(--textSecondary);
-        font-size: 12px;
     }
 `);

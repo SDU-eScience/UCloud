@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -12,11 +13,14 @@ import (
 	"time"
 
 	ws "github.com/gorilla/websocket"
+	introspection "ucloud.dk/pkg/integrations/k8s/job-introspection"
 	"ucloud.dk/shared/pkg/log"
+	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
 
 var providerHost string
+var token string
 
 func Launch() {
 	_ = log.SetLogFile("/tmp/vm-agent.log")
@@ -40,12 +44,18 @@ func Launch() {
 	if len(tokLines) != 2 {
 		log.Fatal("invalid token")
 	}
-	token := tokLines[0]
+	tok := tokLines[0]
+	token = tok
 	srvTok := tokLines[1]
 
 	providerHost = fmt.Sprintf("ws://%s:42000", string(ipBytes))
 
-	_, _, _ = util.RunCommand([]string{"sudo", "ln", "-s", "/opt/ucloud/ucloud-job-introspection", "/usr/bin/ucloud"})
+	rpc.DefaultClient = &rpc.Client{
+		BasePath: fmt.Sprintf("http://%s:42000", string(ipBytes)),
+		Client: &http.Client{
+			Timeout: 10 * time.Second,
+		},
+	}
 
 	initStartup()
 
@@ -82,7 +92,7 @@ func Launch() {
 			}
 		}()
 
-		handleSession(ctx, s, token, srvTok)
+		handleSession(ctx, s, tok, srvTok)
 		close(sessionDone)
 		_ = c.Close()
 
@@ -106,7 +116,10 @@ func waitForIntervalOrShutdown(ctx context.Context, interval time.Duration) bool
 }
 
 func initStartup() {
+	_, _, _ = util.RunCommand([]string{"sudo", "ln", "-s", "/opt/ucloud/ucloud-job-introspection", "/usr/bin/ucloud"})
+
 	driveSynchronizeWithFstab()
+
 	err := ApplyMountOverrides(
 		context.Background(),
 		[]string{"/work", "/etc/ucloud", "/opt/ucloud"},
@@ -116,9 +129,51 @@ func initStartup() {
 			ForceUnmount: false,
 		},
 	)
-
 	if err != nil {
 		log.Info("Failed to apply systemd mount overrides: %s", err)
+	}
+
+	startInitializationScript() // NOTE(Dan): Needs to run after mounts
+}
+
+func startInitializationScript() {
+	_, didInitErr := os.Stat("/var/lib/ucloud/init-marker")
+	if didInitErr != nil {
+		_, _, _ = util.RunCommand([]string{"sudo", "mkdir", "-p", "/var/lib/ucloud"})
+		_, _, _ = util.RunCommand([]string{"sudo", "chown", "ucloud:ucloud", "/var/lib/ucloud"})
+		_, _, ok := util.RunCommand([]string{"sudo", "chmod", "0700", "/var/lib/ucloud"})
+		if !ok {
+			return
+		}
+	}
+
+	for {
+		_, didInitErr = os.Stat("/var/lib/ucloud/init-marker")
+		if didInitErr == nil {
+			break
+		}
+
+		info, err := introspection.IntrospectJob.Invoke(introspection.IntrospectAuthRequest{Token: token})
+		if err != nil {
+			time.Sleep(5 * time.Second)
+			continue
+		}
+
+		job := info.Job
+		labels := job.Specification.Labels
+		if labels == nil {
+			labels = map[string]string{}
+		}
+
+		initLabel, ok := labels["ucloud.dk/initscript"]
+		if ok {
+			stdout, stderr, ok := util.RunCommand([]string{"sudo", "bash", initLabel})
+			if !ok {
+				log.Info("Init script has failed! stdout=%s, stderr=%s. This will not be retried!", stdout, stderr)
+			}
+		}
+
+		_ = os.WriteFile("/var/lib/ucloud/init-marker", []byte(""), 0600)
 	}
 }
 
