@@ -911,8 +911,8 @@ func ResourceUpdate[T any](
 			resourceIndexLabelsRemoveLocked(idxBucket, rescOwnerRef, id, resc.BaseSpec.Labels)
 			idxBucket.Mu.Unlock()
 
-			if resc.Product.Present {
-				providerRef := resourceProviderRef(resc.Product.Value.Provider)
+			if resourceSpecificationHasProduct(resc.BaseSpec) {
+				providerRef := resourceProviderRef(resc.BaseSpec.Product.Provider)
 				providerIdxBucket := resourceGetAndLoadIndex(typeName, providerRef)
 				providerIdxBucket.Mu.Lock()
 				providerIdx := providerIdxBucket.ByOwner[providerRef]
@@ -1162,8 +1162,8 @@ func ResourceCreateEx[T any](
 		idxBucket.Mu.Unlock()
 	}
 
-	if product.Present {
-		providerRef := resourceProviderRef(product.Value.Provider)
+	if resourceSpecificationHasProduct(baseSpec) {
+		providerRef := resourceProviderRef(baseSpec.Product.Provider)
 		providerIdxBucket := resourceGetAndLoadIndex(typeName, providerRef)
 		providerIdxBucket.Mu.Lock()
 		providerCurrent := providerIdxBucket.ByOwner[providerRef]
