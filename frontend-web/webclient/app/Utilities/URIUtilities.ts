@@ -25,22 +25,43 @@ export function getQueryParamOrElse(
     return result ? result : defaultValue;
 }
 
-export const buildQueryString = <T extends Record<string, any>>(path: string, params: T): string => {
-    const builtParams = Object.entries(params).map(
-        pair => {
-            const [key, val] = pair;
-            if (val === undefined) return "";
+function flattenQueryEntries(key: string, value: any): Array<[string, string]> {
+    if (value === undefined || value === null) {
+        return [];
+    }
 
-            // normalize val to always an array
-            const arr = (val instanceof Array) ? val : [val];
-            // encode key only once
-            const encodedKey = encodeURIComponent(key);
-            // then make a different query string for each val member
-            return arr.map(
-                member => `${encodedKey}=${encodeURIComponent(member)}`
-            ).join("&");
+    if (Array.isArray(value)) {
+        const result: Array<[string, string]> = [];
+        for (const member of value) {
+            result.push(...flattenQueryEntries(key, member));
         }
-    ).filter(it => it !== "").join("&");
+        return result;
+    }
+
+    if (typeof value === "object") {
+        const result: Array<[string, string]> = [];
+        for (const [subKey, subValue] of Object.entries(value)) {
+            result.push(...flattenQueryEntries(`${key}.${subKey}`, subValue));
+        }
+        return result;
+    }
+
+    return [[key, String(value)]];
+}
+
+export const buildQueryString = <T extends Record<string, any>>(path: string, params: T): string => {
+    const entries: Array<[string, string]> = [];
+    for (const [key, value] of Object.entries(params)) {
+        entries.push(...flattenQueryEntries(key, value));
+    }
+
+    if (entries.length === 0) {
+        return path;
+    }
+
+    const builtParams = entries
+        .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+        .join("&");
 
     return path + "?" + builtParams;
 };

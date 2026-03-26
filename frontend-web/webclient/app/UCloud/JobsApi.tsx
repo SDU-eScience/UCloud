@@ -40,6 +40,7 @@ export interface JobBinding {
 export interface JobSpecification extends ResourceSpecification {
     application: NameAndVersion;
     name?: string;
+    hostname?: string | null;
     replicas: number;
     allowDuplicateJob?: boolean;
     parameters: Record<string, AppParameterValue>;
@@ -75,9 +76,13 @@ export interface JobOutput {
 export interface JobFlags extends ResourceIncludeFlags {
     filterApplication?: string;
     filterState?: JobState;
+    filterType?: JobTypeFilter;
     includeApplication?: boolean;
+    includeProduct?: boolean;
     includeParameters?: boolean;
 }
+
+export type JobTypeFilter = "VMS_ONLY" | "JOBS_ONLY";
 
 export interface JobStatus extends ResourceStatus {
     state: JobState;
@@ -112,6 +117,7 @@ export interface NativeSupport {
     terminal?: boolean;
     timeExtension?: boolean;
     utilization?: boolean;
+    bindLinkToPort?: boolean;
 }
 
 export interface DockerSupport {
@@ -123,6 +129,7 @@ export interface DockerSupport {
     peers?: boolean;
     timeExtension?: boolean;
     utilization?: boolean;
+    bindLinkToPort?: boolean;
 }
 
 export interface VirtualMachineSupport {
@@ -133,6 +140,7 @@ export interface VirtualMachineSupport {
     timeExtension?: boolean;
     suspension?: boolean;
     utilization?: boolean;
+    bindLinkToPort?: boolean;
 }
 
 export interface CpuAndMemory {
@@ -163,11 +171,20 @@ export interface OpenInteractiveSessionRequest {
     rank: number;
     sessionType: "WEB" | "VNC" | "SHELL";
     target?: string | null;
-    port?: number;
 }
 
 export interface OpenTerminalInFolderRequest {
     folder: string;
+}
+
+export interface AttachResourceRequest {
+    jobId: string;
+    resource: AppParameterValue;
+}
+
+export interface DetachResourceRequest {
+    jobId: string;
+    resource: AppParameterValue;
 }
 
 export interface InteractiveSession {
@@ -390,6 +407,14 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
 
     settingsRetrieve(request: Record<string, never>): APICallParameters<Record<string, never>, JobSettings> {
         return apiRetrieve(request, this.baseContext, "settingsRetrieve")
+    }
+
+    attachResource(request: AttachResourceRequest): APICallParameters<AttachResourceRequest, any | null> {
+        return apiUpdate(request, this.baseContext, "attachResource");
+    }
+
+    detachResource(request: DetachResourceRequest): APICallParameters<DetachResourceRequest, any | null> {
+        return apiUpdate(request, this.baseContext, "detachResource");
     }
 }
 

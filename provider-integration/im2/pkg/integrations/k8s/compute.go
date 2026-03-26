@@ -1,6 +1,7 @@
 package k8s
 
 import (
+	"net/http"
 	"os"
 	"regexp"
 	"slices"
@@ -8,7 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	corev1 "k8s.io/api/core/v1"
+	k8score "k8s.io/api/core/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
 	cfg "ucloud.dk/pkg/config"
@@ -35,36 +36,47 @@ func InitCompute() controller.JobsService {
 
 	return controller.JobsService{
 		Submit:                   submit,
+		OnUpdatedLabels:          nil,
 		Terminate:                terminate,
 		Extend:                   extend,
 		RetrieveProducts:         retrieveProducts,
 		Follow:                   follow,
 		HandleShell:              handleShell,
-		ServerFindIngress:        serverFindIngress,
 		OpenWebSession:           openWebSession,
 		RequestDynamicParameters: requestDynamicParameters,
 		Suspend:                  suspend,
 		Unsuspend:                unsuspend,
 		HandleBuiltInVnc:         handleBuiltInVnc,
+		AttachResource:           attachResource,
+		DetachResource:           detachResource,
 		PublicIPs: controller.PublicIPService{
 			Create:           createPublicIp,
 			Delete:           deletePublicIp,
+			OnUpdatedLabels:  nil,
 			RetrieveProducts: retrievePublicIpProducts,
 		},
 		Ingresses: controller.IngressService{
 			Create:           createIngress,
 			Delete:           deleteIngress,
+			OnUpdatedLabels:  nil,
 			RetrieveProducts: retrieveIngressProducts,
 		},
 		Licenses: controller.LicenseService{
 			Create:           activateLicense,
 			Delete:           deleteLicense,
+			OnUpdatedLabels:  nil,
 			RetrieveProducts: retrieveLicenseProducts,
+		},
+		PrivateNetworks: controller.PrivateNetworkService{
+			Create:           shared.PrivateNetworkCreate,
+			Delete:           shared.PrivateNetworkDelete,
+			OnUpdatedLabels:  nil,
+			RetrieveProducts: shared.PrivateNetworkRetrieveProducts,
 		},
 	}
 }
 
-var nodes *shared.K8sResourceTracker[*corev1.Node]
+var nodes *shared.K8sResourceTracker[*k8score.Node]
 
 var monitoringHealthCounter = atomic.Int64{}
 
@@ -74,12 +86,12 @@ func InitComputeLater() {
 	initJobQueue()
 
 	go func() {
-		nodes = shared.NewResourceTracker[*corev1.Node](
+		nodes = shared.NewResourceTracker[*k8score.Node](
 			"",
 			func(factory informers.SharedInformerFactory) cache.SharedIndexInformer {
 				return factory.Core().V1().Nodes().Informer()
 			},
-			func(resource *corev1.Node) string {
+			func(resource *k8score.Node) string {
 				return resource.Name
 			},
 		)
@@ -394,12 +406,8 @@ func handleShell(session *controller.ShellSession, cols int, rows int) {
 	}
 }
 
-func serverFindIngress(job *orc.Job, rank int, suffix util.Option[string]) []controller.ConfiguredWebIngress {
-	return backend(job).ServerFindIngress(job, rank, suffix)
-}
-
-func openWebSession(job *orc.Job, rank int, target util.Option[string]) (controller.ConfiguredWebSession, *util.HttpError) {
-	return backend(job).OpenWebSession(job, rank, target)
+func openWebSession(job *orc.Job, sessionType orc.InteractiveSessionType, rank int, target util.Option[string]) (controller.ConfiguredWebSessionResult, *util.HttpError) {
+	return backend(job).OpenWebSession(job, sessionType, rank, target)
 }
 
 func requestDynamicParameters(owner orc.ResourceOwner, app *orc.Application) []orc.ApplicationParameter {
@@ -431,5 +439,23 @@ func handleBuiltInVnc(job *orc.Job, rank int, conn *ws.Conn) {
 	fn := backend(job).HandleBuiltInVnc
 	if fn != nil {
 		fn(job, rank, conn)
+	}
+}
+
+func attachResource(job *orc.Job, resource orc.AppParameterValue) *util.HttpError {
+	fn := backend(job).AttachResource
+	if fn != nil {
+		return fn(job, resource)
+	} else {
+		return util.HttpErr(http.StatusBadRequest, "unsupported operation")
+	}
+}
+
+func detachResource(job *orc.Job, resource orc.AppParameterValue) *util.HttpError {
+	fn := backend(job).DetachResource
+	if fn != nil {
+		return fn(job, resource)
+	} else {
+		return util.HttpErr(http.StatusBadRequest, "unsupported operation")
 	}
 }
