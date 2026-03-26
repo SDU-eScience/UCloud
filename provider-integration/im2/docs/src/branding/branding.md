@@ -13,14 +13,14 @@ Incorrect: Ucloud, uCloud
 ## Logo
 
 The UCloud logo is a hexagon shape with a node graph surrounding it. 
-The nodes are white, unless a contrast is needed, in which case the outer ones are rendered in white.
+The nodes are white, unless a contrast is needed, in which case the outer nodes and edges are rendered in blue.
 
-| Image name                                                           |     | Uses                                                                      |
-|----------------------------------------------------------------------|-----|---------------------------------------------------------------------------|
-| [favicon](./favicon.ico)                                             | <img src="./favicon.ico" /> | Used for the UCloud-site and associated documentation                     |
-| [Icon logo](./logo_esc.svg)                                          | <img src="./logo_esc.svg" /> | <Missing description>                     |
-| [<missing>](./ucloud-blue.svg)                                          | <img src="./ucloud-blue.svg" /> | <Missing description>                     |
-| [<missing>](./ucloud.png)                                          | <img src="./ucloud-blue.svg" /> | <Missing description>                     |
+| Image name                                                                         |                                         | Uses                                                                 |
+|------------------------------------------------------------------------------------|-----------------------------------------|----------------------------------------------------------------------|
+| [favicon](./favicon.ico)                                                           | <img src="./favicon.ico" />             | Used for the UCloud-site and associated documentation                |
+| [Icon logo, white nodes](./logo_esc.svg)                                           | <img src="./logo_esc.svg" />            | Usually used when the UCloud logo is presented on a blue background  |
+| Icon logo, blue nodes, with text ([svg](./ucloud-blue.svg), [png](./ucloud.png))   | <img src="./ucloud-blue.svg" />         |                                                                      |
+| [Icon logo, blue nodes, no text](./ucloud-blue-no-text.svg)                        | <img src="./ucloud-blue-no-text.svg" /> | Default logo to use, maybe? Used on LinkedIn..                        |
 
 
 <!-- We also have favicon_color.png, but I don't think it's in use -->
