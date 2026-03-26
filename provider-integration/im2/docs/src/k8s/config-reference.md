@@ -262,7 +262,22 @@ services:
     integratedTerminal:
       enabled: true
 
-    virtualMachineStorageClass: "fast-ssd"  # optional
+    virtualMachines:
+      enabled: true
+      storage:
+        type: "CsiStaticPv" # or "HostPath"
+        csi:
+          storageClassName: "csi-cephfs-sc"
+          driver: "cephfs.csi.ceph.com"
+          nodeStageSecretRef:
+            name: "csi-cephfs-secret"
+            namespace: "default"
+          volumeAttributes:
+            clusterID: "XXXX"
+            fsName: "YYYY"
+            rootPath: "/volumes/ucloud"
+            staticVolume: "true"
+          subpathField: "volumeAttributes.rootPath"
 
     machines:
       cpu-standard:
@@ -816,12 +831,130 @@ Exposes the Syncthing integration.
 
 <dt>
 
-`virtualMachineStorageClass` *optional*
+`virtualMachines` *optional*
 
 </dt>
 <dd>
 
-Optional Kubernetes storage class name used for virtual machine storage.
+Controls virtual machine support.
+
+<dl>
+<dt>
+
+`enabled`
+
+</dt>
+<dd>Enable/disable virtual machines.</dd>
+
+<dt>
+
+`storage` *(required if enabled)*
+
+</dt>
+<dd>
+
+Virtual machine disk backend configuration.
+
+<dl>
+<dt>
+
+`type`
+
+</dt>
+<dd>
+
+Storage mode for VM disks.
+
+Allowed values:
+
+* `HostPath`
+* `CsiStaticPv`
+
+</dd>
+
+<dt>
+
+`hostPath` *(required when `type` is `HostPath`)*
+
+</dt>
+<dd>Host path prefix used for creating VM disk PVs.</dd>
+
+<dt>
+
+`csi` *(required when `type` is `CsiStaticPv`)*
+
+</dt>
+<dd>
+
+CSI static PV configuration used when creating VM disk PVs.
+
+<dl>
+<dt>
+
+`storageClassName`
+
+</dt>
+<dd>Storage class name set on the generated PV and PVC.</dd>
+
+<dt>
+
+`driver`
+
+</dt>
+<dd>CSI driver name (for example `cephfs.csi.ceph.com`).</dd>
+
+<dt>
+
+`nodeStageSecretRef` *optional*
+
+</dt>
+<dd>
+
+Optional secret reference passed to `csi.nodeStageSecretRef`.
+
+<dl>
+<dt>
+
+`name`
+
+</dt>
+<dd>Secret name.</dd>
+
+<dt>
+
+`namespace`
+
+</dt>
+<dd>Secret namespace.</dd>
+</dl>
+
+</dd>
+
+<dt>
+
+`volumeAttributes`
+
+</dt>
+<dd>Dictionary of CSI volume attributes copied into the generated PV.</dd>
+
+<dt>
+
+`subpathField`
+
+</dt>
+<dd>
+
+Must be on the form `volumeAttributes.&lt;key&gt;` and must reference an existing non-empty key in
+`volumeAttributes`. IM appends the job-specific VM path suffix to this attribute when creating the PV.
+
+</dd>
+</dl>
+
+</dd>
+</dl>
+
+</dd>
+</dl>
 
 </dd>
 </dl>

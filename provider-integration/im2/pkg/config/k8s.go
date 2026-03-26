@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"net"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 	"ucloud.dk/shared/pkg/cfgutil"
@@ -65,20 +66,37 @@ type KubernetesPublicLinkConfiguration struct {
 type KubernetesVirtualMachines struct {
 	Enabled bool
 	Storage struct {
-		Type         KubernetesVmVolMode
-		HostPath     string
-		StorageClass util.Option[string]
+		Type     KubernetesVmVolMode
+		HostPath string
+		Csi      KubernetesVmVolCsiConfig
 	}
+}
+
+type KubernetesVmVolCsiConfig struct {
+	StorageClassName string
+	Driver           string
+	NodeStageSecret  util.Option[KubernetesVmVolCsiSecretRef]
+	VolumeAttributes map[string]string
+	SubpathField     string
+}
+
+type KubernetesVmVolCsiSecretRef struct {
+	Name      string
+	Namespace string
 }
 
 type KubernetesVmVolMode string
 
 const (
 	KubernetesVmVolHostPath KubernetesVmVolMode = "HostPath"
+	KubernetesVmVolCsi      KubernetesVmVolMode = "CsiStaticPv"
 	KubernetesVmVolCdi      KubernetesVmVolMode = "ContainerImporter"
 )
 
-var KubernetesVmVolHostModeOptions = []KubernetesVmVolMode{KubernetesVmVolHostPath}
+var KubernetesVmVolModeOptions = []KubernetesVmVolMode{
+	KubernetesVmVolHostPath,
+	KubernetesVmVolCsi,
+}
 
 type KubernetesIntegratedTerminal struct {
 	Enabled bool
@@ -572,15 +590,55 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 		if vms.Enabled {
 			storageNode := cfgutil.RequireChild(filePath, vmNode, "storage", &success)
 			if storageNode != nil {
-				vms.Storage.Type = cfgutil.RequireChildEnum[KubernetesVmVolMode](filePath, storageNode, "type", KubernetesVmVolHostModeOptions, &success)
+				vms.Storage.Type = cfgutil.RequireChildEnum[KubernetesVmVolMode](filePath, storageNode, "type", KubernetesVmVolModeOptions, &success)
 
 				switch vms.Storage.Type {
 				case KubernetesVmVolHostPath:
 					vms.Storage.HostPath = cfgutil.RequireChildText(filePath, storageNode, "hostPath", &success)
-				case KubernetesVmVolCdi:
-					storageClass := cfgutil.OptionalChildText(filePath, storageNode, "storageClass", &success)
-					if storageClass != "" {
-						vms.Storage.StorageClass.Set(storageClass)
+
+				case KubernetesVmVolCsi:
+					csiNode := cfgutil.RequireChild(filePath, storageNode, "csi", &success)
+					if csiNode == nil {
+						break
+					}
+
+					csi := &vms.Storage.Csi
+					csi.StorageClassName = cfgutil.RequireChildText(filePath, csiNode, "storageClassName", &success)
+					csi.Driver = cfgutil.RequireChildText(filePath, csiNode, "driver", &success)
+					csi.SubpathField = cfgutil.RequireChildText(filePath, csiNode, "subpathField", &success)
+
+					attrsNode := cfgutil.RequireChild(filePath, csiNode, "volumeAttributes", &success)
+					if attrsNode != nil {
+						csi.VolumeAttributes = map[string]string{}
+						cfgutil.Decode(filePath, attrsNode, &csi.VolumeAttributes, &success)
+					}
+
+					secretNode, _ := cfgutil.GetChildOrNil(filePath, csiNode, "nodeStageSecretRef")
+					if secretNode != nil {
+						secret := KubernetesVmVolCsiSecretRef{}
+						secret.Name = cfgutil.RequireChildText(filePath, secretNode, "name", &success)
+						secret.Namespace = cfgutil.RequireChildText(filePath, secretNode, "namespace", &success)
+						if success {
+							csi.NodeStageSecret.Set(secret)
+						}
+					}
+
+					const subpathPrefix = "volumeAttributes."
+					if _, ok := strings.CutPrefix(csi.SubpathField, subpathPrefix); !ok {
+						cfgutil.ReportError(filePath, csiNode, "subpathField must start with 'volumeAttributes.'")
+						success = false
+					} else {
+						key := strings.TrimPrefix(csi.SubpathField, subpathPrefix)
+						if key == "" {
+							cfgutil.ReportError(filePath, csiNode, "subpathField must target a volumeAttributes key")
+							success = false
+						} else {
+							value, exists := csi.VolumeAttributes[key]
+							if !exists || value == "" {
+								cfgutil.ReportError(filePath, csiNode, "subpathField references missing or empty volumeAttributes key: %s", key)
+								success = false
+							}
+						}
 					}
 				}
 			}

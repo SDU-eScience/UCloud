@@ -68,6 +68,9 @@ func Init() ctrl.JobsService {
 		case cfg.KubernetesVmVolHostPath:
 			initDisks()
 
+		case cfg.KubernetesVmVolCsi:
+			initDisks()
+
 		case cfg.KubernetesVmVolCdi:
 			log.Fatal("Not supported yet")
 			panic("Not supported yet")

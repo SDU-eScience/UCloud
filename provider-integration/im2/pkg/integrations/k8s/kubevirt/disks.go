@@ -14,6 +14,7 @@ import (
 	corek8s "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metak8s "k8s.io/apimachinery/pkg/apis/meta/v1"
+	cfg "ucloud.dk/pkg/config"
 	"ucloud.dk/pkg/integrations/k8s/filesystem"
 	"ucloud.dk/pkg/integrations/k8s/shared"
 	"ucloud.dk/shared/pkg/log"
@@ -115,8 +116,14 @@ func diskPrepareForJob(job *orc.Job, pvcName string, owner metak8s.OwnerReferenc
 		return herr
 	}
 
-	targetDirHostPath := strings.ReplaceAll(targetDir, shared.ServiceConfig.FileSystem.MountPoint,
-		shared.ServiceConfig.Compute.VirtualMachines.Storage.HostPath)
+	mountPoint := filepath.Clean(shared.ServiceConfig.FileSystem.MountPoint)
+	targetDirClean := filepath.Clean(targetDir)
+	targetDirSuffix, ok := strings.CutPrefix(targetDirClean, mountPoint+"/")
+	if !ok {
+		log.Warn("Failed to compute VM storage suffix. targetDir=%s mountPoint=%s", targetDir, mountPoint)
+		return util.HttpErr(http.StatusInternalServerError, "failed to prepare VM image")
+	}
+
 	diskPath := filepath.Join(targetDir, "disk.img") // required by KubeVirt
 	err := os.MkdirAll(targetDir, 0700)
 	if err != nil {
@@ -162,6 +169,53 @@ func diskPrepareForJob(job *orc.Job, pvcName string, owner metak8s.OwnerReferenc
 		return util.HttpErr(http.StatusInternalServerError, "failed to convert VM image")
 	}
 
+	storageClassName := ""
+	pvSource := corek8s.PersistentVolumeSource{}
+
+	switch shared.ServiceConfig.Compute.VirtualMachines.Storage.Type {
+	case cfg.KubernetesVmVolHostPath:
+		targetDirHostPath := filepath.Join(
+			filepath.Clean(shared.ServiceConfig.Compute.VirtualMachines.Storage.HostPath),
+			targetDirSuffix,
+		)
+
+		pvSource.HostPath = &corek8s.HostPathVolumeSource{
+			Path: targetDirHostPath,
+		}
+
+	case cfg.KubernetesVmVolCsi:
+		csiCfg := &shared.ServiceConfig.Compute.VirtualMachines.Storage.Csi
+		storageClassName = csiCfg.StorageClassName
+
+		volumeAttributes := map[string]string{}
+		for key, value := range csiCfg.VolumeAttributes {
+			volumeAttributes[key] = value
+		}
+
+		const subpathPrefix = "volumeAttributes."
+		subpathKey := strings.TrimPrefix(csiCfg.SubpathField, subpathPrefix)
+		volumeAttributes[subpathKey] = filepath.Join(volumeAttributes[subpathKey], targetDirSuffix)
+
+		csiSource := &corek8s.CSIPersistentVolumeSource{
+			Driver:           csiCfg.Driver,
+			VolumeHandle:     fmt.Sprintf("ucloud-%s", pvcName),
+			VolumeAttributes: volumeAttributes,
+		}
+
+		if csiCfg.NodeStageSecret.Present {
+			csiSource.NodeStageSecretRef = &corek8s.SecretReference{
+				Name:      csiCfg.NodeStageSecret.Value.Name,
+				Namespace: csiCfg.NodeStageSecret.Value.Namespace,
+			}
+		}
+
+		pvSource.CSI = csiSource
+
+	default:
+		log.Warn("Unsupported VM storage mode: %s", shared.ServiceConfig.Compute.VirtualMachines.Storage.Type)
+		return util.HttpErr(http.StatusInternalServerError, "failed to prepare VM image")
+	}
+
 	pv := &corek8s.PersistentVolume{
 		ObjectMeta: metak8s.ObjectMeta{
 			Name: pvcName,
@@ -171,13 +225,10 @@ func diskPrepareForJob(job *orc.Job, pvcName string, owner metak8s.OwnerReferenc
 			Capacity: map[corek8s.ResourceName]resource.Quantity{
 				corek8s.ResourceStorage: resource.MustParse(fmt.Sprintf("%dGi", diskSize)),
 			},
-			VolumeMode:  util.Pointer(corek8s.PersistentVolumeFilesystem),
-			AccessModes: []corek8s.PersistentVolumeAccessMode{corek8s.ReadWriteMany},
-			PersistentVolumeSource: corek8s.PersistentVolumeSource{
-				HostPath: &corek8s.HostPathVolumeSource{
-					Path: targetDirHostPath,
-				},
-			},
+			VolumeMode:             util.Pointer(corek8s.PersistentVolumeFilesystem),
+			AccessModes:            []corek8s.PersistentVolumeAccessMode{corek8s.ReadWriteMany},
+			StorageClassName:       storageClassName,
+			PersistentVolumeSource: pvSource,
 		},
 	}
 
@@ -195,7 +246,7 @@ func diskPrepareForJob(job *orc.Job, pvcName string, owner metak8s.OwnerReferenc
 					corek8s.ResourceStorage: resource.MustParse(fmt.Sprintf("%dGi", diskSize)),
 				},
 			},
-			StorageClassName: util.Pointer(""),
+			StorageClassName: util.Pointer(storageClassName),
 			VolumeName:       pvcName,
 			VolumeMode:       util.Pointer(corek8s.PersistentVolumeFilesystem),
 		},
