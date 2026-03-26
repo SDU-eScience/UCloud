@@ -166,7 +166,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 						if prop.Text == "" {
 							firewall.Spec.PolicyTypes = []networking.PolicyType{networking.PolicyTypeEgress}
 						} else {
-							allowNetworkToSubnet(firewall, prop.Text)
+							allowNetworkTo(firewall, prop.Text)
 						}
 						break
 					}
@@ -180,7 +180,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 						if prop.Text == "" {
 							firewall.Spec.PolicyTypes = []networking.PolicyType{networking.PolicyTypeIngress}
 						} else {
-							allowNetworkToSubnet(firewall, prop.Text)
+							allowNetworkTo(firewall, prop.Text)
 						}
 						break
 					}

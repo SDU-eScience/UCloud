@@ -6,7 +6,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"golang.org/x/exp/maps"
 	db "ucloud.dk/shared/pkg/database"
 	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
