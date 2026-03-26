@@ -1665,6 +1665,8 @@ func JobsSearch(
 				return false
 			} else if state := flags.FilterState; state.Present && state.Value != item.Status.State {
 				return false
+			} else if !jobMatchesTypeFilter(item, flags.FilterType) {
+				return false
 			}
 
 			query = strings.ToLower(query)
@@ -1682,6 +1684,24 @@ func JobsSearch(
 		},
 		nil,
 	), flags), nil
+}
+
+func jobMatchesTypeFilter(job orcapi.Job, filter util.Option[orcapi.JobTypeFilter]) bool {
+	if !filter.Present {
+		return true
+	}
+
+	isVirtualMachine := job.Status.ResolvedApplication.Present &&
+		job.Status.ResolvedApplication.Value.Invocation.Tool.Tool.Value.Description.Backend == orcapi.ToolBackendVirtualMachine
+
+	switch filter.Value {
+	case orcapi.JobTypeFilterVmsOnly:
+		return isVirtualMachine
+	case orcapi.JobTypeFilterJobsOnly:
+		return !isVirtualMachine
+	default:
+		return true
+	}
 }
 
 func jobsProcessFlags(
@@ -1758,6 +1778,8 @@ func JobsBrowse(
 			if app := flags.FilterApplication; app.Present && app.Value != item.Specification.Application.Name {
 				return false
 			} else if state := flags.FilterState; state.Present && state.Value != item.Status.State {
+				return false
+			} else if !jobMatchesTypeFilter(item, flags.FilterType) {
 				return false
 			}
 

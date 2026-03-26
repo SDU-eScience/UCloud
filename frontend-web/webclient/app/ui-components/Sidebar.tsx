@@ -779,12 +779,16 @@ const ComputeSubLinksEntries: LinkInfo[] = [{
     text: "Virtual machines",
     icon: "heroComputerDesktop",
     tab: SidebarTabId.RUNS,
-}, {
-    to: AppRoutes.compute.stacks(),
-    text: "Stacks",
-    icon: "heroServerStack",
-    tab: SidebarTabId.RUNS,
 }];
+
+if (hasFeature(Feature.STACKS)) {
+    ComputeSubLinksEntries.push({
+        to: AppRoutes.compute.stacks(),
+        text: "Stacks",
+        icon: "heroServerStack",
+        tab: SidebarTabId.RUNS,
+    });
+}
 
 function projectSidebarSubLinks(canApply: boolean, isPersonalWorkspace: boolean, projectId?: string): LinkInfo[] {
     const tab = SidebarTabId.PROJECT;

@@ -76,10 +76,13 @@ export interface JobOutput {
 export interface JobFlags extends ResourceIncludeFlags {
     filterApplication?: string;
     filterState?: JobState;
+    filterType?: JobTypeFilter;
     includeApplication?: boolean;
     includeProduct?: boolean;
     includeParameters?: boolean;
 }
+
+export type JobTypeFilter = "VMS_ONLY" | "JOBS_ONLY";
 
 export interface JobStatus extends ResourceStatus {
     state: JobState;

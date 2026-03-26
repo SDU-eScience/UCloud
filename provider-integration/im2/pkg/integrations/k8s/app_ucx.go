@@ -20,7 +20,7 @@ import (
 	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/ucx"
-	"ucloud.dk/shared/pkg/ucx/ucxsvc"
+	"ucloud.dk/shared/pkg/ucx/ucxapi"
 	"ucloud.dk/shared/pkg/util"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -82,27 +82,27 @@ func ucxOnConnect(conn *ws.Conn) {
 	mu := sync.Mutex{}
 	stackToDeletionRequest := map[string]int{}
 
-	ucxsvc.StackCreate.HandlerProxy(proxy, func(ctx context.Context, request ucxsvc.StackCreateRequest) (ucxsvc.StackCreateResponse, error) {
+	ucxapi.StackCreate.HandlerProxy(proxy, func(ctx context.Context, request ucxapi.StackCreateRequest) (ucxapi.Stack, error) {
 		if err := util.ValidateStringE(&request.StackType, "stackType", 0); err != nil {
-			return ucxsvc.StackCreateResponse{}, err.AsError()
+			return ucxapi.Stack{}, err.AsError()
 		}
 
 		instanceId := request.StackId
 
 		internalPathMemberFiles, drive, err := filesystem.InitializeMemberFiles(info.Owner.CreatedBy, info.Owner.Project)
 		if err != nil {
-			return ucxsvc.StackCreateResponse{}, err.AsError()
+			return ucxapi.Stack{}, err.AsError()
 		}
 
 		instanceFolder := filepath.Join(internalPathMemberFiles, "Jobs", "Stacks", instanceId)
 		err = filesystem.DoCreateFolder(instanceFolder)
 		if err != nil {
-			return ucxsvc.StackCreateResponse{}, err.AsError()
+			return ucxapi.Stack{}, err.AsError()
 		}
 
 		ucloudPath, ok := filesystem.InternalToUCloudWithDrive(drive, instanceFolder)
 		if !ok {
-			return ucxsvc.StackCreateResponse{}, fmt.Errorf("internal error")
+			return ucxapi.Stack{}, fmt.Errorf("internal error")
 		}
 
 		id, err := orcapi.StacksControlRequestDeletion.Invoke(orcapi.StacksControlRequestDeletionRequest{
@@ -112,14 +112,14 @@ func ucxOnConnect(conn *ws.Conn) {
 		})
 
 		if err != nil {
-			return ucxsvc.StackCreateResponse{}, err.AsError()
+			return ucxapi.Stack{}, err.AsError()
 		}
 
 		mu.Lock()
 		stackToDeletionRequest[instanceId] = id.Id
 		mu.Unlock()
 
-		return ucxsvc.StackCreateResponse{
+		return ucxapi.Stack{
 			InstanceId: instanceId,
 			Labels: map[string]string{
 				"ucloud.dk/stack":         "true",
@@ -130,7 +130,7 @@ func ucxOnConnect(conn *ws.Conn) {
 		}, nil
 	})
 
-	ucxsvc.StackDataWrite.HandlerProxy(proxy, func(ctx context.Context, request ucxsvc.StackDataWriteRequest) (util.Empty, error) {
+	ucxapi.StackDataWrite.HandlerProxy(proxy, func(ctx context.Context, request ucxapi.StackDataWriteRequest) (util.Empty, error) {
 		if len(request.Data) >= 1024*64 {
 			return util.Empty{}, fmt.Errorf("input data is too large")
 		}
@@ -173,7 +173,7 @@ func ucxOnConnect(conn *ws.Conn) {
 		return util.Empty{}, nil
 	})
 
-	ucxsvc.StackConfirm.HandlerProxy(proxy, func(ctx context.Context, request fnd.FindByStringId) (util.Empty, error) {
+	ucxapi.StackConfirm.HandlerProxy(proxy, func(ctx context.Context, request fnd.FindByStringId) (util.Empty, error) {
 		mu.Lock()
 		deletionReqId, ok := stackToDeletionRequest[request.Id]
 		mu.Unlock()
@@ -187,9 +187,9 @@ func ucxOnConnect(conn *ws.Conn) {
 		return util.Empty{}, nil
 	})
 
-	ucxsvc.IM.HandlerProxy(proxy, func(ctx context.Context, request ucxsvc.Message) (ucxsvc.Message, error) {
+	ucxapi.IM.HandlerProxy(proxy, func(ctx context.Context, request ucxapi.Message) (ucxapi.Message, error) {
 		log.Info("Got a message from '%#v': %s", info.Owner, request.Message)
-		return ucxsvc.Message{"Hello from the provider!"}, nil
+		return ucxapi.Message{"Hello from the provider!"}, nil
 	})
 
 	if err := proxy.Run(ctx, conn); err != nil {

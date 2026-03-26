@@ -97,6 +97,8 @@ import {NotificationPopups} from "./Notifications/Popups";
 import {StacksRouter} from "@/Stacks";
 
 const NotFound = (): React.ReactNode => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
+const JobsOnlyRouter = (): React.ReactNode => <JobsRouter browseFilterType="JOBS_ONLY" />;
+const VirtualMachinesRouter = (): React.ReactNode => <JobsRouter browseFilterType="VMS_ONLY" />;
 
 const Core = (): React.ReactNode => (
     <>
@@ -136,7 +138,10 @@ const Core = (): React.ReactNode => (
                         element={React.createElement(requireAuth(ApplicationsOverview))} />
                     <Route path={AppRoutes.apps.search()} element={React.createElement(requireAuth(ApplicationSearch))} />
 
-                    <Route path="/jobs/*" element={React.createElement(requireAuth(JobsRouter))} />
+                    <Route path={`${AppRoutes.compute.jobs()}/*`}
+                        element={React.createElement(requireAuth(JobsOnlyRouter))} />
+                    <Route path={`${AppRoutes.compute.virtualMachines()}/*`}
+                        element={React.createElement(requireAuth(VirtualMachinesRouter))} />
                     <Route path="/stacks/*" element={React.createElement(requireAuth(StacksRouter))} />
 
                     <Route path={AppRoutes.apps.shell(":jobId", ":rank")}

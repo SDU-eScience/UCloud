@@ -414,15 +414,23 @@ type UniversalBackendSupport struct {
 	BindLinkToPort bool `json:"bindLinkToPort,omitempty"`
 }
 
+type JobTypeFilter string
+
+const (
+	JobTypeFilterVmsOnly  JobTypeFilter = "VMS_ONLY"
+	JobTypeFilterJobsOnly JobTypeFilter = "JOBS_ONLY"
+)
+
 // Job API
 // =====================================================================================================================
 
 type JobFlags struct {
 	ResourceFlags
-	FilterApplication  util.Option[string]   `json:"filterApplication"`
-	FilterState        util.Option[JobState] `json:"filterState"`
-	IncludeParameters  bool                  `json:"includeParameters"`
-	IncludeApplication bool                  `json:"includeApplication"`
+	FilterApplication  util.Option[string]        `json:"filterApplication"`
+	FilterState        util.Option[JobState]      `json:"filterState"`
+	FilterType         util.Option[JobTypeFilter] `json:"filterType"`
+	IncludeParameters  bool                       `json:"includeParameters"`
+	IncludeApplication bool                       `json:"includeApplication"`
 }
 
 const jobNamespace = "jobs"

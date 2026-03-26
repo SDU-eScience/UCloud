@@ -7,7 +7,9 @@ export enum Feature {
 
     ALLOCATIONS_PAGE_IMPROVEMENTS,
 
-    NEW_VM_UI
+    NEW_VM_UI,
+
+    STACKS
 }
 
 enum Environment {
@@ -67,6 +69,12 @@ const featureMap: Record<string, FeatureConfig> = {
         feature: Feature.NEW_VM_UI,
         showWithFlag: allEnvironments,
         showWithoutFlag: allDevEnvironments,
+    },
+
+    "stacks": {
+        feature: Feature.STACKS,
+        showWithoutFlag: allDevEnvironments,
+        showWithFlag: allEnvironments,
     }
 };
 
