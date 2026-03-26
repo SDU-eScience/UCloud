@@ -3,7 +3,7 @@
 ## Introduction
 
 <!-- Already covered in introduction.md? -->
-The UCloud frontend is the default way of communicating with the UCloud platform.
+The UCloud frontend is the default way of communicating with the UCloud platform for the end user.
 
 The UI acts as a centralised point, that can communicate with different connected providers to make use of the features available, taking in to account what features are not.
 
@@ -19,7 +19,7 @@ Where the performance of React has not been adequate, Vanilla TypeScript/ECMAScr
 
 ### Running the UI
 
-For a local dev environment, the `launcher`-tool, available in the root folder of the project, can be run, that will automatically start the environment.
+For a local dev environment, the `launcher`-tool, available in the root folder of the project, can be run, that will automatically initialize and start the environment.
 The UI will be available at `ucloud.localhost.direct` and will use the local environment as the backend. An admin user will be generated with the following login info:
 
 - Username: user
@@ -86,9 +86,9 @@ const NameOfClass = injectStyleSimple("class-name", `
 
 Using the class is the same as previously described above.
 
-The function appends a number, as to ensure uniqueness. The above could for instance return the string `class-name90`. This is don't to ensure classnames don't collide.
+The function appends a number, as to ensure uniqueness. The above could for instance return the string `class-name90`.
 
-If just a classname is needed without any existing rules, see `makeClassName` function.
+If just a classname is needed without any rules, see `makeClassName` function.
 
 ## Network calls
 
@@ -136,7 +136,7 @@ Because of this, no bleeding edge CSS features are to be used for development, w
 
 ## Testing
 
-UCloud has an E2E-testing suite that will run automatically after an update to the `master`-branch. This can be triggered by the admin (Note: correct role?) of the UCloud Github repository.
+UCloud has an E2E-testing suite that will run automatically after an update to the `master`-branch. This can be triggered by the admin <!--correct role?--> of the UCloud Github repository.
 
 To run the tests for your local environment, the following commands are available:
 
