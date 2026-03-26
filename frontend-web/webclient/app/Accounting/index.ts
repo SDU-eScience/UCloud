@@ -34,6 +34,8 @@ export function productAreaTitle(area: ProductArea): string {
             return "Application license";
         case "NETWORK_IP":
             return "Public IP";
+        case "PRIVATE_NETWORK":
+            return "Private network";
     }
 }
 
@@ -62,8 +64,8 @@ export type ProductPriceUnit =
     "CREDITS_PER_MINUTE" | "CREDITS_PER_HOUR" | "CREDITS_PER_DAY" |
     "UNITS_PER_MINUTE" | "UNITS_PER_HOUR" | "UNITS_PER_DAY";
 
-export type ProductType = "STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP";
-export type Type = "storage" | "compute" | "ingress" | "license" | "network_ip";
+export type ProductType = "STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP" | "PRIVATE_NETWORK";
+export type Type = "storage" | "compute" | "ingress" | "license" | "network_ip" | "private_network";
 
 export interface ProductMetadata {
     category: ProductCategoryId;
@@ -123,7 +125,7 @@ export type Product = ProductStorage | ProductCompute | ProductIngress | Product
 export function productTypeToIcon(type: ProductType): IconName {
     switch (type) {
         case "INGRESS":
-            return "heroLink"
+            return "heroLink";
         case "COMPUTE":
             return "heroCpuChip";
         case "STORAGE":
@@ -132,8 +134,45 @@ export function productTypeToIcon(type: ProductType): IconName {
             return "heroGlobeEuropeAfrica";
         case "LICENSE":
             return "heroDocumentCheck";
+        case "PRIVATE_NETWORK":
+            return "heroCloud";
     }
 }
+
+export function productTypeToName(type: ProductType): string {
+    switch (type) {
+        case "COMPUTE":
+            return "Compute";
+        case "STORAGE":
+            return "Storage";
+        case "NETWORK_IP":
+            return "Public IP";
+        case "LICENSE":
+            return "License";
+        case "INGRESS":
+            return "Public link";
+    }
+}
+
+export function productTypeFromName(name: string): ProductType {
+    switch (name) {
+        case "Compute":
+            return "COMPUTE";
+        case "Storage":
+            return "STORAGE";
+        case "Public IP":
+            return "NETWORK_IP";
+        case "License":
+            return "LICENSE";
+        case "Public link":
+            return "INGRESS";
+        default:
+            console.warn("invalid name supplied to productTypeFromName", name);
+            return "COMPUTE";
+    }
+}
+
+export const productTypes: ProductType[] = ["COMPUTE", "STORAGE", "NETWORK_IP", "INGRESS", "LICENSE"];
 
 export function addThousandSeparators(numberOrString: string | number): string {
     const numberAsString = typeof numberOrString === "string" ? numberOrString : numberOrString.toString(10);
@@ -243,6 +282,8 @@ export function categoryComparator(a: ProductCategoryV2, b: ProductCategoryV2): 
                 return 3;
             case "LICENSE":
                 return 4;
+            case "PRIVATE_NETWORK":
+                return 5;
         }
     }
 
@@ -267,6 +308,7 @@ export type ProductV2 =
     | ProductV2Ingress
     | ProductV2License
     | ProductV2NetworkIP
+    | ProductV2PrivateNetwork
     ;
 
 interface ProductV2Base {
@@ -302,6 +344,10 @@ export interface ProductV2License extends ProductV2Base {
 
 export interface ProductV2NetworkIP extends ProductV2Base {
     type: "network_ip";
+}
+
+export interface ProductV2PrivateNetwork extends ProductV2Base {
+    type: "private_network";
 }
 
 const hardcodedProductCategoryDescriptions: Record<string, Record<string, string>> = {
@@ -1052,7 +1098,8 @@ export function buildAllocationDisplayTree(allWallets: WalletV2[]): AllocationDi
             const uq = newGroup.usageAndQuota;
             uq.raw.maxUsable = Number.MAX_SAFE_INTEGER;
 
-            for (const alloc of childGroup.group.allocations.reverse()) {
+            const allocs = [...childGroup.group.allocations.slice()];
+            for (const alloc of allocs) {
                 if (allocationIsActive(alloc, new Date().getTime())) {
                     totalAllocated += alloc.quota;
                 }
@@ -1371,6 +1418,7 @@ export function browseWalletsV2(
     request: PaginationRequestV2 & {
         filterType?: ProductType;
         includeChildren?: boolean;
+        filterChildrenByIdleTimeInDays?: number;
     }
 ): APICallParameters<unknown, PageV2<WalletV2>> {
     return apiBrowse(request, baseContextV2, "wallets");

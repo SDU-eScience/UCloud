@@ -106,11 +106,22 @@ type KubernetesInferenceConfiguration struct {
 	OllamaDevMode bool
 }
 
+type KubernetesUcxDevelopmentApp struct {
+	Name    string `json:"name" yaml:"name"`
+	Version string `json:"version" yaml:"version"`
+}
+
+type KubernetesUcxConfiguration struct {
+	Development []KubernetesUcxDevelopmentApp `json:"development" yaml:"development"`
+}
+
 type KubernetesCompute struct {
 	Machines                        map[string]K8sMachineCategory
 	MachineImpersonation            map[string]string
 	EstimatedContainerDownloadSpeed float64 // MB/s
 	Namespace                       string
+	TaskNamespace                   string
+	TaskNodeSelector                map[string]string
 	Web                             KubernetesWebConfiguration
 	PublicIps                       KubernetesIpConfiguration
 	PublicLinks                     KubernetesPublicLinkConfiguration
@@ -120,6 +131,7 @@ type KubernetesCompute struct {
 	VirtualMachines                 KubernetesVirtualMachines
 	Modules                         map[string]KubernetesModuleEntry
 	Inference                       KubernetesInferenceConfiguration
+	Ucx                             KubernetesUcxConfiguration
 }
 
 func (c *KubernetesCompute) ResolveMachine(name, category string) (K8sMachineCategory, K8sMachineCategoryGroup, K8sMachineConfiguration, bool) {
@@ -226,6 +238,30 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 
 	computeNode := cfgutil.RequireChild(filePath, services, "compute", &success)
 	cfg.Compute.Namespace = cfgutil.OptionalChildText(filePath, services, "namespace", &success)
+	if cfg.Compute.Namespace == "" {
+		cfg.Compute.Namespace = "ucloud-apps"
+	}
+
+	cfg.Compute.TaskNamespace = cfgutil.OptionalChildText(filePath, services, "taskNamespace", &success)
+	if cfg.Compute.TaskNamespace == "" {
+		cfg.Compute.TaskNamespace = "ucloud-tasks"
+	}
+
+	cfg.Compute.TaskNodeSelector = map[string]string{}
+	taskNodeSelector, _ := cfgutil.GetChildOrNil(filePath, services, "taskNodeSelector")
+	if taskNodeSelector != nil {
+		if taskNodeSelector.Kind != yaml.MappingNode {
+			cfgutil.ReportError(filePath, services, "expected taskNodeSelector to be a dictionary")
+			return false, cfg
+		}
+
+		for i := 0; i < len(taskNodeSelector.Content); i += 2 {
+			var key, value string
+			_ = taskNodeSelector.Content[i].Decode(&key)
+			_ = taskNodeSelector.Content[i+1].Decode(&value)
+			cfg.Compute.TaskNodeSelector[key] = value
+		}
+	}
 
 	// NOTE(Dan): Default value was based on several tests on the current production environment. Results were very
 	// stable around 14.5MB/s. This result seems very low, but consistent. Thankfully, it is fairly rare that people
@@ -237,8 +273,12 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 		&success,
 	).GetOrDefault(14.5)
 
-	if cfg.Compute.Namespace == "" {
-		cfg.Compute.Namespace = "ucloud-apps"
+	ucxNode, _ := cfgutil.GetChildOrNil(filePath, computeNode, "ucx")
+	if ucxNode != nil {
+		developmentNode, _ := cfgutil.GetChildOrNil(filePath, ucxNode, "development")
+		if developmentNode != nil {
+			cfgutil.Decode(filePath, developmentNode, &cfg.Compute.Ucx.Development, &success)
+		}
 	}
 
 	inferenceNode, _ := cfgutil.GetChildOrNil(filePath, computeNode, "inference")

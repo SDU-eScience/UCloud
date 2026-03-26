@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"strings"
 
-	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
@@ -31,46 +30,7 @@ func initDrives() {
 		if sourceIPisRestricted(info) {
 			return fndapi.PageV2[orcapi.Drive]{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
 		}
-
-		sortByFn := ResourceDefaultComparator(func(item orcapi.Drive) orcapi.Resource {
-			return item.Resource
-		}, request.ResourceFlags)
-
-		switch request.SortBy.GetOrDefault("") {
-		case "", "title":
-			sortByFn = func(a orcapi.Drive, b orcapi.Drive) int {
-				if a.Status.PreferredDrive && !b.Status.PreferredDrive {
-					return -1
-				} else if !a.Status.PreferredDrive && b.Status.PreferredDrive {
-					return 1
-				} else {
-					return strings.Compare(a.Specification.Title, b.Specification.Title)
-				}
-			}
-		}
-
-		return ResourceBrowse(
-			info.Actor,
-			driveType,
-			request.Next,
-			request.ItemsPerPage,
-			request.ResourceFlags,
-			func(item orcapi.Drive) bool {
-				if request.FilterMemberFiles.Present {
-					isMemberFile := strings.HasPrefix(item.Specification.Title, "Member Files: ") || item.Status.PreferredDrive
-					switch request.FilterMemberFiles.Value {
-					case orcapi.MemberFilesNoFilter:
-						return true
-					case orcapi.MemberFilesShowMine:
-						return !isMemberFile || (isMemberFile && item.Owner.CreatedBy == info.Actor.Username)
-					case orcapi.MemberFilesShowMembers:
-						return isMemberFile
-					}
-				}
-				return true
-			},
-			sortByFn,
-		), nil
+		return DriveBrowse(info.Actor, request), nil
 	})
 
 	orcapi.DrivesRetrieve.Handler(func(info rpc.RequestInfo, request orcapi.DrivesRetrieveRequest) (orcapi.Drive, *util.HttpError) {
@@ -84,15 +44,16 @@ func initDrives() {
 		if sourceIPisRestricted(info) {
 			return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
 		}
-		var responses []fndapi.FindByStringId
-		for _, reqItem := range request.Items {
-			d, err := DriveCreate(info.Actor, reqItem)
-			if err != nil {
-				return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
-			} else {
-				responses = append(responses, fndapi.FindByStringId{Id: d.Id})
-			}
+		created, err := DriveCreateBulk(info.Actor, request)
+		if err != nil {
+			return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
 		}
+
+		responses := make([]fndapi.FindByStringId, 0, len(created))
+		for _, d := range created {
+			responses = append(responses, fndapi.FindByStringId{Id: d.Id})
+		}
+
 		return fndapi.BulkResponse[fndapi.FindByStringId]{Responses: responses}, nil
 	})
 
@@ -144,19 +105,15 @@ func initDrives() {
 		return fndapi.BulkResponse[util.Empty]{Responses: responses}, nil
 	})
 
+	orcapi.DrivesUpdateLabels.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.DrivesUpdateLabelsRequest]) (util.Empty, *util.HttpError) {
+		return util.Empty{}, DriveUpdateLabels(info.Actor, request)
+	})
+
 	orcapi.DrivesDelete.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[fndapi.FindByStringId]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
 		if sourceIPisRestricted(info) {
 			return fndapi.BulkResponse[util.Empty]{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
 		}
-		var responses []util.Empty
-		for _, item := range request.Items {
-			err := ResourceDeleteThroughProvider(info.Actor, driveType, item.Id, orcapi.DrivesProviderDelete)
-			if err != nil {
-				return fndapi.BulkResponse[util.Empty]{}, err
-			}
-			responses = append(responses, util.Empty{})
-		}
-		return fndapi.BulkResponse[util.Empty]{Responses: responses}, nil
+		return DriveDelete(info.Actor, request)
 	})
 
 	orcapi.DrivesControlBrowse.Handler(func(info rpc.RequestInfo, request orcapi.DrivesControlBrowseRequest) (fndapi.PageV2[orcapi.Drive], *util.HttpError) {
@@ -204,7 +161,7 @@ func initDrives() {
 					Project:   util.OptStringIfNotEmpty(reqItem.Project.Value),
 				},
 				nil,
-				util.OptValue(reqItem.Spec.Product),
+				reqItem.Spec.ResourceSpecification,
 				reqItem.ProviderGeneratedId,
 				&driveInfo{
 					Title: reqItem.Spec.Title,
@@ -221,6 +178,17 @@ func initDrives() {
 		}
 
 		return fndapi.BulkResponse[fndapi.FindByStringId]{Responses: responses}, nil
+	})
+
+	orcapi.DrivesControlUpdateLabels.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.DrivesUpdateLabelsRequest]) (util.Empty, *util.HttpError) {
+		for _, reqItem := range request.Items {
+			err := ResourceUpdateLabels(info.Actor, driveType, reqItem.Id, reqItem.Labels, orcapi.PermissionProvider)
+			if err != nil {
+				return util.Empty{}, err
+			}
+		}
+
+		return util.Empty{}, nil
 	})
 }
 
@@ -276,7 +244,97 @@ func DriveCreate(actor rpc.Actor, item orcapi.DriveSpecification) (orcapi.Drive,
 	}
 
 	info := &driveInfo{Title: title}
-	return ResourceCreateThroughProvider(actor, driveType, p, info, orcapi.DrivesProviderCreate)
+	return ResourceCreateThroughProvider(actor, driveType, item.ResourceSpecification, info, orcapi.DrivesProviderCreate)
+}
+
+func DriveCreateBulk(actor rpc.Actor, request fndapi.BulkRequest[orcapi.DriveSpecification]) ([]orcapi.Drive, *util.HttpError) {
+	created := make([]orcapi.Drive, 0, len(request.Items))
+	for _, reqItem := range request.Items {
+		d, err := DriveCreate(actor, reqItem)
+		if err != nil {
+			return nil, err
+		}
+
+		created = append(created, d)
+	}
+
+	return created, nil
+}
+
+func DriveBrowse(actor rpc.Actor, request orcapi.DrivesBrowseRequest) fndapi.PageV2[orcapi.Drive] {
+	sortByFn := ResourceDefaultComparator(func(item orcapi.Drive) orcapi.Resource {
+		return item.Resource
+	}, request.ResourceFlags)
+
+	switch request.SortBy.GetOrDefault("") {
+	case "", "title":
+		sortByFn = func(a orcapi.Drive, b orcapi.Drive) int {
+			if a.Status.PreferredDrive && !b.Status.PreferredDrive {
+				return -1
+			} else if !a.Status.PreferredDrive && b.Status.PreferredDrive {
+				return 1
+			} else {
+				return strings.Compare(a.Specification.Title, b.Specification.Title)
+			}
+		}
+	}
+
+	return ResourceBrowse(
+		actor,
+		driveType,
+		request.Next,
+		request.ItemsPerPage,
+		request.ResourceFlags,
+		func(item orcapi.Drive) bool {
+			if request.FilterMemberFiles.Present {
+				isMemberFile := strings.HasPrefix(item.Specification.Title, "Member Files: ") || item.Status.PreferredDrive
+				switch request.FilterMemberFiles.Value {
+				case orcapi.MemberFilesNoFilter:
+					return true
+				case orcapi.MemberFilesShowMine:
+					return !isMemberFile || (isMemberFile && item.Owner.CreatedBy == actor.Username)
+				case orcapi.MemberFilesShowMembers:
+					return isMemberFile
+				}
+			}
+			return true
+		},
+		sortByFn,
+	)
+}
+
+func DriveDelete(actor rpc.Actor, request fndapi.BulkRequest[fndapi.FindByStringId]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
+	responses := make([]util.Empty, 0, len(request.Items))
+	for _, item := range request.Items {
+		err := ResourceDeleteThroughProvider(actor, driveType, item.Id, orcapi.DrivesProviderDelete)
+		if err != nil {
+			return fndapi.BulkResponse[util.Empty]{}, err
+		}
+		responses = append(responses, util.Empty{})
+	}
+
+	return fndapi.BulkResponse[util.Empty]{Responses: responses}, nil
+}
+
+func DriveUpdateLabels(actor rpc.Actor, request fndapi.BulkRequest[orcapi.DrivesUpdateLabelsRequest]) *util.HttpError {
+	for _, reqItem := range request.Items {
+		err := ResourceUpdateLabelsThroughProvider[orcapi.Drive](
+			actor,
+			driveType,
+			reqItem.Id,
+			reqItem.Labels,
+			func(t *orcapi.Drive, labels map[string]string) {
+				t.Specification.Labels = labels
+			},
+			orcapi.DrivesProviderOnUpdatedLabels,
+		)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 type driveInfo struct {
@@ -305,7 +363,7 @@ func driveLoad(tx *db.Transaction, ids []int64, resources map[ResourceId]*resour
 	}
 }
 
-func driveTransform(r orcapi.Resource, product util.Option[accapi.ProductReference], extra any, flags orcapi.ResourceFlags, actor rpc.Actor) any {
+func driveTransform(r orcapi.Resource, specification orcapi.ResourceSpecification, extra any, flags orcapi.ResourceFlags, actor rpc.Actor) any {
 	info := extra.(*driveInfo)
 
 	isPreferred := r.Owner.CreatedBy == actor.Username &&
@@ -314,8 +372,8 @@ func driveTransform(r orcapi.Resource, product util.Option[accapi.ProductReferen
 	result := orcapi.Drive{
 		Resource: r,
 		Specification: orcapi.DriveSpecification{
-			Title:   info.Title,
-			Product: product.Value,
+			Title:                 info.Title,
+			ResourceSpecification: specification,
 		},
 		Status: orcapi.DriveStatus{
 			PreferredDrive: isPreferred,
@@ -323,8 +381,8 @@ func driveTransform(r orcapi.Resource, product util.Option[accapi.ProductReferen
 		Updates: make([]orcapi.ResourceUpdate, 0),
 	}
 
-	if flags.IncludeProduct || flags.IncludeSupport {
-		support, _ := SupportByProduct[orcapi.FSSupport](driveType, product.Value)
+	if (flags.IncludeProduct || flags.IncludeSupport) && resourceSpecificationHasProduct(specification) {
+		support, _ := SupportByProduct[orcapi.FSSupport](driveType, specification.Product)
 		result.Status.ResourceStatus = orcapi.ResourceStatus[orcapi.FSSupport]{
 			ResolvedSupport: util.OptValue(support.ToApi()),
 			ResolvedProduct: util.OptValue(support.Product),

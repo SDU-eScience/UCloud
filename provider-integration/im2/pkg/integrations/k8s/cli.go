@@ -4,12 +4,15 @@ import (
 	"os"
 
 	"ucloud.dk/pkg/controller"
+	"ucloud.dk/pkg/integrations/k8s/filesystem"
 )
 
 func HandleCliWithoutConfig(command string) bool {
 	switch command {
 	case "script-gen":
 		HandleScriptGen()
+	case "task-processor":
+		filesystem.TaskProcessor()
 	default:
 		return false
 	}
@@ -26,5 +29,7 @@ func HandleCli(command string) {
 		controller.LicenseCli(os.Args[2:])
 	case "storage-scan":
 		StorageScanCli(os.Args[2:])
+	case "jobs":
+		HandleJobsCommand()
 	}
 }

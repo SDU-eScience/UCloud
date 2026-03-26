@@ -126,7 +126,7 @@ export const ListRowStat: React.FunctionComponent<{
     }
 };
 
-const ListRowClass = injectStyle("list-item", k => `
+export const ListRowClass = injectStyle("list-item", k => `
     ${k} {
         padding: 5px 0;
         width: 100%;
@@ -180,13 +180,13 @@ const ListRowClass = injectStyle("list-item", k => `
   
     ${deviceBreakpoint({minWidth: "767px", maxWidth: "1279px"})} {
       ${k} .row-left{
-        max-width: calc(100vw - var(${CSSVarCurrentSidebarWidth}));
+        max-width: 100vw;
       }
     }
 
     ${deviceBreakpoint({maxWidth: "767px"})} {
         ${k} .row-left {
-            max-width: calc(100vw - var(${CSSVarCurrentSidebarWidth}));
+            max-width: 100vw;
         }
     }
 

@@ -3,7 +3,7 @@ import {useEffect, useMemo} from "react";
 import {Box, Card, Heading, Icon} from "@/ui-components";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import Flex from "@/ui-components/Flex";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
+
 import {Upload, UploadState, uploadStore, useUploads} from "@/Files/Upload";
 import {injectStyle, injectStyleSimple, makeKeyframe} from "@/Unstyled";
 import {stopPropagation} from "@/UtilityFunctions";
@@ -17,14 +17,12 @@ import * as icons from "@/ui-components/icons";
 import {SidebarDialog} from "@/ui-components/Sidebar";
 import {groupBy} from "@/Utilities/CollectionUtilities";
 import {apiUpdate, callAPI} from "@/Authentication/DataHook";
+import {sendInformationNotification} from "@/Notifications";
 
 const iconNames = Object.keys(icons) as IconName[];
 
 function onBeforeUnload(): boolean {
-    snackbarStore.addInformation(
-        "You currently have uploads in progress. Are you sure you want to leave UCloud?",
-        true
-    );
+    sendInformationNotification("You currently have uploads in progress. Are you sure you want to leave UCloud?");
     return false;
 }
 
@@ -107,7 +105,7 @@ export const taskStore = new class extends ExternalStoreBase {
 
 const DEFAULT_ICON: IconName = "heroRectangleStack";
 
-function TaskItem({task}: { task: BackgroundTask; }): React.JSX.Element {
+function TaskItem({task}: {task: BackgroundTask;}): React.JSX.Element {
     const isFinished = TaskOperations.isTaskTerminal(task);
     const isPaused = task.status.state === TaskState.SUSPENDED;
 
@@ -139,13 +137,13 @@ function TaskItem({task}: { task: BackgroundTask; }): React.JSX.Element {
     if (isFinished) {
         resumeOrCancel = (
             <TooltipV2 tooltip="Clear task" contentWidth={100}>
-                <Icon name="close" cursor="pointer" onClick={() => taskStore.removeFinishedTask(task)}/>
+                <Icon name="close" cursor="pointer" onClick={() => taskStore.removeFinishedTask(task)} />
             </TooltipV2>
         );
     } else {
         if (task.specification.canCancel) {
             resumeOrCancel = (
-                <Icon name="close" cursor="pointer" ml="8px" color="errorMain" onClick={() => promptCancel(task)}/>);
+                <Icon name="close" cursor="pointer" ml="8px" color="errorMain" onClick={() => promptCancel(task)} />);
         }
     }
 

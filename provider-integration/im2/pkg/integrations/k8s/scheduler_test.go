@@ -2,6 +2,7 @@ package k8s
 
 import (
 	"fmt"
+	"slices"
 	"testing"
 	"time"
 
@@ -18,6 +19,15 @@ func registerNodes(s *Scheduler, count, cpuMillis int) {
 			MemoryInBytes: 1000,
 		}
 		s.RegisterNode(fmt.Sprintf("node-%v", i), dims, dims, false)
+	}
+}
+
+func drainScheduleQueue() {
+	for {
+		entries := shared.SwapScheduleQueue()
+		if len(entries) == 0 {
+			return
+		}
 	}
 }
 
@@ -287,7 +297,7 @@ func TestFailingGpu(t *testing.T) {
 
 	submit := func(jobId string, gpuCount int) {
 		s.RegisterJobInQueue(
-			"initial",
+			jobId,
 			shared.SchedulerDimensions{
 				CpuMillis:     1000 * coresPerGpu * gpuCount,
 				MemoryInBytes: memoryPerCore * coresPerGpu * gpuCount,
@@ -345,9 +355,61 @@ func TestFailingGpu(t *testing.T) {
 	}
 
 	// Recover the node fully
-	s.RegisterNode("gpu-node", initialDims, initialDims, true)
+	s.RegisterNode("gpu-node", initialDims, initialDims, false)
 	scheduled = s.Schedule()
-	if len(scheduled) != 0 {
+	if len(scheduled) != 1 {
 		t.Errorf("expected the third job to schedule in the end")
+	}
+}
+
+func TestRequestScheduleQueueDeduplicatesByJob(t *testing.T) {
+	drainScheduleQueue()
+	t.Cleanup(drainScheduleQueue)
+
+	jobAOld := &orc.Job{Resource: orc.Resource{Id: "job-a"}, Specification: orc.JobSpecification{Replicas: 1}}
+	jobB := &orc.Job{Resource: orc.Resource{Id: "job-b"}, Specification: orc.JobSpecification{Replicas: 1}}
+	jobANew := &orc.Job{Resource: orc.Resource{Id: "job-a"}, Specification: orc.JobSpecification{Replicas: 2}}
+
+	shared.RequestSchedule(jobAOld)
+	shared.RequestSchedule(jobB)
+	shared.RequestSchedule(jobANew)
+
+	entries := shared.SwapScheduleQueue()
+	if len(entries) != 2 {
+		t.Fatalf("expected exactly two queue entries, got %d", len(entries))
+	}
+
+	if entries[0] != jobANew {
+		t.Fatalf("expected latest entry for job-a to be retained")
+	}
+
+	ids := []string{entries[0].Id, entries[1].Id}
+	if !slices.Contains(ids, "job-a") || !slices.Contains(ids, "job-b") {
+		t.Fatalf("expected entries to include both job-a and job-b, got %v", ids)
+	}
+}
+
+func TestRequestScheduleQueueRetryDoesNotDuplicate(t *testing.T) {
+	drainScheduleQueue()
+	t.Cleanup(drainScheduleQueue)
+
+	job := &orc.Job{Resource: orc.Resource{Id: "job-retry"}, Specification: orc.JobSpecification{Replicas: 1}}
+	shared.RequestSchedule(job)
+
+	firstSwap := shared.SwapScheduleQueue()
+	if len(firstSwap) != 1 {
+		t.Fatalf("expected one entry in first swap, got %d", len(firstSwap))
+	}
+
+	shared.RequestSchedule(firstSwap[0])
+	shared.RequestSchedule(firstSwap[0])
+
+	retrySwap := shared.SwapScheduleQueue()
+	if len(retrySwap) != 1 {
+		t.Fatalf("expected one entry after retry, got %d", len(retrySwap))
+	}
+
+	if retrySwap[0].Id != "job-retry" {
+		t.Fatalf("expected retried job id to be job-retry, got %s", retrySwap[0].Id)
 	}
 }

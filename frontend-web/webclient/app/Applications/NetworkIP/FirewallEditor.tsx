@@ -6,11 +6,9 @@ import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-com
 import {useCallback, useRef, useState} from "react";
 import {useCloudCommand} from "@/Authentication/DataHook";
 import {blankOrUndefined} from "@/UtilityFunctions";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
-import {classConcat} from "@/Unstyled";
 import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
 import {compute} from "@/UCloud";
+import {sendFailureNotification} from "@/Notifications";
 
 export const FirewallEditor: React.FunctionComponent<{
     inspecting: NetworkIP;
@@ -61,17 +59,17 @@ export function parseAndValidatePorts(first: string, last: string) {
     let valid = true;
 
     if (isNaN(firstPort) || firstPort < 1) {
-        snackbarStore.addFailure("Port (First) is not a valid positive number", false);
+        sendFailureNotification("Port (First) is not a valid positive number");
         valid = false;
     }
 
     if (isNaN(lastPort) || lastPort < 1) {
-        snackbarStore.addFailure("Port (Last) is not a valid positive number", false);
+        sendFailureNotification("Port (Last) is not a valid positive number");
         valid = false;
     }
 
     if (firstPort > lastPort) {
-        snackbarStore.addFailure("The first port is larger than the last port", false);
+        sendFailureNotification("The first port is larger than the last port");
         valid = false;
     }
 
@@ -105,43 +103,43 @@ export function FirewallTable({isCreating, didChange, onAddRow, onRemoveRow, ope
             <Table>
                 <TableHeader>
                     <TableRow>
-                        <TableHeaderCell textAlign={"left"}>Port (First)<MandatoryField/></TableHeaderCell>
+                        <TableHeaderCell textAlign={"left"}>Port (First)<MandatoryField /></TableHeaderCell>
                         <TableHeaderCell textAlign={"left"}>Port (Last)</TableHeaderCell>
                         <TableHeaderCell textAlign={"left"}>Protocol</TableHeaderCell>
                         <TableHeaderCell width={"48px"} />
                     </TableRow>
                 </TableHeader>
                 <tbody>
-                {openPorts.map((row, idx) => {
-                    return <TableRow key={idx}>
-                        <TableCell>{row.start}</TableCell>
-                        <TableCell>{row.end}</TableCell>
-                        <TableCell>{row.protocol}</TableCell>
+                    {openPorts.map((row, idx) => {
+                        return <TableRow key={idx}>
+                            <TableCell>{row.start}</TableCell>
+                            <TableCell>{row.end}</TableCell>
+                            <TableCell>{row.protocol}</TableCell>
+                            <TableCell>
+                                <Button
+                                    width="100%"
+                                    color="errorMain"
+                                    type={"button"}
+                                    onClick={() => onRemoveRow(idx)}
+                                >
+                                    <Icon name={"heroTrash"} />
+                                </Button>
+                            </TableCell>
+                        </TableRow>
+                    })}
+                    <TableRow>
+                        <TableCell pr={"16px"}><Input type="number" min={0} max={65535} inputRef={portFirstRef} /></TableCell>
+                        <TableCell pr={"16px"}><Input type="number" min={0} max={65535} inputRef={portLastRef} /></TableCell>
+                        <TableCell pr={"16px"}>
+                            <Select selectRef={protocolRef}>
+                                <option>TCP</option>
+                                <option>UDP</option>
+                            </Select>
+                        </TableCell>
                         <TableCell>
-                            <Button
-                                width="100%"
-                                color="errorMain"
-                                type={"button"}
-                                onClick={() => onRemoveRow(idx)}
-                            >
-                                <Icon name={"heroTrash"} />
-                            </Button>
+                            <Button type={"submit"} fullWidth><Icon name={"heroPlus"} /></Button>
                         </TableCell>
                     </TableRow>
-                })}
-                <TableRow>
-                    <TableCell pr={"16px"}><Input type="number" min={0} max={65535} inputRef={portFirstRef} /></TableCell>
-                    <TableCell pr={"16px"}><Input type="number" min={0} max={65535} inputRef={portLastRef} /></TableCell>
-                    <TableCell pr={"16px"}>
-                        <Select selectRef={protocolRef}>
-                            <option>TCP</option>
-                            <option>UDP</option>
-                        </Select>
-                    </TableCell>
-                    <TableCell>
-                        <Button type={"submit"} fullWidth><Icon name={"heroPlus"} /></Button>
-                    </TableCell>
-                </TableRow>
                 </tbody>
             </Table>
         </form>

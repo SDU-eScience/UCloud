@@ -3,10 +3,12 @@ package kubevirt
 import (
 	"context"
 	"crypto/tls"
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -14,10 +16,13 @@ import (
 	"time"
 
 	ws "github.com/gorilla/websocket"
+	"golang.org/x/sys/unix"
+	"gopkg.in/yaml.v3"
 	k8sadmission "k8s.io/api/admission/v1"
 	k8score "k8s.io/api/core/v1"
+	k8snetwork "k8s.io/api/networking/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/resource"
+	k8sresource "k8s.io/apimachinery/pkg/api/resource"
 	k8smeta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kvcore "kubevirt.io/api/core/v1"
 	kvclient "kubevirt.io/client-go/kubecli"
@@ -26,6 +31,7 @@ import (
 	ctrl "ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/integrations/k8s/filesystem"
 	"ucloud.dk/pkg/integrations/k8s/shared"
+	db "ucloud.dk/shared/pkg/database"
 	"ucloud.dk/shared/pkg/log"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
@@ -35,6 +41,12 @@ var ServiceConfig *cfg.ServicesConfigurationKubernetes
 var KubevirtClient kvclient.KubevirtClient
 var Namespace string
 var Enabled = false
+
+//go:embed ucloud-vmagent.service
+var vmAgentSystemdFile []byte
+
+//go:embed ucloud-metrics.service
+var ucmetricsSystemdFile []byte
 
 func Init() ctrl.JobsService {
 	// Create a number of aliases for use in this package. These are all static by the time this function is called.
@@ -60,20 +72,24 @@ func Init() ctrl.JobsService {
 			log.Fatal("Not supported yet")
 			panic("Not supported yet")
 		}
+
+		initAgentServer()
 	}
 
 	return ctrl.JobsService{
+		OnUpdatedLabels:          nil,
 		Terminate:                terminate,
 		Extend:                   nil,
 		RetrieveProducts:         nil, // handled by main instance
 		Follow:                   follow,
 		HandleShell:              handleShell,
-		ServerFindIngress:        nil,
 		OpenWebSession:           openWebSession,
 		RequestDynamicParameters: requestDynamicParameters,
 		Suspend:                  suspend,
 		Unsuspend:                unsuspend,
 		HandleBuiltInVnc:         handleVnc,
+		AttachResource:           attachResource,
+		DetachResource:           detachResource,
 	}
 }
 
@@ -81,8 +97,57 @@ func VmiStandaloneMutator() {
 	shared.InitClients()
 	KubevirtClient = shared.KubevirtClient
 	Namespace = "ucloud-apps" // TODO
+	startStandaloneMutatorUpdateWatcher(5 * time.Second)
 
+	log.Info("Starting VMI standalone mutator")
 	vmiFsMutator()
+}
+
+func startStandaloneMutatorUpdateWatcher(interval time.Duration) {
+	exePath, err := os.Executable()
+	if err != nil {
+		log.Warn("Unable to resolve executable path: %v", err)
+		return
+	}
+
+	initialModTime, err := executableModTime(exePath)
+	if err != nil {
+		log.Warn("Unable to read shared mutator executable timestamp (%s): %v", exePath, err)
+		return
+	}
+
+	checkForUpdate := func() {
+		currentModTime, err := executableModTime(exePath)
+		if err != nil {
+			log.Warn("Unable to read shared mutator executable timestamp (%s): %v", exePath, err)
+			return
+		}
+
+		if !currentModTime.Equal(initialModTime) {
+			log.Info("Standalone mutator update detected (%s). Exiting for restart.", exePath)
+			os.Exit(0)
+		}
+	}
+
+	checkForUpdate()
+
+	go func() {
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+
+		for range ticker.C {
+			checkForUpdate()
+		}
+	}()
+}
+
+func executableModTime(path string) (time.Time, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	return info.ModTime(), nil
 }
 
 func vmiFsMutator() {
@@ -126,12 +191,14 @@ func vmiFsMutator() {
 			}
 			var ops []jsonPatchOp
 			allowed := true
+			managedVolumeNames := map[string]bool{}
+			sharedVolumeName := ""
 
 			labels := pod.Labels
 			if labels == nil {
 				labels = make(map[string]string)
 			}
-			name, ok := labels["vm.kubevirt.io/name"]
+			name, ok := labels["ucloud.dk/vmName"]
 			if !ok {
 				log.Info("Rejecting %s because no label annotation is present", pod.Name)
 				allowed = false
@@ -165,33 +232,41 @@ func vmiFsMutator() {
 				}
 
 				for mountIdx, mount := range container.VolumeMounts {
-					if strings.HasPrefix(mount.Name, "ucloud-") {
-						volPath, ok1 := annotations[fmt.Sprintf("ucloud.dk/vmVolPath-%s", mount.Name)]
-						readOnly, ok2 := annotations[fmt.Sprintf("ucloud.dk/vmVolReadOnly-%s", mount.Name)]
-						if !ok1 && !ok2 {
-							log.Info("Rejecting %s because annotations are not present on VM: %s, %s", volPath, readOnly)
-							allowed = false
-						} else {
-							ops = append(ops, jsonPatchOp{
-								Op:    "add",
-								Path:  fmt.Sprintf("/spec/containers/%d/volumeMounts/%d/subPath", cIdx, mountIdx),
-								Value: volPath,
-							})
-
-							ops = append(ops, jsonPatchOp{
-								Op:    "add",
-								Path:  fmt.Sprintf("/spec/containers/%d/volumeMounts/%d/readOnly", cIdx, mountIdx),
-								Value: readOnly == "true",
-							})
-
-							// Point all volumes to the first one since the Volume is shared amongst all UCloud mounts
-							ops = append(ops, jsonPatchOp{
-								Op:    "add",
-								Path:  fmt.Sprintf("/spec/containers/%d/volumeMounts/%d/name", cIdx, mountIdx),
-								Value: "ucloud-0",
-							})
-						}
+					volPath, ok1 := annotations[fmt.Sprintf("ucloud.dk/vmVolPath-%s", mount.Name)]
+					readOnly, ok2 := annotations[fmt.Sprintf("ucloud.dk/vmVolReadOnly-%s", mount.Name)]
+					if !ok1 && !ok2 {
+						continue
 					}
+
+					if !ok1 || !ok2 {
+						log.Info("Rejecting %s because required annotations are not present on VM: hasPath=%v hasReadOnly=%v", mount.Name, ok1, ok2)
+						allowed = false
+						continue
+					}
+
+					if sharedVolumeName == "" {
+						sharedVolumeName = mount.Name
+					}
+					managedVolumeNames[mount.Name] = true
+
+					ops = append(ops, jsonPatchOp{
+						Op:    "add",
+						Path:  fmt.Sprintf("/spec/containers/%d/volumeMounts/%d/subPath", cIdx, mountIdx),
+						Value: volPath,
+					})
+
+					ops = append(ops, jsonPatchOp{
+						Op:    "add",
+						Path:  fmt.Sprintf("/spec/containers/%d/volumeMounts/%d/readOnly", cIdx, mountIdx),
+						Value: readOnly == "true",
+					})
+
+					// Point all managed volumes to a single backing Volume since the Volume is shared amongst all UCloud mounts
+					ops = append(ops, jsonPatchOp{
+						Op:    "add",
+						Path:  fmt.Sprintf("/spec/containers/%d/volumeMounts/%d/name", cIdx, mountIdx),
+						Value: sharedVolumeName,
+					})
 				}
 			}
 
@@ -200,15 +275,17 @@ func vmiFsMutator() {
 			// NOTE(Dan): This snippet ensures that we do not have duplicate volume definitions (which are not
 			// allowed). We do this by simply keeping the first one, we have already remapped all mounts to point
 			// to this volume.
-			volumesRemoved := 0
-			for volIdx, volume := range pod.Spec.Volumes {
-				if strings.HasPrefix(volume.Name, "ucloud-") && volume.Name != "ucloud-0" {
-					ops = append(ops, jsonPatchOp{
-						Op:   "remove",
-						Path: fmt.Sprintf("/spec/volumes/%d", volIdx-volumesRemoved),
-					})
+			if sharedVolumeName != "" {
+				volumesRemoved := 0
+				for volIdx, volume := range pod.Spec.Volumes {
+					if managedVolumeNames[volume.Name] && volume.Name != sharedVolumeName {
+						ops = append(ops, jsonPatchOp{
+							Op:   "remove",
+							Path: fmt.Sprintf("/spec/volumes/%d", volIdx-volumesRemoved),
+						})
 
-					volumesRemoved++
+						volumesRemoved++
+					}
 				}
 			}
 
@@ -276,16 +353,243 @@ type cloudInit struct {
 	Users      []cloudInitUser `json:"users"`
 	Mounts     [][]string      `json:"mounts"`
 	RunCommand []string        `json:"runcmd"`
+	Network    any             `json:"network"`
 }
 
 func follow(session *ctrl.FollowJobSession) {
-	// Keep alive to make the Core happy.
-	for *session.Alive {
-		time.Sleep(100 * time.Millisecond)
+	type trackedLogFile struct {
+		Rank    int
+		Stdout  bool
+		Channel util.Option[string]
+		File    *os.File
+	}
+
+	logFiles := map[string]trackedLogFile{}
+
+	job, ok := ctrl.JobRetrieve(session.Job.Id)
+	if !ok {
+		return
+	}
+
+	jobFolder, err := JobFolder(job)
+	if err != nil {
+		return
+	}
+
+	logsFolder := filepath.Join(jobFolder, "logs")
+
+	trackFile := func(baseName string, file trackedLogFile) {
+		_, exists := logFiles[baseName]
+
+		if !exists {
+			stdout, ok1 := filesystem.OpenFile(filepath.Join(logsFolder, baseName), unix.O_RDONLY, 0)
+			if ok1 {
+				sinfo, err := stdout.Stat()
+				if err == nil {
+					if sinfo.Size() > 1024*256 {
+						_, _ = stdout.Seek(sinfo.Size()-1024*256, io.SeekStart)
+					}
+				}
+				file.File = stdout
+				logFiles[baseName] = file
+			}
+		}
+	}
+
+	trackAllFiles := func() {
+		trackFile(".ucviz-ui", trackedLogFile{
+			Rank:    0,
+			Stdout:  true,
+			Channel: util.OptValue("ui"),
+		})
+	}
+
+	utilizationChannel := make(chan []float64)
+	utilizationResetChannel := make(chan util.Empty, 8)
+	utilizationDataTracked := false
+	var utilizationData *util.FsRingReader[[]float64]
+	utilSerializer := util.FsRingSerializer[[]float64]{
+		Deserialize: func(buf *util.UBufferReader) []float64 {
+			result := make([]float64, 64) // NOTE(Dan): change ucmetrics if changing this
+			for i := 0; i < 64; i++ {
+				result[i] = buf.ReadF64()
+			}
+			return result
+		},
+	}
+
+	for util.IsAlive && *session.Alive {
+		job, ok := ctrl.JobRetrieve(session.Job.Id)
+		if !ok {
+			break
+		}
+
+		if job.Status.State != orc.JobStateRunning {
+			time.Sleep(1 * time.Second)
+			continue
+		}
+
+		break
+	}
+
+	readBuffer := make([]byte, 1024*4)
+	kvStatsPath := filepath.Join(logsFolder, ".ucmetrics-stats")
+	var kvStatsLastMtime int64
+	var kvStatsLastSize int64
+	kvStatsLastContent := ""
+
+	// Watch log files
+	for util.IsAlive && *session.Alive {
+		job, ok := ctrl.JobRetrieve(session.Job.Id)
+		if !ok {
+			break
+		}
+
+		if job.Status.State != orc.JobStateRunning {
+			break
+		}
+
+		trackAllFiles()
+		if !utilizationDataTracked {
+			path := filepath.Join(logsFolder, ".ucviz-utilization-data")
+			ring, err := util.FsRingOpen(path, utilSerializer)
+			if err == nil {
+				ring.OnReset = func() {
+					select {
+					case utilizationResetChannel <- util.Empty{}:
+					default:
+					}
+				}
+
+				utilizationData = ring
+				utilizationDataTracked = true
+
+				go func() {
+					_ = ring.Follow(context.Background(), utilizationChannel, 256)
+					util.SilentClose(ring)
+				}()
+			}
+		}
+
+		for _, logFile := range logFiles {
+			now := time.Now()
+			deadline := now.Add(5 * time.Microsecond)
+			_ = logFile.File.SetReadDeadline(deadline)
+
+			bytesRead, _ := logFile.File.Read(readBuffer)
+			if bytesRead > 0 {
+				message := string(readBuffer[:bytesRead])
+				var stdout util.Option[string]
+				var stderr util.Option[string]
+				if logFile.Stdout {
+					stdout.Set(message)
+				} else {
+					stderr.Set(message)
+				}
+
+				session.EmitLogs(logFile.Rank, stdout, stderr, logFile.Channel)
+			}
+		}
+
+		if finfo, err := os.Stat(kvStatsPath); err == nil {
+			currentMtime := finfo.ModTime().UnixNano()
+			currentSize := finfo.Size()
+			if currentMtime != kvStatsLastMtime || currentSize != kvStatsLastSize {
+				if f, ok := filesystem.OpenFile(kvStatsPath, unix.O_RDONLY, 0); ok {
+					data, readErr := io.ReadAll(f)
+					util.SilentClose(f)
+					if readErr == nil {
+						content := string(data)
+						if content != kvStatsLastContent {
+							session.EmitLogs(0, util.OptValue(content), util.OptNone[string](), util.OptValue("kv"))
+							kvStatsLastContent = content
+						}
+
+						kvStatsLastMtime = currentMtime
+						kvStatsLastSize = currentSize
+					}
+				}
+			}
+		} else {
+			kvStatsLastMtime = 0
+			kvStatsLastSize = 0
+		}
+
+		if utilizationData != nil {
+		loop:
+			for {
+				select {
+				case <-utilizationResetChannel:
+					session.EmitLogs(0, util.OptValue(""), util.OptNone[string](), util.OptValue("utilization-data-reset"))
+
+				case row := <-utilizationChannel:
+					b := strings.Builder{}
+					for i, elem := range row {
+						if i > 0 {
+							b.WriteString(",")
+						}
+						b.WriteString(fmt.Sprint(elem))
+					}
+
+					session.EmitLogs(0, util.OptValue(b.String()), util.OptNone[string](), util.OptValue("utilization-data"))
+
+				default:
+					break loop
+				}
+			}
+		}
+
+		time.Sleep(15 * time.Millisecond)
+	}
+
+	if utilizationData != nil {
+		util.SilentClose(utilizationData)
 	}
 }
 
 func handleShell(session *ctrl.ShellSession, cols int, rows int) {
+	clearScreen := []byte("\033[2J\033[H")
+	spinnerFrames := []string{"[    ]", "[=   ]", "[==  ]", "[=== ]", "[ ===]", "[  ==]", "[   =]", "[    ]"}
+
+	session.EmitData(clearScreen)
+
+	ttyConnChannel := make(chan *ws.Conn, 1)
+	go func() {
+		ttyConnChannel <- vmaRequestTty(session.Job.Id)
+	}()
+
+	ticker := time.NewTicker(120 * time.Millisecond)
+	defer ticker.Stop()
+
+	waitCount := 0
+	var ttyConn *ws.Conn
+waitForTty:
+	for util.IsAlive && session.Alive {
+		select {
+		case ttyConn = <-ttyConnChannel:
+			break waitForTty
+
+		case <-ticker.C:
+			frame := spinnerFrames[waitCount%len(spinnerFrames)]
+			dots := strings.Repeat(".", (waitCount%3)+1)
+			session.EmitData([]byte(fmt.Sprintf("\r%s Connecting to VM terminal%s", frame, dots)))
+			waitCount++
+		}
+	}
+
+	session.EmitData(clearScreen)
+
+	if !util.IsAlive || !session.Alive {
+		return
+	}
+
+	if ttyConn != nil {
+		handleShellSessionViaAgentTty(session, ttyConn, cols, rows)
+		return
+	}
+
+	session.EmitData([]byte("Using serial console fallback. You may need to press Enter before output appears.\r\n"))
+
 	stdinReader, stdinWriter := io.Pipe()
 	stdoutReader, stdoutWriter := io.Pipe()
 
@@ -367,9 +671,84 @@ func handleShell(session *ctrl.ShellSession, cols int, rows int) {
 	}
 }
 
+func handleShellSessionViaAgentTty(session *ctrl.ShellSession, conn *ws.Conn, cols int, rows int) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	defer util.SilentClose(conn)
+
+	socketMessages := make(chan []byte, 1)
+	go func() {
+		defer close(socketMessages)
+
+		for {
+			_, message, err := conn.ReadMessage()
+			if err != nil {
+				return
+			}
+
+			select {
+			case socketMessages <- message:
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	sendEvent := func(ev ctrl.ShellEvent) bool {
+		data, _ := json.Marshal(ev)
+		return conn.WriteMessage(ws.TextMessage, data) == nil
+	}
+
+	if !sendEvent(ctrl.ShellEvent{
+		Type: ctrl.ShellEventTypeInit,
+		ShellEventResize: ctrl.ShellEventResize{
+			Cols: cols,
+			Rows: rows,
+		},
+	}) {
+		return
+	}
+
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		if !util.IsAlive || !session.Alive {
+			return
+		}
+
+		select {
+		case <-ctx.Done():
+			return
+
+		case msg, ok := <-socketMessages:
+			if !ok {
+				return
+			}
+			session.EmitData(msg)
+
+		case ev, ok := <-session.InputEvents:
+			if !ok {
+				return
+			}
+
+			if !sendEvent(ev) {
+				return
+			}
+
+			if ev.Type == ctrl.ShellEventTypeTerminate {
+				return
+			}
+
+		case <-ticker.C:
+			// Keep loop responsive to session/aliveness changes.
+		}
+	}
+}
+
 func terminate(request ctrl.JobTerminateRequest) *util.HttpError {
 	name := vmName(request.Job.Id, 0)
-	err := KubevirtClient.VirtualMachine(Namespace).Delete(context.TODO(), name, k8smeta.DeleteOptions{})
+	err := KubevirtClient.VirtualMachine(Namespace).Delete(context.Background(), name, k8smeta.DeleteOptions{})
 	if err != nil && !k8serrors.IsNotFound(err) {
 		log.Info("Failed to delete VM: %v", err)
 		return util.ServerHttpError("Failed to delete VM")
@@ -379,13 +758,17 @@ func terminate(request ctrl.JobTerminateRequest) *util.HttpError {
 }
 
 func unsuspend(job orc.Job) *util.HttpError {
+	if reason := shared.IsJobLocked(&job); reason.Present {
+		return util.HttpErr(http.StatusPaymentRequired, "You do not have any resources to run the machine.")
+	}
+
 	shared.RequestSchedule(&job)
 	return nil
 }
 
 func suspend(job orc.Job) *util.HttpError {
 	name := vmName(job.Id, 0)
-	err := KubevirtClient.VirtualMachine(Namespace).Stop(context.TODO(), name, &kvcore.StopOptions{})
+	err := KubevirtClient.VirtualMachine(Namespace).Stop(context.Background(), name, &kvcore.StopOptions{})
 	if err != nil {
 		log.Info("Failed to shutdown VM: %v", err)
 		return util.ServerHttpError("Failed to shutdown VM")
@@ -393,7 +776,7 @@ func suspend(job orc.Job) *util.HttpError {
 	return nil
 }
 
-func requestDynamicParameters(owner orc.ResourceOwner, app *orc.Application) []orc.ApplicationParameter {
+func requestDynamicParameters(_ orc.ResourceOwner, _ *orc.Application) []orc.ApplicationParameter {
 	return []orc.ApplicationParameter{
 		{
 			Type:     orc.ApplicationParameterTypeInteger,
@@ -412,10 +795,55 @@ func requestDynamicParameters(owner orc.ResourceOwner, app *orc.Application) []o
 	}
 }
 
-func openWebSession(job *orc.Job, rank int, target util.Option[string]) (ctrl.ConfiguredWebSession, *util.HttpError) {
-	return ctrl.ConfiguredWebSession{
-		Flags: ctrl.RegisteredIngressFlagsVnc | ctrl.RegisteredIngressFlagsNoGatewayConfig,
-	}, nil
+func openWebSession(job *orc.Job, sessionType orc.InteractiveSessionType, rank int, suffix util.Option[string]) (ctrl.ConfiguredWebSessionResult, *util.HttpError) {
+	switch sessionType {
+	case orc.InteractiveSessionTypeWeb:
+		result := ctrl.ConfiguredWebSessionResult{
+			Endpoints: []ctrl.ConfiguredWebEndpoint{},
+		}
+
+		for _, resource := range job.Specification.Resources {
+			if resource.Type == orc.AppParameterValueTypeIngress {
+				if resource.Port == 0 {
+					continue
+				}
+
+				ingress := ctrl.LinkRetrieve(resource.Id)
+				flags := ctrl.RegisteredIngressFlagsWeb
+
+				address := cfg.HostInfo{
+					Address: shared.JobHostName(job, rank),
+					Port:    int(resource.Port),
+				}
+
+				if !shared.K8sInCluster {
+					address.Address = "127.0.0.1"
+					address.Port = shared.EstablishTunnel(vmName(job.Id, rank), int(resource.Port))
+					flags |= ctrl.RegisteredIngressFlagsNoPersist
+				}
+
+				result.Endpoints = append(result.Endpoints, ctrl.ConfiguredWebEndpoint{
+					Host:         address,
+					TargetDomain: ingress.Specification.Domain,
+					Flags:        flags,
+					IsPublic:     true,
+				})
+			}
+		}
+
+		return result, nil
+
+	case orc.InteractiveSessionTypeVnc:
+		return ctrl.ConfiguredWebSessionResult{
+			Endpoints: []ctrl.ConfiguredWebEndpoint{{
+				TargetDomain: cfg.Provider.Hosts.SelfPublic.Address,
+				Flags:        ctrl.RegisteredIngressFlagsVnc | ctrl.RegisteredIngressFlagsNoGatewayConfig,
+				IsPublic:     false,
+			}},
+		}, nil
+	}
+
+	return ctrl.ConfiguredWebSessionResult{}, nil
 }
 
 func handleVnc(job *orc.Job, rank int, conn *ws.Conn) {
@@ -494,10 +922,58 @@ func handleVnc(job *orc.Job, rank int, conn *ws.Conn) {
 	}
 }
 
-func StartScheduledJob(job *orc.Job, rank int, node string) {
+func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	if !Enabled {
-		return
+		return util.HttpErr(http.StatusForbidden, "this system is not capable of running VMs at the moment")
 	}
+
+	isSensitiveProject := shared.IsSensitiveProject(job.Owner.Project.Value)
+	if isSensitiveProject {
+		return util.HttpErr(http.StatusForbidden, "VMs are not supported in sensitive projects")
+	}
+
+	if rank != 0 {
+		return util.HttpErr(http.StatusInternalServerError, "VMs with multiple ranks are not supported")
+	}
+
+	nameOfVm := vmName(job.Id, rank)
+
+	podSelector := k8smeta.LabelSelector{
+		MatchLabels: map[string]string{
+			"ucloud.dk/vmName": nameOfVm,
+		},
+	}
+
+	firewall := &k8snetwork.NetworkPolicy{
+		ObjectMeta: k8smeta.ObjectMeta{
+			Name: shared.FirewallName(job.Id),
+		},
+		Spec: k8snetwork.NetworkPolicySpec{
+			PodSelector: podSelector,
+			Egress: []k8snetwork.NetworkPolicyEgressRule{
+				{
+					To: []k8snetwork.NetworkPolicyPeer{{PodSelector: &podSelector}},
+				},
+			},
+			Ingress: []k8snetwork.NetworkPolicyIngressRule{{
+				From: []k8snetwork.NetworkPolicyPeer{{PodSelector: &podSelector}},
+			}},
+		},
+	}
+
+	sshService := shared.AssignAndPrepareSshService(job).GetOrDefault(nil)
+	if sshService != nil {
+		shared.AllowNetworkFromWorld(firewall, []orc.PortRangeAndProto{
+			{
+				Protocol: orc.IpProtocolTcp,
+				Start:    22,
+				End:      22,
+			},
+		})
+	}
+
+	preparedIp := shared.PublicIpPrepare(job, firewall)
+	ipService := preparedIp.Service
 
 	cinit := cloudInit{}
 	cinit.Users = append(cinit.Users, cloudInitUser{
@@ -513,12 +989,35 @@ func StartScheduledJob(job *orc.Job, rank int, node string) {
 	cinit.RunCommand = []string{
 		fmt.Sprintf("usermod -u %d ucloud", filesystem.DefaultUid),
 		fmt.Sprintf("groupmod -g %d ucloud", filesystem.DefaultUid),
+		"cp /etc/ucloud/ucloud-vmagent.service /etc/systemd/system",
+		"cp /etc/ucloud/ucloud-metrics.service /etc/systemd/system",
+		"systemctl daemon-reload",
+		"systemctl enable --now /etc/systemd/system/ucloud-vmagent.service",
+		"systemctl enable --now /etc/systemd/system/ucloud-metrics.service",
+	}
+
+	// NOTE(Dan): By default, cloud-init or KubeVirt will create a faulty netplan (based on the network-data) after a
+	// reboot. This netplan will directly target a mac-address, but this mac-address will incorrectly change between
+	// reboots. A result of this, is that DHCP is never turned on for the pod interface resulting in the incorrect
+	// configuration of the interface itself (and thus no network). We fix this by applying a similar plan to the
+	// default, but much more broadly returning any interface which might be the correct one and turning DHCP on.
+	networkData := map[string]any{
+		"version": 2,
+		"ethernets": map[string]any{
+			"default": map[string]any{
+				"match": map[string]any{
+					"name": "en*",
+				},
+				"dhcp4": true,
+				"dhcp6": true,
+			},
+		},
 	}
 
 	machine := &job.Status.ResolvedProduct.Value
 
-	nameOfVm := vmName(job.Id, rank)
-	existingVm, err := KubevirtClient.VirtualMachine(Namespace).Get(context.TODO(), nameOfVm, k8smeta.GetOptions{})
+	ctx := context.Background()
+	existingVm, err := KubevirtClient.VirtualMachine(Namespace).Get(ctx, nameOfVm, k8smeta.GetOptions{})
 	hasExistingVm := err == nil
 
 	vm := &kvcore.VirtualMachine{}
@@ -554,13 +1053,6 @@ func StartScheduledJob(job *orc.Job, rank int, node string) {
 
 	vm.Spec.Template = &kvcore.VirtualMachineInstanceTemplateSpec{
 		Spec: kvcore.VirtualMachineInstanceSpec{
-			// TODO Cluster DNS doesn't work (NetworkPolicy?)
-			DNSPolicy: k8score.DNSNone,
-			DNSConfig: &k8score.PodDNSConfig{
-				Nameservers: []string{
-					"1.1.1.1",
-				},
-			},
 			NodeSelector: map[string]string{
 				"kubernetes.io/hostname": node,
 			},
@@ -570,7 +1062,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) {
 					Threads: max(1, uint32(machine.Cpu)),
 				},
 				Memory: &kvcore.Memory{
-					Guest: resource.NewScaledQuantity(int64(machine.MemoryInGigs), resource.Giga),
+					Guest: k8sresource.NewScaledQuantity(int64(machine.MemoryInGigs), k8sresource.Giga),
 				},
 				Devices: kvcore.Devices{
 					Disks: []kvcore.Disk{
@@ -593,22 +1085,6 @@ func StartScheduledJob(job *orc.Job, rank int, node string) {
 							BootOrder: util.UintPointer(3),
 						},
 					},
-					Interfaces: []kvcore.Interface{
-						{
-							Name: "default",
-							InterfaceBindingMethod: kvcore.InterfaceBindingMethod{
-								Masquerade: &kvcore.InterfaceMasquerade{},
-							},
-						},
-					},
-				},
-			},
-			Networks: []kvcore.Network{
-				{
-					Name: "default",
-					NetworkSource: kvcore.NetworkSource{
-						Pod: &kvcore.PodNetwork{},
-					},
 				},
 			},
 			Volumes: []kvcore.Volume{
@@ -626,19 +1102,32 @@ func StartScheduledJob(job *orc.Job, rank int, node string) {
 		},
 	}
 
+	vm.Spec.Template.ObjectMeta.Labels = map[string]string{}
+	vm.Spec.Template.ObjectMeta.Labels["ucloud.dk/vmName"] = vm.Name
+	jobIdLabel := shared.JobIdLabel(job.Id)
+	vm.Spec.Template.ObjectMeta.Labels[jobIdLabel.First] = jobIdLabel.Second
+	jobRankLabel := shared.JobRankLabel(rank)
+	vm.Spec.Template.ObjectMeta.Labels[jobRankLabel.First] = jobRankLabel.Second
+
 	tplSpec := &vm.Spec.Template.Spec
 
 	type mountEntry struct {
-		volName string
-		subpath string
+		volName           string
+		subpath           string
+		mountFolder       string
+		title             string
+		explicitMountPath string
 	}
 	mountsByName := map[string][]mountEntry{}
 
 	type unpreparedMount struct {
-		SubPath    string
-		ReadOnly   bool
-		UCloudPath string
-		Title      string
+		SubPath       string
+		ReadOnly      bool
+		UCloudPath    string
+		MountPath     string
+		Title         string
+		MountFolder   string
+		PersistentTag string
 	}
 	var unpreparedMounts []unpreparedMount
 	for _, param := range job.Specification.Resources {
@@ -657,21 +1146,166 @@ func StartScheduledJob(job *orc.Job, rank int, node string) {
 				SubPath:    subpath,
 				ReadOnly:   param.ReadOnly,
 				UCloudPath: param.Path,
+				MountPath:  param.MountPath,
 			})
 		}
 	}
 
 	unpreparedMounts = append(unpreparedMounts, unpreparedMount{
-		SubPath:  shared.ExecutablesDir,
-		ReadOnly: true,
-		Title:    ".ucloud-exe",
+		SubPath:       shared.ExecutablesDir,
+		ReadOnly:      true,
+		Title:         "ucloud",
+		MountFolder:   "/opt",
+		PersistentTag: "ucloud-opt",
 	})
 
+	jobFolder, herr := JobFolder(job)
+	if herr != nil {
+		log.Warn("Could not find job folder: %v %s", job.Id, err)
+		return util.HttpErr(http.StatusInternalServerError, "internal error")
+	} else {
+		confDir := filepath.Join(jobFolder, "config")
+		confDirSubpath, ok := strings.CutPrefix(confDir, filepath.Clean(ServiceConfig.FileSystem.MountPoint)+"/")
+		if !ok {
+			log.Warn("sub path to folder is invalid: %v %s", job.Id, err)
+			return util.HttpErr(http.StatusInternalServerError, "internal error")
+		}
+
+		logsDir := filepath.Join(jobFolder, "logs")
+		logsDirSubPath, ok := strings.CutPrefix(logsDir, filepath.Clean(ServiceConfig.FileSystem.MountPoint)+"/")
+		if !ok {
+			log.Warn("sub path to folder is invalid: %v %s", job.Id, err)
+			return util.HttpErr(http.StatusInternalServerError, "internal error")
+		}
+
+		if !hasExistingVm {
+			err = os.MkdirAll(confDir, 0700)
+			if err != nil {
+				log.Warn("Could not create job folder: %v %s", job.Id, err)
+				return util.HttpErr(http.StatusInternalServerError, "internal error")
+			}
+
+			err = os.Chown(confDir, filesystem.DefaultUid, filesystem.DefaultUid)
+			if err != nil {
+				log.Warn("Could not create chown folder: %v %s", job.Id, err)
+				return util.HttpErr(http.StatusInternalServerError, "internal error")
+			}
+
+			agentTok := util.SecureToken()
+			srvTok := util.SecureToken()
+			db.NewTx0(func(tx *db.Transaction) {
+				db.Exec(
+					tx,
+					`
+						insert into k8s.vmagents(job_id, agent_token, srv_token)
+						values (:job_id, :agent_token, :srv_token)
+						on conflict (job_id) do update set 
+						    agent_token = excluded.agent_token, 
+						    srv_token = excluded.srv_token
+					`,
+					db.Params{
+						"job_id":      job.Id,
+						"agent_token": agentTok,
+						"srv_token":   srvTok,
+					},
+				)
+			})
+
+			writeConfFile := func(name string, data []byte, mode os.FileMode) *util.HttpError {
+				tokPath := filepath.Join(confDir, name)
+				err := os.WriteFile(tokPath, data, mode)
+				if err != nil {
+					log.Warn("Could not create write %s: %v %s", name, job.Id, err)
+					return util.HttpErr(http.StatusInternalServerError, "internal error")
+				}
+
+				err = os.Chown(tokPath, filesystem.DefaultUid, filesystem.DefaultUid)
+				if err != nil {
+					log.Warn("Could not chown %s: %v %s", name, job.Id, err)
+					return util.HttpErr(http.StatusInternalServerError, "internal error")
+				}
+
+				return nil
+			}
+
+			if herr = writeConfFile("token", []byte(fmt.Sprintf("%s\n%s", agentTok, srvTok)), 0600); herr != nil {
+				return herr
+			}
+
+			if herr = writeConfFile("ucloud-vmagent.service", vmAgentSystemdFile, 0600); herr != nil {
+				return herr
+			}
+
+			if herr = writeConfFile("ucloud-metrics.service", ucmetricsSystemdFile, 0600); herr != nil {
+				return herr
+			}
+
+			err = os.MkdirAll(logsDir, 0770)
+			if err != nil {
+				log.Warn("Could not create logs dir: %v %s", job.Id, err)
+				return util.HttpErr(http.StatusInternalServerError, "internal error")
+			}
+
+			err = os.Chown(logsDir, filesystem.DefaultUid, filesystem.DefaultUid)
+			if err != nil {
+				log.Warn("Could not chown logs dir: %v %s", job.Id, err)
+				return util.HttpErr(http.StatusInternalServerError, "internal error")
+			}
+		}
+
+		unpreparedMounts = append(unpreparedMounts, unpreparedMount{
+			SubPath:       confDirSubpath,
+			ReadOnly:      true,
+			Title:         "ucloud",
+			MountFolder:   "/etc",
+			PersistentTag: "ucloud-etc",
+		})
+
+		unpreparedMounts = append(unpreparedMounts, unpreparedMount{
+			SubPath:       logsDirSubPath,
+			ReadOnly:      false,
+			Title:         "",
+			MountFolder:   "/work",
+			PersistentTag: "ucloud-work",
+		})
+	}
+
 	fsIdx := 0
+	for key := range vm.Annotations {
+		if strings.HasPrefix(key, "ucloud.dk/vmVolPath-") || strings.HasPrefix(key, "ucloud.dk/vmVolReadOnly-") {
+			delete(vm.Annotations, key)
+		}
+	}
+
+	explicitMountPaths := map[string]string{}
 	for _, param := range unpreparedMounts {
 		subpath := param.SubPath
+		explicitMountPath := ""
+		if strings.TrimSpace(param.MountPath) != "" {
+			normalizedMountPath, ok := shared.ValidateFileMountPath(param.MountPath)
+			if !ok {
+				return util.HttpErr(http.StatusBadRequest, "Invalid mount path. Mount paths cannot be /etc/ucloud, /opt/ucloud, /work, or under /work.")
+			}
 
-		volName := fmt.Sprintf("ucloud-%d", fsIdx)
+			if existingUCloudPath, exists := explicitMountPaths[normalizedMountPath]; exists && existingUCloudPath != param.UCloudPath {
+				return util.HttpErr(
+					http.StatusBadRequest,
+					"Conflicting mount path '%s' requested for '%s' and '%s'.",
+					normalizedMountPath,
+					existingUCloudPath,
+					param.UCloudPath,
+				)
+			}
+
+			explicitMountPath = normalizedMountPath
+			explicitMountPaths[normalizedMountPath] = param.UCloudPath
+		}
+
+		volName := fmt.Sprintf("ucloud-r%s%d", util.RandomTokenNoTs(4), fsIdx)
+		if param.PersistentTag != "" {
+			volName = param.PersistentTag
+		}
+
 		tplSpec.Volumes = append(tplSpec.Volumes, kvcore.Volume{
 			Name: volName,
 			VolumeSource: kvcore.VolumeSource{
@@ -704,19 +1338,51 @@ func StartScheduledJob(job *orc.Job, rank int, node string) {
 			} else {
 				title = comps[compsLen-1]
 			}
-		} else if param.Title != "" {
+		} else {
 			title = param.Title
 		}
 
-		bucket, _ := mountsByName[title]
-		bucket = append(bucket, mountEntry{volName, subpath})
-		mountsByName[title] = bucket
+		bucketKey := param.MountFolder + title
+		if explicitMountPath != "" {
+			bucketKey = "explicit:" + explicitMountPath
+		}
+
+		bucket, _ := mountsByName[bucketKey]
+		bucket = append(bucket, mountEntry{
+			volName:           volName,
+			subpath:           subpath,
+			mountFolder:       param.MountFolder,
+			title:             title,
+			explicitMountPath: explicitMountPath,
+		})
+		mountsByName[bucketKey] = bucket
 
 		fsIdx++
 	}
 
-	for requestedTitle, bucket := range mountsByName {
+	var userDrives struct {
+		Mounts [][]string `yaml:"mounts"`
+	}
+
+	for _, bucket := range mountsByName {
+		if bucket[0].explicitMountPath != "" {
+			if len(bucket) > 1 {
+				return util.HttpErr(
+					http.StatusBadRequest,
+					"Conflicting mount path '%s' was requested more than once.",
+					bucket[0].explicitMountPath,
+				)
+			}
+
+			userDrives.Mounts = append(userDrives.Mounts, []string{
+				bucket[0].volName,
+				bucket[0].explicitMountPath,
+			})
+			continue
+		}
+
 		useSuffix := len(bucket) > 1
+		requestedTitle := bucket[0].title
 
 		// NOTE(Dan): Must remain consistent with container mount logic for overall consistency
 		slices.SortFunc(bucket, func(a, b mountEntry) int {
@@ -731,30 +1397,61 @@ func StartScheduledJob(job *orc.Job, rank int, node string) {
 				title = requestedTitle
 			}
 
-			cinit.Mounts = append(cinit.Mounts, []string{
-				item.volName, fmt.Sprintf("/work/%s", title), "virtiofs", "defaults", "0", "0",
-			})
+			mountPath := ""
+			if bucket[0].mountFolder == "" {
+				mountPath = filepath.Join("/work", title)
+				userDrives.Mounts = append(userDrives.Mounts, []string{
+					item.volName, mountPath,
+				})
+			} else {
+				mountPath = filepath.Join(bucket[0].mountFolder, title)
+				cinit.Mounts = append(cinit.Mounts, []string{
+					item.volName, mountPath, "virtiofs", "_netdev,nofail", "0", "0",
+				})
+			}
 		}
+	}
+
+	{
+		confDir := filepath.Join(jobFolder, "config")
+		optionalDriveMounts, _ := yaml.Marshal(userDrives)
+		mountsYml := filepath.Join(confDir, "mounts.yml")
+		_ = os.WriteFile(mountsYml, optionalDriveMounts, 0600)
+		_ = os.Chown(mountsYml, filesystem.DefaultUid, filesystem.DefaultUid)
 	}
 
 	cinitRawData, _ := json.Marshal(cinit)
 	cinitData := "#cloud-config\n" + string(cinitRawData)
+	networkDataBytes, _ := json.Marshal(networkData)
 
 	tplSpec.Volumes = append(tplSpec.Volumes,
 		kvcore.Volume{
 			Name: "cloudinitdisk",
 			VolumeSource: kvcore.VolumeSource{
 				CloudInitNoCloud: &kvcore.CloudInitNoCloudSource{
-					UserData: cinitData,
+					UserData:    cinitData,
+					NetworkData: string(networkDataBytes),
 				},
 			},
 		},
 	)
 
+	dnsConfig, herr := shared.PrivateNetworkCreateDnsConfig(job)
+	if herr != nil {
+		return herr
+	}
+
+	tplSpec.Hostname = dnsConfig.Hostname
+	tplSpec.Subdomain = dnsConfig.Subdomain
+	tplSpec.DNSConfig = dnsConfig.PodDns
+	for label, value := range dnsConfig.Labels {
+		vm.Spec.Template.ObjectMeta.Labels[label] = value
+	}
+
 	if hasExistingVm {
-		_, err = KubevirtClient.VirtualMachine(Namespace).Update(context.TODO(), vm, k8smeta.UpdateOptions{})
+		err = updateExistingVmWithRetry(ctx, nameOfVm, vm)
 	} else {
-		vm, localErr := KubevirtClient.VirtualMachine(Namespace).Create(context.TODO(), vm, k8smeta.CreateOptions{})
+		vm, localErr := KubevirtClient.VirtualMachine(Namespace).Create(ctx, vm, k8smeta.CreateOptions{})
 		err = localErr
 		if err == nil {
 			ownerReference := k8smeta.OwnerReference{
@@ -765,17 +1462,93 @@ func StartScheduledJob(job *orc.Job, rank int, node string) {
 			}
 
 			herr := diskPrepareForJob(job, primaryDiskClaimName, ownerReference, diskSize)
+
+			if firewall != nil && herr == nil {
+				firewall.OwnerReferences = append(firewall.OwnerReferences, ownerReference)
+
+				_, myError := shared.K8sClient.NetworkingV1().NetworkPolicies(Namespace).
+					Create(ctx, firewall, k8smeta.CreateOptions{})
+				herr = util.MergeHttpErr(herr, util.HttpErrorFromErr(myError))
+			}
+
+			if sshService != nil && herr == nil {
+				sshService.OwnerReferences = append(sshService.OwnerReferences, ownerReference)
+
+				_, myError := shared.K8sClient.CoreV1().Services(Namespace).
+					Create(ctx, sshService, k8smeta.CreateOptions{})
+				herr = util.MergeHttpErr(herr, util.HttpErrorFromErr(myError))
+			}
+			if ipService != nil && herr == nil {
+				ipService.OwnerReferences = append(ipService.OwnerReferences, ownerReference)
+
+				_, myError := shared.K8sClient.CoreV1().Services(Namespace).
+					Create(ctx, ipService, k8smeta.CreateOptions{})
+				herr = util.MergeHttpErr(herr, util.HttpErrorFromErr(myError))
+			}
+
 			if herr != nil {
 				err = herr.AsError()
 			}
 		}
 	}
+
 	if err != nil {
-		// TODO
-		// TODO
-		// TODO
-		log.Info("Failed to create VM: %v", err)
+		log.Warn("Failed to create VM: %v", err)
+		return util.HttpErr(http.StatusInternalServerError, "failed to create VM")
 	}
+	return nil
+}
+
+const vmUpdateConflictRetries = 5
+
+func updateExistingVmWithRetry(ctx context.Context, name string, desired *kvcore.VirtualMachine) error {
+	var err error
+
+	for attempt := 0; attempt <= vmUpdateConflictRetries; attempt++ {
+		latestVm, getErr := KubevirtClient.VirtualMachine(Namespace).Get(ctx, name, k8smeta.GetOptions{})
+		if getErr != nil {
+			return getErr
+		}
+
+		latestVm.Spec = desired.Spec
+		latestVm.Annotations = desired.Annotations
+
+		_, err = KubevirtClient.VirtualMachine(Namespace).Update(ctx, latestVm, k8smeta.UpdateOptions{})
+		if err == nil {
+			return nil
+		}
+
+		if !k8serrors.IsConflict(err) {
+			return err
+		}
+
+		if attempt == vmUpdateConflictRetries {
+			break
+		}
+
+		time.Sleep(time.Duration(attempt+1) * 100 * time.Millisecond)
+	}
+
+	return err
 }
 
 const vmDiskSizeParameter = "diskSize"
+
+func JobFolder(job *orc.Job) (string, *util.HttpError) {
+	internalMemberFiles, _, herr := filesystem.InitializeMemberFiles(job.Owner.CreatedBy, job.Owner.Project)
+	if herr != nil {
+		return "", herr
+	}
+
+	return filepath.Join(internalMemberFiles, "Jobs", "VirtualMachines", job.Id), nil
+}
+
+func attachResource(job *orc.Job, resource orc.AppParameterValue) *util.HttpError {
+	// Nothing to do
+	return nil
+}
+
+func detachResource(job *orc.Job, resource orc.AppParameterValue) *util.HttpError {
+	// Nothing to do
+	return nil
+}

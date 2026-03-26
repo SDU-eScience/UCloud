@@ -1,6 +1,6 @@
 import * as React from "react";
 import {fuzzySearch} from "@/Utilities/CollectionUtilities";
-import {CSSProperties, useCallback, useMemo, useRef, useState} from "react";
+import {CSSProperties, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {doNothing, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import {injectStyle} from "@/Unstyled";
@@ -21,6 +21,11 @@ export interface SimpleRichItem {
     value: string;
 }
 
+const SIMPLE_RICH_SELECT_OPENED_EVENT = "ucloud:simple-rich-select-opened";
+interface SimpleRichSelectOpenedDetail {
+    sourceId: string;
+}
+
 export const SimpleRichSelect: React.FunctionComponent<{
     items: SimpleRichItem[];
     selected?: SimpleRichItem;
@@ -30,28 +35,125 @@ export const SimpleRichSelect: React.FunctionComponent<{
     dropdownWidth?: string;
     placeholder?: string;
     noResultsItem?: SimpleRichItem;
+    searchable?: boolean;
 }> = props => {
-    return <RichSelect
-        items={props.items}
-        keys={["key"]}
-        RenderRow={p =>
-            <Box p={"4px"} textAlign={"left"} minHeight={25} onClick={p.onSelect} {...p.dataProps}>
-                {p?.element?.value}
-            </Box>
-        }
-        RenderSelected={p =>
-            <Box p={"4px"} textAlign={"left"} minHeight={25} onClick={p.onSelect} {...p.dataProps}>
-                {p?.element?.value}
-            </Box>
-        }
-        onSelect={props.onSelect}
-        placeholder={props.placeholder}
-        dropdownWidth={props.dropdownWidth}
-        elementHeight={25}
-        selected={props.selected}
-        noResultsItem={props.noResultsItem}
-        chevronPlacement={{position: "absolute", bottom: "5px", right: "5px"}}
-    />
+    const instanceIdRef = useRef(`simple-rich-select-${Math.random().toString(36).slice(2)}`);
+    const [instanceVersion, setInstanceVersion] = useState(0);
+    const closeFn = useRef<() => void>(doNothing);
+
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+
+        const onAnySimpleRichSelectOpened = (event: Event) => {
+            const customEvent = event as CustomEvent<SimpleRichSelectOpenedDetail>;
+            if (customEvent.detail?.sourceId === instanceIdRef.current) return;
+            setInstanceVersion(current => current + 1);
+        };
+
+        window.addEventListener(SIMPLE_RICH_SELECT_OPENED_EVENT, onAnySimpleRichSelectOpened as EventListener);
+        return () => {
+            window.removeEventListener(SIMPLE_RICH_SELECT_OPENED_EVENT, onAnySimpleRichSelectOpened as EventListener);
+        };
+    }, []);
+
+    const announceOpen = useCallback(() => {
+        if (typeof window === "undefined") return;
+        window.dispatchEvent(new CustomEvent<SimpleRichSelectOpenedDetail>(SIMPLE_RICH_SELECT_OPENED_EVENT, {
+            detail: {sourceId: instanceIdRef.current},
+        }));
+    }, []);
+
+    if (props.searchable === false) {
+        const triggerText = props.selected?.value ?? props.placeholder ?? "Select...";
+        const dropdownWidth = props.dropdownWidth ?? "300px";
+        const itemHeight = 33;
+        const visibleItemCount = Math.max(1, Math.min(10, props.items.length));
+        const dropdownHeight = visibleItemCount * itemHeight;
+        const optionsRef = React.useRef<HTMLDivElement>(null);
+
+        const onTriggerClick = () => {
+            requestAnimationFrame(() => optionsRef.current?.focus());
+        };
+
+        return <div onMouseDownCapture={announceOpen}>
+            <ClickableDropdown
+                key={`${instanceIdRef.current}:${instanceVersion}`}
+                trigger={
+                    <div className={TriggerClass} style={{minWidth: props.fullWidth ? "500px" : dropdownWidth}}>
+                        <Box p={"4px"} textAlign={"left"} minHeight={25}>
+                            {triggerText}
+                        </Box>
+                        <Icon name="heroChevronDown" style={{position: "absolute", bottom: "5px", right: "5px"}} />
+                    </div>
+                }
+                onOpeningTriggerClick={onTriggerClick}
+                rightAligned
+                paddingControlledByContent
+                fullWidth={props.fullWidth ?? false}
+                width={props.fullWidth ? undefined : dropdownWidth}
+                height={dropdownHeight}
+                closeFnRef={closeFn}
+                arrowkeyNavigationKey={"data-active"}
+                hoverColor={"rowHover"}
+                colorOnHover={false}
+                onSelect={el => {
+                    const idxS = el?.getAttribute("data-idx") ?? "";
+                    const idx = parseInt(idxS);
+                    const item = props.items[idx];
+                    if (!item) return;
+                    props.onSelect(item);
+                    closeFn.current();
+                }}
+            >
+                <div
+                    ref={optionsRef}
+                    tabIndex={0}
+                    style={{maxHeight: `${dropdownHeight}px`, overflowY: "auto", outline: "none"}}
+                >
+                    {props.items.map((item, idx) => (
+                        <Box
+                            key={item.key}
+                            className={SimpleRichSelectOptionClass}
+                            p={"4px"}
+                            textAlign={"left"}
+                            minHeight={25}
+                            data-idx={idx.toString()}
+                            data-active={(props.selected?.key === item.key).toString()}
+                            style={props.selected?.key === item.key ? {backgroundColor: "var(--rowHover)"} : undefined}
+                            onClick={() => props.onSelect(item)}
+                        >
+                            {item.value}
+                        </Box>
+                    ))}
+                </div>
+            </ClickableDropdown>
+        </div>
+    }
+
+    return <div onMouseDownCapture={announceOpen}>
+        <RichSelect
+            key={`${instanceIdRef.current}:${instanceVersion}`}
+            items={props.items}
+            keys={["key"]}
+            RenderRow={p =>
+                <Box p={"4px"} textAlign={"left"} minHeight={25} onClick={p.onSelect} {...p.dataProps}>
+                    {p?.element?.value}
+                </Box>
+            }
+            RenderSelected={p =>
+                <Box p={"4px"} textAlign={"left"} minHeight={25} onClick={p.onSelect} {...p.dataProps}>
+                    {p?.element?.value}
+                </Box>
+            }
+            onSelect={props.onSelect}
+            placeholder={props.placeholder}
+            dropdownWidth={props.dropdownWidth}
+            elementHeight={25}
+            selected={props.selected}
+            noResultsItem={props.noResultsItem}
+            chevronPlacement={{position: "absolute", bottom: "5px", right: "5px"}}
+        />
+    </div>
 }
 
 const INPUT_FIELD_HEIGHT = 35;
@@ -73,6 +175,11 @@ export function RichSelect<T, K extends keyof T>(props: {
 
     placeholder?: string;
     noResultsItem?: T;
+    trigger?: React.ReactNode;
+    matchTriggerWidth?: boolean;
+    rightAligned?: boolean;
+    disabled?: boolean;
+    showSearchField?: boolean;
 }): React.ReactNode {
     const [query, setQuery] = useState("");
     const closeFn = useRef<() => void>(doNothing);
@@ -96,17 +203,26 @@ export function RichSelect<T, K extends keyof T>(props: {
     const [dropdownSize, setDropdownSize] = useState(props.dropdownWidth ?? "300px");
 
     const onTriggerClick = useCallback(() => {
+        setQuery("");
+        if (props.matchTriggerWidth === false) {
+            if (props.dropdownWidth) setDropdownSize(props.dropdownWidth);
+            return;
+        }
+
         const trigger = triggerRef.current;
         if (!trigger) return;
         const width = trigger.getBoundingClientRect().width;
-        setQuery("");
         setDropdownSize(width + "px");
-    }, []);
+    }, [props.matchTriggerWidth, props.dropdownWidth]);
 
-    const height = Math.min(370, (props.elementHeight ?? 40) * limitedElements.length + INPUT_FIELD_HEIGHT);
+    const showSearchField = props.items.length > 1 && props.showSearchField !== false;
+    const searchFieldHeight = showSearchField ? INPUT_FIELD_HEIGHT : 0;
+    const height = Math.min(370, (props.elementHeight ?? 40) * limitedElements.length + searchFieldHeight);
 
-    return <ClickableDropdown
-        trigger={props.FullRenderSelected ?
+    const trigger = props.trigger ?
+        <div ref={triggerRef}>{props.trigger}</div>
+        :
+        props.FullRenderSelected ?
             <props.FullRenderSelected element={props.selected} onSelect={doNothing} />
             :
             props.RenderSelected ?
@@ -114,10 +230,16 @@ export function RichSelect<T, K extends keyof T>(props: {
                     <props.RenderSelected element={props.selected} onSelect={doNothing} />
                     <Icon name="heroChevronDown" style={props.chevronPlacement} />
                 </div>
-                : <></>
-        }
+                : <></>;
+
+    if (props.disabled) {
+        return trigger;
+    }
+
+    return <ClickableDropdown
+        trigger={trigger}
         onOpeningTriggerClick={onTriggerClick}
-        rightAligned
+        rightAligned={props.rightAligned ?? true}
         height={height}
         closeFnRef={closeFn}
         paddingControlledByContent
@@ -139,34 +261,36 @@ export function RichSelect<T, K extends keyof T>(props: {
         }}
     >
         <div style={{height: height + "px", width: dropdownSize}}>
-            <Flex>
-                <Input
-                    autoFocus
-                    className={FilterInputClass}
-                    placeholder={props.placeholder ?? "Search..."}
-                    defaultValue={query}
-                    onClick={stopPropagationAndPreventDefault}
-                    enterKeyHint="enter"
-                    onKeyDownCapture={e => {
-                        if (["Escape"].includes(e.code) && e.target["value"]) {
-                            setQuery("");
-                            e.target["value"] = "";
+            {!showSearchField ? null : (
+                <Flex>
+                    <Input
+                        autoFocus
+                        className={FilterInputClass}
+                        placeholder={props.placeholder ?? "Search..."}
+                        defaultValue={query}
+                        onClick={stopPropagationAndPreventDefault}
+                        enterKeyHint="enter"
+                        onKeyDownCapture={e => {
+                            if (["Escape"].includes(e.code) && e.target["value"]) {
+                                setQuery("");
+                                e.target["value"] = "";
+                                e.stopPropagation();
+                            }
+                        }}
+                        onKeyUp={e => {
                             e.stopPropagation();
-                        }
-                    }}
-                    onKeyUp={e => {
-                        e.stopPropagation();
-                        setQuery("value" in e.target ? e.target.value as string : "");
-                    }}
-                    type="text"
-                />
+                            setQuery("value" in e.target ? e.target.value as string : "");
+                        }}
+                        type="text"
+                    />
 
-                <Relative right="24px" top="5px" width="0px" height="0px">
-                    <Icon name="search" />
-                </Relative>
-            </Flex>
+                    <Relative right="24px" top="5px" width="0px" height="0px">
+                        <Icon name="search" />
+                    </Relative>
+                </Flex>
+            )}
 
-            <div className={ResultWrapperClass} style={{maxHeight: (height - INPUT_FIELD_HEIGHT) + "px", height: height + "px"}}>
+            <div className={ResultWrapperClass} style={{maxHeight: (height - searchFieldHeight) + "px", height: height + "px"}}>
                 {limitedElements.map(it => <props.RenderRow
                     element={it}
                     key={it.idx}
@@ -242,5 +366,12 @@ const TriggerClass = injectStyle("rich-select-trigger", k => `
         bottom: 13px;
         right: 15px;
         height: 16px;
+    }
+`);
+
+const SimpleRichSelectOptionClass = injectStyle("simple-rich-select-option", k => `
+    ${k}:hover {
+        background-color: var(--rowHover);
+        cursor: pointer;
     }
 `);

@@ -209,6 +209,7 @@ type scopedUsage struct {
 // As always, locking a wallet is considered a significant update and thus triggers a message to relevant service
 // providers.
 func internalReportUsage(now time.Time, request accapi.ReportUsageRequest) (bool, *util.HttpError) {
+	fmt.Printf("this is the request %v\n", request)
 	accGlobals.Mu.RLock()
 	b, ok := accGlobals.BucketsByCategory[request.CategoryIdV2]
 	accGlobals.Mu.RUnlock()
@@ -240,6 +241,8 @@ func internalReportUsage(now time.Time, request accapi.ReportUsageRequest) (bool
 	b.Mu.Lock()
 	defer b.Mu.Unlock()
 
+	fmt.Printf("Scope is nil: %v\n", scope == nil)
+
 	if scope != nil {
 		scope.Mu.Lock()
 		defer scope.Mu.Unlock()
@@ -249,16 +252,24 @@ func internalReportUsage(now time.Time, request accapi.ReportUsageRequest) (bool
 
 	var currentUsage, delta int64
 	if scope == nil {
+		fmt.Printf("Using local\n")
 		currentUsage = w.LocalUsage
 	} else {
+		fmt.Printf("Using scope\n")
 		currentUsage = scope.Usage
 	}
+	fmt.Printf("current usage: %d\n", currentUsage)
 
 	if request.IsDeltaCharge {
+		fmt.Printf("IS Delta\n")
 		delta = request.Usage
 	} else {
+		fmt.Printf("IS not Delta\n")
+
 		delta = request.Usage - currentUsage
 	}
+
+	fmt.Printf("delta: %d\n", delta)
 
 	if scope != nil {
 		scope.Usage = currentUsage + delta
@@ -266,18 +277,23 @@ func internalReportUsage(now time.Time, request accapi.ReportUsageRequest) (bool
 	}
 
 	deltaToReport := delta
+	fmt.Printf("deltaToReport: %d\n", deltaToReport)
 	if delta < 0 {
+		fmt.Printf("Delta is negative\n")
 		// Check if there is local excess which should counter-act the decrease
 		propagated := lInternalWalletTotalPropagatedUsage(b, w)
 		inNode := lInternalWalletTotalUsageInNode(b, w)
 		excess := min(inNode-propagated, w.LocalUsage)
 
+		fmt.Printf("exces usage: %d\n", excess)
 		if excess > 0 {
 			deltaToReport = min(0, deltaToReport+excess)
 		}
+		fmt.Printf("deltaToReport checkup: %d\n", deltaToReport)
 	}
 
 	_, visitedWallets := lInternalReportUsage(b, now, w, deltaToReport)
+	fmt.Printf("visited wallets: %d\n", visitedWallets)
 	w.LocalUsage += delta
 	w.Dirty = true
 
@@ -750,6 +766,7 @@ func lInternalWalletByOwner(b *internalBucket, now time.Time, owner accOwnerId) 
 // The graph algorithms themselves are implemented in `accounting_graph.go`.
 
 func lInternalReportUsage(b *internalBucket, now time.Time, w *internalWallet, delta int64) (int64, map[AccWalletId]bool) {
+	fmt.Printf("lInternalReportUsage called for wallet %s with delta: %v\n", w.Id, delta)
 	chargeGraph := lInternalBuildGraph(b, now, w, internalGraphWithOverAllocation)
 
 	rootVertex := chargeGraph.WalletToVertex[internalGraphRoot]
@@ -761,6 +778,7 @@ func lInternalReportUsage(b *internalBucket, now time.Time, w *internalWallet, d
 	} else {
 		maxUsable = chargeGraph.MinCostFlow(rootVertex, walletVertex, delta)
 	}
+	fmt.Printf("maxUsable is : %v\n", maxUsable)
 
 	walletsUpdated := map[AccWalletId]bool{}
 	walletsUpdated[w.Id] = true
@@ -771,21 +789,24 @@ func lInternalReportUsage(b *internalBucket, now time.Time, w *internalWallet, d
 		for senderVertex := 0; senderVertex < gSize; senderVertex++ {
 			senderWalletId := chargeGraph.VertexToWallet[senderVertex]
 			senderWallet := b.WalletsById[senderWalletId]
-
+			fmt.Printf("senderWallet is : %v\n", senderWallet)
 			for receiverVertex := 0; receiverVertex < gSize; receiverVertex++ {
 				if chargeGraph.Original[receiverVertex][senderVertex] {
 					receiverWalletId := chargeGraph.VertexToWallet[receiverVertex]
 					receiverWallet := b.WalletsById[receiverWalletId]
+					fmt.Printf("receiverWallet is : %v\n", receiverWallet)
 					amount := chargeGraph.Adjacent[senderVertex][receiverVertex]
-
+					fmt.Printf("amount : %v\n", amount)
 					if senderWallet != nil {
 						group := senderWallet.AllocationsByParent[receiverWalletId]
+						fmt.Printf("Set group tree usage : %v\n", amount)
 						group.TreeUsage = amount
 						group.Dirty = true
 					}
 
 					if receiverWallet != nil {
 						receiverWallet.ChildrenUsage[senderWalletId] = amount
+						fmt.Printf("Set children Usage: %v\n", amount)
 						receiverWallet.Dirty = true
 					}
 				}
@@ -1024,6 +1045,7 @@ func lInternalRebalanceEx(b *internalBucket, now time.Time, wallet *internalWall
 // ensure that the lock flag is correctly set. If rebalance is true, then excess usage is reflown and retired balance
 // is balanced to other parts of the graph.
 func lInternalReevaluate(b *internalBucket, now time.Time, wallet *internalWallet, rebalance bool) {
+	fmt.Printf("InternalReevalutaing: %v, with reblance %v \n", wallet.Id, rebalance)
 	if b.disableEvaluation {
 		return
 	}
@@ -1044,6 +1066,8 @@ func lInternalReevaluate(b *internalBucket, now time.Time, wallet *internalWalle
 		visited[next.Id] = util.Empty{}
 
 		maxUsable := lInternalMaxUsable(b, now, next)
+		fmt.Printf("MaxUsable for %v is %v\n", next.Id, maxUsable)
+		fmt.Printf("next is locked: %v \n", next.WasLocked)
 		if maxUsable <= 0 && !next.WasLocked {
 			next.WasLocked = true
 			lInternalMarkSignificantUpdate(b, now, next)
@@ -1056,6 +1080,7 @@ func lInternalReevaluate(b *internalBucket, now time.Time, wallet *internalWalle
 			if _, hasVisited := visited[childId]; !hasVisited {
 				child := b.WalletsById[childId]
 				queue = append(queue, child)
+				fmt.Printf("Appending %v in queue \n", child.Id)
 			}
 		}
 	}
@@ -1432,7 +1457,7 @@ func internalRetrieveWallet(
 
 		ownerId := w.OwnedBy
 		owner := accGlobals.OwnersById[ownerId].WalletOwner()
-		apiWallet := lInternalWalletToApi(now, b, w, owner, includeChildren)
+		apiWallet := lInternalWalletToApi(now, b, w, owner, includeChildren, util.OptNone[int]())
 
 		b.Mu.RUnlock()
 		accGlobals.Mu.RUnlock()
@@ -1447,6 +1472,7 @@ func lInternalWalletToApi(
 	w *internalWallet,
 	owner accapi.WalletOwner,
 	includeChildren bool,
+	filterChildrenByIdleTimeInDays util.Option[int],
 ) accapi.WalletV2 {
 	groups := w.AllocationsByParent
 	apiWallet := accapi.WalletV2{
@@ -1559,7 +1585,19 @@ func lInternalWalletToApi(
 	}
 
 	if includeChildren {
+		activeChildren := map[AccWalletId]util.Empty{}
+		if filterChildrenByIdleTimeInDays.Present && filterChildrenByIdleTimeInDays.Value > 0 {
+			from := now.AddDate(0, 0, -filterChildrenByIdleTimeInDays.Value)
+			activeChildren = lUsageActiveChildrenInWindow(from, now, w.Id)
+		}
+
 		for childId, _ := range w.ChildrenUsage {
+			if len(activeChildren) > 0 {
+				if _, isActive := activeChildren[childId]; isActive {
+					continue
+				}
+			}
+
 			childWallet := b.WalletsById[childId]
 			childOwner := accGlobals.OwnersById[childWallet.OwnedBy]
 			g := childWallet.AllocationsByParent[w.Id]
@@ -1598,7 +1636,7 @@ func internalRetrieveWalletByAllocationId(
 			if iWallet != nil {
 				owner := accGlobals.OwnersById[iWallet.OwnedBy]
 				if owner != nil {
-					wallet = lInternalWalletToApi(now, bucket, iWallet, owner.WalletOwner(), false)
+					wallet = lInternalWalletToApi(now, bucket, iWallet, owner.WalletOwner(), false, util.OptNone[int]())
 					wId = walletId
 					found = true
 					bucket.Mu.RUnlock()
@@ -1620,6 +1658,23 @@ type walletFilter struct {
 
 	IncludeChildren bool
 	RequireActive   bool
+
+	FilterChildrenByIdleTimeInDays util.Option[int]
+}
+
+func lUsageActiveChildrenInWindow(from time.Time, until time.Time, parentWallet AccWalletId) map[AccWalletId]util.Empty {
+	result := map[AccWalletId]util.Empty{}
+
+	reports := usageRetrieveHistoricReports(from, until, parentWallet)
+	for _, report := range reports {
+		for _, item := range report.UsageOverTime.Delta {
+			if item.Child.Present && item.Change != 0 {
+				result[item.Child.Value] = util.Empty{}
+			}
+		}
+	}
+
+	return result
 }
 
 func internalRetrieveWallets(
@@ -1669,7 +1724,14 @@ func internalRetrieveWallets(
 		}
 
 		if shouldInclude {
-			apiWallet := lInternalWalletToApi(now, b, w, owner.WalletOwner(), filter.IncludeChildren)
+			apiWallet := lInternalWalletToApi(
+				now,
+				b,
+				w,
+				owner.WalletOwner(),
+				filter.IncludeChildren,
+				filter.FilterChildrenByIdleTimeInDays,
+			)
 			wallets = append(wallets, apiWallet)
 		}
 
@@ -1730,7 +1792,7 @@ func lRetrieveAncestorWallets(bucket *internalBucket, now time.Time, root AccWal
 	var wallets []accapi.WalletV2
 	for _, w := range relevantWallets {
 		owner := accGlobals.OwnersById[w.OwnedBy].WalletOwner()
-		wallets = append(wallets, lInternalWalletToApi(now, bucket, w, owner, false))
+		wallets = append(wallets, lInternalWalletToApi(now, bucket, w, owner, false, util.OptNone[int]()))
 	}
 
 	return wallets

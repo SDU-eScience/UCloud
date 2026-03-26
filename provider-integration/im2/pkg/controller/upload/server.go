@@ -134,6 +134,7 @@ func (f *serverFileUpload) Process() {
 		f.Status.Swap(1)
 
 		written := int64(0)
+		completed := false
 
 		didWriteErrorMetrics := false
 		if f.Entry.Size > 0 {
@@ -159,13 +160,20 @@ func (f *serverFileUpload) Process() {
 
 					written += int64(len(chunk))
 					if written >= f.Entry.Size {
+						completed = true
 						break outer
 					}
 				}
 			}
+		} else {
+			completed = true
 		}
 
-		f.Metrics.CompleteFile(f.Entry.Size)
+		if completed {
+			f.Metrics.CompleteFile(f.Entry.Size)
+		} else {
+			f.Metrics.SkipFile("incomplete transfer", f.Entry.Path)
+		}
 	} else {
 		f.Status.Swap(2)
 		f.Metrics.SkipFile("not needed", f.Entry.Path)
@@ -392,6 +400,7 @@ outer:
 
 	fs.OnSessionClose(session, wasClosed)
 
+	metrics.lock.Lock()
 	if metrics.FilesCompleted != 0 || metrics.FilesSkipped != 0 || metrics.BytesTransferred != 0 {
 		b := strings.Builder{}
 		b.WriteString(fmt.Sprintf(
@@ -411,8 +420,9 @@ outer:
 		}
 
 		output := b.String()
-		log.Info(output)
+		log.Info("%s", output)
 	}
+	metrics.lock.Unlock()
 	return wasClosed
 }
 

@@ -5,7 +5,6 @@ import {usePage} from "@/Navigation/Redux";
 import * as Pagination from "@/Pagination";
 import {usePromiseKeeper} from "@/PromiseKeeper";
 import * as React from "react";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {
     Box, Button, Flex, Input, List, TextArea, Link, Text, Card, Markdown, SelectableText, Checkbox, Label, SelectableTextWrapper
 } from "@/ui-components";
@@ -21,6 +20,7 @@ import AppRoutes from "@/Routes";
 import {NewsPost} from "@/NewsPost";
 import {emptyPage} from "@/Utilities/PageUtilities";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
 
 export const DATE_FORMAT = "dd/MM/yyyy HH:mm:ss";
 
@@ -200,16 +200,16 @@ function NewsManagement(): React.ReactNode {
         let category = categoryRef.current?.value;
 
         if (start == null) {
-            snackbarStore.addFailure("Please add a starting time and date.", false);
+            sendFailureNotification("Please add a starting time and date.");
             return;
         } else if (body == null || body === "") {
-            snackbarStore.addFailure("Please fill out body field", false);
+            sendFailureNotification("Please fill out body field");
             return;
         } else if (end != null && start.getTime() > end.getTime()) {
-            snackbarStore.addFailure("End time cannot be before start.", false);
+            sendFailureNotification("End time cannot be before start.");
             return;
         } else if (category == null || "") {
-            snackbarStore.addFailure("Please add a category.", false);
+            sendFailureNotification("Please add a category.");
             return;
         }
 
@@ -231,7 +231,7 @@ function NewsManagement(): React.ReactNode {
                     title, subtitle, body, category, showFrom: start.getTime(), hideFrom: end?.getTime()
                 })
             ).promise;
-            snackbarStore.addSuccess("Submitted", false, 2_000);
+            sendSuccessNotification("Submitted");
             fetchNewsPost(0, news.itemsPerPage);
         } catch (err) {
             displayErrorMessageOrDefault(err, "Could not add post.");

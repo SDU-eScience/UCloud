@@ -25,3 +25,18 @@ func apiTokensV1() db.MigrationScript {
 		},
 	}
 }
+
+func apiTokensV2() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "apiTokensV2",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					alter table provider.api_tokens add column server text
+			    `,
+				db.Params{},
+			)
+		},
+	}
+}

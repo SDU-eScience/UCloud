@@ -5,6 +5,7 @@ import (
 	"slices"
 	"time"
 
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
@@ -13,11 +14,13 @@ import (
 )
 
 var JobPods *K8sResourceTracker[*corev1.Pod]
+var BatchBackgroundJobs *K8sResourceTracker[*batchv1.Job]
 
 func Init() {
 	InitClients()
 	initProducts()
 	initSsh()
+	InitSshKeys()
 
 	JobPods = NewResourceTracker[*corev1.Pod](
 		ServiceConfig.Compute.Namespace,
@@ -26,6 +29,16 @@ func Init() {
 		},
 		func(resource *corev1.Pod) string {
 			return resource.Name
+		},
+	)
+
+	BatchBackgroundJobs = NewResourceTracker[*batchv1.Job](
+		ServiceConfig.Compute.TaskNamespace,
+		func(factory informers.SharedInformerFactory) cache.SharedIndexInformer {
+			return factory.Batch().V1().Jobs().Informer()
+		},
+		func(resource *batchv1.Job) string {
+			return resource.Namespace + "/" + resource.Name
 		},
 	)
 }
@@ -98,4 +111,23 @@ func IsSensitiveProject(project string) bool {
 	}
 
 	return slices.Contains(ServiceConfig.SensitiveProjects, project)
+}
+
+func JobHostName(job *orc.Job, rank int) string {
+	dnsConfig, err := PrivateNetworkCreateDnsConfig(job)
+	if err == nil && dnsConfig.PodDns != nil {
+		hostname := dnsConfig.Hostname
+		if rank != 0 {
+			hostname += fmt.Sprintf("-%d", rank)
+		}
+		return fmt.Sprintf("%s.%s.%s.svc.cluster.local", hostname, dnsConfig.Subdomain, ServiceConfig.Compute.Namespace)
+	} else {
+		return fmt.Sprintf(
+			"j-%v-job-%v.j-%v.%v.svc.cluster.local",
+			job.Id,
+			rank,
+			job.Id,
+			ServiceConfig.Compute.Namespace,
+		)
+	}
 }

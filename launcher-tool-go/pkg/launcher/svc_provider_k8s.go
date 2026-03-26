@@ -237,7 +237,7 @@ func ProviderK8s() {
 		etc := AddVolume(k3s, "etc")
 
 		AddService(k3s, DockerComposeService{
-			Image:    "rancher/k3s:v1.31.12-rc1-k3s1",
+			Image:    "rancher/k3s:v1.35.2-k3s1",
 			Hostname: "im2k3",
 			Restart:  "always",
 			Environment: []string{

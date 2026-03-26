@@ -2,7 +2,7 @@ import * as React from "react";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {usePromiseKeeper} from "@/PromiseKeeper";
 import {useEffect, useRef, useState} from "react";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
+
 import {Absolute, Box, Button, Flex, Icon, Image, Input, Text, ExternalLink, Link, Relative} from "@/ui-components";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {TextProps, TextSpan} from "@/ui-components/Text";
@@ -21,6 +21,7 @@ import halricWhite from "@/Assets/Images/halric_white.png";
 import interregWhite from "@/Assets/Images/interreg_white.svg";
 import AppRoutes from "@/Routes";
 import {addOrgInfoModalIfNotFilled} from "@/UserSettings/ChangeUserDetails";
+import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
 
 const IS_SANDBOX = onSandbox();
 const IS_GENERIC = !window.location.hostname.endsWith(".dk"); // NOTE(Dan): Overly simplified but works for now.
@@ -71,7 +72,7 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
 
     async function attemptLogin(): Promise<void> {
         if (!(usernameInput.current?.value) || !(passwordInput.current?.value)) {
-            snackbarStore.addFailure("Invalid username or password", false);
+            sendFailureNotification("Invalid username or password");
             return;
         }
 
@@ -97,17 +98,17 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
                     throw response;
                 }
 
-                snackbarStore.addFailure(response.statusText, false);
+                sendFailureNotification(response.statusText);
                 return;
             }
 
             handleAuthState(await response.json());
         } catch (e) {
-            snackbarStore.addFailure(
+            sendFailureNotification(
                 errorMessageOrDefault({
                     request: e,
                     response: "json" in e ? await e.json() : e
-                }, "An error occurred"), false
+                }, "An error occurred")
             );
         } finally {
             setLoading(false);
@@ -118,12 +119,12 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
         e.preventDefault();
 
         if (!(resetPasswordInput.current?.value) || !(resetPasswordRepeatInput.current?.value)) {
-            snackbarStore.addFailure("Invalid password", false);
+            sendFailureNotification("Invalid password");
             return;
         }
 
         if (resetPasswordInput.current?.value !== resetPasswordRepeatInput.current?.value) {
-            snackbarStore.addFailure("Passwords does not match", false);
+            sendFailureNotification("Passwords does not match");
             return;
         }
 
@@ -157,20 +158,13 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
 
             setLoading(false);
 
-            snackbarStore.addSuccess(
-                `Your password was changed successfully`,
-                true,
-                15_000
-            );
+            sendSuccessNotification("Your password was changed successfully");
 
             navigate(AppRoutes.login.login());
         } catch (err) {
             setLoading(false);
 
-            snackbarStore.addFailure(
-                err.statusText,
-                false
-            );
+            sendFailureNotification(err.statusText);
         }
     }
 
@@ -209,12 +203,11 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
             handleCompleteLogin(result);
         } catch (e) {
             setLoading(false);
-            snackbarStore.addFailure(
+            sendFailureNotification(
                 errorMessageOrDefault({
                     request: e,
                     response: await e.json()
-                }, "Could not submit verification code. Try again later"),
-                false
+                }, "Could not submit verification code. Try again later")
             );
         }
     }
@@ -240,12 +233,9 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
 
         resetEmailInput.current!.value = "";
         setLoading(false);
-        snackbarStore.addSuccess(
+        sendSuccessNotification(
             `If an account exists with the entered email address, you will receive an email shortly.
-            Please check your inbox and follow the instructions.`,
-            true,
-            15_000
-        );
+            Please check your inbox and follow the instructions.`);
     }
 
     const [showingWayf, setShowingWayf] = useState(!IS_SANDBOX && !IS_GENERIC);

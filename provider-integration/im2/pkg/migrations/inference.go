@@ -14,3 +14,33 @@ func inferenceV1() db.MigrationScript {
 		},
 	}
 }
+
+func inferenceV2() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "inferenceV2",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					drop table if exists inference_api_keys
+			    `,
+				db.Params{},
+			)
+
+			db.Exec(
+				tx,
+				`
+				create table inference_api_keys (
+				    token_id text primary key,
+				    owner text not null,
+				    token_hash bytea not null,
+				    token_salt bytea not null,
+				    expires_at timestamptz not null,
+				    last_used_at timestamptz not null default now()
+				)
+			    `,
+				db.Params{},
+			)
+		},
+	}
+}

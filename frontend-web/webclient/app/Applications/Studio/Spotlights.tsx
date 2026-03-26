@@ -3,15 +3,14 @@ import {Button, Flex, Link, MainContainer, Select} from "@/ui-components";
 import * as AppStore from "@/Applications/AppStoreApi";
 import {useCallback, useEffect, useState} from "react";
 import {Spotlight} from "@/Applications/AppStoreApi";
-import {emptyPageV2, fetchAll} from "@/Utilities/PageUtilities";
-import {callAPI, useCloudAPI} from "@/Authentication/DataHook";
+import {fetchAll} from "@/Utilities/PageUtilities";
+import {callAPI} from "@/Authentication/DataHook";
 import {usePage} from "@/Navigation/Redux";
 import {ListRow} from "@/ui-components/List";
 import AppRoutes from "@/Routes";
 import * as Heading from "@/ui-components/Heading";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
-import {inDevEnvironment} from "@/UtilityFunctions";
 
 const Spotlights: React.FunctionComponent = () => {
     const [spotlights, setSpotlights] = useState<Spotlight[]>([]);
@@ -52,7 +51,7 @@ const Spotlights: React.FunctionComponent = () => {
                                 <ConfirmationButton color={"errorMain"} icon={"heroTrash"} onAction={async () => {
                                     await callAPI(AppStore.deleteSpotlight({id: s.id ?? 0}));
                                     fetchSpotlights();
-                                }}/>
+                                }} />
                             </Flex>
                         }
                     />

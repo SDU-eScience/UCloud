@@ -2,7 +2,7 @@ import {callAPI as baseCallAPI} from "@/Authentication/DataHook";
 import MainContainer from "@/ui-components/MainContainer";
 import Text from "@/ui-components/Text";
 import {usePage} from "@/Navigation/Redux";
-import JobsApi, {Job, JobState} from "@/UCloud/JobsApi";
+import JobsApi, {Job, JobState, JobTypeFilter} from "@/UCloud/JobsApi";
 import {dateToDateStringOrTime, dateToString} from "@/Utilities/DateUtilities";
 import {
     bulkRequestOf,
@@ -50,7 +50,7 @@ import {injectStyle} from "@/Unstyled";
 import {SimpleAvatarComponentCache} from "@/Files/Shares";
 import {divText} from "@/Utilities/HTMLUtilities";
 import {TruncateClass} from "@/ui-components/Truncate";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {sendFailureNotification} from "@/Notifications";
 
 const defaultRetrieveFlags: {itemsPerPage: number} = {
     itemsPerPage: 250,
@@ -72,7 +72,7 @@ const simpleViewColumnTitles: ColumnTitleList = [{name: ""}, {name: "", sortById
 
 
 const RESOURCE_NAME = "JOBS";
-function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?: boolean; operations?: Operation<Job, ResourceBrowseCallbacks<Job>>[]}}): React.ReactNode {
+function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?: boolean; operations?: Operation<Job, ResourceBrowseCallbacks<Job>>[]; jobTypeFilter?: JobTypeFilter}}): React.ReactNode {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<Job> | null>(null);
     const navigate = useNavigate();
@@ -128,7 +128,8 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
 
                 const flags = {
                     ...defaultRetrieveFlags,
-                    ...(opts?.additionalFilters ?? {})
+                    ...(opts?.additionalFilters ?? {}),
+                    ...(opts?.jobTypeFilter ? {filterType: opts.jobTypeFilter} : {}),
                 };
 
                 browser.on("open", (oldPath, newPath, resource) => {
@@ -231,7 +232,7 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                     } else {
                         row.stat2.innerText = dateToDateStringOrTime(job.createdAt ?? timestampUnixMs());
                     }
-                    
+
                     // Time left in stat3
                     if (!simpleView) {
                         switch (job.status.state) {
@@ -272,7 +273,7 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                             }
                         }
                     }
-                    
+
                     setIcon(AppStore.retrieveAppLogo({
                         name: job.specification.application.name,
                         darkMode: !isLightThemeStored(),
@@ -320,7 +321,7 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                                     id: job.id,
                                     newTitle: job.specification.name,
                                 }))).catch(err => {
-                                    snackbarStore.addFailure(extractErrorMessage(err), false);
+                                    sendFailureNotification(extractErrorMessage(err));
                                     browser.refresh();
                                 });
 

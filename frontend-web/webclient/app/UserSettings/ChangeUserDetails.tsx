@@ -2,7 +2,7 @@ import {apiRetrieve, apiUpdate, callAPI, callAPIWithErrorHandler, useCloudComman
 import * as React from "react";
 import {useCallback, useEffect, useLayoutEffect, useRef, useState} from "react";
 import {Box, Button, Flex, Icon, Input, Label, Truncate} from "@/ui-components";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
+
 import {PayloadAction} from "@reduxjs/toolkit";
 import ResearchFields from "@/UserSettings/ResearchField";
 import Positions from "@/UserSettings/Position";
@@ -19,6 +19,7 @@ import {clamp} from "@/UtilityFunctions";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {SelectorDialog} from "@/Products/Selector";
 import {SettingsSection} from "./SettingsComponents";
+import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
 
 interface UserDetailsState {
     placeHolderFirstNames: string;
@@ -207,21 +208,22 @@ export function ChangeOrganizationDetails(props: ChangeOrganizationDetailsProps)
         (async () => {
             const info = await callAPI<OptionalInfo>(optionalInfoRequest());
 
-            if (orgFullNameRef.current) {
+            if ((info.organizationFullName || Client.orgId) && orgFullNameRef.current) {
                 const orgId = Client.orgId ? Client.orgId : info.organizationFullName;
                 const orgMapping = orgId ? (OrgMapping[orgId] ?? orgId) : undefined;
                 setOrg(orgMapping ?? "");
                 orgFullNameRef.current.value = orgMapping ?? info.organizationFullName ?? "";
             }
-            if (departmentRef.current)
+
+            if (info.department && departmentRef.current)
                 departmentRef.current.value = info.department ?? "";
-            if (unitRef.current)
+            if (info.unit && unitRef.current)
                 unitRef.current.value = info.unit ?? "";
-            if (researchFieldRef.current)
+            if (info.researchField && researchFieldRef.current)
                 researchFieldRef.current.value = info.researchField ?? "";
-            if (positionRef.current)
+            if (info.position && positionRef.current)
                 positionRef.current.value = info.position ?? "";
-            if (genderFieldRef.current)
+            if (info.gender && genderFieldRef.current)
                 genderFieldRef.current.value = info.gender ?? "";
 
         })();
@@ -296,7 +298,7 @@ export function ChangeOrganizationDetails(props: ChangeOrganizationDetailsProps)
 
         const isValid = errors.length === 0;
         if (!isValid) {
-            snackbarStore.addFailure(errors[0], false);
+            sendFailureNotification(errors[0]);
         }
         return {
             organizationFullName,
@@ -319,7 +321,7 @@ export function ChangeOrganizationDetails(props: ChangeOrganizationDetailsProps)
         if (!isValid) return;
         await callAPIWithErrorHandler(optionalInfoUpdate(values));
         props.onDidSubmit?.()
-        snackbarStore.addSuccess("Your information has been updated.", false);
+        sendSuccessNotification("Your information has been updated");
     }, []);
 
     const [org, setOrg] = useState(OrgMapping[Client.orgId] ?? Client.orgId ?? "");

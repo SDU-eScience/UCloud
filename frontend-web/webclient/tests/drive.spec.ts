@@ -1,59 +1,79 @@
 import {test, expect} from "@playwright/test";
-import {User, Drive, Project} from "./shared";
+import {User, Drive, Project, Rows, testCtx, Components, ctxUser, sharedTestProjectName, TestContexts} from "./shared";
 
-test.beforeEach(async ({page}) => {
-    await User.login(page);
+test.beforeEach(async ({page}, testInfo) => {
+    const args = testCtx(testInfo.titlePath);
+    await User.login(page, args.user);
+    if (args.projectName) await Project.changeTo(page, args.projectName);
 });
 
 /// Drive operations
 
-test("Create and delete drive (with available resources)", async ({page}) => {
-    const driveName = Drive.newDriveName();
-    await Drive.create(page, driveName);
-    await Drive.delete(page, driveName);
-    await expect(page.locator("div > span").filter({hasText: driveName})).toHaveCount(0);
-});
+TestContexts.map(ctx => {
+    test.describe(ctx, () => {
+        test("Create and delete drive (with available resources)", async ({page}) => {
+            if (ctx === "Project User") test.skip();
+            const driveName = Drive.newDriveNameOrMemberFiles(ctx);
+            await Drive.create(page, driveName);
+            await Drive.delete(page, driveName);
+            await page.locator("div > span").filter({hasText: driveName}).waitFor({state: "hidden"});
+        });
 
-test("Rename drive", async ({page}) => {
-    const driveName = Drive.newDriveName();
-    const newDriveName = Drive.newDriveName();
-    await Drive.create(page, driveName);
-    await Drive.rename(page, driveName, newDriveName);
-    await expect(page.locator("span").filter({hasText: newDriveName})).toHaveCount(1);
-    // Cleanup
-    await Drive.delete(page, newDriveName);
-});
+        test("Rename drive", async ({page}) => {
+            if (ctx === "Project User") test.skip();
+            const driveName = Drive.newDriveNameOrMemberFiles(ctx);
+            const newDriveName = Drive.newDriveNameOrMemberFiles(ctx);
+            await Drive.create(page, driveName);
+            await Drive.rename(page, driveName, newDriveName);
+            await page.locator("span").filter({hasText: newDriveName}).waitFor({state: "visible"});
+            // Cleanup
+            await Drive.delete(page, newDriveName);
+        });
 
-test("View properties", async ({page}) => {
-    const driveName = Drive.newDriveName();
-    await Drive.create(page, driveName);
-    await Drive.properties(page, driveName);
-    await expect(page.locator("b").filter({hasText: "ID:"})).toHaveCount(1);
-    await expect(page.locator("b").filter({hasText: "Product:"})).toHaveCount(1);
-    await expect(page.locator("b").filter({hasText: "Created by:"})).toHaveCount(1);
-    await expect(page.locator("b").filter({hasText: "Created at:"})).toHaveCount(1);
-    // Cleanup
-    await Drive.delete(page, driveName);
-});
+        test("View properties", async ({page}) => {
+            const userCtx = ctx === "Project User";
+            const driveName = Drive.newDriveNameOrMemberFiles(ctx);
+            if (!userCtx) await Drive.create(page, driveName);
+            else await Drive.goToDrives(page);
+            await Drive.properties(page, driveName);
+            await expect(page.locator("b").filter({hasText: "ID:"})).toHaveCount(1);
+            await expect(page.locator("b").filter({hasText: "Product:"})).toHaveCount(1);
+            await expect(page.locator("b").filter({hasText: "Created by:"})).toHaveCount(1);
+            await expect(page.locator("b").filter({hasText: "Created at:"})).toHaveCount(1);
+            // Cleanup
+            if (!userCtx) await Drive.delete(page, driveName);
+        });
 
-// Note(Jonas): Won't work without activating a project that you have admin rights to.
-test.skip("Change permissions", async ({page}) => {
-    const driveName = Drive.newDriveName();
-    await Drive.create(page, driveName);
-    await Drive.actionByRowTitle(page, driveName, "click");
-    await Drive.properties(page, driveName);
+        test("Drives - check change permissions works", async ({page: adminPage, browser}) => {
+            if (ctx === "Project User" || ctx === "Personal Workspace") test.skip();
 
-    const projectName = Project.newProjectName();
-    await Project.create(page, projectName);
-    await Project.changeTo(page, projectName);
+            const userPage = await (await browser.newContext()).newPage();
+            if (!userPage) throw Error("Failed to create user page");
+            const userInfo = ctxUser("Project User")!;
+            const projectName = sharedTestProjectName();
+            await User.login(userPage, userInfo);
 
-    await expect(page.locator("input#Write").first()).toBeChecked({checked: false});
-    await page.locator("input#Write").first().click();
-    await expect(page.locator("input#Write").first()).toBeChecked();
-    await page.keyboard.press("Escape");
+            // Create drive
+            const driveName = Drive.newDriveNameOrMemberFiles(ctx);
+            // Project User will not reach here, so we can safely create
+            await Drive.create(adminPage, driveName);
 
-    await Drive.actionByRowTitle(page, driveName, "click");
-    await Drive.properties(page, driveName);
-    await expect(page.locator("input#Write").first()).toBeChecked();
-    await page.keyboard.press("Escape");
+            // See that drive is not visible for project user
+            await Project.changeTo(userPage, projectName);
+            await Drive.goToDrives(userPage);
+            /* TODO(Jonas): Find a different approach */
+            await userPage.waitForLoadState("networkidle");
+
+            // Change rights for user to allow viewing
+            await Drive.openPermissions(adminPage, driveName);
+            await adminPage.locator(`div[data-group='All users']`).locator("#Read").click();
+
+            // Reload drives for user, see drive appears
+            await userPage.waitForTimeout(1_000)
+            await Components.clickRefreshAndWait(userPage);
+            await Rows.actionByRowTitle(userPage, driveName, "hover");
+
+            await Drive.delete(adminPage, driveName);
+        });
+    });
 });

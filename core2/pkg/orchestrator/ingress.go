@@ -9,7 +9,6 @@ import (
 	"strings"
 	"sync"
 
-	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
@@ -18,6 +17,8 @@ import (
 )
 
 const ingressType = "ingress"
+
+var hostnamePartRegex = regexp.MustCompile(`^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$`)
 
 func initIngresses() {
 	InitResourceType(
@@ -42,28 +43,7 @@ func initIngresses() {
 			return fndapi.PageV2[orcapi.Ingress]{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
 		}
 
-		sortByFn := ResourceDefaultComparator(func(item orcapi.Ingress) orcapi.Resource {
-			return item.Resource
-		}, request.ResourceFlags)
-
-		switch request.SortBy.GetOrDefault("") {
-		case "":
-			sortByFn = func(a orcapi.Ingress, b orcapi.Ingress) int {
-				return cmp.Compare(strings.ToLower(a.Specification.Domain), strings.ToLower(b.Specification.Domain))
-			}
-		}
-
-		return ResourceBrowse[orcapi.Ingress](
-			info.Actor,
-			ingressType,
-			request.Next,
-			request.ItemsPerPage,
-			request.ResourceFlags,
-			func(item orcapi.Ingress) bool {
-				return true
-			},
-			sortByFn,
-		), nil
+		return IngressBrowse(info.Actor, request), nil
 	})
 
 	orcapi.IngressesControlBrowse.Handler(func(info rpc.RequestInfo, request orcapi.IngressesControlBrowseRequest) (fndapi.PageV2[orcapi.Ingress], *util.HttpError) {
@@ -83,8 +63,6 @@ func initIngresses() {
 		), nil
 	})
 
-	hostnamePartRegex := regexp.MustCompile(`^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$`)
-
 	orcapi.IngressesCreate.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.IngressSpecification]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
 		if sourceIPisRestricted(info) {
 			return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
@@ -95,96 +73,14 @@ func initIngresses() {
 				return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(http.StatusForbidden, "Project does not allow creation of public links")
 			}
 		}
-		var result []fndapi.FindByStringId
-		for _, item := range request.Items {
-			supp, ok := SupportByProduct[orcapi.IngressSupport](ingressType, item.Product)
-			if !ok {
-				return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(http.StatusBadRequest, "unknown product requested")
-			}
+		created, err := IngressCreate(info.Actor, request)
+		if err != nil {
+			return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
+		}
 
-			// NOTE(Dan): Something like a prefix and a suffix should probably have gone on the product instead of the
-			// support info. This is not really a feature you turn on or off.
-			prefix, _ := supp.Get(ingressFeaturePrefix)
-			suffix, _ := supp.Get(ingressFeatureSuffix)
-
-			item.Domain = strings.ToLower(item.Domain)
-			withoutPrefix, okPrefix := strings.CutPrefix(item.Domain, prefix)
-			userToken, okSuffix := strings.CutSuffix(withoutPrefix, suffix)
-			userToken = strings.ToLower(userToken)
-
-			if !okPrefix || !okSuffix {
-				return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(
-					http.StatusBadRequest,
-					"domain must start with '%s' and end with '%s'",
-					prefix,
-					suffix,
-				)
-			}
-
-			if len(userToken) < 4 {
-				return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(
-					http.StatusBadRequest,
-					"your domain name must be at least 4 characters long (not including prefix and suffix)",
-				)
-			}
-
-			if len(item.Domain) > 253 {
-				return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(
-					http.StatusBadRequest,
-					"your domain name is too long",
-				)
-			}
-
-			if strings.Contains(userToken, ".") {
-				return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(
-					http.StatusBadRequest,
-					"you cannot create further sub-domains in the URL",
-				)
-			}
-
-			userTokFirst := []rune(userToken)[0]
-			if userTokFirst >= '0' && userTokFirst <= '9' {
-				return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(
-					http.StatusBadRequest,
-					"your domain must not start with a digit",
-				)
-			}
-
-			if !hostnamePartRegex.MatchString(userToken) {
-				return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(
-					http.StatusBadRequest,
-					"your domain name must not contain special characters",
-				)
-			}
-
-			ingressesByDomain.Mu.Lock()
-			_, exists := ingressesByDomain.Domains[item.Domain]
-			if !exists {
-				ingressesByDomain.Domains[item.Domain] = ResourceId(0) // placeholder to ensure that the spot is reserved
-			}
-			ingressesByDomain.Mu.Unlock()
-			if exists {
-				return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(
-					http.StatusBadRequest,
-					"your domain name is not unique, try a different one",
-				)
-			}
-
-			ing, err := ResourceCreateThroughProvider(
-				info.Actor,
-				ingressType,
-				item.Product,
-				&internalIngress{
-					Domain: item.Domain,
-				},
-				orcapi.IngressesProviderCreate,
-			)
-
-			if err != nil {
-				return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
-			} else {
-				result = append(result, fndapi.FindByStringId{Id: ing.Id})
-			}
+		result := make([]fndapi.FindByStringId, 0, len(created))
+		for _, ing := range created {
+			result = append(result, fndapi.FindByStringId{Id: ing.Id})
 		}
 
 		return fndapi.BulkResponse[fndapi.FindByStringId]{Responses: result}, nil
@@ -194,20 +90,7 @@ func initIngresses() {
 		if sourceIPisRestricted(info) {
 			return fndapi.BulkResponse[util.Empty]{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
 		}
-		for _, item := range request.Items {
-			err := ResourceDeleteThroughProvider[orcapi.Ingress](
-				info.Actor,
-				ingressType,
-				item.Id,
-				orcapi.IngressesProviderDelete,
-			)
-
-			if err != nil {
-				return fndapi.BulkResponse[util.Empty]{}, err
-			}
-		}
-
-		return fndapi.BulkResponse[util.Empty]{Responses: make([]util.Empty, len(request.Items))}, nil
+		return IngressDelete(info.Actor, request)
 	})
 
 	orcapi.IngressesSearch.Handler(func(info rpc.RequestInfo, request orcapi.IngressesSearchRequest) (fndapi.PageV2[orcapi.Ingress], *util.HttpError) {
@@ -259,6 +142,10 @@ func initIngresses() {
 		return fndapi.BulkResponse[util.Empty]{Responses: make([]util.Empty, len(request.Items))}, nil
 	})
 
+	orcapi.IngressesUpdateLabels.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.IngressesUpdateLabelsRequest]) (util.Empty, *util.HttpError) {
+		return util.Empty{}, IngressUpdateLabels(info.Actor, request)
+	})
+
 	orcapi.IngressesRetrieveProducts.Handler(func(info rpc.RequestInfo, request util.Empty) (orcapi.SupportByProvider[orcapi.IngressSupport], *util.HttpError) {
 		return SupportRetrieveProducts[orcapi.IngressSupport](ingressType), nil
 	})
@@ -290,7 +177,7 @@ func initIngresses() {
 					Project:   util.OptStringIfNotEmpty(reqItem.Project.Value),
 				},
 				nil,
-				util.OptValue(reqItem.Spec.Product),
+				reqItem.Spec.ResourceSpecification,
 				reqItem.ProviderGeneratedId,
 				&internalIngress{
 					Domain: reqItem.Spec.Domain,
@@ -328,6 +215,176 @@ func initIngresses() {
 
 		return util.Empty{}, nil
 	})
+
+	orcapi.IngressesControlUpdateLabels.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.IngressesUpdateLabelsRequest]) (util.Empty, *util.HttpError) {
+		for _, reqItem := range request.Items {
+			err := ResourceUpdateLabels(info.Actor, ingressType, reqItem.Id, reqItem.Labels, orcapi.PermissionProvider)
+			if err != nil {
+				return util.Empty{}, err
+			}
+		}
+
+		return util.Empty{}, nil
+	})
+}
+
+func IngressCreate(actor rpc.Actor, request fndapi.BulkRequest[orcapi.IngressSpecification]) ([]orcapi.Ingress, *util.HttpError) {
+	var created []orcapi.Ingress
+	for _, item := range request.Items {
+		supp, ok := SupportByProduct[orcapi.IngressSupport](ingressType, item.Product)
+		if !ok {
+			return nil, util.HttpErr(http.StatusBadRequest, "unknown product requested")
+		}
+
+		// NOTE(Dan): Something like a prefix and a suffix should probably have gone on the product instead of the
+		// support info. This is not really a feature you turn on or off.
+		prefix, _ := supp.Get(ingressFeaturePrefix)
+		suffix, _ := supp.Get(ingressFeatureSuffix)
+
+		item.Domain = strings.ToLower(item.Domain)
+		withoutPrefix, okPrefix := strings.CutPrefix(item.Domain, prefix)
+		userToken, okSuffix := strings.CutSuffix(withoutPrefix, suffix)
+		userToken = strings.ToLower(userToken)
+
+		if !okPrefix || !okSuffix {
+			return nil, util.HttpErr(
+				http.StatusBadRequest,
+				"domain must start with '%s' and end with '%s'",
+				prefix,
+				suffix,
+			)
+		}
+
+		if len(userToken) < 4 {
+			return nil, util.HttpErr(
+				http.StatusBadRequest,
+				"your domain name must be at least 4 characters long (not including prefix and suffix)",
+			)
+		}
+
+		if len(item.Domain) > 253 {
+			return nil, util.HttpErr(
+				http.StatusBadRequest,
+				"your domain name is too long",
+			)
+		}
+
+		if strings.Contains(userToken, ".") {
+			return nil, util.HttpErr(
+				http.StatusBadRequest,
+				"you cannot create further sub-domains in the URL",
+			)
+		}
+
+		userTokFirst := []rune(userToken)[0]
+		if userTokFirst >= '0' && userTokFirst <= '9' {
+			return nil, util.HttpErr(
+				http.StatusBadRequest,
+				"your domain must not start with a digit",
+			)
+		}
+
+		if !hostnamePartRegex.MatchString(userToken) {
+			return nil, util.HttpErr(
+				http.StatusBadRequest,
+				"your domain name must not contain special characters",
+			)
+		}
+
+		ingressesByDomain.Mu.Lock()
+		_, exists := ingressesByDomain.Domains[item.Domain]
+		if !exists {
+			ingressesByDomain.Domains[item.Domain] = ResourceId(0) // placeholder to ensure that the spot is reserved
+		}
+		ingressesByDomain.Mu.Unlock()
+		if exists {
+			return nil, util.HttpErr(
+				http.StatusBadRequest,
+				"your domain name is not unique, try a different one",
+			)
+		}
+
+		ing, err := ResourceCreateThroughProvider(
+			actor,
+			ingressType,
+			item.ResourceSpecification,
+			&internalIngress{
+				Domain: item.Domain,
+			},
+			orcapi.IngressesProviderCreate,
+		)
+
+		if err != nil {
+			return nil, err
+		}
+
+		created = append(created, ing)
+	}
+
+	return created, nil
+}
+
+func IngressBrowse(actor rpc.Actor, request orcapi.IngressesBrowseRequest) fndapi.PageV2[orcapi.Ingress] {
+	sortByFn := ResourceDefaultComparator(func(item orcapi.Ingress) orcapi.Resource {
+		return item.Resource
+	}, request.ResourceFlags)
+
+	switch request.SortBy.GetOrDefault("") {
+	case "":
+		sortByFn = func(a orcapi.Ingress, b orcapi.Ingress) int {
+			return cmp.Compare(strings.ToLower(a.Specification.Domain), strings.ToLower(b.Specification.Domain))
+		}
+	}
+
+	return ResourceBrowse[orcapi.Ingress](
+		actor,
+		ingressType,
+		request.Next,
+		request.ItemsPerPage,
+		request.ResourceFlags,
+		func(item orcapi.Ingress) bool {
+			return true
+		},
+		sortByFn,
+	)
+}
+
+func IngressDelete(actor rpc.Actor, request fndapi.BulkRequest[fndapi.FindByStringId]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
+	for _, item := range request.Items {
+		err := ResourceDeleteThroughProvider[orcapi.Ingress](
+			actor,
+			ingressType,
+			item.Id,
+			orcapi.IngressesProviderDelete,
+		)
+
+		if err != nil {
+			return fndapi.BulkResponse[util.Empty]{}, err
+		}
+	}
+
+	return fndapi.BulkResponse[util.Empty]{Responses: make([]util.Empty, len(request.Items))}, nil
+}
+
+func IngressUpdateLabels(actor rpc.Actor, request fndapi.BulkRequest[orcapi.IngressesUpdateLabelsRequest]) *util.HttpError {
+	for _, reqItem := range request.Items {
+		err := ResourceUpdateLabelsThroughProvider[orcapi.Ingress](
+			actor,
+			ingressType,
+			reqItem.Id,
+			reqItem.Labels,
+			func(t *orcapi.Ingress, labels map[string]string) {
+				t.Specification.Labels = labels
+			},
+			orcapi.IngressesProviderOnUpdatedLabels,
+		)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 var ingressesByDomain struct {
@@ -453,13 +510,13 @@ func ingressPersist(b *db.Batch, r *resource) {
 	}
 }
 
-func ingressTransform(r orcapi.Resource, product util.Option[accapi.ProductReference], extra any, flags orcapi.ResourceFlags, actor rpc.Actor) any {
+func ingressTransform(r orcapi.Resource, specification orcapi.ResourceSpecification, extra any, flags orcapi.ResourceFlags, actor rpc.Actor) any {
 	ing := extra.(*internalIngress)
 	result := orcapi.Ingress{
 		Resource: r,
 		Specification: orcapi.IngressSpecification{
-			Domain:  ing.Domain,
-			Product: product.Value,
+			Domain:                ing.Domain,
+			ResourceSpecification: specification,
 		},
 		Status: orcapi.IngressStatus{
 			BoundTo: util.NonNilSlice(ing.BoundTo),
@@ -467,8 +524,8 @@ func ingressTransform(r orcapi.Resource, product util.Option[accapi.ProductRefer
 		},
 	}
 
-	if flags.IncludeProduct || flags.IncludeSupport {
-		support, _ := SupportByProduct[orcapi.IngressSupport](ingressType, product.Value)
+	if (flags.IncludeProduct || flags.IncludeSupport) && resourceSpecificationHasProduct(specification) {
+		support, _ := SupportByProduct[orcapi.IngressSupport](ingressType, specification.Product)
 		result.Status.ResourceStatus = orcapi.ResourceStatus[orcapi.IngressSupport]{
 			ResolvedSupport: util.OptValue(support.ToApi()),
 			ResolvedProduct: util.OptValue(support.Product),

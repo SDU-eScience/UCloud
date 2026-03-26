@@ -696,7 +696,6 @@ func TestProjectRolesRead(t *testing.T) {
 				Type: accapi.RecipientTypeExistingProject,
 				Id:   util.OptValue(project),
 			}
-			request.Revision.ParentProjectId = util.OptValue(giver)
 
 			id, err := GrantsSubmitRevision(*row.Submitter, request)
 			if row.Reader == nil {
@@ -754,7 +753,6 @@ func TestSyntacticValidation(t *testing.T) {
 		{
 			Name: "bad title",
 			Mutator: func(r *accapi.GrantsSubmitRevisionRequest) {
-				r.Revision.ParentProjectId = util.OptValue(giver)
 				r.Revision.Recipient = accapi.Recipient{
 					Type:  accapi.RecipientTypeNewProject,
 					Title: util.OptValue[string]("%test%"),
@@ -762,18 +760,8 @@ func TestSyntacticValidation(t *testing.T) {
 			},
 		},
 		{
-			Name: "no affiliation",
-			Mutator: func(r *accapi.GrantsSubmitRevisionRequest) {
-				r.Revision.Recipient = accapi.Recipient{
-					Type:  accapi.RecipientTypeNewProject,
-					Title: util.OptValue[string]("test"),
-				}
-			},
-		},
-		{
 			Name: "affiliation with user",
 			Mutator: func(r *accapi.GrantsSubmitRevisionRequest) {
-				r.Revision.ParentProjectId = util.OptValue(giver)
 				r.Revision.Recipient = accapi.Recipient{
 					Type: accapi.RecipientTypePersonalWorkspace,
 				}

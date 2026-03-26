@@ -135,7 +135,7 @@ function startExitTimer(slot: ActiveNotification, duration: number = NORMAL_DURA
             triggerCallback();
             startDeletionTimer(slot);
         }
-    }, duration)
+    }, duration);
 }
 
 function startDeletionTimer(slot: ActiveNotification) {
@@ -159,12 +159,12 @@ export const NotificationPopups: React.FunctionComponent = () => {
         return () => {callback = doNothing;};
     }, []);
 
-    const onMouseEnter = useCallback((userData?: any) => {
-        (userData as ActiveNotification).isPaused = true;
+    const onMouseEnter = useCallback((userData?: ActiveNotification) => {
+        if (userData) userData.isPaused = true;
     }, []);
 
-    const onMouseLeave = useCallback((userData?: any) => {
-        (userData as ActiveNotification).isPaused = false;
+    const onMouseLeave = useCallback((userData?: ActiveNotification) => {
+        if (userData) userData.isPaused = false;
     }, []);
 
     const onSnooze = useCallback((userData?: any) => {
@@ -177,6 +177,13 @@ export const NotificationPopups: React.FunctionComponent = () => {
         }, 500);
 
         pin.notification.onSnooze?.(pin.notification);
+    }, []);
+
+    const onDismiss = useCallback((userData?: ActiveNotification) => {
+        if (userData) {
+            userData.isPaused = false;
+            startExitTimer(userData, 0);
+        }
     }, []);
 
     useEffect(() => {
@@ -206,7 +213,7 @@ export const NotificationPopups: React.FunctionComponent = () => {
         elems.push(
             <NotificationCard
                 key={i}
-                top={`${baseOffset + (CARD_SIZE + CARD_GAP) * i}px`}
+                bottom={`${baseOffset + (CARD_SIZE + CARD_GAP) * i}px`}
                 exit={slot.needsExit}
                 callbackItem={slot}
                 {...slot.notification}
@@ -221,12 +228,13 @@ export const NotificationPopups: React.FunctionComponent = () => {
             elems.push(
                 <NotificationCard
                     key={slot.uniqueId}
-                    top={`${baseOffset + (CARD_SIZE + CARD_GAP) * i}px`}
+                    bottom={`${baseOffset + (CARD_SIZE + CARD_GAP) * i}px`}
                     exit={slot.needsExit}
                     {...slot.notification}
                     callbackItem={slot}
                     onMouseEnter={onMouseEnter}
                     onMouseLeave={onMouseLeave}
+                    onDismiss={onDismiss}
                 />
             );
         }

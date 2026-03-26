@@ -3,7 +3,8 @@ import MainContainer from "@/ui-components/MainContainer";
 import {usePage} from "@/Navigation/Redux";
 import {
     EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts,
-    addProjectSwitcherInPortal, checkIsWorkspaceAdmin, dateRangeFilters, getFilterStorageValue,
+    ResourceBrowseHeaderControls,
+    addProjectSwitcherInPortal, checkIsWorkspaceAdmin, createProjectSwitcherPortal, dateRangeFilters, getFilterStorageValue,
     providerIcon, setFilterStorageValue
 } from "@/ui-components/ResourceBrowser";
 import * as React from "react";
@@ -22,7 +23,6 @@ import AppRoutes from "@/Routes";
 import {AsyncCache} from "@/Utilities/AsyncCache";
 import {productTypeToIcon, ProductV2License} from "@/Accounting";
 import {bulkRequestOf} from "@/UtilityFunctions";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {FindByStringId} from "@/UCloud";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
@@ -31,6 +31,7 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {ProductSelectorWithPermissions} from "./PublicLinks/PublicLinkBrowse";
 import {slimModalStyle} from "@/Utilities/ModalUtilities";
+import {sendFailureNotification} from "@/Notifications";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -54,12 +55,25 @@ const supportByProvider = new AsyncCache<SupportByProviderV2<ProductV2License, L
 });
 
 const PROJECT_CHANGE_LISTENER_ID = "license-project-listener";
-export function LicenseBrowse({opts}: {opts?: ResourceBrowserOpts<License>}): React.ReactNode {
+export function LicenseBrowse({
+    opts,
+    headerControls,
+}: {
+    opts?: ResourceBrowserOpts<License>;
+    headerControls?: ResourceBrowseHeaderControls;
+}): React.ReactNode {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<License> | null>(null);
     const dispatch = useDispatch();
     const navigate = useNavigate();
     const [switcher, setSwitcherWorkaround] = React.useState<React.ReactNode>(<></>);
+
+    React.useEffect(() => {
+        headerControls?.setRefresh?.(() => browserRef.current?.refresh());
+        return () => {
+            headerControls?.setRefresh?.(undefined);
+        };
+    }, [headerControls]);
 
     if (!opts?.isModal) {
         usePage("Licenses", SidebarTabId.RESOURCES);
@@ -223,7 +237,7 @@ export function LicenseBrowse({opts}: {opts?: ResourceBrowserOpts<License>}): Re
                     const create = operations.find(it => it.tag === CREATE_TAG);
                     if (create) {
                         create.enabled = () => true;
-                        create.onClick = onCreateStart
+                        create.onClick = onCreateStart;
                     }
                     return operations.filter(it => it.enabled(entries, callbacks as any, entries))
                 });
@@ -233,10 +247,11 @@ export function LicenseBrowse({opts}: {opts?: ResourceBrowserOpts<License>}): Re
                     return a.specification.product.id.localeCompare(b.specification.product.id);
                 }));
 
-                function onCreateStart() {
+                async function onCreateStart() {
+                    const products = (await supportByProvider.retrieve(Client.projectId ?? "", () => retrieveSupportV2(LicenseApi))).newProducts;
                     dialogStore.addDialog(
                         <ProductSelectorWithPermissions
-                            products={supportByProvider.retrieveFromCacheOnly(Client.projectId ?? "")?.newProducts ?? []}
+                            products={products}
                             placeholder="Type url..."
                             dummyEntry={dummyEntry}
                             title={LicenseApi.title}
@@ -286,7 +301,7 @@ export function LicenseBrowse({opts}: {opts?: ResourceBrowserOpts<License>}): Re
                                         browser.refresh();
                                     }
                                 } catch (e) {
-                                    snackbarStore.addFailure("Failed to create license. " + extractErrorMessage(e), false);
+                                    sendFailureNotification("Failed to create license. " + extractErrorMessage(e));
                                     browser.refresh();
                                     return;
                                 }
@@ -315,7 +330,9 @@ export function LicenseBrowse({opts}: {opts?: ResourceBrowserOpts<License>}): Re
     return <MainContainer
         main={<>
             <div ref={mountRef} />
-            {switcher}
+            {headerControls?.projectSwitcherTarget
+                ? createProjectSwitcherPortal(headerControls.projectSwitcherTarget)
+                : switcher}
         </>}
     />
 }

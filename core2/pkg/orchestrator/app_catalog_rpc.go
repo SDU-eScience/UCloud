@@ -231,6 +231,10 @@ func appCatalogInitRpc() {
 	orcapi.AppsSearch.Handler(func(info rpc.RequestInfo, request orcapi.AppCatalogSearchRequest) (fndapi.PageV2[orcapi.Application], *util.HttpError) {
 		result := fndapi.PageV2[orcapi.Application]{ItemsPerPage: fndapi.ItemsPerPage(request.ItemsPerPage.GetOrDefault(0))}
 
+		if len(request.Query) == 0 {
+			return result, nil
+		}
+
 		discovery := AppDiscovery{
 			Mode:     request.Discovery.GetOrDefault(orcapi.CatalogDiscoveryModeAll),
 			Selected: request.Selected,
@@ -242,12 +246,13 @@ func appCatalogInitRpc() {
 		var searchRequest *bleve.SearchRequest
 
 		if len(terms) == 0 {
-			searchRequest = bleve.NewSearchRequest(bleve.NewMatchAllQuery())
+			return result, nil
 		} else {
 			mustAllTerms := make([]query.Query, 0, len(terms))
 
 			for _, term := range terms {
 				titlePrefixQ := bleve.NewPrefixQuery(term)
+				titlePrefixQ.SetField("Title")
 				titlePrefixQ.SetBoost(5)
 
 				titleQ := bleve.NewFuzzyQuery(term)
@@ -556,7 +561,7 @@ func splitTerms(q string) []string {
 	out := make([]string, 0, len(fields))
 	for _, t := range fields {
 		if t != "" {
-			out = append(out, t)
+			out = append(out, strings.ToLower(t))
 		}
 	}
 	return out

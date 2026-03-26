@@ -1,9 +1,12 @@
 package ucmetrics
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"ucloud.dk/pkg/ucviz"
@@ -25,7 +28,7 @@ const (
 	elementCount          = 64 // NOTE(Dan): Update follow function if changing this
 	csvCpuLimit           = -1
 	csvMemLimit           = -2
-	DefaultSampleInterval = 250 * time.Millisecond
+	DefaultSampleInterval = 0 * time.Millisecond
 )
 
 type Config struct {
@@ -101,6 +104,11 @@ func csvSchema(gpuCount int) ([]string, []int) {
 }
 
 func HandleCli(cfg Config) {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	startExecutableUpdateWatcher(5 * time.Second)
+
 	cpu, cpuErr := CpuSampleStart()
 
 	lastNet := time.Now()
@@ -167,6 +175,10 @@ func HandleCli(cfg Config) {
 	nextCsvSample := time.Now()
 
 	for {
+		if ctx.Err() != nil {
+			return
+		}
+
 		row := make([]float64, elementCount)
 		memoryLimitForCsv := 0.0
 		var charts []chartInfo
@@ -424,6 +436,10 @@ func HandleCli(cfg Config) {
 
 		if didChangeCharts {
 			for _, chart := range charts {
+				if ctx.Err() != nil {
+					return
+				}
+
 				jsonData, _ := json.Marshal(chart.Definition)
 				util.RunCommand([]string{
 					"/opt/ucloud/ucviz",
@@ -464,6 +480,22 @@ func HandleCli(cfg Config) {
 			nextCsvSample = time.Now().Add(cfg.SampleInterval)
 		}
 
-		time.Sleep(250 * time.Millisecond)
+		monitorOsStats()
+
+		if !waitForIntervalOrShutdown(ctx, 250*time.Millisecond) {
+			return
+		}
+	}
+}
+
+func waitForIntervalOrShutdown(ctx context.Context, interval time.Duration) bool {
+	timer := time.NewTimer(interval)
+	defer timer.Stop()
+
+	select {
+	case <-ctx.Done():
+		return false
+	case <-timer.C:
+		return true
 	}
 }

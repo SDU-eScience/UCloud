@@ -36,4 +36,4 @@ replace ucloud.dk/gonja/v2 => ../gonja
 
 replace ucloud.dk/pgxscan => ../pgxscan
 
-go 1.24.0
+go 1.26.1

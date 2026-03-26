@@ -1,14 +1,20 @@
 package shared
 
 import (
+	"context"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"path/filepath"
+	"time"
 
+	cfg "ucloud.dk/pkg/config"
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/util"
 )
+
+var ProviderHostname = ""
 
 func InitExecutables() {
 	// Small utility function to put ucmetrics, ucviz and similar into a shared directory which can be mounted by jobs
@@ -20,14 +26,46 @@ func InitExecutables() {
 		log.Fatal("Failed to create UCloud exe dir: %s", err)
 	}
 
-	exeCopy("ucloud", dirPath)
-	exeCopy("ucmetrics", dirPath)
-	exeCopy("ucviz", dirPath)
+	exeCopy("ucloud", dirPath, true)
+	exeCopy("ucmetrics", dirPath, true)
+	exeCopy("ucviz", dirPath, true)
+	exeCopy("vmagent", dirPath, true)
+	exeCopy("ucloud-job-introspection", dirPath, true)
+	exeCopy("ucx-demo", dirPath, false)
+
+	providerHostnamePath := filepath.Join(dirPath, "provider-hostname.txt")
+	if util.DevelopmentModeEnabled() {
+		// NOTE(Dan): The development setup has various issues with connecting the K8s DNS to the Docker Compose DNS.
+		// As a result, it is much simpler to just point the VMs directly at the IP address of the integration module.
+		ips := func() []net.IP {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+
+			ips, err := net.DefaultResolver.LookupIP(ctx, "ip", cfg.Provider.Hosts.Self.Address)
+			if err != nil {
+				return nil
+			}
+			return ips
+		}()
+
+		if len(ips) > 0 {
+			ProviderHostname = ips[0].String()
+		}
+	} else {
+		if ProviderHostname = os.Getenv("UCLOUD_IM_SERVICE_NAME"); ProviderHostname == "" {
+			log.Fatal("UCLOUD_IM_SERVICE_NAME must be set for production providers!")
+		}
+	}
+
+	_ = os.WriteFile(providerHostnamePath, []byte(ProviderHostname), 0644)
 }
 
-func exeCopy(name string, targetDir string) {
+func exeCopy(name string, targetDir string, mandatory bool) {
 	sourceFd, err := os.OpenFile(fmt.Sprintf("/usr/bin/%s", name), os.O_RDONLY, 0)
 	if err != nil {
+		if !mandatory {
+			return
+		}
 		log.Fatal("Failed to open file at /usr/bin/%s: %s", name, err)
 	}
 

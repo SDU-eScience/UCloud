@@ -89,6 +89,21 @@ func convertType(name string, value reflect.Value) []string {
 			iface := value.Interface()
 			return StructToParameters(iface)
 		}
+	case reflect.Map:
+		if value.Type().Key().Kind() != reflect.String || value.Type().Elem().Kind() != reflect.String {
+			log.Info("Unable to convert map value of type %v to query parameters from %v", value.Type(), name)
+			return []string{}
+		}
+
+		if value.IsNil() {
+			return []string{}
+		}
+
+		var result []string
+		for _, mapKey := range value.MapKeys() {
+			result = append(result, name+"."+mapKey.String(), value.MapIndex(mapKey).String())
+		}
+		return result
 	default:
 		log.Info("Unable to convert value of type %v to parameter from %v %v", value.Kind(), name, value)
 		return []string{}
@@ -177,6 +192,10 @@ type refreshRequestItem struct {
 }
 
 func (c *Client) RetrieveAccessTokenOrRefresh() string {
+	if c.RefreshToken == "" && ServerProviderId == "" && !c.CoreForProvider.Present {
+		return ""
+	}
+
 	if !shouldRenewTokenNow(c.AccessToken) {
 		return c.AccessToken
 	}
@@ -356,7 +375,10 @@ func CallViaQueryEx(c *Client, path string, parameters []string, opts InvokeOpts
 		return Response{StatusCode: http.StatusBadGateway}
 	}
 
-	request.Header.Set("Authorization", fmt.Sprintf("Bearer %v", c.RetrieveAccessTokenOrRefresh()))
+	accessToken := c.RetrieveAccessTokenOrRefresh()
+	if accessToken != "" {
+		request.Header.Set("Authorization", fmt.Sprintf("Bearer %v", accessToken))
+	}
 	handleOpts(request, opts)
 	do, err := c.Client.Do(request)
 	if err != nil {

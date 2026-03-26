@@ -33,6 +33,7 @@ var Jobs JobsService
 
 type JobsService struct {
 	Submit                   func(request orcapi.Job) (util.Option[string], *util.HttpError)
+	OnUpdatedLabels          func(request orcapi.Job) *util.HttpError
 	Terminate                func(request JobTerminateRequest) *util.HttpError
 	Suspend                  func(request orcapi.Job) *util.HttpError
 	Unsuspend                func(request orcapi.Job) *util.HttpError
@@ -40,37 +41,55 @@ type JobsService struct {
 	RetrieveProducts         func() []orcapi.JobSupport
 	Follow                   func(session *FollowJobSession)
 	HandleShell              func(session *ShellSession, cols, rows int)
-	ServerFindIngress        func(job *orcapi.Job, rank int, suffix util.Option[string]) []ConfiguredWebIngress
-	OpenWebSession           func(job *orcapi.Job, rank int, target util.Option[string]) (ConfiguredWebSession, *util.HttpError)
+	OpenWebSession           func(job *orcapi.Job, sessionType orcapi.InteractiveSessionType, rank int, target util.Option[string]) (ConfiguredWebSessionResult, *util.HttpError)
 	RequestDynamicParameters func(owner orcapi.ResourceOwner, app *orcapi.Application) []orcapi.ApplicationParameter
 	HandleBuiltInVnc         func(job *orcapi.Job, rank int, conn *ws.Conn)
+	AttachResource           func(job *orcapi.Job, resource orcapi.AppParameterValue) *util.HttpError
+	DetachResource           func(job *orcapi.Job, resource orcapi.AppParameterValue) *util.HttpError
 
-	PublicIPs PublicIPService
-	Ingresses IngressService
-	Licenses  LicenseService
+	PublicIPs       PublicIPService
+	Ingresses       IngressService
+	Licenses        LicenseService
+	PrivateNetworks PrivateNetworkService
 }
 
 type PublicIPService struct {
 	Create           func(ip *orcapi.PublicIp) *util.HttpError
 	Delete           func(ip *orcapi.PublicIp) *util.HttpError
+	OnUpdatedLabels  func(ip *orcapi.PublicIp) *util.HttpError
 	RetrieveProducts func() []orcapi.PublicIpSupport
 }
 
 type LicenseService struct {
 	Create           func(license *orcapi.License) *util.HttpError
 	Delete           func(license *orcapi.License) *util.HttpError
+	OnUpdatedLabels  func(license *orcapi.License) *util.HttpError
 	RetrieveProducts func() []orcapi.LicenseSupport
 }
 
 type IngressService struct {
 	Create           func(ingress *orcapi.Ingress) *util.HttpError
 	Delete           func(ingress *orcapi.Ingress) *util.HttpError
+	OnUpdatedLabels  func(ingress *orcapi.Ingress) *util.HttpError
 	RetrieveProducts func() []orcapi.IngressSupport
 }
 
-type ConfiguredWebSession struct {
-	Host  cfg.HostInfo
-	Flags RegisteredIngressFlags
+type PrivateNetworkService struct {
+	Create           func(network *orcapi.PrivateNetwork) *util.HttpError
+	Delete           func(network *orcapi.PrivateNetwork) *util.HttpError
+	OnUpdatedLabels  func(network *orcapi.PrivateNetwork) *util.HttpError
+	RetrieveProducts func() []orcapi.PrivateNetworkSupport
+}
+
+type ConfiguredWebSessionResult struct {
+	Endpoints []ConfiguredWebEndpoint
+}
+
+type ConfiguredWebEndpoint struct {
+	Host         cfg.HostInfo
+	TargetDomain string
+	Flags        RegisteredIngressFlags
+	IsPublic     bool
 }
 
 type ConfiguredWebIngress struct {
@@ -127,6 +146,29 @@ type JobTerminateRequest struct {
 	IsCleanup bool
 }
 
+func validateFileMountPathsOnSubmission(job *orcapi.Job) *util.HttpError {
+	fileMounts := make([]orcapi.AppParameterValue, 0, len(job.Specification.Parameters)+len(job.Specification.Resources))
+
+	for _, value := range job.Specification.Parameters {
+		if value.Type == orcapi.AppParameterValueTypeFile {
+			fileMounts = append(fileMounts, value)
+		}
+	}
+
+	for _, value := range job.Specification.Resources {
+		if value.Type == orcapi.AppParameterValueTypeFile {
+			fileMounts = append(fileMounts, value)
+		}
+	}
+
+	ok, reason := orcapi.ValidateExplicitFileMountPaths(fileMounts)
+	if !ok {
+		return util.HttpErr(http.StatusBadRequest, "%s", reason)
+	}
+
+	return nil
+}
+
 var (
 	metricJobsSubmitted = promauto.NewCounter(prometheus.CounterOpts{
 		Namespace: "ucloud_im",
@@ -179,6 +221,12 @@ func initJobs() {
 			for _, item := range request.Items {
 				if item.Specification.Application.Name == "unknown" {
 					errors = append(errors, util.HttpErr(http.StatusBadRequest, "Invalid application specified"))
+					continue
+				}
+
+				if err := validateFileMountPathsOnSubmission(&item); err != nil {
+					errors = append(errors, err)
+					providerIds = append(providerIds, fnd.FindByStringId{})
 					continue
 				}
 
@@ -253,6 +301,22 @@ func initJobs() {
 			}
 
 			return resp, nil
+		})
+
+		orcapi.JobsProviderOnUpdatedLabels.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.Job]) (util.Empty, *util.HttpError) {
+			for _, item := range request.Items {
+				fn := Jobs.OnUpdatedLabels
+				if fn != nil {
+					err := fn(item)
+					if err != nil {
+						return util.Empty{}, err
+					}
+				}
+
+				JobTrackNew(item)
+			}
+
+			return util.Empty{}, nil
 		})
 
 		orcapi.JobsProviderTerminate.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.Job]) (fnd.BulkResponse[util.Empty], *util.HttpError) {
@@ -346,22 +410,23 @@ func initJobs() {
 					fallthrough
 				case orcapi.InteractiveSessionTypeWeb:
 					isVnc := item.SessionType == orcapi.InteractiveSessionTypeVnc
-					var flags RegisteredIngressFlags
 
-					target, err := Jobs.OpenWebSession(&item.Job, item.Rank, item.Target)
+					targetResult, err := Jobs.OpenWebSession(&item.Job, item.SessionType, item.Rank, item.Target)
 					if err != nil {
 						errors = append(errors, err)
 					} else {
-						flags = target.Flags
-						if flags == 0 {
-							if isVnc {
-								flags |= RegisteredIngressFlagsVnc
-							} else {
-								flags |= RegisteredIngressFlagsWeb
+						endpoints := targetResult.Endpoints
+						for i := range endpoints {
+							if endpoints[i].Flags == 0 {
+								if isVnc {
+									endpoints[i].Flags = RegisteredIngressFlagsVnc
+								} else {
+									endpoints[i].Flags = RegisteredIngressFlagsWeb
+								}
 							}
 						}
 
-						redirect, err := IngressRegisterWithJob(&item.Job, item.Rank, target.Host, item.Target, flags)
+						redirect, err := IngressRegisterEndpointsWithJob(&item.Job, item.Rank, item.Target, endpoints)
 						if err != nil {
 							errors = append(errors, err)
 						} else {
@@ -736,6 +801,90 @@ func initJobs() {
 			return orcapi.JobsProviderRequestDynamicParametersResponse{Parameters: resp}, nil
 		})
 
+		orcapi.JobsProviderAttachResource.Handler(func(info rpc.RequestInfo, request orcapi.JobsProviderAttachResourceRequest) (util.Empty, *util.HttpError) {
+			if !RunsServerCode() {
+				return util.Empty{}, util.HttpErr(http.StatusBadRequest, "operation not supported")
+			}
+
+			fn := Jobs.AttachResource
+
+			err := util.HttpErr(http.StatusBadRequest, "operation not supported")
+			if fn != nil {
+				err = fn(&request.Job, request.Resource)
+			}
+
+			if err == nil {
+				request.Job.Specification.Resources = append(request.Job.Specification.Resources, request.Resource)
+				JobTrackNew(request.Job)
+				_ = JobTrackRawUpdates([]orcapi.ResourceUpdateAndId[orcapi.JobUpdate]{
+					{
+						Id: request.Job.Id,
+						Update: orcapi.JobUpdate{
+							ResourceList: util.OptValue(request.Job.Specification.Resources),
+						},
+					},
+				})
+			}
+
+			return util.Empty{}, err
+		})
+
+		orcapi.JobsProviderDetachResource.Handler(func(info rpc.RequestInfo, request orcapi.JobsProviderDetachResourceRequest) (util.Empty, *util.HttpError) {
+			fn := Jobs.DetachResource
+
+			err := util.HttpErr(http.StatusBadRequest, "operation not supported")
+			if fn != nil {
+				err = fn(&request.Job, request.Resource)
+			}
+
+			if err == nil {
+				newResources := []orcapi.AppParameterValue{}
+
+				for _, resc := range request.Job.Specification.Resources {
+					if resc.Equal(request.Resource) {
+						continue
+					}
+					newResources = append(newResources, resc)
+				}
+
+				switch request.Resource.Type {
+				case orcapi.AppParameterValueTypeIngress:
+					link := LinkRetrieve(request.Resource.Id)
+					if link.Id != "" {
+						link.Status.BoundTo = util.RemoveFirst(link.Status.BoundTo, request.Job.Id)
+						LinkTrack(link)
+					}
+
+				case orcapi.AppParameterValueTypeNetwork:
+					ip, ok := PublicIpRetrieve(request.Resource.Id)
+					if ok {
+						ip.Status.BoundTo = util.RemoveFirst(ip.Status.BoundTo, request.Job.Id)
+						PublicIpTrackNew(*ip)
+					}
+
+				case orcapi.AppParameterValueTypeLicense:
+					license, ok := LicenseRetrieveInstance(request.Resource.Id)
+					if ok {
+						license.Status.BoundTo = util.RemoveFirst(license.Status.BoundTo, request.Job.Id)
+						LicenseTrack(*license)
+					}
+				}
+
+				request.Job.Specification.Resources = newResources
+				JobTrackNew(request.Job)
+				_ = JobTrackRawUpdates([]orcapi.ResourceUpdateAndId[orcapi.JobUpdate]{
+					{
+						Id: request.Job.Id,
+						Update: orcapi.JobUpdate{
+							ResourceList: util.OptValue(newResources),
+						},
+					},
+				})
+			}
+
+			return util.Empty{}, err
+		})
+
 		orcapi.PublicIpsProviderCreate.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.PublicIp]) (fnd.BulkResponse[fnd.FindByStringId], *util.HttpError) {
 			var errors []*util.HttpError
 			var providerIds []fnd.FindByStringId
@@ -860,6 +1009,22 @@ func initJobs() {
 			return resp, nil
 		})
 
+		orcapi.PublicIpsProviderOnUpdatedLabels.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.PublicIp]) (util.Empty, *util.HttpError) {
+			for _, item := range request.Items {
+				fn := Jobs.PublicIPs.OnUpdatedLabels
+				if fn != nil {
+					err := fn(&item)
+					if err != nil {
+						return util.Empty{}, err
+					}
+				}
+
+				PublicIpTrackNew(item)
+			}
+
+			return util.Empty{}, nil
+		})
+
 		orcapi.IngressesProviderCreate.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.Ingress]) (fnd.BulkResponse[fnd.FindByStringId], *util.HttpError) {
 			var errors []*util.HttpError
 			var providerIds []fnd.FindByStringId
@@ -960,6 +1125,22 @@ func initJobs() {
 			}
 
 			return resp, nil
+		})
+
+		orcapi.IngressesProviderOnUpdatedLabels.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.Ingress]) (util.Empty, *util.HttpError) {
+			for _, item := range request.Items {
+				fn := Jobs.Ingresses.OnUpdatedLabels
+				if fn != nil {
+					err := fn(&item)
+					if err != nil {
+						return util.Empty{}, err
+					}
+				}
+
+				LinkTrack(item)
+			}
+
+			return util.Empty{}, nil
 		})
 
 		orcapi.LicensesProviderCreate.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.License]) (fnd.BulkResponse[fnd.FindByStringId], *util.HttpError) {
@@ -1069,6 +1250,141 @@ func initJobs() {
 
 			return resp, nil
 		})
+
+		orcapi.LicensesProviderOnUpdatedLabels.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.License]) (util.Empty, *util.HttpError) {
+			for _, item := range request.Items {
+				fn := Jobs.Licenses.OnUpdatedLabels
+				if fn != nil {
+					err := fn(&item)
+					if err != nil {
+						return util.Empty{}, err
+					}
+				}
+
+				LicenseTrack(item)
+			}
+
+			return util.Empty{}, nil
+		})
+
+		orcapi.PrivateNetworksProviderCreate.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.PrivateNetwork]) (fnd.BulkResponse[fnd.FindByStringId], *util.HttpError) {
+			var errors []*util.HttpError
+			var providerIds []fnd.FindByStringId
+
+			for _, item := range request.Items {
+				PrivateNetworkTrackNew(item)
+				providerIds = append(providerIds, fnd.FindByStringId{})
+
+				fn := Jobs.PrivateNetworks.Create
+				if fn == nil {
+					errors = append(errors, util.HttpErr(http.StatusBadRequest, "Private network creation not supported"))
+				} else {
+					err := fn(&item)
+					if err != nil {
+						errors = append(errors, err)
+						_ = PrivateNetworkDelete(&item)
+					}
+				}
+			}
+
+			if len(errors) == 1 && len(request.Items) == 1 {
+				return fnd.BulkResponse[fnd.FindByStringId]{}, errors[0]
+			} else {
+				var response fnd.BulkResponse[fnd.FindByStringId]
+				response.Responses = providerIds
+				return response, nil
+			}
+		})
+
+		orcapi.PrivateNetworksProviderDelete.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.PrivateNetwork]) (fnd.BulkResponse[util.Empty], *util.HttpError) {
+			var errors []*util.HttpError
+			var resp []util.Empty
+
+			for _, item := range request.Items {
+				fn := Jobs.PrivateNetworks.Delete
+				if fn == nil {
+					errors = append(errors, util.HttpErr(http.StatusBadRequest, "Private network deletion not supported"))
+					resp = append(resp, util.Empty{})
+				} else {
+					err := fn(&item)
+					if err != nil {
+						errors = append(errors, err)
+						resp = append(resp, util.Empty{})
+					} else {
+						resp = append(resp, util.Empty{})
+					}
+				}
+			}
+
+			if len(errors) == 1 && len(request.Items) == 1 {
+				return fnd.BulkResponse[util.Empty]{}, errors[0]
+			} else {
+				var response fnd.BulkResponse[util.Empty]
+				response.Responses = resp
+				return response, nil
+			}
+		})
+
+		orcapi.PrivateNetworksProviderUpdateAcl.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.UpdatedAclWithResource[orcapi.PrivateNetwork]]) (fnd.BulkResponse[util.Empty], *util.HttpError) {
+			resp := fnd.BulkResponse[util.Empty]{}
+
+			for _, item := range request.Items {
+				network := item.Resource
+
+				permissions := network.Permissions.Value
+				for _, toDelete := range item.Deleted {
+					for i, entry := range permissions.Others {
+						if entry.Entity == toDelete {
+							slices.Delete(permissions.Others, i, i+1)
+						}
+					}
+				}
+
+				for _, toAdd := range item.Added {
+					found := false
+
+					for i := 0; i < len(permissions.Others); i++ {
+						entry := &permissions.Others[i]
+						if entry.Entity == toAdd.Entity {
+							for _, perm := range toAdd.Permissions {
+								entry.Permissions = orcapi.PermissionsAdd(entry.Permissions, perm)
+							}
+							found = true
+							break
+						}
+					}
+
+					if !found {
+						permissions.Others = append(permissions.Others, orcapi.ResourceAclEntry{
+							Entity:      toAdd.Entity,
+							Permissions: toAdd.Permissions,
+						})
+					}
+				}
+
+				PrivateNetworkTrackNew(network)
+
+				resp.Responses = append(resp.Responses, util.Empty{})
+			}
+
+			return resp, nil
+		})
+
+		orcapi.PrivateNetworksProviderOnUpdatedLabels.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.PrivateNetwork]) (util.Empty, *util.HttpError) {
+			for _, item := range request.Items {
+				fn := Jobs.PrivateNetworks.OnUpdatedLabels
+				if fn != nil {
+					err := fn(&item)
+					if err != nil {
+						return util.Empty{}, err
+					}
+				}
+
+				PrivateNetworkTrackNew(item)
+			}
+
+			return util.Empty{}, nil
+		})
 	}
 
 	if RunsServerCode() {
@@ -1140,6 +1456,16 @@ func initJobs() {
 			}
 
 			return fnd.BulkResponse[orcapi.LicenseSupport]{Responses: result}, nil
+		})
+
+		orcapi.PrivateNetworksProviderRetrieveProducts.Handler(func(info rpc.RequestInfo, request util.Empty) (fnd.BulkResponse[orcapi.PrivateNetworkSupport], *util.HttpError) {
+			var result []orcapi.PrivateNetworkSupport
+			fn := Jobs.PrivateNetworks.RetrieveProducts
+			if fn != nil {
+				result = fn()
+			}
+
+			return fnd.BulkResponse[orcapi.PrivateNetworkSupport]{Responses: result}, nil
 		})
 
 		rpc.DefaultServer.Mux.HandleFunc(
@@ -1324,9 +1650,8 @@ var shellSessionsMutex = sync.Mutex{}
 type jobRegisteredIngress struct {
 	JobId           string
 	Rank            int
-	Target          cfg.HostInfo
 	RequestedSuffix util.Option[string]
-	Flags           RegisteredIngressFlags
+	Endpoints       []ConfiguredWebEndpoint
 }
 
 var jobsRegisterIngressCall = ipc.NewCall[jobRegisteredIngress, string]("ctrl.jobs.register_ingress")
@@ -1336,10 +1661,6 @@ type webSession struct {
 	Rank               int
 	IngressBySuffix    map[string]webSessionIngress
 	IngressInitialized map[string]util.Empty
-}
-
-func ingressMapKey(suffix string, domain string) string {
-	return suffix + "|" + domain
 }
 
 type webSessionIngress struct {
@@ -1377,7 +1698,7 @@ func jobsIpcServer() {
 			}
 		}
 
-		result, err := IngressRegisterWithJob(job, r.Payload.Rank, r.Payload.Target, r.Payload.RequestedSuffix, r.Payload.Flags)
+		result, err := IngressRegisterEndpointsWithJob(job, r.Payload.Rank, r.Payload.RequestedSuffix, r.Payload.Endpoints)
 		if err != nil {
 			return ipc.Response[string]{
 				StatusCode: http.StatusInternalServerError,
@@ -1439,20 +1760,48 @@ func ToHostnameSafe(input string) string {
 	return result
 }
 
-func IngressRegisterWithJob(job *orcapi.Job, rank int, target cfg.HostInfo, requestedSuffix util.Option[string], flags RegisteredIngressFlags) (string, *util.HttpError) {
-	isWeb := (flags & RegisteredIngressFlagsWeb) != 0
-	isVnc := (flags & RegisteredIngressFlagsVnc) != 0
+func ingressMapKeyForIngress(ingress webSessionIngress) string {
+	kind := "web"
+	if ingress.Flags&RegisteredIngressFlagsVnc != 0 {
+		kind = "vnc"
+	}
 
-	if !isWeb && !isVnc {
-		return "", util.ServerHttpError("must specify either RegisteredIngressFlagsWeb or RegisteredIngressFlagsVnc")
+	return fmt.Sprintf(
+		"%s|%s|%s|%d|%s|%d",
+		kind,
+		ingress.Suffix,
+		ingress.Address,
+		ingress.Flags,
+		ingress.Target.Address,
+		ingress.Target.Port,
+	)
+}
+
+func clusterNameForIngress(session *webSession, ingress webSessionIngress) string {
+	base := fmt.Sprintf("%s:%d", ingress.Target.Address, ingress.Target.Port)
+	hash := util.Sha256([]byte(base))
+	return "job_" + session.JobId + "_" + fmt.Sprint(session.Rank) + "_" + hash[0:12]
+}
+
+func IngressRegisterEndpointsWithJob(job *orcapi.Job, rank int, requestedSuffix util.Option[string], endpoints []ConfiguredWebEndpoint) (string, *util.HttpError) {
+	if len(endpoints) == 0 {
+		return "", util.ServerHttpError("must provide at least one endpoint")
+	}
+
+	for _, endpoint := range endpoints {
+		isWeb := (endpoint.Flags & RegisteredIngressFlagsWeb) != 0
+		isVnc := (endpoint.Flags & RegisteredIngressFlagsVnc) != 0
+		if !isWeb && !isVnc {
+			return "", util.ServerHttpError("must specify either RegisteredIngressFlagsWeb or RegisteredIngressFlagsVnc")
+		}
 	}
 
 	if !RunsServerCode() {
 		result, ierr := jobsRegisterIngressCall.Invoke(jobRegisteredIngress{
 			JobId:           job.Id,
-			Target:          target,
+			Rank:            rank,
 			RequestedSuffix: requestedSuffix,
-			Flags:           flags,
+			Endpoints:       endpoints,
 		})
 
 		return result, util.HttpErrorFromErr(ierr)
@@ -1462,129 +1811,128 @@ func IngressRegisterWithJob(job *orcapi.Job, rank int, target cfg.HostInfo, requ
 			suffix = "-" + ToHostnameSafe(requestedSuffix.Value)
 		}
 
-		var ingress webSessionIngress
-
 		webSessionsMutex.RLock()
 		key := jobIdAndRank{
 			JobId: job.Id,
 			Rank:  rank,
 		}
-		needInit := true
 		session, ok := webSessions[key]
-		if ok {
-			for _, existing := range session.IngressBySuffix {
-				if existing.Suffix == suffix {
-					ingress = existing
-					needInit = false
-					break
-				}
-			}
-		}
 		webSessionsMutex.RUnlock()
 
-		if needInit {
-			var ingressConfigs []ConfiguredWebIngress
-
-			if isWeb {
-				ingressConfigs = Jobs.ServerFindIngress(job, rank, util.Option[string]{Present: requestedSuffix.Present, Value: suffix})
-			} else {
-				ingressConfigs = []ConfiguredWebIngress{
-					{
-						IsPublic:     false,
-						TargetDomain: cfg.Provider.Hosts.SelfPublic.Address,
-					},
-				}
+		webSessionsMutex.Lock()
+		session, ok = webSessions[key]
+		if !ok {
+			session = &webSession{
+				JobId:              job.Id,
+				Rank:               rank,
+				IngressBySuffix:    make(map[string]webSessionIngress),
+				IngressInitialized: make(map[string]util.Empty),
 			}
 
-			webSessionsMutex.Lock()
-			session, ok = webSessions[key]
-			if !ok {
-				session = &webSession{
-					JobId:              job.Id,
-					Rank:               rank,
-					IngressBySuffix:    make(map[string]webSessionIngress),
-					IngressInitialized: make(map[string]util.Empty),
-				}
+			webSessions[key] = session
+		}
 
-				webSessions[key] = session
+		didCreateAnyIngress := false
+		registered := make([]webSessionIngress, 0, len(endpoints))
+
+		for _, endpoint := range endpoints {
+			address := endpoint.TargetDomain
+			if address == "" {
+				address = cfg.Provider.Hosts.SelfPublic.Address
 			}
 
-			for _, ingressConfig := range ingressConfigs {
-				mapKey := ingressMapKey(suffix, ingressConfig.TargetDomain)
-				if _, exists := session.IngressBySuffix[mapKey]; exists {
-					continue
-				}
-
-				token := util.OptNone[string]()
-				if !ingressConfig.IsPublic {
-					token.Set(util.RandomToken(12))
-				}
-
-				ingress = webSessionIngress{
-					JobId:     job.Id,
-					Rank:      rank,
-					Target:    target,
-					Suffix:    suffix,
-					Flags:     flags,
-					AuthToken: token,
-					Address:   ingressConfig.TargetDomain,
-				}
-
-				session.IngressBySuffix[mapKey] = ingress
-
-				if flags&RegisteredIngressFlagsNoPersist == 0 {
-					db.NewTx0(func(tx *db.Transaction) {
-						sqlSuffix := sql.NullString{}
-						if suffix != "" {
-							sqlSuffix.Valid = true
-							sqlSuffix.String = suffix
-						}
-
-						sqlToken := sql.NullString{}
-						if token.Present {
-							sqlToken.Valid = true
-							sqlToken.String = token.Value
-						}
-
-						db.Exec(
-							tx,
-							`
-								insert into web_sessions(job_id, rank, target_address, target_port, address, suffix, 
-									auth_token, flags) 
-								values (:job_id, :rank, :target_address, :target_port, :address, :suffix, 
-									:auth_token, :flags)
-							`,
-							db.Params{
-								"job_id":         job.Id,
-								"rank":           rank,
-								"target_address": target.Address,
-								"target_port":    target.Port,
-								"suffix":         sqlSuffix,
-								"auth_token":     sqlToken,
-								"flags":          flags,
-								"address":        ingressConfig.TargetDomain,
-							},
-						)
-					})
-				}
+			token := util.OptNone[string]()
+			if !endpoint.IsPublic {
+				token.Set(util.RandomToken(12))
 			}
 
-			webSessionsMutex.Unlock()
+			ingress := webSessionIngress{
+				JobId:     job.Id,
+				Rank:      rank,
+				Target:    endpoint.Host,
+				Suffix:    suffix,
+				Flags:     endpoint.Flags,
+				AuthToken: token,
+				Address:   address,
+			}
+
+			mapKey := ingressMapKeyForIngress(ingress)
+			existing, exists := session.IngressBySuffix[mapKey]
+			if exists {
+				registered = append(registered, existing)
+				continue
+			}
+
+			didCreateAnyIngress = true
+			session.IngressBySuffix[mapKey] = ingress
+			registered = append(registered, ingress)
+
+			if endpoint.Flags&RegisteredIngressFlagsNoPersist == 0 {
+				db.NewTx0(func(tx *db.Transaction) {
+					sqlSuffix := sql.NullString{}
+					if suffix != "" {
+						sqlSuffix.Valid = true
+						sqlSuffix.String = suffix
+					}
+
+					sqlToken := sql.NullString{}
+					if token.Present {
+						sqlToken.Valid = true
+						sqlToken.String = token.Value
+					}
+
+					db.Exec(
+						tx,
+						`
+							insert into web_sessions(job_id, rank, target_address, target_port, address, suffix, 
+								auth_token, flags) 
+							values (:job_id, :rank, :target_address, :target_port, :address, :suffix, 
+								:auth_token, :flags)
+						`,
+						db.Params{
+							"job_id":         job.Id,
+							"rank":           rank,
+							"target_address": endpoint.Host.Address,
+							"target_port":    endpoint.Host.Port,
+							"suffix":         sqlSuffix,
+							"auth_token":     sqlToken,
+							"flags":          endpoint.Flags,
+							"address":        address,
+						},
+					)
+				})
+			}
+		}
+
+		webSessionsMutex.Unlock()
+
+		if didCreateAnyIngress {
 			jobRoutesRefresh()
 		}
 
+		if len(registered) == 0 {
+			return "", util.ServerHttpError("failed to register session endpoint")
+		}
+
+		primary := registered[0]
+		isWeb := (primary.Flags & RegisteredIngressFlagsWeb) != 0
+		isVnc := (primary.Flags & RegisteredIngressFlagsVnc) != 0
+
 		if isWeb {
-			if !ingress.AuthToken.Present {
-				return "https://" + ingress.Address, nil
+			if !primary.AuthToken.Present {
+				return "https://" + primary.Address, nil
 			} else {
-				return fmt.Sprintf("https://%v/ucloud/%v/authorize-app?token=%v", ingress.Address,
-					cfg.Provider.Id, ingress.AuthToken.Value), nil
+				return fmt.Sprintf("https://%v/ucloud/%v/authorize-app?token=%v", primary.Address,
+					cfg.Provider.Id, primary.AuthToken.Value), nil
 			}
 		} else if isVnc {
-			return fmt.Sprintf("https://%v/ucloud/%v/vnc?token=%v", ingress.Address,
-				cfg.Provider.Id, ingress.AuthToken.Value), nil
+			if !primary.AuthToken.Present {
+				return "", util.ServerHttpError("VNC endpoint is missing auth token")
+			}
+			return fmt.Sprintf("https://%v/ucloud/%v/vnc?token=%v", primary.Address,
+				cfg.Provider.Id, primary.AuthToken.Value), nil
 		} else {
-			return "", util.ServerHttpError("unhandled case %v", flags)
+			return "", util.ServerHttpError("unhandled endpoint type")
 		}
 	}
 }
@@ -1633,8 +1981,7 @@ func jobsLoadSessions() {
 				tok.Set(row.AuthToken.String)
 			}
 
-			mapKey := ingressMapKey(row.Suffix.String, row.Address)
-			session.IngressBySuffix[mapKey] = webSessionIngress{
+			ingress := webSessionIngress{
 				JobId: row.JobId,
 				Rank:  row.Rank,
 				Target: cfg.HostInfo{
@@ -1646,6 +1993,9 @@ func jobsLoadSessions() {
 				AuthToken: tok,
 				Address:   row.Address,
 			}
+
+			mapKey := ingressMapKeyForIngress(ingress)
+			session.IngressBySuffix[mapKey] = ingress
 		}
 	})
 	webSessionsMutex.Unlock()
@@ -1658,10 +2008,6 @@ func jobRoutesRefresh() {
 	allJobsById := map[string]*orcapi.Job{}
 	for _, job := range allJobs {
 		allJobsById[job.Id] = job
-	}
-
-	getClusterName := func(session *webSession, suffix string) string {
-		return "job_" + session.JobId + "_" + fmt.Sprint(session.Rank) + suffix
 	}
 
 	webSessionsMutex.Lock()
@@ -1689,7 +2035,7 @@ func jobRoutesRefresh() {
 							tokens = []string{ingress.AuthToken.Value}
 						}
 
-						clusterName := getClusterName(session, ingress.Suffix)
+						clusterName := clusterNameForIngress(session, ingress)
 
 						gw.SendMessage(gw.ConfigurationMessage{
 							ClusterUp: &gw.EnvoyCluster{
@@ -1721,7 +2067,7 @@ func jobRoutesRefresh() {
 		clustersToDelete := map[string]util.Empty{}
 		for ingressKey, ingress := range session.IngressBySuffix {
 			if _, didInit := session.IngressInitialized[ingressKey]; didInit {
-				clusterName := getClusterName(session, ingress.Suffix)
+				clusterName := clusterNameForIngress(session, ingress)
 				if _, alreadyDeleted := clustersToDelete[clusterName]; alreadyDeleted {
 					continue
 				}

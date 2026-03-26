@@ -1,6 +1,5 @@
 import * as React from "react";
 import {Flex, Input} from "@/ui-components";
-import {default as ReactModal} from "react-modal";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {findElement, widgetId, WidgetProps, WidgetSetProvider, WidgetSetter, WidgetValidator} from "@/Applications/Jobs/Widgets/index";
 import {useCallback, useLayoutEffect, useState} from "react";
@@ -8,11 +7,11 @@ import {compute} from "@/UCloud";
 import AppParameterValueNS = compute.AppParameterValueNS;
 import {noopCall, useCloudCommand} from "@/Authentication/DataHook";
 import PublicLinkApi, {PublicLink} from "@/UCloud/PublicLinkApi";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {checkProviderMismatch} from "../Create";
 import {PublicLinkBrowse} from "@/Applications/PublicLinks/PublicLinkBrowse";
 import {ApplicationParameterNS} from "@/Applications/AppStoreApi";
 import {dialogStore} from "@/Dialog/DialogStore";
+import {sendFailureNotification} from "@/Notifications";
 
 interface IngressProps extends WidgetProps {
     parameter: ApplicationParameterNS.Ingress;
@@ -20,6 +19,7 @@ interface IngressProps extends WidgetProps {
 
 export const IngressParameter: React.FunctionComponent<IngressProps> = props => {
     const error = props.errors[props.parameter.name] != null;
+    const portRequired = props.application.invocation.applicationType !== "WEB";
 
     const doOpen = useCallback(() => {
         dialogStore.addDialog(<PublicLinkBrowse
@@ -71,7 +71,7 @@ export const IngressParameter: React.FunctionComponent<IngressProps> = props => 
                         const ingress = await invokeCommand<PublicLink>(PublicLinkApi.retrieve({id: id}), {defaultErrorHandler: false});
                         visual.value = ingress?.specification.domain ?? "Address not found";
                     } catch (e) {
-                        snackbarStore.addFailure("Failed to import custom links.", false);
+                        sendFailureNotification("Failed to import custom links.");
                         visual.value = "Address not found";
                     }
                 }
@@ -79,9 +79,10 @@ export const IngressParameter: React.FunctionComponent<IngressProps> = props => 
         };
 
         const value = valueInput();
-        value!.addEventListener("change", listener);
+        if (!value) return;
+        value.addEventListener("change", listener);
         return () => {
-            value!.removeEventListener("change", listener);
+            value.removeEventListener("change", listener);
         }
     }, []);
 
@@ -93,7 +94,7 @@ export const IngressParameter: React.FunctionComponent<IngressProps> = props => 
         return filters;
     }, []);
 
-    return (<Flex>
+    return (<Flex gap="8px">
         <Input
             id={widgetId(props.parameter) + "visual"}
             placeholder={"No public link selected"}
@@ -101,6 +102,18 @@ export const IngressParameter: React.FunctionComponent<IngressProps> = props => 
             error={error}
             onClick={doOpen}
         />
+        {props.bindLinkToPort ? (
+            <Input
+                id={widgetId(props.parameter) + "-port"}
+                type="number"
+                min={1}
+                max={65535}
+                style={{width: "140px"}}
+                placeholder={portRequired ? "Port (required)" : "Port"}
+                required={portRequired}
+                data-required={portRequired ? "true" : "false"}
+            />
+        ) : null}
         <input type="hidden" id={widgetId(props.parameter)} />
     </Flex>);
 }
@@ -110,7 +123,24 @@ export const IngressValidator: WidgetValidator = (param) => {
         const elem = findElement(param);
         if (elem === null) return {valid: true};
         if (elem.value === "") return {valid: true};
-        return {valid: true, value: {type: "ingress", id: elem.value}};
+
+        const result: AppParameterValueNS.Ingress = {type: "ingress", id: elem.value};
+        const portElem = document.getElementById(widgetId(param) + "-port") as HTMLInputElement | null;
+        const portRequired = portElem?.getAttribute("data-required") === "true";
+
+        if (portElem && portElem.value === "" && portRequired) {
+            return {valid: false, message: "Port is required"};
+        }
+
+        if (portElem && portElem.value !== "") {
+            const port = parseInt(portElem.value, 10);
+            if (isNaN(port) || port < 1 || port > 65535) {
+                return {valid: false, message: "Port must be a number between 1 and 65535"};
+            }
+            result.port = port;
+        }
+
+        return {valid: true, value: result};
     }
 
     return {valid: true};
@@ -121,6 +151,13 @@ export const IngressSetter: WidgetSetter = (param, value) => {
 
     const selector = findElement(param);
     if (selector === null) throw "Missing element for: " + param.name;
-    selector.value = (value as AppParameterValueNS.Ingress).id;
+    const ingress = value as AppParameterValueNS.Ingress;
+    selector.value = ingress.id;
+
+    const port = document.getElementById(widgetId(param) + "-port") as HTMLInputElement | null;
+    if (port) {
+        port.value = ingress.port?.toString() ?? "";
+    }
+
     selector.dispatchEvent(new Event("change"));
 };

@@ -5,7 +5,9 @@ import {
     EmptyReasonTag,
     ResourceBrowser,
     ResourceBrowseFeatures,
+    ResourceBrowseHeaderControls,
     addProjectSwitcherInPortal,
+    createProjectSwitcherPortal,
     providerIcon,
     ResourceBrowserOpts,
 } from "@/ui-components/ResourceBrowser";
@@ -26,7 +28,6 @@ import {
 } from "@/UCloud/ResourceApi";
 import {ProductV2, ProductV2Storage} from "@/Accounting";
 import {bulkRequestOf} from "@/UtilityFunctions";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {usePage} from "@/Navigation/Redux";
 import AppRoutes from "@/Routes";
 import {Client} from "@/Authentication/HttpClientInstance";
@@ -47,6 +48,7 @@ import {PermissionsTable} from "@/Resource/PermissionEditor";
 import {slimModalStyle} from "@/Utilities/ModalUtilities";
 import {connectionState} from "@/Providers/ConnectionState";
 import {useProjectId} from "@/Project/Api";
+import {sendFailureNotification} from "@/Notifications";
 
 const collectionsOnOpen = new AsyncCache<PageV2<FileCollection>>({globalTtl: 500});
 const supportByProvider = new AsyncCache<SupportByProviderV2<ProductV2Storage, FileCollectionSupport>>({
@@ -76,7 +78,10 @@ const FEATURES: ResourceBrowseFeatures = {
 };
 
 const RESOURCE_NAME = "Drive";
-const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileCollection>}> = ({opts}) => {
+const DriveBrowse: React.FunctionComponent<{
+    opts?: ResourceBrowserOpts<FileCollection>;
+    headerControls?: ResourceBrowseHeaderControls;
+}> = ({opts, headerControls}) => {
     const navigate = useNavigate();
     const mountRef = useRef<HTMLDivElement | null>(null);
     const browserRef = useRef<ResourceBrowser<FileCollection> | null>(null);
@@ -84,6 +89,13 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
     usePage("Drives", SidebarTabId.FILES);
 
     const [switcher, setSwitcherWorkaround] = React.useState<React.ReactNode>(<></>);
+
+    React.useEffect(() => {
+        headerControls?.setRefresh?.(() => browserRef.current?.refresh());
+        return () => {
+            headerControls?.setRefresh?.(undefined);
+        };
+    }, [headerControls]);
     const isWorkspaceAdmin = React.useRef(!Client.hasActiveProject);
     const project = useProject();
     const projectId = useProjectId();
@@ -104,7 +116,7 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
                 browserRef.current.renderOperations();
             }
         }
-    }, [projectId]);
+    }, [projectId, project.fetch()]);
 
     useLayoutEffect(() => {
         const mount = mountRef.current;
@@ -163,7 +175,7 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
                                     id: drive.id,
                                     newTitle: drive.specification.title,
                                 }))).catch(err => {
-                                    snackbarStore.addFailure(extractErrorMessage(err), false);
+                                    sendFailureNotification(extractErrorMessage(err));
                                     browser.refresh();
                                 });
 
@@ -215,7 +227,7 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
                         invokeCommand: call => callAPI(call),
                         api: FileCollectionsApi,
                         isCreating: false,
-                        creationDisabled: browser.browseFilters[memberFilesKey] === "true",
+                        creationDisabled: browser.browseFilters[memberFilesKey] === "true" || browser.cachedData[browser.currentPath] == null,
                     };
 
                     return callbacks;
@@ -297,7 +309,7 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
                                             browser.renderRows();
                                             dialogStore.success();
                                         } catch (e) {
-                                            snackbarStore.addFailure("Failed to create new drive. " + extractErrorMessage(e), false);
+                                            sendFailureNotification("Failed to create new drive. " + extractErrorMessage(e));
                                             browser.refresh();
                                             return;
                                         }
@@ -468,7 +480,7 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
                         }))
                     ).then(res => {
                         browser.registerPage(res, newPath, true);
-                        browser.renderRows();
+                        browser.rerender();
                     });
                 });
 
@@ -535,7 +547,9 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
         main={
             <>
                 <div ref={mountRef} />
-                {switcher}
+                {headerControls?.projectSwitcherTarget
+                    ? createProjectSwitcherPortal(headerControls.projectSwitcherTarget)
+                    : switcher}
             </>
         }
     />;

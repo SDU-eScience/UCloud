@@ -15,7 +15,8 @@ import {
     Icon,
     Label,
     Link,
-    Markdown, Select,
+    Markdown,
+    Select,
     Tooltip
 } from "@/ui-components";
 import {findElement, OptionalWidgetSearch, setWidgetValues, validateWidgets, Widget} from "@/Applications/Jobs/Widgets";
@@ -23,6 +24,7 @@ import * as Heading from "@/ui-components/Heading";
 import {FolderResource, folderResourceAllowed} from "@/Applications/Jobs/Resources/Folders";
 import {IngressResource, ingressResourceAllowed} from "@/Applications/Jobs/Resources/Ingress";
 import {PeerResource, peerResourceAllowed} from "@/Applications/Jobs/Resources/Peers";
+import {PrivateNetworkResource} from "@/Applications/Jobs/Resources/PrivateNetworks";
 import {createSpaceForLoadedResources, injectResources, ResourceHook, useResource} from "@/Applications/Jobs/Resources";
 import {
     awaitReservationMount,
@@ -33,8 +35,9 @@ import {
     validateReservation
 } from "@/Applications/Jobs/Widgets/Reservation";
 import {
-    displayErrorMessageOrDefault,
     doNothing,
+    bulkRequestOf,
+    displayErrorMessageOrDefault,
     extractErrorCode,
     prettierString,
     useDidMount
@@ -43,19 +46,11 @@ import {addStandardDialog, OverallocationLink, WalletWarning} from "@/UtilityCom
 import {ImportParameters} from "@/Applications/Jobs/Widgets/ImportParameters";
 import LoadingIcon from "@/LoadingIcon/LoadingIcon";
 import {usePage} from "@/Navigation/Redux";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {NetworkIPResource, networkIPResourceAllowed} from "@/Applications/Jobs/Resources/NetworkIPs";
-import {bulkRequestOf} from "@/UtilityFunctions";
 import {getQueryParam} from "@/Utilities/URIUtilities";
 import {default as JobsApi, DynamicParameters, JobSpecification} from "@/UCloud/JobsApi";
-import {BulkResponse, FindByStringId} from "@/UCloud";
-import {
-    ProductV2,
-    UNABLE_TO_USE_FULL_ALLOC_MESSAGE,
-    priceToString,
-    WalletV2,
-    explainWallet
-} from "@/Accounting";
+import {BulkResponse, compute, FindByStringId, mail} from "@/UCloud";
+import {explainWallet, priceToString, ProductV2, UNABLE_TO_USE_FULL_ALLOC_MESSAGE, WalletV2} from "@/Accounting";
 import {SshWidget} from "@/Applications/Jobs/Widgets/Ssh";
 import {connectionState} from "@/Providers/ConnectionState";
 import {useUState} from "@/Utilities/UState";
@@ -66,18 +61,17 @@ import {validateMachineReservation} from "@/Applications/Jobs/Widgets/Machines";
 import {Resource} from "@/UCloud/ResourceApi";
 import {getProviderTitle} from "@/Providers/ProviderTitle";
 import * as AppStore from "@/Applications/AppStoreApi";
-import {
-    Application,
-    ApplicationGroup,
-    ApplicationParameter,
-} from "@/Applications/AppStoreApi";
+import {Application, ApplicationGroup, ApplicationParameter} from "@/Applications/AppStoreApi";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
-import {UserDetailsState, defaultEmailSettings} from "@/UserSettings/ChangeEmailSettings";
-import {mail} from "@/UCloud";
+import {defaultEmailSettings, UserDetailsState} from "@/UserSettings/ChangeEmailSettings";
+import {useDiscovery} from "@/Applications/Hooks";
+import {Feature, hasFeature} from "@/Features";
 import retrieveEmailSettings = mail.retrieveEmailSettings;
 import toggleEmailSettings = mail.toggleEmailSettings;
 import {useDiscovery} from "@/Applications/Hooks";
+import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
+import {CreateUcxJob} from "@/Applications/Jobs/CreateUcx";
 
 interface InsufficientFunds {
     why?: string;
@@ -138,6 +132,10 @@ export const Create: React.FunctionComponent = () => {
         {noop: true},
         null
     );
+    const [machineSupport, fetchMachineSupport] = useCloudAPI<compute.JobsRetrieveProductsResponse>(
+        {noop: true},
+        {productsByProvider: {}}
+    );
     const [workflowInjectedParameters, setWorkflowInjectParameters] = useState<ApplicationParameter[]>([]);
 
     const application = applicationResp?.data?.status?.applications?.find(it => it.metadata.name === appName);
@@ -165,12 +163,83 @@ export const Create: React.FunctionComponent = () => {
     const [initialSshEnabled, setInitialSshEnabled] = useState<boolean | undefined>(undefined);
     const [sshEnabled, setSshEnabled] = useState(false);
     const [sshValid, setSshValid] = useState(true);
+    const [bindLinkToPort, setBindLinkToPort] = useState(false);
     const displayWallet = useMemo(() => {
         const wallet = estimatedCost.wallet;
         if (wallet === null) return null;
         return explainWallet(wallet);
     }, [estimatedCost.wallet]);
     const [discovery] = useDiscovery();
+    const dnsHostnameSeed = React.useRef((Math.floor(Math.random() * 9000) + 1000).toString());
+    const [jobName, setJobName] = useState("");
+    const [dnsHostname, setDnsHostname] = useState("");
+    const [hasCustomDnsHostname, setHasCustomDnsHostname] = useState(false);
+
+    const defaultDnsHostname = useMemo(() => {
+        const fallbackJobName = `${application?.metadata.title ?? appName}-${dnsHostnameSeed.current}`;
+        return toDnsSafeHostname(jobName || fallbackJobName);
+    }, [application?.metadata.title, appName, jobName]);
+
+    useEffect(() => {
+        if (!hasCustomDnsHostname) {
+            setDnsHostname(defaultDnsHostname);
+        }
+    }, [defaultDnsHostname, hasCustomDnsHostname]);
+
+    const onDnsHostnameChange = useCallback((ev: React.SyntheticEvent) => {
+        const elem = ev.target as HTMLInputElement;
+        const sanitized = toDnsSafeHostname(elem.value);
+        setHasCustomDnsHostname(true);
+        setDnsHostname(sanitized);
+    }, []);
+
+    useEffect(() => {
+        const product = estimatedCost.product;
+        if (!product || product.productType !== "COMPUTE") {
+            setBindLinkToPort(false);
+            return;
+        }
+
+        fetchMachineSupport(compute.jobs.retrieveProducts({
+            providers: product.category.provider,
+        }));
+    }, [estimatedCost.product, fetchMachineSupport]);
+
+    useEffect(() => {
+        const product = estimatedCost.product;
+        if (!product || product.productType !== "COMPUTE") {
+            setBindLinkToPort(false);
+            return;
+        }
+
+        const providerProducts = machineSupport.data.productsByProvider[product.category.provider] ?? [];
+        const selectedSupport = providerProducts.find(item =>
+            item.product.category.provider === product.category.provider &&
+            item.product.category.name === product.category.name &&
+            item.product.name === product.name
+        )?.support;
+
+        if (!selectedSupport) {
+            setBindLinkToPort(false);
+            return;
+        }
+
+        const backend = application?.invocation.tool.tool?.description?.backend ?? "DOCKER";
+        switch (backend) {
+            case "DOCKER":
+                setBindLinkToPort(selectedSupport.docker.bindLinkToPort === true);
+                break;
+            case "NATIVE":
+                setBindLinkToPort(selectedSupport.native.bindLinkToPort === true);
+                break;
+            case "VIRTUAL_MACHINE":
+                setBindLinkToPort(selectedSupport.virtualMachine.bindLinkToPort === true);
+                break;
+            default:
+                setBindLinkToPort(false);
+                break;
+        }
+    }, [estimatedCost.product, machineSupport.data, application]);
 
     const provider = getProviderField();
 
@@ -182,6 +251,8 @@ export const Create: React.FunctionComponent = () => {
         (name) => ({type: "input_directory", description: "", title: "", optional: true, name}));
     const peers = useResource("resourcePeer", provider,
         (name) => ({type: "peer", description: "", title: "", optional: true, name}));
+    const privateNetworks = useResource("resourcePrivateNetwork", provider,
+        (name) => ({type: "private_network", description: "", title: "", optional: true, name}));
 
     const [activeOptParams, setActiveOptParams] = useState<string[]>([]);
     const [reservationErrors, setReservationErrors] = useState<ReservationErrors>({});
@@ -252,9 +323,9 @@ export const Create: React.FunctionComponent = () => {
         }))) !== null;
 
         if (!wasSuccessful) {
-            snackbarStore.addFailure("Failed to update user email settings", false);
+            sendFailureNotification("Failed to update user email settings");
         } else {
-            snackbarStore.addSuccess("User email settings updated", false);
+            sendSuccessNotification("User email settings updated");
         }
 
     }, [emailNotifications]);
@@ -281,13 +352,15 @@ export const Create: React.FunctionComponent = () => {
             const peersResources = validateWidgets(peers.params);
             const networkResources = validateWidgets(networks.params);
             const ingressResources = validateWidgets(ingress.params);
+            const privateNetworkResources = validateWidgets(privateNetworks.params);
             for (const err of [
                 ...Object.values(foldersResources.errors).map(it => "Folders: " + it),
                 ...Object.values(peersResources.errors).map(it => "Connected jobs: " + it),
                 ...Object.values(networkResources.errors).map(it => "IPs: " + it),
-                ...Object.values(ingressResources.errors).map(it => "Public link: " + it)
+                ...Object.values(ingressResources.errors).map(it => "Public link: " + it),
+                ...Object.values(privateNetworkResources.errors).map(it => "Private network: " + it)
             ]) {
-                snackbarStore.addFailure(err, false);
+                sendFailureNotification(err);
             }
 
             appParams.current = [application.metadata.groupId, {
@@ -296,7 +369,8 @@ export const Create: React.FunctionComponent = () => {
                 resources: Object.values(foldersResources.values)
                     .concat(Object.values(peersResources.values))
                     .concat(Object.values(ingressResources.values))
-                    .concat(Object.values(networkResources.values)),
+                    .concat(Object.values(networkResources.values))
+                    .concat(Object.values(privateNetworkResources.values)),
                 sshEnabled: sshEnabledRef.current
             }];
         }
@@ -376,7 +450,7 @@ export const Create: React.FunctionComponent = () => {
             );
 
             findProviderMismatches(
-                provider, {errors, params, setErrors}, networks, folders, peers, ingress
+                provider, {errors, params, setErrors}, networks, folders, peers, ingress, privateNetworks
             );
         }
     }, [provider, application]);
@@ -413,6 +487,7 @@ export const Create: React.FunctionComponent = () => {
         try {
             await awaitReservationMount();
             setReservation(importedJob);
+            setJobName(importedJob.name ?? "");
         } catch (e) {
             console.warn(e);
         }
@@ -446,7 +521,7 @@ export const Create: React.FunctionComponent = () => {
             const newSpace = createSpaceForLoadedResources(peers, resources, "peer");
             setTimeout(() => injectResources(newSpace, resources, "peer"), 0);
         }
-        if (ingressResourceAllowed(application)) {
+        if (ingressResourceAllowed(application, bindLinkToPort)) {
             const newSpace = createSpaceForLoadedResources(ingress, resources, "ingress");
             setTimeout(() => injectResources(newSpace, resources, "ingress"), 0);
         }
@@ -454,14 +529,19 @@ export const Create: React.FunctionComponent = () => {
             const newSpace = createSpaceForLoadedResources(networks, resources, "network");
             setTimeout(() => injectResources(newSpace, resources, "network"), 0);
         }
+        if (hasFeature(Feature.NEW_VM_UI)) {
+            const newSpace = createSpaceForLoadedResources(privateNetworks, resources, "private_network");
+            setTimeout(() => injectResources(newSpace, resources, "private_network"), 0);
+        }
 
         folders.setErrors({});
         ingress.setErrors({});
         networks.setErrors({});
         peers.setErrors({});
+        privateNetworks.setErrors({});
         setErrors({});
         setReservationErrors({});
-    }, [application, activeOptParams, folders, peers, networks, ingress, parameters]);
+    }, [application, activeOptParams, folders, peers, networks, ingress, privateNetworks, parameters, bindLinkToPort]);
 
     const reloadCount = 3;
     const onLoadParameters = useCallback((importedJob: Partial<JobSpecification>) => {
@@ -501,11 +581,21 @@ export const Create: React.FunctionComponent = () => {
         const ingressValidation = validateWidgets(ingress.params);
         ingress.setErrors(ingressValidation.errors);
 
+        const privateNetworkValidation = validateWidgets(privateNetworks.params);
+        privateNetworks.setErrors(privateNetworkValidation.errors);
+
         if (Object.keys(errors).length === 0 &&
             reservationValidation.options !== undefined &&
             Object.keys(foldersValidation.errors).length === 0 &&
-            Object.keys(peersValidation.errors).length === 0
+            Object.keys(peersValidation.errors).length === 0 &&
+            Object.keys(privateNetworkValidation.errors).length === 0
         ) {
+            const dnsHostnameForSubmission = hasCustomDnsHostname
+                ? toDnsSafeHostname(dnsHostname)
+                : toDnsSafeHostname(
+                    reservationValidation.options.name || `${application.metadata.title}-${dnsHostnameSeed.current}`
+                );
+
             const request: JobSpecification = {
                 ...reservationValidation.options,
                 application: application?.metadata,
@@ -513,9 +603,11 @@ export const Create: React.FunctionComponent = () => {
                 resources: Object.values(foldersValidation.values)
                     .concat(Object.values(peersValidation.values))
                     .concat(Object.values(ingressValidation.values))
-                    .concat(Object.values(networkValidation.values)),
+                    .concat(Object.values(networkValidation.values))
+                    .concat(Object.values(privateNetworkValidation.values)),
                 sshEnabled,
-                allowDuplicateJob
+                allowDuplicateJob,
+                hostname: dnsHostnameForSubmission,
             };
 
             try {
@@ -526,7 +618,7 @@ export const Create: React.FunctionComponent = () => {
 
                 const ids = response?.responses;
                 if (!ids || ids.length === 0) {
-                    snackbarStore.addFailure("UCloud failed to submit the job", false);
+                    sendFailureNotification("UCloud failed to submit the job");
                     return;
                 }
 
@@ -552,7 +644,7 @@ export const Create: React.FunctionComponent = () => {
                 }
             }
         }
-    }, [application, folders, peers, ingress, networks, navigate]);
+    }, [application, folders, peers, ingress, networks, privateNetworks, navigate, hasCustomDnsHostname, dnsHostname]);
 
     if (applicationResp.loading || isInitialMount) return <MainContainer main={<LoadingIcon size={36} />} />;
 
@@ -562,6 +654,10 @@ export const Create: React.FunctionComponent = () => {
                 main={<Heading.h3>Unable to find application &apos;{appName}&apos;</Heading.h3>}
             />
         );
+    }
+
+    if (application.invocation.tool.tool?.description.backend === "UCX") {
+        return <CreateUcxJob application={application} appGroup={applicationResp?.data ?? null} />;
     }
 
     let mandatoryWorkflow = parameters.filter(it => !it.optional && it.type === "workflow");
@@ -589,7 +685,7 @@ export const Create: React.FunctionComponent = () => {
 
     const errorCount = countMandatoryAndOptionalErrors(parameters.filter(it =>
         PARAMETER_TYPE_FILTER.includes(it.type)
-    ).map(it => it.name), errors) + countErrors(folders.errors, ingress.errors, networks.errors, peers.errors);
+    ).map(it => it.name), errors) + countErrors(folders.errors, ingress.errors, networks.errors, peers.errors, privateNetworks.errors);
     const anyError = errorCount > 0;
 
     const appGroup = applicationResp?.data;
@@ -736,6 +832,7 @@ export const Create: React.FunctionComponent = () => {
                             <ReservationParameter
                                 application={application}
                                 errors={reservationErrors}
+                                onJobNameChange={setJobName}
                                 onEstimatedCostChange={(durationInMinutes, numberOfNodes, wallet, product) =>
                                     setEstimatedCost({durationInMinutes, wallet, numberOfNodes, product})}
                             />
@@ -855,11 +952,19 @@ export const Create: React.FunctionComponent = () => {
                         <IngressResource
                             {...ingress}
                             application={application}
+                            bindLinkToPort={bindLinkToPort}
                         />
 
                         <PeerResource
                             {...peers}
                             application={application}
+                        />
+
+                        <PrivateNetworkResource
+                            {...privateNetworks}
+                            application={application}
+                            dnsHostname={dnsHostname}
+                            onDnsHostnameChange={onDnsHostnameChange}
                         />
 
                         <NetworkIPResource
@@ -924,6 +1029,18 @@ function prettierType(type: string): string {
         default:
             return prettierString(type).toLocaleLowerCase();
     }
+}
+
+function toDnsSafeHostname(value: string): string {
+    const sanitized = value
+        .toLowerCase()
+        .replace(/[^a-z0-9-]/g, "-")
+        .replace(/-+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 63)
+        .replace(/^-+|-+$/g, "");
+
+    return sanitized === "" ? "job" : sanitized;
 }
 
 export function getProviderField(): string | undefined {
