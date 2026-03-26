@@ -20,7 +20,7 @@ The nodes are white, unless a contrast is needed, in which case the outer nodes 
 | [favicon](./favicon.ico)                                                           | <img src="./favicon.ico" />             | Used for the UCloud-site and associated documentation                |
 | [Icon logo, white nodes](./logo_esc.svg)                                           | <img src="./logo_esc.svg" />            | Usually used when the UCloud logo is presented on a blue background  |
 | Icon logo, blue nodes, with text ([svg](./ucloud-blue.svg), [png](./ucloud.png))   | <img src="./ucloud-blue.svg" />         | Used on the login page                                               |
-| [Icon logo, blue nodes, no text](./ucloud-blue-no-text.svg)                        | <img src="./ucloud-blue-no-text.svg" /> | Default logo to use, maybe? Used on LinkedIn.                        |
+| [Icon logo, blue nodes, no text](./ucloud-blue-no-text.svg)                        | <img src="./ucloud-blue-no-text.svg" /> | Default logo to use <!-- maybe? Used on LinkedIn. -->                |
 
 <!-- We should probably have rules set regarding which icon to use. The blue edge/node one should work for both light and dark backgrounds, so maybe go for that one. -->
 
@@ -32,11 +32,15 @@ The main accent color for the UCloud platform is a blue color, with a different 
 
 The color variable names and their associated hex-values can be seen in [Colors.css](https://github.com/SDU-eScience/UCloud/tree/master/frontend-web/webclient/app/Assets/Colors.css).
 
+<!-- We are not following the rules in the following table. See MembersUI.tsx -->
+
 | Notable color variable name (without prefix)                        | Uses                                                                      |
 |---------------------------------------------------------------------|---------------------------------------------------------------------------|
-| primaryMain                                                         | The accent color used for default buttons, checkboxes                             |
-| successMain                                                         | Used for creation, approving, etc.                                        |
-| errorMain                                                           | Used for cancelling, dismissing, deleting, etc.                           |
+| primaryMain                                                         | The accent color used for default buttons, checkboxes                     |
+| successMain                                                         | Used for creation, approving, accepting, etc.                             |
+| errorMain                                                           | Used for cancelling, dismissing, deleting, removing, etc.                 |
+
+<!-- Could add more, not sure which would make sense. -->
 
 ## Typography
 
