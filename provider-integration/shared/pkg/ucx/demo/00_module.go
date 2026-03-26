@@ -1,7 +1,6 @@
 package demo
 
 import (
-	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -14,58 +13,24 @@ import (
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
-	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/ucx"
 	"ucloud.dk/shared/pkg/ucx/ucxsvc"
 	"ucloud.dk/shared/pkg/util"
 )
 
-func RunDemoSession(info rpc.RequestInfo) (util.Empty, *util.HttpError) {
-	conn := info.WebSocket
-
-	defer util.SilentClose(conn)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	state := &demoState{
-		InterfaceId: "job-create-demo",
-		Title:       "UCX Create Prototype",
-		JobName:     fmt.Sprintf("K8s-%s", util.RandomTokenNoTs(4)),
-		CPU:         4,
-		Notify:      true,
-		RpcMessage:  "hello from server",
-		RpcStatus:   "",
-		TodoDraft:   "",
-		Todos:       []todoItem{},
-		Errors:      map[string]string{},
-		NextTodoId:  1,
+func Demo() ucx.Application {
+	return &demoApp{
+		Title:      "UCX Create Prototype",
+		JobName:    fmt.Sprintf("K8s-%s", util.RandomTokenNoTs(4)),
+		CPU:        4,
+		Notify:     true,
+		RpcMessage: "hello from server",
+		RpcStatus:  "",
+		TodoDraft:  "",
+		Todos:      []todoItem{},
+		Errors:     map[string]string{},
+		NextTodoId: 1,
 	}
-
-	stateMu := &state.Mu
-
-	ucx.RunAppWebSocket(
-		conn,
-		ctx,
-		func(ctx context.Context, token string) bool {
-			return true
-		},
-		func(ctx context.Context, session *ucx.Session) {
-			state.Session = session
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				case frame, ok := <-session.Incoming():
-					if !ok {
-						return
-					}
-
-					handleIncomingFrame(ctx, stateMu, state, frame, session)
-				}
-			}
-		},
-	)
-	return util.Empty{}, nil
 }
 
 type todoItem struct {
@@ -73,9 +38,11 @@ type todoItem struct {
 	Text string
 }
 
-type demoState struct {
-	InterfaceId       string `ucx:"-"`
-	Title             string `ucx:"-"`
+type demoApp struct {
+	mu      sync.Mutex   `ucx:"-"`
+	session *ucx.Session `ucx:"-"`
+	Title   string       `ucx:"-"`
+
 	JobName           string
 	CPU               int64
 	Notify            bool
@@ -89,31 +56,30 @@ type demoState struct {
 	ValidationMessage string
 	TodoHeader        string
 	FnText            string
-	NextTodoId        int64        `ucx:"-"`
-	Mu                sync.Mutex   `ucx:"-"`
-	Session           *ucx.Session `ucx:"-"`
+	NextTodoId        int64 `ucx:"-"`
 }
 
-func (s *demoState) UpdateModel() {
-	s.Session.SendModel(s.modelMap())
+func (app *demoApp) Mutex() *sync.Mutex {
+	return &app.mu
 }
 
-func (s *demoState) uiMount() ucx.UiMount {
-	return ucx.UiMount{
-		InterfaceId: s.InterfaceId,
-		Root:        s.uiTree(),
-		Model:       s.modelMap(),
-	}
+func (app *demoApp) Session() **ucx.Session {
+	return &app.session
 }
 
-func (s *demoState) uiTree() ucx.UiNode {
+func (app *demoApp) OnInit() {
+	// Nothing to do
+}
+
+func (app *demoApp) UserInterface() ucx.UiNode {
+	session := app.session
 	return ucx.Flex(ucx.FlexProps{
 		Direction: "column",
 		Gap:       8,
 	}).Sx(ucx.SxP(4)).Children(
 		ucx.Flex(ucx.FlexProps{Direction: "row", Gap: 8}).Sx(ucx.SxAlignItemsCenter).Children(
 			ucx.Icon(ucx.IconHeroCake, ucx.ColorPrimaryMain, 20),
-			ucx.H2(s.Title).Sx(ucx.SxColor(ucx.ColorPrimaryMain)),
+			ucx.H2(app.Title).Sx(ucx.SxColor(ucx.ColorPrimaryMain)),
 		),
 		ucx.Text("UI layout is mounted once and state streams in").Sx(ucx.SxColor(ucx.ColorTextSecondary)),
 
@@ -134,18 +100,18 @@ func (s *demoState) uiTree() ucx.UiNode {
 			ucx.HeadingBound("todoHeader", 4),
 			ucx.Flex(ucx.FlexProps{Gap: 8}).Children(
 				ucx.InputText("todoDraft", "New todo", "Add task", "todoDraft"),
-				ucx.ButtonEx("addTodo", "Add", ucx.ColorSecondaryMain, ucx.IconHeroPlus, "", "").On(ucx.UiEventClick, func(session *ucx.Session, ev ucx.UiEvent) {
-					draft := strings.TrimSpace(s.TodoDraft)
+				ucx.ButtonEx("addTodo", "Add", ucx.ColorSecondaryMain, ucx.IconHeroPlus, "", "").On(ucx.UiEventClick, func(ev ucx.UiEvent) {
+					draft := strings.TrimSpace(app.TodoDraft)
 					if draft != "" {
-						s.Todos = append(s.Todos, todoItem{
-							Id:   strconv.FormatInt(s.NextTodoId, 10),
+						app.Todos = append(app.Todos, todoItem{
+							Id:   strconv.FormatInt(app.NextTodoId, 10),
 							Text: draft,
 						})
-						s.NextTodoId++
-						s.TodoDraft = ""
+						app.NextTodoId++
+						app.TodoDraft = ""
 					}
-					s.Errors = validateState(s)
-					s.SubmissionMessage = ""
+					app.Errors = validateState(app)
+					app.SubmissionMessage = ""
 				}),
 			),
 		),
@@ -161,89 +127,69 @@ func (s *demoState) uiTree() ucx.UiNode {
 				ucx.SxJustifySpaceBetween,
 			).Children(
 				ucx.TextBoundEx("todoItemText", "./text"),
-				ucx.ButtonEx("removeTodo", "Remove", ucx.ColorErrorMain, ucx.IconHeroTrash, "", "./id").On(ucx.UiEventClick, func(session *ucx.Session, ev ucx.UiEvent) {
-					s.Mu.Lock()
-					defer s.Mu.Unlock()
-
+				ucx.ButtonEx("removeTodo", "Remove", ucx.ColorErrorMain, ucx.IconHeroTrash, "", "./id").On(ucx.UiEventClick, func(ev ucx.UiEvent) {
 					id := strings.TrimSpace(ucx.ValueAsString(ev.Value))
 					if id == "" {
 						return
 					}
-					newTodos := make([]todoItem, 0, len(s.Todos))
-					for _, it := range s.Todos {
+					newTodos := make([]todoItem, 0, len(app.Todos))
+					for _, it := range app.Todos {
 						if it.Id != id {
 							newTodos = append(newTodos, it)
 						}
 					}
-					s.Todos = newTodos
-					s.Errors = validateState(s)
-					s.SubmissionMessage = ""
-					s.UpdateModel()
+					app.Todos = newTodos
+					app.Errors = validateState(app)
+					app.SubmissionMessage = ""
 				}),
 			),
 		),
 
 		ucx.TextBound("errors.todos").Sx(ucx.SxColor(ucx.ColorErrorMain)),
-		ucx.Button("submitForm", "Submit", ucx.ColorPrimaryMain).On(ucx.UiEventClick, func(session *ucx.Session, ev ucx.UiEvent) {
-			s.Mu.Lock()
-			defer s.Mu.Unlock()
-
-			s.Errors = validateState(s)
-			if len(s.Errors) > 0 {
-				s.SubmissionMessage = ""
-				s.LastActionMessage = "Submit rejected by validation"
+		ucx.Button("submitForm", "Submit", ucx.ColorPrimaryMain).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
+			app.Errors = validateState(app)
+			if len(app.Errors) > 0 {
+				app.SubmissionMessage = ""
+				app.LastActionMessage = "Submit rejected by validation"
 			} else {
-				s.SubmissionMessage = fmt.Sprintf(
+				app.SubmissionMessage = fmt.Sprintf(
 					"Submitted job '%s' with %d CPU and %d todo item(s). Notify=%t",
-					s.JobName,
-					s.CPU,
-					len(s.Todos),
-					s.Notify,
+					app.JobName,
+					app.CPU,
+					len(app.Todos),
+					app.Notify,
 				)
-				s.LastActionMessage = "Submit accepted"
+				app.LastActionMessage = "Submit accepted"
 			}
-
-			s.UpdateModel()
 		}),
 		ucx.TextBound("validationMessage"),
 		ucx.TextBound("lastActionMessage"),
 		ucx.TextBound("submissionMessage").Sx(ucx.SxColor(ucx.ColorSuccessMain)),
 
 		ucx.Flex(ucx.FlexProps{Direction: "row", Gap: 6}).Children(
-			ucx.Button("fnFrontend", "Frontend RPC", ucx.ColorSuccessMain).On(ucx.UiEventClick, func(session *ucx.Session, ev ucx.UiEvent) {
+			ucx.Button("fnFrontend", "Frontend RPC", ucx.ColorSuccessMain).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
 				resp, err := ucxsvc.Frontend.Invoke(session, ucxsvc.Message{fmt.Sprintf("Hello frontend! %v", time.Now())})
 				if err == nil {
-					s.Mu.Lock()
-					s.FnText = resp.Message
-					s.Mu.Unlock()
-					s.UpdateModel()
+					app.FnText = resp.Message
 				}
 			}),
-			ucx.Button("fnCore", "Core RPC", ucx.ColorWarningMain).On(ucx.UiEventClick, func(session *ucx.Session, ev ucx.UiEvent) {
+			ucx.Button("fnCore", "Core RPC", ucx.ColorWarningMain).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
 				resp, err := ucxsvc.Core.Invoke(session, ucxsvc.Message{fmt.Sprintf("Hello core! %v", time.Now())})
 				if err == nil {
-					s.Mu.Lock()
-					s.FnText = resp.Message
-					s.Mu.Unlock()
-					s.UpdateModel()
+					app.FnText = resp.Message
 				}
 			}),
-			ucx.Button("fnIm", "IM RPC", ucx.ColorErrorMain).On(ucx.UiEventClick, func(session *ucx.Session, ev ucx.UiEvent) {
+			ucx.Button("fnIm", "IM RPC", ucx.ColorErrorMain).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
 				resp, err := ucxsvc.IM.Invoke(session, ucxsvc.Message{fmt.Sprintf("Hello IM! %v", time.Now())})
 				if err == nil {
-					s.Mu.Lock()
-					s.FnText = resp.Message
-					s.Mu.Unlock()
-					s.UpdateModel()
+					app.FnText = resp.Message
 				}
 			}),
 		),
 		ucx.TextBound("fnText"),
 
-		ucx.Button("stack", "Create a stack", ucx.ColorPrimaryMain).On(ucx.UiEventClick, func(session *ucx.Session, ev ucx.UiEvent) {
-			s.Mu.Lock()
-			stackId := s.JobName
-			s.Mu.Unlock()
+		ucx.Button("stack", "Create a stack", ucx.ColorPrimaryMain).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
+			stackId := app.JobName
 
 			available, _ := ucxsvc.StackAvailable.Invoke(session, fndapi.FindByStringId{Id: stackId})
 			if !available {
@@ -395,55 +341,19 @@ func (s *demoState) uiTree() ucx.UiNode {
 	)
 }
 
-func (s *demoState) modelMap() map[string]ucx.Value {
-	validationMessage := "Fill out the form and add at least one todo item, then submit."
-	if len(s.Errors) == 0 {
-		validationMessage = "No validation errors."
-	}
-	s.ValidationMessage = validationMessage
-	s.TodoHeader = fmt.Sprintf("Todo List (%d)", len(s.Todos))
-
-	result, err := ucx.ValueMarshal(*s)
-	if err != nil {
-		return map[string]ucx.Value{}
-	}
-
-	return result
-}
-
-func handleIncomingFrame(ctx context.Context, mu *sync.Mutex, state *demoState, incoming ucx.Frame, session *ucx.Session) {
-	switch incoming.Opcode {
-	case ucx.OpSysHello:
-		session.SendUiMount(state.uiMount())
-
+func (app *demoApp) OnMessage(msg ucx.Frame) {
+	switch msg.Opcode {
 	case ucx.OpModelInput:
-		handleModelInput(state, incoming.ModelInput)
+		app.JobName = strings.TrimSpace(app.JobName)
+		app.NextTodoId = int64(len(app.Todos) + 1)
 
-	case ucx.OpUiEvent:
-		if session.DispatchUiEvent(incoming.UiEvent) {
-			state.UpdateModel()
-			return
-		}
+		app.Errors = validateState(app)
+		app.SubmissionMessage = ""
+		ucx.AppUpdateModel(app)
 	}
 }
 
-func handleModelInput(state *demoState, input ucx.ModelInput) {
-	state.Mu.Lock()
-	defer state.Mu.Unlock()
-
-	if err := ucx.ApplyModelInput(state, input); err != nil {
-		return
-	}
-
-	state.JobName = strings.TrimSpace(state.JobName)
-	state.NextTodoId = int64(len(state.Todos) + 1)
-
-	state.Errors = validateState(state)
-	state.SubmissionMessage = ""
-	state.UpdateModel()
-}
-
-func validateState(state *demoState) map[string]string {
+func validateState(state *demoApp) map[string]string {
 	errors := map[string]string{}
 	if len(strings.TrimSpace(state.JobName)) < 3 {
 		errors["jobName"] = "Job name must be at least 3 characters"

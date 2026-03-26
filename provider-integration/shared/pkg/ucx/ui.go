@@ -17,6 +17,7 @@ type UiNode struct {
 }
 
 type UiEventHandler func(session *Session, ev UiEvent)
+type UiEventHandlerSimple func(ev UiEvent)
 
 var interactiveComponents = map[string]bool{
 	"input_text":   true,
@@ -78,8 +79,10 @@ func (n UiNode) Children(children ...UiNode) UiNode {
 	return n
 }
 
-func (n UiNode) On(event UiEventType, handler UiEventHandler) UiNode {
-	return n.OnEx(event, 0, handler)
+func (n UiNode) On(event UiEventType, handler UiEventHandlerSimple) UiNode {
+	return n.OnEx(event, 0, func(session *Session, ev UiEvent) {
+		handler(ev)
+	})
 }
 
 type EventHandlerFlag uint64
@@ -108,9 +111,19 @@ func (n UiNode) OnEx(event UiEventType, flags EventHandlerFlag, handler UiEventH
 	if flags&EventHandlerBlocking == 0 {
 		modifiedHandler = func(session *Session, ev UiEvent) {
 			go func() {
+				app := session.app
+				if app != nil {
+					mu := app.Mutex()
+
+					mu.Lock()
+					defer mu.Unlock()
+					defer AppUpdateModel(app)
+				}
 				handler(session, ev)
 			}()
 		}
+	} else {
+		// NOTE(Dan): If not launching into a goroutine, then we should not acquire the mutex since it is already held.
 	}
 
 	n.handlers[string(event)] = modifiedHandler

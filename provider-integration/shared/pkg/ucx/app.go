@@ -28,6 +28,7 @@ type Session struct {
 	modelMu        sync.Mutex
 	uiHandlerMu    sync.RWMutex
 	uiHandlers     map[string]map[string]UiEventHandler
+	app            Application
 }
 
 func NewSession(outgoing chan<- Frame, incoming <-chan Frame) *Session {
