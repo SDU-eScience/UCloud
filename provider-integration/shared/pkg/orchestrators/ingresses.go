@@ -21,8 +21,7 @@ type IngressSupport struct {
 }
 
 type IngressSpecification struct {
-	Domain  string               `json:"domain"`
-	Product apm.ProductReference `json:"product"`
+	Domain string `json:"domain"`
 	ResourceSpecification
 }
 
@@ -112,6 +111,18 @@ var IngressesUpdateAcl = rpc.Call[fnd.BulkRequest[UpdatedAcl], fnd.BulkResponse[
 	Operation:   "updateAcl",
 }
 
+type IngressesUpdateLabelsRequest struct {
+	Id     string            `json:"id"`
+	Labels map[string]string `json:"labels"`
+}
+
+var IngressesUpdateLabels = rpc.Call[fnd.BulkRequest[IngressesUpdateLabelsRequest], util.Empty]{
+	BaseContext: ingressNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "updateLabels",
+}
+
 var IngressesRetrieveProducts = rpc.Call[util.Empty, SupportByProvider[IngressSupport]]{
 	BaseContext: ingressNamespace,
 	Convention:  rpc.ConventionRetrieve,
@@ -162,6 +173,13 @@ var IngressesControlAddUpdate = rpc.Call[fnd.BulkRequest[ResourceUpdateAndId[Ing
 	Operation:   "update",
 }
 
+var IngressesControlUpdateLabels = rpc.Call[fnd.BulkRequest[IngressesUpdateLabelsRequest], util.Empty]{
+	BaseContext: ingressControlNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesProvider,
+	Operation:   "updateLabels",
+}
+
 // Ingress Provider API
 // =====================================================================================================================
 
@@ -198,4 +216,11 @@ var IngressesProviderUpdateAcl = rpc.Call[fnd.BulkRequest[UpdatedAclWithResource
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesPrivileged,
 	Operation:   "updateAcl",
+}
+
+var IngressesProviderOnUpdatedLabels = rpc.Call[fnd.BulkRequest[Ingress], util.Empty]{
+	BaseContext: ingressProviderNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesPrivileged,
+	Operation:   "onUpdatedLabels",
 }

@@ -5,6 +5,7 @@ require (
 	github.com/anyascii/go v0.3.3
 	github.com/bits-and-blooms/bloom/v3 v3.7.0
 	github.com/coreos/go-oidc/v3 v3.13.0
+	github.com/creack/pty v1.1.24
 	github.com/envoyproxy/go-control-plane v0.14.0
 	github.com/envoyproxy/go-control-plane/envoy v1.36.0
 	github.com/golang/protobuf v1.5.4

@@ -30,8 +30,8 @@ func DriveIdFromUCloudPath(path string) (string, bool) {
 }
 
 type DriveSpecification struct {
-	Title   string               `json:"title"`
-	Product acc.ProductReference `json:"product"`
+	Title string `json:"title"`
+	ResourceSpecification
 }
 
 type FSSupport struct {
@@ -153,6 +153,18 @@ var DrivesUpdateAcl = rpc.Call[fnd.BulkRequest[UpdatedAcl], fnd.BulkResponse[uti
 	Operation:   "updateAcl",
 }
 
+type DrivesUpdateLabelsRequest struct {
+	Id     string            `json:"id"`
+	Labels map[string]string `json:"labels"`
+}
+
+var DrivesUpdateLabels = rpc.Call[fnd.BulkRequest[DrivesUpdateLabelsRequest], util.Empty]{
+	BaseContext: driveNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "updateLabels",
+}
+
 var DrivesRetrieveProducts = rpc.Call[util.Empty, SupportByProvider[FSSupport]]{
 	BaseContext: driveNamespace,
 	Convention:  rpc.ConventionRetrieve,
@@ -194,6 +206,13 @@ var DrivesControlRegister = rpc.Call[fnd.BulkRequest[ProviderRegisteredResource[
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesProvider,
 	Operation:   "register",
+}
+
+var DrivesControlUpdateLabels = rpc.Call[fnd.BulkRequest[DrivesUpdateLabelsRequest], util.Empty]{
+	BaseContext: driveControlNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesProvider,
+	Operation:   "updateLabels",
 }
 
 // Drive Provider API
@@ -239,4 +258,11 @@ var DrivesProviderRename = rpc.Call[fnd.BulkRequest[DriveRenameRequest], fnd.Bul
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesService,
 	Operation:   "rename",
+}
+
+var DrivesProviderOnUpdatedLabels = rpc.Call[fnd.BulkRequest[Drive], util.Empty]{
+	BaseContext: driveProviderNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesPrivileged,
+	Operation:   "onUpdatedLabels",
 }

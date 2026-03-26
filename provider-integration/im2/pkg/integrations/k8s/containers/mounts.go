@@ -26,25 +26,37 @@ type mountResult struct {
 	MountedDrivesAsReadOnly map[string]bool
 }
 
+type resolvedMount struct {
+	SubPath    string
+	ReadOnly   bool
+	IsExplicit bool
+}
+
 func calculateMounts(job *orc.Job, internalJobFolder string) (mountResult, bool) {
-	ucloudMounts := map[string]bool{}
+	type ucloudMount struct {
+		ReadOnly  bool
+		MountPath string
+	}
+
+	ucloudMounts := map[string]ucloudMount{}
 
 	for _, v := range job.Specification.Resources {
 		if v.Type == orc.AppParameterValueTypeFile {
-			ucloudMounts[v.Path] = v.ReadOnly
+			ucloudMounts[v.Path] = ucloudMount{ReadOnly: v.ReadOnly, MountPath: v.MountPath}
 		}
 	}
 
 	for _, v := range job.Specification.Parameters {
 		if v.Type == orc.AppParameterValueTypeFile {
-			ucloudMounts[v.Path] = v.ReadOnly
+			ucloudMounts[v.Path] = ucloudMount{ReadOnly: v.ReadOnly, MountPath: v.MountPath}
 		}
 	}
 
 	containerMountDir := "/work"
 
 	// Container internal path to (potentially conflicting) mount sub-paths
-	resolvedMounts := map[string][]util.Tuple2[string, bool]{}
+	resolvedMounts := map[string][]resolvedMount{}
+	hasMountPathConflict := false
 
 	internalToSubpath := func(internalPath string) (string, bool) {
 		subpath, ok := strings.CutPrefix(internalPath, filepath.Clean(ServiceConfig.FileSystem.MountPoint)+"/")
@@ -64,34 +76,48 @@ func calculateMounts(job *orc.Job, internalJobFolder string) (mountResult, bool)
 		return internalToSubpath(path)
 	}
 
-	addMount := func(containerPath, subpath string, readOnly bool) {
+	addMount := func(containerPath, subpath string, readOnly bool, isExplicit bool) {
 		existing, _ := resolvedMounts[containerPath]
-		existing = append(existing, util.Tuple2[string, bool]{subpath, readOnly})
+
+		hasExistingExplicit := false
+		for _, mount := range existing {
+			if mount.IsExplicit {
+				hasExistingExplicit = true
+				break
+			}
+		}
+
+		if (isExplicit || hasExistingExplicit) && len(existing) > 0 {
+			hasMountPathConflict = true
+			return
+		}
+
+		existing = append(existing, resolvedMount{SubPath: subpath, ReadOnly: readOnly, IsExplicit: isExplicit})
 		resolvedMounts[containerPath] = existing
 	}
 
-	addInternalMount := func(containerPath, internalPath string, readOnly bool) {
+	addInternalMount := func(containerPath, internalPath string, readOnly bool, isExplicit bool) {
 		sub, ok := internalToSubpath(internalPath)
 		if ok {
-			addMount(containerPath, sub, readOnly)
+			addMount(containerPath, sub, readOnly, isExplicit)
 		}
 	}
 
 	var allUCloudPaths []string
 	mountedDrivesAsReadOnly := map[string]bool{}
-	addUCloudMount := func(containerPath, ucloudPath string, readOnly bool) {
+	addUCloudMount := func(containerPath, ucloudPath string, readOnly bool, isExplicit bool) {
 		allUCloudPaths = append(allUCloudPaths, ucloudPath)
 
 		sub, ok := ucloudToSubpath(ucloudPath)
 		if ok {
-			addMount(containerPath, sub, readOnly)
+			addMount(containerPath, sub, readOnly, isExplicit)
 		}
 	}
 
-	addInternalMount(containerMountDir, internalJobFolder, false)
+	addInternalMount(containerMountDir, internalJobFolder, false, false)
 
-	for mount, readOnly := range ucloudMounts {
-		comps := util.Components(mount)
+	for mountPath, mount := range ucloudMounts {
+		comps := util.Components(mountPath)
 		compsLen := len(comps)
 
 		if compsLen == 0 {
@@ -100,9 +126,9 @@ func calculateMounts(job *orc.Job, internalJobFolder string) (mountResult, bool)
 
 		alreadyMountedAsReadOnly, ok := mountedDrivesAsReadOnly[comps[0]]
 		if ok && alreadyMountedAsReadOnly {
-			mountedDrivesAsReadOnly[comps[0]] = readOnly
+			mountedDrivesAsReadOnly[comps[0]] = mount.ReadOnly
 		} else if !ok {
-			mountedDrivesAsReadOnly[comps[0]] = readOnly
+			mountedDrivesAsReadOnly[comps[0]] = mount.ReadOnly
 		}
 
 		title := comps[compsLen-1]
@@ -116,7 +142,23 @@ func calculateMounts(job *orc.Job, internalJobFolder string) (mountResult, bool)
 			title = strings.ReplaceAll(drive.Specification.Title, "Member Files: ", "")
 		}
 
-		addUCloudMount(filepath.Join(containerMountDir, title), mount, readOnly)
+		containerPath := filepath.Join(containerMountDir, title)
+		isExplicit := false
+
+		if strings.TrimSpace(mount.MountPath) != "" {
+			normalizedMountPath, ok := shared.ValidateFileMountPath(mount.MountPath)
+			if !ok {
+				return mountResult{}, false
+			}
+
+			containerPath = normalizedMountPath
+			isExplicit = true
+		}
+
+		addUCloudMount(containerPath, mountPath, mount.ReadOnly, isExplicit)
+		if hasMountPathConflict {
+			return mountResult{}, false
+		}
 	}
 
 	mountPaths := map[string]mountedFolder{}
@@ -126,30 +168,30 @@ func calculateMounts(job *orc.Job, internalJobFolder string) (mountResult, bool)
 		if len(mounts) == 1 {
 			mount := mounts[0]
 
-			internalPath := ServiceConfig.FileSystem.MountPoint + "/" + mount.First
+			internalPath := ServiceConfig.FileSystem.MountPoint + "/" + mount.SubPath
 			mountPaths[internalPath] = mountedFolder{
 				InternalPath: internalPath,
-				SubPath:      mount.First,
+				SubPath:      mount.SubPath,
 				PodPath:      containerPath,
-				ReadOnly:     mount.Second,
+				ReadOnly:     mount.ReadOnly,
 			}
 
 			mountIdx++
 		} else {
 			// NOTE(Dan): Must remain consistent with VM mount logic for overall consistency
-			slices.SortFunc(mounts, func(a, b util.Tuple2[string, bool]) int {
-				return strings.Compare(a.First, b.First)
+			slices.SortFunc(mounts, func(a, b resolvedMount) int {
+				return strings.Compare(a.SubPath, b.SubPath)
 			})
 
 			for i, mount := range mounts {
 				resolvedContainerPath := fmt.Sprintf("%s-%d", containerPath, i)
 
-				internalPath := ServiceConfig.FileSystem.MountPoint + "/" + mount.First
+				internalPath := ServiceConfig.FileSystem.MountPoint + "/" + mount.SubPath
 				mountPaths[internalPath] = mountedFolder{
 					InternalPath: internalPath,
-					SubPath:      mount.First,
+					SubPath:      mount.SubPath,
 					PodPath:      resolvedContainerPath,
-					ReadOnly:     mount.Second,
+					ReadOnly:     mount.ReadOnly,
 				}
 
 				mountIdx++

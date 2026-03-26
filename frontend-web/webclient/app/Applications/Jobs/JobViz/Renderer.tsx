@@ -128,6 +128,19 @@ export const Renderer: React.FunctionComponent<{
             }
         }));
 
+        listeners.push(props.processor.on("resetChannel", ({channel}) => {
+            mutateState(state => {
+                for (const v of Object.values(state)) {
+                    if (v.type == WidgetType.WidgetTypeLineChart) {
+                        const widget = v as RuntimeWidget<WidgetDiagramDefinition>;
+                        if (widget.spec.channel === channel) {
+                            widget.spec.data = [];
+                        }
+                    }
+                }
+            });
+        }));
+
         listeners.push(props.processor.on("createAny", ev => {
             mutateState(state => {
                 state[ev.id] = ev;
