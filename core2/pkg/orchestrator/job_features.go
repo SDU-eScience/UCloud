@@ -3,30 +3,33 @@ package orchestrator
 import orcapi "ucloud.dk/shared/pkg/orchestrators"
 
 const (
-	jobDockerEnabled   SupportFeatureKey = "jobs.docker.enabled"
-	jobDockerWeb       SupportFeatureKey = "jobs.docker.web"
-	jobDockerVnc       SupportFeatureKey = "jobs.docker.vnc"
-	jobDockerLogs      SupportFeatureKey = "jobs.docker.logs"
-	jobDockerTerminal  SupportFeatureKey = "jobs.docker.terminal"
-	jobDockerPeers     SupportFeatureKey = "jobs.docker.peers"
-	jobDockerExtension SupportFeatureKey = "jobs.docker.extension"
+	jobDockerEnabled        SupportFeatureKey = "jobs.docker.enabled"
+	jobDockerWeb            SupportFeatureKey = "jobs.docker.web"
+	jobDockerVnc            SupportFeatureKey = "jobs.docker.vnc"
+	jobDockerLogs           SupportFeatureKey = "jobs.docker.logs"
+	jobDockerTerminal       SupportFeatureKey = "jobs.docker.terminal"
+	jobDockerPeers          SupportFeatureKey = "jobs.docker.peers"
+	jobDockerExtension      SupportFeatureKey = "jobs.docker.extension"
+	jobDockerBindLinkToPort SupportFeatureKey = "jobs.docker.bindLinkToPort"
 
-	jobNativeEnabled   SupportFeatureKey = "jobs.native.enabled"
-	jobNativeWeb       SupportFeatureKey = "jobs.native.web"
-	jobNativeVnc       SupportFeatureKey = "jobs.native.vnc"
-	jobNativeLogs      SupportFeatureKey = "jobs.native.logs"
-	jobNativeTerminal  SupportFeatureKey = "jobs.native.terminal"
-	jobNativePeers     SupportFeatureKey = "jobs.native.peers"
-	jobNativeExtension SupportFeatureKey = "jobs.native.extension"
+	jobNativeEnabled        SupportFeatureKey = "jobs.native.enabled"
+	jobNativeWeb            SupportFeatureKey = "jobs.native.web"
+	jobNativeVnc            SupportFeatureKey = "jobs.native.vnc"
+	jobNativeLogs           SupportFeatureKey = "jobs.native.logs"
+	jobNativeTerminal       SupportFeatureKey = "jobs.native.terminal"
+	jobNativePeers          SupportFeatureKey = "jobs.native.peers"
+	jobNativeExtension      SupportFeatureKey = "jobs.native.extension"
+	jobNativeBindLinkToPort SupportFeatureKey = "jobs.native.bindLinkToPort"
 
-	jobVmEnabled    SupportFeatureKey = "jobs.vm.enabled"
-	jobVmWeb        SupportFeatureKey = "jobs.vm.web"
-	jobVmVnc        SupportFeatureKey = "jobs.vm.vnc"
-	jobVmLogs       SupportFeatureKey = "jobs.vm.logs"
-	jobVmTerminal   SupportFeatureKey = "jobs.vm.terminal"
-	jobVmPeers      SupportFeatureKey = "jobs.vm.peers"
-	jobVmExtension  SupportFeatureKey = "jobs.vm.extension"
-	jobVmSuspension SupportFeatureKey = "jobs.vm.suspension"
+	jobVmEnabled        SupportFeatureKey = "jobs.vm.enabled"
+	jobVmWeb            SupportFeatureKey = "jobs.vm.web"
+	jobVmVnc            SupportFeatureKey = "jobs.vm.vnc"
+	jobVmLogs           SupportFeatureKey = "jobs.vm.logs"
+	jobVmTerminal       SupportFeatureKey = "jobs.vm.terminal"
+	jobVmPeers          SupportFeatureKey = "jobs.vm.peers"
+	jobVmExtension      SupportFeatureKey = "jobs.vm.extension"
+	jobVmSuspension     SupportFeatureKey = "jobs.vm.suspension"
+	jobVmBindLinkToPort SupportFeatureKey = "jobs.vm.bindLinkToPort"
 )
 
 var jobFeatureTerminalByBackend = map[orcapi.ToolBackend]SupportFeatureKey{
@@ -65,6 +68,12 @@ var jobFeatureVncByBackend = map[orcapi.ToolBackend]SupportFeatureKey{
 	orcapi.ToolBackendVirtualMachine: jobVmVnc,
 }
 
+var jobFeatureBindLinkToPortByBackend = map[orcapi.ToolBackend]SupportFeatureKey{
+	orcapi.ToolBackendDocker:         jobDockerBindLinkToPort,
+	orcapi.ToolBackendNative:         jobNativeBindLinkToPort,
+	orcapi.ToolBackendVirtualMachine: jobVmBindLinkToPort,
+}
+
 var jobFeatureMapper = []featureMapper{
 	{
 		Type: jobType,
@@ -101,6 +110,11 @@ var jobFeatureMapper = []featureMapper{
 		Key:  jobDockerExtension,
 		Path: "docker.timeExtension",
 	},
+	{
+		Type: jobType,
+		Key:  jobDockerBindLinkToPort,
+		Path: "docker.bindLinkToPort",
+	},
 
 	{
 		Type: jobType,
@@ -136,6 +150,11 @@ var jobFeatureMapper = []featureMapper{
 		Type: jobType,
 		Key:  jobNativeExtension,
 		Path: "native.timeExtension",
+	},
+	{
+		Type: jobType,
+		Key:  jobNativeBindLinkToPort,
+		Path: "native.bindLinkToPort",
 	},
 
 	{
@@ -177,5 +196,10 @@ var jobFeatureMapper = []featureMapper{
 		Type: jobType,
 		Key:  jobVmSuspension,
 		Path: "virtualMachine.suspension",
+	},
+	{
+		Type: jobType,
+		Key:  jobVmBindLinkToPort,
+		Path: "virtualMachine.bindLinkToPort",
 	},
 }

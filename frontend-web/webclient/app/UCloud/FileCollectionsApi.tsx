@@ -240,6 +240,7 @@ class FileCollectionsApi extends ResourceApi<FileCollection, ProductStorage, Fil
                     </div>
                 ), doNothing, true);
             };
+            console.log(deleteOperation);
         }
         return [
             {

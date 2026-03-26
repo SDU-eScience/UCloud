@@ -236,10 +236,12 @@ func IAppConfigure(appName string, owner orc.ResourceOwner, etag util.Option[str
 	if !ok {
 		res := orc.ProviderRegisteredResource[orc.JobSpecification]{
 			Spec: orc.JobSpecification{
-				Product: apm.ProductReference{
-					Id:       appName,
-					Category: appName,
-					Provider: cfg.Provider.Id,
+				ResourceSpecification: orc.ResourceSpecification{
+					Product: apm.ProductReference{
+						Id:       appName,
+						Category: appName,
+						Provider: cfg.Provider.Id,
+					},
 				},
 				Application: orc.NameAndVersion{
 					Name:    appName,

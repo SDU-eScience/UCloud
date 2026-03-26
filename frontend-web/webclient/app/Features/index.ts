@@ -6,6 +6,10 @@ export enum Feature {
     REORDER_APP_GROUP,
 
     ALLOCATIONS_PAGE_IMPROVEMENTS,
+
+    NEW_VM_UI,
+
+    STACKS
 }
 
 enum Environment {
@@ -60,6 +64,18 @@ const featureMap: Record<string, FeatureConfig> = {
         showWithFlag: allLocalEnvironments,
         showWithoutFlag: allLocalEnvironments,
     },
+    
+    "new-vm-ui": {
+        feature: Feature.NEW_VM_UI,
+        showWithFlag: allEnvironments,
+        showWithoutFlag: allDevEnvironments,
+    },
+
+    "stacks": {
+        feature: Feature.STACKS,
+        showWithoutFlag: allDevEnvironments,
+        showWithFlag: allEnvironments,
+    }
 };
 
 function getCurrentEnvironment(): Environment {

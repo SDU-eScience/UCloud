@@ -68,6 +68,9 @@ func Init() {
 	initAppCatalog()
 	times["AppCatalog"] = t.Mark()
 
+	initAppUcx()
+	times["AppUcx"] = t.Mark()
+
 	initJobs()
 	times["Jobs"] = t.Mark()
 
@@ -79,6 +82,15 @@ func Init() {
 
 	initIngresses()
 	times["Ingresses"] = t.Mark()
+
+	initPrivateNetworks()
+	times["PrivateNetworks"] = t.Mark()
+
+	initResourceCatalogs()
+	times["ResourceCatalogs"] = t.Mark()
+
+	initStacks()
+	times["Stacks"] = t.Mark()
 
 	initSupportAssistsOrc()
 	times["SupportAssistsOrc"] = t.Mark()

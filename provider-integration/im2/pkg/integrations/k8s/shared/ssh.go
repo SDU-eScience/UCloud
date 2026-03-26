@@ -42,7 +42,7 @@ func assignSshPort(job *orc.Job) (util.Option[int], *util.HttpError) {
 	}
 
 	sshMode := job.Status.ResolvedApplication.Value.Invocation.Ssh.Value.Mode
-	sshEnabled := false
+	sshEnabled := job.Status.ResolvedApplication.Value.Invocation.Tool.Tool.Value.Description.Backend == orc.ToolBackendVirtualMachine
 	switch sshMode {
 	case orc.SshModeDisabled:
 		sshEnabled = false

@@ -280,10 +280,9 @@ spec:
     spec:
       containers:
       - command:
-        - /usr/bin/ucloud
+        - /opt/ucloud/ucloud
         - vmi-mutator
-        - --this-flag-is-ignored
-        image: dreg.cloud.sdu.dk/ucloud/im2:2026.1.43-kubevirt1
+        image: alpine:3
         imagePullPolicy: IfNotPresent
         name: ucloud
         ports:
@@ -293,6 +292,9 @@ spec:
         volumeMounts:
         - mountPath: /etc/ucloud
           name: config
+        - mountPath: /opt/ucloud
+          name: shared-executables
+          readOnly: true
       restartPolicy: Always
       serviceAccount: dev-provider
       serviceAccountName: dev-provider
@@ -300,6 +302,10 @@ spec:
       - name: config
         persistentVolumeClaim:
           claimName: ucloud-config
+      - hostPath:
+          path: /mnt/storage/ucloud-exe
+          type: DirectoryOrCreate
+        name: shared-executables
 
 ---
 apiVersion: v1

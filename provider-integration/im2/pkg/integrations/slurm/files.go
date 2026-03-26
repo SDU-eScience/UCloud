@@ -53,6 +53,7 @@ func InitializeFiles() ctrl.FileService {
 		TransferSourceBegin:         transferSourceBegin,
 		Search:                      search,
 		Uploader:                    &uploaderFileSystem{},
+		OnUpdatedDriveLabels:        nil,
 	}
 }
 
