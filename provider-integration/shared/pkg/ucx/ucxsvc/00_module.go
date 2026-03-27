@@ -44,7 +44,7 @@ func (s *Stack) Mount() orcapi.AppParameterValue {
 	return mount
 }
 
-func StackCreate(app ucx.Application, id string) (*Stack, bool) {
+func StackCreate(app ucx.Application, id string, stackType string) (*Stack, bool) {
 	session := *app.Session()
 	ok, err := ucxapi.StackAvailable.Invoke(session, fndapi.FindByStringId{Id: id})
 	if err != nil {
@@ -54,7 +54,7 @@ func StackCreate(app ucx.Application, id string) (*Stack, bool) {
 		UiSendFailure(app, "An application stack with this name already exists, try another.")
 		return &Stack{}, false
 	} else {
-		stack, err := ucxapi.StackCreate.Invoke(session, ucxapi.StackCreateRequest{StackId: id})
+		stack, err := ucxapi.StackCreate.Invoke(session, ucxapi.StackCreateRequest{StackId: id, StackType: stackType})
 		if err != nil {
 			UiSendFailure(app, "Unable to start application stack, try again later.")
 			return &Stack{}, false
