@@ -53,6 +53,7 @@ type demoApp struct {
 	ValidationMessage string
 	TodoHeader        string
 	FnText            string
+	Machine           accapi.ProductReference
 	NextTodoId        int64 `ucx:"-"`
 }
 
@@ -87,6 +88,8 @@ func (app *demoApp) UserInterface() ucx.UiNode {
 		ucx.TextBound("errors.cpu").Sx(ucx.SxColor(ucx.ColorErrorMain)),
 
 		ucx.Checkbox("notify", "Notify me when the job starts", "notify", true),
+
+		ucx.MachineTypeSelector("machine", "Machine type", "machine", ucx.MachineCapabilityVm),
 
 		ucx.Flex(
 			ucx.FlexProps{
@@ -150,11 +153,12 @@ func (app *demoApp) UserInterface() ucx.UiNode {
 				app.LastActionMessage = "Submit rejected by validation"
 			} else {
 				app.SubmissionMessage = fmt.Sprintf(
-					"Submitted job '%s' with %d CPU and %d todo item(s). Notify=%t",
+					"Submitted job '%s' with %d CPU and %d todo item(s). Notify=%t. Machine = %#v",
 					app.JobName,
 					app.CPU,
 					len(app.Todos),
 					app.Notify,
+					app.Machine,
 				)
 				app.LastActionMessage = "Submit accepted"
 			}
