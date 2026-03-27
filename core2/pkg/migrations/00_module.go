@@ -30,4 +30,8 @@ func Init() {
 	db.AddMigration(jobSettingsV1())
 	db.AddMigration(grantV2())
 	db.AddMigration(apiTokensV2())
+	db.AddMigration(privateNetworksV1())
+	db.AddMigration(jobsV1())
+	db.AddMigration(resourcesV1())
+	db.AddMigration(stacksV1())
 }

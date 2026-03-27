@@ -4,6 +4,11 @@ import api from "@/UCloud/JobsApi";
 import Browse from "./JobsBrowse";
 import Create from "./Create";
 
-export function JobsRouter() {
-    return <ResourceRouter api={api} Browser={Browse} Create={Create} />
+type JobsRouterProps = {
+    browseFilterType?: "VMS_ONLY" | "JOBS_ONLY";
+};
+
+export function JobsRouter({browseFilterType}: JobsRouterProps) {
+    const Browser = React.useCallback(() => <Browse opts={{jobTypeFilter: browseFilterType}} />, [browseFilterType]);
+    return <ResourceRouter api={api} Browser={Browser} Create={Create} />
 }

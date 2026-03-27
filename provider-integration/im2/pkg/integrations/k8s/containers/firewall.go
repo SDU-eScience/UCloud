@@ -100,12 +100,12 @@ func prepareFirewallOnJobCreate(
 		for _, peer := range peers {
 			peerPod := findPodByJobIdAndRank(peer.JobId, 0)
 			if peerPod.Present {
-				_, err := networkingPolicies.Patch(ctx, firewallName(peer.JobId), types.JSONPatchType, ingressPatch, v1.PatchOptions{})
+				_, err := networkingPolicies.Patch(ctx, shared.FirewallName(peer.JobId), types.JSONPatchType, ingressPatch, v1.PatchOptions{})
 				if err != nil {
 					log.Info("Failed to patch ingress: %v", err)
 				}
 
-				_, err = networkingPolicies.Patch(ctx, firewallName(peer.JobId), types.JSONPatchType, egressPatch, v1.PatchOptions{})
+				_, err = networkingPolicies.Patch(ctx, shared.FirewallName(peer.JobId), types.JSONPatchType, egressPatch, v1.PatchOptions{})
 				if err != nil {
 					log.Info("Failed to patch egress: %v", err)
 				}

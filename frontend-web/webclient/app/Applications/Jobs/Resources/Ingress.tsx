@@ -12,20 +12,23 @@ import BaseLink from "@/ui-components/BaseLink";
 import {Application, ApplicationParameter} from "@/Applications/AppStoreApi";
 import {doNothing} from "@/UtilityFunctions";
 
-export function ingressResourceAllowed(app: Application): boolean {
-    return !(app.invocation.allowPublicLink === false || app.invocation.applicationType !== "WEB")
+export function ingressResourceAllowed(app: Application, bindLinkToPort = false): boolean {
+    if (app.invocation.allowPublicLink === false) return false;
+    if (app.invocation.applicationType === "WEB") return true;
+    return app.invocation.tool.tool?.description.backend === "VIRTUAL_MACHINE" && bindLinkToPort;
 }
 
 export const IngressResource: React.FunctionComponent<{
     application: Application;
+    bindLinkToPort?: boolean;
     params: ApplicationParameter[];
     errors: Record<string, string>;
     onAdd: () => void;
     onRemove: (id: string) => void;
     provider?: string;
     setErrors: (errors: Record<string, string>) => void;
-}> = ({application, params, errors, onAdd, onRemove, provider, setErrors}) => {
-    if (!ingressResourceAllowed(application)) return null;
+}> = ({application, bindLinkToPort, params, errors, onAdd, onRemove, provider, setErrors}) => {
+    if (!ingressResourceAllowed(application, bindLinkToPort)) return null;
 
     return <Card>
         <Box>
@@ -65,6 +68,7 @@ export const IngressResource: React.FunctionComponent<{
                 <Box key={entry.name} mb={"7px"}>
                     <Widget
                         provider={provider}
+                        bindLinkToPort={bindLinkToPort}
                         parameter={entry}
                         errors={errors}
                         application={application}

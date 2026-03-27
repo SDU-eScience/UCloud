@@ -31,5 +31,7 @@ func HandleCli(command string) {
 		controller.LicenseCli(os.Args[2:])
 	case "storage-scan":
 		StorageScanCli(os.Args[2:])
+	case "jobs":
+		HandleJobsCommand()
 	}
 }

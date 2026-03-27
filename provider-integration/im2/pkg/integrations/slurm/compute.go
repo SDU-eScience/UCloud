@@ -100,13 +100,13 @@ func InitCompute() controller.JobsService {
 
 	return controller.JobsService{
 		Submit:                   submitJob,
+		OnUpdatedLabels:          nil,
 		Terminate:                terminateJob,
 		Extend:                   extendJob,
 		RetrieveProducts:         retrieveMachineSupport,
 		Follow:                   follow,
 		HandleShell:              handleShell,
 		OpenWebSession:           openWebSession,
-		ServerFindIngress:        serverFindIngress,
 		RequestDynamicParameters: requestDynamicParameters,
 	}
 }
@@ -346,9 +346,11 @@ func loopComputeMonitoring() {
 
 		newJobResource := orc.ProviderRegisteredResource[orc.JobSpecification]{
 			Spec: orc.JobSpecification{
-				Name:           safeName,
-				Application:    unknownApplication,
-				Product:        slurmCfg.Value.EstimatedProduct,
+				Name:        safeName,
+				Application: unknownApplication,
+				ResourceSpecification: orc.ResourceSpecification{
+					Product: slurmCfg.Value.EstimatedProduct,
+				},
 				Replicas:       slurmCfg.Value.EstimatedNodeCount,
 				Parameters:     make(map[string]orc.AppParameterValue),
 				Resources:      []orc.AppParameterValue{},
@@ -882,15 +884,51 @@ func serverFindIngress(job *orc.Job, rank int, suffix util.Option[string]) []con
 	}
 }
 
-func openWebSession(job *orc.Job, rank int, target util.Option[string]) (controller.ConfiguredWebSession, *util.HttpError) {
+func openWebSession(job *orc.Job, sessionType orc.InteractiveSessionType, rank int, target util.Option[string]) (controller.ConfiguredWebSessionResult, *util.HttpError) {
+	flags := controller.RegisteredIngressFlagsWeb
+	if sessionType == orc.InteractiveSessionTypeVnc {
+		flags = controller.RegisteredIngressFlagsVnc
+	}
+
+	toResult := func(host config.HostInfo, endpointFlags controller.RegisteredIngressFlags) controller.ConfiguredWebSessionResult {
+		if (endpointFlags & controller.RegisteredIngressFlagsVnc) != 0 {
+			return controller.ConfiguredWebSessionResult{
+				Endpoints: []controller.ConfiguredWebEndpoint{{
+					Host:         host,
+					TargetDomain: config.Provider.Hosts.SelfPublic.Address,
+					Flags:        endpointFlags,
+					IsPublic:     false,
+				}},
+			}
+		}
+
+		resolvedSuffix := util.OptNone[string]()
+		if target.Present {
+			resolvedSuffix.Set("-" + controller.ToHostnameSafe(target.Value))
+		}
+
+		ingressConfigs := serverFindIngress(job, rank, resolvedSuffix)
+		endpoints := make([]controller.ConfiguredWebEndpoint, 0, len(ingressConfigs))
+		for _, ingress := range ingressConfigs {
+			endpoints = append(endpoints, controller.ConfiguredWebEndpoint{
+				Host:         host,
+				TargetDomain: ingress.TargetDomain,
+				Flags:        endpointFlags,
+				IsPublic:     ingress.IsPublic,
+			})
+		}
+
+		return controller.ConfiguredWebSessionResult{Endpoints: endpoints}
+	}
+
 	parsedId, ok := parseJobProviderId(job.ProviderGeneratedId)
 	if !ok {
-		return controller.ConfiguredWebSession{}, util.ServerHttpError("could not parse provider id")
+		return controller.ConfiguredWebSessionResult{}, util.ServerHttpError("could not parse provider id")
 	}
 
 	nodes := SlurmClient.JobGetNodeList(parsedId.SlurmId)
 	if len(nodes) <= rank {
-		return controller.ConfiguredWebSession{}, util.ServerHttpError("could not find slurm node")
+		return controller.ConfiguredWebSessionResult{}, util.ServerHttpError("could not find slurm node")
 	}
 
 	if target.Present {
@@ -907,43 +945,44 @@ func openWebSession(job *orc.Job, rank int, target util.Option[string]) (control
 				}
 
 				if dynTarget.Target == target.Value && dynTarget.Rank == rank {
-					return controller.ConfiguredWebSession{
-						Host: config.HostInfo{
-							Address: nodes[rank],
-							Port:    dynTarget.Port,
-							Scheme:  "http",
-						},
-					}, nil
+					dynFlags := flags
+					if dynTarget.Type == orc.InteractiveSessionTypeVnc {
+						dynFlags = controller.RegisteredIngressFlagsVnc
+					}
+
+					return toResult(config.HostInfo{
+						Address: nodes[rank],
+						Port:    dynTarget.Port,
+						Scheme:  "http",
+					}, dynFlags), nil
 				}
 			}
 		}
 
-		return controller.ConfiguredWebSession{}, util.ServerHttpError("unknown target supplied: %v", target.Value)
+		return controller.ConfiguredWebSessionResult{}, util.ServerHttpError("unknown target supplied: %v", target.Value)
 	}
 
 	jobFolder, ok := FindJobFolder(orc.ResourceOwnerToWalletOwner(job.Resource))
 	if !ok {
-		return controller.ConfiguredWebSession{}, util.ServerHttpError("could not resolve internal folder needed for logs: %v", jobFolder)
+		return controller.ConfiguredWebSessionResult{}, util.ServerHttpError("could not resolve internal folder needed for logs: %v", jobFolder)
 	}
 
 	outputFolder := filepath.Join(jobFolder, job.Id)
 	portFilePath := filepath.Join(outputFolder, AllocatedPortFile)
 	portFileData, err := os.ReadFile(portFilePath)
 	if err != nil {
-		return controller.ConfiguredWebSession{}, util.ServerHttpError("could not read port file: %v", err)
+		return controller.ConfiguredWebSessionResult{}, util.ServerHttpError("could not read port file: %v", err)
 	}
 	allocatedPort, err := strconv.Atoi(strings.TrimSpace(string(portFileData)))
 	if err != nil {
-		return controller.ConfiguredWebSession{}, util.ServerHttpError("corrupt port file: %v", err)
+		return controller.ConfiguredWebSessionResult{}, util.ServerHttpError("corrupt port file: %v", err)
 	}
 
-	return controller.ConfiguredWebSession{
-		Host: config.HostInfo{
-			Address: nodes[rank],
-			Port:    allocatedPort,
-			Scheme:  "http",
-		},
-	}, nil
+	return toResult(config.HostInfo{
+		Address: nodes[rank],
+		Port:    allocatedPort,
+		Scheme:  "http",
+	}, flags), nil
 }
 
 func FindJobFolder(owner apm.WalletOwner) (string, bool) {

@@ -55,6 +55,8 @@ import {WebSession} from "./Web";
 import {RichSelect, RichSelectChildComponent} from "@/ui-components/RichSelect";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import * as JobViz from "@/Applications/Jobs/JobViz"
+import {VirtualMachineStatus} from "@/Applications/Jobs/VirtualMachines";
+import {Feature, hasFeature} from "@/Features";
 
 export const jobCache = new class extends ExternalStoreBase {
     private cache: PageV2<Job> = {items: [], itemsPerPage: 100};
@@ -327,6 +329,7 @@ export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode
             includeApplication: true,
             includeUpdates: true,
             includeSupport: true,
+            includeProduct: true,
         }));
     }, [id]);
 
@@ -402,7 +405,8 @@ export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode
             fetchJob(JobsApi.retrieve({
                 id,
                 includeApplication: true,
-                includeUpdates: true
+                includeUpdates: true,
+                includeProduct: true,
             }));
         }
     }, [status?.state])
@@ -501,6 +505,19 @@ export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode
 
     if (jobFetcher.error !== undefined) {
         return <MainContainer main={<Heading.h2>An error occurred</Heading.h2>} />;
+    }
+
+    if (isVirtualMachine && job && status && hasFeature(Feature.NEW_VM_UI)) {
+        const vm = <VirtualMachineStatus
+            job={job}
+            status={status}
+            interfaceTargets={interfaceTargets}
+            defaultInterfaceName={targetRequests.defaultName}
+            updates={jobUpdates}
+            updatesState={jobUpdateState}
+        />;
+        if (props.embedded) return vm;
+        return <MainContainer main={vm} />;
     }
 
     const main = (
@@ -978,7 +995,6 @@ function findTargetRequests(job: Job): TargetRequests {
                         id: job.id,
                         rank: parsedTarget.rank,
                         target: parsedTarget.target,
-                        port: parsedTarget.port
                     });
                 } else if (canShowVnc && job.status.state === "RUNNING") {
                     fixedTargets.push({
