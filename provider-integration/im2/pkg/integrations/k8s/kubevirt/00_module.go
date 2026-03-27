@@ -197,6 +197,83 @@ func vmiFsMutator() {
 			managedVolumeNames := map[string]bool{}
 			sharedVolumeName := ""
 
+			if strings.HasPrefix(pod.Name, "hp-volume-") || strings.HasPrefix(pod.GenerateName, "hp-volume-") {
+				replacementSpec := pod.Spec
+
+				pvcVolumes := make([]k8score.Volume, 0, len(replacementSpec.Volumes))
+				nonPvcVolumes := make([]k8score.Volume, 0, len(replacementSpec.Volumes))
+				for _, volume := range replacementSpec.Volumes {
+					if volume.PersistentVolumeClaim != nil {
+						pvcVolumes = append(pvcVolumes, volume)
+					} else {
+						nonPvcVolumes = append(nonPvcVolumes, volume)
+					}
+				}
+
+				selectedNonPvcVolumes := make([]k8score.Volume, 0, 2)
+				for _, volume := range nonPvcVolumes {
+					if volume.Name == "hotplug-disks" {
+						selectedNonPvcVolumes = append(selectedNonPvcVolumes, volume)
+						break
+					}
+				}
+
+				for _, volume := range nonPvcVolumes {
+					if len(selectedNonPvcVolumes) >= 2 {
+						break
+					}
+
+					if volume.Name == "hotplug-disks" {
+						continue
+					}
+
+					selectedNonPvcVolumes = append(selectedNonPvcVolumes, volume)
+				}
+
+				for len(selectedNonPvcVolumes) < 2 {
+					selectedNonPvcVolumes = append(selectedNonPvcVolumes, k8score.Volume{
+						Name: fmt.Sprintf("hp-padding-%d", len(selectedNonPvcVolumes)),
+						VolumeSource: k8score.VolumeSource{
+							EmptyDir: &k8score.EmptyDirVolumeSource{},
+						},
+					})
+				}
+
+				replacementSpec.Volumes = append(pvcVolumes, selectedNonPvcVolumes...)
+				replacementSpec.Containers = []k8score.Container{{
+					Name:    "sleep",
+					Image:   "alpine:latest",
+					Command: []string{"sh", "-c", "while true; do sleep 3600; done"},
+				}}
+				replacementSpec.InitContainers = nil
+				replacementSpec.EphemeralContainers = nil
+
+				ops = append(ops, jsonPatchOp{
+					Op:    "replace",
+					Path:  "/spec",
+					Value: replacementSpec,
+				})
+
+				patch, _ := json.Marshal(ops)
+
+				response := k8sadmission.AdmissionReview{
+					TypeMeta: review.TypeMeta,
+					Response: &k8sadmission.AdmissionResponse{
+						UID:     review.Request.UID,
+						Allowed: true,
+						Patch:   patch,
+						PatchType: func() *k8sadmission.PatchType {
+							pt := k8sadmission.PatchTypeJSONPatch
+							return &pt
+						}(),
+					},
+				}
+
+				respBytes, _ := json.Marshal(response)
+				_, _ = w.Write(respBytes)
+				return
+			}
+
 			labels := pod.Labels
 			if labels == nil {
 				labels = make(map[string]string)
