@@ -73,6 +73,10 @@ import (
 
 type ResourceId int64
 
+func resourceProviderRef(providerId string) string {
+	return fndapi.ProviderSubjectPrefix + providerId
+}
+
 type resource struct {
 	Id         ResourceId
 	ProviderId util.Option[string]
@@ -648,10 +652,10 @@ func ResourceBrowse[T any](
 	filter func(item T) bool,
 	sortComparator ResourceSortByFn[T],
 ) fndapi.PageV2[T] {
+	providerId, isProvider := strings.CutPrefix(actor.Username, fndapi.ProviderSubjectPrefix)
 	if flags.FilterProviderIds.Present {
-		providerId, ok := strings.CutPrefix(actor.Username, fndapi.ProviderSubjectPrefix)
 		providerGenIds := strings.Split(flags.FilterProviderIds.Value, ",")
-		if !ok || len(providerGenIds) > 1000 || len(providerGenIds) == 0 {
+		if !isProvider || len(providerGenIds) > 1000 || len(providerGenIds) == 0 {
 			return fndapi.PageV2[T]{Items: util.NonNilSlice[T](nil), ItemsPerPage: 1000}
 		}
 
@@ -735,7 +739,7 @@ func ResourceBrowse[T any](
 			// NOTE(Dan): In personal workspaces, the user might be added directly to an index even if they are not
 			// the owner. As a result, we cannot rely entirely on the index to do the workspace filtering, do additional
 			// workspace filtering here to ensure we only see the correct resources.
-			if ok {
+			if ok && !isProvider {
 				if actor.Project.Present {
 					if string(actor.Project.GetOrDefault("")) != resc.Owner.Project.Value {
 						continue
@@ -906,6 +910,15 @@ func ResourceUpdate[T any](
 			idxBucket.ByOwner[rescOwnerRef] = util.RemoveFirst(idx, id)
 			resourceIndexLabelsRemoveLocked(idxBucket, rescOwnerRef, id, resc.BaseSpec.Labels)
 			idxBucket.Mu.Unlock()
+
+			if resourceSpecificationHasProduct(resc.BaseSpec) {
+				providerRef := resourceProviderRef(resc.BaseSpec.Product.Provider)
+				providerIdxBucket := resourceGetAndLoadIndex(typeName, providerRef)
+				providerIdxBucket.Mu.Lock()
+				providerIdx := providerIdxBucket.ByOwner[providerRef]
+				providerIdxBucket.ByOwner[providerRef] = util.RemoveFirst(providerIdx, id)
+				providerIdxBucket.Mu.Unlock()
+			}
 		}
 
 		return true
@@ -1147,6 +1160,17 @@ func ResourceCreateEx[T any](
 		slices.Sort(current)
 		idxBucket.ByOwner[indexRef] = current
 		idxBucket.Mu.Unlock()
+	}
+
+	if resourceSpecificationHasProduct(baseSpec) {
+		providerRef := resourceProviderRef(baseSpec.Product.Provider)
+		providerIdxBucket := resourceGetAndLoadIndex(typeName, providerRef)
+		providerIdxBucket.Mu.Lock()
+		providerCurrent := providerIdxBucket.ByOwner[providerRef]
+		providerCurrent = append(providerCurrent, id)
+		slices.Sort(providerCurrent)
+		providerIdxBucket.ByOwner[providerRef] = providerCurrent
+		providerIdxBucket.Mu.Unlock()
 	}
 
 	b.Mu.Lock()

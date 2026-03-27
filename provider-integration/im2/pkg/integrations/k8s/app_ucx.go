@@ -202,7 +202,7 @@ func ensureUcxBackendAndResolveUpstream(ctx context.Context, app *orcapi.Applica
 	deploymentName := ucxDeploymentName(app.Metadata.Name, app.Metadata.Version)
 	serviceName := deploymentName
 	selector := ucxSelectorLabels(deploymentName)
-	inDevelopmentMode := ucxIsInDevelopmentMode(app)
+	inDevelopmentMode := ucxDevelopmentModePath(app)
 
 	isRunning, err := ucxDeploymentRunning(ctx, namespace, deploymentName)
 	if err != nil {
@@ -211,7 +211,7 @@ func ensureUcxBackendAndResolveUpstream(ctx context.Context, app *orcapi.Applica
 	}
 
 	if !isRunning {
-		script, err := renderUcxInvocationScript(app, inDevelopmentMode)
+		script, err := renderUcxInvocationScript(app, inDevelopmentMode.Present)
 		if err != nil {
 			return "", err
 		}
@@ -290,12 +290,12 @@ func ensureUcxDeployment(
 	image string,
 	script string,
 	selector map[string]string,
-	inDevelopmentMode bool,
+	developmentModeSubPath util.Option[string],
 ) error {
 	volumes := []k8score.Volume{}
 	volumeMounts := []k8score.VolumeMount{}
 
-	if inDevelopmentMode {
+	if developmentModeSubPath.Present {
 		volumes = append(volumes, k8score.Volume{
 			Name: "ucloud-filesystem",
 			VolumeSource: k8score.VolumeSource{
@@ -308,7 +308,7 @@ func ensureUcxDeployment(
 		volumeMounts = append(volumeMounts, k8score.VolumeMount{
 			Name:      "ucloud-filesystem",
 			MountPath: "/opt/ucloud",
-			SubPath:   shared.ExecutablesDir,
+			SubPath:   developmentModeSubPath.Value,
 			ReadOnly:  true,
 		})
 	}
@@ -443,7 +443,6 @@ func renderUcxInvocationScript(app *orcapi.Application, inDevelopmentMode bool) 
 	}
 
 	jinjaContext := exec.NewContext(map[string]any{
-		"ucxDevelopmentMode": inDevelopmentMode,
 		"ucloud": map[string]any{
 			"ucxDevelopmentMode": inDevelopmentMode,
 			"application": map[string]any{
@@ -500,13 +499,13 @@ func ucxSelectorLabels(deploymentName string) map[string]string {
 	}
 }
 
-func ucxIsInDevelopmentMode(app *orcapi.Application) bool {
+func ucxDevelopmentModePath(app *orcapi.Application) util.Option[string] {
 	developmentEntries := shared.ServiceConfig.Compute.Ucx.Development
 	for _, entry := range developmentEntries {
 		if entry.Name == app.Metadata.Name && entry.Version == app.Metadata.Version {
-			return true
+			return util.OptValue(entry.SubPath.GetOrDefault(shared.ExecutablesDir))
 		}
 	}
 
-	return false
+	return util.OptNone[string]()
 }
