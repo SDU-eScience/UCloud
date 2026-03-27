@@ -191,7 +191,7 @@ func (app *demoApp) UserInterface() ucx.UiNode {
 
 		ucx.Button("stack", "Create a stack", ucx.ColorPrimaryMain).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
 			stackId := app.JobName
-			stack, ok := ucxsvc.StackCreate(app, stackId)
+			stack, ok := ucxsvc.StackCreate(app, stackId, "Kubernetes")
 
 			if !ok {
 				return
@@ -233,7 +233,7 @@ func (app *demoApp) UserInterface() ucx.UiNode {
 				}
 
 				ucxsvc.VirtualMachineCreate(stack, ucxsvc.VirtualMachineSpec{
-					Labels:      initLabels,
+					Labels:      util.MapMerge(initLabels, map[string]string{"ucloud.dk/serviceForwardsTcp": "[8080]"}),
 					Product:     selectedProduct.Value,
 					Image:       ucxsvc.VmImageUbuntu24_04,
 					Hostname:    fmt.Sprintf("controlplane-%v", i),

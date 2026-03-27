@@ -32,6 +32,7 @@ import (
 	"ucloud.dk/pkg/integrations/k8s/filesystem"
 	"ucloud.dk/pkg/integrations/k8s/shared"
 	db "ucloud.dk/shared/pkg/database"
+	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
@@ -1066,13 +1067,26 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 			},
 		},
 		Spec: k8score.ServiceSpec{
-			Type:      k8score.ServiceTypeClusterIP,
-			ClusterIP: k8score.ClusterIPNone,
+			Type: k8score.ServiceTypeClusterIP,
 			Selector: map[string]string{
 				serviceLabel.First: serviceLabel.Second,
 				rankLabel.First:    rankLabel.Second,
 			},
 		},
+	}
+
+	if forwards, ok := job.Specification.Labels["ucloud.dk/serviceforwardstcp"]; ok {
+		var ports []int
+		err := json.Unmarshal([]byte(forwards), &ports)
+		if err == nil {
+			for _, port := range ports {
+				baseService.Spec.Ports = append(baseService.Spec.Ports, k8score.ServicePort{
+					Name:     fmt.Sprintf("p-%d", port),
+					Protocol: k8score.ProtocolTCP,
+					Port:     int32(port),
+				})
+			}
+		}
 	}
 
 	cinit := cloudInit{}
@@ -1589,9 +1603,19 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 			if baseService != nil && herr == nil {
 				baseService.OwnerReferences = append(baseService.OwnerReferences, ownerReference)
 
-				_, myError := shared.K8sClient.CoreV1().Services(Namespace).
+				baseService, myError := shared.K8sClient.CoreV1().Services(Namespace).
 					Create(ctx, baseService, k8smeta.CreateOptions{})
 				herr = util.MergeHttpErr(herr, util.HttpErrorFromErr(myError))
+
+				if herr == nil {
+					serviceAddr := baseService.Spec.ClusterIP
+					job.Specification.Labels["ucloud.dk/serviceIpAddress"] = serviceAddr
+					_, _ = orc.JobsControlUpdateLabels.Invoke(fndapi.BulkRequestOf(orc.JobsUpdateLabelsRequest{
+						Id:     job.Id,
+						Labels: job.Specification.Labels,
+					}))
+					ctrl.JobTrackNew(*job)
+				}
 			}
 
 			if herr != nil {
