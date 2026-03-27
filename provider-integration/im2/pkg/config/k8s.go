@@ -125,8 +125,9 @@ type KubernetesInferenceConfiguration struct {
 }
 
 type KubernetesUcxDevelopmentApp struct {
-	Name    string `json:"name" yaml:"name"`
-	Version string `json:"version" yaml:"version"`
+	Name    string              `json:"name" yaml:"name"`
+	Version string              `json:"version" yaml:"version"`
+	SubPath util.Option[string] `json:"subPath" yaml:"subPath"`
 }
 
 type KubernetesUcxConfiguration struct {

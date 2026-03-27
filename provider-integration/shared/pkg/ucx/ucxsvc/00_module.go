@@ -278,8 +278,8 @@ func VirtualMachineCreate(stack *Stack, spec VirtualMachineSpec) string {
 
 var (
 	VmImageUbuntu24_04 = orcapi.NameAndVersion{
-		Name:    "ubuntu-vm2",
-		Version: "24.04b",
+		Name:    "vm-ubuntu",
+		Version: "24.04",
 	}
 )
 
