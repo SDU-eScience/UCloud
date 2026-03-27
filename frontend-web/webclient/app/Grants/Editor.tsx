@@ -44,6 +44,8 @@ import {useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef} fr
 import {useLocation, useNavigate} from "react-router-dom";
 import * as Grants from ".";
 import {ChangeOrganizationDetails, OptionalInfo, optionalInfoRequest, optionalInfoUpdate} from "@/UserSettings/ChangeUserDetails";
+import {ProviderBranding, ProviderBrandingProductDescription, ProviderBrandingResponse} from "@/UCloud/ProviderBrandingApi";
+import {useSelector} from "react-redux";
 import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
 
 // State model
@@ -1368,6 +1370,7 @@ export function Editor(): React.ReactNode {
     const isForSubAllocator = getQueryParam(location.search, "subAllocator") == "true";
     useProjectId(); // FIXME(Jonas): Is this some refresh-thing that breaks stuff if you remove it?
 
+    const providerBrandingData = useSelector((it: ReduxObject) => it.providerBrandings);
     const [missingUserInfo, setMissingUserInfo] = React.useState(false);
     React.useEffect(() => {
         (async () => {
@@ -2135,13 +2138,18 @@ export function Editor(): React.ReactNode {
 
                                             if (hideZeroFields && !anyNonZeroValues) return null;
 
+                                            const currentProvider = providerBrandingData.providers[providerId];
+                                            const productDescription = currentProvider?.productDescription.find(it => it.category === category.category.name);
+                                            const showDescriptions = productDescription != undefined;
+
+
                                             return <FormField
                                                 title={<code>{category.category.name}</code>}
                                                 id={`${providerId}/${category.category.name}/${checkedAllocators[0]}`}
                                                 key={`${providerId}/${category.category.name}`}
-                                                description={Accounting.guesstimateProductCategoryDescription(category.category.name, providerId)}
+                                                description={productDescription?.shortDescription ?? ""}
                                                 icon={Accounting.productTypeToIcon(category.category.productType)}
-                                                showDescriptionInEditMode={false}
+                                                showDescriptionInEditMode={!!showDescriptions}
                                             >
                                                 {checkedAllocators.map(allocator => {
                                                     const unit = Accounting.explainUnit(category.category);

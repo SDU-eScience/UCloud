@@ -12,6 +12,7 @@ import {popInReducer} from "@/ui-components/PopIn";
 import sidebar from "@/Applications/Redux/Reducer";
 import {EnhancedStore, ReducersMapObject, configureStore} from "@reduxjs/toolkit";
 import {noopCall} from "@/Authentication/DataHook";
+import {providerBrandingReducer} from "@/ProviderBrandings/AutomaticProviderBranding";
 
 export const CONTEXT_SWITCH = "CONTEXT_SWITCH";
 export const USER_LOGIN = "USER_LOGIN";
@@ -40,6 +41,7 @@ export const store = confStore(initObject(), {
     sidebar,
     avatar: avatarReducer,
     terminal: terminalReducer,
+    providerBrandings: providerBrandingReducer,
     loading,
     project: ProjectRedux.reducer,
     popinChild: popInReducer,
