@@ -1654,16 +1654,17 @@ const RunningButtonGroup: React.FunctionComponent<{
     defaultInterfaceName?: string;
 }> = ({job, interfaceLinks, defaultInterfaceName}) => {
     const hasMultipleNodes = job.specification.replicas > 1;
-    const jobAuditLogEnabled = job.status.resolvedApplication?.invocation.jobAuditLogEnabled
+    const jobAuditLogIsEnabled = job.status.resolvedApplication?.invocation.jobAuditLogIsEnabled
     const terminalLinks: TerminalTarget[] = Array.from(Array(job.specification.replicas).keys()).map(rank => ({
         jobId: job.id,
         rank: rank,
     }));
+    debugger;
 
     const backendType = getBackend(job);
     const support = job.status.resolvedSupport ?
         (job.status.resolvedSupport! as ResolvedSupport<never, ComputeSupport>).support : undefined;
-    const supportTerminal = !jobAuditLogEnabled && isSupported(backendType, support, "terminal");
+    const supportTerminal = !jobAuditLogIsEnabled && isSupported(backendType, support, "terminal");
 
     let defaultInterfaceId = interfaceLinks.findIndex(link => !link.target && link.rank === 0);
 
