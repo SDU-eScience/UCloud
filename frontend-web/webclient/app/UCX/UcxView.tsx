@@ -6,7 +6,10 @@ import {Table, TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-com
 import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
 import CodeSnippet from "@/ui-components/CodeSnippet";
 import {Toggle} from "@/ui-components/Toggle";
+import * as UCloud from "@/UCloud";
+import * as Accounting from "@/Accounting";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
+import {ProductV2, ProductV2Compute, WalletV2, productCategoryEquals} from "@/Accounting";
 import {
     decodeFrame,
     Frame,
@@ -21,6 +24,10 @@ import {
 import {UcxSession} from "@/UCX/session";
 import {stopPropagation} from "@/UtilityFunctions";
 import Label from "@/ui-components/Label";
+import {useCloudAPI} from "@/Authentication/DataHook";
+import {emptyPageV2} from "@/Utilities/PageUtilities";
+import {ResolvedSupport} from "@/UCloud/ResourceApi";
+import {ProductSelector} from "@/Products/Selector";
 
 type ValueProvider = string | (() => string | Promise<string>);
 export type UcxRpcPayload = PlainValue;
@@ -619,6 +626,9 @@ const baseComponents: UcxComponentRegistry = {
             />
         </>;
     },
+    machine_type_selector: ({node, model, scope, fn}) => {
+        return <MachineTypeSelectorNode node={node} model={model} scope={scope} fn={fn} />;
+    },
     radio_group: ({node, model, scope, fn}) => {
         const label = stringProp(node, "label", "");
         const options = simpleOptionsProp(node, "options");
@@ -759,12 +769,17 @@ function modelValue(model: Record<string, Value>, path: string, scope?: Record<s
         return direct;
     }
 
+    const fromFlatModel = buildObjectFromFlatPath(model, path);
+    if (fromFlatModel) {
+        return fromFlatModel;
+    }
+
     return traverseObjectPath(model, path);
 }
 
 function collectInputBindPaths(root: UiNode): Set<string> {
     const result = new Set<string>();
-    const rehydratable = new Set(["input_text", "input_number", "checkbox", "textarea", "select", "toggle", "radio_group", "list"]);
+    const rehydratable = new Set(["input_text", "input_number", "checkbox", "textarea", "select", "machine_type_selector", "toggle", "radio_group", "list"]);
 
     const walk = (node: UiNode) => {
         if (node.bindPath && rehydratable.has(node.component) && !node.bindPath.startsWith("./")) {
@@ -1202,6 +1217,288 @@ function displayValue(value: Value | undefined): string {
 function asString(value: Value | undefined, fallback: string): string {
     if (value && value.kind === ValueKind.String) return value.string;
     return fallback;
+}
+
+interface MachineRef {
+    provider: string;
+    category: string;
+    id: string;
+}
+
+const MachineTypeSelectorNode: React.FunctionComponent<{
+    node: UiNode;
+    model: Record<string, Value>;
+    scope?: Record<string, Value>;
+    fn: UcxFunctionRegistry;
+}> = ({node, model, scope, fn}) => {
+    const label = stringProp(node, "label", "");
+
+    const [wallets, fetchWallets] = useCloudAPI<UCloud.PageV2<WalletV2>>({noop: true}, emptyPageV2);
+    const [products, fetchProducts] = useCloudAPI<UCloud.PageV2<ProductV2Compute>>({noop: true}, emptyPageV2);
+    const [machineSupport, fetchMachineSupport] = useCloudAPI<UCloud.compute.JobsRetrieveProductsResponse>(
+        {noop: true},
+        {productsByProvider: {}}
+    );
+
+    useEffect(() => {
+        fetchWallets(Accounting.browseWalletsV2({itemsPerPage: 250}));
+        fetchProducts(UCloud.accounting.products.browse({
+            filterUsable: true,
+            filterProductType: "COMPUTE",
+            itemsPerPage: 250,
+            includeBalance: true,
+            includeMaxBalance: true,
+        }));
+    }, [fetchProducts, fetchWallets]);
+
+    useEffect(() => {
+        const providers = new Set<string>();
+        products.data.items.forEach(it => providers.add(it.category.provider));
+
+        if (providers.size === 0) {
+            return;
+        }
+
+        fetchMachineSupport(UCloud.compute.jobs.retrieveProducts({
+            providers: Array.from(providers).join(","),
+        }));
+    }, [fetchMachineSupport, products.data.items]);
+
+    const supportItems = useMemo(() => {
+        const items: ResolvedSupport[] = [];
+        const productsByProvider = machineSupport.data.productsByProvider;
+        for (const provider of Object.keys(productsByProvider)) {
+            for (const item of productsByProvider[provider]) {
+                items.push(item as unknown as ResolvedSupport);
+            }
+        }
+        return items;
+    }, [machineSupport.data]);
+
+    const capabilities = useMemo(() => machineCapabilitiesFromNode(node), [node]);
+
+    const machines = useMemo(
+        () => findMachinesByCapabilities(products.data.items, wallets.data.items, machineSupport.data, capabilities),
+        [capabilities, machineSupport.data, products.data.items, wallets.data.items]
+    );
+
+    const selectedRef = machineRefFromValue(modelValue(model, node.bindPath, scope));
+    const selectedRefKey = selectedRef ? machineRefKey(selectedRef) : "";
+    const selected = useMemo(
+        () => machines.find(product => machineRefKey(machineRefFromProduct(product)) === selectedRefKey) ?? null,
+        [machines, selectedRefKey]
+    );
+
+    const loading = wallets.loading || products.loading || machineSupport.loading;
+
+    const onSelect = useCallback((product: ProductV2) => {
+        if (product.productType !== "COMPUTE") {
+            return;
+        }
+
+        fn.sendBoundInput(node, machineRefToValue(machineRefFromProduct(product as ProductV2Compute)), model, scope);
+    }, [fn, model, node, scope]);
+
+    return <div style={fn.sxStyle(node)}>
+        {label === "" ? null : <FieldLabel>{label}</FieldLabel>}
+        <ProductSelector
+            type={"COMPUTE"}
+            products={machines}
+            selected={selected}
+            loading={loading}
+            onSelect={onSelect}
+            support={supportItems}
+        />
+        {!loading && machines.length === 0 ? <Text color="textSecondary">No matching machine types found.</Text> : null}
+    </div>;
+};
+
+function findMachinesByCapabilities(
+    computeProducts: ProductV2Compute[],
+    wallets: WalletV2[],
+    supportResponse: UCloud.compute.JobsRetrieveProductsResponse,
+    capabilities: Set<string>
+): ProductV2Compute[] {
+    const supportByKey = new Map<string, any>();
+
+    const productsByProvider = supportResponse.productsByProvider ?? {};
+    for (const provider of Object.keys(productsByProvider)) {
+        for (const item of productsByProvider[provider] as any[]) {
+            if (!item?.product || !item?.support) {
+                continue;
+            }
+            supportByKey.set(machineKey(item.product.category.provider, item.product.category.name, item.product.name), item.support);
+        }
+    }
+
+    const result: ProductV2Compute[] = [];
+    for (const product of computeProducts) {
+        if (product.name === "syncthing") {
+            continue;
+        }
+
+        const wallet = wallets.find(w => productCategoryEquals(w.paysFor, product.category));
+        if (!wallet || wallet.maxUsable <= 0) {
+            continue;
+        }
+
+        const support = supportByKey.get(machineKey(product.category.provider, product.category.name, product.name));
+        if (!support || !supportMatchesCapabilities(support, capabilities)) {
+            continue;
+        }
+
+        result.push(product);
+    }
+
+    return result;
+}
+
+function supportMatchesCapabilities(support: any, capabilities: Set<string>): boolean {
+    if (capabilities.size === 0) {
+        return true;
+    }
+
+    let matched = false;
+    for (const capability of capabilities) {
+        switch (capability) {
+            case "docker":
+                if (support?.docker?.enabled === true) matched = true;
+                break;
+            case "virtualMachine":
+                if (support?.virtualMachine?.enabled === true) matched = true;
+                break;
+            case "native":
+                if (support?.native?.enabled === true) matched = true;
+                break;
+        }
+    }
+
+    return matched;
+}
+
+function machineCapabilitiesFromNode(node: UiNode): Set<string> {
+    const raw = prop(node, "capabilities");
+    const result = new Set<string>();
+
+    if (!raw || raw.kind !== ValueKind.List) {
+        return new Set(["docker", "virtualMachine", "native"]);
+    }
+
+    for (const item of raw.list) {
+        if (item.kind !== ValueKind.String) {
+            continue;
+        }
+
+        const normalized = item.string.trim().toLowerCase();
+        if (normalized === "docker") {
+            result.add("docker");
+        } else if (normalized === "vm" || normalized === "virtualmachine" || normalized === "virtual_machine") {
+            result.add("virtualMachine");
+        } else if (normalized === "native") {
+            result.add("native");
+        }
+    }
+
+    if (result.size === 0) {
+        result.add("docker");
+        result.add("virtualMachine");
+        result.add("native");
+    }
+
+    return result;
+}
+
+function machineRefFromProduct(product: ProductV2Compute): MachineRef {
+    return {
+        provider: product.category.provider,
+        category: product.category.name,
+        id: product.name,
+    };
+}
+
+function machineRefToValue(ref: MachineRef): Value {
+    return {
+        kind: ValueKind.Object,
+        object: {
+            provider: {kind: ValueKind.String, string: ref.provider},
+            category: {kind: ValueKind.String, string: ref.category},
+            id: {kind: ValueKind.String, string: ref.id},
+        },
+    };
+}
+
+function machineRefFromValue(value: Value | undefined): MachineRef | null {
+    if (!value || value.kind !== ValueKind.Object) {
+        return null;
+    }
+
+    const provider = asString(value.object["provider"], "");
+    const category = asString(value.object["category"], "");
+    const id = asString(value.object["id"], "");
+    if (provider === "" || category === "" || id === "") {
+        return null;
+    }
+
+    return {provider, category, id};
+}
+
+function machineRefKey(ref: MachineRef): string {
+    return machineKey(ref.provider, ref.category, ref.id);
+}
+
+function machineKey(provider: string, category: string, id: string): string {
+    return `${provider}/${category}/${id}`;
+}
+
+function buildObjectFromFlatPath(model: Record<string, Value>, path: string): Value | undefined {
+    const prefix = `${path}.`;
+    let hasMatches = false;
+    const root: Record<string, Value> = {};
+
+    for (const [fullPath, value] of Object.entries(model)) {
+        if (!fullPath.startsWith(prefix)) {
+            continue;
+        }
+
+        const suffix = fullPath.slice(prefix.length);
+        if (suffix === "") {
+            continue;
+        }
+
+        hasMatches = true;
+        setNestedObjectValue(root, suffix.split("."), value);
+    }
+
+    if (!hasMatches) {
+        return undefined;
+    }
+
+    return {
+        kind: ValueKind.Object,
+        object: root,
+    };
+}
+
+function setNestedObjectValue(root: Record<string, Value>, pathParts: string[], value: Value): void {
+    if (pathParts.length === 0) {
+        return;
+    }
+
+    let current = root;
+    for (let i = 0; i < pathParts.length - 1; i++) {
+        const part = pathParts[i];
+        const existing = current[part];
+
+        if (!existing || existing.kind !== ValueKind.Object) {
+            const next: Value = {kind: ValueKind.Object, object: {}};
+            current[part] = next;
+            current = next.object;
+        } else {
+            current = existing.object;
+        }
+    }
+
+    current[pathParts[pathParts.length - 1]] = value;
 }
 
 const FieldLabel = ({children}: React.PropsWithChildren): React.ReactNode => {

@@ -20,15 +20,16 @@ type UiEventHandler func(session *Session, ev UiEvent)
 type UiEventHandlerSimple func(ev UiEvent)
 
 var interactiveComponents = map[string]bool{
-	"input_text":   true,
-	"input_number": true,
-	"checkbox":     true,
-	"button":       true,
-	"textarea":     true,
-	"select":       true,
-	"radio_group":  true,
-	"toggle":       true,
-	"form":         true,
+	"input_text":            true,
+	"input_number":          true,
+	"checkbox":              true,
+	"button":                true,
+	"textarea":              true,
+	"select":                true,
+	"machine_type_selector": true,
+	"radio_group":           true,
+	"toggle":                true,
+	"form":                  true,
 }
 
 func NormalizeUiTree(root UiNode) UiNode {
@@ -139,6 +140,14 @@ type Option struct {
 	Key   string
 	Value string
 }
+
+type MachineCapability string
+
+const (
+	MachineCapabilityDocker MachineCapability = "docker"
+	MachineCapabilityVm     MachineCapability = "vm"
+	MachineCapabilityNative MachineCapability = "native"
+)
 
 func Flex(props FlexProps) UiNode {
 	return FlexEx("", props)
@@ -405,6 +414,48 @@ func Select(id string, label string, bindPath string, options []Option) UiNode {
 		Props: map[string]Value{
 			"label":   VString(label),
 			"options": optionsToValue(options),
+		},
+	}
+}
+
+func MachineTypeSelector(id string, label string, bindPath string, capabilities ...MachineCapability) UiNode {
+	requireExplicitId(id, "machine_type_selector")
+
+	if len(capabilities) == 0 {
+		capabilities = []MachineCapability{
+			MachineCapabilityDocker,
+			MachineCapabilityVm,
+			MachineCapabilityNative,
+		}
+	}
+
+	allowed := map[MachineCapability]bool{
+		MachineCapabilityDocker: true,
+		MachineCapabilityVm:     true,
+		MachineCapabilityNative: true,
+	}
+
+	capabilitySet := map[MachineCapability]bool{}
+	normalizedCaps := make([]Value, 0, len(capabilities))
+	for _, capability := range capabilities {
+		if !allowed[capability] {
+			panic(fmt.Sprintf("ucx: invalid machine capability '%s'", capability))
+		}
+		if capabilitySet[capability] {
+			continue
+		}
+		capabilitySet[capability] = true
+		normalizedCaps = append(normalizedCaps, VString(string(capability)))
+	}
+
+	return UiNode{
+		Id:         id,
+		Component:  "machine_type_selector",
+		BindPath:   bindPath,
+		Optimistic: true,
+		Props: map[string]Value{
+			"label":        VString(label),
+			"capabilities": VList(normalizedCaps),
 		},
 	}
 }
