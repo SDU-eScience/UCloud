@@ -26,9 +26,12 @@ func InitExecutables() {
 		log.Fatal("Failed to create UCloud exe dir: %s", err)
 	}
 
-	exeCopy("ucloud", dirPath)
-	exeCopy("ucmetrics", dirPath)
-	exeCopy("ucviz", dirPath)
+	exeCopy("ucloud", dirPath, true)
+	exeCopy("ucmetrics", dirPath, true)
+	exeCopy("ucviz", dirPath, true)
+	exeCopy("vmagent", dirPath, true)
+	exeCopy("ucloud-job-introspection", dirPath, true)
+	exeCopy("ucx-demo", dirPath, false)
 
 	providerHostnamePath := filepath.Join(dirPath, "provider-hostname.txt")
 	if util.DevelopmentModeEnabled() {
@@ -57,9 +60,12 @@ func InitExecutables() {
 	_ = os.WriteFile(providerHostnamePath, []byte(ProviderHostname), 0644)
 }
 
-func exeCopy(name string, targetDir string) {
+func exeCopy(name string, targetDir string, mandatory bool) {
 	sourceFd, err := os.OpenFile(fmt.Sprintf("/usr/bin/%s", name), os.O_RDONLY, 0)
 	if err != nil {
+		if !mandatory {
+			return
+		}
 		log.Fatal("Failed to open file at /usr/bin/%s: %s", name, err)
 	}
 

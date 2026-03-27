@@ -361,7 +361,7 @@ export function humanReadableNumber(
 }
 
 /**
- * Copies a string to the users clipboard.
+ * Copies a string to the user's clipboard.
  * @param value contains the string to be copied to the clipboard
  */
 export async function copyToClipboard(value: string): Promise<void> {

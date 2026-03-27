@@ -103,6 +103,7 @@ func InitJobDatabase() {
 	initIpDatabase()
 	initIngressDatabase()
 	initLicenseDatabase()
+	initPrivateNetworkDatabase()
 
 	jobsLoadSessions()
 	gateway.Resume()

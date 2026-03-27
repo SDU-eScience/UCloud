@@ -40,11 +40,12 @@ func (c *ProductCategory) ToId() ProductCategoryIdV2 {
 type ProductType string
 
 const (
-	ProductTypeCompute   ProductType = "COMPUTE"
-	ProductTypeStorage   ProductType = "STORAGE"
-	ProductTypeIngress   ProductType = "INGRESS"
-	ProductTypeLicense   ProductType = "LICENSE"
-	ProductTypeNetworkIp ProductType = "NETWORK_IP"
+	ProductTypeCompute        ProductType = "COMPUTE"
+	ProductTypeStorage        ProductType = "STORAGE"
+	ProductTypeIngress        ProductType = "INGRESS"
+	ProductTypeLicense        ProductType = "LICENSE"
+	ProductTypeNetworkIp      ProductType = "NETWORK_IP"
+	ProductTypePrivateNetwork ProductType = "PRIVATE_NETWORK"
 )
 
 type AccountingUnitAndFrequency struct {
@@ -103,11 +104,12 @@ func (f AccountingFrequency) IsPeriodic() bool {
 type ProductTypeC string
 
 const (
-	ProductTypeCStorage   ProductTypeC = "storage"
-	ProductTypeCCompute   ProductTypeC = "compute"
-	ProductTypeCIngress   ProductTypeC = "ingress"
-	ProductTypeCLicense   ProductTypeC = "license"
-	ProductTypeCNetworkIp ProductTypeC = "network_ip"
+	ProductTypeCStorage        ProductTypeC = "storage"
+	ProductTypeCCompute        ProductTypeC = "compute"
+	ProductTypeCIngress        ProductTypeC = "ingress"
+	ProductTypeCLicense        ProductTypeC = "license"
+	ProductTypeCNetworkIp      ProductTypeC = "network_ip"
+	ProductTypeCPrivateNetwork ProductTypeC = "private_network"
 )
 
 func ProductTypeCCreate(t ProductType) ProductTypeC {
@@ -122,6 +124,8 @@ func ProductTypeCCreate(t ProductType) ProductTypeC {
 		return ProductTypeCLicense
 	case ProductTypeNetworkIp:
 		return ProductTypeCNetworkIp
+	case ProductTypePrivateNetwork:
+		return ProductTypeCPrivateNetwork
 	default:
 		panic("unknown product type")
 	}

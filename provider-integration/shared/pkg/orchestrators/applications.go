@@ -2,6 +2,11 @@ package orchestrators
 
 import (
 	"encoding/json"
+	"fmt"
+	"path/filepath"
+	"reflect"
+	"slices"
+	"strings"
 
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/util"
@@ -51,6 +56,7 @@ const (
 	ToolBackendDocker         ToolBackend = "DOCKER"
 	ToolBackendVirtualMachine ToolBackend = "VIRTUAL_MACHINE"
 	ToolBackendNative         ToolBackend = "NATIVE"
+	ToolBackendUcx            ToolBackend = "UCX"
 )
 
 type ToolDescription struct {
@@ -183,6 +189,7 @@ type ApplicationInvocationDescription struct {
 	AllowMultiNode        util.Option[bool]              `json:"allowMultiNode" yaml:"allowMultiNode"`
 	AllowPublicIp         util.Option[bool]              `json:"allowPublicIp" yaml:"allowPublicIp"`
 	AllowPublicLink       util.Option[bool]              `json:"allowPublicLink" yaml:"allowPublicLink"`
+	JobAuditLogIsEnabled  util.Option[bool]              `json:"jobAuditLogIsEnabled" yaml:"jobAuditLogIsEnabled"`
 	FileExtensions        []string                       `json:"fileExtensions" yaml:"fileExtensions"`
 	LicenseServers        []string                       `json:"licenseServers" yaml:"licenseServers"`
 	Modules               util.Option[ModulesSection]    `json:"modules" yaml:"modules"`
@@ -319,6 +326,7 @@ const (
 	ApplicationParameterTypeWorkflow       ApplicationParameterType = "workflow"
 	ApplicationParameterTypeReadme         ApplicationParameterType = "readme"
 	ApplicationParameterTypeModuleList     ApplicationParameterType = "modules"
+	ApplicationParameterTypePrivateNetwork ApplicationParameterType = "private_network"
 )
 
 func ApplicationParameterInputFile(name string, optional bool, title string, description string) ApplicationParameter {
@@ -480,11 +488,22 @@ func ApplicationParameterReadme(readme string) ApplicationParameter {
 	}
 }
 
+func ApplicationParameterPrivateNetwork(name string, optional bool, title string, description string) ApplicationParameter {
+	return ApplicationParameter{
+		Type:        ApplicationParameterTypePrivateNetwork,
+		Name:        name,
+		Optional:    optional,
+		Title:       title,
+		Description: description,
+	}
+}
+
 // AppParameterValue
 
 type AppParameterValue struct {
 	Type          AppParameterValueType `json:"type" yaml:"type"`
 	Path          string                `json:"path" yaml:"path"`
+	MountPath     string                `json:"mountPath" yaml:"mountPath"`
 	ReadOnly      bool                  `json:"readOnly" yaml:"readOnly"`
 	Value         any                   `json:"value" yaml:"value"`
 	Hostname      string                `json:"hostname" yaml:"hostname"`
@@ -492,24 +511,63 @@ type AppParameterValue struct {
 	Id            string                `json:"id" yaml:"id"`
 	Specification WorkflowSpecification `json:"specification" yaml:"specification"`
 	Modules       []string              `json:"modules" yaml:"modules"`
+	Port          int                   `json:"port" yaml:"port"`
+}
+
+func (a *AppParameterValue) Equal(b AppParameterValue) bool {
+	if a.Type != b.Type {
+		return false
+	}
+
+	switch a.Type {
+	case AppParameterValueTypeFile:
+		return filepath.Clean(a.Path) == filepath.Clean(b.Path)
+
+	case AppParameterValueTypePeer:
+		return a.Hostname == b.Hostname && a.JobId == b.JobId
+
+	case AppParameterValueTypeLicense,
+		AppParameterValueTypeBlockStorage,
+		AppParameterValueTypeNetwork,
+		AppParameterValueTypeIngress,
+		AppParameterValueTypePrivateNetwork:
+		return a.Id == b.Id
+
+	case AppParameterValueTypeModuleList:
+		return slices.Equal(a.Modules, b.Modules)
+
+	case AppParameterValueTypeWorkflow:
+		return reflect.DeepEqual(a.Specification, b.Specification)
+
+	default:
+		return reflect.DeepEqual(a.Value, b.Value)
+	}
 }
 
 type AppParameterValueType string
 
 const (
-	AppParameterValueTypeFile          AppParameterValueType = "file"
-	AppParameterValueTypeBoolean       AppParameterValueType = "boolean"
-	AppParameterValueTypeText          AppParameterValueType = "text"
-	AppParameterValueTypeInteger       AppParameterValueType = "integer"
-	AppParameterValueTypeFloatingPoint AppParameterValueType = "floating_point"
-	AppParameterValueTypePeer          AppParameterValueType = "peer"
-	AppParameterValueTypeLicense       AppParameterValueType = "license_server"
-	AppParameterValueTypeBlockStorage  AppParameterValueType = "block_storage"
-	AppParameterValueTypeNetwork       AppParameterValueType = "network"
-	AppParameterValueTypeIngress       AppParameterValueType = "ingress"
-	AppParameterValueTypeWorkflow      AppParameterValueType = "workflow"
-	AppParameterValueTypeModuleList    AppParameterValueType = "modules"
+	AppParameterValueTypeFile           AppParameterValueType = "file"
+	AppParameterValueTypeBoolean        AppParameterValueType = "boolean"
+	AppParameterValueTypeText           AppParameterValueType = "text"
+	AppParameterValueTypeInteger        AppParameterValueType = "integer"
+	AppParameterValueTypeFloatingPoint  AppParameterValueType = "floating_point"
+	AppParameterValueTypePeer           AppParameterValueType = "peer"
+	AppParameterValueTypeLicense        AppParameterValueType = "license_server"
+	AppParameterValueTypeBlockStorage   AppParameterValueType = "block_storage"
+	AppParameterValueTypeNetwork        AppParameterValueType = "network"
+	AppParameterValueTypeIngress        AppParameterValueType = "ingress"
+	AppParameterValueTypeWorkflow       AppParameterValueType = "workflow"
+	AppParameterValueTypeModuleList     AppParameterValueType = "modules"
+	AppParameterValueTypePrivateNetwork AppParameterValueType = "private_network"
 )
+
+func AppParameterValuePrivateNetwork(networkId string) AppParameterValue {
+	return AppParameterValue{
+		Type: AppParameterValueTypePrivateNetwork,
+		Id:   networkId,
+	}
+}
 
 func AppParameterValueModuleList(modules []string) AppParameterValue {
 	return AppParameterValue{
@@ -524,6 +582,64 @@ func AppParameterValueFile(path string, readOnly bool) AppParameterValue {
 		Path:     path,
 		ReadOnly: readOnly,
 	}
+}
+
+func AppParameterValueFileWithMountPath(path string, readOnly bool, mountPath string) AppParameterValue {
+	return AppParameterValue{
+		Type:      AppParameterValueTypeFile,
+		Path:      path,
+		MountPath: mountPath,
+		ReadOnly:  readOnly,
+	}
+}
+
+func ValidateFileMountPath(path string) (string, bool) {
+	trimmed := strings.TrimSpace(path)
+	if trimmed == "" {
+		return "", true
+	}
+
+	cleaned := filepath.Clean(trimmed)
+	if !filepath.IsAbs(cleaned) {
+		return "", false
+	}
+
+	if cleaned == "/etc/ucloud" || cleaned == "/opt/ucloud" || cleaned == "/work" || strings.HasPrefix(cleaned, "/work/") {
+		return "", false
+	}
+
+	return cleaned, true
+}
+
+func ValidateExplicitFileMountPaths(values []AppParameterValue) (bool, string) {
+	explicitMountPaths := map[string]string{}
+
+	for _, value := range values {
+		if value.Type != AppParameterValueTypeFile || strings.TrimSpace(value.MountPath) == "" {
+			continue
+		}
+
+		normalized, ok := ValidateFileMountPath(value.MountPath)
+		if !ok {
+			return false, fmt.Sprintf(
+				"Invalid mount path '%s'. Mount paths cannot be /etc/ucloud, /opt/ucloud, /work, or under /work.",
+				value.MountPath,
+			)
+		}
+
+		if existingPath, exists := explicitMountPaths[normalized]; exists && existingPath != value.Path {
+			return false, fmt.Sprintf(
+				"Conflicting mount path '%s' requested for '%s' and '%s'.",
+				normalized,
+				existingPath,
+				value.Path,
+			)
+		}
+
+		explicitMountPaths[normalized] = value.Path
+	}
+
+	return true, ""
 }
 
 func AppParameterValueBoolean(value bool) AppParameterValue {

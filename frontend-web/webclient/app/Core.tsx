@@ -54,6 +54,8 @@ import GrantEditor from "@/Grants/Editor";
 import ResourceUsage from "@/Accounting/UsageCore2";
 import ResourceAllocations from "@/Accounting/Allocations";
 import Connection from "@/Providers/Connection";
+import UcxCreateDemo from "@/Playground/UcxCreateDemo";
+import PrivateNetworksRouter from "@/Applications/PrivateNetwork/Router";
 
 import {Sidebar} from "@/ui-components/Sidebar";
 import Uploader from "@/Files/Uploader";
@@ -92,8 +94,11 @@ import SupportPage, {
 import {useEffect} from "react";
 import {deinitNotifications, initTaskAndNotificationStream} from "@/Services/TaskAndNotificationStream";
 import {NotificationPopups} from "./Notifications/Popups";
+import {StacksRouter} from "@/Stacks";
 
 const NotFound = (): React.ReactNode => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
+const JobsOnlyRouter = (): React.ReactNode => <JobsRouter browseFilterType="JOBS_ONLY" />;
+const VirtualMachinesRouter = (): React.ReactNode => <JobsRouter browseFilterType="VMS_ONLY" />;
 
 const Core = (): React.ReactNode => (
     <>
@@ -133,7 +138,11 @@ const Core = (): React.ReactNode => (
                         element={React.createElement(requireAuth(ApplicationsOverview))} />
                     <Route path={AppRoutes.apps.search()} element={React.createElement(requireAuth(ApplicationSearch))} />
 
-                    <Route path="/jobs/*" element={React.createElement(requireAuth(JobsRouter))} />
+                    <Route path={`${AppRoutes.compute.jobs()}/*`}
+                        element={React.createElement(requireAuth(JobsOnlyRouter))} />
+                    <Route path={`${AppRoutes.compute.virtualMachines()}/*`}
+                        element={React.createElement(requireAuth(VirtualMachinesRouter))} />
+                    <Route path="/stacks/*" element={React.createElement(requireAuth(StacksRouter))} />
 
                     <Route path={AppRoutes.apps.shell(":jobId", ":rank")}
                         element={React.createElement(requireAuth(JobShell))} />
@@ -143,6 +152,7 @@ const Core = (): React.ReactNode => (
                     <Route path={"/public-links/*"} element={React.createElement(requireAuth(PublicLinksRouter))} />
                     <Route path="/licenses/*" element={React.createElement(requireAuth(LicenseRouter))} />
                     <Route path="/public-ips/*" element={React.createElement(requireAuth(NetworkIPsRouter))} />
+                    <Route path="/private-networks/*" element={React.createElement(requireAuth(PrivateNetworksRouter))} />
 
                     <Route path={AppRoutes.resources.sshKeys()} element={React.createElement(requireAuth(SSHKeyBrowse))} />
                     <Route path={AppRoutes.resources.sshKeysCreate()} element={React.createElement(requireAuth(SshKeyCreate))} />
@@ -164,6 +174,7 @@ const Core = (): React.ReactNode => (
                     {!inDevEnvironment() ? null : <Route path={"/playground"} element={<Playground />} />}
                     {!inDevEnvironment() ? null : <Route path={"/playground/demo"} element={<Demo />} />}
                     {!inDevEnvironment() ? null : <Route path={"/playground/lag"} element={<LagTest />} />}
+                    {!inDevEnvironment() ? null : <Route path={"/playground/ucx-create"} element={<UcxCreateDemo />} />}
 
                     <Route path={AppRoutes.admin.userCreation()}
                         element={React.createElement(requireAuth(UserCreation))} />

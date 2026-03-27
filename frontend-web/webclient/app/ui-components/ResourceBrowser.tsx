@@ -46,7 +46,7 @@ import Flex, {FlexClass} from "./Flex";
 import * as Heading from "@/ui-components/Heading";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {isAdminOrPI} from "@/Project";
-import {noopCall} from "@/Authentication/DataHook";
+import {callAPI, noopCall} from "@/Authentication/DataHook";
 import {injectResourceBrowserStyle, ShortcutClass} from "./ResourceBrowserStyle";
 import {ASC, DESC, Filter, FilterCheckbox, FilterInput, FilterOption, FilterWithOptions, MultiOption, MultiOptionFilter, SORT_BY, SORT_DIRECTION} from "./ResourceBrowserFilters";
 import {sendInformationNotification} from "@/Notifications";
@@ -117,6 +117,11 @@ export interface ResourceBrowserOpts<T> {
     //        to ensure that some keyhandler are only done for the active modal, and not a potential parent ResourceBrowser-component. 
     isModal?: boolean;
     selection?: Selection<T>;
+}
+
+export interface ResourceBrowseHeaderControls {
+    setRefresh?: (refresh: (() => void) | undefined) => void;
+    projectSwitcherTarget?: Element | null;
 }
 
 export type OperationOrGroup<T, R> = Operation<T, R> | OperationGroup<T, R>;
@@ -3539,6 +3544,16 @@ export function addProjectSwitcherInPortal<T>(
             setPortal(createPortal(<ProjectSwitcher managed={managed} />, projectSwitcher));
         }
     }
+}
+
+export function createProjectSwitcherPortal(
+    container: Element,
+    managed?: {
+        setLocalProject: (project: string | undefined) => void;
+        initialProject?: string;
+    }
+) {
+    return createPortal(<ProjectSwitcher managed={managed} />, container);
 }
 
 export function resourceCreationWithProductSelector<T>(

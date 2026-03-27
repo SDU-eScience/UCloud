@@ -32,6 +32,7 @@ const shares = {
 
 const resources = {
     publicIps: () => "/public-ips",
+    privateNetworks: () => "/private-networks",
     publicLinks: () => "/public-links",
     licenses: () => "/licenses",
     sshKeys: () => "/ssh-keys",
@@ -79,6 +80,17 @@ const jobs = {
     create: (name: string, version?: string, importId?: string) => buildQueryString(`/jobs/create`, {app: name, version, import: importId}),
     view: (jobId: string) => `/jobs/properties/${jobId}`,
     results: () => `/applications/results`,
+};
+
+const stacks = {
+    list: () => "/stacks",
+    view: (id: string) => `/stacks/${encodeURIComponent(id)}`,
+};
+
+const compute = {
+    jobs: () => jobs.list(),
+    virtualMachines: () => "/virtual-machines",
+    stacks: () => stacks.list(),
 };
 
 const login = {
@@ -147,6 +159,8 @@ const AppRoutes = {
     resources,
     login,
     jobs,
+    stacks,
+    compute,
     syncthing,
     grants,
     accounting,

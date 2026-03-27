@@ -5,7 +5,9 @@ import {
     EmptyReasonTag,
     ResourceBrowser,
     ResourceBrowseFeatures,
+    ResourceBrowseHeaderControls,
     addProjectSwitcherInPortal,
+    createProjectSwitcherPortal,
     providerIcon,
     ResourceBrowserOpts,
 } from "@/ui-components/ResourceBrowser";
@@ -76,7 +78,10 @@ const FEATURES: ResourceBrowseFeatures = {
 };
 
 const RESOURCE_NAME = "Drive";
-const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileCollection>}> = ({opts}) => {
+const DriveBrowse: React.FunctionComponent<{
+    opts?: ResourceBrowserOpts<FileCollection>;
+    headerControls?: ResourceBrowseHeaderControls;
+}> = ({opts, headerControls}) => {
     const navigate = useNavigate();
     const mountRef = useRef<HTMLDivElement | null>(null);
     const browserRef = useRef<ResourceBrowser<FileCollection> | null>(null);
@@ -84,6 +89,13 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
     usePage("Drives", SidebarTabId.FILES);
 
     const [switcher, setSwitcherWorkaround] = React.useState<React.ReactNode>(<></>);
+
+    React.useEffect(() => {
+        headerControls?.setRefresh?.(() => browserRef.current?.refresh());
+        return () => {
+            headerControls?.setRefresh?.(undefined);
+        };
+    }, [headerControls]);
     const isWorkspaceAdmin = React.useRef(!Client.hasActiveProject);
     const project = useProject();
     const projectId = useProjectId();
@@ -535,7 +547,9 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
         main={
             <>
                 <div ref={mountRef} />
-                {switcher}
+                {headerControls?.projectSwitcherTarget
+                    ? createProjectSwitcherPortal(headerControls.projectSwitcherTarget)
+                    : switcher}
             </>
         }
     />;

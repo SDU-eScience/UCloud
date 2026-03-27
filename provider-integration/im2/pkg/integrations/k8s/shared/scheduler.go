@@ -24,7 +24,8 @@ type JobTracker interface {
 }
 
 var scheduleLock = sync.Mutex{}
-var scheduledEntries []*orc.Job = nil
+var scheduledEntries = map[string]*orc.Job{}
+var scheduledEntryOrder []string
 
 var scheduleRemoveFromQueueLock sync.Mutex
 var scheduleRemoveFromQueue []string
@@ -44,15 +45,35 @@ func SwapScheduleRemoveFromQueue() []string {
 }
 
 func RequestSchedule(entry *orc.Job) {
+	if entry == nil {
+		return
+	}
+
 	scheduleLock.Lock()
-	scheduledEntries = append(scheduledEntries, entry)
+	if _, ok := scheduledEntries[entry.Id]; !ok {
+		scheduledEntryOrder = append(scheduledEntryOrder, entry.Id)
+	}
+	scheduledEntries[entry.Id] = entry
 	scheduleLock.Unlock()
 }
 
 func SwapScheduleQueue() []*orc.Job {
 	scheduleLock.Lock()
-	result := scheduledEntries
-	scheduledEntries = nil
+	if len(scheduledEntryOrder) == 0 {
+		scheduleLock.Unlock()
+		return nil
+	}
+
+	result := make([]*orc.Job, 0, len(scheduledEntryOrder))
+	for _, jobId := range scheduledEntryOrder {
+		entry, ok := scheduledEntries[jobId]
+		if ok {
+			result = append(result, entry)
+		}
+	}
+
+	scheduledEntries = map[string]*orc.Job{}
+	scheduledEntryOrder = nil
 	scheduleLock.Unlock()
 	return result
 }

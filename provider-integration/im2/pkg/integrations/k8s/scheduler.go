@@ -309,6 +309,14 @@ func (s *Scheduler) JobInQueue(jobId string) bool {
 			return true
 		}
 	}
+
+	length = len(s.Replicas)
+	for i := 0; i < length; i++ {
+		if s.Replicas[i].JobId == jobId {
+			return true
+		}
+	}
+
 	return false
 }
 
