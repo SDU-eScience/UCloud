@@ -14,7 +14,6 @@ import (
 	networking "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/integrations/k8s/filesystem"
 	"ucloud.dk/pkg/integrations/k8s/shared"
@@ -126,6 +125,13 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		Name: ContainerUserJob,
 	})
 
+	if jobAuditLogIsEnabled(&resolvedApplication.Invocation) {
+		spec.Containers = append(spec.Containers, core.Container{
+			Name:  ContainerAuditLog,
+			Image: "alpine:latest",
+		})
+	}
+
 	userContainer := &spec.Containers[0]
 	userContainer.ImagePullPolicy = core.PullIfNotPresent
 	userContainer.Resources.Limits = map[core.ResourceName]resource.Quantity{}
@@ -134,6 +140,10 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	userContainer.Image = tool.Description.Image
 	if userContainer.Image == "" {
 		userContainer.Image = tool.Description.Container
+	}
+
+	if jobAuditLogIsEnabled(&resolvedApplication.Invocation) {
+		jobAuditLogSetup(job, rank, spec, userContainer, "48291")
 	}
 
 	// Setting up network policy and service
@@ -149,7 +159,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	if rank == 0 {
 		firewall = &networking.NetworkPolicy{
 			ObjectMeta: meta.ObjectMeta{
-				Name: firewallName(job.Id),
+				Name: shared.FirewallName(job.Id),
 			},
 			Spec: networking.NetworkPolicySpec{
 				PodSelector: k8PodSelectorForJob(job.Id),
@@ -161,7 +171,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		serviceLabel := shared.JobIdLabel(job.Id)
 		service = &core.Service{
 			ObjectMeta: meta.ObjectMeta{
-				Name: serviceName(job.Id),
+				Name: shared.ServiceName(job.Id),
 				Labels: map[string]string{
 					serviceLabel.First: serviceLabel.Second,
 				},
@@ -177,7 +187,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 
 		sshService = shared.AssignAndPrepareSshService(job).GetOrDefault(nil)
 		if sshService != nil {
-			allowNetworkFromWorld(firewall, []orc.PortRangeAndProto{
+			shared.AllowNetworkFromWorld(firewall, []orc.PortRangeAndProto{
 				{
 					Protocol: orc.IpProtocolTcp,
 					Start:    22,
@@ -186,7 +196,34 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 			})
 		}
 
-		ipService = preparePublicIp(job, firewall, userContainer)
+		preparedIp := shared.PublicIpPrepare(job, firewall)
+		ipService = preparedIp.Service
+		if preparedIp.EnvironmentVariables != nil {
+			for k, v := range preparedIp.EnvironmentVariables {
+				userContainer.Env = append(userContainer.Env, core.EnvVar{
+					Name:  k,
+					Value: v,
+				})
+			}
+		}
+	}
+
+	// DNS config
+	// -----------------------------------------------------------------------------------------------------------------
+	dnsConfig, herr := shared.PrivateNetworkCreateDnsConfig(job)
+	if herr != nil {
+		return herr
+	}
+
+	pod.Spec.Hostname = dnsConfig.Hostname
+	pod.Spec.Subdomain = dnsConfig.Subdomain
+	pod.Spec.DNSConfig = dnsConfig.PodDns
+	for label, value := range dnsConfig.Labels {
+		pod.ObjectMeta.Labels[label] = value
+	}
+
+	if dnsConfig.PodDns != nil && rank != 0 {
+		pod.Spec.Hostname += fmt.Sprintf("-%d", rank)
 	}
 
 	// JobParameters.json
@@ -245,8 +282,10 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	userContainer.SecurityContext.RunAsNonRoot = util.BoolPointer(!application.Container.RunAsRoot)
 	userContainer.SecurityContext.AllowPrivilegeEscalation = util.BoolPointer(application.Container.RunAsRoot)
 
-	spec.Hostname = fmt.Sprintf("j-%s-job-%d", job.Id, rank)
-	spec.Subdomain = fmt.Sprintf("j-%v", job.Id)
+	if dnsConfig.PodDns == nil {
+		spec.Hostname = fmt.Sprintf("j-%s-job-%d", job.Id, rank)
+		spec.Subdomain = fmt.Sprintf("j-%v", job.Id)
+	}
 
 	// Working directory
 	// -----------------------------------------------------------------------------------------------------------------
@@ -332,7 +371,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 
 		appendLine("echo '%d' > /etc/ucloud/number_of_nodes.txt", job.Specification.Replicas)
 		for rank := 0; rank < job.Specification.Replicas; rank++ {
-			hostname := jobHostName(job.Id, rank)
+			hostname := shared.JobHostName(job, rank)
 
 			appendLine("echo '%v' > /etc/ucloud/node-%v.txt", hostname, rank)
 			appendLine("echo '%v' >> /etc/ucloud/nodes.txt", hostname)
@@ -489,6 +528,10 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	return herr
 }
 
+func jobAuditLogIsEnabled(description *orc.ApplicationInvocationDescription) bool {
+	return description.JobAuditLogIsEnabled.Present && description.JobAuditLogIsEnabled.Value
+}
+
 func allowNetworkFrom(policy *networking.NetworkPolicy, jobId string) {
 	selector := k8PodSelectorForJob(jobId)
 	spec := &policy.Spec
@@ -509,65 +552,6 @@ func allowNetworkTo(policy *networking.NetworkPolicy, jobId string) {
 			{PodSelector: &selector},
 		},
 	})
-}
-
-func allowNetworkFromSubnet(policy *networking.NetworkPolicy, subnet string) {
-	spec := &policy.Spec
-	spec.Ingress = append(spec.Ingress, networking.NetworkPolicyIngressRule{
-		From: []networking.NetworkPolicyPeer{
-			{
-				IPBlock: &networking.IPBlock{
-					CIDR: subnet,
-				},
-			},
-		},
-	})
-}
-
-func allowNetworkToSubnet(policy *networking.NetworkPolicy, subnet string) {
-	spec := &policy.Spec
-	spec.Egress = append(spec.Egress, networking.NetworkPolicyEgressRule{
-		To: []networking.NetworkPolicyPeer{
-			{
-				IPBlock: &networking.IPBlock{
-					CIDR: subnet,
-				},
-			},
-		},
-	})
-}
-
-func allowNetworkFromWorld(policy *networking.NetworkPolicy, proto []orc.PortRangeAndProto) {
-	var portEntries []networking.NetworkPolicyPort
-	for _, entry := range proto {
-		portEntries = append(portEntries, networking.NetworkPolicyPort{
-			Protocol: util.Pointer(core.Protocol(entry.Protocol)),
-			Port: &intstr.IntOrString{
-				Type:   intstr.Int,
-				IntVal: int32(entry.Start),
-			},
-			EndPort: util.Pointer(int32(entry.End)),
-		})
-	}
-
-	policy.Spec.Ingress = append(policy.Spec.Ingress, networking.NetworkPolicyIngressRule{
-		Ports: portEntries,
-		From: []networking.NetworkPolicyPeer{
-			{
-				IPBlock: &networking.IPBlock{
-					CIDR: "0.0.0.0/0",
-				},
-			},
-		},
-	})
-}
-
-func firewallName(jobId string) string {
-	return "policy-" + jobId
-}
-
-func serviceName(jobId string) string {
-	return "j-" + jobId
 }
 
 func k8PodSelectorForJob(jobId string) meta.LabelSelector {
@@ -611,4 +595,52 @@ func jobHostName(jobId string, rank int) string {
 		jobId,
 		ServiceConfig.Compute.Namespace,
 	)
+}
+
+func jobAuditLogSetup(job *orc.Job, rank int, spec *core.PodSpec, userContainer *core.Container, serverPort string) {
+	subpath := fmt.Sprintf("audit/%s", job.Id)
+	_ = filesystem.DoCreateFolder(filepath.Join(ServiceConfig.FileSystem.MountPoint, subpath))
+	container := &spec.Containers[len(spec.Containers)-1]
+	container.ImagePullPolicy = core.PullIfNotPresent
+	container.Resources.Limits = map[core.ResourceName]resource.Quantity{}
+	container.Resources.Requests = map[core.ResourceName]resource.Quantity{}
+	container.SecurityContext = &core.SecurityContext{}
+	container.Command = []string{"/opt/ucloud/ucloud", "start-job-audit-log-server", serverPort}
+
+	container.VolumeMounts = append(container.VolumeMounts, core.VolumeMount{
+		Name:      "ucloud-filesystem",
+		ReadOnly:  true,
+		MountPath: "/opt/ucloud",
+		SubPath:   shared.ExecutablesDir,
+	})
+
+	auditVolumeName := "ucloud-filesystem"
+	userContainer.VolumeMounts = append(userContainer.VolumeMounts, core.VolumeMount{
+		Name:      auditVolumeName,
+		ReadOnly:  true,
+		MountPath: "/audit",
+		SubPath:   subpath,
+	})
+
+	container.VolumeMounts = append(container.VolumeMounts, core.VolumeMount{
+		Name:      auditVolumeName,
+		ReadOnly:  false,
+		MountPath: "/audit",
+		SubPath:   subpath,
+	})
+
+	container.Env = append(container.Env, core.EnvVar{
+		Name:  "UCLOUD_RANK",
+		Value: fmt.Sprint(rank),
+	})
+
+	container.Env = append(container.Env, core.EnvVar{
+		Name:  "UCLOUD_JOB_ID",
+		Value: job.Id,
+	})
+
+	container.Env = append(container.Env, core.EnvVar{
+		Name:  "UCLOUD_WORKSPACE_ID",
+		Value: job.Owner.Project.GetOrDefault(job.Owner.CreatedBy),
+	})
 }

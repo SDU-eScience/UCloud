@@ -5,7 +5,6 @@ import (
 	"regexp"
 	"sync"
 
-	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
@@ -78,7 +77,7 @@ func initProviderManagement() {
 			_, provider, err := ResourceCreate[orcapi.Provider](
 				info.Actor,
 				providerType,
-				util.OptNone[accapi.ProductReference](),
+				orcapi.ResourceSpecification{},
 				&internalProvider{
 					UniqueName:   item.Id,
 					Domain:       item.Domain,
@@ -227,6 +226,17 @@ func initProviderManagement() {
 		}
 		return fndapi.BulkResponse[util.Empty]{Responses: make([]util.Empty, len(request.Items))}, nil
 	})
+
+	orcapi.ProviderUpdateLabels.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ProviderUpdateLabelsRequest]) (util.Empty, *util.HttpError) {
+		for _, reqItem := range request.Items {
+			err := ResourceUpdateLabels(info.Actor, providerType, reqItem.Id, reqItem.Labels, orcapi.PermissionEdit)
+			if err != nil {
+				return util.Empty{}, err
+			}
+		}
+
+		return util.Empty{}, nil
+	})
 }
 
 type internalProvider struct {
@@ -296,7 +306,7 @@ func providerPersist(b *db.Batch, r *resource) {
 
 func providerTransform(
 	r orcapi.Resource,
-	product util.Option[accapi.ProductReference],
+	specification orcapi.ResourceSpecification,
 	extra any,
 	flags orcapi.ResourceFlags,
 	actor rpc.Actor,

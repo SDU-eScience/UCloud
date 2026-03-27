@@ -51,6 +51,7 @@ func Init(config *cfg.ServicesConfigurationKubernetes) {
 
 	controller.Files = filesystem.InitFiles()
 	controller.Jobs = InitCompute()
+	controller.UcxApplications = initAppUcx()
 
 	controller.IdentityManagement.HandleProjectNotification = func(updated *controller.EventProjectUpdated) bool {
 		ok := true
@@ -70,7 +71,9 @@ func Init(config *cfg.ServicesConfigurationKubernetes) {
 	}
 
 	initStorageScanCli()
+	initJobsCli()
 	initInference()
+	initJobAuditLogCleanup()
 	controller.ApiTokens = inferenceInitApiTokens()
 	shared.InitExecutables()
 
@@ -79,6 +82,7 @@ func Init(config *cfg.ServicesConfigurationKubernetes) {
 	controller.ProductsRegister(shared.IpProducts)
 	controller.ProductsRegister(shared.LinkProducts)
 	controller.ProductsRegister(shared.LicenseProducts)
+	controller.ProductsRegister(shared.PrivateNetworkProducts)
 }
 
 func InitLater(config *cfg.ServicesConfigurationKubernetes) {
@@ -166,6 +170,69 @@ func IsJobLockedEx(job *orc.Job, jobAnnotations map[string]string) util.Option[s
 					ErrorCode:  "NOT_ENOUGH_STORAGE_CREDITS",
 				},
 			})
+		}
+	}
+
+	checkResource := func(resource orc.AppParameterValue) util.Option[shared.LockedReason] {
+		accessible, message, issue := controller.JobResourceIsAccessible(job.Owner, resource)
+		if accessible {
+			return util.OptNone[shared.LockedReason]()
+		}
+
+		reason := message
+		if reason == "" {
+			reason = "A required resource is no longer available."
+		}
+
+		httpErr := &util.HttpError{StatusCode: http.StatusForbidden, Why: reason}
+
+		switch resource.Type {
+		case orc.AppParameterValueTypeNetwork:
+			if issue == controller.JobResourceAccessibilityIssueLocked {
+				httpErr = &util.HttpError{StatusCode: http.StatusPaymentRequired, Why: reason, ErrorCode: "NOT_ENOUGH_IP_CREDITS"}
+			}
+
+		case orc.AppParameterValueTypeIngress:
+			if issue == controller.JobResourceAccessibilityIssueLocked {
+				httpErr = &util.HttpError{StatusCode: http.StatusPaymentRequired, Why: reason, ErrorCode: "NOT_ENOUGH_LINK_CREDITS"}
+			}
+
+		case orc.AppParameterValueTypeLicense:
+			if issue == controller.JobResourceAccessibilityIssueLocked {
+				httpErr = &util.HttpError{StatusCode: http.StatusPaymentRequired, Why: reason, ErrorCode: "NOT_ENOUGH_LICENSE_CREDITS"}
+			}
+
+		case orc.AppParameterValueTypePrivateNetwork:
+			if issue == controller.JobResourceAccessibilityIssueLocked {
+				httpErr = &util.HttpError{StatusCode: http.StatusPaymentRequired, Why: reason, ErrorCode: "NOT_ENOUGH_PRIVATE_NETWORK_CREDITS"}
+			}
+		}
+
+		return util.OptValue(shared.LockedReason{Reason: reason, Err: httpErr})
+	}
+
+	seenResources := map[string]util.Empty{}
+	for _, resource := range job.Specification.Parameters {
+		key := fmt.Sprintf("%s:%s", resource.Type, resource.Id)
+		if _, seen := seenResources[key]; seen {
+			continue
+		}
+		seenResources[key] = util.Empty{}
+
+		if reason := checkResource(resource); reason.Present {
+			return reason
+		}
+	}
+
+	for _, resource := range job.Specification.Resources {
+		key := fmt.Sprintf("%s:%s", resource.Type, resource.Id)
+		if _, seen := seenResources[key]; seen {
+			continue
+		}
+		seenResources[key] = util.Empty{}
+
+		if reason := checkResource(resource); reason.Present {
+			return reason
 		}
 	}
 

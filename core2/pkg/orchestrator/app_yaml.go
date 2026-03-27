@@ -39,12 +39,14 @@ const (
 	A2SoftwareNative         A2SoftwareKind = "Native"
 	A2SoftwareContainer      A2SoftwareKind = "Container"
 	A2SoftwareVirtualMachine A2SoftwareKind = "VirtualMachine"
+	A2SoftwareUcx            A2SoftwareKind = "UCX"
 )
 
 var A2SoftwareKinds = []A2SoftwareKind{
 	A2SoftwareNative,
 	A2SoftwareContainer,
 	A2SoftwareVirtualMachine,
+	A2SoftwareUcx,
 }
 
 type A2Software struct {
@@ -52,6 +54,7 @@ type A2Software struct {
 	Native         *A2NativeSoftware         `yaml:"-"`
 	Container      *A2ContainerSoftware      `yaml:"-"`
 	VirtualMachine *A2VirtualMachineSoftware `yaml:"-"`
+	Ucx            *A2UcxSoftware            `yaml:"-"`
 }
 
 type A2NativeSoftware struct {
@@ -68,6 +71,10 @@ type A2ContainerSoftware struct {
 }
 
 type A2VirtualMachineSoftware struct {
+	Image string `yaml:"image"`
+}
+
+type A2UcxSoftware struct {
 	Image string `yaml:"image"`
 }
 
@@ -103,6 +110,15 @@ func (s *A2Software) UnmarshalYAML(n *yaml.Node) error {
 		s.Type = "VirtualMachine"
 		s.VirtualMachine = &v
 		return nil
+	case "UCX":
+		var v A2UcxSoftware
+		if err := n.Decode(&v); err != nil {
+			return err
+		}
+		s.Type = "UCX"
+		s.Ucx = &v
+		return nil
+
 	default:
 		return fmt.Errorf("unknown software type: %q", t.Type)
 	}
@@ -323,6 +339,7 @@ type A2Features struct {
 	IPAddresses util.Option[bool] `yaml:"ipAddresses"`
 	Folders     util.Option[bool] `yaml:"folders"`
 	JobLinking  util.Option[bool] `yaml:"jobLinking"`
+	JobAuditLog util.Option[bool] `yaml:"jobAuditLog"`
 }
 
 type A2Web struct {
@@ -492,6 +509,20 @@ func (y *A2Yaml) Normalize() (orcapi.Application, *util.HttpError) {
 			}
 
 			mappedTool.LoadInstructions.Set(instr)
+		}
+
+	case A2SoftwareUcx:
+		mappedTool.Backend = orcapi.ToolBackendUcx
+		if y.Software.Ucx == nil {
+			err = util.MergeHttpErr(err, util.HttpErr(
+				http.StatusBadRequest,
+				"missing ucx information in 'software'",
+			))
+		} else {
+			util.ValidateString(&y.Software.Ucx.Image, "software.image", 0, &err)
+
+			mappedTool.Container = y.Software.Ucx.Image
+			mappedTool.Image = y.Software.Ucx.Image
 		}
 	}
 
@@ -820,10 +851,12 @@ func (y *A2Yaml) Normalize() (orcapi.Application, *util.HttpError) {
 						RunAsRealUser:          false,
 					},
 
+					AllowAdditionalPeers:  y.Features.Value.JobLinking,
 					AllowAdditionalMounts: y.Features.Value.Folders,
 					AllowMultiNode:        util.OptValue(y.Features.Value.MultiNode),
 					AllowPublicIp:         y.Features.Value.IPAddresses,
 					AllowPublicLink:       y.Features.Value.Links,
+					JobAuditLogIsEnabled:  y.Features.Value.JobAuditLog,
 
 					Environment:    mappedEnvironment,
 					Modules:        mappedModules,

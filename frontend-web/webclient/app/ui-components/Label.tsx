@@ -7,6 +7,7 @@ export const LabelClass = injectStyle("label", k => `
     ${k} {
         width: 100%;
         color: var(--textPrimary);
+        user-select: none;
     }
 `);
 

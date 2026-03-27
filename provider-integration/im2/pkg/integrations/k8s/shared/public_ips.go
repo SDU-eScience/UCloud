@@ -1,4 +1,4 @@
-package containers
+package shared
 
 import (
 	"fmt"
@@ -9,11 +9,15 @@ import (
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"ucloud.dk/pkg/controller"
-	"ucloud.dk/pkg/integrations/k8s/shared"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 )
 
-func preparePublicIp(job *orc.Job, firewall *networking.NetworkPolicy, container *core.Container) *core.Service {
+type PublicIpPrepared struct {
+	Service              *core.Service
+	EnvironmentVariables map[string]string
+}
+
+func PublicIpPrepare(job *orc.Job, firewall *networking.NetworkPolicy) PublicIpPrepared {
 	ips, privateIps, err := controller.PublicIpBindToJob(job)
 	if err != nil {
 		_ = controller.JobTrackMessage([]controller.JobMessage{
@@ -21,14 +25,15 @@ func preparePublicIp(job *orc.Job, firewall *networking.NetworkPolicy, container
 				Message: fmt.Sprintf("Failed to bind IP address. %s", err),
 			},
 		})
-		return nil
+		return PublicIpPrepared{}
 	} else if len(ips) > 0 {
-		serviceLabel := shared.JobIdLabel(job.Id)
-		rankLabel := shared.JobRankLabel(0)
+		envVars := map[string]string{}
+		serviceLabel := JobIdLabel(job.Id)
+		rankLabel := JobRankLabel(0)
 
 		service := &core.Service{
 			ObjectMeta: meta.ObjectMeta{
-				Name: fmt.Sprintf("%s-ip", serviceName(job.Id)),
+				Name: fmt.Sprintf("%s-ip", ServiceName(job.Id)),
 				Labels: map[string]string{
 					serviceLabel.First: serviceLabel.Second,
 				},
@@ -77,17 +82,14 @@ func preparePublicIp(job *orc.Job, firewall *networking.NetworkPolicy, container
 						}
 					}
 
-					allowNetworkFromWorld(firewall, fw.Value.OpenPorts)
+					AllowNetworkFromWorld(firewall, fw.Value.OpenPorts)
 				}
 
 				envVarName := "UCLOUD_PUBLIC_IP"
 				if ipIdx != 0 {
 					envVarName += fmt.Sprintf("_%v", ipIdx+1)
 				}
-				container.Env = append(container.Env, core.EnvVar{
-					Name:  envVarName,
-					Value: ip.Status.IpAddress.Value,
-				})
+				envVars[envVarName] = ip.Status.IpAddress.Value
 			}
 		}
 
@@ -98,8 +100,11 @@ func preparePublicIp(job *orc.Job, firewall *networking.NetworkPolicy, container
 			},
 		})
 
-		return service
+		return PublicIpPrepared{
+			Service:              service,
+			EnvironmentVariables: envVars,
+		}
 	} else {
-		return nil
+		return PublicIpPrepared{}
 	}
 }

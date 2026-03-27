@@ -1,12 +1,12 @@
 package orchestrator
 
 import (
+	"net/http"
 	"slices"
 	"strings"
 	"sync"
 	"testing"
 
-	accapi "ucloud.dk/shared/pkg/accounting"
 	"ucloud.dk/shared/pkg/assert"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/rpc"
@@ -40,6 +40,7 @@ func actor(username, project string) *rpc.Actor {
 type TestResource struct {
 	orcapi.Resource
 	Status int
+	Labels map[string]string
 }
 
 type TestResourceData struct {
@@ -52,11 +53,12 @@ const testResource = "test"
 func initResourceTest(t *testing.T) {
 	resourceGlobals.Testing.Enabled = true
 	InitResources()
-	InitResourceType(testResource, 0, nil, nil, func(r orcapi.Resource, product util.Option[accapi.ProductReference], extra any, flags orcapi.ResourceFlags, actor rpc.Actor) any {
+	InitResourceType(testResource, 0, nil, nil, func(r orcapi.Resource, specification orcapi.ResourceSpecification, extra any, flags orcapi.ResourceFlags, actor rpc.Actor) any {
 		d := extra.(*TestResourceData)
 		return TestResource{
 			Resource: r,
 			Status:   d.A + d.B,
+			Labels:   specification.Labels,
 		}
 	}, nil)
 
@@ -95,7 +97,7 @@ func TestReadAndWritePath(t *testing.T) {
 	id, doc, err := ResourceCreate[TestResource](
 		*u,
 		testResource,
-		util.OptNone[accapi.ProductReference](),
+		orcapi.ResourceSpecification{},
 		&TestResourceData{
 			A: 1,
 			B: 2,
@@ -186,7 +188,7 @@ func TestPagination(t *testing.T) {
 		id, _, err := ResourceCreate[TestResource](
 			*u,
 			testResource,
-			util.OptNone[accapi.ProductReference](),
+			orcapi.ResourceSpecification{},
 			&TestResourceData{
 				A: 1,
 				B: 2,
@@ -306,7 +308,7 @@ func TestPaginationWithSorter(t *testing.T) {
 		id, _, err := ResourceCreate[TestResource](
 			*u,
 			testResource,
-			util.OptNone[accapi.ProductReference](),
+			orcapi.ResourceSpecification{},
 			&TestResourceData{
 				A: 1,
 				B: 2,
@@ -395,4 +397,139 @@ func TestPaginationWithSorter(t *testing.T) {
 		},
 		comparator,
 	)
+}
+
+func TestResourceValidateLabels(t *testing.T) {
+	normalized, err := ResourceValidateLabels(map[string]string{
+		"Team": "cloud",
+		"ENV":  "prod",
+	})
+
+	if assert.Nil(t, err) {
+		assert.Equal(t, 2, len(normalized))
+		assert.Equal(t, "cloud", normalized["team"])
+		assert.Equal(t, "prod", normalized["env"])
+	}
+
+	normalized, err = ResourceValidateLabels(nil)
+	if assert.Nil(t, err) {
+		assert.Equal(t, 0, len(normalized))
+	}
+
+	_, err = ResourceValidateLabels(map[string]string{
+		"Owner": "a",
+		"owner": "b",
+	})
+
+	if assert.NotNil(t, err) {
+		assert.Equal(t, http.StatusBadRequest, err.StatusCode)
+	}
+}
+
+func TestResourceCreateAndUpdateLabels(t *testing.T) {
+	initResourceTest(t)
+
+	owner := actor("owner", "")
+	other := actor("other", "")
+
+	id, created, err := ResourceCreate[TestResource](
+		*owner,
+		testResource,
+		orcapi.ResourceSpecification{
+			Labels: map[string]string{
+				"Team": "cloud",
+			},
+		},
+		&TestResourceData{A: 1, B: 2},
+	)
+
+	if assert.Nil(t, err) {
+		ResourceConfirm(testResource, id)
+	}
+
+	assert.Equal(t, "cloud", created.Labels["team"])
+	_, hasOriginalKey := created.Labels["Team"]
+	assert.False(t, hasOriginalKey)
+
+	err = ResourceUpdateLabels(*other, testResource, created.Id, map[string]string{"Env": "dev"}, orcapi.PermissionEdit)
+	if assert.NotNil(t, err) {
+		assert.Equal(t, http.StatusForbidden, err.StatusCode)
+	}
+
+	err = ResourceUpdateAcl(*owner, testResource, orcapi.UpdatedAcl{
+		Id: created.Id,
+		Added: []orcapi.ResourceAclEntry{
+			{
+				Entity:      orcapi.AclEntityUser(other.Username),
+				Permissions: []orcapi.Permission{orcapi.PermissionProvider},
+			},
+		},
+	})
+	assert.Nil(t, err)
+
+	err = ResourceUpdateLabels(*other, testResource, created.Id, map[string]string{"Env": "dev"}, orcapi.PermissionProvider)
+	assert.Nil(t, err)
+
+	retrieved, err := ResourceRetrieve[TestResource](*owner, testResource, id, orcapi.ResourceFlags{})
+	if assert.Nil(t, err) {
+		assert.Equal(t, 1, len(retrieved.Labels))
+		assert.Equal(t, "dev", retrieved.Labels["env"])
+		_, hasOriginalKey = retrieved.Labels["Env"]
+		assert.False(t, hasOriginalKey)
+	}
+
+	err = ResourceUpdateLabels(*owner, testResource, created.Id, nil, orcapi.PermissionEdit)
+	assert.Nil(t, err)
+
+	retrieved, err = ResourceRetrieve[TestResource](*owner, testResource, id, orcapi.ResourceFlags{})
+	if assert.Nil(t, err) {
+		assert.Equal(t, 0, len(retrieved.Labels))
+	}
+}
+
+func TestResourceBrowseFilterLabels(t *testing.T) {
+	initResourceTest(t)
+
+	owner := actor("owner", "")
+
+	create := func(labels map[string]string) {
+		id, _, err := ResourceCreate[TestResource](
+			*owner,
+			testResource,
+			orcapi.ResourceSpecification{Labels: labels},
+			&TestResourceData{A: 1, B: 1},
+		)
+		if assert.Nil(t, err) {
+			ResourceConfirm(testResource, id)
+		}
+	}
+
+	create(map[string]string{"ucloud.dk/stackName": "alpha", "ucloud.dk/stackInstance": "1"})
+	create(map[string]string{"ucloud.dk/stackName": "alpha", "ucloud.dk/stackInstance": "2"})
+	create(map[string]string{"ucloud.dk/stackName": "beta", "ucloud.dk/stackInstance": "1"})
+
+	browse := func(filter map[string]string) []TestResource {
+		page := ResourceBrowse(
+			*owner,
+			testResource,
+			util.OptNone[string](),
+			100,
+			orcapi.ResourceFlags{FilterLabels: filter},
+			func(item TestResource) bool { return true },
+			nil,
+		)
+		return page.Items
+	}
+
+	items := browse(map[string]string{"ucloud.dk/stackName": "alpha"})
+	assert.Equal(t, 2, len(items))
+
+	items = browse(map[string]string{"ucloud.dk/stackInstance": "1"})
+	assert.Equal(t, 2, len(items))
+
+	items = browse(map[string]string{"ucloud.dk/stackName": "alpha", "ucloud.dk/stackInstance": "1"})
+	assert.Equal(t, 1, len(items))
+
+	items = browse(map[string]string{"ucloud.dk/stackName": "gamma"})
+	assert.Equal(t, 0, len(items))
 }

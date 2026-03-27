@@ -1,7 +1,8 @@
 package orchestrator
 
 import (
-	accapi "ucloud.dk/shared/pkg/accounting"
+	"net/http"
+
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
@@ -12,23 +13,27 @@ import (
 func ResourceCreateThroughProvider[T any](
 	actor rpc.Actor,
 	typeName string,
-	product accapi.ProductReference,
+	specification orcapi.ResourceSpecification,
 	extra any,
 	call rpc.Call[fndapi.BulkRequest[T], fndapi.BulkResponse[fndapi.FindByStringId]],
 ) (T, *util.HttpError) {
 	var t T
 
-	err := ResourceValidateAllocation(actor, product)
+	if !resourceSpecificationHasProduct(specification) {
+		return t, util.HttpErr(http.StatusBadRequest, "resource does not specify a product")
+	}
+
+	err := ResourceValidateAllocation(actor, specification.Product)
 	if err != nil {
 		return t, err
 	}
 
-	id, resc, err := ResourceCreate[T](actor, typeName, util.OptValue(product), extra)
+	id, resc, err := ResourceCreate[T](actor, typeName, specification, extra)
 	if err != nil {
 		return t, err
 	}
 
-	resp, err := InvokeProvider(product.Provider, call, fndapi.BulkRequestOf(resc), ProviderCallOpts{
+	resp, err := InvokeProvider(specification.Product.Provider, call, fndapi.BulkRequestOf(resc), ProviderCallOpts{
 		Username: util.OptValue(actor.Username),
 		Reason:   util.OptValue("Creating resource: " + typeName),
 	})
@@ -60,7 +65,7 @@ func ResourceDeleteThroughProvider[T any](
 	id string,
 	call rpc.Call[fndapi.BulkRequest[T], fndapi.BulkResponse[util.Empty]],
 ) *util.HttpError {
-	resc, _, product, err := ResourceRetrieveEx[T](
+	resc, _, specification, err := ResourceRetrieveEx[T](
 		actor,
 		typeName,
 		ResourceParseId(id),
@@ -77,11 +82,11 @@ func ResourceDeleteThroughProvider[T any](
 		return err
 	}
 
-	if !product.Present {
+	if !resourceSpecificationHasProduct(specification) {
 		panic("ResourceDeleteThroughProvider called but with no product returned")
 	}
 
-	_, err = InvokeProvider(product.Value.Provider, call, fndapi.BulkRequestOf(resc), ProviderCallOpts{
+	_, err = InvokeProvider(specification.Product.Provider, call, fndapi.BulkRequestOf(resc), ProviderCallOpts{
 		Username: util.OptValue(actor.Username),
 		Reason:   util.OptValue("Deleting resource: " + typeName),
 	})
@@ -90,4 +95,63 @@ func ResourceDeleteThroughProvider[T any](
 		ResourceDelete(actor, typeName, ResourceParseId(id))
 	}
 	return err
+}
+
+func ResourceUpdateLabelsThroughProvider[T any](
+	actor rpc.Actor,
+	typeName string,
+	id string,
+	labels map[string]string,
+	mutatorFn func(t *T, labels map[string]string),
+	call rpc.Call[fndapi.BulkRequest[T], util.Empty],
+) *util.HttpError {
+	resc, _, specification, err := ResourceRetrieveEx[T](
+		actor,
+		typeName,
+		ResourceParseId(id),
+		orcapi.PermissionEdit,
+		orcapi.ResourceFlags{
+			IncludeOthers:  true,
+			IncludeUpdates: true,
+			IncludeSupport: true,
+			IncludeProduct: true,
+		},
+	)
+
+	originalResource := resc
+
+	if err != nil {
+		return err
+	}
+
+	if !resourceSpecificationHasProduct(specification) {
+		panic("ResourceUpdateLabelsThroughProvider called but with no product returned")
+	}
+
+	normalized, err := ResourceValidateLabels(labels)
+	if err != nil {
+		return err
+	}
+
+	mutatorFn(&resc, normalized)
+
+	_, err = InvokeProvider(specification.Product.Provider, call, fndapi.BulkRequestOf(resc), ProviderCallOpts{
+		Username: util.OptValue(actor.Username),
+		Reason:   util.OptValue("User initiated label update"),
+	})
+
+	if err != nil && err.StatusCode != http.StatusNotFound {
+		return err
+	} else {
+		err = ResourceUpdateLabels(actor, typeName, id, normalized, orcapi.PermissionEdit)
+		if err != nil {
+			_, _ = InvokeProvider(specification.Product.Provider, call, fndapi.BulkRequestOf(originalResource), ProviderCallOpts{
+				Username: util.OptValue(actor.Username),
+				Reason:   util.OptValue("Rolling back label changes"),
+			})
+			return err
+		} else {
+			return nil
+		}
+	}
 }

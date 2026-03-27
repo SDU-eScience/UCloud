@@ -1,0 +1,196 @@
+package shared
+
+import (
+	"context"
+	"fmt"
+	"math/rand"
+	"net/http"
+	"strings"
+	"sync"
+
+	k8score "k8s.io/api/core/v1"
+	k8snetwork "k8s.io/api/networking/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	k8smeta "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
+	"ucloud.dk/pkg/controller"
+	db "ucloud.dk/shared/pkg/database"
+	"ucloud.dk/shared/pkg/log"
+	orc "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/util"
+)
+
+var privateNetworkCreationMutex = sync.Mutex{}
+
+func PrivateNetworkSelector(subdomain string) map[string]string {
+	return map[string]string{
+		PrivateNetworkLabel(subdomain): "true",
+	}
+}
+
+func PrivateNetworkLabel(subdomain string) string {
+	return fmt.Sprintf("ucloud.dk/network-%s", subdomain)
+}
+
+func PrivateNetworkName(subdomain string) string {
+	return subdomain
+}
+
+func PrivateNetworkRetrieveProducts() []orc.PrivateNetworkSupport {
+	return PrivateNetworkSupport
+}
+
+func PrivateNetworkCreate(network *orc.PrivateNetwork) *util.HttpError {
+	if network == nil {
+		return util.ServerHttpError("Failed to create private network: network is nil")
+	}
+
+	reservedPrefixes := []string{"j", "ucloud", "vm", "im", "policy"}
+	for _, prefix := range reservedPrefixes {
+		if network.Specification.Subdomain == prefix || strings.HasPrefix(network.Specification.Subdomain, prefix+"-") {
+			return util.HttpErr(http.StatusBadRequest, "Reserved domain name, try a different one")
+		}
+	}
+
+	privateNetworkCreationMutex.Lock()
+	networkCount := db.NewTx(func(tx *db.Transaction) int {
+		row, _ := db.Get[struct {
+			Count int
+		}](
+			tx,
+			`
+				select count(*) as count
+				from tracked_private_networks 
+				where lower(resource->'specification'->>'subdomain') = lower(:domain)
+		    `,
+			db.Params{
+				"domain": network.Specification.Subdomain,
+			},
+		)
+
+		return row.Count
+	})
+	privateNetworkCreationMutex.Unlock()
+
+	if networkCount != 1 {
+		return util.HttpErr(http.StatusConflict, "a network with this subdomain already exists, try a different one")
+	}
+
+	networkSvc := &k8score.Service{
+		ObjectMeta: k8smeta.ObjectMeta{
+			Name: PrivateNetworkName(network.Specification.Subdomain),
+		},
+		Spec: k8score.ServiceSpec{
+			ClusterIP: "None",
+			Selector:  PrivateNetworkSelector(network.Specification.Subdomain),
+			Ports: []k8score.ServicePort{
+				{
+					Name:       "dummy",
+					Port:       80,
+					TargetPort: intstr.FromInt32(80),
+				},
+			},
+		},
+	}
+
+	svc, err := K8sClient.CoreV1().Services(ServiceConfig.Compute.Namespace).
+		Create(context.Background(), networkSvc, k8smeta.CreateOptions{})
+
+	if err != nil {
+		log.Warn("Failed to create private network: %s %s", network.Specification.Subdomain, err)
+		return util.HttpErr(http.StatusInternalServerError, "unable to create a private network")
+	}
+
+	selector := k8smeta.LabelSelector{
+		MatchLabels: PrivateNetworkSelector(network.Specification.Subdomain),
+	}
+
+	policy := &k8snetwork.NetworkPolicy{
+		ObjectMeta: k8smeta.ObjectMeta{
+			Name: PrivateNetworkName(network.Specification.Subdomain),
+			OwnerReferences: []k8smeta.OwnerReference{{
+				APIVersion: "v1",
+				Kind:       "Service",
+				Name:       svc.Name,
+				UID:        svc.UID,
+			}},
+		},
+		Spec: k8snetwork.NetworkPolicySpec{
+			PodSelector: selector,
+			Ingress: []k8snetwork.NetworkPolicyIngressRule{
+				{From: []k8snetwork.NetworkPolicyPeer{{PodSelector: &selector}}},
+			},
+			Egress: []k8snetwork.NetworkPolicyEgressRule{
+				{To: []k8snetwork.NetworkPolicyPeer{{PodSelector: &selector}}},
+			},
+		},
+	}
+
+	_, err = K8sClient.NetworkingV1().NetworkPolicies(ServiceConfig.Compute.Namespace).
+		Create(context.Background(), policy, k8smeta.CreateOptions{})
+
+	if err != nil {
+		log.Warn("Failed to create private network policy: %s %s", network.Specification.Subdomain, err)
+		return util.HttpErr(http.StatusInternalServerError, "unable to create a private network policy")
+	}
+
+	return nil
+}
+
+func PrivateNetworkDelete(network *orc.PrivateNetwork) *util.HttpError {
+	if network == nil {
+		return util.ServerHttpError("Failed to delete private network: network is nil")
+	}
+
+	err := K8sClient.CoreV1().Services(ServiceConfig.Compute.Namespace).
+		Delete(context.Background(), PrivateNetworkName(network.Specification.Subdomain), k8smeta.DeleteOptions{})
+
+	if err != nil && !k8serrors.IsNotFound(err) {
+		log.Warn("Failed to delete a private network: %s %s", network.Specification.Subdomain, err)
+		return util.HttpErr(http.StatusInternalServerError, "unable to delete a private network")
+	}
+
+	return controller.PrivateNetworkDelete(network)
+}
+
+type PrivateNetworkDnsConfig struct {
+	Hostname  string
+	Subdomain string
+	PodDns    *k8score.PodDNSConfig
+	Labels    map[string]string
+}
+
+func PrivateNetworkCreateDnsConfig(job *orc.Job) (PrivateNetworkDnsConfig, *util.HttpError) {
+	result := PrivateNetworkDnsConfig{}
+	result.Labels = map[string]string{}
+	result.Hostname = job.Specification.Hostname.GetOrDefault(
+		fmt.Sprintf("%s-%v", job.Status.ResolvedApplication.Value.Metadata.Title, rand.Intn(9999)))
+
+	var networks []orc.PrivateNetwork
+	for _, resc := range job.Specification.Resources {
+		if resc.Type == orc.AppParameterValueTypePrivateNetwork {
+			network, ok := controller.PrivateNetworkRetrieve(resc.Id)
+			if ok {
+				networks = append(networks, network)
+			}
+		}
+	}
+
+	if len(networks) > 0 {
+		result.Subdomain = networks[0].Specification.Subdomain
+		result.PodDns = &k8score.PodDNSConfig{}
+
+		baseDomain := fmt.Sprintf("%s.svc.cluster.local", ServiceConfig.Compute.Namespace)
+
+		for _, network := range networks {
+			result.PodDns.Searches = append(result.PodDns.Searches, fmt.Sprintf("%s.%s", network.Specification.Subdomain, baseDomain))
+			result.Labels[PrivateNetworkLabel(network.Specification.Subdomain)] = "true"
+		}
+
+		result.PodDns.Searches = append(result.PodDns.Searches, baseDomain)
+		result.PodDns.Searches = append(result.PodDns.Searches, "svc.cluster.local")
+		result.PodDns.Searches = append(result.PodDns.Searches, "cluster.local")
+	}
+
+	return result, nil
+}

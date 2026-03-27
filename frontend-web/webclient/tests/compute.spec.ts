@@ -128,9 +128,9 @@ TestContexts.map((ctx) => {
             test.setTimeout(300_000);
             const term = await Applications.runAppAndOpenTerminalWithTerminalPage(page, "Terminal", 1);
             await Terminal.enterCmd(term, "ls ~/.local");
-            await term.getByText("easybuild").hover();
-            await Terminal.enterCmd(term, "curl -I https://example.org");
-            await term.getByText("HTTP/2 200").hover();
+            await term.getByText("easybuild").waitFor();
+            await Terminal.enterCmd(term, "curl -I https://www.google.com");
+            await term.getByText("HTTP/2 200").waitFor();
             await term.close();
             await Runs.terminateViewedRun(page);
         });
@@ -169,7 +169,7 @@ echo "${BashScriptStringContent}"
                     await Runs.terminateViewedRun(page);
                 });
                 await File.actionByRowTitle(page, "stdout-0.log", "dblclick");
-                await page.getByText(BashScriptStringContent).hover();
+                await page.getByText(BashScriptStringContent).waitFor();
             });
 
             test("Licenses - check license system works", async ({page}) => {
@@ -197,7 +197,7 @@ echo "${BashScriptStringContent}"
                 // Click submit, don't expect a backend response
                 await page.getByRole("button", {name: "Submit"}).click();
                 // See that license is required
-                await page.getByText("A value is missing for this mandatory field").first().hover();
+                await page.getByText("A value is missing for this mandatory field").first().waitFor();
                 await page.getByPlaceholder("Select license server...").click();
                 await page.getByRole("dialog").locator(".row", {hasText: licenseId.toString()}).getByRole("button", {name: "Use"}).click();
 

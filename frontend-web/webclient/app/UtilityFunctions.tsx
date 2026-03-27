@@ -361,8 +361,8 @@ export function humanReadableNumber(
 }
 
 /**
- * Copies a string to the users clipboard.
- * @param param contains the value to be copied and the message to show the user on success.
+ * Copies a string to the user's clipboard.
+ * @param value contains the string to be copied to the clipboard
  */
 export async function copyToClipboard(value: string): Promise<void> {
     await navigator.clipboard.writeText(value);

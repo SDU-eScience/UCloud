@@ -107,21 +107,22 @@ type JobStatus struct {
 }
 
 type JobUpdate struct {
-	State                  util.Option[JobState] `json:"state"`
-	OutputFolder           util.Option[string]   `json:"outputFolder"`
-	Status                 util.Option[string]   `json:"status"`
-	ExpectedState          util.Option[JobState] `json:"expectedState"`
-	ExpectedDifferentState util.Option[bool]     `json:"expectedDifferentState"`
-	NewTimeAllocation      util.Option[int64]    `json:"newTimeAllocation"`
-	AllowRestart           util.Option[bool]     `json:"allowRestart"` // deprecated
-	NewMounts              util.Option[[]string] `json:"newMounts"`    // deprecated
-	Timestamp              fnd.Timestamp         `json:"timestamp"`
+	State                  util.Option[JobState]            `json:"state"`
+	OutputFolder           util.Option[string]              `json:"outputFolder"`
+	Status                 util.Option[string]              `json:"status"`
+	ExpectedState          util.Option[JobState]            `json:"expectedState"`
+	ExpectedDifferentState util.Option[bool]                `json:"expectedDifferentState"`
+	NewTimeAllocation      util.Option[int64]               `json:"newTimeAllocation"`
+	AllowRestart           util.Option[bool]                `json:"allowRestart"` // deprecated
+	ResourceList           util.Option[[]AppParameterValue] `json:"resourceList"`
+	Timestamp              fnd.Timestamp                    `json:"timestamp"`
 }
 
 type JobSpecification struct {
-	Product           apm.ProductReference         `json:"product"`
+	ResourceSpecification
 	Application       NameAndVersion               `json:"application"`
 	Name              string                       `json:"name,omitempty"`
+	Hostname          util.Option[string]          `json:"hostname"`
 	Replicas          int                          `json:"replicas"`
 	AllowDuplicateJob bool                         `json:"allowDuplicateJob"` // deprecated
 	Parameters        map[string]AppParameterValue `json:"parameters"`
@@ -370,6 +371,11 @@ func VerifyParameterType(param *ApplicationParameter, value *AppParameterValue) 
 		if value.Type != AppParameterValueTypeModuleList {
 			return false
 		}
+
+	case ApplicationParameterTypePrivateNetwork:
+		if value.Type != AppParameterValueTypePrivateNetwork {
+			return false
+		}
 	}
 	return true
 }
@@ -398,24 +404,33 @@ const (
 )
 
 type UniversalBackendSupport struct {
-	Enabled       bool `json:"enabled,omitempty"`
-	Web           bool `json:"web,omitempty"`
-	Vnc           bool `json:"vnc,omitempty"`
-	Logs          bool `json:"logs,omitempty"`
-	Terminal      bool `json:"terminal,omitempty"`
-	Peers         bool `json:"peers,omitempty"`
-	TimeExtension bool `json:"timeExtension,omitempty"`
+	Enabled        bool `json:"enabled,omitempty"`
+	Web            bool `json:"web,omitempty"`
+	Vnc            bool `json:"vnc,omitempty"`
+	Logs           bool `json:"logs,omitempty"`
+	Terminal       bool `json:"terminal,omitempty"`
+	Peers          bool `json:"peers,omitempty"`
+	TimeExtension  bool `json:"timeExtension,omitempty"`
+	BindLinkToPort bool `json:"bindLinkToPort,omitempty"`
 }
+
+type JobTypeFilter string
+
+const (
+	JobTypeFilterVmsOnly  JobTypeFilter = "VMS_ONLY"
+	JobTypeFilterJobsOnly JobTypeFilter = "JOBS_ONLY"
+)
 
 // Job API
 // =====================================================================================================================
 
 type JobFlags struct {
 	ResourceFlags
-	FilterApplication  util.Option[string]   `json:"filterApplication"`
-	FilterState        util.Option[JobState] `json:"filterState"`
-	IncludeParameters  bool                  `json:"includeParameters"`
-	IncludeApplication bool                  `json:"includeApplication"`
+	FilterApplication  util.Option[string]        `json:"filterApplication"`
+	FilterState        util.Option[JobState]      `json:"filterState"`
+	FilterType         util.Option[JobTypeFilter] `json:"filterType"`
+	IncludeParameters  bool                       `json:"includeParameters"`
+	IncludeApplication bool                       `json:"includeApplication"`
 }
 
 const jobNamespace = "jobs"
@@ -575,6 +590,42 @@ type JobsFollowMessage struct {
 	InitialJob util.Option[Job]       `json:"initialJob"`
 }
 
+type JobsAttachResourceRequest struct {
+	JobId    string            `json:"jobId"`
+	Resource AppParameterValue `json:"resource"`
+}
+
+var JobsAttachResource = rpc.Call[JobsAttachResourceRequest, util.Empty]{
+	BaseContext: jobNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "attachResource",
+}
+
+type JobsDetachResourceRequest struct {
+	JobId    string            `json:"jobId"`
+	Resource AppParameterValue `json:"resource"`
+}
+
+var JobsDetachResource = rpc.Call[JobsDetachResourceRequest, util.Empty]{
+	BaseContext: jobNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "detachResource",
+}
+
+type JobsUpdateLabelsRequest struct {
+	Id     string            `json:"id"`
+	Labels map[string]string `json:"labels"`
+}
+
+var JobsUpdateLabels = rpc.Call[fnd.BulkRequest[JobsUpdateLabelsRequest], util.Empty]{
+	BaseContext: jobNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "updateLabels",
+}
+
 // Job Control API
 // =====================================================================================================================
 
@@ -619,7 +670,8 @@ var JobsControlAddUpdate = rpc.Call[fnd.BulkRequest[ResourceUpdateAndId[JobUpdat
 }
 
 type JobsControlBrowseSshKeysRequest struct {
-	JobId string `json:"jobId"`
+	JobId       string `json:"jobId"`
+	FilterOwner bool   `json:"owner"`
 }
 
 var JobsControlBrowseSshKeys = rpc.Call[JobsControlBrowseSshKeysRequest, fnd.PageV2[SshKey]]{
@@ -652,6 +704,13 @@ var JobsControlCheckCredits = rpc.Call[fnd.BulkRequest[JobsLegacyCheckCreditsReq
 	BaseContext: jobControlNamespace,
 	Convention:  rpc.ConventionUpdate,
 	Operation:   "checkCredits",
+	Roles:       rpc.RoleProvider,
+}
+
+var JobsControlUpdateLabels = rpc.Call[fnd.BulkRequest[JobsUpdateLabelsRequest], util.Empty]{
+	BaseContext: jobControlNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Operation:   "updateLabels",
 	Roles:       rpc.RoleProvider,
 }
 
@@ -765,11 +824,33 @@ type JobsProviderFollowRequest struct {
 	Job  Job    `json:"job"`
 }
 
-/*
-var JobsProviderRename = rpc.Call[fnd.BulkRequest[JobRenameRequest], fnd.BulkResponse[util.Empty]]{
+type JobsProviderAttachResourceRequest struct {
+	Job      Job               `json:"job"`
+	Resource AppParameterValue `json:"resource"`
+}
+
+var JobsProviderAttachResource = rpc.Call[JobsProviderAttachResourceRequest, util.Empty]{
 	BaseContext: jobProviderNamespace,
 	Convention:  rpc.ConventionUpdate,
-	Roles:       rpc.RolesService,
-	Operation:   "rename",
+	Roles:       rpc.RolesPrivileged,
+	Operation:   "attachResource",
 }
-*/
+
+type JobsProviderDetachResourceRequest struct {
+	Job      Job               `json:"job"`
+	Resource AppParameterValue `json:"resource"`
+}
+
+var JobsProviderDetachResource = rpc.Call[JobsProviderDetachResourceRequest, util.Empty]{
+	BaseContext: jobProviderNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesPrivileged,
+	Operation:   "detachResource",
+}
+
+var JobsProviderOnUpdatedLabels = rpc.Call[fnd.BulkRequest[Job], util.Empty]{
+	BaseContext: jobProviderNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesPrivileged,
+	Operation:   "onUpdatedLabels",
+}

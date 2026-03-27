@@ -40,6 +40,29 @@ func ParametersToStruct(params url.Values, s interface{}) error {
 			}
 		}, field.Name)
 
+		if value.Kind() == reflect.Map {
+			if value.Type().Key().Kind() == reflect.String && value.Type().Elem().Kind() == reflect.String {
+				if value.IsNil() {
+					value.Set(reflect.MakeMap(value.Type()))
+				}
+
+				prefix := mappedName + "."
+				for key, values := range params {
+					if !strings.HasPrefix(key, prefix) {
+						continue
+					}
+
+					if len(values) == 0 {
+						continue
+					}
+
+					mapKey := strings.TrimPrefix(key, prefix)
+					value.SetMapIndex(reflect.ValueOf(mapKey), reflect.ValueOf(values[0]))
+				}
+				continue
+			}
+		}
+
 		if paramValue := params.Get(mappedName); paramValue != "" {
 			err := setFieldValue(value, paramValue)
 			if err != nil {

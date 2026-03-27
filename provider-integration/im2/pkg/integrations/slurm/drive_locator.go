@@ -78,10 +78,12 @@ func RegisterDriveInfo(info LocatedDrive) *util.HttpError {
 	resource := orc.ProviderRegisteredResource[orc.DriveSpecification]{
 		Spec: orc.DriveSpecification{
 			Title: info.Title,
-			Product: apm.ProductReference{
-				Id:       info.CategoryName,
-				Category: info.CategoryName,
-				Provider: config.Provider.Id,
+			ResourceSpecification: orc.ResourceSpecification{
+				Product: apm.ProductReference{
+					Id:       info.CategoryName,
+					Category: info.CategoryName,
+					Provider: config.Provider.Id,
+				},
 			},
 		},
 
