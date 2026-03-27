@@ -272,6 +272,114 @@ func TestOverConsumptionFollowedByAllocation(t *testing.T) {
 	})
 }
 
+func TestCapacityOverConsumptionAndReturnBelowLimit(t *testing.T) {
+	runTable(t, []accapi.ProductCategory{timeCategory, capacityCategory}, func(e *env) {
+		e.AllocateEx(0, 0, 10, 100, "P1", "")
+		e.AllocateEx(0, 0, 100, 10, "P2", "P1")
+
+		e.ReportAbs(1, "P2", 1)
+		e.ExpectMany(map[string]want{
+			"P1": {PUsage: 1, Locked: false},
+			"P2": {PUsage: 1, Locked: false},
+		})
+
+		e.ReportAbs(3, "P2", 15)
+		e.ExpectMany(map[string]want{
+			"P1": {PUsage: 10, Locked: false},
+			"P2": {PUsage: 10, Locked: true},
+		})
+
+		e.ReportAbs(5, "P2", 1)
+		e.ExpectMany(map[string]want{
+			"P1": {PUsage: 1, Locked: false},
+			"P2": {PUsage: 1, Locked: false},
+		})
+	})
+}
+
+func TestCapacityOverConsumptionAndReturnBelowLimitMultipleLevels(t *testing.T) {
+	runTable(t, []accapi.ProductCategory{timeCategory, capacityCategory}, func(e *env) {
+		e.AllocateEx(0, 0, 1000, 1000, "P1", "")
+		e.AllocateEx(0, 0, 100, 10, "P2", "P1")
+		e.AllocateEx(0, 0, 100, 20, "P3", "P1")
+		e.AllocateEx(0, 0, 100, 20, "P3Sub", "P3")
+
+		e.ReportAbs(1, "P2", 1)
+		e.ReportAbs(1, "P3", 1)
+		e.ReportAbs(1, "P3Sub", 1)
+
+		e.ExpectMany(map[string]want{
+			"P1":    {PUsage: 3, Locked: false},
+			"P2":    {PUsage: 1, Locked: false},
+			"P3":    {PUsage: 2, Locked: false},
+			"P3Sub": {PUsage: 1, Locked: false},
+		})
+
+		e.ReportAbs(5, "P3Sub", 25)
+		e.ExpectMany(map[string]want{
+			"P1":    {PUsage: 21, Locked: false},
+			"P2":    {PUsage: 1, Locked: false},
+			"P3":    {PUsage: 20, Locked: true},
+			"P3Sub": {PUsage: 19, Locked: true}, // Only sends 19 since P3 is using 1 (Over allocation)
+		})
+
+		e.ReportAbs(10, "P3Sub", 4)
+		e.ExpectMany(map[string]want{
+			"P1":    {PUsage: 6, Locked: false},
+			"P2":    {PUsage: 1, Locked: false},
+			"P3":    {PUsage: 5, Locked: false},
+			"P3Sub": {PUsage: 4, Locked: false},
+		})
+	})
+}
+
+func TestCapacityOverConsumptionAndReturnBelowLimitMultipleAllocationGroups(t *testing.T) {
+	runTable(t, []accapi.ProductCategory{timeCategory, capacityCategory}, func(e *env) {
+		e.AllocateEx(0, 0, 1000, 1000, "P1", "")
+		e.AllocateEx(0, 0, 100, 10, "P2", "P1")
+		e.AllocateEx(0, 0, 100, 20, "P3", "P1")
+		e.AllocateEx(0, 0, 100, 15, "P3Sub", "P3")
+		e.AllocateEx(0, 0, 50, 5, "P3Sub", "P1")
+
+		e.ReportAbs(1, "P2", 1)
+		e.ReportAbs(1, "P3", 1)
+		e.ReportAbs(1, "P3Sub", 1)
+
+		e.ExpectMany(map[string]want{
+			"P1":    {PUsage: 3, Locked: false},
+			"P2":    {PUsage: 1, Locked: false},
+			"P3":    {PUsage: 1, Locked: false},
+			"P3Sub": {PUsage: 1, Locked: false},
+		})
+
+		e.ReportAbs(5, "P3Sub", 6)
+		e.ExpectMany(map[string]want{
+			"P1":    {PUsage: 8, Locked: false},
+			"P2":    {PUsage: 1, Locked: false},
+			"P3":    {PUsage: 2, Locked: false},
+			"P3Sub": {PUsage: 6, Locked: false},
+		})
+
+		e.ReportAbs(10, "P3Sub", 25)
+		e.ExpectMany(map[string]want{
+			"P1":    {PUsage: 22, Locked: false},
+			"P2":    {PUsage: 1, Locked: false},
+			"P3":    {PUsage: 16, Locked: false},
+			"P3Sub": {PUsage: 20, Locked: true},
+		})
+
+		//Would expect that the short path P1 -> P3Sub would be used instead of P1->P3->P3Sub
+
+		e.ReportAbs(15, "P3Sub", 2)
+		e.ExpectMany(map[string]want{
+			"P1":    {PUsage: 4, Locked: false},
+			"P2":    {PUsage: 1, Locked: false},
+			"P3":    {PUsage: 1, Locked: false},
+			"P3Sub": {PUsage: 2, Locked: false},
+		})
+	})
+}
+
 func TestCapacityParentRetireAfterChildOverspend(t *testing.T) {
 	e := newEnv(t, capacityCategory)
 
@@ -396,6 +504,107 @@ func TestInjectResourcesAfterRetirement(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestProviderExpireAndNewPeriodStartsCapacity(t *testing.T) {
+	e := newEnv(t, capacityCategory)
+	testProviderExpireAndNewPeriodStarts(*e, true)
+}
+
+func TestProviderExpireAndNewPeriodStartsTime(t *testing.T) {
+	e := newEnv(t, capacityCategory)
+	testProviderExpireAndNewPeriodStarts(*e, false)
+}
+
+// Pretty standard operation that we do every time a period ends on UCloud
+func testProviderExpireAndNewPeriodStarts(e env, isCapacityBased bool) {
+	e.AllocateEx(0, 0, 1_000, 1_000, "provider", "")
+	e.AllocateEx(0, 1_000, 3_000, 1_000, "provider", "")
+	e.AllocateEx(0, 0, 2_000, 50, "A", "provider")
+	e.AllocateEx(0, 0, 1_500, 10, "B", "provider")
+	e.AllocateEx(0, 0, 3_000, 20, "C", "provider")
+
+	e.ReportAbs(10, "A", 10)
+	e.ReportAbs(15, "B", 5)
+	e.ReportAbs(20, "C", 20)
+
+	e.ExpectMany(map[string]want{
+		"provider": {PUsage: 35, Locked: false},
+		"A":        {PUsage: 10, Locked: false},
+		"B":        {PUsage: 5, Locked: false},
+		"C":        {PUsage: 20, Locked: true},
+	})
+
+	e.Scan(1_000)
+
+	e.ExpectMany(map[string]want{
+		"provider": {PUsage: 35, Locked: false},
+		"A":        {PUsage: 10, Locked: false},
+		"B":        {PUsage: 5, Locked: false},
+		"C":        {PUsage: 20, Locked: true},
+	})
+
+	if isCapacityBased {
+		e.ReportDelta(1_300, "C", -10)
+		e.ExpectMany(map[string]want{
+			"provider": {PUsage: 25, Locked: false},
+			"C":        {PUsage: 10, Locked: false},
+		})
+
+		e.ReportDelta(1_310, "A", 1)
+		e.ExpectMany(map[string]want{
+			"provider": {PUsage: 26, Locked: false},
+			"A":        {PUsage: 11, Locked: false},
+		})
+	} else {
+		e.ReportDelta(1_300, "A", 11)
+		e.ExpectMany(map[string]want{
+			"provider": {PUsage: 46, Locked: false},
+			"A":        {PUsage: 21, Locked: false},
+		})
+	}
+
+}
+
+func TestProviderExpireAndNewPeriodStartsDelayedScan(t *testing.T) {
+	runTable(t, []accapi.ProductCategory{timeCategory, capacityCategory}, func(e *env) {
+		e.AllocateEx(0, 0, 1_000, 1_000, "provider", "")
+		e.AllocateEx(0, 1_000, 3_000, 1_000, "provider", "")
+		e.AllocateEx(0, 0, 2_000, 50, "A", "provider")
+		e.AllocateEx(0, 0, 1_500, 10, "B", "provider")
+		e.AllocateEx(0, 0, 3_000, 20, "C", "provider")
+
+		e.ReportAbs(10, "A", 10)
+		e.ReportAbs(15, "B", 5)
+		e.ReportAbs(20, "C", 20)
+
+		e.ExpectMany(map[string]want{
+			"provider": {PUsage: 35, Locked: false},
+			"A":        {PUsage: 10, Locked: false},
+			"B":        {PUsage: 5, Locked: false},
+			"C":        {PUsage: 20, Locked: true},
+		})
+
+		e.ReportAbs(1_100, "A", 15)
+		e.ReportAbs(1_105, "B", 2)
+		e.ReportAbs(1_020, "C", 10)
+
+		e.ExpectMany(map[string]want{
+			"provider": {PUsage: 27, Locked: false},
+			"A":        {PUsage: 15, Locked: false},
+			"B":        {PUsage: 2, Locked: false},
+			"C":        {PUsage: 10, Locked: false},
+		})
+
+		e.Scan(1_200)
+
+		e.ExpectMany(map[string]want{
+			"provider": {PUsage: 27, Locked: false},
+			"A":        {PUsage: 15, Locked: false},
+			"B":        {PUsage: 2, Locked: false},
+			"C":        {PUsage: 10, Locked: false},
+		})
+	})
 }
 
 func TestInjectResourcesAfterTotalUsage(t *testing.T) {
