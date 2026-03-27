@@ -7,7 +7,9 @@ The UCloud frontend is the default way of communicating with the UCloud platform
 
 The UI acts as a centralised point, that can communicate with different connected providers to make use of the features available, taking in to account what features are not.
 
-Managing of drives, files, runs, and other resources are available to the user through the interface, with the resource's relevant actions. 
+Managing of drives, files, runs, and other resources are available to the user through the interface, with the resource's relevant actions.
+
+The implementation is in the folder [`/frontend-web/webclient/`](https://github.com/SDU-eScience/UCloud/tree/master/frontend-web/webclient/).
 
 ## Technologies
 
@@ -19,20 +21,19 @@ Where the performance of React has not been adequate, Vanilla TypeScript/ECMAScr
 
 ### Running the UI
 
-For a local dev environment, the `launcher`-tool, available in the root folder of the project, can be run, which will automatically initialize and start the environment.
+For a local dev environment, the `launcher`-tool, available in the root folder of the repository, can be run, which will automatically initialize and start the environment.
 The UI will be available at `ucloud.localhost.direct` and will use the local environment as the backend. An admin user will be generated with the following login info:
 
 - Username: user
 - Password: mypassword
 
-If using another backend is required, the frontend can be run by opening the folder at `/frontend-web/webclient/` and running two commands:
+If using another backend is required, the frontend can be run using two commands, while in the `webclient` folder:
 
 First:
 - `npm i`
 
 And depending on what backend is needed:
-- For `dev` run `npm run start` (requires VPN)
-- For `sandbox` run `npm run start:sandbox` 
+- For `dev` run `npm run start` (requires VPN access)
 - For `production` run `npm run start:prod`
 
 Logins for these can be provided upon request.
@@ -67,6 +68,8 @@ const NameOfClass = injectStyle("class-name", cl => `
 `);
 ```
 
+
+
 ### Using the class:
 
 
@@ -90,6 +93,8 @@ The function appends a number, to ensure uniqueness. The above could for instanc
 
 If just a classname is needed without any rules, see `makeClassName` function.
 
+Relevant code can be found in [/Unstyled/index.ts](https://github.com/sdu-eScience/UCloud/tree/master/frontend-web/webclient/app/Unstyled/index.ts)
+
 ## Network calls
 
 The `callAPI`-function is used for contacting the backend, fetching data and posting updates.
@@ -105,13 +110,29 @@ export function usageReportRetrieve(request: {start: number; end: number;}): API
     return apiRetrieve(request, "/api/usageReport");
 }
 
-/* Some code here  */
+function Component(): React.ReactNode {
+    /* Code */
+    
+    React.useEffect(() => {
+        const result = await callAPI(usageReportRetrieve({start: 0, end: new Date().getTime()}));
+        /* Do stuff with result */
+    });
 
-React.useEffect(() => {
-    const result = await callAPI(usageReportRetrieve({start: 0, end: new Date().getTime()}));
-    /* Do stuff with result */
-});
+    /* Code */
+}
 ```
+
+`callAPI` takes authentication into account. If authentication is not needed for the request, [`fetch`](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) can be used instead.
+
+Relevant code can be found in [Authentication/DataHook.ts](https://github.com/sdu-eScience/UCloud/tree/master/frontend-web/webclient/app/Authentication/DataHook.ts)
+
+## HttpClient - lib.ts
+
+A singleton named `Client` is the instantiation of the `HttpClient` that is used to make authenticated calls to the backend. It exposes some additional functionality, like `activeUsername()`, `isLoggedIn()` and `projectId()`, with the latter only to be used when the `useProjectId`-hook can't be used.
+
+Making backend calls should go through `callAPI` or similar, and not be done by using the `call` function directly.
+
+Relevant code can be found in [`/app/Authentication/lib.ts`](https://github.com/sdu-eScience/UCloud/tree/master/frontend-web/webclient/app/Authentication/lib.ts)
 
 ## Adding a route to a component
 
@@ -134,16 +155,20 @@ If authentication is not needed, this can be omitted, like so:
 
 The route-path must be added to the `AppRoutes`.
 
+Relevant code can be found in:
+
+- `Core.tsx` found in [`/app/Core.tsx`](https://github.com/sdu-eScience/UCloud/tree/master/frontend-web/webclient/app/Core.tsx)
+- `AppRoutes` found in [`/app/Routes.ts`](https://github.com/sdu-eScience/UCloud/tree/master/frontend-web/webclient/app/Routes.ts)
+
 ## Color references and icons
 
-The `Playground` component can be accessed at `app/playground` and has a list of colors used on the site.
+The `Playground` component can be accessed at `/app/playground` and has a list of colors used on the site.
 Additionally, every icon currently available can be viewed here, showing the name of it by hovering with the mouse.
 
 The component is intended for experimenting and the component is not available in any non-local environment.
 
-Icons can be added to the site, by adding the file as an SVG in the folder `frontend/webclient/app/ui-components/icons`, then running the command `npm run refresh-icons`.
+Icons can be added to the site, by adding the file as an SVG in the folder `/app/ui-components/icons`, then running the command `npm run refresh-icons`.
 The icon is now available to use in the `name` parameter for the Icon-component.
-
 
 ## Baseline for CSS features
 
@@ -186,6 +211,8 @@ The first of the two, `user.setup.ts`. This is the script that sets up the diffe
 When writing a test for a feature, most of it should consist of calls to this library. If the functionality for an action isn't there, it's likely it should be added.
 
 Tests can be added to the existing test suite, but tests must not be removed, as most are part of a compliance requirement. <!--(link to PDF?)-->
+
+Relevant code can be found in `/testing`, with the output of a test-suite run in `/test-results`.
 
 ### Coding-style preferences
 
