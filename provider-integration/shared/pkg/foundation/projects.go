@@ -56,13 +56,15 @@ type ProjectRetrieveSubProjectRenamingResponse struct {
 type ProjectRole string
 
 const (
-	ProjectRoleUser  ProjectRole = "USER"
-	ProjectRoleAdmin ProjectRole = "ADMIN"
-	ProjectRolePI    ProjectRole = "PI"
+	ProjectRoleUser        ProjectRole = "USER"
+	ProjectRoleDataManager ProjectRole = "DATA_MANAGER"
+	ProjectRoleAdmin       ProjectRole = "ADMIN"
+	ProjectRolePI          ProjectRole = "PI"
 )
 
 var ProjectRoleOptions = []ProjectRole{
 	ProjectRoleUser,
+	ProjectRoleDataManager,
 	ProjectRoleAdmin,
 	ProjectRolePI,
 }
@@ -70,8 +72,10 @@ var ProjectRoleOptions = []ProjectRole{
 func (p ProjectRole) Power() int {
 	switch p {
 	case ProjectRolePI:
-		return 3
+		return 4
 	case ProjectRoleAdmin:
+		return 3
+	case ProjectRoleDataManager:
 		return 2
 	case ProjectRoleUser:
 		return 1
@@ -96,6 +100,10 @@ func (p ProjectRole) Satisfies(requirement ProjectRole) bool {
 	} else {
 		return false
 	}
+}
+
+func (p ProjectRole) Equals(requirement ProjectRole) bool {
+	return p == requirement
 }
 
 type ProjectMember struct {

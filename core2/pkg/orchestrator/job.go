@@ -58,6 +58,10 @@ func initJobs() {
 	go jobNotificationsLoopSendPending()
 
 	orcapi.JobsCreate.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.JobSpecification]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
+		if sourceIPisRestricted(info) {
+			return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
+		}
+
 		created, err := JobCreate(info.Actor, request)
 		if err != nil {
 			return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
@@ -211,6 +215,10 @@ func initJobs() {
 	})
 
 	orcapi.JobsBrowse.Handler(func(info rpc.RequestInfo, request orcapi.JobsBrowseRequest) (fndapi.PageV2[orcapi.Job], *util.HttpError) {
+		if sourceIPisRestricted(info) {
+			return fndapi.PageV2[orcapi.Job]{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
+		}
+
 		return JobsBrowse(info.Actor, request.Next, request.ItemsPerPage, request.JobFlags)
 	})
 
@@ -219,6 +227,9 @@ func initJobs() {
 	})
 
 	orcapi.JobsRetrieve.Handler(func(info rpc.RequestInfo, request orcapi.JobsRetrieveRequest) (orcapi.Job, *util.HttpError) {
+		if sourceIPisRestricted(info) {
+			return orcapi.Job{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
+		}
 		return JobsRetrieve(info.Actor, request.Id, request.JobFlags)
 	})
 
@@ -231,6 +242,9 @@ func initJobs() {
 	})
 
 	orcapi.JobsSearch.Handler(func(info rpc.RequestInfo, request orcapi.JobsSearchRequest) (fndapi.PageV2[orcapi.Job], *util.HttpError) {
+		if sourceIPisRestricted(info) {
+			return fndapi.PageV2[orcapi.Job]{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
+		}
 		return JobsSearch(info.Actor, request.Query, request.Next, request.ItemsPerPage, request.JobFlags)
 	})
 
@@ -324,6 +338,9 @@ func initJobs() {
 	})
 
 	orcapi.JobsUpdateAcl.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.UpdatedAcl]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
+		if sourceIPisRestricted(info) {
+			return fndapi.BulkResponse[util.Empty]{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
+		}
 		var responses []util.Empty
 		for _, item := range request.Items {
 			err := ResourceUpdateAcl(info.Actor, jobType, item)
@@ -336,10 +353,16 @@ func initJobs() {
 	})
 
 	orcapi.JobsExtend.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.JobsExtendRequestItem]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
+		if sourceIPisRestricted(info) {
+			return fndapi.BulkResponse[util.Empty]{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
+		}
 		return JobsExtendBulk(info.Actor, request)
 	})
 
 	orcapi.JobsTerminate.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[fndapi.FindByStringId]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
+		if sourceIPisRestricted(info) {
+			return fndapi.BulkResponse[util.Empty]{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
+		}
 		return JobsTerminateBulk(info.Actor, request)
 	})
 
@@ -439,6 +462,10 @@ func initJobs() {
 	})
 
 	orcapi.JobsOpenInteractiveSession.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.JobsOpenInteractiveSessionRequestItem]) (fndapi.BulkResponse[orcapi.OpenSessionWithProvider], *util.HttpError) {
+		if sourceIPisRestricted(info) {
+			return fndapi.BulkResponse[orcapi.OpenSessionWithProvider]{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
+		}
+
 		updatesByProvider := map[string][]orcapi.JobsProviderOpenInteractiveSessionRequestItem{}
 		indicesByProvider := map[string][]int{}
 
@@ -584,6 +611,31 @@ func initJobs() {
 	})
 
 	orcapi.JobsOpenTerminalInFolder.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.JobsOpenTerminalInFolderRequestItem]) (fndapi.BulkResponse[orcapi.OpenSessionWithProvider], *util.HttpError) {
+		if sourceIPisRestricted(info) {
+			return fndapi.BulkResponse[orcapi.OpenSessionWithProvider]{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
+		}
+
+		if info.Actor.Project.Present {
+			policies := policiesByProject(info.Actor.Project.String())
+			specifications, ok := policies[fndapi.RestrictIntegratedApplications.String()]
+			if ok {
+				for _, property := range specifications.Properties {
+					if property.Name == "allowList" {
+						restricted := true
+						for _, element := range property.TextElements {
+							if element == "terminal" {
+								restricted = false
+								break
+							}
+						}
+						if restricted {
+							return fndapi.BulkResponse[orcapi.OpenSessionWithProvider]{}, util.HttpErr(http.StatusForbidden, "Project does not allow users to use the integrated terminal")
+						}
+					}
+				}
+			}
+		}
+
 		updatesByProvider := map[string][]orcapi.JobsOpenTerminalInFolderRequestItem{}
 		indicesByProvider := map[string][]int{}
 
@@ -748,10 +800,16 @@ func initJobs() {
 	})
 
 	orcapi.JobSettingsRetrieve.Handler(func(info rpc.RequestInfo, request util.Empty) (orcapi.JobSettings, *util.HttpError) {
+		if sourceIPisRestricted(info) {
+			return orcapi.JobSettings{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
+		}
 		return JobSettingsRetrieve(info.Actor), nil
 	})
 
 	orcapi.JobSettingsUpdate.Handler(func(info rpc.RequestInfo, request orcapi.JobSettings) (util.Empty, *util.HttpError) {
+		if sourceIPisRestricted(info) {
+			return util.Empty{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
+		}
 		err := JobSettingsUpdate(info.Actor, request)
 		if err != nil {
 			return util.Empty{}, err
@@ -1329,6 +1387,35 @@ func jobsValidateForSubmission(actor rpc.Actor, spec *orcapi.JobSpecification) *
 	app, ok := AppRetrieve(actor, spec.Application.Name, spec.Application.Version, AppDiscoveryAll, 0)
 	if !ok {
 		return util.HttpErr(http.StatusBadRequest, "unknown application requested")
+	}
+
+	if actor.Project.Present {
+		var allowedApps []string
+		polices := policiesByProject(actor.Project.String())
+		specification, restricted := polices[fndapi.RestrictApplications.String()]
+		if restricted {
+			for _, property := range specification.Properties {
+				if property.Name == "applications" {
+					allowedApps = property.TextElements
+					break
+				}
+			}
+			allowed := false
+			if len(allowedApps) == 0 {
+				return util.HttpErr(http.StatusForbidden, "Application is not allowed to run in this project context.")
+			} else {
+				for _, allowedApp := range allowedApps {
+					println(allowedApp)
+					if allowedApp == app.Metadata.Name {
+						allowed = true
+						break
+					}
+				}
+			}
+			if !allowed {
+				return util.HttpErr(http.StatusForbidden, "Application is not allowed to run in this project context.")
+			}
+		}
 	}
 
 	support, ok := SupportByProduct[orcapi.JobSupport](jobType, spec.Product)
