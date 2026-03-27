@@ -94,6 +94,24 @@ If just a classname is needed without any rules, see `makeClassName` function.
 
 The `callAPI`-function is used for contacting the backend, fetching data and posting updates.
 
+The first parameter `APICallParameter`, is an object that contains HTTP method, optional body, and other relevant arguments for the network call.
+
+Helper functions to create an `APICallParameter`-object exist, that map to different network actions. See `apiCreate`, `apiBrowse`, `apiRetrieve`, `apiSearch`, `apiUpdate`, and `apiDelete`.
+
+Example usage:
+
+```typescript
+export function usageReportRetrieve(request: {start: number; end: number;}): APICallParameters<{start: number; end: number;}> {
+    return apiRetrieve(request, "/api/usageReport");
+}
+
+/* Some code here  */
+
+React.useEffect(() => {
+    const result = await callAPI(usageReportRetrieve({start: 0, end: new Date().getTime()}));
+    /* Do stuff with result */
+});
+```
 
 ## Adding a route to a component
 
