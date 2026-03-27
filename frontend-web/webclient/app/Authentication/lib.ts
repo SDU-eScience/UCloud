@@ -1,5 +1,5 @@
 import {Store} from "redux";
-import {b64DecodeUnicode, displayErrorMessageOrDefault, inRange, inSuccessRange, is5xxStatusCode} from "@/UtilityFunctions";
+import {b64DecodeUnicode, inRange, inSuccessRange, is5xxStatusCode} from "@/UtilityFunctions";
 import {setStoredProject} from "@/Project/ReduxState";
 import {CallParameters} from "./CallParameters";
 import {signIntentToCall, clearSigningKey} from "@/Authentication/MessageSigning";

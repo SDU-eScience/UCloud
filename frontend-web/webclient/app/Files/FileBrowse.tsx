@@ -73,7 +73,6 @@ import {FilesMoveRequestItem, UFile, UFileIncludeFlags} from "@/UCloud/UFile";
 import {sidebarFavoriteCache} from "./FavoriteCache";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {HTMLTooltip} from "@/ui-components/Tooltip";
-import {Feature, hasFeature} from "@/Features";
 import SharesApi, {OutgoingShareGroup} from "@/UCloud/SharesApi";
 import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
 

@@ -29,7 +29,6 @@ export {default as List} from "./List";
 export {default as ButtonGroup} from "./ButtonGroup";
 export {default as DataList} from "./DataList";
 export {default as TextArea} from "./TextArea";
-export {default as UIGlobalStyle} from "./GlobalStyle";
 export {default as ExternalLink} from "./ExternalLink";
 export {default as Markdown} from "./Markdown";
 export {SelectableTextWrapper, SelectableText} from "./SelectableText";
