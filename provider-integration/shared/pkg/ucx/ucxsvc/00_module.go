@@ -159,7 +159,7 @@ func PublicIpCreate(stack *Stack) orcapi.AppParameterValue {
 // Public links
 // =====================================================================================================================
 
-func PublicLinkCreate(stack *Stack, name string) orcapi.AppParameterValue {
+func PublicLinkCreate(stack *Stack, name string, port util.Option[int]) orcapi.AppParameterValue {
 	if !stack.Ok {
 		return orcapi.AppParameterValue{}
 	}
@@ -188,7 +188,11 @@ func PublicLinkCreate(stack *Stack, name string) orcapi.AppParameterValue {
 		return orcapi.AppParameterValue{}
 	}
 
-	return orcapi.AppParameterValueIngress(links[0].Id)
+	result := orcapi.AppParameterValueIngress(links[0].Id)
+	if port.Present {
+		result.Port = port.Value
+	}
+	return result
 }
 
 // Private networks

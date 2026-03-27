@@ -975,6 +975,26 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	preparedIp := shared.PublicIpPrepare(job, firewall)
 	ipService := preparedIp.Service
 
+	serviceLabel := shared.JobIdLabel(job.Id)
+	rankLabel := shared.JobRankLabel(0)
+
+	baseService := &k8score.Service{
+		ObjectMeta: k8smeta.ObjectMeta{
+			Name: fmt.Sprintf("%s", shared.ServiceName(job.Id)),
+			Labels: map[string]string{
+				serviceLabel.First: serviceLabel.Second,
+			},
+		},
+		Spec: k8score.ServiceSpec{
+			Type:      k8score.ServiceTypeClusterIP,
+			ClusterIP: k8score.ClusterIPNone,
+			Selector: map[string]string{
+				serviceLabel.First: serviceLabel.Second,
+				rankLabel.First:    rankLabel.Second,
+			},
+		},
+	}
+
 	cinit := cloudInit{}
 	cinit.Users = append(cinit.Users, cloudInitUser{
 		// Username: ucloud Password: ucloud
@@ -1483,6 +1503,14 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 
 				_, myError := shared.K8sClient.CoreV1().Services(Namespace).
 					Create(ctx, ipService, k8smeta.CreateOptions{})
+				herr = util.MergeHttpErr(herr, util.HttpErrorFromErr(myError))
+			}
+
+			if baseService != nil && herr == nil {
+				baseService.OwnerReferences = append(baseService.OwnerReferences, ownerReference)
+
+				_, myError := shared.K8sClient.CoreV1().Services(Namespace).
+					Create(ctx, baseService, k8smeta.CreateOptions{})
 				herr = util.MergeHttpErr(herr, util.HttpErrorFromErr(myError))
 			}
 
