@@ -285,17 +285,18 @@ services:
           type: Resource
           unit: Cpu
           interval: Hourly
+        systemReservedCpuMillis: 500 # category-level (default if omitted)
+        # systemReservedCpuMillisPerCore: 42 # optional override, mutually exclusive with systemReservedCpuMillis
 
         groups:
           general:
-            nameSuffix: Cpu
+            nameSuffix: CpuV2
             cpu: [2, 4, 8]
             memory: [8, 16, 32]
             cpuModel: "AMD EPYC"
             memoryModel: "DDR4"
             allowContainers: true
             allowVirtualMachines: false
-            systemReservedCpuMillis: 500
 
       gpu-a10:
         payment:
@@ -305,7 +306,7 @@ services:
 
         groups:
           a10:
-            nameSuffix: Gpu
+            nameSuffix: GpuV2
             gpuType: "nvidia.com/gpu"
             cpu: [8]
             memory: [64]
@@ -994,6 +995,30 @@ If omitted, the category itself is treated as a single implicit group.
 If present, it must be a dictionary of groups. Each group defines compatible machine sizes and behavior.
 
 </dd>
+
+<dt>
+
+`systemReservedCpuMillis` *optional*
+
+</dt>
+<dd>
+
+Category-level CPU reservation for system overhead, in millicores. Default is `500` if neither reservation field is set.
+
+</dd>
+
+<dt>
+
+`systemReservedCpuMillisPerCore` *optional*
+
+</dt>
+<dd>
+
+Category-level per-core CPU reservation (millicores per virtual core). Overrides the computed per-core reservation behavior.
+
+`systemReservedCpuMillis` and `systemReservedCpuMillisPerCore` are mutually exclusive.
+
+</dd>
 </dl>
 
 ### Machine group options
@@ -1036,7 +1061,10 @@ List of prices matching the `cpu` list length. Only valid/required when the mach
 </dt>
 <dd>
 
-Controls how machine names are suffixed. Possible values: `Cpu`, `Memory`, `Gpu`.
+Controls how machine names are generated. Possible values:
+
+* Legacy: `Cpu`, `Memory`, `Gpu`
+* V2: `CpuV2`, `MemoryV2`, `GpuV2`
 
 Default:
 
@@ -1086,10 +1114,27 @@ GPU resource type string (for example `nvidia.com/gpu`). Defaults to `nvidia.com
 
 <dt>
 
-`systemReservedCpuMillis` *optional*
+`fraction` *optional*
 
 </dt>
-<dd>CPU reserved for system overhead, in millicores. Defaults to `500`.</dd>
+<dd>
+
+Fraction for the primary resource in this group. Defaults to `1 / 1` when omitted.
+
+Can be specified either as:
+
+* string shorthand: `"1 / 7"` (whitespace ignored)
+* structured object:
+
+```yaml
+fraction:
+  numerator: 1
+  denominator: 7
+```
+
+For GPU groups this is used for MIG/fractional GPU normalization and naming. For CPU groups this controls effective CPU allocation (`cpu * numerator / denominator`) for pod resource requests.
+
+</dd>
 </dl>
 
 ---
