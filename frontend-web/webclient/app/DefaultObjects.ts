@@ -7,6 +7,7 @@ import {getUserThemePreference} from "./UtilityFunctions";
 import {defaultAvatar} from "./AvataaarLib";
 import {HookStore} from "./Utilities/ReduxHooks";
 import {ProviderBrandingResponse} from "./UCloud/ProviderBrandingApi";
+import {initProviderBranding} from "@/ProviderBrandings/AutomaticProviderBranding";
 
 export interface StatusReduxObject {
     title: string;
