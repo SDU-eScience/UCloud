@@ -201,3 +201,22 @@ func accountingV4() db.MigrationScript {
 		},
 	}
 }
+
+func accountingV5() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "accountingV5",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`alter table accounting.products add column fraction_numerator int`,
+				db.Params{},
+			)
+
+			db.Exec(
+				tx,
+				`alter table accounting.products add column fraction_denominator int`,
+				db.Params{},
+			)
+		},
+	}
+}

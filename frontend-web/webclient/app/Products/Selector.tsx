@@ -20,6 +20,43 @@ import {TooltipV2} from "@/ui-components/Tooltip";
 
 const NEED_CONNECT = "need-connection";
 
+function legacyGroupName(product: ProductV2): string {
+    const numberSuffix = product.name.match(/(^.*)-(\d+)$/);
+    if (numberSuffix != null) {
+        return numberSuffix[1];
+    }
+
+    return product.name;
+}
+
+function productGroupName(product: ProductV2): string {
+    if (product.type !== "compute") {
+        return legacyGroupName(product);
+    }
+
+    const computeProduct = product as ProductV2Compute;
+    const fraction = computeProduct.fraction;
+    if (!fraction) {
+        return legacyGroupName(product);
+    }
+
+    if (fraction.numerator === 1 && fraction.denominator === 1) {
+        return product.category.name;
+    }
+
+    if ((computeProduct.gpu ?? 0) > 0) {
+        const gpuModel = (computeProduct.gpuModel ?? "").toLowerCase();
+        if (gpuModel.includes("nvidia") || gpuModel.includes("mig")) {
+            return `${product.category.name}-mig.${fraction.numerator}g`;
+        } else {
+            return `${product.category.name}-frac`;
+        }
+    }
+
+    const milliCpu = Math.floor((fraction.numerator * 1000) / fraction.denominator);
+    return `${product.category.name}-mcpu.${milliCpu}`;
+}
+
 export const ProductSelector: React.FunctionComponent<{
     products: ProductV2[];
     support?: ResolvedSupport[];
@@ -90,25 +127,18 @@ export const ProductSelector: React.FunctionComponent<{
             const pCompare = a.category.provider.localeCompare(b.category.provider);
             if (pCompare !== 0) return pCompare;
 
-            const cCompare = a.category.name.localeCompare(b.category.name);
+            const aGroup = productGroupName(a);
+            const bGroup = productGroupName(b);
+
+            const cCompare = aGroup.localeCompare(bGroup);
             if (cCompare !== 0) return cCompare;
 
-            const aNumberMatches = a.name.match(/(^.*)-(\d+)$/);
-            const bNumberMatches = b.name.match(/(^.*)-(\d+)$/);
-            if (aNumberMatches && bNumberMatches) {
-                const aPrefix = aNumberMatches[1];
-                const bPrefix = bNumberMatches[1];
-                const pCompare = aPrefix.localeCompare(bPrefix);
-                if (pCompare !== 0) return pCompare;
-                return parseInt(aNumberMatches[2]) - parseInt(bNumberMatches[2]);
-            } else {
-                return a.name.localeCompare(b.name);
-            }
+            return a.name.localeCompare(b.name);
         });
 
         let lastCategory = "";
         for (const product of sortedProducts) {
-            let categoryName = product.category.name;
+            let categoryName = productGroupName(product);
             if (categoryName === "cpu-amd-zen5" || categoryName === "gpu-nvidia-b200") {
                 const now = new Date();
                 const expectedLaunchDate = new Date(Date.UTC(2026, 4, 1, 0, 0, 0, 0));
@@ -116,11 +146,6 @@ export const ProductSelector: React.FunctionComponent<{
                 if (now < expectedLaunchDate) {
                     continue;
                 }
-            }
-
-            const numberSuffix = product.name.match(/(^.*)-(\d+)$/);
-            if (numberSuffix != null) {
-                categoryName = numberSuffix[1];
             }
 
             categoryName = getProviderTitle(product.category.provider) + ": " + categoryName;

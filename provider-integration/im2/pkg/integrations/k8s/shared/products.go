@@ -1,7 +1,6 @@
 package shared
 
 import (
-	"fmt"
 	"math"
 
 	"ucloud.dk/pkg/config"
@@ -81,7 +80,7 @@ func initProducts() {
 			containers[categoryName] = group.AllowsContainers
 
 			for _, machineConfig := range group.Configs {
-				name := fmt.Sprintf("%v-%v", groupName, pickResource(group.NameSuffix, machineConfig))
+				name := config.BuildMachineName(categoryName, groupName, group, machineConfig)
 				product := apm.ProductV2{
 					Type:        apm.ProductTypeCCompute,
 					Category:    productCategory,
@@ -98,6 +97,7 @@ func initProducts() {
 					MemoryModel:  group.MemoryModel,
 					Gpu:          machineConfig.Gpu,
 					GpuModel:     group.GpuModel,
+					Fraction:     group.Fraction,
 				}
 
 				if !usePrice {

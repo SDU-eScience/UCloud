@@ -6,7 +6,9 @@ import (
 	"testing"
 	"time"
 
+	cfg "ucloud.dk/pkg/config"
 	"ucloud.dk/pkg/integrations/k8s/shared"
+	apm "ucloud.dk/shared/pkg/accounting"
 	fnd "ucloud.dk/shared/pkg/foundation"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
@@ -411,5 +413,115 @@ func TestRequestScheduleQueueRetryDoesNotDuplicate(t *testing.T) {
 
 	if retrySwap[0].Id != "job-retry" {
 		t.Fatalf("expected retried job id to be job-retry, got %s", retrySwap[0].Id)
+	}
+}
+
+func TestCpuStandardScenarioQueueNormalization(t *testing.T) {
+	shared.ServiceConfig = &cfg.ServicesConfigurationKubernetes{}
+	shared.ServiceConfig.Compute.Machines = map[string]cfg.K8sMachineCategory{
+		"cpu-standard": {
+			Payment:                 cfg.PaymentInfo{Unit: cfg.MachineResourceTypeCpu},
+			SystemReservedCpuMillis: util.OptValue(500),
+			Groups: map[string]cfg.K8sMachineCategoryGroup{
+				"full": {
+					GroupName:  "full",
+					NameSuffix: cfg.MachineResourceTypeCpuV2,
+					Fraction:   apm.Fraction{Numerator: 1, Denominator: 1},
+					Configs: []cfg.K8sMachineConfiguration{
+						{AdvertisedCpu: 1, MemoryInGigabytes: 2},
+						{AdvertisedCpu: 2, MemoryInGigabytes: 4},
+						{AdvertisedCpu: 4, MemoryInGigabytes: 8},
+						{AdvertisedCpu: 12, MemoryInGigabytes: 24},
+					},
+				},
+				"fractional": {
+					GroupName:  "fractional",
+					NameSuffix: cfg.MachineResourceTypeCpuV2,
+					Fraction:   apm.Fraction{Numerator: 1, Denominator: 4},
+					Configs: []cfg.K8sMachineConfiguration{
+						{AdvertisedCpu: 1, MemoryInGigabytes: 1},
+						{AdvertisedCpu: 2, MemoryInGigabytes: 2},
+						{AdvertisedCpu: 3, MemoryInGigabytes: 3},
+					},
+				},
+			},
+		},
+	}
+
+	fullProduct := &apm.ProductV2{
+		Name:         "cpu-standard-1-vcpu",
+		Category:     apm.ProductCategory{Name: "cpu-standard"},
+		Cpu:          1,
+		MemoryInGigs: 2,
+		Fraction:     apm.Fraction{Numerator: 1, Denominator: 1},
+	}
+
+	fractionalProduct := &apm.ProductV2{
+		Name:         "cpu-standard-2-vcpu",
+		Category:     apm.ProductCategory{Name: "cpu-standard"},
+		Cpu:          2,
+		MemoryInGigs: 2,
+		Fraction:     apm.Fraction{Numerator: 1, Denominator: 4},
+	}
+
+	if got := shared.NodeCpuMillisNormalizedWithReserved(fullProduct); got != 958 {
+		t.Fatalf("expected full product CPU millis to be 958, got %d", got)
+	}
+	if got := shared.NodeCpuMillisNormalizedWithReserved(fractionalProduct); got != 479 {
+		t.Fatalf("expected fractional product CPU millis to be 479, got %d", got)
+	}
+
+	fullDims := shared.JobDimensionsFromProductOnly(fullProduct)
+	fractionalDims := shared.JobDimensionsFromProductOnly(fractionalProduct)
+
+	if fullDims.CpuMillis != 3832 {
+		t.Fatalf("expected full product queue dims CPU to be 3832, got %d", fullDims.CpuMillis)
+	}
+	if fractionalDims.CpuMillis != 1916 {
+		t.Fatalf("expected fractional product queue dims CPU to be 1916, got %d", fractionalDims.CpuMillis)
+	}
+
+	normalizedNode := shared.NormalizeForCategory(
+		"cpu-standard",
+		"full",
+		shared.SchedulerDimensions{CpuMillis: 12000, MemoryInBytes: 200000000000},
+		cfg.MachineResourceTypeCpu,
+	)
+	normalizedNodeLimits := shared.NormalizeForCategory(
+		"cpu-standard",
+		"full",
+		shared.SchedulerDimensions{CpuMillis: 11500, MemoryInBytes: 200000000000},
+		cfg.MachineResourceTypeCpu,
+	)
+
+	now := fnd.Timestamp(time.Now())
+	jobLength := orc.SimpleDuration{Hours: 1}
+
+	fullScheduler := NewScheduler("cpu-standard")
+	fullScheduler.RegisterNode("node-0", normalizedNode, normalizedNodeLimits, false)
+	for i := 0; i < 13; i++ {
+		fullScheduler.RegisterJobInQueue(fmt.Sprintf("full-%d", i), fullDims, 1, nil, now, jobLength)
+	}
+
+	fullScheduled := fullScheduler.Schedule()
+	if len(fullScheduled) != 12 {
+		t.Fatalf("expected 12 full jobs to be scheduled, got %d", len(fullScheduled))
+	}
+	if len(fullScheduler.Queue) != 1 {
+		t.Fatalf("expected 1 full job to remain queued, got %d", len(fullScheduler.Queue))
+	}
+
+	fractionalScheduler := NewScheduler("cpu-standard")
+	fractionalScheduler.RegisterNode("node-0", normalizedNode, normalizedNodeLimits, false)
+	for i := 0; i < 25; i++ {
+		fractionalScheduler.RegisterJobInQueue(fmt.Sprintf("frac-%d", i), fractionalDims, 1, nil, now, jobLength)
+	}
+
+	fractionalScheduled := fractionalScheduler.Schedule()
+	if len(fractionalScheduled) != 24 {
+		t.Fatalf("expected 24 fractional jobs to be scheduled, got %d", len(fractionalScheduled))
+	}
+	if len(fractionalScheduler.Queue) != 1 {
+		t.Fatalf("expected 1 fractional job to remain queued, got %d", len(fractionalScheduler.Queue))
 	}
 }

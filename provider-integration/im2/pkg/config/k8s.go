@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"gopkg.in/yaml.v3"
+	apm "ucloud.dk/shared/pkg/accounting"
 	"ucloud.dk/shared/pkg/cfgutil"
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/util"
@@ -161,7 +162,7 @@ func (c *KubernetesCompute) ResolveMachine(name, category string) (K8sMachineCat
 
 	for groupName, group := range cat.Groups {
 		for _, machineConfig := range group.Configs {
-			mgName := fmt.Sprintf("%v-%v", groupName, pickResource(group.NameSuffix, machineConfig))
+			mgName := BuildMachineName(category, groupName, group, machineConfig)
 			if mgName == name {
 				return cat, group, machineConfig, true
 			}
@@ -185,6 +186,39 @@ func pickResource(resource MachineResourceType, machineConfig K8sMachineConfigur
 	}
 }
 
+func BuildMachineName(categoryName, groupName string, group K8sMachineCategoryGroup, machineConfig K8sMachineConfiguration) string {
+	switch group.NameSuffix {
+	case MachineResourceTypeCpu:
+		return fmt.Sprintf("%v-%v", groupName, pickResource(group.NameSuffix, machineConfig))
+	case MachineResourceTypeCpuV2:
+		cpuSuffix := "vcpu"
+		if group.Fraction.Numerator != 1 || group.Fraction.Denominator != 1 {
+			mcpu := 1000.0 * (float64(group.Fraction.Numerator) / float64(group.Fraction.Denominator))
+			cpuSuffix = fmt.Sprintf("mcpu.%d", int(mcpu))
+		}
+		return fmt.Sprintf("%v-%v-%s", categoryName, pickResource(MachineResourceTypeCpu, machineConfig), cpuSuffix)
+	case MachineResourceTypeGpu:
+		return fmt.Sprintf("%v-%v", groupName, pickResource(group.NameSuffix, machineConfig))
+	case MachineResourceTypeGpuV2:
+		gpuSuffix := "gpu"
+		if group.Fraction.Numerator != 1 || group.Fraction.Denominator != 1 {
+			if strings.HasPrefix(group.GpuResourceType, "nvidia.com/") {
+				gpuSuffix = fmt.Sprintf("mig.%dg", group.Fraction.Numerator)
+			} else {
+				gpuSuffix = fmt.Sprintf("frac.%dg", group.Fraction.Numerator)
+			}
+		}
+		return fmt.Sprintf("%v-%v-%s", categoryName, pickResource(MachineResourceTypeGpu, machineConfig), gpuSuffix)
+	case MachineResourceTypeMemory:
+		return fmt.Sprintf("%v-%v", groupName, pickResource(group.NameSuffix, machineConfig))
+	case MachineResourceTypeMemoryV2:
+		return fmt.Sprintf("%v-%v-gb", categoryName, pickResource(MachineResourceTypeMemory, machineConfig))
+	default:
+		log.Warn("Unhandled machine resource type: %v", group.NameSuffix)
+		return fmt.Sprintf("%v-%v", groupName, pickResource(group.NameSuffix, machineConfig))
+	}
+}
+
 type KubernetesModuleEntry struct {
 	Name       string              `json:"name"`
 	VolSubPath string              `json:"claimSubPath"`
@@ -193,22 +227,24 @@ type KubernetesModuleEntry struct {
 }
 
 type K8sMachineCategory struct {
-	Payment PaymentInfo
-	Groups  map[string]K8sMachineCategoryGroup
+	Payment                        PaymentInfo
+	Groups                         map[string]K8sMachineCategoryGroup
+	SystemReservedCpuMillis        util.Option[int]
+	SystemReservedCpuMillisPerCore util.Option[int]
 }
 
 type K8sMachineCategoryGroup struct {
-	GroupName               string
-	NameSuffix              MachineResourceType
-	Configs                 []K8sMachineConfiguration
-	CpuModel                string
-	GpuModel                string
-	MemoryModel             string
-	AllowVirtualMachines    bool
-	AllowsContainers        bool
-	GpuResourceType         string
-	CustomRuntime           string
-	SystemReservedCpuMillis int
+	GroupName            string
+	NameSuffix           MachineResourceType
+	Fraction             apm.Fraction
+	Configs              []K8sMachineConfiguration
+	CpuModel             string
+	GpuModel             string
+	MemoryModel          string
+	AllowVirtualMachines bool
+	AllowsContainers     bool
+	GpuResourceType      string
+	CustomRuntime        string
 }
 
 type K8sMachineConfiguration struct {
@@ -370,6 +406,22 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 			false,
 			&success,
 		)
+
+		systemReservedCpuMillis := cfgutil.OptionalChildInt(filePath, machineNode, "systemReservedCpuMillis", &success)
+		if systemReservedCpuMillis.Present {
+			category.SystemReservedCpuMillis.Set(int(systemReservedCpuMillis.Value))
+		}
+
+		systemReservedCpuMillisPerCore := cfgutil.OptionalChildInt(filePath, machineNode, "systemReservedCpuMillisPerCore", &success)
+		if systemReservedCpuMillisPerCore.Present {
+			category.SystemReservedCpuMillisPerCore.Set(int(systemReservedCpuMillisPerCore.Value))
+		}
+		if category.SystemReservedCpuMillis.Present && category.SystemReservedCpuMillisPerCore.Present {
+			cfgutil.ReportError(filePath, machineNode, "systemReservedCpuMillis and systemReservedCpuMillisPerCore are mutually exclusive")
+			success = false
+		} else if !category.SystemReservedCpuMillis.Present && !category.SystemReservedCpuMillisPerCore.Present {
+			category.SystemReservedCpuMillis.Set(500)
+		}
 
 		if !cfgutil.HasChild(machineNode, "groups") {
 			group := parseK8sMachineGroup(filePath, machineNode, &success)
@@ -651,6 +703,7 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 
 func parseK8sMachineGroup(filePath string, node *yaml.Node, success *bool) K8sMachineCategoryGroup {
 	result := K8sMachineCategoryGroup{}
+	result.Fraction = apm.Fraction{Numerator: 1, Denominator: 1}
 	result.CpuModel = cfgutil.OptionalChildText(filePath, node, "cpuModel", success)
 	result.GpuModel = cfgutil.OptionalChildText(filePath, node, "gpuModel", success)
 	result.MemoryModel = cfgutil.OptionalChildText(filePath, node, "memoryModel", success)
@@ -669,7 +722,9 @@ func parseK8sMachineGroup(filePath string, node *yaml.Node, success *bool) K8sMa
 	}
 
 	result.CustomRuntime = cfgutil.OptionalChildText(filePath, node, "customRuntime", success)
-	result.SystemReservedCpuMillis = int(cfgutil.OptionalChildInt(filePath, node, "systemReservedCpuMillis", success).GetOrDefault(500))
+	if cfgutil.HasChild(node, "fraction") {
+		cfgutil.Decode(filePath, cfgutil.RequireChild(filePath, node, "fraction", success), &result.Fraction, success)
+	}
 
 	var cpu []int
 	var gpu []int

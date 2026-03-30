@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"gopkg.in/yaml.v3"
+	apm "ucloud.dk/shared/pkg/accounting"
 	"ucloud.dk/shared/pkg/cfgutil"
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/util"
@@ -63,6 +64,7 @@ type SlurmMachineCategory struct {
 type SlurmMachineCategoryGroup struct {
 	Constraint  string
 	NameSuffix  MachineResourceType
+	Fraction    apm.Fraction
 	Configs     []SlurmMachineConfiguration
 	CpuModel    string
 	GpuModel    string
@@ -643,10 +645,14 @@ func parseSlurmServices(unmanaged bool, serverMode ServerMode, filePath string, 
 
 func parseSlurmMachineGroup(filePath string, node *yaml.Node, success *bool) SlurmMachineCategoryGroup {
 	result := SlurmMachineCategoryGroup{}
+	result.Fraction = apm.Fraction{Numerator: 1, Denominator: 1}
 	result.Constraint = cfgutil.OptionalChildText(filePath, node, "constraint", success)
 	result.CpuModel = cfgutil.OptionalChildText(filePath, node, "cpuModel", success)
 	result.GpuModel = cfgutil.OptionalChildText(filePath, node, "gpuModel", success)
 	result.MemoryModel = cfgutil.OptionalChildText(filePath, node, "memoryModel", success)
+	if cfgutil.HasChild(node, "fraction") {
+		cfgutil.Decode(filePath, cfgutil.RequireChild(filePath, node, "fraction", success), &result.Fraction, success)
+	}
 
 	var cpu []int
 	var gpu []int

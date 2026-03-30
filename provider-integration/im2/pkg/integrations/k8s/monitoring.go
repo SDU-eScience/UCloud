@@ -40,11 +40,9 @@ func getScheduler(category string, group string) (*Scheduler, bool) {
 	mapped, ok := shared.ServiceConfig.Compute.MachineImpersonation[category]
 	if !ok {
 		mapped = category
-	} else {
-		group = mapped
 	}
 
-	schedKey := fmt.Sprintf("%s/%s", mapped, group)
+	schedKey := mapped
 
 	_, isIApp := controller.IntegratedApplications[mapped]
 	if !isIApp {
@@ -282,6 +280,7 @@ func loopMonitoring() {
 
 	timer := util.NewTimer()
 	now := time.Now()
+	nodeGroups := map[string]map[string]string{}
 
 	// NOTE(Dan): Node monitoring must go before job monitoring such that the scheduler knows about the nodes before
 	// it knows about running replicas.
@@ -330,13 +329,21 @@ func loopMonitoring() {
 				k8sCapacity := node.Status.Capacity
 				k8sAllocatable := node.Status.Allocatable
 
+				resolvedGroup := catGroup.Group
 				gpuType := "nvidia.com/gpu"
 				machineCategory, ok := shared.ServiceConfig.Compute.Machines[catGroup.Category]
+				paymentUnit := cfg.MachineResourceType("")
 				if ok {
-					// TODO This seems like it will break if there is more than one category
-					nodeCat, ok := machineCategory.Groups[catGroup.Category]
+					if _, groupOk := machineCategory.Groups[resolvedGroup]; !groupOk {
+						resolvedGroup = bestEffortNodeGroup(catGroup.Category, machineCategory)
+					}
+
+					nodeCat, ok := machineCategory.Groups[resolvedGroup]
 					if ok {
 						gpuType = nodeCat.GpuResourceType
+						paymentUnit = machineCategory.Payment.Unit
+					} else {
+						paymentUnit = machineCategory.Payment.Unit
 					}
 				}
 
@@ -357,6 +364,16 @@ func loopMonitoring() {
 					capacity.Gpu += int(gpuCap.Value())
 					limits.Gpu += int(gpuLim.Value())
 				}
+
+				capacity = shared.NormalizeForCategory(catGroup.Category, resolvedGroup, capacity, paymentUnit)
+				limits = shared.NormalizeForCategory(catGroup.Category, resolvedGroup, limits, paymentUnit)
+
+				groupMap, ok := nodeGroups[catGroup.Category]
+				if !ok {
+					groupMap = map[string]string{}
+					nodeGroups[catGroup.Category] = groupMap
+				}
+				groupMap[node.Name] = resolvedGroup
 
 				for _, cond := range node.Status.Conditions {
 					setLimitsToZero := false
@@ -626,6 +643,7 @@ func loopMonitoring() {
 		}
 
 		for catName, sched := range schedulers {
+			groupMap := nodeGroups[catName]
 			for nodeName, _ := range sched.Nodes {
 				usage := resourcesByNode[nodeName]
 				if usage == nil {
@@ -634,14 +652,23 @@ func loopMonitoring() {
 
 				machineCategory, ok := shared.ServiceConfig.Compute.Machines[catName]
 				gpuResourceType := "nvidia.com/gpu"
-				systemReservedCpuMillis := 500
+				systemReservedCpuMillis := shared.SystemReservedCpuMillisForCategory(catName)
+				paymentUnit := cfg.MachineResourceType("")
 
 				if ok {
-					// TODO This seems like it will break if there is more than one category
-					nodeCat, ok := machineCategory.Groups[catName]
+					groupName := ""
+					if groupMap != nil {
+						groupName = groupMap[nodeName]
+					}
+					if groupName == "" {
+						groupName = bestEffortNodeGroup(catName, machineCategory)
+					}
+					nodeCat, ok := machineCategory.Groups[groupName]
 					if ok {
 						gpuResourceType = nodeCat.GpuResourceType
-						systemReservedCpuMillis = nodeCat.SystemReservedCpuMillis
+						paymentUnit = machineCategory.Payment.Unit
+					} else {
+						paymentUnit = machineCategory.Payment.Unit
 					}
 				}
 
@@ -650,6 +677,15 @@ func loopMonitoring() {
 					MemoryInBytes: int(usage[string(k8score.ResourceMemory)]),
 					Gpu:           int(usage[gpuResourceType]),
 				}
+
+				groupName := ""
+				if groupMap != nil {
+					groupName = groupMap[nodeName]
+				}
+				if groupName == "" && ok {
+					groupName = bestEffortNodeGroup(catName, machineCategory)
+				}
+				dims = shared.NormalizeForCategory(catName, groupName, dims, paymentUnit)
 
 				sched.SynchronizeNodeUsage(nodeName, dims)
 			}
@@ -868,6 +904,31 @@ type NodeCatGroup struct {
 	Group    string
 }
 
+func bestEffortNodeGroup(categoryName string, category cfg.K8sMachineCategory) string {
+	if _, ok := category.Groups[categoryName]; ok {
+		return categoryName
+	}
+
+	keys := make([]string, 0, len(category.Groups))
+	for key := range category.Groups {
+		keys = append(keys, key)
+	}
+	slices.Sort(keys)
+
+	for _, key := range keys {
+		group := category.Groups[key]
+		if group.Fraction.Numerator == 1 && group.Fraction.Denominator == 1 {
+			return key
+		}
+	}
+
+	if len(keys) > 0 {
+		return keys[0]
+	}
+
+	return categoryName
+}
+
 func nodeCategories(node *k8score.Node) []NodeCatGroup {
 	// NOTE(Dan): It is really important that production providers only return 1. Being able to return more than one
 	// is just for testing in resource-constrained environments.
@@ -921,6 +982,11 @@ func convertJobTimeToAccountingUnits(job *orc.Job, timeConsumed time.Duration) i
 		productUnits *= float64(job.Status.ResolvedProduct.Value.MemoryInGigs)
 	case "":
 		// Use just the nodes. This is used when type is currency.
+	}
+
+	productFraction := job.Status.ResolvedProduct.Value.Fraction
+	if productFraction.Denominator > 0 && productFraction.Numerator > 0 {
+		productUnits *= float64(productFraction.Numerator) / float64(productFraction.Denominator)
 	}
 
 	baseTimeUnit := 1 * time.Minute

@@ -124,6 +124,9 @@ func HandleJobsCommand() {
 		f.AppendField("Category", job.Category)
 		f.AppendField("Replicas", fmt.Sprintf("%d", job.Replicas))
 		f.AppendField("Queue", job.Queue)
+		f.AppendField("Normalization denominator", fmt.Sprintf("%d", job.NormalizationDenominator))
+		f.AppendField("Wall-time used", time.Duration(job.WallTimeUsedMillis*int64(time.Millisecond)).String())
+		f.AppendField("Accounting units used", fmt.Sprintf("%d", job.AccountingUnitsUsed))
 		f.AppendSeparator()
 
 		f.AppendField("User", job.User)
@@ -175,6 +178,15 @@ func HandleJobsCommand() {
 					termio.WriteLine("")
 				}
 
+				normalizationDenominator := -1
+				jobs, _ := k8sCliJobsList.Invoke(k8sCliJobsListRequest{
+					Queue: scheduler.Name,
+				})
+
+				if len(jobs) > 0 {
+					normalizationDenominator = jobs[0].NormalizationDenominator
+				}
+
 				frame := termio.Frame{}
 				frame.AppendTitle("Queue internals")
 				frame.AppendField("Queue", scheduler.Name)
@@ -182,6 +194,9 @@ func HandleJobsCommand() {
 				frame.AppendField("Queued entries", fmt.Sprintf("%d", len(scheduler.QueueEntries)))
 				frame.AppendField("Replica entries", fmt.Sprintf("%d", len(scheduler.ReplicaEntries)))
 				frame.AppendField("Nodes", fmt.Sprintf("%d", len(scheduler.Nodes)))
+				if normalizationDenominator > 0 {
+					frame.AppendField("Normalization denominator", fmt.Sprintf("%d", normalizationDenominator))
+				}
 				frame.Print()
 
 				if len(scheduler.Nodes) > 0 {
@@ -199,9 +214,9 @@ func HandleJobsCommand() {
 						t.Cell("%v", node.Name)
 						t.Cell("%v", node.Unschedulable)
 						t.Cell("%v", node.LastSeen)
-						t.Cell("%v", formatDims(node.Remaining))
-						t.Cell("%v", formatDims(node.Capacity))
-						t.Cell("%v", formatDims(node.Limits))
+						t.Cell("%v", formatDims(node.Remaining, normalizationDenominator))
+						t.Cell("%v", formatDims(node.Capacity, normalizationDenominator))
+						t.Cell("%v", formatDims(node.Limits, normalizationDenominator))
 					}
 
 					t.Print()
@@ -224,7 +239,7 @@ func HandleJobsCommand() {
 						t.Cell("%v", entry.JobId)
 						t.Cell("%v", cli.FormatTime(entry.SubmittedAt))
 						t.Cell("%v", entry.Replicas)
-						t.Cell("%v", formatDims(entry.SchedulerDimensions))
+						t.Cell("%v", formatDims(entry.SchedulerDimensions, normalizationDenominator))
 						t.Cell("%.3f", entry.Priority)
 						t.Cell("%.3f", entry.Factors.Age)
 						t.Cell("%.3f", entry.Factors.FairShare)
@@ -249,7 +264,7 @@ func HandleJobsCommand() {
 						t.Cell("%v", entry.Rank)
 						t.Cell("%v", entry.Node)
 						t.Cell("%v", entry.LastSeen)
-						t.Cell("%v", formatDims(entry.SchedulerDimensions))
+						t.Cell("%v", formatDims(entry.SchedulerDimensions, normalizationDenominator))
 					}
 
 					t.Print()
@@ -449,6 +464,16 @@ func initJobsCli() {
 		}
 
 		jobs := controller.JobsListServer()
+		for i, job := range jobs {
+			copied := *job
+			for _, m := range shared.Machines {
+				if m.Name == copied.Specification.Product.Id && m.Category.Name == copied.Specification.Product.Category {
+					copied.Status.ResolvedProduct.Set(m)
+					break
+				}
+			}
+			jobs[i] = &copied
+		}
 		result := make([]k8sCliJob, 0, len(jobs))
 
 		for _, job := range jobs {
@@ -769,8 +794,37 @@ func matchesRegex(expr *regexp.Regexp, value string) bool {
 	return expr.MatchString(value)
 }
 
-func formatDims(dims shared.SchedulerDimensions) string {
-	return dims.String()
+func formatDims(dims shared.SchedulerDimensions, multiplier int) string {
+	cpu := dims.CpuMillis
+	gpuString := fmt.Sprint(dims.Gpu)
+	if dims.Gpu > 0 {
+		gpuString = fmt.Sprintf("%d / %d", dims.Gpu, multiplier)
+	} else {
+		cpu /= multiplier
+	}
+
+	return fmt.Sprintf(
+		"cpu=%dm, mem=%s, gpu=%s",
+		cpu,
+		formatBytes(dims.MemoryInBytes),
+		gpuString,
+	)
+}
+
+func formatBytes(value int) string {
+	if value < 0 {
+		return "0 B"
+	}
+	if value >= 1000*1000*1000 {
+		return fmt.Sprintf("%.2f GB", float64(value)/1000.0/1000.0/1000.0)
+	}
+	if value >= 1000*1000 {
+		return fmt.Sprintf("%.2f MB", float64(value)/1000.0/1000.0)
+	}
+	if value >= 1000 {
+		return fmt.Sprintf("%.2f KB", float64(value)/1000.0)
+	}
+	return fmt.Sprintf("%d B", value)
 }
 
 func snapshotSchedulerDebugState(timeout time.Duration) ([]k8sCliQueueDebugScheduler, error) {
@@ -881,16 +935,27 @@ func snapshotSchedulerDebugState(timeout time.Duration) ([]k8sCliQueueDebugSched
 }
 
 func k8sCliJobFromJob(job *orc.Job) k8sCliJob {
+	runningTime := shared.ComputeRunningTime(job)
+	accountingUnitsUsed := int64(0)
+	normalizationDenominator := shared.NormalizationDenominatorForCategory(job.Specification.Product.Category)
+	if job.Status.ResolvedProduct.Present {
+		accountingUnitsUsed = convertJobTimeToAccountingUnits(job, runningTime.TimeConsumed)
+		normalizationDenominator = shared.NormalizationDenominatorForCategory(job.Status.ResolvedProduct.Value.Category.Name)
+	}
+
 	result := k8sCliJob{
-		JobId:       job.Id,
-		CreatedAt:   job.CreatedAt,
-		State:       string(job.Status.State),
-		User:        job.Owner.CreatedBy,
-		Project:     job.Owner.Project.Value,
-		Application: job.Specification.Application.Name,
-		Category:    job.Specification.Product.Category,
-		ProductId:   job.Specification.Product.Id,
-		Replicas:    job.Specification.Replicas,
+		JobId:                    job.Id,
+		CreatedAt:                job.CreatedAt,
+		State:                    string(job.Status.State),
+		User:                     job.Owner.CreatedBy,
+		Project:                  job.Owner.Project.Value,
+		Application:              job.Specification.Application.Name,
+		Category:                 job.Specification.Product.Category,
+		ProductId:                job.Specification.Product.Id,
+		Replicas:                 job.Specification.Replicas,
+		WallTimeUsedMillis:       runningTime.TimeConsumed.Milliseconds(),
+		AccountingUnitsUsed:      accountingUnitsUsed,
+		NormalizationDenominator: normalizationDenominator,
 	}
 
 	if job.Status.StartedAt.IsSet() {
@@ -922,8 +987,6 @@ func schedulerName(category string, group string) (string, bool) {
 	mapped, ok := shared.ServiceConfig.Compute.MachineImpersonation[category]
 	if !ok {
 		mapped = category
-	} else {
-		group = mapped
 	}
 
 	_, isIApp := controller.IntegratedApplications[mapped]
@@ -933,11 +996,7 @@ func schedulerName(category string, group string) (string, bool) {
 		}
 	}
 
-	if mapped == group {
-		return mapped, true
-	} else {
-		return mapped + "/" + group, true
-	}
+	return mapped, true
 }
 
 type k8sCliJobsListRequest struct {
@@ -951,17 +1010,20 @@ type k8sCliJobsListRequest struct {
 }
 
 type k8sCliJob struct {
-	JobId       string
-	CreatedAt   fnd.Timestamp
-	StartedAt   util.Option[fnd.Timestamp]
-	State       string
-	User        string
-	Project     string
-	Application string
-	Category    string
-	ProductId   string
-	Replicas    int
-	Queue       string
+	JobId                    string
+	CreatedAt                fnd.Timestamp
+	StartedAt                util.Option[fnd.Timestamp]
+	State                    string
+	User                     string
+	Project                  string
+	Application              string
+	Category                 string
+	ProductId                string
+	Replicas                 int
+	Queue                    string
+	WallTimeUsedMillis       int64
+	AccountingUnitsUsed      int64
+	NormalizationDenominator int
 }
 
 type k8sCliJobsQueueRequest struct {

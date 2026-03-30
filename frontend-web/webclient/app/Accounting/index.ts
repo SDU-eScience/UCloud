@@ -151,6 +151,8 @@ export function productTypeToName(type: ProductType): string {
             return "License";
         case "INGRESS":
             return "Public link";
+        case "PRIVATE_NETWORK":
+            return "Private network";
     }
 }
 
@@ -269,6 +271,18 @@ export interface ProductCategoryV2 {
     freeToUse: boolean;
 }
 
+export interface Fraction {
+    numerator: number;
+    denominator: number;
+}
+
+function normalizeFraction(fraction?: Fraction | null): Fraction {
+    if (!fraction || fraction.denominator <= 0 || fraction.numerator <= 0) {
+        return {numerator: 1, denominator: 1};
+    }
+    return fraction;
+}
+
 export function categoryComparator(a: ProductCategoryV2, b: ProductCategoryV2): number {
     function typeToOrdinal(type: ProductType): number {
         switch (type) {
@@ -332,6 +346,7 @@ export interface ProductV2Compute extends ProductV2Base {
     cpuModel?: string | null;
     memoryModel?: string | null;
     gpuModel?: string | null;
+    fraction?: Fraction | null;
 }
 
 export interface ProductV2Ingress extends ProductV2Base {
@@ -532,15 +547,24 @@ export function priceToString(product: ProductV2, numberOfUnits: number, duratio
 }): string {
     const unit = explainUnit(product.category);
     const pricePerUnitPerFrequency = product.price * (1 / unit.frequencyFactor);
+    const fraction = product.type === "compute" ? normalizeFraction((product as ProductV2Compute).fraction) : {numerator: 1, denominator: 1};
+    const fractionMultiplier = fraction.numerator / fraction.denominator;
     const durationInMinutesOrDefault = durationInMinutes ?? frequencyToMillis(unit.desiredFrequency) / frequencyToMillis("PERIODIC_MINUTE");
     let normalizedDuration = durationInMinutesOrDefault * unit.frequencyFactor;
     if (unit.desiredFrequency === "ONCE") {
         normalizedDuration = 1;
     }
 
-    const totalPrice = normalizedDuration * pricePerUnitPerFrequency * numberOfUnits * unit.balanceFactor;
+    const totalPrice = normalizedDuration * pricePerUnitPerFrequency * numberOfUnits * unit.balanceFactor * fractionMultiplier;
 
     if (totalPrice === 0 || product.category.freeToUse) return "Free";
+
+    if (durationInMinutes === undefined && product.type === "compute" && fractionMultiplier !== 1) {
+        const numerator = product.price * numberOfUnits * fraction.numerator;
+        const frequencySuffix = unit.desiredFrequency !== "ONCE" && opts?.showSuffix !== false ? "/" + frequencyToSuffix(unit.desiredFrequency, false) : "";
+        return `${numerator} / ${fraction.denominator} ${unit.name}${frequencySuffix}`;
+    }
+
     let withoutSuffix = balanceToStringFromUnit(product.category.productType, unit.name, totalPrice);
     if (unit.desiredFrequency !== "ONCE" && opts?.showSuffix !== false) {
         return withoutSuffix + "/" + frequencyToSuffix(unit.desiredFrequency, false);

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sync"
 
+	cfg "ucloud.dk/pkg/config"
 	apm "ucloud.dk/shared/pkg/accounting"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
@@ -139,11 +140,17 @@ func JobDimensions(job *orc.Job) SchedulerDimensions {
 }
 
 func JobDimensionsFromProductOnly(prod *apm.ProductV2) SchedulerDimensions {
+	nodeCat, _ := NodeCategoryAndConfiguration(prod)
 	dims := SchedulerDimensions{
-		CpuMillis:     NodeCpuMillisReserved(prod),
+		CpuMillis:     NodeCpuMillisBaseWithReserved(prod),
 		MemoryInBytes: prod.MemoryInGigs * (1000 * 1000 * 1000),
 		Gpu:           prod.Gpu,
 	}
 
+	category := cfg.MachineResourceType("")
+	if cat, ok := ServiceConfig.Compute.Machines[prod.Category.Name]; ok {
+		category = cat.Payment.Unit
+	}
+	dims = NormalizeForCategory(prod.Category.Name, nodeCat.GroupName, dims, category)
 	return dims
 }

@@ -248,7 +248,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	}
 
 	product := job.Status.ResolvedProduct.Value
-	cpuMillis := shared.NodeCpuMillisReserved(&product)
+	cpuMillis := shared.NodeCpuMillisNormalizedWithReserved(&product)
 	memoryMegabytes := int64(product.MemoryInGigs * 1000)
 	gpus := int64(product.Gpu)
 
@@ -268,7 +268,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		userContainer.Resources.Requests[core.ResourceCPU] = *quantity
 	}
 	{
-		quantity := resource.NewScaledQuantity(int64(product.Cpu*1000), resource.Milli)
+		quantity := resource.NewScaledQuantity(int64(cpuMillis), resource.Milli)
 		quantity.Format = resource.DecimalSI
 		userContainer.Resources.Limits[core.ResourceCPU] = *quantity
 	}

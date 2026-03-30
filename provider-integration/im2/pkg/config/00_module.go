@@ -580,15 +580,21 @@ func (cfg *ServicesConfiguration) Kubernetes() *ServicesConfigurationKubernetes 
 type MachineResourceType = string
 
 const (
-	MachineResourceTypeCpu    MachineResourceType = "Cpu"
-	MachineResourceTypeGpu    MachineResourceType = "Gpu"
-	MachineResourceTypeMemory MachineResourceType = "Memory"
+	MachineResourceTypeCpu      MachineResourceType = "Cpu"
+	MachineResourceTypeGpu      MachineResourceType = "Gpu"
+	MachineResourceTypeMemory   MachineResourceType = "Memory"
+	MachineResourceTypeCpuV2    MachineResourceType = "CpuV2"
+	MachineResourceTypeGpuV2    MachineResourceType = "GpuV2"
+	MachineResourceTypeMemoryV2 MachineResourceType = "MemoryV2"
 )
 
 var MachineResourceTypeOptions = []MachineResourceType{
 	MachineResourceTypeCpu,
 	MachineResourceTypeGpu,
 	MachineResourceTypeMemory,
+	MachineResourceTypeCpuV2,
+	MachineResourceTypeGpuV2,
+	MachineResourceTypeMemoryV2,
 }
 
 type PaymentInterval string
