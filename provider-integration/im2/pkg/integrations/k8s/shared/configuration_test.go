@@ -17,38 +17,38 @@ func TestBuildMachineNameV2(t *testing.T) {
 	conf := cfg.K8sMachineConfiguration{Gpu: 2}
 
 	got := cfg.BuildMachineName("gpu-cat", "full", group, conf)
-	want := "gpu-cat-2-mig-1g"
+	want := "gpu-cat-2-mig.1g"
 	if got != want {
 		t.Fatalf("expected %q, got %q", want, got)
 	}
 }
 
-func TestNormalizeForCategory(t *testing.T) {
+func TestGpuResourceTypesForCategory(t *testing.T) {
 	ServiceConfig = &cfg.ServicesConfigurationKubernetes{}
 	ServiceConfig.Compute.Machines = map[string]cfg.K8sMachineCategory{
 		"gpu-cat": {
 			Payment: cfg.PaymentInfo{Unit: cfg.MachineResourceTypeGpu},
 			Groups: map[string]cfg.K8sMachineCategoryGroup{
 				"full": {
-					NameSuffix: cfg.MachineResourceTypeGpuV2,
-					Fraction:   apm.Fraction{Numerator: 1, Denominator: 1},
+					NameSuffix:      cfg.MachineResourceTypeGpuV2,
+					Fraction:        apm.Fraction{Numerator: 1, Denominator: 1},
+					GpuResourceType: "nvidia.com/gpu",
 				},
 				"mig": {
-					NameSuffix: cfg.MachineResourceTypeGpuV2,
-					Fraction:   apm.Fraction{Numerator: 1, Denominator: 7},
+					NameSuffix:      cfg.MachineResourceTypeGpuV2,
+					Fraction:        apm.Fraction{Numerator: 1, Denominator: 7},
+					GpuResourceType: "nvidia.com/mig-1g.10gb",
 				},
 			},
 		},
 	}
 
-	full := NormalizeForCategory("gpu-cat", "full", SchedulerDimensions{Gpu: 1}, cfg.MachineResourceTypeGpu)
-	if full.Gpu != 7 {
-		t.Fatalf("expected full GPU capacity to normalize to 7, got %d", full.Gpu)
+	resourceTypes := GpuResourceTypesForCategory("gpu-cat")
+	if len(resourceTypes) != 2 {
+		t.Fatalf("expected two configured resource types, got %v", resourceTypes)
 	}
-
-	mig := NormalizeForCategory("gpu-cat", "mig", SchedulerDimensions{Gpu: 1}, cfg.MachineResourceTypeGpu)
-	if mig.Gpu != 1 {
-		t.Fatalf("expected fractional GPU capacity to stay 1, got %d", mig.Gpu)
+	if resourceTypes[0] != "nvidia.com/gpu" || resourceTypes[1] != "nvidia.com/mig-1g.10gb" {
+		t.Fatalf("unexpected resource types: %v", resourceTypes)
 	}
 }
 
@@ -118,8 +118,8 @@ func TestJobDimensionsCpuFractionAppliedOnce(t *testing.T) {
 		Fraction:     apm.Fraction{Numerator: 1, Denominator: 1},
 	}
 	fullDims := JobDimensionsFromProductOnly(&fullProduct)
-	if fullDims.CpuMillis != 8000 {
-		t.Fatalf("expected full CPU dims to be 8000, got %d", fullDims.CpuMillis)
+	if fullDims.CpuMillis != 2000 {
+		t.Fatalf("expected full CPU dims to be 2000, got %d", fullDims.CpuMillis)
 	}
 
 	fracProduct := apm.ProductV2{
@@ -130,8 +130,8 @@ func TestJobDimensionsCpuFractionAppliedOnce(t *testing.T) {
 		Fraction:     apm.Fraction{Numerator: 1, Denominator: 4},
 	}
 	fracDims := JobDimensionsFromProductOnly(&fracProduct)
-	if fracDims.CpuMillis != 1000 {
-		t.Fatalf("expected fractional CPU dims to be 1000, got %d", fracDims.CpuMillis)
+	if fracDims.CpuMillis != 250 {
+		t.Fatalf("expected fractional CPU dims to be 250, got %d", fracDims.CpuMillis)
 	}
 }
 
@@ -187,5 +187,66 @@ func TestCpuReservationScenarioValues(t *testing.T) {
 	}
 	if got := NodeCpuMillisNormalizedWithReserved(&fractional); got != 479 {
 		t.Fatalf("expected fractional product to reserve 479 millicpu, got %d", got)
+	}
+}
+
+func TestJobDimensionsFromProductOnlyUsesConfiguredGpuResourceType(t *testing.T) {
+	ServiceConfig = &cfg.ServicesConfigurationKubernetes{}
+	ServiceConfig.Compute.Machines = map[string]cfg.K8sMachineCategory{
+		"gpu-cat": {
+			Payment: cfg.PaymentInfo{Unit: cfg.MachineResourceTypeGpu},
+			Groups: map[string]cfg.K8sMachineCategoryGroup{
+				"full": {
+					GroupName:       "full",
+					NameSuffix:      cfg.MachineResourceTypeGpuV2,
+					Fraction:        apm.Fraction{Numerator: 1, Denominator: 1},
+					GpuResourceType: "nvidia.com/gpu",
+					Configs: []cfg.K8sMachineConfiguration{{
+						AdvertisedCpu:     16,
+						MemoryInGigabytes: 64,
+						Gpu:               2,
+					}},
+				},
+				"mig": {
+					GroupName:       "mig",
+					NameSuffix:      cfg.MachineResourceTypeGpuV2,
+					Fraction:        apm.Fraction{Numerator: 1, Denominator: 7},
+					GpuResourceType: "nvidia.com/mig-1g.10gb",
+					Configs: []cfg.K8sMachineConfiguration{{
+						AdvertisedCpu:     4,
+						MemoryInGigabytes: 16,
+						Gpu:               2,
+					}},
+				},
+			},
+		},
+	}
+
+	full := apm.ProductV2{
+		Name:         "gpu-cat-2-gpu",
+		Category:     apm.ProductCategory{Name: "gpu-cat"},
+		Cpu:          16,
+		MemoryInGigs: 64,
+		Gpu:          2,
+		Fraction:     apm.Fraction{Numerator: 1, Denominator: 1},
+	}
+
+	dims := JobDimensionsFromProductOnly(&full)
+	if dims.Resources["nvidia.com/gpu"] != 2 {
+		t.Fatalf("expected full GPU request to use nvidia.com/gpu, got %v", dims.Resources)
+	}
+
+	mig := apm.ProductV2{
+		Name:         "gpu-cat-2-mig-1g",
+		Category:     apm.ProductCategory{Name: "gpu-cat"},
+		Cpu:          4,
+		MemoryInGigs: 16,
+		Gpu:          2,
+		Fraction:     apm.Fraction{Numerator: 1, Denominator: 7},
+	}
+
+	dims = JobDimensionsFromProductOnly(&mig)
+	if dims.Resources["nvidia.com/mig-1g.10gb"] != 2 {
+		t.Fatalf("expected MIG request to use nvidia.com/mig-1g.10gb, got %v", dims.Resources)
 	}
 }

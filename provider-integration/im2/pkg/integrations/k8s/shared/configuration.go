@@ -1,13 +1,36 @@
 package shared
 
 import (
+	"maps"
 	"math"
+	"slices"
 
 	cfg "ucloud.dk/pkg/config"
 	apm "ucloud.dk/shared/pkg/accounting"
 )
 
 var ServiceConfig *cfg.ServicesConfigurationKubernetes
+
+const DefaultGpuResourceType = "nvidia.com/gpu"
+
+func GpuResourceTypeOrDefault(resourceType string) string {
+	if resourceType == "" {
+		return DefaultGpuResourceType
+	}
+	return resourceType
+}
+
+func GpuResourceTypesForCategory(categoryName string) []string {
+	result := map[string]bool{DefaultGpuResourceType: true}
+	category, ok := ServiceConfig.Compute.Machines[categoryName]
+	if ok {
+		for _, group := range category.Groups {
+			result[GpuResourceTypeOrDefault(group.GpuResourceType)] = true
+		}
+	}
+
+	return slices.Sorted(maps.Keys(result))
+}
 
 func NodeCategoryAndConfiguration(product *apm.ProductV2) (cfg.K8sMachineCategoryGroup, cfg.K8sMachineConfiguration) {
 	category, ok := ServiceConfig.Compute.Machines[product.Category.Name]
@@ -97,31 +120,6 @@ func categoryFractionDenominator(categoryName string) int {
 
 func NormalizationDenominatorForCategory(categoryName string) int {
 	return categoryFractionDenominator(categoryName)
-}
-
-func categoryFractionFactor(categoryName, groupName string) int {
-	category, ok := ServiceConfig.Compute.Machines[categoryName]
-	if !ok {
-		return 1
-	}
-	group, ok := category.Groups[groupName]
-	if !ok {
-		return 1
-	}
-
-	fraction := group.Fraction.Normalize()
-	return fraction.Numerator * (categoryFractionDenominator(categoryName) / fraction.Denominator)
-}
-
-func NormalizeForCategory(categoryName, groupName string, dims SchedulerDimensions, paymentUnit cfg.MachineResourceType) SchedulerDimensions {
-	factor := categoryFractionFactor(categoryName, groupName)
-	switch paymentUnit {
-	case cfg.MachineResourceTypeCpu:
-		dims.CpuMillis *= factor
-	case cfg.MachineResourceTypeGpu:
-		dims.Gpu *= factor
-	}
-	return dims
 }
 
 func NodeCpuMillisNormalizedWithReserved(product *apm.ProductV2) int {

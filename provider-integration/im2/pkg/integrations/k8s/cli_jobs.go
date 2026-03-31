@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"maps"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -178,15 +179,6 @@ func HandleJobsCommand() {
 					termio.WriteLine("")
 				}
 
-				normalizationDenominator := -1
-				jobs, _ := k8sCliJobsList.Invoke(k8sCliJobsListRequest{
-					Queue: scheduler.Name,
-				})
-
-				if len(jobs) > 0 {
-					normalizationDenominator = jobs[0].NormalizationDenominator
-				}
-
 				frame := termio.Frame{}
 				frame.AppendTitle("Queue internals")
 				frame.AppendField("Queue", scheduler.Name)
@@ -194,9 +186,6 @@ func HandleJobsCommand() {
 				frame.AppendField("Queued entries", fmt.Sprintf("%d", len(scheduler.QueueEntries)))
 				frame.AppendField("Replica entries", fmt.Sprintf("%d", len(scheduler.ReplicaEntries)))
 				frame.AppendField("Nodes", fmt.Sprintf("%d", len(scheduler.Nodes)))
-				if normalizationDenominator > 0 {
-					frame.AppendField("Normalization denominator", fmt.Sprintf("%d", normalizationDenominator))
-				}
 				frame.Print()
 
 				if len(scheduler.Nodes) > 0 {
@@ -214,9 +203,9 @@ func HandleJobsCommand() {
 						t.Cell("%v", node.Name)
 						t.Cell("%v", node.Unschedulable)
 						t.Cell("%v", node.LastSeen)
-						t.Cell("%v", formatDims(node.Remaining, normalizationDenominator))
-						t.Cell("%v", formatDims(node.Capacity, normalizationDenominator))
-						t.Cell("%v", formatDims(node.Limits, normalizationDenominator))
+						t.Cell("%v", formatDims(node.Remaining))
+						t.Cell("%v", formatDims(node.Capacity))
+						t.Cell("%v", formatDims(node.Limits))
 					}
 
 					t.Print()
@@ -239,7 +228,7 @@ func HandleJobsCommand() {
 						t.Cell("%v", entry.JobId)
 						t.Cell("%v", cli.FormatTime(entry.SubmittedAt))
 						t.Cell("%v", entry.Replicas)
-						t.Cell("%v", formatDims(entry.SchedulerDimensions, normalizationDenominator))
+						t.Cell("%v", formatDims(entry.SchedulerDimensions))
 						t.Cell("%.3f", entry.Priority)
 						t.Cell("%.3f", entry.Factors.Age)
 						t.Cell("%.3f", entry.Factors.FairShare)
@@ -264,7 +253,7 @@ func HandleJobsCommand() {
 						t.Cell("%v", entry.Rank)
 						t.Cell("%v", entry.Node)
 						t.Cell("%v", entry.LastSeen)
-						t.Cell("%v", formatDims(entry.SchedulerDimensions, normalizationDenominator))
+						t.Cell("%v", formatDims(entry.SchedulerDimensions))
 					}
 
 					t.Print()
@@ -794,21 +783,18 @@ func matchesRegex(expr *regexp.Regexp, value string) bool {
 	return expr.MatchString(value)
 }
 
-func formatDims(dims shared.SchedulerDimensions, multiplier int) string {
-	cpu := dims.CpuMillis
-	gpuString := fmt.Sprint(dims.Gpu)
-	if dims.Gpu > 0 {
-		gpuString = fmt.Sprintf("%d / %d", dims.Gpu, multiplier)
-	} else {
-		cpu /= multiplier
+func formatDims(dims shared.SchedulerDimensions) string {
+	resourceEntries := make([]string, 0, len(dims.Resources))
+	for _, key := range slices.Sorted(maps.Keys(dims.Resources)) {
+		resourceEntries = append(resourceEntries, fmt.Sprintf("%s=%d", key, dims.Resources[key]))
 	}
 
-	return fmt.Sprintf(
-		"cpu=%dm, mem=%s, gpu=%s",
-		cpu,
-		formatBytes(dims.MemoryInBytes),
-		gpuString,
-	)
+	resourceString := "{}"
+	if len(resourceEntries) > 0 {
+		resourceString = "{" + strings.Join(resourceEntries, ",") + "}"
+	}
+
+	return fmt.Sprintf("cpu=%dm, mem=%s, resources=%s", dims.CpuMillis, formatBytes(dims.MemoryInBytes), resourceString)
 }
 
 func formatBytes(value int) string {

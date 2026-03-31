@@ -133,6 +133,12 @@ export const ProductSelector: React.FunctionComponent<{
             const cCompare = aGroup.localeCompare(bGroup);
             if (cCompare !== 0) return cCompare;
 
+            if (a.type === "compute" && b.type === "compute") {
+                const aCpu = a.cpu ?? 1;
+                const bCpu = b.cpu ?? 1;
+                return aCpu - bCpu;
+            }
+
             return a.name.localeCompare(b.name);
         });
 

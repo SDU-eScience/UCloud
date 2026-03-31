@@ -330,43 +330,37 @@ func loopMonitoring() {
 				k8sAllocatable := node.Status.Allocatable
 
 				resolvedGroup := catGroup.Group
-				gpuType := "nvidia.com/gpu"
+				gpuResourceTypes := shared.GpuResourceTypesForCategory(catGroup.Category)
 				machineCategory, ok := shared.ServiceConfig.Compute.Machines[catGroup.Category]
-				paymentUnit := cfg.MachineResourceType("")
 				if ok {
 					if _, groupOk := machineCategory.Groups[resolvedGroup]; !groupOk {
 						resolvedGroup = bestEffortNodeGroup(catGroup.Category, machineCategory)
-					}
-
-					nodeCat, ok := machineCategory.Groups[resolvedGroup]
-					if ok {
-						gpuType = nodeCat.GpuResourceType
-						paymentUnit = machineCategory.Payment.Unit
-					} else {
-						paymentUnit = machineCategory.Payment.Unit
 					}
 				}
 
 				capacity := shared.SchedulerDimensions{
 					CpuMillis:     int(k8sCapacity.Cpu().MilliValue()),
 					MemoryInBytes: int(k8sCapacity.Memory().Value()),
+					Resources:     map[string]int{},
 				}
 
 				limits := shared.SchedulerDimensions{
 					CpuMillis:     int(k8sAllocatable.Cpu().MilliValue()),
 					MemoryInBytes: int(k8sAllocatable.Memory().Value()),
+					Resources:     map[string]int{},
 				}
 
-				gpuCap := k8sCapacity.Name(k8score.ResourceName(gpuType), k8sresource.DecimalSI)
-				gpuLim := k8sAllocatable.Name(k8score.ResourceName(gpuType), k8sresource.DecimalSI)
+				for _, gpuResourceType := range gpuResourceTypes {
+					gpuCap := k8sCapacity.Name(k8score.ResourceName(gpuResourceType), k8sresource.DecimalSI)
+					if gpuCap != nil {
+						capacity.Resources[gpuResourceType] = int(gpuCap.Value())
+					}
 
-				if gpuCap != nil && gpuLim != nil {
-					capacity.Gpu += int(gpuCap.Value())
-					limits.Gpu += int(gpuLim.Value())
+					gpuLim := k8sAllocatable.Name(k8score.ResourceName(gpuResourceType), k8sresource.DecimalSI)
+					if gpuLim != nil {
+						limits.Resources[gpuResourceType] = int(gpuLim.Value())
+					}
 				}
-
-				capacity = shared.NormalizeForCategory(catGroup.Category, resolvedGroup, capacity, paymentUnit)
-				limits = shared.NormalizeForCategory(catGroup.Category, resolvedGroup, limits, paymentUnit)
 
 				groupMap, ok := nodeGroups[catGroup.Category]
 				if !ok {
@@ -395,7 +389,7 @@ func loopMonitoring() {
 					if setLimitsToZero {
 						limits.CpuMillis = 0
 						limits.MemoryInBytes = 0
-						limits.Gpu = 0
+						limits.Resources = map[string]int{}
 						break
 					}
 				}
@@ -644,6 +638,7 @@ func loopMonitoring() {
 
 		for catName, sched := range schedulers {
 			groupMap := nodeGroups[catName]
+			gpuResourceTypes := shared.GpuResourceTypesForCategory(catName)
 			for nodeName, _ := range sched.Nodes {
 				usage := resourcesByNode[nodeName]
 				if usage == nil {
@@ -651,9 +646,7 @@ func loopMonitoring() {
 				}
 
 				machineCategory, ok := shared.ServiceConfig.Compute.Machines[catName]
-				gpuResourceType := "nvidia.com/gpu"
 				systemReservedCpuMillis := shared.SystemReservedCpuMillisForCategory(catName)
-				paymentUnit := cfg.MachineResourceType("")
 
 				if ok {
 					groupName := ""
@@ -663,29 +656,19 @@ func loopMonitoring() {
 					if groupName == "" {
 						groupName = bestEffortNodeGroup(catName, machineCategory)
 					}
-					nodeCat, ok := machineCategory.Groups[groupName]
-					if ok {
-						gpuResourceType = nodeCat.GpuResourceType
-						paymentUnit = machineCategory.Payment.Unit
-					} else {
-						paymentUnit = machineCategory.Payment.Unit
-					}
 				}
 
 				dims := shared.SchedulerDimensions{
 					CpuMillis:     int(usage[string(k8score.ResourceCPU)]) + systemReservedCpuMillis,
 					MemoryInBytes: int(usage[string(k8score.ResourceMemory)]),
-					Gpu:           int(usage[gpuResourceType]),
+					Resources:     map[string]int{},
 				}
-
-				groupName := ""
-				if groupMap != nil {
-					groupName = groupMap[nodeName]
+				for _, gpuResourceType := range gpuResourceTypes {
+					gpuUsage := int(usage[gpuResourceType])
+					if gpuUsage > 0 {
+						dims.Resources[gpuResourceType] = gpuUsage
+					}
 				}
-				if groupName == "" && ok {
-					groupName = bestEffortNodeGroup(catName, machineCategory)
-				}
-				dims = shared.NormalizeForCategory(catName, groupName, dims, paymentUnit)
 
 				sched.SynchronizeNodeUsage(nodeName, dims)
 			}

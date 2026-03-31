@@ -2,9 +2,11 @@ package shared
 
 import (
 	"fmt"
+	"maps"
+	"slices"
+	"strings"
 	"sync"
 
-	cfg "ucloud.dk/pkg/config"
 	apm "ucloud.dk/shared/pkg/accounting"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
@@ -82,43 +84,106 @@ func SwapScheduleQueue() []*orc.Job {
 type SchedulerDimensions struct {
 	CpuMillis     int
 	MemoryInBytes int
-	Gpu           int
+	Resources     map[string]int
+}
+
+func (dims SchedulerDimensions) Clone() SchedulerDimensions {
+	result := dims
+	result.Resources = maps.Clone(dims.Resources)
+	return result
 }
 
 func (dims SchedulerDimensions) String() string {
-	return fmt.Sprintf("{CpuMillis=%v,MemoryInBytes=%v,Gpu=%v}", dims.CpuMillis, dims.MemoryInBytes, dims.Gpu)
+	resourceEntries := make([]string, 0, len(dims.Resources))
+	resourceKeys := slices.Sorted(maps.Keys(dims.Resources))
+	for _, key := range resourceKeys {
+		resourceEntries = append(resourceEntries, fmt.Sprintf("%s=%d", key, dims.Resources[key]))
+	}
+
+	return fmt.Sprintf(
+		"{CpuMillis=%v,MemoryInBytes=%v,Resources={%s}}",
+		dims.CpuMillis,
+		dims.MemoryInBytes,
+		strings.Join(resourceEntries, ","),
+	)
 }
 
 func (dims *SchedulerDimensions) Add(other SchedulerDimensions) {
 	dims.CpuMillis += other.CpuMillis
 	dims.MemoryInBytes += other.MemoryInBytes
-	dims.Gpu += other.Gpu
+	if len(other.Resources) > 0 {
+		if dims.Resources == nil {
+			dims.Resources = map[string]int{}
+		}
+
+		for key, value := range other.Resources {
+			dims.Resources[key] += value
+		}
+	}
 }
 
 func (dims *SchedulerDimensions) Subtract(other SchedulerDimensions) {
 	dims.CpuMillis -= other.CpuMillis
 	dims.MemoryInBytes -= other.MemoryInBytes
-	dims.Gpu -= other.Gpu
+	if len(other.Resources) > 0 {
+		if dims.Resources == nil {
+			dims.Resources = map[string]int{}
+		}
+
+		for key, value := range other.Resources {
+			dims.Resources[key] -= value
+		}
+	}
 }
 
 func (dims *SchedulerDimensions) AddImmutable(other SchedulerDimensions) SchedulerDimensions {
-	result := SchedulerDimensions{}
+	result := SchedulerDimensions{Resources: maps.Clone(dims.Resources)}
 	result.CpuMillis = dims.CpuMillis + other.CpuMillis
 	result.MemoryInBytes = dims.MemoryInBytes + other.MemoryInBytes
-	result.Gpu = dims.Gpu + other.Gpu
+	if len(other.Resources) > 0 {
+		if result.Resources == nil {
+			result.Resources = map[string]int{}
+		}
+
+		for key, value := range other.Resources {
+			result.Resources[key] += value
+		}
+	}
 	return result
 }
 
 func (dims *SchedulerDimensions) SubtractImmutable(other SchedulerDimensions) SchedulerDimensions {
-	result := SchedulerDimensions{}
+	result := SchedulerDimensions{Resources: maps.Clone(dims.Resources)}
 	result.CpuMillis = dims.CpuMillis - other.CpuMillis
 	result.MemoryInBytes = dims.MemoryInBytes - other.MemoryInBytes
-	result.Gpu = dims.Gpu - other.Gpu
+	if len(other.Resources) > 0 {
+		if result.Resources == nil {
+			result.Resources = map[string]int{}
+		}
+
+		for key, value := range other.Resources {
+			result.Resources[key] -= value
+		}
+	}
 	return result
 }
 
 func (dims *SchedulerDimensions) Satisfies(request SchedulerDimensions) bool {
-	return dims.CpuMillis >= request.CpuMillis && dims.Gpu >= request.Gpu && dims.MemoryInBytes >= request.MemoryInBytes
+	if dims.CpuMillis < request.CpuMillis || dims.MemoryInBytes < request.MemoryInBytes {
+		return false
+	}
+
+	if dims.Resources == nil {
+		dims.Resources = map[string]int{}
+	}
+
+	for key, value := range request.Resources {
+		if dims.Resources[key] < value {
+			return false
+		}
+	}
+
+	return true
 }
 
 type JobDimensionMapper func(job *orc.Job) SchedulerDimensions
@@ -142,15 +207,15 @@ func JobDimensions(job *orc.Job) SchedulerDimensions {
 func JobDimensionsFromProductOnly(prod *apm.ProductV2) SchedulerDimensions {
 	nodeCat, _ := NodeCategoryAndConfiguration(prod)
 	dims := SchedulerDimensions{
-		CpuMillis:     NodeCpuMillisBaseWithReserved(prod),
+		CpuMillis:     NodeCpuMillisNormalizedWithReserved(prod),
 		MemoryInBytes: prod.MemoryInGigs * (1000 * 1000 * 1000),
-		Gpu:           prod.Gpu,
+		Resources:     map[string]int{},
 	}
 
-	category := cfg.MachineResourceType("")
-	if cat, ok := ServiceConfig.Compute.Machines[prod.Category.Name]; ok {
-		category = cat.Payment.Unit
+	if prod.Gpu > 0 {
+		gpuType := GpuResourceTypeOrDefault(nodeCat.GpuResourceType)
+		dims.Resources = map[string]int{gpuType: prod.Gpu}
 	}
-	dims = NormalizeForCategory(prod.Category.Name, nodeCat.GroupName, dims, category)
+
 	return dims
 }

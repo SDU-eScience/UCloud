@@ -204,7 +204,9 @@ func resourceGetBucket(typeName string, id ResourceId) *resourceBucket {
 }
 
 func resourceGetAndLoadIndex(typeName string, reference string) *resourceIndexBucket {
+	log.Info("Loading index %v %v", typeName, reference)
 	g := resourceGetGlobals(typeName)
+	log.Info("Loading index 2 %v %v", typeName, reference)
 
 	h := util.NonCryptographicHash(reference)
 	b := g.Indexes[h%len(g.Indexes)]
@@ -212,12 +214,15 @@ func resourceGetAndLoadIndex(typeName string, reference string) *resourceIndexBu
 	b.Mu.RLock()
 	_, ok := b.ByOwner[reference]
 	b.Mu.RUnlock()
+	log.Info("Loading index 3 %v %v", typeName, reference)
 
 	if !ok && !resourceGlobals.Testing.Enabled {
+		log.Info("Loading index 4 %v %v", typeName, reference)
 		t := util.NewTimer()
 		resourceLoadIndex(b, typeName, reference)
 		resourceLoadIndexDuration.WithLabelValues(typeName).Observe(t.Mark().Seconds())
 		resourceIndexCacheMiss.WithLabelValues(typeName).Inc()
+		log.Info("Loading index 5 %v %v", typeName, reference)
 	} else {
 		resourceIndexCacheHit.WithLabelValues(typeName).Inc()
 	}
@@ -843,14 +848,6 @@ func ResourceUpdate[T any](
 	b := resourceGetBucket(typeName, id)
 	resc, ok, perms := resourcesReadEx(actor, typeName, requiredPermission, b, id, nil)
 	if ok {
-		b.Mu.Lock()
-		apiResc, ok := lResourceApplyFlags(resc, perms, orcapi.ResourceFlags{})
-		if !ok {
-			log.Fatal("resource was not supposed to be filtered here")
-		}
-		mapped := g.Transformer(apiResc, resc.BaseSpec, resc.Extra, orcapi.ResourceFlags{}, actor).(T)
-
-		// Indexing before modification
 		var indexers []ResourceIndexer
 		{
 			g.IndexersMu.RLock()
@@ -863,6 +860,13 @@ func ResourceUpdate[T any](
 		for _, idx := range indexers {
 			idx.Begin()
 		}
+
+		b.Mu.Lock()
+		apiResc, ok := lResourceApplyFlags(resc, perms, orcapi.ResourceFlags{})
+		if !ok {
+			log.Fatal("resource was not supposed to be filtered here")
+		}
+		mapped := g.Transformer(apiResc, resc.BaseSpec, resc.Extra, orcapi.ResourceFlags{}, actor).(T)
 
 		for _, idx := range indexers {
 			idx.Remove()
@@ -877,7 +881,7 @@ func ResourceUpdate[T any](
 		}
 
 		if resc.Confirmed {
-			lResourcePersist(resc)
+			lResourcePersist(g, resc)
 
 			if resc.MarkedForDeletion {
 				delete(b.Resources, id)
@@ -891,12 +895,12 @@ func ResourceUpdate[T any](
 			}
 		}
 
-		// Commit indexing
-		for _, idx := range indexers {
-			idx.Commit()
-		}
-
 		b.Mu.Unlock()
+
+		// Commit indexing
+		for i := len(indexers) - 1; i >= 0; i-- {
+			indexers[i].Commit()
+		}
 
 		if isDeleting {
 			// NOTE(Dan): There is technically a race-condition here where the resource may remain in the index, but
@@ -1151,6 +1155,20 @@ func ResourceCreateEx[T any](
 		return 0, empty, err
 	}
 
+	now := time.Now()
+	r := &resource{
+		Id:         id,
+		ProviderId: providerId,
+		Owner:      owner,
+		Acl:        acl,
+		CreatedAt:  now,
+		ModifiedAt: now,
+		Type:       typeName,
+		Extra:      extra,
+		Confirmed:  false,
+		BaseSpec:   baseSpec,
+	}
+
 	{
 		indexRef := owner.Project.GetOrDefault(owner.CreatedBy)
 		idxBucket := resourceGetAndLoadIndex(typeName, indexRef)
@@ -1173,20 +1191,20 @@ func ResourceCreateEx[T any](
 		providerIdxBucket.Mu.Unlock()
 	}
 
-	b.Mu.Lock()
-	now := time.Now()
-	r := &resource{
-		Id:         id,
-		ProviderId: providerId,
-		Owner:      owner,
-		Acl:        acl,
-		CreatedAt:  now,
-		ModifiedAt: now,
-		Type:       typeName,
-		Extra:      extra,
-		Confirmed:  false,
-		BaseSpec:   baseSpec,
+	var indexers []ResourceIndexer
+	{
+		g.IndexersMu.RLock()
+		for _, begin := range g.Indexers {
+			indexers = append(indexers, begin(r))
+		}
+		g.IndexersMu.RUnlock()
 	}
+
+	for _, idx := range indexers {
+		idx.Begin()
+	}
+
+	b.Mu.Lock()
 	b.Resources[id] = r
 	resourceFlags := orcapi.ResourceFlags{
 		IncludeOthers:  true,
@@ -1213,23 +1231,14 @@ func ResourceCreateEx[T any](
 	apiResc, _ := lResourceApplyFlags(r, nil, resourceFlags)
 	mapped := g.Transformer(apiResc, r.BaseSpec, r.Extra, resourceFlags, rpc.ActorSystem).(T)
 
-	var indexers []ResourceIndexer
-	g.IndexersMu.RLock()
-	for _, begin := range g.Indexers {
-		indexers = append(indexers, begin(r))
-	}
-	g.IndexersMu.RUnlock()
-	for _, idx := range indexers {
-		idx.Begin()
-	}
 	for _, idx := range indexers {
 		idx.Add()
 	}
-	for _, idx := range indexers {
-		idx.Commit()
-	}
-
 	b.Mu.Unlock()
+
+	for i := len(indexers) - 1; i >= 0; i-- {
+		indexers[i].Commit()
+	}
 
 	return r.Id, mapped, nil
 }

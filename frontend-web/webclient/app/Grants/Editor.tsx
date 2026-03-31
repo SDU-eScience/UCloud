@@ -264,7 +264,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                 if (recipient) {
                     templateKey = templateKeyFromRecipientType(recipient);
                 } else {
-                    console.warn("Unhandled recipient!");
+                    console.warn("Unhandled recipient!", {action, state});
                 }
             }
 
@@ -972,6 +972,7 @@ function useStateReducerMiddleware(
                 try {
                     dispatch({
                         type: "AllocatorsLoaded",
+                        recipientType: event.projectId ? "existingProject" : "newProject",
                         allocators: [{
                             id: project.id,
                             title: project.specification.title,
@@ -2139,7 +2140,7 @@ export function Editor(): React.ReactNode {
                                             if (hideZeroFields && !anyNonZeroValues) return null;
 
                                             const currentProvider = providerBrandingData.providers[providerId];
-                                            const productDescription = currentProvider?.productDescription.find(it => it.category === category.category.name);
+                                            const productDescription = currentProvider?.productDescription?.find(it => it.category === category.category.name);
                                             const showDescriptions = productDescription != undefined;
 
 

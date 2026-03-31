@@ -203,12 +203,11 @@ func resourceLoad(typeName string, id ResourceId, prefetchHint []ResourceId) {
 	}
 }
 
-func lResourcePersist(r *resource) {
+func lResourcePersist(g *resourceTypeGlobal, r *resource) {
 	if resourceGlobals.Testing.Enabled {
 		return
 	}
 
-	g := resourceGetGlobals(r.Type)
 	db.NewTx0(func(tx *db.Transaction) {
 		b := db.BatchNew(tx)
 
@@ -375,6 +374,7 @@ func lResourcePersist(r *resource) {
 }
 
 func resourceLoadIndex(b *resourceIndexBucket, typeName string, reference string) {
+	log.Info("resourceLoadIndex 1 %v %v", typeName, reference)
 	actorRef := reference
 	providerRef := ""
 	providerParam := sql.NullString{}
@@ -386,6 +386,7 @@ func resourceLoadIndex(b *resourceIndexBucket, typeName string, reference string
 	} else {
 		actorParam = sql.NullString{Valid: true, String: actorRef}
 	}
+	log.Info("resourceLoadIndex 2 %v %v", typeName, reference)
 
 	resources := db.NewTx(func(tx *db.Transaction) map[ResourceId]*resource {
 		tx.NoDevResetThisIsNotAHackIPromise = true
@@ -434,9 +435,11 @@ func resourceLoadIndex(b *resourceIndexBucket, typeName string, reference string
 				"type":               typeName,
 			},
 		)
+		log.Info("resourceLoadIndex 3 %v %v", typeName, reference)
 
 		return resourceLoadInternal(tx, typeName, rows)
 	})
+	log.Info("resourceLoadIndex 4 %v %v", typeName, reference)
 
 	var ids []ResourceId
 	labelsByOwner := map[string][]ResourceId{}
@@ -448,6 +451,7 @@ func resourceLoadIndex(b *resourceIndexBucket, typeName string, reference string
 		}
 	}
 	slices.Sort(ids)
+	log.Info("resourceLoadIndex 5 %v %v", typeName, reference)
 
 	{
 		b.Mu.Lock()
@@ -466,15 +470,21 @@ func resourceLoadIndex(b *resourceIndexBucket, typeName string, reference string
 		}
 		b.Mu.Unlock()
 	}
+	log.Info("resourceLoadIndex 6 %v %v", typeName, reference)
 
 	for _, r := range resources {
+		log.Info("resourceLoadIndex 6a %v %v", typeName, reference)
 		b := resourceGetBucket(typeName, r.Id)
+		log.Info("resourceLoadIndex 6b %v %v", typeName, reference)
 		b.Mu.Lock()
+		log.Info("resourceLoadIndex 6c %v %v", typeName, reference)
 		if _, exists := b.Resources[r.Id]; !exists {
 			b.Resources[r.Id] = r
 		}
 		b.Mu.Unlock()
+		log.Info("resourceLoadIndex 6d %v %v", typeName, reference)
 	}
+	log.Info("resourceLoadIndex 7 %v %v", typeName, reference)
 }
 
 func resourceLoadProvider(providerId string) *resourceProvider {
