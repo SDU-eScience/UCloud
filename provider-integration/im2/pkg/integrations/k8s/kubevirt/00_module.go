@@ -97,6 +97,20 @@ func Init() ctrl.JobsService {
 	}
 }
 
+func ResolveUcxJobSessionUpstream(job *orc.Job, port int) (string, error) {
+	if port <= 0 || port > 65535 {
+		return "", fmt.Errorf("invalid port: %d", port)
+	}
+
+	if util.DevelopmentModeEnabled() {
+		machineName := vmName(job.Id, 0)
+		tunnelPort := shared.EstablishTunnelEx(machineName, shared.ServiceConfig.Compute.Namespace, port)
+		return fmt.Sprintf("ws://127.0.0.1:%d/", tunnelPort), nil
+	}
+
+	return fmt.Sprintf("ws://%s:%d/", shared.JobHostName(job, 0), port), nil
+}
+
 func VmiStandaloneMutator() {
 	shared.InitClients()
 	KubevirtClient = shared.KubevirtClient
