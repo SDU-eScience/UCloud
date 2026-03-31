@@ -1,10 +1,12 @@
 import * as React from "react";
-import {useParams} from "react-router-dom";
+import {useNavigate, useParams} from "react-router-dom";
 
 import MainContainer from "@/ui-components/MainContainer";
+import {Client} from "@/Authentication/HttpClientInstance";
 import {callAPI, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {usePage} from "@/Navigation/Redux";
+import {getStoredProject} from "@/Project/ReduxState";
 import {Box, Button, Card, Divider, ExternalLink, Flex, Icon, Input, Text} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import Warning from "@/ui-components/Warning";
@@ -21,15 +23,18 @@ import {IconName} from "@/ui-components/Icon";
 import {HeroHeaderCard, HeroHeaderGrid, HeroMetric} from "@/Applications/Jobs/HeroHeader";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import {VmActionItem, VmActionSplitButton} from "@/Applications/Jobs/VmActionSplitButton";
+import UcxView, {UcxRpcHandler} from "@/UCX/UcxView";
 
 import * as StackApi from "./api";
 import {StackLogo} from "@/Stacks/Logos";
 import {getShortProviderTitle} from "@/Providers/ProviderTitle";
 
 export default function StackView(): React.ReactNode {
-    const {id} = useParams<{id: string}>();
-    const [stackState, fetchStack] = useCloudAPI<StackApi.Stack | null>({noop: true}, null);
-    const [commandLoading, invokeCommand] = useCloudCommand();
+	const {id} = useParams<{id: string}>();
+	const navigate = useNavigate();
+	const [stackState, fetchStack] = useCloudAPI<StackApi.Stack | null>({noop: true}, null);
+	const [commandLoading, invokeCommand] = useCloudCommand();
+	const [ucxAuthenticated, setUcxAuthenticated] = React.useState(false);
 
     usePage("Stack", SidebarTabId.RUNS);
 
@@ -42,38 +47,65 @@ export default function StackView(): React.ReactNode {
         refreshStack();
     }, [refreshStack]);
 
-    const stack = stackState.data;
-    const status = stack?.status;
-    const jobs = status?.jobs ?? [];
-    const uiMode = status?.ucxUiMode ?? "";
+	const stack = stackState.data;
+	const status = stack?.status;
+	const jobs = status?.jobs ?? [];
+	const uiMode = status?.ucxUiMode ?? "None";
+	const ucxConnectJobId = status?.ucxConnectJobId ?? null;
+	const ucxConnectJob = React.useMemo(() => {
+		if (!ucxConnectJobId) return null;
+		return jobs.find(job => job.id === ucxConnectJobId) ?? null;
+	}, [jobs, ucxConnectJobId]);
+	const ucxTargetRunning = ucxConnectJob?.status.state === "RUNNING";
+	const shouldAttemptUcxConnection = uiMode === "Replacement" && !!ucxConnectJobId && ucxTargetRunning;
 
-    const stackUiMachines = React.useMemo(() => {
-        return jobs.filter(job => isVirtualMachineJob(job) && hasStackUiLabel(job));
-    }, [jobs]);
+	const ucxConnectJobUrl = React.useMemo(() => {
+		return Client.computeURL("/api", "/hpc/apps/ucx/connectJob")
+			.replace("http://", "ws://")
+			.replace("https://", "wss://");
+	}, []);
 
-    const hasRunningStackUiMachine = React.useMemo(() => {
-        return stackUiMachines.some(it => it.status.state === "RUNNING");
-    }, [stackUiMachines]);
+	const ucxRpcHandlers = React.useMemo<Record<string, UcxRpcHandler>>(() => {
+		return {
+			uiSendMessage: raw => {
+				const payload = raw as {message: string; success: boolean};
+				if (!payload.success) {
+					sendFailureNotification(payload.message);
+				}
+			},
+			stackOpen: raw => {
+				const payload = raw as {id: string};
+				navigate(`${AppRoutes.prefix}${AppRoutes.stacks.view(payload.id)}`);
+			},
+		};
+	}, [navigate]);
 
-    const showDefaultUi = uiMode === "" || uiMode === "Partial" || uiMode === "None"
-        || (uiMode === "Replacement" && !hasRunningStackUiMachine);
+	React.useEffect(() => {
+		setUcxAuthenticated(false);
+	}, [ucxConnectJobId]);
+
+	React.useEffect(() => {
+		if (!shouldAttemptUcxConnection) {
+			setUcxAuthenticated(false);
+		}
+	}, [shouldAttemptUcxConnection]);
 
     const pollIntervalMs = React.useMemo(() => {
         const hasLiveJobs = jobs.some(job => !isJobStateTerminal(job.status.state));
         return hasLiveJobs ? 5000 : 15000;
     }, [jobs]);
 
-    React.useEffect(() => {
-        if (!id || !showDefaultUi) return;
+	React.useEffect(() => {
+		if (!id) return;
 
-        const timer = window.setInterval(() => {
-            refreshStack();
+		const timer = window.setInterval(() => {
+			refreshStack();
         }, pollIntervalMs);
 
-        return () => {
-            window.clearInterval(timer);
-        };
-    }, [id, showDefaultUi, pollIntervalMs, refreshStack]);
+		return () => {
+			window.clearInterval(timer);
+		};
+	}, [id, pollIntervalMs, refreshStack]);
 
     const restartVm = React.useCallback((job: Job) => {
         addStandardDialog({
@@ -247,8 +279,8 @@ export default function StackView(): React.ReactNode {
                 {id && stackState.error ? <p>Could not load stack: {stackState.error.why}</p> : null}
                 {id && !stackState.loading && !stackState.error && !stack ? <p>Stack not found.</p> : null}
 
-                {!stack || !showDefaultUi ? null : (
-                    <>
+				{!stack || (uiMode === "Replacement" && ucxAuthenticated) ? null : (
+					<>
                         <Card p="16px">
                             <Heading.h4>Resources in stack</Heading.h4>
                             <div className={ResourceGrid}>
@@ -389,51 +421,45 @@ export default function StackView(): React.ReactNode {
                                 </div>
                             )}
                         </Card>
-                    </>
-                )}
+					</>
+				)}
 
-                {stack && !showDefaultUi ? (
-                    <Card p="24px">
-                        <Heading.h3>Custom stack UI is active</Heading.h3>
-                        <Text color="textSecondary" mt="8px">
-                            This stack is in Replacement mode and has a running stack UI machine.
-                        </Text>
-                    </Card>
-                ) : null}
+				{stack && shouldAttemptUcxConnection ? (
+					<div style={{display: ucxAuthenticated ? "block" : "none"}}>
+						<UcxView
+							key={ucxConnectJobId ?? ""}
+							url={ucxConnectJobUrl}
+							authToken={async () => {
+								const accessToken = await Client.receiveAccessTokenOrRefreshIt();
+								const project = getStoredProject() ?? "";
+								return `${accessToken}\n${project}`;
+							}}
+							sysHello={() => JSON.stringify({jobId: ucxConnectJobId})}
+							rpcHandlers={ucxRpcHandlers}
+							onConnected={() => setUcxAuthenticated(true)}
+							onDisconnected={() => setUcxAuthenticated(false)}
+							renderFrame={({content}) => content}
+						/>
+					</div>
+				) : null}
+
+				{stack && uiMode === "Replacement" && !ucxAuthenticated ? (
+					<Card p="24px">
+						<Heading.h3>Custom stack UI</Heading.h3>
+						<Text color="textSecondary" mt="8px">
+							{shouldAttemptUcxConnection
+								? "Waiting for successful authentication with the stack UI machine."
+								: "Waiting for the stack UI machine to enter Running state."}
+						</Text>
+					</Card>
+				) : null}
             </div>
         }
     />;
 }
 
 function isVirtualMachineJob(job: Job): boolean {
-    return job.status.resolvedApplication?.invocation.tool.tool?.description.backend === "VIRTUAL_MACHINE";
-}
-
-function hasStackUiLabel(job: Job): boolean {
-    const labelKey = "ucloud.dk/stackui";
-    const candidates = [
-        (job as any)?.specification,
-        (job as any)?.specification?.parameters,
-        (job as any)?.status,
-        (job as any)?.status?.jobParametersJson,
-    ];
-
-    return candidates.some(candidate => containsLabelKey(candidate, labelKey, 0));
-}
-
-function containsLabelKey(value: unknown, key: string, depth: number): boolean {
-    if (value == null || depth > 5) return false;
-    if (Array.isArray(value)) return value.some(item => containsLabelKey(item, key, depth + 1));
-    if (typeof value !== "object") return false;
-
-    const record = value as Record<string, unknown>;
-    if (Object.prototype.hasOwnProperty.call(record, key)) return true;
-
-    for (const nested of Object.values(record)) {
-        if (containsLabelKey(nested, key, depth + 1)) return true;
-    }
-
-    return false;
+	return job.status.resolvedApplication?.invocation.tool.tool?.description.backend === "VIRTUAL_MACHINE";
 }
 
 const MutedResourceCard: React.FunctionComponent<{

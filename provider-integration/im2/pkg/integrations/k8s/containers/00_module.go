@@ -76,6 +76,20 @@ func findPodByJobIdAndRank(jobId string, rank int) util.Option[*core.Pod] {
 	}
 }
 
+func ResolveUcxJobSessionUpstream(job *orc.Job, port int) (string, error) {
+	if port <= 0 || port > 65535 {
+		return "", fmt.Errorf("invalid port: %d", port)
+	}
+
+	if util.DevelopmentModeEnabled() {
+		podName := idAndRankToPodName(job.Id, 0)
+		tunnelPort := shared.EstablishTunnelEx(podName, shared.ServiceConfig.Compute.Namespace, port)
+		return fmt.Sprintf("ws://127.0.0.1:%d/", tunnelPort), nil
+	}
+
+	return fmt.Sprintf("ws://%s:%d/", shared.JobHostName(job, 0), port), nil
+}
+
 func FindJobFolder(job *orc.Job) (string, *orc.Drive, *util.HttpError) {
 	return FindJobFolderEx(job, 0)
 }

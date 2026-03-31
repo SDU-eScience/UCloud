@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"slices"
 	"strings"
-	"sync"
 
 	accapi "ucloud.dk/shared/pkg/accounting"
 	fndapi "ucloud.dk/shared/pkg/foundation"
@@ -20,58 +19,32 @@ import (
 )
 
 type appUcxSessionState struct {
-	Mu      sync.RWMutex
+	appUcxBaseState
 	actor   rpc.Actor
 	reqInfo orcapi.AppUcxConnectRequest
-	Stacks  map[string]util.Empty
-}
-
-func (s *appUcxSessionState) Actor() rpc.Actor {
-	s.Mu.RLock()
-	result := s.actor
-	s.Mu.RUnlock()
-	return result
-}
-
-func (s *appUcxSessionState) Provider() string {
-	s.Mu.RLock()
-	provider := s.reqInfo.Provider.GetOrDefault("")
-	s.Mu.RUnlock()
-	return provider
-}
-
-func (s *appUcxSessionState) registerStacksFromLabels(labels map[string]string) {
-	if labels == nil {
-		return
-	}
-
-	stack := strings.TrimSpace(labels[resourceLabelStackInstance])
-	if stack == "" {
-		return
-	}
-
-	s.Mu.Lock()
-	s.Stacks[stack] = util.Empty{}
-	s.Mu.Unlock()
-}
-
-func (s *appUcxSessionState) StackInstances() []string {
-	s.Mu.RLock()
-	instances := make([]string, 0, len(s.Stacks))
-	for stack := range s.Stacks {
-		instances = append(instances, stack)
-	}
-	s.Mu.RUnlock()
-	slices.Sort(instances)
-	return instances
 }
 
 func initAppUcx() {
 	orcapi.AppUcxConnect.Handler(func(info rpc.RequestInfo, _ util.Empty) (util.Empty, *util.HttpError) {
 		proxy := ucx.NewProxy("ws://pending")
 		state := &appUcxSessionState{
-			actor:  rpc.Actor{Role: rpc.RoleGuest},
-			Stacks: map[string]util.Empty{},
+			actor: rpc.Actor{Role: rpc.RoleGuest},
+			appUcxBaseState: appUcxBaseState{
+				Stacks:             map[string]util.Empty{},
+				AllowStackCreation: true,
+			},
+		}
+		state.appUcxBaseState.Actor = func() rpc.Actor {
+			state.Mu.RLock()
+			result := state.actor
+			state.Mu.RUnlock()
+			return result
+		}
+		state.appUcxBaseState.Provider = func() string {
+			state.Mu.RLock()
+			provider := state.reqInfo.Provider.GetOrDefault("")
+			state.Mu.RUnlock()
+			return provider
 		}
 
 		proxy.RegisterUpstreamSelector(func(ctx context.Context, downstreamToken string, downstreamSysHello string) ucx.ProxyUpstreamSelection {
@@ -222,7 +195,7 @@ func initAppUcx() {
 			}
 		})
 
-		appUcxResourceHandlers(state, proxy)
+		appUcxResourceHandlers(&state.appUcxBaseState, proxy)
 
 		ucxapi.StackAvailable.HandlerProxy(proxy, func(ctx context.Context, request fndapi.FindByStringId) (bool, error) {
 			actor := state.Actor()
