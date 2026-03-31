@@ -204,9 +204,7 @@ func resourceGetBucket(typeName string, id ResourceId) *resourceBucket {
 }
 
 func resourceGetAndLoadIndex(typeName string, reference string) *resourceIndexBucket {
-	log.Info("Loading index %v %v", typeName, reference)
 	g := resourceGetGlobals(typeName)
-	log.Info("Loading index 2 %v %v", typeName, reference)
 
 	h := util.NonCryptographicHash(reference)
 	b := g.Indexes[h%len(g.Indexes)]
@@ -214,15 +212,12 @@ func resourceGetAndLoadIndex(typeName string, reference string) *resourceIndexBu
 	b.Mu.RLock()
 	_, ok := b.ByOwner[reference]
 	b.Mu.RUnlock()
-	log.Info("Loading index 3 %v %v", typeName, reference)
 
 	if !ok && !resourceGlobals.Testing.Enabled {
-		log.Info("Loading index 4 %v %v", typeName, reference)
 		t := util.NewTimer()
 		resourceLoadIndex(b, typeName, reference)
 		resourceLoadIndexDuration.WithLabelValues(typeName).Observe(t.Mark().Seconds())
 		resourceIndexCacheMiss.WithLabelValues(typeName).Inc()
-		log.Info("Loading index 5 %v %v", typeName, reference)
 	} else {
 		resourceIndexCacheHit.WithLabelValues(typeName).Inc()
 	}
