@@ -66,6 +66,11 @@ services:
       portMin: 8000
       portMax: 16000
 
+    inference:
+      enabled: true
+      backendServer: http://localai:8080/v1
+      developmentProvider: localai
+
     modules:
       "ubuntu-22.04":
         subPath: "modules"

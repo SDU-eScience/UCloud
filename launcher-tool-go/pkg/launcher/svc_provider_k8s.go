@@ -289,23 +289,26 @@ func ProviderK8s() {
 	}
 
 	{
-		ollama := Service{
-			Name:      "ollama",
-			Title:     "Ollama",
+		localAI := Service{
+			Name:      "localai",
+			Title:     "LocalAI",
 			Flags:     SvcExec | SvcLogs,
 			UiParent:  UiParentK8s,
 			Feature:   FeatureAddonInference,
 			DependsOn: util.OptValue(FeatureProviderK8s),
 		}
 
-		vol := AddVolume(ollama, "data")
+		vol := AddVolume(localAI, "data")
 
-		AddService(ollama, DockerComposeService{
-			Image:    "ollama/ollama:0.12.11-rc1",
-			Hostname: "ollama",
+		AddService(localAI, DockerComposeService{
+			Image:    "localai/localai:v4.0.0",
+			Hostname: "localai",
 			Restart:  "always",
+			Environment: []string{
+				"LOCALAI_EXTERNAL_BACKENDS=localai@cpu-stablediffusion-ggml,localai@stablediffusion-ggml",
+			},
 			Volumes: []string{
-				Mount(vol, "/root/.ollama"),
+				Mount(vol, "/models"),
 			},
 		})
 	}

@@ -1,3 +1,4 @@
-TODO Write more information about how to use this feature.
+CPU-only OpenAI-compatible inference add-on for local development.
 
-This is a normal piece of text.
+The provider integration proxies requests to a configurable backend server and can auto-configure LocalAI in
+development mode.

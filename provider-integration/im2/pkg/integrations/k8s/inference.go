@@ -6,7 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
+	"runtime"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -25,10 +27,19 @@ import (
 )
 
 var inferenceGlobals struct {
-	Ready         atomic.Bool
-	BackendServer string
-	Product       apm.ProductV2
+	Ready               atomic.Bool
+	BackendServer       string
+	MockImageGeneration bool
+	Product             apm.ProductV2
 }
+
+const (
+	inferenceDevelopmentProviderLocalAI = "localai"
+
+	// Fallback accounting when image-generation usage is missing from backend responses.
+	// Tokens are billed proportionally to generated megapixels (1 megapixel = 1,000,000 pixels).
+	inferenceImageGenerationTokensPerMegaPixel = 1000.0
+)
 
 type inferenceCompletion struct {
 	Id      string                      `json:"id"`
@@ -58,19 +69,24 @@ func initInference() {
 		return
 	}
 
-	if inferenceCfg.OllamaDevMode {
-		inferenceGlobals.BackendServer = "http://ollama:11434/v1"
-
-		pullRequest := `{"model": "tinyllama:1.1b"}`
-		_, err := http.Post("http://ollama:11434/api/pull", "application/json", bytes.NewBufferString(pullRequest))
-		if err != nil {
-			panic(fmt.Sprintf("could not initialize ollama: %s", err))
-		} else {
-			inferenceGlobals.Ready.Store(true)
-		}
-	} else {
-		inferenceGlobals.Ready.Store(true)
+	inferenceGlobals.BackendServer = strings.TrimRight(inferenceCfg.BackendServer, "/")
+	if inferenceGlobals.BackendServer == "" {
+		panic("inference backend server is not configured")
 	}
+
+	inferenceGlobals.MockImageGeneration = util.DevelopmentModeEnabled() && runtime.GOARCH == "arm64"
+	if inferenceGlobals.MockImageGeneration {
+		log.Info("Enabling mock image generation endpoint for development on arm64")
+	}
+
+	if util.DevelopmentModeEnabled() && inferenceCfg.DevelopmentProvider == inferenceDevelopmentProviderLocalAI {
+		err := inferenceAutoConfigureLocalAI()
+		if err != nil {
+			panic(fmt.Sprintf("could not initialize localai: %s", err))
+		}
+	}
+
+	inferenceGlobals.Ready.Store(true)
 
 	inferenceGlobals.Product = apm.ProductV2{
 		Type: apm.ProductTypeCLicense, // TODO faking it a bit for now
@@ -104,11 +120,28 @@ func initInference() {
 		},
 	})
 
+	controller.Mux.HandleFunc(authority+"/v1/models", func(w http.ResponseWriter, r *http.Request) {
+		_, httpErr := inferenceAuthenticateRequest(r)
+		if httpErr != nil {
+			http.Error(w, httpErr.Why, httpErr.StatusCode)
+			return
+		}
+
+		inferenceProxyModelsRequest(w, r, authority)
+	})
+
+	controller.Mux.HandleFunc(authority+"/v1/models/", func(w http.ResponseWriter, r *http.Request) {
+		_, httpErr := inferenceAuthenticateRequest(r)
+		if httpErr != nil {
+			http.Error(w, httpErr.Why, httpErr.StatusCode)
+			return
+		}
+
+		inferenceProxyModelsRequest(w, r, authority)
+	})
+
 	controller.Mux.HandleFunc(authority+"/v1/chat/completions", func(w http.ResponseWriter, r *http.Request) {
-		authHeader := r.Header.Get("Authorization")
-		log.Info("Auth header: %s", authHeader)
-		apiKey, _ := strings.CutPrefix(authHeader, "Bearer ")
-		apiKeyOwner, httpErr := inferenceApiKeyValidate(apiKey)
+		apiKeyOwner, httpErr := inferenceAuthenticateRequest(r)
 		if httpErr != nil {
 			http.Error(w, httpErr.Why, httpErr.StatusCode)
 			return
@@ -152,6 +185,7 @@ func initInference() {
 		}
 
 		proxyReq.Header.Add("Authorization", "Bearer notused")
+		proxyReq.Header.Add("Content-Type", "application/json")
 
 		resp, err := http.DefaultClient.Do(proxyReq)
 		if err != nil {
@@ -159,6 +193,7 @@ func initInference() {
 			http.Error(w, "invalid request", http.StatusBadRequest)
 			return
 		}
+		defer util.SilentClose(resp.Body)
 
 		for k, values := range resp.Header {
 			for _, v := range values {
@@ -228,6 +263,376 @@ func initInference() {
 			}
 		}
 	})
+
+	controller.Mux.HandleFunc(authority+"/v1/audio/transcriptions", func(w http.ResponseWriter, r *http.Request) {
+		apiKeyOwner, httpErr := inferenceAuthenticateRequest(r)
+		if httpErr != nil {
+			http.Error(w, httpErr.Why, httpErr.StatusCode)
+			return
+		}
+
+		requestBody, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, "invalid request", http.StatusBadRequest)
+			return
+		}
+
+		proxyReq, err := http.NewRequest(
+			http.MethodPost,
+			fmt.Sprintf("%s/audio/transcriptions", inferenceGlobals.BackendServer),
+			bytes.NewBuffer(requestBody),
+		)
+		if err != nil {
+			http.Error(w, "invalid request", http.StatusBadRequest)
+			return
+		}
+
+		proxyReq.Header.Add("Authorization", "Bearer notused")
+		proxyReq.Header.Add("Content-Type", r.Header.Get("Content-Type"))
+
+		resp, err := http.DefaultClient.Do(proxyReq)
+		if err != nil {
+			http.Error(w, "invalid request", http.StatusBadRequest)
+			return
+		}
+		defer util.SilentClose(resp.Body)
+
+		for k, values := range resp.Header {
+			for _, v := range values {
+				w.Header().Add(k, v)
+			}
+		}
+		w.WriteHeader(resp.StatusCode)
+
+		respData, err := io.ReadAll(resp.Body)
+		if err == nil {
+			_, _ = w.Write(respData)
+
+			if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+				promptTokens, completionTokens := inferenceUsageFromTranscriptionResponse(respData)
+				inferenceReportUsage(apiKeyOwner, promptTokens, completionTokens)
+			}
+		}
+	})
+
+	controller.Mux.HandleFunc(authority+"/v1/images/generations", func(w http.ResponseWriter, r *http.Request) {
+		apiKeyOwner, httpErr := inferenceAuthenticateRequest(r)
+		if httpErr != nil {
+			http.Error(w, httpErr.Why, httpErr.StatusCode)
+			return
+		}
+
+		requestBody, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, "invalid request", http.StatusBadRequest)
+			return
+		}
+
+		if inferenceGlobals.MockImageGeneration {
+			respData, httpErr := inferenceGenerateMockImageResponse(requestBody)
+			if httpErr != nil {
+				http.Error(w, httpErr.Why, httpErr.StatusCode)
+				return
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(respData)
+
+			promptTokens, completionTokens := inferenceUsageFromImageGenerationResponse(requestBody, respData)
+			inferenceReportUsage(apiKeyOwner, promptTokens, completionTokens)
+			return
+		}
+
+		proxyReq, err := http.NewRequest(
+			http.MethodPost,
+			fmt.Sprintf("%s/images/generations", inferenceGlobals.BackendServer),
+			bytes.NewBuffer(requestBody),
+		)
+		if err != nil {
+			http.Error(w, "invalid request", http.StatusBadRequest)
+			return
+		}
+
+		proxyReq.Header.Add("Authorization", "Bearer notused")
+		proxyReq.Header.Add("Content-Type", "application/json")
+
+		resp, err := http.DefaultClient.Do(proxyReq)
+		if err != nil {
+			http.Error(w, "invalid request", http.StatusBadRequest)
+			return
+		}
+		defer util.SilentClose(resp.Body)
+
+		for k, values := range resp.Header {
+			for _, v := range values {
+				w.Header().Add(k, v)
+			}
+		}
+		w.WriteHeader(resp.StatusCode)
+
+		respData, err := io.ReadAll(resp.Body)
+		if err == nil {
+			_, _ = w.Write(respData)
+
+			if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+				promptTokens, completionTokens := inferenceUsageFromImageGenerationResponse(requestBody, respData)
+				inferenceReportUsage(apiKeyOwner, promptTokens, completionTokens)
+			}
+		}
+	})
+}
+
+func inferenceAuthenticateRequest(r *http.Request) (apm.WalletOwner, *util.HttpError) {
+	authHeader := r.Header.Get("Authorization")
+	apiKey, _ := strings.CutPrefix(authHeader, "Bearer ")
+	return inferenceApiKeyValidate(apiKey)
+}
+
+func inferenceProxyModelsRequest(w http.ResponseWriter, r *http.Request, authority string) {
+	path := strings.TrimPrefix(r.URL.Path, authority+"/v1")
+	if path == "" {
+		path = "/models"
+	}
+
+	backendUrl := fmt.Sprintf("%s%s", inferenceGlobals.BackendServer, path)
+	backendUrl = strings.ReplaceAll(backendUrl, "/v1/v1", "/v1")
+	if r.URL.RawQuery != "" {
+		backendUrl += "?" + r.URL.RawQuery
+	}
+
+	proxyReq, err := http.NewRequest(r.Method, backendUrl, nil)
+	if err != nil {
+		http.Error(w, "invalid request", http.StatusBadRequest)
+		return
+	}
+
+	proxyReq.Header.Add("Authorization", "Bearer notused")
+
+	resp, err := http.DefaultClient.Do(proxyReq)
+	if err != nil {
+		http.Error(w, "invalid request", http.StatusBadRequest)
+		return
+	}
+	defer util.SilentClose(resp.Body)
+
+	for k, values := range resp.Header {
+		for _, v := range values {
+			w.Header().Add(k, v)
+		}
+	}
+	w.WriteHeader(resp.StatusCode)
+
+	respData, err := io.ReadAll(resp.Body)
+	if err == nil {
+		_, _ = w.Write(respData)
+	}
+}
+
+// Development mode initializer code (LocalAI)
+// =====================================================================================================================
+
+type inferenceLocalAIApplyRequest struct {
+	Id   string `json:"id,omitempty"`
+	Name string `json:"name,omitempty"`
+}
+
+func inferenceAutoConfigureLocalAI() error {
+	base := strings.TrimRight(inferenceGlobals.BackendServer, "/")
+	managementBase := strings.TrimSuffix(base, "/v1")
+
+	err := inferenceWaitForModelEndpoint(fmt.Sprintf("%s/models", base))
+	if err != nil {
+		return err
+	}
+
+	inferenceApplyLocalAIFallbackModels(managementBase, "chat", []string{"localai@qwen3-0.6b"})
+	inferenceApplyLocalAIFallbackModels(managementBase, "transcription", []string{"localai@whisper-1"})
+	inferenceApplyLocalAIFallbackModels(managementBase, "image-generation", []string{"localai@sd-1.5-ggml"})
+
+	return nil
+}
+
+func inferenceApplyLocalAIFallbackModels(base string, capability string, candidates []string) {
+	for _, modelId := range candidates {
+		if err := inferenceLocalAIApplyModel(base, modelId); err != nil {
+			log.Warn("Could not auto-apply LocalAI model %s for %s: %v", modelId, capability, err)
+			continue
+		}
+
+		log.Info("Auto-applied LocalAI model %s for %s", modelId, capability)
+		return
+	}
+
+	log.Warn("No LocalAI models could be auto-applied for %s", capability)
+}
+
+func inferenceWaitForModelEndpoint(endpoint string) error {
+	for i := 0; i < 60; i++ {
+		resp, err := http.Get(endpoint)
+		if err == nil {
+			_ = resp.Body.Close()
+			if resp.StatusCode >= 200 && resp.StatusCode < 500 {
+				return nil
+			}
+		}
+
+		time.Sleep(1 * time.Second)
+	}
+
+	return fmt.Errorf("timed out waiting for inference backend model endpoint")
+}
+
+func inferenceLocalAIApplyModel(base string, modelId string) error {
+	requestVariants := []inferenceLocalAIApplyRequest{
+		{Id: modelId},
+		{Name: modelId},
+	}
+
+	for _, request := range requestVariants {
+		payload, _ := json.Marshal(request)
+		resp, err := http.Post(
+			fmt.Sprintf("%s/models/apply", strings.TrimRight(base, "/")),
+			"application/json",
+			bytes.NewBuffer(payload),
+		)
+		if err != nil {
+			continue
+		}
+
+		_, _ = io.Copy(io.Discard, resp.Body)
+		_ = resp.Body.Close()
+		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("model apply endpoint did not accept request")
+}
+
+// Inference usage helpers
+// =====================================================================================================================
+// inferenceUsageFrom* centralizes our current accounting policy for multimodal inference.
+//
+// The backend is treated as a black-box. If it returns OpenAI-style `usage`, those values are used directly.
+// If usage is absent (common for CPU-only mock setups), we fall back to deterministic estimates:
+// - audio transcription: transcript-length based estimate (characters/4)
+// - image generation: tokens proportional to generated megapixels
+//
+// This keeps pricing predictable and auditable during development, while allowing us to switch backends through
+// configuration without changing the external API surface.
+
+func inferenceUsageFromTranscriptionResponse(responseBody []byte) (promptTokens int, completionTokens int) {
+	var payload struct {
+		Text  string                      `json:"text"`
+		Usage util.Option[inferenceUsage] `json:"usage"`
+	}
+
+	_ = json.Unmarshal(responseBody, &payload)
+	if payload.Usage.Present {
+		return payload.Usage.Value.PromptTokens, payload.Usage.Value.CompletionTokens
+	}
+
+	return 0, inferenceEstimateTokensFromText(payload.Text)
+}
+
+func inferenceUsageFromImageGenerationResponse(requestBody []byte, responseBody []byte) (promptTokens int, completionTokens int) {
+	var payload struct {
+		Data  []json.RawMessage           `json:"data"`
+		Usage util.Option[inferenceUsage] `json:"usage"`
+	}
+
+	_ = json.Unmarshal(responseBody, &payload)
+	if payload.Usage.Present {
+		return payload.Usage.Value.PromptTokens, payload.Usage.Value.CompletionTokens
+	}
+
+	imageCount := len(payload.Data)
+	if imageCount == 0 {
+		imageCount = inferenceImageRequestCount(requestBody)
+	}
+	width, height := inferenceImageRequestSize(requestBody)
+
+	megaPixels := float64(width*height) / 1_000_000.0
+	completionTokens = int(math.Round(float64(imageCount) * megaPixels * inferenceImageGenerationTokensPerMegaPixel))
+	if completionTokens < 1 && imageCount > 0 {
+		completionTokens = 1
+	}
+
+	return 0, completionTokens
+}
+
+func inferenceImageRequestCount(requestBody []byte) int {
+	var payload struct {
+		N int `json:"n"`
+	}
+
+	_ = json.Unmarshal(requestBody, &payload)
+	if payload.N <= 0 {
+		return 1
+	}
+
+	return payload.N
+}
+
+func inferenceImageRequestSize(requestBody []byte) (int, int) {
+	var payload struct {
+		Size string `json:"size"`
+	}
+
+	_ = json.Unmarshal(requestBody, &payload)
+	return inferenceParseImageSize(payload.Size)
+}
+
+func inferenceEstimateTokensFromText(text string) int {
+	if text == "" {
+		return 0
+	}
+
+	return (len([]rune(text)) + 3) / 4
+}
+
+type inferenceImageGenerationRequest struct {
+	Model          string `json:"model"`
+	Prompt         string `json:"prompt"`
+	N              int    `json:"n"`
+	Size           string `json:"size"`
+	ResponseFormat string `json:"response_format"`
+}
+
+type inferenceImageGenerationResponse struct {
+	Created int64                                `json:"created"`
+	Data    []inferenceImageGenerationResponseEl `json:"data"`
+}
+
+type inferenceImageGenerationResponseEl struct {
+	URL     string `json:"url,omitempty"`
+	B64JSON string `json:"b64_json,omitempty"`
+}
+
+func inferenceParseImageSize(raw string) (int, int) {
+	if raw == "" {
+		return 512, 512
+	}
+
+	w := 512
+	h := 512
+	_, _ = fmt.Sscanf(raw, "%dx%d", &w, &h)
+
+	if w < 128 {
+		w = 128
+	}
+	if h < 128 {
+		h = 128
+	}
+	if w > 1024 {
+		w = 1024
+	}
+	if h > 1024 {
+		h = 1024
+	}
+
+	return w, h
 }
 
 func inferenceReportUsage(owner apm.WalletOwner, promptTokens int, completionTokens int) {
@@ -248,6 +653,9 @@ func inferenceReportUsage(owner apm.WalletOwner, promptTokens int, completionTok
 		},
 	})
 }
+
+// API tokens
+// =====================================================================================================================
 
 var inferenceApiKeysCache = util.NewCache[string, string](1 * time.Hour)
 var inferenceTokenIdToKey = util.NewCache[string, string](1 * time.Hour)

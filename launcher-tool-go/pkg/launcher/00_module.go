@@ -171,7 +171,7 @@ type Feature string
 const (
 	FeatureProviderK8s    Feature = "k8s"
 	FeatureProviderSlurm  Feature = "slurm"
-	FeatureAddonInference Feature = "ollama"
+	FeatureAddonInference Feature = "inference"
 	FeatureAddonKubeVirt  Feature = "kubevirt"
 )
 
