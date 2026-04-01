@@ -13,10 +13,13 @@ This page focuses on the high-level APIs used by UCX applications:
 
 | Function                                    | Purpose                                                 |
 |---------------------------------------------|---------------------------------------------------------|
-| `StackCreate(app, id)`                      | Allocate a new stack context and labels/mount metadata  |
+| `StackCreate(app, id, stackType)`           | Allocate a new stack context and labels/mount metadata  |
+| `StackFromJob(app, job)`                    | Reconstruct stack context from a job with stack labels  |
 | `StackWriteFile(stack, path, data)`         | Write stack file with default permissions               |
 | `StackWriteFileEx(stack, path, data, mode)` | Write stack file with explicit permissions              |
 | `StackWriteInitScript(stack, script)`       | Write init script and return labels for VM/job creation |
+| `StackCopyFile(stack, fileName)`            | Ask frontend to copy stack file contents to clipboard   |
+| `StackDownloadFile(stack, fileName)`        | Ask frontend to download stack file                     |
 | `StackConfirmAndOpen(stack)`                | Confirm stack and open it in frontend                   |
 
 Error handling for stack helpers is controlled by the stack state itself.
@@ -56,7 +59,7 @@ application/VM images.
 Example:
 
 ```go
-stack, ok := ucxsvc.StackCreate(app, app.JobName)
+stack, ok := ucxsvc.StackCreate(app, app.JobName, "Kubernetes")
 if !ok {
     return
 }
@@ -76,6 +79,31 @@ initLabels := ucxsvc.StackWriteInitScript(stack, `
 
 ucxsvc.StackConfirmAndOpen(stack)
 ```
+
+### Reconstructing stack context in job-connected UCX
+
+If your job session includes stack labels, reconstruct the stack directly from SysHello job context:
+
+```go
+type app struct {
+    // ...
+    Stack *ucxsvc.Stack `ucx:"-"`
+}
+
+func (app *app) OnSysHello(payload string) {
+    var req orcapi.AppUcxConnectJobProviderRequest
+    if err := json.Unmarshal([]byte(payload), &req); err != nil {
+        return
+    }
+
+    stack, ok := ucxsvc.StackFromJob(app, req.Job)
+    if ok {
+        app.Stack = stack
+    }
+}
+```
+
+`StackFromJob(...)` resolves mount path from job file attachments when available and falls back to `/etc/ucloud-stack`.
 
 ### Resource attachments
 
@@ -105,6 +133,7 @@ ucxsvc.StackConfirmAndOpen(stack)
 |---------------------------|-------------------------------|
 | `UiSendFailure(app, msg)` | Show frontend error message   |
 | `UiSendSuccess(app, msg)` | Show frontend success message |
+| `RouterPushPage(app, path)` | Programmatically push UCX router path (`p`) |
 
 ## `ucxapi` typed RPC calls
 
@@ -128,6 +157,9 @@ if err != nil {
 | `StackDataWrite` | `ucxapi.StackDataWriteRequest` | `util.Empty`   |
 | `StackConfirm`   | `fndapi.FindByStringId`        | `util.Empty`   |
 | `StackOpen`      | `fndapi.FindByStringId`        | `util.Empty`   |
+| `StackRefresh`   | `util.Empty`                   | `util.Empty`   |
+| `StackCopyFile`  | `ucxapi.StackDownloadFileRequest` | `util.Empty` |
+| `StackDownloadFile` | `ucxapi.StackDownloadFileRequest` | `util.Empty` |
 
 ### Job RPCs
 
@@ -160,9 +192,13 @@ if err != nil {
 
 ### UI RPCs
 
-| RPC             | Purpose                                      |
-|-----------------|----------------------------------------------|
-| `UiSendMessage` | Show a success/error message in the frontend |
+| RPC              | Purpose                                                   |
+|------------------|-----------------------------------------------------------|
+| `UiSendMessage`  | Show a success/error message in the frontend              |
+| `RouterPushPage` | Frontend-only: push route path (`p` query parameter)      |
+
+`RouterPushPage` has the same effect as clicking `ucx.Link(...)`.
+It is implemented by the stack page frontend and only available in job-connected UCX sessions.
 
 ## Notes on choosing API level
 

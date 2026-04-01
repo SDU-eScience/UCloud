@@ -24,6 +24,10 @@ type Application interface {
 	OnMessage(message Frame)
 }
 
+type SysHelloAwareApplication interface {
+	OnSysHello(payload string)
+}
+
 func AppUpdateModel(app Application) {
 	// Expects caller to hold mutex. All event handlers (OnInit, OnInput, OnMessage and UI handlers) will
 	// automatically acquire the mutex before running the handler. Manually acquiring the mutex is only needed if
@@ -58,7 +62,7 @@ func AppUpdateUi(app Application) {
 	}
 }
 
-func AppServe(factory func() Application) {
+func AppServe(factory func() Application, port util.Option[int]) {
 	upstreamServer := &rpc.Server{
 		Mux: http.NewServeMux(),
 	}
@@ -105,6 +109,9 @@ func AppServe(factory func() Application) {
 
 						if frame.Opcode == OpSysHello {
 							stateMu.Lock()
+							if appWithSysHello, ok := app.(SysHelloAwareApplication); ok {
+								appWithSysHello.OnSysHello(frame.SysHello.Payload)
+							}
 							ui := app.UserInterface()
 							model, err := ValueMarshal(app)
 							if err != nil {
@@ -149,7 +156,7 @@ func AppServe(factory func() Application) {
 	})
 
 	s := &http.Server{
-		Addr:    fmt.Sprintf(":%v", 8080),
+		Addr:    fmt.Sprintf(":%v", port.GetOrDefault(8080)),
 		Handler: upstreamServer.Mux,
 	}
 	_ = s.ListenAndServe()

@@ -16,6 +16,21 @@ ucx.Flex(ucx.FlexProps{Direction: "column", Gap: 8}).
     )
 ```
 
+### `Surface`, `Toolbar`
+
+`Surface` maps to a card-like container in the frontend.
+`Toolbar` provides a common "title on left, actions on right" layout.
+
+```go
+ucx.Surface().Children(
+    ucx.Toolbar().Children(
+        ucx.H3("Machines"),
+        ucx.Button("refresh", "Refresh", ucx.ColorPrimaryMain),
+    ),
+    ucx.Text("Machine list goes here"),
+)
+```
+
 ### `Tabs`, `Tab`
 
 ```go
@@ -101,6 +116,22 @@ ucx.List("todos", "No items yet.").Children(
 )
 ```
 
+### `StackResources`, `StackMachines`
+
+These are stack-aware components rendered by the stack page frontend.
+
+```go
+ucx.StackResources()
+
+ucx.StackMachines(ucx.StackMachinesProps{
+    Plain: true,
+    LabelFilter: util.OptValue(ucx.StackMachinesLabelFilter{
+        Label: "ucloud.dk/k8s-node-group",
+        Value: "worker",
+    }),
+})
+```
+
 ### `TableNode`
 
 ```go
@@ -122,6 +153,22 @@ ucx.Form("createForm").Children(
 
 ucx.Button("refresh", "Refresh", ucx.ColorInfoMain)
 ucx.ButtonEx("delete", "Delete", ucx.ColorErrorMain, ucx.IconHeroTrash, "", "./id")
+```
+
+### `Router`, `Link`
+
+`Router(bindPath)` binds the current UCX-internal path (query parameter `p`) to model state.
+`Link(to)` updates only `p` on the current page and preserves all other query parameters.
+
+Only one active router is used; later router nodes overwrite earlier ones.
+
+```go
+ucx.Router("routePath")
+
+ucx.Toolbar().Children(
+    ucx.H2("Stack overview"),
+    ucx.Link("control").Children(ucx.Text("Open control plane")),
+)
 ```
 
 ## Styling (`Sx`)

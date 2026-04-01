@@ -1659,7 +1659,6 @@ const RunningButtonGroup: React.FunctionComponent<{
         jobId: job.id,
         rank: rank,
     }));
-    debugger;
 
     const backendType = getBackend(job);
     const support = job.status.resolvedSupport ?

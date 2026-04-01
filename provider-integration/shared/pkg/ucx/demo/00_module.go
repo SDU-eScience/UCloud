@@ -2,6 +2,7 @@ package demo
 
 import (
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -16,6 +17,10 @@ import (
 )
 
 func Demo() ucx.Application {
+	if os.Getenv("UCLOUD_JOB_ID") != "" {
+		return StackUi()
+	}
+
 	return &demoApp{
 		Title:      "UCX Create Prototype",
 		JobName:    fmt.Sprintf("K8s-%s", util.RandomTokenNoTs(4)),
@@ -69,15 +74,23 @@ func (app *demoApp) OnInit() {
 	// Nothing to do
 }
 
+const useVms = false
+
 func (app *demoApp) UserInterface() ucx.UiNode {
 	session := app.session
+
+	machineCap := ucx.MachineCapabilityVm
+	if !useVms {
+		machineCap = ucx.MachineCapabilityDocker
+	}
+
 	return ucx.Flex(ucx.FlexProps{
 		Direction: "column",
 		Gap:       8,
 	}).Sx(ucx.SxP(4)).Children(
 		ucx.Flex(ucx.FlexProps{Direction: "row", Gap: 8}).Sx(ucx.SxAlignItemsCenter).Children(
 			ucx.Icon(ucx.IconHeroCake, ucx.ColorPrimaryMain, 20),
-			ucx.H2(app.Title).Sx(ucx.SxColor(ucx.ColorPrimaryMain)),
+			ucx.H2(fmt.Sprintf("%s (%v)", app.Title, os.Getenv("UCLOUD_JOB_ID"))).Sx(ucx.SxColor(ucx.ColorPrimaryMain)),
 		),
 		ucx.Text("UI layout is mounted once and state streams in").Sx(ucx.SxColor(ucx.ColorTextSecondary)),
 
@@ -89,7 +102,7 @@ func (app *demoApp) UserInterface() ucx.UiNode {
 
 		ucx.Checkbox("notify", "Notify me when the job starts", "notify", true),
 
-		ucx.MachineTypeSelector("machine", "Machine type", "machine", ucx.MachineCapabilityVm),
+		ucx.MachineTypeSelector("machine", "Machine type", "machine", machineCap),
 
 		ucx.Flex(
 			ucx.FlexProps{
@@ -198,24 +211,47 @@ func (app *demoApp) UserInterface() ucx.UiNode {
 			}
 
 			ucxsvc.StackWriteFile(stack, "join-token.txt", util.SecureToken())
+			ucxsvc.StackWriteFileEx(stack, "demo-runner.sh", `
+set -euo pipefail
+BIN="/opt/ucloud/ucx-demo"
+PID=""
+LAST_MTIME=""
+stop_bin() {
+  if [ -n "${PID}" ] && kill -0 "${PID}" 2>/dev/null; then
+    kill "${PID}" || true
+    wait "${PID}" || true
+  fi
+  PID=""
+}
+
+start_bin() {
+  echo "Restarting application..."
+  "${BIN}" 43201 &
+  PID="$!"
+}
+
+trap 'stop_bin; exit 0' INT TERM
+
+while true; do
+  MTIME="$(stat -c %Y "${BIN}" 2>/dev/null || echo missing)"
+  if [ "${MTIME}" != "${LAST_MTIME}" ]; then
+    stop_bin
+    start_bin
+    LAST_MTIME="${MTIME}"
+  elif [ -n "${PID}" ] && ! kill -0 "${PID}" 2>/dev/null; then
+    start_bin
+  fi
+  sleep 1
+done
+`, 0755)
 			initLabels := ucxsvc.StackWriteInitScript(stack, `
+            	sudo mkdir -p /var/lib/ucloud || true     
 				cat /etc/ucloud-stack/join-token.txt > /var/lib/ucloud/join-token.txt
+				bash /etc/ucloud-stack/demo-runner.sh &
 			`)
 
-			products, err := ucxapi.JobsRetrieveProducts.Invoke(session, util.Empty{})
-			if err != nil || len(products) == 0 {
-				ucxsvc.UiSendFailure(app, fmt.Sprintf("Could not retrieve products: %s", err))
-				return
-			}
-
-			selectedProduct := util.OptNone[accapi.ProductReference]()
-			for _, supp := range products {
-				if supp.Support.VirtualMachine.Enabled && supp.Product.Cpu == 1 {
-					selectedProduct.Set(supp.Product.ToReference())
-				}
-			}
-
-			if !selectedProduct.Present {
+			selectedProduct := app.Machine
+			if selectedProduct.Id == "" {
 				ucxsvc.UiSendFailure(app, "Could not decide on a product!")
 				return
 			}
@@ -224,6 +260,11 @@ func (app *demoApp) UserInterface() ucx.UiNode {
 			networkAttachment := ucxsvc.PrivateNetworkCreate(stack, stackId)
 
 			for i := 1; i <= 3; i++ {
+				nodeGroup := "worker"
+				if i == 1 {
+					nodeGroup = "control-plane"
+				}
+
 				attachments := []orcapi.AppParameterValue{
 					networkAttachment,
 				}
@@ -232,13 +273,40 @@ func (app *demoApp) UserInterface() ucx.UiNode {
 					attachments = append(attachments, linkAttachment)
 				}
 
-				ucxsvc.VirtualMachineCreate(stack, ucxsvc.VirtualMachineSpec{
-					Labels:      util.MapMerge(initLabels, map[string]string{"ucloud.dk/serviceForwardsTcp": "[8080]"}),
-					Product:     selectedProduct.Value,
-					Image:       ucxsvc.VmImageUbuntu24_04,
-					Hostname:    fmt.Sprintf("controlplane-%v", i),
-					Attachments: attachments,
-				})
+				if useVms {
+					ucxsvc.VirtualMachineCreate(stack, ucxsvc.VirtualMachineSpec{
+						Labels: util.MapMerge(initLabels, map[string]string{
+							"ucloud.dk/serviceForwardsTcp": "[8080]",
+							stackGroupingLabel:             nodeGroup,
+						}),
+						Product:     selectedProduct,
+						Image:       ucxsvc.VmImageUbuntu24_04,
+						Hostname:    fmt.Sprintf("controlplane-%v", i),
+						Attachments: attachments,
+					})
+				} else {
+					attachments = append(attachments, stack.Mount())
+					extraLabels := map[string]string{stackGroupingLabel: nodeGroup}
+					if i == 1 {
+						extraLabels["ucloud.dk/ucxport"] = "43201"
+					}
+
+					ucxsvc.JobCreate(stack, orcapi.JobSpecification{
+						ResourceSpecification: orcapi.ResourceSpecification{
+							Labels:  util.MapMerge(initLabels, extraLabels),
+							Product: selectedProduct,
+						},
+						Application: orcapi.NameAndVersion{
+							Name:    "test-app",
+							Version: "4",
+						},
+						Name:           fmt.Sprintf("controlplane-%v", i),
+						Hostname:       util.OptValue(fmt.Sprintf("controlplane-%v", i)),
+						Replicas:       1,
+						Resources:      attachments,
+						TimeAllocation: util.OptValue(orcapi.SimpleDuration{Hours: 4}),
+					})
+				}
 			}
 
 			ucxsvc.StackConfirmAndOpen(stack)

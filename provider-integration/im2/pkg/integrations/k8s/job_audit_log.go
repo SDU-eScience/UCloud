@@ -240,6 +240,8 @@ func jobAuditCleanup(jobAuditLogFolder string, retentionDays int) {
 	cutoff := time.Now().AddDate(0, 0, -retentionDays)
 	today := time.Now().Format("2006-01-02")
 
+	_ = os.MkdirAll(jobAuditLogFolder, 0700)
+
 	walkErr := filepath.WalkDir(jobAuditLogFolder, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			log.Error("Walk error: %s", err)

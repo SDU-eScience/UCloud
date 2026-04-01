@@ -127,9 +127,10 @@ func ucxOnConnect(conn *ws.Conn) {
 		return ucxapi.Stack{
 			InstanceId: instanceId,
 			Labels: map[string]string{
-				"ucloud.dk/stack":         "true",
-				"ucloud.dk/stackname":     request.StackType,
-				"ucloud.dk/stackinstance": instanceId,
+				"ucloud.dk/stack":              "true",
+				"ucloud.dk/stackname":          request.StackType,
+				"ucloud.dk/stackinstance":      instanceId,
+				"ucloud.dk/stack-state-folder": ucloudPath,
 			},
 			Mount: orcapi.AppParameterValueFileWithMountPath(ucloudPath, false, "/etc/ucloud-stack"),
 		}, nil

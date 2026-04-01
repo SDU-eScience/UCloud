@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"slices"
+	"strings"
 
 	accapi "ucloud.dk/shared/pkg/accounting"
 	fndapi "ucloud.dk/shared/pkg/foundation"
@@ -26,6 +27,11 @@ type Stack struct {
 	Ok         bool
 }
 
+const (
+	stackLabelInstance    = "ucloud.dk/stackinstance"
+	stackLabelStateFolder = "ucloud.dk/stack-state-folder"
+)
+
 func (s *Stack) Labels() map[string]string {
 	if !s.Ok {
 		return map[string]string{}
@@ -42,6 +48,92 @@ func (s *Stack) Mount() orcapi.AppParameterValue {
 	mount := s.baseMount
 	mount.MountPath = s.MountPath
 	return mount
+}
+
+var stackResourceLabelsToKeep = map[string]util.Empty{
+	"ucloud.dk/stack":              {},
+	"ucloud.dk/stackname":          {},
+	"ucloud.dk/stackinstance":      {},
+	"ucloud.dk/stack-state-folder": {},
+}
+
+func StackFromJob(app ucx.Application, job orcapi.Job) (*Stack, bool) {
+	instanceId := strings.TrimSpace(job.Specification.Labels[stackLabelInstance])
+	if instanceId == "" {
+		return &Stack{}, false
+	}
+
+	labels := map[string]string{}
+	for k, v := range job.Specification.Labels {
+		if _, ok := stackResourceLabelsToKeep[k]; ok {
+			labels[k] = v
+		}
+	}
+
+	stateFolder := strings.TrimSpace(job.Specification.Labels[stackLabelStateFolder])
+	mountPath := stackFindMountPath(job)
+
+	mount := orcapi.AppParameterValue{}
+	if stateFolder != "" {
+		mount = orcapi.AppParameterValueFileWithMountPath(stateFolder, false, mountPath)
+	}
+
+	return &Stack{
+		InstanceId: instanceId,
+		MountPath:  mountPath,
+		baseMount:  mount,
+		baseLabels: labels,
+		app:        app,
+		Ok:         true,
+	}, true
+}
+
+func stackFindMountPath(job orcapi.Job) string {
+	const defaultMountPath = "/etc/ucloud-stack"
+
+	stackPath := strings.TrimSpace(job.Specification.Labels[stackLabelStateFolder])
+
+	for _, parameter := range job.Specification.Parameters {
+		if parameter.Type != orcapi.AppParameterValueTypeFile {
+			continue
+		}
+
+		if stackPath != "" && strings.TrimSpace(parameter.Path) == stackPath {
+			if mountPath := strings.TrimSpace(parameter.MountPath); mountPath != "" {
+				return mountPath
+			}
+		}
+	}
+
+	for _, resource := range job.Specification.Resources {
+		if resource.Type != orcapi.AppParameterValueTypeFile {
+			continue
+		}
+
+		if stackPath != "" && strings.TrimSpace(resource.Path) == stackPath {
+			if mountPath := strings.TrimSpace(resource.MountPath); mountPath != "" {
+				return mountPath
+			}
+		}
+	}
+
+	for _, parameter := range job.Specification.Parameters {
+		if parameter.Type == orcapi.AppParameterValueTypeFile {
+			if mountPath := strings.TrimSpace(parameter.MountPath); mountPath != "" {
+				return mountPath
+			}
+		}
+	}
+
+	for _, resource := range job.Specification.Resources {
+		if resource.Type == orcapi.AppParameterValueTypeFile {
+			if mountPath := strings.TrimSpace(resource.MountPath); mountPath != "" {
+				return mountPath
+			}
+		}
+	}
+
+	return defaultMountPath
 }
 
 func StackCreate(app ucx.Application, id string, stackType string) (*Stack, bool) {
@@ -298,4 +390,27 @@ func UiSendFailure(app ucx.Application, message string) {
 func UiSendSuccess(app ucx.Application, message string) {
 	session := *app.Session()
 	_, _ = ucxapi.UiSendMessage.Invoke(session, ucxapi.UiSendMessageRequest{Message: message, Success: true})
+}
+
+func StackCopyFile(stack *Stack, fileName string) {
+	if stack == nil || !stack.Ok {
+		return
+	}
+
+	session := *stack.app.Session()
+	_, _ = ucxapi.StackCopyFile.Invoke(session, ucxapi.StackDownloadFileRequest{FileName: fileName})
+}
+
+func StackDownloadFile(stack *Stack, fileName string) {
+	if stack == nil || !stack.Ok {
+		return
+	}
+
+	session := *stack.app.Session()
+	_, _ = ucxapi.StackDownloadFile.Invoke(session, ucxapi.StackDownloadFileRequest{FileName: fileName})
+}
+
+func RouterPushPage(app ucx.Application, path string) {
+	session := *app.Session()
+	_, _ = ucxapi.RouterPushPage.Invoke(session, ucxapi.RouterPushPageRequest{Path: path})
 }

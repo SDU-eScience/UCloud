@@ -148,7 +148,7 @@ export const SimpleRichSelect: React.FunctionComponent<{
             onSelect={props.onSelect}
             placeholder={props.placeholder}
             dropdownWidth={props.dropdownWidth}
-            elementHeight={25}
+            elementHeight={29}
             selected={props.selected}
             noResultsItem={props.noResultsItem}
             chevronPlacement={{position: "absolute", bottom: "5px", right: "5px"}}

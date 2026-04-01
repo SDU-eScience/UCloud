@@ -67,7 +67,10 @@ func initJobUcx() {
 				state.reqInfo = reqInfo
 			}
 
-			job, err := JobsRetrieve(state.actor, state.reqInfo.JobId, orcapi.JobFlags{IncludeApplication: true})
+			job, err := JobsRetrieve(state.actor, state.reqInfo.JobId, orcapi.JobFlags{
+				IncludeParameters:  true,
+				IncludeApplication: true,
+			})
 			if err != nil {
 				log.Info("UCX job: not allowed to retrieve job %v %#v", state.reqInfo.JobId, state.actor)
 				return ucx.ProxyUpstreamSelection{
@@ -169,5 +172,5 @@ func initJobUcx() {
 }
 
 const (
-	resourceLabelUcxPort = "ucloud.dk/ucxPort"
+	resourceLabelUcxPort = "ucloud.dk/ucxport"
 )

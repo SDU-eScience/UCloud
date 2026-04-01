@@ -329,6 +329,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	multinodeSidecar := &spec.InitContainers[len(spec.InitContainers)-1]
 
 	optUCloudVolumeName := "ucloud-opt"
+
 	spec.Volumes = append(spec.Volumes, core.Volume{
 		Name: optUCloudVolumeName,
 		VolumeSource: core.VolumeSource{
@@ -349,10 +350,19 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		Name:      multiNodeVolume.Name,
 		MountPath: "/etc/ucloud",
 	})
-	userContainer.VolumeMounts = append(userContainer.VolumeMounts, core.VolumeMount{
-		Name:      optUCloudVolumeName,
-		MountPath: "/opt/ucloud",
-	})
+	if util.DevelopmentModeEnabled() {
+		userContainer.VolumeMounts = append(userContainer.VolumeMounts, core.VolumeMount{
+			Name:      "ucloud-filesystem",
+			ReadOnly:  true,
+			MountPath: "/opt/ucloud",
+			SubPath:   shared.ExecutablesDir,
+		})
+	} else {
+		userContainer.VolumeMounts = append(userContainer.VolumeMounts, core.VolumeMount{
+			Name:      optUCloudVolumeName,
+			MountPath: "/opt/ucloud",
+		})
+	}
 
 	multinodeSidecar.VolumeMounts = append(multinodeSidecar.VolumeMounts, core.VolumeMount{
 		Name:      multiNodeVolume.Name,
@@ -398,7 +408,18 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		MountPath: "/opt/ucloud",
 	})
 
-	ucvizContainer.Command = []string{"sh", "-c", "cp /mnt/exe/ucmetrics /opt/ucloud/ucmetrics ; cp /mnt/exe/ucviz /opt/ucloud/ucviz"}
+	exeCopyCommand := &strings.Builder{}
+	{
+		executables := []string{"ucmetrics", "ucviz"}
+		if util.DevelopmentModeEnabled() {
+			executables = append(executables, "ucx-demo")
+		}
+
+		for _, exe := range executables {
+			exeCopyCommand.WriteString(fmt.Sprintf("cp /mnt/exe/%s /opt/ucloud/%s ; ", exe, exe))
+		}
+	}
+	ucvizContainer.Command = []string{"sh", "-c", exeCopyCommand.String()}
 
 	ucvizContainer.VolumeMounts = append(ucvizContainer.VolumeMounts, core.VolumeMount{
 		Name:      "ucloud-filesystem",

@@ -1,6 +1,6 @@
 import * as React from "react";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
-import {Accordion, Button, Checkbox, Divider, Flex, Icon, Input, Radio, Text, TextArea} from "@/ui-components";
+import {Accordion, Button, Card, Checkbox, Divider, Flex, Icon, Input, Radio, Text, TextArea} from "@/ui-components";
 import {SimpleRichSelect} from "@/ui-components/RichSelect";
 import {Table, TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
@@ -28,6 +28,8 @@ import {useCloudAPI} from "@/Authentication/DataHook";
 import {emptyPageV2} from "@/Utilities/PageUtilities";
 import {ResolvedSupport} from "@/UCloud/ResourceApi";
 import {ProductSelector} from "@/Products/Selector";
+import BaseLink from "@/ui-components/BaseLink";
+import {useLocation, useNavigate} from "react-router-dom";
 
 type ValueProvider = string | (() => string | Promise<string>);
 export type UcxRpcPayload = PlainValue;
@@ -36,6 +38,10 @@ export type UcxRpcHandler = (payload: UcxRpcPayload) => Promise<UcxRpcPayload | 
 export interface UcxFunctionRegistry {
     sendBoundInput: (node: UiNode, value: Value, model: Record<string, Value>, scope?: Record<string, Value>) => void;
     sendUiEvent: (nodeId: string, event?: string, value?: Value) => void;
+    sendModelInput: (bindPath: string, value: Value, nodeId?: string) => void;
+    registerRouter: (bindPath: string, nodeId: string, model: Record<string, Value>, scope?: Record<string, Value>) => void;
+    navigateSpa: (to: string, nodeId: string) => void;
+    buildSpaHref: (to: string) => string;
     invokeRpc: (name: string, payload?: UcxRpcPayload, timeoutMs?: number) => Promise<UcxRpcPayload>;
     modelValue: (model: Record<string, Value>, path: string, scope?: Record<string, Value>) => Value | undefined;
     sxStyle: (node: UiNode) => React.CSSProperties;
@@ -85,6 +91,8 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
     onDisconnected,
     onTransportError,
 }) => {
+    const location = useLocation();
+    const navigate = useNavigate();
     const [connected, setConnected] = useState(false);
     const [root, setRoot] = useState<UiNode | null>(null);
     const [model, setModel] = useState<Record<string, Value>>({});
@@ -100,9 +108,12 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
     const pendingRehydrateModelRef = useRef<Record<string, Value> | null>(null);
     const authCompleteRef = useRef(false);
     const modelRef = useRef<Record<string, Value>>({});
+    const activeRouterBindPathRef = useRef<string | undefined>(undefined);
+    const currentRoutePath = useMemo(() => routePathFromSearch(location.search), [location.search]);
     const authTokenRef = useRef<ValueProvider>(authToken);
     const sysHelloRef = useRef<ValueProvider>(sysHello);
     const rpcHandlersRef = useRef<Record<string, UcxRpcHandler> | undefined>(rpcHandlers);
+    const navigateSpaRef = useRef<(to: string, nodeId: string) => void>(() => undefined);
     const onConnectedRef = useRef<typeof onConnected>(onConnected);
     const onDisconnectedRef = useRef<typeof onDisconnected>(onDisconnected);
     const onTransportErrorRef = useRef<typeof onTransportError>(onTransportError);
@@ -171,6 +182,63 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
         });
     }, [sendFrame]);
 
+    const sendModelInput = useCallback((bindPath: string, value: Value, nodeId = "ucx:router") => {
+        if (!bindPath) return;
+
+        const eventId = eventIdRef.current++;
+        sendFrame({
+            replyToSeq: 0,
+            opcode: Opcode.ModelInput,
+            modelInput: {
+                eventId,
+                nodeId,
+                path: bindPath,
+                value,
+            },
+        });
+    }, [sendFrame]);
+
+    const registerRouter = useCallback((bindPath: string, nodeId: string, model: Record<string, Value>, scope?: Record<string, Value>) => {
+        if (!bindPath) return;
+        activeRouterBindPathRef.current = bindPath;
+
+        const bound = modelString(model, bindPath, scope);
+        if (bound !== currentRoutePath) {
+            sendModelInput(bindPath, {kind: ValueKind.String, string: currentRoutePath}, `router:${nodeId}`);
+        }
+    }, [currentRoutePath, sendModelInput]);
+
+    const buildSpaHref = useCallback((to: string) => {
+        const params = new URLSearchParams(location.search);
+        params.set("p", to ?? "");
+        const search = params.toString();
+        return `${location.pathname}${search ? `?${search}` : ""}${location.hash}`;
+    }, [location.hash, location.pathname, location.search]);
+
+    const navigateSpa = useCallback((to: string, nodeId: string) => {
+        const bindPath = activeRouterBindPathRef.current;
+        if (!bindPath) {
+            return;
+        }
+
+        const nextTo = to ?? "";
+        const params = new URLSearchParams(location.search);
+        params.set("p", nextTo);
+        const search = params.toString();
+
+        navigate({
+            pathname: location.pathname,
+            search: search ? `?${search}` : "",
+            hash: location.hash,
+        });
+
+        sendModelInput(bindPath, {kind: ValueKind.String, string: nextTo}, `link:${nodeId}`);
+    }, [location.hash, location.pathname, location.search, navigate, sendModelInput]);
+
+    useEffect(() => {
+        navigateSpaRef.current = navigateSpa;
+    }, [navigateSpa]);
+
     const invokeRpc = useCallback((name: string, payload: UcxRpcPayload = {}, timeoutMs = 30000) => {
         if (!sessionRef.current) {
             return Promise.reject(new Error("UCX session is not connected"));
@@ -181,10 +249,20 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
     const baseFunctions = useMemo<UcxFunctionRegistry>(() => ({
         sendBoundInput: (node, value) => sendBoundInput(node, value),
         sendUiEvent,
+        sendModelInput,
+        registerRouter,
+        navigateSpa,
+        buildSpaHref,
         invokeRpc,
         modelValue,
         sxStyle,
-    }), [invokeRpc, sendBoundInput, sendUiEvent]);
+    }), [buildSpaHref, invokeRpc, navigateSpa, registerRouter, sendBoundInput, sendModelInput, sendUiEvent]);
+
+    useEffect(() => {
+        const bindPath = activeRouterBindPathRef.current;
+        if (!bindPath) return;
+        sendModelInput(bindPath, {kind: ValueKind.String, string: currentRoutePath}, "router:location");
+    }, [currentRoutePath, sendModelInput]);
 
     const mergedFunctions = useMemo<UcxFunctionRegistry>(() => ({
         ...baseFunctions,
@@ -279,6 +357,13 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
                 reconnectAttemptRef.current = 0;
                 clearReconnectTimer();
                 authCompleteRef.current = false;
+
+                sessionRef.current?.registerRpcHandler("routerPushPage", payload => {
+                    const plainPayload = valueMapToPlainPayload(payload) as {path?: unknown};
+                    const path = typeof plainPayload.path === "string" ? plainPayload.path : "";
+                    navigateSpaRef.current(path, "rpc:routerPushPage");
+                    return {};
+                });
 
                 const handlers = rpcHandlersRef.current;
                 if (handlers) {
@@ -471,6 +556,20 @@ const NodeRenderer: React.FunctionComponent<{
     })}</>;
 };
 
+const RouterNode: React.FunctionComponent<{
+    node: UiNode;
+    model: Record<string, Value>;
+    scope?: Record<string, Value>;
+    fn: UcxFunctionRegistry;
+}> = ({node, model, scope, fn}) => {
+    useEffect(() => {
+        if (!node.bindPath) return;
+        fn.registerRouter(node.bindPath, node.id, model, scope);
+    }, [fn, model, node.bindPath, node.id, scope]);
+
+    return null;
+};
+
 const baseComponents: UcxComponentRegistry = {
     flex: ({node, fn, renderChildren}) => {
         const direction = stringProp(node, "direction", "column");
@@ -485,6 +584,52 @@ const baseComponents: UcxComponentRegistry = {
         return <div style={stackStyle}>{renderChildren()}</div>;
     },
     box: ({node, fn, renderChildren}) => <div style={fn.sxStyle(node)}>{renderChildren()}</div>,
+    surface: ({node, fn, renderChildren}) => {
+        return <Card p="16px" style={fn.sxStyle(node)}>{renderChildren()}</Card>;
+    },
+    toolbar: ({node, fn, renderChildren}) => {
+        const children = React.Children.toArray(renderChildren());
+        if (children.length === 0) return null;
+
+        const style: React.CSSProperties = {
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 8,
+            width: "100%",
+            ...fn.sxStyle(node),
+        };
+
+        if (children.length === 1) {
+            return <div style={style}>{children[0]}</div>;
+        }
+
+        return <div style={style}>
+            <div style={{minWidth: 0, flex: 1}}>{children[0]}</div>
+            <div style={{display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap"}}>{children.slice(1)}</div>
+        </div>;
+    },
+    router: ({node, model, scope, fn}) => <RouterNode node={node} model={model} scope={scope} fn={fn} />,
+    link: ({node, fn, renderChildren}) => {
+        const to = optionalStringProp(node, "to");
+        if (to == null) return null;
+
+        const label = stringProp(node, "label", to);
+        const children = React.Children.toArray(renderChildren());
+        const href = fn.buildSpaHref(to);
+
+        return <BaseLink
+            href={href}
+            onClick={ev => {
+                ev.preventDefault();
+                fn.navigateSpa(to, node.id);
+            }}
+        >
+            <span style={fn.sxStyle(node)}>
+                {children.length === 0 ? label : children}
+            </span>
+        </BaseLink>;
+    },
     heading: ({node, model, scope, fn}) => {
         const text = boundOrStaticText(node, model, scope);
         if (!text) return null;
@@ -1131,6 +1276,11 @@ function modelList(model: Record<string, Value>, path: string, scope?: Record<st
 function boundOrStaticText(node: UiNode, model: Record<string, Value>, scope?: Record<string, Value>): string {
     if (node.bindPath) return modelString(model, node.bindPath, scope);
     return stringProp(node, "text", "");
+}
+
+function routePathFromSearch(search: string): string {
+    const params = new URLSearchParams(search);
+    return params.get("p") ?? "";
 }
 
 function prop(node: UiNode, key: string): Value | undefined {

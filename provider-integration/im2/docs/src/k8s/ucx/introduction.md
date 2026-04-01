@@ -25,6 +25,8 @@ A UCX application is a Go type implementing `ucx.Application`:
 - exported struct fields are the model state sent to the frontend.
 - `OnMessage(...)` handles incoming model input and unhandled UI events.
 - `Session()` gives access to RPC calls (`ucxapi`) and helper services (`ucxsvc`).
+- `OnSysHello(payload string)` (optional)
+  this is useful in job-connected UCX flows where SysHello contains job context and labels.
 
 At runtime:
 
@@ -33,6 +35,9 @@ At runtime:
 3. backend sends UI mount + current model.
 4. user interaction generates model input or UI events.
 5. backend updates state and streams model patches.
+
+For job-connected sessions, SysHello is also where you can reconstruct stack context from job labels/attachments,
+for example with `ucxsvc.StackFromJob(app, request.Job)`.
 
 ## Recommended structure
 

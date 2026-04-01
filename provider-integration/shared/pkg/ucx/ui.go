@@ -176,6 +176,54 @@ func BoxEx(id string) UiNode {
 	}
 }
 
+func Surface() UiNode {
+	return SurfaceEx("")
+}
+
+func SurfaceEx(id string) UiNode {
+	return UiNode{
+		Id:        id,
+		Component: "surface",
+	}
+}
+
+func Toolbar() UiNode {
+	return ToolbarEx("")
+}
+
+func ToolbarEx(id string) UiNode {
+	return UiNode{
+		Id:        id,
+		Component: "toolbar",
+	}
+}
+
+func Router(bindPath string) UiNode {
+	return RouterEx("", bindPath)
+}
+
+func RouterEx(id string, bindPath string) UiNode {
+	return UiNode{
+		Id:        id,
+		Component: "router",
+		BindPath:  bindPath,
+	}
+}
+
+func Link(to string) UiNode {
+	return LinkEx("", to)
+}
+
+func LinkEx(id string, to string) UiNode {
+	return UiNode{
+		Id:        id,
+		Component: "link",
+		Props: map[string]Value{
+			"to": VString(to),
+		},
+	}
+}
+
 func Text(text string) UiNode {
 	return TextEx("", text)
 }
@@ -601,4 +649,33 @@ func optionsToValue(options []Option) Value {
 		}))
 	}
 	return VList(list)
+}
+
+func StackResources() UiNode {
+	return UiNode{Component: "stack_resources"}
+}
+
+type StackMachinesProps struct {
+	Plain       bool
+	LabelFilter util.Option[StackMachinesLabelFilter]
+}
+
+type StackMachinesLabelFilter struct {
+	Label string
+	Value string
+}
+
+func StackMachines(props StackMachinesProps) UiNode {
+	nodeProps := map[string]Value{
+		"isPlain": VBool(props.Plain),
+	}
+
+	if props.LabelFilter.Present {
+		nodeProps["labelFilter"] = VObject(map[string]Value{
+			"label": VString(props.LabelFilter.Value.Label),
+			"value": VString(props.LabelFilter.Value.Value),
+		})
+	}
+
+	return UiNode{Component: "stack_machines", Props: nodeProps}
 }
