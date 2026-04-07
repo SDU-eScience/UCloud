@@ -1,12 +1,10 @@
 package k8s
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
-	"math"
 	"net/http"
 	"runtime"
 	"strings"
@@ -41,24 +39,7 @@ const (
 	inferenceImageGenerationTokensPerMegaPixel = 1000.0
 )
 
-type inferenceCompletion struct {
-	Id      string                      `json:"id"`
-	Object  string                      `json:"object"`
-	Created int64                       `json:"created"`
-	Choices []inferenceChoice           `json:"choices"`
-	Usage   util.Option[inferenceUsage] `json:"usage"`
-}
-
-type inferenceChoice struct {
-	Index   int `json:"index"`
-	Message struct {
-		Role    string `json:"role"`
-		Content string `json:"content"`
-	} `json:"message"`
-	FinishReason string `json:"finish_reason"`
-}
-
-type inferenceUsage struct {
+type InferenceUsage struct {
 	PromptTokens     int `json:"prompt_tokens"`
 	CompletionTokens int `json:"completion_tokens"`
 }
@@ -153,115 +134,50 @@ func initInference() {
 			return
 		}
 
-		var parsedRequest map[string]json.RawMessage
-		err = json.Unmarshal(body, &parsedRequest)
-		if err != nil {
+		var request InferenceChatRequest
+		if err := json.Unmarshal(body, &request); err != nil {
 			http.Error(w, "invalid request", http.StatusBadRequest)
 			return
 		}
 
-		stream := false
-		streamOpt, ok := parsedRequest["stream"]
-		if ok {
-			_ = json.Unmarshal(streamOpt, &stream)
-
-			if stream {
-				fixedOpts, _ := json.Marshal(map[string]any{
-					"include_usage": true,
-				})
-				parsedRequest["stream_options"] = fixedOpts
-			}
-		}
-
-		fixedRequest, _ := json.Marshal(parsedRequest)
-		proxyReq, err := http.NewRequest(
-			http.MethodPost,
-			fmt.Sprintf("%s/chat/completions", inferenceGlobals.BackendServer),
-			bytes.NewBuffer(fixedRequest),
-		)
-		if err != nil {
-			http.Error(w, "invalid request", http.StatusBadRequest)
-			return
-		}
-
-		proxyReq.Header.Add("Authorization", "Bearer notused")
-		proxyReq.Header.Add("Content-Type", "application/json")
-
-		resp, err := http.DefaultClient.Do(proxyReq)
-		if err != nil {
-			// TODO
-			http.Error(w, "invalid request", http.StatusBadRequest)
-			return
-		}
-		defer util.SilentClose(resp.Body)
-
-		for k, values := range resp.Header {
-			for _, v := range values {
-				w.Header().Add(k, v)
-			}
-		}
-		w.WriteHeader(resp.StatusCode)
-
-		if stream {
+		if request.Stream {
 			flusher, ok := w.(http.Flusher)
 			if !ok {
 				http.Error(w, "streaming unsupported", http.StatusInternalServerError)
 				return
 			}
 
-			reader := bufio.NewReader(resp.Body)
-			var buf bytes.Buffer
+			w.Header().Set("Content-Type", "text/event-stream")
+			w.Header().Set("Cache-Control", "no-cache")
+			w.Header().Set("Connection", "keep-alive")
 
-			flushBuffer := func() {
-				if buf.Len() > 0 {
-					respData := buf.Bytes()
-					_, writeErr := w.Write(respData)
-					if writeErr == nil {
-						// Client is likely dead, but keep going to get usage numbers
-						flusher.Flush()
-					}
-
-					respString, _ := strings.CutPrefix(string(respData), "data: ")
-					var completion inferenceCompletion
-					_ = json.Unmarshal([]byte(respString), &completion)
-					if usage := completion.Usage; usage.Present && len(completion.Choices) == 0 {
-						inferenceReportUsage(apiKeyOwner, usage.Value.PromptTokens, usage.Value.CompletionTokens)
-					}
-
-					buf.Reset()
+			for chunk := range InferenceChatStreaming(apiKeyOwner, request) {
+				chunkData, err := json.Marshal(chunk)
+				if err != nil {
+					continue
 				}
+
+				_, _ = w.Write([]byte("data: "))
+				_, _ = w.Write(chunkData)
+				_, _ = w.Write([]byte("\n\n"))
+				flusher.Flush()
 			}
 
-			for {
-				line, readErr := reader.ReadBytes('\n')
-				if len(line) > 0 {
-					buf.Write(line)
-
-					// SSE events are separated by a blank line: "\n\n".
-					if bytes.HasSuffix(buf.Bytes(), []byte("\n\n")) {
-						flushBuffer()
-					}
-				}
-
-				if readErr != nil {
-					if readErr == io.EOF {
-						flushBuffer()
-					}
-					break
-				}
-			}
-		} else {
-			respData, err := io.ReadAll(resp.Body)
-			if err == nil {
-				_, _ = w.Write(respData)
-
-				var completion inferenceCompletion
-				_ = json.Unmarshal(respData, &completion)
-				if usage := completion.Usage; usage.Present {
-					inferenceReportUsage(apiKeyOwner, usage.Value.PromptTokens, usage.Value.CompletionTokens)
-				}
-			}
+			_, _ = w.Write([]byte("data: [DONE]\n\n"))
+			flusher.Flush()
+			return
 		}
+
+		resp := InferenceChat(apiKeyOwner, request)
+		respData, err := json.Marshal(resp)
+		if err != nil {
+			http.Error(w, "invalid request", http.StatusBadRequest)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(respData)
 	})
 
 	controller.Mux.HandleFunc(authority+"/v1/audio/transcriptions", func(w http.ResponseWriter, r *http.Request) {
@@ -271,24 +187,58 @@ func initInference() {
 			return
 		}
 
-		requestBody, err := io.ReadAll(r.Body)
-		if err != nil {
-			http.Error(w, "invalid request", http.StatusBadRequest)
-			return
-		}
-
-		respData, httpErr := inferenceTranscriptionResponse(requestBody, r.Header.Get("Content-Type"))
+		request, httpErr := InferenceTranscriptionParseRequest(r)
 		if httpErr != nil {
 			http.Error(w, httpErr.Why, httpErr.StatusCode)
 			return
 		}
 
+		if request.Stream {
+			flusher, ok := w.(http.Flusher)
+			if !ok {
+				http.Error(w, "streaming unsupported", http.StatusInternalServerError)
+				return
+			}
+
+			w.Header().Set("Content-Type", "text/event-stream")
+			w.Header().Set("Cache-Control", "no-cache")
+			w.Header().Set("Connection", "keep-alive")
+
+			for event := range InferenceTranscribeStreaming(apiKeyOwner, request) {
+				data, err := json.Marshal(event)
+				if err != nil {
+					continue
+				}
+
+				_, _ = w.Write([]byte("data: "))
+				_, _ = w.Write(data)
+				_, _ = w.Write([]byte("\n\n"))
+				flusher.Flush()
+			}
+
+			_, _ = w.Write([]byte("data: [DONE]\n\n"))
+			flusher.Flush()
+			return
+		}
+
+		resp, httpErr := InferenceTranscribe(apiKeyOwner, request)
+		if httpErr != nil {
+			http.Error(w, httpErr.Why, httpErr.StatusCode)
+			return
+		}
+
+		var respData []byte
+		if resp.VerboseJson != nil {
+			respData, _ = json.Marshal(resp.VerboseJson)
+		} else if resp.DiarizedJson != nil {
+			respData, _ = json.Marshal(resp.DiarizedJson)
+		} else if resp.Json != nil {
+			respData, _ = json.Marshal(resp.Json)
+		}
+
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write(respData)
-
-		promptTokens, completionTokens := inferenceUsageFromTranscriptionResponse(respData)
-		inferenceReportUsage(apiKeyOwner, promptTokens, completionTokens)
 	})
 
 	controller.Mux.HandleFunc(authority+"/v1/images/generations", func(w http.ResponseWriter, r *http.Request) {
@@ -304,58 +254,49 @@ func initInference() {
 			return
 		}
 
-		if inferenceGlobals.MockImageGeneration {
-			respData, httpErr := inferenceGenerateMockImageResponse(requestBody)
-			if httpErr != nil {
-				http.Error(w, httpErr.Why, httpErr.StatusCode)
+		var request InferenceImageGenerationRequest
+		if err := json.Unmarshal(requestBody, &request); err != nil {
+			http.Error(w, "invalid request", http.StatusBadRequest)
+			return
+		}
+
+		if request.Stream.GetOrDefault(false) {
+			flusher, ok := w.(http.Flusher)
+			if !ok {
+				http.Error(w, "streaming unsupported", http.StatusInternalServerError)
 				return
 			}
 
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write(respData)
+			w.Header().Set("Content-Type", "text/event-stream")
+			w.Header().Set("Cache-Control", "no-cache")
+			w.Header().Set("Connection", "keep-alive")
 
-			promptTokens, completionTokens := inferenceUsageFromImageGenerationResponse(requestBody, respData)
-			inferenceReportUsage(apiKeyOwner, promptTokens, completionTokens)
-			return
-		}
+			for event := range InferenceGenerateImageStreaming(apiKeyOwner, request) {
+				data, err := json.Marshal(event)
+				if err != nil {
+					continue
+				}
 
-		proxyReq, err := http.NewRequest(
-			http.MethodPost,
-			fmt.Sprintf("%s/images/generations", inferenceGlobals.BackendServer),
-			bytes.NewBuffer(requestBody),
-		)
-		if err != nil {
-			http.Error(w, "invalid request", http.StatusBadRequest)
-			return
-		}
-
-		proxyReq.Header.Add("Authorization", "Bearer notused")
-		proxyReq.Header.Add("Content-Type", "application/json")
-
-		resp, err := http.DefaultClient.Do(proxyReq)
-		if err != nil {
-			http.Error(w, "invalid request", http.StatusBadRequest)
-			return
-		}
-		defer util.SilentClose(resp.Body)
-
-		for k, values := range resp.Header {
-			for _, v := range values {
-				w.Header().Add(k, v)
+				_, _ = w.Write([]byte("data: "))
+				_, _ = w.Write(data)
+				_, _ = w.Write([]byte("\n\n"))
+				flusher.Flush()
 			}
-		}
-		w.WriteHeader(resp.StatusCode)
 
-		respData, err := io.ReadAll(resp.Body)
-		if err == nil {
-			_, _ = w.Write(respData)
-
-			if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-				promptTokens, completionTokens := inferenceUsageFromImageGenerationResponse(requestBody, respData)
-				inferenceReportUsage(apiKeyOwner, promptTokens, completionTokens)
-			}
+			_, _ = w.Write([]byte("data: [DONE]\n\n"))
+			flusher.Flush()
+			return
 		}
+
+		respData, httpErr := inferenceGenerateImageResponse(apiKeyOwner, request)
+		if httpErr != nil {
+			http.Error(w, httpErr.Why, httpErr.StatusCode)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(respData)
 	})
 }
 
@@ -501,7 +442,7 @@ func inferenceLocalAIApplyModel(base string, modelId string) error {
 func inferenceUsageFromTranscriptionResponse(responseBody []byte) (promptTokens int, completionTokens int) {
 	var payload struct {
 		Text  string                      `json:"text"`
-		Usage util.Option[inferenceUsage] `json:"usage"`
+		Usage util.Option[InferenceUsage] `json:"usage"`
 	}
 
 	_ = json.Unmarshal(responseBody, &payload)
@@ -512,78 +453,12 @@ func inferenceUsageFromTranscriptionResponse(responseBody []byte) (promptTokens 
 	return 0, inferenceEstimateTokensFromText(payload.Text)
 }
 
-func inferenceUsageFromImageGenerationResponse(requestBody []byte, responseBody []byte) (promptTokens int, completionTokens int) {
-	var payload struct {
-		Data  []json.RawMessage           `json:"data"`
-		Usage util.Option[inferenceUsage] `json:"usage"`
-	}
-
-	_ = json.Unmarshal(responseBody, &payload)
-	if payload.Usage.Present {
-		return payload.Usage.Value.PromptTokens, payload.Usage.Value.CompletionTokens
-	}
-
-	imageCount := len(payload.Data)
-	if imageCount == 0 {
-		imageCount = inferenceImageRequestCount(requestBody)
-	}
-	width, height := inferenceImageRequestSize(requestBody)
-
-	megaPixels := float64(width*height) / 1_000_000.0
-	completionTokens = int(math.Round(float64(imageCount) * megaPixels * inferenceImageGenerationTokensPerMegaPixel))
-	if completionTokens < 1 && imageCount > 0 {
-		completionTokens = 1
-	}
-
-	return 0, completionTokens
-}
-
-func inferenceImageRequestCount(requestBody []byte) int {
-	var payload struct {
-		N int `json:"n"`
-	}
-
-	_ = json.Unmarshal(requestBody, &payload)
-	if payload.N <= 0 {
-		return 1
-	}
-
-	return payload.N
-}
-
-func inferenceImageRequestSize(requestBody []byte) (int, int) {
-	var payload struct {
-		Size string `json:"size"`
-	}
-
-	_ = json.Unmarshal(requestBody, &payload)
-	return inferenceParseImageSize(payload.Size)
-}
-
 func inferenceEstimateTokensFromText(text string) int {
 	if text == "" {
 		return 0
 	}
 
 	return (len([]rune(text)) + 3) / 4
-}
-
-type inferenceImageGenerationRequest struct {
-	Model          string `json:"model"`
-	Prompt         string `json:"prompt"`
-	N              int    `json:"n"`
-	Size           string `json:"size"`
-	ResponseFormat string `json:"response_format"`
-}
-
-type inferenceImageGenerationResponse struct {
-	Created int64                                `json:"created"`
-	Data    []inferenceImageGenerationResponseEl `json:"data"`
-}
-
-type inferenceImageGenerationResponseEl struct {
-	URL     string `json:"url,omitempty"`
-	B64JSON string `json:"b64_json,omitempty"`
 }
 
 func inferenceParseImageSize(raw string) (int, int) {

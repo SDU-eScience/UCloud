@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"image"
 	"image/color"
@@ -16,50 +15,66 @@ import (
 	"ucloud.dk/shared/pkg/util"
 )
 
-func inferenceGenerateMockImageResponse(body []byte) ([]byte, *util.HttpError) {
-	var request inferenceImageGenerationRequest
-	if err := json.Unmarshal(body, &request); err != nil {
-		return nil, util.HttpErr(http.StatusBadRequest, "invalid request")
-	}
-
+func inferenceGenerateMockImageResponse(request InferenceImageGenerationRequest) (InferenceImageGenerationResponse, *util.HttpError) {
 	if request.Prompt == "" {
 		request.Prompt = "(empty prompt)"
 	}
 
-	if request.N <= 0 {
-		request.N = 1
+	count := request.N.GetOrDefault(0)
+	if count <= 0 {
+		count = 1
 	}
-	if request.N > 8 {
-		request.N = 8
+	if count > 8 {
+		count = 8
 	}
 
-	w, h := inferenceParseImageSize(request.Size)
-	response := inferenceImageGenerationResponse{
+	w, h := inferenceParseImageSize(request.Size.GetOrDefault(""))
+	response := InferenceImageGenerationResponse{
 		Created: time.Now().Unix(),
-		Data:    make([]inferenceImageGenerationResponseEl, 0, request.N),
+		Data:    make([]InferenceImageGenerationResponseEl, 0, count),
 	}
 
-	for i := 0; i < request.N; i++ {
+	for i := 0; i < count; i++ {
 		seed := fmt.Sprintf("%s#%d", request.Prompt, i)
 		imageData, err := inferenceRenderMockImage(seed, request.Prompt, w, h)
 		if err != nil {
-			return nil, util.HttpErr(http.StatusInternalServerError, "failed to render mock image")
+			return InferenceImageGenerationResponse{}, util.HttpErr(http.StatusInternalServerError, "failed to render mock image")
 		}
 
 		encoded := base64.StdEncoding.EncodeToString(imageData)
-		if request.ResponseFormat == "url" {
-			response.Data = append(response.Data, inferenceImageGenerationResponseEl{
-				URL: "data:image/png;base64," + encoded,
+		if request.ResponseFormat.GetOrDefault("") == "url" {
+			response.Data = append(response.Data, InferenceImageGenerationResponseEl{
+				URL: util.OptValue("data:image/png;base64," + encoded),
 			})
 		} else {
-			response.Data = append(response.Data, inferenceImageGenerationResponseEl{
-				B64JSON: encoded,
+			response.Data = append(response.Data, InferenceImageGenerationResponseEl{
+				B64JSON: util.OptValue(encoded),
 			})
 		}
 	}
 
-	result, _ := json.Marshal(response)
-	return result, nil
+	if request.Quality.Present {
+		response.Quality = request.Quality
+	}
+	if request.Size.Present {
+		response.Size = request.Size
+	}
+	if request.OutputFormat.Present {
+		response.OutputFormat = request.OutputFormat
+	}
+	if request.Background.Present {
+		response.Background = request.Background
+	}
+
+	if request.Model.GetOrDefault("") == "gpt-image-1" || request.Model.GetOrDefault("") == "gpt-image-1-mini" || request.Model.GetOrDefault("") == "gpt-image-1.5" {
+		response.Usage = util.OptValue(InferenceImageGenerationUsage{
+			InputTokens:  util.OptValue(0),
+			OutputTokens: util.OptValue(0),
+			TotalTokens:  util.OptValue(0),
+		})
+	}
+
+	return response, nil
 }
 
 func inferenceRenderMockImage(seed string, prompt string, width int, height int) ([]byte, error) {
