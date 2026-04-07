@@ -119,6 +119,11 @@ export interface ResourceBrowserOpts<T> {
     selection?: Selection<T>;
 }
 
+export interface ResourceBrowseHeaderControls {
+    setRefresh?: (refresh: (() => void) | undefined) => void;
+    projectSwitcherTarget?: Element | null;
+}
+
 export type OperationOrGroup<T, R> = Operation<T, R> | OperationGroup<T, R>;
 
 export function isOperation<T, R>(op: OperationOrGroup<unknown, unknown>): op is Operation<T, R> {
@@ -3539,6 +3544,16 @@ export function addProjectSwitcherInPortal<T>(
             setPortal(createPortal(<ProjectSwitcher managed={managed} />, projectSwitcher));
         }
     }
+}
+
+export function createProjectSwitcherPortal(
+    container: Element,
+    managed?: {
+        setLocalProject: (project: string | undefined) => void;
+        initialProject?: string;
+    }
+) {
+    return createPortal(<ProjectSwitcher managed={managed} />, container);
 }
 
 export function resourceCreationWithProductSelector<T>(

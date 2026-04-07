@@ -34,7 +34,7 @@ var syncthingConfig cfg.KubernetesSyncthingConfiguration
 var syncthingDimensions = shared.SchedulerDimensions{
 	CpuMillis:     400,
 	MemoryInBytes: 1000 * 1000 * 1000 * 2,
-	Gpu:           0,
+	Resources:     map[string]int{},
 }
 
 const syncthingAppName = "syncthing"
@@ -422,7 +422,7 @@ func syncthingMutateFirewall(job *orc.Job, configuration json.RawMessage, firewa
 		return util.ServerHttpError("no syncthing port")
 	}
 
-	allowNetworkFromWorld(firewall, []orc.PortRangeAndProto{
+	shared.AllowNetworkFromWorld(firewall, []orc.PortRangeAndProto{
 		{
 			Protocol: orc.IpProtocolTcp,
 			Start:    port.Value,

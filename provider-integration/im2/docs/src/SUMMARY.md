@@ -41,11 +41,19 @@
   - [Public IPs](./k8s/public-ips.md)
   - [License Servers](./k8s/licenses.md)
   - [SSH Servers](./k8s/ssh-servers.md)
+  - [Job Audit Log](./k8s/job-audit-log.md)
 - [Integrated applications](./k8s/integrated-applications.md)
   - [Syncthing](./k8s/syncthing.md)
   - [Integrated terminal](./k8s/integrated-terminal.md)
+- [UCX applications](./k8s/ucx/introduction.md)
+  - [Hello world](./k8s/ucx/hello-world.md)
+  - [Data binding](./k8s/ucx/data-binding.md)
+  - [UI events](./k8s/ucx/ui-events.md)
+  - [Component reference](./k8s/ucx/component-reference.md)
+  - [API reference](./k8s/ucx/api-reference.md)
 - [Reference](./k8s/reference.md)
     - [Configuration](./k8s/config-reference.md)
+    - [CLI](./k8s/cli-reference.md)
 
 # H: Procedures
 

@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"math"
 	"net"
+	"strings"
 
 	"gopkg.in/yaml.v3"
+	apm "ucloud.dk/shared/pkg/accounting"
 	"ucloud.dk/shared/pkg/cfgutil"
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/util"
@@ -65,20 +67,37 @@ type KubernetesPublicLinkConfiguration struct {
 type KubernetesVirtualMachines struct {
 	Enabled bool
 	Storage struct {
-		Type         KubernetesVmVolMode
-		HostPath     string
-		StorageClass util.Option[string]
+		Type     KubernetesVmVolMode
+		HostPath string
+		Csi      KubernetesVmVolCsiConfig
 	}
+}
+
+type KubernetesVmVolCsiConfig struct {
+	StorageClassName string
+	Driver           string
+	NodeStageSecret  util.Option[KubernetesVmVolCsiSecretRef]
+	VolumeAttributes map[string]string
+	SubpathField     string
+}
+
+type KubernetesVmVolCsiSecretRef struct {
+	Name      string
+	Namespace string
 }
 
 type KubernetesVmVolMode string
 
 const (
 	KubernetesVmVolHostPath KubernetesVmVolMode = "HostPath"
+	KubernetesVmVolCsi      KubernetesVmVolMode = "CsiStaticPv"
 	KubernetesVmVolCdi      KubernetesVmVolMode = "ContainerImporter"
 )
 
-var KubernetesVmVolHostModeOptions = []KubernetesVmVolMode{KubernetesVmVolHostPath}
+var KubernetesVmVolModeOptions = []KubernetesVmVolMode{
+	KubernetesVmVolHostPath,
+	KubernetesVmVolCsi,
+}
 
 type KubernetesIntegratedTerminal struct {
 	Enabled bool
@@ -106,6 +125,16 @@ type KubernetesInferenceConfiguration struct {
 	OllamaDevMode bool
 }
 
+type KubernetesUcxDevelopmentApp struct {
+	Name    string              `json:"name" yaml:"name"`
+	Version string              `json:"version" yaml:"version"`
+	SubPath util.Option[string] `json:"subPath" yaml:"subPath"`
+}
+
+type KubernetesUcxConfiguration struct {
+	Development []KubernetesUcxDevelopmentApp `json:"development" yaml:"development"`
+}
+
 type KubernetesCompute struct {
 	Machines                        map[string]K8sMachineCategory
 	MachineImpersonation            map[string]string
@@ -122,6 +151,7 @@ type KubernetesCompute struct {
 	VirtualMachines                 KubernetesVirtualMachines
 	Modules                         map[string]KubernetesModuleEntry
 	Inference                       KubernetesInferenceConfiguration
+	Ucx                             KubernetesUcxConfiguration
 }
 
 func (c *KubernetesCompute) ResolveMachine(name, category string) (K8sMachineCategory, K8sMachineCategoryGroup, K8sMachineConfiguration, bool) {
@@ -132,7 +162,7 @@ func (c *KubernetesCompute) ResolveMachine(name, category string) (K8sMachineCat
 
 	for groupName, group := range cat.Groups {
 		for _, machineConfig := range group.Configs {
-			mgName := fmt.Sprintf("%v-%v", groupName, pickResource(group.NameSuffix, machineConfig))
+			mgName := BuildMachineName(category, groupName, group, machineConfig)
 			if mgName == name {
 				return cat, group, machineConfig, true
 			}
@@ -156,6 +186,39 @@ func pickResource(resource MachineResourceType, machineConfig K8sMachineConfigur
 	}
 }
 
+func BuildMachineName(categoryName, groupName string, group K8sMachineCategoryGroup, machineConfig K8sMachineConfiguration) string {
+	switch group.NameSuffix {
+	case MachineResourceTypeCpu:
+		return fmt.Sprintf("%v-%v", groupName, pickResource(group.NameSuffix, machineConfig))
+	case MachineResourceTypeCpuV2:
+		cpuSuffix := "vcpu"
+		if group.Fraction.Numerator != 1 || group.Fraction.Denominator != 1 {
+			mcpu := 1000.0 * (float64(group.Fraction.Numerator) / float64(group.Fraction.Denominator))
+			cpuSuffix = fmt.Sprintf("mcpu.%d", int(mcpu))
+		}
+		return fmt.Sprintf("%v-%v-%s", categoryName, pickResource(MachineResourceTypeCpu, machineConfig), cpuSuffix)
+	case MachineResourceTypeGpu:
+		return fmt.Sprintf("%v-%v", groupName, pickResource(group.NameSuffix, machineConfig))
+	case MachineResourceTypeGpuV2:
+		gpuSuffix := "gpu"
+		if group.Fraction.Numerator != 1 || group.Fraction.Denominator != 1 {
+			if strings.HasPrefix(group.GpuResourceType, "nvidia.com/") {
+				gpuSuffix = fmt.Sprintf("mig.%dg", group.Fraction.Numerator)
+			} else {
+				gpuSuffix = fmt.Sprintf("frac.%dg", group.Fraction.Numerator)
+			}
+		}
+		return fmt.Sprintf("%v-%v-%s", categoryName, pickResource(MachineResourceTypeGpu, machineConfig), gpuSuffix)
+	case MachineResourceTypeMemory:
+		return fmt.Sprintf("%v-%v", groupName, pickResource(group.NameSuffix, machineConfig))
+	case MachineResourceTypeMemoryV2:
+		return fmt.Sprintf("%v-%v-gb", categoryName, pickResource(MachineResourceTypeMemory, machineConfig))
+	default:
+		log.Warn("Unhandled machine resource type: %v", group.NameSuffix)
+		return fmt.Sprintf("%v-%v", groupName, pickResource(group.NameSuffix, machineConfig))
+	}
+}
+
 type KubernetesModuleEntry struct {
 	Name       string              `json:"name"`
 	VolSubPath string              `json:"claimSubPath"`
@@ -164,22 +227,24 @@ type KubernetesModuleEntry struct {
 }
 
 type K8sMachineCategory struct {
-	Payment PaymentInfo
-	Groups  map[string]K8sMachineCategoryGroup
+	Payment                        PaymentInfo
+	Groups                         map[string]K8sMachineCategoryGroup
+	SystemReservedCpuMillis        util.Option[int]
+	SystemReservedCpuMillisPerCore util.Option[int]
 }
 
 type K8sMachineCategoryGroup struct {
-	GroupName               string
-	NameSuffix              MachineResourceType
-	Configs                 []K8sMachineConfiguration
-	CpuModel                string
-	GpuModel                string
-	MemoryModel             string
-	AllowVirtualMachines    bool
-	AllowsContainers        bool
-	GpuResourceType         string
-	CustomRuntime           string
-	SystemReservedCpuMillis int
+	GroupName            string
+	NameSuffix           MachineResourceType
+	Fraction             apm.Fraction
+	Configs              []K8sMachineConfiguration
+	CpuModel             string
+	GpuModel             string
+	MemoryModel          string
+	AllowVirtualMachines bool
+	AllowsContainers     bool
+	GpuResourceType      string
+	CustomRuntime        string
 }
 
 type K8sMachineConfiguration struct {
@@ -263,6 +328,14 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 		&success,
 	).GetOrDefault(14.5)
 
+	ucxNode, _ := cfgutil.GetChildOrNil(filePath, computeNode, "ucx")
+	if ucxNode != nil {
+		developmentNode, _ := cfgutil.GetChildOrNil(filePath, ucxNode, "development")
+		if developmentNode != nil {
+			cfgutil.Decode(filePath, developmentNode, &cfg.Compute.Ucx.Development, &success)
+		}
+	}
+
 	inferenceNode, _ := cfgutil.GetChildOrNil(filePath, computeNode, "inference")
 	if inferenceNode != nil {
 		cfg.Compute.Inference.Enabled = cfgutil.RequireChildBool(filePath, inferenceNode, "enabled", &success)
@@ -333,6 +406,22 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 			false,
 			&success,
 		)
+
+		systemReservedCpuMillis := cfgutil.OptionalChildInt(filePath, machineNode, "systemReservedCpuMillis", &success)
+		if systemReservedCpuMillis.Present {
+			category.SystemReservedCpuMillis.Set(int(systemReservedCpuMillis.Value))
+		}
+
+		systemReservedCpuMillisPerCore := cfgutil.OptionalChildInt(filePath, machineNode, "systemReservedCpuMillisPerCore", &success)
+		if systemReservedCpuMillisPerCore.Present {
+			category.SystemReservedCpuMillisPerCore.Set(int(systemReservedCpuMillisPerCore.Value))
+		}
+		if category.SystemReservedCpuMillis.Present && category.SystemReservedCpuMillisPerCore.Present {
+			cfgutil.ReportError(filePath, machineNode, "systemReservedCpuMillis and systemReservedCpuMillisPerCore are mutually exclusive")
+			success = false
+		} else if !category.SystemReservedCpuMillis.Present && !category.SystemReservedCpuMillisPerCore.Present {
+			category.SystemReservedCpuMillis.Set(500)
+		}
 
 		if !cfgutil.HasChild(machineNode, "groups") {
 			group := parseK8sMachineGroup(filePath, machineNode, &success)
@@ -554,15 +643,55 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 		if vms.Enabled {
 			storageNode := cfgutil.RequireChild(filePath, vmNode, "storage", &success)
 			if storageNode != nil {
-				vms.Storage.Type = cfgutil.RequireChildEnum[KubernetesVmVolMode](filePath, storageNode, "type", KubernetesVmVolHostModeOptions, &success)
+				vms.Storage.Type = cfgutil.RequireChildEnum[KubernetesVmVolMode](filePath, storageNode, "type", KubernetesVmVolModeOptions, &success)
 
 				switch vms.Storage.Type {
 				case KubernetesVmVolHostPath:
 					vms.Storage.HostPath = cfgutil.RequireChildText(filePath, storageNode, "hostPath", &success)
-				case KubernetesVmVolCdi:
-					storageClass := cfgutil.OptionalChildText(filePath, storageNode, "storageClass", &success)
-					if storageClass != "" {
-						vms.Storage.StorageClass.Set(storageClass)
+
+				case KubernetesVmVolCsi:
+					csiNode := cfgutil.RequireChild(filePath, storageNode, "csi", &success)
+					if csiNode == nil {
+						break
+					}
+
+					csi := &vms.Storage.Csi
+					csi.StorageClassName = cfgutil.RequireChildText(filePath, csiNode, "storageClassName", &success)
+					csi.Driver = cfgutil.RequireChildText(filePath, csiNode, "driver", &success)
+					csi.SubpathField = cfgutil.RequireChildText(filePath, csiNode, "subpathField", &success)
+
+					attrsNode := cfgutil.RequireChild(filePath, csiNode, "volumeAttributes", &success)
+					if attrsNode != nil {
+						csi.VolumeAttributes = map[string]string{}
+						cfgutil.Decode(filePath, attrsNode, &csi.VolumeAttributes, &success)
+					}
+
+					secretNode, _ := cfgutil.GetChildOrNil(filePath, csiNode, "nodeStageSecretRef")
+					if secretNode != nil {
+						secret := KubernetesVmVolCsiSecretRef{}
+						secret.Name = cfgutil.RequireChildText(filePath, secretNode, "name", &success)
+						secret.Namespace = cfgutil.RequireChildText(filePath, secretNode, "namespace", &success)
+						if success {
+							csi.NodeStageSecret.Set(secret)
+						}
+					}
+
+					const subpathPrefix = "volumeAttributes."
+					if _, ok := strings.CutPrefix(csi.SubpathField, subpathPrefix); !ok {
+						cfgutil.ReportError(filePath, csiNode, "subpathField must start with 'volumeAttributes.'")
+						success = false
+					} else {
+						key := strings.TrimPrefix(csi.SubpathField, subpathPrefix)
+						if key == "" {
+							cfgutil.ReportError(filePath, csiNode, "subpathField must target a volumeAttributes key")
+							success = false
+						} else {
+							value, exists := csi.VolumeAttributes[key]
+							if !exists || value == "" {
+								cfgutil.ReportError(filePath, csiNode, "subpathField references missing or empty volumeAttributes key: %s", key)
+								success = false
+							}
+						}
 					}
 				}
 			}
@@ -574,6 +703,7 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 
 func parseK8sMachineGroup(filePath string, node *yaml.Node, success *bool) K8sMachineCategoryGroup {
 	result := K8sMachineCategoryGroup{}
+	result.Fraction = apm.Fraction{Numerator: 1, Denominator: 1}
 	result.CpuModel = cfgutil.OptionalChildText(filePath, node, "cpuModel", success)
 	result.GpuModel = cfgutil.OptionalChildText(filePath, node, "gpuModel", success)
 	result.MemoryModel = cfgutil.OptionalChildText(filePath, node, "memoryModel", success)
@@ -592,7 +722,9 @@ func parseK8sMachineGroup(filePath string, node *yaml.Node, success *bool) K8sMa
 	}
 
 	result.CustomRuntime = cfgutil.OptionalChildText(filePath, node, "customRuntime", success)
-	result.SystemReservedCpuMillis = int(cfgutil.OptionalChildInt(filePath, node, "systemReservedCpuMillis", success).GetOrDefault(500))
+	if cfgutil.HasChild(node, "fraction") {
+		cfgutil.Decode(filePath, cfgutil.RequireChild(filePath, node, "fraction", success), &result.Fraction, success)
+	}
 
 	var cpu []int
 	var gpu []int

@@ -1,13 +1,87 @@
 package apm
 
 import (
+	"errors"
 	"log"
+	"strconv"
+	"strings"
 
+	"gopkg.in/yaml.v3"
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/rpc"
 
 	"ucloud.dk/shared/pkg/util"
 )
+
+type Fraction struct {
+	Numerator   int `json:"numerator"`
+	Denominator int `json:"denominator"`
+}
+
+func (f *Fraction) Normalize() Fraction {
+	if f == nil || f.Numerator <= 0 || f.Denominator <= 0 {
+		return Fraction{
+			Numerator:   1,
+			Denominator: 1,
+		}
+	}
+
+	return *f
+}
+
+func (f *Fraction) UnmarshalYAML(node *yaml.Node) error {
+	if node == nil {
+		*f = Fraction{Numerator: 1, Denominator: 1}
+		return nil
+	}
+
+	result := Fraction{Numerator: 1, Denominator: 1}
+	switch node.Kind {
+	case yaml.ScalarNode:
+		value := strings.ReplaceAll(strings.TrimSpace(node.Value), " ", "")
+		parts := strings.Split(value, "/")
+		if len(parts) != 2 {
+			return errors.New("fraction must be written as 'numerator / denominator'")
+		}
+
+		numerator, err := strconv.Atoi(parts[0])
+		if err != nil {
+			return err
+		}
+
+		denominator, err := strconv.Atoi(parts[1])
+		if err != nil {
+			return err
+		}
+
+		result.Numerator = numerator
+		result.Denominator = denominator
+
+	case yaml.MappingNode:
+		var raw struct {
+			Numerator   int `yaml:"numerator"`
+			Denominator int `yaml:"denominator"`
+		}
+		if err := node.Decode(&raw); err != nil {
+			return err
+		}
+		result.Numerator = raw.Numerator
+		result.Denominator = raw.Denominator
+
+	default:
+		return errors.New("fraction must be a scalar or mapping")
+	}
+
+	if result.Denominator <= 0 {
+		return errors.New("fraction denominator must be greater than zero")
+	}
+	if result.Numerator < 0 {
+		return errors.New("fraction numerator must be non-negative")
+	}
+
+	*f = result
+	return nil
+}
 
 type ProductReference struct {
 	Id       string `json:"id"`
@@ -40,11 +114,12 @@ func (c *ProductCategory) ToId() ProductCategoryIdV2 {
 type ProductType string
 
 const (
-	ProductTypeCompute   ProductType = "COMPUTE"
-	ProductTypeStorage   ProductType = "STORAGE"
-	ProductTypeIngress   ProductType = "INGRESS"
-	ProductTypeLicense   ProductType = "LICENSE"
-	ProductTypeNetworkIp ProductType = "NETWORK_IP"
+	ProductTypeCompute        ProductType = "COMPUTE"
+	ProductTypeStorage        ProductType = "STORAGE"
+	ProductTypeIngress        ProductType = "INGRESS"
+	ProductTypeLicense        ProductType = "LICENSE"
+	ProductTypeNetworkIp      ProductType = "NETWORK_IP"
+	ProductTypePrivateNetwork ProductType = "PRIVATE_NETWORK"
 )
 
 type AccountingUnitAndFrequency struct {
@@ -103,11 +178,12 @@ func (f AccountingFrequency) IsPeriodic() bool {
 type ProductTypeC string
 
 const (
-	ProductTypeCStorage   ProductTypeC = "storage"
-	ProductTypeCCompute   ProductTypeC = "compute"
-	ProductTypeCIngress   ProductTypeC = "ingress"
-	ProductTypeCLicense   ProductTypeC = "license"
-	ProductTypeCNetworkIp ProductTypeC = "network_ip"
+	ProductTypeCStorage        ProductTypeC = "storage"
+	ProductTypeCCompute        ProductTypeC = "compute"
+	ProductTypeCIngress        ProductTypeC = "ingress"
+	ProductTypeCLicense        ProductTypeC = "license"
+	ProductTypeCNetworkIp      ProductTypeC = "network_ip"
+	ProductTypeCPrivateNetwork ProductTypeC = "private_network"
 )
 
 func ProductTypeCCreate(t ProductType) ProductTypeC {
@@ -122,6 +198,8 @@ func ProductTypeCCreate(t ProductType) ProductTypeC {
 		return ProductTypeCLicense
 	case ProductTypeNetworkIp:
 		return ProductTypeCNetworkIp
+	case ProductTypePrivateNetwork:
+		return ProductTypeCPrivateNetwork
 	default:
 		panic("unknown product type")
 	}
@@ -134,6 +212,7 @@ type ProductV2 struct {
 	Description               string             `json:"description"`
 	ProductType               ProductType        `json:"productType"`
 	Price                     int64              `json:"price"`
+	Fraction                  Fraction           `json:"fraction,omitempty"`
 	HiddenInGrantApplications bool               `json:"hiddenInGrantApplications"`
 	Usage                     util.Option[int64] `json:"usage"`
 

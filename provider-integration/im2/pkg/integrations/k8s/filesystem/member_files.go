@@ -58,10 +58,12 @@ func InitializeMemberFiles(username string, project util.Option[string]) (string
 			Project:   project,
 			Spec: orc.DriveSpecification{
 				Title: descriptor.ToTitle(),
-				Product: apm.ProductReference{
-					Id:       descriptor.ProductName(),
-					Category: category,
-					Provider: cfg.Provider.Id,
+				ResourceSpecification: orc.ResourceSpecification{
+					Product: apm.ProductReference{
+						Id:       descriptor.ProductName(),
+						Category: category,
+						Provider: cfg.Provider.Id,
+					},
 				},
 			},
 

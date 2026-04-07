@@ -26,6 +26,7 @@ type UserInfo struct {
 	Uid      string
 	Gid      string
 	Username string
+	Shell    string
 }
 
 func (u *UserInfo) GroupIds() ([]string, error) {
@@ -69,6 +70,7 @@ func lookupPasswd(query string) (UserInfo, error) {
 		Uid:      toks[2],
 		Gid:      toks[3],
 		Username: toks[0],
+		Shell:    toks[6],
 	}, nil
 }
 

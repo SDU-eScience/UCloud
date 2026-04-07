@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"database/sql"
+	"encoding/json"
 	"slices"
 	"strings"
 	"time"
@@ -23,6 +24,7 @@ type resourceLoadRow struct {
 	ProductCategory     sql.NullString
 	Provider            sql.NullString
 	ProviderGeneratedId sql.NullString
+	Labels              sql.NullString
 }
 
 func resourceLoadInternal(tx *db.Transaction, typeName string, rows []resourceLoadRow) map[ResourceId]*resource {
@@ -42,12 +44,20 @@ func resourceLoadInternal(tx *db.Transaction, typeName string, rows []resourceLo
 			Confirmed:  true,
 		}
 
+		if row.Labels.Valid {
+			_ = json.Unmarshal([]byte(row.Labels.String), &r.BaseSpec.Labels)
+		}
+
+		if r.BaseSpec.Labels == nil {
+			r.BaseSpec.Labels = map[string]string{}
+		}
+
 		if row.ProductName.Valid && row.ProductCategory.Valid && row.Provider.Valid {
-			r.Product = util.OptValue(accapi.ProductReference{
+			r.BaseSpec.Product = accapi.ProductReference{
 				Id:       row.ProductName.String,
 				Category: row.ProductCategory.String,
 				Provider: row.Provider.String,
-			})
+			}
 		}
 
 		_, exists := foundResources[r.Id]
@@ -158,7 +168,8 @@ func resourceLoad(typeName string, id ResourceId, prefetchHint []ResourceId) {
 					p.name as product_name, 
 					pc.category as product_category, 
 					coalesce(r.provider, pc.provider) as provider, 
-					provider_generated_id
+					provider_generated_id,
+					r.labels
 				from
 					provider.resource r
 					left join accounting.products p on r.product = p.id
@@ -192,12 +203,11 @@ func resourceLoad(typeName string, id ResourceId, prefetchHint []ResourceId) {
 	}
 }
 
-func lResourcePersist(r *resource) {
+func lResourcePersist(g *resourceTypeGlobal, r *resource) {
 	if resourceGlobals.Testing.Enabled {
 		return
 	}
 
-	g := resourceGetGlobals(r.Type)
 	db.NewTx0(func(tx *db.Transaction) {
 		b := db.BatchNew(tx)
 
@@ -237,11 +247,22 @@ func lResourcePersist(r *resource) {
 				params,
 			)
 		} else {
-			product := r.Product.GetOrDefault(accapi.ProductReference{
-				Id:       "_ucloud",
-				Category: "_ucloud",
-				Provider: "_ucloud",
-			})
+			product := r.BaseSpec.Product
+			if !resourceSpecificationHasProduct(r.BaseSpec) {
+				product = accapi.ProductReference{
+					Id:       "_ucloud",
+					Category: "_ucloud",
+					Provider: "_ucloud",
+				}
+			}
+
+			labels := util.OptNone[string]()
+			if r.BaseSpec.Labels != nil && len(r.BaseSpec.Labels) > 0 {
+				data, err := json.Marshal(r.BaseSpec.Labels)
+				if err == nil {
+					labels.Set(string(data))
+				}
+			}
 
 			db.BatchExec(
 				b,
@@ -260,12 +281,13 @@ func lResourcePersist(r *resource) {
 						) as product_id
 					)
 					insert into provider.resource(type, provider, created_at, created_by, project, id, product, 
-						provider_generated_id, confirmed_by_provider, public_read) 
+						provider_generated_id, confirmed_by_provider, public_read, labels)
 					select :type, case when :provider = '_ucloud' then null else :provider end, now(), :created_by, 
-						:project, :id, product_id, :provider_id, true, false
+						:project, :id, product_id, :provider_id, true, false, :labels
 					from products
 					on conflict (id) do update set
-						provider_generated_id = excluded.provider_generated_id
+						provider_generated_id = excluded.provider_generated_id,
+						labels = excluded.labels
 			    `,
 				db.Params{
 					"type":             r.Type,
@@ -276,6 +298,7 @@ func lResourcePersist(r *resource) {
 					"project":          r.Owner.Project.Sql(),
 					"id":               r.Id,
 					"provider_id":      r.ProviderId.Sql(),
+					"labels":           labels.Sql(),
 				},
 			)
 
@@ -376,7 +399,8 @@ func resourceLoadIndex(b *resourceIndexBucket, typeName string, reference string
 					p.name as product_name,
 					pc.category as product_category,
 					coalesce(r.provider, pc.provider) as provider,
-					provider_generated_id
+					provider_generated_id,
+					r.labels
 				from
 					provider.resource r
 					left join accounting.products p on r.product = p.id
@@ -414,8 +438,13 @@ func resourceLoadIndex(b *resourceIndexBucket, typeName string, reference string
 	})
 
 	var ids []ResourceId
+	labelsByOwner := map[string][]ResourceId{}
 	for id := range resources {
 		ids = append(ids, id)
+		r := resources[id]
+		if r != nil {
+			labelsByOwner[reference] = append(labelsByOwner[reference], id)
+		}
 	}
 	slices.Sort(ids)
 
@@ -423,6 +452,16 @@ func resourceLoadIndex(b *resourceIndexBucket, typeName string, reference string
 		b.Mu.Lock()
 		if _, exists := b.ByOwner[reference]; !exists {
 			b.ByOwner[reference] = ids
+			if _, exists := b.ByOwnerLabels[reference]; !exists {
+				b.ByOwnerLabels[reference] = map[string][]ResourceId{}
+			}
+
+			for _, id := range labelsByOwner[reference] {
+				r := resources[id]
+				if r != nil {
+					resourceIndexLabelsAddLocked(b, reference, r.Id, r.BaseSpec.Labels)
+				}
+			}
 		}
 		b.Mu.Unlock()
 	}

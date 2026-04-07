@@ -29,6 +29,9 @@ const (
 
 	// StringValidationRequireEmail performs basic checks to ensure that the string is an email
 	StringValidationRequireEmail
+
+	// StringValidationRequireShort256 requires that input strings are less than or equal to 256 bytes
+	StringValidationRequireShort256
 )
 
 func ValidateStringE(input *string, fieldName string, opts StringValidationFlag) *HttpError {
@@ -88,6 +91,11 @@ func ValidateString(input *string, fieldName string, opts StringValidationFlag, 
 			setErr(HttpErr(http.StatusBadRequest, "%v is too long", fieldName))
 			return
 		}
+	}
+
+	if opts&StringValidationRequireShort256 != 0 && len(result) > 256 {
+		setErr(HttpErr(http.StatusBadRequest, "%v is too long", fieldName))
+		return
 	}
 
 	if opts&StringValidationAllowEmpty == 0 {

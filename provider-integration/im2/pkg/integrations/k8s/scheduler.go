@@ -139,15 +139,16 @@ func (s *Scheduler) RegisterNode(name string, capacity, limits shared.SchedulerD
 	if ok {
 		existing.LastSeen = s.Time
 		existing.Unschedulable = unschedulable
-		existing.Limits = limits
+		existing.Capacity = capacity.Clone()
+		existing.Limits = limits.Clone()
 		return
 	}
 
 	s.Nodes[name] = &SchedulerNode{
 		Name:          name,
-		Remaining:     capacity,
-		Capacity:      capacity,
-		Limits:        limits,
+		Remaining:     capacity.Clone(),
+		Capacity:      capacity.Clone(),
+		Limits:        limits.Clone(),
 		LastSeen:      s.Time,
 		Unschedulable: unschedulable,
 	}
@@ -216,7 +217,7 @@ func (s *Scheduler) PruneReplicas() []SchedulerReplicaEntry {
 
 	// Set all nodes to full capacity (state is now being recalculated)
 	for _, n := range s.Nodes {
-		n.Remaining = n.Capacity
+		n.Remaining = n.Capacity.Clone()
 	}
 
 	for i := 0; i < len(s.Replicas); i++ {
@@ -309,6 +310,14 @@ func (s *Scheduler) JobInQueue(jobId string) bool {
 			return true
 		}
 	}
+
+	length = len(s.Replicas)
+	for i := 0; i < length; i++ {
+		if s.Replicas[i].JobId == jobId {
+			return true
+		}
+	}
+
 	return false
 }
 
@@ -519,7 +528,11 @@ func (s *Scheduler) trySchedule(entry *SchedulerQueueEntry, allNodes []*Schedule
 	sortingFunction := func(a, b *SchedulerNode) int {
 		aRem := a.Remaining
 		bRem := b.Remaining
-		cmp := numericCompares(aRem.Gpu, bRem.Gpu, aRem.CpuMillis, bRem.CpuMillis, aRem.MemoryInBytes, bRem.MemoryInBytes)
+		cmp := numericCompares(
+			totalResourceUnits(aRem), totalResourceUnits(bRem),
+			aRem.CpuMillis, bRem.CpuMillis,
+			aRem.MemoryInBytes, bRem.MemoryInBytes,
+		)
 		if cmp != 0 {
 			if !hasJobCompaction {
 				// Use the least full node (which can carry the job)
@@ -593,9 +606,19 @@ outer:
 func (s *Scheduler) SynchronizeNodeUsage(name string, dims shared.SchedulerDimensions) {
 	node, ok := s.Nodes[name]
 	if ok {
-		node.Remaining = node.Capacity
+		node.Remaining = node.Capacity.Clone()
 		node.Remaining.Subtract(dims)
 	}
+}
+
+func totalResourceUnits(dims shared.SchedulerDimensions) int {
+	result := 0
+	if dims.Resources != nil {
+		for _, amount := range dims.Resources {
+			result += amount
+		}
+	}
+	return result
 }
 
 func numericCompare(a, b int) int {

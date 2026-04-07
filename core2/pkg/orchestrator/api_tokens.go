@@ -46,6 +46,17 @@ func initApiTokens() {
 		return util.Empty{}, ApiTokenRevoke(info.Actor, ResourceParseId(request.Id))
 	})
 
+	orcapi.ApiTokenUpdateLabels.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ApiTokenUpdateLabelsRequest]) (util.Empty, *util.HttpError) {
+		for _, reqItem := range request.Items {
+			err := ResourceUpdateLabels(info.Actor, apiTokenType, reqItem.Id, reqItem.Labels, orcapi.PermissionEdit)
+			if err != nil {
+				return util.Empty{}, err
+			}
+		}
+
+		return util.Empty{}, nil
+	})
+
 	go func() {
 		for {
 			db.NewTx0(func(tx *db.Transaction) {
@@ -118,7 +129,7 @@ func ApiTokenCreate(actor rpc.Actor, request orcapi.ApiTokenSpecification) (orca
 	var userToken string
 
 	if request.Provider.Present {
-		tokId, tok, err = ResourceCreate[orcapi.ApiToken](actor, apiTokenType, util.OptNone[accapi.ProductReference](), itok)
+		tokId, tok, err = ResourceCreate[orcapi.ApiToken](actor, apiTokenType, orcapi.ResourceSpecification{}, itok)
 		if err != nil {
 			return orcapi.ApiToken{}, err
 		}
@@ -151,7 +162,7 @@ func ApiTokenCreate(actor rpc.Actor, request orcapi.ApiTokenSpecification) (orca
 		itok.TokenHash = hashedToken.HashedPassword
 		itok.TokenSalt = hashedToken.Salt
 
-		tokId, tok, err = ResourceCreate[orcapi.ApiToken](actor, apiTokenType, util.OptNone[accapi.ProductReference](), itok)
+		tokId, tok, err = ResourceCreate[orcapi.ApiToken](actor, apiTokenType, orcapi.ResourceSpecification{}, itok)
 		if err != nil {
 			return orcapi.ApiToken{}, err
 		}
@@ -324,7 +335,7 @@ func apiTokensLoad(tx *db.Transaction, ids []int64, resources map[ResourceId]*re
 
 func apiTokensTransform(
 	r orcapi.Resource,
-	product util.Option[accapi.ProductReference],
+	specification orcapi.ResourceSpecification,
 	extra any,
 	flags orcapi.ResourceFlags,
 	actor rpc.Actor,

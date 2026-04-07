@@ -11,6 +11,8 @@ func HandleCliWithoutConfig(command string) bool {
 	switch command {
 	case "script-gen":
 		HandleScriptGen()
+	case "start-job-audit-log-server":
+		JobAuditLogServerStart()
 	case "task-processor":
 		filesystem.TaskProcessor()
 	default:
@@ -29,5 +31,7 @@ func HandleCli(command string) {
 		controller.LicenseCli(os.Args[2:])
 	case "storage-scan":
 		StorageScanCli(os.Args[2:])
+	case "jobs":
+		HandleJobsCommand()
 	}
 }

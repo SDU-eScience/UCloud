@@ -286,11 +286,17 @@ type ProviderBranding struct {
 	Sections            []ProviderBrandingSection            `yaml:"sections"`
 	ProductDescription  []ProviderBrandingProductDescription `yaml:"productDescription"`
 }
+type JobAuditLog struct {
+	RetentionPeriodInDays int `yaml:"retentionPeriodInDays"`
+}
+
 type ProviderConfiguration struct {
 	Id string
 
 	ProviderBranding                  ProviderBranding `yaml:"providerBranding"`
 	ProviderBrandingImageAbsolutePath map[string]string
+
+	JobAuditLog JobAuditLog `yaml:"jobAuditLog"`
 
 	Hosts struct {
 		UCloud       HostInfo
@@ -388,6 +394,13 @@ func parseProvider(filePath string, provider *yaml.Node) (bool, ProviderConfigur
 		if providerBranding != nil {
 			populateProviderBranding(&cfg, filePath, providerBranding)
 		}
+
+		// Job audit log section
+		jobAuditLog, _ := cfgutil.GetChildOrNil(filePath, provider, "jobAuditLog")
+		if jobAuditLog != nil {
+			cfgutil.Decode(filePath, jobAuditLog, &cfg.JobAuditLog, &success)
+		}
+
 		// Hosts section
 		hosts := cfgutil.RequireChild(filePath, provider, "hosts", &success)
 		ucloudHost := cfgutil.RequireChild(filePath, hosts, "ucloud", &success)
@@ -567,15 +580,21 @@ func (cfg *ServicesConfiguration) Kubernetes() *ServicesConfigurationKubernetes 
 type MachineResourceType = string
 
 const (
-	MachineResourceTypeCpu    MachineResourceType = "Cpu"
-	MachineResourceTypeGpu    MachineResourceType = "Gpu"
-	MachineResourceTypeMemory MachineResourceType = "Memory"
+	MachineResourceTypeCpu      MachineResourceType = "Cpu"
+	MachineResourceTypeGpu      MachineResourceType = "Gpu"
+	MachineResourceTypeMemory   MachineResourceType = "Memory"
+	MachineResourceTypeCpuV2    MachineResourceType = "CpuV2"
+	MachineResourceTypeGpuV2    MachineResourceType = "GpuV2"
+	MachineResourceTypeMemoryV2 MachineResourceType = "MemoryV2"
 )
 
 var MachineResourceTypeOptions = []MachineResourceType{
 	MachineResourceTypeCpu,
 	MachineResourceTypeGpu,
 	MachineResourceTypeMemory,
+	MachineResourceTypeCpuV2,
+	MachineResourceTypeGpuV2,
+	MachineResourceTypeMemoryV2,
 }
 
 type PaymentInterval string

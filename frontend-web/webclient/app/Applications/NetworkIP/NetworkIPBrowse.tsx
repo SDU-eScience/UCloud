@@ -13,7 +13,18 @@ import {
 } from "@/UCloud/ResourceApi";
 import {AsyncCache} from "@/Utilities/AsyncCache";
 import {doNothing} from "@/UtilityFunctions";
-import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, addProjectSwitcherInPortal, checkIsWorkspaceAdmin, dateRangeFilters, providerIcon} from "@/ui-components/ResourceBrowser";
+import {
+    EmptyReasonTag,
+    ResourceBrowseFeatures,
+    ResourceBrowser,
+    ResourceBrowserOpts,
+    ResourceBrowseHeaderControls,
+    addProjectSwitcherInPortal,
+    createProjectSwitcherPortal,
+    checkIsWorkspaceAdmin,
+    dateRangeFilters,
+    providerIcon,
+} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {useDispatch} from "react-redux";
 import {useNavigate} from "react-router-dom";
@@ -61,13 +72,26 @@ const supportByProvider = new AsyncCache<SupportByProviderV2<ProductV2NetworkIP,
 });
 
 const PROJECT_CHANGE_LISTENER_ID = "public-links";
-export function NetworkIPBrowse({opts}: {opts?: ResourceBrowserOpts<NetworkIP>}): React.ReactNode {
+export function NetworkIPBrowse({
+    opts,
+    headerControls,
+}: {
+    opts?: ResourceBrowserOpts<NetworkIP>;
+    headerControls?: ResourceBrowseHeaderControls;
+}): React.ReactNode {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<NetworkIP> | null>(null);
     const dispatch = useDispatch();
     const navigate = useNavigate();
     usePage("Public IPs", SidebarTabId.RESOURCES);
     const [switcher, setSwitcherWorkaround] = React.useState<React.ReactNode>(<></>);
+
+    React.useEffect(() => {
+        headerControls?.setRefresh?.(() => browserRef.current?.refresh());
+        return () => {
+            headerControls?.setRefresh?.(undefined);
+        };
+    }, [headerControls]);
 
     const dateRanges = dateRangeFilters("Date created");
 
@@ -319,7 +343,9 @@ export function NetworkIPBrowse({opts}: {opts?: ResourceBrowserOpts<NetworkIP>})
     return <MainContainer
         main={<>
             <div ref={mountRef} />
-            {switcher}
+            {headerControls?.projectSwitcherTarget
+                ? createProjectSwitcherPortal(headerControls.projectSwitcherTarget)
+                : switcher}
         </>}
     />
 }

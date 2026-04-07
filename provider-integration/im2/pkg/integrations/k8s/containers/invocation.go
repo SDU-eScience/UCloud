@@ -80,6 +80,8 @@ func prepareInvocationOnJobCreate(
 			jobFolder, pathMapperInternalToPod)
 	}
 
+	initScript, hasInitScript := job.Specification.Labels["ucloud.dk/initscript"]
+
 	path := filepath.Join(jobFolder, fmt.Sprintf("job-%d.sh", rank))
 	jobFile, ok := filesystem.OpenFile(path, unix.O_WRONLY|unix.O_CREAT|unix.O_TRUNC, 0700)
 	_ = jobFile.Chown(filesystem.DefaultUid, filesystem.DefaultUid)
@@ -94,6 +96,12 @@ func prepareInvocationOnJobCreate(
 			builder.WriteString("resourceUtilization &\n")
 		}
 		builder.WriteString("trap 'kill $(jobs -p) 2>/dev/null' EXIT\n") // Does this actually work with the new exec invocation?
+
+		if hasInitScript {
+			builder.WriteString("bash ")
+			builder.WriteString(orc.EscapeBash(initScript))
+			builder.WriteString("\n")
+		}
 
 		builder.WriteString("exec ")
 		builder.WriteString(strings.Join(actualCommand, " "))

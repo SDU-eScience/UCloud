@@ -2,10 +2,13 @@ package k8s
 
 import (
 	"fmt"
+	"slices"
 	"testing"
 	"time"
 
+	cfg "ucloud.dk/pkg/config"
 	"ucloud.dk/pkg/integrations/k8s/shared"
+	apm "ucloud.dk/shared/pkg/accounting"
 	fnd "ucloud.dk/shared/pkg/foundation"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
@@ -16,8 +19,18 @@ func registerNodes(s *Scheduler, count, cpuMillis int) {
 		dims := shared.SchedulerDimensions{
 			CpuMillis:     cpuMillis,
 			MemoryInBytes: 1000,
+			Resources:     map[string]int{},
 		}
 		s.RegisterNode(fmt.Sprintf("node-%v", i), dims, dims, false)
+	}
+}
+
+func drainScheduleQueue() {
+	for {
+		entries := shared.SwapScheduleQueue()
+		if len(entries) == 0 {
+			return
+		}
 	}
 }
 
@@ -28,6 +41,7 @@ func TestBasicScheduling(t *testing.T) {
 	fullNode := shared.SchedulerDimensions{
 		CpuMillis:     1000,
 		MemoryInBytes: 1000,
+		Resources:     map[string]int{},
 	}
 
 	submitAt := fnd.Timestamp(time.Now())
@@ -80,6 +94,7 @@ func TestTimeInQueueAffectsPriority(t *testing.T) {
 	dimensions := shared.SchedulerDimensions{
 		CpuMillis:     1000,
 		MemoryInBytes: 1000,
+		Resources:     map[string]int{},
 	}
 	duration := orc.SimpleDuration{Hours: 1}
 
@@ -163,6 +178,7 @@ func TestJobSizeAffectsPriority(t *testing.T) {
 				shared.SchedulerDimensions{
 					CpuMillis:     1000 + (multiplierDims * factor),
 					MemoryInBytes: 1000 + (multiplierDims * factor),
+					Resources:     map[string]int{},
 				},
 				1+(multiplierReplicas*factor),
 				0,
@@ -204,7 +220,7 @@ func TestJobCompaction(t *testing.T) {
 		for i := 0; i < jobCount; i++ {
 			s.RegisterJobInQueue(
 				fmt.Sprint(i),
-				shared.SchedulerDimensions{CpuMillis: request},
+				shared.SchedulerDimensions{CpuMillis: request, Resources: map[string]int{}},
 				1,
 				0,
 				fnd.Timestamp(time.Now()),
@@ -280,7 +296,9 @@ func TestFailingGpu(t *testing.T) {
 	initialDims := shared.SchedulerDimensions{
 		CpuMillis:     1000 * coreCount,
 		MemoryInBytes: memoryPerCore * coreCount,
-		Gpu:           gpuCount,
+		Resources: map[string]int{
+			shared.DefaultGpuResourceType: gpuCount,
+		},
 	}
 
 	s.RegisterNode("gpu-node", initialDims, initialDims, false)
@@ -291,7 +309,9 @@ func TestFailingGpu(t *testing.T) {
 			shared.SchedulerDimensions{
 				CpuMillis:     1000 * coresPerGpu * gpuCount,
 				MemoryInBytes: memoryPerCore * coresPerGpu * gpuCount,
-				Gpu:           gpuCount,
+				Resources: map[string]int{
+					shared.DefaultGpuResourceType: gpuCount,
+				},
 			},
 			1,
 			0,
@@ -308,7 +328,7 @@ func TestFailingGpu(t *testing.T) {
 
 	// Fail two of the GPUs
 	failedDims := initialDims
-	failedDims.Gpu -= 2
+	failedDims.Resources = map[string]int{shared.DefaultGpuResourceType: gpuCount - 2}
 	s.RegisterNode("gpu-node", initialDims, failedDims, false)
 
 	// Submit a new job
@@ -329,7 +349,7 @@ func TestFailingGpu(t *testing.T) {
 
 	// Finish all jobs and fail the entire node
 	s.PruneReplicas()
-	s.RegisterNode("gpu-node", initialDims, shared.SchedulerDimensions{}, false)
+	s.RegisterNode("gpu-node", initialDims, shared.SchedulerDimensions{Resources: map[string]int{}}, false)
 
 	submit("third", 3)
 	scheduled = s.Schedule()
@@ -349,5 +369,245 @@ func TestFailingGpu(t *testing.T) {
 	scheduled = s.Schedule()
 	if len(scheduled) != 1 {
 		t.Errorf("expected the third job to schedule in the end")
+	}
+}
+
+func TestRequestScheduleQueueDeduplicatesByJob(t *testing.T) {
+	drainScheduleQueue()
+	t.Cleanup(drainScheduleQueue)
+
+	jobAOld := &orc.Job{Resource: orc.Resource{Id: "job-a"}, Specification: orc.JobSpecification{Replicas: 1}}
+	jobB := &orc.Job{Resource: orc.Resource{Id: "job-b"}, Specification: orc.JobSpecification{Replicas: 1}}
+	jobANew := &orc.Job{Resource: orc.Resource{Id: "job-a"}, Specification: orc.JobSpecification{Replicas: 2}}
+
+	shared.RequestSchedule(jobAOld)
+	shared.RequestSchedule(jobB)
+	shared.RequestSchedule(jobANew)
+
+	entries := shared.SwapScheduleQueue()
+	if len(entries) != 2 {
+		t.Fatalf("expected exactly two queue entries, got %d", len(entries))
+	}
+
+	if entries[0] != jobANew {
+		t.Fatalf("expected latest entry for job-a to be retained")
+	}
+
+	ids := []string{entries[0].Id, entries[1].Id}
+	if !slices.Contains(ids, "job-a") || !slices.Contains(ids, "job-b") {
+		t.Fatalf("expected entries to include both job-a and job-b, got %v", ids)
+	}
+}
+
+func TestRequestScheduleQueueRetryDoesNotDuplicate(t *testing.T) {
+	drainScheduleQueue()
+	t.Cleanup(drainScheduleQueue)
+
+	job := &orc.Job{Resource: orc.Resource{Id: "job-retry"}, Specification: orc.JobSpecification{Replicas: 1}}
+	shared.RequestSchedule(job)
+
+	firstSwap := shared.SwapScheduleQueue()
+	if len(firstSwap) != 1 {
+		t.Fatalf("expected one entry in first swap, got %d", len(firstSwap))
+	}
+
+	shared.RequestSchedule(firstSwap[0])
+	shared.RequestSchedule(firstSwap[0])
+
+	retrySwap := shared.SwapScheduleQueue()
+	if len(retrySwap) != 1 {
+		t.Fatalf("expected one entry after retry, got %d", len(retrySwap))
+	}
+
+	if retrySwap[0].Id != "job-retry" {
+		t.Fatalf("expected retried job id to be job-retry, got %s", retrySwap[0].Id)
+	}
+}
+
+func TestCpuStandardScenarioScheduling(t *testing.T) {
+	shared.ServiceConfig = &cfg.ServicesConfigurationKubernetes{}
+	shared.ServiceConfig.Compute.Machines = map[string]cfg.K8sMachineCategory{
+		"cpu-standard": {
+			Payment:                 cfg.PaymentInfo{Unit: cfg.MachineResourceTypeCpu},
+			SystemReservedCpuMillis: util.OptValue(500),
+			Groups: map[string]cfg.K8sMachineCategoryGroup{
+				"full": {
+					GroupName:  "full",
+					NameSuffix: cfg.MachineResourceTypeCpuV2,
+					Fraction:   apm.Fraction{Numerator: 1, Denominator: 1},
+					Configs: []cfg.K8sMachineConfiguration{
+						{AdvertisedCpu: 1, MemoryInGigabytes: 2},
+						{AdvertisedCpu: 2, MemoryInGigabytes: 4},
+						{AdvertisedCpu: 4, MemoryInGigabytes: 8},
+						{AdvertisedCpu: 12, MemoryInGigabytes: 24},
+					},
+				},
+				"fractional": {
+					GroupName:  "fractional",
+					NameSuffix: cfg.MachineResourceTypeCpuV2,
+					Fraction:   apm.Fraction{Numerator: 1, Denominator: 4},
+					Configs: []cfg.K8sMachineConfiguration{
+						{AdvertisedCpu: 1, MemoryInGigabytes: 1},
+						{AdvertisedCpu: 2, MemoryInGigabytes: 2},
+						{AdvertisedCpu: 3, MemoryInGigabytes: 3},
+					},
+				},
+			},
+		},
+	}
+
+	fullProduct := &apm.ProductV2{
+		Name:         "cpu-standard-1-vcpu",
+		Category:     apm.ProductCategory{Name: "cpu-standard"},
+		Cpu:          1,
+		MemoryInGigs: 2,
+		Fraction:     apm.Fraction{Numerator: 1, Denominator: 1},
+	}
+
+	fractionalProduct := &apm.ProductV2{
+		Name:         "cpu-standard-2-vcpu",
+		Category:     apm.ProductCategory{Name: "cpu-standard"},
+		Cpu:          2,
+		MemoryInGigs: 2,
+		Fraction:     apm.Fraction{Numerator: 1, Denominator: 4},
+	}
+
+	if got := shared.NodeCpuMillisNormalizedWithReserved(fullProduct); got != 958 {
+		t.Fatalf("expected full product CPU millis to be 958, got %d", got)
+	}
+	if got := shared.NodeCpuMillisNormalizedWithReserved(fractionalProduct); got != 479 {
+		t.Fatalf("expected fractional product CPU millis to be 479, got %d", got)
+	}
+
+	fullDims := shared.JobDimensionsFromProductOnly(fullProduct)
+	fractionalDims := shared.JobDimensionsFromProductOnly(fractionalProduct)
+
+	if fullDims.CpuMillis != 958 {
+		t.Fatalf("expected full product queue dims CPU to be 958, got %d", fullDims.CpuMillis)
+	}
+	if fractionalDims.CpuMillis != 479 {
+		t.Fatalf("expected fractional product queue dims CPU to be 479, got %d", fractionalDims.CpuMillis)
+	}
+
+	node := shared.SchedulerDimensions{CpuMillis: 12000, MemoryInBytes: 200000000000, Resources: map[string]int{}}
+	nodeLimits := shared.SchedulerDimensions{CpuMillis: 11500, MemoryInBytes: 200000000000, Resources: map[string]int{}}
+
+	now := fnd.Timestamp(time.Now())
+	jobLength := orc.SimpleDuration{Hours: 1}
+
+	fullScheduler := NewScheduler("cpu-standard")
+	fullScheduler.RegisterNode("node-0", node, nodeLimits, false)
+	for i := 0; i < 13; i++ {
+		fullScheduler.RegisterJobInQueue(fmt.Sprintf("full-%d", i), fullDims, 1, nil, now, jobLength)
+	}
+
+	fullScheduled := fullScheduler.Schedule()
+	if len(fullScheduled) != 12 {
+		t.Fatalf("expected 12 full jobs to be scheduled, got %d", len(fullScheduled))
+	}
+	if len(fullScheduler.Queue) != 1 {
+		t.Fatalf("expected 1 full job to remain queued, got %d", len(fullScheduler.Queue))
+	}
+
+	fractionalScheduler := NewScheduler("cpu-standard")
+	fractionalScheduler.RegisterNode("node-0", node, nodeLimits, false)
+	for i := 0; i < 25; i++ {
+		fractionalScheduler.RegisterJobInQueue(fmt.Sprintf("frac-%d", i), fractionalDims, 1, nil, now, jobLength)
+	}
+
+	fractionalScheduled := fractionalScheduler.Schedule()
+	if len(fractionalScheduled) != 24 {
+		t.Fatalf("expected 24 fractional jobs to be scheduled, got %d", len(fractionalScheduled))
+	}
+	if len(fractionalScheduler.Queue) != 1 {
+		t.Fatalf("expected 1 fractional job to remain queued, got %d", len(fractionalScheduler.Queue))
+	}
+}
+
+func TestMixedGpuResourceTypesCanCoexist(t *testing.T) {
+	s := NewScheduler("gpu")
+
+	nodeDims := shared.SchedulerDimensions{
+		CpuMillis:     100000,
+		MemoryInBytes: 1000 * 1000 * 1000 * 100,
+		Resources: map[string]int{
+			"nvidia.com/gpu":         3,
+			"nvidia.com/mig-1g.10gb": 7,
+		},
+	}
+
+	s.RegisterNode("node-0", nodeDims, nodeDims, false)
+
+	for i := 0; i < 3; i++ {
+		s.RegisterJobInQueue(
+			fmt.Sprintf("full-%d", i),
+			shared.SchedulerDimensions{
+				CpuMillis:     1000,
+				MemoryInBytes: 1000,
+				Resources: map[string]int{
+					"nvidia.com/gpu": 1,
+				},
+			},
+			1,
+			nil,
+			fnd.Timestamp(time.Now()),
+			orc.SimpleDuration{Hours: 1},
+		)
+	}
+
+	for i := 0; i < 7; i++ {
+		s.RegisterJobInQueue(
+			fmt.Sprintf("mig-%d", i),
+			shared.SchedulerDimensions{
+				CpuMillis:     1000,
+				MemoryInBytes: 1000,
+				Resources: map[string]int{
+					"nvidia.com/mig-1g.10gb": 1,
+				},
+			},
+			1,
+			nil,
+			fnd.Timestamp(time.Now()),
+			orc.SimpleDuration{Hours: 1},
+		)
+	}
+
+	scheduled := s.Schedule()
+	if len(scheduled) != 10 {
+		t.Fatalf("expected 10 jobs to schedule, got %d", len(scheduled))
+	}
+
+	s.RegisterJobInQueue(
+		"full-extra",
+		shared.SchedulerDimensions{
+			CpuMillis:     1000,
+			MemoryInBytes: 1000,
+			Resources: map[string]int{
+				"nvidia.com/gpu": 1,
+			},
+		},
+		1,
+		nil,
+		fnd.Timestamp(time.Now()),
+		orc.SimpleDuration{Hours: 1},
+	)
+
+	s.RegisterJobInQueue(
+		"mig-extra",
+		shared.SchedulerDimensions{
+			CpuMillis:     1000,
+			MemoryInBytes: 1000,
+			Resources: map[string]int{
+				"nvidia.com/mig-1g.10gb": 1,
+			},
+		},
+		1,
+		nil,
+		fnd.Timestamp(time.Now()),
+		orc.SimpleDuration{Hours: 1},
+	)
+
+	if extra := s.Schedule(); len(extra) != 0 {
+		t.Fatalf("expected no additional jobs to schedule, got %d", len(extra))
 	}
 }

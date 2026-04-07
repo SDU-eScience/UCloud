@@ -15,11 +15,12 @@ import (
 	cfg "ucloud.dk/pkg/config"
 	"ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/integrations/k8s/containers"
+	"ucloud.dk/pkg/integrations/k8s/filesystem"
 	"ucloud.dk/pkg/integrations/k8s/kubevirt"
 	"ucloud.dk/pkg/integrations/k8s/shared"
 
-	core "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
+	k8score "k8s.io/api/core/v1"
+	k8sresource "k8s.io/apimachinery/pkg/api/resource"
 	apm "ucloud.dk/shared/pkg/accounting"
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
@@ -39,11 +40,9 @@ func getScheduler(category string, group string) (*Scheduler, bool) {
 	mapped, ok := shared.ServiceConfig.Compute.MachineImpersonation[category]
 	if !ok {
 		mapped = category
-	} else {
-		group = mapped
 	}
 
-	schedKey := fmt.Sprintf("%s/%s", mapped, group)
+	schedKey := mapped
 
 	_, isIApp := controller.IntegratedApplications[mapped]
 	if !isIApp {
@@ -184,6 +183,82 @@ func timeAllocationOrDefault(alloc util.Option[orc.SimpleDuration]) orc.SimpleDu
 	})
 }
 
+func vmDetachLockedResources(job *orc.Job) (int, *util.HttpError) {
+	mountedDrives := MountedDrives(job)
+	lockedDrives := map[string]util.Empty{}
+
+	for _, mount := range mountedDrives {
+		if mount.DriveInvalid {
+			continue
+		}
+
+		if !controller.DriveCanUse(job.Owner, mount.Drive.Id, mount.ReadOnly) ||
+			controller.ResourceIsLocked(mount.RealDrive.Resource, mount.RealDrive.Specification.Product) {
+			lockedDrives[mount.Drive.Id] = util.Empty{}
+		}
+	}
+
+	updatedJob := *job
+	updatedJob.Specification.Resources = slices.Clone(job.Specification.Resources)
+
+	detachedCount := 0
+	for _, resource := range job.Specification.Resources {
+		shouldDetach := false
+
+		switch resource.Type {
+		case orc.AppParameterValueTypeFile:
+			driveId, ok := filesystem.DriveIdFromUCloudPath(resource.Path)
+			if !ok {
+				continue
+			}
+
+			_, shouldDetach = lockedDrives[driveId]
+
+		case orc.AppParameterValueTypeNetwork,
+			orc.AppParameterValueTypeIngress,
+			orc.AppParameterValueTypeLicense,
+			orc.AppParameterValueTypePrivateNetwork:
+			accessible, _, _ := controller.JobResourceIsAccessible(job.Owner, resource)
+			shouldDetach = !accessible
+
+		default:
+			shouldDetach = false
+		}
+
+		if !shouldDetach {
+			continue
+		}
+
+		herr := detachResource(&updatedJob, resource)
+		if herr != nil {
+			return detachedCount, herr
+		}
+
+		detachedCount++
+		var newResources []orc.AppParameterValue
+		for _, item := range updatedJob.Specification.Resources {
+			if !item.Equal(resource) {
+				newResources = append(newResources, item)
+			}
+		}
+		updatedJob.Specification.Resources = newResources
+	}
+
+	if detachedCount > 0 {
+		controller.JobTrackNew(updatedJob)
+		_ = controller.JobTrackRawUpdates([]orc.ResourceUpdateAndId[orc.JobUpdate]{
+			{
+				Id: updatedJob.Id,
+				Update: orc.JobUpdate{
+					ResourceList: util.OptValue(updatedJob.Specification.Resources),
+				},
+			},
+		})
+	}
+
+	return detachedCount, nil
+}
+
 // initJobQueue will initialize the queue with jobs which were in the queue when the integration module was last
 // shutdown.
 func initJobQueue() {
@@ -195,7 +270,7 @@ func initJobQueue() {
 	}
 }
 
-var iappDidNotifyUnableToSchedule = map[string]util.Empty{}
+var didNotifyUnableToSchedule = map[string]util.Empty{}
 
 func loopMonitoring() {
 	timerTotal := util.NewTimer()
@@ -205,6 +280,7 @@ func loopMonitoring() {
 
 	timer := util.NewTimer()
 	now := time.Now()
+	nodeGroups := map[string]map[string]string{}
 
 	// NOTE(Dan): Node monitoring must go before job monitoring such that the scheduler knows about the nodes before
 	// it knows about running replicas.
@@ -215,7 +291,7 @@ func loopMonitoring() {
 
 		if util.DevelopmentModeEnabled() && len(nodeList) == 1 {
 			baseNode := nodeList[0]
-			nodeList = []*core.Node{}
+			nodeList = []*k8score.Node{}
 
 			for category, _ := range shared.ServiceConfig.Compute.Machines {
 				normalMachine := *baseNode
@@ -253,55 +329,67 @@ func loopMonitoring() {
 				k8sCapacity := node.Status.Capacity
 				k8sAllocatable := node.Status.Allocatable
 
-				gpuType := "nvidia.com/gpu"
+				resolvedGroup := catGroup.Group
+				gpuResourceTypes := shared.GpuResourceTypesForCategory(catGroup.Category)
 				machineCategory, ok := shared.ServiceConfig.Compute.Machines[catGroup.Category]
 				if ok {
-					// TODO This seems like it will break if there is more than one category
-					nodeCat, ok := machineCategory.Groups[catGroup.Category]
-					if ok {
-						gpuType = nodeCat.GpuResourceType
+					if _, groupOk := machineCategory.Groups[resolvedGroup]; !groupOk {
+						resolvedGroup = bestEffortNodeGroup(catGroup.Category, machineCategory)
 					}
 				}
 
 				capacity := shared.SchedulerDimensions{
 					CpuMillis:     int(k8sCapacity.Cpu().MilliValue()),
 					MemoryInBytes: int(k8sCapacity.Memory().Value()),
+					Resources:     map[string]int{},
 				}
 
 				limits := shared.SchedulerDimensions{
 					CpuMillis:     int(k8sAllocatable.Cpu().MilliValue()),
 					MemoryInBytes: int(k8sAllocatable.Memory().Value()),
+					Resources:     map[string]int{},
 				}
 
-				gpuCap := k8sCapacity.Name(core.ResourceName(gpuType), resource.DecimalSI)
-				gpuLim := k8sAllocatable.Name(core.ResourceName(gpuType), resource.DecimalSI)
+				for _, gpuResourceType := range gpuResourceTypes {
+					gpuCap := k8sCapacity.Name(k8score.ResourceName(gpuResourceType), k8sresource.DecimalSI)
+					if gpuCap != nil {
+						capacity.Resources[gpuResourceType] = int(gpuCap.Value())
+					}
 
-				if gpuCap != nil && gpuLim != nil {
-					capacity.Gpu += int(gpuCap.Value())
-					limits.Gpu += int(gpuLim.Value())
+					gpuLim := k8sAllocatable.Name(k8score.ResourceName(gpuResourceType), k8sresource.DecimalSI)
+					if gpuLim != nil {
+						limits.Resources[gpuResourceType] = int(gpuLim.Value())
+					}
 				}
+
+				groupMap, ok := nodeGroups[catGroup.Category]
+				if !ok {
+					groupMap = map[string]string{}
+					nodeGroups[catGroup.Category] = groupMap
+				}
+				groupMap[node.Name] = resolvedGroup
 
 				for _, cond := range node.Status.Conditions {
 					setLimitsToZero := false
 					status := cond.Status
 
 					switch cond.Type {
-					case core.NodeReady:
-						setLimitsToZero = status == core.ConditionFalse || status == core.ConditionUnknown
-					case core.NodeMemoryPressure:
-						setLimitsToZero = status == core.ConditionTrue
-					case core.NodeDiskPressure:
-						setLimitsToZero = status == core.ConditionTrue
-					case core.NodePIDPressure:
-						setLimitsToZero = status == core.ConditionTrue
-					case core.NodeNetworkUnavailable:
-						setLimitsToZero = status == core.ConditionTrue
+					case k8score.NodeReady:
+						setLimitsToZero = status == k8score.ConditionFalse || status == k8score.ConditionUnknown
+					case k8score.NodeMemoryPressure:
+						setLimitsToZero = status == k8score.ConditionTrue
+					case k8score.NodeDiskPressure:
+						setLimitsToZero = status == k8score.ConditionTrue
+					case k8score.NodePIDPressure:
+						setLimitsToZero = status == k8score.ConditionTrue
+					case k8score.NodeNetworkUnavailable:
+						setLimitsToZero = status == k8score.ConditionTrue
 					}
 
 					if setLimitsToZero {
 						limits.CpuMillis = 0
 						limits.MemoryInBytes = 0
-						limits.Gpu = 0
+						limits.Resources = map[string]int{}
 						break
 					}
 				}
@@ -380,6 +468,8 @@ func loopMonitoring() {
 
 		timer.Mark()
 		var lockedMessages []controller.JobMessage
+		var vmJobsToRestart []orc.Job
+		var vmSuspendUpdates []orc.ResourceUpdateAndId[orc.JobUpdate]
 		for _, job := range activeJobsAfterBatch {
 			if job.Status.State == orc.JobStateInQueue || job.Status.State == orc.JobStateRunning {
 				if reason := IsJobLocked(job); reason.Present {
@@ -387,7 +477,22 @@ func loopMonitoring() {
 						JobId:   job.Id,
 						Message: reason.Value.Reason,
 					})
-					tracker.RequestCleanup(job.Id)
+
+					if backendIsKubevirt(job) {
+						_, _ = vmDetachLockedResources(job)
+
+						shared.RemoveFromQueue(job.Id)
+						vmJobsToRestart = append(vmJobsToRestart, *job)
+						vmSuspendUpdates = append(vmSuspendUpdates, orc.ResourceUpdateAndId[orc.JobUpdate]{
+							Id: job.Id,
+							Update: orc.JobUpdate{
+								State:  util.OptValue(orc.JobStateSuspended),
+								Status: util.OptValue(reason.Value.Reason),
+							},
+						})
+					} else {
+						tracker.RequestCleanup(job.Id)
+					}
 				}
 			}
 		}
@@ -395,7 +500,15 @@ func loopMonitoring() {
 
 		timer.Mark()
 		_ = controller.JobTrackMessage(lockedMessages)
+		if len(vmSuspendUpdates) > 0 {
+			_ = controller.JobTrackRawUpdates(vmSuspendUpdates)
+		}
 		metricMonitoring.WithLabelValues("JobUpdates").Observe(timer.Mark().Seconds())
+
+		for _, job := range vmJobsToRestart {
+			_ = suspend(job)
+			_ = unsuspend(job)
+		}
 	}
 
 	go func() {
@@ -512,7 +625,7 @@ func loopMonitoring() {
 			for _, c := range pod.Spec.Containers {
 				for resourceType, amount := range c.Resources.Requests {
 					intAmount := int64(0)
-					if resourceType == core.ResourceCPU {
+					if resourceType == k8score.ResourceCPU {
 						intAmount = amount.MilliValue()
 					} else {
 						intAmount = amount.Value()
@@ -524,6 +637,8 @@ func loopMonitoring() {
 		}
 
 		for catName, sched := range schedulers {
+			groupMap := nodeGroups[catName]
+			gpuResourceTypes := shared.GpuResourceTypesForCategory(catName)
 			for nodeName, _ := range sched.Nodes {
 				usage := resourcesByNode[nodeName]
 				if usage == nil {
@@ -531,22 +646,28 @@ func loopMonitoring() {
 				}
 
 				machineCategory, ok := shared.ServiceConfig.Compute.Machines[catName]
-				gpuResourceType := "nvidia.com/gpu"
-				systemReservedCpuMillis := 500
+				systemReservedCpuMillis := shared.SystemReservedCpuMillisForCategory(catName)
 
 				if ok {
-					// TODO This seems like it will break if there is more than one category
-					nodeCat, ok := machineCategory.Groups[catName]
-					if ok {
-						gpuResourceType = nodeCat.GpuResourceType
-						systemReservedCpuMillis = nodeCat.SystemReservedCpuMillis
+					groupName := ""
+					if groupMap != nil {
+						groupName = groupMap[nodeName]
+					}
+					if groupName == "" {
+						groupName = bestEffortNodeGroup(catName, machineCategory)
 					}
 				}
 
 				dims := shared.SchedulerDimensions{
-					CpuMillis:     int(usage[string(core.ResourceCPU)]) + systemReservedCpuMillis,
-					MemoryInBytes: int(usage[string(core.ResourceMemory)]),
-					Gpu:           int(usage[gpuResourceType]),
+					CpuMillis:     int(usage[string(k8score.ResourceCPU)]) + systemReservedCpuMillis,
+					MemoryInBytes: int(usage[string(k8score.ResourceMemory)]),
+					Resources:     map[string]int{},
+				}
+				for _, gpuResourceType := range gpuResourceTypes {
+					gpuUsage := int(usage[gpuResourceType])
+					if gpuUsage > 0 {
+						dims.Resources[gpuResourceType] = gpuUsage
+					}
 				}
 
 				sched.SynchronizeNodeUsage(nodeName, dims)
@@ -571,8 +692,17 @@ func loopMonitoring() {
 	for _, entry := range entriesToSubmit {
 		sched, ok := getSchedulerByJob(entry)
 		if ok {
+			if len(sched.JobReplicaEntries(entry.Id)) > 0 {
+				shared.RequestSchedule(entry)
+				continue
+			}
+
 			sched.RegisterJobInQueue(entry.Id, shared.JobDimensions(entry),
 				entry.Specification.Replicas, nil, entry.CreatedAt, timeAllocationOrDefault(entry.Specification.TimeAllocation))
+
+			if !sched.JobInQueue(entry.Id) {
+				shared.RequestSchedule(entry)
+			}
 		}
 	}
 	metricMonitoring.WithLabelValues("RegisterInQueue").Observe(timer.Mark().Seconds())
@@ -621,8 +751,23 @@ func loopMonitoring() {
 			toolBackend := job.Status.ResolvedApplication.Value.Invocation.Tool.Tool.Value.Description.Backend
 			if toolBackend == orc.ToolBackendVirtualMachine {
 				timer.Mark()
-				kubevirt.StartScheduledJob(job, toSchedule.Rank, toSchedule.Node)
+				err := kubevirt.StartScheduledJob(job, toSchedule.Rank, toSchedule.Node)
 				metricMonitoring.WithLabelValues("StartJob").Observe(timer.Mark().Seconds())
+				if err != nil {
+					localMessages = append(localMessages, controller.JobMessage{
+						JobId:   job.Id,
+						Message: fmt.Sprintf("Failed to schedule job: %s", err),
+					})
+
+					_, didNotify := didNotifyUnableToSchedule[job.Id]
+					if didNotify {
+						sendMessages = false
+					} else {
+						didNotifyUnableToSchedule[job.Id] = util.Empty{}
+					}
+				} else {
+					delete(didNotifyUnableToSchedule, job.Id)
+				}
 			} else {
 				timer.Mark()
 				err := containers.StartScheduledJob(job, toSchedule.Rank, toSchedule.Node)
@@ -635,11 +780,11 @@ func loopMonitoring() {
 					})
 
 					if isIApp {
-						_, didNotify := iappDidNotifyUnableToSchedule[job.Id]
+						_, didNotify := didNotifyUnableToSchedule[job.Id]
 						if didNotify {
 							sendMessages = false
 						} else {
-							iappDidNotifyUnableToSchedule[job.Id] = util.Empty{}
+							didNotifyUnableToSchedule[job.Id] = util.Empty{}
 						}
 					}
 
@@ -656,7 +801,7 @@ func loopMonitoring() {
 					}
 				} else {
 					if isIApp {
-						delete(iappDidNotifyUnableToSchedule, job.Id)
+						delete(didNotifyUnableToSchedule, job.Id)
 					}
 				}
 			}
@@ -742,7 +887,32 @@ type NodeCatGroup struct {
 	Group    string
 }
 
-func nodeCategories(node *core.Node) []NodeCatGroup {
+func bestEffortNodeGroup(categoryName string, category cfg.K8sMachineCategory) string {
+	if _, ok := category.Groups[categoryName]; ok {
+		return categoryName
+	}
+
+	keys := make([]string, 0, len(category.Groups))
+	for key := range category.Groups {
+		keys = append(keys, key)
+	}
+	slices.Sort(keys)
+
+	for _, key := range keys {
+		group := category.Groups[key]
+		if group.Fraction.Numerator == 1 && group.Fraction.Denominator == 1 {
+			return key
+		}
+	}
+
+	if len(keys) > 0 {
+		return keys[0]
+	}
+
+	return categoryName
+}
+
+func nodeCategories(node *k8score.Node) []NodeCatGroup {
 	// NOTE(Dan): It is really important that production providers only return 1. Being able to return more than one
 	// is just for testing in resource-constrained environments.
 	parseResult := func(machineLabel string) []NodeCatGroup {
@@ -795,6 +965,11 @@ func convertJobTimeToAccountingUnits(job *orc.Job, timeConsumed time.Duration) i
 		productUnits *= float64(job.Status.ResolvedProduct.Value.MemoryInGigs)
 	case "":
 		// Use just the nodes. This is used when type is currency.
+	}
+
+	productFraction := job.Status.ResolvedProduct.Value.Fraction
+	if productFraction.Denominator > 0 && productFraction.Numerator > 0 {
+		productUnits *= float64(productFraction.Numerator) / float64(productFraction.Denominator)
 	}
 
 	baseTimeUnit := 1 * time.Minute

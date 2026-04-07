@@ -245,7 +245,7 @@ func ProductCreate(actor rpc.Actor, products []accapi.ProductV2) *util.HttpError
 							select 
 								:provider provider, 
 								:category category, 
-								cast(:product_type as accounting.product_type) product_type, 
+								:product_type product_type, 
 								ac.id accounting_unit,
 								:frequency frequency,
 								cast(:charge_type as accounting.charge_type) charge_t,
@@ -295,6 +295,8 @@ func ProductCreate(actor rpc.Actor, products []accapi.ProductV2) *util.HttpError
 		var categories []string
 		var providers []string
 		var description []string
+		var fractionNumerator []int
+		var fractionDenominator []int
 
 		for _, req := range products {
 			names = append(names, req.Name)
@@ -303,6 +305,10 @@ func ProductCreate(actor rpc.Actor, products []accapi.ProductV2) *util.HttpError
 			providers = append(providers, req.Category.Provider)
 			licenseTags = append(licenseTags, sql.NullString{})
 			description = append(description, req.Description)
+
+			fraction := req.Fraction.Normalize()
+			fractionNumerator = append(fractionNumerator, fraction.Numerator)
+			fractionDenominator = append(fractionDenominator, fraction.Denominator)
 
 			cpus = append(cpus, req.Cpu)
 			gpus = append(gpus, req.Gpu)
@@ -329,14 +335,17 @@ func ProductCreate(actor rpc.Actor, products []accapi.ProductV2) *util.HttpError
 						unnest(cast(:description as text[])) description,
 						unnest(cast(:cpu_model as text[])) cpu_model,
 						unnest(cast(:gpu_model as text[])) gpu_model,
-						unnest(cast(:memory_model as text[])) memory_model
+						unnest(cast(:memory_model as text[])) memory_model,
+						unnest(cast(:fraction_numerator as bigint[])) fraction_numerator,
+						unnest(cast(:fraction_denominator as bigint[])) fraction_denominator
 				)
 				insert into accounting.products
 					(name, price, cpu, gpu, memory_in_gigs, license_tags, category,
-					  version, description, cpu_model, gpu_model, memory_model) 
+					  version, description, cpu_model, gpu_model, memory_model, fraction_numerator, fraction_denominator)
 				select
 					req.uname, req.price, req.cpu, req.gpu, req.memory_in_gigs, req.license_tags,
-					pc.id, 1, req.description, req.cpu_model, req.gpu_model, req.memory_model
+					pc.id, 1, req.description, req.cpu_model, req.gpu_model, req.memory_model, req.fraction_numerator,
+					req.fraction_denominator
 				from
 					requests req join
 					accounting.product_categories pc on
@@ -355,21 +364,25 @@ func ProductCreate(actor rpc.Actor, products []accapi.ProductV2) *util.HttpError
 					description = excluded.description,
 					cpu_model = excluded.cpu_model,
 					gpu_model = excluded.gpu_model,
-					memory_model = excluded.memory_model
+					memory_model = excluded.memory_model,
+					fraction_numerator = excluded.fraction_numerator,
+					fraction_denominator = excluded.fraction_denominator
 		    `,
 			db.Params{
-				"names":          names,
-				"prices":         prices,
-				"cpus":           cpus,
-				"gpus":           gpus,
-				"memory_in_gigs": memoryInGigs,
-				"categories":     categories,
-				"providers":      providers,
-				"license_tags":   licenseTags,
-				"description":    description,
-				"cpu_model":      cpuModel,
-				"gpu_model":      gpuModel,
-				"memory_model":   memoryModel,
+				"names":                names,
+				"prices":               prices,
+				"cpus":                 cpus,
+				"gpus":                 gpus,
+				"memory_in_gigs":       memoryInGigs,
+				"categories":           categories,
+				"providers":            providers,
+				"license_tags":         licenseTags,
+				"description":          description,
+				"cpu_model":            cpuModel,
+				"gpu_model":            gpuModel,
+				"memory_model":         memoryModel,
+				"fraction_numerator":   fractionNumerator,
+				"fraction_denominator": fractionDenominator,
 			},
 		)
 
@@ -577,6 +590,8 @@ func productsLoad() {
 			GpuModel                  sql.NullString
 			MemoryModel               sql.NullString
 			HiddenInGrantApplications bool
+			FractionNumerator         sql.Null[int]
+			FractionDenominator       sql.Null[int]
 
 			ProductType         string
 			AccountingFrequency string
@@ -599,6 +614,7 @@ func productsLoad() {
 					cpu, gpu, memory_in_gigs,
 					cpu_model, gpu_model, memory_model,
 					hidden_in_grant_applications,
+					fraction_numerator, fraction_denominator,
 					
 					pc.product_type,
 					pc.accounting_frequency,
@@ -649,6 +665,10 @@ func productsLoad() {
 				MemoryModel:               row.MemoryModel.String,
 				Gpu:                       int(row.Gpu.Int32),
 				GpuModel:                  row.GpuModel.String,
+				Fraction: (&accapi.Fraction{
+					Numerator:   util.SqlNullToOpt(row.FractionNumerator).GetOrDefault(1),
+					Denominator: util.SqlNullToOpt(row.FractionDenominator).GetOrDefault(1),
+				}).Normalize(),
 			}
 
 			// NOTE(Dan): ordering done by query

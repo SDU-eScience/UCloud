@@ -51,12 +51,12 @@ func Init() controller.JobsService {
 	loadIApps()
 
 	return controller.JobsService{
+		OnUpdatedLabels:          nil,
 		Terminate:                terminate,
 		Extend:                   extend,
 		RetrieveProducts:         nil, // handled by main instance
 		Follow:                   follow,
 		HandleShell:              handleShell,
-		ServerFindIngress:        serverFindIngress,
 		OpenWebSession:           openWebSession,
 		RequestDynamicParameters: requestDynamicParameters,
 	}
@@ -74,6 +74,20 @@ func findPodByJobIdAndRank(jobId string, rank int) util.Option[*core.Pod] {
 	} else {
 		return util.OptValue(result)
 	}
+}
+
+func ResolveUcxJobSessionUpstream(job *orc.Job, port int) (string, error) {
+	if port <= 0 || port > 65535 {
+		return "", fmt.Errorf("invalid port: %d", port)
+	}
+
+	if util.DevelopmentModeEnabled() {
+		podName := idAndRankToPodName(job.Id, 0)
+		tunnelPort := shared.EstablishTunnelEx(podName, shared.ServiceConfig.Compute.Namespace, port)
+		return fmt.Sprintf("ws://127.0.0.1:%d/", tunnelPort), nil
+	}
+
+	return fmt.Sprintf("ws://%s:%d/", shared.JobHostName(job, 0), port), nil
 }
 
 func FindJobFolder(job *orc.Job) (string, *orc.Drive, *util.HttpError) {
@@ -208,6 +222,7 @@ func follow(session *controller.FollowJobSession) {
 	}
 
 	utilizationChannel := make(chan []float64)
+	utilizationResetChannel := make(chan util.Empty, 8)
 	utilizationDataTracked := false
 	var utilizationData *util.FsRingReader[[]float64]
 	utilSerializer := util.FsRingSerializer[[]float64]{
@@ -252,6 +267,13 @@ func follow(session *controller.FollowJobSession) {
 			path := filepath.Join(jobFolder, ".ucviz-utilization-data")
 			ring, err := util.FsRingOpen(path, utilSerializer)
 			if err == nil {
+				ring.OnReset = func() {
+					select {
+					case utilizationResetChannel <- util.Empty{}:
+					default:
+					}
+				}
+
 				utilizationData = ring
 				utilizationDataTracked = true
 
@@ -286,6 +308,9 @@ func follow(session *controller.FollowJobSession) {
 		loop:
 			for {
 				select {
+				case <-utilizationResetChannel:
+					session.EmitLogs(0, util.OptValue(""), util.OptNone[string](), util.OptValue("utilization-data-reset"))
+
 				case row := <-utilizationChannel:
 					b := strings.Builder{}
 					for i, elem := range row {
@@ -443,7 +468,7 @@ func requestDynamicParameters(owner orc.ResourceOwner, app *orc.Application) []o
 	return []orc.ApplicationParameter{param}
 }
 
-func openWebSession(job *orc.Job, rank int, target util.Option[string]) (controller.ConfiguredWebSession, *util.HttpError) {
+func openWebSession(job *orc.Job, sessionType orc.InteractiveSessionType, rank int, target util.Option[string]) (controller.ConfiguredWebSessionResult, *util.HttpError) {
 	podName := idAndRankToPodName(job.Id, rank)
 
 	app := &job.Status.ResolvedApplication.Value.Invocation
@@ -484,20 +509,44 @@ func openWebSession(job *orc.Job, rank int, target util.Option[string]) (control
 	}
 
 	address := config.HostInfo{
-		Address: jobHostName(job.Id, rank),
+		Address: shared.JobHostName(job, rank),
 		Port:    int(port),
 	}
 
 	if !shared.K8sInCluster {
 		address.Address = "127.0.0.1"
-		address.Port = establishTunnel(podName, int(port))
+		address.Port = shared.EstablishTunnel(podName, int(port))
 		flags |= controller.RegisteredIngressFlagsNoPersist
 	}
 
-	return controller.ConfiguredWebSession{
-		Host:  address,
-		Flags: flags,
-	}, nil
+	if (flags & controller.RegisteredIngressFlagsVnc) != 0 {
+		return controller.ConfiguredWebSessionResult{
+			Endpoints: []controller.ConfiguredWebEndpoint{{
+				Host:         address,
+				TargetDomain: config.Provider.Hosts.SelfPublic.Address,
+				Flags:        flags,
+				IsPublic:     false,
+			}},
+		}, nil
+	}
+
+	resolvedSuffix := util.OptNone[string]()
+	if target.Present {
+		resolvedSuffix.Set("-" + controller.ToHostnameSafe(target.Value))
+	}
+
+	ingressConfigs := serverFindIngress(job, rank, resolvedSuffix)
+	endpoints := make([]controller.ConfiguredWebEndpoint, 0, len(ingressConfigs))
+	for _, ingress := range ingressConfigs {
+		endpoints = append(endpoints, controller.ConfiguredWebEndpoint{
+			Host:         address,
+			TargetDomain: ingress.TargetDomain,
+			Flags:        flags,
+			IsPublic:     ingress.IsPublic,
+		})
+	}
+
+	return controller.ConfiguredWebSessionResult{Endpoints: endpoints}, nil
 }
 
 func serverFindIngress(job *orc.Job, rank int, suffix util.Option[string]) []controller.ConfiguredWebIngress {
@@ -554,5 +603,6 @@ func JobAnnotations(job *orc.Job, rank int) map[string]string {
 }
 
 const (
-	ContainerUserJob = "user-job"
+	ContainerUserJob  = "user-job"
+	ContainerAuditLog = "audit-log"
 )

@@ -137,6 +137,7 @@ type ResourceBrowseRequest[Flags any] struct {
 
 type ResourceSpecification struct {
 	Product acc.ProductReference `json:"product"`
+	Labels  map[string]string    `json:"labels"`
 }
 
 type ResourceRetrieveRequest[Flags any] struct {
@@ -171,6 +172,7 @@ type ResourceFlags struct {
 	IncludeUpdates        bool                       `json:"includeUpdates"`
 	IncludeSupport        bool                       `json:"includeSupport"`
 	IncludeProduct        bool                       `json:"includeProduct"`
+	FilterLabels          map[string]string          `json:"filterLabels"`
 	FilterCreatedBy       util.Option[string]        `json:"filterCreatedBy"`
 	FilterCreatedAfter    util.Option[uint64]        `json:"filterCreatedAfter"`  // NOTE(Dan): Timestamp, working around rpc bug
 	FilterCreatedBefore   util.Option[uint64]        `json:"filterCreatedBefore"` // NOTE(Dan): Timestamp, working around rpc bug
