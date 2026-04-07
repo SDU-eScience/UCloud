@@ -6,8 +6,8 @@ export interface BrandingLink {
 }
 
 export enum BrandingLoginPageType {
-    brandingLoginPageGeneric = 0,
-    brandingLoginPageDeic = 1
+    GENERIC = 0,
+    DEIC = 1
 }
 
 export interface BrandingLoginPage {
