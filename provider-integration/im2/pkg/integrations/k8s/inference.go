@@ -277,42 +277,18 @@ func initInference() {
 			return
 		}
 
-		proxyReq, err := http.NewRequest(
-			http.MethodPost,
-			fmt.Sprintf("%s/audio/transcriptions", inferenceGlobals.BackendServer),
-			bytes.NewBuffer(requestBody),
-		)
-		if err != nil {
-			http.Error(w, "invalid request", http.StatusBadRequest)
+		respData, httpErr := inferenceTranscriptionResponse(requestBody, r.Header.Get("Content-Type"))
+		if httpErr != nil {
+			http.Error(w, httpErr.Why, httpErr.StatusCode)
 			return
 		}
 
-		proxyReq.Header.Add("Authorization", "Bearer notused")
-		proxyReq.Header.Add("Content-Type", r.Header.Get("Content-Type"))
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(respData)
 
-		resp, err := http.DefaultClient.Do(proxyReq)
-		if err != nil {
-			http.Error(w, "invalid request", http.StatusBadRequest)
-			return
-		}
-		defer util.SilentClose(resp.Body)
-
-		for k, values := range resp.Header {
-			for _, v := range values {
-				w.Header().Add(k, v)
-			}
-		}
-		w.WriteHeader(resp.StatusCode)
-
-		respData, err := io.ReadAll(resp.Body)
-		if err == nil {
-			_, _ = w.Write(respData)
-
-			if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-				promptTokens, completionTokens := inferenceUsageFromTranscriptionResponse(respData)
-				inferenceReportUsage(apiKeyOwner, promptTokens, completionTokens)
-			}
-		}
+		promptTokens, completionTokens := inferenceUsageFromTranscriptionResponse(respData)
+		inferenceReportUsage(apiKeyOwner, promptTokens, completionTokens)
 	})
 
 	controller.Mux.HandleFunc(authority+"/v1/images/generations", func(w http.ResponseWriter, r *http.Request) {
