@@ -1,8 +1,8 @@
 import * as React from "react";
-import { useCloudAPI } from "@/Authentication/DataHook";
-import { brandingApi, BrandingResponse } from "@/UCloud/BrandingApi";
-import { useDispatch } from "react-redux";
-import { PayloadAction } from "@reduxjs/toolkit";
+import {useCloudAPI} from "@/Authentication/DataHook";
+import {brandingApi, BrandingResponse} from "@/UCloud/BrandingApi";
+import {useDispatch} from "react-redux";
+import {PayloadAction} from "@reduxjs/toolkit";
 
 export const AutomaticBranding: React.FunctionComponent = () => {
   const [branding, fetchBranding] = useCloudAPI<BrandingResponse>(
