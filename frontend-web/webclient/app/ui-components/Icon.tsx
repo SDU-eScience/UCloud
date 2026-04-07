@@ -30,8 +30,8 @@ const IconBase = ({name, size, squared, color2, spin, hoverColor, ...props}: Ico
 
 export interface IconBaseProps extends SpaceProps, React.SVGAttributes<HTMLDivElement> {
     name: IconName | "bug";
-    color?: ThemeColor | HexColor;
-    color2?: ThemeColor | HexColor;
+    color?: ThemeColor | HexColor | string;
+    color2?: ThemeColor | HexColor| string;
     rotation?: number;
     cursor?: Cursor;
     size?: string | number;
