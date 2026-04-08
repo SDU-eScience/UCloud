@@ -23,7 +23,7 @@ type PolicyProperty struct {
 	Title       string `json:"title"`
 	Description string `json:"description"`
 
-	Options []string `json:"options,omitempty"` // Enum
+	Options []string `json:"options,omitempty"` // Enum, EnumSet
 }
 
 type PolicyPropertyType string
@@ -37,7 +37,33 @@ const (
 	PolicyPropertyProviders PolicyPropertyType = "Providers"
 	PolicyPropertyBool      PolicyPropertyType = "Bool"
 	PolicyPropertyTextList  PolicyPropertyType = "TextList"
+	PolicyPropertyEnumSet   PolicyPropertyType = "EnumSet"
 )
+
+// Policy "Name"s. Remember to edit here when adding or editing policies
+type PoliciesType string
+
+const (
+	RestrictApplications           PoliciesType = "RestrictApplications"
+	CutAndPaste                    PoliciesType = "CutAndPaste"
+	RestrictDownloads              PoliciesType = "RestrictDownloads"
+	RestrictIntegratedApplications PoliciesType = "RestrictIntegratedApplications"
+	RestrictInternetAccess         PoliciesType = "RestrictInternetAccess"
+	RestrictOrganizationMembers    PoliciesType = "RestrictOrganizationMembers"
+	RestrictProviderTransfers      PoliciesType = "RestrictProviderTransfers"
+	RestrictPublicIPs              PoliciesType = "RestrictPublicIPs"
+	RestrictPublicLinks            PoliciesType = "RestrictPublicLinks"
+	RestrictSourceIPRange          PoliciesType = "RestrictSourceIPRange"
+)
+
+func (t PoliciesType) String() string {
+	return string(t)
+}
+
+type PoliciesForProject struct {
+	ProjectId      string
+	PoliciesByName map[string]*PolicySpecification
+}
 
 type PolicySpecification struct {
 	Schema     string                `json:"schema"`
@@ -54,7 +80,7 @@ type PolicyPropertyValue struct {
 	Int          int      `json:"int,omitempty"`          // Int
 	Float        float64  `json:"float,omitempty"`        // Float
 	Bool         bool     `json:"bool,omitempty"`         // Bool
-	TextElements []string `json:"textElements,omitempty"` // TextList
+	TextElements []string `json:"textElements,omitempty"` // TextList, EnumSet
 }
 
 type Policy struct {
@@ -67,10 +93,14 @@ type Policy struct {
 
 const policiesBaseContext = "projects/v2/policies"
 
-var PoliciesRetrieve = rpc.Call[util.Empty, map[string]Policy]{
+type RetrievePoliciesRequest struct {
+	ProjectId string `json:"projectId"`
+}
+
+var PoliciesRetrieve = rpc.Call[RetrievePoliciesRequest, map[string]Policy]{
 	BaseContext: policiesBaseContext,
 	Convention:  rpc.ConventionRetrieve,
-	Roles:       rpc.RolesEndUser,
+	Roles:       rpc.RolesAuthenticated,
 }
 
 type PoliciesUpdateRequest struct {

@@ -23,20 +23,42 @@ import (
 var providerWalletNotifications = make(chan AccWalletId, 1024*1024)
 
 var providerNotifications struct {
-	Mu                        sync.Mutex
+	Mu sync.Mutex
+
+	// All of these follow providerId -> sessionId -> channel
+
 	ProjectChannelsByProvider map[string]map[string]chan *fndapi.Project
 	WalletsByProvider         map[string]map[string]chan *accapi.WalletV2
+	PoliciesByProvider        map[string]map[string]chan fndapi.PoliciesForProject
+}
+
+func retrieveRelevantProviders(projectId string) map[string]util.Empty {
+	projectWallets := internalRetrieveWallets(time.Now(), projectId, walletFilter{RequireActive: true})
+	relevantProviders := map[string]util.Empty{}
+
+	for _, w := range projectWallets {
+		relevantProviders[w.PaysFor.Provider] = util.Empty{}
+	}
+
+	return relevantProviders
 }
 
 func initProviderNotifications() {
 	providerNotifications.ProjectChannelsByProvider = map[string]map[string]chan *fndapi.Project{}
 	providerNotifications.WalletsByProvider = map[string]map[string]chan *accapi.WalletV2{}
+	providerNotifications.PoliciesByProvider = map[string]map[string]chan fndapi.PoliciesForProject{}
+
+	policyCache.Mu.Lock()
+	policyCache.PoliciesByProject = make(map[string]map[string]*fndapi.PolicySpecification)
+	policyCache.Mu.Unlock()
 
 	go func() {
 		// NOTE(Dan): These two channels receive events from database triggers set on the relevant insert/update/delete
 		// operations. The payload is either the project or group ID which triggered the update.
 		projectUpdates := db.Listen(context.Background(), "project_updates")
 		groupUpdates := db.Listen(context.Background(), "project_group_updates")
+		policyUpdates := db.Listen(context.Background(), "policy_updates")
+		policyDeletes := db.Listen(context.Background(), "policy_deleted")
 
 		for {
 			var project fndapi.Project
@@ -44,6 +66,10 @@ func initProviderNotifications() {
 
 			var walletId AccWalletId
 			var walletOk bool
+
+			var policySpecifications map[string]*fndapi.PolicySpecification
+			var projectIdForPolices string
+			var policiesOk bool
 
 			select {
 			case projectId := <-projectUpdates:
@@ -58,15 +84,22 @@ func initProviderNotifications() {
 
 			case walletId = <-providerWalletNotifications:
 				walletOk = true
+
+			case projectId := <-policyUpdates:
+				db.NewTx0(func(tx *db.Transaction) {
+					policySpecifications, policiesOk = coreutil.PolicySpecificationsRetrieveFromDatabase(tx, projectId)
+				})
+				projectIdForPolices = projectId
+
+			case projectId := <-policyDeletes:
+				db.NewTx0(func(tx *db.Transaction) {
+					policySpecifications, policiesOk = coreutil.PolicySpecificationsRetrieveFromDatabase(tx, projectId)
+				})
+				projectIdForPolices = projectId
 			}
 
 			if projectOk {
-				projectWallets := internalRetrieveWallets(time.Now(), project.Id, walletFilter{RequireActive: true})
-				relevantProviders := map[string]util.Empty{}
-
-				for _, w := range projectWallets {
-					relevantProviders[w.PaysFor.Provider] = util.Empty{}
-				}
+				relevantProviders := retrieveRelevantProviders(project.Id)
 
 				var allChannels []chan *fndapi.Project
 
@@ -107,6 +140,31 @@ func initProviderNotifications() {
 						case ch <- &wallet:
 						case <-time.After(200 * time.Millisecond):
 						}
+					}
+				}
+			} else if policiesOk {
+				relevantProviders := retrieveRelevantProviders(projectIdForPolices)
+				var allChannels []chan fndapi.PoliciesForProject
+
+				providerNotifications.Mu.Lock()
+
+				for provider := range relevantProviders {
+					channels, ok := providerNotifications.PoliciesByProvider[provider]
+					if ok {
+						for _, ch := range channels {
+							allChannels = append(allChannels, ch)
+						}
+					}
+				}
+
+				providerNotifications.Mu.Unlock()
+
+				updatePolicyCacheForProject(projectIdForPolices, policySpecifications)
+
+				for _, ch := range allChannels {
+					select {
+					case ch <- fndapi.PoliciesForProject{ProjectId: projectIdForPolices, PoliciesByName: policySpecifications}:
+					case <-time.After(200 * time.Millisecond):
 					}
 				}
 			}
@@ -175,6 +233,12 @@ func providerNotificationHandleClient(conn *ws.Conn) {
 			RefToCategory map[int]accapi.ProductCategory
 		}
 
+		policies struct {
+			Counter        int
+			ProjectIdToRef map[string]int
+			RefToProjectId map[int]string
+		}
+
 		ctx    context.Context
 		cancel context.CancelFunc
 	)
@@ -188,6 +252,9 @@ func providerNotificationHandleClient(conn *ws.Conn) {
 	productCategories.IdToRef = map[accapi.ProductCategoryIdV2]int{}
 	productCategories.RefToCategory = map[int]accapi.ProductCategory{}
 
+	policies.ProjectIdToRef = map[string]int{}
+	policies.RefToProjectId = map[int]string{}
+
 	ctx, cancel = context.WithCancel(context.Background())
 
 	// Subscription
@@ -195,6 +262,7 @@ func providerNotificationHandleClient(conn *ws.Conn) {
 	sessionId := util.RandomTokenNoTs(32)
 	projectUpdates := make(chan *fndapi.Project, 128)
 	walletUpdates := make(chan *accapi.WalletV2, 128)
+	policyUpdates := make(chan fndapi.PoliciesForProject, 128)
 
 	{
 		providerNotifications.Mu.Lock()
@@ -213,6 +281,13 @@ func providerNotificationHandleClient(conn *ws.Conn) {
 		}
 		pmap[sessionId] = projectUpdates
 
+		polmap, ok := providerNotifications.PoliciesByProvider[providerId]
+		if !ok {
+			polmap = map[string]chan fndapi.PoliciesForProject{}
+			providerNotifications.PoliciesByProvider[providerId] = polmap
+		}
+		polmap[sessionId] = policyUpdates
+
 		providerNotifications.Mu.Unlock()
 	}
 
@@ -222,6 +297,7 @@ func providerNotificationHandleClient(conn *ws.Conn) {
 		providerNotifications.Mu.Lock()
 		delete(providerNotifications.WalletsByProvider[providerId], sessionId)
 		delete(providerNotifications.ProjectChannelsByProvider[providerId], sessionId)
+		delete(providerNotifications.PoliciesByProvider[providerId], sessionId)
 		providerNotifications.Mu.Unlock()
 	}()
 
@@ -344,6 +420,7 @@ func providerNotificationHandleClient(conn *ws.Conn) {
 
 	projectsToSend := map[int]util.Empty{}
 	usersToSend := map[int]util.Empty{}
+	policiesToSend := map[int]fndapi.PoliciesForProject{}
 	var walletsToSend []*accapi.WalletV2
 	categoriesToSend := map[int]util.Empty{}
 
@@ -360,6 +437,25 @@ func providerNotificationHandleClient(conn *ws.Conn) {
 			projects.ProjectIdToRef[project.Id] = ref
 			projects.RefToProject[ref] = project
 			projectsToSend[ref] = util.Empty{}
+		}
+
+		return ref
+	}
+
+	appendPolicies := func(policiesForProject fndapi.PoliciesForProject, forced bool) int {
+		projectID := policiesForProject.ProjectId
+		ref, ok := policies.ProjectIdToRef[projectID]
+		if !ok {
+			ref, ok = policies.Counter, true
+			policies.ProjectIdToRef[projectID] = ref
+			policies.RefToProjectId[ref] = projectID
+			policiesToSend[ref] = policiesForProject
+
+			policies.Counter++
+		} else if forced {
+			policies.ProjectIdToRef[projectID] = ref
+			policies.RefToProjectId[ref] = projectID
+			policiesToSend[ref] = policiesForProject
 		}
 
 		return ref
@@ -439,6 +535,22 @@ func providerNotificationHandleClient(conn *ws.Conn) {
 			out.WriteString(string(projectJson))
 		}
 
+		for policyRef, _ := range policiesToSend {
+			project := policies.RefToProjectId[policyRef]
+
+			policyCache.Mu.Lock()
+			currentPolices := policyCache.PoliciesByProject[project]
+			projectPolicies := fndapi.PoliciesForProject{
+				project,
+				currentPolices,
+			}
+			currentProjectPoliciesJson, _ := json.Marshal(projectPolicies)
+			policyCache.Mu.Unlock()
+			out.WriteU8(opPolicyChange)
+			out.WriteU32(uint32(policyRef))
+			out.WriteString(string(currentProjectPoliciesJson))
+		}
+
 		for categoryRef, _ := range categoriesToSend {
 			category := productCategories.RefToCategory[categoryRef]
 			categoryJson, _ := json.Marshal(category)
@@ -485,6 +597,7 @@ func providerNotificationHandleClient(conn *ws.Conn) {
 			categoriesToSend = map[int]util.Empty{}
 			usersToSend = map[int]util.Empty{}
 			walletsToSend = nil
+			policiesToSend = nil
 
 			if err != nil {
 				cancel()
@@ -508,6 +621,11 @@ func providerNotificationHandleClient(conn *ws.Conn) {
 			if ok {
 				appendProject(project, true)
 			}
+
+		case projectPolicies, ok := <-policyUpdates:
+			if ok {
+				appendPolicies(projectPolicies, true)
+			}
 		}
 
 		flush()
@@ -515,10 +633,11 @@ func providerNotificationHandleClient(conn *ws.Conn) {
 }
 
 const (
-	opAuth       = 0
-	opWallet     = 1
-	opProject    = 2
-	opCategory   = 3
-	opUser       = 4
-	opReplayUser = 5
+	opAuth         = 0
+	opWallet       = 1
+	opProject      = 2
+	opCategory     = 3
+	opUser         = 4
+	opReplayUser   = 5
+	opPolicyChange = 6
 )

@@ -1,0 +1,21 @@
+name: "CutAndPaste"
+title: "Disable copy & paste in interactive applications"
+
+description: >
+  This option will turn off copy & paste in interactive applications. This is 
+  implemented by forcing access to all interactive applications to be done 
+  through a remote desktop. This option is insufficient if Internet access 
+  is allowed. Copy & paste will still be possible internally in the 
+  application, if supported, but it will not be available on the client 
+  machine.
+  
+  This feature will automatically disable the "Open terminal" feature on all
+  jobs.
+
+configuration:
+  - name: "enabled"
+    type: "Bool"
+    title: "Enabled"
+    description: >
+      If enabled, copy & paste will be turned off. If not enabled, 
+      copy & paste will be available if the application supports it.

@@ -17,6 +17,7 @@ import (
 	"ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/integrations/k8s/filesystem"
 	"ucloud.dk/pkg/integrations/k8s/shared"
+	"ucloud.dk/shared/pkg/foundation"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -167,6 +168,36 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		}
 		allowNetworkFrom(firewall, job.Id)
 		allowNetworkTo(firewall, job.Id)
+
+		if job.Owner.Project.Present {
+			policyAccessSpec, hasRestriction := controller.RetrievePoliciesByProject(job.Owner.Project.String())[foundation.RestrictInternetAccess.String()]
+			if hasRestriction {
+				for _, prop := range policyAccessSpec.Properties {
+					if prop.Name == "allowedSubnets" {
+						if prop.Text == "" {
+							firewall.Spec.PolicyTypes = []networking.PolicyType{networking.PolicyTypeEgress}
+						} else {
+							allowNetworkTo(firewall, prop.Text)
+						}
+						break
+					}
+				}
+			}
+
+			policySourceSpec, hasRestriction := controller.RetrievePoliciesByProject(job.Owner.Project.String())[foundation.RestrictSourceIPRange.String()]
+			if hasRestriction {
+				for _, prop := range policySourceSpec.Properties {
+					if prop.Name == "allowedSubnets" {
+						if prop.Text == "" {
+							firewall.Spec.PolicyTypes = []networking.PolicyType{networking.PolicyTypeIngress}
+						} else {
+							allowNetworkTo(firewall, prop.Text)
+						}
+						break
+					}
+				}
+			}
+		}
 
 		serviceLabel := shared.JobIdLabel(job.Id)
 		service = &core.Service{
