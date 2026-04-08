@@ -8,7 +8,7 @@ import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {TextProps, TextSpan} from "@/ui-components/Text";
 import {getQueryParamOrElse, getQueryParam} from "@/Utilities/URIUtilities";
 import {errorMessageOrDefault, onSandbox, preventDefault} from "@/UtilityFunctions";
-import {PRODUCT_NAME, SITE_DOCUMENTATION_URL, SUPPORT_EMAIL} from "../../site.config.json";
+import {PRODUCT_NAME} from "../../site.config.json";
 import {useLocation, useNavigate} from "react-router-dom";
 import wayfLogo from "@/Assets/Images/WAYFLogo.svg?url";
 import ucloudBlue from "@/Assets/Images/ucloud-blue.svg?url";
@@ -22,9 +22,9 @@ import interregWhite from "@/Assets/Images/interreg_white.svg";
 import AppRoutes from "@/Routes";
 import {addOrgInfoModalIfNotFilled} from "@/UserSettings/ChangeUserDetails";
 import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
+import {BrandingLoginPageType, BrandingResponse} from "@/UCloud/BrandingApi";
 
 const IS_SANDBOX = onSandbox();
-const IS_GENERIC = !window.location.hostname.endsWith(".dk"); // NOTE(Dan): Overly simplified but works for now.
 
 const BackgroundImageClass = injectStyleSimple("background-image", `
     background: url(${deicBackground}) no-repeat center;
@@ -38,7 +38,25 @@ export const LOGIN_REDIRECT_KEY = "redirect_on_login";
 const inDevEnvironment = DEVELOPMENT_ENV;
 const enabledWayf = true;
 
-const TEXT_COLOR = IS_SANDBOX || IS_GENERIC ? "#fff" : "#000";
+async function fetchBranding (){
+    return await fetch(Client.computeURL("/api/branding", "/retrieve"), 
+        {
+            method: "GET",
+            headers: {
+                Accept: "application/json"
+            },
+        });
+}
+
+function getTextColor(branding: BrandingResponse) {
+    return IS_SANDBOX || branding.loginPage.type === BrandingLoginPageType.GENERIC ? "#fff" : "#000";
+}
+
+function isUsingGenericLoginPage(branding: BrandingResponse) {
+    return branding.loginPage.type === BrandingLoginPageType.GENERIC;
+}
+
+
 export const LoginPage: React.FC<{initialState?: any}> = props => {
     const [challengeId, setChallengeID] = useState("");
     const verificationInput = useRef<HTMLInputElement>(null);
@@ -47,11 +65,40 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
     const resetEmailInput = useRef<HTMLInputElement>(null);
     const resetPasswordInput = useRef<HTMLInputElement>(null);
     const resetPasswordRepeatInput = useRef<HTMLInputElement>(null);
+    const [isGeneric, setIsGeneric] = useState(false);
+    const [textColor, setTextColor] = useState("#fff");
+    const [showingWayf, setShowingWayf] = useState(false);
+    const [branding, setBranding] = useState<BrandingResponse>(
+        {deploymentName: "", loginPage: {primaryLogoUrl: "", secondaryLogoUrls: [], type: BrandingLoginPageType.GENERIC}
+    });
 
     const promises = usePromiseKeeper();
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
+        const loadBranding = async () => {
+            try {
+                const response = await fetchBranding();
+
+                if (!response.ok) return;
+
+                const b: BrandingResponse = await response.json();
+                const generic = isUsingGenericLoginPage(b);
+
+                // These states are influenced by if page is using generic login or not
+                setTextColor(getTextColor(b));
+                setIsGeneric(generic);
+                setBranding(b);
+                setShowingWayf(!IS_SANDBOX && !generic);
+
+                console.log("Using", (generic ? "Generic" : "Deic"), "login page.");
+            } catch (error) {
+                console.error("Failed to fetch branding information: ", error);
+            }
+        };
+
+        loadBranding();
+
         if (props.initialState !== undefined) {
             handleAuthState(props.initialState);
         }
@@ -238,28 +285,26 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
             Please check your inbox and follow the instructions.`);
     }
 
-    const [showingWayf, setShowingWayf] = useState(!IS_SANDBOX && !IS_GENERIC);
-
     return (
-        <LoginWrapper>
-            {IS_GENERIC ? <GenericLoginHeader /> : IS_SANDBOX ? <HalricLoginHeader /> : <DeicLoginHeader />}
+        <LoginWrapper branding={branding}>
+            <LoginHeader branding={branding}/>
             <Box width="315px" mx="auto" my="auto">
                 {enabledWayf && !challengeId && !isPasswordReset && showingWayf ? (<>
                     <a href={`/auth/saml/login?service=${service}`}>
                         <Button mb="8px" className={BorderRadiusButton} height={"92px"} disableStandardSizes
-                            disabled={loading} fullWidth color={IS_GENERIC || IS_SANDBOX ? "primaryLight" : "wayfGreen"}>
+                            disabled={loading} fullWidth color={isGeneric || IS_SANDBOX ? "primaryLight" : "wayfGreen"}>
                             <Image alt="The Wayf logo" color="#fff" width="100px" src={wayfLogo} />
                             <TextSpan className={LoginTextSpanClass} fontSize={2} ml="2.5em">Login</TextSpan>
                         </Button>
                     </a>
                     <IdpList />
-                    <Text color={TEXT_COLOR} onClick={() => setShowingWayf(false)} cursor="pointer" textAlign="center">Other
+                    <Text color={textColor} onClick={() => setShowingWayf(false)} cursor="pointer" textAlign="center">Other
                         login options →</Text>
                 </>) : null}
                 {(!challengeId) ? (
                     !isPasswordReset ? (!showingWayf ? (
                         <>
-                            <DropdownLike>
+                            <DropdownLike isGeneric={isGeneric}>
                                 <form onSubmit={preventDefault}>
                                     <Login
                                         enabled2fa={!!challengeId}
@@ -277,16 +322,16 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
                                 </form>
                                 <Box mt={20} textAlign="center">
                                     <Link to="/login?password-reset=true" mt={20}>
-                                        <BlackLoginText fontSize={1}>Forgot your password?</BlackLoginText>
+                                        <BlackLoginText textColor={textColor} fontSize={1}>Forgot your password?</BlackLoginText>
                                     </Link>
                                 </Box>
                             </DropdownLike>
-                            <Text mt="8px" color={TEXT_COLOR} cursor="pointer" onClick={() => setShowingWayf(true)}
+                            <Text mt="8px" color={textColor} cursor="pointer" onClick={() => setShowingWayf(true)}
                                 textAlign="center">← Other login</Text>
                         </>
                     ) : null) : (
                         resetToken == null ? (
-                            <DropdownLike>
+                            <DropdownLike isGeneric={isGeneric}>
                                 <form onSubmit={(e) => submitResetPassword(e)}>
                                     <LoginInput
                                         placeholder="Email address"
@@ -308,14 +353,14 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
                                 </form>
                                 <Box mt={20}>
                                     <Link to="/login">
-                                        <BlackLoginText fontSize={1}>
+                                        <BlackLoginText textColor={textColor} fontSize={1}>
                                             Return to Login page
                                         </BlackLoginText>
                                     </Link>
                                 </Box>
                             </DropdownLike>
                         ) : (
-                            <DropdownLike>
+                            <DropdownLike isGeneric={isGeneric}>
                                 <div>
                                     <form onSubmit={(e) => attemptSaveNewPassword(e)}>
                                         <LoginInput
@@ -341,7 +386,7 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
                                     </form>
                                     <Box mt={20}>
                                         <Link to="/login">
-                                            <BlackLoginText textAlign="center" fontSize={1}>Return to Login
+                                            <BlackLoginText textColor={textColor} textAlign="center" fontSize={1}>Return to Login
                                                 page</BlackLoginText>
                                         </Link>
                                     </Box>
@@ -350,7 +395,7 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
                         )
                     )
                 ) : (
-                    <DropdownLike>
+                    <DropdownLike isGeneric={isGeneric}>
                         <form onSubmit={preventDefault}>
                             <TwoFactor enabled2fa={challengeId} inputRef={verificationInput} />
                             <LoginButton
@@ -364,7 +409,7 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
                     </DropdownLike>
                 )}
             </Box>
-            {IS_GENERIC ? <GenericLoginFooter /> : IS_SANDBOX ? <HalricLoginFooter /> : <DeicLoginFooter />}
+            {isGeneric ? <GenericLoginFooter /> : IS_SANDBOX ? <HalricLoginFooter /> : <DeicLoginFooter />}
         </LoginWrapper>
     );
 };
@@ -423,15 +468,15 @@ const LoginTextSpanClass = injectStyleSimple("login-text", `
     color: white;
 `);
 
-function DropdownLike({children}): React.ReactNode {
-    return <div className={DropdownLikeClass}>
+function DropdownLike({isGeneric, children}): React.ReactNode {
+    return <div className={DropdownLikeClass(isGeneric)}>
         {children}
     </div>
 }
 
-const DropdownLikeClass = injectStyleSimple("dropdown-like", `
+const DropdownLikeClass = (isGeneric: boolean) => injectStyleSimple("dropdown-like", `
     border-radius: 16px;
-    background-color: ${IS_GENERIC || IS_SANDBOX ? "var(--primaryLight)" : "#c8dd51"};
+    background-color: ${isGeneric || IS_SANDBOX ? "var(--primaryLight)" : "#c8dd51"};
     color: black;
     width: 315px;
     padding: 16px 16px;
@@ -472,49 +517,56 @@ function LoginButton(props: ButtonProps): React.ReactNode {
     return <Button {...props} textColor="fixedBlack" color="fixedWhite" />
 }
 
-function BlackLoginText(props: React.PropsWithChildren<TextProps>): React.ReactNode {
-    return <Text className={LoginTextClass} {...props} />
+function BlackLoginText({textColor, ...props}: React.PropsWithChildren<TextProps & {textColor: string}>): React.ReactNode {
+    return <Text className={LoginTextClass(textColor)} {...props} />
 }
 
-const LoginTextClass = injectStyleSimple("login-text", `
-    color: ${TEXT_COLOR};
+const LoginTextClass = (textColor: string) => injectStyleSimple("login-text", `
+    color: ${textColor};
     font-size: var(--interactiveElementsSize);
 `);
 
-function LoginWrapper(props: React.PropsWithChildren<{selection?: boolean}>): React.ReactNode {
+
+function LoginWrapper({branding, selection, ...props}: React.PropsWithChildren<TextProps & {branding: BrandingResponse, selection?: boolean}>): React.ReactNode {
+    const textColor = getTextColor(branding);
+    const isGeneric = isUsingGenericLoginPage(branding);
     return (<Box backgroundColor="#fff" className={"dark"}>
         <Absolute right="1em" top=".5em">
-            {!props.selection ? <div>
-                {!SUPPORT_EMAIL ? null : (
+            {!selection ? <div>
+                {!branding.supportEmail ? null : (
                     <ClickableDropdown
                         width="238px"
                         top="0"
                         left="-248px"
                         right="5px"
                         colorOnHover={false}
-                        trigger={<Relative><Icon color={TEXT_COLOR} color2={TEXT_COLOR} mr={"1em"}
+                        trigger={<Relative><Icon color={textColor} color2={textColor} mr={"1em"}
                             name="suggestion" /></Relative>}
                     >
-                        <ExternalLink href={`mailto:${SUPPORT_EMAIL}`}>
+                        <ExternalLink href={`mailto:${branding.supportEmail}`}>
                             Need help?
-                            {" "}<b>{SUPPORT_EMAIL}</b>
+                            {" "}<b>{branding.supportEmail}</b>
                         </ExternalLink>
                     </ClickableDropdown>
                 )}
-                {!SITE_DOCUMENTATION_URL ? null : (
-                    <ExternalLink className={LoginExternalLinkClass} href={SITE_DOCUMENTATION_URL}>
-                        <Icon color={TEXT_COLOR} color2={TEXT_COLOR} name="docs" /> <TextSpan
-                            color={TEXT_COLOR}>Docs</TextSpan>
+                {!branding.documentation ? null : (
+                    <ExternalLink className={LoginExternalLinkClass} href={branding.documentation.href}>
+                        <Icon color={textColor} color2={textColor} name="docs" /> <TextSpan
+                            color={textColor}>{branding.documentation.title}</TextSpan>
                     </ExternalLink>
                 )}
             </div> : null}
         </Absolute>
-        <BackgroundImage>{props.children}</BackgroundImage>
+        <BackgroundImage isGeneric={isGeneric}>{props.children}</BackgroundImage>
     </Box>);
 }
 
-function BackgroundImage({children}: React.PropsWithChildren) {
-    if (IS_GENERIC || IS_SANDBOX) {
+type BackgroundImageProps = React.PropsWithChildren<{
+  isGeneric: boolean;
+}>;
+
+function BackgroundImage({isGeneric, children}: BackgroundImageProps) {
+    if (isGeneric || IS_SANDBOX) {
         const overridenColors = {
             "--gradientStart": "var(--blue-90)",
             "--gradientEnd": "var(--blue-80)",
@@ -543,7 +595,7 @@ interface IdentityProvider {
     logoUrl?: string | null;
 }
 
-const IdpList: React.FunctionComponent = () => {
+const IdpList: React.FunctionComponent = (isGeneric: boolean) => {
     const [idps, setIdps] = useState<IdentityProvider[]>([]);
 
     useEffect(() => {
@@ -572,7 +624,7 @@ const IdpList: React.FunctionComponent = () => {
                 }
             }
 
-            const color = IS_GENERIC || IS_SANDBOX ? "primaryLight" : "wayfGreen";
+            const color = isGeneric || IS_SANDBOX ? "primaryLight" : "wayfGreen";
 
             return <a href={`/auth/startLogin?id=${idp.id}`} key={idp.id}>
                 <Button borderRadius="16px" fullWidth color={color}>
@@ -583,60 +635,69 @@ const IdpList: React.FunctionComponent = () => {
     }</div>
 };
 
-const GenericLoginHeader: React.FunctionComponent = () => {
-    return <>
-        <Flex width="auto" mx="auto" paddingTop="80px" paddingBottom={"64px"}>
-        </Flex>
-        <Text mx="auto" py="15px" width="fit-content" color={TEXT_COLOR} fontSize={48}>
-            {window.location.hostname}
-        </Text>
-        <Text mx="auto" py="15px" width="fit-content" color={TEXT_COLOR} fontSize={32}>
-            UCloud
-        </Text>
-    </>;
-};
+function LoginHeader ({branding}: React.PropsWithChildren<TextProps & {branding: BrandingResponse}>): React.ReactNode {
+    const textColor = getTextColor(branding);
 
-const GenericLoginFooter: React.FunctionComponent = () => {
+    if (branding.loginPage.type === BrandingLoginPageType.GENERIC) {
+        return <>
+            <Flex width="auto" mx="auto" paddingTop="80px" paddingBottom={"64px"}>
+            </Flex>
+            <Text mx="auto" py="15px" width="fit-content" color={textColor} fontSize={48}>
+                {branding.deploymentName}
+            </Text>
+        </>;
+    }
+
+    if (IS_SANDBOX) { // Sandbox has higher precedence than DEIC
+        return <HalricLoginHeader/>
+    }
+    else if (branding.loginPage.type === BrandingLoginPageType.DEIC) {
+        return <DeicLoginHeader />
+    }
+    return <></>
+}
+
+const GenericLoginFooter: React.FunctionComponent = (textColor: string) => {
     return <Flex gap={"64px"} alignItems={"center"} justifyContent={"center"} my={"128px"}>
         <Flex justifyContent={"center"} gap={"8px"} alignItems={"center"}>
             <Icon size={64} name={"logoEsc"} />
             <Flex flexDirection={"column"}>
-                <Box fontSize={15} color={TEXT_COLOR}><i>Powered by</i></Box>
-                <Box fontSize={25} color={TEXT_COLOR}><b>{PRODUCT_NAME}</b></Box>
+                <Box fontSize={15} color={textColor}><i>Powered by</i></Box>
+                <Box fontSize={25} color={textColor}><b>{PRODUCT_NAME}</b></Box>
             </Flex>
         </Flex>
     </Flex>;
 };
 
 
-const HalricLoginHeader: React.FunctionComponent = () => {
+const HalricLoginHeader: React.FunctionComponent = (textColor: string) => {
     return <>
         <Flex width="auto" mx="auto" paddingTop="80px" paddingBottom={"64px"}>
             <Image alt={"Interreg"} src={interregWhite} width={"750px"} />
         </Flex>
-        <Text mx="auto" py="30px" width="fit-content" color={TEXT_COLOR} fontSize={32}>
+        <Text mx="auto" py="30px" width="fit-content" color={textColor} fontSize={32}>
             Hanseatic Science Cloud
         </Text>
     </>;
 };
 
-const HalricLoginFooter: React.FunctionComponent = () => {
+const HalricLoginFooter: React.FunctionComponent = (textColor) => {
     return <Flex gap={"64px"} alignItems={"center"} justifyContent={"center"} my={"128px"}>
         <Flex justifyContent={"center"} gap={"8px"} alignItems={"center"}>
             <Icon size={40} name={"logoEsc"} />
             <Flex flexDirection={"column"}>
-                <Box fontSize={10} color={TEXT_COLOR}><i>Powered by</i></Box>
-                <Box fontSize={20} color={TEXT_COLOR}><b>{PRODUCT_NAME}</b></Box>
+                <Box fontSize={10} color={textColor}><i>Powered by</i></Box>
+                <Box fontSize={20} color={textColor}><b>{PRODUCT_NAME}</b></Box>
             </Flex>
         </Flex>
         <Image height={50} src={halricWhite} alt={"Logo"} />
     </Flex>;
 };
 
-const DeicLoginHeader: React.FunctionComponent = () => {
+const DeicLoginHeader: React.FunctionComponent = (textColor: string) => {
     return <>
         <Icon className={LoginIconClass} mx="auto" hoverColor={"fixedBlack"} name={"deiCLogo"} size="180px" />
-        <Text mx="auto" py="30px" width="fit-content" color={TEXT_COLOR} fontSize={32}>Integration Portal</Text>
+        <Text mx="auto" py="30px" width="fit-content" color={textColor} fontSize={32}>Integration Portal</Text>
     </>;
 };
 

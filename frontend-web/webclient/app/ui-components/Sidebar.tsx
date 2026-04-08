@@ -13,7 +13,6 @@ import {
     useEffectSkipMount,
     useFrameHidden
 } from "@/UtilityFunctions";
-import CONF from "../../site.config.json";
 import Box from "./Box";
 import ExternalLink from "./ExternalLink";
 import Flex from "./Flex";
@@ -74,6 +73,8 @@ import {Command, CommandPalette, CommandScope, staticProvider, useProvideCommand
 import {NavigateFunction, useNavigate} from "react-router-dom";
 import {dispatchSetProjectAction} from "@/Project/ReduxState";
 import {Dispatch} from "redux";
+import {AutomaticBranding} from "@/Applications/Branding/AutomaticBranding";
+import {BrandingResponse} from "@/UCloud/BrandingApi";
 import {Feature, hasFeature} from "@/Features";
 
 const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
@@ -303,7 +304,8 @@ function UserMenuExternalLink(props: {
     </div>
 }
 
-function UserMenu({avatar, dialog, setOpenDialog}: {
+function UserMenu({branding, avatar, dialog, setOpenDialog}: {
+    branding: BrandingResponse;
     avatar: AvatarType;
 } & SidebarDialog) {
 
@@ -337,26 +339,29 @@ function UserMenu({avatar, dialog, setOpenDialog}: {
             <UserAvatar height="42px" width="42px" avatar={avatar}/> : null}
     >
         <Box py="12px">
-            {!CONF.STATUS_PAGE ? null : (
+            {branding.statusPage ? (
                 <>
                     <Box className={HoverClass}>
-                        <ExternalLink onClick={close.current} href={CONF.STATUS_PAGE}>
+                        <ExternalLink onClick={close.current} href={branding.statusPage.href}>
                             <Flex>
-                                <Icon name="favIcon" mr="0.5em" my="0.2em" size="1.3em" color="textPrimary"/>
-                                <TextSpan color="textPrimary">Site status</TextSpan>
+                                <Icon name="favIcon" mr="0.5em" my="0.2em" size="1.3em" color="textPrimary" />
+                                <TextSpan color="textPrimary">{branding.statusPage.title}</TextSpan>
                             </Flex>
                         </ExternalLink>
                     </Box>
                     <Divider/>
                 </>
-            )}
+            ): null }
             <UserMenuLink close={close.current} icon="heroWrenchScrewdriver" text="Settings"
-                          to={AppRoutes.users.settings()}/>
-            <UserMenuLink close={close.current} icon="heroUser" text="Edit avatar" to={AppRoutes.users.avatar()}/>
-            <UserMenuExternalLink close={close.current} href={CONF.SITE_DOCUMENTATION_URL} icon="heroBookOpen"
-                                  text={CONF.PRODUCT_NAME ? CONF.PRODUCT_NAME + " docs" : ""}/>
-            <UserMenuExternalLink close={close.current} href={CONF.DATA_PROTECTION_LINK} icon="heroShieldCheck"
-                text={CONF.DATA_PROTECTION_TEXT} />
+                to={AppRoutes.users.settings()} />
+            <UserMenuLink close={close.current} icon="heroUser" text="Edit avatar" to={AppRoutes.users.avatar()} />
+            { branding.documentation ? 
+                (<UserMenuExternalLink close={close.current} href={branding.documentation.href} icon="heroBookOpen" text={branding.documentation.title} />)
+            : null }
+            { branding.dataProtection ? 
+                (<UserMenuExternalLink close={close.current} href={branding.dataProtection.href} icon="heroShieldCheck"
+                text={branding.dataProtection.title} />) : null
+            }
             <Divider />
             <Username />
             <ProjectID />
@@ -455,7 +460,8 @@ export function Sidebar(): React.ReactNode {
     const [selectedPage, setSelectedPage] = React.useState(SidebarTabId.NONE);
     const [hoveredPage, setHoveredPage] = React.useState(SidebarTabId.NONE);
 
-    const tab = useSelector((it: { status: { tab: SidebarTabId } }) => it.status.tab);
+    const tab = useSelector((it: {status: {tab: SidebarTabId}}) => it.status.tab);
+    const branding = useSelector((it: ReduxObject) => it.branding);
 
     const dispatch = useDispatch();
     React.useEffect(() => {
@@ -536,16 +542,17 @@ export function Sidebar(): React.ReactNode {
                     <AutomaticGiftClaim />
                     <VersionManager />
                     <AutomaticProviderBranding />
+                    <AutomaticBranding />
                 </>
 
                 <Flex flexDirection={"column"} gap={"18px"} alignItems={"center"}>
-                    <Downtimes/>
-                    <ThemeToggler/>
-                    <BackgroundTasks dialog={dialog} setOpenDialog={setOpenDialog}/>
-                    <Notification dialog={dialog} setOpenDialog={setOpenDialog}/>
-                    <Support dialog={dialog} setOpenDialog={setOpenDialog}/>
-                    <UserMenu avatar={avatar} dialog={dialog} setOpenDialog={setOpenDialog}/>
-                    <CommandPalette/>
+                    <Downtimes />
+                    <ThemeToggler />
+                    <BackgroundTasks dialog={dialog} setOpenDialog={setOpenDialog} />
+                    <Notification dialog={dialog} setOpenDialog={setOpenDialog} />
+                    <Support dialog={dialog} setOpenDialog={setOpenDialog} />
+                    <UserMenu branding={branding} avatar={avatar} dialog={dialog} setOpenDialog={setOpenDialog} />
+                    <CommandPalette />
                 </Flex>
             </div>
 
