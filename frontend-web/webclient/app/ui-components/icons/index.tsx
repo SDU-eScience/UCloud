@@ -84,29 +84,6 @@ export const anglesUpSolid = (props: any) => (
     <path d="M246.6 41.4c-12.5-12.5-32.8-12.5-45.3 0l-160 160c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L224 109.3l137.4 137.3c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3l-160-160zm160 352-160-160c-12.5-12.5-32.8-12.5-45.3 0l-160 160c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L224 301.3l137.4 137.3c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3z" />
   </svg>
 );
-export const appFav = (props: any) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    xmlSpace="preserve"
-    style={{
-      fillRule: "evenodd",
-      clipRule: "evenodd",
-      strokeLinejoin: "round",
-      strokeMiterlimit: 1.41421,
-    }}
-    viewBox="0 0 355 709"
-    fill="currentcolor"
-    {...props}
-  >
-    <path
-      d="M991.256 139h29.004v47.252l-14.5-8.546-14.504 8.546z"
-      style={{
-        fill: "currentcolor",
-      }}
-      transform="matrix(12.2183 0 0 14.99742 -12111.437 -2084.638)"
-    />
-  </svg>
-);
 export const appStore = (props: any) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -7987,29 +7964,6 @@ export const starFilled = (props: any) => (
         fill: "currentcolor",
       }}
       transform="translate(-229.536 -74.984)scale(.3605)"
-    />
-  </svg>
-);
-export const starRibbon = (props: any) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    xmlSpace="preserve"
-    style={{
-      fillRule: "evenodd",
-      clipRule: "evenodd",
-      strokeLinejoin: "round",
-      strokeMiterlimit: 1.41421,
-    }}
-    viewBox="0 0 24 39"
-    fill="currentcolor"
-    {...props}
-  >
-    <path
-      d="M991.256 139h29.004v47.007l-14.5-8.547-14.504 8.547zm14.504 7.465 3.52 7.146 7.89 1.146-5.71 5.562 1.35 7.854-7.05-3.708-7.057 3.708 1.347-7.854-5.707-5.562 7.887-1.146z"
-      style={{
-        fill: "currentcolor",
-      }}
-      transform="matrix(.82759 0 0 .82759 -820.35 -115.035)"
     />
   </svg>
 );
