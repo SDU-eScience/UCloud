@@ -41,6 +41,9 @@ func initAppUcx() ctrl.UcxApplicationService {
 	return ctrl.UcxApplicationService{
 		OnConnect:    ucxOnConnect,
 		OnConnectJob: ucxOnConnectJob,
+		InferencePlaygroundFactory: func(owner orcapi.ResourceOwner, sessionId string) ucx.Application {
+			return InferencePlayground(owner, sessionId)
+		},
 	}
 }
 

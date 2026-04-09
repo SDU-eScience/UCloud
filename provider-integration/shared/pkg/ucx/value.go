@@ -160,6 +160,10 @@ func VS64(input int64) Value {
 	return Value{Kind: ValueS64, S64: input}
 }
 
+func VF64(input float64) Value {
+	return Value{Kind: ValueF64, F64: input}
+}
+
 func VString(input string) Value {
 	return Value{Kind: ValueString, String: input}
 }

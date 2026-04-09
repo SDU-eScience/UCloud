@@ -20,16 +20,18 @@ type UiEventHandler func(session *Session, ev UiEvent)
 type UiEventHandlerSimple func(ev UiEvent)
 
 var interactiveComponents = map[string]bool{
-	"input_text":            true,
-	"input_number":          true,
-	"checkbox":              true,
-	"button":                true,
-	"textarea":              true,
-	"select":                true,
-	"machine_type_selector": true,
-	"radio_group":           true,
-	"toggle":                true,
-	"form":                  true,
+	"input_text":               true,
+	"input_number":             true,
+	"input_slider":             true,
+	"inference_image_composer": true,
+	"checkbox":                 true,
+	"button":                   true,
+	"textarea":                 true,
+	"select":                   true,
+	"machine_type_selector":    true,
+	"radio_group":              true,
+	"toggle":                   true,
+	"form":                     true,
 }
 
 func NormalizeUiTree(root UiNode) UiNode {
@@ -355,6 +357,29 @@ func InputNumber(id string, label string, bindPath string, min int64, max int64)
 	}
 }
 
+func InputSlider(label string, bindPath string, min float64, max float64, step float64, defaultValue float64, minMeansDefault bool) UiNode {
+	return InputSliderEx(bindPath, label, bindPath, min, max, step, defaultValue, minMeansDefault)
+}
+
+func InputSliderEx(id string, label string, bindPath string, min float64, max float64, step float64, defaultValue float64, minMeansDefault bool) UiNode {
+	requireExplicitId(id, "input_slider")
+
+	return UiNode{
+		Id:         id,
+		Component:  "input_slider",
+		BindPath:   bindPath,
+		Optimistic: true,
+		Props: map[string]Value{
+			"label":           VString(label),
+			"min":             VF64(min),
+			"max":             VF64(max),
+			"step":            VF64(step),
+			"defaultValue":    VF64(defaultValue),
+			"minMeansDefault": VBool(minMeansDefault),
+		},
+	}
+}
+
 func Checkbox(id string, label string, bindPath string, optimistic bool) UiNode {
 	requireExplicitId(id, "checkbox")
 
@@ -374,7 +399,9 @@ func List(bindPath string, emptyText string) UiNode {
 }
 
 func ListEx(id string, bindPath string, emptyText string) UiNode {
-	return UiNode{Id: id, Component: "list", BindPath: bindPath}
+	return UiNode{Id: id, Component: "list", BindPath: bindPath, Props: map[string]Value{
+		"emptyText": VString(emptyText),
+	}}
 }
 
 func Icon(name IconName, color Color, size int64) UiNode {
@@ -575,11 +602,25 @@ func TableNodeEx(id string, bindPath string, columns []Option) UiNode {
 }
 
 func Tabs() UiNode {
-	return TabsEx("")
+	return TabsWithRouteEx("", false)
 }
 
 func TabsEx(id string) UiNode {
-	return UiNode{Id: id, Component: "tabs"}
+	return TabsWithRouteEx(id, false)
+}
+
+func TabsWithRoute(bindToRoute bool) UiNode {
+	return TabsWithRouteEx("", bindToRoute)
+}
+
+func TabsWithRouteEx(id string, bindToRoute bool) UiNode {
+	return UiNode{
+		Id:        id,
+		Component: "tabs",
+		Props: map[string]Value{
+			"bindToRoute": VBool(bindToRoute),
+		},
+	}
 }
 
 func Tab(name string, icon IconName) UiNode {
@@ -616,6 +657,22 @@ func Form(id string) UiNode {
 	requireExplicitId(id, "form")
 
 	return UiNode{Id: id, Component: "form"}
+}
+
+func Markdown(text string) UiNode {
+	return UiNode{
+		Component: "markdown",
+		Props: map[string]Value{
+			"text": VString(text),
+		},
+	}
+}
+
+func MarkdownBound(bindPath string) UiNode {
+	return UiNode{
+		Component: "markdown",
+		BindPath:  bindPath,
+	}
 }
 
 func Code(text string) UiNode {

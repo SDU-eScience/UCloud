@@ -311,39 +311,32 @@ func inferenceProxyModelsRequest(w http.ResponseWriter, r *http.Request, authori
 	if path == "" {
 		path = "/models"
 	}
+	var respData []byte
+	var httpErr *util.HttpError
 
-	backendUrl := fmt.Sprintf("%s%s", inferenceGlobals.BackendServer, path)
-	backendUrl = strings.ReplaceAll(backendUrl, "/v1/v1", "/v1")
-	if r.URL.RawQuery != "" {
-		backendUrl += "?" + r.URL.RawQuery
-	}
-
-	proxyReq, err := http.NewRequest(r.Method, backendUrl, nil)
-	if err != nil {
-		http.Error(w, "invalid request", http.StatusBadRequest)
-		return
-	}
-
-	proxyReq.Header.Add("Authorization", "Bearer notused")
-
-	resp, err := http.DefaultClient.Do(proxyReq)
-	if err != nil {
-		http.Error(w, "invalid request", http.StatusBadRequest)
-		return
-	}
-	defer util.SilentClose(resp.Body)
-
-	for k, values := range resp.Header {
-		for _, v := range values {
-			w.Header().Add(k, v)
+	if path == "/models" || path == "/models/" {
+		var models InferenceModelsResponse
+		models, httpErr = InferenceModels()
+		if httpErr == nil {
+			respData, _ = json.Marshal(models)
+		}
+	} else {
+		modelId := strings.TrimPrefix(path, "/models/")
+		var model InferenceModel
+		model, httpErr = InferenceModelByID(modelId)
+		if httpErr == nil {
+			respData, _ = json.Marshal(model)
 		}
 	}
-	w.WriteHeader(resp.StatusCode)
 
-	respData, err := io.ReadAll(resp.Body)
-	if err == nil {
-		_, _ = w.Write(respData)
+	if httpErr != nil {
+		http.Error(w, httpErr.Why, httpErr.StatusCode)
+		return
 	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(respData)
 }
 
 // Development mode initializer code (LocalAI)
@@ -503,6 +496,10 @@ func inferenceReportUsage(owner apm.WalletOwner, promptTokens int, completionTok
 			},
 		},
 	})
+}
+
+func inferenceIsLocked(owner apm.WalletOwner) bool {
+	return controller.WalletIsLocked(owner, inferenceGlobals.Product.Category.Name)
 }
 
 // API tokens

@@ -9,12 +9,107 @@ import (
 	"math"
 	"mime/multipart"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 
 	apm "ucloud.dk/shared/pkg/accounting"
 	"ucloud.dk/shared/pkg/util"
 )
+
+// Models
+// =====================================================================================================================
+
+type InferenceModelCapability string
+
+const (
+	InferenceModelCapabilityChat            InferenceModelCapability = "Chat"
+	InferenceModelCapabilityTranscription   InferenceModelCapability = "Transcription"
+	InferenceModelCapabilityImageGeneration InferenceModelCapability = "ImageGeneration"
+)
+
+type InferenceModel struct {
+	Id           string                     `json:"id"`
+	Object       string                     `json:"object"`
+	OwnedBy      string                     `json:"owned_by,omitempty"`
+	Capabilities []InferenceModelCapability `json:"capabilities,omitempty"`
+}
+
+type InferenceModelsResponse struct {
+	Object string           `json:"object"`
+	Data   []InferenceModel `json:"data"`
+}
+
+func InferenceModels() (InferenceModelsResponse, *util.HttpError) {
+	body, httpErr := inferenceBackendJSONRequest(http.MethodGet, "/models", nil, "")
+	if httpErr != nil {
+		return InferenceModelsResponse{}, httpErr
+	}
+
+	var resp InferenceModelsResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return InferenceModelsResponse{}, util.HttpErr(http.StatusBadGateway, "invalid response")
+	}
+
+	if util.DevelopmentModeEnabled() {
+		modelsToKeep := []string{"qwen3-0.6b", "whisper-1", "sd-1.5-ggml", "stablediffusion"}
+		newResp := resp
+		newResp.Data = nil
+
+		for _, item := range resp.Data {
+			if slices.Contains(modelsToKeep, item.Id) {
+				newResp.Data = append(newResp.Data, item)
+			}
+		}
+
+		resp = newResp
+	}
+
+	for i := range resp.Data {
+		resp.Data[i].Capabilities = inferenceModelCapabilities(resp.Data[i].Id)
+	}
+
+	return resp, nil
+}
+
+func InferenceModelByID(id string) (InferenceModel, *util.HttpError) {
+	if strings.TrimSpace(id) == "" {
+		return InferenceModel{}, util.HttpErr(http.StatusBadRequest, "invalid request")
+	}
+
+	body, httpErr := inferenceBackendJSONRequest(http.MethodGet, "/models/"+id, nil, "")
+	if httpErr != nil {
+		return InferenceModel{}, httpErr
+	}
+
+	var resp InferenceModel
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return InferenceModel{}, util.HttpErr(http.StatusBadGateway, "invalid response")
+	}
+
+	resp.Capabilities = inferenceModelCapabilities(resp.Id)
+	return resp, nil
+}
+
+func inferenceModelCapabilities(modelId string) []InferenceModelCapability {
+	id := strings.ToLower(modelId)
+	if id == "" {
+		return []InferenceModelCapability{InferenceModelCapabilityChat}
+	}
+
+	capabilities := make([]InferenceModelCapability, 0, 3)
+
+	switch id {
+	case "qwen3-0.6b":
+		capabilities = append(capabilities, InferenceModelCapabilityChat)
+	case "whisper-1":
+		capabilities = append(capabilities, InferenceModelCapabilityTranscription)
+	case "sd-1.5-ggml", "stablediffusion":
+		capabilities = append(capabilities, InferenceModelCapabilityImageGeneration)
+	}
+
+	return capabilities
+}
 
 // Chat completions
 // =====================================================================================================================
@@ -52,6 +147,12 @@ type InferenceChatStreamOptions struct {
 	IncludeUsage bool `json:"include_usage,omitempty"`
 }
 
+type InferenceChatUsage struct {
+	PromptTokens     int `json:"prompt_tokens"`
+	CompletionTokens int `json:"completion_tokens"`
+	TotalTokens      int `json:"total_tokens,omitempty"`
+}
+
 type InferenceChatTool struct {
 	Type     string                    `json:"type"`
 	Function InferenceChatToolFunction `json:"function,omitempty"`
@@ -65,12 +166,12 @@ type InferenceChatToolFunction struct {
 }
 
 type InferenceChatResponse struct {
-	Id      string                      `json:"id"`
-	Object  string                      `json:"object"`
-	Created int64                       `json:"created"`
-	Model   string                      `json:"model"`
-	Choices []InferenceChatChoice       `json:"choices"`
-	Usage   util.Option[InferenceUsage] `json:"usage,omitempty"`
+	Id      string                          `json:"id"`
+	Object  string                          `json:"object"`
+	Created int64                           `json:"created"`
+	Model   string                          `json:"model"`
+	Choices []InferenceChatChoice           `json:"choices"`
+	Usage   util.Option[InferenceChatUsage] `json:"usage,omitempty"`
 }
 
 type InferenceChatChoice struct {
@@ -80,12 +181,12 @@ type InferenceChatChoice struct {
 }
 
 type InferenceChatStreamingResponse struct {
-	Id      string                         `json:"id"`
-	Object  string                         `json:"object"`
-	Created int64                          `json:"created"`
-	Model   string                         `json:"model"`
-	Choices []InferenceChatStreamingChoice `json:"choices"`
-	Usage   util.Option[InferenceUsage]    `json:"usage,omitempty"`
+	Id      string                          `json:"id"`
+	Object  string                          `json:"object"`
+	Created int64                           `json:"created"`
+	Model   string                          `json:"model"`
+	Choices []InferenceChatStreamingChoice  `json:"choices"`
+	Usage   util.Option[InferenceChatUsage] `json:"usage,omitempty"`
 }
 
 type InferenceChatStreamingChoice struct {
@@ -100,6 +201,10 @@ type InferenceChatDelta struct {
 }
 
 func InferenceChat(owner apm.WalletOwner, history InferenceChatRequest) InferenceChatResponse {
+	if inferenceIsLocked(owner) {
+		return InferenceChatResponse{}
+	}
+
 	body, err := json.Marshal(history)
 	if err != nil {
 		return InferenceChatResponse{}
@@ -124,6 +229,12 @@ func InferenceChat(owner apm.WalletOwner, history InferenceChatRequest) Inferenc
 
 func InferenceChatStreaming(owner apm.WalletOwner, history InferenceChatRequest) chan InferenceChatStreamingResponse {
 	ch := make(chan InferenceChatStreamingResponse)
+
+	if inferenceIsLocked(owner) {
+		close(ch)
+		return ch
+	}
+
 	go func() {
 		defer close(ch)
 
@@ -360,6 +471,10 @@ func InferenceTranscriptionParseRequest(r *http.Request) (InferenceTranscription
 }
 
 func InferenceTranscribe(owner apm.WalletOwner, request InferenceTranscriptionRequest) (InferenceTranscriptionResponse, *util.HttpError) {
+	if inferenceIsLocked(owner) {
+		return InferenceTranscriptionResponse{}, util.HttpErr(http.StatusPaymentRequired, "payment required")
+	}
+
 	body, contentType, httpErr := inferenceBuildTranscriptionMultipart(request)
 	if httpErr != nil {
 		return InferenceTranscriptionResponse{}, httpErr
@@ -399,6 +514,12 @@ func InferenceTranscribe(owner apm.WalletOwner, request InferenceTranscriptionRe
 
 func InferenceTranscribeStreaming(owner apm.WalletOwner, request InferenceTranscriptionRequest) chan InferenceTranscriptionStreamEvent {
 	ch := make(chan InferenceTranscriptionStreamEvent)
+
+	if inferenceIsLocked(owner) {
+		close(ch)
+		return ch
+	}
+
 	go func() {
 		defer close(ch)
 
@@ -616,6 +737,10 @@ func inferenceGenerateImageResponse(owner apm.WalletOwner, request InferenceImag
 }
 
 func InferenceGenerateImage(owner apm.WalletOwner, request InferenceImageGenerationRequest) (InferenceImageGenerationResponse, *util.HttpError) {
+	if inferenceIsLocked(owner) {
+		return InferenceImageGenerationResponse{}, util.HttpErr(http.StatusPaymentRequired, "payment required")
+	}
+
 	if inferenceGlobals.MockImageGeneration {
 		resp, httpErr := inferenceGenerateMockImageResponse(request)
 		if httpErr != nil {
@@ -647,6 +772,12 @@ func InferenceGenerateImage(owner apm.WalletOwner, request InferenceImageGenerat
 
 func InferenceGenerateImageStreaming(owner apm.WalletOwner, request InferenceImageGenerationRequest) chan InferenceImageGenerationStreamEvent {
 	ch := make(chan InferenceImageGenerationStreamEvent)
+
+	if inferenceIsLocked(owner) {
+		close(ch)
+		return ch
+	}
+
 	go func() {
 		defer close(ch)
 

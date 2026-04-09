@@ -79,7 +79,7 @@ export const SimpleRichSelect: React.FunctionComponent<{
             <ClickableDropdown
                 key={`${instanceIdRef.current}:${instanceVersion}`}
                 trigger={
-                    <div className={TriggerClass} style={{minWidth: props.fullWidth ? "500px" : dropdownWidth}}>
+                    <div className={TriggerClass} style={{width: props.fullWidth ? "100%" : dropdownWidth, minWidth: 0}}>
                         <Box p={"4px"} textAlign={"left"} minHeight={25}>
                             {triggerText}
                         </Box>
@@ -130,30 +130,31 @@ export const SimpleRichSelect: React.FunctionComponent<{
         </div>
     }
 
-    return <div onMouseDownCapture={announceOpen}>
-        <RichSelect
-            key={`${instanceIdRef.current}:${instanceVersion}`}
-            items={props.items}
-            keys={["key"]}
-            RenderRow={p =>
-                <Box p={"4px"} textAlign={"left"} minHeight={25} onClick={p.onSelect} {...p.dataProps}>
-                    {p?.element?.value}
-                </Box>
-            }
-            RenderSelected={p =>
-                <Box p={"4px"} textAlign={"left"} minHeight={25} onClick={p.onSelect} {...p.dataProps}>
-                    {p?.element?.value}
-                </Box>
-            }
-            onSelect={props.onSelect}
-            placeholder={props.placeholder}
-            dropdownWidth={props.dropdownWidth}
-            elementHeight={29}
-            selected={props.selected}
-            noResultsItem={props.noResultsItem}
-            chevronPlacement={{position: "absolute", bottom: "5px", right: "5px"}}
-        />
-    </div>
+	return <div onMouseDownCapture={announceOpen}>
+	    <RichSelect
+	        key={`${instanceIdRef.current}:${instanceVersion}`}
+	        items={props.items}
+	        keys={["key"]}
+	        RenderRow={p =>
+	            <Box p={"4px"} textAlign={"left"} minHeight={25} onClick={p.onSelect} {...p.dataProps}>
+	                {p?.element?.value}
+	            </Box>
+	        }
+	        RenderSelected={p =>
+	            <Box p={"4px"} textAlign={"left"} minHeight={25} onClick={p.onSelect} {...p.dataProps}>
+	                {p?.element?.value}
+	            </Box>
+	        }
+	        onSelect={props.onSelect}
+	        placeholder={props.placeholder}
+	        dropdownWidth={props.dropdownWidth}
+	        elementHeight={29}
+	        selected={props.selected}
+	        noResultsItem={props.noResultsItem}
+	        chevronPlacement={{position: "absolute", bottom: "5px", right: "5px"}}
+	        fullWidth={props.fullWidth ?? false}
+	    />
+	</div>
 }
 
 const INPUT_FIELD_HEIGHT = 35;
@@ -226,7 +227,7 @@ export function RichSelect<T, K extends keyof T>(props: {
             <props.FullRenderSelected element={props.selected} onSelect={doNothing} />
             :
             props.RenderSelected ?
-                <div className={TriggerClass} style={{minWidth: props.fullWidth ? "500px" : props.dropdownWidth ?? "500px"}} ref={triggerRef}>
+                <div className={TriggerClass} style={{width: props.fullWidth ? "100%" : (props.dropdownWidth ?? "500px"), minWidth: 0}} ref={triggerRef}>
                     <props.RenderSelected element={props.selected} onSelect={doNothing} />
                     <Icon name="heroChevronDown" style={props.chevronPlacement} />
                 </div>

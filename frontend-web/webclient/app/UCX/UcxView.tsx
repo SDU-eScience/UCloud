@@ -1,6 +1,19 @@
 import * as React from "react";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
-import {Accordion, Button, Card, Checkbox, Divider, Flex, Icon, Input, Radio, Text, TextArea} from "@/ui-components";
+import {
+    Accordion,
+    Button,
+    Card,
+    Checkbox,
+    Divider,
+    ExternalLink,
+    Flex,
+    Icon,
+    Input,
+    Radio,
+    Text,
+    TextArea
+} from "@/ui-components";
 import {SimpleRichSelect} from "@/ui-components/RichSelect";
 import {Table, TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
@@ -8,8 +21,8 @@ import CodeSnippet from "@/ui-components/CodeSnippet";
 import {Toggle} from "@/ui-components/Toggle";
 import * as UCloud from "@/UCloud";
 import * as Accounting from "@/Accounting";
+import {productCategoryEquals, ProductV2, ProductV2Compute, WalletV2} from "@/Accounting";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
-import {ProductV2, ProductV2Compute, WalletV2, productCategoryEquals} from "@/Accounting";
 import {
     decodeFrame,
     Frame,
@@ -18,8 +31,8 @@ import {
     PlainValue,
     UiNode,
     Value,
-    valueMapToPlainPayload,
     ValueKind,
+    valueMapToPlainPayload,
 } from "@/UCX/protocol";
 import {UcxSession} from "@/UCX/session";
 import {stopPropagation} from "@/UtilityFunctions";
@@ -30,6 +43,11 @@ import {ResolvedSupport} from "@/UCloud/ResourceApi";
 import {ProductSelector} from "@/Products/Selector";
 import BaseLink from "@/ui-components/BaseLink";
 import {useLocation, useNavigate} from "react-router-dom";
+import {SimpleMarkdown} from "@/ui-components/Markdown";
+import {ModuleMarkdown} from "@/Applications/Jobs/Widgets/ModuleList";
+import remarkGfm from "remark-gfm";
+import ReactMarkdown from "react-markdown";
+import * as Heading from "@/ui-components/Heading";
 
 type ValueProvider = string | (() => string | Promise<string>);
 export type UcxRpcPayload = PlainValue;
@@ -42,6 +60,7 @@ export interface UcxFunctionRegistry {
     registerRouter: (bindPath: string, nodeId: string, model: Record<string, Value>, scope?: Record<string, Value>) => void;
     navigateSpa: (to: string, nodeId: string) => void;
     buildSpaHref: (to: string) => string;
+    currentRoutePath: string;
     invokeRpc: (name: string, payload?: UcxRpcPayload, timeoutMs?: number) => Promise<UcxRpcPayload>;
     modelValue: (model: Record<string, Value>, path: string, scope?: Record<string, Value>) => Value | undefined;
     sxStyle: (node: UiNode) => React.CSSProperties;
@@ -70,6 +89,7 @@ export interface UcxViewProps {
     url: string;
     authToken: ValueProvider;
     sysHello: ValueProvider;
+    maxReconnectAttempts?: number;
     renderFrame?: (args: UcxFrameRenderArgs) => React.ReactNode;
     components?: Partial<UcxComponentRegistry>;
     functions?: Partial<UcxFunctionRegistry>;
@@ -79,10 +99,38 @@ export interface UcxViewProps {
     onTransportError?: (message: string) => void;
 }
 
+const UcxAccordion: React.FunctionComponent<React.PropsWithChildren<{
+    title: string;
+    open: boolean;
+}>> = ({title, open, children}) => {
+    const [isOpen, setIsOpen] = useState(open);
+
+    return <div style={{display: "flex", flexDirection: "column", gap: 4}}>
+        <div
+            onClick={() => setIsOpen(v => !v)}
+            style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                cursor: "pointer",
+                userSelect: "none",
+                padding: "4px 0",
+                borderBottom: "1px solid var(--borderColor)",
+                marginBottom: "8px",
+            }}
+        >
+            <div style={{fontWeight: 600}}>{title}</div>
+            <Icon name="heroChevronDown" size={12} rotation={isOpen ? 0 : -90} />
+        </div>
+        {isOpen ? <div>{children}</div> : null}
+    </div>;
+};
+
 const UcxView: React.FunctionComponent<UcxViewProps> = ({
     url,
     authToken,
     sysHello,
+    maxReconnectAttempts = Number.POSITIVE_INFINITY,
     renderFrame,
     components,
     functions,
@@ -253,10 +301,11 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
         registerRouter,
         navigateSpa,
         buildSpaHref,
+        currentRoutePath,
         invokeRpc,
         modelValue,
         sxStyle,
-    }), [buildSpaHref, invokeRpc, navigateSpa, registerRouter, sendBoundInput, sendModelInput, sendUiEvent]);
+    }), [buildSpaHref, currentRoutePath, invokeRpc, navigateSpa, registerRouter, sendBoundInput, sendModelInput, sendUiEvent]);
 
     useEffect(() => {
         const bindPath = activeRouterBindPathRef.current;
@@ -319,6 +368,12 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
             }
 
             clearReconnectTimer();
+
+            if (reconnectAttemptRef.current >= maxReconnectAttempts) {
+                setReconnectingInSeconds(undefined);
+                setError("Disconnected. Reconnect limit reached.");
+                return;
+            }
 
             const baseDelayMs = 500;
             const capDelayMs = 30000;
@@ -653,6 +708,25 @@ const baseComponents: UcxComponentRegistry = {
         const color = stringProp(node, "color", "");
         return <Text color={(color || undefined) as any} style={fn.sxStyle(node)}>{text}</Text>;
     },
+    markdown: ({node, model, scope, fn}) => {
+        const text = boundOrStaticText(node, model, scope);
+        if (!text) return null;
+        return <ReactMarkdown
+            components={{
+                a: MarkdownLink,
+                h1: MarkdownHeading,
+                h2: MarkdownHeading,
+                h3: MarkdownHeading,
+                h4: MarkdownHeading,
+                h5: MarkdownHeading,
+                h6: MarkdownHeading,
+                pre: CodeSnippet,
+            }}
+            allowedElements={["h1", "h2", "h3", "h4", "h5", "h6", "br", "a", "p", "strong", "b", "i", "em", "ul", "ol", "li", "pre", "code"]}
+            children={text as string}
+            remarkPlugins={[remarkGfm]}
+        />;
+    },
     icon: ({node, fn}) => {
         const name = stringProp(node, "name", "bug");
         const color = stringProp(node, "color", "iconColor");
@@ -691,6 +765,44 @@ const baseComponents: UcxComponentRegistry = {
             />
         </>;
     },
+    input_slider: ({node, model, scope, fn}) => {
+        const label = stringProp(node, "label", "");
+        const value = modelNumber(model, node.bindPath, scope);
+        const min = numberProp(node, "min", 0);
+        const max = numberProp(node, "max", 0);
+        const step = numberProp(node, "step", 1);
+        const defaultValue = numberProp(node, "defaultValue", min);
+        const minMeansDefault = boolProp(node, "minMeansDefault", false);
+        const isIntegerStep = Number.isInteger(step);
+        const sliderMin = minMeansDefault ? min - step : min;
+        const sliderValue = minMeansDefault && nearlyEqual(value, defaultValue) ? sliderMin : value;
+        const displayValue = minMeansDefault && nearlyEqual(value, defaultValue)
+            ? `Default (${formatSliderValue(defaultValue, step)})`
+            : formatSliderValue(value, step);
+
+        return <div style={{display: "flex", flexDirection: "column", gap: 6}}>
+            <div style={{display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12}}>
+                {label === "" ? <span /> : <FieldLabel>{label}</FieldLabel>}
+                <Text style={{margin: 0, textAlign: "right"}}>{displayValue}</Text>
+            </div>
+            <Input
+                type="range"
+                value={sliderValue}
+                min={sliderMin}
+                max={max}
+                step={step}
+                onChange={ev => {
+                    const parsed = parseFloat(ev.currentTarget.value);
+                    const nextValue = minMeansDefault && parsed <= sliderMin + 1e-9 ? defaultValue : parsed;
+                    if (isIntegerStep) {
+                        fn.sendBoundInput(node, {kind: ValueKind.S64, s64: Math.round(nextValue)}, model, scope);
+                    } else {
+                        fn.sendBoundInput(node, {kind: ValueKind.F64, f64: nextValue}, model, scope);
+                    }
+                }}
+            />
+        </div>;
+    },
     checkbox: ({node, model, scope, fn}) => {
         const label = stringProp(node, "label", "");
         const checked = modelBool(model, node.bindPath, scope);
@@ -711,11 +823,13 @@ const baseComponents: UcxComponentRegistry = {
         const iconLeft = stringProp(node, "iconLeft", "");
         const iconRight = stringProp(node, "iconRight", "");
         const submit = boolProp(node, "submit", false);
+        const disabled = boolProp(node, "disabled", false);
         const eventValuePath = stringProp(node, "eventValuePath", "");
         const eventValue = eventValuePath ? modelValue(model, eventValuePath, scope) : undefined;
         return <Button
             color={color as any}
             type={submit ? "submit" : "button"}
+            disabled={disabled}
             onClick={submit ? undefined : (() => fn.sendUiEvent(node.id, "click", eventValue))}
         >
             {iconLeft ? <Icon name={iconLeft as any} /> : null}
@@ -761,15 +875,16 @@ const baseComponents: UcxComponentRegistry = {
         const options = simpleOptionsProp(node, "options");
         const selectedKey = modelString(model, node.bindPath, scope);
         const selected = options.find(option => option.key === selectedKey);
-        return <>
+        return <div style={fn.sxStyle(node)}>
             {label === "" ? null : <FieldLabel>{label}</FieldLabel>}
             <SimpleRichSelect
                 items={options}
                 selected={selected}
                 onSelect={item => fn.sendBoundInput(node, {kind: ValueKind.String, string: item.key}, model, scope)}
                 placeholder={stringProp(node, "placeholder", "Select...")}
+                fullWidth={true}
             />
-        </>;
+        </div>;
     },
     machine_type_selector: ({node, model, scope, fn}) => {
         return <MachineTypeSelectorNode node={node} model={model} scope={scope} fn={fn} />;
@@ -828,26 +943,39 @@ const baseComponents: UcxComponentRegistry = {
     },
     tabs: ({node, renderChildren, fn}) => {
         const renderedChildren = React.Children.toArray(renderChildren());
-        return <div style={fn.sxStyle(node)}>
-            <TabbedCard>
-                {node.children.map((child, idx) =>
-                    <TabbedCardTab
-                        key={child.id}
-                        name={stringProp(child, "name", `Tab ${idx + 1}`)}
-                        icon={stringProp(child, "icon", "heroSquares2x2") as any}
-                    >
-                        {renderedChildren[idx]}
-                    </TabbedCardTab>
-                )}
-            </TabbedCard>
-        </div>;
+        const bindToRoute = boolProp(node, "bindToRoute", false);
+        const routeKeys = node.children.map((child, idx) => tabRouteKey(child, idx));
+        const selectedIndex = bindToRoute ? Math.max(0, routeKeys.indexOf(fn.currentRoutePath)) : undefined;
+
+        useEffect(() => {
+            if (!bindToRoute || routeKeys.length === 0) return;
+            const selectedRoute = routeKeys[selectedIndex ?? 0] ?? "";
+            if (selectedRoute !== "" && selectedRoute !== fn.currentRoutePath) {
+                fn.navigateSpa(selectedRoute, node.id);
+            }
+        }, [bindToRoute, fn, node.id, routeKeys, selectedIndex]);
+
+        return <TabbedCard style={fn.sxStyle(node)} activeIndex={selectedIndex} onTabChange={bindToRoute ? idx => {
+            console.log("onTabChange", idx, node, routeKeys)
+            fn.navigateSpa(routeKeys[idx] ?? "", node.id);
+        } : undefined}>
+            {node.children.map((child, idx) =>
+                <TabbedCardTab
+                    key={child.id}
+                    name={stringProp(child, "name", `Tab ${idx + 1}`)}
+                    icon={stringProp(child, "icon", "heroSquares2x2") as any}
+                >
+                    {renderedChildren[idx]}
+                </TabbedCardTab>
+            )}
+        </TabbedCard>;
     },
     accordion: ({node, model, scope, fn, renderChildren}) => {
         const title = node.bindPath ? modelString(model, node.bindPath, scope) : stringProp(node, "title", "Section");
         return <div style={fn.sxStyle(node)}>
-            <Accordion title={title} forceOpen={boolProp(node, "open", false)}>
+            <UcxAccordion title={title} open={boolProp(node, "open", false)}>
                 {renderChildren()}
-            </Accordion>
+            </UcxAccordion>
         </div>;
     },
     form: ({node, fn, renderChildren}) => {
@@ -922,9 +1050,14 @@ function modelValue(model: Record<string, Value>, path: string, scope?: Record<s
     return traverseObjectPath(model, path);
 }
 
+function tabRouteKey(node: UiNode, idx: number): string {
+    if (node.id !== "" && !node.id.startsWith("auto-")) return node.id;
+    return stringProp(node, "name", `Tab ${idx + 1}`);
+}
+
 function collectInputBindPaths(root: UiNode): Set<string> {
     const result = new Set<string>();
-    const rehydratable = new Set(["input_text", "input_number", "checkbox", "textarea", "select", "machine_type_selector", "toggle", "radio_group", "list"]);
+    const rehydratable = new Set(["input_text", "input_number", "input_slider", "checkbox", "textarea", "select", "machine_type_selector", "toggle", "radio_group", "list", "inference_chat_composer", "inference_image_composer", "inference_toggle"]);
 
     const walk = (node: UiNode) => {
         if (node.bindPath && rehydratable.has(node.component) && !node.bindPath.startsWith("./")) {
@@ -1086,6 +1219,9 @@ function sxStyle(node: UiNode): React.CSSProperties {
                 break;
             case "flexWrap":
                 style.flexWrap = String(primitive) as React.CSSProperties["flexWrap"];
+                break;
+            case "flexDirection":
+                style.flexDirection = String(primitive) as React.CSSProperties["flexDirection"];
                 break;
             case "whiteSpace":
                 style.whiteSpace = String(primitive) as React.CSSProperties["whiteSpace"];
@@ -1366,7 +1502,33 @@ function displayValue(value: Value | undefined): string {
 
 function asString(value: Value | undefined, fallback: string): string {
     if (value && value.kind === ValueKind.String) return value.string;
+    if (value && value.kind == ValueKind.S64) return value.s64.toString();
+    if (value && value.kind == ValueKind.F64) return value.f64.toString();
+    if (value && value.kind == ValueKind.Bool) return value.bool ? "true" : "false";
     return fallback;
+}
+
+function nearlyEqual(a: number, b: number): boolean {
+    return Math.abs(a - b) < 1e-9;
+}
+
+function formatSliderValue(value: number, step: number): string {
+    const decimals = decimalPlaces(step);
+    const factor = Math.pow(10, decimals);
+    const rounded = Math.round(value * factor) / factor;
+    const text = decimals > 0 ? rounded.toFixed(decimals) : Math.round(rounded).toString();
+    return decimals > 0 ? text.replace(/\.0+$/, "").replace(/(\.\d*?)0+$/, "$1") : text;
+}
+
+function decimalPlaces(value: number): number {
+    if (!Number.isFinite(value)) return 0;
+    const asText = value.toString();
+    const scientific = asText.split("e-");
+    if (scientific.length === 2) {
+        return parseInt(scientific[1], 10);
+    }
+    const dotIndex = asText.indexOf(".");
+    return dotIndex >= 0 ? asText.length - dotIndex - 1 : 0;
 }
 
 interface MachineRef {
@@ -1654,5 +1816,14 @@ function setNestedObjectValue(root: Record<string, Value>, pathParts: string[], 
 const FieldLabel = ({children}: React.PropsWithChildren): React.ReactNode => {
     return <label style={{fontWeight: 600, marginTop: "6px"}}>{children}</label>;
 };
+
+function MarkdownLink(props: {href?: string; children: React.ReactNode & React.ReactNode[]}) {
+    return <ExternalLink href={props.href}>{props.children}</ExternalLink>;
+}
+
+function MarkdownHeading(props: {children: React.ReactNode & React.ReactNode[]}) {
+    return <Heading.h4>{props.children}</Heading.h4>;
+}
+
 
 export default UcxView;

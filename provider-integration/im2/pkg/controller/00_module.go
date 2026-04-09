@@ -38,6 +38,7 @@ func Init(mux *http.ServeMux) {
 	initProviderBranding()
 	initApiTokens()
 	initUcxApplications()
+	initInference()
 
 	initLiveness()
 	if RunsServerCode() {

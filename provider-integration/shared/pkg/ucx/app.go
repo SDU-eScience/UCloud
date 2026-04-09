@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 
 	ws "github.com/gorilla/websocket"
+	"ucloud.dk/shared/pkg/log"
 )
 
 type AppHandler func(ctx context.Context, session *Session)
@@ -280,6 +281,111 @@ func RunAppWebSocket(conn *ws.Conn, ctx context.Context, authHandler SessionAuth
 		session := NewSessionWithContext(ctx, toWebsocket, fromWebsocket)
 		handler(ctx, session)
 		cancel()
+	}()
+
+	go func() {
+		<-ctx.Done()
+		_ = conn.Close()
+	}()
+
+	<-done
+	<-done
+	<-done
+}
+
+func RunAppWebSocketApplication(conn *ws.Conn, ctx context.Context, app Application) {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	if err := conn.WriteMessage(ws.TextMessage, []byte("OK")); err != nil {
+		return
+	}
+
+	toWebsocket := make(chan Frame, 16)
+	fromWebsocket := make(chan Frame, 16)
+
+	done := make(chan struct{}, 3)
+
+	go func() {
+		defer close(fromWebsocket)
+		defer func() { done <- struct{}{} }()
+
+		pumpFramesFromWebsocket(ctx, conn, fromWebsocket)
+		cancel()
+	}()
+
+	go func() {
+		defer func() { done <- struct{}{} }()
+
+		pumpFramesToWebsocket(ctx, conn, toWebsocket)
+		cancel()
+	}()
+
+	go func() {
+		defer close(toWebsocket)
+		defer func() { done <- struct{}{} }()
+
+		session := NewSessionWithContext(ctx, toWebsocket, fromWebsocket)
+		stateMu := app.Mutex()
+		stateMu.Lock()
+		sessionPtr := app.Session()
+		*sessionPtr = session
+		session.app = app
+		app.OnInit()
+		stateMu.Unlock()
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case frame, ok := <-session.Incoming():
+				if !ok {
+					return
+				}
+
+				if frame.Opcode == OpSysHello {
+					stateMu.Lock()
+					if appWithSysHello, ok := app.(SysHelloAwareApplication); ok {
+						appWithSysHello.OnSysHello(frame.SysHello.Payload)
+					}
+					ui := app.UserInterface()
+					model, err := ValueMarshal(app)
+					if err != nil {
+						log.Warn("Failed to serialize model %#v: %s", app, err)
+					} else {
+						session.SendUiMount(UiMount{
+							InterfaceId: "-",
+							Root:        ui,
+							Model:       model,
+						})
+					}
+					stateMu.Unlock()
+				} else if frame.Opcode == OpUiEvent {
+					(func() {
+						stateMu.Lock()
+						defer stateMu.Unlock()
+
+						if session.DispatchUiEvent(frame.UiEvent) {
+							AppUpdateModel(app)
+						} else {
+							app.OnMessage(frame)
+						}
+					})()
+				} else if frame.Opcode == OpModelInput {
+					(func() {
+						stateMu.Lock()
+						defer stateMu.Unlock()
+
+						if err := ApplyModelInput(app, frame.ModelInput); err != nil {
+							return
+						}
+
+						app.OnMessage(frame)
+						AppUpdateModel(app)
+					})()
+				}
+			}
+		}
 	}()
 
 	go func() {
