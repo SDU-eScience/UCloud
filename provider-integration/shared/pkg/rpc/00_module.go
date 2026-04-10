@@ -163,7 +163,9 @@ type Call[Req any, Resp any] struct {
 }
 
 func rpcBaseContext(context string) string {
-	if context == "/" {
+	if context == "" {
+		return ""
+  } else if context == "/" {
 		return "/"
 	} else if !strings.HasPrefix(context, "auth") && !strings.HasPrefix(context, "ucloud/") {
 		return fmt.Sprintf("api/%s", context)
@@ -391,6 +393,7 @@ func (c *Call[Req, Resp]) HandlerEx(server *Server, handler ServerHandler[Req, R
 
 	path, _ = strings.CutSuffix(path, "/")
 	path = strings.ReplaceAll(path, ProviderPlaceholder, ServerProviderId)
+
 	for {
 		oldPath := path
 		path = strings.ReplaceAll(path, "//", "/")

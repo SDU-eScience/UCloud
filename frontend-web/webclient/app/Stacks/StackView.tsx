@@ -1,18 +1,20 @@
 import * as React from "react";
-import {useParams} from "react-router-dom";
+import {useNavigate, useParams} from "react-router-dom";
 
 import MainContainer from "@/ui-components/MainContainer";
+import {Client} from "@/Authentication/HttpClientInstance";
 import {callAPI, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {usePage} from "@/Navigation/Redux";
+import {getStoredProject} from "@/Project/ReduxState";
 import {Box, Button, Card, Divider, ExternalLink, Flex, Icon, Input, Text} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import Warning from "@/ui-components/Warning";
 import {injectStyle} from "@/Unstyled";
 import {dateToString} from "@/Utilities/DateUtilities";
-import {bulkRequestOf, displayErrorMessageOrDefault, doNothing, shortUUID} from "@/UtilityFunctions";
+import {bulkRequestOf, copyToClipboard, displayErrorMessageOrDefault, doNothing, shortUUID} from "@/UtilityFunctions";
 import {dialogStore} from "@/Dialog/DialogStore";
-import {sendFailureNotification} from "@/Notifications";
+import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
 import {addStandardDialog} from "@/UtilityComponents";
 import {isJobStateTerminal, stateToTitle} from "@/Applications/Jobs";
 import {api as JobsApi, Job} from "@/UCloud/JobsApi";
@@ -21,15 +23,26 @@ import {IconName} from "@/ui-components/Icon";
 import {HeroHeaderCard, HeroHeaderGrid, HeroMetric} from "@/Applications/Jobs/HeroHeader";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import {VmActionItem, VmActionSplitButton} from "@/Applications/Jobs/VmActionSplitButton";
+import UcxView, {UcxComponentRenderer, UcxRpcHandler} from "@/UCX/UcxView";
+import {downloadFileContent} from "@/UCloud/FilesApi";
 
 import * as StackApi from "./api";
 import {StackLogo} from "@/Stacks/Logos";
 import {getShortProviderTitle} from "@/Providers/ProviderTitle";
+import {StackStatus} from "./api";
+import {ValueKind, valueToPlain} from "@/UCX/protocol";
+
+type MachinesLabelFilter = {
+    label: string;
+    value: string;
+};
 
 export default function StackView(): React.ReactNode {
-    const {id} = useParams<{id: string}>();
-    const [stackState, fetchStack] = useCloudAPI<StackApi.Stack | null>({noop: true}, null);
-    const [commandLoading, invokeCommand] = useCloudCommand();
+	const {id} = useParams<{id: string}>();
+	const navigate = useNavigate();
+	const [stackState, fetchStack] = useCloudAPI<StackApi.Stack | null>({noop: true}, null);
+	const [commandLoading, invokeCommand] = useCloudCommand();
+	const [ucxAuthenticated, setUcxAuthenticated] = React.useState(false);
 
     usePage("Stack", SidebarTabId.RUNS);
 
@@ -42,38 +55,117 @@ export default function StackView(): React.ReactNode {
         refreshStack();
     }, [refreshStack]);
 
-    const stack = stackState.data;
-    const status = stack?.status;
-    const jobs = status?.jobs ?? [];
-    const uiMode = status?.ucxUiMode ?? "";
+	const stack = stackState.data;
+	const status = stack?.status;
+	const jobs = status?.jobs ?? [];
+	const uiMode = status?.ucxUiMode ?? "None";
+	const ucxConnectJobId = status?.ucxConnectJobId ?? null;
+	const ucxConnectJob = React.useMemo(() => {
+		if (!ucxConnectJobId) return null;
+		return jobs.find(job => job.id === ucxConnectJobId) ?? null;
+	}, [jobs, ucxConnectJobId]);
+	const ucxTargetRunning = ucxConnectJob?.status.state === "RUNNING";
+	const shouldAttemptUcxConnection = uiMode === "Replacement" && !!ucxConnectJobId && ucxTargetRunning;
 
-    const stackUiMachines = React.useMemo(() => {
-        return jobs.filter(job => isVirtualMachineJob(job) && hasStackUiLabel(job));
-    }, [jobs]);
+	const ucxConnectJobUrl = React.useMemo(() => {
+		return Client.computeURL("/api", "/hpc/apps/ucx/connectJob")
+			.replace("http://", "ws://")
+			.replace("https://", "wss://");
+	}, []);
 
-    const hasRunningStackUiMachine = React.useMemo(() => {
-        return stackUiMachines.some(it => it.status.state === "RUNNING");
-    }, [stackUiMachines]);
+	const ucxRpcHandlers = React.useMemo<Record<string, UcxRpcHandler>>(() => {
+		const connectJobSpecification = ucxConnectJob?.specification as (Job["specification"] & {labels?: Record<string, string>}) | undefined;
+		const stackStateFolder = connectJobSpecification?.labels?.["ucloud.dk/stack-state-folder"];
+		const stackPathToFile = (fileName: string) => {
+			const trimmedFileName = fileName.trim();
+			if (!trimmedFileName) {
+				throw new Error("Missing file name");
+			}
 
-    const showDefaultUi = uiMode === "" || uiMode === "Partial" || uiMode === "None"
-        || (uiMode === "Replacement" && !hasRunningStackUiMachine);
+			const trimmedBase = (stackStateFolder ?? "").trim();
+			if (!trimmedBase) {
+				throw new Error("Stack state folder not found on connected job");
+			}
+
+			return `${trimmedBase.replace(/\/+$/, "")}/${trimmedFileName.replace(/^\/+/, "")}`;
+		};
+
+		return {
+			uiSendMessage: raw => {
+				const payload = raw as {message: string; success: boolean};
+				if (!payload.success) {
+					sendFailureNotification(payload.message);
+				}
+			},
+			stackRefresh: async () => {
+				refreshStack();
+			},
+			stackOpen: raw => {
+				const payload = raw as {id: string};
+				navigate(`${AppRoutes.prefix}${AppRoutes.stacks.view(payload.id)}`);
+			},
+			stackCopyFile: async raw => {
+				try {
+					const payload = raw as {fileName?: string};
+					const fileName = payload.fileName?.trim() ?? "";
+					const path = stackPathToFile(fileName);
+					const blob = await downloadFileContent(path);
+					await copyToClipboard(await blob.text());
+					sendSuccessNotification(`Copied ${fileName} to clipboard`);
+				} catch (err) {
+					sendFailureNotification(err instanceof Error ? err.message : "Failed to copy stack file content");
+				}
+			},
+			stackDownloadFile: async raw => {
+				try {
+					const payload = raw as {fileName?: string};
+					const fileName = payload.fileName?.trim() ?? "";
+					const path = stackPathToFile(fileName);
+					const blob = await downloadFileContent(path);
+					const link = document.createElement("a");
+					const blobUrl = URL.createObjectURL(blob);
+					link.href = blobUrl;
+					link.download = fileName;
+					document.body.appendChild(link);
+					link.click();
+					if (link.parentNode === document.body) {
+						document.body.removeChild(link);
+					}
+					URL.revokeObjectURL(blobUrl);
+				} catch (err) {
+					sendFailureNotification(err instanceof Error ? err.message : "Failed to download stack file");
+				}
+			},
+		};
+	}, [navigate, refreshStack, ucxConnectJob]);
+
+	React.useEffect(() => {
+		setUcxAuthenticated(false);
+	}, [ucxConnectJobId]);
+
+	React.useEffect(() => {
+		if (!shouldAttemptUcxConnection) {
+			setUcxAuthenticated(false);
+		}
+	}, [shouldAttemptUcxConnection]);
 
     const pollIntervalMs = React.useMemo(() => {
+        if (uiMode === "Replacement") return 2000;
         const hasLiveJobs = jobs.some(job => !isJobStateTerminal(job.status.state));
         return hasLiveJobs ? 5000 : 15000;
-    }, [jobs]);
+    }, [uiMode, jobs]);
 
-    React.useEffect(() => {
-        if (!id || !showDefaultUi) return;
+	React.useEffect(() => {
+		if (!id) return;
 
-        const timer = window.setInterval(() => {
-            refreshStack();
+		const timer = window.setInterval(() => {
+			refreshStack();
         }, pollIntervalMs);
 
-        return () => {
-            window.clearInterval(timer);
-        };
-    }, [id, showDefaultUi, pollIntervalMs, refreshStack]);
+		return () => {
+			window.clearInterval(timer);
+		};
+	}, [id, pollIntervalMs, refreshStack]);
 
     const restartVm = React.useCallback((job: Job) => {
         addStandardDialog({
@@ -222,6 +314,31 @@ export default function StackView(): React.ReactNode {
         );
     }, [status]);
 
+    const ucxComponentRegistry: Record<string, UcxComponentRenderer> = React.useMemo(() => {
+        return {
+            stack_machines: ctx => {
+                const props = ctx.node.props;
+                let isPlain = valueToPlain(props["isPlain"] ?? { kind: ValueKind.Null });
+                if (isPlain == null || typeof isPlain !== "boolean") isPlain = false;
+                let labelFilter: MachinesLabelFilter | undefined = undefined;
+                const plainLabelFilter = valueToPlain(props["labelFilter"] ?? { kind: ValueKind.Null });
+                if (plainLabelFilter != null && typeof plainLabelFilter === "object" && !Array.isArray(plainLabelFilter)) {
+                    const label = (plainLabelFilter as Record<string, unknown>)["label"];
+                    const value = (plainLabelFilter as Record<string, unknown>)["value"];
+                    if (typeof label === "string" && typeof value === "string") {
+                        labelFilter = {label, value};
+                    }
+                }
+
+                return <MachinesInStack commandLoading={commandLoading} suspendVm={suspendVm} restartVm={restartVm}
+                                        status={status} plain={isPlain} labelFilter={labelFilter} />;
+            },
+            stack_resources: ctx => {
+                return <ResourcesInStack openResourcesDialog={openResourcesDialog} status={status} />;
+            }
+        };
+    }, [status, commandLoading, suspendVm, restartVm, openResourcesDialog]);
+
     return <MainContainer
         main={
             <div className={StackLayout}>
@@ -247,193 +364,205 @@ export default function StackView(): React.ReactNode {
                 {id && stackState.error ? <p>Could not load stack: {stackState.error.why}</p> : null}
                 {id && !stackState.loading && !stackState.error && !stack ? <p>Stack not found.</p> : null}
 
-                {!stack || !showDefaultUi ? null : (
-                    <>
-                        <Card p="16px">
-                            <Heading.h4>Resources in stack</Heading.h4>
-                            <div className={ResourceGrid}>
-                                <MutedResourceCard
-                                    icon="heroCpuChip"
-                                    title="Jobs"
-                                    count={jobs.length}
-                                    items={jobs.slice(0, 3).map(job => `${job.specification.name ?? shortUUID(job.id)} (${stateToTitle(job.status.state)})`)}
-                                    onClick={() => openResourcesDialog("jobs")}
-                                />
-                                {status?.licenses?.length ?? 0 === 0 ? null :
-                                    <MutedResourceCard
-                                        icon="heroKey"
-                                        title="Licenses"
-                                        count={status?.licenses?.length ?? 0}
-                                        items={(status?.licenses ?? []).slice(0, 3).map(license => `${license.specification.product.id} (${license.id})`)}
-                                        onClick={() => openResourcesDialog("licenses")}
-                                    />
-                                }
-                                <MutedResourceCard
-                                    icon="heroGlobeEuropeAfrica"
-                                    title="Public links"
-                                    count={status?.publicLinks?.length ?? 0}
-                                    items={(status?.publicLinks ?? []).slice(0, 3).map(link => link.specification.domain)}
-                                    onClick={() => openResourcesDialog("publicLinks")}
-                                />
-                                <MutedResourceCard
-                                    icon="heroWifi"
-                                    title="Public IPs"
-                                    count={status?.publicIps?.length ?? 0}
-                                    items={(status?.publicIps ?? []).slice(0, 3).map(ip => ip.status.ipAddress ?? ip.id)}
-                                    onClick={() => openResourcesDialog("publicIps")}
-                                />
-                                <MutedResourceCard
-                                    icon="heroCloud"
-                                    title="Private networks"
-                                    count={status?.networks?.length ?? 0}
-                                    items={(status?.networks ?? []).slice(0, 3).map(net => net.specification.name || net.specification.subdomain || net.id)}
-                                    onClick={() => openResourcesDialog("networks")}
-                                />
-                            </div>
-                        </Card>
+				{!stack || (uiMode === "Replacement" && ucxAuthenticated) ? null : (
+					<>
+                        <ResourcesInStack status={status} openResourcesDialog={openResourcesDialog} />
+                        <MachinesInStack status={status} commandLoading={commandLoading} suspendVm={suspendVm}
+                                         restartVm={restartVm} />
+					</>
+				)}
 
-                        <Card p="16px" className={JobSectionCard}>
-                            <Flex alignItems="center" gap="8px" mb="12px">
-                                <Heading.h3>Machines</Heading.h3>
-                            </Flex>
-
-                            {jobs.length === 0 ? (
-                                <Text color="textSecondary">No jobs are currently part of this stack.</Text>
-                            ) : (
-                                <div className={JobListScroll}>
-                                    <Table tableType="presentation">
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHeaderCell width={"300px"}>Name</TableHeaderCell>
-                                                <TableHeaderCell width="135px">State</TableHeaderCell>
-                                                <TableHeaderCell>Machine type</TableHeaderCell>
-                                                <TableHeaderCell width="300px">Actions</TableHeaderCell>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <tbody>
-                                            {jobs.map(job => {
-                                                const isVm = isVirtualMachineJob(job);
-                                                const isTerminalState = isJobStateTerminal(job.status.state);
-                                                const isSuspended = job.status.state === "SUSPENDED";
-
-                                                const actionItems: VmActionItem[] = [];
-                                                if (isVm && !isTerminalState && !isSuspended) {
-                                                    actionItems.push({
-                                                        key: "restart",
-                                                        value: "Restart",
-                                                        icon: "heroArrowPath",
-                                                        color: "warningMain",
-                                                    });
-                                                }
-
-                                                const powerTone: "success" | "warning" | "neutral" = isTerminalState
-                                                    ? "neutral"
-                                                    : isSuspended
-                                                        ? "success"
-                                                        : "warning";
-
-                                                return <TableRow key={job.id} className={isTerminalState ? JobRowMuted : undefined}>
-                                                    <TableCell>
-                                                        <div className={JobName}>{job.specification.name ?? shortUUID(job.id)}</div>
-                                                        <div className={JobMetaInline}>
-                                                            ID: {shortUUID(job.id)}
-                                                            {" | "}
-                                                            Started: {job.status.startedAt ? dateToString(job.status.startedAt) : "Pending"}
-                                                        </div>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <div className={JobStateBadge} data-state={job.status.state}>{stateToTitle(job.status.state)}</div>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <div className={JobMetaInline}>{job.specification.product.id}</div>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Flex gap="8px" flexWrap="wrap">
-                                                            {!isVm ? null : (
-                                                                <VmActionSplitButton
-                                                                    tone={powerTone}
-                                                                    disabled={commandLoading || isTerminalState}
-                                                                    buttonColor={!isTerminalState
-                                                                        ? (isSuspended ? "successMain" : "warningMain")
-                                                                        : "primaryMain"
-                                                                    }
-                                                                    buttonIcon={!isTerminalState ? "heroPower" : "heroCog6Tooth"}
-                                                                    buttonText={!isTerminalState
-                                                                        ? (isSuspended ? "Power on" : "Power off")
-                                                                        : "Actions"
-                                                                    }
-                                                                    onButtonClick={() => {
-                                                                        if (isTerminalState) return;
-                                                                        suspendVm(job);
-                                                                    }}
-                                                                    menuItems={actionItems}
-                                                                    onSelectMenuItem={item => {
-                                                                        if (item.key === "restart") restartVm(job);
-                                                                    }}
-                                                                    dropdownWidth="220px"
-                                                                />
-                                                            )}
-
-                                                            <ExternalLink href={`${AppRoutes.prefix}${AppRoutes.jobs.view(job.id)}`}>
-                                                                <Button>
-                                                                    <Icon name={"heroArrowTopRightOnSquare"} mr={"8px"} />
-                                                                    Details
-                                                                </Button>
-                                                            </ExternalLink>
-                                                        </Flex>
-                                                    </TableCell>
-                                                </TableRow>;
-                                            })}
-                                        </tbody>
-                                    </Table>
-                                </div>
-                            )}
-                        </Card>
-                    </>
-                )}
-
-                {stack && !showDefaultUi ? (
-                    <Card p="24px">
-                        <Heading.h3>Custom stack UI is active</Heading.h3>
-                        <Text color="textSecondary" mt="8px">
-                            This stack is in Replacement mode and has a running stack UI machine.
-                        </Text>
-                    </Card>
-                ) : null}
+				{stack && shouldAttemptUcxConnection ? (
+					<div style={{display: ucxAuthenticated ? "block" : "none"}}>
+						<UcxView
+							key={ucxConnectJobId ?? ""}
+							url={ucxConnectJobUrl}
+							authToken={async () => {
+								const accessToken = await Client.receiveAccessTokenOrRefreshIt();
+								const project = getStoredProject() ?? "";
+								return `${accessToken}\n${project}`;
+							}}
+							sysHello={() => JSON.stringify({jobId: ucxConnectJobId})}
+							rpcHandlers={ucxRpcHandlers}
+                            components={ucxComponentRegistry}
+							onConnected={() => setUcxAuthenticated(true)}
+							onDisconnected={() => setUcxAuthenticated(false)}
+							renderFrame={({content}) => content}
+						/>
+					</div>
+				) : null}
             </div>
         }
     />;
 }
 
 function isVirtualMachineJob(job: Job): boolean {
-    return job.status.resolvedApplication?.invocation.tool.tool?.description.backend === "VIRTUAL_MACHINE";
+	return job.status.resolvedApplication?.invocation.tool.tool?.description.backend === "VIRTUAL_MACHINE";
 }
 
-function hasStackUiLabel(job: Job): boolean {
-    const labelKey = "ucloud.dk/stackui";
-    const candidates = [
-        (job as any)?.specification,
-        (job as any)?.specification?.parameters,
-        (job as any)?.status,
-        (job as any)?.status?.jobParametersJson,
-    ];
+const ResourcesInStack: React.FunctionComponent<{
+    status?: StackStatus | null;
+    openResourcesDialog: (kind: string) => void;
+}> = ({openResourcesDialog, status}) => {
+    const jobs = status?.jobs ?? [];
 
-    return candidates.some(candidate => containsLabelKey(candidate, labelKey, 0));
+    return <Card p="16px">
+        <Heading.h4>Resources in stack</Heading.h4>
+        <div className={ResourceGrid}>
+            <MutedResourceCard
+                icon="heroCpuChip"
+                title="Jobs"
+                count={jobs.length}
+                items={jobs.slice(0, 3).map(job => `${job.specification.name ?? shortUUID(job.id)} (${stateToTitle(job.status.state)})`)}
+                onClick={() => openResourcesDialog("jobs")}
+            />
+            {status?.licenses?.length ?? 0 === 0 ? null :
+                <MutedResourceCard
+                    icon="heroKey"
+                    title="Licenses"
+                    count={status?.licenses?.length ?? 0}
+                    items={(status?.licenses ?? []).slice(0, 3).map(license => `${license.specification.product.id} (${license.id})`)}
+                    onClick={() => openResourcesDialog("licenses")}
+                />
+            }
+            <MutedResourceCard
+                icon="heroGlobeEuropeAfrica"
+                title="Public links"
+                count={status?.publicLinks?.length ?? 0}
+                items={(status?.publicLinks ?? []).slice(0, 3).map(link => link.specification.domain)}
+                onClick={() => openResourcesDialog("publicLinks")}
+            />
+            <MutedResourceCard
+                icon="heroWifi"
+                title="Public IPs"
+                count={status?.publicIps?.length ?? 0}
+                items={(status?.publicIps ?? []).slice(0, 3).map(ip => ip.status.ipAddress ?? ip.id)}
+                onClick={() => openResourcesDialog("publicIps")}
+            />
+            <MutedResourceCard
+                icon="heroCloud"
+                title="Private networks"
+                count={status?.networks?.length ?? 0}
+                items={(status?.networks ?? []).slice(0, 3).map(net => net.specification.name || net.specification.subdomain || net.id)}
+                onClick={() => openResourcesDialog("networks")}
+            />
+        </div>
+    </Card>;
 }
 
-function containsLabelKey(value: unknown, key: string, depth: number): boolean {
-    if (value == null || depth > 5) return false;
-    if (Array.isArray(value)) return value.some(item => containsLabelKey(item, key, depth + 1));
-    if (typeof value !== "object") return false;
+const MachinesInStack: React.FunctionComponent<{
+    status?: StackStatus | null;
+    commandLoading: boolean;
+    suspendVm: (job: Job) => void;
+    restartVm: (job: Job) => void;
+    plain?: boolean;
+    labelFilter?: MachinesLabelFilter;
+}> = ({status, commandLoading, suspendVm, restartVm, ...props}) => {
+    const jobs = status?.jobs ?? [];
+    const plain = props.plain ?? false;
+    const labelFilter = props.labelFilter;
+    const filteredJobs = labelFilter == null ? jobs : jobs.filter(job => {
+        const specificationWithLabels = job.specification as typeof job.specification & {labels?: Record<string, string>};
+        return specificationWithLabels.labels?.[labelFilter.label] === labelFilter.value;
+    });
 
-    const record = value as Record<string, unknown>;
-    if (Object.prototype.hasOwnProperty.call(record, key)) return true;
+    const jobList = <div className={JobListScroll}>
+        <Table tableType="presentation">
+            <TableHeader>
+                <TableRow>
+                    <TableHeaderCell width={"300px"}>Name</TableHeaderCell>
+                    <TableHeaderCell width="135px">State</TableHeaderCell>
+                    <TableHeaderCell>Machine type</TableHeaderCell>
+                    <TableHeaderCell width="300px">Actions</TableHeaderCell>
+                </TableRow>
+            </TableHeader>
+            <tbody>
+            {filteredJobs.map(job => {
+                const isVm = isVirtualMachineJob(job);
+                const isTerminalState = isJobStateTerminal(job.status.state);
+                const isSuspended = job.status.state === "SUSPENDED";
 
-    for (const nested of Object.values(record)) {
-        if (containsLabelKey(nested, key, depth + 1)) return true;
-    }
+                const actionItems: VmActionItem[] = [];
+                if (isVm && !isTerminalState && !isSuspended) {
+                    actionItems.push({
+                        key: "restart",
+                        value: "Restart",
+                        icon: "heroArrowPath",
+                        color: "warningMain",
+                    });
+                }
 
-    return false;
+                const powerTone: "success" | "warning" | "neutral" = isTerminalState
+                    ? "neutral"
+                    : isSuspended
+                        ? "success"
+                        : "warning";
+
+                return <TableRow key={job.id} className={isTerminalState ? JobRowMuted : undefined}>
+                    <TableCell>
+                        <div className={JobName}>{job.specification.name ?? shortUUID(job.id)}</div>
+                        <div className={JobMetaInline}>
+                            ID: {shortUUID(job.id)}
+                            {" | "}
+                            Started: {job.status.startedAt ? dateToString(job.status.startedAt) : "Pending"}
+                        </div>
+                    </TableCell>
+                    <TableCell>
+                        <div className={JobStateBadge} data-state={job.status.state}>{stateToTitle(job.status.state)}</div>
+                    </TableCell>
+                    <TableCell>
+                        <div className={JobMetaInline}>{job.specification.product.id}</div>
+                    </TableCell>
+                    <TableCell>
+                        <Flex gap="8px" flexWrap="wrap">
+                            {!isVm ? null : (
+                                <VmActionSplitButton
+                                    tone={powerTone}
+                                    disabled={commandLoading || isTerminalState}
+                                    buttonColor={!isTerminalState
+                                        ? (isSuspended ? "successMain" : "warningMain")
+                                        : "primaryMain"
+                                    }
+                                    buttonIcon={!isTerminalState ? "heroPower" : "heroCog6Tooth"}
+                                    buttonText={!isTerminalState
+                                        ? (isSuspended ? "Power on" : "Power off")
+                                        : "Actions"
+                                    }
+                                    onButtonClick={() => {
+                                        if (isTerminalState) return;
+                                        suspendVm(job);
+                                    }}
+                                    menuItems={actionItems}
+                                    onSelectMenuItem={item => {
+                                        if (item.key === "restart") restartVm(job);
+                                    }}
+                                    dropdownWidth="220px"
+                                />
+                            )}
+
+                            <ExternalLink href={`${AppRoutes.prefix}${AppRoutes.jobs.view(job.id)}`}>
+                                <Button>
+                                    <Icon name={"heroArrowTopRightOnSquare"} mr={"8px"} />
+                                    Details
+                                </Button>
+                            </ExternalLink>
+                        </Flex>
+                    </TableCell>
+                </TableRow>;
+            })}
+            </tbody>
+        </Table>
+    </div>;
+
+    return plain ? jobList : <Card p="16px" className={JobSectionCard}>
+        <Flex alignItems="center" gap="8px" mb="12px">
+            <Heading.h3>Machines</Heading.h3>
+        </Flex>
+
+        {filteredJobs.length === 0 ? (
+            <Text color="textSecondary">No jobs are currently part of this stack.</Text>
+        ) : jobList}
+    </Card>;
 }
 
 const MutedResourceCard: React.FunctionComponent<{

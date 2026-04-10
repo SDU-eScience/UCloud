@@ -15,6 +15,10 @@ import (
 )
 
 func TestUsageGenSimulation(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+		return
+	}
 	e := newEnv(t, timeCategory)
 	e.TimeInMinutes = true
 

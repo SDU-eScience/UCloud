@@ -34,7 +34,7 @@ var syncthingConfig cfg.KubernetesSyncthingConfiguration
 var syncthingDimensions = shared.SchedulerDimensions{
 	CpuMillis:     400,
 	MemoryInBytes: 1000 * 1000 * 1000 * 2,
-	Gpu:           0,
+	Resources:     map[string]int{},
 }
 
 const syncthingAppName = "syncthing"

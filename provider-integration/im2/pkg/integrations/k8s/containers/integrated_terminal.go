@@ -20,7 +20,7 @@ import (
 var integratedTerminalDimensions = shared.SchedulerDimensions{
 	CpuMillis:     500,
 	MemoryInBytes: 1000 * 1000 * 1000 * 2,
-	Gpu:           0,
+	Resources:     map[string]int{},
 }
 
 const itermInactivityDuration = 15 * time.Minute

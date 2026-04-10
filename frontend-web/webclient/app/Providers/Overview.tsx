@@ -7,24 +7,13 @@ import {NonAuthenticatedHeader} from "@/Navigation/Header";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
-import Providers from "@/Assets/provider_info.json";
 import {classConcat, injectStyle} from "@/Unstyled";
 import {CardClass} from "@/ui-components/Card";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {ProviderBranding} from "@/UCloud/ProviderBrandingApi";
+import {useSelector} from "react-redux";
 
-interface ProviderType {
-    id: string;
-    title: string;
-    logo: string;
-    shortDescription: string;
-    description: string;
-}
-
-const prodProviders = ["aau", "aau-k8", "ucloud", "hippo"];
-
-export function ProviderEntry(props: {provider: ProviderType}): React.ReactNode {
-    if (prodProviders.indexOf(props.provider.id) === -1) return null;
-
+export function ProviderEntry(props: {provider: ProviderBranding}): React.ReactNode {
     return (
         <Link to={`/providers/detailed/${props.provider.id}`}>
             <div className={classConcat(CardClass, ProviderCard)}>
@@ -45,12 +34,21 @@ export function ProviderEntry(props: {provider: ProviderType}): React.ReactNode 
     );
 }
 
+function useProviderBrandings(): Record<string,ProviderBranding> | undefined {
+    const data = useSelector((it: ReduxObject) => it.providerBrandings);
+    return data.providers;
+}
+
 export default function ProviderOverview() {
     usePage("Provider overview", SidebarTabId.NONE);
+    const providers = useProviderBrandings();
+    if (!providers) {
+        return null;
+    }
 
     const main = <Box m="12px 24px">
         <GridCardGroup minmax={250}>
-            {Providers.providers.map(provider =>
+            {Object.values(providers).map(provider =>
                 <ProviderEntry key={provider.title} provider={provider} />
             )}
         </GridCardGroup>

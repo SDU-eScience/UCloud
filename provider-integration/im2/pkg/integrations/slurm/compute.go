@@ -697,7 +697,7 @@ func loadComputeProducts() {
 
 		for groupName, group := range category.Groups {
 			for _, machineConfig := range group.Configs {
-				name := fmt.Sprintf("%v-%v", groupName, pickResource(group.NameSuffix, machineConfig))
+				name := buildMachineName(categoryName, groupName, group, machineConfig)
 				product := apm.ProductV2{
 					Type:        apm.ProductTypeCCompute,
 					Category:    productCategory,
@@ -714,6 +714,7 @@ func loadComputeProducts() {
 					MemoryModel:  group.MemoryModel,
 					Gpu:          machineConfig.Gpu,
 					GpuModel:     group.GpuModel,
+					Fraction:     group.Fraction,
 				}
 
 				if !usePrice {
@@ -757,6 +758,30 @@ func pickResource(resource config.MachineResourceType, machineConfig config.Slur
 	default:
 		log.Warn("Unhandled machine resource type: %v", resource)
 		return 0
+	}
+}
+
+func buildMachineName(categoryName, groupName string, group config.SlurmMachineCategoryGroup, machineConfig config.SlurmMachineConfiguration) string {
+	switch group.NameSuffix {
+	case config.MachineResourceTypeCpu:
+		return fmt.Sprintf("%v-%v", groupName, pickResource(group.NameSuffix, machineConfig))
+	case config.MachineResourceTypeCpuV2:
+		return fmt.Sprintf("%v-%v-vcpu", categoryName, pickResource(config.MachineResourceTypeCpu, machineConfig))
+	case config.MachineResourceTypeGpu:
+		return fmt.Sprintf("%v-%v", groupName, pickResource(group.NameSuffix, machineConfig))
+	case config.MachineResourceTypeGpuV2:
+		gpuSuffix := "gpu"
+		if group.Fraction.Numerator != 1 || group.Fraction.Denominator != 1 {
+			gpuSuffix = fmt.Sprintf("frac-%dg", group.Fraction.Numerator)
+		}
+		return fmt.Sprintf("%v-%v-%s", categoryName, pickResource(config.MachineResourceTypeGpu, machineConfig), gpuSuffix)
+	case config.MachineResourceTypeMemory:
+		return fmt.Sprintf("%v-%v", groupName, pickResource(group.NameSuffix, machineConfig))
+	case config.MachineResourceTypeMemoryV2:
+		return fmt.Sprintf("%v-%v-gb", categoryName, pickResource(config.MachineResourceTypeMemory, machineConfig))
+	default:
+		log.Warn("Unhandled machine resource type: %v", group.NameSuffix)
+		return fmt.Sprintf("%v-%v", groupName, pickResource(group.NameSuffix, machineConfig))
 	}
 }
 

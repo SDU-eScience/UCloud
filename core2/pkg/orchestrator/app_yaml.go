@@ -339,6 +339,7 @@ type A2Features struct {
 	IPAddresses util.Option[bool] `yaml:"ipAddresses"`
 	Folders     util.Option[bool] `yaml:"folders"`
 	JobLinking  util.Option[bool] `yaml:"jobLinking"`
+	JobAuditLog util.Option[bool] `yaml:"jobAuditLog"`
 }
 
 type A2Web struct {
@@ -855,6 +856,7 @@ func (y *A2Yaml) Normalize() (orcapi.Application, *util.HttpError) {
 					AllowMultiNode:        util.OptValue(y.Features.Value.MultiNode),
 					AllowPublicIp:         y.Features.Value.IPAddresses,
 					AllowPublicLink:       y.Features.Value.Links,
+					JobAuditLogIsEnabled:  y.Features.Value.JobAuditLog,
 
 					Environment:    mappedEnvironment,
 					Modules:        mappedModules,

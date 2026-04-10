@@ -8,6 +8,12 @@ func privateNetworksV1() db.MigrationScript {
 		Execute: func(tx *db.Transaction) {
 			db.Exec(
 				tx,
+				`drop trigger if exists require_immutable_product_category on accounting.product_categories;`,
+				db.Params{},
+			)
+
+			db.Exec(
+				tx,
 				`
 					create table app_orchestrator.private_networks(
 						name text not null,
