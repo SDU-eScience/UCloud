@@ -18,17 +18,17 @@ type UcxUiMode string
 
 const (
 	UcxUiReplacement UcxUiMode = "Replacement"
-	UcxUiPartial     UcxUiMode = "Partial"
 	UcxUiNone        UcxUiMode = "None"
 )
 
 type StackStatus struct {
-	UcxUiMode   UcxUiMode        `json:"ucxUiMode"`
-	Jobs        []Job            `json:"jobs"`
-	Licenses    []License        `json:"licenses"`
-	PublicIps   []PublicIp       `json:"publicIps"`
-	PublicLinks []Ingress        `json:"publicLinks"`
-	Networks    []PrivateNetwork `json:"networks"`
+	UcxUiMode       UcxUiMode           `json:"ucxUiMode"`
+	UcxConnectJobId util.Option[string] `json:"ucxConnectJobId"`
+	Jobs            []Job               `json:"jobs"`
+	Licenses        []License           `json:"licenses"`
+	PublicIps       []PublicIp          `json:"publicIps"`
+	PublicLinks     []Ingress           `json:"publicLinks"`
+	Networks        []PrivateNetwork    `json:"networks"`
 }
 
 const stacksContext = "jobs/stacks"

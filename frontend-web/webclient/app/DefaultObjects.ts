@@ -6,6 +6,8 @@ import {SidebarStateProps} from "./Applications/Redux/Reducer";
 import {getUserThemePreference} from "./UtilityFunctions";
 import {defaultAvatar} from "./AvataaarLib";
 import {HookStore} from "./Utilities/ReduxHooks";
+import {ProviderBrandingResponse} from "./UCloud/ProviderBrandingApi";
+import {initProviderBranding} from "@/ProviderBrandings/AutomaticProviderBranding";
 
 export interface StatusReduxObject {
     title: string;
@@ -22,6 +24,7 @@ export interface LegacyReduxObject {
     avatar: AvatarReduxObject;
     project: ProjectRedux.State;
     terminal: TerminalState;
+    providerBrandings: ProviderBrandingResponse;
     popinChild: PopInArgs | null;
     loading: boolean;
     sidebar: SidebarStateProps;
@@ -51,6 +54,7 @@ export function initObject(): ReduxObject {
         avatar: initAvatar(),
         project: ProjectRedux.initialState,
         terminal: initTerminalState(),
+        providerBrandings: initProviderBranding(),
         popinChild: null,
         loading: false,
         sidebar: {favorites: [], theme: getThemeOrDefaultValue()}

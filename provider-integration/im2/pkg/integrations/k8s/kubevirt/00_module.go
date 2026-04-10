@@ -32,6 +32,7 @@ import (
 	"ucloud.dk/pkg/integrations/k8s/filesystem"
 	"ucloud.dk/pkg/integrations/k8s/shared"
 	db "ucloud.dk/shared/pkg/database"
+	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
@@ -68,6 +69,9 @@ func Init() ctrl.JobsService {
 		case cfg.KubernetesVmVolHostPath:
 			initDisks()
 
+		case cfg.KubernetesVmVolCsi:
+			initDisks()
+
 		case cfg.KubernetesVmVolCdi:
 			log.Fatal("Not supported yet")
 			panic("Not supported yet")
@@ -91,6 +95,20 @@ func Init() ctrl.JobsService {
 		AttachResource:           attachResource,
 		DetachResource:           detachResource,
 	}
+}
+
+func ResolveUcxJobSessionUpstream(job *orc.Job, port int) (string, error) {
+	if port <= 0 || port > 65535 {
+		return "", fmt.Errorf("invalid port: %d", port)
+	}
+
+	if util.DevelopmentModeEnabled() {
+		machineName := vmName(job.Id, 0)
+		tunnelPort := shared.EstablishTunnelEx(machineName, shared.ServiceConfig.Compute.Namespace, port)
+		return fmt.Sprintf("ws://127.0.0.1:%d/", tunnelPort), nil
+	}
+
+	return fmt.Sprintf("ws://%s:%d/", shared.JobHostName(job, 0), port), nil
 }
 
 func VmiStandaloneMutator() {
@@ -193,6 +211,83 @@ func vmiFsMutator() {
 			allowed := true
 			managedVolumeNames := map[string]bool{}
 			sharedVolumeName := ""
+
+			if strings.HasPrefix(pod.Name, "hp-volume-") || strings.HasPrefix(pod.GenerateName, "hp-volume-") {
+				replacementSpec := pod.Spec
+
+				pvcVolumes := make([]k8score.Volume, 0, len(replacementSpec.Volumes))
+				nonPvcVolumes := make([]k8score.Volume, 0, len(replacementSpec.Volumes))
+				for _, volume := range replacementSpec.Volumes {
+					if volume.PersistentVolumeClaim != nil {
+						pvcVolumes = append(pvcVolumes, volume)
+					} else {
+						nonPvcVolumes = append(nonPvcVolumes, volume)
+					}
+				}
+
+				selectedNonPvcVolumes := make([]k8score.Volume, 0, 2)
+				for _, volume := range nonPvcVolumes {
+					if volume.Name == "hotplug-disks" {
+						selectedNonPvcVolumes = append(selectedNonPvcVolumes, volume)
+						break
+					}
+				}
+
+				for _, volume := range nonPvcVolumes {
+					if len(selectedNonPvcVolumes) >= 2 {
+						break
+					}
+
+					if volume.Name == "hotplug-disks" {
+						continue
+					}
+
+					selectedNonPvcVolumes = append(selectedNonPvcVolumes, volume)
+				}
+
+				for len(selectedNonPvcVolumes) < 2 {
+					selectedNonPvcVolumes = append(selectedNonPvcVolumes, k8score.Volume{
+						Name: fmt.Sprintf("hp-padding-%d", len(selectedNonPvcVolumes)),
+						VolumeSource: k8score.VolumeSource{
+							EmptyDir: &k8score.EmptyDirVolumeSource{},
+						},
+					})
+				}
+
+				replacementSpec.Volumes = append(pvcVolumes, selectedNonPvcVolumes...)
+				replacementSpec.Containers = []k8score.Container{{
+					Name:    "sleep",
+					Image:   "alpine:latest",
+					Command: []string{"sh", "-c", "while true; do sleep 3600; done"},
+				}}
+				replacementSpec.InitContainers = nil
+				replacementSpec.EphemeralContainers = nil
+
+				ops = append(ops, jsonPatchOp{
+					Op:    "replace",
+					Path:  "/spec",
+					Value: replacementSpec,
+				})
+
+				patch, _ := json.Marshal(ops)
+
+				response := k8sadmission.AdmissionReview{
+					TypeMeta: review.TypeMeta,
+					Response: &k8sadmission.AdmissionResponse{
+						UID:     review.Request.UID,
+						Allowed: true,
+						Patch:   patch,
+						PatchType: func() *k8sadmission.PatchType {
+							pt := k8sadmission.PatchTypeJSONPatch
+							return &pt
+						}(),
+					},
+				}
+
+				respBytes, _ := json.Marshal(response)
+				_, _ = w.Write(respBytes)
+				return
+			}
 
 			labels := pod.Labels
 			if labels == nil {
@@ -975,6 +1070,39 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	preparedIp := shared.PublicIpPrepare(job, firewall)
 	ipService := preparedIp.Service
 
+	serviceLabel := shared.JobIdLabel(job.Id)
+	rankLabel := shared.JobRankLabel(0)
+
+	baseService := &k8score.Service{
+		ObjectMeta: k8smeta.ObjectMeta{
+			Name: fmt.Sprintf("%s", shared.ServiceName(job.Id)),
+			Labels: map[string]string{
+				serviceLabel.First: serviceLabel.Second,
+			},
+		},
+		Spec: k8score.ServiceSpec{
+			Type: k8score.ServiceTypeClusterIP,
+			Selector: map[string]string{
+				serviceLabel.First: serviceLabel.Second,
+				rankLabel.First:    rankLabel.Second,
+			},
+		},
+	}
+
+	if forwards, ok := job.Specification.Labels["ucloud.dk/serviceforwardstcp"]; ok {
+		var ports []int
+		err := json.Unmarshal([]byte(forwards), &ports)
+		if err == nil {
+			for _, port := range ports {
+				baseService.Spec.Ports = append(baseService.Spec.Ports, k8score.ServicePort{
+					Name:     fmt.Sprintf("p-%d", port),
+					Protocol: k8score.ProtocolTCP,
+					Port:     int32(port),
+				})
+			}
+		}
+	}
+
 	cinit := cloudInit{}
 	cinit.Users = append(cinit.Users, cloudInitUser{
 		// Username: ucloud Password: ucloud
@@ -1484,6 +1612,24 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 				_, myError := shared.K8sClient.CoreV1().Services(Namespace).
 					Create(ctx, ipService, k8smeta.CreateOptions{})
 				herr = util.MergeHttpErr(herr, util.HttpErrorFromErr(myError))
+			}
+
+			if baseService != nil && herr == nil {
+				baseService.OwnerReferences = append(baseService.OwnerReferences, ownerReference)
+
+				baseService, myError := shared.K8sClient.CoreV1().Services(Namespace).
+					Create(ctx, baseService, k8smeta.CreateOptions{})
+				herr = util.MergeHttpErr(herr, util.HttpErrorFromErr(myError))
+
+				if herr == nil {
+					serviceAddr := baseService.Spec.ClusterIP
+					job.Specification.Labels["ucloud.dk/serviceIpAddress"] = serviceAddr
+					_, _ = orc.JobsControlUpdateLabels.Invoke(fndapi.BulkRequestOf(orc.JobsUpdateLabelsRequest{
+						Id:     job.Id,
+						Labels: job.Specification.Labels,
+					}))
+					ctrl.JobTrackNew(*job)
+				}
 			}
 
 			if herr != nil {

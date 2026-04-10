@@ -203,12 +203,11 @@ func resourceLoad(typeName string, id ResourceId, prefetchHint []ResourceId) {
 	}
 }
 
-func lResourcePersist(r *resource) {
+func lResourcePersist(g *resourceTypeGlobal, r *resource) {
 	if resourceGlobals.Testing.Enabled {
 		return
 	}
 
-	g := resourceGetGlobals(r.Type)
 	db.NewTx0(func(tx *db.Transaction) {
 		b := db.BatchNew(tx)
 

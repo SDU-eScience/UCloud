@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"maps"
+	"net/http"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -83,7 +84,7 @@ func brandingMonitorProvider(provider string) {
 	failedAttemptCount := 0
 	for {
 		branding, err := InvokeProvider(provider, orcapi.ProviderBrandingRetrieve, util.Empty{}, ProviderCallOpts{})
-		if err != nil {
+		if err != nil && err.StatusCode != http.StatusNotFound {
 			time.Sleep(util.ExponentialBackoffForNetwork(failedAttemptCount))
 			log.Error("Failed to retrieve branding info of provider %s: %v", provider, err)
 			failedAttemptCount++

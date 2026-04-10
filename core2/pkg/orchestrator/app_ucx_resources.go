@@ -4,9 +4,11 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"slices"
 	"strings"
+	"sync"
 
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
@@ -16,7 +18,27 @@ import (
 	"ucloud.dk/shared/pkg/util"
 )
 
-func appUcxResourceHandlers(state *appUcxSessionState, proxy *ucx.Proxy) {
+type appUcxBaseState struct {
+	Mu                 sync.RWMutex
+	Stacks             map[string]util.Empty
+	AllowStackCreation bool
+
+	Actor    func() rpc.Actor
+	Provider func() string
+}
+
+func (s *appUcxBaseState) StackInstances() []string {
+	s.Mu.RLock()
+	instances := make([]string, 0, len(s.Stacks))
+	for stack := range s.Stacks {
+		instances = append(instances, stack)
+	}
+	s.Mu.RUnlock()
+	slices.Sort(instances)
+	return instances
+}
+
+func appUcxResourceHandlers(state *appUcxBaseState, proxy *ucx.Proxy) {
 	appUcxCreateResource[orcapi.PrivateNetworkSpecification, orcapi.PrivateNetwork](
 		state,
 		proxy,
@@ -26,6 +48,9 @@ func appUcxResourceHandlers(state *appUcxSessionState, proxy *ucx.Proxy) {
 		},
 		func(r orcapi.PrivateNetwork) orcapi.ResourceSpecification {
 			return r.Specification.ResourceSpecification
+		},
+		func(r orcapi.PrivateNetworkSpecification) orcapi.ResourceSpecification {
+			return r.ResourceSpecification
 		},
 	)
 
@@ -109,6 +134,9 @@ func appUcxResourceHandlers(state *appUcxSessionState, proxy *ucx.Proxy) {
 		},
 		func(r orcapi.PublicIp) orcapi.ResourceSpecification {
 			return r.Specification.ResourceSpecification
+		},
+		func(r orcapi.PublicIPSpecification) orcapi.ResourceSpecification {
+			return r.ResourceSpecification
 		},
 	)
 
@@ -214,6 +242,9 @@ func appUcxResourceHandlers(state *appUcxSessionState, proxy *ucx.Proxy) {
 		func(r orcapi.Ingress) orcapi.ResourceSpecification {
 			return r.Specification.ResourceSpecification
 		},
+		func(r orcapi.IngressSpecification) orcapi.ResourceSpecification {
+			return r.ResourceSpecification
+		},
 	)
 
 	appUcxDeleteResource[orcapi.Ingress](
@@ -298,6 +329,9 @@ func appUcxResourceHandlers(state *appUcxSessionState, proxy *ucx.Proxy) {
 		func(r orcapi.License) orcapi.ResourceSpecification {
 			return r.Specification.ResourceSpecification
 		},
+		func(r orcapi.LicenseSpecification) orcapi.ResourceSpecification {
+			return r.ResourceSpecification
+		},
 	)
 
 	appUcxDeleteResource[orcapi.License](
@@ -381,6 +415,9 @@ func appUcxResourceHandlers(state *appUcxSessionState, proxy *ucx.Proxy) {
 		},
 		func(r orcapi.Drive) orcapi.ResourceSpecification {
 			return r.Specification.ResourceSpecification
+		},
+		func(r orcapi.DriveSpecification) orcapi.ResourceSpecification {
+			return r.ResourceSpecification
 		},
 	)
 
@@ -478,6 +515,9 @@ func appUcxResourceHandlers(state *appUcxSessionState, proxy *ucx.Proxy) {
 		},
 		func(r orcapi.Job) orcapi.ResourceSpecification {
 			return r.Specification.ResourceSpecification
+		},
+		func(r orcapi.JobSpecification) orcapi.ResourceSpecification {
+			return r.ResourceSpecification
 		},
 	)
 
@@ -622,21 +662,52 @@ func appUcxResourceHandlers(state *appUcxSessionState, proxy *ucx.Proxy) {
 }
 
 func appUcxCreateResource[Spec any, Resc any](
-	s *appUcxSessionState,
+	s *appUcxBaseState,
 	p *ucx.Proxy,
 	call ucx.Rpc[[]Spec, []Resc],
 	creator func(actor rpc.Actor, specs []Spec) ([]Resc, *util.HttpError),
 	baseSpecGetter func(r Resc) orcapi.ResourceSpecification,
+	baseSpecGetterFromRescSpec func(r Spec) orcapi.ResourceSpecification,
 ) {
 	call.HandlerProxy(p, func(ctx context.Context, request []Spec) ([]Resc, error) {
 		actor := s.Actor()
+
+		if !s.AllowStackCreation {
+			for _, spec := range request {
+				baseSpec := baseSpecGetterFromRescSpec(spec)
+				if baseSpec.Labels == nil {
+					continue
+				}
+
+				stack := strings.TrimSpace(baseSpec.Labels[resourceLabelStackInstance])
+				s.Mu.RLock()
+				_, exists := s.Stacks[stack]
+				s.Mu.RUnlock()
+
+				if !exists {
+					return nil, fmt.Errorf("stack creation is not allowed")
+				}
+			}
+		}
+
 		created, err := creator(actor, request)
 		if err != nil {
 			return nil, err.AsError()
 		} else {
 			for _, resc := range created {
 				rescSpec := baseSpecGetter(resc)
-				s.registerStacksFromLabels(rescSpec.Labels)
+				if rescSpec.Labels == nil {
+					continue
+				}
+
+				stack := strings.TrimSpace(rescSpec.Labels[resourceLabelStackInstance])
+				if stack == "" {
+					continue
+				}
+
+				s.Mu.Lock()
+				s.Stacks[stack] = util.Empty{}
+				s.Mu.Unlock()
 			}
 			return created, nil
 		}
@@ -644,7 +715,7 @@ func appUcxCreateResource[Spec any, Resc any](
 }
 
 func appUcxResourceInSession[Resc any](
-	s *appUcxSessionState,
+	s *appUcxBaseState,
 	resource Resc,
 	baseSpecGetter func(r Resc) orcapi.ResourceSpecification,
 ) bool {
@@ -665,7 +736,7 @@ func appUcxResourceInSession[Resc any](
 }
 
 func appUcxRetrieveResource[Req any, Resc any](
-	s *appUcxSessionState,
+	s *appUcxBaseState,
 	p *ucx.Proxy,
 	call ucx.Rpc[Req, Resc],
 	idGetter func(request Req) string,
@@ -690,7 +761,7 @@ func appUcxRetrieveResource[Req any, Resc any](
 }
 
 func appUcxUpdateLabelsResource[ReqItem any, Resc any](
-	s *appUcxSessionState,
+	s *appUcxBaseState,
 	p *ucx.Proxy,
 	call ucx.Rpc[fndapi.BulkRequest[ReqItem], util.Empty],
 	idGetter func(request ReqItem) string,
@@ -768,7 +839,7 @@ func appUcxDecodeBrowseNext(next util.Option[string]) (string, util.Option[strin
 }
 
 func appUcxBrowseResource[Req any, Resc any](
-	s *appUcxSessionState,
+	s *appUcxBaseState,
 	p *ucx.Proxy,
 	call ucx.Rpc[Req, fndapi.PageV2[Resc]],
 	getNext func(request Req) util.Option[string],
@@ -846,7 +917,7 @@ func appUcxBrowseResource[Req any, Resc any](
 }
 
 func appUcxDeleteResource[Resc any](
-	s *appUcxSessionState,
+	s *appUcxBaseState,
 	p *ucx.Proxy,
 	call ucx.Rpc[[]string, util.Empty],
 	retrieve func(actor rpc.Actor, id string) (Resc, *util.HttpError),
@@ -880,7 +951,7 @@ func appUcxDeleteResource[Resc any](
 }
 
 func appUcxRetrieveProducts[Supp any](
-	s *appUcxSessionState,
+	s *appUcxBaseState,
 	p *ucx.Proxy,
 	call ucx.Rpc[util.Empty, []orcapi.ResolvedSupport[Supp]],
 	retrieveProducts func(actor rpc.Actor) orcapi.SupportByProvider[Supp],

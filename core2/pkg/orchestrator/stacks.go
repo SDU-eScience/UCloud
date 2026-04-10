@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"net/http"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -230,6 +231,43 @@ func StacksRetrieve(actor rpc.Actor, id string) (orcapi.Stack, *util.HttpError) 
 	stackStatus.Jobs = filteredJobs
 	if len(stackStatus.Jobs) > 0 {
 		referenceJob = stackStatus.Jobs[0]
+	}
+
+	stackStatus.UcxUiMode = orcapi.UcxUiNone
+	stackStatus.UcxConnectJobId = util.OptNone[string]()
+
+	oldestCandidate := util.OptNone[string]()
+	for _, job := range stackStatus.Jobs {
+		if job.Specification.Labels == nil {
+			continue
+		}
+
+		portLabel, hasUcxPort := job.Specification.Labels[resourceLabelUcxPort]
+		if !hasUcxPort {
+			continue
+		}
+
+		port, err := strconv.Atoi(portLabel)
+		if err != nil || port <= 0 || port > 65535 {
+			continue
+		}
+
+		if !oldestCandidate.Present {
+			oldestCandidate.Set(job.Id)
+		}
+
+		if job.Status.State == orcapi.JobStateRunning {
+			stackStatus.UcxConnectJobId.Set(job.Id)
+			break
+		}
+	}
+
+	if !stackStatus.UcxConnectJobId.Present && oldestCandidate.Present {
+		stackStatus.UcxConnectJobId = oldestCandidate
+	}
+
+	if stackStatus.UcxConnectJobId.Present {
+		stackStatus.UcxUiMode = orcapi.UcxUiReplacement
 	}
 
 	isEmpty := len(stackStatus.Jobs) == 0

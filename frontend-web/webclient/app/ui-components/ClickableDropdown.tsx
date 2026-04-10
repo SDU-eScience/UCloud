@@ -185,11 +185,14 @@ function ClickableDropdown<T>({
     let width = props.fullWidth && !props.useMousePositioning ? "100%" : props.width;
     let top = !props.useMousePositioning ? props.top : location[1];
 
-    if (props.rightAligned && !props.width) {
-        width = undefined;
+    if (props.rightAligned) {
+        if (!props.width) {
+            width = undefined;
+        }
+
         const f = dropdownRef.current;
-        let boundingClientRect = f?.getBoundingClientRect();
-        if (boundingClientRect) {
+        const boundingClientRect = f?.getBoundingClientRect();
+        if (boundingClientRect && top === undefined) {
             top = boundingClientRect.top + boundingClientRect.height;
         }
     }
@@ -282,7 +285,7 @@ function ClickableDropdown<T>({
                 {props.trigger}{props.chevron ? <Icon name="heroChevronDown" my="auto" size="1em" ml=".7em" color="textPrimary" /> : null}
             </Text.TextSpan>
             {emptyChildren || !open ? null : (
-                props.useMousePositioning ?
+                (props.useMousePositioning || props.rightAligned) ?
                     ReactDOM.createPortal(
                         dropdownContent,
                         portal

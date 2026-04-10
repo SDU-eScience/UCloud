@@ -77,6 +77,9 @@ func Init() {
 	initJobs()
 	times["Jobs"] = t.Mark()
 
+	initJobUcx()
+	times["JobUcx"] = t.Mark()
+
 	initLicenses()
 	times["Licenses"] = t.Mark()
 

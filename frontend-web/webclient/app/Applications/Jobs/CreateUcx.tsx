@@ -2,14 +2,14 @@ import * as React from "react";
 import {MainContainer, Card, Flex, Text} from "@/ui-components";
 import {injectStyle} from "@/Unstyled";
 import {Client} from "@/Authentication/HttpClientInstance";
-import UcxView from "@/UCX/UcxView";
+import UcxView, {UcxFrameRenderArgs} from "@/UCX/UcxView";
 import {getStoredProject} from "@/Project/ReduxState";
 import {Application, ApplicationGroup} from "@/Applications/AppStoreApi";
 import {AppHeader} from "@/Applications/View";
 import {UtilityBar} from "@/Navigation/UtilityBar";
-import {useMemo} from "react";
+import {useEffect, useMemo} from "react";
 import {UcxRpcHandler} from "@/UCX/UcxView";
-import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
+import {sendFailureNotification, sendInformationNotification, sendSuccessNotification} from "@/Notifications";
 import {useNavigate} from "react-router-dom";
 import AppRoutes from "@/Routes";
 
@@ -35,7 +35,7 @@ export const CreateUcxJob: React.FunctionComponent<CreateUcxJobProps> = ({applic
                 };
             },
             "uiSendMessage": raw => {
-                const payload = raw as {message: string, success: boolean};
+                const payload = raw as { message: string, success: boolean };
                 if (payload.success) {
                     sendSuccessNotification(payload.message);
                 } else {
@@ -43,7 +43,7 @@ export const CreateUcxJob: React.FunctionComponent<CreateUcxJobProps> = ({applic
                 }
             },
             "stackOpen": raw => {
-                const payload = raw as {id: string};
+                const payload = raw as { id: string };
                 navigate(AppRoutes.stacks.view(payload.id));
             }
         }
@@ -62,49 +62,36 @@ export const CreateUcxJob: React.FunctionComponent<CreateUcxJobProps> = ({applic
         })}
         rpcHandlers={handlers}
         renderFrame={({connected, transportError, content}) => (
-            <MainContainer
-                main={<>
-                    <Flex mx="50px" mt="32px">
-                        <AppHeader
-                            title={appGroup?.specification?.title ?? application.metadata.title}
-                            application={application}
-                            flavors={appGroup?.status?.applications ?? []}
-                            allVersions={application.versions ?? []}
-                        />
-                        <Flex flexGrow={1} />
-                        <UtilityBar />
-                    </Flex>
-
-                    <div className={WrapperClass}>
-                        <Card className={CardClass}>
-                            <Text color={connected ? "successMain" : "warningMain"}>
-                                {connected ? "Connected" : "Connecting..."}
-                            </Text>
-                            {transportError === "" ? null : <Text color="errorMain">Transport error: {transportError}</Text>}
-                            {content}
-                        </Card>
-                    </div>
-                </>}
-            />
+            <CreateUcxJobRenderer connected={connected} transportError={transportError} content={content}
+                                  application={application} appGroup={appGroup}/>
         )}
     />;
 };
 
-const WrapperClass = injectStyle("ucx-create-job-wrapper", k => `
-    ${k} {
-        display: flex;
-        justify-content: center;
-        padding: 24px 50px;
-    }
-`);
+export const CreateUcxJobRenderer: React.FunctionComponent<UcxFrameRenderArgs & CreateUcxJobProps> =
+    ({connected, transportError, content, appGroup, application}) => {
+        useEffect(() => {
+            if (transportError) {
+                sendInformationNotification(transportError)
+            }
+        }, [transportError]);
 
-const CardClass = injectStyle("ucx-create-job-card", k => `
-    ${k} {
-        width: min(1100px, 100%);
-        padding: 16px;
-        border-radius: 12px;
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
+        return <MainContainer
+            main={<>
+                <Flex mx="50px" mt="32px">
+                    <AppHeader
+                        title={appGroup?.specification?.title ?? application.metadata.title}
+                        application={application}
+                        flavors={appGroup?.status?.applications ?? []}
+                        allVersions={application.versions ?? []}
+                    />
+                    <Flex flexGrow={1}/>
+                    <UtilityBar/>
+                </Flex>
+
+                <Flex mx="50px" mt="32px">
+                    {content}
+                </Flex>
+            </>}
+        />
     }
-`);

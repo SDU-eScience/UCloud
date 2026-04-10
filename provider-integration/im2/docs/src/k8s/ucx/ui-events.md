@@ -49,6 +49,12 @@ UCX then sends a model patch automatically.
 
 Use `ucx.AppUpdateUi(app)` only when the UI tree itself changed (for example component structure changes).
 
+Common examples where `AppUpdateUi(...)` is needed:
+
+- switching between pages rendered via `ucx.Router(...)` + `ucx.Link(...)`,
+- conditionally adding/removing sections,
+- changing the set of action buttons in a toolbar.
+
 ## Concurrency and blocking handlers
 
 Default `.On(...)` handlers are non-blocking and run in a goroutine.

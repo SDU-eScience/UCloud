@@ -1,6 +1,5 @@
 import {usePage} from "@/Navigation/Redux";
 import * as React from "react";
-import Providers from "@/Assets/provider_info.json";
 import {useParams} from "react-router-dom";
 import {NonAuthenticatedHeader} from "@/Navigation/Header";
 import {Box, Button, ExternalLink, Flex, Markdown, Text} from "@/ui-components";
@@ -10,16 +9,25 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {ProviderLogo} from "./ProviderLogo";
 import {ProviderTitle} from "./ProviderTitle";
 import TitledCard from "@/ui-components/HighlightedCard";
-import {MachineView} from "@/Products/Products";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {useSelector} from "react-redux";
+import {ProviderBranding} from "@/UCloud/ProviderBrandingApi";
+
+function useProviderBranding(id?: string): ProviderBranding | undefined {
+    const data = useSelector((it: ReduxObject) => it.providerBrandings);
+    if (!id) return undefined;
+    return data.providers[id];
+}
 
 export default function DetailedProvider() {
     const params = useParams<{id: string}>();
-    const entry = React.useMemo(() => Providers.providers.find(it => it.id === params.id), [params.id]);
+    const entry = useProviderBranding(params.id);
 
     usePage(entry?.title ?? params.id!, SidebarTabId.NONE);
 
-    if (!entry) return null;
+    if (!entry) {
+        return null;
+    }
 
     const main = <Box px="12px" maxWidth={"2200px"}>
         <Flex>
@@ -28,35 +36,57 @@ export default function DetailedProvider() {
             </div>
             <Flex flexDirection="column" ml="16px">
                 <Heading.h3><ProviderTitle providerId={entry.id} /></Heading.h3>
-                <Text>
+                <Markdown>
                     {entry.description}
-                </Text>
+                </Markdown>
                 <Box flexGrow={1} />
                 {entry.url ? <ExternalLink href={entry.url}><Button>Provider website</Button></ExternalLink> : null}
             </Flex>
         </Flex>
         <Box height="48px" />
-        {entry.texts.map((text, index) =>
+        {entry.sections.map((section, index) =>
             <Box key={index} my="32px">
                 <TitledCard>
                     <Flex>
-                        {text.image !== "" ? <Flex flexDirection="column" mr="24px" my="8px">
+                        {section.image !== "" ? <Flex flexDirection="column" mr="24px" my="8px">
                             <Box flexGrow={1} />
-                            <img alt={`Logo for the provider`}  style={{height: "150px", objectFit: "scale-down"}} src={text.image} />
+                            <img alt={`Provider detail image`}  style={{height: "150px", objectFit: "scale-down"}} src={section.image} />
                             <Box flexGrow={1} />
                         </Flex> : <Box />}
                         <div>
                             <Markdown>
-                                {text.description}
+                                {section.description}
                             </Markdown>
                         </div>
                     </Flex>
                 </TitledCard>
             </Box>
         )}
-        <MachineView provider={entry.id} key={entry.id + "STORAGE"} productType="STORAGE" />
-        <Box my="32px" />
-        <MachineView provider={entry.id} key={entry.id + "COMPUTE"} productType="COMPUTE" />
+        {entry.productDescription.map((prod, index) => 
+            <Box key={index} my="32px">
+                <TitledCard>
+                    <Flex>
+                        <h2>{prod.category}</h2>
+                        <Box flexGrow={1}/>
+                        <div>
+                            {prod.shortDescription}
+                        </div>
+                    </Flex>
+                    <Flex>
+                    <div>
+                        <img alt={`Product Section Image`}  style={{height: "150px", objectFit: "scale-down"}} src={prod.section.image} />
+                    </div>
+                    <div>
+                        <br/>
+                        <br/>
+                        <Markdown>
+                            {prod.section.description}
+                        </Markdown>
+                    </div>
+                    </Flex>
+                </TitledCard>
+            </Box>
+        )}
     </Box>;
 
     if (!Client.isLoggedIn) return (<>

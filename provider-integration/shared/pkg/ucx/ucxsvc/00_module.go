@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"slices"
+	"strings"
 
 	accapi "ucloud.dk/shared/pkg/accounting"
 	fndapi "ucloud.dk/shared/pkg/foundation"
@@ -26,6 +27,11 @@ type Stack struct {
 	Ok         bool
 }
 
+const (
+	stackLabelInstance    = "ucloud.dk/stackinstance"
+	stackLabelStateFolder = "ucloud.dk/stack-state-folder"
+)
+
 func (s *Stack) Labels() map[string]string {
 	if !s.Ok {
 		return map[string]string{}
@@ -44,7 +50,93 @@ func (s *Stack) Mount() orcapi.AppParameterValue {
 	return mount
 }
 
-func StackCreate(app ucx.Application, id string) (*Stack, bool) {
+var stackResourceLabelsToKeep = map[string]util.Empty{
+	"ucloud.dk/stack":              {},
+	"ucloud.dk/stackname":          {},
+	"ucloud.dk/stackinstance":      {},
+	"ucloud.dk/stack-state-folder": {},
+}
+
+func StackFromJob(app ucx.Application, job orcapi.Job) (*Stack, bool) {
+	instanceId := strings.TrimSpace(job.Specification.Labels[stackLabelInstance])
+	if instanceId == "" {
+		return &Stack{}, false
+	}
+
+	labels := map[string]string{}
+	for k, v := range job.Specification.Labels {
+		if _, ok := stackResourceLabelsToKeep[k]; ok {
+			labels[k] = v
+		}
+	}
+
+	stateFolder := strings.TrimSpace(job.Specification.Labels[stackLabelStateFolder])
+	mountPath := stackFindMountPath(job)
+
+	mount := orcapi.AppParameterValue{}
+	if stateFolder != "" {
+		mount = orcapi.AppParameterValueFileWithMountPath(stateFolder, false, mountPath)
+	}
+
+	return &Stack{
+		InstanceId: instanceId,
+		MountPath:  mountPath,
+		baseMount:  mount,
+		baseLabels: labels,
+		app:        app,
+		Ok:         true,
+	}, true
+}
+
+func stackFindMountPath(job orcapi.Job) string {
+	const defaultMountPath = "/etc/ucloud-stack"
+
+	stackPath := strings.TrimSpace(job.Specification.Labels[stackLabelStateFolder])
+
+	for _, parameter := range job.Specification.Parameters {
+		if parameter.Type != orcapi.AppParameterValueTypeFile {
+			continue
+		}
+
+		if stackPath != "" && strings.TrimSpace(parameter.Path) == stackPath {
+			if mountPath := strings.TrimSpace(parameter.MountPath); mountPath != "" {
+				return mountPath
+			}
+		}
+	}
+
+	for _, resource := range job.Specification.Resources {
+		if resource.Type != orcapi.AppParameterValueTypeFile {
+			continue
+		}
+
+		if stackPath != "" && strings.TrimSpace(resource.Path) == stackPath {
+			if mountPath := strings.TrimSpace(resource.MountPath); mountPath != "" {
+				return mountPath
+			}
+		}
+	}
+
+	for _, parameter := range job.Specification.Parameters {
+		if parameter.Type == orcapi.AppParameterValueTypeFile {
+			if mountPath := strings.TrimSpace(parameter.MountPath); mountPath != "" {
+				return mountPath
+			}
+		}
+	}
+
+	for _, resource := range job.Specification.Resources {
+		if resource.Type == orcapi.AppParameterValueTypeFile {
+			if mountPath := strings.TrimSpace(resource.MountPath); mountPath != "" {
+				return mountPath
+			}
+		}
+	}
+
+	return defaultMountPath
+}
+
+func StackCreate(app ucx.Application, id string, stackType string) (*Stack, bool) {
 	session := *app.Session()
 	ok, err := ucxapi.StackAvailable.Invoke(session, fndapi.FindByStringId{Id: id})
 	if err != nil {
@@ -54,7 +146,7 @@ func StackCreate(app ucx.Application, id string) (*Stack, bool) {
 		UiSendFailure(app, "An application stack with this name already exists, try another.")
 		return &Stack{}, false
 	} else {
-		stack, err := ucxapi.StackCreate.Invoke(session, ucxapi.StackCreateRequest{StackId: id})
+		stack, err := ucxapi.StackCreate.Invoke(session, ucxapi.StackCreateRequest{StackId: id, StackType: stackType})
 		if err != nil {
 			UiSendFailure(app, "Unable to start application stack, try again later.")
 			return &Stack{}, false
@@ -159,7 +251,7 @@ func PublicIpCreate(stack *Stack) orcapi.AppParameterValue {
 // Public links
 // =====================================================================================================================
 
-func PublicLinkCreate(stack *Stack, name string) orcapi.AppParameterValue {
+func PublicLinkCreate(stack *Stack, name string, port util.Option[int]) orcapi.AppParameterValue {
 	if !stack.Ok {
 		return orcapi.AppParameterValue{}
 	}
@@ -188,7 +280,11 @@ func PublicLinkCreate(stack *Stack, name string) orcapi.AppParameterValue {
 		return orcapi.AppParameterValue{}
 	}
 
-	return orcapi.AppParameterValueIngress(links[0].Id)
+	result := orcapi.AppParameterValueIngress(links[0].Id)
+	if port.Present {
+		result.Port = port.Value
+	}
+	return result
 }
 
 // Private networks
@@ -278,8 +374,8 @@ func VirtualMachineCreate(stack *Stack, spec VirtualMachineSpec) string {
 
 var (
 	VmImageUbuntu24_04 = orcapi.NameAndVersion{
-		Name:    "ubuntu-vm2",
-		Version: "24.04b",
+		Name:    "vm-ubuntu",
+		Version: "24.04",
 	}
 )
 
@@ -294,4 +390,27 @@ func UiSendFailure(app ucx.Application, message string) {
 func UiSendSuccess(app ucx.Application, message string) {
 	session := *app.Session()
 	_, _ = ucxapi.UiSendMessage.Invoke(session, ucxapi.UiSendMessageRequest{Message: message, Success: true})
+}
+
+func StackCopyFile(stack *Stack, fileName string) {
+	if stack == nil || !stack.Ok {
+		return
+	}
+
+	session := *stack.app.Session()
+	_, _ = ucxapi.StackCopyFile.Invoke(session, ucxapi.StackDownloadFileRequest{FileName: fileName})
+}
+
+func StackDownloadFile(stack *Stack, fileName string) {
+	if stack == nil || !stack.Ok {
+		return
+	}
+
+	session := *stack.app.Session()
+	_, _ = ucxapi.StackDownloadFile.Invoke(session, ucxapi.StackDownloadFileRequest{FileName: fileName})
+}
+
+func RouterPushPage(app ucx.Application, path string) {
+	session := *app.Session()
+	_, _ = ucxapi.RouterPushPage.Invoke(session, ucxapi.RouterPushPageRequest{Path: path})
 }
