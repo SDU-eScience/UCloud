@@ -737,13 +737,14 @@ const baseComponents: UcxComponentRegistry = {
         const label = stringProp(node, "label", "");
         const placeholder = stringProp(node, "placeholder", "");
         const value = modelString(model, node.bindPath, scope);
+        let input = <Input
+            value={value}
+            placeholder={placeholder}
+            mt={8}
+            onChange={ev => fn.sendBoundInput(node, {kind: ValueKind.String, string: ev.currentTarget.value}, model, scope)}
+        />;
         return <>
-            {label === "" ? null : <FieldLabel>{label}</FieldLabel>}
-            <Input
-                value={value}
-                placeholder={placeholder}
-                onChange={ev => fn.sendBoundInput(node, {kind: ValueKind.String, string: ev.currentTarget.value}, model, scope)}
-            />
+            {label === "" ? input : <FieldLabel>{label}{input}</FieldLabel>}
         </>;
     },
     input_number: ({node, model, scope, fn}) => {
@@ -751,18 +752,19 @@ const baseComponents: UcxComponentRegistry = {
         const value = modelNumber(model, node.bindPath, scope);
         const min = numberProp(node, "min", 0);
         const max = numberProp(node, "max", 0);
+        let input = <Input
+            type="number"
+            value={value}
+            min={min}
+            mt={8}
+            max={max}
+            onChange={ev => {
+                const parsed = parseInt(ev.currentTarget.value, 10);
+                fn.sendBoundInput(node, {kind: ValueKind.S64, s64: isNaN(parsed) ? 0 : parsed}, model, scope);
+            }}
+        />;
         return <>
-            {label === "" ? null : <FieldLabel>{label}</FieldLabel>}
-            <Input
-                type="number"
-                value={value}
-                min={min}
-                max={max}
-                onChange={ev => {
-                    const parsed = parseInt(ev.currentTarget.value, 10);
-                    fn.sendBoundInput(node, {kind: ValueKind.S64, s64: isNaN(parsed) ? 0 : parsed}, model, scope);
-                }}
-            />
+            {label === "" ? input : <FieldLabel>{label}{input}</FieldLabel>}
         </>;
     },
     input_slider: ({node, model, scope, fn}) => {
@@ -860,31 +862,18 @@ const baseComponents: UcxComponentRegistry = {
         const placeholder = stringProp(node, "placeholder", "");
         const rows = numberProp(node, "rows", 4);
         const value = modelString(model, node.bindPath, scope);
+        let textArea = <TextArea
+            value={value}
+            rows={rows}
+            placeholder={placeholder}
+            onChange={ev => fn.sendBoundInput(node, {kind: ValueKind.String, string: ev.currentTarget.value}, model, scope)}
+        />;
         return <>
-            {label === "" ? null : <FieldLabel>{label}</FieldLabel>}
-            <TextArea
-                value={value}
-                rows={rows}
-                placeholder={placeholder}
-                onChange={ev => fn.sendBoundInput(node, {kind: ValueKind.String, string: ev.currentTarget.value}, model, scope)}
-            />
+            {label === "" ? textArea : <FieldLabel>{label}{textArea}</FieldLabel>}
         </>;
     },
     select: ({node, model, scope, fn}) => {
-        const label = stringProp(node, "label", "");
-        const options = simpleOptionsProp(node, "options");
-        const selectedKey = modelString(model, node.bindPath, scope);
-        const selected = options.find(option => option.key === selectedKey);
-        return <div style={fn.sxStyle(node)}>
-            {label === "" ? null : <FieldLabel>{label}</FieldLabel>}
-            <SimpleRichSelect
-                items={options}
-                selected={selected}
-                onSelect={item => fn.sendBoundInput(node, {kind: ValueKind.String, string: item.key}, model, scope)}
-                placeholder={stringProp(node, "placeholder", "Select...")}
-                fullWidth={true}
-            />
-        </div>;
+        return <UcxSelectField node={node} model={model} scope={scope} fn={fn} />;
     },
     machine_type_selector: ({node, model, scope, fn}) => {
         return <MachineTypeSelectorNode node={node} model={model} scope={scope} fn={fn} />;
@@ -956,7 +945,6 @@ const baseComponents: UcxComponentRegistry = {
         }, [bindToRoute, fn, node.id, routeKeys, selectedIndex]);
 
         return <TabbedCard style={fn.sxStyle(node)} activeIndex={selectedIndex} onTabChange={bindToRoute ? idx => {
-            console.log("onTabChange", idx, node, routeKeys)
             fn.navigateSpa(routeKeys[idx] ?? "", node.id);
         } : undefined}>
             {node.children.map((child, idx) =>
@@ -1813,8 +1801,42 @@ function setNestedObjectValue(root: Record<string, Value>, pathParts: string[], 
     current[pathParts[pathParts.length - 1]] = value;
 }
 
-const FieldLabel = ({children}: React.PropsWithChildren): React.ReactNode => {
-    return <label style={{fontWeight: 600, marginTop: "6px"}}>{children}</label>;
+const UcxSelectField = ({node, model, scope, fn}: {
+    node: UiNode;
+    model: Record<string, Value>;
+    scope?: Record<string, Value>;
+    fn: UcxFunctionRegistry;
+}) => {
+    const label = stringProp(node, "label", "");
+    const options = simpleOptionsProp(node, "options");
+    const selectedKey = modelString(model, node.bindPath, scope);
+    const selected = options.find(option => option.key === selectedKey);
+    const openFnRef = useRef<(left: number, top: number) => void>(() => undefined);
+
+    const openSelect = useCallback((ev: React.MouseEvent) => {
+        ev.stopPropagation();
+        ev.preventDefault();
+        openFnRef.current?.(0, 0);
+    }, []);
+
+    const select = <SimpleRichSelect
+        items={options}
+        selected={selected}
+        onSelect={item => fn.sendBoundInput(node, {kind: ValueKind.String, string: item.key}, model, scope)}
+        placeholder={stringProp(node, "placeholder", "Select...")}
+        mt={8}
+        fullWidth={true}
+        openFnRef={openFnRef}
+    />;
+
+    return <div style={fn.sxStyle(node)}>
+        {label === "" ? null : <FieldLabel onClick={openSelect}>{label}</FieldLabel>}
+        {select}
+    </div>;
+};
+
+const FieldLabel = ({children, onClick}: React.PropsWithChildren<{onClick?: React.MouseEventHandler<HTMLDivElement>}>) => {
+    return <div onClick={onClick} style={{fontWeight: 600, marginTop: "6px", cursor: onClick ? "pointer" : undefined}}>{children}</div>;
 };
 
 function MarkdownLink(props: {href?: string; children: React.ReactNode & React.ReactNode[]}) {

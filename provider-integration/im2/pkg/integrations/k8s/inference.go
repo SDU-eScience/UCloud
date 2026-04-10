@@ -420,40 +420,6 @@ func inferenceLocalAIApplyModel(base string, modelId string) error {
 	return fmt.Errorf("model apply endpoint did not accept request")
 }
 
-// Inference usage helpers
-// =====================================================================================================================
-// inferenceUsageFrom* centralizes our current accounting policy for multimodal inference.
-//
-// The backend is treated as a black-box. If it returns OpenAI-style `usage`, those values are used directly.
-// If usage is absent (common for CPU-only mock setups), we fall back to deterministic estimates:
-// - audio transcription: transcript-length based estimate (characters/4)
-// - image generation: tokens proportional to generated megapixels
-//
-// This keeps pricing predictable and auditable during development, while allowing us to switch backends through
-// configuration without changing the external API surface.
-
-func inferenceUsageFromTranscriptionResponse(responseBody []byte) (promptTokens int, completionTokens int) {
-	var payload struct {
-		Text  string                      `json:"text"`
-		Usage util.Option[InferenceUsage] `json:"usage"`
-	}
-
-	_ = json.Unmarshal(responseBody, &payload)
-	if payload.Usage.Present {
-		return payload.Usage.Value.PromptTokens, payload.Usage.Value.CompletionTokens
-	}
-
-	return 0, inferenceEstimateTokensFromText(payload.Text)
-}
-
-func inferenceEstimateTokensFromText(text string) int {
-	if text == "" {
-		return 0
-	}
-
-	return (len([]rune(text)) + 3) / 4
-}
-
 func inferenceParseImageSize(raw string) (int, int) {
 	if raw == "" {
 		return 512, 512

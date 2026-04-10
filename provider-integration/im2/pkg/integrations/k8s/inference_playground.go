@@ -14,6 +14,7 @@ import (
 	"golang.org/x/sys/unix"
 	ctrl "ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/integrations/k8s/filesystem"
+	"ucloud.dk/pkg/integrations/k8s/shared"
 	apm "ucloud.dk/shared/pkg/accounting"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/ucx"
@@ -95,6 +96,10 @@ type InferencePlaygroundImageGeneration struct {
 }
 
 func InferencePlayground(owner orcapi.ResourceOwner, sessionId string) *InferencePlaygroundApp {
+	if !shared.ServiceConfig.Compute.Inference.Enabled {
+		return nil
+	}
+
 	if owner.CreatedBy == "" {
 		return nil
 	}
@@ -406,11 +411,9 @@ func (app *InferencePlaygroundApp) runChat() {
 	assistant := ""
 	if app.Chat.Streaming {
 		var builder strings.Builder
-		var usageSeen util.Option[InferenceChatUsage]
+		usageSeen := InferenceChatUsage{}
 		for chunk := range InferenceChatStreaming(app.walletOwner(), request) {
-			if chunk.Usage.Present {
-				usageSeen = chunk.Usage
-			}
+			usageSeen = chunk.Usage
 			if len(chunk.Choices) == 0 {
 				continue
 			}
@@ -426,9 +429,7 @@ func (app *InferencePlaygroundApp) runChat() {
 		app.applyChatUsage(usageSeen)
 	} else {
 		resp := InferenceChat(app.walletOwner(), request)
-		if resp.Usage.Present {
-			app.applyChatUsage(resp.Usage)
-		}
+		app.applyChatUsage(resp.Usage)
 		if len(resp.Choices) > 0 {
 			assistant = resp.Choices[0].Message.Content
 		}
@@ -443,14 +444,10 @@ func (app *InferencePlaygroundApp) runChat() {
 	app.Chat.Prompt = ""
 }
 
-func (app *InferencePlaygroundApp) applyChatUsage(usage util.Option[InferenceChatUsage]) {
-	if !usage.Present {
-		return
-	}
-
-	inputTokens := int64(usage.Value.PromptTokens)
-	outputTokens := int64(usage.Value.CompletionTokens)
-	reportedTokens := int64(usage.Value.TotalTokens)
+func (app *InferencePlaygroundApp) applyChatUsage(usage InferenceChatUsage) {
+	inputTokens := int64(usage.PromptTokens)
+	outputTokens := int64(usage.CompletionTokens)
+	reportedTokens := int64(usage.TotalTokens)
 	if reportedTokens == 0 {
 		reportedTokens = inputTokens + outputTokens
 	}
@@ -675,11 +672,9 @@ func (app *InferencePlaygroundApp) runTranscription() {
 
 	if app.Transcription.Streaming {
 		var builder strings.Builder
-		var usageSeen util.Option[InferenceTranscriptionUsage]
+		usageSeen := InferenceTranscriptionUsage{}
 		for event := range InferenceTranscribeStreaming(app.walletOwner(), request) {
-			if event.Usage.Present {
-				usageSeen = event.Usage
-			}
+			usageSeen = event.Usage
 			if event.Delta != "" {
 				builder.WriteString(event.Delta)
 				app.Transcription.Output = builder.String()
@@ -720,25 +715,22 @@ func (app *InferencePlaygroundApp) runTranscription() {
 	app.Transcription.Curl = app.buildTranscriptionCurl()
 }
 
-func (app *InferencePlaygroundApp) applyTranscriptionUsage(request InferenceTranscriptionRequest, usage util.Option[InferenceTranscriptionUsage], text string) {
-	// TODO Usage needs to always be present on these APIs, it should not be optional
-	if usage.Present {
-		inputTokens := int64(usage.Value.InputTokens.GetOrDefault(0))
-		outputTokens := int64(usage.Value.OutputTokens.GetOrDefault(0))
-		reportedTokens := int64(usage.Value.TotalTokens.GetOrDefault(0))
-		if reportedTokens == 0 {
-			reportedTokens = inputTokens + outputTokens
-		}
-		app.Transcription.Usage.LastQuery.Input = inputTokens
-		app.Transcription.Usage.LastQuery.Output = outputTokens
-		app.Transcription.Usage.LastQuery.Reported = reportedTokens
-		app.Transcription.Usage.Session.Input += inputTokens
-		app.Transcription.Usage.Session.Output += outputTokens
-		app.Transcription.Usage.Session.Reported += reportedTokens
+func (app *InferencePlaygroundApp) applyTranscriptionUsage(request InferenceTranscriptionRequest, usage InferenceTranscriptionUsage, text string) {
+	inputTokens := int64(usage.InputTokens)
+	outputTokens := int64(usage.OutputTokens)
+	reportedTokens := int64(usage.TotalTokens)
+	if reportedTokens == 0 {
+		reportedTokens = inputTokens + outputTokens
 	}
+	app.Transcription.Usage.LastQuery.Input = inputTokens
+	app.Transcription.Usage.LastQuery.Output = outputTokens
+	app.Transcription.Usage.LastQuery.Reported = reportedTokens
+	app.Transcription.Usage.Session.Input += inputTokens
+	app.Transcription.Usage.Session.Output += outputTokens
+	app.Transcription.Usage.Session.Reported += reportedTokens
 }
 
-func (app *InferencePlaygroundApp) applyTranscriptionUsageFromResponse(request InferenceTranscriptionRequest, usage util.Option[InferenceTranscriptionUsage], text string) {
+func (app *InferencePlaygroundApp) applyTranscriptionUsageFromResponse(request InferenceTranscriptionRequest, usage InferenceTranscriptionUsage, text string) {
 	app.applyTranscriptionUsage(request, usage, text)
 }
 
@@ -986,7 +978,7 @@ func (app *InferencePlaygroundApp) runImageGeneration() {
 	}
 
 	if app.Image.Streaming {
-		var last InferenceImageGenerationStreamEvent
+		last := InferenceImageGenerationStreamEvent{Usage: inferenceImageUsageFromPayload(request, 0, util.OptNone[InferenceImageGenerationUsage]())}
 		for event := range InferenceGenerateImageStreaming(app.walletOwner(), request) {
 			last = event
 		}
@@ -996,7 +988,7 @@ func (app *InferencePlaygroundApp) runImageGeneration() {
 		} else {
 			app.Image.Output = mustJSON(last)
 		}
-		app.applyImageUsage(request, last)
+		app.applyImageUsage(last.Usage)
 	} else {
 		resp, err := InferenceGenerateImage(app.walletOwner(), request)
 		if err != nil {
@@ -1005,39 +997,30 @@ func (app *InferencePlaygroundApp) runImageGeneration() {
 			return
 		}
 		app.Image.Output = mustJSON(resp)
-		app.applyImageUsageFromResponse(request, resp)
+		app.applyImageUsage(resp.Usage)
 	}
 
 	app.Image.Curl = app.buildImageCurl()
 }
 
-func (app *InferencePlaygroundApp) applyImageUsage(request InferenceImageGenerationRequest, event InferenceImageGenerationStreamEvent) {
-	// TODO This needs to be universally true
-	if event.Usage.Present {
-		inputTokens := int64(event.Usage.Value.InputTokens.GetOrDefault(0))
-		outputTokens := int64(event.Usage.Value.OutputTokens.GetOrDefault(0))
-		reportedTokens := int64(event.Usage.Value.TotalTokens.GetOrDefault(0))
-		if reportedTokens == 0 {
-			reportedTokens = inputTokens + outputTokens
-		}
-		app.Image.Usage.LastQuery.Input = inputTokens
-		app.Image.Usage.LastQuery.Output = outputTokens
-		app.Image.Usage.LastQuery.Reported = reportedTokens
-		app.Image.Usage.Session.Input += inputTokens
-		app.Image.Usage.Session.Output += outputTokens
-		app.Image.Usage.Session.Reported += reportedTokens
+func (app *InferencePlaygroundApp) applyImageUsage(usage InferenceImageGenerationUsage) {
+	inputTokens := int64(usage.InputTokens)
+	outputTokens := int64(usage.OutputTokens)
+	if outputTokens == 0 {
+		outputTokens = int64(usage.TotalTokens)
 	}
-}
+	reportedTokens := int64(usage.TotalTokens)
+	if reportedTokens == 0 {
+		reportedTokens = inputTokens + outputTokens
+	}
 
-func (app *InferencePlaygroundApp) applyImageUsageFromResponse(request InferenceImageGenerationRequest, response InferenceImageGenerationResponse) {
-	// TODO We probably shouldn't need two of these
-	promptTokens, completionTokens := inferenceImageUsageFromResponse(request, response)
-	app.Image.Usage.LastQuery.Input = int64(promptTokens)
-	app.Image.Usage.LastQuery.Output = int64(completionTokens)
-	app.Image.Usage.LastQuery.Reported = int64(promptTokens + completionTokens)
-	app.Image.Usage.Session.Input += int64(promptTokens)
-	app.Image.Usage.Session.Output += int64(completionTokens)
-	app.Image.Usage.Session.Reported += int64(promptTokens + completionTokens)
+	app.Image.Usage.LastQuery.Input = inputTokens
+	app.Image.Usage.LastQuery.Output = outputTokens
+	app.Image.Usage.LastQuery.Reported = reportedTokens
+
+	app.Image.Usage.Session.Input += inputTokens
+	app.Image.Usage.Session.Output += outputTokens
+	app.Image.Usage.Session.Reported += reportedTokens
 }
 
 func (app *InferencePlaygroundApp) buildImageCurl() string {

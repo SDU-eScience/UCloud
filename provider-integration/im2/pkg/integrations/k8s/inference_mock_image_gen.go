@@ -66,13 +66,7 @@ func inferenceGenerateMockImageResponse(request InferenceImageGenerationRequest)
 		response.Background = request.Background
 	}
 
-	if request.Model.GetOrDefault("") == "gpt-image-1" || request.Model.GetOrDefault("") == "gpt-image-1-mini" || request.Model.GetOrDefault("") == "gpt-image-1.5" {
-		response.Usage = util.OptValue(InferenceImageGenerationUsage{
-			InputTokens:  util.OptValue(0),
-			OutputTokens: util.OptValue(0),
-			TotalTokens:  util.OptValue(0),
-		})
-	}
+	response.Usage = inferenceImageUsageFromPayload(request, len(response.Data), util.OptNone[InferenceImageGenerationUsage]())
 
 	return response, nil
 }

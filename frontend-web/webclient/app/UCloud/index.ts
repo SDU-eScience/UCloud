@@ -5443,7 +5443,7 @@ export interface ProductsBrowseRequest {
     itemsToSkip?: number /* int64 */,
     filterName?: string,
     filterProvider?: string,
-    filterProductType?: ("STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP"),
+    filterProductType?: ("STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP" | "PRIVATE_NETWORK"),
     filterCategory?: string,
     filterUsable?: boolean,
     includeBalance?: boolean,
