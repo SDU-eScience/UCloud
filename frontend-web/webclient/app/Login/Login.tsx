@@ -49,7 +49,7 @@ async function fetchBranding (){
 }
 
 function getTextColor(branding: BrandingResponse) {
-    return IS_SANDBOX || branding.loginPage.type === BrandingLoginPageType.GENERIC ? "#fff" : "#000";
+    return IS_SANDBOX || isUsingGenericLoginPage(branding) ? "#fff" : "#000";
 }
 
 function isUsingGenericLoginPage(branding: BrandingResponse) {
@@ -638,7 +638,7 @@ const IdpList: React.FunctionComponent = (isGeneric: boolean) => {
 function LoginHeader ({branding}: React.PropsWithChildren<TextProps & {branding: BrandingResponse}>): React.ReactNode {
     const textColor = getTextColor(branding);
 
-    if (branding.loginPage.type === BrandingLoginPageType.GENERIC) {
+    if (isUsingGenericLoginPage(branding)) {
         return <>
             <Flex width="auto" mx="auto" paddingTop="80px" paddingBottom={"64px"}>
             </Flex>
