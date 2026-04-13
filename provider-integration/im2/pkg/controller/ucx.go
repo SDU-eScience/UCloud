@@ -6,14 +6,16 @@ import (
 	ws "github.com/gorilla/websocket"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/rpc"
+	"ucloud.dk/shared/pkg/ucx"
 	"ucloud.dk/shared/pkg/util"
 )
 
 var UcxApplications UcxApplicationService
 
 type UcxApplicationService struct {
-	OnConnect    func(conn *ws.Conn)
-	OnConnectJob func(conn *ws.Conn)
+	OnConnect                  func(conn *ws.Conn)
+	OnConnectJob               func(conn *ws.Conn)
+	InferencePlaygroundFactory func(owner orcapi.ResourceOwner, sessionId string) ucx.Application
 }
 
 func initUcxApplications() {

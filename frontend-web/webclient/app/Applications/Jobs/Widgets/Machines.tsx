@@ -30,6 +30,8 @@ export function findRelevantMachinesForApplication(
                             return false;
                         case "VIRTUAL_MACHINE":
                             return it.support.virtualMachine.enabled;
+                        case "UCX":
+                            return false;
                         case "NATIVE":
                             return it.support.native.enabled &&
                                 (

@@ -221,7 +221,8 @@ services:
 
     inference:
       enabled: true
-      ollamaDevMode: false
+      backendServer: "http://localai:8080/v1"
+      developmentProvider: "localai"
 
     modules:
       tools:
@@ -524,12 +525,23 @@ Inference feature toggles.
 
 <dt>
 
-`ollamaDevMode` *optional*
+`backendServer`
 
 </dt>
 <dd>
 
-Only used if `enabled` is `true`. Turns on development mode using ollama.
+Required when `enabled` is `true`. Base URL of the OpenAI-compatible inference backend (for example `http://localai:8080/v1`).
+
+</dd>
+
+<dt>
+
+`developmentProvider` *optional*
+
+</dt>
+<dd>
+
+Optional development bootstrap provider. Set to `localai` to auto-configure LocalAI models when development mode is enabled.
 
 </dd>
 </dl>
