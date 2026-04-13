@@ -91,7 +91,6 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
                 setBranding(b);
                 setShowingWayf(!IS_SANDBOX && !generic);
 
-                console.log("Using", (generic ? "Generic" : "Deic"), "login page.");
             } catch (error) {
                 console.error("Failed to fetch branding information: ", error);
             }

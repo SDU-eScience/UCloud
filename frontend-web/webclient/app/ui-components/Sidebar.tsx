@@ -460,7 +460,7 @@ export function Sidebar(): React.ReactNode {
     const [selectedPage, setSelectedPage] = React.useState(SidebarTabId.NONE);
     const [hoveredPage, setHoveredPage] = React.useState(SidebarTabId.NONE);
 
-    const tab = useSelector((it: {status: {tab: SidebarTabId}}) => it.status.tab);
+    const tab = useSelector((it: ReduxObject) => it.status.tab);
     const branding = useSelector((it: ReduxObject) => it.branding);
 
     const dispatch = useDispatch();
