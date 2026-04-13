@@ -67,7 +67,7 @@ services:
       portMax: 16000
 
     inference:
-      enabled: true
+      enabled: false
       backendServer: http://localai:8080/v1
       developmentProvider: localai
 
