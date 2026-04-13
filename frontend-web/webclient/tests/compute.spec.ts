@@ -218,7 +218,7 @@ echo "${BashScriptStringContent}"
             await User.toLoginPage(otherPage);
             await Applications.openAppBySearch(otherPage, AppNames.TestApplication);
             await Components.selectAvailableMachineType(otherPage);
-            await otherPage.getByText("Connect to job").first().click();
+            await otherPage.getByText("Connect network").first().click();
             await otherPage.getByRole("textbox", {name: "Hostname"}).fill("foobar");
             await otherPage.getByPlaceholder("No selected run").click();
             await Components.useDialogBrowserItem(otherPage, jobName);
