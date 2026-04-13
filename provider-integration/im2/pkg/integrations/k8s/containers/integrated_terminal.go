@@ -2,8 +2,6 @@ package containers
 
 import (
 	"encoding/json"
-	"sync"
-	"sync/atomic"
 	"time"
 
 	core "k8s.io/api/core/v1"
@@ -11,7 +9,6 @@ import (
 	"ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/integrations/k8s/filesystem"
 	"ucloud.dk/pkg/integrations/k8s/shared"
-	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
@@ -25,28 +22,11 @@ var integratedTerminalDimensions = shared.SchedulerDimensions{
 
 const itermInactivityDuration = 15 * time.Minute
 
-const integratedTerminalAppName = "terminal"
+const integratedTerminalAppName = shared.IntegratedTerminalAppName
 
 var integratedTerminalImage = ""
 
-type iappTermConfig struct {
-	Folders []string
-}
-
-var iappTermLastKeyPressMutex = sync.Mutex{}
-var iappTermLastKeyPress = map[string]*atomic.Int64{}
-
-func iappGetLastKeyPress(jobId string, defaultValue time.Time) *atomic.Int64 {
-	iappTermLastKeyPressMutex.Lock()
-	result, ok := iappTermLastKeyPress[jobId]
-	if !ok {
-		result = &atomic.Int64{}
-		result.Store(defaultValue.UnixMilli())
-		iappTermLastKeyPress[jobId] = result
-	}
-	iappTermLastKeyPressMutex.Unlock()
-	return result
-}
+type iappTermConfig = shared.IntegratedTerminalConfig
 
 func initIntegratedTerminal() {
 	shared.RegisterJobDimensionMapper(integratedTerminalAppName, func(job *orc.Job) shared.SchedulerDimensions {
@@ -158,19 +138,25 @@ func itermShouldRun(job *orc.Job, configuration json.RawMessage) bool {
 		return false
 	}
 
-	if len(config.Folders) == 0 {
+	leaseUntil := shared.TerminalLeaseUntil(job.Owner)
+	if !leaseUntil.Present {
+		if job.Status.State != orc.JobStateRunning {
+			return false
+		}
+
+		_ = shared.TerminalLease(job.Owner, itermInactivityDuration)
+		leaseUntil = shared.TerminalLeaseUntil(job.Owner)
+		if !leaseUntil.Present {
+			return false
+		}
+	}
+
+	if leaseUntil.Present && time.Now().After(leaseUntil.Value) {
 		return false
 	}
 
-	ts := time.UnixMilli(
-		iappGetLastKeyPress(
-			job.Id,
-			job.Status.StartedAt.GetOrDefault(fnd.Timestamp(time.Now())).Time(),
-		).Load(),
-	)
-
-	if time.Now().Sub(ts) > itermInactivityDuration {
-		return false
+	if len(config.Folders) == 0 {
+		return true
 	}
 
 	for _, folder := range config.Folders {
