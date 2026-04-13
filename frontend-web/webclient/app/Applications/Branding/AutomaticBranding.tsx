@@ -9,7 +9,7 @@ export const AutomaticBranding: React.FunctionComponent = () => {
     brandingApi.retrieve(),
     {
       deploymentName: "",
-      loginPage: { type: 1, primaryLogoUrl: "", secondaryLogoUrls: [] },
+      loginPage: { type: BrandingLoginPageType.DEIC, primaryLogoUrl: "", secondaryLogoUrls: [] },
     },
   );
 
@@ -39,7 +39,7 @@ type BrandingAction = SetBranding;
 export function initBranding(): BrandingResponse {
   return {
     deploymentName: "",
-    loginPage: { type: 1, primaryLogoUrl: "", secondaryLogoUrls: [] },
+    loginPage: { type: BrandingLoginPageType.DEIC, primaryLogoUrl: "", secondaryLogoUrls: [] },
   };
 }
 
