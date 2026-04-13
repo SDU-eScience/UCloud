@@ -633,7 +633,7 @@ export const Runs = {
 
     async goToRuns(page: Page): Promise<void> {
         await NetworkCalls.awaitResponse(page, "**/api/jobs/browse**", async () => {
-            await page.getByRole("link", {name: "Go to Runs"}).click();
+            await page.getByRole("link", {name: "Go to Compute"}).click();
         });
         await Components.projectSwitcher(page, "hover");
     },
