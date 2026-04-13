@@ -14,7 +14,9 @@ import (
 	"golang.org/x/sys/unix"
 	"ucloud.dk/gonja/v2/exec"
 	ctrl "ucloud.dk/pkg/controller"
+	"ucloud.dk/pkg/integrations/k8s/containers"
 	"ucloud.dk/pkg/integrations/k8s/filesystem"
+	"ucloud.dk/pkg/integrations/k8s/kubevirt"
 	"ucloud.dk/pkg/integrations/k8s/shared"
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
@@ -36,7 +38,13 @@ const ucxBackendPort int32 = 8080
 var ucxNameRegex = regexp.MustCompile(`[^a-z0-9-]+`)
 
 func initAppUcx() ctrl.UcxApplicationService {
-	return ctrl.UcxApplicationService{OnConnect: ucxOnConnect}
+	return ctrl.UcxApplicationService{
+		OnConnect:    ucxOnConnect,
+		OnConnectJob: ucxOnConnectJob,
+		InferencePlaygroundFactory: func(owner orcapi.ResourceOwner, sessionId string) ucx.Application {
+			return InferencePlayground(owner, sessionId)
+		},
+	}
 }
 
 func ucxOnConnect(conn *ws.Conn) {
@@ -122,55 +130,17 @@ func ucxOnConnect(conn *ws.Conn) {
 		return ucxapi.Stack{
 			InstanceId: instanceId,
 			Labels: map[string]string{
-				"ucloud.dk/stack":         "true",
-				"ucloud.dk/stackname":     request.StackType,
-				"ucloud.dk/stackinstance": instanceId,
+				"ucloud.dk/stack":              "true",
+				"ucloud.dk/stackname":          request.StackType,
+				"ucloud.dk/stackinstance":      instanceId,
+				"ucloud.dk/stack-state-folder": ucloudPath,
 			},
 			Mount: orcapi.AppParameterValueFileWithMountPath(ucloudPath, false, "/etc/ucloud-stack"),
 		}, nil
 	})
 
 	ucxapi.StackDataWrite.HandlerProxy(proxy, func(ctx context.Context, request ucxapi.StackDataWriteRequest) (util.Empty, error) {
-		if len(request.Data) >= 1024*64 {
-			return util.Empty{}, fmt.Errorf("input data is too large")
-		}
-
-		internalPathMemberFiles, _, err := filesystem.InitializeMemberFiles(info.Owner.CreatedBy, info.Owner.Project)
-		if err != nil {
-			return util.Empty{}, err.AsError()
-		}
-
-		requestedPath := filepath.Join(internalPathMemberFiles, "Jobs", "Stacks", request.InstanceId)
-		err = filesystem.DoCreateFolder(requestedPath)
-		if err != nil {
-			return util.Empty{}, err.AsError()
-		}
-
-		pathComponents := util.Components(request.Path)
-		for _, comp := range pathComponents {
-			if comp != "." && comp != ".." {
-				requestedPath = filepath.Join(requestedPath, comp)
-			}
-		}
-
-		parentPath := util.Parent(requestedPath)
-		if err = filesystem.DoCreateFolder(parentPath); err != nil {
-			return util.Empty{}, err.AsError()
-		}
-
-		file, ok := filesystem.OpenFile(requestedPath, unix.O_CREAT|unix.O_WRONLY|unix.O_TRUNC, request.Perm)
-		if !ok {
-			return util.Empty{}, fmt.Errorf("unable to write data at: %s", requestedPath)
-		}
-
-		defer util.SilentClose(file)
-
-		_, gerr := file.WriteString(request.Data)
-		if gerr != nil {
-			return util.Empty{}, fmt.Errorf("unable to write data: %s", gerr)
-		}
-
-		return util.Empty{}, nil
+		return ucxStackDataWrite(info.Owner, request)
 	})
 
 	ucxapi.StackConfirm.HandlerProxy(proxy, func(ctx context.Context, request fnd.FindByStringId) (util.Empty, error) {
@@ -197,12 +167,124 @@ func ucxOnConnect(conn *ws.Conn) {
 	}
 }
 
+func ucxOnConnectJob(conn *ws.Conn) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	proxy := ucx.NewProxy("ws://pending")
+	info := orcapi.AppUcxConnectJobProviderRequest{}
+
+	proxy.RegisterUpstreamSelector(func(ctx context.Context, downstreamToken string, downstreamSysHello string) ucx.ProxyUpstreamSelection {
+		_ = downstreamToken
+
+		if err := json.Unmarshal([]byte(downstreamSysHello), &info); err != nil {
+			log.Warn("UCX provider job: invalid syshello payload: %v", err)
+			return ucx.ProxyUpstreamSelection{Allowed: false}
+		}
+
+		if info.Port <= 0 || info.Port > 65535 {
+			log.Warn("UCX provider job: invalid upstream port: %d", info.Port)
+			return ucx.ProxyUpstreamSelection{Allowed: false}
+		}
+
+		upstreamUrl, err := ucxResolveJobUpstream(info.Job, info.Port)
+		if err != nil {
+			log.Warn("UCX provider job: failed to establish upstream: %v", err)
+			return ucx.ProxyUpstreamSelection{Allowed: false}
+		}
+
+		return ucx.ProxyUpstreamSelection{
+			Allowed:          true,
+			UpstreamUrl:      upstreamUrl,
+			UpstreamToken:    "",
+			UpstreamSysHello: downstreamSysHello,
+		}
+	})
+
+	ucxapi.StackDataWrite.HandlerProxy(proxy, func(ctx context.Context, request ucxapi.StackDataWriteRequest) (util.Empty, error) {
+		stackId := strings.TrimSpace(info.Job.Specification.Labels["ucloud.dk/stackinstance"])
+		if stackId == "" {
+			return util.Empty{}, fmt.Errorf("job has no stack instance")
+		}
+
+		if request.InstanceId != stackId {
+			return util.Empty{}, fmt.Errorf("invalid stack instance")
+		}
+
+		return ucxStackDataWrite(info.Job.Owner, request)
+	})
+
+	ucxapi.IM.HandlerProxy(proxy, func(ctx context.Context, request ucxapi.Message) (ucxapi.Message, error) {
+		log.Info("Got a job message from '%#v': %s", info.Job.Owner, request.Message)
+		return ucxapi.Message{"Hello from the provider job session!"}, nil
+	})
+
+	if err := proxy.Run(ctx, conn); err != nil {
+		log.Warn("UCX provider job proxy failure: %v", err)
+	}
+}
+
+func ucxResolveJobUpstream(job orcapi.Job, port int) (string, error) {
+	if backendIsKubevirt(&job) {
+		return kubevirt.ResolveUcxJobSessionUpstream(&job, port)
+	}
+
+	if backendIsContainers(&job) {
+		return containers.ResolveUcxJobSessionUpstream(&job, port)
+	}
+
+	return containers.ResolveUcxJobSessionUpstream(&job, port)
+}
+
+func ucxStackDataWrite(owner orcapi.ResourceOwner, request ucxapi.StackDataWriteRequest) (util.Empty, error) {
+	if len(request.Data) >= 1024*64 {
+		return util.Empty{}, fmt.Errorf("input data is too large")
+	}
+
+	internalPathMemberFiles, _, err := filesystem.InitializeMemberFiles(owner.CreatedBy, owner.Project)
+	if err != nil {
+		return util.Empty{}, err.AsError()
+	}
+
+	requestedPath := filepath.Join(internalPathMemberFiles, "Jobs", "Stacks", request.InstanceId)
+	err = filesystem.DoCreateFolder(requestedPath)
+	if err != nil {
+		return util.Empty{}, err.AsError()
+	}
+
+	pathComponents := util.Components(request.Path)
+	for _, comp := range pathComponents {
+		if comp != "." && comp != ".." {
+			requestedPath = filepath.Join(requestedPath, comp)
+		}
+	}
+
+	parentPath := util.Parent(requestedPath)
+	if err = filesystem.DoCreateFolder(parentPath); err != nil {
+		return util.Empty{}, err.AsError()
+	}
+
+	file, ok := filesystem.OpenFile(requestedPath, unix.O_CREAT|unix.O_WRONLY|unix.O_TRUNC, request.Perm)
+	if !ok {
+		return util.Empty{}, fmt.Errorf("unable to write data at: %s", requestedPath)
+	}
+
+	defer util.SilentClose(file)
+
+	_, gerr := file.WriteString(request.Data)
+	if gerr != nil {
+		return util.Empty{}, fmt.Errorf("unable to write data: %s", gerr)
+	}
+
+	return util.Empty{}, nil
+}
+
 func ensureUcxBackendAndResolveUpstream(ctx context.Context, app *orcapi.Application) (string, error) {
 	namespace := shared.ServiceConfig.Compute.TaskNamespace
 	deploymentName := ucxDeploymentName(app.Metadata.Name, app.Metadata.Version)
 	serviceName := deploymentName
 	selector := ucxSelectorLabels(deploymentName)
-	inDevelopmentMode := ucxIsInDevelopmentMode(app)
+	inDevelopmentMode := ucxDevelopmentModePath(app)
 
 	isRunning, err := ucxDeploymentRunning(ctx, namespace, deploymentName)
 	if err != nil {
@@ -211,7 +293,7 @@ func ensureUcxBackendAndResolveUpstream(ctx context.Context, app *orcapi.Applica
 	}
 
 	if !isRunning {
-		script, err := renderUcxInvocationScript(app, inDevelopmentMode)
+		script, err := renderUcxInvocationScript(app, inDevelopmentMode.Present)
 		if err != nil {
 			return "", err
 		}
@@ -290,12 +372,12 @@ func ensureUcxDeployment(
 	image string,
 	script string,
 	selector map[string]string,
-	inDevelopmentMode bool,
+	developmentModeSubPath util.Option[string],
 ) error {
 	volumes := []k8score.Volume{}
 	volumeMounts := []k8score.VolumeMount{}
 
-	if inDevelopmentMode {
+	if developmentModeSubPath.Present {
 		volumes = append(volumes, k8score.Volume{
 			Name: "ucloud-filesystem",
 			VolumeSource: k8score.VolumeSource{
@@ -308,7 +390,7 @@ func ensureUcxDeployment(
 		volumeMounts = append(volumeMounts, k8score.VolumeMount{
 			Name:      "ucloud-filesystem",
 			MountPath: "/opt/ucloud",
-			SubPath:   shared.ExecutablesDir,
+			SubPath:   developmentModeSubPath.Value,
 			ReadOnly:  true,
 		})
 	}
@@ -443,7 +525,6 @@ func renderUcxInvocationScript(app *orcapi.Application, inDevelopmentMode bool) 
 	}
 
 	jinjaContext := exec.NewContext(map[string]any{
-		"ucxDevelopmentMode": inDevelopmentMode,
 		"ucloud": map[string]any{
 			"ucxDevelopmentMode": inDevelopmentMode,
 			"application": map[string]any{
@@ -500,13 +581,13 @@ func ucxSelectorLabels(deploymentName string) map[string]string {
 	}
 }
 
-func ucxIsInDevelopmentMode(app *orcapi.Application) bool {
+func ucxDevelopmentModePath(app *orcapi.Application) util.Option[string] {
 	developmentEntries := shared.ServiceConfig.Compute.Ucx.Development
 	for _, entry := range developmentEntries {
 		if entry.Name == app.Metadata.Name && entry.Version == app.Metadata.Version {
-			return true
+			return util.OptValue(entry.SubPath.GetOrDefault(shared.ExecutablesDir))
 		}
 	}
 
-	return false
+	return util.OptNone[string]()
 }

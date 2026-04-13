@@ -34,6 +34,15 @@ ucx.TextBound("errors.jobName")
 ucx.TextBound("validationMessage")
 ```
 
+Routing can also be model-bound:
+
+```go
+ucx.Router("routePath")
+ucx.TextBound("routePath")
+```
+
+In this case `routePath` is synchronized with query parameter `p` on the current page.
+
 For list rendering, use relative paths inside row templates:
 
 ```go

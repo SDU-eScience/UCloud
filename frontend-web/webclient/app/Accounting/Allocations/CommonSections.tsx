@@ -62,7 +62,7 @@ import {ExportHeader, exportUsage, header} from "@/Accounting/Usage";
 import {useProject} from "@/Project/cache";
 import {useProjectId} from "@/Project/Api";
 import {AllocationBar} from "@/Accounting/Allocations/AllocationBar";
-import {projectInfoPi, projectInfoTitle, useProjectInfo, useProjectInfos} from "@/Project/InfoCache";
+import {projectInfoPi, projectInfosPi, projectInfoTitle, useProjectInfo, useProjectInfos} from "@/Project/InfoCache";
 import {useForcedRender} from "@/Utilities/ReactUtilities";
 import {Feature, hasFeature} from "@/Features";
 import {UsageReport} from "@/Accounting/UsageCore2";
@@ -1454,6 +1454,7 @@ export const SubProjectList: React.FunctionComponent<{
 
             interface Row {
                 workspace: string;
+                pi: string;
                 category: string;
                 provider: string;
                 usage: number;
@@ -1506,6 +1507,9 @@ export const SubProjectList: React.FunctionComponent<{
 
                     rows.push({
                         workspace: title,
+                        pi: recipient.owner.reference.type === "user" ?
+                            recipient.owner.reference.username :
+                            projectInfosPi(childProjectInfo, recipient.owner.reference.projectId) ?? recipient.owner.primaryUsername,
                         category: g.category.name,
                         provider: g.category.provider,
                         usage: g.usageAndQuota.raw.usage,
@@ -1532,6 +1536,7 @@ export const SubProjectList: React.FunctionComponent<{
             function buildExportColumns(maxAllocations: number): ExportHeader<Row>[] {
                 const base = [
                     {key: "workspace", value: "Workspace", defaultChecked: true},
+                    {key: "pi", value: "PI", defaultChecked: true},
                     {key: "category", value: "Category", defaultChecked: true},
                     {key: "provider", value: "Provider", defaultChecked: true},
                     {key: "usage", value: "Usage", defaultChecked: true},

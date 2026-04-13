@@ -281,12 +281,24 @@ func internalReportUsage(now time.Time, request accapi.ReportUsageRequest) (bool
 	w.LocalUsage += delta
 	w.Dirty = true
 
+	lInternalRepairBrokenPropagation(b, now, w)
 	for visitedId, _ := range visitedWallets {
 		visited := b.WalletsById[visitedId]
 		lInternalReevaluate(b, now, visited, false)
 	}
 
 	return !w.WasLocked, nil
+}
+
+func lInternalRepairBrokenPropagation(b *internalBucket, now time.Time, wallet *internalWallet) {
+	propagated := lInternalWalletTotalPropagatedUsage(b, wallet)
+	inNode := lInternalWalletTotalUsageInNode(b, wallet)
+	if propagated <= inNode {
+		return
+	}
+
+	toRelease := propagated - inNode
+	_, _ = lInternalReportUsage(b, now, wallet, -toRelease)
 }
 
 // If grantedIn is specified, then the allocations will not be committed to the database before
@@ -750,7 +762,11 @@ func lInternalWalletByOwner(b *internalBucket, now time.Time, owner accOwnerId) 
 // The graph algorithms themselves are implemented in `accounting_graph.go`.
 
 func lInternalReportUsage(b *internalBucket, now time.Time, w *internalWallet, delta int64) (int64, map[AccWalletId]bool) {
-	chargeGraph := lInternalBuildGraph(b, now, w, internalGraphWithOverAllocation)
+	flags := internalGraphWithOverAllocation
+	if delta < 0 {
+		flags |= internalGraphDeltaIsNegative
+	}
+	chargeGraph := lInternalBuildGraph(b, now, w, flags)
 
 	rootVertex := chargeGraph.WalletToVertex[internalGraphRoot]
 	walletVertex := chargeGraph.WalletToVertex[w.Id]
@@ -771,21 +787,21 @@ func lInternalReportUsage(b *internalBucket, now time.Time, w *internalWallet, d
 		for senderVertex := 0; senderVertex < gSize; senderVertex++ {
 			senderWalletId := chargeGraph.VertexToWallet[senderVertex]
 			senderWallet := b.WalletsById[senderWalletId]
-
 			for receiverVertex := 0; receiverVertex < gSize; receiverVertex++ {
 				if chargeGraph.Original[receiverVertex][senderVertex] {
 					receiverWalletId := chargeGraph.VertexToWallet[receiverVertex]
 					receiverWallet := b.WalletsById[receiverWalletId]
 					amount := chargeGraph.Adjacent[senderVertex][receiverVertex]
-
 					if senderWallet != nil {
 						group := senderWallet.AllocationsByParent[receiverWalletId]
 						group.TreeUsage = amount
+						walletsUpdated[senderWallet.Id] = true
 						group.Dirty = true
 					}
 
 					if receiverWallet != nil {
 						receiverWallet.ChildrenUsage[senderWalletId] = amount
+						walletsUpdated[receiverWallet.Id] = true
 						receiverWallet.Dirty = true
 					}
 				}
@@ -844,6 +860,19 @@ func lInternalBuildGraph(b *internalBucket, now time.Time, leaf *internalWallet,
 		g.VertexToWallet = vertexToWallet
 		g.WalletToVertex = walletToVertex
 
+		retirementCost := internalGraphRetirementCost
+		overallocationCost := internalGraphOverAllocationEdgeCost
+
+		if flags&internalGraphDeltaIsNegative != 0 {
+			// NOTE(Dan, Henrik): We want the retirement edge to always be taken when the delta is positive, but this
+			// is not the case when the delta is negative. We choose to take the retirement edge when positive to
+			// ensure that the tree is charged as much as possible, to not allow for free credits to easily.
+			// However, we want to maintain the property that when reducing the usage in the tree, then the excess
+			// usage is always removed first.
+			retirementCost = internalGraphOverAllocationEdgeCost
+			overallocationCost = internalGraphRetirementCost
+		}
+
 		for walletId, vertexIndex := range walletToVertex {
 			if walletId == internalGraphRoot {
 				continue
@@ -883,7 +912,7 @@ func lInternalBuildGraph(b *internalBucket, now time.Time, leaf *internalWallet,
 					cost := (&big.Int{}).Mul(big.NewInt(balanceFactor), big.NewInt(timeFactor))
 
 					if timeFactor < 0 || activeQuota < allocationGroup.TreeUsage {
-						cost = internalGraphRetirementCost
+						cost = retirementCost
 					} else if cost.Cmp(big.NewInt(0)) == -1 {
 						panic("expected cost to be >= 0")
 					}
@@ -915,11 +944,11 @@ func lInternalBuildGraph(b *internalBucket, now time.Time, leaf *internalWallet,
 
 						// Add edge between root and the over-allocation node
 						g.AddEdge(rootVertex, overAllocationNode, overAllocationUsed-overAllocationUsed, overAllocationUsed)
-						g.AddEdgeCost(rootVertex, overAllocationNode, internalGraphOverAllocationEdgeCost)
+						g.AddEdgeCost(rootVertex, overAllocationNode, overallocationCost)
 
 						// Add edge between our wallet node and the over-allocation node
 						g.AddEdge(overAllocationNode, vertexIndex, overAllocationUsed-overAllocationUsed, overAllocationUsed)
-						g.AddEdgeCost(overAllocationNode, vertexIndex, internalGraphOverAllocationEdgeCost)
+						g.AddEdgeCost(overAllocationNode, vertexIndex, overallocationCost)
 					}
 				}
 			}
@@ -1450,6 +1479,12 @@ func lInternalWalletToApi(
 	filterChildrenByIdleTimeInDays util.Option[int],
 ) accapi.WalletV2 {
 	groups := w.AllocationsByParent
+	activeUsage := int64(0)
+	if b.Category.AccountingFrequency.IsPeriodic() {
+		activeUsage = lInternalWalletTotalUsageFromActiveAllocationsUiOnly(b, w)
+	} else {
+		activeUsage = lInternalWalletTotalUsageInNode(b, w)
+	}
 	apiWallet := accapi.WalletV2{
 		Owner:                   owner,
 		PaysFor:                 b.Category,
@@ -1460,7 +1495,7 @@ func lInternalWalletToApi(
 		MaxUsable:               lInternalMaxUsable(b, now, w),
 		Quota:                   lInternalWalletTotalQuotaContributing(b, w),
 		TotalAllocated:          lInternalWalletTotalAllocatedContributing(b, w),
-		UiOnlyActiveUsage:       lInternalWalletTotalUsageFromActiveAllocationsUiOnly(b, w),
+		UiOnlyActiveUsage:       activeUsage,
 		UiOnlyActiveQuota:       lInternalWalletTotalQuotaFromActiveAllocations(b, w),
 		LastSignificantUpdateAt: fndapi.Timestamp(w.LastSignificantUpdate),
 	}
@@ -1944,6 +1979,7 @@ type internalGraphFlag int
 
 const (
 	internalGraphWithOverAllocation internalGraphFlag = 1 << iota
+	internalGraphDeltaIsNegative
 )
 
 const (

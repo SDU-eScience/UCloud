@@ -73,7 +73,7 @@ export interface ApplicationInvocationDescription {
     allowAdditionalMounts?: boolean;
     allowAdditionalPeers?: boolean;
     allowPublicLink?: boolean;
-    jobAuditLogEnabled?: boolean;
+    jobAuditLogIsEnabled?: boolean;
     allowMultiNode: boolean;
     allowPublicIp: boolean;
     fileExtensions: string[];

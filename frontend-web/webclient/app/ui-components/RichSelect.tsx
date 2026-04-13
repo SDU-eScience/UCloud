@@ -30,9 +30,11 @@ export const SimpleRichSelect: React.FunctionComponent<{
     items: SimpleRichItem[];
     selected?: SimpleRichItem;
     onSelect: (item: SimpleRichItem) => void;
+    openFnRef?: React.RefObject<(left: number, top: number) => void>;
 
     fullWidth?: boolean;
     dropdownWidth?: string;
+    mt?: number | string;
     placeholder?: string;
     noResultsItem?: SimpleRichItem;
     searchable?: boolean;
@@ -75,11 +77,11 @@ export const SimpleRichSelect: React.FunctionComponent<{
             requestAnimationFrame(() => optionsRef.current?.focus());
         };
 
-        return <div onMouseDownCapture={announceOpen}>
+        return <div onMouseDownCapture={announceOpen} style={props.mt === undefined ? undefined : {marginTop: props.mt}}>
             <ClickableDropdown
                 key={`${instanceIdRef.current}:${instanceVersion}`}
                 trigger={
-                    <div className={TriggerClass} style={{minWidth: props.fullWidth ? "500px" : dropdownWidth}}>
+                    <div className={TriggerClass} style={{width: props.fullWidth ? "100%" : dropdownWidth, minWidth: 0}}>
                         <Box p={"4px"} textAlign={"left"} minHeight={25}>
                             {triggerText}
                         </Box>
@@ -93,6 +95,7 @@ export const SimpleRichSelect: React.FunctionComponent<{
                 width={props.fullWidth ? undefined : dropdownWidth}
                 height={dropdownHeight}
                 closeFnRef={closeFn}
+                openFnRef={props.openFnRef}
                 arrowkeyNavigationKey={"data-active"}
                 hoverColor={"rowHover"}
                 colorOnHover={false}
@@ -130,30 +133,32 @@ export const SimpleRichSelect: React.FunctionComponent<{
         </div>
     }
 
-    return <div onMouseDownCapture={announceOpen}>
-        <RichSelect
-            key={`${instanceIdRef.current}:${instanceVersion}`}
-            items={props.items}
-            keys={["key"]}
-            RenderRow={p =>
-                <Box p={"4px"} textAlign={"left"} minHeight={25} onClick={p.onSelect} {...p.dataProps}>
-                    {p?.element?.value}
-                </Box>
-            }
-            RenderSelected={p =>
-                <Box p={"4px"} textAlign={"left"} minHeight={25} onClick={p.onSelect} {...p.dataProps}>
-                    {p?.element?.value}
-                </Box>
-            }
-            onSelect={props.onSelect}
-            placeholder={props.placeholder}
-            dropdownWidth={props.dropdownWidth}
-            elementHeight={25}
-            selected={props.selected}
-            noResultsItem={props.noResultsItem}
-            chevronPlacement={{position: "absolute", bottom: "5px", right: "5px"}}
-        />
-    </div>
+	return <div onMouseDownCapture={announceOpen} style={props.mt === undefined ? undefined : {marginTop: props.mt}}>
+	    <RichSelect
+	        key={`${instanceIdRef.current}:${instanceVersion}`}
+	        items={props.items}
+	        keys={["key"]}
+        openFnRef={props.openFnRef}
+	        RenderRow={p =>
+	            <Box p={"4px"} textAlign={"left"} minHeight={25} onClick={p.onSelect} {...p.dataProps}>
+	                {p?.element?.value}
+	            </Box>
+	        }
+	        RenderSelected={p =>
+	            <Box p={"4px"} textAlign={"left"} minHeight={25} onClick={p.onSelect} {...p.dataProps}>
+	                {p?.element?.value}
+	            </Box>
+	        }
+	        onSelect={props.onSelect}
+	        placeholder={props.placeholder}
+	        dropdownWidth={props.dropdownWidth}
+	        elementHeight={29}
+	        selected={props.selected}
+	        noResultsItem={props.noResultsItem}
+	        chevronPlacement={{position: "absolute", bottom: "5px", right: "5px"}}
+	        fullWidth={props.fullWidth ?? false}
+	    />
+	</div>
 }
 
 const INPUT_FIELD_HEIGHT = 35;
@@ -170,6 +175,7 @@ export function RichSelect<T, K extends keyof T>(props: {
 
     selected?: T;
     onSelect: (element: T) => void;
+    openFnRef?: React.RefObject<(left: number, top: number) => void>;
 
     chevronPlacement?: CSSProperties; // hack
 
@@ -183,6 +189,7 @@ export function RichSelect<T, K extends keyof T>(props: {
 }): React.ReactNode {
     const [query, setQuery] = useState("");
     const closeFn = useRef<() => void>(doNothing);
+    const triggerRef = useRef<HTMLDivElement>(null);
 
     const filteredElements = useMemo(() => {
         const withKeys = props.items.map((it, itIdx) => ({idx: itIdx, ...it}));
@@ -197,8 +204,6 @@ export function RichSelect<T, K extends keyof T>(props: {
             return filteredElements;
         }
     }, [filteredElements]);
-
-    const triggerRef = useRef<HTMLDivElement>(null);
 
     const [dropdownSize, setDropdownSize] = useState(props.dropdownWidth ?? "300px");
 
@@ -226,7 +231,7 @@ export function RichSelect<T, K extends keyof T>(props: {
             <props.FullRenderSelected element={props.selected} onSelect={doNothing} />
             :
             props.RenderSelected ?
-                <div className={TriggerClass} style={{minWidth: props.fullWidth ? "500px" : props.dropdownWidth ?? "500px"}} ref={triggerRef}>
+                <div className={TriggerClass} style={{width: props.fullWidth ? "100%" : (props.dropdownWidth ?? "500px"), minWidth: 0}} ref={triggerRef}>
                     <props.RenderSelected element={props.selected} onSelect={doNothing} />
                     <Icon name="heroChevronDown" style={props.chevronPlacement} />
                 </div>
@@ -242,6 +247,7 @@ export function RichSelect<T, K extends keyof T>(props: {
         rightAligned={props.rightAligned ?? true}
         height={height}
         closeFnRef={closeFn}
+        openFnRef={props.openFnRef}
         paddingControlledByContent
         arrowkeyNavigationKey={"data-active"}
         hoverColor={"rowHover"}

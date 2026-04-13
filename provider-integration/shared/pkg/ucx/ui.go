@@ -20,15 +20,18 @@ type UiEventHandler func(session *Session, ev UiEvent)
 type UiEventHandlerSimple func(ev UiEvent)
 
 var interactiveComponents = map[string]bool{
-	"input_text":   true,
-	"input_number": true,
-	"checkbox":     true,
-	"button":       true,
-	"textarea":     true,
-	"select":       true,
-	"radio_group":  true,
-	"toggle":       true,
-	"form":         true,
+	"input_text":               true,
+	"input_number":             true,
+	"input_slider":             true,
+	"inference_image_composer": true,
+	"checkbox":                 true,
+	"button":                   true,
+	"textarea":                 true,
+	"select":                   true,
+	"machine_type_selector":    true,
+	"radio_group":              true,
+	"toggle":                   true,
+	"form":                     true,
 }
 
 func NormalizeUiTree(root UiNode) UiNode {
@@ -140,6 +143,14 @@ type Option struct {
 	Value string
 }
 
+type MachineCapability string
+
+const (
+	MachineCapabilityDocker MachineCapability = "docker"
+	MachineCapabilityVm     MachineCapability = "vm"
+	MachineCapabilityNative MachineCapability = "native"
+)
+
 func Flex(props FlexProps) UiNode {
 	return FlexEx("", props)
 }
@@ -164,6 +175,54 @@ func BoxEx(id string) UiNode {
 	return UiNode{
 		Id:        id,
 		Component: "box",
+	}
+}
+
+func Surface() UiNode {
+	return SurfaceEx("")
+}
+
+func SurfaceEx(id string) UiNode {
+	return UiNode{
+		Id:        id,
+		Component: "surface",
+	}
+}
+
+func Toolbar() UiNode {
+	return ToolbarEx("")
+}
+
+func ToolbarEx(id string) UiNode {
+	return UiNode{
+		Id:        id,
+		Component: "toolbar",
+	}
+}
+
+func Router(bindPath string) UiNode {
+	return RouterEx("", bindPath)
+}
+
+func RouterEx(id string, bindPath string) UiNode {
+	return UiNode{
+		Id:        id,
+		Component: "router",
+		BindPath:  bindPath,
+	}
+}
+
+func Link(to string) UiNode {
+	return LinkEx("", to)
+}
+
+func LinkEx(id string, to string) UiNode {
+	return UiNode{
+		Id:        id,
+		Component: "link",
+		Props: map[string]Value{
+			"to": VString(to),
+		},
 	}
 }
 
@@ -298,6 +357,29 @@ func InputNumber(id string, label string, bindPath string, min int64, max int64)
 	}
 }
 
+func InputSlider(label string, bindPath string, min float64, max float64, step float64, defaultValue float64, minMeansDefault bool) UiNode {
+	return InputSliderEx(bindPath, label, bindPath, min, max, step, defaultValue, minMeansDefault)
+}
+
+func InputSliderEx(id string, label string, bindPath string, min float64, max float64, step float64, defaultValue float64, minMeansDefault bool) UiNode {
+	requireExplicitId(id, "input_slider")
+
+	return UiNode{
+		Id:         id,
+		Component:  "input_slider",
+		BindPath:   bindPath,
+		Optimistic: true,
+		Props: map[string]Value{
+			"label":           VString(label),
+			"min":             VF64(min),
+			"max":             VF64(max),
+			"step":            VF64(step),
+			"defaultValue":    VF64(defaultValue),
+			"minMeansDefault": VBool(minMeansDefault),
+		},
+	}
+}
+
 func Checkbox(id string, label string, bindPath string, optimistic bool) UiNode {
 	requireExplicitId(id, "checkbox")
 
@@ -317,7 +399,9 @@ func List(bindPath string, emptyText string) UiNode {
 }
 
 func ListEx(id string, bindPath string, emptyText string) UiNode {
-	return UiNode{Id: id, Component: "list", BindPath: bindPath}
+	return UiNode{Id: id, Component: "list", BindPath: bindPath, Props: map[string]Value{
+		"emptyText": VString(emptyText),
+	}}
 }
 
 func Icon(name IconName, color Color, size int64) UiNode {
@@ -409,6 +493,48 @@ func Select(id string, label string, bindPath string, options []Option) UiNode {
 	}
 }
 
+func MachineTypeSelector(id string, label string, bindPath string, capabilities ...MachineCapability) UiNode {
+	requireExplicitId(id, "machine_type_selector")
+
+	if len(capabilities) == 0 {
+		capabilities = []MachineCapability{
+			MachineCapabilityDocker,
+			MachineCapabilityVm,
+			MachineCapabilityNative,
+		}
+	}
+
+	allowed := map[MachineCapability]bool{
+		MachineCapabilityDocker: true,
+		MachineCapabilityVm:     true,
+		MachineCapabilityNative: true,
+	}
+
+	capabilitySet := map[MachineCapability]bool{}
+	normalizedCaps := make([]Value, 0, len(capabilities))
+	for _, capability := range capabilities {
+		if !allowed[capability] {
+			panic(fmt.Sprintf("ucx: invalid machine capability '%s'", capability))
+		}
+		if capabilitySet[capability] {
+			continue
+		}
+		capabilitySet[capability] = true
+		normalizedCaps = append(normalizedCaps, VString(string(capability)))
+	}
+
+	return UiNode{
+		Id:         id,
+		Component:  "machine_type_selector",
+		BindPath:   bindPath,
+		Optimistic: true,
+		Props: map[string]Value{
+			"label":        VString(label),
+			"capabilities": VList(normalizedCaps),
+		},
+	}
+}
+
 func RadioGroup(id string, label string, bindPath string, options []Option) UiNode {
 	requireExplicitId(id, "radio_group")
 
@@ -476,11 +602,25 @@ func TableNodeEx(id string, bindPath string, columns []Option) UiNode {
 }
 
 func Tabs() UiNode {
-	return TabsEx("")
+	return TabsWithRouteEx("", false)
 }
 
 func TabsEx(id string) UiNode {
-	return UiNode{Id: id, Component: "tabs"}
+	return TabsWithRouteEx(id, false)
+}
+
+func TabsWithRoute(bindToRoute bool) UiNode {
+	return TabsWithRouteEx("", bindToRoute)
+}
+
+func TabsWithRouteEx(id string, bindToRoute bool) UiNode {
+	return UiNode{
+		Id:        id,
+		Component: "tabs",
+		Props: map[string]Value{
+			"bindToRoute": VBool(bindToRoute),
+		},
+	}
 }
 
 func Tab(name string, icon IconName) UiNode {
@@ -519,6 +659,22 @@ func Form(id string) UiNode {
 	return UiNode{Id: id, Component: "form"}
 }
 
+func Markdown(text string) UiNode {
+	return UiNode{
+		Component: "markdown",
+		Props: map[string]Value{
+			"text": VString(text),
+		},
+	}
+}
+
+func MarkdownBound(bindPath string) UiNode {
+	return UiNode{
+		Component: "markdown",
+		BindPath:  bindPath,
+	}
+}
+
 func Code(text string) UiNode {
 	return CodeEx("", text)
 }
@@ -550,4 +706,33 @@ func optionsToValue(options []Option) Value {
 		}))
 	}
 	return VList(list)
+}
+
+func StackResources() UiNode {
+	return UiNode{Component: "stack_resources"}
+}
+
+type StackMachinesProps struct {
+	Plain       bool
+	LabelFilter util.Option[StackMachinesLabelFilter]
+}
+
+type StackMachinesLabelFilter struct {
+	Label string
+	Value string
+}
+
+func StackMachines(props StackMachinesProps) UiNode {
+	nodeProps := map[string]Value{
+		"isPlain": VBool(props.Plain),
+	}
+
+	if props.LabelFilter.Present {
+		nodeProps["labelFilter"] = VObject(map[string]Value{
+			"label": VString(props.LabelFilter.Value.Label),
+			"value": VString(props.LabelFilter.Value.Value),
+		})
+	}
+
+	return UiNode{Component: "stack_machines", Props: nodeProps}
 }

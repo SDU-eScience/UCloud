@@ -18,7 +18,8 @@ export interface Stack {
 }
 
 export interface StackStatus {
-    ucxUiMode: string;
+    ucxUiMode: "Replacement" | "None";
+    ucxConnectJobId?: string | null;
     jobs: Job[];
     licenses: License[];
     publicIps: NetworkIP[];

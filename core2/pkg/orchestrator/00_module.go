@@ -74,6 +74,9 @@ func Init() {
 	initJobs()
 	times["Jobs"] = t.Mark()
 
+	initJobUcx()
+	times["JobUcx"] = t.Mark()
+
 	initLicenses()
 	times["Licenses"] = t.Mark()
 
@@ -91,6 +94,9 @@ func Init() {
 
 	initStacks()
 	times["Stacks"] = t.Mark()
+
+	initInference()
+	times["Inference"] = t.Mark()
 
 	initSupportAssistsOrc()
 	times["SupportAssistsOrc"] = t.Mark()

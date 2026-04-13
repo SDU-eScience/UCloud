@@ -119,6 +119,7 @@ var StackConfirm = ucx.Rpc[fndapi.FindByStringId, util.Empty]{CallName: "stackCo
 // =====================================================================================================================
 
 var StackOpen = ucx.Rpc[fndapi.FindByStringId, util.Empty]{CallName: "stackOpen"}
+var StackRefresh = ucx.Rpc[util.Empty, util.Empty]{CallName: "stackRefresh"}
 
 type UiSendMessageRequest struct {
 	Message string
@@ -126,3 +127,16 @@ type UiSendMessageRequest struct {
 }
 
 var UiSendMessage = ucx.Rpc[UiSendMessageRequest, util.Empty]{CallName: "uiSendMessage"}
+
+type RouterPushPageRequest struct {
+	Path string
+}
+
+var RouterPushPage = ucx.Rpc[RouterPushPageRequest, util.Empty]{CallName: "routerPushPage"}
+
+type StackDownloadFileRequest struct {
+	FileName string
+}
+
+var StackCopyFile = ucx.Rpc[StackDownloadFileRequest, util.Empty]{CallName: "stackCopyFile"}
+var StackDownloadFile = ucx.Rpc[StackDownloadFileRequest, util.Empty]{CallName: "stackDownloadFile"}

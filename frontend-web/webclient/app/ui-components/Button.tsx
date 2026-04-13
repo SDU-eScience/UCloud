@@ -2,10 +2,11 @@ import * as React from "react";
 import {HeightProps, SpaceProps, WidthProps} from "styled-system";
 import {selectContrastColor, selectHoverColor, ThemeColor} from "./theme";
 import {classConcat, extractDataTags, extractEventHandlers, extractSize, injectStyle, unbox, WithEventHandlers} from "@/Unstyled";
+import {BoxProps} from "@/ui-components/Types";
 
 // TODO(Dan): A lot of these are left in to not break existing code, many of them are not actually supposed
 //  to do anything anymore.
-export interface ButtonProps extends HeightProps, SpaceProps, WidthProps, WithEventHandlers {
+export interface ButtonProps extends HeightProps, SpaceProps, WidthProps, WithEventHandlers, BoxProps {
     fullWidth?: boolean;
     textColor?: ThemeColor;
     color?: ThemeColor;

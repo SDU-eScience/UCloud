@@ -4,7 +4,6 @@ import (
 	"os"
 
 	cfg "ucloud.dk/pkg/config"
-	apm "ucloud.dk/shared/pkg/accounting"
 	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/rpc"
@@ -24,12 +23,20 @@ func initProviderBranding() {
 	if RunsServerCode() {
 		orcapi.ProviderBrandingRetrieve.Handler(func(info rpc.RequestInfo, request util.Empty) (orcapi.ProviderBranding, *util.HttpError) {
 			pb := cfg.Provider.ProviderBranding
+
 			providerBranding := orcapi.ProviderBranding{
+				Id:               cfg.Provider.Id,
 				Title:            pb.Title,
 				ShortTitle:       pb.ShortTitle,
 				ShortDescription: pb.ShortDescription,
 				Description:      pb.DescriptionFilePath,
+				Logo:             pb.Logo,
+				Url:              pb.Url,
 			}
+		
+			providerBranding.Sections = make([]orcapi.ProviderBrandingSection, 0)
+			providerBranding.ProductDescription = make([]orcapi.ProviderBrandingProductDescription, 0)
+
 			for _, section := range pb.Sections {
 				providerBranding.Sections = append(providerBranding.Sections, orcapi.ProviderBrandingSection{
 					Description: section.Description,
@@ -41,7 +48,7 @@ func initProviderBranding() {
 				providerBranding.ProductDescription = append(providerBranding.ProductDescription, orcapi.ProviderBrandingProductDescription{
 					ShortDescription: prodDescription.ShortDescription,
 					Section:          orcapi.ProviderBrandingSection{Description: prodDescription.Section.Description, Image: prodDescription.Section.Image},
-					Category:         apm.ProductCategoryIdV2{Name: prodDescription.Category.Name, Provider: prodDescription.Category.Provider},
+					Category:         prodDescription.Category,
 				})
 			}
 			return providerBranding, nil

@@ -41,6 +41,7 @@
   - [Public IPs](./k8s/public-ips.md)
   - [License Servers](./k8s/licenses.md)
   - [SSH Servers](./k8s/ssh-servers.md)
+  - [Job Audit Log](./k8s/job-audit-log.md)
 - [Integrated applications](./k8s/integrated-applications.md)
   - [Syncthing](./k8s/syncthing.md)
   - [Integrated terminal](./k8s/integrated-terminal.md)

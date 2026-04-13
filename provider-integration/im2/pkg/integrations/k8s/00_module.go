@@ -73,6 +73,7 @@ func Init(config *cfg.ServicesConfigurationKubernetes) {
 	initStorageScanCli()
 	initJobsCli()
 	initInference()
+	initJobAuditLogCleanup()
 	controller.ApiTokens = inferenceInitApiTokens()
 	shared.InitExecutables()
 

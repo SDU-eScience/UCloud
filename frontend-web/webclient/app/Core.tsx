@@ -57,8 +57,8 @@ import GrantEditor from "@/Grants/Editor";
 import ResourceUsage from "@/Accounting/UsageCore2";
 import ResourceAllocations from "@/Accounting/Allocations";
 import Connection from "@/Providers/Connection";
-import UcxCreateDemo from "@/Playground/UcxCreateDemo";
 import PrivateNetworksRouter from "@/Applications/PrivateNetwork/Router";
+import InferencePlayground from "@/Inference/Playground";
 
 import {Sidebar} from "@/ui-components/Sidebar";
 import Uploader from "@/Files/Uploader";
@@ -177,7 +177,9 @@ const Core = (): React.ReactNode => (
                     {!inDevEnvironment() ? null : <Route path={"/playground"} element={<Playground />} />}
                     {!inDevEnvironment() ? null : <Route path={"/playground/demo"} element={<Demo />} />}
                     {!inDevEnvironment() ? null : <Route path={"/playground/lag"} element={<LagTest />} />}
-                    {!inDevEnvironment() ? null : <Route path={"/playground/ucx-create"} element={<UcxCreateDemo />} />}
+
+                    <Route path={AppRoutes.inference.playground()}
+                        element={React.createElement(requireAuth(InferencePlayground))} />
 
                     <Route path={AppRoutes.admin.userCreation()}
                         element={React.createElement(requireAuth(UserCreation))} />

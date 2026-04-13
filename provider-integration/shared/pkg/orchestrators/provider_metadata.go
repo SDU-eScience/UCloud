@@ -3,7 +3,6 @@ package orchestrators
 import (
 	"net/http"
 
-	apm "ucloud.dk/shared/pkg/accounting"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -17,6 +16,7 @@ type ProviderBranding struct {
 	ShortDescription   string                               `json:"shortDescription"`
 	Description        string                               `json:"description"`
 	Url                string                               `json:"url"`
+	Logo               util.Option[string]                  `json:"logo"`
 	Sections           []ProviderBrandingSection            `json:"sections"` // renamed from texts
 	ProductDescription []ProviderBrandingProductDescription `json:"productDescription"`
 }
@@ -27,7 +27,7 @@ type ProviderBrandingSection struct {
 }
 
 type ProviderBrandingProductDescription struct {
-	Category         apm.ProductCategoryIdV2 `json:"category"`
+	Category         string                  `json:"category"`
 	ShortDescription string                  `json:"shortDescription"` // shown in grant applications
 	Section          ProviderBrandingSection `json:"section"`          // shown on provider brand page and SKU page
 }
