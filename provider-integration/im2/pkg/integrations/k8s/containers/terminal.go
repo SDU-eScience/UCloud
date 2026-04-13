@@ -2,18 +2,15 @@ package containers
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"sync/atomic"
 	"time"
 
-	core "k8s.io/api/core/v1"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/remotecommand"
 	"ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/integrations/k8s/shared"
-	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
@@ -60,75 +57,33 @@ func handleShellNoRetry(session *controller.ShellSession, cols int, rows int, is
 	rank := 0
 	waitForJob := false
 	lastActivity := &atomic.Int64{}
+	var sandbox *shared.TerminalSandbox
 
 	if session.Folder != "" {
 		driveToMount := util.GetOptionalElement(util.Components(session.Folder), 0).Value
 
 		owner := orc.ResourceOwner{CreatedBy: session.UCloudUsername}
-		config := controller.IAppRetrieveConfiguration(integratedTerminalAppName, owner)
-		var newConfiguration util.Option[iappTermConfig]
-		if config.Present {
-			var parsedConfig iappTermConfig
-			_ = json.Unmarshal(config.Value.Configuration, &parsedConfig)
-
-			job, ok := controller.JobRetrieve(config.Value.JobId)
-			if !ok || job.Status.State != orc.JobStateRunning {
-				newConfiguration.Set(parsedConfig)
-
-				startedAt := job.Status.StartedAt.GetOrDefault(fnd.Timestamp(time.Now())).Time()
-				if time.Now().Sub(startedAt) > itermInactivityDuration {
-					parsedConfig.Folders = nil
-				}
-			}
-
-			isMountedAlready := false
-			for _, folder := range parsedConfig.Folders {
-				fDriveId := util.GetOptionalElement(util.Components(folder), 0).Value
-
-				if driveToMount == fDriveId {
-					isMountedAlready = true
-					break
-				}
-			}
-
-			if !isMountedAlready {
-				parsedConfig.Folders = append(parsedConfig.Folders, "/"+driveToMount)
-				newConfiguration.Set(parsedConfig)
-			}
-		} else {
-			newConfiguration.Set(iappTermConfig{Folders: []string{"/" + driveToMount}})
-		}
-
-		if newConfiguration.Present {
-			data, _ := json.Marshal(newConfiguration.Value)
-
-			err := controller.IAppConfigure(
-				integratedTerminalAppName,
-				owner,
-				util.OptNone[string](),
-				data,
-			)
-
-			if err != nil {
-				log.Info("Failure while configuring integrated terminal: %s", err)
-				return false
-			}
-
-			config = controller.IAppRetrieveConfiguration(integratedTerminalAppName, owner)
-		}
-
-		if !config.Present {
-			log.Info("Could not find job after configuring the integrated terminal!")
+		var err *util.HttpError
+		sandbox, err = shared.TerminalOpen(owner, []string{"/" + driveToMount})
+		if err != nil {
+			log.Info("Failure while configuring integrated terminal: %s", err)
 			return false
 		}
 
-		jobId = config.Value.JobId
+		jobId = sandbox.JobId
 		rank = 0
 		waitForJob = true
 
-		lastActivity = iappGetLastKeyPress(jobId, time.Now())
+		lastActivity.Store(time.Now().UnixMilli())
 	} else {
-		jobId = session.Job.Id
+		var err *util.HttpError
+		sandbox, err = shared.TerminalOpenToJob(session.Job.Id)
+		if err != nil {
+			log.Info("Failure while configuring integrated terminal: %s", err)
+			return false
+		}
+
+		jobId = sandbox.JobId
 		rank = session.Rank
 		waitForJob = false
 	}
@@ -230,51 +185,37 @@ func handleShellNoRetry(session *controller.ShellSession, cols int, rows int, is
 	stdoutReader, stdoutWriter := io.Pipe()
 	stderrReader, stderrWriter := io.Pipe()
 
-	streamStop := make(chan error)
-	writeStop := make(chan error)
-	readOutStop := make(chan error)
-	readErrStop := make(chan error)
-
-	resizeChannel := make(chan remotecommand.TerminalSize)
-
-	command := []string{"/bin/bash"}
-
-	execRequest := K8sClient.CoreV1().RESTClient().
-		Post().
-		Resource("pods").
-		Name(podName).
-		Namespace(Namespace).
-		SubResource("exec").
-		VersionedParams(&core.PodExecOptions{
-			Stdin:     true,
-			Stdout:    true,
-			Stderr:    true,
-			TTY:       true,
-			Container: ContainerUserJob,
-			Command:   command,
-		}, ExecCodec)
-
-	exec, err := remotecommand.NewSPDYExecutor(K8sConfig, "POST", execRequest.URL())
-
-	if err != nil {
+	cmd := sandbox.Command("/bin/bash")
+	cmd.Stdin = stdinReader
+	cmd.Stdout = stdoutWriter
+	cmd.Stderr = stderrWriter
+	cmd.TTY = true
+	cmd.Cols = cols
+	cmd.Rows = rows
+	cmd.Start()
+	if cmd.Err() != nil {
+		log.Info("Failed to start integrated terminal command: %s", cmd.Err())
 		return false
 	}
 
+	commandDone := make(chan util.Empty)
 	go func() {
-		defer close(readOutStop)
-		buf := make([]byte, 1024*4)
+		cmd.Wait()
+		close(commandDone)
+	}()
 
-	outer:
+	go func() {
+		buf := make([]byte, 1024*4)
 		for session.Alive {
 			select {
 			case <-ctx.Done():
-				break outer
+				return
 			default:
 			}
 
 			n, err := stdoutReader.Read(buf)
 			if err != nil {
-				break
+				return
 			}
 
 			session.EmitData(buf[:n])
@@ -282,20 +223,17 @@ func handleShellNoRetry(session *controller.ShellSession, cols int, rows int, is
 	}()
 
 	go func() {
-		defer close(readErrStop)
 		buf := make([]byte, 1024*4)
-
-	outer:
 		for session.Alive {
 			select {
 			case <-ctx.Done():
-				break outer
+				return
 			default:
 			}
 
 			n, err := stderrReader.Read(buf)
 			if err != nil {
-				break
+				return
 			}
 
 			session.EmitData(buf[:n])
@@ -303,33 +241,30 @@ func handleShellNoRetry(session *controller.ShellSession, cols int, rows int, is
 	}()
 
 	go func() {
-		defer close(writeStop)
-
-	outer:
 		for util.IsAlive && session.Alive {
 			select {
 			case event := <-session.InputEvents:
 				switch event.Type {
 				case controller.ShellEventTypeInput:
 					lastActivity.Store(time.Now().UnixMilli())
-					_, err = stdinWriter.Write([]byte(event.Data))
-					if err != nil {
+					if session.Folder != "" {
+						_ = shared.TerminalLease(sandbox.Owner, itermInactivityDuration)
+					}
+					if _, err := stdinWriter.Write([]byte(event.Data)); err != nil {
 						session.Alive = false
-						break
+						cmd.Kill()
+						return
 					}
 
 				case controller.ShellEventTypeResize:
 					lastActivity.Store(time.Now().UnixMilli())
-					resizeChannel <- remotecommand.TerminalSize{
-						Width:  uint16(event.Cols),
-						Height: uint16(event.Rows),
-					}
+					cmd.Resize(event.Cols, event.Rows)
 				}
 
 			case <-ctx.Done():
-				break outer
+				return
 
-			case _ = <-time.After(1 * time.Second):
+			case <-time.After(1 * time.Second):
 				continue
 			}
 		}
@@ -337,30 +272,17 @@ func handleShellNoRetry(session *controller.ShellSession, cols int, rows int, is
 
 	go func() {
 		select {
-		case <-streamStop:
-		case <-writeStop:
-		case <-readOutStop:
-		case <-readErrStop:
+		case <-commandDone:
+		case <-ctx.Done():
 		}
-
 		cancel()
 	}()
 
 	go func() {
-		resizeChannel <- remotecommand.TerminalSize{
-			Width:  uint16(cols),
-			Height: uint16(rows),
-		}
+		<-ctx.Done()
+		cmd.Kill()
 	}()
 
-	// This will only return if the stream ends
-	_ = exec.StreamWithContext(ctx, remotecommand.StreamOptions{
-		Stdin:             stdinReader,
-		Stdout:            stdoutWriter,
-		Stderr:            stderrWriter,
-		Tty:               true,
-		TerminalSizeQueue: &shellResizeQueue{channel: resizeChannel},
-	})
-
+	<-commandDone
 	return true
 }

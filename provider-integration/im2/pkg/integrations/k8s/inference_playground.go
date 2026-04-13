@@ -1,6 +1,7 @@
 package k8s
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -401,47 +402,69 @@ func (app *InferencePlaygroundApp) runChat() {
 		request.StreamOptions = util.OptValue(InferenceChatStreamOptions{IncludeUsage: true})
 	}
 
-	app.Chat.Messages = append(app.Chat.Messages, playgroundChatMessage{Role: "user", Content: prompt})
-	app.Chat.Messages = append(app.Chat.Messages, playgroundChatMessage{Role: "assistant", Content: ""})
-	assistantIndex := len(app.Chat.Messages) - 1
-	app.Chat.Prompt = ""
-	app.Chat.Usage.LastQuery = InferencePlaygroundTokenUsage{}
-	ucx.AppUpdateModel(app)
+	if strings.HasPrefix(prompt, "/") {
+		if strings.HasPrefix(prompt, "/python") {
+			script := strings.TrimPrefix(prompt, "/python ")
+			sandbox, err := shared.TerminalOpen(app.Owner, nil)
+			if err == nil {
+				app.Chat.Prompt = ""
+				ucx.AppUpdateModel(app)
 
-	assistant := ""
-	if app.Chat.Streaming {
-		var builder strings.Builder
-		usageSeen := InferenceChatUsage{}
-		for chunk := range InferenceChatStreaming(app.walletOwner(), request) {
-			usageSeen = chunk.Usage
-			if len(chunk.Choices) == 0 {
-				continue
+				stdout := &bytes.Buffer{}
+				stderr := &bytes.Buffer{}
+				cmd := sandbox.Command("/usr/bin/python3", "-c", script)
+				cmd.Stdout = stdout
+				cmd.Stderr = stderr
+				cmd.Run()
+				app.Chat.Messages = append(app.Chat.Messages, playgroundChatMessage{
+					Role:    "assistant",
+					Content: stdout.String() + stderr.String(),
+				})
 			}
-			delta := chunk.Choices[0].Delta.Content
-			if delta == "" {
-				continue
-			}
-			builder.WriteString(delta)
-			app.Chat.Messages[assistantIndex].Content = builder.String()
-			ucx.AppUpdateModel(app)
 		}
-		assistant = strings.TrimSpace(builder.String())
-		app.applyChatUsage(usageSeen)
 	} else {
-		resp := InferenceChat(app.walletOwner(), request)
-		app.applyChatUsage(resp.Usage)
-		if len(resp.Choices) > 0 {
-			assistant = resp.Choices[0].Message.Content
+		app.Chat.Messages = append(app.Chat.Messages, playgroundChatMessage{Role: "user", Content: prompt})
+		app.Chat.Messages = append(app.Chat.Messages, playgroundChatMessage{Role: "assistant", Content: ""})
+		assistantIndex := len(app.Chat.Messages) - 1
+		app.Chat.Prompt = ""
+		app.Chat.Usage.LastQuery = InferencePlaygroundTokenUsage{}
+		ucx.AppUpdateModel(app)
+
+		assistant := ""
+		if app.Chat.Streaming {
+			var builder strings.Builder
+			usageSeen := InferenceChatUsage{}
+			for chunk := range InferenceChatStreaming(app.walletOwner(), request) {
+				usageSeen = chunk.Usage
+				if len(chunk.Choices) == 0 {
+					continue
+				}
+				delta := chunk.Choices[0].Delta.Content
+				if delta == "" {
+					continue
+				}
+				builder.WriteString(delta)
+				app.Chat.Messages[assistantIndex].Content = builder.String()
+				ucx.AppUpdateModel(app)
+			}
+			assistant = strings.TrimSpace(builder.String())
+			app.applyChatUsage(usageSeen)
+		} else {
+			resp := InferenceChat(app.walletOwner(), request)
+			app.applyChatUsage(resp.Usage)
+			if len(resp.Choices) > 0 {
+				assistant = resp.Choices[0].Message.Content
+			}
 		}
-	}
 
-	if assistant == "" {
-		assistant = "(no response)"
-	}
+		if assistant == "" {
+			assistant = "(no response)"
+		}
 
-	app.Chat.Messages[assistantIndex].Content = assistant
-	app.Chat.Curl = app.buildChatCurl()
-	app.Chat.Prompt = ""
+		app.Chat.Messages[assistantIndex].Content = assistant
+		app.Chat.Curl = app.buildChatCurl()
+		app.Chat.Prompt = ""
+	}
 }
 
 func (app *InferencePlaygroundApp) applyChatUsage(usage InferenceChatUsage) {
