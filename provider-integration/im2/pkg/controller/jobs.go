@@ -86,10 +86,11 @@ type ConfiguredWebSessionResult struct {
 }
 
 type ConfiguredWebEndpoint struct {
-	Host         cfg.HostInfo
-	TargetDomain string
-	Flags        RegisteredIngressFlags
-	IsPublic     bool
+	Host                cfg.HostInfo
+	TargetDomain        string
+	Flags               RegisteredIngressFlags
+	IsPublic            bool
+	VncPasswordOverride util.Option[string]
 }
 
 type ConfiguredWebIngress struct {
@@ -391,7 +392,6 @@ func initJobs() {
 		orcapi.JobsProviderOpenInteractiveSession.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.JobsProviderOpenInteractiveSessionRequestItem]) (fnd.BulkResponse[orcapi.OpenSession], *util.HttpError) {
 			var errors []*util.HttpError
 			var responses []orcapi.OpenSession
-
 			for _, item := range request.Items {
 				switch item.SessionType {
 				case orcapi.InteractiveSessionTypeShell:
@@ -409,21 +409,26 @@ func initJobs() {
 				case orcapi.InteractiveSessionTypeVnc:
 					fallthrough
 				case orcapi.InteractiveSessionTypeWeb:
-					isVnc := item.SessionType == orcapi.InteractiveSessionTypeVnc
-
 					targetResult, err := Jobs.OpenWebSession(&item.Job, item.SessionType, item.Rank, item.Target)
 					if err != nil {
 						errors = append(errors, err)
 					} else {
+						isVnc := false
+
 						endpoints := targetResult.Endpoints
 						for i := range endpoints {
 							if endpoints[i].Flags == 0 {
-								if isVnc {
+								isDefaultVnc := item.SessionType == orcapi.InteractiveSessionTypeVnc
+								if isDefaultVnc {
 									endpoints[i].Flags = RegisteredIngressFlagsVnc
 								} else {
 									endpoints[i].Flags = RegisteredIngressFlagsWeb
 								}
 							}
+						}
+
+						if len(endpoints) > 0 {
+							isVnc = endpoints[0].Flags&RegisteredIngressFlagsVnc != 0
 						}
 
 						redirect, err := IngressRegisterEndpointsWithJob(&item.Job, item.Rank, item.Target, endpoints)
@@ -432,6 +437,13 @@ func initJobs() {
 						} else {
 							if isVnc {
 								password := item.Job.Status.ResolvedApplication.Value.Invocation.Vnc.Value.Password
+
+								if len(endpoints) > 0 {
+									override := endpoints[0].VncPasswordOverride
+									if override.Present {
+										password = override.Value
+									}
+								}
 
 								responses = append(
 									responses,

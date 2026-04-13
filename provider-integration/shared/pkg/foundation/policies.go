@@ -45,7 +45,7 @@ type PoliciesType string
 
 const (
 	RestrictApplications           PoliciesType = "RestrictApplications"
-	CutAndPaste                    PoliciesType = "CutAndPaste"
+	RestrictCutAndPaste            PoliciesType = "RestrictCutAndPaste"
 	RestrictDownloads              PoliciesType = "RestrictDownloads"
 	RestrictIntegratedApplications PoliciesType = "RestrictIntegratedApplications"
 	RestrictInternetAccess         PoliciesType = "RestrictInternetAccess"

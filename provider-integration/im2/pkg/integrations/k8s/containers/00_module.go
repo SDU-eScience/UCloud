@@ -468,7 +468,12 @@ func requestDynamicParameters(owner orc.ResourceOwner, app *orc.Application) []o
 	return []orc.ApplicationParameter{param}
 }
 
-func openWebSession(job *orc.Job, sessionType orc.InteractiveSessionType, rank int, target util.Option[string]) (controller.ConfiguredWebSessionResult, *util.HttpError) {
+func openWebSession(
+	job *orc.Job,
+	sessionType orc.InteractiveSessionType,
+	rank int,
+	target util.Option[string],
+) (controller.ConfiguredWebSessionResult, *util.HttpError) {
 	podName := idAndRankToPodName(job.Id, rank)
 
 	app := &job.Status.ResolvedApplication.Value.Invocation
@@ -481,6 +486,17 @@ func openWebSession(job *orc.Job, sessionType orc.InteractiveSessionType, rank i
 		flags = controller.RegisteredIngressFlagsVnc
 	} else {
 		flags = controller.RegisteredIngressFlagsWeb
+	}
+
+	vncRedirectPassword := util.Option[string]{}
+	if job.Owner.Project.Present {
+		_, hasRestriction := controller.RetrievePoliciesByProject(job.Owner.Project.Value)[fnd.RestrictCutAndPaste.String()]
+
+		if hasRestriction {
+			flags = controller.RegisteredIngressFlagsVnc
+			port = 6080
+			vncRedirectPassword.Set("mypassword")
+		}
 	}
 
 	if target.Present {
@@ -522,10 +538,11 @@ func openWebSession(job *orc.Job, sessionType orc.InteractiveSessionType, rank i
 	if (flags & controller.RegisteredIngressFlagsVnc) != 0 {
 		return controller.ConfiguredWebSessionResult{
 			Endpoints: []controller.ConfiguredWebEndpoint{{
-				Host:         address,
-				TargetDomain: config.Provider.Hosts.SelfPublic.Address,
-				Flags:        flags,
-				IsPublic:     false,
+				Host:                address,
+				TargetDomain:        config.Provider.Hosts.SelfPublic.Address,
+				Flags:               flags,
+				IsPublic:            false,
+				VncPasswordOverride: vncRedirectPassword,
 			}},
 		}, nil
 	}
@@ -605,4 +622,5 @@ func JobAnnotations(job *orc.Job, rank int) map[string]string {
 const (
 	ContainerUserJob  = "user-job"
 	ContainerAuditLog = "audit-log"
+	ContainerProxyVNC = "proxy-vnc"
 )

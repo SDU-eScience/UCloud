@@ -1,4 +1,4 @@
-name: "CutAndPaste"
+name: "RestrictCutAndPaste"
 title: "Disable copy & paste in interactive applications"
 
 description: >

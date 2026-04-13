@@ -111,6 +111,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		},
 		Spec: core.PodSpec{},
 	}
+	pod.Spec.Containers = make([]core.Container, 0, 16)
 
 	if iappConfig.Present {
 		pod.Annotations[IAppAnnotationEtag] = iappConfig.Value.ETag
@@ -147,6 +148,48 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		jobAuditLogSetup(job, rank, spec, userContainer, "48291")
 	}
 
+	if job.Owner.Project.Present {
+		_, hasRestriction := controller.RetrievePoliciesByProject(job.Owner.Project.String())[foundation.RestrictCutAndPaste.String()]
+		if hasRestriction {
+			url := "http://localhost"
+			if job.Status.ResolvedApplication.Present && job.Status.ResolvedApplication.Value.Invocation.Web.Present {
+				url = fmt.Sprintf("%v:%v", url, job.Status.ResolvedApplication.Value.Invocation.Web.Value.Port)
+			}
+			fmt.Printf("url: %v\n", url)
+			vnc := orc.VncDescription{
+				Password: "mypassword",
+				Port:     20000,
+			}
+			if job.Status.ResolvedApplication.Present && job.Status.ResolvedApplication.Value.Invocation.Vnc.Present {
+				vnc = job.Status.ResolvedApplication.Value.Invocation.Vnc.Value
+			}
+
+			fmt.Printf("vnc: %v\n", vnc)
+
+			spec.Containers = append(spec.Containers, core.Container{
+				Name:  ContainerProxyVNC,
+				Image: "mrcolorrain/vnc-browser:debian",
+				Env: []core.EnvVar{
+					{Name: "AUTO_START_BROWSER", Value: "true"},
+					{Name: "BROWSER_OPTIONS", Value: "--start-fullscreen --kiosk"},
+					{Name: "STARTING_WEBSITE_URL", Value: url},
+
+					{Name: "AUTO_START_VNC", Value: "true"},
+					{Name: "AUTO_START_XTERM", Value: "false"},
+					{Name: "VNC_OPTIONS", Value: "-noclipboard -SendClipboard=0"},
+					{Name: "VNC_PASSWORD", Value: vnc.Password},
+					{Name: "AUTO_START_WM", Value: "false"},
+				},
+				ImagePullPolicy: core.PullIfNotPresent,
+				Resources: core.ResourceRequirements{
+					Limits:   core.ResourceList{},
+					Requests: core.ResourceList{},
+				},
+				SecurityContext: &core.SecurityContext{},
+			})
+		}
+	}
+
 	// Setting up network policy and service
 	// -----------------------------------------------------------------------------------------------------------------
 	// Only rank 0 is responsible for creating these additional resources. Their pointers will be nil if they should
@@ -170,8 +213,8 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		allowNetworkTo(firewall, job.Id)
 
 		if job.Owner.Project.Present {
-			policyAccessSpec, hasRestriction := controller.RetrievePoliciesByProject(job.Owner.Project.String())[foundation.RestrictInternetAccess.String()]
-			if hasRestriction {
+			policyAccessSpec, hasEngressRestriction := controller.RetrievePoliciesByProject(job.Owner.Project.String())[foundation.RestrictInternetAccess.String()]
+			if hasEngressRestriction {
 				for _, prop := range policyAccessSpec.Properties {
 					if prop.Name == "allowedSubnets" {
 						if prop.Text == "" {
@@ -184,14 +227,14 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 				}
 			}
 
-			policySourceSpec, hasRestriction := controller.RetrievePoliciesByProject(job.Owner.Project.String())[foundation.RestrictSourceIPRange.String()]
-			if hasRestriction {
+			policySourceSpec, hasIngressRestriction := controller.RetrievePoliciesByProject(job.Owner.Project.String())[foundation.RestrictSourceIPRange.String()]
+			if hasIngressRestriction {
 				for _, prop := range policySourceSpec.Properties {
 					if prop.Name == "allowedSubnets" {
 						if prop.Text == "" {
 							firewall.Spec.PolicyTypes = []networking.PolicyType{networking.PolicyTypeIngress}
 						} else {
-							allowNetworkTo(firewall, prop.Text)
+							allowNetworkFrom(firewall, prop.Text)
 						}
 						break
 					}
