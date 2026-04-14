@@ -3,7 +3,6 @@ import {useRef, useState} from "react";
 
 import * as Heading from "@/ui-components/Heading";
 import {doNothing, errorMessageOrDefault} from "@/UtilityFunctions";
-import CONF from "../../site.config.json";
 import Box from "./Box";
 import Button from "./Button";
 import ClickableDropdown from "./ClickableDropdown";
@@ -11,7 +10,6 @@ import ExternalLink from "./ExternalLink";
 import Flex from "./Flex";
 import Icon from "./Icon";
 import Label from "./Label";
-import Radio from "./Radio";
 import Text from "./Text";
 import {Spacer} from "./Spacer";
 import TextArea from "./TextArea";
@@ -20,6 +18,7 @@ import Error from "./Error";
 import Input from "./Input";
 import {SidebarDialog} from "./Sidebar";
 import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
+import {useSelector} from "react-redux";
 
 type SystemStatus = "Decomissioned" | "Operational" | "Degraded" | "Down";
 
@@ -32,6 +31,7 @@ export default function Support({dialog, setOpenDialog}: SidebarDialog): React.R
     const [titleArea, setTitleArea] = useState("");
     const [loading, invokeCommand] = useCloudCommand();
     const [statusUCloud, setUCloudStatus] = useState<SystemStatus | "">("");
+    const branding = useSelector((it: ReduxObject) => it.branding);
 
     async function onSubmit(event: React.FormEvent): Promise<void> {
         event.preventDefault();
@@ -107,17 +107,17 @@ export default function Support({dialog, setOpenDialog}: SidebarDialog): React.R
                     <Spacer alignItems="center"
                         left={<Heading.h3>Support Form</Heading.h3>}
                         right={<>
-                            {!CONF.SITE_FAQ_URL ? null : (
-                                <ExternalLink href={CONF.SITE_FAQ_URL}>
+                            {!branding.faqLink ? null : (
+                                <ExternalLink href={branding.faqLink}>
                                     <Flex>
                                         <b style={{fontSize: "24px", marginRight: ".5em"}}>?</b>
                                         <Text mt="8px" mr="0.8em">FAQ</Text>
                                     </Flex>
                                 </ExternalLink>
                             )}
-                            {!CONF.SITE_DOCUMENTATION_URL ? null : (
-                                <ExternalLink hoverColor={"primaryLight"} href={CONF.SITE_DOCUMENTATION_URL}>
-                                    <Icon name="heroBookOpen" mr=".5em" />Documentation
+                            {!branding.documentation ? null : (
+                                <ExternalLink hoverColor={"primaryLight"} href={branding.documentation.href}>
+                                    <Icon name="heroBookOpen" mr=".5em" />{branding.documentation.title}
                                 </ExternalLink>
                             )}
                         </>}
