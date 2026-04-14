@@ -519,18 +519,24 @@ function LoginButton(props: ButtonProps): React.ReactNode {
     return <Button {...props} textColor="fixedBlack" color="fixedWhite" />
 }
 
-function BlackLoginText({textColor, style, ...props}: React.PropsWithChildren<TextProps & {textColor: string}>): React.ReactNode {
-    const mergedStyle: React.CSSProperties = {
-        ...style,
-        "--loginTextColor": textColor,
-    } as React.CSSProperties;
-
-    return <Text className={LoginTextClass} style={mergedStyle} {...props} />
+function BlackLoginText({ textColor, style, ...props }: TextProps & { textColor: string }) {
+    return (
+        <Text
+            className={LoginTextClass}
+            style={{
+                ...style,
+                "--loginTextColor": textColor,
+            } as React.CSSProperties}
+            {...props}
+        />
+    );
 }
 
-const LoginTextClass = injectStyleSimple("login-text", `
-    color: var(--loginTextColor);
-    font-size: var(--interactiveElementsSize);
+const LoginTextClass = injectStyle("login-text", k => `
+    ${k} {
+        color: var(--loginTextColor);
+        font-size: var(--interactiveElementsSize);
+    }
 `);
 
 
