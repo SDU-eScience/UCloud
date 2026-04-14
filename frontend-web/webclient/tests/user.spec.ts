@@ -13,7 +13,7 @@ test("While logged in, ensure docs link works", async ({page}) => {
     await User.login(page, user);
     await Components.toggleUserMenu(page);
     const ucloudDocsPagePromise = page.waitForEvent("popup");
-    await page.getByText("UCloud docs").click();
+    await page.getByText("Docs").click();
     const ucloudDocsPage = await ucloudDocsPagePromise;
     await expect(ucloudDocsPage.getByText("UCloud User Guide¶")).toHaveCount(1);
     expect(ucloudDocsPage.url()).toMatch("https://docs.cloud.sdu.dk/");
