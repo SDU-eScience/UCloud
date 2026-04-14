@@ -1086,6 +1086,10 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 				serviceLabel.First: serviceLabel.Second,
 				rankLabel.First:    rankLabel.Second,
 			},
+			Ports: []k8score.ServicePort{{
+				Protocol: "TCP",
+				Port:     4, // dummy
+			}},
 		},
 	}
 
@@ -1179,6 +1183,19 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 
 	diskSize = min(max(15, diskSize), 2000)
 
+	resources := kvcore.ResourceRequirements{Limits: map[k8score.ResourceName]k8sresource.Quantity{}, Requests: map[k8score.ResourceName]k8sresource.Quantity{}}
+	addResource := func(name k8score.ResourceName, value int64, scale k8sresource.Scale) {
+		quantity := k8sresource.NewScaledQuantity(value, scale)
+		quantity.Format = k8sresource.DecimalSI
+
+		resources.Limits[name] = *quantity
+		resources.Requests[name] = *quantity
+	}
+
+	product := job.Status.ResolvedProduct.Value
+	addResource(k8score.ResourceCPU, int64(shared.NodeCpuMillisNormalizedWithReserved(&product)), k8sresource.Milli)
+	addResource(k8score.ResourceMemory, int64(product.MemoryInGigs), k8sresource.Giga)
+
 	vm.Spec.Template = &kvcore.VirtualMachineInstanceTemplateSpec{
 		Spec: kvcore.VirtualMachineInstanceSpec{
 			NodeSelector: map[string]string{
@@ -1187,7 +1204,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 			Domain: kvcore.DomainSpec{
 				CPU: &kvcore.CPU{
 					Cores:   max(1, uint32(machine.Cpu/2)),
-					Threads: max(1, uint32(machine.Cpu)),
+					Threads: 2, // NOTE(Dan): This is threads-per core, not threads in total. Learned that the hard way.
 				},
 				Memory: &kvcore.Memory{
 					Guest: k8sresource.NewScaledQuantity(int64(machine.MemoryInGigs), k8sresource.Giga),
@@ -1214,6 +1231,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 						},
 					},
 				},
+				Resources: resources,
 			},
 			Volumes: []kvcore.Volume{
 				{

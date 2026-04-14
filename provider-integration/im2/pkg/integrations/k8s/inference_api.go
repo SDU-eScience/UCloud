@@ -108,6 +108,10 @@ func inferenceModelCapabilities(modelId string) []InferenceModelCapability {
 		capabilities = append(capabilities, InferenceModelCapabilityImageGeneration)
 	}
 
+	if len(capabilities) == 0 {
+		capabilities = append(capabilities, InferenceModelCapabilityChat)
+	}
+
 	return capabilities
 }
 
