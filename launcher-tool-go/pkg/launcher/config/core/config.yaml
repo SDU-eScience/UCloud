@@ -33,8 +33,8 @@ branding:
     href: "https://www.sdu.dk/en/om_dette_websted/databeskyttelse"
 
   statusPage:
-    title: "System Status"
-    href: "https://docs.cloud.sdu.dk/help/faq.html"
+    title: "Site status"
+    href: "https://status.cloud.sdu.dk"
 
   documentation:
     title: "Docs"
