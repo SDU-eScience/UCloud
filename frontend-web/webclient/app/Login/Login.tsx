@@ -296,7 +296,7 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
                             <TextSpan className={LoginTextSpanClass} fontSize={2} ml="2.5em">Login</TextSpan>
                         </Button>
                     </a>
-                    <IdpList />
+                    <IdpList isGeneric={isGeneric} />
                     <Text color={textColor} onClick={() => setShowingWayf(false)} cursor="pointer" textAlign="center">Other
                         login options →</Text>
                 </>) : null}
@@ -408,7 +408,7 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
                     </DropdownLike>
                 )}
             </Box>
-            {isGeneric ? <GenericLoginFooter /> : IS_SANDBOX ? <HalricLoginFooter /> : <DeicLoginFooter />}
+            {isGeneric ? <GenericLoginFooter textColor={textColor} /> : IS_SANDBOX ? <HalricLoginFooter textColor={textColor} /> : <DeicLoginFooter />}
         </LoginWrapper>
     );
 };
@@ -468,18 +468,21 @@ const LoginTextSpanClass = injectStyleSimple("login-text", `
 `);
 
 function DropdownLike({isGeneric, children}): React.ReactNode {
-    return <div className={DropdownLikeClass(isGeneric)}>
-        {children}
-    </div>
+    return <div className={DropdownLikeClass} data-is-generic={isGeneric || IS_SANDBOX}>{children}</div>
 }
 
-const DropdownLikeClass = (isGeneric: boolean) => injectStyleSimple("dropdown-like", `
-    border-radius: 16px;
-    background-color: ${isGeneric || IS_SANDBOX ? "var(--primaryLight)" : "#c8dd51"};
-    color: black;
-    width: 315px;
-    padding: 16px 16px;
-`);
+const DropdownLikeClass = injectStyle("dropdown-like", cl => `
+   ${cl} {
+      border-radius: 16px;
+      background-color: #c8dd51;
+      color: black;
+      width: 315px;
+      padding: 16px 16px;
+   }
+   
+   ${cl}[data-is-generic="true"] { 
+      background-color: var(--primaryLight);
+}`);
 
 function LoginInput(props: InputProps): React.ReactNode {
     return <Input {...props} className={LoginInputClass} />
@@ -516,12 +519,17 @@ function LoginButton(props: ButtonProps): React.ReactNode {
     return <Button {...props} textColor="fixedBlack" color="fixedWhite" />
 }
 
-function BlackLoginText({textColor, ...props}: React.PropsWithChildren<TextProps & {textColor: string}>): React.ReactNode {
-    return <Text className={LoginTextClass(textColor)} {...props} />
+function BlackLoginText({textColor, style, ...props}: React.PropsWithChildren<TextProps & {textColor: string}>): React.ReactNode {
+    const mergedStyle: React.CSSProperties = {
+        ...style,
+        "--loginTextColor": textColor,
+    } as React.CSSProperties;
+
+    return <Text className={LoginTextClass} style={mergedStyle} {...props} />
 }
 
-const LoginTextClass = (textColor: string) => injectStyleSimple("login-text", `
-    color: ${textColor};
+const LoginTextClass = injectStyleSimple("login-text", `
+    color: var(--loginTextColor);
     font-size: var(--interactiveElementsSize);
 `);
 
@@ -560,6 +568,14 @@ function LoginWrapper({branding, selection, ...props}: React.PropsWithChildren<T
     </Box>);
 }
 
+type TextColorProps = {
+    textColor: string;
+};
+
+type IsGenericProps = {
+    isGeneric: boolean;
+};
+
 type BackgroundImageProps = React.PropsWithChildren<{
   isGeneric: boolean;
 }>;
@@ -594,7 +610,7 @@ interface IdentityProvider {
     logoUrl?: string | null;
 }
 
-const IdpList: React.FunctionComponent = (isGeneric: boolean) => {
+const IdpList: React.FunctionComponent<IsGenericProps> = ({isGeneric}) => {
     const [idps, setIdps] = useState<IdentityProvider[]>([]);
 
     useEffect(() => {
@@ -648,15 +664,17 @@ function LoginHeader ({branding}: React.PropsWithChildren<TextProps & {branding:
     }
 
     if (IS_SANDBOX) { // Sandbox has higher precedence than DEIC
-        return <HalricLoginHeader/>
+        return <HalricLoginHeader textColor={textColor} />
     }
     else if (branding.loginPage.type === BrandingLoginPageType.DEIC) {
-        return <DeicLoginHeader />
+        return <DeicLoginHeader textColor={textColor} />
     }
     return <></>
 }
 
-const GenericLoginFooter: React.FunctionComponent = (textColor: string) => {
+
+
+const GenericLoginFooter: React.FunctionComponent<TextColorProps> = ({textColor}) => {
     return <Flex gap={"64px"} alignItems={"center"} justifyContent={"center"} my={"128px"}>
         <Flex justifyContent={"center"} gap={"8px"} alignItems={"center"}>
             <Icon size={64} name={"logoEsc"} />
@@ -669,7 +687,7 @@ const GenericLoginFooter: React.FunctionComponent = (textColor: string) => {
 };
 
 
-const HalricLoginHeader: React.FunctionComponent = (textColor: string) => {
+const HalricLoginHeader: React.FunctionComponent<TextColorProps> = ({textColor}) => {
     return <>
         <Flex width="auto" mx="auto" paddingTop="80px" paddingBottom={"64px"}>
             <Image alt={"Interreg"} src={interregWhite} width={"750px"} />
@@ -680,7 +698,7 @@ const HalricLoginHeader: React.FunctionComponent = (textColor: string) => {
     </>;
 };
 
-const HalricLoginFooter: React.FunctionComponent = (textColor) => {
+const HalricLoginFooter: React.FunctionComponent<TextColorProps> = (textColor) => {
     return <Flex gap={"64px"} alignItems={"center"} justifyContent={"center"} my={"128px"}>
         <Flex justifyContent={"center"} gap={"8px"} alignItems={"center"}>
             <Icon size={40} name={"logoEsc"} />
@@ -693,7 +711,7 @@ const HalricLoginFooter: React.FunctionComponent = (textColor) => {
     </Flex>;
 };
 
-const DeicLoginHeader: React.FunctionComponent = (textColor: string) => {
+const DeicLoginHeader: React.FunctionComponent<TextColorProps> = ({textColor}) => {
     return <>
         <Icon className={LoginIconClass} mx="auto" hoverColor={"fixedBlack"} name={"deiCLogo"} size="180px" />
         <Text mx="auto" py="30px" width="fit-content" color={textColor} fontSize={32}>Integration Portal</Text>
