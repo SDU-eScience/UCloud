@@ -221,7 +221,7 @@ echo "${BashScriptStringContent}"
                 await p.getByText("Connect network").first().click();
                 await p.getByRole("textbox", {name: "Hostname"}).fill(jobNetworkId1);
                 await p.getByPlaceholder("No private network selected").click();
-                await p.getByRole("dialog").getByText("Use").click();
+                await page.getByRole("dialog").locator(".row", {hasText: networkName}).getByRole("button", {name: "Use"}).click();
             }, jobName);
 
 
@@ -232,7 +232,7 @@ echo "${BashScriptStringContent}"
                 await p.getByText("Connect network").first().click();
                 await p.getByRole("textbox", {name: "Hostname"}).fill(jobNetworkId2);
                 await p.getByPlaceholder("No private network selected").click();
-                await p.getByRole("dialog").getByText("Use").click();
+                await page.getByRole("dialog").locator(".row", {hasText: networkName}).getByRole("button", {name: "Use"}).click();
             }, jobName);
 
             await Terminal.enterCmd(term1, `apt install busybox && echo "setup done!"`);
