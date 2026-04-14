@@ -87,7 +87,8 @@ TestContexts.map(ctx => {
             await Runs.submitAndWaitForRunning(page);
 
             // check for tab that contains ssh
-            await page.locator("nav > div:nth-child(4)").click();
+            await page.getByText("CPU utilization").waitFor();
+            await page.getByText("SSH", {exact: true}).click();
             const terminalPage = await Runs.openTerminal(page);
 
             await Terminal.enterCmd(terminalPage, "cat /etc/ucloud/ssh/authorized_keys.ucloud");

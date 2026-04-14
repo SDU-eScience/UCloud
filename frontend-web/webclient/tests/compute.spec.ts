@@ -208,26 +208,48 @@ echo "${BashScriptStringContent}"
 
         test("multinode, connect to other jobs", async ({page}) => {
             test.setTimeout(120_000);
+
+
+            // Create private network
+            const networkName = Resources.PrivateNetworks.newName();
+            const newSubdomainName = Resources.PrivateNetworks.newSubdomainName();
+            await Resources.PrivateNetworks.createPrivateNetwork(page, networkName, newSubdomainName);
+
             const jobName = Runs.newJobName();
-            await Applications.runAppAndOpenTerminal(page, AppNames.TestApplication, 2, jobName);
-            // This isn't ideal, but this is the easiest way to get the job id
-            const jobId = new URL(page.url()).pathname.split("/").at(-1) ?? "";
+            const jobNetworkId1 = Resources.PrivateNetworks.newJobNetworkName();
+            const term1 = await Applications.runAppAndOpenTerminalWithTerminalPage(page, AppNames.TestApplication, 2, async p => {
+                await p.getByText("Connect network").first().click();
+                await p.getByRole("textbox", {name: "Hostname"}).fill(jobNetworkId1);
+                await p.getByPlaceholder("No private network selected").click();
+                await p.getByRole("dialog").locator(".row", {hasText: networkName}).getByRole("button", {name: "Use"}).click();
+            }, jobName);
+
 
             const otherPage = await page.context().newPage();
-            // Should redirect to dashboard, as this is already logged in.
-            await User.toLoginPage(otherPage);
-            await Applications.openAppBySearch(otherPage, AppNames.TestApplication);
-            await Components.selectAvailableMachineType(otherPage);
-            await otherPage.getByText("Connect to job").first().click();
-            await otherPage.getByRole("textbox", {name: "Hostname"}).fill("foobar");
-            await otherPage.getByPlaceholder("No selected run").click();
-            await Components.useDialogBrowserItem(otherPage, jobName);
-            await Runs.submitAndWaitForRunning(otherPage);
-            await otherPage.getByText("Connected jobs (1)").click();
-            await otherPage.getByText(jobId, {exact: true}).hover();
-            await Runs.terminateViewedRun(otherPage);
+            const jobNetworkId2 = Resources.PrivateNetworks.newJobNetworkName();
+            await User.toLoginPage(otherPage); // Should redirect to dashboard, as this is already logged in.
+            const term2 = await Applications.runAppAndOpenTerminalWithTerminalPage(otherPage, AppNames.TestApplication, 2, async p => {
+                await p.getByText("Connect network").first().click();
+                await p.getByRole("textbox", {name: "Hostname"}).fill(jobNetworkId2);
+                await p.getByPlaceholder("No private network selected").click();
+                await p.getByRole("dialog").locator(".row", {hasText: networkName}).getByRole("button", {name: "Use"}).click();
+            }, jobName);
+
+            await Terminal.enterCmd(term1, `apt install busybox && echo "setup done!"`);
+            await Terminal.enterCmd(term2, `apt install busybox && echo "setup done!"`);
+
+            await term1.getByText("setup done!", {exact: true}).waitFor();
+            await term2.getByText("setup done!", {exact: true}).waitFor();
+            await Terminal.enterCmd(term1, `busybox ping invalid_address`);
+            await term1.getByText("ping: bad address 'invalid_address'").waitFor();
+
+            await Terminal.enterCmd(term1, `busybox ping ${jobNetworkId2}.${newSubdomainName}`);
+            await Terminal.enterCmd(term2, `busybox ping ${jobNetworkId1}.${newSubdomainName}`);
+            const responseText = "64 bytes from"
+            await Promise.all([term1, term2].map(t => t.getByText(responseText).first().waitFor()));
 
             await Runs.terminateViewedRun(page);
+            await Runs.terminateViewedRun(otherPage);
             await page.getByText("stdout-0.log").hover();
             await page.getByText("stdout-1.log").hover();
         });
@@ -238,7 +260,7 @@ echo "${BashScriptStringContent}"
                 await User.createUserWithProjectAndAssignRole(adminPage, context, ctx, {"Core-hours requested": 5, "GB requested": 1});
 
             const jobName = Runs.newJobName();
-            const term = await Applications.runAppAndOpenTerminalWithTerminalPage(userPage, AppNames.TestApplication, 1, jobName);
+            const term = await Applications.runAppAndOpenTerminalWithTerminalPage(userPage, AppNames.TestApplication, 1, undefined, jobName);
             await Terminal.createLargeFile(term);
             await Runs.terminateViewedRun(userPage);
 
@@ -279,7 +301,7 @@ echo "${BashScriptStringContent}"
             await Accounting.goTo(userPage, "Allocations");
             await userPage.getByText("0 / 1 Core-hours (0%)", {exact: true}).first().waitFor();
             const jobName = Runs.newJobName();
-            await Applications.runAppAndOpenTerminal(userPage, AppNames.TestApplication, 2, jobName);
+            await Applications.runAppAndOpenTerminal(userPage, AppNames.TestApplication, 2, undefined, jobName);
             await userPage.waitForTimeout(90_000);
             await Runs.terminateViewedRun(userPage);
 

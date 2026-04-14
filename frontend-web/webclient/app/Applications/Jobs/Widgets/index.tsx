@@ -15,7 +15,7 @@ import {NetworkIPParameter, NetworkIPSetter, NetworkIPValidator} from "@/Applica
 import {PrivateNetworkParameter, PrivateNetworkSetter, PrivateNetworkValidator} from "@/Applications/Jobs/Widgets/PrivateNetwork";
 import {ButtonClass} from "@/ui-components/Button";
 import {JobCreateInput} from "./Reservation";
-import {classConcat, injectStyle, injectStyleSimple} from "@/Unstyled";
+import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {FlexCProps} from "@/ui-components/Flex";
 import {Application, ApplicationParameter} from "@/Applications/AppStoreApi";
 import {compute} from "@/UCloud";
@@ -24,7 +24,6 @@ import {WorkflowParameter, WorkflowSetter, WorkflowValidator} from "@/Applicatio
 import {MandatoryField} from "@/UtilityComponents";
 import {ReadmeParameter} from "./Readme";
 import {ModuleListParameter, ModuleListSetter, ModuleListValidator} from "@/Applications/Jobs/Widgets/ModuleList";
-import {display} from "styled-system";
 
 // Creating a new widget? Look here. Add it to the WidgetBody, validators and setters.
 export type WidgetValidator = (param: ApplicationParameter) => WidgetValidationAnswer;
