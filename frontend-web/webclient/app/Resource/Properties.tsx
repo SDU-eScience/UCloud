@@ -405,7 +405,7 @@ function PredicatedPermissionsTable<T extends Resource>(props: {show?: boolean; 
                 showMissingPermissionHelp
                 replaceWriteWithUse
                 warning="Warning"
-                title={"Public IP"}
+                title={props.api.title}
                 updateAcl={async (group, permission) => {
                     const old = acl;
                     const added: ResourceAclEntry[] = []
