@@ -519,7 +519,8 @@ function LoginButton(props: ButtonProps): React.ReactNode {
     return <Button {...props} textColor="fixedBlack" color="fixedWhite" />
 }
 
-function BlackLoginText({ textColor, style, ...props }: TextProps & { textColor: string }) {
+function BlackLoginText(
+    {textColor, style, ...props}: React.PropsWithChildren<TextProps & {textColor: string}>): React.JSX.Element {
     return (
         <Text
             className={LoginTextClass}
