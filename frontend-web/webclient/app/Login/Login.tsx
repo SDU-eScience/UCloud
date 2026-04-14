@@ -704,7 +704,7 @@ const HalricLoginHeader: React.FunctionComponent<TextColorProps> = ({textColor})
     </>;
 };
 
-const HalricLoginFooter: React.FunctionComponent<TextColorProps> = (textColor) => {
+const HalricLoginFooter: React.FunctionComponent<TextColorProps> = ({textColor}) => {
     return <Flex gap={"64px"} alignItems={"center"} justifyContent={"center"} my={"128px"}>
         <Flex justifyContent={"center"} gap={"8px"} alignItems={"center"}>
             <Icon size={40} name={"logoEsc"} />
