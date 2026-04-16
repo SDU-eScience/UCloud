@@ -15,6 +15,9 @@ import {
     testCtx,
     TestContexts,
 } from "./shared";
+import {default as data} from "./test_data.json" with {type: "json"};
+import {default as pAndP} from "./provider_and_products.json" with {type: "json"};
+const PRODUCTS = pAndP[data.location_origin].products_used_in_tests;
 
 test.beforeEach(async ({page}, testInfo) => {
     const doSkipInitialization = testInfo.titlePath.find((it) => [
@@ -171,39 +174,39 @@ echo "${BashScriptStringContent}"
                 await File.actionByRowTitle(page, "stdout-0.log", "dblclick");
                 await page.getByText(BashScriptStringContent).waitFor();
             });
+        });
 
-            test("Licenses - check license system works", async ({page}) => {
-                test.setTimeout(240_000);
-                await Resources.goTo(page, "Licenses");
-                const licenseId = await Resources.Licenses.activateLicense(page);
-                await Applications.goToApplications(page);
-                await Applications.searchFor(page, AppNames.LicenseTestApplication);
-                await page.locator("a[class^=app-card]").getByText("License Test").first().click();
+        test("Licenses - check license system works", async ({page}) => {
+            test.setTimeout(240_000);
+            await Resources.goTo(page, "Licenses");
+            const licenseId = await Resources.Licenses.activateLicense(page);
+            await Applications.goToApplications(page);
+            await Applications.searchFor(page, AppNames.LicenseTestApplication);
+            await page.locator("a[class^=app-card]").getByText("License Test").first().click();
 
-                await page.locator("div[class^=rich-select-trigger]").nth(1).waitFor();
+            await page.locator("div[class^=rich-select-trigger]").nth(1).waitFor();
 
-                const versionSelect = page.locator("div[class^=rich-select-trigger]").last();
-                if (await versionSelect.innerText() === "3") {
-                    await versionSelect.click();
-                    await page.locator("div[class^=rich-select-result-wrapper] > div", {hasText: "4"}).click();
-                }
+            const versionSelect = page.locator("div[class^=rich-select-trigger]").last();
+            if (await versionSelect.innerText() === "3") {
+                await versionSelect.click();
+                await page.locator("div[class^=rich-select-result-wrapper] > div", {hasText: "4"}).click();
+            }
 
-                await Components.selectAvailableMachineType(page);
+            await Components.selectAvailableMachineType(page);
 
-                await page.getByRole("button", {name: "Submit"}).waitFor();
-                await page.mouse.wheel(0, 1000);
-                await page.getByPlaceholder("Select license server...").waitFor();
+            await page.getByRole("button", {name: "Submit"}).waitFor();
+            await page.mouse.wheel(0, 1000);
+            await page.getByPlaceholder("Select license server...").waitFor();
 
-                // Click submit, don't expect a backend response
-                await page.getByRole("button", {name: "Submit"}).click();
-                // See that license is required
-                await page.getByText("A value is missing for this mandatory field").first().waitFor();
-                await page.getByPlaceholder("Select license server...").click();
-                await page.getByRole("dialog").locator(".row", {hasText: licenseId.toString()}).getByRole("button", {name: "Use"}).click();
+            // Click submit, don't expect a backend response
+            await page.getByRole("button", {name: "Submit"}).click();
+            // See that license is required
+            await page.getByText("A value is missing for this mandatory field").first().waitFor();
+            await page.getByPlaceholder("Select license server...").click();
+            await page.getByRole("dialog").locator(".row", {hasText: licenseId.toString()}).getByRole("button", {name: "Use"}).click();
 
-                await Runs.submitAndWaitForRunning(page);
-                await Runs.terminateViewedRun(page);
-            });
+            await Runs.submitAndWaitForRunning(page);
+            await Runs.terminateViewedRun(page);
         });
 
         test("multinode, connect to other jobs", async ({page}) => {
@@ -257,7 +260,7 @@ echo "${BashScriptStringContent}"
         test("disallow start from locked allocation", async ({page: adminPage, context}) => {
             test.setTimeout(240_000);
             const {userPage, user} =
-                await User.createUserWithProjectAndAssignRole(adminPage, context, ctx, {"Core-hours requested": 5, "GB requested": 1});
+                await User.createUserWithProjectAndAssignRole(adminPage, context, ctx, [[PRODUCTS.compute, 5], [PRODUCTS.storage, 1]]);
 
             const jobName = Runs.newJobName();
             const term = await Applications.runAppAndOpenTerminalWithTerminalPage(userPage, AppNames.TestApplication, 1, undefined, jobName);
@@ -296,7 +299,7 @@ echo "${BashScriptStringContent}"
 
         test("Compute - check accounting", async ({page: adminPage, context}) => {
             test.setTimeout(240_000);
-            const {userPage, user} = await User.createUserWithProjectAndAssignRole(adminPage, context, ctx, {"Core-hours requested": 1, "GB requested": 1});
+            const {userPage, user} = await User.createUserWithProjectAndAssignRole(adminPage, context, ctx, [[PRODUCTS.compute, 1], [PRODUCTS.storage, 1]]);
 
             await Accounting.goTo(userPage, "Allocations");
             await userPage.getByText("0 / 1 Core-hours (0%)", {exact: true}).first().waitFor();

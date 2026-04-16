@@ -3,16 +3,14 @@ import fs from "fs";
 
 // Note(Jonas): If it complains that it doesn"t exist, create it.
 import {default as data} from "./test_data.json" with {type: "json"};
+import {default as providerAndProductsImport} from "./provider_and_products.json" with {type: "json"};
 import {default as testUsers} from "../test_data/user_test_data.json" with {type: "json"};
-
 
 const LoginPageUrl = ucloudUrl("login");
 
 export type Contexts =
     | "Project PI" | "Project Admin" | "Project User" | "Personal Workspace";
 
-// The usage of this should be legal, but something (maybe this?) is causing the Playwright UI to refresh.
-// https://playwright.dev/docs/test-parameterize
 export const TestContexts: Contexts[] = ["Project PI", "Project Admin", "Project User", "Personal Workspace"];
 
 export const TestUsers: Record<Contexts, {username: string; password: string;}> = {
@@ -22,18 +20,43 @@ export const TestUsers: Record<Contexts, {username: string; password: string;}> 
     "Personal Workspace": data.users.with_resources
 };
 
+const providerAndProducts: {
+    provider_used_in_tests: string,
+    products_used_in_tests: {
+        compute: string;
+        storage: string;
+        license: string;
+        ingress: string;
+    },
+    machine_used_in_tests: string,
+    application_text_fields: {
+        existing: string[],
+        new: string[]
+    }
+} = providerAndProductsImport[data.location_origin]
+
+export const ProviderInfo = {
+    providerTitle(): string {
+        return providerAndProducts.provider_used_in_tests;
+    },
+}
+
 export const User = {
     newUserCredentials(): {username: string; password: string;} {
-        const username = Help.newResourceName("user");
+        const username = Help.newResourceName("test-user");
         return {username, password: username + "_" + username};
     },
 
     async toLoginPage(page: Page): Promise<void> {
         await page.goto(LoginPageUrl);
+        await page.waitForLoadState("domcontentloaded");
     },
 
     async login(page: Page, user: {username: string; password: string;}, fillUserInfo: boolean = false): Promise<void> {
         await this.toLoginPage(page);
+        if (await page.getByText("Other login options").isVisible()) {
+            await page.getByText("Other login options").click();
+        }
         await page.getByRole("textbox", {name: "Username"}).fill(user.username);
         await page.getByRole("textbox", {name: "Password"}).fill(user.password);
         await page.getByRole("button", {name: "Login"}).click();
@@ -64,7 +87,7 @@ export const User = {
         await page.getByRole("textbox", {name: "Password", exact: true}).fill(user.password);
         await page.getByRole("textbox", {name: "Repeat password", exact: true}).fill(user.password);
 
-        await page.getByRole("textbox", {name: "Email"}).fill(user.username + "@mail.dk");
+        await page.getByRole("textbox", {name: "Email"}).fill(user.username + "@e2etest.internal");
 
         await page.getByRole("textbox", {name: "First names"}).fill(user.username)
         await page.getByRole("textbox", {name: "Last name"}).fill(Math.random() > .5 ? "the Second" : "the Third");
@@ -117,7 +140,7 @@ export const User = {
             case "Project PI":
             case "Project User": {
                 const projectName = Project.newProjectName();
-                await fillApplicationAndSubmit(admin, projectName, quotas);
+                await fillApplicationAndSubmit(admin, projectName, quotas, true);
                 await Accounting.GrantApplication.approve(admin);
                 await Components.goToDashboard(admin);
                 await Project.changeTo(admin, projectName);
@@ -134,9 +157,9 @@ export const User = {
                 break;
             }
             case "Personal Workspace": {
-                const id = await fillApplicationAndSubmit(userPage, undefined, quotas);
+                const id = await fillApplicationAndSubmit(userPage, undefined, quotas, false);
                 await Accounting.goTo(admin, "Grant applications");
-                await Project.changeTo(admin, "Provider K8s");
+                await Project.changeTo(admin, ProviderInfo.providerTitle());
                 await admin.getByText("Show applications received").click();
                 await Rows.actionByRowTitle(admin, `${id}: Personal workspace of ${user.username}`, "dblclick");
                 await Accounting.GrantApplication.approve(admin);
@@ -146,7 +169,7 @@ export const User = {
 
         return {userPage, user};
 
-        async function fillApplicationAndSubmit(page: Page, projectName: string | undefined, quotas: RequestedQuotas): Promise<string> {
+        async function fillApplicationAndSubmit(page: Page, projectName: string | undefined, quotas: RequestedQuotas, isNewProject: boolean): Promise<string> {
             await Accounting.goTo(page, "Apply for resources");
             if (!projectName) {
                 await page.getByText("select an existing project instead").click();
@@ -154,21 +177,16 @@ export const User = {
                 await Accounting.GrantApplication.fillProjectName(page, projectName);
             }
 
-            await Accounting.GrantApplication.toggleGrantGiver(page, "Provider K8s");
+            await Accounting.GrantApplication.toggleGrantGiver(page, ProviderInfo.providerTitle());
 
             await Accounting.GrantApplication.fillQuotaFields(page, quotas);
-            await Accounting.GrantApplication.fillDefaultApplicationTextFields(page);
+            await Accounting.GrantApplication.fillDefaultApplicationTextFields(page, isNewProject);
             return await Accounting.GrantApplication.submit(page);
         }
     }
 }
 
-interface RequestedQuotas {
-    "Core-hours requested"?: number,
-    "GB requested"?: number,
-    "IPs requested"?: number;
-    "Licenses requested"?: number;
-}
+type RequestedQuotas = [string, number][];
 
 export function ucloudUrl(pathname: string): string {
     return ("/app/" + pathname).replaceAll("//", "/");
@@ -517,7 +535,7 @@ export const Components = {
         await page.waitForLoadState("networkidle");
         await page.getByText('No machine type selected').first().click();
         await page.getByRole('cell', {
-            name: data.products_by_provider_and_type.k8s.COMPUTE.name,
+            name: providerAndProducts.machine_used_in_tests,
             disabled: false
         }).first().click();
     },
@@ -829,7 +847,7 @@ export const Resources = {
 
             await page.getByText("Create public IP").click();
 
-            await page.getByRole("dialog").getByText("public-ip").hover();
+            await page.getByRole("dialog").getByText(providerAndProducts.products_used_in_tests.ingress).waitFor();
             await this.fillPortRowInDialog(page);
             const result = await NetworkCalls.awaitResponse(page, "**/api/networkips", async () => {
                 await page.getByRole("button", {name: "create", disabled: false}).click();
@@ -886,7 +904,7 @@ export const Resources = {
         async activateLicense(page: Page): Promise<number> {
             await page.waitForLoadState("networkidle");
             await page.getByText("Activate license").click();
-            await page.getByRole("dialog").getByText("test-license-Quota based").waitFor();
+            await page.getByRole("dialog").getByText(`${providerAndProducts.products_used_in_tests.license}-Quota based`).waitFor();
 
             const result = (await NetworkCalls.awaitResponse(page, "**/api/licenses", async () => {
                 await page.getByRole("dialog").getByRole("button", {name: "Activate"}).click();
@@ -931,7 +949,7 @@ export const Terminal = {
     },
 
     async createFile(page: Page, sizeInGB: number) {
-        await this.enterCmd(page, `fallocate -l ${sizeInGB}G example`);
+        await this.enterCmd(page, `dd if=/dev/zero of=1GB bs=1000 count=${sizeInGB * 1000000}`);
     },
 
     async createLargeFile(page: Page): Promise<void> {
@@ -1008,23 +1026,22 @@ export const Accounting = {
             await page.getByPlaceholder("Please enter the title of your project").fill(projectName);
         },
 
-        async toggleGrantGiver(page: Page, grantGiver: "Provider K8s"): Promise<void> {
+        async toggleGrantGiver(page: Page, grantGiver: string): Promise<void> {
             await page.waitForLoadState();
             await page.locator("label", {hasText: grantGiver}).waitFor();
             await page.locator("label", {hasText: grantGiver}).last().click();
         },
 
         async fillQuotaFields(page: Page, quotas: RequestedQuotas): Promise<void> {
-            for (const key of Object.keys(quotas)) {
-                if (quotas[key] == null) continue;
-                await page.getByRole("spinbutton", {name: key}).fill(quotas[key].toString());
+            for (const [productName, quota] of quotas) {
+                await page.locator(`input[id *= '/${productName}/']`).fill(quota.toString());
             }
         },
 
-        async fillDefaultApplicationTextFields(page: Page): Promise<void> {
-            const textFields = [{name: "Application", content: "Text description"}];
+        async fillDefaultApplicationTextFields(page: Page, isNewProject: boolean): Promise<void> {
+            const textFields = isNewProject ? providerAndProducts.application_text_fields.new : providerAndProducts.application_text_fields.existing;
             for (const applicationField of textFields) {
-                await page.getByRole("textbox", {name: applicationField.name, exact: true}).fill(applicationField.content);
+                await page.getByRole("textbox", {name: applicationField}).fill("Testing purposes");
             }
         },
 
@@ -1049,10 +1066,7 @@ export const Accounting = {
 };
 
 export const Admin = {
-    AdminUser: {
-        username: "user",
-        password: "mypassword"
-    },
+    AdminUser: data.users.admin,
 
     async newLoggedInAdminPage(existingPage: Page): Promise<Page> {
         const page = existingPage;

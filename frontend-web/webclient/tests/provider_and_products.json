@@ -1,0 +1,52 @@
+{
+    "https://ucloud.localhost.direct": {
+        "provider_used_in_tests": "Provider K8s",
+        "products_used_in_tests": {
+            "compute": "u1-standard",
+            "storage": "storage",
+            "license": "test-license",
+            "ingress": "public-ip"
+        },
+        "machine_used_in_tests": "u1-standard-1",
+        "application_text_fields": {
+            "existing": [],
+            "new": []
+        }
+    },
+    "https://dev.cloud.sdu.dk": {
+        "provider_used_in_tests": "Type 1 - Generic front-office",
+        "products_used_in_tests": {
+            "compute": "standard-cpu",
+            "storage": "standard-storage",
+            "license": "sdu-matlab",
+            "ingress": "public-ip"
+        },
+        "machine_used_in_tests": "standard-cpu-1",
+        "application_text_fields": {
+            "new": [
+                "T1 project",
+                "Full abstract",
+                "Description of the specific research activities"
+            ],
+            "existing": [
+                "Project title",
+                "Short abstract",
+                "Description of the specific research activities"
+            ]
+        }
+    },
+    "https://cloud.sdu.dk": {
+        "provider_used_in_tests": "",
+        "products_used_in_tests": {
+            "compute": "",
+            "storage": "",
+            "license": "",
+            "ingress": ""
+        },
+        "machine_used_in_tests": "",
+        "application_text_fields": {
+            "new": [],
+            "existing": []
+        }
+    }
+}

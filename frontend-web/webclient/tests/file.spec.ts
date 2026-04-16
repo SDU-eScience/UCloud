@@ -1,6 +1,8 @@
 import {test, expect} from '@playwright/test';
 import {Components, Drive, File, User, Rows, Terminal, NetworkCalls, Project, testCtx, TestContexts, Contexts, ctxUser, Runs, Accounting, Applications, Admin} from "./shared";
 import {default as data} from "./test_data.json" with {type: "json"};
+import {default as pAndP} from "./provider_and_products.json" with {type: "json"};
+const PRODUCTS = pAndP[data.location_origin].products_used_in_tests;
 
 const {dirname} = import.meta;
 
@@ -270,7 +272,7 @@ TestContexts.map(ctx => {
 
         test("Files - accounting works", async ({page: adminPage, context}) => {
             test.setTimeout(240_000);
-            const {userPage, user} = await User.createUserWithProjectAndAssignRole(adminPage, context, ctx, {"Core-hours requested": 5, "GB requested": 2});
+            const {userPage, user} = await User.createUserWithProjectAndAssignRole(adminPage, context, ctx, [[PRODUCTS.storage, 2], [PRODUCTS.compute, 5]]);
 
             await Accounting.goTo(userPage, "Allocations");
             await userPage.getByText("0 GB / 2 GB (0%)").first().waitFor();
