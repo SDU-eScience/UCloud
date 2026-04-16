@@ -396,7 +396,13 @@ func initJobs() {
 				switch item.SessionType {
 				case orcapi.InteractiveSessionTypeShell:
 					jobCleanupShellSessions()
-
+					if item.Job.Owner.Project.Present {
+						policies := RetrievePoliciesByProject(item.Job.Owner.Project.Value)
+						_, isRestricted := policies[fnd.RestrictCutAndPaste.String()]
+						if isRestricted {
+							break
+						}
+					}
 					shellSessionsMutex.Lock()
 					tok := util.RandomToken(32)
 					shellSessions[tok] = &ShellSession{Alive: true, Job: &item.Job, Rank: item.Rank, UCloudUsername: info.Actor.Username}
@@ -503,6 +509,13 @@ func initJobs() {
 						}
 						if IsSourceIPRestricted(policies, info) {
 							return fnd.BulkResponse[orcapi.OpenSession]{}, util.HttpErr(http.StatusForbidden, "Client IP is not allowed")
+						}
+						if dInfo.Owner.Project.Present {
+							policies := RetrievePoliciesByProject(dInfo.Owner.Project.Value)
+							_, isRestricted := policies[fnd.RestrictCutAndPaste.String()]
+							if isRestricted {
+								return fnd.BulkResponse[orcapi.OpenSession]{}, util.HttpErr(http.StatusForbidden, "Project does not allow integrated terminal (IM side)")
+							}
 						}
 					} else {
 						return fnd.BulkResponse[orcapi.OpenSession]{}, util.HttpErr(http.StatusNotFound, "Folder cannot be found")
