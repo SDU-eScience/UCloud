@@ -76,6 +76,7 @@ func Init(config *cfg.ServicesConfigurationKubernetes) {
 	initJobAuditLogCleanup()
 	controller.ApiTokens = inferenceInitApiTokens()
 	shared.InitExecutables()
+	initSshTerminal()
 
 	controller.ProductsRegister(shared.Machines)
 	controller.ProductsRegister(shared.StorageProducts)

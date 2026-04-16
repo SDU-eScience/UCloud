@@ -29,6 +29,7 @@ func Init() {
 	db.AddMigration(ingressDatabaseV1())
 	db.AddMigration(licenseDatabaseV1())
 	db.AddMigration(jobDatabaseV3())
+	db.AddMigration(sshDatabaseV1())
 	db.AddMigration(ipDatabaseV2())
 	db.AddMigration(inferenceV1())
 	db.AddMigration(audit.MigrationV1())

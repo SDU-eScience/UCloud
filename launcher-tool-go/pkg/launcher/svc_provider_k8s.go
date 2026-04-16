@@ -67,7 +67,7 @@ func ProviderK8s() {
 	AddService(provider, DockerComposeService{
 		Image:    ImDevImage,
 		Hostname: "k8s",
-		Ports:    []string{"51240:51233"},
+		Ports:    []string{"51240:51233", "43202:43202"},
 		Command:  []string{"sleep", "inf"},
 		Volumes:  volumes,
 	})

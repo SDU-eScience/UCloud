@@ -93,6 +93,7 @@ func TerminalOpen(owner orc.ResourceOwner, folders []string) (*TerminalSandbox, 
 	sandbox, err := terminalMutate(owner, util.OptNone[string](), func(config *IntegratedTerminalConfig) (bool, *util.HttpError) {
 		oldFolders := config.Folders
 		config.Folders = terminalNormalizeFolders(append(config.Folders, folders...))
+
 		return !slices.Equal(oldFolders, config.Folders), nil
 	})
 	if err != nil {

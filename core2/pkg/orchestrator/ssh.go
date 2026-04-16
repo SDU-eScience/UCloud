@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"slices"
 	"ucloud.dk/core/pkg/coreutil"
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database"
@@ -49,6 +50,67 @@ func initSsh() {
 		} else {
 			return fndapi.PageV2[orcapi.SshKey]{ItemsPerPage: len(keys), Items: keys}, nil
 		}
+	})
+
+	orcapi.SshControlBrowse.Handler(func(info rpc.RequestInfo, request orcapi.SshKeysControlBrowseRequest) (fndapi.PageV2[orcapi.SshKey], *util.HttpError) {
+		providerId, ok := strings.CutPrefix(info.Actor.Username, fndapi.ProviderSubjectPrefix)
+		if !ok || providerId == "" {
+			return fndapi.PageV2[orcapi.SshKey]{}, util.HttpErr(http.StatusForbidden, "forbidden")
+		}
+
+		relevantOwners := sshControlBrowseRelevantOwners(providerId)
+		if len(relevantOwners) == 0 {
+			return fndapi.PageV2[orcapi.SshKey]{ItemsPerPage: fndapi.ItemsPerPage(request.ItemsPerPage)}, nil
+		}
+
+		itemsPerPage := fndapi.ItemsPerPage(request.ItemsPerPage)
+		return db.NewTx(func(tx *db.Transaction) fndapi.PageV2[orcapi.SshKey] {
+			rows := db.Select[struct {
+				Id        int
+				Owner     string
+				CreatedAt time.Time
+				Title     string
+				Key       string
+			}](
+				tx,
+				fmt.Sprintf(`
+					select id, owner, created_at, title, key
+					from app_orchestrator.ssh_keys
+					where
+						owner = some(:owners::text[])
+						and (
+							:next::bigint is null
+							or id > :next::bigint
+						)
+					order by id
+					limit %v
+				`, itemsPerPage),
+				db.Params{
+					"owners": relevantOwners,
+					"next":   request.Next.Sql(),
+				},
+			)
+
+			items := make([]orcapi.SshKey, 0, len(rows))
+			for _, row := range rows {
+				items = append(items, orcapi.SshKey{
+					Id:        strconv.Itoa(row.Id),
+					Owner:     row.Owner,
+					CreatedAt: fndapi.Timestamp(row.CreatedAt),
+					Specification: orcapi.SshKeySpecification{
+						Title: row.Title,
+						Key:   row.Key,
+					},
+				})
+			}
+
+			next := util.Option[string]{}
+			if len(rows) >= itemsPerPage {
+				next.Set(strconv.Itoa(rows[len(rows)-1].Id))
+			}
+
+			return fndapi.PageV2[orcapi.SshKey]{ItemsPerPage: itemsPerPage, Items: items, Next: next}
+		}), nil
 	})
 }
 
@@ -102,6 +164,7 @@ func SshKeyCreate(actor rpc.Actor, keys []orcapi.SshKeySpecification) ([]fndapi.
 		}
 		return results
 	})
+	sshControlBrowseOwnersCache.Invalidate(sshControlBrowseOwnersCacheKey)
 	sshKeyNotifyProviders(actor)
 
 	return result, nil
@@ -264,6 +327,7 @@ func SshKeyDelete(actor rpc.Actor, keys []fndapi.FindByStringId) *util.HttpError
 			},
 		)
 	})
+	sshControlBrowseOwnersCache.Invalidate(sshControlBrowseOwnersCacheKey)
 	sshKeyNotifyProviders(actor)
 
 	return nil
@@ -350,4 +414,69 @@ func SshKeyRetrieveByJob(actor rpc.Actor, jobId string, onlyOwner bool) ([]orcap
 		return result
 	})
 	return result, nil
+}
+
+const sshControlBrowseOwnersCacheKey = "owners"
+
+var sshControlBrowseOwnersCache = util.NewCache[string, []string](5 * time.Minute)
+var sshControlBrowseRelevantProvidersCache = util.NewCache[string, []string](15 * time.Minute)
+
+func sshControlBrowseRelevantOwners(providerId string) []string {
+	owners := sshControlBrowseOwners()
+	var result []string
+	for _, owner := range owners {
+		providers := sshControlBrowseRelevantProviders(owner)
+		if slices.Contains(providers, providerId) {
+			result = append(result, owner)
+		}
+	}
+	return result
+}
+
+func sshControlBrowseOwners() []string {
+	owners, ok := sshControlBrowseOwnersCache.Get(sshControlBrowseOwnersCacheKey, func() ([]string, error) {
+		return db.NewTx(func(tx *db.Transaction) []string {
+			rows := db.Select[struct{ Owner string }](
+				tx,
+				`
+					select distinct owner
+					from app_orchestrator.ssh_keys
+					order by owner
+				`,
+				db.Params{},
+			)
+
+			result := make([]string, 0, len(rows))
+			for _, row := range rows {
+				result = append(result, row.Owner)
+			}
+			return result
+		}), nil
+	})
+	if !ok {
+		return nil
+	}
+	return owners
+}
+
+func sshControlBrowseRelevantProviders(username string) []string {
+	providers, ok := sshControlBrowseRelevantProvidersCache.Get(username, func() ([]string, error) {
+		resp, err := accapi.FindRelevantProviders.Invoke(fndapi.BulkRequestOf(accapi.FindRelevantProvidersRequest{
+			Username:          username,
+			UseProject:        false,
+			FilterProductType: util.OptValue(accapi.ProductTypeCompute),
+			IncludeFreeToUse:  util.OptValue(false),
+		}))
+		if err != nil || len(resp.Responses) == 0 {
+			return nil, err
+		}
+
+		result := append([]string{}, resp.Responses[0].Providers...)
+		slices.Sort(result)
+		return result, nil
+	})
+	if !ok {
+		return nil
+	}
+	return providers
 }

@@ -17,6 +17,10 @@ func SshKeyAddListener(listener func(username string, keys []orc.SshKey)) {
 }
 
 func sshKeyUploaded(username string, keys []orc.SshKey) *util.HttpError {
+	if err := ctrl.SshKeyTrackNew(username, keys); err != nil {
+		return err
+	}
+
 	for _, listener := range sshKeyListeners {
 		listener(username, keys)
 	}
