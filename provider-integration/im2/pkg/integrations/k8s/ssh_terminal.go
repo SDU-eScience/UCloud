@@ -38,7 +38,10 @@ func initSshTerminal() {
 				return false
 			}
 
-			ctx.SetValue("owner", owner)
+			ctx.SetValue(sshTerminalContextOwnerKey, owner)
+			if config := controller.IAppRetrieveConfiguration(shared.IntegratedTerminalAppName, orc.ResourceOwner{CreatedBy: owner}); config.Present {
+				ctx.SetValue(sshTerminalContextJobIDKey, config.Value.JobId)
+			}
 			return true
 		}),
 		wish.WithMiddleware(func(next ssh.Handler) ssh.Handler {
@@ -54,6 +57,7 @@ func initSshTerminal() {
 		log.Warn("Failed to create integrated terminal SSH server: %s", err)
 		return
 	}
+	configureSshTerminalForwarding(server)
 
 	go func() {
 		log.Info("Starting integrated terminal SSH server on port %d", sshTerminalPort)
@@ -69,11 +73,12 @@ func handleSshTerminalSession(sess ssh.Session) *util.HttpError {
 		_ = sess.Close()
 	}()
 
-	ownerName, ok := sess.Context().Value("owner").(string)
+	ownerName, ok := sess.Context().Value(sshTerminalContextOwnerKey).(string)
 	if !ok {
 		return util.UserHttpError("Internal error")
 	}
 	owner := orc.ResourceOwner{CreatedBy: ownerName}
+	sess.Context().SetValue(sshTerminalContextJobIDKey, "")
 
 	if sess.Subsystem() == "sftp" {
 		log.Info("SFTP!")
@@ -96,6 +101,7 @@ func handleSshTerminalSession(sess ssh.Session) *util.HttpError {
 	if err != nil {
 		return util.UserHttpError("No active integrated terminal folder session was found")
 	}
+	sess.Context().SetValue(sshTerminalContextJobIDKey, sandbox.JobId)
 
 	command := sess.Command()
 	if len(command) == 0 {
