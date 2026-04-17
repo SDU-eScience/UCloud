@@ -117,7 +117,7 @@ func policiesRetrieve(actor rpc.Actor, request fndapi.RetrievePoliciesRequest) (
 		if !actor.Project.Present {
 			return nil, util.HttpErr(http.StatusBadRequest, "Polices only applicable to projects")
 		}
-		if !actor.Membership[actor.Project.Value].Equals(rpc.ProjectRoleDataManager) {
+		if !actor.Membership[actor.Project.Value].Equals(rpc.ProjectRolePI) {
 			return nil, util.HttpErr(http.StatusForbidden, "Only data managers may list the policies")
 		}
 		projectId = actor.Project.String()
