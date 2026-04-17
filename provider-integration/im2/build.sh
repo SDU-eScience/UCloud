@@ -25,6 +25,10 @@ docker exec -it ucloud-im2-builder-x64 bash -c '
     cd /opt/ucloud/im2 ;
     CGO_ENABLED=0 go build -o bin/ucloud-job-introspection_x86_64 -trimpath ucloud.dk/cmd/ucloud-job-introspection
 '
+docker exec -it ucloud-im2-builder-x64 bash -c '
+    cd /opt/ucloud/im2 ;
+    CGO_ENABLED=0 go build -o bin/ucfs-broker_x86_64 -trimpath ucloud.dk/cmd/ucfs-broker
+'
 
 echo "arm64 compiling..."
 docker exec -it ucloud-im2-builder-arm64 bash -c '
@@ -46,6 +50,10 @@ docker exec -it ucloud-im2-builder-arm64 bash -c '
 docker exec -it ucloud-im2-builder-arm64 bash -c '
     cd /opt/ucloud/im2 ;
     CGO_ENABLED=0 go build -o bin/ucloud-job-introspection_aarch64 -trimpath ucloud.dk/cmd/ucloud-job-introspection
+'
+docker exec -it ucloud-im2-builder-arm64 bash -c '
+    cd /opt/ucloud/im2 ;
+    CGO_ENABLED=0 go build -o bin/ucfs-broker_aarch64 -trimpath ucloud.dk/cmd/ucfs-broker
 '
 
 

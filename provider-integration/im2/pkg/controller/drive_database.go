@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"net/http"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -213,6 +214,58 @@ func DriveEnumerateKnown() []orc.Drive {
 	}
 	drivesActiveMutex.Unlock()
 	return result
+}
+
+type DriveMountCandidate struct {
+	Drive    orc.Drive
+	ReadOnly bool
+}
+
+func DriveMountCandidates(actor orc.ResourceOwner) []DriveMountCandidate {
+	var result []DriveMountCandidate
+
+	for _, drive := range DriveEnumerateKnown() {
+		isShare := strings.HasPrefix(drive.ProviderGeneratedId, "s-")
+
+		if actor.Project.Present {
+			if !drive.Owner.Project.Present || drive.Owner.Project.Value != actor.Project.Value {
+				continue
+			}
+
+			if isShare {
+				continue
+			}
+		} else {
+			if drive.Owner.Project.Present && !isShare {
+				continue
+			}
+		}
+
+		if !ResourceCanUse(actor, drive.Owner, drive.Permissions, true) {
+			continue
+		}
+
+		readOnly := !ResourceCanUse(actor, drive.Owner, drive.Permissions, false)
+		if drive.Status.ResolvedSupport.Present && drive.Status.ResolvedSupport.Value.Support.Files.IsReadOnly {
+			readOnly = true
+		}
+
+		result = append(result, DriveMountCandidate{Drive: drive, ReadOnly: readOnly})
+	}
+
+	sort.Slice(result, func(i, j int) bool {
+		if result[i].Drive.Specification.Title == result[j].Drive.Specification.Title {
+			return result[i].Drive.Id < result[j].Drive.Id
+		}
+
+		return result[i].Drive.Specification.Title < result[j].Drive.Specification.Title
+	})
+
+	return result
+}
+
+func DriveMountCandidatesForJob(job *orc.Job) []DriveMountCandidate {
+	return DriveMountCandidates(job.Owner)
 }
 
 func DriveRetrieve(id string) (*orc.Drive, bool) {
