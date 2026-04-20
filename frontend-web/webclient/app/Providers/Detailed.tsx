@@ -44,7 +44,7 @@ export default function DetailedProvider() {
             </Flex>
         </Flex>
         <Box height="48px" />
-        {entry.sections.map((section, index) =>
+        {entry.sections.map((section, index) => !section.description ? null :
             <Box key={index} my="32px">
                 <TitledCard>
                     <Flex>
@@ -74,7 +74,7 @@ export default function DetailedProvider() {
                     </Flex>
                     <Flex>
                     <div>
-                        <img alt={`Product Section Image`}  style={{height: "150px", objectFit: "scale-down"}} src={prod.section.image} />
+                        {prod.section.image ? <img alt={`Product Section Image`}  style={{height: "150px", objectFit: "scale-down"}} src={prod.section.image} /> : <div />}
                     </div>
                     <div>
                         <br/>
