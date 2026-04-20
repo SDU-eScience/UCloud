@@ -276,7 +276,7 @@ TestContexts.map(ctx => {
             await userPage.getByText("0 GB / 2 GB (0%)").first().waitFor();
 
             const jobName = Runs.newJobName();
-            const term = await Applications.runAppAndOpenTerminalWithTerminalPage(userPage, Applications.AppNames.TestApplication, 1, jobName);
+            const term = await Applications.runAppAndOpenTerminalWithTerminalPage(userPage, Applications.AppNames.TestApplication, 1, undefined, jobName);
             await Terminal.createFile(term, 1);
             await Runs.terminateViewedRun(userPage);
 

@@ -1,6 +1,28 @@
 provider:
   id: slurm
 
+  providerBranding:
+    title: Slurm Dev Provider
+    shortTitle: Dev Slurm provider
+    shortDescription: "Slurm Dev Provider"
+    description: /etc/ucloud/description.md
+    url: https://myprovider.com
+    logo: "/etc/ucloud/images/slurm_provider_logo.png"
+    sections:
+      - description: /etc/ucloud/section.md
+        image: ""
+    productDescription:
+      - category: "u1-standard-slurm"
+        shortDescription: u1-standard provides computation
+        section:
+          description: /etc/ucloud/aproduct.md
+          image: "/etc/ucloud/images/a-cpu.png"
+      - category: "storage-slurm"
+        shortDescription: Provides storage
+        section:
+          description: /etc/ucloud/bproduct.md
+          image: "/etc/ucloud/images/a-hardrive.png"
+
   hosts:
     ucloud:
       address: core2

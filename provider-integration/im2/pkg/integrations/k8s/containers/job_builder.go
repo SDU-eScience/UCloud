@@ -52,6 +52,8 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		}
 	}
 
+	startUcfsBroker := ucfsBrokerEnabled()
+
 	jobFolder, drive, herr := FindJobFolder(job)
 	if herr != nil {
 		return util.UserHttpError("failed to initialize job folder")
@@ -273,6 +275,9 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		userContainer.Resources.Limits[core.ResourceCPU] = *quantity
 	}
 	addResource(core.ResourceMemory, memoryMegabytes, resource.Mega)
+	if startUcfsBroker {
+		subtractUcfsBrokerReservation(userContainer)
+	}
 	if gpus > 0 {
 		addResource(core.ResourceName(gpuType), gpus, 0)
 	}
@@ -298,6 +303,9 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	internalToPod, ok := prepareMountsOnJobCreate(job, pod, userContainer, jobFolder)
 	if !ok {
 		return util.ServerHttpError("Unable to use these folders together. One or more are sensitive.")
+	}
+	if startUcfsBroker {
+		prepareUcfsBrokerSharedVolume(pod, userContainer, job, rank)
 	}
 
 	// Modules
@@ -493,6 +501,9 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 			Name:       pod.Name,
 			UID:        pod.UID,
 		}
+	}
+	if startUcfsBroker && herr == nil {
+		startUcfsBrokerIfEnabled(job, rank, node, pod)
 	}
 	if firewall != nil && herr == nil {
 		firewall.OwnerReferences = append(firewall.OwnerReferences, ownerReference)
