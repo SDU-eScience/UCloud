@@ -246,7 +246,8 @@ func terminalMutate(
 	}
 
 	if didUpdate || (current.Present && current.Value.IsDetached()) {
-		terminalValidateFolders(sb)
+		validation := terminalValidateFolders(owner, config.Folders)
+		config.Folders = validation.Folders
 
 		data, err := json.Marshal(config)
 		if err != nil {
@@ -262,6 +263,7 @@ func terminalMutate(
 			return nil, util.ServerHttpError("error configuring terminal sandbox")
 		}
 		sandbox := terminalSandboxFromConfiguration(updated.Value)
+		sandbox.Warnings = validation.Warnings
 		return sandbox, nil
 	} else {
 		return terminalSandboxFromConfiguration(current.Value), nil
@@ -309,9 +311,13 @@ func terminalNormalizeFolders(folders []string) []string {
 	return result
 }
 
-func terminalValidateFolders(sb *TerminalSandbox) {
-	owner := sb.Owner
-	folders := sb.Folders
+type terminalValidateFoldersResult struct {
+	Warnings []string
+	Folders  []string
+}
+
+func terminalValidateFolders(owner orc.ResourceOwner, folders []string) terminalValidateFoldersResult {
+	sb := terminalValidateFoldersResult{}
 	newFolders := make([]string, 0, len(folders))
 	for _, folder := range folders {
 		driveId, ok := orc.DriveIdFromUCloudPath(folder)
@@ -340,6 +346,7 @@ func terminalValidateFolders(sb *TerminalSandbox) {
 	}
 
 	sb.Folders = newFolders
+	return sb
 }
 
 func (cmd *TerminalCmd) Err() *util.HttpError {
