@@ -26,6 +26,15 @@ type WalletV2 struct {
 	LastSignificantUpdateAt fnd.Timestamp `json:"lastSignificantUpdateAt"`
 }
 
+func (w *WalletV2) HasAllocations() bool {
+	for _, group := range w.AllocationGroups {
+		if len(group.Group.Allocations) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
 type AllocationGroup struct {
 	Id          int          `json:"id"`
 	Allocations []Allocation `json:"allocations"`
