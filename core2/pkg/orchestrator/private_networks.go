@@ -148,6 +148,10 @@ func PrivateNetworkCreate(actor rpc.Actor, request fndapi.BulkRequest[orcapi.Pri
 	var responses []orcapi.PrivateNetwork
 
 	for _, item := range request.Items {
+		if strings.HasPrefix(item.Subdomain, "ucloud-") {
+			return nil, util.HttpErr(http.StatusBadRequest, "invalid subdomain requested")
+		}
+
 		_, ok := SupportByProduct[orcapi.PrivateNetworkSupport](privateNetworkType, item.Product)
 		if !ok {
 			return nil, util.HttpErr(http.StatusBadRequest, "unsupported operation")
