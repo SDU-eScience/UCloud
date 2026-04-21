@@ -501,7 +501,9 @@ func providerNotificationHandleClient(conn *ws.Conn) {
 
 		case wallet, ok := <-walletUpdates:
 			if ok {
-				appendWallet(wallet)
+				if wallet.HasAllocations() {
+					appendWallet(wallet)
+				}
 			}
 
 		case project, ok := <-projectUpdates:
