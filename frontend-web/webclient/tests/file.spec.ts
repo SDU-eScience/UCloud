@@ -1,5 +1,5 @@
 import {test, expect} from '@playwright/test';
-import {Components, Drive, File, User, Rows, Terminal, NetworkCalls, Project, testCtx, TestContexts, Contexts, ctxUser, Runs, Accounting, Applications, Admin} from "./shared";
+import {Components, Drive, File, User, Rows, Terminal, NetworkCalls, Project, testCtx, TestContexts, Contexts, ctxUser, Runs, Accounting, Applications, Admin, isDev, isProd} from "./shared";
 import {default as data} from "./test_data.json" with {type: "json"};
 import {default as pAndP} from "./provider_and_products.json" with {type: "json"};
 const PRODUCTS = pAndP.find(it => it.location_origin === data.location_origin)!.products_used_in_tests;
@@ -272,10 +272,21 @@ TestContexts.map(ctx => {
 
         test("Files - accounting works", async ({page: adminPage, context}) => {
             test.setTimeout(240_000);
-            const {userPage, user} = await User.createUserWithProjectAndAssignRole(adminPage, context, ctx, [[PRODUCTS.storage, 2], [PRODUCTS.compute, 5]]);
+            const AUTOGIFTED_RESOURCES = (isDev(data.location_origin) || isProd(data.location_origin)) && ctx == "Personal Workspace";
+
+            const quotas: [string, number][] = [[PRODUCTS.compute, 1]];
+            // Skip applying for storage for personal workspaces, as they already are given gifts.
+            if (AUTOGIFTED_RESOURCES == false) {
+                quotas.push([PRODUCTS.storage, 2]);
+            }
+            const {userPage, user} = await User.createUserWithProjectAndAssignRole(adminPage, context, ctx, quotas);
 
             await Accounting.goTo(userPage, "Allocations");
-            await userPage.getByText("0 GB / 2 GB (0%)").first().waitFor();
+            if (AUTOGIFTED_RESOURCES) {
+                await userPage.getByText(`0 GB / 50 GB (0%)`).first().waitFor();
+            } else {
+                await userPage.getByText(`0 GB / 2 GB (0%)`).first().waitFor();
+            }
 
             const jobName = Runs.newJobName();
             const term = await Applications.runAppAndOpenTerminalWithTerminalPage(userPage, Applications.AppNames.TestApplication, 1, undefined, jobName);
@@ -288,7 +299,11 @@ TestContexts.map(ctx => {
 
             await File.triggerStorageScan(userPage, driveName);
             await Accounting.goTo(userPage, "Allocations");
-            await userPage.getByText("1 GB / 2 GB (50%)").first().waitFor();
+            if (AUTOGIFTED_RESOURCES) {
+                await userPage.getByText(`1 GB / 50 GB (2%)`).first().waitFor();
+            } else {
+                await userPage.getByText(`1 GB / 2 GB (50%)`).first().waitFor();
+            }
 
             await Drive.goToDrives(userPage);
             await Drive.openDrive(userPage, driveName);

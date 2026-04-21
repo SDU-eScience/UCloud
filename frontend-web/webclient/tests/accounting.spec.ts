@@ -1,10 +1,14 @@
 import test from "@playwright/test";
-import {Accounting, Admin, Components, Project, ProviderInfo, Rows, User} from "./shared";
+import {Accounting, Admin, Components, isDev, isProd, Project, ProviderInfo, Rows, User} from "./shared";
 import {default as data} from "./test_data.json" with {type: "json"};
 import {default as pAndP} from "./provider_and_products.json" with {type: "json"};
 const PRODUCTS = pAndP.find(it => it.location_origin === data.location_origin)!.products_used_in_tests;
 
 test("Apply for resources, approve (from admin user), verify resources are in allocations", async ({page: adminPage, context}) => {
+    if (isDev(data.location_origin) || isProd(data.location_origin)) {
+        // Gifts are given to users, so "You do not have any allocations at the moment" is never presented
+        test.skip();
+    }
     test.setTimeout(60_000);
     const adminUserPage = await Admin.newLoggedInAdminPage(adminPage);
     await Components.projectSwitcher(adminUserPage, "click");

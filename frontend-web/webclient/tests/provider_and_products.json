@@ -6,6 +6,7 @@
             "compute": "u1-standard",
             "storage": "storage",
             "license": "test-license",
+            "public_link": "public-links",
             "public_ip": "public-ip"
         },
         "machine_used_in_tests": "u1-standard-1",
@@ -21,6 +22,7 @@
             "compute": "standard-cpu",
             "storage": "standard-storage",
             "license": "sdu-matlab",
+            "public_link": "standard-link",
             "public_ip": null
         },
         "machine_used_in_tests": "standard-cpu-1",
@@ -45,6 +47,7 @@
             "compute_for_danfoss_center": "cpu-amd-zen5",
             "storage": "u1-cephfs",
             "license": "Mathematica_SDU",
+            "public_link": "u1-publiclink",
             "public_ip": null
         },
         "machine_used_in_tests": "u1-standard-h",

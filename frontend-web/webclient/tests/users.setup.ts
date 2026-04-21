@@ -93,7 +93,7 @@ async function makeGrantApplication(page: Page, projectName?: string): Promise<s
         const requestedResources: [string, number][] = [
             [PRODUCTS.compute, 50],
             [PRODUCTS.storage, 10],
-            [PRODUCTS.license, 5],
+            [PRODUCTS.license, projectName ? 3 : 1],
         ];
 
         if (PRODUCTS.public_ip != null) {

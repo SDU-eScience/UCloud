@@ -8,6 +8,18 @@ import {default as testUsers} from "../test_data/user_test_data.json" with {type
 
 const LoginPageUrl = ucloudUrl("login");
 
+export function isDev(url: string): boolean {
+    return url === "https://dev.cloud.sdu.dk";
+}
+
+export function isProd(url: string): boolean {
+    return url === "https://cloud.sdu.dk";
+}
+
+export function isLocalDev(url: string): boolean {
+    return url === "https://ucloud.localhost.direct";
+}
+
 export type Contexts =
     | "Project PI" | "Project Admin" | "Project User" | "Personal Workspace";
 
@@ -39,7 +51,10 @@ export const User = {
     },
 
     async toLoginPage(page: Page): Promise<void> {
-        await page.goto(LoginPageUrl);
+        await NetworkCalls.awaitResponse(page, "**/api/branding/retrieve", async () => {
+            await page.goto(LoginPageUrl);
+        });
+        await page.waitForTimeout(500);
         await page.waitForLoadState("domcontentloaded");
     },
 
@@ -703,7 +718,6 @@ export const Runs = {
     },
 
     async openTerminal(page: Page): Promise<Page> {
-        await page.locator("div[class^=notification]").waitFor({state: "hidden"});
         const terminalPagePromise = page.waitForEvent("popup");
         await page.getByRole("button", {name: "Open terminal"}).click();
         const terminalPage = await terminalPagePromise;
@@ -816,10 +830,19 @@ export const Resources = {
             await NetworkCalls.awaitProducts(page, async () => {
                 await Resources.goTo(page, "Links");
             });
+
             const name = publicLinkName ?? this.newPublicLinkName();
+
             await page.getByText("Create public link").click();
             // Note(Jonas): nth(1) because we are skipping the hidden search field
             await page.getByRole("textbox").nth(1).fill(name);
+
+            if (await page.getByRole("dialog").getByText("No product selected").isVisible()) {
+                await page.getByRole("dialog").getByText("No product selected").click();
+                await page.getByRole('cell', {name: providerAndProducts.products_used_in_tests.public_link}).click();
+            }
+
+
             await page.getByRole("button", {name: "Create", disabled: false}).click();
             return name;
         },
@@ -898,10 +921,14 @@ export const Resources = {
         async activateLicense(page: Page): Promise<number> {
             await page.waitForLoadState("networkidle");
             await page.getByText("Activate license").click();
-            await page.getByRole("dialog").getByText(`${providerAndProducts.products_used_in_tests.license}-Quota based`).waitFor();
+
+            if (await page.getByRole("dialog").getByText("No product selected").isVisible()) {
+                await page.getByRole("dialog").getByText("No product selected").click();
+                await page.getByRole('cell', {name: providerAndProducts.products_used_in_tests.license}).click();
+            }
 
             const result = (await NetworkCalls.awaitResponse(page, "**/api/licenses", async () => {
-                await page.getByRole("dialog").getByRole("button", {name: "Activate"}).click();
+                await page.getByRole("dialog").getByRole("button", {name: "Activate", disabled: false}).click();
             }));
 
             const obj: {responses: {id: number}[]} = JSON.parse(await result.text());
@@ -943,16 +970,14 @@ export const Terminal = {
     },
 
     async createFile(page: Page, sizeInGB: number) {
-        if (data.location_origin === "https://ucloud.localhost.direct") {
-            /* `dd` is VERY slow on local environments  */
-            await this.enterCmd(page, `fallocate -l ${sizeInGB}G example`);
+        if (isDev(data.location_origin)) {
+            // fallocate is not supported on dev.
+            await this.enterCmd(page, `dd if=/dev/zero of=example bs=1000 count=${sizeInGB * 1000000} && echo "file creation done!"`);
         } else {
-            await this.enterCmd(page, `dd if=/dev/zero of=1GB bs=1000 count=${sizeInGB * 1000000}`);
+            await this.enterCmd(page, `fallocate -l ${sizeInGB}G example && echo "file creation done!"`);
         }
-    },
 
-    async createLargeFile(page: Page): Promise<void> {
-        await this.createFile(page, 2);
+        await page.getByText("file creation done!", {exact: true}).waitFor({timeout: 30_000});
     }
 }
 

@@ -14,6 +14,8 @@ import {
     Project,
     testCtx,
     TestContexts,
+    isProd,
+    isDev,
 } from "./shared";
 import {default as data} from "./test_data.json" with {type: "json"};
 import {default as pAndP} from "./provider_and_products.json" with {type: "json"};
@@ -141,7 +143,8 @@ TestContexts.map((ctx) => {
         test.describe("Compute - check starting jobs works", () => {
             test("optional/mandatory parameters, logs", async ({page}) => {
                 test.setTimeout(120_000);
-                const BashScriptName = "init.sh";
+                const pseudoRandomNumberString = Math.random().toString().slice(2, 7);
+                const BashScriptName = "init" + pseudoRandomNumberString + ".sh";
                 const BashScriptStringContent = "Visible from the terminal " + ((Math.random() * 100) | 0);
                 const FancyBashScript = `
 #!/usr/bin/env bash
@@ -160,7 +163,7 @@ echo "${BashScriptStringContent}"
                     await page.getByRole("textbox", {name: "No file selected"}).click();
                 });
                 await File.ensureDialogDriveActive(page, driveName);
-                await page.getByRole("dialog").locator(".row", {hasText: BashScriptName}).getByRole("button", {name: "Use"}).click();
+                await Components.useDialogBrowserItem(page, BashScriptName, "Use");
 
                 await page.mouse.wheel(0, -5000);
                 await Components.selectAvailableMachineType(page);
@@ -207,6 +210,10 @@ echo "${BashScriptStringContent}"
 
             await Runs.submitAndWaitForRunning(page);
             await Runs.terminateViewedRun(page);
+
+            await Resources.goTo(page, "Licenses");
+            await Resources.actionByRowTitle(page, `${PRODUCTS.license} (${licenseId})`, "click");
+            await Components.clickConfirmationButton(page, "Delete", 2000);
         });
 
         test("multinode, connect to other jobs", async ({page}) => {
@@ -259,12 +266,25 @@ echo "${BashScriptStringContent}"
 
         test("disallow start from locked allocation", async ({page: adminPage, context}) => {
             test.setTimeout(240_000);
+
+            const AUTOGIFTED_RESOURCES = (isProd(data.location_origin) || isDev(data.location_origin)) && ctx === "Personal Workspace";
+            const FILE_SIZE_IN_GB = AUTOGIFTED_RESOURCES ? 50 : 1;
+
+            const quotas: [string, number][] = [[PRODUCTS.compute, 5]];
+            if (!AUTOGIFTED_RESOURCES) {
+                quotas.push([PRODUCTS.storage, FILE_SIZE_IN_GB]);
+            } else if (isDev(data.location_origin)) {
+                // A lot of data to write, which is slow on dev
+                test.setTimeout(180_000);
+            }
+
             const {userPage, user} =
-                await User.createUserWithProjectAndAssignRole(adminPage, context, ctx, [[PRODUCTS.compute, 5], [PRODUCTS.storage, 1]]);
+                await User.createUserWithProjectAndAssignRole(adminPage, context, ctx, quotas);
 
             const jobName = Runs.newJobName();
             const term = await Applications.runAppAndOpenTerminalWithTerminalPage(userPage, AppNames.TestApplication, 1, undefined, jobName);
-            await Terminal.createLargeFile(term);
+
+            await Terminal.createFile(term, FILE_SIZE_IN_GB + 1);
             await Runs.terminateViewedRun(userPage);
 
             await userPage.reload();
@@ -282,27 +302,39 @@ echo "${BashScriptStringContent}"
             await userPage.getByText("Submit").click();
             await userPage.getByText("You do not have enough storage credits.").hover();
 
-            /* Reclaim resources and retry */
-            // await Runs.goToRuns(newUserPage);
-            // await NetworkCalls.awaitResponse(newUserPage, "**/api/files/browse**", async () => {
-            //     await Rows.actionByRowTitle(newUserPage, jobName, "dblclick");
-            // });
-            // await NetworkCalls.awaitResponse(newUserPage, "**/api/files/trash", async () => {
-            //     await File.actionByRowTitle(newUserPage, "example", "click");
-            //     await newUserPage.keyboard.press("Delete");
-            // });
-            // await Drive.openDrive(newUserPage, "Home");
-            // await File.open(newUserPage, "Trash");
-            // await File.emptyTrash(newUserPage);
-            // await runTerminalApp(newUserPage);
+            /* Clean-up */
+            await Runs.goToRuns(userPage);
+            await NetworkCalls.awaitResponse(userPage, "**/api/files/browse**", async () => {
+                await File.actionByRowTitle(userPage, jobName, "dblclick");
+            });
+            await NetworkCalls.awaitResponse(userPage, "**/api/files/trash", async () => {
+                await File.actionByRowTitle(userPage, "example", "click");
+                await userPage.keyboard.press("Delete");
+            });
+            await Drive.openDrive(userPage, driveName);
+            await File.open(userPage, "Trash");
+            await File.emptyTrash(userPage);
         });
 
         test("Compute - check accounting", async ({page: adminPage, context}) => {
             test.setTimeout(240_000);
-            const {userPage, user} = await User.createUserWithProjectAndAssignRole(adminPage, context, ctx, [[PRODUCTS.compute, 1], [PRODUCTS.storage, 1]]);
+
+            const AUTOGIFTED_RESOURCES = (isProd(data.location_origin) || isDev(data.location_origin)) && ctx === "Personal Workspace";
+
+            const quotas: [string, number][] = [[PRODUCTS.compute, 1]];
+
+            if (AUTOGIFTED_RESOURCES === false) {
+                quotas.push([PRODUCTS.storage, 1]);
+            }
+
+            const {userPage, user} = await User.createUserWithProjectAndAssignRole(adminPage, context, ctx, quotas);
 
             await Accounting.goTo(userPage, "Allocations");
-            await userPage.getByText("0 / 1 Core-hours (0%)", {exact: true}).first().waitFor();
+            if (AUTOGIFTED_RESOURCES) {
+                await userPage.getByText("0 / 1k Core-hours (0%)", {exact: true}).first().waitFor();
+            } else {
+                await userPage.getByText("0 / 1 Core-hours (0%)", {exact: true}).first().waitFor();
+            }
             const jobName = Runs.newJobName();
             await Applications.runAppAndOpenTerminal(userPage, AppNames.TestApplication, 2, undefined, jobName);
             await userPage.waitForTimeout(90_000);
