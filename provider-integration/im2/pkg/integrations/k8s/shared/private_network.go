@@ -3,7 +3,6 @@ package shared
 import (
 	"context"
 	"fmt"
-	"math/rand"
 	"net/http"
 	"strings"
 	"sync"
@@ -163,8 +162,7 @@ type PrivateNetworkDnsConfig struct {
 func PrivateNetworkCreateDnsConfig(job *orc.Job) (PrivateNetworkDnsConfig, *util.HttpError) {
 	result := PrivateNetworkDnsConfig{}
 	result.Labels = map[string]string{}
-	result.Hostname = job.Specification.Hostname.GetOrDefault(
-		fmt.Sprintf("%s-%v", job.Status.ResolvedApplication.Value.Metadata.Title, rand.Intn(9999)))
+	result.Hostname = job.Specification.Hostname.GetOrDefault(fmt.Sprintf("j-%v", job.Id))
 
 	var networks []orc.PrivateNetwork
 	for _, resc := range job.Specification.Resources {

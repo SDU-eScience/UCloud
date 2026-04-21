@@ -448,7 +448,6 @@ type cloudInit struct {
 	Users      []cloudInitUser `json:"users"`
 	Mounts     [][]string      `json:"mounts"`
 	RunCommand []string        `json:"runcmd"`
-	Network    any             `json:"network"`
 }
 
 func follow(session *ctrl.FollowJobSession) {
