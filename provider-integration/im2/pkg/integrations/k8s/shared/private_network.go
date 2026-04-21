@@ -193,7 +193,7 @@ func PrivateNetworkCreateDnsConfig(job *orc.Job) (PrivateNetworkDnsConfig, *util
 		result.PodDns.Searches = append(result.PodDns.Searches, "svc.cluster.local")
 		result.PodDns.Searches = append(result.PodDns.Searches, "cluster.local")
 	} else if toolBackend == orc.ToolBackendVirtualMachine {
-		result.Subdomain = "ucloud-apps"
+		result.Subdomain = fmt.Sprintf("j-%v", job.Id)
 		result.PodDns = &k8score.PodDNSConfig{}
 		baseDomain := fmt.Sprintf("%s.svc.cluster.local", ServiceConfig.Compute.Namespace)
 
