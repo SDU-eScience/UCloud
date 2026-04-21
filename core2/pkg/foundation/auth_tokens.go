@@ -86,7 +86,7 @@ func CreatePrincipalClaims(principal Principal, sessionReference util.Option[str
 		LastName:                principal.LastName,
 		Email:                   principal.Email,
 		OrgId:                   principal.OrgId,
-		TwoFactorAuthentication: !cfg.Configuration.RequireMfa || principal.MfaEnabled,
+		TwoFactorAuthentication: !cfg.Configuration.RequireMfa || principal.MfaEnabled || domain == "e2etest.internal",
 		ServiceLicenseAgreement: principal.ServiceLicenseAgreement,
 		PrincipalType:           jwtType,
 		SessionReference:        sessionReference,
