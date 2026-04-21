@@ -249,6 +249,11 @@ func Monitor(tracker shared.JobTracker, jobs map[string]*orc.Job) {
 		_, handled := iappsHandled[jobId]
 		job, ok := jobs[jobId]
 		if !handled {
+			if !ok || job.Status.State.IsFinal() {
+				_ = controller.IAppDetachByJobId(jobId)
+				continue
+			}
+
 			if ok {
 				handler, handlerOk := IApps[iapp.AppName]
 				if handlerOk {

@@ -243,7 +243,7 @@ func terminalMutate(
 		return nil, err
 	}
 
-	if didUpdate {
+	if didUpdate || (current.Present && current.Value.IsDetached()) {
 		if err := terminalValidateFolders(owner, config.Folders); err != nil {
 			return nil, err
 		}
