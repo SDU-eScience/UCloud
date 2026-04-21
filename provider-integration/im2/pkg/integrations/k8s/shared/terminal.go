@@ -2,6 +2,7 @@ package shared
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"slices"
 	"sync"
@@ -322,23 +323,23 @@ func terminalValidateFolders(owner orc.ResourceOwner, folders []string) terminal
 	for _, folder := range folders {
 		driveId, ok := orc.DriveIdFromUCloudPath(folder)
 		if !ok {
-			sb.Warnings = append(sb.Warnings, "Unable to mount '%s'. The path is invalid.", folder)
+			sb.Warnings = append(sb.Warnings, fmt.Sprintf("Unable to mount '%s'. The path is invalid.", folder))
 			continue
 		}
 
 		drive, ok := controller.DriveRetrieve(driveId)
 		if !ok {
-			sb.Warnings = append(sb.Warnings, "Unable to mount '%s'. The path is invalid.", folder)
+			sb.Warnings = append(sb.Warnings, fmt.Sprintf("Unable to mount '%s'. The path is invalid.", folder))
 			continue
 		}
 
 		if controller.ResourceIsLocked(drive.Resource, drive.Specification.Product) {
-			sb.Warnings = append(sb.Warnings, "Unable to mount '%s'. You do not have enough storage resources.", folder)
+			sb.Warnings = append(sb.Warnings, fmt.Sprintf("Unable to mount '%s'. You do not have enough storage resources.", folder))
 			continue
 		}
 
 		if !controller.DriveCanUse(owner, driveId, false) && !controller.DriveCanUse(owner, driveId, true) {
-			sb.Warnings = append(sb.Warnings, "Unable to mount '%s'. You do not have sufficient permissions.", folder)
+			sb.Warnings = append(sb.Warnings, fmt.Sprintf("Unable to mount '%s'. You do not have sufficient permissions.", folder))
 			continue
 		}
 
