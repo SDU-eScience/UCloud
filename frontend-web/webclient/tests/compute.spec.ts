@@ -17,7 +17,7 @@ import {
 } from "./shared";
 import {default as data} from "./test_data.json" with {type: "json"};
 import {default as pAndP} from "./provider_and_products.json" with {type: "json"};
-const PRODUCTS = pAndP[data.location_origin].products_used_in_tests;
+const PRODUCTS = pAndP.find(it => it.location_origin === data.location_origin)!.products_used_in_tests;
 
 test.beforeEach(async ({page}, testInfo) => {
     const doSkipInitialization = testInfo.titlePath.find((it) => [

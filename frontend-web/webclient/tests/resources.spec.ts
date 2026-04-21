@@ -1,5 +1,8 @@
 import {expect, test} from "@playwright/test";
 import {User, Resources, Applications, Runs, Components, Terminal, TestContexts, testCtx, Project, Rows} from "./shared";
+import {default as pAndP} from "./provider_and_products.json" with {type: "json"};
+import {default as data} from "./test_data.json" with {type: "json"};
+const PRODUCTS = pAndP.find(it => it.location_origin === data.location_origin)!.products_used_in_tests;
 
 test.beforeEach(async ({page}, testInfo) => {
     const args = testCtx(testInfo.titlePath);
@@ -55,6 +58,7 @@ TestContexts.map(ctx => {
 
         /* Resources.IPs */
         test("Public IPs - check public IPs work", async ({page}) => {
+            if (PRODUCTS.public_ip == null) test.skip();
             const publicIp = await IPs.createNew(page);
             await Rows.actionByRowTitle(page, publicIp, "dblclick");
 

@@ -20,20 +20,11 @@ export const TestUsers: Record<Contexts, {username: string; password: string;}> 
     "Personal Workspace": data.users.with_resources
 };
 
-const providerAndProducts: {
-    provider_used_in_tests: string,
-    products_used_in_tests: {
-        compute: string;
-        storage: string;
-        license: string;
-        ingress: string;
-    },
-    machine_used_in_tests: string,
-    application_text_fields: {
-        existing: string[],
-        new: string[]
-    }
-} = providerAndProductsImport[data.location_origin]
+const providerAndProducts = providerAndProductsImport.find(it => it.location_origin === data.location_origin);
+
+if (!providerAndProducts) {
+    throw Error("Location origin doesn't match any provider/product combination");
+}
 
 export const ProviderInfo = {
     providerTitle(): string {
@@ -42,8 +33,8 @@ export const ProviderInfo = {
 }
 
 export const User = {
-    newUserCredentials(): {username: string; password: string;} {
-        const username = Help.newResourceName("test-user");
+    newUserCredentials(postfix?: string): {username: string; password: string;} {
+        const username = Help.newResourceName(`test-user-${postfix ?? ""}`);
         return {username, password: username + "_" + username};
     },
 
@@ -847,7 +838,10 @@ export const Resources = {
 
             await page.getByText("Create public IP").click();
 
-            await page.getByRole("dialog").getByText(providerAndProducts.products_used_in_tests.ingress).waitFor();
+            if (providerAndProducts.products_used_in_tests.public_ip == null) {
+                throw Error("Public IP is null in `IPs.createNew`. This should have been caught before.")
+            }
+            await page.getByRole("dialog").getByText(providerAndProducts.products_used_in_tests.public_ip).waitFor();
             await this.fillPortRowInDialog(page);
             const result = await NetworkCalls.awaitResponse(page, "**/api/networkips", async () => {
                 await page.getByRole("button", {name: "create", disabled: false}).click();
@@ -949,11 +943,16 @@ export const Terminal = {
     },
 
     async createFile(page: Page, sizeInGB: number) {
-        await this.enterCmd(page, `dd if=/dev/zero of=1GB bs=1000 count=${sizeInGB * 1000000}`);
+        if (data.location_origin === "https://ucloud.localhost.direct") {
+            /* `dd` is VERY slow on local environments  */
+            await this.enterCmd(page, `fallocate -l ${sizeInGB}G example`);
+        } else {
+            await this.enterCmd(page, `dd if=/dev/zero of=1GB bs=1000 count=${sizeInGB * 1000000}`);
+        }
     },
 
     async createLargeFile(page: Page): Promise<void> {
-        await this.createFile(page, 5);
+        await this.createFile(page, 2);
     }
 }
 
@@ -1024,6 +1023,10 @@ export const Accounting = {
     GrantApplication: {
         async fillProjectName(page: Page, projectName: string): Promise<void> {
             await page.getByPlaceholder("Please enter the title of your project").fill(projectName);
+        },
+
+        async setMonths(page: Page, months: number): Promise<void> {
+            await page.getByLabel("For how many months should the allocation last?").selectOption(`${months} months`);
         },
 
         async toggleGrantGiver(page: Page, grantGiver: string): Promise<void> {

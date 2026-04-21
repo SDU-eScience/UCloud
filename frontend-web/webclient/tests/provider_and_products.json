@@ -1,11 +1,12 @@
-{
-    "https://ucloud.localhost.direct": {
+[
+    {
+        "location_origin": "https://ucloud.localhost.direct",
         "provider_used_in_tests": "Provider K8s",
         "products_used_in_tests": {
             "compute": "u1-standard",
             "storage": "storage",
             "license": "test-license",
-            "ingress": "public-ip"
+            "public_ip": "public-ip"
         },
         "machine_used_in_tests": "u1-standard-1",
         "application_text_fields": {
@@ -13,13 +14,14 @@
             "new": []
         }
     },
-    "https://dev.cloud.sdu.dk": {
+    {
+        "location_origin": "https://dev.cloud.sdu.dk",
         "provider_used_in_tests": "Type 1 - Generic front-office",
         "products_used_in_tests": {
             "compute": "standard-cpu",
             "storage": "standard-storage",
             "license": "sdu-matlab",
-            "ingress": "public-ip"
+            "public_ip": null
         },
         "machine_used_in_tests": "standard-cpu-1",
         "application_text_fields": {
@@ -35,18 +37,21 @@
             ]
         }
     },
-    "https://cloud.sdu.dk": {
-        "provider_used_in_tests": "",
+    {
+        "location_origin": "https://cloud.sdu.dk",
+        "provider_used_in_tests": "UCloud",
         "products_used_in_tests": {
-            "compute": "",
-            "storage": "",
-            "license": "",
-            "ingress": ""
+            "compute": "u1-standard-h",
+            "compute_for_danfoss_center": "cpu-amd-zen5",
+            "storage": "u1-cephfs",
+            "license": "Mathematica_SDU",
+            "public_ip": null
         },
-        "machine_used_in_tests": "",
+        "machine_used_in_tests": "u1-standard-h",
+        "machine_used_in_tests_danfoss_center": "cpu-amd-zen5-1-vcpu",
         "application_text_fields": {
             "new": [],
             "existing": []
         }
     }
-}
+]

@@ -3,7 +3,7 @@ import {Accounting, Admin, Components, Project, ProviderInfo, Rows, TestUsers, U
 import fs from "fs";
 import {default as data} from "./test_data.json" with {type: "json"};
 import {default as pAndP} from "./provider_and_products.json" with {type: "json"};
-const PRODUCTS = pAndP[data.location_origin].products_used_in_tests;
+const PRODUCTS = pAndP.find(it => it.location_origin === data.location_origin)!.products_used_in_tests;
 
 setup("Setup 'pi', 'admin', and 'user'", async ({page, browser}) => {
     setup.setTimeout(120_000);
@@ -75,8 +75,7 @@ async function waitForHiddenGrantNotification(page: Page): Promise<void> {
 }
 
 async function createNewUserAndLogin(ucloudAdminPage: Page, browser: Browser, kind: "admin" | "pi" | "user"): Promise<{page: Page, credentials: {username: string; password: string;}}> {
-    const credentials = User.newUserCredentials();
-    credentials.username = kind + credentials.username;
+    const credentials = User.newUserCredentials(kind);
     await User.create(ucloudAdminPage, credentials);
     const page = await browser.newPage();
     await User.login(page, credentials, true);
@@ -89,12 +88,19 @@ async function makeGrantApplication(page: Page, projectName?: string): Promise<s
     if (projectName) {
         await Accounting.GrantApplication.fillProjectName(page, projectName);
         await Accounting.GrantApplication.toggleGrantGiver(page, ProviderInfo.providerTitle());
-        await Accounting.GrantApplication.fillQuotaFields(page, [
+        await Accounting.GrantApplication.setMonths(page, 1);
+
+        const requestedResources: [string, number][] = [
             [PRODUCTS.compute, 50],
             [PRODUCTS.storage, 10],
-            [PRODUCTS.ingress, 5],
             [PRODUCTS.license, 5],
-        ]);
+        ];
+
+        if (PRODUCTS.public_ip != null) {
+            requestedResources.push([PRODUCTS.public_ip, 5]);
+        }
+
+        await Accounting.GrantApplication.fillQuotaFields(page, requestedResources);
     } else {
         await page.getByRole("link", {name: "select an existing project instead"}).click();
         await Accounting.GrantApplication.toggleGrantGiver(page, ProviderInfo.providerTitle());

@@ -2,7 +2,7 @@ import test from "@playwright/test";
 import {Accounting, Admin, Components, Project, ProviderInfo, Rows, User} from "./shared";
 import {default as data} from "./test_data.json" with {type: "json"};
 import {default as pAndP} from "./provider_and_products.json" with {type: "json"};
-const PRODUCTS = pAndP[data.location_origin].products_used_in_tests;
+const PRODUCTS = pAndP.find(it => it.location_origin === data.location_origin)!.products_used_in_tests;
 
 test("Apply for resources, approve (from admin user), verify resources are in allocations", async ({page: adminPage, context}) => {
     test.setTimeout(60_000);
