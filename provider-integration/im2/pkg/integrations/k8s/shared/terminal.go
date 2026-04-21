@@ -29,6 +29,8 @@ type TerminalSandbox struct {
 	Folders    []string
 	LeaseUntil time.Time
 	AutoLease  bool
+
+	Warnings []string
 }
 
 // NOTE(Dan): I tend to not like using interfaces, especially like this. Unfortunately, the API surface has to live in
@@ -244,9 +246,7 @@ func terminalMutate(
 	}
 
 	if didUpdate || (current.Present && current.Value.IsDetached()) {
-		if err := terminalValidateFolders(owner, config.Folders); err != nil {
-			return nil, err
-		}
+		terminalValidateFolders(sb)
 
 		data, err := json.Marshal(config)
 		if err != nil {
@@ -309,28 +309,37 @@ func terminalNormalizeFolders(folders []string) []string {
 	return result
 }
 
-func terminalValidateFolders(owner orc.ResourceOwner, folders []string) *util.HttpError {
+func terminalValidateFolders(sb *TerminalSandbox) {
+	owner := sb.Owner
+	folders := sb.Folders
+	newFolders := make([]string, 0, len(folders))
 	for _, folder := range folders {
 		driveId, ok := orc.DriveIdFromUCloudPath(folder)
 		if !ok {
-			return util.UserHttpError("bad folder path supplied")
+			sb.Warnings = append(sb.Warnings, "Unable to mount '%s'. The path is invalid.", folder)
+			continue
 		}
 
 		drive, ok := controller.DriveRetrieve(driveId)
 		if !ok {
-			return util.UserHttpError("bad folder path supplied")
+			sb.Warnings = append(sb.Warnings, "Unable to mount '%s'. The path is invalid.", folder)
+			continue
 		}
 
 		if controller.ResourceIsLocked(drive.Resource, drive.Specification.Product) {
-			return util.UserHttpError("The drive is currently locked")
+			sb.Warnings = append(sb.Warnings, "Unable to mount '%s'. You do not have enough storage resources.", folder)
+			continue
 		}
 
 		if !controller.DriveCanUse(owner, driveId, false) && !controller.DriveCanUse(owner, driveId, true) {
-			return util.UserHttpError("permission denied")
+			sb.Warnings = append(sb.Warnings, "Unable to mount '%s'. You do not have sufficient permissions.", folder)
+			continue
 		}
+
+		newFolders = append(newFolders, folder)
 	}
 
-	return nil
+	sb.Folders = newFolders
 }
 
 func (cmd *TerminalCmd) Err() *util.HttpError {
