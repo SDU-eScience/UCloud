@@ -265,12 +265,16 @@ echo "${BashScriptStringContent}"
         });
 
         test("disallow start from locked allocation", async ({page: adminPage, context}) => {
+            // Extremely slow as `fallocate` is not available. Runs with local dev and production.
+            if (isDev(data.location_origin) && ctx === "Personal Workspace") test.skip();
+
             const AUTOGIFTED_RESOURCES = (isProd(data.location_origin) || isDev(data.location_origin)) && ctx === "Personal Workspace";
             if (AUTOGIFTED_RESOURCES) {
                 test.setTimeout(900_000);
             } else {
                 test.setTimeout(300_000);
             }
+
 
             const FILE_SIZE_IN_GB = AUTOGIFTED_RESOURCES ? 50 : 1;
 

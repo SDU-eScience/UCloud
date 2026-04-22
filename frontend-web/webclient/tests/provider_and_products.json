@@ -9,6 +9,7 @@
             "public_link": "public-links",
             "public_ip": "public-ip"
         },
+        "drive_provider": "IM2/K8s",
         "machine_used_in_tests": "u1-standard-1",
         "application_text_fields": {
             "existing": [],
@@ -26,6 +27,7 @@
             "public_ip": null
         },
         "machine_used_in_tests": "standard-cpu-1",
+        "drive_provider": "SDU/K8s",
         "application_text_fields": {
             "new": [
                 "T1 project",
@@ -52,6 +54,7 @@
         },
         "machine_used_in_tests": "u1-standard-h",
         "machine_used_in_tests_danfoss_center": "cpu-amd-zen5-1-vcpu",
+        "drive_provider": "SDU/K8s",
         "application_text_fields": {
             "new": [
                 "Application"

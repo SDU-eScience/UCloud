@@ -384,8 +384,9 @@ export const File = {
             .getByRole('listitem', {name: drive, exact: false}).isVisible();
 
         const correctProvider = await page.evaluate(() => {
+            const iconName = window.location.host === "ucloud.localhost.direct" ? "im2k8s.png" : "sdu.png";
             return document.querySelector("div.ReactModal__Content div.provider-icon > div[style*=background-image]")?.["style"]
-                .getPropertyValue("background-image").includes("sdu.png");
+                .getPropertyValue("background-image").includes(iconName);
         });
 
         if (correctDrive && correctProvider) {
@@ -486,9 +487,9 @@ export const Drive = {
         }
 
         await NetworkCalls.awaitResponse(page, "**/api/files/browse**", async () => {
-            await page.locator(".scrolling").locator(".row").filter({hasText: "SDU/K8s"}).getByText(name).dblclick();
-            await Components.projectSwitcher(page, "hover")
+            await page.locator(".scrolling").locator(".row").filter({hasText: providerAndProducts.drive_provider}).getByText(name).dblclick();
         });
+        await Components.projectSwitcher(page, "hover")
 
         await page.waitForLoadState("domcontentloaded");
     },
@@ -680,7 +681,8 @@ export const Runs = {
 
     async goToRuns(page: Page): Promise<void> {
         await NetworkCalls.awaitResponse(page, "**/api/jobs/browse**", async () => {
-            await page.getByRole("link", {name: "Go to Compute"}).click();
+            if (data.location_origin === "https://cloud.sdu.dk") await page.getByRole("link", {name: "Go to Runs"}).click();
+            else await page.getByRole("link", {name: "Go to Compute"}).click();
         });
         await Components.projectSwitcher(page, "hover");
     },
