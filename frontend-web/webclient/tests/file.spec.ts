@@ -147,6 +147,7 @@ TestContexts.map(ctx => {
                 await File.open(page, folderName1);
                 await File.open(page, folderName2);
                 await File.open(page, folderName3);
+                // TODO: Clean-up folders for project-user ctx
             });
 
             test("Rename", async ({page}) => {
@@ -413,7 +414,7 @@ TestContexts.map(ctx => {
             await File.ensureDialogDriveActive(page, drive);
 
             await NetworkCalls.awaitResponse(page, "**/api/iapps/syncthing/update", async () => {
-                await page.getByRole("dialog").locator(".row", {hasText: folderName}).getByRole("button", {name: "Sync"}).click();
+                await Components.useDialogBrowserItem(page, folderName, "Sync");
             });
             await page.getByRole("dialog").waitFor({state: "hidden"});
 

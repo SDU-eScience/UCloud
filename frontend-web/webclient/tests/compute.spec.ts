@@ -170,7 +170,7 @@ echo "${BashScriptStringContent}"
                 await Runs.submitAndWaitForRunning(page);
 
                 await page.mouse.wheel(0, 1000);
-                await page.getByText(BashScriptStringContent).waitFor({state: "visible"});
+                await page.getByText(BashScriptStringContent).waitFor();
                 await NetworkCalls.awaitResponse(page, "**api/files/browse?path=**", async () => {
                     await Runs.terminateViewedRun(page);
                 });
@@ -265,17 +265,18 @@ echo "${BashScriptStringContent}"
         });
 
         test("disallow start from locked allocation", async ({page: adminPage, context}) => {
-            test.setTimeout(240_000);
-
             const AUTOGIFTED_RESOURCES = (isProd(data.location_origin) || isDev(data.location_origin)) && ctx === "Personal Workspace";
+            if (AUTOGIFTED_RESOURCES) {
+                test.setTimeout(900_000);
+            } else {
+                test.setTimeout(300_000);
+            }
+
             const FILE_SIZE_IN_GB = AUTOGIFTED_RESOURCES ? 50 : 1;
 
             const quotas: [string, number][] = [[PRODUCTS.compute, 5]];
             if (!AUTOGIFTED_RESOURCES) {
                 quotas.push([PRODUCTS.storage, FILE_SIZE_IN_GB]);
-            } else if (isDev(data.location_origin)) {
-                // A lot of data to write, which is slow on dev
-                test.setTimeout(180_000);
             }
 
             const {userPage, user} =
@@ -317,9 +318,9 @@ echo "${BashScriptStringContent}"
         });
 
         test("Compute - check accounting", async ({page: adminPage, context}) => {
-            test.setTimeout(240_000);
-
             const AUTOGIFTED_RESOURCES = (isProd(data.location_origin) || isDev(data.location_origin)) && ctx === "Personal Workspace";
+
+            test.setTimeout(120_000);
 
             const quotas: [string, number][] = [[PRODUCTS.compute, 1]];
 
@@ -331,13 +332,20 @@ echo "${BashScriptStringContent}"
 
             await Accounting.goTo(userPage, "Allocations");
             if (AUTOGIFTED_RESOURCES) {
-                await userPage.getByText("0 / 1k Core-hours (0%)", {exact: true}).first().waitFor();
+                if (isDev(data.location_origin)) {
+                    await userPage.getByText("0K / 1K Core-hours (0%)", {exact: true}).first().waitFor();
+                } else if (isProd(data.location_origin)) {
+                    await userPage.getByText("0K / 2K Core-hours (0%)", {exact: true}).first().waitFor();
+                }
             } else {
                 await userPage.getByText("0 / 1 Core-hours (0%)", {exact: true}).first().waitFor();
             }
             const jobName = Runs.newJobName();
-            await Applications.runAppAndOpenTerminal(userPage, AppNames.TestApplication, 2, undefined, jobName);
-            await userPage.waitForTimeout(90_000);
+            const coreCount = AUTOGIFTED_RESOURCES ? 8 : 2;
+            await Applications.runAppAndOpenTerminal(userPage, AppNames.TestApplication, coreCount, undefined, jobName);
+
+            await userPage.waitForTimeout(60_000);
+
             await Runs.terminateViewedRun(userPage);
 
             await userPage.reload();
@@ -345,8 +353,15 @@ echo "${BashScriptStringContent}"
             const driveName = isPersonalWorkspace ? "Home" : Drive.memberFiles(user.username);
             await File.triggerStorageScan(userPage, driveName);
             await Accounting.goTo(userPage, "Allocations");
-            const text = await userPage.getByText("Core-hours").first().innerText();
-            expect(parseInt(text.split("Core-hours")[1].trim().replaceAll(/%|\(|\)/g, ""))).toBeGreaterThan(0);
+
+            await userPage.getByText("Core-hours").first().waitFor();
+            const percentage = await userPage.evaluate(() => {
+                const element = document.querySelector("div[style^='--percentage']");
+                if (!element) return -1;
+                const percentageString = element["style"].getPropertyValue("--percentage");
+                return parseFloat(percentageString.replace("%", ""))
+            });
+            expect(percentage).toBeGreaterThan(0);
         });
     });
 });

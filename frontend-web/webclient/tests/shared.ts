@@ -51,10 +51,8 @@ export const User = {
     },
 
     async toLoginPage(page: Page): Promise<void> {
-        await NetworkCalls.awaitResponse(page, "**/api/branding/retrieve", async () => {
-            await page.goto(LoginPageUrl);
-        });
-        await page.waitForTimeout(500);
+        await page.goto(LoginPageUrl);
+        await page.waitForTimeout(1000);
         await page.waitForLoadState("domcontentloaded");
     },
 
@@ -67,6 +65,15 @@ export const User = {
         await page.getByRole("textbox", {name: "Password"}).fill(user.password);
         await page.getByRole("button", {name: "Login"}).click();
         await page.waitForLoadState("domcontentloaded");
+
+        await page.waitForTimeout(500);
+
+        if (page.url().endsWith("/sla")) {
+            await page.getByRole("button", {name: "I have read and accept the terms of service"}).click();
+            await page.getByRole("dialog").getByRole("button", {name: "I have read and accept the terms of service"}).click();
+            await page.waitForURL("**/app");
+        }
+
 
         if (fillUserInfo) {
             await this.dismissAdditionalInfoPrompt(page);
@@ -370,15 +377,23 @@ export const File = {
 
     async ensureDialogDriveActive(page: Page, driveName: string): Promise<void> {
         // Check locator input for content
-        await page.getByRole("dialog").isVisible();
+        await page.getByRole("dialog").waitFor();
         const drive = driveName.startsWith("Member Files:") ? "Member Files" : driveName
+
         const correctDrive = await page.getByRole("dialog")
             .getByRole('listitem', {name: drive, exact: false}).isVisible();
 
-        if (correctDrive) {
+        const correctProvider = await page.evaluate(() => {
+            return document.querySelector("div.ReactModal__Content div.provider-icon > div[style*=background-image]")?.["style"]
+                .getPropertyValue("background-image").includes("sdu.png");
+        });
+
+        if (correctDrive && correctProvider) {
             // Already matches. No work to be done.
             return;
         }
+
+
 
         // if not matches, click
         await page.getByRole("dialog").locator("div.drive-icon-dropdown").click();
@@ -471,7 +486,7 @@ export const Drive = {
         }
 
         await NetworkCalls.awaitResponse(page, "**/api/files/browse**", async () => {
-            await this.actionByRowTitle(page, name, "dblclick");
+            await page.locator(".scrolling").locator(".row").filter({hasText: "SDU/K8s"}).getByText(name).dblclick();
             await Components.projectSwitcher(page, "hover")
         });
 
@@ -482,6 +497,12 @@ export const Drive = {
         await this.goToDrives(page);
         await page.locator('div[data-disabled="false"]', {hasText: "Create drive"}).click();
         await page.getByRole("textbox", {name: "Choose a name"}).fill(name);
+
+        if (await page.getByRole("dialog").getByText("No product selected").isVisible()) {
+            await page.getByRole("dialog").getByText("No product selected").click();
+            await page.getByRole("cell", {name: providerAndProducts.products_used_in_tests.storage}).click();
+        }
+
         await NetworkCalls.awaitResponse(page, "**/api/files/collections**", async () => {
             await page.getByRole("button", {name: "Create", disabled: false}).click();
         })
@@ -566,6 +587,7 @@ export const Components = {
     },
 
     async useDialogBrowserItem(page: Page, rowTitle: string, buttonName: string = "Use") {
+        await Rows.actionByRowTitle(page, rowTitle, "hover", true);
         await page.getByRole("dialog").locator(".row", {hasText: rowTitle}).getByRole("button", {name: buttonName}).click();
     },
     async goToDashboard(page: Page): Promise<void> {
@@ -736,7 +758,7 @@ export const Runs = {
                 await page.getByRole("textbox", {name: "No directory selected"}).click();
             });
             await File.ensureDialogDriveActive(page, driveName);
-            await page.getByRole("dialog").locator(".row", {hasText: folderName}).getByRole("button", {name: "Use"}).click();
+            await Components.useDialogBrowserItem(page, folderName, "Use");
         },
 
         async addPublicLink(page: Page, publicLinkName: string): Promise<void> {
@@ -977,7 +999,7 @@ export const Terminal = {
             await this.enterCmd(page, `fallocate -l ${sizeInGB}G example && echo "file creation done!"`);
         }
 
-        await page.getByText("file creation done!", {exact: true}).waitFor({timeout: 30_000});
+        await page.getByText("file creation done!", {exact: true}).waitFor({timeout: 300_000});
     }
 }
 
@@ -1069,7 +1091,7 @@ export const Accounting = {
         async fillDefaultApplicationTextFields(page: Page, isNewProject: boolean): Promise<void> {
             const textFields = isNewProject ? providerAndProducts.application_text_fields.new : providerAndProducts.application_text_fields.existing;
             for (const applicationField of textFields) {
-                await page.getByRole("textbox", {name: applicationField}).fill("Testing purposes");
+                await page.getByRole("textbox", {name: applicationField}).last().fill("Testing purposes");
             }
         },
 

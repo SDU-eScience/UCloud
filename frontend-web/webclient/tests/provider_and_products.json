@@ -41,7 +41,7 @@
     },
     {
         "location_origin": "https://cloud.sdu.dk",
-        "provider_used_in_tests": "UCloud",
+        "provider_used_in_tests": "E2ETest-Allocator",
         "products_used_in_tests": {
             "compute": "u1-standard-h",
             "compute_for_danfoss_center": "cpu-amd-zen5",
@@ -53,8 +53,12 @@
         "machine_used_in_tests": "u1-standard-h",
         "machine_used_in_tests_danfoss_center": "cpu-amd-zen5-1-vcpu",
         "application_text_fields": {
-            "new": [],
-            "existing": []
+            "new": [
+                "Application"
+            ],
+            "existing": [
+                "Application"
+            ]
         }
     }
 ]
