@@ -51,6 +51,7 @@
   - [UI events](./k8s/ucx/ui-events.md)
   - [Component reference](./k8s/ucx/component-reference.md)
   - [API reference](./k8s/ucx/api-reference.md)
+- [Virtual machines](./k8s/kubevirt.md)
 - [Reference](./k8s/reference.md)
     - [Configuration](./k8s/config-reference.md)
     - [CLI](./k8s/cli-reference.md)
