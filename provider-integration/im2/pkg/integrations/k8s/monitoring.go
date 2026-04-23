@@ -869,7 +869,7 @@ func loopMonitoring() {
 			}
 		}
 
-		if !found {
+		if !found && queueStatusMap[newJob.Specification.Product].Value == orc.JobQueueFull {
 			scheduleMessages = append(scheduleMessages, controller.JobMessage{
 				JobId: newJob.Id,
 				Message: "There are currently no machines available to run your job.\n" +
