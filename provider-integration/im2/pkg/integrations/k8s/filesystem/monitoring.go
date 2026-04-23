@@ -222,6 +222,8 @@ func RequestScan(driveId string) {
 	// idea then it should be changed.
 	drive, ok := ctrl.DriveRetrieve(driveId)
 	if ok {
-		driveScanQueue <- *drive
+		go func() {
+			driveScanQueue <- *drive
+		}()
 	}
 }
