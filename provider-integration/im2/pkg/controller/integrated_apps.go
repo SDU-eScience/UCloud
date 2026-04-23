@@ -42,6 +42,11 @@ type IntegratedApplicationHandler struct {
 
 var IntegratedApplications = map[string]IntegratedApplicationHandler{}
 
+func IsIntegratedApplication(appName string) bool {
+	_, ok := IntegratedApplications[appName]
+	return ok
+}
+
 func initIntegratedApps() {
 	if !RunsServerCode() {
 		return
@@ -176,22 +181,28 @@ func initAllIntegratedApps() {
 // IAppReconfigureAll will invoke UpdateConfiguration on all configured .applications. This will typically be invoked
 // by the individual services once they are ready to accept configuration events after a restart.
 func IAppReconfigureAll() {
-	allJobs := JobsListServer()
-	jobsById := map[string]*orc.Job{}
-	for _, job := range allJobs {
-		jobsById[job.Id] = job
-	}
-
 	iappConfigsMutex.Lock()
-	for key, config := range iappConfigs {
+	configs := make([]IAppRunningConfiguration, 0, len(iappConfigs))
+	for _, config := range iappConfigs {
+		configs = append(configs, config)
+	}
+	iappConfigsMutex.Unlock()
+
+	for _, config := range configs {
+		key := iappConfigKey{AppName: config.AppName, Owner: config.Owner}
 		handler, ok := IntegratedApplications[key.AppName]
 		if ok {
-			job, ok := jobsById[config.JobId]
-			if !ok {
-				log.Info("Deleting iapp, can no longer find associated job %v", key)
-				iappConfigsMutex.Unlock() // unlock for the delete function
-				iappDelete(key)
-				iappConfigsMutex.Lock() // relock following delete
+			if iappConfigIsWaiting(config) {
+				continue
+			}
+
+			job, ok := JobRetrieve(config.JobId)
+			if !ok || job.Status.State.IsFinal() || iappConfigNeedsNewJob(config) {
+				log.Warn(
+					"iapp %#v (%v) is detached or missing its job",
+					key,
+					config.JobId,
+				)
 			} else {
 				err := handler.UpdateConfiguration(job, config.ETag, config.Configuration)
 				if err != nil {
@@ -200,21 +211,130 @@ func IAppReconfigureAll() {
 			}
 		}
 	}
-	iappConfigsMutex.Unlock()
 }
 
 const iappConfigWaitingForJob = "0"
+const iappConfigDetached = "detached"
 
-func IAppConfigure(appName string, owner orc.ResourceOwner, etag util.Option[string], configuration json.RawMessage) *util.HttpError {
-	newEtag := util.RandomToken(16)
-	etagsMatched := false
+func iappConfigNeedsNewJob(config IAppRunningConfiguration) bool {
+	return config.JobId == iappConfigDetached
+}
 
+func iappConfigIsWaiting(config IAppRunningConfiguration) bool {
+	return config.JobId == iappConfigWaitingForJob
+}
+
+func iappConfigIsActive(config IAppRunningConfiguration) bool {
+	return !iappConfigIsWaiting(config) && !iappConfigNeedsNewJob(config)
+}
+
+func iappStoreRunningConfiguration(key iappConfigKey, config IAppRunningConfiguration) {
+	iappConfigsMutex.Lock()
+	iappConfigs[key] = config
+	iappConfigsMutex.Unlock()
+
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				insert into integrated_application_config(username, project, application_name, configuration, job_id, version)
+				values (:username, :project, :application_name, :configuration, :job_id, :version)
+				on conflict (username, project, application_name)
+				do update set
+					configuration = excluded.configuration,
+					job_id = excluded.job_id,
+					version = excluded.version
+			`,
+			db.Params{
+				"username":         key.Owner.CreatedBy,
+				"project":          key.Owner.Project.Value,
+				"application_name": key.AppName,
+				"configuration":    string(config.Configuration),
+				"job_id":           config.JobId,
+				"version":          config.ETag,
+			},
+		)
+	})
+}
+
+func iappDetachConfig(key iappConfigKey, config IAppRunningConfiguration) {
+	config.JobId = iappConfigDetached
+	iappStoreRunningConfiguration(key, config)
+}
+
+func iappCreateJob(appName string, owner orc.ResourceOwner, configuration json.RawMessage, etag util.Option[string]) (IAppRunningConfiguration, *util.HttpError) {
 	svc, ok := IntegratedApplications[appName]
 	if !ok {
 		log.Warn("Was asked to configure %s but this integrated application is not actually configured!", appName)
-		return util.UserHttpError("This application (%s) is not configured for this provider!", appName)
+		return IAppRunningConfiguration{}, util.UserHttpError("This application (%s) is not configured for this provider!", appName)
 	}
 
+	key := iappConfigKey{AppName: appName, Owner: owner}
+	newEtag := util.RandomToken(16)
+
+	res := orc.ProviderRegisteredResource[orc.JobSpecification]{
+		Spec: orc.JobSpecification{
+			ResourceSpecification: orc.ResourceSpecification{
+				Product: apm.ProductReference{Id: appName, Category: appName, Provider: cfg.Provider.Id},
+			},
+			Application: orc.NameAndVersion{Name: appName, Version: "latest"},
+			Name:        appName,
+			Replicas:    1,
+			Parameters:  map[string]orc.AppParameterValue{},
+			Resources:   []orc.AppParameterValue{},
+		},
+		Project:   util.OptStringIfNotEmpty(""),
+		CreatedBy: util.OptStringIfNotEmpty(owner.CreatedBy),
+	}
+
+	if svc.MutateSpecBeforeRegistration != nil {
+		if err := svc.MutateSpecBeforeRegistration(owner, &res.Spec); err != nil {
+			return IAppRunningConfiguration{}, err
+		}
+	}
+
+	jobId := util.RetryOrPanic[string](fmt.Sprintf("registering iapp: %s", appName), func() (string, error) {
+		resp, err := orc.JobsControlRegister.Invoke(
+			fnd.BulkRequest[orc.ProviderRegisteredResource[orc.JobSpecification]]{
+				Items: []orc.ProviderRegisteredResource[orc.JobSpecification]{res},
+			},
+		)
+		if err != nil {
+			return "", err.AsError()
+		}
+		if len(resp.Responses) != 1 {
+			return "", fmt.Errorf("invalid amount of responses returned")
+		}
+		return resp.Responses[0].Id, nil
+	})
+
+	config := IAppRunningConfiguration{
+		AppName:       appName,
+		Owner:         owner,
+		Configuration: configuration,
+		JobId:         jobId,
+		ETag:          newEtag,
+	}
+	iappStoreRunningConfiguration(key, config)
+
+	job, ok := JobRetrieve(config.JobId)
+	if !ok || job.Status.State.IsFinal() {
+		log.Warn("Unable to retrieve running job for %v: %v", appName, config)
+		iappDelete(key)
+		return IAppRunningConfiguration{}, util.ServerHttpError("Internal error in %s. Try again later.", appName)
+	}
+
+	if err := svc.UpdateConfiguration(job, newEtag, configuration); err != nil {
+		log.Warn("Configuration failed %s/%v: %s", appName, owner, err)
+		return IAppRunningConfiguration{}, util.ServerHttpError("Internal error in %s. Try again later.", appName)
+	}
+
+	config.UpdatedAt = time.Now()
+	iappStoreRunningConfiguration(key, config)
+	return config, nil
+}
+
+func IAppConfigure(appName string, owner orc.ResourceOwner, etag util.Option[string], configuration json.RawMessage) *util.HttpError {
 	key := iappConfigKey{
 		AppName: appName,
 		Owner:   owner,
@@ -222,104 +342,46 @@ func IAppConfigure(appName string, owner orc.ResourceOwner, etag util.Option[str
 
 	iappConfigsMutex.Lock()
 	config, ok := iappConfigs[key]
-	if !ok {
-		iappConfigs[key] = IAppRunningConfiguration{JobId: iappConfigWaitingForJob}
-	} else {
-		etagsMatched = !etag.Present || etag.Value == config.ETag
-		if etagsMatched {
-			config.ETag = newEtag
-			iappConfigs[key] = config
-		}
-	}
 	iappConfigsMutex.Unlock()
 
-	if !ok {
-		res := orc.ProviderRegisteredResource[orc.JobSpecification]{
-			Spec: orc.JobSpecification{
-				ResourceSpecification: orc.ResourceSpecification{
-					Product: apm.ProductReference{
-						Id:       appName,
-						Category: appName,
-						Provider: cfg.Provider.Id,
-					},
-				},
-				Application: orc.NameAndVersion{
-					Name:    appName,
-					Version: "latest",
-				},
-				Name:           appName,
-				Replicas:       1,
-				Parameters:     map[string]orc.AppParameterValue{},
-				TimeAllocation: util.Option[orc.SimpleDuration]{},
-				Resources:      []orc.AppParameterValue{},
-			},
-			Project:   util.OptStringIfNotEmpty(""),
-			CreatedBy: util.OptStringIfNotEmpty(owner.CreatedBy),
-		}
+	for ok && iappConfigIsWaiting(config) {
+		time.Sleep(500 * time.Millisecond)
+		iappConfigsMutex.Lock()
+		config, ok = iappConfigs[key]
+		iappConfigsMutex.Unlock()
+	}
 
-		if svc.MutateSpecBeforeRegistration != nil {
-			err := svc.MutateSpecBeforeRegistration(owner, &res.Spec)
-			if err != nil {
-				return err
-			}
-		}
+	etagsMatched := !etag.Present || etag.Value == config.ETag
+	if ok && !etagsMatched {
+		return util.UserHttpError("The application configuration has changed since you last loaded the page. " +
+			"Please reload the page and try again.")
+	}
 
-		jobId := util.RetryOrPanic[string](fmt.Sprintf("registering iapp: %s", appName), func() (string, error) {
-			resp, err := orc.JobsControlRegister.Invoke(fnd.BulkRequest[orc.ProviderRegisteredResource[orc.JobSpecification]]{
-				Items: []orc.ProviderRegisteredResource[orc.JobSpecification]{res},
-			})
-
-			if err != nil {
-				return "", err.AsError()
-			}
-
-			if len(resp.Responses) != 1 {
-				return "", fmt.Errorf("invalid amount of responses returned")
-			}
-
-			return resp.Responses[0].Id, nil
-		})
-
-		config = IAppRunningConfiguration{
+	if !ok || iappConfigNeedsNewJob(config) {
+		iappConfigsMutex.Lock()
+		iappConfigs[key] = IAppRunningConfiguration{
 			AppName:       appName,
 			Owner:         owner,
+			ETag:          config.ETag,
 			Configuration: configuration,
-			JobId:         jobId,
+			JobId:         iappConfigWaitingForJob,
 		}
-		ok = true
-		etagsMatched = true
-
-		iappConfigsMutex.Lock()
-		iappConfigs[key] = config
 		iappConfigsMutex.Unlock()
-	} else {
-		// Spin until registered by branch above
-		for config.JobId == iappConfigWaitingForJob {
-			iappConfigsMutex.Lock()
-			config, ok = iappConfigs[key]
-			etagsMatched = !etag.Present || etag.Value == config.ETag
-			if etagsMatched {
-				config.ETag = newEtag
-				iappConfigs[key] = config
-			}
-			iappConfigsMutex.Unlock()
 
-			if config.JobId == iappConfigWaitingForJob {
-				time.Sleep(500 * time.Millisecond)
-			}
-		}
+		_, err := iappCreateJob(appName, owner, configuration, etag)
+		return err
+	}
+
+	newEtag := util.RandomToken(16)
+	svc, ok := IntegratedApplications[appName]
+	if !ok {
+		log.Warn("Was asked to configure %s but this integrated application is not actually configured!", appName)
+		return util.UserHttpError("This application (%s) is not configured for this provider!", appName)
 	}
 
 	job, ok := JobRetrieve(config.JobId)
 	if !ok || job.Status.State.IsFinal() {
-		log.Warn("Unable to retrieve running job for %v: %v", appName, config)
-		iappDelete(key)
-		return util.ServerHttpError("Internal error in %s. Try again later.", appName)
-	}
-
-	if !etagsMatched {
-		return util.UserHttpError("The application configuration has changed since you last loaded the page. " +
-			"Please reload the page and try again.")
+		return IAppRestart(appName, owner)
 	}
 
 	err := svc.UpdateConfiguration(job, newEtag, configuration)
@@ -327,33 +389,7 @@ func IAppConfigure(appName string, owner orc.ResourceOwner, etag util.Option[str
 		config.Configuration = configuration
 		config.ETag = newEtag
 		config.UpdatedAt = time.Now()
-
-		iappConfigsMutex.Lock()
-		iappConfigs[key] = config
-		iappConfigsMutex.Unlock()
-
-		db.NewTx0(func(tx *db.Transaction) {
-			db.Exec(
-				tx,
-				`
-					insert into integrated_application_config(username, project, application_name, configuration, job_id, version)
-					values (:username, :project, :application_name, :configuration, :job_id, :version)
-					on conflict (username, project, application_name)
-					do update set
-						configuration = excluded.configuration,
-						job_id = excluded.job_id,
-						version = excluded.version
-			    `,
-				db.Params{
-					"username":         owner.CreatedBy,
-					"project":          owner.Project.Value,
-					"application_name": appName,
-					"configuration":    string(configuration),
-					"job_id":           job.Id,
-					"version":          newEtag,
-				},
-			)
-		})
+		iappStoreRunningConfiguration(key, config)
 	} else {
 		log.Warn("Configuration failed %s/%v: %s", appName, owner, err)
 		return util.ServerHttpError("Internal error in %s. Try again later.", appName)
@@ -369,6 +405,10 @@ type IAppRunningConfiguration struct {
 	Configuration json.RawMessage
 	JobId         string
 	UpdatedAt     time.Time
+}
+
+func (c *IAppRunningConfiguration) IsDetached() bool {
+	return c.JobId == iappConfigDetached
 }
 
 func IAppRetrieveConfiguration(appName string, owner orc.ResourceOwner) util.Option[IAppRunningConfiguration] {
@@ -416,9 +456,8 @@ func IAppReset(appName string, owner orc.ResourceOwner, etag util.Option[string]
 		// Nothing further to reset, but something was probably wrong so we log it
 		log.Warn("No job associated with iapp: %v", result)
 
-		iappDelete(key)
-
 		newConfig = handler.RetrieveDefaultConfiguration(owner)
+		iappDetachConfig(key, result)
 	} else if etag.Present && etag.Value != result.ETag {
 		err = util.UserHttpError("The configuration has changed since you last loaded the page. Reload it and try again.")
 	} else {
@@ -445,12 +484,8 @@ func IAppRestart(appName string, owner orc.ResourceOwner) *util.HttpError {
 	}
 
 	job, ok := JobRetrieve(config.Value.JobId)
-	if !ok {
-		iappDelete(iappConfigKey{
-			AppName: appName,
-			Owner:   owner,
-		})
-		return util.ServerHttpError("Internal error. Reload the page and try again later.")
+	if !ok || job.Status.State.IsFinal() {
+		return IAppConfigure(appName, owner, util.OptNone[string](), config.Value.Configuration)
 	}
 
 	err := handler.RestartApplication(job)
@@ -462,6 +497,9 @@ func IAppRetrieveAllByJobId() map[string]IAppRunningConfiguration {
 
 	iappConfigsMutex.Lock()
 	for _, config := range iappConfigs {
+		if !iappConfigIsActive(config) {
+			continue
+		}
 		result[config.JobId] = config
 	}
 	iappConfigsMutex.Unlock()
@@ -474,7 +512,7 @@ func IAppRetrieveByJobId(jobId string) util.Option[IAppRunningConfiguration] {
 	defer iappConfigsMutex.Unlock()
 
 	for _, config := range iappConfigs {
-		if config.JobId == jobId {
+		if config.JobId == jobId && iappConfigIsActive(config) {
 			return util.OptValue(config)
 		}
 	}
@@ -503,4 +541,15 @@ func iappDelete(key iappConfigKey) {
 			},
 		)
 	})
+}
+
+func IAppDetachByJobId(jobId string) *util.HttpError {
+	config := IAppRetrieveByJobId(jobId)
+	if !config.Present {
+		return nil
+	}
+
+	key := iappConfigKey{AppName: config.Value.AppName, Owner: config.Value.Owner}
+	iappDetachConfig(key, config.Value)
+	return nil
 }

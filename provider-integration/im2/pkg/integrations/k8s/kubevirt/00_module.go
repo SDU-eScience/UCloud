@@ -43,6 +43,8 @@ var KubevirtClient kvclient.KubevirtClient
 var Namespace string
 var Enabled = false
 
+const enableDefaultPassword = false
+
 //go:embed ucloud-vmagent.service
 var vmAgentSystemdFile []byte
 
@@ -439,7 +441,7 @@ type cloudInitUser struct {
 	Name         string   `json:"name"`
 	Uid          int      `json:"uid"`
 	Sudo         []string `json:"sudo"`
-	Password     string   `json:"hashed_passwd"`
+	Password     string   `json:"hashed_passwd,omitempty"`
 	LockPassword bool     `json:"lock_passwd"`
 	Shell        string   `json:"shell"`
 }
@@ -448,7 +450,6 @@ type cloudInit struct {
 	Users      []cloudInitUser `json:"users"`
 	Mounts     [][]string      `json:"mounts"`
 	RunCommand []string        `json:"runcmd"`
-	Network    any             `json:"network"`
 }
 
 func follow(session *ctrl.FollowJobSession) {
@@ -644,129 +645,45 @@ func follow(session *ctrl.FollowJobSession) {
 
 func handleShell(session *ctrl.ShellSession, cols int, rows int) {
 	clearScreen := []byte("\033[2J\033[H")
-	spinnerFrames := []string{"[    ]", "[=   ]", "[==  ]", "[=== ]", "[ ===]", "[  ==]", "[   =]", "[    ]"}
 
 	session.EmitData(clearScreen)
-
-	ttyConnChannel := make(chan *ws.Conn, 1)
-	go func() {
-		ttyConnChannel <- vmaRequestTty(session.Job.Id)
-	}()
-
-	ticker := time.NewTicker(120 * time.Millisecond)
-	defer ticker.Stop()
-
-	waitCount := 0
 	var ttyConn *ws.Conn
-waitForTty:
+
 	for util.IsAlive && session.Alive {
-		select {
-		case ttyConn = <-ttyConnChannel:
-			break waitForTty
-
-		case <-ticker.C:
-			frame := spinnerFrames[waitCount%len(spinnerFrames)]
-			dots := strings.Repeat(".", (waitCount%3)+1)
-			session.EmitData([]byte(fmt.Sprintf("\r%s Connecting to VM terminal%s", frame, dots)))
-			waitCount++
+		if ttyConn == nil {
+			ttyConn = vmaRequestTty(context.Background(), session.Job.Id)
 		}
-	}
 
-	session.EmitData(clearScreen)
+		if ttyConn != nil {
+			next := handleShellSessionViaAgentTty(session, ttyConn, cols, rows)
+			ttyConn = nil
+			if next != shellSessionNextSerial {
+				return
+			}
 
-	if !util.IsAlive || !session.Alive {
-		return
-	}
+			session.EmitData(clearScreen)
+			continue
+		}
 
-	if ttyConn != nil {
-		handleShellSessionViaAgentTty(session, ttyConn, cols, rows)
-		return
-	}
-
-	session.EmitData([]byte("Using serial console fallback. You may need to press Enter before output appears.\r\n"))
-
-	stdinReader, stdinWriter := io.Pipe()
-	stdoutReader, stdoutWriter := io.Pipe()
-
-	startChannel := make(chan error)
-
-	streamStop := make(chan error)
-	writeStop := make(chan error)
-	readStop := make(chan error)
-
-	go func() {
-		stream, err := KubevirtClient.
-			VirtualMachineInstance(Namespace).
-			SerialConsole(
-				vmName(session.Job.Id, session.Rank),
-				&kvapi.SerialConsoleOptions{},
-			)
-
-		startChannel <- err
-
-		if err != nil {
+		next, nextConn := handleShellSessionViaSerialConsole(session, cols, rows)
+		if next != shellSessionNextAgent {
 			return
 		}
 
-		streamStop <- stream.Stream(kvapi.StreamOptions{
-			In:  stdinReader,
-			Out: stdoutWriter,
-		})
-	}()
-
-	err := <-startChannel
-	if err != nil {
-		log.Info("Failed to open serial console to VM '%v': %v", session.Job.Id, err)
-		return
-	}
-
-	go func() {
-		defer close(readStop)
-		buf := make([]byte, 1024*4)
-
-		for session.Alive {
-			n, err := stdoutReader.Read(buf)
-			if err != nil {
-				break
-			}
-
-			session.EmitData(buf[:n])
-		}
-	}()
-
-	go func() {
-		defer close(writeStop)
-
-		for util.IsAlive && session.Alive {
-			select {
-			case event := <-session.InputEvents:
-				switch event.Type {
-				case ctrl.ShellEventTypeInput:
-					_, err = stdinWriter.Write([]byte(event.Data))
-					if err != nil {
-						session.Alive = false
-						log.Info("Error while writing to master: %v", err)
-						break
-					}
-
-				case ctrl.ShellEventTypeResize:
-					// Do nothing
-				}
-
-			case _ = <-time.After(1 * time.Second):
-				continue
-			}
-		}
-	}()
-
-	select {
-	case <-streamStop:
-	case <-writeStop:
-	case <-readStop:
+		ttyConn = nextConn
+		session.EmitData(clearScreen)
 	}
 }
 
-func handleShellSessionViaAgentTty(session *ctrl.ShellSession, conn *ws.Conn, cols int, rows int) {
+type shellSessionNext int
+
+const (
+	shellSessionNextDone shellSessionNext = iota
+	shellSessionNextAgent
+	shellSessionNextSerial
+)
+
+func handleShellSessionViaAgentTty(session *ctrl.ShellSession, conn *ws.Conn, cols int, rows int) shellSessionNext {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	defer util.SilentClose(conn)
@@ -794,14 +711,16 @@ func handleShellSessionViaAgentTty(session *ctrl.ShellSession, conn *ws.Conn, co
 		return conn.WriteMessage(ws.TextMessage, data) == nil
 	}
 
-	if !sendEvent(ctrl.ShellEvent{
+	ok := sendEvent(ctrl.ShellEvent{
 		Type: ctrl.ShellEventTypeInit,
 		ShellEventResize: ctrl.ShellEventResize{
 			Cols: cols,
 			Rows: rows,
 		},
-	}) {
-		return
+	})
+
+	if !ok {
+		return shellSessionNextSerial
 	}
 
 	ticker := time.NewTicker(1 * time.Second)
@@ -809,35 +728,162 @@ func handleShellSessionViaAgentTty(session *ctrl.ShellSession, conn *ws.Conn, co
 
 	for {
 		if !util.IsAlive || !session.Alive {
-			return
+			return shellSessionNextDone
 		}
 
 		select {
 		case <-ctx.Done():
-			return
+			return shellSessionNextDone
 
 		case msg, ok := <-socketMessages:
 			if !ok {
-				return
+				return shellSessionNextSerial
 			}
 			session.EmitData(msg)
 
 		case ev, ok := <-session.InputEvents:
 			if !ok {
-				return
+				return shellSessionNextDone
 			}
 
 			if !sendEvent(ev) {
-				return
+				return shellSessionNextSerial
 			}
 
 			if ev.Type == ctrl.ShellEventTypeTerminate {
-				return
+				return shellSessionNextDone
 			}
 
 		case <-ticker.C:
 			// Keep loop responsive to session/aliveness changes.
 		}
+	}
+}
+
+func handleShellSessionViaSerialConsole(session *ctrl.ShellSession, cols, rows int) (shellSessionNext, *ws.Conn) {
+	session.EmitData([]byte("Using serial console fallback. You may need to press Enter before output appears.\r\n"))
+
+	stdinReader, stdinWriter := io.Pipe()
+	stdoutReader, stdoutWriter := io.Pipe()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	startChannel := make(chan error, 1)
+	streamStop := make(chan error, 1)
+	writeStop := make(chan error)
+	readStop := make(chan error)
+	upgradeChannel := make(chan *ws.Conn, 1)
+
+	go func() {
+		stream, err := KubevirtClient.
+			VirtualMachineInstance(Namespace).
+			SerialConsole(
+				vmName(session.Job.Id, session.Rank),
+				&kvapi.SerialConsoleOptions{},
+			)
+
+		startChannel <- err
+
+		if err != nil {
+			return
+		}
+
+		streamStop <- stream.Stream(kvapi.StreamOptions{
+			In:  stdinReader,
+			Out: stdoutWriter,
+		})
+	}()
+
+	if err := <-startChannel; err != nil {
+		log.Info("Failed to open serial console to VM '%v': %v", session.Job.Id, err)
+		return shellSessionNextDone, nil
+	}
+
+	go func() {
+		defer close(readStop)
+		buf := make([]byte, 1024*4)
+
+		for util.IsAlive && session.Alive {
+			n, err := stdoutReader.Read(buf)
+			if err != nil {
+				return
+			}
+
+			session.EmitData(buf[:n])
+		}
+	}()
+
+	go func() {
+		defer close(writeStop)
+
+		for util.IsAlive && session.Alive {
+			select {
+			case event := <-session.InputEvents:
+				switch event.Type {
+				case ctrl.ShellEventTypeInput:
+					if _, err := stdinWriter.Write([]byte(event.Data)); err != nil {
+						session.Alive = false
+						log.Info("Error while writing to master: %v", err)
+						return
+					}
+
+				case ctrl.ShellEventTypeResize:
+					// Do nothing
+				}
+
+			case <-ctx.Done():
+				return
+
+			case <-time.After(1 * time.Second):
+				continue
+			}
+		}
+	}()
+
+	go func() {
+		for util.IsAlive && session.Alive {
+			conn := vmaRequestTty(ctx, session.Job.Id)
+			if conn == nil {
+				select {
+				case <-ctx.Done():
+					return
+				case <-time.After(2 * time.Second):
+					continue
+				}
+			}
+
+			select {
+			case upgradeChannel <- conn:
+				return
+			case <-ctx.Done():
+				util.SilentClose(conn)
+				return
+			}
+		}
+	}()
+
+	select {
+	case <-streamStop:
+		cancel()
+		_ = stdinWriter.Close()
+		_ = stdoutWriter.Close()
+		return shellSessionNextDone, nil
+	case <-writeStop:
+		cancel()
+		_ = stdinWriter.Close()
+		_ = stdoutWriter.Close()
+		return shellSessionNextDone, nil
+	case <-readStop:
+		cancel()
+		_ = stdinWriter.Close()
+		_ = stdoutWriter.Close()
+		return shellSessionNextDone, nil
+	case conn := <-upgradeChannel:
+		cancel()
+		_ = stdinWriter.Close()
+		_ = stdoutWriter.Close()
+		return shellSessionNextAgent, conn
 	}
 }
 
@@ -1088,6 +1134,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 			},
 			Ports: []k8score.ServicePort{{
 				Protocol: "TCP",
+				Name:     "p-4",
 				Port:     4, // dummy
 			}},
 		},
@@ -1108,16 +1155,20 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	}
 
 	cinit := cloudInit{}
-	cinit.Users = append(cinit.Users, cloudInitUser{
-		// Username: ucloud Password: ucloud
-		// TODO Configure a better system for this
-		Name:         "ucloud",
-		Password:     "$6$rounds=4096$fzCn1bIp2KpPC3a4$FPFj6AozYQXucfCYmnLep/RS3kyNGcPWpY8MTP1zm6TyxMqgxttrYszwAAdIojC.MUZs9JI566FBQxprKraUA0",
-		Uid:          filesystem.DefaultUid,
-		Sudo:         []string{"ALL=(ALL) NOPASSWD:ALL"},
-		LockPassword: false,
-		Shell:        "/bin/bash",
-	})
+	{
+		user := cloudInitUser{
+			Name:         "ucloud",
+			Uid:          filesystem.DefaultUid,
+			Sudo:         []string{"ALL=(ALL) NOPASSWD:ALL"},
+			LockPassword: true,
+			Shell:        "/bin/bash",
+		}
+		if enableDefaultPassword {
+			user.LockPassword = false
+			user.Password = "$6$rounds=4096$fzCn1bIp2KpPC3a4$FPFj6AozYQXucfCYmnLep/RS3kyNGcPWpY8MTP1zm6TyxMqgxttrYszwAAdIojC.MUZs9JI566FBQxprKraUA0"
+		}
+		cinit.Users = append(cinit.Users, user)
+	}
 	cinit.RunCommand = []string{
 		fmt.Sprintf("usermod -u %d ucloud", filesystem.DefaultUid),
 		fmt.Sprintf("groupmod -g %d ucloud", filesystem.DefaultUid),

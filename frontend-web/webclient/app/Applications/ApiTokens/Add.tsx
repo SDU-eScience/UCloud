@@ -108,7 +108,7 @@ function Add() {
                 <Box><b>Server: </b> <code>{tokenStatus.server}</code></Box>
                 <Box><b>Token: </b> <code>{tokenStatus.token}</code></Box>
                 <br />
-                <Box>You must save the token now, as it will not be available after existing this screen.</Box>
+                <Box>You must save the token now, as it will not be available after exiting this screen.</Box>
                 <br />
                 <Link to={AppRoutes.resources.apiTokens()}><Button>Back to overview</Button></Link>
             </Box>
@@ -117,7 +117,7 @@ function Add() {
         main = <div style={{display: "grid", gap: "18px"}}>
             <Heading.h2>New API token</Heading.h2>
             <div>
-                Here you can create API tokens which will can be used for direct API access to the UCloud platform and
+                Here you can create API tokens which can be used for direct API access to the UCloud platform and
                 specific services at supported service providers. The token will be scoped and owned by a specific
                 workspace/project when a token is created for the UCloud platform.
             </div>

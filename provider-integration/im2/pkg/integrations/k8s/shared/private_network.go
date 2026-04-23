@@ -3,7 +3,6 @@ package shared
 import (
 	"context"
 	"fmt"
-	"math/rand"
 	"net/http"
 	"strings"
 	"sync"
@@ -163,8 +162,7 @@ type PrivateNetworkDnsConfig struct {
 func PrivateNetworkCreateDnsConfig(job *orc.Job) (PrivateNetworkDnsConfig, *util.HttpError) {
 	result := PrivateNetworkDnsConfig{}
 	result.Labels = map[string]string{}
-	result.Hostname = job.Specification.Hostname.GetOrDefault(
-		fmt.Sprintf("%s-%v", job.Status.ResolvedApplication.Value.Metadata.Title, rand.Intn(9999)))
+	result.Hostname = job.Specification.Hostname.GetOrDefault(fmt.Sprintf("j-%v", job.Id))
 
 	var networks []orc.PrivateNetwork
 	for _, resc := range job.Specification.Resources {
@@ -175,6 +173,8 @@ func PrivateNetworkCreateDnsConfig(job *orc.Job) (PrivateNetworkDnsConfig, *util
 			}
 		}
 	}
+
+	toolBackend := job.Status.ResolvedApplication.Value.Invocation.Tool.Tool.Value.Description.Backend
 
 	if len(networks) > 0 {
 		result.Subdomain = networks[0].Specification.Subdomain
@@ -187,6 +187,15 @@ func PrivateNetworkCreateDnsConfig(job *orc.Job) (PrivateNetworkDnsConfig, *util
 			result.Labels[PrivateNetworkLabel(network.Specification.Subdomain)] = "true"
 		}
 
+		result.PodDns.Searches = append(result.PodDns.Searches, baseDomain)
+		result.PodDns.Searches = append(result.PodDns.Searches, "svc.cluster.local")
+		result.PodDns.Searches = append(result.PodDns.Searches, "cluster.local")
+	} else if toolBackend == orc.ToolBackendVirtualMachine {
+		result.Subdomain = fmt.Sprintf("j-%v", job.Id)
+		result.PodDns = &k8score.PodDNSConfig{}
+		baseDomain := fmt.Sprintf("%s.svc.cluster.local", ServiceConfig.Compute.Namespace)
+
+		result.PodDns.Searches = append(result.PodDns.Searches, fmt.Sprintf("%s.%s", result.Subdomain, baseDomain))
 		result.PodDns.Searches = append(result.PodDns.Searches, baseDomain)
 		result.PodDns.Searches = append(result.PodDns.Searches, "svc.cluster.local")
 		result.PodDns.Searches = append(result.PodDns.Searches, "cluster.local")

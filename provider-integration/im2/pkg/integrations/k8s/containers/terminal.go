@@ -178,6 +178,13 @@ func handleShellNoRetry(session *controller.ShellSession, cols int, rows int, is
 		return false
 	}
 
+	if len(sandbox.Warnings) > 0 {
+		for _, warning := range sandbox.Warnings {
+			session.EmitData([]byte(fmt.Sprintf("Warning: %s\r\n", warning)))
+		}
+		session.EmitData([]byte("\r\n"))
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 

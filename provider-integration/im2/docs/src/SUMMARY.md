@@ -55,6 +55,16 @@
     - [Configuration](./k8s/config-reference.md)
     - [CLI](./k8s/cli-reference.md)
 
+
+
+# Frontend development
+
+- [Frontend description and development guidelines](./dev/frontend-development.md)
+
+# Branding for UCloud
+
+- [Branding and identity for UCloud](./branding/branding.md)
+
 # H: Procedures
 
 - [H: Procedures](./procedures.md)

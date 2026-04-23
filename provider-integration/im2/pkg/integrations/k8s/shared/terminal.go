@@ -2,6 +2,7 @@ package shared
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"slices"
 	"sync"
@@ -29,6 +30,8 @@ type TerminalSandbox struct {
 	Folders    []string
 	LeaseUntil time.Time
 	AutoLease  bool
+
+	Warnings []string
 }
 
 // NOTE(Dan): I tend to not like using interfaces, especially like this. Unfortunately, the API surface has to live in
@@ -243,10 +246,9 @@ func terminalMutate(
 		return nil, err
 	}
 
-	if didUpdate {
-		if err := terminalValidateFolders(owner, config.Folders); err != nil {
-			return nil, err
-		}
+	if didUpdate || (current.Present && current.Value.IsDetached()) {
+		validation := terminalValidateFolders(owner, config.Folders)
+		config.Folders = validation.Folders
 
 		data, err := json.Marshal(config)
 		if err != nil {
@@ -262,6 +264,7 @@ func terminalMutate(
 			return nil, util.ServerHttpError("error configuring terminal sandbox")
 		}
 		sandbox := terminalSandboxFromConfiguration(updated.Value)
+		sandbox.Warnings = validation.Warnings
 		return sandbox, nil
 	} else {
 		return terminalSandboxFromConfiguration(current.Value), nil
@@ -309,28 +312,42 @@ func terminalNormalizeFolders(folders []string) []string {
 	return result
 }
 
-func terminalValidateFolders(owner orc.ResourceOwner, folders []string) *util.HttpError {
+type terminalValidateFoldersResult struct {
+	Warnings []string
+	Folders  []string
+}
+
+func terminalValidateFolders(owner orc.ResourceOwner, folders []string) terminalValidateFoldersResult {
+	sb := terminalValidateFoldersResult{}
+	newFolders := make([]string, 0, len(folders))
 	for _, folder := range folders {
 		driveId, ok := orc.DriveIdFromUCloudPath(folder)
 		if !ok {
-			return util.UserHttpError("bad folder path supplied")
+			sb.Warnings = append(sb.Warnings, fmt.Sprintf("Unable to mount '%s'. The path is invalid.", folder))
+			continue
 		}
 
 		drive, ok := controller.DriveRetrieve(driveId)
 		if !ok {
-			return util.UserHttpError("bad folder path supplied")
+			sb.Warnings = append(sb.Warnings, fmt.Sprintf("Unable to mount '%s'. The path is invalid.", folder))
+			continue
 		}
 
 		if controller.ResourceIsLocked(drive.Resource, drive.Specification.Product) {
-			return util.UserHttpError("The drive is currently locked")
+			sb.Warnings = append(sb.Warnings, fmt.Sprintf("Unable to mount '%s'. You do not have enough storage resources.", folder))
+			continue
 		}
 
 		if !controller.DriveCanUse(owner, driveId, false) && !controller.DriveCanUse(owner, driveId, true) {
-			return util.UserHttpError("permission denied")
+			sb.Warnings = append(sb.Warnings, fmt.Sprintf("Unable to mount '%s'. You do not have sufficient permissions.", folder))
+			continue
 		}
+
+		newFolders = append(newFolders, folder)
 	}
 
-	return nil
+	sb.Folders = newFolders
+	return sb
 }
 
 func (cmd *TerminalCmd) Err() *util.HttpError {
