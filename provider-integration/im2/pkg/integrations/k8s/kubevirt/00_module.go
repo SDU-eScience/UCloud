@@ -1247,6 +1247,15 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	addResource(k8score.ResourceCPU, int64(shared.NodeCpuMillisNormalizedWithReserved(&product)), k8sresource.Milli)
 	addResource(k8score.ResourceMemory, int64(product.MemoryInGigs), k8sresource.Giga)
 
+	{
+		quantity := k8sresource.NewScaledQuantity(
+			shared.NodeCpuMillisNormalizedWithoutReserved(&product),
+			k8sresource.Milli,
+		)
+		quantity.Format = k8sresource.DecimalSI
+		resources.Limits[k8score.ResourceCPU] = *quantity
+	}
+
 	vm.Spec.Template = &kvcore.VirtualMachineInstanceTemplateSpec{
 		Spec: kvcore.VirtualMachineInstanceSpec{
 			NodeSelector: map[string]string{
