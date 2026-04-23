@@ -456,7 +456,27 @@ export const File = {
 };
 
 export const Drive = {
-    ...Rows,
+
+    // Specific for drive (right now) is that resources can have same name, without being from same provider. This is problematic!
+    async actionByRowTitle(page: Page, name: string, action: "click" | "dblclick" | "hover"): Promise<void> {
+        await page.locator(".scrolling").first().hover();
+        for (let i = 0; i < 50; i++) {
+            await page.mouse.wheel(0, -5000);
+        }
+
+        let iterations = 100;
+        const locator = page.locator(".scrolling").locator(".row").filter({hasText: providerAndProducts.drive_provider}).getByText(name);
+        while (!await locator.isVisible()) {
+            await page.mouse.wheel(0, 150);
+            iterations -= 1;
+            if (iterations <= 0) {
+                console.warn("Many such iterations, no result");
+                break;
+            }
+        }
+        await locator[action]();
+    },
+
     newDriveNameOrMemberFiles(ctx: Contexts): string {
         if (ctx === "Project User") return this.memberFiles(ctxUser("Project User").username);
         return Help.newResourceName("DriveName");
@@ -487,8 +507,9 @@ export const Drive = {
         }
 
         await NetworkCalls.awaitResponse(page, "**/api/files/browse**", async () => {
-            await page.locator(".scrolling").locator(".row").filter({hasText: providerAndProducts.drive_provider}).getByText(name).dblclick();
+            this.actionByRowTitle(page, name, "dblclick");
         });
+
         await Components.projectSwitcher(page, "hover")
 
         await page.waitForLoadState("domcontentloaded");
@@ -511,7 +532,8 @@ export const Drive = {
 
     async delete(page: Page, name: string): Promise<void> {
         await this.goToDrives(page);
-        await Rows.actionByRowTitle(page, name, "click");
+        await this.actionByRowTitle(page, name, "click");
+
         await page.getByText("Delete").click();
         await page.locator("#collectionName").fill(name);
         await page.getByRole("button", {name: "I understand what I am doing", disabled: false}).click();
@@ -522,7 +544,7 @@ export const Drive = {
     },
 
     async properties(page: Page, name: string): Promise<void> {
-        await Rows.actionByRowTitle(page, name, "click");
+        await this.actionByRowTitle(page, name, "click");
         await page.getByText("Properties").click();
     }
 };
@@ -833,7 +855,6 @@ export const Project = {
 
 export const Resources = {
     ...Rows,
-
     async open(page: Page, resourceName: string) {
         await this.actionByRowTitle(page, resourceName, "dblclick");
     },
