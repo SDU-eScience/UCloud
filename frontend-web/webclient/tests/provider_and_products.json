@@ -52,7 +52,7 @@
             "public_link": "u1-publiclink",
             "public_ip": null
         },
-        "machine_used_in_tests": "u1-standard-h",
+        "machine_used_in_tests": "u1-standard-h-1",
         "machine_used_in_tests_danfoss_center": "cpu-amd-zen5-1-vcpu",
         "drive_provider": "SDU/K8s",
         "application_text_fields": {
