@@ -43,6 +43,8 @@ var KubevirtClient kvclient.KubevirtClient
 var Namespace string
 var Enabled = false
 
+const enableDefaultPassword = false
+
 //go:embed ucloud-vmagent.service
 var vmAgentSystemdFile []byte
 
@@ -439,6 +441,7 @@ type cloudInitUser struct {
 	Name         string   `json:"name"`
 	Uid          int      `json:"uid"`
 	Sudo         []string `json:"sudo"`
+	Password     string   `json:"hashed_passwd,omitempty"`
 	LockPassword bool     `json:"lock_passwd"`
 	Shell        string   `json:"shell"`
 }
@@ -1152,13 +1155,20 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	}
 
 	cinit := cloudInit{}
-	cinit.Users = append(cinit.Users, cloudInitUser{
-		Name:         "ucloud",
-		Uid:          filesystem.DefaultUid,
-		Sudo:         []string{"ALL=(ALL) NOPASSWD:ALL"},
-		LockPassword: true,
-		Shell:        "/bin/bash",
-	})
+	{
+		user := cloudInitUser{
+			Name:         "ucloud",
+			Uid:          filesystem.DefaultUid,
+			Sudo:         []string{"ALL=(ALL) NOPASSWD:ALL"},
+			LockPassword: true,
+			Shell:        "/bin/bash",
+		}
+		if enableDefaultPassword {
+			user.LockPassword = false
+			user.Password = "$6$rounds=4096$fzCn1bIp2KpPC3a4$FPFj6AozYQXucfCYmnLep/RS3kyNGcPWpY8MTP1zm6TyxMqgxttrYszwAAdIojC.MUZs9JI566FBQxprKraUA0"
+		}
+		cinit.Users = append(cinit.Users, user)
+	}
 	cinit.RunCommand = []string{
 		fmt.Sprintf("usermod -u %d ucloud", filesystem.DefaultUid),
 		fmt.Sprintf("groupmod -g %d ucloud", filesystem.DefaultUid),
