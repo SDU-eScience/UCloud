@@ -1087,6 +1087,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 			},
 			Ports: []k8score.ServicePort{{
 				Protocol: "TCP",
+				Name:     "p-4",
 				Port:     4, // dummy
 			}},
 		},
