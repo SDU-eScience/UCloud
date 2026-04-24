@@ -58,6 +58,8 @@ TestContexts.map(ctx => {
             // TODO(Jonas): Ensure 1 confidential is present (or ensure that specific one has?)
 
             await expect(page.getByText("C", {exact: true})).toHaveCount(1);
+
+            await File.moveFileToTrash(page, folderName);
         });
 
         test("Favorite file, unfavorite file", async ({page}) => {
@@ -70,6 +72,7 @@ TestContexts.map(ctx => {
             await File.toggleFavorite(page, folder);
             await page.getByRole("link", {name: "Go to Files"}).hover();
             await expect(page.getByText(folder)).toHaveCount(1);
+            await File.moveFileToTrash(page, folder);
         });
 
         test("View properties", async ({page}) => {
@@ -87,6 +90,9 @@ TestContexts.map(ctx => {
             await expect(page.locator("b").filter({hasText: "Accessed at"})).toHaveCount(1);
             await expect(page.locator("b").filter({hasText: "UID/GID"})).toHaveCount(1);
             await expect(page.locator("b").filter({hasText: "Unix mode"})).toHaveCount(1);
+
+            await page.goBack();
+            await File.moveFileToTrash(page, folderName);
         });
 
         test("Stress testing the row selector", async ({page}) => {
@@ -109,6 +115,10 @@ TestContexts.map(ctx => {
                 await page.getByText(testFileContents).waitFor({state: "visible"});
                 await Components.toggleTasksDialog(page);
                 await page.locator("svg > circle").first().waitFor({state: "visible"});
+
+                await page.keyboard.press("Escape");
+                await page.goBack();
+                await File.moveFileToTrash(page, testFileName);
             });
 
             test("Upload file, download file, validate contents", async ({page}) => {
@@ -117,6 +127,7 @@ TestContexts.map(ctx => {
                 await File.uploadFiles(page, [{name: testFileName, contents: testFileContents}]);
                 const result = await File.download(page, testFileName);
                 expect(result).toBe(testFileContents);
+                await File.moveFileToTrash(page, testFileName);
             });
         });
 
@@ -148,6 +159,12 @@ TestContexts.map(ctx => {
                 await File.open(page, folderName2);
                 await File.open(page, folderName3);
                 // TODO: Clean-up folders for project-user ctx
+
+                for (let i = 0; i < 3; i++) {
+                    await page.goBack();
+                }
+
+                await File.moveFileToTrash(page, folderName1);
             });
 
             test("Rename", async ({page}) => {
@@ -157,6 +174,8 @@ TestContexts.map(ctx => {
                 await File.rename(page, folderName, newFolderName)
                 await File.open(page, newFolderName);
                 await expect(page.getByText("This folder is empty")).toHaveCount(1);
+                await page.goBack();
+                await File.moveFileToTrash(page, newFolderName);
             });
 
             test("Move file", async ({page}) => {
@@ -167,6 +186,8 @@ TestContexts.map(ctx => {
                 await File.moveFileTo(page, uploadedFileName, folderTarget);
                 await File.actionByRowTitle(page, folderTarget, "dblclick");
                 await expect(page.getByText(uploadedFileName)).toHaveCount(1);
+                await page.goBack();
+                await File.moveFileToTrash(page, folderTarget);
             });
 
             test("Move folder", async ({page}) => {
@@ -189,6 +210,7 @@ TestContexts.map(ctx => {
                 await page.getByRole("dialog").locator(".row", {hasText: "From"}).getByRole("button", {name: "Move to"}).click();
                 await expect(page.getByText("Unable to move file.")).toHaveCount(1);
                 await page.keyboard.press("Escape");
+                await File.moveFileToTrash(page, rootFolder);
             });
 
             test("Copy file", async ({page}) => {
@@ -203,6 +225,9 @@ TestContexts.map(ctx => {
                     await Components.clickRefreshAndWait(page);
                     await page.waitForTimeout(200);
                 }
+
+                await page.goBack();
+                await File.moveFileToTrash(page, folder);
             });
 
             test("Copy file to self (check renaming)", async ({page}) => {
@@ -216,6 +241,11 @@ TestContexts.map(ctx => {
                 while (!await page.locator(".row").getByText("File(1).txt", {exact: true}).isVisible()) {
                     await Components.clickRefreshAndWait(page);
                     await page.waitForTimeout(200);
+                }
+
+                if (ctx === "Project User") {
+                    await File.moveToTrash(page, "File.txt");
+                    await File.moveToTrash(page, "File(1).txt");
                 }
             });
 
@@ -232,9 +262,16 @@ TestContexts.map(ctx => {
                     await Components.clickRefreshAndWait(page);
                     await page.waitForTimeout(200);
                 }
+
+                await File.moveFileToTrash(page, folderToCopy);
+                await File.moveFileToTrash(page, folderToCopy + "(1)");
             });
 
             test("Move to trash, empty trash", async ({page}) => {
+                if (isProd(data.location_origin)) {
+                    throw Error("No reason to do it right now")
+                }
+
                 const folderName = File.newFolderName();
                 await File.create(page, folderName);
                 await File.moveFileToTrash(page, folderName);
@@ -249,6 +286,9 @@ TestContexts.map(ctx => {
         });
 
         test("Files - search works", async ({page}) => {
+            if (isProd(data.location_origin)) {
+                throw Error("No reason to do it right now, requires emptying trash")
+            }
             const theFolderToFind = "Please find meeee";
             const foldersToCreate = `A/B/C/D/${theFolderToFind}`;
             await File.create(page, foldersToCreate);
@@ -265,6 +305,9 @@ TestContexts.map(ctx => {
                 await Components.clickRefreshAndWait(page);
                 await page.waitForTimeout(200);
             }
+
+            await page.goBack();
+            await File.moveFileToTrash(page, "A");
         });
 
         test.describe("Files - transfer works", () => {
@@ -323,13 +366,15 @@ TestContexts.map(ctx => {
             test.setTimeout(120_000);
             const args = testCtx(["", ctx]);
             const user = args.user;
-            const drive = ctx === "Project User" ? Drive.newDriveNameOrMemberFiles(ctx) : Drives[userAgent! + user.username];
+            const drive = ctx === "Project User" ? user.username : Drives[userAgent! + user.username];
             const testFileName = "test_single_file.txt";
             const testFileContents = "Single test file content.";
             await File.uploadFiles(page, [{name: testFileName, contents: testFileContents}]);
             await File.openIntegratedTerminal(page);
-            await Terminal.enterCmd(page, `cat ${drive}/${testFileName}`);
+            await Terminal.enterCmd(page, `cat "${drive}/${testFileName}"`);
             await expect(page.getByText(testFileContents)).toHaveCount(1);
+
+            await File.moveFileToTrash(page, testFileName);
 
             if (ctx !== "Personal Workspace") {
                 await Project.changeTo(page, "My workspace");
@@ -346,6 +391,8 @@ TestContexts.map(ctx => {
             if (ctx !== "Personal Workspace") {
                 await Project.changeTo(page, args.projectName!);
             }
+
+
         });
 
         if (!ctx.startsWith("Project")) {
@@ -353,6 +400,8 @@ TestContexts.map(ctx => {
                 // Create folder
                 const folderToShare = File.newFolderName();
                 await File.create(page, folderToShare);
+
+                const url = page.url();
 
                 // Share with user
                 await File.shareFolderWith(page, folderToShare, data.users.without_resources.username);
@@ -383,6 +432,11 @@ TestContexts.map(ctx => {
                 // Should be `await Components.clickRefreshAndWait(sharedWithUserPage);`, but blocked by #5268
                 await sharedWithUserPage.reload();
                 await sharedWithUserPage.getByText("We could not find any data related to this folder.").waitFor({state: "visible"});
+
+                await page.goto(url);
+
+                await File.moveToTrash(page, folderToShare);
+
             });
         }
 
@@ -391,6 +445,8 @@ TestContexts.map(ctx => {
             const folderName = File.newFolderName();
             const deviceName = File.newFolderName().replace("FolderName", "DeviceName");
             await File.create(page, folderName);
+
+            const url = page.url()
 
             const result = await NetworkCalls.awaitResponse(page, "**/iapps/syncthing/retrieve**", async () => {
                 await page.locator("div.operation", {hasText: "Sync"}).click();
@@ -432,6 +488,10 @@ TestContexts.map(ctx => {
             await NetworkCalls.awaitResponse(page, "**/api/iapps/syncthing/update", async () => {
                 await page.getByRole("button", {name: "Remove"}).click();
             });
+
+            await page.goto(url);
+
+            await File.moveToTrash(page, folderName);
         });
     });
 });

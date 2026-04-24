@@ -1,4 +1,4 @@
-import {expect, test} from "@playwright/test";
+import {expect, test, Page} from "@playwright/test";
 import {
     Applications,
     Components,
@@ -24,7 +24,6 @@ const PRODUCTS = pAndP.find(it => it.location_origin === data.location_origin)!.
 test.beforeEach(async ({page}, testInfo) => {
     const doSkipInitialization = testInfo.titlePath.find((it) => [
         "disallow start from locked allocation",
-        "Compute - check accounting",
     ].includes(it));
     if (doSkipInitialization) {
         await Admin.newLoggedInAdminPage(page);
@@ -217,6 +216,8 @@ echo "${BashScriptStringContent}"
         });
 
         test("multinode, connect to other jobs", async ({page}) => {
+            if (isProd(data.location_origin)) throw Error("Not live on production!");
+
             test.setTimeout(120_000);
 
 
@@ -361,13 +362,44 @@ echo "${BashScriptStringContent}"
             await Accounting.goTo(userPage, "Allocations");
 
             await userPage.getByText("Core-hours").first().waitFor();
-            const percentage = await userPage.evaluate(() => {
-                const element = document.querySelector("div[style^='--percentage']");
-                if (!element) return -1;
-                const percentageString = element["style"].getPropertyValue("--percentage");
-                return parseFloat(percentageString.replace("%", ""))
-            });
+            const percentage = await getPercentUsage(userPage, "Core-hours");
             expect(percentage).toBeGreaterThan(0);
         });
     });
 });
+
+async function getPercentUsage(page: Page, kind: "Core-hours"): Promise<number> {
+    await Accounting.goTo(page, "Allocations");
+    await page.getByText(kind).first().waitFor();
+    return await page.evaluate(() => {
+        const element = document.querySelector("div[style^='--percentage']");
+        if (!element) return -1;
+        const percentageString = element["style"].getPropertyValue("--percentage");
+        return parseFloat(percentageString.replace("%", ""))
+    });
+}
+
+/**
+ * 
+ * Simpler approach to 'Compute - check accounting'. Should work for personal workspace, others are more difficult, due to small total amount of core-hours
+            test.setTimeout(150_000);
+            const AUTOGIFTED_RESOURCES = (isProd(data.location_origin) || isDev(data.location_origin)) && ctx === "Personal Workspace";
+            const initialPercentage = await getPercentUsage(page, "Core-hours");
+            const jobName = Runs.newJobName();
+            const coreCount = AUTOGIFTED_RESOURCES ? 8 : 2;
+            await Applications.runAppAndOpenTerminal(page, AppNames.TestApplication, coreCount, undefined, jobName);
+
+            await page.waitForTimeout(60_000);
+
+            await Runs.terminateViewedRun(page);
+
+            await page.reload();
+            const isPersonalWorkspace = ctx === "Personal Workspace";
+            const args = testCtx(["", ctx]);
+            const user = args.user;
+            const driveName = isPersonalWorkspace ? "Home" : Drive.memberFiles(user.username);
+            await File.triggerStorageScan(page, driveName);
+            const percentage = await getPercentUsage(page, "Core-hours");
+            expect(percentage).toBeGreaterThan(initialPercentage);
+ * 
+ */

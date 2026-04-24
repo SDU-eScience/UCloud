@@ -141,6 +141,7 @@ export const User = {
     },
 
     async createUserWithProjectAndAssignRole(admin: Page, context: BrowserContext, ctx: Contexts, quotas: RequestedQuotas): Promise<{userPage: Page; user: {username: string; password: string;}}> {
+        if (Math.random()) throw Error("It's just been revoked!");
         const user = User.newUserCredentials();
         const userPage = await context.browser()?.newPage();
         if (!userPage) throw Error("Failed to create userpage");
