@@ -317,7 +317,7 @@ func grantsReadEx(actor rpc.Actor, action grantAuthType, b *grantAppBucket, id a
 			}
 		}
 
-		if app.Application.CreatedBy == actor.Username {
+		if app.Application.CreatedBy == actor.Username || (recipient.Type == accapi.RecipientTypePersonalWorkspace && recipient.Username.Value == actor.Username) {
 			roles = append(roles, grantActorRoleSubmitter)
 		}
 
