@@ -1,6 +1,6 @@
 import * as React from "react";
 import {State, UIEvent} from "@/Accounting/Allocations/State";
-import {Accordion, Box, Button, DataList, Flex, Icon, Input, Label, Select, TextArea} from "@/ui-components";
+import {Box, Button, DataList, Flex, Icon, Input, Label, Select, TextArea} from "@/ui-components";
 import {bulkRequestOf, extractErrorMessage, stopPropagation} from "@/UtilityFunctions";
 import {Tree, TreeNode} from "@/ui-components/Tree";
 import * as Accounting from "@/Accounting";
@@ -291,51 +291,53 @@ export const ProviderOnlySections: React.FunctionComponent<{
                     </ul>
                 </div>
 
-                <Accordion title={"Create a new root allocation"}>
-                    <h4>Step 1: Select a period</h4>
-                    <Select
-                        slim
-                        value={state.rootAllocations.year}
-                        onInput={onRootAllocationInput}
-                        onKeyDown={stopPropagation}
-                        name={"root-year"}
-                    >
-                        {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(delta => {
-                            const year = new Date().getUTCFullYear() + delta;
-                            return <option key={delta} value={year.toString()}>{year}</option>;
-                        })}
-                    </Select>
+                <Tree>
+                    <TreeNode left={"Create a new root allocation"}>
+                        <h4>Step 1: Select a period</h4>
+                        <Select
+                            slim
+                            value={state.rootAllocations.year}
+                            onInput={onRootAllocationInput}
+                            onKeyDown={stopPropagation}
+                            name={"root-year"}
+                        >
+                            {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(delta => {
+                                const year = new Date().getUTCFullYear() + delta;
+                                return <option key={delta} value={year.toString()}>{year}</option>;
+                            })}
+                        </Select>
 
-                    <h4>Step 2: Select allocation size</h4>
-                    <Tree>
-                        {Object.entries((state.remoteData.managedProducts ?? {})).map(([providerId, page]) =>
-                            <React.Fragment
-                                key={providerId}>
-                                {page.map(cat => <TreeNode
-                                    key={cat.name + cat.provider}
-                                    left={<Flex gap={"4px"}>
-                                        <Icon name={Accounting.productTypeToIcon(cat.productType)} size={20} />
-                                        <code>{cat.name} / {cat.provider}</code>
-                                    </Flex>}
-                                    right={<Flex gap={"4px"}>
-                                        <Input
-                                            height={20}
-                                            placeholder={"0"}
-                                            name={`root-resource-${cat.name}/${cat.provider}`}
-                                            value={state.rootAllocations?.resources?.[`${cat.name}/${cat.provider}`] ?? ""}
-                                            onInput={onRootAllocationInput}
-                                            onKeyDown={stopPropagation}
-                                        />
-                                        <Box width={"150px"}>{Accounting.explainUnit(cat).name}</Box>
-                                    </Flex>}
-                                />)}
-                            </React.Fragment>)}
-                    </Tree>
+                        <h4>Step 2: Select allocation size</h4>
+                        <Tree>
+                            {Object.entries((state.remoteData.managedProducts ?? {})).map(([providerId, page]) =>
+                                <React.Fragment
+                                    key={providerId}>
+                                    {page.map(cat => <TreeNode
+                                        key={cat.name + cat.provider}
+                                        left={<Flex gap={"4px"}>
+                                            <Icon name={Accounting.productTypeToIcon(cat.productType)} size={20}/>
+                                            <code>{cat.name} / {cat.provider}</code>
+                                        </Flex>}
+                                        right={<Flex gap={"4px"}>
+                                            <Input
+                                                height={20}
+                                                placeholder={"0"}
+                                                name={`root-resource-${cat.name}/${cat.provider}`}
+                                                value={state.rootAllocations?.resources?.[`${cat.name}/${cat.provider}`] ?? ""}
+                                                onInput={onRootAllocationInput}
+                                                onKeyDown={stopPropagation}
+                                            />
+                                            <Box width={"150px"}>{Accounting.explainUnit(cat).name}</Box>
+                                        </Flex>}
+                                    />)}
+                                </React.Fragment>)}
+                        </Tree>
 
-                    <Button my={16} onClick={onCreateRootAllocation}>Create root allocations</Button>
-                </Accordion>
+                        <Button my={16} onClick={onCreateRootAllocation}>Create root allocations</Button>
+                    </TreeNode>
+                </Tree>
 
-                <Box mt={32} />
+                <Box mt={32}/>
             </>}
 
             {state.gifts && <>
@@ -351,15 +353,16 @@ export const ProviderOnlySections: React.FunctionComponent<{
                     </ul>
                 </div>
 
-                <Accordion title={`View existing gifts (${gifts.length})`}>
-                    {gifts.length === 0 ? <>This project currently has no active gifts!</> : <Tree>
-                        {gifts.map(g =>
-                            <TreeNode
-                                key={g.id}
-                                left={g.title}
-                            >
-                                <table className={giftClass}>
-                                    <tbody>
+                <Tree>
+                    <TreeNode left={`View existing gifts (${gifts.length})`}>
+                        {gifts.length === 0 ? <>This project currently has no active gifts!</> : <Tree>
+                            {gifts.map(g =>
+                                <TreeNode
+                                    key={g.id}
+                                    left={g.title}
+                                >
+                                    <table className={giftClass}>
+                                        <tbody>
                                         <tr>
                                             <th>Description</th>
                                             <td>{g.description}</td>
@@ -413,105 +416,108 @@ export const ProviderOnlySections: React.FunctionComponent<{
                                                 />
                                             </td>
                                         </tr>
-                                    </tbody>
-                                </table>
-                            </TreeNode>
-                        )}
-                    </Tree>}
-                </Accordion>
+                                        </tbody>
+                                    </table>
+                                </TreeNode>
+                            )}
+                        </Tree>}
+                    </TreeNode>
+                </Tree>
 
-                <Accordion title={"Create a gift"}>
-                    <form onSubmit={onCreateGift}>
-                        <Flex gap={"8px"} flexDirection={"column"}>
-                            <Label>
-                                Title <MandatoryField />
-                                <Input
-                                    name={"gift-title"}
-                                    value={state.gifts.title}
-                                    onInput={onGiftInput}
-                                    onKeyDown={stopPropagation}
-                                    placeholder={"For example: Gift for employees at SDU"}
-                                />
-                            </Label>
-                            <Label>
-                                Description:
+                <Tree>
+                    <TreeNode left={"Create a gift"}>
+                        <form onSubmit={onCreateGift}>
+                            <Flex gap={"8px"} flexDirection={"column"}>
+                                <Label>
+                                    Title <MandatoryField/>
+                                    <Input
+                                        name={"gift-title"}
+                                        value={state.gifts.title}
+                                        onInput={onGiftInput}
+                                        onKeyDown={stopPropagation}
+                                        placeholder={"For example: Gift for employees at SDU"}
+                                    />
+                                </Label>
+                                <Label>
+                                    Description:
 
-                                <TextArea
-                                    name={"gift-description"}
-                                    value={state.gifts.description}
-                                    rows={3}
-                                    onInput={onGiftInput}
-                                    onKeyDown={stopPropagation}
-                                />
-                            </Label>
-                            <Label>
-                                Is this gift periodically renewed or a one-time grant? <MandatoryField />
-                                <Select
-                                    name={"gift-renewal"}
-                                    slim
-                                    value={state.gifts.renewEvery}
-                                    onInput={onGiftInput}
-                                    onKeyDown={stopPropagation}
-                                >
-                                    <option value={"0"}>One-time per-user grant</option>
-                                    <option value={"1"}>Renew every month</option>
-                                    <option value={"6"}>Renew every 6 months</option>
-                                    <option value={"12"}>Renew every 12 months</option>
-                                </Select>
-                            </Label>
-                            <Label>
-                                Allow if user belongs to this organization
-                                <DataList
-                                    options={wayfIdpsPairs}
-                                    onSelect={onGiftOrgInput}
-                                    placeholder={"Type to search..."}
-                                />
-                            </Label>
-                            <Label>
-                                Allow if email domain matches any of the following (comma-separated)
-                                <Input
-                                    name={"gift-allow-domain"}
-                                    placeholder={"For example: sdu.dk, cloud.sdu.dk"}
-                                    onInput={onGiftInput}
-                                    value={state.gifts.domainAllow}
-                                    onKeyDown={stopPropagation}
-                                />
-                            </Label>
+                                    <TextArea
+                                        name={"gift-description"}
+                                        value={state.gifts.description}
+                                        rows={3}
+                                        onInput={onGiftInput}
+                                        onKeyDown={stopPropagation}
+                                    />
+                                </Label>
+                                <Label>
+                                    Is this gift periodically renewed or a one-time grant? <MandatoryField/>
+                                    <Select
+                                        name={"gift-renewal"}
+                                        slim
+                                        value={state.gifts.renewEvery}
+                                        onInput={onGiftInput}
+                                        onKeyDown={stopPropagation}
+                                    >
+                                        <option value={"0"}>One-time per-user grant</option>
+                                        <option value={"1"}>Renew every month</option>
+                                        <option value={"6"}>Renew every 6 months</option>
+                                        <option value={"12"}>Renew every 12 months</option>
+                                    </Select>
+                                </Label>
+                                <Label>
+                                    Allow if user belongs to this organization
+                                    <DataList
+                                        options={wayfIdpsPairs}
+                                        onSelect={onGiftOrgInput}
+                                        placeholder={"Type to search..."}
+                                    />
+                                </Label>
+                                <Label>
+                                    Allow if email domain matches any of the following (comma-separated)
+                                    <Input
+                                        name={"gift-allow-domain"}
+                                        placeholder={"For example: sdu.dk, cloud.sdu.dk"}
+                                        onInput={onGiftInput}
+                                        value={state.gifts.domainAllow}
+                                        onKeyDown={stopPropagation}
+                                    />
+                                </Label>
 
-                            <Label>Resources</Label>
-                            <Tree>
-                                {Object.entries((state.remoteData.managedProducts ?? {})).map(([providerId, page]) =>
-                                    <React.Fragment
-                                        key={providerId}>
-                                        {page.map(cat => <TreeNode
-                                            key={cat.name + cat.provider}
-                                            left={<Flex gap={"4px"}>
-                                                <Icon name={Accounting.productTypeToIcon(cat.productType)}
-                                                    size={20} />
-                                                <code>{cat.name} / {cat.provider}</code>
-                                            </Flex>}
-                                            right={<Flex gap={"4px"}>
-                                                <Input
-                                                    height={20}
-                                                    placeholder={"0"}
-                                                    name={`gift-resource-${cat.name}/${cat.provider}`}
-                                                    onInput={onGiftInput}
-                                                    value={state.gifts?.resources?.[`${cat.name}/${cat.provider}`] ?? ""}
-                                                    onKeyDown={stopPropagation}
-                                                />
-                                                <Box width={"150px"}>{Accounting.explainUnit(cat).name}</Box>
-                                            </Flex>}
-                                        />)}
-                                    </React.Fragment>)}
-                            </Tree>
-                        </Flex>
-                        <Button type={"submit"}>
-                            Create gift
-                        </Button>
-                    </form>
-                </Accordion>
+                                <Label>Resources</Label>
+                                <Tree>
+                                    {Object.entries((state.remoteData.managedProducts ?? {})).map(([providerId, page]) =>
+                                        <React.Fragment
+                                            key={providerId}>
+                                            {page.map(cat => <TreeNode
+                                                key={cat.name + cat.provider}
+                                                left={<Flex gap={"4px"}>
+                                                    <Icon name={Accounting.productTypeToIcon(cat.productType)}
+                                                          size={20}/>
+                                                    <code>{cat.name} / {cat.provider}</code>
+                                                </Flex>}
+                                                right={<Flex gap={"4px"}>
+                                                    <Input
+                                                        height={20}
+                                                        placeholder={"0"}
+                                                        name={`gift-resource-${cat.name}/${cat.provider}`}
+                                                        onInput={onGiftInput}
+                                                        value={state.gifts?.resources?.[`${cat.name}/${cat.provider}`] ?? ""}
+                                                        onKeyDown={stopPropagation}
+                                                    />
+                                                    <Box width={"150px"}>{Accounting.explainUnit(cat).name}</Box>
+                                                </Flex>}
+                                            />)}
+                                        </React.Fragment>)}
+                                </Tree>
+                            </Flex>
+                            <Button type={"submit"}>
+                                Create gift
+                            </Button>
+                        </form>
+                    </TreeNode>
+                </Tree>
 
-                <Box mt={32} />
+                <Box mt={32}/>
             </>}
         </>}
     </>;

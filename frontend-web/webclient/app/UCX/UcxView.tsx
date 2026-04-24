@@ -1,7 +1,6 @@
 import * as React from "react";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {
-    Accordion,
     Button,
     Card,
     Checkbox,
@@ -64,6 +63,7 @@ export interface UcxFunctionRegistry {
     invokeRpc: (name: string, payload?: UcxRpcPayload, timeoutMs?: number) => Promise<UcxRpcPayload>;
     modelValue: (model: Record<string, Value>, path: string, scope?: Record<string, Value>) => Value | undefined;
     sxStyle: (node: UiNode) => React.CSSProperties;
+
     [key: string]: unknown;
 }
 
@@ -120,25 +120,25 @@ const UcxAccordion: React.FunctionComponent<React.PropsWithChildren<{
             }}
         >
             <div style={{fontWeight: 600}}>{title}</div>
-            <Icon name="heroChevronDown" size={12} rotation={isOpen ? 0 : -90} />
+            <Icon name="heroChevronDown" size={12} rotation={isOpen ? 0 : -90}/>
         </div>
         {isOpen ? <div>{children}</div> : null}
     </div>;
 };
 
 const UcxView: React.FunctionComponent<UcxViewProps> = ({
-    url,
-    authToken,
-    sysHello,
-    maxReconnectAttempts = Number.POSITIVE_INFINITY,
-    renderFrame,
-    components,
-    functions,
-    rpcHandlers,
-    onConnected,
-    onDisconnected,
-    onTransportError,
-}) => {
+                                                            url,
+                                                            authToken,
+                                                            sysHello,
+                                                            maxReconnectAttempts = Number.POSITIVE_INFINITY,
+                                                            renderFrame,
+                                                            components,
+                                                            functions,
+                                                            rpcHandlers,
+                                                            onConnected,
+                                                            onDisconnected,
+                                                            onTransportError,
+                                                        }) => {
     const location = useLocation();
     const navigate = useNavigate();
     const [connected, setConnected] = useState(false);
@@ -320,7 +320,7 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
 
     const mergedComponents = useMemo<UcxComponentRegistry>(() => mergeComponentRegistry(baseComponents, components), [components]);
 
-    const resendModelAfterReconnect = useCallback((snapshot: Record<string, Value>, mount: {root: UiNode}) => {
+    const resendModelAfterReconnect = useCallback((snapshot: Record<string, Value>, mount: { root: UiNode }) => {
         const bindPaths = collectInputBindPaths(mount.root);
         if (bindPaths.size === 0) {
             return;
@@ -414,7 +414,7 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
                 authCompleteRef.current = false;
 
                 sessionRef.current?.registerRpcHandler("routerPushPage", payload => {
-                    const plainPayload = valueMapToPlainPayload(payload) as {path?: unknown};
+                    const plainPayload = valueMapToPlainPayload(payload) as { path?: unknown };
                     const path = typeof plainPayload.path === "string" ? plainPayload.path : "";
                     navigateSpaRef.current(path, "rpc:routerPushPage");
                     return {};
@@ -664,7 +664,7 @@ const baseComponents: UcxComponentRegistry = {
             <div style={{display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap"}}>{children.slice(1)}</div>
         </div>;
     },
-    router: ({node, model, scope, fn}) => <RouterNode node={node} model={model} scope={scope} fn={fn} />,
+    router: ({node, model, scope, fn}) => <RouterNode node={node} model={model} scope={scope} fn={fn}/>,
     link: ({node, fn, renderChildren}) => {
         const to = optionalStringProp(node, "to");
         if (to == null) return null;
@@ -731,7 +731,7 @@ const baseComponents: UcxComponentRegistry = {
         const name = stringProp(node, "name", "bug");
         const color = stringProp(node, "color", "iconColor");
         const size = numberProp(node, "size", 18);
-        return <Icon name={name as any} color={color as any} size={size} style={fn.sxStyle(node)} />;
+        return <Icon name={name as any} color={color as any} size={size} style={fn.sxStyle(node)}/>;
     },
     input_text: ({node, model, scope, fn}) => {
         const label = stringProp(node, "label", "");
@@ -741,7 +741,10 @@ const baseComponents: UcxComponentRegistry = {
             value={value}
             placeholder={placeholder}
             mt={8}
-            onChange={ev => fn.sendBoundInput(node, {kind: ValueKind.String, string: ev.currentTarget.value}, model, scope)}
+            onChange={ev => fn.sendBoundInput(node, {
+                kind: ValueKind.String,
+                string: ev.currentTarget.value
+            }, model, scope)}
         />;
         return <>
             {label === "" ? input : <FieldLabel>{label}{input}</FieldLabel>}
@@ -784,7 +787,7 @@ const baseComponents: UcxComponentRegistry = {
 
         return <div style={{display: "flex", flexDirection: "column", gap: 6}}>
             <div style={{display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12}}>
-                {label === "" ? <span /> : <FieldLabel>{label}</FieldLabel>}
+                {label === "" ? <span/> : <FieldLabel>{label}</FieldLabel>}
                 <Text style={{margin: 0, textAlign: "right"}}>{displayValue}</Text>
             </div>
             <Input
@@ -834,9 +837,9 @@ const baseComponents: UcxComponentRegistry = {
             disabled={disabled}
             onClick={submit ? undefined : (() => fn.sendUiEvent(node.id, "click", eventValue))}
         >
-            {iconLeft ? <Icon name={iconLeft as any} /> : null}
+            {iconLeft ? <Icon name={iconLeft as any}/> : null}
             {label}
-            {iconRight ? <Icon name={iconRight as any} /> : null}
+            {iconRight ? <Icon name={iconRight as any}/> : null}
         </Button>;
     },
     list: ({node, model, scope, fn, renderChildren}) => {
@@ -851,7 +854,13 @@ const baseComponents: UcxComponentRegistry = {
                 const itemScope = entry.kind === ValueKind.Object ? entry.object : {value: entry};
                 const itemId = asString(itemScope["id"], String(index));
 
-                return <li key={itemId} style={{display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 8}}>
+                return <li key={itemId} style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    gap: 8,
+                    marginBottom: 8
+                }}>
                     {renderChildren(itemScope)}
                 </li>;
             })}
@@ -866,17 +875,20 @@ const baseComponents: UcxComponentRegistry = {
             value={value}
             rows={rows}
             placeholder={placeholder}
-            onChange={ev => fn.sendBoundInput(node, {kind: ValueKind.String, string: ev.currentTarget.value}, model, scope)}
+            onChange={ev => fn.sendBoundInput(node, {
+                kind: ValueKind.String,
+                string: ev.currentTarget.value
+            }, model, scope)}
         />;
         return <>
             {label === "" ? textArea : <FieldLabel>{label}{textArea}</FieldLabel>}
         </>;
     },
     select: ({node, model, scope, fn}) => {
-        return <UcxSelectField node={node} model={model} scope={scope} fn={fn} />;
+        return <UcxSelectField node={node} model={model} scope={scope} fn={fn}/>;
     },
     machine_type_selector: ({node, model, scope, fn}) => {
-        return <MachineTypeSelectorNode node={node} model={model} scope={scope} fn={fn} />;
+        return <MachineTypeSelectorNode node={node} model={model} scope={scope} fn={fn}/>;
     },
     radio_group: ({node, model, scope, fn}) => {
         const label = stringProp(node, "label", "");
@@ -889,7 +901,10 @@ const baseComponents: UcxComponentRegistry = {
                     <label key={option.key} style={{display: "flex", alignItems: "center", gap: 6, cursor: "pointer"}}>
                         <Radio
                             checked={selectedKey === option.key}
-                            onChange={() => fn.sendBoundInput(node, {kind: ValueKind.String, string: option.key}, model, scope)}
+                            onChange={() => fn.sendBoundInput(node, {
+                                kind: ValueKind.String,
+                                string: option.key
+                            }, model, scope)}
                         />
                         <span>{option.value}</span>
                     </label>
@@ -901,12 +916,13 @@ const baseComponents: UcxComponentRegistry = {
         const label = stringProp(node, "label", "");
         const checked = modelBool(model, node.bindPath, scope);
         return <Flex alignItems="center" gap="8px" style={fn.sxStyle(node)}>
-            <Toggle checked={checked} onChange={() => fn.sendBoundInput(node, {kind: ValueKind.Bool, bool: !checked}, model, scope)} />
+            <Toggle checked={checked}
+                    onChange={() => fn.sendBoundInput(node, {kind: ValueKind.Bool, bool: !checked}, model, scope)}/>
             {label === "" ? null : <span>{label}</span>}
         </Flex>;
     },
-    divider: ({node, fn}) => <Divider />,
-    spinner: ({node}) => <HexSpin size={numberProp(node, "size", 32)} margin={optionalStringProp(node, "margin")} />,
+    divider: ({node, fn}) => <Divider/>,
+    spinner: ({node}) => <HexSpin size={numberProp(node, "size", 32)} margin={optionalStringProp(node, "margin")}/>,
     table: ({node, model, scope, fn}) => {
         const rows = modelList(model, node.bindPath, scope)
             .filter(it => it.kind === ValueKind.Object)
@@ -921,11 +937,12 @@ const baseComponents: UcxComponentRegistry = {
                     </TableRow>
                 </TableHeader>
                 <tbody>
-                    {rows.map((row, rowIdx) =>
-                        <TableRow key={`row-${rowIdx}`}>
-                            {columns.map(col => <TableCell key={`${rowIdx}-${col.key}`}>{displayValue(row[col.key])}</TableCell>)}
-                        </TableRow>
-                    )}
+                {rows.map((row, rowIdx) =>
+                    <TableRow key={`row-${rowIdx}`}>
+                        {columns.map(col => <TableCell
+                            key={`${rowIdx}-${col.key}`}>{displayValue(row[col.key])}</TableCell>)}
+                    </TableRow>
+                )}
                 </tbody>
             </Table>
         </div>;
@@ -1438,13 +1455,13 @@ function optionalStringProp(node: UiNode, key: string): string | undefined {
     return undefined;
 }
 
-function simpleOptionsProp(node: UiNode, key: string): {key: string; value: string}[] {
+function simpleOptionsProp(node: UiNode, key: string): { key: string; value: string }[] {
     const raw = prop(node, key);
     if (!raw || raw.kind !== ValueKind.List) {
         return [];
     }
 
-    const out: {key: string; value: string}[] = [];
+    const out: { key: string; value: string }[] = [];
     for (const item of raw.list) {
         if (item.kind !== ValueKind.Object) continue;
         const optionKey = asString(item.object["key"], "");
@@ -1455,7 +1472,7 @@ function simpleOptionsProp(node: UiNode, key: string): {key: string; value: stri
     return out;
 }
 
-function tableColumnsProp(node: UiNode, rows: Record<string, Value>[]): {key: string; label: string}[] {
+function tableColumnsProp(node: UiNode, rows: Record<string, Value>[]): { key: string; label: string }[] {
     const options = simpleOptionsProp(node, "columns");
     if (options.length > 0) {
         return options.map(it => ({key: it.key, label: it.value}));
@@ -1835,15 +1852,18 @@ const UcxSelectField = ({node, model, scope, fn}: {
     </div>;
 };
 
-const FieldLabel = ({children, onClick}: React.PropsWithChildren<{onClick?: React.MouseEventHandler<HTMLDivElement>}>) => {
-    return <div onClick={onClick} style={{fontWeight: 600, marginTop: "6px", cursor: onClick ? "pointer" : undefined}}>{children}</div>;
+const FieldLabel = ({children, onClick}: React.PropsWithChildren<{
+    onClick?: React.MouseEventHandler<HTMLDivElement>
+}>) => {
+    return <div onClick={onClick}
+                style={{fontWeight: 600, marginTop: "6px", cursor: onClick ? "pointer" : undefined}}>{children}</div>;
 };
 
-function MarkdownLink(props: {href?: string; children: React.ReactNode & React.ReactNode[]}) {
+function MarkdownLink(props: { href?: string; children: React.ReactNode & React.ReactNode[] }) {
     return <ExternalLink href={props.href}>{props.children}</ExternalLink>;
 }
 
-function MarkdownHeading(props: {children: React.ReactNode & React.ReactNode[]}) {
+function MarkdownHeading(props: { children: React.ReactNode & React.ReactNode[] }) {
     return <Heading.h4>{props.children}</Heading.h4>;
 }
 
