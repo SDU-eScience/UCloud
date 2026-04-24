@@ -268,7 +268,10 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		userContainer.Resources.Requests[core.ResourceCPU] = *quantity
 	}
 	{
-		quantity := resource.NewScaledQuantity(int64(cpuMillis), resource.Milli)
+		quantity := resource.NewScaledQuantity(
+			shared.NodeCpuMillisNormalizedWithoutReserved(&product),
+			resource.Milli,
+		)
 		quantity.Format = resource.DecimalSI
 		userContainer.Resources.Limits[core.ResourceCPU] = *quantity
 	}

@@ -729,7 +729,7 @@ export const KeyMetrics: React.FunctionComponent<{
     const atRiskPercentage = total > 0 ? (atRisk / total) * 100 : 0;
     const underusedPercentage = underused > 0 ? (underused / total) * 100 : 0;
 
-    if (!hasFeature(Feature.ALLOCATIONS_PAGE_IMPROVEMENTS)) return null;
+    if (!hasFeature(Feature.ALLOCATIONS_PAGE_IMPROVEMENTS) || true) return null;
 
     return <>
         <ReactModal

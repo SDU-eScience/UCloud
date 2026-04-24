@@ -122,6 +122,15 @@ func NormalizationDenominatorForCategory(categoryName string) int {
 	return categoryFractionDenominator(categoryName)
 }
 
+func NodeCpuMillisNormalizedWithoutReserved(product *apm.ProductV2) int64 {
+	attachedVirtualCores := float64(product.Cpu)
+	if product.Gpu == 0 {
+		attachedVirtualCores *= fractionMultiplier(product.Fraction)
+	}
+
+	return int64(attachedVirtualCores * 1000)
+}
+
 func NodeCpuMillisNormalizedWithReserved(product *apm.ProductV2) int {
 	reservedPerCore := reservedCpuMillisPerCore(product)
 	attachedVirtualCores := float64(product.Cpu)
@@ -129,16 +138,6 @@ func NodeCpuMillisNormalizedWithReserved(product *apm.ProductV2) int {
 		attachedVirtualCores *= fractionMultiplier(product.Fraction)
 	}
 
-	result := int(math.Floor(attachedVirtualCores * (1000 - reservedPerCore)))
-	if result < 0 {
-		return 0
-	}
-	return result
-}
-
-func NodeCpuMillisBaseWithReserved(product *apm.ProductV2) int {
-	reservedPerCore := reservedCpuMillisPerCore(product)
-	attachedVirtualCores := float64(product.Cpu)
 	result := int(math.Floor(attachedVirtualCores * (1000 - reservedPerCore)))
 	if result < 0 {
 		return 0
