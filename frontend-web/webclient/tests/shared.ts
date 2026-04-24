@@ -1001,6 +1001,12 @@ export const Resources = {
             await page.getByPlaceholder("My private network").fill(name);
             await page.getByPlaceholder("my-network").fill(subdomain);
             await page.getByRole("button", {name: "Create"}).click();
+        },
+
+        async delete(page: Page, name: string): Promise<void> {
+            await Resources.goTo(page, "Private networks");
+            await Rows.actionByRowTitle(page, name, "click");
+            await Components.clickConfirmationButton(page, "Delete");
         }
     }
 }
