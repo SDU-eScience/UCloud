@@ -317,7 +317,12 @@ func grantsReadEx(actor rpc.Actor, action grantAuthType, b *grantAppBucket, id a
 			}
 		}
 
-		if app.Application.CreatedBy == actor.Username || (recipient.Type == accapi.RecipientTypePersonalWorkspace && recipient.Username.Value == actor.Username) {
+		if app.Application.CreatedBy == actor.Username {
+			roles = append(roles, grantActorRoleSubmitter)
+		}
+
+		//This is the case in gifts. Grant is createdBy the system, but the user should be able to open it as their own.
+		if recipient.Type == accapi.RecipientTypePersonalWorkspace && recipient.Username.Value == actor.Username {
 			roles = append(roles, grantActorRoleSubmitter)
 		}
 
