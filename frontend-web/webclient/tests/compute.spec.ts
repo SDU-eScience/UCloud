@@ -262,6 +262,8 @@ echo "${BashScriptStringContent}"
             await Runs.terminateViewedRun(otherPage);
             await page.getByText("stdout-0.log").hover();
             await page.getByText("stdout-1.log").hover();
+
+            await Resources.PrivateNetworks.delete(page, networkName);
         });
 
         test("disallow start from locked allocation", async ({page: adminPage, context}) => {
