@@ -447,9 +447,10 @@ type cloudInitUser struct {
 }
 
 type cloudInit struct {
-	Users      []cloudInitUser `json:"users"`
-	Mounts     [][]string      `json:"mounts"`
-	RunCommand []string        `json:"runcmd"`
+	DisableRoot bool            `json:"disable_root"`
+	Users       []cloudInitUser `json:"users"`
+	Mounts      [][]string      `json:"mounts"`
+	RunCommand  []string        `json:"runcmd"`
 }
 
 func follow(session *ctrl.FollowJobSession) {
@@ -946,6 +947,11 @@ func suspend(job orc.Job) *util.HttpError {
 		log.Info("Failed to shutdown VM: %v", err)
 		return util.ServerHttpError("Failed to shutdown VM")
 	}
+	shared.ClearAssignedSshPort(&job)
+	if herr := shared.DeleteSshService(job.Id); herr != nil {
+		log.Info("Failed to delete SSH service for suspended VM: %v", herr)
+		return util.ServerHttpError("Failed to delete SSH service")
+	}
 	return nil
 }
 
@@ -1134,16 +1140,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		},
 	}
 
-	sshService := shared.AssignAndPrepareSshService(job).GetOrDefault(nil)
-	if sshService != nil {
-		shared.AllowNetworkFromWorld(firewall, []orc.PortRangeAndProto{
-			{
-				Protocol: orc.IpProtocolTcp,
-				Start:    22,
-				End:      22,
-			},
-		})
-	}
+	sshService := shared.PrepareSshService(job, firewall).GetOrDefault(nil)
 
 	preparedIp := shared.PublicIpPrepare(job, firewall)
 	ipService := preparedIp.Service
@@ -1187,6 +1184,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	}
 
 	cinit := cloudInit{}
+	cinit.DisableRoot = true
 	{
 		user := cloudInitUser{
 			Name:         "ucloud",
@@ -1688,6 +1686,17 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 
 	if hasExistingVm {
 		err = updateExistingVmWithRetry(ctx, nameOfVm, vm)
+		if err == nil {
+			ownerReference := k8smeta.OwnerReference{
+				APIVersion: "kubevirt.io/v1",
+				Kind:       "VirtualMachine",
+				Name:       existingVm.Name,
+				UID:        existingVm.UID,
+			}
+			if herr := shared.EnsureSshService(job, ownerReference, sshService); herr != nil {
+				err = herr.AsError()
+			}
+		}
 	} else {
 		vm, localErr := KubevirtClient.VirtualMachine(Namespace).Create(ctx, vm, k8smeta.CreateOptions{})
 		err = localErr
