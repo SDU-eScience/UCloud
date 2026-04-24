@@ -888,6 +888,11 @@ func handleShellSessionViaSerialConsole(session *ctrl.ShellSession, cols, rows i
 }
 
 func terminate(request ctrl.JobTerminateRequest) *util.HttpError {
+	ctrl.PublicIpUnbindFromJob(request.Job)
+	ctrl.LinkUnbindFromJob(request.Job)
+	shared.ClearAssignedSshPort(request.Job)
+	shared.RemoveFromQueue(request.Job.Id)
+
 	name := vmName(request.Job.Id, 0)
 	err := KubevirtClient.VirtualMachine(Namespace).Delete(context.Background(), name, k8smeta.DeleteOptions{})
 	if err != nil && !k8serrors.IsNotFound(err) {
@@ -895,6 +900,32 @@ func terminate(request ctrl.JobTerminateRequest) *util.HttpError {
 		return util.ServerHttpError("Failed to delete VM")
 	}
 	diskCleanup(request.Job)
+
+	if !request.IsCleanup {
+		job, ok := ctrl.JobRetrieve(request.Job.Id)
+		if !ok {
+			job = request.Job
+		}
+
+		copied := *job
+		copied.Status.State = orc.JobStateSuccess
+		copied.Updates = append(copied.Updates, orc.JobUpdate{
+			State: util.OptValue(orc.JobStateSuccess),
+		})
+		ctrl.JobTrackNew(copied)
+
+		_, _ = orc.JobsControlAddUpdate.Invoke(fndapi.BulkRequest[orc.ResourceUpdateAndId[orc.JobUpdate]]{
+			Items: []orc.ResourceUpdateAndId[orc.JobUpdate]{
+				{
+					Id: job.Id,
+					Update: orc.JobUpdate{
+						State: util.OptValue(orc.JobStateSuccess),
+					},
+				},
+			},
+		})
+	}
+
 	return nil
 }
 
@@ -903,6 +934,7 @@ func unsuspend(job orc.Job) *util.HttpError {
 		return util.HttpErr(http.StatusPaymentRequired, "You do not have any resources to run the machine.")
 	}
 
+	shared.ClearScheduleCancellation(job.Id)
 	shared.RequestSchedule(&job)
 	return nil
 }

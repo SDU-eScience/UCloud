@@ -430,6 +430,7 @@ func loopMonitoring() {
 				sched.RemoveJobFromQueue(jobId)
 			}
 		}
+		shared.ClearScheduleCancellation(jobId)
 	}
 	metricMonitoring.WithLabelValues("RemoveFromQueue").Observe(timer.Mark().Seconds())
 
@@ -690,6 +691,11 @@ func loopMonitoring() {
 	timer.Mark()
 	entriesToSubmit := shared.SwapScheduleQueue()
 	for _, entry := range entriesToSubmit {
+		if shared.ScheduleCancelled(entry.Id) {
+			shared.ClearScheduleCancellation(entry.Id)
+			continue
+		}
+
 		sched, ok := getSchedulerByJob(entry)
 		if ok {
 			if len(sched.JobReplicaEntries(entry.Id)) > 0 {
