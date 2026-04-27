@@ -216,6 +216,7 @@ echo "${BashScriptStringContent}"
         });
 
         test("multinode, connect to other jobs", async ({page}) => {
+            /* TEST-UPDATE */
             if (isProd(data.location_origin)) throw Error("Not live on production!");
 
             test.setTimeout(120_000);
@@ -268,7 +269,7 @@ echo "${BashScriptStringContent}"
         });
 
         test("disallow start from locked allocation", async ({page: adminPage, context}) => {
-            // Extremely slow as `fallocate` is not available. Runs with local dev and production.
+            // Extremely slow as `fallocate` is not available. Run with local dev and production.
             if (isDev(data.location_origin) && ctx === "Personal Workspace") test.skip();
 
             const AUTOGIFTED_RESOURCES = (isProd(data.location_origin) || isDev(data.location_origin)) && ctx === "Personal Workspace";

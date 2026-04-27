@@ -268,8 +268,9 @@ TestContexts.map(ctx => {
             });
 
             test("Move to trash, empty trash", async ({page}) => {
+                // TEST-UPDATE
                 if (isProd(data.location_origin)) {
-                    throw Error("No reason to do it right now")
+                    throw Error("Issues on production")
                 }
 
                 const folderName = File.newFolderName();
@@ -286,8 +287,9 @@ TestContexts.map(ctx => {
         });
 
         test("Files - search works", async ({page}) => {
+            // TEST-UPDATE
             if (isProd(data.location_origin)) {
-                throw Error("No reason to do it right now, requires emptying trash")
+                throw Error("Issues on production")
             }
             const theFolderToFind = "Please find meeee";
             const foldersToCreate = `A/B/C/D/${theFolderToFind}`;
@@ -430,8 +432,10 @@ TestContexts.map(ctx => {
 
                 // See that access has been revoked for receiver
                 // Should be `await Components.clickRefreshAndWait(sharedWithUserPage);`, but blocked by #5268
-                await sharedWithUserPage.reload();
-                await sharedWithUserPage.getByText("We could not find any data related to this folder.").waitFor({state: "visible"});
+                while (!await sharedWithUserPage.getByText("We could not find any data related to this folder.").isVisible()) {
+                    await sharedWithUserPage.waitForTimeout(1_000);
+                    await sharedWithUserPage.reload();
+                }
 
                 await page.goto(url);
 
