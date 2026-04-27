@@ -243,20 +243,24 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
 
                             case "RUNNING": {
                                 const now = timestampUnixMs();
-                                const timeLeft = (job.status.expiresAt ?? 0) - now;
-                                if (timeLeft > 0) {
-                                    const hours = Math.floor(timeLeft / (1000 * 60 * 60));
-                                    const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
-                                    if (hours > 24) {
-                                        const days = Math.floor(hours / 24);
-                                        row.stat3.innerText = `${days}d ${hours % 24}h`;
-                                    } else if (hours > 0) {
-                                        row.stat3.innerText = `${hours}h ${minutes}m`;
-                                    } else {
-                                        row.stat3.innerText = `${minutes}m`;
-                                    }
+                                if (!job.status.expiresAt) {
+                                    row.stat3.innerText = "No expiry";
                                 } else {
-                                    row.stat3.innerText = "Expired";
+                                    const timeLeft = (job.status.expiresAt ?? 0) - now;
+                                    if (timeLeft > 0) {
+                                        const hours = Math.floor(timeLeft / (1000 * 60 * 60));
+                                        const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+                                        if (hours > 24) {
+                                            const days = Math.floor(hours / 24);
+                                            row.stat3.innerText = `${days}d ${hours % 24}h`;
+                                        } else if (hours > 0) {
+                                            row.stat3.innerText = `${hours}h ${minutes}m`;
+                                        } else {
+                                            row.stat3.innerText = `${minutes}m`;
+                                        }
+                                    } else {
+                                        row.stat3.innerText = "Expired";
+                                    }
                                 }
                                 break;
                             }

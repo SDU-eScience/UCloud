@@ -150,3 +150,33 @@ func LinkRetrieveUsedCount(owner orc.ResourceOwner) int {
 		return row.Count
 	})
 }
+
+func LinkUnbindFromJob(job *orc.Job) {
+	ingressesMutex.Lock()
+
+	var result []orc.Ingress
+	for _, v := range job.Specification.Parameters {
+		if v.Type == orc.AppParameterValueTypeIngress {
+			link := ingresses[v.Id]
+			if link != nil {
+				result = append(result, *link)
+			}
+		}
+	}
+
+	for _, v := range job.Specification.Resources {
+		if v.Type == orc.AppParameterValueTypeIngress {
+			link := ingresses[v.Id]
+			if link != nil {
+				result = append(result, *link)
+			}
+		}
+	}
+
+	ingressesMutex.Unlock()
+
+	for _, link := range result {
+		link.Status.BoundTo = util.RemoveFirst(link.Status.BoundTo, job.Id)
+		LinkTrack(link)
+	}
+}

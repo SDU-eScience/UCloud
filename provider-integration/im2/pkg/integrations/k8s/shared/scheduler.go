@@ -29,14 +29,43 @@ type JobTracker interface {
 var scheduleLock = sync.Mutex{}
 var scheduledEntries = map[string]*orc.Job{}
 var scheduledEntryOrder []string
+var scheduleCancelled = map[string]util.Empty{}
 
 var scheduleRemoveFromQueueLock sync.Mutex
 var scheduleRemoveFromQueue []string
 
 func RemoveFromQueue(jobId string) {
+	scheduleLock.Lock()
+	delete(scheduledEntries, jobId)
+	deleteFromScheduleOrder(jobId)
+	scheduleCancelled[jobId] = util.Empty{}
+	scheduleLock.Unlock()
+
 	scheduleRemoveFromQueueLock.Lock()
 	scheduleRemoveFromQueue = append(scheduleRemoveFromQueue, jobId)
 	scheduleRemoveFromQueueLock.Unlock()
+}
+
+func ClearScheduleCancellation(jobId string) {
+	scheduleLock.Lock()
+	delete(scheduleCancelled, jobId)
+	scheduleLock.Unlock()
+}
+
+func ScheduleCancelled(jobId string) bool {
+	scheduleLock.Lock()
+	_, ok := scheduleCancelled[jobId]
+	scheduleLock.Unlock()
+	return ok
+}
+
+func deleteFromScheduleOrder(jobId string) {
+	for i := 0; i < len(scheduledEntryOrder); i++ {
+		if scheduledEntryOrder[i] == jobId {
+			scheduledEntryOrder = slices.Delete(scheduledEntryOrder, i, i+1)
+			i--
+		}
+	}
 }
 
 func SwapScheduleRemoveFromQueue() []string {
@@ -69,6 +98,10 @@ func SwapScheduleQueue() []*orc.Job {
 
 	result := make([]*orc.Job, 0, len(scheduledEntryOrder))
 	for _, jobId := range scheduledEntryOrder {
+		if _, cancelled := scheduleCancelled[jobId]; cancelled {
+			continue
+		}
+
 		entry, ok := scheduledEntries[jobId]
 		if ok {
 			result = append(result, entry)
