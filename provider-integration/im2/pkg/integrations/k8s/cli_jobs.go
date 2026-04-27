@@ -975,6 +975,11 @@ func schedulerName(category string, group string) (string, bool) {
 		mapped = category
 	}
 
+	_, categoryIsIApp := controller.IntegratedApplications[category]
+	if categoryIsIApp {
+		return mapped, true
+	}
+
 	_, isIApp := controller.IntegratedApplications[mapped]
 	if !isIApp {
 		if _, ok := shared.ServiceConfig.Compute.Machines[mapped]; !ok {

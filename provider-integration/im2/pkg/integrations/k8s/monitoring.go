@@ -37,19 +37,9 @@ var schedulers = map[string]*Scheduler{}
 var schedulerStatus = atomic.Pointer[map[apm.ProductReference]util.Option[orc.JobQueueStatus]]{}
 
 func getScheduler(category string, group string) (*Scheduler, bool) {
-	mapped, ok := shared.ServiceConfig.Compute.MachineImpersonation[category]
+	schedKey, ok := schedulerName(category, group)
 	if !ok {
-		mapped = category
-	}
-
-	schedKey := mapped
-
-	_, isIApp := controller.IntegratedApplications[mapped]
-	if !isIApp {
-		_, ok := shared.ServiceConfig.Compute.Machines[mapped]
-		if !ok {
-			return nil, false
-		}
+		return nil, false
 	}
 
 	existing, ok := schedulers[schedKey]
