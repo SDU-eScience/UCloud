@@ -35,95 +35,10 @@ const giftClass = injectStyle("gift", k => `
     }
 `);
 
-export const ProviderOnlySections: React.FunctionComponent<{
+export const GiftSection: React.FunctionComponent<{
     state: State,
     dispatchEvent: (event: UIEvent) => unknown,
 }> = ({state, dispatchEvent}) => {
-    const onRootAllocationInput = useCallback((ev: React.SyntheticEvent) => {
-        ev.stopPropagation();
-        const elem = ev.target as (HTMLInputElement | HTMLSelectElement);
-        const name = elem.getAttribute("name");
-        if (!name) return;
-        const value = elem.value;
-
-        switch (name) {
-            case "root-year": {
-                const year = parseInt(value);
-                dispatchEvent({
-                    type: "UpdateRootAllocations",
-                    data: {year}
-                });
-                break;
-            }
-        }
-
-        if (name.startsWith("root-resource-")) {
-            const resourceName = removePrefixFrom("root-resource-", name);
-            let amount = parseInt(value);
-            if (value === "") amount = 0;
-            if (!isNaN(amount)) {
-                const data = {resources: {}};
-                data.resources[resourceName] = amount;
-                dispatchEvent({type: "UpdateRootAllocations", data: data});
-            }
-        }
-    }, []);
-
-    const creatingRootAllocation = useRef(false);
-    const onCreateRootAllocation = useCallback(async (ev: React.SyntheticEvent) => {
-        ev.preventDefault();
-        if (creatingRootAllocation.current) return;
-        if (!state.rootAllocations) return;
-
-        const start = new Date();
-        const end = new Date();
-        {
-            const year = state.rootAllocations.year;
-            start.setUTCFullYear(year, 0, 1);
-            start.setUTCHours(0, 0, 0, 0);
-
-            end.setUTCFullYear(year, 11, 31);
-            end.setUTCHours(23, 59, 59, 999);
-        }
-
-        try {
-            const products = (state.remoteData.managedProducts ?? {});
-            creatingRootAllocation.current = true;
-
-            const requests: Accounting.RootAllocateRequestItem[] = [];
-            for (const [categoryAndProvider, amount] of Object.entries(state.rootAllocations.resources)) {
-                const [category, provider] = categoryAndProvider.split("/");
-                const resolvedCategory = products[provider]?.find(it => it.name === category);
-                if (!resolvedCategory) {
-                    sendFailureNotification("Internal failure while creating a root allocation. Try reloading the page!");
-                    return;
-                }
-
-                const unit = Accounting.explainUnit(resolvedCategory);
-
-                requests.push({
-                    category: {
-                        name: category,
-                        provider,
-                    },
-                    quota: amount * unit.invBalanceFactor,
-                    start: start.getTime(),
-                    end: end.getTime(),
-                });
-            }
-
-            await callAPI(Accounting.rootAllocate(bulkRequestOf(...requests)));
-            sendSuccessNotification("Root allocation has been created");
-            dispatchEvent({type: "ResetRootAllocation"});
-            dispatchEvent({type: "Init"});
-        } catch (e) {
-            sendFailureNotification("Failed to create root allocation: " + extractErrorMessage(e));
-            return;
-        } finally {
-            creatingRootAllocation.current = false;
-        }
-    }, [state.rootAllocations]);
-
     const onGiftInput = useCallback((ev: React.SyntheticEvent) => {
         ev.stopPropagation();
         const elem = ev.target as (HTMLInputElement | HTMLSelectElement);
@@ -278,247 +193,337 @@ export const ProviderOnlySections: React.FunctionComponent<{
 
     let gifts = state.remoteData.gifts ?? [];
     return <>
-        {(state.remoteData.managedProviders ?? []).length > 0 && <>
-            {state.rootAllocations && <>
-                <h3>Root allocations</h3>
-                <div>
-                    Root allocations are ordinary allocations from which all other allocations are created.
+        {!state.gifts ? null : <>
+            <h3>Gifts</h3>
+            <div>
+                Gifts are free resources which are automatically claimed by active UCloud users fulfilling
+                certain
+                criteria.
+                <ul>
+                    <li>As a provider, you can see your gifts and define new gifts</li>
+                    <li>You can delete gifts, but this will not retract the gifts that have already been claimed
+                    </li>
+                </ul>
+            </div>
 
-                    <ul>
-                        <li>You can see this because you are part of a provider project</li>
-                        <li>You must create a root allocation to be able to use your provider</li>
-                        <li>Once created, you can see the root allocations in the "Your allocations" panel</li>
-                    </ul>
-                </div>
-
-                <Tree>
-                    <TreeNode left={"Create a new root allocation"}>
-                        <h4>Step 1: Select a period</h4>
-                        <Select
-                            slim
-                            value={state.rootAllocations.year}
-                            onInput={onRootAllocationInput}
-                            onKeyDown={stopPropagation}
-                            name={"root-year"}
-                        >
-                            {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(delta => {
-                                const year = new Date().getUTCFullYear() + delta;
-                                return <option key={delta} value={year.toString()}>{year}</option>;
-                            })}
-                        </Select>
-
-                        <h4>Step 2: Select allocation size</h4>
-                        <Tree>
-                            {Object.entries((state.remoteData.managedProducts ?? {})).map(([providerId, page]) =>
-                                <React.Fragment
-                                    key={providerId}>
-                                    {page.map(cat => <TreeNode
-                                        key={cat.name + cat.provider}
-                                        left={<Flex gap={"4px"}>
-                                            <Icon name={Accounting.productTypeToIcon(cat.productType)} size={20}/>
-                                            <code>{cat.name} / {cat.provider}</code>
-                                        </Flex>}
-                                        right={<Flex gap={"4px"}>
-                                            <Input
-                                                height={20}
-                                                placeholder={"0"}
-                                                name={`root-resource-${cat.name}/${cat.provider}`}
-                                                value={state.rootAllocations?.resources?.[`${cat.name}/${cat.provider}`] ?? ""}
-                                                onInput={onRootAllocationInput}
-                                                onKeyDown={stopPropagation}
+            <Tree>
+                <TreeNode left={`View existing gifts (${gifts.length})`}>
+                    {gifts.length === 0 ? <>This project currently has no active gifts!</> : <Tree>
+                        {gifts.map(g =>
+                            <TreeNode
+                                key={g.id}
+                                left={g.title}
+                            >
+                                <table className={giftClass}>
+                                    <tbody>
+                                    <tr>
+                                        <th>Description</th>
+                                        <td>{g.description}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Criteria</th>
+                                        <td>
+                                            <ul>
+                                                {g.criteria.map(c => {
+                                                    switch (c.type) {
+                                                        case "anyone":
+                                                            return <li key={c.type}>All UCloud users</li>
+                                                        case "wayf":
+                                                            return <li key={c.org + "wayf"}>Users
+                                                                from <i>{c.org}</i></li>
+                                                        case "email":
+                                                            return <li key={c.domain + "email"}>@{c.domain}</li>
+                                                    }
+                                                })}
+                                            </ul>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th>Resources</th>
+                                        <td>
+                                            <ul>
+                                                {g.resources.map((r, idx) => {
+                                                    const pc = (state.remoteData.managedProducts ?? {})[r.provider]?.find(it => it.name === r.category);
+                                                    if (!pc) return null;
+                                                    return <li key={idx}>
+                                                        {r.category} / {r.provider}: {Accounting.balanceToString(pc, r.balanceRequested)}
+                                                    </li>
+                                                })}
+                                            </ul>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th>Granted</th>
+                                        <td>
+                                            {g.renewEvery == 0 ? "Once" : (g.renewEvery == 1 ? "Every month" : "Every " + g.renewEvery.toString() + " months")}
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th>Delete</th>
+                                        <td>
+                                            <ConfirmationButton
+                                                actionText={"Delete"}
+                                                icon={"heroTrash"}
+                                                onAction={onDeleteGift}
+                                                actionKey={g.id.toString()}
                                             />
-                                            <Box width={"150px"}>{Accounting.explainUnit(cat).name}</Box>
-                                        </Flex>}
-                                    />)}
-                                </React.Fragment>)}
-                        </Tree>
+                                        </td>
+                                    </tr>
+                                    </tbody>
+                                </table>
+                            </TreeNode>
+                        )}
+                    </Tree>}
+                </TreeNode>
+            </Tree>
 
-                        <Button my={16} onClick={onCreateRootAllocation}>Create root allocations</Button>
-                    </TreeNode>
-                </Tree>
+            <Tree>
+                <TreeNode left={"Create a gift"}>
+                    <form onSubmit={onCreateGift}>
+                        <Flex gap={"8px"} flexDirection={"column"}>
+                            <Label>
+                                Title <MandatoryField/>
+                                <Input
+                                    name={"gift-title"}
+                                    value={state.gifts.title}
+                                    onInput={onGiftInput}
+                                    onKeyDown={stopPropagation}
+                                    placeholder={"For example: Gift for employees at SDU"}
+                                />
+                            </Label>
+                            <Label>
+                                Description:
 
-                <Box mt={32}/>
-            </>}
-
-            {state.gifts && <>
-                <h3>Gifts</h3>
-                <div>
-                    Gifts are free resources which are automatically claimed by active UCloud users fulfilling
-                    certain
-                    criteria.
-                    <ul>
-                        <li>As a provider, you can see your gifts and define new gifts</li>
-                        <li>You can delete gifts, but this will not retract the gifts that have already been claimed
-                        </li>
-                    </ul>
-                </div>
-
-                <Tree>
-                    <TreeNode left={`View existing gifts (${gifts.length})`}>
-                        {gifts.length === 0 ? <>This project currently has no active gifts!</> : <Tree>
-                            {gifts.map(g =>
-                                <TreeNode
-                                    key={g.id}
-                                    left={g.title}
+                                <TextArea
+                                    name={"gift-description"}
+                                    value={state.gifts.description}
+                                    rows={3}
+                                    onInput={onGiftInput}
+                                    onKeyDown={stopPropagation}
+                                />
+                            </Label>
+                            <Label>
+                                Is this gift periodically renewed or a one-time grant? <MandatoryField/>
+                                <Select
+                                    name={"gift-renewal"}
+                                    slim
+                                    value={state.gifts.renewEvery}
+                                    onInput={onGiftInput}
+                                    onKeyDown={stopPropagation}
                                 >
-                                    <table className={giftClass}>
-                                        <tbody>
-                                        <tr>
-                                            <th>Description</th>
-                                            <td>{g.description}</td>
-                                        </tr>
-                                        <tr>
-                                            <th>Criteria</th>
-                                            <td>
-                                                <ul>
-                                                    {g.criteria.map(c => {
-                                                        switch (c.type) {
-                                                            case "anyone":
-                                                                return <li key={c.type}>All UCloud users</li>
-                                                            case "wayf":
-                                                                return <li key={c.org + "wayf"}>Users
-                                                                    from <i>{c.org}</i></li>
-                                                            case "email":
-                                                                return <li key={c.domain + "email"}>@{c.domain}</li>
-                                                        }
-                                                    })}
-                                                </ul>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <th>Resources</th>
-                                            <td>
-                                                <ul>
-                                                    {g.resources.map((r, idx) => {
-                                                        const pc = (state.remoteData.managedProducts ?? {})[r.provider]?.find(it => it.name === r.category);
-                                                        if (!pc) return null;
-                                                        return <li key={idx}>
-                                                            {r.category} / {r.provider}: {Accounting.balanceToString(pc, r.balanceRequested)}
-                                                        </li>
-                                                    })}
-                                                </ul>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <th>Granted</th>
-                                            <td>
-                                                {g.renewEvery == 0 ? "Once" : (g.renewEvery == 1 ? "Every month" : "Every " + g.renewEvery.toString() + " months")}
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <th>Delete</th>
-                                            <td>
-                                                <ConfirmationButton
-                                                    actionText={"Delete"}
-                                                    icon={"heroTrash"}
-                                                    onAction={onDeleteGift}
-                                                    actionKey={g.id.toString()}
+                                    <option value={"0"}>One-time per-user grant</option>
+                                    <option value={"1"}>Renew every month</option>
+                                    <option value={"6"}>Renew every 6 months</option>
+                                    <option value={"12"}>Renew every 12 months</option>
+                                </Select>
+                            </Label>
+                            <Label>
+                                Allow if user belongs to this organization
+                                <DataList
+                                    options={wayfIdpsPairs}
+                                    onSelect={onGiftOrgInput}
+                                    placeholder={"Type to search..."}
+                                />
+                            </Label>
+                            <Label>
+                                Allow if email domain matches any of the following (comma-separated)
+                                <Input
+                                    name={"gift-allow-domain"}
+                                    placeholder={"For example: sdu.dk, cloud.sdu.dk"}
+                                    onInput={onGiftInput}
+                                    value={state.gifts.domainAllow}
+                                    onKeyDown={stopPropagation}
+                                />
+                            </Label>
+
+                            <Label>Resources</Label>
+                            <Tree>
+                                {Object.entries((state.remoteData.managedProducts ?? {})).map(([providerId, page]) =>
+                                    <React.Fragment
+                                        key={providerId}>
+                                        {page.map(cat => <TreeNode
+                                            key={cat.name + cat.provider}
+                                            left={<Flex gap={"4px"}>
+                                                <Icon name={Accounting.productTypeToIcon(cat.productType)}
+                                                      size={20}/>
+                                                <code>{cat.name} / {cat.provider}</code>
+                                            </Flex>}
+                                            right={<Flex gap={"4px"}>
+                                                <Input
+                                                    height={20}
+                                                    placeholder={"0"}
+                                                    name={`gift-resource-${cat.name}/${cat.provider}`}
+                                                    onInput={onGiftInput}
+                                                    value={state.gifts?.resources?.[`${cat.name}/${cat.provider}`] ?? ""}
+                                                    onKeyDown={stopPropagation}
                                                 />
-                                            </td>
-                                        </tr>
-                                        </tbody>
-                                    </table>
-                                </TreeNode>
-                            )}
-                        </Tree>}
-                    </TreeNode>
-                </Tree>
+                                                <Box width={"150px"}>{Accounting.explainUnit(cat).name}</Box>
+                                            </Flex>}
+                                        />)}
+                                    </React.Fragment>)}
+                            </Tree>
+                        </Flex>
+                        <Button type={"submit"}>
+                            Create gift
+                        </Button>
+                    </form>
+                </TreeNode>
+            </Tree>
 
-                <Tree>
-                    <TreeNode left={"Create a gift"}>
-                        <form onSubmit={onCreateGift}>
-                            <Flex gap={"8px"} flexDirection={"column"}>
-                                <Label>
-                                    Title <MandatoryField/>
-                                    <Input
-                                        name={"gift-title"}
-                                        value={state.gifts.title}
-                                        onInput={onGiftInput}
-                                        onKeyDown={stopPropagation}
-                                        placeholder={"For example: Gift for employees at SDU"}
-                                    />
-                                </Label>
-                                <Label>
-                                    Description:
+            <Box mt={32}/>
+        </>}
+    </>
+}
 
-                                    <TextArea
-                                        name={"gift-description"}
-                                        value={state.gifts.description}
-                                        rows={3}
-                                        onInput={onGiftInput}
-                                        onKeyDown={stopPropagation}
-                                    />
-                                </Label>
-                                <Label>
-                                    Is this gift periodically renewed or a one-time grant? <MandatoryField/>
-                                    <Select
-                                        name={"gift-renewal"}
-                                        slim
-                                        value={state.gifts.renewEvery}
-                                        onInput={onGiftInput}
-                                        onKeyDown={stopPropagation}
-                                    >
-                                        <option value={"0"}>One-time per-user grant</option>
-                                        <option value={"1"}>Renew every month</option>
-                                        <option value={"6"}>Renew every 6 months</option>
-                                        <option value={"12"}>Renew every 12 months</option>
-                                    </Select>
-                                </Label>
-                                <Label>
-                                    Allow if user belongs to this organization
-                                    <DataList
-                                        options={wayfIdpsPairs}
-                                        onSelect={onGiftOrgInput}
-                                        placeholder={"Type to search..."}
-                                    />
-                                </Label>
-                                <Label>
-                                    Allow if email domain matches any of the following (comma-separated)
-                                    <Input
-                                        name={"gift-allow-domain"}
-                                        placeholder={"For example: sdu.dk, cloud.sdu.dk"}
-                                        onInput={onGiftInput}
-                                        value={state.gifts.domainAllow}
-                                        onKeyDown={stopPropagation}
-                                    />
-                                </Label>
+export const RootAllocationSections: React.FunctionComponent<{
+    state: State,
+    dispatchEvent: (event: UIEvent) => unknown,
+}> = ({state, dispatchEvent}) => {
+    const onRootAllocationInput = useCallback((ev: React.SyntheticEvent) => {
+        ev.stopPropagation();
+        const elem = ev.target as (HTMLInputElement | HTMLSelectElement);
+        const name = elem.getAttribute("name");
+        if (!name) return;
+        const value = elem.value;
 
-                                <Label>Resources</Label>
-                                <Tree>
-                                    {Object.entries((state.remoteData.managedProducts ?? {})).map(([providerId, page]) =>
-                                        <React.Fragment
-                                            key={providerId}>
-                                            {page.map(cat => <TreeNode
-                                                key={cat.name + cat.provider}
-                                                left={<Flex gap={"4px"}>
-                                                    <Icon name={Accounting.productTypeToIcon(cat.productType)}
-                                                          size={20}/>
-                                                    <code>{cat.name} / {cat.provider}</code>
-                                                </Flex>}
-                                                right={<Flex gap={"4px"}>
-                                                    <Input
-                                                        height={20}
-                                                        placeholder={"0"}
-                                                        name={`gift-resource-${cat.name}/${cat.provider}`}
-                                                        onInput={onGiftInput}
-                                                        value={state.gifts?.resources?.[`${cat.name}/${cat.provider}`] ?? ""}
-                                                        onKeyDown={stopPropagation}
-                                                    />
-                                                    <Box width={"150px"}>{Accounting.explainUnit(cat).name}</Box>
-                                                </Flex>}
-                                            />)}
-                                        </React.Fragment>)}
-                                </Tree>
-                            </Flex>
-                            <Button type={"submit"}>
-                                Create gift
-                            </Button>
-                        </form>
-                    </TreeNode>
-                </Tree>
+        switch (name) {
+            case "root-year": {
+                const year = parseInt(value);
+                dispatchEvent({
+                    type: "UpdateRootAllocations",
+                    data: {year}
+                });
+                break;
+            }
+        }
 
-                <Box mt={32}/>
-            </>}
+        if (name.startsWith("root-resource-")) {
+            const resourceName = removePrefixFrom("root-resource-", name);
+            let amount = parseInt(value);
+            if (value === "") amount = 0;
+            if (!isNaN(amount)) {
+                const data = {resources: {}};
+                data.resources[resourceName] = amount;
+                dispatchEvent({type: "UpdateRootAllocations", data: data});
+            }
+        }
+    }, []);
+
+    const creatingRootAllocation = useRef(false);
+    const onCreateRootAllocation = useCallback(async (ev: React.SyntheticEvent) => {
+        ev.preventDefault();
+        if (creatingRootAllocation.current) return;
+        if (!state.rootAllocations) return;
+
+        const start = new Date();
+        const end = new Date();
+        {
+            const year = state.rootAllocations.year;
+            start.setUTCFullYear(year, 0, 1);
+            start.setUTCHours(0, 0, 0, 0);
+
+            end.setUTCFullYear(year, 11, 31);
+            end.setUTCHours(23, 59, 59, 999);
+        }
+
+        try {
+            const products = (state.remoteData.managedProducts ?? {});
+            creatingRootAllocation.current = true;
+
+            const requests: Accounting.RootAllocateRequestItem[] = [];
+            for (const [categoryAndProvider, amount] of Object.entries(state.rootAllocations.resources)) {
+                const [category, provider] = categoryAndProvider.split("/");
+                const resolvedCategory = products[provider]?.find(it => it.name === category);
+                if (!resolvedCategory) {
+                    sendFailureNotification("Internal failure while creating a root allocation. Try reloading the page!");
+                    return;
+                }
+
+                const unit = Accounting.explainUnit(resolvedCategory);
+
+                requests.push({
+                    category: {
+                        name: category,
+                        provider,
+                    },
+                    quota: amount * unit.invBalanceFactor,
+                    start: start.getTime(),
+                    end: end.getTime(),
+                });
+            }
+
+            await callAPI(Accounting.rootAllocate(bulkRequestOf(...requests)));
+            sendSuccessNotification("Root allocation has been created");
+            dispatchEvent({type: "ResetRootAllocation"});
+            dispatchEvent({type: "Init"});
+        } catch (e) {
+            sendFailureNotification("Failed to create root allocation: " + extractErrorMessage(e));
+            return;
+        } finally {
+            creatingRootAllocation.current = false;
+        }
+    }, [state.rootAllocations]);
+
+    return <>
+        {state.rootAllocations && <>
+            <h3>Root allocations</h3>
+            <div>
+                Root allocations are ordinary allocations from which all other allocations are created.
+
+                <ul>
+                    <li>You can see this because you are part of a provider project</li>
+                    <li>You must create a root allocation to be able to use your provider</li>
+                    <li>Once created, you can see the root allocations in the "Your allocations" panel</li>
+                </ul>
+            </div>
+
+            <Tree>
+                <TreeNode left={"Create a new root allocation"}>
+                    <h4>Step 1: Select a period</h4>
+                    <Select
+                        slim
+                        value={state.rootAllocations.year}
+                        onInput={onRootAllocationInput}
+                        onKeyDown={stopPropagation}
+                        name={"root-year"}
+                    >
+                        {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(delta => {
+                            const year = new Date().getUTCFullYear() + delta;
+                            return <option key={delta} value={year.toString()}>{year}</option>;
+                        })}
+                    </Select>
+
+                    <h4>Step 2: Select allocation size</h4>
+                    <Tree>
+                        {Object.entries((state.remoteData.managedProducts ?? {})).map(([providerId, page]) =>
+                            <React.Fragment
+                                key={providerId}>
+                                {page.map(cat => <TreeNode
+                                    key={cat.name + cat.provider}
+                                    left={<Flex gap={"4px"}>
+                                        <Icon name={Accounting.productTypeToIcon(cat.productType)} size={20}/>
+                                        <code>{cat.name} / {cat.provider}</code>
+                                    </Flex>}
+                                    right={<Flex gap={"4px"}>
+                                        <Input
+                                            height={20}
+                                            placeholder={"0"}
+                                            name={`root-resource-${cat.name}/${cat.provider}`}
+                                            value={state.rootAllocations?.resources?.[`${cat.name}/${cat.provider}`] ?? ""}
+                                            onInput={onRootAllocationInput}
+                                            onKeyDown={stopPropagation}
+                                        />
+                                        <Box width={"150px"}>{Accounting.explainUnit(cat).name}</Box>
+                                    </Flex>}
+                                />)}
+                            </React.Fragment>)}
+                    </Tree>
+
+                    <Button my={16} onClick={onCreateRootAllocation}>Create root allocations</Button>
+                </TreeNode>
+            </Tree>
+
+            <Box mt={32}/>
         </>}
     </>;
 }
