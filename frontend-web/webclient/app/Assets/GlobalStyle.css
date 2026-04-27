@@ -173,7 +173,7 @@ div.ReactModal__Content.ReactModal__Content--after-open {
 
 body {
     margin: 0;
-    background-color: var(--backgroundDefault, #f00);
+    background-color: var(--backgroundDefault, #fff);
 }
 
 /**
