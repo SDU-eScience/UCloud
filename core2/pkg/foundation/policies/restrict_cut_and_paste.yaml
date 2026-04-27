@@ -1,5 +1,5 @@
 name: "RestrictCutAndPaste"
-title: "Disable copy & paste in interactive applications"
+title: "Restrict copy & paste in interactive applications"
 
 description: >
   This option will turn off copy & paste in interactive applications. This is 

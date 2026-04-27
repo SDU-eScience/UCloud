@@ -266,20 +266,8 @@ export const ProjectSettings: React.FunctionComponent = () => {
         }
         headerSize={64}
         main={<div className={ActionContainer}>
-            {!isAdminOrPI(status.myRole) ? (<Card>
-                <LeaveProject
-                    onSuccess={() => navigate("/")}
-                    projectTitle={project.specification.title}
-                    projectId={projectId}
-                    projectRole={status.myRole!}
-                    showTitle
-                />
-            </Card>) : <>
-                {!isDataSteward(status.myRole) ? (<Card>
-                    <Heading.h3>Project Policies</Heading.h3>
-
-
-                </Card>) : <>
+            {isAdminOrPI(status.myRole) ? (
+                <>
                     <Card>
                         <Heading.h3>Project information</Heading.h3>
 
@@ -373,16 +361,27 @@ export const ProjectSettings: React.FunctionComponent = () => {
                             </Flex>
                         </form>
                     </Card>
-                </>}
-                <Card>
-                    <LeaveProject
-                        onSuccess={() => navigate("/")}
-                        projectTitle={project.specification.title}
-                        projectId={projectId}
-                        projectRole={status.myRole!}
-                    />
-                </Card>
-            </>}
+                </>) : null
+            }
+            {!isDataSteward(status.myRole) ? (<Card>
+                <Heading.h3>Project Policies</Heading.h3>
+                {
+                    Object.values(policies).map((policy) => (
+                        <Card key={policy.schema.name}>
+                            <Heading.h3>{policy.schema.title}</Heading.h3>
+                        </Card>
+                    ))
+                }
+
+            </Card>) : null}
+            <Card>
+                <LeaveProject
+                    onSuccess={() => navigate("/")}
+                    projectTitle={project.specification.title}
+                    projectId={projectId}
+                    projectRole={status.myRole!}
+                />
+            </Card>
         </div>}
     />
 };
