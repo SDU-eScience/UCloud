@@ -186,17 +186,10 @@ func JobResourceIsAccessible(owner orc.ResourceOwner, resource orc.AppParameterV
 			}
 
 			if ResourceCanUse(owner, ip.Owner, ip.Permissions, false) {
-				if ResourceIsLocked(ip.Resource, ip.Specification.Product) {
-					return false, fmt.Sprintf("Insufficient funds for %v", ip.Specification.Product.Category), JobResourceAccessibilityIssueLocked
-				}
 				return true, "", JobResourceAccessibilityIssueNone
 			}
 
 			return false, fmt.Sprintf("You no longer have permissions to use this public IP: %s.", ip.Id), JobResourceAccessibilityIssuePermission
-		}
-
-		if ResourceIsLocked(ip.Resource, ip.Specification.Product) {
-			return false, fmt.Sprintf("Insufficient funds for %v", ip.Specification.Product.Category), JobResourceAccessibilityIssueLocked
 		}
 
 		return true, "", JobResourceAccessibilityIssueNone
@@ -239,17 +232,10 @@ func JobResourceIsAccessible(owner orc.ResourceOwner, resource orc.AppParameterV
 			}
 
 			if ResourceCanUse(owner, license.Owner, license.Permissions, false) {
-				if ResourceIsLocked(license.Resource, license.Specification.Product) {
-					return false, fmt.Sprintf("Insufficient funds for %v", license.Specification.Product.Category), JobResourceAccessibilityIssueLocked
-				}
 				return true, "", JobResourceAccessibilityIssueNone
 			}
 
 			return false, fmt.Sprintf("You no longer have permissions to use this license: %s.", license.Id), JobResourceAccessibilityIssuePermission
-		}
-
-		if ResourceIsLocked(license.Resource, license.Specification.Product) {
-			return false, fmt.Sprintf("Insufficient funds for %v", license.Specification.Product.Category), JobResourceAccessibilityIssueLocked
 		}
 
 		return true, "", JobResourceAccessibilityIssueNone

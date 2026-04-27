@@ -69,10 +69,13 @@ const TabbedCard: React.FunctionComponent<{
     children: React.ReactNode;
     rightControls?: React.ReactNode;
     rightControlsPaddingRight?: string;
-}> = ({style, children, rightControls, rightControlsPaddingRight}) => {
+    activeIndex?: number;
+    onTabChange?: (idx: number) => void;
+}> = ({style, children, rightControls, rightControlsPaddingRight, activeIndex, onTabChange}) => {
     const [tabs, setTabs] = useState<Tab[]>([]);
     const [visible, setVisible] = useState(0);
     const rootDiv = useRef<HTMLDivElement>(null);
+    const selected = activeIndex ?? visible;
 
     useLayoutEffect(() => {
         const div = rootDiv.current;
@@ -85,7 +88,7 @@ const TabbedCard: React.FunctionComponent<{
             const tabIcon = tab.getAttribute("data-tab-icon");
             if (!tabName || !tabIcon) return;
 
-            if (idx !== visible) {
+            if (idx !== selected) {
                 tab.style.display = "none";
             } else {
                 tab.style.display = "block";
@@ -95,7 +98,7 @@ const TabbedCard: React.FunctionComponent<{
         });
 
         setTabs(newTabs);
-    }, [children, visible]);
+    }, [children, selected]);
 
     const onTabClick = useCallback((ev: React.SyntheticEvent) => {
         function findAttr(element: HTMLElement | null | undefined, attr: string): string | null {
@@ -108,8 +111,12 @@ const TabbedCard: React.FunctionComponent<{
         const target = ev.target as HTMLElement;
         const tabIdx = parseInt(findAttr(target, "data-tab-idx") ?? "invalid");
         if (isNaN(tabIdx)) return;
-        setVisible(tabIdx);
-    }, []);
+        if (onTabChange) {
+            onTabChange(tabIdx);
+        } else {
+            setVisible(tabIdx);
+        }
+    }, [onTabChange]);
 
     return <Card style={style} className={tabs.length === 0 ? HideClass : undefined}>
         <div ref={rootDiv} className={ContainerClass} data-hidden={tabs.length === 0}>
@@ -119,7 +126,7 @@ const TabbedCard: React.FunctionComponent<{
                         <div
                             onClick={onTabClick}
                             data-tab-idx={idx}
-                            data-active={idx === visible}
+                    data-active={idx === selected}
                             key={it.name}
                         >
                             <Icon name={it.icon} /> {it.name}

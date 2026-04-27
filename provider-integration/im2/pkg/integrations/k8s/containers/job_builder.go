@@ -282,16 +282,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 			},
 		}
 
-		sshService = shared.AssignAndPrepareSshService(job).GetOrDefault(nil)
-		if sshService != nil {
-			shared.AllowNetworkFromWorld(firewall, []orc.PortRangeAndProto{
-				{
-					Protocol: orc.IpProtocolTcp,
-					Start:    22,
-					End:      22,
-				},
-			})
-		}
+		sshService = shared.PrepareSshService(job, firewall).GetOrDefault(nil)
 
 		preparedIp := shared.PublicIpPrepare(job, firewall)
 		ipService = preparedIp.Service
@@ -362,7 +353,10 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		userContainer.Resources.Requests[core.ResourceCPU] = *quantity
 	}
 	{
-		quantity := resource.NewScaledQuantity(int64(cpuMillis), resource.Milli)
+		quantity := resource.NewScaledQuantity(
+			shared.NodeCpuMillisNormalizedWithoutReserved(&product),
+			resource.Milli,
+		)
 		quantity.Format = resource.DecimalSI
 		userContainer.Resources.Limits[core.ResourceCPU] = *quantity
 	}

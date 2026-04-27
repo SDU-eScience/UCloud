@@ -1,6 +1,28 @@
 provider:
   id: k8s
 
+  providerBranding:
+    title: K8s Dev Provider
+    shortTitle: SDU/K8s
+    shortDescription: "Interactive digital research environment built to support the needs of researchers for both computing and data management, throughout all the data life cycle."
+    description: /etc/ucloud/description.md
+    url: https://docs.cloud.sdu.dk/
+    logo: "no-logo.png"
+    sections:
+      - description: /etc/ucloud/section.md
+        image: ""
+    productDescription:
+      - category: "u1-standard"
+        shortDescription: u1-standard provides computation
+        section:
+          description: /etc/ucloud/aproduct.md
+          image: "/etc/ucloud/images/a-cpu.png"
+      - category: "storage"
+        shortDescription: Provides storage
+        section:
+          description: /etc/ucloud/bproduct.md
+          image: "/etc/ucloud/images/a-hardrive.png"
+
   hosts:
     ucloud:
       address: core2
@@ -65,6 +87,11 @@ services:
       hostname: ucloud.invalid
       portMin: 8000
       portMax: 16000
+
+    inference:
+      enabled: false
+      backendServer: http://localai:8080/v1
+      developmentProvider: localai
 
     modules:
       "ubuntu-22.04":

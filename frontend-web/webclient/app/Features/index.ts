@@ -61,14 +61,14 @@ const featureMap: Record<string, FeatureConfig> = {
 
     "allocations-improvements": {
         feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
-        showWithFlag: allLocalEnvironments,
-        showWithoutFlag: allLocalEnvironments,
+        showWithFlag: allEnvironments,
+        showWithoutFlag: allEnvironments,
     },
     
     "new-vm-ui": {
         feature: Feature.NEW_VM_UI,
         showWithFlag: allEnvironments,
-        showWithoutFlag: allDevEnvironments,
+        showWithoutFlag: allEnvironments,
     },
 
     "stacks": {

@@ -539,8 +539,7 @@ func (b *JobUpdateBatch) End() JobUpdateBatchResults {
 	activeJobsMutex.RUnlock()
 
 	for _, jobIdToTerminate := range jobsWithUnknownState {
-		terminationState := orc.JobStateSuccess
-
+		var job *orc.Job
 		var id string
 		var state orc.JobState
 		var expiresAt util.Option[fnd.Timestamp]
@@ -548,7 +547,8 @@ func (b *JobUpdateBatch) End() JobUpdateBatchResults {
 
 		{
 			activeJobsMutex.RLock()
-			job, hasJob := activeJobs[jobIdToTerminate]
+			hasJob := false
+			job, hasJob = activeJobs[jobIdToTerminate]
 			if hasJob {
 				ok = true
 				expiresAt = job.Status.ExpiresAt
@@ -559,11 +559,17 @@ func (b *JobUpdateBatch) End() JobUpdateBatchResults {
 		}
 
 		if ok {
-			if expiresAt.IsSet() && now.After(expiresAt.Get().Time()) {
-				terminationState = orc.JobStateExpired
-			}
+			terminationState, shouldTerminate := jobUnknownStateTerminationState(job, expiresAt, now)
 
 			if state != terminationState {
+				if !shouldTerminate && IsIntegratedApplication(job.Specification.Product.Category) {
+					log.Warn(
+						"Job %v for integrated application %s missed state tracking. Suspending instead of terminating.",
+						id,
+						job.Specification.Product.Category,
+					)
+				}
+
 				b.AddUpdate(orc.ResourceUpdateAndId[orc.JobUpdate]{
 					Id: jobIdToTerminate,
 					Update: orc.JobUpdate{
@@ -573,12 +579,27 @@ func (b *JobUpdateBatch) End() JobUpdateBatchResults {
 				})
 			}
 
-			b.results.TerminatedDueToUnknownState = append(b.results.TerminatedDueToUnknownState, id)
+			if shouldTerminate {
+				b.results.TerminatedDueToUnknownState = append(b.results.TerminatedDueToUnknownState, id)
+			}
 		}
 	}
 
 	b.flush()
 	return b.results
+}
+
+func jobUnknownStateTerminationState(job *orc.Job, expiresAt util.Option[fnd.Timestamp], now time.Time) (orc.JobState, bool) {
+	if IsIntegratedApplication(job.Specification.Product.Category) {
+		return orc.JobStateSuspended, false
+	}
+
+	terminationState := orc.JobStateSuccess
+	if expiresAt.IsSet() && now.After(expiresAt.Get().Time()) {
+		terminationState = orc.JobStateExpired
+	}
+
+	return terminationState, true
 }
 
 type JobMessage struct {

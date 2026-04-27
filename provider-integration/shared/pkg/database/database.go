@@ -6,14 +6,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"reflect"
 	"regexp"
 	"strings"
 	"time"
-	"ucloud.dk/pgxscan"
 	"unicode"
+
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"ucloud.dk/pgxscan"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/prometheus/client_golang/prometheus"
@@ -332,7 +333,7 @@ func Connect(username, password, host string, port int, database string, ssl boo
 	pool, err := pgxpool.New(
 		context.Background(),
 		fmt.Sprintf(
-			"postgres://%v:%v@%v:%v/%v?sslmode=%v&pool_max_conns=64&pool_max_conn_lifetime=1000000h",
+			"postgres://%v:%v@%v:%v/%v?sslmode=%v&pool_max_conns=32&pool_max_conn_lifetime=1000000h",
 			username,
 			password,
 			host,

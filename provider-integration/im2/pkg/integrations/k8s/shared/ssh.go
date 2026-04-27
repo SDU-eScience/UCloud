@@ -1,6 +1,7 @@
 package shared
 
 import (
+	"context"
 	"fmt"
 	"math/rand"
 	"strconv"
@@ -8,6 +9,8 @@ import (
 	"sync"
 
 	core "k8s.io/api/core/v1"
+	network "k8s.io/api/networking/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	cfg "ucloud.dk/pkg/config"
@@ -62,6 +65,11 @@ func assignSshPort(job *orc.Job) (util.Option[int], *util.HttpError) {
 		sshPortsMutex.Lock()
 		defer sshPortsMutex.Unlock()
 
+		if assignedPort := GetAssignedSshPort(job); assignedPort.Present {
+			sshPortsInUse[assignedPort.Value] = true
+			return assignedPort, nil
+		}
+
 		count := sshConfig.PortMax - sshConfig.PortMin
 		if count <= 0 {
 			return util.OptNone[int](), util.ServerHttpError("No more SSH ports available")
@@ -109,6 +117,13 @@ func GetAssignedSshPort(job *orc.Job) util.Option[int] {
 	var result util.Option[int]
 
 	for _, update := range job.Updates {
+		if update.State.Present {
+			switch update.State.Value {
+			case orc.JobStateSuspended, orc.JobStateSuccess, orc.JobStateFailure, orc.JobStateExpired:
+				result.Clear()
+			}
+		}
+
 		if update.Status.Present && strings.HasPrefix(update.Status.Value, sshPrefix) {
 			idx := strings.Index(update.Status.Value, " -p ")
 			if idx == -1 {
@@ -126,6 +141,52 @@ func GetAssignedSshPort(job *orc.Job) util.Option[int] {
 	return result
 }
 
+func SshServiceName(jobId string) string {
+	return fmt.Sprintf("j-%v-ssh", jobId)
+}
+
+func DeleteSshService(jobId string) *util.HttpError {
+	err := K8sClient.CoreV1().Services(ServiceConfig.Compute.Namespace).
+		Delete(context.Background(), SshServiceName(jobId), meta.DeleteOptions{})
+	if err != nil && !k8serrors.IsNotFound(err) {
+		return util.HttpErrorFromErr(err)
+	}
+
+	return nil
+}
+
+func EnsureSshService(job *orc.Job, ownerReference meta.OwnerReference, sshService *core.Service) *util.HttpError {
+	if sshService == nil {
+		_ = DeleteSshService(job.Id)
+		return nil
+	}
+
+	sshService.OwnerReferences = append(sshService.OwnerReferences, ownerReference)
+	err := DeleteSshService(job.Id)
+	if err != nil {
+		return err
+	}
+
+	_, createErr := K8sClient.CoreV1().Services(ServiceConfig.Compute.Namespace).
+		Create(context.Background(), sshService, meta.CreateOptions{})
+	return util.HttpErrorFromErr(createErr)
+}
+
+func PrepareSshService(job *orc.Job, firewall *network.NetworkPolicy) util.Option[*core.Service] {
+	sshService := AssignAndPrepareSshService(job)
+	if sshService.Present && firewall != nil {
+		AllowNetworkFromWorld(firewall, []orc.PortRangeAndProto{
+			{
+				Protocol: orc.IpProtocolTcp,
+				Start:    22,
+				End:      22,
+			},
+		})
+	}
+
+	return sshService
+}
+
 func AssignAndPrepareSshService(job *orc.Job) util.Option[*core.Service] {
 	if IsSensitiveProject(job.Owner.Project.Value) {
 		return util.OptNone[*core.Service]()
@@ -139,7 +200,7 @@ func AssignAndPrepareSshService(job *orc.Job) util.Option[*core.Service] {
 		rankLabel := JobRankLabel(0)
 		service := &core.Service{
 			ObjectMeta: meta.ObjectMeta{
-				Name: fmt.Sprintf("j-%v-ssh", job.Id),
+				Name: SshServiceName(job.Id),
 				Labels: map[string]string{
 					serviceLabel.First: serviceLabel.Second,
 				},

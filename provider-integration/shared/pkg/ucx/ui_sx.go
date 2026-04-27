@@ -13,6 +13,11 @@ var (
 )
 
 var (
+	SxFlexDirectionRow    = sxString("flexDirection", "row")
+	SxFlexDirectionColumn = sxString("flexDirection", "column")
+)
+
+var (
 	SxAlignItemsStart    = sxString("alignItems", "flex-start")
 	SxAlignItemsEnd      = sxString("alignItems", "flex-end")
 	SxAlignItemsCenter   = sxString("alignItems", "center")
@@ -129,13 +134,15 @@ func SxBackgroundSize(value string) SxOption   { return sxString("backgroundSize
 func SxBackgroundPosition(value string) SxOption {
 	return sxString("backgroundPosition", value)
 }
-func SxTop(value string) SxOption    { return sxString("top", value) }
-func SxRight(value string) SxOption  { return sxString("right", value) }
-func SxBottom(value string) SxOption { return sxString("bottom", value) }
-func SxLeft(value string) SxOption   { return sxString("left", value) }
-func SxZIndex(value int64) SxOption  { return sxInt("zIndex", value) }
-func SxWidthAuto() SxOption          { return sxString("width", "auto") }
-func SxHeightAuto() SxOption         { return sxString("height", "auto") }
+func SxTop(value string) SxOption       { return sxString("top", value) }
+func SxRight(value string) SxOption     { return sxString("right", value) }
+func SxBottom(value string) SxOption    { return sxString("bottom", value) }
+func SxLeft(value string) SxOption      { return sxString("left", value) }
+func SxZIndex(value int64) SxOption     { return sxInt("zIndex", value) }
+func SxWidthAuto() SxOption             { return sxString("width", "auto") }
+func SxHeightAuto() SxOption            { return sxString("height", "auto") }
+func SxHeightRaw(value string) SxOption { return sxString("height", value) }
+func SxHeightVh(value int64) SxOption   { return sxString("height", fmt.Sprintf("%dvh", value)) }
 func SxWidthPercent(value int64) SxOption {
 	return sxString("width", fmt.Sprintf("%d%%", value))
 }

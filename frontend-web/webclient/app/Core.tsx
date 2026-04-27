@@ -4,6 +4,9 @@ import {Dispatch} from "redux";
 import {Provider, useDispatch} from "react-redux";
 import {BrowserRouter} from "react-router-dom";
 
+import "@/Assets/Colors.css";
+import "@/Assets/GlobalStyle.css";
+
 import App from "@/Applications/Studio/Applications";
 import ApplicationsOverview from "./Applications/Category";
 import ApplicationsLanding from "./Applications/Landing";
@@ -54,8 +57,8 @@ import GrantEditor from "@/Grants/Editor";
 import ResourceUsage from "@/Accounting/UsageCore2";
 import ResourceAllocations from "@/Accounting/Allocations";
 import Connection from "@/Providers/Connection";
-import UcxCreateDemo from "@/Playground/UcxCreateDemo";
 import PrivateNetworksRouter from "@/Applications/PrivateNetwork/Router";
+import InferencePlayground from "@/Inference/Playground";
 
 import {Sidebar} from "@/ui-components/Sidebar";
 import Uploader from "@/Files/Uploader";
@@ -64,7 +67,7 @@ import {inDevEnvironment} from "@/UtilityFunctions";
 import {ErrorBoundary} from "@/ErrorBoundary/ErrorBoundary";
 import {MainContainer} from "@/ui-components/MainContainer";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {Flex, UIGlobalStyle} from "@/ui-components";
+import {Flex} from "@/ui-components";
 import {findAvatar} from "@/UserSettings/Redux";
 import {USER_LOGIN, UserActionType, store} from "@/Utilities/ReduxUtilities";
 import {removeExpiredFileUploads} from "@/UtilityFunctions";
@@ -174,7 +177,9 @@ const Core = (): React.ReactNode => (
                     {!inDevEnvironment() ? null : <Route path={"/playground"} element={<Playground />} />}
                     {!inDevEnvironment() ? null : <Route path={"/playground/demo"} element={<Demo />} />}
                     {!inDevEnvironment() ? null : <Route path={"/playground/lag"} element={<LagTest />} />}
-                    {!inDevEnvironment() ? null : <Route path={"/playground/ucx-create"} element={<UcxCreateDemo />} />}
+
+                    <Route path={AppRoutes.inference.playground()}
+                        element={React.createElement(requireAuth(InferencePlayground))} />
 
                     <Route path={AppRoutes.admin.userCreation()}
                         element={React.createElement(requireAuth(UserCreation))} />
@@ -317,12 +322,6 @@ async function onLogin(dispatch: Dispatch): Promise<void> {
     const action = await findAvatar();
     if (action !== null) dispatch(action);
 }
-
-(() => {
-    const globalStyle = document.createElement("style");
-    globalStyle.innerHTML = UIGlobalStyle;
-    document.head.append(globalStyle);
-})();
 
 Client.initializeStore(store);
 removeExpiredFileUploads();

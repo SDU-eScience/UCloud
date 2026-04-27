@@ -53,4 +53,4 @@ The relevant code can be found in the Core and in the shared project. We recomme
 | Project member | A member of a project. Each member has a role (PI, admin or user). Each project has exactly 1 PI.      |
 | Project group  | A sub-division of members in a project. Members of a group must be a member of the associated project. |
 | Invite         | An invitation sent directly to a user to participate in a project collaboration.                       |
-| Invite link    | A link usede to join a project. Preferred over direct project invites due to ease of use.              |
+| Invite link    | A link used to join a project. Preferred over direct project invites due to ease of use.              |

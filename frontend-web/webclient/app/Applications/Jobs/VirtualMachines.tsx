@@ -1,7 +1,7 @@
 import * as React from "react";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import * as Heading from "@/ui-components/Heading";
-import {Box, Button, Card, Flex, Icon, Input, Link} from "@/ui-components";
+import {Box, Button, Card, Divider, Flex, Icon, Input, Link} from "@/ui-components";
 import {classConcat, injectStyle} from "@/Unstyled";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {copyToClipboard, displayErrorMessageOrDefault, doNothing, shortUUID} from "@/UtilityFunctions";
@@ -43,6 +43,10 @@ import {CardClass} from "@/ui-components/Card";
 import {ResourceBrowseHeaderControls} from "@/ui-components/ResourceBrowser";
 import AppParameterValue = compute.AppParameterValue;
 import {RefreshButton} from "@/Navigation/UtilityBar";
+import * as StackApi from "@/Stacks/api";
+import Warning from "@/ui-components/Warning";
+import {sendFailureNotification} from "@/Notifications";
+import {dialogStore} from "@/Dialog/DialogStore";
 
 interface InterfaceTarget {
     rank: number;
@@ -66,6 +70,9 @@ interface VmUpdatesState {
 }
 
 type OptimisticPowerState = "POWERING_ON" | "POWERING_OFF" | "RESTARTING";
+
+const EMPTY_RESOURCES: AppParameterValue[] = [];
+
 function useResourcesById<T>(
     params: AppParameterValue[],
     retrieve: (id: string) => Promise<T>,
@@ -125,7 +132,7 @@ export const VirtualMachineStatus: React.FunctionComponent<{
     const supportsSuspension = support?.virtualMachine.suspension === true;
     const supportsVnc = support?.virtualMachine.vnc === true;
 
-    const resources = job.specification.resources ?? [];
+    const resources = job.specification.resources ?? EMPTY_RESOURCES;
     const ingresses = useMemo(() => {
         return resources.filter(it => it.type === "ingress") as compute.AppParameterValueNS.Ingress[];
     }, [resources]);
@@ -178,8 +185,6 @@ export const VirtualMachineStatus: React.FunctionComponent<{
         }
         return combinedInterfaceTargets[defaultInterfaceId];
     }, [combinedInterfaceTargets]);
-
-    const sshCommand = useMemo(() => parseSshCommand(updates), [updates]);
 
     const resolvedProduct = job.status.resolvedProduct as {
         cpu?: number;
@@ -278,15 +283,12 @@ export const VirtualMachineStatus: React.FunctionComponent<{
     }, [restart]);
 
     const confirmTerminate = useCallback(() => {
-        addStandardDialog({
-            title: "Stop and delete virtual machine?",
-            message: "This will terminate the VM and cannot be undone.",
-            confirmText: "Delete VM",
-            confirmButtonColor: "errorMain",
-            cancelButtonColor: "secondaryMain",
-            onConfirm: terminate,
-        });
-    }, [terminate]);
+        dialogStore.addDialog(
+            <VmDeleteDialog job={job} onConfirm={terminate} />,
+            doNothing,
+            true
+        );
+    }, [job, terminate]);
 
     const isTerminalState = status.state === "SUCCESS" || status.state === "FAILURE" || status.state === "EXPIRED";
     const isSuspended = status.state === "SUSPENDED";
@@ -294,25 +296,37 @@ export const VirtualMachineStatus: React.FunctionComponent<{
     const powerActionDisabled = loading || isPowerTransitioning || isTerminalState;
     const showRuntimePanels = !isTerminalState;
     const effectiveState: JobState | OptimisticPowerState = optimisticPowerState ?? status.state;
+    const showInterfaceControls = effectiveState === "RUNNING";
+    const sshCommand = useMemo(() => effectiveState === "RUNNING" ? parseSshCommand(updates) : null, [effectiveState, updates]);
     const appTitle = job.specification.name ?? job.status.resolvedApplication?.metadata?.title ?? "Virtual machine";
     const appVersion = job.status.resolvedApplication?.metadata?.version ?? "";
     const alternativeInterfaces = useMemo(() => {
         return combinedInterfaceTargets.filter(it => it !== desktopTarget && it.link);
     }, [combinedInterfaceTargets, desktopTarget]);
-    const hasLaunchMenu = alternativeInterfaces.length > 0 || supportsTerminal;
+    const terminalLink = `/applications/shell/${job.id}/0?hide-frame`;
+    const hasLaunchMenu = alternativeInterfaces.length > 0 || (desktopTarget?.link != null);
 
     const launchMenuItems = useMemo<VmActionItem[]>(() => {
-        const result: VmActionItem[] = alternativeInterfaces.map(it => ({
+        let result: VmActionItem[] = [];
+
+        if (desktopTarget?.link) {
+            result.push({
+                key: `iface:${desktopTarget.link}`,
+                value: `Open ${desktopTarget.target ?? defaultInterfaceName ?? (supportsVnc ? "desktop" : "interface")}`,
+                icon: "heroComputerDesktop",
+                color: "textPrimary",
+            });
+        }
+
+        result = result.concat(alternativeInterfaces.map(it => ({
             key: `iface:${it.link}`,
             value: it.target ?? ((defaultInterfaceName ?? "Open interface") + ` (Node ${it.rank + 1})`),
             icon: "heroArrowTopRightOnSquare",
             color: "textPrimary",
-        }));
-        if (supportsTerminal) {
-            result.push({key: "terminal", value: "Open terminal", icon: "heroCommandLine", color: "textPrimary"});
-        }
+        })));
+
         return result;
-    }, [alternativeInterfaces, defaultInterfaceName, supportsTerminal]);
+    }, [alternativeInterfaces, defaultInterfaceName, desktopTarget, supportsTerminal, supportsVnc]);
 
     const dangerMenuItems = useMemo<VmActionItem[]>(() => {
         const items: VmActionItem[] = [];
@@ -325,14 +339,16 @@ export const VirtualMachineStatus: React.FunctionComponent<{
     }, [isSuspended, isTerminalState, supportsSuspension]);
 
     const onSelectLaunchMenuItem = useCallback((item: VmActionItem) => {
-        if (item.key === "terminal") {
-            window.open(`/app/applications/shell/${job.id}/0?hide-frame`, "_blank");
+        if (item.key.startsWith("iface:")) {
+            let url = item.key.substring("iface:".length);
+            if (!url.startsWith("/app/")) {
+                url = "/app/" + url;
+                url = url.replaceAll("//", "/");
+            }
+            window.open(url, "_blank");
             return;
         }
-        if (item.key.startsWith("iface:")) {
-            window.open(item.key.substring("iface:".length), "_blank");
-        }
-    }, [job.id]);
+    }, [terminalLink]);
 
     const onSelectDangerMenuItem = useCallback((item: VmActionItem) => {
         switch (item.key) {
@@ -539,7 +555,7 @@ export const VirtualMachineStatus: React.FunctionComponent<{
         setAccessDialog("network");
     }, []);
 
-    const interfaceDisabled = !desktopTarget?.link || isTerminalState;
+    const interfaceDisabled = !showInterfaceControls || !(supportsTerminal || desktopTarget?.link);
 
     const powerTone: "success" | "warning" | "neutral" = !supportsSuspension || isTerminalState
         ? "neutral"
@@ -736,31 +752,36 @@ export const VirtualMachineStatus: React.FunctionComponent<{
                 <Box flexGrow={1}/>
 
                 <Flex flexDirection="row" alignItems="center" gap="10px">
-                    <Flex>
-                        <Link to={desktopTarget?.link ?? ""} target="_blank" aria-disabled={interfaceDisabled}>
-                            <Button disabled={interfaceDisabled} attachedLeft={hasLaunchMenu}>
-                                <Icon name="heroComputerDesktop" mr="8px"/>
-                                Open {desktopTarget?.target ?? defaultInterfaceName ?? (supportsVnc ? "desktop" : "interface")}
-                            </Button>
-                        </Link>
+                    {!showInterfaceControls ? null : (
+                        <Flex>
+                            <Link to={supportsTerminal ? terminalLink : (desktopTarget?.link ?? "")} target="_blank" aria-disabled={interfaceDisabled}>
+                                <Button disabled={interfaceDisabled} attachedLeft={hasLaunchMenu}>
+                                    <Icon name={supportsTerminal ? "heroCommandLine" : "heroComputerDesktop"} mr="8px"/>
+                                    {supportsTerminal
+                                        ? "Open terminal"
+                                        : `Open ${desktopTarget?.target ?? defaultInterfaceName ?? (supportsVnc ? "desktop" : "interface")}`
+                                    }
+                                </Button>
+                            </Link>
 
-                        {!hasLaunchMenu ? null : (
-                            <RichSelect
-                                items={launchMenuItems}
-                                keys={["value"]}
-                                RenderRow={VmActionRow}
-                                onSelect={onSelectLaunchMenuItem}
-                                showSearchField={false}
-                                dropdownWidth="300px"
-                                matchTriggerWidth={false}
-                                trigger={
-                                    <div className={SplitDropdownTrigger} data-disabled={interfaceDisabled}>
-                                        <Icon name="heroChevronDown"/>
-                                    </div>
-                                }
-                            />
-                        )}
-                    </Flex>
+                            {!hasLaunchMenu ? null : (
+                                <RichSelect
+                                    items={launchMenuItems}
+                                    keys={["value"]}
+                                    RenderRow={VmActionRow}
+                                    onSelect={onSelectLaunchMenuItem}
+                                    showSearchField={false}
+                                    dropdownWidth="300px"
+                                    matchTriggerWidth={false}
+                                    trigger={
+                                        <div className={SplitDropdownTrigger} data-disabled={interfaceDisabled}>
+                                            <Icon name="heroChevronDown"/>
+                                        </div>
+                                    }
+                                />
+                            )}
+                        </Flex>
+                    )}
 
                     <VmActionSplitButton
                         tone={powerTone}
@@ -972,13 +993,21 @@ const VmAccessResourceManagerDialog: React.FunctionComponent<{
         setInlineTitle(null);
     }, []);
 
+    const inlineCreationPort = inlineCreationValue === "" ? NaN : Number(inlineCreationValue);
+    const inlineCreationIsValid = !inlineCreationLabel || (
+        Number.isInteger(inlineCreationPort) &&
+        inlineCreationPort >= 1 &&
+        inlineCreationPort <= 65535
+    );
+
     const onInlineCreationConfirm = useCallback((e?: React.SyntheticEvent) => {
         e?.preventDefault();
+        if (!inlineCreationIsValid) return;
         if (inlineResourceBeingCreated) {
             onAttach(inlineResourceBeingCreated, inlineCreationValue);
         }
         closeInlineCreation();
-    }, [inlineResourceBeingCreated, inlineCreationValue, closeInlineCreation]);
+    }, [inlineResourceBeingCreated, inlineCreationValue, inlineCreationIsValid, closeInlineCreation]);
 
     const onAddResource = useCallback(() => {
         setSelectorRefresh(undefined);
@@ -1048,13 +1077,24 @@ const VmAccessResourceManagerDialog: React.FunctionComponent<{
                     <Flex gap={"8px"} alignItems={"center"}>
                         <Box flexGrow={1}>{inlineTitle}</Box>
                         <form onSubmit={onInlineCreationConfirm}>
-                            <Input autoFocus={true} width={"150px"} placeholder={inlineCreationLabel} value={inlineCreationValue} onChange={inlineCreationOnChange} />
+                            <Input
+                                autoFocus={true}
+                                width={"150px"}
+                                placeholder={inlineCreationLabel}
+                                value={inlineCreationValue}
+                                onChange={inlineCreationOnChange}
+                                type="number"
+                                min={1}
+                                max={65535}
+                                required
+                                error={!inlineCreationIsValid}
+                            />
                         </form>
                         <VirtualMachineIconButton
                             tooltip={"Confirm"}
                             onClick={onInlineCreationConfirm}
                             icon={"heroCheck"}
-                            color={"successMain"}
+                            color={inlineCreationIsValid ? "successMain" : "textSecondary"}
                         />
                         <VirtualMachineIconButton
                             tooltip={"Cancel"}
@@ -1078,6 +1118,44 @@ const VmAccessResourceManagerDialog: React.FunctionComponent<{
         )}
     </div>;
 };
+
+function VmDeleteDialog({job, onConfirm}: {job: Job; onConfirm: () => Promise<void>}): React.ReactNode {
+    const requiredText = job.id;
+
+    return <div onKeyDown={e => e.stopPropagation()}>
+        <Heading.h3>Are you absolutely sure?</Heading.h3>
+        <Divider />
+        <Warning>This is a dangerous operation, please read this!</Warning>
+        <Box mb="8px" mt="16px">
+            This will <i>PERMANENTLY</i> delete this stack. This action <i>CANNOT BE UNDONE</i>.
+        </Box>
+        <Box mb="16px">
+            Please type '<b>{requiredText}</b>' to confirm.
+        </Box>
+        <form onSubmit={async ev => {
+            ev.preventDefault();
+            ev.stopPropagation();
+
+            const written = (document.querySelector("#stackDeleteName") as HTMLInputElement)?.value;
+            if (written !== requiredText) {
+                sendFailureNotification(`Please type '${requiredText}' to confirm.`);
+                return;
+            }
+
+            try {
+                await onConfirm();
+                dialogStore.success();
+            } catch {
+                sendFailureNotification("Failed to delete VM.");
+            }
+        }}>
+            <Input id="stackDeleteName" autoFocus mb="8px" />
+            <Button color="errorMain" type="submit" fullWidth>
+                I understand what I am doing, delete permanently
+            </Button>
+        </form>
+    </div>;
+}
 
 function vmAccessResourceKey(resource: compute.AppParameterValue): string {
     if (resource.type === "ingress") return `${resource.type}:${resource.id}`;

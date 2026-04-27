@@ -165,6 +165,9 @@ func handleTtySession(s *vmaTtySession) {
 				cmd = exec.Command(preferredShell, "-l")
 				cmd.Env = os.Environ()
 				cmd.Env = append(cmd.Env, "TERM=xterm-256color")
+				if _, err := os.Stat("/work"); err == nil {
+					cmd.Dir = "/work"
+				}
 
 				ptmx, err = pty.Start(cmd)
 				if err != nil {

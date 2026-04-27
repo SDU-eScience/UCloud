@@ -43,6 +43,8 @@ var KubevirtClient kvclient.KubevirtClient
 var Namespace string
 var Enabled = false
 
+const enableDefaultPassword = false
+
 //go:embed ucloud-vmagent.service
 var vmAgentSystemdFile []byte
 
@@ -439,16 +441,16 @@ type cloudInitUser struct {
 	Name         string   `json:"name"`
 	Uid          int      `json:"uid"`
 	Sudo         []string `json:"sudo"`
-	Password     string   `json:"hashed_passwd"`
+	Password     string   `json:"hashed_passwd,omitempty"`
 	LockPassword bool     `json:"lock_passwd"`
 	Shell        string   `json:"shell"`
 }
 
 type cloudInit struct {
-	Users      []cloudInitUser `json:"users"`
-	Mounts     [][]string      `json:"mounts"`
-	RunCommand []string        `json:"runcmd"`
-	Network    any             `json:"network"`
+	DisableRoot bool            `json:"disable_root"`
+	Users       []cloudInitUser `json:"users"`
+	Mounts      [][]string      `json:"mounts"`
+	RunCommand  []string        `json:"runcmd"`
 }
 
 func follow(session *ctrl.FollowJobSession) {
@@ -644,129 +646,45 @@ func follow(session *ctrl.FollowJobSession) {
 
 func handleShell(session *ctrl.ShellSession, cols int, rows int) {
 	clearScreen := []byte("\033[2J\033[H")
-	spinnerFrames := []string{"[    ]", "[=   ]", "[==  ]", "[=== ]", "[ ===]", "[  ==]", "[   =]", "[    ]"}
 
 	session.EmitData(clearScreen)
-
-	ttyConnChannel := make(chan *ws.Conn, 1)
-	go func() {
-		ttyConnChannel <- vmaRequestTty(session.Job.Id)
-	}()
-
-	ticker := time.NewTicker(120 * time.Millisecond)
-	defer ticker.Stop()
-
-	waitCount := 0
 	var ttyConn *ws.Conn
-waitForTty:
+
 	for util.IsAlive && session.Alive {
-		select {
-		case ttyConn = <-ttyConnChannel:
-			break waitForTty
-
-		case <-ticker.C:
-			frame := spinnerFrames[waitCount%len(spinnerFrames)]
-			dots := strings.Repeat(".", (waitCount%3)+1)
-			session.EmitData([]byte(fmt.Sprintf("\r%s Connecting to VM terminal%s", frame, dots)))
-			waitCount++
+		if ttyConn == nil {
+			ttyConn = vmaRequestTty(context.Background(), session.Job.Id)
 		}
-	}
 
-	session.EmitData(clearScreen)
+		if ttyConn != nil {
+			next := handleShellSessionViaAgentTty(session, ttyConn, cols, rows)
+			ttyConn = nil
+			if next != shellSessionNextSerial {
+				return
+			}
 
-	if !util.IsAlive || !session.Alive {
-		return
-	}
+			session.EmitData(clearScreen)
+			continue
+		}
 
-	if ttyConn != nil {
-		handleShellSessionViaAgentTty(session, ttyConn, cols, rows)
-		return
-	}
-
-	session.EmitData([]byte("Using serial console fallback. You may need to press Enter before output appears.\r\n"))
-
-	stdinReader, stdinWriter := io.Pipe()
-	stdoutReader, stdoutWriter := io.Pipe()
-
-	startChannel := make(chan error)
-
-	streamStop := make(chan error)
-	writeStop := make(chan error)
-	readStop := make(chan error)
-
-	go func() {
-		stream, err := KubevirtClient.
-			VirtualMachineInstance(Namespace).
-			SerialConsole(
-				vmName(session.Job.Id, session.Rank),
-				&kvapi.SerialConsoleOptions{},
-			)
-
-		startChannel <- err
-
-		if err != nil {
+		next, nextConn := handleShellSessionViaSerialConsole(session, cols, rows)
+		if next != shellSessionNextAgent {
 			return
 		}
 
-		streamStop <- stream.Stream(kvapi.StreamOptions{
-			In:  stdinReader,
-			Out: stdoutWriter,
-		})
-	}()
-
-	err := <-startChannel
-	if err != nil {
-		log.Info("Failed to open serial console to VM '%v': %v", session.Job.Id, err)
-		return
-	}
-
-	go func() {
-		defer close(readStop)
-		buf := make([]byte, 1024*4)
-
-		for session.Alive {
-			n, err := stdoutReader.Read(buf)
-			if err != nil {
-				break
-			}
-
-			session.EmitData(buf[:n])
-		}
-	}()
-
-	go func() {
-		defer close(writeStop)
-
-		for util.IsAlive && session.Alive {
-			select {
-			case event := <-session.InputEvents:
-				switch event.Type {
-				case ctrl.ShellEventTypeInput:
-					_, err = stdinWriter.Write([]byte(event.Data))
-					if err != nil {
-						session.Alive = false
-						log.Info("Error while writing to master: %v", err)
-						break
-					}
-
-				case ctrl.ShellEventTypeResize:
-					// Do nothing
-				}
-
-			case _ = <-time.After(1 * time.Second):
-				continue
-			}
-		}
-	}()
-
-	select {
-	case <-streamStop:
-	case <-writeStop:
-	case <-readStop:
+		ttyConn = nextConn
+		session.EmitData(clearScreen)
 	}
 }
 
-func handleShellSessionViaAgentTty(session *ctrl.ShellSession, conn *ws.Conn, cols int, rows int) {
+type shellSessionNext int
+
+const (
+	shellSessionNextDone shellSessionNext = iota
+	shellSessionNextAgent
+	shellSessionNextSerial
+)
+
+func handleShellSessionViaAgentTty(session *ctrl.ShellSession, conn *ws.Conn, cols int, rows int) shellSessionNext {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	defer util.SilentClose(conn)
@@ -794,14 +712,16 @@ func handleShellSessionViaAgentTty(session *ctrl.ShellSession, conn *ws.Conn, co
 		return conn.WriteMessage(ws.TextMessage, data) == nil
 	}
 
-	if !sendEvent(ctrl.ShellEvent{
+	ok := sendEvent(ctrl.ShellEvent{
 		Type: ctrl.ShellEventTypeInit,
 		ShellEventResize: ctrl.ShellEventResize{
 			Cols: cols,
 			Rows: rows,
 		},
-	}) {
-		return
+	})
+
+	if !ok {
+		return shellSessionNextSerial
 	}
 
 	ticker := time.NewTicker(1 * time.Second)
@@ -809,30 +729,30 @@ func handleShellSessionViaAgentTty(session *ctrl.ShellSession, conn *ws.Conn, co
 
 	for {
 		if !util.IsAlive || !session.Alive {
-			return
+			return shellSessionNextDone
 		}
 
 		select {
 		case <-ctx.Done():
-			return
+			return shellSessionNextDone
 
 		case msg, ok := <-socketMessages:
 			if !ok {
-				return
+				return shellSessionNextSerial
 			}
 			session.EmitData(msg)
 
 		case ev, ok := <-session.InputEvents:
 			if !ok {
-				return
+				return shellSessionNextDone
 			}
 
 			if !sendEvent(ev) {
-				return
+				return shellSessionNextSerial
 			}
 
 			if ev.Type == ctrl.ShellEventTypeTerminate {
-				return
+				return shellSessionNextDone
 			}
 
 		case <-ticker.C:
@@ -841,7 +761,139 @@ func handleShellSessionViaAgentTty(session *ctrl.ShellSession, conn *ws.Conn, co
 	}
 }
 
+func handleShellSessionViaSerialConsole(session *ctrl.ShellSession, cols, rows int) (shellSessionNext, *ws.Conn) {
+	session.EmitData([]byte("Using serial console fallback. You may need to press Enter before output appears.\r\n"))
+
+	stdinReader, stdinWriter := io.Pipe()
+	stdoutReader, stdoutWriter := io.Pipe()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	startChannel := make(chan error, 1)
+	streamStop := make(chan error, 1)
+	writeStop := make(chan error)
+	readStop := make(chan error)
+	upgradeChannel := make(chan *ws.Conn, 1)
+
+	go func() {
+		stream, err := KubevirtClient.
+			VirtualMachineInstance(Namespace).
+			SerialConsole(
+				vmName(session.Job.Id, session.Rank),
+				&kvapi.SerialConsoleOptions{},
+			)
+
+		startChannel <- err
+
+		if err != nil {
+			return
+		}
+
+		streamStop <- stream.Stream(kvapi.StreamOptions{
+			In:  stdinReader,
+			Out: stdoutWriter,
+		})
+	}()
+
+	if err := <-startChannel; err != nil {
+		log.Info("Failed to open serial console to VM '%v': %v", session.Job.Id, err)
+		return shellSessionNextDone, nil
+	}
+
+	go func() {
+		defer close(readStop)
+		buf := make([]byte, 1024*4)
+
+		for util.IsAlive && session.Alive {
+			n, err := stdoutReader.Read(buf)
+			if err != nil {
+				return
+			}
+
+			session.EmitData(buf[:n])
+		}
+	}()
+
+	go func() {
+		defer close(writeStop)
+
+		for util.IsAlive && session.Alive {
+			select {
+			case event := <-session.InputEvents:
+				switch event.Type {
+				case ctrl.ShellEventTypeInput:
+					if _, err := stdinWriter.Write([]byte(event.Data)); err != nil {
+						session.Alive = false
+						log.Info("Error while writing to master: %v", err)
+						return
+					}
+
+				case ctrl.ShellEventTypeResize:
+					// Do nothing
+				}
+
+			case <-ctx.Done():
+				return
+
+			case <-time.After(1 * time.Second):
+				continue
+			}
+		}
+	}()
+
+	go func() {
+		for util.IsAlive && session.Alive {
+			conn := vmaRequestTty(ctx, session.Job.Id)
+			if conn == nil {
+				select {
+				case <-ctx.Done():
+					return
+				case <-time.After(2 * time.Second):
+					continue
+				}
+			}
+
+			select {
+			case upgradeChannel <- conn:
+				return
+			case <-ctx.Done():
+				util.SilentClose(conn)
+				return
+			}
+		}
+	}()
+
+	select {
+	case <-streamStop:
+		cancel()
+		_ = stdinWriter.Close()
+		_ = stdoutWriter.Close()
+		return shellSessionNextDone, nil
+	case <-writeStop:
+		cancel()
+		_ = stdinWriter.Close()
+		_ = stdoutWriter.Close()
+		return shellSessionNextDone, nil
+	case <-readStop:
+		cancel()
+		_ = stdinWriter.Close()
+		_ = stdoutWriter.Close()
+		return shellSessionNextDone, nil
+	case conn := <-upgradeChannel:
+		cancel()
+		_ = stdinWriter.Close()
+		_ = stdoutWriter.Close()
+		return shellSessionNextAgent, conn
+	}
+}
+
 func terminate(request ctrl.JobTerminateRequest) *util.HttpError {
+	ctrl.PublicIpUnbindFromJob(request.Job)
+	ctrl.LinkUnbindFromJob(request.Job)
+	shared.ClearAssignedSshPort(request.Job)
+	shared.RemoveFromQueue(request.Job.Id)
+
 	name := vmName(request.Job.Id, 0)
 	err := KubevirtClient.VirtualMachine(Namespace).Delete(context.Background(), name, k8smeta.DeleteOptions{})
 	if err != nil && !k8serrors.IsNotFound(err) {
@@ -849,6 +901,32 @@ func terminate(request ctrl.JobTerminateRequest) *util.HttpError {
 		return util.ServerHttpError("Failed to delete VM")
 	}
 	diskCleanup(request.Job)
+
+	if !request.IsCleanup {
+		job, ok := ctrl.JobRetrieve(request.Job.Id)
+		if !ok {
+			job = request.Job
+		}
+
+		copied := *job
+		copied.Status.State = orc.JobStateSuccess
+		copied.Updates = append(copied.Updates, orc.JobUpdate{
+			State: util.OptValue(orc.JobStateSuccess),
+		})
+		ctrl.JobTrackNew(copied)
+
+		_, _ = orc.JobsControlAddUpdate.Invoke(fndapi.BulkRequest[orc.ResourceUpdateAndId[orc.JobUpdate]]{
+			Items: []orc.ResourceUpdateAndId[orc.JobUpdate]{
+				{
+					Id: job.Id,
+					Update: orc.JobUpdate{
+						State: util.OptValue(orc.JobStateSuccess),
+					},
+				},
+			},
+		})
+	}
+
 	return nil
 }
 
@@ -857,6 +935,7 @@ func unsuspend(job orc.Job) *util.HttpError {
 		return util.HttpErr(http.StatusPaymentRequired, "You do not have any resources to run the machine.")
 	}
 
+	shared.ClearScheduleCancellation(job.Id)
 	shared.RequestSchedule(&job)
 	return nil
 }
@@ -867,6 +946,11 @@ func suspend(job orc.Job) *util.HttpError {
 	if err != nil {
 		log.Info("Failed to shutdown VM: %v", err)
 		return util.ServerHttpError("Failed to shutdown VM")
+	}
+	shared.ClearAssignedSshPort(&job)
+	if herr := shared.DeleteSshService(job.Id); herr != nil {
+		log.Info("Failed to delete SSH service for suspended VM: %v", herr)
+		return util.ServerHttpError("Failed to delete SSH service")
 	}
 	return nil
 }
@@ -1056,16 +1140,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		},
 	}
 
-	sshService := shared.AssignAndPrepareSshService(job).GetOrDefault(nil)
-	if sshService != nil {
-		shared.AllowNetworkFromWorld(firewall, []orc.PortRangeAndProto{
-			{
-				Protocol: orc.IpProtocolTcp,
-				Start:    22,
-				End:      22,
-			},
-		})
-	}
+	sshService := shared.PrepareSshService(job, firewall).GetOrDefault(nil)
 
 	preparedIp := shared.PublicIpPrepare(job, firewall)
 	ipService := preparedIp.Service
@@ -1086,6 +1161,11 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 				serviceLabel.First: serviceLabel.Second,
 				rankLabel.First:    rankLabel.Second,
 			},
+			Ports: []k8score.ServicePort{{
+				Protocol: "TCP",
+				Name:     "p-4",
+				Port:     4, // dummy
+			}},
 		},
 	}
 
@@ -1104,16 +1184,21 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	}
 
 	cinit := cloudInit{}
-	cinit.Users = append(cinit.Users, cloudInitUser{
-		// Username: ucloud Password: ucloud
-		// TODO Configure a better system for this
-		Name:         "ucloud",
-		Password:     "$6$rounds=4096$fzCn1bIp2KpPC3a4$FPFj6AozYQXucfCYmnLep/RS3kyNGcPWpY8MTP1zm6TyxMqgxttrYszwAAdIojC.MUZs9JI566FBQxprKraUA0",
-		Uid:          filesystem.DefaultUid,
-		Sudo:         []string{"ALL=(ALL) NOPASSWD:ALL"},
-		LockPassword: false,
-		Shell:        "/bin/bash",
-	})
+	cinit.DisableRoot = true
+	{
+		user := cloudInitUser{
+			Name:         "ucloud",
+			Uid:          filesystem.DefaultUid,
+			Sudo:         []string{"ALL=(ALL) NOPASSWD:ALL"},
+			LockPassword: true,
+			Shell:        "/bin/bash",
+		}
+		if enableDefaultPassword {
+			user.LockPassword = false
+			user.Password = "$6$rounds=4096$fzCn1bIp2KpPC3a4$FPFj6AozYQXucfCYmnLep/RS3kyNGcPWpY8MTP1zm6TyxMqgxttrYszwAAdIojC.MUZs9JI566FBQxprKraUA0"
+		}
+		cinit.Users = append(cinit.Users, user)
+	}
 	cinit.RunCommand = []string{
 		fmt.Sprintf("usermod -u %d ucloud", filesystem.DefaultUid),
 		fmt.Sprintf("groupmod -g %d ucloud", filesystem.DefaultUid),
@@ -1179,6 +1264,28 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 
 	diskSize = min(max(15, diskSize), 2000)
 
+	resources := kvcore.ResourceRequirements{Limits: map[k8score.ResourceName]k8sresource.Quantity{}, Requests: map[k8score.ResourceName]k8sresource.Quantity{}}
+	addResource := func(name k8score.ResourceName, value int64, scale k8sresource.Scale) {
+		quantity := k8sresource.NewScaledQuantity(value, scale)
+		quantity.Format = k8sresource.DecimalSI
+
+		resources.Limits[name] = *quantity
+		resources.Requests[name] = *quantity
+	}
+
+	product := job.Status.ResolvedProduct.Value
+	addResource(k8score.ResourceCPU, int64(shared.NodeCpuMillisNormalizedWithReserved(&product)), k8sresource.Milli)
+	addResource(k8score.ResourceMemory, int64(product.MemoryInGigs), k8sresource.Giga)
+
+	{
+		quantity := k8sresource.NewScaledQuantity(
+			shared.NodeCpuMillisNormalizedWithoutReserved(&product),
+			k8sresource.Milli,
+		)
+		quantity.Format = k8sresource.DecimalSI
+		resources.Limits[k8score.ResourceCPU] = *quantity
+	}
+
 	vm.Spec.Template = &kvcore.VirtualMachineInstanceTemplateSpec{
 		Spec: kvcore.VirtualMachineInstanceSpec{
 			NodeSelector: map[string]string{
@@ -1187,7 +1294,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 			Domain: kvcore.DomainSpec{
 				CPU: &kvcore.CPU{
 					Cores:   max(1, uint32(machine.Cpu/2)),
-					Threads: max(1, uint32(machine.Cpu)),
+					Threads: 2, // NOTE(Dan): This is threads-per core, not threads in total. Learned that the hard way.
 				},
 				Memory: &kvcore.Memory{
 					Guest: k8sresource.NewScaledQuantity(int64(machine.MemoryInGigs), k8sresource.Giga),
@@ -1214,6 +1321,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 						},
 					},
 				},
+				Resources: resources,
 			},
 			Volumes: []kvcore.Volume{
 				{
@@ -1578,6 +1686,17 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 
 	if hasExistingVm {
 		err = updateExistingVmWithRetry(ctx, nameOfVm, vm)
+		if err == nil {
+			ownerReference := k8smeta.OwnerReference{
+				APIVersion: "kubevirt.io/v1",
+				Kind:       "VirtualMachine",
+				Name:       existingVm.Name,
+				UID:        existingVm.UID,
+			}
+			if herr := shared.EnsureSshService(job, ownerReference, sshService); herr != nil {
+				err = herr.AsError()
+			}
+		}
 	} else {
 		vm, localErr := KubevirtClient.VirtualMachine(Namespace).Create(ctx, vm, k8smeta.CreateOptions{})
 		err = localErr

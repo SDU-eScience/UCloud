@@ -2,6 +2,7 @@ package kubevirt
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"net/http"
 	"sync"
@@ -188,7 +189,7 @@ func (s *vmaSession) SendText(data string) bool {
 	return s.Ok
 }
 
-func vmaRequestTty(jobId string) *ws.Conn {
+func vmaRequestTty(ctx context.Context, jobId string) *ws.Conn {
 	ttyToken := util.SecureToken()
 	pending := &vmaPendingTty{
 		Conn:   make(chan *ws.Conn),
@@ -216,6 +217,11 @@ func vmaRequestTty(jobId string) *ws.Conn {
 	case conn := <-pending.Conn:
 		return conn
 	case <-time.After(5 * time.Second):
+		vmaSessions.Mu.Lock()
+		delete(vmaSessions.PendingTtyByToken, ttyToken)
+		vmaSessions.Mu.Unlock()
+		return nil
+	case <-ctx.Done():
 		vmaSessions.Mu.Lock()
 		delete(vmaSessions.PendingTtyByToken, ttyToken)
 		vmaSessions.Mu.Unlock()

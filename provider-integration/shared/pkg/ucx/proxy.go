@@ -475,14 +475,16 @@ func sendRehydrateModel(ctx context.Context, p *Proxy, upstreamOutgoing chan<- F
 
 func collectInputBindPaths(root UiNode) []string {
 	rehydratable := map[string]bool{
-		"input_text":   true,
-		"input_number": true,
-		"checkbox":     true,
-		"textarea":     true,
-		"select":       true,
-		"toggle":       true,
-		"radio_group":  true,
-		"list":         true,
+		"input_text":               true,
+		"input_number":             true,
+		"input_slider":             true,
+		"inference_image_composer": true,
+		"checkbox":                 true,
+		"textarea":                 true,
+		"select":                   true,
+		"toggle":                   true,
+		"radio_group":              true,
+		"list":                     true,
 	}
 
 	seen := map[string]bool{}

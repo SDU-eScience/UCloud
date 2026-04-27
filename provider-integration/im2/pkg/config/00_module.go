@@ -339,6 +339,10 @@ type ProviderConfiguration struct {
 }
 
 func storeAndGenerateProviderBrandingImageURI(cfg *ProviderConfiguration, image string) string {
+	if image == "" {
+		return ""
+	}
+
 	basename := filepath.Base(image)
 	ext := filepath.Ext(basename)
 	name := basename[:len(basename)-len(ext)]
@@ -360,25 +364,38 @@ func populateProviderBranding(cfg *ProviderConfiguration, filePath string, node 
 	providerBranding.Logo = util.OptValue(storeAndGenerateProviderBrandingImageURI(cfg, cfgutil.RequireChildText(filePath, node, "logo", &success)))
 	sectionsNode, _ := cfgutil.GetChildOrNil(filePath, node, "sections")
 
-	for _, sectionNode := range sectionsNode.Content {
-		providerBranding.Sections = append(providerBranding.Sections, ProviderBrandingSection{
-			Description: cfgutil.RequireChildFile(filePath, sectionNode, "description", cfgutil.FileReadContent, &success),
-			Image:       util.OptValue(storeAndGenerateProviderBrandingImageURI(cfg, cfgutil.OptionalChildText(filePath, sectionNode, "image", &success))),
-		})
-
+	if sectionsNode != nil {
+		for _, sectionNode := range sectionsNode.Content {
+			providerBranding.Sections = append(providerBranding.Sections, ProviderBrandingSection{
+				Description: cfgutil.RequireChildFile(filePath, sectionNode, "description", cfgutil.FileReadContent, &success),
+				Image: util.OptStringIfNotEmpty(
+					storeAndGenerateProviderBrandingImageURI(
+						cfg,
+						cfgutil.OptionalChildText(filePath, sectionNode, "image", &success),
+					),
+				),
+			})
+		}
 	}
 
 	productDescriptionNodes, _ := cfgutil.GetChildOrNil(filePath, node, "productDescription")
-	for _, productDescriptionNode := range productDescriptionNodes.Content {
-		sectionsNode, _ := cfgutil.GetChildOrNil(filePath, productDescriptionNode, "section")
-		providerBranding.ProductDescription = append(providerBranding.ProductDescription, ProviderBrandingProductDescription{
-			Category:         cfgutil.RequireChildText(filePath, productDescriptionNode, "category", &success),
-			ShortDescription: cfgutil.RequireChildText(filePath, productDescriptionNode, "shortDescription", &success),
-			Section: ProviderBrandingSection{
-				Description: cfgutil.RequireChildFile(filePath, sectionsNode, "description", cfgutil.FileReadContent, &success),
-				Image:       util.OptValue(storeAndGenerateProviderBrandingImageURI(cfg, cfgutil.OptionalChildText(filePath, sectionsNode, "image", &success))),
-			},
-		})
+	if productDescriptionNodes != nil {
+		for _, productDescriptionNode := range productDescriptionNodes.Content {
+			sectionsNode, _ := cfgutil.GetChildOrNil(filePath, productDescriptionNode, "section")
+			providerBranding.ProductDescription = append(providerBranding.ProductDescription, ProviderBrandingProductDescription{
+				Category:         cfgutil.RequireChildText(filePath, productDescriptionNode, "category", &success),
+				ShortDescription: cfgutil.RequireChildText(filePath, productDescriptionNode, "shortDescription", &success),
+				Section: ProviderBrandingSection{
+					Description: cfgutil.RequireChildFile(filePath, sectionsNode, "description", cfgutil.FileReadContent, &success),
+					Image: util.OptStringIfNotEmpty(
+						storeAndGenerateProviderBrandingImageURI(
+							cfg,
+							cfgutil.OptionalChildText(filePath, sectionsNode, "image", &success),
+						),
+					),
+				},
+			})
+		}
 	}
 }
 

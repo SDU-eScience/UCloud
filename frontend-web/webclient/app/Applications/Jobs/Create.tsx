@@ -65,7 +65,6 @@ import {Application, ApplicationGroup, ApplicationParameter} from "@/Application
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {defaultEmailSettings, UserDetailsState} from "@/UserSettings/ChangeEmailSettings";
-import {useDiscovery} from "@/Applications/Hooks";
 import {Feature, hasFeature} from "@/Features";
 import retrieveEmailSettings = mail.retrieveEmailSettings;
 import toggleEmailSettings = mail.toggleEmailSettings;
@@ -588,6 +587,7 @@ export const Create: React.FunctionComponent = () => {
             reservationValidation.options !== undefined &&
             Object.keys(foldersValidation.errors).length === 0 &&
             Object.keys(peersValidation.errors).length === 0 &&
+            Object.keys(ingressValidation.errors).length === 0 &&
             Object.keys(privateNetworkValidation.errors).length === 0
         ) {
             const dnsHostnameForSubmission = hasCustomDnsHostname
@@ -852,7 +852,7 @@ export const Create: React.FunctionComponent = () => {
                                     {mandatoryWorkflow.map(param => (
                                         <Widget key={param.name} parameter={param} errors={errors} provider={provider}
                                             injectWorkflowParameters={setWorkflowInjectParameters}
-                                            setErrors={setErrors} active application={application} />
+                                            setErrors={setErrors} active application={application} bindLinkToPort={bindLinkToPort} />
                                     ))}
                                 </Grid>
                             </Card>
@@ -871,7 +871,7 @@ export const Create: React.FunctionComponent = () => {
                                     {readmeParams.map(param => (
                                         <Widget key={param.name} parameter={param} errors={errors} provider={provider}
                                             injectWorkflowParameters={setWorkflowInjectParameters}
-                                            setErrors={setErrors} active application={application} />
+                                            setErrors={setErrors} active application={application} bindLinkToPort={bindLinkToPort} />
                                     ))}
                                 </Grid>
                             </Card>
@@ -885,7 +885,7 @@ export const Create: React.FunctionComponent = () => {
                                     {modulesParam.map(param => (
                                         <Widget key={param.name} parameter={param} errors={errors} provider={provider}
                                             injectWorkflowParameters={setWorkflowInjectParameters}
-                                            setErrors={setErrors} active application={application} />
+                                            setErrors={setErrors} active application={application} bindLinkToPort={bindLinkToPort} />
                                     ))}
                                 </Grid>
                             </Card>
@@ -899,7 +899,7 @@ export const Create: React.FunctionComponent = () => {
                                     {mandatoryParameters.map(param => (
                                         <Widget key={param.name} parameter={param} errors={errors} provider={provider}
                                             injectWorkflowParameters={setWorkflowInjectParameters}
-                                            setErrors={setErrors} active application={application} />
+                                            setErrors={setErrors} active application={application} bindLinkToPort={bindLinkToPort} />
                                     ))}
                                 </Grid>
                             </Card>
@@ -915,6 +915,7 @@ export const Create: React.FunctionComponent = () => {
                                             setErrors={setErrors}
                                             active
                                             application={application}
+                                            bindLinkToPort={bindLinkToPort}
                                             onRemove={() => {
                                                 if (errors[param.name]) {
                                                     delete errors[param.name];
@@ -934,6 +935,7 @@ export const Create: React.FunctionComponent = () => {
                                         setErrors={setErrors}
                                         active={false}
                                         application={application}
+                                        bindLinkToPort={bindLinkToPort}
                                         onActivate={() => {
                                             setActiveOptParams([...activeOptParams, param.name]);
                                         }}

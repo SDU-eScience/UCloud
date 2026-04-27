@@ -75,6 +75,10 @@ const appStudio = {
     group: (group: string) => `/applications/studio/g/${group}`,
 }
 
+const inference = {
+    playground: () => "/inference/playground",
+}
+
 const jobs = {
     list: () => `/jobs`,
     create: (name: string, version?: string, importId?: string) => buildQueryString(`/jobs/create`, {app: name, version, import: importId}),
@@ -149,6 +153,7 @@ const supportAssist = {
 const AppRoutes = {
     apps,
     appStudio,
+    inference,
     news,
     dashboard,
     users,

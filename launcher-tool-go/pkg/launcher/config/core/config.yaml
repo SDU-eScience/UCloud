@@ -24,3 +24,27 @@ logs:
     retentionPeriodInDays: 7
 emails:
   enabled: false
+
+branding:
+  deploymentName: "UCloud Production"
+
+  dataProtection:
+    title: "SDU Data Protection"
+    href: "https://www.sdu.dk/en/om_dette_websted/databeskyttelse"
+
+  statusPage:
+    title: "Site status"
+    href: "https://status.cloud.sdu.dk"
+
+  documentation:
+    title: "Docs"
+    href: "https://docs.cloud.sdu.dk/"
+
+  supportEmail: "support@escience.sdu.dk"
+  faqLink: "https://docs.cloud.sdu.dk/help/faq.html"
+
+  loginPage:
+    type: 0
+    primaryLogoImage: "no-logo.png"
+    secondaryLogoImages:
+      - "no-secondary-logo.png"

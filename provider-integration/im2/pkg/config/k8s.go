@@ -121,8 +121,9 @@ type KubernetesSyncthingConfiguration struct {
 }
 
 type KubernetesInferenceConfiguration struct {
-	Enabled       bool
-	OllamaDevMode bool
+	Enabled             bool
+	BackendServer       string
+	DevelopmentProvider string
 }
 
 type KubernetesUcxDevelopmentApp struct {
@@ -340,8 +341,15 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 	if inferenceNode != nil {
 		cfg.Compute.Inference.Enabled = cfgutil.RequireChildBool(filePath, inferenceNode, "enabled", &success)
 		if cfg.Compute.Inference.Enabled {
-			ollamaDevMode, _ := cfgutil.OptionalChildBool(filePath, inferenceNode, "ollamaDevMode")
-			cfg.Compute.Inference.OllamaDevMode = ollamaDevMode
+			backendServer := cfgutil.OptionalChildText(filePath, inferenceNode, "backendServer", &success)
+			if backendServer == "" {
+				cfgutil.ReportError(filePath, inferenceNode, "'services.compute.inference.backendServer' must be set when inference is enabled")
+				success = false
+			} else {
+				cfg.Compute.Inference.BackendServer = backendServer
+			}
+
+			cfg.Compute.Inference.DevelopmentProvider = cfgutil.OptionalChildText(filePath, inferenceNode, "developmentProvider", &success)
 		}
 	}
 

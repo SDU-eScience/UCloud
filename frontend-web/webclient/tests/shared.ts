@@ -603,7 +603,7 @@ export const Applications = {
         await page.waitForURL("**/app/jobs/create?app=**")
     },
 
-    async runAppAndOpenTerminal(page: Page, appName: string, nodeCount: number, jobName?: string): Promise<void> {
+    async runAppAndOpenTerminal(page: Page, appName: string, nodeCount: number, beforeSubmit?: (page: Page) => Promise<void>, jobName?: string): Promise<void> {
         if (appName === this.AppNames.TestApplication) {
             await Applications.openAppBySearch(page, appName);
         } else {
@@ -612,11 +612,12 @@ export const Applications = {
         await Components.selectAvailableMachineType(page);
         if (jobName) await Runs.setJobTitle(page, jobName);
         if (nodeCount > 0) await Runs.setNodeCount(page, nodeCount);
+        await beforeSubmit?.(page);
         await Runs.submitAndWaitForRunning(page);
     },
 
-    async runAppAndOpenTerminalWithTerminalPage(page: Page, appName: string, nodeCount: number, jobName?: string): Promise<Page> {
-        await this.runAppAndOpenTerminal(page, appName, nodeCount, jobName);
+    async runAppAndOpenTerminalWithTerminalPage(page: Page, appName: string, nodeCount: number, beforeSubmit?: (page: Page) => Promise<void>, jobName?: string): Promise<Page> {
+        await this.runAppAndOpenTerminal(page, appName, nodeCount, beforeSubmit, jobName);
         return await Runs.openTerminal(page);
     },
 
@@ -633,7 +634,7 @@ export const Runs = {
 
     async goToRuns(page: Page): Promise<void> {
         await NetworkCalls.awaitResponse(page, "**/api/jobs/browse**", async () => {
-            await page.getByRole("link", {name: "Go to Runs"}).click();
+            await page.getByRole("link", {name: "Go to Compute"}).click();
         });
         await Components.projectSwitcher(page, "hover");
     },
@@ -790,7 +791,7 @@ export const Resources = {
         await this.actionByRowTitle(page, resourceName, "dblclick");
     },
 
-    async goTo(page: Page, resource: "Links" | "IP addresses" | "SSH keys" | "Licenses") {
+    async goTo(page: Page, resource: "Links" | "IP addresses" | "SSH keys" | "Licenses" | "Private networks") {
         await page.getByRole("link", {name: "Go to Resources"}).hover();
         await page.waitForTimeout(300);
         await page.getByText(resource).first().click();
@@ -884,9 +885,10 @@ export const Resources = {
     Licenses: {
         async activateLicense(page: Page): Promise<number> {
             await page.waitForLoadState("networkidle");
+            await page.getByText("Activate license").click();
+            await page.getByRole("dialog").getByText("test-license-Quota based").waitFor();
+
             const result = (await NetworkCalls.awaitResponse(page, "**/api/licenses", async () => {
-                await page.getByText("Activate license").click();
-                await page.getByRole("dialog").getByText("test-license-Quota based").waitFor();
                 await page.getByRole("dialog").getByRole("button", {name: "Activate"}).click();
             }));
 
@@ -894,6 +896,29 @@ export const Resources = {
             return obj.responses[0].id;
         }
     },
+
+    PrivateNetworks: {
+        newName(): string {
+            return Help.newResourceName("PrivateNetwork");
+        },
+
+        newSubdomainName(): string {
+            return Help.newResourceName("Subdomain");
+        },
+
+        newJobNetworkName(): string {
+            return Help.newResourceName("Subdomain");
+        },
+
+        async createPrivateNetwork(page: Page, name: string, subdomain: string): Promise<void> {
+            await Resources.goTo(page, "Private networks");
+            await page.getByText("Create private network").click();
+            await page.waitForTimeout(2000);
+            await page.getByPlaceholder("My private network").fill(name);
+            await page.getByPlaceholder("my-network").fill(subdomain);
+            await page.getByRole("button", {name: "Create"}).click();
+        }
+    }
 }
 
 export const Terminal = {
