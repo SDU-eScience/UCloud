@@ -37,10 +37,13 @@ import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {ProjectSwitcher, projectTitleFromCache} from "./ProjectSwitcher";
 import WAYF from "@/Grants/wayf-idps.json";
 import {FlexClass} from "@/ui-components/Flex";
-import {OldProjectRole, isAdminOrPI, isDataSteward, Policy, retrieveRequestPolicies} from ".";
+import {OldProjectRole, isAdminOrPI, isDataSteward, Policy, retrieveRequestPolicies, PolicyPropertyType} from ".";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import AppRoutes from "@/Routes";
 import {sendFailureNotification, sendInformationNotification, sendSuccessNotification} from "@/Notifications";
+import {AllocationDisplayTreeYourAllocation} from "@/Accounting";
+import {TreeApi} from "@/ui-components/Tree";
+import {State} from "@/Accounting/Allocations/State";
 
 const wayfIdpsPairs = WAYF.wayfIdps.map(it => ({value: it, content: it}));
 
@@ -94,6 +97,22 @@ const ActionBoxClass = injectStyle("action-box", k => `
         margin-bottom: 16px;
     }
 `);
+
+const RenderPolicy: React.FunctionComponent<{
+    policy: Policy
+}> = ({policy}) =>  {
+    return <>
+        {policy.schema.configuration.map(configuration => {
+            switch (configuration.type) {
+                case PolicyPropertyType.BOOLEAN: {
+                    <>
+                        <Checkbox>{configuration.title}</Checkbox>
+                    </>
+                }  
+            }
+        })}
+    </>
+}
 
 export const ProjectSettings: React.FunctionComponent = () => {
     const projectId = useProjectId();
@@ -363,17 +382,24 @@ export const ProjectSettings: React.FunctionComponent = () => {
                     </Card>
                 </>) : null
             }
-            {!isDataSteward(status.myRole) ? (<Card>
-                <Heading.h3>Project Policies</Heading.h3>
-                {
-                    Object.values(policies).map((policy) => (
-                        <Card key={policy.schema.name}>
-                            <Heading.h3>{policy.schema.title}</Heading.h3>
-                        </Card>
-                    ))
-                }
+            {            //TODO(HENRIK) FLIP THIS TO ACTUALLY BE CHECK IF IS DATA STEWARD
+                !isDataSteward(status.myRole) ? (<Card>
+                    <Heading.h3>Project Policies</Heading.h3>
+                    <br/>
+                    {
+                        Object.values(policies).map((policy: Policy) => (
+                            <>
+                                <Card key={policy.schema.name}>
+                                    <Heading.h3>{policy.schema.title}</Heading.h3>
+                                    {policy.schema.description}
 
-            </Card>) : null}
+                                </Card>
+                                <Box mt="12px" mb="36px"/>
+                            </>
+                        ))
+                    }
+
+                </Card>) : null}
             <Card>
                 <LeaveProject
                     onSuccess={() => navigate("/")}
