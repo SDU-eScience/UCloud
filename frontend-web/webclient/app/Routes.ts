@@ -93,7 +93,6 @@ const stacks = {
 
 const compute = {
     jobs: () => jobs.list(),
-    virtualMachines: () => "/virtual-machines",
     stacks: () => stacks.list(),
 };
 

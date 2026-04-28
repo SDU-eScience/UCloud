@@ -144,16 +144,9 @@ export const ProductSelector: React.FunctionComponent<{
 
         let lastCategory = "";
         for (const product of sortedProducts) {
+            if (product.category.provider === "aau") continue;
+
             let categoryName = productGroupName(product);
-            if (categoryName === "cpu-amd-zen5" || categoryName === "gpu-nvidia-b200") {
-                const now = new Date();
-                const expectedLaunchDate = new Date(Date.UTC(2026, 4, 1, 0, 0, 0, 0));
-
-                if (now < expectedLaunchDate) {
-                    continue;
-                }
-            }
-
             categoryName = getProviderTitle(product.category.provider) + ": " + categoryName;
 
             if (lastCategory !== categoryName) {
