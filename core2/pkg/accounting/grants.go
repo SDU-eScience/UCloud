@@ -2315,19 +2315,18 @@ func grantSendEmail(event grantEvent) *util.HttpError {
 	currDoc := event.Application.CurrentRevision.Document
 	switch currDoc.Recipient.Type {
 	case accapi.RecipientTypeNewProject:
-		applicantProjectTitle = currDoc.Recipient.Title.Value
+		// If it's empty, then the title is just the name of the project
+		if event.Application.ProjectId.IsEmpty() {
+			applicantProjectTitle = currDoc.Recipient.Title.Value
+		} else {
+			// If approved
+			applicantProjectTitle = getProjectTitleById(event.Application.ProjectId.Value)
+		}
+
 	case accapi.RecipientTypePersonalWorkspace:
 		applicantProjectTitle = fmt.Sprintf("Personal workspace of %v", event.Application.CreatedBy)
 	case accapi.RecipientTypeExistingProject:
-		projectId := currDoc.Recipient.Id.Value
-		applicantProjectTitle = db.NewTx(func(tx *db.Transaction) string {
-			project, ok := coreutil.ProjectRetrieveFromDatabase(tx, projectId)
-			if !ok {
-				return projectId
-			} else {
-				return project.Id
-			}
-		})
+		applicantProjectTitle = getProjectTitleById(event.Application.ProjectId.Value)
 	}
 
 	mailTemplate := map[string]any{
@@ -2365,4 +2364,16 @@ func grantSendEmail(event grantEvent) *util.HttpError {
 	}
 
 	return nil
+}
+
+func getProjectTitleById(projectId string) string {
+	applicantProjectTitle := db.NewTx(func(tx *db.Transaction) string {
+		project, ok := coreutil.ProjectRetrieveFromDatabase(tx, projectId)
+		if !ok {
+			return fmt.Sprintf("ProjectId: %s", projectId)
+		}
+
+		return project.Specification.Title
+	})
+	return applicantProjectTitle
 }
