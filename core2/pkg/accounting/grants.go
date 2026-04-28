@@ -2317,7 +2317,7 @@ func grantSendEmail(event grantEvent) *util.HttpError {
 	case accapi.RecipientTypeNewProject:
 		applicantProjectTitle = currDoc.Recipient.Title.Value
 	case accapi.RecipientTypePersonalWorkspace:
-		applicantProjectTitle = fmt.Sprintf("personal workspace of: %v", event.Application.CreatedBy)
+		applicantProjectTitle = fmt.Sprintf("Personal workspace of %v", event.Application.CreatedBy)
 	case accapi.RecipientTypeExistingProject:
 		projectId := currDoc.Recipient.Id.Value
 		applicantProjectTitle = db.NewTx(func(tx *db.Transaction) string {
