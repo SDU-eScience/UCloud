@@ -207,18 +207,18 @@ const Allocations: React.FunctionComponent = () => {
             }}>
                 <div>
                     <Heading.h3>New sub-project</Heading.h3>
-                    <Divider/>
+                    <Divider />
                     <Label>
                         Project title
                         <Input onKeyDown={e => {
                             if (e.code !== "Escape") {
                                 e.stopPropagation();
                             }
-                        }} id={"subproject-name"} autoFocus/>
+                        }} id={"subproject-name"} autoFocus />
                     </Label>
                     {(state.remoteData.managedProviders ?? []).length > 0 || !checkCanConsumeResources(Client.projectId ?? null, {api: {isCoreResource: false}}) ?
                         <Label>
-                            <Checkbox id={"subproject-suballocator"}/>
+                            <Checkbox id={"subproject-suballocator"} />
                             This sub-project is a sub-allocator
                         </Label> : null
                     }
@@ -306,21 +306,20 @@ const Allocations: React.FunctionComponent = () => {
         main={<div className={AllocationsStyle}>
             <header>
                 <h3 className="title">Resource allocations</h3>
-                <Box flexGrow={1}/>
-                <ProjectSwitcher/>
+                <Box flexGrow={1} />
+                <ProjectSwitcher />
             </header>
 
             {(state.remoteData.managedProviders ?? []).length > 0 ? <>
-                <RootAllocationSections state={state} dispatchEvent={dispatchEvent}/>
-                <GiftSection state={state} dispatchEvent={dispatchEvent}/>
+                <RootAllocationSections state={state} dispatchEvent={dispatchEvent} />
+                <GiftSection state={state} dispatchEvent={dispatchEvent} />
             </> : <>
                 {checkCanConsumeResources(Client.projectId ?? null, {api: FilesApi}) ? null :
-                    <GiftSection state={state} dispatchEvent={dispatchEvent}/>
+                    <GiftSection state={state} dispatchEvent={dispatchEvent} />
                 }</>
             }
 
-            <YourAllocations state={state} allocations={sortedAllocations} allocationTree={allocationTree}
-                             indent={indent}/>
+            <YourAllocations state={state} allocations={sortedAllocations} allocationTree={allocationTree} indent={indent} />
 
             {/*<ResourcesGranted state={state} allocationTree={allocationTree} sortedAllocations={sortedAllocations}*/}
             {/*                  indent={indent} avatars={avatars}/>*/}
@@ -334,7 +333,7 @@ const Allocations: React.FunctionComponent = () => {
                 state={state} onSearchInput={onSearchInput} onSearchKey={onSearchKey}
                 searchBox={searchBox} dispatchEvent={dispatchEvent}
                 suballocationTree={suballocationTree} listRef={listRef}
-                onSubAllocationShortcut={onSubAllocationShortcut} avatars={avatars}/>
+                onSubAllocationShortcut={onSubAllocationShortcut} avatars={avatars} />
         </div>}
     />;
 };
