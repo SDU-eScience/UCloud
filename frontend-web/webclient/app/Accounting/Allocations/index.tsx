@@ -147,7 +147,7 @@ const Allocations: React.FunctionComponent = () => {
 
                 if (!didUnmount.current) setSettings(res);
             } catch (e) {
-                //Ignoring failure
+                // Ignoring failure
             }
         })();
     }, [projectId]);
@@ -260,8 +260,7 @@ const Allocations: React.FunctionComponent = () => {
                     }
                 </div>
                 <Flex mt="20px">
-                    <Button type={"button"} onClick={dialogStore.failure.bind(dialogStore)} color={"errorMain"}
-                            mr="5px">Cancel</Button>
+                    <Button type={"button"} onClick={dialogStore.failure.bind(dialogStore)} color={"errorMain"} mr="5px">Cancel</Button>
                     <Button type={"submit"} color={"successMain"}>Create sub-project</Button>
                 </Flex>
             </form>,

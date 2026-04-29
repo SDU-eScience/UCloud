@@ -409,7 +409,7 @@ export function ChangeProjectTitle(props: ChangeProjectTitleProps): React.ReactN
                 }
 
                 const success = await invokeCommand(ProjectAPI.renameProject(bulkRequestOf({
-                    id: props.projectId /* jklasdf */,
+                    id: props.projectId,
                     newTitle: titleValue
                 }))) !== null;
 
@@ -665,11 +665,11 @@ const UserCriteriaEditor: React.FunctionComponent<{
     return <>
         <Table mb={16}>
             <thead>
-            <TableRow>
-                <TableHeaderCell textAlign={"left"}>Type</TableHeaderCell>
-                <TableHeaderCell textAlign={"left"}>Constraint</TableHeaderCell>
-                <TableHeaderCell />
-            </TableRow>
+                <TableRow>
+                    <TableHeaderCell textAlign={"left"}>Type</TableHeaderCell>
+                    <TableHeaderCell textAlign={"left"}>Constraint</TableHeaderCell>
+                    <TableHeaderCell />
+                </TableRow>
             </thead>
             <tbody>
 
