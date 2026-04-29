@@ -866,10 +866,7 @@ const baseComponents: UcxComponentRegistry = {
             value={value}
             rows={rows}
             placeholder={placeholder}
-            onChange={ev => fn.sendBoundInput(node, {
-                kind: ValueKind.String,
-                string: ev.currentTarget.value
-            }, model, scope)}
+            onChange={ev => fn.sendBoundInput(node, {kind: ValueKind.String, string: ev.currentTarget.value}, model, scope)}
         />;
         return <>
             {label === "" ? textArea : <FieldLabel>{label}{textArea}</FieldLabel>}
@@ -892,10 +889,7 @@ const baseComponents: UcxComponentRegistry = {
                     <label key={option.key} style={{display: "flex", alignItems: "center", gap: 6, cursor: "pointer"}}>
                         <Radio
                             checked={selectedKey === option.key}
-                            onChange={() => fn.sendBoundInput(node, {
-                                kind: ValueKind.String,
-                                string: option.key
-                            }, model, scope)}
+                            onChange={() => fn.sendBoundInput(node, {kind: ValueKind.String, string: option.key}, model, scope)}
                         />
                         <span>{option.value}</span>
                     </label>
@@ -907,8 +901,7 @@ const baseComponents: UcxComponentRegistry = {
         const label = stringProp(node, "label", "");
         const checked = modelBool(model, node.bindPath, scope);
         return <Flex alignItems="center" gap="8px" style={fn.sxStyle(node)}>
-            <Toggle checked={checked}
-                    onChange={() => fn.sendBoundInput(node, {kind: ValueKind.Bool, bool: !checked}, model, scope)} />
+            <Toggle checked={checked} onChange={() => fn.sendBoundInput(node, {kind: ValueKind.Bool, bool: !checked}, model, scope)} />
             {label === "" ? null : <span>{label}</span>}
         </Flex>;
     },
@@ -930,8 +923,7 @@ const baseComponents: UcxComponentRegistry = {
                 <tbody>
                 {rows.map((row, rowIdx) =>
                     <TableRow key={`row-${rowIdx}`}>
-                        {columns.map(col => <TableCell
-                            key={`${rowIdx}-${col.key}`}>{displayValue(row[col.key])}</TableCell>)}
+                        {columns.map(col => <TableCell key={`${rowIdx}-${col.key}`}>{displayValue(row[col.key])}</TableCell>)}
                     </TableRow>
                 )}
                 </tbody>
@@ -1843,11 +1835,8 @@ const UcxSelectField = ({node, model, scope, fn}: {
     </div>;
 };
 
-const FieldLabel = ({children, onClick}: React.PropsWithChildren<{
-    onClick?: React.MouseEventHandler<HTMLDivElement>
-}>) => {
-    return <div onClick={onClick}
-                style={{fontWeight: 600, marginTop: "6px", cursor: onClick ? "pointer" : undefined}}>{children}</div>;
+const FieldLabel = ({children, onClick}: React.PropsWithChildren<{onClick?: React.MouseEventHandler<HTMLDivElement>}>) => {
+    return <div onClick={onClick} style={{fontWeight: 600, marginTop: "6px", cursor: onClick ? "pointer" : undefined}}>{children}</div>;
 };
 
 function MarkdownLink(props: {href?: string; children: React.ReactNode & React.ReactNode[]}) {
