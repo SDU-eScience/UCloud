@@ -320,7 +320,7 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
 
     const mergedComponents = useMemo<UcxComponentRegistry>(() => mergeComponentRegistry(baseComponents, components), [components]);
 
-    const resendModelAfterReconnect = useCallback((snapshot: Record<string, Value>, mount: { root: UiNode }) => {
+    const resendModelAfterReconnect = useCallback((snapshot: Record<string, Value>, mount: {root: UiNode}) => {
         const bindPaths = collectInputBindPaths(mount.root);
         if (bindPaths.size === 0) {
             return;
@@ -414,7 +414,7 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
                 authCompleteRef.current = false;
 
                 sessionRef.current?.registerRpcHandler("routerPushPage", payload => {
-                    const plainPayload = valueMapToPlainPayload(payload) as { path?: unknown };
+                    const plainPayload = valueMapToPlainPayload(payload) as {path?: unknown};
                     const path = typeof plainPayload.path === "string" ? plainPayload.path : "";
                     navigateSpaRef.current(path, "rpc:routerPushPage");
                     return {};
@@ -741,10 +741,7 @@ const baseComponents: UcxComponentRegistry = {
             value={value}
             placeholder={placeholder}
             mt={8}
-            onChange={ev => fn.sendBoundInput(node, {
-                kind: ValueKind.String,
-                string: ev.currentTarget.value
-            }, model, scope)}
+            onChange={ev => fn.sendBoundInput(node, {kind: ValueKind.String, string: ev.currentTarget.value}, model, scope)}
         />;
         return <>
             {label === "" ? input : <FieldLabel>{label}{input}</FieldLabel>}
@@ -854,13 +851,7 @@ const baseComponents: UcxComponentRegistry = {
                 const itemScope = entry.kind === ValueKind.Object ? entry.object : {value: entry};
                 const itemId = asString(itemScope["id"], String(index));
 
-                return <li key={itemId} style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    gap: 8,
-                    marginBottom: 8
-                }}>
+                return <li key={itemId} style={{display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 8}}>
                     {renderChildren(itemScope)}
                 </li>;
             })}
@@ -1455,13 +1446,13 @@ function optionalStringProp(node: UiNode, key: string): string | undefined {
     return undefined;
 }
 
-function simpleOptionsProp(node: UiNode, key: string): { key: string; value: string }[] {
+function simpleOptionsProp(node: UiNode, key: string): {key: string; value: string}[] {
     const raw = prop(node, key);
     if (!raw || raw.kind !== ValueKind.List) {
         return [];
     }
 
-    const out: { key: string; value: string }[] = [];
+    const out: {key: string; value: string}[] = [];
     for (const item of raw.list) {
         if (item.kind !== ValueKind.Object) continue;
         const optionKey = asString(item.object["key"], "");
@@ -1472,7 +1463,7 @@ function simpleOptionsProp(node: UiNode, key: string): { key: string; value: str
     return out;
 }
 
-function tableColumnsProp(node: UiNode, rows: Record<string, Value>[]): { key: string; label: string }[] {
+function tableColumnsProp(node: UiNode, rows: Record<string, Value>[]): {key: string; label: string}[] {
     const options = simpleOptionsProp(node, "columns");
     if (options.length > 0) {
         return options.map(it => ({key: it.key, label: it.value}));
@@ -1859,11 +1850,11 @@ const FieldLabel = ({children, onClick}: React.PropsWithChildren<{
                 style={{fontWeight: 600, marginTop: "6px", cursor: onClick ? "pointer" : undefined}}>{children}</div>;
 };
 
-function MarkdownLink(props: { href?: string; children: React.ReactNode & React.ReactNode[] }) {
+function MarkdownLink(props: {href?: string; children: React.ReactNode & React.ReactNode[]}) {
     return <ExternalLink href={props.href}>{props.children}</ExternalLink>;
 }
 
-function MarkdownHeading(props: { children: React.ReactNode & React.ReactNode[] }) {
+function MarkdownHeading(props: {children: React.ReactNode & React.ReactNode[]}) {
     return <Heading.h4>{props.children}</Heading.h4>;
 }
 
