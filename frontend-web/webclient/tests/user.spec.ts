@@ -3,6 +3,13 @@ import {Components, User} from "./shared";
 import {default as data} from "./test_data.json" with {type: "json"};
 const user = data.users.without_resources;
 
+
+test.beforeEach(async ({page}) => {
+    if (data.login_cookie) {
+        await page.context().addCookies([data.login_cookie]);
+    }
+})
+
 test("Login using password, logout", async ({page}) => {
     await User.login(page, user);
     await User.logout(page);

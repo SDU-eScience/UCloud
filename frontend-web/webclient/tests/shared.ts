@@ -141,12 +141,16 @@ export const User = {
     },
 
     async createUserWithProjectAndAssignRole(admin: Page, context: BrowserContext, ctx: Contexts, quotas: RequestedQuotas): Promise<{userPage: Page; user: {username: string; password: string;}}> {
-        if (Math.random()) throw Error("It's just been revoked!");
         const user = User.newUserCredentials();
         const userPage = await context.browser()?.newPage();
         if (!userPage) throw Error("Failed to create userpage");
 
         await User.create(admin, user);
+
+        if (data["login_cookie"]) {
+            await userPage.context().addCookies([data["login_cookie"]]);
+        }
+
         await User.login(userPage, user, true);
 
         switch (ctx) {
@@ -506,9 +510,9 @@ export const Drive = {
         if (!page.url().includes("/app/drives")) {
             await this.goToDrives(page);
         }
-
+        await this.actionByRowTitle(page, name, "click");
         await NetworkCalls.awaitResponse(page, "**/api/files/browse**", async () => {
-            this.actionByRowTitle(page, name, "dblclick");
+            await this.actionByRowTitle(page, name, "dblclick");
         });
 
         await Components.projectSwitcher(page, "hover")
@@ -704,8 +708,7 @@ export const Runs = {
 
     async goToRuns(page: Page): Promise<void> {
         await NetworkCalls.awaitResponse(page, "**/api/jobs/browse**", async () => {
-            if (data.location_origin === "https://cloud.sdu.dk") await page.getByRole("link", {name: "Go to Runs"}).click();
-            else await page.getByRole("link", {name: "Go to Compute"}).click();
+            await page.getByRole("link", {name: "Go to Compute"}).click();
         });
         await Components.projectSwitcher(page, "hover");
     },
@@ -726,7 +729,7 @@ export const Runs = {
         await Components.projectSwitcher(page, "hover");
         await page.locator(".row").getByText(jobName).click();
         await NetworkCalls.awaitResponse(page, "**/jobs/terminate", async () => {
-            await Components.clickConfirmationButton(page, "Stop");
+            await Components.clickConfirmationButton(page, "Stop", 6_000);
         });
     },
 
@@ -1001,6 +1004,13 @@ export const Resources = {
             await page.waitForTimeout(2000);
             await page.getByPlaceholder("My private network").fill(name);
             await page.getByPlaceholder("my-network").fill(subdomain);
+
+            if (await page.getByRole("dialog").getByText("No product selected").isVisible()) {
+                await page.getByRole("dialog").getByText("No product selected").click();
+                await page.getByRole("cell", {name: providerAndProducts.products_used_in_tests.private_network}).last().click();
+            }
+
+
             await page.getByRole("button", {name: "Create"}).click();
         },
 

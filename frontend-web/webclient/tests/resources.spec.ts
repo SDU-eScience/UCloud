@@ -5,6 +5,9 @@ import {default as data} from "./test_data.json" with {type: "json"};
 const PRODUCTS = pAndP.find(it => it.location_origin === data.location_origin)!.products_used_in_tests;
 
 test.beforeEach(async ({page}, testInfo) => {
+    if (data.login_cookie) {
+        await page.context().addCookies([data.login_cookie]);
+    }
     const args = testCtx(testInfo.titlePath);
     await User.login(page, args.user);
     if (args.projectName) await Project.changeTo(page, args.projectName);

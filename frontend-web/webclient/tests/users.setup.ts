@@ -6,9 +6,17 @@ import {default as pAndP} from "./provider_and_products.json" with {type: "json"
 const PRODUCTS = pAndP.find(it => it.location_origin === data.location_origin)!.products_used_in_tests;
 
 setup("Setup 'pi', 'admin', and 'user'", async ({page, browser}) => {
+    if (data.login_cookie) {
+        await page.context().addCookies([data.login_cookie]);
+    }
+
     setup.setTimeout(120_000);
 
     const ucloudAdminPage = await Admin.newLoggedInAdminPage(page);
+    if (data.login_cookie) {
+        await ucloudAdminPage.context().addCookies([data.login_cookie]);
+    }
+
 
     const pi = await createNewUserAndLogin(ucloudAdminPage, browser, "pi");
     const admin = await createNewUserAndLogin(ucloudAdminPage, browser, "admin");
@@ -78,6 +86,9 @@ async function createNewUserAndLogin(ucloudAdminPage: Page, browser: Browser, ki
     const credentials = User.newUserCredentials(kind);
     await User.create(ucloudAdminPage, credentials);
     const page = await browser.newPage();
+    if (data.login_cookie) {
+        await page.context().addCookies([data.login_cookie]);
+    }
     await User.login(page, credentials, true);
     await Components.goToDashboard(page);
     return {page, credentials};

@@ -10,6 +10,10 @@ const Drives: Record<string, string> = {};
 
 
 test.beforeEach(async ({page, userAgent}, testInfo) => {
+    if (data.login_cookie) {
+        await page.context().addCookies([data.login_cookie]);
+    }
+
     const doSkipInitialization = testInfo.titlePath.find(it => ["Files - accounting works"].includes(it));
     if (doSkipInitialization) {
         await Admin.newLoggedInAdminPage(page);
@@ -268,11 +272,6 @@ TestContexts.map(ctx => {
             });
 
             test("Move to trash, empty trash", async ({page}) => {
-                // TEST-UPDATE
-                if (isProd(data.location_origin)) {
-                    throw Error("Issues on production")
-                }
-
                 const folderName = File.newFolderName();
                 await File.create(page, folderName);
                 await File.moveFileToTrash(page, folderName);
@@ -287,10 +286,7 @@ TestContexts.map(ctx => {
         });
 
         test("Files - search works", async ({page}) => {
-            // TEST-UPDATE
-            if (isProd(data.location_origin)) {
-                throw Error("Issues on production")
-            }
+            test.setTimeout(120_000);
             const theFolderToFind = "Please find meeee";
             const foldersToCreate = `A/B/C/D/${theFolderToFind}`;
             await File.create(page, foldersToCreate);
@@ -307,9 +303,6 @@ TestContexts.map(ctx => {
                 await Components.clickRefreshAndWait(page);
                 await page.waitForTimeout(200);
             }
-
-            await page.goBack();
-            await File.moveFileToTrash(page, "A");
         });
 
         test.describe("Files - transfer works", () => {
@@ -318,7 +311,7 @@ TestContexts.map(ctx => {
 
         test("Files - accounting works", async ({page: adminPage, context}) => {
             test.setTimeout(120_000);
-            const AUTOGIFTED_RESOURCES = (isDev(data.location_origin) || isProd(data.location_origin)) && ctx == "Personal Workspace";
+            const AUTOGIFTED_RESOURCES = (isProd(data.location_origin) || isDev(data.location_origin)) && ctx == "Personal Workspace";
 
             const quotas: [string, number][] = [[PRODUCTS.compute, 1]];
             // Skip applying for storage for personal workspaces, as they already are given gifts.
@@ -329,7 +322,7 @@ TestContexts.map(ctx => {
 
             await Accounting.goTo(userPage, "Allocations");
             if (AUTOGIFTED_RESOURCES) {
-                await userPage.getByText(`0 GB / 50 GB (0%)`).first().waitFor();
+                await userPage.getByText(`0 GB / 5 GB (0%)`).first().waitFor();
             } else {
                 await userPage.getByText(`0 GB / 2 GB (0%)`).first().waitFor();
             }
@@ -345,10 +338,13 @@ TestContexts.map(ctx => {
 
             await File.triggerStorageScan(userPage, driveName);
             await Accounting.goTo(userPage, "Allocations");
-            if (AUTOGIFTED_RESOURCES) {
-                await userPage.getByText(`1 GB / 50 GB (2%)`).first().waitFor();
-            } else {
-                await userPage.getByText(`1 GB / 2 GB (50%)`).first().waitFor();
+
+            const locator = userPage.getByText(AUTOGIFTED_RESOURCES ? `1 GB / 5 GB (20%)` : `1 GB / 2 GB (50%)`).first();
+
+            while (!await locator.isVisible()) {
+                await userPage.reload();
+                await userPage.waitForTimeout(5_000);
+
             }
 
             await Drive.goToDrives(userPage);
@@ -375,24 +371,8 @@ TestContexts.map(ctx => {
             await File.openIntegratedTerminal(page);
             await Terminal.enterCmd(page, `cat "${drive}/${testFileName}"`);
             await expect(page.getByText(testFileContents)).toHaveCount(1);
-
+            await page.locator('div > svg.icon1.icon-hover-block125').first().click()
             await File.moveFileToTrash(page, testFileName);
-
-            if (ctx !== "Personal Workspace") {
-                await Project.changeTo(page, "My workspace");
-            }
-
-            await Runs.goToRuns(page);
-
-            await page.locator(".row", {hasText: "Integrated terminal"}).first().click();
-
-            await NetworkCalls.awaitResponse(page, "**/jobs/terminate", async () => {
-                await Components.clickConfirmationButton(page, "Stop");
-            });
-
-            if (ctx !== "Personal Workspace") {
-                await Project.changeTo(page, args.projectName!);
-            }
 
 
         });
@@ -415,6 +395,10 @@ TestContexts.map(ctx => {
 
                 // Open new page and login for user folder is shared with
                 const sharedWithUserPage = await browser.newPage();
+                if (data["login_cookie"]) {
+                    await sharedWithUserPage.context().addCookies([data["login_cookie"]]);
+                }
+
                 await User.login(sharedWithUserPage, data.users.without_resources);
 
                 // Accept share

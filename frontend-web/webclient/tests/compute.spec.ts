@@ -22,8 +22,13 @@ import {default as pAndP} from "./provider_and_products.json" with {type: "json"
 const PRODUCTS = pAndP.find(it => it.location_origin === data.location_origin)!.products_used_in_tests;
 
 test.beforeEach(async ({page}, testInfo) => {
+    if (data["login_cookie"]) {
+        await page.context().addCookies([data["login_cookie"]]);
+    }
+
     const doSkipInitialization = testInfo.titlePath.find((it) => [
         "disallow start from locked allocation",
+        "Compute - check accounting"
     ].includes(it));
     if (doSkipInitialization) {
         await Admin.newLoggedInAdminPage(page);
@@ -216,9 +221,6 @@ echo "${BashScriptStringContent}"
         });
 
         test("multinode, connect to other jobs", async ({page}) => {
-            /* TEST-UPDATE */
-            if (isProd(data.location_origin)) throw Error("Not live on production!");
-
             test.setTimeout(120_000);
 
 
@@ -271,35 +273,35 @@ echo "${BashScriptStringContent}"
         test("disallow start from locked allocation", async ({page: adminPage, context}) => {
             // Extremely slow as `fallocate` is not available. Run with local dev and production.
             if (isDev(data.location_origin) && ctx === "Personal Workspace") test.skip();
+            test.setTimeout(90_000);
 
             const AUTOGIFTED_RESOURCES = (isProd(data.location_origin) || isDev(data.location_origin)) && ctx === "Personal Workspace";
-            if (AUTOGIFTED_RESOURCES) {
-                test.setTimeout(900_000);
-            } else {
-                test.setTimeout(300_000);
-            }
 
+            const FILE_SIZE_IN_GB = AUTOGIFTED_RESOURCES ? 5 : 1;
 
-            const FILE_SIZE_IN_GB = AUTOGIFTED_RESOURCES ? 50 : 1;
 
             const quotas: [string, number][] = [[PRODUCTS.compute, 5]];
-            if (!AUTOGIFTED_RESOURCES) {
+            if (!AUTOGIFTED_RESOURCES)
                 quotas.push([PRODUCTS.storage, FILE_SIZE_IN_GB]);
-            }
 
-            const {userPage, user} =
-                await User.createUserWithProjectAndAssignRole(adminPage, context, ctx, quotas);
+            const {userPage, user} = await User.createUserWithProjectAndAssignRole(adminPage, context, ctx, quotas);
+            await adminPage.close();
 
             const jobName = Runs.newJobName();
             const term = await Applications.runAppAndOpenTerminalWithTerminalPage(userPage, AppNames.TestApplication, 1, undefined, jobName);
 
             await Terminal.createFile(term, FILE_SIZE_IN_GB + 1);
+            await term.close();
             await Runs.terminateViewedRun(userPage);
 
-            await userPage.reload();
             const isPersonalWorkspace = ctx === "Personal Workspace";
             const driveName = isPersonalWorkspace ? "Home" : Drive.memberFiles(user.username);
 
+
+            await Drive.goToDrives(userPage);
+            if (ctx === "Personal Workspace") {
+                await userPage.locator('div[data-disabled="false"]', {hasText: "Create drive"}).waitFor();
+            }
             await File.triggerStorageScan(userPage, driveName);
             await Runs.goToRuns(userPage);
             await Components.projectSwitcher(userPage, "hover");
@@ -308,14 +310,20 @@ echo "${BashScriptStringContent}"
                 await userPage.getByText("Run application again").click();
             });
             await userPage.getByText("No machine type selected").waitFor({state: "hidden"});
+            await Runs.setJobTitle(userPage, "")
             await userPage.getByText("Submit").click();
-            await userPage.getByText("You do not have enough storage credits.").hover();
+
+            while (true) {
+                if (await userPage.getByText("You do not have enough storage credits.").isVisible()) break;
+                if (await userPage.getByText("Insufficient funds for storage", {exact: false}).first().isVisible()) break;
+            }
 
             /* Clean-up */
             await Runs.goToRuns(userPage);
             await NetworkCalls.awaitResponse(userPage, "**/api/files/browse**", async () => {
-                await File.actionByRowTitle(userPage, jobName, "dblclick");
+                await Applications.actionByRowTitle(userPage, jobName, "dblclick");
             });
+
             await NetworkCalls.awaitResponse(userPage, "**/api/files/trash", async () => {
                 await File.actionByRowTitle(userPage, "example", "click");
                 await userPage.keyboard.press("Delete");
@@ -343,7 +351,7 @@ echo "${BashScriptStringContent}"
                 if (isDev(data.location_origin)) {
                     await userPage.getByText("0K / 1K Core-hours (0%)", {exact: true}).first().waitFor();
                 } else if (isProd(data.location_origin)) {
-                    await userPage.getByText("0K / 2K Core-hours (0%)", {exact: true}).first().waitFor();
+                    await userPage.getByText("0 / 101 Core-hours (0%)", {exact: true}).first().waitFor();
                 }
             } else {
                 await userPage.getByText("0 / 1 Core-hours (0%)", {exact: true}).first().waitFor();
@@ -384,7 +392,7 @@ async function getPercentUsage(page: Page, kind: "Core-hours"): Promise<number> 
  * 
  * Simpler approach to 'Compute - check accounting'. Should work for personal workspace, others are more difficult, due to small total amount of core-hours
             test.setTimeout(150_000);
-            const AUTOGIFTED_RESOURCES = (isProd(data.location_origin) || isDev(data.location_origin)) && ctx === "Personal Workspace";
+            const AUTOGIFTED_RESOURCES = isDev(data.location_origin) && ctx === "Personal Workspace";
             const initialPercentage = await getPercentUsage(page, "Core-hours");
             const jobName = Runs.newJobName();
             const coreCount = AUTOGIFTED_RESOURCES ? 8 : 2;
