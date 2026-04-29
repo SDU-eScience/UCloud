@@ -114,7 +114,7 @@ func IsJobLockedEx(job *orc.Job, jobAnnotations map[string]string) util.Option[s
 	metricComputeLocked.Observe(timer.Mark().Seconds())
 
 	if isLocked {
-		reason := fmt.Sprintf("Insufficient funds for %v", job.Specification.Product.Category)
+		reason := makeInsufficientFundsMessage(job.Resource, job.Specification.Product.Category)
 		return util.OptValue(shared.LockedReason{
 			Reason: reason,
 			Err: &util.HttpError{
@@ -161,7 +161,7 @@ func IsJobLockedEx(job *orc.Job, jobAnnotations map[string]string) util.Option[s
 		metricStorageLocked.Observe(timer.Mark().Seconds())
 
 		if storageLocked {
-			reason := fmt.Sprintf("Insufficient funds for %v", mount.RealDrive.Specification.Product.Category)
+			reason := makeInsufficientFundsMessage(mount.RealDrive.Resource, mount.RealDrive.Specification.Product.Category)
 			return util.OptValue(shared.LockedReason{
 				Reason: reason,
 				Err: &util.HttpError{
@@ -398,3 +398,16 @@ var metricMountedDrivesTiming = promauto.NewSummaryVec(prometheus.SummaryOpts{
 		0.99: 0.01,
 	},
 }, []string{"region"})
+
+func makeInsufficientFundsMessage(resource orc.Resource, category string) string {
+	owner := "The user " + resource.Owner.CreatedBy
+	if resource.Owner.Project.Present {
+		project, ok := controller.ProjectRetrieve(resource.Owner.Project.Value)
+		if !ok {
+			owner = "The unknown owner"
+		} else {
+			owner = "The project " + project.Specification.Title
+		}
+	}
+	return fmt.Sprintf("%s cannot create %s due to insufficient funds.", owner, category)
+}

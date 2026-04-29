@@ -880,7 +880,7 @@ func initJobs() {
 
 			for _, item := range request.Items {
 				if ResourceIsLocked(item.Resource, item.Specification.Product) {
-					return fnd.BulkResponse[fnd.FindByStringId]{}, util.HttpErr(http.StatusPaymentRequired, "insufficient funds for %s", item.Specification.Product.Category)
+					return fnd.BulkResponse[fnd.FindByStringId]{}, util.HttpErr(http.StatusPaymentRequired, jobsMakeInsuffiecientFundsMessage(item.Resource, item.Specification.Product.Category))
 				}
 			}
 
@@ -2083,4 +2083,17 @@ func jobRoutesRefresh() {
 	}
 
 	webSessionsMutex.Unlock()
+}
+
+func jobsMakeInsuffiecientFundsMessage(resource orcapi.Resource, category string) string {
+	owner := "The user " + resource.Owner.CreatedBy
+	if resource.Owner.Project.Present {
+		project, ok := ProjectRetrieve(resource.Owner.Project.Value)
+		if !ok {
+			owner = "The unknown owner"
+		} else {
+			owner = "The project " + project.Specification.Title
+		}
+	}
+	return fmt.Sprintf("%s cannot create %s due to insufficient funds.", owner, category)
 }
