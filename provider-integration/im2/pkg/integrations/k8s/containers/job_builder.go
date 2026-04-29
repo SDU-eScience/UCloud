@@ -185,16 +185,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 			},
 		}
 
-		sshService = shared.AssignAndPrepareSshService(job).GetOrDefault(nil)
-		if sshService != nil {
-			shared.AllowNetworkFromWorld(firewall, []orc.PortRangeAndProto{
-				{
-					Protocol: orc.IpProtocolTcp,
-					Start:    22,
-					End:      22,
-				},
-			})
-		}
+		sshService = shared.PrepareSshService(job, firewall).GetOrDefault(nil)
 
 		preparedIp := shared.PublicIpPrepare(job, firewall)
 		ipService = preparedIp.Service

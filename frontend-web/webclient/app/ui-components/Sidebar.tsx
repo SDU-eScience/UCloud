@@ -783,11 +783,6 @@ const ComputeSubLinksEntries: LinkInfo[] = [{
     text: "Jobs",
     icon: "heroServer",
     tab: SidebarTabId.RUNS,
-}, {
-    to: AppRoutes.compute.virtualMachines(),
-    text: "Virtual machines",
-    icon: "heroComputerDesktop",
-    tab: SidebarTabId.RUNS,
 }];
 
 if (hasFeature(Feature.STACKS)) {

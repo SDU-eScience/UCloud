@@ -194,20 +194,22 @@ export const Create: React.FunctionComponent = () => {
 
     useEffect(() => {
         const product = estimatedCost.product;
+        const backend = application?.invocation.tool.tool?.description?.backend ?? "DOCKER";
         if (!product || product.productType !== "COMPUTE") {
-            setBindLinkToPort(false);
+            setBindLinkToPort(backend === "VIRTUAL_MACHINE");
             return;
         }
 
         fetchMachineSupport(compute.jobs.retrieveProducts({
             providers: product.category.provider,
         }));
-    }, [estimatedCost.product, fetchMachineSupport]);
+    }, [application, estimatedCost.product, fetchMachineSupport]);
 
     useEffect(() => {
         const product = estimatedCost.product;
+        const backend = application?.invocation.tool.tool?.description?.backend ?? "DOCKER";
         if (!product || product.productType !== "COMPUTE") {
-            setBindLinkToPort(false);
+            setBindLinkToPort(backend === "VIRTUAL_MACHINE");
             return;
         }
 
@@ -219,11 +221,10 @@ export const Create: React.FunctionComponent = () => {
         )?.support;
 
         if (!selectedSupport) {
-            setBindLinkToPort(false);
+            setBindLinkToPort(backend === "VIRTUAL_MACHINE");
             return;
         }
 
-        const backend = application?.invocation.tool.tool?.description?.backend ?? "DOCKER";
         switch (backend) {
             case "DOCKER":
                 setBindLinkToPort(selectedSupport.docker.bindLinkToPort === true);

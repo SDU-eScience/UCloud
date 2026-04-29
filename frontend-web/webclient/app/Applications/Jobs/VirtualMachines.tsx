@@ -186,8 +186,6 @@ export const VirtualMachineStatus: React.FunctionComponent<{
         return combinedInterfaceTargets[defaultInterfaceId];
     }, [combinedInterfaceTargets]);
 
-    const sshCommand = useMemo(() => parseSshCommand(updates), [updates]);
-
     const resolvedProduct = job.status.resolvedProduct as {
         cpu?: number;
         memoryInGigs?: number;
@@ -299,6 +297,7 @@ export const VirtualMachineStatus: React.FunctionComponent<{
     const showRuntimePanels = !isTerminalState;
     const effectiveState: JobState | OptimisticPowerState = optimisticPowerState ?? status.state;
     const showInterfaceControls = effectiveState === "RUNNING";
+    const sshCommand = useMemo(() => effectiveState === "RUNNING" ? parseSshCommand(updates) : null, [effectiveState, updates]);
     const appTitle = job.specification.name ?? job.status.resolvedApplication?.metadata?.title ?? "Virtual machine";
     const appVersion = job.status.resolvedApplication?.metadata?.version ?? "";
     const alternativeInterfaces = useMemo(() => {

@@ -170,9 +170,23 @@ func executableModTime(path string) (time.Time, error) {
 	return info.ModTime(), nil
 }
 
+func vmiFindFileCandidate(files ...string) string {
+	if len(files) == 0 {
+		return ""
+	}
+
+	for _, file := range files {
+		if _, err := os.Stat(file); err == nil {
+			return file
+		}
+	}
+
+	return files[0]
+}
+
 func vmiFsMutator() {
-	certFile := "/etc/ucloud/webhook.crt"
-	keyFile := "/etc/ucloud/webhook.key"
+	certFile := vmiFindFileCandidate("/etc/ucloud/webhook.crt", "/etc/ucloud/webhook/tls.crt")
+	keyFile := vmiFindFileCandidate("/etc/ucloud/webhook.key", "/etc/ucloud/webhook/tls.key")
 
 	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
 	if err != nil {
@@ -447,9 +461,10 @@ type cloudInitUser struct {
 }
 
 type cloudInit struct {
-	Users      []cloudInitUser `json:"users"`
-	Mounts     [][]string      `json:"mounts"`
-	RunCommand []string        `json:"runcmd"`
+	DisableRoot bool            `json:"disable_root"`
+	Users       []cloudInitUser `json:"users"`
+	Mounts      [][]string      `json:"mounts"`
+	RunCommand  []string        `json:"runcmd"`
 }
 
 func follow(session *ctrl.FollowJobSession) {
@@ -946,6 +961,11 @@ func suspend(job orc.Job) *util.HttpError {
 		log.Info("Failed to shutdown VM: %v", err)
 		return util.ServerHttpError("Failed to shutdown VM")
 	}
+	shared.ClearAssignedSshPort(&job)
+	if herr := shared.DeleteSshService(job.Id); herr != nil {
+		log.Info("Failed to delete SSH service for suspended VM: %v", herr)
+		return util.ServerHttpError("Failed to delete SSH service")
+	}
 	return nil
 }
 
@@ -1134,16 +1154,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		},
 	}
 
-	sshService := shared.AssignAndPrepareSshService(job).GetOrDefault(nil)
-	if sshService != nil {
-		shared.AllowNetworkFromWorld(firewall, []orc.PortRangeAndProto{
-			{
-				Protocol: orc.IpProtocolTcp,
-				Start:    22,
-				End:      22,
-			},
-		})
-	}
+	sshService := shared.PrepareSshService(job, firewall).GetOrDefault(nil)
 
 	preparedIp := shared.PublicIpPrepare(job, firewall)
 	ipService := preparedIp.Service
@@ -1187,6 +1198,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	}
 
 	cinit := cloudInit{}
+	cinit.DisableRoot = true
 	{
 		user := cloudInitUser{
 			Name:         "ucloud",
@@ -1688,6 +1700,42 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 
 	if hasExistingVm {
 		err = updateExistingVmWithRetry(ctx, nameOfVm, vm)
+		if err == nil {
+			ownerReference := k8smeta.OwnerReference{
+				APIVersion: "kubevirt.io/v1",
+				Kind:       "VirtualMachine",
+				Name:       existingVm.Name,
+				UID:        existingVm.UID,
+			}
+			if herr := shared.EnsureSshService(job, ownerReference, sshService); herr != nil {
+				err = herr.AsError()
+			}
+			if err == nil {
+				if herr := ensureNetworkPolicy(ctx, firewall, ownerReference); herr != nil {
+					err = herr.AsError()
+				}
+			}
+			if err == nil {
+				if _, herr := ensureService(ctx, ipService, ownerReference); herr != nil {
+					err = herr.AsError()
+				}
+			}
+			if err == nil {
+				if service, herr := ensureService(ctx, baseService, ownerReference); herr != nil {
+					err = herr.AsError()
+				} else if service != nil {
+					serviceAddr := service.Spec.ClusterIP
+					if serviceAddr != "" && job.Specification.Labels["ucloud.dk/serviceIpAddress"] != serviceAddr {
+						job.Specification.Labels["ucloud.dk/serviceIpAddress"] = serviceAddr
+						_, _ = orc.JobsControlUpdateLabels.Invoke(fndapi.BulkRequestOf(orc.JobsUpdateLabelsRequest{
+							Id:     job.Id,
+							Labels: job.Specification.Labels,
+						}))
+						ctrl.JobTrackNew(*job)
+					}
+				}
+			}
+		}
 	} else {
 		vm, localErr := KubevirtClient.VirtualMachine(Namespace).Create(ctx, vm, k8smeta.CreateOptions{})
 		err = localErr
@@ -1756,6 +1804,62 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 }
 
 const vmUpdateConflictRetries = 5
+
+func ensureNetworkPolicy(ctx context.Context, desired *k8snetwork.NetworkPolicy, ownerReference k8smeta.OwnerReference) *util.HttpError {
+	if desired == nil {
+		return nil
+	}
+
+	desired.OwnerReferences = append(desired.OwnerReferences, ownerReference)
+	existing, err := shared.K8sClient.NetworkingV1().NetworkPolicies(Namespace).
+		Get(ctx, desired.Name, k8smeta.GetOptions{})
+	if k8serrors.IsNotFound(err) {
+		_, err = shared.K8sClient.NetworkingV1().NetworkPolicies(Namespace).
+			Create(ctx, desired, k8smeta.CreateOptions{})
+		return util.HttpErrorFromErr(err)
+	} else if err != nil {
+		return util.HttpErrorFromErr(err)
+	}
+
+	existing.Labels = desired.Labels
+	existing.Annotations = desired.Annotations
+	existing.OwnerReferences = desired.OwnerReferences
+	existing.Spec = desired.Spec
+	_, err = shared.K8sClient.NetworkingV1().NetworkPolicies(Namespace).
+		Update(ctx, existing, k8smeta.UpdateOptions{})
+	return util.HttpErrorFromErr(err)
+}
+
+func ensureService(ctx context.Context, desired *k8score.Service, ownerReference k8smeta.OwnerReference) (*k8score.Service, *util.HttpError) {
+	if desired == nil {
+		return nil, nil
+	}
+
+	desired.OwnerReferences = append(desired.OwnerReferences, ownerReference)
+	existing, err := shared.K8sClient.CoreV1().Services(Namespace).
+		Get(ctx, desired.Name, k8smeta.GetOptions{})
+	if k8serrors.IsNotFound(err) {
+		created, createErr := shared.K8sClient.CoreV1().Services(Namespace).
+			Create(ctx, desired, k8smeta.CreateOptions{})
+		return created, util.HttpErrorFromErr(createErr)
+	} else if err != nil {
+		return nil, util.HttpErrorFromErr(err)
+	}
+
+	desired.Spec.ClusterIP = existing.Spec.ClusterIP
+	desired.Spec.ClusterIPs = existing.Spec.ClusterIPs
+	desired.Spec.IPFamilies = existing.Spec.IPFamilies
+	desired.Spec.IPFamilyPolicy = existing.Spec.IPFamilyPolicy
+	desired.Spec.HealthCheckNodePort = existing.Spec.HealthCheckNodePort
+
+	existing.Labels = desired.Labels
+	existing.Annotations = desired.Annotations
+	existing.OwnerReferences = desired.OwnerReferences
+	existing.Spec = desired.Spec
+	updated, err := shared.K8sClient.CoreV1().Services(Namespace).
+		Update(ctx, existing, k8smeta.UpdateOptions{})
+	return updated, util.HttpErrorFromErr(err)
+}
 
 func updateExistingVmWithRetry(ctx context.Context, name string, desired *kvcore.VirtualMachine) error {
 	var err error
