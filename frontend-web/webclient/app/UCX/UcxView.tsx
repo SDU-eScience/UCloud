@@ -120,25 +120,25 @@ const UcxAccordion: React.FunctionComponent<React.PropsWithChildren<{
             }}
         >
             <div style={{fontWeight: 600}}>{title}</div>
-            <Icon name="heroChevronDown" size={12} rotation={isOpen ? 0 : -90}/>
+            <Icon name="heroChevronDown" size={12} rotation={isOpen ? 0 : -90} />
         </div>
         {isOpen ? <div>{children}</div> : null}
     </div>;
 };
 
 const UcxView: React.FunctionComponent<UcxViewProps> = ({
-                                                            url,
-                                                            authToken,
-                                                            sysHello,
-                                                            maxReconnectAttempts = Number.POSITIVE_INFINITY,
-                                                            renderFrame,
-                                                            components,
-                                                            functions,
-                                                            rpcHandlers,
-                                                            onConnected,
-                                                            onDisconnected,
-                                                            onTransportError,
-                                                        }) => {
+    url,
+    authToken,
+    sysHello,
+    maxReconnectAttempts = Number.POSITIVE_INFINITY,
+    renderFrame,
+    components,
+    functions,
+    rpcHandlers,
+    onConnected,
+    onDisconnected,
+    onTransportError,
+}) => {
     const location = useLocation();
     const navigate = useNavigate();
     const [connected, setConnected] = useState(false);
@@ -664,7 +664,7 @@ const baseComponents: UcxComponentRegistry = {
             <div style={{display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap"}}>{children.slice(1)}</div>
         </div>;
     },
-    router: ({node, model, scope, fn}) => <RouterNode node={node} model={model} scope={scope} fn={fn}/>,
+    router: ({node, model, scope, fn}) => <RouterNode node={node} model={model} scope={scope} fn={fn} />,
     link: ({node, fn, renderChildren}) => {
         const to = optionalStringProp(node, "to");
         if (to == null) return null;
@@ -731,7 +731,7 @@ const baseComponents: UcxComponentRegistry = {
         const name = stringProp(node, "name", "bug");
         const color = stringProp(node, "color", "iconColor");
         const size = numberProp(node, "size", 18);
-        return <Icon name={name as any} color={color as any} size={size} style={fn.sxStyle(node)}/>;
+        return <Icon name={name as any} color={color as any} size={size} style={fn.sxStyle(node)} />;
     },
     input_text: ({node, model, scope, fn}) => {
         const label = stringProp(node, "label", "");
@@ -787,7 +787,7 @@ const baseComponents: UcxComponentRegistry = {
 
         return <div style={{display: "flex", flexDirection: "column", gap: 6}}>
             <div style={{display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12}}>
-                {label === "" ? <span/> : <FieldLabel>{label}</FieldLabel>}
+                {label === "" ? <span /> : <FieldLabel>{label}</FieldLabel>}
                 <Text style={{margin: 0, textAlign: "right"}}>{displayValue}</Text>
             </div>
             <Input
@@ -837,9 +837,9 @@ const baseComponents: UcxComponentRegistry = {
             disabled={disabled}
             onClick={submit ? undefined : (() => fn.sendUiEvent(node.id, "click", eventValue))}
         >
-            {iconLeft ? <Icon name={iconLeft as any}/> : null}
+            {iconLeft ? <Icon name={iconLeft as any} /> : null}
             {label}
-            {iconRight ? <Icon name={iconRight as any}/> : null}
+            {iconRight ? <Icon name={iconRight as any} /> : null}
         </Button>;
     },
     list: ({node, model, scope, fn, renderChildren}) => {
@@ -885,10 +885,10 @@ const baseComponents: UcxComponentRegistry = {
         </>;
     },
     select: ({node, model, scope, fn}) => {
-        return <UcxSelectField node={node} model={model} scope={scope} fn={fn}/>;
+        return <UcxSelectField node={node} model={model} scope={scope} fn={fn} />;
     },
     machine_type_selector: ({node, model, scope, fn}) => {
-        return <MachineTypeSelectorNode node={node} model={model} scope={scope} fn={fn}/>;
+        return <MachineTypeSelectorNode node={node} model={model} scope={scope} fn={fn} />;
     },
     radio_group: ({node, model, scope, fn}) => {
         const label = stringProp(node, "label", "");
@@ -917,12 +917,12 @@ const baseComponents: UcxComponentRegistry = {
         const checked = modelBool(model, node.bindPath, scope);
         return <Flex alignItems="center" gap="8px" style={fn.sxStyle(node)}>
             <Toggle checked={checked}
-                    onChange={() => fn.sendBoundInput(node, {kind: ValueKind.Bool, bool: !checked}, model, scope)}/>
+                    onChange={() => fn.sendBoundInput(node, {kind: ValueKind.Bool, bool: !checked}, model, scope)} />
             {label === "" ? null : <span>{label}</span>}
         </Flex>;
     },
-    divider: ({node, fn}) => <Divider/>,
-    spinner: ({node}) => <HexSpin size={numberProp(node, "size", 32)} margin={optionalStringProp(node, "margin")}/>,
+    divider: ({node, fn}) => <Divider />,
+    spinner: ({node}) => <HexSpin size={numberProp(node, "size", 32)} margin={optionalStringProp(node, "margin")} />,
     table: ({node, model, scope, fn}) => {
         const rows = modelList(model, node.bindPath, scope)
             .filter(it => it.kind === ValueKind.Object)
