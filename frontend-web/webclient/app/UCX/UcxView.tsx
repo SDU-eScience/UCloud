@@ -921,11 +921,11 @@ const baseComponents: UcxComponentRegistry = {
                     </TableRow>
                 </TableHeader>
                 <tbody>
-                {rows.map((row, rowIdx) =>
-                    <TableRow key={`row-${rowIdx}`}>
-                        {columns.map(col => <TableCell key={`${rowIdx}-${col.key}`}>{displayValue(row[col.key])}</TableCell>)}
-                    </TableRow>
-                )}
+                    {rows.map((row, rowIdx) =>
+                        <TableRow key={`row-${rowIdx}`}>
+                            {columns.map(col => <TableCell key={`${rowIdx}-${col.key}`}>{displayValue(row[col.key])}</TableCell>)}
+                        </TableRow>
+                    )}
                 </tbody>
             </Table>
         </div>;
