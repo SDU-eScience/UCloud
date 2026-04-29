@@ -1502,6 +1502,19 @@ var (
 		},
 	}, []string{"type"})
 
+	resourceLoadIndexSectionDuration = promauto.NewSummaryVec(prometheus.SummaryOpts{
+		Namespace: "ucloud",
+		Subsystem: "orchestrator",
+		Name:      "resource_index_load_section_duration_seconds",
+		Help:      "Summary of the duration (in seconds) it takes to load an index, broken down by section",
+		Objectives: map[float64]float64{
+			0.5:  0.01,
+			0.75: 0.01,
+			0.95: 0.01,
+			0.99: 0.01,
+		},
+	}, []string{"type", "section"})
+
 	resourceIndexCacheHit = promauto.NewCounterVec(prometheus.CounterOpts{
 		Namespace: "ucloud",
 		Subsystem: "orchestrator",
