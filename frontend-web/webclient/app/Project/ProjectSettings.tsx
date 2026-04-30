@@ -1,17 +1,6 @@
 import * as React from "react";
-import {
-    Box,
-    Button,
-    Flex,
-    Input,
-    Label,
-    Text,
-    Checkbox,
-    TextArea,
-    DataList,
-    Icon,
-    Card
-} from "@/ui-components";
+import {useCallback, useEffect, useRef, useState} from "react";
+import {Box, Button, Card, Checkbox, DataList, Flex, Icon, Input, Label, Text, TextArea} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {addStandardDialog, ConfirmCancelButtons} from "@/UtilityComponents";
 import {callAPIWithErrorHandler, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
@@ -19,10 +8,8 @@ import {useNavigate} from "react-router-dom";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {MainContainer} from "@/ui-components/MainContainer";
 import {usePage} from "@/Navigation/Redux";
-import {useCallback, useEffect, useRef, useState} from "react";
-import {buildQueryString} from "@/Utilities/URIUtilities";
 import ProjectAPI, {useProjectId} from "@/Project/Api";
-import {bulkRequestOf, copyToClipboard} from "@/UtilityFunctions";
+import {bulkRequestOf, copyToClipboard, inSuccessRange} from "@/UtilityFunctions";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {useProject} from "./cache";
 import {injectStyle} from "@/Unstyled";
@@ -30,20 +17,17 @@ import {Spacer} from "@/ui-components/Spacer";
 import * as Grants from "@/Grants";
 import {ProjectLogo} from "@/Grants/ProjectLogo";
 import {HiddenInputField} from "@/ui-components/Input";
-import {inSuccessRange} from "@/UtilityFunctions";
 import Table, {TableCell, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {ProjectSwitcher, projectTitleFromCache} from "./ProjectSwitcher";
 import WAYF from "@/Grants/wayf-idps.json";
 import {FlexClass} from "@/ui-components/Flex";
-import {OldProjectRole, isAdminOrPI, isDataSteward, Policy, retrieveRequestPolicies, PolicyPropertyType} from ".";
+import {isAdminOrPI, isDataSteward, OldProjectRole, Policy, PolicyProperty, PolicyPropertyType, PolicyPropertyValue, retrieveRequestPolicies} from ".";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import AppRoutes from "@/Routes";
 import {sendFailureNotification, sendInformationNotification, sendSuccessNotification} from "@/Notifications";
-import {AllocationDisplayTreeYourAllocation} from "@/Accounting";
-import {TreeApi} from "@/ui-components/Tree";
-import {State} from "@/Accounting/Allocations/State";
+import {buildQueryString} from "@/Utilities/URIUtilities";
 
 const wayfIdpsPairs = WAYF.wayfIdps.map(it => ({value: it, content: it}));
 
@@ -98,20 +82,82 @@ const ActionBoxClass = injectStyle("action-box", k => `
     }
 `);
 
-const RenderPolicy: React.FunctionComponent<{
-    policy: Policy
-}> = ({policy}) =>  {
-    return <>
-        {policy.schema.configuration.map(configuration => {
-            switch (configuration.type) {
-                case PolicyPropertyType.BOOLEAN: {
-                    <>
-                        <Checkbox>{configuration.title}</Checkbox>
-                    </>
-                }  
-            }
-        })}
-    </>
+const RenderPolicyProperty: React.FunctionComponent<{
+    property: PolicyProperty,
+    value: PolicyPropertyValue | null,
+}> = ({property, value}) => {
+    switch (property.type) {
+        case PolicyPropertyType.BOOLEAN: {
+            return <>
+                <br />
+                <Checkbox checked={value?.bool ?? false} /> {property.title}
+            </>
+        }
+        case PolicyPropertyType.TEXT:
+        case PolicyPropertyType.ENUM:
+        case PolicyPropertyType.SUBNET: {
+            return <>
+                <br />
+                {property.title}
+                <br />
+                <textarea defaultValue={value?.text ?? ""} />
+            </>
+        }
+        case PolicyPropertyType.FLOAT: {
+            return <>
+                <br />
+                {property.title}
+                <br />
+                <input defaultValue={value?.float ?? 0} type={"number"} />
+            </>
+        }
+        case PolicyPropertyType.INTEGER: {
+            return <>
+                <br />
+                {property.title}
+                <br />
+                <input defaultValue={value?.int ?? 0} type={"number"} />
+            </>
+        }
+        case PolicyPropertyType.ENUMSET:
+        case PolicyPropertyType.TEXTLIST:
+        case PolicyPropertyType.PROVIDERS: {
+            return <>
+                <br />
+                {property.title}
+                <br />
+                <textarea defaultValue={value?.text ?? ""} />
+            </>
+        }
+        default:
+            return <></>
+    }
+}
+
+function locatePolicyValue(policy: Policy, name: string, type: string): any {
+    if (policy.specification.properties == null) {
+        return null
+    }
+    const prop = policy.specification.properties.find(prop => prop.name === name);
+    if (prop == undefined) {
+        return null;
+    }
+    switch (type) {
+        case PolicyPropertyType.BOOLEAN:
+            return prop?.bool ?? false;
+        case PolicyPropertyType.TEXT || PolicyPropertyType.ENUM || PolicyPropertyType.SUBNET:
+            return prop?.text ?? "";
+        case PolicyPropertyType.TEXTLIST || PolicyPropertyType.ENUMSET:
+            return prop?.textElements;
+        case PolicyPropertyType.FLOAT:
+            return prop?.float;
+        case PolicyPropertyType.INTEGER:
+            return prop?.int;
+        case PolicyPropertyType.PROVIDERS:
+            return prop?.providers;
+        default:
+            return null
+    }
 }
 
 export const ProjectSettings: React.FunctionComponent = () => {
@@ -280,7 +326,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
         header={
             <Spacer
                 left={<h3 className="title">Project settings</h3>}
-                right={<ProjectSwitcher/>}
+                right={<ProjectSwitcher />}
             />
         }
         headerSize={64}
@@ -322,30 +368,30 @@ export const ProjectSettings: React.FunctionComponent = () => {
                     <Card>
                         <Heading.h3>Grant settings</Heading.h3>
 
-                        <UpdateProjectLogo/>
+                        <UpdateProjectLogo />
 
                         <form onSubmit={onSave}>
                             <Flex gap="32px">
                                 <label>
-                                    Project description <br/>
-                                    <TextArea width="100%" rows={5} inputRef={description}/>
+                                    Project description <br />
+                                    <TextArea width="100%" rows={5} inputRef={description} />
                                 </label>
 
                                 <label>
-                                    Template for personal projects <br/>
-                                    <TextArea width="100%" rows={5} inputRef={templatePersonal}/>
+                                    Template for personal projects <br />
+                                    <TextArea width="100%" rows={5} inputRef={templatePersonal} />
                                 </label>
                             </Flex>
 
                             <Flex gap="32px">
                                 <label>
-                                    Template for existing projects <br/>
-                                    <TextArea rows={5} inputRef={templateExisting}/>
+                                    Template for existing projects <br />
+                                    <TextArea rows={5} inputRef={templateExisting} />
                                 </label>
 
                                 <label>
-                                    Template for new projects <br/>
-                                    <TextArea rows={5} inputRef={templateNew}/>
+                                    Template for new projects <br />
+                                    <TextArea rows={5} inputRef={templateNew} />
                                 </label>
                             </Flex>
 
@@ -382,24 +428,28 @@ export const ProjectSettings: React.FunctionComponent = () => {
                     </Card>
                 </>) : null
             }
-            {            //TODO(HENRIK) FLIP THIS TO ACTUALLY BE CHECK IF IS DATA STEWARD
-                !isDataSteward(status.myRole) ? (<Card>
-                    <Heading.h3>Project Policies</Heading.h3>
-                    <br/>
-                    {
-                        Object.values(policies).map((policy: Policy) => (
-                            <>
-                                <Card key={policy.schema.name}>
-                                    <Heading.h3>{policy.schema.title}</Heading.h3>
-                                    {policy.schema.description}
+            {isDataSteward(status.myRole) ? (<Card>
+                <Heading.h3>Project Policies</Heading.h3>
+                <br />
+                {
+                    Object.values(policies).map((policy: Policy) => (
+                        <>
+                            <Card key={policy.schema.name}>
+                                <Heading.h3>{policy.schema.title}</Heading.h3>
+                                {policy.schema.description}
+                                <br />
+                                {policy.schema.configuration.map(prop => (
+                                    <RenderPolicyProperty property={prop} value={locatePolicyValue(policy, prop.name, prop.type)} />
+                                ))}
+                                <Box mt="12px" mb="36px" />
+                                <Button type={"submit"} fullWidth>Save</Button>
+                            </Card>
+                            <Box mt="12px" mb="36px" />
+                        </>
+                    ))
+                }
 
-                                </Card>
-                                <Box mt="12px" mb="36px"/>
-                            </>
-                        ))
-                    }
-
-                </Card>) : null}
+            </Card>) : null}
             <Card>
                 <LeaveProject
                     onSuccess={() => navigate("/")}
@@ -663,7 +713,7 @@ export function UpdateProjectLogo(): React.ReactNode {
             Project logo (click{" "}
             <span style={{color: "var(--primaryLight)", cursor: "pointer"}}>here</span>
             {" "}to upload a new logo)
-            <br/>
+            <br />
 
             <HiddenInputField
                 type="file"
@@ -686,7 +736,7 @@ export function UpdateProjectLogo(): React.ReactNode {
             />
         </label>
 
-        <ProjectLogo projectId={projectId} size={"128px"}/>
+        <ProjectLogo projectId={projectId} size={"128px"} />
     </div>
 }
 
@@ -713,57 +763,57 @@ const UserCriteriaEditor: React.FunctionComponent<{
     return <>
         <Table mb={16}>
             <thead>
-            <TableRow>
-                <TableHeaderCell textAlign={"left"}>Type</TableHeaderCell>
-                <TableHeaderCell textAlign={"left"}>Constraint</TableHeaderCell>
-                <TableHeaderCell/>
-            </TableRow>
+                <TableRow>
+                    <TableHeaderCell textAlign={"left"}>Type</TableHeaderCell>
+                    <TableHeaderCell textAlign={"left"}>Constraint</TableHeaderCell>
+                    <TableHeaderCell />
+                </TableRow>
             </thead>
             <tbody>
 
-            {!props.showSubprojects ? null :
-                <TableRow>
-                    <TableCell>Subprojects</TableCell>
-                    <TableCell>None</TableCell>
-                    <TableCell/>
-                </TableRow>
-            }
+                {!props.showSubprojects ? null :
+                    <TableRow>
+                        <TableCell>Subprojects</TableCell>
+                        <TableCell>None</TableCell>
+                        <TableCell />
+                    </TableRow>
+                }
 
-            {!props.showSubprojects && props.criteria.length === 0 && !showRequestFromEditor ? <>
-                <TableRow>
-                    <TableCell>No one</TableCell>
-                    <TableCell>None</TableCell>
-                    <TableCell/>
-                </TableRow>
-            </> : null}
+                {!props.showSubprojects && props.criteria.length === 0 && !showRequestFromEditor ? <>
+                    <TableRow>
+                        <TableCell>No one</TableCell>
+                        <TableCell>None</TableCell>
+                        <TableCell />
+                    </TableRow>
+                </> : null}
 
-            {props.criteria.map((it, idx) =>
-                <TableRow key={keyFromCriteria(it)}>
-                    <TableCell textAlign={"left"}>{userCriteriaTypePrettifier(it.type)}</TableCell>
-                    <TableCell textAlign={"left"}>
-                        {it.type === "wayf" ? it.org : null}
-                        {it.type === "email" ? it.domain : null}
-                        {it.type === "anyone" ? "None" : null}
-                    </TableCell>
-                    <TableCell textAlign={"right"}>
-                        <Icon color={"errorMain"} name={"trash"} cursor={"pointer"}
-                              onClick={() => props.onRemove(idx)}/>
-                    </TableCell>
-                </TableRow>
-            )}
+                {props.criteria.map((it, idx) =>
+                    <TableRow key={keyFromCriteria(it)}>
+                        <TableCell textAlign={"left"}>{userCriteriaTypePrettifier(it.type)}</TableCell>
+                        <TableCell textAlign={"left"}>
+                            {it.type === "wayf" ? it.org : null}
+                            {it.type === "email" ? it.domain : null}
+                            {it.type === "anyone" ? "None" : null}
+                        </TableCell>
+                        <TableCell textAlign={"right"}>
+                            <Icon color={"errorMain"} name={"trash"} cursor={"pointer"}
+                                  onClick={() => props.onRemove(idx)} />
+                        </TableCell>
+                    </TableRow>
+                )}
 
-            {showRequestFromEditor ?
-                <UserCriteriaRowEditor
-                    onSubmit={(c) => {
-                        props.onSubmit(c);
-                        setShowRequestFromEditor(false);
-                    }}
-                    onCancel={() => setShowRequestFromEditor(false)}
-                    allowAnyone={!props.isExclusion && props.criteria.find(it => it.type === "anyone") === undefined}
-                    allowWayf={!props.isExclusion}
-                /> :
-                null
-            }
+                {showRequestFromEditor ?
+                    <UserCriteriaRowEditor
+                        onSubmit={(c) => {
+                            props.onSubmit(c);
+                            setShowRequestFromEditor(false);
+                        }}
+                        onCancel={() => setShowRequestFromEditor(false)}
+                        allowAnyone={!props.isExclusion && props.criteria.find(it => it.type === "anyone") === undefined}
+                        allowWayf={!props.isExclusion}
+                    /> :
+                    null
+                }
 
             </tbody>
         </Table>
@@ -821,7 +871,7 @@ const UserCriteriaRowEditor: React.FunctionComponent<{
         }
     }, [props.onSubmit, type, selectedWayfOrg]);
 
-    const options: { text: string, value: string }[] = [];
+    const options: {text: string, value: string}[] = [];
     if (props.allowAnyone) {
         options.push({text: "Anyone", value: "anyone"});
     }
@@ -846,7 +896,7 @@ const UserCriteriaRowEditor: React.FunctionComponent<{
                 <Flex height={47}>
                     {type.type !== "anyone" ? null : null}
                     {type.type !== "email" ? null : <>
-                        <Input inputRef={inputRef} placeholder={"Email domain"}/>
+                        <Input inputRef={inputRef} placeholder={"Email domain"} />
                     </>}
                     {type.type !== "wayf" ? null : <>
                         {/* WAYF idps extracted from https://metadata.wayf.dk/idps.js*/}
@@ -857,11 +907,11 @@ const UserCriteriaRowEditor: React.FunctionComponent<{
                             placeholder={"Type to search..."}
                         />
                     </>}
-                    <ConfirmCancelButtons height={"unset"} onConfirm={onClick} onCancel={props.onCancel}/>
+                    <ConfirmCancelButtons height={"unset"} onConfirm={onClick} onCancel={props.onCancel} />
                 </Flex>
             </div>
         </TableCell>
-        <TableCell/>
+        <TableCell />
     </TableRow>;
 }
 
