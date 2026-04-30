@@ -12,6 +12,7 @@ import (
 	"ucloud.dk/pkg/integrations/k8s/containers"
 	"ucloud.dk/pkg/integrations/k8s/filesystem"
 	"ucloud.dk/pkg/integrations/k8s/shared"
+	"ucloud.dk/shared/pkg/log"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 
 	"ucloud.dk/shared/pkg/util"
@@ -400,14 +401,16 @@ var metricMountedDrivesTiming = promauto.NewSummaryVec(prometheus.SummaryOpts{
 }, []string{"region"})
 
 func makeInsufficientFundsMessage(resource orc.Resource, category string) string {
-	owner := "The user " + resource.Owner.CreatedBy
-	if resource.Owner.Project.Present {
-		project, ok := controller.ProjectRetrieve(resource.Owner.Project.Value)
-		if !ok {
-			owner = "The unknown owner"
-		} else {
-			owner = "The project " + project.Specification.Title
-		}
+	reason := fmt.Sprintf("cannot create %s due to insufficient funds.", category)
+	if resource.Owner.Project.IsEmpty() {
+		return fmt.Sprintf("The user %s %s", resource.Owner.CreatedBy, reason)
 	}
-	return fmt.Sprintf("%s cannot create %s due to insufficient funds.", owner, category)
+
+	projectId := resource.Owner.Project.Value
+	project, ok := controller.ProjectRetrieve(projectId)
+	if !ok {
+		log.Warn("Failed to retrieve project with id: %s", projectId)
+		return fmt.Sprintf("The project %s %s ", projectId, reason)
+	}
+	return fmt.Sprintf("The project %s %s ", project.Specification.Title, reason)
 }

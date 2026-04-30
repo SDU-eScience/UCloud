@@ -2086,14 +2086,16 @@ func jobRoutesRefresh() {
 }
 
 func jobsMakeInsuffiecientFundsMessage(resource orcapi.Resource, category string) string {
-	owner := "The user " + resource.Owner.CreatedBy
-	if resource.Owner.Project.Present {
-		project, ok := ProjectRetrieve(resource.Owner.Project.Value)
-		if !ok {
-			owner = "The unknown owner"
-		} else {
-			owner = "The project " + project.Specification.Title
-		}
+	reason := fmt.Sprintf("cannot create %s due to insufficient funds.", category)
+	if resource.Owner.Project.IsEmpty() {
+		return fmt.Sprintf("The user %s %s", resource.Owner.CreatedBy, reason)
 	}
-	return fmt.Sprintf("%s cannot create %s due to insufficient funds.", owner, category)
+
+	projectId := resource.Owner.Project.Value
+	project, ok := ProjectRetrieve(projectId)
+	if !ok {
+		log.Warn("Failed to retrieve project with id: %s", projectId)
+		return fmt.Sprintf("The project %s %s ", projectId, reason)
+	}
+	return fmt.Sprintf("The project %s %s ", project.Specification.Title, reason)
 }
