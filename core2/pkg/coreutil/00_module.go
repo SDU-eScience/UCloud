@@ -168,6 +168,42 @@ func ProjectRetrieveFromDatabaseViaGroupId(tx *db.Transaction, groupId string) (
 	}
 }
 
+func PolicySpecificationsRetrieveFromDatabase(tx *db.Transaction, projectId string) (map[string]*fndapi.PolicySpecification, bool) {
+
+	rows := db.Select[struct {
+		ProjectId        string
+		PolicyName       string
+		PolicyProperties string
+	}](
+		tx,
+		`
+			select project_id, policy_name, policy_properties 
+			from project.policies
+			where project_id = :id
+		`,
+		db.Params{
+			"id": projectId,
+		},
+	)
+	var policies = make(map[string]*fndapi.PolicySpecification)
+	for _, row := range rows {
+		properties := []fndapi.PolicyPropertyValue{}
+		err := json.Unmarshal([]byte(row.PolicyProperties), &properties)
+		if err != nil {
+			log.Debug("Error unmarshalling policy properties on update")
+			return nil, false
+		}
+		specification := fndapi.PolicySpecification{
+			Schema:     row.PolicyName,
+			Project:    rpc.ProjectId(row.ProjectId),
+			Properties: properties,
+		}
+
+		policies[specification.Schema] = &specification
+	}
+	return policies, true
+}
+
 func ProjectsListUpdatedAfter(timestamp time.Time) []rpc.ProjectId {
 	return db.NewTx(func(tx *db.Transaction) []rpc.ProjectId {
 		rows := db.Select[struct{ Id string }](

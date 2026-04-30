@@ -1,17 +1,6 @@
 import * as React from "react";
-import {
-    Box,
-    Button,
-    Flex,
-    Input,
-    Label,
-    Text,
-    Checkbox,
-    TextArea,
-    DataList,
-    Icon,
-    Card
-} from "@/ui-components";
+import {useCallback, useEffect, useRef, useState} from "react";
+import {Box, Button, Card, Checkbox, DataList, Flex, Icon, Input, Label, Text, TextArea} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {addStandardDialog, ConfirmCancelButtons} from "@/UtilityComponents";
 import {callAPIWithErrorHandler, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
@@ -19,10 +8,8 @@ import {useNavigate} from "react-router-dom";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {MainContainer} from "@/ui-components/MainContainer";
 import {usePage} from "@/Navigation/Redux";
-import {useCallback, useEffect, useRef, useState} from "react";
-import {buildQueryString} from "@/Utilities/URIUtilities";
 import ProjectAPI, {useProjectId} from "@/Project/Api";
-import {bulkRequestOf, copyToClipboard} from "@/UtilityFunctions";
+import {bulkRequestOf, copyToClipboard, inSuccessRange} from "@/UtilityFunctions";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {useProject} from "./cache";
 import {injectStyle} from "@/Unstyled";
@@ -30,17 +17,17 @@ import {Spacer} from "@/ui-components/Spacer";
 import * as Grants from "@/Grants";
 import {ProjectLogo} from "@/Grants/ProjectLogo";
 import {HiddenInputField} from "@/ui-components/Input";
-import {inSuccessRange} from "@/UtilityFunctions";
 import Table, {TableCell, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {ProjectSwitcher, projectTitleFromCache} from "./ProjectSwitcher";
 import WAYF from "@/Grants/wayf-idps.json";
 import {FlexClass} from "@/ui-components/Flex";
-import {OldProjectRole, isAdminOrPI} from ".";
+import {isAdminOrPI, isDataSteward, OldProjectRole, Policy, PolicyProperty, PolicyPropertyType, PolicyPropertyValue, retrieveRequestPolicies} from ".";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import AppRoutes from "@/Routes";
 import {sendFailureNotification, sendInformationNotification, sendSuccessNotification} from "@/Notifications";
+import {buildQueryString} from "@/Utilities/URIUtilities";
 
 const wayfIdpsPairs = WAYF.wayfIdps.map(it => ({value: it, content: it}));
 
@@ -95,6 +82,84 @@ const ActionBoxClass = injectStyle("action-box", k => `
     }
 `);
 
+const RenderPolicyProperty: React.FunctionComponent<{
+    property: PolicyProperty,
+    value: PolicyPropertyValue | null,
+}> = ({property, value}) => {
+    switch (property.type) {
+        case PolicyPropertyType.BOOLEAN: {
+            return <>
+                <br />
+                <Checkbox checked={value?.bool ?? false} /> {property.title}
+            </>
+        }
+        case PolicyPropertyType.TEXT:
+        case PolicyPropertyType.ENUM:
+        case PolicyPropertyType.SUBNET: {
+            return <>
+                <br />
+                {property.title}
+                <br />
+                <textarea defaultValue={value?.text ?? ""} />
+            </>
+        }
+        case PolicyPropertyType.FLOAT: {
+            return <>
+                <br />
+                {property.title}
+                <br />
+                <input defaultValue={value?.float ?? 0} type={"number"} />
+            </>
+        }
+        case PolicyPropertyType.INTEGER: {
+            return <>
+                <br />
+                {property.title}
+                <br />
+                <input defaultValue={value?.int ?? 0} type={"number"} />
+            </>
+        }
+        case PolicyPropertyType.ENUMSET:
+        case PolicyPropertyType.TEXTLIST:
+        case PolicyPropertyType.PROVIDERS: {
+            return <>
+                <br />
+                {property.title}
+                <br />
+                <textarea defaultValue={value?.text ?? ""} />
+            </>
+        }
+        default:
+            return <></>
+    }
+}
+
+function locatePolicyValue(policy: Policy, name: string, type: string): any {
+    if (policy.specification.properties == null) {
+        return null
+    }
+    const prop = policy.specification.properties.find(prop => prop.name === name);
+    if (prop == undefined) {
+        return null;
+    }
+    switch (type) {
+        case PolicyPropertyType.BOOLEAN:
+            return prop?.bool ?? false;
+        case PolicyPropertyType.TEXT || PolicyPropertyType.ENUM || PolicyPropertyType.SUBNET:
+            return prop?.text ?? "";
+        case PolicyPropertyType.TEXTLIST || PolicyPropertyType.ENUMSET:
+            return prop?.textElements;
+        case PolicyPropertyType.FLOAT:
+            return prop?.float;
+        case PolicyPropertyType.INTEGER:
+            return prop?.int;
+        case PolicyPropertyType.PROVIDERS:
+            return prop?.providers;
+        default:
+            return null
+    }
+}
+
 export const ProjectSettings: React.FunctionComponent = () => {
     const projectId = useProjectId();
     const projectOps = useProject();
@@ -116,6 +181,8 @@ export const ProjectSettings: React.FunctionComponent = () => {
         }
     });
 
+    const [policies, setPolicies] = useState<Map<string, Policy>>(new Map())
+
     const templatePersonal = useRef<HTMLInputElement>(null);
     const templateExisting = useRef<HTMLInputElement>(null);
     const templateNew = useRef<HTMLInputElement>(null);
@@ -136,6 +203,24 @@ export const ProjectSettings: React.FunctionComponent = () => {
 
             if (!res) return;
             if (!didUnmount.current) setSettings(res);
+        })();
+    }, [projectId]);
+
+    useEffect(() => {
+        if (!projectId) {
+            navigate(AppRoutes.dashboard.dashboardA());
+            return;
+        }
+        (async () => {
+            const res = await callAPIWithErrorHandler<Map<string, Policy>>(
+                {
+                    ...retrieveRequestPolicies(),
+                    projectOverride: projectId
+                }
+            );
+
+            if (!res) return;
+            if (!didUnmount.current) setPolicies(res);
         })();
     }, [projectId]);
 
@@ -246,118 +331,133 @@ export const ProjectSettings: React.FunctionComponent = () => {
         }
         headerSize={64}
         main={<div className={ActionContainer}>
-            {!isAdminOrPI(status.myRole) ? (<Card>
+            {isAdminOrPI(status.myRole) ? (
+                <>
+                    <Card>
+                        <Heading.h3>Project information</Heading.h3>
+
+                        <ChangeProjectTitle
+                            projectId={projectId}
+                            projectTitle={project.specification.title}
+                            onSuccess={() => projectOps.reload()}
+                        />
+
+                        {Client.userIsAdmin ? <>
+                            <Label>Project ID (only visible to UCloud Admins)</Label>
+                            <Flex>
+                                <Text color={"textSecondary"}>{projectId}</Text>
+                                <Icon
+                                    name="heroDocumentDuplicate"
+                                    ml="10px"
+                                    onClick={() => {
+                                        copyToClipboard(projectId);
+                                        sendInformationNotification("Copied project ID to clipboard!");
+                                    }}
+                                />
+                            </Flex>
+                        </> : null}
+
+                        <SubprojectSettings
+                            projectId={projectId}
+                            projectRole={status.myRole!}
+                            setLoading={() => false}
+                        />
+
+                    </Card>
+
+                    <Card>
+                        <Heading.h3>Grant settings</Heading.h3>
+
+                        <UpdateProjectLogo />
+
+                        <form onSubmit={onSave}>
+                            <Flex gap="32px">
+                                <label>
+                                    Project description <br />
+                                    <TextArea width="100%" rows={5} inputRef={description} />
+                                </label>
+
+                                <label>
+                                    Template for personal projects <br />
+                                    <TextArea width="100%" rows={5} inputRef={templatePersonal} />
+                                </label>
+                            </Flex>
+
+                            <Flex gap="32px">
+                                <label>
+                                    Template for existing projects <br />
+                                    <TextArea rows={5} inputRef={templateExisting} />
+                                </label>
+
+                                <label>
+                                    Template for new projects <br />
+                                    <TextArea rows={5} inputRef={templateNew} />
+                                </label>
+                            </Flex>
+
+                            {settings.enabled && <>
+                                <Flex flexDirection={"row"} gap={"32px"}>
+                                    <div>
+                                        <label style={{marginBottom: "16px"}}>Allow applications from</label>
+                                        <UserCriteriaEditor
+                                            criteria={settings.allowRequestsFrom}
+                                            onSubmit={onAllowAdd}
+                                            isExclusion={false}
+                                            onRemove={onAllowRemove}
+                                            showSubprojects={settings.enabled}
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label>Exclude applications from</label>
+                                        <UserCriteriaEditor
+                                            criteria={settings.excludeRequestsFrom}
+                                            onSubmit={onExcludeAdd}
+                                            isExclusion={true}
+                                            onRemove={onExcludeRemove}
+                                            showSubprojects={false}
+                                        />
+                                    </div>
+                                </Flex>
+                            </>}
+
+                            <Flex justifyContent={"center"} mt={32}>
+                                <Button type={"submit"} fullWidth>Save</Button>
+                            </Flex>
+                        </form>
+                    </Card>
+                </>) : null
+            }
+            {isDataSteward(status.myRole) ? (<Card>
+                <Heading.h3>Project Policies</Heading.h3>
+                <br />
+                {
+                    Object.values(policies).map((policy: Policy) => (
+                        <>
+                            <Card key={policy.schema.name}>
+                                <Heading.h3>{policy.schema.title}</Heading.h3>
+                                {policy.schema.description}
+                                <br />
+                                {policy.schema.configuration.map(prop => (
+                                    <RenderPolicyProperty property={prop} value={locatePolicyValue(policy, prop.name, prop.type)} />
+                                ))}
+                                <Box mt="12px" mb="36px" />
+                                <Button type={"submit"} fullWidth>Save</Button>
+                            </Card>
+                            <Box mt="12px" mb="36px" />
+                        </>
+                    ))
+                }
+
+            </Card>) : null}
+            <Card>
                 <LeaveProject
                     onSuccess={() => navigate("/")}
                     projectTitle={project.specification.title}
                     projectId={projectId}
                     projectRole={status.myRole!}
-                    showTitle
                 />
-            </Card>) : <>
-                <Card>
-                    <Heading.h3>Project information</Heading.h3>
-
-                    <ChangeProjectTitle
-                        projectId={projectId}
-                        projectTitle={project.specification.title}
-                        onSuccess={() => projectOps.reload()}
-                    />
-
-                    {Client.userIsAdmin ? <>
-                        <Label>Project ID (only visible to UCloud Admins)</Label>
-                        <Flex>
-                            <Text color={"textSecondary"}>{projectId}</Text>
-                            <Icon
-                                name="heroDocumentDuplicate"
-                                ml="10px"
-                                onClick={() => {
-                                    copyToClipboard(projectId);
-                                    sendInformationNotification("Copied project ID to clipboard!");
-                                }}
-                            />
-                        </Flex>
-                    </> : null}
-
-                    <SubprojectSettings
-                        projectId={projectId}
-                        projectRole={status.myRole!}
-                        setLoading={() => false}
-                    />
-
-                </Card>
-
-                <Card>
-                    <Heading.h3>Grant settings</Heading.h3>
-
-                    <UpdateProjectLogo />
-
-                    <form onSubmit={onSave}>
-                        <Flex gap="32px">
-                            <label>
-                                Project description <br />
-                                <TextArea width="100%" rows={5} inputRef={description} />
-                            </label>
-
-                            <label>
-                                Template for personal projects <br />
-                                <TextArea width="100%" rows={5} inputRef={templatePersonal} />
-                            </label>
-                        </Flex>
-
-                        <Flex gap="32px">
-                            <label>
-                                Template for existing projects <br />
-                                <TextArea rows={5} inputRef={templateExisting} />
-                            </label>
-
-                            <label>
-                                Template for new projects <br />
-                                <TextArea rows={5} inputRef={templateNew} />
-                            </label>
-                        </Flex>
-
-                        {settings.enabled && <>
-                            <Flex flexDirection={"row"} gap={"32px"}>
-                                <div>
-                                    <label style={{marginBottom: "16px"}}>Allow applications from</label>
-                                    <UserCriteriaEditor
-                                        criteria={settings.allowRequestsFrom}
-                                        onSubmit={onAllowAdd}
-                                        isExclusion={false}
-                                        onRemove={onAllowRemove}
-                                        showSubprojects={settings.enabled}
-                                    />
-                                </div>
-
-                                <div>
-                                    <label>Exclude applications from</label>
-                                    <UserCriteriaEditor
-                                        criteria={settings.excludeRequestsFrom}
-                                        onSubmit={onExcludeAdd}
-                                        isExclusion={true}
-                                        onRemove={onExcludeRemove}
-                                        showSubprojects={false}
-                                    />
-                                </div>
-                            </Flex>
-                        </>}
-
-                        <Flex justifyContent={"center"} mt={32}>
-                            <Button type={"submit"} fullWidth>Save</Button>
-                        </Flex>
-                    </form>
-                </Card>
-
-                <Card>
-                    <LeaveProject
-                        onSuccess={() => navigate("/")}
-                        projectTitle={project.specification.title}
-                        projectId={projectId}
-                        projectRole={status.myRole!}
-                    />
-                </Card>
-            </>}
+            </Card>
         </div>}
     />
 };
@@ -545,7 +645,8 @@ export function LeaveProject(props: LeaveProjectProps): React.ReactNode {
     return (
         <ActionBox>
             <Box flexGrow={1}>
-                <Heading.h3>Leave project {props.showTitle ? `"${projectTitleFromCache(Client.projectId)}"` : ""}</Heading.h3>
+                <Heading.h3>Leave
+                    project {props.showTitle ? `"${projectTitleFromCache(Client.projectId)}"` : ""}</Heading.h3>
                 <Text>
                     If you leave the project the following will happen:
 
@@ -695,7 +796,8 @@ const UserCriteriaEditor: React.FunctionComponent<{
                             {it.type === "anyone" ? "None" : null}
                         </TableCell>
                         <TableCell textAlign={"right"}>
-                            <Icon color={"errorMain"} name={"trash"} cursor={"pointer"} onClick={() => props.onRemove(idx)} />
+                            <Icon color={"errorMain"} name={"trash"} cursor={"pointer"}
+                                  onClick={() => props.onRemove(idx)} />
                         </TableCell>
                     </TableRow>
                 )}

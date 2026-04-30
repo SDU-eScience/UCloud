@@ -4,7 +4,7 @@ import jobs = UCloud.compute.jobs;
 import {useCloudAPI} from "@/Authentication/DataHook";
 import {errorMessageOrDefault, isAbsoluteUrl, shortUUID} from "@/UtilityFunctions";
 import {usePage} from "@/Navigation/Redux";
-import {useParams} from "react-router-dom";
+import {useLocation, useParams} from "react-router-dom";
 import {useCallback, useEffect, useLayoutEffect, useRef, useState} from "react";
 import {compute} from "@/UCloud";
 import JobsOpenInteractiveSessionResponse = compute.JobsOpenInteractiveSessionResponse;
@@ -15,6 +15,7 @@ import {TermAndShellWrapper} from "@/Applications/Jobs/TermAndShellWrapper";
 import {bulkRequestOf} from "@/UtilityFunctions";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {sendFailureNotification} from "@/Notifications";
+import {getQueryParam} from "@/Utilities/URIUtilities";
 
 interface ConnectionDetails {
     url: string;
@@ -22,7 +23,7 @@ interface ConnectionDetails {
 }
 
 export const Vnc: React.FunctionComponent = () => {
-    const params = useParams<{jobId: string, rank: string}>();
+    const params = useParams<{ jobId: string, rank: string }>();
     const jobId = params.jobId!;
     const rank = params.rank!;
     const [isConnected, setConnected] = React.useState(false);
@@ -31,13 +32,23 @@ export const Vnc: React.FunctionComponent = () => {
         null
     );
 
+    const location = useLocation();
+    const passwordFromQueryParameter = getQueryParam(location.search, "t");
+    const urlFromQueryParameter = getQueryParam(location.search, "u");
+
     const pasteEventsToCancel = useRef<EventListener[]>([]);
 
     const [connectionDetails, setConnectionDetails] = useState<ConnectionDetails | null>(null);
     usePage(`Remote Desktop: ${shortUUID(jobId)} [Node: ${parseInt(rank, 10) + 1}]`, SidebarTabId.APPLICATIONS);
 
     useEffect(() => {
-        if (sessionResp.data !== null && sessionResp.data.responses.length > 0) {
+        if (passwordFromQueryParameter && urlFromQueryParameter) {
+            const url = urlFromQueryParameter
+                .replace("http://", "ws://")
+                .replace("https://", "wss://");
+            const password = passwordFromQueryParameter;
+            setConnectionDetails({url, password});
+        } else if (sessionResp.data !== null && sessionResp.data.responses.length > 0) {
             const {providerDomain, session} = sessionResp.data.responses[0];
             if (session.type !== "vnc") {
                 sendFailureNotification("Unexpected response from UCloud. Unable to open remote desktop!");
@@ -56,7 +67,7 @@ export const Vnc: React.FunctionComponent = () => {
                 document.removeEventListener("paste", listener);
             }
         }
-    }, [sessionResp.data]);
+    }, [sessionResp.data, passwordFromQueryParameter, urlFromQueryParameter]);
 
     const connect = useCallback(() => {
         if (connectionDetails === null) return;
@@ -115,7 +126,7 @@ export const Vnc: React.FunctionComponent = () => {
             </div>
         )}
 
-        <div className={"contents"} />
+        <div className={"contents"}/>
     </TermAndShellWrapper>;
 };
 
@@ -128,7 +139,7 @@ export const Vnc: React.FunctionComponent = () => {
  * block the Clipboard API without a user gesture.
  */
 async function onRemoteClipboard(ev: CustomEvent): Promise<void> {
-    const text = (ev.detail as {text?: string}).text ?? "";
+    const text = (ev.detail as { text?: string }).text ?? "";
     if (!text) return;
 
     try {

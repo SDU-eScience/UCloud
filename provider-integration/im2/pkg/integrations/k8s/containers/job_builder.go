@@ -17,6 +17,7 @@ import (
 	"ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/integrations/k8s/filesystem"
 	"ucloud.dk/pkg/integrations/k8s/shared"
+	"ucloud.dk/shared/pkg/foundation"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -110,6 +111,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		},
 		Spec: core.PodSpec{},
 	}
+	pod.Spec.Containers = make([]core.Container, 0, 16)
 
 	if iappConfig.Present {
 		pod.Annotations[IAppAnnotationEtag] = iappConfig.Value.ETag
@@ -146,6 +148,71 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		jobAuditLogSetup(job, rank, spec, userContainer, "48291")
 	}
 
+	product := job.Status.ResolvedProduct.Value
+	cpuMillis := shared.NodeCpuMillisNormalizedWithReserved(&product)
+	memoryMegabytes := int64(product.MemoryInGigs * 1000)
+
+	if job.Owner.Project.Present {
+		_, hasRestriction := controller.RetrievePoliciesByProject(job.Owner.Project.String())[foundation.RestrictCutAndPaste.String()]
+		if hasRestriction {
+
+			// (Henrik) If this restriction is in effect then the sidecar needs to consume resources from the main job
+			// to run. It is accepted that if the machine is to small the main job is killed OOM while there always
+			// is enough to run the VNC needed to connect.
+
+			vncCPUMillis := min(max(500, cpuMillis/4), 1000)
+			vncMemMB := min(max(750, memoryMegabytes/4), 4000)
+
+			cpuMillis = max(1, cpuMillis-vncCPUMillis)
+			memoryMegabytes = max(1, memoryMegabytes-vncMemMB)
+
+			url := "http://localhost"
+			if job.Status.ResolvedApplication.Present && job.Status.ResolvedApplication.Value.Invocation.Web.Present {
+				url = fmt.Sprintf("%v:%v", url, job.Status.ResolvedApplication.Value.Invocation.Web.Value.Port)
+			}
+
+			vnc := orc.VncDescription{
+				Password: "mypassword",
+				Port:     20000,
+			}
+			if job.Status.ResolvedApplication.Present && job.Status.ResolvedApplication.Value.Invocation.Vnc.Present {
+				vnc = job.Status.ResolvedApplication.Value.Invocation.Vnc.Value
+			}
+
+			spec.Containers = append(spec.Containers, core.Container{
+				Name:  ContainerProxyVNC,
+				Image: "mrcolorrain/vnc-browser:debian",
+				Env: []core.EnvVar{
+					{Name: "AUTO_START_BROWSER", Value: "true"},
+					{Name: "BROWSER_OPTIONS", Value: "--start-fullscreen --kiosk"},
+					{Name: "STARTING_WEBSITE_URL", Value: url},
+
+					{Name: "AUTO_START_VNC", Value: "true"},
+					{Name: "VNC_RESOLUTION", Value: "1280x720"},
+					{Name: "VNC_PASSWORD", Value: vnc.Password},
+					{Name: "VNC_OPTIONS", Value: "SendCutText=false"},
+
+					{Name: "AUTO_START_XTERM", Value: "false"},
+				},
+				ImagePullPolicy: core.PullIfNotPresent,
+				Resources: core.ResourceRequirements{
+					Limits: map[core.ResourceName]resource.Quantity{
+						core.ResourceCPU:    *resource.NewScaledQuantity(int64(vncCPUMillis), resource.Milli),
+						core.ResourceMemory: *resource.NewScaledQuantity(int64(vncMemMB), resource.Mega),
+					},
+					Requests: map[core.ResourceName]resource.Quantity{
+						core.ResourceCPU:    *resource.NewScaledQuantity(int64(vncCPUMillis), resource.Milli),
+						core.ResourceMemory: *resource.NewScaledQuantity(int64(vncMemMB), resource.Mega),
+					},
+				},
+				SecurityContext: &core.SecurityContext{
+					RunAsNonRoot:             util.BoolPointer(!application.Container.RunAsRoot),
+					AllowPrivilegeEscalation: util.BoolPointer(application.Container.RunAsRoot),
+				},
+			})
+		}
+	}
+
 	// Setting up network policy and service
 	// -----------------------------------------------------------------------------------------------------------------
 	// Only rank 0 is responsible for creating these additional resources. Their pointers will be nil if they should
@@ -167,6 +234,36 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		}
 		allowNetworkFrom(firewall, job.Id)
 		allowNetworkTo(firewall, job.Id)
+
+		if job.Owner.Project.Present {
+			policyAccessSpec, hasEngressRestriction := controller.RetrievePoliciesByProject(job.Owner.Project.String())[foundation.RestrictInternetAccess.String()]
+			if hasEngressRestriction {
+				for _, prop := range policyAccessSpec.Properties {
+					if prop.Name == "allowedSubnets" {
+						if prop.Text == "" {
+							firewall.Spec.PolicyTypes = []networking.PolicyType{networking.PolicyTypeEgress}
+						} else {
+							allowNetworkTo(firewall, prop.Text)
+						}
+						break
+					}
+				}
+			}
+
+			policySourceSpec, hasIngressRestriction := controller.RetrievePoliciesByProject(job.Owner.Project.String())[foundation.RestrictSourceIPRange.String()]
+			if hasIngressRestriction {
+				for _, prop := range policySourceSpec.Properties {
+					if prop.Name == "allowedSubnets" {
+						if prop.Text == "" {
+							firewall.Spec.PolicyTypes = []networking.PolicyType{networking.PolicyTypeIngress}
+						} else {
+							allowNetworkFrom(firewall, prop.Text)
+						}
+						break
+					}
+				}
+			}
+		}
 
 		serviceLabel := shared.JobIdLabel(job.Id)
 		service = &core.Service{
@@ -238,9 +335,6 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		userContainer.Resources.Requests[name] = *quantity
 	}
 
-	product := job.Status.ResolvedProduct.Value
-	cpuMillis := shared.NodeCpuMillisNormalizedWithReserved(&product)
-	memoryMegabytes := int64(product.MemoryInGigs * 1000)
 	gpus := int64(product.Gpu)
 
 	gpuType := "nvidia.com/gpu"

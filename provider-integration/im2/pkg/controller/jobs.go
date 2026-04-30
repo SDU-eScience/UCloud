@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"slices"
 	"strings"
@@ -85,10 +86,11 @@ type ConfiguredWebSessionResult struct {
 }
 
 type ConfiguredWebEndpoint struct {
-	Host         cfg.HostInfo
-	TargetDomain string
-	Flags        RegisteredIngressFlags
-	IsPublic     bool
+	Host                cfg.HostInfo
+	TargetDomain        string
+	Flags               RegisteredIngressFlags
+	IsPublic            bool
+	VncPasswordOverride util.Option[string]
 }
 
 type ConfiguredWebIngress struct {
@@ -364,29 +366,6 @@ func initJobs() {
 			}
 		})
 
-		orcapi.JobsProviderUnsuspend.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.JobsProviderUnsuspendRequestItem]) (fnd.BulkResponse[util.Empty], *util.HttpError) {
-			var errors []*util.HttpError
-
-			for _, item := range request.Items {
-				err := Jobs.Unsuspend(item.Job)
-
-				if err != nil {
-					errors = append(errors, err)
-				}
-			}
-
-			if len(errors) > 0 {
-				return fnd.BulkResponse[util.Empty]{}, errors[0]
-			} else {
-				var response fnd.BulkResponse[util.Empty]
-				for i := 0; i < len(request.Items); i++ {
-					response.Responses = append(response.Responses, util.Empty{})
-				}
-
-				return response, nil
-			}
-		})
-
 		orcapi.JobsProviderExtend.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.JobsProviderExtendRequestItem]) (fnd.BulkResponse[util.Empty], *util.HttpError) {
 			var errors []*util.HttpError
 
@@ -413,12 +392,17 @@ func initJobs() {
 		orcapi.JobsProviderOpenInteractiveSession.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.JobsProviderOpenInteractiveSessionRequestItem]) (fnd.BulkResponse[orcapi.OpenSession], *util.HttpError) {
 			var errors []*util.HttpError
 			var responses []orcapi.OpenSession
-
 			for _, item := range request.Items {
 				switch item.SessionType {
 				case orcapi.InteractiveSessionTypeShell:
 					jobCleanupShellSessions()
-
+					if item.Job.Owner.Project.Present {
+						policies := RetrievePoliciesByProject(item.Job.Owner.Project.Value)
+						_, isRestricted := policies[fnd.RestrictCutAndPaste.String()]
+						if isRestricted {
+							break
+						}
+					}
 					shellSessionsMutex.Lock()
 					tok := util.RandomToken(32)
 					shellSessions[tok] = &ShellSession{Alive: true, Job: &item.Job, Rank: item.Rank, UCloudUsername: info.Actor.Username}
@@ -431,21 +415,26 @@ func initJobs() {
 				case orcapi.InteractiveSessionTypeVnc:
 					fallthrough
 				case orcapi.InteractiveSessionTypeWeb:
-					isVnc := item.SessionType == orcapi.InteractiveSessionTypeVnc
-
 					targetResult, err := Jobs.OpenWebSession(&item.Job, item.SessionType, item.Rank, item.Target)
 					if err != nil {
 						errors = append(errors, err)
 					} else {
+						isVnc := false
+
 						endpoints := targetResult.Endpoints
 						for i := range endpoints {
 							if endpoints[i].Flags == 0 {
-								if isVnc {
+								isDefaultVnc := item.SessionType == orcapi.InteractiveSessionTypeVnc
+								if isDefaultVnc {
 									endpoints[i].Flags = RegisteredIngressFlagsVnc
 								} else {
 									endpoints[i].Flags = RegisteredIngressFlagsWeb
 								}
 							}
+						}
+
+						if len(endpoints) > 0 {
+							isVnc = endpoints[0].Flags&RegisteredIngressFlagsVnc != 0
 						}
 
 						redirect, err := IngressRegisterEndpointsWithJob(&item.Job, item.Rank, item.Target, endpoints)
@@ -454,6 +443,13 @@ func initJobs() {
 						} else {
 							if isVnc {
 								password := item.Job.Status.ResolvedApplication.Value.Invocation.Vnc.Value.Password
+
+								if len(endpoints) > 0 {
+									override := endpoints[0].VncPasswordOverride
+									if override.Present {
+										password = override.Value
+									}
+								}
 
 								responses = append(
 									responses,
@@ -487,6 +483,46 @@ func initJobs() {
 		})
 
 		orcapi.JobsProviderOpenTerminalInFolder.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.JobsOpenTerminalInFolderRequestItem]) (fnd.BulkResponse[orcapi.OpenSession], *util.HttpError) {
+			for _, item := range request.Items {
+				driveId, ok := orcapi.DriveIdFromUCloudPath(item.Folder)
+				if ok {
+					dInfo, found := DriveRetrieve(driveId)
+					if found {
+						policies := RetrievePoliciesByProject(dInfo.Owner.Project.String())
+						iAppSpecs, hasIntegratedRestrictions := policies[fnd.RestrictIntegratedApplications.String()]
+						if hasIntegratedRestrictions {
+							isRestricted := true
+							for _, property := range iAppSpecs.Properties {
+								if property.Name == "allowList" {
+									for _, element := range property.TextElements {
+										if element == "terminal" {
+											isRestricted = false
+											break
+										}
+									}
+									break
+								}
+							}
+							if isRestricted {
+								return fnd.BulkResponse[orcapi.OpenSession]{}, util.HttpErr(http.StatusForbidden, "Project does not allow integrated terminal (IM side)")
+							}
+						}
+						if IsSourceIPRestricted(policies, info) {
+							return fnd.BulkResponse[orcapi.OpenSession]{}, util.HttpErr(http.StatusForbidden, "Client IP is not allowed")
+						}
+						if dInfo.Owner.Project.Present {
+							policies := RetrievePoliciesByProject(dInfo.Owner.Project.Value)
+							_, isRestricted := policies[fnd.RestrictCutAndPaste.String()]
+							if isRestricted {
+								return fnd.BulkResponse[orcapi.OpenSession]{}, util.HttpErr(http.StatusForbidden, "Project does not allow integrated terminal (IM side)")
+							}
+						}
+					} else {
+						return fnd.BulkResponse[orcapi.OpenSession]{}, util.HttpErr(http.StatusNotFound, "Folder cannot be found")
+					}
+				}
+			}
+
 			var errors []*util.HttpError
 			var responses []orcapi.OpenSession
 
@@ -2083,4 +2119,26 @@ func jobRoutesRefresh() {
 	}
 
 	webSessionsMutex.Unlock()
+}
+
+func IsSourceIPRestricted(projectPolices map[string]*fnd.PolicySpecification, info rpc.RequestInfo) bool {
+	sourceIPSpecs, hasSourceIpRestriction := projectPolices[fnd.RestrictSourceIPRange.String()]
+	if hasSourceIpRestriction {
+		isRestricted := true
+		for _, property := range sourceIPSpecs.Properties {
+			if property.Name == "allowedClientSubnets" {
+				allowedIps := property.Text
+				if allowedIps == "" {
+					break
+				}
+				_, subnet, _ := net.ParseCIDR(allowedIps)
+				ip := net.ParseIP(util.ClientIP(info.HttpRequest).String())
+				if subnet.Contains(ip) {
+					isRestricted = false
+				}
+			}
+		}
+		return isRestricted
+	}
+	return false
 }

@@ -1,0 +1,12 @@
+name: "RestrictPublicIPs"
+title: "Restrict public IPs"
+description: >
+  Controls whether workloads in the project may be assigned public IP addresses.
+
+configuration:
+  - name: "enabled"
+    type: "Bool"
+    title: "Enabled"
+    description: >
+      If enabled, public IP creation and use is disabled. Existing public 
+      IPs are _not_ deleted.

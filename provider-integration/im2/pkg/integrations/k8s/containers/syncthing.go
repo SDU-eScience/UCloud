@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/rand"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -22,6 +23,7 @@ import (
 	"ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/integrations/k8s/filesystem"
 	"ucloud.dk/pkg/integrations/k8s/shared"
+	"ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
@@ -161,6 +163,33 @@ func syncthingBeforeRestart(job *orc.Job) *util.HttpError {
 
 func syncthingValidateConfiguration(job *orc.Job, configuration json.RawMessage) *util.HttpError {
 	var config orc.SyncthingConfig
+	configErr := json.Unmarshal(configuration, &config)
+	if configErr == nil {
+		for _, folder := range config.Folders {
+			driveId, ok := filesystem.DriveIdFromUCloudPath(folder.UCloudPath)
+			if ok {
+				dInfo, found := controller.DriveRetrieve(driveId)
+				if found {
+					policySpecs, hasRestriction := controller.RetrievePoliciesByProject(dInfo.Owner.Project.String())[foundation.RestrictIntegratedApplications.String()]
+					isAllowed := false
+					if hasRestriction {
+						for _, property := range policySpecs.Properties {
+							if property.Name == "allowList" {
+								for _, element := range property.TextElements {
+									if element == "syncthing" {
+										isAllowed = true
+									}
+								}
+							}
+						}
+					}
+					if !isAllowed {
+						return util.HttpErr(http.StatusForbidden, "Project does not allow usage of syncthing (IM)")
+					}
+				}
+			}
+		}
+	}
 	return util.HttpErrorFromErr(json.Unmarshal(configuration, &config))
 }
 

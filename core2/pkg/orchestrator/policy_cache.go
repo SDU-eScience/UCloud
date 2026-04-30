@@ -1,0 +1,109 @@
+package orchestrator
+
+import (
+	"context"
+	"net"
+	"sync"
+
+	"ucloud.dk/core/pkg/coreutil"
+	db "ucloud.dk/shared/pkg/database"
+	fndapi "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/log"
+	"ucloud.dk/shared/pkg/rpc"
+	"ucloud.dk/shared/pkg/util"
+)
+
+// policyCache is a mapping of projectId -> map[schemaName] -> PolicySpecification
+var policyCache struct {
+	Mu                sync.RWMutex
+	PoliciesByProject map[string]map[string]*fndapi.PolicySpecification
+}
+
+func initPolicySubscriptions() {
+
+	policyCache.Mu.Lock()
+	policyCache.PoliciesByProject = make(map[string]map[string]*fndapi.PolicySpecification)
+	policyCache.Mu.Unlock()
+
+	go func() {
+		policyUpdates := db.Listen(context.Background(), "policy_updates")
+		policyDeletes := db.Listen(context.Background(), "policy_deleted")
+
+		var projectId string
+		var policySpecifications map[string]*fndapi.PolicySpecification
+		var policiesOk bool
+
+		for {
+			select {
+			case projectId = <-policyUpdates:
+
+				db.NewTx0(func(tx *db.Transaction) {
+					policySpecifications, policiesOk = coreutil.PolicySpecificationsRetrieveFromDatabase(tx, projectId)
+				})
+			case projectId = <-policyDeletes:
+
+				db.NewTx0(func(tx *db.Transaction) {
+					policySpecifications, policiesOk = coreutil.PolicySpecificationsRetrieveFromDatabase(tx, projectId)
+				})
+			}
+
+			if policiesOk {
+				updatePolicyCacheForProject(projectId, policySpecifications)
+			}
+		}
+
+	}()
+}
+
+// policiesByProject returns mapping of [schema Name] => PolicySpecification. If no policy is cached for the project it
+// will attempt to retrieve it from DB. This is also how it is populated.
+func policiesByProject(projectId string) map[string]*fndapi.PolicySpecification {
+	projectPolicies := map[string]*fndapi.PolicySpecification{}
+	policyCache.Mu.Lock()
+	projectPolicies, ok := policyCache.PoliciesByProject[projectId]
+	if !ok {
+		log.Debug("No policies for project %v", projectId)
+		db.NewTx0(func(tx *db.Transaction) {
+			policySpecifications, policiesOk := coreutil.PolicySpecificationsRetrieveFromDatabase(tx, projectId)
+			if policiesOk {
+				policyCache.PoliciesByProject[projectId] = policySpecifications
+				projectPolicies = policySpecifications
+			} else {
+				log.Debug("No policies for project %v found in DB", projectId)
+			}
+		})
+	}
+	policyCache.Mu.Unlock()
+
+	return projectPolicies
+}
+
+func updatePolicyCacheForProject(projectId string, policySpecifications map[string]*fndapi.PolicySpecification) {
+	policyCache.Mu.Lock()
+	policyCache.PoliciesByProject[projectId] = policySpecifications
+	policyCache.Mu.Unlock()
+}
+
+func sourceIPisRestricted(info rpc.RequestInfo) bool {
+	if info.Actor.Project.Present {
+		sourceIpSpecs, hasSourceRestriction := policiesByProject(info.Actor.Project.String())[fndapi.RestrictSourceIPRange.String()]
+		if hasSourceRestriction {
+			isRestricted := true
+			for _, property := range sourceIpSpecs.Properties {
+				if property.Name == "allowedClientSubnets" {
+					allowedIps := property.Text
+					if allowedIps == "" {
+						break
+					}
+					_, subnet, _ := net.ParseCIDR(allowedIps)
+					ip := net.ParseIP(util.ClientIP(info.HttpRequest).String())
+					if subnet.Contains(ip) {
+						isRestricted = false
+					}
+				}
+			}
+			return isRestricted
+		}
+	}
+	return false
+}

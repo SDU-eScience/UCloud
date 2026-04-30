@@ -2,6 +2,7 @@ package accounting
 
 import (
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
@@ -14,10 +15,16 @@ import (
 
 func initGrantsExport() {
 	accapi.GrantsExport.Handler(func(info rpc.RequestInfo, request util.Empty) ([]accapi.GrantsExportResponse, *util.HttpError) {
+		if sourceIPisRestricted(info) {
+			return nil, util.HttpErr(http.StatusForbidden, "Client IP is not allowed by project")
+		}
 		return GrantsExportBrowse(info.Actor), nil
 	})
 
 	accapi.GrantsExportCsv.Handler(func(info rpc.RequestInfo, request util.Empty) (accapi.GrantsExportCsvResponse, *util.HttpError) {
+		if sourceIPisRestricted(info) {
+			return accapi.GrantsExportCsvResponse{}, util.HttpErr(http.StatusForbidden, "Client IP is not allowed by project")
+		}
 		csv := GrantsExportBrowseToCsv(GrantsExportBrowse(info.Actor))
 		return accapi.GrantsExportCsvResponse{
 			FileName: "grants.csv",
