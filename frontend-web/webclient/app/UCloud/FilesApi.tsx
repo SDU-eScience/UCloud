@@ -293,7 +293,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 shortcut: ShortcutKey.U
             },
             {
-                text: "Create folder",
+                text: "Create folder cheese dippers",
                 icon: "uploadFolder",
                 primary: true,
                 enabled: (selected, cb) => {
@@ -312,7 +312,8 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     return true;
                 },
                 onClick: (selected, cb) => cb.startFolderCreation!(),
-                shortcut: ShortcutKey.F
+                shortcut: ShortcutKey.F,
+                splitButtonGroupId: 'createOperations'
             },
 
             {
@@ -651,7 +652,8 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 onClick: (selected, cb) => {
                     cb.startFileCreation!();
                 },
-                shortcut: ShortcutKey.L
+                shortcut: ShortcutKey.L,
+                splitButtonGroupId: "createOperations"
             },
             {
                 icon: "trash",

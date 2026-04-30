@@ -50,6 +50,7 @@ import {callAPI, noopCall} from "@/Authentication/DataHook";
 import {injectResourceBrowserStyle, ShortcutClass} from "./ResourceBrowserStyle";
 import {ASC, DESC, Filter, FilterCheckbox, FilterInput, FilterOption, FilterWithOptions, MultiOption, MultiOptionFilter, SORT_BY, SORT_DIRECTION} from "./ResourceBrowserFilters";
 import {sendInformationNotification} from "@/Notifications";
+import { UFile } from "@/UCloud/UFile";
 
 const CLEAR_FILTER_VALUE = "\n\nCLEAR_FILTER\n\n";
 const UTILITY_COLOR: ThemeColor = "textPrimary";
@@ -138,6 +139,8 @@ export interface OperationGroup<T, R> {
     backgroundColor?: ThemeColor,
     operations: Operation<T, R>[];
     iconRotation?: number;
+    operationGroupId?: string;
+    buttonStyle?: string
 }
 
 export enum SelectionMode {
@@ -1614,6 +1617,10 @@ export class ResourceBrowser<T> {
                         ("operations" in op ? "primaryMain" : "secondaryMain")
                 )
             );
+            if ("operations" in op) {
+                // is OperationGroup
+                console.log("MAMAMMA ", op.operations);
+            }
 
             // Hack(Jonas): Very specific DriveBrowser fix, for Delete Drive coloring of Trash-icon.
             // The `errorContrast` is white. So kinda works for Dark Theme, not for Light Theme.
@@ -1709,7 +1716,7 @@ export class ResourceBrowser<T> {
 
             {
                 if (operationText) {
-                    element.append(operationText);
+                    element.append(operationText + "Asdfasdfasf");
                 }
                 if (operationText && shortcut) {
                     const shortcutItems = shortcut.split("+");
@@ -1879,6 +1886,9 @@ export class ResourceBrowser<T> {
             const target = this.operations;
             target.innerHTML = "";
             for (const op of operations) {
+                if (op.buttonStyle === 'split') {
+                    console.log('Split ', op);
+                }
                 target.append(renderOperation(op));
             }
         } else {

@@ -73,6 +73,7 @@ export interface Operation<T, R = undefined> {
     primary?: boolean;
     confirm?: boolean;
     tag?: string;
+    splitButtonGroupId?: string
 }
 
 export function defaultOperationType(
