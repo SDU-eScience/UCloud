@@ -880,7 +880,7 @@ func initJobs() {
 
 			for _, item := range request.Items {
 				if ResourceIsLocked(item.Resource, item.Specification.Product) {
-					return fnd.BulkResponse[fnd.FindByStringId]{}, util.HttpErr(http.StatusPaymentRequired, jobsMakeInsuffiecientFundsMessage(item.Resource, item.Specification.Product.Category))
+					return fnd.BulkResponse[fnd.FindByStringId]{}, util.HttpErr(http.StatusPaymentRequired, jobsMakeInsufficientFundsMessage(item.Resource, item.Specification.Product.Category))
 				}
 			}
 
@@ -1138,7 +1138,7 @@ func initJobs() {
 
 			for _, item := range request.Items {
 				if ResourceIsLocked(item.Resource, item.Specification.Product) {
-					return fnd.BulkResponse[fnd.FindByStringId]{}, util.HttpErr(http.StatusPaymentRequired, "insufficient funds for %s", item.Specification.Product.Category)
+					return fnd.BulkResponse[fnd.FindByStringId]{}, util.HttpErr(http.StatusPaymentRequired, jobsMakeInsufficientFundsMessage(item.Resource, item.Specification.Product.Category))
 				}
 			}
 
@@ -2085,7 +2085,7 @@ func jobRoutesRefresh() {
 	webSessionsMutex.Unlock()
 }
 
-func jobsMakeInsuffiecientFundsMessage(resource orcapi.Resource, category string) string {
+func jobsMakeInsufficientFundsMessage(resource orcapi.Resource, category string) string {
 	reason := fmt.Sprintf("cannot create %s due to insufficient funds.", category)
 	if resource.Owner.Project.IsEmpty() {
 		return fmt.Sprintf("The user %s %s", resource.Owner.CreatedBy, reason)
@@ -2093,9 +2093,20 @@ func jobsMakeInsuffiecientFundsMessage(resource orcapi.Resource, category string
 
 	projectId := resource.Owner.Project.Value
 	project, ok := ProjectRetrieve(projectId)
+
 	if !ok {
 		log.Warn("Failed to retrieve project with id: %s", projectId)
 		return fmt.Sprintf("The project %s %s ", projectId, reason)
 	}
-	return fmt.Sprintf("The project %s %s ", project.Specification.Title, reason)
+	// If we have a parent, refer to it
+	if project.Specification.Parent.Present {
+		projectId = project.Specification.Parent.Value
+		parentProject, ok := ProjectRetrieve(projectId)
+		if !ok {
+			log.Warn("Failed to retrieve parent project with id: %s", projectId)
+			return fmt.Sprintf("This subproject %s of %s %s", project.Specification.Title, project.Specification.Parent.Value, reason)
+		}
+		return fmt.Sprintf("This subproject %s of %s %s", project.Specification.Title, parentProject.Specification.Title, reason)
+	}
+	return fmt.Sprintf("This project %s %s ", project.Specification.Title, reason)
 }

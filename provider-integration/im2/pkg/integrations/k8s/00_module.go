@@ -408,9 +408,20 @@ func makeInsufficientFundsMessage(resource orc.Resource, category string) string
 
 	projectId := resource.Owner.Project.Value
 	project, ok := controller.ProjectRetrieve(projectId)
+
 	if !ok {
 		log.Warn("Failed to retrieve project with id: %s", projectId)
 		return fmt.Sprintf("The project %s %s ", projectId, reason)
 	}
-	return fmt.Sprintf("The project %s %s ", project.Specification.Title, reason)
+	// If we have a parent, refer to it
+	if project.Specification.Parent.Present {
+		projectId = project.Specification.Parent.Value
+		parentProject, ok := controller.ProjectRetrieve(projectId)
+		if !ok {
+			log.Warn("Failed to retrieve parent project with id: %s", projectId)
+			return fmt.Sprintf("This subproject %s of %s %s", project.Specification.Title, project.Specification.Parent.Value, reason)
+		}
+		return fmt.Sprintf("This subproject %s of %s %s", project.Specification.Title, parentProject.Specification.Title, reason)
+	}
+	return fmt.Sprintf("This project %s %s ", project.Specification.Title, reason)
 }
