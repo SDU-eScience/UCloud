@@ -2088,22 +2088,3 @@ func jobRoutesRefresh() {
 
 	webSessionsMutex.Unlock()
 }
-
-func jobsRetrieveOwner(lockInfo ResourceLockInfo) string {
-	if lockInfo.Username.IsEmpty() && lockInfo.ProjectId.IsEmpty() {
-		log.Warn("No owner is found")
-		return ""
-	}
-	if lockInfo.Username.Present {
-		return lockInfo.Username.Value
-	}
-	if lockInfo.ProjectId.Present {
-		project, ok := ProjectRetrieve(lockInfo.ProjectId.Value)
-		if !ok {
-			log.Warn("Project %s not found", lockInfo.ProjectId.Value)
-			return ""
-		}
-		return project.Specification.Title
-	}
-	return ""
-}
