@@ -2103,7 +2103,7 @@ func jobsMakeInsufficientFundsMessage(resource orcapi.Resource, category string)
 		projectId = project.Specification.Parent.Value
 		parentProject, ok := ProjectRetrieve(projectId)
 		if !ok {
-			log.Warn("Failed to retrieve parent project with id: %s", projectId)
+			log.Warn("Failed to retrieve parent project with id: %s", project.Specification.Parent.Value)
 			return fmt.Sprintf("This subproject %s of %s %s", project.Specification.Title, project.Specification.Parent.Value, reason)
 		}
 		return fmt.Sprintf("This subproject %s of %s %s", project.Specification.Title, parentProject.Specification.Title, reason)
