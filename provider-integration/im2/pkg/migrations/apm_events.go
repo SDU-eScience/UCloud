@@ -64,3 +64,18 @@ func apmEventsV2() db.MigrationScript {
 		},
 	}
 }
+
+func ampEventsV3() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "apmEventsV3",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					alter table tracked_allocations add column total_usage int8 not null default 0
+			    `,
+				db.Params{},
+			)
+		},
+	}
+}

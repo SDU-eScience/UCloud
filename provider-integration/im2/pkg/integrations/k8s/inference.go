@@ -465,7 +465,7 @@ func inferenceReportUsage(owner apm.WalletOwner, promptTokens int, completionTok
 }
 
 func inferenceIsLocked(owner apm.WalletOwner) bool {
-	return controller.WalletIsLocked(owner, inferenceGlobals.Product.Category.Name)
+	return controller.WalletIsLocked(owner, inferenceGlobals.Product.Category.Name).Locked
 }
 
 // API tokens
@@ -529,7 +529,7 @@ func inferenceApiKeyValidate(key string) (apm.WalletOwner, *util.HttpError) {
 	inferenceTokenIdToKey.Set(tokenId, key)
 
 	owner := apm.WalletOwnerFromReference(ownerRef)
-	if controller.WalletIsLocked(owner, inferenceGlobals.Product.Category.Name) {
+	if controller.WalletIsLocked(owner, inferenceGlobals.Product.Category.Name).Locked {
 		return apm.WalletOwner{}, util.HttpErr(http.StatusPaymentRequired, "no more resources available")
 	} else {
 		return owner, nil

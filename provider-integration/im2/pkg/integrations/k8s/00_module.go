@@ -12,7 +12,6 @@ import (
 	"ucloud.dk/pkg/integrations/k8s/containers"
 	"ucloud.dk/pkg/integrations/k8s/filesystem"
 	"ucloud.dk/pkg/integrations/k8s/shared"
-	"ucloud.dk/shared/pkg/log"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 
 	"ucloud.dk/shared/pkg/util"
@@ -111,11 +110,11 @@ func IsJobLocked(job *orc.Job) util.Option[shared.LockedReason] {
 
 func IsJobLockedEx(job *orc.Job, jobAnnotations map[string]string) util.Option[shared.LockedReason] {
 	timer := util.NewTimer()
-	isLocked := controller.ResourceIsLocked(job.Resource, job.Specification.Product)
+	lockInfo := controller.RetrieveResourceLockInfo(job.Resource, job.Specification.Product)
 	metricComputeLocked.Observe(timer.Mark().Seconds())
 
-	if isLocked {
-		reason := makeInsufficientFundsMessage(job.Resource, job.Specification.Product.Category)
+	if lockInfo.Locked {
+		reason := controller.MakeInsufficientFundsMessage(lockInfo, job.Specification.Product.Category)
 		return util.OptValue(shared.LockedReason{
 			Reason: reason,
 			Err: &util.HttpError{
@@ -158,11 +157,12 @@ func IsJobLockedEx(job *orc.Job, jobAnnotations map[string]string) util.Option[s
 		}
 
 		timer.Mark()
-		storageLocked := controller.ResourceIsLocked(mount.RealDrive.Resource, mount.RealDrive.Specification.Product)
+		lockInfo := controller.RetrieveResourceLockInfo(mount.RealDrive.Resource, mount.RealDrive.Specification.Product)
+
 		metricStorageLocked.Observe(timer.Mark().Seconds())
 
-		if storageLocked {
-			reason := makeInsufficientFundsMessage(mount.RealDrive.Resource, mount.RealDrive.Specification.Product.Category)
+		if lockInfo.Locked {
+			reason := controller.MakeInsufficientFundsMessage(lockInfo, mount.RealDrive.Specification.Product.Category)
 			return util.OptValue(shared.LockedReason{
 				Reason: reason,
 				Err: &util.HttpError{
@@ -399,29 +399,3 @@ var metricMountedDrivesTiming = promauto.NewSummaryVec(prometheus.SummaryOpts{
 		0.99: 0.01,
 	},
 }, []string{"region"})
-
-func makeInsufficientFundsMessage(resource orc.Resource, category string) string {
-	reason := fmt.Sprintf("cannot create %s due to insufficient funds.", category)
-	if resource.Owner.Project.IsEmpty() {
-		return fmt.Sprintf("This user %s %s", resource.Owner.CreatedBy, reason)
-	}
-
-	projectId := resource.Owner.Project.Value
-	project, ok := controller.ProjectRetrieve(projectId)
-
-	if !ok {
-		log.Warn("Failed to retrieve project with id: %s", projectId)
-		return fmt.Sprintf("This project %s %s ", projectId, reason)
-	}
-	// If we have a parent, refer to it
-	if project.Specification.Parent.Present {
-		projectId = project.Specification.Parent.Value
-		parentProject, ok := controller.ProjectRetrieve(projectId)
-		if !ok {
-			log.Warn("Failed to retrieve parent project with id: %s", project.Specification.Parent.Value)
-			return fmt.Sprintf("This subproject %s of %s %s", project.Specification.Title, project.Specification.Parent.Value, reason)
-		}
-		return fmt.Sprintf("This subproject %s of %s %s", project.Specification.Title, parentProject.Specification.Title, reason)
-	}
-	return fmt.Sprintf("This project %s %s ", project.Specification.Title, reason)
-}
