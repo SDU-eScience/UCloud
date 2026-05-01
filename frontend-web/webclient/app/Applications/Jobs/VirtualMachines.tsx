@@ -341,7 +341,7 @@ export const VirtualMachineStatus: React.FunctionComponent<{
     const onSelectLaunchMenuItem = useCallback((item: VmActionItem) => {
         if (item.key.startsWith("iface:")) {
             let url = item.key.substring("iface:".length);
-            if (!url.startsWith("/app/")) {
+            if (!url.startsWith("/app/") && !url.startsWith("https:/")) {
                 url = "/app/" + url;
                 url = url.replaceAll("//", "/");
             }
@@ -743,20 +743,20 @@ export const VirtualMachineStatus: React.FunctionComponent<{
 
                         <SafeLogo name={job?.specification?.application?.name ?? "unknown"}
                                   type={"APPLICATION"}
-                                  size={"32px"}/>
+                                  size={"32px"} />
 
                         <Heading.h2>{appTitle} {appVersion}</Heading.h2>
                     </Flex>
                 </Box>
 
-                <Box flexGrow={1}/>
+                <Box flexGrow={1} />
 
                 <Flex flexDirection="row" alignItems="center" gap="10px">
                     {!showInterfaceControls ? null : (
                         <Flex>
                             <Link to={supportsTerminal ? terminalLink : (desktopTarget?.link ?? "")} target="_blank" aria-disabled={interfaceDisabled}>
                                 <Button disabled={interfaceDisabled} attachedLeft={hasLaunchMenu}>
-                                    <Icon name={supportsTerminal ? "heroCommandLine" : "heroComputerDesktop"} mr="8px"/>
+                                    <Icon name={supportsTerminal ? "heroCommandLine" : "heroComputerDesktop"} mr="8px" />
                                     {supportsTerminal
                                         ? "Open terminal"
                                         : `Open ${desktopTarget?.target ?? defaultInterfaceName ?? (supportsVnc ? "desktop" : "interface")}`
@@ -775,7 +775,7 @@ export const VirtualMachineStatus: React.FunctionComponent<{
                                     matchTriggerWidth={false}
                                     trigger={
                                         <div className={SplitDropdownTrigger} data-disabled={interfaceDisabled}>
-                                            <Icon name="heroChevronDown"/>
+                                            <Icon name="heroChevronDown" />
                                         </div>
                                     }
                                 />
@@ -814,7 +814,7 @@ export const VirtualMachineStatus: React.FunctionComponent<{
             <div className={HeroHeaderGrid}>
                 <HeroMetric title={"ID"}>{shortUUID(job.id)}</HeroMetric>
                 <HeroMetric title="Provider">
-                    <ProviderTitle providerId={job.specification.product.provider}/>
+                    <ProviderTitle providerId={job.specification.product.provider} />
                 </HeroMetric>
                 <HeroMetric title="Machine type">{job.specification.product.id}</HeroMetric>
                 <HeroMetric title="Launched by">{job.owner.createdBy}</HeroMetric>
