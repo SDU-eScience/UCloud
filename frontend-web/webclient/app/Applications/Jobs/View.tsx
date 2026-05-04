@@ -1151,8 +1151,8 @@ const RunningContent: React.FunctionComponent<{
         }
     }, [job.updates.length]);
 
-    const ingresses = job.specification.resources.filter(it => it.type === "ingress") as AppParameterValueNS.Ingress[];
-    const peers = job.specification.resources.filter(it => it.type === "peer") as AppParameterValueNS.Peer[];
+    const ingresses = job.specification.resources?.filter(it => it.type === "ingress") ?? [];
+    const peers = job.specification.resources?.filter(it => it.type === "peer") ?? [];
 
     if (localStorage.getItem("fakeLinks")) {
         ingresses.push({
