@@ -10,6 +10,7 @@ UCloud/Core @ 2026.3.0
 UCloud/Frontend @ 2026.3.0
 SDU/K8s @ 2026.3.0
 SDUOdense/K8s @ 2026.3.0
+AAU/K8s @ 2026.3.0
 ```
 
 ## 30-04-26
