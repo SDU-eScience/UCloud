@@ -10,10 +10,12 @@ import {ProviderBrandingResponse} from "./UCloud/ProviderBrandingApi";
 import {initProviderBranding} from "./ProviderBrandings/AutomaticProviderBranding";
 import {BrandingResponse} from "./UCloud/BrandingApi";
 import {initBranding} from "./Applications/Branding/AutomaticBranding";
+import {SidebarTabId} from "./ui-components/SidebarComponents";
 
 export interface StatusReduxObject {
     title: string;
     loading: boolean;
+    tab: SidebarTabId;
 }
 
 /**
@@ -41,7 +43,8 @@ declare global {
 export function initStatus(): StatusReduxObject {
     return ({
         title: "",
-        loading: false
+        loading: false,
+        tab: SidebarTabId.NONE,
     });
 }
 
