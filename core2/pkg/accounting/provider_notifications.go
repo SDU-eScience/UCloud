@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -65,14 +66,23 @@ func initProviderNotifications() {
 				relevantProviders := map[string]util.Empty{}
 
 				for _, w := range projectWallets {
-					relevantProviders[w.PaysFor.Provider] = util.Empty{}
+					fmt.Printf("Attempting %v \n", w)
+					if w.HasAllocations() {
+						fmt.Printf("Hass alocs")
+						relevantProviders[w.PaysFor.Provider] = util.Empty{}
+					}
 				}
 
 				var allChannels []chan *fndapi.Project
 
 				providerNotifications.Mu.Lock()
 				for provider := range relevantProviders {
+					fmt.Printf("Project relevantProviders[%s]\n", provider)
 					channels, ok := providerNotifications.ProjectChannelsByProvider[provider]
+					fmt.Printf("Channels: %v\n", channels)
+					fmt.Printf("Channels: %v\n", len(channels))
+					fmt.Printf("Channels: %v\n", ok)
+
 					if ok {
 						for _, ch := range channels {
 							allChannels = append(allChannels, ch)
@@ -95,6 +105,7 @@ func initProviderNotifications() {
 
 					providerNotifications.Mu.Lock()
 					channels, ok := providerNotifications.WalletsByProvider[wallet.PaysFor.Provider]
+					fmt.Printf("Wallet relevantProviders[%s]\n", wallet.PaysFor.Provider)
 					if ok {
 						for _, ch := range channels {
 							allChannels = append(allChannels, ch)
@@ -204,12 +215,20 @@ func providerNotificationHandleClient(conn *ws.Conn) {
 			wmap = map[string]chan *accapi.WalletV2{}
 			providerNotifications.WalletsByProvider[providerId] = wmap
 		}
+		fmt.Printf("Wallet Updates:\n")
+		for update := range walletUpdates {
+			fmt.Printf("Wallet %v:\n", update)
+		}
 		wmap[sessionId] = walletUpdates
 
 		pmap, ok := providerNotifications.ProjectChannelsByProvider[providerId]
 		if !ok {
 			pmap = map[string]chan *fndapi.Project{}
 			providerNotifications.ProjectChannelsByProvider[providerId] = pmap
+		}
+		fmt.Printf("project Updates:\n")
+		for update := range projectUpdates {
+			fmt.Printf("project %v:\n", update)
 		}
 		pmap[sessionId] = projectUpdates
 
