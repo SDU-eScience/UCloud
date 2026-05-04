@@ -742,8 +742,8 @@ export const VirtualMachineStatus: React.FunctionComponent<{
                     <Flex gap={"8px"} alignItems={"center"}>
 
                         <SafeLogo name={job?.specification?.application?.name ?? "unknown"}
-                                  type={"APPLICATION"}
-                                  size={"32px"} />
+                            type={"APPLICATION"}
+                            size={"32px"} />
 
                         <Heading.h2>{appTitle} {appVersion}</Heading.h2>
                     </Flex>
@@ -910,7 +910,7 @@ export const VirtualMachineStatus: React.FunctionComponent<{
                     jobId={job.id}
                     providerId={job.specification.product.provider}
                     parameters={job.specification.parameters}
-                    resources={job.specification.resources}
+                    resources={job.specification.resources ?? []}
                     onFolderAdded={onFolderAdded}
                     onFolderRemoved={onFolderRemoved}
                     showRestartIndicator={hasPendingFolderRestart}
