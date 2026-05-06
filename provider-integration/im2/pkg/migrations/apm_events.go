@@ -65,7 +65,7 @@ func apmEventsV2() db.MigrationScript {
 	}
 }
 
-func ampEventsV3() db.MigrationScript {
+func apmEventsV3() db.MigrationScript {
 	return db.MigrationScript{
 		Id: "apmEventsV3",
 		Execute: func(tx *db.Transaction) {

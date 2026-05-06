@@ -37,5 +37,5 @@ func Init() {
 	db.AddMigration(privateNetworkDatabaseV1())
 	db.AddMigration(k8sV2())
 	db.AddMigration(inferenceV2())
-	db.AddMigration(ampEventsV3())
+	db.AddMigration(apmEventsV3())
 }
