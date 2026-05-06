@@ -657,6 +657,7 @@ function FileBrowse({
                         const restOperations: Operation<UFile, R>[] = [];
                         let splitButtonGroups = new Map<string, Operation<UFile, R>[]>();
 
+                        // Finding split buttons and grouping them together
                         ops.forEach(op => {
                             if (op.splitButtonGroupId) {
                                 if (!splitButtonGroups.has(op.splitButtonGroupId)){
@@ -671,24 +672,25 @@ function FileBrowse({
                             }
                         });
 
-                        splitButtonGroups.forEach((v, k)  => {
+                        // Creating split buttons
+                        splitButtonGroups.forEach((operations, k)  => {
                             result.push({
                                 color: "secondaryMain",
                                 icon: "ellipsis",
                                 text: "",
                                 iconRotation: 90,
-                                operations: v,
-                                buttonStyle: "split"
+                                operations: operations,
+                                buttonStyle: "split",
                             })
                         });
 
                         let i = 0;
+                        // A max of 4 buttons for the view else we collapse them 
                         for (; i < restOperations.length && result.length < 4; i++) {
                             const op = restOperations[i];
                             result.push(op);
                         }
 
-                        // too many buttons for the view, then we overflow
                         const overflow: Operation<UFile, R>[] = [];
                         for (; i < restOperations.length; i++) {
                             overflow.push(restOperations[i]);

@@ -1,4 +1,4 @@
-import {Operation, ShortcutKey} from "@/ui-components/Operation";
+import {Operation, OperationEnabled, ShortcutKey} from "@/ui-components/Operation";
 import {IconName} from "@/ui-components/Icon";
 import {
     ThemeColor,
@@ -51,6 +51,8 @@ import {injectResourceBrowserStyle, ShortcutClass} from "./ResourceBrowserStyle"
 import {ASC, DESC, Filter, FilterCheckbox, FilterInput, FilterOption, FilterWithOptions, MultiOption, MultiOptionFilter, SORT_BY, SORT_DIRECTION} from "./ResourceBrowserFilters";
 import {sendInformationNotification} from "@/Notifications";
 import { UFile } from "@/UCloud/UFile";
+import ReactClient from "react-dom/client";
+import {VmActionItem, VmActionSplitButton} from "@/Applications/Jobs/VmActionSplitButton";
 
 const CLEAR_FILTER_VALUE = "\n\nCLEAR_FILTER\n\n";
 const UTILITY_COLOR: ThemeColor = "textPrimary";
@@ -1572,6 +1574,67 @@ export class ResourceBrowser<T> {
         }
     }
 
+    private renderVmActionSplitButton(
+        opGroup: OperationGroup<T, unknown>,
+        selected: T[],
+        callbacks: unknown,
+        page: T[]
+    ): HTMLElement {
+        const container = document.createElement("div");
+        container.className = "operation";
+        container.style.display = "flex";
+
+        const root = ReactClient.createRoot(container);
+
+        const mainOp = opGroup.operations[0];
+        const rest = opGroup.operations.slice(1);
+
+        const enableResult: OperationEnabled = mainOp.enabled(selected, callbacks, page);
+        const isEnabled = enableResult === true;
+
+
+        const getText = (op): string => {
+            return typeof op.text === "string" ? op.text : op.text(selected, callbacks);
+        }
+
+        // Rest are menu items
+        const menuItems: VmActionItem[] = rest.map((childOp, idx) => ({
+            key: idx.toString(),
+            value: getText(childOp),
+            icon: childOp.icon,
+            color: childOp.color ?? "primaryMain"
+            
+        }));
+
+        root.render(
+            <div onClick={stopPropagationAndPreventDefault}>
+            <VmActionSplitButton
+                tone="neutral"
+                disabled={!isEnabled}
+                buttonColor={mainOp.color ?? "secondaryMain"}
+                buttonText={getText(mainOp)}
+                buttonIcon={mainOp.icon ?? "ellipsis" }
+                menuItems={menuItems}
+                onSelectMenuItem={(item) => {
+                    const foundOp = rest[parseInt(item.key)];
+                    if (foundOp && foundOp.enabled(selected, callbacks, page) === true) {
+                        foundOp.onClick(selected, callbacks, page);
+                    }
+                }}
+                onButtonClick={() => {
+                    if (isEnabled) {
+                        console.log("Enabled", mainOp);
+                        mainOp.onClick(selected, callbacks, page);
+                    }
+                }}
+            />
+            </div>
+        );
+
+        return container;
+    }
+
+
     private renderOperationsIn(useContextMenu: boolean, contextOpts?: {
         x: number,
         y: number,
@@ -1617,10 +1680,6 @@ export class ResourceBrowser<T> {
                         ("operations" in op ? "primaryMain" : "secondaryMain")
                 )
             );
-            if ("operations" in op) {
-                // is OperationGroup
-                console.log("MAMAMMA ", op.operations);
-            }
 
             // Hack(Jonas): Very specific DriveBrowser fix, for Delete Drive coloring of Trash-icon.
             // The `errorContrast` is white. So kinda works for Dark Theme, not for Light Theme.
@@ -1716,7 +1775,7 @@ export class ResourceBrowser<T> {
 
             {
                 if (operationText) {
-                    element.append(operationText + "Asdfasdfasf");
+                    element.append(operationText);
                 }
                 if (operationText && shortcut) {
                     const shortcutItems = shortcut.split("+");
@@ -1886,10 +1945,13 @@ export class ResourceBrowser<T> {
             const target = this.operations;
             target.innerHTML = "";
             for (const op of operations) {
-                if (op.buttonStyle === 'split') {
-                    console.log('Split ', op);
+                if (op.buttonStyle === "split") {
+                    // Rendering SplitButton
+                    target.append(this.renderVmActionSplitButton(op, selected, callbacks, page));
                 }
-                target.append(renderOperation(op));
+                else {
+                    target.append(renderOperation(op));
+                }
             }
         } else {
             const posX = contextOpts?.x ?? 0;
@@ -3878,3 +3940,4 @@ export function favoriteRowIcon(row: ResourceBrowserRow) {
     }
     return favoriteIcon;
 }
+
