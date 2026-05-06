@@ -1537,6 +1537,9 @@ func grantProjectIsNewlyCreatedAndNotYetApproved(app *grantApplication) bool {
 func grantRetrieveApplicationHistoryOfReceiver(actor rpc.Actor, app *grantApplication, result *accapi.GrantApplication) {
 	recipientActor, ok := rpc.LookupActor(app.Application.CreatedBy) // Actor PI
 	if ok {
+		if recipientActor.Username == rpc.ActorSystem.Username {
+			return
+		}
 		grantGiveProjectId := actor.Project.Value
 
 		switch app.Application.CurrentRevision.Document.Recipient.Type {

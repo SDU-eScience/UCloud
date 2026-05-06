@@ -132,10 +132,7 @@ const Allocations: React.FunctionComponent = () => {
     const [isLoading, invokeCommand] = useCloudCommand();
 
     useEffect(() => {
-        if (!projectId) {
-            navigate(AppRoutes.dashboard.dashboardA());
-            return;
-        }
+        if (!projectId) return;
         (async () => {
             try {
                 const res = await callAPI<Grants.RequestSettings>(
