@@ -58,10 +58,6 @@ export interface Provider extends Resource<ProviderUpdate, ProviderStatus, Provi
     publicKey: string;
 }
 
-interface ProductCallbacks {
-    invokeCommand: InvokeCommand;
-}
-
 interface ProviderCallbacks {
     editProvider: (product: Provider) => void;
 }
@@ -92,7 +88,7 @@ class ProviderApi extends ResourceApi<Provider, Product, ProviderSpecification, 
         }
     };
 
-    public retrieveOperations(): Operation<Provider, ResourceBrowseCallbacks<Provider> & ProviderCallbacks>[] {
+    public retrieveOperations(): Operation<Provider, ResourceBrowseCallbacks<Provider>>[] {
         return [
             {
                 text: "Create " + this.title.toLowerCase(),
