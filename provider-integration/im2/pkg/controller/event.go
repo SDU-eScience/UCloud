@@ -829,5 +829,5 @@ func MakeInsufficientFundsMessage(lockInfo ResourceLockInfo, category string) st
 	if lockInfo.TotalUsage >= lockInfo.CombinedQuota {
 		return fmt.Sprintf("This workspace has reached the %s quota.", category)
 	}
-	return fmt.Sprintf("This workspace cannot create %ss. Please contact your quota administrator. ", category)
+	return fmt.Sprintf("This workspace cannot create %ss due to over allocation. Please contact your quota administrator. ", category)
 }
