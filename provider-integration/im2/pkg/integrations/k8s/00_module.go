@@ -110,11 +110,11 @@ func IsJobLocked(job *orc.Job) util.Option[shared.LockedReason] {
 
 func IsJobLockedEx(job *orc.Job, jobAnnotations map[string]string) util.Option[shared.LockedReason] {
 	timer := util.NewTimer()
-	isLocked := controller.ResourceIsLocked(job.Resource, job.Specification.Product)
+	lockInfo := controller.RetrieveResourceLockInfo(job.Resource, job.Specification.Product)
 	metricComputeLocked.Observe(timer.Mark().Seconds())
 
-	if isLocked {
-		reason := fmt.Sprintf("Insufficient funds for %v", job.Specification.Product.Category)
+	if lockInfo.Locked {
+		reason := controller.MakeInsufficientFundsMessage(lockInfo, job.Specification.Product.Category)
 		return util.OptValue(shared.LockedReason{
 			Reason: reason,
 			Err: &util.HttpError{
@@ -157,11 +157,12 @@ func IsJobLockedEx(job *orc.Job, jobAnnotations map[string]string) util.Option[s
 		}
 
 		timer.Mark()
-		storageLocked := controller.ResourceIsLocked(mount.RealDrive.Resource, mount.RealDrive.Specification.Product)
+		lockInfo := controller.RetrieveResourceLockInfo(mount.RealDrive.Resource, mount.RealDrive.Specification.Product)
+
 		metricStorageLocked.Observe(timer.Mark().Seconds())
 
-		if storageLocked {
-			reason := fmt.Sprintf("Insufficient funds for %v", mount.RealDrive.Specification.Product.Category)
+		if lockInfo.Locked {
+			reason := controller.MakeInsufficientFundsMessage(lockInfo, mount.RealDrive.Specification.Product.Category)
 			return util.OptValue(shared.LockedReason{
 				Reason: reason,
 				Err: &util.HttpError{
