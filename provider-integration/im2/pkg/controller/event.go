@@ -116,8 +116,8 @@ func eventHandleNotification(nType EventNotificationMessageType, notification an
 
 		allocationTrack(update)
 
-		log.Info("Handling wallet event %v %v %v %v %v", update.Owner.Username, update.Owner.ProjectId,
-			update.Category.Name, update.CombinedQuota, update.Locked)
+		log.Info("Handling wallet event %v %v %v %v %v %v", update.Owner.Username, update.Owner.ProjectId,
+			update.Category.Name, update.CombinedQuota, update.TotalUsage, update.Locked)
 
 		if LaunchUserInstances {
 			if update.Owner.Type == apm.WalletOwnerTypeUser {
@@ -265,6 +265,7 @@ func eventHandleSession(session *ws.Conn, userReplayChannel chan string, replayF
 					workspaceRef := readBuf.GetU32()
 					categoryRef := readBuf.GetU32()
 					combinedQuota := readBuf.GetU64()
+					totalUsage := readBuf.GetU64()
 					flags := readBuf.GetU32()
 					lastUpdate := readBuf.GetU64()
 					localRetiredUsage := readBuf.GetU64()
@@ -280,6 +281,7 @@ func eventHandleSession(session *ws.Conn, userReplayChannel chan string, replayF
 
 					notification := EventWalletUpdated{
 						CombinedQuota:     combinedQuota,
+						TotalUsage:        totalUsage,
 						LastUpdate:        fnd.TimeFromUnixMilli(lastUpdate),
 						Locked:            isLocked,
 						Category:          category,
@@ -368,6 +370,7 @@ type EventWalletUpdated struct {
 	Owner             apm.WalletOwner
 	Category          apm.ProductCategory
 	CombinedQuota     uint64
+	TotalUsage        uint64
 	Locked            bool
 	LastUpdate        fnd.Timestamp
 	Project           util.Option[fnd.Project]
@@ -657,6 +660,7 @@ type TrackedAllocation struct {
 	Owner             apm.WalletOwner
 	Category          string
 	CombinedQuota     uint64
+	TotalUsage        uint64
 	Locked            bool
 	LastUpdate        fnd.Timestamp
 	LocalRetiredUsage uint64
@@ -665,21 +669,22 @@ type TrackedAllocation struct {
 func allocationTrack(update *EventWalletUpdated) {
 	cacheKey := lockedCacheKey{Owner: update.Owner, Category: update.Category.Name}
 	isLockedCacheMutex.Lock()
-	isLockedCache[cacheKey] = update.Locked
+	isLockedCache[cacheKey] = ResourceLockInfo{util.OptStringIfNotEmpty(update.Owner.Username), util.OptStringIfNotEmpty(update.Owner.ProjectId), update.Locked, update.CombinedQuota, update.TotalUsage}
 	isLockedCacheMutex.Unlock()
 
 	db.NewTx0(func(tx *db.Transaction) {
 		db.Exec(
 			tx,
 			`
-				insert into tracked_allocations(owner_username, owner_project, category, combined_quota,
-					locked, last_update, local_retired_usage)
-				values (:owner_username, :owner_project, :category, :combined_quota, :locked, now(), :local_retired_usage)
+				insert into tracked_allocations(owner_username, owner_project, category, combined_quota, 
+					locked, last_update, local_retired_usage, total_usage)
+				values (:owner_username, :owner_project, :category, :combined_quota, :locked, now(), :local_retired_usage, :total_usage)
 				on conflict(category, owner_username, owner_project) do update set
 					combined_quota = excluded.combined_quota,
 					locked = excluded.locked,
 					last_update = excluded.last_update,
-					local_retired_usage = excluded.local_retired_usage
+					local_retired_usage = excluded.local_retired_usage,
+					total_usage = excluded.total_usage
 			`,
 			db.Params{
 				"owner_username":      update.Owner.Username,
@@ -688,6 +693,7 @@ func allocationTrack(update *EventWalletUpdated) {
 				"combined_quota":      update.CombinedQuota,
 				"locked":              update.Locked,
 				"local_retired_usage": update.LocalRetiredUsage,
+				"total_usage":         update.TotalUsage,
 			},
 		)
 	})
@@ -701,6 +707,7 @@ func AllocationsFindAll(categoryName string) []TrackedAllocation {
 			OwnerProject      string
 			Category          string
 			CombinedQuota     uint64
+			TotalUsage        uint64
 			LastUpdate        time.Time
 			Locked            bool
 			LocalRetiredUsage uint64
@@ -722,6 +729,7 @@ func AllocationsFindAll(categoryName string) []TrackedAllocation {
 				Owner:             apm.WalletOwnerFromIds(row.OwnerUsername, row.OwnerProject),
 				Category:          row.Category,
 				CombinedQuota:     row.CombinedQuota,
+				TotalUsage:        row.TotalUsage,
 				Locked:            row.Locked,
 				LastUpdate:        fnd.Timestamp(row.LastUpdate),
 				LocalRetiredUsage: row.LocalRetiredUsage,
@@ -737,12 +745,20 @@ type lockedCacheKey struct {
 	Category string
 }
 
-var isLockedCache = map[lockedCacheKey]bool{}
+type ResourceLockInfo struct {
+	Username      util.Option[string]
+	ProjectId     util.Option[string]
+	Locked        bool
+	CombinedQuota uint64
+	TotalUsage    uint64
+}
+
+var isLockedCache = map[lockedCacheKey]ResourceLockInfo{}
 var isLockedCacheMutex = sync.Mutex{}
 
-func WalletIsLocked(owner apm.WalletOwner, category string) bool {
+func WalletIsLocked(owner apm.WalletOwner, category string) ResourceLockInfo {
 	if category == "terminal" || category == "syncthing" {
-		return false // TODO(Dan): Fix this correctly.
+		return ResourceLockInfo{} // TODO(Dan): Fix this correctly.
 	}
 
 	if RunsServerCode() {
@@ -755,11 +771,17 @@ func WalletIsLocked(owner apm.WalletOwner, category string) bool {
 			return locked
 		}
 
-		locked = db.NewTx[bool](func(tx *db.Transaction) bool {
-			row, ok := db.Get[struct{ Locked bool }](
+		locked = db.NewTx[ResourceLockInfo](func(tx *db.Transaction) ResourceLockInfo {
+			row, ok := db.Get[struct {
+				OwnerUsername string
+				OwnerProject  string
+				Locked        bool
+				CombinedQuota uint64
+				TotalUsage    uint64
+			}](
 				tx,
 				`
-					select a.locked
+					select a.owner_username, a.owner_project, a.locked, a.combined_quota, a.total_usage
 					from tracked_allocations a
 					where
 						a.category = :category
@@ -774,9 +796,15 @@ func WalletIsLocked(owner apm.WalletOwner, category string) bool {
 			)
 
 			if !ok {
-				return false
+				return ResourceLockInfo{}
 			} else {
-				return row.Locked
+				return ResourceLockInfo{
+					Username:      util.OptStringIfNotEmpty(row.OwnerUsername),
+					ProjectId:     util.OptStringIfNotEmpty(row.OwnerProject),
+					Locked:        row.Locked,
+					CombinedQuota: row.CombinedQuota,
+					TotalUsage:    row.TotalUsage,
+				}
 			}
 		})
 
@@ -790,5 +818,16 @@ func WalletIsLocked(owner apm.WalletOwner, category string) bool {
 }
 
 func ResourceIsLocked(resource orc.Resource, ref apm.ProductReference) bool {
+	return WalletIsLocked(apm.WalletOwnerFromIds(resource.Owner.CreatedBy, resource.Owner.Project.Value), ref.Category).Locked
+}
+
+func RetrieveResourceLockInfo(resource orc.Resource, ref apm.ProductReference) ResourceLockInfo {
 	return WalletIsLocked(apm.WalletOwnerFromIds(resource.Owner.CreatedBy, resource.Owner.Project.Value), ref.Category)
+}
+
+func MakeInsufficientFundsMessage(lockInfo ResourceLockInfo, category string) string {
+	if lockInfo.TotalUsage >= lockInfo.CombinedQuota {
+		return fmt.Sprintf("This workspace has reached the %s quota.", category)
+	}
+	return fmt.Sprintf("This workspace cannot create %ss due to over allocation. Please contact your quota administrator. ", category)
 }
