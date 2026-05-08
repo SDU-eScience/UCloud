@@ -1,5 +1,4 @@
 export {default as Absolute} from "./Absolute";
-export {default as Accordion} from "./Accordion";
 export {default as Box} from "./Box";
 export {default as Button} from "./Button";
 export {default as Card} from "./Card";

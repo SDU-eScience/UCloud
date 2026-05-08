@@ -14,7 +14,7 @@ import {
 } from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {addStandardDialog, ConfirmCancelButtons} from "@/UtilityComponents";
-import {callAPIWithErrorHandler, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {callAPI, callAPIWithErrorHandler, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {useNavigate} from "react-router-dom";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {MainContainer} from "@/ui-components/MainContainer";
@@ -127,15 +127,18 @@ export const ProjectSettings: React.FunctionComponent = () => {
             return;
         }
         (async () => {
-            const res = await callAPIWithErrorHandler<Grants.RequestSettings>(
-                {
-                    ...Grants.retrieveRequestSettings(),
-                    projectOverride: projectId
-                }
-            );
+            try {
+                const res = await callAPI<Grants.RequestSettings>(
+                    {
+                        ...Grants.retrieveRequestSettings(),
+                        projectOverride: projectId,
+                    }
+                );
 
-            if (!res) return;
-            if (!didUnmount.current) setSettings(res);
+                if (!didUnmount.current) setSettings(res);
+            } catch (e) {
+                // Ignoring failure
+            }
         })();
     }, [projectId]);
 

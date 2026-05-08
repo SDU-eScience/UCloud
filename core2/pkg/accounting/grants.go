@@ -321,6 +321,11 @@ func grantsReadEx(actor rpc.Actor, action grantAuthType, b *grantAppBucket, id a
 			roles = append(roles, grantActorRoleSubmitter)
 		}
 
+		//This is the case in gifts. Grant is createdBy the system, but the user should be able to open it as their own.
+		if recipient.Type == accapi.RecipientTypePersonalWorkspace && recipient.Username.Value == actor.Username {
+			roles = append(roles, grantActorRoleSubmitter)
+		}
+
 		app.Mu.RUnlock()
 	}
 	b.Mu.RUnlock()
@@ -1532,6 +1537,9 @@ func grantProjectIsNewlyCreatedAndNotYetApproved(app *grantApplication) bool {
 func grantRetrieveApplicationHistoryOfReceiver(actor rpc.Actor, app *grantApplication, result *accapi.GrantApplication) {
 	recipientActor, ok := rpc.LookupActor(app.Application.CreatedBy) // Actor PI
 	if ok {
+		if recipientActor.Username == rpc.ActorSystem.Username {
+			return
+		}
 		grantGiveProjectId := actor.Project.Value
 
 		switch app.Application.CurrentRevision.Document.Recipient.Type {
