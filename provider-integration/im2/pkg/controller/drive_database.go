@@ -3,6 +3,7 @@ package controller
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 	"sync"
@@ -344,17 +345,32 @@ func DriveCanUse(actor orc.ResourceOwner, driveId string, readOnly bool) bool {
 	}
 
 	drive, ok := DriveRetrieve(driveId)
+	if driveId == "8734195" || driveId == "8785251" {
+		fmt.Printf("All good : %v \n ", ok)
+	}
 	if !ok {
 		return false
 	}
+	if driveId == "8734195" || driveId == "8785251" {
 
+		fmt.Printf("Drive info : %v \n ", drive)
+	}
 	if drive.Owner.Project.Present {
 		project, ok := ProjectRetrieve(drive.Owner.Project.Value)
+		if driveId == "8734195" || driveId == "8785251" {
+
+			fmt.Printf("Project ok : %v \n ", ok)
+			fmt.Printf("Project info : %v \n ", project)
+		}
 		if !ok {
 			return false
 		}
 
 		username := actor.CreatedBy
+		if driveId == "8734195" || driveId == "8785251" {
+
+			fmt.Printf("User info : %v \n ", actor)
+		}
 		if username != "" {
 			isMember := false
 			for _, member := range project.Status.Members {
