@@ -394,6 +394,13 @@ func grantsLoadUnawarded() {
 	}
 }
 
+func parseStructuredFormFields(templateString string) []accapi.FormField {
+	if templateString == "" {
+		return make([]accapi.FormField, 0)
+	}
+	return accapi.ParseFormFields(templateString)
+}
+
 func grantsLoadSettings() {
 	if grantGlobals.Testing.Enabled {
 		return
@@ -469,7 +476,11 @@ func grantsLoadSettings() {
 				NewProject:      template.NewProject,
 				ExistingProject: template.ExistingProject,
 			}
-
+			existing.Templates.Structured = accapi.TemplatesStructured{
+				PersonalProject: parseStructuredFormFields(template.PersonalProject),
+				NewProject:      parseStructuredFormFields(template.NewProject),
+				ExistingProject: parseStructuredFormFields(template.ExistingProject),
+			}
 			result[template.ProjectId] = existing
 		}
 

@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
+	"strconv"
+	"strings"
 
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/rpc"
@@ -73,7 +76,7 @@ func (s GrantRequestSettings) MarshalJSON() ([]byte, error) {
 type GrantGiver struct {
 	Id          string            `json:"id"`
 	Description string            `json:"description"`
-	Templates   Templates         `json:"templates"`
+	Templates   Templates         `json:"templates"` // This needs to be removed for another structure
 	Categories  []ProductCategory `json:"categories"`
 }
 
@@ -121,13 +124,31 @@ type TemplatesType string
 
 const (
 	TemplatesTypePlainText TemplatesType = "plain_text"
+	//TemplatesTypeStructured TemplatesType = "structured"
 )
 
+type TemplatesStructured struct {
+	PersonalProject []FormField `json:"personalProject"`
+	NewProject      []FormField `json:"newProject"`
+	ExistingProject []FormField `json:"existingProject"`
+}
 type Templates struct {
-	Type            TemplatesType `json:"type"`
-	PersonalProject string        `json:"personalProject"` // plain_text
-	NewProject      string        `json:"newProject"`      // plain_text
-	ExistingProject string        `json:"existingProject"` // plain_text
+	Type       TemplatesType       `json:"type"`
+	Structured TemplatesStructured `json:"structured"`
+
+	// Legacy compatibility
+	PersonalProject string `json:"personalProject"` // plain_text
+	NewProject      string `json:"newProject"`      // plain_text
+	ExistingProject string `json:"existingProject"` // plain_text
+}
+
+type FormField struct {
+	Name        string
+	Title       string
+	Description string // allows markdown
+	Optional    bool
+	MaxLength   util.Option[int]
+	Rows        util.Option[int]
 }
 
 type GrantApplication struct {
@@ -161,6 +182,7 @@ type FormType string
 const (
 	FormTypePlainText           FormType = "plain_text"
 	FormTypeGrantGiverInitiated FormType = "grant_giver_initiated"
+	FormTypeStructured          FormType = "structured" // New
 )
 
 func (f FormType) Valid() bool {
@@ -172,6 +194,198 @@ func (f FormType) Valid() bool {
 	default:
 		return false
 	}
+}
+
+func ParseFormFields(text string) []FormField {
+	normalizeTitle := func(title string) string {
+		words := strings.Split(title, " ")
+		if len(words) == 0 {
+			return title
+		}
+
+		builder := words[0]
+
+		for i := 1; i < len(words); i++ {
+			word := words[i]
+
+			builder += " "
+
+			if word == strings.ToUpper(word) || word == strings.ToLower(word) {
+				builder += word
+			} else {
+				builder += strings.ToLower(word)
+			}
+		}
+
+		return builder
+	}
+
+	lines := strings.Split(text, "\n")
+
+	var sectionSeparators []int
+	for i, line := range lines {
+		if strings.HasPrefix(line, "---") {
+			allDashes := true
+			for _, r := range line {
+				if r != '-' {
+					allDashes = false
+					break
+				}
+			}
+
+			if allDashes {
+				sectionSeparators = append(sectionSeparators, i)
+			}
+		}
+	}
+	var titles []string
+	for _, lineIdx := range sectionSeparators {
+		if lineIdx > 0 {
+			titles = append(titles, lines[lineIdx-1])
+		}
+	}
+
+	foundDescriptionBeforeFirstTitle := false
+
+	var descriptions []string
+	currentStartLine := 0
+
+	for i := 0; i <= len(sectionSeparators); i++ {
+		end := len(lines)
+
+		if i < len(sectionSeparators) {
+			end = sectionSeparators[i] - 1
+		}
+
+		var builder strings.Builder
+
+		for row := currentStartLine; row < end; row++ {
+			builder.WriteString(lines[row])
+			builder.WriteString("\n")
+		}
+
+		description := strings.TrimSpace(builder.String())
+
+		if description != "" {
+			if i == 0 {
+				foundDescriptionBeforeFirstTitle = true
+			}
+
+			descriptions = append(descriptions, description)
+		} else {
+			if i != 0 {
+				descriptions = append(descriptions, "")
+			}
+		}
+
+		currentStartLine = end + 2
+	}
+
+	if foundDescriptionBeforeFirstTitle {
+		if len(titles) > 0 {
+			titles = append([]string{"Introduction"}, titles...)
+		} else {
+			titles = []string{"Application"}
+		}
+	}
+
+	prefixesWhichSoundMandatory := []string{
+		"Add a ",
+		"Describe the ",
+		"Provide a ",
+		"Please describe the reason for applying",
+		"Required:",
+	}
+
+	limitRegex := regexp.MustCompile(`max (\d+) ch`)
+
+	var result []FormField
+
+	for i := 0; i < len(titles); i++ {
+		description := ""
+		if i < len(descriptions) {
+			description = descriptions[i]
+		}
+
+		title := normalizeTitle(titles[i])
+
+		optional := true
+		for _, prefix := range prefixesWhichSoundMandatory {
+			if strings.HasPrefix(description, prefix) {
+				optional = false
+				break
+			}
+		}
+
+		field := FormField{
+			Name:        title,
+			Title:       title,
+			Description: description,
+			Optional:    optional,
+		}
+
+		matches := limitRegex.FindAllStringSubmatch(description, -1)
+		for _, match := range matches {
+			if len(match) >= 2 {
+				if limit, err := strconv.Atoi(match[1]); err == nil {
+					field.MaxLength = util.OptValue(limit)
+				}
+			}
+		}
+
+		if strings.ToLower(field.Title) == "application" {
+			field.MaxLength = util.OptValue(4000)
+		}
+
+		limit := 250
+		if field.MaxLength.Present {
+			limit = field.MaxLength.Value
+		}
+
+		rows := min(15, max(2, limit/50))
+
+		if strings.Contains(strings.ToLower(field.Title), "project title") {
+			rows = 2
+		}
+
+		field.Rows = util.OptValue(rows)
+
+		result = append(result, field)
+	}
+
+	// Move large sections to the end
+	smallFields := make([]FormField, 0, len(result))
+	largeFields := make([]FormField, 0)
+
+	for _, field := range result {
+		maxLength := 0
+		if field.MaxLength.Present {
+			maxLength = field.MaxLength.Value
+		}
+
+		if maxLength > 1000 {
+			largeFields = append(largeFields, field)
+		} else {
+			smallFields = append(smallFields, field)
+		}
+	}
+	result = append(smallFields, largeFields...)
+
+	return result
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 type Form struct {
