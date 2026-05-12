@@ -107,7 +107,7 @@ interface Allocators {
     id: string;
     title: string;
     description: string;
-    template: string;
+    template: Grants.Templates;
     checked: boolean;
 }
 
@@ -196,6 +196,27 @@ type EditorAction =
     | {type: "Reset"}
     ;
 
+function extractFormFields(templateKey: string, templates: Grants.Templates[]): Grants.FormField[] {
+    let formSections: Grants.FormField[] = [];
+    if (templateKey === "newProject") {
+        formSections = templates.flatMap((it) => it.structured.newProject);
+    }
+    if (templateKey === "existingProject") {
+        formSections = templates.flatMap((it) => it.structured.existingProject);
+    }
+    if (templateKey === "personalProject") {
+        formSections = templates.flatMap((it) => it.structured.personalProject);
+    }
+    return formSections
+}
+
+function extractAllFormFields(templates: Grants.Templates[]): Grants.FormField[] {
+    let newProjects = templates.flatMap((it) => it.structured.newProject);
+    let existingProjects = templates.flatMap((it) => it.structured.existingProject);
+    let personalProjects = templates.flatMap((it) => it.structured.personalProject);
+    return [...newProjects, ...existingProjects, ...personalProjects];
+}
+
 function stateReducer(state: EditorState, action: EditorAction): EditorState {
     switch (action.type) {
         // Loading and error state
@@ -274,10 +295,10 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                 if (!existing) {
                     newAllocators.push({
                         id: allocator.id, title: allocator.title, description: allocator.description,
-                        template: allocator.templates[templateKey], checked: false
+                        template: allocator.templates, checked: false
                     });
-                } else if (existing.template !== allocator.templates[templateKey]) {
-                    newAllocators[i] = {...existing, template: allocator.templates[templateKey]};
+                } else if (existing.template !== allocator.templates) {
+                    newAllocators[i] = {...existing, template: allocator.templates};
                 }
 
                 for (const category of allocator.categories) {
@@ -307,12 +328,12 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             for (const arr of Object.values(newResources)) {
                 arr.sort((a, b) => Accounting.categoryComparator(a.category, b.category));
             }
-
-            const allSections = calculateNewApplication(
-                action.allocators
-                    .filter(it => newAllocators.find(existing => existing.id === it.id)?.checked === true)
-                    .map(it => it.templates[templateKey])
-            );
+            // we should filter the type === templateKey
+            const templates = action.allocators.filter(it => newAllocators.find(existing => existing.id === it.id)?.checked === true)
+                .map(it => it.templates)
+            
+            // list of grant givers action.allocators
+            const allSections = calculateNewApplicationV2(extractFormFields(templateKey, templates));
 
             return {
                 ...state,
@@ -497,12 +518,8 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                     return it;
                 }
             });
-
-            const allSections = calculateNewApplication(
-                newAllocators
-                    .filter(it => it.checked)
-                    .map(it => it.template)
-            );
+            const templates = newAllocators.filter(it => it.checked).map(it => it.template);
+            const allSections = calculateNewApplicationV2(extractAllFormFields(templates))
 
             return {
                 ...state,
@@ -699,6 +716,20 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
 
     // Scoped utility functions
     // -----------------------------------------------------------------------------------------------------------------
+
+    function calculateNewApplicationV2(forms: Grants.FormField[]): ApplicationSection[] {
+        if (forms === null) {
+            return [];
+        }
+        return forms.map(f => ({ 
+            title: f.title ?? "NO TITLE",
+            description: f.description ?? "NO DESCRIPTION",
+            rows: f.rows ?? 0,
+            mandatory: !f.optional,
+            limit: f.maxLength 
+        }));
+    }
+
     function calculateNewApplication(templates: string[]): ApplicationSection[] {
         const allSections: ApplicationSection[] = [];
         for (const template of templates) {
@@ -732,7 +763,17 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                     newAllocators.push({
                         title: breakdown.projectTitle,
                         id: breakdown.projectId,
-                        template: "",
+                        template: { 
+                            type: "plain_text",
+                            existingProject: "",
+                            newProject: "",
+                            personalProject: "",
+                            structured: {
+                                existingProject: [],
+                                newProject: [],
+                                personalProject: []
+                            }
+                        },
                         description: "",
                         checked: true
                     });
@@ -775,27 +816,44 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
         const isGrantGiverInitiated = app && app.status.overallState == "APPROVED" && app.status.revisions.length === 1 && docText.startsWith(grantGiverInitiatedPrefix);
 
         const docSections = parseIntoSections(docText);
-        const templates = isGrantGiverInitiated ? [grantGiverInitiatedTemplate] : newAllocators.map(it => it.template);
-        const newApplication = calculateNewApplication(templates);
+        const grantTemplate: Grants.FormField = {
+            description: grantGiverInitiatedTemplate,
+            name: "grantGiverInitiatedTemplate",
+            optional: false,
+            maxLength: 1000,
+            title: "grantGiverStuff",
+        };
+        const foundTemplates = isGrantGiverInitiated ? [grantTemplate] : newAllocators.map(it => it.template);
+
+        /////// ALRIGHJT FIX HREE
+        const allSections = [
+                foundTemplates["newProject"], 
+                foundTemplates["existingProject"],
+                foundTemplates["personalProject"]
+            ]
+
+        console.log("NOTHING ", newAllocators);
+        console.log("NOTHING ", allSections);
+        const newApplication = calculateNewApplicationV2(allSections);
 
         const newApplicationDocument: EditorState["applicationDocument"] = {};
         let otherSection = "";
-        for (const section of docSections) {
-            const hasSection = newApplication.some(it => it.title === section.title);
-            if (hasSection) {
-                newApplicationDocument[section.title] = section.description;
-            } else {
-                otherSection += section.title;
-                otherSection += ":\n\n";
-                otherSection += section.description;
-                otherSection += "\n\n";
-            }
-        }
+        // for (const section of docSections) {
+        //     const hasSection = newApplication.some(it => it.title === section.title);
+        //     if (hasSection) {
+        //         newApplicationDocument[section.title] = section.description;
+        //     } else {
+        //         otherSection += section.title;
+        //         otherSection += ":\n\n";
+        //         otherSection += section.description;
+        //         otherSection += "\n\n";
+        //     }
+        // }
 
-        if (otherSection) {
-            newApplication.push({title: "Other", rows: 6, mandatory: false, description: ""});
-            newApplicationDocument["Other"] = otherSection;
-        }
+        // if (otherSection) {
+        //     newApplication.push({title: "Other", rows: 6, mandatory: false, description: ""});
+        //     newApplicationDocument["Other"] = otherSection;
+        // }
 
         let startDate = new Date(Date.now())
         if (doc.allocationPeriod?.start != null) {
@@ -983,6 +1041,11 @@ function useStateReducerMiddleware(
                                 newProject: grantGiverInitiatedTemplate,
                                 existingProject: grantGiverInitiatedTemplate,
                                 personalProject: grantGiverInitiatedTemplate,
+                                structured: {
+                                    newProject: [{name: "", description: "", optional: false, title: ""}],
+                                    existingProject: [{name: "", description: "", optional: false, title: ""}],
+                                    personalProject: [{name: "", description: "", optional: false, title: ""}],
+                                }
                             }
                         }]
                     });

@@ -324,6 +324,8 @@ export interface TemplateStructured {
     existingProject: FormField[];
 }
 
+export type TemplateKey = "personalProject" | "newProject" | "existingProject";
+
 export interface Templates {
     type: "plain_text";
     structured: TemplateStructured;
