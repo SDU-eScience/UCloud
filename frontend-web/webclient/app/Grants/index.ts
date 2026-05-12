@@ -201,7 +201,7 @@ export interface Doc {
     allocationPeriod?: Period | null
 }
 
-type Form = PlainTextForm | GrantGiverInitiatedForm;
+type Form = PlainTextForm | GrantGiverInitiatedForm | StructuredForm;
 
 interface PlainTextForm {
     type: "plain_text";
@@ -213,6 +213,14 @@ interface GrantGiverInitiatedForm {
     text: string;
     subAllocator: boolean;
 }
+
+interface StructuredForm {
+    type: "structured";
+    text: string;
+    subAllocator: boolean;
+    fields: Record<string, string>;
+}
+
 
 export type Recipient =
     {type: "existingProject", id: string;} |
@@ -301,8 +309,24 @@ export interface GrantGiver {
     categories: Accounting.ProductCategoryV2[];
 }
 
+export interface FormField {
+    name: string;
+    title: string
+    description: string;
+    optional: boolean;
+    maxLength?: number;
+    rows?: number;
+}
+
+export interface TemplateStructured {
+    personalProject: FormField[];
+    newProject: FormField[];
+    existingProject: FormField[];
+}
+
 export interface Templates {
     type: "plain_text";
+    structured: TemplateStructured;
     personalProject: string;
     newProject: string;
     existingProject: string;

@@ -113,7 +113,13 @@ export const ProjectSettings: React.FunctionComponent = () => {
             personalProject: "No template",
             newProject: "No template",
             existingProject: "No template",
-        }
+            structured: {
+                        personalProject: [{description: "", name: "", optional: true, title: ""}],
+                        existingProject: [{description: "", name: "", optional: true, title: ""}],
+                        newProject: [{description: "", name: "", optional: true, title: ""}]
+                    }
+
+            }
     });
 
     const templatePersonal = useRef<HTMLInputElement>(null);
@@ -214,6 +220,11 @@ export const ProjectSettings: React.FunctionComponent = () => {
                     personalProject: templatePersonal.current!.value,
                     existingProject: templateExisting.current!.value,
                     newProject: templateNew.current!.value,
+                    structured: {
+                        personalProject: [{description: templateExisting.current!.value, name: "", optional: true, title: ""}],
+                        existingProject: [{description: templateExisting.current!.value, name: "", optional: true, title: ""}],
+                        newProject: [{description: templateExisting.current!.value, name: "", optional: true, title: ""}]
+                    }
                 }
             })
         );
