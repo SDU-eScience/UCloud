@@ -38,8 +38,8 @@ export const LOGIN_REDIRECT_KEY = "redirect_on_login";
 const inDevEnvironment = DEVELOPMENT_ENV;
 const enabledWayf = true;
 
-async function fetchBranding (){
-    return await fetch(Client.computeURL("/api/branding", "/retrieve"), 
+async function fetchBranding() {
+    return await fetch(Client.computeURL("/api/branding", "/retrieve"),
         {
             method: "GET",
             headers: {
@@ -68,8 +68,8 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
     const [isGeneric, setIsGeneric] = useState(false);
     const [textColor, setTextColor] = useState("#fff");
     const [showingWayf, setShowingWayf] = useState(false);
-    const [branding, setBranding] = useState<BrandingResponse>(
-        {deploymentName: "", loginPage: {primaryLogoUrl: "", secondaryLogoUrls: [], type: BrandingLoginPageType.GENERIC}
+    const [branding, setBranding] = useState<BrandingResponse>({
+        deploymentName: "", loginPage: {primaryLogoUrl: "", secondaryLogoUrls: [], type: BrandingLoginPageType.GENERIC}
     });
 
     const promises = usePromiseKeeper();
@@ -149,7 +149,7 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
             }
 
             handleAuthState(await response.json());
-        } catch (e) {
+        } catch (e: any) {
             sendFailureNotification(
                 errorMessageOrDefault({
                     request: e,
@@ -207,7 +207,7 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
             sendSuccessNotification("Your password was changed successfully");
 
             navigate(AppRoutes.login.login());
-        } catch (err) {
+        } catch (err: any) {
             setLoading(false);
 
             sendFailureNotification(err.statusText);
@@ -247,7 +247,7 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
             if (!response.ok) throw response;
             const result = await response.json();
             handleCompleteLogin(result);
-        } catch (e) {
+        } catch (e: any) {
             setLoading(false);
             sendFailureNotification(
                 errorMessageOrDefault({
@@ -286,7 +286,7 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
 
     return (
         <LoginWrapper branding={branding}>
-            <LoginHeader branding={branding}/>
+            <LoginHeader branding={branding} />
             <Box width="315px" mx="auto" my="auto">
                 {enabledWayf && !challengeId && !isPasswordReset && showingWayf ? (<>
                     <a href={`/auth/saml/login?service=${service}`}>
@@ -584,7 +584,7 @@ type IsGenericProps = {
 };
 
 type BackgroundImageProps = React.PropsWithChildren<{
-  isGeneric: boolean;
+    isGeneric: boolean;
 }>;
 
 function BackgroundImage({isGeneric, children}: BackgroundImageProps) {
@@ -657,7 +657,7 @@ const IdpList: React.FunctionComponent<IsGenericProps> = ({isGeneric}) => {
     }</div>
 };
 
-function LoginHeader ({branding}: React.PropsWithChildren<TextProps & {branding: BrandingResponse}>): React.ReactNode {
+function LoginHeader({branding}: React.PropsWithChildren<TextProps & {branding: BrandingResponse}>): React.ReactNode {
     const textColor = getTextColor(branding);
 
     if (isUsingGenericLoginPage(branding)) {

@@ -202,7 +202,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
 
     public idIsUriEncoded = true;
 
-    renderer: ItemRenderer<UFile, ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks> = {
+    renderer: ItemRenderer<UFile, ResourceBrowseCallbacks<UFile, ProductStorage> & ExtraFileCallbacks> = {
     };
 
     private defaultRetrieveFlags: Partial<UFileIncludeFlags> = {
@@ -237,10 +237,10 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
         return <FilePreview initialFile={file} />
     }
 
-    public retrieveOperations(): Operation<UFile, ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks>[] {
+    public retrieveOperations(): Operation<UFile, ResourceBrowseCallbacks<UFile, ProductStorage>>[] {
         const base = super.retrieveOperations()
             .filter(it => it.tag !== CREATE_TAG && it.tag !== PERMISSIONS_TAG && it.tag !== DELETE_TAG);
-        const ourOps: Operation<UFile, ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks>[] = [
+        const ourOps: Operation<UFile, ResourceBrowseCallbacks<UFile, ProductStorage> & ExtraFileCallbacks>[] = [
             {
                 text: "Use this folder",
                 primary: true,
@@ -707,7 +707,8 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
             },
         ];
 
-        return ourOps.concat(base);
+        // FIXME(Jonas): Not great that the cast is through `unknown`
+        return base.concat(ourOps as unknown as Operation<UFile, ResourceBrowseCallbacks<UFile, ProductStorage>>[]);
     }
 
     public transfer(request: BulkRequest<FilesTransferRequestItem>): APICallParameters<BulkRequest<{}>> {
@@ -877,7 +878,7 @@ function handleSyncthingWarning(files: UFile[], cb: ExtraFileCallbacks, op: () =
     }
 }
 
-function synchronizationOpText(files: UFile[], callbacks: ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks): string {
+function synchronizationOpText(files: UFile[], callbacks: ResourceBrowseCallbacks<UFile, ProductStorage> & ExtraFileCallbacks): string {
     const devices: SyncthingDevice[] = callbacks.syncthingConfig?.devices ?? [];
     if (devices.length === 0) return "Sync setup";
 
@@ -906,7 +907,7 @@ function isAnySynchronized(files: UFile[], callbacks: ExtraFileCallbacks): boole
     return synchronizedFolders.find(it => it.ucloudPath && filePaths.includes(it.ucloudPath)) != null;
 }
 
-function synchronizationOpEnabled(isDir: boolean, files: UFile[], cb: ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks): boolean | string {
+function synchronizationOpEnabled(isDir: boolean, files: UFile[], cb: ResourceBrowseCallbacks<UFile, ProductStorage> & ExtraFileCallbacks): boolean | string {
     const support = cb.collection?.status.resolvedSupport?.support;
     if (!support) return false;
 
@@ -931,7 +932,7 @@ function synchronizationOpEnabled(isDir: boolean, files: UFile[], cb: ResourceBr
     return true;
 }
 
-async function synchronizationOpOnClick(files: UFile[], cb: ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks) {
+async function synchronizationOpOnClick(files: UFile[], cb: ResourceBrowseCallbacks<UFile, ProductStorage> & ExtraFileCallbacks) {
     const synchronized: SyncthingFolder[] = cb.syncthingConfig?.folders ?? [];
     const resolvedFiles = files.length === 0 ? (cb.directory ? [cb.directory] : []) : files;
     const allSynchronized = resolvedFiles.every(selected => synchronized.some(it => it.ucloudPath === selected.id));
@@ -1157,7 +1158,7 @@ function isFileFileSizeExceeded(file: UFile) {
 export function FilePreview({initialFile}: {
     initialFile: UFile,
 }): React.ReactNode {
-    const [openFile, setOpenFile] = useState<[string, string | Uint8Array<ArrayBuffer>]>(["", ""]);
+    const [openFile, setOpenFile] = useState<[string, string | Uint8Array<ArrayBufferLike>]>(["", ""]);
     const [previewRequested, setPreviewRequested] = useState(false);
     const [drive, setDrive] = useState<FileCollection | null>(null);
     const [renamingFile, setRenamingFile] = useState<string>();
@@ -1320,8 +1321,8 @@ export function FilePreview({initialFile}: {
             }
         }
 
-        window.addEventListener(FileWriteFailure, revertLocalSave);
-        window.setTimeout(() => window.removeEventListener(FileWriteFailure, revertLocalSave), 30_000);
+        window.addEventListener(FileWriteFailure, {handleEvent: revertLocalSave});
+        window.setTimeout(() => window.removeEventListener(FileWriteFailure, {handleEvent: revertLocalSave}), 30_000);
     }, [vfs, node]);
 
     useEffect(() => {
@@ -1347,7 +1348,7 @@ export function FilePreview({initialFile}: {
         }
     }, [onSave, requestPreviewToggle]);
 
-    const onOpenFile = useCallback((path: string, data: string | Uint8Array<ArrayBuffer>) => {
+    const onOpenFile = useCallback((path: string, data: string | Uint8Array<ArrayBufferLike>) => {
         setPreviewRequested(false);
         setOpenFile(file => {
             const [currentPath] = file;
@@ -1419,7 +1420,7 @@ export function FilePreview({initialFile}: {
         return success;
     }, []);
 
-    const operations = useCallback((file?: VirtualFile): Operation<any>[] => {
+    const operations = useCallback((file?: VirtualFile): Operation<VirtualFile, null | undefined>[] => {
         const reload = () => {
             editorRef.current?.invalidateTree(removeTrailingSlash(getParentPath(initialFile.id)));
         }

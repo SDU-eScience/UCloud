@@ -30,7 +30,7 @@ export interface LegacyReduxObject {
     terminal: TerminalState;
     providerBrandings: ProviderBrandingResponse;
     branding: BrandingResponse
-    popinChild: PopInArgs | null;
+    popinChild: PopInArgs;
     loading: boolean;
     sidebar: SidebarStateProps;
 }
@@ -64,7 +64,7 @@ export function initObject(): ReduxObject {
         terminal: initTerminalState(),
         providerBrandings: initProviderBranding(),
         branding: initBranding(),
-        popinChild: null,
+        popinChild: {el: undefined},
         loading: false,
         sidebar: {favorites: [], theme: getThemeOrDefaultValue()}
     };

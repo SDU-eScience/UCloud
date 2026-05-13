@@ -1,31 +1,28 @@
-import {PayloadAction} from "@reduxjs/toolkit";
-import {Dispatch} from "redux";
+import {createSlice, Dispatch, PayloadAction} from "@reduxjs/toolkit";
 
 export interface State {
     project?: string;
 }
 
-export const initialState = {project: getStoredProject() ?? undefined};
-
-type SetProjectAction = PayloadAction<{project?: string}, "SET_PROJECT">
+export const initialState: State = {project: getStoredProject() ?? undefined};
 
 export function dispatchSetProjectAction(dispatch: Dispatch, project?: string): void {
-    dispatch<ProjectAction>({payload: {project}, type: "SET_PROJECT"});
+    dispatch(setProject(project));
 }
 
-type ProjectAction = SetProjectAction;
-
-export const reducer = (state: State = initialState, action: ProjectAction): State => {
-    switch (action.type) {
-        case "SET_PROJECT": {
-            setStoredProject(action.payload.project ?? null);
-            return {...state, project: action.payload.project};
+const projectSlice = createSlice({
+    name: "project",
+    initialState,
+    reducers: {
+        setProject(state, action: PayloadAction<string | undefined>) {
+            setStoredProject(action.payload ?? null);
+            state.project = action.payload;
         }
-
-        default:
-            return state;
     }
-};
+});
+
+export const {setProject} = projectSlice.actions;
+export const reducer = projectSlice.reducer;
 
 export function getStoredProject(): string | null {
     return window.localStorage.getItem("project") ?? null;

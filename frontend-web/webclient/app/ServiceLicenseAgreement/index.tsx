@@ -47,8 +47,8 @@ const ServiceLicenseAgreement: React.FunctionComponent = () => {
             await invokeCommand(acceptSla(sla.data.version));
             await Client.invalidateAccessToken();
             navigate("/");
-        } catch (res) {
-            const response = res.response;
+        } catch (err: any) {
+            const response = err.response;
             const why: string = response?.why ?? "Error while attempting to accept agreement";
             sendFailureNotification(why);
         }

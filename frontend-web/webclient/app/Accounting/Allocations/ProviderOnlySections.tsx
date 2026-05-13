@@ -13,7 +13,7 @@ import {removePrefixFrom} from "@/Utilities/TextUtilities";
 import {callAPI} from "@/Authentication/DataHook";
 import * as Gifts from "@/Accounting/Gifts";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {sendFailureNotification, sendNotification, sendSuccessNotification, SnackType} from "@/Notifications";
+import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
 
 const wayfIdpsPairs = WAYF.wayfIdps.map(it => ({value: it, content: it}));
 
@@ -116,7 +116,7 @@ export const ProviderOnlySections: React.FunctionComponent<{
             sendSuccessNotification("Root allocation has been created");
             dispatchEvent({type: "ResetRootAllocation"});
             dispatchEvent({type: "Init"});
-        } catch (e) {
+        } catch (e: any) {
             sendFailureNotification("Failed to create root allocation: " + extractErrorMessage(e));
             return;
         } finally {
@@ -254,7 +254,7 @@ export const ProviderOnlySections: React.FunctionComponent<{
             gift.id = id;
             dispatchEvent({type: "GiftCreated", gift});
             sendSuccessNotification("Gift Created");
-        } catch (e) {
+        } catch (e: any) {
             sendFailureNotification("Failed to create a gift: " + extractErrorMessage(e));
         } finally {
             creatingGift.current = false;
@@ -268,7 +268,7 @@ export const ProviderOnlySections: React.FunctionComponent<{
 
         try {
             await callAPI(Gifts.remove({giftId: id}));
-        } catch (e) {
+        } catch (e: any) {
             sendFailureNotification("Failed to delete gift: " + extractErrorMessage(e));
             return;
         }

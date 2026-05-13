@@ -56,7 +56,7 @@ import MetadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/Meta
 import {bulkRequestOf} from "@/UtilityFunctions";
 import metadataDocumentApi, {FileMetadataDocument, FileMetadataDocumentOrDeleted, FileMetadataHistory} from "@/UCloud/MetadataDocumentApi";
 
-import {ResourceBrowseCallbacks, ResourceOwner, ResourcePermissions, SupportByProvider} from "@/UCloud/ResourceApi";
+import {ResourceBrowseCallbacks, ResourceOwner, ResourcePermissions, ResourceSpecification, SupportByProvider} from "@/UCloud/ResourceApi";
 import {Client, WSFactory} from "@/Authentication/HttpClientInstance";
 import ProductReference = accounting.ProductReference;
 import {Operation} from "@/ui-components/Operation";
@@ -75,6 +75,7 @@ import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {HTMLTooltip} from "@/ui-components/Tooltip";
 import SharesApi, {OutgoingShareGroup} from "@/UCloud/SharesApi";
 import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
+import {ProductStorage} from "@/Accounting";
 
 export enum SensitivityLevel {
     "INHERIT" = "Inherit",
@@ -681,8 +682,9 @@ function FileBrowse({
                     const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks;
                     const enabledOperations = FilesApi.retrieveOperations().filter(op => op.enabled(selected, callbacks, selected));
                     if (opts?.additionalOperations) {
-                        opts.additionalOperations.forEach(op => {
-                            if (op.enabled(selected, callbacks, selected)) enabledOperations.push(op);
+                        (opts.additionalOperations).forEach(op => {
+                            // FIXME(Jonas): Casting here is not ideal
+                            if (op.enabled(selected, callbacks, selected)) enabledOperations.push(op as unknown as Operation<UFile, ResourceBrowseCallbacks<UFile, ProductStorage, ResourceSpecification>>);
                         })
                     }
                     return groupOperations(enabledOperations);
@@ -1633,7 +1635,7 @@ function folderNote(
 }
 
 // Note(Jonas): Temporary as there should be a better solution, not because the element is temporary
-function temporaryDriveDropdownFunction(browser: ResourceBrowser<unknown>, posX: number, posY: number): void {
+function temporaryDriveDropdownFunction(browser: ResourceBrowser<UFile>, posX: number, posY: number): void {
     const filteredCollections = collectionCacheForCompletion.retrieveFromCacheOnly("") ?? [];
 
     function generateElements(filter?: string): HTMLLIElement[] {

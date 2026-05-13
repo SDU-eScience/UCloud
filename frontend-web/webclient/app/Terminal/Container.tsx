@@ -1,8 +1,7 @@
 import * as React from "react";
-import {TerminalAction, TerminalState, TerminalTab, useTerminalDispatcher, useTerminalState} from "@/Terminal/State";
+import {terminalClose, terminalCloseTab, terminalSelectTab, TerminalState, TerminalTab, useTerminalState} from "@/Terminal/State";
 import {useCallback, useEffect, useRef, useMemo, useState} from "react";
 import {Icon, Truncate} from "@/ui-components";
-import {Feature, hasFeature} from "@/Features";
 import {injectStyle} from "@/Unstyled";
 import {noopCall, useCloudAPI} from "@/Authentication/DataHook";
 import {BulkResponse} from "@/UCloud";
@@ -14,6 +13,8 @@ import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
 import {CSSVarCurrentSidebarStickyWidth} from "@/ui-components/List";
 import {Tab} from "@/Editor/Editor";
 import {Operation, Operations, ShortcutKey} from "@/ui-components/Operation";
+import {useDispatch} from "react-redux";
+import {Dispatch, PayloadAction} from "@reduxjs/toolkit";
 
 const Wrapper = injectStyle("wrapper", k => `
     ${k} {
@@ -84,7 +85,7 @@ const Wrapper = injectStyle("wrapper", k => `
 
 export const TerminalContainer: React.FunctionComponent = () => {
     const state = useTerminalState();
-    const dispatch = useTerminalDispatcher();
+    const dispatch = useDispatch();
 
     const termSizeSaved = useRef<number>(400);
 
@@ -134,7 +135,7 @@ export const TerminalContainer: React.FunctionComponent = () => {
         }
     }, [state.activeTab]);
 
-    const [operations, setOperations] = useState<Operation<any, undefined>[]>([]);
+    const [operations, setOperations] = useState<Operation<void>[]>([]);
     const openTabOperations = React.useCallback((idx: number, position: {x: number; y: number;}) => {
         const ops = tabOperations(dispatch, idx, state);
         setOperations(ops);
@@ -174,8 +175,7 @@ export const TerminalContainer: React.FunctionComponent = () => {
                 forceEvaluationOnOpen={true}
                 openFnRef={openTabOperationWindow}
                 selected={[]}
-                extra={null}
-                row={42}
+                extra={undefined}
                 hidden
                 location={"IN_ROW"}
             />
@@ -193,13 +193,13 @@ export const TerminalContainer: React.FunctionComponent = () => {
     </div>;
 };
 
-function tabOperations(dispatch: (action: TerminalAction) => void, tabIdx: number, state: TerminalState): Operation<any>[] {
+function tabOperations(dispatch: Dispatch, tabIdx: number, state: TerminalState): Operation<void>[] {
     return [
         {
             text: "Close tab",
             enabled: () => true,
             onClick() {
-                dispatch({type: "TerminalCloseTab", payload: {tabIdx: tabIdx}});
+                dispatch(terminalCloseTab({tabIdx: tabIdx}));
             },
             "shortcut": ShortcutKey.A,
         },
@@ -208,7 +208,7 @@ function tabOperations(dispatch: (action: TerminalAction) => void, tabIdx: numbe
             onClick() {
                 for (let idx = state.tabs.length - 1; idx >= 0; idx--) {
                     if (idx === tabIdx) continue;
-                    dispatch({type: "TerminalCloseTab", payload: {tabIdx: idx}});
+                    dispatch(terminalCloseTab({tabIdx: idx}));
                 }
             },
             "shortcut": ShortcutKey.B,
@@ -216,11 +216,11 @@ function tabOperations(dispatch: (action: TerminalAction) => void, tabIdx: numbe
         {
             text: "Close to the right", enabled: () => true /* todo */, onClick() {
                 for (let i = state.tabs.length - 1; i > tabIdx; i--) {
-                    dispatch({type: "TerminalCloseTab", payload: {tabIdx: i}});
+                    dispatch(terminalCloseTab({tabIdx: i}))
                 }
 
                 if (tabIdx < state.activeTab) {
-                    dispatch({type: "TerminalSelectTab", payload: {tabIdx: tabIdx}})
+                    terminalSelectTab({tabIdx})
                 }
             },
             "shortcut": ShortcutKey.C,
@@ -230,7 +230,7 @@ function tabOperations(dispatch: (action: TerminalAction) => void, tabIdx: numbe
                 for (let i = state.tabs.length - 1; i >= 0; i--) {
                     dispatch({type: "TerminalCloseTab", payload: {tabIdx: i}});
                 }
-                dispatch({type: "TerminalClose"});
+                dispatch(terminalClose());
             },
             "shortcut": ShortcutKey.D,
         },

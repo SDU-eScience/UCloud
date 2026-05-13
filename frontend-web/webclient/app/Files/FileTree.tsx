@@ -28,7 +28,7 @@ interface FileTreeProps {
     root: EditorSidebarNode;
     initialFolder: string;
     initialFilePath?: string;
-    operations?: (file?: VirtualFile) => Operation<any>[];
+    operations?: (file?: VirtualFile) => Operation<VirtualFile, null | undefined>[];
     width?: string;
     canResize?: boolean;
     fileHeaderOperations?: React.ReactNode;
@@ -40,7 +40,7 @@ export function FileTree({tree, onTreeAction, onNodeActivated, root, ...props}: 
     const width = props.width ?? "250px";
     const resizeSetting = props.canResize ? "horizontal" : "none";
 
-    const [operations, setOperations] = React.useState<Operation<any, undefined>[]>([]);
+    const [operations, setOperations] = React.useState<Operation<VirtualFile, null | undefined>[]>([]);
 
     const style = {
         "--tree-width": width,
@@ -93,7 +93,6 @@ export function FileTree({tree, onTreeAction, onNodeActivated, root, ...props}: 
                 openFnRef={openOperations}
                 selected={[]}
                 extra={null}
-                row={42}
                 hidden
                 location={"IN_ROW"}
             />

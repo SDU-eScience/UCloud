@@ -23,15 +23,12 @@ import {ListRowStat} from "@/ui-components/List";
 import {ResourceProperties} from "@/Resource/Properties";
 import TitledCard from "@/ui-components/HighlightedCard";
 import {doNothing} from "@/UtilityFunctions";
-import {apiUpdate, InvokeCommand, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
-import * as UCloud from "@/UCloud/index";
-import {BulkRequest, PageV2} from "@/UCloud/index";
-import {useToggleSet} from "@/Utilities/ToggleSet";
-import {Operation, Operations, ShortcutKey} from "@/ui-components/Operation";
+import {apiUpdate} from "@/Authentication/DataHook";
+import {BulkRequest} from "@/UCloud/index";
+import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {ResourcePermissionEditor} from "@/Resource/PermissionEditor";
 import {dialogStore} from "@/Dialog/DialogStore";
-import {emptyPageV2} from "@/Utilities/PageUtilities";
 import {MachineView} from "@/Products/Products";
 
 export interface ProviderSpecification extends ResourceSpecification {
@@ -56,10 +53,6 @@ export interface ProviderFlags extends ResourceIncludeFlags {
 export interface Provider extends Resource<ProviderUpdate, ProviderStatus, ProviderSpecification> {
     refreshToken: string;
     publicKey: string;
-}
-
-interface ProviderCallbacks {
-    editProvider: (product: Provider) => void;
 }
 
 class ProviderApi extends ResourceApi<Provider, Product, ProviderSpecification, ProviderUpdate,
@@ -88,7 +81,7 @@ class ProviderApi extends ResourceApi<Provider, Product, ProviderSpecification, 
         }
     };
 
-    public retrieveOperations(): Operation<Provider, ResourceBrowseCallbacks<Provider>>[] {
+    public retrieveOperations(): Operation<Provider, ResourceBrowseCallbacks<Provider, Product>>[] {
         return [
             {
                 text: "Create " + this.title.toLowerCase(),
