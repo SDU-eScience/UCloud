@@ -469,6 +469,7 @@ func providerNotificationHandleClient(conn *ws.Conn) {
 			out.WriteU32(workspaceRef)
 			out.WriteU32(categoryRef)
 			out.WriteS64(wallet.Quota)
+			out.WriteS64(wallet.TotalUsage)
 			out.WriteU32(flags)
 			out.WriteS64(wallet.LastSignificantUpdateAt.UnixMilli())
 			if connFlags&0x1 != 0 {

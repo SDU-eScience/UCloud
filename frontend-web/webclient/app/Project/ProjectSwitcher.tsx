@@ -1,6 +1,6 @@
 import * as React from "react";
 import {useDispatch} from "react-redux";
-import {bulkRequestOf, threadDeferLike, displayErrorMessageOrDefault, errorMessageOrDefault, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
+import {bulkRequestOf, displayErrorMessageOrDefault, errorMessageOrDefault, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import {useEffect} from "react";
 import {dispatchSetProjectAction, emitProjects, getStoredProject} from "@/Project/ReduxState";
 import {Flex, Truncate, Icon, Input, Relative, Box, Error, Label} from "@/ui-components";
@@ -197,7 +197,7 @@ export function ProjectSwitcher({managed}: {
                 clickedProject.status.isFavorite = !clickedProject.status.isFavorite;
                 if (clickedProject.status.isFavorite) {
                     // Note(Jonas): Allow re-render, THEN scroll
-                    threadDeferLike(() => {
+                    window.queueMicrotask(() => {
                         const switcher = document.querySelector(`[data-component="project-switcher"]`);
                         const projectRow = switcher?.querySelector(`[data-project="${projectId}"]`);
                         if (switcher && projectRow) {
