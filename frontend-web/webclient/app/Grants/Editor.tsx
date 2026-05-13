@@ -44,7 +44,6 @@ import {useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef} fr
 import {useLocation, useNavigate} from "react-router-dom";
 import * as Grants from ".";
 import {ChangeOrganizationDetails, OptionalInfo, optionalInfoRequest, optionalInfoUpdate} from "@/UserSettings/ChangeUserDetails";
-import {ProviderBranding, ProviderBrandingProductDescription, ProviderBrandingResponse} from "@/UCloud/ProviderBrandingApi";
 import {useSelector} from "react-redux";
 import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
 
@@ -107,7 +106,7 @@ interface Allocators {
     id: string;
     title: string;
     description: string;
-    template: Grants.Templates;
+    template: Grants.FormField[];
     checked: boolean;
 }
 
@@ -292,14 +291,17 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             let i = 0;
             for (const allocator of action.allocators) {
                 const existing = newAllocators.find(it => it.id === allocator.id);
+                const forms = allocator.templates.structured[templateKey];
+                const sameForm = existing?.template.length === forms && existing?.template.every((val, i) => val === forms[i]);
                 if (!existing) {
                     newAllocators.push({
                         id: allocator.id, title: allocator.title, description: allocator.description,
-                        template: allocator.templates, checked: false
+                        template: forms, checked: false,
                     });
-                } else if (existing.template !== allocator.templates) {
-                    newAllocators[i] = {...existing, template: allocator.templates};
+                } else if (!sameForm) {
+                    newAllocators[i] = {...existing, template: forms};
                 }
+                
 
                 for (const category of allocator.categories) {
                     let sectionForProvider = newResources[category.provider];
@@ -307,7 +309,6 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                         newResources[category.provider] = [];
                         sectionForProvider = newResources[category.provider]!;
                     }
-
 
                     const existing = sectionForProvider.find(it => it.category.name === category.name);
                     if (existing) {
@@ -328,12 +329,11 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             for (const arr of Object.values(newResources)) {
                 arr.sort((a, b) => Accounting.categoryComparator(a.category, b.category));
             }
-            // we should filter the type === templateKey
-            const templates = action.allocators.filter(it => newAllocators.find(existing => existing.id === it.id)?.checked === true)
-                .map(it => it.templates)
+
+            const forms = action.allocators.filter(it => newAllocators.find(existing => existing.id === it.id)?.checked === true).flatMap(it => it.templates.structured[templateKey])
             
             // list of grant givers action.allocators
-            const allSections = calculateNewApplicationV2(extractFormFields(templateKey, templates));
+            const allSections = calculateNewApplicationV2(forms);
 
             return {
                 ...state,
@@ -518,8 +518,8 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                     return it;
                 }
             });
-            const templates = newAllocators.filter(it => it.checked).map(it => it.template);
-            const allSections = calculateNewApplicationV2(extractAllFormFields(templates))
+            const forms = newAllocators.filter(it => it.checked).flatMap(it => it.template);
+            const allSections = calculateNewApplicationV2(forms);
 
             return {
                 ...state,
@@ -763,19 +763,9 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                     newAllocators.push({
                         title: breakdown.projectTitle,
                         id: breakdown.projectId,
-                        template: { 
-                            type: "plain_text",
-                            existingProject: "",
-                            newProject: "",
-                            personalProject: "",
-                            structured: {
-                                existingProject: [],
-                                newProject: [],
-                                personalProject: []
-                            }
-                        },
+                        template: [],
                         description: "",
-                        checked: true
+                        checked: true,
                     });
                 }
             }
@@ -816,44 +806,28 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
         const isGrantGiverInitiated = app && app.status.overallState == "APPROVED" && app.status.revisions.length === 1 && docText.startsWith(grantGiverInitiatedPrefix);
 
         const docSections = parseIntoSections(docText);
-        const grantTemplate: Grants.FormField = {
-            description: grantGiverInitiatedTemplate,
-            name: "grantGiverInitiatedTemplate",
-            optional: false,
-            maxLength: 1000,
-            title: "grantGiverStuff",
-        };
-        const foundTemplates = isGrantGiverInitiated ? [grantTemplate] : newAllocators.map(it => it.template);
 
-        /////// ALRIGHJT FIX HREE
-        const allSections = [
-                foundTemplates["newProject"], 
-                foundTemplates["existingProject"],
-                foundTemplates["personalProject"]
-            ]
-
-        console.log("NOTHING ", newAllocators);
-        console.log("NOTHING ", allSections);
-        const newApplication = calculateNewApplicationV2(allSections);
+        const forms = isGrantGiverInitiated ? [grantGiverInitiatedForm] : newAllocators.flatMap(it => it.template);
+        const newApplication = calculateNewApplicationV2(forms);
 
         const newApplicationDocument: EditorState["applicationDocument"] = {};
         let otherSection = "";
-        // for (const section of docSections) {
-        //     const hasSection = newApplication.some(it => it.title === section.title);
-        //     if (hasSection) {
-        //         newApplicationDocument[section.title] = section.description;
-        //     } else {
-        //         otherSection += section.title;
-        //         otherSection += ":\n\n";
-        //         otherSection += section.description;
-        //         otherSection += "\n\n";
-        //     }
-        // }
+        for (const section of docSections) {
+            const hasSection = newApplication.some(it => it.title === section.title);
+            if (hasSection) {
+                newApplicationDocument[section.title] = section.description;
+            } else {
+                otherSection += section.title;
+                otherSection += ":\n\n";
+                otherSection += section.description;
+                otherSection += "\n\n";
+            }
+        }
 
-        // if (otherSection) {
-        //     newApplication.push({title: "Other", rows: 6, mandatory: false, description: ""});
-        //     newApplicationDocument["Other"] = otherSection;
-        // }
+        if (otherSection) {
+            newApplication.push({title: "Other", rows: 6, mandatory: false, description: ""});
+            newApplicationDocument["Other"] = otherSection;
+        }
 
         let startDate = new Date(Date.now())
         if (doc.allocationPeriod?.start != null) {
@@ -3147,5 +3121,16 @@ const grantGiverInitiatedTemplate = `${grantGiverInitiatedPrefix}
 --------------------------------------------------
                     
 Describe the reason for creating this sub-allocation (max 4000 ch).`;
+
+const grantGiverInitiatedForm: Grants.FormField = {
+    description: `
+    --------------------------------------------------
+    Describe the reason for creating this sub-allocation`,
+    name: grantGiverInitiatedPrefix,
+    optional: false,
+    title: grantGiverInitiatedPrefix,
+    maxLength: 4000,
+    rows: 100
+};
 
 export default Editor;

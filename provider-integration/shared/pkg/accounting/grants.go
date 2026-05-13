@@ -143,12 +143,12 @@ type Templates struct {
 }
 
 type FormField struct {
-	Name        string
-	Title       string
-	Description string // allows markdown
-	Optional    bool
-	MaxLength   util.Option[int]
-	Rows        util.Option[int]
+	Name        string           `json:"name"`
+	Title       string           `json:"title"`
+	Description string           `json:"description"`
+	Optional    bool             `json:"optional"`
+	MaxLength   util.Option[int] `json:"maxLength"`
+	Rows        util.Option[int] `json:"rows"`
 }
 
 type GrantApplication struct {
