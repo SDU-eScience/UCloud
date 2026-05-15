@@ -75,11 +75,15 @@ assigned to individual issues.
 ### Initial testing
 
 Eventually code will reach a functional stage. At this point the issue becomes "ready for initial testing". In this
-stage, the code is tested by the assigned developer.  Code can be tested both manually and automatically. Automatic
-tests are executed by Jenkins. Manual testing is performed on a development system. The development system contains a 
+stage, the code is tested by the assigned developer.  Code can be tested both manually and automatically. 
+Manual testing is first performed on a local created UCloud environment. Once the initial manual test are satisfactory.
+The manual testing moves onto the development system. The development system contains a 
 software and hardware stack similar to the one used in the production environment. This allows us to more accurately 
 test code. The development system is commonly used in our system to act as a staging environment. Our experience has 
-shown that with our team size, a separate staging environment did not provide sufficient benefits. 
+shown that with our team size, a separate staging environment did not provide sufficient benefits.
+Automatic tests are conducted when a PR is merged into the `master` branch consisting of a E2E test assuring that everything still
+works as intended. The automatic testing is run using GitHub Actions and creates an entire local cloud system to perform
+the tests on.
 
 ### Code review
 
@@ -175,9 +179,10 @@ Project Leaders and ISMS admin regularly meets and evaluates the incidents and u
 
 ## Monitoring and Auditing
 
-Audit logs are consumed using the ElasticSearch and Kibana stack and presented in real time. Free-text logs are consumed
-by Loki (see infrastructure documentation for details). The output is mainly presented as Kibana and Grafana views
-using a number of thresholds for the system events. The auditing system is described [here](./auditing.md).
+Audit logs are consumed using our own audit ingestion service along side a postgres database and can be presented and 
+searchable in real time. Free-text logs are consumed by Loki (see infrastructure documentation for details). 
+The output is mainly presented as Kibana and Grafana viewsusing a number of thresholds for the system events. 
+The auditing system is described [here](./auditing.md).
 
 The relevant teams monitor the output.
 
@@ -201,8 +206,8 @@ unknown behavior and a potential risk is seen, an issue is created.
 
 ![](./SecurityFlowUpdate.png)
 
-Our GitHub issue tracker is not used for security incidents, given that it is public. Instead, our Jira incident service
-desk is used for this purpose.
+Our GitHub issue tracker is not used for security incidents, given that it is public. Instead, we keep track of our 
+incidents on our status page where admins have access to an incident tracker.
 
 ## Internal Audits
 
