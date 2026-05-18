@@ -54,7 +54,7 @@ const hookStore = createSlice({
     initialState: initialState(),
     reducers: {
         genericSet(state, action: PayloadAction<{
-            property: string;
+            property: keyof HookStore;
             newValue?: ValueOrSetter<any>;
             defaultValue: any;
         }>) {

@@ -30,7 +30,6 @@ export interface LegacyReduxObject {
     providerBrandings: ProviderBrandingResponse;
     branding: BrandingResponse
     popinChild: PopInArgs;
-    loading: boolean;
     sidebar: SidebarStateProps;
 }
 
@@ -63,7 +62,6 @@ export function initObject(): ReduxObject {
         providerBrandings: initProviderBranding(),
         branding: initBranding(),
         popinChild: {el: undefined},
-        loading: false,
         sidebar: {favorites: [], theme: getThemeOrDefaultValue()}
     };
 }

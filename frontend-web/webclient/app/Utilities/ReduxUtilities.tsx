@@ -47,21 +47,9 @@ export const store = confStore(initObject(), {
     terminal: terminalReducer,
     providerBrandings: providerBrandingReducer,
     branding: brandingReducer,
-    loading,
     project: ProjectRedux.reducer,
     popinChild: popInReducer,
 });
-
-function loading(state = false, action: {type: string}): boolean {
-    switch (action.type) {
-        case "LOADING_START":
-            return true;
-        case "LOADING_END":
-            return false;
-        default:
-            return state;
-    }
-}
 
 export const refreshFunctionCache = new class {
     private refresh: (() => void) | undefined = undefined;

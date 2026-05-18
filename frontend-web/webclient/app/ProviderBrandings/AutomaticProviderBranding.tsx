@@ -40,7 +40,7 @@ const providerBrandingSlice = createSlice({
     initialState: initProviderBranding(),
     reducers: {
         addProviderBranding(state, action: PayloadAction<ProviderBrandingResponse>) {
-            state = action.payload;
+            state.providers = action.payload.providers;
         }
     }
 });
