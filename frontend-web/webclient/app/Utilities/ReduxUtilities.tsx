@@ -1,7 +1,6 @@
 import {useEffect} from "react";
-import {combineReducers, Reducer} from "redux";
+import {combineReducers} from "redux";
 
-import {dashboardReducer} from "@/Dashboard/Redux";
 import {initObject} from "@/DefaultObjects";
 import {statusReducer} from "@/Navigation/Redux";
 import * as ProjectRedux from "@/Project/ReduxState";
@@ -41,7 +40,6 @@ function confStore(
 
 
 export const store = confStore(initObject(), {
-    dashboard: dashboardReducer,
     status: statusReducer,
     hookStore: hookStoreReducer,
     sidebar: sidebarReducer,

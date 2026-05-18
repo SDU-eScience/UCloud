@@ -1,12 +1,8 @@
 import {MainContainer} from "@/ui-components/MainContainer";
 import {usePage} from "@/Navigation/Redux";
 import * as React from "react";
-import {useDispatch} from "react-redux";
-import {Dispatch} from "redux";
 import {Box, Button, Flex, Icon, Image, Link, Markdown, Text} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
-import {DashboardOperations} from ".";
-import {setAllLoading} from "./Redux";
 import {APICallState, useCloudAPI} from "@/Authentication/DataHook";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import {Spacer} from "@/ui-components/Spacer";
@@ -63,13 +59,10 @@ function Dashboard(): React.ReactNode {
 
     usePage("Dashboard", SidebarTabId.NONE);
 
-    const dispatch = useDispatch();
     const invitesReload = React.useRef<() => void>(initialCall);
     const projectInvitesReload = React.useRef<() => void>(initialCall);
     const runsReload = React.useRef<() => void>(initialCall);
     const grantsReload = React.useRef<() => void>(initialCall);
-
-    const reduxOps = React.useMemo(() => reduxOperations(dispatch), [dispatch]);
 
     const [wallets, fetchWallets] = useCloudAPI<PageV2<Accounting.WalletV2>>({noop: true}, emptyPageV2);
 
@@ -78,7 +71,6 @@ function Dashboard(): React.ReactNode {
     }, []);
 
     function reload(): void {
-        reduxOps.setAllLoading(true);
         fetchNews(newsParams);
         fetchWallets(Accounting.browseWalletsV2({
             itemsPerPage: 250,
@@ -471,12 +463,6 @@ const NewsClass = injectStyle("with-graphic", k => `
     }
 }
 `);
-
-function reduxOperations(dispatch: Dispatch): DashboardOperations {
-    return {
-        setAllLoading: loading => dispatch(setAllLoading(loading)),
-    };
-}
 
 const DashboardCard: React.FunctionComponent<{
     title: string;

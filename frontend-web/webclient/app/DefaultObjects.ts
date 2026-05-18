@@ -23,7 +23,6 @@ export interface StatusReduxObject {
  */
 export interface LegacyReduxObject {
     hookStore: HookStore;
-    dashboard: DashboardStateProps;
     status: StatusReduxObject;
     avatar: AvatarReduxObject;
     project: ProjectRedux.State;
@@ -57,7 +56,6 @@ export function initDashboard(): DashboardStateProps {
 export function initObject(): ReduxObject {
     return {
         hookStore: {},
-        dashboard: initDashboard(),
         status: initStatus(),
         avatar: initAvatar(),
         project: ProjectRedux.initialState,
