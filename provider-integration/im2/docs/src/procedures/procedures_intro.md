@@ -82,7 +82,7 @@ software and hardware stack similar to the one used in the production environmen
 test code. The development system is commonly used in our system to act as a staging environment. Our experience has 
 shown that with our team size, a separate staging environment did not provide sufficient benefits.
 Automatic tests are conducted when a PR is merged into the `master` branch consisting of an E2E test suite, assuring that everything still
-works as intended. The automatic testing is run using GitHub Actions and creates an entire local cloud system to perform
+works as intended. The automatic testing runs using GitHub Actions and creates an entire local cloud system to perform
 the tests on.
 
 ### Code review
