@@ -32,7 +32,7 @@ const sidebarSlice = createSlice({
             } else {
                 copy.favorites = state.favorites.filter(it => it.metadata.name !== metadata.metadata.name || it.metadata.version !== metadata.metadata.version);
             }
-            state = copy;
+            state.favorites = copy.favorites;
         },
         toggleThemeRedux(state, action: PayloadAction<"light" | "dark">) {
             state.theme = action.payload;
