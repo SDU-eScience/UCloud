@@ -80,6 +80,8 @@ import {setPopInChild} from "@/ui-components/PopIn";
 import {FileWriteFailure, WriteFailureEvent} from "@/Files/Uploader";
 import {GuessedFile} from "magic-bytes.js/dist/model/tree";
 import {sendFailureNotification, sendInformationNotification, sendSuccessNotification} from "@/Notifications";
+import {terminalOpen, terminalOpenTab} from "@/Terminal/State";
+import {genericSet} from "@/Utilities/ReduxHooks";
 
 export function normalizeDownloadEndpoint(endpoint: string): string {
     const e = endpoint.replace("integration-module:8889", "localhost:8889");
@@ -283,12 +285,10 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     return true;
                 },
                 onClick: (_, cb) => {
-                    cb.dispatch({
-                        type: "GENERIC_SET", payload: {
-                            property: "uploaderVisible", newValue: true,
-                            defaultValue: false
-                        }
-                    });
+                    cb.dispatch(genericSet({
+                        property: "uploaderVisible", newValue: true,
+                        defaultValue: false
+                    }));
                 },
                 shortcut: ShortcutKey.U
             },
@@ -625,8 +625,8 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     const providerTitle = getProviderTitle(providerId);
                     const folder = cb.directory?.id ?? "/";
 
-                    cb.dispatch({type: "TerminalOpen"});
-                    cb.dispatch({type: "TerminalOpenTab", payload: {tab: {title: providerTitle, folder}}});
+                    cb.dispatch(terminalOpen());
+                    cb.dispatch(terminalOpenTab({tab: {title: providerTitle, folder}}));
                 },
                 shortcut: ShortcutKey.O
             },
@@ -1363,8 +1363,8 @@ export function FilePreview({initialFile}: {
         const providerTitle = getProviderTitle(providerId) ?? providerId;
         const folder = getParentPath(initialFile.id);
 
-        dispatch({type: "TerminalOpen"});
-        dispatch({type: "TerminalOpenTab", payload: {tab: {title: providerTitle, folder}}});
+        dispatch(terminalOpen());
+        dispatch(terminalOpenTab({tab: {title: providerTitle, folder}}));
     }, [drive, initialFile]);
 
     const newFolder = useCallback(async (path: string) => {

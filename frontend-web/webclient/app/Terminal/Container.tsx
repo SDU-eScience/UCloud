@@ -1,5 +1,5 @@
 import * as React from "react";
-import {terminalClose, terminalCloseTab, terminalSelectTab, TerminalState, TerminalTab, useTerminalState} from "@/Terminal/State";
+import {terminalClose, terminalCloseTab, terminalOpen, terminalSelectTab, TerminalState, TerminalTab, useTerminalState} from "@/Terminal/State";
 import {useCallback, useEffect, useRef, useMemo, useState} from "react";
 import {Icon, Truncate} from "@/ui-components";
 import {injectStyle} from "@/Unstyled";
@@ -14,7 +14,7 @@ import {CSSVarCurrentSidebarStickyWidth} from "@/ui-components/List";
 import {Tab} from "@/Editor/Editor";
 import {Operation, Operations, ShortcutKey} from "@/ui-components/Operation";
 import {useDispatch} from "react-redux";
-import {Dispatch, PayloadAction} from "@reduxjs/toolkit";
+import {Dispatch} from "@reduxjs/toolkit";
 
 const Wrapper = injectStyle("wrapper", k => `
     ${k} {
@@ -123,15 +123,15 @@ export const TerminalContainer: React.FunctionComponent = () => {
 
     const toggle = useCallback(() => {
         if (state.open) {
-            dispatch({type: "TerminalClose"});
+            dispatch(terminalClose());
         } else {
-            dispatch({type: "TerminalOpen"});
+            dispatch(terminalOpen());
         }
     }, [state.open]);
 
     const closeTerminal = useCallback((idx: number) => {
         if (state.activeTab >= 0) {
-            dispatch({type: "TerminalCloseTab", payload: {tabIdx: idx}});
+            dispatch(terminalCloseTab({tabIdx: idx}))
         }
     }, [state.activeTab]);
 
@@ -146,7 +146,7 @@ export const TerminalContainer: React.FunctionComponent = () => {
         <Tab
             key={idx}
             title={<Truncate>{tab.title}</Truncate>}
-            onRowClick={() => dispatch({type: "TerminalSelectTab", payload: {tabIdx: idx}})}
+            onRowClick={() => dispatch(terminalSelectTab({tabIdx: idx}))}
             isActive={idx === state.activeTab}
             icon={<div />}
             onClose={e => {
@@ -228,7 +228,7 @@ function tabOperations(dispatch: Dispatch, tabIdx: number, state: TerminalState)
         {
             text: "Close all", enabled: () => true, onClick() {
                 for (let i = state.tabs.length - 1; i >= 0; i--) {
-                    dispatch({type: "TerminalCloseTab", payload: {tabIdx: i}});
+                    dispatch(terminalCloseTab({tabIdx: i}));
                 }
                 dispatch(terminalClose());
             },
