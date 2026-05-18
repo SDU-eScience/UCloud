@@ -76,7 +76,7 @@ assigned to individual issues.
 
 Eventually code will reach a functional stage. At this point the issue becomes "ready for initial testing". In this
 stage, the code is tested by the assigned developer.  Code can be tested both manually and automatically. 
-Manual testing is first performed on a local created UCloud environment. Once the initial manual test are satisfactory.
+Manual testing is first performed on a locally created UCloud environment. Once the initial manual test are satisfactory.
 The manual testing moves onto the development system. The development system contains a 
 software and hardware stack similar to the one used in the production environment. This allows us to more accurately 
 test code. The development system is commonly used in our system to act as a staging environment. Our experience has 
