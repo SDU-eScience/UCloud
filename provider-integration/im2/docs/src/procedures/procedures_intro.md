@@ -179,7 +179,7 @@ Project Leaders and ISMS admin regularly meets and evaluates the incidents and u
 
 ## Monitoring and Auditing
 
-Audit logs are consumed using our own audit ingestion service along side a postgres database and can be presented and 
+Audit logs are consumed using our own audit ingestion service along side a Postgres database and can be presented and 
 searchable in real time. Free-text logs are consumed by Loki (see infrastructure documentation for details). 
 The output is mainly presented as Kibana and Grafana viewsusing a number of thresholds for the system events. 
 The auditing system is described [here](./auditing.md).
