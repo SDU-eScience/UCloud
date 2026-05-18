@@ -36,14 +36,15 @@ const PopInClass = injectStyle("popin-class", k => `
 
 export function RightPopIn(): React.ReactNode {
     const content = useSelector<ReduxObject, PopInArgs | null>(it => it.popinChild);
+    const dispatch = useDispatch();
     /* Alternatively, use React.portal */
     return <PopIn hasContent={content?.el != null} >
         <Spacer
             mt="16px"
-            left={<Icon color="textPrimary" cursor="pointer" pt="4px" pl="4px" hoverColor="textPrimary" name="close" onClick={() => setPopInChild({el: undefined})} />}
+            left={<Icon color="textPrimary" cursor="pointer" pt="4px" pl="4px" hoverColor="textPrimary" name="close" onClick={() => dispatch(setPopInChild({el: undefined}))} />}
             right={content?.onFullScreen ? <Icon color="textPrimary" cursor="pointer" pt="4px" pr="4px" hoverColor="textPrimary" name="heroArrowsPointingOut" onClick={() => {
                 content?.onFullScreen?.();
-                setPopInChild({el: undefined});
+                dispatch(setPopInChild({el: undefined}));
             }} /> : null}
 
         />
@@ -67,7 +68,9 @@ const popInSlice = createSlice({
     initialState: initialState(),
     reducers: {
         setPopInChild(state, action: PayloadAction<PopInArgs>) {
-            state = action.payload;
+            state.el = action.payload.el;
+            state.onFullScreen = action.payload.onFullScreen;
+
         }
     }
 });

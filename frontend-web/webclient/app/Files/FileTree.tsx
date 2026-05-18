@@ -92,6 +92,7 @@ export function FileTree({tree, onTreeAction, onNodeActivated, root, ...props}: 
                 forceEvaluationOnOpen={true}
                 openFnRef={openOperations}
                 selected={[]}
+                row={42 as any} // This works, for some reason
                 extra={null}
                 hidden
                 location={"IN_ROW"}
