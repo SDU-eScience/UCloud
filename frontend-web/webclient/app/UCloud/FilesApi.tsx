@@ -1317,7 +1317,7 @@ export function FilePreview({initialFile}: {
             const failedUpload = e.detail.find(it => it.targetPath + it.name === path);
             if (failedUpload) {
                 revert();
-                sendFailureNotification(failedUpload.error ?? "Upload for file " + fileName(failedUpload.name) + " failed.");
+                sendFailureNotification(failedUpload.error ?? `Upload for file ${fileName(failedUpload.name)} failed.`);
             }
         }
 
