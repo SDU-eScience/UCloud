@@ -76,6 +76,7 @@ import {HTMLTooltip} from "@/ui-components/Tooltip";
 import SharesApi, {OutgoingShareGroup} from "@/UCloud/SharesApi";
 import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
 import {ProductStorage} from "@/Accounting";
+import {genericSet} from "@/Utilities/ReduxHooks";
 
 export enum SensitivityLevel {
     "INHERIT" = "Inherit",
@@ -1240,19 +1241,19 @@ function FileBrowse({
                     if (openTriggeredByPath.current === newPath) {
                         openTriggeredByPath.current = null;
                     } else if (!isSelector) {
-                        //                                                     Note(Jonas): Edge case that we want to navigate to FileTable on breadcrumb click (Job/View)
+                        // Note(Jonas): Edge case that we want to navigate to FileTable on breadcrumb click (Job/View)
                         if (!isInitialMount.current && (oldPath !== newPath || opts?.embedded)) {
                             navigate("/files?path=" + encodeURIComponent(newPath));
                         }
                     }
 
                     if (!isSelector) {
-                        dispatch({
-                            type: "GENERIC_SET", payload: {
+                        dispatch(
+                            genericSet({
                                 property: "uploadPath",
                                 newValue: newPath, defaultValue: newPath
-                            }
-                        });
+                            })
+                        );
                     }
 
                     const collectionId = pathComponents(newPath)[0];
