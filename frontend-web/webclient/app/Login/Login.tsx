@@ -38,8 +38,8 @@ export const LOGIN_REDIRECT_KEY = "redirect_on_login";
 const inDevEnvironment = DEVELOPMENT_ENV;
 const enabledWayf = true;
 
-async function fetchBranding (){
-    return await fetch(Client.computeURL("/api/branding", "/retrieve"), 
+async function fetchBranding() {
+    return await fetch(Client.computeURL("/api/branding", "/retrieve"),
         {
             method: "GET",
             headers: {
@@ -68,8 +68,13 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
     const [isGeneric, setIsGeneric] = useState(false);
     const [textColor, setTextColor] = useState("#fff");
     const [showingWayf, setShowingWayf] = useState(false);
-    const [branding, setBranding] = useState<BrandingResponse>(
-        {deploymentName: "", loginPage: {primaryLogoUrl: "", secondaryLogoUrls: [], type: BrandingLoginPageType.GENERIC}
+    const [branding, setBranding] = useState<BrandingResponse>({
+        deploymentName: "",
+        loginPage: {
+            primaryLogoUrl: "",
+            secondaryLogoUrls: [],
+            type: BrandingLoginPageType.GENERIC
+        }
     });
 
     const promises = usePromiseKeeper();
@@ -286,14 +291,14 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
 
     return (
         <LoginWrapper branding={branding}>
-            <LoginHeader branding={branding}/>
+            <LoginHeader branding={branding} />
             <Box width="315px" mx="auto" my="auto">
                 {enabledWayf && !challengeId && !isPasswordReset && showingWayf ? (<>
                     <a href={`/auth/saml/login?service=${service}`}>
                         <Button mb="8px" className={BorderRadiusButton} height={"92px"} disableStandardSizes
                             disabled={loading} fullWidth color={isGeneric || IS_SANDBOX ? "primaryLight" : "wayfGreen"}>
                             <Image alt="The Wayf logo" color="#fff" width="100px" src={wayfLogo} />
-                            <TextSpan className={LoginTextSpanClass} fontSize={2} ml="2.5em">Login</TextSpan>
+                            <TextSpan className={LoginTextSpanClass} fontSize={16} ml="2.5em">Login</TextSpan>
                         </Button>
                     </a>
                     <IdpList isGeneric={isGeneric} />
@@ -465,6 +470,7 @@ const LoginExternalLinkClass = injectStyleSimple("login-external-link", `
 //TextSpan
 const LoginTextSpanClass = injectStyleSimple("login-text", `
     color: white;
+    font-weight: bold;
 `);
 
 function DropdownLike({isGeneric, children}): React.ReactNode {
@@ -584,7 +590,7 @@ type IsGenericProps = {
 };
 
 type BackgroundImageProps = React.PropsWithChildren<{
-  isGeneric: boolean;
+    isGeneric: boolean;
 }>;
 
 function BackgroundImage({isGeneric, children}: BackgroundImageProps) {
@@ -657,7 +663,7 @@ const IdpList: React.FunctionComponent<IsGenericProps> = ({isGeneric}) => {
     }</div>
 };
 
-function LoginHeader ({branding}: React.PropsWithChildren<TextProps & {branding: BrandingResponse}>): React.ReactNode {
+function LoginHeader({branding}: React.PropsWithChildren<TextProps & {branding: BrandingResponse}>): React.ReactNode {
     const textColor = getTextColor(branding);
 
     if (isUsingGenericLoginPage(branding)) {
