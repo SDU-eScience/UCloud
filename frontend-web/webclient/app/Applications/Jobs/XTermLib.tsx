@@ -1,9 +1,9 @@
 import * as React from "react";
 import {useEffect, useRef, useState} from "react";
 import {isLightThemeStored} from "@/UtilityFunctions";
-import {FitAddon} from "xterm-addon-fit";
-import "xterm/css/xterm.css";
-import {ITheme, Terminal} from "xterm";
+import {FitAddon} from "@xterm/addon-fit";
+import "@xterm/xterm/css/xterm.css"
+import {ITheme, Terminal} from "@xterm/xterm";
 
 export interface XtermHook {
     termRef: React.RefObject<HTMLDivElement | null>;

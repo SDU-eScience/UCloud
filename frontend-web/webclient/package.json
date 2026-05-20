@@ -24,8 +24,10 @@
     "dependencies": {
         "@novnc/novnc": "1.5.0",
         "@observablehq/plot": "0.6.17",
-        "@reduxjs/toolkit": "2.11.2",
+        "@reduxjs/toolkit": "2.12.0",
         "@svgr/cli": "8.1.0",
+        "@xterm/addon-fit": "^0.11.0",
+        "@xterm/xterm": "^6.0.0",
         "assert": "2.1.0",
         "d3": "7.9.0",
         "d3-array": "3.2.4",
@@ -42,7 +44,7 @@
         "jsrsasign": "11.1.1",
         "localforage": "1.10.0",
         "magic-bytes.js": "1.13.0",
-        "mermaid": "11.14.0",
+        "mermaid": "11.15.0",
         "monaco-editor": "0.55.1",
         "monaco-vim": "0.4.2",
         "react": "19.2.4",
@@ -62,8 +64,6 @@
         "remark-gfm": "4.0.1",
         "rusha": "0.8.14",
         "ua-parser-js": "1.0.41",
-        "xterm": "5.3.0",
-        "xterm-addon-fit": "0.8.0",
         "yaml": "2.8.3"
     },
     "devDependencies": {

@@ -66,7 +66,7 @@ interface CallParameters<T = any> {
 
 export class WebSocketConnection {
     private client: HttpClient;
-    public socket: WebSocket;
+    public socket?: WebSocket;
     private settings: WebSocketOpenSettings;
     private handlers: Map<string, (message: WebsocketResponse) => void> = new Map();
     private nextStreamId = 0;
@@ -176,6 +176,6 @@ export class WebSocketConnection {
     }
 
     private sendMessage(message: WebsocketRequest): void {
-        this.socket.send(JSON.stringify(message));
+        this.socket?.send(JSON.stringify(message));
     }
 }
