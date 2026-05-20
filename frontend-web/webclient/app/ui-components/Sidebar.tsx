@@ -223,32 +223,30 @@ const sideBarMenuElements: [
     SidebarMenuElements,
     SidebarMenuElements,
     SidebarMenuElements,
-] = [
-        {
-            items: [
-                {icon: "heroFolder", label: SidebarTabId.FILES, to: AppRoutes.files.drives()},
-                {icon: "heroUserGroup", label: SidebarTabId.PROJECT, to: AppRoutes.project.allocations()},
-                {icon: "heroSquaresPlus", label: SidebarTabId.RESOURCES, to: AppRoutes.resources.publicLinks()},
-                {icon: "heroShoppingBag", label: SidebarTabId.APPLICATIONS, to: AppRoutes.apps.landing()},
-                {icon: "heroServer", label: SidebarTabId.RUNS, to: AppRoutes.compute.jobs()}
-            ],
-            predicate: () => Client.isLoggedIn
-        },
-        {
-            items: [
-                {icon: "heroBolt", label: SidebarTabId.ADMIN, to: AppRoutes.admin.userCreation()},
-            ],
-            predicate: () => Client.userIsAdmin
-        },
-        {
-            items: [
-                {icon: "heroBuildingStorefront", label: SidebarTabId.APPLICATION_STUDIO, to: AppRoutes.appStudio.groups()}
-            ],
-            predicate: (state) => {
-                return Client.userIsAdmin;
-            }
-        }
-    ];
+] = [{
+    items: [
+        {icon: "heroFolder", label: SidebarTabId.FILES, to: AppRoutes.files.drives()},
+        {icon: "heroUserGroup", label: SidebarTabId.PROJECT, to: AppRoutes.project.allocations()},
+        {icon: "heroSquaresPlus", label: SidebarTabId.RESOURCES, to: AppRoutes.resources.publicLinks()},
+        {icon: "heroShoppingBag", label: SidebarTabId.APPLICATIONS, to: AppRoutes.apps.landing()},
+        {icon: "heroServer", label: SidebarTabId.RUNS, to: AppRoutes.compute.jobs()}
+    ],
+    predicate: () => Client.isLoggedIn
+},
+{
+    items: [
+        {icon: "heroBolt", label: SidebarTabId.ADMIN, to: AppRoutes.admin.userCreation()},
+    ],
+    predicate: () => Client.userIsAdmin
+},
+{
+    items: [
+        {icon: "heroBuildingStorefront", label: SidebarTabId.APPLICATION_STUDIO, to: AppRoutes.appStudio.groups()}
+    ],
+    predicate: (state) => {
+        return Client.userIsAdmin;
+    }
+}];
 
 interface SidebarStateProps {
     loggedIn: boolean;
