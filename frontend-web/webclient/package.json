@@ -42,7 +42,7 @@
         "jsrsasign": "11.1.1",
         "localforage": "1.10.0",
         "magic-bytes.js": "1.13.0",
-        "mermaid": "11.14.0",
+        "mermaid": "11.15.0",
         "monaco-editor": "0.55.1",
         "monaco-vim": "0.4.2",
         "react": "19.2.4",
