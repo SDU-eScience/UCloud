@@ -49,6 +49,7 @@ import {slimModalStyle} from "@/Utilities/ModalUtilities";
 import {connectionState} from "@/Providers/ConnectionState";
 import {useProjectId} from "@/Project/Api";
 import {sendFailureNotification} from "@/Notifications";
+import {DriveChange} from "@/ui-components/Sidebar";
 
 const collectionsOnOpen = new AsyncCache<PageV2<FileCollection>>({globalTtl: 500});
 const supportByProvider = new AsyncCache<SupportByProviderV2<ProductV2Storage, FileCollectionSupport>>({
@@ -308,6 +309,7 @@ const DriveBrowse: React.FunctionComponent<{
 
                                             browser.renderRows();
                                             dialogStore.success();
+                                            window.dispatchEvent(new CustomEvent(DriveChange));
                                         } catch (e: any) {
                                             sendFailureNotification("Failed to create new drive. " + extractErrorMessage(e));
                                             browser.refresh();

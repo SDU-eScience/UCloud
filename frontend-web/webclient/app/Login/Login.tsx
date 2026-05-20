@@ -69,7 +69,12 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
     const [textColor, setTextColor] = useState("#fff");
     const [showingWayf, setShowingWayf] = useState(false);
     const [branding, setBranding] = useState<BrandingResponse>({
-        deploymentName: "", loginPage: {primaryLogoUrl: "", secondaryLogoUrls: [], type: BrandingLoginPageType.GENERIC}
+        deploymentName: "",
+        loginPage: {
+            primaryLogoUrl: "",
+            secondaryLogoUrls: [],
+            type: BrandingLoginPageType.GENERIC
+        }
     });
 
     const promises = usePromiseKeeper();
@@ -293,7 +298,7 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
                         <Button mb="8px" className={BorderRadiusButton} height={"92px"} disableStandardSizes
                             disabled={loading} fullWidth color={isGeneric || IS_SANDBOX ? "primaryLight" : "wayfGreen"}>
                             <Image alt="The Wayf logo" color="#fff" width="100px" src={wayfLogo} />
-                            <TextSpan className={LoginTextSpanClass} fontSize={2} ml="2.5em">Login</TextSpan>
+                            <TextSpan className={LoginTextSpanClass} fontSize={16} ml="2.5em">Login</TextSpan>
                         </Button>
                     </a>
                     <IdpList isGeneric={isGeneric} />
@@ -465,6 +470,7 @@ const LoginExternalLinkClass = injectStyleSimple("login-external-link", `
 //TextSpan
 const LoginTextSpanClass = injectStyleSimple("login-text", `
     color: white;
+    font-weight: bold;
 `);
 
 function DropdownLike({isGeneric, children}): React.ReactNode {

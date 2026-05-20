@@ -22,6 +22,7 @@ import * as Heading from "@/ui-components/Heading";
 import Warning from "@/ui-components/Warning";
 import {doNothing} from "@/UtilityFunctions";
 import {sendFailureNotification} from "@/Notifications";
+import {DriveChange} from "@/ui-components/Sidebar";
 
 
 export type FileCollection = Resource<FileCollectionUpdate, FileCollectionStatus, FileCollectionSpecification>;
@@ -227,6 +228,9 @@ class FileCollectionsApi extends ResourceApi<FileCollection, ProductStorage, Fil
                                             return;
                                         }
                                         defaultOnClick(selected, cb, all);
+                                        window.setTimeout(() => {
+                                            window.dispatchEvent(new CustomEvent(DriveChange));
+                                        }, 1_000);
                                         dialogStore.success();
                                     }
                                 }}>
