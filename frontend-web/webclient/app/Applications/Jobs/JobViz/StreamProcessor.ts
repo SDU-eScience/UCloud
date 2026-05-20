@@ -46,6 +46,7 @@ export function useJobVizProperties(processor: StreamProcessor): Record<string, 
         })
 
         return () => {
+            // Note(Jonas): First arg is just to make the compiler stop complaining. It's not used.
             processor.removeListener("kvPropertiesUpdated", listener);
         };
     }, [processor]);
