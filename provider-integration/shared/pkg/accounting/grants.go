@@ -376,20 +376,6 @@ func ParseFormFields(text string) []FormField {
 	return result
 }
 
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
-
 type Form struct {
 	Type         FormType          `json:"type"`
 	Text         string            `json:"text"`         // plain_text, grant_giver_initiated - used for legacy form
