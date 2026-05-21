@@ -1916,7 +1916,7 @@ export function Editor(): React.ReactNode {
                                 {state.stateDuringCreate ? <>
                                     <label>
                                         Applicant
-                                        <Input id={FormIds.pi} height="42px" disabled value={state.principalInvestigator} />
+                                        <Input id={FormIds.submitter} height="42px" disabled value={state.principalInvestigator} />
                                     </label>
                                 </> : <>
                                     <label>
@@ -1925,7 +1925,7 @@ export function Editor(): React.ReactNode {
                                     </label>
                                     <label>
                                         Application submitted by
-                                        <Input id={FormIds.pi} height="42px" disabled value={state.principalInvestigator} />
+                                        <Input id={FormIds.submitter} height="42px" disabled value={state.stateDuringEdit?.storedApplication?.createdBy ?? state.principalInvestigator} />
                                     </label>
                                 </>}
 
@@ -2817,6 +2817,7 @@ const GrantGiver: React.FunctionComponent<{
 
 const FormIds = {
     pi: "pi",
+    submitter: "submitter",
     title: "title",
     startDate: "start-date",
     endDate: "end-date",
