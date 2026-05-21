@@ -123,8 +123,8 @@ type UserCriteria struct {
 type TemplatesType string
 
 const (
-	TemplatesTypePlainText TemplatesType = "plain_text"
-	//TemplatesTypeStructured TemplatesType = "structured"
+	TemplatesTypePlainText  TemplatesType = "plain_text"
+	TemplatesTypeStructured TemplatesType = "structured"
 )
 
 type TemplatesStructured struct {
@@ -187,6 +187,8 @@ const (
 
 func (f FormType) Valid() bool {
 	switch f {
+	case FormTypeStructured:
+		return true
 	case FormTypePlainText:
 		return true
 	case FormTypeGrantGiverInitiated:
@@ -390,7 +392,8 @@ func max(a, b int) int {
 
 type Form struct {
 	Type         FormType          `json:"type"`
-	Text         string            `json:"text"`         // plain_text, grant_giver_initiated
+	Text         string            `json:"text"`         // plain_text, grant_giver_initiated - used for legacy form
+	Fields       map[string]string `json:"fields"`       // New (for structured)
 	SubAllocator util.Option[bool] `json:"subAllocator"` // grant_giver_initiated
 }
 

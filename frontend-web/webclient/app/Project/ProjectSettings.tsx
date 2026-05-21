@@ -109,16 +109,15 @@ export const ProjectSettings: React.FunctionComponent = () => {
         allowRequestsFrom: [],
         excludeRequestsFrom: [],
         templates: {
-            type: "plain_text",
-            personalProject: "No template",
-            newProject: "No template",
-            existingProject: "No template",
+            type: "structured",
             structured: {
-                        personalProject: [{description: "", name: "", optional: true, title: ""}],
-                        existingProject: [{description: "", name: "", optional: true, title: ""}],
-                        newProject: [{description: "", name: "", optional: true, title: ""}]
-                    }
-
+                        personalProject: [{description: "No template", name: "", optional: true, title: "No template"}],
+                        existingProject: [{description: "No template", name: "", optional: true, title: "No template"}],
+                        newProject: [{description: "No template", name: "", optional: true, title: "No template"}]
+                    },
+                    existingProject: "No template",
+                    personalProject: "No template",
+                    newProject: "No template",
             }
     });
 
@@ -148,15 +147,21 @@ export const ProjectSettings: React.FunctionComponent = () => {
         })();
     }, [projectId]);
 
+
+    // Temporary function to accomodate current way of making templates
+    function formFieldsToMarkDown(fields: Grants.FormField[]): string {
+        return fields.map(f => `${f.title}\n--------------------------\n${f.description}` ).join("\n\r");
+    }
+
     useEffect(() => {
         const p = templatePersonal.current;
         const e = templateExisting.current;
         const n = templateNew.current;
         if (!p || !e || !n) return;
 
-        p.value = settings.templates.personalProject;
-        e.value = settings.templates.existingProject;
-        n.value = settings.templates.newProject;
+        p.value = formFieldsToMarkDown(settings.templates.structured.personalProject);
+        e.value = formFieldsToMarkDown(settings.templates.structured.existingProject);
+        n.value = formFieldsToMarkDown(settings.templates.structured.newProject);
     }, [settings.templates]);
 
     useEffect(() => {
@@ -216,14 +221,16 @@ export const ProjectSettings: React.FunctionComponent = () => {
                 ...settings,
                 description: description.current!.value,
                 templates: {
-                    type: "plain_text",
+                    type: "structured",
                     personalProject: templatePersonal.current!.value,
                     existingProject: templateExisting.current!.value,
                     newProject: templateNew.current!.value,
                     structured: {
-                        personalProject: [{description: templateExisting.current!.value, name: "", optional: true, title: ""}],
-                        existingProject: [{description: templateExisting.current!.value, name: "", optional: true, title: ""}],
-                        newProject: [{description: templateExisting.current!.value, name: "", optional: true, title: ""}]
+                        // TODO: We need to make another view handle the structured way of creating
+                        // a template
+                        personalProject: [],
+                        existingProject: [],
+                        newProject: [],
                     }
                 }
             })

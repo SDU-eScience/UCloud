@@ -96,7 +96,7 @@ interface EditorState {
     possibleTransfers: Allocators[];
     allocators: Allocators[];
 
-    application: ApplicationSection[];
+    application: Grants.FormField[];
     applicationDocument: Record<string, string>;
 
     resources: Record<string, ResourceCategory[]>;
@@ -261,9 +261,9 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
 
             const newResources: EditorState["resources"] = {...state.resources};
 
-            let templateKey: keyof Grants.Templates = "newProject";
+            let templateKey: keyof Grants.TemplateStructured = "newProject";
 
-            function templateKeyFromRecipientType(type: Grants.Recipient["type"]): keyof Grants.Templates {
+            function templateKeyFromRecipientType(type: Grants.Recipient["type"]): keyof Grants.TemplateStructured {
                 switch (type) {
                     case "personalWorkspace":
                         return "personalProject";
@@ -292,7 +292,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             for (const allocator of action.allocators) {
                 const existing = newAllocators.find(it => it.id === allocator.id);
                 const forms = allocator.templates.structured[templateKey];
-                const sameForm = existing?.template.length === forms && existing?.template.every((val, i) => val === forms[i]);
+                const sameForm = existing?.template === forms && existing?.template.every((val, i) => val === forms[i]);
                 if (!existing) {
                     newAllocators.push({
                         id: allocator.id, title: allocator.title, description: allocator.description,
@@ -332,15 +332,12 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
 
             const forms = action.allocators.filter(it => newAllocators.find(existing => existing.id === it.id)?.checked === true).flatMap(it => it.templates.structured[templateKey])
             
-            // list of grant givers action.allocators
-            const allSections = calculateNewApplicationV2(forms);
-
             return {
                 ...state,
                 possibleTransfers: newAllocators,
                 allocators: newAllocators,
                 resources: newResources,
-                application: allSections,
+                application: forms,
             };
         }
 
@@ -519,12 +516,11 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                 }
             });
             const forms = newAllocators.filter(it => it.checked).flatMap(it => it.template);
-            const allSections = calculateNewApplicationV2(forms);
 
             return {
                 ...state,
                 allocators: newAllocators,
-                application: allSections,
+                application: forms,
             }
         }
 
@@ -717,31 +713,6 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
     // Scoped utility functions
     // -----------------------------------------------------------------------------------------------------------------
 
-    function calculateNewApplicationV2(forms: Grants.FormField[]): ApplicationSection[] {
-        if (forms === null) {
-            return [];
-        }
-        return forms.map(f => ({ 
-            title: f.title ?? "NO TITLE",
-            description: f.description ?? "NO DESCRIPTION",
-            rows: f.rows ?? 0,
-            mandatory: !f.optional,
-            limit: f.maxLength 
-        }));
-    }
-
-    function calculateNewApplication(templates: string[]): ApplicationSection[] {
-        const allSections: ApplicationSection[] = [];
-        for (const template of templates) {
-            const theseSections = parseIntoSections(template)
-            for (const section of theseSections) {
-                if (allSections.some(it => it.title === section.title)) continue
-                allSections.push(section);
-            }
-        }
-        return allSections;
-    }
-
     function loadRevision(state: EditorState): EditorState {
         if (!state.stateDuringEdit) return state;
         const newEditState = {...state.stateDuringEdit};
@@ -805,28 +776,36 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
 
         const isGrantGiverInitiated = app && app.status.overallState == "APPROVED" && app.status.revisions.length === 1 && docText.startsWith(grantGiverInitiatedPrefix);
 
-        const docSections = parseIntoSections(docText);
-
         const forms = isGrantGiverInitiated ? [grantGiverInitiatedForm] : newAllocators.flatMap(it => it.template);
-        const newApplication = calculateNewApplicationV2(forms);
-
+        const newApplication = forms
         const newApplicationDocument: EditorState["applicationDocument"] = {};
-        let otherSection = "";
-        for (const section of docSections) {
-            const hasSection = newApplication.some(it => it.title === section.title);
-            if (hasSection) {
-                newApplicationDocument[section.title] = section.description;
-            } else {
-                otherSection += section.title;
-                otherSection += ":\n\n";
-                otherSection += section.description;
-                otherSection += "\n\n";
-            }
-        }
 
-        if (otherSection) {
-            newApplication.push({title: "Other", rows: 6, mandatory: false, description: ""});
-            newApplicationDocument["Other"] = otherSection;
+        if (doc.form.type == "structured") {
+            Object.entries(doc.form.fields).forEach(([fieldName, value]) => {
+                newApplicationDocument[fieldName] = value;
+            });
+        }
+        else {
+            // ****************** Legacy way of parsing the text ****************************
+            const docSections = parseIntoSections(docText);
+
+            let otherSection = "";
+            for (const section of docSections) {
+                const hasSection = newApplication.some(it => it.title === section.title);
+                if (hasSection) {
+                    newApplicationDocument[section.title] = section.description;
+                } else {
+                    otherSection += section.title;
+                    otherSection += ":\n\n";
+                    otherSection += section.description;
+                    otherSection += "\n\n";
+                }
+            }
+
+            if (otherSection) {
+                newApplication.push({title: "Other", rows: 6, optional: true, description: "", name: "Other" });
+                newApplicationDocument["Other"] = otherSection;
+            }
         }
 
         let startDate = new Date(Date.now())
@@ -1011,15 +990,15 @@ function useStateReducerMiddleware(
                             description: "Your project",
                             categories: wallets.map(w => w.paysFor),
                             templates: {
-                                type: "plain_text",
+                                type: "structured",
+                                structured: {
+                                    newProject: [grantGiverInitiatedForm],
+                                    existingProject: [grantGiverInitiatedForm],
+                                    personalProject: [grantGiverInitiatedForm],
+                                },
                                 newProject: grantGiverInitiatedTemplate,
                                 existingProject: grantGiverInitiatedTemplate,
                                 personalProject: grantGiverInitiatedTemplate,
-                                structured: {
-                                    newProject: [{name: "", description: "", optional: false, title: ""}],
-                                    existingProject: [{name: "", description: "", optional: false, title: ""}],
-                                    personalProject: [{name: "", description: "", optional: false, title: ""}],
-                                }
                             }
                         }]
                     });
@@ -1681,7 +1660,7 @@ export function Editor(): React.ReactNode {
             parentProjectId: currentDoc.parentProjectId,
             allocationPeriod: period
         };
-
+        doc.form["fields"] = state.applicationDocument
         if (isGrantGiverInitiated) {
             doc.form.type = "grant_giver_initiated";
             doc.form["subAllocator"] = isForSubAllocator
@@ -2257,9 +2236,9 @@ export function Editor(): React.ReactNode {
                                         // NOTE(Dan): Empty placeholder is a quick work-around for fields having error
                                         // immediately on load.
                                         return <FormField title={val.title} key={idx} id={`${val.title}`}
-                                            description={val.description} mandatory={val.mandatory}>
-                                            <TextArea id={`${val.title}`} rows={val.rows} maxLength={val.limit}
-                                                required={val.mandatory} disabled={state.locked || isClosed}
+                                            description={val.description} mandatory={!val.optional}>
+                                            <TextArea id={`${val.title}`} rows={val.rows} maxLength={val.maxLength ?? 100}
+                                                required={!val.optional} disabled={state.locked || isClosed}
                                                 value={state.applicationDocument[val.title] ?? ""}
                                                 onChange={onApplicationChange} placeholder={" "} />
                                         </FormField>
@@ -2960,6 +2939,7 @@ function parseIntoSections(text: string): ApplicationSection[] {
 // Utility functions
 // =====================================================================================================================
 function stateToApplication(state: EditorState): Grants.Doc["form"] {
+    const isForSubAllocator = getQueryParam(location.search, "subAllocator") == "true";
     let builder = "";
     for (const section of state.application) {
         builder += section.title;
@@ -2973,7 +2953,7 @@ function stateToApplication(state: EditorState): Grants.Doc["form"] {
         }).join("\n");
         builder += "\n\n";
     }
-    return {type: "plain_text", text: builder};
+    return {type: "structured", text: builder, fields: state.applicationDocument, subAllocator: isForSubAllocator };
 }
 
 function stateToRequests(state: EditorState): Grants.Doc["allocationRequests"] {
@@ -3123,9 +3103,7 @@ const grantGiverInitiatedTemplate = `${grantGiverInitiatedPrefix}
 Describe the reason for creating this sub-allocation (max 4000 ch).`;
 
 const grantGiverInitiatedForm: Grants.FormField = {
-    description: `
-    --------------------------------------------------
-    Describe the reason for creating this sub-allocation`,
+    description: `Describe the reason for creating this sub-allocation`,
     name: grantGiverInitiatedPrefix,
     optional: false,
     title: grantGiverInitiatedPrefix,

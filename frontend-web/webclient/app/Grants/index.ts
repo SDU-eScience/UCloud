@@ -326,7 +326,7 @@ export interface TemplateStructured {
 export type TemplateKey = "personalProject" | "newProject" | "existingProject";
 
 export interface Templates {
-    type: "plain_text";
+    type: "structured"
     structured: TemplateStructured;
     personalProject: string;
     newProject: string;
