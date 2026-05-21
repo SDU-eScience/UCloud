@@ -9,7 +9,7 @@ import {BulkResponse} from "@/UCloud";
 import JobsApi, {InteractiveSession} from "@/UCloud/JobsApi";
 import {bulkRequestOf, bulkResponseOf} from "@/UtilityFunctions";
 import {ShellWithSession} from "@/Applications/Jobs/Shell";
-import {Terminal} from "xterm";
+import {Terminal} from "@xterm/xterm";
 import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
 import {CSSVarCurrentSidebarStickyWidth} from "@/ui-components/List";
 import {Tab} from "@/Editor/Editor";

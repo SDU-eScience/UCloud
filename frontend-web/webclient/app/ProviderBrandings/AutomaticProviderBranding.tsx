@@ -1,50 +1,39 @@
-import * as React from "react";
-import {useCloudAPI} from "@/Authentication/DataHook";
-import {providerBrandingApi, ProviderBrandingResponse } from "@/UCloud/ProviderBrandingApi";
-import {useDispatch} from "react-redux";
-import {PayloadAction} from "@reduxjs/toolkit";
+import {callAPI} from "@/Authentication/DataHook";
+import {ProviderBranding, providerBrandingApi, ProviderBrandingResponse} from "@/UCloud/ProviderBrandingApi";
+import {ExternalStoreBase} from "@/Utilities/ReduxUtilities";
+import ProviderInfo from "@/Assets/provider_info.json";
 
-export const AutomaticProviderBranding: React.FunctionComponent = () => {
-    const [providerBrandings, fetchBranding] = useCloudAPI<ProviderBrandingResponse>(
-        providerBrandingApi.browse(),
-        { providers: {} }
-    );
 
-    React.useEffect(() => {
-        const intervalId = setInterval(() => {
-            fetchBranding(providerBrandingApi.browse());
-        }, 1000 * 60 * 60);
-        return () => {
-            clearInterval(intervalId);
+export const providerBrandingStore = new class extends ExternalStoreBase {
+    private branding: ProviderBrandingResponse = {providers: {}};
+
+    async onInit(): Promise<void> {
+        this.fetch();
+        window.setInterval(() => {
+            this.fetch();
+        }, 3 * 600_000);
+    }
+
+    async fetch() {
+        try {
+            const response = await callAPI(providerBrandingApi.browse());
+            this.branding = response;
+        } catch (e: any) {
+            console.warn(e);
         }
-    }, []);
+    }
 
-    const dispatch = useDispatch();
+    public getSnapshot(): Readonly<ProviderBrandingResponse> {
+        return this.branding;
+    }
 
-    React.useEffect(() => {
-        dispatch({type: ADD_PROVIDER_BRANDING, payload: providerBrandings.data});
-    }, [providerBrandings.data]);
-
-    return null;
-};
-
-const ADD_PROVIDER_BRANDING = "ADD_PROVIDER_BRANDING";
-type SetProviderBranding = PayloadAction<ProviderBrandingResponse, typeof ADD_PROVIDER_BRANDING>
-
-type ProviderBrandingAction = SetProviderBranding;
-
-export function initProviderBranding(): ProviderBrandingResponse {
-    return {
-        providers: {},
+    public getProviderProperty<Property extends keyof ProviderBranding>(providerId: string, providerProperty: Property): ProviderBranding[Property] | undefined {
+        const property = this.branding.providers[providerId]?.[providerProperty];
+        const useFallback = providerProperty === "logo" && (property as string)?.includes("/");
+        if (!property) console.warn(`Property '${providerProperty}' missing for ${providerId}`, this.branding);
+        if (useFallback) console.warn(`Using fallback logo for ${providerId}. Actual value: ${property}`)
+        return property && !useFallback ? property : ProviderInfo.providers.find(it => it.id === providerId)?.[providerProperty as string];
     }
 }
 
-export function providerBrandingReducer(state: ProviderBrandingResponse = initProviderBranding(), action: ProviderBrandingAction): ProviderBrandingResponse {
-    switch (action.type) {
-        case ADD_PROVIDER_BRANDING: {
-            return action.payload;
-        }        
-        default:
-            return state;
-    }
-}
+providerBrandingStore.onInit();

@@ -23,7 +23,6 @@ import Tooltip from "./Tooltip";
 import {useProjectId} from "@/Project/Api";
 import {useProject} from "@/Project/cache";
 import {AutomaticGiftClaim} from "@/Services/Gifts/AutomaticGiftClaim";
-import {AutomaticProviderBranding} from "@/ProviderBrandings/AutomaticProviderBranding";
 import Support from "./SupportBox";
 import {VersionManager} from "@/VersionManager/VersionManager";
 import Notification from "@/Notifications";
@@ -541,7 +540,6 @@ export function Sidebar(): React.ReactNode {
                     {/* (Typically) invisible elements here to run various background tasks */}
                     <AutomaticGiftClaim />
                     <VersionManager />
-                    <AutomaticProviderBranding />
                     <AutomaticBranding />
                 </>
 

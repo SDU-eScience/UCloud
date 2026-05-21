@@ -47,6 +47,7 @@ import {ChangeOrganizationDetails, OptionalInfo, optionalInfoRequest, optionalIn
 import {ProviderBranding, ProviderBrandingProductDescription, ProviderBrandingResponse} from "@/UCloud/ProviderBrandingApi";
 import {useSelector} from "react-redux";
 import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
+import {providerBrandingStore} from "@/ProviderBrandings/AutomaticProviderBranding";
 
 // State model
 // =====================================================================================================================
@@ -1371,7 +1372,6 @@ export function Editor(): React.ReactNode {
     const isForSubAllocator = getQueryParam(location.search, "subAllocator") == "true";
     useProjectId(); // FIXME(Jonas): Is this some refresh-thing that breaks stuff if you remove it?
 
-    const providerBrandingData = useSelector((it: ReduxObject) => it.providerBrandings);
     const [missingUserInfo, setMissingUserInfo] = React.useState(false);
     React.useEffect(() => {
         (async () => {
@@ -2139,7 +2139,7 @@ export function Editor(): React.ReactNode {
 
                                             if (hideZeroFields && !anyNonZeroValues) return null;
 
-                                            const currentProvider = providerBrandingData.providers[providerId];
+                                            const currentProvider = providerBrandingStore.getSnapshot().providers[providerId];
                                             const productDescription = currentProvider?.productDescription?.find(it => it.category === category.category.name);
                                             const showDescriptions = productDescription != undefined;
 
