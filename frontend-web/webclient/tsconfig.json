@@ -23,6 +23,7 @@
         "allowJs": true,
         "moduleResolution": "bundler",
         "resolveJsonModule": true,
+        "module": "esnext",
         "sourceMap": true,
         "types": [
             "vite/client",
