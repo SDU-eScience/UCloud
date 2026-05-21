@@ -1,6 +1,6 @@
 import {callAPI} from "@/Authentication/DataHook";
 import {UState} from "@/Utilities/UState";
-import {timestampUnixMs} from "@/UtilityFunctions";
+import {displayErrorMessageOrDefault, timestampUnixMs} from "@/UtilityFunctions";
 import {PageV2, provider} from "@/UCloud";
 import IntegrationApi = provider.im;
 import {hasUploadedSigningKeyToProvider, retrieveOrInitializePublicSigningKey, markSigningKeyAsUploadedToProvider} from "@/Authentication/MessageSigning";
@@ -100,46 +100,51 @@ class ConnectionState extends UState<ConnectionState> {
 
         this.run(async () => {
             this.lastConnectionAt.update(timestampUnixMs());
-            const res = await callAPI<provider.IntegrationConnectResponse>(
-                IntegrationApi.connect({provider: providerData.provider})
-            );
+            try {
+                const res = await callAPI<provider.IntegrationConnectResponse>(
+                    IntegrationApi.connect({provider: providerData.provider})
+                );
 
-            if (res) {
-                if (providerData.requiresMessageSigning) {
-                    const postOptions: RequestInit = {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json",
-                            "Accept": "application/json",
-                        },
-                        mode: "cors",
-                        credentials: "omit",
-                        body: JSON.stringify({
-                            publicKey: retrieveOrInitializePublicSigningKey()
-                        })
-                    };
+                if (res) {
+                    if (providerData.requiresMessageSigning) {
+                        const postOptions: RequestInit = {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                "Accept": "application/json",
+                            },
+                            mode: "cors",
+                            credentials: "omit",
+                            body: JSON.stringify({
+                                publicKey: retrieveOrInitializePublicSigningKey()
+                            })
+                        };
 
-                    fetch(res.redirectTo, postOptions)
-                        .then(it => it.json())
-                        .then(resp => {
-                            const redirectTo = resp["redirectTo"];
-                            if (!redirectTo || typeof redirectTo !== "string") throw "Invalid response from server";
+                        fetch(res.redirectTo, postOptions)
+                            .then(it => it.json())
+                            .then(resp => {
+                                const redirectTo = resp["redirectTo"];
+                                if (!redirectTo || typeof redirectTo !== "string") throw "Invalid response from server";
 
-                            // TODO(Dan): There is no guarantee that this was _actually_ successful. But we are also never
-                            //   notified by anything that this went well, so we have no other choice that to just assume
-                            //   that authentication is going to go well. Worst case, the user will have their key
-                            //   invalidated when they attempt to make a request.
+                                // TODO(Dan): There is no guarantee that this was _actually_ successful. But we are also never
+                                //   notified by anything that this went well, so we have no other choice that to just assume
+                                //   that authentication is going to go well. Worst case, the user will have their key
+                                //   invalidated when they attempt to make a request.
 
-                            markSigningKeyAsUploadedToProvider(providerData.providerTitle);
+                                markSigningKeyAsUploadedToProvider(providerData.providerTitle);
 
-                            document.location.href = redirectTo;
-                        })
-                        .catch(() => {
-                            sendFailureNotification("UCloud was not able to initiate a connection. Try again later.");
-                        });
-                } else {
-                    document.location.href = res.redirectTo;
+                                document.location.href = redirectTo;
+                            })
+                            .catch(() => {
+                                sendFailureNotification("UCloud was not able to initiate a connection. Try again later.");
+                            });
+                    } else {
+                        document.location.href = res.redirectTo;
+                    }
                 }
+            } catch (e) {
+                displayErrorMessageOrDefault(e, "Failed to connect to provider");
+                return;
             }
         });
     }

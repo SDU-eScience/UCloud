@@ -13,7 +13,7 @@ import {default as JobsApi, InteractiveSession} from "@/UCloud/JobsApi";
 import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
 import {BulkResponse} from "@/UCloud";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
-import {Terminal} from "xterm";
+import {Terminal} from "@xterm/xterm";
 
 export const Shell: React.FunctionComponent = () => {
     const params = useParams<{jobId: string, rank: string}>();

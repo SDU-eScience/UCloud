@@ -509,7 +509,13 @@ func providerNotificationHandleClient(conn *ws.Conn) {
 
 		case project, ok := <-projectUpdates:
 			if ok {
-				appendProject(project, true)
+				wallets := internalRetrieveWallets(time.Now(), project.Id, walletFilter{RequireActive: true})
+				for _, wallet := range wallets {
+					if wallet.PaysFor.Provider == providerId {
+						appendProject(project, true)
+						break
+					}
+				}
 			}
 		}
 
