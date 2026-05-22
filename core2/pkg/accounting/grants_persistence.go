@@ -1026,8 +1026,8 @@ func lGrantsPersist(app *grantApplication) {
 					with data as (
 						select
 							unnest(cast(:states as text[])) state,
-							unnest(cast(:grant_givers as text[])) grant_giver
-							unnest(cast(:grant_updaters as text[]) updater
+							unnest(cast(:grant_givers as text[])) grant_giver,
+							unnest(cast(:grant_updaters as text[])) updater
 					)
 					insert into "grant".grant_giver_approvals(application_id, project_id, project_title,
 						state, updated_by, last_update) 
@@ -1042,10 +1042,10 @@ func lGrantsPersist(app *grantApplication) {
 						last_update = excluded.last_update
 			    `,
 				db.Params{
-					"app_id":       app.lId(),
-					"states":       approvalStates,
-					"grant_givers": approvalGivers,
-					"updaters":     approvalUpdaters,
+					"app_id":         app.lId(),
+					"states":         approvalStates,
+					"grant_givers":   approvalGivers,
+					"grant_updaters": approvalUpdaters,
 				},
 			)
 		})

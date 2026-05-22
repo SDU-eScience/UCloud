@@ -1,7 +1,7 @@
 import * as Accounting from "@/Accounting";
 import {callAPI, callAPIWithErrorHandler} from "@/Authentication/DataHook";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {UserAvatar} from "@/AvataaarLib/UserAvatar";
+import {AvatarForUser, UserAvatar} from "@/AvataaarLib/UserAvatar";
 import {useAvatars} from "@/AvataaarLib/hook";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {ProjectLogo} from "@/Grants/ProjectLogo";
@@ -10,11 +10,7 @@ import {usePage} from "@/Navigation/Redux";
 import {isAdminOrPI, Project} from "@/Project";
 import * as Projects from "@/Project/Api";
 import {useProjectId} from "@/Project/Api";
-import {
-    projectInfosTitle,
-    ProjectTitleForNewCore,
-    useProjectInfos
-} from "@/Project/InfoCache";
+import {projectInfosTitle, ProjectTitleForNewCore, useProjectInfos} from "@/Project/InfoCache";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
 import AppRoutes from "@/Routes";
@@ -43,8 +39,8 @@ import * as React from "react";
 import {useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef} from "react";
 import {useLocation, useNavigate} from "react-router-dom";
 import * as Grants from ".";
+import {State} from ".";
 import {ChangeOrganizationDetails, OptionalInfo, optionalInfoRequest, optionalInfoUpdate} from "@/UserSettings/ChangeUserDetails";
-import {ProviderBranding, ProviderBrandingProductDescription, ProviderBrandingResponse} from "@/UCloud/ProviderBrandingApi";
 import {useSelector} from "react-redux";
 import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
 
@@ -76,6 +72,7 @@ interface EditorState {
 
         overallState: Grants.State;
         stateByGrantGiver: Record<string, Grants.State>;
+        stateUpdaterByGrantGiver: Record<string, string>;
 
         title: string;
         recipient: Grants.Recipient;
@@ -362,6 +359,10 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                         action.grant.status.stateBreakdown,
                         value => [value.projectId, value.state]
                     ),
+                    stateUpdaterByGrantGiver: createRecordFromArray(
+                        action.grant.status.stateBreakdown,
+                        value => [value.projectId, value.lastUpdatedBy]
+                    ),
                     overallState: action.grant.status.overallState,
                     document: action.grant.currentRevision.document,
                     allowWithdrawal: action.grant.createdBy === Client.username,
@@ -411,6 +412,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                     },
                     overallState: Grants.State.IN_PROGRESS,
                     stateByGrantGiver: {},
+                    stateUpdaterByGrantGiver: {},
                     allowWithdrawal: false,
                     newestRevision: 0,
                     revisions: [{revisionNumber: 0, updatedBy: Client.username ?? "?", createdAt: timestampUnixMs()}],
@@ -646,6 +648,9 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                     ...state.stateDuringEdit,
                     stateByGrantGiver: {
                         ...state.stateDuringEdit.stateByGrantGiver,
+                    },
+                    stateUpdaterByGrantGiver: {
+                        ...state.stateDuringEdit.stateUpdaterByGrantGiver,
                     }
                 }
             };
@@ -2091,6 +2096,7 @@ export function Editor(): React.ReactNode {
                                             </> : undefined
                                             }
                                             state={state.stateDuringEdit?.stateByGrantGiver[it.id]}
+                                            stateUpdater={state.stateDuringEdit?.stateUpdaterByGrantGiver[it.id]}
                                             allAllocators={state.allocators}
                                             transfers={state.possibleTransfers}
                                             onTransfer={onTransfer}
@@ -2721,6 +2727,7 @@ const GrantGiver: React.FunctionComponent<{
     isEditing: boolean;
     adminOfProjects: {id: string | null, title: string}[];
     state?: Grants.State;
+    stateUpdater?: string;
     onStateChange: (projectId: string, approved: boolean) => void;
     replaceApproval?: React.ReactNode;
     replaceReject?: React.ReactNode;
@@ -2764,6 +2771,15 @@ const GrantGiver: React.FunctionComponent<{
             <label htmlFor={checkboxId}>
                 <ProjectLogo projectId={props.projectId} size={`${size}px`} />
                 <ProjectTitleForNewCore id={props.projectId} title={props.title} />
+
+                {props.state == State.IN_PROGRESS ? null : <>
+                    {props.state == State.REJECTED ? <> - Rejected </> : <> - Approved </>} by {props.stateUpdater}
+                    {props.stateUpdater == "UCloud System" ? null : <>
+                        <AvatarForUser username={props.stateUpdater ?? ""}
+                                       height={"32px"} width={"32px"}
+                                       avatarStyle={"Circle"} />
+                    </>}
+                </>}
             </label>
             {!props.isEditing &&
                 <div className={"description"} style={{marginLeft: (size + 8) + "px"}}>{props.description}</div>
