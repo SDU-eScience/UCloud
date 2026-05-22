@@ -298,21 +298,24 @@ type GrantStatus struct {
 }
 
 type GrantGiverApprovalState struct {
-	ProjectId string                `json:"projectId"`
-	State     GrantApplicationState `json:"state"`
+	ProjectId     string                `json:"projectId"`
+	LastUpdatedBy string                `json:"lastUpdatedBy"`
+	State         GrantApplicationState `json:"state"`
 }
 
 func (ga GrantGiverApprovalState) MarshalJSON() ([]byte, error) {
 	type wrapper struct {
-		ProjectId    string                `json:"projectId"`
-		ProjectTitle string                `json:"projectTitle"`
-		State        GrantApplicationState `json:"state"`
+		ProjectId     string                `json:"projectId"`
+		ProjectTitle  string                `json:"projectTitle"`
+		LastUpdatedBy string                `json:"lastUpdatedBy"`
+		State         GrantApplicationState `json:"state"`
 	}
 
 	w := wrapper{
-		ProjectId:    ga.ProjectId,
-		ProjectTitle: ga.ProjectId,
-		State:        ga.State,
+		ProjectId:     ga.ProjectId,
+		ProjectTitle:  ga.ProjectId,
+		LastUpdatedBy: ga.LastUpdatedBy,
+		State:         ga.State,
 	}
 	return json.Marshal(w)
 }

@@ -824,8 +824,9 @@ func GrantsSubmitRevisionEx(actor rpc.Actor, req accapi.GrantsSubmitRevisionRequ
 		app.Application.Status.OverallState = accapi.GrantApplicationStateApproved
 		app.Application.Status.StateBreakdown = []accapi.GrantGiverApprovalState{
 			{
-				ProjectId: grantGiverInitiatedId,
-				State:     accapi.GrantApplicationStateApproved,
+				ProjectId:     grantGiverInitiatedId,
+				State:         accapi.GrantApplicationStateApproved,
+				LastUpdatedBy: app.Application.Status.ProjectPI,
 			},
 		}
 
@@ -837,8 +838,9 @@ func GrantsSubmitRevisionEx(actor rpc.Actor, req accapi.GrantsSubmitRevisionRequ
 		breakdown := []accapi.GrantGiverApprovalState{}
 		for grantGiver, _ := range grantGivers {
 			breakdown = append(breakdown, accapi.GrantGiverApprovalState{
-				ProjectId: grantGiver,
-				State:     accapi.GrantApplicationStateInProgress,
+				ProjectId:     grantGiver,
+				State:         accapi.GrantApplicationStateInProgress,
+				LastUpdatedBy: "",
 			})
 		}
 		app.Application.Status.StateBreakdown = breakdown
@@ -1140,6 +1142,7 @@ func GrantsUpdateState(actor rpc.Actor, req accapi.GrantsUpdateStateRequest) *ut
 
 				if breakdown.ProjectId == string(actor.Project.Value) {
 					breakdown.State = req.NewState
+					breakdown.LastUpdatedBy = actor.Username
 					anyUpdated = true
 				}
 

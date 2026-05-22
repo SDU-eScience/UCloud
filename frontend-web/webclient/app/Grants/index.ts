@@ -283,6 +283,7 @@ export interface Status {
 export interface GrantGiverApprovalState {
     projectId: string;
     projectTitle: string;
+    lastUpdatedBy: string;
     state: State;
 }
 
