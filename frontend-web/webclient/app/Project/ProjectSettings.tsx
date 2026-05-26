@@ -125,7 +125,6 @@ export const ProjectSettings: React.FunctionComponent = () => {
     const templateExisting = useRef<HTMLInputElement>(null);
     const templateNew = useRef<HTMLInputElement>(null);
     const description = useRef<HTMLInputElement>(null);
-
     useEffect(() => {
         if (!projectId) {
             navigate(AppRoutes.dashboard.dashboardA());
@@ -170,6 +169,10 @@ export const ProjectSettings: React.FunctionComponent = () => {
         d.value = settings.description;
     }, [settings.description]);
 
+    useEffect(() => {
+    }, [settings.templates.structured]);
+
+
     const onAllowAdd = useCallback((criteria: Grants.UserCriteria) => {
         setSettings(prev => {
             return {
@@ -213,6 +216,33 @@ export const ProjectSettings: React.FunctionComponent = () => {
         });
     }, []);
 
+    const updateNewProjectField = useCallback((idx: number, fieldName: string, value: any, fieldType: string) => {
+        setSettings(prev => ({
+            ...prev,
+            templates: {
+                ...prev.templates,
+                structured: {
+                    ...prev.templates.structured,
+                    [fieldType]: prev.templates.structured[fieldType].map((f, i) => i === idx ? {...f, [fieldName]: value} : f
+                    )
+                }
+            }
+        }));
+    }, []);
+
+    const removeNewProjectField = useCallback((idx: number, fieldType: string) => {
+        setSettings(prev => ({
+            ...prev,
+            templates: {
+                ...prev.templates,
+                structured: {
+                    ...prev.templates.structured,
+                    [fieldType]: prev.templates.structured[fieldType].filter((_, i) => i !== idx)
+                }
+            }
+        }));
+    }, []);
+
     const onSave = useCallback(async (e) => {
         e.preventDefault();
 
@@ -222,16 +252,10 @@ export const ProjectSettings: React.FunctionComponent = () => {
                 description: description.current!.value,
                 templates: {
                     type: "structured",
-                    personalProject: templatePersonal.current!.value,
-                    existingProject: templateExisting.current!.value,
-                    newProject: templateNew.current!.value,
-                    structured: {
-                        // TODO: We need to make another view handle the structured way of creating
-                        // a template
-                        personalProject: [],
-                        existingProject: [],
-                        newProject: [],
-                    }
+                    personalProject: "",
+                    existingProject: "",
+                    newProject: "",
+                    structured: settings.templates.structured,
                 }
             })
         );
@@ -255,6 +279,56 @@ export const ProjectSettings: React.FunctionComponent = () => {
                 </>
             }
         />
+    }
+
+    function createTemplateForm(title: string, fields: Grants.FormField[], fieldType: string) {
+        return <Card>
+                <h1>{title}</h1>
+                <Flex justifyContent={"flex-end"}>
+                <Button type={"button"} onClick={() => {
+                    setSettings(prev => ({
+                        ...prev,
+                        templates: {
+                            ...prev.templates,
+                            structured: {
+                                ...prev.templates.structured,
+                                [fieldType]: [{
+                                    description: "", name: "", title: "", optional: true
+                                    
+                                }, ...prev.templates.structured[fieldType]]
+                            }
+                        }
+                    }));
+                }}>Add field</Button>
+                </Flex>
+                {
+                    settings.templates.structured[fieldType].map(function(field : Grants.FormField, idx: number) {
+                        return <>
+                            <br/>
+                            <hr style={{borderStyle: "dashed"}}/>
+                            <label htmlFor={`title${idx}`}>Title: </label >
+                            <Input id={`title${idx}`} required value={field.title} onChange={(e) => updateNewProjectField(idx, 'title', e.target.value, fieldType)} >{field.title}</Input>
+                            <label htmlFor={`description${idx}`}>Description: </label >
+                            <TextArea id={`description${idx}`} value={field.description} rows={field.rows ?? 5} onChange={(e) => updateNewProjectField(idx, 'description', e.target.value, fieldType)}>{field.description}</TextArea> 
+                            <Flex justifyContent={"flex-end"} >
+                                <Label cursor="pointer" width="unset" marginTop={"5px"} htmlFor={`checkbox${idx}`}>Is required:</Label>
+                                <Checkbox size={30} id={`checkbox${idx}`} checked={!field.optional} handleWrapperClick={() => updateNewProjectField(idx, 'optional', !field.optional, fieldType)} 
+                                    onChange={
+                                        () => updateNewProjectField(idx, 'optional', !field.optional, fieldType)
+                                    }>
+
+                                </Checkbox>
+                                <br />
+                            </Flex>
+                            <br />
+                            <Flex justifyContent={"flex-end"}>
+                                <Icon size={20} marginRight={"12px"} color={"errorMain"} name={"trash"} cursor={"pointer"} onClick={() => removeNewProjectField(idx, fieldType)} />
+                            </Flex>
+
+                        </>
+                    })
+                }
+            </Card>
     }
 
     return <MainContainer
@@ -314,30 +388,20 @@ export const ProjectSettings: React.FunctionComponent = () => {
                     <UpdateProjectLogo />
 
                     <form onSubmit={onSave}>
-                        <Flex gap="32px">
-                            <label>
-                                Project description <br />
-                                <TextArea width="100%" rows={5} inputRef={description} />
-                            </label>
-
-                            <label>
-                                Template for personal projects <br />
-                                <TextArea width="100%" rows={5} inputRef={templatePersonal} />
-                            </label>
-                        </Flex>
-
-                        <Flex gap="32px">
-                            <label>
-                                Template for existing projects <br />
-                                <TextArea rows={5} inputRef={templateExisting} />
-                            </label>
-
-                            <label>
-                                Template for new projects <br />
-                                <TextArea rows={5} inputRef={templateNew} />
-                            </label>
-                        </Flex>
-
+                        <Card>
+                            <Flex gap="32px">
+                                <label>
+                                    Project description <br />
+                                    <TextArea width="100%" rows={5} inputRef={description} />
+                                </label>
+                            </Flex>
+                        </Card>
+                        <br />
+                        {createTemplateForm("Personal Project Fields:", settings.templates.structured.personalProject, 'personalProject')}
+                        <br />
+                        {createTemplateForm("Existing Project Fields:", settings.templates.structured.existingProject, 'existingProject')}
+                        <br />
+                        {createTemplateForm("New Project Fields:", settings.templates.structured.newProject, 'newProject')}
                         {settings.enabled && <>
                             <Flex flexDirection={"row"} gap={"32px"}>
                                 <div>
