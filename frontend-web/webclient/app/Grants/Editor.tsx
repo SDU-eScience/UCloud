@@ -195,17 +195,6 @@ type EditorAction =
     | {type: "Reset"}
     ;
 
-function extractFormFields(templateKey: Exclude<keyof Grants.Templates, "type">, templates: Grants.Templates[]): Grants.FormField[] {
-    return templates.flatMap((it => it.structured[templateKey] ?? []));
-}
-
-function extractAllFormFields(templates: Grants.Templates[]): Grants.FormField[] {
-    let newProjects = templates.flatMap((it) => it.structured.newProject);
-    let existingProjects = templates.flatMap((it) => it.structured.existingProject);
-    let personalProjects = templates.flatMap((it) => it.structured.personalProject);
-    return [...newProjects, ...existingProjects, ...personalProjects];
-}
-
 function stateReducer(state: EditorState, action: EditorAction): EditorState {
     switch (action.type) {
         // Loading and error state
