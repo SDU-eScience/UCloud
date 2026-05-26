@@ -5,7 +5,7 @@ import {ThemeColor} from "@/ui-components/theme";
 import {RichSelect, RichSelectChildComponent} from "@/ui-components/RichSelect";
 import {classConcat, injectStyle} from "@/Unstyled";
 
-export type VmPowerTone = "success" | "warning" | "neutral";
+export type VmPowerTone = "success" | "warning" | "neutral" | "none";
 
 export interface VmActionItem {
     key: string;
@@ -24,7 +24,55 @@ export const VmActionRow: RichSelectChildComponent<VmActionItem> = ({element, on
     </Box>;
 };
 
-export const SplitDropdownTrigger = injectStyle("split-dropdown-trigger", k => `
+function getDefaultToneLook(tone : VmPowerTone) : string {
+    if (tone === "none") {
+        return SecondarySplitDropdownTrigger;
+    }
+    return PrimarySplitDropdownTrigger;
+
+}
+
+export const SecondarySplitDropdownTrigger = injectStyle("secondary-split-dropdown-trigger", k => `
+    ${k} {
+        position: relative;
+        width: 35px;
+        height: 35px;
+        border-radius: 8px;
+        user-select: none;
+        -webkit-user-select: none;
+        background: var(--secondaryMain);
+        box-shadow: inset 0 .0625em .125em rgba(10,10,10,.05);
+        padding: 6px;
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
+        border-left 1px;
+        cursor: pointer;
+    }
+
+    ${k}:hover {
+        background: var(--secondaryDark);
+    }
+
+    ${k}[data-disabled="true"] {
+        opacity: 0.25;
+        cursor: not-allowed;
+    }
+
+    ${k}[data-disabled="true"]:hover {
+        background: var(--secondaryMain);
+    }
+
+    ${k} > svg {
+        color: var(--secondaryContrast);
+        position: absolute;
+        bottom: 9px;
+        right: 10px;
+        height: 16px;
+    }
+`);
+
+
+export const PrimarySplitDropdownTrigger = injectStyle("primary-split-dropdown-trigger", k => `
     ${k} {
         position: relative;
         width: 35px;
@@ -98,6 +146,22 @@ const SuccessSplitDropdownTrigger = injectStyle("success-split-dropdown-trigger"
     }
 `);
 
+function getToneLook(tone: VmPowerTone) {
+    let toneClass = "";
+    switch (tone) {
+    case "success":
+        toneClass = SuccessSplitDropdownTrigger;
+        break;
+
+    case "warning":
+        toneClass = DangerSplitDropdownTrigger;
+        break;
+    default:
+        break;
+    }
+    return toneClass;
+}
+
 export const VmActionSplitButton: React.FunctionComponent<{
     tone: VmPowerTone;
     disabled: boolean;
@@ -120,11 +184,7 @@ export const VmActionSplitButton: React.FunctionComponent<{
     dropdownWidth = "260px",
 }) => {
     const powerDropdownClass =
-        tone === "success"
-            ? classConcat(SplitDropdownTrigger, SuccessSplitDropdownTrigger)
-            : tone === "warning"
-                ? classConcat(SplitDropdownTrigger, DangerSplitDropdownTrigger)
-                : SplitDropdownTrigger;
+    classConcat(getDefaultToneLook(tone), getToneLook(tone));
 
     return <Flex>
         <Button color={buttonColor} onClick={onButtonClick} disabled={disabled} attachedLeft>

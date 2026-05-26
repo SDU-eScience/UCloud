@@ -1609,7 +1609,7 @@ export class ResourceBrowser<T> {
         root.render(
             <div onClick={stopPropagationAndPreventDefault}>
             <VmActionSplitButton
-                tone="neutral"
+                tone="none"
                 disabled={!isEnabled}
                 buttonColor={mainOp.color ?? "secondaryMain"}
                 buttonText={getText(mainOp)}
