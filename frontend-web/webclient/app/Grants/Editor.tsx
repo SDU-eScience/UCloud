@@ -2772,14 +2772,12 @@ const GrantGiver: React.FunctionComponent<{
                 <ProjectLogo projectId={props.projectId} size={`${size}px`} />
                 <ProjectTitleForNewCore id={props.projectId} title={props.title} />
 
-                {props.state == State.IN_PROGRESS ? null : <>
-                    {props.state == State.REJECTED ? <> - Rejected </> : <> - Approved </>} by {props.stateUpdater}
-                    {props.stateUpdater == "UCloud System" ? null : <>
-                        <AvatarForUser username={props.stateUpdater ?? ""}
-                                       height={"32px"} width={"32px"}
-                                       avatarStyle={"Circle"} />
+                {props.isEditing ? <>
+                    {props.state == State.IN_PROGRESS ? null : <>
+                        {props.state == State.REJECTED ? <> - Rejected </> : <> - Approved </>} by {props.stateUpdater}
                     </>}
-                </>}
+                </> : null}
+
             </label>
             {!props.isEditing &&
                 <div className={"description"} style={{marginLeft: (size + 8) + "px"}}>{props.description}</div>
