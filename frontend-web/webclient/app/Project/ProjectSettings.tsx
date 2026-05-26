@@ -41,6 +41,7 @@ import {OldProjectRole, isAdminOrPI} from ".";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import AppRoutes from "@/Routes";
 import {sendFailureNotification, sendInformationNotification, sendSuccessNotification} from "@/Notifications";
+import { fontWeight } from "styled-system";
 
 const wayfIdpsPairs = WAYF.wayfIdps.map(it => ({value: it, content: it}));
 
@@ -281,9 +282,9 @@ export const ProjectSettings: React.FunctionComponent = () => {
         />
     }
 
-    function createTemplateForm(title: string, fields: Grants.FormField[], fieldType: string) {
+    function createTemplateForm(title: string, fieldType: string) {
         return <Card>
-                <h1>{title}</h1>
+                <h2>{title}</h2>
                 <Flex justifyContent={"flex-end"}>
                 <Button type={"button"} onClick={() => {
                     setSettings(prev => ({
@@ -305,25 +306,30 @@ export const ProjectSettings: React.FunctionComponent = () => {
                     settings.templates.structured[fieldType].map(function(field : Grants.FormField, idx: number) {
                         return <>
                             <br/>
-                            <hr style={{borderStyle: "dashed"}}/>
-                            <label htmlFor={`title${idx}`}>Title: </label >
-                            <Input id={`title${idx}`} required value={field.title} onChange={(e) => updateNewProjectField(idx, 'title', e.target.value, fieldType)} >{field.title}</Input>
-                            <label htmlFor={`description${idx}`}>Description: </label >
-                            <TextArea id={`description${idx}`} value={field.description} rows={field.rows ?? 5} onChange={(e) => updateNewProjectField(idx, 'description', e.target.value, fieldType)}>{field.description}</TextArea> 
-                            <Flex justifyContent={"flex-end"} >
-                                <Label cursor="pointer" width="unset" marginTop={"5px"} htmlFor={`checkbox${idx}`}>Is required:</Label>
+                            <Card>
+                            <Flex justifyContent={"space-between"}>
+                                <Label marginBottom={"7px"} style={{fontWeight: "normal"}} fontSize={"18px"} htmlFor={`title${idx}`}>Title: </Label >
+                                <span style={{display:"flex"}}>
+                                <Label cursor="pointer" width="unset" style={{fontWeight: "normal"}} marginTop={"5px"} htmlFor={`checkbox${idx}`}>Is optional field:</Label>
                                 <Checkbox size={30} id={`checkbox${idx}`} checked={!field.optional} handleWrapperClick={() => updateNewProjectField(idx, 'optional', !field.optional, fieldType)} 
                                     onChange={
                                         () => updateNewProjectField(idx, 'optional', !field.optional, fieldType)
                                     }>
 
                                 </Checkbox>
-                                <br />
+                                </span>
                             </Flex>
+
+                            <Input id={`title${idx}`} required value={field.title} onChange={(e) => updateNewProjectField(idx, 'title', e.target.value, fieldType)} >{field.title}</Input>
+                            <Flex justifyContent={"flex-start"}>
+                                <Label marginBottom={"7px"} style={{fontWeight: "normal"}} fontSize={"18px"} htmlFor={`description${idx}`}>Description: </Label >
+                            </Flex>
+                            <TextArea id={`description${idx}`} value={field.description} rows={field.rows ?? 5} onChange={(e) => updateNewProjectField(idx, 'description', e.target.value, fieldType)}>{field.description}</TextArea> 
                             <br />
                             <Flex justifyContent={"flex-end"}>
                                 <Icon size={20} marginRight={"12px"} color={"errorMain"} name={"trash"} cursor={"pointer"} onClick={() => removeNewProjectField(idx, fieldType)} />
                             </Flex>
+                            </Card>
 
                         </>
                     })
@@ -397,11 +403,11 @@ export const ProjectSettings: React.FunctionComponent = () => {
                             </Flex>
                         </Card>
                         <br />
-                        {createTemplateForm("Personal Project Fields:", settings.templates.structured.personalProject, 'personalProject')}
+                        {createTemplateForm("Define application for personal projects:", 'personalProject')}
                         <br />
-                        {createTemplateForm("Existing Project Fields:", settings.templates.structured.existingProject, 'existingProject')}
+                        {createTemplateForm("Define application for existing projects:", 'existingProject')}
                         <br />
-                        {createTemplateForm("New Project Fields:", settings.templates.structured.newProject, 'newProject')}
+                        {createTemplateForm("Define application for new projects:", 'newProject')}
                         {settings.enabled && <>
                             <Flex flexDirection={"row"} gap={"32px"}>
                                 <div>
