@@ -1601,7 +1601,7 @@ export class ResourceBrowser<T> {
         const menuItems: VmActionItem[] = rest.map((childOp, idx) => ({
             key: idx.toString(),
             value: getText(childOp),
-            icon: childOp.icon,
+            icon: childOp.icon ?? "questionSolid",
             color: childOp.color ?? "primaryMain"
             
         }));
