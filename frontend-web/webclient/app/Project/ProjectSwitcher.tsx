@@ -34,7 +34,7 @@ const CONTEXT_SWITCHER_DEFAULT_FETCH_ARGS: ProjectBrowseParams = {
 
 export const projectCache = new AsyncCache<PageV2<Project>>({globalTtl: 0});
 
-async function fetchProjects(next?: string): Promise<PageV2<Project>> {
+export async function fetchProjects(next?: string): Promise<PageV2<Project>> {
     const result = await callAPI<PageV2<Project>>(ProjectAPI.browse({...CONTEXT_SWITCHER_DEFAULT_FETCH_ARGS, next}));
     if (result.next) {
         const child = await fetchProjects(result.next);
