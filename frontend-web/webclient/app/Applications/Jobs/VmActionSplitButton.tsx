@@ -146,20 +146,15 @@ const SuccessSplitDropdownTrigger = injectStyle("success-split-dropdown-trigger"
     }
 `);
 
-function getToneLook(tone: VmPowerTone) {
-    let toneClass = "";
+function getToneLook(tone: VmPowerTone): string {
     switch (tone) {
-    case "success":
-        toneClass = SuccessSplitDropdownTrigger;
-        break;
-
-    case "warning":
-        toneClass = DangerSplitDropdownTrigger;
-        break;
-    default:
-        break;
+        case "success":
+            return SuccessSplitDropdownTrigger;
+        case "warning":
+            return DangerSplitDropdownTrigger;
+        default:
+            return "";
     }
-    return toneClass;
 }
 
 export const VmActionSplitButton: React.FunctionComponent<{
