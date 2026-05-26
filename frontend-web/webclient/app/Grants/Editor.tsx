@@ -195,18 +195,8 @@ type EditorAction =
     | {type: "Reset"}
     ;
 
-function extractFormFields(templateKey: string, templates: Grants.Templates[]): Grants.FormField[] {
-    let formSections: Grants.FormField[] = [];
-    if (templateKey === "newProject") {
-        formSections = templates.flatMap((it) => it.structured.newProject);
-    }
-    if (templateKey === "existingProject") {
-        formSections = templates.flatMap((it) => it.structured.existingProject);
-    }
-    if (templateKey === "personalProject") {
-        formSections = templates.flatMap((it) => it.structured.personalProject);
-    }
-    return formSections
+function extractFormFields(templateKey: Exclude<keyof Grants.Templates, "type">, templates: Grants.Templates[]): Grants.FormField[] {
+    return templates.flatMap((it => it.structured[templateKey] ?? []));
 }
 
 function extractAllFormFields(templates: Grants.Templates[]): Grants.FormField[] {
