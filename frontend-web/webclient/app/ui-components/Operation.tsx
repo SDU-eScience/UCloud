@@ -285,7 +285,7 @@ export const Operations: OperationsType = props => {
                 return <>
                     <div onClick={stopPropagation} className={InRowPrimaryButtonsClass}>{primaryContent}</div>
                     <Box mr={"10px"} />
-                    {content.length === 0 ? <Box ml={"33px"} /> :
+                    {content.length === 0 ? <Box ml={"29px"} /> :
                         <Flex alignItems={"center"} justifyContent={"center"}>
                             <ClickableDropdown {...dropdownProps}>
                                 {content}

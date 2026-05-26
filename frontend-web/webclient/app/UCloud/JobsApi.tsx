@@ -44,7 +44,7 @@ export interface JobSpecification extends ResourceSpecification {
     replicas: number;
     allowDuplicateJob?: boolean;
     parameters: Record<string, AppParameterValue>;
-    resources: AppParameterValue[];
+    resources: AppParameterValue[] | null;
     timeAllocation?: SimpleDuration;
     openedFile?: string;
     sshEnabled?: boolean;

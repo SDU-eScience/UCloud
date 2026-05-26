@@ -1425,7 +1425,13 @@ export function FilePreview({initialFile}: {
 
     const operations = useCallback((file?: VirtualFile): Operation<any>[] => {
         const reload = () => {
-            editorRef.current?.invalidateTree(removeTrailingSlash(getParentPath(initialFile.id)));
+            let path: string;
+            if (file) {
+                path = getParentPath(file.absolutePath);
+            } else {
+                path = getParentPath(initialFile.id);
+            }
+            editorRef.current?.invalidateTree(removeTrailingSlash(path));
         }
 
         if (!file) {

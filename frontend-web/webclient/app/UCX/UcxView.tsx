@@ -1,7 +1,6 @@
 import * as React from "react";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {
-    Accordion,
     Button,
     Card,
     Checkbox,
@@ -64,6 +63,7 @@ export interface UcxFunctionRegistry {
     invokeRpc: (name: string, payload?: UcxRpcPayload, timeoutMs?: number) => Promise<UcxRpcPayload>;
     modelValue: (model: Record<string, Value>, path: string, scope?: Record<string, Value>) => Value | undefined;
     sxStyle: (node: UiNode) => React.CSSProperties;
+
     [key: string]: unknown;
 }
 
