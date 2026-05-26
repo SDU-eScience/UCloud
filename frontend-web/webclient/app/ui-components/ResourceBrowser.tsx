@@ -1945,7 +1945,7 @@ export class ResourceBrowser<T> {
             const target = this.operations;
             target.innerHTML = "";
             for (const op of operations) {
-                if (op.buttonStyle === "split") {
+                if ("buttonStyle" in op && op.buttonStyle === "split") {
                     // Rendering SplitButton
                     target.append(this.renderVmActionSplitButton(op, selected, callbacks, page));
                 }
