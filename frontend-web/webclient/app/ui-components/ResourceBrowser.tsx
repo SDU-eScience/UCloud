@@ -1602,8 +1602,8 @@ export class ResourceBrowser<T> {
             key: idx.toString(),
             value: getText(childOp),
             icon: childOp.icon ?? "questionSolid",
-            color: childOp.color ?? "primaryMain"
-            
+            color: childOp.color ?? "primaryMain",
+            color2: childOp.color2 ?? "primaryDark"
         }));
 
         root.render(

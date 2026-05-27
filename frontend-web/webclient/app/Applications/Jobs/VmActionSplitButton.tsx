@@ -4,6 +4,7 @@ import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
 import {RichSelect, RichSelectChildComponent} from "@/ui-components/RichSelect";
 import {classConcat, injectStyle} from "@/Unstyled";
+import { isLightThemeStored } from "@/UtilityFunctions";
 
 export type VmPowerTone = "success" | "warning" | "neutral" | "none";
 
@@ -12,17 +13,21 @@ export interface VmActionItem {
     value: string;
     icon: IconName;
     color: ThemeColor;
+    color2: ThemeColor; // Darkmode color
 }
 
-export const VmActionRow: RichSelectChildComponent<VmActionItem> = ({element, onSelect, dataProps}) => {
-    if (!element) return null;
-    return <Box p="8px" onClick={onSelect} {...dataProps}>
-        <Flex gap="8px" alignItems="center">
-            <Icon name={element.icon} color={element.color} />
-            <span>{element.value}</span>
-        </Flex>
-    </Box>;
-};
+const createVmActionRow = (darkMode: boolean): RichSelectChildComponent<VmActionItem> => 
+    ({element, onSelect, dataProps}) => {
+        if (!element) return null;
+        return <Box p="8px" onClick={onSelect} {...dataProps}>
+            <Flex gap="8px" alignItems="center">
+                <Icon name={element.icon} color={darkMode ? element.color2 : element.color} />
+                <span>{element.value}</span>
+            </Flex>
+        </Box>;
+    };
+
+export const VmActionRow: RichSelectChildComponent<VmActionItem> = createVmActionRow(false);
 
 function getDefaultToneLook(tone : VmPowerTone) : string {
     if (tone === "none") {
@@ -177,8 +182,12 @@ export const VmActionSplitButton: React.FunctionComponent<{
     onSelectMenuItem,
     dropdownWidth = "260px",
 }) => {
-    const powerDropdownClass =
-    classConcat(getDefaultToneLook(tone), getToneLook(tone));
+    const darkMode = !isLightThemeStored();
+
+    const powerDropdownClass = classConcat(
+        getDefaultToneLook(tone),
+        getToneLook(tone)
+    );
 
     return <Flex>
         <Button color={buttonColor} onClick={onButtonClick} disabled={disabled} attachedLeft>
@@ -189,7 +198,7 @@ export const VmActionSplitButton: React.FunctionComponent<{
         <RichSelect
             items={menuItems}
             keys={["value"]}
-            RenderRow={VmActionRow}
+            RenderRow={createVmActionRow(darkMode)}
             onSelect={onSelectMenuItem}
             showSearchField={false}
             dropdownWidth={dropdownWidth}
