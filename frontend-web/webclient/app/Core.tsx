@@ -23,6 +23,7 @@ import LoginPage from "@/Login/Login";
 import Registration from "@/Login/Registration";
 import VerifyEmail from "@/Login/VerifyEmail";
 import VerifyResult from "@/Login/VerifyResult";
+import ManageProjects from "@/Admin/ManageProjects";
 import NewsList from "@/NewsPost/NewsList";
 import NewsManagement from "@/Admin/NewsManagement";
 import Playground from "@/Playground/Playground";
@@ -115,9 +116,9 @@ const Core = (): React.ReactNode => (
                     <Route path={AppRoutes.login.loginSuccess()} element={<LoginSuccess />} />
                     <Route path={AppRoutes.login.loginWayf()} element={<Wayf />} />
                     <Route path={AppRoutes.dashboard.dashboardA()}
-                        element={React.createElement(requireAuth(Dashboard))} />
+                           element={React.createElement(requireAuth(Dashboard))} />
                     <Route path={AppRoutes.dashboard.dashboardB()}
-                        element={React.createElement(requireAuth(Dashboard))} />
+                           element={React.createElement(requireAuth(Dashboard))} />
                     <Route path={"/drives/*"} element={React.createElement(requireAuth(DrivesRouter))} />
                     <Route path="/files/*" element={React.createElement(requireAuth(FilesRouter))} />
 
@@ -128,26 +129,26 @@ const Core = (): React.ReactNode => (
                     <Route path={"/shares/properties/:id/"} element={<SharesApi.Properties api={SharesApi} />} />
                     <Route path="/shares/outgoing" element={React.createElement(requireAuth(OutgoingSharesBrowse))} />
                     <Route path={"/shares/invite/:id"}
-                        element={React.createElement(requireAuth(SharesAcceptLink))} />
+                           element={React.createElement(requireAuth(SharesAcceptLink))} />
                     <Route path={AppRoutes.syncthing.syncthing()}
-                        element={React.createElement(requireAuth(SyncthingOverview))} />
+                           element={React.createElement(requireAuth(SyncthingOverview))} />
 
                     <Route path={AppRoutes.apps.landing()}
-                        element={React.createElement(requireAuth(ApplicationsLanding))} />
+                           element={React.createElement(requireAuth(ApplicationsLanding))} />
                     <Route path={AppRoutes.apps.group(":id")}
-                        element={React.createElement(requireAuth(ApplicationsGroup))} />
+                           element={React.createElement(requireAuth(ApplicationsGroup))} />
                     <Route path={AppRoutes.apps.category()}
-                        element={React.createElement(requireAuth(ApplicationsOverview))} />
+                           element={React.createElement(requireAuth(ApplicationsOverview))} />
                     <Route path={AppRoutes.apps.search()} element={React.createElement(requireAuth(ApplicationSearch))} />
 
                     <Route path={`${AppRoutes.compute.jobs()}/*`}
-                        element={React.createElement(requireAuth(JobsOnlyRouter))} />
+                           element={React.createElement(requireAuth(JobsOnlyRouter))} />
                     <Route path="/stacks/*" element={React.createElement(requireAuth(StacksRouter))} />
 
                     <Route path={AppRoutes.apps.shell(":jobId", ":rank")}
-                        element={React.createElement(requireAuth(JobShell))} />
+                           element={React.createElement(requireAuth(JobShell))} />
                     <Route path={AppRoutes.apps.vnc(":jobId", ":rank")}
-                        element={React.createElement(requireAuth(JobVnc))} />
+                           element={React.createElement(requireAuth(JobVnc))} />
 
                     <Route path={"/public-links/*"} element={React.createElement(requireAuth(PublicLinksRouter))} />
                     <Route path="/licenses/*" element={React.createElement(requireAuth(LicenseRouter))} />
@@ -167,21 +168,23 @@ const Core = (): React.ReactNode => (
                     <Route path={AppRoutes.appStudio.categories()} element={React.createElement(requireAuth(StudioCategories))} />
                     <Route path={AppRoutes.appStudio.groups()} element={React.createElement(requireAuth(StudioGroups))} />
                     <Route path={AppRoutes.appStudio.app(":name")}
-                        element={React.createElement(requireAuth(App))} />
+                           element={React.createElement(requireAuth(App))} />
                     <Route path={AppRoutes.appStudio.group(":id")}
-                        element={React.createElement(requireAuth(StudioGroup))} />
+                           element={React.createElement(requireAuth(StudioGroup))} />
 
                     {!inDevEnvironment() ? null : <Route path={"/playground"} element={<Playground />} />}
                     {!inDevEnvironment() ? null : <Route path={"/playground/demo"} element={<Demo />} />}
                     {!inDevEnvironment() ? null : <Route path={"/playground/lag"} element={<LagTest />} />}
 
                     <Route path={AppRoutes.inference.playground()}
-                        element={React.createElement(requireAuth(InferencePlayground))} />
+                           element={React.createElement(requireAuth(InferencePlayground))} />
 
                     <Route path={AppRoutes.admin.userCreation()}
-                        element={React.createElement(requireAuth(UserCreation))} />
+                           element={React.createElement(requireAuth(UserCreation))} />
+                    <Route path={AppRoutes.admin.manageProjects()}
+                           element={React.createElement(requireAuth(ManageProjects))} />
                     <Route path={AppRoutes.admin.news()}
-                        element={React.createElement(requireAuth(NewsManagement))} />
+                           element={React.createElement(requireAuth(NewsManagement))} />
 
                     <Route path={AppRoutes.supportAssist.base()} element={React.createElement(requireAuth(SupportPage))} />
                     <Route path={AppRoutes.supportAssist.user()} element={React.createElement(requireAuth(UserSupportContent))} />
@@ -192,13 +195,13 @@ const Core = (): React.ReactNode => (
 
                     <Route path="/admin/providers" element={React.createElement(requireAuth(Providers))} />
                     <Route path="/admin/providers/create"
-                        element={React.createElement(requireAuth(CreateProvider))} />
+                           element={React.createElement(requireAuth(CreateProvider))} />
                     <Route path="/admin/providers/edit/:id"
-                        element={React.createElement(requireAuth(EditProvider))} />
+                           element={React.createElement(requireAuth(EditProvider))} />
 
                     <Route path={"/connection"} element={React.createElement(requireAuth(Connection))} />
                     <Route path="/providers/connect"
-                        element={React.createElement(requireAuth(ProviderConnection))} />
+                           element={React.createElement(requireAuth(ProviderConnection))} />
                     <Route path="/providers/create" element={React.createElement(requireAuth(CreateProvider))} />
                     <Route path="/providers/edit/:id" element={React.createElement(requireAuth(EditProvider))} />
                     <Route path="/providers/overview" element={<ProviderOverview />} />
@@ -220,26 +223,26 @@ const Core = (): React.ReactNode => (
                     <Route path="/skus" element={<Products />} />
 
                     <Route path={AppRoutes.project.members()}
-                        element={React.createElement(requireAuth(ProjectMembers))} />
+                           element={React.createElement(requireAuth(ProjectMembers))} />
                     <Route path={"/projects/invite/:id"}
-                        element={React.createElement(requireAuth(ProjectAcceptInviteLink))} />
+                           element={React.createElement(requireAuth(ProjectAcceptInviteLink))} />
 
                     {/* Nullable paths args aren't supported (yet?) so we duplicate. */}
                     <Route path={AppRoutes.project.settings("")}
-                        element={React.createElement(requireAuth(ProjectSettings))} />
+                           element={React.createElement(requireAuth(ProjectSettings))} />
                     <Route path={AppRoutes.project.settings(":page")}
-                        element={React.createElement(requireAuth(ProjectSettings))} />
+                           element={React.createElement(requireAuth(ProjectSettings))} />
 
                     <Route path={AppRoutes.grants.editor()} element={React.createElement(requireAuth(GrantEditor))} />
                     <Route path={AppRoutes.grants.ingoing()}
-                        element={React.createElement(requireAuth(GrantApplicationBrowse))} />
+                           element={React.createElement(requireAuth(GrantApplicationBrowse))} />
                     <Route path={AppRoutes.grants.outgoing()}
-                        element={React.createElement(requireAuth(GrantApplicationBrowse))} />
+                           element={React.createElement(requireAuth(GrantApplicationBrowse))} />
 
                     <Route path={AppRoutes.accounting.usage()}
-                        element={React.createElement(requireAuth(ResourceUsage))} />
+                           element={React.createElement(requireAuth(ResourceUsage))} />
                     <Route path={AppRoutes.accounting.allocations()}
-                        element={React.createElement(requireAuth(ResourceAllocations))} />
+                           element={React.createElement(requireAuth(ResourceAllocations))} />
 
                     <Route
                         path="/sla"
