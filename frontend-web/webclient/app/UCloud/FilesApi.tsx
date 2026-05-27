@@ -312,7 +312,9 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     return true;
                 },
                 onClick: (selected, cb) => cb.startFolderCreation!(),
-                shortcut: ShortcutKey.F
+                shortcut: ShortcutKey.F,
+                splitButtonGroupId: 'createOperations',
+                color: "secondaryMain"
             },
 
             {
@@ -651,7 +653,9 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 onClick: (selected, cb) => {
                     cb.startFileCreation!();
                 },
-                shortcut: ShortcutKey.L
+                shortcut: ShortcutKey.L,
+                splitButtonGroupId: "createOperations",
+                color: "textPrimary",
             },
             {
                 icon: "trash",

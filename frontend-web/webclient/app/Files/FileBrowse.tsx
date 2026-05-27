@@ -20,6 +20,7 @@ import {
     favoriteRowIcon,
     ResourceBrowseHeaderControls,
     createProjectSwitcherPortal,
+    OperationGroup,
 } from "@/ui-components/ResourceBrowser";
 import FilesApi, {
     addFileSensitivityDialog,
@@ -655,15 +656,46 @@ function FileBrowse({
                 browser.on("fetchOperations", () => {
                     function groupOperations<R>(ops: Operation<UFile, R>[]): OperationOrGroup<UFile, R>[] {
                         const result: OperationOrGroup<UFile, R>[] = [];
+                        const restOperations: Operation<UFile, R>[] = [];
+                        let splitButtonGroups = new Map<string, Operation<UFile, R>[]>();
+
+                        // Finding split buttons and grouping them together
+                        ops.forEach(op => {
+                            if (op.splitButtonGroupId) {
+                                if (!splitButtonGroups.has(op.splitButtonGroupId)){
+                                    splitButtonGroups.set(op.splitButtonGroupId, [op]);
+                                }
+                                else {
+                                    splitButtonGroups.get(op.splitButtonGroupId)?.push(op);
+                                }
+                            }
+                            else {
+                                restOperations.push(op);
+                            }
+                        });
+
+                        // Creating split buttons
+                        splitButtonGroups.forEach((operations, k)  => {
+                            result.push({
+                                color: "secondaryMain",
+                                icon: "ellipsis",
+                                text: "",
+                                iconRotation: 90,
+                                operations: operations,
+                                buttonStyle: "split",
+                            })
+                        });
+
                         let i = 0;
-                        for (; i < ops.length && result.length < 4; i++) {
-                            const op = ops[i];
+                        // A max of 4 buttons for the view else we collapse them 
+                        for (; i < restOperations.length && result.length < 4; i++) {
+                            const op = restOperations[i];
                             result.push(op);
                         }
 
                         const overflow: Operation<UFile, R>[] = [];
-                        for (; i < ops.length; i++) {
-                            overflow.push(ops[i]);
+                        for (; i < restOperations.length; i++) {
+                            overflow.push(restOperations[i]);
                         }
 
                         if (overflow.length > 0) {
