@@ -17,6 +17,13 @@ export interface VmActionItem {
     shortcut?: ShortcutKey;
 }
 
+function extractShortcutKey(shortcut: ShortcutKey): string {
+    const splitted = shortcut?.split("Key");
+    if (splitted.length === 1) return shortcut; // Backspace or Enter
+    if (splitted.length === 2) return splitted[1];
+    return "";
+}
+
 export const VmActionRow: RichSelectChildComponent<VmActionItem> = ({element, onSelect, dataProps}) => {
         if (!element) return null;
         return <Flex justifyContent={"space-between"} onClick={onSelect} {...dataProps}>
@@ -25,7 +32,7 @@ export const VmActionRow: RichSelectChildComponent<VmActionItem> = ({element, on
                     <span style={{padding: "4px"}}>{element.value}</span>
                 </Box>
                 <Box padding={"8px"}>
-                    {element.shortcut ? <Shortcut alt name={""} keys={[element.shortcut?.split("Key")[1] ?? ""]}></Shortcut> : <></>}
+                    {element.shortcut ? <Shortcut alt name={""} keys={[extractShortcutKey(element.shortcut)]}></Shortcut> : <></>}
                 </Box>
             </Flex>
     };
@@ -162,6 +169,12 @@ function getToneLook(tone: VmPowerTone): string {
     }
 }
 
+const AttachedLeftButton = injectStyle("attached-left-button", k => `
+    ${k} {
+        padding-right: 3px;
+    }
+`);
+
 export const VmActionSplitButton: React.FunctionComponent<{
     tone: VmPowerTone;
     disabled: boolean;
@@ -212,13 +225,13 @@ export const VmActionSplitButton: React.FunctionComponent<{
     }, [shortcut, onButtonClick, menuItems, onSelectMenuItem, disabled]);
 
     return <Flex>
-        <Button color={buttonColor} onClick={onButtonClick} disabled={disabled} attachedLeft>
+        <Button className={AttachedLeftButton} color={buttonColor} onClick={onButtonClick} disabled={disabled} attachedLeft>
             <Flex justifyContent={"space-between"}>
-                <span>
+                <span style={{marginRight: "8px"}}>
                     <Icon name={buttonIcon} mr="8px" />
                     {buttonText}
                 </span>
-                {shortcut ? <Shortcut name="" alt keys={[shortcut?.split("Key")[1] ?? ""]}></Shortcut> : <></>}
+                {shortcut ? <Shortcut name="" alt keys={[extractShortcutKey(shortcut)]}></Shortcut> : <></>}
             </Flex>
         </Button>
         <RichSelect
