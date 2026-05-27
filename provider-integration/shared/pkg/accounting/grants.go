@@ -76,7 +76,7 @@ func (s GrantRequestSettings) MarshalJSON() ([]byte, error) {
 type GrantGiver struct {
 	Id          string            `json:"id"`
 	Description string            `json:"description"`
-	Templates   Templates         `json:"templates"` // This needs to be removed for another structure
+	Templates   Templates         `json:"templates"`
 	Categories  []ProductCategory `json:"categories"`
 }
 
@@ -136,10 +136,10 @@ type Templates struct {
 	Type       TemplatesType       `json:"type"`
 	Structured TemplatesStructured `json:"structured"`
 
-	// Legacy compatibility
-	PersonalProject string `json:"personalProject"` // plain_text
-	NewProject      string `json:"newProject"`      // plain_text
-	ExistingProject string `json:"existingProject"` // plain_text
+	// Legacy compatibility -- plain_text-case
+	PersonalProject string `json:"personalProject"`
+	NewProject      string `json:"newProject"`
+	ExistingProject string `json:"existingProject"`
 }
 
 type FormField struct {
@@ -182,7 +182,7 @@ type FormType string
 const (
 	FormTypePlainText           FormType = "plain_text"
 	FormTypeGrantGiverInitiated FormType = "grant_giver_initiated"
-	FormTypeStructured          FormType = "structured" // New
+	FormTypeStructured          FormType = "structured"
 )
 
 func (f FormType) Valid() bool {

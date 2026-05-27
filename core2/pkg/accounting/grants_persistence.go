@@ -1035,7 +1035,8 @@ func lGrantsPersist(app *grantApplication) {
 
 				formsRecipientType = append(formsRecipientType, sqlRecipientType)
 
-				if rev.Document.Form.Type == accapi.FormTypeStructured {
+				switch rev.Document.Form.Type {
+				case accapi.FormTypeStructured:
 					b, err := json.Marshal(rev.Document.Form.Fields)
 					if err == nil {
 						form = append(form, string(b))
@@ -1043,10 +1044,13 @@ func lGrantsPersist(app *grantApplication) {
 						form = append(form, "Failed to marshal")
 						log.Error("Failed to marshal form fields for application %d", app.lId())
 					}
-				}
 
-				if rev.Document.Form.Type == accapi.FormTypePlainText {
+				case accapi.FormTypePlainText:
 					form = append(form, rev.Document.Form.Text)
+
+				default:
+					form = append(form, "")
+					log.Warn("Unknown form type %q for application %d", rev.Document.Form.Type, app.lId())
 				}
 
 				formType = append(formType, rev.Document.Form.Type)

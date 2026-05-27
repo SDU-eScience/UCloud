@@ -48,18 +48,11 @@ func grantV3() db.MigrationScript {
 	return db.MigrationScript{
 		Id: "grantsV3",
 		Execute: func(tx *db.Transaction) {
-			statements := []string{
-				`
-					create type form_type as enum ('plain_text', 'structured');
-				`,
-				`
-					alter table "grant".forms
-					add column form_type form_type not null default 'plain_text';
-				`,
-			}
-			for _, statement := range statements {
-				db.Exec(tx, statement, db.Params{})
-			}
+			statement := `
+				alter table "grant".forms
+				add column form_type text not null default 'plain_text';
+			`
+			db.Exec(tx, statement, db.Params{})
 		},
 	}
 }
