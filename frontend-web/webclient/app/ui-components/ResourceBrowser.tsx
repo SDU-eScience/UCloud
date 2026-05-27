@@ -3823,7 +3823,7 @@ interface ShortcutProps {
     keys: string | string[];
 }
 
-const Shortcut: React.FunctionComponent<ShortcutProps> = props => {
+export const Shortcut: React.FunctionComponent<ShortcutProps> = props => {
     const normalizedKeys = typeof props.keys === "string" ? [props.keys] : props.keys;
     return <tr>
         <td>{props.name}</td>

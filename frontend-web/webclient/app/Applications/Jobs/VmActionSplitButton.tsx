@@ -5,6 +5,7 @@ import {ThemeColor} from "@/ui-components/theme";
 import {RichSelect, RichSelectChildComponent} from "@/ui-components/RichSelect";
 import {classConcat, injectStyle} from "@/Unstyled";
 import {ShortcutKey} from "@/ui-components/Operation";
+import {Shortcut} from "@/ui-components/ResourceBrowser";
 
 export type VmPowerTone = "success" | "warning" | "neutral" | "none";
 
@@ -18,12 +19,15 @@ export interface VmActionItem {
 
 export const VmActionRow: RichSelectChildComponent<VmActionItem> = ({element, onSelect, dataProps}) => {
         if (!element) return null;
-        return <Box p="8px" onClick={onSelect} {...dataProps}>
-            <Flex gap="8px" alignItems="center">
-                <Icon name={element.icon} color={element.color} />
-                <span>{element.value}</span>
+        return <Flex justifyContent={"space-between"} onClick={onSelect} {...dataProps}>
+                <Box padding="8px">
+                    <Icon name={element.icon} color={element.color} />
+                    <span style={{padding: "4px"}}>{element.value}</span>
+                </Box>
+                <Box padding={"8px"}>
+                    {element.shortcut ? <Shortcut alt name={""} keys={[element.shortcut?.split("Key")[1] ?? ""]}></Shortcut> : <></>}
+                </Box>
             </Flex>
-        </Box>;
     };
 
 function getDefaultToneLook(tone : VmPowerTone) : string {
@@ -208,12 +212,15 @@ export const VmActionSplitButton: React.FunctionComponent<{
     }, [shortcut, onButtonClick, menuItems, onSelectMenuItem, disabled]);
 
     return <Flex>
-
         <Button color={buttonColor} onClick={onButtonClick} disabled={disabled} attachedLeft>
-            <Icon name={buttonIcon} mr="8px" />
-            {buttonText}
+            <Flex justifyContent={"space-between"}>
+                <span>
+                    <Icon name={buttonIcon} mr="8px" />
+                    {buttonText}
+                </span>
+                {shortcut ? <Shortcut name="" alt keys={[shortcut?.split("Key")[1] ?? ""]}></Shortcut> : <></>}
+            </Flex>
         </Button>
-
         <RichSelect
             items={menuItems}
             keys={["value"]}
