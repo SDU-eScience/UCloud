@@ -25,19 +25,17 @@ function extractShortcutKey(shortcut: ShortcutKey): string {
 }
 
 export const VmActionRow: RichSelectChildComponent<VmActionItem> = ({element, onSelect, dataProps}) => {
-        if (!element) return null;
-        return <Flex justifyContent={"space-between"} onClick={onSelect} {...dataProps}>
-                <Box padding="8px">
-                    <Icon name={element.icon} color={element.color} />
-                    <span style={{padding: "4px"}}>{element.value}</span>
-                </Box>
-                <Box padding={"8px"}>
-                    {element.shortcut ? <Shortcut alt name={""} keys={[extractShortcutKey(element.shortcut)]}></Shortcut> : <></>}
-                </Box>
-            </Flex>
-    };
+    if (!element) return null;
+    return <Box p="8px" onClick={onSelect} {...dataProps}>
+        <Flex alignItems="center" gap="8px">
+            <Icon name={element.icon} color={element.color} />
+            <span>{element.value}</span>
+            {element.shortcut ? <ShortcutTable shortcut={<Shortcut alt name={""} keys={[extractShortcutKey(element.shortcut)]}></Shortcut>} /> : <></>}
+        </Flex>
+    </Box>
+};
 
-function getDefaultToneLook(tone : VmPowerTone) : string {
+function getDefaultToneLook(tone: VmPowerTone): string {
     if (tone === "none") {
         return SecondarySplitDropdownTrigger;
     }
@@ -169,18 +167,7 @@ function getToneLook(tone: VmPowerTone): string {
     }
 }
 
-export const VmActionSplitButton: React.FunctionComponent<{
-    tone: VmPowerTone;
-    disabled: boolean;
-    buttonColor: ThemeColor;
-    buttonText: string;
-    buttonIcon: IconName;
-    onButtonClick: () => void;
-    menuItems: VmActionItem[];
-    shortcut?: ShortcutKey;
-    onSelectMenuItem: (item: VmActionItem) => void;
-    dropdownWidth?: string;
-}> = ({
+export function VmActionSplitButton({
     tone,
     disabled,
     buttonColor,
@@ -191,7 +178,18 @@ export const VmActionSplitButton: React.FunctionComponent<{
     shortcut,
     onSelectMenuItem,
     dropdownWidth = "260px",
-}) => {
+}: {
+    tone: VmPowerTone;
+    disabled: boolean;
+    buttonColor: ThemeColor;
+    buttonText: string;
+    buttonIcon: IconName;
+    onButtonClick: () => void;
+    menuItems: VmActionItem[];
+    shortcut?: ShortcutKey;
+    onSelectMenuItem: (item: VmActionItem) => void;
+    dropdownWidth?: string;
+}): React.ReactNode {
     const powerDropdownClass = classConcat(
         getDefaultToneLook(tone),
         getToneLook(tone)
@@ -201,32 +199,28 @@ export const VmActionSplitButton: React.FunctionComponent<{
     React.useEffect(() => {
         const handleKeyDown = (ev: KeyboardEvent) => {
             if (!ev.altKey) return;
-            
+
             if (shortcut && ev.code === shortcut && !disabled) {
                 ev.preventDefault();
                 onButtonClick();
             }
-            
+
             const matchingItem = menuItems.find(item => item.shortcut === ev.code);
             if (matchingItem && !disabled) {
                 ev.preventDefault();
                 onSelectMenuItem(matchingItem);
             }
         };
-        
+
         document.addEventListener("keydown", handleKeyDown);
         return () => document.removeEventListener("keydown", handleKeyDown);
     }, [shortcut, onButtonClick, menuItems, onSelectMenuItem, disabled]);
 
     return <Flex>
         <Button color={buttonColor} onClick={onButtonClick} disabled={disabled} attachedLeft>
-            <Flex justifyContent={"space-between"}>
-                <span style={{marginRight: "8px"}}>
-                    <Icon name={buttonIcon} mr="8px" />
-                    {buttonText}
-                </span>
-                {shortcut ? <Shortcut name="" alt keys={[extractShortcutKey(shortcut)]}></Shortcut> : <></>}
-            </Flex>
+            <Icon name={buttonIcon} mr="8px" />
+            {buttonText}
+            {shortcut ? <Box ml="8px"><ShortcutTable shortcut={<Shortcut name="" alt keys={[extractShortcutKey(shortcut)]}></Shortcut>} /></Box> : null}
         </Button>
         <RichSelect
             items={menuItems}
@@ -245,3 +239,7 @@ export const VmActionSplitButton: React.FunctionComponent<{
         />
     </Flex>;
 };
+
+function ShortcutTable({shortcut}: {shortcut: React.ReactNode}): React.ReactNode {
+    return <Box ml="auto"><table><tbody>{shortcut}</tbody></table></Box>;
+}

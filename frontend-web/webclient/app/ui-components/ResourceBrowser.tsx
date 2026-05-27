@@ -50,7 +50,7 @@ import {callAPI, noopCall} from "@/Authentication/DataHook";
 import {injectResourceBrowserStyle, ShortcutClass} from "./ResourceBrowserStyle";
 import {ASC, DESC, Filter, FilterCheckbox, FilterInput, FilterOption, FilterWithOptions, MultiOption, MultiOptionFilter, SORT_BY, SORT_DIRECTION} from "./ResourceBrowserFilters";
 import {sendInformationNotification} from "@/Notifications";
-import { UFile } from "@/UCloud/UFile";
+import {UFile} from "@/UCloud/UFile";
 import ReactClient from "react-dom/client";
 import {VmActionItem, VmActionSplitButton} from "@/Applications/Jobs/VmActionSplitButton";
 
@@ -1606,24 +1606,24 @@ export class ResourceBrowser<T> {
         }));
         root.render(
             <div onClick={stopPropagationAndPreventDefault}>
-            <VmActionSplitButton
-                tone="none"
-                disabled={!isEnabled}
-                buttonColor={mainOp.color ?? "secondaryMain"}
-                buttonText={getText(mainOp)}
-                buttonIcon={mainOp.icon ?? "ellipsis" }
-                menuItems={menuItems}
-                shortcut={mainOp.shortcut}
-                onSelectMenuItem={(item) => {
-                    const foundOp = rest[parseInt(item.key)];
-                    if (foundOp && foundOp.enabled(selected, callbacks, page) === true) {
-                        foundOp.onClick(selected, callbacks, page);
-                    }
-                }}
-                onButtonClick={() => {
-                    mainOp.onClick(selected, callbacks, page);
-                }}
-            />
+                <VmActionSplitButton
+                    tone="none"
+                    disabled={!isEnabled}
+                    buttonColor={mainOp.color ?? "secondaryMain"}
+                    buttonText={getText(mainOp)}
+                    buttonIcon={mainOp.icon ?? "ellipsis"}
+                    menuItems={menuItems}
+                    shortcut={mainOp.shortcut}
+                    onSelectMenuItem={(item) => {
+                        const foundOp = rest[parseInt(item.key)];
+                        if (foundOp && foundOp.enabled(selected, callbacks, page) === true) {
+                            foundOp.onClick(selected, callbacks, page);
+                        }
+                    }}
+                    onButtonClick={() => {
+                        mainOp.onClick(selected, callbacks, page);
+                    }}
+                />
             </div>
         );
 
@@ -3828,7 +3828,7 @@ export const Shortcut: React.FunctionComponent<ShortcutProps> = props => {
     return <tr>
         <td>{props.name}</td>
         <td>
-            <Flex gap={"4px"} justifyContent={"end"}>
+            <Flex gap={"8px"} justifyContent={"end"}>
                 {normalizedKeys.map(((k, i) =>
                     <React.Fragment key={i}>
                         {i > 0 && <> or </>}
