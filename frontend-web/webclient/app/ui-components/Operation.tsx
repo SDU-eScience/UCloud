@@ -67,12 +67,14 @@ export interface Operation<T, R = undefined> {
     icon?: IconName;
     iconRotation?: number;
     color?: ThemeColor;
+    color2?: ThemeColor
     hoverColor?: ThemeColor;
     outline?: boolean;
     operationType?: (location: OperationLocation, allOperations: Operation<T, R>[]) => OperationComponentType;
     primary?: boolean;
     confirm?: boolean;
     tag?: string;
+    splitButtonGroupId?: string
 }
 
 export function defaultOperationType(
