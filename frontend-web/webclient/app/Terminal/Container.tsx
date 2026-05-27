@@ -2,7 +2,6 @@ import * as React from "react";
 import {TerminalAction, TerminalState, TerminalTab, useTerminalDispatcher, useTerminalState} from "@/Terminal/State";
 import {useCallback, useEffect, useRef, useMemo, useState} from "react";
 import {Icon, Truncate} from "@/ui-components";
-import {Feature, hasFeature} from "@/Features";
 import {injectStyle} from "@/Unstyled";
 import {noopCall, useCloudAPI} from "@/Authentication/DataHook";
 import {BulkResponse} from "@/UCloud";

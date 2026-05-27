@@ -29,7 +29,7 @@ import {injectStyle as unstyledInjectStyle} from "@/Unstyled";
 import {InputClass} from "./Input";
 import {getStartOfDay} from "@/Utilities/DateUtilities";
 import {createPortal} from "react-dom";
-import {ProjectSwitcher, FilterInputClass, projectCache} from "@/Project/ProjectSwitcher";
+import {ProjectSwitcher, FilterInputClass, projectCache, fetchProjects} from "@/Project/ProjectSwitcher";
 import {addProjectListener, removeProjectListener} from "@/Project/ReduxState";
 import {ProductType, ProductV2} from "@/Accounting";
 import {ProductSelector} from "@/Products/Selector";
@@ -45,7 +45,7 @@ import Flex, {FlexClass} from "./Flex";
 import * as Heading from "@/ui-components/Heading";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {isAdminOrPI} from "@/Project";
-import {callAPI, noopCall} from "@/Authentication/DataHook";
+import {noopCall} from "@/Authentication/DataHook";
 import {injectResourceBrowserStyle, ShortcutClass} from "./ResourceBrowserStyle";
 import {ASC, DESC, Filter, FilterCheckbox, FilterInput, FilterOption, FilterWithOptions, MultiOption, MultiOptionFilter, SORT_BY, SORT_DIRECTION} from "./ResourceBrowserFilters";
 import {sendInformationNotification} from "@/Notifications";
@@ -860,16 +860,24 @@ export class ResourceBrowser<T> {
         });
         const path = this.initialPath;
         if (path !== undefined) {
-            const evaluateProjectStatus = (projectId?: string | null) => {
-                this.canConsumeResources = checkCanConsumeResources(
+            const evaluateProjectStatus = async (projectId?: string | null) => {
+                this.canConsumeResources = await checkCanConsumeResources(
                     projectId ?? null,
                     this.dispatchMessage("fetchOperationsCallback", fn => fn()) as unknown as null | {
                         api: {isCoreResource: boolean}
                     },
                 );
-                if (!this.canConsumeResources) {
-                    this.renderCantConsumeResources();
+
+
+                if (this.canConsumeResources) {
+                    if (this.sessionFilters.childElementCount == 0) {
+                        this.renderSessionFilters();
+                    }
+                } else {
+                    this.sessionFilters.replaceChildren();
                 }
+
+                this.rerender();
             };
 
             addProjectListener(this.resourceName, project => {
@@ -3698,10 +3706,10 @@ export function checkIsWorkspaceAdmin(): boolean {
     return isAdminOrPI(project.status.myRole);
 }
 
-export function checkCanConsumeResources(
+export async function checkCanConsumeResources(
     projectId: string | null,
     callbacks: null | {api: {isCoreResource: boolean}},
-): boolean {
+): Promise<boolean> {
     if (!projectId) return true;
     if (!callbacks) return true;
 
@@ -3710,8 +3718,7 @@ export function checkCanConsumeResources(
 
     if (api.isCoreResource) return true;
 
-    const project = projectCache.retrieveFromCacheOnly("")?.items.find(it => it.id === projectId);
-    // Don't consider yet-to-be-fetched projects as non-consumer
+    const project = (await projectCache.retrieve("", fetchProjects)).items.find(it => it.id === projectId);
     if (!project) return true;
 
     return project.specification.canConsumeResources !== false;
