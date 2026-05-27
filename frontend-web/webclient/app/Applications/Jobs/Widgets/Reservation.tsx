@@ -51,11 +51,11 @@ export function ReservationParameter({
 
     const projectId = useProjectId();
     useEffect(() => {
-        fetchWallets(Accounting.browseWalletsV2({itemsPerPage: 250}));
+        fetchWallets(Accounting.browseWalletsV2({itemsPerPage: 1000}));
         fetchProducts(UCloud.accounting.products.browse({
             filterUsable: true,
             filterProductType: "COMPUTE",
-            itemsPerPage: 250,
+            itemsPerPage: 1000,
             includeBalance: true,
             includeMaxBalance: true
         }));

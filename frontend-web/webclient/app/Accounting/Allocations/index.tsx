@@ -1,6 +1,6 @@
 import {injectStyle} from "@/Unstyled";
 import * as React from "react";
-import {useCallback, useEffect, useMemo, useReducer, useRef} from "react";
+import {useCallback, useEffect, useMemo, useReducer, useRef, useState} from "react";
 import {
     Box,
     Button,
@@ -21,7 +21,6 @@ import {useProjectId} from "@/Project/Api";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import AppRoutes from "@/Routes";
 import {
-    bulkRequestOf,
     doNothing,
     timestampUnixMs
 } from "@/UtilityFunctions";
@@ -37,16 +36,17 @@ import {usePage} from "@/Navigation/Redux";
 import {useProject} from "@/Project/cache";
 import {OldProjectRole} from "@/Project";
 import {VariableSizeList} from "react-window";
-import {State, initialState, stateReducer, useEventReducer} from "./State"
-import {ProviderOnlySections} from "./ProviderOnlySections";
+import {initialState, stateReducer, useEventReducer} from "./State"
+import {GiftSection, RootAllocationSections} from "./ProviderOnlySections";
 import {
     YourAllocations,
     SubProjectList,
     resetOpenNodes,
-    KeyMetrics
 } from "./CommonSections";
 import {projectInfoPi, useProjectInfos} from "@/Project/InfoCache";
 import {sendFailureNotification, sendNotification, SnackType} from "@/Notifications";
+import {callAPI, useCloudCommand} from "@/Authentication/DataHook";
+import * as Grants from "@/Grants";
 
 // Styling
 // =====================================================================================================================
@@ -96,6 +96,7 @@ const Allocations: React.FunctionComponent = () => {
     const projectState = useProject();
     const projectRole = projectState.fetch().status.myRole ?? OldProjectRole.USER;
     const reports = state.remoteData.reports ?? [];
+    const didUnmount = useDidUnmount();
 
     usePage("Allocations", SidebarTabId.PROJECT);
 
@@ -114,6 +115,39 @@ const Allocations: React.FunctionComponent = () => {
     useEffect(() => {
         dispatchEvent({type: "SubProjectData", projects: projectInfo.data});
     }, [projectInfo]);
+
+    const [settings, setSettings] = useState<Grants.RequestSettings>({
+        enabled: false,
+        description: "No description",
+        allowRequestsFrom: [],
+        excludeRequestsFrom: [],
+        templates: {
+            type: "plain_text",
+            personalProject: "No template",
+            newProject: "No template",
+            existingProject: "No template",
+        }
+    });
+
+    const [isLoading, invokeCommand] = useCloudCommand();
+
+    useEffect(() => {
+        if (!projectId) return;
+        (async () => {
+            try {
+                const res = await callAPI<Grants.RequestSettings>(
+                    {
+                        ...Grants.retrieveRequestSettings(),
+                        projectOverride: projectId,
+                    }
+                );
+
+                if (!didUnmount.current) setSettings(res);
+            } catch (e) {
+                // Ignoring failure
+            }
+        })();
+    }, [projectId]);
 
     React.useEffect(() => {
         const usernames = new Set<string>();
@@ -223,8 +257,7 @@ const Allocations: React.FunctionComponent = () => {
                     }
                 </div>
                 <Flex mt="20px">
-                    <Button type={"button"} onClick={dialogStore.failure.bind(dialogStore)} color={"errorMain"}
-                        mr="5px">Cancel</Button>
+                    <Button type={"button"} onClick={dialogStore.failure.bind(dialogStore)} color={"errorMain"} mr="5px">Cancel</Button>
                     <Button type={"submit"} color={"successMain"}>Create sub-project</Button>
                 </Flex>
             </form>,
@@ -309,7 +342,14 @@ const Allocations: React.FunctionComponent = () => {
                 <ProjectSwitcher />
             </header>
 
-            <ProviderOnlySections state={state} dispatchEvent={dispatchEvent} />
+            {(state.remoteData.managedProviders ?? []).length > 0 ? <>
+                <RootAllocationSections state={state} dispatchEvent={dispatchEvent} />
+                <GiftSection state={state} dispatchEvent={dispatchEvent} />
+            </> : <>
+                {!settings.enabled ? null :
+                    <GiftSection state={state} dispatchEvent={dispatchEvent} />
+                }</>
+            }
 
             <YourAllocations state={state} allocations={sortedAllocations} allocationTree={allocationTree} indent={indent} />
 

@@ -580,6 +580,11 @@ export interface SidebarDialog {
 
 const fileTypeCache: Record<string, FileType | "DELETED"> = {}
 
+
+type DriveChange = void;
+export type DriveChangeEvent = CustomEvent<DriveChange>;
+export const DriveChange = "DriveChangeCustomEvent";
+
 function useSidebarFilesPage(): [
     APICallState<PageV2<FileCollection>>,
     FileMetadataAttached[]
@@ -647,6 +652,17 @@ function useSidebarFilesPage(): [
     React.useEffect(() => {
         fetchDrives(FileCollectionsApi.browse({itemsPerPage: 250/* , filterMemberFiles: "all" */}))
     }, [projectId]);
+
+    React.useEffect(() => {
+        function driveChangeListener() {
+            fetchDrives(FileCollectionsApi.browse({itemsPerPage: 250/* , filterMemberFiles: "all" */}))
+        }
+
+        window.addEventListener(DriveChange, driveChangeListener);
+        return () => {
+            window.removeEventListener(DriveChange, driveChangeListener);
+        }
+    }, []);
 
     return [
         drives,
@@ -782,11 +798,6 @@ const ComputeSubLinksEntries: LinkInfo[] = [{
     to: AppRoutes.compute.jobs(),
     text: "Jobs",
     icon: "heroServer",
-    tab: SidebarTabId.RUNS,
-}, {
-    to: AppRoutes.compute.virtualMachines(),
-    text: "Virtual machines",
-    icon: "heroComputerDesktop",
     tab: SidebarTabId.RUNS,
 }];
 

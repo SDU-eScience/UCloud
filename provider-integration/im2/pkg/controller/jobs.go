@@ -878,9 +878,11 @@ func initJobs() {
 			var errors []*util.HttpError
 			var providerIds []fnd.FindByStringId
 
+			lockInfo := ResourceLockInfo{}
 			for _, item := range request.Items {
-				if ResourceIsLocked(item.Resource, item.Specification.Product) {
-					return fnd.BulkResponse[fnd.FindByStringId]{}, util.HttpErr(http.StatusPaymentRequired, "insufficient funds for %s", item.Specification.Product.Category)
+				lockInfo = RetrieveResourceLockInfo(item.Resource, item.Specification.Product)
+				if lockInfo.Locked {
+					return fnd.BulkResponse[fnd.FindByStringId]{}, util.HttpErr(http.StatusPaymentRequired, MakeInsufficientFundsMessage(lockInfo, item.Specification.Product.Category))
 				}
 			}
 
@@ -1136,9 +1138,11 @@ func initJobs() {
 			var errors []*util.HttpError
 			var providerIds []fnd.FindByStringId
 
+			lockInfo := ResourceLockInfo{}
 			for _, item := range request.Items {
+				lockInfo = RetrieveResourceLockInfo(item.Resource, item.Specification.Product)
 				if ResourceIsLocked(item.Resource, item.Specification.Product) {
-					return fnd.BulkResponse[fnd.FindByStringId]{}, util.HttpErr(http.StatusPaymentRequired, "insufficient funds for %s", item.Specification.Product.Category)
+					return fnd.BulkResponse[fnd.FindByStringId]{}, util.HttpErr(http.StatusPaymentRequired, MakeInsufficientFundsMessage(lockInfo, item.Specification.Product.Category))
 				}
 			}
 

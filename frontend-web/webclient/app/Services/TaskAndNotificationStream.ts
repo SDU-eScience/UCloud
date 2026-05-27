@@ -138,31 +138,33 @@ async function initCore2Streams() {
     const s = stream.socket;
     stream.hijack();
 
-    s.onclose = () => {
-        stream.closed = true;
-    };
+    if (s) {
+        s.onclose = () => {
+            stream.closed = true;
+        };
 
-    s.onmessage = ev => {
-        const batch: Core2StreamMessageBatch = JSON.parse(ev.data);
-        for (const message of batch.messages) {
-            switch (message.type) {
-                case "TASK": {
-                    taskStore.addTask(message.task!);
-                    break;
-                }
+        s.onmessage = ev => {
+            const batch: Core2StreamMessageBatch = JSON.parse(ev.data);
+            for (const message of batch.messages) {
+                switch (message.type) {
+                    case "TASK": {
+                        taskStore.addTask(message.task!);
+                        break;
+                    }
 
-                case "NOTIFICATION": {
-                    sendNotification(normalizeNotification(message.notification!));
-                    break;
-                }
+                    case "NOTIFICATION": {
+                        sendNotification(normalizeNotification(message.notification!));
+                        break;
+                    }
 
-                case "PROJECTS": {
-                    Client.invalidateCurrentAccessToken();
-                    break;
+                    case "PROJECTS": {
+                        Client.invalidateCurrentAccessToken();
+                        break;
+                    }
                 }
             }
-        }
-    };
+        };
 
-    s.send("READY");
+        s.send("READY");
+    }
 }
