@@ -4,7 +4,7 @@ import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
 import {RichSelect, RichSelectChildComponent} from "@/ui-components/RichSelect";
 import {classConcat, injectStyle} from "@/Unstyled";
-import { isLightThemeStored } from "@/UtilityFunctions";
+import {isLightThemeStored} from "@/UtilityFunctions";
 
 export type VmPowerTone = "success" | "warning" | "neutral" | "none";
 
