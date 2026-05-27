@@ -121,10 +121,6 @@ export const ProjectSettings: React.FunctionComponent = () => {
                     newProject: "No template",
             }
     });
-
-    const templatePersonal = useRef<HTMLInputElement>(null);
-    const templateExisting = useRef<HTMLInputElement>(null);
-    const templateNew = useRef<HTMLInputElement>(null);
     const description = useRef<HTMLInputElement>(null);
     useEffect(() => {
         if (!projectId) {
@@ -147,32 +143,11 @@ export const ProjectSettings: React.FunctionComponent = () => {
         })();
     }, [projectId]);
 
-
-    // Temporary function to accomodate current way of making templates
-    function formFieldsToMarkDown(fields: Grants.FormField[]): string {
-        return fields.map(f => `${f.title}\n--------------------------\n${f.description}` ).join("\n\r");
-    }
-
-    useEffect(() => {
-        const p = templatePersonal.current;
-        const e = templateExisting.current;
-        const n = templateNew.current;
-        if (!p || !e || !n) return;
-
-        p.value = formFieldsToMarkDown(settings.templates.structured.personalProject);
-        e.value = formFieldsToMarkDown(settings.templates.structured.existingProject);
-        n.value = formFieldsToMarkDown(settings.templates.structured.newProject);
-    }, [settings.templates]);
-
     useEffect(() => {
         const d = description.current;
         if (!d) return;
         d.value = settings.description;
     }, [settings.description]);
-
-    useEffect(() => {
-    }, [settings.templates.structured]);
-
 
     const onAllowAdd = useCallback((criteria: Grants.UserCriteria) => {
         setSettings(prev => {
