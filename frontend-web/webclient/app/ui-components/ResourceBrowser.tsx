@@ -1596,16 +1596,14 @@ export class ResourceBrowser<T> {
         const getText = (op): string => {
             return typeof op.text === "string" ? op.text : op.text(selected, callbacks);
         }
-
         // Rest are menu items
         const menuItems: VmActionItem[] = rest.map((childOp, idx) => ({
             key: idx.toString(),
             value: getText(childOp),
             icon: childOp.icon ?? "questionSolid",
-            color: childOp.color ?? "primaryMain",
-            color2: childOp.color2 ?? "primaryDark"
+            color: childOp.color ?? "textPrimary",
+            shortcut: childOp.shortcut,
         }));
-
         root.render(
             <div onClick={stopPropagationAndPreventDefault}>
             <VmActionSplitButton
@@ -1615,6 +1613,7 @@ export class ResourceBrowser<T> {
                 buttonText={getText(mainOp)}
                 buttonIcon={mainOp.icon ?? "ellipsis" }
                 menuItems={menuItems}
+                shortcut={mainOp.shortcut}
                 onSelectMenuItem={(item) => {
                     const foundOp = rest[parseInt(item.key)];
                     if (foundOp && foundOp.enabled(selected, callbacks, page) === true) {
@@ -1622,10 +1621,7 @@ export class ResourceBrowser<T> {
                     }
                 }}
                 onButtonClick={() => {
-                    if (isEnabled) {
-                        console.log("Enabled", mainOp);
-                        mainOp.onClick(selected, callbacks, page);
-                    }
+                    mainOp.onClick(selected, callbacks, page);
                 }}
             />
             </div>

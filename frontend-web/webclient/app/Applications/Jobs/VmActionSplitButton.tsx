@@ -4,7 +4,7 @@ import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
 import {RichSelect, RichSelectChildComponent} from "@/ui-components/RichSelect";
 import {classConcat, injectStyle} from "@/Unstyled";
-import {isLightThemeStored} from "@/UtilityFunctions";
+import {ShortcutKey} from "@/ui-components/Operation";
 
 export type VmPowerTone = "success" | "warning" | "neutral" | "none";
 
@@ -13,21 +13,18 @@ export interface VmActionItem {
     value: string;
     icon: IconName;
     color: ThemeColor;
-    color2: ThemeColor; // Darkmode color
+    shortcut?: ShortcutKey;
 }
 
-const createVmActionRow = (darkMode: boolean): RichSelectChildComponent<VmActionItem> => 
-    ({element, onSelect, dataProps}) => {
+export const VmActionRow: RichSelectChildComponent<VmActionItem> = ({element, onSelect, dataProps}) => {
         if (!element) return null;
         return <Box p="8px" onClick={onSelect} {...dataProps}>
             <Flex gap="8px" alignItems="center">
-                <Icon name={element.icon} color={darkMode ? element.color2 : element.color} />
+                <Icon name={element.icon} color={element.color} />
                 <span>{element.value}</span>
             </Flex>
         </Box>;
     };
-
-export const VmActionRow: RichSelectChildComponent<VmActionItem> = createVmActionRow(false);
 
 function getDefaultToneLook(tone : VmPowerTone) : string {
     if (tone === "none") {
@@ -169,6 +166,7 @@ export const VmActionSplitButton: React.FunctionComponent<{
     buttonIcon: IconName;
     onButtonClick: () => void;
     menuItems: VmActionItem[];
+    shortcut?: ShortcutKey;
     onSelectMenuItem: (item: VmActionItem) => void;
     dropdownWidth?: string;
 }> = ({
@@ -179,17 +177,38 @@ export const VmActionSplitButton: React.FunctionComponent<{
     buttonIcon,
     onButtonClick,
     menuItems,
+    shortcut,
     onSelectMenuItem,
     dropdownWidth = "260px",
 }) => {
-    const darkMode = !isLightThemeStored();
-
     const powerDropdownClass = classConcat(
         getDefaultToneLook(tone),
         getToneLook(tone)
     );
 
+    // Adding shortcut keys if any
+    React.useEffect(() => {
+        const handleKeyDown = (ev: KeyboardEvent) => {
+            if (!ev.altKey) return;
+            
+            if (shortcut && ev.code === shortcut && !disabled) {
+                ev.preventDefault();
+                onButtonClick();
+            }
+            
+            const matchingItem = menuItems.find(item => item.shortcut === ev.code);
+            if (matchingItem && !disabled) {
+                ev.preventDefault();
+                onSelectMenuItem(matchingItem);
+            }
+        };
+        
+        document.addEventListener("keydown", handleKeyDown);
+        return () => document.removeEventListener("keydown", handleKeyDown);
+    }, [shortcut, onButtonClick, menuItems, onSelectMenuItem, disabled]);
+
     return <Flex>
+
         <Button color={buttonColor} onClick={onButtonClick} disabled={disabled} attachedLeft>
             <Icon name={buttonIcon} mr="8px" />
             {buttonText}
@@ -198,7 +217,7 @@ export const VmActionSplitButton: React.FunctionComponent<{
         <RichSelect
             items={menuItems}
             keys={["value"]}
-            RenderRow={createVmActionRow(darkMode)}
+            RenderRow={VmActionRow}
             onSelect={onSelectMenuItem}
             showSearchField={false}
             dropdownWidth={dropdownWidth}
