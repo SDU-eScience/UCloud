@@ -440,10 +440,10 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
         }
     }, []);
 
-    const setLocalProject = opts?.isModal ? (projectId?: string) => {
+    const setLocalProject = opts?.isModal ? async (projectId?: string) => {
         const b = browserRef.current;
         if (b) {
-            b.canConsumeResources = checkCanConsumeResources(projectId ?? null, {api: JobsApi});
+            b.canConsumeResources = await checkCanConsumeResources(projectId ?? null, {api: JobsApi});
             activeProject.current = projectId;
             b.refresh();
         }

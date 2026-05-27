@@ -934,7 +934,13 @@ function SecondarySidebar({
     const oldDiscoveryMode = React.useRef<AppStore.CatalogDiscovery | null>(null);
 
 
-    const canConsume = checkCanConsumeResources(projectId ?? null, {api: FilesApi});
+    const [canConsume, setCanConsume] = React.useState(false);
+
+    React.useEffect(() => {
+        checkCanConsumeResources(projectId ?? null, {api: FilesApi}).then(setCanConsume);
+    }, [projectId]);
+
+
     useEffect(() => {
         const wasReset = landingPage === AppStore.emptyLandingPage;
         const discoverHasChanged =
