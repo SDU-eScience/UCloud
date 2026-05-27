@@ -169,12 +169,6 @@ function getToneLook(tone: VmPowerTone): string {
     }
 }
 
-const AttachedLeftButton = injectStyle("attached-left-button", k => `
-    ${k} {
-        padding-right: 3px;
-    }
-`);
-
 export const VmActionSplitButton: React.FunctionComponent<{
     tone: VmPowerTone;
     disabled: boolean;
@@ -225,7 +219,7 @@ export const VmActionSplitButton: React.FunctionComponent<{
     }, [shortcut, onButtonClick, menuItems, onSelectMenuItem, disabled]);
 
     return <Flex>
-        <Button className={AttachedLeftButton} color={buttonColor} onClick={onButtonClick} disabled={disabled} attachedLeft>
+        <Button color={buttonColor} onClick={onButtonClick} disabled={disabled} attachedLeft>
             <Flex justifyContent={"space-between"}>
                 <span style={{marginRight: "8px"}}>
                     <Icon name={buttonIcon} mr="8px" />
