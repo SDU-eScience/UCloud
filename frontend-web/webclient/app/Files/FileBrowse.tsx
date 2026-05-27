@@ -1547,10 +1547,10 @@ function FileBrowse({
         addProjectSwitcherInPortal(browserRef, setSwitcherWorkaround, setLocalProject ? {setLocalProject, initialProject: activeProject.current} : undefined);
     }, []);
 
-    const setLocalProject = opts?.managesLocalProject ? (projectId?: string) => {
+    const setLocalProject = opts?.managesLocalProject ? async (projectId?: string) => {
         const b = browserRef.current;
         if (b) {
-            b.canConsumeResources = checkCanConsumeResources(projectId ?? null, {api: FilesApi});
+            b.canConsumeResources = await checkCanConsumeResources(projectId ?? null, {api: FilesApi});
         }
         activeProject.current = projectId;
         clearAndFetchCollections();
@@ -1561,13 +1561,15 @@ function FileBrowse({
         if (!b) return;
 
         if (opts?.initialPath !== undefined) {
-            b.canConsumeResources = checkCanConsumeResources(Client.projectId ?? null, {api: FilesApi});
+            (async function () {
+                b.canConsumeResources = await checkCanConsumeResources(Client.projectId ?? null, {api: FilesApi});
 
-            if (selectorPathRef.current === "") {
-                clearAndFetchCollections();
-            } else {
-                b.open(selectorPathRef.current);
-            }
+                if (selectorPathRef.current === "") {
+                    clearAndFetchCollections();
+                } else {
+                    b.open(selectorPathRef.current);
+                }
+            })();
         } else {
             const path = getQueryParamOrElse(location.search, "path", "");
             if (path) {
