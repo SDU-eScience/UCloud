@@ -337,7 +337,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
                                 structured: {
                                     ...prev.templates.structured,
                                     [fieldType]: [{
-                                        description: "", name: "", title: "", optional: true
+                                        description: "", name: "", title: "", optional: false
                                         
                                     }, ...prev.templates.structured[fieldType]]
                                 }
@@ -364,9 +364,9 @@ export const ProjectSettings: React.FunctionComponent = () => {
                                 <Flex justifyContent={"space-between"}>
                                     <span style={{display:"flex"}}>
                                         <Label cursor="pointer" width="unset" fontSize={"12px"} style={{fontWeight: "normal"}} marginTop={"5px"} htmlFor={`checkbox${idx}`}>Is optional field:</Label>
-                                        <Checkbox size={30} id={`checkbox${idx}`} checked={!field.optional} handleWrapperClick={() => updateNewProjectField(idx, 'optional', !field.optional, fieldType)} 
+                                        <Checkbox size={30} id={`checkbox${idx}`} checked={field.optional} handleWrapperClick={() => updateNewProjectField(idx, 'optional', !field.optional, fieldType)} 
                                             onChange={
-                                                () => updateNewProjectField(idx, 'optional', !field.optional, fieldType)
+                                                () => updateNewProjectField(idx, 'optional', field.optional, fieldType)
                                             }>
                                         </Checkbox>
                                     </span>
