@@ -41,7 +41,6 @@ export const SecondarySplitDropdownTrigger = injectStyle("secondary-split-dropdo
         user-select: none;
         -webkit-user-select: none;
         background: var(--secondaryMain);
-        box-shadow: inset 0 .0625em .125em rgba(10,10,10,.05);
         padding: 6px;
         border-top-left-radius: 0;
         border-bottom-left-radius: 0;

@@ -655,7 +655,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 },
                 shortcut: ShortcutKey.L,
                 splitButtonGroupId: "createOperations",
-                color: "secondaryDark"
+                color: "secondaryContrast"
             },
             {
                 icon: "trash",
