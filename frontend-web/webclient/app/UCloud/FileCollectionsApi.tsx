@@ -123,7 +123,7 @@ class FileCollectionsApi extends ResourceApi<FileCollection, ProductStorage, Fil
         return super.browse(req);
     }
 
-    retrieveOperations(): Operation<FileCollection, ResourceBrowseCallbacks<FileCollection>>[] {
+    retrieveOperations(): Operation<FileCollection, ResourceBrowseCallbacks<FileCollection, ProductStorage>>[] {
         const baseOperations = super.retrieveOperations();
         const permissions = baseOperations.find(it => it.tag === PERMISSIONS_TAG);
         if (permissions) {

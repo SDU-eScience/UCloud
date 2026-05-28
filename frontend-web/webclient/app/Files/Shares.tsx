@@ -1,6 +1,6 @@
 import * as React from "react";
 import {useEffect, useRef, useState} from "react";
-import SharesApi, {Share, ShareLink, shareLinksApi, ShareState} from "@/UCloud/SharesApi";
+import SharesApi, {Share, ShareLink, shareLinksApi, ShareSpecification, ShareState} from "@/UCloud/SharesApi";
 import {NavigateFunction, useNavigate} from "react-router-dom";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import * as Heading from "@/ui-components/Heading";
@@ -54,6 +54,7 @@ import {TruncateClass} from "@/ui-components/Truncate";
 import {defaultAvatar} from "@/AvataaarLib";
 import {SvgCache} from "@/Utilities/SvgCache";
 import {sendInformationNotification} from "@/Notifications";
+import {Product} from "@/Accounting";
 
 export const sharesLinksInfo: LinkInfo[] = [
     {text: "Shared with me", to: AppRoutes.shares.sharedWithMe(), icon: "share", tab: SidebarTabId.FILES, defaultHidden: true},
@@ -631,7 +632,7 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                 browser.on("pathToEntry", s => s.id);
                 browser.on("fetchOperationsCallback", () => {
                     const support = {productsByProvider: {}};
-                    const callbacks: ResourceBrowseCallbacks<Share> = {
+                    const callbacks: ResourceBrowseCallbacks<Share, Product, ShareSpecification> = {
                         api: SharesApi,
                         navigate: to => navigate(to),
                         commandLoading: false,

@@ -101,7 +101,7 @@ export const App: React.FunctionComponent = () => {
     const [selectedEntityType, setSelectedEntityType] = useState<AccessEntityType>(AccessEntityType.USER);
 
     const permissionLevels = [
-        {text: prettifyAccessRight("LAUNCH"), value: "LAUNCH"}
+        {text: prettifyAccessRight("LAUNCH"), value: "LAUNCH" as const}
     ];
 
     // Loading of permission entries

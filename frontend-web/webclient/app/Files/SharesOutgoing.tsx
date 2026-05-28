@@ -1,6 +1,6 @@
 import * as React from "react";
 import {usePage} from "@/Navigation/Redux";
-import SharesApi, {OutgoingShareGroup, OutgoingShareGroupPreview, Share, ShareState, isViewingShareGroupPreview} from "@/UCloud/SharesApi";
+import SharesApi, {OutgoingShareGroup, OutgoingShareGroupPreview, Share, ShareSpecification, ShareState, isViewingShareGroupPreview} from "@/UCloud/SharesApi";
 import MainContainer from "@/ui-components/MainContainer";
 import {prettyFilePath} from "@/Files/FilePath";
 import {RadioTile, RadioTilesContainer} from "@/ui-components";
@@ -27,6 +27,7 @@ import {useProjectId} from "@/Project/Api";
 import {FlexClass} from "@/ui-components/Flex";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {sendFailureNotification} from "@/Notifications";
+import {Product} from "@/Accounting";
 
 enum ShareValidateState {
     NOT_VALIDATED,
@@ -168,13 +169,13 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                     browser.removeEntryFromCurrentPage(it => (it as any).id === dummyId);
                     shouldRemoveFakeDirectory = false;
                     insertFakeEntry(dummyId);
-                    const idx = browser.findVirtualRowIndex((it: OutgoingShareGroupPreview) => it.shareId === dummyId);
+                    const idx = browser.findVirtualRowIndex((it) => (it as OutgoingShareGroupPreview).shareId === dummyId);
                     if (idx !== null) browser.ensureRowIsVisible(idx, true);
 
                     browser.showRenameField(
-                        (it: OutgoingShareGroupPreview) => it.shareId === dummyId,
+                        (it) => (it as OutgoingShareGroupPreview).shareId === dummyId,
                         () => {
-                            const idx = browser.findVirtualRowIndex((it: OutgoingShareGroupPreview) => it.shareId === dummyId);
+                            const idx = browser.findVirtualRowIndex((it) => (it as OutgoingShareGroupPreview).shareId === dummyId);
                             if (idx !== null) {
                                 browser.ensureRowIsVisible(idx, true, true);
                                 browser.select(idx, SelectionMode.SINGLE);
@@ -183,7 +184,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                             const share = browser.findSelectedEntries().at(0) as OutgoingShareGroupPreview;
                             if (!share) return;
 
-                            browser.removeEntryFromCurrentPage((it: OutgoingShareGroupPreview) => it.shareId === dummyId);
+                            browser.removeEntryFromCurrentPage(it => (it as OutgoingShareGroupPreview).shareId === dummyId);
 
                             const sharedWith = browser.renameValue;
                             if (!sharedWith) return;
@@ -204,7 +205,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                                 });
                         },
                         () => {
-                            if (shouldRemoveFakeDirectory) browser.removeEntryFromCurrentPage((it: OutgoingShareGroupPreview) => it.shareId === dummyId);
+                            if (shouldRemoveFakeDirectory) browser.removeEntryFromCurrentPage(it => (it as OutgoingShareGroupPreview).shareId === dummyId);
                         },
                         ""
                     );
@@ -429,7 +430,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                             e.stopImmediatePropagation();
                             const oldPage = browser.cachedData["/"];
                             browser.registerPage(
-                                arrayToPage(oldPage.filter((it: OutgoingShareGroup) => it.sourceFilePath !== share.sourceFilePath)),
+                                arrayToPage(oldPage.filter(it => (it as OutgoingShareGroup).sourceFilePath !== share.sourceFilePath)),
                                 "/",
                                 true
                             );
@@ -555,7 +556,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
 
                 browser.on("fetchOperationsCallback", () => {
                     const support = {productsByProvider: {}};
-                    const callbacks: ResourceBrowseCallbacks<Share> = {
+                    const callbacks: ResourceBrowseCallbacks<Share, Product, ShareSpecification> = {
                         api: SharesApi,
                         navigate: to => navigate(to),
                         commandLoading: false,
@@ -573,9 +574,9 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                 });
                 browser.on("fetchOperations", () => {
                     const entries = browser.findSelectedEntries();
-                    const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as ResourceBrowseCallbacks<Share>;
+                    const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as ResourceBrowseCallbacks<Share, Product>;
 
-                    const operations: Operation<OutgoingShareGroup | OutgoingShareGroupPreview, ResourceBrowseCallbacks<Share>>[] = [{
+                    const operations: Operation<OutgoingShareGroup | OutgoingShareGroupPreview, ResourceBrowseCallbacks<Share, Product>>[] = [{
                         text: "Delete",
                         confirm: true,
                         icon: "trash",
@@ -639,8 +640,8 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                         enabled(selected) {
                             return selected.length === 1 && isViewingShareGroupPreview(selected[0])
                         },
-                        onClick([selection]: [OutgoingShareGroupPreview]) {
-                            navigate(AppRoutes.resource.properties("shares", selection.shareId));
+                        onClick(selected) {
+                            navigate(AppRoutes.resource.properties("shares", (selected[0] as OutgoingShareGroupPreview).shareId));
                         },
                         shortcut: ShortcutKey.O
                     }, {

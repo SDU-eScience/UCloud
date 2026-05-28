@@ -45,7 +45,6 @@ import JobsApi, {Job} from "@/UCloud/JobsApi";
 import {classConcat, injectStyle, injectStyleSimple} from "@/Unstyled";
 import Relative from "./Relative";
 import {SafeLogo} from "@/Applications/AppToolLogo";
-import {setAppFavorites} from "@/Applications/Redux/Actions";
 import {checkCanConsumeResources} from "./ResourceBrowser";
 import {api as FilesApi} from "@/UCloud/FilesApi";
 import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
@@ -67,7 +66,7 @@ import {ApplicationSummaryWithFavorite} from "@/Applications/AppStoreApi";
 import {isAdminOrPI} from "@/Project";
 import {FileType} from "@/Files";
 import {onProjectUpdated, projectCache, projectTitle} from "@/Project/ProjectSwitcher";
-import {GenericSetAction, HookStore, useGlobal} from "@/Utilities/ReduxHooks";
+import {genericSet, HookStore, useGlobal} from "@/Utilities/ReduxHooks";
 import {useDiscovery} from "@/Applications/Hooks";
 import {Command, CommandPalette, CommandScope, staticProvider, useProvideCommands} from "@/CommandPalette";
 import {NavigateFunction, useNavigate} from "react-router-dom";
@@ -76,6 +75,7 @@ import {Dispatch} from "redux";
 import {AutomaticBranding} from "@/Applications/Branding/AutomaticBranding";
 import {BrandingResponse} from "@/UCloud/BrandingApi";
 import {Feature, hasFeature} from "@/Features";
+import {setAppFavorites} from "@/Applications/Redux/Reducer";
 
 const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
     ${k} {
@@ -223,32 +223,30 @@ const sideBarMenuElements: [
     SidebarMenuElements,
     SidebarMenuElements,
     SidebarMenuElements,
-] = [
-        {
-            items: [
-                {icon: "heroFolder", label: SidebarTabId.FILES, to: AppRoutes.files.drives()},
-                {icon: "heroUserGroup", label: SidebarTabId.PROJECT, to: AppRoutes.project.allocations()},
-                {icon: "heroSquaresPlus", label: SidebarTabId.RESOURCES, to: AppRoutes.resources.publicLinks()},
-                {icon: "heroShoppingBag", label: SidebarTabId.APPLICATIONS, to: AppRoutes.apps.landing()},
-                {icon: "heroServer", label: SidebarTabId.RUNS, to: AppRoutes.compute.jobs()}
-            ],
-            predicate: () => Client.isLoggedIn
-        },
-        {
-            items: [
-                {icon: "heroBolt", label: SidebarTabId.ADMIN, to: AppRoutes.admin.userCreation()},
-            ],
-            predicate: () => Client.userIsAdmin
-        },
-        {
-            items: [
-                {icon: "heroBuildingStorefront", label: SidebarTabId.APPLICATION_STUDIO, to: AppRoutes.appStudio.groups()}
-            ],
-            predicate: (state) => {
-                return Client.userIsAdmin;
-            }
-        }
-    ];
+] = [{
+    items: [
+        {icon: "heroFolder", label: SidebarTabId.FILES, to: AppRoutes.files.drives()},
+        {icon: "heroUserGroup", label: SidebarTabId.PROJECT, to: AppRoutes.project.allocations()},
+        {icon: "heroSquaresPlus", label: SidebarTabId.RESOURCES, to: AppRoutes.resources.publicLinks()},
+        {icon: "heroShoppingBag", label: SidebarTabId.APPLICATIONS, to: AppRoutes.apps.landing()},
+        {icon: "heroServer", label: SidebarTabId.RUNS, to: AppRoutes.compute.jobs()}
+    ],
+    predicate: () => Client.isLoggedIn
+},
+{
+    items: [
+        {icon: "heroBolt", label: SidebarTabId.ADMIN, to: AppRoutes.admin.userCreation()},
+    ],
+    predicate: () => Client.userIsAdmin
+},
+{
+    items: [
+        {icon: "heroBuildingStorefront", label: SidebarTabId.APPLICATION_STUDIO, to: AppRoutes.appStudio.groups()}
+    ],
+    predicate: (state) => {
+        return Client.userIsAdmin;
+    }
+}];
 
 interface SidebarStateProps {
     loggedIn: boolean;
@@ -460,10 +458,11 @@ export function Sidebar(): React.ReactNode {
     const [selectedPage, setSelectedPage] = React.useState(SidebarTabId.NONE);
     const [hoveredPage, setHoveredPage] = React.useState(SidebarTabId.NONE);
 
+    const dispatch = useDispatch();
+
     const tab = useSelector((it: ReduxObject) => it.status.tab);
     const branding = useSelector((it: ReduxObject) => it.branding);
 
-    const dispatch = useDispatch();
     React.useEffect(() => {
         if (Client.isLoggedIn) {
             findAvatar().then(action => {
@@ -625,7 +624,7 @@ function useSidebarFilesPage(): [
             try {
                 const f = await callAPI(FilesApi.retrieve({id: file.path}))
                 fileTypeCache[file.path] = f.status.type;
-            } catch (e) {
+            } catch (e: any) {
                 if (e?.request?.status === 404) {
                     fileTypeCache[file.path] = "DELETED";
                     callAPI(
@@ -1044,17 +1043,12 @@ function SecondarySidebar({
         document.body.style.setProperty(CSSVarCurrentSidebarWidth, `${sum}px`);
         document.body.style.setProperty(CSSVarCurrentSidebarStickyWidth, isOpen && !asPopOver ? `${sum}px` : `${firstLevel}px`);
 
-        dispatch<GenericSetAction>({
-            type: "GENERIC_SET",
-            payload: {property: "sidebarWidth", newValue: sum, defaultValue: sum}
-        });
-        dispatch<GenericSetAction>({
-            type: "GENERIC_SET", payload: {
-                property: "sidebarStickyWidth",
-                newValue: isOpen && !asPopOver ? sum : firstLevel,
-                defaultValue: isOpen && !asPopOver ? sum : firstLevel,
-            }
-        });
+        dispatch(genericSet({property: "sidebarWidth", newValue: sum, defaultValue: sum}));
+        dispatch(genericSet({
+            property: "sidebarStickyWidth",
+            newValue: isOpen && !asPopOver ? sum : firstLevel,
+            defaultValue: isOpen && !asPopOver ? sum : firstLevel,
+        }));
     }, [isOpen, asPopOver]);
 
     const onMenuClick = useCallback((ev: React.SyntheticEvent) => {

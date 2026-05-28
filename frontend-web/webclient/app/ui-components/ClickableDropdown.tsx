@@ -47,7 +47,7 @@ export interface ClickableDropdownProps<T> {
     /**
      * Requires `arrowkeyNavigationKey` to be set or that `props.children` are provided.
      **/
-    onSelect?: (el: HTMLElement | undefined) => void;
+    onSelect?: (el: Element | undefined) => void;
 
     chevron?: boolean;
     overflow?: string;
@@ -135,7 +135,7 @@ function ClickableDropdown<T>({
     const handleKeyPress: (ev: KeyboardEvent) => void = useCallback((event): void => {
         if (props.arrowkeyNavigationKey) {
             const navigationKey = props.arrowkeyNavigationKey ?? "data-active";
-            _onKeyDown(event, divRef, counter, navigationKey, props.onSelect, props.hoverColor ?? "primaryLight")
+            _onKeyDown(event, divRef, counter, navigationKey, props.hoverColor ?? "primaryLight", props.onSelect)
         }
 
         if (event.key === "Escape" && open) {
@@ -308,11 +308,11 @@ export default ClickableDropdown;
 
 function _onKeyDown(
     e: KeyboardEvent,
-    wrapper: React.RefObject<HTMLDivElement | null>,
+    wrapper: React.RefObject<Element | null>,
     index: React.RefObject<number>,
     entryKey: string,
-    onSelect: ((el: Element | undefined) => void) | undefined,
     hoverColor: ThemeColor,
+    onSelect?: ((el: Element | undefined) => void),
 ) {
     if (!wrapper.current) return;
     const isUp = e.key === "ArrowUp";

@@ -83,13 +83,16 @@ const Icon: React.FunctionComponent<IconBaseProps> = ({size = 18, squared = true
 Icon.displayName = "Icon";
 
 // Use to see every available icon in debugging.
-export const EveryIcon = (): React.ReactNode => (
-    <>
-        {Object.keys(icons).map((it: IconName, i: number) =>
-            (<span title={it} key={i}><Icon name={it} key={i} color="iconColor" color2="iconColor2" /></span>)
-        )}
-    </>
-);
+export const EveryIcon = (): React.ReactNode => {
+    const iconNames: IconName[] = Object.keys(icons) as unknown as IconName[];
+    return (
+        <>
+            {iconNames.map((it, i) =>
+                (<span title={it} key={i}><Icon name={it} key={i} color="iconColor" color2="iconColor2" /></span>)
+            )}
+        </>
+    );
+}
 
 
 // bug icon

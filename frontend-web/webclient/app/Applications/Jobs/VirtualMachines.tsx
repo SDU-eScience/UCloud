@@ -34,7 +34,7 @@ import {NetworkIPBrowse} from "@/Applications/NetworkIP/NetworkIPBrowse";
 import {VirtualMachineRestartReminder} from "./VirtualMachineRestartReminder";
 import {VirtualMachineIconButton} from "@/Applications/Jobs/VirtualMachineIconButton";
 import {HeroHeaderCard, HeroHeaderGrid, HeroMetric} from "@/Applications/Jobs/HeroHeader";
-import {SplitDropdownTrigger, VmActionItem, VmActionRow, VmActionSplitButton} from "@/Applications/Jobs/VmActionSplitButton";
+import {PrimarySplitDropdownTrigger, VmActionItem, VmActionRow, VmActionSplitButton} from "@/Applications/Jobs/VmActionSplitButton";
 import PublicLinkApi, {PublicLink} from "@/UCloud/PublicLinkApi";
 import PrivateNetworkApi, {PrivateNetwork} from "@/UCloud/PrivateNetworkApi";
 import NetworkIPApi, {NetworkIP} from "@/UCloud/NetworkIPApi";
@@ -774,8 +774,8 @@ export const VirtualMachineStatus: React.FunctionComponent<{
                                     dropdownWidth="300px"
                                     matchTriggerWidth={false}
                                     trigger={
-                                        <div className={SplitDropdownTrigger} data-disabled={interfaceDisabled}>
-                                            <Icon name="heroChevronDown" />
+                                        <div className={PrimarySplitDropdownTrigger} data-disabled={interfaceDisabled}>
+                                            <Icon name="heroChevronDown"/>
                                         </div>
                                     }
                                 />

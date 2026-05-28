@@ -2,7 +2,7 @@ import {DependencyList, useEffect, useId, useRef} from "react";
 import {pointer, select} from "d3-selection";
 import {Selection, timeDay, timeHour, timeMinute, timeMonth, timeSecond, timeWeek, timeYear} from "d3";
 import {bisector, extent} from "d3-array";
-import {scaleLinear, scaleTime} from "d3-scale";
+import {NumberValue, scaleLinear, scaleTime} from "d3-scale";
 import {axisBottom, axisLeft} from "d3-axis";
 import {timeFormat} from "d3-time-format";
 import {line} from "d3-shape";
@@ -18,13 +18,14 @@ const formatMillisecond = timeFormat(".%L"),
     formatMonth = timeFormat("%B"),
     formatYear = timeFormat("%Y");
 
-function multiFormat(date: Date) {
+function multiFormat(_date: Date | NumberValue) {
+    const date = _date as Date;
     return (timeSecond(date) < date ? formatMillisecond
         : timeMinute(date) < date ? formatSecond
-            : timeHour(date)   < date ? formatMinute
-                : timeDay(date)    < date ? formatHour
-                    : timeMonth(date)  < date ? (timeWeek(date) < date ? formatDay : formatWeek)
-                        : timeYear(date)   < date ? formatMonth
+            : timeHour(date) < date ? formatMinute
+                : timeDay(date) < date ? formatHour
+                    : timeMonth(date) < date ? (timeWeek(date) < date ? formatDay : formatWeek)
+                        : timeYear(date) < date ? formatMonth
                             : formatYear)(date);
 }
 
@@ -236,7 +237,7 @@ export function TemporalLineChart(
             .append("tspan")
             .attr("x", 10)
             .attr("dy", 15)
-            .text(d => d.data.length > 0 ?yTickFormatter(last(d.data).v, false) : "");
+            .text(d => d.data.length > 0 ? yTickFormatter(last(d.data).v, false) : "");
 
         // Sort labels and deal with overlap
         // -------------------------------------------------------------------------------------------------------------
@@ -262,7 +263,7 @@ export function TemporalLineChart(
                 const lastPt = last(d.data);
                 const anchorY = yScale(lastPt.v);
                 const bbox = (txt as SVGTextElement).getBBox(); // local to group
-                return { txt, g, anchorY, boxY: bbox.y, height: bbox.height };
+                return {txt, g, anchorY, boxY: bbox.y, height: bbox.height};
             }).filter(Boolean);
 
             if (!items.length) return;
@@ -332,7 +333,7 @@ export function TemporalLineChart(
                 .attr("y2", innerH)
                 .attr("stroke", "currentColor")
                 .attr("stroke-opacity", 0.35)
-            ;
+                ;
 
             const marker = tooltip.append("g");
 
@@ -415,5 +416,5 @@ export function TemporalLineChart(
         };
     }, [lines, width, height, margin, liveDomainMs, yDomain]);
 
-    return <svg ref={ref} style={{width, height}}/>;
+    return <svg ref={ref} style={{width, height}} />;
 }

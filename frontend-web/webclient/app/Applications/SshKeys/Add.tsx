@@ -82,7 +82,7 @@ You can learn how to generate an SSH key [here](https://docs.hpc-type3.sdu.dk/in
         try {
             setLoading(true);
             await callAPI(SshKeyApi.create(bulkRequestOf({key: contents, title})))
-        } catch (e) {
+        } catch (e: any) {
             setTitleError(undefined);
             setContentError(extractErrorMessage(e));
             return;

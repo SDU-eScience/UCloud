@@ -154,7 +154,7 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
             }
 
             handleAuthState(await response.json());
-        } catch (e) {
+        } catch (e: any) {
             sendFailureNotification(
                 errorMessageOrDefault({
                     request: e,
@@ -212,7 +212,7 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
             sendSuccessNotification("Your password was changed successfully");
 
             navigate(AppRoutes.login.login());
-        } catch (err) {
+        } catch (err: any) {
             setLoading(false);
 
             sendFailureNotification(err.statusText);
@@ -252,7 +252,7 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
             if (!response.ok) throw response;
             const result = await response.json();
             handleCompleteLogin(result);
-        } catch (e) {
+        } catch (e: any) {
             setLoading(false);
             sendFailureNotification(
                 errorMessageOrDefault({

@@ -34,7 +34,7 @@ const SpotlightForm: ScaffoldedFormObject = {
             label: "Title",
             placeholder: "Artificial intelligence",
             help: "This is the title which will be displayed in the card's title.",
-            validator: (t: string) => {
+            validator: (t) => {
                 if (!t) return "Title cannot be empty";
                 return null;
             }
@@ -45,7 +45,7 @@ const SpotlightForm: ScaffoldedFormObject = {
             label: "Description",
             help: "This is the text which will be shown next to the applications. Use it to motivate why these applications are interesting.",
             rows: 12,
-            validator: (t: string) => {
+            validator: (t) => {
                 if (!t) return "Description cannot be empty";
                 return null;
             }

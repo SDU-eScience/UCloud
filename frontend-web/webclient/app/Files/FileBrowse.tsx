@@ -20,6 +20,7 @@ import {
     favoriteRowIcon,
     ResourceBrowseHeaderControls,
     createProjectSwitcherPortal,
+    OperationGroup,
 } from "@/ui-components/ResourceBrowser";
 import FilesApi, {
     addFileSensitivityDialog,
@@ -56,7 +57,7 @@ import MetadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/Meta
 import {bulkRequestOf} from "@/UtilityFunctions";
 import metadataDocumentApi, {FileMetadataDocument, FileMetadataDocumentOrDeleted, FileMetadataHistory} from "@/UCloud/MetadataDocumentApi";
 
-import {ResourceBrowseCallbacks, ResourceOwner, ResourcePermissions, SupportByProvider} from "@/UCloud/ResourceApi";
+import {ResourceBrowseCallbacks, ResourceOwner, ResourcePermissions, ResourceSpecification, SupportByProvider} from "@/UCloud/ResourceApi";
 import {Client, WSFactory} from "@/Authentication/HttpClientInstance";
 import ProductReference = accounting.ProductReference;
 import {Operation} from "@/ui-components/Operation";
@@ -75,6 +76,8 @@ import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {HTMLTooltip} from "@/ui-components/Tooltip";
 import SharesApi, {OutgoingShareGroup} from "@/UCloud/SharesApi";
 import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
+import {ProductStorage} from "@/Accounting";
+import {genericSet} from "@/Utilities/ReduxHooks";
 
 export enum SensitivityLevel {
     "INHERIT" = "Inherit",
@@ -653,15 +656,46 @@ function FileBrowse({
                 browser.on("fetchOperations", () => {
                     function groupOperations<R>(ops: Operation<UFile, R>[]): OperationOrGroup<UFile, R>[] {
                         const result: OperationOrGroup<UFile, R>[] = [];
+                        const restOperations: Operation<UFile, R>[] = [];
+                        let splitButtonGroups = new Map<string, Operation<UFile, R>[]>();
+
+                        // Finding split buttons and grouping them together
+                        ops.forEach(op => {
+                            if (op.splitButtonGroupId) {
+                                if (!splitButtonGroups.has(op.splitButtonGroupId)){
+                                    splitButtonGroups.set(op.splitButtonGroupId, [op]);
+                                }
+                                else {
+                                    splitButtonGroups.get(op.splitButtonGroupId)?.push(op);
+                                }
+                            }
+                            else {
+                                restOperations.push(op);
+                            }
+                        });
+
+                        // Creating split buttons
+                        splitButtonGroups.forEach((operations, k)  => {
+                            result.push({
+                                color: "secondaryMain",
+                                icon: "ellipsis",
+                                text: "",
+                                iconRotation: 90,
+                                operations: operations,
+                                buttonStyle: "split",
+                            })
+                        });
+
                         let i = 0;
-                        for (; i < ops.length && result.length < 4; i++) {
-                            const op = ops[i];
+                        // A max of 4 buttons for the view else we collapse them 
+                        for (; i < restOperations.length && result.length < 4; i++) {
+                            const op = restOperations[i];
                             result.push(op);
                         }
 
                         const overflow: Operation<UFile, R>[] = [];
-                        for (; i < ops.length; i++) {
-                            overflow.push(ops[i]);
+                        for (; i < restOperations.length; i++) {
+                            overflow.push(restOperations[i]);
                         }
 
                         if (overflow.length > 0) {
@@ -681,8 +715,9 @@ function FileBrowse({
                     const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks;
                     const enabledOperations = FilesApi.retrieveOperations().filter(op => op.enabled(selected, callbacks, selected));
                     if (opts?.additionalOperations) {
-                        opts.additionalOperations.forEach(op => {
-                            if (op.enabled(selected, callbacks, selected)) enabledOperations.push(op);
+                        (opts.additionalOperations).forEach(op => {
+                            // FIXME(Jonas): Casting here is not ideal
+                            if (op.enabled(selected, callbacks, selected)) enabledOperations.push(op as unknown as Operation<UFile, ResourceBrowseCallbacks<UFile, ProductStorage, ResourceSpecification>>);
                         })
                     }
                     return groupOperations(enabledOperations);
@@ -1238,19 +1273,19 @@ function FileBrowse({
                     if (openTriggeredByPath.current === newPath) {
                         openTriggeredByPath.current = null;
                     } else if (!isSelector) {
-                        //                                                     Note(Jonas): Edge case that we want to navigate to FileTable on breadcrumb click (Job/View)
+                        // Note(Jonas): Edge case that we want to navigate to FileTable on breadcrumb click (Job/View)
                         if (!isInitialMount.current && (oldPath !== newPath || opts?.embedded)) {
                             navigate("/files?path=" + encodeURIComponent(newPath));
                         }
                     }
 
                     if (!isSelector) {
-                        dispatch({
-                            type: "GENERIC_SET", payload: {
+                        dispatch(
+                            genericSet({
                                 property: "uploadPath",
                                 newValue: newPath, defaultValue: newPath
-                            }
-                        });
+                            })
+                        );
                     }
 
                     const collectionId = pathComponents(newPath)[0];
@@ -1635,7 +1670,7 @@ function folderNote(
 }
 
 // Note(Jonas): Temporary as there should be a better solution, not because the element is temporary
-function temporaryDriveDropdownFunction(browser: ResourceBrowser<unknown>, posX: number, posY: number): void {
+function temporaryDriveDropdownFunction(browser: ResourceBrowser<UFile>, posX: number, posY: number): void {
     const filteredCollections = collectionCacheForCompletion.retrieveFromCacheOnly("") ?? [];
 
     function generateElements(filter?: string): HTMLLIElement[] {
