@@ -416,9 +416,12 @@ export class ResourceBrowser<T> {
     };
     // Note(Jonas): To use for project change listening.
     private initialPath: string | undefined = "";
+    private uniqueListenerId: string;
 
     constructor(root: HTMLElement, resourceName: string, opts: ResourceBrowserOpts<T> | undefined) {
         this.root = root;
+        this.uniqueListenerId = resourceName + Math.random().toString();
+
         this.resourceName = resourceName;
         this.isModal = !!opts?.isModal;
         ResourceBrowser.isAnyModalOpen = ResourceBrowser.isAnyModalOpen || this.isModal;
@@ -551,8 +554,8 @@ export class ResourceBrowser<T> {
             if (!this.root.isConnected) {
                 this.dispatchMessage("unmount", fn => fn());
                 if (this.isModal) ResourceBrowser.isAnyModalOpen = false;
-                removeThemeListener(this.resourceName);
-                removeProjectListener(this.resourceName);
+                removeThemeListener(this.uniqueListenerId);
+                removeProjectListener(this.uniqueListenerId);
 
                 window.clearInterval(unmountInterval);
             }
@@ -859,7 +862,7 @@ export class ResourceBrowser<T> {
 
         this.scrolling.append(...rows);
 
-        addThemeListener(this.resourceName, () => {
+        addThemeListener(this.uniqueListenerId, () => {
             this.rerender();
             this.rerenderUtilityIcons();
         });
@@ -873,19 +876,11 @@ export class ResourceBrowser<T> {
                     },
                 );
 
-
-                if (this.canConsumeResources) {
-                    if (this.sessionFilters.childElementCount == 0) {
-                        this.renderSessionFilters();
-                    }
-                } else {
-                    this.sessionFilters.replaceChildren();
-                }
-
                 this.rerender();
             };
 
-            addProjectListener(this.resourceName, project => {
+
+            addProjectListener(this.uniqueListenerId, project => {
                 evaluateProjectStatus(project);
             });
 

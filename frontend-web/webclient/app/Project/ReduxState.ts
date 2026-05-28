@@ -1,4 +1,5 @@
-import {createSlice, Dispatch, PayloadAction} from "@reduxjs/toolkit";
+import {createSlice, PayloadAction} from "@reduxjs/toolkit";
+import {useDispatch} from "react-redux";
 
 export interface State {
     project?: string;
@@ -6,7 +7,7 @@ export interface State {
 
 export const initialState: State = {project: getStoredProject() ?? undefined};
 
-export function dispatchSetProjectAction(dispatch: Dispatch, project?: string): void {
+export function dispatchSetProjectAction(dispatch: ReturnType<typeof useDispatch>, project?: string): void {
     dispatch(setProject(project));
 }
 
