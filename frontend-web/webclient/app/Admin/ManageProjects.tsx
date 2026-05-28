@@ -39,7 +39,7 @@ function ManageProjects(): React.ReactNode {
 
     const onAllowAdd = useCallback((criteria: Grants.UserCriteria, projectId: string) => {
         const settingIndex = settings.findIndex(it => it.projectId == projectId)
-        var newSetting: Grants.ProjectToSetting
+        let newSetting: Grants.ProjectToSetting
         if (settingIndex == -1) {
             newSetting = {
                 projectId: projectId,
@@ -61,7 +61,7 @@ function ManageProjects(): React.ReactNode {
             }
             settings[settingIndex] = newSetting;
         }
-        setSettings(settings);
+        setSettings([...settings]);
         sendSettingUpdate(newSetting);
     }, [settings]);
 
@@ -91,7 +91,7 @@ function ManageProjects(): React.ReactNode {
             }
         }
         settings[settingIndex] = newSetting;
-        setSettings(settings);
+        setSettings([...settings]);
         sendSettingUpdate(newSetting);
     }, [settings]);
 
@@ -120,7 +120,7 @@ function ManageProjects(): React.ReactNode {
             }
             settings[settingIndex] = newSetting;
         }
-        setSettings(settings);
+        setSettings([...settings]);
         sendSettingUpdate(newSetting);
     }, [settings]);
 
@@ -150,7 +150,7 @@ function ManageProjects(): React.ReactNode {
             }
         }
         settings[settingIndex] = newSetting;
-        setSettings(settings);
+        setSettings([...settings]);
         sendSettingUpdate(newSetting);
     }, [settings]);
 
