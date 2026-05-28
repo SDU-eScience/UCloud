@@ -35,6 +35,10 @@ var GrantApplicationStates = []GrantApplicationState{
 	GrantApplicationStateInProgress,
 }
 
+type ProjectToSetting struct {
+	ProjectId string               `json:"projectId"`
+	Settings  GrantRequestSettings `json:"settings"`
+}
 type GrantRequestSettings struct {
 	Enabled             bool           `json:"enabled"`
 	Description         string         `json:"description"`
@@ -454,6 +458,13 @@ var GrantsDeleteComment = rpc.Call[GrantsDeleteCommentRequest, util.Empty]{
 	Convention:  rpc.ConventionUpdate,
 	Operation:   "deleteComment",
 	Roles:       rpc.RolesEndUser,
+}
+
+var GrantsBrowseEnabledProjects = rpc.Call[util.Empty, []ProjectToSetting]{
+	BaseContext: GrantsNamespace,
+	Convention:  rpc.ConventionBrowse,
+	Operation:   "browseEnabledProjects",
+	Roles:       rpc.RolesAdmin,
 }
 
 var GrantsUpdateRequestSettings = rpc.Call[GrantRequestSettings, util.Empty]{

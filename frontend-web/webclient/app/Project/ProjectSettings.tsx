@@ -326,6 +326,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
                                     <label style={{marginBottom: "16px"}}>Allow applications from</label>
                                     <UserCriteriaEditor
                                         criteria={settings.allowRequestsFrom}
+                                        projectId={projectId}
                                         onSubmit={onAllowAdd}
                                         isExclusion={false}
                                         onRemove={onAllowRemove}
@@ -337,6 +338,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
                                     <label>Exclude applications from</label>
                                     <UserCriteriaEditor
                                         criteria={settings.excludeRequestsFrom}
+                                        projectId={projectId}
                                         onSubmit={onExcludeAdd}
                                         isExclusion={true}
                                         onRemove={onExcludeRemove}
@@ -654,10 +656,11 @@ export interface ToggleSubProjectsRenamingRequest {
     projectId: string;
 }
 
-const UserCriteriaEditor: React.FunctionComponent<{
-    onSubmit: (c: Grants.UserCriteria) => any,
-    onRemove: (idx: number) => any,
+export const UserCriteriaEditor: React.FunctionComponent<{
+    onSubmit: (c: Grants.UserCriteria, projectId: string) => any,
+    onRemove: (idx: number, projectId: string) => any,
     criteria: Grants.UserCriteria[],
+    projectId: string,
     showSubprojects: boolean;
     isExclusion: boolean;
 }> = props => {
@@ -698,7 +701,7 @@ const UserCriteriaEditor: React.FunctionComponent<{
                             {it.type === "anyone" ? "None" : null}
                         </TableCell>
                         <TableCell textAlign={"right"}>
-                            <Icon color={"errorMain"} name={"trash"} cursor={"pointer"} onClick={() => props.onRemove(idx)} />
+                            <Icon color={"errorMain"} name={"trash"} cursor={"pointer"} onClick={() => props.onRemove(idx, props.projectId)} />
                         </TableCell>
                     </TableRow>
                 )}
@@ -706,7 +709,7 @@ const UserCriteriaEditor: React.FunctionComponent<{
                 {showRequestFromEditor ?
                     <UserCriteriaRowEditor
                         onSubmit={(c) => {
-                            props.onSubmit(c);
+                            props.onSubmit(c, props.projectId);
                             setShowRequestFromEditor(false);
                         }}
                         onCancel={() => setShowRequestFromEditor(false)}

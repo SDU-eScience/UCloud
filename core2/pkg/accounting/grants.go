@@ -1758,6 +1758,27 @@ func GrantsUpdateSettings(actor rpc.Actor, id string, s accapi.GrantRequestSetti
 	return nil
 }
 
+func GrantsBrowseEnabledProjects(actor rpc.Actor) ([]accapi.ProjectToSetting, *util.HttpError) {
+	settings := make([]accapi.ProjectToSetting, 0)
+
+	if actor.Role != rpc.RoleAdmin {
+		return settings, util.HttpErr(http.StatusForbidden, "Need admin rights to get enabled status")
+	}
+
+	for _, bucket := range grantGlobals.SettingBuckets {
+		bucket.Mu.Lock()
+		for project, _ := range bucket.PublicGrantGivers {
+			settings = append(
+				settings,
+				accapi.ProjectToSetting{ProjectId: project, Settings: bucket.Settings[project].lDeepCopy()},
+			)
+		}
+		bucket.Mu.Unlock()
+	}
+
+	return settings, nil
+}
+
 func GrantsRetrieveSettings(actor rpc.Actor) (accapi.GrantRequestSettings, *util.HttpError) {
 	if !actor.Project.Present || !actor.Membership[rpc.ProjectId(actor.Project.Value)].Satisfies(rpc.ProjectRoleAdmin) {
 		return accapi.GrantRequestSettings{}, util.HttpErr(http.StatusForbidden, "forbidden")
@@ -2111,6 +2132,10 @@ func initGrants() {
 
 		accapi.GrantsRetrieveRequestSettings.Handler(func(info rpc.RequestInfo, request util.Empty) (accapi.GrantRequestSettings, *util.HttpError) {
 			return GrantsRetrieveSettings(info.Actor)
+		})
+
+		accapi.GrantsBrowseEnabledProjects.Handler(func(info rpc.RequestInfo, request util.Empty) ([]accapi.ProjectToSetting, *util.HttpError) {
+			return GrantsBrowseEnabledProjects(info.Actor)
 		})
 
 		accapi.GrantsUpdateRequestSettings.Handler(func(info rpc.RequestInfo, request accapi.GrantRequestSettings) (util.Empty, *util.HttpError) {

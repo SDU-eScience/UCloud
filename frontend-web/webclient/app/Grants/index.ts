@@ -122,6 +122,10 @@ export function retrieveRequestSettings(): APICallParameters<unknown, RequestSet
     return apiRetrieve({}, baseContext, "requestSettings");
 }
 
+export function browseEnabledProjects(): APICallParameters<unknown, {}> {
+    return apiBrowse({}, baseContext, "browseEnabledProjects");
+}
+
 // Types
 // ====================================================================================================================
 export interface Application {
@@ -307,6 +311,11 @@ export interface Templates {
     personalProject: string;
     newProject: string;
     existingProject: string;
+}
+
+export interface ProjectToSetting {
+    projectId: string;
+    settings: RequestSettings
 }
 
 export interface RequestSettings {
