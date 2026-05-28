@@ -405,7 +405,7 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
                 if (socket.readyState !== WebSocket.OPEN) {
                     return;
                 }
-                socket.send(bytes);
+                socket.send(bytes as Uint8Array<ArrayBuffer>);
             });
 
             socket.onopen = () => {
@@ -713,14 +713,14 @@ const baseComponents: UcxComponentRegistry = {
         if (!text) return null;
         return <ReactMarkdown
             components={{
-                a: MarkdownLink,
-                h1: MarkdownHeading,
-                h2: MarkdownHeading,
-                h3: MarkdownHeading,
-                h4: MarkdownHeading,
-                h5: MarkdownHeading,
-                h6: MarkdownHeading,
-                pre: CodeSnippet,
+                a: p => <MarkdownLink children={p.children} />,
+                h1: p => <MarkdownHeading children={p.children} />,
+                h2: p => <MarkdownHeading children={p.children} />,
+                h3: p => <MarkdownHeading children={p.children} />,
+                h4: p => <MarkdownHeading children={p.children} />,
+                h5: p => <MarkdownHeading children={p.children} />,
+                h6: p => <MarkdownHeading children={p.children} />,
+                pre: p => <CodeSnippet children={p.children} maxHeight="" />,
             }}
             allowedElements={["h1", "h2", "h3", "h4", "h5", "h6", "br", "a", "p", "strong", "b", "i", "em", "ul", "ol", "li", "pre", "code"]}
             children={text as string}
@@ -1839,11 +1839,11 @@ const FieldLabel = ({children, onClick}: React.PropsWithChildren<{onClick?: Reac
     return <div onClick={onClick} style={{fontWeight: 600, marginTop: "6px", cursor: onClick ? "pointer" : undefined}}>{children}</div>;
 };
 
-function MarkdownLink(props: {href?: string; children: React.ReactNode & React.ReactNode[]}) {
+function MarkdownLink(props: {href?: string; children: React.ReactNode}) {
     return <ExternalLink href={props.href}>{props.children}</ExternalLink>;
 }
 
-function MarkdownHeading(props: {children: React.ReactNode & React.ReactNode[]}) {
+function MarkdownHeading(props: {children: React.ReactNode}) {
     return <Heading.h4>{props.children}</Heading.h4>;
 }
 

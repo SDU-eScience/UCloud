@@ -233,7 +233,7 @@ export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
     icon?: IconName,
     align?: "left" | "center",
     actionKey?: string;
-    onAction?: (actionKey?: string) => void;
+    onAction?: (actionKey?: string) => Promise<void>;
     hoverColor?: ThemeColor;
     disabled?: boolean;
 }> = props => {

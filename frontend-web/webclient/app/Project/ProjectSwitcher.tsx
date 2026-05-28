@@ -3,7 +3,7 @@ import {useDispatch} from "react-redux";
 import {bulkRequestOf, displayErrorMessageOrDefault, errorMessageOrDefault, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import {useEffect} from "react";
 import {dispatchSetProjectAction, emitProjects, getStoredProject} from "@/Project/ReduxState";
-import {Flex, Truncate, Text, Icon, Input, Relative, Box, Error, Tooltip, Label} from "@/ui-components";
+import {Flex, Truncate, Icon, Input, Relative, Box, Error, Label} from "@/ui-components";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {callAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {NavigateFunction, useNavigate} from "react-router-dom";

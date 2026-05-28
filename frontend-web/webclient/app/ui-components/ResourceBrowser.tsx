@@ -129,7 +129,7 @@ export interface ResourceBrowseHeaderControls {
 
 export type OperationOrGroup<T, R> = Operation<T, R> | OperationGroup<T, R>;
 
-export function isOperation<T, R>(op: OperationOrGroup<unknown, unknown>): op is Operation<T, R> {
+export function isOperation<T, R>(op: OperationOrGroup<T, R>): op is Operation<T, R> {
     return !("operations" in op);
 }
 
@@ -203,7 +203,7 @@ interface ResourceBrowserListenerMap<T> {
 
     "renderEmptyPage": (reason: EmptyReason) => void;
 
-    "fetchOperations": () => OperationOrGroup<T, unknown>[];
+    "fetchOperations": () => OperationOrGroup<T, any>[];
     "fetchOperationsCallback": () => unknown | null;
     "fetchBrowserFeatures": () => ControlDescription[] | undefined;
 
@@ -1668,7 +1668,7 @@ export class ResourceBrowser<T> {
         const page = this.cachedData[this.currentPath] ?? [];
 
         const renderOpIconAndText = (
-            op: OperationOrGroup<unknown, unknown>,
+            op: OperationOrGroup<T, any>,
             element: HTMLElement,
             shortcut?: string,
             inContextMenu?: boolean
@@ -1796,7 +1796,7 @@ export class ResourceBrowser<T> {
         }
 
         const renderOperationsInContextMenu = (
-            operations: OperationOrGroup<T, unknown>[],
+            operations: OperationOrGroup<T, any>[],
             posX: number,
             posY: number,
             counter: number = 1,
@@ -3919,7 +3919,7 @@ function ControlsDialog({features, custom}: {features: ResourceBrowseFeatures, c
     </div>
 }
 
-export function controlsOperation(features: ResourceBrowseFeatures, custom?: ControlDescription[]): Operation<unknown, {
+export function controlsOperation<T>(features: ResourceBrowseFeatures, custom?: ControlDescription[]): Operation<T, {
     isModal?: boolean
 }> & {hackNotInTheContextMenu: true} {
     return {

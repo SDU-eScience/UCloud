@@ -263,8 +263,8 @@ interface RequireAuthOpts {
     requireSla?: boolean;
 }
 
-function requireAuth<T>(Delegate: React.FunctionComponent<T>, opts?: RequireAuthOpts): React.FunctionComponent<T> {
-    return function Auth(props: React.PropsWithChildren<T>) {
+function requireAuth<T>(Delegate: React.FunctionComponent<T>, opts?: RequireAuthOpts): (props: React.PropsWithChildren<T>) => React.ReactNode {
+    return function Auth(props: React.PropsWithChildren<T>): React.ReactNode {
         const info = Client.userInfo;
 
         if (!Client.isLoggedIn || info === undefined) {

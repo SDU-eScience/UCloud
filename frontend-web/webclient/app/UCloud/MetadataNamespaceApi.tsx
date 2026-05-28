@@ -218,7 +218,7 @@ class MetadataNamespaceApi extends ResourceApi<FileMetadataTemplateNamespace, Pr
         super("files.metadataTemplates");
     }
 
-    retrieveOperations(): Operation<FileMetadataTemplateNamespace, ResourceBrowseCallbacks<FileMetadataTemplateNamespace>>[] {
+    retrieveOperations(): Operation<FileMetadataTemplateNamespace, ResourceBrowseCallbacks<FileMetadataTemplateNamespace, Product>>[] {
         return super.retrieveOperations();
     }
 

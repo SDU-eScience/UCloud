@@ -22,8 +22,9 @@ export interface CardProps extends HeightProps,
     PaddingProps,
     MinHeightProps {
     borderWidth?: number | string;
-    children?: React.ReactNode; onClick?: (e: React.SyntheticEvent) => void;
-    onContextMenu?: (e: React.SyntheticEvent) => void;
+    children?: React.ReactNode;
+    onClick?: (e: React.SyntheticEvent) => void;
+    onContextMenu?: React.MouseEventHandler;
     className?: string;
     style?: CSSProperties;
 }

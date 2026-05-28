@@ -1079,7 +1079,7 @@ const RunningContent: React.FunctionComponent<{
     }, [status.expiresAt]);
 
 
-    const suspendJob = React.useCallback(() => {
+    const suspendJob = React.useCallback(async () => {
         try {
             setSuspended(true);
             invokeCommand(JobsApi.suspend(bulkRequestOf({id: job.id})));

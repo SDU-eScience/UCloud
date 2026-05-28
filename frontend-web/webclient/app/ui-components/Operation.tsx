@@ -77,10 +77,10 @@ export interface Operation<T, R = undefined> {
     splitButtonGroupId?: string
 }
 
-export function defaultOperationType(
+export function defaultOperationType<T, Extra>(
     location: OperationLocation,
-    allOperations: Operation<unknown, unknown>[],
-    op: Operation<unknown, unknown>,
+    allOperations: Operation<T, Extra>[],
+    op: Operation<T, Extra>,
 ): OperationComponentType {
     if (op.confirm === true) {
         return ConfirmationButton;
@@ -95,19 +95,19 @@ export function defaultOperationType(
     }
 }
 
-const OperationComponent: React.FunctionComponent<{
+function OperationComponent<T, Extra>({As, op, selected, all, extra, reasonDisabled, location, onAction, text}: {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     As: React.ComponentType<any>;
-    op: Operation<unknown, unknown>;
-    extra: unknown;
-    selected: unknown[];
-    all?: unknown[];
+    op: Operation<T, Extra>;
+    extra: Extra;
+    selected: T[];
+    all?: T[];
     reasonDisabled?: string;
     location: OperationLocation;
     onAction: () => void;
     text: string;
     idx: number;
-}> = ({As, op, selected, all, extra, reasonDisabled, location, onAction, text}) => {
+}): React.ReactNode {
     const onClick = useCallback((e?: React.SyntheticEvent) => {
         if (op.primary === true) e?.stopPropagation();
         if (reasonDisabled !== undefined) return;

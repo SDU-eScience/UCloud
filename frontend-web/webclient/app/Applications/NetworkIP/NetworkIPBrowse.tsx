@@ -1,4 +1,4 @@
-import {productTypeToIcon, ProductV2, ProductV2NetworkIP} from "@/Accounting";
+import {ProductNetworkIP, productTypeToIcon, ProductV2, ProductV2NetworkIP} from "@/Accounting";
 import {callAPI} from "@/Authentication/DataHook";
 import {bulkRequestOf, displayErrorMessageOrDefault, extractErrorMessage, stopPropagation} from "@/UtilityFunctions";
 import MainContainer from "@/ui-components/MainContainer";
@@ -214,7 +214,7 @@ export function NetworkIPBrowse({
                 });
 
                 browser.on("fetchOperationsCallback", () => {
-                    const callbacks: ResourceBrowseCallbacks<NetworkIP> = {
+                    const callbacks: ResourceBrowseCallbacks<NetworkIP, ProductNetworkIP> = {
                         supportByProvider: {productsByProvider: {}},
                         dispatch,
                         isWorkspaceAdmin: checkIsWorkspaceAdmin(),
@@ -234,7 +234,7 @@ export function NetworkIPBrowse({
 
                 browser.on("fetchOperations", () => {
                     const entries = browser.findSelectedEntries();
-                    const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as ResourceBrowseCallbacks<NetworkIP>;
+                    const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as ResourceBrowseCallbacks<NetworkIP, ProductNetworkIP>;
 
                     const operations = NetworkIPApi.retrieveOperations();
                     const create = operations.find(it => it.tag === CREATE_TAG);
@@ -311,7 +311,7 @@ export function NetworkIPBrowse({
 
                                                 dialogStore.success();
                                                 browser.refresh();
-                                            } catch (e) {
+                                            } catch (e: any) {
                                                 sendFailureNotification("Failed to activate public IP. " + extractErrorMessage(e));
                                                 browser.refresh();
                                                 return;

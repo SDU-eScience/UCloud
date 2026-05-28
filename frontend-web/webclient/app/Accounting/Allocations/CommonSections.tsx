@@ -163,8 +163,8 @@ export const YourAllocations: React.FunctionComponent<{
                                     </Flex>}
                                     right={<Flex flexDirection={"row"} gap={"8px"}>
                                         {tree.usageAndQuota.map((uq, idx) => <React.Fragment key={idx}>
-                                                <ProgressBar uq={uq} responsive/>
-                                            </React.Fragment>
+                                            <ProgressBar uq={uq} responsive />
+                                        </React.Fragment>
                                         )}
                                     </Flex>}
                                     indent={indent}
@@ -177,7 +177,7 @@ export const YourAllocations: React.FunctionComponent<{
                                                 <code>{wallet.category.name}</code>
                                             </Flex>}
                                             right={<Flex flexDirection={"row"} gap={"8px"}>
-                                                <ProgressBar uq={wallet.usageAndQuota} responsive/>
+                                                <ProgressBar uq={wallet.usageAndQuota} responsive />
                                             </Flex>}
                                             indent={indent * 2}
                                         >
@@ -729,7 +729,7 @@ export const KeyMetrics: React.FunctionComponent<{
     const atRiskPercentage = total > 0 ? (atRisk / total) * 100 : 0;
     const underusedPercentage = underused > 0 ? (underused / total) * 100 : 0;
 
-    if (!hasFeature(Feature.ALLOCATIONS_PAGE_IMPROVEMENTS) || true) return null;
+    if (!hasFeature(Feature.ALLOCATIONS_PAGE_IMPROVEMENTS) || Math.random() > -1) return null;
 
     return <>
         <ReactModal
@@ -740,13 +740,13 @@ export const KeyMetrics: React.FunctionComponent<{
             ariaHideApp={false}
             className={classConcat(CardClass, keyMetricsStyle)}
         >
-        <Flex flexDirection={"column"} height={"100%"} width={"100%"}>
-            <Flex mb="12px">
-                <div className="key-metrics-settings-container">
-                    <h3>Key metrics settings</h3>
-                    <h4 style={{color: "var(--textSecondary)"}}>Select key metrics to display</h4>
-                </div>
-                {/*
+            <Flex flexDirection={"column"} height={"100%"} width={"100%"}>
+                <Flex mb="12px">
+                    <div className="key-metrics-settings-container">
+                        <h3>Key metrics settings</h3>
+                        <h4 style={{color: "var(--textSecondary)"}}>Select key metrics to display</h4>
+                    </div>
+                    {/*
                 Note(Louise): Leave this code disabled until we decide if it is needed or not
                 <div className="key-metrics-input">
                     <div className="key-metrics-search-box">
@@ -759,19 +759,19 @@ export const KeyMetrics: React.FunctionComponent<{
                     </div>
                 </div>
                 */}
-            </Flex>
+                </Flex>
 
-            <Box flexGrow={1} minHeight={0} overflowY={"auto"}>
-                {Object.values(settings).map(setting => (
-                    <KeyMetricSettingsRow key={setting.title} setting={setting} onChange={onSettingsChanged}/>
-                ))}
-            </Box>
+                <Box flexGrow={1} minHeight={0} overflowY={"auto"}>
+                    {Object.values(settings).map(setting => (
+                        <KeyMetricSettingsRow key={setting.title} setting={setting} onChange={onSettingsChanged} />
+                    ))}
+                </Box>
 
-            <Flex justifyContent="end" px={"20px"} py={"12px"} margin={"-20px"} background={"var(--dialogToolbar)"}
-                  zIndex={10000} gap={"8px"}>
-                <Button color={"successMain"} type="button" onClick={closeFilters}>Apply</Button>
+                <Flex justifyContent="end" px={"20px"} py={"12px"} margin={"-20px"} background={"var(--dialogToolbar)"}
+                    zIndex={10000} gap={"8px"}>
+                    <Button color={"successMain"} type="button" onClick={closeFilters}>Apply</Button>
+                </Flex>
             </Flex>
-        </Flex>
 
         </ReactModal>
 
@@ -798,31 +798,31 @@ export const KeyMetrics: React.FunctionComponent<{
                     <h3>Sub-project allocations</h3>
                     {state.remoteData.wallets === undefined ? <>
                         <HexSpin size={64} />
-                        </> : <>
-                    <div>
-                        {allocations.length !== 0 ? null :
-                            <div style={{marginLeft: "20px", marginTop: "10px"}}>
-                                You do not have given out allocated any resources at this time.
-                                When you approve grant applications, the allocated resources will be shown here.
-                            </div>}
+                    </> : <>
+                        <div>
+                            {allocations.length !== 0 ? null :
+                                <div style={{marginLeft: "20px", marginTop: "10px"}}>
+                                    You do not have given out allocated any resources at this time.
+                                    When you approve grant applications, the allocated resources will be shown here.
+                                </div>}
                             <Tree apiRef={treeApi}>
-                            {allocations.map(([rawType, tree]) => {
-                                const type = rawType as ProductType;
+                                {allocations.map(([rawType, tree]) => {
+                                    const type = rawType as ProductType;
 
-                                return <TreeNode
-                                    key={rawType}
-                                    left={
-                                        <Flex gap={"4px"}>
-                                            <Icon name={Accounting.productTypeToIcon(type)} size={20} />
-                                            {Accounting.productAreaTitle(type)}
-                                        </Flex>
-                                    }
-                                    right={<Flex flexDirection={"row"} gap={"8px"}>
-                                        {tree.usageAndQuota.map((uq, idx) => {
-                                            let label = `${okPercentage.toFixed(2)}% Ok` +
-                                                ` | ${atRiskPercentage.toFixed(2)}% At risk` +
-                                                ` | ${underusedPercentage.toFixed(2)}% Underused`;
-                                            return <React.Fragment key={idx}>
+                                    return <TreeNode
+                                        key={rawType}
+                                        left={
+                                            <Flex gap={"4px"}>
+                                                <Icon name={Accounting.productTypeToIcon(type)} size={20} />
+                                                {Accounting.productAreaTitle(type)}
+                                            </Flex>
+                                        }
+                                        right={<Flex flexDirection={"row"} gap={"8px"}>
+                                            {tree.usageAndQuota.map((uq, idx) => {
+                                                let label = `${okPercentage.toFixed(2)}% Ok` +
+                                                    ` | ${atRiskPercentage.toFixed(2)}% At risk` +
+                                                    ` | ${underusedPercentage.toFixed(2)}% Underused`;
+                                                return <React.Fragment key={idx}>
                                                     <AllocationBar
                                                         label={label}
                                                         okPercentage={okPercentage}
@@ -831,26 +831,26 @@ export const KeyMetrics: React.FunctionComponent<{
                                                     />
                                                 </React.Fragment>;
                                             }
-                                        )}
-                                    </Flex>}
-                                    indent={indent}
-                                >
-                                    {tree.wallets.map((wallet, idx) =>
-                                    <TreeNode
-                                        key={idx}
-                                        left={
-                                            <Flex gap={"4px"}>
-                                                <ProviderLogo providerId={wallet.category.provider} size={20} />
-                                                <code>{wallet.category.name}</code>
-                                            </Flex>
-                                        }
-                                        right={<Flex flexDirection={"row"} gap={"8px"}>
-                                            <ProgressBar uq={usageAndQuotaByProduct[productCategoryKey(wallet.category)]} responsive />
+                                            )}
                                         </Flex>}
+                                        indent={indent}
                                     >
-                                    </TreeNode>
-                                    )}
-                                </TreeNode>;
+                                        {tree.wallets.map((wallet, idx) =>
+                                            <TreeNode
+                                                key={idx}
+                                                left={
+                                                    <Flex gap={"4px"}>
+                                                        <ProviderLogo providerId={wallet.category.provider} size={20} />
+                                                        <code>{wallet.category.name}</code>
+                                                    </Flex>
+                                                }
+                                                right={<Flex flexDirection={"row"} gap={"8px"}>
+                                                    <ProgressBar uq={usageAndQuotaByProduct[productCategoryKey(wallet.category)]} responsive />
+                                                </Flex>}
+                                            >
+                                            </TreeNode>
+                                        )}
+                                    </TreeNode>;
                                 })}
                             </Tree>
                         </div>
@@ -912,7 +912,7 @@ const FilteredUsageAndQuota: React.FunctionComponent<{
     return <>
         {filteredEntries.map((uq, idx) => {
             if (idx > 2) return null;
-            return <ProgressBar key={idx} uq={uq} responsive/>;
+            return <ProgressBar key={idx} uq={uq} responsive />;
         })}
     </>
 }
@@ -1114,8 +1114,8 @@ const SubProjectListRow: React.FunctionComponent<{
                         </Flex>
                     </Flex>}
                     right={<div className={"sub-alloc"}>
-                        <ProgressBar uq={g.usageAndQuota} responsive/>
-                        <Box width={25} height={25}/>
+                        <ProgressBar uq={g.usageAndQuota} responsive />
+                        <Box width={25} height={25} />
                     </div>}
                     onActivate={open => {
                         if (open) setNodeState(TreeAction.OPEN, workspaceId, g.category.name);
@@ -1290,7 +1290,7 @@ export const SubProjectFilters: React.FunctionComponent<{
     }, []);
 
     useEffect(() => {
-        dispatchEvent({ type: "SubProjectFilterSettingsLoad", settings: subProjectsDefaultSettings });
+        dispatchEvent({type: "SubProjectFilterSettingsLoad", settings: subProjectsDefaultSettings});
     }, []);
 
     const [ascending, setAscending] = useState<boolean>(true);
@@ -1346,7 +1346,7 @@ export const SubProjectFilters: React.FunctionComponent<{
                             state={state}
                         /> : null
                 ))}
-                <Divider/>
+                <Divider />
                 <div className="sub-projects-sorting-container">
                     <div className="sub-projects-sorting-headers">
                         <h3>Sort by</h3>
@@ -1373,7 +1373,7 @@ export const SubProjectFilters: React.FunctionComponent<{
                             <TooltipV2 tooltip={ascending ? "Set to ascending" : "Set to descending"}>
                                 <SmallIconButton
                                     icon={ascending ? "heroBarsArrowUp" : "heroBarsArrowDown"}
-                                    onClick={onSortingToggle}/>
+                                    onClick={onSortingToggle} />
                             </TooltipV2>
                         </div>
                     </div>
@@ -1381,7 +1381,7 @@ export const SubProjectFilters: React.FunctionComponent<{
             </Box>
 
             <Flex justifyContent="end" px={"20px"} py={"12px"} margin={"-20px"} background={"var(--dialogToolbar)"}
-                  zIndex={10000} gap={"8px"}>
+                zIndex={10000} gap={"8px"}>
                 <Button color={"successMain"} type="button" onClick={closeFilters}>Apply</Button>
             </Flex>
         </Flex>
