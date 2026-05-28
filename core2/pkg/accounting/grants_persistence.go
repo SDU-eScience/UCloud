@@ -243,10 +243,11 @@ func grantsLoad(id accGrantId, prefetchHint []accGrantId) {
 			if currentRevision.Document.Form.Type == accapi.FormTypeStructured {
 
 				jsonStr := currentRevision.Document.Form.Text
-				fields := make(map[string]string)
+				var fields []accapi.AnswerFieldForm
 				err := json.Unmarshal([]byte(jsonStr), &fields)
 				if err != nil {
 					log.Warn("failed to parse structured form: %s", err)
+					fields = make([]accapi.AnswerFieldForm, 0)
 				}
 				currentRevision.Document.Form.Fields = fields
 			}
