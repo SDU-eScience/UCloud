@@ -61,7 +61,6 @@ function ManageProjects(): React.ReactNode {
             }
             settings[settingIndex] = newSetting;
         }
-        setSettings([...settings]);
         sendSettingUpdate(newSetting);
     }, [settings]);
 
@@ -91,7 +90,6 @@ function ManageProjects(): React.ReactNode {
             }
         }
         settings[settingIndex] = newSetting;
-        setSettings([...settings]);
         sendSettingUpdate(newSetting);
     }, [settings]);
 
@@ -120,7 +118,6 @@ function ManageProjects(): React.ReactNode {
             }
             settings[settingIndex] = newSetting;
         }
-        setSettings([...settings]);
         sendSettingUpdate(newSetting);
     }, [settings]);
 
@@ -150,7 +147,6 @@ function ManageProjects(): React.ReactNode {
             }
         }
         settings[settingIndex] = newSetting;
-        setSettings([...settings]);
         sendSettingUpdate(newSetting);
     }, [settings]);
 
@@ -163,6 +159,7 @@ function ManageProjects(): React.ReactNode {
 
         if (success) {
             sendSuccessNotification("Project settings saved!");
+            setSettings([...settings]);
         }
     }
 
