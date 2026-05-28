@@ -118,8 +118,18 @@ export function updateRequestSettings(
     return apiUpdate(request, baseContext, "updateRequestSettings");
 }
 
+export function updateRequestSettingsAdmin(
+    request: ProjectToSetting,
+): APICallParameters<unknown, {}> {
+    return apiUpdate(request, baseContext, "updateRequestSettingsAdmin");
+}
+
 export function retrieveRequestSettings(): APICallParameters<unknown, RequestSettings> {
     return apiRetrieve({}, baseContext, "requestSettings");
+}
+
+export function retrieveRequestSettingsAdmin(projectId: FindByStringId): APICallParameters<unknown, RequestSettings> {
+    return apiRetrieve(projectId, baseContext, "requestSettingsAdmin");
 }
 
 export function browseEnabledProjects(): APICallParameters<unknown, {}> {

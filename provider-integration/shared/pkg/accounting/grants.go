@@ -467,11 +467,25 @@ var GrantsBrowseEnabledProjects = rpc.Call[util.Empty, []ProjectToSetting]{
 	Roles:       rpc.RolesAdmin,
 }
 
+var GrantsUpdateRequetsSettingsAdmin = rpc.Call[ProjectToSetting, util.Empty]{
+	BaseContext: GrantsNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Operation:   "updateRequestSettingsAdmin",
+	Roles:       rpc.RolesAdmin,
+}
+
 var GrantsUpdateRequestSettings = rpc.Call[GrantRequestSettings, util.Empty]{
 	BaseContext: GrantsNamespace,
 	Convention:  rpc.ConventionUpdate,
 	Operation:   "updateRequestSettings",
 	Roles:       rpc.RolesEndUser | rpc.RolesService,
+}
+
+var GrantsRetrieveRequestSettingsAdmin = rpc.Call[fnd.FindByStringId, GrantRequestSettings]{
+	BaseContext: GrantsNamespace,
+	Convention:  rpc.ConventionRetrieve,
+	Operation:   "requestSettingsAdmin",
+	Roles:       rpc.RoleAdmin,
 }
 
 var GrantsRetrieveRequestSettings = rpc.Call[util.Empty, GrantRequestSettings]{

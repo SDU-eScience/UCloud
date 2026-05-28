@@ -662,12 +662,12 @@ func lGrantsPersistSettings(settings *grantSettings) {
 				tx,
 				`
 					with data as (
-						select 
-							:project project, 
+						select
+							:project project,
 							unnest(cast(:type as text[])) type,
 							unnest(cast(:applicants as text[])) applicant_id
 					)
-					insert into "grant".allow_applications_from(project_id, type, applicant_id) 
+					insert into "grant".allow_applications_from(project_id, type, applicant_id)
 					select project, type, case when applicant_id = '' then null else applicant_id end
 					from data
 				`,

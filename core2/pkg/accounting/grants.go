@@ -1714,10 +1714,12 @@ func GrantsRetrieveGrantGivers(actor rpc.Actor, req accapi.RetrieveGrantGiversRe
 	return util.NonNilSlice(result), nil
 }
 
-func GrantsUpdateSettings(actor rpc.Actor, id string, s accapi.GrantRequestSettings) *util.HttpError {
-	if !actor.Project.Present || string(actor.Project.Value) != id ||
-		!actor.Membership[rpc.ProjectId(id)].Satisfies(rpc.ProjectRoleAdmin) {
-		return util.HttpErr(http.StatusForbidden, "forbidden")
+func GrantsUpdateSettings(actor rpc.Actor, id string, s accapi.GrantRequestSettings, isAdminCall bool) *util.HttpError {
+	if !isAdminCall {
+		if !actor.Project.Present || string(actor.Project.Value) != id ||
+			!actor.Membership[rpc.ProjectId(id)].Satisfies(rpc.ProjectRoleAdmin) {
+			return util.HttpErr(http.StatusForbidden, "forbidden")
+		}
 	}
 	b := grantGetSettingsBucket(id)
 
@@ -1768,10 +1770,13 @@ func GrantsBrowseEnabledProjects(actor rpc.Actor) ([]accapi.ProjectToSetting, *u
 	for _, bucket := range grantGlobals.SettingBuckets {
 		bucket.Mu.Lock()
 		for project, _ := range bucket.PublicGrantGivers {
-			settings = append(
-				settings,
-				accapi.ProjectToSetting{ProjectId: project, Settings: bucket.Settings[project].lDeepCopy()},
-			)
+			settingsFromBucket, ok := bucket.Settings[project]
+			if ok {
+				settings = append(
+					settings,
+					accapi.ProjectToSetting{ProjectId: project, Settings: settingsFromBucket.lDeepCopy()},
+				)
+			}
 		}
 		bucket.Mu.Unlock()
 	}
@@ -1779,15 +1784,21 @@ func GrantsBrowseEnabledProjects(actor rpc.Actor) ([]accapi.ProjectToSetting, *u
 	return settings, nil
 }
 
-func GrantsRetrieveSettings(actor rpc.Actor) (accapi.GrantRequestSettings, *util.HttpError) {
-	if !actor.Project.Present || !actor.Membership[rpc.ProjectId(actor.Project.Value)].Satisfies(rpc.ProjectRoleAdmin) {
-		return accapi.GrantRequestSettings{}, util.HttpErr(http.StatusForbidden, "forbidden")
+func GrantsRetrieveSettings(actor rpc.Actor, isAdminCall bool, projectId string) (accapi.GrantRequestSettings, *util.HttpError) {
+	if !isAdminCall {
+		if !actor.Project.Present || !actor.Membership[rpc.ProjectId(actor.Project.Value)].Satisfies(rpc.ProjectRoleAdmin) {
+			return accapi.GrantRequestSettings{}, util.HttpErr(http.StatusForbidden, "forbidden")
+		}
 	}
 
-	b := grantGetSettingsBucket(string(actor.Project.Value))
+	lookupId := string(actor.Project.Value)
+	if isAdminCall {
+		lookupId = projectId
+	}
+	b := grantGetSettingsBucket(lookupId)
 
 	b.Mu.RLock()
-	w, ok := b.Settings[string(actor.Project.Value)]
+	w, ok := b.Settings[lookupId]
 	if !ok {
 		b.Mu.RUnlock()
 		{
@@ -2131,18 +2142,47 @@ func initGrants() {
 		})
 
 		accapi.GrantsRetrieveRequestSettings.Handler(func(info rpc.RequestInfo, request util.Empty) (accapi.GrantRequestSettings, *util.HttpError) {
-			return GrantsRetrieveSettings(info.Actor)
+			return GrantsRetrieveSettings(info.Actor, false, "")
+		})
+
+		accapi.GrantsRetrieveRequestSettingsAdmin.Handler(func(info rpc.RequestInfo, request fndapi.FindByStringId) (accapi.GrantRequestSettings, *util.HttpError) {
+			if info.Actor.Role != rpc.RoleAdmin {
+				return accapi.GrantRequestSettings{}, util.HttpErr(http.StatusForbidden, "permission denied - need to be admin to use this endpoint")
+			}
+			projectExists := false
+			fmt.Printf("request %v \n", request)
+			db.NewTx0(func(tx *db.Transaction) {
+				_, projectExists = coreutil.ProjectRetrieveFromDatabase(tx, request.Id)
+			})
+			if !projectExists {
+				return accapi.GrantRequestSettings{}, util.HttpErr(http.StatusBadRequest, "Project does not exist")
+			}
+			return GrantsRetrieveSettings(info.Actor, true, request.Id)
 		})
 
 		accapi.GrantsBrowseEnabledProjects.Handler(func(info rpc.RequestInfo, request util.Empty) ([]accapi.ProjectToSetting, *util.HttpError) {
 			return GrantsBrowseEnabledProjects(info.Actor)
 		})
 
+		accapi.GrantsUpdateRequetsSettingsAdmin.Handler(func(info rpc.RequestInfo, request accapi.ProjectToSetting) (util.Empty, *util.HttpError) {
+			if info.Actor.Role != rpc.RoleAdmin {
+				return util.Empty{}, util.HttpErr(http.StatusForbidden, "permission denied - need to be admin to use this endpoint")
+			}
+			projectExists := false
+			db.NewTx0(func(tx *db.Transaction) {
+				_, projectExists = coreutil.ProjectRetrieveFromDatabase(tx, request.ProjectId)
+			})
+			if !projectExists {
+				return util.Empty{}, util.HttpErr(http.StatusBadRequest, "Project does not exist")
+			}
+			return util.Empty{}, GrantsUpdateSettings(info.Actor, request.ProjectId, request.Settings, true)
+		})
+
 		accapi.GrantsUpdateRequestSettings.Handler(func(info rpc.RequestInfo, request accapi.GrantRequestSettings) (util.Empty, *util.HttpError) {
 			if !info.Actor.Project.Present {
 				return util.Empty{}, util.HttpErr(http.StatusBadRequest, "bad request - no project")
 			}
-			return util.Empty{}, GrantsUpdateSettings(info.Actor, string(info.Actor.Project.Value), request)
+			return util.Empty{}, GrantsUpdateSettings(info.Actor, string(info.Actor.Project.Value), request, false)
 		})
 
 		accapi.GrantsUploadLogo.Handler(func(info rpc.RequestInfo, request []byte) (util.Empty, *util.HttpError) {

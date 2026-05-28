@@ -10,7 +10,7 @@ import HexSpin from "@/LoadingIcon/LoadingIcon";
 import {Tree, TreeNode} from "@/ui-components/Tree";
 import {yourAllocationsStyle} from "@/Accounting/Allocations/CommonSections";
 import {ProjectTitleForNewCore} from "@/Project/InfoCache";
-import {auth} from "@/UCloud";
+import {auth, FindByStringId} from "@/UCloud";
 import refresh = auth.refresh;
 import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
 import {UserCriteriaEditor} from "@/Project/ProjectSettings";
@@ -37,6 +37,40 @@ function ManageProjects(): React.ReactNode {
         settings: defaultSetting
     }]);
 
+    function isAlreadyCriteria(list: Grants.UserCriteria[], criteria: Grants.UserCriteria): boolean {
+        let isSame = false
+        for (let listedCriteria of list) {
+            switch (listedCriteria.type) {
+                case "anyone": {
+                    if (criteria.type == listedCriteria.type) {
+                        isSame = true;
+                    }
+                    break;
+                }
+                case "email": {
+                    if (criteria.type == listedCriteria.type) {
+                        if (criteria.domain == listedCriteria.domain) {
+                            isSame = true;
+                        }
+                    }
+                    break;
+                }
+                case "wayf": {
+                    if (criteria.type == listedCriteria.type) {
+                        if (criteria.org == listedCriteria.org) {
+                            isSame = true;
+                        }
+                    }
+                    break;
+                }
+            }
+            if (isSame) {
+                break;
+            }
+        }
+        return isSame
+    }
+
     const onAllowAdd = useCallback((criteria: Grants.UserCriteria, projectId: string) => {
         const settingIndex = settings.findIndex(it => it.projectId == projectId)
         let newSetting: Grants.ProjectToSetting
@@ -52,21 +86,25 @@ function ManageProjects(): React.ReactNode {
             settings.push(newSetting);
         } else {
             const previousSetting = settings[settingIndex].settings;
-            newSetting = {
-                projectId: projectId,
-                settings: {
-                    ...previousSetting,
-                    allowRequestsFrom: [...previousSetting.allowRequestsFrom, criteria]
+            if (isAlreadyCriteria(previousSetting.allowRequestsFrom, criteria)) {
+                return;
+            } else {
+                newSetting = {
+                    projectId: projectId,
+                    settings: {
+                        ...previousSetting,
+                        allowRequestsFrom: [...previousSetting.allowRequestsFrom, criteria]
+                    }
                 }
+                settings[settingIndex] = newSetting;
             }
-            settings[settingIndex] = newSetting;
         }
         sendSettingUpdate(newSetting);
     }, [settings]);
 
     const onAllowRemove = useCallback((idx: number, projectId: string) => {
         const settingIndex = settings.findIndex(it => it.projectId == projectId)
-        var newSetting: Grants.ProjectToSetting
+        let newSetting: Grants.ProjectToSetting
         if (settingIndex == -1) {
             newSetting = {
                 projectId: projectId,
@@ -96,7 +134,7 @@ function ManageProjects(): React.ReactNode {
 
     const onExcludeAdd = useCallback((criteria: Grants.UserCriteria, projectId: string) => {
         const settingIndex = settings.findIndex(it => it.projectId == projectId)
-        var newSetting: Grants.ProjectToSetting
+        let newSetting: Grants.ProjectToSetting
         if (settingIndex == -1) {
             newSetting = {
                 projectId: projectId,
@@ -109,11 +147,15 @@ function ManageProjects(): React.ReactNode {
             settings.push(newSetting);
         } else {
             const previousSetting = settings[settingIndex].settings;
-            newSetting = {
-                projectId: projectId,
-                settings: {
-                    ...previousSetting,
-                    excludeRequestsFrom: [...previousSetting.excludeRequestsFrom, criteria]
+            if (isAlreadyCriteria(previousSetting.excludeRequestsFrom, criteria)) {
+                return;
+            } else {
+                newSetting = {
+                    projectId: projectId,
+                    settings: {
+                        ...previousSetting,
+                        excludeRequestsFrom: [...previousSetting.excludeRequestsFrom, criteria]
+                    }
                 }
             }
             settings[settingIndex] = newSetting;
@@ -123,7 +165,7 @@ function ManageProjects(): React.ReactNode {
 
     const onExcludeRemove = useCallback((idx: number, projectId: string) => {
         const settingIndex = settings.findIndex(it => it.projectId == projectId)
-        var newSetting: Grants.ProjectToSetting
+        let newSetting: Grants.ProjectToSetting
         if (settingIndex == -1) {
             newSetting = {
                 projectId: projectId,
@@ -154,7 +196,7 @@ function ManageProjects(): React.ReactNode {
 
     async function sendSettingUpdate(projectToSetting: Grants.ProjectToSetting) {
         const success = await callAPIWithErrorHandler({
-            ...Grants.updateRequestSettings(projectToSetting.settings), projectOverride: projectToSetting.projectId
+            ...Grants.updateRequestSettingsAdmin(projectToSetting)
         }) !== null;
 
         if (success) {
@@ -162,6 +204,25 @@ function ManageProjects(): React.ReactNode {
             setSettings([...settings]);
         }
     }
+
+    function onDisableProject(projectId: string) {
+        const idx = settings.findIndex(value => value.projectId == projectId)
+        if (idx > -1) {
+            const oldSetting = settings[idx].settings;
+            settings.splice(idx, 1);
+
+            const deleteUpdate: Grants.ProjectToSetting = {
+                projectId: projectId,
+                settings: {
+                    ...oldSetting,
+                    enabled: false,
+                    allowRequestsFrom: [],
+                    excludeRequestsFrom: []
+                }
+            }
+            sendSettingUpdate(deleteUpdate);
+        }
+    };
 
     const onEnableProject = useCallback(async (e) => {
         e.preventDefault();
@@ -173,15 +234,27 @@ function ManageProjects(): React.ReactNode {
             return;
         }
 
-        const newSetting = {
-            projectId: projectId,
-            settings: {
-                ...defaultSetting,
-                enabled: true,
-            }
+        if (settings.find(it => it.projectId == projectId)) {
+            sendFailureNotification("Project is already enabled.")
+            return
         }
 
-        sendSettingUpdate(newSetting)
+        const existingSetting = await callAPI<Grants.RequestSettings>(
+            {
+                ...Grants.retrieveRequestSettingsAdmin({id: projectId})
+            }
+        );
+
+        const projectSettings = {
+            projectId: projectId,
+            settings: {
+                ...existingSetting,
+                enabled: true,
+            }
+        };
+
+        settings.push(projectSettings);
+        sendSettingUpdate(projectSettings);
 
         if (projectIdRef.current) {
             projectIdRef.current.value = "";
@@ -237,7 +310,9 @@ function ManageProjects(): React.ReactNode {
                                         return <TreeNode
                                             key={projectToSetting.projectId}
                                             left={<ProjectTitleForNewCore id={projectToSetting.projectId} />}
-                                            right={<Flex flexDirection={"row"} gap={"8px"}></Flex>}
+                                            right={<Flex flexDirection={"row"} gap={"8px"}>
+                                                <Icon color={"errorMain"} name={"trash"} cursor={"pointer"} onClick={() => onDisableProject(projectToSetting.projectId)} />
+                                            </Flex>}
                                             indent={1}
                                         >
                                             <div>
