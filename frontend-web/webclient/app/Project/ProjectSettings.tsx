@@ -326,6 +326,8 @@ export const ProjectSettings: React.FunctionComponent = () => {
                         return <>
                             <br/>
                             <Card>
+                                <Label marginBottom={"7px"} style={{fontWeight: "normal"}} fontSize={"12px"} htmlFor={`title${idx}`}>Name: </Label >
+                                <Input id={`name${idx}`} required value={field.name} onChange={(e) => updateNewProjectField(idx, 'name', e.target.value, fieldType)} >{field.name}</Input>
                                 <Flex justifyContent={"space-between"}>
                                     <Label marginBottom={"7px"} style={{fontWeight: "normal"}} fontSize={"12px"} htmlFor={`title${idx}`}>Title: </Label >
                                     {moveFieldControls(idx, settings.templates.structured[fieldType].length, fieldType)}

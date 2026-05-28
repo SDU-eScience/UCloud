@@ -2214,11 +2214,11 @@ export function Editor(): React.ReactNode {
                                     {state.application.map((val, idx) => {
                                         // NOTE(Dan): Empty placeholder is a quick work-around for fields having error
                                         // immediately on load.
-                                        return <FormField title={val.title} key={idx} id={`${val.title}`}
+                                        return <FormField title={val.title} key={idx} id={`${val.name}`}
                                             description={val.description} mandatory={!val.optional}>
-                                            <TextArea id={`${val.title}`} rows={val.rows} maxLength={val.maxLength ?? 100}
+                                            <TextArea id={`${val.name}`} rows={val.rows} maxLength={val.maxLength ?? 100}
                                                 required={!val.optional} disabled={state.locked || isClosed}
-                                                value={state.applicationDocument[val.title] ?? ""}
+                                                value={state.applicationDocument[val.name] ?? ""}
                                                 onChange={onApplicationChange} placeholder={" "} />
                                         </FormField>
                                     })}
@@ -2924,7 +2924,7 @@ function stateToApplication(state: EditorState): Grants.Doc["form"] {
         builder += section.title;
         builder += "\n-----------------------------------------\n";
 
-        const contents = state.applicationDocument[section.title] ?? "";
+        const contents = state.applicationDocument[section.name] ?? "";
         const contentLines = contents.split("\n");
         builder += contentLines.map(line => {
             if (line.startsWith("---") && /-+$/.test(line)) return `!${line}!`;
