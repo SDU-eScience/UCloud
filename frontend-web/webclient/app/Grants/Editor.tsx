@@ -1502,7 +1502,6 @@ export function Editor(): React.ReactNode {
         const id = ev.target.id;
         const newValue = ev.target.value;
         const title = ev.target.dataset.title ?? "";
-        console.log('sdfasdfsadfasdfasdf', ev.target);
         dispatchEvent({type: "ApplicationUpdated", name: id, title: title , answer: newValue});
     }, [dispatchEvent]);
 
@@ -1557,7 +1556,6 @@ export function Editor(): React.ReactNode {
         const [start, end] = stateToAllocationPeriod(state);
         const period: Grants.Period = {start, end};
 
-        console.log('MAMAMAMA DOCU', state.applicationDocument);
         const doc: Grants.Doc = {
             recipient: stateToCreationRecipient(state)!,
             referenceIds: null,
