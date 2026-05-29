@@ -371,7 +371,7 @@ TestContexts.map(ctx => {
             await File.openIntegratedTerminal(page);
             await Terminal.enterCmd(page, `cat "${drive}/${testFileName}"`);
             await expect(page.getByText(testFileContents)).toHaveCount(1);
-            await page.locator('div > svg.icon1.icon-hover-block125').first().click()
+            await page.locator("div > svg[class*=icon-hover-block]").first().click()
             await File.moveFileToTrash(page, testFileName);
 
 

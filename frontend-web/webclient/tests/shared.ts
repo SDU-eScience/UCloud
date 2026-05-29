@@ -279,7 +279,7 @@ export const File = {
     },
 
     async create(page: Page, name: string): Promise<void> {
-        await page.locator('div[data-disabled="false"]', {hasText: "Create folder"}).click();
+        await page.getByRole("button", {name: "Create folder", disabled: false}).click();
         await page.getByRole("textbox").nth(1).fill(name);
         await NetworkCalls.awaitResponse(page, "**/files/folder", async () => {
             await page.getByRole("textbox").nth(1).press("Enter");
@@ -426,7 +426,7 @@ export const File = {
                 didClick = true;
             }
         }
-        await page.getByText("/work").click();
+        await page.getByText("/work").click({force: true});
     },
 
     async createShareLinkForFolder(page: Page, foldername: string): Promise<string> {
@@ -771,7 +771,9 @@ export const Runs = {
         const terminalPagePromise = page.waitForEvent("popup");
         await page.getByRole("button", {name: "Open terminal"}).click();
         const terminalPage = await terminalPagePromise;
-        await terminalPage.getByText("/work", {exact: false}).first().click();
+        // Note(Jonas): Maybe locator.click({force: true}) is better.
+        await terminalPage.locator("span", {hasText: "/work"}).waitFor();
+        await terminalPage.keyboard.press("Tab");
         return terminalPage;
     },
 
