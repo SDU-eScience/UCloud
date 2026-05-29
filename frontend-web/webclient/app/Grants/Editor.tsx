@@ -2267,7 +2267,7 @@ export function Editor(): React.ReactNode {
                                         // immediately on load.
                                         return <FormField title={val.title} key={idx} id={`${val.name}`}
                                             description={val.description} mandatory={!val.optional}>
-                                            <TextArea id={`${val.name}`} rows={val.rows} maxLength={val.maxLength ?? 100}
+                                            <TextArea id={val.name} rows={val.rows} maxLength={val.maxLength ?? 100}
                                                 required={!val.optional} disabled={state.locked || isClosed}
                                                 value={state.applicationDocument[val.name]?.answer ?? ""}
                                                 data-title={val.title}

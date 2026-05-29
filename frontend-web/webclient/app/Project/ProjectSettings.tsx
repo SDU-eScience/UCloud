@@ -41,7 +41,6 @@ import {OldProjectRole, isAdminOrPI} from ".";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import AppRoutes from "@/Routes";
 import {sendFailureNotification, sendInformationNotification, sendSuccessNotification} from "@/Notifications";
-import { fontWeight } from "styled-system";
 
 const wayfIdpsPairs = WAYF.wayfIdps.map(it => ({value: it, content: it}));
 
