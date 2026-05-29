@@ -193,12 +193,11 @@ const TemplateForm: React.FunctionComponent<TemplateFormProps> = ({
                     <br />
                     <Flex justifyContent={"space-between"}>
                         <span style={{ display: "flex" }}>
-                            <Label cursor="pointer" width="unset" fontSize={"12px"} marginTop={"5px"} htmlFor={`checkbox${idx}`}>Optional</Label>
-                            <Checkbox size={30} id={`checkbox${idx}`} checked={field.optional} handleWrapperClick={() => updateNewProjectField(idx, 'optional', !field.optional, fieldType)}
-                                onChange={
-                                    () => updateNewProjectField(idx, 'optional', field.optional, fieldType)
-                                }>
-                            </Checkbox>
+                            <Label cursor="pointer" width="unset" fontSize={"12px"} marginTop={"5px"}>
+                                Optional
+                                <Checkbox size={30} checked={field.optional} onChange={()=>updateNewProjectField(idx, 'optional', !field.optional, fieldType)}>
+                                </Checkbox>
+                            </Label>
                         </span>
                         <Flex justifyContent={"flex-end"}>
                             <Icon size={20} marginRight={"12px"} color={"errorMain"} name={"trash"} cursor={"pointer"} onClick={() => {
