@@ -35,7 +35,7 @@ import {CSSVarCurrentSidebarStickyWidth} from "@/ui-components/List";
 import MainContainer from "@/ui-components/MainContainer";
 import {SimpleMarkdown} from "@/ui-components/Markdown";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
-import {TooltipV2} from "@/ui-components/Tooltip";
+import Tooltip, {TooltipV2} from "@/ui-components/Tooltip";
 import Warning from "@/ui-components/Warning";
 import {interval, isBefore, isWithinInterval, subDays} from "date-fns";
 import {formatDistance} from "date-fns/formatDistance";
@@ -1827,6 +1827,42 @@ export function Editor(): React.ReactNode {
         dispatchEvent({type: "MarkOutdatedFieldDone", fieldName});
     }, [dispatchEvent]);
 
+    function OutdatedTextArea({ field }) {
+
+        const handleCopy = async () => {
+            await navigator.clipboard.writeText(field.answer || "");
+        };
+
+        return (
+            <Box mb={10}>
+            <Flex>
+                <Label>{field.title}</Label>
+                <Tooltip trigger={(
+                            <TextArea
+                                readOnly
+                                style={{"cursor": "pointer"}}
+                                onClick={() => {
+                                    handleCopy();
+                                }}
+                                mr={10}
+                                value={field.answer}
+                                width="545px"
+                            />
+                        )} >
+                        Click to copy field to clipboard
+                </Tooltip>
+            </Flex>
+            <Flex justifyContent={"end"}>
+                <Box mt={5}>
+                    <Label cursor="pointer" alignItems={"center"} columnGap="3">
+                        Mark as done
+                        <Checkbox size={30} checked={field.markAsDone} onChange={() => checkOutdateField(field.name)} />
+                    </Label>
+                </Box>
+            </Flex>
+            </Box>
+        );
+    }
 
     // The actual user-interface
     // -----------------------------------------------------------------------------------------------------------------
@@ -2243,19 +2279,9 @@ export function Editor(): React.ReactNode {
 
                                 </div>
                                     {state.outdatedFields.length > 0 ? OutdatedApplicationDescription: <></>}
-                                    {state.outdatedFields.map((other) => {
-                                        return <Box mb={10}>
-                                        <Flex>
-                                            <Label>{other.title}</Label>
-                                            <TextArea width={550} readOnly maxLength={100} value={other.answer}></TextArea >
-                                        </Flex>
-                                        <Flex>
-                                            <Label cursor="pointer" htmlFor={other.name}>Done</Label>
-                                            <Checkbox size={30} id={other.name} checked={other.markAsDone} handleWrapperClick={() => checkOutdateField(other.name)} onChange={() => checkOutdateField(other.name)}/>
-                                        </Flex>
-                                        </Box>
+                                    {state.outdatedFields.map((field) => {
+                                        return <OutdatedTextArea field={field}></OutdatedTextArea>
                                     })}
-
                             </div>
                         </>}
                     </form>
@@ -2832,121 +2858,6 @@ const FormIds = {
     deicId: "deicref",
     revisions: "revisions",
 };
-
-// Application template parsing
-// =====================================================================================================================
-interface ApplicationSection {
-    title: string;
-    description: string;
-    rows: number;
-    mandatory: boolean;
-    limit?: number;
-}
-
-function parseIntoSections(text: string): ApplicationSection[] {
-    function normalizeTitle(title: string): string {
-        const words = title.split(" ");
-        let builder = "";
-        if (words.length > 0) builder = words[0];
-        for (let i = 1; i < words.length; i++) {
-            builder += " ";
-            const word = words[i];
-            if (word.toUpperCase() === word || word.toLowerCase() === word) {
-                builder += word;
-            } else {
-                builder += word.toLowerCase();
-            }
-        }
-        return builder;
-    }
-
-    const result: ApplicationSection[] = [];
-    const lines = text.split("\n");
-    const sectionSeparators: number[] = [];
-    for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        if (line.startsWith("---") && /-+$/.test(line)) sectionSeparators.push(i);
-    }
-
-    let titles: string[] = [];
-    for (const lineIdx of sectionSeparators) {
-        if (lineIdx > 0) titles.push(lines[lineIdx - 1]);
-    }
-
-    let foundDescriptionBeforeFirstTitle = false;
-    const descriptions: string[] = [];
-    let currentStartLine = 0;
-    for (let i = 0; i <= sectionSeparators.length; i++) {
-        const end = i < sectionSeparators.length ? sectionSeparators[i] - 1 : lines.length;
-        let builder = "";
-        for (let row = currentStartLine; row < end; row++) {
-            builder += lines[row];
-            builder += "\n";
-
-        }
-        builder = builder.trim();
-        if (builder.length > 0) {
-            if (i === 0) foundDescriptionBeforeFirstTitle = true;
-            descriptions.push(builder);
-        } else {
-            if (i !== 0) descriptions.push("");
-        }
-        currentStartLine = end + 2;
-    }
-
-    if (foundDescriptionBeforeFirstTitle) {
-        if (titles.length > 0) titles = ["Introduction", ...titles];
-        else titles = ["Application"];
-    }
-
-    const prefixesWhichSoundMandatory = [
-        "Add a ",
-        "Describe the ",
-        "Provide a ",
-        "Please describe the reason for applying",
-        "Required:"
-    ];
-
-    for (let i = 0; i < titles.length; i++) {
-        const description = descriptions[i] ?? "";
-        const section: ApplicationSection = {
-            title: normalizeTitle(titles[i]),
-            description: description,
-            rows: 3,
-            mandatory: prefixesWhichSoundMandatory.some(it => description.startsWith(it))
-        };
-
-        const limitMatches = section.description.matchAll(/max (\d+) ch/g);
-        while (true) {
-            const match = limitMatches.next();
-            if (match.done) break;
-            section.limit = parseInt(match.value[1]);
-        }
-
-        if (section.title.toLowerCase() === "application") {
-            section.limit = 4000;
-        }
-
-        section.rows = Math.min(15, Math.max(2, Math.floor((section.limit ?? 250) / 50)));
-
-        if (section.title.toLowerCase().indexOf("project title") !== -1) {
-            section.rows = 2;
-        }
-
-        result.push(section);
-    }
-
-    // Move large sections to the end
-    for (let i = 0; i < result.length; i++) {
-        const section = result[i];
-        if ((section.limit ?? 0) > 1000) {
-            result.splice(i, 1);
-            result.push(section);
-        }
-    }
-
-    return result;
-}
 
 // Utility functions
 // =====================================================================================================================
