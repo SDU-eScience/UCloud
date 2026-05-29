@@ -180,20 +180,20 @@ const TemplateForm: React.FunctionComponent<TemplateFormProps> = ({
                 return <>
                     <br />
                     <Flex justifyContent={"space-between"}>
-                        <Label marginBottom={"7px"} style={{ fontWeight: "normal" }} fontSize={"12px"} htmlFor={`title${idx}`}>Name: </Label >
+                        <Label marginBottom={"7px"} fontSize={"12px"} htmlFor={`title${idx}`}>Name</Label >
                         {moveFieldControls(idx, settings.templates.structured[fieldType].length, fieldType)}
                     </Flex>
                     <Input id={`name${idx}`} required value={field.name} onChange={(e) => updateNewProjectField(idx, 'name', e.target.value, fieldType)} >{field.name}</Input>
-                    <Label marginBottom={"7px"} style={{ fontWeight: "normal" }} fontSize={"12px"} htmlFor={`title${idx}`}>Title: </Label >
+                    <Label marginBottom={"7px"} fontSize={"12px"} htmlFor={`title${idx}`}>Title</Label >
                     <Input id={`title${idx}`} required value={field.title} onChange={(e) => updateNewProjectField(idx, 'title', e.target.value, fieldType)} >{field.title}</Input>
                     <Flex justifyContent={"flex-start"}>
-                        <Label marginBottom={"7px"} style={{ fontWeight: "normal" }} fontSize={"12px"} htmlFor={`description${idx}`}>Description: </Label >
+                        <Label marginBottom={"7px"} fontSize={"12px"} htmlFor={`description${idx}`}>Description</Label >
                     </Flex>
                     <TextArea id={`description${idx}`} value={field.description} rows={field.rows ?? 5} onChange={(e) => updateNewProjectField(idx, 'description', e.target.value, fieldType)}>{field.description}</TextArea>
                     <br />
                     <Flex justifyContent={"space-between"}>
                         <span style={{ display: "flex" }}>
-                            <Label cursor="pointer" width="unset" fontSize={"12px"} marginTop={"5px"} htmlFor={`checkbox${idx}`}>Is optional field:</Label>
+                            <Label cursor="pointer" width="unset" fontSize={"12px"} marginTop={"5px"} htmlFor={`checkbox${idx}`}>Optional</Label>
                             <Checkbox size={30} id={`checkbox${idx}`} checked={field.optional} handleWrapperClick={() => updateNewProjectField(idx, 'optional', !field.optional, fieldType)}
                                 onChange={
                                     () => updateNewProjectField(idx, 'optional', field.optional, fieldType)
@@ -218,7 +218,7 @@ const TemplateForm: React.FunctionComponent<TemplateFormProps> = ({
                             }} />
                         </Flex>
                     </Flex>
-                    { settings.templates.structured[fieldType].length > idx + 1 ? <div><br/><hr/></div> : <></> }
+                    { settings.templates.structured[fieldType].length > idx + 1 ? <div><br/><hr style={{border:("solid 1px var(--secondaryDark)")}}/></div> : <></> }
                 </>
             })
         }
