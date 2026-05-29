@@ -1839,9 +1839,7 @@ export function Editor(): React.ReactNode {
                             <TextArea
                                 readOnly
                                 style={{"cursor": "pointer"}}
-                                onClick={() => {
-                                    handleCopy();
-                                }}
+                                onClick={handleCopy}
                                 mr={10}
                                 value={field.answer}
                                 width="545px"

@@ -326,11 +326,11 @@ export const ProjectSettings: React.FunctionComponent = () => {
                             <br/>
                             <Card>
                                 <Flex justifyContent={"space-between"}>
-                                    <Label marginBottom={"7px"} style={{fontWeight: "normal"}} fontSize={"12px"} htmlFor={`title${idx}`}>Name: </Label >
+                                    <Label marginBottom={"7px"} style={{fontWeight: "normal"}} fontSize={"12px"} htmlFor={`title${idx}`}>Name</Label >
                                     {moveFieldControls(idx, settings.templates.structured[fieldType].length, fieldType)}
                                 </Flex>
                                 <Input id={`name${idx}`} required value={field.name} onChange={(e) => updateNewProjectField(idx, 'name', e.target.value, fieldType)} >{field.name}</Input>
-                                <Label marginBottom={"7px"} style={{fontWeight: "normal"}} fontSize={"12px"} htmlFor={`title${idx}`}>Title: </Label >
+                                <Label marginBottom={"7px"} style={{fontWeight: "normal"}} fontSize={"12px"} htmlFor={`title${idx}`}>Title</Label >
                                 <Input id={`title${idx}`} required value={field.title} onChange={(e) => updateNewProjectField(idx, 'title', e.target.value, fieldType)} >{field.title}</Input>
                                 <Flex justifyContent={"flex-start"}>
                                     <Label marginBottom={"7px"} style={{fontWeight: "normal"}} fontSize={"12px"} htmlFor={`description${idx}`}>Description: </Label >
@@ -339,7 +339,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
                                 <br />
                                 <Flex justifyContent={"space-between"}>
                                     <span style={{display:"flex"}}>
-                                        <Label cursor="pointer" width="unset" fontSize={"12px"} style={{fontWeight: "normal"}} marginTop={"5px"} htmlFor={`checkbox${idx}`}>Is optional field:</Label>
+                                        <Label cursor="pointer" width="unset" fontSize={"12px"} style={{fontWeight: "normal"}} marginTop={"5px"} htmlFor={`checkbox${idx}`}>Optional</Label>
                                         <Checkbox size={30} id={`checkbox${idx}`} checked={field.optional} handleWrapperClick={() => updateNewProjectField(idx, 'optional', !field.optional, fieldType)} 
                                             onChange={
                                                 () => updateNewProjectField(idx, 'optional', field.optional, fieldType)
