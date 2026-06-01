@@ -441,12 +441,14 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
         }
     }, []);
 
-    const setLocalProject = opts?.isModal ? async (projectId?: string) => {
+    const setLocalProject = opts?.isModal ? (projectId?: string) => {
         const b = browserRef.current;
         if (b) {
-            b.canConsumeResources = await checkCanConsumeResources(projectId ?? null, {api: JobsApi});
-            activeProject.current = projectId;
-            b.refresh();
+            checkCanConsumeResources(projectId ?? null, {api: JobsApi}).then(canConsume => {
+                b.canConsumeResources = canConsume;
+                activeProject.current = projectId;
+                b.refresh();
+            });
         }
     } : undefined;
 

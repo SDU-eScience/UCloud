@@ -662,7 +662,7 @@ function FileBrowse({
                         // Finding split buttons and grouping them together
                         ops.forEach(op => {
                             if (op.splitButtonGroupId) {
-                                if (!splitButtonGroups.has(op.splitButtonGroupId)){
+                                if (!splitButtonGroups.has(op.splitButtonGroupId)) {
                                     splitButtonGroups.set(op.splitButtonGroupId, [op]);
                                 }
                                 else {
@@ -675,7 +675,7 @@ function FileBrowse({
                         });
 
                         // Creating split buttons
-                        splitButtonGroups.forEach((operations, k)  => {
+                        splitButtonGroups.forEach((operations, k) => {
                             result.push({
                                 color: "secondaryMain",
                                 icon: "ellipsis",
@@ -1565,13 +1565,14 @@ function FileBrowse({
 
         if (opts?.initialPath !== undefined) {
             (async function () {
-                b.canConsumeResources = await checkCanConsumeResources(Client.projectId ?? null, {api: FilesApi});
 
                 if (selectorPathRef.current === "") {
                     clearAndFetchCollections();
                 } else {
                     b.open(selectorPathRef.current);
                 }
+
+                b.canConsumeResources = await checkCanConsumeResources(Client.projectId ?? null, {api: FilesApi});
             })();
         } else {
             const path = getQueryParamOrElse(location.search, "path", "");
