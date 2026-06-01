@@ -154,6 +154,10 @@ const defaultState: EditorState = {
     fullScreenLoading: true,
 };
 
+type OutdatedTextAreaProps = {
+  field: Grants.AnswerFieldForm;
+};
+
 // State reducer
 // =====================================================================================================================
 type EditorAction =
@@ -1825,7 +1829,7 @@ export function Editor(): React.ReactNode {
         dispatchEvent({type: "MarkOutdatedFieldDone", fieldName});
     }, [dispatchEvent]);
 
-    function OutdatedTextArea({ field }) {
+    function OutdatedTextArea({field}: OutdatedTextAreaProps ): React.ReactNode {
 
         const handleCopy = async () => {
             await navigator.clipboard.writeText(field.answer || "");
