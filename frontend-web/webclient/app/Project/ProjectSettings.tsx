@@ -180,7 +180,7 @@ const TemplateForm: React.FunctionComponent<TemplateFormProps> = ({
                 return <>
                     <br />
                     <Flex justifyContent={"space-between"}>
-                        <Label marginBottom={"7px"} fontSize={"12px"} htmlFor={`title${idx}`}>Name</Label >
+                        <Label marginBottom={"7px"} fontSize={"12px"} htmlFor={`name${idx}`}>Name</Label >
                         {moveFieldControls(idx, settings.templates.structured[fieldType].length, fieldType)}
                     </Flex>
                     <Input id={`name${idx}`} required value={field.name} onChange={(e) => updateNewProjectField(idx, 'name', e.target.value, fieldType)} >{field.name}</Input>
