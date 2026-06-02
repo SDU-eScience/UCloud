@@ -207,11 +207,11 @@ const TemplateForm: React.FunctionComponent<TemplateFormProps> = ({
                         <Box width={150}>
                             <Label width={"100%"} fontSize={12}>
                                 Row limit
-                                <Input value={field.rows ?? 5} type="number" onChange={(e) => updateProjectFieldLimits(idx, 'rows', e.target.value, fieldType)}>{field.rows ?? 5}</Input>
+                                <Input value={field.rows} type="number" onChange={(e) => updateProjectFieldLimits(idx, 'rows', e.target.value, fieldType)}>{field.rows}</Input>
                             </Label>
                             <Label width={"100%"} fontSize={12}>
                                 Max length
-                                <Input value={field.maxLength ?? 4000} type="number" onChange={(e) => updateProjectFieldLimits(idx, 'maxLength', e.target.value, fieldType)}>{field.maxLength}</Input>
+                                <Input value={field.maxLength} type="number" onChange={(e) => updateProjectFieldLimits(idx, 'maxLength', e.target.value, fieldType)}>{field.maxLength}</Input>
                             </Label>
                         </Box>
                     </Flex>
