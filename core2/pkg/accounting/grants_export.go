@@ -56,7 +56,6 @@ func GrantsExportBrowse(actor rpc.Actor) []accapi.GrantsExportResponse {
 			startTime := doc.AllocationPeriod.Value.Start.Value
 			endTime := doc.AllocationPeriod.Value.End.Value
 			allocationDuration := endTime.Time().Sub(startTime.Time())
-
 			resources := map[string]int{}
 			for _, request := range doc.AllocationRequests {
 				catKey := fmt.Sprintf("%s/%s", request.Category, request.Provider)
@@ -67,6 +66,11 @@ func GrantsExportBrowse(actor rpc.Actor) []accapi.GrantsExportResponse {
 			titleIsProjectId := doc.Recipient.Type == accapi.RecipientTypeExistingProject
 			if titleIsProjectId {
 				title = grantsExportProjectIdToTitle(title)
+			}
+
+			answerFields := map[string]accapi.AnswerFieldForm{}
+			for _, field := range doc.Form.Fields {
+				answerFields[field.Name] = field
 			}
 
 			result = append(result, accapi.GrantsExportResponse{
@@ -81,6 +85,7 @@ func GrantsExportBrowse(actor rpc.Actor) []accapi.GrantsExportResponse {
 				GrantGiver:       grantsExportProjectIdToTitle(string(actor.Project.Value)),
 				LastUpdatedAt:    item.UpdatedAt,
 				Resources:        resources,
+				AnswerFields:     answerFields,
 			})
 		}
 
@@ -97,9 +102,13 @@ func GrantsExportBrowseToCsv(lines []accapi.GrantsExportResponse) string {
 	s := &strings.Builder{}
 
 	categories := map[string]util.Empty{}
+	fieldsColumns := map[string]util.Empty{}
 	for _, line := range lines {
 		for resource := range line.Resources {
 			categories[resource] = util.Empty{}
+		}
+		for _, field := range line.AnswerFields {
+			fieldsColumns[field.Name] = util.Empty{}
 		}
 	}
 
@@ -107,8 +116,19 @@ func GrantsExportBrowseToCsv(lines []accapi.GrantsExportResponse) string {
 	for item := range categories {
 		categoriesArray = append(categoriesArray, item)
 	}
+
+	var fieldsColumnsArray []string
+	for item := range fieldsColumns {
+		fieldsColumnsArray = append(fieldsColumnsArray, item)
+	}
+
 	s.WriteString("id,title,submitted_by,submitted_at,start,duration_months,state,grant_giver,last_updated_at,")
 	s.WriteString("organization_full_name,department,research_field,position,gender,unit")
+
+	for f := range fieldsColumns {
+		s.WriteString(",")
+		grantsWriteQuotedString(s, f)
+	}
 
 	for _, item := range categoriesArray {
 		catAndProvider := strings.SplitN(item, "/", 2)
@@ -175,6 +195,10 @@ func GrantsExportBrowseToCsv(lines []accapi.GrantsExportResponse) string {
 		grantsWriteQuotedString(s, item.OptionalUserInfo.Gender.GetOrDefault("Unknown"))
 		s.WriteRune(',')
 		grantsWriteQuotedString(s, item.OptionalUserInfo.Unit.GetOrDefault("Unknown"))
+		for name := range fieldsColumns {
+			s.WriteRune(',')
+			grantsWriteQuotedString(s, item.AnswerFields[name].Answer)
+		}
 		for _, category := range categoriesArray {
 			s.WriteRune(',')
 			grantsWriteQuotedString(s, fmt.Sprint(item.Resources[category]))
