@@ -880,6 +880,12 @@ func ResourceUpdate[T any](
 
 			if resc.MarkedForDeletion {
 				delete(b.Resources, id)
+				if resc.ProviderId.Present {
+					providerBucket := resourceGetProvider(resc.BaseSpec.Product.Provider)
+					providerBucket.Mu.Lock()
+					delete(providerBucket.ProviderIds, resc.ProviderId.Value)
+					providerBucket.Mu.Unlock()
+				}
 			}
 		}
 

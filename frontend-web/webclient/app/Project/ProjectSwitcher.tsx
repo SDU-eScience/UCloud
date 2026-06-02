@@ -3,7 +3,7 @@ import {useDispatch} from "react-redux";
 import {bulkRequestOf, displayErrorMessageOrDefault, errorMessageOrDefault, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import {useEffect} from "react";
 import {dispatchSetProjectAction, emitProjects, getStoredProject} from "@/Project/ReduxState";
-import {Flex, Truncate, Text, Icon, Input, Relative, Box, Error, Tooltip, Label} from "@/ui-components";
+import {Flex, Truncate, Icon, Input, Relative, Box, Error, Label} from "@/ui-components";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {callAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {NavigateFunction, useNavigate} from "react-router-dom";
@@ -34,7 +34,7 @@ const CONTEXT_SWITCHER_DEFAULT_FETCH_ARGS: ProjectBrowseParams = {
 
 export const projectCache = new AsyncCache<PageV2<Project>>({globalTtl: 0});
 
-async function fetchProjects(next?: string): Promise<PageV2<Project>> {
+export async function fetchProjects(next?: string): Promise<PageV2<Project>> {
     const result = await callAPI<PageV2<Project>>(ProjectAPI.browse({...CONTEXT_SWITCHER_DEFAULT_FETCH_ARGS, next}));
     if (result.next) {
         const child = await fetchProjects(result.next);

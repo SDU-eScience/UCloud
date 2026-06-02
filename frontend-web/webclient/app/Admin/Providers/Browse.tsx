@@ -12,6 +12,7 @@ import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
 import AppRoutes from "@/Routes";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {Product} from "@/Accounting";
 
 const defaultRetrieveFlags: {itemsPerPage: number} = {
     itemsPerPage: 250,
@@ -133,7 +134,7 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<Provider>}): React.R
                 browser.on("pathToEntry", j => j.id);
                 browser.on("fetchOperationsCallback", () => {
                     const support = {productsByProvider: {}};
-                    const callbacks: ResourceBrowseCallbacks<Provider> = {
+                    const callbacks: ResourceBrowseCallbacks<Provider, Product> = {
                         api: ProvidersApi,
                         navigate: to => navigate(to),
                         commandLoading: false,

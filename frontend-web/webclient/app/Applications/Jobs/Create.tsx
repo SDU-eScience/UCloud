@@ -624,7 +624,7 @@ export const Create: React.FunctionComponent = () => {
                 }
 
                 navigate(`/jobs/properties/${ids[0]?.id}?app=${application.metadata.name}`);
-            } catch (e) {
+            } catch (e: any) {
                 const code = extractErrorCode(e);
                 if (code === 409) {
                     addStandardDialog({

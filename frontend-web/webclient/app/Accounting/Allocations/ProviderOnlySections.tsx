@@ -13,7 +13,7 @@ import {removePrefixFrom} from "@/Utilities/TextUtilities";
 import {callAPI} from "@/Authentication/DataHook";
 import * as Gifts from "@/Accounting/Gifts";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {sendFailureNotification, sendNotification, sendSuccessNotification, SnackType} from "@/Notifications";
+import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
 
 const wayfIdpsPairs = WAYF.wayfIdps.map(it => ({value: it, content: it}));
 
@@ -169,7 +169,7 @@ export const GiftSection: React.FunctionComponent<{
             gift.id = id;
             dispatchEvent({type: "GiftCreated", gift});
             sendSuccessNotification("Gift Created");
-        } catch (e) {
+        } catch (e: any) {
             sendFailureNotification("Failed to create a gift: " + extractErrorMessage(e));
         } finally {
             creatingGift.current = false;
@@ -183,7 +183,7 @@ export const GiftSection: React.FunctionComponent<{
 
         try {
             await callAPI(Gifts.remove({giftId: id}));
-        } catch (e) {
+        } catch (e: any) {
             sendFailureNotification("Failed to delete gift: " + extractErrorMessage(e));
             return;
         }
@@ -216,59 +216,59 @@ export const GiftSection: React.FunctionComponent<{
                             >
                                 <table className={giftClass}>
                                     <tbody>
-                                    <tr>
-                                        <th>Description</th>
-                                        <td>{g.description}</td>
-                                    </tr>
-                                    <tr>
-                                        <th>Criteria</th>
-                                        <td>
-                                            <ul>
-                                                {g.criteria.map(c => {
-                                                    switch (c.type) {
-                                                        case "anyone":
-                                                            return <li key={c.type}>All UCloud users</li>
-                                                        case "wayf":
-                                                            return <li key={c.org + "wayf"}>Users
-                                                                from <i>{c.org}</i></li>
-                                                        case "email":
-                                                            return <li key={c.domain + "email"}>@{c.domain}</li>
-                                                    }
-                                                })}
-                                            </ul>
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <th>Resources</th>
-                                        <td>
-                                            <ul>
-                                                {g.resources.map((r, idx) => {
-                                                    const pc = (state.remoteData.managedProducts ?? {})[r.provider]?.find(it => it.name === r.category);
-                                                    if (!pc) return null;
-                                                    return <li key={idx}>
-                                                        {r.category} / {r.provider}: {Accounting.balanceToString(pc, r.balanceRequested)}
-                                                    </li>
-                                                })}
-                                            </ul>
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <th>Granted</th>
-                                        <td>
-                                            {g.renewEvery == 0 ? "Once" : (g.renewEvery == 1 ? "Every month" : "Every " + g.renewEvery.toString() + " months")}
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <th>Delete</th>
-                                        <td>
-                                            <ConfirmationButton
-                                                actionText={"Delete"}
-                                                icon={"heroTrash"}
-                                                onAction={onDeleteGift}
-                                                actionKey={g.id.toString()}
-                                            />
-                                        </td>
-                                    </tr>
+                                        <tr>
+                                            <th>Description</th>
+                                            <td>{g.description}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Criteria</th>
+                                            <td>
+                                                <ul>
+                                                    {g.criteria.map(c => {
+                                                        switch (c.type) {
+                                                            case "anyone":
+                                                                return <li key={c.type}>All UCloud users</li>
+                                                            case "wayf":
+                                                                return <li key={c.org + "wayf"}>Users
+                                                                    from <i>{c.org}</i></li>
+                                                            case "email":
+                                                                return <li key={c.domain + "email"}>@{c.domain}</li>
+                                                        }
+                                                    })}
+                                                </ul>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th>Resources</th>
+                                            <td>
+                                                <ul>
+                                                    {g.resources.map((r, idx) => {
+                                                        const pc = (state.remoteData.managedProducts ?? {})[r.provider]?.find(it => it.name === r.category);
+                                                        if (!pc) return null;
+                                                        return <li key={idx}>
+                                                            {r.category} / {r.provider}: {Accounting.balanceToString(pc, r.balanceRequested)}
+                                                        </li>
+                                                    })}
+                                                </ul>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th>Granted</th>
+                                            <td>
+                                                {g.renewEvery == 0 ? "Once" : (g.renewEvery == 1 ? "Every month" : "Every " + g.renewEvery.toString() + " months")}
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th>Delete</th>
+                                            <td>
+                                                <ConfirmationButton
+                                                    actionText={"Delete"}
+                                                    icon={"heroTrash"}
+                                                    onAction={onDeleteGift}
+                                                    actionKey={g.id.toString()}
+                                                />
+                                            </td>
+                                        </tr>
                                     </tbody>
                                 </table>
                             </TreeNode>
@@ -282,7 +282,7 @@ export const GiftSection: React.FunctionComponent<{
                     <form onSubmit={onCreateGift}>
                         <Flex gap={"8px"} flexDirection={"column"}>
                             <Label>
-                                Title <MandatoryField/>
+                                Title <MandatoryField />
                                 <Input
                                     name={"gift-title"}
                                     value={state.gifts.title}
@@ -303,7 +303,7 @@ export const GiftSection: React.FunctionComponent<{
                                 />
                             </Label>
                             <Label>
-                                Is this gift periodically renewed or a one-time grant? <MandatoryField/>
+                                Is this gift periodically renewed or a one-time grant? <MandatoryField />
                                 <Select
                                     name={"gift-renewal"}
                                     slim
@@ -345,7 +345,7 @@ export const GiftSection: React.FunctionComponent<{
                                             key={cat.name + cat.provider}
                                             left={<Flex gap={"4px"}>
                                                 <Icon name={Accounting.productTypeToIcon(cat.productType)}
-                                                      size={20}/>
+                                                    size={20} />
                                                 <code>{cat.name} / {cat.provider}</code>
                                             </Flex>}
                                             right={<Flex gap={"4px"}>
@@ -370,7 +370,7 @@ export const GiftSection: React.FunctionComponent<{
                 </TreeNode>
             </Tree>
 
-            <Box mt={32}/>
+            <Box mt={32} />
         </>}
     </>
 }
@@ -456,7 +456,7 @@ export const RootAllocationSections: React.FunctionComponent<{
             sendSuccessNotification("Root allocation has been created");
             dispatchEvent({type: "ResetRootAllocation"});
             dispatchEvent({type: "Init"});
-        } catch (e) {
+        } catch (e: any) {
             sendFailureNotification("Failed to create root allocation: " + extractErrorMessage(e));
             return;
         } finally {
@@ -501,7 +501,7 @@ export const RootAllocationSections: React.FunctionComponent<{
                                 {page.map(cat => <TreeNode
                                     key={cat.name + cat.provider}
                                     left={<Flex gap={"4px"}>
-                                        <Icon name={Accounting.productTypeToIcon(cat.productType)} size={20}/>
+                                        <Icon name={Accounting.productTypeToIcon(cat.productType)} size={20} />
                                         <code>{cat.name} / {cat.provider}</code>
                                     </Flex>}
                                     right={<Flex gap={"4px"}>
@@ -523,7 +523,7 @@ export const RootAllocationSections: React.FunctionComponent<{
                 </TreeNode>
             </Tree>
 
-            <Box mt={32}/>
+            <Box mt={32} />
         </>}
     </>;
 }

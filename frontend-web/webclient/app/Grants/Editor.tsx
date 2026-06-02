@@ -1550,7 +1550,7 @@ export function Editor(): React.ReactNode {
         dispatchEvent({type: "Unlock"});
     }, [dispatchEvent]);
 
-    const onWithdraw = useCallback(() => {
+    const onWithdraw = useCallback(async () => {
         if (!state.stateDuringEdit) return;
         dispatchEvent({type: "Withdraw", id: state.stateDuringEdit.id});
     }, [dispatchEvent, state.stateDuringEdit?.id]);
@@ -1610,7 +1610,7 @@ export function Editor(): React.ReactNode {
         }
     }, [state, dispatchEvent, missingUserInfo]);
 
-    const onDiscard = useCallback(() => {
+    const onDiscard = useCallback(async () => {
         const id = state.stateDuringEdit?.id;
         if (!id) return;
         dispatchEvent({type: "Init", grantId: id});
@@ -2744,11 +2744,11 @@ const GrantGiver: React.FunctionComponent<{
 
     const isAdmin = props.adminOfProjects.some(it => it.id === props.projectId)
 
-    const onApprove = useCallback(() => {
+    const onApprove = useCallback(async () => {
         props.onStateChange(props.projectId, true);
     }, [props.onStateChange, props.projectId]);
 
-    const onReject = useCallback(() => {
+    const onReject = useCallback(async () => {
         props.onStateChange(props.projectId, false);
     }, [props.onStateChange, props.projectId]);
 

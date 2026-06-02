@@ -1,6 +1,6 @@
 import {Client} from "@/Authentication/HttpClientInstance";
 import {MainContainer} from "@/ui-components/MainContainer";
-import {setLoading, usePage} from "@/Navigation/Redux";
+import {setStatusLoading, usePage} from "@/Navigation/Redux";
 import * as React from "react";
 import {useDispatch, useSelector} from "react-redux";
 import {Box, Flex} from "@/ui-components";
@@ -25,7 +25,7 @@ function UserSettings(): React.ReactNode {
     const dispatch = useDispatch();
 
     const setHeaderLoading = React.useCallback((loading: boolean) => {
-        dispatch(setLoading(loading));
+        dispatch(setStatusLoading(loading));
     }, [dispatch]);
 
     const mustActivate2fa =
@@ -57,12 +57,12 @@ function UserSettings(): React.ReactNode {
                     header={<Heading.h1>User settings</Heading.h1>}
                     main={(
                         <Flex gap={"24px"} flexDirection={"column"}>
-                            <SettingsNavigator sections={sections}/>
+                            <SettingsNavigator sections={sections} />
 
                             {mustActivate2fa ? twoFactorSetup : (
                                 <>
-                                    <ChangeUserDetails/>
-                                    <ChangeOrganizationDetails/>
+                                    <ChangeUserDetails />
+                                    <ChangeOrganizationDetails />
                                     <ChangeEmailSettings
                                         setLoading={setHeaderLoading}
                                     />
@@ -83,7 +83,7 @@ function UserSettings(): React.ReactNode {
                                         setLoading={setHeaderLoading}
                                         setRefresh={fn => refreshFunctionCache.setRefreshFunction(fn ?? (() => undefined))}
                                     />
-                                    <CustomTheming/>
+                                    <CustomTheming />
                                 </>
                             )}
 

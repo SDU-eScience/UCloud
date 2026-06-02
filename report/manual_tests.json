@@ -1,0 +1,111 @@
+{
+    "comments": [
+        "Verified by the UCloud team through established manual procedures."
+    ],
+    "title_da": "UCloud testrapport",
+    "subtitle_da": "Formel validering af service",
+    "title_en": "UCloud Test Report",
+    "subtitle_en": "Formal software test validation",
+    "tests": [
+        {
+            "requirement": "k9-1",
+            "comment_en": "We are continuously collecting information about the health of all machines. This information is collected from the Redfish API of the management controller and stored in our metrics database. All machines are reported as healthy.",
+            "status": "ok"
+        },
+        {
+            "requirement": "k9-2",
+            "comment_en": "We confirm that all network switches (both ethernet and infiniband) are fully operational and without system errors. We also confirm that all ports are working at nominal speed.",
+            "status": "ok"
+        },
+        {
+            "requirement": "k9-3",
+            "comment_en": "Our metrics database also contains information about the speed for all connected interfaces and we confirm that all interfaces are up and active with the expected speed. On the compute nodes the speed is 400 Gbps for infiniband links and 100 Gbps for ethernet links.",
+            "status": "ok"
+        },
+        {
+            "requirement": "k9-4",
+            "comment_en": "The internet connection is functional and operating at 100 Gbps. We have confirmed via speed tests that the full bandwidth is available for use. The connecting is a directly line to the data center at SDU campus in Odense, from which the system is connected to the rest of the research network.",
+            "status": "ok"
+        },
+        {
+            "requirement": "k10-1",
+            "comment_en": "All machines are running AlmaLinux 10.1 and all components are working. We confirm that all relevant system services are running and all the hardware is supported by the Linux kernel.",
+            "status": "ok"
+        },
+        {
+            "requirement": "k10-2",
+            "comment_en": "The core services on the managment servers are all working, such as:\n\n* chrony (time synchronization)\n* dnsmasq (dhcp, tftp, pxe boot)\n* freeipa (authorization and identity management)\n* opensm (infiniband subnet manager)",
+            "status": "ok"
+        },
+        {
+            "requirement": "k10-3",
+            "comment_en": "Aside from the OS components, on all compute nodes we confirm that infiniband drivers (OFED 3.2) and nvidia drivers (595.58.03, cuda 13.2) are working. We also confirm that services for the Weka filsystem and the Kubernetes cluster are operational.",
+            "status": "ok"
+        },
+        {
+            "requirement": "k10-4",
+            "comment_en": "From the metrics database we can confirm that all nodes and all deployments are reported as `Ready`.",
+            "status": "ok"
+        },
+        {
+            "requirement": "k10-5",
+            "comment_en": "From the metrics database we can confirm that Cilium (the Kubernetes CNI plugin) reports full connectivity between all nodes in the cluster.",
+            "status": "ok"
+        },
+        {
+            "requirement": "k11-1",
+            "comment_en": "The Weka storage is reported as healthy without any alerts.",
+            "status": "ok"
+        },
+        {
+            "requirement": "k11-2",
+            "comment_en": "All clients are connected to the storage system and benchmarks have confirmed that we are largely able to saturate the 400 Gbps line speed between the client and the backend nodes.",
+            "status": "ok"
+        },
+        {
+            "requirement": "k11-3",
+            "comment_en": "All clients in the Kubernetes cluster are connected to the storage system and storage is accessible from within UCloud jobs.",
+            "status": "ok"
+        },
+        {
+            "requirement": "k12-1",
+            "name": "K12-1",
+            "status": "ok",
+            "context": "manual",
+            "comment_en": "\nThe following components were deployed and in a healthy state and the time of the deployment:\n\n- UCloud/Core\n- UCloud/IM\n- All required databases (PostgreSQL)\n  - Note: A recent software upgrade has removed the need for a Redis and ElasticSearch deployment",
+            "comment_da": ""
+        },
+        {
+            "requirement": "k12-2",
+            "name": "K12-2",
+            "status": "ok",
+            "context": "manual",
+            "comment_en": "\nThe following UCloud API endpoints were checked and are considered healthy. A representative sample of endpoints was\nselected from the service:\n\n- Read endpoints responded within 100ms\n  - Foundation:\n    - `avatar.find`: P50: 1.42ms, P75: 1.7ms, P95: 2.29 ms. No errors.\n    - `projects.v2.browse`: P50: 443µs, P75: 519µs, P95: 1.04ms. No errors.\n    - `auth.lookupUser`: P50: 2.41ms, P75: 2.73ms, P95: 3.26ms. No errors.\n  - Accounting:\n    - `accounting.v2.browseWallets`: P50: 677 µs, P75: 7.8ms, P95: 34.4ms. No errors.\n    - `accounting.v2.findRelevantProviders`: P50: 7ms, P75: 31.2ms, P95: 43.3ms. No errors.\n  - Orchestrator:\n    - `files.collections.browse`: P50: 562µs, P75: 5.83ms, P95: 8.26ms. No errors.\n    - `ingresses.browse`: P50: 572µs, P75: 644µs, P95: 2.48ms. No errors.\n    - `files.retrieve`: P50: 10.5ms, P75: 12.8ms, P95: 24.5ms. No errors.\n    - `files.browse`: P50: 12.2ms, P75: 30.1ms, P95: 59.4ms. No errors.\n    - `jobs.browse`: P50: 20.7ms, P75: 22.3ms, P95: 30.6ms. No errors.\n    - `jobs.control.browseSshKeys`: P50: 7.75ms, P75: 9.11ms, P95: 9.92ms. No errors.\n    - `jobs.control.update`: P50: 4.39ms, P75: 5.20ms, P95: 8.39ms. No errors.\n- Write endpoints responded within 500ms:\n  - Foundation:\n    - `auth.refreshWeb`: P50: 8.69ms, P75: 11.6ms, P95: 15.4ms. No errors.\n  - Accounting:\n    - `accounting.v2.reportUsage`: P50: 41.1ms, P75: 54.0 ms, P95: 71.3ms. No errors.\n  - Orchestrator:\n    - `shares.create`: P50: 53.1ms, P75: 247ms, P95: 403ms. No errors.\n    - `jobs.create`: P50: 42.4msP75: 46.7ms, P95: 54.8ms. No errors.\n    - `jobs.terminate`: P50: 37.0ms, P75: 40.7ms, P95: 56.9ms. No errors.\n    - `jobs.extend`: P50: 31.9ms, P75: 37.9ms, P95: 48.3ms. No errors.\n    - `files.collections.delete`: p50: 34.3ms, P75: 70.6ms, P95: 85.8ms. No errors.\n    - `files.copy`: P50: 35.9ms, P75: 47.8ms, P95: 63.9ms. No errors.\n    - `ingresses.create`: P50 23.3ms, P75: 26.2ms, P95: 60.1ms. No errors.\n\nThe slowest endpoint in the system was measured to be `grants.v2.updateState` (a non-critical, write endpoint). It was\nmeasured at: P50: 157ms, P75: 166ms, P95: 601ms, avg 197ms and with no errors reported.",
+            "comment_da": ""
+        },
+        {
+            "requirement": "Files - transfer works",
+            "name": "k13-4",
+            "status": "ok",
+            "context": "manual",
+            "comment_da": "",
+            "comment_en": "File transfers are tested by having a folder with a text file and a media file. The contents of the files are checked, and the transfer process to a drive from a different provider is started. During the transfer, we ensure a task has appeared in the task window. After the task has completed, we access the folder and check the contents match what we expect from earlier. A video of the process is available upon request."
+        },
+        {
+            "requirement": "Public IPs - check public IPs work",
+            "name": "k13-16",
+            "status": "ok",
+            "context": "manual",
+            "comment_da": "",
+            "comment_en": "Public IP addresses are tested by starting an application with an associated IP, with port 8000 open via TCP. With the application running, an HTTP server is started, which is accesssed both through browser and terminal, showing that the server is responding via the associated IP address. The application is then stopped, showing the server is no longer responding, as expected. A video of the process is available upon request."
+        },
+        {
+            "requirement": "Sensitive data projects are isolated",
+            "name": "k13-18",
+            "status": "ok",
+            "context": "manual",
+            "comment_da": "",
+            "comment_en": "'Sensitive data projects are isolated' is tested manually in the contexts 'Project Admin', 'Project User' and 'Project PI', skipping Personal Workspace, as it is not applicable. The test consist showing that downloading files is disabled, that public links will prevent a job from starting and that internet connection from the app's interfaces is disabled. A video of the process is available upon request."
+        }
+    ]
+}
