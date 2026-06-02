@@ -10,7 +10,8 @@ import {
     TextArea,
     DataList,
     Icon,
-    Card
+    Card,
+    Tooltip
 } from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {addStandardDialog, ConfirmCancelButtons} from "@/UtilityComponents";
@@ -102,6 +103,7 @@ interface TemplateFormProps {
     setSettings: React.Dispatch<React.SetStateAction<Grants.RequestSettings>>;
     updateNewProjectField: (idx: number, fieldName: string, value: any, fieldType: string) => void;
     removeNewProjectField: (idx: number, fieldType: string) => void;
+    updateProjectFieldLimits: (idx: number, fieldName: string, value: any, fieldType: string) => void;
 }
 
 const TemplateForm: React.FunctionComponent<TemplateFormProps> = ({
@@ -111,6 +113,7 @@ const TemplateForm: React.FunctionComponent<TemplateFormProps> = ({
     setSettings,
     updateNewProjectField,
     removeNewProjectField,
+    updateProjectFieldLimits,
 }) => {
     const moveFieldControls = (idx: number, numberOfFields: number, fieldType: string) => {
         const move = (direction: "up" | "down") => {
@@ -143,7 +146,7 @@ const TemplateForm: React.FunctionComponent<TemplateFormProps> = ({
         };
 
         return <Flex>
-            {idx === 0 ? <></> : <Icon cursor="pointer" marginRight={10} size={20} name={"heroArrowUp"} onClick={() => {
+            {idx === 0 ? <></> : <Icon cursor="pointer" mr={10} size={20} name={"heroArrowUp"} onClick={() => {
                 move("up");
 
             }}></Icon>}
@@ -179,28 +182,51 @@ const TemplateForm: React.FunctionComponent<TemplateFormProps> = ({
             settings.templates.structured[fieldType].map(function (field: Grants.FormField, idx: number) {
                 return <>
                     <br />
-                    <Flex justifyContent={"space-between"}>
-                        <Label marginBottom={"7px"} fontSize={"12px"} htmlFor={`name${idx}`}>Name</Label >
+                    <Flex justifyContent={"end"}>
                         {moveFieldControls(idx, settings.templates.structured[fieldType].length, fieldType)}
                     </Flex>
-                    <Input id={`name${idx}`} required value={field.name} onChange={(e) => updateNewProjectField(idx, 'name', e.target.value, fieldType)} >{field.name}</Input>
-                    <Label marginBottom={"7px"} fontSize={"12px"} htmlFor={`title${idx}`}>Title</Label >
-                    <Input id={`title${idx}`} required value={field.title} onChange={(e) => updateNewProjectField(idx, 'title', e.target.value, fieldType)} >{field.title}</Input>
-                    <Flex justifyContent={"flex-start"}>
-                        <Label marginBottom={"7px"} fontSize={"12px"} htmlFor={`description${idx}`}>Description</Label >
+                    <Flex gap="20px" justifyContent={"space-evenly"}>
+                        <Label fontSize={12}>
+                            Name
+                            <Tooltip trigger={(
+                                <Input id={field.name + idx} required value={field.name} onChange={(e) => updateNewProjectField(idx, 'name', e.target.value, fieldType)} >{field.name}</Input>
+                            )}>
+                                This identifier remains stable and is used to associate fields with grant applications.
+                            </Tooltip>
+                        </Label>
+                        <Label fontSize={12}>
+                            Title
+                            <Input id={field.title+idx} required value={field.title} onChange={(e) => updateNewProjectField(idx, 'title', e.target.value, fieldType)} >{field.title}</Input>
+                        </Label>
                     </Flex>
-                    <TextArea id={`description${idx}`} value={field.description} rows={field.rows ?? 5} onChange={(e) => updateNewProjectField(idx, 'description', e.target.value, fieldType)}>{field.description}</TextArea>
+                    <Flex gap="20px" justifyContent={"space-between"}>
+                        <Label width={"100%"} fontSize={12}>
+                            Description
+                            <TextArea width={"100%"} value={field.description} rows={5} onChange={(e) => updateNewProjectField(idx, 'description', e.target.value, fieldType)}>{field.description}</TextArea>
+                        </Label>
+                        <Box width={150}>
+                            <Label width={"100%"} fontSize={12}>
+                                Row limit
+                                <Input value={field.rows ?? 5} type="number" onChange={(e) => updateProjectFieldLimits(idx, 'rows', e.target.value, fieldType)}>{field.rows ?? 5}</Input>
+                            </Label>
+                            <Label width={"100%"} fontSize={12}>
+                                Max length
+                                <Input value={field.maxLength ?? 4000} type="number" onChange={(e) => updateProjectFieldLimits(idx, 'maxLength', e.target.value, fieldType)}>{field.maxLength}</Input>
+                            </Label>
+                        </Box>
+                    </Flex>
                     <br />
                     <Flex justifyContent={"space-between"}>
                         <span style={{ display: "flex" }}>
                             <Label cursor="pointer" width="unset" fontSize={"12px"} marginTop={"5px"}>
-                                Optional
                                 <Checkbox size={30} checked={field.optional} onChange={()=>updateNewProjectField(idx, 'optional', !field.optional, fieldType)}>
                                 </Checkbox>
+                                Optional
                             </Label>
                         </span>
                         <Flex justifyContent={"flex-end"}>
-                            <Icon size={20} marginRight={"12px"} color={"errorMain"} name={"trash"} cursor={"pointer"} onClick={() => {
+                            <Button mr={"12px"} color={"errorMain"} cursor={"pointer"} onClick={(e) => {
+                                e.preventDefault();
                                 const title = settings.templates.structured[fieldType][idx].title;
                                 const description = settings.templates.structured[fieldType][idx].description;
                                 if (title === "" && description === "") {
@@ -214,7 +240,7 @@ const TemplateForm: React.FunctionComponent<TemplateFormProps> = ({
                                         removeNewProjectField(idx, fieldType);
                                     }
                                 })
-                            }} />
+                            }} ><Icon mr={10} name="trash"/>Remove field</Button>
                         </Flex>
                     </Flex>
                     { settings.templates.structured[fieldType].length > idx + 1 ? <div><br/><hr style={{border:("solid 1px var(--secondaryDark)")}}/></div> : <></> }
@@ -318,6 +344,13 @@ export const ProjectSettings: React.FunctionComponent = () => {
                 excludeRequestsFrom,
             }
         });
+    }, []);
+
+    const updateProjectFieldLimits = useCallback((idx: number, fieldName: string, value: any, fieldType: string) => {
+        let parsedValue = value;
+        parsedValue = value === "" ? undefined : Number(value);
+
+        return updateNewProjectField(idx, fieldName, parsedValue, fieldType);
     }, []);
 
     const updateNewProjectField = useCallback((idx: number, fieldName: string, value: any, fieldType: string) => {
@@ -458,6 +491,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
                             setSettings={setSettings}
                             updateNewProjectField={updateNewProjectField}
                             removeNewProjectField={removeNewProjectField}
+                            updateProjectFieldLimits={updateProjectFieldLimits}
                         />
                         <br />
                         <TemplateForm
@@ -467,6 +501,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
                             setSettings={setSettings}
                             updateNewProjectField={updateNewProjectField}
                             removeNewProjectField={removeNewProjectField}
+                            updateProjectFieldLimits={updateProjectFieldLimits}
                         />
                         <br />
                         <TemplateForm
@@ -476,11 +511,12 @@ export const ProjectSettings: React.FunctionComponent = () => {
                             setSettings={setSettings}
                             updateNewProjectField={updateNewProjectField}
                             removeNewProjectField={removeNewProjectField}
+                            updateProjectFieldLimits={updateProjectFieldLimits}
                         />
                         {settings.enabled && <>
                             <Flex flexDirection={"row"} gap={"32px"}>
                                 <div>
-                                    <label style={{marginBottom: "16px"}}>Allow applications from</label>
+                                    <Label mb={16}>Allow applications from</Label>
                                     <UserCriteriaEditor
                                         criteria={settings.allowRequestsFrom}
                                         onSubmit={onAllowAdd}
