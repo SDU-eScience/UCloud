@@ -656,7 +656,7 @@ export interface ToggleSubProjectsRenamingRequest {
     projectId: string;
 }
 
-export const UserCriteriaEditor: React.FunctionComponent<{
+const UserCriteriaEditor: React.FunctionComponent<{
     onSubmit: (c: Grants.UserCriteria, projectId: string) => any,
     onRemove: (idx: number, projectId: string) => any,
     criteria: Grants.UserCriteria[],
@@ -732,6 +732,46 @@ export const UserCriteriaEditor: React.FunctionComponent<{
                 null
             }
         </Flex>
+    </>;
+};
+
+
+export const UserCriteriaEditorReadOnly: React.FunctionComponent<{
+    criteria: Grants.UserCriteria[],
+    projectId: string,
+    isExclusion: boolean;
+}> = props => {
+    const [showRequestFromEditor, setShowRequestFromEditor] = useState<boolean>(false);
+    return <>
+        <Table mb={16}>
+            <thead>
+                <TableRow>
+                    <TableHeaderCell textAlign={"left"}>Type</TableHeaderCell>
+                    <TableHeaderCell textAlign={"left"}>Constraint</TableHeaderCell>
+                    <TableHeaderCell />
+                </TableRow>
+            </thead>
+            <tbody>
+                {props.criteria.length === 0 && !showRequestFromEditor ? <>
+                    <TableRow>
+                        <TableCell>No one</TableCell>
+                        <TableCell>None</TableCell>
+                        <TableCell />
+                    </TableRow>
+                </> : null}
+
+                {props.criteria.map((it, idx) =>
+                    <TableRow key={keyFromCriteria(it)}>
+                        <TableCell textAlign={"left"}>{userCriteriaTypePrettifier(it.type)}</TableCell>
+                        <TableCell textAlign={"left"}>
+                            {it.type === "wayf" ? it.org : null}
+                            {it.type === "email" ? it.domain : null}
+                            {it.type === "anyone" ? "None" : null}
+                        </TableCell>
+                    </TableRow>
+                )}
+            </tbody>
+        </Table>
     </>;
 };
 

@@ -10,10 +10,8 @@ import HexSpin from "@/LoadingIcon/LoadingIcon";
 import {Tree, TreeNode} from "@/ui-components/Tree";
 import {yourAllocationsStyle} from "@/Accounting/Allocations/CommonSections";
 import {ProjectTitleForNewCore} from "@/Project/InfoCache";
-import {auth, FindByStringId} from "@/UCloud";
-import refresh = auth.refresh;
 import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
-import {UserCriteriaEditor} from "@/Project/ProjectSettings";
+import {UserCriteriaEditorReadOnly} from "@/Project/ProjectSettings";
 
 function ManageProjects(): React.ReactNode {
     usePage("Manage projects", SidebarTabId.ADMIN);
@@ -36,161 +34,6 @@ function ManageProjects(): React.ReactNode {
         projectId: "",
         settings: defaultSetting
     }]);
-
-    function isAlreadyCriteria(list: Grants.UserCriteria[], criteria: Grants.UserCriteria): boolean {
-        let isSame = false
-        for (let listedCriteria of list) {
-            switch (listedCriteria.type) {
-                case "anyone": {
-                    if (criteria.type == listedCriteria.type) {
-                        isSame = true;
-                    }
-                    break;
-                }
-                case "email": {
-                    if (criteria.type == listedCriteria.type) {
-                        if (criteria.domain == listedCriteria.domain) {
-                            isSame = true;
-                        }
-                    }
-                    break;
-                }
-                case "wayf": {
-                    if (criteria.type == listedCriteria.type) {
-                        if (criteria.org == listedCriteria.org) {
-                            isSame = true;
-                        }
-                    }
-                    break;
-                }
-            }
-            if (isSame) {
-                break;
-            }
-        }
-        return isSame
-    }
-
-    const onAllowAdd = useCallback((criteria: Grants.UserCriteria, projectId: string) => {
-        const settingIndex = settings.findIndex(it => it.projectId == projectId)
-        let newSetting: Grants.ProjectToSetting
-        if (settingIndex == -1) {
-            newSetting = {
-                projectId: projectId,
-                settings: {
-                    ...defaultSetting,
-                    enabled: true,
-                    allowRequestsFrom: [...defaultSetting.allowRequestsFrom, criteria],
-                }
-            };
-            settings.push(newSetting);
-        } else {
-            const previousSetting = settings[settingIndex].settings;
-            if (isAlreadyCriteria(previousSetting.allowRequestsFrom, criteria)) {
-                return;
-            } else {
-                newSetting = {
-                    projectId: projectId,
-                    settings: {
-                        ...previousSetting,
-                        allowRequestsFrom: [...previousSetting.allowRequestsFrom, criteria]
-                    }
-                }
-                settings[settingIndex] = newSetting;
-            }
-        }
-        sendSettingUpdate(newSetting);
-    }, [settings]);
-
-    const onAllowRemove = useCallback((idx: number, projectId: string) => {
-        const settingIndex = settings.findIndex(it => it.projectId == projectId)
-        let newSetting: Grants.ProjectToSetting
-        if (settingIndex == -1) {
-            newSetting = {
-                projectId: projectId,
-                settings: {
-                    ...defaultSetting,
-                    enabled: true,
-                    allowRequestsFrom: [...defaultSetting.allowRequestsFrom],
-                }
-            };
-            settings.push(newSetting);
-        } else {
-            const previousSetting = settings[settingIndex].settings;
-            const allowRequestsFrom = [...previousSetting.allowRequestsFrom];
-            allowRequestsFrom.splice(idx, 1);
-            newSetting = {
-                projectId: projectId,
-                settings: {
-                    ...previousSetting,
-                    allowRequestsFrom
-                }
-            }
-        }
-        settings[settingIndex] = newSetting;
-        sendSettingUpdate(newSetting);
-    }, [settings]);
-
-
-    const onExcludeAdd = useCallback((criteria: Grants.UserCriteria, projectId: string) => {
-        const settingIndex = settings.findIndex(it => it.projectId == projectId)
-        let newSetting: Grants.ProjectToSetting
-        if (settingIndex == -1) {
-            newSetting = {
-                projectId: projectId,
-                settings: {
-                    ...defaultSetting,
-                    enabled: true,
-                    excludeRequestsFrom: [...defaultSetting.excludeRequestsFrom, criteria],
-                }
-            };
-            settings.push(newSetting);
-        } else {
-            const previousSetting = settings[settingIndex].settings;
-            if (isAlreadyCriteria(previousSetting.excludeRequestsFrom, criteria)) {
-                return;
-            } else {
-                newSetting = {
-                    projectId: projectId,
-                    settings: {
-                        ...previousSetting,
-                        excludeRequestsFrom: [...previousSetting.excludeRequestsFrom, criteria]
-                    }
-                }
-            }
-            settings[settingIndex] = newSetting;
-        }
-        sendSettingUpdate(newSetting);
-    }, [settings]);
-
-    const onExcludeRemove = useCallback((idx: number, projectId: string) => {
-        const settingIndex = settings.findIndex(it => it.projectId == projectId)
-        let newSetting: Grants.ProjectToSetting
-        if (settingIndex == -1) {
-            newSetting = {
-                projectId: projectId,
-                settings: {
-                    ...defaultSetting,
-                    enabled: true,
-                    allowRequestsFrom: [...defaultSetting.excludeRequestsFrom],
-                }
-            };
-            settings.push(newSetting);
-        } else {
-            const previousSetting = settings[settingIndex].settings;
-            const excludeRequestsFrom = [...previousSetting.excludeRequestsFrom];
-            excludeRequestsFrom.splice(idx, 1);
-            newSetting = {
-                projectId: projectId,
-                settings: {
-                    ...previousSetting,
-                    excludeRequestsFrom
-                }
-            }
-        }
-        settings[settingIndex] = newSetting;
-        sendSettingUpdate(newSetting);
-    }, [settings]);
 
     const projectIdRef = React.useRef<HTMLInputElement>(null);
 
@@ -317,25 +160,19 @@ function ManageProjects(): React.ReactNode {
                                         >
                                             <div>
                                                 <label style={{marginBottom: "16px"}}>Allow applications from</label>
-                                                <UserCriteriaEditor
+                                                <UserCriteriaEditorReadOnly
                                                     criteria={projectToSetting.settings.allowRequestsFrom}
                                                     projectId={projectToSetting.projectId}
-                                                    onSubmit={onAllowAdd}
                                                     isExclusion={false}
-                                                    onRemove={onAllowRemove}
-                                                    showSubprojects={projectToSetting.settings.enabled}
                                                 />
                                             </div>
 
                                             <div>
                                                 <label>Exclude applications from</label>
-                                                <UserCriteriaEditor
+                                                <UserCriteriaEditorReadOnly
                                                     criteria={projectToSetting.settings.excludeRequestsFrom}
                                                     projectId={projectToSetting.projectId}
-                                                    onSubmit={onExcludeAdd}
                                                     isExclusion={true}
-                                                    onRemove={onExcludeRemove}
-                                                    showSubprojects={false}
                                                 />
                                             </div>
                                         </TreeNode>
