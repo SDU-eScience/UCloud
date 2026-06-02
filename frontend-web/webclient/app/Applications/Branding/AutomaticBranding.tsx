@@ -42,7 +42,9 @@ const brandingSlice = createSlice({
     initialState: initBranding(),
     reducers: {
         addBranding(state, action: PayloadAction<BrandingResponse>) {
-            state = action.payload;
+            for (const key of Object.keys(action.payload)) {
+                state[key] = action.payload[key];
+            }
         }
     }
 })

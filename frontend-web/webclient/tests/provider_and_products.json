@@ -1,0 +1,68 @@
+[
+    {
+        "location_origin": "https://ucloud.localhost.direct",
+        "provider_used_in_tests": "Provider K8s",
+        "products_used_in_tests": {
+            "compute": "u1-standard",
+            "storage": "storage",
+            "license": "test-license",
+            "public_link": "public-links",
+            "private_network": "private-network",
+            "public_ip": "public-ip"
+        },
+        "drive_provider": "IM2/K8s",
+        "machine_used_in_tests": "u1-standard-1",
+        "application_text_fields": {
+            "existing": [],
+            "new": []
+        }
+    },
+    {
+        "location_origin": "https://dev.cloud.sdu.dk",
+        "provider_used_in_tests": "Type 1 - Generic front-office",
+        "products_used_in_tests": {
+            "compute": "standard-cpu",
+            "storage": "standard-storage",
+            "license": "sdu-matlab",
+            "public_link": "standard-link",
+            "private_network": "private-network",
+            "public_ip": null
+        },
+        "machine_used_in_tests": "standard-cpu-1",
+        "drive_provider": "SDU/K8s",
+        "application_text_fields": {
+            "new": [
+                "T1 project",
+                "Full abstract",
+                "Description of the specific research activities"
+            ],
+            "existing": [
+                "Project title",
+                "Short abstract",
+                "Description of the specific research activities"
+            ]
+        }
+    },
+    {
+        "location_origin": "https://cloud.sdu.dk",
+        "provider_used_in_tests": "E2ETest-Allocator",
+        "products_used_in_tests": {
+            "compute": "cpu-amd-zen5",
+            "storage": "storage",
+            "license": "Mathematica_SDU",
+            "public_link": "u1-publiclink",
+            "private_network": "private-network",
+            "public_ip": null
+        },
+        "machine_used_in_tests": "cpu-amd-zen5-1-vcpu",
+        "drive_provider": "SDU/K8s",
+        "application_text_fields": {
+            "new": [
+                "Application"
+            ],
+            "existing": [
+                "Application"
+            ]
+        }
+    }
+]

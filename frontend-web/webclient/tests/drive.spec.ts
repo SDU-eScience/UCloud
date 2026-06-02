@@ -1,7 +1,12 @@
 import {test, expect} from "@playwright/test";
 import {User, Drive, Project, Rows, testCtx, Components, ctxUser, sharedTestProjectName, TestContexts} from "./shared";
+import {default as data} from "./test_data.json" with {type: "json"};
 
 test.beforeEach(async ({page}, testInfo) => {
+    if (data["login_cookie"]) {
+        await page.context().addCookies([data["login_cookie"]]);
+    }
+
     const args = testCtx(testInfo.titlePath);
     await User.login(page, args.user);
     if (args.projectName) await Project.changeTo(page, args.projectName);
@@ -51,6 +56,12 @@ TestContexts.map(ctx => {
             if (!userPage) throw Error("Failed to create user page");
             const userInfo = ctxUser("Project User")!;
             const projectName = sharedTestProjectName();
+
+
+            if (data["login_cookie"]) {
+                await userPage.context().addCookies([data["login_cookie"]]);
+            }
+
             await User.login(userPage, userInfo);
 
             // Create drive

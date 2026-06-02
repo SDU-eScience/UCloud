@@ -294,12 +294,12 @@ function UserMenuExternalLink(props: {
     close(): void;
 }): React.ReactNode {
     if (!props.text) return null;
-    return <div className={HoverClass}>
-        <ExternalLink hoverColor="textPrimary" onClick={props.close} href={props.href}>
+    return <Flex className={HoverClass}>
+        <ExternalLink hoverColor="textPrimary" onClick={props.close} width="100%" href={props.href}>
             <Icon name={props.icon} mr="0.5em" my="0.2em" size="1.3em" />
             <TextSpan color="textPrimary">{props.text}</TextSpan>
         </ExternalLink>
-    </div>
+    </Flex>
 }
 
 function UserMenu({branding, avatar, dialog, setOpenDialog}: {
