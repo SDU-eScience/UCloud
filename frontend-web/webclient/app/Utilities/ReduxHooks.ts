@@ -1,8 +1,8 @@
-import {useDispatch, useSelector} from "react-redux";
+import {EqualityFn, useDispatch, useSelector} from "react-redux";
 import {useCallback} from "react";
 import {ProjectCache} from "@/Project";
 import * as AppStore from "@/Applications/AppStoreApi";
-import {PayloadAction} from "@reduxjs/toolkit";
+import {createSlice, PayloadAction} from "@reduxjs/toolkit";
 
 export interface HookStore {
     uploaderVisible?: boolean;
@@ -16,26 +16,17 @@ export interface HookStore {
     sidebarStickyWidth?: number;
 }
 
-type Action = GenericSetAction | GenericMergeAction;
-
-export type GenericSetAction = PayloadAction<{
-    property: string;
-    newValue?: ValueOrSetter<any>;
-    defaultValue: any;
-}, "GENERIC_SET">
-
-export type GenericMergeAction = PayloadAction<{
-    property: string;
-    newValue?: any;
-}, "GENERIC_MERGE">
+function initialState(): HookStore {
+    return {};
+}
 
 export type ValueOrSetter<T> = T | ((oldValue: T) => T);
 
 export function useGlobal<Property extends keyof HookStore>(
     property: Property,
     defaultValue: NonNullable<HookStore[Property]>,
-    equalityFn?: (left: NonNullable<HookStore[Property]>, right: NonNullable<HookStore[Property]>) => boolean
-): [NonNullable<HookStore[Property]>, (newValue: ValueOrSetter<HookStore[Property]>) => void, (newValue: Partial<HookStore[Property]>) => void] {
+    equalityFn?: EqualityFn<HookStore[Property]>
+): [NonNullable<HookStore[Property]>, (newValue: HookStore[Property]) => void, (newValue: HookStore[Property]) => void] {
     /* FIXME: this hook causes memory leaks */
     const value = useSelector<ReduxObject, HookStore[Property]>(it => {
         if (it.hookStore === undefined) return undefined;
@@ -44,11 +35,11 @@ export function useGlobal<Property extends keyof HookStore>(
     /* FIXME END */
     const dispatch = useDispatch();
     const setter = useCallback((newValue: HookStore[Property]) => {
-        dispatch<GenericSetAction>({type: "GENERIC_SET", payload: {property, newValue, defaultValue}});
+        dispatch(genericSet({property, newValue, defaultValue}));
     }, [dispatch]);
 
     const merger = useCallback((newValue: HookStore[Property]) => {
-        dispatch<Action>({type: "GENERIC_MERGE", payload: {property, newValue}});
+        dispatch(genericMerge({property, newValue}));
     }, [dispatch]);
 
     return [
@@ -58,36 +49,30 @@ export function useGlobal<Property extends keyof HookStore>(
     ];
 }
 
-function reducer(state: HookStore = {}, action: Action): HookStore {
-    switch (action.type) {
-        case "GENERIC_SET": {
-            const newState = {};
-            for (const kv of Object.entries(state)) {
-                const [key, val] = kv;
-                newState[key] = val;
-            }
+const hookStore = createSlice({
+    name: "hookStore",
+    initialState: initialState(),
+    reducers: {
+        genericSet(state, action: PayloadAction<{
+            property: keyof HookStore;
+            newValue?: ValueOrSetter<any>;
+            defaultValue: any;
+        }>) {
             if (typeof action.payload.newValue === "function") {
-                newState[action.payload.property] = action.payload.newValue(newState[action.payload.property] ?? action.payload.defaultValue);
+                state[action.payload.property] = action.payload.newValue(state[action.payload.property] ?? action.payload.defaultValue);
             } else {
-                newState[action.payload.property] = action.payload.newValue;
+                state[action.payload.property] = action.payload.newValue;
             }
-            return newState;
-        }
+        },
 
-        case "GENERIC_MERGE": {
-            const stateCopy = {};
-            for (const kv of Object.entries(state)) {
-                const [key, val] = kv;
-                stateCopy[key] = val;
-            }
-            stateCopy[action.payload.property] = {...stateCopy[action.payload.property], ...action.payload.newValue};
-            return stateCopy;
-        }
-
-        default: {
-            return state;
+        genericMerge(state, action: PayloadAction<{
+            property: string;
+            newValue?: any;
+        }>) {
+            state[action.payload.property] = {...state[action.payload.property], ...action.payload.newValue};
         }
     }
-}
+});
 
-export default reducer;
+export const {genericMerge, genericSet} = hookStore.actions;
+export const hookStoreReducer = hookStore.reducer;

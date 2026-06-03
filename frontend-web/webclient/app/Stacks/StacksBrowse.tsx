@@ -109,7 +109,8 @@ export default function StacksBrowse(): React.ReactNode {
                     }
 
                     row.title.append(ResourceBrowser.defaultTitleRenderer(stack.id, row));
-                    row.stat1.textContent = stack.type ?? stack.name ?? "Unknown";
+                    /* Note(Jonas), FIXME: I don't know what `stack.name` should be referring to. */
+                    row.stat1.textContent = stack.type ?? stack["name"] ?? "Unknown";
                     row.stat2.textContent = dateToString(stack.createdAt);
                 });
 

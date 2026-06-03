@@ -397,7 +397,7 @@ export const Editor: React.FunctionComponent<{
     customContent?: React.ReactNode;
     showCustomContent?: boolean;
     onOpenFile?: (path: string, content: string | Uint8Array) => void;
-    operations?: (file: VirtualFile) => Operation<any>[];
+    operations?: (file?: VirtualFile) => Operation<VirtualFile, null | undefined>[];
     help?: React.ReactNode;
     fileHeaderOperations?: React.ReactNode;
     renamingFile?: string;
@@ -501,10 +501,10 @@ export const Editor: React.FunctionComponent<{
                                         if (failedUpload) {
                                             sendFailureNotification(failedUpload.error ?? "Upload for file " + fileName(failedUpload.name) + " failed.");
                                         }
-                                        window.removeEventListener(FileWriteFailure, onFileWriteFailure)
+                                        window.removeEventListener(FileWriteFailure, {handleEvent: onFileWriteFailure})
                                     }
 
-                                    window.addEventListener(FileWriteFailure, onFileWriteFailure)
+                                    window.addEventListener(FileWriteFailure, {handleEvent: onFileWriteFailure})
                                 }
                             },
                             confirmText: "Save changes",
@@ -519,7 +519,7 @@ export const Editor: React.FunctionComponent<{
 
     const {showReleaseNoteIcon, onShowReleaseNotesShown} = useShowReleaseNoteIcon();
 
-    const [operations, setOperations] = useState<Operation<any, undefined>[]>([]);
+    const [operations, setOperations] = useState<Operation<any, null | undefined>[]>([]);
     const anyTabOpen = tabs.open.length > 0;
     const isSettingsOpen = state.currentPath === SETTINGS_PATH && anyTabOpen;
     const isReleaseNotesOpen = state.currentPath === RELEASE_NOTES_PATH && anyTabOpen;
@@ -1298,7 +1298,7 @@ function tabOperations(
     tabs: {open: string[], closed: string[]},
     dirtyFiles: Set<string>,
     currentPath: string,
-): Operation<any>[] {
+): Operation<any, null | undefined>[] {
     const anyTabsOpen = tabs.open.length > 0;
     const anyTabsClosed = tabs.closed.length > 0;
     if (!tabPath) {

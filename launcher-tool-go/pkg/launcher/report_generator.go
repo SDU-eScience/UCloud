@@ -546,11 +546,15 @@ func collectSuites(suites []suiteNode, trail []string, out *[]evidenceItem) {
 		for _, spec := range s.Specs {
 			durationMs := durationFromSpec(spec)
 			evidenceName, evidenceSearch := composeEvidenceLabel(currentTrail, spec.Title)
+			status := statusFromSpec(spec)
+			if status == statusNotRun {
+				continue
+			}
 			*out = append(*out, evidenceItem{
 				Name:       evidenceName,
 				SearchText: evidenceSearch,
 				Context:    context,
-				Status:     statusFromSpec(spec),
+				Status:     status,
 				Source:     "automated",
 				DurationMs: durationMs,
 			})
@@ -643,6 +647,9 @@ func statusFromSpec(spec specNode) checkStatus {
 	for _, test := range spec.Tests {
 		for _, run := range test.Results {
 			s := normalize(run.Status)
+			if s == "skipped" {
+				return statusNotRun
+			}
 			if s == "failed" || s == "timedout" || s == "interrupted" {
 				return statusFail
 			}

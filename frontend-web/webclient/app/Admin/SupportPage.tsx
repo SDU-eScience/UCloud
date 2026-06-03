@@ -206,7 +206,7 @@ export function UserSupportContent() {
                             actionText={"Reset 2FA"}
                             icon={"refresh"}
                             color="errorMain"
-                            onAction={() => {
+                            onAction={async () => {
                                 const requiredText = it.username
                                 dialogStore.addDialog((
                                     <div onKeyDown={e => e.stopPropagation()}>

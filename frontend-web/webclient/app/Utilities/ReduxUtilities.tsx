@@ -1,16 +1,15 @@
 import {useEffect} from "react";
-import {Action, AnyAction, combineReducers} from "redux";
+import {combineReducers} from "redux";
 
-import {dashboardReducer} from "@/Dashboard/Redux";
 import {initObject} from "@/DefaultObjects";
 import {statusReducer} from "@/Navigation/Redux";
 import * as ProjectRedux from "@/Project/ReduxState";
 import {avatarReducer} from "@/UserSettings/Redux";
 import {terminalReducer} from "@/Terminal/State";
-import hookStore from "@/Utilities/ReduxHooks";
+import {hookStoreReducer} from "@/Utilities/ReduxHooks";
 import {popInReducer} from "@/ui-components/PopIn";
-import sidebar from "@/Applications/Redux/Reducer";
-import {EnhancedStore, ReducersMapObject, configureStore} from "@reduxjs/toolkit";
+import {sidebarReducer} from "@/Applications/Redux/Reducer";
+import {EnhancedStore, PayloadAction, ReducersMapObject, configureStore} from "@reduxjs/toolkit";
 import {noopCall} from "@/Authentication/DataHook";
 import {brandingReducer} from "@/Applications/Branding/AutomaticBranding";
 
@@ -22,41 +21,33 @@ export type UserActionType = typeof USER_LOGIN | typeof USER_LOGOUT | typeof CON
 
 function confStore(
     initialObject: ReduxObject,
-    reducers: ReducersMapObject<ReduxObject, Action>,
-): EnhancedStore<ReduxObject> {
+    reducers: ReducersMapObject<ReduxObject, PayloadAction>,
+): EnhancedStore<ReduxObject, PayloadAction> {
     const combinedReducers = combineReducers(reducers);
-    const rootReducer = (state: ReduxObject, action: Action): ReduxObject => {
+    const rootReducer = (state: ReduxObject | undefined, action: PayloadAction) => {
         if ([USER_LOGIN, USER_LOGOUT, CONTEXT_SWITCH].some(it => it === action.type)) {
             state = initObject();
         }
         return combinedReducers(state, action);
     };
-    return configureStore({reducer: rootReducer, preloadedState: initialObject});
+    return configureStore({
+        reducer: rootReducer,
+        preloadedState: initialObject
+    });
 }
 
+
+
 export const store = confStore(initObject(), {
-    dashboard: dashboardReducer,
     status: statusReducer,
-    hookStore,
-    sidebar,
+    hookStore: hookStoreReducer,
+    sidebar: sidebarReducer,
     avatar: avatarReducer,
     terminal: terminalReducer,
     branding: brandingReducer,
-    loading,
     project: ProjectRedux.reducer,
     popinChild: popInReducer,
 });
-
-function loading(state = false, action: {type: string}): boolean {
-    switch (action.type) {
-        case "LOADING_START":
-            return true;
-        case "LOADING_END":
-            return false;
-        default:
-            return state;
-    }
-}
 
 export const refreshFunctionCache = new class {
     private refresh: (() => void) | undefined = undefined;

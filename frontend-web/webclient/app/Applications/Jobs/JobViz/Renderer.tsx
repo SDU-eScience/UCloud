@@ -61,7 +61,8 @@ export const Renderer: React.FunctionComponent<{
     }, []);
 
     useEffect(() => {
-        const listeners: ((ev: unknown) => void)[] = [];
+        /* TODO(Jonas): Different type */
+        const listeners: ((ev: any) => void)[] = [];
 
         listeners.push(props.processor.on("appendRow", ({row, channel}) => {
             const state = stateRef.current;
@@ -184,7 +185,8 @@ export const Renderer: React.FunctionComponent<{
 
         return () => {
             for (const l of listeners) {
-                props.processor.removeListener(l);
+                // Note(Jonas): First arg is just to make the compiler stop complaining. It's not used.
+                props.processor.removeListener("kvPropertiesUpdated", l);
             }
         };
     }, [props.processor]);
@@ -254,7 +256,7 @@ export const Renderer: React.FunctionComponent<{
                             if (placedInContainer[w.id] || w.id.startsWith("anon-")) {
                                 return null;
                             } else {
-                                return <RendererWidget key={w.id} widget={w} state={widgetState}/>;
+                                return <RendererWidget key={w.id} widget={w} state={widgetState} />;
                             }
                         })}
                     </TabbedCardTab>;
@@ -276,17 +278,17 @@ const RendererWidget: React.FunctionComponent<{
 }> = ({widget, state}) => {
     switch (widget.type) {
         case WidgetType.WidgetTypeLabel:
-            return <RendererLabel widget={widget as RuntimeWidget<WidgetLabel>}/>;
+            return <RendererLabel widget={widget as RuntimeWidget<WidgetLabel>} />;
         case WidgetType.WidgetTypeProgressBar:
-            return <RendererProgressBar widget={widget as RuntimeWidget<WidgetProgressBar>}/>;
+            return <RendererProgressBar widget={widget as RuntimeWidget<WidgetProgressBar>} />;
         case WidgetType.WidgetTypeTable:
-            return <RendererTable widget={widget as RuntimeWidget<WidgetTable>}/>;
+            return <RendererTable widget={widget as RuntimeWidget<WidgetTable>} />;
         case WidgetType.Tombstone1:
             return null;
         case WidgetType.WidgetTypeLineChart:
-            return <RendererDiagram widget={widget as RuntimeWidget<WidgetDiagramDefinition>}/>;
+            return <RendererDiagram widget={widget as RuntimeWidget<WidgetDiagramDefinition>} />;
         case WidgetType.WidgetTypeContainer:
-            return <RendererContainer widget={widget as RuntimeWidget<WidgetContainer>} state={state}/>;
+            return <RendererContainer widget={widget as RuntimeWidget<WidgetContainer>} state={state} />;
         case WidgetType.WidgetTypeSnippet:
             return <RendererSnippet widget={widget as RuntimeWidget<WidgetSnippet>} />;
     }
@@ -334,7 +336,7 @@ function transformToSSHUrl(command?: string | null): `ssh://${string}:${number}`
     return `ssh://${hostname}:${portNumber}`;
 }
 
-const RendererSnippet: React.FunctionComponent<{ widget: RuntimeWidget<WidgetSnippet> }> = ({widget}) => {
+const RendererSnippet: React.FunctionComponent<{widget: RuntimeWidget<WidgetSnippet>}> = ({widget}) => {
     const sshUrl = React.useMemo(() => transformToSSHUrl(widget.spec.text), [widget.spec.text]);
     const body = <CodeSnippet maxHeight={"100px"}>{widget.spec.text}</CodeSnippet>;
     if (sshUrl != null) {
@@ -344,11 +346,11 @@ const RendererSnippet: React.FunctionComponent<{ widget: RuntimeWidget<WidgetSni
     }
 };
 
-const RendererLabel: React.FunctionComponent<{ widget: RuntimeWidget<WidgetLabel> }> = ({widget}) => {
+const RendererLabel: React.FunctionComponent<{widget: RuntimeWidget<WidgetLabel>}> = ({widget}) => {
     return <div>{widget.spec.text}</div>;
 };
 
-const RendererProgressBar: React.FunctionComponent<{ widget: RuntimeWidget<WidgetProgressBar> }> = ({widget}) => {
+const RendererProgressBar: React.FunctionComponent<{widget: RuntimeWidget<WidgetProgressBar>}> = ({widget}) => {
     return <Progress
         color={"successMain"}
         percent={widget.spec.progress * 100}
@@ -357,12 +359,12 @@ const RendererProgressBar: React.FunctionComponent<{ widget: RuntimeWidget<Widge
     />;
 };
 
-const RendererTable: React.FunctionComponent<{ widget: RuntimeWidget<WidgetTable> }> = ({widget}) => {
+const RendererTable: React.FunctionComponent<{widget: RuntimeWidget<WidgetTable>}> = ({widget}) => {
     return <Table tableType={"presentation"}>
         {widget.spec.rows.map((row, idx) => {
             const renderedRow = <TableRow key={idx}>
                 {row.cells.map((cell, cellIdx) => {
-                    const label = <RendererLabel widget={dummyWidget(WidgetType.WidgetTypeLabel, cell.label)}/>;
+                    const label = <RendererLabel widget={dummyWidget(WidgetType.WidgetTypeLabel, cell.label)} />;
 
                     if ((cell.flags & WidgetTableCellFlag.WidgetTableCellHeader) != 0) {
                         return <TableHeaderCell key={cellIdx}>{label}</TableHeaderCell>;
@@ -396,7 +398,7 @@ function dummyWidget<K>(type: WidgetType, spec: K): RuntimeWidget<K> {
     };
 }
 
-const RendererDiagram: React.FunctionComponent<{ widget: RuntimeWidget<WidgetDiagramDefinition> }> = ({widget}) => {
+const RendererDiagram: React.FunctionComponent<{widget: RuntimeWidget<WidgetDiagramDefinition>}> = ({widget}) => {
     const labelFormatter = useCallback((value: number, isAxis: boolean): string => {
         switch (widget.spec.yAxis.unit) {
             case WidgetDiagramUnit.GenericInt: {
@@ -448,7 +450,7 @@ const RendererDiagram: React.FunctionComponent<{ widget: RuntimeWidget<WidgetDia
     }, [widget.spec.yAxis.unit]);
 
     let yDomain: [number, number] | undefined = undefined;
-    if (widget.spec.yAxis.minimum != null && widget.spec.yAxis.maximum != null)  {
+    if (widget.spec.yAxis.minimum != null && widget.spec.yAxis.maximum != null) {
         yDomain = [widget.spec.yAxis.minimum, widget.spec.yAxis.maximum];
     }
 
@@ -497,11 +499,11 @@ const RendererContainer: React.FunctionComponent<{
                     location: widget.location,
                 };
 
-                return <RendererContainer key={idx} widget={dummy} state={state}/>;
+                return <RendererContainer key={idx} widget={dummy} state={state} />;
             } else if (child.id != null) {
                 const resolvedChild = state[child.id.id];
                 if (resolvedChild) {
-                    return <RendererWidget key={child.id.id} widget={resolvedChild} state={state}/>;
+                    return <RendererWidget key={child.id.id} widget={resolvedChild} state={state} />;
                 }
             }
             return null;

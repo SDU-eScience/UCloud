@@ -12,23 +12,25 @@ import {
     Resource,
     ResourceAclEntry,
     ResourceApi,
+    ResourceSpecification,
 } from "@/UCloud/ResourceApi";
 import {useProjectId} from "@/Project/Api";
 import {useProject} from "@/Project/cache";
 import Spinner from "@/LoadingIcon/LoadingIcon";
 import {classConcat} from "@/Unstyled";
 import {Toggle} from "@/ui-components/Toggle";
+import {Product} from "@/Accounting";
 
-interface ResourcePermissionEditorProps<T extends Resource> {
+interface ResourcePermissionEditorProps<Res extends Resource, Prod extends Product, Spec extends ResourceSpecification> {
     reload: () => void;
-    entity: T;
-    api: ResourceApi<T, never>;
+    entity: Res;
+    api: ResourceApi<Res, Prod, Spec>;
     showMissingPermissionHelp?: boolean;
     noPermissionsWarning?: string;
 }
 
-export function ResourcePermissionEditor<T extends Resource>(
-    props: ResourcePermissionEditorProps<T>
+export function ResourcePermissionEditor<Res extends Resource, Prod extends Product, Spec extends ResourceSpecification>(
+    props: ResourcePermissionEditorProps<Res, Prod, Spec>
 ): React.ReactNode {
     const {entity, reload, api} = props;
     const projectId = useProjectId();

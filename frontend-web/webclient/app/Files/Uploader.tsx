@@ -657,12 +657,13 @@ const Uploader: React.FunctionComponent = () => {
         clearUploads: b => uploadStore.clearUploads(b, setPausedFilesInFolder),
     }), [startUploads]);
 
-    const onSelectedFile = useCallback(async (e: {stopPropagation(): void; preventDefault(): void}, isResuming = false) => {
+    const onSelectedFile = useCallback(async function <T extends {stopPropagation(): void; preventDefault(): void}>(e: T, isResuming: boolean = false) {
         e.preventDefault();
         e.stopPropagation();
 
         const allUploads: Upload[] = uploads;
-        const events = await filesFromDropOrSelectEvent(e);
+        /* TODO(Jonas): Typesafety should be improved */
+        const events = await filesFromDropOrSelectEvent(e as unknown as React.DragEvent<Element>);
         for (const u of events) {
             switch (u.type) {
                 case "single": {
@@ -730,7 +731,8 @@ const Uploader: React.FunctionComponent = () => {
         startUploads(allUploads, setLookForNewUploads);
     }, [uploads]);
 
-    const stopGapMethodForUploadingFilesFromTheEditor = React.useCallback((e: CustomEvent<WriteToFileEventProps>) => {
+    const stopGapMethodForUploadingFilesFromTheEditor = React.useCallback((_e: unknown) => {
+        const e = _e as CustomEvent<WriteToFileEventProps>;
         e.stopImmediatePropagation();
         e.stopPropagation();
         e.preventDefault();

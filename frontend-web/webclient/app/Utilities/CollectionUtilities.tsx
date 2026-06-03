@@ -61,7 +61,7 @@ export function fuzzyMatch<T, K extends keyof T>(item: T, keys: K[], query: stri
 }
 
 export function newFuzzyMatchFuse<T, K extends keyof T>(keys: K[]): Fuse<T> {
-    return new Fuse(
+    return new Fuse<T>(
         [],
         {
             threshold: 0.1,

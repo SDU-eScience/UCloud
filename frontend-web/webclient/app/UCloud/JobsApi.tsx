@@ -304,7 +304,7 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
         super("jobs");
     }
 
-    retrieveOperations(): Operation<Job, ResourceBrowseCallbacks<Job> & {isModal: boolean}>[] {
+    retrieveOperations(): Operation<Job, ResourceBrowseCallbacks<Job, ProductCompute>>[] {
         const baseOperations = super.retrieveOperations();
         const deleteOperation = baseOperations.find(it => it.tag === DELETE_TAG)!;
         deleteOperation.text = "Stop";
@@ -323,7 +323,7 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
             return true;
         };
 
-        const ourOps: Operation<Job, ResourceBrowseCallbacks<Job> & {isModal: boolean}>[] = [{
+        const ourOps: Operation<Job, ResourceBrowseCallbacks<Job, ProductCompute>>[] = [{
             // Re-run app
             enabled: (selected, cb) => {
                 const isSyncthing = isSyncthingApp(selected[0]);

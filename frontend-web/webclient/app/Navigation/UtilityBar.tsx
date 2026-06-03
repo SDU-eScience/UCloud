@@ -104,9 +104,8 @@ const refreshIconClass = injectStyle("refresh-icon", k => `
 
 function RefreshIcon(): React.ReactNode {
     const refresh = useRefresh();
-    const spin = useSelector((it: ReduxObject) => it.loading);
     const loading = useSelector((it: ReduxObject) => it.status.loading);
-    return <RefreshButton loading={loading || spin} refresh={refresh} />;
+    return <RefreshButton loading={loading} refresh={refresh} />;
 }
 
 export const RefreshButton: React.FunctionComponent<{
@@ -138,5 +137,5 @@ export const RefreshButton: React.FunctionComponent<{
     if (refresh === noopCall) return null;
 
     return <Icon cursor="pointer" size={24} onClick={delayedRefresh} spin={loading}
-                 id={"refresh-icon"} className={refreshIconClass} color="textPrimary" name="heroArrowPath" />;
+        id={"refresh-icon"} className={refreshIconClass} color="textPrimary" name="heroArrowPath" />;
 }

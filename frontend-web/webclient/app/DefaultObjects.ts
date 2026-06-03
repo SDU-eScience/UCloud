@@ -8,10 +8,12 @@ import {defaultAvatar} from "./AvataaarLib";
 import {HookStore} from "./Utilities/ReduxHooks";
 import {BrandingResponse} from "./UCloud/BrandingApi";
 import {initBranding} from "./Applications/Branding/AutomaticBranding";
+import {SidebarTabId} from "./ui-components/SidebarComponents";
 
 export interface StatusReduxObject {
     title: string;
     loading: boolean;
+    tab: SidebarTabId;
 }
 
 /**
@@ -19,14 +21,12 @@ export interface StatusReduxObject {
  */
 export interface LegacyReduxObject {
     hookStore: HookStore;
-    dashboard: DashboardStateProps;
     status: StatusReduxObject;
     avatar: AvatarReduxObject;
     project: ProjectRedux.State;
     terminal: TerminalState;
     branding: BrandingResponse
-    popinChild: PopInArgs | null;
-    loading: boolean;
+    popinChild: PopInArgs;
     sidebar: SidebarStateProps;
 }
 
@@ -38,7 +38,8 @@ declare global {
 export function initStatus(): StatusReduxObject {
     return ({
         title: "",
-        loading: false
+        loading: false,
+        tab: SidebarTabId.NONE,
     });
 }
 
@@ -51,14 +52,12 @@ export function initDashboard(): DashboardStateProps {
 export function initObject(): ReduxObject {
     return {
         hookStore: {},
-        dashboard: initDashboard(),
         status: initStatus(),
         avatar: initAvatar(),
         project: ProjectRedux.initialState,
         terminal: initTerminalState(),
         branding: initBranding(),
-        popinChild: null,
-        loading: false,
+        popinChild: {el: undefined},
         sidebar: {favorites: [], theme: getThemeOrDefaultValue()}
     };
 }
