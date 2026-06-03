@@ -429,15 +429,17 @@ export const ProductSelector: React.FunctionComponent<{
                                 <thead>
                                     <TableRow>
                                         {type === "COMPUTE" ? <>
+                                            <th style={{width: "32px"}} />
+                                            <th>Provider</th>
                                             <th>Product category</th>
                                             <th>Type</th>
-                                            <th>Provider</th>
                                         </> : <>
+
                                             <th style={{width: "32px"}} />
+                                            <th style={{width: "250px"}}>Provider</th>
                                             <th>Name</th>
                                             {headers.map(it => <th key={it}>{it}</th>)}
                                             <th>Price</th>
-                                            <th style={{width: "250px"}}>Provider</th>
                                         </>}
                                     </TableRow>
                                 </thead>
@@ -462,13 +464,16 @@ export const ProductSelector: React.FunctionComponent<{
                                                     </td> :
                                                     <>
                                                         <td>
+                                                            <ProviderLogo providerId={p.defaultProduct.category.provider} size={24} />
+                                                        </td>
+                                                        <td>
+                                                            {p.provider}
+                                                        </td>
+                                                        <td>
                                                             {p.category}
                                                         </td>
                                                         <td>
                                                             {p.kind}
-                                                        </td>
-                                                        <td>
-                                                            {p.provider}
                                                         </td>
                                                     </>
                                                 }
@@ -514,10 +519,10 @@ export const ProductSelector: React.FunctionComponent<{
                                                         <ProviderLogo providerId={p.category.provider} size={24} />
                                                     }
                                                 </TableCell>
+                                                <td><ProviderTitle providerId={p.category.provider} /></td>
                                                 <TableCell><ProductName product={p} /></TableCell>
                                                 <ProductStats product={p} />
                                                 <TableCell>{priceToString(p, 1)}</TableCell>
-                                                <td><ProviderTitle providerId={p.category.provider} /></td>
                                             </TableRow>
                                         }
                                     })}
@@ -753,8 +758,8 @@ export const SelectorBoxClass = injectStyle("selector-box", k => `
 
     ${k} .queue-status {
         position: absolute;
-        top: 48px;
-        right: 32px;
+        top: 64px;
+        right: 26px;
     }
     
     ${k}.slim .provider-logo {
