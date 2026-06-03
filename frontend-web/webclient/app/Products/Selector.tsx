@@ -283,6 +283,17 @@ export const ProductSelector: React.FunctionComponent<{
 
     const [selectedComputeCategory, setSelectedComputeCategory] = React.useState<ComputeCategory>();
 
+
+
+    let queueStatus: JobQueueStatus | null = null
+    if (type === "COMPUTE") {
+        const support = (props.support ?? []).find(s =>
+            s.product.name === selected?.name &&
+            productCategoryEquals(s.product.category, selected?.category)
+        )?.support;
+        queueStatus = (support as ComputeSupport)?.queueStatus ?? null;
+    }
+
     return <>
         <div className={classConcat(SelectorBoxClass, props.slim === true ? "slim" : undefined)} onClick={onToggle} ref={boxRef}>
             <div className="selected">
@@ -311,6 +322,7 @@ export const ProductSelector: React.FunctionComponent<{
                                         </tbody>
                                     </table>
                                     <ProviderLogo className={"provider-logo"} providerId={selected?.category?.provider ?? "?"} size={32} />
+                                    {queueStatus ? <div className="queue-status"><JobQueueStatusIndicator status={queueStatus} /></div> : null}
                                     <MachineTypeSelectionSlider products={categorizedProducts} onSelect={props.onSelect} selectedCategory={selectedComputeCategory} />
                                 </> : null}
                             </> :
@@ -516,7 +528,7 @@ export const ProductSelector: React.FunctionComponent<{
                                 </tbody>
                             </Table>
                         </>}
-                </div >,
+                </div>,
                 portalRef.current!
             )
         }
@@ -553,8 +565,8 @@ function MachineTypeSelectionSlider(props: {
         if (selectedCategoryIdx !== -1) {
             let idx = selectedCategoryIdx + 1;
             while (props.products[idx]) {
-                let entry = props.products[idx++];
-                if (typeof entry === "string") break;
+                const entry = props.products[idx++];
+                if ("kind" in entry) break;
                 result.push(entry as ProductV2Compute);
             }
         }
@@ -742,8 +754,20 @@ export const SelectorBoxClass = injectStyle("selector-box", k => `
         top: 16px;
         right: 16px;
     }
+
+    ${k} .queue-status {
+        position: absolute;
+        top: 48px;
+        right: 32px;
+    }
     
     ${k}.slim .provider-logo {
+        position: unset;
+        top: unset;
+        right: unset;
+    }
+
+    ${k}.slim .queue-status {
         position: unset;
         top: unset;
         right: unset;
