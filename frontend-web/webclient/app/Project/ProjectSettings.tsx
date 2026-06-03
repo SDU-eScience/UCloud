@@ -115,7 +115,7 @@ const TemplateForm: React.FunctionComponent<TemplateFormProps> = ({
     removeNewProjectField,
     updateProjectFieldLimits,
 }) => {
-    const moveFieldControls = (idx: number, numberOfFields: number, fieldType: string) => {
+    const MoveFieldControls = ({idx, numberOfFields, fieldType}: {idx: number, numberOfFields: number, fieldType: string}) => {
         const move = (direction: "up" | "down") => {
             setSettings(prev => {
                 const items = [...prev.templates.structured[fieldType]];
