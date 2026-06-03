@@ -207,11 +207,11 @@ const TemplateForm: React.FunctionComponent<TemplateFormProps> = ({
                         <Box width={150}>
                             <Label width={"100%"} fontSize={12}>
                                 Row limit
-                                <Input value={field.rows} type="number" onChange={(e) => updateProjectFieldLimits(idx, 'rows', e.target.value, fieldType)}>{field.rows}</Input>
+                                <Input value={field.rows ?? ""} type="number" onChange={(e) => updateProjectFieldLimits(idx, 'rows', e.target.value, fieldType)}>{field.rows}</Input>
                             </Label>
                             <Label width={"100%"} fontSize={12}>
                                 Max length
-                                <Input value={field.maxLength} type="number" onChange={(e) => updateProjectFieldLimits(idx, 'maxLength', e.target.value, fieldType)}>{field.maxLength}</Input>
+                                <Input value={field.maxLength ?? ""} type="number" onChange={(e) => updateProjectFieldLimits(idx, 'maxLength', e.target.value, fieldType)}/>
                             </Label>
                         </Box>
                     </Flex>
@@ -348,7 +348,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
 
     const updateProjectFieldLimits = useCallback((idx: number, fieldName: string, value: any, fieldType: string) => {
         let parsedValue = value;
-        parsedValue = value === "" ? undefined : Number(value);
+        parsedValue = value === "" ? null : parseInt(value);
 
         return updateNewProjectField(idx, fieldName, parsedValue, fieldType);
     }, []);
