@@ -106,6 +106,60 @@ interface TemplateFormProps {
     updateProjectFieldLimits: (idx: number, fieldName: string, value: any, fieldType: string) => void;
 }
 
+interface MoveFieldControlsProps {
+    idx: number;
+    numberOfFields: number;
+    fieldType: string;
+    setSettings: React.Dispatch<React.SetStateAction<Grants.RequestSettings>>;
+}
+
+const MoveFieldControls: React.FunctionComponent<MoveFieldControlsProps> = ({
+    idx,
+    numberOfFields,
+    fieldType,
+    setSettings,
+}) => {
+    const move = (direction: "up" | "down") => {
+        setSettings(prev => {
+            const items = [...prev.templates.structured[fieldType]];
+
+            const targetIdx =
+                direction === "up" ? idx - 1 : idx + 1;
+
+            if (targetIdx < 0 || targetIdx >= items.length) {
+                return prev;
+            }
+
+            [items[idx], items[targetIdx]] = [
+                items[targetIdx],
+                items[idx],
+            ];
+
+            return {
+                ...prev,
+                templates: {
+                    ...prev.templates,
+                    structured: {
+                        ...prev.templates.structured,
+                        [fieldType]: items,
+                    },
+                },
+            };
+        });
+    };
+
+    return <Flex>
+        {idx === 0 ? <></> : <Icon cursor="pointer" mr={10} size={20} name={"heroArrowUp"} onClick={() => {
+            move("up");
+
+        }}></Icon>}
+        {idx === numberOfFields - 1 ? <></> : <Icon cursor="pointer" size={20} name={"heroArrowDown"} onClick={() => {
+            move("down");
+
+        }}></Icon>}
+    </Flex>
+};
+
 const TemplateForm: React.FunctionComponent<TemplateFormProps> = ({
     title,
     fieldType,
@@ -115,47 +169,6 @@ const TemplateForm: React.FunctionComponent<TemplateFormProps> = ({
     removeNewProjectField,
     updateProjectFieldLimits,
 }) => {
-    const MoveFieldControls = ({idx, numberOfFields, fieldType}: {idx: number, numberOfFields: number, fieldType: string}) => {
-        const move = (direction: "up" | "down") => {
-            setSettings(prev => {
-                const items = [...prev.templates.structured[fieldType]];
-
-                const targetIdx =
-                    direction === "up" ? idx - 1 : idx + 1;
-
-                if (targetIdx < 0 || targetIdx >= items.length) {
-                    return prev;
-                }
-
-                [items[idx], items[targetIdx]] = [
-                    items[targetIdx],
-                    items[idx],
-                ];
-
-                return {
-                    ...prev,
-                    templates: {
-                        ...prev.templates,
-                        structured: {
-                            ...prev.templates.structured,
-                            [fieldType]: items,
-                        },
-                    },
-                };
-            });
-        };
-
-        return <Flex>
-            {idx === 0 ? <></> : <Icon cursor="pointer" mr={10} size={20} name={"heroArrowUp"} onClick={() => {
-                move("up");
-
-            }}></Icon>}
-            {idx === numberOfFields - 1 ? <></> : <Icon cursor="pointer" size={20} name={"heroArrowDown"} onClick={() => {
-                move("down");
-
-            }}></Icon>}
-        </Flex>
-    }
 
     return <Card>
         <Flex justifyContent={"space-between"}>
@@ -183,7 +196,12 @@ const TemplateForm: React.FunctionComponent<TemplateFormProps> = ({
                 return <>
                     <br />
                     <Flex justifyContent={"end"}>
-                        {moveFieldControls(idx, settings.templates.structured[fieldType].length, fieldType)}
+                        <MoveFieldControls
+                            idx={idx}
+                            numberOfFields={settings.templates.structured[fieldType].length}
+                            fieldType={fieldType}
+                            setSettings={setSettings}
+                        />
                     </Flex>
                     <Flex gap="20px" justifyContent={"space-evenly"}>
                         <Label fontSize={12}>
