@@ -437,7 +437,7 @@ export const ProductSelector: React.FunctionComponent<{
                                             <th>Name</th>
                                             {headers.map(it => <th key={it}>{it}</th>)}
                                             <th>Price</th>
-                                            <th style={{width: "32px"}} /> : <th style={{width: "250px"}}>Provider</th>
+                                            <th style={{width: "250px"}}>Provider</th>
                                         </>}
                                     </TableRow>
                                 </thead>
@@ -517,10 +517,6 @@ export const ProductSelector: React.FunctionComponent<{
                                                 <TableCell><ProductName product={p} /></TableCell>
                                                 <ProductStats product={p} />
                                                 <TableCell>{priceToString(p, 1)}</TableCell>
-                                                {queueStatus !== null ? <td style={{width: "32px"}}>
-                                                    <JobQueueStatusIndicator status={queueStatus} />
-                                                </td> : null}
-
                                                 <td><ProviderTitle providerId={p.category.provider} /></td>
                                             </TableRow>
                                         }
