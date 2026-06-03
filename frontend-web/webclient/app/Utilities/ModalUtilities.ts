@@ -38,13 +38,13 @@ export const fullScreenModalStyle: ReactModal.Styles = {
 export const slimModalStyle: ReactModal.Styles = {
     content: {
         borderRadius: "6px",
-        width: "600px",
+        width: "800px",
         minHeight: "200px",
         maxHeight: "80vh",
         maxWidth: "calc(100vw - 10px)",
         position: "fixed",
         top: "10vh",
-        left: `calc(50vw - 300px)`,
+        left: `calc(50vw - 400px)`,
         outline: "none",
         overflow: "auto",
     },

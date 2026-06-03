@@ -5,7 +5,7 @@ import {ProductV2, productCategoryEquals, ProductV2Compute, ProductType, explain
 import HexSpin from "@/LoadingIcon/LoadingIcon";
 import {connectionState} from "@/Providers/ConnectionState";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
-import {getProviderTitle} from "@/Providers/ProviderTitle";
+import {getProviderTitle, ProviderTitle} from "@/Providers/ProviderTitle";
 import {Box, Button, Flex, Icon, Input, Link, Tooltip} from "@/ui-components";
 import Table, {TableCell, TableRow} from "@/ui-components/Table";
 import {useUState} from "@/Utilities/UState";
@@ -18,7 +18,13 @@ import {ComputeSupport, JobQueueStatus} from "@/UCloud/JobsApi";
 import {ThemeColor} from "@/ui-components/theme";
 import {TooltipV2} from "@/ui-components/Tooltip";
 
-const NEED_CONNECT = "need-connection";
+interface ComputeCategory {
+    provider: string;
+    category: string;
+    kind: "CPU" | "GPU" | "MIG";
+    canConnect: boolean;
+    defaultProduct: ProductV2;
+}
 
 function legacyGroupName(product: ProductV2): string {
     const numberSuffix = product.name.match(/(^.*)-(\d+)$/);
@@ -120,8 +126,8 @@ export const ProductSelector: React.FunctionComponent<{
         }));
     }, [props.products, props.onSelect]);
 
-    const categorizedProducts: (ProductV2 | string)[] = React.useMemo(() => {
-        const result: (ProductV2 | string)[] = [];
+    const categorizedProducts: (ProductV2 | ComputeCategory)[] = React.useMemo(() => {
+        const result: (ProductV2 | ComputeCategory)[] = [];
 
         const sortedProducts = [...filteredProducts].sort((a, b) => {
             const pCompare = a.category.provider.localeCompare(b.category.provider);
@@ -143,19 +149,22 @@ export const ProductSelector: React.FunctionComponent<{
         });
 
         let lastCategory = "";
-        for (const product of sortedProducts) {
+        for (const [index, product] of Object.entries(sortedProducts)) {
             if (product.category.provider === "aau") continue;
 
             let categoryName = productGroupName(product);
             categoryName = getProviderTitle(product.category.provider) + ": " + categoryName;
 
             if (lastCategory !== categoryName) {
-                result.push(categoryName);
+                const defaultProduct = sortedProducts[parseInt(index)] as ProductV2Compute;
+                result.push({
+                    kind: kindFromProduct(defaultProduct),
+                    canConnect: connectionState.canConnectToProvider(product.category.provider),
+                    category: categoryName,
+                    provider: getProviderTitle(product.category.provider),
+                    defaultProduct: defaultProduct
+                });
                 lastCategory = categoryName;
-
-                if (connectionState.canConnectToProvider(product.category.provider)) {
-                    result.push(NEED_CONNECT);
-                }
             }
 
             result.push(product);
@@ -272,6 +281,8 @@ export const ProductSelector: React.FunctionComponent<{
     let extraColumns = 3;
     if (type === "COMPUTE") extraColumns++;
 
+    const [selectedComputeCategory, setSelectedComputeCategory] = React.useState<ComputeCategory>();
+
     return <>
         <div className={classConcat(SelectorBoxClass, props.slim === true ? "slim" : undefined)} onClick={onToggle} ref={boxRef}>
             <div className="selected">
@@ -300,6 +311,7 @@ export const ProductSelector: React.FunctionComponent<{
                                         </tbody>
                                     </table>
                                     <ProviderLogo className={"provider-logo"} providerId={selected?.category?.provider ?? "?"} size={32} />
+                                    <MachineTypeSelectionSlider products={categorizedProducts} onSelect={props.onSelect} selectedCategory={selectedComputeCategory} />
                                 </> : null}
                             </> :
                             <Flex alignItems={"center"} gap={"8px"}>
@@ -404,19 +416,30 @@ export const ProductSelector: React.FunctionComponent<{
                             <Table>
                                 <thead>
                                     <TableRow>
-                                        <th style={{width: "32px"}} />
-                                        <th>Name</th>
-                                        {headers.map(it => <th key={it}>{it}</th>)}
-                                        <th>Price</th>
-                                        {type === "COMPUTE" ? <th style={{width: "32px"}} /> : null}
+                                        {type === "COMPUTE" ? <>
+                                            <th>Product category</th>
+                                            <th>Type</th>
+                                            <th>Provider</th>
+                                        </> : <>
+                                            <th style={{width: "32px"}} />
+                                            <th>Name</th>
+                                            {headers.map(it => <th key={it}>{it}</th>)}
+                                            <th>Price</th>
+                                            <th style={{width: "32px"}} /> : <th style={{width: "250px"}}>Provider</th>
+                                        </>}
                                     </TableRow>
                                 </thead>
                                 <tbody ref={itemWrapperRef}>
                                     {categorizedProducts.map((p, i) => {
-                                        if (typeof p === "string") {
+                                        if ("kind" in p) {
                                             if (!showHeadings) return null;
-                                            return <tr key={i} className="table-info">
-                                                {p === NEED_CONNECT ?
+                                            return <tr key={i} className="table-info" onClick={() => {
+                                                if (p.canConnect) return;
+                                                setSelectedComputeCategory(p);
+                                                props.onSelect(p.defaultProduct);
+                                                onClose();
+                                            }}>
+                                                {p.canConnect ?
                                                     <td colSpan={extraColumns + headers.length}>
                                                         <div>
                                                             <Link to="/providers/connect">
@@ -425,16 +448,21 @@ export const ProductSelector: React.FunctionComponent<{
                                                             </Link>
                                                         </div>
                                                     </td> :
-                                                    <td colSpan={extraColumns + headers.length}>
-                                                        <div>
-                                                            <div className="spacer" />
-                                                            {p}
-                                                            <div className="spacer" />
-                                                        </div>
-                                                    </td>
+                                                    <>
+                                                        <td>
+                                                            {p.category}
+                                                        </td>
+                                                        <td>
+                                                            {p.kind}
+                                                        </td>
+                                                        <td>
+                                                            {p.provider}
+                                                        </td>
+                                                    </>
                                                 }
                                             </tr>
                                         } else {
+                                            if (p.type === "compute") return null;
                                             const support = (props.support ?? []).find(s =>
                                                 s.product.name === p.name &&
                                                 productCategoryEquals(s.product.category, p.category)
@@ -480,19 +508,86 @@ export const ProductSelector: React.FunctionComponent<{
                                                 {queueStatus !== null ? <td style={{width: "32px"}}>
                                                     <JobQueueStatusIndicator status={queueStatus} />
                                                 </td> : null}
+
+                                                <td><ProviderTitle providerId={p.category.provider} /></td>
                                             </TableRow>
                                         }
                                     })}
                                 </tbody>
                             </Table>
-                        </>
-                    }
-                </div>,
+                        </>}
+                </div >,
                 portalRef.current!
             )
         }
     </>;
 };
+
+function kindFromProduct(prod: ProductV2Compute): "CPU" | "GPU" | "MIG" {
+    if (prod.gpu) {
+        if (prod.fraction?.numerator !== 1 || prod.fraction.denominator !== 1) {
+            return "MIG";
+        }
+        return "GPU";
+    }
+    return "CPU";
+}
+
+function MachineTypeSelectionSlider(props: {
+    products: (ComputeCategory | ProductV2)[];
+    selectedCategory?: ComputeCategory;
+    onSelect: (product: ProductV2) => void;
+}): React.ReactNode {
+    const [sliderIdx, setSliderIdx] = React.useState(-1);
+
+    const machines = React.useMemo(() => {
+        const result: ProductV2Compute[] = [];
+        const {selectedCategory} = props;
+        if (!selectedCategory) return result;
+
+        const selectedCategoryIdx = props.products.findIndex(product => {
+            if (!("kind" in product)) return false;
+            return product.category === selectedCategory.category && product.provider === selectedCategory.provider;
+        });
+
+        if (selectedCategoryIdx !== -1) {
+            let idx = selectedCategoryIdx + 1;
+            while (props.products[idx]) {
+                let entry = props.products[idx++];
+                if (typeof entry === "string") break;
+                result.push(entry as ProductV2Compute);
+            }
+        }
+        setSliderIdx(idx => {
+            if (idx === -1) return 0;
+            return idx;
+        });
+
+        console.log(`${result.length} machine options for ${selectedCategory.category}`);
+        return result;
+    }, [props.products, props.selectedCategory]);
+    if (!props.selectedCategory || machines.length === 0) return null;
+
+    return <div onClick={stopPropagation}>
+        <input value={sliderIdx} onChange={e => {
+            setSliderIdx(e.target.valueAsNumber);
+            props.onSelect(machines[e.target.valueAsNumber]);
+        }} className={FancySlider} min={0} max={machines.length - 1} type="range" list="markers" />
+        <datalist id="markers">
+            {machines.map((_, idx) => <option key={idx} value={idx} />)}
+        </datalist>
+    </div>
+}
+
+const FancySlider = injectStyle("fancy-slider", cl => `
+    ${cl} {
+        width: calc(100% - 48px);
+        margin-right: 48px;
+        padding: 8px;
+        cursor: pointer;
+        accent-color: var(--primaryMain);
+    }
+`);
 
 const ProductName: React.FunctionComponent<{product: ProductV2}> = ({product}) => {
     return <>{product.name}</>;
@@ -539,14 +634,6 @@ export const SelectorDialog = injectStyle("selector-dialog", k => `
     ${k} table > tbody > tr:hover {
         cursor: pointer;
         background-color: var(--rowHover);
-    }
-
-    ${k} td[colspan] div.spacer {
-        content: " ";
-        display: block;
-        width: 45px;
-        height: 1px;
-        background: var(--textPrimary);
     }
 
     ${k} td[colspan] > div {
