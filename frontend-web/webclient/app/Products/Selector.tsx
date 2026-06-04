@@ -321,10 +321,6 @@ export const ProductSelector: React.FunctionComponent<{
         }
     }, [type, categorizedProducts, props.support]);
 
-    if (selectedComputeCategory) {
-        console.log(queueStatuses[selectedComputeCategory.category]);
-    }
-
     return <>
         <div className={classConcat(SelectorBoxClass, props.slim === true ? "slim" : undefined)} onClick={onToggle} ref={boxRef}>
             <div className="selected">
