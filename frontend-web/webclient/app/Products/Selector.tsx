@@ -23,7 +23,7 @@ interface ComputeCategory {
     category: string;
     kind: "CPU" | "GPU" | "MIG";
     canConnect: boolean;
-    defaultProduct: ProductV2;
+    products: ProductV2[];
 }
 
 function legacyGroupName(product: ProductV2): string {
@@ -162,17 +162,18 @@ export const ProductSelector: React.FunctionComponent<{
                     canConnect: connectionState.canConnectToProvider(product.category.provider),
                     category: categoryName,
                     provider: getProviderTitle(product.category.provider),
-                    defaultProduct: defaultProduct
+                    products: []
                 });
                 lastCategory = categoryName;
             }
 
+            const last = result.findLast(it => "kind" in it);
             result.push(product);
+            last?.products.push(product);
         }
 
         return result;
     }, [filteredProducts, connectionState.lastRefresh]);
-
 
     const boxRef = React.useRef<HTMLDivElement>(null);
     const boxRect = boxRef?.current?.getBoundingClientRect() ?? {x: 0, y: 0, width: 0, height: 0, top: 0, right: 0, bottom: 0, left: 0};
@@ -283,7 +284,24 @@ export const ProductSelector: React.FunctionComponent<{
 
     const [selectedComputeCategory, setSelectedComputeCategory] = React.useState<ComputeCategory>();
 
+    React.useEffect(() => {
+        if (type === "COMPUTE" && selected) {
 
+            const sel = selected;
+            setSelectedComputeCategory(cat => {
+                for (const categorized of categorizedProducts) {
+                    if ("kind" in categorized) {
+                        for (const p of categorized.products) {
+                            if (p.name === sel.name && p.category.name === sel.category.name && p.category.provider === sel.category.provider) {
+                                return categorized;
+                            }
+                        }
+                    }
+                }
+                return cat;
+            });
+        }
+    }, [type, selected, categorizedProducts]);
 
     let queueStatus: JobQueueStatus | null = null
     if (type === "COMPUTE") {
@@ -323,7 +341,12 @@ export const ProductSelector: React.FunctionComponent<{
                                     </table>
                                     <ProviderLogo className={"provider-logo"} providerId={selected?.category?.provider ?? "?"} size={32} />
                                     {queueStatus ? <div className="queue-status"><JobQueueStatusIndicator status={queueStatus} /></div> : null}
-                                    <MachineTypeSelectionSlider products={categorizedProducts} onSelect={props.onSelect} selectedCategory={selectedComputeCategory} />
+                                    <MachineTypeSelectionSlider
+                                        idx={selectedComputeCategory?.products.findIndex(prod => prod === selected) ?? -1}
+                                        onSelect={idx => {
+                                            if (!selectedComputeCategory) return;
+                                            props.onSelect(selectedComputeCategory.products[idx])
+                                        }} selectedCategory={selectedComputeCategory} />
                                 </> : null}
                             </> :
                             <Flex alignItems={"center"} gap={"8px"}>
@@ -450,7 +473,7 @@ export const ProductSelector: React.FunctionComponent<{
                                             return <tr key={i} className="table-info" onClick={() => {
                                                 if (p.canConnect) return;
                                                 setSelectedComputeCategory(p);
-                                                props.onSelect(p.defaultProduct);
+                                                props.onSelect(p.products[0]);
                                                 onClose();
                                             }}>
                                                 {p.canConnect ?
@@ -463,9 +486,9 @@ export const ProductSelector: React.FunctionComponent<{
                                                         </div>
                                                     </td> :
                                                     <>
-                                                        <td>
-                                                            <ProviderLogo providerId={p.defaultProduct.category.provider} size={24} />
-                                                        </td>
+                                                        <TableCell>
+                                                            <ProviderLogo providerId={p.products[0].category.provider} size={24} />
+                                                        </TableCell>
                                                         <td>
                                                             {p.provider}
                                                         </td>
@@ -486,11 +509,6 @@ export const ProductSelector: React.FunctionComponent<{
                                             )?.support;
 
                                             const maintenance = support?.maintenance;
-
-                                            let queueStatus: JobQueueStatus | null = null
-                                            if (type === "COMPUTE") {
-                                                queueStatus = (support as ComputeSupport).queueStatus ?? null;
-                                            }
 
                                             const isDisabled =
                                                 connectionState.canConnectToProvider(p.category.provider) ||
@@ -547,47 +565,18 @@ function kindFromProduct(prod: ProductV2Compute): "CPU" | "GPU" | "MIG" {
 }
 
 function MachineTypeSelectionSlider(props: {
-    products: (ComputeCategory | ProductV2)[];
     selectedCategory?: ComputeCategory;
-    onSelect: (product: ProductV2) => void;
+    onSelect: (index: number) => void;
+    idx: number;
 }): React.ReactNode {
-    const [sliderIdx, setSliderIdx] = React.useState(-1);
 
-    const machines = React.useMemo(() => {
-        const result: ProductV2Compute[] = [];
-        const {selectedCategory} = props;
-        if (!selectedCategory) return result;
-
-        const selectedCategoryIdx = props.products.findIndex(product => {
-            if (!("kind" in product)) return false;
-            return product.category === selectedCategory.category && product.provider === selectedCategory.provider;
-        });
-
-        if (selectedCategoryIdx !== -1) {
-            let idx = selectedCategoryIdx + 1;
-            while (props.products[idx]) {
-                const entry = props.products[idx++];
-                if ("kind" in entry) break;
-                result.push(entry as ProductV2Compute);
-            }
-        }
-        setSliderIdx(idx => {
-            if (idx === -1) return 0;
-            return idx;
-        });
-
-        console.log(`${result.length} machine options for ${selectedCategory.category}`);
-        return result;
-    }, [props.products, props.selectedCategory]);
-    if (!props.selectedCategory || machines.length === 0) return null;
+    if (!props.selectedCategory) return null;
 
     return <div onClick={stopPropagation}>
-        <input value={sliderIdx} onChange={e => {
-            setSliderIdx(e.target.valueAsNumber);
-            props.onSelect(machines[e.target.valueAsNumber]);
-        }} className={FancySlider} min={0} max={machines.length - 1} type="range" list="markers" />
+        <input value={props.idx} onChange={e => props.onSelect(e.target.valueAsNumber)}
+            className={FancySlider} min={0} max={props.selectedCategory.products.length - 1} type="range" list="markers" />
         <datalist id="markers">
-            {machines.map((_, idx) => <option key={idx} value={idx} />)}
+            {props.selectedCategory.products.map((_, idx) => <option key={idx} value={idx} />)}
         </datalist>
     </div>
 }
@@ -657,10 +646,6 @@ export const SelectorDialog = injectStyle("selector-dialog", k => `
         justify-content: center;
         align-items: center;
         gap: 8px;
-    }
-
-    ${k} .table-info + .table-info > td > div {
-        margin-top: -16px;
     }
 
     ${k} tr.disabled, ${k} tr.disabled:hover {
