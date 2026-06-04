@@ -56,3 +56,16 @@ func grantV3() db.MigrationScript {
 		},
 	}
 }
+
+func grantV4() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "grantsV4",
+		Execute: func(tx *db.Transaction) {
+			statement := `
+				alter table "grant".templates
+				add column revision_number integer not null default 1;
+			`
+			db.Exec(tx, statement, db.Params{})
+		},
+	}
+}
