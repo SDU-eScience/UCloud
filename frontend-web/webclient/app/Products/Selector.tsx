@@ -1,7 +1,7 @@
 import * as React from "react";
 import ReactDOM from "react-dom";
 
-import {ProductV2, productCategoryEquals, ProductV2Compute, ProductType, explainUnit, ProductCategoryV2, priceToString} from "@/Accounting";
+import {ProductV2, productCategoryEquals, ProductV2Compute, ProductType, explainUnit, ProductCategoryV2, priceToString, Product} from "@/Accounting";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
 import {connectionState} from "@/Providers/ConnectionState";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
@@ -10,11 +10,11 @@ import {Box, Button, Flex, Icon, Input, Link, Tooltip} from "@/ui-components";
 import Table, {TableCell, TableRow} from "@/ui-components/Table";
 import {useUState} from "@/Utilities/UState";
 import {clamp, grantsLink, stopPropagation} from "@/UtilityFunctions";
-import {ResolvedSupport} from "@/UCloud/ResourceApi";
+import {ProductSupport, ResolvedSupport} from "@/UCloud/ResourceApi";
 import {explainMaintenance, maintenanceIconColor, shouldAllowMaintenanceAccess} from "@/Products/Maintenance";
 import {classConcat, injectStyle} from "@/Unstyled";
 import {NoResultsBody} from "@/UtilityComponents";
-import {ComputeSupport, JobQueueStatus} from "@/UCloud/JobsApi";
+import {ComputeSupport, JobQueueStatus, QueueStatus} from "@/UCloud/JobsApi";
 import {ThemeColor} from "@/ui-components/theme";
 import {TooltipV2} from "@/ui-components/Tooltip";
 
@@ -164,16 +164,17 @@ export const ProductSelector: React.FunctionComponent<{
                     provider: getProviderTitle(product.category.provider),
                     products: []
                 });
+
                 lastCategory = categoryName;
             }
 
-            const last = result.findLast(it => "kind" in it);
+            const last = result.findLast(it => isComputeCategory(it));
             result.push(product);
             last?.products.push(product);
         }
 
         return result;
-    }, [filteredProducts, connectionState.lastRefresh]);
+    }, [filteredProducts, connectionState.lastRefresh, props.support]);
 
     const boxRef = React.useRef<HTMLDivElement>(null);
     const boxRect = boxRef?.current?.getBoundingClientRect() ?? {x: 0, y: 0, width: 0, height: 0, top: 0, right: 0, bottom: 0, left: 0};
@@ -290,7 +291,7 @@ export const ProductSelector: React.FunctionComponent<{
             const sel = selected;
             setSelectedComputeCategory(cat => {
                 for (const categorized of categorizedProducts) {
-                    if ("kind" in categorized) {
+                    if (isComputeCategory(categorized)) {
                         for (const p of categorized.products) {
                             if (p.name === sel.name && p.category.name === sel.category.name && p.category.provider === sel.category.provider) {
                                 return categorized;
@@ -310,6 +311,18 @@ export const ProductSelector: React.FunctionComponent<{
             productCategoryEquals(s.product.category, selected?.category)
         )?.support;
         queueStatus = (support as ComputeSupport)?.queueStatus ?? null;
+    }
+
+    const [queueStatuses, setQueueStatuses] = React.useState<Record<string, JobQueueStatus>>({});
+    React.useEffect(() => {
+        if (type === "COMPUTE") {
+
+            setQueueStatuses(naiveCategoryStatus(categorizedProducts, props.support ?? []));
+        }
+    }, [type, categorizedProducts, props.support]);
+
+    if (selectedComputeCategory) {
+        console.log(queueStatuses[selectedComputeCategory.category]);
     }
 
     return <>
@@ -335,11 +348,11 @@ export const ProductSelector: React.FunctionComponent<{
                                         <tbody>
                                             <tr>
                                                 <ProductStats product={selected} />
-                                                <td>{priceToString(selected, 1)}</td>
+                                                <TableCell>{priceToString(selected, 1)}</TableCell>
                                             </tr>
                                         </tbody>
                                     </table>
-                                    <ProviderLogo className={"provider-logo"} providerId={selected?.category?.provider ?? "?"} size={32} />
+                                    <ProviderLogo className="provider-logo" providerId={selected?.category?.provider ?? "?"} size={32} />
                                     {queueStatus ? <div className="queue-status"><JobQueueStatusIndicator status={queueStatus} /></div> : null}
                                     <MachineTypeSelectionSlider
                                         idx={selectedComputeCategory?.products.findIndex(prod => prod === selected) ?? -1}
@@ -456,19 +469,19 @@ export const ProductSelector: React.FunctionComponent<{
                                             <th>Provider</th>
                                             <th>Product category</th>
                                             <th>Type</th>
+                                            <th>Machine status</th>
                                         </> : <>
-
                                             <th style={{width: "32px"}} />
-                                            <th style={{width: "250px"}}>Provider</th>
                                             <th>Name</th>
                                             {headers.map(it => <th key={it}>{it}</th>)}
                                             <th>Price</th>
+                                            <th style={{width: "250px"}}>Provider</th>
                                         </>}
                                     </TableRow>
                                 </thead>
                                 <tbody ref={itemWrapperRef}>
                                     {categorizedProducts.map((p, i) => {
-                                        if ("kind" in p) {
+                                        if (isComputeCategory(p)) {
                                             if (!showHeadings) return null;
                                             return <tr key={i} className="table-info" onClick={() => {
                                                 if (p.canConnect) return;
@@ -477,27 +490,30 @@ export const ProductSelector: React.FunctionComponent<{
                                                 onClose();
                                             }}>
                                                 {p.canConnect ?
-                                                    <td colSpan={extraColumns + headers.length}>
+                                                    <TableCell colSpan={extraColumns + headers.length}>
                                                         <div>
                                                             <Link to="/providers/connect">
                                                                 <Icon name="warning" color="warningMain" mr="8px" />
                                                                 Connection required! You must connect with the provider before you can consume resources from it.
                                                             </Link>
                                                         </div>
-                                                    </td> :
+                                                    </TableCell> :
                                                     <>
                                                         <TableCell>
                                                             <ProviderLogo providerId={p.products[0].category.provider} size={24} />
                                                         </TableCell>
-                                                        <td>
+                                                        <TableCell>
                                                             {p.provider}
-                                                        </td>
-                                                        <td>
-                                                            {p.category}
-                                                        </td>
-                                                        <td>
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            {p.products[0].category.name}
+                                                        </TableCell>
+                                                        <TableCell>
                                                             {p.kind}
-                                                        </td>
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <JobQueueStatusIndicator status={queueStatuses[p.category]} />
+                                                        </TableCell>
                                                     </>
                                                 }
                                             </tr>
@@ -537,10 +553,10 @@ export const ProductSelector: React.FunctionComponent<{
                                                         <ProviderLogo providerId={p.category.provider} size={24} />
                                                     }
                                                 </TableCell>
-                                                <td><ProviderTitle providerId={p.category.provider} /></td>
                                                 <TableCell><ProductName product={p} /></TableCell>
                                                 <ProductStats product={p} />
                                                 <TableCell>{priceToString(p, 1)}</TableCell>
+                                                <TableCell><ProviderTitle providerId={p.category.provider} /></TableCell>
                                             </TableRow>
                                         }
                                     })}
@@ -593,6 +609,47 @@ const FancySlider = injectStyle("fancy-slider", cl => `
 
 const ProductName: React.FunctionComponent<{product: ProductV2}> = ({product}) => {
     return <>{product.name}</>;
+}
+
+function naiveCategoryStatus(products: (ComputeCategory | ProductV2)[], productSupport: ResolvedSupport<Product, ProductSupport>[]): Record<string, JobQueueStatus> {
+    const record: Record<string, JobQueueStatus> = {};
+    for (const categorizedProduct of products) {
+        if (isComputeCategory(categorizedProduct)) {
+            const queueStatusList: JobQueueStatus[] = [];
+            for (const product of categorizedProduct.products) {
+                const support = productSupport.find(s =>
+                    s.product.name === product?.name &&
+                    productCategoryEquals(s.product.category, product?.category)
+                )?.support;
+                const status = (support as ComputeSupport)?.queueStatus;
+                if (status) {
+                    queueStatusList.push(status);
+                }
+            }
+
+            record[categorizedProduct.category] = queueStateForCategory(queueStatusList);
+
+        }
+    }
+    return record;
+}
+
+function queueStateForCategory(queueStatusList: JobQueueStatus[]): JobQueueStatus {
+    if (queueStatusList.length === 0) {
+        console.warn("No queue status")
+    } else if (queueStatusList.some(it => it === JobQueueStatus.AVAILABLE)) {
+        return JobQueueStatus.AVAILABLE;
+    } else if (queueStatusList.some(it => it === JobQueueStatus.BUSY)) {
+        return JobQueueStatus.BUSY;
+    } else {
+        return JobQueueStatus.FULL;
+    }
+
+    return JobQueueStatus.AVAILABLE;
+}
+
+function isComputeCategory(val: ProductV2 | ComputeCategory): val is ComputeCategory {
+    return "kind" in val;
 }
 
 export const SelectorDialog = injectStyle("selector-dialog", k => `
