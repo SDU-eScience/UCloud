@@ -45,6 +45,8 @@ function ManageProjects(): React.ReactNode {
         if (success) {
             sendSuccessNotification("Project settings saved!");
             setSettings([...settings]);
+        } else {
+            sendFailureNotification("Could not update project settings");
         }
     }
 
@@ -82,11 +84,16 @@ function ManageProjects(): React.ReactNode {
             return
         }
 
-        const existingSetting = await callAPI<Grants.RequestSettings>(
-            {
-                ...Grants.retrieveRequestSettingsAdmin({id: projectId})
-            }
-        );
+        let existingSetting = defaultSetting
+        try {
+            existingSetting = await callAPI<Grants.RequestSettings>(
+                {
+                    ...Grants.retrieveRequestSettingsAdmin({id: projectId})
+                }
+            );
+        } catch (e: any) {
+            //Do nothing
+        }
 
         const projectSettings = {
             projectId: projectId,
