@@ -92,7 +92,8 @@ function ManageProjects(): React.ReactNode {
                 }
             );
         } catch (e: any) {
-            //Do nothing
+            sendFailureNotification("Cannot enabled project.")
+            return
         }
 
         const projectSettings = {

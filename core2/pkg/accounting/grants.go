@@ -1771,7 +1771,7 @@ func GrantsBrowseEnabledProjects(actor rpc.Actor) ([]accapi.ProjectToSetting, *u
 		bucket.Mu.Lock()
 		for project, _ := range bucket.PublicGrantGivers {
 			settingsFromBucket, ok := bucket.Settings[project]
-			if ok {
+			if ok && settingsFromBucket.Settings.Enabled {
 				settings = append(
 					settings,
 					accapi.ProjectToSetting{ProjectId: project, Settings: settingsFromBucket.lDeepCopy()},
