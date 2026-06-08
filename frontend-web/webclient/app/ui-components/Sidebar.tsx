@@ -234,20 +234,20 @@ const sideBarMenuElements: [
     ],
     predicate: () => Client.isLoggedIn
 },
-{
-    items: [
-        {icon: "heroBolt", label: SidebarTabId.ADMIN, to: AppRoutes.admin.userCreation()},
-    ],
-    predicate: () => Client.userIsAdmin
-},
-{
-    items: [
-        {icon: "heroBuildingStorefront", label: SidebarTabId.APPLICATION_STUDIO, to: AppRoutes.appStudio.groups()}
-    ],
-    predicate: (state) => {
-        return Client.userIsAdmin;
-    }
-}];
+    {
+        items: [
+            {icon: "heroBolt", label: SidebarTabId.ADMIN, to: AppRoutes.admin.userCreation()},
+        ],
+        predicate: () => Client.userIsAdmin
+    },
+    {
+        items: [
+            {icon: "heroBuildingStorefront", label: SidebarTabId.APPLICATION_STUDIO, to: AppRoutes.appStudio.groups()}
+        ],
+        predicate: (state) => {
+            return Client.userIsAdmin;
+        }
+    }];
 
 interface SidebarStateProps {
     loggedIn: boolean;
@@ -282,7 +282,7 @@ function UserMenuLink(props: {icon: IconName; text: string; to: string; close():
     return <Link color="textPrimary" onClick={props.close} hoverColor="textPrimary" height="28px" to={props.to}>
         <Flex className={HoverClass}>
             <Icon name={props.icon} mr="0.5em" my="0.2em"
-                size="1.3em" />
+                  size="1.3em" />
             <TextSpan color="var(--textPrimary)">{props.text}</TextSpan>
         </Flex>
     </Link>
@@ -352,14 +352,14 @@ function UserMenu({branding, avatar, dialog, setOpenDialog}: {
                 </>
             ) : null}
             <UserMenuLink close={close.current} icon="heroWrenchScrewdriver" text="Settings"
-                to={AppRoutes.users.settings()} />
+                          to={AppRoutes.users.settings()} />
             <UserMenuLink close={close.current} icon="heroUser" text="Edit avatar" to={AppRoutes.users.avatar()} />
             {branding.documentation ?
                 (<UserMenuExternalLink close={close.current} href={branding.documentation.href} icon="heroBookOpen" text={branding.documentation.title} />)
                 : null}
             {branding.dataProtection ?
                 (<UserMenuExternalLink close={close.current} href={branding.dataProtection.href} icon="heroShieldCheck"
-                    text={branding.dataProtection.title} />) : null
+                                       text={branding.dataProtection.title} />) : null
             }
             <Divider />
             <Username />
@@ -367,7 +367,7 @@ function UserMenu({branding, avatar, dialog, setOpenDialog}: {
             <CommandPaletteEntry />
             <Divider />
             <Flex className={HoverClass} onClick={() => Client.logout()} data-component={"logout-button"}>
-                <Icon name="heroArrowRightOnRectangle" color2="textPrimary" mr="0.5em" my="0.2em" size="1.3em"/>
+                <Icon name="heroArrowRightOnRectangle" color2="textPrimary" mr="0.5em" my="0.2em" size="1.3em" />
                 Logout
             </Flex>
         </Box>
@@ -380,7 +380,7 @@ function CommandPaletteEntry(): React.ReactNode {
     return <Flex className={HoverClass} onClick={e => {
         window.dispatchEvent(new KeyboardEvent("keydown", {code: "KeyP", ctrlKey: true, metaKey: true}));
     }}>
-        <Icon name="heroCommandLine" color2="textPrimary" mr="0.5em" my="0.2em" size="1.3em"/> Command palette
+        <Icon name="heroCommandLine" color2="textPrimary" mr="0.5em" my="0.2em" size="1.3em" /> Command palette
         <TextSpan ml="0.5em" color="textSecondary">({CTRL_KEY} + P)</TextSpan>
     </Flex>
 }
@@ -492,7 +492,7 @@ export function Sidebar(): React.ReactNode {
         <Flex>
             <div className={classConcat(SidebarContainerClass, SIDEBAR_IDENTIFIER)}>
                 <Link data-component={"logo"} title={`Go to dashboard`} aria-label={`Go to dashboard`} to="/"
-                    onClick={onLogoClick}>
+                      onClick={onLogoClick}>
                     <Icon name="logoEsc" mt="10px" size="34px" />
                 </Link>
 
@@ -518,19 +518,19 @@ export function Sidebar(): React.ReactNode {
                                     }}
                                     className={SidebarMenuItem}
                                 >
-                                    <SidebarTab icon={icon}/>
+                                    <SidebarTab icon={icon} />
                                 </div>
                             </Link>) : <div
-                                key={label}
-                                data-active={tab === label}
-                                onClick={() => {
-                                    if (selectedPage) {
-                                        setSelectedPage(label);
-                                    }
-                                }}
-                                onMouseEnter={() => setHoveredPage(label)}
-                                className={SidebarMenuItem}
-                            >
+                            key={label}
+                            data-active={tab === label}
+                            onClick={() => {
+                                if (selectedPage) {
+                                    setSelectedPage(label);
+                                }
+                            }}
+                            onMouseEnter={() => setHoveredPage(label)}
+                            className={SidebarMenuItem}
+                        >
                             <SidebarTab icon={icon} />
                         </div>
                     )}
@@ -876,13 +876,13 @@ function ApplicationStudioSubLinks() {
 }
 
 function SecondarySidebar({
-                              hovered,
-                              clicked,
-                              setHoveredPage,
-                              clearHover,
-                              setSelectedPage,
-                              clearClicked
-                          }: SecondarySidebarProps): React.ReactNode {
+    hovered,
+    clicked,
+    setHoveredPage,
+    clearHover,
+    setSelectedPage,
+    clearClicked
+}: SecondarySidebarProps): React.ReactNode {
     const [drives, favoriteFiles] = useSidebarFilesPage();
     const recentRuns = useSidebarRunsPage();
     const projectId = useProjectId();
@@ -1037,17 +1037,12 @@ function SecondarySidebar({
         document.body.style.setProperty(CSSVarCurrentSidebarWidth, `${sum}px`);
         document.body.style.setProperty(CSSVarCurrentSidebarStickyWidth, isOpen && !asPopOver ? `${sum}px` : `${firstLevel}px`);
 
-        dispatch<GenericSetAction>({
-            type: "GENERIC_SET",
-            payload: {property: "sidebarWidth", newValue: sum, defaultValue: sum}
-        });
-        dispatch<GenericSetAction>({
-            type: "GENERIC_SET", payload: {
-                property: "sidebarStickyWidth",
-                newValue: isOpen && !asPopOver ? sum : firstLevel,
-                defaultValue: isOpen && !asPopOver ? sum : firstLevel,
-            }
-        });
+        dispatch(genericSet({property: "sidebarWidth", newValue: sum, defaultValue: sum}));
+        dispatch(genericSet({
+            property: "sidebarStickyWidth",
+            newValue: isOpen && !asPopOver ? sum : firstLevel,
+            defaultValue: isOpen && !asPopOver ? sum : firstLevel,
+        }));
     }, [isOpen, asPopOver]);
 
     const onMenuClick = useCallback((ev: React.SyntheticEvent) => {
@@ -1088,9 +1083,9 @@ function SecondarySidebar({
 
             <Relative left="calc(var(--secondarySidebarWidth) - 46px)">
                 <Flex style={{position: "fixed", top: "calc(100vh - 68px)"}} alignItems="center" backgroundColor="white"
-                    height="38px" width={"30px"}
-                    justifyContent={"center"} borderRadius="12px 0 0 12px"
-                    onClick={clicked ? onClear : () => setSelectedPage(hovered)}>
+                      height="38px" width={"30px"}
+                      justifyContent={"center"} borderRadius="12px 0 0 12px"
+                      onClick={clicked ? onClear : () => setSelectedPage(hovered)}>
                     <Icon name="heroChevronDown" size={18} rotation={clicked ? 90 : -90} color="primaryMain" />
                 </Flex>
             </Relative>
@@ -1109,8 +1104,8 @@ function SecondarySidebar({
                         key={drive.id}
                         text={drive.specification.title}
                         icon={isShare(drive) ?
-                            <Icon mt="2px" name="ftSharesFolder" color={"FtFolderColor"} color2={"FtFolderColor2"}/> :
-                            <ProviderLogo providerId={drive.specification.product.provider} size={20}/>}
+                            <Icon mt="2px" name="ftSharesFolder" color={"FtFolderColor"} color2={"FtFolderColor2"} /> :
+                            <ProviderLogo providerId={drive.specification.product.provider} size={20} />}
                         to={AppRoutes.files.drive(drive.id)}
                         tab={SidebarTabId.FILES}
                     />
@@ -1132,18 +1127,18 @@ function SecondarySidebar({
 
                 {canConsume && sharesLinksInfo.length > 0 && isPersonalWorkspace ? <>
                     <SidebarSectionHeader tab={SidebarTabId.FILES}>Shared files</SidebarSectionHeader>
-                    <SidebarLinkColumn links={sharesLinksInfo}/>
+                    <SidebarLinkColumn links={sharesLinksInfo} />
                 </> : null}
             </>}
 
             {active !== SidebarTabId.PROJECT ? null : <>
-                <SidebarSectionEmptyHeader/>
-                <ProjectSubLinks canApply={canApply} isPersonalWorkspace={isPersonalWorkspace} projectId={projectId}/>
+                <SidebarSectionEmptyHeader />
+                <ProjectSubLinks canApply={canApply} isPersonalWorkspace={isPersonalWorkspace} projectId={projectId} />
             </>}
 
             {active !== SidebarTabId.RESOURCES ? null : <>
-                <SidebarSectionEmptyHeader/>
-                <ResourceSubLinks/>
+                <SidebarSectionEmptyHeader />
+                <ResourceSubLinks />
             </>}
 
             {/* Note(Jonas) Do it this way to ensure that the frontend doesn't fetch icons every time this is shown. */}
@@ -1155,7 +1150,7 @@ function SecondarySidebar({
                             key={fav.metadata.name}
                             to={AppRoutes.jobs.create(fav.metadata.name)}
                             text={fav.metadata.title}
-                            icon={<AppLogo name={fav.metadata.name}/>}
+                            icon={<AppLogo name={fav.metadata.name} />}
                             tab={SidebarTabId.APPLICATIONS}
                         />
                     )}
@@ -1182,7 +1177,7 @@ function SecondarySidebar({
 
             {/* Note(Jonas) Do it this way to ensure that the frontend doesn't fetch icons every time this is shown. */}
             <div style={{display: active !== SidebarTabId.RUNS ? "none" : undefined}}>
-                <SidebarSectionEmptyHeader/>
+                <SidebarSectionEmptyHeader />
                 <ComputeSubLinks />
                 <SidebarSectionHeader tab={SidebarTabId.RUNS}>Running jobs</SidebarSectionHeader>
                 {recentRuns.length === 0 && <>
@@ -1199,7 +1194,7 @@ function SecondarySidebar({
                         key={run.id}
                         to={AppRoutes.jobs.view(run.id)}
                         text={name}
-                        icon={<AppLogo name={run.specification.application.name}/>}
+                        icon={<AppLogo name={run.specification.application.name} />}
                         tab={SidebarTabId.RUNS}
                     />
                 })}
@@ -1220,20 +1215,20 @@ function SecondarySidebar({
             </>}
 
             {active !== SidebarTabId.APPLICATION_STUDIO ? null : <>
-                <SidebarSectionEmptyHeader/>
-                <ApplicationStudioSubLinks/>
+                <SidebarSectionEmptyHeader />
+                <ApplicationStudioSubLinks />
             </>}
 
         </Flex>
     </div>;
 }
 
-function AppLogo({name}: { name: string }): React.ReactNode {
-    return <SafeLogo size="16px" name={name} type="APPLICATION" isLightOverride={false}/>;
+function AppLogo({name}: {name: string}): React.ReactNode {
+    return <SafeLogo size="16px" name={name} type="APPLICATION" isLightOverride={false} />;
 }
 
 function SidebarSectionEmptyHeader(): React.ReactNode {
-    return <Box height="11px"/>
+    return <Box height="11px" />
 }
 
 function Username(): React.ReactNode {
@@ -1266,7 +1261,7 @@ function Username(): React.ReactNode {
             </EllipsedText>
         )}
     >
-        This is your username. <br/> <br/>
+        This is your username. <br /> <br />
         Click to copy to clipboard.
     </Tooltip>
 }
@@ -1310,11 +1305,11 @@ function ProjectID(): React.ReactNode {
                 width={"100%"}
             >
                 <Icon key={projectId} color={copied ? "successMain" : undefined} name={copied ? "check" : "heroUserGroup"} mr="0.5em" my="0.2em"
-                    size="1.3em" />{projectPath}
+                      size="1.3em" />{projectPath}
             </EllipsedText>
         }
     >
-        This is your project ID. <br/> <br/>
+        This is your project ID. <br /> <br />
         Click to copy to clipboard.
     </Tooltip>
 }
@@ -1342,8 +1337,8 @@ function Downtimes(): React.ReactNode {
 
     if (upcomingDowntime === -1) return null;
     return <Link to={AppRoutes.news.detailed(upcomingDowntime)}>
-        <Tooltip trigger={<Icon size="24" color="warningMain" name="warning"/>}>
-            Upcoming downtime.<br/>
+        <Tooltip trigger={<Icon size="24" color="warningMain" name="warning" />}>
+            Upcoming downtime.<br />
             Click to view
         </Tooltip>
     </Link>
