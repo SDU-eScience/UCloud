@@ -1714,8 +1714,8 @@ func GrantsRetrieveGrantGivers(actor rpc.Actor, req accapi.RetrieveGrantGiversRe
 	return util.NonNilSlice(result), nil
 }
 
-func GrantsUpdateSettings(actor rpc.Actor, id string, s accapi.GrantRequestSettings, isAdminCall bool) *util.HttpError {
-	if !isAdminCall {
+func GrantsUpdateSettings(actor rpc.Actor, id string, s accapi.GrantRequestSettings, isUCloudAdminCall bool) *util.HttpError {
+	if !isUCloudAdminCall {
 		if !actor.Project.Present || string(actor.Project.Value) != id ||
 			!actor.Membership[rpc.ProjectId(id)].Satisfies(rpc.ProjectRoleAdmin) {
 			return util.HttpErr(http.StatusForbidden, "forbidden")
@@ -1784,15 +1784,15 @@ func GrantsBrowseEnabledProjects(actor rpc.Actor) ([]accapi.ProjectToSetting, *u
 	return settings, nil
 }
 
-func GrantsRetrieveSettings(actor rpc.Actor, isAdminCall bool, projectId string) (accapi.GrantRequestSettings, *util.HttpError) {
-	if !isAdminCall {
+func GrantsRetrieveSettings(actor rpc.Actor, isUCloudAdminCall bool, projectId string) (accapi.GrantRequestSettings, *util.HttpError) {
+	if !isUCloudAdminCall {
 		if !actor.Project.Present || !actor.Membership[rpc.ProjectId(actor.Project.Value)].Satisfies(rpc.ProjectRoleAdmin) {
 			return accapi.GrantRequestSettings{}, util.HttpErr(http.StatusForbidden, "forbidden")
 		}
 	}
 
 	lookupId := string(actor.Project.Value)
-	if isAdminCall {
+	if isUCloudAdminCall {
 		lookupId = projectId
 	}
 	b := grantGetSettingsBucket(lookupId)
@@ -2150,7 +2150,6 @@ func initGrants() {
 				return accapi.GrantRequestSettings{}, util.HttpErr(http.StatusForbidden, "permission denied - need to be admin to use this endpoint")
 			}
 			projectExists := false
-			fmt.Printf("request %v \n", request)
 			db.NewTx0(func(tx *db.Transaction) {
 				_, projectExists = coreutil.ProjectRetrieveFromDatabase(tx, request.Id)
 			})
@@ -2164,7 +2163,7 @@ func initGrants() {
 			return GrantsBrowseEnabledProjects(info.Actor)
 		})
 
-		accapi.GrantsUpdateRequetsSettingsAdmin.Handler(func(info rpc.RequestInfo, request accapi.ProjectToSetting) (util.Empty, *util.HttpError) {
+		accapi.GrantsUpdateRequestSettingsAdmin.Handler(func(info rpc.RequestInfo, request accapi.ProjectToSetting) (util.Empty, *util.HttpError) {
 			if info.Actor.Role != rpc.RoleAdmin {
 				return util.Empty{}, util.HttpErr(http.StatusForbidden, "permission denied - need to be admin to use this endpoint")
 			}
