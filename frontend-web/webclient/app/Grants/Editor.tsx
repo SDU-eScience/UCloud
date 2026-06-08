@@ -26,8 +26,8 @@ import {fetchAll} from "@/Utilities/PageUtilities";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {getQueryParam} from "@/Utilities/URIUtilities";
 import {addStandardInputDialog} from "@/UtilityComponents";
-import {errorMessageOrDefault, timestampUnixMs} from "@/UtilityFunctions";
-import {Box, Button, Checkbox, ExternalLink, Flex, Icon, Input, Select, TextArea} from "@/ui-components";
+import {errorMessageOrDefault, stopPropagation, timestampUnixMs} from "@/UtilityFunctions";
+import {Box, Button, Checkbox, ExternalLink, Flex, Icon, Input, Label, Select, TextArea} from "@/ui-components";
 import {BaseLinkClass} from "@/ui-components/BaseLink";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {IconName} from "@/ui-components/Icon";
@@ -35,7 +35,7 @@ import {CSSVarCurrentSidebarStickyWidth} from "@/ui-components/List";
 import MainContainer from "@/ui-components/MainContainer";
 import {SimpleMarkdown} from "@/ui-components/Markdown";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
-import {TooltipV2} from "@/ui-components/Tooltip";
+import Tooltip, {TooltipV2} from "@/ui-components/Tooltip";
 import Warning from "@/ui-components/Warning";
 import {interval, isBefore, isWithinInterval, subDays} from "date-fns";
 import {formatDistance} from "date-fns/formatDistance";
@@ -96,8 +96,9 @@ interface EditorState {
     possibleTransfers: Allocators[];
     allocators: Allocators[];
 
-    application: Grants.FormField[];
-    applicationDocument: Record<string, string>;
+    applicationForms: Grants.FormField[];
+    outdatedFields: Grants.AnswerFieldForm[];
+    applicationDocument: Record<string, Grants.AnswerFieldForm>;
 
     resources: Record<string, ResourceCategory[]>;
 }
@@ -144,12 +145,17 @@ const defaultState: EditorState = {
         durationInMonths: 12
     },
     possibleTransfers: [],
-    application: [],
+    applicationForms: [],
     applicationDocument: {},
+    outdatedFields: [],
     loading: false,
     principalInvestigator: Client.activeUsername ?? "",
     loadedProjects: [],
     fullScreenLoading: true,
+};
+
+type OutdatedTextAreaProps = {
+  field: Grants.AnswerFieldForm;
 };
 
 // State reducer
@@ -179,7 +185,7 @@ type EditorAction =
     | {type: "SetIsCreating", stateDuringCreate?: EditorState["stateDuringCreate"]}
     | {type: "RecipientUpdated", isCreatingNewProject: boolean, reference?: string}
     | {type: "ProjectsReloaded", projects: {id: string | null, title: string}[]}
-    | {type: "ApplicationUpdated", section: string, contents: string}
+    | {type: "ApplicationUpdated", name: string, title: string, answer: string}
     | {type: "LoadingStateChange", isLoading: boolean}
     | {type: "ReferenceIdUpdated", newReferenceId: string, idx: number}
     | {type: "CleanupReferenceIds"}
@@ -193,6 +199,7 @@ type EditorAction =
     | {type: "UpdateFullScreenError", error: string}
     | {type: "SetResourceError", provider: string, category: string, allocator: string, message: string}
     | {type: "Reset"}
+    | {type: "MarkOutdatedFieldDone", fieldName: string}
     ;
 
 function stateReducer(state: EditorState, action: EditorAction): EditorState {
@@ -316,7 +323,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                 possibleTransfers: newAllocators,
                 allocators: newAllocators,
                 resources: newResources,
-                application: forms,
+                applicationForms: forms,
             };
         }
 
@@ -465,11 +472,22 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
 
         case "ApplicationUpdated": {
             const newContents = {...state.applicationDocument};
-            newContents[action.section] = action.contents;
+            newContents[action.name] = {name: action.name, title: action.title, answer: action.answer, markAsDone: false };
 
             return {
                 ...state,
                 applicationDocument: newContents,
+            };
+        }
+
+        case "MarkOutdatedFieldDone": {
+            return {
+                ...state,
+                outdatedFields: state.outdatedFields.map(field =>
+                    field.name === action.fieldName
+                        ? {...field, markAsDone: !field.markAsDone}
+                        : field
+                )
             };
         }
 
@@ -499,7 +517,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             return {
                 ...state,
                 allocators: newAllocators,
-                application: forms,
+                applicationForms: forms,
             }
         }
 
@@ -757,33 +775,19 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
 
         const forms = isGrantGiverInitiated ? [grantGiverInitiatedForm] : newAllocators.flatMap(it => it.template);
         const newApplication = forms
+        var outdatedFields: Grants.AnswerFieldForm[] = [];
         const newApplicationDocument: EditorState["applicationDocument"] = {};
 
         if (doc.form.type == "structured") {
-            Object.entries(doc.form.fields).forEach(([fieldName, value]) => {
-                newApplicationDocument[fieldName] = value;
-            });
-        }
-        else {
-            // ****************** Legacy way of parsing the text ****************************
-            const docSections = parseIntoSections(docText);
-
-            let otherSection = "";
-            for (const section of docSections) {
-                const hasSection = newApplication.some(it => it.title === section.title);
-                if (hasSection) {
-                    newApplicationDocument[section.title] = section.description;
+            for(var userAnswer of doc.form.fields) {
+                
+                const hasField = newApplication.some(i => i.name === userAnswer.name);
+                if (hasField) {
+                    newApplicationDocument[userAnswer.name] = userAnswer;
                 } else {
-                    otherSection += section.title;
-                    otherSection += ":\n\n";
-                    otherSection += section.description;
-                    otherSection += "\n\n";
+                    outdatedFields.push(userAnswer);
                 }
-            }
 
-            if (otherSection) {
-                newApplication.push({title: "Other", rows: 6, optional: true, description: "", name: "Other" });
-                newApplicationDocument["Other"] = otherSection;
             }
         }
 
@@ -830,7 +834,8 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             ...state,
             allocators: newAllocators,
             resources: newResources,
-            application: newApplication,
+            applicationForms: newApplication,
+            outdatedFields: outdatedFields,
             applicationDocument: newApplicationDocument,
             allocationPeriod: state.stateDuringEdit.id === GRANT_GIVER_INITIATED_ID ? state.allocationPeriod : {
                 start: {
@@ -1500,8 +1505,8 @@ export function Editor(): React.ReactNode {
         if (!(ev.target instanceof HTMLTextAreaElement)) return;
         const id = ev.target.id;
         const newValue = ev.target.value;
-
-        dispatchEvent({type: "ApplicationUpdated", section: id, contents: newValue});
+        const title = ev.target.dataset.title ?? "";
+        dispatchEvent({type: "ApplicationUpdated", name: id, title: title , answer: newValue});
     }, [dispatchEvent]);
 
     const onStartUpdated = useCallback<React.FormEventHandler>(ev => {
@@ -1639,7 +1644,7 @@ export function Editor(): React.ReactNode {
             parentProjectId: currentDoc.parentProjectId,
             allocationPeriod: period
         };
-        doc.form["fields"] = state.applicationDocument
+        doc.form["fields"] = [...Object.values(state.applicationDocument), ...state.outdatedFields.filter(i => !i.markAsDone)];
         if (isGrantGiverInitiated) {
             doc.form.type = "grant_giver_initiated";
             doc.form["subAllocator"] = isForSubAllocator
@@ -1811,6 +1816,53 @@ export function Editor(): React.ReactNode {
     const classes = [style];
     if (state.stateDuringEdit !== undefined) classes.push("is-editing");
     if (state.stateDuringCreate !== undefined) classes.push("is-creating");
+
+    const OutdatedApplicationDescription = <Box mb={20}>
+        <Label fontSize={16} mb={2} style={{fontWeight: "bold"}}>Outdated fields</Label>
+        <section style={{color: "var(--textSecondary)"}}> 
+            <p style={{margin: 0}}>The project application form has changed since you last edited your submission. </p>
+            <p style={{margin: 0}}>Please review and update the affected fields.</p>
+        </section> 
+    </Box>
+
+    const checkOutdateField = useCallback((fieldName: string) => {
+        dispatchEvent({type: "MarkOutdatedFieldDone", fieldName});
+    }, [dispatchEvent]);
+
+    function OutdatedTextArea({field}: OutdatedTextAreaProps ): React.ReactNode {
+
+        const handleCopy = async () => {
+            await navigator.clipboard.writeText(field.answer || "");
+        };
+
+        return (
+            <Box mb={10}>
+            <Flex>
+                <Label>{field.title}</Label>
+                <Tooltip trigger={(
+                            <TextArea
+                                readOnly
+                                style={{"cursor": "pointer"}}
+                                onClick={handleCopy}
+                                mr={10}
+                                value={field.answer}
+                                width="545px"
+                            />
+                        )} >
+                        Click to copy field to clipboard
+                </Tooltip>
+            </Flex>
+            <Flex justifyContent={"end"}>
+                <Box mt={5}>
+                    <Label cursor="pointer" alignItems={"center"} columnGap="3">
+                        Mark as done
+                        <Checkbox size={30} checked={field.markAsDone} onChange={() => checkOutdateField(field.name)} />
+                    </Label>
+                </Box>
+            </Flex>
+            </Box>
+        );
+    }
 
     // The actual user-interface
     // -----------------------------------------------------------------------------------------------------------------
@@ -2208,21 +2260,28 @@ export function Editor(): React.ReactNode {
                                 </React.Fragment>;
                             })}
 
-                            <h3>Application</h3>
+                            <h2 style={{fontWeight: "bold"}}>Application</h2>
+                            <br />
                             <div className="application-wrapper">
                                 <div className="application">
-                                    {state.application.map((val, idx) => {
+                                    {state.applicationForms.map((val, idx) => {
                                         // NOTE(Dan): Empty placeholder is a quick work-around for fields having error
                                         // immediately on load.
-                                        return <FormField title={val.title} key={idx} id={`${val.title}`}
+                                        return <FormField title={val.title} key={idx} id={`${val.name}`}
                                             description={val.description} mandatory={!val.optional}>
-                                            <TextArea id={`${val.title}`} rows={val.rows} maxLength={val.maxLength ?? 100}
+                                            <TextArea id={val.name} rows={val.rows} maxLength={val.maxLength ?? 100}
                                                 required={!val.optional} disabled={state.locked || isClosed}
-                                                value={state.applicationDocument[val.title] ?? ""}
+                                                value={state.applicationDocument[val.name]?.answer ?? ""}
+                                                data-title={val.title}
                                                 onChange={onApplicationChange} placeholder={" "} />
                                         </FormField>
                                     })}
+
                                 </div>
+                                    {state.outdatedFields.length > 0 ? OutdatedApplicationDescription: <></>}
+                                    {state.outdatedFields.map((field) => {
+                                        return <OutdatedTextArea field={field}></OutdatedTextArea>
+                                    })}
                             </div>
                         </>}
                     </form>
@@ -2800,139 +2859,11 @@ const FormIds = {
     revisions: "revisions",
 };
 
-// Application template parsing
-// =====================================================================================================================
-interface ApplicationSection {
-    title: string;
-    description: string;
-    rows: number;
-    mandatory: boolean;
-    limit?: number;
-}
-
-function parseIntoSections(text: string): ApplicationSection[] {
-    function normalizeTitle(title: string): string {
-        const words = title.split(" ");
-        let builder = "";
-        if (words.length > 0) builder = words[0];
-        for (let i = 1; i < words.length; i++) {
-            builder += " ";
-            const word = words[i];
-            if (word.toUpperCase() === word || word.toLowerCase() === word) {
-                builder += word;
-            } else {
-                builder += word.toLowerCase();
-            }
-        }
-        return builder;
-    }
-
-    const result: ApplicationSection[] = [];
-    const lines = text.split("\n");
-    const sectionSeparators: number[] = [];
-    for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        if (line.startsWith("---") && /-+$/.test(line)) sectionSeparators.push(i);
-    }
-
-    let titles: string[] = [];
-    for (const lineIdx of sectionSeparators) {
-        if (lineIdx > 0) titles.push(lines[lineIdx - 1]);
-    }
-
-    let foundDescriptionBeforeFirstTitle = false;
-    const descriptions: string[] = [];
-    let currentStartLine = 0;
-    for (let i = 0; i <= sectionSeparators.length; i++) {
-        const end = i < sectionSeparators.length ? sectionSeparators[i] - 1 : lines.length;
-        let builder = "";
-        for (let row = currentStartLine; row < end; row++) {
-            builder += lines[row];
-            builder += "\n";
-
-        }
-        builder = builder.trim();
-        if (builder.length > 0) {
-            if (i === 0) foundDescriptionBeforeFirstTitle = true;
-            descriptions.push(builder);
-        } else {
-            if (i !== 0) descriptions.push("");
-        }
-        currentStartLine = end + 2;
-    }
-
-    if (foundDescriptionBeforeFirstTitle) {
-        if (titles.length > 0) titles = ["Introduction", ...titles];
-        else titles = ["Application"];
-    }
-
-    const prefixesWhichSoundMandatory = [
-        "Add a ",
-        "Describe the ",
-        "Provide a ",
-        "Please describe the reason for applying",
-        "Required:"
-    ];
-
-    for (let i = 0; i < titles.length; i++) {
-        const description = descriptions[i] ?? "";
-        const section: ApplicationSection = {
-            title: normalizeTitle(titles[i]),
-            description: description,
-            rows: 3,
-            mandatory: prefixesWhichSoundMandatory.some(it => description.startsWith(it))
-        };
-
-        const limitMatches = section.description.matchAll(/max (\d+) ch/g);
-        while (true) {
-            const match = limitMatches.next();
-            if (match.done) break;
-            section.limit = parseInt(match.value[1]);
-        }
-
-        if (section.title.toLowerCase() === "application") {
-            section.limit = 4000;
-        }
-
-        section.rows = Math.min(15, Math.max(2, Math.floor((section.limit ?? 250) / 50)));
-
-        if (section.title.toLowerCase().indexOf("project title") !== -1) {
-            section.rows = 2;
-        }
-
-        result.push(section);
-    }
-
-    // Move large sections to the end
-    for (let i = 0; i < result.length; i++) {
-        const section = result[i];
-        if ((section.limit ?? 0) > 1000) {
-            result.splice(i, 1);
-            result.push(section);
-        }
-    }
-
-    return result;
-}
-
 // Utility functions
 // =====================================================================================================================
 function stateToApplication(state: EditorState): Grants.Doc["form"] {
     const isForSubAllocator = getQueryParam(location.search, "subAllocator") == "true";
-    let builder = "";
-    for (const section of state.application) {
-        builder += section.title;
-        builder += "\n-----------------------------------------\n";
-
-        const contents = state.applicationDocument[section.title] ?? "";
-        const contentLines = contents.split("\n");
-        builder += contentLines.map(line => {
-            if (line.startsWith("---") && /-+$/.test(line)) return `!${line}!`;
-            return line;
-        }).join("\n");
-        builder += "\n\n";
-    }
-    return {type: "structured", text: builder, fields: state.applicationDocument, subAllocator: isForSubAllocator };
+    return {type: "structured", text: "", fields: [...Object.values(state.applicationDocument), ...state.outdatedFields.filter(i => !i.markAsDone)], subAllocator: isForSubAllocator };
 }
 
 function stateToRequests(state: EditorState): Grants.Doc["allocationRequests"] {

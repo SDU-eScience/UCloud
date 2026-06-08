@@ -213,11 +213,20 @@ interface GrantGiverInitiatedForm {
     subAllocator: boolean;
 }
 
+export interface AnswerFieldForm {
+    name: string;
+    title: string;
+    answer: string;
+    
+    // frontend only - is used to clear outdated fields
+    markAsDone: boolean;
+}
+
 interface StructuredForm {
     type: "structured";
     text: string;
     subAllocator: boolean;
-    fields: Record<string, string>;
+    fields: AnswerFieldForm[];
 }
 
 

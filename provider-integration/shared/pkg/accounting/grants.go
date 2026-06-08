@@ -376,10 +376,16 @@ func ParseFormFields(text string) []FormField {
 	return result
 }
 
+type AnswerFieldForm struct {
+	Name   string `json:"name"`
+	Title  string `json:"title"`
+	Answer string `json:"answer"`
+}
+
 type Form struct {
 	Type         FormType          `json:"type"`
-	Text         string            `json:"text"`         // plain_text, grant_giver_initiated - used for legacy form
-	Fields       map[string]string `json:"fields"`       // New (for structured)
+	Text         string            `json:"text"` // plain_text, grant_giver_initiated - used for legacy form
+	Fields       []AnswerFieldForm `json:"fields"`
 	SubAllocator util.Option[bool] `json:"subAllocator"` // grant_giver_initiated
 }
 
