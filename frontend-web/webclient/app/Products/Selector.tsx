@@ -464,8 +464,8 @@ export const ProductSelector: React.FunctionComponent<{
                                             <th style={{width: "32px"}} />
                                             <th>Provider</th>
                                             <th>Product category</th>
-                                            <th>Type</th>
-                                            <th>Machine status</th>
+                                            <th style={{"width": "96px"}}>Type</th>
+                                            <th style={{"width": "96px"}}>Status</th>
                                         </> : <>
                                             <th style={{width: "32px"}} />
                                             <th>Name</th>
@@ -507,8 +507,8 @@ export const ProductSelector: React.FunctionComponent<{
                                                         <TableCell>
                                                             {p.kind}
                                                         </TableCell>
-                                                        <TableCell>
-                                                            <JobQueueStatusIndicator status={queueStatuses[p.category]} />
+                                                        <TableCell pl="20px">
+                                                            <JobQueueStatusIndicator multiple status={queueStatuses[p.category]} />
                                                         </TableCell>
                                                     </>
                                                 }
@@ -1008,6 +1008,7 @@ function generateProducts(
 
 const JobQueueStatusIndicator: React.FunctionComponent<{
     status: JobQueueStatus;
+    multiple?: boolean;
 }> = (props) => {
     let color: ThemeColor = "errorMain";
     let message = "";
@@ -1015,15 +1016,15 @@ const JobQueueStatusIndicator: React.FunctionComponent<{
     switch (props.status) {
         case JobQueueStatus.AVAILABLE:
             color = "successMain";
-            message = "This machine type is available for use."
+            message = props.multiple ? "At least one machine type is available for use." : "This machine type is available for use."
             break;
         case JobQueueStatus.BUSY:
             color = "warningMain";
-            message = "This machine type is available for use, but the cluster is busy."
+            message = props.multiple ? "At least one machine type is available for use, but the cluster is busy." : "This machine type is available for use, but the cluster is busy."
             break;
         case JobQueueStatus.FULL:
             color = "errorMain"
-            message = "This machine type is not currently available and you will have to wait in a queue."
+            message = props.multiple ? "This machine type is not currently available and you will have to wait in a queue." : "This machine type is not currently available and you will have to wait in a queue."
             break;
     }
 
