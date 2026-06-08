@@ -217,9 +217,6 @@ export interface AnswerFieldForm {
     name: string;
     title: string;
     answer: string;
-    
-    // frontend only - is used to clear outdated fields
-    markAsDone: boolean;
 }
 
 interface StructuredForm {

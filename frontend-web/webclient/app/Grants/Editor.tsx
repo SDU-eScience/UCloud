@@ -199,7 +199,6 @@ type EditorAction =
     | {type: "UpdateFullScreenError", error: string}
     | {type: "SetResourceError", provider: string, category: string, allocator: string, message: string}
     | {type: "Reset"}
-    | {type: "MarkOutdatedFieldDone", fieldName: string}
     ;
 
 function stateReducer(state: EditorState, action: EditorAction): EditorState {
@@ -472,22 +471,11 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
 
         case "ApplicationUpdated": {
             const newContents = {...state.applicationDocument};
-            newContents[action.name] = {name: action.name, title: action.title, answer: action.answer, markAsDone: false };
+            newContents[action.name] = {name: action.name, title: action.title, answer: action.answer };
 
             return {
                 ...state,
                 applicationDocument: newContents,
-            };
-        }
-
-        case "MarkOutdatedFieldDone": {
-            return {
-                ...state,
-                outdatedFields: state.outdatedFields.map(field =>
-                    field.name === action.fieldName
-                        ? {...field, markAsDone: !field.markAsDone}
-                        : field
-                )
             };
         }
 
@@ -1644,7 +1632,7 @@ export function Editor(): React.ReactNode {
             parentProjectId: currentDoc.parentProjectId,
             allocationPeriod: period
         };
-        doc.form["fields"] = [...Object.values(state.applicationDocument), ...state.outdatedFields.filter(i => !i.markAsDone)];
+        doc.form["fields"] = [...Object.values(state.applicationDocument), ...state.outdatedFields];
         if (isGrantGiverInitiated) {
             doc.form.type = "grant_giver_initiated";
             doc.form["subAllocator"] = isForSubAllocator
@@ -1821,13 +1809,8 @@ export function Editor(): React.ReactNode {
         <Label fontSize={16} mb={2} style={{fontWeight: "bold"}}>Outdated fields</Label>
         <section style={{color: "var(--textSecondary)"}}> 
             <p style={{margin: 0}}>The project application form has changed since you last edited your submission. </p>
-            <p style={{margin: 0}}>Please review and update the affected fields.</p>
         </section> 
     </Box>
-
-    const checkOutdateField = useCallback((fieldName: string) => {
-        dispatchEvent({type: "MarkOutdatedFieldDone", fieldName});
-    }, [dispatchEvent]);
 
     function OutdatedTextArea({field}: OutdatedTextAreaProps ): React.ReactNode {
 
@@ -1851,14 +1834,6 @@ export function Editor(): React.ReactNode {
                         )} >
                         Click to copy field to clipboard
                 </Tooltip>
-            </Flex>
-            <Flex justifyContent={"end"}>
-                <Box mt={5}>
-                    <Label cursor="pointer" alignItems={"center"} columnGap="3">
-                        Mark as done
-                        <Checkbox size={30} checked={field.markAsDone} onChange={() => checkOutdateField(field.name)} />
-                    </Label>
-                </Box>
             </Flex>
             </Box>
         );
@@ -2863,7 +2838,7 @@ const FormIds = {
 // =====================================================================================================================
 function stateToApplication(state: EditorState): Grants.Doc["form"] {
     const isForSubAllocator = getQueryParam(location.search, "subAllocator") == "true";
-    return {type: "structured", text: "", fields: [...Object.values(state.applicationDocument), ...state.outdatedFields.filter(i => !i.markAsDone)], subAllocator: isForSubAllocator };
+    return {type: "structured", text: "", fields: [...Object.values(state.applicationDocument)], subAllocator: isForSubAllocator };
 }
 
 function stateToRequests(state: EditorState): Grants.Doc["allocationRequests"] {
