@@ -315,7 +315,9 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                 arr.sort((a, b) => Accounting.categoryComparator(a.category, b.category));
             }
 
-            const forms = action.allocators.filter(it => newAllocators.find(existing => existing.id === it.id)?.checked === true).flatMap(it => it.templates.structured[templateKey])
+            const forms = action.allocators
+                .filter(it => newAllocators.find(existing => existing.id === it.id)?.checked === true)
+                .flatMap(it => it.templates.structured[templateKey])
             
             return {
                 ...state,
