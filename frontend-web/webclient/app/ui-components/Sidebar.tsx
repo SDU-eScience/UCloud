@@ -45,7 +45,6 @@ import JobsApi, {Job} from "@/UCloud/JobsApi";
 import {classConcat, injectStyle, injectStyleSimple} from "@/Unstyled";
 import Relative from "./Relative";
 import {SafeLogo} from "@/Applications/AppToolLogo";
-import {setAppFavorites} from "@/Applications/Redux/Actions";
 import {checkCanConsumeResources} from "./ResourceBrowser";
 import {api as FilesApi} from "@/UCloud/FilesApi";
 import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
@@ -459,10 +458,11 @@ export function Sidebar(): React.ReactNode {
     const [selectedPage, setSelectedPage] = React.useState(SidebarTabId.NONE);
     const [hoveredPage, setHoveredPage] = React.useState(SidebarTabId.NONE);
 
+    const dispatch = useDispatch();
+
     const tab = useSelector((it: ReduxObject) => it.status.tab);
     const branding = useSelector((it: ReduxObject) => it.branding);
 
-    const dispatch = useDispatch();
     React.useEffect(() => {
         if (Client.isLoggedIn) {
             findAvatar().then(action => {
@@ -624,7 +624,7 @@ function useSidebarFilesPage(): [
             try {
                 const f = await callAPI(FilesApi.retrieve({id: file.path}))
                 fileTypeCache[file.path] = f.status.type;
-            } catch (e) {
+            } catch (e: any) {
                 if (e?.request?.status === 404) {
                     fileTypeCache[file.path] = "DELETED";
                     callAPI(
@@ -933,7 +933,13 @@ function SecondarySidebar({
     const oldDiscoveryMode = React.useRef<AppStore.CatalogDiscovery | null>(null);
 
 
-    const canConsume = checkCanConsumeResources(projectId ?? null, {api: FilesApi});
+    const [canConsume, setCanConsume] = React.useState(false);
+
+    React.useEffect(() => {
+        checkCanConsumeResources(projectId ?? null, {api: FilesApi}).then(setCanConsume);
+    }, [projectId]);
+
+
     useEffect(() => {
         const wasReset = landingPage === AppStore.emptyLandingPage;
         const discoverHasChanged =
