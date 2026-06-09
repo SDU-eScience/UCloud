@@ -173,7 +173,7 @@ export const ProductSelector: React.FunctionComponent<{
     let dialogX = boxRect.x;
     let dialogY = boxRect.y + boxRect.height;
     let dialogHeight = 500;
-    const minimumWidth = 500 + headers.length * 90;
+    const minimumWidth = 500;
     let dialogWidth = Math.min(Math.max(minimumWidth, boxRect.width), window.innerWidth - boxRect.x - 16);
     {
         const dialogOutOfBounds = (): boolean => dialogX <= 0 || dialogY <= 0 ||
@@ -314,22 +314,18 @@ export const ProductSelector: React.FunctionComponent<{
     }, [type, categorizedProducts, props.support]);
 
     return <>
-        <div className={classConcat(SelectorBoxClass, props.slim === true ? "slim" : undefined)} onClick={onToggle} ref={boxRef}>
+        <div className={classConcat(SelectorBoxClass, props.slim === true ? "slim" : undefined)} data-job-queue-status={queueStatus} onClick={onToggle} ref={boxRef}>
             <div className="selected">
                 {selected ?
                     <>
                         {props.slim !== true ?
                             <>
-                                {selected?.name}<br />
+                                <Flex>{selected?.name} <Icon name="heroChevronDown" ml="6px" my="auto" /> </Flex> <br />
+                                <Box mt="-32px" color="textSecondary">- {selected.description}</Box>
                                 {selected ? <>
                                     <table>
                                         <thead>
                                             <tr>
-                                                {headers.map(it =>
-                                                    <th key={it} style={{width: `${(1 / (headers.length + 1)) * 100}%`}}>
-                                                        {it}
-                                                    </th>
-                                                )}
                                                 <th>Price</th>
                                             </tr>
                                         </thead>
@@ -361,8 +357,6 @@ export const ProductSelector: React.FunctionComponent<{
                     <>No {productName} selected</>
                 }
             </div>
-
-            <Icon name="heroChevronDown" />
         </div>
 
         {!isOpen ? null :
@@ -453,15 +447,14 @@ export const ProductSelector: React.FunctionComponent<{
                                 <thead>
                                     <TableRow>
                                         {type === "COMPUTE" ? <>
-                                            <th style={{width: "32px"}} />
-                                            <th>Provider</th>
-                                            <th>Product category</th>
+                                            <th style={{width: "32px"}}></th>
                                             <th style={{"width": "96px"}}>Type</th>
+                                            <th>Product category</th>
+                                            <th>Description</th>
                                             <th style={{"width": "96px"}}>Status</th>
                                         </> : <>
                                             <th style={{width: "32px"}} />
                                             <th>Name</th>
-                                            {headers.map(it => <th key={it}>{it}</th>)}
                                             <th>Price</th>
                                             <th style={{width: "250px"}}>Provider</th>
                                         </>}
@@ -471,40 +464,42 @@ export const ProductSelector: React.FunctionComponent<{
                                     {categorizedProducts.map((p, i) => {
                                         if (isComputeCategory(p)) {
                                             if (!showHeadings) return null;
-                                            return <tr key={i} className="table-info" onClick={() => {
-                                                if (p.canConnect) return;
-                                                setSelectedComputeCategory(p);
-                                                props.onSelect(p.products[0]);
-                                                onClose();
-                                            }}>
-                                                {p.canConnect ?
-                                                    <TableCell colSpan={extraColumns + headers.length}>
-                                                        <div>
-                                                            <Link to="/providers/connect">
-                                                                <Icon name="warning" color="warningMain" mr="8px" />
-                                                                Connection required! You must connect with the provider before you can consume resources from it.
-                                                            </Link>
-                                                        </div>
-                                                    </TableCell> :
-                                                    <>
-                                                        <TableCell>
-                                                            <ProviderLogo providerId={p.products[0].category.provider} size={24} />
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            {p.provider}
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            {p.products[0].category.name}
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            {p.kind}
-                                                        </TableCell>
-                                                        <TableCell pl="20px">
-                                                            <JobQueueStatusIndicator multiple status={queueStatuses[p.category]} />
-                                                        </TableCell>
-                                                    </>
-                                                }
-                                            </tr>
+                                            return <>
+                                                <tr key={i} className="table-info" onClick={() => {
+                                                    if (p.canConnect) return;
+                                                    setSelectedComputeCategory(p);
+                                                    props.onSelect(p.products[0]);
+                                                    onClose();
+                                                }}>
+                                                    {p.canConnect ?
+                                                        <TableCell colSpan={extraColumns}>
+                                                            <div>
+                                                                <Link to="/providers/connect">
+                                                                    <Icon name="warning" color="warningMain" mr="8px" />
+                                                                    Connection required! You must connect with the provider before you can consume resources from it.
+                                                                </Link>
+                                                            </div>
+                                                        </TableCell> :
+                                                        <>
+                                                            <TableCell>
+                                                                <Icon p={0} name="heroCpuChip" size={24} />
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                {p.kind}
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                {p.products[0].category.name}
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                {p.products[0].description}
+                                                            </TableCell>
+                                                            <TableCell pl="20px">
+                                                                <JobQueueStatusIndicator multiple status={queueStatuses[p.category]} />
+                                                            </TableCell>
+                                                        </>
+                                                    }
+                                                </tr>
+                                            </>
                                         } else {
                                             if (p.type === "compute") return null;
                                             const support = (props.support ?? []).find(s =>
@@ -587,8 +582,7 @@ function MachineTypeSelectionSlider(props: {
 
 const FancySlider = injectStyle("fancy-slider", cl => `
     ${cl} {
-        width: calc(100% - 48px);
-        margin-right: 48px;
+        width: 100%;
         padding: 8px;
         cursor: pointer;
         accent-color: var(--primaryMain);
@@ -738,19 +732,22 @@ export const SelectorBoxClass = injectStyle("selector-box", k => `
         box-shadow: inset 0 .0625em .125em rgba(10,10,10,.05);
     }
 
+/* 
+    ${k}[data-job-queue-status="BUSY"] {
+        background-color: yellow;
+    }
+
+    ${k}[data-job-queue-status="FULL"] {
+        background-color: var(--errorMain);
+    }
+*/
+
     ${k}:hover {
         border-color: var(--borderColorHover);
     }
 
     ${k}[data-omit-border="true"] {
         border: unset;
-    }
-
-    ${k} svg {
-        position: absolute;
-        bottom: 13px;
-        right: 15px;
-        height: 16px;
     }
 
     ${k} .selected {
