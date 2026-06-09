@@ -1091,7 +1091,7 @@ func lGrantsPersist(app *grantApplication) {
 						d.recipient,
 						d.recipient_type,
 						d.form,
-                        d.form_type::form_type,
+                        d.form_type,
 						coalesce(r.refs, cast(array[] as text[]))
 					from
 						data d
