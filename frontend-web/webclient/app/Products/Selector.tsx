@@ -14,14 +14,14 @@ import {ProductSupport, ResolvedSupport} from "@/UCloud/ResourceApi";
 import {explainMaintenance, maintenanceIconColor, shouldAllowMaintenanceAccess} from "@/Products/Maintenance";
 import {classConcat, injectStyle} from "@/Unstyled";
 import {NoResultsBody} from "@/UtilityComponents";
-import {ComputeSupport, JobQueueStatus, QueueStatus} from "@/UCloud/JobsApi";
+import {ComputeSupport, JobQueueStatus} from "@/UCloud/JobsApi";
 import {ThemeColor} from "@/ui-components/theme";
 import {TooltipV2} from "@/ui-components/Tooltip";
 
 interface ComputeCategory {
     provider: string;
     category: string;
-    kind: "CPU" | "GPU" | "MIG";
+    kind: "CPU" | "GPU";
     canConnect: boolean;
     products: ProductV2[];
 }
@@ -51,12 +51,7 @@ function productGroupName(product: ProductV2): string {
     }
 
     if ((computeProduct.gpu ?? 0) > 0) {
-        const gpuModel = (computeProduct.gpuModel ?? "").toLowerCase();
-        if (gpuModel.includes("nvidia") || gpuModel.includes("mig")) {
-            return `${product.category.name}-mig.${fraction.numerator}g`;
-        } else {
-            return `${product.category.name}-frac`;
-        }
+        return product.category.name;
     }
 
     const milliCpu = Math.floor((fraction.numerator * 1000) / fraction.denominator);
@@ -160,9 +155,12 @@ export const ProductSelector: React.FunctionComponent<{
                 lastCategory = categoryName;
             }
 
-            const last = result.findLast(it => isComputeCategory(it));
-            result.push(product);
-            last?.products.push(product);
+            if (type === "COMPUTE") {
+                const last = result.findLast(it => isComputeCategory(it));
+                last?.products.push(product);
+            } else {
+                result.push(product);
+            }
         }
 
         return result;
@@ -279,13 +277,13 @@ export const ProductSelector: React.FunctionComponent<{
 
     React.useEffect(() => {
         if (type === "COMPUTE" && selected) {
-
             const sel = selected;
             setSelectedComputeCategory(cat => {
                 for (const categorized of categorizedProducts) {
                     if (isComputeCategory(categorized)) {
                         for (const p of categorized.products) {
-                            if (p.name === sel.name && p.category.name === sel.category.name && p.category.provider === sel.category.provider) {
+                            if (p.name === sel.name && p.category.name === sel.category.name &&
+                                p.category.provider === sel.category.provider) {
                                 return categorized;
                             }
                         }
@@ -308,7 +306,6 @@ export const ProductSelector: React.FunctionComponent<{
     const [queueStatuses, setQueueStatuses] = React.useState<Record<string, JobQueueStatus>>({});
     React.useEffect(() => {
         if (type === "COMPUTE") {
-
             setQueueStatuses(naiveCategoryStatus(categorizedProducts, props.support ?? []));
         }
     }, [type, categorizedProducts, props.support]);
@@ -463,8 +460,10 @@ export const ProductSelector: React.FunctionComponent<{
                                 <tbody ref={itemWrapperRef}>
                                     {categorizedProducts.map((p, i) => {
                                         if (isComputeCategory(p)) {
-                                            if (!showHeadings) return null;
+                                            const previous = categorizedProducts[i - 1];
+                                            const showHeader = p.provider !== (previous as ComputeCategory | undefined)?.provider;
                                             return <>
+                                                {showHeader ? <tr><TableCell textAlign="center" colSpan={extraColumns}>{p.provider}</TableCell></tr> : null}
                                                 <tr key={i} className="table-info" onClick={() => {
                                                     if (p.canConnect) return;
                                                     setSelectedComputeCategory(p);
@@ -553,13 +552,8 @@ export const ProductSelector: React.FunctionComponent<{
     </>;
 };
 
-function kindFromProduct(prod: ProductV2Compute): "CPU" | "GPU" | "MIG" {
-    if (prod.gpu) {
-        if (prod.fraction?.numerator !== 1 || prod.fraction.denominator !== 1) {
-            return "MIG";
-        }
-        return "GPU";
-    }
+function kindFromProduct(prod: ProductV2Compute): "CPU" | "GPU" {
+    if (prod.gpu) return "GPU";
     return "CPU";
 }
 
@@ -572,7 +566,7 @@ function MachineTypeSelectionSlider(props: {
     if (!props.selectedCategory) return null;
 
     return <div onClick={stopPropagation}>
-        <input value={props.idx} onChange={e => props.onSelect(e.target.valueAsNumber)}
+        <input value={props.idx} autoFocus onChange={e => props.onSelect(e.target.valueAsNumber)}
             className={FancySlider} min={0} max={props.selectedCategory.products.length - 1} type="range" list="markers" />
         <datalist id="markers">
             {props.selectedCategory.products.map((_, idx) => <option key={idx} value={idx} />)}
