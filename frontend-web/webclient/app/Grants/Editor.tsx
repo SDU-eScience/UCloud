@@ -278,7 +278,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             for (const allocator of action.allocators) {
                 const existing = newAllocators.find(it => it.id === allocator.id);
                 const forms = allocator.templates.structured[templateKey];
-                const sameForm = existing?.template === forms && existing?.template.every((val, i) => val === forms[i]);
+                const sameForm = existing?.template.every((val, i) => val === forms[i]);
                 if (!existing) {
                     newAllocators.push({
                         id: allocator.id, title: allocator.title, description: allocator.description,
