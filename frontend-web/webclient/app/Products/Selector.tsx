@@ -143,14 +143,16 @@ export const ProductSelector: React.FunctionComponent<{
             categoryName = getProviderTitle(product.category.provider) + ": " + categoryName;
 
             if (lastCategory !== categoryName) {
-                const defaultProduct = sortedProducts[parseInt(index)] as ProductV2Compute;
-                result.push({
-                    kind: kindFromProduct(defaultProduct),
-                    canConnect: connectionState.canConnectToProvider(product.category.provider),
-                    category: categoryName,
-                    provider: getProviderTitle(product.category.provider),
-                    products: []
-                });
+                if (type === "COMPUTE") {
+                    const defaultProduct = sortedProducts[parseInt(index)] as ProductV2Compute;
+                    result.push({
+                        kind: kindFromProduct(defaultProduct),
+                        canConnect: connectionState.canConnectToProvider(product.category.provider),
+                        category: categoryName,
+                        provider: getProviderTitle(product.category.provider),
+                        products: []
+                    });
+                }
 
                 lastCategory = categoryName;
             }
@@ -269,9 +271,8 @@ export const ProductSelector: React.FunctionComponent<{
         };
     }, [isOpen]);
 
-    const showHeadings = isDetailed;
     let extraColumns = 3;
-    if (type === "COMPUTE") extraColumns++;
+    if (type === "COMPUTE") extraColumns += 2;
 
     const [selectedComputeCategory, setSelectedComputeCategory] = React.useState<ComputeCategory>();
 
@@ -481,7 +482,7 @@ export const ProductSelector: React.FunctionComponent<{
                                                         </TableCell> :
                                                         <>
                                                             <TableCell>
-                                                                <Icon p={0} name="heroCpuChip" size={24} />
+                                                                <Icon p={0} name={p.kind === "CPU" ? "heroCpuChip" : "heroGpuChip"} size={24} />
                                                             </TableCell>
                                                             <TableCell>
                                                                 {p.kind}
