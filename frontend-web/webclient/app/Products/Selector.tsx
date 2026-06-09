@@ -103,14 +103,6 @@ export const ProductSelector: React.FunctionComponent<{
             break;
     }
 
-    const headers: string[] = React.useMemo(() => {
-        const result: string[] = [];
-        if (type === "COMPUTE") {
-            result.push("vCPU", "Memory (GB)", "GPU");
-        }
-        return result;
-    }, [type]);
-
     const lastSearchQuery = React.useRef<string>("");
     const searchRef = React.useRef<HTMLInputElement>(null);
     const onSearchType = React.useCallback(() => {

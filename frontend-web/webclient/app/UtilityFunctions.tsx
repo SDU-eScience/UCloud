@@ -21,7 +21,7 @@ export function toggleCssColors(light: boolean): void {
 
 /**
  * Sets theme based in input. Either "light" or "dark".
- * @param {boolean} isLightTheme Signifies if the currently selected theme is "light".
+ * @param {boolean} isLightTheme returns if the currently selected theme is "light".
  */
 export function setSiteTheme(isLightTheme: boolean): void {
     const lightTheme = isLightTheme ? "light" : "dark";
