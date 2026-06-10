@@ -198,30 +198,101 @@ func (f FormType) Valid() bool {
 	}
 }
 
-func ParseFormFields(text string) []FormField {
-	normalizeTitle := func(title string) string {
-		words := strings.Split(title, " ")
-		if len(words) == 0 {
-			return title
-		}
-
-		builder := words[0]
-
-		for i := 1; i < len(words); i++ {
-			word := words[i]
-
-			builder += " "
-
-			if word == strings.ToUpper(word) || word == strings.ToLower(word) {
-				builder += word
-			} else {
-				builder += strings.ToLower(word)
-			}
-		}
-
-		return builder
+func normalizeTitle(title string) string {
+	words := strings.Split(title, " ")
+	if len(words) == 0 {
+		return title
 	}
 
+	builder := words[0]
+
+	for i := 1; i < len(words); i++ {
+		word := words[i]
+
+		builder += " "
+
+		if word == strings.ToUpper(word) || word == strings.ToLower(word) {
+			builder += word
+		} else {
+			builder += strings.ToLower(word)
+		}
+	}
+
+	return builder
+}
+
+func ParseAnswerFormFields(text string) []AnswerFieldForm {
+	lines := strings.Split(text, "\n")
+
+	var sectionSeparators []int
+	for i, line := range lines {
+		if strings.HasPrefix(line, "---") {
+			allDashes := true
+			for _, r := range line {
+				if r != '-' {
+					allDashes = false
+					break
+				}
+			}
+
+			if allDashes {
+				sectionSeparators = append(sectionSeparators, i)
+			}
+		}
+	}
+	var titles []string
+	for _, lineIdx := range sectionSeparators {
+		if lineIdx > 0 {
+			titles = append(titles, lines[lineIdx-1])
+		}
+	}
+
+	var answers []string
+	currentStartLine := 0
+
+	for i := 0; i <= len(sectionSeparators); i++ {
+		end := len(lines)
+
+		if i < len(sectionSeparators) {
+			end = sectionSeparators[i] - 1
+		}
+
+		var builder strings.Builder
+
+		for row := currentStartLine; row < end; row++ {
+			builder.WriteString(lines[row])
+			builder.WriteString("\n")
+		}
+
+		answer := strings.TrimSpace(builder.String())
+
+		if answer != "" {
+			answers = append(answers, answer)
+		}
+
+		currentStartLine = end + 2
+	}
+	var result []AnswerFieldForm
+
+	for i := 0; i < len(titles); i++ {
+		answer := ""
+		if i < len(answers) {
+			answer = answers[i]
+		}
+
+		title := normalizeTitle(titles[i])
+
+		field := AnswerFieldForm{
+			Name:   title,
+			Answer: answer,
+			Title:  title,
+		}
+		result = append(result, field)
+	}
+	return result
+}
+
+func ParseFormFields(text string) []FormField {
 	lines := strings.Split(text, "\n")
 
 	var sectionSeparators []int

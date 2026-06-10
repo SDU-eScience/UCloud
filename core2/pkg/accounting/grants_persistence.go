@@ -239,9 +239,10 @@ func grantsLoad(id accGrantId, prefetchHint []accGrantId) {
 					}),
 				},
 			}
-			// Handling structured form
-			if currentRevision.Document.Form.Type == accapi.FormTypeStructured {
-
+			if currentRevision.Document.Form.Type == accapi.FormTypePlainText {
+				currentRevision.Document.Form.Fields = accapi.ParseAnswerFormFields(revision.Form)
+				currentRevision.Document.Form.Type = accapi.FormTypeStructured
+			} else if currentRevision.Document.Form.Type == accapi.FormTypeStructured {
 				jsonStr := currentRevision.Document.Form.Text
 				var fields []accapi.AnswerFieldForm
 				err := json.Unmarshal([]byte(jsonStr), &fields)
