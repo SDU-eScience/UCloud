@@ -765,7 +765,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
         const isGrantGiverInitiated = app && app.status.overallState == "APPROVED" && app.status.revisions.length === 1 && docText.startsWith(grantGiverInitiatedPrefix);
 
         const forms = isGrantGiverInitiated ? [grantGiverInitiatedForm] : newAllocators.flatMap(it => it.template);
-        const newApplication = forms
+        // const newApplication = forms
         var outdatedFields: Grants.AnswerFieldForm[] = [];
         const newApplicationDocument: EditorState["applicationAnswers"] = {};
 
