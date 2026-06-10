@@ -37,7 +37,7 @@ function ManageProjects(): React.ReactNode {
 
     const projectIdRef = React.useRef<HTMLInputElement>(null);
 
-    async function sendSettingUpdate(projectToSetting: Grants.ProjectToSetting) {
+    const sendSettingUpdate = useCallback(async (projectToSetting: Grants.ProjectToSetting) => {
         const success = await callAPIWithErrorHandler(
             Grants.updateRequestSettingsAdmin(projectToSetting)
         ) !== null;
@@ -51,9 +51,9 @@ function ManageProjects(): React.ReactNode {
         } else {
             sendFailureNotification("Could not update project settings");
         }
-    }
+    }, [settings]);
 
-    function onDisableProject(projectId: string) {
+    const onDisableProject = useCallback(async (projectId: string) => {
         const idx = settings.findIndex(value => value.projectId == projectId)
         if (idx > -1) {
             const oldSetting = settings[idx].settings;
@@ -70,7 +70,7 @@ function ManageProjects(): React.ReactNode {
             }
             sendSettingUpdate(deleteUpdate);
         }
-    };
+    }, [settings]);
 
     const onEnableProject = useCallback(async (e) => {
         e.preventDefault();
