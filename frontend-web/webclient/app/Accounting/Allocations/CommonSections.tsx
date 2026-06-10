@@ -1382,7 +1382,7 @@ export const SubProjectFilters: React.FunctionComponent<{
 
             <Flex justifyContent="end" px={"20px"} py={"12px"} margin={"-20px"} background={"var(--dialogToolbar)"}
                 zIndex={10000} gap={"8px"}>
-                <Button color={"successMain"} type="button" onClick={closeFilters}>Apply</Button>
+                <Button color={"successMain"} type="button" onClick={closeFilters}>Done</Button>
             </Flex>
         </Flex>
     </ReactModal>;
@@ -1401,22 +1401,20 @@ export const SubProjectList: React.FunctionComponent<{
     listRef: React.RefObject<VariableSizeList<number[]> | null>,
     onSubAllocationShortcut: (target: HTMLElement, ev: KeyboardEvent) => void,
     avatars: AvatarState
-}> = (
-    {
-        projectId,
-        onNewSubProject,
-        projectRole,
-        state,
-        onSearchInput,
-        onSearchKey,
-        searchBox,
-        dispatchEvent,
-        suballocationTree,
-        listRef,
-        onSubAllocationShortcut,
-        avatars
-    }
-) => {
+}> = ({
+    projectId,
+    onNewSubProject,
+    projectRole,
+    state,
+    onSearchInput,
+    onSearchKey,
+    searchBox,
+    dispatchEvent,
+    suballocationTree,
+    listRef,
+    onSubAllocationShortcut,
+    avatars
+}) => {
         const [filtersShown, setFiltersShown] = useState(false);
         const closeFilters = useCallback(() => {
             setFiltersShown(false);
@@ -1575,6 +1573,8 @@ export const SubProjectList: React.FunctionComponent<{
             );
         }, [state.subAllocations, childProjectInfo]);
 
+        const activeFilterCount = React.useMemo(() => Object.values(state.subprojectFilters).filter(it => it.enabled).length, [state.subprojectFilters]);
+
         return <>
             <SubProjectFilters filtersShown={filtersShown} closeFilters={closeFilters}
                 dispatchEvent={dispatchEvent} state={state} />
@@ -1623,7 +1623,7 @@ export const SubProjectList: React.FunctionComponent<{
                             {state.filteredSubProjectIndices.length !== 0 ? null :
                                 <div style={{marginLeft: "20px", marginTop: "10px"}}>
                                     You do not have any
-                                    sub-allocations {state.searchQuery ? "with the active search" : ""} at
+                                    sub-allocations {state.searchQuery || activeFilterCount > 0 ? "with the active search or filters" : ""} at
                                     the moment. {" "}
                                     {projectRole === OldProjectRole.USER ? null : <>
                                         You can create a sub-project by clicking <a href="#"
