@@ -149,11 +149,11 @@ const MoveFieldControls: React.FunctionComponent<MoveFieldControlsProps> = ({
     };
 
     return <Flex>
-        {idx === 0 ? <></> : <Icon cursor="pointer" mr={10} size={20} name={"heroArrowUp"} onClick={() => {
+        {idx === 0 ? null : <Icon cursor="pointer" mr={10} size={20} name={"heroArrowUp"} onClick={() => {
             move("up");
 
         }}></Icon>}
-        {idx === numberOfFields - 1 ? <></> : <Icon cursor="pointer" size={20} name={"heroArrowDown"} onClick={() => {
+        {idx === numberOfFields - 1 ? null : <Icon cursor="pointer" size={20} name={"heroArrowDown"} onClick={() => {
             move("down");
 
         }}></Icon>}
@@ -169,7 +169,6 @@ const TemplateForm: React.FunctionComponent<TemplateFormProps> = ({
     removeNewProjectField,
     updateProjectFieldLimits,
 }) => {
-
     return <Card>
         <Flex justifyContent={"space-between"}>
             <h3 style={{ fontWeight: "bold" }}>{title}</h3>
@@ -192,7 +191,7 @@ const TemplateForm: React.FunctionComponent<TemplateFormProps> = ({
             </Flex>
         </Flex>
         {
-            settings.templates.structured[projectType].map(function (field: Grants.FormField, idx: number) {
+            settings.templates.structured[projectType].map((field: Grants.FormField, idx: number) => {
                 return <>
                     <br />
                     <Flex justifyContent={"end"}>
@@ -503,7 +502,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
                         </Card>
                         <br />
                         <TemplateForm
-                            title="Define application for personal projects:"
+                            title="Define application for personal projects"
                             projectType="personalProject"
                             settings={settings}
                             setSettings={setSettings}
@@ -513,7 +512,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
                         />
                         <br />
                         <TemplateForm
-                            title="Define application for existing projects:"
+                            title="Define application for existing projects"
                             projectType="existingProject"
                             settings={settings}
                             setSettings={setSettings}
@@ -523,7 +522,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
                         />
                         <br />
                         <TemplateForm
-                            title="Define application for new projects:"
+                            title="Define application for new projects"
                             projectType="newProject"
                             settings={settings}
                             setSettings={setSettings}
