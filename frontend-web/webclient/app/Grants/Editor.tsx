@@ -44,8 +44,6 @@ import {useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef} fr
 import {useLocation, useNavigate} from "react-router-dom";
 import * as Grants from ".";
 import {ChangeOrganizationDetails, OptionalInfo, optionalInfoRequest, optionalInfoUpdate} from "@/UserSettings/ChangeUserDetails";
-import {ProviderBranding, ProviderBrandingProductDescription, ProviderBrandingResponse} from "@/UCloud/ProviderBrandingApi";
-import {useSelector} from "react-redux";
 import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
 import {providerBrandingStore} from "@/ProviderBrandings/AutomaticProviderBranding";
 
