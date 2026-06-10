@@ -38,6 +38,8 @@ And depending on what backend is needed:
 
 Logins for these can be provided upon request.
 
+Note for `production` case: If logging in requires Wayf, see [this section](#production-backend-with-a-wayf-user).
+
 Some editors will only run type checking on open files and not the entire project. To have the compiler type check the frontend, run `npm run watch`.
 
 ## On adding NPM packages
@@ -221,7 +223,7 @@ Relevant code can be found in `/testing`, with the output of a test-suite run in
 For function definitions, TypeScript/ECMAScript allows using both `function` and `const`. `function` is preferred, due to the different lifetimes and positioning requirements in files between the two options.
 If the function is exported, `function` is usually the one to use. If the function is local to the file, the `const` approach is fine to use.
 
-If a magic string/number is present more than once, it's to be extracted into a constant. This is not the case for styling (pixels, colors, etc.) in components. <!--(This is probably a given. Remove?)-->
+If a magic string/number is present more than once, it's to be extracted into a constant. This is not the case for styling (pixels, colors, etc.) in components.
 
 <!--
 ### Icon strategy
@@ -233,3 +235,12 @@ A [blog](https://tonsky.me/blog/tahoe-icons/) wrote about this issue on MacOS, a
 So what this section should contain is how to gauge whether or not using an icon is needed.
 
 !-->
+
+### Production backend with a Wayf-user
+
+Note: production should not be used as a backend unless required. 
+
+- Go to cloud.sdu.dk and log in. Open developer tools and access a console within. Enter `localStorage.setItem("ALLOW_JWT_COPY", "true")` and reload the page. This allows for copying login tokens with a keyboard shortcut.
+- Open a second tab and go to `localhost:9000/app` and open developer tools.
+- In the `cloud.sdu.dk`-tab, press `alt + k` (`option + k` on MacOS) to copy the tokens into your clipholder.
+- Go back to the second tab and paste the tokens into the console and press enter. Reloading the page should navigate you to the dashboard with your user logged in.
