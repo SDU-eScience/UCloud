@@ -154,7 +154,7 @@ const defaultState: EditorState = {
     fullScreenLoading: true,
 };
 
-type OutdatedTextAreaProps = {
+interface OutdatedTextAreaProps {
   field: Grants.AnswerFieldForm;
 };
 
