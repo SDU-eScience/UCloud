@@ -90,7 +90,6 @@ export const ProductSelector: React.FunctionComponent<{
     useUState(connectionState);
     const [filteredProducts, setFilteredProducts] = React.useState<ProductV2[]>([]);
     const type = props.products.length > 0 ? props.products[0].productType : props.type;
-    const isDetailed = type === "COMPUTE";
     let productName = "product";
     switch (type) {
         case "COMPUTE":
@@ -434,7 +433,7 @@ export const ProductSelector: React.FunctionComponent<{
                                                     props.onSelect(p.products[0]);
                                                     onClose();
                                                 }}>
-                                                    {p.canConnect ?
+                                                    {p.canConnect ? (showHeader ?
                                                         <TableCell colSpan={extraColumns}>
                                                             <div>
                                                                 <Link to="/providers/connect">
@@ -442,7 +441,7 @@ export const ProductSelector: React.FunctionComponent<{
                                                                     Connection required! You must connect with the provider before you can consume resources from it.
                                                                 </Link>
                                                             </div>
-                                                        </TableCell> :
+                                                        </TableCell> : null) :
                                                         <>
                                                             <TableCell>
                                                                 <Icon p={0} name={p.kind === "CPU" ? "heroCpuChip" : "heroGpuChip"} size={24} />
