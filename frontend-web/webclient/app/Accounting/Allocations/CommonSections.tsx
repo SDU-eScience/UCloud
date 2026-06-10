@@ -163,8 +163,8 @@ export const YourAllocations: React.FunctionComponent<{
                                     </Flex>}
                                     right={<Flex flexDirection={"row"} gap={"8px"}>
                                         {tree.usageAndQuota.map((uq, idx) => <React.Fragment key={idx}>
-                                                <ProgressBar uq={uq} responsive />
-                                            </React.Fragment>
+                                            <ProgressBar uq={uq} responsive />
+                                        </React.Fragment>
                                         )}
                                     </Flex>}
                                     indent={indent}
@@ -216,7 +216,7 @@ export const YourAllocations: React.FunctionComponent<{
                                                             {alloc.note && <>
                                                                 <TooltipV2 tooltip={alloc.note.text}>
                                                                     <Icon name={alloc.note.icon}
-                                                                          color={alloc.note.iconColor} />
+                                                                        color={alloc.note.iconColor} />
                                                                 </TooltipV2>
                                                             </>}
                                                             <div className="low-opaqueness">
@@ -819,18 +819,18 @@ export const KeyMetrics: React.FunctionComponent<{
                                         }
                                         right={<Flex flexDirection={"row"} gap={"8px"}>
                                             {tree.usageAndQuota.map((uq, idx) => {
-                                                    let label = `${okPercentage.toFixed(2)}% Ok` +
-                                                        ` | ${atRiskPercentage.toFixed(2)}% At risk` +
-                                                        ` | ${underusedPercentage.toFixed(2)}% Underused`;
-                                                    return <React.Fragment key={idx}>
-                                                        <AllocationBar
-                                                            label={label}
-                                                            okPercentage={okPercentage}
-                                                            atRiskPercentage={atRiskPercentage}
-                                                            underusedPercentage={underusedPercentage}
-                                                        />
-                                                    </React.Fragment>;
-                                                }
+                                                let label = `${okPercentage.toFixed(2)}% Ok` +
+                                                    ` | ${atRiskPercentage.toFixed(2)}% At risk` +
+                                                    ` | ${underusedPercentage.toFixed(2)}% Underused`;
+                                                return <React.Fragment key={idx}>
+                                                    <AllocationBar
+                                                        label={label}
+                                                        okPercentage={okPercentage}
+                                                        atRiskPercentage={atRiskPercentage}
+                                                        underusedPercentage={underusedPercentage}
+                                                    />
+                                                </React.Fragment>;
+                                            }
                                             )}
                                         </Flex>}
                                         indent={indent}
@@ -1013,13 +1013,13 @@ function openUpdater(
                         <Label ml={"auto"}>
                             Allocation quota (Current: {Accounting.balanceToString(category, quota)})
                             <Input type="number" defaultValue={explainUnit(category).balanceFactor * quota} min={0}
-                                   onChange={e => quota = normalizedBalanceToRaw(category, e.target.valueAsNumber)} />
+                                onChange={e => quota = normalizedBalanceToRaw(category, e.target.valueAsNumber)} />
                         </Label>
                     </Flex>
                     <Label mb={"16px"}>
                         Reason <Required />
                         <TextArea required rows={4} width={1} height={1} type={"text"} autoFocus
-                                  placeholder={"Reason for update..."} onChange={e => reason = e.target.value} />
+                            placeholder={"Reason for update..."} onChange={e => reason = e.target.value} />
                     </Label>
                     <Button mt={"16px"} type={"submit"} fullWidth>
                         Update allocation
@@ -1065,8 +1065,8 @@ const SubProjectListRow: React.FunctionComponent<{
             left={<Flex gap={"4px"} alignItems={"center"}>
                 <TooltipV2 tooltip={`Project PI: ${pi}`}>
                     <Avatar {...avatars.avatarFromCache(pi)}
-                            style={{height: "32px", width: "auto", marginTop: "-4px"}}
-                            avatarStyle={"Circle"} />
+                        style={{height: "32px", width: "auto", marginTop: "-4px"}}
+                        avatarStyle={"Circle"} />
                 </TooltipV2>
                 <Truncate
                     title={title}
@@ -1089,10 +1089,10 @@ const SubProjectListRow: React.FunctionComponent<{
                         })}
                     >
                         <SmallIconButton tooltip="Allocate more resources"
-                                         icon={"heroBanknotes"}
-                                         subIcon={"heroPlusCircle"}
-                                         subColor1={"primaryContrast"}
-                                         subColor2={"primaryContrast"} />
+                            icon={"heroBanknotes"}
+                            subIcon={"heroPlusCircle"}
+                            subColor1={"primaryContrast"}
+                            subColor2={"primaryContrast"} />
                     </Link>
                 }
             </div>}
@@ -1150,10 +1150,10 @@ const SubProjectListRow: React.FunctionComponent<{
 
                                     {alloc.grantedIn && <>
                                         <Link target={"_blank"}
-                                              to={AppRoutes.grants.editor(alloc.grantedIn)}>
+                                            to={AppRoutes.grants.editor(alloc.grantedIn)}>
                                             View grant application{" "}
                                             <Icon name={"heroArrowTopRightOnSquare"}
-                                                  mt={-6} />
+                                                mt={-6} />
                                         </Link>
                                     </>}
                                 </Flex>}
@@ -1161,7 +1161,7 @@ const SubProjectListRow: React.FunctionComponent<{
                                     {alloc.note && <>
                                         <TooltipV2 tooltip={alloc.note.text}>
                                             <Icon name={alloc.note.icon}
-                                                  color={alloc.note.iconColor} />
+                                                color={alloc.note.iconColor} />
                                         </TooltipV2>
                                     </>}
                                     <Text>
@@ -1382,7 +1382,7 @@ export const SubProjectFilters: React.FunctionComponent<{
 
             <Flex justifyContent="end" px={"20px"} py={"12px"} margin={"-20px"} background={"var(--dialogToolbar)"}
                   zIndex={10000} gap={"8px"}>
-                <Button color={"successMain"} type="button" onClick={closeFilters}>Apply</Button>
+                <Button color={"successMain"} type="button" onClick={closeFilters}>Done</Button>
             </Flex>
         </Flex>
     </ReactModal>;
@@ -1575,92 +1575,94 @@ export const SubProjectList: React.FunctionComponent<{
         );
     }, [state.subAllocations, childProjectInfo]);
 
-    return <>
-        <SubProjectFilters filtersShown={filtersShown} closeFilters={closeFilters}
-                           dispatchEvent={dispatchEvent} state={state} />
+        const activeFilterCount = React.useMemo(() => Object.values(state.subprojectFilters).filter(it => it.enabled).length, [state.subprojectFilters]);
 
-        <div className={subProjectsStyle}>
-            {projectId !== undefined && <>
-                <Flex mt={32} mb={10} alignItems={"center"} gap={"8px"}>
-                    <h3 style={{margin: 0}}>Sub-projects</h3>
-                    <div className="sub-projects-search-bar-container">
-                        <Box flexGrow={1} />
-                        <Button onClick={onExportData}>
-                            <Icon name={"heroArrowDownTray"} mr={8} />
-                            Export
-                        </Button>
-                        <Button className="new-sub-project-button" height={35} onClick={onNewSubProject}
+        return <>
+            <SubProjectFilters filtersShown={filtersShown} closeFilters={closeFilters}
+                dispatchEvent={dispatchEvent} state={state} />
+
+            <div className={subProjectsStyle}>
+                {projectId !== undefined && <>
+                    <Flex mt={32} mb={10} alignItems={"center"} gap={"8px"}>
+                        <h3 style={{margin: 0}}>Sub-projects</h3>
+                        <div className="sub-projects-search-bar-container">
+                            <Box flexGrow={1} />
+                            <Button onClick={onExportData}>
+                                <Icon name={"heroArrowDownTray"} mr={8} />
+                                Export
+                            </Button>
+                            <Button className="new-sub-project-button" height={35} onClick={onNewSubProject}
                                 disabled={projectRole == OldProjectRole.USER}>
-                            <Icon name={"heroPlus"} mr={8} />
-                            New sub-project
-                        </Button>
-                        <Box width={"355px"}>
-                            <Input
-                                placeholder={"Search in your sub-projects"}
-                                height={35}
-                                value={state.searchQuery}
-                                onInput={onSearchInput}
-                                onKeyDown={onSearchKey}
-                                disabled={state.editControlsDisabled}
-                                inputRef={searchBox}
-                            />
-                            <div style={{position: "relative"}}>
-                                <div style={{position: "absolute", top: "-30px", right: "11px"}}>
-                                    <Icon name={"heroMagnifyingGlass"} />
+                                <Icon name={"heroPlus"} mr={8} />
+                                New sub-project
+                            </Button>
+                            <Box width={"355px"}>
+                                <Input
+                                    placeholder={"Search in your sub-projects"}
+                                    height={35}
+                                    value={state.searchQuery}
+                                    onInput={onSearchInput}
+                                    onKeyDown={onSearchKey}
+                                    disabled={state.editControlsDisabled}
+                                    inputRef={searchBox}
+                                />
+                                <div style={{position: "relative"}}>
+                                    <div style={{position: "absolute", top: "-30px", right: "11px"}}>
+                                        <Icon name={"heroMagnifyingGlass"} />
+                                    </div>
                                 </div>
-                            </div>
-                        </Box>
-                        <Button className="filters-button" onClick={openFilters}>
-                            <Icon name={"heroAdjustmentsHorizontal"} />
-                        </Button>
-                    </div>
-                </Flex>
+                            </Box>
+                            <Button className="filters-button" onClick={openFilters}>
+                                <Icon name={"heroAdjustmentsHorizontal"} />
+                            </Button>
+                        </div>
+                    </Flex>
 
-                <div className="sub-projects-container" style={{height: "500px", width: "100%"}}>
-                    {state.remoteData.wallets === undefined ? <>
-                        <HexSpin size={64} />
-                    </> : <>
-                        {state.filteredSubProjectIndices.length !== 0 ? null :
-                            <div style={{marginLeft: "20px", marginTop: "10px"}}>
-                                You do not have any
-                                sub-allocations {state.searchQuery ? "with the active search" : ""} at
-                                the moment. {" "}
-                                {projectRole === OldProjectRole.USER ? null : <>
-                                    You can create a sub-project by clicking <a href="#"
-                                                                                onClick={onNewSubProject}>here</a>.
-                                </>}
-                            </div>}
-                        <AutoSizer>
-                            {({height, width}) => (
-                                <Tree
-                                    apiRef={suballocationTree}
-                                    onAction={(row, action) => {
-                                        if (![TreeAction.TOGGLE, TreeAction.OPEN, TreeAction.CLOSE].includes(action)) return;
-                                        const grantId = row.getAttribute("data-grant-id");
-                                        if (grantId && TreeAction.TOGGLE === action) {
-                                            // Note(Jonas): Just `window.open(AppRoutes...)` will omit the `/app` part, so we add it this way.
-                                            window.open(window.origin + "/app" + AppRoutes.grants.editor(grantId), "_blank");
-                                        } else {
-                                            const recipient = row.getAttribute("data-recipient");
-                                            if (!recipient) return;
-                                            const group = row.getAttribute("data-group");
-                                            setNodeState(action, recipient, group);
-                                            listRef.current?.resetAfterIndex(0);
-                                        }
-                                    }}
-                                    unhandledShortcut={onSubAllocationShortcut}
-                                >
-                                    <VariableSizeList
-                                        itemSize={(idx) => calculateHeightInPx(idx, state)}
-                                        height={height}
-                                        width={width}
-                                        ref={listRef}
-                                        itemCount={state.filteredSubProjectIndices.length}
-                                        itemData={state.filteredSubProjectIndices}
+                    <div className="sub-projects-container" style={{height: "500px", width: "100%"}}>
+                        {state.remoteData.wallets === undefined ? <>
+                            <HexSpin size={64} />
+                        </> : <>
+                            {state.filteredSubProjectIndices.length !== 0 ? null :
+                                <div style={{marginLeft: "20px", marginTop: "10px"}}>
+                                    You do not have any
+                                    sub-allocations {state.searchQuery || activeFilterCount > 0 ? "with the active search or filters" : ""} at
+                                    the moment. {" "}
+                                    {projectRole === OldProjectRole.USER ? null : <>
+                                        You can create a sub-project by clicking <a href="#"
+                                            onClick={onNewSubProject}>here</a>.
+                                    </>}
+                                </div>}
+                            <AutoSizer>
+                                {({height, width}) => (
+                                    <Tree
+                                        apiRef={suballocationTree}
+                                        onAction={(row, action) => {
+                                            if (![TreeAction.TOGGLE, TreeAction.OPEN, TreeAction.CLOSE].includes(action)) return;
+                                            const grantId = row.getAttribute("data-grant-id");
+                                            if (grantId && TreeAction.TOGGLE === action) {
+                                                // Note(Jonas): Just `window.open(AppRoutes...)` will omit the `/app` part, so we add it this way.
+                                                window.open(window.origin + "/app" + AppRoutes.grants.editor(grantId), "_blank");
+                                            } else {
+                                                const recipient = row.getAttribute("data-recipient");
+                                                if (!recipient) return;
+                                                const group = row.getAttribute("data-group");
+                                                setNodeState(action, recipient, group);
+                                                listRef.current?.resetAfterIndex(0);
+                                            }
+                                        }}
+                                        unhandledShortcut={onSubAllocationShortcut}
                                     >
-                                        {({index: rowIdx, style, data}) => {
-                                            const recipientIdx = data[rowIdx];
-                                            const recipient = state.subAllocations.recipients[recipientIdx];
+                                        <VariableSizeList
+                                            itemSize={(idx) => calculateHeightInPx(idx, state)}
+                                            height={height}
+                                            width={width}
+                                            ref={listRef}
+                                            itemCount={state.filteredSubProjectIndices.length}
+                                            itemData={state.filteredSubProjectIndices}
+                                        >
+                                            {({index: rowIdx, style, data}) => {
+                                                const recipientIdx = data[rowIdx];
+                                                const recipient = state.subAllocations.recipients[recipientIdx];
 
                                             return <SubProjectListRow
                                                 style={style}
@@ -1810,7 +1812,7 @@ const SmallIconButton: React.FunctionComponent<{
             <Relative>
                 <div className={"sub"}>
                     <Icon name={props.subIcon} hoverColor={props.subColor1} color={props.subColor1}
-                          color2={props.subColor2} />
+                        color2={props.subColor2} />
                 </div>
             </Relative>
         }
