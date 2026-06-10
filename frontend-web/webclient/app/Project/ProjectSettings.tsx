@@ -102,7 +102,7 @@ interface TemplateFormProps {
     settings: Grants.RequestSettings;
     setSettings: React.Dispatch<React.SetStateAction<Grants.RequestSettings>>;
     updateNewProjectField: (idx: number, fieldName: string, value: any, projectType: string) => void;
-    removeNewProjectField: (idx: number, fieldName: string) => void;
+    removeNewProjectField: (idx: number, projectType: string) => void;
     updateProjectFieldLimits: (idx: number, fieldName: string, value: any, projectType: string) => void;
 }
 
