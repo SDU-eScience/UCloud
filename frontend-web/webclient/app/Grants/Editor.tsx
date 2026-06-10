@@ -773,6 +773,9 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             for(var userAnswer of doc.form.fields) {
                 // const hasField = newApplication.some(i => i.name === userAnswer.field.name);
                 // if (hasField) {
+
+                // Backend needs to build the outdated fields?
+
                 newApplicationDocument[userAnswer.field.name] = userAnswer;
                 // } else {
                     // outdatedFields.push(userAnswer);
@@ -2338,43 +2341,6 @@ export function ApplicationForm({editorState: state, closed: isClosed, event: on
             ))}
         </div>
     );
-
-    const renderEdit = (
-        <div className="application-wrapper">
-            <div className="application">
-                {Object.values(state.applicationAnswers).map((val, idx) => {
-                    return (
-                        <FormField
-                            title={val.field.title}
-                            key={idx}
-                            id={`${val.field.name}`}
-                            description={val.field.description}
-                            mandatory={!val.field.optional}
-                        >
-                            <TextArea
-                                id={val.field.name}
-                                rows={val.field.rows}
-                                maxLength={val.field.maxLength ?? 100}
-                                required={!val.field.optional}
-                                disabled={state.locked || isClosed}
-                                value={state.applicationAnswers[val.field.name]?.answer ?? ""}
-                                data-field={JSON.stringify(val.field)}
-                                onChange={onApplicationChange}
-                                placeholder={" "}
-                            />
-                        </FormField>
-                    );
-                })}
-            </div>
-
-            {state.outdatedFields.length > 0 && OutdatedApplicationDescription}
-
-            {state.outdatedFields.map((field) => (
-                <OutdatedTextArea field={field} />
-            ))}
-        </div>
-    );
-
     return state.stateDuringCreate ? renderForm(state.createApplicationForms) : renderForm(Object.values(state.applicationAnswers).map(i => i.field));
 }
 
