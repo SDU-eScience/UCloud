@@ -98,30 +98,30 @@ const ActionBoxClass = injectStyle("action-box", k => `
 
 interface TemplateFormProps {
     title: string;
-    fieldType: string;
+    projectType: string;
     settings: Grants.RequestSettings;
     setSettings: React.Dispatch<React.SetStateAction<Grants.RequestSettings>>;
-    updateNewProjectField: (idx: number, fieldName: string, value: any, fieldType: string) => void;
-    removeNewProjectField: (idx: number, fieldType: string) => void;
-    updateProjectFieldLimits: (idx: number, fieldName: string, value: any, fieldType: string) => void;
+    updateNewProjectField: (idx: number, fieldName: string, value: any, projectType: string) => void;
+    removeNewProjectField: (idx: number, fieldName: string) => void;
+    updateProjectFieldLimits: (idx: number, fieldName: string, value: any, projectType: string) => void;
 }
 
 interface MoveFieldControlsProps {
     idx: number;
     numberOfFields: number;
-    fieldType: string;
+    projectType: string;
     setSettings: React.Dispatch<React.SetStateAction<Grants.RequestSettings>>;
 }
 
 const MoveFieldControls: React.FunctionComponent<MoveFieldControlsProps> = ({
     idx,
     numberOfFields,
-    fieldType,
+    projectType: projectType,
     setSettings,
 }) => {
     const move = (direction: "up" | "down") => {
         setSettings(prev => {
-            const items = [...prev.templates.structured[fieldType]];
+            const items = [...prev.templates.structured[projectType]];
 
             const targetIdx =
                 direction === "up" ? idx - 1 : idx + 1;
@@ -141,7 +141,7 @@ const MoveFieldControls: React.FunctionComponent<MoveFieldControlsProps> = ({
                     ...prev.templates,
                     structured: {
                         ...prev.templates.structured,
-                        [fieldType]: items,
+                        [projectType]: items,
                     },
                 },
             };
@@ -162,7 +162,7 @@ const MoveFieldControls: React.FunctionComponent<MoveFieldControlsProps> = ({
 
 const TemplateForm: React.FunctionComponent<TemplateFormProps> = ({
     title,
-    fieldType,
+    projectType: projectType,
     settings,
     setSettings,
     updateNewProjectField,
@@ -181,10 +181,10 @@ const TemplateForm: React.FunctionComponent<TemplateFormProps> = ({
                             ...prev.templates,
                             structured: {
                                 ...prev.templates.structured,
-                                [fieldType]: [{
+                                [projectType]: [{
                                     description: "", name: "", title: "", optional: false
 
-                                }, ...prev.templates.structured[fieldType]]
+                                }, ...prev.templates.structured[projectType]]
                             }
                         }
                     }));
@@ -192,14 +192,14 @@ const TemplateForm: React.FunctionComponent<TemplateFormProps> = ({
             </Flex>
         </Flex>
         {
-            settings.templates.structured[fieldType].map((field: Grants.FormField, idx: number) => {
+            settings.templates.structured[projectType].map(function (field: Grants.FormField, idx: number) {
                 return <>
                     <br />
                     <Flex justifyContent={"end"}>
                         <MoveFieldControls
                             idx={idx}
-                            numberOfFields={settings.templates.structured[fieldType].length}
-                            fieldType={fieldType}
+                            numberOfFields={settings.templates.structured[projectType].length}
+                            projectType={projectType}
                             setSettings={setSettings}
                         />
                     </Flex>
@@ -207,29 +207,29 @@ const TemplateForm: React.FunctionComponent<TemplateFormProps> = ({
                         <Label fontSize={12}>
                             Name
                             <Tooltip trigger={(
-                                <Input id={field.name + idx} required value={field.name} onChange={(e) => updateNewProjectField(idx, 'name', e.target.value, fieldType)} >{field.name}</Input>
+                                <Input id={field.name + idx} required value={field.name} onChange={(e) => updateNewProjectField(idx, 'name', e.target.value, projectType)} >{field.name}</Input>
                             )}>
                                 This identifier remains stable and is used to associate fields with grant applications.
                             </Tooltip>
                         </Label>
                         <Label fontSize={12}>
                             Title
-                            <Input id={field.title+idx} required value={field.title} onChange={(e) => updateNewProjectField(idx, 'title', e.target.value, fieldType)} >{field.title}</Input>
+                            <Input id={field.title+idx} required value={field.title} onChange={(e) => updateNewProjectField(idx, 'title', e.target.value, projectType)} >{field.title}</Input>
                         </Label>
                     </Flex>
                     <Flex gap="20px" justifyContent={"space-between"}>
                         <Label width={"100%"} fontSize={12}>
                             Description
-                            <TextArea width={"100%"} value={field.description} rows={5} onChange={(e) => updateNewProjectField(idx, 'description', e.target.value, fieldType)}>{field.description}</TextArea>
+                            <TextArea width={"100%"} value={field.description} rows={5} onChange={(e) => updateNewProjectField(idx, 'description', e.target.value, projectType)}>{field.description}</TextArea>
                         </Label>
                         <Box width={150}>
                             <Label width={"100%"} fontSize={12}>
                                 Row limit
-                                <Input value={field.rows ?? ""} type="number" onChange={(e) => updateProjectFieldLimits(idx, 'rows', e.target.value, fieldType)}>{field.rows}</Input>
+                                <Input value={field.rows ?? ""} type="number" onChange={(e) => updateProjectFieldLimits(idx, 'rows', e.target.value, projectType)}>{field.rows}</Input>
                             </Label>
                             <Label width={"100%"} fontSize={12}>
                                 Max length
-                                <Input value={field.maxLength ?? ""} type="number" onChange={(e) => updateProjectFieldLimits(idx, 'maxLength', e.target.value, fieldType)}/>
+                                <Input value={field.maxLength ?? ""} type="number" onChange={(e) => updateProjectFieldLimits(idx, 'maxLength', e.target.value, projectType)}/>
                             </Label>
                         </Box>
                     </Flex>
@@ -237,7 +237,7 @@ const TemplateForm: React.FunctionComponent<TemplateFormProps> = ({
                     <Flex justifyContent={"space-between"}>
                         <span style={{ display: "flex" }}>
                             <Label cursor="pointer" width="unset" fontSize={"12px"} marginTop={"5px"}>
-                                <Checkbox size={30} checked={field.optional} onChange={()=>updateNewProjectField(idx, 'optional', !field.optional, fieldType)}>
+                                <Checkbox size={30} checked={field.optional} onChange={()=>updateNewProjectField(idx, 'optional', !field.optional, projectType)}>
                                 </Checkbox>
                                 Optional
                             </Label>
@@ -245,23 +245,23 @@ const TemplateForm: React.FunctionComponent<TemplateFormProps> = ({
                         <Flex justifyContent={"flex-end"}>
                             <Button mr={"12px"} color={"errorMain"} cursor={"pointer"} onClick={(e) => {
                                 e.preventDefault();
-                                const title = settings.templates.structured[fieldType][idx].title;
-                                const description = settings.templates.structured[fieldType][idx].description;
+                                const title = settings.templates.structured[projectType][idx].title;
+                                const description = settings.templates.structured[projectType][idx].description;
                                 if (title === "" && description === "") {
-                                    removeNewProjectField(idx, fieldType);
+                                    removeNewProjectField(idx, projectType);
                                     return;
                                 }
                                 addStandardDialog({
                                     title: "Are you sure?",
                                     message: `Are you sure want to delete this "${title === "" ? "Untitled" : title}" field?`,
                                     onConfirm: async () => {
-                                        removeNewProjectField(idx, fieldType);
+                                        removeNewProjectField(idx, projectType);
                                     }
                                 })
                             }} ><Icon mr={10} name="trash"/>Remove field</Button>
                         </Flex>
                     </Flex>
-                    { settings.templates.structured[fieldType].length > idx + 1 ? <div><br/><hr style={{border:("solid 1px var(--secondaryDark)")}}/></div> : <></> }
+                    { settings.templates.structured[projectType].length > idx + 1 ? <div><br/><hr style={{border:("solid 1px var(--secondaryDark)")}}/></div> : <></> }
                 </>
             })
         }
@@ -364,35 +364,35 @@ export const ProjectSettings: React.FunctionComponent = () => {
         });
     }, []);
 
-    const updateProjectFieldLimits = useCallback((idx: number, fieldName: string, value: any, fieldType: string) => {
+    const updateProjectFieldLimits = useCallback((idx: number, fieldName: string, value: any, projectType: string) => {
         let parsedValue = value;
         parsedValue = value === "" ? null : parseInt(value);
 
-        return updateNewProjectField(idx, fieldName, parsedValue, fieldType);
+        return updateNewProjectField(idx, fieldName, parsedValue, projectType);
     }, []);
 
-    const updateNewProjectField = useCallback((idx: number, fieldName: string, value: any, fieldType: string) => {
+    const updateNewProjectField = useCallback((idx: number, fieldName: string, value: any, projectType: string) => {
         setSettings(prev => ({
             ...prev,
             templates: {
                 ...prev.templates,
                 structured: {
                     ...prev.templates.structured,
-                    [fieldType]: prev.templates.structured[fieldType].map((f, i) => i === idx ? {...f, [fieldName]: value} : f
+                    [projectType]: prev.templates.structured[projectType].map((f, i) => i === idx ? {...f, [fieldName]: value} : f
                     )
                 }
             }
         }));
     }, []);
 
-    const removeNewProjectField = useCallback((idx: number, fieldType: string) => {
+    const removeNewProjectField = useCallback((idx: number, projectType: string) => {
         setSettings(prev => ({
             ...prev,
             templates: {
                 ...prev.templates,
                 structured: {
                     ...prev.templates.structured,
-                    [fieldType]: prev.templates.structured[fieldType].filter((_, i) => i !== idx)
+                    [projectType]: prev.templates.structured[projectType].filter((_, i) => i !== idx)
                 }
             }
         }));
@@ -504,7 +504,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
                         <br />
                         <TemplateForm
                             title="Define application for personal projects:"
-                            fieldType="personalProject"
+                            projectType="personalProject"
                             settings={settings}
                             setSettings={setSettings}
                             updateNewProjectField={updateNewProjectField}
@@ -514,7 +514,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
                         <br />
                         <TemplateForm
                             title="Define application for existing projects:"
-                            fieldType="existingProject"
+                            projectType="existingProject"
                             settings={settings}
                             setSettings={setSettings}
                             updateNewProjectField={updateNewProjectField}
@@ -524,7 +524,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
                         <br />
                         <TemplateForm
                             title="Define application for new projects:"
-                            fieldType="newProject"
+                            projectType="newProject"
                             settings={settings}
                             setSettings={setSettings}
                             updateNewProjectField={updateNewProjectField}
