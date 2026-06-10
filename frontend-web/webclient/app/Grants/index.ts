@@ -333,9 +333,6 @@ export type TemplateKey = keyof TemplateStructured;
 export interface Templates {
     type: "structured"
     structured: TemplateStructured;
-    personalProject: string;
-    newProject: string;
-    existingProject: string;
 }
 
 export interface RequestSettings {
