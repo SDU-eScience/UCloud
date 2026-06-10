@@ -2,7 +2,7 @@ import * as React from "react";
 import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {Button, Divider, Flex, Icon, Input, Link, MainContainer} from "@/ui-components";
+import {Box, Button, Divider, Flex, Icon, Input, Label, Link, MainContainer} from "@/ui-components";
 import {useCallback, useEffect, useState} from "react";
 import {callAPI, callAPIWithErrorHandler} from "@/Authentication/DataHook";
 import * as Grants from "@/Grants";
@@ -13,22 +13,22 @@ import {ProjectTitleForNewCore} from "@/Project/InfoCache";
 import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
 import {UserCriteriaEditorReadOnly} from "@/Project/ProjectSettings";
 
+const defaultSetting: Grants.RequestSettings = {
+    enabled: false,
+    description: "No description",
+    allowRequestsFrom: [],
+    excludeRequestsFrom: [],
+    templates: {
+        type: "plain_text",
+        personalProject: "No template",
+        newProject: "No template",
+        existingProject: "No template",
+    }
+}
+
 function ManageProjects(): React.ReactNode {
     usePage("Manage projects", SidebarTabId.ADMIN);
     if (!Client.userIsAdmin) return null;
-
-    const defaultSetting: Grants.RequestSettings = {
-        enabled: false,
-        description: "No description",
-        allowRequestsFrom: [],
-        excludeRequestsFrom: [],
-        templates: {
-            type: "plain_text",
-            personalProject: "No template",
-            newProject: "No template",
-            existingProject: "No template",
-        }
-    }
 
     const [settings, setSettings] = useState<Grants.ProjectToSetting[]>([{
         projectId: "",
@@ -38,13 +38,16 @@ function ManageProjects(): React.ReactNode {
     const projectIdRef = React.useRef<HTMLInputElement>(null);
 
     async function sendSettingUpdate(projectToSetting: Grants.ProjectToSetting) {
-        const success = await callAPIWithErrorHandler({
-            ...Grants.updateRequestSettingsAdmin(projectToSetting)
-        }) !== null;
+        const success = await callAPIWithErrorHandler(
+            Grants.updateRequestSettingsAdmin(projectToSetting)
+        ) !== null;
 
         if (success) {
             sendSuccessNotification("Project settings saved!");
             setSettings([...settings]);
+            if (projectIdRef.current) {
+                projectIdRef.current.value = "";
+            }
         } else {
             sendFailureNotification("Could not update project settings");
         }
@@ -87,9 +90,7 @@ function ManageProjects(): React.ReactNode {
         let existingSetting = defaultSetting
         try {
             existingSetting = await callAPI<Grants.RequestSettings>(
-                {
-                    ...Grants.retrieveRequestSettingsAdmin({id: projectId})
-                }
+                Grants.retrieveRequestSettingsAdmin({id: projectId})
             );
         } catch (e: any) {
             sendFailureNotification("Cannot enabled project.")
@@ -107,19 +108,13 @@ function ManageProjects(): React.ReactNode {
         settings.push(projectSettings);
         sendSettingUpdate(projectSettings);
 
-        if (projectIdRef.current) {
-            projectIdRef.current.value = "";
-        }
-
     }, [settings]);
 
     useEffect(() => {
         (async () => {
             try {
                 const res = await callAPI<Grants.ProjectToSetting[]>(
-                    {
-                        ...Grants.browseEnabledProjects(),
-                    }
+                    Grants.browseEnabledProjects(),
                 );
                 setSettings(res)
             } catch (e) {
@@ -135,7 +130,7 @@ function ManageProjects(): React.ReactNode {
             <Divider />
             <h3>Grant enabled projects</h3>
             <p>Enable grant reception for existing project</p>
-            <form action="#" onSubmit={onEnableProject} style={{display: "flex", gap: "8px", width: "100%"}}>
+            <form onSubmit={onEnableProject} style={{display: "flex", gap: "8px", width: "100%"}}>
                 <Input
                     inputRef={projectIdRef}
                     type="text"
@@ -153,9 +148,9 @@ function ManageProjects(): React.ReactNode {
                             <HexSpin size={64} />
                         </> : <>
                             <div>
-                                {settings.length !== 0 ? null : <div style={{marginLeft: "20px", marginTop: "10px"}}>
+                                {settings.length !== 0 ? null : <Box ml="20px" mt="10px">
                                     No projects are enabled at the moment.
-                                </div>}
+                                </Box>}
                                 <Tree>
                                     {settings.map((projectToSetting) => {
                                         return <TreeNode
@@ -167,7 +162,7 @@ function ManageProjects(): React.ReactNode {
                                             indent={1}
                                         >
                                             <div>
-                                                <label style={{marginBottom: "16px"}}>Allow applications from</label>
+                                                <Label mb="16px">Allow applications from</Label>
                                                 <UserCriteriaEditorReadOnly
                                                     criteria={projectToSetting.settings.allowRequestsFrom}
                                                     projectId={projectToSetting.projectId}
