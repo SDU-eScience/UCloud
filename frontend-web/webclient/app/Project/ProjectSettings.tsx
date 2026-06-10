@@ -192,7 +192,7 @@ const TemplateForm: React.FunctionComponent<TemplateFormProps> = ({
             </Flex>
         </Flex>
         {
-            settings.templates.structured[fieldType].map(function (field: Grants.FormField, idx: number) {
+            settings.templates.structured[fieldType].map((field: Grants.FormField, idx: number) => {
                 return <>
                     <br />
                     <Flex justifyContent={"end"}>
