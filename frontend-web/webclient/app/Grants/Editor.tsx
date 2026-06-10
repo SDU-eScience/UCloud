@@ -185,7 +185,7 @@ type EditorAction =
     | {type: "SetIsCreating", stateDuringCreate?: EditorState["stateDuringCreate"]}
     | {type: "RecipientUpdated", isCreatingNewProject: boolean, reference?: string}
     | {type: "ProjectsReloaded", projects: {id: string | null, title: string}[]}
-    | {type: "ApplicationUpdated", name: string, title: string, answer: string}
+    | {type: "ApplicationUpdated", answer: string, field: Grants.FormField }
     | {type: "LoadingStateChange", isLoading: boolean}
     | {type: "ReferenceIdUpdated", newReferenceId: string, idx: number}
     | {type: "CleanupReferenceIds"}
@@ -474,7 +474,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
 
         case "ApplicationUpdated": {
             const newContents = {...state.applicationDocument};
-            newContents[action.name] = {name: action.name, title: action.title, answer: action.answer };
+            newContents[action.field.name] = {field: action.field, answer: action.answer};
 
             return {
                 ...state,
@@ -765,19 +765,18 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
         const isGrantGiverInitiated = app && app.status.overallState == "APPROVED" && app.status.revisions.length === 1 && docText.startsWith(grantGiverInitiatedPrefix);
 
         const forms = isGrantGiverInitiated ? [grantGiverInitiatedForm] : newAllocators.flatMap(it => it.template);
-        const newApplication = forms
+        // const newApplication = forms
         var outdatedFields: Grants.AnswerFieldForm[] = [];
         const newApplicationDocument: EditorState["applicationDocument"] = {};
 
         if (doc.form.type == "structured") {
             for(var userAnswer of doc.form.fields) {
-                
-                const hasField = newApplication.some(i => i.name === userAnswer.name);
-                if (hasField) {
-                    newApplicationDocument[userAnswer.name] = userAnswer;
-                } else {
-                    outdatedFields.push(userAnswer);
-                }
+                // const hasField = newApplication.some(i => i.name === userAnswer.field.name);
+                // if (hasField) {
+                newApplicationDocument[userAnswer.field.name] = userAnswer;
+                // } else {
+                    // outdatedFields.push(userAnswer);
+                // }
 
             }
         }
@@ -825,7 +824,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             ...state,
             allocators: newAllocators,
             resources: newResources,
-            applicationForms: newApplication,
+            // applicationForms: newApplication,
             outdatedFields: outdatedFields,
             applicationDocument: newApplicationDocument,
             allocationPeriod: state.stateDuringEdit.id === GRANT_GIVER_INITIATED_ID ? state.allocationPeriod : {
@@ -1496,8 +1495,12 @@ export function Editor(): React.ReactNode {
         if (!(ev.target instanceof HTMLTextAreaElement)) return;
         const id = ev.target.id;
         const newValue = ev.target.value;
-        const title = ev.target.dataset.title ?? "";
-        dispatchEvent({type: "ApplicationUpdated", name: id, title: title , answer: newValue});
+        const f = ev.target.dataset.field;
+        let field: Grants.FormField = {description: "", name: id, optional: false, title: ""};
+        if (f !== undefined) {
+            field = JSON.parse(f);
+        }
+        dispatchEvent({type: "ApplicationUpdated", answer: newValue, field });
     }, [dispatchEvent]);
 
     const onStartUpdated = useCallback<React.FormEventHandler>(ev => {
@@ -1825,7 +1828,7 @@ export function Editor(): React.ReactNode {
         return (
             <Box mb={10}>
             <Flex>
-                <Label>{field.title}</Label>
+                <Label>{field.field.title}</Label>
                 <Tooltip trigger={(
                             <TextArea
                                 readOnly
@@ -2241,33 +2244,96 @@ export function Editor(): React.ReactNode {
 
                             <h2 style={{fontWeight: "bold"}}>Application</h2>
                             <br />
-                            <div className="application-wrapper">
-                                <div className="application">
-                                    {state.applicationForms.map((val, idx) => {
-                                        // NOTE(Dan): Empty placeholder is a quick work-around for fields having error
-                                        // immediately on load.
-                                        return <FormField title={val.title} key={idx} id={`${val.name}`}
-                                            description={val.description} mandatory={!val.optional}>
-                                            <TextArea id={val.name} rows={val.rows} maxLength={val.maxLength ?? 100}
-                                                required={!val.optional} disabled={state.locked || isClosed}
-                                                value={state.applicationDocument[val.name]?.answer ?? ""}
-                                                data-title={val.title}
-                                                onChange={onApplicationChange} placeholder={" "} />
-                                        </FormField>
-                                    })}
-
-                                </div>
-                                    {state.outdatedFields.length > 0 ? OutdatedApplicationDescription: <></>}
-                                    {state.outdatedFields.map((field) => {
-                                        return <OutdatedTextArea field={field}></OutdatedTextArea>
-                                    })}
-                            </div>
+                            <ApplicationForm closed={isClosed} editorState={state} event={onApplicationChange}></ApplicationForm>
+             
                         </>}
                     </form>
                 </Box>
         }
     />;
 };
+
+    // function OutdatedTextArea({field: answerField}: OutdatedTextAreaProps): React.ReactNode {
+type ApplicationFormProps = {
+    editorState: EditorState,
+    closed: boolean | undefined,
+    event: React.FormEventHandler<Element>,
+};
+
+export function ApplicationForm({editorState: state, closed: isClosed, event: onApplicationChange}: ApplicationFormProps): React.ReactNode {
+
+    function OutdatedTextArea({field: answerField}: OutdatedTextAreaProps): React.ReactNode {
+
+        const handleCopy = async () => {
+            await navigator.clipboard.writeText(answerField.answer || "");
+            sendSuccessNotification("Copied!");
+        };
+
+        return (
+            <Box mb={10}>
+            <Flex>
+                <Label>{answerField.field.title}</Label>
+                <Tooltip trigger={(
+                            <TextArea
+                                readOnly
+                                style={{"cursor": "pointer"}}
+                                onClick={handleCopy}
+                                mr={10}
+                                value={answerField.answer}
+                                width="545px"
+                            />
+                        )} >
+                        Click to copy field to clipboard
+                </Tooltip>
+            </Flex>
+            </Box>
+        );
+    }
+
+    const OutdatedApplicationDescription = <Box mb={20}>
+        <Label fontSize={16} mb={2} style={{fontWeight: "bold"}}>Outdated fields</Label>
+        <section style={{color: "var(--textSecondary)"}}> 
+            <p style={{margin: 0}}>The project application form has changed since you last edited your submission. </p>
+            <p style={{margin: 0}}>Please review and update the affected fields.</p>
+        </section> 
+    </Box>
+
+    return (
+        <div className="application-wrapper">
+            <div className="application">
+                {Object.values(state.applicationDocument).map((val, idx) => {
+                    return (
+                        <FormField
+                            title={val.field.title}
+                            key={idx}
+                            id={`${val.field.name}`}
+                            description={val.field.description}
+                            mandatory={!val.field.optional}
+                        >
+                            <TextArea
+                                id={val.field.name}
+                                rows={val.field.rows}
+                                maxLength={val.field.maxLength ?? 100}
+                                required={!val.field.optional}
+                                disabled={state.locked || isClosed}
+                                value={state.applicationDocument[val.field.name]?.answer ?? ""}
+                                data-field={JSON.stringify(val.field)}
+                                onChange={onApplicationChange}
+                                placeholder={" "}
+                            />
+                        </FormField>
+                    );
+                })}
+            </div>
+
+            {state.outdatedFields.length > 0 && OutdatedApplicationDescription}
+
+            {state.outdatedFields.map((field) => (
+                <OutdatedTextArea field={field} />
+            ))}
+        </div>
+    );
+}
 
 // Project transfer
 // =====================================================================================================================

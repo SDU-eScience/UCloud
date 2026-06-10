@@ -377,9 +377,8 @@ func ParseFormFields(text string) []FormField {
 }
 
 type AnswerFieldForm struct {
-	Name   string `json:"name"`
-	Title  string `json:"title"`
-	Answer string `json:"answer"`
+	Answer string    `json:"answer"`
+	Field  FormField `json:"field"`
 }
 
 type Form struct {

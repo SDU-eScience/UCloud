@@ -214,9 +214,8 @@ interface GrantGiverInitiatedForm {
 }
 
 export interface AnswerFieldForm {
-    name: string;
-    title: string;
     answer: string;
+    field: FormField;
 }
 
 interface StructuredForm {
