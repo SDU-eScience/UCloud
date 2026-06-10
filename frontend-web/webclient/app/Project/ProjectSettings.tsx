@@ -489,11 +489,10 @@ export const ProjectSettings: React.FunctionComponent = () => {
                 <Card>
                     <Heading.h3>Grant settings</Heading.h3>
 
-                    <UpdateProjectLogo />
-
                     <form onSubmit={onSave}>
                         <Card>
-                            <Flex gap="32px">
+                            <Flex justifyContent={"space-between"} gap="32px">
+                                <UpdateProjectLogo />
                                 <label>
                                     Project description <br />
                                     <TextArea width="100%" rows={5} inputRef={description} />
