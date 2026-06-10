@@ -770,15 +770,13 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
         const newApplicationDocument: EditorState["applicationDocument"] = {};
 
         if (doc.form.type == "structured") {
-            for(var userAnswer of doc.form.fields) {
-                
+            for (const userAnswer of doc.form.fields) {
                 const hasField = newApplication.some(i => i.name === userAnswer.name);
                 if (hasField) {
                     newApplicationDocument[userAnswer.name] = userAnswer;
                 } else {
                     outdatedFields.push(userAnswer);
                 }
-
             }
         }
 
