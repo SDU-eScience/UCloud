@@ -150,11 +150,9 @@ const MoveFieldControls: React.FunctionComponent<MoveFieldControlsProps> = ({
 
     return <Flex>
         {idx === 0 ? null : <Icon cursor="pointer" mr={10} size={20} name={"heroArrowUp"} onClick={() => {
-        {idx === 0 ? null : <Icon cursor="pointer" mr={10} size={20} name={"heroArrowUp"} onClick={() => {
             move("up");
 
         }}></Icon>}
-        {idx === numberOfFields - 1 ? null : <Icon cursor="pointer" size={20} name={"heroArrowDown"} onClick={() => {
         {idx === numberOfFields - 1 ? null : <Icon cursor="pointer" size={20} name={"heroArrowDown"} onClick={() => {
             move("down");
 
@@ -289,9 +287,6 @@ export const ProjectSettings: React.FunctionComponent = () => {
                         existingProject: [{description: "No template", name: "", optional: true, title: "No template"}],
                         newProject: [{description: "No template", name: "", optional: true, title: "No template"}]
                     },
-                    existingProject: "No template",
-                    personalProject: "No template",
-                    newProject: "No template",
             }
     });
     const description = useRef<HTMLInputElement>(null);
