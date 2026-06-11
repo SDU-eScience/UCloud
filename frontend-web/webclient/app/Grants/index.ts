@@ -214,9 +214,8 @@ interface GrantGiverInitiatedForm {
 }
 
 export interface AnswerFieldForm {
-    name: string;
-    title: string;
     answer: string;
+    field: FormField;
 }
 
 interface StructuredForm {
@@ -334,9 +333,6 @@ export type TemplateKey = keyof TemplateStructured;
 export interface Templates {
     type: "structured"
     structured: TemplateStructured;
-    personalProject: string;
-    newProject: string;
-    existingProject: string;
 }
 
 export interface RequestSettings {

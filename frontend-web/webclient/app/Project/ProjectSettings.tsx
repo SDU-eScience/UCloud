@@ -287,9 +287,6 @@ export const ProjectSettings: React.FunctionComponent = () => {
                         existingProject: [{description: "No template", name: "", optional: true, title: "No template"}],
                         newProject: [{description: "No template", name: "", optional: true, title: "No template"}]
                     },
-                    existingProject: "No template",
-                    personalProject: "No template",
-                    newProject: "No template",
             }
     });
     const description = useRef<HTMLInputElement>(null);

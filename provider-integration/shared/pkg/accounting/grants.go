@@ -203,12 +203,21 @@ func normalizeTitle(title string) string {
 	if len(words) == 0 {
 		return title
 	}
+func normalizeTitle(title string) string {
+	words := strings.Split(title, " ")
+	if len(words) == 0 {
+		return title
+	}
 
+	builder := words[0]
 	builder := words[0]
 
 	for i := 1; i < len(words); i++ {
 		word := words[i]
+	for i := 1; i < len(words); i++ {
+		word := words[i]
 
+		builder += " "
 		builder += " "
 
 		if word == strings.ToUpper(word) || word == strings.ToLower(word) {
@@ -217,7 +226,15 @@ func normalizeTitle(title string) string {
 			builder += strings.ToLower(word)
 		}
 	}
+		if word == strings.ToUpper(word) || word == strings.ToLower(word) {
+			builder += word
+		} else {
+			builder += strings.ToLower(word)
+		}
+	}
 
+	return builder
+}
 	return builder
 }
 
@@ -283,9 +300,15 @@ func ParseAnswerFormFields(text string) []AnswerFieldForm {
 		title := normalizeTitle(titles[i])
 
 		field := AnswerFieldForm{
-			Name:   title,
 			Answer: answer,
-			Title:  title,
+			Field: FormField{
+				Name:        "",
+				Title:       title,
+				Description: "",
+				Optional:    false,
+				Rows:        util.OptValue(5),
+				MaxLength:   util.OptValue(4000),
+			},
 		}
 		result = append(result, field)
 	}
@@ -448,9 +471,8 @@ func ParseFormFields(text string) []FormField {
 }
 
 type AnswerFieldForm struct {
-	Name   string `json:"name"`
-	Title  string `json:"title"`
-	Answer string `json:"answer"`
+	Answer string    `json:"answer"`
+	Field  FormField `json:"field"`
 }
 
 type Form struct {
