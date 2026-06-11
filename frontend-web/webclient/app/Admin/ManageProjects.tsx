@@ -12,6 +12,7 @@ import {yourAllocationsStyle} from "@/Accounting/Allocations/CommonSections";
 import {ProjectTitleForNewCore} from "@/Project/InfoCache";
 import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
 import {UserCriteriaEditorReadOnly} from "@/Project/ProjectSettings";
+import {displayErrorMessageOrDefault} from "@/UtilityFunctions";
 
 const defaultSetting: Grants.RequestSettings = {
     enabled: false,
@@ -93,7 +94,7 @@ function ManageProjects(): React.ReactNode {
                 Grants.retrieveRequestSettingsAdmin({id: projectId})
             );
         } catch (e: any) {
-            sendFailureNotification("Cannot enabled project.")
+            displayErrorMessageOrDefault(e, "Cannot enable project.")
             return
         }
 
@@ -146,43 +147,42 @@ function ManageProjects(): React.ReactNode {
                     <div className="your-allocations-container">
                         {settings === undefined ? <>
                             <HexSpin size={64} />
-                        </> : <>
-                            <div>
-                                {settings.length !== 0 ? null : <Box ml="20px" mt="10px">
-                                    No projects are enabled at the moment.
-                                </Box>}
-                                <Tree>
-                                    {settings.map((projectToSetting) => {
-                                        return <TreeNode
-                                            key={projectToSetting.projectId}
-                                            left={<ProjectTitleForNewCore id={projectToSetting.projectId} />}
-                                            right={<Flex flexDirection={"row"} gap={"8px"}>
-                                                <Icon color={"errorMain"} name={"trash"} cursor={"pointer"} onClick={() => onDisableProject(projectToSetting.projectId)} />
-                                            </Flex>}
-                                            indent={1}
-                                        >
-                                            <div>
-                                                <Label mb="16px">Allow applications from</Label>
-                                                <UserCriteriaEditorReadOnly
-                                                    criteria={projectToSetting.settings.allowRequestsFrom}
-                                                    projectId={projectToSetting.projectId}
-                                                    isExclusion={false}
-                                                />
-                                            </div>
+                        </> : <div>
+                            {settings.length !== 0 ? null : <Box ml="20px" mt="10px">
+                                No projects are enabled at the moment.
+                            </Box>}
+                            <Tree>
+                                {settings.map((projectToSetting) => {
+                                    return <TreeNode
+                                        key={projectToSetting.projectId}
+                                        left={<ProjectTitleForNewCore id={projectToSetting.projectId} />}
+                                        right={<Flex flexDirection={"row"} gap={"8px"}>
+                                            <Icon color={"errorMain"} name={"trash"} cursor={"pointer"} onClick={() => onDisableProject(projectToSetting.projectId)} />
+                                        </Flex>}
+                                        indent={1}
+                                    >
+                                        <div>
+                                            <Label mb="16px">Allow applications from</Label>
+                                            <UserCriteriaEditorReadOnly
+                                                criteria={projectToSetting.settings.allowRequestsFrom}
+                                                projectId={projectToSetting.projectId}
+                                                isExclusion={false}
+                                            />
+                                        </div>
 
-                                            <div>
-                                                <label>Exclude applications from</label>
-                                                <UserCriteriaEditorReadOnly
-                                                    criteria={projectToSetting.settings.excludeRequestsFrom}
-                                                    projectId={projectToSetting.projectId}
-                                                    isExclusion={true}
-                                                />
-                                            </div>
-                                        </TreeNode>
-                                    })}
-                                </Tree>
-                            </div>
-                        </>}
+                                        <div>
+                                            <label>Exclude applications from</label>
+                                            <UserCriteriaEditorReadOnly
+                                                criteria={projectToSetting.settings.excludeRequestsFrom}
+                                                projectId={projectToSetting.projectId}
+                                                isExclusion={true}
+                                            />
+                                        </div>
+                                    </TreeNode>
+                                })}
+                            </Tree>
+                        </div>
+                        }
                     </div>
                 </div>
             </>
