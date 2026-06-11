@@ -192,7 +192,7 @@ const TemplateForm: React.FunctionComponent<TemplateFormProps> = ({
         </Flex>
         {
             settings.templates.structured[projectType].map((field: Grants.FormField, idx: number) => {
-                return <>
+                return <React.Fragment key={`${field.name}${idx}`}>
                     <br />
                     <Flex justifyContent={"end"}>
                         <MoveFieldControls
@@ -261,7 +261,7 @@ const TemplateForm: React.FunctionComponent<TemplateFormProps> = ({
                         </Flex>
                     </Flex>
                     { settings.templates.structured[projectType].length > idx + 1 ? <div><br/><hr style={{border:("solid 1px var(--secondaryDark)")}}/></div> : <></> }
-                </>
+                </React.Fragment>
             })
         }
     </Card>
@@ -819,7 +819,7 @@ export function UpdateProjectLogo(): React.ReactNode {
     const [, setLogoCacheBust] = useState("" + Date.now());
 
     if (!projectId) return null;
-    return <div>
+    return <React.Fragment key={"UpdateLogo"}>
         <label style={{width: "fit-content"}}>
             Project logo (click{" "}
             <span style={{color: "var(--primaryLight)", cursor: "pointer"}}>here</span>
@@ -848,7 +848,7 @@ export function UpdateProjectLogo(): React.ReactNode {
         </label>
 
         <ProjectLogo projectId={projectId} size={"128px"} />
-    </div>
+    </React.Fragment>
 }
 
 export interface AllowSubProjectsRenamingRequest {
