@@ -86,29 +86,35 @@ export function useDeltaOverTimeChart(
             }
         });
 
-        const summed: Array<{ timestamp: number; child: string | null; change: number }> = [];
-
-        const byTs = groupBy(openReport!.usageOverTime.delta, d => d.timestamp.toString());
-        for (const [tsStr, entriesAtTs] of Object.entries(byTs)) {
-            const ts = Number(tsStr);
-            const byChild = groupBy(entriesAtTs, e => e.child ?? "");
-            for (const [childKey, childEntries] of Object.entries(byChild)) {
-                const change = childEntries.reduce((acc, e) => acc + e.change, 0);
-                summed.push({ timestamp: ts, child: childKey === "" ? null : childKey, change });
-            }
-        }
-
-        data = summed;
-
         const byTimestampKey = index(data, d => d.timestamp, d => d.child ?? "");
 
-        const seriesGenerator = stack<number>()
-            .keys(union(data.map(it => it.child ?? "")))
+        // Split stack into positive and negative
+        const keys = (union(data.map(it => it.child ?? "")))
+
+        const positiveStack = stack<number>()
+            .keys(keys)
             .value((ts, key) => {
-                return byTimestampKey.get(ts)?.get(key)?.change ?? 0;
+                const value =
+                    byTimestampKey.get(ts)?.get(key)?.change ?? 0;
+
+                return value > 0 ? value : 0;
             });
 
-        const series = seriesGenerator(timestamps);
+
+        const negativeStack = stack<number>()
+            .keys(keys)
+            .value((ts, key) => {
+                const value =
+                    byTimestampKey.get(ts)?.get(key)?.change ?? 0;
+
+                return value < 0 ? value : 0;
+            });
+
+
+        const positiveSeries = positiveStack(timestamps);
+        const negativeSeries = negativeStack(timestamps);
+
+        const series = [...positiveSeries, ...negativeSeries];
 
         // Color scheme
         // -------------------------------------------------------------------------------------------------------------
@@ -170,18 +176,19 @@ export function useDeltaOverTimeChart(
                 tooltip.append(container);
             }
 
-            tooltips[ts] = HTMLTooltipEx(tooltip, { tooltipContentWidth: 400 });
+            tooltips[ts] = HTMLTooltipEx(tooltip, {tooltipContentWidth: 400});
         }
 
         // Y-axis
         // -------------------------------------------------------------------------------------------------------------
-        const yScaleMin = (min(series, datum => {
-            return min(datum, d => d[0])
-        }) ?? 0) * unitNormalizationFactor;
+        const yScaleMin =
+            (min(series, s => min(s, d => d[0])) ?? 0)
+            * unitNormalizationFactor;
 
-        const yScaleMax = (max(series, datum => {
-            return max(datum, d => d[1])
-        }) ?? 100) * unitNormalizationFactor;
+
+        const yScaleMax =
+            (max(series, s => max(s, d => d[1])) ?? 100)
+            * unitNormalizationFactor;
 
         const yScale = scaleLinear().domain([yScaleMin, yScaleMax]).nice().range([innerH, margin.top]);
 
@@ -203,11 +210,19 @@ export function useDeltaOverTimeChart(
             .selectAll("rect")
             .data(D => D.map(d => d))
             .join("rect")
-            .attr("x", d => {
-                return xSlot(d.data) ?? 0;
+            .attr("x", d => xSlot(d.data) ?? 0)
+            .attr("y", d => {
+                const y0 = yScale(d[0] * unitNormalizationFactor);
+                const y1 = yScale(d[1] * unitNormalizationFactor);
+
+                return Math.min(y0, y1);
             })
-            .attr("y", d => yScale(d[1] * unitNormalizationFactor))
-            .attr("height", d => yScale(d[0] * unitNormalizationFactor) - yScale(d[1] * unitNormalizationFactor))
+            .attr("height", d => {
+                const y0 = yScale(d[0] * unitNormalizationFactor);
+                const y1 = yScale(d[1] * unitNormalizationFactor);
+
+                return Math.abs(y1 - y0);
+            })
             .attr("width", xSlot.bandwidth())
             .each((datum, index, elements) => {
                 const rect = elements[index] as SVGRectElement;
