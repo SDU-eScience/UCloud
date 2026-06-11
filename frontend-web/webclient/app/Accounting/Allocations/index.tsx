@@ -123,9 +123,6 @@ const Allocations: React.FunctionComponent = () => {
         excludeRequestsFrom: [],
         templates: {
             type: "structured",
-            personalProject: "No template",
-            newProject: "No template",
-            existingProject: "No template",
             structured: {
                 existingProject: [],
                 newProject: [],

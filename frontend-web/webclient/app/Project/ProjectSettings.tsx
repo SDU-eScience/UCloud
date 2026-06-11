@@ -404,9 +404,6 @@ export const ProjectSettings: React.FunctionComponent = () => {
                 description: description.current!.value,
                 templates: {
                     type: "structured",
-                    personalProject: "",
-                    existingProject: "",
-                    newProject: "",
                     structured: settings.templates.structured,
                 }
             })
