@@ -775,8 +775,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             for(const userAnswer of doc.form.fields) {
                 if (userAnswer.field.name === "") {
                     outdatedFields.push(userAnswer);
-                }
-                else {
+                } else {
                     newApplicationDocument[userAnswer.field.name] = userAnswer;
                 }
             }
@@ -1545,8 +1544,7 @@ export function Editor(): React.ReactNode {
     const applicationFormExists = (state: EditorState) => {
         if (state.stateDuringCreate !== undefined) {
             return state.createApplicationForms.length > 0;
-        }
-        else if (state.stateDuringEdit !== undefined) {
+        } else if (state.stateDuringEdit !== undefined) {
             return Object.values(state.applicationAnswers).length > 0;
         }
         return false;

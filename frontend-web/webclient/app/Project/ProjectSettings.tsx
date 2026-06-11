@@ -116,7 +116,7 @@ interface MoveFieldControlsProps {
 const MoveFieldControls: React.FunctionComponent<MoveFieldControlsProps> = ({
     idx,
     numberOfFields,
-    projectType: projectType,
+    projectType,
     setSettings,
 }) => {
     const move = useCallback((direction: "up" | "down") => {
