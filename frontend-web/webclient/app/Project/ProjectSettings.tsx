@@ -194,7 +194,7 @@ const TemplateForm: React.FunctionComponent<TemplateFormProps> = ({
         </Flex>
         {
             settings.templates.structured[projectType].map((field: Grants.FormField, idx: number) => {
-                return <React.Fragment key={`${field.name}${idx}`}>
+                return <React.Fragment key={idx}>
                     <br />
                     <Flex justifyContent={"end"}>
                         <MoveFieldControls
