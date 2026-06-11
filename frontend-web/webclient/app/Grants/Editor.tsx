@@ -157,6 +157,7 @@ const defaultState: EditorState = {
 };
 
 interface OutdatedTextAreaProps {
+interface OutdatedTextAreaProps {
   field: Grants.AnswerFieldForm;
 };
 
