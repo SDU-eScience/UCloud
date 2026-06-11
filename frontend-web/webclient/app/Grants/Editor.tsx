@@ -1818,41 +1818,6 @@ export function Editor(): React.ReactNode {
     if (state.stateDuringEdit !== undefined) classes.push("is-editing");
     if (state.stateDuringCreate !== undefined) classes.push("is-creating");
 
-    const OutdatedApplicationDescription = <Box mb={20}>
-        <Label fontSize={16} mb={2} style={{fontWeight: "bold"}}>Outdated fields</Label>
-        <section style={{color: "var(--textSecondary)"}}> 
-            <p style={{margin: 0}}>The project application form has changed since you last edited your submission. </p>
-        </section> 
-    </Box>
-
-    function OutdatedTextArea({field}: OutdatedTextAreaProps ): React.ReactNode {
-
-        const handleCopy = async () => {
-            await navigator.clipboard.writeText(field.answer || "");
-            sendSuccessNotification("Copied!");
-        };
-
-        return (
-            <Box mb={10}>
-            <Flex>
-                <Label>{field.field.title}</Label>
-                <Tooltip trigger={(
-                            <TextArea
-                                readOnly
-                                style={{"cursor": "pointer"}}
-                                onClick={handleCopy}
-                                mr={10}
-                                value={field.answer}
-                                width="545px"
-                            />
-                        )} >
-                        Click to copy field to clipboard
-                </Tooltip>
-            </Flex>
-            </Box>
-        );
-    }
-
     // The actual user-interface
     // -----------------------------------------------------------------------------------------------------------------
     return <MainContainer

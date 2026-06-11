@@ -167,9 +167,9 @@ const TemplateForm: React.FunctionComponent<TemplateFormProps> = ({
     projectType: projectType,
     settings,
     setSettings,
-    updateFormField: updateFormField,
-    removeFormField: removeNewProjectField,
-    updateFormFieldLimits: updateProjectFieldLimits,
+    updateFormField,
+    removeFormField,
+    updateFormFieldLimits,
 }) => {
     return <Card>
         <Flex justifyContent={"space-between"}>
@@ -208,14 +208,14 @@ const TemplateForm: React.FunctionComponent<TemplateFormProps> = ({
                         <Label fontSize={12}>
                             Name
                             <Tooltip trigger={(
-                                <Input id={field.name + idx} required value={field.name} onChange={(e) => updateFormField(idx, 'name', e.target.value, projectType)} >{field.name}</Input>
+                                <Input required value={field.name} onChange={(e) => updateFormField(idx, 'name', e.target.value, projectType)} >{field.name}</Input>
                             )}>
                                 This identifier remains stable and is used to associate fields with grant applications.
                             </Tooltip>
                         </Label>
                         <Label fontSize={12}>
                             Title
-                            <Input id={field.title+idx} required value={field.title} onChange={(e) => updateFormField(idx, 'title', e.target.value, projectType)} >{field.title}</Input>
+                            <Input required value={field.title} onChange={(e) => updateFormField(idx, 'title', e.target.value, projectType)} >{field.title}</Input>
                         </Label>
                     </Flex>
                     <Flex gap="20px" justifyContent={"space-between"}>
@@ -226,11 +226,11 @@ const TemplateForm: React.FunctionComponent<TemplateFormProps> = ({
                         <Box width={150}>
                             <Label width={"100%"} fontSize={12}>
                                 Row limit
-                                <Input value={field.rows ?? ""} type="number" onChange={(e) => updateProjectFieldLimits(idx, 'rows', e.target.value, projectType)}>{field.rows}</Input>
+                                <Input value={field.rows ?? ""} type="number" onChange={(e) => updateFormFieldLimits(idx, 'rows', e.target.value, projectType)}>{field.rows}</Input>
                             </Label>
                             <Label width={"100%"} fontSize={12}>
                                 Max length
-                                <Input value={field.maxLength ?? ""} type="number" onChange={(e) => updateProjectFieldLimits(idx, 'maxLength', e.target.value, projectType)}/>
+                                <Input value={field.maxLength ?? ""} type="number" onChange={(e) => updateFormFieldLimits(idx, 'maxLength', e.target.value, projectType)}/>
                             </Label>
                         </Box>
                     </Flex>
@@ -249,14 +249,14 @@ const TemplateForm: React.FunctionComponent<TemplateFormProps> = ({
                                 const title = settings.templates.structured[projectType][idx].title;
                                 const description = settings.templates.structured[projectType][idx].description;
                                 if (title === "" && description === "") {
-                                    removeNewProjectField(idx, projectType);
+                                    removeFormField(idx, projectType);
                                     return;
                                 }
                                 addStandardDialog({
                                     title: "Are you sure?",
                                     message: `Are you sure want to delete this "${title === "" ? "Untitled" : title}" field?`,
                                     onConfirm: async () => {
-                                        removeNewProjectField(idx, projectType);
+                                        removeFormField(idx, projectType);
                                     }
                                 })
                             }} ><Icon mr={10} name="trash"/>Remove field</Button>
