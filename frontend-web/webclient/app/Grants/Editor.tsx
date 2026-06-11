@@ -97,6 +97,8 @@ interface EditorState {
     allocators: Allocators[];
 
     createApplicationForms: Grants.FormField[];
+
+    // Used for the legacy way of displaying
     outdatedFields: Grants.AnswerFieldForm[];
     applicationAnswers: Record<string, Grants.AnswerFieldForm>;
 
@@ -771,16 +773,12 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
 
         if (doc.form.type == "structured") {
             for(var userAnswer of doc.form.fields) {
-                // const hasField = newApplication.some(i => i.name === userAnswer.field.name);
-                // if (hasField) {
-
-                // Backend needs to build the outdated fields?
-
-                newApplicationDocument[userAnswer.field.name] = userAnswer;
-                // } else {
-                    // outdatedFields.push(userAnswer);
-                // }
-
+                if (userAnswer.field.name === "") {
+                    outdatedFields.push(userAnswer);
+                }
+                else {
+                    newApplicationDocument[userAnswer.field.name] = userAnswer;
+                }
             }
         }
 
@@ -2341,6 +2339,12 @@ export function ApplicationForm({editorState: state, closed: isClosed, event: on
             ))}
         </div>
     );
+
+    if (state.outdatedFields.length > 0) {
+        // legacy rendering
+        return renderForm(state.createApplicationForms);
+    }
+
     return state.stateDuringCreate ? renderForm(state.createApplicationForms) : renderForm(Object.values(state.applicationAnswers).map(i => i.field));
 }
 
