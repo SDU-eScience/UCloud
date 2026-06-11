@@ -518,7 +518,7 @@ func grantsLoadSettings() {
 				newProject, _ = deserializeFormFields(template.NewProject)
 				existingProject, _ = deserializeFormFields(template.ExistingProject)
 			} else {
-				// If we failed to deserialize, we are going to try to parse it as structured form fields
+				// We are going to try to parse it as structured form fields
 				personalProject = parseToStructuredFormFields(template.PersonalProject)
 				newProject = parseToStructuredFormFields(template.NewProject)
 				existingProject = parseToStructuredFormFields(template.ExistingProject)

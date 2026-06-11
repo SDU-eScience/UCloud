@@ -3071,7 +3071,7 @@ const grantGiverInitiatedTemplate = `${grantGiverInitiatedPrefix}
 Describe the reason for creating this sub-allocation (max 4000 ch).`;
 
 const grantGiverInitiatedForm: Grants.FormField = {
-    description: `Describe the reason for creating this sub-allocation`,
+    description: "Describe the reason for creating this sub-allocation",
     name: grantGiverInitiatedPrefix,
     optional: false,
     title: grantGiverInitiatedPrefix,
