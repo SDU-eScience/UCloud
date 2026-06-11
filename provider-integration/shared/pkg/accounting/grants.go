@@ -203,17 +203,9 @@ func normalizeTitle(title string) string {
 	if len(words) == 0 {
 		return title
 	}
-func normalizeTitle(title string) string {
-	words := strings.Split(title, " ")
-	if len(words) == 0 {
-		return title
-	}
 
 	builder := words[0]
-	builder := words[0]
 
-	for i := 1; i < len(words); i++ {
-		word := words[i]
 	for i := 1; i < len(words); i++ {
 		word := words[i]
 
@@ -226,15 +218,6 @@ func normalizeTitle(title string) string {
 			builder += strings.ToLower(word)
 		}
 	}
-		if word == strings.ToUpper(word) || word == strings.ToLower(word) {
-			builder += word
-		} else {
-			builder += strings.ToLower(word)
-		}
-	}
-
-	return builder
-}
 	return builder
 }
 
