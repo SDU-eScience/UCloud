@@ -26,7 +26,38 @@ export function useBreakdownChart(
     labelFormatter: (child: string | null) => string,
     valueFormatter: (value: number) => string,
 ): BreakdownChart {
-    const [tableRows, setTableRows] = useState<BreakdownChartRow[]>([]);
+    const tableRows = useMemo(() => {
+
+        if (!openReport) return [];
+
+        const domainSet: Record<string, number> = {};
+
+        for (const point of openReport.usageOverTime.delta) {
+            const key = point.child ?? "";
+
+            domainSet[key] =
+                (domainSet[key] ?? 0) + point.change;
+        }
+
+
+        const domain = Object.keys(domainSet).sort((a, b) =>
+            domainSet[b] - domainSet[a]
+        );
+
+
+        const color = scaleOrdinal<string>()
+            .domain(domain)
+            .range(colorNames)
+            .unknown("#ccc");
+
+
+        return domain.map(child => ({
+            child,
+            color: color(child),
+            value: domainSet[child],
+        }));
+
+    }, [openReport, chartWidth, chartHeight, labelFormatter]);
 
     const chart = useD3(node => {
         // Data validation and initial setup
@@ -62,10 +93,6 @@ export function useBreakdownChart(
             .domain(domain)
             .range(colorNames)
             .unknown("#ccc");
-
-        setTableRows(domain.map(d => {
-            return {child: d, color: color(d), value: domainSet[d]};
-        }));
 
         // Pie series
         // -------------------------------------------------------------------------------------------------------------
@@ -139,6 +166,5 @@ export function useBreakdownChart(
             table: tableRows,
         }
     }, [chart, tableRows]);
-
     return result;
 }

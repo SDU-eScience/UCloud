@@ -1,7 +1,7 @@
 import {useD3} from "@/Utilities/d3";
 import {scaleBand, scaleLinear, scaleOrdinal} from "d3-scale";
-import {index, max, min, union} from "d3-array";
-import {Series, stack} from "d3-shape";
+import {group, max, min, union} from "d3-array";
+import {stack} from "d3-shape";
 import {select} from "d3-selection";
 import {timeFormat} from "d3-time-format";
 import {axisBottom, axisLeft} from "d3-axis";
@@ -10,8 +10,7 @@ import React, {useMemo, useState} from "react";
 import {ChartLabel, colorNames} from "@/Accounting/Diagrams/index";
 import {HTMLTooltipEx} from "@/ui-components/Tooltip";
 import {balanceToStringFromUnit, FrontendAccountingUnit} from "@/Accounting";
-import truncate, {truncateText} from "@/ui-components/Truncate";
-import {groupBy} from "@/Utilities/CollectionUtilities";
+import {truncateText} from "@/ui-components/Truncate";
 
 export interface DeltaOverTimeChart {
     chartRef: React.RefObject<SVGSVGElement | null>
@@ -71,22 +70,21 @@ export function useDeltaOverTimeChart(
         // -------------------------------------------------------------------------------------------------------------
         const tsFormatter = timeFormat("%b %d %H:%M");
 
-        const domainSet: Record<string, number> = {};
+        const domainSet = new Map<string, number>();
         for (const point of data) {
-            domainSet[point.child ?? ""] = (domainSet[point.child ?? ""] ?? 0) + point.change;
+            const key = point.child ?? "";
+
+            domainSet.set(
+                key,
+                (domainSet.get(key) ?? 0) + point.change
+            );
         }
 
-        const domain = Object.keys(domainSet).sort((a, b) => {
-            if (domainSet[a] > domainSet[b]) {
-                return -1;
-            } else if (domainSet[a] < domainSet[b]) {
-                return 1;
-            } else {
-                return 0;
-            }
-        });
+        const domain = Array.from(domainSet.keys()).sort((a, b) =>
+            (domainSet.get(b) ?? 0) - (domainSet.get(a) ?? 0)
+        );
 
-        const byTimestampKey = index(data, d => d.timestamp, d => d.child ?? "");
+        const byTimestampKey = group(data, d => d.timestamp, d => d.child ?? "");
 
         // Split stack into positive and negative
         const keys = (union(data.map(it => it.child ?? "")))
@@ -94,20 +92,30 @@ export function useDeltaOverTimeChart(
         const positiveStack = stack<number>()
             .keys(keys)
             .value((ts, key) => {
-                const value =
-                    byTimestampKey.get(ts)?.get(key)?.change ?? 0;
+                const entries =
+                    byTimestampKey
+                        .get(ts)
+                        ?.get(key) ?? [];
 
-                return value > 0 ? value : 0;
+                return entries.reduce(
+                    (sum, d) => sum + d.change,
+                    0
+                );
             });
 
 
         const negativeStack = stack<number>()
             .keys(keys)
             .value((ts, key) => {
-                const value =
-                    byTimestampKey.get(ts)?.get(key)?.change ?? 0;
+                const entries =
+                    byTimestampKey
+                        .get(ts)
+                        ?.get(key) ?? [];
 
-                return value < 0 ? value : 0;
+                return entries.reduce(
+                    (sum, d) => sum + d.change,
+                    0
+                );
             });
 
 
@@ -167,7 +175,10 @@ export function useDeltaOverTimeChart(
 
                 {
                     const node = document.createElement("div");
-                    const change = usageBucket.get(child)?.change ?? 0;
+                    const change = usageBucket.get(child)?.reduce(
+                        (sum, d) => sum + d.change,
+                        0
+                    ) ?? 0;
                     node.append(balanceToStringFromUnit(null, unitName, change * unitNormalizationFactor));
 
                     container.append(node);
