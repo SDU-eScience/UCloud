@@ -772,7 +772,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
         const newApplicationDocument: EditorState["applicationAnswers"] = {};
 
         if (doc.form.type == "structured") {
-            for(var userAnswer of doc.form.fields) {
+            for(const userAnswer of doc.form.fields) {
                 if (userAnswer.field.name === "") {
                     outdatedFields.push(userAnswer);
                 }
