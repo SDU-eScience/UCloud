@@ -239,6 +239,7 @@ func grantsLoad(id accGrantId, prefetchHint []accGrantId) {
 					}),
 				},
 			}
+
 			if currentRevision.Document.Form.Type == accapi.FormTypePlainText {
 				currentRevision.Document.Form.Fields = accapi.ParseAnswerFormFields(revision.Form)
 				currentRevision.Document.Form.Type = accapi.FormTypeStructured

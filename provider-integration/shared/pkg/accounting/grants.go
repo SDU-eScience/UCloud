@@ -283,9 +283,15 @@ func ParseAnswerFormFields(text string) []AnswerFieldForm {
 		title := normalizeTitle(titles[i])
 
 		field := AnswerFieldForm{
-			Name:   title,
 			Answer: answer,
-			Title:  title,
+			Field: FormField{
+				Name:        "",
+				Title:       title,
+				Description: "",
+				Optional:    false,
+				Rows:        util.OptValue(5),
+				MaxLength:   util.OptValue(4000),
+			},
 		}
 		result = append(result, field)
 	}

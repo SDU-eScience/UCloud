@@ -2337,7 +2337,7 @@ export function ApplicationForm({editorState: state, closed: isClosed, event: on
             {state.outdatedFields.length > 0 && OutdatedApplicationDescription}
 
             {state.outdatedFields.map((f) => (
-                <OutdatedTextArea key={f.field.name ?? f.field.name} field={f} />
+                <OutdatedTextArea key={f.field.name} field={f} />
             ))}
         </div>
     );
