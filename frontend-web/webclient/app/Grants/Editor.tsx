@@ -2257,7 +2257,7 @@ export function Editor(): React.ReactNode {
                                 </div>
                                     {state.outdatedFields.length > 0 ? OutdatedApplicationDescription: <></>}
                                     {state.outdatedFields.map((field) => {
-                                        return <OutdatedTextArea field={field}></OutdatedTextArea>
+                                        return <OutdatedTextArea key={field.title} field={field}></OutdatedTextArea>
                                     })}
                             </div>
                         </>}
