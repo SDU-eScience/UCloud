@@ -2147,7 +2147,7 @@ func initGrants() {
 
 		accapi.GrantsRetrieveRequestSettingsAdmin.Handler(func(info rpc.RequestInfo, request fndapi.FindByStringId) (accapi.GrantRequestSettings, *util.HttpError) {
 			if info.Actor.Role != rpc.RoleAdmin {
-				return accapi.GrantRequestSettings{}, util.HttpErr(http.StatusForbidden, "permission denied - need to be admin to use this endpoint")
+				return accapi.GrantRequestSettings{}, util.HttpErr(http.StatusForbidden, "Permission denied - need to be admin to use this endpoint")
 			}
 			projectExists := false
 			db.NewTx0(func(tx *db.Transaction) {
