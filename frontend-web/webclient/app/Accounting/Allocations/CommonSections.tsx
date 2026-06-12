@@ -206,7 +206,7 @@ export const YourAllocations: React.FunctionComponent<{
 
                                                             {alloc.grantedIn && <>
                                                                 <Link target={"_blank"}
-                                                                    to={AppRoutes.grants.editor(alloc.grantedIn)}>
+                                                                      to={AppRoutes.grants.editor(alloc.grantedIn)}>
                                                                     View grant application{" "}
                                                                     <Icon name={"heroArrowTopRightOnSquare"} mt={-6} />
                                                                 </Link>
@@ -238,7 +238,7 @@ export const YourAllocations: React.FunctionComponent<{
     </>;
 }
 
-const yourAllocationsStyle = injectStyle("your-allocations", k => `
+export const yourAllocationsStyle = injectStyle("your-allocations", k => `
     ${k} .your-allocations-header {
         display: flex;
         align-items: center;
@@ -768,7 +768,7 @@ export const KeyMetrics: React.FunctionComponent<{
                 </Box>
 
                 <Flex justifyContent="end" px={"20px"} py={"12px"} margin={"-20px"} background={"var(--dialogToolbar)"}
-                    zIndex={10000} gap={"8px"}>
+                      zIndex={10000} gap={"8px"}>
                     <Button color={"successMain"} type="button" onClick={closeFilters}>Apply</Button>
                 </Flex>
             </Flex>
@@ -1381,7 +1381,7 @@ export const SubProjectFilters: React.FunctionComponent<{
             </Box>
 
             <Flex justifyContent="end" px={"20px"} py={"12px"} margin={"-20px"} background={"var(--dialogToolbar)"}
-                zIndex={10000} gap={"8px"}>
+                  zIndex={10000} gap={"8px"}>
                 <Button color={"successMain"} type="button" onClick={closeFilters}>Done</Button>
             </Flex>
         </Flex>
@@ -1401,177 +1401,179 @@ export const SubProjectList: React.FunctionComponent<{
     listRef: React.RefObject<VariableSizeList<number[]> | null>,
     onSubAllocationShortcut: (target: HTMLElement, ev: KeyboardEvent) => void,
     avatars: AvatarState
-}> = ({
-    projectId,
-    onNewSubProject,
-    projectRole,
-    state,
-    onSearchInput,
-    onSearchKey,
-    searchBox,
-    dispatchEvent,
-    suballocationTree,
-    listRef,
-    onSubAllocationShortcut,
-    avatars
-}) => {
-        const [filtersShown, setFiltersShown] = useState(false);
-        const closeFilters = useCallback(() => {
-            setFiltersShown(false);
-        }, []);
-        const openFilters = useCallback(() => {
-            setFiltersShown(true);
-        }, []);
+}> = (
+    {
+        projectId,
+        onNewSubProject,
+        projectRole,
+        state,
+        onSearchInput,
+        onSearchKey,
+        searchBox,
+        dispatchEvent,
+        suballocationTree,
+        listRef,
+        onSubAllocationShortcut,
+        avatars
+    }
+) => {
+    const [filtersShown, setFiltersShown] = useState(false);
+    const closeFilters = useCallback(() => {
+        setFiltersShown(false);
+    }, []);
+    const openFilters = useCallback(() => {
+        setFiltersShown(true);
+    }, []);
 
-        const rerender = useForcedRender();
-        const setNodeStateHack = useCallback((action: TreeAction, reference: string, group?: string | null) => {
-            setNodeState(action, reference, group);
-            rerender();
-        }, []);
+    const rerender = useForcedRender();
+    const setNodeStateHack = useCallback((action: TreeAction, reference: string, group?: string | null) => {
+        setNodeState(action, reference, group);
+        rerender();
+    }, []);
 
-        const childProjectIds = useMemo(() => {
-            const ids: string[] = [];
-            for (const recipient of state.subAllocations.recipients) {
-                if (recipient.owner.reference.type === "project") {
-                    ids.push(recipient.owner.reference.projectId);
-                }
+    const childProjectIds = useMemo(() => {
+        const ids: string[] = [];
+        for (const recipient of state.subAllocations.recipients) {
+            if (recipient.owner.reference.type === "project") {
+                ids.push(recipient.owner.reference.projectId);
             }
-            return ids;
-        }, [state.subAllocations.recipients]);
+        }
+        return ids;
+    }, [state.subAllocations.recipients]);
 
-        const childProjectInfo = useProjectInfos(childProjectIds);
+    const childProjectInfo = useProjectInfos(childProjectIds);
 
-        const onExportData = useCallback(() => {
-            interface Allocation {
-                id: number;
-                grantApplication?: number;
-                start: number;
-                end: number;
-                quota: number;
-            }
+    const onExportData = useCallback(() => {
+        interface Allocation {
+            id: number;
+            grantApplication?: number;
+            start: number;
+            end: number;
+            quota: number;
+        }
 
-            interface Row {
-                workspace: string;
-                pi: string;
-                category: string;
-                provider: string;
-                usage: number;
-                quota: number;
-                allocations: Allocation[];
-            }
+        interface Row {
+            workspace: string;
+            pi: string;
+            category: string;
+            provider: string;
+            usage: number;
+            quota: number;
+            allocations: Allocation[];
+        }
 
-            type AllocationField = keyof Allocation;
+        type AllocationField = keyof Allocation;
 
-            type AllocationFlatColumns = {
-                [K in `allocation${number}_${AllocationField}`]?: number;
+        type AllocationFlatColumns = {
+            [K in `allocation${number}_${AllocationField}`]?: number;
+        };
+
+        type FlattenedRow = Omit<Row, "allocations"> & AllocationFlatColumns;
+
+        function flattenAllocations(row: Row, maxAllocations?: number): FlattenedRow {
+            const {allocations, ...rest} = row;
+
+            const limit = maxAllocations ?? allocations.length;
+
+            const flattenedAllocations = allocations.slice(0, limit).reduce((acc, allocation, index) => {
+                const n = index + 1;
+
+                acc[`allocation${n}_id`] = allocation.id;
+                acc[`allocation${n}_grantApplication`] = allocation.grantApplication;
+                acc[`allocation${n}_start`] = allocation.start;
+                acc[`allocation${n}_end`] = allocation.end;
+                acc[`allocation${n}_quota`] = allocation.quota;
+
+                return acc;
+            }, {} as AllocationFlatColumns);
+
+            return {
+                ...rest,
+                ...flattenedAllocations,
             };
+        }
 
-            type FlattenedRow = Omit<Row, "allocations"> & AllocationFlatColumns;
+        const rows: Row[] = [];
+        let maxAllocations = 0;
 
-            function flattenAllocations(row: Row, maxAllocations?: number): FlattenedRow {
-                const {allocations, ...rest} = row;
-
-                const limit = maxAllocations ?? allocations.length;
-
-                const flattenedAllocations = allocations.slice(0, limit).reduce((acc, allocation, index) => {
-                    const n = index + 1;
-
-                    acc[`allocation${n}_id`] = allocation.id;
-                    acc[`allocation${n}_grantApplication`] = allocation.grantApplication;
-                    acc[`allocation${n}_start`] = allocation.start;
-                    acc[`allocation${n}_end`] = allocation.end;
-                    acc[`allocation${n}_quota`] = allocation.quota;
-
-                    return acc;
-                }, {} as AllocationFlatColumns);
-
-                return {
-                    ...rest,
-                    ...flattenedAllocations,
-                };
-            }
-
-            const rows: Row[] = [];
-            let maxAllocations = 0;
-
-            for (const recipient of state.subAllocations.recipients) {
-                for (const g of recipient.groups) {
-                    maxAllocations = Math.max(maxAllocations, g.allocations.length);
-                    let title = recipient.owner.title;
-                    if (recipient.owner.reference.type === "project") {
-                        title = childProjectInfo.data[recipient.owner.reference.projectId]?.title ?? title;
-                    }
+        for (const recipient of state.subAllocations.recipients) {
+            for (const g of recipient.groups) {
+                maxAllocations = Math.max(maxAllocations, g.allocations.length);
+                let title = recipient.owner.title;
+                if (recipient.owner.reference.type === "project") {
+                    title = childProjectInfo.data[recipient.owner.reference.projectId]?.title ?? title;
+                }
 
 
-                    rows.push({
-                        workspace: title,
-                        pi: recipient.owner.reference.type === "user" ?
-                            recipient.owner.reference.username :
-                            projectInfosPi(childProjectInfo, recipient.owner.reference.projectId) ?? recipient.owner.primaryUsername,
-                        category: g.category.name,
-                        provider: g.category.provider,
-                        usage: g.usageAndQuota.raw.usage,
-                        quota: g.usageAndQuota.raw.quota,
-                        allocations: g.allocations.map(alloc => {
-                            const normQuota = combineBalances([{
-                                category: g.category,
-                                balance: alloc.quota
-                            }])[0].normalizedBalance;
+                rows.push({
+                    workspace: title,
+                    pi: recipient.owner.reference.type === "user" ?
+                        recipient.owner.reference.username :
+                        projectInfosPi(childProjectInfo, recipient.owner.reference.projectId) ?? recipient.owner.primaryUsername,
+                    category: g.category.name,
+                    provider: g.category.provider,
+                    usage: g.usageAndQuota.raw.usage,
+                    quota: g.usageAndQuota.raw.quota,
+                    allocations: g.allocations.map(alloc => {
+                        const normQuota = combineBalances([{
+                            category: g.category,
+                            balance: alloc.quota
+                        }])[0].normalizedBalance;
 
-                            return ({
-                                id: alloc.allocationId,
-                                grantApplication: alloc.grantedIn,
-                                start: alloc.start,
-                                end: alloc.end,
-                                quota: normQuota,
-                            });
-                        })
+                        return ({
+                            id: alloc.allocationId,
+                            grantApplication: alloc.grantedIn,
+                            start: alloc.start,
+                            end: alloc.end,
+                            quota: normQuota,
+                        });
                     })
-                }
+                })
             }
+        }
 
-            // Builds the export columns, including the right flat allocation column names
-            function buildExportColumns(maxAllocations: number): ExportHeader<Row>[] {
-                const base = [
-                    {key: "workspace", value: "Workspace", defaultChecked: true},
-                    {key: "pi", value: "PI", defaultChecked: true},
-                    {key: "category", value: "Category", defaultChecked: true},
-                    {key: "provider", value: "Provider", defaultChecked: true},
-                    {key: "usage", value: "Usage", defaultChecked: true},
-                    {key: "quota", value: "Quota", defaultChecked: true},
-                ] as const;
+        // Builds the export columns, including the right flat allocation column names
+        function buildExportColumns(maxAllocations: number): ExportHeader<Row>[] {
+            const base = [
+                {key: "workspace", value: "Workspace", defaultChecked: true},
+                {key: "pi", value: "PI", defaultChecked: true},
+                {key: "category", value: "Category", defaultChecked: true},
+                {key: "provider", value: "Provider", defaultChecked: true},
+                {key: "usage", value: "Usage", defaultChecked: true},
+                {key: "quota", value: "Quota", defaultChecked: true},
+            ] as const;
 
-                const allocationFields: readonly AllocationField[] = [
-                    "id",
-                    "grantApplication",
-                    "start",
-                    "end",
-                    "quota",
-                ] as const;
+            const allocationFields: readonly AllocationField[] = [
+                "id",
+                "grantApplication",
+                "start",
+                "end",
+                "quota",
+            ] as const;
 
-                const allocationCols = Array.from({length: maxAllocations}).flatMap((_, i) => {
-                    const n = i + 1;
-                    return allocationFields.map((field) => ({
-                        key: `allocation${n}_${field}` as const,
-                        value: `Allocation ${n} ${field}`,
-                        defaultChecked: true,
-                        hidden: true,
-                    }));
-                });
+            const allocationCols = Array.from({length: maxAllocations}).flatMap((_, i) => {
+                const n = i + 1;
+                return allocationFields.map((field) => ({
+                    key: `allocation${n}_${field}` as const,
+                    value: `Allocation ${n} ${field}`,
+                    defaultChecked: true,
+                    hidden: true,
+                }));
+            });
 
-                return [...base, ...allocationCols] as ExportHeader<Row>[];
+            return [...base, ...allocationCols] as ExportHeader<Row>[];
+        }
+
+        exportUsage(
+            rows,
+            buildExportColumns(maxAllocations),
+            undefined,
+            {
+                fileName: "sub-projects-export",
+                csvData: rows.map((r) => flattenAllocations(r, maxAllocations)),
             }
-
-            exportUsage(
-                rows,
-                buildExportColumns(maxAllocations),
-                undefined,
-                {
-                    fileName: "sub-projects-export",
-                    csvData: rows.map((r) => flattenAllocations(r, maxAllocations)),
-                }
-            );
-        }, [state.subAllocations, childProjectInfo]);
+        );
+    }, [state.subAllocations, childProjectInfo]);
 
         const activeFilterCount = React.useMemo(() => Object.values(state.subprojectFilters).filter(it => it.enabled).length, [state.subprojectFilters]);
 
@@ -1662,28 +1664,28 @@ export const SubProjectList: React.FunctionComponent<{
                                                 const recipientIdx = data[rowIdx];
                                                 const recipient = state.subAllocations.recipients[recipientIdx];
 
-                                                return <SubProjectListRow
-                                                    style={style}
-                                                    recipient={recipient}
-                                                    dispatchEvent={dispatchEvent}
-                                                    listRef={listRef}
-                                                    rowIdx={rowIdx}
-                                                    recipientIdx={recipientIdx}
-                                                    avatars={avatars}
-                                                    state={state}
-                                                    setNodeState={setNodeStateHack}
-                                                />
-                                            }}
-                                        </VariableSizeList>
-                                    </Tree>
-                                )}
-                            </AutoSizer>
-                        </>}
-                    </div>
-                </>}
-            </div>
-        </>;
-    }
+                                            return <SubProjectListRow
+                                                style={style}
+                                                recipient={recipient}
+                                                dispatchEvent={dispatchEvent}
+                                                listRef={listRef}
+                                                rowIdx={rowIdx}
+                                                recipientIdx={recipientIdx}
+                                                avatars={avatars}
+                                                state={state}
+                                                setNodeState={setNodeStateHack}
+                                            />
+                                        }}
+                                    </VariableSizeList>
+                                </Tree>
+                            )}
+                        </AutoSizer>
+                    </>}
+                </div>
+            </>}
+        </div>
+    </>;
+}
 
 function setNodeState(action: TreeAction, recipient: string, group?: string | null): void {
     const key = group ? makeCategoryKeyFromWorkspaceId(recipient, group) : recipient;

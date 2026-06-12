@@ -1,7 +1,7 @@
 import * as Accounting from "@/Accounting";
 import {callAPI, callAPIWithErrorHandler} from "@/Authentication/DataHook";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {UserAvatar} from "@/AvataaarLib/UserAvatar";
+import {AvatarForUser, UserAvatar} from "@/AvataaarLib/UserAvatar";
 import {useAvatars} from "@/AvataaarLib/hook";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {ProjectLogo} from "@/Grants/ProjectLogo";
@@ -10,11 +10,7 @@ import {usePage} from "@/Navigation/Redux";
 import {isAdminOrPI, Project} from "@/Project";
 import * as Projects from "@/Project/Api";
 import {useProjectId} from "@/Project/Api";
-import {
-    projectInfosTitle,
-    ProjectTitleForNewCore,
-    useProjectInfos
-} from "@/Project/InfoCache";
+import {projectInfosTitle, ProjectTitleForNewCore, useProjectInfos} from "@/Project/InfoCache";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
 import AppRoutes from "@/Routes";
@@ -43,8 +39,8 @@ import * as React from "react";
 import {useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef} from "react";
 import {useLocation, useNavigate} from "react-router-dom";
 import * as Grants from ".";
+import {State} from ".";
 import {ChangeOrganizationDetails, OptionalInfo, optionalInfoRequest, optionalInfoUpdate} from "@/UserSettings/ChangeUserDetails";
-import {ProviderBranding, ProviderBrandingProductDescription, ProviderBrandingResponse} from "@/UCloud/ProviderBrandingApi";
 import {useSelector} from "react-redux";
 import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
 
@@ -76,6 +72,7 @@ interface EditorState {
 
         overallState: Grants.State;
         stateByGrantGiver: Record<string, Grants.State>;
+        stateUpdaterByGrantGiver: Record<string, string>;
 
         title: string;
         recipient: Grants.Recipient;
@@ -158,25 +155,25 @@ const defaultState: EditorState = {
 type EditorAction =
     | {type: "GrantLoaded", grant: Grants.Application, wallets: Accounting.WalletV2[]}
     | {
-        type: "GrantGiverInitiatedLoaded",
-        wallets: Accounting.WalletV2[],
-        start: number,
-        end: number,
-        title: string,
-        projectId?: string,
-        piUsernameHint: string
-    }
+    type: "GrantGiverInitiatedLoaded",
+    wallets: Accounting.WalletV2[],
+    start: number,
+    end: number,
+    title: string,
+    projectId?: string,
+    piUsernameHint: string
+}
     | {type: "AllocatorsLoaded", allocators: Grants.GrantGiver[], recipientType?: Grants.Recipient["type"]}
     | {type: "DurationUpdated", month?: number, year?: number, duration?: number}
     | {type: "DurationWarning", durationWarning: string}
     | {type: "AllocatorChecked", isChecked: boolean, allocatorId: string}
     | {
-        type: "BalanceUpdated",
-        provider: string,
-        category: string,
-        allocator: string,
-        balance: number | null,
-    }
+    type: "BalanceUpdated",
+    provider: string,
+    category: string,
+    allocator: string,
+    balance: number | null,
+}
     | {type: "SetIsCreating", stateDuringCreate?: EditorState["stateDuringCreate"]}
     | {type: "RecipientUpdated", isCreatingNewProject: boolean, reference?: string}
     | {type: "ProjectsReloaded", projects: {id: string | null, title: string}[]}
@@ -247,7 +244,8 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                 switch (type) {
                     case "personalWorkspace":
                         return "personalProject";
-                    default: return type;
+                    default:
+                        return type;
                 }
             }
 
@@ -361,6 +359,10 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                         action.grant.status.stateBreakdown,
                         value => [value.projectId, value.state]
                     ),
+                    stateUpdaterByGrantGiver: createRecordFromArray(
+                        action.grant.status.stateBreakdown,
+                        value => [value.projectId, value.lastUpdatedBy]
+                    ),
                     overallState: action.grant.status.overallState,
                     document: action.grant.currentRevision.document,
                     allowWithdrawal: action.grant.createdBy === Client.username,
@@ -410,6 +412,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                     },
                     overallState: Grants.State.IN_PROGRESS,
                     stateByGrantGiver: {},
+                    stateUpdaterByGrantGiver: {},
                     allowWithdrawal: false,
                     newestRevision: 0,
                     revisions: [{revisionNumber: 0, updatedBy: Client.username ?? "?", createdAt: timestampUnixMs()}],
@@ -645,6 +648,9 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                     ...state.stateDuringEdit,
                     stateByGrantGiver: {
                         ...state.stateDuringEdit.stateByGrantGiver,
+                    },
+                    stateUpdaterByGrantGiver: {
+                        ...state.stateDuringEdit.stateUpdaterByGrantGiver,
                     }
                 }
             };
@@ -932,10 +938,14 @@ function useStateReducerMiddleware(
 
                     const recipientType = ((type: Grants.RetrieveGrantGiversRequest["type"]): Grants.Recipient["type"] | undefined => {
                         switch (type) {
-                            case "NewProject": return "newProject";
-                            case "ExistingProject": return "existingProject";
-                            case "PersonalWorkspace": return "personalWorkspace";
-                            default: return undefined;
+                            case "NewProject":
+                                return "newProject";
+                            case "ExistingProject":
+                                return "existingProject";
+                            case "PersonalWorkspace":
+                                return "personalWorkspace";
+                            default:
+                                return undefined;
                         }
                     })(affiliationRequest.type);
 
@@ -1825,8 +1835,8 @@ export function Editor(): React.ReactNode {
             state.fullScreenLoading ? <>
                 <HexSpin size={64} />
             </> : state.fullScreenError ? <>
-                {state.fullScreenError}
-            </> :
+                    {state.fullScreenError}
+                </> :
                 <Box mx="auto" className={classes.join(" ")}>
                     <header className={"at-top"}>
                         <h3 className="title">Information about your project</h3>
@@ -1850,8 +1860,8 @@ export function Editor(): React.ReactNode {
                                     {!state.locked && <>
                                         {!isGrantGiverInitiated &&
                                             <ConfirmationButton actionText={"Discard changes"} icon={"heroTrash"}
-                                                color={"errorMain"}
-                                                onAction={onDiscard} />
+                                                                color={"errorMain"}
+                                                                onAction={onDiscard} />
                                         }
 
                                         <Button onClick={validateThenUpdate} type={"button"} color={"successMain"}>
@@ -1864,8 +1874,8 @@ export function Editor(): React.ReactNode {
 
                                     {!isClosed && state.stateDuringEdit.allowWithdrawal && state.locked && <>
                                         <ConfirmationButton actionText={"Withdraw application"} icon={"heroTrash"}
-                                            color={"errorMain"}
-                                            onAction={onWithdraw} />
+                                                            color={"errorMain"}
+                                                            onAction={onWithdraw} />
                                     </>}
                                 </>}
 
@@ -1892,12 +1902,15 @@ export function Editor(): React.ReactNode {
                                 title={"Project information"}
                                 showDescriptionInEditMode={true}
                                 description={<>
-                                    <p>
-                                        The principal investigator is the person responsible for the project.
-                                        After the approval, the PI may choose to transfer this role.
-                                    </p>
-
-                                    {state.stateDuringCreate && <>
+                                    {state.stateDuringCreate ? null : <>
+                                        <p>
+                                            The principal investigator is the person responsible for the project.
+                                            After the approval, the PI may choose to transfer this role.
+                                        </p>
+                                    </>}
+                                    {state.stateDuringCreate?.creatingWorkspace && <>
+                                        <br />
+                                        <br />
                                         <p>
                                             Please keep the project title specified here <i>short</i> and memorable.
                                             You can justify your project in the "Application" section.
@@ -1905,29 +1918,40 @@ export function Editor(): React.ReactNode {
                                     </>}
                                 </>}
                             >
-                                <label>
-                                    Application submitted by
-                                    <Input id={FormIds.pi} height="42px" disabled value={state.principalInvestigator} />
-                                </label>
+                                {state.stateDuringCreate ? <>
+                                    <label>
+                                        Applicant
+                                        <Input id={FormIds.submitter} height="42px" disabled value={state.principalInvestigator} />
+                                    </label>
+                                </> : <>
+                                    <label>
+                                        Project PI
+                                        <Input id={FormIds.pi} height="42px" disabled value={state.principalInvestigator} />
+                                    </label>
+                                    <label>
+                                        Application submitted by
+                                        <Input id={FormIds.submitter} height="42px" disabled value={state.stateDuringEdit?.storedApplication?.createdBy ?? state.principalInvestigator} />
+                                    </label>
+                                </>}
 
                                 {state.stateDuringCreate && <>
                                     <label>
                                         {state.stateDuringCreate.creatingWorkspace && <>
                                             New project (<a className={BaseLinkClass} href="#" onClick={() => switchToExistingProject(state)}>
-                                                select an existing project instead
-                                            </a>)
+                                            select an existing project instead
+                                        </a>)
                                             <Input id={FormIds.title}
-                                                placeholder={"Please enter the title of your project"}
-                                                height="42px"
-                                                value={state.stateDuringCreate.reference ?? ""}
-                                                onInput={onNewProjectInput} required />
+                                                   placeholder={"Please enter the title of your project"}
+                                                   height="42px"
+                                                   value={state.stateDuringCreate.reference ?? ""}
+                                                   onInput={onNewProjectInput} required />
                                         </>}
                                         {!state.stateDuringCreate.creatingWorkspace && <>
                                             Existing project (<a href="#" className={BaseLinkClass} onClick={switchToNewProject}>
-                                                create a new project instead
-                                            </a>)
+                                            create a new project instead
+                                        </a>)
                                             <Select value={state.stateDuringCreate.reference || "null"}
-                                                onChange={onProjectSelected}>
+                                                    onChange={onProjectSelected}>
                                                 {state.loadedProjects.map(workspace =>
                                                     <React.Fragment key={workspace.id ?? "null"}>
                                                         <option value={workspace.id ?? "null"}>
@@ -2003,9 +2027,9 @@ export function Editor(): React.ReactNode {
                                     {referenceIdsToShow.map((id, idx) => <label key={idx}>
                                         Reference ID #{idx + 1}
                                         <Input id={FormIds.deicId + "-" + idx}
-                                            disabled={state.locked || !state?.stateDuringEdit?.wallets?.length}
-                                            placeholder={state.locked ? "None specified" : "DeiC-SDU-L1-0000"}
-                                            value={id} onInput={onReferenceIdInput} onBlur={onReferenceBlur} />
+                                               disabled={state.locked || !state?.stateDuringEdit?.wallets?.length}
+                                               placeholder={state.locked ? "None specified" : "DeiC-SDU-L1-0000"}
+                                               value={id} onInput={onReferenceIdInput} onBlur={onReferenceBlur} />
                                     </label>)}
                                 </FormField>
                             </>}
@@ -2072,6 +2096,7 @@ export function Editor(): React.ReactNode {
                                             </> : undefined
                                             }
                                             state={state.stateDuringEdit?.stateByGrantGiver[it.id]}
+                                            stateUpdater={state.stateDuringEdit?.stateUpdaterByGrantGiver[it.id]}
                                             allAllocators={state.allocators}
                                             transfers={state.possibleTransfers}
                                             onTransfer={onTransfer}
@@ -2220,11 +2245,11 @@ export function Editor(): React.ReactNode {
                                         // NOTE(Dan): Empty placeholder is a quick work-around for fields having error
                                         // immediately on load.
                                         return <FormField title={val.title} key={idx} id={`${val.title}`}
-                                            description={val.description} mandatory={val.mandatory}>
+                                                          description={val.description} mandatory={val.mandatory}>
                                             <TextArea id={`${val.title}`} rows={val.rows} maxLength={val.limit}
-                                                required={val.mandatory} disabled={state.locked || isClosed}
-                                                value={state.applicationDocument[val.title] ?? ""}
-                                                onChange={onApplicationChange} placeholder={" "} />
+                                                      required={val.mandatory} disabled={state.locked || isClosed}
+                                                      value={state.applicationDocument[val.title] ?? ""}
+                                                      onChange={onApplicationChange} placeholder={" "} />
                                         </FormField>
                                     })}
                                 </div>
@@ -2433,7 +2458,7 @@ const CommentSection: React.FunctionComponent<{
             <div className="wrapper">
                 <UserAvatar avatar={avatars.avatar(Client.username!)} width={"48px"} />
                 <TextArea inputRef={textAreaRef} rows={3} disabled={props.disabled}
-                    placeholder={"Your comment"} onKeyDown={onKeyDown} />
+                          placeholder={"Your comment"} onKeyDown={onKeyDown} />
             </div>
 
             <div className="buttons">
@@ -2671,7 +2696,7 @@ const FormField: React.FunctionComponent<{
     return <>
         <div>
             <label htmlFor={props.id}
-                className={`section ${props.showDescriptionInEditMode === false ? "optional" : ""}`}>
+                   className={`section ${props.showDescriptionInEditMode === false ? "optional" : ""}`}>
                 {props.icon && <Icon name={props.icon} mr={"8px"} size={30} />}
                 {props.title}
                 {props.mandatory && <span className={"mandatory"} />}
@@ -2702,6 +2727,7 @@ const GrantGiver: React.FunctionComponent<{
     isEditing: boolean;
     adminOfProjects: {id: string | null, title: string}[];
     state?: Grants.State;
+    stateUpdater?: string;
     onStateChange: (projectId: string, approved: boolean) => void;
     replaceApproval?: React.ReactNode;
     replaceReject?: React.ReactNode;
@@ -2745,6 +2771,13 @@ const GrantGiver: React.FunctionComponent<{
             <label htmlFor={checkboxId}>
                 <ProjectLogo projectId={props.projectId} size={`${size}px`} />
                 <ProjectTitleForNewCore id={props.projectId} title={props.title} />
+
+                {props.isEditing ? <>
+                    {props.state == State.IN_PROGRESS ? null : <>
+                        {props.state == State.REJECTED ? <> - Rejected </> : <> - Approved </>} by {props.stateUpdater}
+                    </>}
+                </> : null}
+
             </label>
             {!props.isEditing &&
                 <div className={"description"} style={{marginLeft: (size + 8) + "px"}}>{props.description}</div>
@@ -2798,6 +2831,7 @@ const GrantGiver: React.FunctionComponent<{
 
 const FormIds = {
     pi: "pi",
+    submitter: "submitter",
     title: "title",
     startDate: "start-date",
     endDate: "end-date",
@@ -3014,6 +3048,7 @@ const monthNames = ["January", "February", "March", "April", "May", "June", "Jul
 
 function stateToMonthOptions(state: EditorState): {key: string, text: string}[] {
     const result: {key: string, text: string, time: number}[] = [];
+
     function insertIfUnique(date: Date) {
         const today = new Date();
         const month = monthNames[date.getMonth()];
