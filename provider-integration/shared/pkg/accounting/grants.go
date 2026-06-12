@@ -299,7 +299,7 @@ func ParseAnswerFormFields(text string) []AnswerFieldForm {
 		}
 		result = append(result, field)
 	}
-	return result
+	return util.NonNilSlice(result)
 }
 
 func ParseFormFields(text string) []FormField {

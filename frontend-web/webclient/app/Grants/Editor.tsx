@@ -777,14 +777,28 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
         const newApplicationDocument: EditorState["applicationAnswers"] = {};
 
         if (doc.form.type == "structured") {
+            if (doc.form.fields.length == 0) {
+                outdatedFields.push({
+                    answer: doc.form.text,
+                    field: {
+                        name: "",
+                        title: "",
+                        description: "",
+                        optional: true
+                    }
+
+                })
+            }
             for (const userAnswer of doc.form.fields) {
-                if (userAnswer.field.name === "") {
-                    outdatedFields.push(userAnswer);
+                if (userAnswer.field.name === "" && userAnswer.field.title) {
+                    userAnswer.field.name = userAnswer.field.title;
+                    newApplicationDocument[userAnswer.field.name] = userAnswer;
                 } else {
                     newApplicationDocument[userAnswer.field.name] = userAnswer;
                 }
             }
         }
+
 
         let startDate = new Date(Date.now())
         if (doc.allocationPeriod?.start != null) {
