@@ -18,6 +18,7 @@ export const providerBrandingStore = new class extends ExternalStoreBase {
         try {
             const response = await callAPI(providerBrandingApi.browse());
             this.branding = response;
+            this.emitChange();
         } catch (e: any) {
             console.warn(e);
         }

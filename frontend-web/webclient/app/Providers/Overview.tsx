@@ -38,7 +38,7 @@ export function ProviderEntry(props: {provider: ProviderBranding}): React.ReactN
 }
 
 function useProviderBrandings(): Record<string, ProviderBranding> | undefined {
-    const providers = React.useSyncExternalStore(sub => providerBrandingStore.subscribe(sub), providerBrandingStore.getSnapshot);
+    const providers = React.useSyncExternalStore(sub => providerBrandingStore.subscribe(sub), () => providerBrandingStore.getSnapshot());
     return providers.providers;
 }
 
