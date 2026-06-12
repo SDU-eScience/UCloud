@@ -118,8 +118,22 @@ export function updateRequestSettings(
     return apiUpdate(request, baseContext, "updateRequestSettings");
 }
 
+export function updateRequestSettingsAdmin(
+    request: ProjectToSetting,
+): APICallParameters<unknown, {}> {
+    return apiUpdate(request, baseContext, "updateRequestSettingsAdmin");
+}
+
 export function retrieveRequestSettings(): APICallParameters<unknown, RequestSettings> {
     return apiRetrieve({}, baseContext, "requestSettings");
+}
+
+export function retrieveRequestSettingsAdmin(projectId: FindByStringId): APICallParameters<unknown, RequestSettings> {
+    return apiRetrieve(projectId, baseContext, "requestSettingsAdmin");
+}
+
+export function browseEnabledProjects(): APICallParameters<unknown, {}> {
+    return apiBrowse({}, baseContext, "browseEnabledProjects");
 }
 
 // Types
@@ -283,6 +297,7 @@ export interface Status {
 export interface GrantGiverApprovalState {
     projectId: string;
     projectTitle: string;
+    lastUpdatedBy: string;
     state: State;
 }
 
@@ -306,6 +321,11 @@ export interface Templates {
     personalProject: string;
     newProject: string;
     existingProject: string;
+}
+
+export interface ProjectToSetting {
+    projectId: string;
+    settings: RequestSettings
 }
 
 export interface RequestSettings {

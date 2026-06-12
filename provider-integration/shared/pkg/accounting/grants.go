@@ -35,6 +35,10 @@ var GrantApplicationStates = []GrantApplicationState{
 	GrantApplicationStateInProgress,
 }
 
+type ProjectToSetting struct {
+	ProjectId string               `json:"projectId"`
+	Settings  GrantRequestSettings `json:"settings"`
+}
 type GrantRequestSettings struct {
 	Enabled             bool           `json:"enabled"`
 	Description         string         `json:"description"`
@@ -298,21 +302,24 @@ type GrantStatus struct {
 }
 
 type GrantGiverApprovalState struct {
-	ProjectId string                `json:"projectId"`
-	State     GrantApplicationState `json:"state"`
+	ProjectId     string                `json:"projectId"`
+	LastUpdatedBy string                `json:"lastUpdatedBy"`
+	State         GrantApplicationState `json:"state"`
 }
 
 func (ga GrantGiverApprovalState) MarshalJSON() ([]byte, error) {
 	type wrapper struct {
-		ProjectId    string                `json:"projectId"`
-		ProjectTitle string                `json:"projectTitle"`
-		State        GrantApplicationState `json:"state"`
+		ProjectId     string                `json:"projectId"`
+		ProjectTitle  string                `json:"projectTitle"`
+		LastUpdatedBy string                `json:"lastUpdatedBy"`
+		State         GrantApplicationState `json:"state"`
 	}
 
 	w := wrapper{
-		ProjectId:    ga.ProjectId,
-		ProjectTitle: ga.ProjectId,
-		State:        ga.State,
+		ProjectId:     ga.ProjectId,
+		ProjectTitle:  ga.ProjectId,
+		LastUpdatedBy: ga.LastUpdatedBy,
+		State:         ga.State,
 	}
 	return json.Marshal(w)
 }
@@ -453,11 +460,32 @@ var GrantsDeleteComment = rpc.Call[GrantsDeleteCommentRequest, util.Empty]{
 	Roles:       rpc.RolesEndUser,
 }
 
+var GrantsBrowseEnabledProjects = rpc.Call[util.Empty, []ProjectToSetting]{
+	BaseContext: GrantsNamespace,
+	Convention:  rpc.ConventionBrowse,
+	Operation:   "browseEnabledProjects",
+	Roles:       rpc.RolesAdmin,
+}
+
+var GrantsUpdateRequestSettingsAdmin = rpc.Call[ProjectToSetting, util.Empty]{
+	BaseContext: GrantsNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Operation:   "updateRequestSettingsAdmin",
+	Roles:       rpc.RolesAdmin,
+}
+
 var GrantsUpdateRequestSettings = rpc.Call[GrantRequestSettings, util.Empty]{
 	BaseContext: GrantsNamespace,
 	Convention:  rpc.ConventionUpdate,
 	Operation:   "updateRequestSettings",
 	Roles:       rpc.RolesEndUser | rpc.RolesService,
+}
+
+var GrantsRetrieveRequestSettingsAdmin = rpc.Call[fnd.FindByStringId, GrantRequestSettings]{
+	BaseContext: GrantsNamespace,
+	Convention:  rpc.ConventionRetrieve,
+	Operation:   "requestSettingsAdmin",
+	Roles:       rpc.RoleAdmin,
 }
 
 var GrantsRetrieveRequestSettings = rpc.Call[util.Empty, GrantRequestSettings]{
