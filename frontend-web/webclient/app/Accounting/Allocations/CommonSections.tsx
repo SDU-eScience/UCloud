@@ -163,8 +163,8 @@ export const YourAllocations: React.FunctionComponent<{
                                     </Flex>}
                                     right={<Flex flexDirection={"row"} gap={"8px"}>
                                         {tree.usageAndQuota.map((uq, idx) => <React.Fragment key={idx}>
-                                                <ProgressBar uq={uq} responsive/>
-                                            </React.Fragment>
+                                            <ProgressBar uq={uq} responsive />
+                                        </React.Fragment>
                                         )}
                                     </Flex>}
                                     indent={indent}
@@ -177,7 +177,7 @@ export const YourAllocations: React.FunctionComponent<{
                                                 <code>{wallet.category.name}</code>
                                             </Flex>}
                                             right={<Flex flexDirection={"row"} gap={"8px"}>
-                                                <ProgressBar uq={wallet.usageAndQuota} responsive/>
+                                                <ProgressBar uq={wallet.usageAndQuota} responsive />
                                             </Flex>}
                                             indent={indent * 2}
                                         >
@@ -206,7 +206,7 @@ export const YourAllocations: React.FunctionComponent<{
 
                                                             {alloc.grantedIn && <>
                                                                 <Link target={"_blank"}
-                                                                    to={AppRoutes.grants.editor(alloc.grantedIn)}>
+                                                                      to={AppRoutes.grants.editor(alloc.grantedIn)}>
                                                                     View grant application{" "}
                                                                     <Icon name={"heroArrowTopRightOnSquare"} mt={-6} />
                                                                 </Link>
@@ -238,7 +238,7 @@ export const YourAllocations: React.FunctionComponent<{
     </>;
 }
 
-const yourAllocationsStyle = injectStyle("your-allocations", k => `
+export const yourAllocationsStyle = injectStyle("your-allocations", k => `
     ${k} .your-allocations-header {
         display: flex;
         align-items: center;
@@ -729,7 +729,7 @@ export const KeyMetrics: React.FunctionComponent<{
     const atRiskPercentage = total > 0 ? (atRisk / total) * 100 : 0;
     const underusedPercentage = underused > 0 ? (underused / total) * 100 : 0;
 
-    if (!hasFeature(Feature.ALLOCATIONS_PAGE_IMPROVEMENTS) || true) return null;
+    if (!hasFeature(Feature.ALLOCATIONS_PAGE_IMPROVEMENTS) || Math.random() > -1) return null;
 
     return <>
         <ReactModal
@@ -740,13 +740,13 @@ export const KeyMetrics: React.FunctionComponent<{
             ariaHideApp={false}
             className={classConcat(CardClass, keyMetricsStyle)}
         >
-        <Flex flexDirection={"column"} height={"100%"} width={"100%"}>
-            <Flex mb="12px">
-                <div className="key-metrics-settings-container">
-                    <h3>Key metrics settings</h3>
-                    <h4 style={{color: "var(--textSecondary)"}}>Select key metrics to display</h4>
-                </div>
-                {/*
+            <Flex flexDirection={"column"} height={"100%"} width={"100%"}>
+                <Flex mb="12px">
+                    <div className="key-metrics-settings-container">
+                        <h3>Key metrics settings</h3>
+                        <h4 style={{color: "var(--textSecondary)"}}>Select key metrics to display</h4>
+                    </div>
+                    {/*
                 Note(Louise): Leave this code disabled until we decide if it is needed or not
                 <div className="key-metrics-input">
                     <div className="key-metrics-search-box">
@@ -759,19 +759,19 @@ export const KeyMetrics: React.FunctionComponent<{
                     </div>
                 </div>
                 */}
-            </Flex>
+                </Flex>
 
-            <Box flexGrow={1} minHeight={0} overflowY={"auto"}>
-                {Object.values(settings).map(setting => (
-                    <KeyMetricSettingsRow key={setting.title} setting={setting} onChange={onSettingsChanged}/>
-                ))}
-            </Box>
+                <Box flexGrow={1} minHeight={0} overflowY={"auto"}>
+                    {Object.values(settings).map(setting => (
+                        <KeyMetricSettingsRow key={setting.title} setting={setting} onChange={onSettingsChanged} />
+                    ))}
+                </Box>
 
-            <Flex justifyContent="end" px={"20px"} py={"12px"} margin={"-20px"} background={"var(--dialogToolbar)"}
-                  zIndex={10000} gap={"8px"}>
-                <Button color={"successMain"} type="button" onClick={closeFilters}>Apply</Button>
+                <Flex justifyContent="end" px={"20px"} py={"12px"} margin={"-20px"} background={"var(--dialogToolbar)"}
+                      zIndex={10000} gap={"8px"}>
+                    <Button color={"successMain"} type="button" onClick={closeFilters}>Apply</Button>
+                </Flex>
             </Flex>
-        </Flex>
 
         </ReactModal>
 
@@ -798,31 +798,31 @@ export const KeyMetrics: React.FunctionComponent<{
                     <h3>Sub-project allocations</h3>
                     {state.remoteData.wallets === undefined ? <>
                         <HexSpin size={64} />
-                        </> : <>
-                    <div>
-                        {allocations.length !== 0 ? null :
-                            <div style={{marginLeft: "20px", marginTop: "10px"}}>
-                                You do not have given out allocated any resources at this time.
-                                When you approve grant applications, the allocated resources will be shown here.
-                            </div>}
+                    </> : <>
+                        <div>
+                            {allocations.length !== 0 ? null :
+                                <div style={{marginLeft: "20px", marginTop: "10px"}}>
+                                    You do not have given out allocated any resources at this time.
+                                    When you approve grant applications, the allocated resources will be shown here.
+                                </div>}
                             <Tree apiRef={treeApi}>
-                            {allocations.map(([rawType, tree]) => {
-                                const type = rawType as ProductType;
+                                {allocations.map(([rawType, tree]) => {
+                                    const type = rawType as ProductType;
 
-                                return <TreeNode
-                                    key={rawType}
-                                    left={
-                                        <Flex gap={"4px"}>
-                                            <Icon name={Accounting.productTypeToIcon(type)} size={20} />
-                                            {Accounting.productAreaTitle(type)}
-                                        </Flex>
-                                    }
-                                    right={<Flex flexDirection={"row"} gap={"8px"}>
-                                        {tree.usageAndQuota.map((uq, idx) => {
-                                            let label = `${okPercentage.toFixed(2)}% Ok` +
-                                                ` | ${atRiskPercentage.toFixed(2)}% At risk` +
-                                                ` | ${underusedPercentage.toFixed(2)}% Underused`;
-                                            return <React.Fragment key={idx}>
+                                    return <TreeNode
+                                        key={rawType}
+                                        left={
+                                            <Flex gap={"4px"}>
+                                                <Icon name={Accounting.productTypeToIcon(type)} size={20} />
+                                                {Accounting.productAreaTitle(type)}
+                                            </Flex>
+                                        }
+                                        right={<Flex flexDirection={"row"} gap={"8px"}>
+                                            {tree.usageAndQuota.map((uq, idx) => {
+                                                let label = `${okPercentage.toFixed(2)}% Ok` +
+                                                    ` | ${atRiskPercentage.toFixed(2)}% At risk` +
+                                                    ` | ${underusedPercentage.toFixed(2)}% Underused`;
+                                                return <React.Fragment key={idx}>
                                                     <AllocationBar
                                                         label={label}
                                                         okPercentage={okPercentage}
@@ -831,26 +831,26 @@ export const KeyMetrics: React.FunctionComponent<{
                                                     />
                                                 </React.Fragment>;
                                             }
-                                        )}
-                                    </Flex>}
-                                    indent={indent}
-                                >
-                                    {tree.wallets.map((wallet, idx) =>
-                                    <TreeNode
-                                        key={idx}
-                                        left={
-                                            <Flex gap={"4px"}>
-                                                <ProviderLogo providerId={wallet.category.provider} size={20} />
-                                                <code>{wallet.category.name}</code>
-                                            </Flex>
-                                        }
-                                        right={<Flex flexDirection={"row"} gap={"8px"}>
-                                            <ProgressBar uq={usageAndQuotaByProduct[productCategoryKey(wallet.category)]} responsive />
+                                            )}
                                         </Flex>}
+                                        indent={indent}
                                     >
-                                    </TreeNode>
-                                    )}
-                                </TreeNode>;
+                                        {tree.wallets.map((wallet, idx) =>
+                                            <TreeNode
+                                                key={idx}
+                                                left={
+                                                    <Flex gap={"4px"}>
+                                                        <ProviderLogo providerId={wallet.category.provider} size={20} />
+                                                        <code>{wallet.category.name}</code>
+                                                    </Flex>
+                                                }
+                                                right={<Flex flexDirection={"row"} gap={"8px"}>
+                                                    <ProgressBar uq={usageAndQuotaByProduct[productCategoryKey(wallet.category)]} responsive />
+                                                </Flex>}
+                                            >
+                                            </TreeNode>
+                                        )}
+                                    </TreeNode>;
                                 })}
                             </Tree>
                         </div>
@@ -912,7 +912,7 @@ const FilteredUsageAndQuota: React.FunctionComponent<{
     return <>
         {filteredEntries.map((uq, idx) => {
             if (idx > 2) return null;
-            return <ProgressBar key={idx} uq={uq} responsive/>;
+            return <ProgressBar key={idx} uq={uq} responsive />;
         })}
     </>
 }
@@ -1114,8 +1114,8 @@ const SubProjectListRow: React.FunctionComponent<{
                         </Flex>
                     </Flex>}
                     right={<div className={"sub-alloc"}>
-                        <ProgressBar uq={g.usageAndQuota} responsive/>
-                        <Box width={25} height={25}/>
+                        <ProgressBar uq={g.usageAndQuota} responsive />
+                        <Box width={25} height={25} />
                     </div>}
                     onActivate={open => {
                         if (open) setNodeState(TreeAction.OPEN, workspaceId, g.category.name);
@@ -1290,7 +1290,7 @@ export const SubProjectFilters: React.FunctionComponent<{
     }, []);
 
     useEffect(() => {
-        dispatchEvent({ type: "SubProjectFilterSettingsLoad", settings: subProjectsDefaultSettings });
+        dispatchEvent({type: "SubProjectFilterSettingsLoad", settings: subProjectsDefaultSettings});
     }, []);
 
     const [ascending, setAscending] = useState<boolean>(true);
@@ -1346,7 +1346,7 @@ export const SubProjectFilters: React.FunctionComponent<{
                             state={state}
                         /> : null
                 ))}
-                <Divider/>
+                <Divider />
                 <div className="sub-projects-sorting-container">
                     <div className="sub-projects-sorting-headers">
                         <h3>Sort by</h3>
@@ -1373,7 +1373,7 @@ export const SubProjectFilters: React.FunctionComponent<{
                             <TooltipV2 tooltip={ascending ? "Set to ascending" : "Set to descending"}>
                                 <SmallIconButton
                                     icon={ascending ? "heroBarsArrowUp" : "heroBarsArrowDown"}
-                                    onClick={onSortingToggle}/>
+                                    onClick={onSortingToggle} />
                             </TooltipV2>
                         </div>
                     </div>
@@ -1382,7 +1382,7 @@ export const SubProjectFilters: React.FunctionComponent<{
 
             <Flex justifyContent="end" px={"20px"} py={"12px"} margin={"-20px"} background={"var(--dialogToolbar)"}
                   zIndex={10000} gap={"8px"}>
-                <Button color={"successMain"} type="button" onClick={closeFilters}>Apply</Button>
+                <Button color={"successMain"} type="button" onClick={closeFilters}>Done</Button>
             </Flex>
         </Flex>
     </ReactModal>;
@@ -1417,163 +1417,165 @@ export const SubProjectList: React.FunctionComponent<{
         avatars
     }
 ) => {
-        const [filtersShown, setFiltersShown] = useState(false);
-        const closeFilters = useCallback(() => {
-            setFiltersShown(false);
-        }, []);
-        const openFilters = useCallback(() => {
-            setFiltersShown(true);
-        }, []);
+    const [filtersShown, setFiltersShown] = useState(false);
+    const closeFilters = useCallback(() => {
+        setFiltersShown(false);
+    }, []);
+    const openFilters = useCallback(() => {
+        setFiltersShown(true);
+    }, []);
 
-        const rerender = useForcedRender();
-        const setNodeStateHack = useCallback((action: TreeAction, reference: string, group?: string | null) => {
-            setNodeState(action, reference, group);
-            rerender();
-        }, []);
+    const rerender = useForcedRender();
+    const setNodeStateHack = useCallback((action: TreeAction, reference: string, group?: string | null) => {
+        setNodeState(action, reference, group);
+        rerender();
+    }, []);
 
-        const childProjectIds = useMemo(() => {
-            const ids: string[] = [];
-            for (const recipient of state.subAllocations.recipients) {
-                if (recipient.owner.reference.type === "project") {
-                    ids.push(recipient.owner.reference.projectId);
-                }
+    const childProjectIds = useMemo(() => {
+        const ids: string[] = [];
+        for (const recipient of state.subAllocations.recipients) {
+            if (recipient.owner.reference.type === "project") {
+                ids.push(recipient.owner.reference.projectId);
             }
-            return ids;
-        }, [state.subAllocations.recipients]);
+        }
+        return ids;
+    }, [state.subAllocations.recipients]);
 
-        const childProjectInfo = useProjectInfos(childProjectIds);
+    const childProjectInfo = useProjectInfos(childProjectIds);
 
-        const onExportData = useCallback(() => {
-            interface Allocation {
-                id: number;
-                grantApplication?: number;
-                start: number;
-                end: number;
-                quota: number;
-            }
+    const onExportData = useCallback(() => {
+        interface Allocation {
+            id: number;
+            grantApplication?: number;
+            start: number;
+            end: number;
+            quota: number;
+        }
 
-            interface Row {
-                workspace: string;
-                pi: string;
-                category: string;
-                provider: string;
-                usage: number;
-                quota: number;
-                allocations: Allocation[];
-            }
+        interface Row {
+            workspace: string;
+            pi: string;
+            category: string;
+            provider: string;
+            usage: number;
+            quota: number;
+            allocations: Allocation[];
+        }
 
-            type AllocationField = keyof Allocation;
+        type AllocationField = keyof Allocation;
 
-            type AllocationFlatColumns = {
-                [K in `allocation${number}_${AllocationField}`]?: number;
+        type AllocationFlatColumns = {
+            [K in `allocation${number}_${AllocationField}`]?: number;
+        };
+
+        type FlattenedRow = Omit<Row, "allocations"> & AllocationFlatColumns;
+
+        function flattenAllocations(row: Row, maxAllocations?: number): FlattenedRow {
+            const {allocations, ...rest} = row;
+
+            const limit = maxAllocations ?? allocations.length;
+
+            const flattenedAllocations = allocations.slice(0, limit).reduce((acc, allocation, index) => {
+                const n = index + 1;
+
+                acc[`allocation${n}_id`] = allocation.id;
+                acc[`allocation${n}_grantApplication`] = allocation.grantApplication;
+                acc[`allocation${n}_start`] = allocation.start;
+                acc[`allocation${n}_end`] = allocation.end;
+                acc[`allocation${n}_quota`] = allocation.quota;
+
+                return acc;
+            }, {} as AllocationFlatColumns);
+
+            return {
+                ...rest,
+                ...flattenedAllocations,
             };
+        }
 
-            type FlattenedRow = Omit<Row, "allocations"> & AllocationFlatColumns;
+        const rows: Row[] = [];
+        let maxAllocations = 0;
 
-            function flattenAllocations(row: Row, maxAllocations?: number): FlattenedRow {
-                const {allocations, ...rest} = row;
-
-                const limit = maxAllocations ?? allocations.length;
-
-                const flattenedAllocations = allocations.slice(0, limit).reduce((acc, allocation, index) => {
-                    const n = index + 1;
-
-                    acc[`allocation${n}_id`] = allocation.id;
-                    acc[`allocation${n}_grantApplication`] = allocation.grantApplication;
-                    acc[`allocation${n}_start`] = allocation.start;
-                    acc[`allocation${n}_end`] = allocation.end;
-                    acc[`allocation${n}_quota`] = allocation.quota;
-
-                    return acc;
-                }, {} as AllocationFlatColumns);
-
-                return {
-                    ...rest,
-                    ...flattenedAllocations,
-                };
-            }
-
-            const rows: Row[] = [];
-            let maxAllocations = 0;
-
-            for (const recipient of state.subAllocations.recipients) {
-                for (const g of recipient.groups) {
-                    maxAllocations = Math.max(maxAllocations, g.allocations.length);
-                    let title = recipient.owner.title;
-                    if (recipient.owner.reference.type === "project") {
-                        title = childProjectInfo.data[recipient.owner.reference.projectId]?.title ?? title;
-                    }
+        for (const recipient of state.subAllocations.recipients) {
+            for (const g of recipient.groups) {
+                maxAllocations = Math.max(maxAllocations, g.allocations.length);
+                let title = recipient.owner.title;
+                if (recipient.owner.reference.type === "project") {
+                    title = childProjectInfo.data[recipient.owner.reference.projectId]?.title ?? title;
+                }
 
 
-                    rows.push({
-                        workspace: title,
-                        pi: recipient.owner.reference.type === "user" ?
-                            recipient.owner.reference.username :
-                            projectInfosPi(childProjectInfo, recipient.owner.reference.projectId) ?? recipient.owner.primaryUsername,
-                        category: g.category.name,
-                        provider: g.category.provider,
-                        usage: g.usageAndQuota.raw.usage,
-                        quota: g.usageAndQuota.raw.quota,
-                        allocations: g.allocations.map(alloc => {
-                            const normQuota = combineBalances([{
-                                category: g.category,
-                                balance: alloc.quota
-                            }])[0].normalizedBalance;
+                rows.push({
+                    workspace: title,
+                    pi: recipient.owner.reference.type === "user" ?
+                        recipient.owner.reference.username :
+                        projectInfosPi(childProjectInfo, recipient.owner.reference.projectId) ?? recipient.owner.primaryUsername,
+                    category: g.category.name,
+                    provider: g.category.provider,
+                    usage: g.usageAndQuota.raw.usage,
+                    quota: g.usageAndQuota.raw.quota,
+                    allocations: g.allocations.map(alloc => {
+                        const normQuota = combineBalances([{
+                            category: g.category,
+                            balance: alloc.quota
+                        }])[0].normalizedBalance;
 
-                            return ({
-                                id: alloc.allocationId,
-                                grantApplication: alloc.grantedIn,
-                                start: alloc.start,
-                                end: alloc.end,
-                                quota: normQuota,
-                            });
-                        })
+                        return ({
+                            id: alloc.allocationId,
+                            grantApplication: alloc.grantedIn,
+                            start: alloc.start,
+                            end: alloc.end,
+                            quota: normQuota,
+                        });
                     })
-                }
+                })
             }
+        }
 
-            // Builds the export columns, including the right flat allocation column names
-            function buildExportColumns(maxAllocations: number): ExportHeader<Row>[] {
-                const base = [
-                    {key: "workspace", value: "Workspace", defaultChecked: true},
-                    {key: "pi", value: "PI", defaultChecked: true},
-                    {key: "category", value: "Category", defaultChecked: true},
-                    {key: "provider", value: "Provider", defaultChecked: true},
-                    {key: "usage", value: "Usage", defaultChecked: true},
-                    {key: "quota", value: "Quota", defaultChecked: true},
-                ] as const;
+        // Builds the export columns, including the right flat allocation column names
+        function buildExportColumns(maxAllocations: number): ExportHeader<Row>[] {
+            const base = [
+                {key: "workspace", value: "Workspace", defaultChecked: true},
+                {key: "pi", value: "PI", defaultChecked: true},
+                {key: "category", value: "Category", defaultChecked: true},
+                {key: "provider", value: "Provider", defaultChecked: true},
+                {key: "usage", value: "Usage", defaultChecked: true},
+                {key: "quota", value: "Quota", defaultChecked: true},
+            ] as const;
 
-                const allocationFields: readonly AllocationField[] = [
-                    "id",
-                    "grantApplication",
-                    "start",
-                    "end",
-                    "quota",
-                ] as const;
+            const allocationFields: readonly AllocationField[] = [
+                "id",
+                "grantApplication",
+                "start",
+                "end",
+                "quota",
+            ] as const;
 
-                const allocationCols = Array.from({length: maxAllocations}).flatMap((_, i) => {
-                    const n = i + 1;
-                    return allocationFields.map((field) => ({
-                        key: `allocation${n}_${field}` as const,
-                        value: `Allocation ${n} ${field}`,
-                        defaultChecked: true,
-                        hidden: true,
-                    }));
-                });
+            const allocationCols = Array.from({length: maxAllocations}).flatMap((_, i) => {
+                const n = i + 1;
+                return allocationFields.map((field) => ({
+                    key: `allocation${n}_${field}` as const,
+                    value: `Allocation ${n} ${field}`,
+                    defaultChecked: true,
+                    hidden: true,
+                }));
+            });
 
-                return [...base, ...allocationCols] as ExportHeader<Row>[];
+            return [...base, ...allocationCols] as ExportHeader<Row>[];
+        }
+
+        exportUsage(
+            rows,
+            buildExportColumns(maxAllocations),
+            undefined,
+            {
+                fileName: "sub-projects-export",
+                csvData: rows.map((r) => flattenAllocations(r, maxAllocations)),
             }
+        );
+    }, [state.subAllocations, childProjectInfo]);
 
-            exportUsage(
-                rows,
-                buildExportColumns(maxAllocations),
-                undefined,
-                {
-                    fileName: "sub-projects-export",
-                    csvData: rows.map((r) => flattenAllocations(r, maxAllocations)),
-                }
-            );
-        }, [state.subAllocations, childProjectInfo]);
+        const activeFilterCount = React.useMemo(() => Object.values(state.subprojectFilters).filter(it => it.enabled).length, [state.subprojectFilters]);
 
         return <>
             <SubProjectFilters filtersShown={filtersShown} closeFilters={closeFilters}
@@ -1623,7 +1625,7 @@ export const SubProjectList: React.FunctionComponent<{
                             {state.filteredSubProjectIndices.length !== 0 ? null :
                                 <div style={{marginLeft: "20px", marginTop: "10px"}}>
                                     You do not have any
-                                    sub-allocations {state.searchQuery ? "with the active search" : ""} at
+                                    sub-allocations {state.searchQuery || activeFilterCount > 0 ? "with the active search or filters" : ""} at
                                     the moment. {" "}
                                     {projectRole === OldProjectRole.USER ? null : <>
                                         You can create a sub-project by clicking <a href="#"
@@ -1662,28 +1664,28 @@ export const SubProjectList: React.FunctionComponent<{
                                                 const recipientIdx = data[rowIdx];
                                                 const recipient = state.subAllocations.recipients[recipientIdx];
 
-                                                return <SubProjectListRow
-                                                    style={style}
-                                                    recipient={recipient}
-                                                    dispatchEvent={dispatchEvent}
-                                                    listRef={listRef}
-                                                    rowIdx={rowIdx}
-                                                    recipientIdx={recipientIdx}
-                                                    avatars={avatars}
-                                                    state={state}
-                                                    setNodeState={setNodeStateHack}
-                                                />
-                                            }}
-                                        </VariableSizeList>
-                                    </Tree>
-                                )}
-                            </AutoSizer>
-                        </>}
-                    </div>
-                </>}
-            </div>
-        </>;
-    }
+                                            return <SubProjectListRow
+                                                style={style}
+                                                recipient={recipient}
+                                                dispatchEvent={dispatchEvent}
+                                                listRef={listRef}
+                                                rowIdx={rowIdx}
+                                                recipientIdx={recipientIdx}
+                                                avatars={avatars}
+                                                state={state}
+                                                setNodeState={setNodeStateHack}
+                                            />
+                                        }}
+                                    </VariableSizeList>
+                                </Tree>
+                            )}
+                        </AutoSizer>
+                    </>}
+                </div>
+            </>}
+        </div>
+    </>;
+}
 
 function setNodeState(action: TreeAction, recipient: string, group?: string | null): void {
     const key = group ? makeCategoryKeyFromWorkspaceId(recipient, group) : recipient;

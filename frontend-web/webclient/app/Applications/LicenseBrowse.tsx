@@ -21,7 +21,7 @@ import {
 import {doNothing, extractErrorMessage} from "@/UtilityFunctions";
 import AppRoutes from "@/Routes";
 import {AsyncCache} from "@/Utilities/AsyncCache";
-import {productTypeToIcon, ProductV2License} from "@/Accounting";
+import {ProductLicense, productTypeToIcon, ProductV2License} from "@/Accounting";
 import {bulkRequestOf} from "@/UtilityFunctions";
 import {FindByStringId} from "@/UCloud";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
@@ -208,7 +208,7 @@ export function LicenseBrowse({
                 browser.setEmptyIcon(productTypeToIcon("LICENSE"));
 
                 browser.on("fetchOperationsCallback", () => {
-                    const callbacks: ResourceBrowseCallbacks<License> = {
+                    const callbacks: ResourceBrowseCallbacks<License, ProductLicense> = {
                         supportByProvider: supportByProvider.retrieveFromCacheOnly("") ?? {productsByProvider: {}},
                         dispatch,
                         isWorkspaceAdmin: checkIsWorkspaceAdmin(),
@@ -300,7 +300,7 @@ export function LicenseBrowse({
                                         dialogStore.success();
                                         browser.refresh();
                                     }
-                                } catch (e) {
+                                } catch (e: any) {
                                     sendFailureNotification("Failed to create license. " + extractErrorMessage(e));
                                     browser.refresh();
                                     return;

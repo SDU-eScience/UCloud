@@ -1,42 +1,9 @@
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {PRODUCT_NAME} from "../../../site.config.json";
-import {SetLoadingAction} from "@/Types";
+import {createSlice, PayloadAction} from "@reduxjs/toolkit";
 import {useDispatch} from "react-redux";
 import {useEffect} from "react";
-import {initStatus, StatusReduxObject} from "@/DefaultObjects";
-import {SidebarTabId} from "@/ui-components/SidebarComponents";
-import {PayloadAction} from "@reduxjs/toolkit";
-
-export type Index = UpdatePageTitleAction | SetLoading | SetActivePage;
-
-export type UpdatePageTitleAction = PayloadAction<{title: string}, typeof UPDATE_PAGE_TITLE>;
-/**
- * Sets the title of the window. Stores in the redux store as well
- * @param {string} title the title to be set
- */
-export const updatePageTitle = (title: string): UpdatePageTitleAction => ({
-    type: UPDATE_PAGE_TITLE,
-    payload: {title}
-});
-
-type SetLoading = SetLoadingAction<typeof SET_STATUS_LOADING>;
-export function setLoading(loading: boolean): SetLoading {
-    return ({
-        type: SET_STATUS_LOADING,
-        payload: {loading}
-    });
-}
-
-type SetActivePage = PayloadAction<{tab: SidebarTabId}, typeof SET_ACTIVE_PAGE>
-function setActivePage(tab: SidebarTabId): SetActivePage {
-    return {
-        type: SET_ACTIVE_PAGE,
-        payload: {tab}
-    }
-}
-
-export interface SetStatusLoading {
-    setLoading: (loading: boolean) => void;
-}
+import {initStatus} from "@/DefaultObjects";
 
 export function usePage(title: string, tab: SidebarTabId): void {
     const dispatch = useDispatch();
@@ -53,25 +20,27 @@ export function usePage(title: string, tab: SidebarTabId): void {
 export function useLoading(loading: boolean): void {
     const dispatch = useDispatch();
     useEffect(() => {
-        dispatch(setLoading(loading));
+        dispatch(setStatusLoading(loading));
     }, [loading]);
 }
 
-export const UPDATE_PAGE_TITLE = "UPDATE_PAGE_TITLE";
-export const SET_STATUS_LOADING = "SET_STATUS_LOADING";
-export const SET_ACTIVE_PAGE = "SET_ACTIVE_PAGE";
-
-export const statusReducer = (state: StatusReduxObject = initStatus(), action: Index): StatusReduxObject => {
-    switch (action.type) {
-        case UPDATE_PAGE_TITLE:
-            document.title = `${PRODUCT_NAME} | ${action.payload.title}`;
-            return {...state, ...action.payload};
-        case SET_STATUS_LOADING:
-        case SET_ACTIVE_PAGE:
-            return {...state, ...action.payload};
-        default: {
-            return state;
+export const statusSlice = createSlice({
+    name: "status",
+    initialState: initStatus(),
+    reducers: {
+        updatePageTitle(state, action: PayloadAction<string>) {
+            document.title = `${PRODUCT_NAME} | ${action.payload}`;
+            state.title = action.payload;
+        },
+        setStatusLoading(state, action: PayloadAction<boolean>) {
+            state.loading = action.payload;
+        },
+        setActivePage(state, action: PayloadAction<SidebarTabId>) {
+            state.tab = action.payload;
         }
-    }
-};
+    },
+})
 
+export const {updatePageTitle, setStatusLoading, setActivePage} = statusSlice.actions;
+
+export const statusReducer = statusSlice.reducer;

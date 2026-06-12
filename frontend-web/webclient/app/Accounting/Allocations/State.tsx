@@ -15,16 +15,10 @@ import {
 } from "@/Accounting";
 import {ProjectInfo, projectInfoPi, projectInfoTitle} from "@/Project/InfoCache";
 import {Client} from "@/Authentication/HttpClientInstance";
-import UsageCore2, {UsageReport, usageReportRetrieve} from "@/Accounting/UsageCore2";
+import {UsageReport, usageReportRetrieve} from "@/Accounting/UsageCore2";
 import {timestampUnixMs} from "@/UtilityFunctions";
-import {useImmerState} from "@/Utilities/Immer";
 import {produce} from "immer";
 import {Feature} from "@/Features";
-import {SimpleRichItem} from "@/ui-components/RichSelect";
-import {largeModalStyle} from "@/Utilities/ModalUtilities";
-import {classConcat} from "@/Unstyled";
-import {CardClass} from "@/ui-components/Card";
-import {Flex, Icon, Input} from "@/ui-components";
 import {getProviderTitle, getShortProviderTitle} from "@/Providers/ProviderTitle";
 
 const fuzzyMatcher = newFuzzyMatchFuse<{title: string}, "title">(["title"]);
@@ -86,25 +80,25 @@ export interface SubProjectFilter {
 // State reducer
 // =====================================================================================================================
 export type UIAction =
-    | { type: "Reset" }
-    | { type: "WalletsLoaded", wallets: Accounting.WalletV2[]; }
-    | { type: "ManagedProvidersLoaded", providerIds: string[] }
-    | { type: "ManagedProductsLoaded", products: Record<string, Accounting.ProductCategoryV2[]> }
-    | { type: "GiftsLoaded", gifts: Gifts.GiftWithCriteria[] }
-    | { type: "UpdateSearchQuery", newQuery: string }
-    | { type: "SetEditing", recipientIdx: number, groupIdx: number, allocationIdx: number, isEditing: boolean }
-    | { type: "UpdateAllocation", allocationIdx: number, groupIdx: number, recipientIdx: number, newQuota: number, newStart: Date, newEnd: Date }
-    | { type: "UpdateGift", data: Partial<State["gifts"]> }
-    | { type: "GiftCreated", gift: Gifts.GiftWithCriteria }
-    | { type: "GiftDeleted", id: number }
-    | { type: "UpdateRootAllocations", data: Partial<State["rootAllocations"]> }
-    | { type: "ResetRootAllocation" }
-    | { type: "ToggleViewOnlyProjects" }
-    | { type: "SortSubprojects", sortBy?: string, ascending: boolean }
-    | { type: "SubProjectData", projects: Record<string, ProjectInfo | null> }
-    | { type: "UsageReportLoaded", reports: UsageReport[] }
-    | { type: "SubProjectFilterSettingUpdated", setting: SubProjectFilterSetting, newValue: string | undefined, enabled: boolean}
-    | { type: "SubProjectFilterSettingsLoad", settings: Record<SubProjectFilterSetting, SubProjectFilter> }
+    | {type: "Reset"}
+    | {type: "WalletsLoaded", wallets: Accounting.WalletV2[];}
+    | {type: "ManagedProvidersLoaded", providerIds: string[]}
+    | {type: "ManagedProductsLoaded", products: Record<string, Accounting.ProductCategoryV2[]>}
+    | {type: "GiftsLoaded", gifts: Gifts.GiftWithCriteria[]}
+    | {type: "UpdateSearchQuery", newQuery: string}
+    | {type: "SetEditing", recipientIdx: number, groupIdx: number, allocationIdx: number, isEditing: boolean}
+    | {type: "UpdateAllocation", allocationIdx: number, groupIdx: number, recipientIdx: number, newQuota: number, newStart: Date, newEnd: Date}
+    | {type: "UpdateGift", data: Partial<State["gifts"]>}
+    | {type: "GiftCreated", gift: Gifts.GiftWithCriteria}
+    | {type: "GiftDeleted", id: number}
+    | {type: "UpdateRootAllocations", data: Partial<State["rootAllocations"]>}
+    | {type: "ResetRootAllocation"}
+    | {type: "ToggleViewOnlyProjects"}
+    | {type: "SortSubprojects", sortBy?: string, ascending: boolean}
+    | {type: "SubProjectData", projects: Record<string, ProjectInfo | null>}
+    | {type: "UsageReportLoaded", reports: UsageReport[]}
+    | {type: "SubProjectFilterSettingUpdated", setting: SubProjectFilterSetting, newValue: string | undefined, enabled: boolean}
+    | {type: "SubProjectFilterSettingsLoad", settings: Record<SubProjectFilterSetting, SubProjectFilter>}
     ;
 
 export enum SubProjectFilterSetting {
@@ -497,7 +491,7 @@ export function stateReducer(state: State, action: UIAction): State {
         }
 
         case "UsageReportLoaded": {
-            const newState= produce(state, draft => {
+            const newState = produce(state, draft => {
                 draft.remoteData.reports = action.reports;
             });
 
@@ -559,7 +553,7 @@ export function stateReducer(state: State, action: UIAction): State {
             }
 
             if (result.length === 0) {
-                result.push({ key: "nooptions", title: "No options available" });
+                result.push({key: "nooptions", title: "No options available"});
             }
 
             return result.sort((a, b) => a.title.localeCompare(b.title));
@@ -728,7 +722,7 @@ export function stateReducer(state: State, action: UIAction): State {
 
             if (!state.subprojectSortByAscending) {
                 return naturalOrderResult * -1;
-            }  else {
+            } else {
                 return naturalOrderResult;
             }
         });
@@ -761,7 +755,7 @@ export function stateReducer(state: State, action: UIAction): State {
 // =====================================================================================================================
 export type UIEvent =
     UIAction
-    | { type: "Init" }
+    | {type: "Init"}
     ;
 
 export function useEventReducer(didCancel: React.RefObject<boolean>, doDispatch: (action: UIAction) => void): (event: UIEvent) => unknown {

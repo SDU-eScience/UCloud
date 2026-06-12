@@ -4,7 +4,7 @@ import Flex from "./Flex";
 import Icon from "./Icon";
 import {injectStyle} from "@/Unstyled";
 import {Spacer} from "./Spacer";
-import {PayloadAction} from "@reduxjs/toolkit";
+import {createSlice, PayloadAction} from "@reduxjs/toolkit";
 
 function PopIn({hasContent, children}: React.PropsWithChildren<{hasContent: boolean}>): React.ReactNode {
     return <div className={PopInClass} data-has-content={hasContent}>
@@ -35,17 +35,16 @@ const PopInClass = injectStyle("popin-class", k => `
 `);
 
 export function RightPopIn(): React.ReactNode {
-    const dispatch = useDispatch();
-
     const content = useSelector<ReduxObject, PopInArgs | null>(it => it.popinChild);
+    const dispatch = useDispatch();
     /* Alternatively, use React.portal */
-    return <PopIn hasContent={content != null} >
+    return <PopIn hasContent={content?.el != null} >
         <Spacer
             mt="16px"
-            left={<Icon color="textPrimary" cursor="pointer" pt="4px" pl="4px" hoverColor="textPrimary" name="close" onClick={() => dispatch(setPopInChild(null))} />}
+            left={<Icon color="textPrimary" cursor="pointer" pt="4px" pl="4px" hoverColor="textPrimary" name="close" onClick={() => dispatch(setPopInChild({el: undefined}))} />}
             right={content?.onFullScreen ? <Icon color="textPrimary" cursor="pointer" pt="4px" pr="4px" hoverColor="textPrimary" name="heroArrowsPointingOut" onClick={() => {
                 content?.onFullScreen?.();
-                dispatch(setPopInChild(null));
+                dispatch(setPopInChild({el: undefined}));
             }} /> : null}
 
         />
@@ -58,19 +57,24 @@ export interface PopInArgs {
     onFullScreen?: () => void;
 }
 
-type SetPopInChildAction = PayloadAction<PopInArgs | null, "SET_POP_IN_CHILD">;
-export function setPopInChild(args: PopInArgs | null): SetPopInChildAction {
+function initialState(): PopInArgs {
     return {
-        type: "SET_POP_IN_CHILD",
-        payload: args
-    };
+        el: undefined
+    }
 }
 
-export const popInReducer = (state: PopInArgs | null = null, action: SetPopInChildAction): PopInArgs | null => {
-    switch (action.type) {
-        case "SET_POP_IN_CHILD":
-            return action.payload;
-        default:
-            return state;
+const popInSlice = createSlice({
+    name: "popIn",
+    initialState: initialState(),
+    reducers: {
+        setPopInChild(state, action: PayloadAction<PopInArgs>) {
+            state.el = action.payload.el;
+            state.onFullScreen = action.payload.onFullScreen;
+
+        }
     }
-};
+});
+
+export const {setPopInChild} = popInSlice.actions;
+
+export const popInReducer = popInSlice.reducer;

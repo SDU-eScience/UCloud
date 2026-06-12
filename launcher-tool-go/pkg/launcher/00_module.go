@@ -670,9 +670,7 @@ func TestsRun(adminUser, adminPass string) {
 		}
 
 		testInfo := map[string]any{
-			"location_origin":               "https://ucloud.localhost.direct",
-			"providers":                     providersToTest,
-			"products_by_provider_and_type": productsByProviderAndType,
+			"location_origin": "https://ucloud.localhost.direct",
 			"users": map[string]any{
 				"with_resources": map[string]any{
 					"username": users[0].Username,
@@ -681,6 +679,10 @@ func TestsRun(adminUser, adminPass string) {
 				"without_resources": map[string]any{
 					"username": users[1].Username,
 					"password": users[1].Password,
+				},
+				"admin": map[string]any{
+					"username": "user",
+					"password": "mypassword",
 				},
 			},
 		}

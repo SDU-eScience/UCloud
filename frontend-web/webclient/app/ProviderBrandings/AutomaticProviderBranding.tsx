@@ -1,13 +1,13 @@
 import * as React from "react";
 import {useCloudAPI} from "@/Authentication/DataHook";
-import {providerBrandingApi, ProviderBrandingResponse } from "@/UCloud/ProviderBrandingApi";
+import {providerBrandingApi, ProviderBrandingResponse} from "@/UCloud/ProviderBrandingApi";
+import {createSlice, PayloadAction} from "@reduxjs/toolkit";
 import {useDispatch} from "react-redux";
-import {PayloadAction} from "@reduxjs/toolkit";
 
 export const AutomaticProviderBranding: React.FunctionComponent = () => {
     const [providerBrandings, fetchBranding] = useCloudAPI<ProviderBrandingResponse>(
         providerBrandingApi.browse(),
-        { providers: {} }
+        {providers: {}}
     );
 
     React.useEffect(() => {
@@ -22,16 +22,12 @@ export const AutomaticProviderBranding: React.FunctionComponent = () => {
     const dispatch = useDispatch();
 
     React.useEffect(() => {
-        dispatch({type: ADD_PROVIDER_BRANDING, payload: providerBrandings.data});
+        dispatch(addProviderBranding(providerBrandings.data));
     }, [providerBrandings.data]);
 
     return null;
 };
 
-const ADD_PROVIDER_BRANDING = "ADD_PROVIDER_BRANDING";
-type SetProviderBranding = PayloadAction<ProviderBrandingResponse, typeof ADD_PROVIDER_BRANDING>
-
-type ProviderBrandingAction = SetProviderBranding;
 
 export function initProviderBranding(): ProviderBrandingResponse {
     return {
@@ -39,12 +35,15 @@ export function initProviderBranding(): ProviderBrandingResponse {
     }
 }
 
-export function providerBrandingReducer(state: ProviderBrandingResponse = initProviderBranding(), action: ProviderBrandingAction): ProviderBrandingResponse {
-    switch (action.type) {
-        case ADD_PROVIDER_BRANDING: {
-            return action.payload;
-        }        
-        default:
-            return state;
+const providerBrandingSlice = createSlice({
+    name: "providerBranding",
+    initialState: initProviderBranding(),
+    reducers: {
+        addProviderBranding(state, action: PayloadAction<ProviderBrandingResponse>) {
+            state.providers = action.payload.providers;
+        }
     }
-}
+});
+
+const {addProviderBranding} = providerBrandingSlice.actions;
+export const providerBrandingReducer = providerBrandingSlice.reducer;
