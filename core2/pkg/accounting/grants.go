@@ -2165,7 +2165,7 @@ func initGrants() {
 
 		accapi.GrantsUpdateRequestSettingsAdmin.Handler(func(info rpc.RequestInfo, request accapi.ProjectToSetting) (util.Empty, *util.HttpError) {
 			if info.Actor.Role != rpc.RoleAdmin {
-				return util.Empty{}, util.HttpErr(http.StatusForbidden, "permission denied - need to be admin to use this endpoint")
+				return util.Empty{}, util.HttpErr(http.StatusForbidden, "Permission denied - need to be admin to use this endpoint")
 			}
 			projectExists := false
 			db.NewTx0(func(tx *db.Transaction) {
