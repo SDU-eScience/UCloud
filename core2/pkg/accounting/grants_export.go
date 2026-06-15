@@ -70,7 +70,7 @@ func GrantsExportBrowse(actor rpc.Actor) []accapi.GrantsExportResponse {
 
 			answerFields := map[string]accapi.AnswerFieldForm{}
 			for _, field := range doc.Form.Fields {
-				answerFields[field.Name] = field
+				answerFields[field.Field.Name] = field
 			}
 
 			result = append(result, accapi.GrantsExportResponse{
@@ -108,7 +108,7 @@ func GrantsExportBrowseToCsv(lines []accapi.GrantsExportResponse) string {
 			categories[resource] = util.Empty{}
 		}
 		for _, field := range line.AnswerFields {
-			fieldsColumns[field.Name] = util.Empty{}
+			fieldsColumns[field.Field.Name] = util.Empty{}
 		}
 	}
 
