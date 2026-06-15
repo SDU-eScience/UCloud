@@ -14,10 +14,47 @@ import (
 	"ucloud.dk/shared/pkg/util"
 )
 
+// Low-level accounting system
+// =====================================================================================================================
+// This file implements the low-level accounting tree used by the promise system and by direct usage reporting. The
+// low-level system owns the concrete state: wallets, allocations, quota split, consumption and lock state. Higher
+// layers may decide what should exist, but this layer decides whether an allocation tree is valid and how reported
+// usage is distributed across concrete allocations.
+//
+// The core concepts are:
+//
+// - Wallets: One per owner per product category. A wallet stores the total consumed amount reported for that owner.
+// - Allocations: Time-bounded quota rows owned by a wallet. Allocations may form a parent/child tree.
+// - QuotaSelf: Quota available for direct consumption in the allocation's wallet.
+// - QuotaChildren: Quota exposed for child allocations.
+// - ReservedChildren: The amount of QuotaChildren already consumed by child allocation totals.
+// - ConsumedSelf: Usage currently assigned to this allocation.
+//
+// The important invariant is that every child allocation reserves its full total quota in its parent. This is why most
+// mutations go through allocationMutate: it lets the caller change state, then checks that the allocation and its parent
+// still agree about reservations and time bounds.
+//
+// Time is supplied by callers and is assumed to be sampled once per public operation. Allocation Start is inclusive and
+// End is exclusive. At End, an allocation is retired and the cleanup rules near UsageReport may release unused quota
+// back to its parent.
+
+// Core types and globals
+// ---------------------------------------------------------------------------------------------------------------------
+// The entire low-level tree is reachable from accGlobals. There is one AccountingTree per product category, and all
+// wallets and allocations for that category live inside that tree. IDs are process-global integers, matching the older
+// accounting implementation.
+//
+// PromisePolicy uses integer basis points for fractional configuration. 10,000 basis points means 100%, 5,000 means
+// 50%, and so on. This avoids floating point behavior in accounting code while still allowing policy fractions.
+//
+// ---------------------------------------------------------------------------------------------------------------------
+// MUTEX LOCK ORDER: globals > tree > scopedUsage
+// AccountingTree requires its mutex for mutation. Types inside a tree are protected by the tree mutex.
+// ---------------------------------------------------------------------------------------------------------------------
+
 type AllocationId int
 type WalletId int
 type GrantId int
-type PromiseId int
 
 var accGlobals struct {
 	Mu sync.RWMutex
@@ -45,6 +82,47 @@ type AccountingTree struct {
 	AllocationsById map[AllocationId]*Allocation
 
 	disableEvaluation bool
+
+	Policy PromisePolicy
+}
+
+type ReservationMode int
+
+const (
+	// ReservationModeMinimal will only reserve what is needed right now plus a small slack. This will maximize the
+	// utilization but causes more future edits in the promise reconciliation step.
+	ReservationModeMinimal ReservationMode = iota
+
+	// ReservationModeBuffered will reserve enough to make it very likely that there is enough space to survive until
+	// the next periodic reconciliation loop.
+	ReservationModeBuffered
+
+	// ReservationModeCommitted will reserve a large amount of the promise up front.
+	ReservationModeCommitted
+)
+
+type PromisePolicy struct {
+	Mode ReservationMode
+
+	MinSlack int64
+
+	// GrowthStep rounds policy targets up to stable accounting-sized chunks. A zero value disables rounding.
+	GrowthStep int64
+
+	// ForecastWindow controls how far buffered reservations project the current EWMA trend. A zero value means no
+	// forecast beyond the latest measured demand.
+	ForecastWindow time.Duration
+
+	// CommittedFractionBasisPoints controls how much of a promise should be reserved in committed mode. A zero value
+	// defaults to 100%.
+	CommittedFractionBasisPoints int64
+
+	// TrendAlphaBasisPoints controls the EWMA update weight. A zero value defaults to 50%.
+	TrendAlphaBasisPoints int64
+
+	// TightReservationThresholdBasisPoints controls when reconciliation starts reducing buffers. A zero value defaults
+	// to 85%.
+	TightReservationThresholdBasisPoints int64
 }
 
 func (t *AccountingTree) IsCapacityBased() bool {
@@ -69,6 +147,11 @@ type Wallet struct {
 	Locked      bool
 	Owner       accapi.WalletOwner
 	Category    accapi.ProductCategoryIdV2
+
+	PromiseDemandEwma     int64
+	PromiseDemandObserved int64
+	PromiseDemandTrend    int64
+	PromiseTrendUpdatedAt time.Time
 }
 
 type Allocation struct {
@@ -92,14 +175,27 @@ type Allocation struct {
 }
 
 func (a *Allocation) IsActive(now time.Time) bool {
-	return now.After(a.Start) && now.Before(a.End)
+	return !now.Before(a.Start) && now.Before(a.End)
 }
 
 func (a *Allocation) IsRetired(now time.Time) bool {
-	return now.After(a.End)
+	return !now.Before(a.End)
 }
 
-// =====================================================================================================================
+// Allocation lifecycle API
+// ---------------------------------------------------------------------------------------------------------------------
+// AllocationCreate and AllocationUpdate are the low-level entry points for manually materializing allocation rows. They
+// intentionally operate on concrete allocations rather than promises. The promise layer may call the non-exported
+// mutation helpers below when it needs split-aware updates, but these exported functions keep the simple public shape:
+// create a total quota and update a total quota or period.
+//
+// These functions validate everything that can be checked before mutation. The final invariant checks still happen in
+// allocationMutate, so callers cannot accidentally leave the tree inconsistent after a successful update.
+//
+// The core APIs are:
+//
+// - AllocationCreate: Creates a root or child allocation and reserves child quota in the parent when needed.
+// - AllocationUpdate: Changes total quota or period while preserving consumption, child reservations and parent bounds.
 
 func AllocationCreate(
 	now time.Time,
@@ -293,6 +389,24 @@ func AllocationUpdate(
 	return grantedIn, changelog, err
 }
 
+// Mutation and invariant helpers
+// ---------------------------------------------------------------------------------------------------------------------
+// The low-level accounting tree is deliberately strict: mutation functions are allowed to change several related fields
+// at once, but every mutation immediately re-checks the local invariants. This keeps bugs close to the code that
+// introduced them and makes the promise layer safe to implement as a planner over the same data structures.
+//
+// allocationMutate checks allocation-local invariants and parent/child reservation consistency. walletMutate checks
+// that the wallet's total consumption matches the sum of all ConsumedSelf fields in the wallet's allocations.
+// treeMutate is the lock boundary used by public entry points.
+//
+// The core helpers are:
+//
+// - allocationMutate: Applies a mutation to one allocation and checks local and parent/child invariants.
+// - walletMutate: Locks a tree by category, finds a wallet by owner and runs a wallet mutation.
+// - walletMutateEx: Runs a wallet mutation when the caller already holds the tree lock.
+// - walletAssertConsumptionMatchesAllocations: Verifies wallet.Consumed equals the sum of allocation consumption.
+// - treeMutate: Locates and locks the accounting tree for a category.
+
 func allocationMutate(
 	now time.Time,
 	tree *AccountingTree,
@@ -429,7 +543,10 @@ func walletMutateEx(tree *AccountingTree, owner accapi.WalletOwner, fn func(wall
 	}
 
 	fn(wallet)
+	walletAssertConsumptionMatchesAllocations(tree, wallet)
+}
 
+func walletAssertConsumptionMatchesAllocations(tree *AccountingTree, wallet *Wallet) {
 	reportError := func(format string, args ...any) {
 		log.Fatal("Assertion error %#v: %s", wallet, fmt.Sprintf(format, args...))
 	}
@@ -459,7 +576,23 @@ func treeMutate(category accapi.ProductCategoryIdV2, fn func(tree *AccountingTre
 	return fn(tree)
 }
 
+// Usage reporting
+// ---------------------------------------------------------------------------------------------------------------------
+// UsageReport is the provider-facing low-level operation. It receives an absolute usage number for one wallet and then
+// redistributes that number across active and retired allocations. Providers may report usage beyond the current quota;
+// in that case the excess remains assigned to an allocation so the wallet's total still reflects reality.
+//
+// Before and after the redistribution, the promise system is asked to reconcile. The first reconciliation gives the
+// promise layer a chance to materialize enough capacity for the incoming report. The second reconciliation sees the
+// final consumption distribution and may shrink, grow, or advance materializations based on the updated state.
+//
+// Capacity-based products and time-based products differ in retirement behavior. Capacity usage can move away from
+// retired allocations once active capacity exists. Time-based usage keeps retired quota meaningful, but excess retired
+// usage can be moved forward when an active allocation can absorb it.
+
 func UsageReport(now time.Time, request accapi.ReportUsageRequest) (success bool, err *util.HttpError) {
+	PromiseReconcile(now, request.CategoryIdV2, request.Owner, util.OptValue(request.Usage))
+
 	walletMutate(request.CategoryIdV2, request.Owner, func(tree *AccountingTree, wallet *Wallet) {
 		if len(wallet.Allocations) == 0 {
 			success, err = false, util.HttpErr(http.StatusBadRequest, "this owner does not have any such resources")
@@ -605,6 +738,65 @@ func UsageReport(now time.Time, request accapi.ReportUsageRequest) (success bool
 			}
 		}
 
+		consumedInAllocations := int64(0)
+		for _, allocId := range wallet.Allocations {
+			alloc := tree.AllocationsById[allocId]
+			consumedInAllocations += alloc.ConsumedSelf
+		}
+
+		consumedToRemove := consumedInAllocations - wallet.Consumed
+		if consumedToRemove > 0 {
+			for _, retiredId := range retiredAllocations {
+				retiredReadOnly := tree.AllocationsById[retiredId]
+				removed := min(retiredReadOnly.ConsumedSelf, consumedToRemove)
+				if removed > 0 {
+					allocationMutate(now, tree, retiredId, func(retired *Allocation, parent util.Option[*Allocation]) {
+						retired.ConsumedSelf -= removed
+					})
+					consumedToRemove -= removed
+				}
+
+				if consumedToRemove == 0 {
+					break
+				}
+			}
+		}
+
+		if consumedToRemove > 0 {
+			for _, active := range activeAllocationsReadOnly {
+				activeReadOnly := tree.AllocationsById[active.Id]
+				excess := max(activeReadOnly.ConsumedSelf-activeReadOnly.QuotaSelf, 0)
+				removed := min(excess, consumedToRemove)
+				if removed > 0 {
+					allocationMutate(now, tree, active.Id, func(alloc *Allocation, parent util.Option[*Allocation]) {
+						alloc.ConsumedSelf -= removed
+					})
+					consumedToRemove -= removed
+				}
+
+				if consumedToRemove == 0 {
+					break
+				}
+			}
+		}
+
+		if consumedToRemove > 0 {
+			for _, allocId := range wallet.Allocations {
+				activeReadOnly := tree.AllocationsById[allocId]
+				removed := min(activeReadOnly.ConsumedSelf, consumedToRemove)
+				if removed > 0 {
+					allocationMutate(now, tree, allocId, func(alloc *Allocation, parent util.Option[*Allocation]) {
+						alloc.ConsumedSelf -= removed
+					})
+					consumedToRemove -= removed
+				}
+
+				if consumedToRemove == 0 {
+					break
+				}
+			}
+		}
+
 		/*
 			When retirement occurs, the following applies:
 
@@ -645,6 +837,10 @@ func UsageReport(now time.Time, request accapi.ReportUsageRequest) (success bool
 			})
 		}
 	})
+
+	if err == nil {
+		PromiseReconcile(now, request.CategoryIdV2, request.Owner, util.OptValue(request.Usage))
+	}
 	return
 }
 
