@@ -2318,18 +2318,23 @@ export function ApplicationForm({editorState: state, closed: isClosed, event: on
                         description={val.description}
                         mandatory={!val.optional}
                     >
-                        <TextArea
-                            id={val.name}
-                            rows={val.rows}
-                            maxLength={val.maxLength ?? 100}
-                            required={!val.optional}
-                            disabled={state.locked || isClosed}
-                            value={state.applicationAnswers[val.name]?.answer ?? ""}
-                            data-field={JSON.stringify(val)}
-                            onChange={onApplicationChange}
-                            placeholder=" "
-                        />
+                        <Box>
+                            <TextArea
+                                id={val.name}
+                                rows={val.rows}
+                                maxLength={val.maxLength}
+                                required={!val.optional}
+                                disabled={state.locked || isClosed}
+                                value={state.applicationAnswers[val.name]?.answer ?? ""}
+                                data-field={JSON.stringify(val)}
+                                onChange={onApplicationChange}
+                                placeholder=" "
+                            />
+                            {val.maxLength ? <Flex justifyContent={"flex-end"}>{state.applicationAnswers[val.name]?.answer.length ?? 0} / {val.maxLength} </Flex> : <></>}
+                        </Box>
+
                     </FormField>
+
                 ))}
             </div>
 
