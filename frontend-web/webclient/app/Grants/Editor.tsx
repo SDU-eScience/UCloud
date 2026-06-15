@@ -1,7 +1,7 @@
 import * as Accounting from "@/Accounting";
 import {callAPI, callAPIWithErrorHandler} from "@/Authentication/DataHook";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {UserAvatar} from "@/AvataaarLib/UserAvatar";
+import {AvatarForUser, UserAvatar} from "@/AvataaarLib/UserAvatar";
 import {useAvatars} from "@/AvataaarLib/hook";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {ProjectLogo} from "@/Grants/ProjectLogo";
@@ -10,11 +10,7 @@ import {usePage} from "@/Navigation/Redux";
 import {isAdminOrPI, Project} from "@/Project";
 import * as Projects from "@/Project/Api";
 import {useProjectId} from "@/Project/Api";
-import {
-    projectInfosTitle,
-    ProjectTitleForNewCore,
-    useProjectInfos
-} from "@/Project/InfoCache";
+import {projectInfosTitle, ProjectTitleForNewCore, useProjectInfos} from "@/Project/InfoCache";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
 import AppRoutes from "@/Routes";
@@ -43,6 +39,7 @@ import * as React from "react";
 import {useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef} from "react";
 import {useLocation, useNavigate} from "react-router-dom";
 import * as Grants from ".";
+import {State} from ".";
 import {ChangeOrganizationDetails, OptionalInfo, optionalInfoRequest, optionalInfoUpdate} from "@/UserSettings/ChangeUserDetails";
 import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
 import {providerBrandingStore} from "@/ProviderBrandings/AutomaticProviderBranding";
@@ -75,6 +72,7 @@ interface EditorState {
 
         overallState: Grants.State;
         stateByGrantGiver: Record<string, Grants.State>;
+        stateUpdaterByGrantGiver: Record<string, string>;
 
         title: string;
         recipient: Grants.Recipient;
@@ -246,7 +244,8 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                 switch (type) {
                     case "personalWorkspace":
                         return "personalProject";
-                    default: return type;
+                    default:
+                        return type;
                 }
             }
 
@@ -360,6 +359,10 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                         action.grant.status.stateBreakdown,
                         value => [value.projectId, value.state]
                     ),
+                    stateUpdaterByGrantGiver: createRecordFromArray(
+                        action.grant.status.stateBreakdown,
+                        value => [value.projectId, value.lastUpdatedBy]
+                    ),
                     overallState: action.grant.status.overallState,
                     document: action.grant.currentRevision.document,
                     allowWithdrawal: action.grant.createdBy === Client.username,
@@ -409,6 +412,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                     },
                     overallState: Grants.State.IN_PROGRESS,
                     stateByGrantGiver: {},
+                    stateUpdaterByGrantGiver: {},
                     allowWithdrawal: false,
                     newestRevision: 0,
                     revisions: [{revisionNumber: 0, updatedBy: Client.username ?? "?", createdAt: timestampUnixMs()}],
@@ -644,6 +648,9 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                     ...state.stateDuringEdit,
                     stateByGrantGiver: {
                         ...state.stateDuringEdit.stateByGrantGiver,
+                    },
+                    stateUpdaterByGrantGiver: {
+                        ...state.stateDuringEdit.stateUpdaterByGrantGiver,
                     }
                 }
             };
@@ -931,10 +938,14 @@ function useStateReducerMiddleware(
 
                     const recipientType = ((type: Grants.RetrieveGrantGiversRequest["type"]): Grants.Recipient["type"] | undefined => {
                         switch (type) {
-                            case "NewProject": return "newProject";
-                            case "ExistingProject": return "existingProject";
-                            case "PersonalWorkspace": return "personalWorkspace";
-                            default: return undefined;
+                            case "NewProject":
+                                return "newProject";
+                            case "ExistingProject":
+                                return "existingProject";
+                            case "PersonalWorkspace":
+                                return "personalWorkspace";
+                            default:
+                                return undefined;
                         }
                     })(affiliationRequest.type);
 
@@ -1890,12 +1901,15 @@ export function Editor(): React.ReactNode {
                                 title={"Project information"}
                                 showDescriptionInEditMode={true}
                                 description={<>
-                                    <p>
-                                        The principal investigator is the person responsible for the project.
-                                        After the approval, the PI may choose to transfer this role.
-                                    </p>
-
-                                    {state.stateDuringCreate && <>
+                                    {state.stateDuringCreate ? null : <>
+                                        <p>
+                                            The principal investigator is the person responsible for the project.
+                                            After the approval, the PI may choose to transfer this role.
+                                        </p>
+                                    </>}
+                                    {state.stateDuringCreate?.creatingWorkspace && <>
+                                        <br />
+                                        <br />
                                         <p>
                                             Please keep the project title specified here <i>short</i> and memorable.
                                             You can justify your project in the "Application" section.
@@ -1903,10 +1917,21 @@ export function Editor(): React.ReactNode {
                                     </>}
                                 </>}
                             >
-                                <label>
-                                    Application submitted by
-                                    <Input id={FormIds.pi} height="42px" disabled value={state.principalInvestigator} />
-                                </label>
+                                {state.stateDuringCreate ? <>
+                                    <label>
+                                        Applicant
+                                        <Input id={FormIds.submitter} height="42px" disabled value={state.principalInvestigator} />
+                                    </label>
+                                </> : <>
+                                    <label>
+                                        Project PI
+                                        <Input id={FormIds.pi} height="42px" disabled value={state.principalInvestigator} />
+                                    </label>
+                                    <label>
+                                        Application submitted by
+                                        <Input id={FormIds.submitter} height="42px" disabled value={state.stateDuringEdit?.storedApplication?.createdBy ?? state.principalInvestigator} />
+                                    </label>
+                                </>}
 
                                 {state.stateDuringCreate && <>
                                     <label>
@@ -2070,6 +2095,7 @@ export function Editor(): React.ReactNode {
                                             </> : undefined
                                             }
                                             state={state.stateDuringEdit?.stateByGrantGiver[it.id]}
+                                            stateUpdater={state.stateDuringEdit?.stateUpdaterByGrantGiver[it.id]}
                                             allAllocators={state.allocators}
                                             transfers={state.possibleTransfers}
                                             onTransfer={onTransfer}
@@ -2700,6 +2726,7 @@ const GrantGiver: React.FunctionComponent<{
     isEditing: boolean;
     adminOfProjects: {id: string | null, title: string}[];
     state?: Grants.State;
+    stateUpdater?: string;
     onStateChange: (projectId: string, approved: boolean) => void;
     replaceApproval?: React.ReactNode;
     replaceReject?: React.ReactNode;
@@ -2743,6 +2770,13 @@ const GrantGiver: React.FunctionComponent<{
             <label htmlFor={checkboxId}>
                 <ProjectLogo projectId={props.projectId} size={`${size}px`} />
                 <ProjectTitleForNewCore id={props.projectId} title={props.title} />
+
+                {props.isEditing ? <>
+                    {props.state == State.IN_PROGRESS ? null : <>
+                        {props.state == State.REJECTED ? <> - Rejected </> : <> - Approved </>} by {props.stateUpdater}
+                    </>}
+                </> : null}
+
             </label>
             {!props.isEditing &&
                 <div className={"description"} style={{marginLeft: (size + 8) + "px"}}>{props.description}</div>
@@ -2796,6 +2830,7 @@ const GrantGiver: React.FunctionComponent<{
 
 const FormIds = {
     pi: "pi",
+    submitter: "submitter",
     title: "title",
     startDate: "start-date",
     endDate: "end-date",
@@ -3012,6 +3047,7 @@ const monthNames = ["January", "February", "March", "April", "May", "June", "Jul
 
 function stateToMonthOptions(state: EditorState): {key: string, text: string}[] {
     const result: {key: string, text: string, time: number}[] = [];
+
     function insertIfUnique(date: Date) {
         const today = new Date();
         const month = monthNames[date.getMonth()];
