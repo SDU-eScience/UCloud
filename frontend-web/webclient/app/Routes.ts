@@ -16,6 +16,7 @@ const news = {
 const admin = {
     userCreation: () => "/admin/userCreation",
     news: () => "/admin/news",
+    manageProjects: () => "/admin/manageProjects",
     providers: () => "/admin/providers",
     playground: () => "/playground",
 };
@@ -142,10 +143,18 @@ const files = {
 
 const supportAssist = {
     base: () => "/support-assist",
-    user() {return this.base() + "/user"},
-    project() {return this.base() + "/project"},
-    allocation() {return this.base() + "/allocation"},
-    job() {return this.base() + "/job"},
+    user() {
+        return this.base() + "/user"
+    },
+    project() {
+        return this.base() + "/project"
+    },
+    allocation() {
+        return this.base() + "/allocation"
+    },
+    job() {
+        return this.base() + "/job"
+    },
 
 }
 

@@ -824,8 +824,9 @@ func GrantsSubmitRevisionEx(actor rpc.Actor, req accapi.GrantsSubmitRevisionRequ
 		app.Application.Status.OverallState = accapi.GrantApplicationStateApproved
 		app.Application.Status.StateBreakdown = []accapi.GrantGiverApprovalState{
 			{
-				ProjectId: grantGiverInitiatedId,
-				State:     accapi.GrantApplicationStateApproved,
+				ProjectId:     grantGiverInitiatedId,
+				State:         accapi.GrantApplicationStateApproved,
+				LastUpdatedBy: app.Application.Status.ProjectPI,
 			},
 		}
 
@@ -837,8 +838,9 @@ func GrantsSubmitRevisionEx(actor rpc.Actor, req accapi.GrantsSubmitRevisionRequ
 		breakdown := []accapi.GrantGiverApprovalState{}
 		for grantGiver, _ := range grantGivers {
 			breakdown = append(breakdown, accapi.GrantGiverApprovalState{
-				ProjectId: grantGiver,
-				State:     accapi.GrantApplicationStateInProgress,
+				ProjectId:     grantGiver,
+				State:         accapi.GrantApplicationStateInProgress,
+				LastUpdatedBy: "",
 			})
 		}
 		app.Application.Status.StateBreakdown = breakdown
@@ -1140,6 +1142,7 @@ func GrantsUpdateState(actor rpc.Actor, req accapi.GrantsUpdateStateRequest) *ut
 
 				if breakdown.ProjectId == string(actor.Project.Value) {
 					breakdown.State = req.NewState
+					breakdown.LastUpdatedBy = actor.Username
 					anyUpdated = true
 				}
 
@@ -1673,12 +1676,25 @@ func GrantsRetrieveGrantGivers(actor rpc.Actor, req accapi.RetrieveGrantGiversRe
 				gg.Templates = sWrapper.Settings.Templates
 				sWrapper.Mu.RUnlock()
 			} else {
+				defaultForm := accapi.FormField{
+					Name:        "Default Template",
+					Description: defaultTemplate,
+					MaxLength:   util.OptValue(4000),
+					Title:       "Default Template",
+					Rows:        util.OptValue(100),
+					Optional:    false,
+				}
 				gg.Description = ""
 				gg.Templates = accapi.Templates{
 					Type:            accapi.TemplatesTypePlainText,
 					PersonalProject: defaultTemplate,
 					NewProject:      defaultTemplate,
 					ExistingProject: defaultTemplate,
+					Structured: accapi.TemplatesStructured{
+						PersonalProject: []accapi.FormField{defaultForm},
+						NewProject:      []accapi.FormField{defaultForm},
+						ExistingProject: []accapi.FormField{defaultForm},
+					},
 				}
 			}
 			result = append(result, gg)
@@ -1711,10 +1727,12 @@ func GrantsRetrieveGrantGivers(actor rpc.Actor, req accapi.RetrieveGrantGiversRe
 	return util.NonNilSlice(result), nil
 }
 
-func GrantsUpdateSettings(actor rpc.Actor, id string, s accapi.GrantRequestSettings) *util.HttpError {
-	if !actor.Project.Present || string(actor.Project.Value) != id ||
-		!actor.Membership[rpc.ProjectId(id)].Satisfies(rpc.ProjectRoleAdmin) {
-		return util.HttpErr(http.StatusForbidden, "forbidden")
+func GrantsUpdateSettings(actor rpc.Actor, id string, s accapi.GrantRequestSettings, isUCloudAdminCall bool) *util.HttpError {
+	if !isUCloudAdminCall {
+		if !actor.Project.Present || string(actor.Project.Value) != id ||
+			!actor.Membership[rpc.ProjectId(id)].Satisfies(rpc.ProjectRoleAdmin) {
+			return util.HttpErr(http.StatusForbidden, "forbidden")
+		}
 	}
 	b := grantGetSettingsBucket(id)
 
@@ -1755,15 +1773,45 @@ func GrantsUpdateSettings(actor rpc.Actor, id string, s accapi.GrantRequestSetti
 	return nil
 }
 
-func GrantsRetrieveSettings(actor rpc.Actor) (accapi.GrantRequestSettings, *util.HttpError) {
-	if !actor.Project.Present || !actor.Membership[rpc.ProjectId(actor.Project.Value)].Satisfies(rpc.ProjectRoleAdmin) {
-		return accapi.GrantRequestSettings{}, util.HttpErr(http.StatusForbidden, "forbidden")
+func GrantsBrowseEnabledProjects(actor rpc.Actor) ([]accapi.ProjectToSetting, *util.HttpError) {
+	settings := make([]accapi.ProjectToSetting, 0)
+
+	if actor.Role != rpc.RoleAdmin {
+		return settings, util.HttpErr(http.StatusForbidden, "Need admin rights to get enabled status")
 	}
 
-	b := grantGetSettingsBucket(string(actor.Project.Value))
+	for _, bucket := range grantGlobals.SettingBuckets {
+		bucket.Mu.Lock()
+		for project, _ := range bucket.PublicGrantGivers {
+			settingsFromBucket, ok := bucket.Settings[project]
+			if ok && settingsFromBucket.Settings.Enabled {
+				settings = append(
+					settings,
+					accapi.ProjectToSetting{ProjectId: project, Settings: settingsFromBucket.lDeepCopy()},
+				)
+			}
+		}
+		bucket.Mu.Unlock()
+	}
+
+	return settings, nil
+}
+
+func GrantsRetrieveSettings(actor rpc.Actor, isUCloudAdminCall bool, projectId string) (accapi.GrantRequestSettings, *util.HttpError) {
+	if !isUCloudAdminCall {
+		if !actor.Project.Present || !actor.Membership[rpc.ProjectId(actor.Project.Value)].Satisfies(rpc.ProjectRoleAdmin) {
+			return accapi.GrantRequestSettings{}, util.HttpErr(http.StatusForbidden, "forbidden")
+		}
+	}
+
+	lookupId := string(actor.Project.Value)
+	if isUCloudAdminCall {
+		lookupId = projectId
+	}
+	b := grantGetSettingsBucket(lookupId)
 
 	b.Mu.RLock()
-	w, ok := b.Settings[string(actor.Project.Value)]
+	w, ok := b.Settings[lookupId]
 	if !ok {
 		b.Mu.RUnlock()
 		{
@@ -1777,7 +1825,7 @@ func GrantsRetrieveSettings(actor rpc.Actor) (accapi.GrantRequestSettings, *util
 					AllowRequestsFrom:   []accapi.UserCriteria{},
 					ExcludeRequestsFrom: []accapi.UserCriteria{},
 					Templates: accapi.Templates{
-						Type:            accapi.TemplatesTypePlainText,
+						Type:            accapi.TemplatesTypeStructured,
 						PersonalProject: defaultTemplate,
 						NewProject:      defaultTemplate,
 						ExistingProject: defaultTemplate,
@@ -2107,14 +2155,46 @@ func initGrants() {
 		})
 
 		accapi.GrantsRetrieveRequestSettings.Handler(func(info rpc.RequestInfo, request util.Empty) (accapi.GrantRequestSettings, *util.HttpError) {
-			return GrantsRetrieveSettings(info.Actor)
+			return GrantsRetrieveSettings(info.Actor, false, "")
+		})
+
+		accapi.GrantsRetrieveRequestSettingsAdmin.Handler(func(info rpc.RequestInfo, request fndapi.FindByStringId) (accapi.GrantRequestSettings, *util.HttpError) {
+			if info.Actor.Role != rpc.RoleAdmin {
+				return accapi.GrantRequestSettings{}, util.HttpErr(http.StatusForbidden, "Permission denied - need to be admin to use this endpoint")
+			}
+			projectExists := false
+			db.NewTx0(func(tx *db.Transaction) {
+				_, projectExists = coreutil.ProjectRetrieveFromDatabase(tx, request.Id)
+			})
+			if !projectExists {
+				return accapi.GrantRequestSettings{}, util.HttpErr(http.StatusBadRequest, "Project does not exist")
+			}
+			return GrantsRetrieveSettings(info.Actor, true, request.Id)
+		})
+
+		accapi.GrantsBrowseEnabledProjects.Handler(func(info rpc.RequestInfo, request util.Empty) ([]accapi.ProjectToSetting, *util.HttpError) {
+			return GrantsBrowseEnabledProjects(info.Actor)
+		})
+
+		accapi.GrantsUpdateRequestSettingsAdmin.Handler(func(info rpc.RequestInfo, request accapi.ProjectToSetting) (util.Empty, *util.HttpError) {
+			if info.Actor.Role != rpc.RoleAdmin {
+				return util.Empty{}, util.HttpErr(http.StatusForbidden, "Permission denied - need to be admin to use this endpoint")
+			}
+			projectExists := false
+			db.NewTx0(func(tx *db.Transaction) {
+				_, projectExists = coreutil.ProjectRetrieveFromDatabase(tx, request.ProjectId)
+			})
+			if !projectExists {
+				return util.Empty{}, util.HttpErr(http.StatusBadRequest, "Project does not exist")
+			}
+			return util.Empty{}, GrantsUpdateSettings(info.Actor, request.ProjectId, request.Settings, true)
 		})
 
 		accapi.GrantsUpdateRequestSettings.Handler(func(info rpc.RequestInfo, request accapi.GrantRequestSettings) (util.Empty, *util.HttpError) {
 			if !info.Actor.Project.Present {
 				return util.Empty{}, util.HttpErr(http.StatusBadRequest, "bad request - no project")
 			}
-			return util.Empty{}, GrantsUpdateSettings(info.Actor, string(info.Actor.Project.Value), request)
+			return util.Empty{}, GrantsUpdateSettings(info.Actor, string(info.Actor.Project.Value), request, false)
 		})
 
 		accapi.GrantsUploadLogo.Handler(func(info rpc.RequestInfo, request []byte) (util.Empty, *util.HttpError) {

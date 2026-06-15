@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
+	"strconv"
+	"strings"
 
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/rpc"
@@ -35,6 +38,10 @@ var GrantApplicationStates = []GrantApplicationState{
 	GrantApplicationStateInProgress,
 }
 
+type ProjectToSetting struct {
+	ProjectId string               `json:"projectId"`
+	Settings  GrantRequestSettings `json:"settings"`
+}
 type GrantRequestSettings struct {
 	Enabled             bool           `json:"enabled"`
 	Description         string         `json:"description"`
@@ -120,14 +127,32 @@ type UserCriteria struct {
 type TemplatesType string
 
 const (
-	TemplatesTypePlainText TemplatesType = "plain_text"
+	TemplatesTypePlainText  TemplatesType = "plain_text"
+	TemplatesTypeStructured TemplatesType = "structured"
 )
 
+type TemplatesStructured struct {
+	PersonalProject []FormField `json:"personalProject"`
+	NewProject      []FormField `json:"newProject"`
+	ExistingProject []FormField `json:"existingProject"`
+}
 type Templates struct {
-	Type            TemplatesType `json:"type"`
-	PersonalProject string        `json:"personalProject"` // plain_text
-	NewProject      string        `json:"newProject"`      // plain_text
-	ExistingProject string        `json:"existingProject"` // plain_text
+	Type       TemplatesType       `json:"type"`
+	Structured TemplatesStructured `json:"structured"`
+
+	// Legacy compatibility -- plain_text-case
+	PersonalProject string `json:"personalProject"`
+	NewProject      string `json:"newProject"`
+	ExistingProject string `json:"existingProject"`
+}
+
+type FormField struct {
+	Name        string           `json:"name"`
+	Title       string           `json:"title"`
+	Description string           `json:"description"`
+	Optional    bool             `json:"optional"`
+	MaxLength   util.Option[int] `json:"maxLength"`
+	Rows        util.Option[int] `json:"rows"`
 }
 
 type GrantApplication struct {
@@ -161,10 +186,13 @@ type FormType string
 const (
 	FormTypePlainText           FormType = "plain_text"
 	FormTypeGrantGiverInitiated FormType = "grant_giver_initiated"
+	FormTypeStructured          FormType = "structured"
 )
 
 func (f FormType) Valid() bool {
 	switch f {
+	case FormTypeStructured:
+		return true
 	case FormTypePlainText:
 		return true
 	case FormTypeGrantGiverInitiated:
@@ -174,9 +202,270 @@ func (f FormType) Valid() bool {
 	}
 }
 
+func normalizeTitle(title string) string {
+	words := strings.Split(title, " ")
+	if len(words) == 0 {
+		return title
+	}
+
+	builder := words[0]
+
+	for i := 1; i < len(words); i++ {
+		word := words[i]
+
+		builder += " "
+		builder += " "
+
+		if word == strings.ToUpper(word) || word == strings.ToLower(word) {
+			builder += word
+		} else {
+			builder += strings.ToLower(word)
+		}
+	}
+	return builder
+}
+
+func ParseAnswerFormFields(text string) []AnswerFieldForm {
+	lines := strings.Split(text, "\n")
+
+	var sectionSeparators []int
+	for i, line := range lines {
+		if strings.HasPrefix(line, "---") {
+			allDashes := true
+			for _, r := range line {
+				if r != '-' {
+					allDashes = false
+					break
+				}
+			}
+
+			if allDashes {
+				sectionSeparators = append(sectionSeparators, i)
+			}
+		}
+	}
+	var titles []string
+	for _, lineIdx := range sectionSeparators {
+		if lineIdx > 0 {
+			titles = append(titles, lines[lineIdx-1])
+		}
+	}
+
+	var answers []string
+	currentStartLine := 0
+
+	for i := 0; i <= len(sectionSeparators); i++ {
+		end := len(lines)
+
+		if i < len(sectionSeparators) {
+			end = sectionSeparators[i] - 1
+		}
+
+		var builder strings.Builder
+
+		for row := currentStartLine; row < end; row++ {
+			builder.WriteString(lines[row])
+			builder.WriteString("\n")
+		}
+
+		answer := strings.TrimSpace(builder.String())
+
+		if answer != "" {
+			answers = append(answers, answer)
+		}
+
+		currentStartLine = end + 2
+	}
+	var result []AnswerFieldForm
+
+	for i := 0; i < len(titles); i++ {
+		answer := ""
+		if i < len(answers) {
+			answer = answers[i]
+		}
+
+		title := normalizeTitle(titles[i])
+
+		field := AnswerFieldForm{
+			Answer: answer,
+			Field: FormField{
+				Name:        "",
+				Title:       title,
+				Description: "",
+				Optional:    false,
+				Rows:        util.OptValue(5),
+				MaxLength:   util.OptValue(4000),
+			},
+		}
+		result = append(result, field)
+	}
+	return util.NonNilSlice(result)
+}
+
+func ParseFormFields(text string) []FormField {
+	lines := strings.Split(text, "\n")
+
+	var sectionSeparators []int
+	for i, line := range lines {
+		if strings.HasPrefix(line, "---") {
+			allDashes := true
+			for _, r := range line {
+				if r != '-' {
+					allDashes = false
+					break
+				}
+			}
+
+			if allDashes {
+				sectionSeparators = append(sectionSeparators, i)
+			}
+		}
+	}
+	var titles []string
+	for _, lineIdx := range sectionSeparators {
+		if lineIdx > 0 {
+			titles = append(titles, lines[lineIdx-1])
+		}
+	}
+
+	foundDescriptionBeforeFirstTitle := false
+
+	var descriptions []string
+	currentStartLine := 0
+
+	for i := 0; i <= len(sectionSeparators); i++ {
+		end := len(lines)
+
+		if i < len(sectionSeparators) {
+			end = sectionSeparators[i] - 1
+		}
+
+		var builder strings.Builder
+
+		for row := currentStartLine; row < end; row++ {
+			builder.WriteString(lines[row])
+			builder.WriteString("\n")
+		}
+
+		description := strings.TrimSpace(builder.String())
+
+		if description != "" {
+			if i == 0 {
+				foundDescriptionBeforeFirstTitle = true
+			}
+
+			descriptions = append(descriptions, description)
+		} else {
+			if i != 0 {
+				descriptions = append(descriptions, "")
+			}
+		}
+
+		currentStartLine = end + 2
+	}
+
+	if foundDescriptionBeforeFirstTitle {
+		if len(titles) > 0 {
+			titles = append([]string{"Introduction"}, titles...)
+		} else {
+			titles = []string{"Application"}
+		}
+	}
+
+	prefixesWhichSoundMandatory := []string{
+		"Add a ",
+		"Describe the ",
+		"Provide a ",
+		"Please describe the reason for applying",
+		"Required:",
+	}
+
+	limitRegex := regexp.MustCompile(`max (\d+) ch`)
+
+	var result []FormField
+
+	for i := 0; i < len(titles); i++ {
+		description := ""
+		if i < len(descriptions) {
+			description = descriptions[i]
+		}
+
+		title := normalizeTitle(titles[i])
+
+		optional := true
+		for _, prefix := range prefixesWhichSoundMandatory {
+			if strings.HasPrefix(description, prefix) {
+				optional = false
+				break
+			}
+		}
+
+		field := FormField{
+			Name:        title,
+			Title:       title,
+			Description: description,
+			Optional:    optional,
+		}
+
+		matches := limitRegex.FindAllStringSubmatch(description, -1)
+		for _, match := range matches {
+			if len(match) >= 2 {
+				if limit, err := strconv.Atoi(match[1]); err == nil {
+					field.MaxLength = util.OptValue(limit)
+				}
+			}
+		}
+
+		if strings.ToLower(field.Title) == "application" {
+			field.MaxLength = util.OptValue(4000)
+		}
+
+		limit := 250
+		if field.MaxLength.Present {
+			limit = field.MaxLength.Value
+		}
+
+		rows := min(15, max(2, limit/50))
+
+		if strings.Contains(strings.ToLower(field.Title), "project title") {
+			rows = 2
+		}
+
+		field.Rows = util.OptValue(rows)
+
+		result = append(result, field)
+	}
+
+	// Move large sections to the end
+	smallFields := make([]FormField, 0, len(result))
+	largeFields := make([]FormField, 0)
+
+	for _, field := range result {
+		maxLength := 0
+		if field.MaxLength.Present {
+			maxLength = field.MaxLength.Value
+		}
+
+		if maxLength > 1000 {
+			largeFields = append(largeFields, field)
+		} else {
+			smallFields = append(smallFields, field)
+		}
+	}
+	result = append(smallFields, largeFields...)
+
+	return result
+}
+
+type AnswerFieldForm struct {
+	Answer string    `json:"answer"`
+	Field  FormField `json:"field"`
+}
+
 type Form struct {
 	Type         FormType          `json:"type"`
-	Text         string            `json:"text"`         // plain_text, grant_giver_initiated
+	Text         string            `json:"text"` // plain_text, grant_giver_initiated - used for legacy form
+	Fields       []AnswerFieldForm `json:"fields"`
 	SubAllocator util.Option[bool] `json:"subAllocator"` // grant_giver_initiated
 }
 
@@ -298,21 +587,24 @@ type GrantStatus struct {
 }
 
 type GrantGiverApprovalState struct {
-	ProjectId string                `json:"projectId"`
-	State     GrantApplicationState `json:"state"`
+	ProjectId     string                `json:"projectId"`
+	LastUpdatedBy string                `json:"lastUpdatedBy"`
+	State         GrantApplicationState `json:"state"`
 }
 
 func (ga GrantGiverApprovalState) MarshalJSON() ([]byte, error) {
 	type wrapper struct {
-		ProjectId    string                `json:"projectId"`
-		ProjectTitle string                `json:"projectTitle"`
-		State        GrantApplicationState `json:"state"`
+		ProjectId     string                `json:"projectId"`
+		ProjectTitle  string                `json:"projectTitle"`
+		LastUpdatedBy string                `json:"lastUpdatedBy"`
+		State         GrantApplicationState `json:"state"`
 	}
 
 	w := wrapper{
-		ProjectId:    ga.ProjectId,
-		ProjectTitle: ga.ProjectId,
-		State:        ga.State,
+		ProjectId:     ga.ProjectId,
+		ProjectTitle:  ga.ProjectId,
+		LastUpdatedBy: ga.LastUpdatedBy,
+		State:         ga.State,
 	}
 	return json.Marshal(w)
 }
@@ -453,11 +745,32 @@ var GrantsDeleteComment = rpc.Call[GrantsDeleteCommentRequest, util.Empty]{
 	Roles:       rpc.RolesEndUser,
 }
 
+var GrantsBrowseEnabledProjects = rpc.Call[util.Empty, []ProjectToSetting]{
+	BaseContext: GrantsNamespace,
+	Convention:  rpc.ConventionBrowse,
+	Operation:   "browseEnabledProjects",
+	Roles:       rpc.RolesAdmin,
+}
+
+var GrantsUpdateRequestSettingsAdmin = rpc.Call[ProjectToSetting, util.Empty]{
+	BaseContext: GrantsNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Operation:   "updateRequestSettingsAdmin",
+	Roles:       rpc.RolesAdmin,
+}
+
 var GrantsUpdateRequestSettings = rpc.Call[GrantRequestSettings, util.Empty]{
 	BaseContext: GrantsNamespace,
 	Convention:  rpc.ConventionUpdate,
 	Operation:   "updateRequestSettings",
 	Roles:       rpc.RolesEndUser | rpc.RolesService,
+}
+
+var GrantsRetrieveRequestSettingsAdmin = rpc.Call[fnd.FindByStringId, GrantRequestSettings]{
+	BaseContext: GrantsNamespace,
+	Convention:  rpc.ConventionRetrieve,
+	Operation:   "requestSettingsAdmin",
+	Roles:       rpc.RoleAdmin,
 }
 
 var GrantsRetrieveRequestSettings = rpc.Call[util.Empty, GrantRequestSettings]{

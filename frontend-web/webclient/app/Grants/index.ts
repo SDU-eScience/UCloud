@@ -3,7 +3,6 @@ import * as Accounting from "@/Accounting";
 import {FindByStringId, PageV2, PaginationRequestV2} from "@/UCloud";
 import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
-import {ProductCategoryId} from "@/Accounting";
 import {OptionalInfo} from "@/UserSettings/ChangeUserDetails";
 
 const baseContext = "/api/grants/v2";
@@ -118,8 +117,22 @@ export function updateRequestSettings(
     return apiUpdate(request, baseContext, "updateRequestSettings");
 }
 
+export function updateRequestSettingsAdmin(
+    request: ProjectToSetting,
+): APICallParameters<unknown, {}> {
+    return apiUpdate(request, baseContext, "updateRequestSettingsAdmin");
+}
+
 export function retrieveRequestSettings(): APICallParameters<unknown, RequestSettings> {
     return apiRetrieve({}, baseContext, "requestSettings");
+}
+
+export function retrieveRequestSettingsAdmin(projectId: FindByStringId): APICallParameters<unknown, RequestSettings> {
+    return apiRetrieve(projectId, baseContext, "requestSettingsAdmin");
+}
+
+export function browseEnabledProjects(): APICallParameters<unknown, {}> {
+    return apiBrowse({}, baseContext, "browseEnabledProjects");
 }
 
 // Types
@@ -201,7 +214,7 @@ export interface Doc {
     allocationPeriod?: Period | null
 }
 
-type Form = PlainTextForm | GrantGiverInitiatedForm;
+type Form = PlainTextForm | GrantGiverInitiatedForm | StructuredForm;
 
 interface PlainTextForm {
     type: "plain_text";
@@ -213,6 +226,19 @@ interface GrantGiverInitiatedForm {
     text: string;
     subAllocator: boolean;
 }
+
+export interface AnswerFieldForm {
+    answer: string;
+    field: FormField;
+}
+
+interface StructuredForm {
+    type: "structured";
+    text: string;
+    subAllocator: boolean;
+    fields: AnswerFieldForm[];
+}
+
 
 export type Recipient =
     {type: "existingProject", id: string;} |
@@ -283,6 +309,7 @@ export interface Status {
 export interface GrantGiverApprovalState {
     projectId: string;
     projectTitle: string;
+    lastUpdatedBy: string;
     state: State;
 }
 
@@ -301,11 +328,31 @@ export interface GrantGiver {
     categories: Accounting.ProductCategoryV2[];
 }
 
+export interface FormField {
+    name: string;
+    title: string
+    description: string;
+    optional: boolean;
+    maxLength?: number;
+    rows?: number;
+}
+
+export interface TemplateStructured {
+    personalProject: FormField[];
+    newProject: FormField[];
+    existingProject: FormField[];
+}
+
+export type TemplateKey = keyof TemplateStructured;
+
 export interface Templates {
-    type: "plain_text";
-    personalProject: string;
-    newProject: string;
-    existingProject: string;
+    type: "structured"
+    structured: TemplateStructured;
+}
+
+export interface ProjectToSetting {
+    projectId: string;
+    settings: RequestSettings
 }
 
 export interface RequestSettings {
