@@ -1676,12 +1676,25 @@ func GrantsRetrieveGrantGivers(actor rpc.Actor, req accapi.RetrieveGrantGiversRe
 				gg.Templates = sWrapper.Settings.Templates
 				sWrapper.Mu.RUnlock()
 			} else {
+				defaultForm := accapi.FormField{
+					Name:        "Default Template",
+					Description: defaultTemplate,
+					MaxLength:   util.OptValue(4000),
+					Title:       "Default Template",
+					Rows:        util.OptValue(100),
+					Optional:    false,
+				}
 				gg.Description = ""
 				gg.Templates = accapi.Templates{
 					Type:            accapi.TemplatesTypePlainText,
 					PersonalProject: defaultTemplate,
 					NewProject:      defaultTemplate,
 					ExistingProject: defaultTemplate,
+					Structured: accapi.TemplatesStructured{
+						PersonalProject: []accapi.FormField{defaultForm},
+						NewProject:      []accapi.FormField{defaultForm},
+						ExistingProject: []accapi.FormField{defaultForm},
+					},
 				}
 			}
 			result = append(result, gg)
@@ -1812,7 +1825,7 @@ func GrantsRetrieveSettings(actor rpc.Actor, isUCloudAdminCall bool, projectId s
 					AllowRequestsFrom:   []accapi.UserCriteria{},
 					ExcludeRequestsFrom: []accapi.UserCriteria{},
 					Templates: accapi.Templates{
-						Type:            accapi.TemplatesTypePlainText,
+						Type:            accapi.TemplatesTypeStructured,
 						PersonalProject: defaultTemplate,
 						NewProject:      defaultTemplate,
 						ExistingProject: defaultTemplate,

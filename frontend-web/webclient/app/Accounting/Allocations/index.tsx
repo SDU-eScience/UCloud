@@ -122,10 +122,12 @@ const Allocations: React.FunctionComponent = () => {
         allowRequestsFrom: [],
         excludeRequestsFrom: [],
         templates: {
-            type: "plain_text",
-            personalProject: "No template",
-            newProject: "No template",
-            existingProject: "No template",
+            type: "structured",
+            structured: {
+                existingProject: [],
+                newProject: [],
+                personalProject: []
+            }
         }
     });
 

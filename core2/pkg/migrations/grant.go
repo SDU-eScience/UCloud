@@ -43,3 +43,16 @@ func grantV2() db.MigrationScript {
 		},
 	}
 }
+
+func grantV3() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "grantsV3",
+		Execute: func(tx *db.Transaction) {
+			statement := `
+				alter table "grant".forms
+				add column form_type text not null default 'plain_text';
+			`
+			db.Exec(tx, statement, db.Params{})
+		},
+	}
+}
