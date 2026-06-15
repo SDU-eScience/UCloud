@@ -120,7 +120,8 @@ export const AppGroup: React.FunctionComponent = () => {
         await refresh();
     }, [id, refresh]);
 
-    const removeCategory = useCallback(async (key: string) => {
+    const removeCategory = useCallback(async (key?: string | undefined) => {
+        if (!key) return;
         const categoryId = parseInt(key);
         await callAPI(AppStore.removeGroupFromCategory({
             groupId: id,

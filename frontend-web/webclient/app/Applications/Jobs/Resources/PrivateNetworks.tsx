@@ -10,17 +10,7 @@ import {doNothing} from "@/UtilityFunctions";
 import {peerResourceAllowed} from "@/Applications/Jobs/Resources/Peers";
 import {Feature, hasFeature} from "@/Features";
 
-export const PrivateNetworkResource: React.FunctionComponent<{
-    application: Application;
-    params: ApplicationParameter[];
-    errors: Record<string, string>;
-    setErrors: (errors: Record<string, string>) => void;
-    onAdd: () => void;
-    onRemove: (id: string) => void;
-    provider?: string;
-    dnsHostname: string;
-    onDnsHostnameChange: (ev: React.SyntheticEvent) => void;
-}> = ({
+export function PrivateNetworkResource({
     application,
     params,
     errors,
@@ -30,7 +20,17 @@ export const PrivateNetworkResource: React.FunctionComponent<{
     provider,
     dnsHostname,
     onDnsHostnameChange,
-}) => {
+}: {
+    application: Application;
+    params: ApplicationParameter[];
+    errors: Record<string, string>;
+    setErrors: React.Dispatch<React.SetStateAction<Record<string, string>>>
+    onAdd: () => void;
+    onRemove: (id: string) => void;
+    provider?: string;
+    dnsHostname: string;
+    onDnsHostnameChange: (ev: React.SyntheticEvent) => void;
+}) {
     if (!peerResourceAllowed(application) || !hasFeature(Feature.NEW_VM_UI)) return null;
 
     return (

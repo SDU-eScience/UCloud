@@ -56,7 +56,7 @@ class LicenseApi extends ResourceApi<License, ProductLicense, LicenseSpecificati
         super("licenses");
     }
 
-    retrieveOperations(): Operation<License, ResourceBrowseCallbacks<License>>[] {
+    retrieveOperations(): Operation<License, ResourceBrowseCallbacks<License, ProductLicense>>[] {
         const res = super.retrieveOperations();
         const createOp = res.find(it => it.tag === CREATE_TAG);
         if (createOp) createOp.text = "Activate license";

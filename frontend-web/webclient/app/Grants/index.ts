@@ -117,8 +117,22 @@ export function updateRequestSettings(
     return apiUpdate(request, baseContext, "updateRequestSettings");
 }
 
+export function updateRequestSettingsAdmin(
+    request: ProjectToSetting,
+): APICallParameters<unknown, {}> {
+    return apiUpdate(request, baseContext, "updateRequestSettingsAdmin");
+}
+
 export function retrieveRequestSettings(): APICallParameters<unknown, RequestSettings> {
     return apiRetrieve({}, baseContext, "requestSettings");
+}
+
+export function retrieveRequestSettingsAdmin(projectId: FindByStringId): APICallParameters<unknown, RequestSettings> {
+    return apiRetrieve(projectId, baseContext, "requestSettingsAdmin");
+}
+
+export function browseEnabledProjects(): APICallParameters<unknown, {}> {
+    return apiBrowse({}, baseContext, "browseEnabledProjects");
 }
 
 // Types
@@ -214,12 +228,8 @@ interface GrantGiverInitiatedForm {
 }
 
 export interface AnswerFieldForm {
-    name: string;
-    title: string;
     answer: string;
-    
-    // frontend only - is used to clear outdated fields
-    markAsDone: boolean;
+    field: FormField;
 }
 
 interface StructuredForm {
@@ -299,6 +309,7 @@ export interface Status {
 export interface GrantGiverApprovalState {
     projectId: string;
     projectTitle: string;
+    lastUpdatedBy: string;
     state: State;
 }
 
@@ -332,14 +343,16 @@ export interface TemplateStructured {
     existingProject: FormField[];
 }
 
-export type TemplateKey = "personalProject" | "newProject" | "existingProject";
+export type TemplateKey = keyof TemplateStructured;
 
 export interface Templates {
     type: "structured"
     structured: TemplateStructured;
-    personalProject: string;
-    newProject: string;
-    existingProject: string;
+}
+
+export interface ProjectToSetting {
+    projectId: string;
+    settings: RequestSettings
 }
 
 export interface RequestSettings {

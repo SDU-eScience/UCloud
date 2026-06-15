@@ -38,6 +38,10 @@ var GrantApplicationStates = []GrantApplicationState{
 	GrantApplicationStateInProgress,
 }
 
+type ProjectToSetting struct {
+	ProjectId string               `json:"projectId"`
+	Settings  GrantRequestSettings `json:"settings"`
+}
 type GrantRequestSettings struct {
 	Enabled             bool           `json:"enabled"`
 	Description         string         `json:"description"`
@@ -198,30 +202,107 @@ func (f FormType) Valid() bool {
 	}
 }
 
-func ParseFormFields(text string) []FormField {
-	normalizeTitle := func(title string) string {
-		words := strings.Split(title, " ")
-		if len(words) == 0 {
-			return title
-		}
-
-		builder := words[0]
-
-		for i := 1; i < len(words); i++ {
-			word := words[i]
-
-			builder += " "
-
-			if word == strings.ToUpper(word) || word == strings.ToLower(word) {
-				builder += word
-			} else {
-				builder += strings.ToLower(word)
-			}
-		}
-
-		return builder
+func normalizeTitle(title string) string {
+	words := strings.Split(title, " ")
+	if len(words) == 0 {
+		return title
 	}
 
+	builder := words[0]
+
+	for i := 1; i < len(words); i++ {
+		word := words[i]
+
+		builder += " "
+		builder += " "
+
+		if word == strings.ToUpper(word) || word == strings.ToLower(word) {
+			builder += word
+		} else {
+			builder += strings.ToLower(word)
+		}
+	}
+	return builder
+}
+
+func ParseAnswerFormFields(text string) []AnswerFieldForm {
+	lines := strings.Split(text, "\n")
+
+	var sectionSeparators []int
+	for i, line := range lines {
+		if strings.HasPrefix(line, "---") {
+			allDashes := true
+			for _, r := range line {
+				if r != '-' {
+					allDashes = false
+					break
+				}
+			}
+
+			if allDashes {
+				sectionSeparators = append(sectionSeparators, i)
+			}
+		}
+	}
+	var titles []string
+	for _, lineIdx := range sectionSeparators {
+		if lineIdx > 0 {
+			titles = append(titles, lines[lineIdx-1])
+		}
+	}
+
+	var answers []string
+	currentStartLine := 0
+
+	for i := 0; i <= len(sectionSeparators); i++ {
+		end := len(lines)
+
+		if i < len(sectionSeparators) {
+			end = sectionSeparators[i] - 1
+		}
+
+		var builder strings.Builder
+
+		for row := currentStartLine; row < end; row++ {
+			builder.WriteString(lines[row])
+			builder.WriteString("\n")
+		}
+
+		answer := strings.TrimSpace(builder.String())
+
+		if answer != "" {
+			answers = append(answers, answer)
+		}
+
+		currentStartLine = end + 2
+	}
+	var result []AnswerFieldForm
+
+	for i := 0; i < len(titles); i++ {
+		answer := ""
+		if i < len(answers) {
+			answer = answers[i]
+		}
+
+		title := normalizeTitle(titles[i])
+
+		field := AnswerFieldForm{
+			Answer: answer,
+			Field: FormField{
+				Name:        "",
+				Title:       title,
+				Description: "",
+				Optional:    false,
+				Rows:        util.OptValue(5),
+				MaxLength:   util.OptValue(4000),
+			},
+		}
+		result = append(result, field)
+	}
+	return util.NonNilSlice(result)
+}
+
+func ParseFormFields(text string) []FormField {
 	lines := strings.Split(text, "\n")
 
 	var sectionSeparators []int
@@ -377,9 +458,8 @@ func ParseFormFields(text string) []FormField {
 }
 
 type AnswerFieldForm struct {
-	Name   string `json:"name"`
-	Title  string `json:"title"`
-	Answer string `json:"answer"`
+	Answer string    `json:"answer"`
+	Field  FormField `json:"field"`
 }
 
 type Form struct {
@@ -507,21 +587,24 @@ type GrantStatus struct {
 }
 
 type GrantGiverApprovalState struct {
-	ProjectId string                `json:"projectId"`
-	State     GrantApplicationState `json:"state"`
+	ProjectId     string                `json:"projectId"`
+	LastUpdatedBy string                `json:"lastUpdatedBy"`
+	State         GrantApplicationState `json:"state"`
 }
 
 func (ga GrantGiverApprovalState) MarshalJSON() ([]byte, error) {
 	type wrapper struct {
-		ProjectId    string                `json:"projectId"`
-		ProjectTitle string                `json:"projectTitle"`
-		State        GrantApplicationState `json:"state"`
+		ProjectId     string                `json:"projectId"`
+		ProjectTitle  string                `json:"projectTitle"`
+		LastUpdatedBy string                `json:"lastUpdatedBy"`
+		State         GrantApplicationState `json:"state"`
 	}
 
 	w := wrapper{
-		ProjectId:    ga.ProjectId,
-		ProjectTitle: ga.ProjectId,
-		State:        ga.State,
+		ProjectId:     ga.ProjectId,
+		ProjectTitle:  ga.ProjectId,
+		LastUpdatedBy: ga.LastUpdatedBy,
+		State:         ga.State,
 	}
 	return json.Marshal(w)
 }
@@ -662,11 +745,32 @@ var GrantsDeleteComment = rpc.Call[GrantsDeleteCommentRequest, util.Empty]{
 	Roles:       rpc.RolesEndUser,
 }
 
+var GrantsBrowseEnabledProjects = rpc.Call[util.Empty, []ProjectToSetting]{
+	BaseContext: GrantsNamespace,
+	Convention:  rpc.ConventionBrowse,
+	Operation:   "browseEnabledProjects",
+	Roles:       rpc.RolesAdmin,
+}
+
+var GrantsUpdateRequestSettingsAdmin = rpc.Call[ProjectToSetting, util.Empty]{
+	BaseContext: GrantsNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Operation:   "updateRequestSettingsAdmin",
+	Roles:       rpc.RolesAdmin,
+}
+
 var GrantsUpdateRequestSettings = rpc.Call[GrantRequestSettings, util.Empty]{
 	BaseContext: GrantsNamespace,
 	Convention:  rpc.ConventionUpdate,
 	Operation:   "updateRequestSettings",
 	Roles:       rpc.RolesEndUser | rpc.RolesService,
+}
+
+var GrantsRetrieveRequestSettingsAdmin = rpc.Call[fnd.FindByStringId, GrantRequestSettings]{
+	BaseContext: GrantsNamespace,
+	Convention:  rpc.ConventionRetrieve,
+	Operation:   "requestSettingsAdmin",
+	Roles:       rpc.RoleAdmin,
 }
 
 var GrantsRetrieveRequestSettings = rpc.Call[util.Empty, GrantRequestSettings]{

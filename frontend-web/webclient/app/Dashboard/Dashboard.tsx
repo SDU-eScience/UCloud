@@ -1,12 +1,8 @@
 import {MainContainer} from "@/ui-components/MainContainer";
 import {usePage} from "@/Navigation/Redux";
 import * as React from "react";
-import {useDispatch} from "react-redux";
-import {Dispatch} from "redux";
 import {Box, Button, Flex, Icon, Image, Link, Markdown, Text} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
-import {DashboardOperations} from ".";
-import {setAllLoading} from "./Redux";
 import {APICallState, useCloudAPI} from "@/Authentication/DataHook";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import {Spacer} from "@/ui-components/Spacer";
@@ -63,13 +59,10 @@ function Dashboard(): React.ReactNode {
 
     usePage("Dashboard", SidebarTabId.NONE);
 
-    const dispatch = useDispatch();
     const invitesReload = React.useRef<() => void>(initialCall);
     const projectInvitesReload = React.useRef<() => void>(initialCall);
     const runsReload = React.useRef<() => void>(initialCall);
     const grantsReload = React.useRef<() => void>(initialCall);
-
-    const reduxOps = React.useMemo(() => reduxOperations(dispatch), [dispatch]);
 
     const [wallets, fetchWallets] = useCloudAPI<PageV2<Accounting.WalletV2>>({noop: true}, emptyPageV2);
 
@@ -78,7 +71,6 @@ function Dashboard(): React.ReactNode {
     }, []);
 
     function reload(): void {
-        reduxOps.setAllLoading(true);
         fetchNews(newsParams);
         fetchWallets(Accounting.browseWalletsV2({
             itemsPerPage: 250,
@@ -92,10 +84,16 @@ function Dashboard(): React.ReactNode {
     useSetRefreshFunction(reload);
 
     const main = (<div>
-        <Flex pt="1px" pb="24px"><Box ml="auto" /><UtilityBar zIndex={2} /></Flex>
+        <Flex pt="1px" pb="24px">
+            <Box ml="auto" />
+            <UtilityBar zIndex={2} />
+        </Flex>
         <Box>
             <DashboardNews news={news} />
-            <Invites inviteReloadRef={invitesReload} projectReloadRef={projectInvitesReload} />
+            <Invites
+                inviteReloadRef={invitesReload}
+                projectReloadRef={projectInvitesReload}
+            />
 
             <div className={GridClass}>
                 <DashboardResources wallets={wallets} />
@@ -129,11 +127,11 @@ const GridClass = injectStyle("grid", k => `
         margin-bottom: 24px;
         gap: 24px;
     }
-}   
+}
 @media screen and (max-width: 1260px) {
     ${k} > * {
         margin-bottom: 24px;
-    }   
+    }
     ${k} > *:first-child {
         margin-top: 24px;
     }
@@ -141,8 +139,8 @@ const GridClass = injectStyle("grid", k => `
 `);
 
 function Invites({projectReloadRef, inviteReloadRef}: {
-    projectReloadRef: React.RefObject<() => void>,
-    inviteReloadRef: React.RefObject<() => void>
+    projectReloadRef: React.RefObject<() => void>;
+    inviteReloadRef: React.RefObject<() => void>;
 }): React.ReactNode {
     const [showProjectInvites, setShowProjectInvites] = React.useState(true);
     const [showShareInvites, setShowShareInvites] = React.useState(true);
@@ -151,30 +149,37 @@ function Invites({projectReloadRef, inviteReloadRef}: {
         // HACK(Jonas): Hacky approach to ensure that --rowWidth is correctly set on initial mount.
         setShowProjectInvites(false);
         setShowShareInvites(false);
-    }, [])
+    }, []);
 
-    return <Flex mt="24px" style={display(showShareInvites || showProjectInvites)}>
+    return (<Flex mt="24px" style={display(showShareInvites || showProjectInvites)}>
         <DashboardCard
             icon="heroUserGroup"
             title="Invites"
         >
-            <div style={display(showProjectInvites)}><ProjectInviteBrowse
-                opts={{
-                    reloadRef: projectReloadRef,
-                    embedded: {disableKeyhandlers: true, hideFilters: false},
-                    setShowBrowser: setShowProjectInvites
-                }} /></div>
-            <div style={display(showShareInvites)}><IngoingSharesBrowse opts={{
-                reloadRef: inviteReloadRef,
-                embedded: {disableKeyhandlers: true, hideFilters: false},
-                setShowBrowser: setShowShareInvites,
-                filterState: "PENDING"
-            }} /></div>
+            <div style={display(showProjectInvites)}>
+                <ProjectInviteBrowse
+                    opts={{
+                        reloadRef: projectReloadRef,
+                        embedded: {disableKeyhandlers: true, hideFilters: false},
+                        setShowBrowser: setShowProjectInvites,
+                    }}
+                />
+            </div>
+            <div style={display(showShareInvites)}>
+                <IngoingSharesBrowse
+                    opts={{
+                        reloadRef: inviteReloadRef,
+                        embedded: {disableKeyhandlers: true, hideFilters: false},
+                        setShowBrowser: setShowShareInvites,
+                        filterState: "PENDING"
+                    }}
+                />
+            </div>
         </DashboardCard>
-    </Flex>
+    </Flex>);
 
     function display(val: boolean): {display: "none" | undefined} {
-        return {display: val ? undefined : "none"}
+        return {display: val ? undefined : "none"};
     }
 }
 
@@ -192,30 +197,37 @@ export function newsRequest(payload: NewsRequestProps): APICallParameters<Pagina
 }
 
 function DashboardRuns({reloadRef}: {reloadRef: React.RefObject<() => void>}): React.ReactNode {
-    return <DashboardCard
+    return (<DashboardCard
         linkTo={AppRoutes.jobs.list()}
         title={"Recent runs"}
         icon="heroServer"
     >
-        <JobsBrowse opts={{
-            embedded: {hideFilters: true, disableKeyhandlers: true},
-            omitBreadcrumbs: true,
-            additionalFilters: {itemsPerPage: "10"},
-            reloadRef
-        }} />
-    </DashboardCard>;
+        <JobsBrowse
+            opts={{
+                embedded: {hideFilters: true, disableKeyhandlers: true},
+                omitBreadcrumbs: true,
+                additionalFilters: {itemsPerPage: "10"},
+                reloadRef
+            }}
+        />
+    </DashboardCard>);
 }
 
 function ApplyLinkButton(): React.ReactNode {
     const project = useProject();
     const canApply = !Client.hasActiveProject || isAdminOrPI(project.fetch().status.myRole);
-    if (!canApply) return <div />
+    if (!canApply) return <div />;
 
-    return <Link
-        to={Client.hasActiveProject ? AppRoutes.grants.newApplication({projectId: Client.projectId}) : AppRoutes.grants.editor()}
-        mt={8}>
+    return (<Link
+        to={
+            Client.hasActiveProject
+                ? AppRoutes.grants.newApplication({projectId: Client.projectId})
+                : AppRoutes.grants.editor()
+        }
+        mt={8}
+    >
         <Button mt={8}>Apply for resources</Button>
-    </Link>;
+    </Link>);
 }
 
 const ROW_HEIGHT_IN_PX = 55;
@@ -276,7 +288,10 @@ function DashboardResources({wallets}: {
                                     <TableRow height={`${ROW_HEIGHT_IN_PX}px`} key={i}>
                                         <TableCell fontSize={FONT_SIZE} paddingLeft={"8px"}>
                                             <Flex alignItems="center" gap="8px" fontSize={FONT_SIZE}>
-                                                <ProviderLogo providerId={category.provider} size={30} />
+                                                <ProviderLogo
+                                                    providerId={category.provider}
+                                                    size={30}
+                                                />
                                                 <code>{category.name}</code>
                                             </Flex>
                                         </TableCell>
@@ -291,7 +306,9 @@ function DashboardResources({wallets}: {
                         </Table>
                     </Box>
                     <Box flexGrow={1} />
-                    <Flex mx="auto"><ApplyLinkButton /></Flex>
+                    <Flex mx="auto">
+                        <ApplyLinkButton />
+                    </Flex>
                 </Flex>
             }
         </DashboardCard>
@@ -309,22 +326,24 @@ function DashboardGrantApplications({reloadRef}: {reloadRef: React.RefObject<() 
         title="Grant applications"
         icon="heroDocumentCheck"
     >
-        <GrantApplicationBrowse opts={{
-            reloadRef,
-            embedded: {
-                hideFilters: true,
-                disableKeyhandlers: true,
-            },
-            both: true,
-            additionalFilters: {itemsPerPage: "10"}
-        }} />
+        <GrantApplicationBrowse
+            opts={{
+                reloadRef,
+                embedded: {
+                    hideFilters: true,
+                    disableKeyhandlers: true,
+                },
+                both: true,
+                additionalFilters: {itemsPerPage: "10"},
+            }}
+        />
     </DashboardCard>;
-};
+}
 
 function DashboardNews({news}: {news: APICallState<Page<NewsPost>>}): React.ReactNode {
     const lightTheme = useIsLightThemeStored();
 
-    const newsItem = news.data.items.length > 0 ? news.data.items[0] : null;
+    const newsItem = news.data.items.at(0);
     return (
         <DashboardCard
             linkTo={newsItem ? AppRoutes.news.detailed(newsItem.id) : "/news/list/"}
@@ -345,13 +364,15 @@ function DashboardNews({news}: {news: APICallState<Page<NewsPost>>}): React.Reac
                         <Box key={newsItem.id} mb={32}>
                             <Spacer
                                 left={<Heading.h5>{newsItem.subtitle}</Heading.h5>}
-                                right={<Heading.h5>{dateToString(newsItem.showFrom)}</Heading.h5>}
+                                right={
+                                    <Heading.h5>{dateToString(newsItem.showFrom)}</Heading.h5>
+                                }
                             />
 
                             <Box maxHeight={240} overflow={"auto"} pr={16}>
                                 <Markdown
                                     components={{
-                                        a: LinkBlock,
+                                        a: (p) => <LinkBlock href={p.href}>{p.children}</LinkBlock>,
                                     }}
                                     unwrapDisallowed
                                     remarkPlugins={[remarkGfm]}
@@ -362,22 +383,37 @@ function DashboardNews({news}: {news: APICallState<Page<NewsPost>>}): React.Reac
                         </Box>
                     }
                 </div>
-                {onSandbox() ? <>
-                    <Flex gap={"16px"} flexDirection={"column"} justifyContent={"center"} alignItems={"end"} ml={"16px"} mr={"64px"}>
-                        <Image src={lightTheme ? interreg : interregWhite} alt={"Interreg"} width={"500px"} />
-                        <Image src={lightTheme ? halric : halricWhite} alt={"HALRIC"} width={"70px"} ml={"16px"} />
+                {onSandbox() ? (
+                    <Flex
+                        gap={"16px"}
+                        flexDirection={"column"}
+                        justifyContent={"center"}
+                        alignItems={"end"}
+                        ml={"16px"}
+                        mr={"64px"}
+                    >
+                        <Image
+                            src={lightTheme ? interreg : interregWhite}
+                            alt={"Interreg"}
+                            width={"500px"}
+                        />
+                        <Image
+                            src={lightTheme ? halric : halricWhite}
+                            alt={"HALRIC"}
+                            width={"70px"}
+                            ml={"16px"}
+                        />
                     </Flex>
-                </> : <>
-                    <img style={{zIndex: 1}} alt={"UCloud logo"} src={ucloudImage} />
-                </>}
-
+                ) : <img style={{zIndex: 1}} alt={"UCloud logo"} src={ucloudImage} />}
             </div>
-        </DashboardCard>
+        </DashboardCard >
     );
 }
 
-function LinkBlock(props: {href?: string; children: React.ReactNode & React.ReactNode[]}) {
-    return <ExternalLink color={"primaryMain"} href={props.href}>{props.children}</ExternalLink>;
+function LinkBlock(props: {href?: string; children: React.ReactNode}) {
+    return <ExternalLink color={"primaryMain"} href={props.href}>
+        {props.children}
+    </ExternalLink>;
 }
 
 const NewsClass = injectStyle("with-graphic", k => `
@@ -385,7 +421,7 @@ const NewsClass = injectStyle("with-graphic", k => `
         display: flex;
         height: 270px;
     }
-    
+
     ${k}.halric {
         flex-wrap: wrap;
         height: unset;
@@ -396,7 +432,7 @@ const NewsClass = injectStyle("with-graphic", k => `
         flex-grow: 4;
         margin-right: 32px;
     }
-    
+
     ${k} > div:nth-child(2) {
         flex-basis: 550px;
         flex-grow: 1;
@@ -410,7 +446,7 @@ const NewsClass = injectStyle("with-graphic", k => `
          position: relative;
          top: -112px;
     }
-    
+
     ${k} h5 {
         margin: 0;
         margin-bottom: 10px;
@@ -421,18 +457,12 @@ const NewsClass = injectStyle("with-graphic", k => `
         display: none;
         width: 0px;
     }
-    
+
     ${k} > div {
         width: 100%;
     }
 }
 `);
-
-function reduxOperations(dispatch: Dispatch): DashboardOperations {
-    return {
-        setAllLoading: loading => dispatch(setAllLoading(loading)),
-    };
-}
 
 const DashboardCard: React.FunctionComponent<{
     title: string;
@@ -441,15 +471,23 @@ const DashboardCard: React.FunctionComponent<{
     children: React.ReactNode;
     overflow?: string;
 }> = props => {
-    return <TitledCard
-        title={props.linkTo ? <Link to={props.linkTo}><Heading.h3>{props.title} <Icon mt="-4px"
-            name="heroArrowTopRightOnSquare" /></Heading.h3></Link> :
-            <Heading.h3>{props.title}</Heading.h3>}
-        icon={props.icon}
-        overflow={props.overflow}
-    >
-        {props.children}
-    </TitledCard>
-}
+    return (
+        <TitledCard
+            title={
+                props.linkTo ?
+                    <Link to={props.linkTo}>
+                        <Heading.h3>
+                            {props.title} <Icon mt="-4px" name="heroArrowTopRightOnSquare" />
+                        </Heading.h3>
+                    </Link> :
+                    <Heading.h3>{props.title}</Heading.h3>
+            }
+            icon={props.icon}
+            overflow={props.overflow}
+        >
+            {props.children}
+        </TitledCard>
+    );
+};
 
 export default Dashboard;

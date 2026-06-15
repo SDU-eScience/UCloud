@@ -1,4 +1,4 @@
-import {Operation, ShortcutKey} from "@/ui-components/Operation";
+import {Operation, OperationEnabled, ShortcutKey} from "@/ui-components/Operation";
 import {IconName} from "@/ui-components/Icon";
 import {
     ThemeColor,
@@ -29,7 +29,7 @@ import {injectStyle as unstyledInjectStyle} from "@/Unstyled";
 import {InputClass} from "./Input";
 import {getStartOfDay} from "@/Utilities/DateUtilities";
 import {createPortal} from "react-dom";
-import {ProjectSwitcher, FilterInputClass, projectCache} from "@/Project/ProjectSwitcher";
+import {ProjectSwitcher, FilterInputClass, projectCache, fetchProjects} from "@/Project/ProjectSwitcher";
 import {addProjectListener, removeProjectListener} from "@/Project/ReduxState";
 import {ProductType, ProductV2} from "@/Accounting";
 import ProviderInfo from "@/Assets/provider_info.json";
@@ -46,10 +46,13 @@ import Flex, {FlexClass} from "./Flex";
 import * as Heading from "@/ui-components/Heading";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {isAdminOrPI} from "@/Project";
-import {callAPI, noopCall} from "@/Authentication/DataHook";
+import {noopCall} from "@/Authentication/DataHook";
 import {injectResourceBrowserStyle, ShortcutClass} from "./ResourceBrowserStyle";
 import {ASC, DESC, Filter, FilterCheckbox, FilterInput, FilterOption, FilterWithOptions, MultiOption, MultiOptionFilter, SORT_BY, SORT_DIRECTION} from "./ResourceBrowserFilters";
 import {sendInformationNotification} from "@/Notifications";
+import {UFile} from "@/UCloud/UFile";
+import ReactClient from "react-dom/client";
+import {VmActionItem, VmActionSplitButton} from "@/Applications/Jobs/VmActionSplitButton";
 
 const CLEAR_FILTER_VALUE = "\n\nCLEAR_FILTER\n\n";
 const UTILITY_COLOR: ThemeColor = "textPrimary";
@@ -126,7 +129,7 @@ export interface ResourceBrowseHeaderControls {
 
 export type OperationOrGroup<T, R> = Operation<T, R> | OperationGroup<T, R>;
 
-export function isOperation<T, R>(op: OperationOrGroup<unknown, unknown>): op is Operation<T, R> {
+export function isOperation<T, R>(op: OperationOrGroup<T, R>): op is Operation<T, R> {
     return !("operations" in op);
 }
 
@@ -138,6 +141,8 @@ export interface OperationGroup<T, R> {
     backgroundColor?: ThemeColor,
     operations: Operation<T, R>[];
     iconRotation?: number;
+    operationGroupId?: string;
+    buttonStyle?: string
 }
 
 export enum SelectionMode {
@@ -198,7 +203,7 @@ interface ResourceBrowserListenerMap<T> {
 
     "renderEmptyPage": (reason: EmptyReason) => void;
 
-    "fetchOperations": () => OperationOrGroup<T, unknown>[];
+    "fetchOperations": () => OperationOrGroup<T, any>[];
     "fetchOperationsCallback": () => unknown | null;
     "fetchBrowserFeatures": () => ControlDescription[] | undefined;
 
@@ -411,9 +416,12 @@ export class ResourceBrowser<T> {
     };
     // Note(Jonas): To use for project change listening.
     private initialPath: string | undefined = "";
+    private uniqueListenerId: string;
 
     constructor(root: HTMLElement, resourceName: string, opts: ResourceBrowserOpts<T> | undefined) {
         this.root = root;
+        this.uniqueListenerId = resourceName + Math.random().toString();
+
         this.resourceName = resourceName;
         this.isModal = !!opts?.isModal;
         ResourceBrowser.isAnyModalOpen = ResourceBrowser.isAnyModalOpen || this.isModal;
@@ -546,8 +554,8 @@ export class ResourceBrowser<T> {
             if (!this.root.isConnected) {
                 this.dispatchMessage("unmount", fn => fn());
                 if (this.isModal) ResourceBrowser.isAnyModalOpen = false;
-                removeThemeListener(this.resourceName);
-                removeProjectListener(this.resourceName);
+                removeThemeListener(this.uniqueListenerId);
+                removeProjectListener(this.uniqueListenerId);
 
                 window.clearInterval(unmountInterval);
             }
@@ -854,25 +862,25 @@ export class ResourceBrowser<T> {
 
         this.scrolling.append(...rows);
 
-        addThemeListener(this.resourceName, () => {
+        addThemeListener(this.uniqueListenerId, () => {
             this.rerender();
             this.rerenderUtilityIcons();
         });
         const path = this.initialPath;
         if (path !== undefined) {
-            const evaluateProjectStatus = (projectId?: string | null) => {
-                this.canConsumeResources = checkCanConsumeResources(
+            const evaluateProjectStatus = async (projectId?: string | null) => {
+                this.canConsumeResources = await checkCanConsumeResources(
                     projectId ?? null,
                     this.dispatchMessage("fetchOperationsCallback", fn => fn()) as unknown as null | {
                         api: {isCoreResource: boolean}
                     },
                 );
-                if (!this.canConsumeResources) {
-                    this.renderCantConsumeResources();
-                }
+
+                this.rerender();
             };
 
-            addProjectListener(this.resourceName, project => {
+
+            addProjectListener(this.uniqueListenerId, project => {
                 evaluateProjectStatus(project);
             });
 
@@ -1569,6 +1577,63 @@ export class ResourceBrowser<T> {
         }
     }
 
+    private renderVmActionSplitButton(
+        opGroup: OperationGroup<T, unknown>,
+        selected: T[],
+        callbacks: unknown,
+        page: T[]
+    ): HTMLElement {
+        const container = document.createElement("div");
+        container.className = "operation";
+        container.style.display = "flex";
+
+        const root = ReactClient.createRoot(container);
+
+        const mainOp = opGroup.operations[0];
+        const rest = opGroup.operations.slice(1);
+
+        const enableResult: OperationEnabled = mainOp.enabled(selected, callbacks, page);
+        const isEnabled = enableResult === true;
+
+
+        const getText = (op): string => {
+            return typeof op.text === "string" ? op.text : op.text(selected, callbacks);
+        }
+        // Rest are menu items
+        const menuItems: VmActionItem[] = rest.map((childOp, idx) => ({
+            key: idx.toString(),
+            value: getText(childOp),
+            icon: childOp.icon ?? "questionSolid",
+            color: childOp.color ?? "textPrimary",
+            shortcut: childOp.shortcut,
+        }));
+        root.render(
+            <div onClick={stopPropagationAndPreventDefault}>
+                <VmActionSplitButton
+                    tone="none"
+                    disabled={!isEnabled}
+                    buttonColor={mainOp.color ?? "secondaryMain"}
+                    buttonText={getText(mainOp)}
+                    buttonIcon={mainOp.icon ?? "ellipsis"}
+                    menuItems={menuItems}
+                    shortcut={mainOp.shortcut}
+                    onSelectMenuItem={(item) => {
+                        const foundOp = rest[parseInt(item.key)];
+                        if (foundOp && foundOp.enabled(selected, callbacks, page) === true) {
+                            foundOp.onClick(selected, callbacks, page);
+                        }
+                    }}
+                    onButtonClick={() => {
+                        mainOp.onClick(selected, callbacks, page);
+                    }}
+                />
+            </div>
+        );
+
+        return container;
+    }
+
+
     private renderOperationsIn(useContextMenu: boolean, contextOpts?: {
         x: number,
         y: number,
@@ -1598,7 +1663,7 @@ export class ResourceBrowser<T> {
         const page = this.cachedData[this.currentPath] ?? [];
 
         const renderOpIconAndText = (
-            op: OperationOrGroup<unknown, unknown>,
+            op: OperationOrGroup<T, any>,
             element: HTMLElement,
             shortcut?: string,
             inContextMenu?: boolean
@@ -1726,7 +1791,7 @@ export class ResourceBrowser<T> {
         }
 
         const renderOperationsInContextMenu = (
-            operations: OperationOrGroup<T, unknown>[],
+            operations: OperationOrGroup<T, any>[],
             posX: number,
             posY: number,
             counter: number = 1,
@@ -1879,7 +1944,13 @@ export class ResourceBrowser<T> {
             const target = this.operations;
             target.innerHTML = "";
             for (const op of operations) {
-                target.append(renderOperation(op));
+                if ("buttonStyle" in op && op.buttonStyle === "split") {
+                    // Rendering SplitButton
+                    target.append(this.renderVmActionSplitButton(op, selected, callbacks, page));
+                }
+                else {
+                    target.append(renderOperation(op));
+                }
             }
         } else {
             const posX = contextOpts?.x ?? 0;
@@ -3698,10 +3769,10 @@ export function checkIsWorkspaceAdmin(): boolean {
     return isAdminOrPI(project.status.myRole);
 }
 
-export function checkCanConsumeResources(
+export async function checkCanConsumeResources(
     projectId: string | null,
     callbacks: null | {api: {isCoreResource: boolean}},
-): boolean {
+): Promise<boolean> {
     if (!projectId) return true;
     if (!callbacks) return true;
 
@@ -3710,8 +3781,7 @@ export function checkCanConsumeResources(
 
     if (api.isCoreResource) return true;
 
-    const project = projectCache.retrieveFromCacheOnly("")?.items.find(it => it.id === projectId);
-    // Don't consider yet-to-be-fetched projects as non-consumer
+    const project = (await projectCache.retrieve("", fetchProjects)).items.find(it => it.id === projectId);
     if (!project) return true;
 
     return project.specification.canConsumeResources !== false;
@@ -3755,12 +3825,12 @@ interface ShortcutProps {
     keys: string | string[];
 }
 
-const Shortcut: React.FunctionComponent<ShortcutProps> = props => {
+export const Shortcut: React.FunctionComponent<ShortcutProps> = props => {
     const normalizedKeys = typeof props.keys === "string" ? [props.keys] : props.keys;
     return <tr>
         <td>{props.name}</td>
         <td>
-            <Flex gap={"4px"} justifyContent={"end"}>
+            <Flex gap={"8px"} justifyContent={"end"}>
                 {normalizedKeys.map(((k, i) =>
                     <React.Fragment key={i}>
                         {i > 0 && <> or </>}
@@ -3844,7 +3914,7 @@ function ControlsDialog({features, custom}: {features: ResourceBrowseFeatures, c
     </div>
 }
 
-export function controlsOperation(features: ResourceBrowseFeatures, custom?: ControlDescription[]): Operation<unknown, {
+export function controlsOperation<T>(features: ResourceBrowseFeatures, custom?: ControlDescription[]): Operation<T, {
     isModal?: boolean
 }> & {hackNotInTheContextMenu: true} {
     return {
@@ -3868,3 +3938,4 @@ export function favoriteRowIcon(row: ResourceBrowserRow) {
     }
     return favoriteIcon;
 }
+

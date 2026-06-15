@@ -156,11 +156,12 @@ export function findSupport<S extends ProductSupport = ProductSupport>(
         ?.find(it => it.product.name === ref.id && it.product.category.name === ref.category) ?? null as any;
 }
 
-export interface ResourceBrowseCallbacks<Res extends Resource> {
+export interface ResourceBrowseCallbacks<Res extends Resource, Prod extends Product = Product, Spec extends ResourceSpecification = ResourceSpecification> {
     commandLoading: boolean;
     invokeCommand: InvokeCommand;
+    isModal?: boolean;
     reload: () => void;
-    api: ResourceApi<Res, never>;
+    api: ResourceApi<Res, Prod, Spec>;
     isCreating: boolean;
     startCreation?: () => void;
     cancelCreation?: () => void;
@@ -224,16 +225,16 @@ export abstract class ResourceApi<Res extends Resource,
         resource?: Res;
         reload?: () => void;
         closeProperties?: () => void;
-        api: ResourceApi<Res, Prod, Spec, Update, Flags, Status, Support>;
+        api: ResourceApi<Res, Prod, Spec>;
         embedded?: EmbeddedSettings;
-    }> = props => <MainContainer main={<ResourceProperties {...props} api={this} />} />
+    }> = props => <MainContainer main={<ResourceProperties {...props} api={this as ResourceApi<Res, Prod, Spec>} />} />
 
     protected constructor(namespace: string) {
         this.namespace = namespace;
         this.baseContext = "/api/" + namespace.replace(".", "/") + "/";
     }
 
-    public retrieveOperations(): Operation<Res, ResourceBrowseCallbacks<Res>>[] {
+    public retrieveOperations(): Operation<Res, ResourceBrowseCallbacks<Res, Prod>>[] {
         return [
             {
                 text: "Back to " + this.titlePlural.toLowerCase(),

@@ -145,11 +145,11 @@ interface DropEventFolder {
     fileFetcher: () => Promise<PackagedFile[] | null>;
 }
 
-export async function filesFromDropOrSelectEvent(event): Promise<DropEvent[]> {
+export async function filesFromDropOrSelectEvent(event: React.DragEvent): Promise<DropEvent[]> {
     const dataTransfer = event.dataTransfer;
     if (!dataTransfer) {
         const files: PackagedFile[] = [];
-        const inputFieldFileList = event.target && event.target.files;
+        const inputFieldFileList: File[] | undefined = event.target && event.target["files"];
         const fileList = inputFieldFileList || [];
 
         for (let i = 0; i < fileList.length; i++) {
@@ -157,18 +157,22 @@ export async function filesFromDropOrSelectEvent(event): Promise<DropEvent[]> {
         }
 
         return files.map(file => {
-            const thisFile = new Promise<PackagedFile>((resolve) => resolve(file));    
+            const thisFile = new Promise<PackagedFile>((resolve) => resolve(file));
             return {type: "single", file: thisFile}
         });
     }
 
     const entries: FileSystemEntry[] = [];
-    [].slice.call(dataTransfer.items).forEach((listItem) => {
-        if (typeof listItem.webkitGetAsEntry === 'function') {
-            const entry: FileSystemEntry = listItem.webkitGetAsEntry();
-            entries.push(entry);
+    [...dataTransfer.items].forEach((listItem) => {
+        if (typeof listItem['webkitGetAsEntry'] === 'function') {
+            /* TODO(Jonas): The FileSystemEntry is now defined by TS-definitions, but they don't match with the file-local version */
+            const entry: FileSystemEntry | null = listItem.webkitGetAsEntry() as unknown as FileSystemEntry;
+            if (entry) {
+                entries.push(entry);
+            }
         } else {
-            const theFile: File = listItem.getAsFile();
+            const theFile: File | null = listItem.getAsFile();
+            if (!theFile) return;
 
             const entry: FileSystemEntry = {
                 filesystem: 1,

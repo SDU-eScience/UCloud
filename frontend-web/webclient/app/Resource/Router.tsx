@@ -1,15 +1,16 @@
 import * as React from "react";
-import {Resource, ResourceApi} from "@/UCloud/ResourceApi";
+import {Resource, ResourceApi, ResourceSpecification} from "@/UCloud/ResourceApi";
 import {PropsWithChildren, ReactElement} from "react";
 import {Route, Routes} from "react-router-dom";
+import {Product} from "@/Accounting";
 
-interface RouterProps<T extends Resource> {
-    api: ResourceApi<T, never>;
+interface RouterProps<R extends Resource, P extends Product, S extends ResourceSpecification> {
+    api: ResourceApi<R, P, S>;
     Browser: React.FunctionComponent;
     Create?: React.FunctionComponent;
 }
 
-export function ResourceRouter<T extends Resource>(props: PropsWithChildren<RouterProps<T>>): ReactElement | null {
+export function ResourceRouter<T extends Resource, P extends Product, S extends ResourceSpecification>(props: PropsWithChildren<RouterProps<T, P, S>>): ReactElement | null {
     const Properties = props.api.Properties;
     return <Routes>
         <Route path={"/"} element={<props.Browser />} />

@@ -80,7 +80,7 @@ class PrivateNetworkApi extends ResourceApi<
         super("private-networks");
     }
 
-    public retrieveOperations(): Operation<PrivateNetwork, ResourceBrowseCallbacks<PrivateNetwork>>[] {
+    public retrieveOperations(): Operation<PrivateNetwork, ResourceBrowseCallbacks<PrivateNetwork, Product>>[] {
         const ops = super.retrieveOperations();
         const create = ops.find(it => it.tag === CREATE_TAG);
         if (create) {

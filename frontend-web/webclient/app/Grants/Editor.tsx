@@ -1,7 +1,7 @@
 import * as Accounting from "@/Accounting";
 import {callAPI, callAPIWithErrorHandler} from "@/Authentication/DataHook";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {UserAvatar} from "@/AvataaarLib/UserAvatar";
+import {AvatarForUser, UserAvatar} from "@/AvataaarLib/UserAvatar";
 import {useAvatars} from "@/AvataaarLib/hook";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {ProjectLogo} from "@/Grants/ProjectLogo";
@@ -10,11 +10,7 @@ import {usePage} from "@/Navigation/Redux";
 import {isAdminOrPI, Project} from "@/Project";
 import * as Projects from "@/Project/Api";
 import {useProjectId} from "@/Project/Api";
-import {
-    projectInfosTitle,
-    ProjectTitleForNewCore,
-    useProjectInfos
-} from "@/Project/InfoCache";
+import {projectInfosTitle, ProjectTitleForNewCore, useProjectInfos} from "@/Project/InfoCache";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
 import AppRoutes from "@/Routes";
@@ -43,6 +39,7 @@ import * as React from "react";
 import {useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef} from "react";
 import {useLocation, useNavigate} from "react-router-dom";
 import * as Grants from ".";
+import {State} from ".";
 import {ChangeOrganizationDetails, OptionalInfo, optionalInfoRequest, optionalInfoUpdate} from "@/UserSettings/ChangeUserDetails";
 import {useSelector} from "react-redux";
 import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
@@ -75,6 +72,7 @@ interface EditorState {
 
         overallState: Grants.State;
         stateByGrantGiver: Record<string, Grants.State>;
+        stateUpdaterByGrantGiver: Record<string, string>;
 
         title: string;
         recipient: Grants.Recipient;
@@ -96,9 +94,11 @@ interface EditorState {
     possibleTransfers: Allocators[];
     allocators: Allocators[];
 
-    applicationForms: Grants.FormField[];
+    createApplicationForms: Grants.FormField[];
+
+    // Used for the legacy way of displaying
     outdatedFields: Grants.AnswerFieldForm[];
-    applicationDocument: Record<string, Grants.AnswerFieldForm>;
+    applicationAnswers: Record<string, Grants.AnswerFieldForm>;
 
     resources: Record<string, ResourceCategory[]>;
 }
@@ -145,8 +145,8 @@ const defaultState: EditorState = {
         durationInMonths: 12
     },
     possibleTransfers: [],
-    applicationForms: [],
-    applicationDocument: {},
+    createApplicationForms: [],
+    applicationAnswers: {},
     outdatedFields: [],
     loading: false,
     principalInvestigator: Client.activeUsername ?? "",
@@ -154,8 +154,8 @@ const defaultState: EditorState = {
     fullScreenLoading: true,
 };
 
-type OutdatedTextAreaProps = {
-  field: Grants.AnswerFieldForm;
+interface OutdatedTextAreaProps {
+    field: Grants.AnswerFieldForm;
 };
 
 // State reducer
@@ -163,29 +163,29 @@ type OutdatedTextAreaProps = {
 type EditorAction =
     | {type: "GrantLoaded", grant: Grants.Application, wallets: Accounting.WalletV2[]}
     | {
-        type: "GrantGiverInitiatedLoaded",
-        wallets: Accounting.WalletV2[],
-        start: number,
-        end: number,
-        title: string,
-        projectId?: string,
-        piUsernameHint: string
-    }
+    type: "GrantGiverInitiatedLoaded",
+    wallets: Accounting.WalletV2[],
+    start: number,
+    end: number,
+    title: string,
+    projectId?: string,
+    piUsernameHint: string
+}
     | {type: "AllocatorsLoaded", allocators: Grants.GrantGiver[], recipientType?: Grants.Recipient["type"]}
     | {type: "DurationUpdated", month?: number, year?: number, duration?: number}
     | {type: "DurationWarning", durationWarning: string}
     | {type: "AllocatorChecked", isChecked: boolean, allocatorId: string}
     | {
-        type: "BalanceUpdated",
-        provider: string,
-        category: string,
-        allocator: string,
-        balance: number | null,
-    }
+    type: "BalanceUpdated",
+    provider: string,
+    category: string,
+    allocator: string,
+    balance: number | null,
+}
     | {type: "SetIsCreating", stateDuringCreate?: EditorState["stateDuringCreate"]}
     | {type: "RecipientUpdated", isCreatingNewProject: boolean, reference?: string}
     | {type: "ProjectsReloaded", projects: {id: string | null, title: string}[]}
-    | {type: "ApplicationUpdated", name: string, title: string, answer: string}
+    | {type: "ApplicationUpdated", answer: string, field: Grants.FormField}
     | {type: "LoadingStateChange", isLoading: boolean}
     | {type: "ReferenceIdUpdated", newReferenceId: string, idx: number}
     | {type: "CleanupReferenceIds"}
@@ -199,7 +199,6 @@ type EditorAction =
     | {type: "UpdateFullScreenError", error: string}
     | {type: "SetResourceError", provider: string, category: string, allocator: string, message: string}
     | {type: "Reset"}
-    | {type: "MarkOutdatedFieldDone", fieldName: string}
     ;
 
 function stateReducer(state: EditorState, action: EditorAction): EditorState {
@@ -253,11 +252,13 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                 switch (type) {
                     case "personalWorkspace":
                         return "personalProject";
-                    default: return type;
+                    default:
+                        return type;
                 }
             }
 
             if (state.stateDuringCreate) {
+                state.applicationAnswers = {}; // Clearing previous forms
                 if (state.stateDuringCreate.creatingWorkspace) {
                     templateKey = "newProject";
                 } else if (state.stateDuringCreate.reference) {
@@ -278,7 +279,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             for (const allocator of action.allocators) {
                 const existing = newAllocators.find(it => it.id === allocator.id);
                 const forms = allocator.templates.structured[templateKey];
-                const sameForm = existing?.template === forms && existing?.template.every((val, i) => val === forms[i]);
+                const sameForm = existing?.template.every((val, i) => val === forms[i]);
                 if (!existing) {
                     newAllocators.push({
                         id: allocator.id, title: allocator.title, description: allocator.description,
@@ -287,7 +288,6 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                 } else if (!sameForm) {
                     newAllocators[i] = {...existing, template: forms};
                 }
-                
 
                 for (const category of allocator.categories) {
                     let sectionForProvider = newResources[category.provider];
@@ -316,14 +316,16 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                 arr.sort((a, b) => Accounting.categoryComparator(a.category, b.category));
             }
 
-            const forms = action.allocators.filter(it => newAllocators.find(existing => existing.id === it.id)?.checked === true).flatMap(it => it.templates.structured[templateKey])
-            
+            const forms = action.allocators
+                .filter(it => newAllocators.find(existing => existing.id === it.id)?.checked === true)
+                .flatMap(it => it.templates.structured[templateKey])
+
             return {
                 ...state,
                 possibleTransfers: newAllocators,
                 allocators: newAllocators,
                 resources: newResources,
-                applicationForms: forms,
+                createApplicationForms: forms,
             };
         }
 
@@ -364,6 +366,10 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                     stateByGrantGiver: createRecordFromArray(
                         action.grant.status.stateBreakdown,
                         value => [value.projectId, value.state]
+                    ),
+                    stateUpdaterByGrantGiver: createRecordFromArray(
+                        action.grant.status.stateBreakdown,
+                        value => [value.projectId, value.lastUpdatedBy]
                     ),
                     overallState: action.grant.status.overallState,
                     document: action.grant.currentRevision.document,
@@ -414,6 +420,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                     },
                     overallState: Grants.State.IN_PROGRESS,
                     stateByGrantGiver: {},
+                    stateUpdaterByGrantGiver: {},
                     allowWithdrawal: false,
                     newestRevision: 0,
                     revisions: [{revisionNumber: 0, updatedBy: Client.username ?? "?", createdAt: timestampUnixMs()}],
@@ -471,23 +478,12 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
         }
 
         case "ApplicationUpdated": {
-            const newContents = {...state.applicationDocument};
-            newContents[action.name] = {name: action.name, title: action.title, answer: action.answer, markAsDone: false };
+            const newContents = {...state.applicationAnswers};
+            newContents[action.field.name] = {field: action.field, answer: action.answer};
 
             return {
                 ...state,
-                applicationDocument: newContents,
-            };
-        }
-
-        case "MarkOutdatedFieldDone": {
-            return {
-                ...state,
-                outdatedFields: state.outdatedFields.map(field =>
-                    field.name === action.fieldName
-                        ? {...field, markAsDone: !field.markAsDone}
-                        : field
-                )
+                applicationAnswers: newContents,
             };
         }
 
@@ -517,7 +513,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             return {
                 ...state,
                 allocators: newAllocators,
-                applicationForms: forms,
+                createApplicationForms: forms,
             }
         }
 
@@ -655,6 +651,9 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                     ...state.stateDuringEdit,
                     stateByGrantGiver: {
                         ...state.stateDuringEdit.stateByGrantGiver,
+                    },
+                    stateUpdaterByGrantGiver: {
+                        ...state.stateDuringEdit.stateUpdaterByGrantGiver,
                     }
                 }
             };
@@ -776,20 +775,31 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
         const forms = isGrantGiverInitiated ? [grantGiverInitiatedForm] : newAllocators.flatMap(it => it.template);
         const newApplication = forms
         var outdatedFields: Grants.AnswerFieldForm[] = [];
-        const newApplicationDocument: EditorState["applicationDocument"] = {};
+        const newApplicationDocument: EditorState["applicationAnswers"] = {};
 
         if (doc.form.type == "structured") {
-            for(var userAnswer of doc.form.fields) {
-                
-                const hasField = newApplication.some(i => i.name === userAnswer.name);
-                if (hasField) {
-                    newApplicationDocument[userAnswer.name] = userAnswer;
-                } else {
-                    outdatedFields.push(userAnswer);
-                }
+            if (doc.form.fields.length == 0) {
+                outdatedFields.push({
+                    answer: doc.form.text,
+                    field: {
+                        name: "",
+                        title: "",
+                        description: "",
+                        optional: true
+                    }
 
+                })
+            }
+            for (const userAnswer of doc.form.fields) {
+                if (userAnswer.field.name === "" && userAnswer.field.title) {
+                    userAnswer.field.name = userAnswer.field.title;
+                    newApplicationDocument[userAnswer.field.name] = userAnswer;
+                } else {
+                    newApplicationDocument[userAnswer.field.name] = userAnswer;
+                }
             }
         }
+
 
         let startDate = new Date(Date.now())
         if (doc.allocationPeriod?.start != null) {
@@ -834,9 +844,9 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             ...state,
             allocators: newAllocators,
             resources: newResources,
-            applicationForms: newApplication,
+            createApplicationForms: newApplication,
             outdatedFields: outdatedFields,
-            applicationDocument: newApplicationDocument,
+            applicationAnswers: newApplicationDocument,
             allocationPeriod: state.stateDuringEdit.id === GRANT_GIVER_INITIATED_ID ? state.allocationPeriod : {
                 start: {
                     month: startMonth,
@@ -927,10 +937,14 @@ function useStateReducerMiddleware(
 
                     const recipientType = ((type: Grants.RetrieveGrantGiversRequest["type"]): Grants.Recipient["type"] | undefined => {
                         switch (type) {
-                            case "NewProject": return "newProject";
-                            case "ExistingProject": return "existingProject";
-                            case "PersonalWorkspace": return "personalWorkspace";
-                            default: return undefined;
+                            case "NewProject":
+                                return "newProject";
+                            case "ExistingProject":
+                                return "existingProject";
+                            case "PersonalWorkspace":
+                                return "personalWorkspace";
+                            default:
+                                return undefined;
                         }
                     })(affiliationRequest.type);
 
@@ -980,9 +994,6 @@ function useStateReducerMiddleware(
                                     existingProject: [grantGiverInitiatedForm],
                                     personalProject: [grantGiverInitiatedForm],
                                 },
-                                newProject: grantGiverInitiatedTemplate,
-                                existingProject: grantGiverInitiatedTemplate,
-                                personalProject: grantGiverInitiatedTemplate,
                             }
                         }]
                     });
@@ -1505,8 +1516,12 @@ export function Editor(): React.ReactNode {
         if (!(ev.target instanceof HTMLTextAreaElement)) return;
         const id = ev.target.id;
         const newValue = ev.target.value;
-        const title = ev.target.dataset.title ?? "";
-        dispatchEvent({type: "ApplicationUpdated", name: id, title: title , answer: newValue});
+        const f = ev.target.dataset.field;
+        let field: Grants.FormField = {description: "", name: id, optional: false, title: ""};
+        if (f !== undefined) {
+            field = JSON.parse(f);
+        }
+        dispatchEvent({type: "ApplicationUpdated", answer: newValue, field});
     }, [dispatchEvent]);
 
     const onStartUpdated = useCallback<React.FormEventHandler>(ev => {
@@ -1540,7 +1555,7 @@ export function Editor(): React.ReactNode {
         dispatchEvent({type: "Unlock"});
     }, [dispatchEvent]);
 
-    const onWithdraw = useCallback(() => {
+    const onWithdraw = useCallback(async () => {
         if (!state.stateDuringEdit) return;
         dispatchEvent({type: "Withdraw", id: state.stateDuringEdit.id});
     }, [dispatchEvent, state.stateDuringEdit?.id]);
@@ -1550,10 +1565,20 @@ export function Editor(): React.ReactNode {
         formRef.current?.requestSubmit();
     }, []);
 
+    const applicationFormExists = (state: EditorState) => {
+        if (state.stateDuringCreate !== undefined) {
+            return state.createApplicationForms.length > 0;
+        } else if (state.stateDuringEdit !== undefined) {
+            return Object.values(state.applicationAnswers).length > 0;
+        }
+        return false;
+    }
+
     const onSubmit = useCallback<React.FormEventHandler>(async ev => {
         ev.preventDefault();
         if (!state.stateDuringCreate) return;
         if (state.loading) return;
+        if (!applicationFormExists(state)) return;
         const checked = state.allocators.filter(it => it.checked);
         if (checked.length === 0) return;
 
@@ -1600,7 +1625,7 @@ export function Editor(): React.ReactNode {
         }
     }, [state, dispatchEvent, missingUserInfo]);
 
-    const onDiscard = useCallback(() => {
+    const onDiscard = useCallback(async () => {
         const id = state.stateDuringEdit?.id;
         if (!id) return;
         dispatchEvent({type: "Init", grantId: id});
@@ -1644,13 +1669,13 @@ export function Editor(): React.ReactNode {
             parentProjectId: currentDoc.parentProjectId,
             allocationPeriod: period
         };
-        doc.form["fields"] = [...Object.values(state.applicationDocument), ...state.outdatedFields.filter(i => !i.markAsDone)];
+        doc.form["fields"] = [...Object.values(state.applicationAnswers), ...state.outdatedFields];
         if (isGrantGiverInitiated) {
             doc.form.type = "grant_giver_initiated";
             doc.form["subAllocator"] = isForSubAllocator
         }
 
-        if (isGrantGiverInitiated && Object.values(state.applicationDocument).length === 0) {
+        if (isGrantGiverInitiated && Object.values(state.applicationAnswers).length === 0) {
             sendFailureNotification("Missing description (see application section)");
             return false;
         }
@@ -1817,53 +1842,6 @@ export function Editor(): React.ReactNode {
     if (state.stateDuringEdit !== undefined) classes.push("is-editing");
     if (state.stateDuringCreate !== undefined) classes.push("is-creating");
 
-    const OutdatedApplicationDescription = <Box mb={20}>
-        <Label fontSize={16} mb={2} style={{fontWeight: "bold"}}>Outdated fields</Label>
-        <section style={{color: "var(--textSecondary)"}}> 
-            <p style={{margin: 0}}>The project application form has changed since you last edited your submission. </p>
-            <p style={{margin: 0}}>Please review and update the affected fields.</p>
-        </section> 
-    </Box>
-
-    const checkOutdateField = useCallback((fieldName: string) => {
-        dispatchEvent({type: "MarkOutdatedFieldDone", fieldName});
-    }, [dispatchEvent]);
-
-    function OutdatedTextArea({field}: OutdatedTextAreaProps ): React.ReactNode {
-
-        const handleCopy = async () => {
-            await navigator.clipboard.writeText(field.answer || "");
-        };
-
-        return (
-            <Box mb={10}>
-            <Flex>
-                <Label>{field.title}</Label>
-                <Tooltip trigger={(
-                            <TextArea
-                                readOnly
-                                style={{"cursor": "pointer"}}
-                                onClick={handleCopy}
-                                mr={10}
-                                value={field.answer}
-                                width="545px"
-                            />
-                        )} >
-                        Click to copy field to clipboard
-                </Tooltip>
-            </Flex>
-            <Flex justifyContent={"end"}>
-                <Box mt={5}>
-                    <Label cursor="pointer" alignItems={"center"} columnGap="3">
-                        Mark as done
-                        <Checkbox size={30} checked={field.markAsDone} onChange={() => checkOutdateField(field.name)} />
-                    </Label>
-                </Box>
-            </Flex>
-            </Box>
-        );
-    }
-
     // The actual user-interface
     // -----------------------------------------------------------------------------------------------------------------
     return <MainContainer
@@ -1872,8 +1850,8 @@ export function Editor(): React.ReactNode {
             state.fullScreenLoading ? <>
                 <HexSpin size={64} />
             </> : state.fullScreenError ? <>
-                {state.fullScreenError}
-            </> :
+                    {state.fullScreenError}
+                </> :
                 <Box mx="auto" className={classes.join(" ")}>
                     <header className={"at-top"}>
                         <h3 className="title">Information about your project</h3>
@@ -1897,8 +1875,8 @@ export function Editor(): React.ReactNode {
                                     {!state.locked && <>
                                         {!isGrantGiverInitiated &&
                                             <ConfirmationButton actionText={"Discard changes"} icon={"heroTrash"}
-                                                color={"errorMain"}
-                                                onAction={onDiscard} />
+                                                                color={"errorMain"}
+                                                                onAction={onDiscard} />
                                         }
 
                                         <Button onClick={validateThenUpdate} type={"button"} color={"successMain"}>
@@ -1911,8 +1889,8 @@ export function Editor(): React.ReactNode {
 
                                     {!isClosed && state.stateDuringEdit.allowWithdrawal && state.locked && <>
                                         <ConfirmationButton actionText={"Withdraw application"} icon={"heroTrash"}
-                                            color={"errorMain"}
-                                            onAction={onWithdraw} />
+                                                            color={"errorMain"}
+                                                            onAction={onWithdraw} />
                                     </>}
                                 </>}
 
@@ -1939,12 +1917,15 @@ export function Editor(): React.ReactNode {
                                 title={"Project information"}
                                 showDescriptionInEditMode={true}
                                 description={<>
-                                    <p>
-                                        The principal investigator is the person responsible for the project.
-                                        After the approval, the PI may choose to transfer this role.
-                                    </p>
-
-                                    {state.stateDuringCreate && <>
+                                    {state.stateDuringCreate ? null : <>
+                                        <p>
+                                            The principal investigator is the person responsible for the project.
+                                            After the approval, the PI may choose to transfer this role.
+                                        </p>
+                                    </>}
+                                    {state.stateDuringCreate?.creatingWorkspace && <>
+                                        <br />
+                                        <br />
                                         <p>
                                             Please keep the project title specified here <i>short</i> and memorable.
                                             You can justify your project in the "Application" section.
@@ -1952,29 +1933,40 @@ export function Editor(): React.ReactNode {
                                     </>}
                                 </>}
                             >
-                                <label>
-                                    Application submitted by
-                                    <Input id={FormIds.pi} height="42px" disabled value={state.principalInvestigator} />
-                                </label>
+                                {state.stateDuringCreate ? <>
+                                    <label>
+                                        Applicant
+                                        <Input id={FormIds.submitter} height="42px" disabled value={state.principalInvestigator} />
+                                    </label>
+                                </> : <>
+                                    <label>
+                                        Project PI
+                                        <Input id={FormIds.pi} height="42px" disabled value={state.principalInvestigator} />
+                                    </label>
+                                    <label>
+                                        Application submitted by
+                                        <Input id={FormIds.submitter} height="42px" disabled value={state.stateDuringEdit?.storedApplication?.createdBy ?? state.principalInvestigator} />
+                                    </label>
+                                </>}
 
                                 {state.stateDuringCreate && <>
                                     <label>
                                         {state.stateDuringCreate.creatingWorkspace && <>
                                             New project (<a className={BaseLinkClass} href="#" onClick={() => switchToExistingProject(state)}>
-                                                select an existing project instead
-                                            </a>)
+                                            select an existing project instead
+                                        </a>)
                                             <Input id={FormIds.title}
-                                                placeholder={"Please enter the title of your project"}
-                                                height="42px"
-                                                value={state.stateDuringCreate.reference ?? ""}
-                                                onInput={onNewProjectInput} required />
+                                                   placeholder={"Please enter the title of your project"}
+                                                   height="42px"
+                                                   value={state.stateDuringCreate.reference ?? ""}
+                                                   onInput={onNewProjectInput} required />
                                         </>}
                                         {!state.stateDuringCreate.creatingWorkspace && <>
                                             Existing project (<a href="#" className={BaseLinkClass} onClick={switchToNewProject}>
-                                                create a new project instead
-                                            </a>)
+                                            create a new project instead
+                                        </a>)
                                             <Select value={state.stateDuringCreate.reference || "null"}
-                                                onChange={onProjectSelected}>
+                                                    onChange={onProjectSelected}>
                                                 {state.loadedProjects.map(workspace =>
                                                     <React.Fragment key={workspace.id ?? "null"}>
                                                         <option value={workspace.id ?? "null"}>
@@ -2050,9 +2042,9 @@ export function Editor(): React.ReactNode {
                                     {referenceIdsToShow.map((id, idx) => <label key={idx}>
                                         Reference ID #{idx + 1}
                                         <Input id={FormIds.deicId + "-" + idx}
-                                            disabled={state.locked || !state?.stateDuringEdit?.wallets?.length}
-                                            placeholder={state.locked ? "None specified" : "DeiC-SDU-L1-0000"}
-                                            value={id} onInput={onReferenceIdInput} onBlur={onReferenceBlur} />
+                                               disabled={state.locked || !state?.stateDuringEdit?.wallets?.length}
+                                               placeholder={state.locked ? "None specified" : "DeiC-SDU-L1-0000"}
+                                               value={id} onInput={onReferenceIdInput} onBlur={onReferenceBlur} />
                                     </label>)}
                                 </FormField>
                             </>}
@@ -2119,6 +2111,7 @@ export function Editor(): React.ReactNode {
                                             </> : undefined
                                             }
                                             state={state.stateDuringEdit?.stateByGrantGiver[it.id]}
+                                            stateUpdater={state.stateDuringEdit?.stateUpdaterByGrantGiver[it.id]}
                                             allAllocators={state.allocators}
                                             transfers={state.possibleTransfers}
                                             onTransfer={onTransfer}
@@ -2262,33 +2255,105 @@ export function Editor(): React.ReactNode {
 
                             <h2 style={{fontWeight: "bold"}}>Application</h2>
                             <br />
-                            <div className="application-wrapper">
-                                <div className="application">
-                                    {state.applicationForms.map((val, idx) => {
-                                        // NOTE(Dan): Empty placeholder is a quick work-around for fields having error
-                                        // immediately on load.
-                                        return <FormField title={val.title} key={idx} id={`${val.name}`}
-                                            description={val.description} mandatory={!val.optional}>
-                                            <TextArea id={val.name} rows={val.rows} maxLength={val.maxLength ?? 100}
-                                                required={!val.optional} disabled={state.locked || isClosed}
-                                                value={state.applicationDocument[val.name]?.answer ?? ""}
-                                                data-title={val.title}
-                                                onChange={onApplicationChange} placeholder={" "} />
-                                        </FormField>
-                                    })}
+                            <ApplicationForm closed={isClosed} editorState={state} event={onApplicationChange}></ApplicationForm>
 
-                                </div>
-                                    {state.outdatedFields.length > 0 ? OutdatedApplicationDescription: <></>}
-                                    {state.outdatedFields.map((field) => {
-                                        return <OutdatedTextArea field={field}></OutdatedTextArea>
-                                    })}
-                            </div>
                         </>}
                     </form>
                 </Box>
         }
     />;
 };
+
+type ApplicationFormProps = {
+    editorState: EditorState,
+    closed: boolean | undefined,
+    event: React.FormEventHandler<Element>,
+};
+
+export function ApplicationForm({editorState: state, closed: isClosed, event: onApplicationChange}: ApplicationFormProps): React.ReactNode {
+
+    function OutdatedTextArea({field: answerField}: OutdatedTextAreaProps): React.ReactNode {
+
+        const handleCopy = async () => {
+            await navigator.clipboard.writeText(answerField.answer || "");
+            sendSuccessNotification("Copied!");
+        };
+
+        return (
+            <Box mb={10}>
+                <Flex>
+                    <Label>{answerField.field.title}</Label>
+                    <Tooltip trigger={(
+                        <TextArea
+                            readOnly
+                            style={{"cursor": "pointer"}}
+                            onClick={handleCopy}
+                            mr={10}
+                            value={answerField.answer}
+                            width="545px"
+                        />
+                    )}>
+                        Click to copy field to clipboard
+                    </Tooltip>
+                </Flex>
+            </Box>
+        );
+    }
+
+    const OutdatedApplicationDescription = <Box mb={20}>
+        <Label fontSize={16} mb={2} style={{fontWeight: "bold"}}>Outdated fields</Label>
+        <section style={{color: "var(--textSecondary)"}}>
+            <p style={{margin: 0}}>The project application form has changed since you last edited your submission. </p>
+            <p style={{margin: 0}}>Please review and update the affected fields.</p>
+        </section>
+    </Box>
+
+    const renderForm = (forms: Grants.FormField[]): React.ReactNode => (
+        <div className="application-wrapper">
+            <div className="application">
+                {forms.map((val, idx) => (
+                    <FormField
+                        title={val.title}
+                        key={idx}
+                        id={val.name}
+                        description={val.description}
+                        mandatory={!val.optional}
+                    >
+                        <Box>
+                            <TextArea
+                                id={val.name}
+                                rows={val.rows}
+                                maxLength={val.maxLength}
+                                required={!val.optional}
+                                disabled={state.locked || isClosed}
+                                value={state.applicationAnswers[val.name]?.answer ?? ""}
+                                data-field={JSON.stringify(val)}
+                                onChange={onApplicationChange}
+                                placeholder=" "
+                            />
+                            {val.maxLength ? <Flex justifyContent={"flex-end"}>{state.applicationAnswers[val.name]?.answer.length ?? 0} / {val.maxLength} </Flex> : <></>}
+                        </Box>
+
+                    </FormField>
+
+                ))}
+            </div>
+
+            {state.outdatedFields.length > 0 && OutdatedApplicationDescription}
+
+            {state.outdatedFields.map((f) => (
+                <OutdatedTextArea key={f.field.name} field={f} />
+            ))}
+        </div>
+    );
+
+    if (state.outdatedFields.length > 0) {
+        // legacy rendering
+        return renderForm(state.createApplicationForms);
+    }
+
+    return state.stateDuringCreate ? renderForm(state.createApplicationForms) : renderForm(Object.values(state.applicationAnswers).map(i => i.field));
+}
 
 // Project transfer
 // =====================================================================================================================
@@ -2487,7 +2552,7 @@ const CommentSection: React.FunctionComponent<{
             <div className="wrapper">
                 <UserAvatar avatar={avatars.avatar(Client.username!)} width={"48px"} />
                 <TextArea inputRef={textAreaRef} rows={3} disabled={props.disabled}
-                    placeholder={"Your comment"} onKeyDown={onKeyDown} />
+                          placeholder={"Your comment"} onKeyDown={onKeyDown} />
             </div>
 
             <div className="buttons">
@@ -2725,7 +2790,7 @@ const FormField: React.FunctionComponent<{
     return <>
         <div>
             <label htmlFor={props.id}
-                className={`section ${props.showDescriptionInEditMode === false ? "optional" : ""}`}>
+                   className={`section ${props.showDescriptionInEditMode === false ? "optional" : ""}`}>
                 {props.icon && <Icon name={props.icon} mr={"8px"} size={30} />}
                 {props.title}
                 {props.mandatory && <span className={"mandatory"} />}
@@ -2756,6 +2821,7 @@ const GrantGiver: React.FunctionComponent<{
     isEditing: boolean;
     adminOfProjects: {id: string | null, title: string}[];
     state?: Grants.State;
+    stateUpdater?: string;
     onStateChange: (projectId: string, approved: boolean) => void;
     replaceApproval?: React.ReactNode;
     replaceReject?: React.ReactNode;
@@ -2772,11 +2838,11 @@ const GrantGiver: React.FunctionComponent<{
 
     const isAdmin = props.adminOfProjects.some(it => it.id === props.projectId)
 
-    const onApprove = useCallback(() => {
+    const onApprove = useCallback(async () => {
         props.onStateChange(props.projectId, true);
     }, [props.onStateChange, props.projectId]);
 
-    const onReject = useCallback(() => {
+    const onReject = useCallback(async () => {
         props.onStateChange(props.projectId, false);
     }, [props.onStateChange, props.projectId]);
 
@@ -2799,6 +2865,13 @@ const GrantGiver: React.FunctionComponent<{
             <label htmlFor={checkboxId}>
                 <ProjectLogo projectId={props.projectId} size={`${size}px`} />
                 <ProjectTitleForNewCore id={props.projectId} title={props.title} />
+
+                {props.isEditing ? <>
+                    {props.state == State.IN_PROGRESS ? null : <>
+                        {props.state == State.REJECTED ? <> - Rejected </> : <> - Approved </>} by {props.stateUpdater}
+                    </>}
+                </> : null}
+
             </label>
             {!props.isEditing &&
                 <div className={"description"} style={{marginLeft: (size + 8) + "px"}}>{props.description}</div>
@@ -2852,6 +2925,7 @@ const GrantGiver: React.FunctionComponent<{
 
 const FormIds = {
     pi: "pi",
+    submitter: "submitter",
     title: "title",
     startDate: "start-date",
     endDate: "end-date",
@@ -2863,7 +2937,7 @@ const FormIds = {
 // =====================================================================================================================
 function stateToApplication(state: EditorState): Grants.Doc["form"] {
     const isForSubAllocator = getQueryParam(location.search, "subAllocator") == "true";
-    return {type: "structured", text: "", fields: [...Object.values(state.applicationDocument), ...state.outdatedFields.filter(i => !i.markAsDone)], subAllocator: isForSubAllocator };
+    return {type: "structured", text: "", fields: [...Object.values(state.applicationAnswers)], subAllocator: isForSubAllocator};
 }
 
 function stateToRequests(state: EditorState): Grants.Doc["allocationRequests"] {
@@ -2941,6 +3015,7 @@ const monthNames = ["January", "February", "March", "April", "May", "June", "Jul
 
 function stateToMonthOptions(state: EditorState): {key: string, text: string}[] {
     const result: {key: string, text: string, time: number}[] = [];
+
     function insertIfUnique(date: Date) {
         const today = new Date();
         const month = monthNames[date.getMonth()];
@@ -3013,7 +3088,7 @@ const grantGiverInitiatedTemplate = `${grantGiverInitiatedPrefix}
 Describe the reason for creating this sub-allocation (max 4000 ch).`;
 
 const grantGiverInitiatedForm: Grants.FormField = {
-    description: `Describe the reason for creating this sub-allocation`,
+    description: "Describe the reason for creating this sub-allocation",
     name: grantGiverInitiatedPrefix,
     optional: false,
     title: grantGiverInitiatedPrefix,

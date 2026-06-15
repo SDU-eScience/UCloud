@@ -7,6 +7,7 @@ import {
     ResourceAclEntry,
     ResourceApi,
     ResourceBrowseCallbacks,
+    ResourceSpecification,
     SupportByProvider,
     UCLOUD_CORE
 } from "@/UCloud/ResourceApi";
@@ -34,6 +35,7 @@ import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
 import {EmbeddedSettings} from "@/ui-components/ResourceBrowser";
 import {Client} from "@/Authentication/HttpClientInstance";
+import {Product} from "@/Accounting";
 
 const enterAnimation = makeKeyframe("enter-animation", `
   from {
@@ -166,8 +168,8 @@ const ContentWrapper = injectStyleSimple("content-wrapper", `
     grid-gap: 16px;
 `);
 
-interface PropertiesProps<Res extends Resource> {
-    api: ResourceApi<Res, never>;
+interface PropertiesProps<Res extends Resource, Prod extends Product, Spec extends ResourceSpecification> {
+    api: ResourceApi<Res, Prod, Spec>;
     embedded?: EmbeddedSettings;
     classname?: string;
 
@@ -188,8 +190,8 @@ interface PropertiesProps<Res extends Resource> {
     flagsForRetrieve?: Record<string, any>;
 }
 
-export function ResourceProperties<Res extends Resource>(
-    props: PropsWithChildren<PropertiesProps<Res>>
+export function ResourceProperties<Res extends Resource, Prod extends Product = Product, Spec extends ResourceSpecification = ResourceSpecification>(
+    props: PropsWithChildren<PropertiesProps<Res, Prod, Spec>>
 ): ReactElement | null {
     const {api} = props;
 
@@ -252,7 +254,7 @@ export function ResourceProperties<Res extends Resource>(
         return result;
     }, [resource]);
 
-    const callbacks: ResourceBrowseCallbacks<Res> = useMemo(() => ({
+    const callbacks: ResourceBrowseCallbacks<Res, Product, Spec> = useMemo(() => ({
         api,
         isCreating: false,
         navigate,
@@ -378,7 +380,7 @@ function canEditPermission(support: ProductSupport | undefined, namespace: strin
 }
 
 // TODO(Jonas): Find a less dramatic name
-function PredicatedPermissionsTable<T extends Resource>(props: {show?: boolean; api: ResourceApi<T, never>; res: Resource | null}): React.ReactNode {
+function PredicatedPermissionsTable<T extends Resource, P extends Product>(props: {show?: boolean; api: ResourceApi<T, P>; res: Resource | null}): React.ReactNode {
     const [acl, setAcl] = React.useState(props.res?.permissions.others ?? []);
 
     React.useEffect(() => {

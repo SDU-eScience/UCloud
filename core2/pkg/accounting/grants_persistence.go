@@ -13,6 +13,7 @@ import (
 	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
+	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -239,14 +240,16 @@ func grantsLoad(id accGrantId, prefetchHint []accGrantId) {
 					}),
 				},
 			}
-			// Handling structured form
-			if currentRevision.Document.Form.Type == accapi.FormTypeStructured {
 
+			if currentRevision.Document.Form.Type == accapi.FormTypePlainText {
+				currentRevision.Document.Form.Fields = accapi.ParseAnswerFormFields(revision.Form)
+				currentRevision.Document.Form.Type = accapi.FormTypeStructured
+			} else if currentRevision.Document.Form.Type == accapi.FormTypeStructured {
 				jsonStr := currentRevision.Document.Form.Text
 				var fields []accapi.AnswerFieldForm
 				err := json.Unmarshal([]byte(jsonStr), &fields)
 				if err != nil {
-					log.Warn("failed to parse structured form: %s", err)
+					log.Warn("Failed to parse structured form: %s", err)
 					fields = make([]accapi.AnswerFieldForm, 0)
 				}
 				currentRevision.Document.Form.Fields = fields
@@ -265,9 +268,17 @@ func grantsLoad(id accGrantId, prefetchHint []accGrantId) {
 				continue
 			}
 
+			updatedBy := ""
+			if approval.UpdatedBy.Valid {
+				updatedBy = approval.UpdatedBy.V
+				if updatedBy == rpc.ActorSystem.Username {
+					updatedBy = "UCloud System"
+				}
+			}
 			app.Status.StateBreakdown = append(app.Status.StateBreakdown, accapi.GrantGiverApprovalState{
-				ProjectId: approval.ProjectId,
-				State:     accapi.GrantApplicationState(approval.State),
+				ProjectId:     approval.ProjectId,
+				State:         accapi.GrantApplicationState(approval.State),
+				LastUpdatedBy: updatedBy,
 			})
 		}
 
@@ -516,7 +527,7 @@ func grantsLoadSettings() {
 				newProject, _ = deserializeFormFields(template.NewProject)
 				existingProject, _ = deserializeFormFields(template.ExistingProject)
 			} else {
-				// If we failed to deserialize, we are going to try to parse it as structured form fields
+				// We are going to try to parse it as structured form fields
 				personalProject = parseToStructuredFormFields(template.PersonalProject)
 				newProject = parseToStructuredFormFields(template.NewProject)
 				existingProject = parseToStructuredFormFields(template.ExistingProject)
@@ -739,12 +750,12 @@ func lGrantsPersistSettings(settings *grantSettings) {
 				tx,
 				`
 					with data as (
-						select 
-							:project project, 
+						select
+							:project project,
 							unnest(cast(:type as text[])) type,
 							unnest(cast(:applicants as text[])) applicant_id
 					)
-					insert into "grant".allow_applications_from(project_id, type, applicant_id) 
+					insert into "grant".allow_applications_from(project_id, type, applicant_id)
 					select project, type, case when applicant_id = '' then null else applicant_id end
 					from data
 				`,
@@ -1091,7 +1102,7 @@ func lGrantsPersist(app *grantApplication) {
 						d.recipient,
 						d.recipient_type,
 						d.form,
-                        d.form_type::form_type,
+                        d.form_type,
 						coalesce(r.refs, cast(array[] as text[]))
 					from
 						data d
@@ -1114,9 +1125,11 @@ func lGrantsPersist(app *grantApplication) {
 
 			var approvalStates []string
 			var approvalGivers []string
+			var approvalUpdaters []string
 			for _, a := range appl.Status.StateBreakdown {
 				approvalStates = append(approvalStates, string(a.State))
 				approvalGivers = append(approvalGivers, a.ProjectId)
+				approvalUpdaters = append(approvalUpdaters, a.LastUpdatedBy)
 			}
 
 			db.Exec(
@@ -1125,11 +1138,12 @@ func lGrantsPersist(app *grantApplication) {
 					with data as (
 						select
 							unnest(cast(:states as text[])) state,
-							unnest(cast(:grant_givers as text[])) grant_giver
+							unnest(cast(:grant_givers as text[])) grant_giver,
+							unnest(cast(:grant_updaters as text[])) updater
 					)
 					insert into "grant".grant_giver_approvals(application_id, project_id, project_title,
 						state, updated_by, last_update) 
-					select :app_id, d.grant_giver, p.title, d.state, '_ucloud', now()
+					select :app_id, d.grant_giver, p.title, d.state, d.updater, now()
 					from
 						data d
 						join project.projects p on d.grant_giver = p.id
@@ -1140,9 +1154,10 @@ func lGrantsPersist(app *grantApplication) {
 						last_update = excluded.last_update
 			    `,
 				db.Params{
-					"app_id":       app.lId(),
-					"states":       approvalStates,
-					"grant_givers": approvalGivers,
+					"app_id":         app.lId(),
+					"states":         approvalStates,
+					"grant_givers":   approvalGivers,
+					"grant_updaters": approvalUpdaters,
 				},
 			)
 		})

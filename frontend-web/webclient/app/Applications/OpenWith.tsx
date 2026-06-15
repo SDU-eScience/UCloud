@@ -160,10 +160,10 @@ export function OpenWithBrowser({opts, file}: {file: UFile, opts?: ResourceBrows
         addProjectSwitcherInPortal(browserRef, setSwitcherWorkaround, {setLocalProject});
     }, []);
 
-    const setLocalProject = (projectId?: string) => {
+    const setLocalProject = async (projectId?: string) => {
         const b = browserRef.current;
         if (b) {
-            b.canConsumeResources = checkCanConsumeResources(projectId ?? null, {api: JobsApi});
+            b.canConsumeResources = await checkCanConsumeResources(projectId ?? null, {api: JobsApi});
         }
         activeProject.current = projectId;
         fetchInfo();

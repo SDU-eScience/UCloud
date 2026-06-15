@@ -1,5 +1,5 @@
 import {Client} from "@/Authentication/HttpClientInstance";
-import {setLoading, usePage} from "@/Navigation/Redux";
+import {setStatusLoading, usePage} from "@/Navigation/Redux";
 import {usePromiseKeeper} from "@/PromiseKeeper";
 import * as React from "react";
 import {Button, Input, Label, MainContainer} from "@/ui-components";
@@ -194,21 +194,21 @@ function UserCreation(): React.ReactNode {
 
         if (!hasUsernameError && !hasPasswordError && !hasEmailError && !hasFirstnamesError && !hasLastnameError) {
             try {
-                reduxDispatch(setLoading(true));
+                reduxDispatch(setStatusLoading(true));
                 setSubmitted(true);
                 await promiseKeeper.makeCancelable(
                     Client.post("/auth/users/register", [{username, password, email, firstnames, lastname}], "")
                 ).promise;
                 sendSuccessNotification(`User '${username}' successfully created`);
                 dispatch({type: "Reset", payload: {}});
-            } catch (err) {
+            } catch (err: any) {
                 const status = defaultErrorHandler(err);
                 if (status === 409) dispatch({
                     type: "UpdateErrors",
                     payload: {usernameError: true, passwordError: false, emailError: false, firstnamesError: false, lastnameError: false}
                 });
             } finally {
-                reduxDispatch(setLoading(false));
+                reduxDispatch(setStatusLoading(false));
                 setSubmitted(false);
             }
         }
