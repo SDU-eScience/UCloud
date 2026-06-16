@@ -1,4 +1,4 @@
-package acc2
+package accounting
 
 import (
 	"testing"
@@ -115,24 +115,19 @@ func FuzzPromiseSystem(f *testing.F) {
 		}
 
 		e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
-		policyMode := ReservationMode(data[0] % 3)
 		e.setPolicy(PromisePolicy{
-			Mode:                                 policyMode,
-			MinSlack:                             int64(data[0] % 16),
-			GrowthStep:                           int64(data[0] % 8),
-			ForecastWindow:                       time.Duration(data[0]%4) * time.Hour,
-			CommittedFractionBasisPoints:         2500 + int64(data[0]%4)*2500,
-			TrendAlphaBasisPoints:                2500 + int64(data[0]%4)*2500,
-			TightReservationThresholdBasisPoints: 5000 + int64(data[0]%5)*1000,
+			MinSlack:              int64(data[0] % 16),
+			GrowthStep:            int64(data[0] % 8),
+			TrendAlphaBasisPoints: 2500 + int64(data[0]%4)*2500,
 		})
 
 		e.add(lowAllocSpec{Name: "root0", Wallet: "root", Start: 0, End: 12, Quota: 100, Self: 0, Children: 100})
 		e.add(lowAllocSpec{Name: "root1", Wallet: "root", Start: 12, End: 24, Quota: 100, Self: 0, Children: 100})
-		e.addPromise("root-a", "root", "a", 0, 24, 120)
-		e.addPromise("root-b", "root", "b", 0, 24, 120)
-		e.addPromise("a-leaf", "a", "leaf", 0, 24, 100)
-		e.addPromise("b-leaf", "b", "leaf", 0, 24, 100)
-		e.addPromise("second-a", "root", "a", 6, 18, 80)
+		e.addPromise("root", "a", 0, 24, 120)
+		e.addPromise("root", "b", 0, 24, 120)
+		e.addPromise("a", "leaf", 0, 24, 100)
+		e.addPromise("b", "leaf", 0, 24, 100)
+		e.addPromise("root", "a", 6, 18, 80)
 
 		reader := fuzzBytes{data: data}
 		wallets := []string{"a", "b", "leaf", "root", "missing"}

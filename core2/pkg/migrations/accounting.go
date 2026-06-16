@@ -220,3 +220,121 @@ func accountingV5() db.MigrationScript {
 		},
 	}
 }
+
+func accountingV6() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "accountingV6",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					create table accounting.wallets_acc2(
+						id bigserial primary key,
+						wallet_owner bigint references accounting.wallet_owner,
+						product_category bigint references accounting.product_categories,
+						consumed bigint default 0 not null,
+						locked boolean default false not null,
+						last_significant_update_at timestamp with time zone default now() not null,
+						promise_demand_ewma int8 not null default 0,
+						promise_demand_observed int8 not null default 0,
+						promise_demand_trend int8 not null default 0,
+						promise_demand_updated_at timestamptz null default null,
+						low_balance_notified boolean default false not null,
+						unique(wallet_owner, product_category)
+					)
+			    `,
+				db.Params{},
+			)
+
+			db.Exec(
+				tx,
+				`
+					create table accounting.promises_acc2(
+						id int8 primary key,
+						product_category int8 not null references accounting.product_categories(id),
+						parent_wallet int8 not null references accounting.wallets_acc2(id),
+						child_wallet int8 not null references accounting.wallets_acc2(id),
+						start_time timestamptz not null,
+						end_time timestamptz not null,
+						quota int8 not null,
+						grant_id int8 null references "grant".applications(id)
+					)
+			    `,
+				db.Params{},
+			)
+
+			db.Exec(
+				tx,
+				`
+					create table accounting.allocations_acc2(
+						id int8 primary key,
+						product_category int8 not null references accounting.product_categories(id),
+						wallet int8 not null references accounting.wallets_acc2(id),
+						parent_allocation int8 null references accounting.allocations_acc2(id),
+						start_time timestamptz not null,
+						end_time timestamptz not null,
+						quota_self int8 not null,
+						quota_children int8 not null,
+						consumed_self int8 not null,
+						reserved_children int8 not null,
+						retired_quota int8 not null default 0,
+						retired_usage int8 not null default 0,
+						activated bool not null default false,
+						retired bool not null default false,
+						grant_id int8 null references "grant".applications(id),
+						promise_id int8 null references accounting.promises_acc2(id)
+					)
+			    `,
+				db.Params{},
+			)
+
+			db.Exec(
+				tx,
+				`
+					insert into accounting.wallets_acc2(id, wallet_owner, product_category, consumed,
+						locked, last_significant_update_at, promise_demand_ewma, promise_demand_observed,
+						promise_demand_trend, promise_demand_updated_at, low_balance_notified)
+					select id, wallet_owner, product_category, local_usage, was_locked,
+						last_significant_update_at, 0, 0, 0, null, low_balance_notified
+					from accounting.wallets_v2;
+			    `,
+				db.Params{},
+			)
+
+			db.Exec(
+				tx,
+				`
+					insert into accounting.promises_acc2(id, product_category, parent_wallet,
+						child_wallet, start_time, end_time, quota, grant_id)
+					select alloc.id, w.product_category, ag.parent_wallet, ag.associated_wallet,
+						alloc.allocation_start_time, alloc.allocation_end_time, alloc.quota, alloc.granted_in
+					from
+						accounting.wallet_allocations_v2 alloc
+						join accounting.allocation_groups ag on alloc.associated_allocation_group = ag.id
+						join accounting.wallets_v2 w on ag.associated_wallet = w.id
+					where
+						ag.parent_wallet is not null;
+			    `,
+				db.Params{},
+			)
+
+			db.Exec(
+				tx,
+				`
+					insert into accounting.allocations_acc2(product_category, wallet, parent_allocation,
+						start_time, end_time, quota_self, quota_children, consumed_self,
+						reserved_children, grant_id, promise_id)
+					select w.product_category, w.id, null, alloc.allocation_start_time, alloc.allocation_end_time,
+						alloc.quota, 0, 0, 0, alloc.granted_in, null
+					from
+						accounting.wallet_allocations_v2 alloc
+						join accounting.allocation_groups ag on alloc.associated_allocation_group = ag.id
+						join accounting.wallets_v2 w on ag.associated_wallet = w.id
+					where
+						ag.parent_wallet is null;
+			    `,
+				db.Params{},
+			)
+		},
+	}
+}

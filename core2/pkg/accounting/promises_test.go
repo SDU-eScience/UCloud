@@ -1,7 +1,6 @@
-package acc2
+package accounting
 
 import (
-	"net/http"
 	"testing"
 	"time"
 
@@ -14,7 +13,7 @@ func (e *lowTestEnv) setPolicy(policy PromisePolicy) {
 	e.tree().Policy = policy
 }
 
-func (e *lowTestEnv) addPromise(name string, parent string, child string, start int, end int, quota int64) PromiseId {
+func (e *lowTestEnv) addPromise(parent string, child string, start int, end int, quota int64) PromiseId {
 	e.t.Helper()
 	parentWallet := e.wallet(parent)
 	childWallet := e.wallet(child)
@@ -88,24 +87,24 @@ func TestPromiseReconcileOverbookingMaterializesAvailableCapacity(t *testing.T) 
 		{
 			name: "sibling promises share overbooked root capacity",
 			setup: func(e *lowTestEnv) (PromiseId, PromiseId) {
-				e.setPolicy(PromisePolicy{Mode: ReservationModeCommitted, CommittedFractionBasisPoints: 10000})
+				e.setPolicy(PromisePolicy{TrendAlphaBasisPoints: 10000})
 				e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 10, Quota: 100, Self: 0, Children: 100})
-				first := e.addPromise("first", "root", "a", 0, 10, 80)
-				second := e.addPromise("second", "root", "b", 0, 10, 80)
+				first := e.addPromise("root", "a", 0, 10, 80)
+				second := e.addPromise("root", "b", 0, 10, 80)
 				return first, second
 			},
 			assert: func(e *lowTestEnv, first PromiseId, second PromiseId) {
-				assertPromiseAllocation(t, e.promiseHead(first, 1), 0, 80, e.tm(1), e.tm(10))
-				assertPromiseAllocation(t, e.promiseHead(second, 1), 0, 20, e.tm(1), e.tm(10))
+				assertPromiseAllocation(t, e.promiseHead(first, 1), 80, 0, e.tm(1), e.tm(10))
+				assertPromiseAllocation(t, e.promiseHead(second, 1), 20, 0, e.tm(1), e.tm(10))
 				e.assertAllocation("root", 0, 100, 0, 100)
 			},
 		},
 		{
 			name: "single promise remains under-covered when root capacity is too small",
 			setup: func(e *lowTestEnv) (PromiseId, PromiseId) {
-				e.setPolicy(PromisePolicy{Mode: ReservationModeMinimal, TrendAlphaBasisPoints: 10000})
+				e.setPolicy(PromisePolicy{TrendAlphaBasisPoints: 10000})
 				e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 10, Quota: 40, Self: 0, Children: 40})
-				promise := e.addPromise("promise", "root", "child", 0, 10, 100)
+				promise := e.addPromise("root", "child", 0, 10, 100)
 				return promise, 0
 			},
 			assert: func(e *lowTestEnv, promise PromiseId, _ PromiseId) {
@@ -119,7 +118,12 @@ func TestPromiseReconcileOverbookingMaterializesAvailableCapacity(t *testing.T) 
 		t.Run(tt.name, func(t *testing.T) {
 			e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
 			first, second := tt.setup(e)
-			e.reconcile(1, "child", util.OptValue[int64](60))
+			if second == 0 {
+				e.reconcile(1, "child", util.OptValue[int64](60))
+			} else {
+				e.reconcile(1, "a", util.OptValue[int64](80))
+				e.reconcile(1, "b", util.OptValue[int64](80))
+			}
 			tt.assert(e, first, second)
 			e.assertValid()
 		})
@@ -136,9 +140,9 @@ func TestPromiseReconcileUpdateFirstGrowthAndShrink(t *testing.T) {
 		{
 			name: "same active allocation grows in place through root slack",
 			setup: func(e *lowTestEnv) PromiseId {
-				e.setPolicy(PromisePolicy{Mode: ReservationModeMinimal, TrendAlphaBasisPoints: 10000})
+				e.setPolicy(PromisePolicy{TrendAlphaBasisPoints: 10000})
 				e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 10, Quota: 100, Self: 20, Children: 80})
-				return e.addPromise("promise", "root", "child", 0, 10, 100)
+				return e.addPromise("root", "child", 0, 10, 100)
 			},
 			steps: func(e *lowTestEnv, promise PromiseId) {
 				e.reconcile(1, "child", util.OptValue[int64](30))
@@ -154,19 +158,19 @@ func TestPromiseReconcileUpdateFirstGrowthAndShrink(t *testing.T) {
 			},
 		},
 		{
-			name: "lower target shrinks active allocation and releases parent capacity",
+			name: "report reconciliation keeps allocation when lower target still has headroom",
 			setup: func(e *lowTestEnv) PromiseId {
-				e.setPolicy(PromisePolicy{Mode: ReservationModeMinimal, TrendAlphaBasisPoints: 10000})
+				e.setPolicy(PromisePolicy{TrendAlphaBasisPoints: 10000})
 				e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 10, Quota: 100, Self: 0, Children: 100})
-				return e.addPromise("promise", "root", "child", 0, 10, 100)
+				return e.addPromise("root", "child", 0, 10, 100)
 			},
 			steps: func(e *lowTestEnv, promise PromiseId) {
 				e.reconcile(1, "child", util.OptValue[int64](80))
 				e.reconcile(2, "child", util.OptValue[int64](10))
 			},
 			assert: func(e *lowTestEnv, promise PromiseId) {
-				assertPromiseAllocation(t, e.promiseHead(promise, 2), 10, 0, e.tm(1), e.tm(10))
-				e.assertAllocation("root", 0, 100, 0, 10)
+				assertPromiseAllocation(t, e.promiseHead(promise, 2), 80, 0, e.tm(1), e.tm(10))
+				e.assertAllocation("root", 0, 100, 0, 80)
 			},
 		},
 	}
@@ -184,77 +188,36 @@ func TestPromiseReconcileUpdateFirstGrowthAndShrink(t *testing.T) {
 
 func TestPromiseReconcilePropagatesChildDemandThroughPeriodicPasses(t *testing.T) {
 	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
-	e.setPolicy(PromisePolicy{Mode: ReservationModeMinimal, TrendAlphaBasisPoints: 10000})
+	e.setPolicy(PromisePolicy{TrendAlphaBasisPoints: 10000})
 	e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 10, Quota: 100, Self: 20, Children: 80})
-	parentPromise := e.addPromise("parent", "root", "parent", 0, 10, 100)
-	childPromise := e.addPromise("child", "parent", "child", 0, 10, 100)
+	parentPromise := e.addPromise("root", "parent", 0, 10, 100)
+	childPromise := e.addPromise("parent", "child", 0, 10, 100)
 
 	e.reconcile(1, "child", util.OptValue[int64](60))
-	if len(e.promiseAllocations(childPromise)) != 0 {
-		t.Fatalf("child promise materialized before parent chain existed")
-	}
-	e.reconcile(2, "child", util.OptValue[int64](60))
 
-	assertPromiseAllocation(t, e.promiseHead(parentPromise, 2), 0, 60, e.tm(1), e.tm(10))
-	assertPromiseAllocation(t, e.promiseHead(childPromise, 2), 60, 0, e.tm(2), e.tm(10))
+	assertPromiseAllocation(t, e.promiseHead(parentPromise, 1), 0, 60, e.tm(1), e.tm(10))
+	assertPromiseAllocation(t, e.promiseHead(childPromise, 1), 60, 0, e.tm(1), e.tm(10))
 	e.assertAllocation("root", 20, 80, 0, 60)
-	parentHead := e.promiseHead(parentPromise, 2)
+	parentHead := e.promiseHead(parentPromise, 1)
 	if parentHead.ReservedChildren != 60 {
 		t.Fatalf("parent promise allocation reserved children = %d, want 60", parentHead.ReservedChildren)
 	}
 }
 
-func TestPromiseCalculateTargetSplitPolicies(t *testing.T) {
-	tests := []struct {
-		name   string
-		policy PromisePolicy
-		steps  func(*lowTestEnv, PromiseId)
-		want   promiseTargetSplit
-	}{
-		{
-			name: "buffered forecast uses EWMA trend slack and rounding",
-			policy: PromisePolicy{
-				Mode:                  ReservationModeBuffered,
-				MinSlack:              5,
-				GrowthStep:            10,
-				ForecastWindow:        2 * time.Hour,
-				TrendAlphaBasisPoints: 10000,
-			},
-			steps: func(e *lowTestEnv, promise PromiseId) {
-				e.reconcile(1, "child", util.OptValue[int64](10))
-				e.reconcile(2, "child", util.OptValue[int64](30))
-			},
-			want: promiseTargetSplit{QuotaSelf: 80, QuotaChildren: 0},
-		},
-		{
-			name: "committed reserves configured fraction up front",
-			policy: PromisePolicy{
-				Mode:                         ReservationModeCommitted,
-				CommittedFractionBasisPoints: 5000,
-			},
-			steps: func(e *lowTestEnv, promise PromiseId) {
-				e.reconcile(1, "child", util.OptNone[int64]())
-			},
-			want: promiseTargetSplit{QuotaSelf: 0, QuotaChildren: 50},
-		},
-	}
+func TestPromiseCalculateTargetSplitUsesSlackAndRounding(t *testing.T) {
+	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
+	e.setPolicy(PromisePolicy{MinSlack: 5, GrowthStep: 10, TrendAlphaBasisPoints: 10000})
+	e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 10, Quota: 100, Self: 0, Children: 100})
+	promise := e.addPromise("root", "child", 0, 10, 100)
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
-			e.setPolicy(tt.policy)
-			e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 10, Quota: 100, Self: 0, Children: 100})
-			promise := e.addPromise("promise", "root", "child", 0, 10, 100)
-			tt.steps(e, promise)
-			head := e.promiseHead(promise, 2)
-			if head.QuotaSelf != tt.want.QuotaSelf || head.QuotaChildren != tt.want.QuotaChildren {
-				t.Fatalf("target = self:%d children:%d, want self:%d children:%d", head.QuotaSelf, head.QuotaChildren, tt.want.QuotaSelf, tt.want.QuotaChildren)
-			}
-		})
-	}
+	e.reconcile(1, "child", util.OptValue[int64](10))
+	e.reconcile(2, "child", util.OptValue[int64](30))
+
+	head := e.promiseHead(promise, 2)
+	assertPromiseAllocation(t, head, 40, 0, e.tm(1), e.tm(10))
 }
 
-func TestPromiseReconcileSuccessorAndTightReservationShrink(t *testing.T) {
+func TestPromiseReconcileSuccessorAndReportHeadroom(t *testing.T) {
 	tests := []struct {
 		name   string
 		setup  func(*lowTestEnv) PromiseId
@@ -264,15 +227,15 @@ func TestPromiseReconcileSuccessorAndTightReservationShrink(t *testing.T) {
 		{
 			name: "retired head creates successor without a gap",
 			setup: func(e *lowTestEnv) PromiseId {
-				e.setPolicy(PromisePolicy{Mode: ReservationModeCommitted, CommittedFractionBasisPoints: 5000})
+				e.setPolicy(PromisePolicy{TrendAlphaBasisPoints: 10000})
 				e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 10, Quota: 100, Self: 0, Children: 100})
-				return e.addPromise("promise", "root", "child", 0, 10, 100)
+				return e.addPromise("root", "child", 0, 10, 100)
 			},
 			steps: func(e *lowTestEnv, promise PromiseId) {
-				e.reconcile(1, "child", util.OptNone[int64]())
+				e.reconcile(1, "child", util.OptValue[int64](50))
 				head := e.promiseHead(promise, 1)
 				promiseSetPeriod(e.tm(1), e.tree(), head.Id, e.tm(0), e.tm(5))
-				e.reconcile(6, "child", util.OptNone[int64]())
+				e.reconcile(6, "child", util.OptValue[int64](50))
 			},
 			assert: func(e *lowTestEnv, promise PromiseId) {
 				allocations := e.promiseAllocations(promise)
@@ -280,28 +243,23 @@ func TestPromiseReconcileSuccessorAndTightReservationShrink(t *testing.T) {
 					t.Fatalf("promise allocations = %d, want 2", len(allocations))
 				}
 				head := e.promiseHead(promise, 6)
-				assertPromiseAllocation(t, head, 0, 50, e.tm(5), e.tm(10))
+				assertPromiseAllocation(t, head, 50, 0, e.tm(5), e.tm(10))
 			},
 		},
 		{
-			name: "report reconciliation restores normal slack after tight pre-report cleanup",
+			name: "report reconciliation keeps existing allocation when headroom is sufficient",
 			setup: func(e *lowTestEnv) PromiseId {
-				e.setPolicy(PromisePolicy{
-					Mode:                                 ReservationModeMinimal,
-					MinSlack:                             20,
-					TrendAlphaBasisPoints:                10000,
-					TightReservationThresholdBasisPoints: 5000,
-				})
+				e.setPolicy(PromisePolicy{MinSlack: 20, TrendAlphaBasisPoints: 10000})
 				e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 10, Quota: 100, Self: 0, Children: 100})
-				return e.addPromise("promise", "root", "child", 0, 10, 100)
+				return e.addPromise("root", "child", 0, 10, 100)
 			},
 			steps: func(e *lowTestEnv, promise PromiseId) {
 				e.reconcile(1, "child", util.OptValue[int64](80))
 				e.report(2, "child", 30)
 			},
 			assert: func(e *lowTestEnv, promise PromiseId) {
-				assertPromiseAllocation(t, e.promiseHead(promise, 3), 50, 0, e.tm(1), e.tm(10))
-				e.assertAllocation("root", 0, 100, 0, 50)
+				assertPromiseAllocation(t, e.promiseHead(promise, 3), 100, 0, e.tm(1), e.tm(10))
+				e.assertAllocation("root", 0, 100, 0, 100)
 			},
 		},
 	}
@@ -319,10 +277,10 @@ func TestPromiseReconcileSuccessorAndTightReservationShrink(t *testing.T) {
 
 func TestPromiseReportUsageMultiplePromisesForSameChild(t *testing.T) {
 	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
-	e.setPolicy(PromisePolicy{Mode: ReservationModeMinimal, TrendAlphaBasisPoints: 10000})
+	e.setPolicy(PromisePolicy{TrendAlphaBasisPoints: 10000})
 	e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 10, Quota: 100, Self: 0, Children: 100})
-	first := e.addPromise("first", "root", "child", 0, 10, 50)
-	second := e.addPromise("second", "root", "child", 0, 10, 50)
+	first := e.addPromise("root", "child", 0, 10, 50)
+	second := e.addPromise("root", "child", 0, 10, 50)
 
 	e.report(1, "child", 90)
 
@@ -337,12 +295,29 @@ func TestPromiseReportUsageMultiplePromisesForSameChild(t *testing.T) {
 	e.assertWalletConsumed("child", 90)
 }
 
+func TestPromiseReportUsageSkipsReconcileWhenHeadroomExists(t *testing.T) {
+	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
+	e.setPolicy(PromisePolicy{MinSlack: 10, TrendAlphaBasisPoints: 10000})
+	e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 10, Quota: 100, Self: 0, Children: 100})
+	aPromise := e.addPromise("root", "a", 0, 10, 50)
+	bPromise := e.addPromise("root", "b", 0, 10, 50)
+
+	e.reconcile(1, "a", util.OptValue[int64](40))
+	e.report(2, "a", 40)
+
+	assertPromiseAllocation(t, e.promiseHead(aPromise, 2), 50, 0, e.tm(1), e.tm(10))
+	if got := len(e.promiseAllocations(bPromise)); got != 0 {
+		t.Fatalf("unrelated promise allocations = %d, want 0", got)
+	}
+	e.assertAllocation("root", 0, 100, 0, 50)
+}
+
 func TestPromiseReportUsageSingleRootMultipleL1ChildrenOverbooked(t *testing.T) {
 	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
-	e.setPolicy(PromisePolicy{Mode: ReservationModeMinimal, TrendAlphaBasisPoints: 10000})
+	e.setPolicy(PromisePolicy{TrendAlphaBasisPoints: 10000})
 	e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 10, Quota: 100, Self: 0, Children: 100})
-	aPromise := e.addPromise("a", "root", "a", 0, 10, 60)
-	bPromise := e.addPromise("b", "root", "b", 0, 10, 60)
+	aPromise := e.addPromise("root", "a", 0, 10, 60)
+	bPromise := e.addPromise("root", "b", 0, 10, 60)
 
 	e.report(1, "a", 60)
 	e.report(2, "b", 60)
@@ -361,22 +336,21 @@ func TestPromiseReportUsageSingleRootMultipleL1ChildrenOverbooked(t *testing.T) 
 
 func TestPromiseReportUsageSingleL2ChildMultipleL1Parents(t *testing.T) {
 	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
-	e.setPolicy(PromisePolicy{Mode: ReservationModeMinimal, TrendAlphaBasisPoints: 10000})
+	e.setPolicy(PromisePolicy{TrendAlphaBasisPoints: 10000})
 	e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 10, Quota: 100, Self: 0, Children: 100})
-	l1aPromise := e.addPromise("l1a", "root", "l1a", 0, 10, 50)
-	l1bPromise := e.addPromise("l1b", "root", "l1b", 0, 10, 50)
-	l2FromA := e.addPromise("l2a", "l1a", "l2", 0, 10, 50)
-	l2FromB := e.addPromise("l2b", "l1b", "l2", 0, 10, 50)
+	l1aPromise := e.addPromise("root", "l1a", 0, 10, 50)
+	l1bPromise := e.addPromise("root", "l1b", 0, 10, 50)
+	l2FromA := e.addPromise("l1a", "l2", 0, 10, 50)
+	l2FromB := e.addPromise("l1b", "l2", 0, 10, 50)
 
-	e.tryReport(1, "l2", 70, http.StatusBadRequest)
-	e.report(2, "l2", 70)
+	e.report(1, "l2", 70)
 
-	assertPromiseAllocation(t, e.promiseHead(l1aPromise, 2), 0, 50, e.tm(1), e.tm(10))
-	assertPromiseAllocation(t, e.promiseHead(l1bPromise, 2), 0, 50, e.tm(1), e.tm(10))
-	aHead := e.promiseHead(l2FromA, 2)
-	bHead := e.promiseHead(l2FromB, 2)
-	assertPromiseAllocation(t, aHead, 50, 0, e.tm(2), e.tm(10))
-	assertPromiseAllocation(t, bHead, 50, 0, e.tm(2), e.tm(10))
+	assertPromiseAllocation(t, e.promiseHead(l1aPromise, 1), 0, 50, e.tm(1), e.tm(10))
+	assertPromiseAllocation(t, e.promiseHead(l1bPromise, 1), 0, 50, e.tm(1), e.tm(10))
+	aHead := e.promiseHead(l2FromA, 1)
+	bHead := e.promiseHead(l2FromB, 1)
+	assertPromiseAllocation(t, aHead, 50, 0, e.tm(1), e.tm(10))
+	assertPromiseAllocation(t, bHead, 50, 0, e.tm(1), e.tm(10))
 	if aHead.ConsumedSelf != 50 || bHead.ConsumedSelf != 20 {
 		t.Fatalf("l2 consumption split = %d/%d, want 50/20", aHead.ConsumedSelf, bHead.ConsumedSelf)
 	}
@@ -387,9 +361,9 @@ func TestPromiseReportUsageSingleL2ChildMultipleL1Parents(t *testing.T) {
 func TestPromiseReportUsageRetirementUpDownAndOverQuota(t *testing.T) {
 	t.Run("usage can go over promise quota then shrink on later reconciliation", func(t *testing.T) {
 		e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
-		e.setPolicy(PromisePolicy{Mode: ReservationModeMinimal, TrendAlphaBasisPoints: 10000})
+		e.setPolicy(PromisePolicy{TrendAlphaBasisPoints: 10000})
 		e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 10, Quota: 100, Self: 0, Children: 100})
-		promise := e.addPromise("promise", "root", "child", 0, 10, 100)
+		promise := e.addPromise("root", "child", 0, 10, 100)
 
 		e.report(1, "child", 120)
 		head := e.promiseHead(promise, 1)
@@ -400,18 +374,18 @@ func TestPromiseReportUsageRetirementUpDownAndOverQuota(t *testing.T) {
 
 		e.report(2, "child", 40)
 		head = e.promiseHead(promise, 2)
-		assertPromiseAllocation(t, head, 40, 0, e.tm(1), e.tm(10))
+		assertPromiseAllocation(t, head, 100, 0, e.tm(1), e.tm(10))
 		if head.ConsumedSelf != 40 {
 			t.Fatalf("lowered consumption = %d, want 40", head.ConsumedSelf)
 		}
-		e.assertAllocation("root", 0, 100, 0, 40)
+		e.assertAllocation("root", 0, 100, 0, 100)
 	})
 
 	t.Run("retired promise allocation releases parent and successor can grow", func(t *testing.T) {
 		e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
-		e.setPolicy(PromisePolicy{Mode: ReservationModeMinimal, TrendAlphaBasisPoints: 10000})
+		e.setPolicy(PromisePolicy{TrendAlphaBasisPoints: 10000})
 		e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 20, Quota: 100, Self: 0, Children: 100})
-		promise := e.addPromise("promise", "root", "child", 0, 20, 100)
+		promise := e.addPromise("root", "child", 0, 20, 100)
 
 		e.report(1, "child", 80)
 		head := e.promiseHead(promise, 1)
@@ -436,12 +410,12 @@ func TestPromiseReportUsageRetirementUpDownAndOverQuota(t *testing.T) {
 
 func TestPromiseReportUsagePromiseSpansGaplessYearlyRootAllocations(t *testing.T) {
 	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
-	e.setPolicy(PromisePolicy{Mode: ReservationModeMinimal, TrendAlphaBasisPoints: 10000})
+	e.setPolicy(PromisePolicy{TrendAlphaBasisPoints: 10000})
 
 	// Treat each test time unit as a calendar month. The root allocations cover two gapless calendar years.
 	e.add(lowAllocSpec{Name: "root-year-0", Wallet: "root", Start: 0, End: 12, Quota: 100, Self: 0, Children: 100})
 	e.add(lowAllocSpec{Name: "root-year-1", Wallet: "root", Start: 12, End: 24, Quota: 100, Self: 0, Children: 100})
-	promise := e.addPromise("june-to-june", "root", "sub-project", 5, 17, 100)
+	promise := e.addPromise("root", "sub-project", 5, 17, 100)
 
 	e.report(5, "sub-project", 40)
 	first := e.promiseHead(promise, 5)
@@ -469,9 +443,9 @@ func TestPromiseReportUsagePromiseSpansGaplessYearlyRootAllocations(t *testing.T
 func TestPromiseQuotaCountsRetiredMaterializationsByAccountingMode(t *testing.T) {
 	t.Run("non-capacity quota is lifetime budget", func(t *testing.T) {
 		e := newLowTestEnv(t, accapi.AccountingFrequencyPeriodicHour)
-		e.setPolicy(PromisePolicy{Mode: ReservationModeMinimal, TrendAlphaBasisPoints: 10000})
+		e.setPolicy(PromisePolicy{TrendAlphaBasisPoints: 10000})
 		e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 20, Quota: 200, Self: 0, Children: 200})
-		promise := e.addPromise("promise", "root", "child", 0, 20, 100)
+		promise := e.addPromise("root", "child", 0, 20, 100)
 
 		e.report(1, "child", 80)
 		first := e.promiseHead(promise, 1)
@@ -491,9 +465,9 @@ func TestPromiseQuotaCountsRetiredMaterializationsByAccountingMode(t *testing.T)
 
 	t.Run("non-capacity unused retired quota can be consumed later", func(t *testing.T) {
 		e := newLowTestEnv(t, accapi.AccountingFrequencyPeriodicHour)
-		e.setPolicy(PromisePolicy{Mode: ReservationModeMinimal, TrendAlphaBasisPoints: 10000})
+		e.setPolicy(PromisePolicy{TrendAlphaBasisPoints: 10000})
 		e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 20, Quota: 200, Self: 0, Children: 200})
-		promise := e.addPromise("promise", "root", "child", 0, 20, 100)
+		promise := e.addPromise("root", "child", 0, 20, 100)
 
 		e.reconcile(1, "child", util.OptValue[int64](80))
 		first := e.promiseHead(promise, 1)
@@ -520,9 +494,9 @@ func TestPromiseQuotaCountsRetiredMaterializationsByAccountingMode(t *testing.T)
 
 	t.Run("capacity quota is maximum concurrent exposure", func(t *testing.T) {
 		e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
-		e.setPolicy(PromisePolicy{Mode: ReservationModeMinimal, TrendAlphaBasisPoints: 10000})
+		e.setPolicy(PromisePolicy{TrendAlphaBasisPoints: 10000})
 		e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 20, Quota: 200, Self: 0, Children: 200})
-		promise := e.addPromise("promise", "root", "child", 0, 20, 100)
+		promise := e.addPromise("root", "child", 0, 20, 100)
 
 		e.report(1, "child", 80)
 		first := e.promiseHead(promise, 1)

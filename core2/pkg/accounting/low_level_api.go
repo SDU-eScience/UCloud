@@ -1,9 +1,10 @@
-package acc2
+package accounting
 
 import (
 	"cmp"
 	"fmt"
 	"net/http"
+	"regexp"
 	"slices"
 	"sync"
 	"sync/atomic"
@@ -44,8 +45,8 @@ import (
 // wallets and allocations for that category live inside that tree. IDs are process-global integers, matching the older
 // accounting implementation.
 //
-// PromisePolicy uses integer basis points for fractional configuration. 10,000 basis points means 100%, 5,000 means
-// 50%, and so on. This avoids floating point behavior in accounting code while still allowing policy fractions.
+// PromisePolicy uses integer basis points for trend configuration. 10,000 basis points means 100%, 5,000 means 50%,
+// and so on. This avoids floating point behavior in accounting code while still allowing policy fractions.
 //
 // ---------------------------------------------------------------------------------------------------------------------
 // MUTEX LOCK ORDER: globals > tree > scopedUsage
@@ -55,6 +56,7 @@ import (
 type AllocationId int
 type WalletId int
 type GrantId int
+type OwnerId int
 
 var accGlobals struct {
 	Mu sync.RWMutex
@@ -64,11 +66,29 @@ var accGlobals struct {
 	Usage map[string]*ScopedUsage // NOTE(Dan): quite annoying that this has to be global
 	Trees map[accapi.ProductCategoryIdV2]*AccountingTree
 
+	OwnersByReference map[string]*walletOwner
+	OwnersById        map[OwnerId]*walletOwner
+
 	OwnerIdAcc  atomic.Int64
 	WalletIdAcc atomic.Int64
-	GroupIdAcc  atomic.Int64
 	AllocIdAcc  atomic.Int64
 }
+
+type walletOwner struct {
+	Id        OwnerId
+	Reference string
+	Dirty     bool
+}
+
+func (o *walletOwner) WalletOwner() accapi.WalletOwner {
+	if projectRegex.MatchString(o.Reference) {
+		return accapi.WalletOwnerProject(o.Reference)
+	} else {
+		return accapi.WalletOwnerUser(o.Reference)
+	}
+}
+
+var projectRegex = regexp.MustCompile("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
 
 type AccountingTree struct {
 	Mu       sync.RWMutex
@@ -86,43 +106,14 @@ type AccountingTree struct {
 	Policy PromisePolicy
 }
 
-type ReservationMode int
-
-const (
-	// ReservationModeMinimal will only reserve what is needed right now plus a small slack. This will maximize the
-	// utilization but causes more future edits in the promise reconciliation step.
-	ReservationModeMinimal ReservationMode = iota
-
-	// ReservationModeBuffered will reserve enough to make it very likely that there is enough space to survive until
-	// the next periodic reconciliation loop.
-	ReservationModeBuffered
-
-	// ReservationModeCommitted will reserve a large amount of the promise up front.
-	ReservationModeCommitted
-)
-
 type PromisePolicy struct {
-	Mode ReservationMode
-
 	MinSlack int64
 
 	// GrowthStep rounds policy targets up to stable accounting-sized chunks. A zero value disables rounding.
 	GrowthStep int64
 
-	// ForecastWindow controls how far buffered reservations project the current EWMA trend. A zero value means no
-	// forecast beyond the latest measured demand.
-	ForecastWindow time.Duration
-
-	// CommittedFractionBasisPoints controls how much of a promise should be reserved in committed mode. A zero value
-	// defaults to 100%.
-	CommittedFractionBasisPoints int64
-
 	// TrendAlphaBasisPoints controls the EWMA update weight. A zero value defaults to 50%.
 	TrendAlphaBasisPoints int64
-
-	// TightReservationThresholdBasisPoints controls when reconciliation starts reducing buffers. A zero value defaults
-	// to 85%.
-	TightReservationThresholdBasisPoints int64
 }
 
 func (t *AccountingTree) IsCapacityBased() bool {
@@ -148,6 +139,8 @@ type Wallet struct {
 	Owner       accapi.WalletOwner
 	Category    accapi.ProductCategoryIdV2
 
+	LastSignificantUpdateAt time.Time
+
 	PromiseDemandEwma     int64
 	PromiseDemandObserved int64
 	PromiseDemandTrend    int64
@@ -167,11 +160,36 @@ type Allocation struct {
 	QuotaChildren    int64
 	ConsumedSelf     int64
 	ReservedChildren int64
+	RetiredQuota     int64
+	RetiredUsage     int64
+	Activated        bool
+	Retired          bool
 
 	Children []AllocationId
 
 	Grant   util.Option[GrantId]
 	Promise util.Option[PromiseId]
+}
+
+func CategoryEnsure(category accapi.ProductCategory) {
+	categoryId := category.ToId()
+	accGlobals.Mu.Lock()
+	defer accGlobals.Mu.Unlock()
+
+	if accGlobals.Trees == nil {
+		accGlobals.Trees = map[accapi.ProductCategoryIdV2]*AccountingTree{}
+	}
+	if accGlobals.Trees[categoryId] != nil {
+		return
+	}
+
+	accGlobals.Trees[categoryId] = &AccountingTree{
+		Category:        category,
+		WalletsById:     map[WalletId]*Wallet{},
+		WalletsByOwner:  map[string]*Wallet{},
+		AllocationsById: map[AllocationId]*Allocation{},
+		Policy:          PromisePolicy{TrendAlphaBasisPoints: 10000},
+	}
 }
 
 func (a *Allocation) IsActive(now time.Time) bool {
@@ -180,6 +198,42 @@ func (a *Allocation) IsActive(now time.Time) bool {
 
 func (a *Allocation) IsRetired(now time.Time) bool {
 	return !now.Before(a.End)
+}
+
+func (a *Allocation) shouldActivate(now time.Time) bool {
+	return !a.Activated && now.Add(time.Second).After(a.Start) && now.Before(a.End)
+}
+
+func (a *Allocation) shouldRetire(now time.Time) bool {
+	return !a.Retired && now.Add(time.Second).After(a.End)
+}
+
+func WalletEnsure(category accapi.ProductCategoryIdV2, owner accapi.WalletOwner) (WalletId, *util.HttpError) {
+	var walletId WalletId
+	err := treeMutate(category, func(tree *AccountingTree) *util.HttpError {
+		wallet := walletEnsureEx(tree, owner)
+		walletId = wallet.Id
+		return nil
+	})
+	return walletId, err
+}
+
+func walletEnsureEx(tree *AccountingTree, owner accapi.WalletOwner) *Wallet {
+	ref := owner.Reference()
+	wallet := tree.WalletsByOwner[ref]
+	if wallet != nil {
+		return wallet
+	}
+
+	wallet = &Wallet{
+		Id:          WalletId(accGlobals.WalletIdAcc.Add(1)),
+		Allocations: []AllocationId{},
+		Owner:       owner,
+		Category:    tree.Category.ToId(),
+	}
+	tree.WalletsById[wallet.Id] = wallet
+	tree.WalletsByOwner[ref] = wallet
+	return wallet
 }
 
 // Allocation lifecycle API
@@ -209,6 +263,8 @@ func AllocationCreate(
 ) (AllocationId, *util.HttpError) {
 	var allocationId AllocationId
 	err := treeMutate(category, func(tree *AccountingTree) *util.HttpError {
+		lifecycleScan(now, tree)
+
 		if start.After(end) {
 			return util.HttpErr(http.StatusBadRequest, "start must occur before the end of an allocation")
 		}
@@ -260,11 +316,17 @@ func AllocationCreate(
 				parentAlloc.ReservedChildren += quota
 				parentAlloc.Children = append(parentAlloc.Children, allocationId)
 			})
+			parent := tree.AllocationsById[parentAllocation.Value]
+			if parent != nil {
+				walletMarkSignificantUpdate(now, tree, tree.WalletsById[parent.Wallet])
+			}
 		}
 
 		allocationMutate(now, tree, allocationId, func(alloc *Allocation, parent util.Option[*Allocation]) {})
+		lifecycleScanAllocation(now, tree, allocation)
+		walletMarkSignificantUpdate(now, tree, recipientWallet)
+		walletReevaluateLock(now, tree, recipientWallet)
 
-		tree.SignificantUpdateAt = now
 		return nil
 	})
 	return allocationId, err
@@ -281,9 +343,19 @@ func AllocationUpdate(
 	var grantedIn GrantId
 	var changelog string
 	err := treeMutate(category, func(tree *AccountingTree) *util.HttpError {
+		lifecycleScan(now, tree)
+
 		alloc, ok := tree.AllocationsById[id]
 		if !ok {
 			return util.HttpErr(http.StatusNotFound, "unknown allocation")
+		}
+		if alloc.Promise.Present {
+			promiseTree := promiseTreeEnsure(category)
+			promise := promiseTree.PromisesById[alloc.Promise.Value]
+			if promise == nil {
+				return util.HttpErr(http.StatusNotFound, "unknown promise")
+			}
+			return allocationUpdatePromiseBacked(now, tree, promise, alloc.Grant, quota, start, end, &grantedIn, &changelog)
 		}
 
 		proposedStart := alloc.Start
@@ -358,7 +430,15 @@ func AllocationUpdate(
 			}
 		})
 
-		tree.SignificantUpdateAt = now
+		walletMarkSignificantUpdate(now, tree, tree.WalletsById[alloc.Wallet])
+		if alloc.Parent.Present {
+			parent := tree.AllocationsById[alloc.Parent.Value]
+			if parent != nil {
+				walletMarkSignificantUpdate(now, tree, tree.WalletsById[parent.Wallet])
+			}
+		}
+		lifecycleScanAllocation(now, tree, alloc)
+		walletReevaluateLock(now, tree, tree.WalletsById[alloc.Wallet])
 
 		if alloc.Grant.Present {
 			grantedIn = alloc.Grant.Value
@@ -389,6 +469,118 @@ func AllocationUpdate(
 	return grantedIn, changelog, err
 }
 
+func allocationUpdatePromiseBacked(
+	now time.Time,
+	tree *AccountingTree,
+	promise *Promise,
+	allocationGrant util.Option[GrantId],
+	quota util.Option[int64],
+	start util.Option[time.Time],
+	end util.Option[time.Time],
+	grantedIn *GrantId,
+	changelog *string,
+) *util.HttpError {
+	proposedStart := promise.Start
+	if start.Present {
+		proposedStart = start.Value
+	}
+
+	proposedEnd := promise.End
+	if end.Present {
+		proposedEnd = end.Value
+	}
+
+	proposedQuota := promise.Quota
+	if quota.Present {
+		proposedQuota = quota.Value
+	}
+
+	if proposedStart.After(proposedEnd) {
+		return util.HttpErr(http.StatusBadRequest, "start must occur before the end of a promise")
+	}
+	if quota.Present && proposedQuota < 0 {
+		return util.HttpErr(http.StatusBadRequest, "quota must not be negative")
+	}
+	if start.Present && !proposedStart.Equal(promise.Start) && now.After(promise.Start) {
+		return util.HttpErr(http.StatusForbidden, "cannot change the starting time of a promise which has already started")
+	}
+	if end.Present && !proposedEnd.Equal(promise.End) && now.After(promise.End) {
+		return util.HttpErr(http.StatusForbidden, "cannot change the ending time of a promise which has already ended")
+	}
+	if proposedQuota < promiseRequiredQuota(now, tree, promise) {
+		return util.HttpErr(http.StatusForbidden, "quota cannot be lowered below existing consumption and child reservations")
+	}
+
+	promise.Start = proposedStart
+	promise.End = proposedEnd
+	promise.Quota = proposedQuota
+	promiseReconcileOne(now, tree, promise)
+
+	walletMarkSignificantUpdate(now, tree, tree.WalletsById[promise.Child])
+	walletMarkSignificantUpdate(now, tree, tree.WalletsById[promise.Parent])
+
+	grant := allocationGrant
+	if promise.Grant.Present {
+		grant = promise.Grant
+	}
+	if grant.Present {
+		*grantedIn = grant.Value
+		*changelog += allocationUpdateChangelog(tree, proposedQuota, proposedStart, proposedEnd, quota, start, end)
+	}
+
+	return nil
+}
+
+func promiseRequiredQuota(now time.Time, tree *AccountingTree, promise *Promise) int64 {
+	wallet := tree.WalletsById[promise.Child]
+	if wallet == nil {
+		return 0
+	}
+	required := int64(0)
+	for _, allocationId := range wallet.Allocations {
+		allocation := tree.AllocationsById[allocationId]
+		if allocation == nil || !allocation.Promise.Present || allocation.Promise.Value != promise.Id {
+			continue
+		}
+		if tree.IsCapacityBased() && allocation.Retired {
+			continue
+		}
+		required += allocation.ConsumedSelf + allocation.ReservedChildren
+	}
+	return required
+}
+
+func allocationUpdateChangelog(
+	tree *AccountingTree,
+	proposedQuota int64,
+	proposedStart time.Time,
+	proposedEnd time.Time,
+	quota util.Option[int64],
+	start util.Option[time.Time],
+	end util.Option[time.Time],
+) string {
+	changelog := ""
+	if quota.Present {
+		amount := proposedQuota
+		switch tree.Category.AccountingFrequency {
+		case accapi.AccountingFrequencyPeriodicMinute:
+			amount = proposedQuota / 60
+		case accapi.AccountingFrequencyPeriodicDay:
+			amount = proposedQuota * 24
+		}
+		changelog += fmt.Sprintf("The quota for %s (%s) has manually been updated to %d.\n", tree.Category.Name, tree.Category.Provider, amount)
+	}
+
+	if start.Present {
+		changelog += fmt.Sprintf("The start date for the granted %s (%s) allocation has manually been updated to %s.\n", tree.Category.Name, tree.Category.Provider, proposedStart.String())
+	}
+
+	if end.Present {
+		changelog += fmt.Sprintf("The end date for the granted %s (%s) allocation has manually been updated to %s.\n", tree.Category.Name, tree.Category.Provider, proposedEnd.String())
+	}
+	return changelog
+}
+
 // Mutation and invariant helpers
 // ---------------------------------------------------------------------------------------------------------------------
 // The low-level accounting tree is deliberately strict: mutation functions are allowed to change several related fields
@@ -406,6 +598,77 @@ func AllocationUpdate(
 // - walletMutateEx: Runs a wallet mutation when the caller already holds the tree lock.
 // - walletAssertConsumptionMatchesAllocations: Verifies wallet.Consumed equals the sum of allocation consumption.
 // - treeMutate: Locates and locks the accounting tree for a category.
+
+func walletMarkSignificantUpdate(now time.Time, tree *AccountingTree, wallet *Wallet) {
+	if wallet == nil {
+		return
+	}
+	tree.SignificantUpdateAt = now
+	wallet.LastSignificantUpdateAt = now
+}
+
+func walletReevaluateLock(now time.Time, tree *AccountingTree, wallet *Wallet) {
+	if wallet == nil {
+		return
+	}
+	maxUsable := walletRemainingUsable(now, tree, wallet)
+	if maxUsable <= 0 && !wallet.Locked {
+		wallet.Locked = true
+		walletMarkSignificantUpdate(now, tree, wallet)
+	} else if maxUsable > 0 && wallet.Locked {
+		wallet.Locked = false
+		walletMarkSignificantUpdate(now, tree, wallet)
+	}
+}
+
+func walletMaxUsable(now time.Time, tree *AccountingTree, wallet *Wallet) int64 {
+	if wallet == nil || wallet.Locked {
+		return 0
+	}
+	return walletRemainingUsable(now, tree, wallet)
+}
+
+func walletRemainingUsable(now time.Time, tree *AccountingTree, wallet *Wallet) int64 {
+	if wallet == nil {
+		return 0
+	}
+	quota := int64(0)
+	promiseTree := promiseTreeRead(tree.Category.ToId())
+	if promiseTree != nil {
+		quota = walletQuotaContributing(now, tree, promiseTree, wallet)
+	}
+	if quota == 0 {
+		quota = promiseWalletActiveSelfQuota(now, tree, wallet)
+	}
+	return max(quota-promiseMeasuredWalletDemand(now, tree, wallet), 0)
+}
+
+func lifecycleScan(now time.Time, tree *AccountingTree) {
+	for _, allocation := range tree.AllocationsById {
+		lifecycleScanAllocation(now, tree, allocation)
+	}
+	for _, wallet := range tree.WalletsById {
+		walletReevaluateLock(now, tree, wallet)
+	}
+}
+
+func lifecycleScanAllocation(now time.Time, tree *AccountingTree, allocation *Allocation) {
+	if allocation == nil {
+		return
+	}
+	wallet := tree.WalletsById[allocation.Wallet]
+	if allocation.shouldActivate(now) {
+		allocation.Activated = true
+		walletMarkSignificantUpdate(now, tree, wallet)
+	}
+	if allocation.shouldRetire(now) {
+		allocation.Retired = true
+		allocation.Activated = true
+		allocation.RetiredQuota = allocation.QuotaSelf + allocation.QuotaChildren
+		allocation.RetiredUsage = allocation.ConsumedSelf
+		walletMarkSignificantUpdate(now, tree, wallet)
+	}
+}
 
 func allocationMutate(
 	now time.Time,
@@ -591,18 +854,21 @@ func treeMutate(category accapi.ProductCategoryIdV2, fn func(tree *AccountingTre
 // usage can be moved forward when an active allocation can absorb it.
 
 func UsageReport(now time.Time, request accapi.ReportUsageRequest) (success bool, err *util.HttpError) {
-	PromiseReconcile(now, request.CategoryIdV2, request.Owner, util.OptValue(request.Usage))
+	scope := usageReportScope(request)
+	absoluteAmount, resolveErr := usageReportResolveAbsoluteUsage(now, request, scope)
+	if resolveErr != nil {
+		return false, resolveErr
+	}
+
+	PromiseReconcile(now, request.CategoryIdV2, request.Owner, util.OptValue(absoluteAmount))
 
 	walletMutate(request.CategoryIdV2, request.Owner, func(tree *AccountingTree, wallet *Wallet) {
+		lifecycleScan(now, tree)
+
 		if len(wallet.Allocations) == 0 {
 			success, err = false, util.HttpErr(http.StatusBadRequest, "this owner does not have any such resources")
 			return
 		}
-
-		// NOTE(Dan): We are going to start moving these scopes to their proper owners based on how the providers use
-		// them. For this reason, we assume that we can actually retrieve the scope correctly from within a single
-		// wallet.
-		absoluteAmount := request.Usage // TODO Scopes and delta
 
 		retiredAmount := int64(0)
 
@@ -833,17 +1099,75 @@ func UsageReport(now time.Time, request accapi.ReportUsageRequest) (success bool
 				if released > 0 && parent.Present {
 					parent.Value.ReservedChildren -= released
 					retirementCleanupQueue = append(retirementCleanupQueue, parent.Value.Id)
+					walletMarkSignificantUpdate(now, tree, tree.WalletsById[parent.Value.Wallet])
 				}
 			})
 		}
+
+		walletReevaluateLock(now, tree, wallet)
+		success = !wallet.Locked
 	})
 
 	if err == nil {
-		PromiseReconcile(now, request.CategoryIdV2, request.Owner, util.OptValue(request.Usage))
+		PromiseReconcile(now, request.CategoryIdV2, request.Owner, util.OptValue(absoluteAmount))
 	}
 	return
 }
 
-func WalletsBrowse(owner accapi.WalletOwner) []accapi.WalletV2 {
-	return nil
+func usageReportScope(request accapi.ReportUsageRequest) *ScopedUsage {
+	if !request.Description.Scope.Present {
+		return nil
+	}
+
+	key := request.Owner.Reference() + "\n" + request.Description.Scope.Value
+	accGlobals.Mu.Lock()
+	defer accGlobals.Mu.Unlock()
+	if accGlobals.Usage == nil {
+		accGlobals.Usage = map[string]*ScopedUsage{}
+	}
+	scope := accGlobals.Usage[key]
+	if scope == nil {
+		scope = &ScopedUsage{Key: key}
+		accGlobals.Usage[key] = scope
+	}
+	return scope
+}
+
+func usageReportResolveAbsoluteUsage(now time.Time, request accapi.ReportUsageRequest, scope *ScopedUsage) (int64, *util.HttpError) {
+	if !request.IsDeltaCharge && request.Usage < 0 {
+		return 0, util.HttpErr(http.StatusForbidden, "absolute usage cannot be negative")
+	}
+
+	absoluteAmount := int64(0)
+	err := treeMutate(request.CategoryIdV2, func(tree *AccountingTree) *util.HttpError {
+		lifecycleScan(now, tree)
+		wallet := tree.WalletsByOwner[request.Owner.Reference()]
+		if wallet == nil {
+			return util.HttpErr(http.StatusNotFound, "unknown wallet")
+		}
+
+		currentUsage := wallet.Consumed
+		if scope != nil {
+			scope.Mu.Lock()
+			defer scope.Mu.Unlock()
+			currentUsage = scope.Usage
+		}
+
+		delta := request.Usage
+		if !request.IsDeltaCharge {
+			delta = request.Usage - currentUsage
+		}
+
+		absoluteAmount = wallet.Consumed + delta
+		if absoluteAmount < 0 {
+			return util.HttpErr(http.StatusForbidden, "usage cannot become negative")
+		}
+
+		if scope != nil {
+			scope.Usage = currentUsage + delta
+		}
+		return nil
+	})
+
+	return absoluteAmount, err
 }

@@ -1,7 +1,8 @@
-package acc2
+package accounting
 
 import (
 	"cmp"
+	"net/http"
 	"slices"
 	"sync"
 	"sync/atomic"
@@ -43,12 +44,79 @@ type Promise struct {
 	End   time.Time
 
 	Quota int64
+	Grant util.Option[GrantId]
 }
 
 type PromiseTree struct {
 	PromisesById     map[PromiseId]*Promise
 	PromisesByParent map[WalletId][]PromiseId
 	PromisesByChild  map[WalletId][]PromiseId
+}
+
+func PromiseCreate(
+	now time.Time,
+	category accapi.ProductCategoryIdV2,
+	parentWallet WalletId,
+	childWallet WalletId,
+	start time.Time,
+	end time.Time,
+	quota int64,
+	grant util.Option[GrantId],
+) (PromiseId, *util.HttpError) {
+	var promiseId PromiseId
+	err := treeMutate(category, func(tree *AccountingTree) *util.HttpError {
+		if _, ok := tree.WalletsById[parentWallet]; !ok {
+			return util.HttpErr(http.StatusNotFound, "unknown parent wallet")
+		}
+		child := tree.WalletsById[childWallet]
+		if child == nil {
+			return util.HttpErr(http.StatusNotFound, "unknown child wallet")
+		}
+		if parentWallet == childWallet {
+			return util.HttpErr(http.StatusBadRequest, "parent and child wallet must be different")
+		}
+		if start.After(end) {
+			return util.HttpErr(http.StatusBadRequest, "start must occur before the end of a promise")
+		}
+		if quota < 0 {
+			return util.HttpErr(http.StatusBadRequest, "quota must not be negative")
+		}
+
+		promiseTree := promiseTreeEnsure(category)
+		if grant.Present {
+			for _, existingId := range promiseTree.PromisesByParent[parentWallet] {
+				existing := promiseTree.PromisesById[existingId]
+				if existing == nil || !existing.Grant.Present {
+					continue
+				}
+				if existing.Grant.Value == grant.Value && existing.Child == childWallet && existing.Start.Equal(start) && existing.End.Equal(end) && existing.Quota == quota {
+					promiseId = existing.Id
+					return nil
+				}
+			}
+		}
+
+		promiseId = PromiseId(promiseGlobals.PromiseIdAcc.Add(1))
+		promise := &Promise{
+			Id:     promiseId,
+			Parent: parentWallet,
+			Child:  childWallet,
+			Start:  start,
+			End:    end,
+			Quota:  quota,
+			Grant:  grant,
+		}
+
+		promiseTree.PromisesById[promiseId] = promise
+		promiseTree.PromisesByParent[parentWallet] = append(promiseTree.PromisesByParent[parentWallet], promiseId)
+		promiseTree.PromisesByChild[childWallet] = append(promiseTree.PromisesByChild[childWallet], promiseId)
+
+		walletMarkSignificantUpdate(now, tree, tree.WalletsById[parentWallet])
+		walletMarkSignificantUpdate(now, tree, child)
+		walletReevaluateLock(now, tree, child)
+		return nil
+	})
+	return promiseId, err
 }
 
 var promiseGlobals struct {
@@ -58,16 +126,16 @@ var promiseGlobals struct {
 	PromiseIdAcc atomic.Int64
 }
 
-// promiseBasisPoints is the denominator for integer policy fractions. A value of 10,000 means 100%, 5,000 means 50%,
+// promiseBasisPoints is the denominator for integer trend fractions. A value of 10,000 means 100%, 5,000 means 50%,
 // and 1 means 0.01%. Promise policies use this representation instead of floats so accounting decisions remain stable
 // and deterministic.
 const promiseBasisPoints = int64(10000)
 
 // Public reconciliation entry point
 // ---------------------------------------------------------------------------------------------------------------------
-// PromiseReconcile is invoked either periodically for a category or synchronously from UsageReport. It walks the whole
-// promise tree for the category, not just the owner that triggered the call. The owner and minimumRequest arguments are
-// used to seed trend information for the reporting wallet before the global pass begins.
+// PromiseReconcile is invoked either periodically for a category or synchronously from UsageReport. Periodic
+// reconciliation walks the whole promise tree. Report-triggered reconciliation only works on the reporting wallet's
+// ancestor promise chain, and returns immediately if the wallet already has the rounded target plus slack available.
 //
 // Reconciliation proceeds bottom-up by sorting promises by child depth. This gives child demand a chance to influence
 // parent targets on later passes and matches the operational model where periodic reconciliation can gradually expose
@@ -83,9 +151,6 @@ const promiseBasisPoints = int64(10000)
 //
 // The minimumRequest property is set only when invoked on-demand to ensure that the system can carry a charge. It is
 // not guaranteed, that such a value is within what the promise would allow.
-//
-// The reconciliation function will always (regardless of policy) start being aggressive in cleaning up if the system
-// is more than 85% reserved in the root.
 func PromiseReconcile(
 	now time.Time,
 	category accapi.ProductCategoryIdV2,
@@ -93,19 +158,16 @@ func PromiseReconcile(
 	minimumRequest util.Option[int64],
 ) {
 	treeMutate(category, func(tree *AccountingTree) *util.HttpError {
+		lifecycleScan(now, tree)
 		promiseTree := promiseTreeEnsure(category)
-		promises := promiseTreePromises(promiseTree)
 
 		if minimumRequest.Present {
-			walletMutateEx(tree, owner, func(wallet *Wallet) {
-				promiseUpdateWalletTrend(now, tree, wallet, minimumRequest.Value)
-			})
+			promiseReconcileOwner(now, tree, promiseTree, owner, minimumRequest.Value)
+			return nil
 		}
 
+		promises := promiseTreePromises(promiseTree)
 		for _, wallet := range tree.WalletsById {
-			if minimumRequest.Present && wallet.Owner.Reference() == owner.Reference() {
-				continue
-			}
 			promiseUpdateWalletTrend(now, tree, wallet, promiseMeasuredWalletDemand(now, tree, wallet))
 		}
 
@@ -118,13 +180,87 @@ func PromiseReconcile(
 			return cmp.Compare(int(a.Id), int(b.Id))
 		})
 
-		tight := promiseTreeReservationTight(now, tree)
 		for _, promise := range promises {
-			promiseReconcileOne(now, tree, promise, tight)
+			promiseReconcileOne(now, tree, promise)
 		}
 
 		return nil
 	})
+}
+
+func promiseReconcileOwner(now time.Time, tree *AccountingTree, promiseTree *PromiseTree, owner accapi.WalletOwner, minimumRequest int64) {
+	wallet := tree.WalletsByOwner[owner.Reference()]
+	if wallet == nil {
+		return
+	}
+
+	if promiseWalletActiveSelfQuota(now, tree, wallet) >= promiseReportHeadroomTarget(tree, minimumRequest) {
+		return
+	}
+
+	promiseUpdateWalletTrend(now, tree, wallet, minimumRequest)
+	promises := promiseRelevantPromisesForWallet(promiseTree, wallet.Id)
+	slices.SortFunc(promises, func(a, b *Promise) int {
+		depthA := promiseWalletDepth(promiseTree, a.Child)
+		depthB := promiseWalletDepth(promiseTree, b.Child)
+		if depthA != depthB {
+			return cmp.Compare(depthA, depthB)
+		}
+		return cmp.Compare(int(a.Id), int(b.Id))
+	})
+
+	for _, promise := range promises {
+		promiseReconcileOne(now, tree, promise)
+	}
+}
+
+func promiseReportHeadroomTarget(tree *AccountingTree, minimumRequest int64) int64 {
+	if minimumRequest < 0 {
+		minimumRequest = 0
+	}
+	return promiseRoundUp(minimumRequest+tree.Policy.MinSlack, tree.Policy.GrowthStep)
+}
+
+func promiseWalletActiveSelfQuota(now time.Time, tree *AccountingTree, wallet *Wallet) int64 {
+	quota := int64(0)
+	for _, allocationId := range wallet.Allocations {
+		allocation := tree.AllocationsById[allocationId]
+		if allocation != nil && allocation.IsActive(now) {
+			quota += allocation.QuotaSelf
+		}
+	}
+	return quota
+}
+
+func promiseRelevantPromisesForWallet(tree *PromiseTree, walletId WalletId) []*Promise {
+	result := []*Promise{}
+	seenPromises := map[PromiseId]bool{}
+	seenWallets := map[WalletId]bool{}
+	queue := []WalletId{walletId}
+
+	for len(queue) > 0 {
+		current := queue[0]
+		queue = queue[1:]
+		if seenWallets[current] {
+			continue
+		}
+		seenWallets[current] = true
+
+		for _, promiseId := range tree.PromisesByChild[current] {
+			if seenPromises[promiseId] {
+				continue
+			}
+			promise := tree.PromisesById[promiseId]
+			if promise == nil {
+				continue
+			}
+			seenPromises[promiseId] = true
+			result = append(result, promise)
+			queue = append(queue, promise.Parent)
+		}
+	}
+
+	return result
 }
 
 // Target split calculation
@@ -135,7 +271,7 @@ func PromiseReconcile(
 //
 // The target has two parts:
 //
-// - QuotaSelf: current self consumption, EWMA demand, optional slack and buffered forecast.
+// - QuotaSelf: current self consumption, EWMA demand and optional slack.
 // - QuotaChildren: the larger of current child reservations and target demand derived from child promises.
 //
 // This is intentionally not a global flow solver. Child targets are recursively summarized so the planner can propagate
@@ -188,22 +324,8 @@ func promiseCalculateLocalTargetSplit(tree *AccountingTree, walletId WalletId) p
 		currentSelf = wallet.PromiseDemandEwma
 	}
 
-	forecast := int64(0)
-	if policy.Mode == ReservationModeBuffered && policy.ForecastWindow > 0 && !wallet.PromiseTrendUpdatedAt.IsZero() {
-		forecast = promiseForecast(wallet.PromiseDemandTrend, policy.ForecastWindow)
-	}
-
-	targetSelf := currentSelf + policy.MinSlack + forecast
+	targetSelf := currentSelf + policy.MinSlack
 	targetChildren := currentChildren
-
-	switch policy.Mode {
-	case ReservationModeMinimal:
-		targetSelf = currentSelf + policy.MinSlack
-		targetChildren = currentChildren
-	case ReservationModeCommitted:
-		// The promise-specific committed quota is applied by reconciliation. The split policy keeps current demand safe.
-		targetSelf = currentSelf + policy.MinSlack
-	}
 
 	targetSelf = promiseRoundUp(targetSelf, policy.GrowthStep)
 	targetChildren = promiseRoundUp(targetChildren, policy.GrowthStep)
@@ -250,6 +372,12 @@ func promiseTreeEnsure(category accapi.ProductCategoryIdV2) *PromiseTree {
 	return tree
 }
 
+func promiseTreeMutate(category accapi.ProductCategoryIdV2, fn func(tree *PromiseTree) *util.HttpError) *util.HttpError {
+	tree := promiseGlobals.Trees[category]
+	// TODO Mutexes???
+	return fn(tree)
+}
+
 func promiseTreeRead(category accapi.ProductCategoryIdV2) *PromiseTree {
 	promiseGlobals.Mu.RLock()
 	defer promiseGlobals.Mu.RUnlock()
@@ -293,8 +421,7 @@ func promiseWalletDepth(tree *PromiseTree, walletId WalletId) int {
 // Trend and demand helpers
 // ---------------------------------------------------------------------------------------------------------------------
 // Promise policy uses current consumption plus a small amount of trend information. The trend is deliberately simple:
-// each reconciliation pass updates an EWMA and a per-hour delta for each wallet. Buffered mode projects that delta over
-// the configured forecast window. Minimal and committed modes still use the EWMA as the current demand estimate.
+// each reconciliation pass updates an EWMA and uses it as the current demand estimate.
 //
 // Child demand is derived from children's targets rather than historical child reservations alone. This lets a child
 // ask its parent for headroom before the child allocation actually exists, which is the mechanism that lets periodic
@@ -311,7 +438,6 @@ func promiseWalletDepth(tree *PromiseTree, walletId WalletId) int {
 // - promiseWalletReservedChildren: Sums child reservations under a wallet's allocations.
 // - promiseChildTargetDemand: Computes child promise demand for one wallet.
 // - promiseChildTargetDemandEx: Recursive implementation over PromiseTree indexes.
-// - promiseForecast: Projects a positive trend over a policy window.
 // - promiseRoundUp: Rounds a target to policy-sized accounting steps.
 
 func promiseUpdateWalletTrend(now time.Time, tree *AccountingTree, wallet *Wallet, measured int64) {
@@ -409,13 +535,6 @@ func promiseChildTargetDemandEx(tree *AccountingTree, promiseTree *PromiseTree, 
 	return demand
 }
 
-func promiseForecast(trendPerHour int64, window time.Duration) int64 {
-	if trendPerHour <= 0 || window <= 0 {
-		return 0
-	}
-	return (trendPerHour * int64(window)) / int64(time.Hour)
-}
-
 func promiseRoundUp(value int64, step int64) int64 {
 	if value <= 0 || step <= 0 {
 		return value
@@ -428,31 +547,12 @@ func promiseRoundUp(value int64, step int64) int64 {
 // promiseReconcileOne applies the target split to one promise. It first computes policy demand, then clamps demand to
 // the remaining promise quota that is not already materialized. From there, the planner either creates the first head,
 // creates a successor after retirement, or updates the current head in place.
-//
-// If root reservation is tight, slack is removed before materialization. This is not a separate shrink pass; it is just
-// another policy recomputation flowing through the same update-first path.
-
-func promiseReconcileOne(now time.Time, tree *AccountingTree, promise *Promise, tight bool) {
+func promiseReconcileOne(now time.Time, tree *AccountingTree, promise *Promise) {
 	if promise == nil || promise.Quota <= 0 || now.Before(promise.Start) || now.After(promise.End) {
 		return
 	}
 
 	target := promiseCalculateTargetSplit(tree, promise.Child)
-	if tight {
-		wallet := tree.WalletsById[promise.Child]
-		if wallet == nil {
-			return
-		}
-		target.QuotaSelf = max(promiseWalletConsumedSelf(tree, wallet), target.QuotaSelf-tree.Policy.MinSlack)
-		target.QuotaChildren = promiseWalletReservedChildren(tree, wallet)
-	}
-
-	if tree.Policy.Mode == ReservationModeCommitted {
-		committed := promiseCommittedQuota(tree.Policy, promise.Quota)
-		if committed > target.QuotaSelf+target.QuotaChildren {
-			target.QuotaChildren += committed - (target.QuotaSelf + target.QuotaChildren)
-		}
-	}
 
 	head := promiseFindHead(now, tree, promise)
 	if !head.Present {
@@ -464,19 +564,23 @@ func promiseReconcileOne(now time.Time, tree *AccountingTree, promise *Promise, 
 		return
 	}
 
-	remainingQuota := promise.Quota - promiseMaterializedQuota(now, tree, promise, head)
-	if target.QuotaSelf+target.QuotaChildren > remainingQuota {
-		target = promiseClampTargetToTotal(target, remainingQuota)
-	}
-
 	allocation := tree.AllocationsById[head.Value]
 	if allocation == nil {
 		return
 	}
 
 	if !now.Before(allocation.End) {
+		remainingQuota := promise.Quota - promiseMaterializedQuota(now, tree, promise, util.OptNone[AllocationId]())
+		if target.QuotaSelf+target.QuotaChildren > remainingQuota {
+			target = promiseClampTargetToTotal(target, remainingQuota)
+		}
 		promiseCreateSuccessor(now, tree, promise, allocation, target)
 		return
+	}
+
+	remainingQuota := promise.Quota - promiseMaterializedQuota(now, tree, promise, head)
+	if target.QuotaSelf+target.QuotaChildren > remainingQuota {
+		target = promiseClampTargetToTotal(target, remainingQuota)
 	}
 
 	if allocation.Start.After(now) {
@@ -503,20 +607,8 @@ func promiseReconcileOne(now time.Time, tree *AccountingTree, promise *Promise, 
 //
 // The core helpers are:
 //
-// - promiseCommittedQuota: Converts committed-mode basis points into an absolute quota target.
 // - promiseClampTargetToTotal: Reduces a target split so its total does not exceed a cap.
 // - promiseMaterializedQuota: Counts promise quota already accounted for under capacity/non-capacity semantics.
-
-func promiseCommittedQuota(policy PromisePolicy, quota int64) int64 {
-	fraction := policy.CommittedFractionBasisPoints
-	if fraction <= 0 {
-		fraction = promiseBasisPoints
-	}
-	if fraction > promiseBasisPoints {
-		fraction = promiseBasisPoints
-	}
-	return (quota * fraction) / promiseBasisPoints
-}
 
 func promiseClampTargetToTotal(target promiseTargetSplit, total int64) promiseTargetSplit {
 	if total < 0 {
@@ -814,6 +906,7 @@ func promiseSetSplit(now time.Time, tree *AccountingTree, allocationId Allocatio
 	currentTotal := allocation.QuotaSelf + allocation.QuotaChildren
 	proposedTotal := quotaSelf + quotaChildren
 	delta := proposedTotal - currentTotal
+	changed := allocation.QuotaSelf != quotaSelf || allocation.QuotaChildren != quotaChildren
 	if delta > 0 {
 		if !allocation.Parent.Present {
 			log.Fatal("Promise reconciliation attempted to grow root allocation %v", allocationId)
@@ -843,6 +936,19 @@ func promiseSetSplit(now time.Time, tree *AccountingTree, allocationId Allocatio
 			parent.Value.ReservedChildren += delta
 		}
 	})
+	if changed {
+		wallet := tree.WalletsById[allocation.Wallet]
+		walletMarkSignificantUpdate(now, tree, wallet)
+		walletReevaluateLock(now, tree, wallet)
+		if allocation.Parent.Present {
+			parent := tree.AllocationsById[allocation.Parent.Value]
+			if parent != nil {
+				parentWallet := tree.WalletsById[parent.Wallet]
+				walletMarkSignificantUpdate(now, tree, parentWallet)
+				walletReevaluateLock(now, tree, parentWallet)
+			}
+		}
+	}
 }
 
 // Materialization creation
@@ -979,7 +1085,7 @@ func promiseCreateAllocation(now time.Time, tree *AccountingTree, promise *Promi
 		QuotaChildren:    target.QuotaChildren,
 		ConsumedSelf:     0,
 		ReservedChildren: 0,
-		Grant:            util.OptNone[GrantId](),
+		Grant:            promise.Grant,
 		Promise:          util.OptValue(promise.Id),
 	}
 
@@ -990,39 +1096,18 @@ func promiseCreateAllocation(now time.Time, tree *AccountingTree, promise *Promi
 		parentAlloc.Children = append(parentAlloc.Children, allocationId)
 	})
 	allocationMutate(now, tree, allocationId, func(alloc *Allocation, parent util.Option[*Allocation]) {})
-	tree.SignificantUpdateAt = now
+	lifecycleScanAllocation(now, tree, allocation)
+	walletMarkSignificantUpdate(now, tree, childWallet)
+	walletReevaluateLock(now, tree, childWallet)
+	parentWallet := tree.WalletsById[parent.Wallet]
+	walletMarkSignificantUpdate(now, tree, parentWallet)
+	walletReevaluateLock(now, tree, parentWallet)
 }
 
-// Root pressure and small time helpers
+// Small time helpers
 // ---------------------------------------------------------------------------------------------------------------------
-// The planner becomes more aggressive when root allocations are heavily reserved. This is computed by looking only at
-// non-retired root allocations, because those are the real capacity sources for the category.
-//
-// The core helpers are:
-//
-// - promiseTreeReservationTight: Checks whether root reservations are above the policy threshold.
 // - minTime: Returns the earlier of two times.
 // - maxTime: Returns the later of two times.
-
-func promiseTreeReservationTight(now time.Time, tree *AccountingTree) bool {
-	reserved := int64(0)
-	total := int64(0)
-	for _, allocation := range tree.AllocationsById {
-		if allocation == nil || allocation.Parent.Present || allocation.IsRetired(now) {
-			continue
-		}
-		reserved += allocation.ReservedChildren
-		total += allocation.QuotaSelf + allocation.QuotaChildren
-	}
-	if total <= 0 {
-		return false
-	}
-	threshold := tree.Policy.TightReservationThresholdBasisPoints
-	if threshold <= 0 {
-		threshold = 8500
-	}
-	return reserved*promiseBasisPoints >= total*threshold
-}
 
 func minTime(a, b time.Time) time.Time {
 	if a.Before(b) {

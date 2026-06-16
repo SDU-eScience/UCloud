@@ -149,6 +149,7 @@ func GiftsClaim(now time.Time, actor rpc.Actor, id int) *util.HttpError {
 		}
 
 		claims[giftId(id)] = now
+		giftPersistClaim(actor.Username, id)
 	}
 
 	b.Mu.Unlock()
@@ -262,9 +263,9 @@ func GiftsCreate(actor rpc.Actor, spec accapi.GiftWithCriteria) (int, *util.Http
 		}
 	}
 
-	wallets := WalletsBrowse(actor, accapi.WalletsBrowseRequest{
-		ItemsPerPage: 100,
-	}).Items
+	wallets := WalletsBrowseAll(time.Now(), WalletBrowseFilter{
+		Owner: util.OptValue(accapi.WalletOwnerProject(string(actor.Project.Value))),
+	})
 
 	for _, resource := range spec.Resources {
 		found := false
@@ -600,6 +601,28 @@ func giftPersist(spec accapi.GiftWithCriteria) {
 		}
 
 		db.BatchSend(b)
+	})
+}
+
+func giftPersistClaim(username string, id int) {
+	if giftGlobals.TestingEnabled {
+		return
+	}
+
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				insert into "grant".gifts_claimed(gift_id, user_id, claimed_at)
+				values (:gift_id, :username, now())
+				on conflict (gift_id, user_id)
+				do update set claimed_at = excluded.claimed_at
+		    `,
+			db.Params{
+				"username": username,
+				"gift_id":  id,
+			},
+		)
 	})
 }
 

@@ -35,4 +35,5 @@ func Init() {
 	db.AddMigration(resourcesV1())
 	db.AddMigration(stacksV1())
 	db.AddMigration(accountingV5())
+	db.AddMigration(accountingV6())
 }

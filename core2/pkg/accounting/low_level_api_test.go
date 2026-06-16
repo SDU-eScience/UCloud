@@ -1,4 +1,4 @@
-package acc2
+package accounting
 
 import (
 	"fmt"

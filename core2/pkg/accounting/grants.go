@@ -405,9 +405,9 @@ func grantsCanApply(actor rpc.Actor, recipient accapi.Recipient, grantGiver stri
 
 	// A user is _always_ allowed to apply to a parent, regardless of settings
 	if !allowed && walletOwner != "" {
-		wallets := internalRetrieveWallets(time.Now(), walletOwner, walletFilter{})
-
-	outer:
+		owner := accapi.WalletOwnerFromReference(walletOwner)
+		wallets := WalletsBrowse(owner)
+	outerAcc2:
 		for _, w := range wallets {
 			for _, ag := range w.AllocationGroups {
 				hasAnyAllocation := false
@@ -420,7 +420,7 @@ func grantsCanApply(actor rpc.Actor, recipient accapi.Recipient, grantGiver stri
 
 				if hasAnyAllocation && ag.Parent.Present && ag.Parent.Value.ProjectId == grantGiver {
 					allowed = true
-					break outer
+					break outerAcc2
 				}
 			}
 		}
@@ -759,13 +759,11 @@ func GrantsSubmitRevisionEx(actor rpc.Actor, req accapi.GrantsSubmitRevisionRequ
 					err = util.HttpErr(http.StatusBadRequest, "you cannot apply to these grant givers")
 				}
 
-				owner := internalOwnerByReference(grantGiver)
 				for _, cat := range categories {
-					aBucket := internalBucketOrInit(cat)
-					w := internalWalletByOwner(aBucket, now, owner.Id)
-					quota, ok := internalWalletTotalQuotaContributingAt(aBucket, w, allocationStart)
+					quota, ok := WalletTotalQuotaContributingAt(cat.ToId(), accapi.WalletOwnerProject(grantGiver), allocationStart)
 					if quota == 0 || !ok {
-						wallets := internalRetrieveWallets(now, grantGiver, walletFilter{
+						wallets := WalletsBrowseAll(now, WalletBrowseFilter{
+							Owner:    util.OptValue(accapi.WalletOwnerProject(grantGiver)),
 							Provider: util.OptValue(cat.Provider),
 							Category: util.OptValue(cat.Name),
 						})
@@ -979,7 +977,8 @@ func GrantsTransfer(actor rpc.Actor, req accapi.GrantsTransferRequest) *util.Htt
 			if allocReq.GrantGiver != string(source) {
 				newRequests = append(newRequests, allocReq)
 			} else {
-				wallets := internalRetrieveWallets(now, req.Target, walletFilter{
+				wallets := WalletsBrowseAll(now, WalletBrowseFilter{
+					Owner:         util.OptValue(accapi.WalletOwnerProject(req.Target)),
 					Category:      util.OptValue(allocReq.Category),
 					Provider:      util.OptValue(allocReq.Provider),
 					RequireActive: true,
@@ -1619,7 +1618,7 @@ func GrantsRetrieveGrantGivers(actor rpc.Actor, req accapi.RetrieveGrantGiversRe
 		// NOTE(Dan): Must be outside of switch statement since existing apps can set it to existing project also
 		// NOTE(Dan): Should not check membership here since it might be done by grant giver
 
-		wallets := internalRetrieveWallets(now, recipient.Id.Value, walletFilter{RequireActive: false}) // all wallets not just active
+		wallets := WalletsBrowseAll(now, WalletBrowseFilter{Owner: util.OptValue(accapi.WalletOwnerProject(recipient.Id.Value))}) // all wallets not just active
 		for _, wallet := range wallets {
 			for _, group := range wallet.AllocationGroups {
 				if group.Parent.Present {
@@ -1646,7 +1645,7 @@ func GrantsRetrieveGrantGivers(actor rpc.Actor, req accapi.RetrieveGrantGiversRe
 
 	lAddPotentialGrantGiver := func(b *grantSettingsBucket, grantGiver string) {
 		if grantsCanApply(applicantActor, recipient, grantGiver) {
-			wallets := internalRetrieveWallets(now, grantGiver, walletFilter{RequireActive: false})
+			wallets := WalletsBrowseAll(now, WalletBrowseFilter{Owner: util.OptValue(accapi.WalletOwnerProject(grantGiver))})
 			var categories []accapi.ProductCategory
 			for _, wallet := range wallets {
 				if walletHasAllocationInDefaultWindow(wallet) {
@@ -1899,8 +1898,8 @@ func lGrantsAwardResources(app *grantApplication) {
 		end = start.AddDate(1, 0, 0)
 	}
 
-	accOwner := internalOwnerByReference(owner.Reference()).Id
 	grantedIn := app.lId()
+	reconcile := map[accapi.ProductCategoryIdV2]util.Empty{}
 
 	requests := app.Application.CurrentRevision.Document.AllocationRequests
 	for _, req := range requests {
@@ -1917,52 +1916,38 @@ func lGrantsAwardResources(app *grantApplication) {
 			panic(fmt.Sprintf("could not allocate resources in %s: %s", app.Application.Id, err.Error()))
 		}
 
-		accBucket := internalBucketOrInit(cat)
-		wallet := internalWalletByOwner(accBucket, now, accOwner)
+		categoryId := cat.ToId()
+		CategoryEnsure(cat)
 
-		parentOwner := internalOwnerByReference(req.GrantGiver).Id
-		parentWallet := internalWalletByOwner(accBucket, now, parentOwner)
+		wallet, err := WalletEnsure(categoryId, owner)
+		if err != nil {
+			log.Warn("could not resolve recipient wallet in %s: %s", app.Application.Id, err.Error())
+			continue
+		}
 
-		_, err = internalAllocateNoCommit(now, accBucket, start, end, quota, wallet, parentWallet, util.OptValue(grantedIn))
+		parentWallet, err := WalletEnsure(categoryId, accapi.WalletOwnerProject(req.GrantGiver))
+		if err != nil {
+			log.Warn("could not resolve parent wallet in %s: %s", app.Application.Id, err.Error())
+			continue
+		}
+
+		_, err = PromiseCreate(now, categoryId, parentWallet, wallet, start, end, quota, util.OptValue(GrantId(grantedIn)))
 		if err != nil {
 			// This only happens in case of bad input. It should never happen. Not doing a panic here to avoid
-			// potential infinite allocations (from the retry loop)
-			log.Warn("could not allocate resources in %s: %s", app.Application.Id, err.Error())
+			// potential infinite promise creation attempts from the retry loop.
+			log.Warn("could not create grant promise in %s: %s", app.Application.Id, err.Error())
+			continue
 		}
+
+		reconcile[categoryId] = util.Empty{}
+	}
+
+	for categoryId := range reconcile {
+		PromiseReconcile(now, categoryId, owner, util.OptNone[int64]())
 	}
 
 	app.Awarded = true
-	internalCommitGrantAllocations(grantedIn, func(tx *db.Transaction) {
-		db.Exec(
-			tx,
-			`
-				update "grant".applications
-				set
-					synchronized = true
-				where
-					id = :id
-		    `,
-			db.Params{
-				"id": app.lId(),
-			},
-		)
-
-		if app.GiftId.Present {
-			db.Exec(
-				tx,
-				`
-					insert into "grant".gifts_claimed(gift_id, user_id, claimed_at) 
-					values (:gift_id, :username, now())
-					on conflict (gift_id, user_id)
-					do update set claimed_at = excluded.claimed_at;
-			    `,
-				db.Params{
-					"username": app.Application.CurrentRevision.Document.Recipient.Username.Value,
-					"gift_id":  app.GiftId.Value,
-				},
-			)
-		}
-	})
+	// TODO(acc2 persistence): mark the grant synchronized once grant-created promises are durable.
 }
 
 func lGrantsCreateProject(app *grantApplication, title string, pi string) (string, *util.HttpError) {
