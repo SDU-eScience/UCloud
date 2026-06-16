@@ -1,18 +1,25 @@
 package accounting
 
 import (
+	"os"
+	"slices"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	lru "github.com/hashicorp/golang-lru/v2/expirable"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	accapi "ucloud.dk/shared/pkg/accounting"
 	fndapi "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
 
 func initAccounting() {
-	//accountingLoad()
-	//go accountingProcessTasks()
+	accountingLoad()
+	go accountingProcessTasks()
 
 	accapi.RootAllocate.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[accapi.RootAllocateRequest]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
 		/*
@@ -229,3 +236,100 @@ func validateOwner(owner accapi.WalletOwner) bool {
 
 	return result
 }
+
+var (
+	accountingScansDisabled              = atomic.Bool{}
+	accountingProcessMutex               = sync.Mutex{}
+	accountingScanUsageReportCanResumeAt = time.Now().Add(10 * time.Minute)
+	usageReportSamplingHours             = []int{0, 4, 8, 12, 16, 20}
+)
+
+func accountingProcessTasksNow(now time.Time) {
+	accountingProcessMutex.Lock()
+	defer accountingProcessMutex.Unlock()
+
+	timer := util.NewTimer()
+
+	accountingPersist()
+
+	// NOTE(Dan): This is a very simple version of a reliable cron-job which runs in our code and does not require
+	// anything special at all. This only works because it is perfectly safe to sample too many times. This code does
+	// reasonable protection against sampling too many times, but if the Core ends up crashing at the right time, then
+	// multiple samples may occur. This is not a problem necessarily and may even be the correct thing to do, in the
+	// case that the crash occurred mid-sampling.
+	forceUsageReport := false
+	if util.DevelopmentModeEnabled() {
+		_, err := os.Stat("/tmp/usage_report_now")
+		if err == nil {
+			err = os.Remove("/tmp/usage_report_now")
+			if err != nil {
+				log.Info("Unlink err: %s", err)
+			}
+			forceUsageReport = true
+		}
+	}
+
+	now = time.Now()
+	if reportGlobals.Ready.Load() {
+		if now.After(accountingScanUsageReportCanResumeAt) || forceUsageReport {
+			if slices.Contains(usageReportSamplingHours, now.Hour()) && now.Minute() < 10 || forceUsageReport {
+				accountingScanUsageReportCanResumeAt = time.Now().Add(15 * time.Minute)
+
+				timer.Mark()
+				usageSample(now)
+				accountingSampleDuration.Observe(timer.Mark().Seconds())
+			}
+		}
+	}
+}
+
+func accountingProcessTasks() {
+	for {
+		if !accountingScansDisabled.Load() {
+			accountingProcessTasksNow(time.Now())
+		}
+		time.Sleep(30 * time.Second)
+	}
+}
+
+var (
+	accountingAllocationsUpdated = promauto.NewCounter(prometheus.CounterOpts{
+		Namespace: "ucloud",
+		Subsystem: "accounting",
+		Name:      "allocations_updated_total",
+		Help:      "Number of total allocations updated in the persistence layer",
+	})
+
+	accountingWalletsUpdated = promauto.NewCounter(prometheus.CounterOpts{
+		Namespace: "ucloud",
+		Subsystem: "accounting",
+		Name:      "wallets_updated_total",
+		Help:      "Number of total wallets updated in the persistence layer",
+	})
+
+	accountingScansDuration = promauto.NewSummary(prometheus.SummaryOpts{
+		Namespace: "ucloud",
+		Subsystem: "accounting",
+		Name:      "scan_duration_seconds",
+		Help:      "Summary of the duration (in seconds) it takes to complete a scan",
+		Objectives: map[float64]float64{
+			0.5:  0.01,
+			0.75: 0.01,
+			0.95: 0.01,
+			0.99: 0.01,
+		},
+	})
+
+	accountingSampleDuration = promauto.NewSummary(prometheus.SummaryOpts{
+		Namespace: "ucloud",
+		Subsystem: "accounting",
+		Name:      "sample_duration_seconds",
+		Help:      "Summary of the duration (in seconds) it takes to complete a usage sampling cycle",
+		Objectives: map[float64]float64{
+			0.5:  0.01,
+			0.75: 0.01,
+			0.95: 0.01,
+			0.99: 0.01,
+		},
+	})
+)

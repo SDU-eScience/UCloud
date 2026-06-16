@@ -89,12 +89,12 @@ var grantGlobals struct {
 
 type grantUserBucket struct {
 	Mu              sync.RWMutex
-	LastTimeVisited map[string]map[accGrantId]time.Time
+	LastTimeVisited map[string]map[GrantId]time.Time
 }
 
 type grantAppBucket struct {
 	Mu           sync.RWMutex
-	Applications map[accGrantId]*grantApplication
+	Applications map[GrantId]*grantApplication
 }
 
 type grantSettingsBucket struct {
@@ -109,7 +109,7 @@ type grantIndexBucket struct {
 	// Guaranteed to be ordered by time of creation (for a single entity). Contains both applications sent by the entity
 	// but also being received. Note that the order is technically by order in which they are created and not
 	// timestamps. This can happen if the creation starts before another but locks acquisition happens in reverse order.
-	ApplicationsByEntity map[string][]accGrantId
+	ApplicationsByEntity map[string][]GrantId
 }
 
 type grantApplication struct {
@@ -119,9 +119,9 @@ type grantApplication struct {
 	Awarded     bool // true once the service has performed the award, does not mean that persist has happened
 }
 
-func (a *grantApplication) lId() accGrantId {
+func (a *grantApplication) lId() GrantId {
 	parsed, _ := strconv.ParseInt(a.Application.Id.Value, 10, 64)
-	return accGrantId(parsed)
+	return GrantId(parsed)
 }
 
 func (a *grantApplication) lDeepCopy() accapi.GrantApplication {
@@ -224,10 +224,10 @@ func grantGetUserBucket(username string) *grantUserBucket {
 
 	if !grantGlobals.Testing.Enabled {
 		b.Mu.Lock()
-		dbResult := db.NewTx(func(tx *db.Transaction) map[accGrantId]time.Time {
-			result := map[accGrantId]time.Time{}
+		dbResult := db.NewTx(func(tx *db.Transaction) map[GrantId]time.Time {
+			result := map[GrantId]time.Time{}
 			rows := db.Select[struct {
-				ApplicationId accGrantId
+				ApplicationId GrantId
 				LastVisitedAt time.Time
 			}](
 				tx,
@@ -250,13 +250,13 @@ func grantGetUserBucket(username string) *grantUserBucket {
 		b.Mu.Unlock()
 	} else {
 		b.Mu.Lock()
-		b.LastTimeVisited[username] = map[accGrantId]time.Time{}
+		b.LastTimeVisited[username] = map[GrantId]time.Time{}
 		b.Mu.Unlock()
 	}
 	return b
 }
 
-func grantGetAppBucket(key accGrantId) *grantAppBucket {
+func grantGetAppBucket(key GrantId) *grantAppBucket {
 	h := util.NonCryptographicHash(key)
 	return grantGlobals.AppBuckets[h%len(grantGlobals.AppBuckets)]
 }
@@ -280,7 +280,7 @@ func grantGetIdxBucket(key string, load bool) *grantIndexBucket {
 // This section contain the primary building blocks for accessing parts of the systems which require authorization.
 // These APIs will typically load the resource if it has not already been brought into one of the buckets.
 
-func grantsReadEx(actor rpc.Actor, action grantAuthType, b *grantAppBucket, id accGrantId, prefetchHint []accGrantId) (*grantApplication, []grantActorRole) {
+func grantsReadEx(actor rpc.Actor, action grantAuthType, b *grantAppBucket, id GrantId, prefetchHint []GrantId) (*grantApplication, []grantActorRole) {
 	var roles []grantActorRole
 
 	b.Mu.RLock()
@@ -345,7 +345,7 @@ func grantsReadEx(actor rpc.Actor, action grantAuthType, b *grantAppBucket, id a
 }
 
 // grantsRead will read a grantApplication and perform authorization according to the action.
-func grantsRead(actor rpc.Actor, action grantAuthType, id accGrantId, prefetchHint []accGrantId) (*grantApplication, []grantActorRole) {
+func grantsRead(actor rpc.Actor, action grantAuthType, id GrantId, prefetchHint []GrantId) (*grantApplication, []grantActorRole) {
 	return grantsReadEx(actor, action, grantGetAppBucket(id), id, prefetchHint)
 }
 
@@ -586,7 +586,7 @@ func GrantsSubmitRevisionEx(actor rpc.Actor, req accapi.GrantsSubmitRevisionRequ
 	// If the grant application is an existing one, then it will be loaded from the cache or database. This step will
 	// in that case authorize that the actor is allowed to perform a submission on the application.
 
-	id := accGrantId(0)
+	id := GrantId(0)
 	wasExistingApplication := req.ApplicationId.Present
 	if wasExistingApplication {
 		parsed, err := strconv.ParseInt(req.ApplicationId.Value, 10, 64)
@@ -594,9 +594,9 @@ func GrantsSubmitRevisionEx(actor rpc.Actor, req accapi.GrantsSubmitRevisionRequ
 			return 0, util.HttpErr(http.StatusNotFound, "unknown application")
 		}
 
-		id = accGrantId(parsed)
+		id = GrantId(parsed)
 	} else {
-		id = accGrantId(grantGlobals.GrantIdAcc.Add(1))
+		id = GrantId(grantGlobals.GrantIdAcc.Add(1))
 	}
 
 	if wasExistingApplication && giftId.Present {
@@ -935,8 +935,8 @@ func GrantsTransfer(actor rpc.Actor, req accapi.GrantsTransferRequest) *util.Htt
 	}
 
 	appId, _ := strconv.ParseInt(req.ApplicationId, 10, 64)
-	b := grantGetAppBucket(accGrantId(appId))
-	app, _ := grantsReadEx(actor, grantAuthApprover, b, accGrantId(appId), nil)
+	b := grantGetAppBucket(GrantId(appId))
+	app, _ := grantsReadEx(actor, grantAuthApprover, b, GrantId(appId), nil)
 	if app == nil {
 		return util.HttpErr(http.StatusNotFound, "not found")
 	}
@@ -1020,8 +1020,8 @@ func GrantsPostComment(actor rpc.Actor, req accapi.GrantsPostCommentRequest) (st
 	}
 
 	appId, _ := strconv.ParseInt(req.ApplicationId, 10, 64)
-	b := grantGetAppBucket(accGrantId(appId))
-	app, _ := grantsReadEx(actor, grantAuthReadWrite, b, accGrantId(appId), nil)
+	b := grantGetAppBucket(GrantId(appId))
+	app, _ := grantsReadEx(actor, grantAuthReadWrite, b, GrantId(appId), nil)
 	if app == nil {
 		return "", util.HttpErr(http.StatusNotFound, "unknown application")
 	}
@@ -1051,8 +1051,8 @@ func GrantsPostComment(actor rpc.Actor, req accapi.GrantsPostCommentRequest) (st
 
 func GrantsDeleteComment(actor rpc.Actor, req accapi.GrantsDeleteCommentRequest) *util.HttpError {
 	appId, _ := strconv.ParseInt(req.ApplicationId, 10, 64)
-	b := grantGetAppBucket(accGrantId(appId))
-	app, roles := grantsReadEx(actor, grantAuthReadWrite, b, accGrantId(appId), nil)
+	b := grantGetAppBucket(GrantId(appId))
+	app, roles := grantsReadEx(actor, grantAuthReadWrite, b, GrantId(appId), nil)
 	if app == nil {
 		return util.HttpErr(http.StatusNotFound, "unknown application")
 	}
@@ -1081,7 +1081,7 @@ func GrantsDeleteComment(actor rpc.Actor, req accapi.GrantsDeleteCommentRequest)
 func GrantsUpdateState(actor rpc.Actor, req accapi.GrantsUpdateStateRequest) *util.HttpError {
 	var err *util.HttpError
 	idRaw, _ := strconv.ParseInt(req.ApplicationId, 10, 64)
-	idActual := accGrantId(idRaw)
+	idActual := GrantId(idRaw)
 	app, roles := grantsRead(actor, grantAuthReadWrite, idActual, nil)
 	if app == nil {
 		return util.HttpErr(http.StatusNotFound, "not found")
@@ -1209,7 +1209,7 @@ func grantAttachUnreadCommentStatus(app *accapi.GrantApplication, username strin
 	}
 
 	idRaw, _ := strconv.ParseInt(app.Id.Value, 10, 64)
-	idActual := accGrantId(idRaw)
+	idActual := GrantId(idRaw)
 	appLastVisitedByUserTime := grantRetrieveUserApplicationVisits(idActual, username)
 
 	// Since comments are ordered by created at time, the last comment is the latest
@@ -1220,7 +1220,7 @@ func grantAttachUnreadCommentStatus(app *accapi.GrantApplication, username strin
 
 func grantRecordUserApplicationVisit(grantId string, username string) {
 	idRaw, _ := strconv.ParseInt(grantId, 10, 64)
-	idActual := accGrantId(idRaw)
+	idActual := GrantId(idRaw)
 
 	now := time.Now()
 	if !grantGlobals.Testing.Enabled {
@@ -1253,14 +1253,14 @@ func grantRecordUserApplicationVisit(grantId string, username string) {
 	grantUpdateUserCache(username, idActual, now)
 }
 
-func grantUpdateUserCache(username string, grantId accGrantId, now time.Time) {
+func grantUpdateUserCache(username string, grantId GrantId, now time.Time) {
 	b := grantGetUserBucket(username)
 	b.Mu.Lock()
 	b.LastTimeVisited[username][grantId] = now
 	b.Mu.Unlock()
 }
 
-func grantRetrieveUserApplicationVisits(grantId accGrantId, username string) time.Time {
+func grantRetrieveUserApplicationVisits(grantId GrantId, username string) time.Time {
 	b := grantGetUserBucket(username)
 	b.Mu.RLock()
 	result := b.LastTimeVisited[username][grantId]
@@ -1273,12 +1273,12 @@ func grantRetrieveUserApplicationVisits(grantId accGrantId, username string) tim
 // Public functions for retrieving grant applications.
 
 func GrantsBrowse(actor rpc.Actor, req accapi.GrantsBrowseRequest) fndapi.PageV2[accapi.GrantApplication] {
-	var ids []accGrantId
+	var ids []GrantId
 
 	nextIdRaw, err := strconv.ParseInt(req.Next.Value, 10, 64)
-	nextId := accGrantId(nextIdRaw)
+	nextId := GrantId(nextIdRaw)
 	if !req.Next.Present || err != nil {
-		nextId = accGrantId(math.MaxInt)
+		nextId = GrantId(math.MaxInt)
 	}
 
 	idxB := grantGetIdxBucket(actor.Username, true)
@@ -1301,7 +1301,7 @@ func GrantsBrowse(actor rpc.Actor, req accapi.GrantsBrowseRequest) fndapi.PageV2
 		idxB.Mu.RUnlock()
 	}
 
-	slices.SortFunc(ids, func(a, b accGrantId) int {
+	slices.SortFunc(ids, func(a, b GrantId) int {
 		if a < b {
 			return 1
 		} else if a > b {
@@ -1317,16 +1317,16 @@ func GrantsBrowse(actor rpc.Actor, req accapi.GrantsBrowseRequest) fndapi.PageV2
 	var items []accapi.GrantApplication
 	hasMore := false
 
-	var searchesMatches map[accGrantId]util.Empty
+	var searchesMatches map[GrantId]util.Empty
 	// Performing fuzzy search
 	if len(req.Query) > 0 {
-		searchesMatches = map[accGrantId]util.Empty{}
+		searchesMatches = map[GrantId]util.Empty{}
 		searchTerms := strings.Split(strings.ToLower(req.Query), " ")
 		foundGrants := grantSearchFuzzily(searchTerms)
 
 		for _, id := range foundGrants {
 			idRaw, _ := strconv.ParseInt(id, 10, 64)
-			idActual := accGrantId(idRaw)
+			idActual := GrantId(idRaw)
 			searchesMatches[idActual] = util.Empty{}
 		}
 	}
@@ -1495,7 +1495,7 @@ func lGrantApplicationIsApproverInActiveProjectNoAuth(actor rpc.Actor, a *grantA
 
 func GrantsRetrieve(actor rpc.Actor, id string) (accapi.GrantApplication, *util.HttpError) {
 	idRaw, _ := strconv.ParseInt(id, 10, 64)
-	idActual := accGrantId(idRaw)
+	idActual := GrantId(idRaw)
 
 	app, roles := grantsRead(actor, grantAuthReadWrite, idActual, nil)
 
@@ -1595,8 +1595,8 @@ func GrantsRetrieveGrantGivers(actor rpc.Actor, req accapi.RetrieveGrantGiversRe
 
 	case accapi.RetrieveGrantGiversTypeExistingApplication:
 		appId, _ := strconv.ParseInt(req.Id, 10, 64)
-		b := grantGetAppBucket(accGrantId(appId))
-		app, _ := grantsReadEx(actor, grantAuthReadWrite, b, accGrantId(appId), nil)
+		b := grantGetAppBucket(GrantId(appId))
+		app, _ := grantsReadEx(actor, grantAuthReadWrite, b, GrantId(appId), nil)
 		if app == nil {
 			return nil, util.HttpErr(http.StatusNotFound, "unknown application")
 		}
@@ -1947,7 +1947,6 @@ func lGrantsAwardResources(app *grantApplication) {
 	}
 
 	app.Awarded = true
-	// TODO(acc2 persistence): mark the grant synchronized once grant-created promises are durable.
 }
 
 func lGrantsCreateProject(app *grantApplication, title string, pi string) (string, *util.HttpError) {
@@ -2018,7 +2017,7 @@ func initGrants() {
 
 	for i := 0; i < runtime.NumCPU(); i++ {
 		grantGlobals.AppBuckets = append(grantGlobals.AppBuckets, &grantAppBucket{
-			Applications: make(map[accGrantId]*grantApplication),
+			Applications: make(map[GrantId]*grantApplication),
 		})
 
 		grantGlobals.SettingBuckets = append(grantGlobals.SettingBuckets, &grantSettingsBucket{
@@ -2027,11 +2026,11 @@ func initGrants() {
 		})
 
 		grantGlobals.IndexBuckets = append(grantGlobals.IndexBuckets, &grantIndexBucket{
-			ApplicationsByEntity: make(map[string][]accGrantId),
+			ApplicationsByEntity: make(map[string][]GrantId),
 		})
 
 		grantGlobals.GrantUsers = append(grantGlobals.GrantUsers, &grantUserBucket{
-			LastTimeVisited: make(map[string]map[accGrantId]time.Time),
+			LastTimeVisited: make(map[string]map[GrantId]time.Time),
 		})
 	}
 

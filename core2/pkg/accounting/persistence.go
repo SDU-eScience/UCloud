@@ -300,11 +300,275 @@ func accountingLoad() {
 				tree.AllocationsById[a.Id] = a
 
 				if int64(a.Id) > accGlobals.AllocIdAcc.Load() {
-					promiseGlobals.PromiseIdAcc.Store(int64(a.Id))
+					accGlobals.AllocIdAcc.Store(int64(a.Id))
 				}
 
 				return nil
 			})
 		}
+	})
+
+	now := time.Now()
+	for _, tree := range accGlobals.Trees {
+		lifecycleScan(now, tree)
+
+		for _, wallet := range tree.WalletsById {
+			PromiseReconcile(now, tree.Category.ToId(), wallet.Owner, util.OptNone[int64]())
+		}
+	}
+}
+
+func accountingPersist() {
+	if accGlobals.TestingEnabled {
+		return
+	}
+
+	accGlobals.Mu.Lock()
+
+	for _, tree := range accGlobals.Trees {
+		tree.Mu.Lock()
+	}
+
+	for _, usage := range accGlobals.Usage {
+		usage.Mu.Lock()
+	}
+
+	defer func() {
+		for _, usage := range accGlobals.Usage {
+			usage.Dirty = false
+			usage.Mu.Unlock()
+		}
+
+		for _, tree := range accGlobals.Trees {
+			for _, wallet := range tree.WalletsById {
+				wallet.Dirty = false
+			}
+			for _, allocation := range tree.AllocationsById {
+				allocation.Dirty = false
+			}
+			for _, promise := range tree.PromiseTree.PromisesById {
+				promise.Dirty = false
+			}
+
+			tree.Mu.Unlock()
+		}
+
+		for _, owner := range accGlobals.OwnersById {
+			owner.Dirty = false
+		}
+
+		accGlobals.Mu.Unlock()
+	}()
+
+	db.NewTx0(func(tx *db.Transaction) {
+		b := db.BatchNew(tx)
+
+		for _, owner := range accGlobals.OwnersById {
+			if !owner.Dirty {
+				continue
+			}
+			username := sql.NullString{}
+			projectId := sql.NullString{}
+			if projectRegex.MatchString(owner.Reference) {
+				projectId = sql.NullString{Valid: true, String: owner.Reference}
+			} else {
+				username = sql.NullString{Valid: true, String: owner.Reference}
+			}
+			db.BatchExec(
+				b,
+				`
+					insert into accounting.wallet_owner(id, username, project_id)
+					values (:id, :username, :project_id)
+					on conflict (id) do update set
+						username = excluded.username,
+						project_id = excluded.project_id
+			    `,
+				db.Params{
+					"id":         owner.Id,
+					"username":   username,
+					"project_id": projectId,
+				},
+			)
+		}
+
+		for _, usage := range accGlobals.Usage {
+			if !usage.Dirty {
+				continue
+			}
+			db.BatchExec(
+				b,
+				`
+					insert into accounting.scoped_usage(key, usage)
+					values (:key, :usage)
+					on conflict (key) do update set
+						usage = excluded.usage
+			    `,
+				db.Params{
+					"key":   usage.Key,
+					"usage": usage.Usage,
+				},
+			)
+		}
+
+		for _, tree := range accGlobals.Trees {
+			for _, wallet := range tree.WalletsById {
+				if !wallet.Dirty {
+					continue
+				}
+				trendUpdatedAt := sql.Null[time.Time]{}
+				if !wallet.PromiseTrendUpdatedAt.IsZero() {
+					trendUpdatedAt = sql.Null[time.Time]{Valid: true, V: wallet.PromiseTrendUpdatedAt}
+				}
+				db.BatchExec(
+					b,
+					`
+					insert into accounting.wallets_acc2(
+						id, wallet_owner, product_category, consumed, locked, last_significant_update_at,
+						promise_demand_ewma, promise_demand_observed, promise_demand_trend,
+						promise_demand_updated_at, low_balance_notified
+					)
+					select :id, wo.id, pc.id, :consumed, :locked, :last_significant_update_at,
+						:promise_demand_ewma, :promise_demand_observed, :promise_demand_trend,
+						:promise_demand_updated_at, false
+					from accounting.wallet_owner wo, accounting.product_categories pc
+					where coalesce(wo.username, wo.project_id) = :wallet_owner
+						and pc.category = :category
+						and pc.provider = :provider
+					on conflict (id) do update set
+						wallet_owner = excluded.wallet_owner,
+						product_category = excluded.product_category,
+						consumed = excluded.consumed,
+						locked = excluded.locked,
+						last_significant_update_at = excluded.last_significant_update_at,
+						promise_demand_ewma = excluded.promise_demand_ewma,
+						promise_demand_observed = excluded.promise_demand_observed,
+						promise_demand_trend = excluded.promise_demand_trend,
+						promise_demand_updated_at = excluded.promise_demand_updated_at
+			    `,
+					db.Params{
+						"id":                         wallet.Id,
+						"wallet_owner":               wallet.Owner.Reference(),
+						"category":                   tree.Category.Name,
+						"provider":                   tree.Category.Provider,
+						"consumed":                   wallet.Consumed,
+						"locked":                     wallet.Locked,
+						"last_significant_update_at": wallet.LastSignificantUpdateAt,
+						"promise_demand_ewma":        wallet.PromiseDemandEwma,
+						"promise_demand_observed":    wallet.PromiseDemandObserved,
+						"promise_demand_trend":       wallet.PromiseDemandTrend,
+						"promise_demand_updated_at":  trendUpdatedAt,
+					},
+				)
+			}
+
+			for _, promise := range tree.PromiseTree.PromisesById {
+				if !promise.Dirty {
+					continue
+				}
+				db.BatchExec(
+					b,
+					`
+					insert into accounting.promises_acc2(
+						id, product_category, parent_wallet, child_wallet, start_time, end_time, quota, grant_id
+					)
+					select :id, pc.id, :parent_wallet, :child_wallet, :start_time, :end_time, :quota, :grant_id
+					from accounting.product_categories pc
+					where pc.category = :category
+						and pc.provider = :provider
+					on conflict (id) do update set
+						product_category = excluded.product_category,
+						parent_wallet = excluded.parent_wallet,
+						child_wallet = excluded.child_wallet,
+						start_time = excluded.start_time,
+						end_time = excluded.end_time,
+						quota = excluded.quota,
+						grant_id = excluded.grant_id
+			    `,
+					db.Params{
+						"id":            promise.Id,
+						"category":      tree.Category.Name,
+						"provider":      tree.Category.Provider,
+						"parent_wallet": promise.Parent,
+						"child_wallet":  promise.Child,
+						"start_time":    promise.Start,
+						"end_time":      promise.End,
+						"quota":         promise.Quota,
+						"grant_id":      promise.Grant.Sql(),
+					},
+				)
+				if promise.Grant.Present {
+					db.BatchExec(
+						b,
+						`
+							update "grant".applications
+							set synchronized = true
+							where id = :id
+					    `,
+						db.Params{
+							"id": promise.Grant.Value,
+						},
+					)
+				}
+			}
+
+			for _, allocation := range tree.AllocationsById {
+				if !allocation.Dirty {
+					continue
+				}
+				db.BatchExec(
+					b,
+					`
+					insert into accounting.allocations_acc2(
+						id, product_category, wallet, parent_allocation, start_time, end_time,
+						quota_self, quota_children, consumed_self, reserved_children,
+						retired_quota, retired_usage, activated, retired, grant_id, promise_id
+					)
+					select :id, pc.id, :wallet, :parent_allocation, :start_time, :end_time,
+						:quota_self, :quota_children, :consumed_self, :reserved_children,
+						:retired_quota, :retired_usage, :activated, :retired, :grant_id, :promise_id
+					from accounting.product_categories pc
+					where pc.category = :category
+						and pc.provider = :provider
+					on conflict (id) do update set
+						product_category = excluded.product_category,
+						wallet = excluded.wallet,
+						parent_allocation = excluded.parent_allocation,
+						start_time = excluded.start_time,
+						end_time = excluded.end_time,
+						quota_self = excluded.quota_self,
+						quota_children = excluded.quota_children,
+						consumed_self = excluded.consumed_self,
+						reserved_children = excluded.reserved_children,
+						retired_quota = excluded.retired_quota,
+						retired_usage = excluded.retired_usage,
+						activated = excluded.activated,
+						retired = excluded.retired,
+						grant_id = excluded.grant_id,
+						promise_id = excluded.promise_id
+			    `,
+					db.Params{
+						"id":                allocation.Id,
+						"category":          tree.Category.Name,
+						"provider":          tree.Category.Provider,
+						"wallet":            allocation.Wallet,
+						"parent_allocation": allocation.Parent.Sql(),
+						"start_time":        allocation.Start,
+						"end_time":          allocation.End,
+						"quota_self":        allocation.QuotaSelf,
+						"quota_children":    allocation.QuotaChildren,
+						"consumed_self":     allocation.ConsumedSelf,
+						"reserved_children": allocation.ReservedChildren,
+						"retired_quota":     allocation.RetiredQuota,
+						"retired_usage":     allocation.RetiredUsage,
+						"activated":         allocation.Activated,
+						"retired":           allocation.Retired,
+						"grant_id":          allocation.Grant.Sql(),
+						"promise_id":        allocation.Promise.Sql(),
+					},
+				)
+			}
+		}
+
+		db.BatchSend(b)
 	})
 }

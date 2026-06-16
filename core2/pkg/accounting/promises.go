@@ -44,6 +44,7 @@ type Promise struct {
 
 	Quota int64
 	Grant util.Option[GrantId]
+	Dirty bool
 }
 
 type PromiseTree struct {
@@ -104,6 +105,7 @@ func PromiseCreate(
 			End:    end,
 			Quota:  quota,
 			Grant:  grant,
+			Dirty:  true,
 		}
 
 		promiseTree.PromisesById[promiseId] = promise
@@ -410,6 +412,7 @@ func promiseUpdateWalletTrend(now time.Time, tree *AccountingTree, wallet *Walle
 		wallet.PromiseDemandObserved = measured
 		wallet.PromiseDemandTrend = 0
 		wallet.PromiseTrendUpdatedAt = now
+		wallet.Dirty = true
 		return
 	}
 
@@ -423,6 +426,7 @@ func promiseUpdateWalletTrend(now time.Time, tree *AccountingTree, wallet *Walle
 
 	wallet.PromiseDemandObserved = measured
 	wallet.PromiseTrendUpdatedAt = now
+	wallet.Dirty = true
 }
 
 func promiseMeasuredWalletDemand(now time.Time, tree *AccountingTree, wallet *Wallet) int64 {
@@ -1031,10 +1035,12 @@ func promiseCreateAllocation(now time.Time, tree *AccountingTree, promise *Promi
 		ReservedChildren: 0,
 		Grant:            promise.Grant,
 		Promise:          util.OptValue(promise.Id),
+		Dirty:            true,
 	}
 
 	tree.AllocationsById[allocationId] = allocation
 	childWallet.Allocations = append(childWallet.Allocations, allocationId)
+	childWallet.Dirty = true
 	allocationMutate(now, tree, parentId, func(parentAlloc *Allocation, parentParent util.Option[*Allocation]) {
 		parentAlloc.ReservedChildren += total
 		parentAlloc.Children = append(parentAlloc.Children, allocationId)

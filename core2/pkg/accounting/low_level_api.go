@@ -130,6 +130,7 @@ type ScopedUsage struct {
 	Mu    sync.RWMutex
 	Key   string
 	Usage int64
+	Dirty bool
 }
 
 type Wallet struct {
@@ -139,6 +140,7 @@ type Wallet struct {
 	Locked      bool
 	Owner       accapi.WalletOwner
 	Category    accapi.ProductCategoryIdV2
+	Dirty       bool
 
 	LastSignificantUpdateAt time.Time
 
@@ -170,6 +172,7 @@ type Allocation struct {
 
 	Grant   util.Option[GrantId]
 	Promise util.Option[PromiseId]
+	Dirty   bool
 }
 
 func CategoryEnsure(category accapi.ProductCategory) {
@@ -236,6 +239,7 @@ func walletEnsureEx(tree *AccountingTree, owner accapi.WalletOwner) *Wallet {
 		Allocations: []AllocationId{},
 		Owner:       owner,
 		Category:    tree.Category.ToId(),
+		Dirty:       true,
 	}
 	tree.WalletsById[wallet.Id] = wallet
 	tree.WalletsByOwner[ref] = wallet
@@ -312,10 +316,12 @@ func AllocationCreate(
 			ReservedChildren: 0,
 			Grant:            grantedIn,
 			Promise:          util.OptNone[PromiseId](),
+			Dirty:            true,
 		}
 
 		tree.AllocationsById[allocationId] = allocation
 		recipientWallet.Allocations = append(recipientWallet.Allocations, allocationId)
+		recipientWallet.Dirty = true
 
 		if parentAllocation.Present {
 			allocationMutate(now, tree, parentAllocation.Value, func(parentAlloc *Allocation, parent util.Option[*Allocation]) {
@@ -520,6 +526,7 @@ func allocationUpdatePromiseBacked(
 	promise.Start = proposedStart
 	promise.End = proposedEnd
 	promise.Quota = proposedQuota
+	promise.Dirty = true
 	promiseReconcileOne(now, tree, promise)
 
 	walletMarkSignificantUpdate(now, tree, tree.WalletsById[promise.Child])
@@ -611,6 +618,7 @@ func walletMarkSignificantUpdate(now time.Time, tree *AccountingTree, wallet *Wa
 	}
 	tree.SignificantUpdateAt = now
 	wallet.LastSignificantUpdateAt = now
+	wallet.Dirty = true
 }
 
 func walletReevaluateLock(now time.Time, tree *AccountingTree, wallet *Wallet) {
@@ -662,6 +670,7 @@ func lifecycleScanAllocation(now time.Time, tree *AccountingTree, allocation *Al
 	wallet := tree.WalletsById[allocation.Wallet]
 	if allocation.shouldActivate(now) {
 		allocation.Activated = true
+		allocation.Dirty = true
 		walletMarkSignificantUpdate(now, tree, wallet)
 	}
 	if allocation.shouldRetire(now) {
@@ -669,6 +678,7 @@ func lifecycleScanAllocation(now time.Time, tree *AccountingTree, allocation *Al
 		allocation.Activated = true
 		allocation.RetiredQuota = allocation.QuotaSelf + allocation.QuotaChildren
 		allocation.RetiredUsage = allocation.ConsumedSelf
+		allocation.Dirty = true
 		walletMarkSignificantUpdate(now, tree, wallet)
 	}
 }
@@ -703,6 +713,10 @@ func allocationMutate(
 	}
 
 	fn(a, parent)
+	a.Dirty = true
+	if parent.Present {
+		parent.Value.Dirty = true
+	}
 
 	if a.Id <= 0 {
 		reportError("Id <= 0")
@@ -809,6 +823,7 @@ func walletMutateEx(tree *AccountingTree, owner accapi.WalletOwner, fn func(wall
 	}
 
 	fn(wallet)
+	wallet.Dirty = true
 	walletAssertConsumptionMatchesAllocations(tree, wallet)
 }
 
@@ -1130,7 +1145,7 @@ func usageReportScope(request accapi.ReportUsageRequest) *ScopedUsage {
 	}
 	scope := accGlobals.Usage[key]
 	if scope == nil {
-		scope = &ScopedUsage{Key: key}
+		scope = &ScopedUsage{Key: key, Dirty: true}
 		accGlobals.Usage[key] = scope
 	}
 	return scope
@@ -1168,6 +1183,7 @@ func usageReportResolveAbsoluteUsage(now time.Time, request accapi.ReportUsageRe
 
 		if scope != nil {
 			scope.Usage = currentUsage + delta
+			scope.Dirty = true
 		}
 		return nil
 	})
