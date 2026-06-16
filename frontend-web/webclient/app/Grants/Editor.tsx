@@ -335,7 +335,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                 arr.sort((a, b) => Accounting.categoryComparator(a.category, b.category));
             }
 
-            var foundForm: Grants.TemplateApplicationForm = {fields: [], revisionNumber: 0};
+            var foundForm: Grants.TemplateApplicationForm = {fields: [], revisionNumber: -1};
             const currentForm = action.allocators.filter(it => newAllocators.find(existing => existing.id === it.id)?.checked === true).at(0);
             if (currentForm) {
                 foundForm = getApplicationForm(templateKey , currentForm.templates.structured);
@@ -3144,7 +3144,7 @@ const grantGiverInitiatedForm: Grants.TemplateApplicationForm = {
             rows: 100
         }
     }],
-    revisionNumber: 0,
+    revisionNumber: -1,
 };
 
 export default Editor;

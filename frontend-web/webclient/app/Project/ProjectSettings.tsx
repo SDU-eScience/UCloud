@@ -288,7 +288,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
                         personalProject: [{description: "No template", name: "", optional: true, title: "No template"}],
                         existingProject: [{description: "No template", name: "", optional: true, title: "No template"}],
                         newProject: [{description: "No template", name: "", optional: true, title: "No template"}],
-                        revisionNumber: 1000
+                        revisionNumber: -1
                     },
             }
     });
