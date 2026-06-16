@@ -135,6 +135,7 @@ type TemplatesStructured struct {
 	PersonalProject []FormField `json:"personalProject"`
 	NewProject      []FormField `json:"newProject"`
 	ExistingProject []FormField `json:"existingProject"`
+	RevisionNumber  int         `json:"revisionNumber"`
 }
 type Templates struct {
 	Type       TemplatesType       `json:"type"`
@@ -225,7 +226,7 @@ func normalizeTitle(title string) string {
 	return builder
 }
 
-func ParseAnswerFormFields(text string) []AnswerFieldForm {
+func ParseAnswerFormFields(text string) AnswerForm {
 	lines := strings.Split(text, "\n")
 
 	var sectionSeparators []int
@@ -299,7 +300,7 @@ func ParseAnswerFormFields(text string) []AnswerFieldForm {
 		}
 		result = append(result, field)
 	}
-	return util.NonNilSlice(result)
+	return AnswerForm{Fields: util.NonNilSlice(result), RevisionNumber: -1}
 }
 
 func ParseFormFields(text string) []FormField {
@@ -462,10 +463,15 @@ type AnswerFieldForm struct {
 	Field  FormField `json:"field"`
 }
 
+type AnswerForm struct {
+	Fields         []AnswerFieldForm `json:"fields"`
+	RevisionNumber int               `json:"revisionNumber"`
+}
+
 type Form struct {
 	Type         FormType          `json:"type"`
 	Text         string            `json:"text"` // plain_text, grant_giver_initiated - used for legacy form
-	Fields       []AnswerFieldForm `json:"fields"`
+	AnswerForm   AnswerForm        `json:"answerForm"`
 	SubAllocator util.Option[bool] `json:"subAllocator"` // grant_giver_initiated
 }
 

@@ -242,17 +242,20 @@ func grantsLoad(id accGrantId, prefetchHint []accGrantId) {
 			}
 
 			if currentRevision.Document.Form.Type == accapi.FormTypePlainText {
-				currentRevision.Document.Form.Fields = accapi.ParseAnswerFormFields(revision.Form)
+				currentRevision.Document.Form.AnswerForm = accapi.ParseAnswerFormFields(revision.Form)
 				currentRevision.Document.Form.Type = accapi.FormTypeStructured
 			} else if currentRevision.Document.Form.Type == accapi.FormTypeStructured {
 				jsonStr := currentRevision.Document.Form.Text
-				var fields []accapi.AnswerFieldForm
-				err := json.Unmarshal([]byte(jsonStr), &fields)
+				var answerForm = accapi.AnswerForm{
+					Fields:         make([]accapi.AnswerFieldForm, 0),
+					RevisionNumber: -1,
+				}
+
+				err := json.Unmarshal([]byte(jsonStr), &answerForm)
 				if err != nil {
 					log.Warn("Failed to parse structured form: %s", err)
-					fields = make([]accapi.AnswerFieldForm, 0)
 				}
-				currentRevision.Document.Form.Fields = fields
+				currentRevision.Document.Form.AnswerForm = answerForm
 			}
 			app.Status.Revisions = append(app.Status.Revisions, currentRevision)
 
@@ -461,11 +464,14 @@ func grantsLoadSettings() {
 			PersonalProject string
 			ExistingProject string
 			NewProject      string
+			RevisionNumber  int
 		}](
 			tx,
 			`
-				select t.project_id, t.personal_project, t.existing_project, t.new_project
+				select distinct  on (t.project_id) 
+				t.project_id, t.personal_project, t.existing_project, t.new_project, t.revision_number
 				from "grant".templates t
+				order by t.project_id, t.revision_number desc
 		    `,
 			db.Params{},
 		)
@@ -544,6 +550,7 @@ func grantsLoadSettings() {
 					PersonalProject: personalProject,
 					NewProject:      newProject,
 					ExistingProject: existingProject,
+					RevisionNumber:  template.RevisionNumber,
 				},
 			}
 
@@ -707,18 +714,15 @@ func lGrantsPersistSettings(settings *grantSettings) {
 		db.Exec(
 			tx,
 			`
-				insert into "grant".templates(project_id, personal_project, existing_project, new_project) 
-				values (:project, :personal, :existing, :new)
-				on conflict (project_id) do update set
-					personal_project = excluded.personal_project,
-					new_project = excluded.new_project,
-					existing_project = excluded.existing_project
+				insert into "grant".templates(project_id, personal_project, existing_project, new_project, revision_number) 
+				values (:project, :personal, :existing, :new, :revision)
 		    `,
 			db.Params{
 				"project":  settings.ProjectId,
 				"personal": personalProject,
 				"new":      newProject,
 				"existing": existingProject,
+				"revision": s.Templates.Structured.RevisionNumber,
 			},
 		)
 
@@ -1049,7 +1053,7 @@ func lGrantsPersist(app *grantApplication) {
 
 				switch rev.Document.Form.Type {
 				case accapi.FormTypeStructured:
-					b, err := json.Marshal(rev.Document.Form.Fields)
+					b, err := json.Marshal(rev.Document.Form.AnswerForm)
 					if err == nil {
 						form = append(form, string(b))
 					} else {

@@ -1766,6 +1766,7 @@ func GrantsUpdateSettings(actor rpc.Actor, id string, s accapi.GrantRequestSetti
 	}
 
 	w.Mu.Lock()
+	s.Templates.Structured.RevisionNumber++
 	w.Settings = &s
 	lGrantsPersistSettings(w)
 	w.Mu.Unlock()

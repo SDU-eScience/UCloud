@@ -61,11 +61,23 @@ func grantV4() db.MigrationScript {
 	return db.MigrationScript{
 		Id: "grantsV4",
 		Execute: func(tx *db.Transaction) {
-			statement := `
-				alter table "grant".templates
-				add column revision_number integer not null default 1;
-			`
-			db.Exec(tx, statement, db.Params{})
+			statements := []string{
+				`
+				    alter table "grant".templates
+				    drop constraint templates_pkey;`,
+				`
+					alter table "grant".templates
+					add column revision_number integer not null default 1;
+				`,
+				`
+					alter table "grant".templates
+					add constraint templates_project_id_revision_number_key
+					primary key (project_id, revision_number);
+				`,
+			}
+			for _, statement := range statements {
+				db.Exec(tx, statement, db.Params{})
+			}
 		},
 	}
 }

@@ -94,7 +94,8 @@ interface EditorState {
     possibleTransfers: Allocators[];
     allocators: Allocators[];
 
-    createApplicationForms: Grants.FormField[];
+    createApplicationForm: Grants.TemplateApplicationForm;
+    answeredApplicationForm: Grants.TemplateApplicationForm;
 
     // Used for the legacy way of displaying
     outdatedFields: Grants.AnswerFieldForm[];
@@ -107,7 +108,7 @@ interface Allocators {
     id: string;
     title: string;
     description: string;
-    template: Grants.FormField[];
+    template: Grants.TemplateApplicationForm;
     checked: boolean;
 }
 
@@ -145,7 +146,8 @@ const defaultState: EditorState = {
         durationInMonths: 12
     },
     possibleTransfers: [],
-    createApplicationForms: [],
+    createApplicationForm: {revisionNumber: 0, fields: []},
+    answeredApplicationForm: {fields: [], revisionNumber: - 1},
     applicationAnswers: {},
     outdatedFields: [],
     loading: false,
@@ -200,6 +202,23 @@ type EditorAction =
     | {type: "SetResourceError", provider: string, category: string, allocator: string, message: string}
     | {type: "Reset"}
     ;
+
+function toAnswerField(formFields: Grants.FormField[], revisionNumber): Grants.TemplateApplicationForm {
+    return {fields: formFields.map((field) => ({answer: "", field})), revisionNumber} ;
+}
+
+function getApplicationForm(templateKey: string, structuredForm: Grants.TemplateStructured): Grants.TemplateApplicationForm {
+    if (templateKey === "existingProject") {
+        return toAnswerField(structuredForm.existingProject, structuredForm.revisionNumber);
+    }
+    else if (templateKey === "newProject") {
+        return toAnswerField(structuredForm.newProject, structuredForm.revisionNumber);
+    }
+    else if (templateKey === "personalProject") {
+        return toAnswerField(structuredForm.personalProject, structuredForm.revisionNumber);
+    }
+    return {fields: [], revisionNumber: -1};
+}
 
 function stateReducer(state: EditorState, action: EditorAction): EditorState {
     switch (action.type) {
@@ -278,15 +297,15 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             let i = 0;
             for (const allocator of action.allocators) {
                 const existing = newAllocators.find(it => it.id === allocator.id);
-                const forms = allocator.templates.structured[templateKey];
-                const sameForm = existing?.template.every((val, i) => val === forms[i]);
+                const applicationForm = getApplicationForm(templateKey, allocator.templates.structured);
+                const sameForm = existing?.template.fields.every((val, i) => val === applicationForm.fields[i]);
                 if (!existing) {
                     newAllocators.push({
                         id: allocator.id, title: allocator.title, description: allocator.description,
-                        template: forms, checked: false,
+                        template: applicationForm, checked: false,
                     });
                 } else if (!sameForm) {
-                    newAllocators[i] = {...existing, template: forms};
+                    newAllocators[i] = {...existing, template: applicationForm};
                 }
 
                 for (const category of allocator.categories) {
@@ -316,16 +335,21 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                 arr.sort((a, b) => Accounting.categoryComparator(a.category, b.category));
             }
 
-            const forms = action.allocators
-                .filter(it => newAllocators.find(existing => existing.id === it.id)?.checked === true)
-                .flatMap(it => it.templates.structured[templateKey])
+            var foundForm: Grants.TemplateApplicationForm = {fields: [], revisionNumber: 0};
+            const currentForm = action.allocators.filter(it => newAllocators.find(existing => existing.id === it.id)?.checked === true).at(0);
+            if (currentForm) {
+                foundForm = getApplicationForm(templateKey , currentForm.templates.structured);
+            }
 
             return {
                 ...state,
                 possibleTransfers: newAllocators,
                 allocators: newAllocators,
                 resources: newResources,
-                createApplicationForms: forms,
+                createApplicationForm: foundForm,
+                stateDuringCreate: {
+                    creatingWorkspace: true,
+                }
             };
         }
 
@@ -431,8 +455,10 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                         referenceIds: [],
                         revisionComment: null,
                         form: {
-                            type: "plain_text",
+                            type: "structured",
                             text: "",
+                            answerForm: {fields: [], revisionNumber: -1},
+                            subAllocator: false,
                         },
                         allocationPeriod: {
                             start: start.getTime(),
@@ -508,12 +534,12 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                     return it;
                 }
             });
-            const forms = newAllocators.filter(it => it.checked).flatMap(it => it.template);
+            const allocator  = newAllocators.find(it => it.checked)
 
             return {
                 ...state,
                 allocators: newAllocators,
-                createApplicationForms: forms,
+                createApplicationForm: {fields: allocator?.template.fields ?? [], revisionNumber: allocator?.template.revisionNumber ?? -1}
             }
         }
 
@@ -730,7 +756,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                     newAllocators.push({
                         title: breakdown.projectTitle,
                         id: breakdown.projectId,
-                        template: [],
+                        template: {fields: [], revisionNumber: -1},
                         description: "",
                         checked: true,
                     });
@@ -772,13 +798,14 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
 
         const isGrantGiverInitiated = app && app.status.overallState == "APPROVED" && app.status.revisions.length === 1 && docText.startsWith(grantGiverInitiatedPrefix);
 
-        const forms = isGrantGiverInitiated ? [grantGiverInitiatedForm] : newAllocators.flatMap(it => it.template);
-        const newApplication = forms
+        let form: Grants.TemplateApplicationForm | undefined = isGrantGiverInitiated ? grantGiverInitiatedForm : newAllocators.at(0)?.template;
+         
+        const newApplication: Grants.TemplateApplicationForm = form ?? {fields: [], revisionNumber: -1};
         var outdatedFields: Grants.AnswerFieldForm[] = [];
         const newApplicationDocument: EditorState["applicationAnswers"] = {};
 
         if (doc.form.type == "structured") {
-            if (doc.form.fields.length == 0) {
+            if (doc.form.answerForm.fields.length == 0) {
                 outdatedFields.push({
                     answer: doc.form.text,
                     field: {
@@ -790,7 +817,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
 
                 })
             }
-            for (const userAnswer of doc.form.fields) {
+            for (const userAnswer of doc.form.answerForm.fields) {
                 if (userAnswer.field.name === "" && userAnswer.field.title) {
                     userAnswer.field.name = userAnswer.field.title;
                     newApplicationDocument[userAnswer.field.name] = userAnswer;
@@ -844,9 +871,10 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             ...state,
             allocators: newAllocators,
             resources: newResources,
-            createApplicationForms: newApplication,
+            createApplicationForm: newApplication,
             outdatedFields: outdatedFields,
             applicationAnswers: newApplicationDocument,
+            answeredApplicationForm: doc.form.answerForm,
             allocationPeriod: state.stateDuringEdit.id === GRANT_GIVER_INITIATED_ID ? state.allocationPeriod : {
                 start: {
                     month: startMonth,
@@ -990,9 +1018,10 @@ function useStateReducerMiddleware(
                             templates: {
                                 type: "structured",
                                 structured: {
-                                    newProject: [grantGiverInitiatedForm],
-                                    existingProject: [grantGiverInitiatedForm],
-                                    personalProject: [grantGiverInitiatedForm],
+                                    newProject: grantGiverInitiatedForm.fields.map(i => i.field),
+                                    existingProject: grantGiverInitiatedForm.fields.map(i => i.field),
+                                    personalProject: grantGiverInitiatedForm.fields.map(i => i.field),
+                                    revisionNumber: -1,
                                 },
                             }
                         }]
@@ -1369,6 +1398,16 @@ const style = injectStyle("grant-editor", k => `
     }
 `);
 
+function getTemplateRevisionNumber(state: EditorState): number {
+    if (state.stateDuringEdit) {
+        return state.answeredApplicationForm.revisionNumber;
+    }
+    else if (state.stateDuringCreate) {
+        return state.createApplicationForm.revisionNumber;
+    }
+    return -1;
+}
+
 // Main user-interface
 // =====================================================================================================================
 export function Editor(): React.ReactNode {
@@ -1567,7 +1606,7 @@ export function Editor(): React.ReactNode {
 
     const applicationFormExists = (state: EditorState) => {
         if (state.stateDuringCreate !== undefined) {
-            return state.createApplicationForms.length > 0;
+            return state.createApplicationForm.fields.length > 0;
         } else if (state.stateDuringEdit !== undefined) {
             return Object.values(state.applicationAnswers).length > 0;
         }
@@ -1669,10 +1708,16 @@ export function Editor(): React.ReactNode {
             parentProjectId: currentDoc.parentProjectId,
             allocationPeriod: period
         };
-        doc.form["fields"] = [...Object.values(state.applicationAnswers), ...state.outdatedFields];
+        doc.form["answerForm"]["fields"] = [...Object.values(state.applicationAnswers), ...state.outdatedFields];
         if (isGrantGiverInitiated) {
-            doc.form.type = "grant_giver_initiated";
+            doc.form.text = "grant_giver_initiated";
             doc.form["subAllocator"] = isForSubAllocator
+        }
+        if (state.stateDuringEdit) {
+            doc.form["answerForm"]["revisionNumber"] = state.answeredApplicationForm.revisionNumber;
+        }
+        else if (state.stateDuringCreate) {
+            doc.form["answerForm"]["revisionNumber"] = state.createApplicationForm.revisionNumber;
         }
 
         if (isGrantGiverInitiated && Object.values(state.applicationAnswers).length === 0) {
@@ -2253,7 +2298,7 @@ export function Editor(): React.ReactNode {
                                 </React.Fragment>;
                             })}
 
-                            <h2 style={{fontWeight: "bold"}}>Application</h2>
+                            <h2 style={{fontWeight: "bold"}}>Application {getTemplateRevisionNumber(state) > 0 ? `Version ${getTemplateRevisionNumber(state)}` : null}</h2>
                             <br />
                             <ApplicationForm closed={isClosed} editorState={state} event={onApplicationChange}></ApplicationForm>
 
@@ -2349,10 +2394,10 @@ export function ApplicationForm({editorState: state, closed: isClosed, event: on
 
     if (state.outdatedFields.length > 0) {
         // legacy rendering
-        return renderForm(state.createApplicationForms);
+        return renderForm(state.createApplicationForm.fields.map(i => i.field));
     }
 
-    return state.stateDuringCreate ? renderForm(state.createApplicationForms) : renderForm(Object.values(state.applicationAnswers).map(i => i.field));
+    return state.stateDuringCreate ? renderForm(state.createApplicationForm.fields.map(i => i.field)) : renderForm(Object.values(state.applicationAnswers).map(i => i.field));
 }
 
 // Project transfer
@@ -2937,7 +2982,7 @@ const FormIds = {
 // =====================================================================================================================
 function stateToApplication(state: EditorState): Grants.Doc["form"] {
     const isForSubAllocator = getQueryParam(location.search, "subAllocator") == "true";
-    return {type: "structured", text: "", fields: [...Object.values(state.applicationAnswers)], subAllocator: isForSubAllocator};
+    return {type: "structured", text: "", subAllocator: isForSubAllocator, answerForm: {fields: [...Object.values(state.applicationAnswers)], revisionNumber: getTemplateRevisionNumber(state)} };
 }
 
 function stateToRequests(state: EditorState): Grants.Doc["allocationRequests"] {
@@ -3087,13 +3132,19 @@ const grantGiverInitiatedTemplate = `${grantGiverInitiatedPrefix}
                     
 Describe the reason for creating this sub-allocation (max 4000 ch).`;
 
-const grantGiverInitiatedForm: Grants.FormField = {
-    description: "Describe the reason for creating this sub-allocation",
-    name: grantGiverInitiatedPrefix,
-    optional: false,
-    title: grantGiverInitiatedPrefix,
-    maxLength: 4000,
-    rows: 100
+const grantGiverInitiatedForm: Grants.TemplateApplicationForm = {
+    fields: [{
+        answer: "",
+            field: {
+            description: "Describe the reason for creating this sub-allocation",
+            name: grantGiverInitiatedPrefix,
+            optional: false,
+            title: grantGiverInitiatedPrefix,
+            maxLength: 4000,
+            rows: 100
+        }
+    }],
+    revisionNumber: 0,
 };
 
 export default Editor;
