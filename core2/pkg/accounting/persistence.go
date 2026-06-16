@@ -188,26 +188,35 @@ func accountingLoad() {
 				continue
 			}
 
-			promiseTreeEnsure(category.ToId())
-			_ = promiseTreeMutate(category.ToId(), func(tree *PromiseTree) *util.HttpError {
-				p := &Promise{
-					Id:     PromiseId(row.Id),
-					Parent: WalletId(row.ParentWallet),
-					Child:  WalletId(row.ChildWallet),
-					Start:  row.StartTime,
-					End:    row.EndTime,
-					Quota:  row.Quota,
-				}
-				if row.GrantId.Valid {
-					p.Grant.Set(GrantId(row.GrantId.V))
-				}
+			accGlobals.Mu.RLock()
+			tree := accGlobals.Trees[category.ToId()]
+			accGlobals.Mu.RUnlock()
+			if tree == nil {
+				continue
+			}
 
-				if int64(p.Id) > promiseGlobals.PromiseIdAcc.Load() {
-					promiseGlobals.PromiseIdAcc.Store(int64(p.Id))
-				}
+			tree.Mu.Lock()
+			promiseTree := &tree.PromiseTree
+			p := &Promise{
+				Id:     PromiseId(row.Id),
+				Parent: WalletId(row.ParentWallet),
+				Child:  WalletId(row.ChildWallet),
+				Start:  row.StartTime,
+				End:    row.EndTime,
+				Quota:  row.Quota,
+			}
+			if row.GrantId.Valid {
+				p.Grant.Set(GrantId(row.GrantId.V))
+			}
 
-				return nil
-			})
+			promiseTree.PromisesById[p.Id] = p
+			promiseTree.PromisesByParent[p.Parent] = append(promiseTree.PromisesByParent[p.Parent], p.Id)
+			promiseTree.PromisesByChild[p.Child] = append(promiseTree.PromisesByChild[p.Child], p.Id)
+			tree.Mu.Unlock()
+
+			if int64(p.Id) > promiseGlobals.PromiseIdAcc.Load() {
+				promiseGlobals.PromiseIdAcc.Store(int64(p.Id))
+			}
 		}
 		loadTimes.Promises = timer.Mark()
 

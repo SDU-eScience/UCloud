@@ -28,14 +28,10 @@ func newLowTestEnv(t *testing.T, frequency accapi.AccountingFrequency) *lowTestE
 	accGlobals.Trees = map[accapi.ProductCategoryIdV2]*AccountingTree{}
 	accGlobals.OwnerIdAcc.Store(0)
 	accGlobals.WalletIdAcc.Store(0)
-	accGlobals.GroupIdAcc.Store(0)
 	accGlobals.AllocIdAcc.Store(0)
 	accGlobals.Mu.Unlock()
 
-	promiseGlobals.Mu.Lock()
-	promiseGlobals.Trees = map[accapi.ProductCategoryIdV2]*PromiseTree{}
 	promiseGlobals.PromiseIdAcc.Store(0)
-	promiseGlobals.Mu.Unlock()
 
 	category := accapi.ProductCategory{
 		Name:        fmt.Sprintf("acc2-%s", t.Name()),
@@ -58,6 +54,11 @@ func newLowTestEnv(t *testing.T, frequency accapi.AccountingFrequency) *lowTestE
 		WalletsById:     map[WalletId]*Wallet{},
 		WalletsByOwner:  map[string]*Wallet{},
 		AllocationsById: map[AllocationId]*Allocation{},
+		PromiseTree: PromiseTree{
+			PromisesById:     map[PromiseId]*Promise{},
+			PromisesByParent: map[WalletId][]PromiseId{},
+			PromisesByChild:  map[WalletId][]PromiseId{},
+		},
 	}
 
 	accGlobals.Mu.Lock()

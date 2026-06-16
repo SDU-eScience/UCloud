@@ -27,7 +27,7 @@ func (e *lowTestEnv) addPromise(parent string, child string, start int, end int,
 		Quota:  quota,
 	}
 
-	promiseTree := promiseTreeEnsure(e.categoryId)
+	promiseTree := &e.tree().PromiseTree
 	promiseTree.PromisesById[id] = promise
 	promiseTree.PromisesByParent[parentWallet] = append(promiseTree.PromisesByParent[parentWallet], id)
 	promiseTree.PromisesByChild[childWallet] = append(promiseTree.PromisesByChild[childWallet], id)
@@ -53,7 +53,7 @@ func (e *lowTestEnv) promiseAllocations(promiseId PromiseId) []*Allocation {
 
 func (e *lowTestEnv) promiseHead(promiseId PromiseId, at int) *Allocation {
 	e.t.Helper()
-	promise := promiseTreeEnsure(e.categoryId).PromisesById[promiseId]
+	promise := e.tree().PromiseTree.PromisesById[promiseId]
 	head := promiseFindHead(e.tm(at), e.tree(), promise)
 	if !head.Present {
 		e.t.Fatalf("promise %d has no head", promiseId)
@@ -458,7 +458,7 @@ func TestPromiseQuotaCountsRetiredMaterializationsByAccountingMode(t *testing.T)
 		if first.Id == second.Id {
 			t.Fatalf("expected successor allocation after retirement")
 		}
-		if got := promiseMaterializedQuota(e.tm(6), e.tree(), promiseTreeEnsure(e.categoryId).PromisesById[promise], util.OptNone[AllocationId]()); got != 100 {
+		if got := promiseMaterializedQuota(e.tm(6), e.tree(), e.tree().PromiseTree.PromisesById[promise], util.OptNone[AllocationId]()); got != 100 {
 			t.Fatalf("materialized quota = %d, want 100", got)
 		}
 	})
@@ -482,7 +482,7 @@ func TestPromiseQuotaCountsRetiredMaterializationsByAccountingMode(t *testing.T)
 		e.reconcile(7, "child", util.OptValue[int64](100))
 		second := e.promiseHead(promise, 7)
 		assertPromiseAllocation(t, second, 100, 0, e.tm(5), e.tm(20))
-		if got := promiseMaterializedQuota(e.tm(7), e.tree(), promiseTreeEnsure(e.categoryId).PromisesById[promise], util.OptNone[AllocationId]()); got != 100 {
+		if got := promiseMaterializedQuota(e.tm(7), e.tree(), e.tree().PromiseTree.PromisesById[promise], util.OptNone[AllocationId]()); got != 100 {
 			t.Fatalf("materialized quota = %d, want 100", got)
 		}
 
@@ -509,7 +509,7 @@ func TestPromiseQuotaCountsRetiredMaterializationsByAccountingMode(t *testing.T)
 		if first.Id == second.Id {
 			t.Fatalf("expected successor allocation after retirement")
 		}
-		if got := promiseMaterializedQuota(e.tm(6), e.tree(), promiseTreeEnsure(e.categoryId).PromisesById[promise], util.OptNone[AllocationId]()); got != 80 {
+		if got := promiseMaterializedQuota(e.tm(6), e.tree(), e.tree().PromiseTree.PromisesById[promise], util.OptNone[AllocationId]()); got != 80 {
 			t.Fatalf("materialized quota = %d, want 80", got)
 		}
 	})

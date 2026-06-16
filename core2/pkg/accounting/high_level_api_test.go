@@ -53,7 +53,7 @@ func TestWalletToApiCombinesPromisesAndLowLevelUsage(t *testing.T) {
 	e.report(1, "child", 40)
 
 	tree := e.tree()
-	promiseTree := promiseTreeEnsure(e.categoryId)
+	promiseTree := &e.tree().PromiseTree
 	childWallet := tree.WalletsById[e.wallet("child")]
 	childApi := walletToApi(e.tm(1), tree, promiseTree, childWallet, false)
 
@@ -128,7 +128,7 @@ func TestAllocationToApiUsesLowLevelQuotaWhenRetired(t *testing.T) {
 	lifecycleScan(e.tm(5), e.tree())
 
 	wallet := e.tree().WalletsById[e.wallet("child")]
-	apiWallet := walletToApi(e.tm(5), e.tree(), promiseTreeEnsure(e.categoryId), wallet, false)
+	apiWallet := walletToApi(e.tm(5), e.tree(), &e.tree().PromiseTree, wallet, false)
 	allocation := apiWallet.AllocationGroups[0].Group.Allocations[0]
 	if allocation.Quota != 40 || allocation.RetiredQuota != 40 || !allocation.Retired {
 		t.Fatalf("retired allocation = quota:%d retiredQuota:%d retired:%v, want 40/40/true", allocation.Quota, allocation.RetiredQuota, allocation.Retired)
@@ -156,7 +156,7 @@ func TestWalletToApiIncludesRootAllocationWithoutPromise(t *testing.T) {
 	rootId := e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 10, Quota: 100})
 
 	wallet := e.tree().WalletsById[e.wallet("root")]
-	apiWallet := walletToApi(e.tm(1), e.tree(), promiseTreeEnsure(e.categoryId), wallet, false)
+	apiWallet := walletToApi(e.tm(1), e.tree(), &e.tree().PromiseTree, wallet, false)
 
 	if apiWallet.Quota != 100 || apiWallet.UiOnlyActiveQuota != 100 || apiWallet.MaxUsable != 100 {
 		t.Fatalf("wallet quota/active/max = %d/%d/%d, want 100/100/100", apiWallet.Quota, apiWallet.UiOnlyActiveQuota, apiWallet.MaxUsable)
@@ -258,7 +258,7 @@ func TestAllocationUpdatePromiseBackedAllocationUpdatesPromise(t *testing.T) {
 	if err != nil {
 		t.Fatalf("update promise-backed allocation: %v", err)
 	}
-	promise := promiseTreeEnsure(e.categoryId).PromisesById[promiseId]
+	promise := e.tree().PromiseTree.PromisesById[promiseId]
 	if promise.Quota != 60 {
 		t.Fatalf("promise quota = %d, want 60", promise.Quota)
 	}
@@ -266,7 +266,7 @@ func TestAllocationUpdatePromiseBackedAllocationUpdatesPromise(t *testing.T) {
 	if updatedHead.QuotaSelf+updatedHead.QuotaChildren > 60 {
 		t.Fatalf("materialized quota = %d, want <= 60", updatedHead.QuotaSelf+updatedHead.QuotaChildren)
 	}
-	apiWallet := walletToApi(e.tm(2), e.tree(), promiseTreeEnsure(e.categoryId), e.tree().WalletsById[e.wallet("child")], false)
+	apiWallet := walletToApi(e.tm(2), e.tree(), &e.tree().PromiseTree, e.tree().WalletsById[e.wallet("child")], false)
 	if got := apiWallet.AllocationGroups[0].Group.Allocations[0].Quota; got != 60 {
 		t.Fatalf("api allocation quota = %d, want 60", got)
 	}
@@ -318,7 +318,7 @@ func TestPromiseCreateForGrantIsIdempotentAndPropagatesGrant(t *testing.T) {
 	if again != promiseId {
 		t.Fatalf("duplicate promise id = %d, want %d", again, promiseId)
 	}
-	if got := len(promiseTreeEnsure(e.categoryId).PromisesById); got != 1 {
+	if got := len(e.tree().PromiseTree.PromisesById); got != 1 {
 		t.Fatalf("promises = %d, want 1", got)
 	}
 
@@ -328,7 +328,7 @@ func TestPromiseCreateForGrantIsIdempotentAndPropagatesGrant(t *testing.T) {
 		t.Fatalf("materialized grant = %#v, want %d", head, grant.Value)
 	}
 
-	apiWallet := walletToApi(e.tm(2), e.tree(), promiseTreeEnsure(e.categoryId), e.tree().WalletsById[e.wallet("child")], false)
+	apiWallet := walletToApi(e.tm(2), e.tree(), &e.tree().PromiseTree, e.tree().WalletsById[e.wallet("child")], false)
 	apiGrant := apiWallet.AllocationGroups[0].Group.Allocations[0].GrantedIn
 	if !apiGrant.Present || apiGrant.Value != int64(grant.Value) {
 		t.Fatalf("api grantedIn = %#v, want %d", apiGrant, grant.Value)

@@ -4,7 +4,6 @@ import (
 	"cmp"
 	"net/http"
 	"slices"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -30,8 +29,8 @@ import (
 
 // Core promise types and globals
 // ---------------------------------------------------------------------------------------------------------------------
-// PromiseTree is the in-memory registry for promise intent. It intentionally mirrors the global low-level tree shape:
-// one PromiseTree per product category, indexed by promise ID and by parent/child wallet for planning traversals.
+// PromiseTree is the in-memory registry for promise intent inside an AccountingTree. The accounting tree mutex protects
+// these indexes together with the low-level wallet and allocation state.
 
 type PromiseId int
 
@@ -82,7 +81,7 @@ func PromiseCreate(
 			return util.HttpErr(http.StatusBadRequest, "quota must not be negative")
 		}
 
-		promiseTree := promiseTreeEnsure(category)
+		promiseTree := &tree.PromiseTree
 		if grant.Present {
 			for _, existingId := range promiseTree.PromisesByParent[parentWallet] {
 				existing := promiseTree.PromisesById[existingId]
@@ -120,9 +119,6 @@ func PromiseCreate(
 }
 
 var promiseGlobals struct {
-	Mu sync.RWMutex
-
-	Trees        map[accapi.ProductCategoryIdV2]*PromiseTree
 	PromiseIdAcc atomic.Int64
 }
 
@@ -159,7 +155,7 @@ func PromiseReconcile(
 ) {
 	treeMutate(category, func(tree *AccountingTree) *util.HttpError {
 		lifecycleScan(now, tree)
-		promiseTree := promiseTreeEnsure(category)
+		promiseTree := &tree.PromiseTree
 
 		if minimumRequest.Present {
 			promiseReconcileOwner(now, tree, promiseTree, owner, minimumRequest.Value)
@@ -335,57 +331,13 @@ func promiseCalculateLocalTargetSplit(tree *AccountingTree, walletId WalletId) p
 
 // Promise tree indexes
 // ---------------------------------------------------------------------------------------------------------------------
-// These helpers hide the lazy initialization and indexing details of PromiseTree. The rest of the planner can assume
-// maps exist and can cheaply browse promises by parent, by child or by ID.
+// AccountingTree construction initializes PromiseTree maps, so the planner can cheaply browse promises by parent, by
+// child or by ID without additional checks.
 //
 // The core helpers are:
 //
-// - promiseTreeEnsure: Creates or returns the in-memory promise tree for a category.
-// - promiseTreeRead: Reads the promise tree for a category without creating it.
 // - promiseTreePromises: Returns all promises in a tree as a slice for sorting/traversal.
 // - promiseWalletDepth: Computes approximate wallet depth from promise parent links for bottom-up ordering.
-
-func promiseTreeEnsure(category accapi.ProductCategoryIdV2) *PromiseTree {
-	promiseGlobals.Mu.Lock()
-	defer promiseGlobals.Mu.Unlock()
-
-	if promiseGlobals.Trees == nil {
-		promiseGlobals.Trees = map[accapi.ProductCategoryIdV2]*PromiseTree{}
-	}
-
-	tree := promiseGlobals.Trees[category]
-	if tree == nil {
-		tree = &PromiseTree{}
-		promiseGlobals.Trees[category] = tree
-	}
-
-	if tree.PromisesById == nil {
-		tree.PromisesById = map[PromiseId]*Promise{}
-	}
-	if tree.PromisesByParent == nil {
-		tree.PromisesByParent = map[WalletId][]PromiseId{}
-	}
-	if tree.PromisesByChild == nil {
-		tree.PromisesByChild = map[WalletId][]PromiseId{}
-	}
-
-	return tree
-}
-
-func promiseTreeMutate(category accapi.ProductCategoryIdV2, fn func(tree *PromiseTree) *util.HttpError) *util.HttpError {
-	tree := promiseGlobals.Trees[category]
-	// TODO Mutexes???
-	return fn(tree)
-}
-
-func promiseTreeRead(category accapi.ProductCategoryIdV2) *PromiseTree {
-	promiseGlobals.Mu.RLock()
-	defer promiseGlobals.Mu.RUnlock()
-	if promiseGlobals.Trees == nil {
-		return nil
-	}
-	return promiseGlobals.Trees[category]
-}
 
 func promiseTreePromises(tree *PromiseTree) []*Promise {
 	result := make([]*Promise, 0, len(tree.PromisesById))
@@ -510,15 +462,7 @@ func promiseWalletReservedChildren(tree *AccountingTree, wallet *Wallet) int64 {
 }
 
 func promiseChildTargetDemand(tree *AccountingTree, walletId WalletId, seen map[WalletId]bool) int64 {
-	wallet := tree.WalletsById[walletId]
-	if wallet == nil {
-		return 0
-	}
-	promiseTree := promiseTreeRead(wallet.Category)
-	if promiseTree == nil {
-		return 0
-	}
-	return promiseChildTargetDemandEx(tree, promiseTree, walletId, seen)
+	return promiseChildTargetDemandEx(tree, &tree.PromiseTree, walletId, seen)
 }
 
 func promiseChildTargetDemandEx(tree *AccountingTree, promiseTree *PromiseTree, walletId WalletId, seen map[WalletId]bool) int64 {

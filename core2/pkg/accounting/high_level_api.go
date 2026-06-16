@@ -81,7 +81,7 @@ func WalletTotalQuotaContributingAt(category accapi.ProductCategoryIdV2, owner a
 	if wallet == nil {
 		return 0, false
 	}
-	promiseTree := promiseTreeEnsureWithTreeRLockHeld(category)
+	promiseTree := &tree.PromiseTree
 	return walletQuotaContributing(at, tree, promiseTree, wallet), true
 }
 
@@ -137,7 +137,7 @@ func WalletsBrowseAll(now time.Time, filter WalletBrowseFilter) []accapi.WalletV
 	for _, tree := range trees {
 		tree.Mu.RLock()
 		if walletBrowseTreeMatches(tree, filter) {
-			promiseTree := promiseTreeEnsureWithTreeRLockHeld(tree.Category.ToId())
+			promiseTree := &tree.PromiseTree
 			for _, wallet := range tree.WalletsById {
 				if walletBrowseWalletMatches(now, tree, promiseTree, wallet, filter) {
 					result = append(result, walletToApi(now, tree, promiseTree, wallet, filter.IncludeChild))
@@ -189,7 +189,7 @@ func WalletV2ByAllocationID(now time.Time, allocationId AllocationId) (WalletId,
 		if allocation != nil {
 			wallet := tree.WalletsById[allocation.Wallet]
 			if wallet != nil {
-				promiseTree := promiseTreeEnsureWithTreeRLockHeld(tree.Category.ToId())
+				promiseTree := &tree.PromiseTree
 				apiWallet := walletToApi(now, tree, promiseTree, wallet, false)
 				tree.Mu.RUnlock()
 				return wallet.Id, apiWallet, true
@@ -226,20 +226,6 @@ func walletBrowseWalletMatches(now time.Time, tree *AccountingTree, promiseTree 
 
 func walletBrowseKey(wallet accapi.WalletV2) string {
 	return wallet.Owner.Reference() + "\x00" + wallet.PaysFor.Provider + "\x00" + wallet.PaysFor.Name
-}
-
-func promiseTreeEnsureWithTreeRLockHeld(category accapi.ProductCategoryIdV2) *PromiseTree {
-	promiseGlobals.Mu.RLock()
-	if promiseGlobals.Trees != nil {
-		promiseTree := promiseGlobals.Trees[category]
-		if promiseTree != nil && promiseTree.PromisesById != nil && promiseTree.PromisesByParent != nil && promiseTree.PromisesByChild != nil {
-			promiseGlobals.Mu.RUnlock()
-			return promiseTree
-		}
-	}
-	promiseGlobals.Mu.RUnlock()
-
-	return promiseTreeEnsure(category)
 }
 
 func walletToApi(now time.Time, tree *AccountingTree, promiseTree *PromiseTree, wallet *Wallet, includeChildren bool) accapi.WalletV2 {
@@ -592,24 +578,16 @@ func walletActiveQuota(now time.Time, tree *AccountingTree, promiseTree *Promise
 }
 
 func walletPromiseQuotaContributing(now time.Time, tree *AccountingTree, walletId WalletId) int64 {
-	promiseTree := promiseTreeRead(tree.Category.ToId())
-	if promiseTree == nil {
-		return 0
-	}
 	quota := int64(0)
-	for _, relationship := range promiseRelationshipsByParent(promiseTree, walletId) {
+	for _, relationship := range promiseRelationshipsByParent(&tree.PromiseTree, walletId) {
 		quota += relationshipQuotaContributing(now, tree, relationship)
 	}
 	return quota
 }
 
 func walletPromiseQuotaAllocated(now time.Time, tree *AccountingTree, walletId WalletId) int64 {
-	promiseTree := promiseTreeRead(tree.Category.ToId())
-	if promiseTree == nil {
-		return 0
-	}
 	quota := int64(0)
-	for _, relationship := range promiseRelationshipsByChild(promiseTree, walletId) {
+	for _, relationship := range promiseRelationshipsByChild(&tree.PromiseTree, walletId) {
 		quota += relationshipQuotaContributing(now, tree, relationship)
 	}
 	return quota

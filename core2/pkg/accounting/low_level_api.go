@@ -100,6 +100,7 @@ type AccountingTree struct {
 	WalletsByOwner map[string]*Wallet
 
 	AllocationsById map[AllocationId]*Allocation
+	PromiseTree     PromiseTree
 
 	disableEvaluation bool
 
@@ -188,7 +189,12 @@ func CategoryEnsure(category accapi.ProductCategory) {
 		WalletsById:     map[WalletId]*Wallet{},
 		WalletsByOwner:  map[string]*Wallet{},
 		AllocationsById: map[AllocationId]*Allocation{},
-		Policy:          PromisePolicy{TrendAlphaBasisPoints: 10000},
+		PromiseTree: PromiseTree{
+			PromisesById:     map[PromiseId]*Promise{},
+			PromisesByParent: map[WalletId][]PromiseId{},
+			PromisesByChild:  map[WalletId][]PromiseId{},
+		},
+		Policy: PromisePolicy{TrendAlphaBasisPoints: 10000},
 	}
 }
 
@@ -350,7 +356,7 @@ func AllocationUpdate(
 			return util.HttpErr(http.StatusNotFound, "unknown allocation")
 		}
 		if alloc.Promise.Present {
-			promiseTree := promiseTreeEnsure(category)
+			promiseTree := &tree.PromiseTree
 			promise := promiseTree.PromisesById[alloc.Promise.Value]
 			if promise == nil {
 				return util.HttpErr(http.StatusNotFound, "unknown promise")
@@ -633,10 +639,7 @@ func walletRemainingUsable(now time.Time, tree *AccountingTree, wallet *Wallet) 
 		return 0
 	}
 	quota := int64(0)
-	promiseTree := promiseTreeRead(tree.Category.ToId())
-	if promiseTree != nil {
-		quota = walletQuotaContributing(now, tree, promiseTree, wallet)
-	}
+	quota = walletQuotaContributing(now, tree, &tree.PromiseTree, wallet)
 	if quota == 0 {
 		quota = promiseWalletActiveSelfQuota(now, tree, wallet)
 	}
