@@ -61,7 +61,10 @@ func initProviderNotifications() {
 			}
 
 			if projectOk {
-				projectWallets := internalRetrieveWallets(time.Now(), project.Id, walletFilter{RequireActive: true})
+				projectWallets := WalletsBrowseAll(time.Now(), WalletBrowseFilter{
+					Owner:         util.OptValue(accapi.WalletOwnerProject(project.Id)),
+					RequireActive: true,
+				})
 				relevantProviders := map[string]util.Empty{}
 
 				for _, w := range projectWallets {
@@ -89,7 +92,7 @@ func initProviderNotifications() {
 
 				}
 			} else if walletOk {
-				wallet, ok := internalRetrieveWallet(time.Now(), walletId, false)
+				wallet, ok := WalletV2ByWalletID(time.Now(), walletId)
 				if ok && !wallet.PaysFor.FreeToUse && len(wallet.AllocationGroups) != 0 {
 					var allChannels []chan *accapi.WalletV2
 
@@ -228,17 +231,13 @@ func providerNotificationHandleClient(conn *ws.Conn) {
 	// Replay
 	// -----------------------------------------------------------------------------------------------------------------
 	go func() {
-		wallets := internalWalletsUpdatedAfter(replayFrom, providerId)
 		now := time.Now()
-		for _, wId := range wallets {
-			wallet, ok := internalRetrieveWallet(now, wId, false)
-			if ok {
-				wCopy := wallet
-				select {
-				case <-ctx.Done():
-					return
-				case walletUpdates <- &wCopy:
-				}
+		for _, wallet := range WalletsUpdatedAfter(now, replayFrom, providerId) {
+			wCopy := wallet
+			select {
+			case <-ctx.Done():
+				return
+			case walletUpdates <- &wCopy:
 			}
 		}
 
@@ -286,11 +285,11 @@ func providerNotificationHandleClient(conn *ws.Conn) {
 					var wallets []accapi.WalletV2
 
 					// Personal wallets
-					wallets = util.Combined(wallets, internalRetrieveWallets(
-						now,
-						username,
-						walletFilter{RequireActive: true, Provider: util.OptValue(providerId)},
-					))
+					wallets = util.Combined(wallets, WalletsBrowseAll(now, WalletBrowseFilter{
+						Owner:         util.OptValue(accapi.WalletOwnerUser(username)),
+						RequireActive: true,
+						Provider:      util.OptValue(providerId),
+					}))
 
 					// Project info and associated wallets
 					if len(requestedUser.Membership) > 0 {
@@ -306,11 +305,11 @@ func providerNotificationHandleClient(conn *ws.Conn) {
 						})
 
 						for _, p := range pToReplay {
-							pWallets := internalRetrieveWallets(
-								now,
-								p.Id,
-								walletFilter{RequireActive: true, Provider: util.OptValue(providerId)},
-							)
+							pWallets := WalletsBrowseAll(now, WalletBrowseFilter{
+								Owner:         util.OptValue(accapi.WalletOwnerProject(p.Id)),
+								RequireActive: true,
+								Provider:      util.OptValue(providerId),
+							})
 
 							if len(pWallets) > 0 {
 								wallets = util.Combined(wallets, pWallets)

@@ -201,6 +201,39 @@ func WalletV2ByAllocationID(now time.Time, allocationId AllocationId) (WalletId,
 	return 0, accapi.WalletV2{}, false
 }
 
+func WalletV2ByWalletID(now time.Time, walletId WalletId) (accapi.WalletV2, bool) {
+	accGlobals.Mu.RLock()
+	trees := make([]*AccountingTree, 0, len(accGlobals.Trees))
+	for _, tree := range accGlobals.Trees {
+		trees = append(trees, tree)
+	}
+	accGlobals.Mu.RUnlock()
+
+	for _, tree := range trees {
+		tree.Mu.RLock()
+		wallet := tree.WalletsById[walletId]
+		if wallet != nil {
+			apiWallet := walletToApi(now, tree, &tree.PromiseTree, wallet, false)
+			tree.Mu.RUnlock()
+			return apiWallet, true
+		}
+		tree.Mu.RUnlock()
+	}
+
+	return accapi.WalletV2{}, false
+}
+
+func WalletsUpdatedAfter(now time.Time, replayFrom time.Time, providerId string) []accapi.WalletV2 {
+	wallets := WalletsBrowseAll(now, WalletBrowseFilter{Provider: util.OptValue(providerId), RequireActive: true})
+	result := []accapi.WalletV2{}
+	for _, wallet := range wallets {
+		if wallet.LastSignificantUpdateAt.Time().After(replayFrom) {
+			result = append(result, wallet)
+		}
+	}
+	return result
+}
+
 func walletBrowseTreeMatches(tree *AccountingTree, filter WalletBrowseFilter) bool {
 	if filter.ProductType.Present && filter.ProductType.Value != tree.Category.ProductType {
 		return false
