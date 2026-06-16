@@ -1826,6 +1826,12 @@ func GrantsRetrieveSettings(actor rpc.Actor, isUCloudAdminCall bool, projectId s
 					AllowRequestsFrom:   []accapi.UserCriteria{},
 					ExcludeRequestsFrom: []accapi.UserCriteria{},
 					Templates: accapi.Templates{
+						Structured: accapi.TemplatesStructured{
+							PersonalProject: make([]accapi.FormField, 0),
+							ExistingProject: make([]accapi.FormField, 0),
+							NewProject:      make([]accapi.FormField, 0),
+							RevisionNumber:  0,
+						},
 						Type:            accapi.TemplatesTypeStructured,
 						PersonalProject: defaultTemplate,
 						NewProject:      defaultTemplate,

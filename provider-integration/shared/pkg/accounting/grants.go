@@ -455,7 +455,7 @@ func ParseFormFields(text string) []FormField {
 	}
 	result = append(smallFields, largeFields...)
 
-	return result
+	return util.NonNilSlice(result)
 }
 
 type AnswerFieldForm struct {

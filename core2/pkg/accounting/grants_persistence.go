@@ -444,7 +444,7 @@ func deserializeFormFields(raw string) ([]accapi.FormField, error) {
 		return make([]accapi.FormField, 0), nil
 	}
 
-	var fields []accapi.FormField
+	fields := make([]accapi.FormField, 0)
 	err := json.Unmarshal([]byte(raw), &fields)
 	if err != nil {
 		return make([]accapi.FormField, 0), err
@@ -523,18 +523,19 @@ func grantsLoadSettings() {
 		)
 
 		result := map[string]accapi.GrantRequestSettings{}
+		newProject := make([]accapi.FormField, 0)
+		existingProject := make([]accapi.FormField, 0)
+
 		for _, template := range templates {
 			existing := result[template.ProjectId]
-			var personalProject, newProject, existingProject []accapi.FormField
-
 			// Trying to deserialize form fields
-			personalProject, err := deserializeFormFields(template.PersonalProject)
+			personalProjectFields, err := deserializeFormFields(template.PersonalProject)
 			if err == nil {
 				newProject, _ = deserializeFormFields(template.NewProject)
 				existingProject, _ = deserializeFormFields(template.ExistingProject)
 			} else {
 				// We are going to try to parse it as structured form fields
-				personalProject = parseToStructuredFormFields(template.PersonalProject)
+				personalProjectFields = parseToStructuredFormFields(template.PersonalProject)
 				newProject = parseToStructuredFormFields(template.NewProject)
 				existingProject = parseToStructuredFormFields(template.ExistingProject)
 			}
@@ -547,7 +548,7 @@ func grantsLoadSettings() {
 				ExistingProject: template.ExistingProject,
 				// Structured template
 				Structured: accapi.TemplatesStructured{
-					PersonalProject: personalProject,
+					PersonalProject: personalProjectFields,
 					NewProject:      newProject,
 					ExistingProject: existingProject,
 					RevisionNumber:  template.RevisionNumber,
