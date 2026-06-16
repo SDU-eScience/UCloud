@@ -23,7 +23,7 @@ import (
 // for space saved from collapsing reports. Once collapsed, we are likely to only store around 500K a day.
 
 type internalUsageReport struct {
-	Wallet           AccWalletId
+	Wallet           WalletId
 	ValidFrom        time.Time
 	ValidUntil       util.Option[time.Time] // Most recent report will not set this (valid until "now")
 	Kpis             internalUsageReportKpis
@@ -88,7 +88,7 @@ func (r *internalUsageReportKpis) ToApi() accapi.UsageReportKpis {
 
 type internalUsageOverTimeDeltaDataPoint struct {
 	Timestamp time.Time
-	Child     util.Option[AccWalletId]
+	Child     util.Option[WalletId]
 	Change    int64
 }
 
@@ -98,18 +98,19 @@ func (r *internalUsageOverTimeDeltaDataPoint) ToApi() accapi.UsageReportDeltaDat
 		if r.Child.Value < 0 {
 			child.Set("Other")
 		} else {
-			b, w, ok := internalWalletById(r.Child.Value)
-
-			if ok {
-				b.Mu.RLock()
-				ownerId := w.OwnedBy
-				b.Mu.RUnlock()
-
-				accGlobals.Mu.RLock()
-				owner := accGlobals.OwnersById[ownerId]
-				child.Set(owner.Reference)
-				accGlobals.Mu.RUnlock()
+			accGlobals.Mu.RLock()
+			for _, tree := range accGlobals.Trees {
+				tree.Mu.RLock()
+				wallet := tree.WalletsById[r.Child.Value]
+				if wallet != nil {
+					child.Set(wallet.Owner.Reference())
+				}
+				tree.Mu.RUnlock()
+				if child.Present {
+					break
+				}
 			}
+			accGlobals.Mu.RUnlock()
 		}
 	}
 
@@ -192,7 +193,7 @@ const (
 )
 
 type internalWalletSnapshot struct {
-	Id        AccWalletId
+	Id        WalletId
 	Timestamp time.Time
 	Category  accapi.ProductCategory
 
@@ -203,10 +204,10 @@ type internalWalletSnapshot struct {
 	TotalUsage     int64
 	TotalAllocated int64
 
-	UsageByParent             map[AccWalletId]int64
-	QuotaByParentActive       map[AccWalletId]int64
-	QuotaByParentContributing map[AccWalletId]int64
-	HealthByParent            map[AccWalletId]internalGroupHealth
+	UsageByParent             map[WalletId]int64
+	QuotaByParentActive       map[WalletId]int64
+	QuotaByParentContributing map[WalletId]int64
+	HealthByParent            map[WalletId]internalGroupHealth
 
 	NextMeaningfulExpiration util.Option[time.Time]
 }
@@ -219,12 +220,12 @@ type internalSnapshotComparison struct {
 var reportGlobals struct {
 	Ready                       atomic.Bool
 	Mu                          sync.RWMutex
-	Reports                     map[AccWalletId]*internalUsageReport
-	Snapshots                   map[AccWalletId]internalWalletSnapshot
+	Reports                     map[WalletId]*internalUsageReport
+	Snapshots                   map[WalletId]internalWalletSnapshot
 	HistoricCache               []reportCacheEntry
 	HistoricCacheSlotsAvailable int
 	HistoricCacheLastEmptySlot  int
-	HistoricCacheIndex          map[time.Time]map[AccWalletId]int
+	HistoricCacheIndex          map[time.Time]map[WalletId]int
 }
 
 type reportCacheEntry struct {
@@ -235,10 +236,10 @@ type reportCacheEntry struct {
 
 func initUsageReports() {
 	g := &reportGlobals
-	g.Reports = map[AccWalletId]*internalUsageReport{}
-	g.Snapshots = map[AccWalletId]internalWalletSnapshot{}
+	g.Reports = map[WalletId]*internalUsageReport{}
+	g.Snapshots = map[WalletId]internalWalletSnapshot{}
 	g.HistoricCache = make([]reportCacheEntry, 1024*128)
-	g.HistoricCacheIndex = map[time.Time]map[AccWalletId]int{}
+	g.HistoricCacheIndex = map[time.Time]map[WalletId]int{}
 	g.HistoricCacheSlotsAvailable = len(reportGlobals.HistoricCache)
 
 	if !accGlobals.TestingEnabled {
@@ -277,8 +278,9 @@ func initUsageReports() {
 				reference = info.Actor.Username
 			}
 
-			owner := internalOwnerByReference(reference)
-			wallets := internalRetrieveWallets(now, reference, walletFilter{
+			owner := accapi.WalletOwnerFromReference(reference)
+			wallets := WalletsBrowseAll(now, WalletBrowseFilter{
+				Owner:         util.OptValue(owner),
 				RequireActive: false,
 			})
 
@@ -300,8 +302,22 @@ func initUsageReports() {
 					continue
 				}
 
-				b := internalBucketOrInit(w.PaysFor)
-				walletId := internalWalletByOwner(b, now, owner.Id)
+				walletId := WalletId(0)
+				accGlobals.Mu.RLock()
+				tree := accGlobals.Trees[w.PaysFor.ToId()]
+				accGlobals.Mu.RUnlock()
+				if tree == nil {
+					continue
+				}
+				tree.Mu.RLock()
+				wallet := tree.WalletsByOwner[owner.Reference()]
+				if wallet != nil {
+					walletId = wallet.Id
+				}
+				tree.Mu.RUnlock()
+				if walletId == 0 {
+					continue
+				}
 
 				startTime := fndapi.TimeFromUnixMilli(request.Start).Time()
 				endTime := fndapi.TimeFromUnixMilli(request.End).Time()
@@ -442,7 +458,7 @@ func initUsageReports() {
 	reportGlobals.Ready.Store(true)
 }
 
-func usageRetrieveHistoricReports(from time.Time, until time.Time, wallet AccWalletId) []internalUsageReport {
+func usageRetrieveHistoricReports(from time.Time, until time.Time, wallet WalletId) []internalUsageReport {
 	// NOTE(Dan, 15/10/2025): Current tests will break in the year 2100, but I will let that be a problem for the
 	// future.
 	now := time.Now()
@@ -518,7 +534,7 @@ func usageCollapseReports(reports []internalUsageReport) internalUsageReport {
 
 	result.SubProjectHealth = lastReport.SubProjectHealth // NOTE(Dan): Idle is recomputed below
 
-	deltaUsageByChild := map[AccWalletId]int64{}
+	deltaUsageByChild := map[WalletId]int64{}
 
 	absoluteUseByTimestamp := map[time.Time]int64{}
 	absoluteQuotaByTimestamp := map[time.Time]int64{}
@@ -561,17 +577,17 @@ func usageCollapseReports(reports []internalUsageReport) internalUsageReport {
 	result.SubProjectHealth.Idle = result.SubProjectHealth.SubProjectCount - len(deltaUsageByChild)
 
 	topUsersFromChildren := util.TopNKeys(deltaUsageByChild, 10)
-	deltaDataPointsByChild := map[util.Option[AccWalletId]]map[time.Time]internalUsageOverTimeDeltaDataPoint{}
+	deltaDataPointsByChild := map[util.Option[WalletId]]map[time.Time]internalUsageOverTimeDeltaDataPoint{}
 	allDeltaTimestamps := map[time.Time]util.Empty{}
 
 	for _, report := range reports {
 		for _, item := range report.UsageOverTime.Delta {
 			itemCopy := item
 			if !item.Child.Present {
-				itemCopy.Child = util.OptNone[AccWalletId]()
+				itemCopy.Child = util.OptNone[WalletId]()
 			} else {
 				if !slices.Contains(topUsersFromChildren, item.Child.Value) {
-					itemCopy.Child = util.OptValue(AccWalletId(-1))
+					itemCopy.Child = util.OptValue(WalletId(-1))
 				}
 			}
 
@@ -679,7 +695,7 @@ func usageCollapseReports(reports []internalUsageReport) internalUsageReport {
 	return result
 }
 
-func usageRetrieveHistoric(now time.Time, wallet AccWalletId) (internalUsageReport, bool) {
+func usageRetrieveHistoric(now time.Time, wallet WalletId) (internalUsageReport, bool) {
 	var result internalUsageReport
 
 	g := &reportGlobals
@@ -688,7 +704,7 @@ func usageRetrieveHistoric(now time.Time, wallet AccWalletId) (internalUsageRepo
 
 	{
 		g.Mu.RLock()
-		var dictOnDay map[AccWalletId]int
+		var dictOnDay map[WalletId]int
 		dictOnDay, ok = g.HistoricCacheIndex[now]
 		slot := -1
 		if ok {
@@ -746,7 +762,7 @@ func usageRetrieveHistoric(now time.Time, wallet AccWalletId) (internalUsageRepo
 		}
 
 		{
-			var dictOnDay map[AccWalletId]int
+			var dictOnDay map[WalletId]int
 			dictOnDay, ok = g.HistoricCacheIndex[now]
 			slot := -1
 			if ok {
@@ -822,7 +838,7 @@ func lUsageCacheReport(report *internalUsageReport) {
 
 	dictOnDay, ok := g.HistoricCacheIndex[report.ValidFrom]
 	if !ok {
-		dictOnDay = map[AccWalletId]int{}
+		dictOnDay = map[WalletId]int{}
 		g.HistoricCacheIndex[report.ValidFrom] = dictOnDay
 	}
 
@@ -873,15 +889,15 @@ func usageSampleEx(now time.Time, bucketFilter func(cat accapi.ProductCategory) 
 
 	reportGlobals.Mu.Lock()
 
-	var buckets []*internalBucket
+	var trees []*AccountingTree
 	accGlobals.Mu.Lock()
-	for _, b := range accGlobals.BucketsByCategory {
-		if bucketFilter == nil || bucketFilter(b.Category) {
-			buckets = append(buckets, b)
+	for _, tree := range accGlobals.Trees {
+		if bucketFilter == nil || bucketFilter(tree.Category) {
+			trees = append(trees, tree)
 		}
 	}
 
-	slices.SortFunc(buckets, func(a, b *internalBucket) int {
+	slices.SortFunc(trees, func(a, b *AccountingTree) int {
 		if a.Category.Provider < b.Category.Provider {
 			return -1
 		} else if a.Category.Provider > b.Category.Provider {
@@ -895,14 +911,14 @@ func usageSampleEx(now time.Time, bucketFilter func(cat accapi.ProductCategory) 
 		}
 	})
 
-	for _, b := range buckets {
-		b.Mu.Lock()
+	for _, tree := range trees {
+		tree.Mu.Lock()
 	}
 
-	snapshotsById := map[AccWalletId]internalSnapshotComparison{}
-	for _, b := range buckets {
-		for _, w := range b.WalletsById {
-			wallet := lSnapshotWallet(startOfDay, b, w)
+	snapshotsById := map[WalletId]internalSnapshotComparison{}
+	for _, tree := range trees {
+		for _, w := range tree.WalletsById {
+			wallet := lSnapshotWallet(startOfDay, tree, w)
 			snapshotsById[w.Id] = wallet
 
 			if !accGlobals.TestingEnabled {
@@ -930,25 +946,25 @@ func usageSampleEx(now time.Time, bucketFilter func(cat accapi.ProductCategory) 
 		report.Dirty = false
 	}
 
-	for _, b := range buckets {
+	for _, tree := range trees {
 		var walletIds []int
-		for _, w := range b.WalletsById {
+		for _, w := range tree.WalletsById {
 			walletIds = append(walletIds, int(w.Id))
 		}
 		sort.Ints(walletIds)
 
 		for _, wId := range walletIds {
-			r := lUsageSampleEnsureReport(now, snapshotsById[AccWalletId(wId)], batch)
+			r := lUsageSampleEnsureReport(now, snapshotsById[WalletId(wId)], batch)
 			r.SubProjectHealth = internalSubProjectHealth{}
 		}
 
 		for _, wId := range walletIds {
-			lUsageSampleWallet(now, snapshotsById[AccWalletId(wId)], batch)
+			lUsageSampleWallet(now, snapshotsById[WalletId(wId)], batch)
 		}
 	}
 
-	for _, b := range buckets {
-		b.Mu.Unlock()
+	for _, tree := range trees {
+		tree.Mu.Unlock()
 	}
 
 	accGlobals.Mu.Unlock()
@@ -962,11 +978,11 @@ func usageSampleEx(now time.Time, bucketFilter func(cat accapi.ProductCategory) 
 	}
 }
 
-func lSnapshotWallet(now time.Time, b *internalBucket, w *internalWallet) internalSnapshotComparison {
-	prev, ok := reportGlobals.Snapshots[w.Id]
+func lSnapshotWallet(now time.Time, tree *AccountingTree, wallet *Wallet) internalSnapshotComparison {
+	prev, ok := reportGlobals.Snapshots[wallet.Id]
 	if !ok {
 		prev = internalWalletSnapshot{
-			Id:                        w.Id,
+			Id:                        wallet.Id,
 			Timestamp:                 now.AddDate(0, 0, -1),
 			Quota:                     0,
 			ActiveQuota:               0,
@@ -974,78 +990,74 @@ func lSnapshotWallet(now time.Time, b *internalBucket, w *internalWallet) intern
 			LocalUsage:                0,
 			TotalUsage:                0,
 			TotalAllocated:            0,
-			UsageByParent:             map[AccWalletId]int64{},
-			QuotaByParentActive:       map[AccWalletId]int64{},
-			QuotaByParentContributing: map[AccWalletId]int64{},
-			HealthByParent:            map[AccWalletId]internalGroupHealth{},
-			Category:                  b.Category,
+			UsageByParent:             map[WalletId]int64{},
+			QuotaByParentActive:       map[WalletId]int64{},
+			QuotaByParentContributing: map[WalletId]int64{},
+			HealthByParent:            map[WalletId]internalGroupHealth{},
+			Category:                  tree.Category,
 			NextMeaningfulExpiration:  util.OptNone[time.Time](),
 		}
 	}
 
 	current := internalWalletSnapshot{
-		Id:                        w.Id,
+		Id:                        wallet.Id,
 		Timestamp:                 now,
-		Quota:                     lInternalWalletTotalQuotaContributing(b, w),
-		ActiveQuota:               lInternalWalletTotalQuotaFromActiveAllocations(b, w),
-		MaxUsable:                 lInternalMaxUsable(b, now, w),
-		LocalUsage:                w.LocalUsage,
-		TotalUsage:                lInternalWalletTotalUsageInNode(b, w),
-		TotalAllocated:            lInternalWalletTotalAllocatedContributing(b, w),
-		UsageByParent:             map[AccWalletId]int64{},
-		QuotaByParentActive:       map[AccWalletId]int64{},
-		QuotaByParentContributing: map[AccWalletId]int64{},
-		HealthByParent:            map[AccWalletId]internalGroupHealth{},
-		Category:                  b.Category,
+		Quota:                     walletQuotaContributing(now, tree, &tree.PromiseTree, wallet),
+		ActiveQuota:               walletActiveQuota(now, tree, &tree.PromiseTree, wallet),
+		MaxUsable:                 walletMaxUsable(now, tree, wallet),
+		LocalUsage:                wallet.Consumed,
+		TotalUsage:                walletTotalUsage(now, tree, &tree.PromiseTree, wallet),
+		TotalAllocated:            walletQuotaAllocated(now, tree, &tree.PromiseTree, wallet),
+		UsageByParent:             map[WalletId]int64{},
+		QuotaByParentActive:       map[WalletId]int64{},
+		QuotaByParentContributing: map[WalletId]int64{},
+		HealthByParent:            map[WalletId]internalGroupHealth{},
+		Category:                  tree.Category,
 	}
 
 	minimumMeaningfulQuota := int64(float64(current.ActiveQuota) * 0.1)
 	earliestExpiration := util.OptNone[time.Time]()
 
-	for parent, group := range w.AllocationsByParent {
-		current.UsageByParent[parent] = group.TreeUsage
-		contributingQuota := lInternalGroupTotalQuotaContributing(b, group)
-		activeQuota := lInternalGroupTotalQuotaFromActiveAllocations(b, group)
-		current.QuotaByParentContributing[parent] = contributingQuota
-		current.QuotaByParentActive[parent] = activeQuota
+	applyRelationship := func(parent WalletId, usage int64, contributingQuota int64, activeQuota int64, allocations []*Allocation) {
+		current.UsageByParent[parent] += usage
+		current.QuotaByParentContributing[parent] += contributingQuota
+		current.QuotaByParentActive[parent] += activeQuota
 
-		for allocId := range group.Allocations {
-			alloc := b.AllocationsById[allocId]
-			if alloc.Active && alloc.Quota > minimumMeaningfulQuota {
+		for _, alloc := range allocations {
+			allocationQuota := alloc.QuotaSelf + alloc.QuotaChildren
+			if alloc.Activated && !alloc.Retired && allocationQuota > minimumMeaningfulQuota {
 				if !earliestExpiration.Present || alloc.End.Before(earliestExpiration.Value) {
 					earliestExpiration.Set(alloc.End)
 				}
 			}
 		}
 
-		// Determined expected usage (linear usage assumption)
+		// Determine expected usage (linear usage assumption)
 		quotaIn30Days := int64(0)
 		retiredUsage := activeQuota - contributingQuota
-		activeUsage := group.TreeUsage - retiredUsage
+		activeUsage := usage - retiredUsage
 
 		health := internalGroupHealthOk
-
 		in30Days := now.AddDate(0, 0, 30)
 
 		totalExpectedUsage := retiredUsage
-		for allocId := range group.Allocations {
-			alloc := b.AllocationsById[allocId]
-			if alloc.Active {
+		for _, alloc := range allocations {
+			allocationQuota := alloc.QuotaSelf + alloc.QuotaChildren
+			if alloc.Activated && !alloc.Retired {
 				allocationDuration := alloc.End.Sub(alloc.Start)
-				timeRemaining := max(alloc.End.Sub(now), 0)
-				timeUsed := allocationDuration - timeRemaining
-				timePercentageUsed := float64(timeUsed) / float64(allocationDuration)
+				if allocationDuration > 0 {
+					timeRemaining := max(alloc.End.Sub(now), 0)
+					timeUsed := allocationDuration - timeRemaining
+					timePercentageUsed := float64(timeUsed) / float64(allocationDuration)
+					expectedUsage := float64(allocationQuota) * timePercentageUsed
+					totalExpectedUsage += int64(expectedUsage)
 
-				expectedUsage := float64(alloc.Quota) * timePercentageUsed
-				totalExpectedUsage += int64(expectedUsage)
-
-				if timeRemaining >= 30*24*time.Hour {
-					quotaIn30Days += alloc.Quota
+					if timeRemaining >= 30*24*time.Hour {
+						quotaIn30Days += allocationQuota
+					}
 				}
-			} else {
-				if alloc.Start.Before(in30Days) && alloc.End.After(in30Days) {
-					quotaIn30Days += alloc.Quota
-				}
+			} else if alloc.Start.Before(in30Days) && alloc.End.After(in30Days) {
+				quotaIn30Days += allocationQuota
 			}
 		}
 
@@ -1060,9 +1072,29 @@ func lSnapshotWallet(now time.Time, b *internalBucket, w *internalWallet) intern
 		current.HealthByParent[parent] = health
 	}
 
+	for _, relationship := range promiseRelationshipsByParent(&tree.PromiseTree, wallet.Id) {
+		applyRelationship(
+			relationship.Parent,
+			relationshipUsage(now, tree, relationship),
+			relationshipQuotaContributing(now, tree, relationship),
+			relationshipActiveQuota(now, relationship),
+			relationshipAllocations(tree, relationship),
+		)
+	}
+
+	for _, relationship := range lowLevelRelationshipsByParent(tree, wallet.Id) {
+		applyRelationship(
+			relationship.Parent.GetOrDefault(0),
+			lowLevelRelationshipUsage(now, tree, relationship),
+			lowLevelRelationshipQuotaContributing(now, tree, relationship),
+			lowLevelRelationshipActiveQuota(now, relationship),
+			relationship.Allocations,
+		)
+	}
+
 	current.NextMeaningfulExpiration = earliestExpiration
 
-	reportGlobals.Snapshots[w.Id] = current
+	reportGlobals.Snapshots[wallet.Id] = current
 
 	return internalSnapshotComparison{
 		Previous: prev,
@@ -1130,7 +1162,7 @@ func lUsageSampleWallet(now time.Time, cmp internalSnapshotComparison, b *db.Bat
 		if delta != 0 {
 			report.UsageOverTime.Delta = append(report.UsageOverTime.Delta, internalUsageOverTimeDeltaDataPoint{
 				Timestamp: now,
-				Child:     util.Option[AccWalletId]{},
+				Child:     util.Option[WalletId]{},
 				Change:    delta,
 			})
 

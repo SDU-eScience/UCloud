@@ -19,7 +19,7 @@ import (
 // Database persistence layer
 // =====================================================================================================================
 
-func grantsLoad(id accGrantId, prefetchHint []accGrantId) {
+func grantsLoad(id GrantId, prefetchHint []GrantId) {
 	if grantGlobals.Testing.Enabled {
 		return
 	}
@@ -27,7 +27,7 @@ func grantsLoad(id accGrantId, prefetchHint []accGrantId) {
 	prefetchList := prefetchHint
 	requiredPrefetchIdx := slices.Index(prefetchList, id)
 	if requiredPrefetchIdx == -1 {
-		copiedList := make([]accGrantId, len(prefetchList))
+		copiedList := make([]GrantId, len(prefetchList))
 		copy(copiedList, prefetchList)
 		prefetchList = copiedList
 
@@ -35,12 +35,12 @@ func grantsLoad(id accGrantId, prefetchHint []accGrantId) {
 		requiredPrefetchIdx = len(prefetchList) - 1
 	}
 
-	var awarded map[accGrantId]util.Empty
+	var awarded map[GrantId]util.Empty
 
 	apps := db.NewTx(func(tx *db.Transaction) []accapi.GrantApplication {
 		tx.NoDevResetThisIsNotAHackIPromise = true
 
-		awarded = map[accGrantId]util.Empty{}
+		awarded = map[GrantId]util.Empty{}
 
 		b := db.BatchNew(tx)
 		appsPromise := db.BatchSelect[struct {
@@ -310,7 +310,7 @@ func grantsLoad(id accGrantId, prefetchHint []accGrantId) {
 
 		for _, row := range apps {
 			if row.Synchronized {
-				awarded[accGrantId(row.Id)] = util.Empty{}
+				awarded[GrantId(row.Id)] = util.Empty{}
 			}
 		}
 
@@ -320,7 +320,7 @@ func grantsLoad(id accGrantId, prefetchHint []accGrantId) {
 	for _, appLoop := range apps {
 		app := appLoop
 		numericId, _ := strconv.ParseInt(app.Id.Value, 10, 64)
-		grantId := accGrantId(numericId)
+		grantId := GrantId(numericId)
 		b := grantGetAppBucket(grantId)
 
 		b.Mu.Lock()
@@ -343,7 +343,7 @@ func grantsLoadUnawarded() {
 		return
 	}
 
-	var toLoad []accGrantId
+	var toLoad []GrantId
 	db.NewTx0(func(tx *db.Transaction) {
 		maxId, ok := db.Get[struct{ Id int64 }](
 			tx,
@@ -385,7 +385,7 @@ func grantsLoadUnawarded() {
 
 		toLoad = nil
 		for _, row := range unawarded {
-			toLoad = append(toLoad, accGrantId(row.Id))
+			toLoad = append(toLoad, GrantId(row.Id))
 		}
 	})
 
@@ -715,7 +715,7 @@ func grantsLoadIndex(b *grantIndexBucket, recipient string) {
 		return
 	}
 
-	index := db.NewTx(func(tx *db.Transaction) []accGrantId {
+	index := db.NewTx(func(tx *db.Transaction) []GrantId {
 		rows := db.Select[struct{ Id int64 }](
 			tx,
 			`
@@ -734,9 +734,9 @@ func grantsLoadIndex(b *grantIndexBucket, recipient string) {
 			},
 		)
 
-		var result []accGrantId
+		var result []GrantId
 		for _, row := range rows {
-			result = append(result, accGrantId(row.Id))
+			result = append(result, GrantId(row.Id))
 		}
 
 		return result
