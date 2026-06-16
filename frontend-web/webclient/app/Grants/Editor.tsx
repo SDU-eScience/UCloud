@@ -1710,7 +1710,7 @@ export function Editor(): React.ReactNode {
         };
         doc.form["answerForm"]["fields"] = [...Object.values(state.applicationAnswers), ...state.outdatedFields];
         if (isGrantGiverInitiated) {
-            doc.form.text = "grant_giver_initiated";
+            doc.form.type = "grant_giver_initiated";
             doc.form["subAllocator"] = isForSubAllocator
         }
         if (state.stateDuringEdit) {

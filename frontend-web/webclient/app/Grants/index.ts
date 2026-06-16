@@ -214,18 +214,22 @@ export interface Doc {
     allocationPeriod?: Period | null
 }
 
-type Form = StructuredForm;
+type Form = PlainTextForm | GrantGiverInitiatedForm | StructuredForm;
 
+export interface AnswerFieldForm {
+    answer: string;
+    field: FormField;
+}
+
+interface PlainTextForm {
+    type: "plain_text";
+    text: string;
+}
 
 interface GrantGiverInitiatedForm {
     type: "grant_giver_initiated";
     text: string;
     subAllocator: boolean;
-}
-
-export interface AnswerFieldForm {
-    answer: string;
-    field: FormField;
 }
 
 interface StructuredForm {
