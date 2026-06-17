@@ -308,6 +308,15 @@ export const ProductSelector: React.FunctionComponent<{
         return [...new Set((categorizedProducts as ComputeCategory[]).map(it => it.provider))].map(it => ({key: it}));
     }, [categorizedProducts]);
 
+    let queueStatus: JobQueueStatus | null = null
+    if (type === "COMPUTE") {
+        const support = (props.support ?? []).find(s =>
+            s.product.name === selected?.name &&
+            productCategoryEquals(s.product.category, selected?.category)
+        )?.support;
+        queueStatus = (support as ComputeSupport)?.queueStatus ?? null;
+    }
+
     return <>
         <Flex gap="8px">
             {isCompute ? <Box width="50%">
@@ -332,17 +341,17 @@ export const ProductSelector: React.FunctionComponent<{
             </Box> : null}
             <Box width={type === "COMPUTE" ? "50%" : "100%"}>
                 {type === "COMPUTE" ? <Box>Machine category <MandatoryField /></Box> : null}
-                <div onClick={onToggle} className={InputClass} style={{display: "flex", paddingTop: "5px", height: "33.5px"}} ref={boxRef}>
+                <div onClick={onToggle} className={InputClass} style={{display: "flex", height: "33.5px"}} ref={boxRef}>
                     {selected ?
                         <Flex alignItems={"center"}>
-                            {isCompute ? <Icon name="activity" /> : <ProviderLogo providerId={selected?.category?.provider ?? "?"} size={24} />}
+                            {isCompute ? <Icon size={24} ml="-4px" name="heroCpuChip" mr="4px" /> : <ProviderLogo providerId={selected?.category?.provider ?? "?"} size={24} />}
                             {selected.name}
                             {isCompute ? null : <>
                                 <Box>-</Box>
                                 <Box>{priceToString(selected, 1)}</Box>
                             </>}
                         </Flex> :
-                        <>No {productName} selected</>
+                        <Flex alignItems={"center"}>No {productName} selected</Flex>
                     }
 
                     <Icon ml="auto" name="heroChevronDown" />
@@ -351,13 +360,17 @@ export const ProductSelector: React.FunctionComponent<{
         </Flex>
 
         {isCompute && selected ? <>
-            <div className={classConcat(SelectorBoxClass, props.slim === true ? "slim" : undefined)} onClick={onToggle} ref={boxRef}>
+            <div className={classConcat(SelectorBoxClass, props.slim === true ? "slim" : undefined)} onClick={onToggle} ref={boxRef} style={{marginTop: "4px"}}>
                 <div className="selected">
 
                     <>
                         {props.slim !== true ?
                             <>
-                                {selected?.name}<br />
+                                <Flex>{queueStatus ? <div style={{
+                                    marginTop: "9px",
+                                    marginRight: "12px",
+                                }}><JobQueueStatusIndicator status={queueStatus} /></div> : null} {selected?.name}</Flex><br />
+
                                 {selected ? <>
                                     <table>
                                         <tbody>
@@ -489,11 +502,11 @@ export const ProductSelector: React.FunctionComponent<{
                                                 setComputeCategory(p);
                                                 setIsOpen(false);
                                             }} className="table-info">
-                                                <TableCell><Icon name="activity" /></TableCell>
+                                                <TableCell><Icon name="heroCpuChip" /></TableCell>
                                                 <TableCell>{p.kind}</TableCell>
                                                 <TableCell>{p.category}</TableCell>
                                                 <TableCell><ProductDescription serviceProvider={serviceProvider} category={p.category} /></TableCell>
-                                                <TableCell><JobQueueStatusIndicator status={queueStatus} /></TableCell>
+                                                <TableCell><Box ml="16px"><JobQueueStatusIndicator multiple status={queueStatus} /></Box></TableCell>
                                             </tr>
                                         } else {
                                             const support = (props.support ?? []).find(s =>
@@ -702,14 +715,24 @@ function MachineTypeSelectionSlider(props: {
 }): React.ReactNode {
     if (!props.selectedCategory) return null;
 
-    return <Box px="8px" onClick={stopPropagation}>
+    return <Box mx="8px" px="8px" onClick={stopPropagation}>
         <input value={props.idx} autoFocus onChange={e => props.onSelect(e.target.valueAsNumber)}
             className={FancySlider} min={0} max={props.selectedCategory.products.length - 1} type="range" list="markers" />
         <datalist id="markers" className={DataListStyle}>
-            {(props.selectedCategory.products as ProductV2Compute[]).map((it, idx) => <option key={idx} value={idx} label={idx.toString()}>Stuff</option>)}
+            {(props.selectedCategory.products as ProductV2Compute[]).map((it, idx) => <option key={idx} value={idx} label={computeV2CountStringThing(it)}>Stuff</option>)}
         </datalist>
     </Box>
 }
+
+function computeV2CountStringThing(c: ProductV2Compute): string {
+    if (c.gpu) {
+        if (c.fraction && c.fraction?.denominator != 1) {
+            return `${c.fraction.numerator * c.price} / ${c.fraction.denominator}`;
+        }
+        return c.gpu.toString();
+    }
+    return c.cpu?.toString() ?? "";
+};
 
 
 const FancySlider = injectStyle("fancy-slider", cl => `
@@ -717,20 +740,24 @@ const FancySlider = injectStyle("fancy-slider", cl => `
         width: calc(100% - 16px);
         padding-top: 8px;
         padding-bottom: 8px;
-        margin-left: 8px;
-        margin-right: 8px;
         cursor: pointer;
         accent-color: var(--primaryMain);
+    }
+
+    ${cl}::-moz-range-track {
+        /* 
+            color rhs of thumb
+            background-color: var(--primaryMain);
+         */
     }
 `);
 
 const DataListStyle = injectStyleSimple("datalist-style", `
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     justify-content: space-between;
-    writing-mode: vertical-lr;
-    width: 100%;
-`)
+    width: calc(100% - 16px);
+`);
 
 export const SelectorBoxClass = injectStyle("selector-box", k => `
     ${k} {
@@ -996,6 +1023,7 @@ function generateProducts(
 
 const JobQueueStatusIndicator: React.FunctionComponent<{
     status: JobQueueStatus;
+    multiple?: boolean;
 }> = (props) => {
     let color: ThemeColor = "errorMain";
     let message = "";
@@ -1003,15 +1031,15 @@ const JobQueueStatusIndicator: React.FunctionComponent<{
     switch (props.status) {
         case JobQueueStatus.AVAILABLE:
             color = "successMain";
-            message = "This machine type is available for use."
+            message = props.multiple ? "At least one machine type is available for use." : "This machine type is available for use."
             break;
         case JobQueueStatus.BUSY:
             color = "warningMain";
-            message = "This machine type is available for use, but the cluster is busy."
+            message = props.multiple ? "At least one machine type is available for use, but the cluster is busy." : "This machine type is available for use, but the cluster is busy."
             break;
         case JobQueueStatus.FULL:
             color = "errorMain"
-            message = "This machine type is not currently available and you will have to wait in a queue."
+            message = props.multiple ? "This machine type is not currently available and you will have to wait in a queue." : "This machine type is not currently available and you will have to wait in a queue."
             break;
     }
 
@@ -1021,14 +1049,18 @@ const JobQueueStatusIndicator: React.FunctionComponent<{
         <div style={{width: size, height: size, borderRadius: size, backgroundColor: `var(--${color})`}} />
     </TooltipV2>;
 }
+
 function useDialogSize(headerCount: number, rightAligned: boolean): {boxRef: React.RefObject<HTMLDivElement | null>; dialogX: number; dialogY: number; dialogHeight: number; dialogWidth: number;} {
     const boxRef = React.useRef<HTMLDivElement>(null);
     const boxRect = boxRef?.current?.getBoundingClientRect() ?? {x: 0, y: 0, width: 0, height: 0, top: 0, right: 0, bottom: 0, left: 0};
     let dialogX = boxRect.x;
     let dialogY = boxRect.y + boxRect.height;
     let dialogHeight = 500;
-    const minimumWidth = (rightAligned ? 1200 : 500) + headerCount * 90;
-    let dialogWidth = Math.min(Math.max(minimumWidth, boxRect.width), window.innerWidth - boxRect.x - 16);
+    const minimumWidth = (rightAligned ? 700 : 500) + headerCount * 90;
+    if (rightAligned) {
+        dialogX = boxRect.x + boxRect.width - minimumWidth;
+    }
+    let dialogWidth = Math.min(Math.max(minimumWidth, boxRect.width), window.innerWidth);
     {
         const dialogOutOfBounds = (): boolean => dialogX <= 0 || dialogY <= 0 ||
             dialogY + dialogHeight >= window.innerHeight || dialogHeight < 200;
