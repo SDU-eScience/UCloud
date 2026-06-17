@@ -2296,7 +2296,7 @@ export function Editor(): React.ReactNode {
                                 </React.Fragment>;
                             })}
 
-                            <h2 style={{fontWeight: "bold"}}>Application {getTemplateRevisionNumber(state) > 0 ? `Version ${getTemplateRevisionNumber(state)}` : null}</h2>
+                            <h2 style={{fontWeight: "bold"}}>Application</h2>
                             <br />
                             <ApplicationForm closed={isClosed} editorState={state} event={onApplicationChange}></ApplicationForm>
 
