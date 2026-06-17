@@ -247,7 +247,7 @@ func grantsLoad(id accGrantId, prefetchHint []accGrantId) {
 			} else if currentRevision.Document.Form.Type == accapi.FormTypeStructured {
 				jsonStr := currentRevision.Document.Form.Text
 				var answerForm = accapi.AnswerForm{
-					Fields:         make([]accapi.AnswerFieldForm, 0),
+					AnswerFields:   make([]accapi.AnswerFieldForm, 0),
 					RevisionNumber: -1,
 				}
 

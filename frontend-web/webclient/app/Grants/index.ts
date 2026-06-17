@@ -236,7 +236,7 @@ interface StructuredForm {
     type: "structured";
     text: string;
     subAllocator: boolean;
-    answerForm: TemplateApplicationForm;
+    answerForm: AnswerForm;
 }
 
 
@@ -337,8 +337,8 @@ export interface FormField {
     rows?: number;
 }
 
-export interface TemplateApplicationForm {
-    fields: AnswerFieldForm[];
+export interface AnswerForm {
+    answerFields: AnswerFieldForm[];
     revisionNumber: number;
 }
 

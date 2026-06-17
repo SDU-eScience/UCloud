@@ -94,8 +94,8 @@ interface EditorState {
     possibleTransfers: Allocators[];
     allocators: Allocators[];
 
-    createApplicationForm: Grants.TemplateApplicationForm;
-    answeredApplicationForm: Grants.TemplateApplicationForm;
+    createApplicationForm: Grants.AnswerForm;
+    answeredApplicationForm: Grants.AnswerForm;
 
     // Used for the legacy way of displaying
     outdatedFields: Grants.AnswerFieldForm[];
@@ -108,7 +108,7 @@ interface Allocators {
     id: string;
     title: string;
     description: string;
-    template: Grants.TemplateApplicationForm;
+    template: Grants.AnswerForm;
     checked: boolean;
 }
 
@@ -146,8 +146,8 @@ const defaultState: EditorState = {
         durationInMonths: 12
     },
     possibleTransfers: [],
-    createApplicationForm: {revisionNumber: 0, fields: []},
-    answeredApplicationForm: {fields: [], revisionNumber: - 1},
+    createApplicationForm: {revisionNumber: 0, answerFields: []},
+    answeredApplicationForm: {answerFields: [], revisionNumber: - 1},
     applicationAnswers: {},
     outdatedFields: [],
     loading: false,
@@ -203,10 +203,10 @@ type EditorAction =
     | {type: "Reset"}
     ;
 
-function convertToApplicationForm(templateKey: string, structuredForm: Grants.TemplateStructured): Grants.TemplateApplicationForm {
+function convertToApplicationForm(templateKey: string, structuredForm: Grants.TemplateStructured): Grants.AnswerForm {
 
-    function toAnswerField(formFields: Grants.FormField[], revisionNumber): Grants.TemplateApplicationForm {
-        return {fields: formFields.map((field) => ({answer: "", field})), revisionNumber} ;
+    function toAnswerField(formFields: Grants.FormField[], revisionNumber): Grants.AnswerForm {
+        return {answerFields: formFields.map((field) => ({answer: "", field})), revisionNumber} ;
     }
 
     if (templateKey === "existingProject") {
@@ -218,7 +218,7 @@ function convertToApplicationForm(templateKey: string, structuredForm: Grants.Te
     else if (templateKey === "personalProject") {
         return toAnswerField(structuredForm.personalProject, structuredForm.revisionNumber);
     }
-    return {fields: [], revisionNumber: -1};
+    return {answerFields: [], revisionNumber: -1};
 }
 
 function stateReducer(state: EditorState, action: EditorAction): EditorState {
@@ -299,7 +299,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             for (const allocator of action.allocators) {
                 const existing = newAllocators.find(it => it.id === allocator.id);
                 const applicationForm = convertToApplicationForm(templateKey, allocator.templates.structured);
-                const sameForm = existing?.template.fields.every((val, i) => val === applicationForm.fields[i]);
+                const sameForm = existing?.template.answerFields.every((val, i) => val === applicationForm.answerFields[i]);
                 if (!existing) {
                     newAllocators.push({
                         id: allocator.id, title: allocator.title, description: allocator.description,
@@ -336,7 +336,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                 arr.sort((a, b) => Accounting.categoryComparator(a.category, b.category));
             }
 
-            var foundForm: Grants.TemplateApplicationForm = {fields: [], revisionNumber: -1};
+            var foundForm: Grants.AnswerForm = {answerFields: [], revisionNumber: -1};
             const currentForm = action.allocators.filter(it => newAllocators.find(existing => existing.id === it.id)?.checked === true).at(0);
             if (currentForm) {
                 foundForm = convertToApplicationForm(templateKey , currentForm.templates.structured);
@@ -455,7 +455,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                         form: {
                             type: "structured",
                             text: "",
-                            answerForm: {fields: [], revisionNumber: -1},
+                            answerForm: {answerFields: [], revisionNumber: -1},
                             subAllocator: false,
                         },
                         allocationPeriod: {
@@ -537,7 +537,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             return {
                 ...state,
                 allocators: newAllocators,
-                createApplicationForm: {fields: allocator?.template.fields ?? [], revisionNumber: allocator?.template.revisionNumber ?? -1}
+                createApplicationForm: {answerFields: allocator?.template.answerFields ?? [], revisionNumber: allocator?.template.revisionNumber ?? -1}
             }
         }
 
@@ -754,7 +754,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                     newAllocators.push({
                         title: breakdown.projectTitle,
                         id: breakdown.projectId,
-                        template: {fields: [], revisionNumber: -1},
+                        template: {answerFields: [], revisionNumber: -1},
                         description: "",
                         checked: true,
                     });
@@ -796,14 +796,14 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
 
         const isGrantGiverInitiated = app && app.status.overallState == "APPROVED" && app.status.revisions.length === 1 && docText.startsWith(grantGiverInitiatedPrefix);
 
-        let form: Grants.TemplateApplicationForm | undefined = isGrantGiverInitiated ? grantGiverInitiatedForm : newAllocators.at(0)?.template;
+        let form: Grants.AnswerForm | undefined = isGrantGiverInitiated ? grantGiverInitiatedForm : newAllocators.at(0)?.template;
          
-        const newApplication: Grants.TemplateApplicationForm = form ?? {fields: [], revisionNumber: -1};
+        const newApplication: Grants.AnswerForm = form ?? {answerFields: [], revisionNumber: -1};
         var outdatedFields: Grants.AnswerFieldForm[] = [];
         const newApplicationDocument: EditorState["applicationAnswers"] = {};
 
         if (doc.form.type == "structured") {
-            if (doc.form.answerForm.fields.length == 0) {
+            if (doc.form.answerForm.answerFields.length == 0) {
                 outdatedFields.push({
                     answer: doc.form.text,
                     field: {
@@ -815,7 +815,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
 
                 })
             }
-            for (const userAnswer of doc.form.answerForm.fields) {
+            for (const userAnswer of doc.form.answerForm.answerFields) {
                 if (userAnswer.field.name === "" && userAnswer.field.title) {
                     userAnswer.field.name = userAnswer.field.title;
                     newApplicationDocument[userAnswer.field.name] = userAnswer;
@@ -1016,9 +1016,9 @@ function useStateReducerMiddleware(
                             templates: {
                                 type: "structured",
                                 structured: {
-                                    newProject: grantGiverInitiatedForm.fields.map(i => i.field),
-                                    existingProject: grantGiverInitiatedForm.fields.map(i => i.field),
-                                    personalProject: grantGiverInitiatedForm.fields.map(i => i.field),
+                                    newProject: grantGiverInitiatedForm.answerFields.map(i => i.field),
+                                    existingProject: grantGiverInitiatedForm.answerFields.map(i => i.field),
+                                    personalProject: grantGiverInitiatedForm.answerFields.map(i => i.field),
                                     revisionNumber: -1,
                                 },
                             }
@@ -1604,7 +1604,7 @@ export function Editor(): React.ReactNode {
 
     const applicationFormExists = (state: EditorState) => {
         if (state.stateDuringCreate !== undefined) {
-            return state.createApplicationForm.fields.length > 0;
+            return state.createApplicationForm.answerFields.length > 0;
         } else if (state.stateDuringEdit !== undefined) {
             return Object.values(state.applicationAnswers).length > 0;
         }
@@ -2392,10 +2392,10 @@ export function ApplicationForm({editorState: state, closed: isClosed, event: on
 
     if (state.outdatedFields.length > 0) {
         // legacy rendering
-        return renderForm(state.createApplicationForm.fields.map(i => i.field));
+        return renderForm(state.createApplicationForm.answerFields.map(i => i.field));
     }
 
-    return state.stateDuringCreate ? renderForm(state.createApplicationForm.fields.map(i => i.field)) : renderForm(Object.values(state.applicationAnswers).map(i => i.field));
+    return state.stateDuringCreate ? renderForm(state.createApplicationForm.answerFields.map(i => i.field)) : renderForm(Object.values(state.applicationAnswers).map(i => i.field));
 }
 
 // Project transfer
@@ -2980,7 +2980,7 @@ const FormIds = {
 // =====================================================================================================================
 function stateToApplication(state: EditorState): Grants.Doc["form"] {
     const isForSubAllocator = getQueryParam(location.search, "subAllocator") == "true";
-    return {type: "structured", text: "", subAllocator: isForSubAllocator, answerForm: {fields: [...Object.values(state.applicationAnswers)], revisionNumber: getTemplateRevisionNumber(state)} };
+    return {type: "structured", text: "", subAllocator: isForSubAllocator, answerForm: {answerFields: [...Object.values(state.applicationAnswers)], revisionNumber: getTemplateRevisionNumber(state)} };
 }
 
 function stateToRequests(state: EditorState): Grants.Doc["allocationRequests"] {
@@ -3130,8 +3130,8 @@ const grantGiverInitiatedTemplate = `${grantGiverInitiatedPrefix}
                     
 Describe the reason for creating this sub-allocation (max 4000 ch).`;
 
-const grantGiverInitiatedForm: Grants.TemplateApplicationForm = {
-    fields: [{
+const grantGiverInitiatedForm: Grants.AnswerForm = {
+    answerFields: [{
         answer: "",
             field: {
             description: "Describe the reason for creating this sub-allocation",
