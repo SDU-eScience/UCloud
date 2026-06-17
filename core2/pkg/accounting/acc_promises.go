@@ -155,7 +155,7 @@ func PromiseReconcile(
 	owner accapi.WalletOwner,
 	minimumRequest util.Option[int64],
 ) {
-	treeMutate(category, func(tree *AccountingTree) *util.HttpError {
+	_ = treeMutate(category, func(tree *AccountingTree) *util.HttpError {
 		lifecycleScan(now, tree)
 		promiseTree := &tree.PromiseTree
 
@@ -192,7 +192,8 @@ func promiseReconcileOwner(now time.Time, tree *AccountingTree, promiseTree *Pro
 		return
 	}
 
-	if promiseWalletActiveSelfQuota(now, tree, wallet) >= promiseReportHeadroomTarget(tree, minimumRequest) {
+	// Skip reconciliation if we already have space in the wallet for the request
+	if promiseWalletReportQuota(tree, wallet) >= promiseRoundUp(minimumRequest+tree.Policy.MinSlack, tree.Policy.GrowthStep) {
 		return
 	}
 
@@ -212,21 +213,20 @@ func promiseReconcileOwner(now time.Time, tree *AccountingTree, promiseTree *Pro
 	}
 }
 
-func promiseReportHeadroomTarget(tree *AccountingTree, minimumRequest int64) int64 {
-	if minimumRequest < 0 {
-		minimumRequest = 0
-	}
-	return promiseRoundUp(minimumRequest+tree.Policy.MinSlack, tree.Policy.GrowthStep)
-}
-
-func promiseWalletActiveSelfQuota(now time.Time, tree *AccountingTree, wallet *Wallet) int64 {
+func promiseWalletReportQuota(tree *AccountingTree, wallet *Wallet) int64 {
+	includeRetired := !tree.IsCapacityBased()
 	quota := int64(0)
 	for _, allocationId := range wallet.Allocations {
 		allocation := tree.AllocationsById[allocationId]
-		if allocation != nil && allocation.IsActive(now) {
-			quota += allocation.QuotaSelf
+		if allocation.Activated {
+			if !allocation.Retired {
+				quota += allocation.QuotaSelf
+			} else if includeRetired {
+				quota += allocation.ConsumedSelf
+			}
 		}
 	}
+
 	return quota
 }
 
@@ -278,7 +278,6 @@ func promiseRelevantPromisesForWallet(tree *PromiseTree, walletId WalletId) []*P
 // The core helpers are:
 //
 // - promiseCalculateTargetSplit: Computes the full desired split for one wallet, including child promise demand.
-// - promiseCalculateTargetSplitEx: Recursive implementation with cycle protection.
 // - promiseCalculateLocalTargetSplit: Computes direct self and already-reserved child demand for one wallet.
 
 type promiseTargetSplit struct {
@@ -303,32 +302,27 @@ func promiseCalculateTargetSplitEx(tree *AccountingTree, walletId WalletId, seen
 	}
 	seen[walletId] = true
 
-	target := promiseCalculateLocalTargetSplit(tree, walletId)
+	target := promiseTargetSplit{}
+	if wallet, ok := tree.WalletsById[walletId]; ok {
+		policy := tree.Policy
+		currentSelf := promiseWalletConsumedSelf(tree, wallet)
+		currentChildren := promiseWalletReservedChildren(tree, wallet)
+		if wallet.PromiseDemandEwma > currentSelf {
+			currentSelf = wallet.PromiseDemandEwma
+		}
+
+		targetSelf := currentSelf + policy.MinSlack
+		targetChildren := currentChildren
+
+		targetSelf = promiseRoundUp(targetSelf, policy.GrowthStep)
+		targetChildren = promiseRoundUp(targetChildren, policy.GrowthStep)
+
+		target = promiseTargetSplit{QuotaSelf: targetSelf, QuotaChildren: targetChildren}
+	}
+
 	target.QuotaChildren = max(target.QuotaChildren, promiseChildTargetDemand(tree, walletId, seen))
 	target.QuotaChildren = promiseRoundUp(target.QuotaChildren, tree.Policy.GrowthStep)
 	return target
-}
-
-func promiseCalculateLocalTargetSplit(tree *AccountingTree, walletId WalletId) promiseTargetSplit {
-	wallet := tree.WalletsById[walletId]
-	if wallet == nil {
-		return promiseTargetSplit{}
-	}
-
-	policy := tree.Policy
-	currentSelf := promiseWalletConsumedSelf(tree, wallet)
-	currentChildren := promiseWalletReservedChildren(tree, wallet)
-	if wallet.PromiseDemandEwma > currentSelf {
-		currentSelf = wallet.PromiseDemandEwma
-	}
-
-	targetSelf := currentSelf + policy.MinSlack
-	targetChildren := currentChildren
-
-	targetSelf = promiseRoundUp(targetSelf, policy.GrowthStep)
-	targetChildren = promiseRoundUp(targetChildren, policy.GrowthStep)
-
-	return promiseTargetSplit{QuotaSelf: targetSelf, QuotaChildren: targetChildren}
 }
 
 // Promise tree indexes
@@ -466,10 +460,7 @@ func promiseWalletReservedChildren(tree *AccountingTree, wallet *Wallet) int64 {
 }
 
 func promiseChildTargetDemand(tree *AccountingTree, walletId WalletId, seen map[WalletId]bool) int64 {
-	return promiseChildTargetDemandEx(tree, &tree.PromiseTree, walletId, seen)
-}
-
-func promiseChildTargetDemandEx(tree *AccountingTree, promiseTree *PromiseTree, walletId WalletId, seen map[WalletId]bool) int64 {
+	promiseTree := &tree.PromiseTree
 	demand := int64(0)
 	for _, promiseId := range promiseTree.PromisesByParent[walletId] {
 		promise := promiseTree.PromisesById[promiseId]

@@ -452,7 +452,7 @@ func TestPromiseQuotaCountsRetiredMaterializationsByAccountingMode(t *testing.T)
 		assertPromiseAllocation(t, first, 80, 0, e.tm(1), e.tm(20))
 		promiseSetPeriod(e.tm(1), e.tree(), first.Id, e.tm(0), e.tm(5))
 
-		e.report(6, "child", 80)
+		e.report(6, "child", 100)
 		second := e.promiseHead(promise, 6)
 		assertPromiseAllocation(t, second, 20, 0, e.tm(5), e.tm(20))
 		if first.Id == second.Id {
@@ -512,5 +512,49 @@ func TestPromiseQuotaCountsRetiredMaterializationsByAccountingMode(t *testing.T)
 		if got := promiseMaterializedQuota(e.tm(6), e.tree(), e.tree().PromiseTree.PromisesById[promise], util.OptNone[AllocationId]()); got != 80 {
 			t.Fatalf("materialized quota = %d, want 80", got)
 		}
+	})
+}
+
+func TestPromiseReconcileOwnerSkipUsesAccountingMode(t *testing.T) {
+	t.Run("non-capacity retired usage contributes to request coverage", func(t *testing.T) {
+		e := newLowTestEnv(t, accapi.AccountingFrequencyPeriodicHour)
+		e.setPolicy(PromisePolicy{TrendAlphaBasisPoints: 10000})
+		e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 20, Quota: 200, Self: 0, Children: 200})
+		promise := e.addPromise("root", "child", 0, 20, 100)
+
+		e.report(1, "child", 80)
+		first := e.promiseHead(promise, 1)
+		assertPromiseAllocation(t, first, 80, 0, e.tm(1), e.tm(20))
+		promiseSetPeriod(e.tm(1), e.tree(), first.Id, e.tm(0), e.tm(5))
+
+		e.report(6, "child", 80)
+		if got := len(e.promiseAllocations(promise)); got != 1 {
+			t.Fatalf("promise allocations = %d, want 1", got)
+		}
+		if got := promiseMaterializedQuota(e.tm(6), e.tree(), e.tree().PromiseTree.PromisesById[promise], util.OptNone[AllocationId]()); got != 80 {
+			t.Fatalf("materialized quota = %d, want 80", got)
+		}
+	})
+
+	t.Run("capacity retired usage does not contribute to request coverage", func(t *testing.T) {
+		e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
+		e.setPolicy(PromisePolicy{TrendAlphaBasisPoints: 10000})
+		e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 20, Quota: 200, Self: 0, Children: 200})
+		promise := e.addPromise("root", "child", 0, 20, 100)
+
+		e.report(1, "child", 80)
+		first := e.promiseHead(promise, 1)
+		assertPromiseAllocation(t, first, 80, 0, e.tm(1), e.tm(20))
+		promiseSetPeriod(e.tm(1), e.tree(), first.Id, e.tm(0), e.tm(5))
+
+		e.report(6, "child", 80)
+		if got := len(e.promiseAllocations(promise)); got != 2 {
+			t.Fatalf("promise allocations = %d, want 2", got)
+		}
+		second := e.promiseHead(promise, 6)
+		if first.Id == second.Id {
+			t.Fatalf("expected successor allocation after capacity retirement")
+		}
+		assertPromiseAllocation(t, second, 80, 0, e.tm(5), e.tm(20))
 	})
 }

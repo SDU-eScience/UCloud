@@ -649,7 +649,7 @@ func walletRemainingUsable(now time.Time, tree *AccountingTree, wallet *Wallet) 
 	quota := int64(0)
 	quota = walletQuotaContributing(now, tree, &tree.PromiseTree, wallet)
 	if quota == 0 {
-		quota = promiseWalletActiveSelfQuota(now, tree, wallet)
+		quota = promiseWalletReportQuota(tree, wallet)
 	}
 	return max(quota-promiseMeasuredWalletDemand(now, tree, wallet), 0)
 }

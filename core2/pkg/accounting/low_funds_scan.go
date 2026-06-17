@@ -11,6 +11,8 @@ import (
 	"ucloud.dk/shared/pkg/log"
 )
 
+// TODO
+
 func initLowFundsScan() {
 	lowFundsLimitInPercent := config.Configuration.Accounting.LowFundsLimitInPercent
 	if lowFundsLimitInPercent == 0.0 {
