@@ -203,7 +203,7 @@ type EditorAction =
     | {type: "Reset"}
     ;
 
-function convertToApplicationForm(templateKey: string, structuredForm: Grants.TemplateStructured): Grants.AnswerForm {
+function convertToAnswerForm(templateKey: string, structuredForm: Grants.TemplateStructured): Grants.AnswerForm {
 
     function toAnswerField(formFields: Grants.FormField[], revisionNumber): Grants.AnswerForm {
         return {answerFields: formFields.map((field) => ({answer: "", field})), revisionNumber} ;
@@ -298,15 +298,15 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             let i = 0;
             for (const allocator of action.allocators) {
                 const existing = newAllocators.find(it => it.id === allocator.id);
-                const applicationForm = convertToApplicationForm(templateKey, allocator.templates.structured);
-                const sameForm = existing?.template.answerFields.every((val, i) => val === applicationForm.answerFields[i]);
+                const answerForm = convertToAnswerForm(templateKey, allocator.templates.structured);
+                const sameForm = existing?.template.answerFields.every((val, i) => val === answerForm.answerFields[i]);
                 if (!existing) {
                     newAllocators.push({
                         id: allocator.id, title: allocator.title, description: allocator.description,
-                        template: applicationForm, checked: false,
+                        template: answerForm, checked: false,
                     });
                 } else if (!sameForm) {
-                    newAllocators[i] = {...existing, template: applicationForm};
+                    newAllocators[i] = {...existing, template: answerForm};
                 }
 
                 for (const category of allocator.categories) {
@@ -339,7 +339,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             var foundForm: Grants.AnswerForm = {answerFields: [], revisionNumber: -1};
             const currentForm = action.allocators.filter(it => newAllocators.find(existing => existing.id === it.id)?.checked === true).at(0);
             if (currentForm) {
-                foundForm = convertToApplicationForm(templateKey , currentForm.templates.structured);
+                foundForm = convertToAnswerForm(templateKey , currentForm.templates.structured);
             }
 
             return {
