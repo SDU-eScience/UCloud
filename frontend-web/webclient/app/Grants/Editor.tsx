@@ -203,11 +203,12 @@ type EditorAction =
     | {type: "Reset"}
     ;
 
-function toAnswerField(formFields: Grants.FormField[], revisionNumber): Grants.TemplateApplicationForm {
-    return {fields: formFields.map((field) => ({answer: "", field})), revisionNumber} ;
-}
+function convertToApplicationForm(templateKey: string, structuredForm: Grants.TemplateStructured): Grants.TemplateApplicationForm {
 
-function getApplicationForm(templateKey: string, structuredForm: Grants.TemplateStructured): Grants.TemplateApplicationForm {
+    function toAnswerField(formFields: Grants.FormField[], revisionNumber): Grants.TemplateApplicationForm {
+        return {fields: formFields.map((field) => ({answer: "", field})), revisionNumber} ;
+    }
+
     if (templateKey === "existingProject") {
         return toAnswerField(structuredForm.existingProject, structuredForm.revisionNumber);
     }
@@ -297,7 +298,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             let i = 0;
             for (const allocator of action.allocators) {
                 const existing = newAllocators.find(it => it.id === allocator.id);
-                const applicationForm = getApplicationForm(templateKey, allocator.templates.structured);
+                const applicationForm = convertToApplicationForm(templateKey, allocator.templates.structured);
                 const sameForm = existing?.template.fields.every((val, i) => val === applicationForm.fields[i]);
                 if (!existing) {
                     newAllocators.push({
@@ -338,7 +339,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             var foundForm: Grants.TemplateApplicationForm = {fields: [], revisionNumber: -1};
             const currentForm = action.allocators.filter(it => newAllocators.find(existing => existing.id === it.id)?.checked === true).at(0);
             if (currentForm) {
-                foundForm = getApplicationForm(templateKey , currentForm.templates.structured);
+                foundForm = convertToApplicationForm(templateKey , currentForm.templates.structured);
             }
 
             return {
@@ -347,9 +348,6 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                 allocators: newAllocators,
                 resources: newResources,
                 createApplicationForm: foundForm,
-                stateDuringCreate: {
-                    creatingWorkspace: true,
-                }
             };
         }
 
