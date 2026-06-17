@@ -1,24 +1,36 @@
 import * as React from "react";
 import ReactDOM from "react-dom";
 
-import {ProductV2, productCategoryEquals, ProductV2Compute, ProductType, explainUnit, ProductCategoryV2, priceToString} from "@/Accounting";
+import {ProductV2, productCategoryEquals, ProductV2Compute, ProductType, explainUnit, ProductCategoryV2, priceToString, Product} from "@/Accounting";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
 import {connectionState} from "@/Providers/ConnectionState";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
-import {getProviderTitle} from "@/Providers/ProviderTitle";
-import {Box, Button, Flex, Icon, Input, Link, Tooltip} from "@/ui-components";
+import {getProviderTitle, ProviderTitle} from "@/Providers/ProviderTitle";
+import {Box, Button, Flex, Icon, Input, Link, Text, Tooltip} from "@/ui-components";
 import Table, {TableCell, TableRow} from "@/ui-components/Table";
 import {useUState} from "@/Utilities/UState";
 import {clamp, grantsLink, stopPropagation} from "@/UtilityFunctions";
-import {ResolvedSupport} from "@/UCloud/ResourceApi";
+import {ProductSupport, ResolvedSupport} from "@/UCloud/ResourceApi";
 import {explainMaintenance, maintenanceIconColor, shouldAllowMaintenanceAccess} from "@/Products/Maintenance";
-import {classConcat, injectStyle} from "@/Unstyled";
-import {NoResultsBody} from "@/UtilityComponents";
+import {classConcat, injectStyle, injectStyleSimple} from "@/Unstyled";
+import {MandatoryField, NoResultsBody} from "@/UtilityComponents";
 import {ComputeSupport, JobQueueStatus} from "@/UCloud/JobsApi";
 import {ThemeColor} from "@/ui-components/theme";
 import {TooltipV2} from "@/ui-components/Tooltip";
+import {useSelector} from "react-redux";
+import {ServiceProviderItem, ServiceProviderSelector} from "@/Applications/ApiTokens/Add";
+import {InputClass} from "@/ui-components/Input";
 
-const NEED_CONNECT = "need-connection";
+interface ComputeCategory {
+    provider: string;
+    category: string;
+    kind: "CPU" | "GPU";
+    products: ProductV2[];
+}
+
+function isComputeCategory(val: ProductV2 | ComputeCategory): val is ComputeCategory {
+    return "kind" in val;
+}
 
 function legacyGroupName(product: ProductV2): string {
     const numberSuffix = product.name.match(/(^.*)-(\d+)$/);
@@ -89,7 +101,8 @@ export const ProductSelector: React.FunctionComponent<{
     useUState(connectionState);
     const [filteredProducts, setFilteredProducts] = React.useState<ProductV2[]>([]);
     const type = props.products.length > 0 ? props.products[0].productType : props.type;
-    const isDetailed = type === "COMPUTE";
+    const isCompute = type === "COMPUTE";
+    const isDetailed = isCompute
     let productName = "product";
     switch (type) {
         case "COMPUTE":
@@ -97,10 +110,12 @@ export const ProductSelector: React.FunctionComponent<{
             break;
     }
 
-    const headers: string[] = React.useMemo(() => {
-        const result: string[] = [];
+    const headers: {name: string, width?: string}[] = React.useMemo(() => {
+        const result: {name: string, width?: string}[] = [];
         if (type === "COMPUTE") {
-            result.push("vCPU", "Memory (GB)", "GPU");
+            result.push({name: "Type", width: "80px"}, {name: "Product category", width: "180px"}, {name: "Description"}, {name: "Status", width: "120px"});
+        } else {
+            result.push({name: "Name"}, {name: "Price"}, {name: "Provider"});
         }
         return result;
     }, [type]);
@@ -120,8 +135,8 @@ export const ProductSelector: React.FunctionComponent<{
         }));
     }, [props.products, props.onSelect]);
 
-    const categorizedProducts: (ProductV2 | string)[] = React.useMemo(() => {
-        const result: (ProductV2 | string)[] = [];
+    const categorizedProducts: (ProductV2 | ComputeCategory)[] = React.useMemo(() => {
+        const result: (ProductV2 | ComputeCategory)[] = [];
 
         const sortedProducts = [...filteredProducts].sort((a, b) => {
             const pCompare = a.category.provider.localeCompare(b.category.provider);
@@ -143,66 +158,39 @@ export const ProductSelector: React.FunctionComponent<{
         });
 
         let lastCategory = "";
-        for (const product of sortedProducts) {
+        for (const [index, product] of Object.entries(sortedProducts)) {
             if (product.category.provider === "aau") continue;
 
             let categoryName = productGroupName(product);
             categoryName = getProviderTitle(product.category.provider) + ": " + categoryName;
 
             if (lastCategory !== categoryName) {
-                result.push(categoryName);
-                lastCategory = categoryName;
-
-                if (connectionState.canConnectToProvider(product.category.provider)) {
-                    result.push(NEED_CONNECT);
+                if (type === "COMPUTE") {
+                    const defaultProduct = sortedProducts[parseInt(index)] as ProductV2Compute;
+                    result.push({
+                        kind: kindFromProduct(defaultProduct),
+                        category: product.category.name,
+                        provider: product.category.provider,
+                        products: []
+                    });
                 }
+
+                lastCategory = categoryName;
             }
 
-            result.push(product);
+            if (type === "COMPUTE") {
+                const last = result.findLast(it => isComputeCategory(it));
+                last?.products.push(product);
+            } else {
+                result.push(product);
+            }
         }
 
         return result;
     }, [filteredProducts, connectionState.lastRefresh]);
 
 
-    const boxRef = React.useRef<HTMLDivElement>(null);
-    const boxRect = boxRef?.current?.getBoundingClientRect() ?? {x: 0, y: 0, width: 0, height: 0, top: 0, right: 0, bottom: 0, left: 0};
-    let dialogX = boxRect.x;
-    let dialogY = boxRect.y + boxRect.height;
-    let dialogHeight = 500;
-    const minimumWidth = 500 + headers.length * 90;
-    let dialogWidth = Math.min(Math.max(minimumWidth, boxRect.width), window.innerWidth - boxRect.x - 16);
-    {
-        const dialogOutOfBounds = (): boolean => dialogX <= 0 || dialogY <= 0 ||
-            dialogY + dialogHeight >= window.innerHeight || dialogHeight < 200;
-
-        // Attempt to move the dialog box up a bit
-        if (dialogOutOfBounds()) dialogY = boxRect.y + 30;
-
-        // Try making it smaller
-        if (dialogOutOfBounds()) dialogHeight = window.innerHeight - dialogY - 50;
-
-        // What if we try putting it directly above?
-        if (dialogOutOfBounds()) {
-            dialogY = boxRect.y - 500;
-            dialogHeight = 500;
-        }
-
-        // What about a smaller version?
-        if (dialogOutOfBounds()) {
-            dialogY = boxRect.y - 300;
-            dialogHeight = 300;
-        }
-
-        // Display a modal, we cannot find any space for it.
-        if (dialogOutOfBounds()) {
-            dialogX = 50;
-            dialogY = 50;
-            dialogWidth = window.innerWidth - 50 * 2;
-            dialogHeight = window.innerHeight - 50 * 2;
-        }
-    }
-
+    const {boxRef, dialogX, dialogY, dialogHeight, dialogWidth} = useDialogSize(headers.length, isCompute);
 
     const arrowKeyIndex = React.useRef(-1);
     const itemWrapperRef = React.useRef<HTMLTableSectionElement>(null);
@@ -240,7 +228,8 @@ export const ProductSelector: React.FunctionComponent<{
     }, [props.products]);
 
     React.useLayoutEffect(() => {
-        const wrapper = boxRef.current!;
+        const wrapper = boxRef.current;
+        if (!wrapper) return;
         const scrollingParentFn = (elem: HTMLElement): HTMLElement => {
             let parent = elem.parentElement;
             while (parent) {
@@ -272,26 +261,105 @@ export const ProductSelector: React.FunctionComponent<{
     let extraColumns = 3;
     if (type === "COMPUTE") extraColumns++;
 
+    // Only relevant for Machine-selector, e.g. product type === "COMPUTE";
+    const [serviceProvider, setServiceProvider] = React.useState("");
+    const [selectedComputeCategory, setComputeCategory] = React.useState<ComputeCategory | undefined>();
+    const [queueStatuses, setQueueStatuses] = React.useState<Record<string, JobQueueStatus>>({});
+    React.useEffect(() => {
+        if (type === "COMPUTE") {
+            setQueueStatuses(naiveCategoryStatus(categorizedProducts, props.support ?? []));
+        }
+    }, [type, categorizedProducts, props.support]);
+
+    React.useEffect(() => {
+        const [first] = categorizedProducts;
+        if (!first) return;
+        if (!isComputeCategory(first)) return;
+        setServiceProvider(serviceProvider => {
+            if (serviceProvider) return serviceProvider;
+            return first.provider;
+        });
+    }, [categorizedProducts]);
+
+    // On parameter import, find correct category
+    React.useEffect(() => {
+        if (type === "COMPUTE" && selected) {
+            const sel = selected;
+            setComputeCategory(cat => {
+                for (const categorized of categorizedProducts) {
+                    if (isComputeCategory(categorized)) {
+                        for (const p of categorized.products) {
+                            if (p.name === sel.name && p.category.name === sel.category.name &&
+                                p.category.provider === sel.category.provider) {
+                                return categorized;
+                            }
+                        }
+                    }
+                }
+                return cat;
+            });
+        }
+    }, [type, selected, categorizedProducts]);
+
+    const serviceProviders = React.useMemo(() => {
+        if (categorizedProducts.length === 0) return [];
+        const [first] = categorizedProducts;
+        if (!isComputeCategory(first)) return [];
+        return [...new Set((categorizedProducts as ComputeCategory[]).map(it => it.provider))].map(it => ({key: it}));
+    }, [categorizedProducts]);
+
     return <>
-        <div className={classConcat(SelectorBoxClass, props.slim === true ? "slim" : undefined)} onClick={onToggle} ref={boxRef}>
-            <div className="selected">
-                {selected ?
+        <Flex gap="8px">
+            {isCompute ? <Box width="50%">
+                <ServiceProviderSelector
+                    serviceProvider={serviceProvider}
+                    serviceProviders={serviceProviders}
+                    onSelect={el => {
+                        setServiceProvider(el.key);
+                    }}
+                    renderRow={props => {
+                        if (!props.element?.key) return null;
+                        if (!connectionState.canConnectToProvider(props.element.key)) {
+                            const height = props.dataProps == null ? "31.5px" : "38px";
+                            return <Flex pl="8px" key={props.element.key} height={height} {...props.dataProps} onClick={props.onSelect} alignItems={"center"}
+                                gap={"8px"}>
+                                <ProviderLogo className={"provider-logo"} providerId={props.element.key} size={24} />
+                                <ProviderTitle providerId={props.element.key} />
+                            </Flex>;
+                        }
+                        return <ServiceProviderItem {...props} />
+                    }} />
+            </Box> : null}
+            <Box width={type === "COMPUTE" ? "50%" : "100%"}>
+                {type === "COMPUTE" ? <Box>Machine category <MandatoryField /></Box> : null}
+                <div onClick={onToggle} className={InputClass} style={{display: "flex", paddingTop: "5px", height: "33.5px"}} ref={boxRef}>
+                    {selected ?
+                        <Flex alignItems={"center"}>
+                            {isCompute ? <Icon name="activity" /> : <ProviderLogo providerId={selected?.category?.provider ?? "?"} size={24} />}
+                            {selected.name}
+                            {isCompute ? null : <>
+                                <Box>-</Box>
+                                <Box>{priceToString(selected, 1)}</Box>
+                            </>}
+                        </Flex> :
+                        <>No {productName} selected</>
+                    }
+
+                    <Icon ml="auto" name="heroChevronDown" />
+                </div>
+            </Box>
+        </Flex>
+
+        {isCompute && selected ? <>
+            <div className={classConcat(SelectorBoxClass, props.slim === true ? "slim" : undefined)} onClick={onToggle} ref={boxRef}>
+                <div className="selected">
+
                     <>
                         {props.slim !== true ?
                             <>
                                 {selected?.name}<br />
                                 {selected ? <>
                                     <table>
-                                        <thead>
-                                            <tr>
-                                                {headers.map(it =>
-                                                    <th key={it} style={{width: `${(1 / (headers.length + 1)) * 100}%`}}>
-                                                        {it}
-                                                    </th>
-                                                )}
-                                                <th>Price</th>
-                                            </tr>
-                                        </thead>
                                         <tbody>
                                             <tr>
                                                 <ProductStats product={selected} />
@@ -299,7 +367,6 @@ export const ProductSelector: React.FunctionComponent<{
                                             </tr>
                                         </tbody>
                                     </table>
-                                    <ProviderLogo className={"provider-logo"} providerId={selected?.category?.provider ?? "?"} size={32} />
                                 </> : null}
                             </> :
                             <Flex alignItems={"center"} gap={"8px"}>
@@ -309,13 +376,16 @@ export const ProductSelector: React.FunctionComponent<{
                                 <Box>{priceToString(selected, 1)}</Box>
                             </Flex>
                         }
-                    </> :
-                    <>No {productName} selected</>
-                }
+                    </>
+                </div>
+                <MachineTypeSelectionSlider
+                    idx={selectedComputeCategory?.products.findIndex(prod => prod === selected) ?? -1}
+                    onSelect={idx => {
+                        if (!selectedComputeCategory) return;
+                        props.onSelect(selectedComputeCategory.products[idx])
+                    }} selectedCategory={selectedComputeCategory} />
             </div>
-
-            <Icon name="heroChevronDown" />
-        </div>
+        </> : null}
 
         {!isOpen ? null :
             ReactDOM.createPortal(
@@ -405,34 +475,25 @@ export const ProductSelector: React.FunctionComponent<{
                                 <thead>
                                     <TableRow>
                                         <th style={{width: "32px"}} />
-                                        <th>Name</th>
-                                        {headers.map(it => <th key={it}>{it}</th>)}
-                                        <th>Price</th>
-                                        {type === "COMPUTE" ? <th style={{width: "32px"}} /> : null}
+                                        {headers.map(it => <th key={it.name} style={{width: it.width}}>{it.name}</th>)}
                                     </TableRow>
                                 </thead>
                                 <tbody ref={itemWrapperRef}>
                                     {categorizedProducts.map((p, i) => {
-                                        if (typeof p === "string") {
+                                        if (isComputeCategory(p)) {
                                             if (!showHeadings) return null;
-                                            return <tr key={i} className="table-info">
-                                                {p === NEED_CONNECT ?
-                                                    <td colSpan={extraColumns + headers.length}>
-                                                        <div>
-                                                            <Link to="/providers/connect">
-                                                                <Icon name="warning" color="warningMain" mr="8px" />
-                                                                Connection required! You must connect with the provider before you can consume resources from it.
-                                                            </Link>
-                                                        </div>
-                                                    </td> :
-                                                    <td colSpan={extraColumns + headers.length}>
-                                                        <div>
-                                                            <div className="spacer" />
-                                                            {p}
-                                                            <div className="spacer" />
-                                                        </div>
-                                                    </td>
-                                                }
+                                            let queueStatus = queueStatuses[p.category];
+
+                                            return <tr key={i} onClick={() => {
+                                                props.onSelect(p.products[0]);
+                                                setComputeCategory(p);
+                                                setIsOpen(false);
+                                            }} className="table-info">
+                                                <TableCell><Icon name="activity" /></TableCell>
+                                                <TableCell>{p.kind}</TableCell>
+                                                <TableCell>{p.category}</TableCell>
+                                                <TableCell><ProductDescription serviceProvider={serviceProvider} category={p.category} /></TableCell>
+                                                <TableCell><JobQueueStatusIndicator status={queueStatus} /></TableCell>
                                             </tr>
                                         } else {
                                             const support = (props.support ?? []).find(s =>
@@ -441,11 +502,6 @@ export const ProductSelector: React.FunctionComponent<{
                                             )?.support;
 
                                             const maintenance = support?.maintenance;
-
-                                            let queueStatus: JobQueueStatus | null = null
-                                            if (type === "COMPUTE") {
-                                                queueStatus = (support as ComputeSupport).queueStatus ?? null;
-                                            }
 
                                             const isDisabled =
                                                 connectionState.canConnectToProvider(p.category.provider) ||
@@ -477,9 +533,7 @@ export const ProductSelector: React.FunctionComponent<{
                                                 <TableCell><ProductName product={p} /></TableCell>
                                                 <ProductStats product={p} />
                                                 <TableCell>{priceToString(p, 1)}</TableCell>
-                                                {queueStatus !== null ? <td style={{width: "32px"}}>
-                                                    <JobQueueStatusIndicator status={queueStatus} />
-                                                </td> : null}
+                                                <TableCell><ProviderTitle providerId={p.category.provider} /></TableCell>
                                             </TableRow>
                                         }
                                     })}
@@ -496,6 +550,53 @@ export const ProductSelector: React.FunctionComponent<{
 
 const ProductName: React.FunctionComponent<{product: ProductV2}> = ({product}) => {
     return <>{product.name}</>;
+}
+
+function ProductDescription({serviceProvider, category}: {serviceProvider: string; category: string;}): React.ReactNode {
+    const description = useProductDescription(serviceProvider, category);
+    console.log(description, serviceProvider, category);
+    return <Text fontSize={14}>{description}</Text>;
+}
+
+function useProductDescription(serviceProvider: string, category: string): string {
+    const providerBrandings = useSelector((r: ReduxObject) => r.providerBrandings.providers);
+    return providerBrandings[serviceProvider]?.productDescription.find(it => it.category === category)?.shortDescription ?? "No description"
+}
+
+function naiveCategoryStatus(products: (ComputeCategory | ProductV2)[], productSupport: ResolvedSupport<Product, ProductSupport>[]): Record<string, JobQueueStatus> {
+    const record: Record<string, JobQueueStatus> = {};
+    for (const categorizedProduct of products) {
+        if (isComputeCategory(categorizedProduct)) {
+            const queueStatusList: JobQueueStatus[] = [];
+            for (const product of categorizedProduct.products) {
+                const support = productSupport.find(s =>
+                    s.product.name === product?.name &&
+                    productCategoryEquals(s.product.category, product?.category)
+                )?.support;
+                const status = (support as ComputeSupport)?.queueStatus;
+                if (status) {
+                    queueStatusList.push(status);
+                }
+            }
+
+            record[categorizedProduct.category] = queueStateForCategory(queueStatusList);
+        }
+    }
+    return record;
+}
+
+function queueStateForCategory(queueStatusList: JobQueueStatus[]): JobQueueStatus {
+    if (queueStatusList.length === 0) {
+        console.warn("No queue status")
+    } else if (queueStatusList.some(it => it === JobQueueStatus.AVAILABLE)) {
+        return JobQueueStatus.AVAILABLE;
+    } else if (queueStatusList.some(it => it === JobQueueStatus.BUSY)) {
+        return JobQueueStatus.BUSY;
+    } else {
+        return JobQueueStatus.FULL;
+    }
+
+    return JobQueueStatus.AVAILABLE;
 }
 
 export const SelectorDialog = injectStyle("selector-dialog", k => `
@@ -575,11 +676,11 @@ const ProductStats: React.FunctionComponent<{product: ProductV2}> = ({product}) 
     switch (computeProduct.type) {
         case "compute":
             return <>
-                <TableCell>{computeProduct.cpu} <HardwareModel model={computeProduct.cpuModel} /></TableCell>
-                <TableCell>{computeProduct.memoryInGigs} <HardwareModel model={computeProduct.memoryModel} /></TableCell>
-                <TableCell>
+                <TableCell>{computeProduct.cpu} CPU(s)<HardwareModel model={computeProduct.cpuModel} /></TableCell>
+                <TableCell>{computeProduct.memoryInGigs} GB RAM<HardwareModel model={computeProduct.memoryModel} /></TableCell>
+                <TableCell>GPU(s)
                     {computeProduct.gpu === 0 || computeProduct.gpu == null ?
-                        <span style={{color: "#a9b0b9"}}>None</span> :
+                        <span style={{color: "#a9b0b9"}}>{" "} None</span> :
                         <>{computeProduct.gpu} <HardwareModel model={computeProduct.gpuModel} /></>
                     }
                 </TableCell>
@@ -593,6 +694,43 @@ const HardwareModel: React.FunctionComponent<{model?: string | null}> = props =>
     if (!props.model) return null;
     return <span style={{color: "#a9b0b9"}}>{" "}({props.model})</span>
 }
+
+function MachineTypeSelectionSlider(props: {
+    selectedCategory?: ComputeCategory;
+    onSelect: (index: number) => void;
+    idx: number;
+}): React.ReactNode {
+    if (!props.selectedCategory) return null;
+
+    return <Box px="8px" onClick={stopPropagation}>
+        <input value={props.idx} autoFocus onChange={e => props.onSelect(e.target.valueAsNumber)}
+            className={FancySlider} min={0} max={props.selectedCategory.products.length - 1} type="range" list="markers" />
+        <datalist id="markers" className={DataListStyle}>
+            {(props.selectedCategory.products as ProductV2Compute[]).map((it, idx) => <option key={idx} value={idx} label={idx.toString()}>Stuff</option>)}
+        </datalist>
+    </Box>
+}
+
+
+const FancySlider = injectStyle("fancy-slider", cl => `
+    ${cl} {
+        width: calc(100% - 16px);
+        padding-top: 8px;
+        padding-bottom: 8px;
+        margin-left: 8px;
+        margin-right: 8px;
+        cursor: pointer;
+        accent-color: var(--primaryMain);
+    }
+`);
+
+const DataListStyle = injectStyleSimple("datalist-style", `
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    writing-mode: vertical-lr;
+    width: 100%;
+`)
 
 export const SelectorBoxClass = injectStyle("selector-box", k => `
     ${k} {
@@ -883,3 +1021,50 @@ const JobQueueStatusIndicator: React.FunctionComponent<{
         <div style={{width: size, height: size, borderRadius: size, backgroundColor: `var(--${color})`}} />
     </TooltipV2>;
 }
+function useDialogSize(headerCount: number, rightAligned: boolean): {boxRef: React.RefObject<HTMLDivElement | null>; dialogX: number; dialogY: number; dialogHeight: number; dialogWidth: number;} {
+    const boxRef = React.useRef<HTMLDivElement>(null);
+    const boxRect = boxRef?.current?.getBoundingClientRect() ?? {x: 0, y: 0, width: 0, height: 0, top: 0, right: 0, bottom: 0, left: 0};
+    let dialogX = boxRect.x;
+    let dialogY = boxRect.y + boxRect.height;
+    let dialogHeight = 500;
+    const minimumWidth = (rightAligned ? 1200 : 500) + headerCount * 90;
+    let dialogWidth = Math.min(Math.max(minimumWidth, boxRect.width), window.innerWidth - boxRect.x - 16);
+    {
+        const dialogOutOfBounds = (): boolean => dialogX <= 0 || dialogY <= 0 ||
+            dialogY + dialogHeight >= window.innerHeight || dialogHeight < 200;
+
+        // Attempt to move the dialog box up a bit
+        if (dialogOutOfBounds()) dialogY = boxRect.y + 30;
+
+        // Try making it smaller
+        if (dialogOutOfBounds()) dialogHeight = window.innerHeight - dialogY - 50;
+
+        // What if we try putting it directly above?
+        if (dialogOutOfBounds()) {
+            dialogY = boxRect.y - 500;
+            dialogHeight = 500;
+        }
+
+        // What about a smaller version?
+        if (dialogOutOfBounds()) {
+            dialogY = boxRect.y - 300;
+            dialogHeight = 300;
+        }
+
+        // Display a modal, we cannot find any space for it.
+        if (dialogOutOfBounds()) {
+            dialogX = 50;
+            dialogY = 50;
+            dialogWidth = window.innerWidth - 50 * 2;
+            dialogHeight = window.innerHeight - 50 * 2;
+        }
+    }
+
+    return {boxRef, dialogX, dialogY, dialogHeight, dialogWidth};
+}
+
+function kindFromProduct(prod: ProductV2Compute): "CPU" | "GPU" {
+    if (prod.gpu) return "GPU";
+    return "CPU";
+}
+
