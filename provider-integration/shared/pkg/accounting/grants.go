@@ -300,7 +300,7 @@ func ParseAnswerFormFields(text string) AnswerForm {
 		}
 		result = append(result, field)
 	}
-	return AnswerForm{AnswerFields: util.NonNilSlice(result), RevisionNumber: -1}
+	return AnswerForm{AnswerFields: util.NonNilSlice(result), TemplateRevisionNumber: -1}
 }
 
 func ParseFormFields(text string) []FormField {
@@ -464,8 +464,8 @@ type AnswerFieldForm struct {
 }
 
 type AnswerForm struct {
-	AnswerFields   []AnswerFieldForm `json:"answerFields"`
-	RevisionNumber int               `json:"revisionNumber"`
+	AnswerFields           []AnswerFieldForm `json:"answerFields"`
+	TemplateRevisionNumber int               `json:"templateRevisionNumber"`
 }
 
 type Form struct {

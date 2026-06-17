@@ -146,8 +146,8 @@ const defaultState: EditorState = {
         durationInMonths: 12
     },
     possibleTransfers: [],
-    createApplicationForm: {revisionNumber: 0, answerFields: []},
-    answeredApplicationForm: {answerFields: [], revisionNumber: - 1},
+    createApplicationForm: {templateRevisionNumber: 0, answerFields: []},
+    answeredApplicationForm: {answerFields: [], templateRevisionNumber: - 1},
     applicationAnswers: {},
     outdatedFields: [],
     loading: false,
@@ -206,7 +206,7 @@ type EditorAction =
 function convertToAnswerForm(templateKey: string, structuredForm: Grants.TemplateStructured): Grants.AnswerForm {
 
     function toAnswerField(formFields: Grants.FormField[], revisionNumber): Grants.AnswerForm {
-        return {answerFields: formFields.map((field) => ({answer: "", field})), revisionNumber} ;
+        return {answerFields: formFields.map((field) => ({answer: "", field})), templateRevisionNumber: revisionNumber} ;
     }
 
     if (templateKey === "existingProject") {
@@ -218,7 +218,7 @@ function convertToAnswerForm(templateKey: string, structuredForm: Grants.Templat
     else if (templateKey === "personalProject") {
         return toAnswerField(structuredForm.personalProject, structuredForm.revisionNumber);
     }
-    return {answerFields: [], revisionNumber: -1};
+    return {answerFields: [], templateRevisionNumber: -1};
 }
 
 function stateReducer(state: EditorState, action: EditorAction): EditorState {
@@ -336,7 +336,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                 arr.sort((a, b) => Accounting.categoryComparator(a.category, b.category));
             }
 
-            var foundForm: Grants.AnswerForm = {answerFields: [], revisionNumber: -1};
+            var foundForm: Grants.AnswerForm = {answerFields: [], templateRevisionNumber: -1};
             const currentForm = action.allocators.filter(it => newAllocators.find(existing => existing.id === it.id)?.checked === true).at(0);
             if (currentForm) {
                 foundForm = convertToAnswerForm(templateKey , currentForm.templates.structured);
@@ -455,7 +455,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                         form: {
                             type: "structured",
                             text: "",
-                            answerForm: {answerFields: [], revisionNumber: -1},
+                            answerForm: {answerFields: [], templateRevisionNumber: -1},
                             subAllocator: false,
                         },
                         allocationPeriod: {
@@ -537,7 +537,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             return {
                 ...state,
                 allocators: newAllocators,
-                createApplicationForm: {answerFields: allocator?.template.answerFields ?? [], revisionNumber: allocator?.template.revisionNumber ?? -1}
+                createApplicationForm: {answerFields: allocator?.template.answerFields ?? [], templateRevisionNumber: allocator?.template.templateRevisionNumber ?? -1}
             }
         }
 
@@ -754,7 +754,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                     newAllocators.push({
                         title: breakdown.projectTitle,
                         id: breakdown.projectId,
-                        template: {answerFields: [], revisionNumber: -1},
+                        template: {answerFields: [], templateRevisionNumber: -1},
                         description: "",
                         checked: true,
                     });
@@ -798,7 +798,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
 
         let form: Grants.AnswerForm | undefined = isGrantGiverInitiated ? grantGiverInitiatedForm : newAllocators.at(0)?.template;
          
-        const newApplication: Grants.AnswerForm = form ?? {answerFields: [], revisionNumber: -1};
+        const newApplication: Grants.AnswerForm = form ?? {answerFields: [], templateRevisionNumber: -1};
         var outdatedFields: Grants.AnswerFieldForm[] = [];
         const newApplicationDocument: EditorState["applicationAnswers"] = {};
 
@@ -1398,10 +1398,10 @@ const style = injectStyle("grant-editor", k => `
 
 function getTemplateRevisionNumber(state: EditorState): number {
     if (state.stateDuringEdit) {
-        return state.answeredApplicationForm.revisionNumber;
+        return state.answeredApplicationForm.templateRevisionNumber;
     }
     else if (state.stateDuringCreate) {
-        return state.createApplicationForm.revisionNumber;
+        return state.createApplicationForm.templateRevisionNumber;
     }
     return -1;
 }
@@ -1712,10 +1712,10 @@ export function Editor(): React.ReactNode {
             doc.form["subAllocator"] = isForSubAllocator
         }
         if (state.stateDuringEdit) {
-            doc.form["answerForm"]["revisionNumber"] = state.answeredApplicationForm.revisionNumber;
+            doc.form["answerForm"]["revisionNumber"] = state.answeredApplicationForm.templateRevisionNumber;
         }
         else if (state.stateDuringCreate) {
-            doc.form["answerForm"]["revisionNumber"] = state.createApplicationForm.revisionNumber;
+            doc.form["answerForm"]["revisionNumber"] = state.createApplicationForm.templateRevisionNumber;
         }
 
         if (isGrantGiverInitiated && Object.values(state.applicationAnswers).length === 0) {
@@ -2980,7 +2980,7 @@ const FormIds = {
 // =====================================================================================================================
 function stateToApplication(state: EditorState): Grants.Doc["form"] {
     const isForSubAllocator = getQueryParam(location.search, "subAllocator") == "true";
-    return {type: "structured", text: "", subAllocator: isForSubAllocator, answerForm: {answerFields: [...Object.values(state.applicationAnswers)], revisionNumber: getTemplateRevisionNumber(state)} };
+    return {type: "structured", text: "", subAllocator: isForSubAllocator, answerForm: {answerFields: [...Object.values(state.applicationAnswers)], templateRevisionNumber: getTemplateRevisionNumber(state)} };
 }
 
 function stateToRequests(state: EditorState): Grants.Doc["allocationRequests"] {
@@ -3142,7 +3142,7 @@ const grantGiverInitiatedForm: Grants.AnswerForm = {
             rows: 100
         }
     }],
-    revisionNumber: -1,
+    templateRevisionNumber: -1,
 };
 
 export default Editor;

@@ -339,7 +339,7 @@ export interface FormField {
 
 export interface AnswerForm {
     answerFields: AnswerFieldForm[];
-    revisionNumber: number;
+    templateRevisionNumber: number;
 }
 
 export interface TemplateStructured {
