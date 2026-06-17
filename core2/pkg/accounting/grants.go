@@ -1774,9 +1774,12 @@ func GrantsUpdateSettings(actor rpc.Actor, id string, s accapi.GrantRequestSetti
 			templateHasChanges = true
 			// We bump the revision number if the template has changes.
 			s.Templates.Structured.RevisionNumber = current.RevisionNumber + 1
+		} else {
+			s.Templates.Structured.RevisionNumber = current.RevisionNumber // correct the revision number
 		}
 	} else {
 		// This case is only happening when the template is being created for the first time.
+		templateHasChanges = true
 		s.Templates.Structured.RevisionNumber++
 	}
 
@@ -1795,8 +1798,8 @@ func grantsFormFieldHasChanges(incoming *accapi.FormField, current *accapi.FormF
 		incoming.Description != current.Description ||
 		incoming.Optional != current.Optional ||
 		incoming.Title != current.Title ||
-		incoming.Rows != current.Rows ||
-		incoming.MaxLength != current.MaxLength
+		incoming.MaxLength != current.MaxLength ||
+		incoming.Rows != current.Rows
 }
 
 func grantsFormFieldsHasChanges(incoming []accapi.FormField, current []accapi.FormField) bool {
