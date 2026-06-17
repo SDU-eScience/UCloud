@@ -717,6 +717,10 @@ func lGrantsPersistSettings(settings *grantSettings) {
 			`
 				insert into "grant".templates(project_id, personal_project, existing_project, new_project, revision_number) 
 				values (:project, :personal, :existing, :new, :revision)
+				on conflict (project_id, revision_number) do update set
+					personal_project = excluded.personal_project,
+					existing_project = excluded.existing_project,
+					new_project = excluded.new_project
 		    `,
 			db.Params{
 				"project":  settings.ProjectId,

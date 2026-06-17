@@ -1766,12 +1766,59 @@ func GrantsUpdateSettings(actor rpc.Actor, id string, s accapi.GrantRequestSetti
 	}
 
 	w.Mu.Lock()
-	s.Templates.Structured.RevisionNumber++
+
+	if grantsTemplateHasChanges(&s.Templates.Structured, &w.Settings.Templates.Structured) {
+		// We bump the revision number if the template has changes.
+		s.Templates.Structured.RevisionNumber = w.Settings.Templates.Structured.RevisionNumber + 1
+	}
+
 	w.Settings = &s
 	lGrantsPersistSettings(w)
 	w.Mu.Unlock()
 
 	return nil
+}
+
+/**
+ * Comparing changes of the current template with incoming one.
+ */
+func grantsFormFieldHasChanges(incoming *accapi.FormField, current *accapi.FormField) bool {
+	textChanged := func(incomingText string, currentText string) bool {
+		return incomingText != currentText
+	}
+	return textChanged(incoming.Name, current.Name) ||
+		textChanged(incoming.Description, current.Description) ||
+		incoming.Optional != current.Optional ||
+		textChanged(incoming.Title, current.Title) ||
+		incoming.Rows != current.Rows ||
+		incoming.MaxLength != current.MaxLength
+}
+
+func grantsFormFieldsHasChanges(incoming []accapi.FormField, current []accapi.FormField) bool {
+	currentFields := make(map[string]accapi.FormField)
+	for _, f := range current {
+		currentFields[f.Name] = f
+	}
+
+	for _, incomingField := range incoming {
+		currentField, ok := currentFields[incomingField.Name]
+		if !ok {
+			return true
+		}
+		return grantsFormFieldHasChanges(&incomingField, &currentField)
+	}
+	return false
+}
+
+func grantsTemplateHasChanges(incoming *accapi.TemplatesStructured, current *accapi.TemplatesStructured) bool {
+	if len(current.ExistingProject) != len(incoming.ExistingProject) ||
+		len(current.NewProject) != len(incoming.NewProject) ||
+		len(current.PersonalProject) != len(incoming.PersonalProject) {
+		return true
+	}
+	return grantsFormFieldsHasChanges(incoming.ExistingProject, current.ExistingProject) ||
+		grantsFormFieldsHasChanges(incoming.NewProject, current.NewProject) ||
+		grantsFormFieldsHasChanges(incoming.PersonalProject, current.PersonalProject)
 }
 
 func GrantsBrowseEnabledProjects(actor rpc.Actor) ([]accapi.ProjectToSetting, *util.HttpError) {
