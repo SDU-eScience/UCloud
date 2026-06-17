@@ -336,10 +336,10 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                 arr.sort((a, b) => Accounting.categoryComparator(a.category, b.category));
             }
 
-            var foundForm: Grants.AnswerForm = {answerFields: [], templateRevisionNumber: -1};
+            var retrievedForm: Grants.AnswerForm = {answerFields: [], templateRevisionNumber: -1};
             const currentForm = action.allocators.filter(it => newAllocators.find(existing => existing.id === it.id)?.checked === true).at(0);
             if (currentForm) {
-                foundForm = convertToAnswerForm(templateKey , currentForm.templates.structured);
+                retrievedForm = convertToAnswerForm(templateKey , currentForm.templates.structured);
             }
 
             return {
@@ -347,7 +347,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                 possibleTransfers: newAllocators,
                 allocators: newAllocators,
                 resources: newResources,
-                createApplicationForm: foundForm,
+                createApplicationForm: retrievedForm,
             };
         }
 
