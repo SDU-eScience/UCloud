@@ -169,6 +169,7 @@ type WalletsBrowseRequest struct {
 	FilterType                     util.Option[ProductType] `json:"filterType"`
 	IncludeChildren                bool                     `json:"includeChildren"`
 	FilterChildrenByIdleTimeInDays util.Option[int]         `json:"filterChildrenByIdleTimeInDays"`
+	RequireActive                  util.Option[bool]        `json:"requireActive"`
 }
 
 var WalletsBrowse = rpc.Call[WalletsBrowseRequest, fnd.PageV2[WalletV2]]{

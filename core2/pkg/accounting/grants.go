@@ -406,7 +406,7 @@ func grantsCanApply(actor rpc.Actor, recipient accapi.Recipient, grantGiver stri
 	// A user is _always_ allowed to apply to a parent, regardless of settings
 	if !allowed && walletOwner != "" {
 		owner := accapi.WalletOwnerFromReference(walletOwner)
-		wallets := WalletsBrowse(owner)
+		wallets := WalletsBrowseOwnerAt(time.Now(), util.OptValue(owner), WalletBrowseFilter{})
 	outerAcc2:
 		for _, w := range wallets {
 			for _, ag := range w.AllocationGroups {
@@ -760,10 +760,9 @@ func GrantsSubmitRevisionEx(actor rpc.Actor, req accapi.GrantsSubmitRevisionRequ
 				}
 
 				for _, cat := range categories {
-					quota, ok := WalletTotalQuotaContributingAt(cat.ToId(), accapi.WalletOwnerProject(grantGiver), allocationStart)
+					quota, ok := WalletTotalQuotaContributingOwnerAt(allocationStart, accapi.WalletOwnerProject(grantGiver), cat.ToId())
 					if quota == 0 || !ok {
-						wallets := WalletsBrowseAll(now, WalletBrowseFilter{
-							Owner:    util.OptValue(accapi.WalletOwnerProject(grantGiver)),
+						wallets := WalletsBrowseOwnerAt(now, util.OptValue(accapi.WalletOwnerProject(grantGiver)), WalletBrowseFilter{
 							Provider: util.OptValue(cat.Provider),
 							Category: util.OptValue(cat.Name),
 						})
@@ -977,8 +976,7 @@ func GrantsTransfer(actor rpc.Actor, req accapi.GrantsTransferRequest) *util.Htt
 			if allocReq.GrantGiver != string(source) {
 				newRequests = append(newRequests, allocReq)
 			} else {
-				wallets := WalletsBrowseAll(now, WalletBrowseFilter{
-					Owner:         util.OptValue(accapi.WalletOwnerProject(req.Target)),
+				wallets := WalletsBrowseOwnerAt(now, util.OptValue(accapi.WalletOwnerProject(req.Target)), WalletBrowseFilter{
 					Category:      util.OptValue(allocReq.Category),
 					Provider:      util.OptValue(allocReq.Provider),
 					RequireActive: true,
@@ -1618,7 +1616,7 @@ func GrantsRetrieveGrantGivers(actor rpc.Actor, req accapi.RetrieveGrantGiversRe
 		// NOTE(Dan): Must be outside of switch statement since existing apps can set it to existing project also
 		// NOTE(Dan): Should not check membership here since it might be done by grant giver
 
-		wallets := WalletsBrowseAll(now, WalletBrowseFilter{Owner: util.OptValue(accapi.WalletOwnerProject(recipient.Id.Value))}) // all wallets not just active
+		wallets := WalletsBrowseOwnerAt(now, util.OptValue(accapi.WalletOwnerProject(recipient.Id.Value)), WalletBrowseFilter{}) // all wallets not just active
 		for _, wallet := range wallets {
 			for _, group := range wallet.AllocationGroups {
 				if group.Parent.Present {
@@ -1645,7 +1643,7 @@ func GrantsRetrieveGrantGivers(actor rpc.Actor, req accapi.RetrieveGrantGiversRe
 
 	lAddPotentialGrantGiver := func(b *grantSettingsBucket, grantGiver string) {
 		if grantsCanApply(applicantActor, recipient, grantGiver) {
-			wallets := WalletsBrowseAll(now, WalletBrowseFilter{Owner: util.OptValue(accapi.WalletOwnerProject(grantGiver))})
+			wallets := WalletsBrowseOwnerAt(now, util.OptValue(accapi.WalletOwnerProject(grantGiver)), WalletBrowseFilter{})
 			var categories []accapi.ProductCategory
 			for _, wallet := range wallets {
 				if walletHasAllocationInDefaultWindow(wallet) {

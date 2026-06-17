@@ -263,9 +263,7 @@ func GiftsCreate(actor rpc.Actor, spec accapi.GiftWithCriteria) (int, *util.Http
 		}
 	}
 
-	wallets := WalletsBrowseAll(time.Now(), WalletBrowseFilter{
-		Owner: util.OptValue(accapi.WalletOwnerProject(string(actor.Project.Value))),
-	})
+	wallets := WalletsBrowse(actor, WalletBrowseFilter{})
 
 	for _, resource := range spec.Resources {
 		found := false

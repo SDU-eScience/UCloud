@@ -279,8 +279,7 @@ func initUsageReports() {
 			}
 
 			owner := accapi.WalletOwnerFromReference(reference)
-			wallets := WalletsBrowseAll(now, WalletBrowseFilter{
-				Owner:         util.OptValue(owner),
+			wallets := WalletsBrowseOwnerAt(now, util.OptValue(owner), WalletBrowseFilter{
 				RequireActive: false,
 			})
 

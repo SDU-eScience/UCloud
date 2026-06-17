@@ -2,11 +2,14 @@ package accounting
 
 import (
 	"cmp"
+	"net/http"
 	"slices"
+	"strings"
 	"time"
 
 	accapi "ucloud.dk/shared/pkg/accounting"
 	fndapi "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -23,50 +26,236 @@ type lowLevelRelationship struct {
 }
 
 type WalletBrowseFilter struct {
-	Owner         util.Option[accapi.WalletOwner]
-	ProductType   util.Option[accapi.ProductType]
-	Provider      util.Option[string]
-	Category      util.Option[string]
-	RequireActive bool
-	IncludeChild  bool
+	ProductType     util.Option[accapi.ProductType]
+	Provider        util.Option[string]
+	Category        util.Option[string]
+	RequireActive   bool
+	IncludeChildren bool
 }
 
-func RootAllocate(now time.Time, category accapi.ProductCategoryIdV2, owner accapi.WalletOwner, start time.Time, end time.Time, quota int64) (AllocationId, *util.HttpError) {
-	walletId, err := WalletEnsure(category, owner)
+func actorToWalletOwner(actor rpc.Actor) accapi.WalletOwner {
+	if actor.Project.Present {
+		return accapi.WalletOwnerProject(string(actor.Project.Value))
+	} else {
+		return accapi.WalletOwnerUser(actor.Username)
+	}
+}
+
+func RootAllocate(
+	actor rpc.Actor,
+	catId accapi.ProductCategoryIdV2,
+	start time.Time,
+	end time.Time,
+	quota int64,
+) (AllocationId, *util.HttpError) {
+	return RootAllocateAt(time.Now(), actor, catId, start, end, quota)
+}
+
+func RootAllocateAt(
+	now time.Time,
+	actor rpc.Actor,
+	catId accapi.ProductCategoryIdV2,
+	start time.Time,
+	end time.Time,
+	quota int64,
+) (AllocationId, *util.HttpError) {
+	if actor.Role&rpc.RolesEndUser == 0 {
+		return 0, util.HttpErr(http.StatusForbidden, "You are not allowed to create a root allocation!")
+	}
+
+	if !actor.Project.Present || actor.Project.Value == "" {
+		return 0, util.HttpErr(http.StatusForbidden, "Cannot perform a root allocation in a personal workspace!")
+	}
+
+	projectId, ok := actor.ProviderProjects[rpc.ProviderId(catId.Provider)]
+
+	if !ok || projectId != actor.Project.Value {
+		return 0, util.HttpErr(http.StatusForbidden, "You are not allowed to create a root allocation!")
+	}
+
+	role := fndapi.ProjectRole(actor.Membership[projectId])
+	if !role.Satisfies(fndapi.ProjectRoleAdmin) {
+		return 0, util.HttpErr(http.StatusForbidden, "You are not allowed to create a root allocation!")
+	}
+
+	_, err := ProductCategoryRetrieve(actor, catId.Name, catId.Provider)
+
+	if err != nil {
+		return 0, util.HttpErr(http.StatusForbidden, "This category does not exist")
+	}
+
+	walletId, err := WalletEnsure(catId, actorToWalletOwner(actor))
 	if err != nil {
 		return 0, err
 	}
-	return AllocationCreate(now, category, start, end, quota, walletId, util.OptNone[AllocationId](), util.OptNone[GrantId]())
+	return AllocationCreate(now, catId, start, end, quota, walletId, util.OptNone[AllocationId](), util.OptNone[GrantId]())
 }
 
-func WalletsBrowse(owner accapi.WalletOwner) []accapi.WalletV2 {
-	return WalletsBrowseAll(time.Now(), WalletBrowseFilter{Owner: util.OptValue(owner)})
+func walletBrowseKey(wallet accapi.WalletV2) string {
+	return wallet.Owner.Reference() + "@" + wallet.PaysFor.Provider + "@" + wallet.PaysFor.Name
 }
 
-func WalletsBrowseInternal(now time.Time, owner accapi.WalletOwner) accapi.WalletsBrowseInternalResponse {
-	return accapi.WalletsBrowseInternalResponse{
-		Wallets: WalletsBrowseAll(now, WalletBrowseFilter{Owner: util.OptValue(owner)}),
+func WalletsBrowse(actor rpc.Actor, filter WalletBrowseFilter) []accapi.WalletV2 {
+	return WalletsBrowseAt(time.Now(), actor, filter)
+}
+
+func WalletsBrowseAt(
+	now time.Time,
+	actor rpc.Actor,
+	filter WalletBrowseFilter,
+) []accapi.WalletV2 {
+	owner := util.OptNone[accapi.WalletOwner]()
+	if !actor.IsSystem() {
+		owner.Set(actorToWalletOwner(actor))
 	}
+	return WalletsBrowseOwnerAt(now, owner, filter)
 }
 
-func CheckProviderUsable(now time.Time, category accapi.ProductCategoryIdV2, owner accapi.WalletOwner) (accapi.CheckProviderUsableResponse, bool) {
+func WalletsBrowseOwnerAt(
+	now time.Time,
+	owner util.Option[accapi.WalletOwner],
+	filter WalletBrowseFilter,
+) []accapi.WalletV2 {
+	result := []accapi.WalletV2{}
+
+	accGlobals.Mu.RLock()
+	trees := make([]*AccountingTree, 0, len(accGlobals.Trees))
+	for _, tree := range accGlobals.Trees {
+		trees = append(trees, tree)
+	}
+	accGlobals.Mu.RUnlock()
+
+	for _, tree := range trees {
+		tree.Mu.RLock()
+
+		matches := true
+		if filter.ProductType.Present && filter.ProductType.Value != tree.Category.ProductType {
+			matches = false
+		}
+		if filter.Provider.Present && filter.Provider.Value != tree.Category.Provider {
+			matches = false
+		}
+		if filter.Category.Present && filter.Category.Value != tree.Category.Name {
+			matches = false
+		}
+
+		if matches {
+			promiseTree := &tree.PromiseTree
+			for _, wallet := range tree.WalletsById {
+				if owner.Present && owner.Value.Reference() != wallet.Owner.Reference() {
+					continue
+				}
+				if filter.RequireActive && walletActiveQuota(now, tree, promiseTree, wallet) <= 0 {
+					continue
+				}
+
+				result = append(result, walletToApi(now, tree, promiseTree, wallet, filter.IncludeChildren))
+			}
+		}
+		tree.Mu.RUnlock()
+	}
+
+	slices.SortFunc(result, func(a, b accapi.WalletV2) int {
+		return cmp.Compare(walletBrowseKey(a), walletBrowseKey(b))
+	})
+
+	return result
+}
+
+func WalletsBrowsePaginated(
+	now time.Time,
+	actor rpc.Actor,
+	request accapi.WalletsBrowseRequest,
+) fndapi.PageV2[accapi.WalletV2] {
+	return WalletsBrowsePaginatedAt(now, actor, request)
+}
+
+func WalletsBrowsePaginatedAt(
+	now time.Time,
+	actor rpc.Actor,
+	request accapi.WalletsBrowseRequest,
+) fndapi.PageV2[accapi.WalletV2] {
+	filter := WalletBrowseFilter{
+		ProductType:     request.FilterType,
+		IncludeChildren: request.IncludeChildren,
+		RequireActive:   request.RequireActive.Present && request.RequireActive.Value,
+	}
+
+	items := WalletsBrowseAt(now, actor, filter)
+	itemsPerPage := fndapi.ItemsPerPage(request.ItemsPerPage)
+	result := fndapi.PageV2[accapi.WalletV2]{Items: []accapi.WalletV2{}, ItemsPerPage: itemsPerPage}
+	start := !request.Next.Present
+	for _, item := range items {
+		if !start {
+			start = walletBrowseKey(item) == request.Next.Value
+			continue
+		}
+		if len(result.Items) == itemsPerPage {
+			result.Next.Set(walletBrowseKey(result.Items[len(result.Items)-1]))
+			break
+		}
+		result.Items = append(result.Items, item)
+	}
+	return result
+}
+
+func WalletsCheckProviderUsable(
+	actor rpc.Actor,
+	owner accapi.WalletOwner,
+	category accapi.ProductCategoryIdV2,
+) (accapi.CheckProviderUsableResponse, *util.HttpError) {
+	return WalletsCheckProviderUsableAt(time.Now(), actor, owner, category)
+}
+
+func WalletsCheckProviderUsableAt(
+	now time.Time,
+	actor rpc.Actor,
+	owner accapi.WalletOwner,
+	category accapi.ProductCategoryIdV2,
+) (accapi.CheckProviderUsableResponse, *util.HttpError) {
+	providerId, ok := strings.CutPrefix(actor.Username, fndapi.ProviderSubjectPrefix)
+	if !ok || providerId != category.Provider {
+		return accapi.CheckProviderUsableResponse{}, util.HttpErr(http.StatusForbidden, "forbidden")
+	}
+
 	accGlobals.Mu.RLock()
 	tree := accGlobals.Trees[category]
 	accGlobals.Mu.RUnlock()
 	if tree == nil {
-		return accapi.CheckProviderUsableResponse{}, false
+		return accapi.CheckProviderUsableResponse{}, util.HttpErr(http.StatusNotFound, "unknown category")
 	}
 
 	tree.Mu.RLock()
 	defer tree.Mu.RUnlock()
 	wallet := tree.WalletsByOwner[owner.Reference()]
 	if wallet == nil {
-		return accapi.CheckProviderUsableResponse{}, false
+		return accapi.CheckProviderUsableResponse{}, util.HttpErr(http.StatusNotFound, "unknown wallet")
 	}
-	return accapi.CheckProviderUsableResponse{MaxUsable: walletMaxUsable(now, tree, wallet)}, true
+	return accapi.CheckProviderUsableResponse{MaxUsable: walletMaxUsable(now, tree, wallet)}, nil
 }
 
-func WalletTotalQuotaContributingAt(category accapi.ProductCategoryIdV2, owner accapi.WalletOwner, at time.Time) (int64, bool) {
+func WalletTotalQuotaContributing(
+	actor rpc.Actor,
+	category accapi.ProductCategoryIdV2,
+) (int64, bool) {
+	return WalletTotalQuotaContributingAt(time.Now(), actor, category)
+}
+
+func WalletTotalQuotaContributingAt(
+	at time.Time,
+	actor rpc.Actor,
+	category accapi.ProductCategoryIdV2,
+) (int64, bool) {
+	owner := actorToWalletOwner(actor)
+	return WalletTotalQuotaContributingOwnerAt(at, owner, category)
+}
+
+func WalletTotalQuotaContributingOwnerAt(
+	at time.Time,
+	owner accapi.WalletOwner,
+	category accapi.ProductCategoryIdV2,
+) (int64, bool) {
+
 	accGlobals.Mu.RLock()
 	tree := accGlobals.Trees[category]
 	accGlobals.Mu.RUnlock()
@@ -85,14 +274,18 @@ func WalletTotalQuotaContributingAt(category accapi.ProductCategoryIdV2, owner a
 	return walletQuotaContributing(at, tree, promiseTree, wallet), true
 }
 
-func FindRelevantProviders(now time.Time, owners []accapi.WalletOwner, productType util.Option[accapi.ProductType]) accapi.FindRelevantProvidersResponse {
+func FindRelevantProviders(
+	now time.Time,
+	owners []accapi.WalletOwner,
+	productType util.Option[accapi.ProductType],
+) accapi.FindRelevantProvidersResponse {
 	providers := map[string]util.Empty{}
 	for _, owner := range owners {
-		wallets := WalletsBrowseAll(now, WalletBrowseFilter{
-			Owner:         util.OptValue(owner),
+		wallets := WalletsBrowseOwnerAt(now, util.OptValue(owner), WalletBrowseFilter{
 			ProductType:   productType,
 			RequireActive: true,
 		})
+
 		for _, wallet := range wallets {
 			providers[wallet.PaysFor.Provider] = util.Empty{}
 		}
@@ -124,58 +317,11 @@ func sortedProviderList(providers map[string]util.Empty) []string {
 	return result
 }
 
-func WalletsBrowseAll(now time.Time, filter WalletBrowseFilter) []accapi.WalletV2 {
-	result := []accapi.WalletV2{}
-
-	accGlobals.Mu.RLock()
-	trees := make([]*AccountingTree, 0, len(accGlobals.Trees))
-	for _, tree := range accGlobals.Trees {
-		trees = append(trees, tree)
-	}
-	accGlobals.Mu.RUnlock()
-
-	for _, tree := range trees {
-		tree.Mu.RLock()
-		if walletBrowseTreeMatches(tree, filter) {
-			promiseTree := &tree.PromiseTree
-			for _, wallet := range tree.WalletsById {
-				if walletBrowseWalletMatches(now, tree, promiseTree, wallet, filter) {
-					result = append(result, walletToApi(now, tree, promiseTree, wallet, filter.IncludeChild))
-				}
-			}
-		}
-		tree.Mu.RUnlock()
-	}
-
-	slices.SortFunc(result, func(a, b accapi.WalletV2) int {
-		return cmp.Compare(walletBrowseKey(a), walletBrowseKey(b))
-	})
-
-	return result
+func WalletByAllocationId(allocationId AllocationId) (WalletId, accapi.WalletV2, bool) {
+	return WalletByAllocationIdAt(time.Now(), allocationId)
 }
 
-func WalletsBrowsePage(now time.Time, request accapi.WalletsBrowseRequest, filter WalletBrowseFilter) fndapi.PageV2[accapi.WalletV2] {
-	filter.ProductType = request.FilterType
-	filter.IncludeChild = request.IncludeChildren
-	items := WalletsBrowseAll(now, filter)
-	itemsPerPage := fndapi.ItemsPerPage(request.ItemsPerPage)
-	result := fndapi.PageV2[accapi.WalletV2]{Items: []accapi.WalletV2{}, ItemsPerPage: itemsPerPage}
-	start := !request.Next.Present
-	for _, item := range items {
-		if !start {
-			start = walletBrowseKey(item) == request.Next.Value
-			continue
-		}
-		if len(result.Items) == itemsPerPage {
-			result.Next.Set(walletBrowseKey(result.Items[len(result.Items)-1]))
-			break
-		}
-		result.Items = append(result.Items, item)
-	}
-	return result
-}
-
-func WalletV2ByAllocationID(now time.Time, allocationId AllocationId) (WalletId, accapi.WalletV2, bool) {
+func WalletByAllocationIdAt(now time.Time, allocationId AllocationId) (WalletId, accapi.WalletV2, bool) {
 	accGlobals.Mu.RLock()
 	trees := make([]*AccountingTree, 0, len(accGlobals.Trees))
 	for _, tree := range accGlobals.Trees {
@@ -201,7 +347,11 @@ func WalletV2ByAllocationID(now time.Time, allocationId AllocationId) (WalletId,
 	return 0, accapi.WalletV2{}, false
 }
 
-func WalletV2ByWalletID(now time.Time, walletId WalletId) (accapi.WalletV2, bool) {
+func WalletById(walletId WalletId) (accapi.WalletV2, bool) {
+	return WalletByIdAt(time.Now(), walletId)
+}
+
+func WalletByIdAt(now time.Time, walletId WalletId) (accapi.WalletV2, bool) {
 	accGlobals.Mu.RLock()
 	trees := make([]*AccountingTree, 0, len(accGlobals.Trees))
 	for _, tree := range accGlobals.Trees {
@@ -224,7 +374,12 @@ func WalletV2ByWalletID(now time.Time, walletId WalletId) (accapi.WalletV2, bool
 }
 
 func WalletsUpdatedAfter(now time.Time, replayFrom time.Time, providerId string) []accapi.WalletV2 {
-	wallets := WalletsBrowseAll(now, WalletBrowseFilter{Provider: util.OptValue(providerId), RequireActive: true})
+	wallets := WalletsBrowseOwnerAt(
+		now,
+		util.OptNone[accapi.WalletOwner](),
+		WalletBrowseFilter{Provider: util.OptValue(providerId), RequireActive: true},
+	)
+
 	result := []accapi.WalletV2{}
 	for _, wallet := range wallets {
 		if wallet.LastSignificantUpdateAt.Time().After(replayFrom) {
@@ -232,33 +387,6 @@ func WalletsUpdatedAfter(now time.Time, replayFrom time.Time, providerId string)
 		}
 	}
 	return result
-}
-
-func walletBrowseTreeMatches(tree *AccountingTree, filter WalletBrowseFilter) bool {
-	if filter.ProductType.Present && filter.ProductType.Value != tree.Category.ProductType {
-		return false
-	}
-	if filter.Provider.Present && filter.Provider.Value != tree.Category.Provider {
-		return false
-	}
-	if filter.Category.Present && filter.Category.Value != tree.Category.Name {
-		return false
-	}
-	return true
-}
-
-func walletBrowseWalletMatches(now time.Time, tree *AccountingTree, promiseTree *PromiseTree, wallet *Wallet, filter WalletBrowseFilter) bool {
-	if filter.Owner.Present && filter.Owner.Value.Reference() != wallet.Owner.Reference() {
-		return false
-	}
-	if filter.RequireActive && walletActiveQuota(now, tree, promiseTree, wallet) <= 0 {
-		return false
-	}
-	return true
-}
-
-func walletBrowseKey(wallet accapi.WalletV2) string {
-	return wallet.Owner.Reference() + "\x00" + wallet.PaysFor.Provider + "\x00" + wallet.PaysFor.Name
 }
 
 func walletToApi(now time.Time, tree *AccountingTree, promiseTree *PromiseTree, wallet *Wallet, includeChildren bool) accapi.WalletV2 {
@@ -335,7 +463,7 @@ func optParentOrChildWallet(tree *AccountingTree, walletId util.Option[WalletId]
 func lowLevelAllocationGroupToApi(now time.Time, tree *AccountingTree, promiseTree *PromiseTree, relationship lowLevelRelationship) accapi.AllocationGroup {
 	allocations := make([]accapi.Allocation, 0, len(relationship.Allocations))
 	for _, allocation := range relationship.Allocations {
-		allocations = append(allocations, allocationToApi(now, tree, promiseTree, allocation))
+		allocations = append(allocations, allocationToApi(promiseTree, allocation))
 	}
 	sortApiAllocations(allocations)
 
@@ -363,7 +491,7 @@ func allocationGroupToApi(now time.Time, tree *AccountingTree, promiseTree *Prom
 			if allocation == nil || !allocation.Promise.Present || !promiseIds[allocation.Promise.Value] {
 				continue
 			}
-			allocations = append(allocations, allocationToApi(now, tree, promiseTree, allocation))
+			allocations = append(allocations, allocationToApi(promiseTree, allocation))
 		}
 	}
 
@@ -409,7 +537,7 @@ func sortApiAllocations(allocations []accapi.Allocation) {
 	})
 }
 
-func allocationToApi(now time.Time, tree *AccountingTree, promiseTree *PromiseTree, allocation *Allocation) accapi.Allocation {
+func allocationToApi(promiseTree *PromiseTree, allocation *Allocation) accapi.Allocation {
 	quota := allocation.QuotaSelf + allocation.QuotaChildren
 	grant := allocation.Grant
 	if !allocation.Retired && allocation.Promise.Present {
@@ -606,22 +734,6 @@ func walletActiveQuota(now time.Time, tree *AccountingTree, promiseTree *Promise
 	quota := walletPromiseActiveQuota(now, promiseTree, wallet.Id)
 	for _, relationship := range lowLevelRelationshipsByParent(tree, wallet.Id) {
 		quota += lowLevelRelationshipActiveQuota(now, relationship)
-	}
-	return quota
-}
-
-func walletPromiseQuotaContributing(now time.Time, tree *AccountingTree, walletId WalletId) int64 {
-	quota := int64(0)
-	for _, relationship := range promiseRelationshipsByParent(&tree.PromiseTree, walletId) {
-		quota += relationshipQuotaContributing(now, tree, relationship)
-	}
-	return quota
-}
-
-func walletPromiseQuotaAllocated(now time.Time, tree *AccountingTree, walletId WalletId) int64 {
-	quota := int64(0)
-	for _, relationship := range promiseRelationshipsByChild(&tree.PromiseTree, walletId) {
-		quota += relationshipQuotaContributing(now, tree, relationship)
 	}
 	return quota
 }

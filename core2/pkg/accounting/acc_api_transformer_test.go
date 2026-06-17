@@ -5,8 +5,29 @@ import (
 	"time"
 
 	accapi "ucloud.dk/shared/pkg/accounting"
+	fndapi "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
+
+func testActorForOwner(owner accapi.WalletOwner) rpc.Actor {
+	if owner.ProjectId != "" {
+		return rpc.Actor{Username: owner.ProjectId, Role: rpc.RoleUser, Project: util.OptValue(rpc.ProjectId(owner.ProjectId))}
+	}
+	return rpc.Actor{Username: owner.Username, Role: rpc.RoleUser}
+}
+
+func testRootAllocatorActor(e *lowTestEnv, project string) rpc.Actor {
+	projectId := rpc.ProjectId(project)
+	providerId := rpc.ProviderId(e.categoryId.Provider)
+	return rpc.Actor{
+		Username:         project,
+		Role:             rpc.RoleUser,
+		Project:          util.OptValue(projectId),
+		ProviderProjects: rpc.ProviderProjects{providerId: projectId},
+		Membership:       rpc.ProjectMembership{projectId: rpc.ProjectRoleAdmin},
+	}
+}
 
 func TestLifecycleScanMarksActivationAndRetirementOnce(t *testing.T) {
 	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
@@ -139,7 +160,7 @@ func TestWalletsBrowseReturnsOwnerWallets(t *testing.T) {
 	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
 	e.add(lowAllocSpec{Name: "wallet", Wallet: "wallet", Start: 0, End: 10, Quota: 100})
 
-	wallets := WalletsBrowse(e.owner("wallet"))
+	wallets := WalletsBrowse(testActorForOwner(e.owner("wallet")), WalletBrowseFilter{})
 	if len(wallets) != 1 {
 		t.Fatalf("wallets = %d, want 1", len(wallets))
 	}
@@ -181,21 +202,29 @@ func TestWalletsBrowseAllAndPageFilterDeterministically(t *testing.T) {
 	e.add(lowAllocSpec{Name: "b", Wallet: "b", Start: 0, End: 10, Quota: 100})
 	e.add(lowAllocSpec{Name: "a", Wallet: "a", Start: 0, End: 10, Quota: 100})
 
-	all := WalletsBrowseAll(e.tm(1), WalletBrowseFilter{RequireActive: true})
+	all := WalletsBrowseOwnerAt(e.tm(1), util.OptNone[accapi.WalletOwner](), WalletBrowseFilter{RequireActive: true})
 	if len(all) != 2 || all[0].Owner.Reference() != "a" || all[1].Owner.Reference() != "b" {
 		t.Fatalf("wallet order = %#v, want a,b", all)
 	}
 
-	page := WalletsBrowsePage(e.tm(1), accapi.WalletsBrowseRequest{ItemsPerPage: 1}, WalletBrowseFilter{RequireActive: true})
+	page := WalletsBrowsePaginatedAt(
+		e.tm(1),
+		rpc.ActorSystem,
+		accapi.WalletsBrowseRequest{ItemsPerPage: 1, RequireActive: util.OptValue(true)},
+	)
 	if len(page.Items) != 1 || page.Items[0].Owner.Reference() != "a" || !page.Next.Present {
 		t.Fatalf("first page = %#v", page)
 	}
-	next := WalletsBrowsePage(e.tm(1), accapi.WalletsBrowseRequest{ItemsPerPage: 1, Next: page.Next}, WalletBrowseFilter{RequireActive: true})
+	next := WalletsBrowsePaginatedAt(
+		e.tm(1),
+		rpc.ActorSystem,
+		accapi.WalletsBrowseRequest{ItemsPerPage: 1, Next: page.Next, RequireActive: util.OptValue(true)},
+	)
 	if len(next.Items) != 1 || next.Items[0].Owner.Reference() != "b" || next.Next.Present {
 		t.Fatalf("second page = %#v", next)
 	}
 
-	filtered := WalletsBrowseAll(e.tm(1), WalletBrowseFilter{Owner: util.OptValue(e.owner("a")), RequireActive: true})
+	filtered := WalletsBrowseOwnerAt(e.tm(1), util.OptValue(e.owner("a")), WalletBrowseFilter{RequireActive: true})
 	if len(filtered) != 1 || filtered[0].Owner.Reference() != "a" {
 		t.Fatalf("filtered wallets = %#v", filtered)
 	}
@@ -292,7 +321,7 @@ func TestWalletV2ByAllocationID(t *testing.T) {
 	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
 	allocId := e.add(lowAllocSpec{Name: "wallet", Wallet: "wallet", Start: 0, End: 10, Quota: 100})
 
-	walletId, wallet, ok := WalletV2ByAllocationID(e.tm(1), allocId)
+	walletId, wallet, ok := WalletByAllocationIdAt(e.tm(1), allocId)
 	if !ok {
 		t.Fatalf("allocation was not found")
 	}
@@ -339,7 +368,7 @@ func TestWalletTotalQuotaContributingAtUsesPromisesAndRootAllocations(t *testing
 	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
 	e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 10, Quota: 100})
 
-	quota, ok := WalletTotalQuotaContributingAt(e.categoryId, e.owner("root"), e.tm(1))
+	quota, ok := WalletTotalQuotaContributingAt(e.tm(1), testActorForOwner(e.owner("root")), e.categoryId)
 	if !ok || quota != 100 {
 		t.Fatalf("root quota = %d ok=%v, want 100/true", quota, ok)
 	}
@@ -348,7 +377,7 @@ func TestWalletTotalQuotaContributingAtUsesPromisesAndRootAllocations(t *testing
 	if err != nil {
 		t.Fatalf("create grant promise: %v", err)
 	}
-	quota, ok = WalletTotalQuotaContributingAt(e.categoryId, e.owner("child"), e.tm(1))
+	quota, ok = WalletTotalQuotaContributingAt(e.tm(1), testActorForOwner(e.owner("child")), e.categoryId)
 	if !ok || quota != 60 {
 		t.Fatalf("promise quota = %d ok=%v, want 60/true", quota, ok)
 	}
@@ -356,9 +385,17 @@ func TestWalletTotalQuotaContributingAtUsesPromisesAndRootAllocations(t *testing
 
 func TestRootAllocateEnsuresWalletAndCreatesRootAllocation(t *testing.T) {
 	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
-	owner := e.owner("project")
+	resetProducts()
+	createTestProduct(accapi.ProductV2{
+		Type:        accapi.ProductTypeCStorage,
+		Category:    e.category,
+		Name:        e.category.Name,
+		Description: e.category.Name,
+		ProductType: e.category.ProductType,
+	})
+	owner := accapi.WalletOwnerProject("project")
 
-	allocationId, err := RootAllocate(e.tm(1), e.categoryId, owner, e.tm(1), e.tm(10), 100)
+	allocationId, err := RootAllocateAt(e.tm(1), testRootAllocatorActor(e, owner.ProjectId), e.categoryId, e.tm(1), e.tm(10), 100)
 	if err != nil {
 		t.Fatalf("root allocate: %v", err)
 	}
@@ -376,18 +413,19 @@ func TestWalletsBrowseInternalAndCheckProviderUsable(t *testing.T) {
 	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
 	e.add(lowAllocSpec{Name: "wallet", Wallet: "wallet", Start: 0, End: 10, Quota: 100})
 
-	internal := WalletsBrowseInternal(e.tm(1), e.owner("wallet"))
-	if len(internal.Wallets) != 1 || internal.Wallets[0].Owner.Reference() != "wallet" {
-		t.Fatalf("internal wallets = %#v", internal.Wallets)
+	internal := WalletsBrowseAt(e.tm(1), testActorForOwner(e.owner("wallet")), WalletBrowseFilter{})
+	if len(internal) != 1 || internal[0].Owner.Reference() != "wallet" {
+		t.Fatalf("internal wallets = %#v", internal)
 	}
 
-	usable, ok := CheckProviderUsable(e.tm(1), e.categoryId, e.owner("wallet"))
-	if !ok || usable.MaxUsable != 100 {
-		t.Fatalf("usable = %#v ok=%v, want 100/true", usable, ok)
+	provider := rpc.Actor{Username: fndapi.ProviderSubjectPrefix + e.categoryId.Provider, Role: rpc.RoleProvider}
+	usable, err := WalletsCheckProviderUsableAt(e.tm(1), provider, e.owner("wallet"), e.categoryId)
+	if err != nil || usable.MaxUsable != 100 {
+		t.Fatalf("usable = %#v err=%v, want 100/nil", usable, err)
 	}
 
-	_, ok = CheckProviderUsable(e.tm(1), e.categoryId, e.owner("missing"))
-	if ok {
+	_, err = WalletsCheckProviderUsableAt(e.tm(1), provider, e.owner("missing"), e.categoryId)
+	if err == nil {
 		t.Fatalf("missing wallet should not be usable")
 	}
 }

@@ -63,18 +63,14 @@ func addGrantGiverEx(t *testing.T, id string, addResources bool) {
 	}
 
 	if addResources {
-		owner := internalOwnerByReference(id).Id
-		{
-			accBucket := internalBucketOrInit(cpuCategory)
-			w := internalWalletByOwner(accBucket, time.Now(), owner)
-			_, _ = internalAllocateNoCommit(time.Now(), accBucket, time.Now(), time.Now().AddDate(1, 0, 0), 1000000, w, 0,
-				util.OptNone[accGrantId]())
-		}
-		{
-			accBucket := internalBucketOrInit(storageCategory)
-			w := internalWalletByOwner(accBucket, time.Now(), owner)
-			_, _ = internalAllocateNoCommit(time.Now(), accBucket, time.Now(), time.Now().AddDate(1, 0, 0), 1000000, w, 0,
-				util.OptNone[accGrantId]())
+		now := time.Now()
+		end := now.AddDate(1, 0, 0)
+		for _, category := range []accapi.ProductCategory{cpuCategory, storageCategory} {
+			CategoryEnsure(category)
+			wallet, err := WalletEnsure(category.ToId(), accapi.WalletOwnerProject(id))
+			assert.Nil(t, err)
+			_, err = AllocationCreate(now, category.ToId(), now, end, 1000000, wallet, util.OptNone[AllocationId](), util.OptNone[GrantId]())
+			assert.Nil(t, err)
 		}
 	}
 }
@@ -155,10 +151,16 @@ var storageCategory = storageProduct.Category
 
 func initGrantsTest(t *testing.T) {
 	grantGlobals.Testing.Enabled = true
-	accGlobals.OwnersByReference = make(map[string]*internalOwner)
-	accGlobals.OwnersById = make(map[accOwnerId]*internalOwner)
-	accGlobals.Usage = make(map[string]*scopedUsage)
-	accGlobals.BucketsByCategory = make(map[accapi.ProductCategoryIdV2]*internalBucket)
+	accGlobals.Mu.Lock()
+	accGlobals.OwnersByReference = make(map[string]*walletOwner)
+	accGlobals.OwnersById = make(map[OwnerId]*walletOwner)
+	accGlobals.Usage = make(map[string]*ScopedUsage)
+	accGlobals.Trees = make(map[accapi.ProductCategoryIdV2]*AccountingTree)
+	accGlobals.OwnerIdAcc.Store(0)
+	accGlobals.WalletIdAcc.Store(0)
+	accGlobals.AllocIdAcc.Store(0)
+	accGlobals.Mu.Unlock()
+	promiseGlobals.PromiseIdAcc.Store(0)
 
 	rpc.LookupActor = func(username string) (rpc.Actor, bool) {
 		actorsMutex.Lock()
@@ -366,7 +368,7 @@ func TestAwardedNotSetOnCreateProjectFailure(t *testing.T) {
 
 	// Prepare app struct directly and skip validation.
 	// We only care about the flag behaviour here and want to avoid wallets).
-	id := accGrantId(grantGlobals.GrantIdAcc.Add(1))
+	id := GrantId(grantGlobals.GrantIdAcc.Add(1))
 	app := &grantApplication{
 		Application: &accapi.GrantApplication{
 			Id:        util.IntOrString{strconv.FormatInt(int64(id), 10)},
@@ -874,24 +876,26 @@ func TestParentApply(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, 0, len(result))
 
-	e := newEnv(t, cpuCategory)
-	e.Allocate(a{
-		Now:       0,
-		Start:     0,
-		End:       1000,
-		Quota:     1000,
-		Recipient: parent,
-		Parent:    "",
+	now := time.Now()
+	end := now.AddDate(1, 0, 0)
+	CategoryEnsure(cpuCategory)
+	parentWallet, err := WalletEnsure(cpuCategory.ToId(), accapi.WalletOwnerProject(parent))
+	assert.Nil(t, err)
+	parentAllocation, err := AllocationCreate(now, cpuCategory.ToId(), now, end, 1000, parentWallet, util.OptNone[AllocationId](), util.OptNone[GrantId]())
+	assert.Nil(t, err)
+	err = treeMutate(cpuCategory.ToId(), func(tree *AccountingTree) *util.HttpError {
+		allocationMutate(now, tree, parentAllocation, func(alloc *Allocation, parent util.Option[*Allocation]) {
+			alloc.QuotaSelf = 0
+			alloc.QuotaChildren = 1000
+		})
+		return nil
 	})
+	assert.Nil(t, err)
 
-	e.Allocate(a{
-		Now:       0,
-		Start:     0,
-		End:       1000,
-		Quota:     1000,
-		Recipient: child,
-		Parent:    parent,
-	})
+	childWallet, err := WalletEnsure(cpuCategory.ToId(), accapi.WalletOwnerProject(child))
+	assert.Nil(t, err)
+	_, err = AllocationCreate(now, cpuCategory.ToId(), now, end, 1000, childWallet, util.OptValue(parentAllocation), util.OptNone[GrantId]())
+	assert.Nil(t, err)
 
 	result, err = GrantsRetrieveGrantGivers(*admin, accapi.RetrieveGrantGiversRequest{
 		Type: accapi.RetrieveGrantGiversTypeExistingProject,

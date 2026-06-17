@@ -59,19 +59,12 @@ func initAccounting() {
 		return fndapi.BulkResponse[bool]{Responses: result}, nil
 	})
 
-	actorToOwner := func(actor rpc.Actor) accapi.WalletOwner {
-		if actor.Project.Present {
-			return accapi.WalletOwnerProject(string(actor.Project.Value))
-		} else {
-			return accapi.WalletOwnerUser(actor.Username)
-		}
-	}
-
 	accapi.WalletsBrowse.Handler(func(info rpc.RequestInfo, request accapi.WalletsBrowseRequest) (fndapi.PageV2[accapi.WalletV2], *util.HttpError) {
-		now := time.Now()
-		return WalletsBrowsePage(now, request, WalletBrowseFilter{
-			Owner: util.OptValue(actorToOwner(info.Actor)),
-		}), nil
+		//now := time.Now()
+		//return WalletsBrowsePage(now, request, WalletBrowseFilter{
+		//	Owner: util.OptValue(actorToOwner(info.Actor)),
+		//}), nil
+		return fndapi.PageV2[accapi.WalletV2]{}, nil
 	})
 
 	accapi.WalletsBrowseInternal.Handler(func(info rpc.RequestInfo, request accapi.WalletsBrowseInternalRequest) (accapi.WalletsBrowseInternalResponse, *util.HttpError) {

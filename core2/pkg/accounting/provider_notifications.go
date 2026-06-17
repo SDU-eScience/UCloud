@@ -61,8 +61,7 @@ func initProviderNotifications() {
 			}
 
 			if projectOk {
-				projectWallets := WalletsBrowseAll(time.Now(), WalletBrowseFilter{
-					Owner:         util.OptValue(accapi.WalletOwnerProject(project.Id)),
+				projectWallets := WalletsBrowseOwnerAt(time.Now(), util.OptValue(accapi.WalletOwnerProject(project.Id)), WalletBrowseFilter{
 					RequireActive: true,
 				})
 				relevantProviders := map[string]util.Empty{}
@@ -92,7 +91,7 @@ func initProviderNotifications() {
 
 				}
 			} else if walletOk {
-				wallet, ok := WalletV2ByWalletID(time.Now(), walletId)
+				wallet, ok := WalletByIdAt(time.Now(), walletId)
 				if ok && !wallet.PaysFor.FreeToUse && len(wallet.AllocationGroups) != 0 {
 					var allChannels []chan *accapi.WalletV2
 
@@ -285,8 +284,7 @@ func providerNotificationHandleClient(conn *ws.Conn) {
 					var wallets []accapi.WalletV2
 
 					// Personal wallets
-					wallets = util.Combined(wallets, WalletsBrowseAll(now, WalletBrowseFilter{
-						Owner:         util.OptValue(accapi.WalletOwnerUser(username)),
+					wallets = util.Combined(wallets, WalletsBrowseOwnerAt(now, util.OptValue(accapi.WalletOwnerUser(username)), WalletBrowseFilter{
 						RequireActive: true,
 						Provider:      util.OptValue(providerId),
 					}))
@@ -305,8 +303,7 @@ func providerNotificationHandleClient(conn *ws.Conn) {
 						})
 
 						for _, p := range pToReplay {
-							pWallets := WalletsBrowseAll(now, WalletBrowseFilter{
-								Owner:         util.OptValue(accapi.WalletOwnerProject(p.Id)),
+							pWallets := WalletsBrowseOwnerAt(now, util.OptValue(accapi.WalletOwnerProject(p.Id)), WalletBrowseFilter{
 								RequireActive: true,
 								Provider:      util.OptValue(providerId),
 							})

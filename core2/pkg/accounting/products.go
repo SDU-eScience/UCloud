@@ -526,10 +526,10 @@ func productsPostProcess(actor rpc.Actor, products []accapi.ProductV2, filter ac
 
 	wallets := WalletsBrowse(
 		actor,
-		accapi.WalletsBrowseRequest{},
+		WalletBrowseFilter{},
 	)
 
-	for _, wallet := range wallets.Items {
+	for _, wallet := range wallets {
 		for i, product := range products {
 			if wallet.PaysFor == product.Category {
 				if filter.IncludeBalance.Present && filter.IncludeBalance.Value {
