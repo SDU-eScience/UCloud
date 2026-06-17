@@ -523,21 +523,21 @@ func grantsLoadSettings() {
 		)
 
 		result := map[string]accapi.GrantRequestSettings{}
-		newProject := make([]accapi.FormField, 0)
-		existingProject := make([]accapi.FormField, 0)
+		newProjectFields := make([]accapi.FormField, 0)
+		existingProjectFields := make([]accapi.FormField, 0)
 
 		for _, template := range templates {
 			existing := result[template.ProjectId]
 			// Trying to deserialize form fields
 			personalProjectFields, err := deserializeFormFields(template.PersonalProject)
 			if err == nil {
-				newProject, _ = deserializeFormFields(template.NewProject)
-				existingProject, _ = deserializeFormFields(template.ExistingProject)
+				newProjectFields, _ = deserializeFormFields(template.NewProject)
+				existingProjectFields, _ = deserializeFormFields(template.ExistingProject)
 			} else {
 				// We are going to try to parse it as structured form fields
 				personalProjectFields = parseToStructuredFormFields(template.PersonalProject)
-				newProject = parseToStructuredFormFields(template.NewProject)
-				existingProject = parseToStructuredFormFields(template.ExistingProject)
+				newProjectFields = parseToStructuredFormFields(template.NewProject)
+				existingProjectFields = parseToStructuredFormFields(template.ExistingProject)
 			}
 
 			existing.Templates = accapi.Templates{
@@ -549,8 +549,8 @@ func grantsLoadSettings() {
 				// Structured template
 				Structured: accapi.TemplatesStructured{
 					PersonalProject: personalProjectFields,
-					NewProject:      newProject,
-					ExistingProject: existingProject,
+					NewProject:      newProjectFields,
+					ExistingProject: existingProjectFields,
 					RevisionNumber:  template.RevisionNumber,
 				},
 			}
