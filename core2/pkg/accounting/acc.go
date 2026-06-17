@@ -1,6 +1,8 @@
 package accounting
 
 import (
+	"fmt"
+	"net/http"
 	"os"
 	"slices"
 	"sync"
@@ -22,23 +24,43 @@ func initAccounting() {
 	go accountingProcessTasks()
 
 	accapi.RootAllocate.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[accapi.RootAllocateRequest]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
-		/*
-			var result []fndapi.FindByStringId
-			for _, reqItem := range request.Items {
-				id, err := RootAllocate(info.Actor, reqItem)
-				if err != nil {
-					return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
-				} else {
-					result = append(result, fndapi.FindByStringId{Id: id})
-				}
+		var result []fndapi.FindByStringId
+		for _, reqItem := range request.Items {
+			id, err := RootAllocate(info.Actor, reqItem.Category, reqItem.Start.Time(), reqItem.End.Time(), reqItem.Quota)
+			if err != nil {
+				return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
+			} else {
+				result = append(result, fndapi.FindByStringId{Id: fmt.Sprint(id)})
 			}
-			return fndapi.BulkResponse[fndapi.FindByStringId]{Responses: result}, nil
-		*/
-		return fndapi.BulkResponse[fndapi.FindByStringId]{}, nil
+		}
+		return fndapi.BulkResponse[fndapi.FindByStringId]{Responses: result}, nil
 	})
 
 	accapi.UpdateAllocation.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[accapi.UpdateAllocationRequest]) (util.Empty, *util.HttpError) {
-		//return AllocationUpdate(info.Actor, request.Items)
+		now := time.Now()
+		if err := updateAllocationVerifyActor(info.Actor); err != nil {
+			return util.Empty{}, err
+		}
+
+		for _, reqItem := range request.Items {
+			category, err := updateAllocationVerifyOwner(info.Actor, AllocationId(reqItem.AllocationId))
+			if err != nil {
+				return util.Empty{}, err
+			}
+
+			_, _, err = AllocationUpdate(
+				now,
+				category,
+				AllocationId(reqItem.AllocationId),
+				reqItem.NewQuota,
+				util.OptMap(reqItem.NewStart, func(value fndapi.Timestamp) time.Time { return value.Time() }),
+				util.OptMap(reqItem.NewEnd, func(value fndapi.Timestamp) time.Time { return value.Time() }),
+			)
+			if err != nil {
+				return util.Empty{}, err
+			}
+		}
+
 		return util.Empty{}, nil
 	})
 
@@ -60,121 +82,62 @@ func initAccounting() {
 	})
 
 	accapi.WalletsBrowse.Handler(func(info rpc.RequestInfo, request accapi.WalletsBrowseRequest) (fndapi.PageV2[accapi.WalletV2], *util.HttpError) {
-		//now := time.Now()
-		//return WalletsBrowsePage(now, request, WalletBrowseFilter{
-		//	Owner: util.OptValue(actorToOwner(info.Actor)),
-		//}), nil
-		return fndapi.PageV2[accapi.WalletV2]{}, nil
+		return WalletsBrowsePaginated(info.Actor, request), nil
 	})
 
 	accapi.WalletsBrowseInternal.Handler(func(info rpc.RequestInfo, request accapi.WalletsBrowseInternalRequest) (accapi.WalletsBrowseInternalResponse, *util.HttpError) {
-		/*
-			if !validateOwner(request.Owner) {
-				return accapi.WalletsBrowseInternalResponse{}, util.HttpErr(http.StatusNotFound, "unknown owner")
-			} else {
-				wallets := internalRetrieveWallets(time.Now(), request.Owner.Reference(), walletFilter{
-					RequireActive: false,
-				})
+		if !validateOwner(request.Owner) {
+			return accapi.WalletsBrowseInternalResponse{}, util.HttpErr(http.StatusNotFound, "unknown owner")
+		}
 
-				return accapi.WalletsBrowseInternalResponse{Wallets: wallets}, nil
-			}
-		*/
-		return accapi.WalletsBrowseInternalResponse{}, nil
+		wallets := WalletsBrowseOwnerAt(time.Now(), util.OptValue(request.Owner), WalletBrowseFilter{})
+		return accapi.WalletsBrowseInternalResponse{Wallets: wallets}, nil
 	})
 
 	accapi.CheckProviderUsable.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[accapi.CheckProviderUsableRequest]) (fndapi.BulkResponse[accapi.CheckProviderUsableResponse], *util.HttpError) {
-		/*
-			now := time.Now()
+		var result []accapi.CheckProviderUsableResponse
 
-			providerId, ok := strings.CutPrefix(fndapi.ProviderSubjectPrefix, info.Actor.Username)
-			if !ok {
-				return fndapi.BulkResponse[accapi.CheckProviderUsableResponse]{}, util.HttpErr(http.StatusForbidden, "forbidden")
+		for _, reqItem := range request.Items {
+			resultItem, err := WalletsCheckProviderUsable(info.Actor, reqItem.Owner, reqItem.Category)
+			if err != nil {
+				return fndapi.BulkResponse[accapi.CheckProviderUsableResponse]{}, err
 			}
 
-			var result []accapi.CheckProviderUsableResponse
+			result = append(result, resultItem)
+		}
 
-			for _, reqItem := range request.Items {
-				ok = reqItem.Category.Provider == providerId && validateOwner(reqItem.Owner)
-				wallet := AccWalletId(0)
-				maxUsable := int64(0)
-
-				if ok {
-					wallet, ok = internalWalletByReferenceAndCategory(now, reqItem.Owner.Reference(), reqItem.Category)
-				}
-
-				if ok {
-					maxUsable, ok = internalMaxUsable(now, wallet)
-				}
-
-				if ok {
-					result = append(result, accapi.CheckProviderUsableResponse{MaxUsable: maxUsable})
-				} else {
-					return fndapi.BulkResponse[accapi.CheckProviderUsableResponse]{}, util.HttpErr(http.StatusBadRequest, "invalid request")
-				}
-			}
-
-			return fndapi.BulkResponse[accapi.CheckProviderUsableResponse]{Responses: result}, nil
-		*/
-		return fndapi.BulkResponse[accapi.CheckProviderUsableResponse]{}, nil
+		return fndapi.BulkResponse[accapi.CheckProviderUsableResponse]{Responses: result}, nil
 	})
 
 	accapi.FindRelevantProviders.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[accapi.FindRelevantProvidersRequest]) (fndapi.BulkResponse[accapi.FindRelevantProvidersResponse], *util.HttpError) {
-		/*
-			now := time.Now()
+		var result []accapi.FindRelevantProvidersResponse
 
-			var result []accapi.FindRelevantProvidersResponse
+		for _, reqItem := range request.Items {
+			var owners []accapi.WalletOwner
 
-			for _, reqItem := range request.Items {
-				var owners []accapi.WalletOwner
+			if reqItem.UseProject {
+				owner := accapi.WalletOwnerUser(reqItem.Username)
+				if reqItem.Project.Present {
+					owner = accapi.WalletOwnerProject(reqItem.Project.Value)
+				}
 
-				if reqItem.UseProject {
-					owner := accapi.WalletOwnerUser(reqItem.Username)
-					if reqItem.Project.Present {
-						owner = accapi.WalletOwnerProject(reqItem.Project.Value)
-					}
-
+				if validateOwner(owner) {
 					owners = append(owners, owner)
-				} else {
-					owners = append(owners, accapi.WalletOwnerUser(reqItem.Username))
-					actor, ok := rpc.LookupActor(reqItem.Username)
-					if ok {
-						for project := range actor.Membership {
-							owners = append(owners, accapi.WalletOwnerProject(string(project)))
-						}
+				}
+			} else {
+				owners = append(owners, accapi.WalletOwnerUser(reqItem.Username))
+				actor, ok := rpc.LookupActor(reqItem.Username)
+				if ok {
+					for project := range actor.Membership {
+						owners = append(owners, accapi.WalletOwnerProject(string(project)))
 					}
 				}
-
-				providers := map[string]util.Empty{}
-
-				for _, owner := range owners {
-					if validateOwner(owner) {
-						wallets := internalRetrieveWallets(now, owner.Reference(), walletFilter{
-							ProductType:   reqItem.FilterProductType,
-							RequireActive: true,
-						})
-
-						// TODO free to use
-
-						for _, w := range wallets {
-							providers[w.PaysFor.Provider] = util.Empty{}
-						}
-
-					} else {
-						return fndapi.BulkResponse[accapi.FindRelevantProvidersResponse]{}, util.HttpErr(http.StatusBadRequest, "bad owner supplied")
-					}
-				}
-
-				var providerArr []string
-				for providerId := range providers {
-					providerArr = append(providerArr, providerId)
-				}
-
-				result = append(result, accapi.FindRelevantProvidersResponse{Providers: providerArr})
 			}
 
-			return fndapi.BulkResponse[accapi.FindRelevantProvidersResponse]{Responses: result}, nil
-		*/
-		return fndapi.BulkResponse[accapi.FindRelevantProvidersResponse]{}, nil
+			result = append(result, FindRelevantProviders(owners, reqItem.FilterProductType))
+		}
+
+		return fndapi.BulkResponse[accapi.FindRelevantProvidersResponse]{Responses: result}, nil
 	})
 
 	accapi.FindAllProviders.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[accapi.FindAllProvidersRequest]) (fndapi.BulkResponse[accapi.FindAllProvidersResponse], *util.HttpError) {
@@ -200,6 +163,62 @@ func initAccounting() {
 
 		return fndapi.BulkResponse[accapi.FindAllProvidersResponse]{Responses: result}, nil
 	})
+}
+
+func updateAllocationVerifyActor(actor rpc.Actor) *util.HttpError {
+	if !actor.Project.Present || !actor.Membership[actor.Project.Value].Satisfies(rpc.ProjectRoleAdmin) {
+		return util.HttpErr(http.StatusForbidden, "You are not allowed to update allocations in this project")
+	}
+	return nil
+}
+
+func updateAllocationVerifyOwner(actor rpc.Actor, allocationId AllocationId) (accapi.ProductCategoryIdV2, *util.HttpError) {
+	activeProject := string(actor.Project.Value)
+
+	accGlobals.Mu.RLock()
+	trees := make([]*AccountingTree, 0, len(accGlobals.Trees))
+	for _, tree := range accGlobals.Trees {
+		trees = append(trees, tree)
+	}
+	accGlobals.Mu.RUnlock()
+
+	for _, tree := range trees {
+		tree.Mu.RLock()
+		allocation := tree.AllocationsById[allocationId]
+		if allocation == nil {
+			tree.Mu.RUnlock()
+			continue
+		}
+
+		if !allocation.Parent.Present {
+			tree.Mu.RUnlock()
+			return accapi.ProductCategoryIdV2{}, util.HttpErr(http.StatusForbidden, "You are not allowed to update root allocations")
+		}
+
+		parent := tree.AllocationsById[allocation.Parent.Value]
+		if parent == nil {
+			tree.Mu.RUnlock()
+			return accapi.ProductCategoryIdV2{}, util.HttpErr(http.StatusNotFound, "unknown parent allocation")
+		}
+
+		parentWallet := tree.WalletsById[parent.Wallet]
+		if parentWallet == nil {
+			tree.Mu.RUnlock()
+			return accapi.ProductCategoryIdV2{}, util.HttpErr(http.StatusNotFound, "unknown parent wallet")
+		}
+
+		category := tree.Category.ToId()
+		parentOwner := parentWallet.Owner
+		tree.Mu.RUnlock()
+
+		if parentOwner.Type != accapi.WalletOwnerTypeProject || parentOwner.ProjectId != activeProject {
+			return accapi.ProductCategoryIdV2{}, util.HttpErr(http.StatusForbidden, "You are not allowed to update allocations created by another project")
+		}
+
+		return category, nil
+	}
+
+	return accapi.ProductCategoryIdV2{}, util.HttpErr(http.StatusNotFound, "unknown allocation")
 }
 
 var validatedOwners = lru.NewLRU[string, util.Empty](1024*4, nil, 10*time.Minute)

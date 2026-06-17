@@ -341,6 +341,94 @@ func (e *lowTestEnv) assertValid() {
 			e.t.Fatalf("parent %d reserved = %d, want %d", parent.Id, parent.ReservedChildren, expectedReserved)
 		}
 	}
+
+	promiseTree := &tree.PromiseTree
+	for promiseId, promise := range promiseTree.PromisesById {
+		if promise == nil {
+			e.t.Fatalf("promise %d is nil", promiseId)
+		}
+		if promise.Id != promiseId {
+			e.t.Fatalf("promise map key %d has id %d", promiseId, promise.Id)
+		}
+		if tree.WalletsById[promise.Parent] == nil {
+			e.t.Fatalf("promise %d missing parent wallet %d", promise.Id, promise.Parent)
+		}
+		if tree.WalletsById[promise.Child] == nil {
+			e.t.Fatalf("promise %d missing child wallet %d", promise.Id, promise.Child)
+		}
+		if promise.Parent == promise.Child {
+			e.t.Fatalf("promise %d has same parent and child wallet %d", promise.Id, promise.Parent)
+		}
+		if promise.Start.After(promise.End) {
+			e.t.Fatalf("promise %d start after end", promise.Id)
+		}
+		if promise.Quota < 0 {
+			e.t.Fatalf("promise %d has negative quota %d", promise.Id, promise.Quota)
+		}
+	}
+
+	for parentWallet, promiseIds := range promiseTree.PromisesByParent {
+		if tree.WalletsById[parentWallet] == nil {
+			e.t.Fatalf("promise parent index references missing wallet %d", parentWallet)
+		}
+		seen := map[PromiseId]bool{}
+		for _, promiseId := range promiseIds {
+			promise := promiseTree.PromisesById[promiseId]
+			if promise == nil {
+				e.t.Fatalf("promise parent index references missing promise %d", promiseId)
+			}
+			if promise.Parent != parentWallet {
+				e.t.Fatalf("promise parent index %d contains promise %d with parent %d", parentWallet, promise.Id, promise.Parent)
+			}
+			if seen[promiseId] {
+				e.t.Fatalf("promise parent index %d lists promise %d twice", parentWallet, promiseId)
+			}
+			seen[promiseId] = true
+		}
+	}
+
+	for childWallet, promiseIds := range promiseTree.PromisesByChild {
+		if tree.WalletsById[childWallet] == nil {
+			e.t.Fatalf("promise child index references missing wallet %d", childWallet)
+		}
+		seen := map[PromiseId]bool{}
+		for _, promiseId := range promiseIds {
+			promise := promiseTree.PromisesById[promiseId]
+			if promise == nil {
+				e.t.Fatalf("promise child index references missing promise %d", promiseId)
+			}
+			if promise.Child != childWallet {
+				e.t.Fatalf("promise child index %d contains promise %d with child %d", childWallet, promise.Id, promise.Child)
+			}
+			if seen[promiseId] {
+				e.t.Fatalf("promise child index %d lists promise %d twice", childWallet, promiseId)
+			}
+			seen[promiseId] = true
+		}
+	}
+
+	for _, allocation := range tree.AllocationsById {
+		if !allocation.Promise.Present {
+			continue
+		}
+		promise := promiseTree.PromisesById[allocation.Promise.Value]
+		if promise == nil {
+			e.t.Fatalf("allocation %d references missing promise %d", allocation.Id, allocation.Promise.Value)
+		}
+		if allocation.Wallet != promise.Child {
+			e.t.Fatalf("promise allocation %d wallet = %d, want promise child %d", allocation.Id, allocation.Wallet, promise.Child)
+		}
+		if !allocation.Parent.Present {
+			e.t.Fatalf("promise allocation %d has no parent allocation", allocation.Id)
+		}
+		parent := tree.AllocationsById[allocation.Parent.Value]
+		if parent == nil {
+			e.t.Fatalf("promise allocation %d missing parent allocation %d", allocation.Id, allocation.Parent.Value)
+		}
+		if parent.Wallet != promise.Parent {
+			e.t.Fatalf("promise allocation %d parent wallet = %d, want promise parent %d", allocation.Id, parent.Wallet, promise.Parent)
+		}
+	}
 }
 
 func TestLowLevelAllocationCreateValidationAndReservations(t *testing.T) {

@@ -186,6 +186,120 @@ func TestPromiseReconcileUpdateFirstGrowthAndShrink(t *testing.T) {
 	}
 }
 
+func TestPromiseCapacityDecreaseReleasesOnFullReconcile(t *testing.T) {
+	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
+	e.setPolicy(PromisePolicy{TrendAlphaBasisPoints: 10000})
+	e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 10, Quota: 100, Self: 0, Children: 100})
+	first := e.addPromise("root", "first", 0, 10, 100)
+	second := e.addPromise("root", "second", 0, 10, 100)
+
+	e.reconcile(1, "first", util.OptValue[int64](80))
+	e.reconcile(1, "second", util.OptValue[int64](80))
+	assertPromiseAllocation(t, e.promiseHead(first, 1), 80, 0, e.tm(1), e.tm(10))
+	assertPromiseAllocation(t, e.promiseHead(second, 1), 20, 0, e.tm(1), e.tm(10))
+	e.assertAllocation("root", 0, 100, 0, 100)
+	if success := e.report(1, "first", 80); !success {
+		t.Fatalf("first initial usage failed")
+	}
+	if success := e.report(1, "second", 20); !success {
+		t.Fatalf("second initial usage failed")
+	}
+
+	if success := e.report(2, "first", 10); !success {
+		t.Fatalf("first usage decrease failed")
+	}
+	assertPromiseAllocation(t, e.promiseHead(first, 2), 10, 0, e.tm(1), e.tm(10))
+	e.assertAllocation("root", 0, 100, 0, 30)
+
+	if success := e.report(2, "second", 80); !success {
+		t.Fatalf("second usage increase failed")
+	}
+	assertPromiseAllocation(t, e.promiseHead(second, 2), 80, 0, e.tm(1), e.tm(10))
+	if consumed := e.promiseHead(second, 2).ConsumedSelf; consumed != 80 {
+		t.Fatalf("second consumed = %d, want 80", consumed)
+	}
+	e.assertAllocation("root", 0, 100, 0, 90)
+}
+
+func TestPromiseCapacityDecreaseUsesGrowthStepAsShrinkThreshold(t *testing.T) {
+	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
+	e.setPolicy(PromisePolicy{GrowthStep: 25, TrendAlphaBasisPoints: 10000})
+	e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 10, Quota: 100, Self: 0, Children: 100})
+	promise := e.addPromise("root", "child", 0, 10, 100)
+
+	if success := e.report(1, "child", 80); !success {
+		t.Fatalf("initial usage failed")
+	}
+	assertPromiseAllocation(t, e.promiseHead(promise, 1), 100, 0, e.tm(1), e.tm(10))
+	e.assertAllocation("root", 0, 100, 0, 100)
+
+	if success := e.report(2, "child", 60); !success {
+		t.Fatalf("small decrease failed")
+	}
+	assertPromiseAllocation(t, e.promiseHead(promise, 2), 100, 0, e.tm(1), e.tm(10))
+	e.assertAllocation("root", 0, 100, 0, 100)
+
+	if success := e.report(3, "child", 30); !success {
+		t.Fatalf("meaningful decrease failed")
+	}
+	assertPromiseAllocation(t, e.promiseHead(promise, 3), 50, 0, e.tm(1), e.tm(10))
+	e.assertAllocation("root", 0, 100, 0, 50)
+}
+
+func TestPromiseCycleReconcilePreservesInvariants(t *testing.T) {
+	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
+	e.setPolicy(PromisePolicy{TrendAlphaBasisPoints: 10000})
+	e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 10, Quota: 100, Self: 0, Children: 100})
+	rootToA := e.addPromise("root", "a", 0, 10, 100)
+	aToB := e.addPromise("a", "b", 0, 10, 100)
+	bToC := e.addPromise("b", "c", 0, 10, 100)
+	cToA := e.addPromise("c", "a", 0, 10, 100)
+
+	e.reconcile(1, "a", util.OptValue[int64](50))
+	e.reconcile(1, "b", util.OptValue[int64](50))
+	e.reconcile(1, "c", util.OptValue[int64](50))
+	PromiseReconcile(e.tm(2), e.categoryId, e.owner("root"), util.OptNone[int64]())
+	e.assertValid()
+
+	for _, promise := range []PromiseId{rootToA, aToB, bToC, cToA} {
+		allocations := e.promiseAllocations(promise)
+		if len(allocations) > 1 {
+			t.Fatalf("promise %d allocations = %d, want at most one", promise, len(allocations))
+		}
+	}
+}
+
+func TestPromiseCycleUsageReportsPreserveInvariants(t *testing.T) {
+	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
+	e.setPolicy(PromisePolicy{GrowthStep: 10, TrendAlphaBasisPoints: 10000})
+	e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 20, Quota: 100, Self: 0, Children: 100})
+	e.addPromise("root", "a", 0, 20, 100)
+	e.addPromise("a", "b", 0, 20, 100)
+	e.addPromise("b", "a", 0, 20, 100)
+
+	for _, step := range []struct {
+		at     int
+		wallet string
+		usage  int64
+	}{
+		{1, "a", 80},
+		{2, "b", 60},
+		{3, "a", 20},
+		{4, "b", 10},
+		{5, "a", 90},
+	} {
+		_, err := UsageReport(e.tm(step.at), accapi.ReportUsageRequest{
+			Owner:        e.owner(step.wallet),
+			CategoryIdV2: e.categoryId,
+			Usage:        step.usage,
+		})
+		if err != nil {
+			t.Fatalf("report usage for %s at %d: %v", step.wallet, step.at, err)
+		}
+		e.assertValid()
+	}
+}
+
 func TestPromiseReconcilePropagatesChildDemandThroughPeriodicPasses(t *testing.T) {
 	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
 	e.setPolicy(PromisePolicy{TrendAlphaBasisPoints: 10000})
@@ -359,7 +473,7 @@ func TestPromiseReportUsageSingleL2ChildMultipleL1Parents(t *testing.T) {
 }
 
 func TestPromiseReportUsageRetirementUpDownAndOverQuota(t *testing.T) {
-	t.Run("usage can go over promise quota then shrink on later reconciliation", func(t *testing.T) {
+	t.Run("usage can go over promise quota then shrink immediately on meaningful decrease", func(t *testing.T) {
 		e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
 		e.setPolicy(PromisePolicy{TrendAlphaBasisPoints: 10000})
 		e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 10, Quota: 100, Self: 0, Children: 100})
@@ -374,11 +488,11 @@ func TestPromiseReportUsageRetirementUpDownAndOverQuota(t *testing.T) {
 
 		e.report(2, "child", 40)
 		head = e.promiseHead(promise, 2)
-		assertPromiseAllocation(t, head, 100, 0, e.tm(1), e.tm(10))
+		assertPromiseAllocation(t, head, 40, 0, e.tm(1), e.tm(10))
 		if head.ConsumedSelf != 40 {
 			t.Fatalf("lowered consumption = %d, want 40", head.ConsumedSelf)
 		}
-		e.assertAllocation("root", 0, 100, 0, 100)
+		e.assertAllocation("root", 0, 100, 0, 40)
 	})
 
 	t.Run("retired promise allocation releases parent and successor can grow", func(t *testing.T) {

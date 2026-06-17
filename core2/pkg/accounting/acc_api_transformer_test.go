@@ -434,12 +434,12 @@ func TestFindRelevantAndAllProviders(t *testing.T) {
 	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
 	e.add(lowAllocSpec{Name: "wallet", Wallet: "wallet", Start: 0, End: 10, Quota: 100})
 
-	relevant := FindRelevantProviders(e.tm(1), []accapi.WalletOwner{e.owner("wallet")}, util.OptValue(accapi.ProductTypeStorage))
+	relevant := FindRelevantProviders([]accapi.WalletOwner{e.owner("wallet")}, util.OptValue(accapi.ProductTypeStorage))
 	if len(relevant.Providers) != 1 || relevant.Providers[0] != "provider" {
 		t.Fatalf("relevant providers = %#v, want provider", relevant.Providers)
 	}
 
-	relevant = FindRelevantProviders(e.tm(1), []accapi.WalletOwner{e.owner("wallet")}, util.OptValue(accapi.ProductTypeCompute))
+	relevant = FindRelevantProviders([]accapi.WalletOwner{e.owner("wallet")}, util.OptValue(accapi.ProductTypeCompute))
 	if len(relevant.Providers) != 0 {
 		t.Fatalf("filtered relevant providers = %#v, want empty", relevant.Providers)
 	}

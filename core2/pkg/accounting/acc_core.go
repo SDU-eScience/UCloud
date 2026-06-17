@@ -880,6 +880,7 @@ func UsageReport(now time.Time, request accapi.ReportUsageRequest) (success bool
 
 	PromiseReconcile(now, request.CategoryIdV2, request.Owner, util.OptValue(absoluteAmount))
 
+	shouldShrinkReconcile := false
 	walletMutate(request.CategoryIdV2, request.Owner, func(tree *AccountingTree, wallet *Wallet) {
 		lifecycleScan(now, tree)
 
@@ -887,6 +888,13 @@ func UsageReport(now time.Time, request accapi.ReportUsageRequest) (success bool
 			success, err = false, util.HttpErr(http.StatusBadRequest, "this owner does not have any such resources")
 			return
 		}
+
+		previousConsumed := wallet.Consumed
+		meaningfulShrink := tree.Policy.GrowthStep
+		if meaningfulShrink <= 0 {
+			meaningfulShrink = 1
+		}
+		shouldShrinkReconcile = tree.IsCapacityBased() && previousConsumed-absoluteAmount >= meaningfulShrink
 
 		retiredAmount := int64(0)
 
@@ -1127,7 +1135,11 @@ func UsageReport(now time.Time, request accapi.ReportUsageRequest) (success bool
 	})
 
 	if err == nil {
-		PromiseReconcile(now, request.CategoryIdV2, request.Owner, util.OptValue(absoluteAmount))
+		if shouldShrinkReconcile {
+			PromiseReconcile(now, request.CategoryIdV2, request.Owner, util.OptNone[int64]())
+		} else {
+			PromiseReconcile(now, request.CategoryIdV2, request.Owner, util.OptValue(absoluteAmount))
+		}
 	}
 	return
 }

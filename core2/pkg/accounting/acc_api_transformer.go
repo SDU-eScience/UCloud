@@ -163,11 +163,10 @@ func WalletsBrowseOwnerAt(
 }
 
 func WalletsBrowsePaginated(
-	now time.Time,
 	actor rpc.Actor,
 	request accapi.WalletsBrowseRequest,
 ) fndapi.PageV2[accapi.WalletV2] {
-	return WalletsBrowsePaginatedAt(now, actor, request)
+	return WalletsBrowsePaginatedAt(time.Now(), actor, request)
 }
 
 func WalletsBrowsePaginatedAt(
@@ -275,6 +274,13 @@ func WalletTotalQuotaContributingOwnerAt(
 }
 
 func FindRelevantProviders(
+	owners []accapi.WalletOwner,
+	productType util.Option[accapi.ProductType],
+) accapi.FindRelevantProvidersResponse {
+	return FindRelevantProvidersAt(time.Now(), owners, productType)
+}
+
+func FindRelevantProvidersAt(
 	now time.Time,
 	owners []accapi.WalletOwner,
 	productType util.Option[accapi.ProductType],

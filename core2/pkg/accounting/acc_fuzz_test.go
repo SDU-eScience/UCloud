@@ -1,6 +1,7 @@
 package accounting
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -60,10 +61,74 @@ func fuzzUpdate(t *testing.T, e *lowTestEnv, at int, allocation string, quota ut
 	e.assertValid()
 }
 
+func fuzzCreateAllocation(t *testing.T, e *lowTestEnv, reader *fuzzBytes, at int, name string, wallets []string, allocations []string) (bool, string) {
+	t.Helper()
+	start := reader.intn(36)
+	end := start + 1 + reader.intn(8)
+	quota := reader.int64n(260)
+	parent := util.OptNone[AllocationId]()
+	if len(allocations) > 0 && reader.intn(2) == 1 {
+		parent = util.OptValue(e.allocs[allocations[reader.intn(len(allocations))]])
+	}
+
+	wallet := wallets[reader.intn(len(wallets))]
+	id, _ := AllocationCreate(e.tm(at), e.categoryId, e.tm(start), e.tm(end), quota, e.wallet(wallet), parent, util.OptNone[GrantId]())
+	e.assertValid()
+	if id == 0 {
+		return false, ""
+	}
+	e.allocs[name] = id
+	return true, name
+}
+
+func fuzzCreatePromise(t *testing.T, e *lowTestEnv, reader *fuzzBytes, at int, owners []string) (bool, PromiseId) {
+	t.Helper()
+	parent := owners[reader.intn(len(owners))]
+	child := owners[reader.intn(len(owners))]
+	start := reader.intn(24)
+	end := start + reader.intn(24)
+	quota := reader.int64n(180)
+	id, _ := PromiseCreate(e.tm(at), e.categoryId, e.wallet(parent), e.wallet(child), e.tm(start), e.tm(end), quota, util.OptNone[GrantId]())
+	e.assertValid()
+	return id != 0, id
+}
+
+func fuzzUpdatePromiseHead(t *testing.T, e *lowTestEnv, reader *fuzzBytes, at int, promises []PromiseId) {
+	t.Helper()
+	if len(promises) == 0 {
+		return
+	}
+	promise := e.tree().PromiseTree.PromisesById[promises[reader.intn(len(promises))]]
+	if promise == nil {
+		e.assertValid()
+		return
+	}
+	head := promiseFindHead(e.tm(at), e.tree(), promise)
+	if !head.Present {
+		e.assertValid()
+		return
+	}
+
+	quota := util.OptNone[int64]()
+	start := util.OptNone[time.Time]()
+	end := util.OptNone[time.Time]()
+	switch reader.intn(3) {
+	case 0:
+		quota.Set(reader.int64n(180))
+	case 1:
+		start.Set(e.tm(reader.intn(24)))
+	case 2:
+		end.Set(e.tm(reader.intn(30)))
+	}
+	_, _, _ = AllocationUpdate(e.tm(at), e.categoryId, head.Value, quota, start, end)
+	e.assertValid()
+}
+
 func FuzzLowLevelAPI(f *testing.F) {
 	f.Add([]byte{0, 1, 2, 3, 4, 5, 6, 7})
 	f.Add([]byte{9, 8, 7, 6, 5, 4, 3, 2, 1})
 	f.Add([]byte{1, 20, 2, 90, 3, 40, 4, 10, 5, 200})
+	f.Add([]byte{0, 0, 0, 80, 0, 4, 10, 0, 20, 1, 8, 30, 2, 12, 40, 4, 2, 5, 6})
 
 	f.Fuzz(func(t *testing.T, data []byte) {
 		if len(data) == 0 {
@@ -76,19 +141,21 @@ func FuzzLowLevelAPI(f *testing.F) {
 		}
 
 		e := newLowTestEnv(t, frequency)
-		e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 24, Quota: 240, Self: 80, Children: 160})
-		e.add(lowAllocSpec{Name: "a", Wallet: "a", Parent: "root", Start: 0, End: 12, Quota: 60, Self: 30, Children: 30})
-		e.add(lowAllocSpec{Name: "b", Wallet: "b", Parent: "root", Start: 6, End: 24, Quota: 60})
-		e.add(lowAllocSpec{Name: "leaf", Wallet: "leaf", Parent: "a", Start: 0, End: 12, Quota: 20})
+		e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 48, Quota: 300, Self: 80, Children: 220})
+		e.add(lowAllocSpec{Name: "short-a", Wallet: "a", Parent: "root", Start: 0, End: 4, Quota: 60})
+		e.add(lowAllocSpec{Name: "short-b", Wallet: "b", Parent: "root", Start: 3, End: 8, Quota: 60})
+		e.add(lowAllocSpec{Name: "long", Wallet: "long", Parent: "root", Start: 0, End: 36, Quota: 60, Self: 30, Children: 30})
+		e.add(lowAllocSpec{Name: "leaf", Wallet: "leaf", Parent: "long", Start: 0, End: 12, Quota: 20})
 
 		reader := fuzzBytes{data: data}
-		wallets := []string{"root", "a", "b", "leaf", "missing"}
-		allocations := []string{"root", "a", "b", "leaf"}
+		wallets := []string{"a", "b", "long", "leaf", "extra", "missing"}
+		allocations := []string{"short-a", "short-b", "long", "leaf"}
+		parents := []string{"root", "short-a", "short-b", "long", "leaf"}
 
 		steps := 1 + reader.intn(48)
 		for i := 0; i < steps; i++ {
-			at := reader.intn(30)
-			switch reader.intn(6) {
+			at := reader.intn(56)
+			switch reader.intn(7) {
 			case 0, 1, 2:
 				fuzzReport(t, e, at, wallets[reader.intn(len(wallets))], reader.int64n(260))
 			case 3:
@@ -99,6 +166,12 @@ func FuzzLowLevelAPI(f *testing.F) {
 				fuzzUpdate(t, e, at, allocations[reader.intn(len(allocations))], util.OptNone[int64](), util.OptValue(start), util.OptValue(end))
 			case 5:
 				e.assertValid()
+			case 6:
+				ok, name := fuzzCreateAllocation(t, e, &reader, at, fmt.Sprintf("dyn-%d", i), wallets, parents)
+				if ok {
+					allocations = append(allocations, name)
+					parents = append(parents, name)
+				}
 			}
 		}
 	})
@@ -108,13 +181,20 @@ func FuzzPromiseSystem(f *testing.F) {
 	f.Add([]byte{0, 40, 1, 80, 2, 20, 3, 100})
 	f.Add([]byte{5, 100, 4, 90, 3, 80, 2, 70})
 	f.Add([]byte{7, 20, 8, 120, 9, 10, 10, 50})
+	f.Add([]byte{0, 0, 5, 2, 0, 0, 20, 100, 1, 80, 3, 0, 2, 2, 60, 3, 1})
+	f.Add([]byte{0, 0, 0, 4, 80, 2, 5, 10, 4, 8, 3, 6, 60, 0, 13, 20, 4, 14})
 
 	f.Fuzz(func(t *testing.T, data []byte) {
 		if len(data) == 0 {
 			t.Skip()
 		}
 
-		e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
+		frequency := accapi.AccountingFrequencyOnce
+		if len(data) > 1 && data[1]%2 == 1 {
+			frequency = accapi.AccountingFrequencyPeriodicHour
+		}
+
+		e := newLowTestEnv(t, frequency)
 		e.setPolicy(PromisePolicy{
 			MinSlack:              int64(data[0] % 16),
 			GrowthStep:            int64(data[0] % 8),
@@ -123,27 +203,38 @@ func FuzzPromiseSystem(f *testing.F) {
 
 		e.add(lowAllocSpec{Name: "root0", Wallet: "root", Start: 0, End: 12, Quota: 100, Self: 0, Children: 100})
 		e.add(lowAllocSpec{Name: "root1", Wallet: "root", Start: 12, End: 24, Quota: 100, Self: 0, Children: 100})
-		e.addPromise("root", "a", 0, 24, 120)
-		e.addPromise("root", "b", 0, 24, 120)
-		e.addPromise("a", "leaf", 0, 24, 100)
-		e.addPromise("b", "leaf", 0, 24, 100)
-		e.addPromise("root", "a", 6, 18, 80)
+		e.add(lowAllocSpec{Name: "root2", Wallet: "root", Start: 24, End: 48, Quota: 100, Self: 0, Children: 100})
+		promises := []PromiseId{
+			e.addPromise("root", "a", 0, 24, 120),
+			e.addPromise("root", "b", 0, 24, 120),
+			e.addPromise("a", "leaf", 0, 24, 100),
+			e.addPromise("b", "leaf", 0, 24, 100),
+			e.addPromise("root", "a", 6, 18, 80),
+			e.addPromise("root", "short", 0, 4, 100),
+			e.addPromise("a", "short", 2, 7, 80),
+		}
 
 		reader := fuzzBytes{data: data}
-		wallets := []string{"a", "b", "leaf", "root", "missing"}
-		owners := []string{"a", "b", "leaf", "root"}
+		wallets := []string{"a", "b", "leaf", "short", "root", "missing"}
+		owners := []string{"a", "b", "leaf", "short", "root"}
 
 		steps := 1 + reader.intn(64)
 		for i := 0; i < steps; i++ {
-			at := reader.intn(30)
+			at := reader.intn(56)
 			usage := reader.int64n(220)
-			switch reader.intn(5) {
+			switch reader.intn(7) {
 			case 0, 1, 2:
 				fuzzReport(t, e, at, wallets[reader.intn(len(wallets))], usage)
 			case 3:
 				e.reconcile(at, owners[reader.intn(len(owners))], util.OptValue(usage))
 			case 4:
 				e.reconcile(at, owners[reader.intn(len(owners))], util.OptNone[int64]())
+			case 5:
+				if ok, id := fuzzCreatePromise(t, e, &reader, at, owners); ok {
+					promises = append(promises, id)
+				}
+			case 6:
+				fuzzUpdatePromiseHead(t, e, &reader, at, promises)
 			}
 		}
 	})
