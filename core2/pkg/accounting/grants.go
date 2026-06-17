@@ -1767,9 +1767,11 @@ func GrantsUpdateSettings(actor rpc.Actor, id string, s accapi.GrantRequestSetti
 
 	w.Mu.Lock()
 
+	templateHasChanges := false
 	if w.Settings != nil {
 		current := &w.Settings.Templates.Structured
 		if grantsTemplateHasChanges(&s.Templates.Structured, current) {
+			templateHasChanges = true
 			// We bump the revision number if the template has changes.
 			s.Templates.Structured.RevisionNumber = current.RevisionNumber + 1
 		}
@@ -1779,7 +1781,7 @@ func GrantsUpdateSettings(actor rpc.Actor, id string, s accapi.GrantRequestSetti
 	}
 
 	w.Settings = &s
-	lGrantsPersistSettings(w)
+	lGrantsPersistSettings(w, templateHasChanges)
 	w.Mu.Unlock()
 
 	return nil
@@ -1798,7 +1800,7 @@ func grantsFormFieldHasChanges(incoming *accapi.FormField, current *accapi.FormF
 }
 
 func grantsFormFieldsHasChanges(incoming []accapi.FormField, current []accapi.FormField) bool {
-	currentFields := make(map[string]accapi.FormField)
+	currentFields := make(map[string]accapi.FormField, len(current))
 	for _, f := range current {
 		currentFields[f.Name] = f
 	}

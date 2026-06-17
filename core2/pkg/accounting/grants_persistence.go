@@ -650,7 +650,7 @@ func grantsLoadSettings() {
 	}
 }
 
-func lGrantsPersistSettings(settings *grantSettings) {
+func lGrantsPersistSettings(settings *grantSettings, templateHasChanges bool) {
 	if grantGlobals.Testing.Enabled {
 		return
 	}
@@ -712,9 +712,10 @@ func lGrantsPersistSettings(settings *grantSettings) {
 			existingProject = formFieldsToJsonString(parseToStructuredFormFields(s.Templates.ExistingProject))
 		}
 
-		db.Exec(
-			tx,
-			`
+		if templateHasChanges {
+			db.Exec(
+				tx,
+				`
 				insert into "grant".templates(project_id, personal_project, existing_project, new_project, revision_number) 
 				values (:project, :personal, :existing, :new, :revision)
 				on conflict (project_id, revision_number) do update set
@@ -722,14 +723,15 @@ func lGrantsPersistSettings(settings *grantSettings) {
 					existing_project = excluded.existing_project,
 					new_project = excluded.new_project
 		    `,
-			db.Params{
-				"project":  settings.ProjectId,
-				"personal": personalProject,
-				"new":      newProject,
-				"existing": existingProject,
-				"revision": s.Templates.Structured.RevisionNumber,
-			},
-		)
+				db.Params{
+					"project":  settings.ProjectId,
+					"personal": personalProject,
+					"new":      newProject,
+					"existing": existingProject,
+					"revision": s.Templates.Structured.RevisionNumber,
+				},
+			)
+		}
 
 		db.Exec(
 			tx,
