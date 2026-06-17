@@ -1759,16 +1759,6 @@ func GrantsUpdateSettings(actor rpc.Actor, id string, s accapi.GrantRequestSetti
 	}
 	b.Mu.Unlock()
 
-	if w.Settings != nil {
-		if grantsTemplateHasChanges(&s.Templates.Structured, &w.Settings.Templates.Structured) {
-			// We bump the revision number if the template has changes.
-			s.Templates.Structured.RevisionNumber = w.Settings.Templates.Structured.RevisionNumber + 1
-		}
-	} else {
-		// This case is only happening when the template is being created for the first time.
-		s.Templates.Structured.RevisionNumber++
-	}
-
 	if s.Enabled {
 		b.PublicGrantGivers[string(actor.Project.Value)] = util.Empty{}
 	} else {
@@ -1776,6 +1766,18 @@ func GrantsUpdateSettings(actor rpc.Actor, id string, s accapi.GrantRequestSetti
 	}
 
 	w.Mu.Lock()
+
+	if w.Settings != nil {
+		current := &w.Settings.Templates.Structured
+		if grantsTemplateHasChanges(&s.Templates.Structured, current) {
+			// We bump the revision number if the template has changes.
+			s.Templates.Structured.RevisionNumber = current.RevisionNumber + 1
+		}
+	} else {
+		// This case is only happening when the template is being created for the first time.
+		s.Templates.Structured.RevisionNumber++
+	}
+
 	w.Settings = &s
 	lGrantsPersistSettings(w)
 	w.Mu.Unlock()
@@ -1787,13 +1789,10 @@ func GrantsUpdateSettings(actor rpc.Actor, id string, s accapi.GrantRequestSetti
  * Comparing changes of the current template with incoming one.
  */
 func grantsFormFieldHasChanges(incoming *accapi.FormField, current *accapi.FormField) bool {
-	textChanged := func(incomingText string, currentText string) bool {
-		return incomingText != currentText
-	}
-	return textChanged(incoming.Name, current.Name) ||
-		textChanged(incoming.Description, current.Description) ||
+	return incoming.Name != current.Name ||
+		incoming.Description != current.Description ||
 		incoming.Optional != current.Optional ||
-		textChanged(incoming.Title, current.Title) ||
+		incoming.Title != current.Title ||
 		incoming.Rows != current.Rows ||
 		incoming.MaxLength != current.MaxLength
 }
@@ -1809,7 +1808,9 @@ func grantsFormFieldsHasChanges(incoming []accapi.FormField, current []accapi.Fo
 		if !ok {
 			return true
 		}
-		return grantsFormFieldHasChanges(&incomingField, &currentField)
+		if grantsFormFieldHasChanges(&incomingField, &currentField) {
+			return true
+		}
 	}
 	return false
 }
@@ -1818,9 +1819,9 @@ func grantsTemplateHasChanges(incoming *accapi.TemplatesStructured, current *acc
 	if current == nil {
 		return true
 	}
-	if len(current.ExistingProject) != len(incoming.ExistingProject) ||
-		len(current.NewProject) != len(incoming.NewProject) ||
-		len(current.PersonalProject) != len(incoming.PersonalProject) {
+	if len(incoming.ExistingProject) != len(current.ExistingProject) ||
+		len(incoming.NewProject) != len(current.NewProject) ||
+		len(incoming.PersonalProject) != len(current.PersonalProject) {
 		return true
 	}
 	return grantsFormFieldsHasChanges(incoming.ExistingProject, current.ExistingProject) ||
