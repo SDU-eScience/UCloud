@@ -1759,6 +1759,16 @@ func GrantsUpdateSettings(actor rpc.Actor, id string, s accapi.GrantRequestSetti
 	}
 	b.Mu.Unlock()
 
+	if w.Settings != nil {
+		if grantsTemplateHasChanges(&s.Templates.Structured, &w.Settings.Templates.Structured) {
+			// We bump the revision number if the template has changes.
+			s.Templates.Structured.RevisionNumber = w.Settings.Templates.Structured.RevisionNumber + 1
+		}
+	} else {
+		// This case is only happening when the template is being created for the first time.
+		s.Templates.Structured.RevisionNumber++
+	}
+
 	if s.Enabled {
 		b.PublicGrantGivers[string(actor.Project.Value)] = util.Empty{}
 	} else {
@@ -1766,12 +1776,6 @@ func GrantsUpdateSettings(actor rpc.Actor, id string, s accapi.GrantRequestSetti
 	}
 
 	w.Mu.Lock()
-
-	if grantsTemplateHasChanges(&s.Templates.Structured, &w.Settings.Templates.Structured) {
-		// We bump the revision number if the template has changes.
-		s.Templates.Structured.RevisionNumber = w.Settings.Templates.Structured.RevisionNumber + 1
-	}
-
 	w.Settings = &s
 	lGrantsPersistSettings(w)
 	w.Mu.Unlock()
@@ -1811,6 +1815,9 @@ func grantsFormFieldsHasChanges(incoming []accapi.FormField, current []accapi.Fo
 }
 
 func grantsTemplateHasChanges(incoming *accapi.TemplatesStructured, current *accapi.TemplatesStructured) bool {
+	if current == nil {
+		return true
+	}
 	if len(current.ExistingProject) != len(incoming.ExistingProject) ||
 		len(current.NewProject) != len(incoming.NewProject) ||
 		len(current.PersonalProject) != len(incoming.PersonalProject) {
