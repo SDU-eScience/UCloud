@@ -726,7 +726,7 @@ function MachineTypeSelectionSlider(props: {
 
     const productCount = props.selectedCategory.products.length;
 
-    return <Box mx="8px" px="8px" onClick={stopPropagation}>
+    return <Box mb="8px" mx="8px" px="8px" onClick={stopPropagation}>
         {dividerIndex > 0 ?
             <Flex>
                 <Box ml="4px">MIG (partial GPUs)</Box>
@@ -737,9 +737,37 @@ function MachineTypeSelectionSlider(props: {
         <input value={props.idx} autoFocus onChange={e => props.onSelect(e.target.valueAsNumber)}
             className={FancySlider} min={0} max={props.selectedCategory.products.length - 1} type="range" list="markers" />
         <datalist id="markers" className={DataListStyle}>
-            {(props.selectedCategory.products as ProductV2Compute[]).map((it, idx) => <option key={idx} value={idx} label={computeV2CountStringThing(it)}>Stuff</option>)}
+            {props.selectedCategory.products.map((p, idx) => <option key={idx} value={idx} />)}
         </datalist>
+        <CustomDataListThingy>
+            {props.selectedCategory.products.map((p, idx) => <Box key={idx}>
+                <Box>
+                    <Box mx="auto">{computeV2CountStringThing(p)}</Box>
+                    <JobQueueStatusIndicator status={JobQueueStatus.AVAILABLE} />
+                </Box>
+            </Box>)}
+        </CustomDataListThingy>
     </Box>
+}
+
+const ThingyStyle = injectStyle("thingy-style", cl => `
+    ${cl} {
+        width: calc(100% - 32px);
+        justify-content: space-between;
+        padding-left: 4px;
+        padding-top: 8px;
+    }
+
+    ${cl} > div {
+        width: 0px;
+    }
+`);
+
+function CustomDataListThingy(props: React.PropsWithChildren): React.ReactNode {
+    return <Flex className={ThingyStyle}>
+        {props.children}
+    </Flex>
+
 }
 
 function computeV2CountStringThing(c: ProductV2Compute): string {
@@ -772,9 +800,10 @@ const FancySlider = injectStyle("fancy-slider", cl => `
 
 const DataListStyle = injectStyleSimple("datalist-style", `
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
     justify-content: space-between;
-    width: calc(100% - 16px);
+    writing-mode: vertical-lr;
+    width: calc(100% * 0.99);
 `);
 
 export const SelectorBoxClass = injectStyle("selector-box", k => `
