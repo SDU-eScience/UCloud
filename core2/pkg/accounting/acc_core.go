@@ -117,6 +117,10 @@ type PromisePolicy struct {
 	TrendAlphaBasisPoints int64
 }
 
+// IsCapacityBased reports whether the category represents point-in-time capacity rather than accumulated usage.
+//
+// Capacity-based products can move usage away from retired allocations and retired promise materializations stop
+// contributing to promise quota. Periodic products keep retired usage meaningful for accounting history.
 func (t *AccountingTree) IsCapacityBased() bool {
 	switch t.Category.AccountingFrequency {
 	case accapi.AccountingFrequencyOnce:
@@ -201,22 +205,41 @@ func CategoryEnsure(category accapi.ProductCategory) {
 	}
 }
 
+// IsActive reports whether now is inside the allocation's inclusive-start, exclusive-end interval.
+//
+// This checks the time interval only. It does not require the allocation.Activated flag to have been advanced by a
+// lifecycle scan.
 func (a *Allocation) IsActive(now time.Time) bool {
 	return !now.Before(a.Start) && now.Before(a.End)
 }
 
+// IsRetired reports whether now is at or after the allocation's exclusive end boundary.
+//
+// This checks time only. It does not require allocation.Retired to have been set by lifecycleScanAllocation.
 func (a *Allocation) IsRetired(now time.Time) bool {
 	return !now.Before(a.End)
 }
 
+// shouldActivate reports whether lifecycleScanAllocation should flip allocation.Activated at now.
+//
+// The one-second tolerance preserves existing behavior around boundary sampling. Activation is persisted state and is
+// what quota aggregation helpers use when deciding whether an allocation contributes.
 func (a *Allocation) shouldActivate(now time.Time) bool {
 	return !a.Activated && now.Add(time.Second).After(a.Start) && now.Before(a.End)
 }
 
+// shouldRetire reports whether lifecycleScanAllocation should flip allocation.Retired at now.
+//
+// The one-second tolerance matches activation behavior. Retirement snapshots quota and usage for later reporting and
+// cleanup.
 func (a *Allocation) shouldRetire(now time.Time) bool {
 	return !a.Retired && now.Add(time.Second).After(a.End)
 }
 
+// WalletEnsure creates or returns the wallet id for an owner in a category.
+//
+// This is a public low-level creation helper. It only ensures wallet existence; it does not grant quota or make the
+// wallet usable.
 func WalletEnsure(category accapi.ProductCategoryIdV2, owner accapi.WalletOwner) (WalletId, *util.HttpError) {
 	var walletId WalletId
 	err := treeMutate(category, func(tree *AccountingTree) *util.HttpError {
@@ -227,6 +250,10 @@ func WalletEnsure(category accapi.ProductCategoryIdV2, owner accapi.WalletOwner)
 	return walletId, err
 }
 
+// walletEnsureEx creates or returns a wallet while the caller already holds the tree lock.
+//
+// New wallets start empty, unlocked and dirty. Lock state becomes meaningful once allocations or promises are added and
+// walletReevaluateLock has been run.
 func walletEnsureEx(tree *AccountingTree, owner accapi.WalletOwner) *Wallet {
 	ref := owner.Reference()
 	wallet := tree.WalletsByOwner[ref]
@@ -481,6 +508,11 @@ func AllocationUpdate(
 	return grantedIn, changelog, err
 }
 
+// allocationUpdatePromiseBacked applies a manual allocation update to the backing promise rather than one materialized row.
+//
+// Promise-backed allocations expose promise-level quota and period to users. Updating one of those allocations therefore
+// edits the promise, reconciles materializations, records significant updates on both sides and emits grant changelog
+// text when relevant.
 func allocationUpdatePromiseBacked(
 	now time.Time,
 	tree *AccountingTree,
@@ -544,6 +576,12 @@ func allocationUpdatePromiseBacked(
 	return nil
 }
 
+// promiseRequiredQuota returns the concrete promise-backed quota that must remain allocated for a promise.
+//
+// It is used when manually editing a promise-backed allocation through AllocationUpdate. The value is intentionally
+// based on already-materialized allocation state, not promise quota: lowering a promise below existing consumption or
+// child reservations would make the allocation tree invalid. For capacity-based products, retired allocations no longer
+// require quota from the promise.
 func promiseRequiredQuota(now time.Time, tree *AccountingTree, promise *Promise) int64 {
 	wallet := tree.WalletsById[promise.Child]
 	if wallet == nil {
@@ -563,6 +601,10 @@ func promiseRequiredQuota(now time.Time, tree *AccountingTree, promise *Promise)
 	return required
 }
 
+// allocationUpdateChangelog formats the grant-facing audit text for manual promise allocation edits.
+//
+// The amount is converted to the same display convention used by normal allocation updates. This helper does not inspect
+// or mutate accounting state; callers pass the proposed values and the options that were actually changed.
 func allocationUpdateChangelog(
 	tree *AccountingTree,
 	proposedQuota int64,
@@ -612,6 +654,10 @@ func allocationUpdateChangelog(
 // - walletAssertConsumptionMatchesAllocations: Verifies wallet.Consumed equals the sum of allocation consumption.
 // - treeMutate: Locates and locks the accounting tree for a category.
 
+// walletMarkSignificantUpdate records that a wallet changed in a way providers or UI clients should observe.
+//
+// It updates both the category tree timestamp and the wallet timestamp. Use this for changes to availability,
+// allocations, lock state or other externally visible state; routine dirty persistence alone should only set Dirty.
 func walletMarkSignificantUpdate(now time.Time, tree *AccountingTree, wallet *Wallet) {
 	if wallet == nil {
 		return
@@ -621,6 +667,11 @@ func walletMarkSignificantUpdate(now time.Time, tree *AccountingTree, wallet *Wa
 	wallet.Dirty = true
 }
 
+// walletReevaluateLock updates wallet.Locked from the current admission-control view of remaining usable quota.
+//
+// A wallet is locked when walletRemainingUsable is zero. This is the post-mutation gate used after usage reports,
+// lifecycle scans and allocation changes. Lock transitions are significant updates because providers use them to decide
+// whether new work may be admitted.
 func walletReevaluateLock(now time.Time, tree *AccountingTree, wallet *Wallet) {
 	if wallet == nil {
 		return
@@ -635,6 +686,11 @@ func walletReevaluateLock(now time.Time, tree *AccountingTree, wallet *Wallet) {
 	}
 }
 
+// walletMaxUsable returns the externally advertised remaining usable amount for a wallet.
+//
+// This is the value exposed as WalletV2.MaxUsable and CheckProviderUsable.MaxUsable. It must always be zero for locked
+// wallets, even if quota fields still describe promised or historical capacity. For unlocked wallets it delegates to
+// walletRemainingUsable.
 func walletMaxUsable(now time.Time, tree *AccountingTree, wallet *Wallet) int64 {
 	if wallet == nil || wallet.Locked {
 		return 0
@@ -642,6 +698,12 @@ func walletMaxUsable(now time.Time, tree *AccountingTree, wallet *Wallet) int64 
 	return walletRemainingUsable(now, tree, wallet)
 }
 
+// walletRemainingUsable returns the non-negative amount that should currently be admitted for additional wallet usage.
+//
+// The base quota is compatibility-facing contributing quota: active/contributing promises plus low-level allocations.
+// If the wallet's measured demand has already exceeded the effective concrete allocation-tree quota, the quota is
+// clamped to that effective quota so overbooked promise trees do not keep admitting work solely because promise quota is
+// larger than parent-backed capacity. This helper ignores wallet.Locked; use walletMaxUsable for API responses.
 func walletRemainingUsable(now time.Time, tree *AccountingTree, wallet *Wallet) int64 {
 	if wallet == nil {
 		return 0
@@ -662,6 +724,10 @@ func walletRemainingUsable(now time.Time, tree *AccountingTree, wallet *Wallet) 
 	return max(quota-demand, 0)
 }
 
+// lifecycleScan advances activation and retirement state for every allocation in a tree.
+//
+// It also cleans up retired allocations and reevaluates wallet locks. Call this at the start of public operations that
+// interpret time-sensitive quota or usage state.
 func lifecycleScan(now time.Time, tree *AccountingTree) {
 	retiredCleanupQueue := make([]AllocationId, 0, len(tree.AllocationsById))
 	for _, allocation := range tree.AllocationsById {
@@ -674,6 +740,10 @@ func lifecycleScan(now time.Time, tree *AccountingTree) {
 	}
 }
 
+// lifecycleScanAllocation applies time-based activation and retirement transitions to one allocation.
+//
+// Activation makes an allocation count toward active/contributing quota. Retirement snapshots retired quota and usage so
+// reporting and API code can still describe what happened after the active interval ends.
 func lifecycleScanAllocation(now time.Time, tree *AccountingTree, allocation *Allocation) {
 	if allocation == nil {
 		return
@@ -694,6 +764,11 @@ func lifecycleScanAllocation(now time.Time, tree *AccountingTree, allocation *Al
 	}
 }
 
+// lifecycleCleanupRetiredAllocations releases unused quota from retired allocations back up the allocation tree.
+//
+// The cleanup keeps enough retired quota to cover retained self-consumption and child reservations, then propagates any
+// released child reservation to parents. Use this after lifecycle scans or usage redistribution, not as a standalone
+// quota planning mechanism.
 func lifecycleCleanupRetiredAllocations(now time.Time, tree *AccountingTree, initialQueue []AllocationId) {
 	retirementCleanupQueue := slices.Clone(initialQueue)
 	for len(retirementCleanupQueue) > 0 {
@@ -733,6 +808,11 @@ func lifecycleCleanupRetiredAllocations(now time.Time, tree *AccountingTree, ini
 	}
 }
 
+// allocationMutate is the low-level invariant boundary for modifying a concrete allocation.
+//
+// The callback may edit the allocation and, when present, its parent. After the callback this helper marks changed rows
+// dirty and checks allocation-local invariants, parent/child reservation consistency and parent period containment. It
+// should be used for all direct allocation state changes that can affect quota, consumption, parentage or period bounds.
 func allocationMutate(
 	now time.Time,
 	tree *AccountingTree,
@@ -856,6 +936,10 @@ func allocationMutate(
 	}
 }
 
+// walletMutate locks a category tree, finds a wallet by owner, and runs a wallet-level mutation.
+//
+// Use this for public operations that need exclusive access to one wallet and may also inspect or mutate nearby tree
+// state. The callback receives the locked tree so related allocations can be updated through allocationMutate.
 func walletMutate(category accapi.ProductCategoryIdV2, owner accapi.WalletOwner, fn func(tree *AccountingTree, wallet *Wallet)) {
 	treeMutate(category, func(tree *AccountingTree) *util.HttpError {
 		walletMutateEx(tree, owner, func(wallet *Wallet) {
@@ -865,6 +949,11 @@ func walletMutate(category accapi.ProductCategoryIdV2, owner accapi.WalletOwner,
 	})
 }
 
+// walletMutateEx runs a wallet mutation when the caller already holds the tree lock.
+//
+// It marks the wallet dirty and verifies that wallet.Consumed still equals the sum of ConsumedSelf across the wallet's
+// allocations. Missing wallets are ignored for historical callers; new public entry points should generally validate the
+// wallet before reaching this helper.
 func walletMutateEx(tree *AccountingTree, owner accapi.WalletOwner, fn func(wallet *Wallet)) {
 	ref := owner.Reference()
 	wallet, ok := tree.WalletsByOwner[ref]
@@ -877,6 +966,10 @@ func walletMutateEx(tree *AccountingTree, owner accapi.WalletOwner, fn func(wall
 	walletAssertConsumptionMatchesAllocations(tree, wallet)
 }
 
+// walletAssertConsumptionMatchesAllocations checks the wallet consumption accounting invariant.
+//
+// wallet.Consumed is the descriptive total reported for the wallet, while allocation.ConsumedSelf is the concrete
+// distribution of that total over active or retired allocations. They must sum exactly after every wallet mutation.
 func walletAssertConsumptionMatchesAllocations(tree *AccountingTree, wallet *Wallet) {
 	reportError := func(format string, args ...any) {
 		log.Fatal("Assertion error %#v: %s", wallet, fmt.Sprintf(format, args...))
@@ -893,6 +986,10 @@ func walletAssertConsumptionMatchesAllocations(tree *AccountingTree, wallet *Wal
 	}
 }
 
+// treeMutate locates a category tree and runs a mutation while holding its exclusive lock.
+//
+// This is the standard lock boundary for public low-level accounting operations. Callers should not hold another tree
+// lock when entering this helper.
 func treeMutate(category accapi.ProductCategoryIdV2, fn func(tree *AccountingTree) *util.HttpError) *util.HttpError {
 	accGlobals.Mu.RLock()
 	tree, ok := accGlobals.Trees[category]
@@ -1155,6 +1252,10 @@ func UsageReport(now time.Time, request accapi.ReportUsageRequest) (success bool
 	return
 }
 
+// usageReportScope returns the mutable scoped usage counter for delta reports with a scope key.
+//
+// Scoped usage lets a provider report deltas for a sub-resource while UsageReport still mutates wallet-level absolute
+// usage. A nil return means the request is unscoped and should be resolved directly from wallet.Consumed.
 func usageReportScope(request accapi.ReportUsageRequest) *ScopedUsage {
 	if !request.Description.Scope.Present {
 		return nil
@@ -1174,6 +1275,11 @@ func usageReportScope(request accapi.ReportUsageRequest) *ScopedUsage {
 	return scope
 }
 
+// usageReportResolveAbsoluteUsage converts an absolute or delta usage request into the wallet total to record.
+//
+// For unscoped requests, deltas are relative to wallet.Consumed. For scoped requests, deltas are relative to the scoped
+// counter but are still applied to wallet.Consumed. This helper validates that absolute wallet usage never becomes
+// negative and performs the scoped counter update under its own lock.
 func usageReportResolveAbsoluteUsage(now time.Time, request accapi.ReportUsageRequest, scope *ScopedUsage) (int64, *util.HttpError) {
 	if !request.IsDeltaCharge && request.Usage < 0 {
 		return 0, util.HttpErr(http.StatusForbidden, "absolute usage cannot be negative")

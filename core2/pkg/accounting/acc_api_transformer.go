@@ -91,6 +91,7 @@ func RootAllocateAt(
 	return AllocationCreate(now, catId, start, end, quota, walletId, util.OptNone[AllocationId](), util.OptNone[GrantId]())
 }
 
+// walletBrowseKey returns the stable sort and pagination key used by wallet browse responses.
 func walletBrowseKey(wallet accapi.WalletV2) string {
 	return wallet.Owner.Reference() + "@" + wallet.PaysFor.Provider + "@" + wallet.PaysFor.Name
 }
@@ -395,6 +396,12 @@ func WalletsUpdatedAfter(now time.Time, replayFrom time.Time, providerId string)
 	return result
 }
 
+// walletToApi builds the compatibility-facing WalletV2 view for a concrete wallet.
+//
+// The returned quota fields intentionally mix promise-level and allocation-level concepts used by existing clients:
+// Quota is contributing inbound quota, TotalAllocated is quota this wallet has allocated onward, and MaxUsable is the
+// admission-control value from walletMaxUsable. Use the lower-level measurement helpers below when adding new fields so
+// it is clear whether a value is promise-facing, concrete allocation-facing, active-only or UI-only.
 func walletToApi(now time.Time, tree *AccountingTree, promiseTree *PromiseTree, wallet *Wallet, includeChildren bool) accapi.WalletV2 {
 	inbound := promiseRelationshipsByParent(promiseTree, wallet.Id)
 	children := promiseRelationshipsByChild(promiseTree, wallet.Id)
@@ -447,10 +454,17 @@ func walletToApi(now time.Time, tree *AccountingTree, promiseTree *PromiseTree, 
 	return apiWallet
 }
 
+// parentOrChildWallet returns the compact API identity for a known wallet id.
+//
+// It is used in allocation group parent/child links and delegates missing-wallet handling to optParentOrChildWallet.
 func parentOrChildWallet(tree *AccountingTree, walletId WalletId) util.Option[accapi.ParentOrChildWallet] {
 	return optParentOrChildWallet(tree, util.OptValue(walletId))
 }
 
+// optParentOrChildWallet returns a compact API wallet identity when the wallet id is present and resolvable.
+//
+// The API type carries project-related display fields even for user wallets; this helper mirrors the historical mapping
+// used by wallet allocation groups.
 func optParentOrChildWallet(tree *AccountingTree, walletId util.Option[WalletId]) util.Option[accapi.ParentOrChildWallet] {
 	if !walletId.Present {
 		return util.OptNone[accapi.ParentOrChildWallet]()
@@ -466,6 +480,10 @@ func optParentOrChildWallet(tree *AccountingTree, walletId util.Option[WalletId]
 	})
 }
 
+// lowLevelAllocationGroupToApi converts concrete, non-promise allocations between two wallets into an API group.
+//
+// Its quota and usage measurements come only from the concrete allocations in the relationship. Use this for manually
+// created allocation rows; promise-backed rows should use allocationGroupToApi so promise quota remains visible.
 func lowLevelAllocationGroupToApi(now time.Time, tree *AccountingTree, promiseTree *PromiseTree, relationship lowLevelRelationship) accapi.AllocationGroup {
 	allocations := make([]accapi.Allocation, 0, len(relationship.Allocations))
 	for _, allocation := range relationship.Allocations {
@@ -483,6 +501,11 @@ func lowLevelAllocationGroupToApi(now time.Time, tree *AccountingTree, promiseTr
 	}
 }
 
+// allocationGroupToApi converts promises between two wallets into an API group.
+//
+// The group uses promise quota for Quota and active promise periods for UiOnlyActiveQuota, while usage is measured from
+// the concrete materializations belonging to those promises. This preserves compatibility-facing promise visibility even
+// when materialized parent-backed quota is lower.
 func allocationGroupToApi(now time.Time, tree *AccountingTree, promiseTree *PromiseTree, relationship promiseRelationship) accapi.AllocationGroup {
 	promiseIds := map[PromiseId]bool{}
 	for _, promise := range relationship.Promises {
@@ -513,6 +536,10 @@ func allocationGroupToApi(now time.Time, tree *AccountingTree, promiseTree *Prom
 	}
 }
 
+// sortApiAllocations orders allocations for stable API output.
+//
+// Active and current/future allocations are shown before retired allocations, then newer starts and earlier expirations
+// are preferred. The final id comparison makes the order deterministic.
 func sortApiAllocations(allocations []accapi.Allocation) {
 	slices.SortFunc(allocations, func(a, b accapi.Allocation) int {
 		if a.Retired != b.Retired {
@@ -543,6 +570,11 @@ func sortApiAllocations(allocations []accapi.Allocation) {
 	})
 }
 
+// allocationToApi converts one concrete allocation row to the API allocation shape.
+//
+// For active promise-backed allocations, Quota is the promise quota rather than the materialized allocation quota. That
+// is compatibility-facing and descriptive; callers that need concrete effective quota should inspect Allocation fields
+// directly or use promiseWalletEffectiveReportQuota for wallet-level admission control.
 func allocationToApi(promiseTree *PromiseTree, allocation *Allocation) accapi.Allocation {
 	quota := allocation.QuotaSelf + allocation.QuotaChildren
 	grant := allocation.Grant
@@ -574,6 +606,10 @@ func allocationToApi(promiseTree *PromiseTree, allocation *Allocation) accapi.Al
 	}
 }
 
+// promiseRelationshipsByParent groups all promises that grant quota to child by their parent wallet.
+//
+// Use this when rendering or measuring the inbound allocation groups of a wallet. The returned relationships contain
+// promise definitions only; concrete materializations are found later by relationshipAllocations.
 func promiseRelationshipsByParent(promiseTree *PromiseTree, child WalletId) []promiseRelationship {
 	byParent := map[WalletId][]*Promise{}
 	for _, promiseId := range promiseTree.PromisesByChild[child] {
@@ -585,6 +621,10 @@ func promiseRelationshipsByParent(promiseTree *PromiseTree, child WalletId) []pr
 	return promiseRelationshipsFromMap(child, byParent, false)
 }
 
+// promiseRelationshipsByChild groups all promises made by parent by their child wallet.
+//
+// Use this when rendering or measuring the children of a wallet. The grouping is promise-level and does not imply that
+// the promises are fully materialized in the concrete allocation tree.
 func promiseRelationshipsByChild(promiseTree *PromiseTree, parent WalletId) []promiseRelationship {
 	byChild := map[WalletId][]*Promise{}
 	for _, promiseId := range promiseTree.PromisesByParent[parent] {
@@ -596,6 +636,10 @@ func promiseRelationshipsByChild(promiseTree *PromiseTree, parent WalletId) []pr
 	return promiseRelationshipsFromMap(parent, byChild, true)
 }
 
+// promiseRelationshipsFromMap builds sorted promise relationships from an already grouped promise map.
+//
+// walletIsParent controls whether the supplied wallet id is assigned to the Parent or Child side of each relationship.
+// Promises and relationships are sorted so API output and aggregate measurements are deterministic.
 func promiseRelationshipsFromMap(wallet WalletId, grouped map[WalletId][]*Promise, walletIsParent bool) []promiseRelationship {
 	relationships := []promiseRelationship{}
 	for other, promises := range grouped {
@@ -621,6 +665,10 @@ func promiseRelationshipsFromMap(wallet WalletId, grouped map[WalletId][]*Promis
 	return relationships
 }
 
+// lowLevelRelationshipsByParent groups concrete non-promise allocations owned by child by their parent wallet.
+//
+// Root allocations are represented with no parent. Promise-backed allocations are deliberately excluded because promise
+// groups use promiseRelationshipsByParent plus relationshipAllocations.
 func lowLevelRelationshipsByParent(tree *AccountingTree, child WalletId) []lowLevelRelationship {
 	grouped := map[WalletId][]*Allocation{}
 	root := []*Allocation{}
@@ -655,6 +703,10 @@ func lowLevelRelationshipsByParent(tree *AccountingTree, child WalletId) []lowLe
 	return result
 }
 
+// lowLevelRelationshipsByChild groups concrete non-promise child allocations by child wallet for a parent wallet.
+//
+// Use this for manually created allocation children. Promise-backed children are excluded so they are measured through
+// promise relationships instead of concrete materialization rows.
 func lowLevelRelationshipsByChild(tree *AccountingTree, parent WalletId) []lowLevelRelationship {
 	grouped := map[WalletId][]*Allocation{}
 	for _, allocation := range tree.AllocationsById {
@@ -675,6 +727,7 @@ func lowLevelRelationshipsByChild(tree *AccountingTree, parent WalletId) []lowLe
 	return result
 }
 
+// sortLowLevelRelationships gives concrete allocation relationships deterministic parent/child order.
 func sortLowLevelRelationships(relationships []lowLevelRelationship) {
 	slices.SortFunc(relationships, func(a, b lowLevelRelationship) int {
 		parentA := 0
@@ -692,6 +745,10 @@ func sortLowLevelRelationships(relationships []lowLevelRelationship) {
 	})
 }
 
+// walletTotalUsage measures wallet-local usage plus usage allocated onward to all children.
+//
+// LocalUsage in the API is wallet.Consumed only. TotalUsage uses this helper to add both promise-backed and low-level
+// child relationship usage, making it a subtree-facing usage number rather than an admission-control number.
 func walletTotalUsage(now time.Time, tree *AccountingTree, promiseTree *PromiseTree, wallet *Wallet) int64 {
 	usage := wallet.Consumed
 	for _, relationship := range promiseRelationshipsByChild(promiseTree, wallet.Id) {
@@ -703,6 +760,10 @@ func walletTotalUsage(now time.Time, tree *AccountingTree, promiseTree *PromiseT
 	return usage
 }
 
+// walletUiOnlyActiveUsage measures inbound usage that should be shown as active in the UI.
+//
+// For non-capacity products, retired usage is subtracted because it remains contributing for accounting compatibility
+// but should not inflate the UI's active usage display. This is a presentation helper, not a lock/admission helper.
 func walletUiOnlyActiveUsage(now time.Time, tree *AccountingTree, promiseTree *PromiseTree, wallet *Wallet) int64 {
 	usage := int64(0)
 	for _, relationship := range promiseRelationshipsByParent(promiseTree, wallet.Id) {
@@ -714,6 +775,11 @@ func walletUiOnlyActiveUsage(now time.Time, tree *AccountingTree, promiseTree *P
 	return usage
 }
 
+// walletQuotaContributing measures compatibility-facing inbound quota for a wallet.
+//
+// Promise relationships contribute promise.Quota while they are contributing, even if less quota is currently
+// materialized in the concrete allocation tree. Low-level relationships contribute active concrete allocation quota, and
+// retired quota for non-capacity products. Do not use this alone for overbooking-sensitive admission control.
 func walletQuotaContributing(now time.Time, tree *AccountingTree, promiseTree *PromiseTree, wallet *Wallet) int64 {
 	quota := int64(0)
 	for _, relationship := range promiseRelationshipsByParent(promiseTree, wallet.Id) {
@@ -725,6 +791,10 @@ func walletQuotaContributing(now time.Time, tree *AccountingTree, promiseTree *P
 	return quota
 }
 
+// walletQuotaAllocated measures compatibility-facing quota that this wallet has allocated to children.
+//
+// It mirrors walletQuotaContributing from the parent side: promise children contribute promise quota and low-level
+// children contribute concrete allocation quota. Use it for descriptive API fields such as TotalAllocated.
 func walletQuotaAllocated(now time.Time, tree *AccountingTree, promiseTree *PromiseTree, wallet *Wallet) int64 {
 	quota := int64(0)
 	for _, relationship := range promiseRelationshipsByChild(promiseTree, wallet.Id) {
@@ -736,6 +806,10 @@ func walletQuotaAllocated(now time.Time, tree *AccountingTree, promiseTree *Prom
 	return quota
 }
 
+// walletActiveQuota measures currently active inbound quota for UI filtering and active-quota fields.
+//
+// Promise quota is included only during the promise active interval. Low-level quota is included only from activated,
+// non-retired concrete allocations. This is still a quota display metric, not a remaining-usable calculation.
 func walletActiveQuota(now time.Time, tree *AccountingTree, promiseTree *PromiseTree, wallet *Wallet) int64 {
 	quota := walletPromiseActiveQuota(now, promiseTree, wallet.Id)
 	for _, relationship := range lowLevelRelationshipsByParent(tree, wallet.Id) {
@@ -744,6 +818,9 @@ func walletActiveQuota(now time.Time, tree *AccountingTree, promiseTree *Promise
 	return quota
 }
 
+// walletPromiseActiveQuota measures active promise quota granted to a wallet.
+//
+// It ignores low-level allocations and is used as the promise component of walletActiveQuota.
 func walletPromiseActiveQuota(now time.Time, promiseTree *PromiseTree, walletId WalletId) int64 {
 	quota := int64(0)
 	for _, relationship := range promiseRelationshipsByParent(promiseTree, walletId) {
@@ -752,6 +829,11 @@ func walletPromiseActiveQuota(now time.Time, promiseTree *PromiseTree, walletId 
 	return quota
 }
 
+// relationshipUsage measures usage recorded on concrete materializations for a promise relationship.
+//
+// For capacity-based products this is current ConsumedSelf. For non-capacity products, retired allocations contribute
+// RetiredUsage so historical consumption remains visible after retirement cleanup. The promise quota itself is not used
+// to derive usage.
 func relationshipUsage(now time.Time, tree *AccountingTree, relationship promiseRelationship) int64 {
 	usage := int64(0)
 	for _, allocation := range relationshipAllocations(tree, relationship) {
@@ -764,6 +846,10 @@ func relationshipUsage(now time.Time, tree *AccountingTree, relationship promise
 	return usage
 }
 
+// relationshipUiOnlyActiveUsage measures promise relationship usage for active UI display.
+//
+// It starts from relationshipUsage, then removes retired usage for non-capacity products because that usage remains
+// accounting-contributing but is no longer active in the UI sense.
 func relationshipUiOnlyActiveUsage(now time.Time, tree *AccountingTree, relationship promiseRelationship) int64 {
 	usage := relationshipUsage(now, tree, relationship)
 	if !tree.IsCapacityBased() {
@@ -776,6 +862,10 @@ func relationshipUiOnlyActiveUsage(now time.Time, tree *AccountingTree, relation
 	return max(usage, 0)
 }
 
+// lowLevelRelationshipUsage measures usage on concrete non-promise allocations in a relationship.
+//
+// Its retirement semantics match relationshipUsage: capacity products use current ConsumedSelf, while non-capacity
+// products keep RetiredUsage visible after retirement cleanup.
 func lowLevelRelationshipUsage(now time.Time, tree *AccountingTree, relationship lowLevelRelationship) int64 {
 	usage := int64(0)
 	for _, allocation := range relationship.Allocations {
@@ -788,6 +878,10 @@ func lowLevelRelationshipUsage(now time.Time, tree *AccountingTree, relationship
 	return usage
 }
 
+// lowLevelRelationshipUiOnlyActiveUsage measures concrete relationship usage for active UI display.
+//
+// It subtracts retired usage for non-capacity products, mirroring relationshipUiOnlyActiveUsage for non-promise
+// allocation groups.
 func lowLevelRelationshipUiOnlyActiveUsage(now time.Time, tree *AccountingTree, relationship lowLevelRelationship) int64 {
 	usage := lowLevelRelationshipUsage(now, tree, relationship)
 	if !tree.IsCapacityBased() {
@@ -800,6 +894,10 @@ func lowLevelRelationshipUiOnlyActiveUsage(now time.Time, tree *AccountingTree, 
 	return max(usage, 0)
 }
 
+// lowLevelRelationshipQuotaContributing measures compatibility-facing quota on concrete non-promise allocations.
+//
+// Activated allocations contribute their total quota. Retired allocations keep contributing only for non-capacity
+// products, where retired quota still represents historical entitlement for accounting reports.
 func lowLevelRelationshipQuotaContributing(now time.Time, tree *AccountingTree, relationship lowLevelRelationship) int64 {
 	retiredContributes := !tree.IsCapacityBased()
 	quota := int64(0)
@@ -811,6 +909,9 @@ func lowLevelRelationshipQuotaContributing(now time.Time, tree *AccountingTree, 
 	return quota
 }
 
+// lowLevelRelationshipActiveQuota measures currently active concrete quota on non-promise allocations.
+//
+// Only activated, non-retired allocations are counted. Use this for active UI quota, not for promise compatibility quota.
 func lowLevelRelationshipActiveQuota(now time.Time, relationship lowLevelRelationship) int64 {
 	quota := int64(0)
 	for _, allocation := range relationship.Allocations {
@@ -821,6 +922,10 @@ func lowLevelRelationshipActiveQuota(now time.Time, relationship lowLevelRelatio
 	return quota
 }
 
+// relationshipQuotaContributing measures compatibility-facing quota for a promise relationship.
+//
+// It sums promise.Quota for promises that currently contribute. This may exceed the concrete allocation-tree capacity in
+// overbooked trees, so admission-control paths should combine it with effective concrete quota before allowing work.
 func relationshipQuotaContributing(now time.Time, tree *AccountingTree, relationship promiseRelationship) int64 {
 	quota := int64(0)
 	for _, promise := range relationship.Promises {
@@ -831,6 +936,10 @@ func relationshipQuotaContributing(now time.Time, tree *AccountingTree, relation
 	return quota
 }
 
+// relationshipActiveQuota measures promise quota whose promise interval is active at now.
+//
+// This is a promise-level UI/display metric. It does not check whether the promise has materialized concrete backing
+// allocations.
 func relationshipActiveQuota(now time.Time, relationship promiseRelationship) int64 {
 	quota := int64(0)
 	for _, promise := range relationship.Promises {
@@ -841,6 +950,10 @@ func relationshipActiveQuota(now time.Time, relationship promiseRelationship) in
 	return quota
 }
 
+// relationshipAllocations returns concrete allocations that materialize any promise in a promise relationship.
+//
+// The result is used for usage and allocation-list rendering. It may be empty even when the relationship has promise
+// quota, because promise quota can exist before or without concrete materialization.
 func relationshipAllocations(tree *AccountingTree, relationship promiseRelationship) []*Allocation {
 	promiseIds := map[PromiseId]bool{}
 	for _, promise := range relationship.Promises {
@@ -862,6 +975,10 @@ func relationshipAllocations(tree *AccountingTree, relationship promiseRelations
 	return allocations
 }
 
+// promiseContributes reports whether a promise should count toward compatibility-facing contributing quota.
+//
+// Capacity-based products stop contributing at the promise end. Non-capacity products continue contributing after end so
+// historical quota remains available for reporting semantics.
 func promiseContributes(now time.Time, tree *AccountingTree, promise *Promise) bool {
 	if promise == nil || now.Before(promise.Start) {
 		return false
@@ -869,6 +986,10 @@ func promiseContributes(now time.Time, tree *AccountingTree, promise *Promise) b
 	return !tree.IsCapacityBased() || now.Before(promise.End)
 }
 
+// promiseActive reports whether now is inside the promise's active interval.
+//
+// Active promises drive active quota and UI filtering. This is stricter than promiseContributes for non-capacity
+// products, where a promise can keep contributing after it is no longer active.
 func promiseActive(now time.Time, promise *Promise) bool {
 	return promise != nil && !now.Before(promise.Start) && now.Before(promise.End)
 }
