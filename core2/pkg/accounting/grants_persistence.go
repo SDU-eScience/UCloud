@@ -713,6 +713,9 @@ func lGrantsPersistSettings(settings *grantSettings, templateHasChanges bool) {
 		}
 
 		if templateHasChanges {
+			// We bump the revision number to make a new version of the template
+			s.Templates.Structured.RevisionNumber++
+
 			db.Exec(
 				tx,
 				`

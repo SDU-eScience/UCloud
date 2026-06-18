@@ -1766,7 +1766,7 @@ func GrantsUpdateSettings(actor rpc.Actor, id string, s accapi.GrantRequestSetti
 	}
 
 	w.Mu.Lock()
-	templateHasChanges := grantCompareAndRegisterTemplateChanges(w.Settings, &s)
+	templateHasChanges := grantCompareTemplateChanges(w.Settings, &s)
 	w.Settings = &s
 	lGrantsPersistSettings(w, templateHasChanges)
 	w.Mu.Unlock()
@@ -1776,25 +1776,14 @@ func GrantsUpdateSettings(actor rpc.Actor, id string, s accapi.GrantRequestSetti
 
 /**
  * Detecting changes of the template.
- * We bump the revision number if the template has been changed and return a boolean value.
  * The value will be used by lGrantsPersistSettings to trigger persisting the changes in the database.
  */
-func grantCompareAndRegisterTemplateChanges(oldSettings *accapi.GrantRequestSettings, newSettings *accapi.GrantRequestSettings) bool {
+func grantCompareTemplateChanges(oldSettings *accapi.GrantRequestSettings, newSettings *accapi.GrantRequestSettings) bool {
 	if oldSettings == nil {
 		// if oldSettings is nil, it means that the template is being created for the first time.
-		newSettings.Templates.Structured.RevisionNumber++
 		return true
 	}
-	templateHasChanges := false
-	current := &oldSettings.Templates.Structured
-	newSettings.Templates.Structured.RevisionNumber = current.RevisionNumber
-
-	if grantsTemplateHasChanges(&newSettings.Templates.Structured, current) {
-		templateHasChanges = true
-		// We bump the revision number if the template has changes.
-		newSettings.Templates.Structured.RevisionNumber++
-	}
-	return templateHasChanges
+	return grantsTemplateHasChanges(&newSettings.Templates.Structured, &oldSettings.Templates.Structured)
 }
 
 /**
