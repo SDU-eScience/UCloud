@@ -342,7 +342,7 @@ func promiseWalletReportQuota(tree *AccountingTree, wallet *Wallet) int64 {
 	quota := int64(0)
 	for _, allocationId := range wallet.Allocations {
 		allocation := tree.AllocationsById[allocationId]
-		if allocation.Activated {
+		if allocation != nil && allocation.Activated {
 			if !allocation.Retired {
 				quota += allocation.QuotaSelf
 			} else if includeRetired {
@@ -352,6 +352,37 @@ func promiseWalletReportQuota(tree *AccountingTree, wallet *Wallet) int64 {
 	}
 
 	return quota
+}
+
+func promiseWalletEffectiveReportQuota(tree *AccountingTree, wallet *Wallet) (int64, bool) {
+	includeRetired := !tree.IsCapacityBased()
+	quota := int64(0)
+	hasConcreteQuota := false
+	seenParents := map[AllocationId]bool{}
+
+	for _, allocationId := range wallet.Allocations {
+		allocation := tree.AllocationsById[allocationId]
+		if allocation == nil || !allocation.Activated {
+			continue
+		}
+
+		if !allocation.Retired {
+			hasConcreteQuota = true
+			quota += allocation.QuotaSelf
+			if allocation.Parent.Present && !seenParents[allocation.Parent.Value] {
+				seenParents[allocation.Parent.Value] = true
+				parent := tree.AllocationsById[allocation.Parent.Value]
+				if parent != nil {
+					quota += max(parent.QuotaChildren-parent.ReservedChildren, 0)
+				}
+			}
+		} else if includeRetired {
+			hasConcreteQuota = true
+			quota += allocation.ConsumedSelf
+		}
+	}
+
+	return quota, hasConcreteQuota
 }
 
 func promiseRelevantPromisesForWallet(tree *PromiseTree, walletId WalletId) []*Promise {

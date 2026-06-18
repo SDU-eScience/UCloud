@@ -648,10 +648,18 @@ func walletRemainingUsable(now time.Time, tree *AccountingTree, wallet *Wallet) 
 	}
 	quota := int64(0)
 	quota = walletQuotaContributing(now, tree, &tree.PromiseTree, wallet)
-	if quota == 0 {
-		quota = promiseWalletReportQuota(tree, wallet)
+	effectiveQuota, hasEffectiveQuota := promiseWalletEffectiveReportQuota(tree, wallet)
+	demand := promiseMeasuredWalletDemand(now, tree, wallet)
+	if hasEffectiveQuota {
+		if quota == 0 {
+			quota = effectiveQuota
+		} else if demand > effectiveQuota {
+			quota = min(quota, effectiveQuota)
+		}
+	} else if quota == 0 {
+		quota = effectiveQuota
 	}
-	return max(quota-promiseMeasuredWalletDemand(now, tree, wallet), 0)
+	return max(quota-demand, 0)
 }
 
 func lifecycleScan(now time.Time, tree *AccountingTree) {

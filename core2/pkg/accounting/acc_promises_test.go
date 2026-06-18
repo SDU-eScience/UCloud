@@ -5,6 +5,8 @@ import (
 	"time"
 
 	accapi "ucloud.dk/shared/pkg/accounting"
+	fndapi "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -533,6 +535,41 @@ func TestPromiseReportUsageSingleRootMultipleL1ChildrenOverbooked(t *testing.T) 
 	e.assertAllocation("root", 0, 100, 0, 100)
 	e.assertWalletConsumed("a", 60)
 	e.assertWalletConsumed("b", 60)
+}
+
+func TestPromiseReportUsageOverbookedBelowPromiseQuotaLocksWallet(t *testing.T) {
+	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
+	e.setPolicy(PromisePolicy{TrendAlphaBasisPoints: 10000})
+	e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 10, Quota: 100, Self: 0, Children: 100})
+	aPromise := e.addPromise("root", "a", 0, 10, 60)
+	bPromise := e.addPromise("root", "b", 0, 10, 60)
+
+	e.report(1, "a", 60)
+	if success := e.report(2, "b", 50); success {
+		t.Fatalf("b report succeeded, want wallet locked after exceeding materialized capacity")
+	}
+
+	aHead := e.promiseHead(aPromise, 2)
+	bHead := e.promiseHead(bPromise, 2)
+	assertPromiseAllocation(t, aHead, 60, 0, e.tm(1), e.tm(10))
+	assertPromiseAllocation(t, bHead, 40, 0, e.tm(2), e.tm(10))
+	if aHead.ConsumedSelf != 60 || bHead.ConsumedSelf != 50 {
+		t.Fatalf("consumption split = %d/%d, want 60/50", aHead.ConsumedSelf, bHead.ConsumedSelf)
+	}
+	e.assertAllocation("root", 0, 100, 0, 100)
+	e.assertWalletConsumed("a", 60)
+	e.assertWalletConsumed("b", 50)
+
+	bWallet := e.tree().WalletsById[e.wallet("b")]
+	if bWallet == nil || !bWallet.Locked {
+		t.Fatalf("b wallet locked = %v, want true", bWallet != nil && bWallet.Locked)
+	}
+
+	provider := rpc.Actor{Username: fndapi.ProviderSubjectPrefix + e.categoryId.Provider, Role: rpc.RoleProvider}
+	usable, err := WalletsCheckProviderUsableAt(e.tm(2), provider, e.owner("b"), e.categoryId)
+	if err != nil || usable.MaxUsable != 0 {
+		t.Fatalf("provider usable = %#v err=%v, want 0/nil", usable, err)
+	}
 }
 
 func TestPromiseReportUsageSingleL2ChildMultipleL1Parents(t *testing.T) {
