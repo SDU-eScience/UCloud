@@ -798,3 +798,41 @@ func TestLowLevelRetiredAllocationReleasesResourcesToParents(t *testing.T) {
 		})
 	}
 }
+
+func TestLowLevelLifecycleRetiredTimeBasedAllocationReleasesResourcesToParents(t *testing.T) {
+	t.Run("retired leaf releases parent reservation", func(t *testing.T) {
+		e := newLowTestEnv(t, accapi.AccountingFrequencyPeriodicHour)
+		e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 20, Quota: 100, Self: 0, Children: 100})
+		e.add(lowAllocSpec{Name: "child", Wallet: "child", Parent: "root", Start: 0, End: 5, Quota: 80})
+
+		lifecycleScan(e.tm(6), e.tree())
+
+		child := e.alloc("child")
+		if !child.Retired {
+			t.Fatalf("child allocation was not marked retired")
+		}
+		e.assertAllocation("child", 0, 0, 0, 0)
+		e.assertAllocation("root", 0, 100, 0, 0)
+		e.assertValid()
+	})
+
+	t.Run("retired parent release propagates to grandparent", func(t *testing.T) {
+		e := newLowTestEnv(t, accapi.AccountingFrequencyPeriodicHour)
+		e.add(lowAllocSpec{Name: "grand", Wallet: "grand", Start: 0, End: 20, Quota: 200, Self: 0, Children: 200})
+		e.add(lowAllocSpec{Name: "parent", Wallet: "parent", Parent: "grand", Start: 0, End: 10, Quota: 100, Self: 40, Children: 60})
+		e.add(lowAllocSpec{Name: "child", Wallet: "child", Parent: "parent", Start: 0, End: 5, Quota: 30})
+
+		lifecycleScan(e.tm(11), e.tree())
+
+		if !e.alloc("child").Retired {
+			t.Fatalf("child allocation was not marked retired")
+		}
+		if !e.alloc("parent").Retired {
+			t.Fatalf("parent allocation was not marked retired")
+		}
+		e.assertAllocation("child", 0, 0, 0, 0)
+		e.assertAllocation("parent", 0, 0, 0, 0)
+		e.assertAllocation("grand", 0, 200, 0, 0)
+		e.assertValid()
+	})
+}

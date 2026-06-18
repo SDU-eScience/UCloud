@@ -655,9 +655,12 @@ func walletRemainingUsable(now time.Time, tree *AccountingTree, wallet *Wallet) 
 }
 
 func lifecycleScan(now time.Time, tree *AccountingTree) {
+	retiredCleanupQueue := make([]AllocationId, 0, len(tree.AllocationsById))
 	for _, allocation := range tree.AllocationsById {
 		lifecycleScanAllocation(now, tree, allocation)
+		retiredCleanupQueue = append(retiredCleanupQueue, allocation.Id)
 	}
+	lifecycleCleanupRetiredAllocations(now, tree, retiredCleanupQueue)
 	for _, wallet := range tree.WalletsById {
 		walletReevaluateLock(now, tree, wallet)
 	}
@@ -680,6 +683,45 @@ func lifecycleScanAllocation(now time.Time, tree *AccountingTree, allocation *Al
 		allocation.RetiredUsage = allocation.ConsumedSelf
 		allocation.Dirty = true
 		walletMarkSignificantUpdate(now, tree, wallet)
+	}
+}
+
+func lifecycleCleanupRetiredAllocations(now time.Time, tree *AccountingTree, initialQueue []AllocationId) {
+	retirementCleanupQueue := slices.Clone(initialQueue)
+	for len(retirementCleanupQueue) > 0 {
+		retiredId := retirementCleanupQueue[0]
+		retirementCleanupQueue = retirementCleanupQueue[1:]
+
+		retiredReadOnly := tree.AllocationsById[retiredId]
+		if retiredReadOnly == nil || !retiredReadOnly.IsRetired(now) {
+			continue
+		}
+
+		allocationMutate(now, tree, retiredId, func(retired *Allocation, parent util.Option[*Allocation]) {
+			released := int64(0)
+
+			if retired.QuotaChildren > retired.ReservedChildren {
+				released += retired.QuotaChildren - retired.ReservedChildren
+				retired.QuotaChildren = retired.ReservedChildren
+			}
+
+			if retired.QuotaSelf > retired.ConsumedSelf {
+				released += retired.QuotaSelf - retired.ConsumedSelf
+				retired.QuotaSelf = retired.ConsumedSelf
+			}
+
+			if released > 0 {
+				walletMarkSignificantUpdate(now, tree, tree.WalletsById[retired.Wallet])
+			}
+
+			if released > 0 && parent.Present {
+				parent.Value.ReservedChildren -= released
+				retirementCleanupQueue = append(retirementCleanupQueue, parent.Value.Id)
+				walletMarkSignificantUpdate(now, tree, tree.WalletsById[parent.Value.Wallet])
+				walletReevaluateLock(now, tree, tree.WalletsById[parent.Value.Wallet])
+			}
+		})
+		walletReevaluateLock(now, tree, tree.WalletsById[retiredReadOnly.Wallet])
 	}
 }
 
@@ -1089,46 +1131,7 @@ func UsageReport(now time.Time, request accapi.ReportUsageRequest) (success bool
 			}
 		}
 
-		/*
-			When retirement occurs, the following applies:
-
-			- Lower QuotaChildren to ReservedChildren.
-			- Lower QuotaSelf to ConsumedSelf.
-			- Do not lower ConsumedSelf here unless the same usage was already moved to another allocation in this wallet.
-			- When QuotaSelf or QuotaChildren goes down, release the same amount from parent.ReservedChildren.
-			- Parent releases may enable the same cleanup recursively up the tree.
-			- These rules only lower values. They must not increase retired allocation quota or usage.
-		*/
-		retirementCleanupQueue := slices.Clone(retiredAllocations)
-		for len(retirementCleanupQueue) > 0 {
-			retiredId := retirementCleanupQueue[0]
-			retirementCleanupQueue = retirementCleanupQueue[1:]
-
-			retiredReadOnly := tree.AllocationsById[retiredId]
-			if !retiredReadOnly.IsRetired(now) {
-				continue
-			}
-
-			allocationMutate(now, tree, retiredId, func(retired *Allocation, parent util.Option[*Allocation]) {
-				released := int64(0)
-
-				if retired.QuotaChildren > retired.ReservedChildren {
-					released += retired.QuotaChildren - retired.ReservedChildren
-					retired.QuotaChildren = retired.ReservedChildren
-				}
-
-				if retired.QuotaSelf > retired.ConsumedSelf {
-					released += retired.QuotaSelf - retired.ConsumedSelf
-					retired.QuotaSelf = retired.ConsumedSelf
-				}
-
-				if released > 0 && parent.Present {
-					parent.Value.ReservedChildren -= released
-					retirementCleanupQueue = append(retirementCleanupQueue, parent.Value.Id)
-					walletMarkSignificantUpdate(now, tree, tree.WalletsById[parent.Value.Wallet])
-				}
-			})
-		}
+		lifecycleCleanupRetiredAllocations(now, tree, retiredAllocations)
 
 		walletReevaluateLock(now, tree, wallet)
 		success = !wallet.Locked
