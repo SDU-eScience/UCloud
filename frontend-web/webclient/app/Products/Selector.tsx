@@ -345,7 +345,7 @@ export const ProductSelector: React.FunctionComponent<{
                     {selected ?
                         <Flex alignItems={"center"}>
                             {isCompute ? <Icon size={24} ml="-4px" name="heroCpuChip" mr="4px" /> : <ProviderLogo providerId={selected?.category?.provider ?? "?"} size={24} />}
-                            {selected.name}
+                            {selectedComputeCategory?.category}
                             {isCompute ? null : <>
                                 <Box>-</Box>
                                 <Box>{priceToString(selected, 1)}</Box>
@@ -742,7 +742,7 @@ function MachineTypeSelectionSlider(props: {
         <CustomDataListThingy>
             {props.selectedCategory.products.map((p, idx) => <Box key={idx}>
                 <Box>
-                    <Box mx="auto">{computeV2CountStringThing(p)}</Box>
+                    <Box>{computeV2CountStringThing(p)}</Box>
                     <JobQueueStatusIndicator status={JobQueueStatus.AVAILABLE} />
                 </Box>
             </Box>)}
@@ -752,14 +752,15 @@ function MachineTypeSelectionSlider(props: {
 
 const ThingyStyle = injectStyle("thingy-style", cl => `
     ${cl} {
-        width: calc(100% - 32px);
+        width: 100%;
         justify-content: space-between;
         padding-left: 4px;
         padding-top: 8px;
     }
 
     ${cl} > div {
-        width: 0px;
+        width: 30px;
+
     }
 `);
 
