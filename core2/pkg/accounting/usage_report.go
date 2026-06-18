@@ -93,12 +93,22 @@ type internalUsageOverTimeDeltaDataPoint struct {
 }
 
 func (r *internalUsageOverTimeDeltaDataPoint) ToApi() accapi.UsageReportDeltaDataPoint {
+	child := setChild(r.Child)
+
+	return accapi.UsageReportDeltaDataPoint{
+		Timestamp: fndapi.Timestamp(r.Timestamp),
+		Change:    r.Change,
+		Child:     child,
+	}
+}
+
+func setChild(givenChild util.Option[AccWalletId]) util.Option[string] {
 	child := util.OptNone[string]()
-	if r.Child.Present {
-		if r.Child.Value < 0 {
+	if givenChild.Present {
+		if givenChild.Value < 0 {
 			child.Set("Other")
 		} else {
-			b, w, ok := internalWalletById(r.Child.Value)
+			b, w, ok := internalWalletById(givenChild.Value)
 
 			if ok {
 				b.Mu.RLock()
@@ -112,10 +122,20 @@ func (r *internalUsageOverTimeDeltaDataPoint) ToApi() accapi.UsageReportDeltaDat
 			}
 		}
 	}
+	return child
+}
 
-	return accapi.UsageReportDeltaDataPoint{
-		Timestamp: fndapi.Timestamp(r.Timestamp),
-		Change:    r.Change,
+type internalUsageOverTimeAbsoluteChildrenDataPoint struct {
+	Timestamp time.Time
+	Usage     int64
+	Child     util.Option[AccWalletId]
+}
+
+func (d *internalUsageOverTimeAbsoluteChildrenDataPoint) ToApi() accapi.UsageReportAbsoluteChildrenDataPoint {
+	child := setChild(d.Child)
+	return accapi.UsageReportAbsoluteChildrenDataPoint{
+		Timestamp: fndapi.Timestamp(d.Timestamp),
+		Usage:     d.Usage,
 		Child:     child,
 	}
 }
@@ -143,12 +163,16 @@ type internalUsageOverTime struct {
 
 	// absolute usage from the wallet level
 	Absolute []internalUsageOverTimeAbsoluteDataPoint
+
+	// absolute children usage
+	ChildrenAbsolute []internalUsageOverTimeAbsoluteChildrenDataPoint
 }
 
 func (r *internalUsageOverTime) ToApi() accapi.UsageReportOverTime {
 	res := accapi.UsageReportOverTime{}
 	res.Delta = make([]accapi.UsageReportDeltaDataPoint, len(r.Delta))
 	res.Absolute = make([]accapi.UsageReportAbsoluteDataPoint, len(r.Absolute))
+	res.ChildrenAbsolute = make([]accapi.UsageReportAbsoluteChildrenDataPoint, len(r.ChildrenAbsolute))
 
 	for i := 0; i < len(res.Delta); i++ {
 		res.Delta[i] = r.Delta[i].ToApi()
@@ -156,6 +180,10 @@ func (r *internalUsageOverTime) ToApi() accapi.UsageReportOverTime {
 
 	for i := 0; i < len(res.Absolute); i++ {
 		res.Absolute[i] = r.Absolute[i].ToApi()
+	}
+
+	for i := 0; i < len(res.ChildrenAbsolute); i++ {
+		res.ChildrenAbsolute[i] = r.ChildrenAbsolute[i].ToApi()
 	}
 	return res
 }
@@ -411,6 +439,10 @@ func initUsageReports() {
 								rescaleI64(&prev.UsageOverTime.Absolute[i].Usage)
 							}
 
+							for i := range prev.UsageOverTime.ChildrenAbsolute {
+								rescaleI64(&prev.UsageOverTime.ChildrenAbsolute[i].Usage)
+							}
+
 							report.Reports = append(report.Reports, prev)
 						}
 					}
@@ -523,6 +555,8 @@ func usageCollapseReports(reports []internalUsageReport) internalUsageReport {
 	absoluteUseByTimestamp := map[time.Time]int64{}
 	absoluteQuotaByTimestamp := map[time.Time]int64{}
 
+	absoluteUsageByChild := map[AccWalletId]int64{}
+
 	for _, report := range reports {
 		for _, item := range report.UsageOverTime.Delta {
 			if item.Child.Present {
@@ -535,6 +569,12 @@ func usageCollapseReports(reports []internalUsageReport) internalUsageReport {
 			if item.UtilizationPercent100 != 0 {
 				absoluteQuotaByTimestamp[item.Timestamp] = absoluteQuotaByTimestamp[item.Timestamp] +
 					int64((float64(item.Usage)/item.UtilizationPercent100)*100.0)
+			}
+		}
+
+		for _, item := range report.UsageOverTime.ChildrenAbsolute {
+			if item.Child.Present {
+				absoluteUsageByChild[item.Child.Value] = absoluteUsageByChild[item.Child.Value] + item.Usage
 			}
 		}
 	}
@@ -562,6 +602,7 @@ func usageCollapseReports(reports []internalUsageReport) internalUsageReport {
 
 	topUsersFromChildren := util.TopNKeys(deltaUsageByChild, 10)
 	deltaDataPointsByChild := map[util.Option[AccWalletId]]map[time.Time]internalUsageOverTimeDeltaDataPoint{}
+	absoluteDataPointsByChild := map[util.Option[AccWalletId]]map[time.Time]internalUsageOverTimeAbsoluteChildrenDataPoint{}
 	allDeltaTimestamps := map[time.Time]util.Empty{}
 
 	for _, report := range reports {
@@ -590,6 +631,31 @@ func usageCollapseReports(reports []internalUsageReport) internalUsageReport {
 			deltaDataPointsByChild[itemCopy.Child][itemCopy.Timestamp] = curr
 			allDeltaTimestamps[itemCopy.Timestamp] = util.Empty{}
 		}
+
+		for _, item := range report.UsageOverTime.ChildrenAbsolute {
+			itemCopy := item
+			if !item.Child.Present {
+				itemCopy.Child = util.OptNone[AccWalletId]()
+			} else {
+				if !slices.Contains(topUsersFromChildren, item.Child.Value) {
+					itemCopy.Child = util.OptValue(AccWalletId(-1))
+				}
+			}
+
+			m, ok := absoluteDataPointsByChild[itemCopy.Child]
+			if !ok {
+				m = map[time.Time]internalUsageOverTimeAbsoluteChildrenDataPoint{}
+				absoluteDataPointsByChild[itemCopy.Child] = m
+			}
+			curr, ok := m[itemCopy.Timestamp]
+			if ok {
+				curr.Usage = item.Usage
+			} else {
+				curr = itemCopy
+			}
+			absoluteDataPointsByChild[itemCopy.Child][itemCopy.Timestamp] = curr
+			allDeltaTimestamps[itemCopy.Timestamp] = util.Empty{}
+		}
 	}
 
 	// Ensure that all timestamps are filled out
@@ -602,6 +668,71 @@ func usageCollapseReports(reports []internalUsageReport) internalUsageReport {
 					Child:     child,
 					Change:    0,
 				}
+			}
+		}
+	}
+
+	for child, m := range absoluteDataPointsByChild {
+		for ts := range allDeltaTimestamps {
+			_, ok := m[ts]
+			if !ok {
+				m[ts] = internalUsageOverTimeAbsoluteChildrenDataPoint{
+					Timestamp: ts,
+					Usage:     0,
+					Child:     child,
+				}
+			}
+		}
+	}
+
+	{
+		for _, dataMap := range absoluteDataPointsByChild {
+			var data []internalUsageOverTimeAbsoluteChildrenDataPoint
+
+			for _, item := range dataMap {
+				data = append(data, item)
+			}
+			slices.SortFunc(data, func(a, b internalUsageOverTimeAbsoluteChildrenDataPoint) int {
+				return a.Timestamp.Compare(b.Timestamp)
+			})
+
+			// NOTE(Dan): The step size controls roughly how many elements we want to display before we consolidate
+			// data points. In this case, we are aiming to store up to 540 before we start consolidation. Which
+			// corresponds to roughly 90 days with sampling every 4 hours.
+			stepSize := max(1.0, float64(len(data))/540.0)
+			acc := 0.0
+
+			first := true
+			currentEntry := internalUsageOverTimeAbsoluteChildrenDataPoint{}
+			needNewEntry := true
+
+			for _, entry := range data {
+				acc += 1
+				if acc >= stepSize {
+					acc -= stepSize
+
+					if !first {
+						result.UsageOverTime.ChildrenAbsolute = append(result.UsageOverTime.ChildrenAbsolute, currentEntry)
+						needNewEntry = true
+					} else {
+						first = false
+					}
+				}
+
+				if needNewEntry {
+					currentEntry = internalUsageOverTimeAbsoluteChildrenDataPoint{
+						Timestamp: entry.Timestamp,
+						Child:     entry.Child,
+						Usage:     0,
+					}
+					needNewEntry = false
+				}
+
+				currentEntry.Usage += entry.Usage
+			}
+
+			if !needNewEntry {
+				result.UsageOverTime.ChildrenAbsolute = append(result.UsageOverTime.ChildrenAbsolute, currentEntry)
 			}
 		}
 	}
@@ -1149,6 +1280,12 @@ func lUsageSampleWallet(now time.Time, cmp internalSnapshotComparison, b *db.Bat
 				UtilizationPercent100: utilizationPercent100,
 			})
 
+			report.UsageOverTime.ChildrenAbsolute = append(report.UsageOverTime.ChildrenAbsolute, internalUsageOverTimeAbsoluteChildrenDataPoint{
+				Timestamp: now,
+				Usage:     currWallet.TotalUsage,
+				Child:     util.Option[AccWalletId]{},
+			})
+
 			report.Dirty = true
 		}
 	}
@@ -1170,6 +1307,14 @@ func lUsageSampleWallet(now time.Time, cmp internalSnapshotComparison, b *db.Bat
 						Change:    delta,
 					},
 				)
+
+				parentReport.UsageOverTime.ChildrenAbsolute = append(
+					parentReport.UsageOverTime.ChildrenAbsolute,
+					internalUsageOverTimeAbsoluteChildrenDataPoint{
+						Timestamp: now,
+						Usage:     currWallet.TotalUsage,
+						Child:     util.OptValue(currWallet.Id),
+					})
 
 				parentReport.Dirty = true
 			} else {
