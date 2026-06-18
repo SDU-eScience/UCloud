@@ -22,10 +22,11 @@ import (
 // allocations can expose. Reconciliation must therefore be best-effort: it materializes as much as the existing
 // allocation tree can support, never creates new root capacity, and leaves the remaining promise under-covered.
 //
-// The planner is chain-local and update-first. It tries to keep the current head allocation for a promise stable by
-// changing its split in place. If the current materialization cannot be edited because of time boundaries, the planner
-// creates a successor allocation under the same promise and under an existing parent allocation. Successors are ordered
-// by timestamps. There is no separate linked-list field.
+// The planner is chain-local and update-first. It tries to keep current promise materializations stable by changing
+// their split in place. A promise may have multiple simultaneous materializations, but at most one for each backing
+// parent allocation. If a materialization cannot be edited because of time boundaries, the planner creates a successor
+// allocation under the same promise and under an existing parent allocation. Successors are ordered by timestamps. There
+// is no separate linked-list field.
 
 // Core promise types and globals
 // ---------------------------------------------------------------------------------------------------------------------
@@ -254,9 +255,9 @@ func promiseReconcileOwner(now time.Time, tree *AccountingTree, promiseTree *Pro
 			continue
 		}
 
-		head := promiseFindHead(now, tree, promise)
-		if head.Present {
-			addProblemRootFromAllocation(head.Value)
+		materialization := promiseFindMaterializationForUpdate(now, tree, promise)
+		if materialization.Present {
+			addProblemRootFromAllocation(materialization.Value)
 			continue
 		}
 
@@ -607,8 +608,8 @@ func promiseRoundUp(value int64, step int64) int64 {
 // Promise-level reconciliation
 // ---------------------------------------------------------------------------------------------------------------------
 // promiseReconcileOne applies the target split to one promise. It first computes policy demand, then clamps demand to
-// the remaining promise quota that is not already materialized. From there, the planner either creates the first head,
-// creates a successor after retirement, or updates the current head in place.
+// the remaining promise quota that is not already materialized. From there, the planner either creates missing
+// materializations, creates successors after retirement, or updates an existing materialization in place.
 func promiseReconcileOne(now time.Time, tree *AccountingTree, promise *Promise) {
 	if promise == nil || promise.Quota <= 0 || now.Before(promise.Start) || now.After(promise.End) {
 		return
@@ -616,17 +617,18 @@ func promiseReconcileOne(now time.Time, tree *AccountingTree, promise *Promise) 
 
 	target := promiseCalculateTargetSplit(tree, promise.Child)
 
-	head := promiseFindHead(now, tree, promise)
-	if !head.Present {
+	materialization := promiseFindMaterializationForUpdate(now, tree, promise)
+	if !materialization.Present {
 		remainingQuota := promise.Quota - promiseMaterializedQuota(now, tree, promise, util.OptNone[AllocationId]())
 		if target.QuotaSelf+target.QuotaChildren > remainingQuota {
 			target = promiseClampTargetToTotal(target, remainingQuota)
 		}
-		promiseCreateHead(now, tree, promise, target)
+		promiseCreateMaterialization(now, tree, promise, target)
+		promiseCreateMissingMaterializations(now, tree, promise, maxTime(now, promise.Start), promise.End, target)
 		return
 	}
 
-	allocation := tree.AllocationsById[head.Value]
+	allocation := tree.AllocationsById[materialization.Value]
 	if allocation == nil {
 		return
 	}
@@ -636,20 +638,26 @@ func promiseReconcileOne(now time.Time, tree *AccountingTree, promise *Promise) 
 		if target.QuotaSelf+target.QuotaChildren > remainingQuota {
 			target = promiseClampTargetToTotal(target, remainingQuota)
 		}
-		promiseCreateSuccessor(now, tree, promise, allocation, target)
+		promiseCreateSuccessorMaterialization(now, tree, promise, allocation, target)
+		start := allocation.End
+		if start.Before(promise.Start) {
+			start = promise.Start
+		}
+		promiseCreateMissingMaterializations(now, tree, promise, start, promise.End, target)
 		return
 	}
 
-	remainingQuota := promise.Quota - promiseMaterializedQuota(now, tree, promise, head)
+	remainingQuota := promise.Quota - promiseMaterializedQuota(now, tree, promise, materialization)
 	if target.QuotaSelf+target.QuotaChildren > remainingQuota {
 		target = promiseClampTargetToTotal(target, remainingQuota)
 	}
 
 	if allocation.Start.After(now) {
-		promiseAdjustFutureHeadStart(now, tree, promise, allocation.Id)
+		promiseAdjustFutureMaterializationStart(now, tree, promise, allocation.Id)
 	}
 
 	promiseApplyTarget(now, tree, allocation.Id, target)
+	promiseCreateMissingMaterializations(now, tree, promise, maxTime(now, promise.Start), promise.End, target)
 }
 
 // Target clamping and materialized quota accounting
@@ -714,23 +722,26 @@ func promiseMaterializedQuota(now time.Time, tree *AccountingTree, promise *Prom
 	return total
 }
 
-// Head selection and time handling
+// Materialization selection and time handling
 // ---------------------------------------------------------------------------------------------------------------------
-// A promise head is the active allocation for the promise, or if none is active, the next allocation becoming active.
-// If neither exists, the newest retired allocation is used as the predecessor for successor creation.
+// A promise may have multiple simultaneous materializations, one for each backing parent allocation. For update-first
+// reconciliation, the planner selects one existing materialization to edit: an active allocation, or if none is active,
+// the next allocation becoming active. If neither exists, the newest retired allocation is used as the predecessor for
+// successor creation.
 //
-// Allocation periods are Start-inclusive and End-exclusive. When a future head exists and no active head exists, the
-// planner may move the future head's start backward to remove a gap, as long as low-level period invariants still hold.
+// Allocation periods are Start-inclusive and End-exclusive. When a future materialization exists and no active
+// materialization exists, the planner may move the future materialization's start backward to remove a gap, as long as
+// low-level period invariants still hold.
 //
 // The core helpers are:
 //
-// - promiseFindHead: Selects active, next future or latest retired materialization for a promise.
+// - promiseFindMaterializationForUpdate: Selects active, next future or latest retired materialization for a promise.
 // - promiseAllocationActive: Checks promise allocation activity using Start-inclusive, End-exclusive time.
 // - promiseAllocationRetired: Checks whether an allocation has reached its end boundary.
-// - promiseAdjustFutureHeadStart: Moves a future head backward when this removes a promise gap safely.
+// - promiseAdjustFutureMaterializationStart: Moves a future materialization backward when this removes a gap safely.
 // - promiseSetPeriod: Applies a period change through low-level invariant checks.
 
-func promiseFindHead(now time.Time, tree *AccountingTree, promise *Promise) util.Option[AllocationId] {
+func promiseFindMaterializationForUpdate(now time.Time, tree *AccountingTree, promise *Promise) util.Option[AllocationId] {
 	var active *Allocation
 	var next *Allocation
 	var retired *Allocation
@@ -781,7 +792,7 @@ func promiseAllocationRetired(now time.Time, allocation *Allocation) bool {
 	return !now.Before(allocation.End)
 }
 
-func promiseAdjustFutureHeadStart(now time.Time, tree *AccountingTree, promise *Promise, allocationId AllocationId) {
+func promiseAdjustFutureMaterializationStart(now time.Time, tree *AccountingTree, promise *Promise, allocationId AllocationId) {
 	allocation := tree.AllocationsById[allocationId]
 	if allocation == nil || !allocation.Start.After(now) {
 		return
@@ -1015,47 +1026,119 @@ func promiseSetSplit(now time.Time, tree *AccountingTree, allocationId Allocatio
 
 // Materialization creation
 // ---------------------------------------------------------------------------------------------------------------------
-// When a promise has no editable head, the planner creates a promise-owned allocation under an existing parent
-// allocation. The parent may be an active allocation or the next future allocation that covers the requested promise
-// interval. Creation is partial if the parent can only expose part of the target.
+// The planner creates promise-owned allocations under existing backing parent allocations. The backing allocation may be
+// active or the next future allocation that covers the requested promise interval. Creation is partial if the backing
+// allocation can only expose part of the target. A promise may create one materialization per backing allocation over an
+// overlapping interval.
 //
 // The promise layer never creates root allocations. If no parent-backed capacity exists, creation simply does nothing
 // and the promise remains under-covered until a later reconciliation pass.
 //
 // The core helpers are:
 //
-// - promiseCreateHead: Creates the first materialization for a promise.
-// - promiseCreateSuccessor: Creates the next materialization after a retired head.
-// - promiseFindSupportingParent: Finds a parent allocation that can expose some requested capacity.
-// - promiseFindSupportingParentEx: Implementation that also reports how much capacity was exposed.
-// - promiseCreateAllocation: Creates a promise-owned low-level allocation and reserves it in the parent.
+// - promiseCreateMaterialization: Creates one materialization under a backing allocation.
+// - promiseCreateSuccessorMaterialization: Creates a materialization after a retired predecessor.
+// - promiseCreateMissingMaterializations: Creates additional materializations under unused backing allocations.
+// - promiseFindBackingAllocation: Finds a backing allocation that can expose some requested capacity.
+// - promiseFindBackingAllocationEx: Implementation that also reports how much capacity was exposed.
+// - promiseCreateAllocation: Creates a promise-owned low-level allocation and reserves it in the backing allocation.
 
-func promiseCreateHead(now time.Time, tree *AccountingTree, promise *Promise, target promiseTargetSplit) {
-	parentId := promiseFindSupportingParent(now, tree, promise.Parent, target.QuotaSelf+target.QuotaChildren, promise.Start, promise.End)
-	if !parentId.Present {
+func promiseCreateMaterialization(now time.Time, tree *AccountingTree, promise *Promise, target promiseTargetSplit) {
+	backingAllocationId := promiseFindBackingAllocation(now, tree, promise.Parent, target.QuotaSelf+target.QuotaChildren, promise.Start, promise.End)
+	if !backingAllocationId.Present {
 		return
 	}
-	promiseCreateAllocation(now, tree, promise, parentId.Value, maxTime(now, promise.Start), promise.End, target)
+	promiseCreateAllocation(now, tree, promise, backingAllocationId.Value, maxTime(now, promise.Start), promise.End, target)
 }
 
-func promiseCreateSuccessor(now time.Time, tree *AccountingTree, promise *Promise, previous *Allocation, target promiseTargetSplit) {
+func promiseCreateSuccessorMaterialization(now time.Time, tree *AccountingTree, promise *Promise, previous *Allocation, target promiseTargetSplit) {
 	start := previous.End
 	if start.Before(promise.Start) {
 		start = promise.Start
 	}
-	parentId := promiseFindSupportingParent(now, tree, promise.Parent, target.QuotaSelf+target.QuotaChildren, start, promise.End)
-	if !parentId.Present {
+	backingAllocationId := promiseFindBackingAllocation(now, tree, promise.Parent, target.QuotaSelf+target.QuotaChildren, start, promise.End)
+	if !backingAllocationId.Present {
 		return
 	}
-	promiseCreateAllocation(now, tree, promise, parentId.Value, start, promise.End, target)
+	promiseCreateAllocation(now, tree, promise, backingAllocationId.Value, start, promise.End, target)
 }
 
-func promiseFindSupportingParent(now time.Time, tree *AccountingTree, walletId WalletId, quota int64, start time.Time, end time.Time) util.Option[AllocationId] {
-	parentId, _ := promiseFindSupportingParentEx(now, tree, walletId, quota, start, end)
-	return parentId
+func promiseCreateMissingMaterializations(now time.Time, tree *AccountingTree, promise *Promise, start time.Time, end time.Time, target promiseTargetSplit) {
+	parentWallet := tree.WalletsById[promise.Parent]
+	if parentWallet == nil {
+		return
+	}
+
+	for range parentWallet.Allocations {
+		remaining := promiseRemainingActiveTarget(now, tree, promise, target)
+		remainingQuota := promise.Quota - promiseMaterializedQuota(now, tree, promise, util.OptNone[AllocationId]())
+		if remaining.QuotaSelf+remaining.QuotaChildren > remainingQuota {
+			remaining = promiseClampTargetToTotal(remaining, remainingQuota)
+		}
+		if remaining.QuotaSelf+remaining.QuotaChildren <= 0 {
+			return
+		}
+
+		backingAllocationId := promiseFindUnusedBackingAllocation(now, tree, promise, remaining.QuotaSelf+remaining.QuotaChildren, start, end)
+		if !backingAllocationId.Present {
+			return
+		}
+
+		before := promiseMaterializedQuota(now, tree, promise, util.OptNone[AllocationId]())
+		promiseCreateAllocation(now, tree, promise, backingAllocationId.Value, start, end, remaining)
+		after := promiseMaterializedQuota(now, tree, promise, util.OptNone[AllocationId]())
+		if after <= before {
+			return
+		}
+	}
 }
 
-func promiseFindSupportingParentEx(now time.Time, tree *AccountingTree, walletId WalletId, quota int64, start time.Time, end time.Time) (util.Option[AllocationId], int64) {
+func promiseRemainingActiveTarget(now time.Time, tree *AccountingTree, promise *Promise, target promiseTargetSplit) promiseTargetSplit {
+	wallet := tree.WalletsById[promise.Child]
+	if wallet == nil {
+		return target
+	}
+
+	remaining := target
+	for _, allocationId := range wallet.Allocations {
+		allocation := tree.AllocationsById[allocationId]
+		if allocation == nil || !allocation.Promise.Present || allocation.Promise.Value != promise.Id || !promiseAllocationActive(now, allocation) {
+			continue
+		}
+
+		self := min(remaining.QuotaSelf, allocation.QuotaSelf)
+		remaining.QuotaSelf -= self
+		children := min(remaining.QuotaChildren, allocation.QuotaChildren)
+		remaining.QuotaChildren -= children
+	}
+	return remaining
+}
+
+func promiseFindUnusedBackingAllocation(now time.Time, tree *AccountingTree, promise *Promise, quota int64, start time.Time, end time.Time) util.Option[AllocationId] {
+	wallet := tree.WalletsById[promise.Child]
+	usedBackingAllocations := map[AllocationId]bool{}
+	if wallet != nil {
+		for _, allocationId := range wallet.Allocations {
+			allocation := tree.AllocationsById[allocationId]
+			if allocation == nil || !allocation.Promise.Present || allocation.Promise.Value != promise.Id || !allocation.Parent.Present {
+				continue
+			}
+			if allocation.End.After(start) && allocation.Start.Before(end) {
+				usedBackingAllocations[allocation.Parent.Value] = true
+			}
+		}
+	}
+
+	backingAllocationId, _ := promiseFindBackingAllocationEx(now, tree, promise.Parent, quota, start, end, usedBackingAllocations)
+	return backingAllocationId
+}
+
+func promiseFindBackingAllocation(now time.Time, tree *AccountingTree, walletId WalletId, quota int64, start time.Time, end time.Time) util.Option[AllocationId] {
+	backingAllocationId, _ := promiseFindBackingAllocationEx(now, tree, walletId, quota, start, end, nil)
+	return backingAllocationId
+}
+
+func promiseFindBackingAllocationEx(now time.Time, tree *AccountingTree, walletId WalletId, quota int64, start time.Time, end time.Time, excluded map[AllocationId]bool) (util.Option[AllocationId], int64) {
 	wallet := tree.WalletsById[walletId]
 	if wallet == nil {
 		return util.OptNone[AllocationId](), 0
@@ -1068,7 +1151,7 @@ func promiseFindSupportingParentEx(now time.Time, tree *AccountingTree, walletId
 	candidates := []candidate{}
 	for _, allocationId := range wallet.Allocations {
 		allocation := tree.AllocationsById[allocationId]
-		if allocation == nil || allocation.End.Before(start) || allocation.Start.After(end) {
+		if allocation == nil || excluded[allocationId] || allocation.End.Before(start) || allocation.Start.After(end) {
 			continue
 		}
 		if promiseAllocationActive(now, allocation) || allocation.Start.After(now) {

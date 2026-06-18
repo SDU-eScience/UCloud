@@ -93,7 +93,7 @@ func fuzzCreatePromise(t *testing.T, e *lowTestEnv, reader *fuzzBytes, at int, o
 	return id != 0, id
 }
 
-func fuzzUpdatePromiseHead(t *testing.T, e *lowTestEnv, reader *fuzzBytes, at int, promises []PromiseId) {
+func fuzzUpdatePromiseMaterialization(t *testing.T, e *lowTestEnv, reader *fuzzBytes, at int, promises []PromiseId) {
 	t.Helper()
 	if len(promises) == 0 {
 		return
@@ -103,8 +103,8 @@ func fuzzUpdatePromiseHead(t *testing.T, e *lowTestEnv, reader *fuzzBytes, at in
 		e.assertValid()
 		return
 	}
-	head := promiseFindHead(e.tm(at), e.tree(), promise)
-	if !head.Present {
+	materialization := promiseFindMaterializationForUpdate(e.tm(at), e.tree(), promise)
+	if !materialization.Present {
 		e.assertValid()
 		return
 	}
@@ -120,7 +120,7 @@ func fuzzUpdatePromiseHead(t *testing.T, e *lowTestEnv, reader *fuzzBytes, at in
 	case 2:
 		end.Set(e.tm(reader.intn(30)))
 	}
-	_, _, _ = AllocationUpdate(e.tm(at), e.categoryId, head.Value, quota, start, end)
+	_, _, _ = AllocationUpdate(e.tm(at), e.categoryId, materialization.Value, quota, start, end)
 	e.assertValid()
 }
 
@@ -183,6 +183,7 @@ func FuzzPromiseSystem(f *testing.F) {
 	f.Add([]byte{7, 20, 8, 120, 9, 10, 10, 50})
 	f.Add([]byte{0, 0, 5, 2, 0, 0, 20, 100, 1, 80, 3, 0, 2, 2, 60, 3, 1})
 	f.Add([]byte{0, 0, 0, 4, 80, 2, 5, 10, 4, 8, 3, 6, 60, 0, 13, 20, 4, 14})
+	f.Add([]byte{1, 1, 0, 5, 100})
 
 	f.Fuzz(func(t *testing.T, data []byte) {
 		if len(data) == 0 {
@@ -201,12 +202,14 @@ func FuzzPromiseSystem(f *testing.F) {
 			TrendAlphaBasisPoints: 2500 + int64(data[0]%4)*2500,
 		})
 
-		e.add(lowAllocSpec{Name: "root0", Wallet: "root", Start: 0, End: 12, Quota: 100, Self: 0, Children: 100})
+		e.add(lowAllocSpec{Name: "root0-a", Wallet: "root", Start: 0, End: 12, Quota: 50, Self: 0, Children: 50})
+		e.add(lowAllocSpec{Name: "root0-b", Wallet: "root", Start: 0, End: 12, Quota: 50, Self: 0, Children: 50})
 		e.add(lowAllocSpec{Name: "root1", Wallet: "root", Start: 12, End: 24, Quota: 100, Self: 0, Children: 100})
 		e.add(lowAllocSpec{Name: "root2", Wallet: "root", Start: 24, End: 48, Quota: 100, Self: 0, Children: 100})
 		promises := []PromiseId{
 			e.addPromise("root", "a", 0, 24, 120),
 			e.addPromise("root", "b", 0, 24, 120),
+			e.addPromise("root", "split", 0, 12, 100),
 			e.addPromise("a", "leaf", 0, 24, 100),
 			e.addPromise("b", "leaf", 0, 24, 100),
 			e.addPromise("root", "a", 6, 18, 80),
@@ -215,8 +218,8 @@ func FuzzPromiseSystem(f *testing.F) {
 		}
 
 		reader := fuzzBytes{data: data}
-		wallets := []string{"a", "b", "leaf", "short", "root", "missing"}
-		owners := []string{"a", "b", "leaf", "short", "root"}
+		wallets := []string{"a", "b", "leaf", "short", "root", "split", "missing"}
+		owners := []string{"a", "b", "leaf", "short", "root", "split"}
 
 		steps := 1 + reader.intn(64)
 		for i := 0; i < steps; i++ {
@@ -234,7 +237,7 @@ func FuzzPromiseSystem(f *testing.F) {
 					promises = append(promises, id)
 				}
 			case 6:
-				fuzzUpdatePromiseHead(t, e, &reader, at, promises)
+				fuzzUpdatePromiseMaterialization(t, e, &reader, at, promises)
 			}
 		}
 	})

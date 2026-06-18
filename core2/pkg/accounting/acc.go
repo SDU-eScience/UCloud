@@ -68,8 +68,8 @@ func initAccounting() {
 		now := time.Now()
 		var result []bool
 		for _, reqItem := range request.Items {
-			if true {
-				return fndapi.BulkResponse[bool]{}, nil // TODO Validate actor
+			if !validateOwner(reqItem.Owner) {
+				return fndapi.BulkResponse[bool]{}, util.HttpErr(http.StatusBadRequest, "unknown owner specified")
 			}
 			resp, err := UsageReport(now, reqItem)
 			if err != nil {
@@ -159,6 +159,7 @@ func initAccounting() {
 			for provider := range providers {
 				resp.Providers = append(resp.Providers, provider)
 			}
+			result = append(result, resp)
 		}
 
 		return fndapi.BulkResponse[accapi.FindAllProvidersResponse]{Responses: result}, nil

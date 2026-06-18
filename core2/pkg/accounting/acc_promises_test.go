@@ -54,7 +54,7 @@ func (e *lowTestEnv) promiseAllocations(promiseId PromiseId) []*Allocation {
 func (e *lowTestEnv) promiseHead(promiseId PromiseId, at int) *Allocation {
 	e.t.Helper()
 	promise := e.tree().PromiseTree.PromisesById[promiseId]
-	head := promiseFindHead(e.tm(at), e.tree(), promise)
+	head := promiseFindMaterializationForUpdate(e.tm(at), e.tree(), promise)
 	if !head.Present {
 		e.t.Fatalf("promise %d has no head", promiseId)
 	}
@@ -128,6 +128,50 @@ func TestPromiseReconcileOverbookingMaterializesAvailableCapacity(t *testing.T) 
 			e.assertValid()
 		})
 	}
+}
+
+func TestPromiseReconcileMaterializesAcrossMultipleParentAllocations(t *testing.T) {
+	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
+	e.setPolicy(PromisePolicy{TrendAlphaBasisPoints: 10000})
+	e.add(lowAllocSpec{Name: "root-a", Wallet: "root", Start: 0, End: 10, Quota: 50, Self: 0, Children: 50})
+	e.add(lowAllocSpec{Name: "root-b", Wallet: "root", Start: 0, End: 10, Quota: 50, Self: 0, Children: 50})
+	promise := e.addPromise("root", "child", 0, 10, 100)
+
+	e.reconcile(1, "child", util.OptValue[int64](100))
+
+	allocations := e.promiseAllocations(promise)
+	if len(allocations) != 2 {
+		t.Fatalf("promise allocations = %d, want 2", len(allocations))
+	}
+
+	byParent := map[AllocationId]*Allocation{}
+	total := int64(0)
+	for _, allocation := range allocations {
+		if !allocation.Parent.Present {
+			t.Fatalf("promise allocation %d has no parent", allocation.Id)
+		}
+		byParent[allocation.Parent.Value] = allocation
+		total += allocation.QuotaSelf + allocation.QuotaChildren
+	}
+	if total != 100 {
+		t.Fatalf("promise materialized total = %d, want 100", total)
+	}
+
+	rootAChild := byParent[e.allocs["root-a"]]
+	rootBChild := byParent[e.allocs["root-b"]]
+	if rootAChild == nil || rootBChild == nil {
+		t.Fatalf("promise allocation parents = %#v, want root-a and root-b", byParent)
+	}
+	assertPromiseAllocation(t, rootAChild, 50, 0, e.tm(1), e.tm(10))
+	assertPromiseAllocation(t, rootBChild, 50, 0, e.tm(1), e.tm(10))
+	e.assertAllocation("root-a", 0, 50, 0, 50)
+	e.assertAllocation("root-b", 0, 50, 0, 50)
+
+	if success := e.report(1, "child", 100); !success && walletRemainingUsable(e.tm(1), e.tree(), e.tree().WalletsById[e.wallet("child")]) != 0 {
+		t.Fatalf("usage report failed without leaving child exactly at zero remaining usable capacity")
+	}
+	e.assertWalletConsumed("child", 100)
+	e.assertValid()
 }
 
 func TestPromiseReconcileUpdateFirstGrowthAndShrink(t *testing.T) {
