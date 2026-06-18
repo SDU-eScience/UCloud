@@ -193,7 +193,8 @@ func promiseReconcileOwner(now time.Time, tree *AccountingTree, promiseTree *Pro
 	}
 
 	// Skip reconciliation if we already have space in the wallet for the request
-	if promiseWalletReportQuota(tree, wallet) >= promiseRoundUp(minimumRequest+tree.Policy.MinSlack, tree.Policy.GrowthStep) {
+	requiredQuota := promiseRoundUp(minimumRequest+tree.Policy.MinSlack, tree.Policy.GrowthStep)
+	if promiseWalletReportQuota(tree, wallet) >= requiredQuota {
 		return
 	}
 
@@ -210,6 +211,128 @@ func promiseReconcileOwner(now time.Time, tree *AccountingTree, promiseTree *Pro
 
 	for _, promise := range promises {
 		promiseReconcileOne(now, tree, promise)
+	}
+
+	if promiseWalletReportQuota(tree, wallet) >= requiredQuota {
+		return
+	}
+
+	problemRoots := map[AllocationId]util.Empty{}
+	addProblemRootFromAllocation := func(allocationId AllocationId) {
+		shortfall := requiredQuota - promiseWalletReportQuota(tree, wallet)
+		if shortfall <= 0 {
+			return
+		}
+
+		current := tree.AllocationsById[allocationId]
+		for current != nil && current.Parent.Present {
+			parent := tree.AllocationsById[current.Parent.Value]
+			if parent == nil {
+				return
+			}
+
+			if parent.QuotaChildren-parent.ReservedChildren < shortfall {
+				problemRoots[parent.Id] = util.Empty{}
+			}
+			current = parent
+		}
+	}
+
+	for _, allocationId := range wallet.Allocations {
+		allocation := tree.AllocationsById[allocationId]
+		if allocation == nil {
+			continue
+		}
+		if promiseAllocationActive(now, allocation) || allocation.Start.After(now) {
+			addProblemRootFromAllocation(allocation.Id)
+		}
+	}
+
+	for _, promiseId := range promiseTree.PromisesByChild[wallet.Id] {
+		promise := promiseTree.PromisesById[promiseId]
+		if promise == nil || promise.Quota <= 0 || now.Before(promise.Start) || now.After(promise.End) {
+			continue
+		}
+
+		head := promiseFindHead(now, tree, promise)
+		if head.Present {
+			addProblemRootFromAllocation(head.Value)
+			continue
+		}
+
+		parentWallet := tree.WalletsById[promise.Parent]
+		if parentWallet == nil {
+			continue
+		}
+		for _, parentAllocationId := range parentWallet.Allocations {
+			parentAllocation := tree.AllocationsById[parentAllocationId]
+			if parentAllocation == nil || parentAllocation.End.Before(promise.Start) || parentAllocation.Start.After(promise.End) {
+				continue
+			}
+			if promiseAllocationActive(now, parentAllocation) || parentAllocation.Start.After(now) {
+				problemRoots[parentAllocation.Id] = util.Empty{}
+				addProblemRootFromAllocation(parentAllocation.Id)
+			}
+		}
+	}
+
+	if len(problemRoots) == 0 {
+		return
+	}
+
+	for rootId := range problemRoots {
+		postorder := []AllocationId{}
+		stack := []struct {
+			id      AllocationId
+			visited bool
+		}{{id: rootId}}
+		seen := map[AllocationId]bool{}
+		for len(stack) > 0 {
+			entry := stack[len(stack)-1]
+			stack = stack[:len(stack)-1]
+			if entry.visited {
+				postorder = append(postorder, entry.id)
+				continue
+			}
+			if seen[entry.id] {
+				continue
+			}
+			seen[entry.id] = true
+			allocation := tree.AllocationsById[entry.id]
+			if allocation == nil {
+				continue
+			}
+			stack = append(stack, struct {
+				id      AllocationId
+				visited bool
+			}{id: entry.id, visited: true})
+			for _, childId := range allocation.Children {
+				stack = append(stack, struct {
+					id      AllocationId
+					visited bool
+				}{id: childId})
+			}
+		}
+
+		for _, allocationId := range postorder {
+			allocation := tree.AllocationsById[allocationId]
+			if allocation == nil || !allocation.Parent.Present {
+				continue
+			}
+
+			quotaSelf := allocation.QuotaSelf
+			if quotaSelf > allocation.ConsumedSelf {
+				quotaSelf = allocation.ConsumedSelf
+			}
+			promiseSetSplit(now, tree, allocation.Id, quotaSelf, allocation.ReservedChildren)
+		}
+	}
+
+	for i := len(promises) - 1; i >= 0; i-- {
+		promiseReconcileOne(now, tree, promises[i])
+		if promiseWalletReportQuota(tree, wallet) >= requiredQuota {
+			break
+		}
 	}
 }
 

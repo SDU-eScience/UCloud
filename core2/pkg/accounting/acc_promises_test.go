@@ -85,7 +85,7 @@ func TestPromiseReconcileOverbookingMaterializesAvailableCapacity(t *testing.T) 
 		assert func(*lowTestEnv, PromiseId, PromiseId)
 	}{
 		{
-			name: "sibling promises share overbooked root capacity",
+			name: "minimum request steals unused sibling capacity",
 			setup: func(e *lowTestEnv) (PromiseId, PromiseId) {
 				e.setPolicy(PromisePolicy{TrendAlphaBasisPoints: 10000})
 				e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 10, Quota: 100, Self: 0, Children: 100})
@@ -94,9 +94,9 @@ func TestPromiseReconcileOverbookingMaterializesAvailableCapacity(t *testing.T) 
 				return first, second
 			},
 			assert: func(e *lowTestEnv, first PromiseId, second PromiseId) {
-				assertPromiseAllocation(t, e.promiseHead(first, 1), 80, 0, e.tm(1), e.tm(10))
-				assertPromiseAllocation(t, e.promiseHead(second, 1), 20, 0, e.tm(1), e.tm(10))
-				e.assertAllocation("root", 0, 100, 0, 100)
+				assertPromiseAllocation(t, e.promiseHead(first, 1), 0, 0, e.tm(1), e.tm(10))
+				assertPromiseAllocation(t, e.promiseHead(second, 1), 80, 0, e.tm(1), e.tm(10))
+				e.assertAllocation("root", 0, 100, 0, 80)
 			},
 		},
 		{
@@ -186,6 +186,49 @@ func TestPromiseReconcileUpdateFirstGrowthAndShrink(t *testing.T) {
 	}
 }
 
+func TestPromiseReconcileMinimumRequestStealsUnusedAncestorSelf(t *testing.T) {
+	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
+	e.setPolicy(PromisePolicy{TrendAlphaBasisPoints: 10000})
+	e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 10, Quota: 100, Self: 0, Children: 100})
+	parentPromise := e.addPromise("root", "parent", 0, 10, 100)
+	childPromise := e.addPromise("parent", "child", 0, 10, 100)
+
+	e.reconcile(1, "parent", util.OptValue[int64](80))
+	assertPromiseAllocation(t, e.promiseHead(parentPromise, 1), 80, 0, e.tm(1), e.tm(10))
+	e.assertAllocation("root", 0, 100, 0, 80)
+
+	e.reconcile(2, "child", util.OptValue[int64](80))
+	assertPromiseAllocation(t, e.promiseHead(parentPromise, 2), 0, 80, e.tm(1), e.tm(10))
+	assertPromiseAllocation(t, e.promiseHead(childPromise, 2), 80, 0, e.tm(2), e.tm(10))
+	e.assertAllocation("root", 0, 100, 0, 80)
+}
+
+func TestPromiseReconcileMinimumRequestStealsFromSiblingSubtree(t *testing.T) {
+	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
+	e.setPolicy(PromisePolicy{TrendAlphaBasisPoints: 10000})
+	e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 10, Quota: 100, Self: 0, Children: 100})
+	rootToA := e.addPromise("root", "root-a", 0, 10, 100)
+	aToA1 := e.addPromise("root-a", "root-a-a1", 0, 10, 100)
+	rootToB := e.addPromise("root", "root-b", 0, 10, 100)
+	bToB1 := e.addPromise("root-b", "root-b-b1", 0, 10, 100)
+
+	e.reconcile(1, "root-a-a1", util.OptValue[int64](70))
+	assertPromiseAllocation(t, e.promiseHead(rootToA, 1), 0, 70, e.tm(1), e.tm(10))
+	assertPromiseAllocation(t, e.promiseHead(aToA1, 1), 70, 0, e.tm(1), e.tm(10))
+	e.assertAllocation("root", 0, 100, 0, 70)
+
+	e.reconcile(2, "root-b", util.OptValue[int64](30))
+	assertPromiseAllocation(t, e.promiseHead(rootToB, 2), 30, 0, e.tm(2), e.tm(10))
+	e.assertAllocation("root", 0, 100, 0, 100)
+
+	e.reconcile(3, "root-b-b1", util.OptValue[int64](70))
+	assertPromiseAllocation(t, e.promiseHead(rootToA, 3), 0, 0, e.tm(1), e.tm(10))
+	assertPromiseAllocation(t, e.promiseHead(aToA1, 3), 0, 0, e.tm(1), e.tm(10))
+	assertPromiseAllocation(t, e.promiseHead(rootToB, 3), 0, 70, e.tm(2), e.tm(10))
+	assertPromiseAllocation(t, e.promiseHead(bToB1, 3), 70, 0, e.tm(3), e.tm(10))
+	e.assertAllocation("root", 0, 100, 0, 70)
+}
+
 func TestPromiseCapacityDecreaseReleasesOnFullReconcile(t *testing.T) {
 	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
 	e.setPolicy(PromisePolicy{TrendAlphaBasisPoints: 10000})
@@ -194,13 +237,13 @@ func TestPromiseCapacityDecreaseReleasesOnFullReconcile(t *testing.T) {
 	second := e.addPromise("root", "second", 0, 10, 100)
 
 	e.reconcile(1, "first", util.OptValue[int64](80))
+	if success := e.report(1, "first", 80); !success {
+		t.Fatalf("first initial usage failed")
+	}
 	e.reconcile(1, "second", util.OptValue[int64](80))
 	assertPromiseAllocation(t, e.promiseHead(first, 1), 80, 0, e.tm(1), e.tm(10))
 	assertPromiseAllocation(t, e.promiseHead(second, 1), 20, 0, e.tm(1), e.tm(10))
 	e.assertAllocation("root", 0, 100, 0, 100)
-	if success := e.report(1, "first", 80); !success {
-		t.Fatalf("first initial usage failed")
-	}
 	if success := e.report(1, "second", 20); !success {
 		t.Fatalf("second initial usage failed")
 	}
