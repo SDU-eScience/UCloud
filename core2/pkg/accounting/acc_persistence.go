@@ -14,10 +14,6 @@ import (
 )
 
 func accountingLoad() {
-	log.Info("Accounting loading")
-	defer func() {
-		log.Info("Accounting has been loaded")
-	}()
 	var loadTimes struct {
 		WalletOwners time.Duration
 		ScopedUsage  time.Duration
@@ -292,8 +288,6 @@ func accountingLoad() {
 
 				if row.ParentAllocation.Valid {
 					a.Parent.Set(AllocationId(row.ParentAllocation.V))
-					log.Info("tree: %#v", tree.AllocationsById)
-					log.Info("%v %v", row.Id, row.ParentAllocation.V)
 					tree.AllocationsById[a.Parent.Value].Children = append(tree.AllocationsById[a.Parent.Value].Children, a.Id)
 				}
 

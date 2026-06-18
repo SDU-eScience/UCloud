@@ -998,10 +998,6 @@ func walletAssertConsumptionMatchesAllocations(tree *AccountingTree, wallet *Wal
 // This is the standard lock boundary for public low-level accounting operations. Callers should not hold another tree
 // lock when entering this helper.
 func treeMutate(category accapi.ProductCategoryIdV2, fn func(tree *AccountingTree) *util.HttpError) *util.HttpError {
-	log.Info("Mutating tree")
-	defer func() {
-		log.Info("Tree has been mutated")
-	}()
 	accGlobals.Mu.RLock()
 	tree, ok := accGlobals.Trees[category]
 	accGlobals.Mu.RUnlock()
