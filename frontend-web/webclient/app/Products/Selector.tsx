@@ -5,7 +5,7 @@ import {ProductV2, productCategoryEquals, ProductV2Compute, ProductType, explain
 import HexSpin from "@/LoadingIcon/LoadingIcon";
 import {connectionState} from "@/Providers/ConnectionState";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
-import {getProviderTitle, ProviderTitle} from "@/Providers/ProviderTitle";
+import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {Box, Button, Flex, Icon, Input, Link, Text, Tooltip} from "@/ui-components";
 import Table, {TableCell, TableRow} from "@/ui-components/Table";
 import {useUState} from "@/Utilities/UState";
@@ -25,7 +25,7 @@ interface ComputeCategory {
     provider: string;
     category: string;
     kind: "CPU" | "GPU";
-    products: ProductV2[];
+    products: ProductV2Compute[];
 }
 
 function isComputeCategory(val: ProductV2 | ComputeCategory): val is ComputeCategory {
@@ -142,16 +142,17 @@ export const ProductSelector: React.FunctionComponent<{
             const pCompare = a.category.provider.localeCompare(b.category.provider);
             if (pCompare !== 0) return pCompare;
 
-            const aGroup = productGroupName(a);
-            const bGroup = productGroupName(b);
+            const aGroup = a.category.name
+            const bGroup = b.category.name;
 
             const cCompare = aGroup.localeCompare(bGroup);
             if (cCompare !== 0) return cCompare;
 
             if (a.type === "compute" && b.type === "compute") {
-                const aCpu = a.cpu ?? 1;
-                const bCpu = b.cpu ?? 1;
-                return aCpu - bCpu;
+                let aVal = (a.cpu ?? 1) + (a.gpu ?? 0 * ((a.fraction?.numerator ?? 1) / (a.fraction?.denominator ?? 1)));
+                let bVal = (b.cpu ?? 1) + (b.gpu ?? 0 * ((b.fraction?.numerator ?? 1) / (b.fraction?.denominator ?? 1)));
+
+                return aVal - bVal;
             }
 
             return a.name.localeCompare(b.name);
@@ -161,8 +162,7 @@ export const ProductSelector: React.FunctionComponent<{
         for (const [index, product] of Object.entries(sortedProducts)) {
             if (product.category.provider === "aau") continue;
 
-            let categoryName = productGroupName(product);
-            categoryName = getProviderTitle(product.category.provider) + ": " + categoryName;
+            let categoryName = product.category.name
 
             if (lastCategory !== categoryName) {
                 if (type === "COMPUTE") {
@@ -180,7 +180,7 @@ export const ProductSelector: React.FunctionComponent<{
 
             if (type === "COMPUTE") {
                 const last = result.findLast(it => isComputeCategory(it));
-                last?.products.push(product);
+                last?.products.push(product as ProductV2Compute);
             } else {
                 result.push(product);
             }
@@ -362,15 +362,15 @@ export const ProductSelector: React.FunctionComponent<{
         {isCompute && selected ? <>
             <div className={classConcat(SelectorBoxClass, props.slim === true ? "slim" : undefined)} onClick={onToggle} ref={boxRef} style={{marginTop: "4px"}}>
                 <div className="selected">
-
                     <>
                         {props.slim !== true ?
                             <>
                                 <Flex>{queueStatus ? <div style={{
-                                    marginTop: "9px",
+                                    marginTop: "8px",
                                     marginRight: "12px",
+                                    paddingTop: "4px",
                                 }}><JobQueueStatusIndicator status={queueStatus} /></div> : null} {selected?.name}</Flex><br />
-
+                                <ProductDescription serviceProvider={selected.category.provider} category={selected.category.name} />
                                 {selected ? <>
                                     <table>
                                         <tbody>
@@ -567,7 +567,6 @@ const ProductName: React.FunctionComponent<{product: ProductV2}> = ({product}) =
 
 function ProductDescription({serviceProvider, category}: {serviceProvider: string; category: string;}): React.ReactNode {
     const description = useProductDescription(serviceProvider, category);
-    console.log(description, serviceProvider, category);
     return <Text fontSize={14}>{description}</Text>;
 }
 
@@ -673,10 +672,6 @@ export const SelectorDialog = injectStyle("selector-dialog", k => `
         gap: 8px;
     }
 
-    ${k} .table-info + .table-info > td > div {
-        margin-top: -16px;
-    }
-
     ${k} tr.disabled, ${k} tr.disabled:hover {
         background-color: var(--rowDisabled);
         color: var(--borderColor);
@@ -713,9 +708,32 @@ function MachineTypeSelectionSlider(props: {
     onSelect: (index: number) => void;
     idx: number;
 }): React.ReactNode {
+
+    const dividerIndex: number = React.useMemo(() => {
+        if (!props.selectedCategory) return 0;
+        if (!props.selectedCategory.products.length) return 0;
+
+        const firstFractionalIndex =
+            props.selectedCategory.products.findIndex(it => it.fraction?.denominator === 1 && it.fraction?.numerator === 1);
+        if (firstFractionalIndex > 0) {
+            return firstFractionalIndex;
+        }
+
+        return 0;
+    }, [props.selectedCategory]);
+
     if (!props.selectedCategory) return null;
 
+    const productCount = props.selectedCategory.products.length;
+
     return <Box mx="8px" px="8px" onClick={stopPropagation}>
+        {dividerIndex > 0 ?
+            <Flex>
+                <Box ml="4px">MIG (partial GPUs)</Box>
+                <Box style={{position: "absolute", width: "1px", left: `calc(100% * ${dividerIndex / productCount}`, height: "50px", border: "1px solid black"}}></Box>
+                <Box style={{position: "absolute", left: `calc(100% * ${dividerIndex / productCount} + 20px)`}} ml="4px">Full GPUs</Box>
+            </Flex>
+            : null}
         <input value={props.idx} autoFocus onChange={e => props.onSelect(e.target.valueAsNumber)}
             className={FancySlider} min={0} max={props.selectedCategory.products.length - 1} type="range" list="markers" />
         <datalist id="markers" className={DataListStyle}>
@@ -791,7 +809,7 @@ export const SelectorBoxClass = injectStyle("selector-box", k => `
     ${k} .selected {
         cursor: pointer;
         padding: 7px 12px;
-        line-height: 28px;
+        line-height: 18px;
     }
 
     ${k} .selected ul {
