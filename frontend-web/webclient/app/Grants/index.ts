@@ -214,22 +214,18 @@ export interface Doc {
     allocationPeriod?: Period | null
 }
 
-type Form = PlainTextForm | GrantGiverInitiatedForm | StructuredForm;
+type Form = GrantGiverInitiatedForm | StructuredForm;
 
 export interface AnswerFieldForm {
     answer: string;
     field: FormField;
 }
 
-interface PlainTextForm {
-    type: "plain_text";
-    text: string;
-}
-
 interface GrantGiverInitiatedForm {
     type: "grant_giver_initiated";
     text: string;
     subAllocator: boolean;
+    answerForm: AnswerForm;
 }
 
 interface StructuredForm {
@@ -349,7 +345,11 @@ export interface TemplateStructured {
     revisionNumber: number;
 }
 
-export type TemplateKey = keyof TemplateStructured;
+export enum TemplateKey {
+    personalProject = "personalProject",
+    newProject = "newProject",
+    existingProject = "existingProject",
+}
 
 export interface Templates {
     type: "structured"
