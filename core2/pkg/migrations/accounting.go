@@ -321,10 +321,10 @@ func accountingV6() db.MigrationScript {
 			db.Exec(
 				tx,
 				`
-					insert into accounting.allocations_acc2(product_category, wallet, parent_allocation,
+					insert into accounting.allocations_acc2(id, product_category, wallet, parent_allocation,
 						start_time, end_time, quota_self, quota_children, consumed_self,
 						reserved_children, grant_id, promise_id)
-					select w.product_category, w.id, null, alloc.allocation_start_time, alloc.allocation_end_time,
+					select alloc.id, w.product_category, w.id, null, alloc.allocation_start_time, alloc.allocation_end_time,
 						alloc.quota, 0, 0, 0, alloc.granted_in, null
 					from
 						accounting.wallet_allocations_v2 alloc

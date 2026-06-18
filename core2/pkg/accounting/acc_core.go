@@ -12,6 +12,7 @@ import (
 
 	accapi "ucloud.dk/shared/pkg/accounting"
 	"ucloud.dk/shared/pkg/log"
+	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -665,6 +666,12 @@ func walletMarkSignificantUpdate(now time.Time, tree *AccountingTree, wallet *Wa
 	tree.SignificantUpdateAt = now
 	wallet.LastSignificantUpdateAt = now
 	wallet.Dirty = true
+
+	if tree.Category.Provider != "usagegen" {
+		// TODO(Dan): If more than one million updates is ever made in a single lock-cycle, then this function will
+		//   indefinitely stall the system. Please refactor the code, before the system reaches such a size.
+		providerWalletNotifications <- wallet.Id
+	}
 }
 
 // walletReevaluateLock updates wallet.Locked from the current admission-control view of remaining usable quota.
@@ -958,7 +965,7 @@ func walletMutateEx(tree *AccountingTree, owner accapi.WalletOwner, fn func(wall
 	ref := owner.Reference()
 	wallet, ok := tree.WalletsByOwner[ref]
 	if !ok {
-		return // TODO
+		return
 	}
 
 	fn(wallet)
@@ -991,11 +998,23 @@ func walletAssertConsumptionMatchesAllocations(tree *AccountingTree, wallet *Wal
 // This is the standard lock boundary for public low-level accounting operations. Callers should not hold another tree
 // lock when entering this helper.
 func treeMutate(category accapi.ProductCategoryIdV2, fn func(tree *AccountingTree) *util.HttpError) *util.HttpError {
+	log.Info("Mutating tree")
+	defer func() {
+		log.Info("Tree has been mutated")
+	}()
 	accGlobals.Mu.RLock()
 	tree, ok := accGlobals.Trees[category]
 	accGlobals.Mu.RUnlock()
 
 	if !ok {
+		cat, err := ProductCategoryRetrieve(rpc.ActorSystem, category.Name, category.Provider)
+		if err == nil {
+			log.Info("Looking up category. Found it.")
+			CategoryEnsure(cat)
+			log.Info("Ensured")
+			return treeMutate(category, fn)
+		}
+
 		return util.HttpErr(http.StatusInternalServerError, "unknown category: %#v", category)
 	}
 
@@ -1029,6 +1048,10 @@ func UsageReport(now time.Time, request accapi.ReportUsageRequest) (success bool
 
 	shouldShrinkReconcile := false
 	walletMutate(request.CategoryIdV2, request.Owner, func(tree *AccountingTree, wallet *Wallet) {
+		if tree.Category.FreeToUse {
+			return
+		}
+
 		lifecycleScan(now, tree)
 
 		if len(wallet.Allocations) == 0 {
@@ -1287,6 +1310,10 @@ func usageReportResolveAbsoluteUsage(now time.Time, request accapi.ReportUsageRe
 
 	absoluteAmount := int64(0)
 	err := treeMutate(request.CategoryIdV2, func(tree *AccountingTree) *util.HttpError {
+		if tree.Category.FreeToUse {
+			return nil
+		}
+
 		lifecycleScan(now, tree)
 		wallet := tree.WalletsByOwner[request.Owner.Reference()]
 		if wallet == nil {

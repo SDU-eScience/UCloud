@@ -305,6 +305,7 @@ func InferenceChatStreaming(owner apm.WalletOwner, history InferenceChatRequest)
 				}
 
 				usageSeen = inferenceChatUsageFromText(history, assistantText.String(), chunk.Usage)
+				inferenceReportUsage(owner, usageSeen.PromptTokens, usageSeen.CompletionTokens)
 
 				ch <- InferenceChatStreamingResponse{
 					Id:      chunk.Id,

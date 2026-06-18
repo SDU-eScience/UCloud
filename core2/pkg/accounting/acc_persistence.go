@@ -1,7 +1,9 @@
 package accounting
 
 import (
+	"cmp"
 	"database/sql"
+	"slices"
 	"time"
 
 	accapi "ucloud.dk/shared/pkg/accounting"
@@ -12,6 +14,10 @@ import (
 )
 
 func accountingLoad() {
+	log.Info("Accounting loading")
+	defer func() {
+		log.Info("Accounting has been loaded")
+	}()
 	var loadTimes struct {
 		WalletOwners time.Duration
 		ScopedUsage  time.Duration
@@ -225,7 +231,7 @@ func accountingLoad() {
 		allocationRows := db.Select[struct {
 			Id               int
 			Wallet           int
-			Parent           sql.Null[int]
+			ParentAllocation sql.Null[int]
 			StartTime        time.Time
 			EndTime          time.Time
 			QuotaSelf        int64
@@ -249,6 +255,7 @@ func accountingLoad() {
 				from 
 					accounting.allocations_acc2 a
 					join accounting.product_categories pc on a.product_category = pc.id
+				order by a.id
 		    `,
 			db.Params{},
 		)
@@ -283,8 +290,10 @@ func accountingLoad() {
 					Promise:  util.Option[PromiseId]{},
 				}
 
-				if row.Parent.Valid {
-					a.Parent.Set(AllocationId(row.Parent.V))
+				if row.ParentAllocation.Valid {
+					a.Parent.Set(AllocationId(row.ParentAllocation.V))
+					log.Info("tree: %#v", tree.AllocationsById)
+					log.Info("%v %v", row.Id, row.ParentAllocation.V)
 					tree.AllocationsById[a.Parent.Value].Children = append(tree.AllocationsById[a.Parent.Value].Children, a.Id)
 				}
 
@@ -309,11 +318,72 @@ func accountingLoad() {
 	})
 
 	now := time.Now()
+	accountingRepairLoadedConsumption(now)
 	for _, tree := range accGlobals.Trees {
 		lifecycleScan(now, tree)
 
 		for _, wallet := range tree.WalletsById {
 			PromiseReconcile(now, tree.Category.ToId(), wallet.Owner, util.OptNone[int64]())
+		}
+	}
+}
+
+// accountingRepairLoadedConsumption repairs migrated acc2 state where wallet.Consumed was copied from the old system,
+// but the same usage was not distributed onto concrete low-level allocations.
+//
+// The repair deliberately reuses UsageReport instead of duplicating allocation distribution and promise materialization
+// rules in SQL. Parents are repaired before children so local parent consumption reduces the concrete capacity available
+// to child promise materializations.
+func accountingRepairLoadedConsumption(now time.Time) {
+	type repairItem struct {
+		category accapi.ProductCategoryIdV2
+		owner    accapi.WalletOwner
+		walletId WalletId
+		depth    int
+		usage    int64
+	}
+
+	items := []repairItem{}
+	accGlobals.Mu.RLock()
+	for _, tree := range accGlobals.Trees {
+		tree.Mu.RLock()
+		for _, wallet := range tree.WalletsById {
+			allocationUsage := int64(0)
+			for _, allocationId := range wallet.Allocations {
+				allocation := tree.AllocationsById[allocationId]
+				if allocation != nil {
+					allocationUsage += allocation.ConsumedSelf
+				}
+			}
+			if wallet.Consumed > 0 && wallet.Consumed != allocationUsage {
+				items = append(items, repairItem{
+					category: tree.Category.ToId(),
+					owner:    wallet.Owner,
+					walletId: wallet.Id,
+					depth:    promiseWalletDepth(&tree.PromiseTree, wallet.Id),
+					usage:    wallet.Consumed,
+				})
+			}
+		}
+		tree.Mu.RUnlock()
+	}
+	accGlobals.Mu.RUnlock()
+
+	slices.SortFunc(items, func(a, b repairItem) int {
+		if a.depth != b.depth {
+			return cmp.Compare(a.depth, b.depth)
+		}
+		return cmp.Compare(int(a.walletId), int(b.walletId))
+	})
+
+	for _, item := range items {
+		_, err := UsageReport(now, accapi.ReportUsageRequest{
+			Owner:        item.owner,
+			CategoryIdV2: item.category,
+			Usage:        item.usage,
+		})
+		if err != nil {
+			log.Warn("Could not repair loaded accounting consumption for wallet %v: %v", item.walletId, err)
 		}
 	}
 }
