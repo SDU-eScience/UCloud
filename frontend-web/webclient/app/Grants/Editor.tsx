@@ -822,12 +822,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             if (answerForm.allocatorId === "System" && answerForm.templateRevisionNumber === -42) {  
                 continue;
             }
-
             for(var answerField of answerForm.answerFields) {
-                if (answerField.field.name !== "") {
-                    // we skip since we have already resolved this before, so we don't need to look up via title.
-                    continue;
-                }
                 const foundField: Grants.FormField | undefined = allTheFields[answerField.field.title];
                 if (!foundField) {
                     continue;

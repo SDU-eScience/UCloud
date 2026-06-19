@@ -226,8 +226,8 @@ func normalizeTitle(title string) string {
 	return builder
 }
 
-// ParseAnswerFormFields For converting plain text new format, at some point we can remove this function
-func ParseAnswerFormFields(text string) []AnswerForm {
+// ParseToAnswerForms For converting plain_text to the new format, at some point we can remove this function
+func ParseToAnswerForms(text string) []AnswerForm {
 	lines := strings.Split(text, "\n")
 
 	var sectionSeparators []int
@@ -294,21 +294,19 @@ func ParseAnswerFormFields(text string) []AnswerForm {
 				Name:        "",
 				Title:       title,
 				Description: "",
-				Optional:    false,
-				Rows:        util.OptValue(5),
-				MaxLength:   util.OptValue(4000),
+				Optional:    true,
 			},
 		}
 		result = append(result, field)
 	}
 	if len(result) == 0 {
 		// We didn't parse any entry, if not just put the text into one answer field,
-		// eg. gift initiated by the system won't be able to be resolved by
+		// e.g., gift initiated by the system won't be able to be resolved by
 		// the parsing above
 		result = append(result, AnswerFieldForm{
 			Answer: text,
 			Field: FormField{
-				Name:        "legacy_answer_field_plain_text",
+				Name:        "",
 				Title:       "",
 				Description: "",
 				Optional:    true,
@@ -316,7 +314,7 @@ func ParseAnswerFormFields(text string) []AnswerForm {
 			},
 		})
 	}
-	return []AnswerForm{{AnswerFields: util.NonNilSlice(result), TemplateRevisionNumber: -1, AllocatorId: "System"}}
+	return []AnswerForm{{AnswerFields: util.NonNilSlice(result), TemplateRevisionNumber: -42, AllocatorId: "System"}}
 }
 
 // ParseFormFields Temp parsing for the new format, at some point we can remove this function
