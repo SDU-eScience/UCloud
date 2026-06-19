@@ -359,9 +359,8 @@ export const ProductSelector: React.FunctionComponent<{
                     <>
                         {props.slim !== true ?
                             <>
-                                <Flex>{queueStatus ? <div style={{
-                                    marginTop: "8px",
-                                    marginRight: "12px",
+                                <Flex ml="2px" mt="4px">{queueStatus ? <div style={{
+                                    marginRight: "8px",
                                     paddingTop: "4px",
                                 }}><JobQueueStatusIndicator status={queueStatus} /></div> : null} {selected?.name}</Flex><br />
                                 <ProductDescription serviceProvider={selected.category.provider} category={selected.category.name} />
@@ -735,7 +734,7 @@ function MachineTypeSelectionSlider(props: {
         {dividerIndex > 0 ?
             <Flex>
                 <Box ml="4px">MIG (partial GPUs)</Box>
-                <Box style={{position: "absolute", width: "1px", left: `calc(100% * ${dividerIndex / productCount} - 16px)`, height: "50px", border: "1px solid black"}}></Box>
+                <Box style={{position: "absolute", width: "1px", left: `calc(100% * ${dividerIndex / productCount} - 16px)`, height: "80px", border: "1px solid var(--infoMain)"}}></Box>
                 <Box style={{position: "absolute", left: `calc(100% * ${dividerIndex / productCount} + 20px)`}} ml="4px">Full GPUs</Box>
             </Flex>
             : null}
