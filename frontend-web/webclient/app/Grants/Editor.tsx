@@ -97,12 +97,9 @@ interface EditorState {
     allocators: Allocators[];
 
     createApplicationForms: Grants.AnswerForm[];
-    answeredApplicationForms: Grants.AnswerForm[];
 
     // Used for the legacy way of displaying
     outdatedFields: Grants.AnswerFieldForm[];
-    applicationAnswers: Record<string, Grants.AnswerForm>;
-    answerForms: Grants.AnswerForm[]; // constructed form
 
     resources: Record<string, ResourceCategory[]>;
 }
@@ -153,15 +150,12 @@ const defaultState: EditorState = {
     },
     possibleTransfers: [],
     createApplicationForms: [],
-    answeredApplicationForms: [],
-    answerForms: [],
     outdatedFields: [],
     loading: false,
     principalInvestigator: Client.activeUsername ?? "",
     loadedProjects: [],
     fullScreenLoading: true,
     selectedProjectType: Grants.TemplateKey.newProject, 
-    applicationAnswers: {}
 };
 
 interface OutdatedTextAreaProps {
@@ -212,7 +206,6 @@ type EditorAction =
     | {type: "SetIsCreating", stateDuringCreate?: EditorState["stateDuringCreate"]}
     | {type: "RecipientUpdated", isCreatingNewProject: boolean, reference?: string}
     | {type: "ProjectsReloaded", projects: {id: string | null, title: string}[]}
-    | {type: "ApplicationUpdated", answer: string, field: Grants.FormField}
     | {type: "AnswerFormUpdated", allocatorId: string, fieldIdx: number, answer: string}
     | {type: "LoadingStateChange", isLoading: boolean}
     | {type: "ReferenceIdUpdated", newReferenceId: string, idx: number}
@@ -286,8 +279,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             }
 
             if (state.stateDuringCreate) {
-                state.applicationAnswers = {}; // Clearing previous forms
-                state.answerForms = []
+                state.createApplicationForms = []; // Clearing
                 if (state.stateDuringCreate.creatingWorkspace) {
                     templateKey = "newProject";
                 } else if (state.stateDuringCreate.reference) {
@@ -460,7 +452,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                         form: {
                             type: "structured",
                             text: "",
-                            answerForms: [], // TODODOD
+                            answerForms: [],
                             subAllocator: false,
                         },
                         allocationPeriod: {
@@ -506,15 +498,6 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             }
         }
 
-        case "ApplicationUpdated": {
-            const newContents = {...state.answerForms};
-            // newContents[action.field.name] = {field: action.field, answer: action.answer};
-
-            return {
-                ...state,
-                // answerForms: newContents, TODO :ASDFASDFASDF
-            };
-        }
         case "AnswerFormUpdated": {
           const answerForms = state.createApplicationForms.map(form => {
             if (form.allocatorId !== action.allocatorId) {
@@ -538,7 +521,6 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             return {
                 ...state, 
                 createApplicationForms: answerForms
-                // answerForms
                 
             };
         }
@@ -825,11 +807,38 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
         }
 
         const isGrantGiverInitiated = app && app.status.overallState == "APPROVED" && app.status.revisions.length === 1 && docText.startsWith(grantGiverInitiatedPrefix);
-        // let structuredForms: Grants.AnswerForm[] = isGrantGiverInitiated ? [grantGiverInitiatedForm] : extractToAnswerForms(newAllocators, state.selectedProjectType);
+        let loadedAnswerForms: Grants.AnswerForm[] = doc.form.answerForms;
+        if (isGrantGiverInitiated) {
+            loadedAnswerForms = [grantGiverInitiatedForm];
+        }
 
-        // const selectedAnswerForms: Grants.AnswerForm[] = structuredForms;
-        var outdatedFields: Grants.AnswerFieldForm[] = [];
-        const newApplicationDocument: EditorState["createApplicationForms"] = doc.form.answerForms;
+        /********************************** Legacy handling for backwards compatibility **********************************************************/
+
+        // Legacy title-based lookup for form fields.
+        const allTheFields: Record<string, Grants.FormField> = Object.fromEntries(
+        newAllocators.flatMap(i => i.template[state.selectedProjectType].map(field => [field.title, field])));
+
+        for (var answerForm of loadedAnswerForms) {
+            if (answerForm.allocatorId === "System" && answerForm.templateRevisionNumber === -42) {  
+                continue;
+            }
+
+            for(var answerField of answerForm.answerFields) {
+                if (answerField.field.name !== "") {
+                    // we skip since we have already resolved this before, so we don't need to look up via title.
+                    continue;
+                }
+                const foundField: Grants.FormField | undefined = allTheFields[answerField.field.title];
+                if (!foundField) {
+                    continue;
+                }
+                answerField.field = foundField; // now we override with the found field
+            }
+            // TODO: Remove sentinel hack (-42) once plain_text is no longer in use.
+            // Currently used to signal "fields already resolved" in legacy flow.
+            answerForm.templateRevisionNumber = -42;
+        }
+        /****************************************************************************************************************************************/
 
         let startDate = new Date(Date.now())
         if (doc.allocationPeriod?.start != null) {
@@ -874,9 +883,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             ...state,
             allocators: newAllocators,
             resources: newResources,
-            createApplicationForms: newApplicationDocument,
-            outdatedFields: outdatedFields,
-            answeredApplicationForms: doc.form.answerForms,
+            createApplicationForms: loadedAnswerForms,
             allocationPeriod: state.stateDuringEdit.id === GRANT_GIVER_INITIATED_ID ? state.allocationPeriod : {
                 start: {
                     month: startMonth,
@@ -907,23 +914,6 @@ function extractToAnswerForms(allocators: Allocators[], templateKey: string
     }
     return answerForms;
 
-}
-
-
-function convertToAnswerForms(
-  structuredForms: Record<string, Grants.TemplateStructured>,
-  templateKey: string
-): Grants.AnswerForm[] {
-
-    const answerForms: Grants.AnswerForm[] = [];
-    for(const [key, value] of Object.entries(structuredForms)) {
-        answerForms.push({
-            allocatorId: key,
-            answerFields: value[templateKey],
-            templateRevisionNumber: value.revisionNumber
-        })
-    }
-    return answerForms;
 }
 
 // State reducer middleware
@@ -1578,18 +1568,6 @@ export function Editor(): React.ReactNode {
         dispatchEvent({type: "CleanupReferenceIds"});
     }, [dispatchEvent]);
 
-    const onApplicationChange = useCallback<React.FormEventHandler>(ev => {
-        if (!(ev.target instanceof HTMLTextAreaElement)) return;
-        const id = ev.target.id;
-        const newValue = ev.target.value;
-        const f = ev.target.dataset.field;
-        let field: Grants.FormField = {description: "", name: id, optional: false, title: ""};
-        if (f !== undefined) {
-            field = JSON.parse(f);
-        }
-        dispatchEvent({type: "ApplicationUpdated", answer: newValue, field});
-    }, [dispatchEvent]);
-
     const onAnswerFormChange = useCallback((allocatorId: string, fieldIdx: number, answer: string) => {
         dispatchEvent({type: "AnswerFormUpdated", allocatorId, fieldIdx, answer});
     },[dispatchEvent]);
@@ -1639,7 +1617,7 @@ export function Editor(): React.ReactNode {
         if (state.stateDuringCreate !== undefined) {
             return state.createApplicationForms.length > 0;
         } else if (state.stateDuringEdit !== undefined) {
-            return state.answerForms.length > 0;
+            return state.createApplicationForms.length > 0;
         }
         return false;
     }
@@ -1744,7 +1722,7 @@ export function Editor(): React.ReactNode {
             doc.form["subAllocator"] = isForSubAllocator
         }
 
-        if (isGrantGiverInitiated && state.answerForms.length === 0) {
+        if (isGrantGiverInitiated && state.createApplicationForms.length === 0) {
             sendFailureNotification("Missing description (see application section)");
             return false;
         }
@@ -2322,8 +2300,7 @@ export function Editor(): React.ReactNode {
                                 </React.Fragment>;
                             })}
 
-                            <ApplicationForm closed={isClosed} editorState={state} event={onAnswerFormChange}></ApplicationForm>
-
+                            <AnswerFormsView state={state} forms={state.createApplicationForms} onChange={onAnswerFormChange}/>
                         </>}
                     </form>
                 </Box>
@@ -2331,117 +2308,18 @@ export function Editor(): React.ReactNode {
     />;
 };
 
-type ApplicationFormProps = {
-    editorState: EditorState,
-    closed: boolean | undefined,
-    event: (allocatorId: string, fieldIdx: number, answer: string) => void,
-};
-
-export function ApplicationForm({editorState: state, closed: isClosed, event: onAnswerFormChange}: ApplicationFormProps): React.ReactNode {
-
-    function OutdatedTextArea({field: answerField}: OutdatedTextAreaProps): React.ReactNode {
-
-        const handleCopy = async () => {
-            await navigator.clipboard.writeText(answerField.answer || "");
-            sendSuccessNotification("Copied!");
-        };
-
-        return (
-            <Box mb={10}>
-                <Flex>
-                    <Label>{answerField.field.title}</Label>
-                    <Tooltip trigger={(
-                        <TextArea
-                            readOnly
-                            style={{"cursor": "pointer"}}
-                            onClick={handleCopy}
-                            mr={10}
-                            value={answerField.answer}
-                            width="545px"
-                        />
-                    )}>
-                        Click to copy field to clipboard
-                    </Tooltip>
-                </Flex>
-            </Box>
-        );
-    }
-
-    const OutdatedApplicationDescription = <Box mb={20}>
-        <Label fontSize={16} mb={2} style={{fontWeight: "bold"}}>Outdated fields</Label>
-        <section style={{color: "var(--textSecondary)"}}>
-            <p style={{margin: 0}}>The project application form has changed since you last edited your submission. </p>
-            <p style={{margin: 0}}>Please review and update the affected fields.</p>
-        </section>
-    </Box>
-
-    const renderAnswerFormFields = (answers: Grants.AnswerFieldForm[]): React.ReactNode => (
-            answers.map((val, idx) => (
-            <FormField
-                        title={val.field.title}
-                        key={idx}
-                        id={val.field.name}
-                        description={val.field.description}
-                        mandatory={!val.field.optional}
-                    >
-                        <Box>
-                            <TextArea
-                                id={val.field.name}
-                                rows={val.field.rows}
-                                maxLength={val.field.maxLength}
-                                required={!val.field.optional}
-                                disabled={state.locked || isClosed}
-                                data-field={JSON.stringify(val)}
-                                // onChange={onApplicationChange} // TODO we should do something else here
-                                placeholder=" "
-                            />
-                            {/* {val.maxLength ? <Flex justifyContent={"flex-end"}>{state.applicationAnswers[val.name]?.answer.length ?? 0} / {val.maxLength} </Flex> : <></>} */}
-                        </Box>
-
-                    </FormField>
-            ))
-    );
-
-    const renderForm = (forms: Grants.AnswerForm[]): React.ReactNode => (
-        <div className="application-wrapper">
-            <div className="application">
-                <Box>
-                {forms.map((answerForm, idx) => (
-                    <>
-                        {renderAnswerFormFields(answerForm.answerFields)}
-                    </>
-                ))}
-                </Box>
-            </div>
-
-            {state.outdatedFields.length > 0 && OutdatedApplicationDescription}
-
-            {state.outdatedFields.map((f) => (
-                <OutdatedTextArea key={f.field.name} field={f} />
-            ))}
-        </div>
-    );
-
-    if (state.outdatedFields.length > 0) {
-        // legacy rendering
-        return renderForm(state.createApplicationForms);
-    }
-
-    return <AnswerFormsView state={state} forms={state.createApplicationForms} onChange={onAnswerFormChange}/>
-}
-
 function AnswerFormsView({ state, forms, onChange }: { state: EditorState, forms: Grants.AnswerForm[]; onChange: AnswerFormUpdateCallback}) {
     return (
         <div className="application-wrapper">
             {forms.map((form) => (
-                <Box>
+                <Box key={form.allocatorId}>
                     <h3>
                         <ProjectLogo projectId={form.allocatorId} size={`${25}px`} />
                         <ProjectTitleForNewCore id={form.allocatorId}/>
                     </h3>
                     <hr style={{border:("solid 1px var(--secondaryDark)")}}/>
-                    <AnswerFormView state={state}
-                        key={form.templateRevisionNumber}
+                    <AnswerFormView 
+                        state={state}
                         form={form}
                         onChange={onChange}
                     />
@@ -2457,12 +2335,11 @@ function AnswerFormView({state, form, onChange}: { state: EditorState; form: Gra
         state.stateDuringEdit &&
         overallState !== Grants.State.IN_PROGRESS;
     return (
-        <React.Fragment key={form.allocatorId}>
-            <div className="application">
+        <div className="application">
             {form.answerFields.map((answerField, fieldIdx) => (
                 <FormField
-                    title={answerField.field.title}
                     key={fieldIdx}
+                    title={answerField.field.title}
                     id={answerField.field.name}
                     description={answerField.field.description}
                     mandatory={!answerField.field.optional}>
@@ -2473,7 +2350,6 @@ function AnswerFormView({state, form, onChange}: { state: EditorState; form: Gra
                             maxLength={answerField.field.maxLength}
                             required={!answerField.field.optional}
                             disabled={state.locked || isClosed}
-                            key={answerField.field.name}
                             value={answerField.answer}
                             onChange={(e) => onChange(form.allocatorId, fieldIdx, e.target.value)}
                         />
@@ -2481,8 +2357,7 @@ function AnswerFormView({state, form, onChange}: { state: EditorState; form: Gra
                     </Box>
                 </FormField>
             ))}
-            </div>
-        </React.Fragment>
+        </div>
     );
 }
 

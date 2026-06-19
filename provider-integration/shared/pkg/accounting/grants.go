@@ -301,7 +301,22 @@ func ParseAnswerFormFields(text string) []AnswerForm {
 		}
 		result = append(result, field)
 	}
-	return []AnswerForm{{AnswerFields: util.NonNilSlice(result), TemplateRevisionNumber: -1, AllocatorId: ""}}
+	if len(result) == 0 {
+		// We didn't parse any entry, if not just put the text into one answer field,
+		// eg. gift initiated by the system won't be able to be resolved by
+		// the parsing above
+		result = append(result, AnswerFieldForm{
+			Answer: text,
+			Field: FormField{
+				Name:        "legacy_answer_field_plain_text",
+				Title:       "",
+				Description: "",
+				Optional:    true,
+				Rows:        util.OptValue(5),
+			},
+		})
+	}
+	return []AnswerForm{{AnswerFields: util.NonNilSlice(result), TemplateRevisionNumber: -1, AllocatorId: "System"}}
 }
 
 // ParseFormFields Temp parsing for the new format, at some point we can remove this function
@@ -456,7 +471,6 @@ func ParseFormFields(text string) []FormField {
 		}
 	}
 	result = append(smallFields, largeFields...)
-
 	return util.NonNilSlice(result)
 }
 
