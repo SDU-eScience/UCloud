@@ -38,7 +38,10 @@ func (e *lowTestEnv) addPromise(parent string, child string, start int, end int,
 
 func (e *lowTestEnv) reconcile(at int, owner string, minimum int64) {
 	e.t.Helper()
-	PromiseReconcile(e.tm(at), e.categoryId, e.owner(owner), minimum)
+	treeMutate(e.categoryId, func(tree *AccountingTree) *util.HttpError {
+		PromiseReconcile(e.tm(at), tree, e.owner(owner), minimum)
+		return nil
+	})
 	e.assertValid()
 }
 
@@ -400,7 +403,10 @@ func TestPromiseCycleReconcilePreservesInvariants(t *testing.T) {
 	e.reconcile(1, "a", 50)
 	e.reconcile(1, "b", 50)
 	e.reconcile(1, "c", 50)
-	PromiseReconcile(e.tm(2), e.categoryId, e.owner("root"), 0)
+	treeMutate(e.categoryId, func(tree *AccountingTree) *util.HttpError {
+		PromiseReconcile(e.tm(2), tree, e.owner("root"), 0)
+		return nil
+	})
 	e.assertValid()
 
 	for _, promise := range []PromiseId{rootToA, aToB, bToC, cToA} {

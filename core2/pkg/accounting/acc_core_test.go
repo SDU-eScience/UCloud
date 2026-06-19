@@ -26,6 +26,8 @@ func newLowTestEnv(t *testing.T, frequency accapi.AccountingFrequency) *lowTestE
 	accGlobals.TestingEnabled = true
 	accGlobals.Usage = map[string]*ScopedUsage{}
 	accGlobals.Trees = map[accapi.ProductCategoryIdV2]*AccountingTree{}
+	accGlobals.OwnersByReference = map[string]*walletOwner{}
+	accGlobals.OwnersById = map[OwnerId]*walletOwner{}
 	accGlobals.OwnerIdAcc.Store(0)
 	accGlobals.WalletIdAcc.Store(0)
 	accGlobals.AllocIdAcc.Store(0)
@@ -90,11 +92,13 @@ func (e *lowTestEnv) wallet(ref string) WalletId {
 	}
 
 	owner := e.owner(ref)
+	walletOwner := walletOwnerEnsure(owner)
 	id := WalletId(accGlobals.WalletIdAcc.Add(1))
 	wallet := &Wallet{
 		Id:          id,
 		Allocations: []AllocationId{},
 		Owner:       owner,
+		OwnerId:     walletOwner.Id,
 		Category:    e.categoryId,
 	}
 

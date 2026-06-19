@@ -144,6 +144,7 @@ type Wallet struct {
 	Consumed    int64
 	Locked      bool
 	Owner       accapi.WalletOwner
+	OwnerId     OwnerId
 	Category    accapi.ProductCategoryIdV2
 	Dirty       bool
 
@@ -180,32 +181,6 @@ type Allocation struct {
 	Dirty   bool
 }
 
-func CategoryEnsure(category accapi.ProductCategory) {
-	categoryId := category.ToId()
-	accGlobals.Mu.Lock()
-	defer accGlobals.Mu.Unlock()
-
-	if accGlobals.Trees == nil {
-		accGlobals.Trees = map[accapi.ProductCategoryIdV2]*AccountingTree{}
-	}
-	if accGlobals.Trees[categoryId] != nil {
-		return
-	}
-
-	accGlobals.Trees[categoryId] = &AccountingTree{
-		Category:        category,
-		WalletsById:     map[WalletId]*Wallet{},
-		WalletsByOwner:  map[string]*Wallet{},
-		AllocationsById: map[AllocationId]*Allocation{},
-		PromiseTree: PromiseTree{
-			PromisesById:     map[PromiseId]*Promise{},
-			PromisesByParent: map[WalletId][]PromiseId{},
-			PromisesByChild:  map[WalletId][]PromiseId{},
-		},
-		Policy: PromisePolicy{TrendAlphaBasisPoints: 10000},
-	}
-}
-
 // IsActive reports whether now is inside the allocation's inclusive-start, exclusive-end interval.
 //
 // This checks the time interval only. It does not require the allocation.Activated flag to have been advanced by a
@@ -237,6 +212,32 @@ func (a *Allocation) shouldRetire(now time.Time) bool {
 	return !a.Retired && now.Add(time.Second).After(a.End)
 }
 
+func CategoryEnsure(category accapi.ProductCategory) {
+	categoryId := category.ToId()
+	accGlobals.Mu.Lock()
+	defer accGlobals.Mu.Unlock()
+
+	if accGlobals.Trees == nil {
+		accGlobals.Trees = map[accapi.ProductCategoryIdV2]*AccountingTree{}
+	}
+	if accGlobals.Trees[categoryId] != nil {
+		return
+	}
+
+	accGlobals.Trees[categoryId] = &AccountingTree{
+		Category:        category,
+		WalletsById:     map[WalletId]*Wallet{},
+		WalletsByOwner:  map[string]*Wallet{},
+		AllocationsById: map[AllocationId]*Allocation{},
+		PromiseTree: PromiseTree{
+			PromisesById:     map[PromiseId]*Promise{},
+			PromisesByParent: map[WalletId][]PromiseId{},
+			PromisesByChild:  map[WalletId][]PromiseId{},
+		},
+		Policy: PromisePolicy{TrendAlphaBasisPoints: 10000},
+	}
+}
+
 // WalletEnsure creates or returns the wallet id for an owner in a category.
 //
 // This is a public low-level creation helper. It only ensures wallet existence; it does not grant quota or make the
@@ -259,19 +260,49 @@ func walletEnsureEx(tree *AccountingTree, owner accapi.WalletOwner) *Wallet {
 	ref := owner.Reference()
 	wallet := tree.WalletsByOwner[ref]
 	if wallet != nil {
+		if wallet.OwnerId == 0 {
+			wallet.OwnerId = walletOwnerEnsure(owner).Id
+			wallet.Dirty = true
+		}
 		return wallet
 	}
+	ownerRef := walletOwnerEnsure(owner)
 
 	wallet = &Wallet{
 		Id:          WalletId(accGlobals.WalletIdAcc.Add(1)),
 		Allocations: []AllocationId{},
 		Owner:       owner,
+		OwnerId:     ownerRef.Id,
 		Category:    tree.Category.ToId(),
 		Dirty:       true,
 	}
 	tree.WalletsById[wallet.Id] = wallet
 	tree.WalletsByOwner[ref] = wallet
 	return wallet
+}
+
+func walletOwnerEnsure(owner accapi.WalletOwner) *walletOwner {
+	ref := owner.Reference()
+	if accGlobals.OwnersByReference == nil {
+		accGlobals.OwnersByReference = map[string]*walletOwner{}
+	}
+	if accGlobals.OwnersById == nil {
+		accGlobals.OwnersById = map[OwnerId]*walletOwner{}
+	}
+
+	ownerRef := accGlobals.OwnersByReference[ref]
+	if ownerRef != nil {
+		return ownerRef
+	}
+
+	ownerRef = &walletOwner{
+		Id:        OwnerId(accGlobals.OwnerIdAcc.Add(1)),
+		Reference: ref,
+		Dirty:     true,
+	}
+	accGlobals.OwnersByReference[ref] = ownerRef
+	accGlobals.OwnersById[ownerRef.Id] = ownerRef
+	return ownerRef
 }
 
 // Allocation lifecycle API
@@ -513,7 +544,7 @@ func allocationUpdatePromiseBacked(
 	if end.Present && !proposedEnd.Equal(promise.End) && now.After(promise.End) {
 		return util.HttpErr(http.StatusForbidden, "cannot change the ending time of a promise which has already ended")
 	}
-	if proposedQuota < promiseRequiredQuota(now, tree, promise) {
+	if proposedQuota < promiseRequiredQuota(tree, promise) {
 		return util.HttpErr(http.StatusForbidden, "quota cannot be lowered below existing consumption and child reservations")
 	}
 
@@ -536,31 +567,6 @@ func allocationUpdatePromiseBacked(
 	}
 
 	return nil
-}
-
-// promiseRequiredQuota returns the concrete promise-backed quota that must remain allocated for a promise.
-//
-// It is used when manually editing a promise-backed allocation through AllocationUpdate. The value is intentionally
-// based on already-materialized allocation state, not promise quota: lowering a promise below existing consumption or
-// child reservations would make the allocation tree invalid. For capacity-based products, retired allocations no longer
-// require quota from the promise.
-func promiseRequiredQuota(now time.Time, tree *AccountingTree, promise *Promise) int64 {
-	wallet := tree.WalletsById[promise.Child]
-	if wallet == nil {
-		return 0
-	}
-	required := int64(0)
-	for _, allocationId := range wallet.Allocations {
-		allocation := tree.AllocationsById[allocationId]
-		if allocation == nil || !allocation.Promise.Present || allocation.Promise.Value != promise.Id {
-			continue
-		}
-		if tree.IsCapacityBased() && allocation.Retired {
-			continue
-		}
-		required += allocation.ConsumedSelf + allocation.ReservedChildren
-	}
-	return required
 }
 
 // allocationUpdateChangelog formats the grant-facing audit text for manual promise allocation edits.
@@ -598,6 +604,31 @@ func allocationUpdateChangelog(
 	return changelog
 }
 
+// promiseRequiredQuota returns the concrete promise-backed quota that must remain allocated for a promise.
+//
+// It is used when manually editing a promise-backed allocation through AllocationUpdate. The value is intentionally
+// based on already-materialized allocation state, not promise quota: lowering a promise below existing consumption or
+// child reservations would make the allocation tree invalid. For capacity-based products, retired allocations no longer
+// require quota from the promise.
+func promiseRequiredQuota(tree *AccountingTree, promise *Promise) int64 {
+	wallet := tree.WalletsById[promise.Child]
+	if wallet == nil {
+		return 0
+	}
+	required := int64(0)
+	for _, allocationId := range wallet.Allocations {
+		allocation := tree.AllocationsById[allocationId]
+		if allocation == nil || !allocation.Promise.Present || allocation.Promise.Value != promise.Id {
+			continue
+		}
+		if tree.IsCapacityBased() && allocation.Retired {
+			continue
+		}
+		required += allocation.ConsumedSelf + allocation.ReservedChildren
+	}
+	return required
+}
+
 // Mutation and invariant helpers
 // ---------------------------------------------------------------------------------------------------------------------
 // The low-level accounting tree is deliberately strict: mutation functions are allowed to change several related fields
@@ -613,7 +644,6 @@ func allocationUpdateChangelog(
 // - allocationMutate: Applies a mutation to one allocation and checks local and parent/child invariants.
 // - walletMutate: Locks a tree by category, finds a wallet by owner and runs a wallet mutation.
 // - walletMutateEx: Runs a wallet mutation when the caller already holds the tree lock.
-// - walletAssertConsumptionMatchesAllocations: Verifies wallet.Consumed equals the sum of allocation consumption.
 // - treeMutate: Locates and locks the accounting tree for a category.
 
 // walletMarkSignificantUpdate records that a wallet changed in a way providers or UI clients should observe.
@@ -925,14 +955,7 @@ func walletMutateEx(tree *AccountingTree, owner accapi.WalletOwner, fn func(wall
 
 	fn(wallet)
 	wallet.Dirty = true
-	walletAssertConsumptionMatchesAllocations(tree, wallet)
-}
 
-// walletAssertConsumptionMatchesAllocations checks the wallet consumption accounting invariant.
-//
-// wallet.Consumed is the descriptive total reported for the wallet, while allocation.ConsumedSelf is the concrete
-// distribution of that total over active or retired allocations. They must sum exactly after every wallet mutation.
-func walletAssertConsumptionMatchesAllocations(tree *AccountingTree, wallet *Wallet) {
 	reportError := func(format string, args ...any) {
 		log.Fatal("Assertion error %#v: %s", wallet, fmt.Sprintf(format, args...))
 	}
@@ -987,298 +1010,232 @@ func treeMutate(category accapi.ProductCategoryIdV2, fn func(tree *AccountingTre
 // usage can be moved forward when an active allocation can absorb it.
 
 func UsageReport(now time.Time, request accapi.ReportUsageRequest) (success bool, err *util.HttpError) {
-	// TODO Race condition?
-	scope := usageReportScope(request)
-	absoluteAmount, resolveErr := usageReportResolveAbsoluteUsage(now, request, scope)
-	if resolveErr != nil {
-		return false, resolveErr
-	}
-
-	PromiseReconcile(now, request.CategoryIdV2, request.Owner, absoluteAmount)
-
-	walletMutate(request.CategoryIdV2, request.Owner, func(tree *AccountingTree, wallet *Wallet) {
+	treeMutate(request.CategoryIdV2, func(tree *AccountingTree) *util.HttpError {
 		if tree.Category.FreeToUse {
-			return
-		}
-
-		lifecycleScanEx(now, tree, nil)
-
-		if len(wallet.Allocations) == 0 {
-			success, err = false, util.HttpErr(http.StatusBadRequest, "this owner does not have any such resources")
-			return
-		}
-
-		retiredAmount := int64(0)
-
-		var activeAllocationsReadOnly []*Allocation
-		var retiredAllocations []AllocationId
-		hasExcessUsageInRetired := false
-
-		for _, allocId := range wallet.Allocations {
-			alloc := tree.AllocationsById[allocId]
-			if alloc.IsRetired(now) {
-				retiredAmount += alloc.ConsumedSelf
-				retiredAllocations = append(retiredAllocations, allocId)
-
-				if tree.IsCapacityBased() {
-					if alloc.ConsumedSelf > 0 {
-						hasExcessUsageInRetired = true
-					}
-				} else {
-					if alloc.ConsumedSelf > alloc.QuotaSelf {
-						hasExcessUsageInRetired = true
-					}
-				}
-			} else if alloc.IsActive(now) {
-				activeAllocationsReadOnly = append(activeAllocationsReadOnly, alloc)
-			}
-		}
-
-		if len(activeAllocationsReadOnly) == 0 && len(retiredAllocations) == 0 {
-			success, err = false, util.HttpErr(http.StatusBadRequest, "this owner does not have any active or retired resources")
-			return
-		}
-
-		wallet.Consumed = absoluteAmount
-
-		slices.SortFunc(activeAllocationsReadOnly, func(a, b *Allocation) int {
-			if a.End.Before(b.End) {
-				return -1
-			} else if a.End.After(b.End) {
-				return 1
-			} else if a.Start.Before(b.Start) {
-				return -1
-			} else if a.Start.After(b.Start) {
-				return 1
-			}
-			return cmp.Compare(int(a.Id), int(b.Id))
-		})
-
-		amountToDistribute := int64(0)
-		if tree.IsCapacityBased() {
-			amountToDistribute = absoluteAmount
-		} else {
-			amountToDistribute = absoluteAmount - retiredAmount
-		}
-
-		if amountToDistribute < 0 {
-			amountToDistribute = 0
-		}
-
-		for _, aReadOnly := range activeAllocationsReadOnly {
-			allocationMutate(now, tree, aReadOnly.Id, func(alloc *Allocation, parent util.Option[*Allocation]) {
-				newConsumption := min(alloc.QuotaSelf, amountToDistribute)
-				alloc.ConsumedSelf = newConsumption
-				amountToDistribute -= newConsumption
-			})
-		}
-
-		hadSpaceToDistribute := amountToDistribute == 0
-
-		if len(activeAllocationsReadOnly) > 0 && amountToDistribute > 0 {
-			allocationMutate(now, tree, activeAllocationsReadOnly[0].Id, func(alloc *Allocation, parent util.Option[*Allocation]) {
-				alloc.ConsumedSelf += amountToDistribute
-				amountToDistribute = 0
-			})
-		}
-
-		if len(retiredAllocations) > 0 && amountToDistribute > 0 {
-			allocationMutate(now, tree, retiredAllocations[0], func(alloc *Allocation, parent util.Option[*Allocation]) {
-				alloc.ConsumedSelf += amountToDistribute
-			})
-		}
-
-		if tree.IsCapacityBased() {
-			// Retain existing retired usage only for consumption that could not be placed on active allocations.
-			// Do not increase retired ConsumedSelf unless there is no retired usage left to retain.
-			for _, retiredId := range retiredAllocations {
-				retiredReadOnly := tree.AllocationsById[retiredId]
-				retiredUsageToKeep := min(retiredReadOnly.ConsumedSelf, amountToDistribute)
-				retiredUsageToRemove := retiredReadOnly.ConsumedSelf - retiredUsageToKeep
-				amountToDistribute -= retiredUsageToKeep
-
-				if retiredUsageToRemove > 0 {
-					allocationMutate(now, tree, retiredId, func(retired *Allocation, parent util.Option[*Allocation]) {
-						retired.ConsumedSelf -= retiredUsageToRemove
-					})
-				}
-			}
-
-			if len(retiredAllocations) > 0 && amountToDistribute > 0 {
-				allocationMutate(now, tree, retiredAllocations[0], func(retired *Allocation, parent util.Option[*Allocation]) {
-					retired.ConsumedSelf += amountToDistribute
-					amountToDistribute = 0
-				})
-			}
-		} else {
-			if hasExcessUsageInRetired && hadSpaceToDistribute && len(activeAllocationsReadOnly) > 0 {
-				for _, retiredId := range retiredAllocations {
-					retiredReadOnly := tree.AllocationsById[retiredId]
-					if retiredReadOnly.ConsumedSelf > retiredReadOnly.QuotaSelf {
-						excess := retiredReadOnly.ConsumedSelf - retiredReadOnly.QuotaSelf
-						amountToDistribute = excess
-
-						for _, aReadOnly := range activeAllocationsReadOnly {
-							allocationMutate(now, tree, aReadOnly.Id, func(alloc *Allocation, parent util.Option[*Allocation]) {
-								consumption := min(alloc.QuotaSelf-alloc.ConsumedSelf, amountToDistribute)
-								alloc.ConsumedSelf += consumption
-								amountToDistribute -= consumption
-							})
-
-							if amountToDistribute == 0 {
-								break
-							}
-						}
-
-						removed := excess - amountToDistribute
-
-						if removed > 0 {
-							allocationMutate(now, tree, retiredId, func(retired *Allocation, parent util.Option[*Allocation]) {
-								retired.ConsumedSelf -= removed
-							})
-						}
-					}
-				}
-			}
-		}
-
-		consumedInAllocations := int64(0)
-		for _, allocId := range wallet.Allocations {
-			alloc := tree.AllocationsById[allocId]
-			consumedInAllocations += alloc.ConsumedSelf
-		}
-
-		consumedToRemove := consumedInAllocations - wallet.Consumed
-		if consumedToRemove > 0 {
-			for _, retiredId := range retiredAllocations {
-				retiredReadOnly := tree.AllocationsById[retiredId]
-				removed := min(retiredReadOnly.ConsumedSelf, consumedToRemove)
-				if removed > 0 {
-					allocationMutate(now, tree, retiredId, func(retired *Allocation, parent util.Option[*Allocation]) {
-						retired.ConsumedSelf -= removed
-					})
-					consumedToRemove -= removed
-				}
-
-				if consumedToRemove == 0 {
-					break
-				}
-			}
-		}
-
-		if consumedToRemove > 0 {
-			for _, active := range activeAllocationsReadOnly {
-				activeReadOnly := tree.AllocationsById[active.Id]
-				excess := max(activeReadOnly.ConsumedSelf-activeReadOnly.QuotaSelf, 0)
-				removed := min(excess, consumedToRemove)
-				if removed > 0 {
-					allocationMutate(now, tree, active.Id, func(alloc *Allocation, parent util.Option[*Allocation]) {
-						alloc.ConsumedSelf -= removed
-					})
-					consumedToRemove -= removed
-				}
-
-				if consumedToRemove == 0 {
-					break
-				}
-			}
-		}
-
-		if consumedToRemove > 0 {
-			for _, allocId := range wallet.Allocations {
-				activeReadOnly := tree.AllocationsById[allocId]
-				removed := min(activeReadOnly.ConsumedSelf, consumedToRemove)
-				if removed > 0 {
-					allocationMutate(now, tree, allocId, func(alloc *Allocation, parent util.Option[*Allocation]) {
-						alloc.ConsumedSelf -= removed
-					})
-					consumedToRemove -= removed
-				}
-
-				if consumedToRemove == 0 {
-					break
-				}
-			}
-		}
-
-		walletReevaluateLock(now, tree, wallet)
-		success = !wallet.Locked
-	})
-
-	if err == nil {
-		PromiseReconcile(now, request.CategoryIdV2, request.Owner, absoluteAmount)
-	}
-	return
-}
-
-// usageReportScope returns the mutable scoped usage counter for delta reports with a scope key.
-//
-// Scoped usage lets a provider report deltas for a sub-resource while UsageReport still mutates wallet-level absolute
-// usage. A nil return means the request is unscoped and should be resolved directly from wallet.Consumed.
-func usageReportScope(request accapi.ReportUsageRequest) *ScopedUsage {
-	if !request.Description.Scope.Present {
-		return nil
-	}
-
-	key := request.Owner.Reference() + "\n" + request.Description.Scope.Value
-	accGlobals.Mu.Lock()
-	defer accGlobals.Mu.Unlock()
-	if accGlobals.Usage == nil {
-		accGlobals.Usage = map[string]*ScopedUsage{}
-	}
-	scope := accGlobals.Usage[key]
-	if scope == nil {
-		scope = &ScopedUsage{Key: key, Dirty: true}
-		accGlobals.Usage[key] = scope
-	}
-	return scope
-}
-
-// usageReportResolveAbsoluteUsage converts an absolute or delta usage request into the wallet total to record.
-//
-// For unscoped requests, deltas are relative to wallet.Consumed. For scoped requests, deltas are relative to the scoped
-// counter but are still applied to wallet.Consumed. This helper validates that absolute wallet usage never becomes
-// negative and performs the scoped counter update under its own lock.
-func usageReportResolveAbsoluteUsage(now time.Time, request accapi.ReportUsageRequest, scope *ScopedUsage) (int64, *util.HttpError) {
-	if !request.IsDeltaCharge && request.Usage < 0 {
-		return 0, util.HttpErr(http.StatusForbidden, "absolute usage cannot be negative")
-	}
-
-	absoluteAmount := int64(0)
-	err := treeMutate(request.CategoryIdV2, func(tree *AccountingTree) *util.HttpError {
-		if tree.Category.FreeToUse {
+			success, err = true, nil
 			return nil
 		}
 
-		lifecycleScanEx(now, tree, nil)
+		lifecycleScan(now, tree)
+
 		wallet := tree.WalletsByOwner[request.Owner.Reference()]
 		if wallet == nil {
 			return util.HttpErr(http.StatusNotFound, "unknown wallet")
 		}
 
-		currentUsage := wallet.Consumed
-		if scope != nil {
-			scope.Mu.Lock()
-			defer scope.Mu.Unlock()
-			currentUsage = scope.Usage
-		}
+		{
+			var absoluteAmount int64
 
-		delta := request.Usage
-		if !request.IsDeltaCharge {
-			delta = request.Usage - currentUsage
-		}
+			{
+				var scope *ScopedUsage
 
-		absoluteAmount = wallet.Consumed + delta
-		if absoluteAmount < 0 {
-			return util.HttpErr(http.StatusForbidden, "usage cannot become negative")
-		}
+				if request.Description.Scope.Present {
+					key := fmt.Sprintf("%d\n%s", wallet.OwnerId, request.Description.Scope.Value)
+					scope = accGlobals.Usage[key]
+					if scope == nil {
+						scope = &ScopedUsage{Key: key, Dirty: true}
+						accGlobals.Usage[key] = scope
+					}
 
-		if scope != nil {
-			scope.Usage = currentUsage + delta
-			scope.Dirty = true
+					scope.Mu.Lock()
+					defer scope.Mu.Unlock()
+				}
+
+				currentUsage := wallet.Consumed
+				if scope != nil {
+					currentUsage = scope.Usage
+				}
+
+				delta := request.Usage
+				if !request.IsDeltaCharge {
+					delta = request.Usage - currentUsage
+				}
+
+				absoluteAmount = wallet.Consumed + delta
+				if absoluteAmount < 0 {
+					success, err = false, util.HttpErr(http.StatusForbidden, "usage cannot become negative")
+					return nil
+				}
+
+				if scope != nil {
+					scope.Usage = currentUsage + delta
+					scope.Dirty = true
+				}
+			}
+
+			PromiseReconcile(now, tree, request.Owner, absoluteAmount)
+
+			if len(wallet.Allocations) == 0 {
+				success, err = false, util.HttpErr(http.StatusBadRequest, "this owner does not have any such resources")
+				return nil
+			}
+
+			retiredAmount := int64(0)
+
+			var activeAllocationsReadOnly []*Allocation
+			var retiredAllocations []AllocationId
+			var activeAllocations []AllocationId
+			hasExcessUsageInRetired := false
+
+			for _, allocId := range wallet.Allocations {
+				alloc := tree.AllocationsById[allocId]
+				if alloc.IsRetired(now) {
+					retiredAmount += alloc.ConsumedSelf
+					retiredAllocations = append(retiredAllocations, allocId)
+
+					if tree.IsCapacityBased() {
+						if alloc.ConsumedSelf > 0 {
+							hasExcessUsageInRetired = true
+						}
+					} else {
+						if alloc.ConsumedSelf > alloc.QuotaSelf {
+							hasExcessUsageInRetired = true
+						}
+					}
+				} else if alloc.IsActive(now) {
+					activeAllocationsReadOnly = append(activeAllocationsReadOnly, alloc)
+					activeAllocations = append(activeAllocations, alloc.Id)
+				}
+			}
+
+			if len(activeAllocationsReadOnly) == 0 && len(retiredAllocations) == 0 {
+				success, err = false, util.HttpErr(http.StatusBadRequest, "this owner does not have any active or retired resources")
+				return nil
+			}
+
+			wallet.Consumed = absoluteAmount
+
+			slices.SortFunc(activeAllocationsReadOnly, func(a, b *Allocation) int {
+				if a.End.Before(b.End) {
+					return -1
+				} else if a.End.After(b.End) {
+					return 1
+				} else if a.Start.Before(b.Start) {
+					return -1
+				} else if a.Start.After(b.Start) {
+					return 1
+				}
+				return cmp.Compare(int(a.Id), int(b.Id))
+			})
+
+			amountToDistribute := absoluteAmount
+			if !tree.IsCapacityBased() {
+				amountToDistribute -= retiredAmount
+			}
+			amountToDistribute = max(amountToDistribute, 0)
+
+			// Distribute total within active quota
+			// ---------------------------------------------------------------------------------------------------------
+			for _, aReadOnly := range activeAllocationsReadOnly {
+				allocationMutate(now, tree, aReadOnly.Id, func(alloc *Allocation, parent util.Option[*Allocation]) {
+					newConsumption := min(alloc.QuotaSelf, amountToDistribute)
+					alloc.ConsumedSelf = newConsumption
+					amountToDistribute -= newConsumption
+				})
+			}
+
+			hadSpaceToDistribute := amountToDistribute == 0
+
+			// Redistribute capacity from retired allocations
+			// ---------------------------------------------------------------------------------------------------------
+			if !tree.IsCapacityBased() {
+				if hasExcessUsageInRetired && hadSpaceToDistribute && len(activeAllocationsReadOnly) > 0 {
+					for _, retiredId := range retiredAllocations {
+						retiredReadOnly := tree.AllocationsById[retiredId]
+						if retiredReadOnly.ConsumedSelf > retiredReadOnly.QuotaSelf {
+							excess := retiredReadOnly.ConsumedSelf - retiredReadOnly.QuotaSelf
+							amountToDistribute = excess
+
+							for _, aReadOnly := range activeAllocationsReadOnly {
+								allocationMutate(now, tree, aReadOnly.Id, func(alloc *Allocation, parent util.Option[*Allocation]) {
+									consumption := min(alloc.QuotaSelf-alloc.ConsumedSelf, amountToDistribute)
+									alloc.ConsumedSelf += consumption
+									amountToDistribute -= consumption
+								})
+
+								if amountToDistribute == 0 {
+									break
+								}
+							}
+
+							removed := excess - amountToDistribute
+
+							if removed > 0 {
+								allocationMutate(now, tree, retiredId, func(retired *Allocation, parent util.Option[*Allocation]) {
+									retired.ConsumedSelf -= removed
+								})
+							}
+						}
+					}
+				}
+			}
+
+			// Overflow remaining amount to first active/first retired
+			// ---------------------------------------------------------------------------------------------------------
+			if amountToDistribute > 0 {
+				var overflow AllocationId
+				if len(activeAllocationsReadOnly) > 0 {
+					overflow = activeAllocationsReadOnly[0].Id
+				} else {
+					overflow = retiredAllocations[0]
+				}
+
+				allocationMutate(now, tree, overflow, func(alloc *Allocation, parent util.Option[*Allocation]) {
+					alloc.ConsumedSelf += amountToDistribute
+					amountToDistribute = 0
+				})
+			}
+
+			// Trim to wallet consumed by removing excess
+			// ---------------------------------------------------------------------------------------------------------
+			// At this point in the code, we have distributed usage on active allocations and overflowed remaining
+			// consumption on either an active or retired allocation. The remaining code is here to make sure that any
+			// usage in the wallet beyond that is removed. This is largely needed to get rid of excess usage that has been
+			// absorbed elsewhere.
+
+			consumedInAllocations := int64(0)
+			for _, allocId := range wallet.Allocations {
+				alloc := tree.AllocationsById[allocId]
+				consumedInAllocations += alloc.ConsumedSelf
+			}
+			consumedToRemove := consumedInAllocations - wallet.Consumed
+
+			removeExcess := func(arr []AllocationId, isRetired bool) {
+				if consumedToRemove > 0 {
+					for _, id := range arr {
+						readOnly := tree.AllocationsById[id]
+						excess := max(readOnly.ConsumedSelf-readOnly.QuotaSelf, 0)
+						if isRetired {
+							excess = readOnly.ConsumedSelf
+						}
+
+						removed := min(excess, consumedToRemove)
+						if removed > 0 {
+							allocationMutate(now, tree, id, func(retired *Allocation, parent util.Option[*Allocation]) {
+								retired.ConsumedSelf -= removed
+							})
+							consumedToRemove -= removed
+						}
+
+						if consumedToRemove == 0 {
+							break
+						}
+					}
+				}
+			}
+
+			removeExcess(retiredAllocations, true)
+			removeExcess(activeAllocations, false)
+
+			walletReevaluateLock(now, tree, wallet)
+			success = !wallet.Locked
+
+			PromiseReconcile(now, tree, request.Owner, absoluteAmount)
+
+			wallet.Dirty = true
 		}
-		return nil
+		return err
 	})
 
-	return absoluteAmount, err
+	return
 }

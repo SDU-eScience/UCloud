@@ -108,12 +108,12 @@ func accountingLoad() {
 		}](
 			tx,
 			`
-				select w.id, wallet_owner, 
-					pc.category as product_category_name, pc.provider as product_category_provider, 
-					consumed, locked, last_significant_update_at, 
-					promise_demand_ewma, promise_demand_observed, promise_demand_trend, 
+				select w.id, wallet_owner,
+					pc.category as product_category_name, pc.provider as product_category_provider,
+					consumed, locked, last_significant_update_at,
+					promise_demand_ewma, promise_demand_observed, promise_demand_trend,
 					promise_demand_updated_at, low_balance_notified
-				from 
+				from
 					accounting.wallets_acc2 w
 					join accounting.product_categories pc on w.product_category = pc.id
 		    `,
@@ -129,12 +129,19 @@ func accountingLoad() {
 
 			CategoryEnsure(category)
 			_ = treeMutate(category.ToId(), func(tree *AccountingTree) *util.HttpError {
+				owner := accGlobals.OwnersById[OwnerId(row.WalletOwner)]
+				if owner == nil {
+					log.Warn("Could not load wallet with id=%v for unknown owner id=%v", row.Id, row.WalletOwner)
+					return nil
+				}
+
 				w := &Wallet{
 					Id:                      WalletId(row.Id),
 					Allocations:             nil,
 					Consumed:                row.Consumed,
 					Locked:                  row.Locked,
-					Owner:                   accGlobals.OwnersById[OwnerId(row.WalletOwner)].WalletOwner(),
+					Owner:                   owner.WalletOwner(),
+					OwnerId:                 owner.Id,
 					Category:                category.ToId(),
 					LastSignificantUpdateAt: row.LastSignificantUpdateAt,
 					PromiseDemandEwma:       row.PromiseDemandEwma,
@@ -174,9 +181,9 @@ func accountingLoad() {
 		}](
 			tx,
 			`
-				select p.id, parent_wallet, child_wallet, start_time, end_time, quota, grant_id, 
+				select p.id, parent_wallet, child_wallet, start_time, end_time, quota, grant_id,
 					pc.category as cat_name, pc.provider as cat_provider
-				from 
+				from
 					accounting.promises_acc2 p
 					join accounting.product_categories pc on p.product_category = pc.id
 		    `,
@@ -245,10 +252,10 @@ func accountingLoad() {
 		}](
 			tx,
 			`
-				select a.id, wallet, parent_allocation, start_time, end_time, quota_self, quota_children, 
-					consumed_self, reserved_children, retired_quota, retired_usage, activated, 
+				select a.id, wallet, parent_allocation, start_time, end_time, quota_self, quota_children,
+					consumed_self, reserved_children, retired_quota, retired_usage, activated,
 					retired, grant_id, promise_id, pc.category as cat_name, pc.provider as cat_provider
-				from 
+				from
 					accounting.allocations_acc2 a
 					join accounting.product_categories pc on a.product_category = pc.id
 				order by a.id
@@ -315,10 +322,6 @@ func accountingLoad() {
 	accountingRepairLoadedConsumption(now)
 	for _, tree := range accGlobals.Trees {
 		lifecycleScanEx(now, tree, nil)
-
-		for _, wallet := range tree.WalletsById {
-			PromiseReconcile(now, tree.Category.ToId(), wallet.Owner, 0)
-		}
 	}
 }
 

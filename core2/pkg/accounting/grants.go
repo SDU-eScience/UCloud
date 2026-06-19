@@ -1797,7 +1797,7 @@ func GrantsUploadLogo(actor rpc.Actor, logo []byte) *util.HttpError {
 		db.Exec(
 			tx,
 			`
-				insert into "grant".logos(project_id, data) 
+				insert into "grant".logos(project_id, data)
 				values (:id, :data)
 				on conflict (project_id) do update set
 					data = excluded.data
@@ -1938,10 +1938,6 @@ func lGrantsAwardResources(app *grantApplication) {
 		}
 
 		reconcile[categoryId] = util.Empty{}
-	}
-
-	for categoryId := range reconcile {
-		PromiseReconcile(now, categoryId, owner, 0)
 	}
 
 	app.Awarded = true
