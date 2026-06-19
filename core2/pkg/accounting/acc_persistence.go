@@ -314,10 +314,10 @@ func accountingLoad() {
 	now := time.Now()
 	accountingRepairLoadedConsumption(now)
 	for _, tree := range accGlobals.Trees {
-		lifecycleScan(now, tree)
+		lifecycleScanEx(now, tree, nil)
 
 		for _, wallet := range tree.WalletsById {
-			PromiseReconcile(now, tree.Category.ToId(), wallet.Owner, util.OptNone[int64]())
+			PromiseReconcile(now, tree.Category.ToId(), wallet.Owner, 0)
 		}
 	}
 }
@@ -342,6 +342,28 @@ func accountingRepairLoadedConsumption(now time.Time) {
 	for _, tree := range accGlobals.Trees {
 		tree.Mu.RLock()
 		for _, wallet := range tree.WalletsById {
+			depth := 0
+			walletId := wallet.Id
+			seen := map[WalletId]bool{}
+			for {
+				if seen[walletId] {
+					break
+				}
+				seen[walletId] = true
+
+				parents := tree.PromiseTree.PromisesByChild[walletId]
+				if len(parents) == 0 {
+					break
+				}
+
+				promise := tree.PromiseTree.PromisesById[parents[0]]
+				if promise == nil {
+					break
+				}
+				walletId = promise.Parent
+				depth++
+			}
+
 			allocationUsage := int64(0)
 			for _, allocationId := range wallet.Allocations {
 				allocation := tree.AllocationsById[allocationId]
@@ -354,7 +376,7 @@ func accountingRepairLoadedConsumption(now time.Time) {
 					category: tree.Category.ToId(),
 					owner:    wallet.Owner,
 					walletId: wallet.Id,
-					depth:    promiseWalletDepth(&tree.PromiseTree, wallet.Id),
+					depth:    depth,
 					usage:    wallet.Consumed,
 				})
 			}

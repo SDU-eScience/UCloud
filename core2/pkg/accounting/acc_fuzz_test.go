@@ -103,7 +103,8 @@ func fuzzUpdatePromiseMaterialization(t *testing.T, e *lowTestEnv, reader *fuzzB
 		e.assertValid()
 		return
 	}
-	materialization := promiseFindMaterializationForUpdate(e.tm(at), e.tree(), promise)
+	heads := promiseFindMaterializationHeads(e.tm(at), e.tree(), promise)
+	materialization := heads.UpdateFirst()
 	if !materialization.Present {
 		e.assertValid()
 		return
@@ -120,7 +121,7 @@ func fuzzUpdatePromiseMaterialization(t *testing.T, e *lowTestEnv, reader *fuzzB
 	case 2:
 		end.Set(e.tm(reader.intn(30)))
 	}
-	_, _, _ = AllocationUpdate(e.tm(at), e.categoryId, materialization.Value, quota, start, end)
+	_, _, _ = AllocationUpdate(e.tm(at), e.categoryId, materialization.Value.Id, quota, start, end)
 	e.assertValid()
 }
 
@@ -229,9 +230,9 @@ func FuzzPromiseSystem(f *testing.F) {
 			case 0, 1, 2:
 				fuzzReport(t, e, at, wallets[reader.intn(len(wallets))], usage)
 			case 3:
-				e.reconcile(at, owners[reader.intn(len(owners))], util.OptValue(usage))
+				e.reconcile(at, owners[reader.intn(len(owners))], usage)
 			case 4:
-				e.reconcile(at, owners[reader.intn(len(owners))], util.OptNone[int64]())
+				e.reconcile(at, owners[reader.intn(len(owners))], 0)
 			case 5:
 				if ok, id := fuzzCreatePromise(t, e, &reader, at, owners); ok {
 					promises = append(promises, id)

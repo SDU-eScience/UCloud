@@ -145,7 +145,7 @@ func TestAllocationToApiUsesLowLevelQuotaWhenRetired(t *testing.T) {
 
 	e.report(1, "child", 40)
 	head := e.promiseHead(promise, 1)
-	promiseSetPeriod(e.tm(1), e.tree(), head.Id, e.tm(0), e.tm(5))
+	e.setAllocationPeriod(1, head.Id, 0, 5)
 	lifecycleScan(e.tm(5), e.tree())
 
 	wallet := e.tree().WalletsById[e.wallet("child")]

@@ -1941,7 +1941,7 @@ func lGrantsAwardResources(app *grantApplication) {
 	}
 
 	for categoryId := range reconcile {
-		PromiseReconcile(now, categoryId, owner, util.OptNone[int64]())
+		PromiseReconcile(now, categoryId, owner, 0)
 	}
 
 	app.Awarded = true

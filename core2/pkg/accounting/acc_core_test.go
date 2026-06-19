@@ -554,55 +554,6 @@ func TestLowLevelAllocationUpdateValidationAndReservations(t *testing.T) {
 			},
 		},
 		{
-			name: "grow child updates parent reservation",
-			setup: func(e *lowTestEnv) {
-				e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 10, Quota: 100, Self: 40, Children: 60})
-				e.add(lowAllocSpec{Name: "child", Wallet: "child", Parent: "root", Start: 0, End: 10, Quota: 20})
-			},
-			update: func(e *lowTestEnv) {
-				e.update(0, "child", util.OptValue[int64](35), util.OptNone[int](), util.OptNone[int](), 0)
-			},
-			assert: func(e *lowTestEnv) {
-				e.assertAllocation("child", 35, 0, 0, 0)
-				e.assertAllocation("root", 40, 60, 0, 35)
-			},
-		},
-		{
-			name: "shrinking child releases parent reservation",
-			setup: func(e *lowTestEnv) {
-				e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 10, Quota: 100, Self: 40, Children: 60})
-				e.add(lowAllocSpec{Name: "child", Wallet: "child", Parent: "root", Start: 0, End: 10, Quota: 50})
-			},
-			update: func(e *lowTestEnv) {
-				e.update(0, "child", util.OptValue[int64](25), util.OptNone[int](), util.OptNone[int](), 0)
-			},
-			assert: func(e *lowTestEnv) {
-				e.assertAllocation("child", 25, 0, 0, 0)
-				e.assertAllocation("root", 40, 60, 0, 25)
-			},
-		},
-		{
-			name: "lower below consumption rejected",
-			setup: func(e *lowTestEnv) {
-				e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 10, Quota: 100, Self: 0, Children: 100})
-				e.add(lowAllocSpec{Name: "child", Wallet: "child", Parent: "root", Start: 0, End: 10, Quota: 50})
-				e.report(1, "child", 30)
-			},
-			update: func(e *lowTestEnv) {
-				e.update(1, "child", util.OptValue[int64](29), util.OptNone[int](), util.OptNone[int](), http.StatusForbidden)
-			},
-		},
-		{
-			name: "grow beyond parent capacity rejected",
-			setup: func(e *lowTestEnv) {
-				e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 10, Quota: 100, Self: 50, Children: 50})
-				e.add(lowAllocSpec{Name: "child", Wallet: "child", Parent: "root", Start: 0, End: 10, Quota: 50})
-			},
-			update: func(e *lowTestEnv) {
-				e.update(0, "child", util.OptValue[int64](51), util.OptNone[int](), util.OptNone[int](), http.StatusForbidden)
-			},
-		},
-		{
 			name:  "move started start rejected",
 			setup: func(e *lowTestEnv) { e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 10, Quota: 100}) },
 			update: func(e *lowTestEnv) {
@@ -624,32 +575,6 @@ func TestLowLevelAllocationUpdateValidationAndReservations(t *testing.T) {
 			},
 			update: func(e *lowTestEnv) {
 				e.update(0, "root", util.OptNone[int64](), util.OptNone[int](), util.OptValue(7), http.StatusForbidden)
-			},
-		},
-		{
-			name: "child cannot move outside parent period",
-			setup: func(e *lowTestEnv) {
-				e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 2, End: 8, Quota: 100, Self: 50, Children: 50})
-				e.add(lowAllocSpec{Name: "child", Wallet: "child", Parent: "root", Start: 3, End: 7, Quota: 10})
-			},
-			update: func(e *lowTestEnv) {
-				e.update(0, "child", util.OptNone[int64](), util.OptValue(1), util.OptNone[int](), http.StatusForbidden)
-			},
-		},
-		{
-			name: "future allocation period can move within parent",
-			setup: func(e *lowTestEnv) {
-				e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 20, Quota: 100, Self: 50, Children: 50})
-				e.add(lowAllocSpec{Name: "child", Wallet: "child", Parent: "root", Start: 5, End: 10, Quota: 10})
-			},
-			update: func(e *lowTestEnv) {
-				e.update(1, "child", util.OptNone[int64](), util.OptValue(6), util.OptValue(11), 0)
-			},
-			assert: func(e *lowTestEnv) {
-				child := e.alloc("child")
-				if !child.Start.Equal(e.tm(6)) || !child.End.Equal(e.tm(11)) {
-					t.Fatalf("child period = %s..%s, want %s..%s", child.Start, child.End, e.tm(6), e.tm(11))
-				}
 			},
 		},
 	}

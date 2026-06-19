@@ -2,6 +2,7 @@ package accounting
 
 import (
 	"cmp"
+	"math"
 	"net/http"
 	"slices"
 	"sync/atomic"
@@ -132,9 +133,9 @@ const promiseBasisPoints = int64(10000)
 
 // Public reconciliation entry point
 // ---------------------------------------------------------------------------------------------------------------------
-// PromiseReconcile is invoked either periodically for a category or synchronously from UsageReport. Periodic
-// reconciliation walks the whole promise tree. Report-triggered reconciliation only works on the reporting wallet's
-// ancestor promise chain, and returns immediately if the wallet already has the rounded target plus slack available.
+// PromiseReconcile is invoked for one wallet owner with a concrete minimum request. Reconciliation only works on that
+// wallet's ancestor promise chain, and returns immediately if the wallet is close enough to the rounded target plus
+// slack. If observed usage drops meaningfully below current quota, the same path can shrink existing materializations.
 //
 // Reconciliation proceeds bottom-up by sorting promises by child depth. This gives child demand a chance to influence
 // parent targets on later passes and matches the operational model where periodic reconciliation can gradually expose
@@ -143,198 +144,174 @@ const promiseBasisPoints = int64(10000)
 // PromiseReconcile is invoked to ensure that the low-level accounting tree is kept up-to-date with the
 // promises given to projects.
 //
-// This function will be invoked in one of the following two cases:
-//
-// 1. Periodically by the promise system itself for all wallets
-// 2. On-demand by the low-level accounting system in response to a charge which is unable to succeed
-//
-// The minimumRequest property is set only when invoked on-demand to ensure that the system can carry a charge. It is
-// not guaranteed, that such a value is within what the promise would allow.
+// The minimumRequest value ensures that the system can carry a charge. It is not guaranteed that such a value is within
+// what the promise would allow.
 func PromiseReconcile(
 	now time.Time,
 	category accapi.ProductCategoryIdV2,
 	owner accapi.WalletOwner,
-	minimumRequest util.Option[int64],
+	minimumRequest int64,
 ) {
 	_ = treeMutate(category, func(tree *AccountingTree) *util.HttpError {
-		lifecycleScan(now, tree)
-		promiseTree := &tree.PromiseTree
+		lifecycleScanEx(now, tree, nil)
 
-		if minimumRequest.Present {
-			promiseReconcileOwner(now, tree, promiseTree, owner, minimumRequest.Value)
+		promiseTree := &tree.PromiseTree
+		wallet := tree.WalletsByOwner[owner.Reference()]
+		if wallet == nil {
 			return nil
 		}
 
-		promises := promiseTreePromises(promiseTree)
-		for _, wallet := range tree.WalletsById {
-			promiseUpdateWalletTrend(now, tree, wallet, promiseMeasuredWalletDemand(now, tree, wallet))
+		// Skip reconciliation if we already have space in the wallet for the request
+		requiredQuota := minimumRequest + tree.Policy.MinSlack
+		if requiredQuota > 0 && tree.Policy.GrowthStep > 0 {
+			requiredQuota = ((requiredQuota + tree.Policy.GrowthStep - 1) / tree.Policy.GrowthStep) * tree.Policy.GrowthStep
+		}
+		currentQuota := promiseWalletReportQuota(tree, wallet)
+		if math.Abs(float64(currentQuota-requiredQuota)) < float64(tree.Policy.GrowthStep) {
+			return nil
 		}
 
-		slices.SortFunc(promises, func(a, b *Promise) int {
-			depthA := promiseWalletDepth(promiseTree, a.Child)
-			depthB := promiseWalletDepth(promiseTree, b.Child)
-			if depthA != depthB {
-				return cmp.Compare(depthB, depthA)
+		shrinkExisting := false
+		if currentQuota > requiredQuota && wallet.Consumed <= minimumRequest {
+			if tree.Policy.GrowthStep > 0 {
+				shrinkExisting = currentQuota-requiredQuota > tree.Policy.GrowthStep
+			} else {
+				shrinkExisting = requiredQuota*2 <= currentQuota
 			}
-			return cmp.Compare(int(a.Id), int(b.Id))
-		})
+		}
+
+		promiseUpdateWalletTrend(now, tree, wallet, minimumRequest)
+		promises := promiseRelevantPromisesForWallet(promiseTree, wallet.Id)
+		promiseSort(promiseTree, promises)
 
 		for _, promise := range promises {
-			promiseReconcileOne(now, tree, promise)
+			promiseReconcileOne(now, tree, promise, !shrinkExisting)
 		}
 
-		return nil
-	})
-}
-
-func promiseReconcileOwner(now time.Time, tree *AccountingTree, promiseTree *PromiseTree, owner accapi.WalletOwner, minimumRequest int64) {
-	wallet := tree.WalletsByOwner[owner.Reference()]
-	if wallet == nil {
-		return
-	}
-
-	// Skip reconciliation if we already have space in the wallet for the request
-	requiredQuota := promiseRoundUp(minimumRequest+tree.Policy.MinSlack, tree.Policy.GrowthStep)
-	if promiseWalletReportQuota(tree, wallet) >= requiredQuota {
-		return
-	}
-
-	promiseUpdateWalletTrend(now, tree, wallet, minimumRequest)
-	promises := promiseRelevantPromisesForWallet(promiseTree, wallet.Id)
-	slices.SortFunc(promises, func(a, b *Promise) int {
-		depthA := promiseWalletDepth(promiseTree, a.Child)
-		depthB := promiseWalletDepth(promiseTree, b.Child)
-		if depthA != depthB {
-			return cmp.Compare(depthA, depthB)
-		}
-		return cmp.Compare(int(a.Id), int(b.Id))
-	})
-
-	for _, promise := range promises {
-		promiseReconcileOne(now, tree, promise)
-	}
-
-	if promiseWalletReportQuota(tree, wallet) >= requiredQuota {
-		return
-	}
-
-	problemRoots := map[AllocationId]util.Empty{}
-	addProblemRootFromAllocation := func(allocationId AllocationId) {
-		shortfall := requiredQuota - promiseWalletReportQuota(tree, wallet)
-		if shortfall <= 0 {
-			return
+		if promiseWalletReportQuota(tree, wallet) >= requiredQuota {
+			return nil
 		}
 
-		current := tree.AllocationsById[allocationId]
-		for current != nil && current.Parent.Present {
-			parent := tree.AllocationsById[current.Parent.Value]
-			if parent == nil {
+		// NOTE(Dan): If we do not have enough to cover the request, we will actively start stealing from subtrees which
+		// have any unused resources. This is done to ensure that the system can actually reach 100% utilization without
+		// relying on eventual reconciliation which releases resources. In problemRoots we will track the roots that are
+		// unable to deliver the required resources, these will be used for the search.
+
+		problemRoots := map[AllocationId]util.Empty{}
+		addProblemRootFromAllocation := func(allocationId AllocationId) {
+			shortfall := requiredQuota - promiseWalletReportQuota(tree, wallet)
+			if shortfall <= 0 {
 				return
 			}
 
-			if parent.QuotaChildren-parent.ReservedChildren < shortfall {
-				problemRoots[parent.Id] = util.Empty{}
+			current := tree.AllocationsById[allocationId]
+			for current != nil && current.Parent.Present {
+				parent := tree.AllocationsById[current.Parent.Value]
+
+				if parent.QuotaChildren-parent.ReservedChildren < shortfall {
+					problemRoots[parent.Id] = util.Empty{}
+				}
+				current = parent
 			}
-			current = parent
-		}
-	}
-
-	for _, allocationId := range wallet.Allocations {
-		allocation := tree.AllocationsById[allocationId]
-		if allocation == nil {
-			continue
-		}
-		if promiseAllocationActive(now, allocation) || allocation.Start.After(now) {
-			addProblemRootFromAllocation(allocation.Id)
-		}
-	}
-
-	for _, promiseId := range promiseTree.PromisesByChild[wallet.Id] {
-		promise := promiseTree.PromisesById[promiseId]
-		if promise == nil || promise.Quota <= 0 || now.Before(promise.Start) || now.After(promise.End) {
-			continue
 		}
 
-		materialization := promiseFindMaterializationForUpdate(now, tree, promise)
-		if materialization.Present {
-			addProblemRootFromAllocation(materialization.Value)
-			continue
+		for _, allocationId := range wallet.Allocations {
+			allocation := tree.AllocationsById[allocationId]
+			if allocation != nil && ((!now.Before(allocation.Start) && now.Before(allocation.End)) || allocation.Start.After(now)) {
+				addProblemRootFromAllocation(allocation.Id)
+			}
 		}
 
-		parentWallet := tree.WalletsById[promise.Parent]
-		if parentWallet == nil {
-			continue
-		}
-		for _, parentAllocationId := range parentWallet.Allocations {
-			parentAllocation := tree.AllocationsById[parentAllocationId]
-			if parentAllocation == nil || parentAllocation.End.Before(promise.Start) || parentAllocation.Start.After(promise.End) {
+		for _, promiseId := range promiseTree.PromisesByChild[wallet.Id] {
+			promise := promiseTree.PromisesById[promiseId]
+			if promise == nil || promise.Quota <= 0 || now.Before(promise.Start) || now.After(promise.End) {
 				continue
 			}
-			if promiseAllocationActive(now, parentAllocation) || parentAllocation.Start.After(now) {
-				problemRoots[parentAllocation.Id] = util.Empty{}
-				addProblemRootFromAllocation(parentAllocation.Id)
+
+			heads := promiseFindMaterializationHeads(now, tree, promise)
+			if len(heads.Active) > 0 {
+				for _, active := range heads.Active {
+					addProblemRootFromAllocation(active.Id)
+				}
+				continue
+			}
+			if heads.Next.Present {
+				addProblemRootFromAllocation(heads.Next.Value.Id)
+				continue
+			}
+			if heads.Retired.Present {
+				addProblemRootFromAllocation(heads.Retired.Value.Id)
+				continue
+			}
+
+			parentWallet := tree.WalletsById[promise.Parent]
+			for _, parentAllocationId := range parentWallet.Allocations {
+				parentAllocation := tree.AllocationsById[parentAllocationId]
+				if parentAllocation == nil || parentAllocation.End.Before(promise.Start) || parentAllocation.Start.After(promise.End) {
+					continue
+				}
+				if (!now.Before(parentAllocation.Start) && now.Before(parentAllocation.End)) || parentAllocation.Start.After(now) {
+					problemRoots[parentAllocation.Id] = util.Empty{}
+					addProblemRootFromAllocation(parentAllocation.Id)
+				}
 			}
 		}
-	}
 
-	if len(problemRoots) == 0 {
-		return
-	}
+		if len(problemRoots) == 0 {
+			return nil
+		}
 
-	for rootId := range problemRoots {
-		postorder := []AllocationId{}
-		stack := []struct {
-			id      AllocationId
-			visited bool
-		}{{id: rootId}}
-		seen := map[AllocationId]bool{}
-		for len(stack) > 0 {
-			entry := stack[len(stack)-1]
-			stack = stack[:len(stack)-1]
-			if entry.visited {
-				postorder = append(postorder, entry.id)
-				continue
-			}
-			if seen[entry.id] {
-				continue
-			}
-			seen[entry.id] = true
-			allocation := tree.AllocationsById[entry.id]
-			if allocation == nil {
-				continue
-			}
-			stack = append(stack, struct {
+		for rootId := range problemRoots {
+			postorder := []AllocationId{}
+			type stackEntry struct {
 				id      AllocationId
 				visited bool
-			}{id: entry.id, visited: true})
-			for _, childId := range allocation.Children {
-				stack = append(stack, struct {
-					id      AllocationId
-					visited bool
-				}{id: childId})
+			}
+			stack := []stackEntry{{id: rootId}}
+			seen := map[AllocationId]bool{}
+			for len(stack) > 0 {
+				entry := stack[len(stack)-1]
+				stack = stack[:len(stack)-1]
+				if entry.visited {
+					postorder = append(postorder, entry.id)
+					continue
+				}
+				if seen[entry.id] {
+					continue
+				}
+				seen[entry.id] = true
+				allocation := tree.AllocationsById[entry.id]
+				if allocation == nil {
+					continue
+				}
+				stack = append(stack, stackEntry{id: entry.id, visited: true})
+				for _, childId := range allocation.Children {
+					stack = append(stack, stackEntry{id: childId})
+				}
+			}
+
+			for _, allocationId := range postorder {
+				allocation := tree.AllocationsById[allocationId]
+				if allocation == nil || !allocation.Parent.Present {
+					continue
+				}
+
+				quotaSelf := allocation.QuotaSelf
+				if quotaSelf > allocation.ConsumedSelf {
+					quotaSelf = allocation.ConsumedSelf
+				}
+				promiseSetSplit(now, tree, allocation.Id, quotaSelf, allocation.ReservedChildren)
 			}
 		}
 
-		for _, allocationId := range postorder {
-			allocation := tree.AllocationsById[allocationId]
-			if allocation == nil || !allocation.Parent.Present {
-				continue
+		for i := len(promises) - 1; i >= 0; i-- {
+			promiseReconcileOne(now, tree, promises[i], true)
+			if promiseWalletReportQuota(tree, wallet) >= requiredQuota {
+				break
 			}
-
-			quotaSelf := allocation.QuotaSelf
-			if quotaSelf > allocation.ConsumedSelf {
-				quotaSelf = allocation.ConsumedSelf
-			}
-			promiseSetSplit(now, tree, allocation.Id, quotaSelf, allocation.ReservedChildren)
 		}
-	}
-
-	for i := len(promises) - 1; i >= 0; i-- {
-		promiseReconcileOne(now, tree, promises[i])
-		if promiseWalletReportQuota(tree, wallet) >= requiredQuota {
-			break
-		}
-	}
+		return nil
+	})
 }
 
 func promiseWalletReportQuota(tree *AccountingTree, wallet *Wallet) int64 {
@@ -429,96 +406,9 @@ func promiseRelevantPromisesForWallet(tree *PromiseTree, walletId WalletId) []*P
 //
 // This is intentionally not a global flow solver. Child targets are recursively summarized so the planner can propagate
 // demand through one allocation family while still staying local to the existing tree.
-//
-// The core helpers are:
-//
-// - promiseCalculateTargetSplit: Computes the full desired split for one wallet, including child promise demand.
-// - promiseCalculateLocalTargetSplit: Computes direct self and already-reserved child demand for one wallet.
-
 type promiseTargetSplit struct {
 	QuotaSelf     int64
 	QuotaChildren int64
-}
-
-// promiseCalculateTargetSplit will take the current state, policy and trend from the tree and determine what the
-// split should be for a specific wallet. The returned split is not guaranteed to follow all invariants by the
-// underlying tree, and it must be handled by the reconciliation function to attempt to reach the target. The target
-// values can go both up and down or even remain unchanged.
-func promiseCalculateTargetSplit(
-	tree *AccountingTree,
-	walletId WalletId,
-) promiseTargetSplit {
-	return promiseCalculateTargetSplitEx(tree, walletId, map[WalletId]bool{})
-}
-
-func promiseCalculateTargetSplitEx(tree *AccountingTree, walletId WalletId, seen map[WalletId]bool) promiseTargetSplit {
-	if seen[walletId] {
-		return promiseTargetSplit{}
-	}
-	seen[walletId] = true
-
-	target := promiseTargetSplit{}
-	if wallet, ok := tree.WalletsById[walletId]; ok {
-		policy := tree.Policy
-		currentSelf := promiseWalletConsumedSelf(tree, wallet)
-		currentChildren := promiseWalletReservedChildren(tree, wallet)
-		if wallet.PromiseDemandEwma > currentSelf {
-			currentSelf = wallet.PromiseDemandEwma
-		}
-
-		targetSelf := currentSelf + policy.MinSlack
-		targetChildren := currentChildren
-
-		targetSelf = promiseRoundUp(targetSelf, policy.GrowthStep)
-		targetChildren = promiseRoundUp(targetChildren, policy.GrowthStep)
-
-		target = promiseTargetSplit{QuotaSelf: targetSelf, QuotaChildren: targetChildren}
-	}
-
-	target.QuotaChildren = max(target.QuotaChildren, promiseChildTargetDemand(tree, walletId, seen))
-	target.QuotaChildren = promiseRoundUp(target.QuotaChildren, tree.Policy.GrowthStep)
-	return target
-}
-
-// Promise tree indexes
-// ---------------------------------------------------------------------------------------------------------------------
-// AccountingTree construction initializes PromiseTree maps, so the planner can cheaply browse promises by parent, by
-// child or by ID without additional checks.
-//
-// The core helpers are:
-//
-// - promiseTreePromises: Returns all promises in a tree as a slice for sorting/traversal.
-// - promiseWalletDepth: Computes approximate wallet depth from promise parent links for bottom-up ordering.
-
-func promiseTreePromises(tree *PromiseTree) []*Promise {
-	result := make([]*Promise, 0, len(tree.PromisesById))
-	for _, promise := range tree.PromisesById {
-		result = append(result, promise)
-	}
-	return result
-}
-
-func promiseWalletDepth(tree *PromiseTree, walletId WalletId) int {
-	depth := 0
-	seen := map[WalletId]bool{}
-	for {
-		if seen[walletId] {
-			return depth
-		}
-		seen[walletId] = true
-
-		parents := tree.PromisesByChild[walletId]
-		if len(parents) == 0 {
-			return depth
-		}
-
-		promise := tree.PromisesById[parents[0]]
-		if promise == nil {
-			return depth
-		}
-		walletId = promise.Parent
-		depth++
-	}
 }
 
 // Trend and demand helpers
@@ -533,15 +423,7 @@ func promiseWalletDepth(tree *PromiseTree, walletId WalletId) int {
 // The policy fields ending in BasisPoints use promiseBasisPoints as their denominator. For example, an EWMA alpha of
 // 2,500 applies 25% of the new sample and keeps 75% of the previous value.
 //
-// The core helpers are:
-//
-// - promiseUpdateWalletTrend: Updates EWMA demand and per-hour trend for a wallet.
-// - promiseMeasuredWalletDemand: Reads current observed demand from wallet usage and active allocations.
-// - promiseWalletConsumedSelf: Sums direct consumption for a wallet.
-// - promiseWalletReservedChildren: Sums child reservations under a wallet's allocations.
-// - promiseChildTargetDemand: Computes child promise demand for one wallet.
-// - promiseChildTargetDemandEx: Recursive implementation over PromiseTree indexes.
-// - promiseRoundUp: Rounds a target to policy-sized accounting steps.
+// promiseUpdateWalletTrend updates EWMA demand and per-hour trend for a wallet.
 
 func promiseUpdateWalletTrend(now time.Time, tree *AccountingTree, wallet *Wallet, measured int64) {
 	if measured < 0 {
@@ -578,117 +460,241 @@ func promiseUpdateWalletTrend(now time.Time, tree *AccountingTree, wallet *Walle
 	wallet.Dirty = true
 }
 
-func promiseMeasuredWalletDemand(now time.Time, tree *AccountingTree, wallet *Wallet) int64 {
-	demand := wallet.Consumed
-	for _, allocationId := range wallet.Allocations {
-		allocation := tree.AllocationsById[allocationId]
-		if allocation != nil && !allocation.IsRetired(now) && allocation.ConsumedSelf > demand {
-			demand = allocation.ConsumedSelf
-		}
-	}
-	return demand
-}
-
-func promiseWalletConsumedSelf(tree *AccountingTree, wallet *Wallet) int64 {
-	consumed := int64(0)
-	for _, allocationId := range wallet.Allocations {
-		allocation := tree.AllocationsById[allocationId]
-		if allocation != nil {
-			consumed += allocation.ConsumedSelf
-		}
-	}
-	if wallet.Consumed > consumed {
-		return wallet.Consumed
-	}
-	return consumed
-}
-
-func promiseWalletReservedChildren(tree *AccountingTree, wallet *Wallet) int64 {
-	reserved := int64(0)
-	for _, allocationId := range wallet.Allocations {
-		allocation := tree.AllocationsById[allocationId]
-		if allocation != nil {
-			reserved += allocation.ReservedChildren
-		}
-	}
-	return reserved
-}
-
-func promiseChildTargetDemand(tree *AccountingTree, walletId WalletId, seen map[WalletId]bool) int64 {
-	promiseTree := &tree.PromiseTree
-	demand := int64(0)
-	for _, promiseId := range promiseTree.PromisesByParent[walletId] {
-		promise := promiseTree.PromisesById[promiseId]
-		if promise == nil {
-			continue
-		}
-
-		childTarget := promiseCalculateTargetSplitEx(tree, promise.Child, seen)
-		demand += childTarget.QuotaSelf + childTarget.QuotaChildren
-	}
-	return demand
-}
-
-func promiseRoundUp(value int64, step int64) int64 {
-	if value <= 0 || step <= 0 {
-		return value
-	}
-	return ((value + step - 1) / step) * step
-}
-
 // Promise-level reconciliation
 // ---------------------------------------------------------------------------------------------------------------------
 // promiseReconcileOne applies the target split to one promise. It first computes policy demand, then clamps demand to
 // the remaining promise quota that is not already materialized. From there, the planner either creates missing
 // materializations, creates successors after retirement, or updates an existing materialization in place.
-func promiseReconcileOne(now time.Time, tree *AccountingTree, promise *Promise) {
+
+func promiseReconcileOne(now time.Time, tree *AccountingTree, promise *Promise, preserveExisting bool) {
 	if promise == nil || promise.Quota <= 0 || now.Before(promise.Start) || now.After(promise.End) {
 		return
 	}
 
-	target := promiseCalculateTargetSplit(tree, promise.Child)
+	roundUp := func(value int64) int64 {
+		if value <= 0 || tree.Policy.GrowthStep <= 0 {
+			return value
+		}
+		return ((value + tree.Policy.GrowthStep - 1) / tree.Policy.GrowthStep) * tree.Policy.GrowthStep
+	}
 
-	materialization := promiseFindMaterializationForUpdate(now, tree, promise)
-	if !materialization.Present {
-		remainingQuota := promise.Quota - promiseMaterializedQuota(now, tree, promise, util.OptNone[AllocationId]())
+	var targetForWallet func(walletId WalletId, seen map[WalletId]bool) promiseTargetSplit
+	targetForWallet = func(walletId WalletId, seen map[WalletId]bool) promiseTargetSplit {
+		if seen[walletId] {
+			return promiseTargetSplit{}
+		}
+		seen[walletId] = true
+
+		target := promiseTargetSplit{}
+		if wallet, ok := tree.WalletsById[walletId]; ok {
+			currentSelf := int64(0)
+			currentChildren := int64(0)
+			for _, allocationId := range wallet.Allocations {
+				allocation := tree.AllocationsById[allocationId]
+				if allocation == nil {
+					continue
+				}
+				currentSelf += allocation.ConsumedSelf
+				currentChildren += allocation.ReservedChildren
+			}
+			currentSelf = max(currentSelf, wallet.Consumed)
+			currentSelf = max(currentSelf, wallet.PromiseDemandEwma)
+
+			target = promiseTargetSplit{
+				QuotaSelf:     roundUp(currentSelf + tree.Policy.MinSlack),
+				QuotaChildren: roundUp(currentChildren),
+			}
+		}
+
+		childDemand := int64(0)
+		promiseTree := &tree.PromiseTree
+		for _, promiseId := range promiseTree.PromisesByParent[walletId] {
+			childPromise := promiseTree.PromisesById[promiseId]
+			if childPromise == nil {
+				continue
+			}
+			childTarget := targetForWallet(childPromise.Child, seen)
+			childDemand += childTarget.QuotaSelf + childTarget.QuotaChildren
+		}
+		target.QuotaChildren = roundUp(max(target.QuotaChildren, childDemand))
+		return target
+	}
+
+	target := targetForWallet(promise.Child, map[WalletId]bool{})
+	wallet := tree.WalletsById[promise.Child]
+	if wallet != nil {
+		hasObservedConsumption := wallet.Consumed > 0
+		for _, allocationId := range wallet.Allocations {
+			allocation := tree.AllocationsById[allocationId]
+			if allocation != nil && allocation.ConsumedSelf > 0 {
+				hasObservedConsumption = true
+				break
+			}
+		}
+		if hasObservedConsumption {
+			includeRetired := !tree.IsCapacityBased()
+			covered := promiseTargetSplit{}
+			for _, allocationId := range wallet.Allocations {
+				allocation := tree.AllocationsById[allocationId]
+				if allocation == nil || allocation.Promise.Present && allocation.Promise.Value == promise.Id {
+					continue
+				}
+
+				if allocation.Activated && !allocation.Retired {
+					covered.QuotaSelf += allocation.QuotaSelf
+					covered.QuotaChildren += allocation.QuotaChildren
+				} else if includeRetired && allocation.Activated && allocation.Retired {
+					covered.QuotaSelf += allocation.ConsumedSelf
+				}
+			}
+			target.QuotaSelf = max(target.QuotaSelf-covered.QuotaSelf, 0)
+			target.QuotaChildren = max(target.QuotaChildren-covered.QuotaChildren, 0)
+		}
+	}
+	materializedQuota := func(exclude util.Option[AllocationId]) int64 {
+		if wallet == nil {
+			return 0
+		}
+
+		total := int64(0)
+		for _, allocationId := range wallet.Allocations {
+			if exclude.Present && exclude.Value == allocationId {
+				continue
+			}
+
+			allocation := tree.AllocationsById[allocationId]
+			if allocation == nil || !allocation.Promise.Present || allocation.Promise.Value != promise.Id {
+				continue
+			}
+			if tree.IsCapacityBased() && !now.Before(allocation.End) {
+				continue
+			}
+
+			total += allocation.QuotaSelf + allocation.QuotaChildren
+		}
+		return total
+	}
+
+	heads := promiseFindMaterializationHeads(now, tree, promise)
+	wallet = tree.WalletsById[promise.Child]
+	allocation := heads.UpdateFirst()
+	if !allocation.Present {
+		remainingQuota := promise.Quota - materializedQuota(util.OptNone[AllocationId]())
 		if target.QuotaSelf+target.QuotaChildren > remainingQuota {
 			target = promiseClampTargetToTotal(target, remainingQuota)
 		}
-		promiseCreateMaterialization(now, tree, promise, target)
-		promiseCreateMissingMaterializations(now, tree, promise, maxTime(now, promise.Start), promise.End, target)
+		promiseCreateMaterializations(now, tree, promise, maxTime(now, promise.Start), promise.End, target, materializedQuota)
 		return
 	}
-
-	allocation := tree.AllocationsById[materialization.Value]
-	if allocation == nil {
-		return
+	allocationValue := allocation.Value
+	if preserveExisting && now.Before(allocationValue.End) {
+		target.QuotaSelf = max(target.QuotaSelf, allocationValue.QuotaSelf)
+		target.QuotaChildren = max(target.QuotaChildren, allocationValue.QuotaChildren)
 	}
 
-	if !now.Before(allocation.End) {
-		remainingQuota := promise.Quota - promiseMaterializedQuota(now, tree, promise, util.OptNone[AllocationId]())
+	if !now.Before(allocationValue.End) {
+		remainingQuota := promise.Quota - materializedQuota(util.OptNone[AllocationId]())
 		if target.QuotaSelf+target.QuotaChildren > remainingQuota {
 			target = promiseClampTargetToTotal(target, remainingQuota)
 		}
-		promiseCreateSuccessorMaterialization(now, tree, promise, allocation, target)
-		start := allocation.End
+		start := allocationValue.End
 		if start.Before(promise.Start) {
 			start = promise.Start
 		}
-		promiseCreateMissingMaterializations(now, tree, promise, start, promise.End, target)
+		promiseCreateMaterializations(now, tree, promise, start, promise.End, target, materializedQuota)
 		return
 	}
 
-	remainingQuota := promise.Quota - promiseMaterializedQuota(now, tree, promise, materialization)
+	remainingQuota := promise.Quota - materializedQuota(util.OptValue(allocationValue.Id))
 	if target.QuotaSelf+target.QuotaChildren > remainingQuota {
 		target = promiseClampTargetToTotal(target, remainingQuota)
 	}
 
-	if allocation.Start.After(now) {
-		promiseAdjustFutureMaterializationStart(now, tree, promise, allocation.Id)
+	if allocationValue.Start.After(now) {
+		start := promise.Start
+		if wallet == nil {
+			return
+		}
+		for _, candidateId := range wallet.Allocations {
+			candidate := tree.AllocationsById[candidateId]
+			if candidate == nil || candidate.Id == allocationValue.Id || !candidate.Promise.Present || candidate.Promise.Value != promise.Id {
+				continue
+			}
+			if candidate.End.After(start) && !candidate.End.After(allocationValue.Start) {
+				start = candidate.End
+			}
+		}
+		if allocationValue.Parent.Present {
+			parent := tree.AllocationsById[allocationValue.Parent.Value]
+			if parent != nil && start.Before(parent.Start) {
+				start = parent.Start
+			}
+		}
+		if start.Before(promise.Start) {
+			start = promise.Start
+		}
+		if start.Before(allocationValue.End) && !start.Equal(allocationValue.Start) {
+			if start.After(allocationValue.End) {
+				log.Fatal("Promise reconciliation attempted to set invalid period for allocation %v", allocationValue.Id)
+			}
+			if allocationValue.Parent.Present {
+				parent := tree.AllocationsById[allocationValue.Parent.Value]
+				if parent == nil || start.Before(parent.Start) || allocationValue.End.After(parent.End) {
+					log.Fatal("Promise reconciliation attempted to move allocation %v outside parent period", allocationValue.Id)
+				}
+			}
+			for _, childId := range allocationValue.Children {
+				child := tree.AllocationsById[childId]
+				if child != nil && (child.Start.Before(start) || child.End.After(allocationValue.End)) {
+					log.Fatal("Promise reconciliation attempted to move allocation %v outside child period", allocationValue.Id)
+				}
+			}
+
+			allocationMutate(now, tree, allocationValue.Id, func(alloc *Allocation, parent util.Option[*Allocation]) {
+				alloc.Start = start
+				alloc.End = allocationValue.End
+			})
+		}
 	}
 
-	promiseApplyTarget(now, tree, allocation.Id, target)
-	promiseCreateMissingMaterializations(now, tree, promise, maxTime(now, promise.Start), promise.End, target)
+	if allocationValue.ConsumedSelf <= allocationValue.QuotaSelf {
+		target.QuotaSelf = max(target.QuotaSelf, allocationValue.ConsumedSelf)
+	} else {
+		target.QuotaSelf = max(target.QuotaSelf, allocationValue.QuotaSelf)
+	}
+	target.QuotaChildren = max(target.QuotaChildren, allocationValue.ReservedChildren)
+
+	currentTotal := allocationValue.QuotaSelf + allocationValue.QuotaChildren
+	targetTotal := target.QuotaSelf + target.QuotaChildren
+	if targetTotal > currentTotal && allocationValue.Parent.Present {
+		provided := promiseExposeChildCapacity(now, tree, allocationValue.Parent.Value, targetTotal-currentTotal)
+		if provided < targetTotal-currentTotal {
+			target = promiseClampTargetToTotal(target, currentTotal+provided)
+		}
+	}
+
+	if allocationValue.ConsumedSelf <= allocationValue.QuotaSelf {
+		target.QuotaSelf = max(target.QuotaSelf, allocationValue.ConsumedSelf)
+	} else {
+		target.QuotaSelf = max(target.QuotaSelf, allocationValue.QuotaSelf)
+	}
+	target.QuotaChildren = max(target.QuotaChildren, allocationValue.ReservedChildren)
+
+	targetTotal = target.QuotaSelf + target.QuotaChildren
+	if targetTotal > currentTotal && allocationValue.Parent.Present {
+		parent := tree.AllocationsById[allocationValue.Parent.Value]
+		if parent == nil {
+			return
+		}
+		available := max(parent.QuotaChildren-parent.ReservedChildren, 0)
+		if targetTotal-currentTotal > available {
+			target = promiseClampTargetToTotal(target, currentTotal+available)
+			target.QuotaSelf = max(target.QuotaSelf, allocationValue.QuotaSelf)
+			target.QuotaChildren = max(target.QuotaChildren, allocationValue.ReservedChildren)
+		}
+	}
+	promiseSetSplit(now, tree, allocationValue.Id, target.QuotaSelf, target.QuotaChildren)
+	promiseCreateMaterializations(now, tree, promise, maxTime(now, promise.Start), promise.End, target, materializedQuota)
 }
 
 // Target clamping and materialized quota accounting
@@ -709,8 +715,6 @@ func promiseReconcileOne(now time.Time, tree *AccountingTree, promise *Promise) 
 // The core helpers are:
 //
 // - promiseClampTargetToTotal: Reduces a target split so its total does not exceed a cap.
-// - promiseMaterializedQuota: Counts promise quota already accounted for under capacity/non-capacity semantics.
-
 func promiseClampTargetToTotal(target promiseTargetSplit, total int64) promiseTargetSplit {
 	if total < 0 {
 		total = 0
@@ -728,58 +732,30 @@ func promiseClampTargetToTotal(target promiseTargetSplit, total int64) promiseTa
 	return target
 }
 
-func promiseMaterializedQuota(now time.Time, tree *AccountingTree, promise *Promise, exclude util.Option[AllocationId]) int64 {
-	wallet := tree.WalletsById[promise.Child]
-	if wallet == nil {
-		return 0
-	}
-
-	total := int64(0)
-	for _, allocationId := range wallet.Allocations {
-		if exclude.Present && exclude.Value == allocationId {
-			continue
-		}
-
-		allocation := tree.AllocationsById[allocationId]
-		if allocation == nil || !allocation.Promise.Present || allocation.Promise.Value != promise.Id {
-			continue
-		}
-		if tree.IsCapacityBased() && promiseAllocationRetired(now, allocation) {
-			continue
-		}
-
-		total += allocation.QuotaSelf + allocation.QuotaChildren
-	}
-	return total
+type promiseMaterializationHeads struct {
+	Active  []*Allocation
+	Next    util.Option[*Allocation]
+	Retired util.Option[*Allocation]
 }
 
-// Materialization selection and time handling
-// ---------------------------------------------------------------------------------------------------------------------
-// A promise may have multiple simultaneous materializations, one for each backing parent allocation. For update-first
-// reconciliation, the planner selects one existing materialization to edit: an active allocation, or if none is active,
-// the next allocation becoming active. If neither exists, the newest retired allocation is used as the predecessor for
-// successor creation.
-//
-// Allocation periods are Start-inclusive and End-exclusive. When a future materialization exists and no active
-// materialization exists, the planner may move the future materialization's start backward to remove a gap, as long as
-// low-level period invariants still hold.
-//
-// The core helpers are:
-//
-// - promiseFindMaterializationForUpdate: Selects active, next future or latest retired materialization for a promise.
-// - promiseAllocationActive: Checks promise allocation activity using Start-inclusive, End-exclusive time.
-// - promiseAllocationRetired: Checks whether an allocation has reached its end boundary.
-// - promiseAdjustFutureMaterializationStart: Moves a future materialization backward when this removes a gap safely.
-// - promiseSetPeriod: Applies a period change through low-level invariant checks.
+func (h promiseMaterializationHeads) UpdateFirst() util.Option[*Allocation] {
+	if len(h.Active) > 0 {
+		return util.OptValue(h.Active[0])
+	}
+	if h.Next.Present {
+		return h.Next
+	}
+	return h.Retired
+}
 
-func promiseFindMaterializationForUpdate(now time.Time, tree *AccountingTree, promise *Promise) util.Option[AllocationId] {
-	var active *Allocation
-	var next *Allocation
-	var retired *Allocation
-
+// promiseFindMaterializationHeads classifies a promise's materializations around now. A promise can have multiple
+// active heads because it may be backed by several parent allocations at the same time; callers that update only one
+// allocation should use Active[0], while callers that reason about capacity roots should consider every active head.
+func promiseFindMaterializationHeads(now time.Time, tree *AccountingTree, promise *Promise) promiseMaterializationHeads {
+	heads := promiseMaterializationHeads{}
 	wallet := tree.WalletsById[promise.Child]
 	if wallet == nil {
-		return util.OptNone[AllocationId]()
+		return heads
 	}
 
 	for _, allocationId := range wallet.Allocations {
@@ -788,103 +764,29 @@ func promiseFindMaterializationForUpdate(now time.Time, tree *AccountingTree, pr
 			continue
 		}
 
-		if promiseAllocationActive(now, allocation) {
-			if active == nil || allocation.End.Before(active.End) {
-				active = allocation
-			}
+		if !now.Before(allocation.Start) && now.Before(allocation.End) {
+			heads.Active = append(heads.Active, allocation)
 		} else if allocation.Start.After(now) {
-			if next == nil || allocation.Start.Before(next.Start) {
-				next = allocation
+			if !heads.Next.Present || allocation.Start.Before(heads.Next.Value.Start) || allocation.Start.Equal(heads.Next.Value.Start) && allocation.Id < heads.Next.Value.Id {
+				heads.Next = util.OptValue(allocation)
 			}
-		} else if promiseAllocationRetired(now, allocation) {
-			if retired == nil || allocation.End.After(retired.End) {
-				retired = allocation
+		} else if !now.Before(allocation.End) {
+			if !heads.Retired.Present || allocation.End.After(heads.Retired.Value.End) || allocation.End.Equal(heads.Retired.Value.End) && allocation.Id < heads.Retired.Value.Id {
+				heads.Retired = util.OptValue(allocation)
 			}
 		}
 	}
 
-	if active != nil {
-		return util.OptValue(active.Id)
-	}
-	if next != nil {
-		return util.OptValue(next.Id)
-	}
-	if retired != nil {
-		return util.OptValue(retired.Id)
-	}
-	return util.OptNone[AllocationId]()
-}
-
-func promiseAllocationActive(now time.Time, allocation *Allocation) bool {
-	return !now.Before(allocation.Start) && now.Before(allocation.End)
-}
-
-func promiseAllocationRetired(now time.Time, allocation *Allocation) bool {
-	return !now.Before(allocation.End)
-}
-
-func promiseAdjustFutureMaterializationStart(now time.Time, tree *AccountingTree, promise *Promise, allocationId AllocationId) {
-	allocation := tree.AllocationsById[allocationId]
-	if allocation == nil || !allocation.Start.After(now) {
-		return
-	}
-
-	start := promise.Start
-	wallet := tree.WalletsById[promise.Child]
-	if wallet == nil {
-		return
-	}
-	for _, candidateId := range wallet.Allocations {
-		candidate := tree.AllocationsById[candidateId]
-		if candidate == nil || candidate.Id == allocationId || !candidate.Promise.Present || candidate.Promise.Value != promise.Id {
-			continue
+	slices.SortFunc(heads.Active, func(a, b *Allocation) int {
+		if a.End.Before(b.End) {
+			return -1
 		}
-		if candidate.End.After(start) && !candidate.End.After(allocation.Start) {
-			start = candidate.End
+		if a.End.After(b.End) {
+			return 1
 		}
-	}
-
-	if allocation.Parent.Present {
-		parent := tree.AllocationsById[allocation.Parent.Value]
-		if parent != nil && start.Before(parent.Start) {
-			start = parent.Start
-		}
-	}
-	if start.Before(promise.Start) {
-		start = promise.Start
-	}
-	if !start.Before(allocation.End) || start.Equal(allocation.Start) {
-		return
-	}
-
-	promiseSetPeriod(now, tree, allocationId, start, allocation.End)
-}
-
-func promiseSetPeriod(now time.Time, tree *AccountingTree, allocationId AllocationId, start time.Time, end time.Time) {
-	allocation := tree.AllocationsById[allocationId]
-	if allocation == nil {
-		log.Fatal("Promise reconciliation attempted to update period for unknown allocation %v", allocationId)
-	}
-	if start.After(end) {
-		log.Fatal("Promise reconciliation attempted to set invalid period for allocation %v", allocationId)
-	}
-	if allocation.Parent.Present {
-		parent := tree.AllocationsById[allocation.Parent.Value]
-		if parent == nil || start.Before(parent.Start) || end.After(parent.End) {
-			log.Fatal("Promise reconciliation attempted to move allocation %v outside parent period", allocationId)
-		}
-	}
-	for _, childId := range allocation.Children {
-		child := tree.AllocationsById[childId]
-		if child != nil && (child.Start.Before(start) || child.End.After(end)) {
-			log.Fatal("Promise reconciliation attempted to move allocation %v outside child period", allocationId)
-		}
-	}
-
-	allocationMutate(now, tree, allocationId, func(alloc *Allocation, parent util.Option[*Allocation]) {
-		alloc.Start = start
-		alloc.End = end
+		return cmp.Compare(int(a.Id), int(b.Id))
 	})
+	return heads
 }
 
 // Split application and capacity propagation
@@ -896,58 +798,6 @@ func promiseSetPeriod(now time.Time, tree *AccountingTree, allocationId Allocati
 // If that is not enough, the request propagates upward. At the root, available self quota may be converted into child
 // quota, but no new root quota is ever created. If the chain cannot expose enough capacity, the target is clamped and
 // the promise remains under-covered.
-//
-// The core helpers are:
-//
-// - promiseApplyTarget: Applies a target split to one allocation, after clamping to reachable capacity.
-// - promiseExposeChildCapacity: Recursively exposes child capacity through ancestors.
-// - promiseSetSplit: Applies split changes through low-level mutation and reservation accounting.
-
-func promiseApplyTarget(now time.Time, tree *AccountingTree, allocationId AllocationId, target promiseTargetSplit) {
-	allocation := tree.AllocationsById[allocationId]
-	if allocation == nil {
-		return
-	}
-
-	if allocation.ConsumedSelf <= allocation.QuotaSelf {
-		target.QuotaSelf = max(target.QuotaSelf, allocation.ConsumedSelf)
-	} else {
-		target.QuotaSelf = max(target.QuotaSelf, allocation.QuotaSelf)
-	}
-	target.QuotaChildren = max(target.QuotaChildren, allocation.ReservedChildren)
-
-	currentTotal := allocation.QuotaSelf + allocation.QuotaChildren
-	targetTotal := target.QuotaSelf + target.QuotaChildren
-	if targetTotal > currentTotal && allocation.Parent.Present {
-		provided := promiseExposeChildCapacity(now, tree, allocation.Parent.Value, targetTotal-currentTotal)
-		if provided < targetTotal-currentTotal {
-			target = promiseClampTargetToTotal(target, currentTotal+provided)
-		}
-	}
-
-	if allocation.ConsumedSelf <= allocation.QuotaSelf {
-		target.QuotaSelf = max(target.QuotaSelf, allocation.ConsumedSelf)
-	} else {
-		target.QuotaSelf = max(target.QuotaSelf, allocation.QuotaSelf)
-	}
-	target.QuotaChildren = max(target.QuotaChildren, allocation.ReservedChildren)
-
-	targetTotal = target.QuotaSelf + target.QuotaChildren
-	if targetTotal > currentTotal && allocation.Parent.Present {
-		parent := tree.AllocationsById[allocation.Parent.Value]
-		if parent == nil {
-			return
-		}
-		available := max(parent.QuotaChildren-parent.ReservedChildren, 0)
-		if targetTotal-currentTotal > available {
-			target = promiseClampTargetToTotal(target, currentTotal+available)
-			target.QuotaSelf = max(target.QuotaSelf, allocation.QuotaSelf)
-			target.QuotaChildren = max(target.QuotaChildren, allocation.ReservedChildren)
-		}
-	}
-	promiseSetSplit(now, tree, allocationId, target.QuotaSelf, target.QuotaChildren)
-}
-
 func promiseExposeChildCapacity(now time.Time, tree *AccountingTree, allocationId AllocationId, need int64) int64 {
 	if need <= 0 {
 		return 0
@@ -998,6 +848,7 @@ func promiseSetSplit(now time.Time, tree *AccountingTree, allocationId Allocatio
 	allocation := tree.AllocationsById[allocationId]
 	if allocation == nil {
 		log.Fatal("Promise reconciliation attempted to update unknown allocation %v", allocationId)
+		return
 	}
 
 	if quotaSelf != allocation.QuotaSelf && quotaSelf < allocation.ConsumedSelf {
@@ -1018,6 +869,7 @@ func promiseSetSplit(now time.Time, tree *AccountingTree, allocationId Allocatio
 		parent := tree.AllocationsById[allocation.Parent.Value]
 		if parent == nil {
 			log.Fatal("Promise reconciliation attempted to grow allocation %v without parent", allocationId)
+			return
 		}
 
 		available := max(parent.QuotaChildren-parent.ReservedChildren, 0)
@@ -1064,45 +916,50 @@ func promiseSetSplit(now time.Time, tree *AccountingTree, allocationId Allocatio
 //
 // The promise layer never creates root allocations. If no parent-backed capacity exists, creation simply does nothing
 // and the promise remains under-covered until a later reconciliation pass.
-//
-// The core helpers are:
-//
-// - promiseCreateMaterialization: Creates one materialization under a backing allocation.
-// - promiseCreateSuccessorMaterialization: Creates a materialization after a retired predecessor.
-// - promiseCreateMissingMaterializations: Creates additional materializations under unused backing allocations.
-// - promiseFindBackingAllocation: Finds a backing allocation that can expose some requested capacity.
-// - promiseFindBackingAllocationEx: Implementation that also reports how much capacity was exposed.
-// - promiseCreateAllocation: Creates a promise-owned low-level allocation and reserves it in the backing allocation.
 
-func promiseCreateMaterialization(now time.Time, tree *AccountingTree, promise *Promise, target promiseTargetSplit) {
-	backingAllocationId := promiseFindBackingAllocation(now, tree, promise.Parent, target.QuotaSelf+target.QuotaChildren, promise.Start, promise.End)
-	if !backingAllocationId.Present {
-		return
-	}
-	promiseCreateAllocation(now, tree, promise, backingAllocationId.Value, maxTime(now, promise.Start), promise.End, target)
-}
-
-func promiseCreateSuccessorMaterialization(now time.Time, tree *AccountingTree, promise *Promise, previous *Allocation, target promiseTargetSplit) {
-	start := previous.End
-	if start.Before(promise.Start) {
-		start = promise.Start
-	}
-	backingAllocationId := promiseFindBackingAllocation(now, tree, promise.Parent, target.QuotaSelf+target.QuotaChildren, start, promise.End)
-	if !backingAllocationId.Present {
-		return
-	}
-	promiseCreateAllocation(now, tree, promise, backingAllocationId.Value, start, promise.End, target)
-}
-
-func promiseCreateMissingMaterializations(now time.Time, tree *AccountingTree, promise *Promise, start time.Time, end time.Time, target promiseTargetSplit) {
+func promiseCreateMaterializations(
+	now time.Time,
+	tree *AccountingTree,
+	promise *Promise,
+	start time.Time,
+	end time.Time,
+	target promiseTargetSplit,
+	materializedQuota func(util.Option[AllocationId]) int64,
+) {
 	parentWallet := tree.WalletsById[promise.Parent]
-	if parentWallet == nil {
+	childWallet := tree.WalletsById[promise.Child]
+	if parentWallet == nil || childWallet == nil {
 		return
+	}
+
+	type candidate struct {
+		allocation *Allocation
+		active     bool
 	}
 
 	for range parentWallet.Allocations {
-		remaining := promiseRemainingActiveTarget(now, tree, promise, target)
-		remainingQuota := promise.Quota - promiseMaterializedQuota(now, tree, promise, util.OptNone[AllocationId]())
+		remaining := target
+		usedBackingAllocations := map[AllocationId]bool{}
+		for _, allocationId := range childWallet.Allocations {
+			allocation := tree.AllocationsById[allocationId]
+			if allocation == nil || !allocation.Promise.Present || allocation.Promise.Value != promise.Id {
+				continue
+			}
+			if !allocation.Parent.Present || !allocation.End.After(start) || !allocation.Start.Before(end) {
+				continue
+			}
+			usedBackingAllocations[allocation.Parent.Value] = true
+			if now.Before(allocation.Start) || !now.Before(allocation.End) {
+				continue
+			}
+
+			self := min(remaining.QuotaSelf, allocation.QuotaSelf)
+			remaining.QuotaSelf -= self
+			children := min(remaining.QuotaChildren, allocation.QuotaChildren)
+			remaining.QuotaChildren -= children
+		}
+
+		remainingQuota := promise.Quota - materializedQuota(util.OptNone[AllocationId]())
 		if remaining.QuotaSelf+remaining.QuotaChildren > remainingQuota {
 			remaining = promiseClampTargetToTotal(remaining, remainingQuota)
 		}
@@ -1110,176 +967,143 @@ func promiseCreateMissingMaterializations(now time.Time, tree *AccountingTree, p
 			return
 		}
 
-		backingAllocationId := promiseFindUnusedBackingAllocation(now, tree, promise, remaining.QuotaSelf+remaining.QuotaChildren, start, end)
-		if !backingAllocationId.Present {
+		candidates := []candidate{}
+		for _, allocationId := range parentWallet.Allocations {
+			allocation := tree.AllocationsById[allocationId]
+			if allocation == nil || usedBackingAllocations[allocationId] || allocation.End.Before(start) || allocation.Start.After(end) {
+				continue
+			}
+			active := !now.Before(allocation.Start) && now.Before(allocation.End)
+			if active || allocation.Start.After(now) {
+				candidates = append(candidates, candidate{allocation: allocation, active: active})
+			}
+		}
+
+		slices.SortFunc(candidates, func(a, b candidate) int {
+			if a.active != b.active {
+				if a.active {
+					return -1
+				}
+				return 1
+			}
+			if a.allocation.End.Before(b.allocation.End) {
+				return -1
+			}
+			if a.allocation.End.After(b.allocation.End) {
+				return 1
+			}
+			return cmp.Compare(int(a.allocation.Id), int(b.allocation.Id))
+		})
+
+		var parent *Allocation
+		for _, candidate := range candidates {
+			allocation := candidate.allocation
+			childStart := maxTime(start, allocation.Start)
+			childEnd := minTime(end, allocation.End)
+			if !childStart.Before(childEnd) {
+				continue
+			}
+			provided := promiseExposeChildCapacity(now, tree, allocation.Id, remaining.QuotaSelf+remaining.QuotaChildren)
+			if provided > 0 {
+				parent = allocation
+				break
+			}
+		}
+		if parent == nil {
 			return
 		}
 
-		before := promiseMaterializedQuota(now, tree, promise, util.OptNone[AllocationId]())
-		promiseCreateAllocation(now, tree, promise, backingAllocationId.Value, start, end, remaining)
-		after := promiseMaterializedQuota(now, tree, promise, util.OptNone[AllocationId]())
+		before := materializedQuota(util.OptNone[AllocationId]())
+		allocationStart := maxTime(start, parent.Start)
+		allocationEnd := minTime(end, parent.End)
+		if !allocationStart.Before(allocationEnd) {
+			return
+		}
+
+		total := remaining.QuotaSelf + remaining.QuotaChildren
+		if total <= 0 {
+			return
+		}
+		if parent.QuotaChildren-parent.ReservedChildren < total {
+			provided := promiseExposeChildCapacity(now, tree, parent.Id, total)
+			if provided < total {
+				remaining = promiseClampTargetToTotal(remaining, provided)
+				total = remaining.QuotaSelf + remaining.QuotaChildren
+				if total <= 0 {
+					return
+				}
+			}
+		}
+
+		allocationId := AllocationId(accGlobals.AllocIdAcc.Add(1))
+		allocation := &Allocation{
+			Id:               allocationId,
+			Wallet:           promise.Child,
+			Parent:           util.OptValue(parent.Id),
+			Start:            allocationStart,
+			End:              allocationEnd,
+			QuotaSelf:        remaining.QuotaSelf,
+			QuotaChildren:    remaining.QuotaChildren,
+			ConsumedSelf:     0,
+			ReservedChildren: 0,
+			Grant:            promise.Grant,
+			Promise:          util.OptValue(promise.Id),
+			Dirty:            true,
+		}
+
+		tree.AllocationsById[allocationId] = allocation
+		childWallet.Allocations = append(childWallet.Allocations, allocationId)
+		childWallet.Dirty = true
+		allocationMutate(now, tree, parent.Id, func(parentAlloc *Allocation, parentParent util.Option[*Allocation]) {
+			parentAlloc.ReservedChildren += total
+			parentAlloc.Children = append(parentAlloc.Children, allocationId)
+		})
+		allocationMutate(now, tree, allocationId, func(alloc *Allocation, parent util.Option[*Allocation]) {})
+		lifecycleScanEx(now, tree, []AllocationId{allocation.Id})
+		walletMarkSignificantUpdate(now, tree, childWallet)
+		walletReevaluateLock(now, tree, childWallet)
+		parentWallet := tree.WalletsById[parent.Wallet]
+		walletMarkSignificantUpdate(now, tree, parentWallet)
+		walletReevaluateLock(now, tree, parentWallet)
+
+		after := materializedQuota(util.OptNone[AllocationId]())
 		if after <= before {
 			return
 		}
 	}
 }
 
-func promiseRemainingActiveTarget(now time.Time, tree *AccountingTree, promise *Promise, target promiseTargetSplit) promiseTargetSplit {
-	wallet := tree.WalletsById[promise.Child]
-	if wallet == nil {
-		return target
-	}
-
-	remaining := target
-	for _, allocationId := range wallet.Allocations {
-		allocation := tree.AllocationsById[allocationId]
-		if allocation == nil || !allocation.Promise.Present || allocation.Promise.Value != promise.Id || !promiseAllocationActive(now, allocation) {
-			continue
-		}
-
-		self := min(remaining.QuotaSelf, allocation.QuotaSelf)
-		remaining.QuotaSelf -= self
-		children := min(remaining.QuotaChildren, allocation.QuotaChildren)
-		remaining.QuotaChildren -= children
-	}
-	return remaining
-}
-
-func promiseFindUnusedBackingAllocation(now time.Time, tree *AccountingTree, promise *Promise, quota int64, start time.Time, end time.Time) util.Option[AllocationId] {
-	wallet := tree.WalletsById[promise.Child]
-	usedBackingAllocations := map[AllocationId]bool{}
-	if wallet != nil {
-		for _, allocationId := range wallet.Allocations {
-			allocation := tree.AllocationsById[allocationId]
-			if allocation == nil || !allocation.Promise.Present || allocation.Promise.Value != promise.Id || !allocation.Parent.Present {
-				continue
+func promiseSort(promiseTree *PromiseTree, promises []*Promise) {
+	depth := func(walletId WalletId) int {
+		depth := 0
+		seen := map[WalletId]bool{}
+		for {
+			if seen[walletId] {
+				return depth
 			}
-			if allocation.End.After(start) && allocation.Start.Before(end) {
-				usedBackingAllocations[allocation.Parent.Value] = true
+			seen[walletId] = true
+
+			parents := promiseTree.PromisesByChild[walletId]
+			if len(parents) == 0 {
+				return depth
 			}
-		}
-	}
 
-	backingAllocationId, _ := promiseFindBackingAllocationEx(now, tree, promise.Parent, quota, start, end, usedBackingAllocations)
-	return backingAllocationId
-}
-
-func promiseFindBackingAllocation(now time.Time, tree *AccountingTree, walletId WalletId, quota int64, start time.Time, end time.Time) util.Option[AllocationId] {
-	backingAllocationId, _ := promiseFindBackingAllocationEx(now, tree, walletId, quota, start, end, nil)
-	return backingAllocationId
-}
-
-func promiseFindBackingAllocationEx(now time.Time, tree *AccountingTree, walletId WalletId, quota int64, start time.Time, end time.Time, excluded map[AllocationId]bool) (util.Option[AllocationId], int64) {
-	wallet := tree.WalletsById[walletId]
-	if wallet == nil {
-		return util.OptNone[AllocationId](), 0
-	}
-
-	type candidate struct {
-		allocation *Allocation
-		active     bool
-	}
-	candidates := []candidate{}
-	for _, allocationId := range wallet.Allocations {
-		allocation := tree.AllocationsById[allocationId]
-		if allocation == nil || excluded[allocationId] || allocation.End.Before(start) || allocation.Start.After(end) {
-			continue
-		}
-		if promiseAllocationActive(now, allocation) || allocation.Start.After(now) {
-			candidates = append(candidates, candidate{allocation: allocation, active: promiseAllocationActive(now, allocation)})
-		}
-	}
-
-	slices.SortFunc(candidates, func(a, b candidate) int {
-		if a.active != b.active {
-			if a.active {
-				return -1
+			promise := promiseTree.PromisesById[parents[0]]
+			if promise == nil {
+				return depth
 			}
-			return 1
+			walletId = promise.Parent
+			depth++
 		}
-		if a.allocation.End.Before(b.allocation.End) {
-			return -1
+	}
+	slices.SortFunc(promises, func(a, b *Promise) int {
+		depthA := depth(a.Child)
+		depthB := depth(b.Child)
+		if depthA != depthB {
+			return cmp.Compare(depthA, depthB)
 		}
-		if a.allocation.End.After(b.allocation.End) {
-			return 1
-		}
-		return cmp.Compare(int(a.allocation.Id), int(b.allocation.Id))
+		return cmp.Compare(int(a.Id), int(b.Id))
 	})
-
-	for _, candidate := range candidates {
-		allocation := candidate.allocation
-		childStart := maxTime(start, allocation.Start)
-		childEnd := minTime(end, allocation.End)
-		if !childStart.Before(childEnd) {
-			continue
-		}
-		provided := promiseExposeChildCapacity(now, tree, allocation.Id, quota)
-		if provided > 0 {
-			return util.OptValue(allocation.Id), provided
-		}
-	}
-
-	return util.OptNone[AllocationId](), 0
-}
-
-func promiseCreateAllocation(now time.Time, tree *AccountingTree, promise *Promise, parentId AllocationId, start time.Time, end time.Time, target promiseTargetSplit) {
-	parent := tree.AllocationsById[parentId]
-	childWallet := tree.WalletsById[promise.Child]
-	if parent == nil || childWallet == nil {
-		return
-	}
-
-	start = maxTime(start, parent.Start)
-	end = minTime(end, parent.End)
-	if !start.Before(end) {
-		return
-	}
-
-	total := target.QuotaSelf + target.QuotaChildren
-	if total <= 0 {
-		return
-	}
-	if parent.QuotaChildren-parent.ReservedChildren < total {
-		provided := promiseExposeChildCapacity(now, tree, parentId, total)
-		if provided < total {
-			target = promiseClampTargetToTotal(target, provided)
-			total = target.QuotaSelf + target.QuotaChildren
-			if total <= 0 {
-				return
-			}
-		}
-	}
-
-	allocationId := AllocationId(accGlobals.AllocIdAcc.Add(1))
-	allocation := &Allocation{
-		Id:               allocationId,
-		Wallet:           promise.Child,
-		Parent:           util.OptValue(parentId),
-		Start:            start,
-		End:              end,
-		QuotaSelf:        target.QuotaSelf,
-		QuotaChildren:    target.QuotaChildren,
-		ConsumedSelf:     0,
-		ReservedChildren: 0,
-		Grant:            promise.Grant,
-		Promise:          util.OptValue(promise.Id),
-		Dirty:            true,
-	}
-
-	tree.AllocationsById[allocationId] = allocation
-	childWallet.Allocations = append(childWallet.Allocations, allocationId)
-	childWallet.Dirty = true
-	allocationMutate(now, tree, parentId, func(parentAlloc *Allocation, parentParent util.Option[*Allocation]) {
-		parentAlloc.ReservedChildren += total
-		parentAlloc.Children = append(parentAlloc.Children, allocationId)
-	})
-	allocationMutate(now, tree, allocationId, func(alloc *Allocation, parent util.Option[*Allocation]) {})
-	lifecycleScanAllocation(now, tree, allocation)
-	walletMarkSignificantUpdate(now, tree, childWallet)
-	walletReevaluateLock(now, tree, childWallet)
-	parentWallet := tree.WalletsById[parent.Wallet]
-	walletMarkSignificantUpdate(now, tree, parentWallet)
-	walletReevaluateLock(now, tree, parentWallet)
 }
 
 // Small time helpers

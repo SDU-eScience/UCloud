@@ -301,7 +301,7 @@ func AllocationCreate(
 ) (AllocationId, *util.HttpError) {
 	var allocationId AllocationId
 	err := treeMutate(category, func(tree *AccountingTree) *util.HttpError {
-		lifecycleScan(now, tree)
+		lifecycleScanEx(now, tree, nil)
 
 		if start.After(end) {
 			return util.HttpErr(http.StatusBadRequest, "start must occur before the end of an allocation")
@@ -363,7 +363,7 @@ func AllocationCreate(
 		}
 
 		allocationMutate(now, tree, allocationId, func(alloc *Allocation, parent util.Option[*Allocation]) {})
-		lifecycleScanAllocation(now, tree, allocation)
+		lifecycleScanEx(now, tree, []AllocationId{allocation.Id})
 		walletMarkSignificantUpdate(now, tree, recipientWallet)
 		walletReevaluateLock(now, tree, recipientWallet)
 
@@ -383,7 +383,7 @@ func AllocationUpdate(
 	var grantedIn GrantId
 	var changelog string
 	err := treeMutate(category, func(tree *AccountingTree) *util.HttpError {
-		lifecycleScan(now, tree)
+		lifecycleScanEx(now, tree, nil)
 
 		alloc, ok := tree.AllocationsById[id]
 		if !ok {
@@ -396,6 +396,10 @@ func AllocationUpdate(
 				return util.HttpErr(http.StatusNotFound, "unknown promise")
 			}
 			return allocationUpdatePromiseBacked(now, tree, promise, alloc.Grant, quota, start, end, &grantedIn, &changelog)
+		}
+
+		if alloc.Parent.Present {
+			return util.HttpErr(http.StatusInternalServerError, "allocation should be promise based, but isn't")
 		}
 
 		proposedStart := alloc.Start
@@ -442,20 +446,6 @@ func AllocationUpdate(
 
 		currentQuota := alloc.QuotaSelf + alloc.QuotaChildren
 		delta := proposedQuota - currentQuota
-		if alloc.Parent.Present {
-			parentAlloc, ok := tree.AllocationsById[alloc.Parent.Value]
-			if !ok {
-				return util.HttpErr(http.StatusNotFound, "unknown parent allocation")
-			}
-
-			if proposedStart.Before(parentAlloc.Start) || proposedEnd.After(parentAlloc.End) {
-				return util.HttpErr(http.StatusForbidden, "allocation period must fit inside the parent allocation")
-			}
-
-			if delta > 0 && parentAlloc.QuotaChildren-parentAlloc.ReservedChildren < delta {
-				return util.HttpErr(http.StatusForbidden, "the parent allocation does not have enough available quota for this update")
-			}
-		}
 
 		allocationMutate(now, tree, id, func(alloc *Allocation, parent util.Option[*Allocation]) {
 			alloc.Start = proposedStart
@@ -471,37 +461,8 @@ func AllocationUpdate(
 		})
 
 		walletMarkSignificantUpdate(now, tree, tree.WalletsById[alloc.Wallet])
-		if alloc.Parent.Present {
-			parent := tree.AllocationsById[alloc.Parent.Value]
-			if parent != nil {
-				walletMarkSignificantUpdate(now, tree, tree.WalletsById[parent.Wallet])
-			}
-		}
-		lifecycleScanAllocation(now, tree, alloc)
+		lifecycleScanEx(now, tree, []AllocationId{alloc.Id})
 		walletReevaluateLock(now, tree, tree.WalletsById[alloc.Wallet])
-
-		if alloc.Grant.Present {
-			grantedIn = alloc.Grant.Value
-
-			if quota.Present {
-				amount := proposedQuota
-				switch tree.Category.AccountingFrequency {
-				case accapi.AccountingFrequencyPeriodicMinute:
-					amount = proposedQuota / 60
-				case accapi.AccountingFrequencyPeriodicDay:
-					amount = proposedQuota * 24
-				}
-				changelog += fmt.Sprintf("The quota for %s (%s) has manually been updated to %d.\n", tree.Category.Name, tree.Category.Provider, amount)
-			}
-
-			if start.Present {
-				changelog += fmt.Sprintf("The start date for the granted %s (%s) allocation has manually been updated to %s.\n", tree.Category.Name, tree.Category.Provider, proposedStart.String())
-			}
-
-			if end.Present {
-				changelog += fmt.Sprintf("The end date for the granted %s (%s) allocation has manually been updated to %s.\n", tree.Category.Name, tree.Category.Provider, proposedEnd.String())
-			}
-		}
 
 		return nil
 	})
@@ -560,7 +521,7 @@ func allocationUpdatePromiseBacked(
 	promise.End = proposedEnd
 	promise.Quota = proposedQuota
 	promise.Dirty = true
-	promiseReconcileOne(now, tree, promise)
+	promiseReconcileOne(now, tree, promise, false)
 
 	walletMarkSignificantUpdate(now, tree, tree.WalletsById[promise.Child])
 	walletMarkSignificantUpdate(now, tree, tree.WalletsById[promise.Parent])
@@ -676,14 +637,14 @@ func walletMarkSignificantUpdate(now time.Time, tree *AccountingTree, wallet *Wa
 
 // walletReevaluateLock updates wallet.Locked from the current admission-control view of remaining usable quota.
 //
-// A wallet is locked when walletRemainingUsable is zero. This is the post-mutation gate used after usage reports,
+// A wallet is locked when walletMaxUsable is zero. This is the post-mutation gate used after usage reports,
 // lifecycle scans and allocation changes. Lock transitions are significant updates because providers use them to decide
 // whether new work may be admitted.
 func walletReevaluateLock(now time.Time, tree *AccountingTree, wallet *Wallet) {
 	if wallet == nil {
 		return
 	}
-	maxUsable := walletRemainingUsable(now, tree, wallet)
+	maxUsable := walletMaxUsable(now, tree, wallet)
 	if maxUsable <= 0 && !wallet.Locked {
 		wallet.Locked = true
 		walletMarkSignificantUpdate(now, tree, wallet)
@@ -693,32 +654,26 @@ func walletReevaluateLock(now time.Time, tree *AccountingTree, wallet *Wallet) {
 	}
 }
 
-// walletMaxUsable returns the externally advertised remaining usable amount for a wallet.
-//
-// This is the value exposed as WalletV2.MaxUsable and CheckProviderUsable.MaxUsable. It must always be zero for locked
-// wallets, even if quota fields still describe promised or historical capacity. For unlocked wallets it delegates to
-// walletRemainingUsable.
-func walletMaxUsable(now time.Time, tree *AccountingTree, wallet *Wallet) int64 {
-	if wallet == nil || wallet.Locked {
-		return 0
-	}
-	return walletRemainingUsable(now, tree, wallet)
-}
-
-// walletRemainingUsable returns the non-negative amount that should currently be admitted for additional wallet usage.
+// walletMaxUsable returns the non-negative amount that should currently be admitted for additional wallet usage.
 //
 // The base quota is compatibility-facing contributing quota: active/contributing promises plus low-level allocations.
 // If the wallet's measured demand has already exceeded the effective concrete allocation-tree quota, the quota is
 // clamped to that effective quota so overbooked promise trees do not keep admitting work solely because promise quota is
 // larger than parent-backed capacity. This helper ignores wallet.Locked; use walletMaxUsable for API responses.
-func walletRemainingUsable(now time.Time, tree *AccountingTree, wallet *Wallet) int64 {
+func walletMaxUsable(now time.Time, tree *AccountingTree, wallet *Wallet) int64 {
 	if wallet == nil {
 		return 0
 	}
 	quota := int64(0)
 	quota = walletQuotaContributing(now, tree, &tree.PromiseTree, wallet)
 	effectiveQuota, hasEffectiveQuota := promiseWalletEffectiveReportQuota(tree, wallet)
-	demand := promiseMeasuredWalletDemand(now, tree, wallet)
+	demand := wallet.Consumed
+	for _, allocationId := range wallet.Allocations {
+		allocation := tree.AllocationsById[allocationId]
+		if allocation != nil && !allocation.IsRetired(now) && allocation.ConsumedSelf > demand {
+			demand = allocation.ConsumedSelf
+		}
+	}
 	if hasEffectiveQuota {
 		if quota == 0 {
 			quota = effectiveQuota
@@ -731,53 +686,49 @@ func walletRemainingUsable(now time.Time, tree *AccountingTree, wallet *Wallet) 
 	return max(quota-demand, 0)
 }
 
-// lifecycleScan advances activation and retirement state for every allocation in a tree.
+func lifecycleScan(now time.Time, tree *AccountingTree) {
+	lifecycleScanEx(now, tree, nil)
+}
+
+// lifecycleScanEx advances activation and retirement state for every allocation in a tree.
 //
 // It also cleans up retired allocations and reevaluates wallet locks. Call this at the start of public operations that
 // interpret time-sensitive quota or usage state.
-func lifecycleScan(now time.Time, tree *AccountingTree) {
-	retiredCleanupQueue := make([]AllocationId, 0, len(tree.AllocationsById))
-	for _, allocation := range tree.AllocationsById {
-		lifecycleScanAllocation(now, tree, allocation)
-		retiredCleanupQueue = append(retiredCleanupQueue, allocation.Id)
+func lifecycleScanEx(now time.Time, tree *AccountingTree, toScan []AllocationId) {
+	if len(toScan) == 0 {
+		toScan = make([]AllocationId, 0, len(tree.AllocationsById))
+		for id := range tree.AllocationsById {
+			toScan = append(toScan, id)
+		}
 	}
-	lifecycleCleanupRetiredAllocations(now, tree, retiredCleanupQueue)
-	for _, wallet := range tree.WalletsById {
-		walletReevaluateLock(now, tree, wallet)
-	}
-}
 
-// lifecycleScanAllocation applies time-based activation and retirement transitions to one allocation.
-//
-// Activation makes an allocation count toward active/contributing quota. Retirement snapshots retired quota and usage so
-// reporting and API code can still describe what happened after the active interval ends.
-func lifecycleScanAllocation(now time.Time, tree *AccountingTree, allocation *Allocation) {
-	if allocation == nil {
-		return
-	}
-	wallet := tree.WalletsById[allocation.Wallet]
-	if allocation.shouldActivate(now) {
-		allocation.Activated = true
-		allocation.Dirty = true
-		walletMarkSignificantUpdate(now, tree, wallet)
-	}
-	if allocation.shouldRetire(now) {
-		allocation.Retired = true
-		allocation.Activated = true
-		allocation.RetiredQuota = allocation.QuotaSelf + allocation.QuotaChildren
-		allocation.RetiredUsage = allocation.ConsumedSelf
-		allocation.Dirty = true
-		walletMarkSignificantUpdate(now, tree, wallet)
-	}
-}
+	wallets := map[WalletId]*Wallet{}
+	retirementCleanupQueue := make([]AllocationId, 0, len(tree.AllocationsById))
+	for _, allocationId := range toScan {
+		allocation := tree.AllocationsById[allocationId]
 
-// lifecycleCleanupRetiredAllocations releases unused quota from retired allocations back up the allocation tree.
-//
-// The cleanup keeps enough retired quota to cover retained self-consumption and child reservations, then propagates any
-// released child reservation to parents. Use this after lifecycle scans or usage redistribution, not as a standalone
-// quota planning mechanism.
-func lifecycleCleanupRetiredAllocations(now time.Time, tree *AccountingTree, initialQueue []AllocationId) {
-	retirementCleanupQueue := slices.Clone(initialQueue)
+		wallet := tree.WalletsById[allocation.Wallet]
+		if allocation.shouldActivate(now) {
+			allocation.Activated = true
+			allocation.Dirty = true
+			walletMarkSignificantUpdate(now, tree, wallet)
+			wallets[wallet.Id] = wallet
+		}
+
+		if allocation.shouldRetire(now) {
+			allocation.Retired = true
+			allocation.Activated = true
+			allocation.RetiredQuota = allocation.QuotaSelf + allocation.QuotaChildren
+			allocation.RetiredUsage = allocation.ConsumedSelf
+			allocation.Dirty = true
+			walletMarkSignificantUpdate(now, tree, wallet)
+			wallets[wallet.Id] = wallet
+			retirementCleanupQueue = append(retirementCleanupQueue, allocation.Id)
+		}
+
+		retirementCleanupQueue = append(retirementCleanupQueue, allocation.Id)
+	}
+
 	for len(retirementCleanupQueue) > 0 {
 		retiredId := retirementCleanupQueue[0]
 		retirementCleanupQueue = retirementCleanupQueue[1:]
@@ -812,6 +763,10 @@ func lifecycleCleanupRetiredAllocations(now time.Time, tree *AccountingTree, ini
 			}
 		})
 		walletReevaluateLock(now, tree, tree.WalletsById[retiredReadOnly.Wallet])
+	}
+
+	for _, wallet := range wallets {
+		walletReevaluateLock(now, tree, wallet)
 	}
 }
 
@@ -1005,9 +960,7 @@ func treeMutate(category accapi.ProductCategoryIdV2, fn func(tree *AccountingTre
 	if !ok {
 		cat, err := ProductCategoryRetrieve(rpc.ActorSystem, category.Name, category.Provider)
 		if err == nil {
-			log.Info("Looking up category. Found it.")
 			CategoryEnsure(cat)
-			log.Info("Ensured")
 			return treeMutate(category, fn)
 		}
 
@@ -1034,33 +987,26 @@ func treeMutate(category accapi.ProductCategoryIdV2, fn func(tree *AccountingTre
 // usage can be moved forward when an active allocation can absorb it.
 
 func UsageReport(now time.Time, request accapi.ReportUsageRequest) (success bool, err *util.HttpError) {
+	// TODO Race condition?
 	scope := usageReportScope(request)
 	absoluteAmount, resolveErr := usageReportResolveAbsoluteUsage(now, request, scope)
 	if resolveErr != nil {
 		return false, resolveErr
 	}
 
-	PromiseReconcile(now, request.CategoryIdV2, request.Owner, util.OptValue(absoluteAmount))
+	PromiseReconcile(now, request.CategoryIdV2, request.Owner, absoluteAmount)
 
-	shouldShrinkReconcile := false
 	walletMutate(request.CategoryIdV2, request.Owner, func(tree *AccountingTree, wallet *Wallet) {
 		if tree.Category.FreeToUse {
 			return
 		}
 
-		lifecycleScan(now, tree)
+		lifecycleScanEx(now, tree, nil)
 
 		if len(wallet.Allocations) == 0 {
 			success, err = false, util.HttpErr(http.StatusBadRequest, "this owner does not have any such resources")
 			return
 		}
-
-		previousConsumed := wallet.Consumed
-		meaningfulShrink := tree.Policy.GrowthStep
-		if meaningfulShrink <= 0 {
-			meaningfulShrink = 1
-		}
-		shouldShrinkReconcile = tree.IsCapacityBased() && previousConsumed-absoluteAmount >= meaningfulShrink
 
 		retiredAmount := int64(0)
 
@@ -1255,18 +1201,12 @@ func UsageReport(now time.Time, request accapi.ReportUsageRequest) (success bool
 			}
 		}
 
-		lifecycleCleanupRetiredAllocations(now, tree, retiredAllocations)
-
 		walletReevaluateLock(now, tree, wallet)
 		success = !wallet.Locked
 	})
 
 	if err == nil {
-		if shouldShrinkReconcile {
-			PromiseReconcile(now, request.CategoryIdV2, request.Owner, util.OptNone[int64]())
-		} else {
-			PromiseReconcile(now, request.CategoryIdV2, request.Owner, util.OptValue(absoluteAmount))
-		}
+		PromiseReconcile(now, request.CategoryIdV2, request.Owner, absoluteAmount)
 	}
 	return
 }
@@ -1310,7 +1250,7 @@ func usageReportResolveAbsoluteUsage(now time.Time, request accapi.ReportUsageRe
 			return nil
 		}
 
-		lifecycleScan(now, tree)
+		lifecycleScanEx(now, tree, nil)
 		wallet := tree.WalletsByOwner[request.Owner.Reference()]
 		if wallet == nil {
 			return util.HttpErr(http.StatusNotFound, "unknown wallet")
