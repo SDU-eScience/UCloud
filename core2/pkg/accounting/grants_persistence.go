@@ -242,20 +242,23 @@ func grantsLoad(id accGrantId, prefetchHint []accGrantId) {
 			}
 
 			if currentRevision.Document.Form.Type == accapi.FormTypePlainText {
-				currentRevision.Document.Form.AnswerForm = accapi.ParseAnswerFormFields(revision.Form)
+				currentRevision.Document.Form.AnswerForms = accapi.ParseAnswerFormFields(revision.Form)
 				currentRevision.Document.Form.Type = accapi.FormTypeStructured
 			} else if currentRevision.Document.Form.Type == accapi.FormTypeStructured {
 				jsonStr := currentRevision.Document.Form.Text
-				var answerForm = accapi.AnswerForm{
-					AnswerFields:           make([]accapi.AnswerFieldForm, 0),
-					TemplateRevisionNumber: -1,
+				var answerForms = []accapi.AnswerForm{
+					{
+						AllocatorId:            "",
+						AnswerFields:           make([]accapi.AnswerFieldForm, 0),
+						TemplateRevisionNumber: -1,
+					},
 				}
 
-				err := json.Unmarshal([]byte(jsonStr), &answerForm)
+				err := json.Unmarshal([]byte(jsonStr), &answerForms)
 				if err != nil {
 					log.Warn("Failed to parse structured form: %s", err)
 				}
-				currentRevision.Document.Form.AnswerForm = answerForm
+				currentRevision.Document.Form.AnswerForms = answerForms
 			}
 			app.Status.Revisions = append(app.Status.Revisions, currentRevision)
 
@@ -1059,7 +1062,7 @@ func lGrantsPersist(app *grantApplication) {
 
 				switch rev.Document.Form.Type {
 				case accapi.FormTypeStructured:
-					b, err := json.Marshal(rev.Document.Form.AnswerForm)
+					b, err := json.Marshal(rev.Document.Form.AnswerForms)
 					if err == nil {
 						form = append(form, string(b))
 					} else {

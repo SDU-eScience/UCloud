@@ -226,7 +226,8 @@ func normalizeTitle(title string) string {
 	return builder
 }
 
-func ParseAnswerFormFields(text string) AnswerForm {
+// ParseAnswerFormFields For converting plain text new format, at some point we can remove this function
+func ParseAnswerFormFields(text string) []AnswerForm {
 	lines := strings.Split(text, "\n")
 
 	var sectionSeparators []int
@@ -300,9 +301,10 @@ func ParseAnswerFormFields(text string) AnswerForm {
 		}
 		result = append(result, field)
 	}
-	return AnswerForm{AnswerFields: util.NonNilSlice(result), TemplateRevisionNumber: -1}
+	return []AnswerForm{{AnswerFields: util.NonNilSlice(result), TemplateRevisionNumber: -1, AllocatorId: ""}}
 }
 
+// ParseFormFields Temp parsing for the new format, at some point we can remove this function
 func ParseFormFields(text string) []FormField {
 	lines := strings.Split(text, "\n")
 
@@ -464,6 +466,7 @@ type AnswerFieldForm struct {
 }
 
 type AnswerForm struct {
+	AllocatorId            string            `json:"allocatorId"`
 	AnswerFields           []AnswerFieldForm `json:"answerFields"`
 	TemplateRevisionNumber int               `json:"templateRevisionNumber"`
 }
@@ -471,7 +474,7 @@ type AnswerForm struct {
 type Form struct {
 	Type         FormType          `json:"type"`
 	Text         string            `json:"text"` // plain_text, grant_giver_initiated - used for legacy form
-	AnswerForm   AnswerForm        `json:"answerForm"`
+	AnswerForms  []AnswerForm      `json:"answerForms"`
 	SubAllocator util.Option[bool] `json:"subAllocator"` // grant_giver_initiated
 }
 

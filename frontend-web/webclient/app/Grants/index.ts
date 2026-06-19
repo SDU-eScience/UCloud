@@ -225,14 +225,14 @@ interface GrantGiverInitiatedForm {
     type: "grant_giver_initiated";
     text: string;
     subAllocator: boolean;
-    answerForm: AnswerForm;
+    answerForms: AnswerForm[];
 }
 
 interface StructuredForm {
     type: "structured";
     text: string;
     subAllocator: boolean;
-    answerForm: AnswerForm;
+    answerForms: AnswerForm[];
 }
 
 
@@ -334,6 +334,7 @@ export interface FormField {
 }
 
 export interface AnswerForm {
+    allocatorId: string;
     answerFields: AnswerFieldForm[];
     templateRevisionNumber: number;
 }
