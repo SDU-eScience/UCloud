@@ -1,7 +1,7 @@
 import * as React from "react";
 import ReactDOM from "react-dom";
 
-import {ProductV2, productCategoryEquals, ProductV2Compute, ProductType, explainUnit, ProductCategoryV2, priceToString, Product} from "@/Accounting";
+import {ProductV2, productCategoryEquals, ProductV2Compute, ProductType, explainUnit, ProductCategoryV2, priceToString, Product, ProductCategoryId} from "@/Accounting";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
 import {connectionState} from "@/Providers/ConnectionState";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
@@ -308,14 +308,8 @@ export const ProductSelector: React.FunctionComponent<{
         return [...new Set((categorizedProducts as ComputeCategory[]).map(it => it.provider))].map(it => ({key: it}));
     }, [categorizedProducts]);
 
-    let queueStatus: JobQueueStatus | null = null
-    if (type === "COMPUTE") {
-        const support = (props.support ?? []).find(s =>
-            s.product.name === selected?.name &&
-            productCategoryEquals(s.product.category, selected?.category)
-        )?.support;
-        queueStatus = (support as ComputeSupport)?.queueStatus ?? null;
-    }
+    let queueStatus = queueStatusFromCategoryName(props.support, selected?.name, selected?.category);
+
 
     return <>
         <Flex gap="8px">
@@ -339,8 +333,8 @@ export const ProductSelector: React.FunctionComponent<{
                         return <ServiceProviderItem {...props} />
                     }} />
             </Box> : null}
-            <Box width={type === "COMPUTE" ? "50%" : "100%"}>
-                {type === "COMPUTE" ? <Box>Machine category <MandatoryField /></Box> : null}
+            <Box width={isCompute ? "50%" : "100%"}>
+                {isCompute ? <Box>Machine category <MandatoryField /></Box> : null}
                 <div onClick={onToggle} className={InputClass} style={{display: "flex", height: "33.5px"}} ref={boxRef}>
                     {selected ?
                         <Flex alignItems={"center"}>
@@ -393,6 +387,7 @@ export const ProductSelector: React.FunctionComponent<{
                 </div>
                 <MachineTypeSelectionSlider
                     idx={selectedComputeCategory?.products.findIndex(prod => prod === selected) ?? -1}
+                    support={props.support}
                     onSelect={idx => {
                         if (!selectedComputeCategory) return;
                         props.onSelect(selectedComputeCategory.products[idx])
@@ -561,6 +556,15 @@ export const ProductSelector: React.FunctionComponent<{
     </>;
 };
 
+function queueStatusFromCategoryName(support: ResolvedSupport<Product, ProductSupport>[] | undefined, name: string | undefined, category: ProductCategoryId | undefined): JobQueueStatus | null {
+    if (!name || !category) return null;
+    const s = (support ?? []).find(s =>
+        s.product.name === name &&
+        productCategoryEquals(s.product.category, category)
+    )?.support;
+    return (s as ComputeSupport)?.queueStatus ?? null;
+}
+
 const ProductName: React.FunctionComponent<{product: ProductV2}> = ({product}) => {
     return <>{product.name}</>;
 }
@@ -707,6 +711,7 @@ function MachineTypeSelectionSlider(props: {
     selectedCategory?: ComputeCategory;
     onSelect: (index: number) => void;
     idx: number;
+    support: ResolvedSupport<Product, ProductSupport>[] | undefined;
 }): React.ReactNode {
 
     const dividerIndex: number = React.useMemo(() => {
@@ -730,7 +735,7 @@ function MachineTypeSelectionSlider(props: {
         {dividerIndex > 0 ?
             <Flex>
                 <Box ml="4px">MIG (partial GPUs)</Box>
-                <Box style={{position: "absolute", width: "1px", left: `calc(100% * ${dividerIndex / productCount}`, height: "50px", border: "1px solid black"}}></Box>
+                <Box style={{position: "absolute", width: "1px", left: `calc(100% * ${dividerIndex / productCount} - 16px)`, height: "50px", border: "1px solid black"}}></Box>
                 <Box style={{position: "absolute", left: `calc(100% * ${dividerIndex / productCount} + 20px)`}} ml="4px">Full GPUs</Box>
             </Flex>
             : null}
@@ -740,12 +745,13 @@ function MachineTypeSelectionSlider(props: {
             {props.selectedCategory.products.map((p, idx) => <option key={idx} value={idx} />)}
         </datalist>
         <CustomDataListThingy>
-            {props.selectedCategory.products.map((p, idx) => <Box key={idx}>
-                <Box>
-                    <Box>{computeV2CountStringThing(p)}</Box>
-                    <JobQueueStatusIndicator status={JobQueueStatus.AVAILABLE} />
+            {props.selectedCategory.products.map((p, idx) => {
+                const status = queueStatusFromCategoryName(props.support, p.name, p.category);
+                return <Box key={idx}>
+                    <Box mb="4px">{computeV2CountStringThing(p)}</Box>
+                    {!status ? null : <JobQueueStatusIndicator status={status} />}
                 </Box>
-            </Box>)}
+            })}
         </CustomDataListThingy>
     </Box>
 }
@@ -760,7 +766,6 @@ const ThingyStyle = injectStyle("thingy-style", cl => `
 
     ${cl} > div {
         width: 30px;
-
     }
 `);
 
