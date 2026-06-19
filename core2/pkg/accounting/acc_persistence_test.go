@@ -8,7 +8,6 @@ import (
 
 func TestAccountingRepairLoadedConsumptionDistributesMigratedWalletUsage(t *testing.T) {
 	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
-	e.setPolicy(PromisePolicy{TrendAlphaBasisPoints: 10000})
 	e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 10, Quota: 100})
 	promise := e.addPromise("root", "child", 0, 10, 60)
 

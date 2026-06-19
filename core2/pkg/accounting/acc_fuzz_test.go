@@ -197,11 +197,6 @@ func FuzzPromiseSystem(f *testing.F) {
 		}
 
 		e := newLowTestEnv(t, frequency)
-		e.setPolicy(PromisePolicy{
-			MinSlack:              int64(data[0] % 16),
-			GrowthStep:            int64(data[0] % 8),
-			TrendAlphaBasisPoints: 2500 + int64(data[0]%4)*2500,
-		})
 
 		e.add(lowAllocSpec{Name: "root0-a", Wallet: "root", Start: 0, End: 12, Quota: 50, Self: 0, Children: 50})
 		e.add(lowAllocSpec{Name: "root0-b", Wallet: "root", Start: 0, End: 12, Quota: 50, Self: 0, Children: 50})

@@ -67,7 +67,6 @@ func TestLifecycleScanMarksActivationAndRetirementOnce(t *testing.T) {
 
 func TestWalletToApiCombinesPromisesAndLowLevelUsage(t *testing.T) {
 	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
-	e.setPolicy(PromisePolicy{TrendAlphaBasisPoints: 10000})
 	e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 10, Quota: 100, Self: 0, Children: 100})
 	promise := e.addPromise("root", "child", 0, 10, 100)
 
@@ -114,7 +113,6 @@ func TestWalletToApiCombinesPromisesAndLowLevelUsage(t *testing.T) {
 
 func TestWalletReevaluateLockMarksSignificantUpdates(t *testing.T) {
 	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
-	e.setPolicy(PromisePolicy{TrendAlphaBasisPoints: 10000})
 	e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 10, Quota: 200, Self: 0, Children: 200})
 	e.addPromise("root", "child", 0, 10, 100)
 
@@ -139,7 +137,6 @@ func TestWalletReevaluateLockMarksSignificantUpdates(t *testing.T) {
 
 func TestAllocationToApiUsesLowLevelQuotaWhenRetired(t *testing.T) {
 	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
-	e.setPolicy(PromisePolicy{TrendAlphaBasisPoints: 10000})
 	e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 10, Quota: 100, Self: 0, Children: 100})
 	promise := e.addPromise("root", "child", 0, 10, 100)
 
@@ -277,7 +274,6 @@ func TestUsageReportDeltaAndScopedUsage(t *testing.T) {
 
 func TestAllocationUpdatePromiseBackedAllocationUpdatesPromise(t *testing.T) {
 	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
-	e.setPolicy(PromisePolicy{TrendAlphaBasisPoints: 10000})
 	e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 10, Quota: 100, Self: 0, Children: 100})
 	promiseId := e.addPromise("root", "child", 0, 10, 100)
 	e.report(1, "child", 40)
@@ -332,7 +328,6 @@ func TestWalletV2ByAllocationID(t *testing.T) {
 
 func TestPromiseCreateForGrantIsIdempotentAndPropagatesGrant(t *testing.T) {
 	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
-	e.setPolicy(PromisePolicy{TrendAlphaBasisPoints: 10000})
 	e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 10, Quota: 100, Self: 0, Children: 100})
 
 	grant := util.OptValue(GrantId(42))

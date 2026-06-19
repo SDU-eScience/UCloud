@@ -2,7 +2,6 @@ package accounting
 
 import (
 	"cmp"
-	"math"
 	"net/http"
 	"slices"
 	"sync/atomic"
@@ -126,16 +125,11 @@ var promiseGlobals struct {
 	PromiseIdAcc atomic.Int64
 }
 
-// promiseBasisPoints is the denominator for integer trend fractions. A value of 10,000 means 100%, 5,000 means 50%,
-// and 1 means 0.01%. Promise policies use this representation instead of floats so accounting decisions remain stable
-// and deterministic.
-const promiseBasisPoints = int64(10000)
-
 // Public reconciliation entry point
 // ---------------------------------------------------------------------------------------------------------------------
 // PromiseReconcile is invoked for one wallet owner with a concrete minimum request. Reconciliation only works on that
-// wallet's ancestor promise chain, and returns immediately if the wallet is close enough to the rounded target plus
-// slack. If observed usage drops meaningfully below current quota, the same path can shrink existing materializations.
+// wallet's ancestor promise chain. If observed usage drops below current quota, the same path can shrink existing
+// materializations.
 //
 // Reconciliation proceeds bottom-up by sorting promises by child depth. This gives child demand a chance to influence
 // parent targets on later passes and matches the operational model where periodic reconciliation can gradually expose
@@ -155,23 +149,15 @@ func PromiseReconcile(
 		return
 	}
 
-	// Skip reconciliation if we already have space in the wallet for the request
-	requiredQuota := minimumRequest + tree.Policy.MinSlack
-	if requiredQuota > 0 && tree.Policy.GrowthStep > 0 {
-		requiredQuota = ((requiredQuota + tree.Policy.GrowthStep - 1) / tree.Policy.GrowthStep) * tree.Policy.GrowthStep
-	}
+	requiredQuota := minimumRequest
 	currentQuota := promiseWalletReportQuota(tree, wallet)
-	if math.Abs(float64(currentQuota-requiredQuota)) < float64(tree.Policy.GrowthStep) {
+	if currentQuota == requiredQuota {
 		return
 	}
 
 	shrinkExisting := false
 	if currentQuota > requiredQuota && wallet.Consumed <= minimumRequest {
-		if tree.Policy.GrowthStep > 0 {
-			shrinkExisting = currentQuota-requiredQuota > tree.Policy.GrowthStep
-		} else {
-			shrinkExisting = requiredQuota*2 <= currentQuota
-		}
+		shrinkExisting = true
 	}
 
 	promiseUpdateWalletTrend(now, tree, wallet, minimumRequest)
@@ -413,22 +399,11 @@ type promiseTargetSplit struct {
 // ask its parent for headroom before the child allocation actually exists, which is the mechanism that lets periodic
 // reconciliation propagate capacity down through multiple layers.
 //
-// The policy fields ending in BasisPoints use promiseBasisPoints as their denominator. For example, an EWMA alpha of
-// 2,500 applies 25% of the new sample and keeps 75% of the previous value.
-//
 // promiseUpdateWalletTrend updates EWMA demand and per-hour trend for a wallet.
 
 func promiseUpdateWalletTrend(now time.Time, tree *AccountingTree, wallet *Wallet, measured int64) {
 	if measured < 0 {
 		measured = 0
-	}
-
-	alpha := tree.Policy.TrendAlphaBasisPoints
-	if alpha <= 0 {
-		alpha = 5000
-	}
-	if alpha > promiseBasisPoints {
-		alpha = promiseBasisPoints
 	}
 
 	if wallet.PromiseTrendUpdatedAt.IsZero() {
@@ -441,7 +416,7 @@ func promiseUpdateWalletTrend(now time.Time, tree *AccountingTree, wallet *Walle
 	}
 
 	previous := wallet.PromiseDemandEwma
-	wallet.PromiseDemandEwma = ((measured * alpha) + (wallet.PromiseDemandEwma * (promiseBasisPoints - alpha))) / promiseBasisPoints
+	wallet.PromiseDemandEwma = measured
 
 	elapsed := now.Sub(wallet.PromiseTrendUpdatedAt)
 	if elapsed > 0 {
@@ -462,13 +437,6 @@ func promiseUpdateWalletTrend(now time.Time, tree *AccountingTree, wallet *Walle
 func promiseReconcileOne(now time.Time, tree *AccountingTree, promise *Promise, preserveExisting bool) {
 	if promise == nil || promise.Quota <= 0 || now.Before(promise.Start) || now.After(promise.End) {
 		return
-	}
-
-	roundUp := func(value int64) int64 {
-		if value <= 0 || tree.Policy.GrowthStep <= 0 {
-			return value
-		}
-		return ((value + tree.Policy.GrowthStep - 1) / tree.Policy.GrowthStep) * tree.Policy.GrowthStep
 	}
 
 	var targetForWallet func(walletId WalletId, seen map[WalletId]bool) promiseTargetSplit
@@ -494,8 +462,8 @@ func promiseReconcileOne(now time.Time, tree *AccountingTree, promise *Promise, 
 			currentSelf = max(currentSelf, wallet.PromiseDemandEwma)
 
 			target = promiseTargetSplit{
-				QuotaSelf:     roundUp(currentSelf + tree.Policy.MinSlack),
-				QuotaChildren: roundUp(currentChildren),
+				QuotaSelf:     currentSelf,
+				QuotaChildren: currentChildren,
 			}
 		}
 
@@ -509,7 +477,7 @@ func promiseReconcileOne(now time.Time, tree *AccountingTree, promise *Promise, 
 			childTarget := targetForWallet(childPromise.Child, seen)
 			childDemand += childTarget.QuotaSelf + childTarget.QuotaChildren
 		}
-		target.QuotaChildren = roundUp(max(target.QuotaChildren, childDemand))
+		target.QuotaChildren = max(target.QuotaChildren, childDemand)
 		return target
 	}
 

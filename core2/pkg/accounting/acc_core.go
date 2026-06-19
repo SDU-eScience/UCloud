@@ -46,9 +46,6 @@ import (
 // wallets and allocations for that category live inside that tree. IDs are process-global integers, matching the older
 // accounting implementation.
 //
-// PromisePolicy uses integer basis points for trend configuration. 10,000 basis points means 100%, 5,000 means 50%,
-// and so on. This avoids floating point behavior in accounting code while still allowing policy fractions.
-//
 // ---------------------------------------------------------------------------------------------------------------------
 // MUTEX LOCK ORDER: globals > tree > scopedUsage
 // AccountingTree requires its mutex for mutation. Types inside a tree are protected by the tree mutex.
@@ -104,18 +101,6 @@ type AccountingTree struct {
 	PromiseTree     PromiseTree
 
 	disableEvaluation bool
-
-	Policy PromisePolicy
-}
-
-type PromisePolicy struct {
-	MinSlack int64
-
-	// GrowthStep rounds policy targets up to stable accounting-sized chunks. A zero value disables rounding.
-	GrowthStep int64
-
-	// TrendAlphaBasisPoints controls the EWMA update weight. A zero value defaults to 50%.
-	TrendAlphaBasisPoints int64
 }
 
 // IsCapacityBased reports whether the category represents point-in-time capacity rather than accumulated usage.
@@ -234,7 +219,6 @@ func CategoryEnsure(category accapi.ProductCategory) {
 			PromisesByParent: map[WalletId][]PromiseId{},
 			PromisesByChild:  map[WalletId][]PromiseId{},
 		},
-		Policy: PromisePolicy{TrendAlphaBasisPoints: 10000},
 	}
 }
 
