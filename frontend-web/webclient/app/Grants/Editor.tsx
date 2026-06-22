@@ -248,12 +248,12 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
 
             let templateKey: Grants.TemplateKey = Grants.TemplateKey.newProject;
 
-            function templateKeyFromRecipientType(type: Grants.Recipient["type"]): string {
+            function templateKeyFromRecipientType(type: Grants.Recipient["type"]): Grants.TemplateKey {
                 switch (type) {
                     case "personalWorkspace":
-                        return "personalProject";
+                        return Grants.TemplateKey.personalProject
                     default:
-                        return type;
+                        return type as Grants.TemplateKey;
                 }
             }
 
@@ -263,11 +263,11 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                 state.allocators = [];
 
                 if (state.stateDuringCreate.creatingWorkspace) {
-                    templateKey = "newProject";
+                    templateKey = Grants.TemplateKey.newProject;
                 } else if (state.stateDuringCreate.reference) {
-                    templateKey = "existingProject";
+                    templateKey = Grants.TemplateKey.existingProject;
                 } else {
-                    templateKey = "personalProject";
+                    templateKey = Grants.TemplateKey.personalProject;
                 }
             } else {
                 const recipient = action.recipientType ?? state.stateDuringEdit?.recipient.type;
