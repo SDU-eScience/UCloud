@@ -29,6 +29,8 @@ import {useUtilizationOverTimeChart} from "@/Accounting/Diagrams/UtilizationOver
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {getStartOfDay} from "@/Utilities/DateUtilities";
 import {exportUsage} from "@/Accounting/Usage";
+import {useUsageOverTimeChart} from "@/Accounting/Diagrams/UsageOverTime";
+import {useAbsoluteOverTimeChart} from "@/Accounting/Diagrams/AbsoluteOverTime";
 
 export interface UsageRetrieveRequest {
     start: number;
@@ -93,6 +95,12 @@ export interface UsageReport {
             timestamp: number;
             usage: number;
             utilizationPercent100: number;
+        }[];
+
+        childrenAbsolute: {
+            timestamp: number;
+            usage: number;
+            child: string | null;
         }[];
     };
 }
@@ -271,6 +279,9 @@ const UsagePage: React.FunctionComponent = () => {
     let utilizationChartWidth = utilizationOnSingleRow ? fullChartWidth - 400 : fullChartWidth;
     const utilizationChartHeight = chartHeight(utilizationChartWidth, 16 / 6);
 
+    let usageChartWidth = fullChartWidth;
+    const usageChartHeight = chartHeight(usageChartWidth, 16 / 6);
+
     const childProjectIds: string[] = useMemo(() => {
         const r = state.openReport;
         if (r === undefined) return [];
@@ -330,8 +341,12 @@ const UsagePage: React.FunctionComponent = () => {
 
     const utilizationOverTime = useUtilizationOverTimeChart(state.openReport, utilizationChartWidth, utilizationChartHeight, unit);
     const deltaOverTime = useDeltaOverTimeChart(state.openReport, deltaChartWidth, chartHeight(deltaChartWidth), unit, childToLabel);
+    const absoluteOverTime = useAbsoluteOverTimeChart(state.openReport, deltaChartWidth, chartHeight(deltaChartWidth), unit, childToLabel);
+
     const breakdownChart = useBreakdownChart(state.openReport, breakdownChartWidth,
         breakdownChartHeight, childToLabel, valueFormatter);
+
+    const usageOverTime = useUsageOverTimeChart(state.openReport, usageChartWidth, usageChartHeight, unit, childToLabel);
 
     const childConsumption = useMemo(() => {
         const r = state.openReport;
@@ -683,7 +698,7 @@ const UsagePage: React.FunctionComponent = () => {
                     <h3>Usage breakdown</h3>
                     <Flex flexWrap={"wrap"} gap={"16px"}>
                         <svg ref={breakdownChart.chartRef} width={breakdownChartWidth} height={breakdownChartHeight}
-                            style={{flexShrink: 0, flexBasis: breakdownChartWidth}} />
+                             style={{flexShrink: 0, flexBasis: breakdownChartWidth}} />
 
                         <div className={TableStyle} style={{flexBasis: "500px"}}>
                             <table>
@@ -731,6 +746,64 @@ const UsagePage: React.FunctionComponent = () => {
                 </Card>
             }
 
+            {r.usageOverTime.childrenAbsolute.length <= 1 ? null :
+                <Card>
+                    <Flex mb={8}>
+                        <h3 style={{flexGrow: 1}}>Usage over time</h3>
+                        <Button onClick={exportDeltaOverTime}>
+                            <Icon name={"heroArrowDownTray"} mr={8} />
+                            Export
+                        </Button>
+                    </Flex>
+                    <svg ref={absoluteOverTime.chartRef} width={deltaChartWidth} height={chartHeight(deltaChartWidth)} />
+                    <Flex flexWrap={"wrap"} gap={"16px"} ml={40} fontSize={"80%"}>
+                        {absoluteOverTime.labels.map(label =>
+                            <Flex key={label.child} gap={"4px"} alignItems={"center"}>
+                                <Box width={14} height={14} flexShrink={0} style={{background: label.color}} />
+                                <div>{childToLabel(label.child)}</div>
+                            </Flex>
+                        )}
+                    </Flex>
+                </Card>
+            }
+
+            {r.usageOverTime.childrenAbsolute.length <= 1 ? null :
+                <Card>
+                    <Flex mb={8}>
+                        <h3 style={{flexGrow: 1}}>Usage over time</h3>
+                        <Button onClick={exportAbsoluteUsageOverTime}>
+                            <Icon name={"heroArrowDownTray"} mr={8} />
+                            Export
+                        </Button>
+                    </Flex>
+                    <Flex flexWrap={"wrap"} gap={"16px"}>
+                        <svg ref={usageOverTime.chartRef} width={usageChartWidth}
+                             height={usageChartHeight} />
+                        <div className={TableStyle} style={{flexBasis: "500px"}}>
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th />
+                                        <th>Project</th>
+                                        <th>Usage</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {usageOverTime.rows.map(row => <tr key={row.child}>
+                                        <td align={"center"}>
+                                            <Box width={14} height={14} flexShrink={0} style={{background: row.color}} />
+                                        </td>
+                                        <td>{childToLabel(row.child)}</td>
+                                        <td align={"right"}>{balanceToString(row.usage)}</td>
+                                    </tr>)}
+
+                                </tbody>
+                            </table>
+                        </div>
+                    </Flex>
+                </Card>
+            }
+
             {r.usageOverTime.absolute.length <= 1 ? null :
                 <Card>
                     <Flex mb={8}>
@@ -742,7 +815,7 @@ const UsagePage: React.FunctionComponent = () => {
                     </Flex>
                     <Flex flexWrap={"wrap"} gap={"16px"}>
                         <svg ref={utilizationOverTime.chartRef} width={utilizationChartWidth}
-                            height={utilizationChartHeight} />
+                             height={utilizationChartHeight} />
 
                         <div className={TableStyle} style={{flexBasis: "380px"}}>
                             <table>
@@ -821,7 +894,7 @@ const UsagePage: React.FunctionComponent = () => {
                 </Flex>
 
                 {normalizePeriod(state.period).start < new Date("2026-01-28").getTime() ||
-                    normalizePeriod(state.period).end < new Date("2026-01-28").getTime() ? <>
+                normalizePeriod(state.period).end < new Date("2026-01-28").getTime() ? <>
                     <Card
                         borderRadius="6px"
                         height="auto"
@@ -850,7 +923,7 @@ const RenderReportSelector: RichSelectChildComponent<UsageReport> = ({element, o
     }
 
     return <Flex gap={"16px"} height="40px" {...dataProps} alignItems={"center"} py={4} px={8}
-        onClick={onSelect}>
+                 onClick={onSelect}>
         {/* TODO Icon */}
         <Icon name={"heroCpuChip"} />
         <div><b>{element.title}</b></div>
@@ -1059,19 +1132,19 @@ const PeriodSelector: React.FunctionComponent<{
                 <b>Relative time range</b>
 
                 <div onClick={onRelativeUpdated} className={"relative"} data-relative-unit={"day"}
-                    data-relative={"7"}>Last 7 days
+                     data-relative={"7"}>Last 7 days
                 </div>
                 <div onClick={onRelativeUpdated} className={"relative"} data-relative-unit={"day"}
-                    data-relative={"30"}>Last 30 days
+                     data-relative={"30"}>Last 30 days
                 </div>
                 <div onClick={onRelativeUpdated} className={"relative"} data-relative-unit={"day"}
-                    data-relative={"90"}>Last 90 days
+                     data-relative={"90"}>Last 90 days
                 </div>
                 <div onClick={onRelativeUpdated} className={"relative"} data-relative-unit={"month"}
-                    data-relative={"6"}>Last 6 months
+                     data-relative={"6"}>Last 6 months
                 </div>
                 <div onClick={onRelativeUpdated} className={"relative"} data-relative-unit={"month"}
-                    data-relative={"12"}>Last 12 months
+                     data-relative={"12"}>Last 12 months
                 </div>
             </div>
         </div>

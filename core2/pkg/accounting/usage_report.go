@@ -604,6 +604,7 @@ func usageCollapseReports(reports []internalUsageReport) internalUsageReport {
 	deltaDataPointsByChild := map[util.Option[AccWalletId]]map[time.Time]internalUsageOverTimeDeltaDataPoint{}
 	absoluteDataPointsByChild := map[util.Option[AccWalletId]]map[time.Time]internalUsageOverTimeAbsoluteChildrenDataPoint{}
 	allDeltaTimestamps := map[time.Time]util.Empty{}
+	allAbsoluteChildrenTimeStamps := map[time.Time]util.Empty{}
 
 	for _, report := range reports {
 		for _, item := range report.UsageOverTime.Delta {
@@ -654,7 +655,7 @@ func usageCollapseReports(reports []internalUsageReport) internalUsageReport {
 				curr = itemCopy
 			}
 			absoluteDataPointsByChild[itemCopy.Child][itemCopy.Timestamp] = curr
-			allDeltaTimestamps[itemCopy.Timestamp] = util.Empty{}
+			allAbsoluteChildrenTimeStamps[itemCopy.Timestamp] = util.Empty{}
 		}
 	}
 
@@ -673,14 +674,41 @@ func usageCollapseReports(reports []internalUsageReport) internalUsageReport {
 	}
 
 	for child, m := range absoluteDataPointsByChild {
-		for ts := range allDeltaTimestamps {
-			_, ok := m[ts]
-			if !ok {
-				m[ts] = internalUsageOverTimeAbsoluteChildrenDataPoint{
-					Timestamp: ts,
-					Usage:     0,
-					Child:     child,
-				}
+		// Sorted timestamps for this child
+		childTimestamps := make([]time.Time, 0, len(m))
+		for ts := range m {
+			childTimestamps = append(childTimestamps, ts)
+		}
+
+		sort.Slice(childTimestamps, func(i, j int) bool {
+			return childTimestamps[j].After(childTimestamps[i])
+		})
+
+		first := m[childTimestamps[0]]
+
+		for ts := range allAbsoluteChildrenTimeStamps {
+			if _, ok := m[ts]; ok {
+				continue
+			}
+
+			idx := sort.Search(len(childTimestamps), func(i int) bool {
+				return childTimestamps[i].After(ts)
+			})
+
+			var source internalUsageOverTimeAbsoluteChildrenDataPoint
+
+			if idx == 0 {
+				// No previous entry, use first entry
+				source = first
+			} else {
+				// Use previous entry
+				source = m[childTimestamps[idx-1]]
+			}
+
+			m[ts] = internalUsageOverTimeAbsoluteChildrenDataPoint{
+				Timestamp: ts,
+				Usage:     source.Usage,
+				Child:     child,
 			}
 		}
 	}
