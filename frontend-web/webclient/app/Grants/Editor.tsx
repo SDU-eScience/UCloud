@@ -279,7 +279,10 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             }
 
             if (state.stateDuringCreate) {
-                state.createApplicationForms = []; // Clearing
+                // Clearing previous state for form and allocators
+                state.createApplicationForms = []; 
+                state.allocators = [];
+
                 if (state.stateDuringCreate.creatingWorkspace) {
                     templateKey = "newProject";
                 } else if (state.stateDuringCreate.reference) {
