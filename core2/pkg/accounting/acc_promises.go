@@ -66,6 +66,8 @@ func PromiseCreate(
 ) (PromiseId, *util.HttpError) {
 	var promiseId PromiseId
 	err := treeMutate(category, func(tree *AccountingTree) *util.HttpError {
+		lifecycleScanEx(now, tree, nil)
+
 		if _, ok := tree.WalletsById[parentWallet]; !ok {
 			return util.HttpErr(http.StatusNotFound, "unknown parent wallet")
 		}
@@ -113,6 +115,11 @@ func PromiseCreate(
 		promiseTree.PromisesByParent[parentWallet] = append(promiseTree.PromisesByParent[parentWallet], promiseId)
 		promiseTree.PromisesByChild[childWallet] = append(promiseTree.PromisesByChild[childWallet], promiseId)
 
+		if child.Consumed > 0 {
+			promiseReconcileWallet(now, tree, child, child.Consumed, promiseWalletRequiredChildren(now, tree, child), map[WalletId]bool{})
+			_, _ = usageRedistributeExisting(now, tree, child, child.Consumed)
+		}
+
 		walletMarkSignificantUpdate(now, tree, tree.WalletsById[parentWallet])
 		walletMarkSignificantUpdate(now, tree, child)
 		walletReevaluateLock(now, tree, child)
@@ -154,7 +161,6 @@ func PromiseReconcile(
 
 	promiseReconcileWallet(now, tree, wallet, minimumRequest, promiseWalletRequiredChildren(now, tree, wallet), map[WalletId]bool{})
 	walletReevaluateLock(now, tree, wallet)
-	walletMarkSignificantUpdate(now, tree, wallet)
 
 	return
 }
@@ -434,8 +440,6 @@ func promiseCreateAllocations(now time.Time, tree *AccountingTree, promise *Prom
 		})
 		allocationMutate(now, tree, allocation.Id, func(alloc *Allocation, parent util.Option[*Allocation]) {})
 		lifecycleScanEx(now, tree, []AllocationId{allocation.Id})
-		walletMarkSignificantUpdate(now, tree, child)
-		walletMarkSignificantUpdate(now, tree, tree.WalletsById[parent.Wallet])
 		walletReevaluateLock(now, tree, child)
 		walletReevaluateLock(now, tree, tree.WalletsById[parent.Wallet])
 		selfNeed -= growSelf
@@ -464,8 +468,6 @@ func promiseGrowAllocation(now time.Time, tree *AccountingTree, allocation *Allo
 			parent.Value.ReservedChildren += self + children
 		}
 	})
-	walletMarkSignificantUpdate(now, tree, tree.WalletsById[allocation.Wallet])
-	walletMarkSignificantUpdate(now, tree, tree.WalletsById[parent.Wallet])
 	return self + children
 }
 

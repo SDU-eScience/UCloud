@@ -494,6 +494,99 @@ func TestPromiseReconcilePreservesChildSubtreeWhileGrowingLocalUse(t *testing.T)
 	e.assertValid()
 }
 
+func TestPromiseCreateUnlocksWalletWithLatentCapacity(t *testing.T) {
+	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
+	e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 10, Quota: 1_000, Self: 0, Children: 1_000})
+	child := e.wallet("child")
+
+	_, err := PromiseCreate(e.tm(1), e.categoryId, e.wallet("root"), child, e.tm(0), e.tm(10), 1_000, util.OptNone[GrantId]())
+	if err != nil {
+		t.Fatalf("create promise: %v", err)
+	}
+
+	childWallet := e.tree().WalletsById[child]
+	if childWallet.Locked {
+		t.Fatalf("child wallet is locked, want unlocked because reconciliation can materialize 1000")
+	}
+	if got := walletMaxUsable(e.tm(1), e.tree(), childWallet); got != 1_000 {
+		t.Fatalf("child max usable = %d, want 1000", got)
+	}
+	e.assertValid()
+}
+
+func TestPromiseUsageReportDoesNotMarkSignificantUpdateWithoutQuotaOrLockChange(t *testing.T) {
+	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
+	e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 10, Quota: 1_000, Self: 0, Children: 1_000})
+	e.addPromise("root", "child", 0, 10, 1_000)
+
+	if success := e.report(1, "child", 100); !success {
+		t.Fatalf("initial report failed")
+	}
+	childWallet := e.tree().WalletsById[e.wallet("child")]
+	updatedAt := childWallet.LastSignificantUpdateAt
+	if childWallet.Locked {
+		t.Fatalf("child locked after initial report")
+	}
+
+	if success := e.report(2, "child", 200); !success {
+		t.Fatalf("second report failed")
+	}
+	if !childWallet.LastSignificantUpdateAt.Equal(updatedAt) {
+		t.Fatalf("significant update changed from %s to %s without quota or lock change", updatedAt, childWallet.LastSignificantUpdateAt)
+	}
+	e.assertValid()
+}
+
+func TestPromiseCreateRebalancesExistingOverQuotaUsageImmediately(t *testing.T) {
+	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
+	e.add(lowAllocSpec{Name: "direct", Wallet: "child", Start: 0, End: 10, Quota: 1_000})
+	e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 10, Quota: 100, Self: 0, Children: 100})
+	e.report(1, "child", 1_050)
+
+	_, err := PromiseCreate(e.tm(2), e.categoryId, e.wallet("root"), e.wallet("child"), e.tm(0), e.tm(10), 100, util.OptNone[GrantId]())
+	if err != nil {
+		t.Fatalf("create promise: %v", err)
+	}
+
+	direct := e.alloc("direct")
+	if direct.ConsumedSelf != 1_000 {
+		t.Fatalf("direct consumption = %d, want 1000", direct.ConsumedSelf)
+	}
+	promises := e.tree().PromiseTree.PromisesByChild[e.wallet("child")]
+	if len(promises) != 1 {
+		t.Fatalf("promises = %d, want 1", len(promises))
+	}
+	promiseHead := e.promiseHead(promises[0], 2)
+	if promiseHead.ConsumedSelf != 50 {
+		t.Fatalf("promise consumption = %d, want 50", promiseHead.ConsumedSelf)
+	}
+	e.assertValid()
+}
+
+func TestPromiseCreateRebalancesRetiredUsageImmediately(t *testing.T) {
+	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
+	e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 10, Quota: 2_000, Self: 0, Children: 2_000})
+	oldPromise := e.addPromise("root", "child", 0, 5, 1_000)
+	e.report(1, "child", 1_000)
+	oldHead := e.promiseHead(oldPromise, 1)
+
+	_, err := PromiseCreate(e.tm(6), e.categoryId, e.wallet("root"), e.wallet("child"), e.tm(5), e.tm(10), 1_000, util.OptNone[GrantId]())
+	if err != nil {
+		t.Fatalf("create promise: %v", err)
+	}
+
+	if oldHead.ConsumedSelf != 0 {
+		t.Fatalf("retired allocation consumption = %d, want 0", oldHead.ConsumedSelf)
+	}
+	promises := e.tree().PromiseTree.PromisesByChild[e.wallet("child")]
+	newPromise := promises[len(promises)-1]
+	newHead := e.promiseHead(newPromise, 6)
+	if newHead.ConsumedSelf != 1_000 {
+		t.Fatalf("new promise consumption = %d, want 1000", newHead.ConsumedSelf)
+	}
+	e.assertValid()
+}
+
 func TestPromiseCalculateTargetSplitUsesDemand(t *testing.T) {
 	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
 	e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 10, Quota: 100, Self: 0, Children: 100})

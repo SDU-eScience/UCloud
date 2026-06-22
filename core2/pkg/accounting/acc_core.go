@@ -995,6 +995,156 @@ func treeMutate(category accapi.ProductCategoryIdV2, fn func(tree *AccountingTre
 // retired allocations once active capacity exists. Time-based usage keeps retired quota meaningful, but excess retired
 // usage can be moved forward when an active allocation can absorb it.
 
+func usageRedistributeExisting(now time.Time, tree *AccountingTree, wallet *Wallet, absoluteAmount int64) (bool, *util.HttpError) {
+	if len(wallet.Allocations) == 0 {
+		return false, util.HttpErr(http.StatusBadRequest, "this owner does not have any such resources")
+	}
+
+	retiredAmount := int64(0)
+	var activeAllocationsReadOnly []*Allocation
+	var retiredAllocations []AllocationId
+	var activeAllocations []AllocationId
+	hasExcessUsageInRetired := false
+
+	for _, allocId := range wallet.Allocations {
+		alloc := tree.AllocationsById[allocId]
+		if alloc.IsRetired(now) {
+			retiredAmount += alloc.ConsumedSelf
+			retiredAllocations = append(retiredAllocations, allocId)
+
+			if tree.IsCapacityBased() {
+				if alloc.ConsumedSelf > 0 {
+					hasExcessUsageInRetired = true
+				}
+			} else {
+				if alloc.ConsumedSelf > alloc.QuotaSelf {
+					hasExcessUsageInRetired = true
+				}
+			}
+		} else if alloc.IsActive(now) {
+			activeAllocationsReadOnly = append(activeAllocationsReadOnly, alloc)
+			activeAllocations = append(activeAllocations, alloc.Id)
+		}
+	}
+
+	if len(activeAllocationsReadOnly) == 0 && len(retiredAllocations) == 0 {
+		return false, util.HttpErr(http.StatusBadRequest, "this owner does not have any active or retired resources")
+	}
+
+	wallet.Consumed = absoluteAmount
+
+	slices.SortFunc(activeAllocationsReadOnly, func(a, b *Allocation) int {
+		if a.End.Before(b.End) {
+			return -1
+		} else if a.End.After(b.End) {
+			return 1
+		} else if a.Start.Before(b.Start) {
+			return -1
+		} else if a.Start.After(b.Start) {
+			return 1
+		}
+		return cmp.Compare(int(a.Id), int(b.Id))
+	})
+
+	amountToDistribute := absoluteAmount
+	if !tree.IsCapacityBased() {
+		amountToDistribute -= retiredAmount
+	}
+	amountToDistribute = max(amountToDistribute, 0)
+
+	for _, aReadOnly := range activeAllocationsReadOnly {
+		allocationMutate(now, tree, aReadOnly.Id, func(alloc *Allocation, parent util.Option[*Allocation]) {
+			newConsumption := min(alloc.QuotaSelf, amountToDistribute)
+			alloc.ConsumedSelf = newConsumption
+			amountToDistribute -= newConsumption
+		})
+	}
+
+	hadSpaceToDistribute := amountToDistribute == 0
+	if !tree.IsCapacityBased() {
+		if hasExcessUsageInRetired && hadSpaceToDistribute && len(activeAllocationsReadOnly) > 0 {
+			for _, retiredId := range retiredAllocations {
+				retiredReadOnly := tree.AllocationsById[retiredId]
+				if retiredReadOnly.ConsumedSelf > retiredReadOnly.QuotaSelf {
+					excess := retiredReadOnly.ConsumedSelf - retiredReadOnly.QuotaSelf
+					amountToDistribute = excess
+
+					for _, aReadOnly := range activeAllocationsReadOnly {
+						allocationMutate(now, tree, aReadOnly.Id, func(alloc *Allocation, parent util.Option[*Allocation]) {
+							consumption := min(alloc.QuotaSelf-alloc.ConsumedSelf, amountToDistribute)
+							alloc.ConsumedSelf += consumption
+							amountToDistribute -= consumption
+						})
+
+						if amountToDistribute == 0 {
+							break
+						}
+					}
+
+					removed := excess - amountToDistribute
+					if removed > 0 {
+						allocationMutate(now, tree, retiredId, func(retired *Allocation, parent util.Option[*Allocation]) {
+							retired.ConsumedSelf -= removed
+						})
+					}
+				}
+			}
+		}
+	}
+
+	if amountToDistribute > 0 {
+		var overflow AllocationId
+		if len(activeAllocationsReadOnly) > 0 {
+			overflow = activeAllocationsReadOnly[0].Id
+		} else {
+			overflow = retiredAllocations[0]
+		}
+
+		allocationMutate(now, tree, overflow, func(alloc *Allocation, parent util.Option[*Allocation]) {
+			alloc.ConsumedSelf += amountToDistribute
+			amountToDistribute = 0
+		})
+	}
+
+	consumedInAllocations := int64(0)
+	for _, allocId := range wallet.Allocations {
+		alloc := tree.AllocationsById[allocId]
+		consumedInAllocations += alloc.ConsumedSelf
+	}
+	consumedToRemove := consumedInAllocations - wallet.Consumed
+
+	removeExcess := func(arr []AllocationId, isRetired bool) {
+		if consumedToRemove > 0 {
+			for _, id := range arr {
+				readOnly := tree.AllocationsById[id]
+				excess := max(readOnly.ConsumedSelf-readOnly.QuotaSelf, 0)
+				if isRetired {
+					excess = readOnly.ConsumedSelf
+				}
+
+				removed := min(excess, consumedToRemove)
+				if removed > 0 {
+					allocationMutate(now, tree, id, func(retired *Allocation, parent util.Option[*Allocation]) {
+						retired.ConsumedSelf -= removed
+					})
+					consumedToRemove -= removed
+				}
+
+				if consumedToRemove == 0 {
+					break
+				}
+			}
+		}
+	}
+
+	removeExcess(retiredAllocations, true)
+	removeExcess(activeAllocations, false)
+
+	walletReevaluateLock(now, tree, wallet)
+	wallet.Dirty = true
+	return !wallet.Locked, nil
+}
+
 func UsageReport(now time.Time, request accapi.ReportUsageRequest) (success bool, err *util.HttpError) {
 	treeMutate(request.CategoryIdV2, func(tree *AccountingTree) *util.HttpError {
 		if tree.Category.FreeToUse {
@@ -1051,174 +1201,12 @@ func UsageReport(now time.Time, request accapi.ReportUsageRequest) (success bool
 
 			PromiseReconcile(now, tree, request.Owner, absoluteAmount)
 
-			if len(wallet.Allocations) == 0 {
-				success, err = false, util.HttpErr(http.StatusBadRequest, "this owner does not have any such resources")
+			success, err = usageRedistributeExisting(now, tree, wallet, absoluteAmount)
+			if err != nil {
 				return nil
 			}
-
-			retiredAmount := int64(0)
-
-			var activeAllocationsReadOnly []*Allocation
-			var retiredAllocations []AllocationId
-			var activeAllocations []AllocationId
-			hasExcessUsageInRetired := false
-
-			for _, allocId := range wallet.Allocations {
-				alloc := tree.AllocationsById[allocId]
-				if alloc.IsRetired(now) {
-					retiredAmount += alloc.ConsumedSelf
-					retiredAllocations = append(retiredAllocations, allocId)
-
-					if tree.IsCapacityBased() {
-						if alloc.ConsumedSelf > 0 {
-							hasExcessUsageInRetired = true
-						}
-					} else {
-						if alloc.ConsumedSelf > alloc.QuotaSelf {
-							hasExcessUsageInRetired = true
-						}
-					}
-				} else if alloc.IsActive(now) {
-					activeAllocationsReadOnly = append(activeAllocationsReadOnly, alloc)
-					activeAllocations = append(activeAllocations, alloc.Id)
-				}
-			}
-
-			if len(activeAllocationsReadOnly) == 0 && len(retiredAllocations) == 0 {
-				success, err = false, util.HttpErr(http.StatusBadRequest, "this owner does not have any active or retired resources")
-				return nil
-			}
-
-			wallet.Consumed = absoluteAmount
-
-			slices.SortFunc(activeAllocationsReadOnly, func(a, b *Allocation) int {
-				if a.End.Before(b.End) {
-					return -1
-				} else if a.End.After(b.End) {
-					return 1
-				} else if a.Start.Before(b.Start) {
-					return -1
-				} else if a.Start.After(b.Start) {
-					return 1
-				}
-				return cmp.Compare(int(a.Id), int(b.Id))
-			})
-
-			amountToDistribute := absoluteAmount
-			if !tree.IsCapacityBased() {
-				amountToDistribute -= retiredAmount
-			}
-			amountToDistribute = max(amountToDistribute, 0)
-
-			// Distribute total within active quota
-			// ---------------------------------------------------------------------------------------------------------
-			for _, aReadOnly := range activeAllocationsReadOnly {
-				allocationMutate(now, tree, aReadOnly.Id, func(alloc *Allocation, parent util.Option[*Allocation]) {
-					newConsumption := min(alloc.QuotaSelf, amountToDistribute)
-					alloc.ConsumedSelf = newConsumption
-					amountToDistribute -= newConsumption
-				})
-			}
-
-			hadSpaceToDistribute := amountToDistribute == 0
-
-			// Redistribute capacity from retired allocations
-			// ---------------------------------------------------------------------------------------------------------
-			if !tree.IsCapacityBased() {
-				if hasExcessUsageInRetired && hadSpaceToDistribute && len(activeAllocationsReadOnly) > 0 {
-					for _, retiredId := range retiredAllocations {
-						retiredReadOnly := tree.AllocationsById[retiredId]
-						if retiredReadOnly.ConsumedSelf > retiredReadOnly.QuotaSelf {
-							excess := retiredReadOnly.ConsumedSelf - retiredReadOnly.QuotaSelf
-							amountToDistribute = excess
-
-							for _, aReadOnly := range activeAllocationsReadOnly {
-								allocationMutate(now, tree, aReadOnly.Id, func(alloc *Allocation, parent util.Option[*Allocation]) {
-									consumption := min(alloc.QuotaSelf-alloc.ConsumedSelf, amountToDistribute)
-									alloc.ConsumedSelf += consumption
-									amountToDistribute -= consumption
-								})
-
-								if amountToDistribute == 0 {
-									break
-								}
-							}
-
-							removed := excess - amountToDistribute
-
-							if removed > 0 {
-								allocationMutate(now, tree, retiredId, func(retired *Allocation, parent util.Option[*Allocation]) {
-									retired.ConsumedSelf -= removed
-								})
-							}
-						}
-					}
-				}
-			}
-
-			// Overflow remaining amount to first active/first retired
-			// ---------------------------------------------------------------------------------------------------------
-			if amountToDistribute > 0 {
-				var overflow AllocationId
-				if len(activeAllocationsReadOnly) > 0 {
-					overflow = activeAllocationsReadOnly[0].Id
-				} else {
-					overflow = retiredAllocations[0]
-				}
-
-				allocationMutate(now, tree, overflow, func(alloc *Allocation, parent util.Option[*Allocation]) {
-					alloc.ConsumedSelf += amountToDistribute
-					amountToDistribute = 0
-				})
-			}
-
-			// Trim to wallet consumed by removing excess
-			// ---------------------------------------------------------------------------------------------------------
-			// At this point in the code, we have distributed usage on active allocations and overflowed remaining
-			// consumption on either an active or retired allocation. The remaining code is here to make sure that any
-			// usage in the wallet beyond that is removed. This is largely needed to get rid of excess usage that has been
-			// absorbed elsewhere.
-
-			consumedInAllocations := int64(0)
-			for _, allocId := range wallet.Allocations {
-				alloc := tree.AllocationsById[allocId]
-				consumedInAllocations += alloc.ConsumedSelf
-			}
-			consumedToRemove := consumedInAllocations - wallet.Consumed
-
-			removeExcess := func(arr []AllocationId, isRetired bool) {
-				if consumedToRemove > 0 {
-					for _, id := range arr {
-						readOnly := tree.AllocationsById[id]
-						excess := max(readOnly.ConsumedSelf-readOnly.QuotaSelf, 0)
-						if isRetired {
-							excess = readOnly.ConsumedSelf
-						}
-
-						removed := min(excess, consumedToRemove)
-						if removed > 0 {
-							allocationMutate(now, tree, id, func(retired *Allocation, parent util.Option[*Allocation]) {
-								retired.ConsumedSelf -= removed
-							})
-							consumedToRemove -= removed
-						}
-
-						if consumedToRemove == 0 {
-							break
-						}
-					}
-				}
-			}
-
-			removeExcess(retiredAllocations, true)
-			removeExcess(activeAllocations, false)
-
-			walletReevaluateLock(now, tree, wallet)
-			success = !wallet.Locked
 
 			PromiseReconcile(now, tree, request.Owner, absoluteAmount)
-
-			wallet.Dirty = true
 		}
 		return err
 	})
