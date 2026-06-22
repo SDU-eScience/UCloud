@@ -753,6 +753,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
     function loadRevision(state: EditorState): EditorState {
         if (!state.stateDuringEdit) return state;
         const newEditState = {...state.stateDuringEdit};
+        state.allocators = []; // clearing previous allocators
 
         const doc = state.stateDuringEdit.document;
         const docText = doc.form.text;
