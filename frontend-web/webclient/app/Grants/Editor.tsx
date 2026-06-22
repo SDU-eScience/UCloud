@@ -549,11 +549,12 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                     return it;
                 }
             });
+            console.error("new allocators selected", newAllocators);
 
             return {
                 ...state,
                 allocators: newAllocators,
-                createApplicationForms: extractToAnswerForms(newAllocators, state.selectedProjectType)
+                createApplicationForms: extractToAnswerForms(newAllocators.filter(i => i.checked), state.selectedProjectType)
             }
         }
 
