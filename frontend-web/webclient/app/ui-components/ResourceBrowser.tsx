@@ -3693,7 +3693,8 @@ export function resourceCreationWithProductSelector<T>(
         browser.renderRows();
     };
 
-    const onProductSelected = (product: ProductV2) => {
+    const onProductSelected = (product: ProductV2 | null) => {
+        if (!product) return;
         onSelect?.(product);
         if (["STORAGE", "INGRESS"].includes(type)) {
             selectedProduct = product;

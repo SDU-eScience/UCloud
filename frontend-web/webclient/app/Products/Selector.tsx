@@ -76,7 +76,7 @@ export const ProductSelector: React.FunctionComponent<{
     type?: ProductType;
     slim?: boolean;
     loading?: boolean;
-    onSelect: (product: ProductV2) => void;
+    onSelect: (product: ProductV2 | null) => void;
 }> = ({selected, ...props}) => {
     const portalRef = React.useRef<HTMLDivElement | null>(null);
     if (!portalRef.current) {
@@ -190,7 +190,7 @@ export const ProductSelector: React.FunctionComponent<{
     }, [filteredProducts, connectionState.lastRefresh]);
 
 
-    const {boxRef, dialogX, dialogY, dialogHeight, dialogWidth} = useDialogSize(headers.length, isCompute);
+    const {boxRef, ...rest} = useDialogSize(headers.length, isCompute);
 
     const arrowKeyIndex = React.useRef(-1);
     const itemWrapperRef = React.useRef<HTMLTableSectionElement>(null);
@@ -310,6 +310,10 @@ export const ProductSelector: React.FunctionComponent<{
 
     let queueStatus = queueStatusFromCategoryName(props.support, selected?.name, selected?.category);
 
+    const shownProducts = React.useMemo(() => {
+        if (!isCompute) return categorizedProducts;
+        return (categorizedProducts as ComputeCategory[]).filter(it => it.provider === serviceProvider) ?? [];
+    }, [isCompute, serviceProvider]);
 
     return <>
         <Flex gap="8px">
@@ -319,6 +323,7 @@ export const ProductSelector: React.FunctionComponent<{
                     serviceProviders={serviceProviders}
                     onSelect={el => {
                         setServiceProvider(el.key);
+                        if (el.key !== serviceProvider) props.onSelect(null);
                     }}
                     renderRow={props => {
                         if (!props.element?.key) return null;
@@ -396,12 +401,12 @@ export const ProductSelector: React.FunctionComponent<{
 
         {!isOpen ? null :
             ReactDOM.createPortal(
-                <div className={SelectorDialog} style={{left: dialogX, top: dialogY, width: dialogWidth, height: dialogHeight}} onClick={stopPropagation}>
+                <div className={SelectorDialog} style={{left: rest.dialogX, top: rest.dialogY, width: rest.dialogWidth, height: rest.dialogHeight}} onClick={stopPropagation}>
                     {props.loading && props.products.length === 0 ? <>
-                        <Flex mt={(dialogHeight - 64 - 20) / 2 /* subract margin + height of HexSpin */}>
+                        <Flex mt={(rest.dialogHeight - 64 - 20) / 2 /* subract margin + height of HexSpin */}>
                             <HexSpin size={64} />
                         </Flex>
-                    </> : props.products.length === 0 ?
+                    </> : props.products.filter(it => it.category.provider === serviceProvider).length === 0 ?
                         <>
                             <NoResultsBody title={`No ${productName} available for use`}>
                                 You do not currently have credits for any {productName} which you are able to use for this purpose.{" "}
@@ -486,7 +491,7 @@ export const ProductSelector: React.FunctionComponent<{
                                     </TableRow>
                                 </thead>
                                 <tbody ref={itemWrapperRef}>
-                                    {categorizedProducts.map((p, i) => {
+                                    {shownProducts.map((p, i) => {
                                         if (isComputeCategory(p)) {
                                             if (!showHeadings) return null;
                                             let queueStatus = queueStatuses[p.category];
@@ -689,10 +694,10 @@ const ProductStats: React.FunctionComponent<{product: ProductV2}> = ({product}) 
             return <>
                 <TableCell>{computeProduct.cpu} CPU(s)<HardwareModel model={computeProduct.cpuModel} /></TableCell>
                 <TableCell>{computeProduct.memoryInGigs} GB RAM<HardwareModel model={computeProduct.memoryModel} /></TableCell>
-                <TableCell>GPU(s)
+                <TableCell>
                     {computeProduct.gpu === 0 || computeProduct.gpu == null ?
-                        <span style={{color: "#a9b0b9"}}>{" "} None</span> :
-                        <>{computeProduct.gpu} <HardwareModel model={computeProduct.gpuModel} /></>
+                        <>GPU(s) <span style={{color: "#a9b0b9"}}>None</span></> :
+                        <>{" "}{computeProduct.gpu} GPU(s) <HardwareModel model={computeProduct.gpuModel} /></>
                     }
                 </TableCell>
             </>
