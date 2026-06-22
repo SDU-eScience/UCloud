@@ -347,7 +347,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                 possibleTransfers: newAllocators,
                 allocators: newAllocators,
                 resources: newResources,
-                createApplicationForms: extractToAnswerForms(newAllocators, state.selectedProjectType)
+                createApplicationForms: extractToAnswerForms(newAllocators.filter(i => i.checked), state.selectedProjectType)
             };
         }
 
