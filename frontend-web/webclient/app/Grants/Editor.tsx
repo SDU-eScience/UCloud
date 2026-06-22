@@ -22,7 +22,7 @@ import {fetchAll} from "@/Utilities/PageUtilities";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {getQueryParam} from "@/Utilities/URIUtilities";
 import {addStandardInputDialog} from "@/UtilityComponents";
-import {errorMessageOrDefault, stopPropagation, timestampUnixMs} from "@/UtilityFunctions";
+import {deepEquals, errorMessageOrDefault, stopPropagation, timestampUnixMs} from "@/UtilityFunctions";
 import {Box, Button, Checkbox, ExternalLink, Flex, Heading, Icon, Input, Label, Select, TextArea} from "@/ui-components";
 import {BaseLinkClass} from "@/ui-components/BaseLink";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
@@ -158,23 +158,6 @@ const defaultState: EditorState = {
     selectedProjectType: Grants.TemplateKey.newProject, 
 };
 
-function deepEqual(a: any, b: any): boolean {
-    if (a === b) return true;
-    if (typeof a !== "object" || typeof b !== "object") return false;
-    if (!a || !b) return false;
-
-    const keysA = Object.keys(a);
-    const keysB = Object.keys(b);
-
-    if (keysA.length !== keysB.length) return false;
-
-    for (const key of keysA) {
-        if (!deepEqual(a[key], b[key])) return false;
-    }
-
-    return true;
-}
-
 // State reducer
 // =====================================================================================================================
 type EditorAction =
@@ -301,7 +284,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             // allocator is grantGiver
             for (const allocator of action.allocators) {
                 const existing = newAllocators.find(it => it.id === allocator.id);
-                const sameForm = deepEqual(existing?.template,allocator.templates.structured);
+                const sameForm = deepEquals(existing?.template,allocator.templates.structured);
                 if (!existing) {
                     newAllocators.push({
                         id: allocator.id, title: allocator.title, description: allocator.description,
