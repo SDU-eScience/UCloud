@@ -246,7 +246,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
 
             const newResources: EditorState["resources"] = {...state.resources};
 
-            let templateKey: string = "newProject";
+            let templateKey: Grants.TemplateKey = Grants.TemplateKey.newProject;
 
             function templateKeyFromRecipientType(type: Grants.Recipient["type"]): string {
                 switch (type) {
