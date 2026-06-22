@@ -158,10 +158,6 @@ const defaultState: EditorState = {
     selectedProjectType: Grants.TemplateKey.newProject, 
 };
 
-interface OutdatedTextAreaProps {
-    field: Grants.AnswerFieldForm;
-};
-
 function deepEqual(a: any, b: any): boolean {
     if (a === b) return true;
     if (typeof a !== "object" || typeof b !== "object") return false;
@@ -2311,8 +2307,10 @@ export function Editor(): React.ReactNode {
 function AnswerFormsView({ state, forms, onChange }: { state: EditorState, forms: Grants.AnswerForm[]; onChange: AnswerFormUpdateCallback}) {
     return (
         <div className="application-wrapper">
-            {forms.map((form) => (
-                <Box key={form.allocatorId}>
+            {forms.map((form) =>  {
+                if (form.answerFields.length === 0) return null;
+
+                return (<Box key={form.allocatorId}>
                     <h3>
                         <ProjectLogo projectId={form.allocatorId} size={`${25}px`} />
                         <ProjectTitleForNewCore id={form.allocatorId}/>
@@ -2323,8 +2321,8 @@ function AnswerFormsView({ state, forms, onChange }: { state: EditorState, forms
                         form={form}
                         onChange={onChange}
                     />
-                </Box>
-            ))}
+                </Box>);
+            })}
         </div>
     );
 }
