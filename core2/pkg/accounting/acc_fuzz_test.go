@@ -103,9 +103,8 @@ func fuzzUpdatePromiseMaterialization(t *testing.T, e *lowTestEnv, reader *fuzzB
 		e.assertValid()
 		return
 	}
-	heads := promiseFindMaterializationHeads(e.tm(at), e.tree(), promise)
-	materialization := heads.UpdateFirst()
-	if !materialization.Present {
+	materializations := promiseAllocationsFor(e.tm(at), e.tree(), promise, true)
+	if len(materializations) == 0 {
 		e.assertValid()
 		return
 	}
@@ -121,7 +120,7 @@ func fuzzUpdatePromiseMaterialization(t *testing.T, e *lowTestEnv, reader *fuzzB
 	case 2:
 		end.Set(e.tm(reader.intn(30)))
 	}
-	_, _, _ = AllocationUpdate(e.tm(at), e.categoryId, materialization.Value.Id, quota, start, end)
+	_, _, _ = AllocationUpdate(e.tm(at), e.categoryId, materializations[0].Id, quota, start, end)
 	e.assertValid()
 }
 

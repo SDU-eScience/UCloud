@@ -750,14 +750,37 @@ func sortLowLevelRelationships(relationships []lowLevelRelationship) {
 // LocalUsage in the API is wallet.Consumed only. TotalUsage uses this helper to add both promise-backed and low-level
 // child relationship usage, making it a subtree-facing usage number rather than an admission-control number.
 func walletTotalUsage(now time.Time, tree *AccountingTree, promiseTree *PromiseTree, wallet *Wallet) int64 {
+	return walletTotalUsageSeen(now, tree, promiseTree, wallet, map[WalletId]bool{})
+}
+
+func walletTotalUsageSeen(now time.Time, tree *AccountingTree, promiseTree *PromiseTree, wallet *Wallet, seen map[WalletId]bool) int64 {
+	if wallet == nil || seen[wallet.Id] {
+		return 0
+	}
+	seen[wallet.Id] = true
+	defer delete(seen, wallet.Id)
+
 	usage := wallet.Consumed
+	seenChildren := map[WalletId]bool{}
 	for _, relationship := range promiseRelationshipsByChild(promiseTree, wallet.Id) {
-		usage += relationshipUsage(now, tree, relationship)
+		seenChildren[relationship.Child] = true
+		usage += walletTotalUsageForChildSeen(now, tree, promiseTree, relationship.Child, relationshipUsage(now, tree, relationship), seen)
 	}
 	for _, relationship := range lowLevelRelationshipsByChild(tree, wallet.Id) {
-		usage += lowLevelRelationshipUsage(now, tree, relationship)
+		if seenChildren[relationship.Child] {
+			continue
+		}
+		usage += walletTotalUsageForChildSeen(now, tree, promiseTree, relationship.Child, lowLevelRelationshipUsage(now, tree, relationship), seen)
 	}
 	return usage
+}
+
+func walletTotalUsageForChildSeen(now time.Time, tree *AccountingTree, promiseTree *PromiseTree, child WalletId, fallback int64, seen map[WalletId]bool) int64 {
+	childWallet := tree.WalletsById[child]
+	if childWallet == nil {
+		return fallback
+	}
+	return walletTotalUsageSeen(now, tree, promiseTree, childWallet, seen)
 }
 
 // walletUiOnlyActiveUsage measures inbound usage that should be shown as active in the UI.
@@ -765,12 +788,46 @@ func walletTotalUsage(now time.Time, tree *AccountingTree, promiseTree *PromiseT
 // For non-capacity products, retired usage is subtracted because it remains contributing for accounting compatibility
 // but should not inflate the UI's active usage display. This is a presentation helper, not a lock/admission helper.
 func walletUiOnlyActiveUsage(now time.Time, tree *AccountingTree, promiseTree *PromiseTree, wallet *Wallet) int64 {
-	usage := int64(0)
-	for _, relationship := range promiseRelationshipsByParent(promiseTree, wallet.Id) {
-		usage += relationshipUiOnlyActiveUsage(now, tree, relationship)
+	return walletUiOnlyActiveUsageSeen(now, tree, promiseTree, wallet, map[WalletId]bool{})
+}
+
+func walletUiOnlyActiveUsageSeen(now time.Time, tree *AccountingTree, promiseTree *PromiseTree, wallet *Wallet, seen map[WalletId]bool) int64 {
+	if wallet == nil || seen[wallet.Id] {
+		return 0
 	}
-	for _, relationship := range lowLevelRelationshipsByParent(tree, wallet.Id) {
-		usage += lowLevelRelationshipUiOnlyActiveUsage(now, tree, relationship)
+	seen[wallet.Id] = true
+	defer delete(seen, wallet.Id)
+
+	usage := walletLocalUiOnlyActiveUsage(now, tree, wallet)
+	seenChildren := map[WalletId]bool{}
+	for _, relationship := range promiseRelationshipsByChild(promiseTree, wallet.Id) {
+		seenChildren[relationship.Child] = true
+		usage += walletUiOnlyActiveUsageForChildSeen(now, tree, promiseTree, relationship.Child, relationshipUiOnlyActiveUsage(now, tree, relationship), seen)
+	}
+	for _, relationship := range lowLevelRelationshipsByChild(tree, wallet.Id) {
+		if seenChildren[relationship.Child] {
+			continue
+		}
+		usage += walletUiOnlyActiveUsageForChildSeen(now, tree, promiseTree, relationship.Child, lowLevelRelationshipUiOnlyActiveUsage(now, tree, relationship), seen)
+	}
+	return usage
+}
+
+func walletUiOnlyActiveUsageForChildSeen(now time.Time, tree *AccountingTree, promiseTree *PromiseTree, child WalletId, fallback int64, seen map[WalletId]bool) int64 {
+	childWallet := tree.WalletsById[child]
+	if childWallet == nil {
+		return fallback
+	}
+	return walletUiOnlyActiveUsageSeen(now, tree, promiseTree, childWallet, seen)
+}
+
+func walletLocalUiOnlyActiveUsage(now time.Time, tree *AccountingTree, wallet *Wallet) int64 {
+	usage := int64(0)
+	for _, allocationId := range wallet.Allocations {
+		allocation := tree.AllocationsById[allocationId]
+		if allocation != nil && allocation.IsActive(now) && !allocation.Retired {
+			usage += allocation.ConsumedSelf
+		}
 	}
 	return usage
 }

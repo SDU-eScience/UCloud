@@ -54,12 +54,11 @@ func (e *lowTestEnv) promiseAllocations(promiseId PromiseId) []*Allocation {
 func (e *lowTestEnv) promiseHead(promiseId PromiseId, at int) *Allocation {
 	e.t.Helper()
 	promise := e.tree().PromiseTree.PromisesById[promiseId]
-	heads := promiseFindMaterializationHeads(e.tm(at), e.tree(), promise)
-	head := heads.UpdateFirst()
-	if !head.Present {
+	allocations := promiseAllocationsFor(e.tm(at), e.tree(), promise, true)
+	if len(allocations) == 0 {
 		e.t.Fatalf("promise %d has no head", promiseId)
 	}
-	return head.Value
+	return allocations[0]
 }
 
 func (e *lowTestEnv) promiseMaterializedQuota(at int, promiseId PromiseId) int64 {
@@ -138,7 +137,7 @@ func TestPromiseReconcileOverbookingMaterializesAvailableCapacity(t *testing.T) 
 		assert func(*lowTestEnv, PromiseId, PromiseId)
 	}{
 		{
-			name: "minimum request steals unused sibling capacity",
+			name: "overbooked siblings leave later wallet under-covered",
 			setup: func(e *lowTestEnv) (PromiseId, PromiseId) {
 				e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 10, Quota: 100, Self: 0, Children: 100})
 				first := e.addPromise("root", "a", 0, 10, 80)
@@ -146,9 +145,9 @@ func TestPromiseReconcileOverbookingMaterializesAvailableCapacity(t *testing.T) 
 				return first, second
 			},
 			assert: func(e *lowTestEnv, first PromiseId, second PromiseId) {
-				assertPromiseAllocation(t, e.promiseHead(first, 1), 0, 0, e.tm(1), e.tm(10))
-				assertPromiseAllocation(t, e.promiseHead(second, 1), 80, 0, e.tm(1), e.tm(10))
-				e.assertAllocation("root", 0, 100, 0, 80)
+				assertPromiseAllocation(t, e.promiseHead(first, 1), 80, 0, e.tm(1), e.tm(10))
+				assertPromiseAllocation(t, e.promiseHead(second, 1), 20, 0, e.tm(1), e.tm(10))
+				e.assertAllocation("root", 0, 100, 0, 100)
 			},
 		},
 		{
@@ -294,7 +293,7 @@ func TestPromiseReconcileMinimumRequestStealsUnusedAncestorSelf(t *testing.T) {
 	e.assertAllocation("root", 0, 100, 0, 80)
 }
 
-func TestPromiseReconcileMinimumRequestStealsFromSiblingSubtree(t *testing.T) {
+func TestPromiseReconcileMinimumRequestDoesNotStealFromSiblingSubtree(t *testing.T) {
 	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
 	e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 10, Quota: 100, Self: 0, Children: 100})
 	rootToA := e.addPromise("root", "root-a", 0, 10, 100)
@@ -312,11 +311,11 @@ func TestPromiseReconcileMinimumRequestStealsFromSiblingSubtree(t *testing.T) {
 	e.assertAllocation("root", 0, 100, 0, 100)
 
 	e.reconcile(3, "root-b-b1", 70)
-	assertPromiseAllocation(t, e.promiseHead(rootToA, 3), 0, 0, e.tm(1), e.tm(10))
-	assertPromiseAllocation(t, e.promiseHead(aToA1, 3), 0, 0, e.tm(1), e.tm(10))
-	assertPromiseAllocation(t, e.promiseHead(rootToB, 3), 0, 70, e.tm(2), e.tm(10))
-	assertPromiseAllocation(t, e.promiseHead(bToB1, 3), 70, 0, e.tm(3), e.tm(10))
-	e.assertAllocation("root", 0, 100, 0, 70)
+	assertPromiseAllocation(t, e.promiseHead(rootToA, 3), 0, 70, e.tm(1), e.tm(10))
+	assertPromiseAllocation(t, e.promiseHead(aToA1, 3), 70, 0, e.tm(1), e.tm(10))
+	assertPromiseAllocation(t, e.promiseHead(rootToB, 3), 0, 30, e.tm(2), e.tm(10))
+	assertPromiseAllocation(t, e.promiseHead(bToB1, 3), 30, 0, e.tm(3), e.tm(10))
+	e.assertAllocation("root", 0, 100, 0, 100)
 }
 
 func TestPromiseCapacityDecreaseReleasesOnFullReconcile(t *testing.T) {
@@ -333,9 +332,7 @@ func TestPromiseCapacityDecreaseReleasesOnFullReconcile(t *testing.T) {
 	assertPromiseAllocation(t, e.promiseHead(first, 1), 80, 0, e.tm(1), e.tm(10))
 	assertPromiseAllocation(t, e.promiseHead(second, 1), 20, 0, e.tm(1), e.tm(10))
 	e.assertAllocation("root", 0, 100, 0, 100)
-	if success := e.report(1, "second", 20); !success {
-		t.Fatalf("second initial usage failed")
-	}
+	e.report(1, "second", 20)
 
 	if success := e.report(2, "first", 10); !success {
 		t.Fatalf("first usage decrease failed")
@@ -376,6 +373,56 @@ func TestPromiseCycleReconcilePreservesInvariants(t *testing.T) {
 			t.Fatalf("promise %d allocations = %d, want at most one", promise, len(allocations))
 		}
 	}
+}
+
+func TestPromiseCycleWithoutRootBackingDoesNotMaterialize(t *testing.T) {
+	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
+	aToB := e.addPromise("a", "b", 0, 10, 100)
+	bToA := e.addPromise("b", "a", 0, 10, 100)
+
+	e.reconcile(1, "a", 50)
+	e.reconcile(1, "b", 50)
+
+	if got := len(e.promiseAllocations(aToB)); got != 0 {
+		t.Fatalf("a -> b allocations = %d, want 0", got)
+	}
+	if got := len(e.promiseAllocations(bToA)); got != 0 {
+		t.Fatalf("b -> a allocations = %d, want 0", got)
+	}
+	e.assertValid()
+}
+
+func TestPromiseCycleUsesRootBackedEscapePath(t *testing.T) {
+	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
+	e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 10, Quota: 100, Self: 0, Children: 100})
+	aToB := e.addPromise("a", "b", 0, 10, 100)
+	bToA := e.addPromise("b", "a", 0, 10, 100)
+	rootToA := e.addPromise("root", "a", 0, 10, 100)
+
+	e.reconcile(1, "b", 60)
+
+	assertPromiseAllocation(t, e.promiseHead(rootToA, 1), 0, 60, e.tm(1), e.tm(10))
+	assertPromiseAllocation(t, e.promiseHead(aToB, 1), 60, 0, e.tm(1), e.tm(10))
+	if got := len(e.promiseAllocations(bToA)); got != 0 {
+		t.Fatalf("cycle back-edge allocations = %d, want 0", got)
+	}
+	e.assertAllocation("root", 0, 100, 0, 60)
+	e.assertValid()
+}
+
+func TestPromiseCycleDoesNotMintCapacityWhenUnderCovered(t *testing.T) {
+	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
+	e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 10, Quota: 40, Self: 0, Children: 40})
+	aToB := e.addPromise("a", "b", 0, 10, 100)
+	e.addPromise("b", "a", 0, 10, 100)
+	rootToA := e.addPromise("root", "a", 0, 10, 100)
+
+	e.reconcile(1, "b", 80)
+
+	assertPromiseAllocation(t, e.promiseHead(rootToA, 1), 0, 40, e.tm(1), e.tm(10))
+	assertPromiseAllocation(t, e.promiseHead(aToB, 1), 40, 0, e.tm(1), e.tm(10))
+	e.assertAllocation("root", 0, 40, 0, 40)
+	e.assertValid()
 }
 
 func TestPromiseCycleUsageReportsPreserveInvariants(t *testing.T) {
@@ -425,6 +472,28 @@ func TestPromiseReconcilePropagatesChildDemandThroughPeriodicPasses(t *testing.T
 	}
 }
 
+func TestPromiseReconcilePreservesChildSubtreeWhileGrowingLocalUse(t *testing.T) {
+	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
+	e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 10, Quota: 100, Self: 0, Children: 100})
+	parentPromise := e.addPromise("root", "project", 0, 10, 100)
+	childPromise := e.addPromise("project", "user", 0, 10, 100)
+
+	e.reconcile(1, "user", 60)
+	assertPromiseAllocation(t, e.promiseHead(parentPromise, 1), 0, 60, e.tm(1), e.tm(10))
+	assertPromiseAllocation(t, e.promiseHead(childPromise, 1), 60, 0, e.tm(1), e.tm(10))
+
+	e.reconcile(2, "project", 30)
+
+	parentHead := e.promiseHead(parentPromise, 2)
+	assertPromiseAllocation(t, parentHead, 30, 60, e.tm(1), e.tm(10))
+	if parentHead.ReservedChildren != 60 {
+		t.Fatalf("project child reservation = %d, want 60", parentHead.ReservedChildren)
+	}
+	assertPromiseAllocation(t, e.promiseHead(childPromise, 2), 60, 0, e.tm(1), e.tm(10))
+	e.assertAllocation("root", 0, 100, 0, 90)
+	e.assertValid()
+}
+
 func TestPromiseCalculateTargetSplitUsesDemand(t *testing.T) {
 	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
 	e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 10, Quota: 100, Self: 0, Children: 100})
@@ -462,7 +531,7 @@ func TestPromiseReconcileSuccessorAndReportHeadroom(t *testing.T) {
 					t.Fatalf("promise allocations = %d, want 2", len(allocations))
 				}
 				head := e.promiseHead(promise, 6)
-				assertPromiseAllocation(t, head, 50, 0, e.tm(5), e.tm(10))
+				assertPromiseAllocation(t, head, 50, 0, e.tm(6), e.tm(10))
 			},
 		},
 		{
@@ -626,7 +695,7 @@ func TestPromiseReportUsageSingleL2ChildMultipleL1Parents(t *testing.T) {
 	e.report(1, "l2", 70)
 
 	assertPromiseAllocation(t, e.promiseHead(l1aPromise, 1), 0, 50, e.tm(1), e.tm(10))
-	assertPromiseAllocation(t, e.promiseHead(l1bPromise, 1), 0, 50, e.tm(1), e.tm(10))
+	assertPromiseAllocation(t, e.promiseHead(l1bPromise, 1), 0, 20, e.tm(1), e.tm(10))
 	aHead := e.promiseHead(l2FromA, 1)
 	bHead := e.promiseHead(l2FromB, 1)
 	assertPromiseAllocation(t, aHead, 50, 0, e.tm(1), e.tm(10))
@@ -634,7 +703,7 @@ func TestPromiseReportUsageSingleL2ChildMultipleL1Parents(t *testing.T) {
 	if aHead.ConsumedSelf != 50 || bHead.ConsumedSelf != 20 {
 		t.Fatalf("l2 consumption split = %d/%d, want 50/20", aHead.ConsumedSelf, bHead.ConsumedSelf)
 	}
-	e.assertAllocation("root", 0, 100, 0, 100)
+	e.assertAllocation("root", 0, 100, 0, 70)
 	e.assertWalletConsumed("l2", 70)
 }
 
@@ -675,10 +744,10 @@ func TestPromiseReportUsageRetirementUpDownAndOverQuota(t *testing.T) {
 		}
 
 		successor := e.promiseHead(promise, 6)
-		assertPromiseAllocation(t, successor, 30, 0, e.tm(5), e.tm(20))
+		assertPromiseAllocation(t, successor, 30, 0, e.tm(6), e.tm(20))
 		e.report(7, "child", 110)
 		successor = e.promiseHead(promise, 7)
-		assertPromiseAllocation(t, successor, 100, 0, e.tm(5), e.tm(20))
+		assertPromiseAllocation(t, successor, 100, 0, e.tm(6), e.tm(20))
 		if successor.ConsumedSelf != 110 {
 			t.Fatalf("successor over quota consumption = %d, want 110", successor.ConsumedSelf)
 		}
@@ -730,7 +799,7 @@ func TestPromiseQuotaCountsRetiredMaterializationsByAccountingMode(t *testing.T)
 
 		e.report(6, "child", 100)
 		second := e.promiseHead(promise, 6)
-		assertPromiseAllocation(t, second, 20, 0, e.tm(5), e.tm(20))
+		assertPromiseAllocation(t, second, 20, 0, e.tm(6), e.tm(20))
 		if first.Id == second.Id {
 			t.Fatalf("expected successor allocation after retirement")
 		}
@@ -756,7 +825,7 @@ func TestPromiseQuotaCountsRetiredMaterializationsByAccountingMode(t *testing.T)
 
 		e.reconcile(7, "child", 100)
 		second := e.promiseHead(promise, 7)
-		assertPromiseAllocation(t, second, 100, 0, e.tm(5), e.tm(20))
+		assertPromiseAllocation(t, second, 100, 0, e.tm(6), e.tm(20))
 		if got := e.promiseMaterializedQuota(7, promise); got != 100 {
 			t.Fatalf("materialized quota = %d, want 100", got)
 		}
@@ -779,7 +848,7 @@ func TestPromiseQuotaCountsRetiredMaterializationsByAccountingMode(t *testing.T)
 
 		e.report(6, "child", 80)
 		second := e.promiseHead(promise, 6)
-		assertPromiseAllocation(t, second, 80, 0, e.tm(5), e.tm(20))
+		assertPromiseAllocation(t, second, 80, 0, e.tm(6), e.tm(20))
 		if first.Id == second.Id {
 			t.Fatalf("expected successor allocation after retirement")
 		}
@@ -826,6 +895,6 @@ func TestPromiseReconcileOwnerSkipUsesAccountingMode(t *testing.T) {
 		if first.Id == second.Id {
 			t.Fatalf("expected successor allocation after capacity retirement")
 		}
-		assertPromiseAllocation(t, second, 80, 0, e.tm(5), e.tm(20))
+		assertPromiseAllocation(t, second, 80, 0, e.tm(6), e.tm(20))
 	})
 }

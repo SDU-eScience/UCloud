@@ -111,6 +111,185 @@ func TestWalletToApiCombinesPromisesAndLowLevelUsage(t *testing.T) {
 	}
 }
 
+func TestWalletsBrowseOverpromisedSubprojectReportsEffectiveMaxUsable(t *testing.T) {
+	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
+	e.add(lowAllocSpec{Name: "a-root", Wallet: "A", Start: 0, End: 10, Quota: 1_000, Self: 0, Children: 1_000})
+	e.addPromise("A", "B", 0, 10, 10_000)
+
+	wallets := WalletsBrowseOwnerAt(e.tm(1), util.OptValue(e.owner("B")), WalletBrowseFilter{})
+	if len(wallets) != 1 {
+		t.Fatalf("wallets = %d, want 1", len(wallets))
+	}
+	if wallets[0].MaxUsable != 1_000 {
+		t.Fatalf("B MaxUsable = %d, want 1000", wallets[0].MaxUsable)
+	}
+	if wallets[0].Quota != 10_000 {
+		t.Fatalf("B compatibility quota = %d, want 10000", wallets[0].Quota)
+	}
+}
+
+func TestWalletsBrowseOverpromisedSubprojectUsesUnreconciledParentSelfSlack(t *testing.T) {
+	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
+	e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 10, Quota: 1_000, Self: 0, Children: 1_000})
+	e.addPromise("root", "A", 0, 10, 1_000)
+	e.reconcile(1, "A", 1_000)
+	e.addPromise("A", "B", 0, 10, 10_000)
+
+	wallets := WalletsBrowseOwnerAt(e.tm(1), util.OptValue(e.owner("B")), WalletBrowseFilter{})
+	if len(wallets) != 1 {
+		t.Fatalf("wallets = %d, want 1", len(wallets))
+	}
+	if wallets[0].MaxUsable != 1_000 {
+		t.Fatalf("B MaxUsable = %d, want 1000", wallets[0].MaxUsable)
+	}
+}
+
+func TestWalletsBrowseOverpromisedSubprojectUsesUnmaterializedAncestorPromise(t *testing.T) {
+	e := newLowTestEnv(t, accapi.AccountingFrequencyPeriodicMinute)
+	e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 10, Quota: 600_000, Self: 0, Children: 600_000})
+	e.addPromise("root", "A", 0, 10, 60_000)
+	e.addPromise("A", "B", 0, 10, 600_000)
+
+	aWallets := WalletsBrowseOwnerAt(e.tm(1), util.OptValue(e.owner("A")), WalletBrowseFilter{})
+	if len(aWallets) != 1 {
+		t.Fatalf("A wallets = %d, want 1", len(aWallets))
+	}
+	if aWallets[0].MaxUsable != 60_000 {
+		t.Fatalf("A MaxUsable = %d, want 60000", aWallets[0].MaxUsable)
+	}
+
+	bWallets := WalletsBrowseOwnerAt(e.tm(1), util.OptValue(e.owner("B")), WalletBrowseFilter{})
+	if len(bWallets) != 1 {
+		t.Fatalf("B wallets = %d, want 1", len(bWallets))
+	}
+	if bWallets[0].MaxUsable != 60_000 {
+		t.Fatalf("B MaxUsable = %d, want 60000", bWallets[0].MaxUsable)
+	}
+	if bWallets[0].Quota != 600_000 {
+		t.Fatalf("B compatibility quota = %d, want 600000", bWallets[0].Quota)
+	}
+}
+
+func TestWalletsBrowseOverpromisedSubprojectUsesPartialConcreteAndGrowableAncestorCapacity(t *testing.T) {
+	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
+	e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 10, Quota: 1_000, Self: 0, Children: 1_000})
+	rootToA := e.addPromise("root", "A", 0, 10, 1_000)
+	e.reconcile(1, "A", 500)
+	e.report(1, "A", 500)
+
+	aAllocation := e.promiseHead(rootToA, 1)
+	allocationMutate(e.tm(1), e.tree(), aAllocation.Id, func(allocation *Allocation, parent util.Option[*Allocation]) {
+		allocation.QuotaChildren += 100
+		if parent.Present {
+			parent.Value.ReservedChildren += 100
+		}
+	})
+	e.addPromise("A", "B", 0, 10, 800)
+
+	wallets := WalletsBrowseOwnerAt(e.tm(1), util.OptValue(e.owner("B")), WalletBrowseFilter{})
+	if len(wallets) != 1 {
+		t.Fatalf("wallets = %d, want 1", len(wallets))
+	}
+	if wallets[0].MaxUsable != 500 {
+		t.Fatalf("B MaxUsable = %d, want 500", wallets[0].MaxUsable)
+	}
+}
+
+func TestWalletsBrowseParentUsageIncludesOverpromisedSubprojectConsumption(t *testing.T) {
+	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
+	e.add(lowAllocSpec{Name: "a-root", Wallet: "A", Start: 0, End: 10, Quota: 1_000, Self: 0, Children: 1_000})
+	e.addPromise("A", "B", 0, 10, 10_000)
+
+	e.report(1, "B", 1_000)
+
+	wallets := WalletsBrowseOwnerAt(e.tm(1), util.OptValue(e.owner("A")), WalletBrowseFilter{IncludeChildren: true})
+	if len(wallets) != 1 {
+		t.Fatalf("wallets = %d, want 1", len(wallets))
+	}
+	if wallets[0].TotalUsage != 1_000 {
+		t.Fatalf("A TotalUsage = %d, want 1000", wallets[0].TotalUsage)
+	}
+	if wallets[0].LocalUsage != 0 {
+		t.Fatalf("A LocalUsage = %d, want 0", wallets[0].LocalUsage)
+	}
+	if len(wallets[0].Children) != 1 || wallets[0].Children[0].Group.Usage != 1_000 {
+		t.Fatalf("A child usage = %#v, want one child with usage 1000", wallets[0].Children)
+	}
+}
+
+func TestWalletsBrowseActiveUsageIncludesActiveDescendantConsumption(t *testing.T) {
+	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
+	e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 10, Quota: 1_000, Self: 0, Children: 1_000})
+	e.addPromise("root", "A", 0, 10, 1_000)
+	e.addPromise("A", "B", 0, 10, 10_000)
+
+	e.report(1, "B", 1_049)
+
+	wallets := WalletsBrowseOwnerAt(e.tm(1), util.OptValue(e.owner("A")), WalletBrowseFilter{})
+	if len(wallets) != 1 {
+		t.Fatalf("wallets = %d, want 1", len(wallets))
+	}
+	if wallets[0].TotalUsage != 1_049 {
+		t.Fatalf("A TotalUsage = %d, want 1049", wallets[0].TotalUsage)
+	}
+	if wallets[0].LocalUsage != 0 {
+		t.Fatalf("A LocalUsage = %d, want 0", wallets[0].LocalUsage)
+	}
+	if wallets[0].UiOnlyActiveUsage != 1_049 {
+		t.Fatalf("A active usage = %d, want 1049", wallets[0].UiOnlyActiveUsage)
+	}
+}
+
+func TestWalletsBrowseTotalUsageIncludesRecursiveDescendantConsumption(t *testing.T) {
+	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
+	e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 10, Quota: 1_000, Self: 0, Children: 1_000})
+	e.addPromise("root", "A", 0, 10, 1_000)
+	e.addPromise("A", "B", 0, 10, 1_000)
+	e.addPromise("B", "C", 0, 10, 1_000)
+
+	e.report(1, "C", 300)
+
+	wallets := WalletsBrowseOwnerAt(e.tm(1), util.OptValue(e.owner("A")), WalletBrowseFilter{})
+	if len(wallets) != 1 {
+		t.Fatalf("wallets = %d, want 1", len(wallets))
+	}
+	if wallets[0].TotalUsage != 300 {
+		t.Fatalf("A TotalUsage = %d, want 300", wallets[0].TotalUsage)
+	}
+	if wallets[0].UiOnlyActiveUsage != 300 {
+		t.Fatalf("A active usage = %d, want 300", wallets[0].UiOnlyActiveUsage)
+	}
+}
+
+func TestWalletsBrowseReadSidePromiseCycleTerminatesAndDoesNotDoubleCount(t *testing.T) {
+	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
+	e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 10, Quota: 100, Self: 0, Children: 100})
+	e.addPromise("root", "A", 0, 10, 100)
+	e.addPromise("A", "B", 0, 10, 100)
+	e.addPromise("B", "A", 0, 10, 100)
+
+	e.report(1, "B", 40)
+
+	aWallets := WalletsBrowseOwnerAt(e.tm(1), util.OptValue(e.owner("A")), WalletBrowseFilter{})
+	if len(aWallets) != 1 {
+		t.Fatalf("A wallets = %d, want 1", len(aWallets))
+	}
+	if aWallets[0].MaxUsable > 100 {
+		t.Fatalf("A MaxUsable = %d, want <= 100", aWallets[0].MaxUsable)
+	}
+	if aWallets[0].TotalUsage != 40 || aWallets[0].UiOnlyActiveUsage != 40 {
+		t.Fatalf("A usage = total:%d active:%d, want 40/40", aWallets[0].TotalUsage, aWallets[0].UiOnlyActiveUsage)
+	}
+
+	bWallets := WalletsBrowseOwnerAt(e.tm(1), util.OptValue(e.owner("B")), WalletBrowseFilter{})
+	if len(bWallets) != 1 {
+		t.Fatalf("B wallets = %d, want 1", len(bWallets))
+	}
+	if bWallets[0].MaxUsable > 100 {
+		t.Fatalf("B MaxUsable = %d, want <= 100", bWallets[0].MaxUsable)
+	}
+}
+
 func TestWalletReevaluateLockMarksSignificantUpdates(t *testing.T) {
 	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
 	e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 10, Quota: 200, Self: 0, Children: 200})

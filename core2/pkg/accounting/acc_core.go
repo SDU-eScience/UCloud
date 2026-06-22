@@ -536,7 +536,9 @@ func allocationUpdatePromiseBacked(
 	promise.End = proposedEnd
 	promise.Quota = proposedQuota
 	promise.Dirty = true
-	promiseReconcileOne(now, tree, promise, false)
+	if child := tree.WalletsById[promise.Child]; child != nil {
+		promiseReconcileWallet(now, tree, child, child.Consumed, 0, map[WalletId]bool{})
+	}
 
 	walletMarkSignificantUpdate(now, tree, tree.WalletsById[promise.Child])
 	walletMarkSignificantUpdate(now, tree, tree.WalletsById[promise.Parent])
@@ -680,7 +682,7 @@ func walletMaxUsable(now time.Time, tree *AccountingTree, wallet *Wallet) int64 
 	}
 	quota := int64(0)
 	quota = walletQuotaContributing(now, tree, &tree.PromiseTree, wallet)
-	effectiveQuota, hasEffectiveQuota := promiseWalletEffectiveReportQuota(tree, wallet)
+	effectiveQuota, hasEffectiveQuota := promiseWalletEffectiveReportQuota(now, tree, wallet)
 	demand := wallet.Consumed
 	for _, allocationId := range wallet.Allocations {
 		allocation := tree.AllocationsById[allocationId]
@@ -691,7 +693,7 @@ func walletMaxUsable(now time.Time, tree *AccountingTree, wallet *Wallet) int64 
 	if hasEffectiveQuota {
 		if quota == 0 {
 			quota = effectiveQuota
-		} else if demand > effectiveQuota {
+		} else {
 			quota = min(quota, effectiveQuota)
 		}
 	} else if quota == 0 {
