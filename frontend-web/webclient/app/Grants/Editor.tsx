@@ -2130,7 +2130,7 @@ export function Editor(): React.ReactNode {
                                             key={it.id}
                                             projectId={it.id}
                                             title={it.title}
-                                            description={it.description + "OST"}
+                                            description={it.description}
                                             checked={it.checked}
                                             onChange={onAllocatorChecked}
                                             adminOfProjects={state.loadedProjects}
