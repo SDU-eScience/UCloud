@@ -1765,6 +1765,7 @@ export function Editor(): React.ReactNode {
         if (!dry) {
             dispatchEvent({type: "LoadingStateChange", isLoading: true});
             try {
+                state.allocators = []; // clearing, since we are repopulating the list
                 const result = await callAPIWithErrorHandler(Grants.submitRevision({
                     applicationId: isGrantGiverInitiated ? undefined : editState.id,
                     revision: doc,
