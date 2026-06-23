@@ -60,6 +60,7 @@ interface EditorState {
     loadedProjects: {id: string | null; title: string;}[];
 
     selectedProjectType: Grants.TemplateKey;
+    selectedAllocatorId: string;
 
     stateDuringCreate?: {
         creatingWorkspace: boolean;
@@ -159,6 +160,7 @@ const defaultState: EditorState = {
     loadedProjects: [],
     fullScreenLoading: true,
     selectedProjectType: Grants.TemplateKey.newProject, 
+    selectedAllocatorId: ""
 };
 
 // State reducer
@@ -255,7 +257,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
         //                     a new one).
 
         case "AllocatorsLoaded": {
-            const newAllocators: EditorState["allocators"] = state.allocators
+            let newAllocators: EditorState["allocators"] = state.allocators
                 .filter(it => action.allocators.some(other => it.id === other.id && it.title === other.title));
 
             const newResources: EditorState["resources"] = {...state.resources};
@@ -298,7 +300,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             // allocator is grantGiver
             for (const allocator of action.allocators) {
                 const existing = newAllocators.find(it => it.id === allocator.id);
-                const sameForm = deepEquals(existing?.template,allocator.templates.structured);
+                const sameForm = deepEquals(existing?.template, allocator.templates.structured);
                 if (!existing) {
                     newAllocators.push({
                         id: allocator.id, title: allocator.title, description: allocator.description,
@@ -334,6 +336,8 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             for (const arr of Object.values(newResources)) {
                 arr.sort((a, b) => Accounting.categoryComparator(a.category, b.category));
             }
+            // Filter out yourself
+            newAllocators = newAllocators.filter(i => i.id !== state.stateDuringCreate?.reference);
 
             return {
                 ...state,
