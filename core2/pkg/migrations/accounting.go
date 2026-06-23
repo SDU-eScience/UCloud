@@ -338,3 +338,46 @@ func accountingV6() db.MigrationScript {
 		},
 	}
 }
+
+func accountingV7() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "accountingV7",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					create table accounting.low_funds_notification_state (
+						project_id text not null,
+						provider text not null,
+						category text not null,
+						state text not null,
+						last_observed_at timestamptz not null,
+						last_notified_at timestamptz,
+						last_max_usable bigint not null,
+						last_active_usage bigint not null,
+						last_effective_total bigint not null,
+						notification_count int not null default 0,
+						primary key (project_id, provider, category)
+					)
+			    `,
+				db.Params{},
+			)
+
+			db.Exec(
+				tx,
+				`
+					create table accounting.promise_expiry_notification_state (
+						project_id text not null,
+						provider text not null,
+						category text not null,
+						promise_id bigint not null,
+						last_notified_at timestamptz not null,
+						promise_expires_at timestamptz not null,
+						primary key (project_id, provider, category, promise_id)
+					)
+			    `,
+				db.Params{},
+			)
+		},
+	}
+}

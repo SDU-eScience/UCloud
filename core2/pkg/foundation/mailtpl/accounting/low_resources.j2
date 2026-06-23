@@ -1,11 +1,11 @@
-One or more of your projects are running low on resources on UCloud
+One or more of your projects need attention on UCloud
 
 {{ bodyStart }}
 
 <p>Dear {{ recipient }},</p>
 
 <p>
-    Following allocations are getting low on resources:
+    The following allocations need attention:
     <ul>
         {% for resource in resources %}
             <li>
@@ -13,6 +13,16 @@ One or more of your projects are running low on resources on UCloud
                 <ul>
                     <li>Resource: {{ resource.category }}</li>
                     <li>Provider: {{ resource.provider }}</li>
+                    <li>Status: {{ resource.state }}</li>
+                    {% if resource.notificationType == "expiresSoon" %}
+                        <li>Expires at: {{ resource.expiresAt }}</li>
+                        <li>Quota: {{ resource.quota }}</li>
+                    {% else %}
+                        <li>Remaining: {{ resource.remaining }}</li>
+                        <li>Active usage: {{ resource.activeUsage }}</li>
+                        <li>Effective total: {{ resource.effectiveTotal }}</li>
+                        <li>Percent remaining: {{ resource.percentRemaining }}</li>
+                    {% endif %}
                 </ul>
             </li>
         {% endfor %}
