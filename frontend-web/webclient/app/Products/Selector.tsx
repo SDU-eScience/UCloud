@@ -6,7 +6,7 @@ import HexSpin from "@/LoadingIcon/LoadingIcon";
 import {connectionState} from "@/Providers/ConnectionState";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
-import {Box, Button, Flex, Icon, Input, Link, Text, Tooltip} from "@/ui-components";
+import {Box, Button, Flex, Icon, Input, Label, Link, RangeInput, Text, Tooltip} from "@/ui-components";
 import Table, {TableCell, TableRow} from "@/ui-components/Table";
 import {useUState} from "@/Utilities/UState";
 import {clamp, grantsLink, stopPropagation} from "@/UtilityFunctions";
@@ -20,6 +20,8 @@ import {TooltipV2} from "@/ui-components/Tooltip";
 import {useSelector} from "react-redux";
 import {ServiceProviderItem, ServiceProviderSelector} from "@/Applications/ApiTokens/Add";
 import {InputClass} from "@/ui-components/Input";
+import {useProject} from "@/Project/cache";
+import {useProjectId} from "@/Project/Api";
 
 interface ComputeCategory {
     provider: string;
@@ -102,7 +104,8 @@ export const ProductSelector: React.FunctionComponent<{
     const [filteredProducts, setFilteredProducts] = React.useState<ProductV2[]>([]);
     const type = props.products.length > 0 ? props.products[0].productType : props.type;
     const isCompute = type === "COMPUTE";
-    const isDetailed = isCompute
+    const isDetailed = isCompute;
+    const projectId = useProjectId();
     let productName = "product";
     switch (type) {
         case "COMPUTE":
@@ -318,25 +321,27 @@ export const ProductSelector: React.FunctionComponent<{
     return <>
         <Flex gap="8px">
             {isCompute ? <Box width="50%">
-                <ServiceProviderSelector
-                    serviceProvider={serviceProvider}
-                    serviceProviders={serviceProviders}
-                    onSelect={el => {
-                        setServiceProvider(el.key);
-                        if (el.key !== serviceProvider) props.onSelect(null);
-                    }}
-                    renderRow={props => {
-                        if (!props.element?.key) return null;
-                        if (!connectionState.canConnectToProvider(props.element.key)) {
-                            const height = props.dataProps == null ? "31.5px" : "38px";
-                            return <Flex pl="8px" key={props.element.key} height={height} {...props.dataProps} onClick={props.onSelect} alignItems={"center"}
-                                gap={"8px"}>
-                                <ProviderLogo className={"provider-logo"} providerId={props.element.key} size={24} />
-                                <ProviderTitle providerId={props.element.key} />
-                            </Flex>;
-                        }
-                        return <ServiceProviderItem {...props} />
-                    }} />
+
+                {serviceProviders.length === 0 ? <Box onClick={onToggle}><Label>Service provider <MandatoryField /> <Input disabled /></Label></Box> :
+                    <ServiceProviderSelector
+                        serviceProvider={serviceProvider}
+                        serviceProviders={serviceProviders}
+                        onSelect={el => {
+                            setServiceProvider(el.key);
+                            if (el.key !== serviceProvider) props.onSelect(null);
+                        }}
+                        renderRow={props => {
+                            if (!props.element?.key) return null;
+                            if (!connectionState.canConnectToProvider(props.element.key)) {
+                                const height = props.dataProps == null ? "31.5px" : "38px";
+                                return <Flex pl="8px" key={props.element.key} height={height} {...props.dataProps} onClick={props.onSelect} alignItems={"center"}
+                                    gap={"8px"}>
+                                    <ProviderLogo className={"provider-logo"} providerId={props.element.key} size={24} />
+                                    <ProviderTitle providerId={props.element.key} />
+                                </Flex>;
+                            }
+                            return <ServiceProviderItem {...props} />
+                        }} />}
             </Box> : null}
             <Box width={isCompute ? "50%" : "100%"}>
                 {isCompute ? <Box>Machine category <MandatoryField /></Box> : null}
@@ -364,13 +369,14 @@ export const ProductSelector: React.FunctionComponent<{
                     <>
                         {props.slim !== true ?
                             <>
-                                <Flex ml="2px" mt="4px">{queueStatus ? <div style={{
-                                    marginRight: "8px",
-                                    paddingTop: "4px",
-                                }}><JobQueueStatusIndicator status={queueStatus} /></div> : null} {selected?.name}</Flex><br />
-                                <ProductDescription serviceProvider={selected.category.provider} category={selected.category.name} />
+                                <Flex ml="2px" mt="4px" justifyContent={"space-between"}>
+                                    <Flex>{queueStatus ? <div style={{
+                                        marginRight: "8px",
+                                        paddingTop: "4px",
+                                    }}><JobQueueStatusIndicator status={queueStatus} /></div> : null} {selected?.name}</Flex>
+                                    <ProductDescription serviceProvider={selected.category.provider} category={selected.category.name} /></Flex>
                                 {selected ? <>
-                                    <table>
+                                    <table style={{marginTop: "48px", marginBottom: "24px"}}>
                                         <tbody>
                                             <tr>
                                                 <ProductStats product={selected} />
@@ -724,6 +730,7 @@ function MachineTypeSelectionSlider(props: {
 
         const firstFractionalIndex =
             props.selectedCategory.products.findIndex(it => it.fraction?.denominator === 1 && it.fraction?.numerator === 1);
+
         if (firstFractionalIndex > 0) {
             return firstFractionalIndex;
         }
@@ -735,6 +742,12 @@ function MachineTypeSelectionSlider(props: {
 
     const productCount = props.selectedCategory.products.length;
 
+    const gradientColors: ThemeColor[] = props.selectedCategory.products.map(p => {
+        const status = queueStatusFromCategoryName(props.support, p.name, p.category);
+        if (!status) return "primaryMain";
+        return statusStringAndColor(status).color;
+    });
+
     return <Box mb="8px" mx="8px" px="8px" onClick={stopPropagation}>
         {dividerIndex > 0 ?
             <Flex>
@@ -743,21 +756,21 @@ function MachineTypeSelectionSlider(props: {
                 <Box style={{position: "absolute", left: `calc(100% * ${dividerIndex / productCount} + 20px)`}} ml="4px">Full GPUs</Box>
             </Flex>
             : null}
-        <input value={props.idx} autoFocus onChange={e => props.onSelect(e.target.valueAsNumber)}
-            className={FancySlider} min={0} max={props.selectedCategory.products.length - 1} type="range" list="markers" />
-        <datalist id="markers" className={DataListStyle}>
-            {props.selectedCategory.products.map((p, idx) => <option key={idx} value={idx} />)}
-        </datalist>
+        <RangeInput background={gradientFromQueueStatus(gradientColors)} value={props.idx} autoFocus onChange={e => props.onSelect(e.target.valueAsNumber)} min={0} max={props.selectedCategory.products.length - 1} markers={props.selectedCategory.products.map((_, idx) => idx)} />
         <CustomDataListThingy>
-            {props.selectedCategory.products.map((p, idx) => {
-                const status = queueStatusFromCategoryName(props.support, p.name, p.category);
-                return <Box key={idx}>
-                    <Box mb="4px">{computeV2CountStringThing(p)}</Box>
-                    {!status ? null : <JobQueueStatusIndicator status={status} />}
-                </Box>
-            })}
+            {props.selectedCategory.products.map((p, idx) =>
+                <Box key={idx} mb="4px">{computeV2CountStringThing(p)}</Box>
+            )}
         </CustomDataListThingy>
     </Box>
+}
+
+function gradientFromQueueStatus(queueStatusColors: ThemeColor[]): string {
+    const gradientString = queueStatusColors.map((color, idx, {length}) =>
+        `var(--${color}) ${idx / (length - 1) * 100}%`
+    ).join(",");
+
+    return `linear-gradient(90deg, ${gradientString})`;
 }
 
 const ThingyStyle = injectStyle("thingy-style", cl => `
@@ -789,32 +802,6 @@ function computeV2CountStringThing(c: ProductV2Compute): string {
     }
     return c.cpu?.toString() ?? "";
 };
-
-
-const FancySlider = injectStyle("fancy-slider", cl => `
-    ${cl} {
-        width: calc(100% - 16px);
-        padding-top: 8px;
-        padding-bottom: 8px;
-        cursor: pointer;
-        accent-color: var(--primaryMain);
-    }
-
-    ${cl}::-moz-range-track {
-        /* 
-            color rhs of thumb
-            background-color: var(--primaryMain);
-         */
-    }
-`);
-
-const DataListStyle = injectStyleSimple("datalist-style", `
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    writing-mode: vertical-lr;
-    width: calc(100% * 0.99);
-`);
 
 export const SelectorBoxClass = injectStyle("selector-box", k => `
     ${k} {
@@ -1078,31 +1065,44 @@ function generateProducts(
     return result;
 }
 
-const JobQueueStatusIndicator: React.FunctionComponent<{
+function statusStringAndColor(status: JobQueueStatus): {
+    color: ThemeColor,
+    message: string;
+    messageMultiple: string;
+} {
+    const options: Record<JobQueueStatus, {
+        color: ThemeColor,
+        message: string;
+        messageMultiple: string;
+    }> = {
+        [JobQueueStatus.AVAILABLE]: {
+            color: "successMain",
+            message: "This machine type is available for use.",
+            messageMultiple: "At least one machine type is available for use.",
+        },
+        [JobQueueStatus.BUSY]: {
+            color: "warningMain",
+            message: "This machine type is available for use, but the cluster is busy.",
+            messageMultiple: "At least one machine type is available for use, but the cluster is busy.",
+        },
+        [JobQueueStatus.FULL]: {
+            color: "errorMain",
+            message: "This machine type is not currently available and you will have to wait in a queue.",
+            messageMultiple: "This machine type is not currently available and you will have to wait in a queue.",
+        }
+    }
+    return options[status];
+}
+
+function JobQueueStatusIndicator(props: {
     status: JobQueueStatus;
     multiple?: boolean;
-}> = (props) => {
-    let color: ThemeColor = "errorMain";
-    let message = "";
-
-    switch (props.status) {
-        case JobQueueStatus.AVAILABLE:
-            color = "successMain";
-            message = props.multiple ? "At least one machine type is available for use." : "This machine type is available for use."
-            break;
-        case JobQueueStatus.BUSY:
-            color = "warningMain";
-            message = props.multiple ? "At least one machine type is available for use, but the cluster is busy." : "This machine type is available for use, but the cluster is busy."
-            break;
-        case JobQueueStatus.FULL:
-            color = "errorMain"
-            message = props.multiple ? "This machine type is not currently available and you will have to wait in a queue." : "This machine type is not currently available and you will have to wait in a queue."
-            break;
-    }
+}) {
+    const {message, messageMultiple, color} = statusStringAndColor(props.status);
 
     const size = "12px";
 
-    return <TooltipV2 tooltip={message}>
+    return <TooltipV2 tooltip={props.multiple ? messageMultiple : message}>
         <div style={{width: size, height: size, borderRadius: size, backgroundColor: `var(--${color})`}} />
     </TooltipV2>;
 }

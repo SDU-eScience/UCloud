@@ -32,3 +32,4 @@ export {default as ExternalLink} from "./ExternalLink";
 export {default as Markdown} from "./Markdown";
 export {SelectableTextWrapper, SelectableText} from "./SelectableText";
 export {default as MainContainer} from "./MainContainer";
+export {default as RangeInput} from "./RangeInput";

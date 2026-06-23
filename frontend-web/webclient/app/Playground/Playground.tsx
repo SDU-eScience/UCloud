@@ -2,7 +2,7 @@ import {MainContainer} from "@/ui-components/MainContainer";
 import * as React from "react";
 import {useEffect, useRef} from "react";
 import {EveryIcon, IconName} from "@/ui-components/Icon";
-import {Box, Button, Flex} from "@/ui-components";
+import {Box, Button, Flex, RangeInput} from "@/ui-components";
 import {ThemeColor} from "@/ui-components/theme";
 import {api as ProjectApi, useProjectId} from "@/Project/Api";
 import {useCloudAPI} from "@/Authentication/DataHook";
@@ -184,8 +184,12 @@ const Playground: React.FunctionComponent = () => {
         dialogStore.addDialog(<ChangeOrganizationDetails inModal onDidSubmit={() => dialogStore.success()} />, () => void 0);
     }, []);
 
+    const [value, setValue] = React.useState(0);
+    const count = 12;
+
     const main = (
         <>
+            <RangeInput value={value} onChange={(event) => setValue(event.target.valueAsNumber)} max={count - 1} markers={Array.from(Array(count).keys()).map(idx => idx)} />
             <ChangeOrganizationDetails getValues={getValuesRef} />
             <Button onClick={foo}>View extracted contents</Button>
 
@@ -200,6 +204,9 @@ const Playground: React.FunctionComponent = () => {
             <EveryIcon />
             <PaletteColors />
             <Colors />
+
+
+
             {/*<EveryIcon />*/}
             {/*
             <Button onClick={() => {

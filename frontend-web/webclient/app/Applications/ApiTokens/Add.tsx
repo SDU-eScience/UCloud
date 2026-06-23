@@ -298,18 +298,20 @@ export function ServiceProviderSelector({
     serviceProvider,
     serviceProviders,
     renderRow = ServiceProviderItem,
+    renderSelectedRow = ServiceProviderItem,
 }: {
     onSelect: (el: {key: string}) => void;
     serviceProvider: string;
     serviceProviders: {key: string}[];
     renderRow?: (props: RichSelectProps<{key: string}>) => React.ReactNode
+    renderSelectedRow?: (props: RichSelectProps<{key: string}>) => React.ReactNode
 }) {
     return <div className={ServiceProviderSelectorStyle} data-has-service-provider={!!serviceProvider}>
         Service provider <MandatoryField />
         <RichSelect
             fullWidth
             elementHeight={38}
-            RenderSelected={ServiceProviderItem}
+            RenderSelected={renderSelectedRow}
             selected={({key: serviceProvider})}
             items={serviceProviders}
             keys={["key"]}
