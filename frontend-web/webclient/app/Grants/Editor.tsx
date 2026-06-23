@@ -66,6 +66,8 @@ interface EditorState {
         reference?: string;
     };
 
+    allocatorsMissingResource: Set<string>;
+
     stateDuringEdit?: {
         id: string;
         storedApplication?: Grants.Application;
@@ -141,6 +143,7 @@ const defaultState: EditorState = {
     locked: false,
     allocators: [],
     resources: {},
+    allocatorsMissingResource: new Set<string>(),
     allocationPeriod: {
         start: {
             month: new Date().getMonth(),
@@ -198,6 +201,7 @@ type EditorAction =
     | {type: "UpdateFullScreenLoading", isLoading: boolean}
     | {type: "UpdateFullScreenError", error: string}
     | {type: "SetResourceError", provider: string, category: string, allocator: string, message: string}
+    | {type: "MissingResources", allocatorIds: Set<string>}
     | {type: "Reset"}
     ;
 
@@ -225,6 +229,16 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                 ...state,
                 loading: action.isLoading
             };
+        }
+
+        // Missing Resource
+
+        case "MissingResources": {
+            console.log("missing", action.allocatorIds);
+            return  {
+                ...state,
+                allocatorsMissingResource: action.allocatorIds
+            }
         }
 
         // Initialization events
@@ -532,8 +546,9 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
 
             return {
                 ...state,
+                allocatorsMissingResource: new Set<string>(),
                 allocators: newAllocators,
-                createApplicationForms: extractToAnswerForms(newAllocators.filter(i => i.checked), state.selectedProjectType)
+                createApplicationForms: extractToAnswerForms(newAllocators.filter(i => i.checked), state.selectedProjectType),
             }
         }
 
@@ -1601,6 +1616,34 @@ export function Editor(): React.ReactNode {
         return false;
     }
 
+    const hasMissingResources = (state: EditorState): boolean => {
+        state.allocatorsMissingResource = new Set<string>(); // reset
+        const hasAllocatedResources = new Set<string>();
+        const checkedAllocators: Allocators[] = state.allocators.filter(i => i.checked);
+        for (const alloc of checkedAllocators) {
+            const categories: ResourceCategory[] = Object.values(state.resources).flatMap(i => i);
+            for (const category of categories) {
+                if (category.totalBalanceRequested[alloc.id]){
+                    hasAllocatedResources.add(alloc.id);
+                }
+            }
+        }
+        let hasMissingResouces = false;
+        let missingResources = new Set<string>();
+        for (const alloc of checkedAllocators) {
+            if (!hasAllocatedResources.has(alloc.id)) {
+                missingResources.add(alloc.id);
+                hasMissingResouces = true;
+            }
+        }
+        if (hasMissingResouces) {
+            // trigger missing resources
+            dispatchEvent({type: "MissingResources", allocatorIds: missingResources});
+            sendFailureNotification("You must request at least one resource for each selected grant giver.");
+        }
+        return hasMissingResouces;
+    }
+
     const onSubmit = useCallback<React.FormEventHandler>(async ev => {
         ev.preventDefault();
         if (!state.stateDuringCreate) return;
@@ -1608,6 +1651,7 @@ export function Editor(): React.ReactNode {
         if (!applicationFormExists(state)) return;
         const checked = state.allocators.filter(it => it.checked);
         if (checked.length === 0) return;
+        if (hasMissingResources(state)) return;
 
         const [start, end] = stateToAllocationPeriod(state);
         const period: Grants.Period = {start, end};
@@ -2225,12 +2269,18 @@ export function Editor(): React.ReactNode {
                                                     const errorMessage = category.error?.allocator === allocator.grantGiverId ?
                                                         category.error?.message : undefined;
 
+                                                    const missingStyle={
+                                                        color: state.allocatorsMissingResource.has(allocator.grantGiverId)
+                                                            ? "red"
+                                                            : "inherit"
+                                                    };
+
                                                     const value: number | undefined = category.totalBalanceRequested[allocator.grantGiverId];
                                                     if (hideZeroFields && (value === 0 || value == null)) return null;
                                                     if (isViewingHistoricEntry) {
                                                         return <React.Fragment key={allocator.grantGiverId}>
                                                             <div className={"allocation-row"}>
-                                                                <label>
+                                                                <Label style={missingStyle}>
                                                                     {unit.name} requested
                                                                     {checkedAllocators.length > 1 &&
                                                                         <> from <ProjectTitleForNewCore id={allocator.grantGiverId} title={allocator.grantGiverTitle} /></>
@@ -2243,7 +2293,7 @@ export function Editor(): React.ReactNode {
                                                                         min={0}
                                                                         value={category.totalBalanceRequested[allocator.grantGiverId] ?? ""}
                                                                         disabled={state.locked || isClosed} />
-                                                                </label>
+                                                                </Label>
 
                                                                 {errorMessage && <div
                                                                     style={{color: "var(--errorMain)"}}>{errorMessage}</div>}
@@ -2254,7 +2304,7 @@ export function Editor(): React.ReactNode {
 
                                                         return <React.Fragment key={allocator.grantGiverId}>
                                                             <div className={"allocation-row"}>
-                                                                <label>
+                                                                <Label style={missingStyle}>
                                                                     {unit.name} requested
                                                                     {checkedAllocators.length > 1 && <> from <ProjectTitleForNewCore id={allocator!.grantGiverId} title={allocatorName} /></>}
 
@@ -2265,7 +2315,7 @@ export function Editor(): React.ReactNode {
                                                                         min={0}
                                                                         value={category.totalBalanceRequested[allocator.grantGiverId] ?? ""}
                                                                         disabled={state.locked || isClosed} />
-                                                                </label>
+                                                                </Label>
 
                                                                 {errorMessage && <div
                                                                     style={{color: "var(--errorMain)"}}>{errorMessage}</div>}
