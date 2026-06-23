@@ -67,7 +67,7 @@ interface EditorState {
         reference?: string;
     };
 
-    allocatorsMissingResource: Set<string>;
+    unRequestedAllocators: Set<string>;
 
     stateDuringEdit?: {
         id: string;
@@ -144,7 +144,7 @@ const defaultState: EditorState = {
     locked: false,
     allocators: [],
     resources: {},
-    allocatorsMissingResource: new Set<string>(),
+    unRequestedAllocators: new Set<string>(),
     allocationPeriod: {
         start: {
             month: new Date().getMonth(),
@@ -236,10 +236,9 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
         // Missing Resource
 
         case "MissingResources": {
-            console.log("missing", action.allocatorIds);
             return  {
                 ...state,
-                allocatorsMissingResource: action.allocatorIds
+                unRequestedAllocators: action.allocatorIds
             }
         }
 
@@ -549,7 +548,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
 
             return {
                 ...state,
-                allocatorsMissingResource: new Set<string>(),
+                unRequestedAllocators: new Set<string>(),
                 allocators: newAllocators,
                 createApplicationForms: extractToAnswerForms(newAllocators.filter(i => i.checked), state.selectedProjectType),
             }
@@ -1630,13 +1629,13 @@ export function Editor(): React.ReactNode {
                 }
             }
         }
-        let missingResources = new Set<string>();
+        let hasNoResources = new Set<string>();
         for (const alloc of checkedAllocators) {
             if (!hasAllocatedResources.has(alloc.id)) {
-                missingResources.add(alloc.id);
+                hasNoResources.add(alloc.id);
             }
         }
-        return missingResources;
+        return hasNoResources;
     }
 
     const onSubmit = useCallback<React.FormEventHandler>(async ev => {
@@ -1646,7 +1645,7 @@ export function Editor(): React.ReactNode {
         if (!applicationFormExists(state)) return;
         const checked = state.allocators.filter(it => it.checked);
         if (checked.length === 0) return;
-        state.allocatorsMissingResource = new Set<string>(); // reset
+        state.unRequestedAllocators = new Set<string>(); // reset
         let missingResources = getNonRequestedAllocators(state);
         if (missingResources.size > 0) {
             dispatchEvent({type: "MissingResources", allocatorIds: missingResources});
@@ -1739,10 +1738,10 @@ export function Editor(): React.ReactNode {
         const period: Grants.Period = {start, end};
 
         // Filter out allocators and forms that have no resources
-        const missingResources = getNonRequestedAllocators(state);
+        const nonRequestedAllocators = getNonRequestedAllocators(state);
         let allocationsRequested = stateToRequests(state)
-        allocationsRequested = allocationsRequested.filter(i => !missingResources.has(i.grantGiver));
-        const updatedForms = state.createApplicationForms.filter(i => !missingResources.has(i.allocatorId));
+        allocationsRequested = allocationsRequested.filter(i => !nonRequestedAllocators.has(i.grantGiver));
+        const updatedForms = state.createApplicationForms.filter(i => !nonRequestedAllocators.has(i.allocatorId));
 
         const doc: Grants.Doc = {
             recipient: currentDoc.recipient,
@@ -2283,7 +2282,7 @@ export function Editor(): React.ReactNode {
                                                         category.error?.message : undefined;
 
                                                     const missingStyle={
-                                                        color: state.allocatorsMissingResource.has(allocator.grantGiverId)
+                                                        color: state.unRequestedAllocators.has(allocator.grantGiverId)
                                                             ? "red"
                                                             : "inherit"
                                                     };
