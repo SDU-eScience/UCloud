@@ -1619,8 +1619,7 @@ export function Editor(): React.ReactNode {
         return false;
     }
 
-    const hasMissingResources = (state: EditorState): boolean => {
-        state.allocatorsMissingResource = new Set<string>(); // reset
+    const getNonRequestedAllocators = (state: EditorState): Set<string> => {
         const hasAllocatedResources = new Set<string>();
         const checkedAllocators: Allocators[] = state.allocators.filter(i => i.checked);
         for (const alloc of checkedAllocators) {
@@ -1631,20 +1630,13 @@ export function Editor(): React.ReactNode {
                 }
             }
         }
-        let hasMissingResouces = false;
         let missingResources = new Set<string>();
         for (const alloc of checkedAllocators) {
             if (!hasAllocatedResources.has(alloc.id)) {
                 missingResources.add(alloc.id);
-                hasMissingResouces = true;
             }
         }
-        if (hasMissingResouces) {
-            // trigger missing resources
-            dispatchEvent({type: "MissingResources", allocatorIds: missingResources});
-            sendFailureNotification("You must request at least one resource for each selected grant giver.");
-        }
-        return hasMissingResouces;
+        return missingResources;
     }
 
     const onSubmit = useCallback<React.FormEventHandler>(async ev => {
@@ -1654,18 +1646,25 @@ export function Editor(): React.ReactNode {
         if (!applicationFormExists(state)) return;
         const checked = state.allocators.filter(it => it.checked);
         if (checked.length === 0) return;
-        if (hasMissingResources(state)) return;
+        state.allocatorsMissingResource = new Set<string>(); // reset
+        let missingResources = getNonRequestedAllocators(state);
+        if (missingResources.size > 0) {
+            dispatchEvent({type: "MissingResources", allocatorIds: missingResources});
+            sendFailureNotification("You must request at least one resource for each selected grant giver.");
+            return;
+        }
 
         const [start, end] = stateToAllocationPeriod(state);
         const period: Grants.Period = {start, end};
 
+        const allocationRequests = stateToRequests(state);
         const doc: Grants.Doc = {
             recipient: stateToCreationRecipient(state)!,
             referenceIds: null,
             revisionComment: null,
-            form: stateToApplication(state),
+            form: createForm(state.createApplicationForms),
             parentProjectId: checked[0].id,
-            allocationRequests: stateToRequests(state),
+            allocationRequests,
             allocationPeriod: period
         };
 
@@ -1739,14 +1738,21 @@ export function Editor(): React.ReactNode {
         const [start, end] = stateToAllocationPeriod(state);
         const period: Grants.Period = {start, end};
 
+        // Filter out allocators and forms that have no resources
+        const missingResources = getNonRequestedAllocators(state);
+        let allocationsRequested = stateToRequests(state)
+        allocationsRequested = allocationsRequested.filter(i => !missingResources.has(i.grantGiver));
+        const updatedForms = state.createApplicationForms.filter(i => !missingResources.has(i.allocatorId));
+
         const doc: Grants.Doc = {
             recipient: currentDoc.recipient,
             referenceIds: editState.referenceIds ? editState.referenceIds : null,
-            allocationRequests: stateToRequests(state),
-            form: stateToApplication(state),
+            allocationRequests: allocationsRequested,
+            form: createForm(updatedForms),
             parentProjectId: currentDoc.parentProjectId,
             allocationPeriod: period
         };
+
         if (isGrantGiverInitiated) {
             doc.form.type = "grant_giver_initiated";
             doc.form["subAllocator"] = isForSubAllocator
@@ -2979,9 +2985,9 @@ const FormIds = {
 
 // Utility functions
 // =====================================================================================================================
-function stateToApplication(state: EditorState): Grants.Doc["form"] {
+function createForm(forms: Grants.AnswerForm[]): Grants.Doc["form"] {
     const isForSubAllocator = getQueryParam(location.search, "subAllocator") == "true";
-    return {type: "structured", text: "", subAllocator: isForSubAllocator, answerForms: state.createApplicationForms};
+    return {type: "structured", text: "", subAllocator: isForSubAllocator, answerForms: forms};
 }
 
 function stateToRequests(state: EditorState): Grants.Doc["allocationRequests"] {
