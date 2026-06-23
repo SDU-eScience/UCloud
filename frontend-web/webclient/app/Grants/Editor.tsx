@@ -2282,9 +2282,9 @@ export function Editor(): React.ReactNode {
                                                         category.error?.message : undefined;
 
                                                     const missingStyle={
-                                                        color: state.unRequestedAllocators.has(allocator.grantGiverId)
-                                                            ? "red"
-                                                            : "inherit"
+                                                        border: state.unRequestedAllocators.has(allocator.grantGiverId)
+                                                            ? "1px solid var(--errorMain)"
+                                                            : "1px solid var(--borderColor)"
                                                     };
 
                                                     const value: number | undefined = category.totalBalanceRequested[allocator.grantGiverId];
@@ -2292,13 +2292,13 @@ export function Editor(): React.ReactNode {
                                                     if (isViewingHistoricEntry) {
                                                         return <React.Fragment key={allocator.grantGiverId}>
                                                             <div className={"allocation-row"}>
-                                                                <Label style={missingStyle}>
+                                                                <Label>
                                                                     {unit.name} requested
                                                                     {checkedAllocators.length > 1 &&
                                                                         <> from <ProjectTitleForNewCore id={allocator.grantGiverId} title={allocator.grantGiverTitle} /></>
                                                                     }
 
-                                                                    <Input
+                                                                    <Input style={missingStyle}
                                                                         id={`${providerId}/${category.category.name}/${allocator.grantGiverId}`}
                                                                         type={"number"} placeholder={"0"}
                                                                         onInput={onResourceInput}
@@ -2316,11 +2316,11 @@ export function Editor(): React.ReactNode {
 
                                                         return <React.Fragment key={allocator.grantGiverId}>
                                                             <div className={"allocation-row"}>
-                                                                <Label style={missingStyle}>
+                                                                <Label>
                                                                     {unit.name} requested
                                                                     {checkedAllocators.length > 1 && <> from <ProjectTitleForNewCore id={allocator!.grantGiverId} title={allocatorName} /></>}
 
-                                                                    <Input
+                                                                    <Input style={missingStyle}
                                                                         id={`${providerId}/${category.category.name}/${allocator.grantGiverId}`}
                                                                         type={"number"} placeholder={"0"}
                                                                         onInput={onResourceInput}
