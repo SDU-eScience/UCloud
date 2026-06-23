@@ -546,7 +546,6 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                     return it;
                 }
             });
-            console.error("new allocators selected", newAllocators);
 
             return {
                 ...state,
