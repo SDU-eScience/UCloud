@@ -1706,6 +1706,10 @@ export function Editor(): React.ReactNode {
     }, [dispatchEvent, state.stateDuringEdit?.id]);
 
     const onUpdate = useCallback(async (dry: boolean = false) => {
+        if (!formRef.current?.checkValidity()) {
+            formRef.current?.reportValidity();
+            return;
+        }
         if (!state.stateDuringEdit) return;
         if (state.loading) return;
 
