@@ -116,8 +116,7 @@ func PromiseCreate(
 		promiseTree.PromisesByChild[childWallet] = append(promiseTree.PromisesByChild[childWallet], promiseId)
 
 		if child.Consumed > 0 {
-			promiseReconcileWallet(now, tree, child, child.Consumed, promiseWalletRequiredChildren(now, tree, child), map[WalletId]bool{})
-			_, _ = usageRedistributeExisting(now, tree, child, child.Consumed)
+			promiseOptimizeLocalConsumption(now, tree, child)
 		}
 
 		walletMarkSignificantUpdate(now, tree, tree.WalletsById[parentWallet])
@@ -150,6 +149,7 @@ func PromiseReconcile(
 ) {
 	lifecycleScanEx(now, tree, nil)
 
+	// TODO walletownerensure?
 	wallet := tree.WalletsByOwner[owner.Reference()]
 	if wallet == nil {
 		return
@@ -161,8 +161,6 @@ func PromiseReconcile(
 
 	promiseReconcileWallet(now, tree, wallet, minimumRequest, promiseWalletRequiredChildren(now, tree, wallet), map[WalletId]bool{})
 	walletReevaluateLock(now, tree, wallet)
-
-	return
 }
 
 func promiseReconcileWallet(
@@ -212,6 +210,8 @@ func promiseReconcileWallet(
 	return requiredSelf - selfNeed + requiredChildren - childrenNeed
 }
 
+// TODO Test what happens if the promise quota is shrunk
+
 func promiseActiveIncoming(now time.Time, tree *AccountingTree, child WalletId) []*Promise {
 	promises := []*Promise{}
 	for _, id := range tree.PromiseTree.PromisesByChild[child] {
@@ -220,8 +220,58 @@ func promiseActiveIncoming(now time.Time, tree *AccountingTree, child WalletId) 
 			promises = append(promises, promise)
 		}
 	}
-	slices.SortFunc(promises, func(a, b *Promise) int { return cmp.Compare(int(a.Id), int(b.Id)) })
+	slices.SortFunc(promises, func(a, b *Promise) int {
+		if !a.End.Equal(b.End) {
+			if a.End.Before(b.End) {
+				return -1
+			}
+			return 1
+		}
+		if !a.Start.Equal(b.Start) {
+			if a.Start.Before(b.Start) {
+				return -1
+			}
+			return 1
+		}
+		return cmp.Compare(int(a.Id), int(b.Id))
+	})
 	return promises
+}
+
+func promiseOptimizeLocalConsumption(now time.Time, tree *AccountingTree, wallet *Wallet) {
+	if wallet == nil || wallet.Consumed <= 0 {
+		return
+	}
+
+	remaining := wallet.Consumed
+	for _, promise := range promiseActiveIncoming(now, tree, wallet.Id) {
+		if remaining <= 0 {
+			break
+		}
+		current := promiseActiveSelfCoverage(now, tree, promise)
+		if current < remaining {
+			selfNeed := remaining - current
+			selfNeed, _ = promiseGrowExisting(now, tree, promise, selfNeed, 0, map[WalletId]bool{})
+			if selfNeed > 0 {
+				selfNeed, _ = promiseCreateAllocations(now, tree, promise, selfNeed, 0, map[WalletId]bool{})
+			}
+		}
+		remaining -= min(remaining, promiseActiveSelfCoverage(now, tree, promise))
+	}
+
+	_, _ = usageRedistributeExisting(now, tree, wallet, wallet.Consumed)
+	promiseShrinkWallet(now, tree, wallet, wallet.Consumed)
+	walletReevaluateLock(now, tree, wallet)
+}
+
+func promiseActiveSelfCoverage(now time.Time, tree *AccountingTree, promise *Promise) int64 {
+	coverage := int64(0)
+	for _, allocation := range promiseAllocationsFor(now, tree, promise, true) {
+		if !tree.IsCapacityBased() || !allocation.Retired {
+			coverage += allocation.QuotaSelf
+		}
+	}
+	return coverage
 }
 
 func promiseAllocationsFor(now time.Time, tree *AccountingTree, promise *Promise, activeOnly bool) []*Allocation {
@@ -328,7 +378,10 @@ func promiseShrinkWallet(now time.Time, tree *AccountingTree, wallet *Wallet, re
 		}
 		oldTotal := allocation.QuotaSelf + allocation.QuotaChildren
 		oldSelf := allocation.QuotaSelf
-		newSelf := max(allocation.ConsumedSelf, allocation.QuotaSelf-min(excess, max(allocation.QuotaSelf-allocation.ConsumedSelf, 0)))
+		newSelf := max(
+			allocation.ConsumedSelf,
+			allocation.QuotaSelf-min(excess, max(allocation.QuotaSelf-allocation.ConsumedSelf, 0)),
+		)
 		allocationMutate(now, tree, allocation.Id, func(alloc *Allocation, parent util.Option[*Allocation]) {
 			alloc.QuotaSelf = newSelf
 			alloc.QuotaChildren = alloc.ReservedChildren
@@ -337,11 +390,11 @@ func promiseShrinkWallet(now time.Time, tree *AccountingTree, wallet *Wallet, re
 			}
 		})
 		coverage -= oldSelf - newSelf
-		promiseShrinkParent(now, tree, allocation)
+		promiseShrinkAncestors(now, tree, allocation)
 	}
 }
 
-func promiseShrinkParent(now time.Time, tree *AccountingTree, child *Allocation) {
+func promiseShrinkAncestors(now time.Time, tree *AccountingTree, child *Allocation) {
 	seenParents := map[AllocationId]bool{}
 	current := child
 	for current.Parent.Present {
@@ -377,7 +430,11 @@ func promiseGrowExisting(now time.Time, tree *AccountingTree, promise *Promise, 
 		if available <= allocation.QuotaSelf+allocation.QuotaChildren {
 			continue
 		}
-		growSelf, growChildren := promiseSplitNeed(min(selfNeed+childrenNeed, available-allocation.QuotaSelf-allocation.QuotaChildren), selfNeed, childrenNeed)
+		growSelf, growChildren := promiseSplitNeed(
+			min(selfNeed+childrenNeed, available-allocation.QuotaSelf-allocation.QuotaChildren),
+			selfNeed,
+			childrenNeed,
+		)
 		grown := promiseGrowAllocation(now, tree, allocation, growSelf, growChildren, seen)
 		selfGrown := min(growSelf, grown)
 		selfNeed -= selfGrown

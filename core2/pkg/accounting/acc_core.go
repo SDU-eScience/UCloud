@@ -99,8 +99,6 @@ type AccountingTree struct {
 
 	AllocationsById map[AllocationId]*Allocation
 	PromiseTree     PromiseTree
-
-	disableEvaluation bool
 }
 
 // IsCapacityBased reports whether the category represents point-in-time capacity rather than accumulated usage.
@@ -135,10 +133,10 @@ type Wallet struct {
 
 	LastSignificantUpdateAt time.Time
 
-	PromiseDemandEwma     int64
-	PromiseDemandObserved int64
-	PromiseDemandTrend    int64
-	PromiseTrendUpdatedAt time.Time
+	PromiseDemandEwma     int64     // TODO delete
+	PromiseDemandObserved int64     // TODO delete
+	PromiseDemandTrend    int64     // TODO delete
+	PromiseTrendUpdatedAt time.Time // TODO delete
 }
 
 type Allocation struct {
@@ -536,8 +534,23 @@ func allocationUpdatePromiseBacked(
 	promise.End = proposedEnd
 	promise.Quota = proposedQuota
 	promise.Dirty = true
+	for _, allocation := range promiseAllocationsFor(now, tree, promise, false) {
+		if start.Present && !allocation.Start.Equal(proposedStart) && !now.After(allocation.Start) {
+			allocationMutate(now, tree, allocation.Id, func(alloc *Allocation, parent util.Option[*Allocation]) {
+				alloc.Start = proposedStart
+			})
+			allocationClampChildrenToParentPeriod(now, tree, allocation.Id)
+		}
+		if end.Present && !allocation.End.Equal(proposedEnd) && !now.After(allocation.End) {
+			allocationMutate(now, tree, allocation.Id, func(alloc *Allocation, parent util.Option[*Allocation]) {
+				alloc.End = proposedEnd
+			})
+			allocationClampChildrenToParentPeriod(now, tree, allocation.Id)
+		}
+	}
 	if child := tree.WalletsById[promise.Child]; child != nil {
-		promiseReconcileWallet(now, tree, child, child.Consumed, 0, map[WalletId]bool{})
+		promiseReconcileWallet(now, tree, child, child.Consumed, promiseWalletRequiredChildren(now, tree, child), map[WalletId]bool{})
+		promiseOptimizeLocalConsumption(now, tree, child)
 	}
 
 	walletMarkSignificantUpdate(now, tree, tree.WalletsById[promise.Child])
@@ -553,6 +566,34 @@ func allocationUpdatePromiseBacked(
 	}
 
 	return nil
+}
+
+func allocationClampChildrenToParentPeriod(now time.Time, tree *AccountingTree, parentId AllocationId) {
+	parent := tree.AllocationsById[parentId]
+	if parent == nil {
+		return
+	}
+	for _, childId := range parent.Children {
+		child := tree.AllocationsById[childId]
+		if child == nil {
+			continue
+		}
+		newStart := child.Start
+		newEnd := child.End
+		if child.Start.Before(parent.Start) && !now.After(child.Start) {
+			newStart = parent.Start
+		}
+		if child.End.After(parent.End) && !now.After(child.End) {
+			newEnd = parent.End
+		}
+		if !newStart.Equal(child.Start) || !newEnd.Equal(child.End) {
+			allocationMutate(now, tree, childId, func(alloc *Allocation, parent util.Option[*Allocation]) {
+				alloc.Start = newStart
+				alloc.End = newEnd
+			})
+			allocationClampChildrenToParentPeriod(now, tree, childId)
+		}
+	}
 }
 
 // allocationUpdateChangelog formats the grant-facing audit text for manual promise allocation edits.
@@ -1119,7 +1160,7 @@ func usageRedistributeExisting(now time.Time, tree *AccountingTree, wallet *Wall
 				readOnly := tree.AllocationsById[id]
 				excess := max(readOnly.ConsumedSelf-readOnly.QuotaSelf, 0)
 				if isRetired {
-					excess = readOnly.ConsumedSelf
+					excess = readOnly.ConsumedSelf // TODO this is wrong in non-capacity? This should be 0 in that case.
 				}
 
 				removed := min(excess, consumedToRemove)
@@ -1154,6 +1195,7 @@ func UsageReport(now time.Time, request accapi.ReportUsageRequest) (success bool
 
 		lifecycleScan(now, tree)
 
+		// TODO WalletEnsure? WalletOWnerEnsure?
 		wallet := tree.WalletsByOwner[request.Owner.Reference()]
 		if wallet == nil {
 			return util.HttpErr(http.StatusNotFound, "unknown wallet")
@@ -1206,7 +1248,7 @@ func UsageReport(now time.Time, request accapi.ReportUsageRequest) (success bool
 				return nil
 			}
 
-			PromiseReconcile(now, tree, request.Owner, absoluteAmount)
+			PromiseReconcile(now, tree, request.Owner, absoluteAmount) // NOTE(Dan): This is needed.
 		}
 		return err
 	})

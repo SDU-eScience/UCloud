@@ -261,6 +261,111 @@ func TestWalletsBrowseTotalUsageIncludesRecursiveDescendantConsumption(t *testin
 	}
 }
 
+func TestWalletsBrowseUsageFollowsConcreteBackingInSharedDag(t *testing.T) {
+	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
+	e.add(lowAllocSpec{Name: "root-early", Wallet: "root", Start: 0, End: 10, Quota: 100, Self: 0, Children: 100})
+	e.add(lowAllocSpec{Name: "root-late", Wallet: "root", Start: 10, End: 20, Quota: 100, Self: 0, Children: 100})
+	rootToA := e.addPromise("root", "A", 0, 20, 100)
+	aToB := e.addPromise("A", "B", 0, 20, 60)
+	aToC := e.addPromise("A", "C", 0, 20, 40)
+	bToL := e.addPromise("B", "L", 0, 20, 60)
+	cToL := e.addPromise("C", "L", 0, 20, 40)
+	assertParentChain := func(allocation *Allocation, wallets ...string) {
+		t.Helper()
+		current := allocation
+		for _, wallet := range wallets {
+			if !current.Parent.Present {
+				t.Fatalf("allocation %d parent chain ended before wallet %s", current.Id, wallet)
+			}
+			parent := e.tree().AllocationsById[current.Parent.Value]
+			if parent == nil {
+				t.Fatalf("allocation %d has missing parent %d", current.Id, current.Parent.Value)
+			}
+			if parent.Wallet != e.wallet(wallet) {
+				t.Fatalf("allocation %d parent wallet = %d, want %s (%d)", current.Id, parent.Wallet, wallet, e.wallet(wallet))
+			}
+			current = parent
+		}
+	}
+
+	e.report(1, "L", 100)
+	bToLEarly := e.promiseHead(bToL, 1)
+	cToLEarly := e.promiseHead(cToL, 1)
+	assertParentChain(bToLEarly, "B", "A", "root")
+	assertParentChain(cToLEarly, "C", "A", "root")
+	if bToLEarly.ConsumedSelf != 60 || cToLEarly.ConsumedSelf != 40 {
+		t.Fatalf("early L split = %d/%d, want 60/40", bToLEarly.ConsumedSelf, cToLEarly.ConsumedSelf)
+	}
+
+	readWallet := func(at int, owner string, includeChildren bool) accapi.WalletV2 {
+		t.Helper()
+		wallets := WalletsBrowseOwnerAt(e.tm(at), util.OptValue(e.owner(owner)), WalletBrowseFilter{IncludeChildren: includeChildren})
+		if len(wallets) != 1 {
+			t.Fatalf("%s wallets = %d, want 1", owner, len(wallets))
+		}
+		return wallets[0]
+	}
+
+	assertWalletUsage := func(at int) {
+		t.Helper()
+		a := readWallet(at, "A", true)
+		if a.TotalUsage != 100 || a.LocalUsage != 0 || a.UiOnlyActiveUsage != 100 {
+			t.Fatalf("A usage at %d = total:%d local:%d active:%d, want 100/0/100", at, a.TotalUsage, a.LocalUsage, a.UiOnlyActiveUsage)
+		}
+		if len(a.Children) != 2 || a.Children[0].Group.Usage+a.Children[1].Group.Usage != 100 || a.Children[0].Group.UiOnlyActiveUsage+a.Children[1].Group.UiOnlyActiveUsage != 100 {
+			t.Fatalf("A child groups at %d = %#v, want usage/active usage sum 100", at, a.Children)
+		}
+
+		b := readWallet(at, "B", true)
+		if b.TotalUsage != 60 || b.LocalUsage != 0 || b.UiOnlyActiveUsage != 60 {
+			t.Fatalf("B usage at %d = total:%d local:%d active:%d, want 60/0/60", at, b.TotalUsage, b.LocalUsage, b.UiOnlyActiveUsage)
+		}
+		if len(b.Children) != 1 || b.Children[0].Group.Usage != 60 || b.Children[0].Group.UiOnlyActiveUsage != 60 {
+			t.Fatalf("B child groups at %d = %#v, want one child with usage/active usage 60", at, b.Children)
+		}
+
+		c := readWallet(at, "C", true)
+		if c.TotalUsage != 40 || c.LocalUsage != 0 || c.UiOnlyActiveUsage != 40 {
+			t.Fatalf("C usage at %d = total:%d local:%d active:%d, want 40/0/40", at, c.TotalUsage, c.LocalUsage, c.UiOnlyActiveUsage)
+		}
+		if len(c.Children) != 1 || c.Children[0].Group.Usage != 40 || c.Children[0].Group.UiOnlyActiveUsage != 40 {
+			t.Fatalf("C child groups at %d = %#v, want one child with usage/active usage 40", at, c.Children)
+		}
+
+		l := readWallet(at, "L", false)
+		if l.TotalUsage != 100 || l.LocalUsage != 100 || l.UiOnlyActiveUsage != 100 {
+			t.Fatalf("L usage at %d = total:%d local:%d active:%d, want 100/100/100", at, l.TotalUsage, l.LocalUsage, l.UiOnlyActiveUsage)
+		}
+	}
+
+	assertWalletUsage(1)
+
+	e.report(11, "L", 100)
+	if bToLEarly.ConsumedSelf != 0 || cToLEarly.ConsumedSelf != 0 {
+		t.Fatalf("retired early L split = %d/%d, want 0/0", bToLEarly.ConsumedSelf, cToLEarly.ConsumedSelf)
+	}
+	if !bToLEarly.Retired || !cToLEarly.Retired {
+		t.Fatalf("early L allocations retired = %v/%v, want true/true", bToLEarly.Retired, cToLEarly.Retired)
+	}
+	bToLLate := e.promiseHead(bToL, 11)
+	cToLLate := e.promiseHead(cToL, 11)
+	assertParentChain(bToLLate, "B", "A", "root")
+	assertParentChain(cToLLate, "C", "A", "root")
+	if bToLLate.ConsumedSelf != 60 || cToLLate.ConsumedSelf != 40 {
+		t.Fatalf("late L split = %d/%d, want 60/40", bToLLate.ConsumedSelf, cToLLate.ConsumedSelf)
+	}
+	if bToLLate.Parent.Value == bToLEarly.Parent.Value || cToLLate.Parent.Value == cToLEarly.Parent.Value {
+		t.Fatalf("late L allocations reused retired parents: B parent %d/%d C parent %d/%d", bToLLate.Parent.Value, bToLEarly.Parent.Value, cToLLate.Parent.Value, cToLEarly.Parent.Value)
+	}
+
+	for _, promise := range []PromiseId{rootToA, aToB, aToC, bToL, cToL} {
+		if got := len(e.promiseAllocations(promise)); got < 2 {
+			t.Fatalf("promise %d allocations = %d, want at least 2 across early/late backing periods", promise, got)
+		}
+	}
+	assertWalletUsage(11)
+}
+
 func TestWalletsBrowseReadSidePromiseCycleTerminatesAndDoesNotDoubleCount(t *testing.T) {
 	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
 	e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 10, Quota: 100, Self: 0, Children: 100})
@@ -304,7 +409,10 @@ func TestWalletReevaluateLockMarksSignificantUpdates(t *testing.T) {
 		t.Fatalf("locked significant update = %s, want %s", wallet.LastSignificantUpdateAt, e.tm(1))
 	}
 
-	e.addPromise("root", "child", 0, 10, 100)
+	_, err := PromiseCreate(e.tm(2), e.categoryId, e.wallet("root"), e.wallet("child"), e.tm(0), e.tm(10), 100, util.OptNone[GrantId]())
+	if err != nil {
+		t.Fatalf("create second promise: %v", err)
+	}
 	walletReevaluateLock(e.tm(2), e.tree(), wallet)
 	if wallet.Locked {
 		t.Fatalf("wallet did not unlock after more promised quota became available")
@@ -482,8 +590,8 @@ func TestAllocationUpdatePromiseBackedAllocationUpdatesPromise(t *testing.T) {
 	if !promise.End.Equal(e.tm(8)) {
 		t.Fatalf("promise end = %s, want %s", promise.End, e.tm(8))
 	}
-	if !updatedHead.End.Equal(e.tm(10)) {
-		t.Fatalf("materialized end = %s, want unchanged %s", updatedHead.End, e.tm(10))
+	if !updatedHead.End.Equal(e.tm(8)) {
+		t.Fatalf("materialized end = %s, want %s", updatedHead.End, e.tm(8))
 	}
 
 	_, _, err = AllocationUpdate(e.tm(3), e.categoryId, head.Id, util.OptValue[int64](30), util.OptNone[time.Time](), util.OptNone[time.Time]())

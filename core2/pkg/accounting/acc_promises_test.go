@@ -5,12 +5,23 @@ import (
 	"time"
 
 	accapi "ucloud.dk/shared/pkg/accounting"
+	"ucloud.dk/shared/pkg/assert"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
 
 func (e *lowTestEnv) addPromise(parent string, child string, start int, end int, quota int64) PromiseId {
+	e.t.Helper()
+	id, err := PromiseCreate(e.tm(start), e.categoryId, e.wallet(parent), e.wallet(child), e.tm(start), e.tm(end), quota, util.OptNone[GrantId]())
+	if err != nil {
+		e.t.Fatalf("create promise %s -> %s: %v", parent, child, err)
+	}
+	e.assertValid()
+	return id
+}
+
+func (e *lowTestEnv) addPromiseRaw(parent string, child string, start int, end int, quota int64) PromiseId {
 	e.t.Helper()
 	parentWallet := e.wallet(parent)
 	childWallet := e.wallet(child)
@@ -494,6 +505,125 @@ func TestPromiseReconcilePreservesChildSubtreeWhileGrowingLocalUse(t *testing.T)
 	e.assertValid()
 }
 
+func TestPromiseOptimizeLocalConsumptionPreservesConsumedChildSubtree(t *testing.T) {
+	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
+	e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 20, Quota: 120, Self: 0, Children: 120})
+	longParentPromise := e.addPromise("root", "project", 0, 20, 120)
+	childPromise := e.addPromise("project", "user", 0, 20, 60)
+
+	e.report(1, "user", 60)
+	e.report(1, "project", 30)
+
+	longParentHead := e.promiseHead(longParentPromise, 1)
+	assertPromiseAllocation(t, longParentHead, 30, 60, e.tm(1), e.tm(20))
+	if longParentHead.ConsumedSelf != 30 || longParentHead.ReservedChildren != 60 {
+		t.Fatalf("long parent before optimize = consumed:%d reserved:%d, want 30/60", longParentHead.ConsumedSelf, longParentHead.ReservedChildren)
+	}
+	childHead := e.promiseHead(childPromise, 1)
+	assertPromiseAllocation(t, childHead, 60, 0, e.tm(1), e.tm(20))
+	if childHead.ConsumedSelf != 60 {
+		t.Fatalf("child consumed before optimize = %d, want 60", childHead.ConsumedSelf)
+	}
+
+	shortParentPromise, err := PromiseCreate(e.tm(2), e.categoryId, e.wallet("root"), e.wallet("project"), e.tm(2), e.tm(5), 120, util.OptNone[GrantId]())
+	if err != nil {
+		t.Fatalf("create short parent promise: %v", err)
+	}
+
+	longParentHead = e.promiseHead(longParentPromise, 2)
+	assertPromiseAllocation(t, longParentHead, 0, 60, e.tm(1), e.tm(20))
+	if longParentHead.ConsumedSelf != 0 || longParentHead.ReservedChildren != 60 {
+		t.Fatalf("long parent after optimize = consumed:%d reserved:%d, want 0/60", longParentHead.ConsumedSelf, longParentHead.ReservedChildren)
+	}
+	shortParentHead := e.promiseHead(shortParentPromise, 2)
+	assertPromiseAllocation(t, shortParentHead, 30, 0, e.tm(2), e.tm(5))
+	if shortParentHead.ConsumedSelf != 30 || shortParentHead.ReservedChildren != 0 {
+		t.Fatalf("short parent after optimize = consumed:%d reserved:%d, want 30/0", shortParentHead.ConsumedSelf, shortParentHead.ReservedChildren)
+	}
+	childHead = e.promiseHead(childPromise, 2)
+	assertPromiseAllocation(t, childHead, 60, 0, e.tm(1), e.tm(20))
+	if childHead.ConsumedSelf != 60 {
+		t.Fatalf("child consumed after optimize = %d, want 60", childHead.ConsumedSelf)
+	}
+	e.assertAllocation("root", 0, 120, 0, 90)
+	e.assertWalletConsumed("project", 30)
+	e.assertWalletConsumed("user", 60)
+	e.assertValid()
+}
+
+func TestPromiseUpdatePeriodOptimizesLocalConsumption(t *testing.T) {
+	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
+	e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 30, Quota: 1_000, Self: 0, Children: 1_000})
+	first := e.addPromise("root", "leaf", 0, 20, 200)
+	second := e.addPromise("root", "leaf", 0, 30, 500)
+
+	e.report(1, "leaf", 400)
+	firstHead := e.promiseHead(first, 1)
+	secondHead := e.promiseHead(second, 1)
+	assertPromiseAllocation(t, firstHead, 200, 0, e.tm(1), e.tm(20))
+	assertPromiseAllocation(t, secondHead, 200, 0, e.tm(1), e.tm(30))
+	if firstHead.ConsumedSelf != 200 || secondHead.ConsumedSelf != 200 {
+		t.Fatalf("initial consumption = %d/%d, want 200/200", firstHead.ConsumedSelf, secondHead.ConsumedSelf)
+	}
+
+	_, _, err := AllocationUpdate(e.tm(2), e.categoryId, secondHead.Id, util.OptNone[int64](), util.OptNone[time.Time](), util.OptValue(e.tm(5)))
+	if err != nil {
+		t.Fatalf("update promise-backed allocation period: %v", err)
+	}
+
+	firstHead = e.promiseHead(first, 2)
+	secondHead = e.promiseHead(second, 2)
+	assertPromiseAllocation(t, firstHead, 0, 0, e.tm(1), e.tm(20))
+	assertPromiseAllocation(t, secondHead, 400, 0, e.tm(1), e.tm(5))
+	if firstHead.ConsumedSelf != 0 || secondHead.ConsumedSelf != 400 {
+		t.Fatalf("rebalanced consumption = %d/%d, want 0/400", firstHead.ConsumedSelf, secondHead.ConsumedSelf)
+	}
+	e.assertAllocation("root", 0, 1_000, 0, 400)
+	e.assertWalletConsumed("leaf", 400)
+	e.assertValid()
+}
+
+func TestPromiseUpdatePeriodOptimizationPreservesConsumedChildSubPromise(t *testing.T) {
+	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
+	e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 30, Quota: 200, Self: 0, Children: 200})
+	parentPromise := e.addPromise("root", "project", 0, 30, 120)
+	childPromise := e.addPromise("project", "user", 0, 30, 60)
+
+	e.report(1, "user", 60)
+	e.report(1, "project", 30)
+
+	parentHead := e.promiseHead(parentPromise, 1)
+	assertPromiseAllocation(t, parentHead, 30, 60, e.tm(1), e.tm(30))
+	if parentHead.ConsumedSelf != 30 || parentHead.ReservedChildren != 60 {
+		t.Fatalf("parent before update = consumed:%d reserved:%d, want 30/60", parentHead.ConsumedSelf, parentHead.ReservedChildren)
+	}
+	childHead := e.promiseHead(childPromise, 1)
+	assertPromiseAllocation(t, childHead, 60, 0, e.tm(1), e.tm(30))
+	if childHead.ConsumedSelf != 60 {
+		t.Fatalf("child before update consumed = %d, want 60", childHead.ConsumedSelf)
+	}
+
+	_, _, err := AllocationUpdate(e.tm(2), e.categoryId, parentHead.Id, util.OptNone[int64](), util.OptNone[time.Time](), util.OptValue(e.tm(10)))
+	if err != nil {
+		t.Fatalf("update parent promise period: %v", err)
+	}
+
+	parentHead = e.promiseHead(parentPromise, 2)
+	assertPromiseAllocation(t, parentHead, 30, 60, e.tm(1), e.tm(10))
+	if parentHead.ConsumedSelf != 30 || parentHead.ReservedChildren != 60 {
+		t.Fatalf("parent after update = consumed:%d reserved:%d, want 30/60", parentHead.ConsumedSelf, parentHead.ReservedChildren)
+	}
+	childHead = e.promiseHead(childPromise, 2)
+	assertPromiseAllocation(t, childHead, 60, 0, e.tm(1), e.tm(10))
+	if childHead.ConsumedSelf != 60 {
+		t.Fatalf("child after update consumed = %d, want 60", childHead.ConsumedSelf)
+	}
+	e.assertAllocation("root", 0, 200, 0, 90)
+	e.assertWalletConsumed("project", 30)
+	e.assertWalletConsumed("user", 60)
+	e.assertValid()
+}
+
 func TestPromiseCreateUnlocksWalletWithLatentCapacity(t *testing.T) {
 	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
 	e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 10, Quota: 1_000, Self: 0, Children: 1_000})
@@ -692,7 +822,7 @@ func TestPromiseReportUsageNewPromiseOnlyMaterializesResidualDemand(t *testing.T
 			e.addPromise("root", "child", 0, 10, 150_000)
 
 			e.report(1, "child", 450_000)
-			newPromise := e.addPromise("root", "child", 0, 10, 50_000)
+			newPromise := e.addPromiseRaw("root", "child", 0, 10, 50_000)
 			e.report(2, "child", 451_000)
 
 			newHead := e.promiseHead(newPromise, 2)
@@ -949,6 +1079,287 @@ func TestPromiseQuotaCountsRetiredMaterializationsByAccountingMode(t *testing.T)
 			t.Fatalf("materialized quota = %d, want 80", got)
 		}
 	})
+}
+
+func TestPromiseCapacityRetirementMovesUsageToNextPromiseByPriority(t *testing.T) {
+	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
+	e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 100, Quota: 1_000, Self: 0, Children: 1_000})
+	e.addPromise("root", "P1", 0, 5, 1_000)
+	e.addPromise("root", "P2", 0, 10, 1_000)
+
+	leafPromise1 := e.addPromise("P1", "L", 0, 5, 300)
+	leafPromise2 := e.addPromise("P2", "L", 0, 10, 300)
+
+	e.report(1, "L", 300)
+	lp1Head := e.promiseHead(leafPromise1, 1)
+	assertPromiseAllocation(t, lp1Head, 300, 0, e.tm(1), e.tm(5))
+	if lp1Head.ConsumedSelf != 300 {
+		t.Fatalf("P1 consumed = %d, want 300", lp1Head.ConsumedSelf)
+	}
+
+	if got := len(e.promiseAllocations(leafPromise2)); got != 0 {
+		t.Fatalf("P2 allocations before P1 retires = %d, want 0", got)
+	}
+
+	e.report(6, "L", 250)
+
+	lp1Head = e.tree().AllocationsById[lp1Head.Id]
+	if lp1Head.ConsumedSelf != 0 {
+		t.Fatalf("retired P1 consumed = %d, want 0", lp1Head.ConsumedSelf)
+	}
+	if !lp1Head.Retired {
+		t.Fatal("retired lp1 head should be retired")
+	}
+
+	lp2Head := e.promiseHead(leafPromise2, 6)
+	assertPromiseAllocation(t, lp2Head, 250, 0, e.tm(6), e.tm(10))
+	if lp2Head.ConsumedSelf != 250 {
+		t.Fatalf("P2 consumed = %d, want 250", lp2Head.ConsumedSelf)
+	}
+	e.assertWalletConsumed("L", 250)
+	e.assertValid()
+
+	e.addPromise("root", "P1", 7, 20, 1_000)
+	leafPromise1 = e.addPromise("P1", "L", 7, 20, 1_000)
+	e.report(7, "L", 500)
+
+	lp1Head = e.promiseHead(leafPromise1, 7)
+	assertPromiseAllocation(t, lp1Head, 200, 0, e.tm(7), e.tm(20))
+	if lp1Head.ConsumedSelf != 200 {
+		t.Fatalf("P1 consumed = %d, want 200", lp1Head.ConsumedSelf)
+	}
+
+	lp2Head = e.promiseHead(leafPromise2, 6)
+	assertPromiseAllocation(t, lp2Head, 300, 0, e.tm(6), e.tm(10))
+	if lp2Head.ConsumedSelf != 300 {
+		t.Fatalf("P2 consumed = %d, want 300", lp2Head.ConsumedSelf)
+	}
+	e.assertWalletConsumed("L", 500)
+	e.assertValid()
+}
+
+func TestPromiseDiamondGraphMigratesUsageWhenIntermediateParentRetires(t *testing.T) {
+	root := "root"
+	p1 := "p1"
+	p2 := "p2"
+	l := "l"
+
+	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
+	assertParentChain := func(allocation *Allocation, wallets ...string) {
+		t.Helper()
+		current := allocation
+		for _, wallet := range wallets {
+			if !current.Parent.Present {
+				t.Fatalf("allocation %d parent chain ended before wallet %s", current.Id, wallet)
+			}
+			parent := e.tree().AllocationsById[current.Parent.Value]
+			if parent == nil {
+				t.Fatalf("allocation %d has missing parent %d", current.Id, current.Parent.Value)
+			}
+			if parent.Wallet != e.wallet(wallet) {
+				t.Fatalf("allocation %d parent wallet = %d, want %s (%d)", current.Id, parent.Wallet, wallet, e.wallet(wallet))
+			}
+			current = parent
+		}
+	}
+
+	e.add(lowAllocSpec{Name: root, Wallet: root, Start: 0, End: 100, Quota: 1_000, Self: 0, Children: 1_000})
+	rootToP1 := e.addPromise(root, p1, 0, 10, 1_000)
+	p1ToP2 := e.addPromise(p1, p2, 0, 10, 1_000)
+	rootToP2 := e.addPromise(root, p2, 0, 20, 1_000)
+	p1ToL := e.addPromise(p1, l, 0, 10, 200)
+	p2ToL := e.addPromise(p2, l, 0, 20, 500)
+
+	e.report(1, l, 500)
+
+	p1ToLHead := e.promiseHead(p1ToL, 1)
+	assertPromiseAllocation(t, p1ToLHead, 200, 0, e.tm(1), e.tm(10))
+	if p1ToLHead.ConsumedSelf != 200 {
+		t.Fatalf("L -> P1 consumed = %d, want 200", p1ToLHead.ConsumedSelf)
+	}
+	assertParentChain(p1ToLHead, p1, root)
+
+	p2ToLHead := e.promiseHead(p2ToL, 1)
+	assertPromiseAllocation(t, p2ToLHead, 300, 0, e.tm(1), e.tm(10))
+	if p2ToLHead.ConsumedSelf != 300 {
+		t.Fatalf("L -> P2 -> P1 consumed = %d, want 300", p2ToLHead.ConsumedSelf)
+	}
+	assertParentChain(p2ToLHead, p2, p1, root)
+
+	assertPromiseAllocation(t, e.promiseHead(rootToP1, 1), 0, 500, e.tm(1), e.tm(10))
+	assertPromiseAllocation(t, e.promiseHead(p1ToP2, 1), 0, 300, e.tm(1), e.tm(10))
+	if got := len(e.promiseAllocations(rootToP2)); got != 0 {
+		t.Fatalf("root -> P2 allocations before P1 retires = %d, want 0", got)
+	}
+	e.assertWalletConsumed(l, 500)
+	e.assertValid()
+
+	e.report(11, l, 500)
+
+	if p1ToLHead.ConsumedSelf != 0 {
+		t.Fatalf("retired L -> P1 consumed = %d, want 0", p1ToLHead.ConsumedSelf)
+	}
+	if p2ToLHead.ConsumedSelf != 0 {
+		t.Fatalf("retired L -> P2 -> P1 consumed = %d, want 0", p2ToLHead.ConsumedSelf)
+	}
+	p2ToLHead = e.promiseHead(p2ToL, 11)
+	assertPromiseAllocation(t, p2ToLHead, 500, 0, e.tm(11), e.tm(20))
+	if p2ToLHead.ConsumedSelf != 500 {
+		t.Fatalf("L -> P2 -> root consumed = %d, want 500", p2ToLHead.ConsumedSelf)
+	}
+	assertParentChain(p2ToLHead, p2, root)
+	assertPromiseAllocation(t, e.promiseHead(rootToP2, 11), 0, 500, e.tm(11), e.tm(20))
+	e.assertWalletConsumed(l, 500)
+	e.assertValid()
+}
+
+func TestBigGraphWhichHadProblems(t *testing.T) {
+	r := "root"
+	a1 := "a1"
+	a2 := "a2"
+	p1 := "p1"
+	p2 := "p2"
+
+	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
+	assertParentChain := func(allocation *Allocation, wallets ...string) {
+		t.Helper()
+		current := allocation
+		for _, wallet := range wallets {
+			if !current.Parent.Present {
+				t.Fatalf("allocation %d parent chain ended before wallet %s", current.Id, wallet)
+			}
+			parent := e.tree().AllocationsById[current.Parent.Value]
+			if parent == nil {
+				t.Fatalf("allocation %d has missing parent %d", current.Id, current.Parent.Value)
+			}
+			if parent.Wallet != e.wallet(wallet) {
+				t.Fatalf("allocation %d parent wallet = %d, want %s (%d)", current.Id, parent.Wallet, wallet, e.wallet(wallet))
+			}
+			current = parent
+		}
+	}
+
+	e.add(lowAllocSpec{Name: r, Wallet: r, Start: 0, End: 100, Quota: 10_000, Self: 0, Children: 10_000})
+
+	e.addPromise(r, a1, 0, 100, 5000)
+	e.addPromise(r, a2, 0, 100, 5000)
+
+	a1ToP1 := e.addPromise(a1, p1, 0, 100, 1500)
+
+	a2ToP1 := e.addPromise(a2, p1, 0, 100, 1500)
+
+	p1ToP2 := e.addPromise(p1, p2, 0, 100, 1000)
+	a2ToP2 := e.addPromise(a2, p2, 0, 100, 1000)
+
+	e.report(1, p2, 1500)
+	assertParentChain(e.promiseHead(p1ToP2, 1), p1, a1, r)
+	assert.Equal(t, 1000, e.promiseHead(p1ToP2, 1).ConsumedSelf)
+
+	assertParentChain(e.promiseHead(a2ToP2, 1), a2, r)
+	assert.Equal(t, 500, e.promiseHead(a2ToP2, 1).ConsumedSelf)
+
+	e.report(2, p1, 2000)
+	assertParentChain(e.promiseHead(a1ToP1, 2), a1, r)
+	assert.Equal(t, 500, e.promiseHead(a1ToP1, 2).ConsumedSelf)
+	assert.Equal(t, 1000, e.promiseHead(a1ToP1, 2).ReservedChildren)
+
+	assertParentChain(e.promiseHead(a2ToP1, 2), a2, r)
+	assert.Equal(t, 1500, e.promiseHead(a2ToP1, 2).ConsumedSelf)
+	assert.Equal(t, 0, e.promiseHead(a2ToP1, 2).ReservedChildren)
+
+	e.report(3, p2, 1750)
+	assertParentChain(e.promiseHead(p1ToP2, 3), p1, a1, r)
+	assert.Equal(t, 1000, e.promiseHead(p1ToP2, 3).ConsumedSelf)
+	assertParentChain(e.promiseHead(a2ToP2, 3), a2, r)
+	assert.Equal(t, 750, e.promiseHead(a2ToP2, 3).ConsumedSelf)
+	assert.Equal(t, 1500, e.promiseHead(a2ToP1, 3).ConsumedSelf)
+
+	e.assertValid()
+	e.assertWalletConsumed(p2, 1750)
+	e.assertWalletConsumed(p1, 2000)
+}
+
+func TestBigGraphWhichHadProblemsPart2(t *testing.T) {
+	r := "root"
+	a1 := "a1"
+	a2 := "a2"
+	p1 := "p1"
+	p2 := "p2"
+
+	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
+	assertParentChain := func(allocation *Allocation, wallets ...string) {
+		t.Helper()
+		current := allocation
+		for _, wallet := range wallets {
+			if !current.Parent.Present {
+				t.Fatalf("allocation %d parent chain ended before wallet %s", current.Id, wallet)
+			}
+			parent := e.tree().AllocationsById[current.Parent.Value]
+			if parent == nil {
+				t.Fatalf("allocation %d has missing parent %d", current.Id, current.Parent.Value)
+			}
+			if parent.Wallet != e.wallet(wallet) {
+				t.Fatalf("allocation %d parent wallet = %d, want %s (%d)", current.Id, parent.Wallet, wallet, e.wallet(wallet))
+			}
+			current = parent
+		}
+	}
+
+	e.add(lowAllocSpec{Name: r, Wallet: r, Start: 0, End: 100, Quota: 10_000, Self: 0, Children: 10_000})
+
+	e.addPromise(r, a1, 0, 100, 5000)
+	e.addPromise(r, a2, 0, 100, 5000)
+
+	a1ToP1 := e.addPromise(a1, p1, 0, 100, 1500)
+
+	a2ToP1 := e.addPromise(a2, p1, 0, 100, 1500)
+
+	p1ToP2 := e.addPromise(p1, p2, 0, 100, 1000)
+	a2ToP2 := e.addPromise(a2, p2, 0, 100, 1000)
+
+	e.report(1, p1, 2000)
+	assertParentChain(e.promiseHead(a1ToP1, 1), a1, r)
+	assert.Equal(t, 1500, e.promiseHead(a1ToP1, 1).ConsumedSelf)
+	assert.Equal(t, 0, e.promiseHead(a1ToP1, 1).ReservedChildren)
+	assertParentChain(e.promiseHead(a2ToP1, 1), a2, r)
+	assert.Equal(t, 500, e.promiseHead(a2ToP1, 1).ConsumedSelf)
+	assert.Equal(t, 0, e.promiseHead(a2ToP1, 1).ReservedChildren)
+
+	e.report(2, p2, 1500)
+	assertParentChain(e.promiseHead(p1ToP2, 2), p1, a2, r)
+	assert.Equal(t, 1000, e.promiseHead(p1ToP2, 2).ConsumedSelf)
+	assertParentChain(e.promiseHead(a2ToP2, 2), a2, r)
+	assert.Equal(t, 500, e.promiseHead(a2ToP2, 2).ConsumedSelf)
+
+	e.report(3, p2, 1750)
+	assertParentChain(e.promiseHead(p1ToP2, 3), p1, a2, r)
+	assert.Equal(t, 1000, e.promiseHead(p1ToP2, 3).ConsumedSelf)
+	assertParentChain(e.promiseHead(a2ToP2, 3), a2, r)
+	assert.Equal(t, 750, e.promiseHead(a2ToP2, 3).ConsumedSelf)
+
+	e.assertValid()
+	e.assertWalletConsumed(p2, 1750)
+	e.assertWalletConsumed(p1, 2000)
+}
+
+func TestHigherPriorityPromiseGetsRebalancedUsage(t *testing.T) {
+	r := "root"
+	l := "l"
+
+	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
+	e.add(lowAllocSpec{Name: r, Wallet: r, Start: 0, End: 100, Quota: 10_000, Self: 0, Children: 10_000})
+
+	p1 := e.addPromise(r, l, 0, 10, 500)
+	e.report(1, l, 200)
+
+	assert.Equal(t, 200, e.promiseHead(p1, 1).ConsumedSelf)
+
+	p2, err := PromiseCreate(e.tm(2), e.categoryId, e.wallet(r), e.wallet(l), e.tm(2), e.tm(5), 500, util.OptNone[GrantId]())
+	if err != nil {
+		t.Fatalf("create high-priority promise: %v", err)
+	}
+	assert.Equal(t, 0, e.promiseHead(p1, 4).ConsumedSelf)
+	assert.Equal(t, 200, e.promiseHead(p2, 4).ConsumedSelf)
 }
 
 func TestPromiseReconcileOwnerSkipUsesAccountingMode(t *testing.T) {
