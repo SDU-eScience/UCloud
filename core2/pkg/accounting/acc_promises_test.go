@@ -907,6 +907,48 @@ func TestPromiseReportUsageOverbookedBelowPromiseQuotaLocksWallet(t *testing.T) 
 	}
 }
 
+func TestPromiseReportUsageFullyOverbookedMaterializesZeroQuotaAllocation(t *testing.T) {
+	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
+	e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 10, Quota: 100, Self: 0, Children: 100})
+	aPromise := e.addPromise("root", "a", 0, 10, 100)
+	bPromise := e.addPromise("root", "b", 0, 10, 100)
+
+	e.report(1, "a", 100)
+	if success := e.report(2, "b", 1); success {
+		t.Fatalf("b report succeeded, want wallet locked after reporting against exhausted parent capacity")
+	}
+
+	aHead := e.promiseHead(aPromise, 2)
+	bHead := e.promiseHead(bPromise, 2)
+	assertPromiseAllocation(t, aHead, 100, 0, e.tm(1), e.tm(10))
+	assertPromiseAllocation(t, bHead, 0, 0, e.tm(2), e.tm(10))
+	if bHead.ConsumedSelf != 1 {
+		t.Fatalf("fully overbooked b consumption = %d, want 1", bHead.ConsumedSelf)
+	}
+	e.assertAllocation("root", 0, 100, 0, 100)
+	e.assertWalletConsumed("a", 100)
+	e.assertWalletConsumed("b", 1)
+
+	bWallet := e.tree().WalletsById[e.wallet("b")]
+	if bWallet == nil || !bWallet.Locked {
+		t.Fatalf("b wallet locked = %v, want true", bWallet != nil && bWallet.Locked)
+	}
+}
+
+func TestPromiseReportUsageZeroForUnmaterializedPromiseSucceeds(t *testing.T) {
+	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
+	e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 10, Quota: 100, Self: 0, Children: 100})
+	promise := e.addPromise("root", "child", 0, 10, 100)
+
+	if success := e.report(1, "child", 0); !success {
+		t.Fatalf("zero usage report failed, want success")
+	}
+	if got := len(e.promiseAllocations(promise)); got != 0 {
+		t.Fatalf("promise allocations = %d, want 0", got)
+	}
+	e.assertWalletConsumed("child", 0)
+}
+
 func TestPromiseReportUsageSingleL2ChildMultipleL1Parents(t *testing.T) {
 	e := newLowTestEnv(t, accapi.AccountingFrequencyOnce)
 	e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 10, Quota: 100, Self: 0, Children: 100})

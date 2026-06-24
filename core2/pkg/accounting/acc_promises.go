@@ -149,11 +149,7 @@ func PromiseReconcile(
 ) {
 	lifecycleScanEx(now, tree, nil)
 
-	// TODO walletownerensure?
-	wallet := tree.WalletsByOwner[owner.Reference()]
-	if wallet == nil {
-		return
-	}
+	wallet := walletEnsureEx(tree, owner)
 	minimumRequest = max(minimumRequest, 0)
 	if minimumRequest == 0 && promiseWalletCoverage(now, tree, wallet) == 0 {
 		return
@@ -451,7 +447,7 @@ func promiseCreateAllocations(now time.Time, tree *AccountingTree, promise *Prom
 			parents = promiseParentAllocations(now, tree, promise)
 		}
 	}
-	for _, parent := range parents {
+	for i, parent := range parents {
 		if selfNeed == 0 && childrenNeed == 0 {
 			break
 		}
@@ -464,10 +460,14 @@ func promiseCreateAllocations(now time.Time, tree *AccountingTree, promise *Prom
 		}
 		growSelf, growChildren := promiseSplitNeed(min(selfNeed+childrenNeed, available), selfNeed, childrenNeed)
 		grown := promiseExposeChildCapacity(now, tree, parent, growSelf+growChildren, seen)
-		if grown <= 0 {
-			continue
+		if grown > 0 {
+			growSelf, growChildren = promiseSplitNeed(min(grown, growSelf+growChildren), growSelf, growChildren)
+		} else {
+			if i+1 < len(parents) {
+				continue
+			}
+			growSelf, growChildren = 0, 0
 		}
-		growSelf, growChildren = promiseSplitNeed(min(grown, growSelf+growChildren), growSelf, growChildren)
 		start := maxTime(now, promise.Start, parent.Start)
 		end := minTime(promise.End, parent.End)
 		if !start.Before(end) {

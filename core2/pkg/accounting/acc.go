@@ -98,6 +98,10 @@ func initAccounting() {
 		var result []accapi.CheckProviderUsableResponse
 
 		for _, reqItem := range request.Items {
+			if !validateOwner(reqItem.Owner) {
+				return fndapi.BulkResponse[accapi.CheckProviderUsableResponse]{}, util.HttpErr(http.StatusBadRequest, "unknown owner specified")
+			}
+
 			resultItem, err := WalletsCheckProviderUsable(info.Actor, reqItem.Owner, reqItem.Category)
 			if err != nil {
 				return fndapi.BulkResponse[accapi.CheckProviderUsableResponse]{}, err

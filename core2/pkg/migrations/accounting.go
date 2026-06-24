@@ -235,10 +235,6 @@ func accountingV6() db.MigrationScript {
 						consumed bigint default 0 not null,
 						locked boolean default false not null,
 						last_significant_update_at timestamp with time zone default now() not null,
-						promise_demand_ewma int8 not null default 0,
-						promise_demand_observed int8 not null default 0,
-						promise_demand_trend int8 not null default 0,
-						promise_demand_updated_at timestamptz null default null,
 						low_balance_notified boolean default false not null,
 						unique(wallet_owner, product_category)
 					)
@@ -292,10 +288,9 @@ func accountingV6() db.MigrationScript {
 				tx,
 				`
 					insert into accounting.wallets_acc2(id, wallet_owner, product_category, consumed,
-						locked, last_significant_update_at, promise_demand_ewma, promise_demand_observed,
-						promise_demand_trend, promise_demand_updated_at, low_balance_notified)
+						locked, last_significant_update_at, low_balance_notified)
 					select id, wallet_owner, product_category, local_usage, was_locked,
-						last_significant_update_at, 0, 0, 0, null, low_balance_notified
+						last_significant_update_at, low_balance_notified
 					from accounting.wallets_v2;
 			    `,
 				db.Params{},

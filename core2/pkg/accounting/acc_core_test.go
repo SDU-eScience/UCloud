@@ -558,13 +558,6 @@ func TestLowLevelAllocationUpdateValidationAndReservations(t *testing.T) {
 			},
 		},
 		{
-			name:  "move started start rejected",
-			setup: func(e *lowTestEnv) { e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 10, Quota: 100}) },
-			update: func(e *lowTestEnv) {
-				e.update(1, "root", util.OptNone[int64](), util.OptValue(2), util.OptNone[int](), http.StatusForbidden)
-			},
-		},
-		{
 			name:  "move retired end rejected",
 			setup: func(e *lowTestEnv) { e.add(lowAllocSpec{Name: "root", Wallet: "root", Start: 0, End: 10, Quota: 100}) },
 			update: func(e *lowTestEnv) {

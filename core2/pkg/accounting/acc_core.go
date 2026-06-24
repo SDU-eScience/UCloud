@@ -132,11 +132,6 @@ type Wallet struct {
 	Dirty       bool
 
 	LastSignificantUpdateAt time.Time
-
-	PromiseDemandEwma     int64     // TODO delete
-	PromiseDemandObserved int64     // TODO delete
-	PromiseDemandTrend    int64     // TODO delete
-	PromiseTrendUpdatedAt time.Time // TODO delete
 }
 
 type Allocation struct {
@@ -439,7 +434,7 @@ func AllocationUpdate(
 		}
 
 		if start.Present && !proposedStart.Equal(alloc.Start) && now.After(alloc.Start) {
-			return util.HttpErr(http.StatusForbidden, "cannot change the starting time of an allocation which has already started")
+			proposedStart = alloc.Start
 		}
 
 		if end.Present && !proposedEnd.Equal(alloc.End) && now.After(alloc.End) {
@@ -521,7 +516,7 @@ func allocationUpdatePromiseBacked(
 		return util.HttpErr(http.StatusBadRequest, "quota must not be negative")
 	}
 	if start.Present && !proposedStart.Equal(promise.Start) && now.After(promise.Start) {
-		return util.HttpErr(http.StatusForbidden, "cannot change the starting time of a promise which has already started")
+		proposedStart = promise.Start
 	}
 	if end.Present && !proposedEnd.Equal(promise.End) && now.After(promise.End) {
 		return util.HttpErr(http.StatusForbidden, "cannot change the ending time of a promise which has already ended")
@@ -1038,7 +1033,10 @@ func treeMutate(category accapi.ProductCategoryIdV2, fn func(tree *AccountingTre
 
 func usageRedistributeExisting(now time.Time, tree *AccountingTree, wallet *Wallet, absoluteAmount int64) (bool, *util.HttpError) {
 	if len(wallet.Allocations) == 0 {
-		return false, util.HttpErr(http.StatusBadRequest, "this owner does not have any such resources")
+		if absoluteAmount == 0 && len(promiseActiveIncoming(now, tree, wallet.Id)) > 0 {
+			return true, nil
+		}
+		return false, util.HttpErr(http.StatusBadRequest, "this owner does not have any such resources (%v / %v)", wallet.Owner.Reference(), wallet.Category)
 	}
 
 	retiredAmount := int64(0)
@@ -1195,11 +1193,7 @@ func UsageReport(now time.Time, request accapi.ReportUsageRequest) (success bool
 
 		lifecycleScan(now, tree)
 
-		// TODO WalletEnsure? WalletOWnerEnsure?
-		wallet := tree.WalletsByOwner[request.Owner.Reference()]
-		if wallet == nil {
-			return util.HttpErr(http.StatusNotFound, "unknown wallet")
-		}
+		wallet := walletEnsureEx(tree, request.Owner)
 
 		{
 			var absoluteAmount int64

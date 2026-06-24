@@ -100,10 +100,6 @@ func accountingLoad() {
 			Consumed                int64
 			Locked                  bool
 			LastSignificantUpdateAt time.Time
-			PromiseDemandEwma       int64
-			PromiseDemandObserved   int64
-			PromiseDemandTrend      int64
-			PromiseDemandUpdatedAt  sql.Null[time.Time]
 			LowBalanceNotified      bool
 		}](
 			tx,
@@ -111,8 +107,7 @@ func accountingLoad() {
 				select w.id, wallet_owner,
 					pc.category as product_category_name, pc.provider as product_category_provider,
 					consumed, locked, last_significant_update_at,
-					promise_demand_ewma, promise_demand_observed, promise_demand_trend,
-					promise_demand_updated_at, low_balance_notified
+					low_balance_notified
 				from
 					accounting.wallets_acc2 w
 					join accounting.product_categories pc on w.product_category = pc.id
@@ -144,10 +139,6 @@ func accountingLoad() {
 					OwnerId:                 owner.Id,
 					Category:                category.ToId(),
 					LastSignificantUpdateAt: row.LastSignificantUpdateAt,
-					PromiseDemandEwma:       row.PromiseDemandEwma,
-					PromiseDemandObserved:   row.PromiseDemandObserved,
-					PromiseDemandTrend:      row.PromiseDemandTrend,
-					PromiseTrendUpdatedAt:   util.SqlNullToOpt(row.PromiseDemandUpdatedAt).GetOrDefault(time.Time{}),
 				}
 
 				tree.WalletsByOwner[w.Owner.Reference()] = w
@@ -504,21 +495,15 @@ func accountingPersist() {
 				if !wallet.Dirty {
 					continue
 				}
-				trendUpdatedAt := sql.Null[time.Time]{}
-				if !wallet.PromiseTrendUpdatedAt.IsZero() {
-					trendUpdatedAt = sql.Null[time.Time]{Valid: true, V: wallet.PromiseTrendUpdatedAt}
-				}
 				db.BatchExec(
 					b,
 					`
 					insert into accounting.wallets_acc2(
 						id, wallet_owner, product_category, consumed, locked, last_significant_update_at,
-						promise_demand_ewma, promise_demand_observed, promise_demand_trend,
-						promise_demand_updated_at, low_balance_notified
+						low_balance_notified
 					)
 					select :id, wo.id, pc.id, :consumed, :locked, :last_significant_update_at,
-						:promise_demand_ewma, :promise_demand_observed, :promise_demand_trend,
-						:promise_demand_updated_at, false
+						false
 					from accounting.wallet_owner wo, accounting.product_categories pc
 					where coalesce(wo.username, wo.project_id) = :wallet_owner
 						and pc.category = :category
@@ -542,10 +527,6 @@ func accountingPersist() {
 						"consumed":                   wallet.Consumed,
 						"locked":                     wallet.Locked,
 						"last_significant_update_at": wallet.LastSignificantUpdateAt,
-						"promise_demand_ewma":        wallet.PromiseDemandEwma,
-						"promise_demand_observed":    wallet.PromiseDemandObserved,
-						"promise_demand_trend":       wallet.PromiseDemandTrend,
-						"promise_demand_updated_at":  trendUpdatedAt,
 					},
 				)
 			}
