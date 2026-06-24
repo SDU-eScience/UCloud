@@ -126,7 +126,8 @@ const Allocations: React.FunctionComponent = () => {
             structured: {
                 existingProject: [],
                 newProject: [],
-                personalProject: []
+                personalProject: [],
+                revisionNumber: -1
             }
         }
     });
