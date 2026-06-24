@@ -347,9 +347,9 @@ export interface TemplateStructured {
 }
 
 export enum TemplateKey {
-    personalProject = "personalProject",
-    newProject = "newProject",
-    existingProject = "existingProject",
+    PersonalProject = "personalProject",
+    NewProject = "newProject",
+    ExistingProject = "existingProject",
 }
 
 export interface Templates {
