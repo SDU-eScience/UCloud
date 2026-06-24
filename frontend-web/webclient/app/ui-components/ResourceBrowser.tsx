@@ -3709,7 +3709,7 @@ export function resourceCreationWithProductSelector<T>(
                 },
                 ""
             );
-        } else if (["LICENSE", "NETWORK_IP"].includes(type)) {
+        } else if (["LICENSE", "INFERENCE", "NETWORK_IP"].includes(type)) {
             browser.removeEntryFromCurrentPage(it => it === dummyEntry);
             onCreate(product);
         } else if (type === "COMPUTE") {
@@ -3939,4 +3939,3 @@ export function favoriteRowIcon(row: ResourceBrowserRow) {
     }
     return favoriteIcon;
 }
-

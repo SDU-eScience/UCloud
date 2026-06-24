@@ -38,4 +38,5 @@ func Init() {
 	db.AddMigration(k8sV2())
 	db.AddMigration(inferenceV2())
 	db.AddMigration(apmEventsV3())
+	db.AddMigration(inferenceV3())
 }

@@ -21,8 +21,8 @@ import {doNothing, removeTrailingSlash} from "@/UtilityFunctions";
 import {openPlayground} from "./api";
 import {getParentPath} from "@/Utilities/FileUtilities";
 import {ProjectSwitcher} from "@/Project/ProjectSwitcher";
-import {useProject} from "@/Project/cache";
 import {useProjectId} from "@/Project/Api";
+import AppRoutes from "@/Routes";
 
 type PlaygroundSession = {
     connectTo: string;

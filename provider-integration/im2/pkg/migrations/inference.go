@@ -44,3 +44,29 @@ func inferenceV2() db.MigrationScript {
 		},
 	}
 }
+
+func inferenceV3() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "inferenceV3",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					create table inference_model(
+						name text primary key,
+						title text not null,
+						capabilities jsonb not null,
+						price_cached_input int not null,
+						price_input int not null,
+						price_output int not null,
+						inference_endpoint_path text not null,
+						inference_endpoint_model text not null,
+						public bool not null,
+						available_to jsonb not null
+					)
+				`,
+				db.Params{},
+			)
+		},
+	}
+}

@@ -59,7 +59,7 @@ import ResourceUsage from "@/Accounting/UsageCore2";
 import ResourceAllocations from "@/Accounting/Allocations";
 import Connection from "@/Providers/Connection";
 import PrivateNetworksRouter from "@/Applications/PrivateNetwork/Router";
-import InferencePlayground from "@/Inference/Playground";
+import InferenceRouter from "@/Inference/Router";
 
 import {Sidebar} from "@/ui-components/Sidebar";
 import Uploader from "@/Files/Uploader";
@@ -176,8 +176,8 @@ const Core = (): React.ReactNode => (
                     {!inDevEnvironment() ? null : <Route path={"/playground/demo"} element={<Demo />} />}
                     {!inDevEnvironment() ? null : <Route path={"/playground/lag"} element={<LagTest />} />}
 
-                    <Route path={AppRoutes.inference.playground()}
-                           element={React.createElement(requireAuth(InferencePlayground))} />
+                    <Route path="/inference/*"
+                           element={React.createElement(requireAuth(InferenceRouter))} />
 
                     <Route path={AppRoutes.admin.userCreation()}
                            element={React.createElement(requireAuth(UserCreation))} />

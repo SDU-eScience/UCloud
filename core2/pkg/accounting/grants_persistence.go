@@ -242,17 +242,23 @@ func grantsLoad(id accGrantId, prefetchHint []accGrantId) {
 			}
 
 			if currentRevision.Document.Form.Type == accapi.FormTypePlainText {
-				currentRevision.Document.Form.Fields = accapi.ParseAnswerFormFields(revision.Form)
+				currentRevision.Document.Form.AnswerForms = accapi.ParseToAnswerForms(revision.Form)
 				currentRevision.Document.Form.Type = accapi.FormTypeStructured
 			} else if currentRevision.Document.Form.Type == accapi.FormTypeStructured {
 				jsonStr := currentRevision.Document.Form.Text
-				var fields []accapi.AnswerFieldForm
-				err := json.Unmarshal([]byte(jsonStr), &fields)
+				var answerForms = []accapi.AnswerForm{
+					{
+						AllocatorId:            "",
+						AnswerFields:           make([]accapi.AnswerFieldForm, 0),
+						TemplateRevisionNumber: -1,
+					},
+				}
+
+				err := json.Unmarshal([]byte(jsonStr), &answerForms)
 				if err != nil {
 					log.Warn("Failed to parse structured form: %s", err)
-					fields = make([]accapi.AnswerFieldForm, 0)
 				}
-				currentRevision.Document.Form.Fields = fields
+				currentRevision.Document.Form.AnswerForms = answerForms
 			}
 			app.Status.Revisions = append(app.Status.Revisions, currentRevision)
 
@@ -441,7 +447,7 @@ func deserializeFormFields(raw string) ([]accapi.FormField, error) {
 		return make([]accapi.FormField, 0), nil
 	}
 
-	var fields []accapi.FormField
+	fields := make([]accapi.FormField, 0)
 	err := json.Unmarshal([]byte(raw), &fields)
 	if err != nil {
 		return make([]accapi.FormField, 0), err
@@ -461,11 +467,14 @@ func grantsLoadSettings() {
 			PersonalProject string
 			ExistingProject string
 			NewProject      string
+			RevisionNumber  int
 		}](
 			tx,
 			`
-				select t.project_id, t.personal_project, t.existing_project, t.new_project
+				select distinct  on (t.project_id) 
+				t.project_id, t.personal_project, t.existing_project, t.new_project, t.revision_number
 				from "grant".templates t
+				order by t.project_id, t.revision_number desc
 		    `,
 			db.Params{},
 		)
@@ -517,20 +526,21 @@ func grantsLoadSettings() {
 		)
 
 		result := map[string]accapi.GrantRequestSettings{}
+		newProjectFields := make([]accapi.FormField, 0)
+		existingProjectFields := make([]accapi.FormField, 0)
+
 		for _, template := range templates {
 			existing := result[template.ProjectId]
-			var personalProject, newProject, existingProject []accapi.FormField
-
 			// Trying to deserialize form fields
-			personalProject, err := deserializeFormFields(template.PersonalProject)
+			personalProjectFields, err := deserializeFormFields(template.PersonalProject)
 			if err == nil {
-				newProject, _ = deserializeFormFields(template.NewProject)
-				existingProject, _ = deserializeFormFields(template.ExistingProject)
+				newProjectFields, _ = deserializeFormFields(template.NewProject)
+				existingProjectFields, _ = deserializeFormFields(template.ExistingProject)
 			} else {
 				// We are going to try to parse it as structured form fields
-				personalProject = parseToStructuredFormFields(template.PersonalProject)
-				newProject = parseToStructuredFormFields(template.NewProject)
-				existingProject = parseToStructuredFormFields(template.ExistingProject)
+				personalProjectFields = parseToStructuredFormFields(template.PersonalProject)
+				newProjectFields = parseToStructuredFormFields(template.NewProject)
+				existingProjectFields = parseToStructuredFormFields(template.ExistingProject)
 			}
 
 			existing.Templates = accapi.Templates{
@@ -541,9 +551,10 @@ func grantsLoadSettings() {
 				ExistingProject: template.ExistingProject,
 				// Structured template
 				Structured: accapi.TemplatesStructured{
-					PersonalProject: personalProject,
-					NewProject:      newProject,
-					ExistingProject: existingProject,
+					PersonalProject: personalProjectFields,
+					NewProject:      newProjectFields,
+					ExistingProject: existingProjectFields,
+					RevisionNumber:  template.RevisionNumber,
 				},
 			}
 
@@ -642,12 +653,17 @@ func grantsLoadSettings() {
 	}
 }
 
-func lGrantsPersistSettings(settings *grantSettings) {
+func lGrantsPersistSettings(settings *grantSettings, templateHasChanges bool) {
 	if grantGlobals.Testing.Enabled {
 		return
 	}
 
 	s := settings.Settings
+
+	if templateHasChanges {
+		// We bump the revision number to make a new version of the template
+		s.Templates.Structured.RevisionNumber++
+	}
 
 	db.NewTx0(func(tx *db.Transaction) {
 		if s.Enabled {
@@ -704,23 +720,22 @@ func lGrantsPersistSettings(settings *grantSettings) {
 			existingProject = formFieldsToJsonString(parseToStructuredFormFields(s.Templates.ExistingProject))
 		}
 
-		db.Exec(
-			tx,
-			`
-				insert into "grant".templates(project_id, personal_project, existing_project, new_project) 
-				values (:project, :personal, :existing, :new)
-				on conflict (project_id) do update set
-					personal_project = excluded.personal_project,
-					new_project = excluded.new_project,
-					existing_project = excluded.existing_project
+		if templateHasChanges {
+			db.Exec(
+				tx,
+				`
+				insert into "grant".templates(project_id, personal_project, existing_project, new_project, revision_number) 
+				values (:project, :personal, :existing, :new, :revision)
 		    `,
-			db.Params{
-				"project":  settings.ProjectId,
-				"personal": personalProject,
-				"new":      newProject,
-				"existing": existingProject,
-			},
-		)
+				db.Params{
+					"project":  settings.ProjectId,
+					"personal": personalProject,
+					"new":      newProject,
+					"existing": existingProject,
+					"revision": s.Templates.Structured.RevisionNumber,
+				},
+			)
+		}
 
 		db.Exec(
 			tx,
@@ -1049,7 +1064,7 @@ func lGrantsPersist(app *grantApplication) {
 
 				switch rev.Document.Form.Type {
 				case accapi.FormTypeStructured:
-					b, err := json.Marshal(rev.Document.Form.Fields)
+					b, err := json.Marshal(rev.Document.Form.AnswerForms)
 					if err == nil {
 						form = append(form, string(b))
 					} else {

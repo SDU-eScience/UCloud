@@ -492,6 +492,10 @@ func ProductCategoriesByProvider(actor rpc.Actor, provider string) []accapi.Prod
 }
 
 func translateToChargeType(category accapi.ProductCategory) string {
+	if category.ProductType == accapi.ProductTypeInference {
+		return "ABSOLUTE"
+	}
+
 	switch category.AccountingFrequency {
 	case accapi.AccountingFrequencyOnce:
 		return "DIFFERENTIAL_QUOTA"

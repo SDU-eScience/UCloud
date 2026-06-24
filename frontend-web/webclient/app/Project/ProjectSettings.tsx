@@ -287,7 +287,8 @@ export const ProjectSettings: React.FunctionComponent = () => {
             structured: {
                         personalProject: [{description: "No template", name: "", optional: true, title: "No template"}],
                         existingProject: [{description: "No template", name: "", optional: true, title: "No template"}],
-                        newProject: [{description: "No template", name: "", optional: true, title: "No template"}]
+                        newProject: [{description: "No template", name: "", optional: true, title: "No template"}],
+                        revisionNumber: -1
                     },
             }
     });
