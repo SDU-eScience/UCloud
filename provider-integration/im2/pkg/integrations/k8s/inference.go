@@ -55,6 +55,8 @@ func initInference() {
 		panic("inference backend server is not configured")
 	}
 
+	inferenceModelCatalogLoad()
+
 	inferenceGlobals.MockImageGeneration = util.DevelopmentModeEnabled() && runtime.GOARCH == "arm64"
 	if inferenceGlobals.MockImageGeneration {
 		log.Info("Enabling mock image generation endpoint for development on arm64")
@@ -102,23 +104,23 @@ func initInference() {
 	})
 
 	controller.Mux.HandleFunc(authority+"/v1/models", func(w http.ResponseWriter, r *http.Request) {
-		_, httpErr := inferenceAuthenticateRequest(r)
+		owner, httpErr := inferenceAuthenticateRequest(r)
 		if httpErr != nil {
 			http.Error(w, httpErr.Why, httpErr.StatusCode)
 			return
 		}
 
-		inferenceProxyModelsRequest(w, r, authority)
+		inferenceProxyModelsRequest(w, r, authority, owner)
 	})
 
 	controller.Mux.HandleFunc(authority+"/v1/models/", func(w http.ResponseWriter, r *http.Request) {
-		_, httpErr := inferenceAuthenticateRequest(r)
+		owner, httpErr := inferenceAuthenticateRequest(r)
 		if httpErr != nil {
 			http.Error(w, httpErr.Why, httpErr.StatusCode)
 			return
 		}
 
-		inferenceProxyModelsRequest(w, r, authority)
+		inferenceProxyModelsRequest(w, r, authority, owner)
 	})
 
 	controller.Mux.HandleFunc(authority+"/v1/chat/completions", func(w http.ResponseWriter, r *http.Request) {
@@ -306,7 +308,7 @@ func inferenceAuthenticateRequest(r *http.Request) (apm.WalletOwner, *util.HttpE
 	return inferenceApiKeyValidate(apiKey)
 }
 
-func inferenceProxyModelsRequest(w http.ResponseWriter, r *http.Request, authority string) {
+func inferenceProxyModelsRequest(w http.ResponseWriter, r *http.Request, authority string, owner apm.WalletOwner) {
 	path := strings.TrimPrefix(r.URL.Path, authority+"/v1")
 	if path == "" {
 		path = "/models"
@@ -315,15 +317,15 @@ func inferenceProxyModelsRequest(w http.ResponseWriter, r *http.Request, authori
 	var httpErr *util.HttpError
 
 	if path == "/models" || path == "/models/" {
-		var models InferenceModelsResponse
-		models, httpErr = InferenceModels()
+		var models OaiInferenceModelsResponse
+		models, httpErr = OaiInferenceModels(owner)
 		if httpErr == nil {
 			respData, _ = json.Marshal(models)
 		}
 	} else {
 		modelId := strings.TrimPrefix(path, "/models/")
-		var model InferenceModel
-		model, httpErr = InferenceModelByID(modelId)
+		var model OaiInferenceModel
+		model, httpErr = OaiInferenceModelByID(owner, modelId)
 		if httpErr == nil {
 			respData, _ = json.Marshal(model)
 		}

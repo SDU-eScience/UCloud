@@ -160,9 +160,9 @@ func (app *InferencePlaygroundApp) Session() **ucx.Session { return &app.session
 func (app *InferencePlaygroundApp) OnInit() {
 	app.refreshModels()
 
-	app.Chat.ModelId = app.firstModelFor(InferenceModelCapabilityChat)
-	app.Transcription.ModelId = app.firstModelFor(InferenceModelCapabilityTranscription)
-	app.Image.ModelId = app.firstModelFor(InferenceModelCapabilityImageGeneration)
+	app.Chat.ModelId = app.firstModelFor(InferenceTextGeneration)
+	app.Transcription.ModelId = app.firstModelFor(InferenceSpeechToText)
+	app.Image.ModelId = app.firstModelFor(InferenceTextToImage)
 
 	app.Chat.Curl = app.buildChatCurl()
 	app.Transcription.Curl = app.buildTranscriptionCurl()
@@ -229,13 +229,8 @@ func (app *InferencePlaygroundApp) UserInterface() ucx.UiNode {
 }
 
 func (app *InferencePlaygroundApp) refreshModels() {
-	resp, err := InferenceModels()
-	if err != nil {
-		app.Models = nil
-		return
-	}
-
-	app.Models = resp.Data
+	resp := InferenceModelListForOwner(app.walletOwner())
+	app.Models = resp
 }
 
 func (app *InferencePlaygroundApp) availableModes() []string {
@@ -244,19 +239,19 @@ func (app *InferencePlaygroundApp) availableModes() []string {
 	}
 
 	var modes []string
-	if len(app.modelOptionsFor(InferenceModelCapabilityChat)) > 0 {
+	if len(app.modelOptionsFor(InferenceTextGeneration)) > 0 {
 		modes = append(modes, playgroundModeChat)
 	}
-	if len(app.modelOptionsFor(InferenceModelCapabilityTranscription)) > 0 {
+	if len(app.modelOptionsFor(InferenceSpeechToText)) > 0 {
 		modes = append(modes, playgroundModeTranscription)
 	}
-	if len(app.modelOptionsFor(InferenceModelCapabilityImageGeneration)) > 0 {
+	if len(app.modelOptionsFor(InferenceTextToImage)) > 0 {
 		modes = append(modes, playgroundModeImageGeneration)
 	}
 	return modes
 }
 
-func (app *InferencePlaygroundApp) firstModelFor(capability InferenceModelCapability) string {
+func (app *InferencePlaygroundApp) firstModelFor(capability InferenceCapability) string {
 	options := app.modelOptionsFor(capability)
 	if len(options) == 0 {
 		return ""
@@ -264,13 +259,13 @@ func (app *InferencePlaygroundApp) firstModelFor(capability InferenceModelCapabi
 	return options[0].Key
 }
 
-func (app *InferencePlaygroundApp) modelOptionsFor(capability InferenceModelCapability) []ucx.Option {
+func (app *InferencePlaygroundApp) modelOptionsFor(capability InferenceCapability) []ucx.Option {
 	options := make([]ucx.Option, 0, len(app.Models))
 	for _, model := range app.Models {
 		if slices.Contains(model.Capabilities, capability) {
 			options = append(options, ucx.Option{
-				Key:   model.Id,
-				Value: model.Id,
+				Key:   model.Name,
+				Value: model.Title,
 			})
 		}
 	}
@@ -349,7 +344,7 @@ func (app *InferencePlaygroundApp) chatTab() ucx.UiNode {
 			ucx.SxFlexDirectionColumn,
 			ucx.SxGap(16),
 		).Children(
-			ucx.Select("chatModel", "Model", "chat.modelId", app.modelOptionsFor(InferenceModelCapabilityChat)).Sx(ucx.SxWidthPercent(100)),
+			ucx.Select("chatModel", "Model", "chat.modelId", app.modelOptionsFor(InferenceTextGeneration)).Sx(ucx.SxWidthPercent(100)),
 
 			ucx.AccordionNode("Settings", true).Children(ucx.Box().Sx(ucx.SxDisplayFlex, ucx.SxFlexDirectionColumn, ucx.SxGap(8)).Children(
 				InferenceToggleInput("chat.streaming", "Streaming", "chat.streaming", true),
@@ -625,7 +620,7 @@ func (app *InferencePlaygroundApp) transcriptionTab() ucx.UiNode {
 						"transcriptionModel",
 						"Model",
 						"transcription.modelId",
-						app.modelOptionsFor(InferenceModelCapabilityTranscription),
+						app.modelOptionsFor(InferenceSpeechToText),
 					).Sx(
 						ucx.SxWidthPercent(100),
 					),
@@ -919,7 +914,7 @@ func (app *InferencePlaygroundApp) imageTab() ucx.UiNode {
 						"imageModel",
 						"Model",
 						"image.modelId",
-						app.modelOptionsFor(InferenceModelCapabilityImageGeneration),
+						app.modelOptionsFor(InferenceTextToImage),
 					).Sx(
 						ucx.SxWidthPercent(100),
 					),

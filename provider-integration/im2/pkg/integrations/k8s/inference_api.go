@@ -9,7 +9,6 @@ import (
 	"math"
 	"mime/multipart"
 	"net/http"
-	"slices"
 	"strconv"
 	"strings"
 
@@ -20,99 +19,52 @@ import (
 // Models
 // =====================================================================================================================
 
-type InferenceModelCapability string
-
-const (
-	InferenceModelCapabilityChat            InferenceModelCapability = "Chat"
-	InferenceModelCapabilityTranscription   InferenceModelCapability = "Transcription"
-	InferenceModelCapabilityImageGeneration InferenceModelCapability = "ImageGeneration"
-)
-
-type InferenceModel struct {
-	Id           string                     `json:"id"`
-	Object       string                     `json:"object"`
-	OwnedBy      string                     `json:"owned_by,omitempty"`
-	Capabilities []InferenceModelCapability `json:"capabilities,omitempty"`
+type OaiInferenceModel struct {
+	Id           string                `json:"id"`
+	Object       string                `json:"object"`
+	OwnedBy      string                `json:"owned_by,omitempty"`
+	Capabilities []InferenceCapability `json:"capabilities,omitempty"`
 }
 
-type InferenceModelsResponse struct {
-	Object string           `json:"object"`
-	Data   []InferenceModel `json:"data"`
+type OaiInferenceModelsResponse struct {
+	Object string              `json:"object"`
+	Data   []OaiInferenceModel `json:"data"`
 }
 
-func InferenceModels() (InferenceModelsResponse, *util.HttpError) {
-	body, httpErr := inferenceBackendJSONRequest(http.MethodGet, "/models", nil, "")
-	if httpErr != nil {
-		return InferenceModelsResponse{}, httpErr
+func OaiInferenceModels(owner apm.WalletOwner) (OaiInferenceModelsResponse, *util.HttpError) {
+	models := InferenceModelListForOwner(owner)
+	resp := OaiInferenceModelsResponse{
+		Object: "list",
+		Data:   make([]OaiInferenceModel, 0, len(models)),
 	}
-
-	var resp InferenceModelsResponse
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return InferenceModelsResponse{}, util.HttpErr(http.StatusBadGateway, "invalid response")
+	for _, model := range models {
+		resp.Data = append(resp.Data, inferenceOaiModelFromCatalog(model))
 	}
-
-	if util.DevelopmentModeEnabled() {
-		modelsToKeep := []string{"qwen3-0.6b", "whisper-1", "sd-1.5-ggml", "stablediffusion"}
-		newResp := resp
-		newResp.Data = nil
-
-		for _, item := range resp.Data {
-			if slices.Contains(modelsToKeep, item.Id) {
-				newResp.Data = append(newResp.Data, item)
-			}
-		}
-
-		resp = newResp
-	}
-
-	for i := range resp.Data {
-		resp.Data[i].Capabilities = inferenceModelCapabilities(resp.Data[i].Id)
-	}
-
 	return resp, nil
 }
 
-func InferenceModelByID(id string) (InferenceModel, *util.HttpError) {
+func OaiInferenceModelByID(owner apm.WalletOwner, id string) (OaiInferenceModel, *util.HttpError) {
 	if strings.TrimSpace(id) == "" {
-		return InferenceModel{}, util.HttpErr(http.StatusBadRequest, "invalid request")
+		return OaiInferenceModel{}, util.HttpErr(http.StatusBadRequest, "invalid request")
 	}
 
-	body, httpErr := inferenceBackendJSONRequest(http.MethodGet, "/models/"+id, nil, "")
-	if httpErr != nil {
-		return InferenceModel{}, httpErr
+	model, ok := InferenceCatalogModelByName(id)
+	if !ok {
+		return OaiInferenceModel{}, util.HttpErr(http.StatusNotFound, "model not found")
 	}
-
-	var resp InferenceModel
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return InferenceModel{}, util.HttpErr(http.StatusBadGateway, "invalid response")
+	if !inferenceModelAvailableToOwner(model, owner) {
+		return OaiInferenceModel{}, util.HttpErr(http.StatusForbidden, "forbidden")
 	}
-
-	resp.Capabilities = inferenceModelCapabilities(resp.Id)
-	return resp, nil
+	return inferenceOaiModelFromCatalog(model), nil
 }
 
-func inferenceModelCapabilities(modelId string) []InferenceModelCapability {
-	id := strings.ToLower(modelId)
-	if id == "" {
-		return []InferenceModelCapability{InferenceModelCapabilityChat}
+func inferenceOaiModelFromCatalog(model InferenceModel) OaiInferenceModel {
+	return OaiInferenceModel{
+		Id:           model.Name,
+		Object:       "model",
+		OwnedBy:      "ucloud",
+		Capabilities: model.Capabilities,
 	}
-
-	capabilities := make([]InferenceModelCapability, 0, 3)
-
-	switch id {
-	case "qwen3-0.6b":
-		capabilities = append(capabilities, InferenceModelCapabilityChat)
-	case "whisper-1":
-		capabilities = append(capabilities, InferenceModelCapabilityTranscription)
-	case "sd-1.5-ggml", "stablediffusion":
-		capabilities = append(capabilities, InferenceModelCapabilityImageGeneration)
-	}
-
-	if len(capabilities) == 0 {
-		capabilities = append(capabilities, InferenceModelCapabilityChat)
-	}
-
-	return capabilities
 }
 
 // Chat completions
