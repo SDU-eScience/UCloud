@@ -123,6 +123,9 @@ export const ProductSelector: React.FunctionComponent<{
         return result;
     }, [type]);
 
+    // Only relevant for Machine-selector, e.g. product type === "COMPUTE";
+    const [serviceProvider, setServiceProvider] = React.useState("");
+
     const lastSearchQuery = React.useRef<string>("");
     const searchRef = React.useRef<HTMLInputElement>(null);
     const onSearchType = React.useCallback(() => {
@@ -190,7 +193,7 @@ export const ProductSelector: React.FunctionComponent<{
         }
 
         return result;
-    }, [filteredProducts, connectionState.lastRefresh]);
+    }, [filteredProducts, connectionState.lastRefresh, serviceProvider]);
 
 
     const {boxRef, ...rest} = useDialogSize(headers.length, isCompute);
@@ -264,8 +267,6 @@ export const ProductSelector: React.FunctionComponent<{
     let extraColumns = 3;
     if (type === "COMPUTE") extraColumns++;
 
-    // Only relevant for Machine-selector, e.g. product type === "COMPUTE";
-    const [serviceProvider, setServiceProvider] = React.useState("");
     const [selectedComputeCategory, setComputeCategory] = React.useState<ComputeCategory | undefined>();
     const [queueStatuses, setQueueStatuses] = React.useState<Record<string, JobQueueStatus>>({});
     React.useEffect(() => {
@@ -282,7 +283,11 @@ export const ProductSelector: React.FunctionComponent<{
             if (serviceProvider) return serviceProvider;
             return first.provider;
         });
-    }, [categorizedProducts]);
+    }, [categorizedProducts, projectId]);
+
+    React.useEffect(() => {
+
+    }, [projectId, categorizedProducts]);
 
     // On parameter import, find correct category
     React.useEffect(() => {
@@ -748,6 +753,13 @@ function MachineTypeSelectionSlider(props: {
         return statusStringAndColor(status).color;
     });
 
+    const color: ThemeColor = React.useMemo(() => {
+        const activeProduct = props.selectedCategory?.products[props.idx];
+        if (!activeProduct) return "primaryMain"
+        const queueStatus = queueStatusFromCategoryName(props.support, activeProduct.name, activeProduct.category);
+        return statusStringAndColor(queueStatus ?? JobQueueStatus.FULL).color;
+    }, [props.selectedCategory, props.idx])
+
     return <Box mb="8px" mx="8px" px="8px" onClick={stopPropagation}>
         {dividerIndex > 0 ?
             <Flex>
@@ -756,7 +768,7 @@ function MachineTypeSelectionSlider(props: {
                 <Box style={{position: "absolute", left: `calc(100% * ${dividerIndex / productCount} + 20px)`}} ml="4px">Full GPUs</Box>
             </Flex>
             : null}
-        <RangeInput background={gradientFromQueueStatus(gradientColors)} value={props.idx} autoFocus onChange={e => props.onSelect(e.target.valueAsNumber)} min={0} max={props.selectedCategory.products.length - 1} markers={props.selectedCategory.products.map((_, idx) => idx)} />
+        <RangeInput thumbColor={`var(--${color})`} background={gradientFromQueueStatus(gradientColors)} value={props.idx} autoFocus onChange={e => props.onSelect(e.target.valueAsNumber)} min={0} max={props.selectedCategory.products.length - 1} markers={props.selectedCategory.products.map((_, idx) => idx)} />
         <CustomDataListThingy>
             {props.selectedCategory.products.map((p, idx) =>
                 <Box key={idx} mb="4px">{computeV2CountStringThing(p)}</Box>
@@ -777,7 +789,6 @@ const ThingyStyle = injectStyle("thingy-style", cl => `
     ${cl} {
         width: 100%;
         justify-content: space-between;
-        padding-left: 4px;
         padding-top: 8px;
     }
 
@@ -790,7 +801,6 @@ function CustomDataListThingy(props: React.PropsWithChildren): React.ReactNode {
     return <Flex className={ThingyStyle}>
         {props.children}
     </Flex>
-
 }
 
 function computeV2CountStringThing(c: ProductV2Compute): string {

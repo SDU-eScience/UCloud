@@ -2,7 +2,7 @@ import {MainContainer} from "@/ui-components/MainContainer";
 import * as React from "react";
 import {useEffect, useRef} from "react";
 import {EveryIcon, IconName} from "@/ui-components/Icon";
-import {Box, Button, Flex, RangeInput} from "@/ui-components";
+import {Box, Button, Flex, RangeInput, Relative} from "@/ui-components";
 import {ThemeColor} from "@/ui-components/theme";
 import {api as ProjectApi, useProjectId} from "@/Project/Api";
 import {useCloudAPI} from "@/Authentication/DataHook";
@@ -15,6 +15,7 @@ import * as JobViz from "@/Applications/Jobs/JobViz"
 import {WidgetColorIntensity, WidgetWindow} from "@/Applications/Jobs/JobViz"
 import {addOrgInfoModalIfNotFilled, ChangeOrganizationDetails} from "@/UserSettings/ChangeUserDetails";
 import {dialogStore} from "@/Dialog/DialogStore";
+import {injectStyle} from "@/Unstyled";
 
 const iconsNames = Object.keys(icons) as IconName[];
 
@@ -185,11 +186,32 @@ const Playground: React.FunctionComponent = () => {
     }, []);
 
     const [value, setValue] = React.useState(0);
-    const count = 12;
+
+
+    const green = "successMain";
+    const red = "errorMain";
+    const yellow = "warningMain"
+    const colorList = [red, green, yellow, green, red, yellow, green, yellow, green];
+    const gradientFromQueueStatus = React.useMemo(() => {
+        const gradientString = colorList.map((color, idx, {length}) =>
+            `var(--${color}) ${idx / (length - 1) * 100}%`
+        ).join(",");
+
+        return `linear-gradient(90deg, ${gradientString})`;
+    }, []);
+
+    const count = colorList.length;
 
     const main = (
         <>
-            <RangeInput value={value} onChange={(event) => setValue(event.target.valueAsNumber)} max={count - 1} markers={Array.from(Array(count).keys()).map(idx => idx)} />
+
+            <RangeInput background={gradientFromQueueStatus} thumbColor={`var(--${colorList[value]}`} value={value} onChange={(event) => setValue(event.target.valueAsNumber)} max={count - 1} markers={Array.from(Array(count).keys()).map(idx => idx)} />
+            <CustomDataListThingy>
+                {Array.from(Array(count).keys()).map((idx) =>
+                    <Box key={idx} width={0} mb="4px">{idx} / 5</Box>
+                )}
+            </CustomDataListThingy>
+
             <ChangeOrganizationDetails getValues={getValuesRef} />
             <Button onClick={foo}>View extracted contents</Button>
 
@@ -205,9 +227,6 @@ const Playground: React.FunctionComponent = () => {
             <PaletteColors />
             <Colors />
 
-
-
-            {/*<EveryIcon />*/}
             {/*
             <Button onClick={() => {
                 messageTest();
@@ -316,6 +335,28 @@ const Playground: React.FunctionComponent = () => {
     );
     return <MainContainer main={main} />;
 };
+
+
+const ThingyStyle = injectStyle("thingy-style", cl => `
+    ${cl} {
+        justify-content: space-between;
+        width: 100%;
+        padding-top: 8px;
+        padding-left: 4px;
+        padding-right: 4px;
+    }
+
+    ${cl} > div {
+
+    }
+`);
+
+function CustomDataListThingy(props: React.PropsWithChildren): React.ReactNode {
+    return <Flex className={ThingyStyle}>
+        {props.children}
+    </Flex>
+}
+
 
 type PlottingData = {value: number; date: Date}
 

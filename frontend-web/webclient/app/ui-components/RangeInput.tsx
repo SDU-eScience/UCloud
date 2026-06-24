@@ -8,12 +8,14 @@ interface RangeInputProps {
     min?: number;
     max: number;
     background?: string | undefined;
+    thumbColor?: string | undefined;
     markers?: number[];
 }
 
 export default function RangeInput(props: RangeInputProps): React.ReactNode {
     const style: Record<string, string> = {
-        "--background": props.background ?? "var(--primaryMain)"
+        "--trackBackground": props.background ?? "var(--primaryMain)",
+        "--thumbColor": props.thumbColor ?? "var(--primaryMain)",
     };
 
     const markers = React.useMemo(() => {
@@ -32,29 +34,49 @@ export default function RangeInput(props: RangeInputProps): React.ReactNode {
 
 const RangeInputStyle = injectStyle("range-input-style", cl => `
     ${cl} {
-        width: calc(100% - 16px);
+        -webkit-appearance: none;
+        width: 100%;
+        height: 12px;
         padding-top: 8px;
         padding-bottom: 8px;
-        cursor: pointer;
+        background: transparent;
     }
 
-    ${cl}::-webkit-slider-runnable-track, ${cl}::-moz-range-track {
-        background: var(--background);
+    ${cl}:focus {
+        outline: none;
+    }
+
+    ${cl}::-webkit-slider-runnable-track {
+        background: var(--trackBackground);
+        height: 12px;
+        border-radius: 12px;
     }
     
-    input[type=range]::-webkit-slider-thumb {
-        -webkit-appearance: none;
-        margin-top: -14px; /* You need to specify a margin in Chrome, but in Firefox and IE it is automatic */
+    ${cl}::-moz-range-track {
+        background: var(--trackBackground);
+        height: 12px;
+        border-radius: 12px;
     }
 
-    input[type=range]::-moz-range-thumb, input[type=range]::-webkit-slider-thumb {
-        box-shadow: 1px 1px 1px #000000, 0px 0px 1px #0d0d0d;
-        border: 1px solid #000000;
-        height: 36px;
-        width: 16px;
-        border-radius: 3px;
-        background: #ffffff;
-        cursor: pointer;
+    ${cl}::-moz-range-thumb {
+        cursor: ew-resize;
+        border: 1px solid var(--textPrimary);
+        height: 18px;
+        width: 18px;
+        border-radius: 12px;
+        background: var(--thumbColor);
+        -webkit-appearance: none;
+    }
+    
+    ${cl}::-webkit-slider-thumb {
+        cursor: ew-resize;
+        border: 1px solid var(--textPrimary);
+        height: 18px;
+        width: 18px;
+        border-radius: 12px;
+        background: var(--thumbColor);
+        -webkit-appearance: none;
+        margin-top: -3px;
     }
 `);
 
