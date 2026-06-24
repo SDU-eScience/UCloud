@@ -1789,15 +1789,6 @@ func grantCompareTemplateChanges(oldSettings *accapi.GrantRequestSettings, newSe
 /**
  * Comparing changes of the current template with incoming one.
  */
-func grantsFormFieldHasChanges(incoming *accapi.FormField, current *accapi.FormField) bool {
-	return incoming.Name != current.Name ||
-		incoming.Description != current.Description ||
-		incoming.Optional != current.Optional ||
-		incoming.Title != current.Title ||
-		incoming.MaxLength != current.MaxLength ||
-		incoming.Rows != current.Rows
-}
-
 func grantsFormFieldsHasChanges(incoming []accapi.FormField, current []accapi.FormField) bool {
 	currentFields := make(map[string]accapi.FormField, len(current))
 	for _, f := range current {
@@ -1809,9 +1800,7 @@ func grantsFormFieldsHasChanges(incoming []accapi.FormField, current []accapi.Fo
 		if !ok {
 			return true
 		}
-		if grantsFormFieldHasChanges(&incomingField, &currentField) {
-			return true
-		}
+		return incomingField != currentField
 	}
 	return false
 }
