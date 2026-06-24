@@ -33,5 +33,7 @@ func HandleCli(command string) {
 		StorageScanCli(os.Args[2:])
 	case "jobs":
 		HandleJobsCommand()
+	case "inference":
+		InferenceCli(os.Args[2:])
 	}
 }

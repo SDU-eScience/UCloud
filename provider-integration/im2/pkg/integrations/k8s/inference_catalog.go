@@ -301,6 +301,9 @@ func inferenceModelValidate(model InferenceModel) *util.HttpError {
 	if len(model.Capabilities) == 0 {
 		return util.HttpErr(http.StatusBadRequest, "model capabilities are required")
 	}
+	if model.PriceMultiplier.CachedInput < 0 || model.PriceMultiplier.Input < 0 || model.PriceMultiplier.Output < 0 {
+		return util.HttpErr(http.StatusBadRequest, "model price multipliers cannot be negative")
+	}
 	for _, capability := range model.Capabilities {
 		switch capability {
 		case InferenceTextGeneration, InferenceTextToImage, InferenceSpeechToText:
