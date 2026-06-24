@@ -2,6 +2,7 @@ package k8s
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -11,6 +12,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	cfg "ucloud.dk/pkg/config"
 	"ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/gateway"
@@ -39,6 +41,15 @@ const (
 	inferenceImageGenerationTokensPerMegaPixel = 1000.0
 )
 
+type inferenceDiscoveredModel struct {
+	Id     string `json:"id"`
+	Object string `json:"object"`
+}
+
+type inferenceDiscoveredModelsResponse struct {
+	Data []inferenceDiscoveredModel `json:"data"`
+}
+
 type InferenceUsage struct {
 	PromptTokens     int `json:"prompt_tokens"`
 	CompletionTokens int `json:"completion_tokens"`
@@ -51,7 +62,10 @@ func initInference() {
 	}
 
 	inferenceGlobals.BackendServer = strings.TrimRight(inferenceCfg.BackendServer, "/")
-	if inferenceGlobals.BackendServer == "" {
+	if inferenceCfg.Provider == "" {
+		inferenceCfg.Provider = cfg.KubernetesInferenceProviderDevelopment
+	}
+	if inferenceCfg.Provider == cfg.KubernetesInferenceProviderDevelopment && inferenceGlobals.BackendServer == "" {
 		panic("inference backend server is not configured")
 	}
 
@@ -62,11 +76,20 @@ func initInference() {
 		log.Info("Enabling mock image generation endpoint for development on arm64")
 	}
 
-	if util.DevelopmentModeEnabled() && inferenceCfg.DevelopmentProvider == inferenceDevelopmentProviderLocalAI {
+	if inferenceCfg.Provider == cfg.KubernetesInferenceProviderDevelopment && util.DevelopmentModeEnabled() && inferenceCfg.DevelopmentProvider == inferenceDevelopmentProviderLocalAI {
 		err := inferenceAutoConfigureLocalAI()
 		if err != nil {
 			panic(fmt.Sprintf("could not initialize localai: %s", err))
 		}
+	} else if inferenceCfg.Provider == cfg.KubernetesInferenceProviderDynamo {
+		go func() {
+			inferenceDiscoverDynamoModels()
+			ticker := time.NewTicker(60 * time.Second)
+			defer ticker.Stop()
+			for range ticker.C {
+				inferenceDiscoverDynamoModels()
+			}
+		}()
 	}
 
 	inferenceGlobals.Ready.Store(true)
@@ -361,8 +384,124 @@ func inferenceAutoConfigureLocalAI() error {
 	inferenceApplyLocalAIFallbackModels(managementBase, "chat", []string{"localai@qwen3-0.6b"})
 	inferenceApplyLocalAIFallbackModels(managementBase, "transcription", []string{"localai@whisper-1"})
 	inferenceApplyLocalAIFallbackModels(managementBase, "image-generation", []string{"localai@sd-1.5-ggml"})
+	inferenceDiscoverModelsFromEndpoint(base, shared.ServiceConfig.Compute.Inference.Access.Testers)
 
 	return nil
+}
+
+func inferenceDiscoverModelsFromEndpoint(base string, availableTo []string) {
+	base = strings.TrimRight(base, "/")
+	client := http.Client{Timeout: 15 * time.Second}
+	resp, err := client.Get(base + "/models")
+	if err != nil {
+		log.Warn("Could not discover inference models from %s: %v", base, err)
+		return
+	}
+	defer util.SilentClose(resp.Body)
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		log.Warn("Could not discover inference models from %s: status=%d", base, resp.StatusCode)
+		return
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Warn("Could not read inference model discovery response from %s: %v", base, err)
+		return
+	}
+
+	var models inferenceDiscoveredModelsResponse
+	if err := json.Unmarshal(body, &models); err != nil {
+		log.Warn("Could not parse inference model discovery response from %s: %v", base, err)
+		return
+	}
+
+	for _, model := range models.Data {
+		name := strings.TrimSpace(model.Id)
+		if model.Object != "model" || name == "" {
+			continue
+		}
+
+		catalogModel := inferenceModelNormalize(InferenceModel{
+			Name:         name,
+			Title:        name,
+			Capabilities: []InferenceCapability{InferenceTextGeneration},
+			PriceMultiplier: InferencePricing{
+				CachedInput: 1000,
+				Input:       1000,
+				Output:      1000,
+			},
+			Endpoint: InferenceEndpoint{
+				BasePath:         base,
+				BackendModelName: name,
+			},
+			Availability: InferenceAvailability{
+				Public:      false,
+				AvailableTo: availableTo,
+			},
+		})
+		if inferenceModelValidate(catalogModel) != nil {
+			continue
+		}
+
+		inserted := false
+		modelGlobals.Mu.Lock()
+		knownBackend := false
+		for _, existing := range modelGlobals.Models {
+			if existing.Endpoint.BackendModelName == catalogModel.Endpoint.BackendModelName {
+				knownBackend = true
+				break
+			}
+		}
+		_, knownName := modelGlobals.Models[catalogModel.Name]
+		if !knownBackend && !knownName {
+			db.NewTx0(func(tx *db.Transaction) {
+				inferenceModelUpsertTx(tx, catalogModel)
+			})
+			modelGlobals.Models[catalogModel.Name] = inferenceModelClone(catalogModel)
+			inserted = true
+		}
+		modelGlobals.Mu.Unlock()
+
+		if inserted {
+			log.Info("Discovered inference model %s at %s", name, base)
+		}
+	}
+}
+
+func inferenceDiscoverDynamoModels() {
+	inferenceCfg := &shared.ServiceConfig.Compute.Inference
+	namespace := strings.TrimSpace(inferenceCfg.Dynamo.Namespace)
+	if namespace == "" {
+		return
+	}
+	if shared.K8sClient == nil {
+		log.Warn("Could not discover Dynamo inference models: Kubernetes client is not initialized")
+		return
+	}
+
+	services, err := shared.K8sClient.CoreV1().Services(namespace).List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		log.Warn("Could not list Dynamo inference services in namespace %s: %v", namespace, err)
+		return
+	}
+
+	for _, service := range services.Items {
+		if !strings.HasSuffix(service.Name, "-frontend") {
+			continue
+		}
+		if len(service.Spec.Ports) == 0 {
+			continue
+		}
+
+		port := service.Spec.Ports[0].Port
+		if port <= 0 {
+			continue
+		}
+
+		base := fmt.Sprintf("http://%s.%s.svc.cluster.local:%d/v1", service.Name, service.Namespace, port)
+		inferenceDiscoverModelsFromEndpoint(base, inferenceCfg.Access.Testers)
+	}
 }
 
 func inferenceApplyLocalAIFallbackModels(base string, capability string, candidates []string) {
