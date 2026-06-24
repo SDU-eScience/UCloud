@@ -159,7 +159,7 @@ const defaultState: EditorState = {
     principalInvestigator: Client.activeUsername ?? "",
     loadedProjects: [],
     fullScreenLoading: true,
-    selectedProjectType: Grants.TemplateKey.newProject, 
+    selectedProjectType: Grants.TemplateKey.NewProject, 
     selectedAllocatorId: ""
 };
 
@@ -261,12 +261,12 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
 
             const newResources: EditorState["resources"] = {...state.resources};
 
-            let templateKey: Grants.TemplateKey = Grants.TemplateKey.newProject;
+            let templateKey: Grants.TemplateKey = Grants.TemplateKey.NewProject;
 
             function templateKeyFromRecipientType(type: Grants.Recipient["type"]): Grants.TemplateKey {
                 switch (type) {
                     case "personalWorkspace":
-                        return Grants.TemplateKey.personalProject
+                        return Grants.TemplateKey.PersonalProject
                     default:
                         return type as Grants.TemplateKey;
                 }
@@ -278,11 +278,11 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                 state.allocators = [];
 
                 if (state.stateDuringCreate.creatingWorkspace) {
-                    templateKey = Grants.TemplateKey.newProject;
+                    templateKey = Grants.TemplateKey.NewProject;
                 } else if (state.stateDuringCreate.reference) {
-                    templateKey = Grants.TemplateKey.existingProject;
+                    templateKey = Grants.TemplateKey.ExistingProject;
                 } else {
-                    templateKey = Grants.TemplateKey.personalProject;
+                    templateKey = Grants.TemplateKey.PersonalProject;
                 }
             } else {
                 const recipient = action.recipientType ?? state.stateDuringEdit?.recipient.type;

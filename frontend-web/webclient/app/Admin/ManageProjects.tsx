@@ -25,7 +25,7 @@ const defaultSetting: Grants.RequestSettings = {
             personalProject: [],
             existingProject: [],
             newProject: [],
-            revisionNumber: DefaultTemplateRevisionNumber
+            revisionNumber: -1
         },
     }
 }

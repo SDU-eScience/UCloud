@@ -127,7 +127,7 @@ const Allocations: React.FunctionComponent = () => {
                 existingProject: [],
                 newProject: [],
                 personalProject: [],
-                revisionNumber: DefaultTemplateRevisionNumber,
+                revisionNumber: -1
             }
         }
     });
