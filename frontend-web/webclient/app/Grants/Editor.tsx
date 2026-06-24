@@ -749,11 +749,12 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
     function loadRevision(state: EditorState): EditorState {
         if (!state.stateDuringEdit) return state;
         const newEditState = {...state.stateDuringEdit};
+        const previousAllocators = state.allocators;
         state.allocators = []; // clearing previous allocators
 
         const doc = state.stateDuringEdit.document;
         const docText = doc.form.text;
-        const newAllocators = [...state.allocators]
+        const newAllocators = [...previousAllocators]
             .filter(allocator => {
                 return state.stateDuringEdit?.id === GRANT_GIVER_INITIATED_ID ||
                     doc.allocationRequests.some(it => it.grantGiver === allocator.id);
@@ -809,7 +810,12 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
 
         const isGrantGiverInitiated = app && app.status.overallState == "APPROVED" && app.status.revisions.length === 1 && docText.startsWith(grantGiverInitiatedPrefix);
         let loadedAnswerForms: Grants.AnswerForm[] = doc.form.answerForms;
-        if (isGrantGiverInitiated) {
+        if (state.stateDuringEdit.id === GRANT_GIVER_INITIATED_ID) {
+            loadedAnswerForms = newAllocators.map(allocator => ({
+                ...grantGiverInitiatedForm,
+                allocatorId: allocator.id,
+            }));
+        } else if (isGrantGiverInitiated) {
             loadedAnswerForms = [grantGiverInitiatedForm];
         }
 
@@ -3147,7 +3153,7 @@ const grantGiverInitiatedForm: Grants.AnswerForm = {
             optional: false,
             title: grantGiverInitiatedPrefix,
             maxLength: 4000,
-            rows: 100
+            rows: 6
         }
     }],
     templateRevisionNumber: -1,
