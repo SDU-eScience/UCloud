@@ -217,11 +217,11 @@ func initInference() {
 	inferenceGlobals.Ready.Store(true)
 
 	inferenceGlobals.Product = apm.ProductV2{
-		Type: apm.ProductTypeCLicense, // TODO faking it a bit for now
+		Type: apm.ProductTypeCInference,
 		Category: apm.ProductCategory{
 			Name:        "inference",
 			Provider:    cfg.Provider.Id,
-			ProductType: apm.ProductTypeLicense,
+			ProductType: apm.ProductTypeInference,
 			AccountingUnit: apm.AccountingUnit{
 				Name:       "Token",
 				NamePlural: "Tokens",
@@ -232,7 +232,7 @@ func initInference() {
 		},
 		Name:                      "inference",
 		Description:               "Inference tokens",
-		ProductType:               apm.ProductTypeLicense,
+		ProductType:               apm.ProductTypeInference,
 		Price:                     1,
 		HiddenInGrantApplications: false,
 	}

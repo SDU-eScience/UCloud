@@ -32,6 +32,8 @@ export function productAreaTitle(area: ProductArea): string {
             return "Public link";
         case "LICENSE":
             return "Application license";
+        case "INFERENCE":
+            return "Inference";
         case "NETWORK_IP":
             return "Public IP";
         case "PRIVATE_NETWORK":
@@ -64,8 +66,8 @@ export type ProductPriceUnit =
     "CREDITS_PER_MINUTE" | "CREDITS_PER_HOUR" | "CREDITS_PER_DAY" |
     "UNITS_PER_MINUTE" | "UNITS_PER_HOUR" | "UNITS_PER_DAY";
 
-export type ProductType = "STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP" | "PRIVATE_NETWORK";
-export type Type = "storage" | "compute" | "ingress" | "license" | "network_ip" | "private_network";
+export type ProductType = "STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "INFERENCE" | "NETWORK_IP" | "PRIVATE_NETWORK";
+export type Type = "storage" | "compute" | "ingress" | "license" | "inference" | "network_ip" | "private_network";
 
 export interface ProductMetadata {
     category: ProductCategoryId;
@@ -115,12 +117,17 @@ export interface ProductLicense extends ProductBase {
     tags?: string[];
 }
 
+export interface ProductInference extends ProductBase {
+    type: "inference";
+    productType: "INFERENCE";
+}
+
 export interface ProductNetworkIP extends ProductBase {
     type: "network_ip";
     productType: "NETWORK_IP";
 }
 
-export type Product = ProductStorage | ProductCompute | ProductIngress | ProductNetworkIP | ProductLicense;
+export type Product = ProductStorage | ProductCompute | ProductIngress | ProductNetworkIP | ProductLicense | ProductInference;
 
 export function productTypeToIcon(type: ProductType): IconName {
     switch (type) {
@@ -134,6 +141,8 @@ export function productTypeToIcon(type: ProductType): IconName {
             return "heroGlobeEuropeAfrica";
         case "LICENSE":
             return "heroDocumentCheck";
+        case "INFERENCE":
+            return "heroSparkles";
         case "PRIVATE_NETWORK":
             return "heroCloud";
     }
@@ -149,6 +158,8 @@ export function productTypeToName(type: ProductType): string {
             return "Public IP";
         case "LICENSE":
             return "License";
+        case "INFERENCE":
+            return "Inference";
         case "INGRESS":
             return "Public link";
         case "PRIVATE_NETWORK":
@@ -166,6 +177,8 @@ export function productTypeFromName(name: string): ProductType {
             return "NETWORK_IP";
         case "License":
             return "LICENSE";
+        case "Inference":
+            return "INFERENCE";
         case "Public link":
             return "INGRESS";
         default:
@@ -174,7 +187,7 @@ export function productTypeFromName(name: string): ProductType {
     }
 }
 
-export const productTypes: ProductType[] = ["COMPUTE", "STORAGE", "NETWORK_IP", "INGRESS", "LICENSE"];
+export const productTypes: ProductType[] = ["COMPUTE", "STORAGE", "NETWORK_IP", "INGRESS", "LICENSE", "INFERENCE"];
 
 export function addThousandSeparators(numberOrString: string | number): string {
     const numberAsString = typeof numberOrString === "string" ? numberOrString : numberOrString.toString(10);
@@ -296,8 +309,10 @@ export function categoryComparator(a: ProductCategoryV2, b: ProductCategoryV2): 
                 return 3;
             case "LICENSE":
                 return 4;
-            case "PRIVATE_NETWORK":
+            case "INFERENCE":
                 return 5;
+            case "PRIVATE_NETWORK":
+                return 6;
         }
     }
 
@@ -321,6 +336,7 @@ export type ProductV2 =
     | ProductV2Compute
     | ProductV2Ingress
     | ProductV2License
+    | ProductV2Inference
     | ProductV2NetworkIP
     | ProductV2PrivateNetwork
     ;
@@ -355,6 +371,10 @@ export interface ProductV2Ingress extends ProductV2Base {
 
 export interface ProductV2License extends ProductV2Base {
     type: "license";
+}
+
+export interface ProductV2Inference extends ProductV2Base {
+    type: "inference";
 }
 
 export interface ProductV2NetworkIP extends ProductV2Base {
@@ -718,6 +738,7 @@ export const ProductTypesByPriority: ProductType[] = [
     "NETWORK_IP",
     "INGRESS",
     "LICENSE",
+    "INFERENCE",
 ];
 
 export interface AllocationDisplayWallet {

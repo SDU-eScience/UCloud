@@ -63,7 +63,7 @@ func inferenceSelectProvider(actor rpc.Actor, requested util.Option[string]) (st
 		Username:          actor.Username,
 		Project:           util.OptMap(actor.Project, func(value rpc.ProjectId) string { return string(value) }),
 		UseProject:        actor.Project.Present,
-		FilterProductType: util.OptValue(accapi.ProductTypeLicense),
+		FilterProductType: util.OptValue(accapi.ProductTypeInference),
 	}))
 	if err != nil || len(providers.Responses) == 0 {
 		return "", util.HttpErr(http.StatusPaymentRequired, "could not determine available inference providers")
