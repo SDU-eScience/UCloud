@@ -104,9 +104,14 @@ type InferenceChatStreamOptions struct {
 }
 
 type InferenceChatUsage struct {
-	PromptTokens     int `json:"prompt_tokens"`
-	CompletionTokens int `json:"completion_tokens"`
-	TotalTokens      int `json:"total_tokens"`
+	PromptTokens        int                                    `json:"prompt_tokens"`
+	CompletionTokens    int                                    `json:"completion_tokens"`
+	TotalTokens         int                                    `json:"total_tokens"`
+	PromptTokensDetails util.Option[InferenceChatTokenDetails] `json:"prompt_tokens_details,omitempty"`
+}
+
+type InferenceChatTokenDetails struct {
+	CachedTokens int `json:"cached_tokens"`
 }
 
 type InferenceChatTool struct {
@@ -190,7 +195,8 @@ func InferenceChat(owner apm.WalletOwner, history InferenceChatRequest) (Inferen
 	}
 
 	usage := inferenceChatUsageFromResponse(history, resp.Usage, resp.Choices)
-	inferenceReportUsage(owner, usage.PromptTokens, usage.CompletionTokens)
+	cachedTokens, inputTokens, outputTokens := inferenceChatUsageComponents(usage)
+	inferenceReportUsage(owner, model, cachedTokens, inputTokens, outputTokens)
 
 	return InferenceChatResponse{
 		Id:      resp.Id,
@@ -300,6 +306,9 @@ func InferenceChatStreaming(owner apm.WalletOwner, history InferenceChatRequest)
 				if !sentAny {
 					ch <- InferenceChatStreamingResponse{Usage: inferenceEstimateChatUsage(history, "")}
 				}
+
+				cachedTokens, inputTokens, outputTokens := inferenceChatUsageComponents(usageSeen)
+				inferenceReportUsage(owner, model, cachedTokens, inputTokens, outputTokens)
 				return
 			}
 		}
@@ -509,7 +518,7 @@ func InferenceTranscribe(owner apm.WalletOwner, request InferenceTranscriptionRe
 		}
 		if err := json.Unmarshal(respBody, &resp); err == nil {
 			usage := inferenceTranscriptionUsageFromText(resp.Text, resp.Usage)
-			inferenceReportUsage(owner, usage.InputTokens, usage.OutputTokens)
+			inferenceReportUsage(owner, model, 0, usage.InputTokens, usage.OutputTokens)
 			return InferenceTranscriptionResponse{DiarizedJson: &InferenceTranscriptionDiarizedResponse{Task: resp.Task, Duration: resp.Duration, Text: resp.Text, Segments: resp.Segments, Usage: usage}}, nil
 		} else {
 			return InferenceTranscriptionResponse{}, util.HttpErr(http.StatusBadGateway, "invalid response from upstream")
@@ -527,7 +536,7 @@ func InferenceTranscribe(owner apm.WalletOwner, request InferenceTranscriptionRe
 		}
 		if err := json.Unmarshal(respBody, &resp); err == nil {
 			usage := inferenceTranscriptionUsageFromText(resp.Text, resp.Usage)
-			inferenceReportUsage(owner, usage.InputTokens, usage.OutputTokens)
+			inferenceReportUsage(owner, model, 0, usage.InputTokens, usage.OutputTokens)
 			return InferenceTranscriptionResponse{VerboseJson: &InferenceTranscriptionVerboseResponse{Task: resp.Task, Language: resp.Language, Duration: resp.Duration, Text: resp.Text, Segments: resp.Segments, Words: resp.Words, Usage: usage}}, nil
 		} else {
 			return InferenceTranscriptionResponse{}, util.HttpErr(http.StatusBadGateway, "invalid response from upstream")
@@ -541,7 +550,7 @@ func InferenceTranscribe(owner apm.WalletOwner, request InferenceTranscriptionRe
 	}
 	if err := json.Unmarshal(respBody, &resp); err == nil {
 		usage := inferenceTranscriptionUsageFromText(resp.Text, resp.Usage)
-		inferenceReportUsage(owner, usage.InputTokens, usage.OutputTokens)
+		inferenceReportUsage(owner, model, 0, usage.InputTokens, usage.OutputTokens)
 		return InferenceTranscriptionResponse{Json: &InferenceTranscriptionJsonResponse{Text: resp.Text, Logprobs: resp.Logprobs, Usage: usage}}, nil
 	} else {
 		return InferenceTranscriptionResponse{}, util.HttpErr(http.StatusBadGateway, "invalid response from upstream")
@@ -637,7 +646,7 @@ func InferenceTranscribeStreaming(owner apm.WalletOwner, request InferenceTransc
 			}
 		}
 
-		inferenceReportUsage(owner, usageSeen.InputTokens, usageSeen.OutputTokens)
+		inferenceReportUsage(owner, model, 0, usageSeen.InputTokens, usageSeen.OutputTokens)
 	}()
 
 	return ch, nil
@@ -792,7 +801,7 @@ func InferenceGenerateImage(owner apm.WalletOwner, request InferenceImageGenerat
 			return InferenceImageGenerationResponse{}, httpErr
 		}
 
-		inferenceReportUsage(owner, resp.Usage.InputTokens, resp.Usage.OutputTokens)
+		inferenceReportUsage(owner, model, 0, resp.Usage.InputTokens, resp.Usage.OutputTokens)
 		return resp, nil
 	}
 
@@ -829,7 +838,7 @@ func InferenceGenerateImage(owner apm.WalletOwner, request InferenceImageGenerat
 		Size:         resp.Size,
 		Usage:        usage,
 	}
-	inferenceReportUsage(owner, usage.InputTokens, usage.OutputTokens)
+	inferenceReportUsage(owner, model, 0, usage.InputTokens, usage.OutputTokens)
 	return result, nil
 }
 
@@ -866,7 +875,7 @@ func InferenceGenerateImageStreaming(owner apm.WalletOwner, request InferenceIma
 					Usage:   resp.Usage,
 				}
 			}
-			inferenceReportUsage(owner, resp.Usage.InputTokens, resp.Usage.OutputTokens)
+			inferenceReportUsage(owner, model, 0, resp.Usage.InputTokens, resp.Usage.OutputTokens)
 			return
 		}
 
@@ -922,7 +931,7 @@ func InferenceGenerateImageStreaming(owner apm.WalletOwner, request InferenceIma
 					Usage:             inferenceImageUsageFromPayload(request, 0, parsed.Usage),
 				}
 				if streamEvent.Type == "image_generation.completed" {
-					inferenceReportUsage(owner, streamEvent.Usage.InputTokens, streamEvent.Usage.OutputTokens)
+					inferenceReportUsage(owner, model, 0, streamEvent.Usage.InputTokens, streamEvent.Usage.OutputTokens)
 				}
 				ch <- streamEvent
 				sentAny = true
@@ -1091,6 +1100,23 @@ func inferenceChatUsageFromText(history InferenceChatRequest, responseText strin
 	}
 
 	return inferenceEstimateChatUsage(history, responseText)
+}
+
+func inferenceChatUsageComponents(usage InferenceChatUsage) (cachedTokens int, inputTokens int, outputTokens int) {
+	cachedTokens = 0
+	if usage.PromptTokensDetails.Present {
+		cachedTokens = usage.PromptTokensDetails.Value.CachedTokens
+	}
+	if cachedTokens < 0 {
+		cachedTokens = 0
+	}
+	if cachedTokens > usage.PromptTokens {
+		cachedTokens = usage.PromptTokens
+	}
+
+	inputTokens = usage.PromptTokens - cachedTokens
+	outputTokens = usage.CompletionTokens
+	return cachedTokens, inputTokens, outputTokens
 }
 
 func inferenceTranscriptionUsageFromText(text string, usage util.Option[InferenceTranscriptionUsage]) InferenceTranscriptionUsage {

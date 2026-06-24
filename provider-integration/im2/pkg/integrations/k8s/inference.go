@@ -12,6 +12,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	cfg "ucloud.dk/pkg/config"
 	"ucloud.dk/pkg/controller"
@@ -51,9 +53,40 @@ type inferenceDiscoveredModelsResponse struct {
 }
 
 type InferenceUsage struct {
-	PromptTokens     int `json:"prompt_tokens"`
-	CompletionTokens int `json:"completion_tokens"`
+	PromptTokens        int                                    `json:"prompt_tokens"`
+	CompletionTokens    int                                    `json:"completion_tokens"`
+	PromptTokensDetails util.Option[InferenceChatTokenDetails] `json:"prompt_tokens_details,omitempty"`
 }
+
+var (
+	metricInferenceCachedInputTokens = promauto.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "inference",
+		Name:      "cached_input_tokens_total",
+		Help:      "Total cached input tokens observed by inference model.",
+	}, []string{"model"})
+
+	metricInferenceInputTokens = promauto.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "inference",
+		Name:      "input_tokens_total",
+		Help:      "Total non-cached input tokens observed by inference model.",
+	}, []string{"model"})
+
+	metricInferenceOutputTokens = promauto.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "inference",
+		Name:      "output_tokens_total",
+		Help:      "Total output tokens observed by inference model.",
+	}, []string{"model"})
+
+	metricInferenceRequests = promauto.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "inference",
+		Name:      "requests_total",
+		Help:      "Total inference requests by model.",
+	}, []string{"model"})
+)
 
 func initInference() {
 	inferenceCfg := &shared.ServiceConfig.Compute.Inference
@@ -608,8 +641,27 @@ func inferenceParseImageSize(raw string) (int, int) {
 	return w, h
 }
 
-func inferenceReportUsage(owner apm.WalletOwner, promptTokens int, completionTokens int) {
-	log.Info("Prompt: %v | Completion: %v", promptTokens, completionTokens)
+func inferenceReportUsage(owner apm.WalletOwner, model InferenceModel, cachedTokens int, inputTokens int, outputTokens int) {
+	if cachedTokens < 0 {
+		cachedTokens = 0
+	}
+	if inputTokens < 0 {
+		inputTokens = 0
+	}
+	if outputTokens < 0 {
+		outputTokens = 0
+	}
+
+	usageNonNormalized := cachedTokens*model.PriceMultiplier.CachedInput + inputTokens*model.PriceMultiplier.Input + outputTokens*model.PriceMultiplier.Output
+	usage := usageNonNormalized / 1000
+	if usage == 0 && usageNonNormalized > 0 {
+		usage = 1
+	}
+
+	metricInferenceCachedInputTokens.WithLabelValues(model.Name).Add(float64(cachedTokens))
+	metricInferenceInputTokens.WithLabelValues(model.Name).Add(float64(inputTokens))
+	metricInferenceOutputTokens.WithLabelValues(model.Name).Add(float64(outputTokens))
+	metricInferenceRequests.WithLabelValues(model.Name).Inc()
 
 	_, _ = apm.ReportUsage.Invoke(fnd.BulkRequest[apm.ReportUsageRequest]{
 		Items: []apm.ReportUsageRequest{
@@ -620,7 +672,7 @@ func inferenceReportUsage(owner apm.WalletOwner, promptTokens int, completionTok
 					Name:     inferenceGlobals.Product.Category.Name,
 					Provider: inferenceGlobals.Product.Category.Provider,
 				},
-				Usage:       int64(completionTokens),
+				Usage:       int64(usage),
 				Description: apm.ChargeDescription{},
 			},
 		},
