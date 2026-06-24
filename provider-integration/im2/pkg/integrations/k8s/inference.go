@@ -172,11 +172,17 @@ func initInference() {
 				return
 			}
 
+			chunks, httpErr := InferenceChatStreaming(apiKeyOwner, request)
+			if httpErr != nil {
+				http.Error(w, httpErr.Why, httpErr.StatusCode)
+				return
+			}
+
 			w.Header().Set("Content-Type", "text/event-stream")
 			w.Header().Set("Cache-Control", "no-cache")
 			w.Header().Set("Connection", "keep-alive")
 
-			for chunk := range InferenceChatStreaming(apiKeyOwner, request) {
+			for chunk := range chunks {
 				chunkData, err := json.Marshal(chunk)
 				if err != nil {
 					continue
@@ -193,7 +199,11 @@ func initInference() {
 			return
 		}
 
-		resp := InferenceChat(apiKeyOwner, request)
+		resp, httpErr := InferenceChat(apiKeyOwner, request)
+		if httpErr != nil {
+			http.Error(w, httpErr.Why, httpErr.StatusCode)
+			return
+		}
 		respData, err := json.Marshal(resp)
 		if err != nil {
 			http.Error(w, "invalid request", http.StatusBadRequest)
@@ -225,11 +235,17 @@ func initInference() {
 				return
 			}
 
+			events, httpErr := InferenceTranscribeStreaming(apiKeyOwner, request)
+			if httpErr != nil {
+				http.Error(w, httpErr.Why, httpErr.StatusCode)
+				return
+			}
+
 			w.Header().Set("Content-Type", "text/event-stream")
 			w.Header().Set("Cache-Control", "no-cache")
 			w.Header().Set("Connection", "keep-alive")
 
-			for event := range InferenceTranscribeStreaming(apiKeyOwner, request) {
+			for event := range events {
 				data, err := json.Marshal(event)
 				if err != nil {
 					continue
@@ -292,11 +308,17 @@ func initInference() {
 				return
 			}
 
+			events, httpErr := InferenceGenerateImageStreaming(apiKeyOwner, request)
+			if httpErr != nil {
+				http.Error(w, httpErr.Why, httpErr.StatusCode)
+				return
+			}
+
 			w.Header().Set("Content-Type", "text/event-stream")
 			w.Header().Set("Cache-Control", "no-cache")
 			w.Header().Set("Connection", "keep-alive")
 
-			for event := range InferenceGenerateImageStreaming(apiKeyOwner, request) {
+			for event := range events {
 				data, err := json.Marshal(event)
 				if err != nil {
 					continue

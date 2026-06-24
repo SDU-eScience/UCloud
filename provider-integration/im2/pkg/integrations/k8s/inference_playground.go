@@ -429,26 +429,37 @@ func (app *InferencePlaygroundApp) runChat() {
 		if app.Chat.Streaming {
 			var builder strings.Builder
 			usageSeen := InferenceChatUsage{}
-			for chunk := range InferenceChatStreaming(app.walletOwner(), request) {
-				usageSeen = chunk.Usage
-				if len(chunk.Choices) == 0 {
-					continue
+			chunks, err := InferenceChatStreaming(app.walletOwner(), request)
+			if err != nil {
+				assistant = err.Why
+				ucxsvc.UiSendFailure(app, fmt.Sprintf("Chat failed: %s", err))
+			} else {
+				for chunk := range chunks {
+					usageSeen = chunk.Usage
+					if len(chunk.Choices) == 0 {
+						continue
+					}
+					delta := chunk.Choices[0].Delta.Content
+					if delta == "" {
+						continue
+					}
+					builder.WriteString(delta)
+					app.Chat.Messages[assistantIndex].Content = builder.String()
+					ucx.AppUpdateModel(app)
 				}
-				delta := chunk.Choices[0].Delta.Content
-				if delta == "" {
-					continue
-				}
-				builder.WriteString(delta)
-				app.Chat.Messages[assistantIndex].Content = builder.String()
-				ucx.AppUpdateModel(app)
+				assistant = strings.TrimSpace(builder.String())
+				app.applyChatUsage(usageSeen)
 			}
-			assistant = strings.TrimSpace(builder.String())
-			app.applyChatUsage(usageSeen)
 		} else {
-			resp := InferenceChat(app.walletOwner(), request)
-			app.applyChatUsage(resp.Usage)
-			if len(resp.Choices) > 0 {
-				assistant = resp.Choices[0].Message.Content
+			resp, err := InferenceChat(app.walletOwner(), request)
+			if err != nil {
+				assistant = err.Why
+				ucxsvc.UiSendFailure(app, fmt.Sprintf("Chat failed: %s", err))
+			} else {
+				app.applyChatUsage(resp.Usage)
+				if len(resp.Choices) > 0 {
+					assistant = resp.Choices[0].Message.Content
+				}
 			}
 		}
 
@@ -691,7 +702,13 @@ func (app *InferencePlaygroundApp) runTranscription() {
 	if app.Transcription.Streaming {
 		var builder strings.Builder
 		usageSeen := InferenceTranscriptionUsage{}
-		for event := range InferenceTranscribeStreaming(app.walletOwner(), request) {
+		events, err := InferenceTranscribeStreaming(app.walletOwner(), request)
+		if err != nil {
+			app.Transcription.Output = err.Why
+			ucxsvc.UiSendFailure(app, fmt.Sprintf("Transcription failed: %s", err))
+			return
+		}
+		for event := range events {
 			usageSeen = event.Usage
 			if event.Delta != "" {
 				builder.WriteString(event.Delta)
@@ -997,7 +1014,13 @@ func (app *InferencePlaygroundApp) runImageGeneration() {
 
 	if app.Image.Streaming {
 		last := InferenceImageGenerationStreamEvent{Usage: inferenceImageUsageFromPayload(request, 0, util.OptNone[InferenceImageGenerationUsage]())}
-		for event := range InferenceGenerateImageStreaming(app.walletOwner(), request) {
+		events, err := InferenceGenerateImageStreaming(app.walletOwner(), request)
+		if err != nil {
+			app.Image.Output = err.Why
+			ucxsvc.UiSendFailure(app, fmt.Sprintf("Image generation failed: %s", err))
+			return
+		}
+		for event := range events {
 			last = event
 		}
 

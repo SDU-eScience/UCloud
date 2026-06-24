@@ -156,19 +156,25 @@ type InferenceChatDelta struct {
 	Content string `json:"content,omitempty"`
 }
 
-func InferenceChat(owner apm.WalletOwner, history InferenceChatRequest) InferenceChatResponse {
+func InferenceChat(owner apm.WalletOwner, history InferenceChatRequest) (InferenceChatResponse, *util.HttpError) {
 	if inferenceIsLocked(owner) {
-		return InferenceChatResponse{}
+		return InferenceChatResponse{}, util.HttpErr(http.StatusPaymentRequired, "payment required")
 	}
+
+	model, httpErr := inferenceResolveModelForOwner(owner, history.Model)
+	if httpErr != nil {
+		return InferenceChatResponse{}, httpErr
+	}
+	history.Model = model.Endpoint.BackendModelName
 
 	body, err := json.Marshal(history)
 	if err != nil {
-		return InferenceChatResponse{}
+		return InferenceChatResponse{}, util.HttpErr(http.StatusBadRequest, "invalid request")
 	}
 
-	respBody, httpErr := inferenceBackendJSONRequest(http.MethodPost, "/chat/completions", body, "application/json")
+	respBody, httpErr := inferenceBackendJSONRequest(model.Endpoint.BasePath, http.MethodPost, "/chat/completions", body, "application/json")
 	if httpErr != nil {
-		return InferenceChatResponse{}
+		return InferenceChatResponse{}, httpErr
 	}
 
 	var resp struct {
@@ -180,7 +186,7 @@ func InferenceChat(owner apm.WalletOwner, history InferenceChatRequest) Inferenc
 		Usage   util.Option[InferenceChatUsage] `json:"usage"`
 	}
 	if err := json.Unmarshal(respBody, &resp); err != nil {
-		return InferenceChatResponse{}
+		return InferenceChatResponse{}, util.HttpErr(http.StatusBadGateway, "invalid response")
 	}
 
 	usage := inferenceChatUsageFromResponse(history, resp.Usage, resp.Choices)
@@ -190,19 +196,26 @@ func InferenceChat(owner apm.WalletOwner, history InferenceChatRequest) Inferenc
 		Id:      resp.Id,
 		Object:  resp.Object,
 		Created: resp.Created,
-		Model:   resp.Model,
+		Model:   model.Name,
 		Choices: resp.Choices,
 		Usage:   usage,
-	}
+	}, nil
 }
 
-func InferenceChatStreaming(owner apm.WalletOwner, history InferenceChatRequest) chan InferenceChatStreamingResponse {
+func InferenceChatStreaming(owner apm.WalletOwner, history InferenceChatRequest) (chan InferenceChatStreamingResponse, *util.HttpError) {
 	ch := make(chan InferenceChatStreamingResponse)
 
 	if inferenceIsLocked(owner) {
 		close(ch)
-		return ch
+		return ch, util.HttpErr(http.StatusPaymentRequired, "payment required")
 	}
+
+	model, httpErr := inferenceResolveModelForOwner(owner, history.Model)
+	if httpErr != nil {
+		close(ch)
+		return ch, httpErr
+	}
+	history.Model = model.Endpoint.BackendModelName
 
 	go func() {
 		defer close(ch)
@@ -221,7 +234,7 @@ func InferenceChatStreaming(owner apm.WalletOwner, history InferenceChatRequest)
 			return
 		}
 
-		resp, httpErr := inferenceBackendStreamRequest("/chat/completions", body)
+		resp, httpErr := inferenceBackendStreamRequest(model.Endpoint.BasePath, "/chat/completions", body)
 		if httpErr != nil {
 			return
 		}
@@ -252,6 +265,7 @@ func InferenceChatStreaming(owner apm.WalletOwner, history InferenceChatRequest)
 				Usage   util.Option[InferenceChatUsage] `json:"usage"`
 			}
 			if jsonErr := json.Unmarshal([]byte(raw), &chunk); jsonErr == nil {
+				chunk.Model = model.Name
 				if len(chunk.Choices) > 0 {
 					assistantText.WriteString(chunk.Choices[0].Delta.Content)
 				}
@@ -291,7 +305,7 @@ func InferenceChatStreaming(owner apm.WalletOwner, history InferenceChatRequest)
 		}
 	}()
 
-	return ch
+	return ch, nil
 }
 
 // Transcription
@@ -469,12 +483,18 @@ func InferenceTranscribe(owner apm.WalletOwner, request InferenceTranscriptionRe
 		return InferenceTranscriptionResponse{}, util.HttpErr(http.StatusPaymentRequired, "payment required")
 	}
 
+	model, httpErr := inferenceResolveModelForOwner(owner, request.Model)
+	if httpErr != nil {
+		return InferenceTranscriptionResponse{}, httpErr
+	}
+	request.Model = model.Endpoint.BackendModelName
+
 	body, contentType, httpErr := inferenceBuildTranscriptionMultipart(request)
 	if httpErr != nil {
 		return InferenceTranscriptionResponse{}, httpErr
 	}
 
-	respBody, httpErr := inferenceBackendJSONRequest(http.MethodPost, "/audio/transcriptions", body, contentType)
+	respBody, httpErr := inferenceBackendJSONRequest(model.Endpoint.BasePath, http.MethodPost, "/audio/transcriptions", body, contentType)
 	if httpErr != nil {
 		return InferenceTranscriptionResponse{}, httpErr
 	}
@@ -528,13 +548,20 @@ func InferenceTranscribe(owner apm.WalletOwner, request InferenceTranscriptionRe
 	}
 }
 
-func InferenceTranscribeStreaming(owner apm.WalletOwner, request InferenceTranscriptionRequest) chan InferenceTranscriptionStreamEvent {
+func InferenceTranscribeStreaming(owner apm.WalletOwner, request InferenceTranscriptionRequest) (chan InferenceTranscriptionStreamEvent, *util.HttpError) {
 	ch := make(chan InferenceTranscriptionStreamEvent)
 
 	if inferenceIsLocked(owner) {
 		close(ch)
-		return ch
+		return ch, util.HttpErr(http.StatusPaymentRequired, "payment required")
 	}
+
+	model, httpErr := inferenceResolveModelForOwner(owner, request.Model)
+	if httpErr != nil {
+		close(ch)
+		return ch, httpErr
+	}
+	request.Model = model.Endpoint.BackendModelName
 
 	go func() {
 		defer close(ch)
@@ -545,7 +572,7 @@ func InferenceTranscribeStreaming(owner apm.WalletOwner, request InferenceTransc
 			return
 		}
 
-		resp, httpErr := inferenceBackendRequest(http.MethodPost, "/audio/transcriptions", body, contentType)
+		resp, httpErr := inferenceBackendRequest(model.Endpoint.BasePath, http.MethodPost, "/audio/transcriptions", body, contentType)
 		if httpErr != nil {
 			return
 		}
@@ -613,7 +640,7 @@ func InferenceTranscribeStreaming(owner apm.WalletOwner, request InferenceTransc
 		inferenceReportUsage(owner, usageSeen.InputTokens, usageSeen.OutputTokens)
 	}()
 
-	return ch
+	return ch, nil
 }
 
 func inferenceBuildTranscriptionMultipart(request InferenceTranscriptionRequest) ([]byte, string, *util.HttpError) {
@@ -752,6 +779,13 @@ func InferenceGenerateImage(owner apm.WalletOwner, request InferenceImageGenerat
 		return InferenceImageGenerationResponse{}, util.HttpErr(http.StatusPaymentRequired, "payment required")
 	}
 
+	modelName := request.Model.GetOrDefault("")
+	model, httpErr := inferenceResolveModelForOwner(owner, modelName)
+	if httpErr != nil {
+		return InferenceImageGenerationResponse{}, httpErr
+	}
+	request.Model.Set(model.Endpoint.BackendModelName)
+
 	if inferenceGlobals.MockImageGeneration {
 		resp, httpErr := inferenceGenerateMockImageResponse(request)
 		if httpErr != nil {
@@ -767,7 +801,7 @@ func InferenceGenerateImage(owner apm.WalletOwner, request InferenceImageGenerat
 		return InferenceImageGenerationResponse{}, util.HttpErr(http.StatusBadRequest, "invalid request")
 	}
 
-	respBody, httpErr := inferenceBackendJSONRequest(http.MethodPost, "/images/generations", body, "application/json")
+	respBody, httpErr := inferenceBackendJSONRequest(model.Endpoint.BasePath, http.MethodPost, "/images/generations", body, "application/json")
 	if httpErr != nil {
 		return InferenceImageGenerationResponse{}, httpErr
 	}
@@ -799,13 +833,21 @@ func InferenceGenerateImage(owner apm.WalletOwner, request InferenceImageGenerat
 	return result, nil
 }
 
-func InferenceGenerateImageStreaming(owner apm.WalletOwner, request InferenceImageGenerationRequest) chan InferenceImageGenerationStreamEvent {
+func InferenceGenerateImageStreaming(owner apm.WalletOwner, request InferenceImageGenerationRequest) (chan InferenceImageGenerationStreamEvent, *util.HttpError) {
 	ch := make(chan InferenceImageGenerationStreamEvent)
 
 	if inferenceIsLocked(owner) {
 		close(ch)
-		return ch
+		return ch, util.HttpErr(http.StatusPaymentRequired, "payment required")
 	}
+
+	modelName := request.Model.GetOrDefault("")
+	model, httpErr := inferenceResolveModelForOwner(owner, modelName)
+	if httpErr != nil {
+		close(ch)
+		return ch, httpErr
+	}
+	request.Model.Set(model.Endpoint.BackendModelName)
 
 	go func() {
 		defer close(ch)
@@ -833,7 +875,7 @@ func InferenceGenerateImageStreaming(owner apm.WalletOwner, request InferenceIma
 			return
 		}
 
-		resp, httpErr := inferenceBackendRequest(http.MethodPost, "/images/generations", body, "application/json")
+		resp, httpErr := inferenceBackendRequest(model.Endpoint.BasePath, http.MethodPost, "/images/generations", body, "application/json")
 		if httpErr != nil {
 			return
 		}
@@ -908,7 +950,7 @@ func InferenceGenerateImageStreaming(owner apm.WalletOwner, request InferenceIma
 		}
 	}()
 
-	return ch
+	return ch, nil
 }
 
 func inferenceImageRequestCount(request InferenceImageGenerationRequest) int {
@@ -943,8 +985,8 @@ func parseFormFloat(raw string) (float64, error) {
 	return strconv.ParseFloat(raw, 64)
 }
 
-func inferenceBackendJSONRequest(method string, path string, body []byte, contentType string) ([]byte, *util.HttpError) {
-	resp, httpErr := inferenceBackendRequest(method, path, body, contentType)
+func inferenceBackendJSONRequest(basePath string, method string, path string, body []byte, contentType string) ([]byte, *util.HttpError) {
+	resp, httpErr := inferenceBackendRequest(basePath, method, path, body, contentType)
 	if httpErr != nil {
 		return nil, httpErr
 	}
@@ -962,12 +1004,12 @@ func inferenceBackendJSONRequest(method string, path string, body []byte, conten
 	return respBody, nil
 }
 
-func inferenceBackendStreamRequest(path string, body []byte) (*http.Response, *util.HttpError) {
-	return inferenceBackendRequest(http.MethodPost, path, body, "application/json")
+func inferenceBackendStreamRequest(basePath string, path string, body []byte) (*http.Response, *util.HttpError) {
+	return inferenceBackendRequest(basePath, http.MethodPost, path, body, "application/json")
 }
 
-func inferenceBackendRequest(method string, path string, body []byte, contentType string) (*http.Response, *util.HttpError) {
-	backend := strings.TrimRight(inferenceGlobals.BackendServer, "/")
+func inferenceBackendRequest(basePath string, method string, path string, body []byte, contentType string) (*http.Response, *util.HttpError) {
+	backend := strings.TrimRight(basePath, "/")
 	if backend == "" {
 		return nil, util.HttpErr(http.StatusServiceUnavailable, "inference backend is not configured")
 	}
@@ -988,6 +1030,22 @@ func inferenceBackendRequest(method string, path string, body []byte, contentTyp
 	}
 
 	return resp, nil
+}
+
+func inferenceResolveModelForOwner(owner apm.WalletOwner, modelName string) (InferenceModel, *util.HttpError) {
+	modelName = strings.TrimSpace(modelName)
+	if modelName == "" {
+		return InferenceModel{}, util.HttpErr(http.StatusBadRequest, "model is required")
+	}
+
+	model, ok := InferenceCatalogModelByName(modelName)
+	if !ok {
+		return InferenceModel{}, util.HttpErr(http.StatusNotFound, "model not found")
+	}
+	if !inferenceModelAvailableToOwner(model, owner) {
+		return InferenceModel{}, util.HttpErr(http.StatusForbidden, "model is not available")
+	}
+	return model, nil
 }
 
 // Cost estimation
