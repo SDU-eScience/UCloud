@@ -28,6 +28,34 @@ func initInference() {
 
 		return orcapi.InferenceOpenPlaygroundResponse(resp), nil
 	})
+
+	orcapi.InferenceListModels.Handler(func(info rpc.RequestInfo, request orcapi.InferenceListModelsRequest) (orcapi.InferenceListModelsResponse, *util.HttpError) {
+		providerId, err := inferenceSelectProvider(info.Actor, request.ProviderId)
+		if err != nil {
+			return orcapi.InferenceListModelsResponse{}, err
+		}
+
+		return InvokeProvider(providerId, orcapi.InferenceListModelsProvider,
+			orcapi.InferenceListModelsProviderRequest{Owner: inferenceActorToOwner(info.Actor)},
+			ProviderCallOpts{Username: util.OptValue(info.Actor.Username)},
+		)
+	})
+
+	orcapi.InferenceUpdateModel.Handler(func(info rpc.RequestInfo, request orcapi.InferenceUpdateModelRequest) (util.Empty, *util.HttpError) {
+		providerId, err := inferenceSelectProvider(info.Actor, request.ProviderId)
+		if err != nil {
+			return util.Empty{}, err
+		}
+
+		return InvokeProvider(providerId, orcapi.InferenceUpdateModelProvider,
+			orcapi.InferenceUpdateModelProviderRequest{
+				Owner:   inferenceActorToOwner(info.Actor),
+				OldName: request.OldName,
+				Model:   request.Model,
+			},
+			ProviderCallOpts{Username: util.OptValue(info.Actor.Username)},
+		)
+	})
 }
 
 func inferenceSelectProvider(actor rpc.Actor, requested util.Option[string]) (string, *util.HttpError) {

@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"runtime"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -124,6 +125,94 @@ func initInference() {
 			}
 		}()
 	}
+
+	orcapi.InferenceListModelsProvider.Handler(func(info rpc.RequestInfo, request orcapi.InferenceListModelsProviderRequest) (orcapi.InferenceListModelsResponse, *util.HttpError) {
+		_ = info
+		owner := apm.WalletOwnerUser(request.Owner.CreatedBy)
+		if request.Owner.Project.Present {
+			owner = apm.WalletOwnerProject(request.Owner.Project.Value)
+		}
+		isAdmin := inferenceIsAdminOwner(request.Owner)
+		models := InferenceModelListForOwner(owner)
+		if isAdmin {
+			models = InferenceModelList()
+		}
+
+		result := orcapi.InferenceListModelsResponse{
+			Models:  make([]orcapi.InferenceModel, 0, len(models)),
+			IsAdmin: isAdmin,
+		}
+		for _, model := range models {
+			result.Models = append(result.Models, orcapi.InferenceModel{
+				Name:  model.Name,
+				Title: model.Title,
+				Capabilities: func() []orcapi.InferenceCapability {
+					capabilities := make([]orcapi.InferenceCapability, 0, len(model.Capabilities))
+					for _, capability := range model.Capabilities {
+						capabilities = append(capabilities, orcapi.InferenceCapability(capability))
+					}
+					return capabilities
+				}(),
+				PriceMultiplier: orcapi.InferencePricing{
+					CachedInput: model.PriceMultiplier.CachedInput,
+					Input:       model.PriceMultiplier.Input,
+					Output:      model.PriceMultiplier.Output,
+				},
+				Endpoint: orcapi.InferenceEndpoint{
+					BasePath:         model.Endpoint.BasePath,
+					BackendModelName: model.Endpoint.BackendModelName,
+				},
+				Availability: orcapi.InferenceAvailability{
+					Public:      model.Availability.Public,
+					AvailableTo: append([]string{}, model.Availability.AvailableTo...),
+				},
+			})
+		}
+		return result, nil
+	})
+
+	orcapi.InferenceUpdateModelProvider.Handler(func(info rpc.RequestInfo, request orcapi.InferenceUpdateModelProviderRequest) (util.Empty, *util.HttpError) {
+		_ = info
+		if !inferenceIsAdminOwner(request.Owner) {
+			return util.Empty{}, util.HttpErr(http.StatusForbidden, "forbidden")
+		}
+
+		model := InferenceModel{
+			Name:  request.Model.Name,
+			Title: request.Model.Title,
+			Capabilities: func() []InferenceCapability {
+				capabilities := make([]InferenceCapability, 0, len(request.Model.Capabilities))
+				for _, capability := range request.Model.Capabilities {
+					capabilities = append(capabilities, InferenceCapability(capability))
+				}
+				return capabilities
+			}(),
+			PriceMultiplier: InferencePricing{
+				CachedInput: request.Model.PriceMultiplier.CachedInput,
+				Input:       request.Model.PriceMultiplier.Input,
+				Output:      request.Model.PriceMultiplier.Output,
+			},
+			Endpoint: InferenceEndpoint{
+				BasePath:         request.Model.Endpoint.BasePath,
+				BackendModelName: request.Model.Endpoint.BackendModelName,
+			},
+			Availability: InferenceAvailability{
+				Public:      request.Model.Availability.Public,
+				AvailableTo: append([]string{}, request.Model.Availability.AvailableTo...),
+			},
+		}
+
+		oldName := strings.TrimSpace(request.OldName)
+		if oldName != "" && oldName != strings.TrimSpace(model.Name) {
+			if err := InferenceModelRename(oldName, model.Name); err != nil {
+				return util.Empty{}, err
+			}
+		}
+		if err := InferenceModelUpsert(model); err != nil {
+			return util.Empty{}, err
+		}
+		return util.Empty{}, nil
+	})
 
 	inferenceGlobals.Ready.Store(true)
 
@@ -378,6 +467,13 @@ func initInference() {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write(respData)
 	})
+}
+
+func inferenceIsAdminOwner(owner orcapi.ResourceOwner) bool {
+	if !owner.Project.Present {
+		return false
+	}
+	return slices.Contains(shared.ServiceConfig.Compute.Inference.Access.Administrators, owner.Project.Value)
 }
 
 func inferenceAuthenticateRequest(r *http.Request) (apm.WalletOwner, *util.HttpError) {
