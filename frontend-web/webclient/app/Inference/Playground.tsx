@@ -17,6 +17,8 @@ import {Value, ValueKind} from "@/UCX/protocol";
 import {usePrettyFilePath} from "@/Files/FilePath";
 import {UFile} from "@/UCloud/UFile";
 import {doNothing, removeTrailingSlash} from "@/UtilityFunctions";
+import {addStandardInputDialog} from "@/UtilityComponents";
+import {Operation, Operations, ShortcutKey} from "@/ui-components/Operation";
 
 import {openPlayground} from "./api";
 import {getParentPath} from "@/Utilities/FileUtilities";
@@ -222,7 +224,95 @@ const playgroundComponents: UcxComponentRegistry = {
 
         return <div ref={containerRef} style={{overflowY: "auto", ...fn.sxStyle(node)}}>{renderChildren()}</div>
     },
+
+    inference_thread_list: ({node, model, fn}: UcxRenderContext) => {
+        return <ThreadListNode node={node} model={model} fn={fn} />;
+    },
 };
+
+type ThreadListItem = {id: string; title: string};
+
+function ThreadListNode({node, model, fn}: Pick<UcxRenderContext, "node" | "model" | "fn">): React.ReactNode {
+    const [operations, setOperations] = React.useState<Operation<ThreadListItem>[]>([]);
+    const openOperationsRef = React.useRef<(left: number, top: number) => void>(doNothing);
+    const threads = threadListValue(fn.modelValue(model, node.bindPath));
+    const currentThreadId = stringValue(fn.modelValue(model, "currentThreadId"));
+
+    const threadOperations = React.useCallback((thread: ThreadListItem): Operation<ThreadListItem>[] => [{
+        text: "Rename",
+        icon: "heroPencil",
+        shortcut: ShortcutKey.R,
+        enabled: () => true,
+        onClick: async () => {
+            try {
+                const result = await addStandardInputDialog({
+                    title: "Rename thread",
+                    placeholder: thread.title,
+                    confirmText: "Rename",
+                    validator: value => value.trim() !== "",
+                    validationFailureMessage: "Thread title cannot be empty",
+                });
+                fn.sendUiEvent("renameThreadFromMenu", "click", {
+                    kind: ValueKind.Object,
+                    object: {
+                        id: {kind: ValueKind.String, string: thread.id},
+                        title: {kind: ValueKind.String, string: result.result},
+                    },
+                });
+            } catch {
+                // Dialog cancelled.
+            }
+        },
+    }, {
+        text: "Delete",
+        icon: "heroTrash",
+        color: "errorMain",
+        confirm: true,
+        shortcut: ShortcutKey.Backspace,
+        enabled: () => true,
+        onClick: () => fn.sendUiEvent("deleteThread", "click", {kind: ValueKind.String, string: thread.id}),
+    }], [fn]);
+
+    if (threads.length === 0) {
+        return <Text color="textSecondary">No threads yet.</Text>;
+    }
+
+    return <Box style={{position: "relative", display: "flex", flexDirection: "column", gap: 6}}>
+        {threads.map(thread => <button
+            key={thread.id}
+            type="button"
+            onClick={() => fn.sendUiEvent("openThread", "click", {kind: ValueKind.String, string: thread.id})}
+            onContextMenu={ev => {
+                ev.preventDefault();
+                ev.stopPropagation();
+                setOperations(threadOperations(thread));
+                openOperationsRef.current(ev.clientX, ev.clientY);
+            }}
+            style={{
+                border: "1px solid var(--borderColor)",
+                borderRadius: 8,
+                padding: "8px 10px",
+                textAlign: "left",
+                cursor: "pointer",
+                background: thread.id === currentThreadId ? "var(--dialogToolbar)" : "var(--backgroundDefault)",
+                color: "inherit",
+            }}
+        >
+            {thread.title}
+        </button>)}
+        <Operations
+            entityNameSingular="thread"
+            operations={operations}
+            forceEvaluationOnOpen={true}
+            openFnRef={openOperationsRef}
+            selected={[]}
+            extra={undefined}
+            row={threads[0] ?? {id: "", title: ""}}
+            hidden
+            location="IN_ROW"
+        />
+    </Box>;
+}
 
 export default function Playground(): React.ReactNode {
     const [session, setSession] = React.useState<PlaygroundSession | null>(null);
@@ -350,6 +440,17 @@ function stringValue(value: any): string {
 function boolValue(value: any): boolean {
     if (!value || value.kind !== ValueKind.Bool) return false;
     return value.bool;
+}
+
+function threadListValue(value: any): ThreadListItem[] {
+    if (!value || value.kind !== ValueKind.List) return [];
+    return value.list.flatMap((item: Value) => {
+        if (item.kind !== ValueKind.Object) return [];
+        const id = stringValue(item.object.id);
+        const title = stringValue(item.object.title);
+        if (id === "") return [];
+        return [{id, title: title === "" ? "New thread" : title}];
+    });
 }
 
 type ImagePreviewNodeProps = Pick<UcxRenderContext, "node" | "model" | "scope" | "fn">;

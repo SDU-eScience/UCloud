@@ -41,4 +41,5 @@ func Init() {
 	db.AddMigration(inferenceV3())
 	db.AddMigration(inferenceV4())
 	db.AddMigration(inferenceV5())
+	db.AddMigration(inferenceV6())
 }

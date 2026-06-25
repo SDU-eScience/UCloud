@@ -11,12 +11,14 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"golang.org/x/sys/unix"
 	ctrl "ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/integrations/k8s/filesystem"
 	"ucloud.dk/pkg/integrations/k8s/shared"
 	apm "ucloud.dk/shared/pkg/accounting"
+	db "ucloud.dk/shared/pkg/database"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/ucx"
 	"ucloud.dk/shared/pkg/ucx/ucxsvc"
@@ -34,8 +36,9 @@ const (
 )
 
 type InferencePlaygroundApp struct {
-	mu      sync.Mutex   `ucx:"-"`
-	session *ucx.Session `ucx:"-"`
+	mu             sync.Mutex   `ucx:"-"`
+	session        *ucx.Session `ucx:"-"`
+	flusherStarted bool         `ucx:"-"`
 
 	Owner     orcapi.ResourceOwner `ucx:"-"`
 	SessionId string               `ucx:"-"`
@@ -43,7 +46,10 @@ type InferencePlaygroundApp struct {
 	Route     string
 	Developer bool
 
-	Models []InferenceModel
+	Models           []InferenceModel
+	Threads          []playgroundChatThread
+	DeletedThreadIds []string `ucx:"-"`
+	CurrentThreadId  string
 
 	Chat          InferencePlaygroundAppChat
 	Transcription InferencePlaygroundTranscription
@@ -151,8 +157,19 @@ type InferencePlaygroundTokenUsage struct {
 }
 
 type playgroundChatMessage struct {
-	Role    string
-	Content string
+	Role        string
+	Content     string
+	GeneratedAt int64
+}
+
+type playgroundChatThread struct {
+	Id        string
+	Title     string
+	CreatedAt int64
+	UpdatedAt int64
+	Messages  []playgroundChatMessage `ucx:"-"`
+	Dirty     bool                    `ucx:"-"`
+	Deleted   bool                    `ucx:"-"`
 }
 
 // App (global) event handlers and init
@@ -163,6 +180,11 @@ func (app *InferencePlaygroundApp) Session() **ucx.Session { return &app.session
 
 func (app *InferencePlaygroundApp) OnInit() {
 	app.refreshModels()
+	app.loadThreads()
+	if !app.Developer {
+		app.createThread()
+	}
+	app.startThreadFlusher()
 
 	app.Chat.ModelId = app.firstModelFor(InferenceTextGeneration)
 	app.applyChatModelDefaults()
@@ -175,8 +197,30 @@ func (app *InferencePlaygroundApp) OnInit() {
 }
 
 func (app *InferencePlaygroundApp) OnMessage(message ucx.Frame) {
+	if message.Opcode == ucx.OpUiEvent {
+		switch message.UiEvent.NodeId {
+		case "newThread":
+			app.createThread()
+			ucx.AppUpdateUi(app)
+		case "openThread":
+			app.openThread(message.UiEvent.Value.String)
+			ucx.AppUpdateModel(app)
+		case "renameThreadFromMenu":
+			id := message.UiEvent.Value.Object["id"].String
+			title := message.UiEvent.Value.Object["title"].String
+			app.renameThread(id, title)
+			ucx.AppUpdateModel(app)
+		case "deleteThread":
+			app.deleteThread(message.UiEvent.Value.String)
+			ucx.AppUpdateUi(app)
+		}
+		return
+	}
 	if message.Opcode == ucx.OpModelInput {
 		if message.ModelInput.Path == "developer" {
+			if !app.Developer {
+				app.ensureCurrentThread()
+			}
 			ucx.AppUpdateUi(app)
 			return
 		}
@@ -246,6 +290,321 @@ func (app *InferencePlaygroundApp) UserInterface() ucx.UiNode {
 func (app *InferencePlaygroundApp) refreshModels() {
 	resp := InferenceModelListForOwner(app.walletOwner())
 	app.Models = resp
+}
+
+func (app *InferencePlaygroundApp) threadOwner() string {
+	return strings.TrimSpace(app.Owner.CreatedBy)
+}
+
+func (app *InferencePlaygroundApp) loadThreads() {
+	owner := app.threadOwner()
+	if owner == "" {
+		return
+	}
+	app.Threads = inferencePlaygroundThreadsLoad(owner)
+}
+
+func (app *InferencePlaygroundApp) startThreadFlusher() {
+	if app.flusherStarted || app.session == nil {
+		return
+	}
+	app.flusherStarted = true
+	ctx := app.session.Context()
+	go func() {
+		ticker := time.NewTicker(5 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				app.mu.Lock()
+				app.flushThreadsLocked()
+				app.mu.Unlock()
+				return
+			case <-ticker.C:
+				app.mu.Lock()
+				app.flushThreadsLocked()
+				app.mu.Unlock()
+			}
+		}
+	}()
+}
+
+func (app *InferencePlaygroundApp) ensureCurrentThread() {
+	if app.Developer || app.threadOwner() == "" {
+		return
+	}
+	if app.CurrentThreadId != "" {
+		if thread, ok := app.currentThread(); ok && !thread.Deleted {
+			app.Chat.Messages = slices.Clone(thread.Messages)
+			return
+		}
+	}
+	if len(app.Threads) > 0 {
+		app.openThread(app.Threads[0].Id)
+		return
+	}
+	app.createThread()
+}
+
+func (app *InferencePlaygroundApp) createThread() {
+	now := time.Now().UnixMilli()
+	thread := playgroundChatThread{
+		Id:        "thread-" + util.SecureToken(),
+		Title:     "New thread",
+		CreatedAt: now,
+		UpdatedAt: now,
+		Dirty:     true,
+	}
+	app.Threads = append([]playgroundChatThread{thread}, app.Threads...)
+	app.CurrentThreadId = thread.Id
+	app.Chat.Messages = nil
+}
+
+func (app *InferencePlaygroundApp) currentThread() (*playgroundChatThread, bool) {
+	for i := range app.Threads {
+		if app.Threads[i].Id == app.CurrentThreadId {
+			return &app.Threads[i], true
+		}
+	}
+	return nil, false
+}
+
+func (app *InferencePlaygroundApp) openThread(id string) {
+	for i := range app.Threads {
+		if app.Threads[i].Id == id && !app.Threads[i].Deleted {
+			app.CurrentThreadId = id
+			app.Chat.Messages = slices.Clone(app.Threads[i].Messages)
+			return
+		}
+	}
+}
+
+func (app *InferencePlaygroundApp) markCurrentThreadDirty() {
+	if app.Developer {
+		return
+	}
+	thread, ok := app.currentThread()
+	if !ok {
+		return
+	}
+	thread.Messages = slices.Clone(app.Chat.Messages)
+	thread.UpdatedAt = time.Now().UnixMilli()
+	thread.Dirty = true
+	if thread.Title == "New thread" {
+		for _, msg := range thread.Messages {
+			if msg.Role == "user" {
+				thread.Title = playgroundThreadTitle(msg.Content)
+				break
+			}
+		}
+	}
+	app.sortThreads()
+}
+
+func (app *InferencePlaygroundApp) renameThread(id string, requestedTitle string) {
+	thread, ok := app.currentThread()
+	if id != app.CurrentThreadId {
+		for i := range app.Threads {
+			if app.Threads[i].Id == id {
+				thread = &app.Threads[i]
+				ok = true
+				break
+			}
+		}
+	}
+	if !ok {
+		return
+	}
+	title := strings.TrimSpace(requestedTitle)
+	if title == "" {
+		title = "New thread"
+	}
+	thread.Title = title
+	thread.UpdatedAt = time.Now().UnixMilli()
+	thread.Dirty = true
+	app.sortThreads()
+}
+
+func (app *InferencePlaygroundApp) deleteThread(id string) {
+	app.DeletedThreadIds = append(app.DeletedThreadIds, id)
+	app.Threads = slices.DeleteFunc(app.Threads, func(thread playgroundChatThread) bool {
+		return thread.Id == id
+	})
+	if app.CurrentThreadId == id {
+		app.CurrentThreadId = ""
+		app.Chat.Messages = nil
+		app.ensureCurrentThread()
+	}
+}
+
+func (app *InferencePlaygroundApp) sortThreads() {
+	sort.SliceStable(app.Threads, func(i, j int) bool {
+		return app.Threads[i].UpdatedAt > app.Threads[j].UpdatedAt
+	})
+}
+
+func (app *InferencePlaygroundApp) flushThreadsLocked() {
+	owner := app.threadOwner()
+	if owner == "" {
+		return
+	}
+	if inferencePlaygroundThreadsFlush(owner, app.Threads, app.DeletedThreadIds) {
+		for i := range app.Threads {
+			app.Threads[i].Dirty = false
+		}
+		app.DeletedThreadIds = nil
+	}
+}
+
+func playgroundThreadTitle(prompt string) string {
+	prompt = strings.TrimSpace(prompt)
+	if prompt == "" {
+		return "New thread"
+	}
+	runes := []rune(prompt)
+	if len(runes) > 15 {
+		runes = runes[:15]
+	}
+	return string(runes)
+}
+
+type inferencePlaygroundThreadRow struct {
+	Id        string
+	Title     string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+type inferencePlaygroundMessageRow struct {
+	ThreadId    string
+	Role        string
+	Content     string
+	GeneratedAt time.Time
+}
+
+func inferencePlaygroundThreadsLoad(owner string) []playgroundChatThread {
+	return db.NewTx(func(tx *db.Transaction) []playgroundChatThread {
+		threadRows := db.Select[inferencePlaygroundThreadRow](
+			tx,
+			`
+				select id, title, created_at, updated_at
+				from inference_playground_thread
+				where owner_username = :owner
+				order by updated_at desc
+			`,
+			db.Params{"owner": owner},
+		)
+		messageRows := db.Select[inferencePlaygroundMessageRow](
+			tx,
+			`
+				select m.thread_id, m.role, m.content, m.generated_at
+				from inference_playground_message m
+				join inference_playground_thread t on t.id = m.thread_id
+				where t.owner_username = :owner
+				order by m.thread_id, m.message_index
+			`,
+			db.Params{"owner": owner},
+		)
+
+		messagesByThread := map[string][]playgroundChatMessage{}
+		for _, row := range messageRows {
+			messagesByThread[row.ThreadId] = append(messagesByThread[row.ThreadId], playgroundChatMessage{
+				Role:        row.Role,
+				Content:     row.Content,
+				GeneratedAt: row.GeneratedAt.UnixMilli(),
+			})
+		}
+
+		threads := make([]playgroundChatThread, 0, len(threadRows))
+		for _, row := range threadRows {
+			threads = append(threads, playgroundChatThread{
+				Id:        row.Id,
+				Title:     row.Title,
+				CreatedAt: row.CreatedAt.UnixMilli(),
+				UpdatedAt: row.UpdatedAt.UnixMilli(),
+				Messages:  messagesByThread[row.Id],
+			})
+		}
+		return threads
+	})
+}
+
+func inferencePlaygroundThreadsFlush(owner string, threads []playgroundChatThread, deletedThreadIds []string) bool {
+	dirty := len(deletedThreadIds) > 0
+	for _, thread := range threads {
+		if thread.Dirty {
+			dirty = true
+			break
+		}
+	}
+	if !dirty {
+		return true
+	}
+
+	db.NewTx0(func(tx *db.Transaction) {
+		for _, id := range deletedThreadIds {
+			db.Exec(
+				tx,
+				`delete from inference_playground_thread where owner_username = :owner and id = :id`,
+				db.Params{"owner": owner, "id": id},
+			)
+		}
+
+		for _, thread := range threads {
+			if !thread.Dirty {
+				continue
+			}
+			if len(thread.Messages) == 0 {
+				continue
+			}
+			createdAt := time.UnixMilli(thread.CreatedAt)
+			updatedAt := time.UnixMilli(thread.UpdatedAt)
+			db.Exec(
+				tx,
+				`
+					insert into inference_playground_thread(id, owner_username, title, created_at, updated_at)
+					values (:id, :owner, :title, :created_at, :updated_at)
+					on conflict (id) do update set
+						title = excluded.title,
+						updated_at = excluded.updated_at
+					where inference_playground_thread.owner_username = :owner
+				`,
+				db.Params{
+					"id":         thread.Id,
+					"owner":      owner,
+					"title":      thread.Title,
+					"created_at": createdAt,
+					"updated_at": updatedAt,
+				},
+			)
+			db.Exec(
+				tx,
+				`delete from inference_playground_message where thread_id = :thread_id`,
+				db.Params{"thread_id": thread.Id},
+			)
+			for idx, msg := range thread.Messages {
+				generatedAt := time.UnixMilli(msg.GeneratedAt)
+				if msg.GeneratedAt == 0 {
+					generatedAt = time.Now()
+				}
+				db.Exec(
+					tx,
+					`
+						insert into inference_playground_message(thread_id, message_index, role, content, generated_at)
+						values (:thread_id, :message_index, :role, :content, :generated_at)
+					`,
+					db.Params{
+						"thread_id":     thread.Id,
+						"message_index": idx,
+						"role":          msg.Role,
+						"content":       msg.Content,
+						"generated_at":  generatedAt,
+					},
+				)
+			}
+		}
+	})
+	return true
 }
 
 func (app *InferencePlaygroundApp) availableModes() []string {
@@ -345,6 +704,11 @@ func (app *InferencePlaygroundApp) chatTab() ucx.UiNode {
 			ucx.AccordionNode("Curl", false).Children(
 				ucx.CodeBound("chat.curl"),
 			),
+		)
+	} else {
+		chatControls = append(chatControls,
+			ucx.Button("newThread", "New thread", ucx.ColorSecondaryMain),
+			InferenceThreadListNode(),
 		)
 	}
 
@@ -461,17 +825,21 @@ func (app *InferencePlaygroundApp) runChat() {
 				cmd.Stderr = stderr
 				cmd.Run()
 				app.Chat.Messages = append(app.Chat.Messages, playgroundChatMessage{
-					Role:    "assistant",
-					Content: stdout.String() + stderr.String(),
+					Role:        "assistant",
+					Content:     stdout.String() + stderr.String(),
+					GeneratedAt: time.Now().UnixMilli(),
 				})
+				app.markCurrentThreadDirty()
 			}
 		}
 	} else {
-		app.Chat.Messages = append(app.Chat.Messages, playgroundChatMessage{Role: "user", Content: prompt})
-		app.Chat.Messages = append(app.Chat.Messages, playgroundChatMessage{Role: "assistant", Content: ""})
+		now := time.Now().UnixMilli()
+		app.Chat.Messages = append(app.Chat.Messages, playgroundChatMessage{Role: "user", Content: prompt, GeneratedAt: now})
+		app.Chat.Messages = append(app.Chat.Messages, playgroundChatMessage{Role: "assistant", Content: "", GeneratedAt: now})
 		assistantIndex := len(app.Chat.Messages) - 1
 		app.Chat.Prompt = ""
 		app.Chat.Usage.LastQuery = InferencePlaygroundTokenUsage{}
+		app.markCurrentThreadDirty()
 		ucx.AppUpdateModel(app)
 
 		assistant := ""
@@ -494,6 +862,7 @@ func (app *InferencePlaygroundApp) runChat() {
 					}
 					builder.WriteString(delta)
 					app.Chat.Messages[assistantIndex].Content = builder.String()
+					app.markCurrentThreadDirty()
 					ucx.AppUpdateModel(app)
 				}
 				assistant = strings.TrimSpace(builder.String())
@@ -519,6 +888,7 @@ func (app *InferencePlaygroundApp) runChat() {
 		app.Chat.Messages[assistantIndex].Content = assistant
 		app.Chat.Curl = app.buildChatCurl()
 		app.Chat.Prompt = ""
+		app.markCurrentThreadDirty()
 	}
 }
 
@@ -608,6 +978,13 @@ func InferenceChatComposerNode(bindPath string, placeholder string, rows int64, 
 func inferenceChatBox() ucx.UiNode {
 	return ucx.UiNode{
 		Component: "inference_chat_box",
+	}
+}
+
+func InferenceThreadListNode() ucx.UiNode {
+	return ucx.UiNode{
+		Component: "inference_thread_list",
+		BindPath:  "threads",
 	}
 }
 

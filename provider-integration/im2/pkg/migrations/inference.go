@@ -121,3 +121,45 @@ func inferenceV5() db.MigrationScript {
 		},
 	}
 }
+
+func inferenceV6() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "inferenceV6",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					create table inference_playground_thread(
+						id text primary key,
+						owner_username text not null,
+						title text not null,
+						created_at timestamptz not null,
+						updated_at timestamptz not null
+					)
+				`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`
+					create index inference_playground_thread_owner_idx on inference_playground_thread(owner_username, updated_at desc)
+				`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`
+					create table inference_playground_message(
+						thread_id text not null references inference_playground_thread(id) on delete cascade,
+						message_index int not null,
+						role text not null,
+						content text not null,
+						generated_at timestamptz not null,
+						primary key(thread_id, message_index)
+					)
+				`,
+				db.Params{},
+			)
+		},
+	}
+}
