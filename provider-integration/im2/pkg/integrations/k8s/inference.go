@@ -255,7 +255,7 @@ func initInference() {
 			return
 		}
 
-		inferenceProxyModelsRequest(w, r, authority, owner)
+		inferenceProxyModelsRequest(w, r, owner)
 	})
 
 	controller.Mux.HandleFunc(authority+"/v1/models/", func(w http.ResponseWriter, r *http.Request) {
@@ -265,7 +265,7 @@ func initInference() {
 			return
 		}
 
-		inferenceProxyModelsRequest(w, r, authority, owner)
+		inferenceProxyModelsRequest(w, r, owner)
 	})
 
 	controller.Mux.HandleFunc(authority+"/v1/chat/completions", func(w http.ResponseWriter, r *http.Request) {
@@ -277,15 +277,20 @@ func initInference() {
 
 		body, err := io.ReadAll(r.Body) // TODO limit
 		if err != nil {
+			log.Info("fail 1: %v", err)
 			http.Error(w, "invalid request", http.StatusBadRequest)
 			return
 		}
 
 		var request InferenceChatRequest
 		if err := json.Unmarshal(body, &request); err != nil {
+			log.Info("fail 2: %v", err)
+			log.Info("body was: %s", string(body))
 			http.Error(w, "invalid request", http.StatusBadRequest)
 			return
 		}
+
+		log.Info("body: %s", string(body))
 
 		if request.Stream {
 			flusher, ok := w.(http.Flusher)
@@ -296,6 +301,7 @@ func initInference() {
 
 			chunks, httpErr := InferenceChatStreaming(apiKeyOwner, request)
 			if httpErr != nil {
+				log.Info("fail 3: %v", httpErr)
 				http.Error(w, httpErr.Why, httpErr.StatusCode)
 				return
 			}
@@ -328,6 +334,7 @@ func initInference() {
 		}
 		respData, err := json.Marshal(resp)
 		if err != nil {
+			log.Info("fail 4: %v", err)
 			http.Error(w, "invalid request", http.StatusBadRequest)
 			return
 		}
@@ -482,8 +489,8 @@ func inferenceAuthenticateRequest(r *http.Request) (apm.WalletOwner, *util.HttpE
 	return inferenceApiKeyValidate(apiKey)
 }
 
-func inferenceProxyModelsRequest(w http.ResponseWriter, r *http.Request, authority string, owner apm.WalletOwner) {
-	path := strings.TrimPrefix(r.URL.Path, authority+"/v1")
+func inferenceProxyModelsRequest(w http.ResponseWriter, r *http.Request, owner apm.WalletOwner) {
+	path := strings.TrimPrefix(r.URL.Path, "/v1")
 	if path == "" {
 		path = "/models"
 	}

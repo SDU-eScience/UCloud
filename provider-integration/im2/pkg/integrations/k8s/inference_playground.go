@@ -458,7 +458,7 @@ func (app *InferencePlaygroundApp) runChat() {
 			} else {
 				app.applyChatUsage(resp.Usage)
 				if len(resp.Choices) > 0 {
-					assistant = resp.Choices[0].Message.Content
+					assistant = resp.Choices[0].Message.Content.String()
 				}
 			}
 		}
@@ -493,12 +493,12 @@ func (app *InferencePlaygroundApp) applyChatUsage(usage InferenceChatUsage) {
 func (app *InferencePlaygroundApp) chatRequestMessages(prompt string) []InferenceChatMessage {
 	messages := make([]InferenceChatMessage, 0, len(app.Chat.Messages)+2)
 	if strings.TrimSpace(app.Chat.SystemPrompt) != "" {
-		messages = append(messages, InferenceChatMessage{Role: "system", Content: app.Chat.SystemPrompt})
+		messages = append(messages, InferenceChatMessage{Role: "system", Content: inferenceChatTextContent(app.Chat.SystemPrompt)})
 	}
 	for _, msg := range app.Chat.Messages {
-		messages = append(messages, InferenceChatMessage{Role: msg.Role, Content: msg.Content})
+		messages = append(messages, InferenceChatMessage{Role: msg.Role, Content: inferenceChatTextContent(msg.Content)})
 	}
-	messages = append(messages, InferenceChatMessage{Role: "user", Content: prompt})
+	messages = append(messages, InferenceChatMessage{Role: "user", Content: inferenceChatTextContent(prompt)})
 	return messages
 }
 

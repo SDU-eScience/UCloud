@@ -8,7 +8,7 @@ import (
 
 func TestInferenceChatUsageAlwaysPresent(t *testing.T) {
 	usage := inferenceChatUsageFromText(
-		InferenceChatRequest{Messages: []InferenceChatMessage{{Content: "hello world"}}},
+		InferenceChatRequest{Messages: []InferenceChatMessage{{Content: inferenceChatTextContent("hello world")}}},
 		"assistant reply",
 		util.OptNone[InferenceChatUsage](),
 	)
