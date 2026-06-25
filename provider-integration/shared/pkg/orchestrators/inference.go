@@ -32,6 +32,14 @@ type InferenceModel struct {
 	Endpoint        InferenceEndpoint     `json:"endpoint"`
 	Availability    InferenceAvailability `json:"availability"`
 	ContextWindow   *int                  `json:"contextWindow,omitempty"`
+	ChatSettings    InferenceChatSettings `json:"chatSettings"`
+}
+
+type InferenceChatSettings struct {
+	Temperature         float64 `json:"temperature"`
+	TopP                float64 `json:"topP"`
+	MaxCompletionTokens int     `json:"maxCompletionTokens"`
+	SystemPrompt        *string `json:"systemPrompt,omitempty"`
 }
 
 type InferencePricing struct {

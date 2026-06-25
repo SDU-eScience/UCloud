@@ -30,6 +30,14 @@ type InferenceModel struct {
 	Endpoint        InferenceEndpoint     `json:"endpoint"`
 	Availability    InferenceAvailability `json:"availability"`
 	ContextWindow   *int                  `json:"contextWindow,omitempty"`
+	ChatSettings    InferenceChatSettings `json:"chatSettings"`
+}
+
+type InferenceChatSettings struct {
+	Temperature         float64 `json:"temperature"`
+	TopP                float64 `json:"topP"`
+	MaxCompletionTokens int     `json:"maxCompletionTokens"`
+	SystemPrompt        *string `json:"systemPrompt,omitempty"`
 }
 
 type InferencePricing struct {
@@ -67,6 +75,10 @@ type inferenceModelRow struct {
 	Public                 bool
 	AvailableTo            []byte
 	ContextWindow          sql.NullInt64
+	Temperature            float64
+	TopP                   float64
+	MaxCompletionTokens    int
+	SystemPrompt           sql.NullString
 }
 
 func inferenceModelCatalogLoad() {
@@ -85,7 +97,11 @@ func inferenceModelCatalogLoad() {
 					inference_endpoint_model,
 					public,
 					available_to,
-					context_window
+					context_window,
+					temperature,
+					top_p,
+					max_completion_tokens,
+					system_prompt
 				from inference_model
 			`,
 			db.Params{},
@@ -108,6 +124,11 @@ func inferenceModelCatalogLoad() {
 				value := int(row.ContextWindow.Int64)
 				contextWindow = &value
 			}
+			var systemPrompt *string
+			if row.SystemPrompt.Valid {
+				value := row.SystemPrompt.String
+				systemPrompt = &value
+			}
 
 			result[row.Name] = inferenceModelNormalize(InferenceModel{
 				Name:         row.Name,
@@ -127,6 +148,12 @@ func inferenceModelCatalogLoad() {
 					AvailableTo: availableTo,
 				},
 				ContextWindow: contextWindow,
+				ChatSettings: InferenceChatSettings{
+					Temperature:         row.Temperature,
+					TopP:                row.TopP,
+					MaxCompletionTokens: row.MaxCompletionTokens,
+					SystemPrompt:        systemPrompt,
+				},
 			})
 		}
 		return result
@@ -255,6 +282,10 @@ func inferenceModelUpsertTx(tx *db.Transaction, model InferenceModel) {
 	if model.ContextWindow != nil {
 		contextWindow = sql.NullInt64{Int64: int64(*model.ContextWindow), Valid: true}
 	}
+	systemPrompt := sql.NullString{}
+	if model.ChatSettings.SystemPrompt != nil {
+		systemPrompt = sql.NullString{String: *model.ChatSettings.SystemPrompt, Valid: true}
+	}
 	db.Exec(
 		tx,
 		`
@@ -269,7 +300,11 @@ func inferenceModelUpsertTx(tx *db.Transaction, model InferenceModel) {
 				inference_endpoint_model,
 				public,
 				available_to,
-				context_window
+				context_window,
+				temperature,
+				top_p,
+				max_completion_tokens,
+				system_prompt
 			) values (
 				:name,
 				:title,
@@ -281,7 +316,11 @@ func inferenceModelUpsertTx(tx *db.Transaction, model InferenceModel) {
 				:inference_endpoint_model,
 				:public,
 				cast(:available_to as jsonb),
-				:context_window
+				:context_window,
+				:temperature,
+				:top_p,
+				:max_completion_tokens,
+				:system_prompt
 			) on conflict (name) do update set
 				title = excluded.title,
 				capabilities = excluded.capabilities,
@@ -292,7 +331,11 @@ func inferenceModelUpsertTx(tx *db.Transaction, model InferenceModel) {
 				inference_endpoint_model = excluded.inference_endpoint_model,
 				public = excluded.public,
 				available_to = excluded.available_to,
-				context_window = excluded.context_window
+				context_window = excluded.context_window,
+				temperature = excluded.temperature,
+				top_p = excluded.top_p,
+				max_completion_tokens = excluded.max_completion_tokens,
+				system_prompt = excluded.system_prompt
 		`,
 		db.Params{
 			"name":                     model.Name,
@@ -306,6 +349,10 @@ func inferenceModelUpsertTx(tx *db.Transaction, model InferenceModel) {
 			"public":                   model.Availability.Public,
 			"available_to":             string(availableTo),
 			"context_window":           contextWindow,
+			"temperature":              model.ChatSettings.Temperature,
+			"top_p":                    model.ChatSettings.TopP,
+			"max_completion_tokens":    model.ChatSettings.MaxCompletionTokens,
+			"system_prompt":            systemPrompt,
 		},
 	)
 }
@@ -322,6 +369,15 @@ func inferenceModelValidate(model InferenceModel) *util.HttpError {
 	}
 	if model.PriceMultiplier.CachedInput < 0 || model.PriceMultiplier.Input < 0 || model.PriceMultiplier.Output < 0 {
 		return util.HttpErr(http.StatusBadRequest, "model price multipliers cannot be negative")
+	}
+	if model.ChatSettings.Temperature < 0 || model.ChatSettings.Temperature > 2 {
+		return util.HttpErr(http.StatusBadRequest, "model temperature must be between 0 and 2")
+	}
+	if model.ChatSettings.TopP < 0 || model.ChatSettings.TopP > 1 {
+		return util.HttpErr(http.StatusBadRequest, "model top P must be between 0 and 1")
+	}
+	if model.ChatSettings.MaxCompletionTokens <= 0 {
+		return util.HttpErr(http.StatusBadRequest, "model max completion tokens must be positive")
 	}
 	for _, capability := range model.Capabilities {
 		switch capability {
@@ -347,6 +403,17 @@ func inferenceModelNormalize(model InferenceModel) InferenceModel {
 	if model.ContextWindow != nil && *model.ContextWindow <= 0 {
 		model.ContextWindow = nil
 	}
+	if model.ChatSettings.MaxCompletionTokens == 0 {
+		model.ChatSettings.MaxCompletionTokens = 65536
+	}
+	if model.ChatSettings.SystemPrompt != nil {
+		value := strings.TrimSpace(*model.ChatSettings.SystemPrompt)
+		if value == "" {
+			model.ChatSettings.SystemPrompt = nil
+		} else {
+			model.ChatSettings.SystemPrompt = &value
+		}
+	}
 	model.Capabilities = slices.Clone(model.Capabilities)
 	model.Availability.AvailableTo = slices.Clone(model.Availability.AvailableTo)
 	return model
@@ -356,6 +423,10 @@ func inferenceModelClone(model InferenceModel) InferenceModel {
 	if model.ContextWindow != nil {
 		value := *model.ContextWindow
 		model.ContextWindow = &value
+	}
+	if model.ChatSettings.SystemPrompt != nil {
+		value := *model.ChatSettings.SystemPrompt
+		model.ChatSettings.SystemPrompt = &value
 	}
 	model.Capabilities = slices.Clone(model.Capabilities)
 	model.Availability.AvailableTo = slices.Clone(model.Availability.AvailableTo)

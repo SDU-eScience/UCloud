@@ -85,3 +85,39 @@ func inferenceV4() db.MigrationScript {
 		},
 	}
 }
+
+func inferenceV5() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "inferenceV5",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					alter table inference_model add column temperature double precision not null default 0.8
+				`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`
+					alter table inference_model add column top_p double precision not null default 0.1
+				`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`
+					alter table inference_model add column max_completion_tokens int not null default 65536
+				`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`
+					alter table inference_model add column system_prompt text
+				`,
+				db.Params{},
+			)
+		},
+	}
+}

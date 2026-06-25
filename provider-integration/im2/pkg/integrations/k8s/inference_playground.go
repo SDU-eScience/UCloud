@@ -30,6 +30,7 @@ const (
 	playgroundModeChat            = "Chat"
 	playgroundModeTranscription   = "Transcription"
 	playgroundModeImageGeneration = "ImageGeneration"
+	playgroundGlobalSystemPrompt  = "You are a helpful assistant."
 )
 
 type InferencePlaygroundApp struct {
@@ -49,8 +50,9 @@ type InferencePlaygroundApp struct {
 }
 
 type InferencePlaygroundAppChat struct {
-	Loading bool
-	Usage   InferencePlaygroundTokenUsageState
+	Loading                bool
+	Usage                  InferencePlaygroundTokenUsageState
+	AppliedDefaultsModelId string `ucx:"-"`
 
 	ModelId             string
 	SystemPrompt        string
@@ -116,7 +118,7 @@ func InferencePlayground(owner orcapi.ResourceOwner, sessionId string) *Inferenc
 			FrequencyPenalty:    0,
 			MaxCompletionTokens: 65536,
 			TopLogprobs:         0,
-			SystemPrompt:        "You are a helpful assistant.",
+			SystemPrompt:        playgroundGlobalSystemPrompt,
 		},
 		Transcription: InferencePlaygroundTranscription{
 			Format:    string(InferenceTranscriptionRespJson),
@@ -161,6 +163,7 @@ func (app *InferencePlaygroundApp) OnInit() {
 	app.refreshModels()
 
 	app.Chat.ModelId = app.firstModelFor(InferenceTextGeneration)
+	app.applyChatModelDefaults()
 	app.Transcription.ModelId = app.firstModelFor(InferenceSpeechToText)
 	app.Image.ModelId = app.firstModelFor(InferenceTextToImage)
 
@@ -171,6 +174,10 @@ func (app *InferencePlaygroundApp) OnInit() {
 
 func (app *InferencePlaygroundApp) OnMessage(message ucx.Frame) {
 	if message.Opcode == ucx.OpModelInput {
+		if app.Chat.ModelId != app.Chat.AppliedDefaultsModelId {
+			app.applyChatModelDefaults()
+			ucx.AppUpdateModel(app)
+		}
 		app.Chat.Curl = app.buildChatCurl()
 		app.Transcription.Curl = app.buildTranscriptionCurl()
 		app.Image.Curl = app.buildImageCurl()
@@ -272,6 +279,33 @@ func (app *InferencePlaygroundApp) modelOptionsFor(capability InferenceCapabilit
 
 	sort.Slice(options, func(i, j int) bool { return options[i].Key < options[j].Key })
 	return options
+}
+
+func (app *InferencePlaygroundApp) modelByName(name string) (InferenceModel, bool) {
+	for _, model := range app.Models {
+		if model.Name == name {
+			return model, true
+		}
+	}
+	return InferenceModel{}, false
+}
+
+func (app *InferencePlaygroundApp) applyChatModelDefaults() {
+	model, ok := app.modelByName(app.Chat.ModelId)
+	if !ok {
+		app.Chat.AppliedDefaultsModelId = app.Chat.ModelId
+		return
+	}
+
+	app.Chat.Temperature = model.ChatSettings.Temperature
+	app.Chat.TopP = model.ChatSettings.TopP
+	app.Chat.MaxCompletionTokens = int64(model.ChatSettings.MaxCompletionTokens)
+	if model.ChatSettings.SystemPrompt != nil {
+		app.Chat.SystemPrompt = *model.ChatSettings.SystemPrompt
+	} else {
+		app.Chat.SystemPrompt = playgroundGlobalSystemPrompt
+	}
+	app.Chat.AppliedDefaultsModelId = app.Chat.ModelId
 }
 
 // Chat interface

@@ -51,7 +51,15 @@ export default function Models(): React.ReactNode {
 
     const startEdit = (model: InferenceModel) => {
         setEditOriginalName(model.name);
-        setEditing(JSON.parse(JSON.stringify(model)));
+        setEditing({
+            ...JSON.parse(JSON.stringify(model)),
+            chatSettings: {
+                temperature: model.chatSettings?.temperature ?? 0.8,
+                topP: model.chatSettings?.topP ?? 0.1,
+                maxCompletionTokens: model.chatSettings?.maxCompletionTokens ?? 65536,
+                systemPrompt: model.chatSettings?.systemPrompt,
+            },
+        });
     };
 
     const saveEdit = () => {
@@ -147,6 +155,133 @@ export default function Models(): React.ReactNode {
                 </tbody>
             </Table>
         </div>}
+
+        {editing === null ? null : <Card>
+            <Heading.h3 mb={16}>Editing {editOriginalName}</Heading.h3>
+            <div style={{display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12}}>
+                <label>
+                    Title
+                    <Input value={editing.title} onChange={ev => setEditing({...editing, title: ev.currentTarget.value})} />
+                </label>
+                <label>
+                    Name
+                    <Input value={editing.name} onChange={ev => setEditing({...editing, name: ev.currentTarget.value})} />
+                </label>
+                <label>
+                    Cached multiplier
+                    <Input
+                        type="number"
+                        value={editing.priceMultiplier.cachedInput}
+                        onChange={ev => setEditing({...editing, priceMultiplier: {...editing.priceMultiplier, cachedInput: parseInt(ev.currentTarget.value || "0")}})}
+                    />
+                </label>
+                <label>
+                    Input multiplier
+                    <Input
+                        type="number"
+                        value={editing.priceMultiplier.input}
+                        onChange={ev => setEditing({...editing, priceMultiplier: {...editing.priceMultiplier, input: parseInt(ev.currentTarget.value || "0")}})}
+                    />
+                </label>
+                <label>
+                    Output multiplier
+                    <Input
+                        type="number"
+                        value={editing.priceMultiplier.output}
+                        onChange={ev => setEditing({...editing, priceMultiplier: {...editing.priceMultiplier, output: parseInt(ev.currentTarget.value || "0")}})}
+                    />
+                </label>
+                <label>
+                    Public
+                    <Select
+                        value={editing.availability.public ? "true" : "false"}
+                        onChange={ev => setEditing({...editing, availability: {...editing.availability, public: ev.currentTarget.value === "true"}})}
+                        style={{width: "100%", height: 40}}
+                    >
+                        <option value="false">No</option>
+                        <option value="true">Yes</option>
+                    </Select>
+                </label>
+                <label>
+                    Base path
+                    <Input
+                        value={editing.endpoint.basePath}
+                        onChange={ev => setEditing({...editing, endpoint: {...editing.endpoint, basePath: ev.currentTarget.value}})}
+                    />
+                </label>
+                <label>
+                    Backend model name
+                    <Input
+                        value={editing.endpoint.backendModelName}
+                        onChange={ev => setEditing({...editing, endpoint: {...editing.endpoint, backendModelName: ev.currentTarget.value}})}
+                    />
+                </label>
+                <label>
+                    Available to projects
+                    <Input
+                        value={editing.availability.availableTo.join(",")}
+                        onChange={ev => setEditing({...editing, availability: {...editing.availability, availableTo: ev.currentTarget.value.split(",").map(x => x.trim()).filter(x => x !== "")}})}
+                    />
+                </label>
+                <label>
+                    Temperature
+                    <Input
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        max="2"
+                        value={editing.chatSettings.temperature}
+                        onChange={ev => setEditing({...editing, chatSettings: {...editing.chatSettings, temperature: parseFloat(ev.currentTarget.value || "0")}})}
+                    />
+                </label>
+                <label>
+                    Top P
+                    <Input
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        max="1"
+                        value={editing.chatSettings.topP}
+                        onChange={ev => setEditing({...editing, chatSettings: {...editing.chatSettings, topP: parseFloat(ev.currentTarget.value || "0")}})}
+                    />
+                </label>
+                <label>
+                    Max completion tokens
+                    <Input
+                        type="number"
+                        min="1"
+                        value={editing.chatSettings.maxCompletionTokens}
+                        onChange={ev => setEditing({...editing, chatSettings: {...editing.chatSettings, maxCompletionTokens: parseInt(ev.currentTarget.value || "0")}})}
+                    />
+                </label>
+                <label>
+                    System prompt
+                    <Input
+                        value={editing.chatSettings.systemPrompt ?? ""}
+                        placeholder="Use global default"
+                        onChange={ev => {
+                            const value = ev.currentTarget.value;
+                            setEditing({...editing, chatSettings: {...editing.chatSettings, systemPrompt: value.trim() === "" ? undefined : value}});
+                        }}
+                    />
+                </label>
+            </div>
+            <div style={{display: "flex", flexWrap: "wrap", gap: 12, marginTop: "12px"}}>
+                {capabilities.map(capability => <label key={capability} style={{display: "flex", gap: 6, alignItems: "center"}}>
+                    <input type="checkbox" checked={editing.capabilities.includes(capability)} onChange={ev => {
+                        const next = ev.currentTarget.checked ? [...editing.capabilities, capability] : editing.capabilities.filter(it => it !== capability);
+                        setEditing({...editing, capabilities: next});
+                    }} />
+                    {capability}
+                </label>)}
+            </div>
+
+            <Box mt={"40px"} />
+            <Flex justifyContent="end" px={"20px"} py={"12px"} margin={"-20px"} background={"var(--dialogToolbar)"} gap={"8px"} borderRadius={"0 0 10px 10px"}>
+                <Button color={"errorMain"} type="button" onClick={() => setEditing(null)}>Cancel</Button>
+                <Button color={"successMain"} type={"button"} onClick={saveEdit} disabled={saving}>{saving ? "Saving..." : "Save"}</Button>
+            </Flex>
+        </Card>}
 
         <Card>
             <Heading.h3 mb={16}>Configuring tools</Heading.h3>
@@ -274,90 +409,7 @@ env_key = "API_TOK"`} />
             </Box>
         </Card>
 
-        {editing === null ? null : <Card>
-            <Heading.h3 mb={16}>Editing {editOriginalName}</Heading.h3>
-            <div style={{display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12}}>
-                <label>
-                    Title
-                    <Input value={editing.title} onChange={ev => setEditing({...editing, title: ev.currentTarget.value})} />
-                </label>
-                <label>
-                    Name
-                    <Input value={editing.name} onChange={ev => setEditing({...editing, name: ev.currentTarget.value})} />
-                </label>
-                <label>
-                    Cached multiplier
-                    <Input
-                        type="number"
-                        value={editing.priceMultiplier.cachedInput}
-                        onChange={ev => setEditing({...editing, priceMultiplier: {...editing.priceMultiplier, cachedInput: parseInt(ev.currentTarget.value || "0")}})}
-                    />
-                </label>
-                <label>
-                    Input multiplier
-                    <Input
-                        type="number"
-                        value={editing.priceMultiplier.input}
-                        onChange={ev => setEditing({...editing, priceMultiplier: {...editing.priceMultiplier, input: parseInt(ev.currentTarget.value || "0")}})}
-                    />
-                </label>
-                <label>
-                    Output multiplier
-                    <Input
-                        type="number"
-                        value={editing.priceMultiplier.output}
-                        onChange={ev => setEditing({...editing, priceMultiplier: {...editing.priceMultiplier, output: parseInt(ev.currentTarget.value || "0")}})}
-                    />
-                </label>
-                <label>
-                    Public
-                    <Select
-                        value={editing.availability.public ? "true" : "false"}
-                        onChange={ev => setEditing({...editing, availability: {...editing.availability, public: ev.currentTarget.value === "true"}})}
-                        style={{width: "100%", height: 40}}
-                    >
-                        <option value="false">No</option>
-                        <option value="true">Yes</option>
-                    </Select>
-                </label>
-                <label>
-                    Base path
-                    <Input
-                        value={editing.endpoint.basePath}
-                        onChange={ev => setEditing({...editing, endpoint: {...editing.endpoint, basePath: ev.currentTarget.value}})}
-                    />
-                </label>
-                <label>
-                    Backend model name
-                    <Input
-                        value={editing.endpoint.backendModelName}
-                        onChange={ev => setEditing({...editing, endpoint: {...editing.endpoint, backendModelName: ev.currentTarget.value}})}
-                    />
-                </label>
-                <label>
-                    Available to projects
-                    <Input
-                        value={editing.availability.availableTo.join(",")}
-                        onChange={ev => setEditing({...editing, availability: {...editing.availability, availableTo: ev.currentTarget.value.split(",").map(x => x.trim()).filter(x => x !== "")}})}
-                    />
-                </label>
-            </div>
-            <div style={{display: "flex", flexWrap: "wrap", gap: 12, marginTop: "12px"}}>
-                {capabilities.map(capability => <label key={capability} style={{display: "flex", gap: 6, alignItems: "center"}}>
-                    <input type="checkbox" checked={editing.capabilities.includes(capability)} onChange={ev => {
-                        const next = ev.currentTarget.checked ? [...editing.capabilities, capability] : editing.capabilities.filter(it => it !== capability);
-                        setEditing({...editing, capabilities: next});
-                    }} />
-                    {capability}
-                </label>)}
-            </div>
 
-            <Box mt={"40px"} />
-            <Flex justifyContent="end" px={"20px"} py={"12px"} margin={"-20px"} background={"var(--dialogToolbar)"} gap={"8px"} borderRadius={"0 0 10px 10px"}>
-                <Button color={"errorMain"} type="button" onClick={() => setEditing(null)}>Cancel</Button>
-                <Button color={"successMain"} type={"button"} onClick={saveEdit} disabled={saving}>{saving ? "Saving..." : "Save"}</Button>
-            </Flex>
-        </Card>}
     </Box>} />;
 }
 

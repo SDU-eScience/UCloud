@@ -40,4 +40,5 @@ func Init() {
 	db.AddMigration(apmEventsV3())
 	db.AddMigration(inferenceV3())
 	db.AddMigration(inferenceV4())
+	db.AddMigration(inferenceV5())
 }

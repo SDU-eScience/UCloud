@@ -168,6 +168,12 @@ func initInference() {
 					AvailableTo: append([]string{}, model.Availability.AvailableTo...),
 				},
 				ContextWindow: model.ContextWindow,
+				ChatSettings: orcapi.InferenceChatSettings{
+					Temperature:         model.ChatSettings.Temperature,
+					TopP:                model.ChatSettings.TopP,
+					MaxCompletionTokens: model.ChatSettings.MaxCompletionTokens,
+					SystemPrompt:        model.ChatSettings.SystemPrompt,
+				},
 			})
 		}
 		return result, nil
@@ -203,6 +209,12 @@ func initInference() {
 				AvailableTo: append([]string{}, request.Model.Availability.AvailableTo...),
 			},
 			ContextWindow: request.Model.ContextWindow,
+			ChatSettings: InferenceChatSettings{
+				Temperature:         request.Model.ChatSettings.Temperature,
+				TopP:                request.Model.ChatSettings.TopP,
+				MaxCompletionTokens: request.Model.ChatSettings.MaxCompletionTokens,
+				SystemPrompt:        request.Model.ChatSettings.SystemPrompt,
+			},
 		}
 
 		oldName := strings.TrimSpace(request.OldName)
@@ -601,6 +613,11 @@ func inferenceDiscoverModelsFromEndpoint(base string, availableTo []string) {
 				AvailableTo: availableTo,
 			},
 			ContextWindow: model.ContextWindow,
+			ChatSettings: InferenceChatSettings{
+				Temperature:         0.8,
+				TopP:                0.1,
+				MaxCompletionTokens: 65536,
+			},
 		})
 		if inferenceModelValidate(catalogModel) != nil {
 			continue

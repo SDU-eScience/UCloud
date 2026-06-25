@@ -35,6 +35,12 @@ export interface InferenceModel {
         availableTo: string[];
     };
     contextWindow?: number;
+    chatSettings: {
+        temperature: number;
+        topP: number;
+        maxCompletionTokens: number;
+        systemPrompt?: string;
+    };
 }
 
 export interface ListModelsRequest {
