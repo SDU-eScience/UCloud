@@ -221,8 +221,17 @@ services:
 
     inference:
       enabled: true
-      backendServer: "http://localai:8080/v1"
-      developmentProvider: "localai"
+      provider: development
+      development:
+        provider: localai
+        server: "http://localai:8080/v1"
+      access:
+        administrators: []
+        testers: []
+
+      # provider: dynamo
+      # dynamo:
+      #   namespace: ucloud-inference
 
     modules:
       tools:
@@ -513,7 +522,7 @@ Optional path to Integration Module source code (used for development/diagnostic
 </dt>
 <dd>
 
-Inference feature toggles.
+Inference feature configuration. When enabled, IM stores inference model metadata in its internal model catalog and exposes model catalog management through the CLI.
 
 <dl>
 <dt>
@@ -525,23 +534,113 @@ Inference feature toggles.
 
 <dt>
 
-`backendServer`
+`provider` *optional*
 
 </dt>
 <dd>
 
-Required when `enabled` is `true`. Base URL of the OpenAI-compatible inference backend (for example `http://localai:8080/v1`).
+Selects the inference backend integration. Defaults to `development` when omitted.
+
+Allowed values:
+
+* `development`
+* `dynamo`
 
 </dd>
 
 <dt>
 
-`developmentProvider` *optional*
+`development` *(required when `provider` is `development`)*
 
 </dt>
 <dd>
 
-Optional development bootstrap provider. Set to `localai` to auto-configure LocalAI models when development mode is enabled.
+Development inference backend configuration.
+
+<dl>
+<dt>
+
+`provider`
+
+</dt>
+<dd>
+
+Development backend provider. Set to `localai` to enable LocalAI startup/bootstrap behavior in development mode.
+
+</dd>
+
+<dt>
+
+`server`
+
+</dt>
+<dd>
+
+Base URL of the OpenAI-compatible inference backend, for example `http://localai:8080/v1`.
+
+</dd>
+</dl>
+
+For compatibility with older configuration files, `backendServer` and `developmentProvider` can still be set directly under `inference` when `development` is omitted.
+
+</dd>
+
+<dt>
+
+`dynamo` *(required when `provider` is `dynamo`)*
+
+</dt>
+<dd>
+
+Dynamo inference discovery configuration.
+
+<dl>
+<dt>
+
+`namespace`
+
+</dt>
+<dd>
+
+Kubernetes namespace where Dynamo frontend services are discovered. IM discovers services in this namespace with the `-frontend` suffix and registers models exposed by their OpenAI-compatible `/v1/models` endpoint.
+
+</dd>
+</dl>
+
+</dd>
+
+<dt>
+
+`access` *optional*
+
+</dt>
+<dd>
+
+Project-based inference access lists.
+
+<dl>
+<dt>
+
+`administrators`
+
+</dt>
+<dd>
+
+List of project IDs treated as inference administrators. Administrators can see all models in the UI/RPC surfaces intended for model management. Administrators are also automatically added to `testers`.
+
+</dd>
+
+<dt>
+
+`testers`
+
+</dt>
+<dd>
+
+List of project IDs used as the default allow-list for newly discovered non-public models.
+
+</dd>
+</dl>
 
 </dd>
 </dl>

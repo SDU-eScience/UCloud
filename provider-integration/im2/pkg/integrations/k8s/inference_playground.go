@@ -160,9 +160,9 @@ func (app *InferencePlaygroundApp) Session() **ucx.Session { return &app.session
 func (app *InferencePlaygroundApp) OnInit() {
 	app.refreshModels()
 
-	app.Chat.ModelId = app.firstModelFor(InferenceModelCapabilityChat)
-	app.Transcription.ModelId = app.firstModelFor(InferenceModelCapabilityTranscription)
-	app.Image.ModelId = app.firstModelFor(InferenceModelCapabilityImageGeneration)
+	app.Chat.ModelId = app.firstModelFor(InferenceTextGeneration)
+	app.Transcription.ModelId = app.firstModelFor(InferenceSpeechToText)
+	app.Image.ModelId = app.firstModelFor(InferenceTextToImage)
 
 	app.Chat.Curl = app.buildChatCurl()
 	app.Transcription.Curl = app.buildTranscriptionCurl()
@@ -229,13 +229,8 @@ func (app *InferencePlaygroundApp) UserInterface() ucx.UiNode {
 }
 
 func (app *InferencePlaygroundApp) refreshModels() {
-	resp, err := InferenceModels()
-	if err != nil {
-		app.Models = nil
-		return
-	}
-
-	app.Models = resp.Data
+	resp := InferenceModelListForOwner(app.walletOwner())
+	app.Models = resp
 }
 
 func (app *InferencePlaygroundApp) availableModes() []string {
@@ -244,19 +239,19 @@ func (app *InferencePlaygroundApp) availableModes() []string {
 	}
 
 	var modes []string
-	if len(app.modelOptionsFor(InferenceModelCapabilityChat)) > 0 {
+	if len(app.modelOptionsFor(InferenceTextGeneration)) > 0 {
 		modes = append(modes, playgroundModeChat)
 	}
-	if len(app.modelOptionsFor(InferenceModelCapabilityTranscription)) > 0 {
+	if len(app.modelOptionsFor(InferenceSpeechToText)) > 0 {
 		modes = append(modes, playgroundModeTranscription)
 	}
-	if len(app.modelOptionsFor(InferenceModelCapabilityImageGeneration)) > 0 {
+	if len(app.modelOptionsFor(InferenceTextToImage)) > 0 {
 		modes = append(modes, playgroundModeImageGeneration)
 	}
 	return modes
 }
 
-func (app *InferencePlaygroundApp) firstModelFor(capability InferenceModelCapability) string {
+func (app *InferencePlaygroundApp) firstModelFor(capability InferenceCapability) string {
 	options := app.modelOptionsFor(capability)
 	if len(options) == 0 {
 		return ""
@@ -264,13 +259,13 @@ func (app *InferencePlaygroundApp) firstModelFor(capability InferenceModelCapabi
 	return options[0].Key
 }
 
-func (app *InferencePlaygroundApp) modelOptionsFor(capability InferenceModelCapability) []ucx.Option {
+func (app *InferencePlaygroundApp) modelOptionsFor(capability InferenceCapability) []ucx.Option {
 	options := make([]ucx.Option, 0, len(app.Models))
 	for _, model := range app.Models {
 		if slices.Contains(model.Capabilities, capability) {
 			options = append(options, ucx.Option{
-				Key:   model.Id,
-				Value: model.Id,
+				Key:   model.Name,
+				Value: model.Title,
 			})
 		}
 	}
@@ -349,7 +344,7 @@ func (app *InferencePlaygroundApp) chatTab() ucx.UiNode {
 			ucx.SxFlexDirectionColumn,
 			ucx.SxGap(16),
 		).Children(
-			ucx.Select("chatModel", "Model", "chat.modelId", app.modelOptionsFor(InferenceModelCapabilityChat)).Sx(ucx.SxWidthPercent(100)),
+			ucx.Select("chatModel", "Model", "chat.modelId", app.modelOptionsFor(InferenceTextGeneration)).Sx(ucx.SxWidthPercent(100)),
 
 			ucx.AccordionNode("Settings", true).Children(ucx.Box().Sx(ucx.SxDisplayFlex, ucx.SxFlexDirectionColumn, ucx.SxGap(8)).Children(
 				InferenceToggleInput("chat.streaming", "Streaming", "chat.streaming", true),
@@ -434,26 +429,37 @@ func (app *InferencePlaygroundApp) runChat() {
 		if app.Chat.Streaming {
 			var builder strings.Builder
 			usageSeen := InferenceChatUsage{}
-			for chunk := range InferenceChatStreaming(app.walletOwner(), request) {
-				usageSeen = chunk.Usage
-				if len(chunk.Choices) == 0 {
-					continue
+			chunks, err := InferenceChatStreaming(app.walletOwner(), request)
+			if err != nil {
+				assistant = err.Why
+				ucxsvc.UiSendFailure(app, fmt.Sprintf("Chat failed: %s", err))
+			} else {
+				for chunk := range chunks {
+					usageSeen = chunk.Usage
+					if len(chunk.Choices) == 0 {
+						continue
+					}
+					delta := chunk.Choices[0].Delta.Content
+					if delta == "" {
+						continue
+					}
+					builder.WriteString(delta)
+					app.Chat.Messages[assistantIndex].Content = builder.String()
+					ucx.AppUpdateModel(app)
 				}
-				delta := chunk.Choices[0].Delta.Content
-				if delta == "" {
-					continue
-				}
-				builder.WriteString(delta)
-				app.Chat.Messages[assistantIndex].Content = builder.String()
-				ucx.AppUpdateModel(app)
+				assistant = strings.TrimSpace(builder.String())
+				app.applyChatUsage(usageSeen)
 			}
-			assistant = strings.TrimSpace(builder.String())
-			app.applyChatUsage(usageSeen)
 		} else {
-			resp := InferenceChat(app.walletOwner(), request)
-			app.applyChatUsage(resp.Usage)
-			if len(resp.Choices) > 0 {
-				assistant = resp.Choices[0].Message.Content
+			resp, err := InferenceChat(app.walletOwner(), request)
+			if err != nil {
+				assistant = err.Why
+				ucxsvc.UiSendFailure(app, fmt.Sprintf("Chat failed: %s", err))
+			} else {
+				app.applyChatUsage(resp.Usage)
+				if len(resp.Choices) > 0 {
+					assistant = resp.Choices[0].Message.Content
+				}
 			}
 		}
 
@@ -625,7 +631,7 @@ func (app *InferencePlaygroundApp) transcriptionTab() ucx.UiNode {
 						"transcriptionModel",
 						"Model",
 						"transcription.modelId",
-						app.modelOptionsFor(InferenceModelCapabilityTranscription),
+						app.modelOptionsFor(InferenceSpeechToText),
 					).Sx(
 						ucx.SxWidthPercent(100),
 					),
@@ -696,7 +702,13 @@ func (app *InferencePlaygroundApp) runTranscription() {
 	if app.Transcription.Streaming {
 		var builder strings.Builder
 		usageSeen := InferenceTranscriptionUsage{}
-		for event := range InferenceTranscribeStreaming(app.walletOwner(), request) {
+		events, err := InferenceTranscribeStreaming(app.walletOwner(), request)
+		if err != nil {
+			app.Transcription.Output = err.Why
+			ucxsvc.UiSendFailure(app, fmt.Sprintf("Transcription failed: %s", err))
+			return
+		}
+		for event := range events {
 			usageSeen = event.Usage
 			if event.Delta != "" {
 				builder.WriteString(event.Delta)
@@ -919,7 +931,7 @@ func (app *InferencePlaygroundApp) imageTab() ucx.UiNode {
 						"imageModel",
 						"Model",
 						"image.modelId",
-						app.modelOptionsFor(InferenceModelCapabilityImageGeneration),
+						app.modelOptionsFor(InferenceTextToImage),
 					).Sx(
 						ucx.SxWidthPercent(100),
 					),
@@ -1002,7 +1014,13 @@ func (app *InferencePlaygroundApp) runImageGeneration() {
 
 	if app.Image.Streaming {
 		last := InferenceImageGenerationStreamEvent{Usage: inferenceImageUsageFromPayload(request, 0, util.OptNone[InferenceImageGenerationUsage]())}
-		for event := range InferenceGenerateImageStreaming(app.walletOwner(), request) {
+		events, err := InferenceGenerateImageStreaming(app.walletOwner(), request)
+		if err != nil {
+			app.Image.Output = err.Why
+			ucxsvc.UiSendFailure(app, fmt.Sprintf("Image generation failed: %s", err))
+			return
+		}
+		for event := range events {
 			last = event
 		}
 
