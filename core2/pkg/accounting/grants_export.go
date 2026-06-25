@@ -69,8 +69,10 @@ func GrantsExportBrowse(actor rpc.Actor) []accapi.GrantsExportResponse {
 			}
 
 			answerFields := map[string]accapi.AnswerFieldForm{}
-			for _, field := range doc.Form.Fields {
-				answerFields[field.Field.Name] = field
+			for _, answerForm := range doc.Form.AnswerForms {
+				for _, field := range answerForm.AnswerFields {
+					answerFields[field.Field.Name] = field
+				}
 			}
 
 			result = append(result, accapi.GrantsExportResponse{
