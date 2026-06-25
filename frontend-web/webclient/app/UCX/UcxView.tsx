@@ -47,6 +47,7 @@ import {ModuleMarkdown} from "@/Applications/Jobs/Widgets/ModuleList";
 import remarkGfm from "remark-gfm";
 import ReactMarkdown from "react-markdown";
 import * as Heading from "@/ui-components/Heading";
+import {UcxAccordion} from "@/UCX/UcxAccordion";
 
 type ValueProvider = string | (() => string | Promise<string>);
 export type UcxRpcPayload = PlainValue;
@@ -98,33 +99,6 @@ export interface UcxViewProps {
     onDisconnected?: (reason: string) => void;
     onTransportError?: (message: string) => void;
 }
-
-const UcxAccordion: React.FunctionComponent<React.PropsWithChildren<{
-    title: string;
-    open: boolean;
-}>> = ({title, open, children}) => {
-    const [isOpen, setIsOpen] = useState(open);
-
-    return <div style={{display: "flex", flexDirection: "column", gap: 4}}>
-        <div
-            onClick={() => setIsOpen(v => !v)}
-            style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                cursor: "pointer",
-                userSelect: "none",
-                padding: "4px 0",
-                borderBottom: "1px solid var(--borderColor)",
-                marginBottom: "8px",
-            }}
-        >
-            <div style={{fontWeight: 600}}>{title}</div>
-            <Icon name="heroChevronDown" size={12} rotation={isOpen ? 0 : -90} />
-        </div>
-        {isOpen ? <div>{children}</div> : null}
-    </div>;
-};
 
 const UcxView: React.FunctionComponent<UcxViewProps> = ({
     url,

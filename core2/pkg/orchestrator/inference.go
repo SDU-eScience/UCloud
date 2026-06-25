@@ -35,10 +35,15 @@ func initInference() {
 			return orcapi.InferenceListModelsResponse{}, err
 		}
 
-		return InvokeProvider(providerId, orcapi.InferenceListModelsProvider,
+		resp, err := InvokeProvider(providerId, orcapi.InferenceListModelsProvider,
 			orcapi.InferenceListModelsProviderRequest{Owner: inferenceActorToOwner(info.Actor)},
 			ProviderCallOpts{Username: util.OptValue(info.Actor.Username)},
 		)
+		if err != nil {
+			return orcapi.InferenceListModelsResponse{}, err
+		}
+		resp.ProviderId = providerId
+		return resp, nil
 	})
 
 	orcapi.InferenceUpdateModel.Handler(func(info rpc.RequestInfo, request orcapi.InferenceUpdateModelRequest) (util.Empty, *util.HttpError) {

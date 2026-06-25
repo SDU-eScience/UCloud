@@ -55,8 +55,9 @@ type InferenceListModelsRequest struct {
 }
 
 type InferenceListModelsResponse struct {
-	Models  []InferenceModel `json:"models"`
-	IsAdmin bool             `json:"isAdmin"`
+	Models     []InferenceModel `json:"models"`
+	IsAdmin    bool             `json:"isAdmin"`
+	ProviderId string           `json:"providerId"`
 }
 
 type InferenceUpdateModelRequest struct {

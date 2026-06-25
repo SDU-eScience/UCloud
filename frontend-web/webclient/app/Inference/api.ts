@@ -44,6 +44,7 @@ export interface ListModelsRequest {
 export interface ListModelsResponse {
     models: InferenceModel[];
     isAdmin: boolean;
+    providerId: string;
 }
 
 export interface UpdateModelRequest {
