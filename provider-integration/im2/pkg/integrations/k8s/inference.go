@@ -45,8 +45,9 @@ const (
 )
 
 type inferenceDiscoveredModel struct {
-	Id     string `json:"id"`
-	Object string `json:"object"`
+	Id            string `json:"id"`
+	Object        string `json:"object"`
+	ContextWindow *int   `json:"context_window,omitempty"`
 }
 
 type inferenceDiscoveredModelsResponse struct {
@@ -166,6 +167,7 @@ func initInference() {
 					Public:      model.Availability.Public,
 					AvailableTo: append([]string{}, model.Availability.AvailableTo...),
 				},
+				ContextWindow: model.ContextWindow,
 			})
 		}
 		return result, nil
@@ -200,6 +202,7 @@ func initInference() {
 				Public:      request.Model.Availability.Public,
 				AvailableTo: append([]string{}, request.Model.Availability.AvailableTo...),
 			},
+			ContextWindow: request.Model.ContextWindow,
 		}
 
 		oldName := strings.TrimSpace(request.OldName)
@@ -597,6 +600,7 @@ func inferenceDiscoverModelsFromEndpoint(base string, availableTo []string) {
 				Public:      false,
 				AvailableTo: availableTo,
 			},
+			ContextWindow: model.ContextWindow,
 		})
 		if inferenceModelValidate(catalogModel) != nil {
 			continue
@@ -604,20 +608,29 @@ func inferenceDiscoverModelsFromEndpoint(base string, availableTo []string) {
 
 		inserted := false
 		modelGlobals.Mu.Lock()
-		knownBackend := false
-		for _, existing := range modelGlobals.Models {
+		knownBackendName := ""
+		for existingName, existing := range modelGlobals.Models {
 			if existing.Endpoint.BackendModelName == catalogModel.Endpoint.BackendModelName {
-				knownBackend = true
+				knownBackendName = existingName
 				break
 			}
 		}
-		_, knownName := modelGlobals.Models[catalogModel.Name]
-		if !knownBackend && !knownName {
+		existing, knownName := modelGlobals.Models[catalogModel.Name]
+		if !knownName && knownBackendName != "" {
+			existing = modelGlobals.Models[knownBackendName]
+		}
+		if !knownName && knownBackendName == "" {
 			db.NewTx0(func(tx *db.Transaction) {
 				inferenceModelUpsertTx(tx, catalogModel)
 			})
 			modelGlobals.Models[catalogModel.Name] = inferenceModelClone(catalogModel)
 			inserted = true
+		} else if catalogModel.ContextWindow != nil && (existing.ContextWindow == nil || *existing.ContextWindow != *catalogModel.ContextWindow) {
+			existing.ContextWindow = catalogModel.ContextWindow
+			db.NewTx0(func(tx *db.Transaction) {
+				inferenceModelUpsertTx(tx, existing)
+			})
+			modelGlobals.Models[existing.Name] = inferenceModelClone(existing)
 		}
 		modelGlobals.Mu.Unlock()
 

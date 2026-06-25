@@ -1,6 +1,7 @@
 package k8s
 
 import (
+	"database/sql"
 	"encoding/json"
 	"net/http"
 	"slices"
@@ -28,6 +29,7 @@ type InferenceModel struct {
 	PriceMultiplier InferencePricing      `json:"priceMultiplier"`
 	Endpoint        InferenceEndpoint     `json:"endpoint"`
 	Availability    InferenceAvailability `json:"availability"`
+	ContextWindow   *int                  `json:"contextWindow,omitempty"`
 }
 
 type InferencePricing struct {
@@ -64,6 +66,7 @@ type inferenceModelRow struct {
 	InferenceEndpointModel string
 	Public                 bool
 	AvailableTo            []byte
+	ContextWindow          sql.NullInt64
 }
 
 func inferenceModelCatalogLoad() {
@@ -81,7 +84,8 @@ func inferenceModelCatalogLoad() {
 					inference_endpoint_path,
 					inference_endpoint_model,
 					public,
-					available_to
+					available_to,
+					context_window
 				from inference_model
 			`,
 			db.Params{},
@@ -97,6 +101,12 @@ func inferenceModelCatalogLoad() {
 			var availableTo []string
 			if err := json.Unmarshal(row.AvailableTo, &availableTo); err != nil {
 				continue
+			}
+
+			var contextWindow *int
+			if row.ContextWindow.Valid {
+				value := int(row.ContextWindow.Int64)
+				contextWindow = &value
 			}
 
 			result[row.Name] = inferenceModelNormalize(InferenceModel{
@@ -116,6 +126,7 @@ func inferenceModelCatalogLoad() {
 					Public:      row.Public,
 					AvailableTo: availableTo,
 				},
+				ContextWindow: contextWindow,
 			})
 		}
 		return result
@@ -240,6 +251,10 @@ func InferenceModelDelete(name string) *util.HttpError {
 func inferenceModelUpsertTx(tx *db.Transaction, model InferenceModel) {
 	capabilities, _ := json.Marshal(model.Capabilities)
 	availableTo, _ := json.Marshal(model.Availability.AvailableTo)
+	contextWindow := sql.NullInt64{}
+	if model.ContextWindow != nil {
+		contextWindow = sql.NullInt64{Int64: int64(*model.ContextWindow), Valid: true}
+	}
 	db.Exec(
 		tx,
 		`
@@ -253,7 +268,8 @@ func inferenceModelUpsertTx(tx *db.Transaction, model InferenceModel) {
 				inference_endpoint_path,
 				inference_endpoint_model,
 				public,
-				available_to
+				available_to,
+				context_window
 			) values (
 				:name,
 				:title,
@@ -264,7 +280,8 @@ func inferenceModelUpsertTx(tx *db.Transaction, model InferenceModel) {
 				:inference_endpoint_path,
 				:inference_endpoint_model,
 				:public,
-				cast(:available_to as jsonb)
+				cast(:available_to as jsonb),
+				:context_window
 			) on conflict (name) do update set
 				title = excluded.title,
 				capabilities = excluded.capabilities,
@@ -274,7 +291,8 @@ func inferenceModelUpsertTx(tx *db.Transaction, model InferenceModel) {
 				inference_endpoint_path = excluded.inference_endpoint_path,
 				inference_endpoint_model = excluded.inference_endpoint_model,
 				public = excluded.public,
-				available_to = excluded.available_to
+				available_to = excluded.available_to,
+				context_window = excluded.context_window
 		`,
 		db.Params{
 			"name":                     model.Name,
@@ -287,6 +305,7 @@ func inferenceModelUpsertTx(tx *db.Transaction, model InferenceModel) {
 			"inference_endpoint_model": model.Endpoint.BackendModelName,
 			"public":                   model.Availability.Public,
 			"available_to":             string(availableTo),
+			"context_window":           contextWindow,
 		},
 	)
 }
@@ -325,12 +344,19 @@ func inferenceModelNormalize(model InferenceModel) InferenceModel {
 	model.Title = strings.TrimSpace(model.Title)
 	model.Endpoint.BasePath = strings.TrimRight(strings.TrimSpace(model.Endpoint.BasePath), "/")
 	model.Endpoint.BackendModelName = strings.TrimSpace(model.Endpoint.BackendModelName)
+	if model.ContextWindow != nil && *model.ContextWindow <= 0 {
+		model.ContextWindow = nil
+	}
 	model.Capabilities = slices.Clone(model.Capabilities)
 	model.Availability.AvailableTo = slices.Clone(model.Availability.AvailableTo)
 	return model
 }
 
 func inferenceModelClone(model InferenceModel) InferenceModel {
+	if model.ContextWindow != nil {
+		value := *model.ContextWindow
+		model.ContextWindow = &value
+	}
 	model.Capabilities = slices.Clone(model.Capabilities)
 	model.Availability.AvailableTo = slices.Clone(model.Availability.AvailableTo)
 	return model

@@ -21,10 +21,11 @@ import (
 // =====================================================================================================================
 
 type OaiInferenceModel struct {
-	Id           string                `json:"id"`
-	Object       string                `json:"object"`
-	OwnedBy      string                `json:"owned_by,omitempty"`
-	Capabilities []InferenceCapability `json:"capabilities,omitempty"`
+	Id            string                `json:"id"`
+	Object        string                `json:"object"`
+	OwnedBy       string                `json:"owned_by,omitempty"`
+	Capabilities  []InferenceCapability `json:"capabilities,omitempty"`
+	ContextWindow *int                  `json:"context_window,omitempty"`
 }
 
 type OaiInferenceModelsResponse struct {
@@ -61,10 +62,11 @@ func OaiInferenceModelByID(owner apm.WalletOwner, id string) (OaiInferenceModel,
 
 func inferenceOaiModelFromCatalog(model InferenceModel) OaiInferenceModel {
 	return OaiInferenceModel{
-		Id:           model.Name,
-		Object:       "model",
-		OwnedBy:      "ucloud",
-		Capabilities: model.Capabilities,
+		Id:            model.Name,
+		Object:        "model",
+		OwnedBy:       "ucloud",
+		Capabilities:  model.Capabilities,
+		ContextWindow: model.ContextWindow,
 	}
 }
 

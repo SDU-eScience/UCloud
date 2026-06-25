@@ -34,6 +34,7 @@ export interface InferenceModel {
         public: boolean;
         availableTo: string[];
     };
+    contextWindow?: number;
 }
 
 export interface ListModelsRequest {

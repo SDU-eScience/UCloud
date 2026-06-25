@@ -70,3 +70,18 @@ func inferenceV3() db.MigrationScript {
 		},
 	}
 }
+
+func inferenceV4() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "inferenceV4",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					alter table inference_model add column context_window int
+				`,
+				db.Params{},
+			)
+		},
+	}
+}

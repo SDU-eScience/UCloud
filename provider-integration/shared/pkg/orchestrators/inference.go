@@ -31,6 +31,7 @@ type InferenceModel struct {
 	PriceMultiplier InferencePricing      `json:"priceMultiplier"`
 	Endpoint        InferenceEndpoint     `json:"endpoint"`
 	Availability    InferenceAvailability `json:"availability"`
+	ContextWindow   *int                  `json:"contextWindow,omitempty"`
 }
 
 type InferencePricing struct {
