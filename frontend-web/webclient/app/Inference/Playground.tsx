@@ -232,6 +232,7 @@ export default function Playground(): React.ReactNode {
     const retryCountRef = React.useRef(0);
     const mountedRef = React.useRef(true);
     const projectId = useProjectId();
+    const previousProjectIdRef = React.useRef(projectId);
 
     React.useEffect(() => {
         return () => {
@@ -240,13 +241,18 @@ export default function Playground(): React.ReactNode {
     }, []);
 
     React.useEffect(() => {
+        if (previousProjectIdRef.current === projectId) return;
+        previousProjectIdRef.current = projectId;
+        retryCountRef.current = 0;
+        setSession(null);
         setRefreshNonce(x => x + 1);
-    }, [projectId])
+    }, [projectId]);
 
     React.useEffect(() => {
         let cancelled = false;
 
         setLoading(true);
+        setSession(null);
         void callAPI(openPlayground({providerId: null}))
             .then(result => {
                 if (cancelled) return;
@@ -300,6 +306,7 @@ export default function Playground(): React.ReactNode {
         </Flex>
         {terminalError === "" ? null : <Text color="errorMain">{terminalError}</Text>}
         <UcxView
+            key={`${projectId ?? ""}:${session.sessionToken}`}
             url={session.connectTo}
             authToken={session.sessionToken}
             sysHello={JSON.stringify({})}

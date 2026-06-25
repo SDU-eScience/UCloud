@@ -40,7 +40,8 @@ type InferencePlaygroundApp struct {
 	Owner     orcapi.ResourceOwner `ucx:"-"`
 	SessionId string               `ucx:"-"`
 
-	Route string
+	Route     string
+	Developer bool
 
 	Models []InferenceModel
 
@@ -110,6 +111,7 @@ func InferencePlayground(owner orcapi.ResourceOwner, sessionId string) *Inferenc
 	return &InferencePlaygroundApp{
 		Owner:     owner,
 		SessionId: sessionId,
+		Developer: false,
 		Chat: InferencePlaygroundAppChat{
 			Streaming:           true,
 			Temperature:         0.8,
@@ -174,6 +176,10 @@ func (app *InferencePlaygroundApp) OnInit() {
 
 func (app *InferencePlaygroundApp) OnMessage(message ucx.Frame) {
 	if message.Opcode == ucx.OpModelInput {
+		if message.ModelInput.Path == "developer" {
+			ucx.AppUpdateUi(app)
+			return
+		}
 		if app.Chat.ModelId != app.Chat.AppliedDefaultsModelId {
 			app.applyChatModelDefaults()
 			ucx.AppUpdateModel(app)
@@ -231,7 +237,9 @@ func (app *InferencePlaygroundApp) UserInterface() ucx.UiNode {
 					ucx.SxMinHeight(0),
 					ucx.SxOverflow("hidden"),
 				).
-				Children(tabs...),
+				Children(append(tabs, ucx.TabsRightControls(
+					InferenceToggleInput("developerMode", "Developer", "developer", true),
+				))...),
 		)
 }
 
@@ -312,6 +320,34 @@ func (app *InferencePlaygroundApp) applyChatModelDefaults() {
 // =====================================================================================================================
 
 func (app *InferencePlaygroundApp) chatTab() ucx.UiNode {
+	chatControls := []ucx.UiNode{
+		ucx.Select("chatModel", "Model", "chat.modelId", app.modelOptionsFor(InferenceTextGeneration)).Sx(ucx.SxWidthPercent(100)),
+	}
+	if app.Developer {
+		chatControls = append(chatControls,
+			ucx.AccordionNode("Settings", true).Children(ucx.Box().Sx(ucx.SxDisplayFlex, ucx.SxFlexDirectionColumn, ucx.SxGap(8)).Children(
+				InferenceToggleInput("chat.streaming", "Streaming", "chat.streaming", true),
+				ucx.InputSlider("Max completion tokens", "chat.maxCompletionTokens", 1, 1024*256, 1024, 1024*64, true),
+				ucx.InputSlider("Temperature", "chat.temperature", 0, 2, 0.1, 0.8, true),
+				ucx.InputSlider("Top P", "chat.topP", 0, 1, 0.1, 0.1, true),
+				ucx.TextArea("chat.systemPrompt", "System prompt", "System prompt", "chat.systemPrompt", 4),
+			)),
+
+			app.usageBox("chat"),
+
+			ucx.AccordionNode("Advanced settings", false).Children(ucx.Box().Sx(ucx.SxDisplayFlex, ucx.SxFlexDirectionColumn, ucx.SxGap(8)).Children(
+				ucx.InputSlider("Presence penalty", "chat.presencePenalty", -2, 2, 0.1, 0, true),
+				ucx.InputSlider("Frequency penalty", "chat.frequencyPenalty", -2, 2, 0.1, 0, true),
+				InferenceToggleInput("chat.logprobs", "Logprobs", "chat.logprobs", true),
+				ucx.InputSlider("Top log probs", "chat.topLogprobs", 0, 20, 1, 0, true),
+			)),
+
+			ucx.AccordionNode("Curl", false).Children(
+				ucx.CodeBound("chat.curl"),
+			),
+		)
+	}
+
 	return ucx.Box().
 		Sx(
 			ucx.SxDisplayFlex,
@@ -378,28 +414,7 @@ func (app *InferencePlaygroundApp) chatTab() ucx.UiNode {
 			ucx.SxFlexDirectionColumn,
 			ucx.SxGap(16),
 		).Children(
-			ucx.Select("chatModel", "Model", "chat.modelId", app.modelOptionsFor(InferenceTextGeneration)).Sx(ucx.SxWidthPercent(100)),
-
-			ucx.AccordionNode("Settings", true).Children(ucx.Box().Sx(ucx.SxDisplayFlex, ucx.SxFlexDirectionColumn, ucx.SxGap(8)).Children(
-				InferenceToggleInput("chat.streaming", "Streaming", "chat.streaming", true),
-				ucx.InputSlider("Max completion tokens", "chat.maxCompletionTokens", 1, 1024*256, 1024, 1024*64, true),
-				ucx.InputSlider("Temperature", "chat.temperature", 0, 2, 0.1, 0.8, true),
-				ucx.InputSlider("Top P", "chat.topP", 0, 1, 0.1, 0.1, true),
-				ucx.TextArea("chat.systemPrompt", "System prompt", "System prompt", "chat.systemPrompt", 4),
-			)),
-
-			app.usageBox("chat"),
-
-			ucx.AccordionNode("Advanced settings", false).Children(ucx.Box().Sx(ucx.SxDisplayFlex, ucx.SxFlexDirectionColumn, ucx.SxGap(8)).Children(
-				ucx.InputSlider("Presence penalty", "chat.presencePenalty", -2, 2, 0.1, 0, true),
-				ucx.InputSlider("Frequency penalty", "chat.frequencyPenalty", -2, 2, 0.1, 0, true),
-				InferenceToggleInput("chat.logprobs", "Logprobs", "chat.logprobs", true),
-				ucx.InputSlider("Top log probs", "chat.topLogprobs", 0, 20, 1, 0, true),
-			)),
-
-			ucx.AccordionNode("Curl", false).Children(
-				ucx.CodeBound("chat.curl"),
-			),
+			chatControls...,
 		),
 	)
 }

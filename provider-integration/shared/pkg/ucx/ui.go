@@ -623,6 +623,14 @@ func TabsWithRouteEx(id string, bindToRoute bool) UiNode {
 	}
 }
 
+func TabsRightControls(child UiNode) UiNode {
+	if child.Props == nil {
+		child.Props = map[string]Value{}
+	}
+	child.Props["rightControls"] = VBool(true)
+	return child
+}
+
 func Tab(name string, icon IconName) UiNode {
 	return TabEx("", name, icon)
 }

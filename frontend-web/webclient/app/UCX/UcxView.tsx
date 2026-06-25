@@ -73,6 +73,7 @@ export interface UcxRenderContext {
     model: Record<string, Value>;
     scope?: Record<string, Value>;
     fn: UcxFunctionRegistry;
+    components: UcxComponentRegistry;
     renderChildren: (scopeOverride?: Record<string, Value>) => React.ReactNode;
 }
 
@@ -572,6 +573,7 @@ const NodeRenderer: React.FunctionComponent<{
         model,
         scope,
         fn,
+        components,
         renderChildren: (scopeOverride?: Record<string, Value>) => node.children.map(child =>
             <NodeRenderer
                 key={child.id}
@@ -904,10 +906,19 @@ const baseComponents: UcxComponentRegistry = {
             </Table>
         </div>;
     },
-    tabs: ({node, renderChildren, fn}) => {
-        const renderedChildren = React.Children.toArray(renderChildren());
+    tabs: ({node, model, scope, fn, components}) => {
+        const tabChildren = node.children.filter(child => !boolProp(child, "rightControls", false));
+        const rightControlChildren = node.children.filter(child => boolProp(child, "rightControls", false));
+        const renderedChildren = tabChildren.map(child => <NodeRenderer
+            key={child.id}
+            node={child}
+            model={model}
+            scope={scope}
+            fn={fn}
+            components={components}
+        />);
         const bindToRoute = boolProp(node, "bindToRoute", false);
-        const routeKeys = node.children.map((child, idx) => tabRouteKey(child, idx));
+        const routeKeys = tabChildren.map((child, idx) => tabRouteKey(child, idx));
         const selectedIndex = bindToRoute ? Math.max(0, routeKeys.indexOf(fn.currentRoutePath)) : undefined;
 
         useEffect(() => {
@@ -918,10 +929,19 @@ const baseComponents: UcxComponentRegistry = {
             }
         }, [bindToRoute, fn, node.id, routeKeys, selectedIndex]);
 
-        return <TabbedCard style={fn.sxStyle(node)} activeIndex={selectedIndex} onTabChange={bindToRoute ? idx => {
+        const rightControls = rightControlChildren.length === 0 ? undefined : rightControlChildren.map(child => <NodeRenderer
+            key={child.id}
+            node={child}
+            model={model}
+            scope={scope}
+            fn={fn}
+            components={components}
+        />);
+
+        return <TabbedCard style={fn.sxStyle(node)} rightControls={rightControls} activeIndex={selectedIndex} onTabChange={bindToRoute ? idx => {
             fn.navigateSpa(routeKeys[idx] ?? "", node.id);
         } : undefined}>
-            {node.children.map((child, idx) =>
+            {tabChildren.map((child, idx) =>
                 <TabbedCardTab
                     key={child.id}
                     name={stringProp(child, "name", `Tab ${idx + 1}`)}
