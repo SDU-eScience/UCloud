@@ -296,6 +296,9 @@ function ThreadListNode({node, model, fn}: Pick<UcxRenderContext, "node" | "mode
                 cursor: "pointer",
                 background: thread.id === currentThreadId ? "var(--dialogToolbar)" : "var(--backgroundDefault)",
                 color: "inherit",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis"
             }}
         >
             {thread.title}
