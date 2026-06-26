@@ -921,14 +921,6 @@ const baseComponents: UcxComponentRegistry = {
         const routeKeys = tabChildren.map((child, idx) => tabRouteKey(child, idx));
         const selectedIndex = bindToRoute ? Math.max(0, routeKeys.indexOf(fn.currentRoutePath)) : undefined;
 
-        useEffect(() => {
-            if (!bindToRoute || routeKeys.length === 0) return;
-            const selectedRoute = routeKeys[selectedIndex ?? 0] ?? "";
-            if (selectedRoute !== "" && selectedRoute !== fn.currentRoutePath) {
-                fn.navigateSpa(selectedRoute, node.id);
-            }
-        }, [bindToRoute, fn, node.id, routeKeys, selectedIndex]);
-
         const rightControls = rightControlChildren.length === 0 ? undefined : rightControlChildren.map(child => <NodeRenderer
             key={child.id}
             node={child}

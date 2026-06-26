@@ -56,6 +56,7 @@ func inferenceCliHelp() {
 	f.AppendField("models update <name>", "Update an inference model catalog entry")
 	f.AppendField("  --name <name>", "Rename the model. Only allowed for non-public models.")
 	f.AppendField("  --title <title>", "Set the display title")
+	f.AppendField("  --title-model-name <name>", "Set model used for chat thread title generation")
 	f.AppendField("  --capabilities <list>", "Comma-separated list: TextGeneration, TextToImage, SpeechToText")
 	f.AppendField("  --price-cached <n>", "Cached input multiplier in fixed-point thousandths")
 	f.AppendField("  --price-input <n>", "Input multiplier in fixed-point thousandths")
@@ -91,6 +92,7 @@ func inferenceCliModelsList(args []string) {
 	t := termio.Table{}
 	t.AppendHeader("Name")
 	t.AppendHeader("Title")
+	t.AppendHeader("Title model")
 	t.AppendHeader("Capabilities")
 	t.AppendHeaderEx("Cached", termio.TableHeaderAlignRight)
 	t.AppendHeaderEx("Input", termio.TableHeaderAlignRight)
@@ -102,6 +104,7 @@ func inferenceCliModelsList(args []string) {
 	for _, model := range models {
 		t.Cell("%s", model.Name)
 		t.Cell("%s", model.Title)
+		t.Cell("%s", model.TitleModelName)
 		t.Cell("%s", inferenceCliFormatCapabilities(model.Capabilities))
 		t.Cell("%d", model.PriceMultiplier.CachedInput)
 		t.Cell("%d", model.PriceMultiplier.Input)
@@ -126,6 +129,7 @@ func inferenceCliModelsUpdate(args []string) {
 	fs := flag.NewFlagSet("inference models update", flag.ExitOnError)
 	fs.StringVar(&req.NewName, "name", "", "Rename the model")
 	fs.StringVar(&req.Title, "title", "", "Set the display title")
+	fs.StringVar(&req.TitleModelName, "title-model-name", "", "Model used for chat thread title generation")
 	fs.StringVar(&capabilitiesRaw, "capabilities", "", "Comma-separated capability list")
 	fs.IntVar(&req.PriceCachedInput, "price-cached", 0, "Cached input multiplier")
 	fs.IntVar(&req.PriceInput, "price-input", 0, "Input multiplier")
@@ -226,6 +230,9 @@ func initInferenceCli() {
 		if set("title") {
 			model.Title = r.Payload.Title
 		}
+		if set("title-model-name") {
+			model.TitleModelName = r.Payload.TitleModelName
+		}
 		if set("capabilities") {
 			model.Capabilities = slices.Clone(r.Payload.Capabilities)
 		}
@@ -270,6 +277,9 @@ func initInferenceCli() {
 
 		newName := strings.TrimSpace(r.Payload.NewName)
 		if set("name") && newName != "" && newName != strings.TrimSpace(r.Payload.Name) {
+			if !set("title-model-name") && strings.TrimSpace(model.TitleModelName) == strings.TrimSpace(r.Payload.Name) {
+				model.TitleModelName = newName
+			}
 			model.Name = newName
 			if err := inferenceModelValidate(model); err != nil {
 				return ipc.Response[util.Empty]{StatusCode: err.StatusCode, ErrorMessage: err.Why}
@@ -365,6 +375,7 @@ type k8sCliInferenceModelsUpdateRequest struct {
 	Set                 []string
 	NewName             string
 	Title               string
+	TitleModelName      string
 	Capabilities        []InferenceCapability
 	PriceCachedInput    int
 	PriceInput          int

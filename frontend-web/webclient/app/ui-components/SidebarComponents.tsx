@@ -12,6 +12,7 @@ export enum SidebarTabId {
     RUNS = "Compute",
     ADMIN = "Admin",
     APPLICATION_STUDIO = "Application Studio",
+    INFERENCE = "Inference",
 }
 
 export interface LinkInfo {

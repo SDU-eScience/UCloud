@@ -20,6 +20,7 @@ export type InferenceCapability = "TextGeneration" | "TextToImage" | "SpeechToTe
 export interface InferenceModel {
     name: string;
     title: string;
+    titleModelName: string;
     capabilities: InferenceCapability[];
     priceMultiplier: {
         cachedInput: number;

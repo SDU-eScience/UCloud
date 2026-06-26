@@ -99,9 +99,26 @@ type InferenceChatRequest struct {
 type InferenceChatMessage struct {
 	Role       string                      `json:"role"`
 	Content    InferenceChatMessageContent `json:"content"`
+	Reasoning  InferenceChatMessageContent `json:"reasoning"`
 	Name       string                      `json:"name,omitempty"`
 	ToolCalls  []InferenceChatToolCall     `json:"tool_calls,omitempty"`
 	ToolCallID string                      `json:"tool_call_id,omitempty"`
+}
+
+func (m *InferenceChatMessage) UnmarshalJSON(data []byte) error {
+	type inferenceChatMessageJSON InferenceChatMessage
+	var decoded struct {
+		inferenceChatMessageJSON
+		ReasoningContent InferenceChatMessageContent `json:"reasoning_content"`
+	}
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		return err
+	}
+	*m = InferenceChatMessage(decoded.inferenceChatMessageJSON)
+	if m.Reasoning.String() == "" && decoded.ReasoningContent.String() != "" {
+		m.Reasoning = decoded.ReasoningContent
+	}
+	return nil
 }
 
 type InferenceChatMessageContent struct {
@@ -272,7 +289,24 @@ type InferenceChatStreamingChoice struct {
 type InferenceChatDelta struct {
 	Role      string                           `json:"role,omitempty"`
 	Content   string                           `json:"content,omitempty"`
+	Reasoning string                           `json:"reasoning,omitempty"`
 	ToolCalls []InferenceChatStreamingToolCall `json:"tool_calls,omitempty"`
+}
+
+func (d *InferenceChatDelta) UnmarshalJSON(data []byte) error {
+	type inferenceChatDeltaJSON InferenceChatDelta
+	var decoded struct {
+		inferenceChatDeltaJSON
+		ReasoningContent string `json:"reasoning_content"`
+	}
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		return err
+	}
+	*d = InferenceChatDelta(decoded.inferenceChatDeltaJSON)
+	if d.Reasoning == "" && decoded.ReasoningContent != "" {
+		d.Reasoning = decoded.ReasoningContent
+	}
+	return nil
 }
 
 type InferenceChatStreamingToolCall struct {
@@ -1165,7 +1199,7 @@ func inferenceBackendRequest(basePath string, method string, path string, body [
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		log.Info("inferenceBackendRequest err2: %v %v %v %v %v", backend, basePath, method, path, string(body))
+		log.Info("inferenceBackendRequest err2: %v %v %v %v %v %v", backend, basePath, method, path, string(body), err)
 		return nil, util.HttpErr(http.StatusBadGateway, "invalid request")
 	}
 

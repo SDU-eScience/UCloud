@@ -27,6 +27,7 @@ const (
 type InferenceModel struct {
 	Name            string                `json:"name"`
 	Title           string                `json:"title"`
+	TitleModelName  string                `json:"titleModelName"`
 	Capabilities    []InferenceCapability `json:"capabilities"`
 	PriceMultiplier InferencePricing      `json:"priceMultiplier"`
 	Endpoint        InferenceEndpoint     `json:"endpoint"`

@@ -14,6 +14,8 @@ import {copyToClipboard} from "@/UtilityFunctions";
 import SyntaxHighlighter from "react-syntax-highlighter";
 import {UcxAccordion} from "@/UCX/UcxAccordion";
 import {VirtualMachineIconButton} from "@/Applications/Jobs/VirtualMachineIconButton";
+import {usePage} from "@/Navigation/Redux";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 const capabilities: InferenceCapability[] = ["TextGeneration", "TextToImage", "SpeechToText"];
 
@@ -30,6 +32,8 @@ export default function Models(): React.ReactNode {
     const [tokenStatus, setTokenStatus] = React.useState<ApiTokens.ApiTokenStatus | null>(null);
     const [generatingToken, setGeneratingToken] = React.useState(false);
     const [openTool, setOpenTool] = React.useState("generic");
+
+    usePage("Inference models", SidebarTabId.INFERENCE);
 
     const refresh = React.useCallback(() => {
         setLoading(true);
@@ -53,6 +57,7 @@ export default function Models(): React.ReactNode {
         setEditOriginalName(model.name);
         setEditing({
             ...JSON.parse(JSON.stringify(model)),
+            titleModelName: model.titleModelName || model.name,
             chatSettings: {
                 temperature: model.chatSettings?.temperature ?? 0.8,
                 topP: model.chatSettings?.topP ?? 0.1,
@@ -120,7 +125,6 @@ export default function Models(): React.ReactNode {
     return <MainContainer main={<Box style={{display: "flex", flexDirection: "column", gap: 20, paddingBottom: 32}}>
         <Flex mb={8} style={{gap: 12, alignItems: "center", flexWrap: "wrap"}}>
             <h3 className="title" style={{margin: 0}}>AI Inference: Models</h3>
-            <Link to={AppRoutes.inference.playground()}><Button m={0}>Playground</Button></Link>
             <Box flexGrow={1} />
             <ProjectSwitcher />
         </Flex>
@@ -135,6 +139,7 @@ export default function Models(): React.ReactNode {
                 <TableRow>
                     <th>Model</th>
                     <th>Name</th>
+                    <th>Title model</th>
                     <th>Cached</th>
                     <th>Input</th>
                     <th>Output</th>
@@ -146,6 +151,7 @@ export default function Models(): React.ReactNode {
                 {models.map(model => <TableRow key={model.name}>
                     <td>{model.title}</td>
                     <td>{model.name}</td>
+                    <td>{model.titleModelName || model.name}</td>
                     <td>{formatMultiplier(model.priceMultiplier.cachedInput)}</td>
                     <td>{formatMultiplier(model.priceMultiplier.input)}</td>
                     <td>{formatMultiplier(model.priceMultiplier.output)}</td>
@@ -166,6 +172,16 @@ export default function Models(): React.ReactNode {
                 <label>
                     Name
                     <Input value={editing.name} onChange={ev => setEditing({...editing, name: ev.currentTarget.value})} />
+                </label>
+                <label>
+                    Title generation model
+                    <Select
+                        value={editing.titleModelName || editing.name}
+                        onChange={ev => setEditing({...editing, titleModelName: ev.currentTarget.value})}
+                        style={{width: "100%", height: 40}}
+                    >
+                        {models.filter(model => model.capabilities.includes("TextGeneration")).map(model => <option key={model.name} value={model.name}>{model.title} ({model.name})</option>)}
+                    </Select>
                 </label>
                 <label>
                     Cached multiplier
@@ -285,43 +301,37 @@ export default function Models(): React.ReactNode {
 
         <Card>
             <Heading.h3 mb={16}>Configuring tools</Heading.h3>
-            <Text color="textSecondary">
-                Generate an inference API token, then use the server URL and token in any OpenAI-compatible tool that supports chat completions.
-            </Text>
 
             <Box mt={20} style={{display: "grid", gap: 12}}>
-                <Heading.h4>1. Generate an API token</Heading.h4>
+                <Heading.h4>1. Generate an API key</Heading.h4>
                 <Text>
-                    This creates a 90 day token for the inference provider used by this page. The token is shown once, immediately after generation.
+                    This creates a 90 day key for the inference provider used by this page. The key is shown once, immediately after generation.
                 </Text>
                 <Flex gap={"12px"} flexWrap={"wrap"} alignItems={"center"}>
                     <Button type="button" color="successMain" onClick={generateToken} disabled={generatingToken || providerId === ""} m={0}>
-                        {generatingToken ? "Generating..." : "Generate API token"}
+                        {generatingToken ? "Generating..." : "Generate API key"}
                     </Button>
-                    <Link to={AppRoutes.resources.apiTokens()}><Button type="button" color="secondaryMain" m={0}>Manage API tokens</Button></Link>
+                    <Link to={AppRoutes.resources.apiTokens()}><Button type="button" color="secondaryMain" m={0}>Manage API keys</Button></Link>
                 </Flex>
                 {tokenStatus === null ? null :
                     <div style={{display: "grid", gap: 8, marginTop: "16px"}}>
                         <CopyableValue label="Server" value={server} />
-                        <CopyableValue label="API token" value={apiToken} />
+                        <CopyableValue label="API key" value={apiToken} />
                     </div>
                 }
                 {tokenStatus === null ? null : <Text color="textSecondary">
-                    Save this API token now. It will not be visible after leaving this page.
+                    Save this API key now. It will not be visible after leaving this page.
                 </Text>}
             </Box>
 
             <Box mt={28} style={{display: "grid", gap: 12}}>
                 <Heading.h4>2. Choose a tool</Heading.h4>
-                <Text color="textSecondary" mb={16}>
-                    Select the tool you want to configure. Until a token has been generated, examples use placeholders that you can replace later.
-                </Text>
 
                 <ToolGuide id="generic" title="Generic OpenAI-compatible client" openTool={openTool} setOpenTool={setOpenTool}>
                     <Text>Use these values with clients that support custom OpenAI-compatible chat completion endpoints.</Text>
                     <ul>
                         <li>Server: <CopyableInline value={server} /></li>
-                        <li>API token: <CopyableInline value={apiToken} /></li>
+                        <li>API key: <CopyableInline value={apiToken} /></li>
                     </ul>
                     <Text>Only the chat completions API is supported. Other OpenAI APIs, such as the responses API, are not available.</Text>
                 </ToolGuide>
@@ -333,7 +343,7 @@ export default function Models(): React.ReactNode {
                         <li>Select "Add models".</li>
                         <li>Select "Custom endpoint".</li>
                         <li>Enter a group name such as "UCloud".</li>
-                        <li>Use your API token (<CopyableInline value={apiToken} />).</li>
+                        <li>Use your API key (<CopyableInline value={apiToken} />).</li>
                         <li>Use the "Chat completions" API.</li>
                     </ul>
                     <Text>Use this model configuration:</Text>
@@ -361,7 +371,7 @@ export default function Models(): React.ReactNode {
                         <li>Run <CopyableInline value="/connect" />.</li>
                         <li>Choose <b>Other</b>.</li>
                         <li>Use a provider ID such as <CopyableInline value="custom-openai" />.</li>
-                        <li>Paste your API token when prompted.</li>
+                        <li>Paste your API key when prompted.</li>
                         <li>Create or edit <code>opencode.json</code>.</li>
                         <li>Add the provider configuration below.</li>
                         <li>Restart OpenCode.</li>
@@ -386,9 +396,9 @@ export default function Models(): React.ReactNode {
                     <Text>Documentation: <ExternalLink href="https://developers.openai.com/codex/config-reference">Codex configuration reference</ExternalLink></Text>
                     <Text>Codex CLI supports custom model providers configured in <code>~/.codex/config.toml</code>.</Text>
                     <ul>
-                        <li>Export your API token before starting Codex:</li>
+                        <li>Export your API key before starting Codex:</li>
                     </ul>
-                    <CodeBlock language="bash" value={`export API_TOK="${tokenStatus?.token ?? "your-api-token"}"`} />
+                    <CodeBlock language="bash" value={`export API_TOK="${tokenStatus?.token ?? "your-api-key"}"`} />
                     <ul>
                         <li>Create or edit <code>~/.codex/config.toml</code>.</li>
                         <li>Add a custom provider:</li>

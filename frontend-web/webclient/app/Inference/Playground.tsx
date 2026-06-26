@@ -5,26 +5,29 @@ import {callAPI} from "@/Authentication/DataHook";
 import {dialogStore} from "@/Dialog/DialogStore";
 import FileBrowse from "@/Files/FileBrowse";
 import {MainContainer} from "@/ui-components/MainContainer";
-import {Box, Button, Flex, Icon, Input, Text, TextArea} from "@/ui-components";
+import {Box, Button, Flex, Icon, Input, Text, TextArea,} from "@/ui-components";
 import CodeSnippet from "@/ui-components/CodeSnippet";
 import {Toggle} from "@/ui-components/Toggle";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {api as FilesApi} from "@/UCloud/FilesApi";
 import {Selection} from "@/ui-components/ResourceBrowser";
-import {UcxComponentRegistry, UcxRenderContext} from "@/UCX/UcxView";
-import UcxView from "@/UCX/UcxView";
+import UcxView, {UcxComponentRegistry, UcxRenderContext} from "@/UCX/UcxView";
 import {Value, ValueKind} from "@/UCX/protocol";
 import {usePrettyFilePath} from "@/Files/FilePath";
 import {UFile} from "@/UCloud/UFile";
 import {doNothing, removeTrailingSlash} from "@/UtilityFunctions";
 import {addStandardInputDialog} from "@/UtilityComponents";
 import {Operation, Operations, ShortcutKey} from "@/ui-components/Operation";
-
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import {openPlayground} from "./api";
 import {getParentPath} from "@/Utilities/FileUtilities";
 import {ProjectSwitcher} from "@/Project/ProjectSwitcher";
 import {useProjectId} from "@/Project/Api";
-import AppRoutes from "@/Routes";
+import Table from "@/ui-components/Table";
+import {usePage} from "@/Navigation/Redux";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import * as Heading from "@/ui-components/Heading";
 
 type PlaygroundSession = {
     connectTo: string;
@@ -38,30 +41,80 @@ const playgroundComponents: UcxComponentRegistry = {
         const label = stringProp(node, "label", "");
         const checked = boolValue(fn.modelValue(model, node.bindPath, scope));
 
-        return <div style={{display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, width: "100%", ...fn.sxStyle(node)}}>
-            {label === "" ? <span /> : <span
-                style={{fontWeight: 600, userSelect: "none", cursor: "pointer"}}
-                onClick={() => fn.sendBoundInput(node, {kind: ValueKind.Bool, bool: !checked}, model, scope)}
+        return (
+            <div
+                style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 8,
+                    width: "100%",
+                    ...fn.sxStyle(node),
+                }}
             >
-                {label}
-            </span>}
-            <Toggle
-                height={18}
-                checked={checked}
-                onChange={() => fn.sendBoundInput(node, {kind: ValueKind.Bool, bool: !checked}, model, scope)}
-            />
-        </div>;
+                {label === "" ? (
+                    <span/>
+                ) : (
+                    <span
+                        style={{fontWeight: 600, userSelect: "none", cursor: "pointer"}}
+                        onClick={() =>
+                            fn.sendBoundInput(
+                                node,
+                                {kind: ValueKind.Bool, bool: !checked},
+                                model,
+                                scope
+                            )
+                        }
+                    >
+            {label}
+          </span>
+                )}
+                <Toggle
+                    height={18}
+                    checked={checked}
+                    onChange={() =>
+                        fn.sendBoundInput(
+                            node,
+                            {kind: ValueKind.Bool, bool: !checked},
+                            model,
+                            scope
+                        )
+                    }
+                />
+            </div>
+        );
     },
 
     inference_image_preview: ({node, model, scope, fn}: UcxRenderContext) => {
-        return <ImagePreviewNode node={node} model={model} scope={scope} fn={fn} />;
+        return <ImagePreviewNode node={node} model={model} scope={scope} fn={fn}/>;
     },
 
-    inference_transcription_composer: ({node, model, scope, fn}: UcxRenderContext) => {
-        const filePathBindPath = stringProp(node, "filePathBindPath", "transcriptionFilePath");
-        const promptBindPath = stringProp(node, "promptBindPath", "transcriptionPrompt");
-        const filePathPlaceholder = stringProp(node, "filePathPlaceholder", "Audio file path");
-        const promptPlaceholder = stringProp(node, "promptPlaceholder", "Optional prompt");
+    inference_transcription_composer: ({
+                                           node,
+                                           model,
+                                           scope,
+                                           fn,
+                                       }: UcxRenderContext) => {
+        const filePathBindPath = stringProp(
+            node,
+            "filePathBindPath",
+            "transcriptionFilePath"
+        );
+        const promptBindPath = stringProp(
+            node,
+            "promptBindPath",
+            "transcriptionPrompt"
+        );
+        const filePathPlaceholder = stringProp(
+            node,
+            "filePathPlaceholder",
+            "Audio file path"
+        );
+        const promptPlaceholder = stringProp(
+            node,
+            "promptPlaceholder",
+            "Optional prompt"
+        );
         const rows = numberProp(node, "rows", 4);
         const sendIcon = stringProp(node, "sendIcon", "heroPaperAirplane");
         const disabled = boolProp(node, "disabled", false);
@@ -78,12 +131,17 @@ const playgroundComponents: UcxComponentRegistry = {
         const openFileBrowser = () => {
             const selection: Selection<UFile> = {
                 text: "Use",
-                onClick: res => {
+                onClick: (res) => {
                     const target = removeTrailingSlash(res.id);
-                    fn.sendBoundInput({...node, bindPath: filePathBindPath} as any, {kind: ValueKind.String, string: target}, model, scope);
+                    fn.sendBoundInput(
+                        {...node, bindPath: filePathBindPath} as any,
+                        {kind: ValueKind.String, string: target},
+                        model,
+                        scope
+                    );
                     dialogStore.success();
                 },
-                show: file => file.status.type === "FILE",
+                show: (file) => file.status.type === "FILE",
             };
 
             dialogStore.addDialog(
@@ -98,46 +156,78 @@ const playgroundComponents: UcxComponentRegistry = {
                 />,
                 doNothing,
                 true,
-                FilesApi.fileSelectorModalStyle,
+                FilesApi.fileSelectorModalStyle
             );
         };
 
-        return <Box style={{position: "relative", width: "100%", display: "flex", flexDirection: "column", gap: 8}}>
-            <div style={{display: "flex", gap: 8, alignItems: "center"}}>
-                <Input
-                    value={prettyPath}
-                    placeholder={filePathPlaceholder}
-                    readOnly={true}
-                    onClick={openFileBrowser}
-                    title={filePath || filePathPlaceholder}
-                    style={{cursor: "pointer"}}
-                />
-                <Button type="button" onClick={openFileBrowser} m={0}>Browse</Button>
-            </div>
-            <TextArea
-                rows={rows}
-                placeholder={promptPlaceholder}
-                value={prompt}
-                onChange={ev => fn.sendBoundInput({...node, bindPath: promptBindPath} as any, {kind: ValueKind.String, string: ev.currentTarget.value}, model, scope)}
-                onKeyDown={ev => {
-                    if ((ev.ctrlKey || ev.metaKey) && ev.key === "Enter") {
-                        ev.preventDefault();
-                        ev.stopPropagation();
-                        send();
-                    }
+        return (
+            <Box
+                style={{
+                    position: "relative",
+                    width: "100%",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 8,
                 }}
-                style={{paddingRight: 96, paddingBottom: 44, resize: "none"}}
-            />
-            <div style={{position: "absolute", right: 24, bottom: 12, padding: 0, width: 36, height: 36}}>
-                <Button type="button" disabled={!canSend} onClick={send} m={0}>
-                    <Icon name={sendIcon as any} size={14} />
-                </Button>
-            </div>
-        </Box>;
+            >
+                <div style={{display: "flex", gap: 8, alignItems: "center"}}>
+                    <Input
+                        value={prettyPath}
+                        placeholder={filePathPlaceholder}
+                        readOnly={true}
+                        onClick={openFileBrowser}
+                        title={filePath || filePathPlaceholder}
+                        style={{cursor: "pointer"}}
+                    />
+                    <Button type="button" onClick={openFileBrowser} m={0}>
+                        Browse
+                    </Button>
+                </div>
+                <TextArea
+                    rows={rows}
+                    placeholder={promptPlaceholder}
+                    value={prompt}
+                    onChange={(ev) =>
+                        fn.sendBoundInput(
+                            {...node, bindPath: promptBindPath} as any,
+                            {kind: ValueKind.String, string: ev.currentTarget.value},
+                            model,
+                            scope
+                        )
+                    }
+                    onKeyDown={(ev) => {
+                        if ((ev.ctrlKey || ev.metaKey) && ev.key === "Enter") {
+                            ev.preventDefault();
+                            ev.stopPropagation();
+                            send();
+                        }
+                    }}
+                    style={{paddingRight: 96, paddingBottom: 44, resize: "none"}}
+                />
+                <div
+                    style={{
+                        position: "absolute",
+                        right: 24,
+                        bottom: 12,
+                        padding: 0,
+                        width: 36,
+                        height: 36,
+                    }}
+                >
+                    <Button type="button" disabled={!canSend} onClick={send} m={0}>
+                        <Icon name={sendIcon as any} size={14}/>
+                    </Button>
+                </div>
+            </Box>
+        );
     },
 
     inference_image_composer: ({node, model, scope, fn}: UcxRenderContext) => {
-        const placeholder = stringProp(node, "placeholder", "Describe the image to generate");
+        const placeholder = stringProp(
+            node,
+            "placeholder",
+            "Describe the image to generate"
+        );
         const rows = numberProp(node, "rows", 4);
         const sendIcon = stringProp(node, "sendIcon", "heroSparkles");
         const disabled = boolProp(node, "disabled", false);
@@ -146,30 +236,51 @@ const playgroundComponents: UcxComponentRegistry = {
 
         const send = () => {
             if (!canSend) return;
-            fn.sendUiEvent(node.id, "click", {kind: ValueKind.String, string: value});
+            fn.sendUiEvent(node.id, "click", {
+                kind: ValueKind.String,
+                string: value,
+            });
         };
 
-        return <Box style={{position: "relative", width: "100%"}}>
-            <TextArea
-                rows={rows}
-                placeholder={placeholder}
-                value={value}
-                onChange={ev => fn.sendBoundInput(node, {kind: ValueKind.String, string: ev.currentTarget.value}, model, scope)}
-                onKeyDown={ev => {
-                    if ((ev.ctrlKey || ev.metaKey) && ev.key === "Enter") {
-                        ev.preventDefault();
-                        ev.stopPropagation();
-                        send();
+        return (
+            <Box style={{position: "relative", width: "100%"}}>
+                <TextArea
+                    rows={rows}
+                    placeholder={placeholder}
+                    value={value}
+                    onChange={(ev) =>
+                        fn.sendBoundInput(
+                            node,
+                            {kind: ValueKind.String, string: ev.currentTarget.value},
+                            model,
+                            scope
+                        )
                     }
-                }}
-                style={{paddingRight: 96, paddingBottom: 44, resize: "none"}}
-            />
-            <div style={{position: "absolute", right: 24, bottom: 12, padding: 0, width: 36, height: 36}}>
-                <Button type="button" disabled={!canSend} onClick={send} m={0}>
-                    <Icon name={sendIcon as any} size={14} />
-                </Button>
-            </div>
-        </Box>;
+                    onKeyDown={(ev) => {
+                        if ((ev.ctrlKey || ev.metaKey) && ev.key === "Enter") {
+                            ev.preventDefault();
+                            ev.stopPropagation();
+                            send();
+                        }
+                    }}
+                    style={{paddingRight: 96, paddingBottom: 44, resize: "none"}}
+                />
+                <div
+                    style={{
+                        position: "absolute",
+                        right: 24,
+                        bottom: 12,
+                        padding: 0,
+                        width: 36,
+                        height: 36,
+                    }}
+                >
+                    <Button type="button" disabled={!canSend} onClick={send} m={0}>
+                        <Icon name={sendIcon as any} size={14}/>
+                    </Button>
+                </div>
+            </Box>
+        );
     },
 
     inference_chat_composer: ({node, model, scope, fn}: UcxRenderContext) => {
@@ -182,38 +293,64 @@ const playgroundComponents: UcxComponentRegistry = {
 
         const send = () => {
             if (!canSend) return;
-            fn.sendUiEvent(node.id, "click", {kind: ValueKind.String, string: value});
+            fn.sendUiEvent(node.id, "click", {
+                kind: ValueKind.String,
+                string: value,
+            });
         };
 
-        return <Box style={{position: "relative", width: "100%"}}>
-            <TextArea
-                rows={rows}
-                placeholder={placeholder}
-                value={value}
-                onChange={ev => fn.sendBoundInput(node, {kind: ValueKind.String, string: ev.currentTarget.value}, model, scope)}
-                onKeyDown={ev => {
-                    if ((ev.ctrlKey || ev.metaKey) && ev.key === "Enter") {
-                        ev.preventDefault();
-                        ev.stopPropagation();
-                        send();
+        return (
+            <Box style={{position: "relative", width: "100%"}}>
+                <TextArea
+                    rows={rows}
+                    placeholder={placeholder}
+                    value={value}
+                    onChange={(ev) =>
+                        fn.sendBoundInput(
+                            node,
+                            {kind: ValueKind.String, string: ev.currentTarget.value},
+                            model,
+                            scope
+                        )
                     }
-                }}
-                style={{paddingRight: 96, paddingBottom: 44, resize: "none"}}
-            />
-            <div style={{position: "absolute", right: 24, bottom: 12, padding: 0, width: 36, height: 36}}>
-                <Button
-                    type="button"
-                    disabled={!canSend}
-                    onClick={send}
-                    m={0}
+                    onKeyDown={(ev) => {
+                        if ((ev.ctrlKey || ev.metaKey) && ev.key === "Enter") {
+                            ev.preventDefault();
+                            ev.stopPropagation();
+                            send();
+                        }
+                    }}
+                    style={{paddingRight: 96, paddingBottom: 44, resize: "none"}}
+                />
+                <div
+                    style={{
+                        position: "absolute",
+                        right: 24,
+                        bottom: 12,
+                        padding: 0,
+                        width: 36,
+                        height: 36,
+                    }}
                 >
-                    <Icon name={sendIcon as any} size={14} />
-                </Button>
-            </div>
-        </Box>;
+                    <Button type="button" disabled={!canSend} onClick={send} m={0}>
+                        <Icon name={sendIcon as any} size={14}/>
+                    </Button>
+                </div>
+            </Box>
+        );
     },
 
-    inference_chat_box: ({node, model, scope, fn, renderChildren}: UcxRenderContext) => {
+    inference_chat_message: ({model, scope, fn}: UcxRenderContext) => {
+        return <ChatMessageNode model={model} scope={scope} fn={fn}/>;
+    },
+
+    inference_chat_box: ({
+                             node,
+                             model,
+                             scope,
+                             fn,
+                             renderChildren,
+                         }: UcxRenderContext) => {
         const containerRef = React.useRef<HTMLDivElement | null>(null);
 
         React.useLayoutEffect(() => {
@@ -222,99 +359,382 @@ const playgroundComponents: UcxComponentRegistry = {
             el.scrollTop = el.scrollHeight;
         }, [model, scope]);
 
-        return <div ref={containerRef} style={{overflowY: "auto", ...fn.sxStyle(node)}}>{renderChildren()}</div>
+        return (
+            <div
+                ref={containerRef}
+                style={{overflowY: "auto", ...fn.sxStyle(node)}}
+            >
+                {renderChildren()}
+            </div>
+        );
     },
 
     inference_thread_list: ({node, model, fn}: UcxRenderContext) => {
-        return <ThreadListNode node={node} model={model} fn={fn} />;
+        return <ThreadListNode node={node} model={model} fn={fn}/>;
     },
 };
 
-type ThreadListItem = {id: string; title: string};
+type ThreadListItem = { id: string; title: string };
 
-function ThreadListNode({node, model, fn}: Pick<UcxRenderContext, "node" | "model" | "fn">): React.ReactNode {
-    const [operations, setOperations] = React.useState<Operation<ThreadListItem>[]>([]);
-    const openOperationsRef = React.useRef<(left: number, top: number) => void>(doNothing);
+type ChatMessagePart = {
+    kind: "text" | "thinking";
+    text: string;
+    summary: string;
+    body: string;
+    open: boolean;
+};
+
+type ChatMessageNodeProps = Pick<UcxRenderContext, "model" | "scope" | "fn">;
+
+function ChatMessageNode({
+                             model,
+                             scope,
+                             fn,
+                         }: ChatMessageNodeProps): React.ReactNode {
+    const role = stringValue(fn.modelValue(model, "./role", scope));
+    const content = stringValue(fn.modelValue(model, "./content", scope));
+    const parts = chatMessagePartsValue(fn.modelValue(model, "./parts", scope));
+
+    return (
+        <Flex flexDirection="column" gap="4px" width="100%">
+            <Text color="textSecondary">{role}</Text>
+            {(parts.length === 0
+                    ? [
+                        {
+                            kind: "text",
+                            text: content,
+                            summary: "",
+                            body: "",
+                            open: false,
+                        } as ChatMessagePart,
+                    ]
+                    : parts
+            ).map((part, idx) => {
+                if (part.kind === "thinking") {
+                    return <ThinkingPart key={idx} part={part}/>;
+                }
+                return <MarkdownPart key={idx} text={part.text}/>;
+            })}
+        </Flex>
+    );
+}
+
+function MarkdownPart({text}: { text: string }): React.ReactNode {
+    if (text.trim() === "") return null;
+    return (
+        <ReactMarkdown
+            components={{
+                a: (p) => (
+                    <a href={p.href} target="_blank" rel="noreferrer">
+                        {p.children}
+                    </a>
+                ),
+                pre: (p) => <CodeSnippet children={p.children} maxHeight=""/>,
+                table: p => <MarkdownTable>{p.children}</MarkdownTable>,
+                h1: p => <Heading.h1>{p.children}</Heading.h1>,
+                h2: p => <Heading.h2>{p.children}</Heading.h2>,
+                h3: p => <Heading.h3>{p.children}</Heading.h3>,
+                h4: p => <Heading.h4>{p.children}</Heading.h4>,
+                h5: p => <Heading.h5>{p.children}</Heading.h5>,
+                h6: p => <Heading.h6>{p.children}</Heading.h6>,
+            }}
+            allowedElements={[
+                "h1",
+                "h2",
+                "h3",
+                "h4",
+                "h5",
+                "h6",
+                "br",
+                "a",
+                "p",
+                "strong",
+                "b",
+                "i",
+                "em",
+                "ul",
+                "ol",
+                "li",
+                "pre",
+                "code",
+                "table",
+                "th",
+                "tbody",
+                "thead",
+                "td",
+                "tr",
+            ]}
+            children={text}
+            remarkPlugins={[remarkGfm]}
+        />
+    );
+}
+
+function MarkdownTable({children}: React.PropsWithChildren): React.ReactNode {
+    const wrapperRef = React.useRef<HTMLDivElement | null>(null);
+    const [layout, setLayout] = React.useState({scroll: false, minWidth: 0});
+
+    React.useLayoutEffect(() => {
+        const wrapper = wrapperRef.current;
+        if (!wrapper) return;
+
+        let frame = 0;
+        const measure = () => {
+            window.cancelAnimationFrame(frame);
+            frame = window.requestAnimationFrame(() => {
+                const next = measureMarkdownTable(wrapper);
+                setLayout(prev => prev.scroll === next.scroll && prev.minWidth === next.minWidth ? prev : next);
+            });
+        };
+
+        measure();
+        const observer = new ResizeObserver(measure);
+        observer.observe(wrapper);
+        return () => {
+            window.cancelAnimationFrame(frame);
+            observer.disconnect();
+        };
+    }, [children]);
+
+    return <div ref={wrapperRef} style={{overflowX: layout.scroll ? "auto" : "visible", maxWidth: "100%"}}>
+        <Table tableType="presentation" minWidth={layout.scroll ? `${layout.minWidth}px` : undefined}>
+            {children}
+        </Table>
+    </div>;
+}
+
+function measureMarkdownTable(wrapper: HTMLDivElement): {scroll: boolean; minWidth: number} {
+    const rows = Array.from(wrapper.querySelectorAll("tr"));
+    const availableWidth = wrapper.clientWidth;
+    if (rows.length === 0 || availableWidth === 0) {
+        return {scroll: false, minWidth: 0};
+    }
+
+    const columnStats: Array<{textLength: number; tokenLength: number; renderedWidth: number}> = [];
+    for (const row of rows) {
+        const cells = Array.from(row.children).filter((cell): cell is HTMLElement => cell instanceof HTMLElement);
+        for (let idx = 0; idx < cells.length; idx++) {
+            const cell = cells[idx];
+            const text = (cell.textContent ?? "").replace(/\s+/g, " ").trim();
+            const longestToken = text.split(/\s+/).reduce((longest, token) => Math.max(longest, token.length), 0);
+            const stats = columnStats[idx] ?? {textLength: 0, tokenLength: 0, renderedWidth: 0};
+            stats.textLength = Math.max(stats.textLength, text.length);
+            stats.tokenLength = Math.max(stats.tokenLength, longestToken);
+            stats.renderedWidth = Math.max(stats.renderedWidth, cell.getBoundingClientRect().width);
+            columnStats[idx] = stats;
+        }
+    }
+
+    let forceScroll = false;
+    const desiredWidth = columnStats.reduce((sum, stats) => {
+        let columnWidth = 120;
+        if (stats.tokenLength >= 40) {
+            forceScroll = true;
+            columnWidth = clamp(stats.tokenLength * 8, 240, 720);
+        } else if (stats.textLength >= 120) {
+            columnWidth = clamp(stats.textLength * 5, 320, 640);
+        } else if (stats.textLength >= 60) {
+            columnWidth = clamp(stats.textLength * 4, 200, 360);
+        } else {
+            columnWidth = clamp(stats.textLength * 6 + 24, 80, 200);
+        }
+        return sum + Math.max(columnWidth, Math.min(stats.renderedWidth, 240));
+    }, 0);
+
+    const minWidth = Math.ceil(Math.max(desiredWidth, availableWidth));
+    const shouldScroll = forceScroll || desiredWidth > availableWidth + 8;
+    return {scroll: shouldScroll, minWidth: shouldScroll ? minWidth : 0};
+}
+
+function clamp(value: number, min: number, max: number): number {
+    return Math.max(min, Math.min(max, value));
+}
+
+function ThinkingPart({part}: { part: ChatMessagePart }): React.ReactNode {
+    const [expanded, setExpanded] = React.useState(false);
+    const summary = part.summary.trim();
+
+    React.useEffect(() => {
+        setExpanded(part.open);
+    }, [part.open]);
+
+    return (
+        <div
+            style={{
+                border: "1px solid var(--borderColor)",
+                borderRadius: 8,
+                overflow: "hidden",
+                background: "var(--dialogToolbar)",
+            }}
+        >
+            <button
+                type="button"
+                onClick={() => setExpanded((v) => !v)}
+                style={{
+                    width: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "8px 10px",
+                    border: 0,
+                    background: "transparent",
+                    color: "inherit",
+                    cursor: "pointer",
+                    textAlign: "left",
+                }}
+            >
+                <Icon name="heroSparkles" size={16}/>
+                <span style={{fontWeight: 600, flexShrink: 0}}>Thinking</span>
+                {summary === "" ? null : (
+                    <span
+                        style={{
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                        }}
+                    >
+            {summary}
+          </span>
+                )}
+            </button>
+            {expanded ? (
+                <div
+                    style={{
+                        padding: "0 10px 10px 10px",
+                        color: "var(--textSecondary)",
+                        whiteSpace: "normal",
+                    }}
+                >
+                    {part.body.trim() === "" ? (
+                        <Text color="textSecondary">Thinking...</Text>
+                    ) : (
+                        <MarkdownPart text={part.body}/>
+                    )}
+                </div>
+            ) : null}
+        </div>
+    );
+}
+
+function ThreadListNode({
+                            node,
+                            model,
+                            fn,
+                        }: Pick<UcxRenderContext, "node" | "model" | "fn">): React.ReactNode {
+    const [operations, setOperations] = React.useState<
+        Operation<ThreadListItem>[]
+    >([]);
+    const openOperationsRef =
+        React.useRef<(left: number, top: number) => void>(doNothing);
     const threads = threadListValue(fn.modelValue(model, node.bindPath));
     const currentThreadId = stringValue(fn.modelValue(model, "currentThreadId"));
 
-    const threadOperations = React.useCallback((thread: ThreadListItem): Operation<ThreadListItem>[] => [{
-        text: "Rename",
-        icon: "heroPencil",
-        shortcut: ShortcutKey.R,
-        enabled: () => true,
-        onClick: async () => {
-            try {
-                const result = await addStandardInputDialog({
-                    title: "Rename thread",
-                    placeholder: thread.title,
-                    confirmText: "Rename",
-                    validator: value => value.trim() !== "",
-                    validationFailureMessage: "Thread title cannot be empty",
-                });
-                fn.sendUiEvent("renameThreadFromMenu", "click", {
-                    kind: ValueKind.Object,
-                    object: {
-                        id: {kind: ValueKind.String, string: thread.id},
-                        title: {kind: ValueKind.String, string: result.result},
-                    },
-                });
-            } catch {
-                // Dialog cancelled.
-            }
-        },
-    }, {
-        text: "Delete",
-        icon: "heroTrash",
-        color: "errorMain",
-        confirm: true,
-        shortcut: ShortcutKey.Backspace,
-        enabled: () => true,
-        onClick: () => fn.sendUiEvent("deleteThread", "click", {kind: ValueKind.String, string: thread.id}),
-    }], [fn]);
+    const threadOperations = React.useCallback(
+        (thread: ThreadListItem): Operation<ThreadListItem>[] => [
+            {
+                text: "Rename",
+                icon: "heroPencil",
+                shortcut: ShortcutKey.R,
+                enabled: () => true,
+                onClick: async () => {
+                    try {
+                        const result = await addStandardInputDialog({
+                            title: "Rename thread",
+                            placeholder: thread.title,
+                            confirmText: "Rename",
+                            validator: (value) => value.trim() !== "",
+                            validationFailureMessage: "Thread title cannot be empty",
+                        });
+                        fn.sendUiEvent("renameThreadFromMenu", "click", {
+                            kind: ValueKind.Object,
+                            object: {
+                                id: {kind: ValueKind.String, string: thread.id},
+                                title: {kind: ValueKind.String, string: result.result},
+                            },
+                        });
+                    } catch {
+                        // Dialog cancelled.
+                    }
+                },
+            },
+            {
+                text: "Delete",
+                icon: "heroTrash",
+                color: "errorMain",
+                confirm: true,
+                shortcut: ShortcutKey.Backspace,
+                enabled: () => true,
+                onClick: () =>
+                    fn.sendUiEvent("deleteThread", "click", {
+                        kind: ValueKind.String,
+                        string: thread.id,
+                    }),
+            },
+        ],
+        [fn]
+    );
 
     if (threads.length === 0) {
         return <Text color="textSecondary">No threads yet.</Text>;
     }
 
-    return <Box style={{position: "relative", display: "flex", flexDirection: "column", gap: 6}}>
-        {threads.map(thread => <button
-            key={thread.id}
-            type="button"
-            onClick={() => fn.sendUiEvent("openThread", "click", {kind: ValueKind.String, string: thread.id})}
-            onContextMenu={ev => {
-                ev.preventDefault();
-                ev.stopPropagation();
-                setOperations(threadOperations(thread));
-                openOperationsRef.current(ev.clientX, ev.clientY);
-            }}
+    return (
+        <Box
             style={{
-                border: "1px solid var(--borderColor)",
-                borderRadius: 8,
-                padding: "8px 10px",
-                textAlign: "left",
-                cursor: "pointer",
-                background: thread.id === currentThreadId ? "var(--dialogToolbar)" : "var(--backgroundDefault)",
-                color: "inherit",
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis"
+                position: "relative",
+                display: "flex",
+                flexDirection: "column",
+                gap: 6,
             }}
         >
-            {thread.title}
-        </button>)}
-        <Operations
-            entityNameSingular="thread"
-            operations={operations}
-            forceEvaluationOnOpen={true}
-            openFnRef={openOperationsRef}
-            selected={[]}
-            extra={undefined}
-            row={threads[0] ?? {id: "", title: ""}}
-            hidden
-            location="IN_ROW"
-        />
-    </Box>;
+            {threads.map((thread) => (
+                <button
+                    key={thread.id}
+                    type="button"
+                    onClick={() =>
+                        fn.sendUiEvent("openThread", "click", {
+                            kind: ValueKind.String,
+                            string: thread.id,
+                        })
+                    }
+                    onContextMenu={(ev) => {
+                        ev.preventDefault();
+                        ev.stopPropagation();
+                        setOperations(threadOperations(thread));
+                        openOperationsRef.current(ev.clientX, ev.clientY);
+                    }}
+                    style={{
+                        border: "1px solid var(--borderColor)",
+                        borderRadius: 8,
+                        padding: "8px 10px",
+                        textAlign: "left",
+                        cursor: "pointer",
+                        background:
+                            thread.id === currentThreadId
+                                ? "var(--dialogToolbar)"
+                                : "var(--backgroundDefault)",
+                        color: "inherit",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                    }}
+                >
+                    {thread.title}
+                </button>
+            ))}
+            <Operations
+                entityNameSingular="thread"
+                operations={operations}
+                forceEvaluationOnOpen={true}
+                openFnRef={openOperationsRef}
+                selected={[]}
+                extra={undefined}
+                row={threads[0] ?? {id: "", title: ""}}
+                hidden
+                location="IN_ROW"
+            />
+        </Box>
+    );
 }
 
 export default function Playground(): React.ReactNode {
@@ -327,6 +747,8 @@ export default function Playground(): React.ReactNode {
     const projectId = useProjectId();
     const previousProjectIdRef = React.useRef(projectId);
 
+    usePage("Inference playground", SidebarTabId.INFERENCE);
+
     React.useEffect(() => {
         return () => {
             mountedRef.current = false;
@@ -338,7 +760,7 @@ export default function Playground(): React.ReactNode {
         previousProjectIdRef.current = projectId;
         retryCountRef.current = 0;
         setSession(null);
-        setRefreshNonce(x => x + 1);
+        setRefreshNonce((x) => x + 1);
     }, [projectId]);
 
     React.useEffect(() => {
@@ -347,17 +769,21 @@ export default function Playground(): React.ReactNode {
         setLoading(true);
         setSession(null);
         void callAPI(openPlayground({providerId: null}))
-            .then(result => {
+            .then((result) => {
                 if (cancelled) return;
                 setSession(result);
                 setLoading(false);
                 setTerminalError("");
             })
-            .catch(err => {
+            .catch((err) => {
                 if (cancelled) return;
                 setSession(null);
                 setLoading(false);
-                setTerminalError(err instanceof Error ? err.message : "Failed to open the inference playground");
+                setTerminalError(
+                    err instanceof Error
+                        ? err.message
+                        : "Failed to open the inference playground"
+                );
             });
 
         return () => {
@@ -381,37 +807,66 @@ export default function Playground(): React.ReactNode {
         }
 
         retryCountRef.current = nextRetry;
-        setRefreshNonce(v => v + 1);
+        setRefreshNonce((v) => v + 1);
     }, []);
 
     if (!session) {
-        return <MainContainer main={<div style={{padding: 24}}>
-            <Text>{loading ? "Opening inference playground..." : "Unable to open inference playground."}</Text>
-            {terminalError === "" ? null : <Text color="errorMain">{terminalError}</Text>}
-        </div>} />;
+        return (
+            <MainContainer
+                main={
+                    <div style={{padding: 24}}>
+                        <Text>
+                            {loading
+                                ? "Opening inference playground..."
+                                : "Unable to open inference playground."}
+                        </Text>
+                        {terminalError === "" ? null : (
+                            <Text color="errorMain">{terminalError}</Text>
+                        )}
+                    </div>
+                }
+            />
+        );
     }
 
-    return <MainContainer main={<div style={{display: "flex", flexDirection: "column", gap: 8}}>
-        <Flex mb={24}>
-            <h3 className="title" style={{marginTop: "auto", marginBottom: "auto"}}>AI Inference: Playground</h3>
-            <Box flexGrow={1} />
-            <ProjectSwitcher />
-        </Flex>
-        {terminalError === "" ? null : <Text color="errorMain">{terminalError}</Text>}
-        <UcxView
-            key={`${projectId ?? ""}:${session.sessionToken}`}
-            url={session.connectTo}
-            authToken={session.sessionToken}
-            sysHello={JSON.stringify({})}
-            maxReconnectAttempts={MAX_RECONNECT_ATTEMPTS}
-            onConnected={handleConnected}
-            onDisconnected={handleDisconnected}
-            components={playgroundComponents}
+    return (
+        <MainContainer
+            main={
+                <div style={{display: "flex", flexDirection: "column", gap: 8}}>
+                    <Flex mb={24}>
+                        <h3
+                            className="title"
+                            style={{marginTop: "auto", marginBottom: "auto"}}
+                        >
+                            AI Inference: Playground
+                        </h3>
+                        <Box flexGrow={1}/>
+                        <ProjectSwitcher/>
+                    </Flex>
+                    {terminalError === "" ? null : (
+                        <Text color="errorMain">{terminalError}</Text>
+                    )}
+                    <UcxView
+                        key={`${projectId ?? ""}:${session.sessionToken}`}
+                        url={session.connectTo}
+                        authToken={session.sessionToken}
+                        sysHello={JSON.stringify({})}
+                        maxReconnectAttempts={MAX_RECONNECT_ATTEMPTS}
+                        onConnected={handleConnected}
+                        onDisconnected={handleDisconnected}
+                        components={playgroundComponents}
+                    />
+                </div>
+            }
         />
-    </div>} />;
+    );
 }
 
-function stringProp(node: {props?: Record<string, Value>}, key: string, fallback: string): string {
+function stringProp(
+    node: { props?: Record<string, Value> },
+    key: string,
+    fallback: string
+): string {
     const value = node.props?.[key];
     if (value && value.kind === ValueKind.String && value.string !== "") {
         return value.string;
@@ -419,7 +874,11 @@ function stringProp(node: {props?: Record<string, Value>}, key: string, fallback
     return fallback;
 }
 
-function numberProp(node: {props?: Record<string, Value>}, key: string, fallback: number): number {
+function numberProp(
+    node: { props?: Record<string, Value> },
+    key: string,
+    fallback: number
+): number {
     const value = node.props?.[key];
     if (!value) return fallback;
     if (value.kind === ValueKind.S64) return value.s64;
@@ -427,7 +886,11 @@ function numberProp(node: {props?: Record<string, Value>}, key: string, fallback
     return fallback;
 }
 
-function boolProp(node: {props?: Record<string, Value>}, key: string, fallback: boolean): boolean {
+function boolProp(
+    node: { props?: Record<string, Value> },
+    key: string,
+    fallback: boolean
+): boolean {
     const value = node.props?.[key];
     if (value && value.kind === ValueKind.Bool) {
         return value.bool;
@@ -445,6 +908,24 @@ function boolValue(value: any): boolean {
     return value.bool;
 }
 
+function chatMessagePartsValue(value: any): ChatMessagePart[] {
+    if (!value || value.kind !== ValueKind.List) return [];
+    return value.list.flatMap((item: Value) => {
+        if (item.kind !== ValueKind.Object) return [];
+        const kind = stringValue(item.object.kind);
+        if (kind !== "text" && kind !== "thinking") return [];
+        return [
+            {
+                kind,
+                text: stringValue(item.object.text),
+                summary: stringValue(item.object.summary),
+                body: stringValue(item.object.body),
+                open: boolValue(item.object.open),
+            },
+        ];
+    });
+}
+
 function threadListValue(value: any): ThreadListItem[] {
     if (!value || value.kind !== ValueKind.List) return [];
     return value.list.flatMap((item: Value) => {
@@ -456,9 +937,17 @@ function threadListValue(value: any): ThreadListItem[] {
     });
 }
 
-type ImagePreviewNodeProps = Pick<UcxRenderContext, "node" | "model" | "scope" | "fn">;
+type ImagePreviewNodeProps = Pick<
+    UcxRenderContext,
+    "node" | "model" | "scope" | "fn"
+>;
 
-const ImagePreviewNode: React.FC<ImagePreviewNodeProps> = ({node, model, scope, fn}) => {
+const ImagePreviewNode: React.FC<ImagePreviewNodeProps> = ({
+                                                               node,
+                                                               model,
+                                                               scope,
+                                                               fn,
+                                                           }) => {
     const output = stringValue(fn.modelValue(model, node.bindPath, scope));
     const images = React.useMemo(() => parseImagePreviewItems(output), [output]);
     const [selectedImage, setSelectedImage] = React.useState<string | null>(null);
@@ -481,62 +970,131 @@ const ImagePreviewNode: React.FC<ImagePreviewNodeProps> = ({node, model, scope, 
         setSelectedIndex(0);
     };
 
-    return <div style={{display: "flex", flexDirection: "column", gap: 12, ...fn.sxStyle(node)}}>
-        {output.trim() === "" ? <Text color="textSecondary">You have not requested anything yet.</Text> : null}
-        {output.trim() !== "" && images.length === 0 ? <Text color="textSecondary">Image preview is not possible for this response format.</Text> : null}
-        {images.length === 0 ? null : <div style={{display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12}}>
-            {images.map((src, idx) => <button
-                key={`${idx}-${src.slice(0, 12)}`}
-                type="button"
-                onClick={() => openImage(src, idx)}
-                style={{border: "1px solid var(--borderColor)", borderRadius: 8, padding: 8, background: "var(--backgroundDefault)", minWidth: 0, display: "block", textDecoration: "none", color: "inherit", cursor: "pointer", textAlign: "left"}}
-            >
-                <img
-                    src={src}
-                    alt={`Generated image ${idx + 1}`}
-                    style={{display: "block", width: "100%", maxHeight: 280, objectFit: "contain", borderRadius: 6}}
-                />
-            </button>)}
-        </div>}
-        <ReactModal
-            isOpen={selectedImage !== null}
-            onRequestClose={closeImage}
+    return (
+        <div
             style={{
-                ...largeModalStyle,
-                content: {
-                    ...largeModalStyle.content,
-                    width: "92vw",
-                    height: "92vh",
-                    maxHeight: "92vh",
-                    top: "4vh",
-                    left: "4vw",
-                    overflow: "hidden",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 12,
-                },
+                display: "flex",
+                flexDirection: "column",
+                gap: 12,
+                ...fn.sxStyle(node),
             }}
-            ariaHideApp={false}
         >
-            <div style={{display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16}}>
-                <Text style={{fontWeight: 600}}>Image {selectedIndex + 1}</Text>
-                <Button type="button" onClick={closeImage} m={0}>Close</Button>
-            </div>
-            {selectedImage === null ? null : <div style={{flex: 1, minHeight: 0, display: "flex", alignItems: "center", justifyContent: "center", padding: 16, background: "var(--backgroundDefault)", borderRadius: 8}}>
-                <img
-                    src={selectedImage}
-                    alt={`Generated image ${selectedIndex + 1}`}
-                    style={{maxWidth: "100%", maxHeight: "100%", objectFit: "contain", borderRadius: 8}}
-                />
-            </div>}
-        </ReactModal>
-        {output.trim() === "" ? null :
-            <div style={{display: "flex", flexDirection: "column", gap: 8}}>
-                <Text style={{fontWeight: 600}}>JSON response:</Text>
-                <CodeSnippet maxHeight="320px">{output}</CodeSnippet>
-            </div>
-        }
-    </div>;
+            {output.trim() === "" ? (
+                <Text color="textSecondary">You have not requested anything yet.</Text>
+            ) : null}
+            {output.trim() !== "" && images.length === 0 ? (
+                <Text color="textSecondary">
+                    Image preview is not possible for this response format.
+                </Text>
+            ) : null}
+            {images.length === 0 ? null : (
+                <div
+                    style={{
+                        display: "grid",
+                        gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                        gap: 12,
+                    }}
+                >
+                    {images.map((src, idx) => (
+                        <button
+                            key={`${idx}-${src.slice(0, 12)}`}
+                            type="button"
+                            onClick={() => openImage(src, idx)}
+                            style={{
+                                border: "1px solid var(--borderColor)",
+                                borderRadius: 8,
+                                padding: 8,
+                                background: "var(--backgroundDefault)",
+                                minWidth: 0,
+                                display: "block",
+                                textDecoration: "none",
+                                color: "inherit",
+                                cursor: "pointer",
+                                textAlign: "left",
+                            }}
+                        >
+                            <img
+                                src={src}
+                                alt={`Generated image ${idx + 1}`}
+                                style={{
+                                    display: "block",
+                                    width: "100%",
+                                    maxHeight: 280,
+                                    objectFit: "contain",
+                                    borderRadius: 6,
+                                }}
+                            />
+                        </button>
+                    ))}
+                </div>
+            )}
+            <ReactModal
+                isOpen={selectedImage !== null}
+                onRequestClose={closeImage}
+                style={{
+                    ...largeModalStyle,
+                    content: {
+                        ...largeModalStyle.content,
+                        width: "92vw",
+                        height: "92vh",
+                        maxHeight: "92vh",
+                        top: "4vh",
+                        left: "4vw",
+                        overflow: "hidden",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 12,
+                    },
+                }}
+                ariaHideApp={false}
+            >
+                <div
+                    style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        gap: 16,
+                    }}
+                >
+                    <Text style={{fontWeight: 600}}>Image {selectedIndex + 1}</Text>
+                    <Button type="button" onClick={closeImage} m={0}>
+                        Close
+                    </Button>
+                </div>
+                {selectedImage === null ? null : (
+                    <div
+                        style={{
+                            flex: 1,
+                            minHeight: 0,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            padding: 16,
+                            background: "var(--backgroundDefault)",
+                            borderRadius: 8,
+                        }}
+                    >
+                        <img
+                            src={selectedImage}
+                            alt={`Generated image ${selectedIndex + 1}`}
+                            style={{
+                                maxWidth: "100%",
+                                maxHeight: "100%",
+                                objectFit: "contain",
+                                borderRadius: 8,
+                            }}
+                        />
+                    </div>
+                )}
+            </ReactModal>
+            {output.trim() === "" ? null : (
+                <div style={{display: "flex", flexDirection: "column", gap: 8}}>
+                    <Text style={{fontWeight: 600}}>JSON response:</Text>
+                    <CodeSnippet maxHeight="320px">{output}</CodeSnippet>
+                </div>
+            )}
+        </div>
+    );
 };
 
 function parseImagePreviewItems(output: string): string[] {

@@ -163,3 +163,62 @@ func inferenceV6() db.MigrationScript {
 		},
 	}
 }
+
+func inferenceV7() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "inferenceV7",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					alter table inference_model add column title_model_name text
+				`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`
+					update inference_model set title_model_name = name where title_model_name is null
+				`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`
+					alter table inference_model alter column title_model_name set not null
+				`,
+				db.Params{},
+			)
+		},
+	}
+}
+
+func inferenceV8() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "inferenceV8",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					alter table inference_playground_message add column reasoning text not null default ''
+				`,
+				db.Params{},
+			)
+		},
+	}
+}
+
+func inferenceV9() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "inferenceV9",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					alter table inference_playground_message add column reasoning_title text not null default ''
+				`,
+				db.Params{},
+			)
+		},
+	}
+}

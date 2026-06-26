@@ -25,6 +25,7 @@ const (
 type InferenceModel struct {
 	Name            string                `json:"name"`
 	Title           string                `json:"title"`
+	TitleModelName  string                `json:"titleModelName"`
 	Capabilities    []InferenceCapability `json:"capabilities"`
 	PriceMultiplier InferencePricing      `json:"priceMultiplier"`
 	Endpoint        InferenceEndpoint     `json:"endpoint"`
@@ -66,6 +67,7 @@ var modelGlobals = struct {
 type inferenceModelRow struct {
 	Name                   string
 	Title                  string
+	TitleModelName         string
 	Capabilities           []byte
 	PriceCachedInput       int
 	PriceInput             int
@@ -89,6 +91,7 @@ func inferenceModelCatalogLoad() {
 				select
 					name,
 					title,
+					title_model_name,
 					capabilities,
 					price_cached_input,
 					price_input,
@@ -131,9 +134,10 @@ func inferenceModelCatalogLoad() {
 			}
 
 			result[row.Name] = inferenceModelNormalize(InferenceModel{
-				Name:         row.Name,
-				Title:        row.Title,
-				Capabilities: capabilities,
+				Name:           row.Name,
+				Title:          row.Title,
+				TitleModelName: row.TitleModelName,
+				Capabilities:   capabilities,
 				PriceMultiplier: InferencePricing{
 					CachedInput: row.PriceCachedInput,
 					Input:       row.PriceInput,
@@ -241,15 +245,25 @@ func InferenceModelRename(oldName string, newName string) *util.HttpError {
 	}
 
 	model.Name = newName
+	if model.TitleModelName == oldName {
+		model.TitleModelName = newName
+	}
 	if err := inferenceModelValidate(model); err != nil {
 		return err
 	}
 
 	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(tx, `update inference_model set title_model_name = :new_name where title_model_name = :old_name`, db.Params{"old_name": oldName, "new_name": newName})
 		db.Exec(tx, `delete from inference_model where name = :name`, db.Params{"name": oldName})
 		inferenceModelUpsertTx(tx, model)
 	})
 
+	for existingName, existing := range modelGlobals.Models {
+		if existing.TitleModelName == oldName {
+			existing.TitleModelName = newName
+			modelGlobals.Models[existingName] = inferenceModelClone(existing)
+		}
+	}
 	delete(modelGlobals.Models, oldName)
 	modelGlobals.Models[newName] = inferenceModelClone(model)
 	return nil
@@ -292,6 +306,7 @@ func inferenceModelUpsertTx(tx *db.Transaction, model InferenceModel) {
 			insert into inference_model(
 				name,
 				title,
+				title_model_name,
 				capabilities,
 				price_cached_input,
 				price_input,
@@ -308,6 +323,7 @@ func inferenceModelUpsertTx(tx *db.Transaction, model InferenceModel) {
 			) values (
 				:name,
 				:title,
+				:title_model_name,
 				cast(:capabilities as jsonb),
 				:price_cached_input,
 				:price_input,
@@ -323,6 +339,7 @@ func inferenceModelUpsertTx(tx *db.Transaction, model InferenceModel) {
 				:system_prompt
 			) on conflict (name) do update set
 				title = excluded.title,
+				title_model_name = excluded.title_model_name,
 				capabilities = excluded.capabilities,
 				price_cached_input = excluded.price_cached_input,
 				price_input = excluded.price_input,
@@ -340,6 +357,7 @@ func inferenceModelUpsertTx(tx *db.Transaction, model InferenceModel) {
 		db.Params{
 			"name":                     model.Name,
 			"title":                    model.Title,
+			"title_model_name":         model.TitleModelName,
 			"capabilities":             string(capabilities),
 			"price_cached_input":       model.PriceMultiplier.CachedInput,
 			"price_input":              model.PriceMultiplier.Input,
@@ -363,6 +381,9 @@ func inferenceModelValidate(model InferenceModel) *util.HttpError {
 	}
 	if strings.TrimSpace(model.Title) == "" {
 		return util.HttpErr(http.StatusBadRequest, "model title is required")
+	}
+	if strings.TrimSpace(model.TitleModelName) == "" {
+		return util.HttpErr(http.StatusBadRequest, "model title model name is required")
 	}
 	if len(model.Capabilities) == 0 {
 		return util.HttpErr(http.StatusBadRequest, "model capabilities are required")
@@ -398,6 +419,10 @@ func inferenceModelValidate(model InferenceModel) *util.HttpError {
 func inferenceModelNormalize(model InferenceModel) InferenceModel {
 	model.Name = strings.TrimSpace(model.Name)
 	model.Title = strings.TrimSpace(model.Title)
+	model.TitleModelName = strings.TrimSpace(model.TitleModelName)
+	if model.TitleModelName == "" {
+		model.TitleModelName = model.Name
+	}
 	model.Endpoint.BasePath = strings.TrimRight(strings.TrimSpace(model.Endpoint.BasePath), "/")
 	model.Endpoint.BackendModelName = strings.TrimSpace(model.Endpoint.BackendModelName)
 	if model.ContextWindow != nil && *model.ContextWindow <= 0 {

@@ -145,8 +145,9 @@ func initInference() {
 		}
 		for _, model := range models {
 			result.Models = append(result.Models, orcapi.InferenceModel{
-				Name:  model.Name,
-				Title: model.Title,
+				Name:           model.Name,
+				Title:          model.Title,
+				TitleModelName: model.TitleModelName,
 				Capabilities: func() []orcapi.InferenceCapability {
 					capabilities := make([]orcapi.InferenceCapability, 0, len(model.Capabilities))
 					for _, capability := range model.Capabilities {
@@ -186,8 +187,9 @@ func initInference() {
 		}
 
 		model := InferenceModel{
-			Name:  request.Model.Name,
-			Title: request.Model.Title,
+			Name:           request.Model.Name,
+			Title:          request.Model.Title,
+			TitleModelName: request.Model.TitleModelName,
 			Capabilities: func() []InferenceCapability {
 				capabilities := make([]InferenceCapability, 0, len(request.Model.Capabilities))
 				for _, capability := range request.Model.Capabilities {
@@ -219,6 +221,9 @@ func initInference() {
 
 		oldName := strings.TrimSpace(request.OldName)
 		if oldName != "" && oldName != strings.TrimSpace(model.Name) {
+			if strings.TrimSpace(model.TitleModelName) == "" || strings.TrimSpace(model.TitleModelName) == oldName {
+				model.TitleModelName = model.Name
+			}
 			if err := InferenceModelRename(oldName, model.Name); err != nil {
 				return util.Empty{}, err
 			}
@@ -596,9 +601,10 @@ func inferenceDiscoverModelsFromEndpoint(base string, availableTo []string) {
 		}
 
 		catalogModel := inferenceModelNormalize(InferenceModel{
-			Name:         name,
-			Title:        name,
-			Capabilities: []InferenceCapability{InferenceTextGeneration},
+			Name:           name,
+			Title:          name,
+			TitleModelName: name,
+			Capabilities:   []InferenceCapability{InferenceTextGeneration},
 			PriceMultiplier: InferencePricing{
 				CachedInput: 1000,
 				Input:       1000,
