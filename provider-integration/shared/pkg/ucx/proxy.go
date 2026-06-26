@@ -478,6 +478,7 @@ func collectInputBindPaths(root UiNode) []string {
 		"input_text":               true,
 		"input_number":             true,
 		"input_slider":             true,
+		"inference_chat_composer":  true,
 		"inference_image_composer": true,
 		"checkbox":                 true,
 		"textarea":                 true,

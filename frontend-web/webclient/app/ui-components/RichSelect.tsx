@@ -184,6 +184,7 @@ export function RichSelect<T, K extends keyof T>(props: {
     trigger?: React.ReactNode;
     matchTriggerWidth?: boolean;
     rightAligned?: boolean;
+    dropdownVerticalGap?: number;
     disabled?: boolean;
     showSearchField?: boolean;
 }): React.ReactNode {
@@ -206,23 +207,35 @@ export function RichSelect<T, K extends keyof T>(props: {
     }, [filteredElements]);
 
     const [dropdownSize, setDropdownSize] = useState(props.dropdownWidth ?? "300px");
+    const [dropdownTop, setDropdownTop] = useState<string | undefined>(undefined);
+    const showSearchField = props.items.length > 1 && props.showSearchField !== false;
+    const searchFieldHeight = showSearchField ? INPUT_FIELD_HEIGHT : 0;
+    const height = Math.min(370, (props.elementHeight ?? 40) * limitedElements.length + searchFieldHeight);
 
     const onTriggerClick = useCallback(() => {
         setQuery("");
+        setDropdownTop(undefined);
+
+        const trigger = triggerRef.current;
+        if (trigger && props.dropdownVerticalGap !== undefined) {
+            const rect = trigger.getBoundingClientRect();
+            const gap = props.dropdownVerticalGap;
+            const roomBelow = window.innerHeight - rect.bottom;
+            const nextTop = roomBelow >= height + gap + 8
+                ? rect.bottom + gap
+                : Math.max(8, rect.top - height - gap);
+            setDropdownTop(`${nextTop}px`);
+        }
+
         if (props.matchTriggerWidth === false) {
             if (props.dropdownWidth) setDropdownSize(props.dropdownWidth);
             return;
         }
 
-        const trigger = triggerRef.current;
         if (!trigger) return;
         const width = trigger.getBoundingClientRect().width;
         setDropdownSize(width + "px");
-    }, [props.matchTriggerWidth, props.dropdownWidth]);
-
-    const showSearchField = props.items.length > 1 && props.showSearchField !== false;
-    const searchFieldHeight = showSearchField ? INPUT_FIELD_HEIGHT : 0;
-    const height = Math.min(370, (props.elementHeight ?? 40) * limitedElements.length + searchFieldHeight);
+    }, [props.matchTriggerWidth, props.dropdownWidth, props.dropdownVerticalGap, height]);
 
     const trigger = props.trigger ?
         <div ref={triggerRef}>{props.trigger}</div>
@@ -248,6 +261,7 @@ export function RichSelect<T, K extends keyof T>(props: {
         height={height}
         closeFnRef={closeFn}
         openFnRef={props.openFnRef}
+        top={dropdownTop}
         paddingControlledByContent
         arrowkeyNavigationKey={"data-active"}
         hoverColor={"rowHover"}

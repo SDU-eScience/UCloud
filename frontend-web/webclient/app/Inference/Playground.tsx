@@ -5,7 +5,7 @@ import {callAPI} from "@/Authentication/DataHook";
 import {dialogStore} from "@/Dialog/DialogStore";
 import FileBrowse from "@/Files/FileBrowse";
 import {MainContainer} from "@/ui-components/MainContainer";
-import {Box, Button, Flex, Icon, Input, Text, TextArea,} from "@/ui-components";
+import {Box, Button, Flex, Icon, Image, Input, Text, TextArea,} from "@/ui-components";
 import CodeSnippet from "@/ui-components/CodeSnippet";
 import {Toggle} from "@/ui-components/Toggle";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
@@ -28,11 +28,102 @@ import Table from "@/ui-components/Table";
 import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import * as Heading from "@/ui-components/Heading";
+import Tooltip from "@/ui-components/Tooltip";
+import {injectStyle, injectStyleSimple} from "@/Unstyled";
+import {RichSelect} from "@/ui-components/RichSelect";
+import LogoDeepseek from "@/Assets/Images/inference/deepseek.png";
+import LogoGoogle from "@/Assets/Images/inference/google.png";
+import LogoMeta from "@/Assets/Images/inference/meta.png";
+import LogoMinimax from "@/Assets/Images/inference/minimax.png";
+import LogoMistral from "@/Assets/Images/inference/mistral.png";
+import LogoMoonshot from "@/Assets/Images/inference/moonshot.png";
+import LogoOpenAI from "@/Assets/Images/inference/oai.png";
+import LogoQwen from "@/Assets/Images/inference/qwen.png";
+import LogoZai from "@/Assets/Images/inference/zai.png";
 
 type PlaygroundSession = {
     connectTo: string;
     sessionToken: string;
 };
+
+type PlaygroundOption = { key: string; value: string };
+
+const ComposerActionButtonClass = injectStyleSimple("inference-composer-action", `
+    width: 32px;
+    height: 32px;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--textPrimary);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 120ms ease, opacity 120ms ease;
+`);
+
+const ComposerActionButtonHoverClass = injectStyle("inference-composer-action-hover", k => `
+    ${k} .${ComposerActionButtonClass}:not(:disabled):hover {
+        background: var(--playground-hover, var(--dialogToolbar));
+    }
+
+    ${k} .${ComposerActionButtonClass}:disabled {
+        cursor: not-allowed;
+        opacity: 0.45;
+    }
+`);
+
+const PlaygroundThemeClass = injectStyle("inference-playground-theme", k => `
+    ${k} {
+        --playground-panel: transparent;
+        --playground-surface: var(--backgroundDefault);
+        --playground-surface-raised: var(--dialogToolbar);
+        --playground-hover: var(--dialogToolbar);
+        --playground-active: var(--secondaryMain);
+        --playground-user-bg: var(--secondaryMain);
+        --playground-user-text: var(--textPrimary);
+        --playground-logo-bg: var(--secondaryMain);
+        --playground-border: var(--borderColor);
+        --playground-border-hover: var(--borderColorHover);
+    }
+
+    html.dark ${k} {
+        --backgroundDefault: #161719;
+        --dialogToolbar: #2a2d32;
+        --borderColor: #3d424a;
+        --borderColorHover: #5a616c;
+        --textSecondary: #b2b7bf;
+        --playground-panel: #22252a;
+        --playground-surface: #121314;
+        --playground-surface-raised: #2a2d32;
+        --playground-hover: #30343a;
+        --playground-active: #3d4148;
+        --playground-user-bg: #383c43;
+        --playground-user-text: #f3f5f7;
+        --playground-logo-bg: #292c31;
+        --playground-border: #3f444c;
+        --playground-border-hover: #626975;
+    }
+`);
+
+const ThreadListClass = injectStyle("inference-thread-list", k => `
+    ${k} .inference-thread-row {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        border-radius: 8px;
+        background: transparent;
+    }
+
+    ${k} .inference-thread-row[data-active="true"],
+    ${k} .inference-thread-row:hover[data-active="true"] {
+        background: var(--playground-active, var(--secondaryMain));
+    }
+
+    ${k} .inference-thread-row:hover {
+        background: var(--playground-hover, var(--dialogToolbar));
+    }
+`);
 
 const MAX_RECONNECT_ATTEMPTS = 5;
 
@@ -288,6 +379,10 @@ const playgroundComponents: UcxComponentRegistry = {
         const rows = numberProp(node, "rows", 8);
         const sendIcon = stringProp(node, "sendIcon", "heroPaperAirplane");
         const disabled = boolProp(node, "disabled", false);
+        const propModelOptions = optionsProp(node, "modelOptions");
+        const modelOptions = propModelOptions.length > 0 ? propModelOptions : textGenerationModelOptions(fn.modelValue(model, "models"));
+        const selectedModel = stringValue(fn.modelValue(model, "chat.modelId", scope));
+        const selectedModelOption = modelOptions.find(option => option.key === selectedModel);
         const value = stringValue(fn.modelValue(model, node.bindPath, scope));
         const canSend = !disabled && value.trim() !== "";
 
@@ -300,8 +395,22 @@ const playgroundComponents: UcxComponentRegistry = {
         };
 
         return (
-            <Box style={{position: "relative", width: "100%"}}>
+            <Box
+                className={ComposerActionButtonHoverClass}
+                style={{
+                    width: "100%",
+                    flexShrink: 0,
+                    display: "flex",
+                    flexDirection: "column",
+                    minHeight: 104,
+                    border: "1px solid var(--playground-border, var(--borderColor))",
+                    borderRadius: 16,
+                    background: "var(--playground-surface, var(--backgroundDefault))",
+                    overflow: "hidden",
+                }}
+            >
                 <TextArea
+                    resize={"none"}
                     rows={rows}
                     placeholder={placeholder}
                     value={value}
@@ -320,21 +429,76 @@ const playgroundComponents: UcxComponentRegistry = {
                             send();
                         }
                     }}
-                    style={{paddingRight: 96, paddingBottom: 44, resize: "none"}}
+                    style={{
+                        resize: "none",
+                        border: 0,
+                        boxShadow: "none",
+                        background: "transparent",
+                        width: "100%",
+                        minHeight: 0,
+                        maxHeight: "30vh",
+                        overflowY: "auto",
+                        padding: "14px 16px 8px 16px",
+                    }}
                 />
                 <div
                     style={{
-                        position: "absolute",
-                        right: 24,
-                        bottom: 12,
-                        padding: 0,
-                        width: 36,
-                        height: 36,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                        flexShrink: 0,
+                        padding: "0 10px 10px 10px",
                     }}
                 >
-                    <Button type="button" disabled={!canSend} onClick={send} m={0}>
-                        <Icon name={sendIcon as any} size={14}/>
-                    </Button>
+                    <Tooltip tooltipContentWidth={180} trigger={
+                        <span style={{display: "inline-flex"}}>
+                            <button type="button" disabled className={ComposerActionButtonClass}>
+                                <Icon name="heroPlus" size={18}/>
+                            </button>
+                        </span>
+                    }>
+                        Attachments are not available yet.
+                    </Tooltip>
+                    <RichSelect<PlaygroundOption, keyof PlaygroundOption>
+                        items={modelOptions}
+                        keys={["key", "value"]}
+                        selected={selectedModelOption}
+                        onSelect={(option) =>
+                            fn.sendBoundInput(
+                                {...node, bindPath: "chat.modelId"} as any,
+                                {kind: ValueKind.String, string: option.key},
+                                model,
+                                scope
+                            )
+                        }
+                        dropdownWidth="340px"
+                        dropdownVerticalGap={8}
+                        elementHeight={42}
+                        matchTriggerWidth={false}
+                        showSearchField={modelOptions.length > 8}
+                        trigger={
+                            <ModelSelectorTrigger option={selectedModelOption} modelName={selectedModel}/>
+                        }
+                        RenderRow={(props) => (
+                            <ModelSelectorOption
+                                option={props.element}
+                                selected={props.element?.key === selectedModel}
+                                onSelect={props.onSelect}
+                                dataProps={props.dataProps}
+                            />
+                        )}
+                    />
+                    <div style={{flex: 1}}/>
+                    <Tooltip tooltipContentWidth={80} trigger={
+                        <span style={{display: "inline-flex"}}>
+                            <button type="button" disabled={!canSend} onClick={send}
+                                    className={ComposerActionButtonClass}>
+                                <Icon name={sendIcon as any} size={18}/>
+                            </button>
+                        </span>
+                    }>
+                        Send
+                    </Tooltip>
                 </div>
             </Box>
         );
@@ -386,30 +550,193 @@ type ChatMessagePart = {
 
 type ChatMessageNodeProps = Pick<UcxRenderContext, "model" | "scope" | "fn">;
 
-function ChatMessageNode({
-                             model,
-                             scope,
-                             fn,
-                         }: ChatMessageNodeProps): React.ReactNode {
+function ModelSelectorTrigger({option, modelName}: {option?: PlaygroundOption; modelName: string}): React.ReactNode {
+    const label = option?.value ?? (modelName || "Select model");
+    const logoModelName = option?.key ?? modelName;
+
+    return (
+        <button
+            type="button"
+            style={{
+                width: 300,
+                maxWidth: "34vw",
+                height: 34,
+                border: 0,
+                borderRadius: 999,
+                background: "transparent",
+                color: "inherit",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "0 10px",
+                cursor: "pointer",
+                textAlign: "left",
+            }}
+        >
+            <ModelInferenceLogo modelName={logoModelName}/>
+            <span
+                style={{
+                    minWidth: 0,
+                    flex: 1,
+                    overflow: "hidden",
+                    whiteSpace: "nowrap",
+                    textOverflow: "ellipsis",
+                    fontWeight: 600,
+                }}
+            >
+                {label}
+            </span>
+            <Icon name="heroChevronDown" size={14}/>
+        </button>
+    );
+}
+
+function ModelSelectorOption({
+    option,
+    selected,
+    onSelect,
+    dataProps,
+}: {
+    option?: PlaygroundOption;
+    selected: boolean;
+    onSelect: () => void;
+    dataProps?: Record<string, string>;
+}): React.ReactNode {
+    if (!option) return null;
+
+    return (
+        <div
+            {...dataProps}
+            data-active={selected.toString()}
+            onClick={onSelect}
+            style={{
+                minHeight: 42,
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "7px 10px",
+                color: "inherit",
+                background: selected ? "var(--playground-hover, var(--rowHover))" : undefined,
+            }}
+        >
+            <ModelInferenceLogo modelName={option.key}/>
+            <span
+                style={{
+                    minWidth: 0,
+                    flex: 1,
+                    overflow: "hidden",
+                    whiteSpace: "nowrap",
+                    textOverflow: "ellipsis",
+                    fontWeight: 500,
+                }}
+            >
+                {option.value}
+            </span>
+            {selected ? <Icon name="heroCheck" size={16} color="primaryMain"/> : <span style={{width: 16}}/>}
+        </div>
+    );
+}
+
+function ModelInferenceLogo({modelName}: { modelName: string }): React.ReactNode {
+    const norm = modelName.toLowerCase();
+
+    let img = "";
+    if (norm.includes("deepseek")) {
+        img = LogoDeepseek;
+    } else if (norm.includes("llama")) {
+        img = LogoMeta;
+    } else if (norm.includes("gpt")) {
+        img = LogoOpenAI;
+    } else if (norm.includes("minimax")) {
+        img = LogoMinimax;
+    } else if (norm.includes("qwen")) {
+        img = LogoQwen;
+    } else if (norm.includes("glm")) {
+        img = LogoZai;
+    } else if (norm.includes("mistral")) {
+        img = LogoMistral;
+    } else if (norm.includes("google") || norm.includes("gemma")) {
+        img = LogoGoogle;
+    } else if (norm.includes("kimi") || norm.includes("k2.")) {
+        img = LogoMoonshot;
+    }
+
+    if (img == "") {
+        return (
+            <span
+                title={modelName}
+                aria-hidden="true"
+                style={{
+                    width: 16,
+                    height: 16,
+                    borderRadius: "50%",
+                    background: "var(--primaryMain)",
+                    display: "inline-block",
+                    flexShrink: 0,
+                }}
+            />
+        );
+    } else {
+        return <Flex
+            background={"var(--playground-logo-bg, var(--secondaryMain))"}
+            border={"1px solid var(--playground-border, var(--borderColor))"}
+            borderRadius={"8px"}
+            height={24}
+            width={24}
+            alignItems={"center"}
+            justifyContent={"center"}
+        >
+            <img src={img} alt={`${modelName} logo`} style={{maxHeight: 16, maxWidth: 16}} />
+        </Flex>;
+    }
+}
+
+function ChatMessageNode(
+    {
+        model,
+        scope,
+        fn,
+    }: ChatMessageNodeProps
+): React.ReactNode {
     const role = stringValue(fn.modelValue(model, "./role", scope));
     const content = stringValue(fn.modelValue(model, "./content", scope));
     const parts = chatMessagePartsValue(fn.modelValue(model, "./parts", scope));
+    const messageParts = parts.length === 0
+        ? [
+            {
+                kind: "text",
+                text: content,
+                summary: "",
+                body: "",
+                open: false,
+            } as ChatMessagePart,
+        ]
+        : parts;
+
+    if (role === "user") {
+        return (
+            <Flex width="100%" justifyContent="flex-end" my={16}>
+                <div
+                    style={{
+                        maxWidth: "78%",
+                        borderRadius: 16,
+                        padding: "10px 14px",
+                        background: "var(--playground-user-bg, var(--secondaryMain))",
+                        color: "var(--playground-user-text, var(--textPrimary))",
+                        overflowWrap: "anywhere",
+                    }}
+                >
+                    {messageParts.map((part, idx) => {
+                        return <span>{part.text}</span>
+                    })}
+                </div>
+            </Flex>
+        );
+    }
 
     return (
-        <Flex flexDirection="column" gap="4px" width="100%">
-            <Text color="textSecondary">{role}</Text>
-            {(parts.length === 0
-                    ? [
-                        {
-                            kind: "text",
-                            text: content,
-                            summary: "",
-                            body: "",
-                            open: false,
-                        } as ChatMessagePart,
-                    ]
-                    : parts
-            ).map((part, idx) => {
+        <Flex flexDirection="column" gap="4px" width="100%" my={16}>
+            {messageParts.map((part, idx) => {
                 if (part.kind === "thinking") {
                     return <ThinkingPart key={idx} part={part}/>;
                 }
@@ -429,7 +756,7 @@ function MarkdownPart({text}: { text: string }): React.ReactNode {
                         {p.children}
                     </a>
                 ),
-                pre: (p) => <CodeSnippet children={p.children} maxHeight=""/>,
+                pre: (p) => <Box my={16}><CodeSnippet children={p.children} maxHeight=""/></Box>,
                 table: p => <MarkdownTable>{p.children}</MarkdownTable>,
                 h1: p => <Heading.h1>{p.children}</Heading.h1>,
                 h2: p => <Heading.h2>{p.children}</Heading.h2>,
@@ -503,14 +830,14 @@ function MarkdownTable({children}: React.PropsWithChildren): React.ReactNode {
     </div>;
 }
 
-function measureMarkdownTable(wrapper: HTMLDivElement): {scroll: boolean; minWidth: number} {
+function measureMarkdownTable(wrapper: HTMLDivElement): { scroll: boolean; minWidth: number } {
     const rows = Array.from(wrapper.querySelectorAll("tr"));
     const availableWidth = wrapper.clientWidth;
     if (rows.length === 0 || availableWidth === 0) {
         return {scroll: false, minWidth: 0};
     }
 
-    const columnStats: Array<{textLength: number; tokenLength: number; renderedWidth: number}> = [];
+    const columnStats: Array<{ textLength: number; tokenLength: number; renderedWidth: number }> = [];
     for (const row of rows) {
         const cells = Array.from(row.children).filter((cell): cell is HTMLElement => cell instanceof HTMLElement);
         for (let idx = 0; idx < cells.length; idx++) {
@@ -561,10 +888,10 @@ function ThinkingPart({part}: { part: ChatMessagePart }): React.ReactNode {
     return (
         <div
             style={{
-                border: "1px solid var(--borderColor)",
+                border: "1px solid var(--playground-border, var(--borderColor))",
                 borderRadius: 8,
                 overflow: "hidden",
-                background: "var(--dialogToolbar)",
+                background: "var(--playground-surface-raised, var(--dialogToolbar))",
             }}
         >
             <button
@@ -680,6 +1007,7 @@ function ThreadListNode({
 
     return (
         <Box
+            className={ThreadListClass}
             style={{
                 position: "relative",
                 display: "flex",
@@ -687,41 +1015,78 @@ function ThreadListNode({
                 gap: 6,
             }}
         >
-            {threads.map((thread) => (
-                <button
-                    key={thread.id}
-                    type="button"
-                    onClick={() =>
-                        fn.sendUiEvent("openThread", "click", {
-                            kind: ValueKind.String,
-                            string: thread.id,
-                        })
-                    }
-                    onContextMenu={(ev) => {
-                        ev.preventDefault();
-                        ev.stopPropagation();
-                        setOperations(threadOperations(thread));
-                        openOperationsRef.current(ev.clientX, ev.clientY);
-                    }}
-                    style={{
-                        border: "1px solid var(--borderColor)",
-                        borderRadius: 8,
-                        padding: "8px 10px",
-                        textAlign: "left",
-                        cursor: "pointer",
-                        background:
-                            thread.id === currentThreadId
-                                ? "var(--dialogToolbar)"
-                                : "var(--backgroundDefault)",
-                        color: "inherit",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                    }}
-                >
-                    {thread.title}
-                </button>
-            ))}
+            {threads.map((thread) => {
+                const active = thread.id === currentThreadId;
+                const openMenu = (left: number, top: number) => {
+                    setOperations(threadOperations(thread));
+                    openOperationsRef.current(left, top);
+                };
+
+                return (
+                    <div
+                        key={thread.id}
+                        className="inference-thread-row"
+                        data-active={active}
+                        onContextMenu={(ev) => {
+                            ev.preventDefault();
+                            ev.stopPropagation();
+                            openMenu(ev.clientX, ev.clientY);
+                        }}
+                    >
+                        <button
+                            type="button"
+                            onClick={() =>
+                                fn.sendUiEvent("openThread", "click", {
+                                    kind: ValueKind.String,
+                                    string: thread.id,
+                                })
+                            }
+                            style={{
+                                flex: 1,
+                                minWidth: 0,
+                                border: 0,
+                                padding: "8px 10px",
+                                textAlign: "left",
+                                cursor: "pointer",
+                                background: "transparent",
+                                color: "inherit",
+                                whiteSpace: "nowrap",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                            }}
+                        >
+                            {thread.title}
+                        </button>
+                        {active ? (
+                            <button
+                                type="button"
+                                aria-label="Thread operations"
+                                onClick={(ev) => {
+                                    ev.preventDefault();
+                                    ev.stopPropagation();
+                                    const rect = ev.currentTarget.getBoundingClientRect();
+                                    openMenu(rect.left, rect.bottom);
+                                }}
+                                style={{
+                                    width: 28,
+                                    height: 28,
+                                    border: 0,
+                                    borderRadius: 999,
+                                    background: "transparent",
+                                    color: "inherit",
+                                    cursor: "pointer",
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    marginRight: 4,
+                                }}
+                            >
+                                <Icon name={"ellipsis"} size={12}/>
+                            </button>
+                        ) : null}
+                    </div>
+                );
+            })}
             <Operations
                 entityNameSingular="thread"
                 operations={operations}
@@ -832,7 +1197,7 @@ export default function Playground(): React.ReactNode {
     return (
         <MainContainer
             main={
-                <div style={{display: "flex", flexDirection: "column", gap: 8}}>
+                <div className={PlaygroundThemeClass} style={{display: "flex", flexDirection: "column", gap: 8}}>
                     <Flex mb={24}>
                         <h3
                             className="title"
@@ -896,6 +1261,33 @@ function boolProp(
         return value.bool;
     }
     return fallback;
+}
+
+function optionsProp(node: { props?: Record<string, Value> }, key: string): PlaygroundOption[] {
+    const value = node.props?.[key];
+    if (!value || value.kind !== ValueKind.List) return [];
+    return value.list.flatMap((item: Value) => {
+        if (item.kind !== ValueKind.Object) return [];
+        const optionKey = stringValue(item.object.key);
+        const optionValue = stringValue(item.object.value);
+        if (optionKey === "") return [];
+        return [{key: optionKey, value: optionValue === "" ? optionKey : optionValue}];
+    });
+}
+
+function textGenerationModelOptions(value: any): PlaygroundOption[] {
+    if (!value || value.kind !== ValueKind.List) return [];
+    return value.list.flatMap((item: Value) => {
+        if (item.kind !== ValueKind.Object) return [];
+        const capabilities = item.object.capabilities;
+        if (!capabilities || capabilities.kind !== ValueKind.List) return [];
+        const supportsTextGeneration = capabilities.list.some((capability) => stringValue(capability) === "TextGeneration");
+        if (!supportsTextGeneration) return [];
+        const name = stringValue(item.object.name);
+        const title = stringValue(item.object.title);
+        if (name === "") return [];
+        return [{key: name, value: title === "" ? name : title}];
+    }).sort((a, b) => a.key.localeCompare(b.key));
 }
 
 function stringValue(value: any): string {
@@ -1001,10 +1393,10 @@ const ImagePreviewNode: React.FC<ImagePreviewNodeProps> = ({
                             type="button"
                             onClick={() => openImage(src, idx)}
                             style={{
-                                border: "1px solid var(--borderColor)",
+                                border: "1px solid var(--playground-border, var(--borderColor))",
                                 borderRadius: 8,
                                 padding: 8,
-                                background: "var(--backgroundDefault)",
+                                background: "var(--playground-surface, var(--backgroundDefault))",
                                 minWidth: 0,
                                 display: "block",
                                 textDecoration: "none",
@@ -1070,7 +1462,7 @@ const ImagePreviewNode: React.FC<ImagePreviewNodeProps> = ({
                             alignItems: "center",
                             justifyContent: "center",
                             padding: 16,
-                            background: "var(--backgroundDefault)",
+                            background: "var(--playground-surface, var(--backgroundDefault))",
                             borderRadius: 8,
                         }}
                     >

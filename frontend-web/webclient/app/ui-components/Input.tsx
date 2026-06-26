@@ -21,7 +21,7 @@ export interface InputProps extends BorderProps, BackgroundColorProps, SpaceProp
     overrideDisabledColor?: ThemeColor;
     rows?: number;
     inputRef?: React.RefObject<HTMLInputElement | null>;
-    resize?: "vertical" | "horizontal";
+    resize?: "vertical" | "horizontal" | "none";
 }
 
 export const InputClass = injectStyle("input", k => `

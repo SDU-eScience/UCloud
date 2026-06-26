@@ -9,7 +9,7 @@ function CodeBlock(props: {lang?: string; inline?: boolean; children: React.Reac
 
     return (
         <SyntaxHighlighter language={props.lang}>
-            {props.children}
+            {props.children as string}
         </SyntaxHighlighter>
     );
 }

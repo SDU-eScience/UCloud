@@ -21,7 +21,6 @@ import {Toggle} from "@/ui-components/Toggle";
 import * as UCloud from "@/UCloud";
 import * as Accounting from "@/Accounting";
 import {productCategoryEquals, ProductV2, ProductV2Compute, WalletV2} from "@/Accounting";
-import HexSpin from "@/LoadingIcon/LoadingIcon";
 import {
     decodeFrame,
     Frame,
@@ -48,6 +47,8 @@ import remarkGfm from "remark-gfm";
 import ReactMarkdown from "react-markdown";
 import * as Heading from "@/ui-components/Heading";
 import {UcxAccordion} from "@/UCX/UcxAccordion";
+import {injectStyle} from "@/Unstyled";
+import {useIsLightThemeStored} from "@/ui-components/theme";
 
 type ValueProvider = string | (() => string | Promise<string>);
 export type UcxRpcPayload = PlainValue;
@@ -66,6 +67,47 @@ export interface UcxFunctionRegistry {
     sxStyle: (node: UiNode) => React.CSSProperties;
 
     [key: string]: unknown;
+}
+
+const ucxSpinnerFrames = [
+    " ⣾ ", " ⣽ ", " ⣻ ", " ⢿ ", " ⡿ ", " ⣟ ", " ⣯ ", " ⣷ ",
+    " ⠁ ", " ⠂ ", " ⠄ ", " ⡀ ", " ⢀ ", " ⠠ ", " ⠐ ", " ⠈ ",
+];
+
+function UcxSpinner({size = 32, margin}: {size?: number; margin?: string}): React.ReactNode {
+    const [frame, setFrame] = useState(0);
+
+    useEffect(() => {
+        const interval = window.setInterval(() => {
+            setFrame(current => (current + 1) % ucxSpinnerFrames.length);
+        }, 70);
+        return () => window.clearInterval(interval);
+    }, []);
+
+    const lightMode = useIsLightThemeStored();
+    const color = lightMode ? "var(--primaryMain)" : "var(--foreground)";
+
+    return <span
+        data-tag="loading-spinner"
+        aria-label="Loading"
+        role="status"
+        style={{
+            width: size,
+            height: size,
+            margin,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: color,
+            fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+            fontSize: Math.max(12, Math.round(size * 0.72)),
+            lineHeight: 1,
+            whiteSpace: "pre",
+            userSelect: "none",
+        }}
+    >
+        {ucxSpinnerFrames[frame]}
+    </span>;
 }
 
 export interface UcxRenderContext {
@@ -882,7 +924,7 @@ const baseComponents: UcxComponentRegistry = {
         </Flex>;
     },
     divider: ({node, fn}) => <Divider />,
-    spinner: ({node}) => <HexSpin size={numberProp(node, "size", 32)} margin={optionalStringProp(node, "margin")} />,
+    spinner: ({node}) => <UcxSpinner size={numberProp(node, "size", 32)} margin={optionalStringProp(node, "margin")} />,
     table: ({node, model, scope, fn}) => {
         const rows = modelList(model, node.bindPath, scope)
             .filter(it => it.kind === ValueKind.Object)

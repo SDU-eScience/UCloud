@@ -23,6 +23,7 @@ var interactiveComponents = map[string]bool{
 	"input_text":               true,
 	"input_number":             true,
 	"input_slider":             true,
+	"inference_chat_composer":  true,
 	"inference_image_composer": true,
 	"checkbox":                 true,
 	"button":                   true,

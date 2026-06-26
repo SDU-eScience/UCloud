@@ -33,7 +33,6 @@ const (
 	playgroundModeTranscription   = "Transcription"
 	playgroundModeImageGeneration = "ImageGeneration"
 	playgroundGlobalSystemPrompt  = "You are a helpful assistant."
-	playgroundSynthesizeReasoning = false
 )
 
 type InferencePlaygroundApp struct {
@@ -831,9 +830,7 @@ func (app *InferencePlaygroundApp) applyChatModelDefaults() {
 // =====================================================================================================================
 
 func (app *InferencePlaygroundApp) chatTab() ucx.UiNode {
-	chatControls := []ucx.UiNode{
-		ucx.Select("chatModel", "Model", "chat.modelId", app.modelOptionsFor(InferenceTextGeneration)).Sx(ucx.SxWidthPercent(100)),
-	}
+	chatControls := []ucx.UiNode{}
 	if app.Developer {
 		chatControls = append(chatControls,
 			ucx.AccordionNode("Settings", true).Children(ucx.Box().Sx(ucx.SxDisplayFlex, ucx.SxFlexDirectionColumn, ucx.SxGap(8)).Children(
@@ -859,7 +856,7 @@ func (app *InferencePlaygroundApp) chatTab() ucx.UiNode {
 		)
 	} else {
 		chatControls = append(chatControls,
-			ucx.Button("newThread", "New thread", ucx.ColorSecondaryMain),
+			ucx.ButtonEx("newThread", "New thread", ucx.ColorSecondaryMain, ucx.IconHeroPlus, "", ""),
 			InferenceThreadListNode(),
 		)
 	}
@@ -880,16 +877,16 @@ func (app *InferencePlaygroundApp) chatTab() ucx.UiNode {
 			ucx.SxFlexDirectionColumn,
 			ucx.SxDisplayFlex,
 			ucx.SxGap(16),
+			ucx.SxP(16),
+			ucx.SxBorderRadius(18),
+			ucx.SxBackground("var(--playground-panel, transparent)"),
 		).Children(
 			inferenceChatBox().Sx(
 				ucx.SxFlexGrow(1),
 				ucx.SxMinHeight(0),
 				ucx.SxOverflowY("auto"),
-				ucx.SxP(16),
-				ucx.SxBorderRadius(8),
-				ucx.SxBorderColor(ucx.ColorBorderColor),
-				ucx.SxBorderWidth(1),
-				ucx.SxBorderSolid,
+				ucx.SxPx(8),
+				ucx.SxPy(16),
 			).Children(
 				ucx.List("chat.messages", "No messages yet.").Children(InferenceChatMessageNode()),
 				func() ucx.UiNode {
@@ -903,10 +900,11 @@ func (app *InferencePlaygroundApp) chatTab() ucx.UiNode {
 			),
 			InferenceChatComposerNode(
 				"chat.prompt",
-				"Ask something",
+				"Ask anything",
 				3,
-				"heroPaperAirplane",
+				"heroArrowUp",
 				app.Chat.Loading,
+				app.modelOptionsFor(InferenceTextGeneration),
 			).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
 				app.Chat.Prompt = ev.Value.String
 				if !app.Chat.Loading {
@@ -924,6 +922,11 @@ func (app *InferencePlaygroundApp) chatTab() ucx.UiNode {
 			ucx.SxDisplayFlex,
 			ucx.SxFlexDirectionColumn,
 			ucx.SxGap(16),
+			ucx.SxBorderRadius(16),
+			ucx.SxP(16),
+			ucx.SxBorderColor(ucx.ColorBorderColor),
+			ucx.SxBorderWidth(1),
+			ucx.SxBorderSolid,
 		).Children(
 			chatControls...,
 		),
@@ -1018,7 +1021,7 @@ func (app *InferencePlaygroundApp) runChatResponse(owner apm.WalletOwner, thread
 		if err != nil {
 			assistant = err.Why
 		} else {
-			if playgroundSynthesizeReasoning {
+			if util.DevelopmentModeEnabled() {
 				for _, delta := range playgroundSyntheticReasoningDeltas(request) {
 					publishDelta("", delta)
 					time.Sleep(100 * time.Millisecond)
@@ -1049,7 +1052,7 @@ func (app *InferencePlaygroundApp) runChatResponse(owner apm.WalletOwner, thread
 				assistant = resp.Choices[0].Message.Content.String()
 				reasoning = resp.Choices[0].Message.Reasoning.String()
 			}
-			if playgroundSynthesizeReasoning {
+			if util.DevelopmentModeEnabled() {
 				reasoning = strings.Join(playgroundSyntheticReasoningDeltas(request), "") + reasoning
 			}
 		}
@@ -1236,19 +1239,31 @@ func (app *InferencePlaygroundApp) chatCurlMessages() []map[string]string {
 	return messages
 }
 
-func InferenceChatComposerNode(bindPath string, placeholder string, rows int64, sendIcon string, disabled bool) ucx.UiNode {
+func InferenceChatComposerNode(bindPath string, placeholder string, rows int64, sendIcon string, disabled bool, modelOptions []ucx.Option) ucx.UiNode {
 	return ucx.UiNode{
 		Id:         "chatComposer",
 		Component:  "inference_chat_composer",
 		BindPath:   bindPath,
 		Optimistic: true,
 		Props: map[string]ucx.Value{
-			"placeholder": ucx.VString(placeholder),
-			"rows":        ucx.VS64(rows),
-			"sendIcon":    ucx.VString(sendIcon),
-			"disabled":    ucx.VBool(disabled),
+			"placeholder":  ucx.VString(placeholder),
+			"rows":         ucx.VS64(rows),
+			"sendIcon":     ucx.VString(sendIcon),
+			"disabled":     ucx.VBool(disabled),
+			"modelOptions": inferenceOptionsValue(modelOptions),
 		},
 	}
+}
+
+func inferenceOptionsValue(options []ucx.Option) ucx.Value {
+	list := make([]ucx.Value, 0, len(options))
+	for _, option := range options {
+		list = append(list, ucx.VObject(map[string]ucx.Value{
+			"key":   ucx.VString(option.Key),
+			"value": ucx.VString(option.Value),
+		}))
+	}
+	return ucx.VList(list)
 }
 
 func InferenceChatMessageNode() ucx.UiNode {
