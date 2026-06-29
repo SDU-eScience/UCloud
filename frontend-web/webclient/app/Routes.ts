@@ -79,6 +79,7 @@ const appStudio = {
 const inference = {
     playground: () => "/inference/playground",
     models: () => "/inference/models",
+    model: (name: string) => buildQueryString("/inference/model", {name}),
 }
 
 const jobs = {

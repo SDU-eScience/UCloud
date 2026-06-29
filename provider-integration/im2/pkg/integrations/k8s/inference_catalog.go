@@ -3,6 +3,7 @@ package k8s
 import (
 	"database/sql"
 	"encoding/json"
+	"maps"
 	"net/http"
 	"slices"
 	"sort"
@@ -11,6 +12,7 @@ import (
 
 	apm "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database"
+	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -32,6 +34,42 @@ type InferenceModel struct {
 	Availability    InferenceAvailability `json:"availability"`
 	ContextWindow   *int                  `json:"contextWindow,omitempty"`
 	ChatSettings    InferenceChatSettings `json:"chatSettings"`
+	Page            *InferenceModelPage   `json:"page,omitempty"`
+}
+
+type InferenceModelPage struct {
+	ShortDescription string                      `json:"shortDescription,omitempty"`
+	DocumentationUrl string                      `json:"documentationUrl,omitempty"`
+	ReleaseDate      *fnd.Timestamp              `json:"releaseDate,omitempty"`
+	About            InferenceModelPageAbout     `json:"about,omitempty"`
+	BenchmarkScores  map[string]string           `json:"benchmarkScores,omitempty"`
+	Datasheet        InferenceModelPageDatasheet `json:"datasheet,omitempty"`
+}
+
+type InferenceModelPageAbout struct {
+	Description string                  `json:"description,omitempty"`
+	Highlights  []string                `json:"highlights,omitempty"`
+	KeyStats    []InferenceModelKeyStat `json:"keyStats,omitempty"`
+}
+
+type InferenceModelKeyStat struct {
+	Label       string `json:"label"`
+	Value       string `json:"value"`
+	Description string `json:"description,omitempty"`
+}
+
+type InferenceModelPageDatasheet struct {
+	Parameters          string `json:"parameters,omitempty"`
+	ActivatedParameters string `json:"activatedParameters,omitempty"`
+	Quantization        string `json:"quantization,omitempty"`
+}
+
+type InferenceBenchmark struct {
+	Id             string   `json:"id"`
+	Title          string   `json:"title"`
+	Description    string   `json:"description,omitempty"`
+	HigherIsBetter bool     `json:"higherIsBetter"`
+	ModelNames     []string `json:"modelNames"`
 }
 
 type InferenceChatSettings struct {
@@ -58,8 +96,9 @@ type InferenceAvailability struct {
 }
 
 var modelGlobals = struct {
-	Mu     sync.RWMutex
-	Models map[string]InferenceModel
+	Mu         sync.RWMutex
+	Models     map[string]InferenceModel
+	Benchmarks []InferenceBenchmark
 }{
 	Models: map[string]InferenceModel{},
 }
@@ -81,10 +120,19 @@ type inferenceModelRow struct {
 	TopP                   float64
 	MaxCompletionTokens    int
 	SystemPrompt           sql.NullString
+	PageMetadata           []byte
+}
+
+type inferenceBenchmarkRow struct {
+	Id             string
+	Title          string
+	Description    string
+	HigherIsBetter bool
+	ModelNames     []byte
 }
 
 func inferenceModelCatalogLoad() {
-	models := db.NewTx(func(tx *db.Transaction) map[string]InferenceModel {
+	models, benchmarks := db.NewTx2(func(tx *db.Transaction) (map[string]InferenceModel, []InferenceBenchmark) {
 		rows := db.Select[inferenceModelRow](
 			tx,
 			`
@@ -104,7 +152,8 @@ func inferenceModelCatalogLoad() {
 					temperature,
 					top_p,
 					max_completion_tokens,
-					system_prompt
+					system_prompt,
+					page_metadata
 				from inference_model
 			`,
 			db.Params{},
@@ -132,6 +181,13 @@ func inferenceModelCatalogLoad() {
 				value := row.SystemPrompt.String
 				systemPrompt = &value
 			}
+			var page *InferenceModelPage
+			if len(row.PageMetadata) > 0 && string(row.PageMetadata) != "null" {
+				var parsed InferenceModelPage
+				if err := json.Unmarshal(row.PageMetadata, &parsed); err == nil {
+					page = &parsed
+				}
+			}
 
 			result[row.Name] = inferenceModelNormalize(InferenceModel{
 				Name:           row.Name,
@@ -158,13 +214,39 @@ func inferenceModelCatalogLoad() {
 					MaxCompletionTokens: row.MaxCompletionTokens,
 					SystemPrompt:        systemPrompt,
 				},
+				Page: page,
 			})
 		}
-		return result
+
+		benchmarkRows := db.Select[inferenceBenchmarkRow](
+			tx,
+			`
+				select id, title, description, higher_is_better, model_names
+				from inference_benchmark
+				order by id
+			`,
+			db.Params{},
+		)
+		benchmarks := make([]InferenceBenchmark, 0, len(benchmarkRows))
+		for _, row := range benchmarkRows {
+			var modelNames []string
+			if err := json.Unmarshal(row.ModelNames, &modelNames); err != nil {
+				continue
+			}
+			benchmarks = append(benchmarks, InferenceBenchmark{
+				Id:             row.Id,
+				Title:          row.Title,
+				Description:    row.Description,
+				HigherIsBetter: row.HigherIsBetter,
+				ModelNames:     modelNames,
+			})
+		}
+		return result, benchmarks
 	})
 
 	modelGlobals.Mu.Lock()
 	modelGlobals.Models = models
+	modelGlobals.Benchmarks = benchmarks
 	modelGlobals.Mu.Unlock()
 }
 
@@ -189,6 +271,49 @@ func InferenceModelListForOwner(owner apm.WalletOwner) []InferenceModel {
 		}
 	}
 	return result
+}
+
+func InferenceBenchmarkList() []InferenceBenchmark {
+	modelGlobals.Mu.RLock()
+	defer modelGlobals.Mu.RUnlock()
+
+	result := make([]InferenceBenchmark, 0, len(modelGlobals.Benchmarks))
+	for _, benchmark := range modelGlobals.Benchmarks {
+		result = append(result, inferenceBenchmarkClone(benchmark))
+	}
+	return result
+}
+
+func InferenceBenchmarkReplace(benchmarks []InferenceBenchmark) *util.HttpError {
+	next := make([]InferenceBenchmark, 0, len(benchmarks))
+	seen := map[string]bool{}
+	for _, benchmark := range benchmarks {
+		benchmark = inferenceBenchmarkNormalize(benchmark)
+		if err := inferenceBenchmarkValidate(benchmark); err != nil {
+			return err
+		}
+		if seen[benchmark.Id] {
+			return util.HttpErr(http.StatusBadRequest, "duplicate benchmark id")
+		}
+		seen[benchmark.Id] = true
+		next = append(next, benchmark)
+	}
+	sort.Slice(next, func(i, j int) bool { return next[i].Id < next[j].Id })
+
+	modelGlobals.Mu.Lock()
+	defer modelGlobals.Mu.Unlock()
+
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(tx, `delete from inference_benchmark`, db.Params{})
+		for _, benchmark := range next {
+			inferenceBenchmarkInsertTx(tx, benchmark)
+		}
+	})
+	modelGlobals.Benchmarks = make([]InferenceBenchmark, 0, len(next))
+	for _, benchmark := range next {
+		modelGlobals.Benchmarks = append(modelGlobals.Benchmarks, inferenceBenchmarkClone(benchmark))
+	}
+	return nil
 }
 
 func InferenceCatalogModelByName(name string) (InferenceModel, bool) {
@@ -292,6 +417,11 @@ func InferenceModelDelete(name string) *util.HttpError {
 func inferenceModelUpsertTx(tx *db.Transaction, model InferenceModel) {
 	capabilities, _ := json.Marshal(model.Capabilities)
 	availableTo, _ := json.Marshal(model.Availability.AvailableTo)
+	pageMetadata := sql.NullString{}
+	if model.Page != nil {
+		page, _ := json.Marshal(model.Page)
+		pageMetadata = sql.NullString{String: string(page), Valid: true}
+	}
 	contextWindow := sql.NullInt64{}
 	if model.ContextWindow != nil {
 		contextWindow = sql.NullInt64{Int64: int64(*model.ContextWindow), Valid: true}
@@ -319,7 +449,8 @@ func inferenceModelUpsertTx(tx *db.Transaction, model InferenceModel) {
 				temperature,
 				top_p,
 				max_completion_tokens,
-				system_prompt
+				system_prompt,
+				page_metadata
 			) values (
 				:name,
 				:title,
@@ -336,7 +467,8 @@ func inferenceModelUpsertTx(tx *db.Transaction, model InferenceModel) {
 				:temperature,
 				:top_p,
 				:max_completion_tokens,
-				:system_prompt
+				:system_prompt,
+				cast(:page_metadata as jsonb)
 			) on conflict (name) do update set
 				title = excluded.title,
 				title_model_name = excluded.title_model_name,
@@ -352,7 +484,8 @@ func inferenceModelUpsertTx(tx *db.Transaction, model InferenceModel) {
 				temperature = excluded.temperature,
 				top_p = excluded.top_p,
 				max_completion_tokens = excluded.max_completion_tokens,
-				system_prompt = excluded.system_prompt
+				system_prompt = excluded.system_prompt,
+				page_metadata = excluded.page_metadata
 		`,
 		db.Params{
 			"name":                     model.Name,
@@ -371,6 +504,25 @@ func inferenceModelUpsertTx(tx *db.Transaction, model InferenceModel) {
 			"top_p":                    model.ChatSettings.TopP,
 			"max_completion_tokens":    model.ChatSettings.MaxCompletionTokens,
 			"system_prompt":            systemPrompt,
+			"page_metadata":            pageMetadata,
+		},
+	)
+}
+
+func inferenceBenchmarkInsertTx(tx *db.Transaction, benchmark InferenceBenchmark) {
+	modelNames, _ := json.Marshal(benchmark.ModelNames)
+	db.Exec(
+		tx,
+		`
+			insert into inference_benchmark(id, title, description, higher_is_better, model_names)
+			values (:id, :title, :description, :higher_is_better, cast(:model_names as jsonb))
+		`,
+		db.Params{
+			"id":               benchmark.Id,
+			"title":            benchmark.Title,
+			"description":      benchmark.Description,
+			"higher_is_better": benchmark.HigherIsBetter,
+			"model_names":      string(modelNames),
 		},
 	)
 }
@@ -439,6 +591,23 @@ func inferenceModelNormalize(model InferenceModel) InferenceModel {
 			model.ChatSettings.SystemPrompt = &value
 		}
 	}
+	if model.Page != nil {
+		model.Page.ShortDescription = strings.TrimSpace(model.Page.ShortDescription)
+		model.Page.DocumentationUrl = strings.TrimSpace(model.Page.DocumentationUrl)
+		model.Page.About.Description = strings.TrimSpace(model.Page.About.Description)
+		model.Page.About.Highlights = trimNonEmptyStrings(model.Page.About.Highlights)
+		for idx := range model.Page.About.KeyStats {
+			model.Page.About.KeyStats[idx].Label = strings.TrimSpace(model.Page.About.KeyStats[idx].Label)
+			model.Page.About.KeyStats[idx].Value = strings.TrimSpace(model.Page.About.KeyStats[idx].Value)
+			model.Page.About.KeyStats[idx].Description = strings.TrimSpace(model.Page.About.KeyStats[idx].Description)
+		}
+		model.Page.Datasheet.Parameters = strings.TrimSpace(model.Page.Datasheet.Parameters)
+		model.Page.Datasheet.ActivatedParameters = strings.TrimSpace(model.Page.Datasheet.ActivatedParameters)
+		model.Page.Datasheet.Quantization = strings.TrimSpace(model.Page.Datasheet.Quantization)
+		if len(model.Page.BenchmarkScores) == 0 && model.Page.ShortDescription == "" && model.Page.DocumentationUrl == "" && model.Page.ReleaseDate == nil && model.Page.About.Description == "" && len(model.Page.About.Highlights) == 0 && len(model.Page.About.KeyStats) == 0 && model.Page.Datasheet.Parameters == "" && model.Page.Datasheet.ActivatedParameters == "" && model.Page.Datasheet.Quantization == "" {
+			model.Page = nil
+		}
+	}
 	model.Capabilities = slices.Clone(model.Capabilities)
 	model.Availability.AvailableTo = slices.Clone(model.Availability.AvailableTo)
 	return model
@@ -453,9 +622,52 @@ func inferenceModelClone(model InferenceModel) InferenceModel {
 		value := *model.ChatSettings.SystemPrompt
 		model.ChatSettings.SystemPrompt = &value
 	}
+	if model.Page != nil {
+		page := *model.Page
+		page.About.Highlights = slices.Clone(page.About.Highlights)
+		page.About.KeyStats = slices.Clone(page.About.KeyStats)
+		if page.BenchmarkScores != nil {
+			page.BenchmarkScores = maps.Clone(page.BenchmarkScores)
+		}
+		model.Page = &page
+	}
 	model.Capabilities = slices.Clone(model.Capabilities)
 	model.Availability.AvailableTo = slices.Clone(model.Availability.AvailableTo)
 	return model
+}
+
+func inferenceBenchmarkNormalize(benchmark InferenceBenchmark) InferenceBenchmark {
+	benchmark.Id = strings.TrimSpace(benchmark.Id)
+	benchmark.Title = strings.TrimSpace(benchmark.Title)
+	benchmark.Description = strings.TrimSpace(benchmark.Description)
+	benchmark.ModelNames = trimNonEmptyStrings(benchmark.ModelNames)
+	return benchmark
+}
+
+func inferenceBenchmarkValidate(benchmark InferenceBenchmark) *util.HttpError {
+	if benchmark.Id == "" {
+		return util.HttpErr(http.StatusBadRequest, "benchmark id is required")
+	}
+	if benchmark.Title == "" {
+		return util.HttpErr(http.StatusBadRequest, "benchmark title is required")
+	}
+	return nil
+}
+
+func inferenceBenchmarkClone(benchmark InferenceBenchmark) InferenceBenchmark {
+	benchmark.ModelNames = slices.Clone(benchmark.ModelNames)
+	return benchmark
+}
+
+func trimNonEmptyStrings(values []string) []string {
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value != "" {
+			result = append(result, value)
+		}
+	}
+	return result
 }
 
 func inferenceModelAvailableToOwner(model InferenceModel, owner apm.WalletOwner) bool {

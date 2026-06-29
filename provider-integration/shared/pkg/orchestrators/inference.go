@@ -1,6 +1,7 @@
 package orchestrators
 
 import (
+	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -34,6 +35,42 @@ type InferenceModel struct {
 	Availability    InferenceAvailability `json:"availability"`
 	ContextWindow   *int                  `json:"contextWindow,omitempty"`
 	ChatSettings    InferenceChatSettings `json:"chatSettings"`
+	Page            *InferenceModelPage   `json:"page,omitempty"`
+}
+
+type InferenceModelPage struct {
+	ShortDescription string                      `json:"shortDescription,omitempty"`
+	DocumentationUrl string                      `json:"documentationUrl,omitempty"`
+	ReleaseDate      *fnd.Timestamp              `json:"releaseDate,omitempty"`
+	About            InferenceModelPageAbout     `json:"about,omitempty"`
+	BenchmarkScores  map[string]string           `json:"benchmarkScores,omitempty"`
+	Datasheet        InferenceModelPageDatasheet `json:"datasheet,omitempty"`
+}
+
+type InferenceModelPageAbout struct {
+	Description string                  `json:"description,omitempty"`
+	Highlights  []string                `json:"highlights,omitempty"`
+	KeyStats    []InferenceModelKeyStat `json:"keyStats,omitempty"`
+}
+
+type InferenceModelKeyStat struct {
+	Label       string `json:"label"`
+	Value       string `json:"value"`
+	Description string `json:"description,omitempty"`
+}
+
+type InferenceModelPageDatasheet struct {
+	Parameters          string `json:"parameters,omitempty"`
+	ActivatedParameters string `json:"activatedParameters,omitempty"`
+	Quantization        string `json:"quantization,omitempty"`
+}
+
+type InferenceBenchmark struct {
+	Id             string   `json:"id"`
+	Title          string   `json:"title"`
+	Description    string   `json:"description,omitempty"`
+	HigherIsBetter bool     `json:"higherIsBetter"`
+	ModelNames     []string `json:"modelNames"`
 }
 
 type InferenceChatSettings struct {
@@ -64,15 +101,22 @@ type InferenceListModelsRequest struct {
 }
 
 type InferenceListModelsResponse struct {
-	Models     []InferenceModel `json:"models"`
-	IsAdmin    bool             `json:"isAdmin"`
-	ProviderId string           `json:"providerId"`
+	Models     []InferenceModel     `json:"models"`
+	Benchmarks []InferenceBenchmark `json:"benchmarks"`
+	IsAdmin    bool                 `json:"isAdmin"`
+	ProviderId string               `json:"providerId"`
+	Server     string               `json:"server"`
 }
 
 type InferenceUpdateModelRequest struct {
 	ProviderId util.Option[string] `json:"providerId"`
 	OldName    string              `json:"oldName"`
 	Model      InferenceModel      `json:"model"`
+}
+
+type InferenceUpdateBenchmarksRequest struct {
+	ProviderId util.Option[string]  `json:"providerId"`
+	Benchmarks []InferenceBenchmark `json:"benchmarks"`
 }
 
 var InferenceOpenPlayground = rpc.Call[InferenceOpenPlaygroundRequest, InferenceOpenPlaygroundResponse]{
@@ -93,6 +137,13 @@ var InferenceUpdateModel = rpc.Call[InferenceUpdateModelRequest, util.Empty]{
 	BaseContext: inferenceBaseContext,
 	Convention:  rpc.ConventionUpdate,
 	Operation:   "model",
+	Roles:       rpc.RolesEndUser,
+}
+
+var InferenceUpdateBenchmarks = rpc.Call[InferenceUpdateBenchmarksRequest, util.Empty]{
+	BaseContext: inferenceBaseContext,
+	Convention:  rpc.ConventionUpdate,
+	Operation:   "benchmarks",
 	Roles:       rpc.RolesEndUser,
 }
 
@@ -124,6 +175,11 @@ type InferenceUpdateModelProviderRequest struct {
 	Model   InferenceModel `json:"model"`
 }
 
+type InferenceUpdateBenchmarksProviderRequest struct {
+	Owner      ResourceOwner        `json:"owner"`
+	Benchmarks []InferenceBenchmark `json:"benchmarks"`
+}
+
 var InferenceListModelsProvider = rpc.Call[InferenceListModelsProviderRequest, InferenceListModelsResponse]{
 	BaseContext: inferenceProviderBaseContext,
 	Convention:  rpc.ConventionUpdate,
@@ -135,5 +191,12 @@ var InferenceUpdateModelProvider = rpc.Call[InferenceUpdateModelProviderRequest,
 	BaseContext: inferenceProviderBaseContext,
 	Convention:  rpc.ConventionUpdate,
 	Operation:   "model",
+	Roles:       rpc.RolesService,
+}
+
+var InferenceUpdateBenchmarksProvider = rpc.Call[InferenceUpdateBenchmarksProviderRequest, util.Empty]{
+	BaseContext: inferenceProviderBaseContext,
+	Convention:  rpc.ConventionUpdate,
+	Operation:   "benchmarks",
 	Roles:       rpc.RolesService,
 }

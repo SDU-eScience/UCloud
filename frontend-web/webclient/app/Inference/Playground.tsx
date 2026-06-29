@@ -5,7 +5,7 @@ import {callAPI} from "@/Authentication/DataHook";
 import {dialogStore} from "@/Dialog/DialogStore";
 import FileBrowse from "@/Files/FileBrowse";
 import {MainContainer} from "@/ui-components/MainContainer";
-import {Box, Button, Flex, Icon, Image, Input, Text, TextArea,} from "@/ui-components";
+import {Box, Button, ExternalLink, Flex, Icon, Image, Input, Text, TextArea,} from "@/ui-components";
 import CodeSnippet from "@/ui-components/CodeSnippet";
 import {Toggle} from "@/ui-components/Toggle";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
@@ -25,24 +25,17 @@ import {openPlayground} from "./api";
 import {getParentPath} from "@/Utilities/FileUtilities";
 import {ProjectSwitcher} from "@/Project/ProjectSwitcher";
 import {useProjectId} from "@/Project/Api";
-import Table from "@/ui-components/Table";
 import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import * as Heading from "@/ui-components/Heading";
 import Tooltip from "@/ui-components/Tooltip";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {RichSelect} from "@/ui-components/RichSelect";
-import LogoDeepseek from "@/Assets/Images/inference/deepseek.png";
-import LogoGoogle from "@/Assets/Images/inference/google.png";
-import LogoMeta from "@/Assets/Images/inference/meta.png";
-import LogoMinimax from "@/Assets/Images/inference/minimax.png";
-import LogoMistral from "@/Assets/Images/inference/mistral.png";
-import LogoMoonshot from "@/Assets/Images/inference/moonshot.png";
-import LogoOpenAI from "@/Assets/Images/inference/oai.png";
-import LogoQwen from "@/Assets/Images/inference/qwen.png";
-import LogoZai from "@/Assets/Images/inference/zai.png";
 import {IconName} from "@/ui-components/Icon";
 import {format, isToday} from "date-fns";
+import ModelInferenceLogo from "./ModelLogo";
+import { MarkdownTable } from "@/ui-components/Markdown";
+import {CopyButton} from "@/ui-components/CopyButton";
 
 type PlaygroundSession = {
     connectTo: string;
@@ -640,60 +633,6 @@ function ModelSelectorOption({
     );
 }
 
-function ModelInferenceLogo({modelName}: { modelName: string }): React.ReactNode {
-    const norm = modelName.toLowerCase();
-
-    let img = "";
-    if (norm.includes("deepseek")) {
-        img = LogoDeepseek;
-    } else if (norm.includes("llama")) {
-        img = LogoMeta;
-    } else if (norm.includes("gpt")) {
-        img = LogoOpenAI;
-    } else if (norm.includes("minimax")) {
-        img = LogoMinimax;
-    } else if (norm.includes("qwen")) {
-        img = LogoQwen;
-    } else if (norm.includes("glm")) {
-        img = LogoZai;
-    } else if (norm.includes("mistral")) {
-        img = LogoMistral;
-    } else if (norm.includes("google") || norm.includes("gemma")) {
-        img = LogoGoogle;
-    } else if (norm.includes("kimi") || norm.includes("k2.")) {
-        img = LogoMoonshot;
-    }
-
-    if (img == "") {
-        return (
-            <span
-                title={modelName}
-                aria-hidden="true"
-                style={{
-                    width: 16,
-                    height: 16,
-                    borderRadius: "50%",
-                    background: "var(--primaryMain)",
-                    display: "inline-block",
-                    flexShrink: 0,
-                }}
-            />
-        );
-    } else {
-        return <Flex
-            background={"var(--playground-logo-bg, var(--secondaryMain))"}
-            border={"1px solid var(--playground-border, var(--borderColor))"}
-            borderRadius={"8px"}
-            height={24}
-            width={24}
-            alignItems={"center"}
-            justifyContent={"center"}
-        >
-            <img src={img} alt={`${modelName} logo`} style={{maxHeight: 16, maxWidth: 16}} />
-        </Flex>;
-    }
-}
-
 function ChatMessageNode(
     {
         model,
@@ -735,7 +674,7 @@ function ChatMessageNode(
                 </div>
                 <Flex className={ComposerActionButtonHoverClass} alignItems="center" gap="8px" color="textSecondary" fontSize="12px">
                     <span>{formatTimeOfDay(generatedAt)}</span>
-                    <MessageIconButton label="Copy message" icon="heroDocumentDuplicate" onClick={() => copyMessage(content)}/>
+                    <CopyButton onClick={() => copyToClipboard(content)}/>
                 </Flex>
             </Flex>
         );
@@ -750,7 +689,7 @@ function ChatMessageNode(
                 return <StreamingMarkdownPart key={idx} text={part.text} streaming={!responseFinished}/>;
             })}
             {!responseFinished ? null : <Flex className={ComposerActionButtonHoverClass} alignItems="center" gap="8px" color="textSecondary" fontSize="12px" flexWrap="wrap">
-                <MessageIconButton label="Copy response" icon="heroDocumentDuplicate" onClick={() => copyMessage(content)}/>
+                <CopyButton onClick={() => copyToClipboard(content)}/>
                 <RichSelect<PlaygroundOption, keyof PlaygroundOption>
                     items={modelOptions}
                     keys={["key", "value"]}
@@ -809,15 +748,6 @@ function MessageIconButton({label, icon, onClick}: {label: string; icon: IconNam
             {label}
         </Tooltip>
     );
-}
-
-async function copyMessage(content: string): Promise<void> {
-    try {
-        await copyToClipboard(content);
-        sendSuccessNotification("Message copied to clipboard");
-    } catch {
-        sendFailureNotification("Failed to copy message");
-    }
 }
 
 function formatTimeOfDay(ms: number): string {
@@ -1017,11 +947,7 @@ function MarkdownPart({text}: { text: string }): React.ReactNode {
     return (
         <ReactMarkdown
             components={{
-                a: (p) => (
-                    <a href={p.href} target="_blank" rel="noreferrer">
-                        {p.children}
-                    </a>
-                ),
+                a: (p) => <ExternalLink href={p.href}>{p.children}</ExternalLink>,
                 pre: (p) => <Box my={16}><CodeSnippet children={p.children} maxHeight=""/></Box>,
                 table: p => <MarkdownTable>{p.children}</MarkdownTable>,
                 h1: p => <Heading.h1>{p.children}</Heading.h1>,
@@ -1063,85 +989,6 @@ function MarkdownPart({text}: { text: string }): React.ReactNode {
     );
 }
 
-function MarkdownTable({children}: React.PropsWithChildren): React.ReactNode {
-    const wrapperRef = React.useRef<HTMLDivElement | null>(null);
-    const [layout, setLayout] = React.useState({scroll: false, minWidth: 0});
-
-    React.useLayoutEffect(() => {
-        const wrapper = wrapperRef.current;
-        if (!wrapper) return;
-
-        let frame = 0;
-        const measure = () => {
-            window.cancelAnimationFrame(frame);
-            frame = window.requestAnimationFrame(() => {
-                const next = measureMarkdownTable(wrapper);
-                setLayout(prev => prev.scroll === next.scroll && prev.minWidth === next.minWidth ? prev : next);
-            });
-        };
-
-        measure();
-        const observer = new ResizeObserver(measure);
-        observer.observe(wrapper);
-        return () => {
-            window.cancelAnimationFrame(frame);
-            observer.disconnect();
-        };
-    }, [children]);
-
-    return <div ref={wrapperRef} style={{overflowX: layout.scroll ? "auto" : "visible", maxWidth: "100%"}}>
-        <Table tableType="presentation" minWidth={layout.scroll ? `${layout.minWidth}px` : undefined}>
-            {children}
-        </Table>
-    </div>;
-}
-
-function measureMarkdownTable(wrapper: HTMLDivElement): { scroll: boolean; minWidth: number } {
-    const rows = Array.from(wrapper.querySelectorAll("tr"));
-    const availableWidth = wrapper.clientWidth;
-    if (rows.length === 0 || availableWidth === 0) {
-        return {scroll: false, minWidth: 0};
-    }
-
-    const columnStats: Array<{ textLength: number; tokenLength: number; renderedWidth: number }> = [];
-    for (const row of rows) {
-        const cells = Array.from(row.children).filter((cell): cell is HTMLElement => cell instanceof HTMLElement);
-        for (let idx = 0; idx < cells.length; idx++) {
-            const cell = cells[idx];
-            const text = (cell.textContent ?? "").replace(/\s+/g, " ").trim();
-            const longestToken = text.split(/\s+/).reduce((longest, token) => Math.max(longest, token.length), 0);
-            const stats = columnStats[idx] ?? {textLength: 0, tokenLength: 0, renderedWidth: 0};
-            stats.textLength = Math.max(stats.textLength, text.length);
-            stats.tokenLength = Math.max(stats.tokenLength, longestToken);
-            stats.renderedWidth = Math.max(stats.renderedWidth, cell.getBoundingClientRect().width);
-            columnStats[idx] = stats;
-        }
-    }
-
-    let forceScroll = false;
-    const desiredWidth = columnStats.reduce((sum, stats) => {
-        let columnWidth = 120;
-        if (stats.tokenLength >= 40) {
-            forceScroll = true;
-            columnWidth = clamp(stats.tokenLength * 8, 240, 720);
-        } else if (stats.textLength >= 120) {
-            columnWidth = clamp(stats.textLength * 5, 320, 640);
-        } else if (stats.textLength >= 60) {
-            columnWidth = clamp(stats.textLength * 4, 200, 360);
-        } else {
-            columnWidth = clamp(stats.textLength * 6 + 24, 80, 200);
-        }
-        return sum + Math.max(columnWidth, Math.min(stats.renderedWidth, 240));
-    }, 0);
-
-    const minWidth = Math.ceil(Math.max(desiredWidth, availableWidth));
-    const shouldScroll = forceScroll || desiredWidth > availableWidth + 8;
-    return {scroll: shouldScroll, minWidth: shouldScroll ? minWidth : 0};
-}
-
-function clamp(value: number, min: number, max: number): number {
-    return Math.max(min, Math.min(max, value));
-}
 
 function ThinkingPart({part}: { part: ChatMessagePart }): React.ReactNode {
     const [expanded, setExpanded] = React.useState(false);
