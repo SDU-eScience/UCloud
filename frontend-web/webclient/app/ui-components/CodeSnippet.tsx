@@ -6,7 +6,9 @@ import {useCallback} from "react";
 import {copyToClipboard} from "@/UtilityFunctions";
 import {sendSuccessNotification} from "@/Notifications";
 import SyntaxHighlighter from "react-syntax-highlighter";
-import { atomOneDark } from 'react-syntax-highlighter/dist/esm/styles/hljs';
+import { atomOneDark, atomOneLight } from 'react-syntax-highlighter/dist/esm/styles/hljs';
+import {useIsLightThemeStored} from "@/ui-components/theme";
+import {CopyButton} from "@/ui-components/CopyButton";
 
 const Style = injectStyle("code-snippet", k => `
     ${k} {
@@ -14,56 +16,48 @@ const Style = injectStyle("code-snippet", k => `
     }
 
     ${k} button {
-        background: rgba(255, 255, 255, 30%);
-        border-radius: 8px;
-        padding: 8px;
         position: absolute;
         top: 8px;
         right: 16px;
-        border: 0;
-        outline: none;
         z-index: 1;
     }
 `);
 
 const CodeSnippet: React.FunctionComponent<{
     children: React.ReactNode,
-    maxHeight: string,
+    maxHeight?: string,
     lang?: string,
     inline?: boolean,
 }> = ({children, maxHeight, lang, inline}) => {
     const code = codeSnippetText(children);
     const l = lang ?? codeSnippetLanguage(children) ?? "text";
-    const doCopy = useCallback((e: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
-        e.preventDefault();
-        e.stopPropagation();
+    const doCopy = useCallback(() => {
         copyToClipboard(code);
-        sendSuccessNotification("Copied to clipboard!");
     }, [code]);
+
+    const lightTheme = useIsLightThemeStored();
+    const theme = lightTheme ? atomOneLight : atomOneDark;
 
     if (inline === true) return <code>{children}</code>;
 
     return <div className={Style}>
         <SyntaxHighlighter
             language={l}
-            style={atomOneDark}
+            style={theme}
             customStyle={{
                 margin: 0,
                 padding: "16px 56px 16px 16px",
                 borderRadius: 8,
-                maxHeight: maxHeight || undefined,
+                maxHeight: maxHeight ?? undefined,
                 overflow: "auto",
                 fontFamily: "var(--monospace)",
+                border: "1px solid var(--borderColor)",
                 fontSize: "10pt",
             }}
         >
             {code}
         </SyntaxHighlighter>
-        <button onClick={doCopy}>
-            <TooltipV2 tooltip={"Copy"}>
-                <Icon cursor="pointer" name={"heroClipboardDocument"} color={"fixedWhite"} />
-            </TooltipV2>
-        </button>
+        <CopyButton onClick={doCopy} />
     </div>;
 }
 

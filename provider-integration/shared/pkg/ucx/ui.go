@@ -213,6 +213,39 @@ func RouterEx(id string, bindPath string) UiNode {
 	}
 }
 
+func QueryParam(bindPath string, key string) UiNode {
+	return QueryParamEx("", bindPath, key, false, true, true, true, nil)
+}
+
+func QueryParamWhenPresent(bindPath string, key string) UiNode {
+	return QueryParamEx("", bindPath, key, false, true, false, true, nil)
+}
+
+func QueryParamReadOnlyWhenPresent(bindPath string, key string) UiNode {
+	return QueryParamEx("", bindPath, key, false, true, false, false, nil)
+}
+
+func QueryParamEx(id string, bindPath string, key string, replace bool, removeWhenEmpty bool, sendMissing bool, writeToUrl bool, clearKeys []string) UiNode {
+	clearKeyValues := make([]Value, 0, len(clearKeys))
+	for _, clearKey := range clearKeys {
+		clearKeyValues = append(clearKeyValues, VString(clearKey))
+	}
+
+	return UiNode{
+		Id:        id,
+		Component: "query_param",
+		BindPath:  bindPath,
+		Props: map[string]Value{
+			"key":             VString(key),
+			"replace":         VBool(replace),
+			"removeWhenEmpty": VBool(removeWhenEmpty),
+			"sendMissing":     VBool(sendMissing),
+			"writeToUrl":      VBool(writeToUrl),
+			"clearKeys":       VList(clearKeyValues),
+		},
+	}
+}
+
 func Link(to string) UiNode {
 	return LinkEx("", to)
 }

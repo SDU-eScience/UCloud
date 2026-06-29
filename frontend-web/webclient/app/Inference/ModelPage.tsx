@@ -19,6 +19,8 @@ import * as Heading from "@/ui-components/Heading";
 import remarkGfm from "remark-gfm";
 import {MarkdownTable} from "@/ui-components/Markdown";
 import {CopyButton} from "@/ui-components/CopyButton";
+import {injectStyle} from "@/Unstyled";
+import {useIsLightThemeStored} from "@/ui-components/theme";
 
 const fallbackDocs = "https://docs.cloud.sdu.dk";
 
@@ -63,26 +65,41 @@ export default function ModelPage(): React.ReactNode {
     </Box>} />;
 }
 
+const PageStyle = injectStyle("model-page", k => `
+    ${k} {
+        --model-hero: var(--blue-10);
+        --model-hero-border: var(--blue-20);
+    }
+    
+    html.dark ${k} {
+        --model-hero: var(--blue-80);
+        --model-hero-border: var(--blue-90);
+    }
+`);
+
 function ModelPageContent({model, models, benchmarks, providerId, server}: {model: InferenceModel; models: InferenceModel[]; benchmarks: InferenceBenchmark[]; providerId: string; server: string}): React.ReactNode {
     const page = model.page;
     const documentationUrl = page?.documentationUrl || fallbackDocs;
     const shortDescription = page?.shortDescription || `${model.title} is available through the UCloud OpenAI-compatible inference endpoint.`;
     const keyStats = page?.about?.keyStats?.length ? page.about.keyStats : fallbackKeyStats(model);
+    const lightTheme = useIsLightThemeStored();
 
-    return <>
+    const docButtonColor = lightTheme ? "primaryMain" : "secondaryMain";
+
+    return <div className={PageStyle}>
         <Box style={{
-            background: "var(--blue-10)",
-            borderBottom: "1px solid var(--borderColor)",
+            background: "var(--model-hero)",
+            borderBottom: "5px solid var(--model-hero-border)",
             marginBottom: 16,
             padding: "86px 16px",
         }}>
-            <Flex style={{gap: 32, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", maxWidth: MAIN_CONTAINER_MAX_WIDTH, margin: "0 auto"}}>
+            <Flex style={{gap: 32, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", maxWidth: MAIN_CONTAINER_MAX_WIDTH, margin: "0 auto", padding: "0 16px"}}>
                 <Box style={{display: "grid", gap: 14, maxWidth: 760}}>
                     <h2 className="title" style={{margin: 0, fontSize: "clamp(34px, 5vw, 48px)", lineHeight: 1}}>{model.title}</h2>
                     <Text fontSize="18px" color="white">{shortDescription}</Text>
                     <Flex gap="12px" flexWrap="wrap">
-                        <Link to={AppRoutes.inference.playground()}><Button type="button" color="successMain">Try now</Button></Link>
-                        <ExternalLink href={documentationUrl}><Button type="button">Documentation</Button></ExternalLink>
+                        <Link to={AppRoutes.inference.playground(model.name)}><Button type="button" color="successMain">Try now</Button></Link>
+                        <ExternalLink href={documentationUrl}><Button type="button" color={docButtonColor}>Documentation</Button></ExternalLink>
                     </Flex>
                 </Box>
                 <ModelInferenceLogo modelName={model.name} size={160} />
@@ -117,7 +134,7 @@ function ModelPageContent({model, models, benchmarks, providerId, server}: {mode
             <Section>
                 <Datasheet model={model} />
                 <Flex gap="12px" flexWrap="wrap" flexDirection={"column"}>
-                    <Link to={AppRoutes.inference.playground()}>
+                    <Link to={AppRoutes.inference.playground(model.name)}>
                         <Button type="button" color="successMain" width={"100%"}>Try now</Button>
                     </Link>
                     <ExternalLink href={documentationUrl}>
@@ -126,7 +143,7 @@ function ModelPageContent({model, models, benchmarks, providerId, server}: {mode
                 </Flex>
             </Section>
         </Box>} />
-    </>;
+    </div>;
 }
 
 function Section({title, children}: React.PropsWithChildren<{title?: string}>): React.ReactNode {

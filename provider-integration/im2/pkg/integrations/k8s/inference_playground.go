@@ -200,15 +200,8 @@ func (app *InferencePlaygroundApp) Session() **ucx.Session { return &app.session
 func (app *InferencePlaygroundApp) OnInit() {
 	app.refreshModels()
 	app.loadThreads()
-	if modelId := app.mostRecentThreadModel(); modelId != "" {
-		app.Chat.ModelId = modelId
-	} else {
-		app.Chat.ModelId = app.firstModelFor(InferenceTextGeneration)
-	}
+	app.Chat.ModelId = app.firstModelFor(InferenceTextGeneration)
 	app.applyChatModelDefaults()
-	if !app.Developer {
-		app.createThread()
-	}
 	app.startThreadFlusher()
 
 	app.Transcription.ModelId = app.firstModelFor(InferenceSpeechToText)
@@ -251,6 +244,21 @@ func (app *InferencePlaygroundApp) OnMessage(message ucx.Frame) {
 		return
 	}
 	if message.Opcode == ucx.OpModelInput {
+		if message.ModelInput.Path == "currentThreadId" {
+			if !app.Developer {
+				threadId := strings.TrimSpace(app.CurrentThreadId)
+				if threadId != "" {
+					app.openThread(threadId)
+				}
+				if app.CurrentThreadId == "" || strings.TrimSpace(app.CurrentThreadId) == threadId {
+					if _, ok := app.currentThread(); !ok {
+						app.createThread()
+					}
+				}
+			}
+			app.Chat.Curl = app.buildChatCurl()
+			return
+		}
 		if message.ModelInput.Path == "developer" {
 			if !app.Developer {
 				app.ensureCurrentThread()
@@ -307,6 +315,8 @@ func (app *InferencePlaygroundApp) UserInterface() ucx.UiNode {
 		).
 		Children(
 			ucx.Router("route"),
+			ucx.QueryParamEx("", "currentThreadId", "threadId", false, true, true, true, []string{"model"}),
+			ucx.QueryParamReadOnlyWhenPresent("chat.modelId", "model"),
 
 			ucx.
 				TabsWithRoute(true).
@@ -381,6 +391,15 @@ func (app *InferencePlaygroundApp) ensureCurrentThread() {
 }
 
 func (app *InferencePlaygroundApp) createThread() {
+	app.CurrentThreadId = ""
+	app.Chat.Messages = nil
+}
+
+func (app *InferencePlaygroundApp) materializeCurrentThread() {
+	if app.Developer || app.CurrentThreadId != "" || len(app.Chat.Messages) == 0 {
+		return
+	}
+
 	now := time.Now().UnixMilli()
 	thread := playgroundChatThread{
 		Id:        "thread-" + util.SecureToken(),
@@ -391,7 +410,6 @@ func (app *InferencePlaygroundApp) createThread() {
 	}
 	app.Threads = append([]playgroundChatThread{thread}, app.Threads...)
 	app.CurrentThreadId = thread.Id
-	app.Chat.Messages = nil
 }
 
 func (app *InferencePlaygroundApp) mostRecentThreadModel() string {
@@ -443,7 +461,11 @@ func (app *InferencePlaygroundApp) markCurrentThreadDirty() {
 	}
 	thread, ok := app.currentThread()
 	if !ok {
-		return
+		app.materializeCurrentThread()
+		thread, ok = app.currentThread()
+		if !ok {
+			return
+		}
 	}
 	thread.Messages = slices.Clone(app.Chat.Messages)
 	thread.UpdatedAt = time.Now().UnixMilli()
@@ -1076,7 +1098,6 @@ func (app *InferencePlaygroundApp) runChat() {
 			}
 		}
 	} else {
-		threadId := app.CurrentThreadId
 		owner := app.walletOwner()
 		now := time.Now().UnixMilli()
 		app.Chat.Messages = append(app.Chat.Messages, playgroundChatMessage{Role: "user", Content: prompt, GeneratedAt: now})
@@ -1085,6 +1106,7 @@ func (app *InferencePlaygroundApp) runChat() {
 		app.Chat.Prompt = ""
 		app.Chat.Usage.LastQuery = InferencePlaygroundTokenUsage{}
 		app.markCurrentThreadDirty()
+		threadId := app.CurrentThreadId
 		ucx.AppUpdateModel(app)
 
 		go app.runChatResponse(owner, threadId, assistantIndex, request)

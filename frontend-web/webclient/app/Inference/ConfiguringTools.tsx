@@ -10,6 +10,7 @@ import {UcxAccordion} from "@/UCX/UcxAccordion";
 import {copyToClipboard} from "@/UtilityFunctions";
 import {InferenceModel} from "./api";
 import {CopyButton} from "@/ui-components/CopyButton";
+import CodeSnippet from "@/ui-components/CodeSnippet";
 
 export default function ConfiguringTools({
     title,
@@ -89,7 +90,7 @@ export default function ConfiguringTools({
 
         <Box mt={20} style={{display: "grid", gap: 12}}>
             <ToolGuide id="generic" title="Generic OpenAI-compatible client" openTool={openTool} setOpenTool={setOpenTool}>
-                <CodeBlock language="bash" value={`curl "${resolvedServer}/chat/completions" \\
+                <CodeSnippet lang="bash" children={`curl "${resolvedServer}/chat/completions" \\
   -H "Authorization: Bearer ${apiToken}" \\
   -H "Content-Type: application/json" \\
   -d '{
@@ -111,7 +112,7 @@ export default function ConfiguringTools({
                     <li>Use the "Chat completions" API.</li>
                 </ul>
                 <Text>Use this model configuration:</Text>
-                <CodeBlock language="json" value={JSON.stringify({
+                <CodeSnippet lang="json" children={JSON.stringify({
                     name: "UCloud",
                     vendor: "customendpoint",
                     apiKey: apiToken,
@@ -141,7 +142,7 @@ export default function ConfiguringTools({
                     <li>Restart OpenCode.</li>
                     <li>Select the desired UCloud model from the model list.</li>
                 </ul>
-                <CodeBlock language="json" value={JSON.stringify({
+                <CodeSnippet lang="json" children={JSON.stringify({
                     $schema: "https://opencode.ai/config.json",
                     provider: {
                         "custom-openai": {
@@ -162,12 +163,12 @@ export default function ConfiguringTools({
                 <ul>
                     <li>Export your API key before starting Codex:</li>
                 </ul>
-                <CodeBlock language="bash" value={`export API_TOK="${tokenStatus?.token ?? "your-api-key"}"`} />
+                <CodeSnippet lang="bash" children={`export API_TOK="${tokenStatus?.token ?? "your-api-key"}"`} />
                 <ul>
                     <li>Create or edit <code>~/.codex/config.toml</code>.</li>
                     <li>Add a custom provider:</li>
                 </ul>
-                <CodeBlock language="toml" value={`model = "${firstModelId}"
+                <CodeSnippet lang="toml" children={`model = "${firstModelId}"
 model_provider = "ucloud"
 
 [model_providers.ucloud]
@@ -207,24 +208,4 @@ function CopyableValue(props: {label: string; value: string}): React.ReactNode {
 
 function CopyableInline(props: {value: string}): React.ReactNode {
     return <code style={{cursor: "pointer"}} onClick={() => copyToClipboard(props.value)} title="Click to copy">{props.value}</code>;
-}
-
-function CodeBlock(props: {value: string; language: string}): React.ReactNode {
-    return <div style={{position: "relative"}}>
-        <div style={{position: "absolute", top: 8, right: 8, zIndex: 1}}>
-            <Button type="button" m={0} onClick={() => copyToClipboard(props.value)}>Copy</Button>
-        </div>
-        <SyntaxHighlighter
-            language={props.language}
-            customStyle={{
-                margin: 0,
-                padding: "12px 64px 12px 12px",
-                borderRadius: 8,
-                border: "var(--defaultCardBorder)",
-                fontSize: 13,
-            }}
-        >
-            {props.value}
-        </SyntaxHighlighter>
-    </div>;
 }

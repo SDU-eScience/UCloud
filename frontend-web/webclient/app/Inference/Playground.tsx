@@ -1111,7 +1111,7 @@ function ThreadListNode({
                             node,
                             model,
                             fn,
-                        }: Pick<UcxRenderContext, "node" | "model" | "fn">): React.ReactNode {
+}: Pick<UcxRenderContext, "node" | "model" | "fn">): React.ReactNode {
     const [operations, setOperations] = React.useState<
         Operation<ThreadListItem>[]
     >([]);
