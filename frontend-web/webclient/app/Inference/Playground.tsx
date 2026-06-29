@@ -15,8 +15,9 @@ import UcxView, {UcxComponentRegistry, UcxRenderContext} from "@/UCX/UcxView";
 import {Value, ValueKind} from "@/UCX/protocol";
 import {usePrettyFilePath} from "@/Files/FilePath";
 import {UFile} from "@/UCloud/UFile";
-import {doNothing, removeTrailingSlash} from "@/UtilityFunctions";
+import {copyToClipboard, doNothing, removeTrailingSlash} from "@/UtilityFunctions";
 import {addStandardInputDialog} from "@/UtilityComponents";
+import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
 import {Operation, Operations, ShortcutKey} from "@/ui-components/Operation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -40,6 +41,8 @@ import LogoMoonshot from "@/Assets/Images/inference/moonshot.png";
 import LogoOpenAI from "@/Assets/Images/inference/oai.png";
 import LogoQwen from "@/Assets/Images/inference/qwen.png";
 import LogoZai from "@/Assets/Images/inference/zai.png";
+import {IconName} from "@/ui-components/Icon";
+import {format, isToday} from "date-fns";
 
 type PlaygroundSession = {
     connectTo: string;
@@ -701,6 +704,17 @@ function ChatMessageNode(
     const role = stringValue(fn.modelValue(model, "./role", scope));
     const content = stringValue(fn.modelValue(model, "./content", scope));
     const parts = chatMessagePartsValue(fn.modelValue(model, "./parts", scope));
+    const generatedAt = numberValue(fn.modelValue(model, "./generatedAt", scope));
+    const modelName = stringValue(fn.modelValue(model, "./modelName", scope));
+    const startedAt = numberValue(fn.modelValue(model, "./startedAt", scope));
+    const firstTokenAt = numberValue(fn.modelValue(model, "./firstTokenAt", scope));
+    const finishedAt = numberValue(fn.modelValue(model, "./finishedAt", scope));
+    const outputTokens = numberValue(fn.modelValue(model, "./outputTokens", scope));
+    const messageIndex = numberValue(fn.modelValue(model, "./messageIndex", scope));
+    const responseFinished = finishedAt > 0;
+    const modelOptions = textGenerationModelOptions(fn.modelValue(model, "models"));
+    const selectedModelOption = modelOptions.find(option => option.key === modelName) ?? modelOptions.find(option => option.key === stringValue(fn.modelValue(model, "chat.modelId")));
+    const regenerateModelLabel = selectedModelOption?.value ?? modelName;
     const messageParts = parts.length === 0
         ? [
             {
@@ -715,21 +729,14 @@ function ChatMessageNode(
 
     if (role === "user") {
         return (
-            <Flex width="100%" justifyContent="flex-end" my={16}>
-                <div
-                    style={{
-                        maxWidth: "78%",
-                        borderRadius: 16,
-                        padding: "10px 14px",
-                        background: "var(--playground-user-bg, var(--secondaryMain))",
-                        color: "var(--playground-user-text, var(--textPrimary))",
-                        overflowWrap: "anywhere",
-                    }}
-                >
-                    {messageParts.map((part, idx) => {
-                        return <span>{part.text}</span>
-                    })}
+            <Flex width="100%" justifyContent="flex-end" my={16} flexDirection="column" alignItems="flex-end" gap="6px">
+                <div style={{maxWidth: "78%", borderRadius: 16, padding: "10px 14px", background: "var(--playground-user-bg, var(--secondaryMain))", color: "var(--playground-user-text, var(--textPrimary))", overflowWrap: "anywhere"}}>
+                    {messageParts.map((part, idx) => <span key={idx}>{part.text}</span>)}
                 </div>
+                <Flex className={ComposerActionButtonHoverClass} alignItems="center" gap="8px" color="textSecondary" fontSize="12px">
+                    <span>{formatTimeOfDay(generatedAt)}</span>
+                    <MessageIconButton label="Copy message" icon="heroDocumentDuplicate" onClick={() => copyMessage(content)}/>
+                </Flex>
             </Flex>
         );
     }
@@ -742,8 +749,97 @@ function ChatMessageNode(
                 }
                 return <MarkdownPart key={idx} text={part.text}/>;
             })}
+            {!responseFinished ? null : <Flex className={ComposerActionButtonHoverClass} alignItems="center" gap="8px" color="textSecondary" fontSize="12px" flexWrap="wrap">
+                <MessageIconButton label="Copy response" icon="heroDocumentDuplicate" onClick={() => copyMessage(content)}/>
+                <RichSelect<PlaygroundOption, keyof PlaygroundOption>
+                    items={modelOptions}
+                    keys={["key", "value"]}
+                    selected={selectedModelOption}
+                    onSelect={(option) => fn.sendUiEvent("regenerateChat", "click", {
+                        kind: ValueKind.Object,
+                        object: {
+                            modelId: {kind: ValueKind.String, string: option.key},
+                            messageIndex: {kind: ValueKind.S64, s64: messageIndex},
+                        },
+                    })}
+                    dropdownWidth="340px"
+                    dropdownVerticalGap={8}
+                    elementHeight={42}
+                    matchTriggerWidth={false}
+                    showSearchField={modelOptions.length > 8}
+                    trigger={<MessageIconButton label={`Regenerate (used: ${regenerateModelLabel})`} icon="heroArrowPath"/>}
+                    RenderRow={(props) => (
+                        <ModelSelectorOption
+                            option={props.element}
+                            selected={props.element?.key === selectedModelOption?.key}
+                            onSelect={props.onSelect}
+                            dataProps={props.dataProps}
+                        />
+                    )}
+                />
+                <Tooltip tooltipContentWidth={240} trigger={<span>{formatResponseDuration(startedAt, finishedAt)}</span>}>
+                    <div style={{display: "flex", flexDirection: "column", gap: 4}}>
+                        <span>Time to first token: {formatDuration(firstTokenAt > 0 && startedAt > 0 ? firstTokenAt - startedAt : 0)}</span>
+                        <span>Output tokens: {outputTokens || "Unknown"}</span>
+                        <span>Tokens per second: {formatTokensPerSecond(outputTokens, firstTokenAt, finishedAt)}</span>
+                        <span>Finished: {formatTimeOfDay(finishedAt)}</span>
+                    </div>
+                </Tooltip>
+            </Flex>}
         </Flex>
     );
+}
+
+function MessageIconButton({label, icon, onClick}: {label: string; icon: IconName; onClick?: () => void}): React.ReactNode {
+    const button = (
+        <button
+            type="button"
+            aria-label={label}
+            onClick={onClick}
+            className={ComposerActionButtonClass}
+        >
+            <Icon name={icon} size={18}/>
+        </button>
+    );
+
+    const tooltipWidth = label.length * 10.5;
+
+    return (
+        <Tooltip tooltipContentWidth={tooltipWidth} trigger={<span style={{display: "inline-flex"}}>{button}</span>}>
+            {label}
+        </Tooltip>
+    );
+}
+
+async function copyMessage(content: string): Promise<void> {
+    try {
+        await copyToClipboard(content);
+        sendSuccessNotification("Message copied to clipboard");
+    } catch {
+        sendFailureNotification("Failed to copy message");
+    }
+}
+
+function formatTimeOfDay(ms: number): string {
+    if (ms <= 0) return "Unknown time";
+    const date = new Date(ms);
+    return isToday(date) ? format(date, "HH:mm") : format(date, "yyyy-MM-dd HH:mm");
+}
+
+function formatResponseDuration(startedAt: number, finishedAt: number): string {
+    if (startedAt <= 0 || finishedAt <= 0) return "Response time unknown";
+    return formatDuration(finishedAt - startedAt);
+}
+
+function formatDuration(ms: number): string {
+    if (ms <= 0) return "Unknown";
+    if (ms < 1000) return `${Math.round(ms)} ms`;
+    return `${(ms / 1000).toFixed(ms < 10000 ? 1 : 0)} s`;
+}
+
+function formatTokensPerSecond(outputTokens: number, firstTokenAt: number, finishedAt: number): string {
+    if (outputTokens <= 0 || firstTokenAt <= 0 || finishedAt <= firstTokenAt) return "Unknown";
+    return `${(outputTokens / ((finishedAt - firstTokenAt) / 1000)).toFixed(1)}/s`;
 }
 
 function MarkdownPart({text}: { text: string }): React.ReactNode {
@@ -1298,6 +1394,13 @@ function stringValue(value: any): string {
 function boolValue(value: any): boolean {
     if (!value || value.kind !== ValueKind.Bool) return false;
     return value.bool;
+}
+
+function numberValue(value: any): number {
+    if (!value) return 0;
+    if (value.kind === ValueKind.F64) return value.f64 ?? 0;
+    if (value.kind === ValueKind.S64) return value.s64 ?? 0;
+    return 0;
 }
 
 function chatMessagePartsValue(value: any): ChatMessagePart[] {

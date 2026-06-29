@@ -222,3 +222,46 @@ func inferenceV9() db.MigrationScript {
 		},
 	}
 }
+
+func inferenceV10() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "inferenceV10",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					alter table inference_playground_message add column model_name text not null default ''
+				`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`
+					alter table inference_playground_message add column started_at timestamptz
+				`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`
+					alter table inference_playground_message add column first_token_at timestamptz
+				`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`
+					alter table inference_playground_message add column finished_at timestamptz
+				`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`
+					alter table inference_playground_message add column output_tokens bigint not null default 0
+				`,
+				db.Params{},
+			)
+		},
+	}
+}
