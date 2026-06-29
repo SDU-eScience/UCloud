@@ -747,7 +747,7 @@ function ChatMessageNode(
                 if (part.kind === "thinking") {
                     return <ThinkingPart key={idx} part={part}/>;
                 }
-                return <MarkdownPart key={idx} text={part.text}/>;
+                return <StreamingMarkdownPart key={idx} text={part.text} streaming={!responseFinished}/>;
             })}
             {!responseFinished ? null : <Flex className={ComposerActionButtonHoverClass} alignItems="center" gap="8px" color="textSecondary" fontSize="12px" flexWrap="wrap">
                 <MessageIconButton label="Copy response" icon="heroDocumentDuplicate" onClick={() => copyMessage(content)}/>
@@ -840,6 +840,176 @@ function formatDuration(ms: number): string {
 function formatTokensPerSecond(outputTokens: number, firstTokenAt: number, finishedAt: number): string {
     if (outputTokens <= 0 || firstTokenAt <= 0 || finishedAt <= firstTokenAt) return "Unknown";
     return `${(outputTokens / ((finishedAt - firstTokenAt) / 1000)).toFixed(1)}/s`;
+}
+
+function StreamingMarkdownPart({text, streaming}: {text: string; streaming: boolean}): React.ReactNode {
+    if (!streaming) return <MarkdownPart text={text}/>;
+
+    const stableText = stableStreamingMarkdownPrefix(text);
+    return <MarkdownPart text={stableText}/>;
+}
+
+type StreamingMarkdownStackItem = {
+    kind: "fence" | "inlineCode" | "emphasis" | "linkText" | "linkUrl" | "heading";
+    marker?: string;
+};
+
+function stableStreamingMarkdownPrefix(text: string): string {
+    const stack: StreamingMarkdownStackItem[] = [];
+    let stableIndex = 0;
+    let lineStart = 0;
+
+    const top = () => stack[stack.length - 1];
+    const updateStable = (idx: number) => {
+        if (stack.length === 0) stableIndex = idx;
+    };
+
+    for (let i = 0; i < text.length; i++) {
+        const current = top();
+
+        if (current?.kind === "fence") {
+            if (i === lineStart && isFenceAt(text, i)) {
+                i = consumeLine(text, i);
+                stack.pop();
+                updateStable(i);
+                lineStart = i;
+                i--;
+                continue;
+            }
+            if (text[i] === "\n") lineStart = i + 1;
+            continue;
+        }
+
+        if (current?.kind === "heading") {
+            if (text[i] === "\n") {
+                stack.pop();
+                lineStart = i + 1;
+                updateStable(i + 1);
+            }
+            continue;
+        }
+
+        if (current?.kind === "inlineCode") {
+            if (text.startsWith(current.marker ?? "`", i)) {
+                i += (current.marker?.length ?? 1) - 1;
+                stack.pop();
+                updateStable(i + 1);
+            }
+            if (text[i] === "\n") lineStart = i + 1;
+            continue;
+        }
+
+        if (current?.kind === "emphasis") {
+            if (current.marker && text.startsWith(current.marker, i) && !isEscaped(text, i)) {
+                i += current.marker.length - 1;
+                stack.pop();
+                updateStable(i + 1);
+            }
+            if (text[i] === "\n") lineStart = i + 1;
+            continue;
+        }
+
+        if (current?.kind === "linkText") {
+            if (text[i] === "]" && !isEscaped(text, i)) {
+                stack.pop();
+                if (text[i + 1] === "(") {
+                    stack.push({kind: "linkUrl"});
+                    i++;
+                } else {
+                    updateStable(i + 1);
+                }
+            }
+            if (text[i] === "\n") lineStart = i + 1;
+            continue;
+        }
+
+        if (current?.kind === "linkUrl") {
+            if (text[i] === ")" && !isEscaped(text, i)) {
+                stack.pop();
+                updateStable(i + 1);
+            }
+            if (text[i] === "\n") lineStart = i + 1;
+            continue;
+        }
+
+        if (i === lineStart && isFenceAt(text, i)) {
+            stack.push({kind: "fence"});
+            i = consumeLine(text, i);
+            lineStart = i;
+            i--;
+            continue;
+        }
+
+        if (i === lineStart && isAtxHeadingAt(text, i)) {
+            stack.push({kind: "heading"});
+            continue;
+        }
+
+        if (text[i] === "`" && !isEscaped(text, i)) {
+            const marker = text.startsWith("``", i) ? "``" : "`";
+            stack.push({kind: "inlineCode", marker});
+            i += marker.length - 1;
+            continue;
+        }
+
+        const emphasisMarker = markdownEmphasisMarkerAt(text, i);
+        if (emphasisMarker) {
+            stack.push({kind: "emphasis", marker: emphasisMarker});
+            i += emphasisMarker.length - 1;
+            continue;
+        }
+
+        if (text[i] === "[" && !isEscaped(text, i)) {
+            if (text[i - 1] === "!") stableIndex = Math.max(0, i - 1);
+            stack.push({kind: "linkText"});
+            continue;
+        }
+
+        if (text[i] === "\n") lineStart = i + 1;
+        updateStable(i + 1);
+    }
+
+    return text.slice(0, stableIndex).trimEnd();
+}
+
+function isFenceAt(text: string, idx: number): boolean {
+    return /^\s*(```|~~~)/.test(text.slice(idx, Math.min(text.length, idx + 16)));
+}
+
+function isAtxHeadingAt(text: string, idx: number): boolean {
+    return /^ {0,3}#{1,6}(\s|$)/.test(text.slice(idx, Math.min(text.length, idx + 10)));
+}
+
+function consumeLine(text: string, idx: number): number {
+    const newline = text.indexOf("\n", idx);
+    return newline === -1 ? text.length : newline + 1;
+}
+
+function markdownEmphasisMarkerAt(text: string, idx: number): string {
+    if (isEscaped(text, idx)) return "";
+    const ch = text[idx];
+    if (ch !== "*" && ch !== "_") return "";
+    if (isListMarkerAt(text, idx)) return "";
+    const previous = text[idx - 1] ?? "";
+    const next = text[idx + 1];
+    if (next === undefined || /\s/.test(next)) return "";
+    if (ch === "_" && /[\p{L}\p{N}]/u.test(previous)) return "";
+    if (ch === "*" && /\s/.test(previous) && /\s/.test(text[idx + 2] ?? "")) return "";
+    if (next === ch && text[idx + 2] === ch) return ch.repeat(3);
+    if (next === ch) return ch.repeat(2);
+    return ch;
+}
+
+function isListMarkerAt(text: string, idx: number): boolean {
+    const before = text.slice(Math.max(0, idx - 4), idx);
+    const atLineStart = idx === 0 || before.endsWith("\n") || /^\n? {0,3}$/.test(before);
+    return atLineStart && (text[idx] === "*" || text[idx] === "_") && /\s/.test(text[idx + 1] ?? "");
+}
+
+function isEscaped(text: string, idx: number): boolean {
+    let slashCount = 0;
+    for (let i = idx - 1; i >= 0 && text[i] === "\\"; i--) slashCount++;
+    return slashCount % 2 === 1;
 }
 
 function MarkdownPart({text}: { text: string }): React.ReactNode {
