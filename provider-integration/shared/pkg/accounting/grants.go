@@ -314,7 +314,7 @@ func ParseToAnswerForms(text string) []AnswerForm {
 			},
 		})
 	}
-	return []AnswerForm{{AnswerFields: util.NonNilSlice(result), TemplateRevisionNumber: -42, AllocatorId: "System"}}
+	return []AnswerForm{{AnswerFields: util.NonNilSlice(result), TemplateRevisionNumber: -1, AllocatorId: "System"}}
 }
 
 // ParseFormFields Temp parsing for the new format, at some point we can remove this function
