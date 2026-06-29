@@ -31,11 +31,11 @@ import * as Heading from "@/ui-components/Heading";
 import Tooltip from "@/ui-components/Tooltip";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {RichSelect} from "@/ui-components/RichSelect";
-import {IconName} from "@/ui-components/Icon";
 import {format, isToday} from "date-fns";
 import ModelInferenceLogo from "./ModelLogo";
 import { MarkdownTable } from "@/ui-components/Markdown";
 import {CopyButton} from "@/ui-components/CopyButton";
+import {IconButton} from "@/ui-components/IconButton";
 
 type PlaygroundSession = {
     connectTo: string;
@@ -706,7 +706,7 @@ function ChatMessageNode(
                     elementHeight={42}
                     matchTriggerWidth={false}
                     showSearchField={modelOptions.length > 8}
-                    trigger={<MessageIconButton label={`Regenerate (used: ${regenerateModelLabel})`} icon="heroArrowPath"/>}
+                    trigger={<IconButton tooltip={`Regenerate (used: ${regenerateModelLabel})`} icon="heroArrowPath" onClick={doNothing}/>}
                     RenderRow={(props) => (
                         <ModelSelectorOption
                             option={props.element}
@@ -726,27 +726,6 @@ function ChatMessageNode(
                 </Tooltip>
             </Flex>}
         </Flex>
-    );
-}
-
-function MessageIconButton({label, icon, onClick}: {label: string; icon: IconName; onClick?: () => void}): React.ReactNode {
-    const button = (
-        <button
-            type="button"
-            aria-label={label}
-            onClick={onClick}
-            className={ComposerActionButtonClass}
-        >
-            <Icon name={icon} size={18}/>
-        </button>
-    );
-
-    const tooltipWidth = label.length * 10.5;
-
-    return (
-        <Tooltip tooltipContentWidth={tooltipWidth} trigger={<span style={{display: "inline-flex"}}>{button}</span>}>
-            {label}
-        </Tooltip>
     );
 }
 
@@ -949,13 +928,18 @@ function MarkdownPart({text}: { text: string }): React.ReactNode {
             components={{
                 a: (p) => <ExternalLink href={p.href}>{p.children}</ExternalLink>,
                 pre: (p) => <Box my={16}><CodeSnippet children={p.children} maxHeight=""/></Box>,
+                code: p => <code className={CodeClass}>{p.children}</code>,
                 table: p => <MarkdownTable>{p.children}</MarkdownTable>,
-                h1: p => <Heading.h1>{p.children}</Heading.h1>,
-                h2: p => <Heading.h2>{p.children}</Heading.h2>,
-                h3: p => <Heading.h3>{p.children}</Heading.h3>,
-                h4: p => <Heading.h4>{p.children}</Heading.h4>,
-                h5: p => <Heading.h5>{p.children}</Heading.h5>,
-                h6: p => <Heading.h6>{p.children}</Heading.h6>,
+                h1: p => <h1 className={HeadingClass} style={{fontSize: "23px"}}>{p.children}</h1>,
+                h2: p => <h2 className={HeadingClass} style={{fontSize: "21px"}}>{p.children}</h2>,
+                h3: p => <h3 className={HeadingClass} style={{fontSize: "19px"}}>{p.children}</h3>,
+                h4: p => <h4 className={HeadingClass} style={{fontSize: "17px"}}>{p.children}</h4>,
+                h5: p => <h5 className={HeadingClass} style={{fontSize: "15px"}}>{p.children}</h5>,
+                h6: p => <h6 className={HeadingClass} style={{fontSize: "13px"}}>{p.children}</h6>,
+                hr: p => <hr className={HrClass}/>,
+                p: p => <p className={PClass}>{p.children}</p>,
+                ul: p => <ul className={UlClass}>{p.children}</ul>,
+                blockquote: p => <blockquote className={BlockquoteClass}>{p.children}</blockquote>,
             }}
             allowedElements={[
                 "h1",
@@ -982,6 +966,8 @@ function MarkdownPart({text}: { text: string }): React.ReactNode {
                 "thead",
                 "td",
                 "tr",
+                "hr",
+                "blockquote",
             ]}
             children={text}
             remarkPlugins={[remarkGfm]}
@@ -989,6 +975,70 @@ function MarkdownPart({text}: { text: string }): React.ReactNode {
     );
 }
 
+const PClass = injectStyle("p", k => `
+    ${k} {
+        margin-top: 0;
+        margin-bottom: 16px;
+    }
+    
+    ${k}:last-child {
+        margin-bottom: 0;
+    }
+`);
+
+const CodeClass = injectStyle("code", k => `
+    ${k} {
+        white-space: break-spaces;
+        background: var(--playground-active);
+        border-radius: 6px;
+        padding: .2em .4em;
+        font-size: 85%;
+    }
+`);
+
+const HrClass = injectStyle("hr", k => `
+    ${k} {
+        display: block;
+        margin: 24px 0;
+        border: none;
+        height: .25em;
+        background: var(--playground-border);
+        width: 100%;
+    }
+`);
+
+const BlockquoteClass = injectStyle("blockquote", k => `
+    ${k} {
+        color: var(--textSecondary);
+        border-left: .25em solid var(--playground-border);
+        padding: 0 1em;
+        margin: 0;
+    }
+`);
+
+const HeadingClass = injectStyle("heading", k => `
+    p + ${k},
+    ${k}:first-child {
+        margin-top: 0 !important;
+    }
+    
+    h1${k}, h2${k} {
+        border-bottom: 1px solid var(--playground-border);
+    }
+    
+    ${k} {
+        padding-bottom: 5px;
+        margin: 24px 0 16px 0;
+    }
+`);
+
+const UlClass = injectStyle("ul", k => `
+    ${k} {
+        padding-left: 2em;
+        margin-top: 0;
+        margin-bottom: 16px;
+    }
+`);
 
 function ThinkingPart({part}: { part: ChatMessagePart }): React.ReactNode {
     const [expanded, setExpanded] = React.useState(false);
@@ -1005,6 +1055,7 @@ function ThinkingPart({part}: { part: ChatMessagePart }): React.ReactNode {
                 borderRadius: 8,
                 overflow: "hidden",
                 background: "var(--playground-surface-raised, var(--dialogToolbar))",
+                marginBottom: "16px"
             }}
         >
             <button

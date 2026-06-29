@@ -54,6 +54,7 @@ const CodeSnippet: React.FunctionComponent<{
                 maxHeight: maxHeight || undefined,
                 overflow: "auto",
                 fontFamily: "var(--monospace)",
+                fontSize: "10pt",
             }}
         >
             {code}

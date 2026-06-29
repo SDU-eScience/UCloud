@@ -228,12 +228,6 @@ function Markdown({text}: { text: string }): React.ReactNode {
                 a: (p) => <ExternalLink href={p.href}>{p.children}</ExternalLink>,
                 pre: (p) => <Box my={16}><CodeSnippet children={p.children} maxHeight=""/></Box>,
                 table: p => <MarkdownTable>{p.children}</MarkdownTable>,
-                h1: p => <Heading.h1>{p.children}</Heading.h1>,
-                h2: p => <Heading.h2>{p.children}</Heading.h2>,
-                h3: p => <Heading.h3>{p.children}</Heading.h3>,
-                h4: p => <Heading.h4>{p.children}</Heading.h4>,
-                h5: p => <Heading.h5>{p.children}</Heading.h5>,
-                h6: p => <Heading.h6>{p.children}</Heading.h6>,
             }}
             allowedElements={[
                 "h1",
