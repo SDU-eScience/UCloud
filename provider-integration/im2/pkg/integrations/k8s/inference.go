@@ -45,8 +45,9 @@ const (
 )
 
 type inferenceDiscoveredModel struct {
-	Id     string `json:"id"`
-	Object string `json:"object"`
+	Id            string `json:"id"`
+	Object        string `json:"object"`
+	ContextWindow *int   `json:"context_window,omitempty"`
 }
 
 type inferenceDiscoveredModelsResponse struct {
@@ -139,13 +140,16 @@ func initInference() {
 		}
 
 		result := orcapi.InferenceListModelsResponse{
-			Models:  make([]orcapi.InferenceModel, 0, len(models)),
-			IsAdmin: isAdmin,
+			Models:     make([]orcapi.InferenceModel, 0, len(models)),
+			Benchmarks: inferenceBenchmarksToOrc(InferenceBenchmarkList()),
+			IsAdmin:    isAdmin,
+			Server:     inferenceServerBase(),
 		}
 		for _, model := range models {
 			result.Models = append(result.Models, orcapi.InferenceModel{
-				Name:  model.Name,
-				Title: model.Title,
+				Name:           model.Name,
+				Title:          model.Title,
+				TitleModelName: model.TitleModelName,
 				Capabilities: func() []orcapi.InferenceCapability {
 					capabilities := make([]orcapi.InferenceCapability, 0, len(model.Capabilities))
 					for _, capability := range model.Capabilities {
@@ -166,6 +170,14 @@ func initInference() {
 					Public:      model.Availability.Public,
 					AvailableTo: append([]string{}, model.Availability.AvailableTo...),
 				},
+				ContextWindow: model.ContextWindow,
+				ChatSettings: orcapi.InferenceChatSettings{
+					Temperature:         model.ChatSettings.Temperature,
+					TopP:                model.ChatSettings.TopP,
+					MaxCompletionTokens: model.ChatSettings.MaxCompletionTokens,
+					SystemPrompt:        model.ChatSettings.SystemPrompt,
+				},
+				Page: inferencePageToOrc(model.Page),
 			})
 		}
 		return result, nil
@@ -178,8 +190,9 @@ func initInference() {
 		}
 
 		model := InferenceModel{
-			Name:  request.Model.Name,
-			Title: request.Model.Title,
+			Name:           request.Model.Name,
+			Title:          request.Model.Title,
+			TitleModelName: request.Model.TitleModelName,
 			Capabilities: func() []InferenceCapability {
 				capabilities := make([]InferenceCapability, 0, len(request.Model.Capabilities))
 				for _, capability := range request.Model.Capabilities {
@@ -200,15 +213,37 @@ func initInference() {
 				Public:      request.Model.Availability.Public,
 				AvailableTo: append([]string{}, request.Model.Availability.AvailableTo...),
 			},
+			ContextWindow: request.Model.ContextWindow,
+			ChatSettings: InferenceChatSettings{
+				Temperature:         request.Model.ChatSettings.Temperature,
+				TopP:                request.Model.ChatSettings.TopP,
+				MaxCompletionTokens: request.Model.ChatSettings.MaxCompletionTokens,
+				SystemPrompt:        request.Model.ChatSettings.SystemPrompt,
+			},
+			Page: inferencePageFromOrc(request.Model.Page),
 		}
 
 		oldName := strings.TrimSpace(request.OldName)
 		if oldName != "" && oldName != strings.TrimSpace(model.Name) {
+			if strings.TrimSpace(model.TitleModelName) == "" || strings.TrimSpace(model.TitleModelName) == oldName {
+				model.TitleModelName = model.Name
+			}
 			if err := InferenceModelRename(oldName, model.Name); err != nil {
 				return util.Empty{}, err
 			}
 		}
 		if err := InferenceModelUpsert(model); err != nil {
+			return util.Empty{}, err
+		}
+		return util.Empty{}, nil
+	})
+
+	orcapi.InferenceUpdateBenchmarksProvider.Handler(func(info rpc.RequestInfo, request orcapi.InferenceUpdateBenchmarksProviderRequest) (util.Empty, *util.HttpError) {
+		_ = info
+		if !inferenceIsAdminOwner(request.Owner) {
+			return util.Empty{}, util.HttpErr(http.StatusForbidden, "forbidden")
+		}
+		if err := InferenceBenchmarkReplace(inferenceBenchmarksFromOrc(request.Benchmarks)); err != nil {
 			return util.Empty{}, err
 		}
 		return util.Empty{}, nil
@@ -255,7 +290,7 @@ func initInference() {
 			return
 		}
 
-		inferenceProxyModelsRequest(w, r, authority, owner)
+		inferenceProxyModelsRequest(w, r, owner)
 	})
 
 	controller.Mux.HandleFunc(authority+"/v1/models/", func(w http.ResponseWriter, r *http.Request) {
@@ -265,7 +300,7 @@ func initInference() {
 			return
 		}
 
-		inferenceProxyModelsRequest(w, r, authority, owner)
+		inferenceProxyModelsRequest(w, r, owner)
 	})
 
 	controller.Mux.HandleFunc(authority+"/v1/chat/completions", func(w http.ResponseWriter, r *http.Request) {
@@ -277,15 +312,20 @@ func initInference() {
 
 		body, err := io.ReadAll(r.Body) // TODO limit
 		if err != nil {
+			log.Info("fail 1: %v", err)
 			http.Error(w, "invalid request", http.StatusBadRequest)
 			return
 		}
 
 		var request InferenceChatRequest
 		if err := json.Unmarshal(body, &request); err != nil {
+			log.Info("fail 2: %v", err)
+			log.Info("body was: %s", string(body))
 			http.Error(w, "invalid request", http.StatusBadRequest)
 			return
 		}
+
+		log.Info("body: %s", string(body))
 
 		if request.Stream {
 			flusher, ok := w.(http.Flusher)
@@ -296,6 +336,7 @@ func initInference() {
 
 			chunks, httpErr := InferenceChatStreaming(apiKeyOwner, request)
 			if httpErr != nil {
+				log.Info("fail 3: %v", httpErr)
 				http.Error(w, httpErr.Why, httpErr.StatusCode)
 				return
 			}
@@ -328,6 +369,7 @@ func initInference() {
 		}
 		respData, err := json.Marshal(resp)
 		if err != nil {
+			log.Info("fail 4: %v", err)
 			http.Error(w, "invalid request", http.StatusBadRequest)
 			return
 		}
@@ -482,8 +524,8 @@ func inferenceAuthenticateRequest(r *http.Request) (apm.WalletOwner, *util.HttpE
 	return inferenceApiKeyValidate(apiKey)
 }
 
-func inferenceProxyModelsRequest(w http.ResponseWriter, r *http.Request, authority string, owner apm.WalletOwner) {
-	path := strings.TrimPrefix(r.URL.Path, authority+"/v1")
+func inferenceProxyModelsRequest(w http.ResponseWriter, r *http.Request, owner apm.WalletOwner) {
+	path := strings.TrimPrefix(r.URL.Path, "/v1")
 	if path == "" {
 		path = "/models"
 	}
@@ -574,9 +616,10 @@ func inferenceDiscoverModelsFromEndpoint(base string, availableTo []string) {
 		}
 
 		catalogModel := inferenceModelNormalize(InferenceModel{
-			Name:         name,
-			Title:        name,
-			Capabilities: []InferenceCapability{InferenceTextGeneration},
+			Name:           name,
+			Title:          name,
+			TitleModelName: name,
+			Capabilities:   []InferenceCapability{InferenceTextGeneration},
 			PriceMultiplier: InferencePricing{
 				CachedInput: 1000,
 				Input:       1000,
@@ -590,6 +633,12 @@ func inferenceDiscoverModelsFromEndpoint(base string, availableTo []string) {
 				Public:      false,
 				AvailableTo: availableTo,
 			},
+			ContextWindow: model.ContextWindow,
+			ChatSettings: InferenceChatSettings{
+				Temperature:         0.8,
+				TopP:                0.1,
+				MaxCompletionTokens: 65536,
+			},
 		})
 		if inferenceModelValidate(catalogModel) != nil {
 			continue
@@ -597,20 +646,29 @@ func inferenceDiscoverModelsFromEndpoint(base string, availableTo []string) {
 
 		inserted := false
 		modelGlobals.Mu.Lock()
-		knownBackend := false
-		for _, existing := range modelGlobals.Models {
+		knownBackendName := ""
+		for existingName, existing := range modelGlobals.Models {
 			if existing.Endpoint.BackendModelName == catalogModel.Endpoint.BackendModelName {
-				knownBackend = true
+				knownBackendName = existingName
 				break
 			}
 		}
-		_, knownName := modelGlobals.Models[catalogModel.Name]
-		if !knownBackend && !knownName {
+		existing, knownName := modelGlobals.Models[catalogModel.Name]
+		if !knownName && knownBackendName != "" {
+			existing = modelGlobals.Models[knownBackendName]
+		}
+		if !knownName && knownBackendName == "" {
 			db.NewTx0(func(tx *db.Transaction) {
 				inferenceModelUpsertTx(tx, catalogModel)
 			})
 			modelGlobals.Models[catalogModel.Name] = inferenceModelClone(catalogModel)
 			inserted = true
+		} else if catalogModel.ContextWindow != nil && (existing.ContextWindow == nil || *existing.ContextWindow != *catalogModel.ContextWindow) {
+			existing.ContextWindow = catalogModel.ContextWindow
+			db.NewTx0(func(tx *db.Transaction) {
+				inferenceModelUpsertTx(tx, existing)
+			})
+			modelGlobals.Models[existing.Name] = inferenceModelClone(existing)
 		}
 		modelGlobals.Mu.Unlock()
 
@@ -979,4 +1037,62 @@ func inferenceRetrieveApiTokenOptions(info rpc.RequestInfo, request util.Empty) 
 			},
 		},
 	}, nil
+}
+
+func inferencePageToOrc(page *InferenceModelPage) *orcapi.InferenceModelPage {
+	if page == nil {
+		return nil
+	}
+	data, err := json.Marshal(page)
+	if err != nil {
+		return nil
+	}
+	var result orcapi.InferenceModelPage
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil
+	}
+	return &result
+}
+
+func inferencePageFromOrc(page *orcapi.InferenceModelPage) *InferenceModelPage {
+	if page == nil {
+		return nil
+	}
+	data, err := json.Marshal(page)
+	if err != nil {
+		return nil
+	}
+	var result InferenceModelPage
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil
+	}
+	return &result
+}
+
+func inferenceBenchmarksToOrc(benchmarks []InferenceBenchmark) []orcapi.InferenceBenchmark {
+	result := make([]orcapi.InferenceBenchmark, 0, len(benchmarks))
+	for _, benchmark := range benchmarks {
+		result = append(result, orcapi.InferenceBenchmark{
+			Id:             benchmark.Id,
+			Title:          benchmark.Title,
+			Description:    benchmark.Description,
+			HigherIsBetter: benchmark.HigherIsBetter,
+			ModelNames:     append([]string{}, benchmark.ModelNames...),
+		})
+	}
+	return result
+}
+
+func inferenceBenchmarksFromOrc(benchmarks []orcapi.InferenceBenchmark) []InferenceBenchmark {
+	result := make([]InferenceBenchmark, 0, len(benchmarks))
+	for _, benchmark := range benchmarks {
+		result = append(result, InferenceBenchmark{
+			Id:             benchmark.Id,
+			Title:          benchmark.Title,
+			Description:    benchmark.Description,
+			HigherIsBetter: benchmark.HigherIsBetter,
+			ModelNames:     append([]string{}, benchmark.ModelNames...),
+		})
+	}
+	return result
 }

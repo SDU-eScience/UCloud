@@ -35,10 +35,15 @@ func initInference() {
 			return orcapi.InferenceListModelsResponse{}, err
 		}
 
-		return InvokeProvider(providerId, orcapi.InferenceListModelsProvider,
+		resp, err := InvokeProvider(providerId, orcapi.InferenceListModelsProvider,
 			orcapi.InferenceListModelsProviderRequest{Owner: inferenceActorToOwner(info.Actor)},
 			ProviderCallOpts{Username: util.OptValue(info.Actor.Username)},
 		)
+		if err != nil {
+			return orcapi.InferenceListModelsResponse{}, err
+		}
+		resp.ProviderId = providerId
+		return resp, nil
 	})
 
 	orcapi.InferenceUpdateModel.Handler(func(info rpc.RequestInfo, request orcapi.InferenceUpdateModelRequest) (util.Empty, *util.HttpError) {
@@ -52,6 +57,21 @@ func initInference() {
 				Owner:   inferenceActorToOwner(info.Actor),
 				OldName: request.OldName,
 				Model:   request.Model,
+			},
+			ProviderCallOpts{Username: util.OptValue(info.Actor.Username)},
+		)
+	})
+
+	orcapi.InferenceUpdateBenchmarks.Handler(func(info rpc.RequestInfo, request orcapi.InferenceUpdateBenchmarksRequest) (util.Empty, *util.HttpError) {
+		providerId, err := inferenceSelectProvider(info.Actor, request.ProviderId)
+		if err != nil {
+			return util.Empty{}, err
+		}
+
+		return InvokeProvider(providerId, orcapi.InferenceUpdateBenchmarksProvider,
+			orcapi.InferenceUpdateBenchmarksProviderRequest{
+				Owner:      inferenceActorToOwner(info.Actor),
+				Benchmarks: request.Benchmarks,
 			},
 			ProviderCallOpts{Username: util.OptValue(info.Actor.Username)},
 		)

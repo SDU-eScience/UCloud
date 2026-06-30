@@ -111,6 +111,7 @@ func eventHandleNotification(nType EventNotificationMessageType, notification an
 
 		if update.Project.IsSet() && !update.Project.Get().Specification.CanConsumeResources {
 			// ignore allocator projects
+			log.Info("Allocator project")
 			return
 		}
 
@@ -796,7 +797,13 @@ func WalletIsLocked(owner apm.WalletOwner, category string) ResourceLockInfo {
 			)
 
 			if !ok {
-				return ResourceLockInfo{}
+				return ResourceLockInfo{
+					Username:      util.OptStringIfNotEmpty(owner.Username),
+					ProjectId:     util.OptStringIfNotEmpty(owner.ProjectId),
+					Locked:        true,
+					CombinedQuota: 0,
+					TotalUsage:    0,
+				}
 			} else {
 				return ResourceLockInfo{
 					Username:      util.OptStringIfNotEmpty(row.OwnerUsername),

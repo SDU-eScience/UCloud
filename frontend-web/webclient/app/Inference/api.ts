@@ -20,6 +20,7 @@ export type InferenceCapability = "TextGeneration" | "TextToImage" | "SpeechToTe
 export interface InferenceModel {
     name: string;
     title: string;
+    titleModelName: string;
     capabilities: InferenceCapability[];
     priceMultiplier: {
         cachedInput: number;
@@ -34,6 +35,45 @@ export interface InferenceModel {
         public: boolean;
         availableTo: string[];
     };
+    contextWindow?: number;
+    chatSettings: {
+        temperature: number;
+        topP: number;
+        maxCompletionTokens: number;
+        systemPrompt?: string;
+    };
+    page?: InferenceModelPageMetadata;
+}
+
+export interface InferenceModelPageMetadata {
+    shortDescription?: string;
+    documentationUrl?: string;
+    releaseDate?: number;
+    about?: {
+        description?: string;
+        highlights?: string[];
+        keyStats?: InferenceModelKeyStat[];
+    };
+    benchmarkScores?: Record<string, string>;
+    datasheet?: {
+        parameters?: string;
+        activatedParameters?: string;
+        quantization?: string;
+    };
+}
+
+export interface InferenceModelKeyStat {
+    label: string;
+    value: string;
+    description?: string;
+}
+
+export interface InferenceBenchmark {
+    id: string;
+    title: string;
+    description?: string;
+    higherIsBetter: boolean;
+    modelNames: string[];
 }
 
 export interface ListModelsRequest {
@@ -42,7 +82,10 @@ export interface ListModelsRequest {
 
 export interface ListModelsResponse {
     models: InferenceModel[];
+    benchmarks: InferenceBenchmark[];
     isAdmin: boolean;
+    providerId: string;
+    server: string;
 }
 
 export interface UpdateModelRequest {
@@ -51,10 +94,19 @@ export interface UpdateModelRequest {
     model: InferenceModel;
 }
 
+export interface UpdateBenchmarksRequest {
+    providerId: string | null;
+    benchmarks: InferenceBenchmark[];
+}
+
 export function listModels(request: ListModelsRequest): APICallParameters<ListModelsRequest, ListModelsResponse> {
     return apiRetrieve(request, baseContext, "models");
 }
 
 export function updateModel(request: UpdateModelRequest): APICallParameters<UpdateModelRequest, Record<string, never>> {
     return apiUpdate(request, baseContext, "model");
+}
+
+export function updateBenchmarks(request: UpdateBenchmarksRequest): APICallParameters<UpdateBenchmarksRequest, Record<string, never>> {
+    return apiUpdate(request, baseContext, "benchmarks");
 }

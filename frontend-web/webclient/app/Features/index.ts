@@ -9,7 +9,9 @@ export enum Feature {
 
     NEW_VM_UI,
 
-    STACKS
+    STACKS,
+
+    INFERENCE,
 }
 
 enum Environment {
@@ -74,6 +76,12 @@ const featureMap: Record<string, FeatureConfig> = {
     "stacks": {
         feature: Feature.STACKS,
         showWithoutFlag: allDevEnvironments,
+        showWithFlag: allEnvironments,
+    },
+
+    "inference": {
+        feature: Feature.INFERENCE,
+        showWithoutFlag: [Environment.PUBLIC_DEV, Environment.LOCAL_DEV_STACK],
         showWithFlag: allEnvironments,
     }
 };

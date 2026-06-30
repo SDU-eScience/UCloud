@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	apm "ucloud.dk/shared/pkg/accounting"
+	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -20,10 +21,11 @@ import (
 // =====================================================================================================================
 
 type OaiInferenceModel struct {
-	Id           string                `json:"id"`
-	Object       string                `json:"object"`
-	OwnedBy      string                `json:"owned_by,omitempty"`
-	Capabilities []InferenceCapability `json:"capabilities,omitempty"`
+	Id            string                `json:"id"`
+	Object        string                `json:"object"`
+	OwnedBy       string                `json:"owned_by,omitempty"`
+	Capabilities  []InferenceCapability `json:"capabilities,omitempty"`
+	ContextWindow *int                  `json:"context_window,omitempty"`
 }
 
 type OaiInferenceModelsResponse struct {
@@ -60,10 +62,11 @@ func OaiInferenceModelByID(owner apm.WalletOwner, id string) (OaiInferenceModel,
 
 func inferenceOaiModelFromCatalog(model InferenceModel) OaiInferenceModel {
 	return OaiInferenceModel{
-		Id:           model.Name,
-		Object:       "model",
-		OwnedBy:      "ucloud",
-		Capabilities: model.Capabilities,
+		Id:            model.Name,
+		Object:        "model",
+		OwnedBy:       "ucloud",
+		Capabilities:  model.Capabilities,
+		ContextWindow: model.ContextWindow,
 	}
 }
 
@@ -91,12 +94,93 @@ type InferenceChatRequest struct {
 	Tools               []InferenceChatTool                     `json:"tools,omitempty"`
 	TopLogprobs         util.Option[int]                        `json:"top_logprobs,omitempty"`
 	TopP                util.Option[float64]                    `json:"top_p,omitempty"`
-	Verbosity           util.Option[string]                     `json:"verbosity,omitempty"`
 }
 
 type InferenceChatMessage struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
+	Role       string                      `json:"role"`
+	Content    InferenceChatMessageContent `json:"content"`
+	Reasoning  InferenceChatMessageContent `json:"reasoning"`
+	Name       string                      `json:"name,omitempty"`
+	ToolCalls  []InferenceChatToolCall     `json:"tool_calls,omitempty"`
+	ToolCallID string                      `json:"tool_call_id,omitempty"`
+}
+
+func (m *InferenceChatMessage) UnmarshalJSON(data []byte) error {
+	type inferenceChatMessageJSON InferenceChatMessage
+	var decoded struct {
+		inferenceChatMessageJSON
+		ReasoningContent InferenceChatMessageContent `json:"reasoning_content"`
+	}
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		return err
+	}
+	*m = InferenceChatMessage(decoded.inferenceChatMessageJSON)
+	if m.Reasoning.String() == "" && decoded.ReasoningContent.String() != "" {
+		m.Reasoning = decoded.ReasoningContent
+	}
+	return nil
+}
+
+type InferenceChatMessageContent struct {
+	Text  string
+	Parts []InferenceChatContentPartText
+	raw   json.RawMessage
+}
+
+type InferenceChatContentPartText struct {
+	Type string `json:"type"`
+	Text string `json:"text"`
+}
+
+func inferenceChatTextContent(text string) InferenceChatMessageContent {
+	return InferenceChatMessageContent{Text: text}
+}
+
+func (c InferenceChatMessageContent) String() string {
+	if len(c.Parts) == 0 {
+		return c.Text
+	}
+
+	var builder strings.Builder
+	for _, part := range c.Parts {
+		if part.Type == "" || part.Type == "text" {
+			builder.WriteString(part.Text)
+		}
+	}
+	return builder.String()
+}
+
+func (c *InferenceChatMessageContent) UnmarshalJSON(data []byte) error {
+	c.Text = ""
+	c.Parts = nil
+	c.raw = append(c.raw[:0], data...)
+
+	if len(data) == 0 || bytes.Equal(data, []byte("null")) {
+		return nil
+	}
+
+	var text string
+	if err := json.Unmarshal(data, &text); err == nil {
+		c.Text = text
+		return nil
+	}
+
+	var parts []InferenceChatContentPartText
+	if err := json.Unmarshal(data, &parts); err != nil {
+		return err
+	}
+	c.Parts = parts
+	return nil
+}
+
+func (c InferenceChatMessageContent) MarshalJSON() ([]byte, error) {
+	if len(c.raw) > 0 {
+		return c.raw, nil
+	}
+	if c.Parts != nil {
+		return json.Marshal(c.Parts)
+	}
+	return json.Marshal(c.Text)
 }
 
 type InferenceChatStreamOptions struct {
@@ -108,6 +192,25 @@ type InferenceChatUsage struct {
 	CompletionTokens    int                                    `json:"completion_tokens"`
 	TotalTokens         int                                    `json:"total_tokens"`
 	PromptTokensDetails util.Option[InferenceChatTokenDetails] `json:"prompt_tokens_details,omitempty"`
+}
+
+func (u InferenceChatUsage) MarshalJSON() ([]byte, error) {
+	type inferenceChatUsageJSON struct {
+		PromptTokens        int                        `json:"prompt_tokens"`
+		CompletionTokens    int                        `json:"completion_tokens"`
+		TotalTokens         int                        `json:"total_tokens"`
+		PromptTokensDetails *InferenceChatTokenDetails `json:"prompt_tokens_details,omitempty"`
+	}
+
+	result := inferenceChatUsageJSON{
+		PromptTokens:     u.PromptTokens,
+		CompletionTokens: u.CompletionTokens,
+		TotalTokens:      u.TotalTokens,
+	}
+	if u.PromptTokensDetails.Present {
+		result.PromptTokensDetails = &u.PromptTokensDetails.Value
+	}
+	return json.Marshal(result)
 }
 
 type InferenceChatTokenDetails struct {
@@ -126,6 +229,17 @@ type InferenceChatToolFunction struct {
 	Strict      util.Option[bool] `json:"strict,omitempty"`
 }
 
+type InferenceChatToolCall struct {
+	Id       string                        `json:"id"`
+	Type     string                        `json:"type"`
+	Function InferenceChatToolCallFunction `json:"function"`
+}
+
+type InferenceChatToolCallFunction struct {
+	Name      string `json:"name"`
+	Arguments string `json:"arguments"`
+}
+
 type InferenceChatResponse struct {
 	Id      string                `json:"id"`
 	Object  string                `json:"object"`
@@ -133,6 +247,14 @@ type InferenceChatResponse struct {
 	Model   string                `json:"model"`
 	Choices []InferenceChatChoice `json:"choices"`
 	Usage   InferenceChatUsage    `json:"usage"`
+}
+
+func (r InferenceChatResponse) MarshalJSON() ([]byte, error) {
+	type inferenceChatResponseJSON InferenceChatResponse
+	if r.Choices == nil {
+		r.Choices = []InferenceChatChoice{}
+	}
+	return json.Marshal(inferenceChatResponseJSON(r))
 }
 
 type InferenceChatChoice struct {
@@ -150,6 +272,14 @@ type InferenceChatStreamingResponse struct {
 	Usage   InferenceChatUsage             `json:"usage"`
 }
 
+func (r InferenceChatStreamingResponse) MarshalJSON() ([]byte, error) {
+	type inferenceChatStreamingResponseJSON InferenceChatStreamingResponse
+	if r.Choices == nil {
+		r.Choices = []InferenceChatStreamingChoice{}
+	}
+	return json.Marshal(inferenceChatStreamingResponseJSON(r))
+}
+
 type InferenceChatStreamingChoice struct {
 	Index        int                `json:"index"`
 	Delta        InferenceChatDelta `json:"delta"`
@@ -157,11 +287,42 @@ type InferenceChatStreamingChoice struct {
 }
 
 type InferenceChatDelta struct {
-	Role    string `json:"role,omitempty"`
-	Content string `json:"content,omitempty"`
+	Role      string                           `json:"role,omitempty"`
+	Content   string                           `json:"content,omitempty"`
+	Reasoning string                           `json:"reasoning,omitempty"`
+	ToolCalls []InferenceChatStreamingToolCall `json:"tool_calls,omitempty"`
+}
+
+func (d *InferenceChatDelta) UnmarshalJSON(data []byte) error {
+	type inferenceChatDeltaJSON InferenceChatDelta
+	var decoded struct {
+		inferenceChatDeltaJSON
+		ReasoningContent string `json:"reasoning_content"`
+	}
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		return err
+	}
+	*d = InferenceChatDelta(decoded.inferenceChatDeltaJSON)
+	if d.Reasoning == "" && decoded.ReasoningContent != "" {
+		d.Reasoning = decoded.ReasoningContent
+	}
+	return nil
+}
+
+type InferenceChatStreamingToolCall struct {
+	Index    int                                     `json:"index"`
+	Id       string                                  `json:"id,omitempty"`
+	Type     string                                  `json:"type,omitempty"`
+	Function *InferenceChatStreamingToolCallFunction `json:"function,omitempty"`
+}
+
+type InferenceChatStreamingToolCallFunction struct {
+	Name      string `json:"name,omitempty"`
+	Arguments string `json:"arguments,omitempty"`
 }
 
 func InferenceChat(owner apm.WalletOwner, history InferenceChatRequest) (InferenceChatResponse, *util.HttpError) {
+	log.Info("1 %v %v", owner, history)
 	if inferenceIsLocked(owner) {
 		return InferenceChatResponse{}, util.HttpErr(http.StatusPaymentRequired, "payment required")
 	}
@@ -209,6 +370,7 @@ func InferenceChat(owner apm.WalletOwner, history InferenceChatRequest) (Inferen
 }
 
 func InferenceChatStreaming(owner apm.WalletOwner, history InferenceChatRequest) (chan InferenceChatStreamingResponse, *util.HttpError) {
+	log.Info("2 %v %v", owner, history)
 	ch := make(chan InferenceChatStreamingResponse)
 
 	if inferenceIsLocked(owner) {
@@ -1007,6 +1169,7 @@ func inferenceBackendJSONRequest(basePath string, method string, path string, bo
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		log.Info("invalid request: %v %v %v %v %v", method, path, contentType, string(body), string(respBody))
 		return nil, util.HttpErr(resp.StatusCode, "invalid request")
 	}
 
@@ -1025,6 +1188,7 @@ func inferenceBackendRequest(basePath string, method string, path string, body [
 
 	req, err := http.NewRequest(method, backend+path, bytes.NewBuffer(body))
 	if err != nil {
+		log.Info("inferenceBackendRequest err1: %v %v %v %v %v", backend, basePath, method, path, string(body))
 		return nil, util.HttpErr(http.StatusBadRequest, "invalid request")
 	}
 
@@ -1035,6 +1199,7 @@ func inferenceBackendRequest(basePath string, method string, path string, body [
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
+		log.Info("inferenceBackendRequest err2: %v %v %v %v %v %v", backend, basePath, method, path, string(body), err)
 		return nil, util.HttpErr(http.StatusBadGateway, "invalid request")
 	}
 
@@ -1071,7 +1236,7 @@ func inferenceEstimateTokensFromText(text string) int {
 func inferenceEstimateChatUsage(history InferenceChatRequest, responseText string) InferenceChatUsage {
 	promptTokens := 0
 	for _, message := range history.Messages {
-		promptTokens += inferenceEstimateTokensFromText(message.Content)
+		promptTokens += inferenceEstimateTokensFromText(message.Content.String())
 	}
 
 	completionTokens := inferenceEstimateTokensFromText(responseText)
@@ -1085,7 +1250,7 @@ func inferenceEstimateChatUsage(history InferenceChatRequest, responseText strin
 func inferenceChatUsageFromResponse(history InferenceChatRequest, usage util.Option[InferenceChatUsage], choices []InferenceChatChoice) InferenceChatUsage {
 	responseText := ""
 	if len(choices) > 0 {
-		responseText = choices[0].Message.Content
+		responseText = choices[0].Message.Content.String()
 	}
 	return inferenceChatUsageFromText(history, responseText, usage)
 }

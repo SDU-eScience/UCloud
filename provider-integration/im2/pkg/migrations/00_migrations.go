@@ -39,4 +39,12 @@ func Init() {
 	db.AddMigration(inferenceV2())
 	db.AddMigration(apmEventsV3())
 	db.AddMigration(inferenceV3())
+	db.AddMigration(inferenceV4())
+	db.AddMigration(inferenceV5())
+	db.AddMigration(inferenceV6())
+	db.AddMigration(inferenceV7())
+	db.AddMigration(inferenceV8())
+	db.AddMigration(inferenceV9())
+	db.AddMigration(inferenceV10())
+	db.AddMigration(inferenceV11())
 }

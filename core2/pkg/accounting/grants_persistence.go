@@ -660,11 +660,6 @@ func lGrantsPersistSettings(settings *grantSettings, templateHasChanges bool) {
 
 	s := settings.Settings
 
-	if templateHasChanges {
-		// We bump the revision number to make a new version of the template
-		s.Templates.Structured.RevisionNumber++
-	}
-
 	db.NewTx0(func(tx *db.Transaction) {
 		if s.Enabled {
 			db.Exec(

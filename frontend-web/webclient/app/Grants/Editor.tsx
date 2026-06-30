@@ -60,14 +60,13 @@ interface EditorState {
     loadedProjects: {id: string | null; title: string;}[];
 
     selectedProjectType: Grants.TemplateKey;
-    selectedAllocatorId: string;
 
     stateDuringCreate?: {
         creatingWorkspace: boolean;
         reference?: string;
     };
 
-    unRequestedAllocators: Set<string>;
+    unrequestedAllocators: Set<string>;
 
     stateDuringEdit?: {
         id: string;
@@ -138,19 +137,19 @@ interface ResourceCategory {
         message: string;
     };
 }
-const defaultTemplateRevision = -1;
+export const DefaultTemplateRevision = -1;
 
 const defaultState: EditorState = {
     locked: false,
     allocators: [],
     resources: {},
-    unRequestedAllocators: new Set<string>(),
+    unrequestedAllocators: new Set<string>(),
     allocationPeriod: {
         start: {
             month: new Date().getMonth(),
             year: new Date().getFullYear(),
         },
-        durationInMonths: 12
+        durationInMonths: 3
     },
     possibleTransfers: [],
     createApplicationForms: [],
@@ -160,7 +159,6 @@ const defaultState: EditorState = {
     loadedProjects: [],
     fullScreenLoading: true,
     selectedProjectType: Grants.TemplateKey.NewProject, 
-    selectedAllocatorId: ""
 };
 
 // State reducer
@@ -233,12 +231,10 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             };
         }
 
-        // Missing Resource
-
         case "MissingResources": {
             return  {
                 ...state,
-                unRequestedAllocators: action.allocatorIds
+                unrequestedAllocators: action.allocatorIds
             }
         }
 
@@ -343,7 +339,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                 possibleTransfers: newAllocators,
                 allocators: newAllocators,
                 resources: newResources,
-                createApplicationForms: extractToAnswerForms(newAllocators.filter(i => i.checked), state.selectedProjectType)
+                createApplicationForms: extractToAnswerForms(newAllocators, state.selectedProjectType)
             };
         }
 
@@ -548,9 +544,9 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
 
             return {
                 ...state,
-                unRequestedAllocators: new Set<string>(),
+                unrequestedAllocators: new Set<string>(),
                 allocators: newAllocators,
-                createApplicationForms: extractToAnswerForms(newAllocators.filter(i => i.checked), state.selectedProjectType),
+                createApplicationForms: extractToAnswerForms(newAllocators, state.selectedProjectType),
             }
         }
 
@@ -749,11 +745,12 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
     function loadRevision(state: EditorState): EditorState {
         if (!state.stateDuringEdit) return state;
         const newEditState = {...state.stateDuringEdit};
+        const previousAllocators = state.allocators;
         state.allocators = []; // clearing previous allocators
 
         const doc = state.stateDuringEdit.document;
         const docText = doc.form.text;
-        const newAllocators = [...state.allocators]
+        const newAllocators = [...previousAllocators]
             .filter(allocator => {
                 return state.stateDuringEdit?.id === GRANT_GIVER_INITIATED_ID ||
                     doc.allocationRequests.some(it => it.grantGiver === allocator.id);
@@ -767,7 +764,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                     newAllocators.push({
                         title: breakdown.projectTitle,
                         id: breakdown.projectId,
-                        template: {personalProject:[], existingProject: [], newProject: [], revisionNumber: defaultTemplateRevision},
+                        template: {personalProject:[], existingProject: [], newProject: [], revisionNumber: DefaultTemplateRevision},
                         description: "",
                         checked: true,
                     });
@@ -809,7 +806,12 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
 
         const isGrantGiverInitiated = app && app.status.overallState == "APPROVED" && app.status.revisions.length === 1 && docText.startsWith(grantGiverInitiatedPrefix);
         let loadedAnswerForms: Grants.AnswerForm[] = doc.form.answerForms;
-        if (isGrantGiverInitiated) {
+        if (state.stateDuringEdit.id === GRANT_GIVER_INITIATED_ID) {
+            loadedAnswerForms = newAllocators.map(allocator => ({
+                ...grantGiverInitiatedForm,
+                allocatorId: allocator.id,
+            }));
+        } else if (isGrantGiverInitiated) {
             loadedAnswerForms = [grantGiverInitiatedForm];
         }
 
@@ -819,11 +821,11 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
         const allTheFields: Record<string, Grants.FormField> = Object.fromEntries(
         newAllocators.flatMap(i => i.template[state.selectedProjectType].map(field => [field.title, field])));
 
-        for (var answerForm of loadedAnswerForms) {
+        for (const answerForm of loadedAnswerForms) {
             if (answerForm.allocatorId === "System" && answerForm.templateRevisionNumber === -42) {  
                 continue;
             }
-            for(var answerField of answerForm.answerFields) {
+            for(const answerField of answerForm.answerFields) {
                 const foundField: Grants.FormField | undefined = allTheFields[answerField.field.title];
                 if (!foundField) {
                     continue;
@@ -894,12 +896,13 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
     }
 }
 
-function extractToAnswerForms(allocators: Allocators[], templateKey: string
+function extractToAnswerForms(allocators: Allocators[], templateKey: Exclude<keyof Grants.TemplateStructured, "revisionNumber">
 ): Grants.AnswerForm[] {
 
+    const checkedAllocators = allocators.filter(i => i.checked);
     const answerForms: Grants.AnswerForm[] = [];
-    for (const allocator of allocators) {
-        const fields: Grants.FormField[] = allocator.template[templateKey];
+    for (const allocator of checkedAllocators) {
+        const fields: Grants.FormField[] = allocator.template[templateKey] ?? [];
         const answerFields: Grants.AnswerFieldForm[] = fields.map((field) => ({ answer: "", field }))
 
         answerForms.push({
@@ -1618,7 +1621,7 @@ export function Editor(): React.ReactNode {
         return false;
     }
 
-    const getNonRequestedAllocators = (state: EditorState): Set<string> => {
+    const getUnrequestedAllocators = (state: EditorState): Set<string> => {
         const hasAllocatedResources = new Set<string>();
         const checkedAllocators: Allocators[] = state.allocators.filter(i => i.checked);
         for (const alloc of checkedAllocators) {
@@ -1645,8 +1648,8 @@ export function Editor(): React.ReactNode {
         if (!applicationFormExists(state)) return;
         const checked = state.allocators.filter(it => it.checked);
         if (checked.length === 0) return;
-        state.unRequestedAllocators = new Set<string>(); // reset
-        let missingResources = getNonRequestedAllocators(state);
+        state.unrequestedAllocators = new Set<string>(); // reset
+        let missingResources = getUnrequestedAllocators(state);
         if (missingResources.size > 0) {
             dispatchEvent({type: "MissingResources", allocatorIds: missingResources});
             sendFailureNotification("You must request at least one resource for each selected grant giver.");
@@ -1738,10 +1741,10 @@ export function Editor(): React.ReactNode {
         const period: Grants.Period = {start, end};
 
         // Filter out allocators and forms that have no resources
-        const nonRequestedAllocators = getNonRequestedAllocators(state);
+        const unrequestedAllocators = getUnrequestedAllocators(state);
         let allocationsRequested = stateToRequests(state)
-        allocationsRequested = allocationsRequested.filter(i => !nonRequestedAllocators.has(i.grantGiver));
-        const updatedForms = state.createApplicationForms.filter(i => !nonRequestedAllocators.has(i.allocatorId));
+        allocationsRequested = allocationsRequested.filter(i => !unrequestedAllocators.has(i.grantGiver));
+        const updatedForms = state.createApplicationForms.filter(i => !unrequestedAllocators.has(i.allocatorId));
 
         const doc: Grants.Doc = {
             recipient: currentDoc.recipient,
@@ -2282,12 +2285,6 @@ export function Editor(): React.ReactNode {
                                                     const errorMessage = category.error?.allocator === allocator.grantGiverId ?
                                                         category.error?.message : undefined;
 
-                                                    const missingStyle={
-                                                        border: state.unRequestedAllocators.has(allocator.grantGiverId)
-                                                            ? "1px solid var(--errorMain)"
-                                                            : "1px solid var(--borderColor)"
-                                                    };
-
                                                     const value: number | undefined = category.totalBalanceRequested[allocator.grantGiverId];
                                                     if (hideZeroFields && (value === 0 || value == null)) return null;
                                                     if (isViewingHistoricEntry) {
@@ -2299,7 +2296,7 @@ export function Editor(): React.ReactNode {
                                                                         <> from <ProjectTitleForNewCore id={allocator.grantGiverId} title={allocator.grantGiverTitle} /></>
                                                                     }
 
-                                                                    <Input style={missingStyle}
+                                                                    <Input error={state.unrequestedAllocators.has(allocator.grantGiverId)}
                                                                         id={`${providerId}/${category.category.name}/${allocator.grantGiverId}`}
                                                                         type={"number"} placeholder={"0"}
                                                                         onInput={onResourceInput}
@@ -2321,7 +2318,7 @@ export function Editor(): React.ReactNode {
                                                                     {unit.name} requested
                                                                     {checkedAllocators.length > 1 && <> from <ProjectTitleForNewCore id={allocator!.grantGiverId} title={allocatorName} /></>}
 
-                                                                    <Input style={missingStyle}
+                                                                    <Input error={state.unrequestedAllocators.has(allocator.grantGiverId)}
                                                                         id={`${providerId}/${category.category.name}/${allocator.grantGiverId}`}
                                                                         type={"number"} placeholder={"0"}
                                                                         onInput={onResourceInput}
@@ -3147,7 +3144,7 @@ const grantGiverInitiatedForm: Grants.AnswerForm = {
             optional: false,
             title: grantGiverInitiatedPrefix,
             maxLength: 4000,
-            rows: 100
+            rows: 6
         }
     }],
     templateRevisionNumber: -1,
