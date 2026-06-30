@@ -2,26 +2,410 @@ import * as React from "react";
 
 import {callAPI} from "@/Authentication/DataHook";
 import {MainContainer} from "@/ui-components/MainContainer";
-import {Box, Button, Card, Flex, Input, Link, Select, Text, TextArea} from "@/ui-components";
+import {Box, Button, Card, Flex, Icon, Input, Link, Select, Text, TextArea} from "@/ui-components";
 import AppRoutes from "@/Routes";
 import {ProjectSwitcher} from "@/Project/ProjectSwitcher";
 import {useProjectId} from "@/Project/Api";
 import {InferenceBenchmark, InferenceCapability, InferenceModel, listModels, updateBenchmarks, updateModel} from "./api";
-import Table, {TableHeader, TableRow} from "@/ui-components/Table";
 import * as Heading from "@/ui-components/Heading";
 import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
-import ConfiguringTools from "./ConfiguringTools";
+import {IconButton} from "@/ui-components/IconButton";
+import ModelInferenceLogo from "@/Inference/ModelLogo";
+import {injectStyle} from "@/Unstyled";
+import {SingleLineMarkdown} from "@/ui-components/Markdown";
+import HeroSvg from "@/ui-components/icons/logo_esc.svg";
 
 const capabilities: InferenceCapability[] = ["TextGeneration", "TextToImage", "SpeechToText"];
+
+const pageStyle = injectStyle("inference-models-page", k => `
+    ${k} {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+        margin-bottom: -16px;
+        padding-bottom: 0;
+    }
+
+    ${k} .panel {
+        box-sizing: border-box;
+        margin-left: calc(50% - 50vw + (var(--sidebarBlockWidth, 0px) / 2));
+        margin-right: calc(50% - 50vw + (var(--sidebarBlockWidth, 0px) / 2));
+        padding: 48px 16px;
+    }
+
+    ${k} .panel-inner {
+        box-sizing: border-box;
+        margin: 0 auto;
+        max-width: 1400px;
+        padding: 0 16px;
+    }
+
+    ${k} .panel-muted {
+        background: var(--backgroundCard);
+        border-top: 5px solid rgba(148, 163, 184, 0.18);
+    }
+    
+    ${k} .panel-solid,
+    ${k} .panel-accent {
+        padding: 150px 16px;
+    }
+
+    ${k} .panel-solid {
+        background: var(--backgroundDefault);
+        border-top: 5px solid rgba(148, 163, 184, 0.18);
+    }
+
+    ${k} .panel-accent {
+        background: var(--blue-10);
+        border-top: 5px solid var(--blue-20);
+    }
+
+    html.dark ${k} .panel-accent {
+        background: var(--blue-80);
+        border-bottom-color: var(--blue-90);
+        border-top-color: var(--blue-90);
+    }
+
+    ${k} .hero {
+        position: relative;
+        overflow: hidden;
+        background: linear-gradient(135deg, #151927 0%, #1b2336 58%, #111827 100%);
+        color: white;
+        margin-top: -16px;
+        padding-bottom: 68px;
+        padding-top: 24px;
+        height: 435px;
+    }
+
+    ${k} .hero-top {
+        display: flex;
+        justify-content: flex-end;
+        margin-bottom: 44px;
+        position: relative;
+        z-index: 2;
+    }
+
+    ${k} .hero-icon {
+        bottom: -120px;
+        filter: grayscale(1) saturate(0.50);
+        height: min(42vw, 520px);
+        mask-image: linear-gradient(135deg, rgba(0, 0, 0, 0.92) 0%, rgba(0, 0, 0, 0.62) 46%, rgba(0, 0, 0, 0) 86%);
+        opacity: 0.22;
+        pointer-events: none;
+        position: absolute;
+        right: 0;
+        transform: rotate(-12deg);
+        transform-origin: 58% 58%;
+        width: min(42vw, 520px);
+    }
+
+    ${k} .hero-content {
+        position: relative;
+        z-index: 1;
+        max-width: 1400px;
+    }
+
+    ${k} .hero-copy {
+        max-width: 720px;
+    }
+
+    ${k} .eyebrow {
+        color: rgba(255, 255, 255, 0.68);
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        margin: 0 0 14px;
+        text-transform: uppercase;
+    }
+
+    ${k} .hero h1 {
+        font-size: clamp(32px, 5vw, 52px);
+        line-height: 1;
+        margin: 0;
+    }
+
+    ${k} .hero p {
+        color: rgba(255, 255, 255, 0.78);
+        font-size: 16px;
+        line-height: 1.6;
+        margin: 22px 0 0;
+        max-width: 660px;
+    }
+
+    ${k} .hero-actions,
+    ${k} .cta-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 28px;
+    }
+
+    ${k} .button-link {
+        text-decoration: none;
+    }
+
+    ${k} .section-heading {
+        align-items: flex-end;
+        display: flex;
+        gap: 18px;
+        justify-content: space-between;
+        margin-bottom: 16px;
+    }
+
+    ${k} .section-heading > div {
+        display: grid;
+        gap: 10px;
+    }
+
+    ${k} .section-heading h2 {
+        color: var(--textPrimary);
+        font-size: 26px;
+        line-height: 1.08;
+        margin: 0;
+    }
+
+    ${k} .section-heading p,
+    ${k} .muted {
+        color: var(--textSecondary);
+        font-size: 14px;
+        line-height: 1.55;
+        margin: 0;
+    }
+
+    ${k} .model-grid {
+        display: grid;
+        gap: 14px;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 300px));
+        justify-content: start;
+    }
+
+    ${k} .model-card {
+        background: var(--backgroundCard);
+        border: 1px solid rgba(148, 163, 184, 0.28);
+        border-radius: 18px;
+        color: var(--textPrimary);
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        min-height: 250px;
+        padding: 16px;
+        position: relative;
+        text-decoration: none;
+    }
+
+    ${k} .model-card:hover {
+        border-color: var(--primaryMain);
+        color: var(--textPrimary);
+        text-decoration: none;
+        transform: translateY(-1px);
+    }
+
+    html.dark ${k} .model-card {
+        background: var(--backgroundCard);
+        border-color: rgba(148, 163, 184, 0.18);
+    }
+
+    ${k} .model-card-header {
+        align-items: flex-start;
+        display: flex;
+        gap: 14px;
+        justify-content: space-between;
+    }
+
+    ${k} .capability {
+        color: var(--textSecondary);
+        font-size: 11px;
+        margin: 0 0 8px;
+    }
+
+    ${k} .model-title {
+        color: var(--textPrimary);
+        display: inline-block;
+        font-size: 18px;
+        line-height: 1.12;
+        text-decoration: none;
+    }
+
+    ${k} .model-specs {
+        display: grid;
+        gap: 8px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    ${k} .model-spec {
+        padding-top: 8px;
+    }
+
+    ${k} .model-spec-label {
+        color: var(--textSecondary);
+        font-size: 10px;
+        line-height: 1.2;
+        margin: 0 0 4px;
+    }
+
+    ${k} .model-spec-value {
+        color: var(--textPrimary);
+        font-size: 13px;
+        line-height: 1.25;
+        margin: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    ${k} .metric-grid {
+        display: grid;
+        gap: 8px;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    
+    ${k} .model-spec-section {
+        border-top: 1px solid var(--borderColor);
+        padding-top: 16px;
+        margin-top: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    ${k} .metric {
+        padding: 0;
+    }
+
+    ${k} .metric-label {
+        color: var(--textSecondary);
+        font-size: 10px;
+        font-weight: 700;
+        line-height: 1.2;
+        margin: 0 0 7px;
+    }
+
+    ${k} .metric-value {
+        color: var(--textPrimary);
+        font-size: 16px;
+        margin: 0;
+    }
+
+    ${k} .model-card-footer {
+        display: flex;
+        justify-content: flex-end;
+        min-height: 32px;
+    }
+
+    ${k} .consume-grid {
+        display: grid;
+        gap: 16px;
+        margin-top: 32px;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    ${k} .consume-card,
+    ${k} .cta {
+        padding: 0;
+    }
+
+    ${k} .consume-card {
+        border-left: 2px solid var(--primaryMain);
+        padding-left: 18px;
+    }
+
+    ${k} .consume-card h3,
+    ${k} .cta h2 {
+        color: var(--textPrimary);
+        margin: 0;
+    }
+
+    ${k} .consume-card p,
+    ${k} .cta p {
+        color: var(--textSecondary);
+        line-height: 1.6;
+        margin: 12px 0 0;
+    }
+
+    ${k} .consume-number {
+        align-items: center;
+        background: var(--primaryMain);
+        border-radius: 14px;
+        color: white;
+        display: flex;
+        font-weight: 700;
+        height: 38px;
+        justify-content: center;
+        margin-bottom: 18px;
+        width: 38px;
+    }
+
+    ${k} .cta {
+        align-items: flex-start;
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+        min-height: 220px;
+        padding: 0 16px;
+    }
+
+    ${k} .cta h2 {
+        font-size: clamp(30px, 4vw, 46px);
+        line-height: 1;
+    }
+
+    ${k} .cta p {
+        font-size: 17px;
+        max-width: 680px;
+    }
+
+    @media (max-width: 900px) {
+        ${k} .hero-icon {
+            display: none;
+        }
+
+        ${k} .consume-grid,
+        ${k} .cta {
+            grid-template-columns: 1fr;
+        }
+
+        ${k} .consume-grid {
+            display: grid;
+        }
+
+        ${k} .cta {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+    }
+
+    @media (max-width: 620px) {
+        ${k} .section-heading {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+        ${k} .model-grid,
+        ${k} .consume-grid {
+            grid-template-columns: 1fr;
+        }
+
+        ${k} .model-card {
+            min-width: 0;
+        }
+
+        ${k} .metric-grid {
+            gap: 6px;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
+        ${k} .metric-value {
+            font-size: 14px;
+        }
+    }
+`);
 
 export default function Models(): React.ReactNode {
     const projectId = useProjectId();
     const [models, setModels] = React.useState<InferenceModel[]>([]);
     const [benchmarks, setBenchmarks] = React.useState<InferenceBenchmark[]>([]);
     const [isAdmin, setIsAdmin] = React.useState(false);
-    const [providerId, setProviderId] = React.useState("");
-    const [server, setServer] = React.useState("");
     const [loading, setLoading] = React.useState(true);
     const [error, setError] = React.useState("");
     const [editing, setEditing] = React.useState<InferenceModel | null>(null);
@@ -39,8 +423,6 @@ export default function Models(): React.ReactNode {
                 setModels(resp.models ?? []);
                 setBenchmarks(resp.benchmarks ?? []);
                 setIsAdmin(resp.isAdmin);
-                setProviderId(resp.providerId ?? "");
-                setServer(resp.server ?? "");
                 setLoading(false);
             })
             .catch(err => {
@@ -96,45 +478,86 @@ export default function Models(): React.ReactNode {
             });
     };
 
-    return <MainContainer main={<Box style={{display: "flex", flexDirection: "column", gap: 20, paddingBottom: 32}}>
-        <Flex mb={8} style={{gap: 12, alignItems: "center", flexWrap: "wrap"}}>
-            <h3 className="title" style={{margin: 0}}>AI Inference: Models</h3>
-            <Box flexGrow={1} />
-            <ProjectSwitcher />
-        </Flex>
+    let effectiveIsAdmin = isAdmin;
+    if (true) effectiveIsAdmin = false;
 
+    return <MainContainer main={<Box className={pageStyle}>
         {error === "" ? null : <Text color="errorMain">{error}</Text>}
         {loading ? <Text>Loading inference models...</Text> : null}
-        {!loading && models.length === 0 ? <Text color="textSecondary">No inference models are available.</Text> : null}
 
-        {models.length === 0 ? null : <div style={{overflowX: "auto"}}>
-            <Table tableType={"presentation"} width={"100%"} minWidth={"760px"}>
-                <TableHeader>
-                <TableRow>
-                    <th>Model</th>
-                    <th>Name</th>
-                    <th>Title model</th>
-                    <th>Cached</th>
-                    <th>Input</th>
-                    <th>Output</th>
-                    <th>Capabilities</th>
-                    {!isAdmin ? null : <th/>}
-                </TableRow>
-                </TableHeader>
-                <tbody>
-                {models.map(model => <TableRow key={model.name}>
-                    <td><Link to={AppRoutes.inference.model(model.name)}>{model.title}</Link></td>
-                    <td>{model.name}</td>
-                    <td>{model.titleModelName || model.name}</td>
-                    <td>{formatMultiplier(model.priceMultiplier.cachedInput)}</td>
-                    <td>{formatMultiplier(model.priceMultiplier.input)}</td>
-                    <td>{formatMultiplier(model.priceMultiplier.output)}</td>
-                    <td>{model.capabilities.join(", ")}</td>
-                    {!isAdmin ? null : <td><Button type="button" onClick={() => startEdit(model)} m={0}>Edit</Button></td>}
-                </TableRow>)}
-                </tbody>
-            </Table>
-        </div>}
+        <section className="panel hero">
+            <div className="panel-inner hero-content">
+                <div className="hero-top">
+                    <ProjectSwitcher />
+                </div>
+                <div className="hero-copy">
+                    <p className="eyebrow">AI Inference</p>
+                    <h1>Production-ready models for research and automation.</h1>
+                    <p>Browse a growing catalog of hosted models for text generation. Use them interactively from the playground, through jobs, or through OpenAI-compatible endpoints.</p>
+                    <div className="hero-actions">
+                        <Link className="button-link" to={AppRoutes.inference.playground()}><Button type="button">Open playground</Button></Link>
+                        <Button type="button" color="secondaryMain" onClick={() => document.getElementById("model-catalog")?.scrollIntoView({behavior: "smooth"})}>Browse models</Button>
+                    </div>
+                </div>
+                <img className="hero-icon" src={HeroSvg} alt="" aria-hidden="true" />
+            </div>
+        </section>
+
+        <section id="model-catalog" className="panel panel-muted">
+            <div className="panel-inner">
+                <div className="section-heading">
+                    <div>
+                        <h2>Models</h2>
+                        <p>Pick a model based on capability, context length and price multipliers. Details are available per model.</p>
+                    </div>
+                    {models.length === 0 && !loading ? <p className="muted">No inference models are available.</p> : null}
+                </div>
+
+                {models.length === 0 ? null : <div className="model-grid">
+                    {models.map(model => <ModelCatalogCard key={model.name} model={model} isAdmin={effectiveIsAdmin} onEdit={() => startEdit(model)} />)}
+                </div>}
+            </div>
+        </section>
+
+        <section className="panel panel-solid">
+            <div className="panel-inner">
+                <div className="section-heading">
+                    <div>
+                        <h2>Consume models your way</h2>
+                        <p>Start in the browser, automate through UCloud jobs, or connect existing tools to the compatible endpoint.</p>
+                    </div>
+                </div>
+                <div className="consume-grid">
+                    <div className="consume-card">
+                        <div className="consume-number"><Icon name={"heroBeaker"} /></div>
+                        <h3>Playground</h3>
+                        <p>Try prompts, compare model behavior and iterate on ideas before wiring anything into production workflows.</p>
+                    </div>
+                    <div className="consume-card">
+                        <div className="consume-number"><Icon name={"heroCpuChip"} /></div>
+                        <h3>Jobs</h3>
+                        <p>Use models from batch jobs and applications running on UCloud when inference needs to be part of a larger pipeline.</p>
+                    </div>
+                    <div className="consume-card">
+                        <div className="consume-number"><Icon name={"heroGlobeEuropeAfrica"} /></div>
+                        <h3>OpenAI-compatible endpoints</h3>
+                        <p>Point existing clients at the endpoint and keep familiar request formats while running against UCloud-hosted models.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section className="panel panel-accent">
+            <div className="panel-inner cta">
+                <div>
+                    <h2>Ready to build with hosted inference?</h2>
+                    <p>Open the playground to test a model, or use the catalog to find details and integration settings.</p>
+                </div>
+                <div className="cta-actions">
+                    <Link className="button-link" to={AppRoutes.inference.playground()}><Button type="button">Start in playground</Button></Link>
+                </div>
+            </div>
+        </section>
 
         {editing === null ? null : <Card>
             <Heading.h3 mb={16}>Editing {editOriginalName}</Heading.h3>
@@ -275,7 +698,7 @@ export default function Models(): React.ReactNode {
             </Flex>
         </Card>}
 
-        {!isAdmin ? null : <Card>
+        {!effectiveIsAdmin ? null : <Card>
             <Heading.h3 mb={16}>Benchmark definitions</Heading.h3>
             <Text color="textSecondary">
                 Curated benchmark sections are global. Each definition chooses the benchmark id, display title, sort direction, and comparison model names. Scores are read from each model page metadata under <code>benchmarkScores</code>.
@@ -285,12 +708,6 @@ export default function Models(): React.ReactNode {
                 <Button color="successMain" type="button" onClick={saveBenchmarks} disabled={savingBenchmarks}>{savingBenchmarks ? "Saving..." : "Save benchmarks"}</Button>
             </Flex>
         </Card>}
-
-        <Card>
-            <ConfiguringTools title="Configuring tools" providerId={providerId} server={server} models={models} />
-        </Card>
-
-
     </Box>} />;
 }
 
@@ -298,6 +715,55 @@ function formatMultiplier(value: number): string {
     if (value === 0) return "N/A";
     if (value % 1000 === 0) return `${value / 1000}x`;
     return `${value / 1000}x`;
+}
+
+function primaryCapability(model: InferenceModel): InferenceCapability | string {
+    const priority: InferenceCapability[] = ["SpeechToText", "TextGeneration", "TextToImage"];
+    return priority.find(capability => model.capabilities.includes(capability)) ?? model.capabilities[0] ?? "Unknown";
+}
+
+function ModelCatalogCard(props: {model: InferenceModel; isAdmin: boolean; onEdit: () => void;}): React.ReactNode {
+    const model = props.model;
+    return <Link className="model-card" to={AppRoutes.inference.model(model.name)}>
+        <div className="model-card-header">
+            <div>
+                <p className="capability">{primaryCapability(model)}</p>
+                <span className="model-title">{model.title}</span>
+            </div>
+            <ModelInferenceLogo modelName={model.name} size={46} />
+        </div>
+
+        <SingleLineMarkdown width={"100%"}>{model.page?.shortDescription ?? ""}</SingleLineMarkdown>
+
+        <div className={"model-spec-section"}>
+            <div className="model-specs">
+                <ModelMetric title="Context" value={model.contextWindow?.toString() ?? "-"} />
+                <ModelMetric title="Parameters" value={model.page?.datasheet?.parameters ?? "-"} />
+            </div>
+
+            <div className="metric-grid">
+                <ModelMultiplier title="Cached" value={model.priceMultiplier.cachedInput} />
+                <ModelMultiplier title="Input" value={model.priceMultiplier.input} />
+                <ModelMultiplier title="Output" value={model.priceMultiplier.output} />
+            </div>
+        </div>
+
+
+        {!props.isAdmin ? null : <div className="model-card-footer">
+            <IconButton tooltip={`Edit ${model.title}`} icon="heroPencil" onClick={props.onEdit} />
+        </div>}
+    </Link>;
+}
+
+function ModelMultiplier(props: {title: string; value: number;}): React.ReactNode {
+    return <ModelMetric title={props.title} value={formatMultiplier(props.value)} />;
+}
+
+const ModelMetric: React.FunctionComponent<{ title: string; value: string; }> = props => {
+    return <div className="metric">
+        <p className="metric-label">{props.title}</p>
+        <p className="metric-value">{props.value}</p>
+    </div>;
 }
 
 function defaultModelPage(): NonNullable<InferenceModel["page"]> {

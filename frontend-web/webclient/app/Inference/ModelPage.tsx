@@ -70,7 +70,47 @@ const PageStyle = injectStyle("model-page", k => `
         --model-hero: var(--blue-10);
         --model-hero-border: var(--blue-20);
     }
-    
+
+    ${k} .model-hero {
+        background: var(--model-hero);
+        border-bottom: 5px solid var(--model-hero-border);
+        margin-bottom: 16px;
+        box-sizing: border-box;
+        height: 435px;
+        padding: 56px 16px;
+    }
+
+    ${k} .model-hero-inner {
+        align-items: center;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 32px;
+        justify-content: space-between;
+        margin: 0 auto;
+        max-width: ${MAIN_CONTAINER_MAX_WIDTH};
+        padding: 0 16px;
+    }
+
+    ${k} .model-hero-copy {
+        display: grid;
+        gap: 14px;
+        max-width: 720px;
+    }
+
+    ${k} .model-hero-title {
+        font-size: clamp(32px, 5vw, 52px);
+        line-height: 1;
+        margin: 0;
+    }
+
+    ${k} .model-hero-description {
+        color: var(--textPrimary);
+        font-size: 16px;
+        line-height: 1.6;
+        margin: 0;
+        max-width: 660px;
+    }
+     
     html.dark ${k} {
         --model-hero: var(--blue-80);
         --model-hero-border: var(--blue-90);
@@ -87,16 +127,11 @@ function ModelPageContent({model, models, benchmarks, providerId, server}: {mode
     const docButtonColor = lightTheme ? "primaryMain" : "secondaryMain";
 
     return <div className={PageStyle}>
-        <Box style={{
-            background: "var(--model-hero)",
-            borderBottom: "5px solid var(--model-hero-border)",
-            marginBottom: 16,
-            padding: "86px 16px",
-        }}>
-            <Flex style={{gap: 32, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", maxWidth: MAIN_CONTAINER_MAX_WIDTH, margin: "0 auto", padding: "0 16px"}}>
-                <Box style={{display: "grid", gap: 14, maxWidth: 760}}>
-                    <h2 className="title" style={{margin: 0, fontSize: "clamp(34px, 5vw, 48px)", lineHeight: 1}}>{model.title}</h2>
-                    <Text fontSize="18px" color="white">{shortDescription}</Text>
+        <Box className="model-hero">
+            <Flex className="model-hero-inner">
+                <Box className="model-hero-copy">
+                    <h2 className="title model-hero-title">{model.title}</h2>
+                    <p className="model-hero-description">{shortDescription}</p>
                     <Flex gap="12px" flexWrap="wrap">
                         <Link to={AppRoutes.inference.playground(model.name)}><Button type="button" color="successMain">Try now</Button></Link>
                         <ExternalLink href={documentationUrl}><Button type="button" color={docButtonColor}>Documentation</Button></ExternalLink>
