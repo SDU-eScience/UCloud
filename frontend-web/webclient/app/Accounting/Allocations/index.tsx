@@ -47,6 +47,7 @@ import {projectInfoPi, useProjectInfos} from "@/Project/InfoCache";
 import {sendFailureNotification, sendNotification, SnackType} from "@/Notifications";
 import {callAPI, useCloudCommand} from "@/Authentication/DataHook";
 import * as Grants from "@/Grants";
+import {DefaultTemplateRevision} from "@/Grants/Editor";
 
 // Styling
 // =====================================================================================================================
@@ -127,7 +128,7 @@ const Allocations: React.FunctionComponent = () => {
                 existingProject: [],
                 newProject: [],
                 personalProject: [],
-                revisionNumber: -1
+                revisionNumber: DefaultTemplateRevision
             }
         }
     });

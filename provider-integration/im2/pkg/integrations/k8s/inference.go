@@ -140,8 +140,10 @@ func initInference() {
 		}
 
 		result := orcapi.InferenceListModelsResponse{
-			Models:  make([]orcapi.InferenceModel, 0, len(models)),
-			IsAdmin: isAdmin,
+			Models:     make([]orcapi.InferenceModel, 0, len(models)),
+			Benchmarks: inferenceBenchmarksToOrc(InferenceBenchmarkList()),
+			IsAdmin:    isAdmin,
+			Server:     inferenceServerBase(),
 		}
 		for _, model := range models {
 			result.Models = append(result.Models, orcapi.InferenceModel{
@@ -175,6 +177,7 @@ func initInference() {
 					MaxCompletionTokens: model.ChatSettings.MaxCompletionTokens,
 					SystemPrompt:        model.ChatSettings.SystemPrompt,
 				},
+				Page: inferencePageToOrc(model.Page),
 			})
 		}
 		return result, nil
@@ -217,6 +220,7 @@ func initInference() {
 				MaxCompletionTokens: request.Model.ChatSettings.MaxCompletionTokens,
 				SystemPrompt:        request.Model.ChatSettings.SystemPrompt,
 			},
+			Page: inferencePageFromOrc(request.Model.Page),
 		}
 
 		oldName := strings.TrimSpace(request.OldName)
@@ -229,6 +233,17 @@ func initInference() {
 			}
 		}
 		if err := InferenceModelUpsert(model); err != nil {
+			return util.Empty{}, err
+		}
+		return util.Empty{}, nil
+	})
+
+	orcapi.InferenceUpdateBenchmarksProvider.Handler(func(info rpc.RequestInfo, request orcapi.InferenceUpdateBenchmarksProviderRequest) (util.Empty, *util.HttpError) {
+		_ = info
+		if !inferenceIsAdminOwner(request.Owner) {
+			return util.Empty{}, util.HttpErr(http.StatusForbidden, "forbidden")
+		}
+		if err := InferenceBenchmarkReplace(inferenceBenchmarksFromOrc(request.Benchmarks)); err != nil {
 			return util.Empty{}, err
 		}
 		return util.Empty{}, nil
@@ -1022,4 +1037,62 @@ func inferenceRetrieveApiTokenOptions(info rpc.RequestInfo, request util.Empty) 
 			},
 		},
 	}, nil
+}
+
+func inferencePageToOrc(page *InferenceModelPage) *orcapi.InferenceModelPage {
+	if page == nil {
+		return nil
+	}
+	data, err := json.Marshal(page)
+	if err != nil {
+		return nil
+	}
+	var result orcapi.InferenceModelPage
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil
+	}
+	return &result
+}
+
+func inferencePageFromOrc(page *orcapi.InferenceModelPage) *InferenceModelPage {
+	if page == nil {
+		return nil
+	}
+	data, err := json.Marshal(page)
+	if err != nil {
+		return nil
+	}
+	var result InferenceModelPage
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil
+	}
+	return &result
+}
+
+func inferenceBenchmarksToOrc(benchmarks []InferenceBenchmark) []orcapi.InferenceBenchmark {
+	result := make([]orcapi.InferenceBenchmark, 0, len(benchmarks))
+	for _, benchmark := range benchmarks {
+		result = append(result, orcapi.InferenceBenchmark{
+			Id:             benchmark.Id,
+			Title:          benchmark.Title,
+			Description:    benchmark.Description,
+			HigherIsBetter: benchmark.HigherIsBetter,
+			ModelNames:     append([]string{}, benchmark.ModelNames...),
+		})
+	}
+	return result
+}
+
+func inferenceBenchmarksFromOrc(benchmarks []orcapi.InferenceBenchmark) []InferenceBenchmark {
+	result := make([]InferenceBenchmark, 0, len(benchmarks))
+	for _, benchmark := range benchmarks {
+		result = append(result, InferenceBenchmark{
+			Id:             benchmark.Id,
+			Title:          benchmark.Title,
+			Description:    benchmark.Description,
+			HigherIsBetter: benchmark.HigherIsBetter,
+			ModelNames:     append([]string{}, benchmark.ModelNames...),
+		})
+	}
+	return result
 }

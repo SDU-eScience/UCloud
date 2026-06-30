@@ -265,3 +265,31 @@ func inferenceV10() db.MigrationScript {
 		},
 	}
 }
+
+func inferenceV11() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "inferenceV11",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					alter table inference_model add column page_metadata jsonb
+				`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`
+					create table inference_benchmark(
+						id text primary key,
+						title text not null,
+						description text not null default '',
+						higher_is_better bool not null default true,
+						model_names jsonb not null
+					)
+				`,
+				db.Params{},
+			)
+		},
+	}
+}

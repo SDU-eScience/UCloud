@@ -5,7 +5,7 @@ import {callAPI} from "@/Authentication/DataHook";
 import {dialogStore} from "@/Dialog/DialogStore";
 import FileBrowse from "@/Files/FileBrowse";
 import {MainContainer} from "@/ui-components/MainContainer";
-import {Box, Button, Flex, Icon, Image, Input, Text, TextArea,} from "@/ui-components";
+import {Box, Button, ExternalLink, Flex, Icon, Image, Input, Text, TextArea,} from "@/ui-components";
 import CodeSnippet from "@/ui-components/CodeSnippet";
 import {Toggle} from "@/ui-components/Toggle";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
@@ -25,24 +25,17 @@ import {openPlayground} from "./api";
 import {getParentPath} from "@/Utilities/FileUtilities";
 import {ProjectSwitcher} from "@/Project/ProjectSwitcher";
 import {useProjectId} from "@/Project/Api";
-import Table from "@/ui-components/Table";
 import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import * as Heading from "@/ui-components/Heading";
 import Tooltip from "@/ui-components/Tooltip";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {RichSelect} from "@/ui-components/RichSelect";
-import LogoDeepseek from "@/Assets/Images/inference/deepseek.png";
-import LogoGoogle from "@/Assets/Images/inference/google.png";
-import LogoMeta from "@/Assets/Images/inference/meta.png";
-import LogoMinimax from "@/Assets/Images/inference/minimax.png";
-import LogoMistral from "@/Assets/Images/inference/mistral.png";
-import LogoMoonshot from "@/Assets/Images/inference/moonshot.png";
-import LogoOpenAI from "@/Assets/Images/inference/oai.png";
-import LogoQwen from "@/Assets/Images/inference/qwen.png";
-import LogoZai from "@/Assets/Images/inference/zai.png";
-import {IconName} from "@/ui-components/Icon";
 import {format, isToday} from "date-fns";
+import ModelInferenceLogo from "./ModelLogo";
+import { MarkdownTable } from "@/ui-components/Markdown";
+import {CopyButton} from "@/ui-components/CopyButton";
+import {IconButton} from "@/ui-components/IconButton";
 
 type PlaygroundSession = {
     connectTo: string;
@@ -640,60 +633,6 @@ function ModelSelectorOption({
     );
 }
 
-function ModelInferenceLogo({modelName}: { modelName: string }): React.ReactNode {
-    const norm = modelName.toLowerCase();
-
-    let img = "";
-    if (norm.includes("deepseek")) {
-        img = LogoDeepseek;
-    } else if (norm.includes("llama")) {
-        img = LogoMeta;
-    } else if (norm.includes("gpt")) {
-        img = LogoOpenAI;
-    } else if (norm.includes("minimax")) {
-        img = LogoMinimax;
-    } else if (norm.includes("qwen")) {
-        img = LogoQwen;
-    } else if (norm.includes("glm")) {
-        img = LogoZai;
-    } else if (norm.includes("mistral")) {
-        img = LogoMistral;
-    } else if (norm.includes("google") || norm.includes("gemma")) {
-        img = LogoGoogle;
-    } else if (norm.includes("kimi") || norm.includes("k2.")) {
-        img = LogoMoonshot;
-    }
-
-    if (img == "") {
-        return (
-            <span
-                title={modelName}
-                aria-hidden="true"
-                style={{
-                    width: 16,
-                    height: 16,
-                    borderRadius: "50%",
-                    background: "var(--primaryMain)",
-                    display: "inline-block",
-                    flexShrink: 0,
-                }}
-            />
-        );
-    } else {
-        return <Flex
-            background={"var(--playground-logo-bg, var(--secondaryMain))"}
-            border={"1px solid var(--playground-border, var(--borderColor))"}
-            borderRadius={"8px"}
-            height={24}
-            width={24}
-            alignItems={"center"}
-            justifyContent={"center"}
-        >
-            <img src={img} alt={`${modelName} logo`} style={{maxHeight: 16, maxWidth: 16}} />
-        </Flex>;
-    }
-}
-
 function ChatMessageNode(
     {
         model,
@@ -735,7 +674,7 @@ function ChatMessageNode(
                 </div>
                 <Flex className={ComposerActionButtonHoverClass} alignItems="center" gap="8px" color="textSecondary" fontSize="12px">
                     <span>{formatTimeOfDay(generatedAt)}</span>
-                    <MessageIconButton label="Copy message" icon="heroDocumentDuplicate" onClick={() => copyMessage(content)}/>
+                    <CopyButton onClick={() => copyToClipboard(content)}/>
                 </Flex>
             </Flex>
         );
@@ -750,7 +689,7 @@ function ChatMessageNode(
                 return <StreamingMarkdownPart key={idx} text={part.text} streaming={!responseFinished}/>;
             })}
             {!responseFinished ? null : <Flex className={ComposerActionButtonHoverClass} alignItems="center" gap="8px" color="textSecondary" fontSize="12px" flexWrap="wrap">
-                <MessageIconButton label="Copy response" icon="heroDocumentDuplicate" onClick={() => copyMessage(content)}/>
+                <CopyButton onClick={() => copyToClipboard(content)}/>
                 <RichSelect<PlaygroundOption, keyof PlaygroundOption>
                     items={modelOptions}
                     keys={["key", "value"]}
@@ -767,7 +706,7 @@ function ChatMessageNode(
                     elementHeight={42}
                     matchTriggerWidth={false}
                     showSearchField={modelOptions.length > 8}
-                    trigger={<MessageIconButton label={`Regenerate (used: ${regenerateModelLabel})`} icon="heroArrowPath"/>}
+                    trigger={<IconButton tooltip={`Regenerate (used: ${regenerateModelLabel})`} icon="heroArrowPath" onClick={doNothing}/>}
                     RenderRow={(props) => (
                         <ModelSelectorOption
                             option={props.element}
@@ -788,36 +727,6 @@ function ChatMessageNode(
             </Flex>}
         </Flex>
     );
-}
-
-function MessageIconButton({label, icon, onClick}: {label: string; icon: IconName; onClick?: () => void}): React.ReactNode {
-    const button = (
-        <button
-            type="button"
-            aria-label={label}
-            onClick={onClick}
-            className={ComposerActionButtonClass}
-        >
-            <Icon name={icon} size={18}/>
-        </button>
-    );
-
-    const tooltipWidth = label.length * 10.5;
-
-    return (
-        <Tooltip tooltipContentWidth={tooltipWidth} trigger={<span style={{display: "inline-flex"}}>{button}</span>}>
-            {label}
-        </Tooltip>
-    );
-}
-
-async function copyMessage(content: string): Promise<void> {
-    try {
-        await copyToClipboard(content);
-        sendSuccessNotification("Message copied to clipboard");
-    } catch {
-        sendFailureNotification("Failed to copy message");
-    }
 }
 
 function formatTimeOfDay(ms: number): string {
@@ -1017,19 +926,20 @@ function MarkdownPart({text}: { text: string }): React.ReactNode {
     return (
         <ReactMarkdown
             components={{
-                a: (p) => (
-                    <a href={p.href} target="_blank" rel="noreferrer">
-                        {p.children}
-                    </a>
-                ),
+                a: (p) => <ExternalLink href={p.href}>{p.children}</ExternalLink>,
                 pre: (p) => <Box my={16}><CodeSnippet children={p.children} maxHeight=""/></Box>,
+                code: p => <code className={CodeClass}>{p.children}</code>,
                 table: p => <MarkdownTable>{p.children}</MarkdownTable>,
-                h1: p => <Heading.h1>{p.children}</Heading.h1>,
-                h2: p => <Heading.h2>{p.children}</Heading.h2>,
-                h3: p => <Heading.h3>{p.children}</Heading.h3>,
-                h4: p => <Heading.h4>{p.children}</Heading.h4>,
-                h5: p => <Heading.h5>{p.children}</Heading.h5>,
-                h6: p => <Heading.h6>{p.children}</Heading.h6>,
+                h1: p => <h1 className={HeadingClass} style={{fontSize: "23px"}}>{p.children}</h1>,
+                h2: p => <h2 className={HeadingClass} style={{fontSize: "21px"}}>{p.children}</h2>,
+                h3: p => <h3 className={HeadingClass} style={{fontSize: "19px"}}>{p.children}</h3>,
+                h4: p => <h4 className={HeadingClass} style={{fontSize: "17px"}}>{p.children}</h4>,
+                h5: p => <h5 className={HeadingClass} style={{fontSize: "15px"}}>{p.children}</h5>,
+                h6: p => <h6 className={HeadingClass} style={{fontSize: "13px"}}>{p.children}</h6>,
+                hr: p => <hr className={HrClass}/>,
+                p: p => <p className={PClass}>{p.children}</p>,
+                ul: p => <ul className={UlClass}>{p.children}</ul>,
+                blockquote: p => <blockquote className={BlockquoteClass}>{p.children}</blockquote>,
             }}
             allowedElements={[
                 "h1",
@@ -1056,6 +966,8 @@ function MarkdownPart({text}: { text: string }): React.ReactNode {
                 "thead",
                 "td",
                 "tr",
+                "hr",
+                "blockquote",
             ]}
             children={text}
             remarkPlugins={[remarkGfm]}
@@ -1063,85 +975,70 @@ function MarkdownPart({text}: { text: string }): React.ReactNode {
     );
 }
 
-function MarkdownTable({children}: React.PropsWithChildren): React.ReactNode {
-    const wrapperRef = React.useRef<HTMLDivElement | null>(null);
-    const [layout, setLayout] = React.useState({scroll: false, minWidth: 0});
-
-    React.useLayoutEffect(() => {
-        const wrapper = wrapperRef.current;
-        if (!wrapper) return;
-
-        let frame = 0;
-        const measure = () => {
-            window.cancelAnimationFrame(frame);
-            frame = window.requestAnimationFrame(() => {
-                const next = measureMarkdownTable(wrapper);
-                setLayout(prev => prev.scroll === next.scroll && prev.minWidth === next.minWidth ? prev : next);
-            });
-        };
-
-        measure();
-        const observer = new ResizeObserver(measure);
-        observer.observe(wrapper);
-        return () => {
-            window.cancelAnimationFrame(frame);
-            observer.disconnect();
-        };
-    }, [children]);
-
-    return <div ref={wrapperRef} style={{overflowX: layout.scroll ? "auto" : "visible", maxWidth: "100%"}}>
-        <Table tableType="presentation" minWidth={layout.scroll ? `${layout.minWidth}px` : undefined}>
-            {children}
-        </Table>
-    </div>;
-}
-
-function measureMarkdownTable(wrapper: HTMLDivElement): { scroll: boolean; minWidth: number } {
-    const rows = Array.from(wrapper.querySelectorAll("tr"));
-    const availableWidth = wrapper.clientWidth;
-    if (rows.length === 0 || availableWidth === 0) {
-        return {scroll: false, minWidth: 0};
+const PClass = injectStyle("p", k => `
+    ${k} {
+        margin-top: 0;
+        margin-bottom: 16px;
     }
-
-    const columnStats: Array<{ textLength: number; tokenLength: number; renderedWidth: number }> = [];
-    for (const row of rows) {
-        const cells = Array.from(row.children).filter((cell): cell is HTMLElement => cell instanceof HTMLElement);
-        for (let idx = 0; idx < cells.length; idx++) {
-            const cell = cells[idx];
-            const text = (cell.textContent ?? "").replace(/\s+/g, " ").trim();
-            const longestToken = text.split(/\s+/).reduce((longest, token) => Math.max(longest, token.length), 0);
-            const stats = columnStats[idx] ?? {textLength: 0, tokenLength: 0, renderedWidth: 0};
-            stats.textLength = Math.max(stats.textLength, text.length);
-            stats.tokenLength = Math.max(stats.tokenLength, longestToken);
-            stats.renderedWidth = Math.max(stats.renderedWidth, cell.getBoundingClientRect().width);
-            columnStats[idx] = stats;
-        }
+    
+    ${k}:last-child {
+        margin-bottom: 0;
     }
+`);
 
-    let forceScroll = false;
-    const desiredWidth = columnStats.reduce((sum, stats) => {
-        let columnWidth = 120;
-        if (stats.tokenLength >= 40) {
-            forceScroll = true;
-            columnWidth = clamp(stats.tokenLength * 8, 240, 720);
-        } else if (stats.textLength >= 120) {
-            columnWidth = clamp(stats.textLength * 5, 320, 640);
-        } else if (stats.textLength >= 60) {
-            columnWidth = clamp(stats.textLength * 4, 200, 360);
-        } else {
-            columnWidth = clamp(stats.textLength * 6 + 24, 80, 200);
-        }
-        return sum + Math.max(columnWidth, Math.min(stats.renderedWidth, 240));
-    }, 0);
+const CodeClass = injectStyle("code", k => `
+    ${k} {
+        white-space: break-spaces;
+        background: var(--playground-active);
+        border-radius: 6px;
+        padding: .2em .4em;
+        font-size: 85%;
+    }
+`);
 
-    const minWidth = Math.ceil(Math.max(desiredWidth, availableWidth));
-    const shouldScroll = forceScroll || desiredWidth > availableWidth + 8;
-    return {scroll: shouldScroll, minWidth: shouldScroll ? minWidth : 0};
-}
+const HrClass = injectStyle("hr", k => `
+    ${k} {
+        display: block;
+        margin: 24px 0;
+        border: none;
+        height: .25em;
+        background: var(--playground-border);
+        width: 100%;
+    }
+`);
 
-function clamp(value: number, min: number, max: number): number {
-    return Math.max(min, Math.min(max, value));
-}
+const BlockquoteClass = injectStyle("blockquote", k => `
+    ${k} {
+        color: var(--textSecondary);
+        border-left: .25em solid var(--playground-border);
+        padding: 0 1em;
+        margin: 0;
+    }
+`);
+
+const HeadingClass = injectStyle("heading", k => `
+    p + ${k},
+    ${k}:first-child {
+        margin-top: 0 !important;
+    }
+    
+    h1${k}, h2${k} {
+        border-bottom: 1px solid var(--playground-border);
+    }
+    
+    ${k} {
+        padding-bottom: 5px;
+        margin: 24px 0 16px 0;
+    }
+`);
+
+const UlClass = injectStyle("ul", k => `
+    ${k} {
+        padding-left: 2em;
+        margin-top: 0;
+        margin-bottom: 16px;
+    }
+`);
 
 function ThinkingPart({part}: { part: ChatMessagePart }): React.ReactNode {
     const [expanded, setExpanded] = React.useState(false);
@@ -1158,6 +1055,7 @@ function ThinkingPart({part}: { part: ChatMessagePart }): React.ReactNode {
                 borderRadius: 8,
                 overflow: "hidden",
                 background: "var(--playground-surface-raised, var(--dialogToolbar))",
+                marginBottom: "16px"
             }}
         >
             <button
@@ -1213,7 +1111,7 @@ function ThreadListNode({
                             node,
                             model,
                             fn,
-                        }: Pick<UcxRenderContext, "node" | "model" | "fn">): React.ReactNode {
+}: Pick<UcxRenderContext, "node" | "model" | "fn">): React.ReactNode {
     const [operations, setOperations] = React.useState<
         Operation<ThreadListItem>[]
     >([]);

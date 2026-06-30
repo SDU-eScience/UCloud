@@ -2,36 +2,32 @@ import * as React from "react";
 
 import {callAPI} from "@/Authentication/DataHook";
 import {MainContainer} from "@/ui-components/MainContainer";
-import {Box, Button, Card, ExternalLink, Flex, Input, Link, Select, Text} from "@/ui-components";
+import {Box, Button, Card, Flex, Input, Link, Select, Text, TextArea} from "@/ui-components";
 import AppRoutes from "@/Routes";
 import {ProjectSwitcher} from "@/Project/ProjectSwitcher";
 import {useProjectId} from "@/Project/Api";
-import {InferenceCapability, InferenceModel, listModels, updateModel} from "./api";
-import * as ApiTokens from "@/Applications/ApiTokens/api";
+import {InferenceBenchmark, InferenceCapability, InferenceModel, listModels, updateBenchmarks, updateModel} from "./api";
 import Table, {TableHeader, TableRow} from "@/ui-components/Table";
 import * as Heading from "@/ui-components/Heading";
-import {copyToClipboard} from "@/UtilityFunctions";
-import SyntaxHighlighter from "react-syntax-highlighter";
-import {UcxAccordion} from "@/UCX/UcxAccordion";
-import {VirtualMachineIconButton} from "@/Applications/Jobs/VirtualMachineIconButton";
 import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import ConfiguringTools from "./ConfiguringTools";
 
 const capabilities: InferenceCapability[] = ["TextGeneration", "TextToImage", "SpeechToText"];
 
 export default function Models(): React.ReactNode {
     const projectId = useProjectId();
     const [models, setModels] = React.useState<InferenceModel[]>([]);
+    const [benchmarks, setBenchmarks] = React.useState<InferenceBenchmark[]>([]);
     const [isAdmin, setIsAdmin] = React.useState(false);
     const [providerId, setProviderId] = React.useState("");
+    const [server, setServer] = React.useState("");
     const [loading, setLoading] = React.useState(true);
     const [error, setError] = React.useState("");
     const [editing, setEditing] = React.useState<InferenceModel | null>(null);
     const [editOriginalName, setEditOriginalName] = React.useState("");
     const [saving, setSaving] = React.useState(false);
-    const [tokenStatus, setTokenStatus] = React.useState<ApiTokens.ApiTokenStatus | null>(null);
-    const [generatingToken, setGeneratingToken] = React.useState(false);
-    const [openTool, setOpenTool] = React.useState("generic");
+    const [savingBenchmarks, setSavingBenchmarks] = React.useState(false);
 
     usePage("Inference models", SidebarTabId.INFERENCE);
 
@@ -41,8 +37,10 @@ export default function Models(): React.ReactNode {
         void callAPI(listModels({providerId: null}))
             .then(resp => {
                 setModels(resp.models ?? []);
+                setBenchmarks(resp.benchmarks ?? []);
                 setIsAdmin(resp.isAdmin);
                 setProviderId(resp.providerId ?? "");
+                setServer(resp.server ?? "");
                 setLoading(false);
             })
             .catch(err => {
@@ -69,6 +67,7 @@ export default function Models(): React.ReactNode {
 
     const saveEdit = () => {
         if (!editing) return;
+
         setSaving(true);
         setError("");
         void callAPI(updateModel({providerId: null, oldName: editOriginalName, model: editing}))
@@ -83,44 +82,19 @@ export default function Models(): React.ReactNode {
             });
     };
 
-    const generateToken = () => {
-        if (providerId === "") {
-            setError("Cannot generate an API token before the inference provider has loaded.");
-            return;
-        }
-
-        setGeneratingToken(true);
+    const saveBenchmarks = () => {
+        setSavingBenchmarks(true);
         setError("");
-        void callAPI<ApiTokens.ApiToken>(ApiTokens.create({
-            title: "UCloud inference token",
-            description: "Generated from the inference models page.",
-            requestedPermissions: [{name: "inference", action: "use"}],
-            expiresAt: Date.now() + 90 * 24 * 60 * 60 * 1000,
-            provider: providerId,
-            product: {
-                category: "",
-                id: "",
-                provider: ""
-            },
-        })).then(resp => {
-            setTokenStatus(resp.status);
-            setGeneratingToken(false);
-        }).catch(err => {
-            setGeneratingToken(false);
-            setError(err instanceof Error ? err.message : "Failed to generate API token");
-        });
+        void callAPI(updateBenchmarks({providerId: null, benchmarks}))
+            .then(() => {
+                setSavingBenchmarks(false);
+                refresh();
+            })
+            .catch(err => {
+                setSavingBenchmarks(false);
+                setError(err instanceof Error ? err.message : "Failed to update benchmarks");
+            });
     };
-
-    const server = tokenStatus?.server ?? "$SERVER";
-    const apiServer = tokenStatus?.server ?? "$API_SERVER";
-    const apiToken = tokenStatus?.token ?? "$API_TOK";
-    const textModels = models.filter(model => model.capabilities.includes("TextGeneration"));
-    const modelRefs = textModels.length > 0 ? textModels.map(model => ({
-        id: model.name,
-        title: model.title,
-        contextWindow: model.contextWindow,
-    })) : [{id: "$MODEL_ID", title: "$MODEL_TITLE", contextWindow: undefined}];
-    const firstModelId = modelRefs[0]?.id ?? "$MODEL_ID";
 
     return <MainContainer main={<Box style={{display: "flex", flexDirection: "column", gap: 20, paddingBottom: 32}}>
         <Flex mb={8} style={{gap: 12, alignItems: "center", flexWrap: "wrap"}}>
@@ -149,7 +123,7 @@ export default function Models(): React.ReactNode {
                 </TableHeader>
                 <tbody>
                 {models.map(model => <TableRow key={model.name}>
-                    <td>{model.title}</td>
+                    <td><Link to={AppRoutes.inference.model(model.name)}>{model.title}</Link></td>
                     <td>{model.name}</td>
                     <td>{model.titleModelName || model.name}</td>
                     <td>{formatMultiplier(model.priceMultiplier.cachedInput)}</td>
@@ -282,6 +256,8 @@ export default function Models(): React.ReactNode {
                     />
                 </label>
             </div>
+
+            <ModelPageMetadataEditor model={editing} benchmarks={benchmarks} setModel={setEditing} />
             <div style={{display: "flex", flexWrap: "wrap", gap: 12, marginTop: "12px"}}>
                 {capabilities.map(capability => <label key={capability} style={{display: "flex", gap: 6, alignItems: "center"}}>
                     <input type="checkbox" checked={editing.capabilities.includes(capability)} onChange={ev => {
@@ -299,124 +275,19 @@ export default function Models(): React.ReactNode {
             </Flex>
         </Card>}
 
+        {!isAdmin ? null : <Card>
+            <Heading.h3 mb={16}>Benchmark definitions</Heading.h3>
+            <Text color="textSecondary">
+                Curated benchmark sections are global. Each definition chooses the benchmark id, display title, sort direction, and comparison model names. Scores are read from each model page metadata under <code>benchmarkScores</code>.
+            </Text>
+            <BenchmarkDefinitionsEditor benchmarks={benchmarks} setBenchmarks={setBenchmarks} models={models} />
+            <Flex justifyContent="end" mt={12}>
+                <Button color="successMain" type="button" onClick={saveBenchmarks} disabled={savingBenchmarks}>{savingBenchmarks ? "Saving..." : "Save benchmarks"}</Button>
+            </Flex>
+        </Card>}
+
         <Card>
-            <Heading.h3 mb={16}>Configuring tools</Heading.h3>
-
-            <Box mt={20} style={{display: "grid", gap: 12}}>
-                <Heading.h4>1. Generate an API key</Heading.h4>
-                <Text>
-                    This creates a 90 day key for the inference provider used by this page. The key is shown once, immediately after generation.
-                </Text>
-                <Flex gap={"12px"} flexWrap={"wrap"} alignItems={"center"}>
-                    <Button type="button" color="successMain" onClick={generateToken} disabled={generatingToken || providerId === ""} m={0}>
-                        {generatingToken ? "Generating..." : "Generate API key"}
-                    </Button>
-                    <Link to={AppRoutes.resources.apiTokens()}><Button type="button" color="secondaryMain" m={0}>Manage API keys</Button></Link>
-                </Flex>
-                {tokenStatus === null ? null :
-                    <div style={{display: "grid", gap: 8, marginTop: "16px"}}>
-                        <CopyableValue label="Server" value={server} />
-                        <CopyableValue label="API key" value={apiToken} />
-                    </div>
-                }
-                {tokenStatus === null ? null : <Text color="textSecondary">
-                    Save this API key now. It will not be visible after leaving this page.
-                </Text>}
-            </Box>
-
-            <Box mt={28} style={{display: "grid", gap: 12}}>
-                <Heading.h4>2. Choose a tool</Heading.h4>
-
-                <ToolGuide id="generic" title="Generic OpenAI-compatible client" openTool={openTool} setOpenTool={setOpenTool}>
-                    <Text>Use these values with clients that support custom OpenAI-compatible chat completion endpoints.</Text>
-                    <ul>
-                        <li>Server: <CopyableInline value={server} /></li>
-                        <li>API key: <CopyableInline value={apiToken} /></li>
-                    </ul>
-                    <Text>Only the chat completions API is supported. Other OpenAI APIs, such as the responses API, are not available.</Text>
-                </ToolGuide>
-
-                <ToolGuide id="vscode" title="VS Code" openTool={openTool} setOpenTool={setOpenTool}>
-                    <Text>Add UCloud as a custom chat-completions endpoint in VS Code.</Text>
-                    <ul>
-                        <li>Open the Command Palette {"->"} Chat: Manage Language Models.</li>
-                        <li>Select "Add models".</li>
-                        <li>Select "Custom endpoint".</li>
-                        <li>Enter a group name such as "UCloud".</li>
-                        <li>Use your API key (<CopyableInline value={apiToken} />).</li>
-                        <li>Use the "Chat completions" API.</li>
-                    </ul>
-                    <Text>Use this model configuration:</Text>
-                    <CodeBlock language="json" value={JSON.stringify({
-                        name: "UCloud",
-                        vendor: "customendpoint",
-                        apiKey: apiToken,
-                        apiType: "chat-completions",
-                        models: modelRefs.map(model => ({
-                            id: model.id,
-                            name: model.title,
-                            url: server,
-                            toolCalling: true,
-                            vision: false,
-                            maxInputTokens: model.contextWindow ?? 128000,
-                            maxOutputTokens: 16000,
-                        })),
-                    }, null, 2)} />
-                </ToolGuide>
-
-                <ToolGuide id="opencode" title="OpenCode" openTool={openTool} setOpenTool={setOpenTool}>
-                    <Text>Documentation: <ExternalLink href="https://opencode.ai/docs/providers/">OpenCode providers</ExternalLink></Text>
-                    <ul>
-                        <li>Open OpenCode.</li>
-                        <li>Run <CopyableInline value="/connect" />.</li>
-                        <li>Choose <b>Other</b>.</li>
-                        <li>Use a provider ID such as <CopyableInline value="custom-openai" />.</li>
-                        <li>Paste your API key when prompted.</li>
-                        <li>Create or edit <code>opencode.json</code>.</li>
-                        <li>Add the provider configuration below.</li>
-                        <li>Restart OpenCode.</li>
-                        <li>Select the desired UCloud model from the model list.</li>
-                    </ul>
-                    <CodeBlock language="json" value={JSON.stringify({
-                        $schema: "https://opencode.ai/config.json",
-                        provider: {
-                            "custom-openai": {
-                                npm: "@ai-sdk/openai-compatible",
-                                name: "Custom OpenAI-Compatible API",
-                                options: {
-                                    baseURL: apiServer,
-                                },
-                                models: Object.fromEntries(modelRefs.map(model => [model.id, {name: model.title}])),
-                            },
-                        },
-                    }, null, 2)} />
-                </ToolGuide>
-
-                <ToolGuide id="codex" title="Codex CLI" openTool={openTool} setOpenTool={setOpenTool}>
-                    <Text>Documentation: <ExternalLink href="https://developers.openai.com/codex/config-reference">Codex configuration reference</ExternalLink></Text>
-                    <Text>Codex CLI supports custom model providers configured in <code>~/.codex/config.toml</code>.</Text>
-                    <ul>
-                        <li>Export your API key before starting Codex:</li>
-                    </ul>
-                    <CodeBlock language="bash" value={`export API_TOK="${tokenStatus?.token ?? "your-api-key"}"`} />
-                    <ul>
-                        <li>Create or edit <code>~/.codex/config.toml</code>.</li>
-                        <li>Add a custom provider:</li>
-                    </ul>
-                    <CodeBlock language="toml" value={`model = "${firstModelId}"
-model_provider = "ucloud"
-
-[model_providers.ucloud]
-name = "UCloud"
-base_url = "${apiServer}"
-env_key = "API_TOK"`} />
-                    <ul>
-                        <li>Start Codex normally with <CopyableInline value="codex" />.</li>
-                        <li>To use the model directly from the command line, run <CopyableInline value={`codex --model "${firstModelId}"`} />.</li>
-                        <li>Keep the API key in the environment rather than hard-coding it in <code>config.toml</code>.</li>
-                    </ul>
-                </ToolGuide>
-            </Box>
+            <ConfiguringTools title="Configuring tools" providerId={providerId} server={server} models={models} />
         </Card>
 
 
@@ -429,51 +300,250 @@ function formatMultiplier(value: number): string {
     return `${value / 1000}x`;
 }
 
-function ToolGuide(props: {
-    id: string;
-    title: string;
-    openTool: string;
-    setOpenTool: (id: string) => void;
-    children: React.ReactNode;
+function defaultModelPage(): NonNullable<InferenceModel["page"]> {
+    return {
+        shortDescription: "",
+        documentationUrl: "",
+        about: {
+            description: "",
+            highlights: [],
+            keyStats: [],
+        },
+        benchmarkScores: {},
+        datasheet: {
+            parameters: "",
+            activatedParameters: "",
+            quantization: "",
+        },
+    };
+}
+
+function ModelPageMetadataEditor(props: {
+    model: InferenceModel;
+    benchmarks: InferenceBenchmark[];
+    setModel: (model: InferenceModel) => void;
 }): React.ReactNode {
-    const open = props.openTool === props.id;
-    return <UcxAccordion title={props.title} open={open} onOpenChange={next => props.setOpenTool(next ? props.id : "")}>
-        <Box style={{display: "grid", gap: 10}}>{props.children}</Box>
-    </UcxAccordion>;
-}
+    const page = props.model.page ?? defaultModelPage();
+    const about = page.about ?? defaultModelPage().about!;
+    const datasheet = page.datasheet ?? defaultModelPage().datasheet!;
 
-function CopyableValue(props: {label: string; value: string}): React.ReactNode {
-    return <Flex style={{gap: 8, alignItems: "center", flexWrap: "wrap"}}>
-        <b>{props.label}: </b>
-        <code style={{cursor: "pointer"}} onClick={() => copyToClipboard(props.value)} title="Click to copy">{props.value}</code>
-        <VirtualMachineIconButton
-            tooltip={"Copy to clipboard"}
-            onClick={() => copyToClipboard(props.value)}
-            icon={"heroDocumentDuplicate"}
-        />
-    </Flex>;
-}
+    const updatePage = (next: NonNullable<InferenceModel["page"]>) => {
+        props.setModel({...props.model, page: next});
+    };
+    const updateAbout = (next: NonNullable<NonNullable<InferenceModel["page"]>["about"]>) => updatePage({...page, about: next});
+    const updateDatasheet = (next: NonNullable<NonNullable<InferenceModel["page"]>["datasheet"]>) => updatePage({...page, datasheet: next});
 
-function CopyableInline(props: {value: string}): React.ReactNode {
-    return <code style={{cursor: "pointer"}} onClick={() => copyToClipboard(props.value)} title="Click to copy">{props.value}</code>;
-}
-
-function CodeBlock(props: {value: string; language: string}): React.ReactNode {
-    return <div style={{position: "relative"}}>
-        <div style={{position: "absolute", top: 8, right: 8, zIndex: 1}}>
-            <Button type="button" m={0} onClick={() => copyToClipboard(props.value)}>Copy</Button>
+    return <Box mt={24} style={{display: "grid", gap: 18}}>
+        <Heading.h4>Model page metadata</Heading.h4>
+        <div style={{display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12}}>
+            <label>
+                Short description
+                <Input value={page.shortDescription ?? ""} onChange={ev => updatePage({...page, shortDescription: ev.currentTarget.value})} />
+            </label>
+            <label>
+                Documentation URL
+                <Input value={page.documentationUrl ?? ""} onChange={ev => updatePage({...page, documentationUrl: ev.currentTarget.value})} />
+            </label>
+            <label>
+                Release date
+                <Input type="date" value={dateInputValue(page.releaseDate)} onChange={ev => updatePage({...page, releaseDate: timestampFromDateInput(ev.currentTarget.value)})} />
+            </label>
+            <label>
+                Parameters
+                <Input value={datasheet.parameters ?? ""} onChange={ev => updateDatasheet({...datasheet, parameters: ev.currentTarget.value})} />
+            </label>
+            <label>
+                Activated parameters
+                <Input value={datasheet.activatedParameters ?? ""} onChange={ev => updateDatasheet({...datasheet, activatedParameters: ev.currentTarget.value})} />
+            </label>
+            <label>
+                Quantization
+                <Input value={datasheet.quantization ?? ""} onChange={ev => updateDatasheet({...datasheet, quantization: ev.currentTarget.value})} />
+            </label>
         </div>
-        <SyntaxHighlighter
-            language={props.language}
-            customStyle={{
-                margin: 0,
-                padding: "12px 64px 12px 12px",
-                borderRadius: 8,
-                border: "var(--defaultCardBorder)",
-                fontSize: 13,
-            }}
-        >
-            {props.value}
-        </SyntaxHighlighter>
-    </div>;
+
+        <label>
+            About description
+            <TextArea
+                style={{width: "100%", minHeight: 120}}
+                value={about.description ?? ""}
+                onChange={ev => updateAbout({...about, description: ev.currentTarget.value})}
+            />
+        </label>
+
+        <RepeatableStrings
+            title="Highlights"
+            values={about.highlights ?? []}
+            placeholder="Highlight shown as a bullet point"
+            setValues={values => updateAbout({...about, highlights: values})}
+        />
+
+        <KeyStatsEditor
+            stats={about.keyStats ?? []}
+            setStats={stats => updateAbout({...about, keyStats: stats})}
+        />
+
+        <BenchmarkScoresEditor
+            benchmarks={props.benchmarks}
+            scores={page.benchmarkScores ?? {}}
+            setScores={scores => updatePage({...page, benchmarkScores: scores})}
+        />
+    </Box>;
+}
+
+function RepeatableStrings(props: {
+    title: string;
+    values: string[];
+    placeholder: string;
+    setValues: (values: string[]) => void;
+}): React.ReactNode {
+    return <Box style={{display: "grid", gap: 8}}>
+        <Flex alignItems="center" gap="8px">
+            <Heading.h4 m={0}>{props.title}</Heading.h4>
+            <Button type="button" m={0} onClick={() => props.setValues([...props.values, ""])}>Add</Button>
+        </Flex>
+        {props.values.length === 0 ? <Text color="textSecondary">No {props.title.toLowerCase()} added.</Text> : null}
+        {props.values.map((value, idx) => <Flex key={idx} gap="8px" alignItems="center">
+            <TextArea
+                value={value}
+                placeholder={props.placeholder}
+                rows={3}
+                onChange={ev => props.setValues(props.values.map((it, itIdx) => itIdx === idx ? ev.currentTarget.value : it))}
+            />
+            <Button type="button" color="errorMain" m={0} onClick={() => props.setValues(props.values.filter((_, itIdx) => itIdx !== idx))}>Remove</Button>
+        </Flex>)}
+    </Box>;
+}
+
+function KeyStatsEditor(props: {
+    stats: NonNullable<NonNullable<NonNullable<InferenceModel["page"]>["about"]>["keyStats"]>;
+    setStats: (stats: NonNullable<NonNullable<NonNullable<InferenceModel["page"]>["about"]>["keyStats"]>) => void;
+}): React.ReactNode {
+    return <Box style={{display: "grid", gap: 8}}>
+        <Flex alignItems="center" gap="8px">
+            <Heading.h4 m={0}>Key stats</Heading.h4>
+            <Button type="button" m={0} onClick={() => props.setStats([...props.stats, {label: "", value: "", description: ""}])}>Add</Button>
+        </Flex>
+        {props.stats.length === 0 ? <Text color="textSecondary">If left empty, the model page shows context length, input multiplier and output multiplier.</Text> : null}
+        {props.stats.map((stat, idx) => <div key={idx} style={{display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr)) auto", gap: 8, alignItems: "end"}}>
+            <label>
+                Label
+                <Input value={stat.label} onChange={ev => props.setStats(props.stats.map((it, itIdx) => itIdx === idx ? {...it, label: ev.currentTarget.value} : it))} />
+            </label>
+            <label>
+                Value
+                <Input value={stat.value} onChange={ev => props.setStats(props.stats.map((it, itIdx) => itIdx === idx ? {...it, value: ev.currentTarget.value} : it))} />
+            </label>
+            <label>
+                Description
+                <Input value={stat.description ?? ""} onChange={ev => props.setStats(props.stats.map((it, itIdx) => itIdx === idx ? {...it, description: ev.currentTarget.value} : it))} />
+            </label>
+            <Button type="button" color="errorMain" m={0} onClick={() => props.setStats(props.stats.filter((_, itIdx) => itIdx !== idx))}>Remove</Button>
+        </div>)}
+    </Box>;
+}
+
+function BenchmarkScoresEditor(props: {
+    benchmarks: InferenceBenchmark[];
+    scores: Record<string, string>;
+    setScores: (scores: Record<string, string>) => void;
+}): React.ReactNode {
+    if (props.benchmarks.length === 0) {
+        return <Text color="textSecondary">Create benchmark definitions below before adding model scores.</Text>;
+    }
+
+    return <Box style={{display: "grid", gap: 8}}>
+        <Heading.h4 m={0}>Benchmark scores</Heading.h4>
+        <div style={{display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12}}>
+            {props.benchmarks.map(benchmark => <label key={benchmark.id}>
+                {benchmark.title}
+                <Input
+                    value={props.scores[benchmark.id] ?? ""}
+                    placeholder="No score"
+                    onChange={ev => {
+                        const scores = {...props.scores};
+                        const value = ev.currentTarget.value;
+                        if (value.trim() === "") {
+                            delete scores[benchmark.id];
+                        } else {
+                            scores[benchmark.id] = value;
+                        }
+                        props.setScores(scores);
+                    }}
+                />
+            </label>)}
+        </div>
+    </Box>;
+}
+
+function BenchmarkDefinitionsEditor(props: {
+    benchmarks: InferenceBenchmark[];
+    setBenchmarks: (benchmarks: InferenceBenchmark[]) => void;
+    models: InferenceModel[];
+}): React.ReactNode {
+    return <Box mt={12} style={{display: "grid", gap: 12}}>
+        <Flex justifyContent="end">
+            <Button type="button" m={0} onClick={() => props.setBenchmarks([...props.benchmarks, {id: "", title: "", description: "", higherIsBetter: true, modelNames: []}])}>Add benchmark</Button>
+        </Flex>
+        {props.benchmarks.length === 0 ? <Text color="textSecondary">No benchmark definitions added.</Text> : null}
+        {props.benchmarks.map((benchmark, idx) => <Card key={idx} p="16px">
+            <div style={{display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12}}>
+                <label>
+                    ID
+                    <Input value={benchmark.id} onChange={ev => updateBenchmark(props, idx, {...benchmark, id: ev.currentTarget.value})} />
+                </label>
+                <label>
+                    Title
+                    <Input value={benchmark.title} onChange={ev => updateBenchmark(props, idx, {...benchmark, title: ev.currentTarget.value})} />
+                </label>
+                <label>
+                    Higher score is better
+                    <Select
+                        value={benchmark.higherIsBetter ? "true" : "false"}
+                        onChange={ev => updateBenchmark(props, idx, {...benchmark, higherIsBetter: ev.currentTarget.value === "true"})}
+                        style={{width: "100%", height: 40}}
+                    >
+                        <option value="true">Yes</option>
+                        <option value="false">No</option>
+                    </Select>
+                </label>
+            </div>
+            <label>
+                Description
+                <Input value={benchmark.description ?? ""} onChange={ev => updateBenchmark(props, idx, {...benchmark, description: ev.currentTarget.value})} />
+            </label>
+            <label>
+                Comparison models
+                <Input
+                    value={benchmark.modelNames.join(", ")}
+                    placeholder={props.models.map(model => model.name).slice(0, 2).join(", ")}
+                    onChange={ev => updateBenchmark(props, idx, {...benchmark, modelNames: parseCommaList(ev.currentTarget.value)})}
+                />
+            </label>
+            <Flex justifyContent="end" mt={12}>
+                <Button type="button" color="errorMain" m={0} onClick={() => props.setBenchmarks(props.benchmarks.filter((_, itIdx) => itIdx !== idx))}>Remove</Button>
+            </Flex>
+        </Card>)}
+    </Box>;
+}
+
+function updateBenchmark(props: {benchmarks: InferenceBenchmark[]; setBenchmarks: (benchmarks: InferenceBenchmark[]) => void}, idx: number, benchmark: InferenceBenchmark) {
+    props.setBenchmarks(props.benchmarks.map((it, itIdx) => itIdx === idx ? benchmark : it));
+}
+
+function parseCommaList(value: string): string[] {
+    return value.split(",").map(it => it.trim()).filter(it => it !== "");
+}
+
+function dateInputValue(timestamp: number | undefined): string {
+    if (!timestamp) return "";
+    const date = new Date(timestamp);
+    if (Number.isNaN(date.getTime())) return "";
+    return date.toISOString().slice(0, 10);
+}
+
+function timestampFromDateInput(value: string): number | undefined {
+    if (value === "") return undefined;
+    const timestamp = new Date(`${value}T00:00:00.000Z`).getTime();
+    return Number.isNaN(timestamp) ? undefined : timestamp;
 }

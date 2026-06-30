@@ -61,6 +61,21 @@ func initInference() {
 			ProviderCallOpts{Username: util.OptValue(info.Actor.Username)},
 		)
 	})
+
+	orcapi.InferenceUpdateBenchmarks.Handler(func(info rpc.RequestInfo, request orcapi.InferenceUpdateBenchmarksRequest) (util.Empty, *util.HttpError) {
+		providerId, err := inferenceSelectProvider(info.Actor, request.ProviderId)
+		if err != nil {
+			return util.Empty{}, err
+		}
+
+		return InvokeProvider(providerId, orcapi.InferenceUpdateBenchmarksProvider,
+			orcapi.InferenceUpdateBenchmarksProviderRequest{
+				Owner:      inferenceActorToOwner(info.Actor),
+				Benchmarks: request.Benchmarks,
+			},
+			ProviderCallOpts{Username: util.OptValue(info.Actor.Username)},
+		)
+	})
 }
 
 func inferenceSelectProvider(actor rpc.Actor, requested util.Option[string]) (string, *util.HttpError) {

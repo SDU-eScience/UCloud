@@ -6,21 +6,26 @@ import {ThemeColor} from "@/ui-components/theme";
 
 const style = injectStyle("vm-icon-button", k => `
     ${k} {
+        width: 32px;
+        height: 32px;
         border: 0;
+        border-radius: 999px;
         background: transparent;
-        cursor: pointer;
+        color: var(--textPrimary);
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 28px;
-        height: 28px;
-        border-radius: 6px;
-        transition: background-color 120ms ease-in-out, color 120ms ease-in-out;
+        cursor: pointer;
+        transition: background-color 120ms ease, opacity 120ms ease;
+        --icon-button-hover: var(--secondaryMain);
+    }
+    
+    html.dark ${k} {
+        --icon-button-hover: #30343a;
     }
 
     ${k}:hover {
-        background: color-mix(in srgb, var(--primaryMain) 12%, transparent);
-        color: var(--textPrimary);
+        background: var(--icon-button-hover);
     }
 
     ${k}:focus-visible {
@@ -29,7 +34,7 @@ const style = injectStyle("vm-icon-button", k => `
     }
 `);
 
-export const VirtualMachineIconButton: React.FunctionComponent<{
+export const IconButton: React.FunctionComponent<{
     tooltip: string;
     onClick: () => void;
     icon: IconName;

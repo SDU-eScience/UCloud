@@ -77,8 +77,9 @@ const appStudio = {
 }
 
 const inference = {
-    playground: () => "/inference/playground",
+    playground: (model?: string, threadId?: string) => buildQueryString("/inference/playground", {model, threadId}),
     models: () => "/inference/models",
+    model: (name: string) => buildQueryString("/inference/model", {name}),
 }
 
 const jobs = {
