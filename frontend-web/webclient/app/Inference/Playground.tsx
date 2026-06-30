@@ -939,6 +939,7 @@ function MarkdownPart({text}: { text: string }): React.ReactNode {
                 hr: p => <hr className={HrClass}/>,
                 p: p => <p className={PClass}>{p.children}</p>,
                 ul: p => <ul className={UlClass}>{p.children}</ul>,
+                ol: p => <ol className={UlClass}>{p.children}</ol>,
                 blockquote: p => <blockquote className={BlockquoteClass}>{p.children}</blockquote>,
             }}
             allowedElements={[

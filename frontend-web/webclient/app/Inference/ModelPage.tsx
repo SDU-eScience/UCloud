@@ -15,12 +15,12 @@ import ConfiguringTools from "./ConfiguringTools";
 import ModelInferenceLogo from "./ModelLogo";
 import ReactMarkdown from "react-markdown";
 import CodeSnippet from "@/ui-components/CodeSnippet";
-import * as Heading from "@/ui-components/Heading";
 import remarkGfm from "remark-gfm";
 import {MarkdownTable} from "@/ui-components/Markdown";
 import {CopyButton} from "@/ui-components/CopyButton";
 import {injectStyle} from "@/Unstyled";
 import {useIsLightThemeStored} from "@/ui-components/theme";
+import {formatDate} from "date-fns";
 
 const fallbackDocs = "https://docs.cloud.sdu.dk";
 
@@ -179,15 +179,17 @@ function BenchmarkSection({model, models, benchmarks}: {model: InferenceModel; m
     </Section>;
 }
 
+const DATE_FORMAT = "dd/MM/yyyy";
+
 function Datasheet({model}: {model: InferenceModel}): React.ReactNode {
     const page = model.page;
     const rows: [string, React.ReactNode][] = [
         ["Model provider", <Flex key="provider" gap="8px" alignItems="center"><ModelInferenceLogo modelName={model.name} />{providerName(model.name)}</Flex>],
-        ["Release date", page?.releaseDate ? new Date(page.releaseDate).toLocaleDateString() : "Not specified"],
+        ["Release date", page?.releaseDate ? formatDate(new Date(page.releaseDate), DATE_FORMAT) : null],
         ["Capabilities", model.capabilities.join(", ")],
         ["Endpoint", <CopyableEndpoint key="endpoint" value={model.name} />],
-        ["Parameters", page?.datasheet?.parameters || "Not specified"],
-        ["Activated parameters", page?.datasheet?.activatedParameters || "Not specified"],
+        ["Parameters", page?.datasheet?.parameters ?? "Not specified"],
+        ["Activated parameters", page?.datasheet?.activatedParameters ?? null],
         ["Context length", model.contextWindow ? model.contextWindow.toLocaleString() : "Not specified"],
         ["Quantization level", page?.datasheet?.quantization ?? null],
         ["Input multiplier", formatMultiplier(model.priceMultiplier.input)],
@@ -204,7 +206,7 @@ function Datasheet({model}: {model: InferenceModel}): React.ReactNode {
 }
 
 function CopyableEndpoint({value}: {value: string}): React.ReactNode {
-    return <Flex gap="8px" alignItems="center" flexWrap="wrap">
+    return <Flex gap="8px" alignItems="center">
         <code>{value}</code>
         <CopyButton onClick={() => copyToClipboard(value)} />
     </Flex>;

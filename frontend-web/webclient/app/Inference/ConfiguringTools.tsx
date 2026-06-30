@@ -147,7 +147,7 @@ export default function ConfiguringTools({
                     provider: {
                         "custom-openai": {
                             npm: "@ai-sdk/openai-compatible",
-                            name: "Custom OpenAI-Compatible API",
+                            name: "UCloud",
                             options: {
                                 baseURL: resolvedServer,
                             },
