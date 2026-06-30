@@ -46,7 +46,7 @@ export default function RangeInput(props: RangeInputProps): React.ReactNode {
             <MarkerWrapper>
                 {props.markers.map((v, idx) => {
                     const isSingleChar = v.toString().length === 1;
-                    return <div key={idx} style={{textAlign: isSingleChar ? "center" : undefined, width: "20px", minHeight: "20px", transform: isSingleChar ? "rotate(0.75turn)" : "rotate(0.75turn)"}}>{v}</div>
+                    return <div key={idx} style={{textAlign: "center", width: "20px", minHeight: "20px", transform: "rotate(0.75turn)"}}>{v}</div>
                 })}
             </MarkerWrapper>
 
@@ -90,7 +90,7 @@ const RangeInputStyle = injectStyle("range-input-style", cl => `
 
     ${cl}::-moz-range-thumb {
         cursor: ew-resize;
-        border: 1px solid var(--textPrimary);
+        border: 1px solid var(--primaryLight);
         height: 18px;
         width: 18px;
         border-radius: 12px;
@@ -100,7 +100,7 @@ const RangeInputStyle = injectStyle("range-input-style", cl => `
     
     ${cl}::-webkit-slider-thumb {
         cursor: ew-resize;
-        border: 1px solid var(--textPrimary);
+        border: 1px solid var(--primaryLight);
         height: 18px;
         width: 18px;
         border-radius: 12px;
