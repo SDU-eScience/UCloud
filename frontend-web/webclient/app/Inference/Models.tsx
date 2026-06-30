@@ -15,6 +15,9 @@ import ModelInferenceLogo from "@/Inference/ModelLogo";
 import {injectStyle} from "@/Unstyled";
 import {SingleLineMarkdown} from "@/ui-components/Markdown";
 import HeroSvg from "@/ui-components/icons/logo_esc.svg";
+import {RichSelect} from "@/ui-components/RichSelect";
+import {isLightThemeStored} from "@/UtilityFunctions";
+import {useIsLightThemeStored} from "@/ui-components/theme";
 
 const capabilities: InferenceCapability[] = ["TextGeneration", "TextToImage", "SpeechToText"];
 
@@ -71,9 +74,10 @@ const pageStyle = injectStyle("inference-models-page", k => `
         position: relative;
         overflow: hidden;
         background: linear-gradient(135deg, #151927 0%, #1b2336 58%, #111827 100%);
+        box-sizing: border-box;
         color: white;
         margin-top: -16px;
-        padding-bottom: 68px;
+        padding-bottom: 24px;
         padding-top: 24px;
         height: 435px;
     }
@@ -81,8 +85,10 @@ const pageStyle = injectStyle("inference-models-page", k => `
     ${k} .hero-top {
         display: flex;
         justify-content: flex-end;
-        margin-bottom: 44px;
-        position: relative;
+        margin-bottom: 0;
+        position: absolute;
+        right: 16px;
+        top: 0;
         z-index: 2;
     }
 
@@ -101,6 +107,9 @@ const pageStyle = injectStyle("inference-models-page", k => `
     }
 
     ${k} .hero-content {
+        align-items: center;
+        display: flex;
+        height: 100%;
         position: relative;
         z-index: 1;
         max-width: 1400px;
@@ -110,12 +119,11 @@ const pageStyle = injectStyle("inference-models-page", k => `
         max-width: 720px;
     }
 
-    ${k} .eyebrow {
+    ${k} .hero p.eyebrow {
         color: rgba(255, 255, 255, 0.68);
-        font-size: 13px;
         font-weight: 700;
         letter-spacing: 0.12em;
-        margin: 0 0 14px;
+        margin: 0;
         text-transform: uppercase;
     }
 
@@ -173,10 +181,106 @@ const pageStyle = injectStyle("inference-models-page", k => `
         margin: 0;
     }
 
+    ${k} .model-toolbar {
+        align-items: flex-start;
+        display: grid;
+        gap: 18px;
+        grid-template-columns: minmax(0, 1fr) minmax(260px, 360px);
+        margin-bottom: 16px;
+    }
+
+    ${k} .catalog-left-controls,
+    ${k} .catalog-search-and-providers {
+        display: grid;
+        gap: 10px;
+    }
+
+    ${k} .capability-filters {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    ${k} .catalog-filter-button {
+        align-items: center;
+        background: var(--backgroundDefault);
+        border: 1px solid rgba(148, 163, 184, 0.28);
+        border-radius: 8px;
+        color: var(--textPrimary);
+        cursor: pointer;
+        display: inline-flex;
+        font: inherit;
+        gap: 8px;
+        min-height: 34px;
+        padding: 0 13px;
+    }
+
+    ${k} .catalog-filter-button:hover,
+    ${k} .catalog-filter-button[data-active="true"] {
+        border-color: var(--primaryMain);
+    }
+
+    ${k} .catalog-filter-button[data-active="true"] {
+        background: var(--primaryMain);
+        color: var(--primaryContrast);
+    }
+
+    ${k} .catalog-search-and-providers {
+        justify-items: end;
+        min-width: min(100%, 360px);
+    }
+
+    ${k} .model-count {
+        color: var(--textSecondary);
+        font-size: 13px;
+        white-space: nowrap;
+    }
+
+    ${k} .catalog-search {
+        width: 320px;
+    }
+
+    ${k} .provider-trigger {
+        align-items: center;
+        background: var(--backgroundDefault);
+        border: 1px solid rgba(148, 163, 184, 0.34);
+        border-radius: 5px;
+        box-sizing: border-box;
+        color: var(--textPrimary);
+        cursor: pointer;
+        display: flex;
+        height: 36px;
+        gap: 8px;
+        max-width: 100%;
+        padding: 0 10px;
+        text-align: left;
+        width: 320px;
+    }
+
+    ${k} .provider-trigger-label {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    ${k} .model-results {
+        max-height: calc(4 * 250px + 3 * 14px);
+        overflow-y: auto;
+        padding-right: 4px;
+    }
+
+    ${k} .no-results {
+        color: var(--textSecondary);
+        margin: 24px 0 0;
+    }
+
     ${k} .model-grid {
         display: grid;
         gap: 14px;
         grid-template-columns: repeat(auto-fill, minmax(250px, 300px));
+        padding: 5px 0;
         justify-content: start;
     }
 
@@ -360,6 +464,20 @@ const pageStyle = injectStyle("inference-models-page", k => `
             display: none;
         }
 
+        ${k} .model-toolbar,
+        ${k} .catalog-search-and-providers {
+            align-items: stretch;
+            justify-items: stretch;
+            grid-template-columns: 1fr;
+        }
+
+        ${k} .catalog-search,
+        ${k} .provider-trigger,
+        ${k} .catalog-search-and-providers {
+            width: 100%;
+        }
+
+
         ${k} .consume-grid,
         ${k} .cta {
             grid-template-columns: 1fr;
@@ -401,6 +519,33 @@ const pageStyle = injectStyle("inference-models-page", k => `
     }
 `);
 
+
+const providerFilterOptionStyle = injectStyle("provider-filter-option", k => `
+    ${k} {
+        align-items: center;
+        color: inherit;
+        cursor: pointer;
+        display: flex;
+        gap: 10px;
+        justify-content: flex-start;
+        min-height: 42px;
+        padding: 7px 10px;
+    }
+
+    ${k}[data-selected="true"] {
+        background: var(--rowHover);
+    }
+
+    ${k} .provider-option-label {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+`);
+
+
 export default function Models(): React.ReactNode {
     const projectId = useProjectId();
     const [models, setModels] = React.useState<InferenceModel[]>([]);
@@ -412,6 +557,9 @@ export default function Models(): React.ReactNode {
     const [editOriginalName, setEditOriginalName] = React.useState("");
     const [saving, setSaving] = React.useState(false);
     const [savingBenchmarks, setSavingBenchmarks] = React.useState(false);
+    const [capabilityFilter, setCapabilityFilter] = React.useState<InferenceCapability | "All">("All");
+    const [search, setSearch] = React.useState("");
+    const [providerFilters, setProviderFilters] = React.useState<string[]>([]);
 
     usePage("Inference models", SidebarTabId.INFERENCE);
 
@@ -481,6 +629,30 @@ export default function Models(): React.ReactNode {
     let effectiveIsAdmin = isAdmin;
     if (true) effectiveIsAdmin = false;
 
+    const providerOptions = React.useMemo(() => modelProviderOptions(models), [models]);
+    const filteredModels = React.useMemo(() => {
+        const query = search.trim().toLowerCase();
+        return models.filter(model => {
+            if (capabilityFilter !== "All" && !model.capabilities.includes(capabilityFilter)) return false;
+            if (providerFilters.length > 0 && !providerFilters.includes(modelProvider(model.name))) return false;
+            if (query !== "") {
+                const haystack = [model.title, model.name, model.page?.shortDescription, model.page?.datasheet?.parameters, modelProvider(model.name)]
+                    .filter(Boolean)
+                    .join(" ")
+                    .toLowerCase();
+                if (!haystack.includes(query)) return false;
+            }
+            return true;
+        });
+    }, [capabilityFilter, models, providerFilters, search]);
+
+    const toggleProviderFilter = (provider: string) => {
+        setProviderFilters(current => current.includes(provider) ? current.filter(it => it !== provider) : [...current, provider]);
+    };
+
+    const lightTheme = useIsLightThemeStored();
+    const secondaryCtaColor = lightTheme ? "primaryMain" : "secondaryMain";
+
     return <MainContainer main={<Box className={pageStyle}>
         {error === "" ? null : <Text color="errorMain">{error}</Text>}
         {loading ? <Text>Loading inference models...</Text> : null}
@@ -505,16 +677,53 @@ export default function Models(): React.ReactNode {
 
         <section id="model-catalog" className="panel panel-muted">
             <div className="panel-inner">
-                <div className="section-heading">
-                    <div>
-                        <h2>Models</h2>
-                        <p>Pick a model based on capability, context length and price multipliers. Details are available per model.</p>
-                    </div>
-                    {models.length === 0 && !loading ? <p className="muted">No inference models are available.</p> : null}
-                </div>
+                <Flex alignItems={"center"} mb={8}>
+                    <Flex gap={"4px"}>
+                        <CatalogFilterButton active={capabilityFilter === "All"} onClick={() => setCapabilityFilter("All")}>All</CatalogFilterButton>
+                        {capabilities.map(capability => <CatalogFilterButton key={capability} active={capabilityFilter === capability} onClick={() => setCapabilityFilter(capability)}>
+                            {capability}
+                        </CatalogFilterButton>)}
+                    </Flex>
 
-                {models.length === 0 ? null : <div className="model-grid">
-                    {models.map(model => <ModelCatalogCard key={model.name} model={model} isAdmin={effectiveIsAdmin} onEdit={() => startEdit(model)} />)}
+                    <Box flexGrow={1} />
+
+                    <Input
+                        className="catalog-search"
+                        type="search"
+                        placeholder="Search models"
+                        value={search}
+                        onChange={ev => setSearch(ev.currentTarget.value)}
+                    />
+                </Flex>
+                <Flex alignItems={"center"} mb={16}>
+                    <span className="model-count">Showing {filteredModels.length} models</span>
+                    <Box flexGrow={1} />
+                    <RichSelect<ModelProviderOption, keyof ModelProviderOption>
+                        items={providerOptions}
+                        keys={["provider"]}
+                        selected={undefined}
+                        onSelect={(option) => toggleProviderFilter(option.provider)}
+                        dropdownWidth="320px"
+                        dropdownVerticalGap={8}
+                        elementHeight={42}
+                        matchTriggerWidth={false}
+                        showSearchField={providerOptions.length > 8}
+                        trigger={<ProviderFilterTrigger selectedProviders={providerFilters} providerOptions={providerOptions} />}
+                        RenderRow={(props) => <ProviderFilterOption
+                            option={props.element}
+                            selected={props.element ? providerFilters.includes(props.element.provider) : false}
+                            onSelect={props.onSelect}
+                            dataProps={props.dataProps}
+                        />}
+                    />
+                </Flex>
+
+                {models.length === 0 && !loading ? <p className="no-results">No inference models are available.</p> : null}
+                {models.length !== 0 && filteredModels.length === 0 ? <p className="no-results">No models match the selected filters.</p> : null}
+                {filteredModels.length === 0 ? null : <div className="model-results">
+                    <div className="model-grid">
+                        {filteredModels.map(model => <ModelCatalogCard key={model.name} model={model} isAdmin={effectiveIsAdmin} onEdit={() => startEdit(model)} />)}
+                    </div>
                 </div>}
             </div>
         </section>
@@ -554,7 +763,12 @@ export default function Models(): React.ReactNode {
                     <p>Open the playground to test a model, or use the catalog to find details and integration settings.</p>
                 </div>
                 <div className="cta-actions">
-                    <Link className="button-link" to={AppRoutes.inference.playground()}><Button type="button">Start in playground</Button></Link>
+                    <Link className="button-link" to={AppRoutes.inference.playground()}>
+                        <Button type="button" color={"successMain"}>Try the playground</Button>
+                    </Link>
+                    <Link className="button-link" to={AppRoutes.grants.newApplication({})}>
+                        <Button type="button" color={secondaryCtaColor}>Apply for access</Button>
+                    </Link>
                 </div>
             </div>
         </section>
@@ -720,6 +934,88 @@ function formatMultiplier(value: number): string {
 function primaryCapability(model: InferenceModel): InferenceCapability | string {
     const priority: InferenceCapability[] = ["SpeechToText", "TextGeneration", "TextToImage"];
     return priority.find(capability => model.capabilities.includes(capability)) ?? model.capabilities[0] ?? "Unknown";
+}
+
+function CatalogFilterButton(props: React.PropsWithChildren<{active: boolean; onClick: () => void; className?: string;}>): React.ReactNode {
+    return <button
+        className={`catalog-filter-button ${props.className ?? ""}`}
+        data-active={props.active.toString()}
+        type="button"
+        onClick={props.onClick}
+    >
+        {props.children}
+    </button>;
+}
+
+function ProviderFilterTrigger(props: {selectedProviders: string[]; providerOptions: ModelProviderOption[]}): React.ReactNode {
+    let label = "All providers";
+    if (props.selectedProviders.length === 1) {
+        label = props.selectedProviders[0];
+    } else if (props.selectedProviders.length > 1) {
+        label = `${props.selectedProviders.length} providers`;
+    }
+
+    const logoModelName = props.selectedProviders.length === 1
+        ? props.providerOptions.find(option => option.provider === props.selectedProviders[0])?.modelName
+        : null;
+
+    return <button type="button" className="provider-trigger">
+        {logoModelName ? <ModelInferenceLogo modelName={logoModelName} size={20} /> : null}
+        <span className="provider-trigger-label">{label}</span>
+        <Icon name="heroChevronDown" size={14} />
+    </button>;
+}
+
+function ProviderFilterOption(props: {
+    option?: ModelProviderOption;
+    selected: boolean;
+    onSelect: () => void;
+    dataProps?: Record<string, string>;
+}): React.ReactNode {
+    if (!props.option) return null;
+    return <div
+        {...props.dataProps}
+        className={providerFilterOptionStyle}
+        data-selected={props.selected.toString()}
+        onClick={ev => {
+            ev.stopPropagation();
+            props.onSelect();
+        }}
+    >
+        <ModelInferenceLogo modelName={props.option.modelName} size={24} />
+        <span className="provider-option-label">{props.option.provider}</span>
+        {props.selected ? <Icon name="heroCheck" size={16} color="primaryMain" /> : <span style={{width: 16}} />}
+    </div>;
+}
+
+interface ModelProviderOption {
+    provider: string;
+    modelName: string;
+}
+
+function modelProviderOptions(models: InferenceModel[]): ModelProviderOption[] {
+    const options = new Map<string, string>();
+    for (const model of models) {
+        const provider = modelProvider(model.name);
+        if (!options.has(provider)) options.set(provider, model.name);
+    }
+    return [...options.entries()]
+        .map(([provider, modelName]) => ({provider, modelName}))
+        .sort((a, b) => a.provider.localeCompare(b.provider));
+}
+
+function modelProvider(modelName: string): string {
+    const norm = modelName.toLowerCase();
+    if (norm.includes("deepseek")) return "DeepSeek";
+    if (norm.includes("llama")) return "Meta";
+    if (norm.includes("qwen")) return "Qwen";
+    if (norm.includes("minimax")) return "Minimax";
+    if (norm.includes("glm")) return "Z.ai";
+    if (norm.includes("mistral")) return "Mistral";
+    if (norm.includes("google") || norm.includes("gemma")) return "Google";
+    if (norm.includes("kimi") || norm.includes("k2.")) return "Moonshot AI";
+    if (norm.includes("gpt")) return "OpenAI";
+    return "Unknown";
 }
 
 function ModelCatalogCard(props: {model: InferenceModel; isAdmin: boolean; onEdit: () => void;}): React.ReactNode {
