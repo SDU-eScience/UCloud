@@ -878,7 +878,7 @@ function ModelCatalogCard(props: {model: InferenceModel;}): React.ReactNode {
 
         <div className={"model-spec-section"}>
             <div className="model-specs">
-                <ModelMetric title="Context" value={model.contextWindow?.toString() ?? "-"} />
+                <ModelMetric title="Context" value={model.contextWindow?.toLocaleString() ?? "-"} />
                 <ModelMetric title="Parameters" value={model.page?.datasheet?.parameters ?? "-"} />
             </div>
 

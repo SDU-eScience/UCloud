@@ -146,7 +146,7 @@ func initInference() {
 			Server:     inferenceServerBase(),
 		}
 		for _, model := range models {
-			result.Models = append(result.Models, orcapi.InferenceModel{
+			inferenceModel := orcapi.InferenceModel{
 				Name:           model.Name,
 				Title:          model.Title,
 				TitleModelName: model.TitleModelName,
@@ -178,7 +178,17 @@ func initInference() {
 					SystemPrompt:        model.ChatSettings.SystemPrompt,
 				},
 				Page: inferencePageToOrc(model.Page),
-			})
+			}
+
+			if !isAdmin {
+				inferenceModel.Endpoint.BasePath = ""
+				inferenceModel.Endpoint.BackendModelName = ""
+				inferenceModel.ChatSettings.SystemPrompt = nil
+				inferenceModel.Availability.AvailableTo = nil
+				inferenceModel.TitleModelName = ""
+			}
+
+			result.Models = append(result.Models, inferenceModel)
 		}
 		return result, nil
 	})
