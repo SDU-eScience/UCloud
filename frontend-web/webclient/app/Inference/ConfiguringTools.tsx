@@ -1,9 +1,7 @@
 import * as React from "react";
-import SyntaxHighlighter from "react-syntax-highlighter";
 
 import {callAPI} from "@/Authentication/DataHook";
 import * as ApiTokens from "@/Applications/ApiTokens/api";
-import {IconButton} from "@/ui-components/IconButton";
 import AppRoutes from "@/Routes";
 import {Box, Button, ExternalLink, Flex, Link, Text} from "@/ui-components";
 import {UcxAccordion} from "@/UCX/UcxAccordion";
@@ -11,6 +9,22 @@ import {copyToClipboard} from "@/UtilityFunctions";
 import {InferenceModel} from "./api";
 import {CopyButton} from "@/ui-components/CopyButton";
 import CodeSnippet from "@/ui-components/CodeSnippet";
+import {injectStyle} from "@/Unstyled";
+
+const Style = injectStyle("configure-tools", k => `
+    ${k} {
+        min-width: 0;
+        max-width: 100%;
+    }
+
+    ${k} pre {
+        max-width: 100%;
+    }
+
+    ${k} code {
+        overflow-wrap: anywhere;
+    }
+`);
 
 export default function ConfiguringTools({
     title,
@@ -68,7 +82,7 @@ export default function ConfiguringTools({
     })) : [{id: modelId ?? "$MODEL_ID", title: "$MODEL_TITLE", contextWindow: undefined}];
     const firstModelId = modelRefs[0]?.id ?? modelId ?? "$MODEL_ID";
 
-    return <>
+    return <Box className={Style}>
         {error === "" ? null : <Text color="errorMain">{error}</Text>}
         <Flex gap="12px" alignItems="center" flexWrap="wrap">
             <h3 className="title" style={{margin: 0}}>{title}</h3>
@@ -182,7 +196,7 @@ env_key = "API_TOK"`} />
                 </ul>
             </ToolGuide>
         </Box>
-    </>;
+    </Box>;
 }
 
 function ToolGuide(props: {
