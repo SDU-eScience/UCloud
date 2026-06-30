@@ -39,14 +39,14 @@ export default function RangeInput(props: RangeInputProps): React.ReactNode {
         if (!props.markers?.length) return null;
         return <>
             <MarkerWrapper>
-                {props.markers.map((v, idx, arr) =>
-                    <div key={idx} style={{marginLeft: "9px", display: "block", content: "", width: "2px", height: "5px", backgroundColor: "rebeccapurple", marginRight: idx === arr.length - 1 ? "9px" : 0}} />
+                {props.markers.map((_, idx) =>
+                    <Flex style={{width: "20px", alignItems: "center"}}><div key={idx} style={{display: "block", content: "", width: "2px", height: "5px", backgroundColor: "rebeccapurple"}} /></Flex>
                 )}
             </MarkerWrapper>
             <MarkerWrapper>
                 {props.markers.map((v, idx) => {
                     const isSingleChar = v.toString().length === 1;
-                    return <div key={idx} style={{textAlign: isSingleChar ? "center" : undefined, minHeight: "21px", transform: isSingleChar ? "rotate(0.75turn)" : "rotate(0.75turn)"}}>{v}</div>
+                    return <div key={idx} style={{textAlign: isSingleChar ? "center" : undefined, width: "20px", minHeight: "20px", transform: isSingleChar ? "rotate(0.75turn)" : "rotate(0.75turn)"}}>{v}</div>
                 })}
             </MarkerWrapper>
 
