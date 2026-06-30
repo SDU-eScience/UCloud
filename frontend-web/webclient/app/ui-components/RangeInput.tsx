@@ -13,42 +13,18 @@ interface RangeInputProps {
     markers?: string[];
 }
 
-const ThingyStyle = injectStyle("thingy-style", cl => `
+const MarkerWrapperStyle = injectStyle("thingy-style", cl => `
     ${cl} {
         display: flex;
         flex-direction: column;
         justify-content: space-between;
         writing-mode: vertical-lr;
         width: 100%;
-        padding-left: 8px;
-        padding-right: 11px;
-    }
-
-    ${cl} > div {
-        display: block;
-    }
-
-    ${cl} > div > div:first-child {
-        transform: translate(50%);
-        display: block;
-        content: '';
-        background-color: var(--textPrimary);
-        width: 2px;
-        height: 8px;
-        border-radius: 12px;
-    }
-
-    ${cl} > div > div:nth-child(2) {
-        --offset: 0;
-        width: 0;
-        margin-top: 18px;
-        /* margin-left: var(--offset); */
-        transform: rotate(-60deg);
     }
 `);
 
-function CustomDataListThingy(props: React.PropsWithChildren): React.ReactNode {
-    return <Flex className={ThingyStyle}>
+function MarkerWrapper(props: React.PropsWithChildren): React.ReactNode {
+    return <Flex className={MarkerWrapperStyle}>
         {props.children}
     </Flex>
 }
@@ -61,12 +37,20 @@ export default function RangeInput(props: RangeInputProps): React.ReactNode {
 
     const markers = React.useMemo(() => {
         if (!props.markers?.length) return null;
-        return <CustomDataListThingy>
-            {props.markers.map((v, idx) => <div key={idx}>
-                <div></div>
-                <div style={{"--offset": `-${v.toString().length / 2}em`}}>{v}</div>
-            </div>)}
-        </CustomDataListThingy>
+        return <>
+            <MarkerWrapper>
+                {props.markers.map((v, idx, arr) =>
+                    <div key={idx} style={{marginLeft: "9px", display: "block", content: "", width: "2px", height: "5px", backgroundColor: "rebeccapurple", marginRight: idx === arr.length - 1 ? "9px" : 0}} />
+                )}
+            </MarkerWrapper>
+            <MarkerWrapper>
+                {props.markers.map((v, idx) => {
+                    const isSingleChar = v.toString().length === 1;
+                    return <div key={idx} style={{textAlign: isSingleChar ? "center" : undefined, minHeight: "21px", transform: isSingleChar ? "rotate(0.75turn)" : "rotate(0.75turn)"}}>{v}</div>
+                })}
+            </MarkerWrapper>
+
+        </>
     }, [props.markers]);
 
     return (<>

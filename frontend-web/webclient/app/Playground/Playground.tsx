@@ -186,14 +186,17 @@ const Playground: React.FunctionComponent = () => {
     }, []);
 
     const [value, setValue] = React.useState(0);
-    const count = 8;
 
-    const FAKE_MACHINES = [...Array.from(Array(4).keys()).map(v => `${v + 1}/7`), ...Array.from(Array(8).keys()).map(v => (v + 1).toString())]
+    const FAKE_MACHINES = [...Array.from(Array(4).keys()).map(v => `${v + 1} / 7`), ...Array.from(Array(8).keys()).map(v => (v + 1).toString())]
+    const FAKE_MACHINES2 = ["1", "2", "4", "8", "16", "32", "64", "128"];
+    const FAKE_MACHINES3 = ["1", "2", "4", "8"];
     console.log({FAKE_MACHINES})
 
     const main = (
         <>
             <RangeInput value={value} onChange={(event) => setValue(event.target.valueAsNumber)} max={FAKE_MACHINES.length - 1} markers={FAKE_MACHINES} />
+            <RangeInput value={value} onChange={(event) => setValue(event.target.valueAsNumber)} max={FAKE_MACHINES2.length - 1} markers={FAKE_MACHINES2} />
+            <RangeInput value={value} onChange={(event) => setValue(event.target.valueAsNumber)} max={FAKE_MACHINES3.length - 1} markers={FAKE_MACHINES3} />
 
             <ChangeOrganizationDetails getValues={getValuesRef} />
             <Button onClick={foo}>View extracted contents</Button>
@@ -318,28 +321,6 @@ const Playground: React.FunctionComponent = () => {
     );
     return <MainContainer main={main} />;
 };
-
-
-const ThingyStyle = injectStyle("thingy-style", cl => `
-    ${cl} {
-        justify-content: space-between;
-        width: 100%;
-        padding-top: 8px;
-        padding-left: 4px;
-        padding-right: 4px;
-    }
-
-    ${cl} > div {
-
-    }
-`);
-
-function CustomDataListThingy(props: React.PropsWithChildren): React.ReactNode {
-    return <Flex className={ThingyStyle}>
-        {props.children}
-    </Flex>
-}
-
 
 type PlottingData = {value: number; date: Date}
 
