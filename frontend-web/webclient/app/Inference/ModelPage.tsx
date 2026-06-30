@@ -2,7 +2,6 @@ import * as React from "react";
 import {useSearchParams} from "react-router-dom";
 
 import {callAPI} from "@/Authentication/DataHook";
-import {IconButton} from "@/ui-components/IconButton";
 import AppRoutes from "@/Routes";
 import {Box, Button, ExternalLink, Flex, Link, Text} from "@/ui-components";
 import {MainContainer, MAIN_CONTAINER_MAX_WIDTH} from "@/ui-components/MainContainer";
@@ -13,14 +12,11 @@ import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {InferenceBenchmark, InferenceModel, listModels} from "./api";
 import ConfiguringTools from "./ConfiguringTools";
 import ModelInferenceLogo from "./ModelLogo";
-import ReactMarkdown from "react-markdown";
-import CodeSnippet from "@/ui-components/CodeSnippet";
-import remarkGfm from "remark-gfm";
-import {MarkdownTable} from "@/ui-components/Markdown";
 import {CopyButton} from "@/ui-components/CopyButton";
 import {injectStyle} from "@/Unstyled";
 import {useIsLightThemeStored} from "@/ui-components/theme";
 import {formatDate} from "date-fns";
+import {MarkdownDocument} from "@/ui-components/Markdown";
 
 const fallbackDocs = "https://docs.cloud.sdu.dk";
 
@@ -78,6 +74,8 @@ const PageStyle = injectStyle("model-page", k => `
         box-sizing: border-box;
         height: 435px;
         padding: 56px 16px;
+        display: flex;
+        justify-content: center;
     }
 
     ${k} .model-hero-inner {
@@ -86,7 +84,7 @@ const PageStyle = injectStyle("model-page", k => `
         flex-wrap: wrap;
         gap: 32px;
         justify-content: space-between;
-        margin: 0 auto;
+        width: 100%;
         max-width: ${MAIN_CONTAINER_MAX_WIDTH};
         padding: 0 16px;
     }
@@ -144,7 +142,7 @@ function ModelPageContent({model, models, benchmarks, providerId, server}: {mode
         <MainContainer main={<Box style={{display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(260px, 360px)", gap: 36, paddingBottom: 32}}>
             <Box style={{display: "grid", gap: 34}}>
                 <Section title="About model">
-                    {page?.about?.description ? <Markdown text={page.about.description} /> : <Text>{shortDescription}</Text>}
+                    {page?.about?.description ? <MarkdownDocument text={page.about.description} /> : <Text>{shortDescription}</Text>}
                 </Section>
                 <Box style={{display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 16}}>
                     {keyStats.map((stat, idx) => <Box key={idx} style={{borderTop: "2px solid var(--primaryMain)"}} my={22} pt={12}>
@@ -155,7 +153,7 @@ function ModelPageContent({model, models, benchmarks, providerId, server}: {mode
                 </Box>
                 {page?.about?.highlights?.length ? <>
                     <Section title={"Highlights"}>
-                        <ul style={{margin: "0", paddingLeft: "20px"}}>{page.about.highlights.map((item, idx) => <li key={idx}><Markdown text={item} /></li>)}</ul>
+                        <ul style={{margin: "0", paddingLeft: "20px"}}>{page.about.highlights.map((item, idx) => <li key={idx}><MarkdownDocument text={item} /></li>)}</ul>
                     </Section>
                 </> : null}
 
@@ -272,45 +270,4 @@ function providerName(modelName: string): string {
 function formatMultiplier(value: number): string {
     if (value === 0) return "N/A";
     return `${value / 1000}x`;
-}
-
-function Markdown({text}: { text: string }): React.ReactNode {
-    if (text.trim() === "") return null;
-    return (
-        <ReactMarkdown
-            components={{
-                a: (p) => <ExternalLink href={p.href}>{p.children}</ExternalLink>,
-                pre: (p) => <Box my={16}><CodeSnippet children={p.children} maxHeight=""/></Box>,
-                table: p => <MarkdownTable>{p.children}</MarkdownTable>,
-            }}
-            allowedElements={[
-                "h1",
-                "h2",
-                "h3",
-                "h4",
-                "h5",
-                "h6",
-                "br",
-                "a",
-                "p",
-                "strong",
-                "b",
-                "i",
-                "em",
-                "ul",
-                "ol",
-                "li",
-                "pre",
-                "code",
-                "table",
-                "th",
-                "tbody",
-                "thead",
-                "td",
-                "tr",
-            ]}
-            children={text}
-            remarkPlugins={[remarkGfm]}
-        />
-    );
 }

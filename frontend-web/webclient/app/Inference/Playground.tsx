@@ -33,7 +33,7 @@ import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {RichSelect} from "@/ui-components/RichSelect";
 import {format, isToday} from "date-fns";
 import ModelInferenceLogo from "./ModelLogo";
-import { MarkdownTable } from "@/ui-components/Markdown";
+import {MarkdownDocument, MarkdownTable} from "@/ui-components/Markdown";
 import {CopyButton} from "@/ui-components/CopyButton";
 import {IconButton} from "@/ui-components/IconButton";
 
@@ -752,10 +752,10 @@ function formatTokensPerSecond(outputTokens: number, firstTokenAt: number, finis
 }
 
 function StreamingMarkdownPart({text, streaming}: {text: string; streaming: boolean}): React.ReactNode {
-    if (!streaming) return <MarkdownPart text={text}/>;
+    if (!streaming) return <MarkdownDocument text={text}/>;
 
     const stableText = stableStreamingMarkdownPrefix(text);
-    return <MarkdownPart text={stableText}/>;
+    return <MarkdownDocument text={stableText}/>;
 }
 
 type StreamingMarkdownStackItem = {
@@ -921,126 +921,6 @@ function isEscaped(text: string, idx: number): boolean {
     return slashCount % 2 === 1;
 }
 
-function MarkdownPart({text}: { text: string }): React.ReactNode {
-    if (text.trim() === "") return null;
-    return (
-        <ReactMarkdown
-            components={{
-                a: (p) => <ExternalLink href={p.href}>{p.children}</ExternalLink>,
-                pre: (p) => <Box my={16}><CodeSnippet children={p.children} maxHeight=""/></Box>,
-                code: p => <code className={CodeClass}>{p.children}</code>,
-                table: p => <MarkdownTable>{p.children}</MarkdownTable>,
-                h1: p => <h1 className={HeadingClass} style={{fontSize: "23px"}}>{p.children}</h1>,
-                h2: p => <h2 className={HeadingClass} style={{fontSize: "21px"}}>{p.children}</h2>,
-                h3: p => <h3 className={HeadingClass} style={{fontSize: "19px"}}>{p.children}</h3>,
-                h4: p => <h4 className={HeadingClass} style={{fontSize: "17px"}}>{p.children}</h4>,
-                h5: p => <h5 className={HeadingClass} style={{fontSize: "15px"}}>{p.children}</h5>,
-                h6: p => <h6 className={HeadingClass} style={{fontSize: "13px"}}>{p.children}</h6>,
-                hr: p => <hr className={HrClass}/>,
-                p: p => <p className={PClass}>{p.children}</p>,
-                ul: p => <ul className={UlClass}>{p.children}</ul>,
-                ol: p => <ol className={UlClass}>{p.children}</ol>,
-                blockquote: p => <blockquote className={BlockquoteClass}>{p.children}</blockquote>,
-            }}
-            allowedElements={[
-                "h1",
-                "h2",
-                "h3",
-                "h4",
-                "h5",
-                "h6",
-                "br",
-                "a",
-                "p",
-                "strong",
-                "b",
-                "i",
-                "em",
-                "ul",
-                "ol",
-                "li",
-                "pre",
-                "code",
-                "table",
-                "th",
-                "tbody",
-                "thead",
-                "td",
-                "tr",
-                "hr",
-                "blockquote",
-            ]}
-            children={text}
-            remarkPlugins={[remarkGfm]}
-        />
-    );
-}
-
-const PClass = injectStyle("p", k => `
-    ${k} {
-        margin-top: 0;
-        margin-bottom: 16px;
-    }
-    
-    ${k}:last-child {
-        margin-bottom: 0;
-    }
-`);
-
-const CodeClass = injectStyle("code", k => `
-    ${k} {
-        white-space: break-spaces;
-        background: var(--playground-active);
-        border-radius: 6px;
-        padding: .2em .4em;
-        font-size: 85%;
-    }
-`);
-
-const HrClass = injectStyle("hr", k => `
-    ${k} {
-        display: block;
-        margin: 24px 0;
-        border: none;
-        height: .25em;
-        background: var(--playground-border);
-        width: 100%;
-    }
-`);
-
-const BlockquoteClass = injectStyle("blockquote", k => `
-    ${k} {
-        color: var(--textSecondary);
-        border-left: .25em solid var(--playground-border);
-        padding: 0 1em;
-        margin: 0;
-    }
-`);
-
-const HeadingClass = injectStyle("heading", k => `
-    p + ${k},
-    ${k}:first-child {
-        margin-top: 0 !important;
-    }
-    
-    h1${k}, h2${k} {
-        border-bottom: 1px solid var(--playground-border);
-    }
-    
-    ${k} {
-        padding-bottom: 5px;
-        margin: 24px 0 16px 0;
-    }
-`);
-
-const UlClass = injectStyle("ul", k => `
-    ${k} {
-        padding-left: 2em;
-        margin-top: 0;
-        margin-bottom: 16px;
-    }
-`);
-
 function ThinkingPart({part}: { part: ChatMessagePart }): React.ReactNode {
     const [expanded, setExpanded] = React.useState(false);
     const summary = part.summary.trim();
@@ -1100,7 +980,7 @@ function ThinkingPart({part}: { part: ChatMessagePart }): React.ReactNode {
                     {part.body.trim() === "" ? (
                         <Text color="textSecondary">Thinking...</Text>
                     ) : (
-                        <MarkdownPart text={part.body}/>
+                        <MarkdownDocument text={part.body}/>
                     )}
                 </div>
             ) : null}
