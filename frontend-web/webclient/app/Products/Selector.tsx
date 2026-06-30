@@ -285,8 +285,8 @@ export const ProductSelector: React.FunctionComponent<{
     }, [categorizedProducts, projectId]);
 
     React.useEffect(() => {
-
-    }, [projectId, categorizedProducts]);
+        props.onSelect(null);
+    }, [projectId])
 
     // On parameter import, find correct category
     React.useEffect(() => {
@@ -370,7 +370,7 @@ export const ProductSelector: React.FunctionComponent<{
         </Flex>
 
         {isCompute && selected ? <>
-            <div className={classConcat(SelectorBoxClass, props.slim === true ? "slim" : undefined)} onClick={onToggle} ref={boxRef} style={{marginTop: "4px"}}>
+            <div className={classConcat(SelectorBoxClass, props.slim === true ? "slim" : undefined)} onClick={onToggle} style={{marginTop: "4px"}}>
                 <div className="selected">
                     <>
                         {props.slim !== true ?
@@ -379,7 +379,7 @@ export const ProductSelector: React.FunctionComponent<{
                                     <Flex>{selected?.name}</Flex>
                                     <Box px="8px" py="4px" backgroundColor={`var(--${queueStatusInfo.color})`} color="fixedWhite" borderRadius={"12px"}>{queueStatusInfo.message}</Box>
                                 </Flex>
-                                {selected ? <Box mt="48px" mb="24px">
+                                {selected ? <Box mt="24px" mb="12px">
                                     <ProductDescription serviceProvider={selected.category.provider} category={selected.category.name} />
                                     <table>
                                         <tbody>
@@ -417,7 +417,7 @@ export const ProductSelector: React.FunctionComponent<{
                         <Flex mt={(rest.dialogHeight - 64 - 20) / 2 /* subract margin + height of HexSpin */}>
                             <HexSpin size={64} />
                         </Flex>
-                    </> : props.products.filter(it => it.category.provider === serviceProvider).length === 0 ?
+                    </> : shownProducts.length === 0 ?
                         <>
                             <NoResultsBody title={`No ${productName} available for use`}>
                                 You do not currently have credits for any {productName} which you are able to use for this purpose.{" "}
@@ -700,15 +700,18 @@ export const SelectorDialog = injectStyle("selector-dialog", k => `
 
 const ProductStats: React.FunctionComponent<{product: ProductV2}> = ({product}) => {
     const computeProduct = product as ProductV2Compute;
+
     switch (computeProduct.type) {
         case "compute":
+            const gpuType = computeProduct.gpu != null && computeProduct.fraction?.denominator !== 1 ? "MIG(s)" : "GPU(s)";
+
             return <>
                 <TableCell>{computeProduct.cpu} CPU(s)<HardwareModel model={computeProduct.cpuModel} /></TableCell>
                 <TableCell>{computeProduct.memoryInGigs} GB RAM<HardwareModel model={computeProduct.memoryModel} /></TableCell>
                 <TableCell>
                     {computeProduct.gpu === 0 || computeProduct.gpu == null ?
-                        <>GPU(s) <span style={{color: "#a9b0b9"}}>None</span></> :
-                        <>{" "}{computeProduct.gpu} GPU(s) <HardwareModel model={computeProduct.gpuModel} /></>
+                        null :
+                        <>{" "}{computeProduct.gpu} {gpuType} <HardwareModel model={computeProduct.gpuModel} /></>
                     }
                 </TableCell>
             </>
@@ -744,10 +747,10 @@ function MachineTypeSelectionSlider(props: {
     const productCount = props.selectedCategory.products.length;
 
     return <Box mb="8px" mx="32px" px="8px" onClick={stopPropagation}>
-        <Flex>
+        <Flex mb="8px">
             <Box ml="4px"><ProductTypeKind category={props.selectedCategory.kind} isFractional={dividerIndex > 0} /></Box>
             {dividerIndex > 0 ? <>
-                <Box style={{position: "absolute", width: "1px", left: `calc(100% * ${dividerIndex / productCount})`, height: "80px", border: "1px solid var(--infoMain)"}}></Box>
+                <Box style={{position: "absolute", width: "1px", left: `calc(100% * ${dividerIndex / productCount})`, height: "34px", border: "1px solid var(--primaryMain)", borderTopLeftRadius: "12px", borderTopRightRadius: "12px", backgroundColor: "var(--primaryMain)"}}></Box>
                 <Box style={{position: "absolute", left: `calc(100% * ${dividerIndex / productCount} + 20px)`}} ml="4px"><ProductTypeKind category={props.selectedCategory.kind} /></Box>
             </> : null}
         </Flex>
@@ -1057,17 +1060,17 @@ function statusStringAndColor(status: JobQueueStatus): {
     }> = {
         [JobQueueStatus.AVAILABLE]: {
             color: "successMain",
-            message: "This machine type is available for use.",
+            message: "This machine type is available.",
             messageMultiple: "At least one machine type is available for use.",
         },
         [JobQueueStatus.BUSY]: {
             color: "warningMain",
-            message: "This machine type is available for use, but the cluster is busy.",
+            message: "Only a few of this machine type is available.",
             messageMultiple: "At least one machine type is available for use, but the cluster is busy.",
         },
         [JobQueueStatus.FULL]: {
             color: "errorMain",
-            message: "This machine type is not currently available and you will have to wait in a queue.",
+            message: "This machine type is full and jobs will be queued.",
             messageMultiple: "This machine type is not currently available and you will have to wait in a queue.",
         }
     }
@@ -1088,12 +1091,13 @@ function JobQueueStatusIndicator(props: {
 }
 
 function useDialogSize(headerCount: number, rightAligned: boolean): {boxRef: React.RefObject<HTMLDivElement | null>; dialogX: number; dialogY: number; dialogHeight: number; dialogWidth: number;} {
+    console.log(headerCount);
     const boxRef = React.useRef<HTMLDivElement>(null);
     const boxRect = boxRef?.current?.getBoundingClientRect() ?? {x: 0, y: 0, width: 0, height: 0, top: 0, right: 0, bottom: 0, left: 0};
     let dialogX = boxRect.x;
     let dialogY = boxRect.y + boxRect.height;
     let dialogHeight = 500;
-    const minimumWidth = (rightAligned ? 700 : 500) + headerCount * 90;
+    const minimumWidth = 500 + headerCount * 90;
     if (rightAligned) {
         dialogX = boxRect.x + boxRect.width - minimumWidth;
     }

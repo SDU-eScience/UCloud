@@ -21,6 +21,22 @@ const MarkerWrapperStyle = injectStyle("thingy-style", cl => `
         writing-mode: vertical-lr;
         width: 100%;
     }
+
+    ${cl} > div > .marker-mark {
+        display: "block";
+        content: "";
+        width: 2px;
+        height: 5px;
+        border-radius: 12px;
+        background-color: var(--textPrimary);
+    }
+
+    ${cl} > .marker-text {
+        text-align: center;
+        width: 20px;
+        min-height: 20px;
+        transform: rotate(0.75turn);
+    }
 `);
 
 function MarkerWrapper(props: React.PropsWithChildren): React.ReactNode {
@@ -40,14 +56,13 @@ export default function RangeInput(props: RangeInputProps): React.ReactNode {
         return <>
             <MarkerWrapper>
                 {props.markers.map((_, idx) =>
-                    <Flex style={{width: "20px", alignItems: "center"}}><div key={idx} style={{display: "block", content: "", width: "2px", height: "5px", backgroundColor: "rebeccapurple"}} /></Flex>
+                    <Flex key={idx} width="20px" alignItems="center">
+                        <div className="marker-mark" />
+                    </Flex>
                 )}
             </MarkerWrapper>
             <MarkerWrapper>
-                {props.markers.map((v, idx) => {
-                    const isSingleChar = v.toString().length === 1;
-                    return <div key={idx} style={{textAlign: "center", width: "20px", minHeight: "20px", transform: "rotate(0.75turn)"}}>{v}</div>
-                })}
+                {props.markers.map((v, idx) => <div key={idx} className="marker-text">{v}</div>)}
             </MarkerWrapper>
 
         </>
