@@ -186,31 +186,14 @@ const Playground: React.FunctionComponent = () => {
     }, []);
 
     const [value, setValue] = React.useState(0);
+    const count = 8;
 
-
-    const green = "successMain";
-    const red = "errorMain";
-    const yellow = "warningMain"
-    const colorList = [red, green, yellow, green, red, yellow, green, yellow, green];
-    const gradientFromQueueStatus = React.useMemo(() => {
-        const gradientString = colorList.map((color, idx, {length}) =>
-            `var(--${color}) ${idx / (length - 1) * 100}%`
-        ).join(",");
-
-        return `linear-gradient(90deg, ${gradientString})`;
-    }, []);
-
-    const count = colorList.length;
+    const FAKE_MACHINES = [...Array.from(Array(4).keys()).map(v => `${v + 1}/7`), ...Array.from(Array(8).keys()).map(v => (v + 1).toString())]
+    console.log({FAKE_MACHINES})
 
     const main = (
         <>
-
-            <RangeInput background={gradientFromQueueStatus} thumbColor={`var(--${colorList[value]}`} value={value} onChange={(event) => setValue(event.target.valueAsNumber)} max={count - 1} markers={Array.from(Array(count).keys()).map(idx => idx)} />
-            <CustomDataListThingy>
-                {Array.from(Array(count).keys()).map((idx) =>
-                    <Box key={idx} width={0} mb="4px">{idx} / 5</Box>
-                )}
-            </CustomDataListThingy>
+            <RangeInput value={value} onChange={(event) => setValue(event.target.valueAsNumber)} max={FAKE_MACHINES.length - 1} markers={FAKE_MACHINES} />
 
             <ChangeOrganizationDetails getValues={getValuesRef} />
             <Button onClick={foo}>View extracted contents</Button>

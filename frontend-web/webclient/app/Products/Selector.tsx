@@ -20,7 +20,6 @@ import {TooltipV2} from "@/ui-components/Tooltip";
 import {useSelector} from "react-redux";
 import {ServiceProviderItem, ServiceProviderSelector} from "@/Applications/ApiTokens/Add";
 import {InputClass} from "@/ui-components/Input";
-import {useProject} from "@/Project/cache";
 import {useProjectId} from "@/Project/Api";
 
 interface ComputeCategory {
@@ -321,7 +320,9 @@ export const ProductSelector: React.FunctionComponent<{
     const shownProducts = React.useMemo(() => {
         if (!isCompute) return categorizedProducts;
         return (categorizedProducts as ComputeCategory[]).filter(it => it.provider === serviceProvider) ?? [];
-    }, [isCompute, serviceProvider]);
+    }, [isCompute, serviceProvider, projectId, categorizedProducts]);
+
+    const queueStatusInfo = statusStringAndColor(queueStatus ?? JobQueueStatus.FULL);
 
     return <>
         <Flex gap="8px">
@@ -375,21 +376,20 @@ export const ProductSelector: React.FunctionComponent<{
                         {props.slim !== true ?
                             <>
                                 <Flex ml="2px" mt="4px" justifyContent={"space-between"}>
-                                    <Flex>{queueStatus ? <div style={{
-                                        marginRight: "8px",
-                                        paddingTop: "4px",
-                                    }}><JobQueueStatusIndicator status={queueStatus} /></div> : null} {selected?.name}</Flex>
-                                    <ProductDescription serviceProvider={selected.category.provider} category={selected.category.name} /></Flex>
-                                {selected ? <>
-                                    <table style={{marginTop: "48px", marginBottom: "24px"}}>
+                                    <Flex>{selected?.name}</Flex>
+                                    <Box px="8px" py="4px" backgroundColor={`var(--${queueStatusInfo.color})`} color="fixedWhite" borderRadius={"12px"}>{queueStatusInfo.message}</Box>
+                                </Flex>
+                                {selected ? <Box mt="48px" mb="24px">
+                                    <ProductDescription serviceProvider={selected.category.provider} category={selected.category.name} />
+                                    <table>
                                         <tbody>
                                             <tr>
                                                 <ProductStats product={selected} />
-                                                <td>{priceToString(selected, 1)}</td>
+                                                <td>Price: {priceToString(selected, 1)}</td>
                                             </tr>
                                         </tbody>
                                     </table>
-                                </> : null}
+                                </Box> : null}
                             </> :
                             <Flex alignItems={"center"} gap={"8px"}>
                                 <ProviderLogo className={"provider-logo"} providerId={selected?.category?.provider ?? "?"} size={24} />
@@ -736,74 +736,44 @@ function MachineTypeSelectionSlider(props: {
         const firstFractionalIndex =
             props.selectedCategory.products.findIndex(it => it.fraction?.denominator === 1 && it.fraction?.numerator === 1);
 
-        if (firstFractionalIndex > 0) {
-            return firstFractionalIndex;
-        }
-
-        return 0;
+        return firstFractionalIndex;
     }, [props.selectedCategory]);
 
     if (!props.selectedCategory) return null;
 
     const productCount = props.selectedCategory.products.length;
 
-    const gradientColors: ThemeColor[] = props.selectedCategory.products.map(p => {
-        const status = queueStatusFromCategoryName(props.support, p.name, p.category);
-        if (!status) return "primaryMain";
-        return statusStringAndColor(status).color;
-    });
-
-    const color: ThemeColor = React.useMemo(() => {
-        const activeProduct = props.selectedCategory?.products[props.idx];
-        if (!activeProduct) return "primaryMain"
-        const queueStatus = queueStatusFromCategoryName(props.support, activeProduct.name, activeProduct.category);
-        return statusStringAndColor(queueStatus ?? JobQueueStatus.FULL).color;
-    }, [props.selectedCategory, props.idx])
-
-    return <Box mb="8px" mx="8px" px="8px" onClick={stopPropagation}>
-        {dividerIndex > 0 ?
-            <Flex>
-                <Box ml="4px">MIG (partial GPUs)</Box>
-                <Box style={{position: "absolute", width: "1px", left: `calc(100% * ${dividerIndex / productCount} - 16px)`, height: "80px", border: "1px solid var(--infoMain)"}}></Box>
-                <Box style={{position: "absolute", left: `calc(100% * ${dividerIndex / productCount} + 20px)`}} ml="4px">Full GPUs</Box>
-            </Flex>
-            : null}
-        <RangeInput thumbColor={`var(--${color})`} background={gradientFromQueueStatus(gradientColors)} value={props.idx} autoFocus onChange={e => props.onSelect(e.target.valueAsNumber)} min={0} max={props.selectedCategory.products.length - 1} markers={props.selectedCategory.products.map((_, idx) => idx)} />
-        <CustomDataListThingy>
-            {props.selectedCategory.products.map((p, idx) =>
-                <Box key={idx} mb="4px">{computeV2CountStringThing(p)}</Box>
-            )}
-        </CustomDataListThingy>
+    return <Box mb="8px" mx="32px" px="8px" onClick={stopPropagation}>
+        <Flex>
+            <Box ml="4px"><ProductTypeKind category={props.selectedCategory.kind} isFractional={dividerIndex > 0} /></Box>
+            {dividerIndex > 0 ? <>
+                <Box style={{position: "absolute", width: "1px", left: `calc(100% * ${dividerIndex / productCount})`, height: "80px", border: "1px solid var(--infoMain)"}}></Box>
+                <Box style={{position: "absolute", left: `calc(100% * ${dividerIndex / productCount} + 20px)`}} ml="4px"><ProductTypeKind category={props.selectedCategory.kind} /></Box>
+            </> : null}
+        </Flex>
+        <RangeInput value={props.idx} autoFocus onChange={e => props.onSelect(e.target.valueAsNumber)} min={0} max={props.selectedCategory.products.length - 1} markers={
+            props.selectedCategory.products.map(p => computeV2ComponentCount(p))}
+        />
     </Box>
 }
 
-function gradientFromQueueStatus(queueStatusColors: ThemeColor[]): string {
-    const gradientString = queueStatusColors.map((color, idx, {length}) =>
-        `var(--${color}) ${idx / (length - 1) * 100}%`
-    ).join(",");
-
-    return `linear-gradient(90deg, ${gradientString})`;
+function ProductTypeKind(props: {
+    category: "CPU" | "GPU";
+    isFractional?: boolean;
+}): React.ReactNode {
+    switch (props.category) {
+        case "CPU": {
+            return "CPU(s)"
+        }
+        case "GPU": {
+            if (props.isFractional) return "MIGs (Fractional GPUs)"
+            return "GPU(s)"
+        }
+    }
 }
 
-const ThingyStyle = injectStyle("thingy-style", cl => `
-    ${cl} {
-        width: 100%;
-        justify-content: space-between;
-        padding-top: 8px;
-    }
 
-    ${cl} > div {
-        width: 30px;
-    }
-`);
-
-function CustomDataListThingy(props: React.PropsWithChildren): React.ReactNode {
-    return <Flex className={ThingyStyle}>
-        {props.children}
-    </Flex>
-}
-
-function computeV2CountStringThing(c: ProductV2Compute): string {
+function computeV2ComponentCount(c: ProductV2Compute): string {
     if (c.gpu) {
         if (c.fraction && c.fraction?.denominator != 1) {
             return `${c.fraction.numerator * c.price} / ${c.fraction.denominator}`;

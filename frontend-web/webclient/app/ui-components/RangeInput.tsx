@@ -1,5 +1,6 @@
 import * as React from "react";
-import {injectStyle, injectStyleSimple} from "@/Unstyled";
+import {injectStyle} from "@/Unstyled";
+import Flex from "./Flex";
 
 interface RangeInputProps {
     value: number;
@@ -9,7 +10,47 @@ interface RangeInputProps {
     max: number;
     background?: string | undefined;
     thumbColor?: string | undefined;
-    markers?: number[];
+    markers?: string[];
+}
+
+const ThingyStyle = injectStyle("thingy-style", cl => `
+    ${cl} {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        writing-mode: vertical-lr;
+        width: 100%;
+        padding-left: 8px;
+        padding-right: 11px;
+    }
+
+    ${cl} > div {
+        display: block;
+    }
+
+    ${cl} > div > div:first-child {
+        transform: translate(50%);
+        display: block;
+        content: '';
+        background-color: var(--textPrimary);
+        width: 2px;
+        height: 8px;
+        border-radius: 12px;
+    }
+
+    ${cl} > div > div:nth-child(2) {
+        --offset: 0;
+        width: 0;
+        margin-top: 18px;
+        /* margin-left: var(--offset); */
+        transform: rotate(-60deg);
+    }
+`);
+
+function CustomDataListThingy(props: React.PropsWithChildren): React.ReactNode {
+    return <Flex className={ThingyStyle}>
+        {props.children}
+    </Flex>
 }
 
 export default function RangeInput(props: RangeInputProps): React.ReactNode {
@@ -20,9 +61,12 @@ export default function RangeInput(props: RangeInputProps): React.ReactNode {
 
     const markers = React.useMemo(() => {
         if (!props.markers?.length) return null;
-        return <datalist id="markers" className={DataListStyle}>
-            {props.markers.map(idx => <option key={idx} value={idx} />)}
-        </datalist>
+        return <CustomDataListThingy>
+            {props.markers.map((v, idx) => <div key={idx}>
+                <div></div>
+                <div style={{"--offset": `-${v.toString().length / 2}em`}}>{v}</div>
+            </div>)}
+        </CustomDataListThingy>
     }, [props.markers]);
 
     return (<>
@@ -39,7 +83,9 @@ const RangeInputStyle = injectStyle("range-input-style", cl => `
         height: 12px;
         padding-top: 8px;
         padding-bottom: 8px;
+        border-radius: 4px;
         background: transparent;
+        cursor: pointer;
     }
 
     ${cl}:focus {
@@ -48,13 +94,13 @@ const RangeInputStyle = injectStyle("range-input-style", cl => `
 
     ${cl}::-webkit-slider-runnable-track {
         background: var(--trackBackground);
-        height: 12px;
+        height: 8px;
         border-radius: 12px;
     }
     
     ${cl}::-moz-range-track {
         background: var(--trackBackground);
-        height: 12px;
+        height: 8px;
         border-radius: 12px;
     }
 
@@ -78,12 +124,4 @@ const RangeInputStyle = injectStyle("range-input-style", cl => `
         -webkit-appearance: none;
         margin-top: -3px;
     }
-`);
-
-const DataListStyle = injectStyleSimple("datalist-style", `
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    writing-mode: vertical-lr;
-    width: 100%;
 `);
