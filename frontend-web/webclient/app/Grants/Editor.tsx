@@ -821,12 +821,12 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
         const allTheFields: Record<string, Grants.FormField> = Object.fromEntries(
         newAllocators.flatMap(i => i.template[state.selectedProjectType].map(field => [field.title, field])));
 
-        for (var answerForm of loadedAnswerForms) {
+        for (const answerForm of loadedAnswerForms) {
             if (answerForm.allocatorId !== "System" || answerForm.templateRevisionNumber === -42) {  
                 continue;
             }
             // If you are system and your revision number isn't -42
-            for(var answerField of answerForm.answerFields) {
+            for(const answerField of answerForm.answerFields) {
                 const foundField: Grants.FormField | undefined = allTheFields[answerField.field.title];
                 if (!foundField) {
                     continue;
