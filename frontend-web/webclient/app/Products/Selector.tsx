@@ -117,7 +117,7 @@ export const ProductSelector: React.FunctionComponent<{
         if (type === "COMPUTE") {
             result.push({name: "Type", width: "80px"}, {name: "Product category", width: "180px"}, {name: "Description"}, {name: "Status", width: "120px"});
         } else {
-            result.push({name: "Name"}, {name: "Price"}, {name: "Provider"});
+            result.push({name: "Name"}, {name: "Price"}, {name: "Provider", width: "250px"});
         }
         return result;
     }, [type]);
@@ -204,7 +204,7 @@ export const ProductSelector: React.FunctionComponent<{
         }
     }, [isCompute, props.products, props.onSelect, categorizedProducts, serviceProvider]);
 
-    const {boxRef, ...rest} = useDialogSize(headers.length, isCompute);
+    const {boxRef, ...rest} = useDialogSize(headers.length, isCompute ? "rightAligned" : "centered");
 
     const arrowKeyIndex = React.useRef(-1);
     const itemWrapperRef = React.useRef<HTMLTableSectionElement>(null);
@@ -1101,17 +1101,19 @@ function JobQueueStatusIndicator(props: {
     </TooltipV2>;
 }
 
-function useDialogSize(headerCount: number, rightAligned: boolean): {boxRef: React.RefObject<HTMLDivElement | null>; dialogX: number; dialogY: number; dialogHeight: number; dialogWidth: number;} {
+function useDialogSize(headerCount: number, alignment: "rightAligned" | "centered"): {boxRef: React.RefObject<HTMLDivElement | null>; dialogX: number; dialogY: number; dialogHeight: number; dialogWidth: number;} {
     const boxRef = React.useRef<HTMLDivElement>(null);
     const boxRect = boxRef?.current?.getBoundingClientRect() ?? {x: 0, y: 0, width: 0, height: 0, top: 0, right: 0, bottom: 0, left: 0};
     let dialogX = boxRect.x;
     let dialogY = boxRect.y + boxRect.height;
     let dialogHeight = 500;
-    const minimumWidth = 500 + headerCount * 90;
-    if (rightAligned) {
-        dialogX = boxRect.x + boxRect.width - minimumWidth;
-    }
+    const minimumWidth = 500 + headerCount * 70;
     let dialogWidth = Math.min(Math.max(minimumWidth, boxRect.width), window.innerWidth);
+    if (alignment === "rightAligned") {
+        dialogX = boxRect.x + boxRect.width - minimumWidth;
+    } else if (alignment === "centered") {
+        dialogX = boxRect.x + boxRect.width / 2 + - dialogWidth / 2;
+    }
     {
         const dialogOutOfBounds = (): boolean => dialogX <= 0 || dialogY <= 0 ||
             dialogY + dialogHeight >= window.innerHeight || dialogHeight < 200;
