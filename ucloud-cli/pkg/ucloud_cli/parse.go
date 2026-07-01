@@ -16,6 +16,17 @@ var commandParsers = map[string]map[string]CommandFunc{
 			return &com.ComputeProductsCommand{}
 		},
 	},
+	"environment": {
+		"list": func() com.Command {
+			return &com.EnvironmentListCommand{}
+		},
+		"add": func() com.Command {
+			return &com.EnvironmentAddCommand{}
+		},
+		"use": func() com.Command {
+			return &com.EnvironmentUseCommand{}
+		},
+	},
 }
 
 func Parse(args []string) (com.Command, error) {

@@ -23,3 +23,12 @@ func TestComputeCLI(t *testing.T) {
 	assert.Error(t, err)
 	assert.Nil(t, cmd)
 }
+
+func TestEnvironmentList(t *testing.T) {
+	input := []string{"environment", "list"}
+
+	cmd, err := Parse(input)
+
+	assert.Error(t, err)
+	assert.Nil(t, cmd)
+}
