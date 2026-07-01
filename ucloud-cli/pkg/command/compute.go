@@ -5,9 +5,8 @@ import (
 )
 
 type ComputeProductsCommand struct {
-	Provider string
-	Verbose  bool
-	Args     []string
+	Provider string `flag:"provider" usage:"Provider name"`
+	Verbose  bool   `flag:"verbose" usage:"Show verbose output"`
 }
 
 func (c ComputeProductsCommand) Execute() error {

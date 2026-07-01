@@ -16,10 +16,10 @@ func TestComputeProductCommand(t *testing.T) {
 }
 
 func TestComputeCLI(t *testing.T) {
-	input := []string{"compute", "products"}
+	input := []string{"compute", "products", "--provider"}
 
 	cmd, err := Parse(input)
 
-	assert.NoError(t, err)
-	assert.NotNil(t, cmd)
+	assert.Error(t, err)
+	assert.Nil(t, cmd)
 }
