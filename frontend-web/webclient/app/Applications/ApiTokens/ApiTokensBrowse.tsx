@@ -53,7 +53,8 @@ export function ApiTokenBrowse(props: {opts?: ResourceBrowserOpts<Api.ApiToken>}
                     callAPI(Api.browse({
                         ...defaultRetrieveFlags,
                         ...browser.browseFilters,
-                        ...props.opts?.additionalFilters
+                        ...props.opts?.additionalFilters,
+                        filterHidden: true,
                     })).then(result => {
                         browser.registerPage(result, newPath, true);
                         browser.renderRows();
@@ -68,7 +69,8 @@ export function ApiTokenBrowse(props: {opts?: ResourceBrowserOpts<Api.ApiToken>}
                             next: browser.cachedNext[path] ?? undefined,
                             ...defaultRetrieveFlags,
                             ...browser.browseFilters,
-                            ...props.opts?.additionalFilters
+                            ...props.opts?.additionalFilters,
+                            filterHidden: true,
                         })
                     )
 

@@ -1577,6 +1577,7 @@ export type AppParameterValue =
     | AppParameterValueNS.Workflow
     | AppParameterValueNS.ModuleList
     | AppParameterValueNS.PrivateNetwork
+    | AppParameterValueNS.ApiServer
     ;
 export interface SimpleDuration {
     hours: number /* int32 */,
@@ -2719,6 +2720,13 @@ export interface ModuleList {
 export interface PrivateNetwork {
     id: string,
     type: ("private_network"),
+}
+
+export interface ApiServer {
+    server: string,
+    token: string,
+    tokenType: string,
+    type: ("api_server"),
 }
 }
 export namespace NetworkIPSpecificationNS {

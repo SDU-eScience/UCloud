@@ -173,6 +173,39 @@ func timeAllocationOrDefault(alloc util.Option[orc.SimpleDuration]) orc.SimpleDu
 	})
 }
 
+func jobWithTransientApiServers(job *orc.Job, data any) *orc.Job {
+	transientJob, ok := data.(*orc.Job)
+	if !ok || transientJob == nil {
+		return job
+	}
+
+	var apiServers []orc.AppParameterValue
+	for _, resource := range transientJob.Specification.Resources {
+		if resource.Type != orc.AppParameterValueTypeApiServer {
+			continue
+		}
+
+		found := false
+		for _, existing := range job.Specification.Resources {
+			if existing.Equal(resource) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			apiServers = append(apiServers, resource)
+		}
+	}
+
+	if len(apiServers) == 0 {
+		return job
+	}
+
+	jobCopy := *job
+	jobCopy.Specification.Resources = append(slices.Clone(job.Specification.Resources), apiServers...)
+	return &jobCopy
+}
+
 func vmDetachLockedResources(job *orc.Job) (int, *util.HttpError) {
 	mountedDrives := MountedDrives(job)
 	lockedDrives := map[string]util.Empty{}
@@ -694,7 +727,7 @@ func loopMonitoring() {
 			}
 
 			sched.RegisterJobInQueue(entry.Id, shared.JobDimensions(entry),
-				entry.Specification.Replicas, nil, entry.CreatedAt, timeAllocationOrDefault(entry.Specification.TimeAllocation))
+				entry.Specification.Replicas, entry, entry.CreatedAt, timeAllocationOrDefault(entry.Specification.TimeAllocation))
 
 			if !sched.JobInQueue(entry.Id) {
 				shared.RequestSchedule(entry)
@@ -723,6 +756,7 @@ func loopMonitoring() {
 			if !ok {
 				continue
 			}
+			job = jobWithTransientApiServers(job, toSchedule.Data)
 			allScheduled = append(allScheduled, toSchedule)
 
 			var localMessages []controller.JobMessage = nil

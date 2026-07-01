@@ -74,6 +74,19 @@ func initResourceTest(t *testing.T) {
 	}
 }
 
+func TestApiServerResourcesAreNotPersistable(t *testing.T) {
+	resources := []orcapi.AppParameterValue{
+		orcapi.AppParameterValueFile("/123/path", true),
+		orcapi.AppParameterApiServer("Inference", "https://example.com/v1", "uci-secret"),
+	}
+
+	filtered := jobPersistableResources(resources)
+
+	if assert.Equal(t, 1, len(filtered)) {
+		assert.Equal(t, orcapi.AppParameterValueTypeFile, filtered[0].Type)
+	}
+}
+
 func TestReadAndWritePath(t *testing.T) {
 	initResourceTest(t)
 

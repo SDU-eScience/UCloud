@@ -1052,7 +1052,6 @@ func (app *InferencePlaygroundApp) runChat() {
 	prompt := strings.TrimSpace(app.Chat.Prompt)
 
 	app.Chat.Loading = true
-	ucx.AppUpdateUi(app)
 
 	request := InferenceChatRequest{
 		Model:               app.Chat.ModelId,
@@ -1072,6 +1071,7 @@ func (app *InferencePlaygroundApp) runChat() {
 	}
 
 	if strings.HasPrefix(prompt, "/") {
+		ucx.AppUpdateUi(app)
 		defer func() {
 			app.Chat.Loading = false
 			ucx.AppUpdateUi(app)
@@ -1107,7 +1107,7 @@ func (app *InferencePlaygroundApp) runChat() {
 		app.Chat.Usage.LastQuery = InferencePlaygroundTokenUsage{}
 		app.markCurrentThreadDirty()
 		threadId := app.CurrentThreadId
-		ucx.AppUpdateModel(app)
+		ucx.AppUpdateUi(app)
 
 		go app.runChatResponse(owner, threadId, assistantIndex, request)
 	}

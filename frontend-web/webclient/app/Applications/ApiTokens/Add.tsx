@@ -45,7 +45,8 @@ function Add() {
 
     const submit = React.useCallback(async () => {
         const titleElement = document.getElementById(API_TOKEN_TITLE_KEY) as HTMLInputElement;
-        const title = titleElement.value;
+        const title = titleElement.value.replace(/^\.+/, "");
+        titleElement.value = title;
         const descriptionElement = document.getElementById(API_TOKEN_DESCRIPTION_KEY) as HTMLInputElement;
         const description = descriptionElement.value;
 

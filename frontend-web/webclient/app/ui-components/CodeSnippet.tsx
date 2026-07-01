@@ -1,10 +1,7 @@
 import * as React from "react";
 import {injectStyle} from "@/Unstyled";
-import Icon from "@/ui-components/Icon";
-import {TooltipV2} from "@/ui-components/Tooltip";
 import {useCallback} from "react";
 import {copyToClipboard} from "@/UtilityFunctions";
-import {sendSuccessNotification} from "@/Notifications";
 import SyntaxHighlighter from "react-syntax-highlighter";
 import { atomOneDark, atomOneLight } from 'react-syntax-highlighter/dist/esm/styles/hljs';
 import {useIsLightThemeStored} from "@/ui-components/theme";
@@ -17,7 +14,7 @@ const Style = injectStyle("code-snippet", k => `
 
     ${k} button {
         position: absolute;
-        top: 8px;
+        top: 11px;
         right: 16px;
         z-index: 1;
     }
