@@ -1065,12 +1065,12 @@ function statusStringAndColor(status: JobQueueStatus): {
         },
         [JobQueueStatus.BUSY]: {
             color: "warningMain",
-            message: "Only a few of this machine type is available.",
+            message: "Only a few machines of this type are available.",
             messageMultiple: "At least one machine type is available for use, but the cluster is busy.",
         },
         [JobQueueStatus.FULL]: {
             color: "errorMain",
-            message: "This machine type is full and jobs will be queued.",
+            message: "All machines of this type are busy. Your job will be queued.",
             messageMultiple: "This machine type is not currently available and you will have to wait in a queue.",
         }
     }
