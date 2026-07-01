@@ -512,16 +512,29 @@ const playgroundComponents: UcxComponentRegistry = {
                              renderChildren,
                          }: UcxRenderContext) => {
         const containerRef = React.useRef<HTMLDivElement | null>(null);
+        const pinnedToBottomRef = React.useRef(true);
+        const currentThreadId = stringValue(fn.modelValue(model, "currentThreadId"));
+        const previousThreadIdRef = React.useRef<string | null>(null);
 
         React.useLayoutEffect(() => {
             const el = containerRef.current;
             if (!el) return;
-            el.scrollTop = el.scrollHeight;
-        }, [model, scope]);
+            if (previousThreadIdRef.current !== currentThreadId) {
+                previousThreadIdRef.current = currentThreadId;
+                pinnedToBottomRef.current = true;
+            }
+            if (pinnedToBottomRef.current) {
+                el.scrollTop = el.scrollHeight;
+            }
+        }, [currentThreadId, model, scope]);
 
         return (
             <div
                 ref={containerRef}
+                onScroll={(ev) => {
+                    const el = ev.currentTarget;
+                    pinnedToBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight <= 8;
+                }}
                 style={{overflowY: "auto", ...fn.sxStyle(node)}}
             >
                 {renderChildren()}
@@ -842,7 +855,7 @@ function stableStreamingMarkdownPrefix(text: string): string {
         }
 
         if (i === lineStart && isFenceAt(text, i)) {
-            stack.push({kind: "fence"});
+            stack.push({kind: "fence", marker: markdownFenceMarkerAt(text, i)});
             i = consumeLine(text, i);
             lineStart = i;
             i--;
@@ -878,11 +891,21 @@ function stableStreamingMarkdownPrefix(text: string): string {
         updateStable(i + 1);
     }
 
+    const current = top();
+    if (current?.kind === "fence") {
+        return text.trimEnd();
+    }
+
     return text.slice(0, stableIndex).trimEnd();
 }
 
 function isFenceAt(text: string, idx: number): boolean {
     return /^\s*(```|~~~)/.test(text.slice(idx, Math.min(text.length, idx + 16)));
+}
+
+function markdownFenceMarkerAt(text: string, idx: number): string {
+    const match = text.slice(idx, Math.min(text.length, idx + 16)).match(/^\s*(```|~~~)/);
+    return match?.[1] ?? "```";
 }
 
 function isAtxHeadingAt(text: string, idx: number): boolean {

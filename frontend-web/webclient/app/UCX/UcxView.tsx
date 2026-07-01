@@ -282,7 +282,18 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
         const hasParam = params.has(key);
         const fromUrl = params.get(key) ?? "";
         const bound = modelString(model, bindPath, scope);
-        const previousUrl = queryParamUrlValuesRef.current[key];
+        let previousUrl = queryParamUrlValuesRef.current[key];
+
+        if (previousUrl === undefined) {
+            queryParamUrlValuesRef.current[key] = fromUrl;
+            previousUrl = fromUrl;
+            if (hasParam) {
+                if (fromUrl !== bound) {
+                    sendModelInput(bindPath, {kind: ValueKind.String, string: fromUrl}, `query-param:${nodeId}`);
+                }
+                return;
+            }
+        }
 
         if (!hasParam && options?.sendMissing === false) {
             queryParamUrlValuesRef.current[key] = fromUrl;
