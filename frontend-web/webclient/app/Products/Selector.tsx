@@ -125,21 +125,6 @@ export const ProductSelector: React.FunctionComponent<{
     // Only relevant for Machine-selector, e.g. product type === "COMPUTE";
     const [serviceProvider, setServiceProvider] = React.useState("");
 
-    const lastSearchQuery = React.useRef<string>("");
-    const searchRef = React.useRef<HTMLInputElement>(null);
-    const onSearchType = React.useCallback(() => {
-        const input = searchRef.current;
-        if (!input) return;
-
-        const query = input.value.toLowerCase();
-        lastSearchQuery.current = query;
-        setFilteredProducts(props.products.filter(p => {
-            return p.name.toLowerCase().indexOf(query) !== -1 ||
-                p.category.name.toLowerCase().indexOf(query) !== -1 ||
-                p.category.provider.toLowerCase().indexOf(query) !== -1;
-        }));
-    }, [props.products, props.onSelect]);
-
     const categorizedProducts: (ProductV2 | ComputeCategory)[] = React.useMemo(() => {
         const result: (ProductV2 | ComputeCategory)[] = [];
 
@@ -194,6 +179,30 @@ export const ProductSelector: React.FunctionComponent<{
         return result;
     }, [filteredProducts, connectionState.lastRefresh, serviceProvider]);
 
+
+    const lastSearchQuery = React.useRef<string>("");
+    const searchRef = React.useRef<HTMLInputElement>(null);
+    const onSearchType = React.useCallback(() => {
+        const input = searchRef.current;
+        if (!input) return;
+
+        const query = input.value.toLowerCase();
+        lastSearchQuery.current = query;
+
+        if (isCompute) {
+            setFilteredProducts(
+                props.products.filter(p => p.category.provider === serviceProvider &&
+                    (p.name.toLowerCase().indexOf(query) !== -1 ||
+                        p.category.name.toLowerCase().indexOf(query) !== -1)
+                ));
+        } else {
+            setFilteredProducts(props.products.filter(p => {
+                return p.name.toLowerCase().indexOf(query) !== -1 ||
+                    p.category.name.toLowerCase().indexOf(query) !== -1 ||
+                    p.category.provider.toLowerCase().indexOf(query) !== -1;
+            }));
+        }
+    }, [isCompute, props.products, props.onSelect, categorizedProducts, serviceProvider]);
 
     const {boxRef, ...rest} = useDialogSize(headers.length, isCompute);
 
@@ -279,7 +288,11 @@ export const ProductSelector: React.FunctionComponent<{
         if (!first) return;
         if (!isComputeCategory(first)) return;
         setServiceProvider(serviceProvider => {
-            if (serviceProvider) return serviceProvider;
+            const hasServiceProvider = categorizedProducts.findIndex(it => {
+                const productProvider = isComputeCategory(it) ? it.provider : it.category.provider;
+                return serviceProvider == productProvider;
+            }) !== -1;
+            if (serviceProvider && hasServiceProvider) return serviceProvider;
             return first.provider;
         });
     }, [categorizedProducts, projectId]);
@@ -309,11 +322,9 @@ export const ProductSelector: React.FunctionComponent<{
     }, [type, selected, categorizedProducts]);
 
     const serviceProviders = React.useMemo(() => {
-        if (categorizedProducts.length === 0) return [];
-        const [first] = categorizedProducts;
-        if (!isComputeCategory(first)) return [];
-        return [...new Set((categorizedProducts as ComputeCategory[]).map(it => it.provider))].map(it => ({key: it}));
-    }, [categorizedProducts]);
+        if (props.products.length === 0) return [];
+        return [...new Set(props.products.map(it => it.category.provider))].map(it => ({key: it}));
+    }, [props.products]);
 
     let queueStatus = queueStatusFromCategoryName(props.support, selected?.name, selected?.category);
 
@@ -327,8 +338,7 @@ export const ProductSelector: React.FunctionComponent<{
     return <>
         <Flex gap="8px">
             {isCompute ? <Box width="50%">
-
-                {serviceProviders.length === 0 ? <Box onClick={onToggle}><Label>Service provider <MandatoryField /> <Input disabled /></Label></Box> :
+                {serviceProviders.length === 0 ? <Box onClick={onToggle}><Label>Service provider <MandatoryField /> <Input disabled value={"You have no active allocations for this workspace"} /></Label></Box> :
                     <ServiceProviderSelector
                         serviceProvider={serviceProvider}
                         serviceProviders={serviceProviders}
@@ -353,10 +363,11 @@ export const ProductSelector: React.FunctionComponent<{
                 {isCompute ? <Box>Machine category <MandatoryField /></Box> : null}
                 <div onClick={onToggle} className={InputClass} style={{display: "flex", height: "33.5px"}} ref={boxRef}>
                     {selected ?
-                        <Flex alignItems={"center"}>
-                            {isCompute ? <Icon size={24} ml="-4px" name={selectedComputeCategory?.kind === "CPU" ? "heroCpuChip" : "gpu"} mr="4px" /> : <ProviderLogo providerId={selected?.category?.provider ?? "?"} size={24} />}
+                        <Flex alignItems={"center"} gap="8px">
+                            {isCompute ? <Icon size={24} ml="-4px" name={selectedComputeCategory?.kind === "CPU" ? "heroCpuChip" : "gpu"} /> : <ProviderLogo providerId={selected?.category?.provider ?? "?"} size={24} />}
                             {selectedComputeCategory?.category}
                             {isCompute ? null : <>
+                                {selected.name}
                                 <Box>-</Box>
                                 <Box>{priceToString(selected, 1)}</Box>
                             </>}
@@ -417,7 +428,7 @@ export const ProductSelector: React.FunctionComponent<{
                         <Flex mt={(rest.dialogHeight - 64 - 20) / 2 /* subract margin + height of HexSpin */}>
                             <HexSpin size={64} />
                         </Flex>
-                    </> : shownProducts.length === 0 ?
+                    </> : props.products.length === 0 ?
                         <>
                             <NoResultsBody title={`No ${productName} available for use`}>
                                 You do not currently have credits for any {productName} which you are able to use for this purpose.{" "}
@@ -505,7 +516,7 @@ export const ProductSelector: React.FunctionComponent<{
                                     {shownProducts.map((p, i) => {
                                         if (isComputeCategory(p)) {
                                             if (!showHeadings) return null;
-                                            let queueStatus = queueStatuses[p.category];
+                                            let queueStatus = queueStatuses[p.category] ?? JobQueueStatus.FULL;
 
                                             return <tr key={i} onClick={() => {
                                                 props.onSelect(p.products[0]);
@@ -1091,7 +1102,6 @@ function JobQueueStatusIndicator(props: {
 }
 
 function useDialogSize(headerCount: number, rightAligned: boolean): {boxRef: React.RefObject<HTMLDivElement | null>; dialogX: number; dialogY: number; dialogHeight: number; dialogWidth: number;} {
-    console.log(headerCount);
     const boxRef = React.useRef<HTMLDivElement>(null);
     const boxRect = boxRef?.current?.getBoundingClientRect() ?? {x: 0, y: 0, width: 0, height: 0, top: 0, right: 0, bottom: 0, left: 0};
     let dialogX = boxRect.x;
