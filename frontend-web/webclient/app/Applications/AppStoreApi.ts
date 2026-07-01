@@ -68,6 +68,7 @@ export interface ApplicationInvocationDescription {
     vnc?: VncDescription;
     web?: WebDescription;
     ssh?: SshDescription;
+    inference?: InferenceDescription;
     container?: ContainerDescription;
     environment?: Record<string, InvocationParameter>;
     allowAdditionalMounts?: boolean;
@@ -321,6 +322,10 @@ export interface WebDescription {
 
 export interface SshDescription {
     mode: "DISABLED" | "OPTIONAL" | "MANDATORY";
+}
+
+export interface InferenceDescription {
+    mode: "NONE" | "OPTIONAL" | "MANDATORY";
 }
 
 export interface ContainerDescription {
