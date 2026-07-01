@@ -121,6 +121,6 @@ const RangeInputStyle = injectStyle("range-input-style", cl => `
         border-radius: 12px;
         background: var(--thumbColor);
         -webkit-appearance: none;
-        margin-top: -3px;
+        margin-top: -5px;
     }
 `);
