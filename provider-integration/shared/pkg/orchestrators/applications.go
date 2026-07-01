@@ -604,7 +604,7 @@ func AppParameterValueModuleList(modules []string) AppParameterValue {
 
 func AppParameterApiServer(tokenType string, server string, token string) AppParameterValue {
 	return AppParameterValue{
-		Type:      AppParameterValueTypeFile,
+		Type:      AppParameterValueTypeApiServer,
 		TokenType: tokenType,
 		Server:    server,
 		Token:     token,

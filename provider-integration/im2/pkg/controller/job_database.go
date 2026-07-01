@@ -140,6 +140,7 @@ func InitJobDatabase() {
 func JobTrackNew(job orc.Job) {
 	timer := util.NewTimer()
 	// NOTE(Dan): The job is supposed to be copied into this function. Do not change it to accept a pointer.
+	job = jobWithoutApiServerResources(job)
 
 	// Automatically assign timestamps to all updates that do not have one.
 	timer.Mark()
@@ -173,6 +174,26 @@ func JobTrackNew(job orc.Job) {
 	} else if RunsUserCode() {
 		_, _ = trackRequest.Invoke(trackRequestType{job.Id, job.ProviderGeneratedId})
 	}
+}
+
+func jobWithoutApiServerResources(job orc.Job) orc.Job {
+	job.Specification.Resources = appParameterValuesWithoutApiServers(job.Specification.Resources)
+	for i := range job.Updates {
+		if job.Updates[i].ResourceList.Present {
+			job.Updates[i].ResourceList.Value = appParameterValuesWithoutApiServers(job.Updates[i].ResourceList.Value)
+		}
+	}
+	return job
+}
+
+func appParameterValuesWithoutApiServers(values []orc.AppParameterValue) []orc.AppParameterValue {
+	result := make([]orc.AppParameterValue, 0, len(values))
+	for _, value := range values {
+		if value.Type != orc.AppParameterValueTypeApiServer {
+			result = append(result, value)
+		}
+	}
+	return result
 }
 
 func jobTrackUpdateServer(job *orc.Job) {

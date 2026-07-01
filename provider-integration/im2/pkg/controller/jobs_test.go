@@ -1,6 +1,11 @@
 package controller
 
-import "testing"
+import (
+	"testing"
+
+	orc "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/util"
+)
 
 func TestToHostnameSafe(t *testing.T) {
 	testCases := []struct {
@@ -45,5 +50,35 @@ func TestToHostnameSafe(t *testing.T) {
 				t.Errorf("Test case %d failed: Input: %q | Expected: %q | Got: %q", i+1, tc.input, tc.expected, result)
 			}
 		})
+	}
+}
+
+func TestJobWithoutApiServerResources(t *testing.T) {
+	job := orc.Job{
+		Specification: orc.JobSpecification{
+			Resources: []orc.AppParameterValue{
+				orc.AppParameterValueFile("/123/path", true),
+				orc.AppParameterApiServer("Inference", "https://example.com/v1", "uci-secret"),
+			},
+		},
+		Updates: []orc.JobUpdate{
+			{
+				ResourceList: util.OptValue([]orc.AppParameterValue{
+					orc.AppParameterApiServer("Inference", "https://example.com/v1", "uci-secret"),
+				}),
+			},
+		},
+	}
+
+	sanitized := jobWithoutApiServerResources(job)
+
+	if len(sanitized.Specification.Resources) != 1 {
+		t.Fatalf("expected one persisted resource, got %d", len(sanitized.Specification.Resources))
+	}
+	if sanitized.Specification.Resources[0].Type != orc.AppParameterValueTypeFile {
+		t.Fatalf("expected file resource to remain")
+	}
+	if len(sanitized.Updates) != 1 || !sanitized.Updates[0].ResourceList.Present || len(sanitized.Updates[0].ResourceList.Value) != 0 {
+		t.Fatalf("expected api_server update resources to be removed")
 	}
 }
