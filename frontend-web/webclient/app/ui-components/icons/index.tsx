@@ -1794,6 +1794,84 @@ export const globeEuropeSolid = (props: any) => (
     />
   </svg>
 );
+export const gpu = (props: any) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    fill="currentcolor"
+    aria-hidden="true"
+    viewBox="0 0 24 24"
+    {...props}
+  >
+    <path
+      d="M3.088 20.72a.75.75 0 0 1-.75-.75V4.438c0-.012 1.5 0 1.5 0v15.53a.75.75 0 0 1-.75.75zM2.336 5.87V4.437L.828 4.422l-.007 1.44z"
+      style={{
+        stroke: "currentcolor",
+        strokeWidth: 0.2,
+        strokeDasharray: "none",
+        strokeOpacity: 1,
+      }}
+    />
+    <path
+      fill="none"
+      d="M9.564 1.601h.133v.178h-.133z"
+      style={{
+        fill: "currentcolor",
+        fillOpacity: 0,
+      }}
+    />
+    <path
+      fill="none"
+      d="M3.336 6.45h18.06v11.076H3.336z"
+      style={{
+        fill: "currentcolor",
+        fillOpacity: 0,
+        stroke: "currentcolor",
+        strokeOpacity: 1,
+      }}
+    />
+    <text
+      xmlSpace="preserve"
+      x={6.763}
+      y={12.951}
+      style={{
+        fontSize: "7.74367px",
+        writingMode: "lr-tb",
+        direction: "ltr",
+        mixBlendMode: "lighten",
+        fill: "none",
+        stroke: "currentcolor",
+        strokeWidth: 0.793701,
+        strokeLinecap: "butt",
+        strokeLinejoin: "miter",
+        strokeMiterlimit: 1.6,
+        strokeDasharray: "none",
+        strokeDashoffset: 0,
+        strokeOpacity: 1,
+        paintOrder: "normal",
+        opacity: 1,
+      }}
+      transform="scale(.83775 1.19368)"
+    >
+      <tspan
+        x={6.763}
+        y={12.951}
+        style={{
+          fill: "none",
+          stroke: "currentcolor",
+          strokeWidth: 0.793701,
+          strokeLinecap: "butt",
+          strokeLinejoin: "miter",
+          strokeMiterlimit: 1.6,
+          strokeDasharray: "none",
+          strokeOpacity: 1,
+          paintOrder: "normal",
+        }}
+      >
+        {"GPU"}
+      </tspan>
+    </text>
+  </svg>
+);
 export const grant = (props: any) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"

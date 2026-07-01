@@ -6,6 +6,7 @@ import {Cursor} from "./Types";
 import {classConcat, injectStyle, unbox} from "@/Unstyled";
 import {CSSProperties} from "react";
 import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
+import Grid from "./Grid";
 
 const IconBase = ({name, size, squared, color2, spin, hoverColor, ...props}: IconBaseProps): React.ReactNode => {
     let Component = icons[name];
@@ -86,11 +87,11 @@ Icon.displayName = "Icon";
 export const EveryIcon = (): React.ReactNode => {
     const iconNames: IconName[] = Object.keys(icons) as unknown as IconName[];
     return (
-        <>
+        <Grid gap={"16px"} gridTemplateColumns={"repeat(auto-fit, minmax(250px, 1fr)"}>
             {iconNames.map((it, i) =>
-                (<span title={it} key={i}><Icon name={it} key={i} color="iconColor" color2="iconColor2" /></span>)
+                (<span style={{fontSize: "12px"}} title={it} key={i}><Icon name={it} key={i} color="iconColor" color2="iconColor2" size={64} /> {it}</span>)
             )}
-        </>
+        </Grid>
     );
 }
 

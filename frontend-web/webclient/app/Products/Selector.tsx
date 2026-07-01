@@ -354,7 +354,7 @@ export const ProductSelector: React.FunctionComponent<{
                 <div onClick={onToggle} className={InputClass} style={{display: "flex", height: "33.5px"}} ref={boxRef}>
                     {selected ?
                         <Flex alignItems={"center"}>
-                            {isCompute ? <Icon size={24} ml="-4px" name="heroCpuChip" mr="4px" /> : <ProviderLogo providerId={selected?.category?.provider ?? "?"} size={24} />}
+                            {isCompute ? <Icon size={24} ml="-4px" name={selectedComputeCategory?.kind === "CPU" ? "heroCpuChip" : "gpu"} mr="4px" /> : <ProviderLogo providerId={selected?.category?.provider ?? "?"} size={24} />}
                             {selectedComputeCategory?.category}
                             {isCompute ? null : <>
                                 <Box>-</Box>
@@ -512,7 +512,7 @@ export const ProductSelector: React.FunctionComponent<{
                                                 setComputeCategory(p);
                                                 setIsOpen(false);
                                             }} className="table-info">
-                                                <TableCell><Icon name="heroCpuChip" /></TableCell>
+                                                <TableCell><Icon size={24} name={p.kind === "CPU" ? "heroCpuChip" : "gpu"} /></TableCell>
                                                 <TableCell>{p.kind}</TableCell>
                                                 <TableCell>{p.category}</TableCell>
                                                 <TableCell><ProductDescription serviceProvider={serviceProvider} category={p.category} /></TableCell>
