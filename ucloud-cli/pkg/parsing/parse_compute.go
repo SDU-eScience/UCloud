@@ -17,7 +17,7 @@ func ParseProducts(args []string) (com.Command, error) {
 	fs := flag.NewFlagSet("products", flag.ExitOnError)
 
 	provider := fs.String("provider", "", "cloud provider")
-	verbose := fs.Bool("verbose", false, "verbose output")
+	verbose := fs.Bool("verbose", false, "verbose rendering")
 
 	if err := fs.Parse(args); err != nil {
 		return com.ProductsCommand{}, err
