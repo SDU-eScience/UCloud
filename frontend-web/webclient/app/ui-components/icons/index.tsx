@@ -1835,7 +1835,6 @@ export const gpu = (props: any) => (
       y={12.951}
       style={{
         fontSize: "7.74367px",
-        writingMode: "lr-tb",
         direction: "ltr",
         mixBlendMode: "lighten",
         fill: "none",
