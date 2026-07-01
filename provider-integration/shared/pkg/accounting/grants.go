@@ -852,17 +852,18 @@ var GrantsRetrieveLogo = rpc.Call[GrantsRetrieveLogoRequest, []byte]{
 }
 
 type GrantsExportResponse struct {
-	Id               string                `json:"id"`
-	Title            string                `json:"title"`
-	SubmittedBy      string                `json:"submittedBy"`
-	SubmittedAt      fnd.Timestamp         `json:"submittedAt"`
-	StartDate        fnd.Timestamp         `json:"startDate"`
-	DurationMonths   int                   `json:"durationMonths"`
-	State            GrantApplicationState `json:"state"`
-	GrantGiver       string                `json:"grantGiver"`
-	LastUpdatedAt    fnd.Timestamp         `json:"lastUpdatedAt"`
-	Resources        map[string]int        `json:"resources"`
-	OptionalUserInfo fnd.OptionalUserInfo  `json:"optionalUserInfo"`
+	Id               string                     `json:"id"`
+	Title            string                     `json:"title"`
+	SubmittedBy      string                     `json:"submittedBy"`
+	SubmittedAt      fnd.Timestamp              `json:"submittedAt"`
+	StartDate        fnd.Timestamp              `json:"startDate"`
+	DurationMonths   int                        `json:"durationMonths"`
+	State            GrantApplicationState      `json:"state"`
+	GrantGiver       string                     `json:"grantGiver"`
+	LastUpdatedAt    fnd.Timestamp              `json:"lastUpdatedAt"`
+	Resources        map[string]int             `json:"resources"`
+	OptionalUserInfo fnd.OptionalUserInfo       `json:"optionalUserInfo"`
+	AnswerFields     map[string]AnswerFieldForm `json:"AnswerFields"`
 }
 
 var GrantsExport = rpc.Call[util.Empty, []GrantsExportResponse]{
