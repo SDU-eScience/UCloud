@@ -4,13 +4,12 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"ucloud.dk/ucloud_cli/pkg/parsing"
 )
 
 func TestComputeProductCommand(t *testing.T) {
 	input := []string{"compute", "products", "--provider", "ucloud"}
 
-	cmd, err := parsing.ParseCompute(input)
+	cmd, err := Parse(input)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, cmd)
