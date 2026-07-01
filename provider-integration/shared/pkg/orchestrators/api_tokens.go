@@ -62,6 +62,7 @@ var ApiTokenCreate = rpc.Call[ApiTokenSpecification, ApiToken]{
 type ApiTokenBrowseRequest struct {
 	ItemsPerPage int                 `json:"itemsPerPage"`
 	Next         util.Option[string] `json:"next"`
+	FilterHidden bool                `json:"filterHidden"`
 }
 
 var ApiTokenBrowse = rpc.Call[ApiTokenBrowseRequest, fnd.PageV2[ApiToken]]{
@@ -117,7 +118,6 @@ var ApiTokenProviderRevoke = rpc.Call[fnd.FindByStringId, util.Empty]{
 	Operation:   "revoke",
 	Roles:       rpc.RolesService,
 }
-
 
 // NOTE(Dan): There is no ACL endpoint because this API doesn't actually save the token. It saves, at most (in the
 // case of UCloud/Core tokens), a hash of the token. As a result, there would be nothing to give access to.

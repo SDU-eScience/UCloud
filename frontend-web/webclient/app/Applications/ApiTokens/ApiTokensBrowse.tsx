@@ -17,7 +17,6 @@ import {divText} from "@/Utilities/HTMLUtilities";
 import {TruncateClass} from "@/ui-components/Truncate";
 import {copyToClipboard} from "@/UtilityFunctions";
 import {sendInformationNotification} from "@/Notifications";
-import {PageV2} from "@/UCloud";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -54,9 +53,10 @@ export function ApiTokenBrowse(props: {opts?: ResourceBrowserOpts<Api.ApiToken>}
                     callAPI(Api.browse({
                         ...defaultRetrieveFlags,
                         ...browser.browseFilters,
-                        ...props.opts?.additionalFilters
+                        ...props.opts?.additionalFilters,
+                        filterHidden: true,
                     })).then(result => {
-                        browser.registerPage(filterHiddenTokens(result), newPath, true);
+                        browser.registerPage(result, newPath, true);
                         browser.renderRows();
                     })
                 });
@@ -69,13 +69,14 @@ export function ApiTokenBrowse(props: {opts?: ResourceBrowserOpts<Api.ApiToken>}
                             next: browser.cachedNext[path] ?? undefined,
                             ...defaultRetrieveFlags,
                             ...browser.browseFilters,
-                            ...props.opts?.additionalFilters
+                            ...props.opts?.additionalFilters,
+                            filterHidden: true,
                         })
                     )
 
                     if (path !== browser.currentPath) return; // Shouldn't be possible.
 
-                    browser.registerPage(filterHiddenTokens(result), path, false);
+                    browser.registerPage(result, path, false);
                 });
 
                 browser.on("renderRow", (token, row, dims) => {
@@ -175,13 +176,6 @@ export function ApiTokenBrowse(props: {opts?: ResourceBrowserOpts<Api.ApiToken>}
             {switcher}
         </>}
     />
-}
-
-function filterHiddenTokens(page: PageV2<Api.ApiToken>): PageV2<Api.ApiToken> {
-    return {
-        ...page,
-        items: page.items.filter(token => !token.specification.title.startsWith(".")),
-    };
 }
 
 function retrieveOperations(): Operation<Api.ApiToken, StandardCallbacks<Api.ApiToken>>[] {
