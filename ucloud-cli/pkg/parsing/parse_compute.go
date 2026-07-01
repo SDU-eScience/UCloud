@@ -20,10 +20,10 @@ func ParseProducts(args []string) (com.Command, error) {
 	verbose := fs.Bool("verbose", false, "verbose rendering")
 
 	if err := fs.Parse(args); err != nil {
-		return com.ProductsCommand{}, err
+		return com.ComputeProductsCommand{}, err
 	}
 
-	return com.ProductsCommand{
+	return com.ComputeProductsCommand{
 		Provider: *provider,
 		Verbose:  *verbose,
 		Args:     fs.Args(),

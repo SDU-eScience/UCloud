@@ -15,5 +15,12 @@ func ExecuteCommand(commands ...string) error {
 	if err != nil {
 		return err
 	}
-	return fmt.Errorf("not implemented %s", command)
+	if command == nil {
+		return fmt.Errorf("no command")
+	}
+	commandErr := command.Execute()
+	if commandErr != nil {
+		return commandErr
+	}
+	return nil
 }
