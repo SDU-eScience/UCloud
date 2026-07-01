@@ -770,6 +770,64 @@ The password to the VNC server. This password is not used for security purposes.
 </table>
 </div>
 
+### Inference servers
+
+Applications can declare that they want access to UCloud inference servers through the `inference` top-level section.
+If the section is omitted, UCloud behaves as if `mode` was `None`.
+
+When inference is enabled, then UCloud creates short-lived API tokens for inference-capable providers available
+to the user's project. These tokens are passed to the provider as transient job resources of type `api_server`. 
+
+<div class="table-wrapper no-code-wrap">
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+
+<tr>
+<td><code>mode</code></td>
+<td><code>None</code> | <code>Optional</code> | <code>Mandatory</code></td>
+<td>
+
+`None` disables inference token delivery. `Optional` makes UCloud attempt to pass inference servers when they are
+available. `Mandatory` requires at least one inference server; job submission fails if none are available.
+
+</td>
+</tr>
+
+</tbody>
+</table>
+</div>
+
+**Example:**
+
+```yaml
+inference:
+  mode: Optional
+```
+
+For container jobs, inference servers are exposed through environment variables in the user container. The JSON form is
+always emitted when one or more inference servers are available:
+
+```bash
+UCLOUD_INFERENCE_SERVERS='[{"server":"https://chat.example.com/v1","token":"uci-..."}]'
+```
+
+For shell scripts and tools that prefer simple variables, the Kubernetes integration also emits one pair of indexed
+variables per inference server:
+
+```bash
+UCLOUD_INFERENCE_SERVER_BASE_0="https://chat.example.com/v1"
+UCLOUD_INFERENCE_SERVER_TOKEN_0="uci-..."
+UCLOUD_INFERENCE_SERVER_BASE_1="https://other.example.com/v1"
+UCLOUD_INFERENCE_SERVER_TOKEN_1="uci-..."
+```
+
 ### Features
 
 Various optional features can be enabled through the `features` top-level section. These properties are described
