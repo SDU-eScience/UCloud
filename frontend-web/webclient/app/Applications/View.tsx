@@ -1,6 +1,6 @@
 import {SafeLogo} from "@/Applications/AppToolLogo";
 import * as React from "react";
-import {Box, Flex, Tooltip} from "@/ui-components";
+import {Box, Flex, Tooltip, Truncate} from "@/ui-components";
 import Text from "@/ui-components/Text";
 import * as Pages from "./Pages";
 import {useNavigate} from "react-router-dom";
@@ -77,9 +77,9 @@ export const AppHeader: React.FunctionComponent<{
                         items={searchableVersions}
                         keys={["searchKey"]}
                         selected={{searchKey: "", version: props.application.metadata.version}}
-                        dropdownWidth={"138px"}
-                        RenderRow={p => <Box p={"8px"} onClick={p.onSelect} {...p.dataProps}>{p.element?.version}</Box>}
-                        RenderSelected={p => <Box p={"8px"} onClick={p.onSelect} {...p.dataProps}>{p.element?.version}</Box>}
+                        dropdownWidth={"150px"}
+                        RenderRow={p => <Truncate width="150px" title={p.element?.version} p={"8px"} onClick={p.onSelect} {...p.dataProps}> {p.element?.version}</Truncate>}
+                        RenderSelected={p => <Truncate width="130px" title={p.element?.version} p={"8px"} onClick={p.onSelect} {...p.dataProps}>{p.element?.version}</Truncate>}
                         onSelect={p => {
                             navigate(Pages.runApplication({name: props.application.metadata.name, version: p.version}))
                         }}
