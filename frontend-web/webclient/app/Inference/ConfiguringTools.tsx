@@ -149,7 +149,7 @@ export default function ConfiguringTools({
                     <li>Open OpenCode.</li>
                     <li>Run <CopyableInline value="/connect" />.</li>
                     <li>Choose <b>Other</b>.</li>
-                    <li>Use a provider ID such as <CopyableInline value="custom-openai" />.</li>
+                    <li>Use a provider ID such as <CopyableInline value="ucloud" />.</li>
                     <li>Paste your API key when prompted.</li>
                     <li>Create or edit <code>opencode.json</code>.</li>
                     <li>Add the provider configuration below.</li>
@@ -159,7 +159,7 @@ export default function ConfiguringTools({
                 <CodeSnippet lang="json" children={JSON.stringify({
                     $schema: "https://opencode.ai/config.json",
                     provider: {
-                        "custom-openai": {
+                        "ucloud": {
                             npm: "@ai-sdk/openai-compatible",
                             name: "UCloud",
                             options: {
