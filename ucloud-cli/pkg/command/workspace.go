@@ -5,5 +5,3 @@ type WorkspaceCommand struct {
 	Args  []string
 	Flags map[string]string // --url
 }
-
-func (WorkspaceCommand) Parse() {}

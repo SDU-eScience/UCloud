@@ -3,17 +3,29 @@ package ucloud_cli
 import (
 	"fmt"
 
-	"ucloud.dk/ucloud_cli/pkg/command"
+	com "ucloud.dk/ucloud_cli/pkg/command"
+	"ucloud.dk/ucloud_cli/pkg/parsing"
+	"ucloud.dk/ucloud_cli/pkg/utils"
 )
 
-func parseCommand(args []string) (command.Command, error) {
-	return command.ParseCompute(args)
-	//return nil, fmt.Errorf("unknown command %s", args[0])
+// Top level command parserRegistry
+var parserRegistry = map[string]parsing.Parser{
+	"compute":     parsing.ParseCompute,
+	"workspace":   func([]string) (com.Command, error) { return nil, nil },
+	"environment": func([]string) (com.Command, error) { return nil, nil },
+	"connect":     func([]string) (com.Command, error) { return nil, nil },
 }
 
-func Parse(args []string) (command.Command, error) {
+func Parse(args []string) (com.Command, error) {
 	if len(args) == 0 {
-		return nil, fmt.Errorf("no command provided")
+		return nil, fmt.Errorf("no command")
 	}
-	return parseCommand(args)
+
+	tail, commandPhrase := utils.Consume(args)
+	parser, ok := parserRegistry[commandPhrase]
+	if !ok {
+		return nil, fmt.Errorf("unknown command: %s", commandPhrase)
+	}
+
+	return parser(tail)
 }

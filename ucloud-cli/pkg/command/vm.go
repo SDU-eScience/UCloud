@@ -13,5 +13,3 @@ type VMCommand struct {
 	Args  []string
 	Flags map[string]string
 }
-
-func (VMCommand) Parse() {}

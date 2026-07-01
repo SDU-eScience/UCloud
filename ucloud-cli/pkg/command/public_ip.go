@@ -9,5 +9,3 @@ type PublicIPCommand struct {
 	Args    []string
 	Flags   map[string]string
 }
-
-func (PublicIPCommand) Parse() {}
