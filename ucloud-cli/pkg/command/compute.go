@@ -9,6 +9,10 @@ type ComputeProductsCommand struct {
 	Verbose  bool   `flag:"verbose" usage:"Show verbose output"`
 }
 
+var ComputeCommands = map[string]CommandFunc{
+	"products": func() Command { return &ComputeProductsCommand{} },
+}
+
 func (c ComputeProductsCommand) Execute() error {
 	// Render the command
 	fmt.Println(c.Provider)

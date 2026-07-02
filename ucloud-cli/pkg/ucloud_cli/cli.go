@@ -1,24 +1,16 @@
 package ucloud_cli
 
-import (
-	"fmt"
-
-	"ucloud.dk/ucloud_cli/pkg/utils"
-)
-
 func ExecuteCommand(commands ...string) error {
 
 	// Consume the first command which should be the ucloud name
-	commands, _ = utils.Consume(commands)
-	command, err := Parse(commands)
+	command, err := Parse(commands[1:])
 
 	if err != nil {
 		return err
 	}
-	if command == nil {
-		return fmt.Errorf("no command")
-	}
+
 	commandErr := command.Execute()
+
 	if commandErr != nil {
 		return commandErr
 	}
