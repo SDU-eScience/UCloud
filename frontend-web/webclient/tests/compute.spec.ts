@@ -119,7 +119,7 @@ TestContexts.map((ctx) => {
 
         test("Ensure 'New version available' button shows up and works.", async ({page}) => {
             await Applications.openApp(page, AppNameThatIsExpectedToBePresentButWeWillNotRun);
-            const versionSelect = page.locator("div[class^=rich-select-trigger]").last();
+            const versionSelect = page.locator("div[class^=rich-select-trigger]").nth(1);
             const newestVersion = await versionSelect.innerText();
             await versionSelect.click();
             await page.locator("div[class^=rich-select-result-wrapper] > div").last().click();
@@ -164,7 +164,7 @@ echo "${BashScriptStringContent}"
                 // Optional parameter to be used
                 await Runs.activateOptionalParameter(page, "Initialization script");
                 await NetworkCalls.awaitResponse(page, "**/api/files/browse**", async () => {
-                    await page.getByRole("textbox", {name: "No file selected"}).click();
+                    await page.getByRole("textbox", {name: "Initialization script"}).click();
                 });
                 await File.ensureDialogDriveActive(page, driveName);
                 await Components.useDialogBrowserItem(page, BashScriptName, "Use");
