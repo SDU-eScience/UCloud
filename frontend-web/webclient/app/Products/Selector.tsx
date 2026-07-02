@@ -21,6 +21,7 @@ import {useSelector} from "react-redux";
 import {ServiceProviderItem, ServiceProviderSelector} from "@/Applications/ApiTokens/Add";
 import {InputClass} from "@/ui-components/Input";
 import {useProjectId} from "@/Project/Api";
+import {stupidPluralize} from "@/Utilities/TextUtilities";
 
 interface ComputeCategory {
     provider: string;
@@ -722,10 +723,11 @@ const ProductStats: React.FunctionComponent<{product: ProductV2}> = ({product}) 
 
     switch (computeProduct.type) {
         case "compute":
-            const gpuType = computeProduct.gpu != null && computeProduct.fraction?.denominator !== 1 ? "MIG(s)" : "GPU(s)";
+            const gpus = computeProduct.gpu ?? 0;
+            const gpuType = computeProduct.fraction?.denominator !== 1 ? stupidPluralize(gpus, "MIG") : stupidPluralize(gpus, "GPU");
 
             return <>
-                <TableCell>{computeProduct.cpu} CPU(s)<HardwareModel model={computeProduct.cpuModel} /></TableCell>
+                <TableCell>{computeProduct.cpu} {stupidPluralize(computeProduct.cpu ?? 1, "vCPU")}<HardwareModel model={computeProduct.cpuModel} /></TableCell>
                 <TableCell>{computeProduct.memoryInGigs} GB RAM<HardwareModel model={computeProduct.memoryModel} /></TableCell>
                 <TableCell>
                     {computeProduct.gpu === 0 || computeProduct.gpu == null ?
