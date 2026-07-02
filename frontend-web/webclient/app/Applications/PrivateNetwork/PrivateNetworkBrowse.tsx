@@ -80,7 +80,7 @@ export function PrivateNetworkBrowse({
     const browserRef = React.useRef<ResourceBrowser<PrivateNetwork> | null>(null);
     const dispatch = useDispatch();
     const navigate = useNavigate();
-    usePage("Private networks", SidebarTabId.RESOURCES);
+    if (!opts?.isModal) usePage("Private networks", SidebarTabId.RESOURCES);
     const [switcher, setSwitcherWorkaround] = React.useState<React.ReactNode>(<></>);
 
     React.useEffect(() => {
