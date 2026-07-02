@@ -345,7 +345,7 @@ export const ProductSelector: React.FunctionComponent<{
     const queueStatusInfo = statusStringAndColor(queueStatus ?? JobQueueStatus.FULL);
 
     return <>
-        <Flex gap="8px">
+        <Flex gap="15px">
             {isCompute ? <Box width="50%">
                 {serviceProviders.length === 0 ? <Box onClick={onToggle}><Label>Service provider <MandatoryField /> <Input disabled value={"You have no active allocations for this workspace"} /></Label></Box> :
                     <ServiceProviderSelector
@@ -390,7 +390,7 @@ export const ProductSelector: React.FunctionComponent<{
         </Flex>
 
         {isCompute && selected ? <>
-            <div className={classConcat(SelectorBoxClass, props.slim === true ? "slim" : undefined)} onClick={onToggle} style={{marginTop: "4px"}}>
+            <div className={classConcat(SelectorBoxClass, props.slim === true ? "slim" : undefined)} onClick={onToggle} style={{marginTop: "10px"}}>
                 <div className="selected">
                     <>
                         {props.slim !== true ?
@@ -399,7 +399,7 @@ export const ProductSelector: React.FunctionComponent<{
                                     <Flex>{selected?.name}</Flex>
                                     <Box px="8px" py="4px" backgroundColor={`var(--${queueStatusInfo.color})`} color="fixedWhite" borderRadius={"12px"}>{queueStatusInfo.message}</Box>
                                 </Flex>
-                                {selected ? <Box mt="24px" mb="12px">
+                                {selected ? <Box mb="12px">
                                     <ProductDescription serviceProvider={selected.category.provider} category={selected.category.name} />
                                     <table>
                                         <tbody>
