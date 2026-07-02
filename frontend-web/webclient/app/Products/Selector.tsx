@@ -115,7 +115,7 @@ export const ProductSelector: React.FunctionComponent<{
     const headers: {name: string, width?: string}[] = React.useMemo(() => {
         const result: {name: string, width?: string}[] = [];
         if (type === "COMPUTE") {
-            result.push({name: "Type", width: "80px"}, {name: "Product category", width: "180px"}, {name: "Description"}, {name: "Status", width: "120px"});
+            result.push({name: "Type", width: "80px"}, {name: "Machine type", width: "180px"}, {name: "Description"}, {name: "Status", width: "120px"});
         } else {
             result.push({name: "Name"}, {name: "Price"}, {name: "Provider", width: "250px"});
         }
@@ -174,6 +174,14 @@ export const ProductSelector: React.FunctionComponent<{
             } else {
                 result.push(product);
             }
+        }
+
+        if (type === "COMPUTE") {
+            (result as ComputeCategory[]).sort((a, b) => {
+                const kindCmp = a.kind.localeCompare(b.kind);
+                if (kindCmp != 0) return kindCmp;
+                return a.category.localeCompare(b.category);
+            });
         }
 
         return result;
@@ -360,7 +368,7 @@ export const ProductSelector: React.FunctionComponent<{
                         }} />}
             </Box> : null}
             <Box width={isCompute ? "50%" : "100%"}>
-                {isCompute ? <Box>Machine category <MandatoryField /></Box> : null}
+                {isCompute ? <Box>Machine type <MandatoryField /></Box> : null}
                 <div onClick={onToggle} className={InputClass} style={{display: "flex", height: "33.5px"}} ref={boxRef}>
                     {selected ?
                         <Flex alignItems={"center"} gap="8px">
