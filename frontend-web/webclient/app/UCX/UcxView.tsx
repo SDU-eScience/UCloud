@@ -1707,7 +1707,8 @@ const MachineTypeSelectorNode: React.FunctionComponent<{
 
     const loading = wallets.loading || products.loading || machineSupport.loading;
 
-    const onSelect = useCallback((product: ProductV2) => {
+    const onSelect = useCallback((product: ProductV2 | null) => {
+        if (!product) return;
         if (product.productType !== "COMPUTE") {
             return;
         }

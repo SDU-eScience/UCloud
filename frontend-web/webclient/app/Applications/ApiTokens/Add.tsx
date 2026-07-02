@@ -130,22 +130,10 @@ function Add() {
                     placeholder={"This token is used in one of my scripts."} />
             </div>
             <Flex>
-                <div className={ServiceProviderSelector} data-has-service-provider={!!serviceProvider}>
-                    Service provider <MandatoryField />
-                    <RichSelect
-                        fullWidth
-                        elementHeight={38}
-                        RenderSelected={ServiceProviderItem}
-                        selected={({key: serviceProvider})}
-                        items={mappedServiceProviders}
-                        keys={["key"]}
-                        RenderRow={ServiceProviderItem}
-                        onSelect={el => {
-                            setServiceProvider(el.key);
-                            setActivePermissions(new Set());
-                        }}>
-                    </RichSelect>
-                </div>
+                <ServiceProviderSelector serviceProvider={serviceProvider} serviceProviders={mappedServiceProviders} onSelect={el => {
+                    setServiceProvider(el.key);
+                    setActivePermissions(new Set());
+                }} />
                 {serviceProvider !== "" ? null :
                     <div style={{gap: 0}}>
                         Available for <MandatoryField />
@@ -286,7 +274,7 @@ function Permission(props: Api.ApiTokenPermissionSpecification & {
 
 const UCLOUD_CORE = "UCloud";
 
-function ServiceProviderItem(props: RichSelectProps<{key: string}>): React.ReactNode {
+export function ServiceProviderItem(props: RichSelectProps<{key: string}>): React.ReactNode {
     const height = props.dataProps == null ? "31.5px" : "38px";
     const key = props.element?.key;
     if (key == null) return null;
@@ -306,7 +294,35 @@ function ServiceProviderItem(props: RichSelectProps<{key: string}>): React.React
     </Flex>
 }
 
-const ServiceProviderSelector = injectStyle("service-selector", cl => `
+export function ServiceProviderSelector({
+    onSelect,
+    serviceProvider,
+    serviceProviders,
+    renderRow = ServiceProviderItem,
+    renderSelectedRow = ServiceProviderItem,
+}: {
+    onSelect: (el: {key: string}) => void;
+    serviceProvider: string;
+    serviceProviders: {key: string}[];
+    renderRow?: (props: RichSelectProps<{key: string}>) => React.ReactNode
+    renderSelectedRow?: (props: RichSelectProps<{key: string}>) => React.ReactNode
+}) {
+    return <div className={ServiceProviderSelectorStyle} data-has-service-provider={!!serviceProvider}>
+        Service provider <MandatoryField />
+        <RichSelect
+            fullWidth
+            elementHeight={38}
+            RenderSelected={renderSelectedRow}
+            selected={({key: serviceProvider})}
+            items={serviceProviders}
+            keys={["key"]}
+            RenderRow={renderRow}
+            onSelect={onSelect}>
+        </RichSelect>
+    </div>
+}
+
+const ServiceProviderSelectorStyle = injectStyle("service-selector", cl => `
     ${cl} {
         width: 100%;
     }

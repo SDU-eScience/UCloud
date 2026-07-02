@@ -2,7 +2,7 @@ import {MainContainer} from "@/ui-components/MainContainer";
 import * as React from "react";
 import {useEffect, useRef} from "react";
 import {EveryIcon, IconName} from "@/ui-components/Icon";
-import {Box, Button, Flex} from "@/ui-components";
+import {Box, Button, Flex, RangeInput, Relative} from "@/ui-components";
 import {ThemeColor} from "@/ui-components/theme";
 import {api as ProjectApi, useProjectId} from "@/Project/Api";
 import {useCloudAPI} from "@/Authentication/DataHook";
@@ -15,6 +15,7 @@ import * as JobViz from "@/Applications/Jobs/JobViz"
 import {WidgetColorIntensity, WidgetWindow} from "@/Applications/Jobs/JobViz"
 import {addOrgInfoModalIfNotFilled, ChangeOrganizationDetails} from "@/UserSettings/ChangeUserDetails";
 import {dialogStore} from "@/Dialog/DialogStore";
+import {injectStyle} from "@/Unstyled";
 
 const iconsNames = Object.keys(icons) as IconName[];
 
@@ -184,8 +185,19 @@ const Playground: React.FunctionComponent = () => {
         dialogStore.addDialog(<ChangeOrganizationDetails inModal onDidSubmit={() => dialogStore.success()} />, () => void 0);
     }, []);
 
+    const [value, setValue] = React.useState(0);
+
+    const FAKE_MACHINES = [...Array.from(Array(4).keys()).map(v => `${v + 1} / 7`), ...Array.from(Array(8).keys()).map(v => (v + 1).toString())]
+    const FAKE_MACHINES2 = ["1", "2", "4", "8", "16", "32", "64", "128"];
+    const FAKE_MACHINES3 = ["1", "2", "4", "8"];
+    console.log({FAKE_MACHINES})
+
     const main = (
         <>
+            <RangeInput value={value} onChange={(event) => setValue(event.target.valueAsNumber)} max={FAKE_MACHINES.length - 1} markers={FAKE_MACHINES} />
+            <RangeInput value={value} onChange={(event) => setValue(event.target.valueAsNumber)} max={FAKE_MACHINES2.length - 1} markers={FAKE_MACHINES2} />
+            <RangeInput value={value} onChange={(event) => setValue(event.target.valueAsNumber)} max={FAKE_MACHINES3.length - 1} markers={FAKE_MACHINES3} />
+
             <ChangeOrganizationDetails getValues={getValuesRef} />
             <Button onClick={foo}>View extracted contents</Button>
 
@@ -200,7 +212,7 @@ const Playground: React.FunctionComponent = () => {
             <EveryIcon />
             <PaletteColors />
             <Colors />
-            {/*<EveryIcon />*/}
+
             {/*
             <Button onClick={() => {
                 messageTest();
