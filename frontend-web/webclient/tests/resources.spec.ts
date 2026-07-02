@@ -99,7 +99,7 @@ TestContexts.map(ctx => {
             const terminalPage = await Runs.openTerminal(page);
 
             await Terminal.enterCmd(terminalPage, "cat /etc/ucloud/ssh/authorized_keys.ucloud");
-            await terminalPage.getByText(Resources.SSHKeys.DefaultSSHKey).first().hover();
+            await terminalPage.getByText(Resources.SSHKeys.DefaultSSHKey).first().isVisible();
             await terminalPage.close();
 
             await Runs.terminateViewedRun(page);

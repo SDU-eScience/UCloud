@@ -785,7 +785,7 @@ export const Runs = {
         async addFolder(page: Page, driveName: string, folderName: string): Promise<void> {
             await page.getByRole("button", {name: "Add folder"}).click();
             await NetworkCalls.awaitResponse(page, "**/api/files/browse?**", async () => {
-                await page.getByRole("textbox", {name: "No directory selected"}).click();
+                await page.getByRole("textbox", {name: "Folder name"}).click();
             });
             await File.ensureDialogDriveActive(page, driveName);
             await Components.useDialogBrowserItem(page, folderName, "Use");

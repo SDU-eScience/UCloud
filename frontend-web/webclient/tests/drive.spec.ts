@@ -3,7 +3,7 @@ import {User, Drive, Project, Rows, testCtx, Components, ctxUser, sharedTestProj
 import {default as data} from "./test_data.json" with {type: "json"};
 
 test.beforeEach(async ({page}, testInfo) => {
-    if (data["login_cookie"]) {
+    if (data.login_cookie) {
         await page.context().addCookies([data["login_cookie"]]);
     }
 
