@@ -265,10 +265,6 @@ export function NetworkIPBrowse({
                                                 owner: {createdBy: ""},
                                             } as NetworkIP;
 
-                                            browser.insertEntryIntoCurrentPage(networkIP);
-                                            browser.renderRows();
-                                            browser.selectAndShow(it => it === networkIP);
-
                                             try {
                                                 const response = (await callAPI(
                                                     NetworkIPApi.create(
@@ -309,8 +305,11 @@ export function NetworkIPBrowse({
                                                     );
                                                 }
 
+                                                const newNetworkIP = await callAPI(NetworkIPApi.retrieve({id: networkIP.id}));
+                                                browser.insertEntryIntoCurrentPage(newNetworkIP);
+                                                browser.renderRows();
+                                                browser.selectAndShow(it => it === newNetworkIP);
                                                 dialogStore.success();
-                                                browser.refresh();
                                             } catch (e: any) {
                                                 sendFailureNotification("Failed to activate public IP. " + extractErrorMessage(e));
                                                 browser.refresh();
