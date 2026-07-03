@@ -5,23 +5,23 @@ import "fmt"
 type VMListCommand struct{}
 
 type VMGetCommand struct {
-	VMId string `flag:"vm-id" usage:"VM Id"`
+	VMId string `positional:"vm-id" usage:"VM Id"`
 }
 
 type VMDeleteCommand struct {
-	VMId string `flag:"vm-id" usage:"VM Id"`
+	VMId string `positional:"vm-id" usage:"VM Id"`
 }
 
 type VMStopCommand struct {
-	VMId string `flag:"vm-id" usage:"VM Id"`
+	VMId string `positional:"vm-id" usage:"VM Id"`
 }
 
 type VMShellCommand struct {
-	VMId string `flag:"vm-id" usage:"VM Id"`
+	VMId string `positional:"vm-id" usage:"VM Id"`
 }
 
 type VMCreateCommand struct {
-	Image          string `flag:"image" usage:"Image"`
+	Image          string `positional:"image" usage:"Image"`
 	Product        string `flag:"product" usage:"Product"`
 	Ssh            string `flag:"ssh" usage:"SSH"`
 	PublicIp       string `flag:"public-ip" usage:"Public IP"`

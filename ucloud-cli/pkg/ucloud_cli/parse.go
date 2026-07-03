@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"reflect"
+	"strings"
 
 	com "ucloud.dk/ucloud_cli/pkg/command"
 )
@@ -31,6 +32,11 @@ func registerCommandParser() map[string]map[string]com.CommandFunc {
 	registry["ssh-key"] = com.SSHKeyCommands
 	registry["job"] = com.JobCommands
 	registry["vm"] = com.VMCommands
+	registry["connect"] = com.ConnectCommands
+	registry["public-ip"] = com.PublicIPCommands
+	registry["public-link"] = com.PublicLinkCommands
+	registry["private-network"] = com.PrivateNetworkCommands
+	registry["folder"] = com.FolderCommands
 	return registry
 }
 
@@ -59,20 +65,80 @@ func bindCommand(args []string, cmd any) error {
 	fs := flag.NewFlagSet(t.Name(), flag.ContinueOnError)
 
 	// Register flags
+	pos := 0
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
+		fieldValue := v.Field(i)
 
 		flagName := field.Tag.Get("flag")
+
+		// Handling positional arguments
+		positional := field.Tag.Get("positional")
+		if positional != "" {
+			if pos >= len(args) {
+				if field.Tag.Get("required") == "true" {
+					return fmt.Errorf("missing required argument: %s", field.Name)
+				}
+				continue
+			}
+
+			v.Field(i).SetString(args[pos])
+			pos++
+		}
+
+		required := field.Tag.Get("required") == "true"
 		if flagName == "" {
 			continue
 		}
 
 		usage := field.Tag.Get("usage")
 
+		// For slice of strings
+		if field.Type.Kind() == reflect.Slice &&
+			field.Type.Elem().Kind() == reflect.String {
+
+			slicePtr := fieldValue.Addr().Interface().(*[]string)
+
+			fs.Func(flagName, usage, func(value string) error {
+				*slicePtr = append(*slicePtr, value)
+				return nil
+			})
+
+			continue
+		}
+
+		// Special case for map[string]string
+		if field.Type.Kind() == reflect.Map &&
+			field.Type.Key().Kind() == reflect.String &&
+			field.Type.Elem().Kind() == reflect.String {
+
+			mapPtr := fieldValue.Addr().Interface().(*map[string]string)
+			fs.Func(flagName, usage, func(value string) error {
+				parts := strings.SplitN(value, "=", 2)
+				if len(parts) != 2 {
+					return fmt.Errorf("expected key=value, got %q", value)
+				}
+
+				key := parts[0]
+				val := parts[1]
+
+				if *mapPtr == nil {
+					*mapPtr = make(map[string]string)
+				}
+
+				(*mapPtr)[key] = val // ✅ accumulate, never replace map
+				return nil
+			})
+
+			continue
+		}
+		if required {
+			return fmt.Errorf("required flag %s not implemented", flagName)
+		}
+
 		binding := fieldBinding{
 			index: i,
-			kind:  field.Type.Kind(),
-		}
+			kind:  field.Type.Kind()}
 
 		switch field.Type.Kind() {
 		case reflect.String:

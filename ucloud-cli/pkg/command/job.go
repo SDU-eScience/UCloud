@@ -5,7 +5,7 @@ import (
 )
 
 type JobGetCommand struct {
-	JobID string `flag:"job-id" usage:"Job ID"`
+	JobID string `positional:"job-id" usage:"Job ID"`
 }
 
 type JobCreateCommand struct {
@@ -20,33 +20,66 @@ type JobCreateCommand struct {
 }
 
 type JobDeleteCommand struct {
-	JobID string `flag:"job-id" usage:"Job ID"`
+	JobID string `positional:"job-id" usage:"Job ID"`
 }
 
 type JobRenameCommand struct {
-	JobID   string `flag:"job-id" usage:"Job ID"`
-	NewName string `flag:"new-name" usage:"New job name"`
+	JobID   string `positional:"job-id" usage:"Job ID"`
+	NewName string `positional:"new-name" usage:"New job name"`
 }
 
 type JobSearchCommand struct {
-	JobName string `flag:"job-name" usage:"Job name"`
+	JobName string `positional:"job-name" usage:"Job name"`
 }
 
 type JobExtendCommand struct {
-	JobID string `flag:"job-id" usage:"Job ID"`
+	JobID string `positional:"job-id" usage:"Job ID"`
 	Time  int    `flag:"time" usage:"Time in minutes"`
 }
 
 type JobResumeCommand struct {
-	JobID string `flag:"job-id" usage:"Job ID"`
+	JobID string `positional:"job-id" usage:"Job ID"`
 }
 
 type JobTerminateCommand struct {
-	JobID string `flag:"job-id" usage:"Job ID"`
+	JobID string `positional:"job-id" usage:"Job ID"`
 }
 
 type JobSuspendCommand struct {
-	JobID string `flag:"job-id" usage:"Job ID"`
+	JobID string `positional:"job-id" usage:"Job ID"`
+}
+
+type JobLogsCommand struct {
+	JobID string `positional:"job-id" usage:"Job ID"`
+}
+
+type JobShellCommand struct {
+	JobID string `positional:"job-id" usage:"Job ID"`
+	Rank  int    `flag:"rank" usage:"Rank"`
+}
+
+type JobWebCommand struct {
+	JobID string `positional:"job-id" usage:"Job ID"`
+}
+
+type JobVNCCommand struct {
+	JobID string `positional:"job-id" usage:"Job ID"`
+}
+
+type JobOpenCommand struct {
+	JobID string `positional:"job-id" usage:"Job ID"`
+}
+
+type JobAttachCommand struct {
+	JobID          string `positional:"job-id" usage:"Job ID"`
+	PublicIp       string `flag:"public-ip" usage:"Public IP"`
+	PublicLink     string `flag:"public-link" usage:"Public link"`
+	PrivateNetwork string `flag:"private-network" usage:"Private network"`
+}
+
+type JobDetachCommand struct {
+	JobID    string `positional:"job-id" usage:"Job ID"`
+	PublicIp string `flag:"public-ip" usage:"Public IP"`
 }
 
 var JobCommands = map[string]CommandFunc{
@@ -59,6 +92,15 @@ var JobCommands = map[string]CommandFunc{
 	"delete":    func() Command { return &JobDeleteCommand{} },
 	"terminate": func() Command { return &JobTerminateCommand{} },
 	"resume":    func() Command { return &JobResumeCommand{} },
+	// Attach and detach
+	"attach": func() Command { return &JobAttachCommand{} },
+	"detach": func() Command { return &JobDetachCommand{} },
+	// Interactive commands
+	"vnc":   func() Command { return &JobVNCCommand{} },
+	"open":  func() Command { return &JobOpenCommand{} },
+	"web":   func() Command { return &JobWebCommand{} },
+	"shell": func() Command { return &JobShellCommand{} },
+	"logs":  func() Command { return &JobLogsCommand{} },
 }
 
 func (c JobRenameCommand) Execute() error {
@@ -95,4 +137,32 @@ func (c JobTerminateCommand) Execute() error {
 
 func (c JobResumeCommand) Execute() error {
 	return fmt.Errorf("job resume not implemented")
+}
+
+func (c JobAttachCommand) Execute() error {
+	return fmt.Errorf("job attach not implemented")
+}
+
+func (c JobDetachCommand) Execute() error {
+	return fmt.Errorf("job detach not implemented")
+}
+
+func (c JobVNCCommand) Execute() error {
+	return fmt.Errorf("job vnc not implemented")
+}
+
+func (c JobOpenCommand) Execute() error {
+	return fmt.Errorf("job open not implemented")
+}
+
+func (c JobWebCommand) Execute() error {
+	return fmt.Errorf("job web not implemented")
+}
+
+func (c JobShellCommand) Execute() error {
+	return fmt.Errorf("job shell not implemented")
+}
+
+func (c JobLogsCommand) Execute() error {
+	return fmt.Errorf("job logs not implemented")
 }

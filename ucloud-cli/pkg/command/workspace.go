@@ -4,17 +4,17 @@ import "fmt"
 
 type WorkspaceListCommand struct{}
 type WorkspaceUseCommand struct {
-	Name string `flag:"name" usage:"Workspace name"`
+	Name string `positional:"name" usage:"Workspace name"`
 }
 type WorkspaceGetCommand struct {
-	Name string `flag:"name" usage:"Workspace name"`
+	Name string `positional:"name" usage:"Workspace name"`
 }
 type WorkspaceDeleteCommand struct {
-	Name string `flag:"name" usage:"Workspace name"`
+	Name string `positional:"name" usage:"Workspace name"`
 }
 type WorkspaceRenameCommand struct {
-	FromName string `flag:"from" usage:"Workspace name"`
-	ToName   string `flag:"to" usage:"Workspace name"`
+	FromName string `positional:"from" usage:"Workspace name" required:"true"`
+	ToName   string `positional:"to" usage:"Workspace name" required:"true"`
 }
 
 var WorkspaceCommands = map[string]CommandFunc{

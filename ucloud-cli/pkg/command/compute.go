@@ -14,7 +14,5 @@ var ComputeCommands = map[string]CommandFunc{
 }
 
 func (c ComputeProductsCommand) Execute() error {
-	// Render the command
-	fmt.Println(c.Provider)
-	return nil
+	return fmt.Errorf("compute products not implemented")
 }

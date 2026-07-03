@@ -5,16 +5,16 @@ import "fmt"
 type SSHKeyListCommand struct{}
 
 type SSHKeyAddCommand struct {
-	Name  string `flag:"name" usage:"SSH key name"`
-	Value string `flag:"value" usage:"SSH key value"`
+	Name  string `positional:"name" usage:"SSH key name"`
+	Value string `positional:"value" usage:"SSH key value"`
 }
 
 type SSHKeyGetCommand struct {
-	KeyId string `flag:"key-id" usage:"SSH key id"`
+	Name string `positional:"name" usage:"SSH key name"`
 }
 
 type SSHKeyDeleteCommand struct {
-	KeyId string `flag:"key-id" usage:"SSH key id"`
+	Name string `positional:"name" usage:"SSH key name"`
 }
 
 var SSHKeyCommands = map[string]CommandFunc{
