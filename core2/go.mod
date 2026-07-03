@@ -10,9 +10,9 @@ require (
 	github.com/pquerna/otp v1.5.0
 	github.com/prometheus/client_golang v1.23.2
 	golang.org/x/exp v0.0.0-20260112195511-716be5621a96
-	golang.org/x/image v0.38.0
+	golang.org/x/image v0.41.0
 	golang.org/x/oauth2 v0.34.0
-	golang.org/x/text v0.35.0
+	golang.org/x/text v0.37.0
 	gopkg.in/gomail.v2 v2.0.0-20160411212932-81ebce5c23df
 	gopkg.in/yaml.v3 v3.0.1
 	ucloud.dk/gonja/v2 v2.3.0
