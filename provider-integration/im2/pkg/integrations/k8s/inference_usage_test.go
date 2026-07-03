@@ -46,3 +46,23 @@ func TestInferenceImageUsageAlwaysPresent(t *testing.T) {
 		t.Fatalf("expected total to match input+output, got %+v", usage)
 	}
 }
+
+func TestInferenceChatDeltaContentParts(t *testing.T) {
+	var delta InferenceChatDelta
+	if err := delta.UnmarshalJSON([]byte(`{"content":[{"type":"text","text":"hello"},{"type":"text","text":" world"}],"reasoning_content":[{"type":"reasoning_text","text":"thinking"}]}`)); err != nil {
+		t.Fatalf("unexpected unmarshal error: %v", err)
+	}
+	if delta.Content != "hello world" {
+		t.Fatalf("unexpected content: %q", delta.Content)
+	}
+	if delta.Reasoning != "thinking" {
+		t.Fatalf("unexpected reasoning: %q", delta.Reasoning)
+	}
+}
+
+func TestInferenceSSEDataPayloadWithEvent(t *testing.T) {
+	payload := inferenceSSEDataPayload("event: chat.completion.chunk\ndata: {\"choices\":[{\"delta\":{\"content\":\"hi\"}}]}\n")
+	if payload != `{"choices":[{"delta":{"content":"hi"}}]}` {
+		t.Fatalf("unexpected payload: %q", payload)
+	}
+}

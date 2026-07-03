@@ -11,7 +11,7 @@ import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {InferenceBenchmark, InferenceCapability, InferenceModel, listModels, updateBenchmarks, updateModel} from "./api";
 import ConfiguringTools from "./ConfiguringTools";
-import ModelInferenceLogo from "./ModelLogo";
+import ModelInferenceLogo, {modelProviderName} from "./ModelLogo";
 import {CopyButton} from "@/ui-components/CopyButton";
 import {injectStyle} from "@/Unstyled";
 import {useIsLightThemeStored} from "@/ui-components/theme";
@@ -383,7 +383,7 @@ const DATE_FORMAT = "dd/MM/yyyy";
 function Datasheet({model}: {model: InferenceModel}): React.ReactNode {
     const page = model.page;
     const rows: [string, React.ReactNode][] = [
-        ["Model provider", <Flex key="provider" gap="8px" alignItems="center"><ModelInferenceLogo modelName={model.name} />{providerName(model.name)}</Flex>],
+        ["Model provider", <Flex key="provider" gap="8px" alignItems="center"><ModelInferenceLogo modelName={model.name} />{modelProviderName(model.name)}</Flex>],
         ["Release date", page?.releaseDate ? formatDate(new Date(page.releaseDate), DATE_FORMAT) : null],
         ["Capabilities", model.capabilities.join(", ")],
         ["Endpoint", <CopyableEndpoint key="endpoint" value={model.name} />],
@@ -417,20 +417,6 @@ function fallbackKeyStats(model: InferenceModel): {label: string; value: string;
         {label: "Input multiplier", value: formatMultiplier(model.priceMultiplier.input)},
         {label: "Output multiplier", value: formatMultiplier(model.priceMultiplier.output)},
     ];
-}
-
-function providerName(modelName: string): string {
-    const norm = modelName.toLowerCase();
-    if (norm.includes("deepseek")) return "DeepSeek";
-    if (norm.includes("llama")) return "Meta";
-    if (norm.includes("qwen")) return "Qwen";
-    if (norm.includes("minimax")) return "Minimax";
-    if (norm.includes("glm")) return "Z.ai";
-    if (norm.includes("mistral")) return "Mistral";
-    if (norm.includes("google") || norm.includes("gemma")) return "Google";
-    if (norm.includes("kimi") || norm.includes("k2.")) return "Moonshot AI";
-    if (norm.includes("gpt")) return "OpenAI";
-    return "Unknown";
 }
 
 function formatMultiplier(value: number): string {
