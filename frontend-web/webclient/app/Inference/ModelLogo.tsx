@@ -15,6 +15,27 @@ import LogoZai from "@/Assets/Images/inference/zai.png";
 import LogoNvidia from "@/Assets/Images/inference/nvidia-black.png"
 import LogoNvidiaWhite from "@/Assets/Images/inference/nvidia-white.png"
 import {useIsLightThemeStored} from "@/ui-components/theme";
+import {injectStyle} from "@/Unstyled";
+
+const modelLogoClass = injectStyle("model-logo", k => `
+    ${k} {
+        --playground-logo-bg: var(--secondaryMain);
+        --playground-border: var(--borderColor);
+        --playground-border-hover: var(--borderColorHover);
+        
+        background: var(--playground-logo-bg);
+        border: 1px solid var(--playground-border);
+        align-items: center;
+        justify-content: center;
+        aspect-ratio: 1 / 1;
+    }
+    
+    html.dark ${k} {
+        --playground-logo-bg: #292c31;
+        --playground-border: #3f444c;
+        --playground-border-hover: #626975;
+    }
+`);
 
 export default function ModelInferenceLogo({modelName, size = 24}: {modelName: string; size?: number}): React.ReactNode {
     const isLight = useIsLightThemeStored();
@@ -62,14 +83,10 @@ export default function ModelInferenceLogo({modelName, size = 24}: {modelName: s
     }
 
     return <Flex
-        background={"var(--playground-logo-bg, var(--secondaryMain))"}
-        border={"1px solid var(--playground-border, var(--borderColor))"}
+        className={modelLogoClass}
         borderRadius={size >= 96 ? "28px" : "8px"}
         height={size}
         width={size}
-        alignItems={"center"}
-        justifyContent={"center"}
-        style={{aspectRatio: "1 / 1"}}
     >
         <img src={img} alt={`${modelName} logo`} style={{maxHeight: Math.round(size * 0.7), maxWidth: Math.round(size * 0.7)}} />
     </Flex>;
