@@ -10,7 +10,6 @@ import (
 	"time"
 
 	apm "ucloud.dk/shared/pkg/accounting"
-	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -159,6 +158,38 @@ type OaiResponseFunctionCall struct {
 	Status    string `json:"status"`
 }
 
+type OaiResponseCustomToolCall struct {
+	Id     string `json:"id,omitempty"`
+	Type   string `json:"type"`
+	CallId string `json:"call_id"`
+	Name   string `json:"name"`
+	Input  string `json:"input"`
+	Status string `json:"status,omitempty"`
+}
+
+type OaiResponseCustomToolCallOutput struct {
+	Id     string `json:"id,omitempty"`
+	Type   string `json:"type"`
+	CallId string `json:"call_id"`
+	Name   string `json:"name,omitempty"`
+	Output string `json:"output,omitempty"`
+}
+
+type OaiResponseFileSearchCall struct {
+	Id      string   `json:"id,omitempty"`
+	Type    string   `json:"type"`
+	Queries []string `json:"queries"`
+	Status  string   `json:"status"`
+	Results []any    `json:"results"`
+}
+
+type OaiResponseWebSearchCall struct {
+	Id     string `json:"id,omitempty"`
+	Type   string `json:"type"`
+	Action any    `json:"action"`
+	Status string `json:"status"`
+}
+
 type OaiResponseApplyPatchCall struct {
 	Id        string                  `json:"id,omitempty"`
 	Type      string                  `json:"type"`
@@ -170,7 +201,7 @@ type OaiResponseApplyPatchCall struct {
 type OaiResponseApplyPatchOp struct {
 	Type string `json:"type"`
 	Path string `json:"path"`
-	Diff string `json:"diff,omitempty"`
+	Diff string `json:"diff"`
 }
 
 type OaiResponseShellCall struct {
@@ -225,6 +256,7 @@ type OaiResponseLocalShellAction struct {
 type OaiResponseLocalShellCallOutput struct {
 	Id     string `json:"id,omitempty"`
 	Type   string `json:"type"`
+	CallId string `json:"call_id,omitempty"`
 	Output string `json:"output"`
 	Status string `json:"status,omitempty"`
 }
@@ -249,7 +281,6 @@ func InferenceResponseCreate(owner apm.WalletOwner, request OaiResponseCreateReq
 	id := inferenceResponseNewId("resp")
 	createdAt := time.Now().Unix()
 	if request.Background {
-		log.Info("Inference response non-streaming background")
 		queued := inferenceResponseBase(id, createdAt, request)
 		queued.Status = "queued"
 		queued.Background = true
@@ -283,7 +314,6 @@ func InferenceResponseCreate(owner apm.WalletOwner, request OaiResponseCreateReq
 
 		return queued, nil
 	}
-	log.Info("Inference response non-streaming foreground")
 
 	chatRequest, httpErr := inferenceResponseChatRequest(request)
 	if httpErr != nil {
@@ -301,7 +331,6 @@ func InferenceResponseCreate(owner apm.WalletOwner, request OaiResponseCreateReq
 }
 
 func InferenceResponseCreateStreaming(owner apm.WalletOwner, request OaiResponseCreateRequest) (chan OaiResponseStreamEvent, *util.HttpError) {
-	log.Info("Inference response streaming")
 	ch := make(chan OaiResponseStreamEvent)
 	if httpErr := inferenceResponseValidateRequest(request); httpErr != nil {
 		close(ch)
@@ -314,7 +343,6 @@ func InferenceResponseCreateStreaming(owner apm.WalletOwner, request OaiResponse
 		return ch, httpErr
 	}
 
-	log.Info("Transformed request: %#v", chatRequest)
 	chatChunks, httpErr := InferenceChatStreaming(owner, chatRequest)
 	if httpErr != nil {
 		close(ch)
@@ -337,6 +365,7 @@ func InferenceResponseCreateStreaming(owner apm.WalletOwner, request OaiResponse
 		var pendingText strings.Builder
 		var reasoning strings.Builder
 		var usage InferenceChatUsage
+		customTools := inferenceResponseCustomToolNames(request.Tools)
 		toolCalls := map[int]*inferenceResponseStreamingToolCall{}
 		toolCallOrder := []int{}
 		outputCount := 0
@@ -446,8 +475,9 @@ func InferenceResponseCreateStreaming(owner apm.WalletOwner, request OaiResponse
 				if toolCallDelta.Function != nil {
 					if toolCallDelta.Function.Name != "" {
 						toolCall.Name = toolCallDelta.Function.Name
+						toolCall.Custom = customTools[toolCall.Name]
 					}
-					if !toolCall.Added {
+					if !toolCall.Added && toolCall.Name != "" && !inferenceResponseBuiltinCallName(toolCall.Name) {
 						toolCall.Added = true
 						ch <- OaiResponseStreamEvent{Type: "response.output_item.added", OutputIndex: util.Pointer(toolCall.OutputIndex), Item: toolCall.ResponseItem("in_progress")}
 					}
@@ -462,7 +492,7 @@ func InferenceResponseCreateStreaming(owner apm.WalletOwner, request OaiResponse
 							}
 						}
 					}
-				} else if !toolCall.Added {
+				} else if !toolCall.Added && toolCall.Name != "" {
 					toolCall.Added = true
 					ch <- OaiResponseStreamEvent{Type: "response.output_item.added", OutputIndex: util.Pointer(toolCall.OutputIndex), Item: toolCall.ResponseItem("in_progress")}
 				}
@@ -497,6 +527,14 @@ func InferenceResponseCreateStreaming(owner apm.WalletOwner, request OaiResponse
 		}
 		for _, toolCallIndex := range toolCallOrder {
 			toolCall := toolCalls[toolCallIndex]
+			if toolCall.Custom {
+				inferenceResponseStreamCustomToolCall(ch, toolCall)
+				continue
+			}
+			if !toolCall.Added {
+				toolCall.Added = true
+				ch <- OaiResponseStreamEvent{Type: "response.output_item.added", OutputIndex: util.Pointer(toolCall.OutputIndex), Item: toolCall.ResponseItem("in_progress")}
+			}
 			item := toolCall.ResponseItem("completed")
 			if !inferenceResponseBuiltinCallName(toolCall.Name) {
 				ch <- OaiResponseStreamEvent{Type: "response.function_call_arguments.done", ItemId: toolCall.Id, OutputIndex: util.Pointer(toolCall.OutputIndex), Arguments: toolCall.Arguments.String()}
@@ -531,6 +569,7 @@ func InferenceResponseCreateStreaming(owner apm.WalletOwner, request OaiResponse
 
 type OaiResponseStreamEvent struct {
 	Type         string       `json:"type"`
+	ResponseId   string       `json:"response_id,omitempty"`
 	Response     *OaiResponse `json:"response,omitempty"`
 	OutputIndex  *int         `json:"output_index,omitempty"`
 	ContentIndex *int         `json:"content_index,omitempty"`
@@ -549,17 +588,37 @@ type inferenceResponseStreamingToolCall struct {
 	Name        string
 	Arguments   strings.Builder
 	Added       bool
+	Custom      bool
 }
 
 func (c *inferenceResponseStreamingToolCall) ResponseItem(status string) any {
-	return inferenceResponseToolCallItem(c.Id, c.CallId, c.Name, c.Arguments.String(), status)
+	return inferenceResponseToolCallItem(c.Id, c.CallId, c.Name, c.Arguments.String(), status, c.Custom)
 }
 
-func inferenceResponseToolCallItem(id string, callId string, name string, arguments string, status string) any {
+func inferenceResponseStreamCustomToolCall(ch chan OaiResponseStreamEvent, toolCall *inferenceResponseStreamingToolCall) {
+	input := inferenceResponseCustomToolInput(toolCall.Name, toolCall.Arguments.String())
+	if !toolCall.Added {
+		toolCall.Added = true
+		ch <- OaiResponseStreamEvent{Type: "response.output_item.added", OutputIndex: util.Pointer(toolCall.OutputIndex), Item: OaiResponseCustomToolCall{Id: toolCall.Id, Type: "custom_tool_call", CallId: toolCall.CallId, Name: toolCall.Name, Input: "", Status: "in_progress"}}
+	}
+	if input != "" {
+		ch <- OaiResponseStreamEvent{Type: "response.custom_tool_call_input.delta", ItemId: toolCall.Id, OutputIndex: util.Pointer(toolCall.OutputIndex), Delta: input}
+	}
+	ch <- OaiResponseStreamEvent{Type: "response.output_item.done", OutputIndex: util.Pointer(toolCall.OutputIndex), Item: OaiResponseCustomToolCall{Id: toolCall.Id, Type: "custom_tool_call", CallId: toolCall.CallId, Name: toolCall.Name, Input: input, Status: "completed"}}
+}
+
+func inferenceResponseToolCallItem(id string, callId string, name string, arguments string, status string, custom bool) any {
 	if callId == "" {
 		callId = id
 	}
+	if custom {
+		return OaiResponseCustomToolCall{Id: id, Type: "custom_tool_call", CallId: callId, Name: name, Input: inferenceResponseCustomToolInput(name, arguments), Status: status}
+	}
 	switch name {
+	case "file_search":
+		return OaiResponseFileSearchCall{Id: id, Type: "file_search_call", Queries: inferenceResponseSearchQueries(arguments), Status: status, Results: []any{}}
+	case "web_search", "web_search_2025_08_26", "web_search_preview", "web_search_preview_2025_03_11":
+		return OaiResponseWebSearchCall{Id: id, Type: "web_search_call", Action: inferenceResponseWebSearchAction(arguments), Status: status}
 	case "apply_patch":
 		return OaiResponseApplyPatchCall{Id: id, Type: "apply_patch_call", CallId: callId, Operation: inferenceResponseApplyPatchOperation(arguments), Status: status}
 	case "shell":
@@ -579,24 +638,104 @@ func inferenceResponseToolCallItem(id string, callId string, name string, argume
 }
 
 func inferenceResponseBuiltinCallName(name string) bool {
-	return name == "apply_patch" || name == "shell" || name == "local_shell"
+	return name == "apply_patch" || name == "shell" || name == "local_shell" || name == "file_search" || strings.HasPrefix(name, "web_search")
+}
+
+func inferenceResponseSearchQueries(arguments string) []string {
+	var parsed struct {
+		Query   string   `json:"query"`
+		Queries []string `json:"queries"`
+	}
+	_ = json.Unmarshal([]byte(arguments), &parsed)
+	if len(parsed.Queries) > 0 {
+		return parsed.Queries
+	}
+	if parsed.Query != "" {
+		return []string{parsed.Query}
+	}
+	return []string{}
+}
+
+func inferenceResponseWebSearchAction(arguments string) any {
+	queries := inferenceResponseSearchQueries(arguments)
+	query := ""
+	if len(queries) > 0 {
+		query = queries[0]
+	}
+	return map[string]any{"type": "search", "query": query, "queries": queries, "sources": []any{}}
+}
+
+func inferenceResponseCustomToolInput(name string, arguments string) string {
+	if name == "apply_patch" {
+		var parsed struct {
+			Patch string `json:"patch"`
+		}
+		if err := json.Unmarshal([]byte(arguments), &parsed); err == nil {
+			return inferenceResponseNormalizeApplyPatchDocument(parsed.Patch)
+		}
+	}
+	var parsed struct {
+		Input string `json:"input"`
+	}
+	if err := json.Unmarshal([]byte(arguments), &parsed); err == nil && parsed.Input != "" {
+		return parsed.Input
+	}
+	return arguments
+}
+
+func inferenceResponseNormalizeApplyPatchDocument(patch string) string {
+	if !strings.Contains(patch, "*** Add File: ") {
+		return patch
+	}
+
+	lines := strings.Split(strings.ReplaceAll(patch, "\r\n", "\n"), "\n")
+	result := make([]string, 0, len(lines))
+	inAddFile := false
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(line, "*** Add File: ") {
+			inAddFile = true
+			result = append(result, line)
+			continue
+		}
+		if strings.HasPrefix(line, "*** ") {
+			inAddFile = false
+			result = append(result, line)
+			continue
+		}
+		if inAddFile && trimmed != "" && !strings.HasPrefix(line, "+") {
+			result = append(result, "+"+line)
+			continue
+		}
+		if inAddFile && trimmed == "" {
+			result = append(result, "+")
+			continue
+		}
+		result = append(result, line)
+	}
+	return strings.Join(result, "\n")
 }
 
 func inferenceResponseApplyPatchOperation(arguments string) OaiResponseApplyPatchOp {
 	var parsed struct {
 		Patch string `json:"patch"`
 	}
-	_ = json.Unmarshal([]byte(arguments), &parsed)
-	return inferenceResponseParseApplyPatchOperation(parsed.Patch)
+	if err := json.Unmarshal([]byte(arguments), &parsed); err != nil {
+		return inferenceResponseParseApplyPatchOperation("")
+	}
+	operation := inferenceResponseParseApplyPatchOperation(parsed.Patch)
+	return operation
 }
 
 func inferenceResponseParseApplyPatchOperation(patch string) OaiResponseApplyPatchOp {
 	operation := OaiResponseApplyPatchOp{Type: "update_file", Diff: patch}
 	lines := strings.Split(strings.ReplaceAll(patch, "\r\n", "\n"), "\n")
-	body := make([]string, 0, len(lines))
 	foundHeader := false
+	body := make([]string, 0, len(lines))
+	pseudoFileStart := -1
+	pseudoFileEnd := -1
 
-	for _, line := range lines {
+	for i, line := range lines {
 		trimmed := strings.TrimSpace(line)
 		if trimmed == "*** Begin Patch" || trimmed == "*** End Patch" {
 			continue
@@ -605,6 +744,17 @@ func inferenceResponseParseApplyPatchOperation(patch string) OaiResponseApplyPat
 			operation.Type = "create_file"
 			operation.Path = strings.TrimSpace(strings.TrimPrefix(trimmed, "*** Add File: "))
 			foundHeader = true
+			continue
+		}
+		if strings.HasPrefix(trimmed, "*** Begin File: ") {
+			operation.Type = "create_file"
+			operation.Path = strings.TrimSpace(strings.TrimPrefix(trimmed, "*** Begin File: "))
+			foundHeader = true
+			pseudoFileStart = i
+			continue
+		}
+		if trimmed == "*** End File" {
+			pseudoFileEnd = i
 			continue
 		}
 		if strings.HasPrefix(trimmed, "*** Update File: ") {
@@ -624,13 +774,50 @@ func inferenceResponseParseApplyPatchOperation(patch string) OaiResponseApplyPat
 		}
 	}
 
+	if pseudoFileStart >= 0 && operation.Path != "" {
+		end := len(lines)
+		if pseudoFileEnd > pseudoFileStart {
+			end = pseudoFileEnd
+		}
+		operation.Diff = inferenceResponseCreateFileDiff(lines[pseudoFileStart+1 : end])
+		return operation
+	}
 	if foundHeader {
 		operation.Diff = strings.TrimRight(strings.Join(body, "\n"), "\n")
 	}
-	if operation.Type == "delete_file" {
+	if foundHeader && operation.Type == "create_file" {
+		operation.Diff = inferenceResponseCanonicalizeCreateFileDiff(operation.Diff)
+	}
+	if foundHeader && operation.Type == "delete_file" {
 		operation.Diff = ""
 	}
 	return operation
+}
+
+func inferenceResponseCanonicalizeCreateFileDiff(diff string) string {
+	if diff == "" {
+		return diff
+	}
+	lines := strings.Split(diff, "\n")
+	hasPlusLine := false
+	for _, line := range lines {
+		if strings.HasPrefix(line, "+") {
+			hasPlusLine = true
+			break
+		}
+	}
+	if hasPlusLine {
+		return strings.TrimRight(diff, "\n")
+	}
+	return inferenceResponseCreateFileDiff(lines)
+}
+
+func inferenceResponseCreateFileDiff(lines []string) string {
+	result := make([]string, 0, len(lines))
+	for _, line := range lines {
+		result = append(result, "+"+line)
+	}
+	return strings.TrimRight(strings.Join(result, "\n"), "\n")
 }
 
 func inferenceResponseShellAction(arguments string) OaiResponseShellAction {
@@ -710,13 +897,7 @@ func inferenceResponseChatRequest(request OaiResponseCreateRequest) (InferenceCh
 		return InferenceChatRequest{}, httpErr
 	}
 
-	for _, tool := range request.Tools {
-		log.Info("Input tool: %v", string(tool))
-	}
 	tools, httpErr := inferenceResponseChatTools(request.Tools)
-	for _, tool := range tools {
-		log.Info("Output tool: %v", tool)
-	}
 	if httpErr != nil {
 		return InferenceChatRequest{}, httpErr
 	}
@@ -860,6 +1041,32 @@ func inferenceResponseInputItemToMessage(raw json.RawMessage) (InferenceChatMess
 			return InferenceChatMessage{}, false, util.HttpErr(http.StatusBadRequest, "invalid function_call item")
 		}
 		return inferenceResponseToolCallMessage(callId, functionCall.Name, functionCall.Arguments), true, nil
+	case "custom_tool_call":
+		var customToolCall struct {
+			Id     string `json:"id"`
+			CallId string `json:"call_id"`
+			Name   string `json:"name"`
+			Input  string `json:"input"`
+		}
+		if err := json.Unmarshal(raw, &customToolCall); err != nil {
+			return InferenceChatMessage{}, false, util.HttpErr(http.StatusBadRequest, "invalid custom_tool_call item")
+		}
+		callId := customToolCall.CallId
+		if callId == "" {
+			callId = customToolCall.Id
+		}
+		if callId == "" || customToolCall.Name == "" {
+			return InferenceChatMessage{}, false, util.HttpErr(http.StatusBadRequest, "invalid custom_tool_call item")
+		}
+		arguments := customToolCall.Input
+		if customToolCall.Name == "apply_patch" {
+			encoded, err := json.Marshal(map[string]string{"patch": customToolCall.Input})
+			if err != nil {
+				return InferenceChatMessage{}, false, util.HttpErr(http.StatusBadRequest, "invalid custom_tool_call item")
+			}
+			arguments = string(encoded)
+		}
+		return inferenceResponseToolCallMessage(callId, customToolCall.Name, arguments), true, nil
 	case "apply_patch_call":
 		var applyPatchCall struct {
 			Id        string                  `json:"id"`
@@ -960,6 +1167,12 @@ func inferenceResponseInputItemToMessage(raw json.RawMessage) (InferenceChatMess
 			return InferenceChatMessage{}, false, httpErr
 		}
 		return InferenceChatMessage{Role: "tool", Content: inferenceChatTextContent(output), ToolCallID: functionCallOutput.CallId}, true, nil
+	case "custom_tool_call_output":
+		var customToolOutput OaiResponseCustomToolCallOutput
+		if err := json.Unmarshal(raw, &customToolOutput); err != nil || customToolOutput.CallId == "" {
+			return InferenceChatMessage{}, false, util.HttpErr(http.StatusBadRequest, "invalid custom_tool_call_output item")
+		}
+		return InferenceChatMessage{Role: "tool", Content: inferenceChatTextContent(customToolOutput.Output), ToolCallID: customToolOutput.CallId}, true, nil
 	case "apply_patch_call_output":
 		var applyPatchOutput OaiResponseApplyPatchCallOutput
 		if err := json.Unmarshal(raw, &applyPatchOutput); err != nil || applyPatchOutput.CallId == "" {
@@ -979,10 +1192,17 @@ func inferenceResponseInputItemToMessage(raw json.RawMessage) (InferenceChatMess
 		return InferenceChatMessage{Role: "tool", Content: inferenceChatTextContent(builder.String()), ToolCallID: shellOutput.CallId}, true, nil
 	case "local_shell_call_output":
 		var localShellOutput OaiResponseLocalShellCallOutput
-		if err := json.Unmarshal(raw, &localShellOutput); err != nil || localShellOutput.Id == "" {
+		if err := json.Unmarshal(raw, &localShellOutput); err != nil {
 			return InferenceChatMessage{}, false, util.HttpErr(http.StatusBadRequest, "invalid local_shell_call_output item")
 		}
-		return InferenceChatMessage{Role: "tool", Content: inferenceChatTextContent(localShellOutput.Output), ToolCallID: localShellOutput.Id}, true, nil
+		callId := localShellOutput.CallId
+		if callId == "" {
+			callId = localShellOutput.Id
+		}
+		if callId == "" {
+			return InferenceChatMessage{}, false, util.HttpErr(http.StatusBadRequest, "invalid local_shell_call_output item")
+		}
+		return InferenceChatMessage{Role: "tool", Content: inferenceChatTextContent(localShellOutput.Output), ToolCallID: callId}, true, nil
 	default:
 		return InferenceChatMessage{}, false, util.HttpErr(http.StatusBadRequest, "unsupported input item: %v", item.Type)
 	}
@@ -1060,27 +1280,37 @@ func inferenceResponseInputContent(raw json.RawMessage) (string, *util.HttpError
 
 func inferenceResponseChatTools(rawTools []json.RawMessage) ([]InferenceChatTool, *util.HttpError) {
 	result := []InferenceChatTool{}
-	looksLikeCodex := false
 	for _, raw := range rawTools {
 		tools, httpErr := inferenceResponseChatTool(raw)
 		if httpErr != nil {
 			return nil, httpErr
 		}
 		result = append(result, tools...)
+	}
+	return inferenceResponseDeduplicateTools(result), nil
+}
 
-		for _, tool := range tools {
-			if tool.Type == "function" && tool.Function.Name == "get_goal" {
-				looksLikeCodex = true
+func inferenceResponseCustomToolNames(rawTools []json.RawMessage) map[string]bool {
+	result := map[string]bool{}
+	for _, raw := range rawTools {
+		var tool struct {
+			Type  string            `json:"type"`
+			Name  string            `json:"name"`
+			Tools []json.RawMessage `json:"tools"`
+		}
+		if json.Unmarshal(raw, &tool) != nil {
+			continue
+		}
+		if tool.Type == "custom" && tool.Name != "" {
+			result[tool.Name] = true
+		}
+		if tool.Type == "namespace" {
+			for name := range inferenceResponseCustomToolNames(tool.Tools) {
+				result[name] = true
 			}
 		}
 	}
-	if looksLikeCodex {
-		// HACK(Dan): This cannot possibly be the way to do it...
-		if patchTool, ok := inferenceResponseBuiltinTool("apply_patch"); ok {
-			result = append(result, patchTool)
-		}
-	}
-	return inferenceResponseDeduplicateTools(result), nil
+	return result
 }
 
 func inferenceResponseChatTool(raw json.RawMessage) ([]InferenceChatTool, *util.HttpError) {
@@ -1088,6 +1318,7 @@ func inferenceResponseChatTool(raw json.RawMessage) ([]InferenceChatTool, *util.
 		Type        string            `json:"type"`
 		Name        string            `json:"name"`
 		Description string            `json:"description"`
+		Format      json.RawMessage   `json:"format"`
 		Parameters  json.RawMessage   `json:"parameters"`
 		Strict      util.Option[bool] `json:"strict"`
 		Tools       []json.RawMessage `json:"tools"`
@@ -1104,6 +1335,8 @@ func inferenceResponseChatTool(raw json.RawMessage) ([]InferenceChatTool, *util.
 			}
 		}
 		return []InferenceChatTool{{Type: "function", Function: InferenceChatToolFunction{Name: tool.Name, Description: tool.Description, Parameters: parameters, Strict: tool.Strict}}}, nil
+	case "custom":
+		return []InferenceChatTool{inferenceResponseCustomToolAsFunction(tool.Name, tool.Description)}, nil
 	case "namespace":
 		return inferenceResponseChatTools(tool.Tools)
 	case "apply_patch", "shell", "local_shell":
@@ -1112,11 +1345,69 @@ func inferenceResponseChatTool(raw json.RawMessage) ([]InferenceChatTool, *util.
 			return nil, util.HttpErr(http.StatusBadRequest, "unsupported tool: %v", tool.Type)
 		}
 		return []InferenceChatTool{builtin}, nil
-	case "file_search", "web_search", "web_search_2025_08_26", "web_search_preview", "web_search_preview_2025_03_11", "computer", "computer_use", "computer_use_preview", "code_interpreter", "image_generation":
+	case "file_search", "web_search", "web_search_2025_08_26", "web_search_preview", "web_search_preview_2025_03_11":
+		return []InferenceChatTool{inferenceResponseHostedSearchTool(tool.Type)}, nil
+	case "computer", "computer_use", "computer_use_preview", "code_interpreter", "image_generation":
 		return nil, nil
 	default:
 		return nil, util.HttpErr(http.StatusBadRequest, "unsupported tool: %v", tool.Type)
 	}
+}
+
+func inferenceResponseHostedSearchTool(toolType string) InferenceChatTool {
+	parameters := map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"query": map[string]any{"type": "string"},
+		},
+		"required":             []string{"query"},
+		"additionalProperties": false,
+	}
+	description := "Search is emulated by this Responses compatibility shim and always returns zero results."
+	if toolType == "file_search" {
+		description = "File search is emulated by this Responses compatibility shim and always returns zero results."
+	}
+	return InferenceChatTool{Type: "function", Function: InferenceChatToolFunction{Name: toolType, Description: description, Parameters: parameters, Strict: util.OptValue(true)}}
+}
+
+func inferenceResponseCustomToolAsFunction(name string, description string) InferenceChatTool {
+	if name == "apply_patch" {
+		parameters := map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"patch": map[string]any{"type": "string", "description": "Complete raw apply_patch document. Do not include markdown fences or prose. Begin with *** Begin Patch and end with *** End Patch. For *** Add File: <path>, every file content line MUST start with '+', for example '+#include <stdio.h>' and '+int main(void) {'."},
+			},
+			"required":             []string{"patch"},
+			"additionalProperties": false,
+		}
+		description = strings.TrimSpace(description + `
+
+When calling this function, the patch field must contain a complete apply_patch document only.
+
+Valid examples:
+*** Begin Patch
+*** Add File: main.c
++#include <stdio.h>
++
++int main(void) {
++    printf("Hello, world!\n");
++    return 0;
++}
+*** End Patch
+
+For Add File operations, every line of file content must be prefixed with '+'. Do not write raw file contents without '+'. Do not wrap the patch in markdown fences.`)
+		return InferenceChatTool{Type: "function", Function: InferenceChatToolFunction{Name: name, Description: description, Parameters: parameters, Strict: util.OptValue(true)}}
+	}
+
+	parameters := map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"input": map[string]any{"type": "string"},
+		},
+		"required":             []string{"input"},
+		"additionalProperties": false,
+	}
+	return InferenceChatTool{Type: "function", Function: InferenceChatToolFunction{Name: name, Description: description, Parameters: parameters, Strict: util.OptValue(true)}}
 }
 
 func inferenceResponseDeduplicateTools(tools []InferenceChatTool) []InferenceChatTool {
@@ -1143,11 +1434,11 @@ func inferenceResponseBuiltinTool(toolType string) (InferenceChatTool, bool) {
 	switch toolType {
 	case "apply_patch":
 		tool.Function.Name = "apply_patch"
-		tool.Function.Description = "Apply a patch to files in the current workspace. Only use for intentional file edits. Use the apply_patch envelope exactly: begin with '*** Begin Patch' and end with '*** End Patch'. Use '*** Add File: <path>' for new files, '*** Update File: <path>' for edits, and '*** Delete File: <path>' for deletions."
+		tool.Function.Description = `Apply one or more file modifications using the standard apply_patch format. The patch may create, update, rename, or delete files. Always return a complete, valid patch. Do not describe the changes in prose.\n\nThe patch must begin with '*** Begin Patch' and end with '*** End Patch'.\n\nSupported operations:\n- Create a file:\n  *** Add File: <path>\n  followed by one or more lines beginning with '+'.\n\n- Update a file:\n  *** Update File: <path>\n  followed by one or more unified-diff hunks beginning with '@@'. Context lines begin with a space, removed lines with '-', and added lines with '+'.\n\n- Delete a file:\n  *** Delete File: <path>\n\nA single patch may contain multiple file operations. Use relative paths. Never include markdown code fences or any explanatory text."`
 		tool.Function.Parameters = map[string]any{
 			"type": "object",
 			"properties": map[string]any{
-				"patch": map[string]any{"type": "string", "description": "Patch text in apply_patch format, including the full Begin/End Patch envelope. Use Add File for new files, Update File for edits, and Delete File for deletions."},
+				"patch": map[string]any{"type": "string", "description": "The complete apply_patch document"},
 			},
 			"required":             []string{"patch"},
 			"additionalProperties": false,
@@ -1183,7 +1474,6 @@ func inferenceResponseBuiltinTool(toolType string) (InferenceChatTool, bool) {
 	default:
 		return InferenceChatTool{}, false
 	}
-	log.Info("Injecting built-in tool: %v", tool)
 	return tool, true
 }
 
@@ -1206,10 +1496,16 @@ func inferenceResponseToolChoice(raw json.RawMessage) (any, *util.HttpError) {
 	if choice.Type == "function" && choice.Name != "" {
 		return map[string]any{"type": "function", "function": map[string]any{"name": choice.Name}}, nil
 	}
+	if choice.Type == "custom" && choice.Name != "" {
+		return map[string]any{"type": "function", "function": map[string]any{"name": choice.Name}}, nil
+	}
 	if _, ok := inferenceResponseBuiltinTool(choice.Type); ok {
 		return map[string]any{"type": "function", "function": map[string]any{"name": choice.Type}}, nil
 	}
-	if choice.Type == "file_search" || strings.HasPrefix(choice.Type, "web_search") || strings.HasPrefix(choice.Type, "computer") || choice.Type == "code_interpreter" || choice.Type == "image_generation" {
+	if choice.Type == "file_search" || strings.HasPrefix(choice.Type, "web_search") {
+		return map[string]any{"type": "function", "function": map[string]any{"name": choice.Type}}, nil
+	}
+	if strings.HasPrefix(choice.Type, "computer") || choice.Type == "code_interpreter" || choice.Type == "image_generation" {
 		return nil, nil
 	}
 	return nil, util.HttpErr(http.StatusBadRequest, "unsupported tool_choice")
@@ -1229,6 +1525,7 @@ func inferenceResponseFromChat(id string, request OaiResponseCreateRequest, chat
 	var output []any
 	var outputText strings.Builder
 	var reasoningText strings.Builder
+	customTools := inferenceResponseCustomToolNames(request.Tools)
 	if len(chatResponse.Choices) > 0 {
 		message := chatResponse.Choices[0].Message
 		reasoning := message.Reasoning.String()
@@ -1238,7 +1535,7 @@ func inferenceResponseFromChat(id string, request OaiResponseCreateRequest, chat
 		}
 
 		for _, toolCall := range message.ToolCalls {
-			output = append(output, inferenceResponseToolCallItem(toolCall.Id, toolCall.Id, toolCall.Function.Name, toolCall.Function.Arguments, "completed"))
+			output = append(output, inferenceResponseToolCallItem(toolCall.Id, toolCall.Id, toolCall.Function.Name, toolCall.Function.Arguments, "completed", customTools[toolCall.Function.Name]))
 		}
 
 		text := message.Content.String()

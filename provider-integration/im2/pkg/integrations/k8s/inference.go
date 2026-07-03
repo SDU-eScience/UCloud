@@ -442,12 +442,6 @@ func initInference() {
 				_, _ = w.Write(data)
 				_, _ = w.Write([]byte("\n\n"))
 				flusher.Flush()
-
-				if event.Response != nil {
-					event.Response.Instructions = nil
-					dummy, _ := json.Marshal(event)
-					log.Info("Resp: %s", string(dummy))
-				}
 			}
 			return
 		}

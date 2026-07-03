@@ -7,11 +7,17 @@ import LogoMeta from "@/Assets/Images/inference/meta.png";
 import LogoMinimax from "@/Assets/Images/inference/minimax.png";
 import LogoMistral from "@/Assets/Images/inference/mistral.png";
 import LogoMoonshot from "@/Assets/Images/inference/moonshot.png";
+import LogoMoonshotWhite from "@/Assets/Images/inference/moonshot-white.png";
 import LogoOpenAI from "@/Assets/Images/inference/oai.png";
+import LogoOpenAIWhite from "@/Assets/Images/inference/oai-white.png";
 import LogoQwen from "@/Assets/Images/inference/qwen.png";
 import LogoZai from "@/Assets/Images/inference/zai.png";
+import LogoNvidia from "@/Assets/Images/inference/nvidia-black.png"
+import LogoNvidiaWhite from "@/Assets/Images/inference/nvidia-white.png"
+import {useIsLightThemeStored} from "@/ui-components/theme";
 
 export default function ModelInferenceLogo({modelName, size = 24}: {modelName: string; size?: number}): React.ReactNode {
+    const isLight = useIsLightThemeStored();
     const norm = modelName.toLowerCase();
 
     let img = "";
@@ -31,8 +37,13 @@ export default function ModelInferenceLogo({modelName, size = 24}: {modelName: s
         img = LogoGoogle;
     } else if (norm.includes("kimi") || norm.includes("k2.")) {
         img = LogoMoonshot;
+        if (!isLight) img = LogoMoonshotWhite;
+    } else if (norm.includes("nvidia")) {
+        img = LogoNvidia;
+        if (!isLight) img= LogoNvidiaWhite;
     } else if (norm.includes("gpt")) {
         img = LogoOpenAI;
+        if (!isLight) img = LogoOpenAIWhite;
     }
 
     if (img === "") {
@@ -58,7 +69,23 @@ export default function ModelInferenceLogo({modelName, size = 24}: {modelName: s
         width={size}
         alignItems={"center"}
         justifyContent={"center"}
+        style={{aspectRatio: "1 / 1"}}
     >
         <img src={img} alt={`${modelName} logo`} style={{maxHeight: Math.round(size * 0.7), maxWidth: Math.round(size * 0.7)}} />
     </Flex>;
+}
+
+export function modelProviderName(modelName: string): string {
+    const norm = modelName.toLowerCase();
+    if (norm.includes("deepseek")) return "DeepSeek";
+    if (norm.includes("llama")) return "Meta";
+    if (norm.includes("qwen")) return "Qwen";
+    if (norm.includes("minimax")) return "Minimax";
+    if (norm.includes("glm")) return "Z.ai";
+    if (norm.includes("mistral")) return "Mistral";
+    if (norm.includes("google") || norm.includes("gemma")) return "Google";
+    if (norm.includes("kimi") || norm.includes("k2.")) return "Moonshot AI";
+    if (norm.includes("nvidia")) return "NVIDIA";
+    if (norm.includes("gpt")) return "OpenAI";
+    return "Unknown";
 }

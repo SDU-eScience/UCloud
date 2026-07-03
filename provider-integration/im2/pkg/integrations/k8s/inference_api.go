@@ -9,13 +9,19 @@ import (
 	"math"
 	"mime/multipart"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	apm "ucloud.dk/shared/pkg/accounting"
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/util"
 )
+
+const inferenceChatCaptureUpstreamOutput = false
+const inferenceChatReplayUpstreamOutputPath = ""
 
 // Models
 // =====================================================================================================================
@@ -29,8 +35,63 @@ type OaiInferenceModel struct {
 }
 
 type OaiInferenceModelsResponse struct {
-	Object string              `json:"object"`
-	Data   []OaiInferenceModel `json:"data"`
+	Object string                `json:"object"`
+	Data   []OaiInferenceModel   `json:"data"`
+	Models []CodexInferenceModel `json:"models,omitempty"`
+}
+
+type CodexInferenceModel struct {
+	Slug                           string                  `json:"slug"`
+	DisplayName                    string                  `json:"display_name"`
+	Description                    *string                 `json:"description"`
+	DefaultReasoningLevel          *string                 `json:"default_reasoning_level"`
+	SupportedReasoningLevels       []CodexReasoningEffort  `json:"supported_reasoning_levels"`
+	ShellType                      string                  `json:"shell_type"`
+	Visibility                     string                  `json:"visibility"`
+	SupportedInApi                 bool                    `json:"supported_in_api"`
+	Priority                       int                     `json:"priority"`
+	AdditionalSpeedTiers           []string                `json:"additional_speed_tiers"`
+	ServiceTiers                   []CodexModelServiceTier `json:"service_tiers"`
+	DefaultServiceTier             *string                 `json:"default_service_tier"`
+	AvailabilityNux                any                     `json:"availability_nux"`
+	Upgrade                        any                     `json:"upgrade"`
+	BaseInstructions               string                  `json:"base_instructions"`
+	IncludeSkillsUsageInstructions bool                    `json:"include_skills_usage_instructions"`
+	SupportsReasoningSummaries     bool                    `json:"supports_reasoning_summaries"`
+	DefaultReasoningSummary        string                  `json:"default_reasoning_summary"`
+	SupportVerbosity               bool                    `json:"support_verbosity"`
+	DefaultVerbosity               *string                 `json:"default_verbosity"`
+	ApplyPatchToolType             string                  `json:"apply_patch_tool_type"`
+	WebSearchToolType              string                  `json:"web_search_tool_type"`
+	TruncationPolicy               CodexTruncationPolicy   `json:"truncation_policy"`
+	SupportsParallelToolCalls      bool                    `json:"supports_parallel_tool_calls"`
+	SupportsImageDetailOriginal    bool                    `json:"supports_image_detail_original"`
+	ContextWindow                  *int                    `json:"context_window,omitempty"`
+	MaxContextWindow               *int                    `json:"max_context_window,omitempty"`
+	AutoCompactTokenLimit          *int                    `json:"auto_compact_token_limit"`
+	CompHash                       *string                 `json:"comp_hash,omitempty"`
+	EffectiveContextWindowPercent  int                     `json:"effective_context_window_percent"`
+	ExperimentalSupportedTools     []string                `json:"experimental_supported_tools"`
+	InputModalities                []string                `json:"input_modalities"`
+	SupportsSearchTool             bool                    `json:"supports_search_tool"`
+	UseResponsesLite               bool                    `json:"use_responses_lite"`
+	AutoReviewModelOverride        *string                 `json:"auto_review_model_override,omitempty"`
+}
+
+type CodexReasoningEffort struct {
+	Effort      string `json:"effort"`
+	Description string `json:"description"`
+}
+
+type CodexModelServiceTier struct {
+	Id          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
+type CodexTruncationPolicy struct {
+	Mode  string `json:"mode"`
+	Limit int    `json:"limit"`
 }
 
 func OaiInferenceModels(owner apm.WalletOwner) (OaiInferenceModelsResponse, *util.HttpError) {
@@ -38,9 +99,11 @@ func OaiInferenceModels(owner apm.WalletOwner) (OaiInferenceModelsResponse, *uti
 	resp := OaiInferenceModelsResponse{
 		Object: "list",
 		Data:   make([]OaiInferenceModel, 0, len(models)),
+		Models: make([]CodexInferenceModel, 0, len(models)),
 	}
-	for _, model := range models {
+	for idx, model := range models {
 		resp.Data = append(resp.Data, inferenceOaiModelFromCatalog(model))
+		resp.Models = append(resp.Models, inferenceCodexModelFromCatalog(model, idx))
 	}
 	return resp, nil
 }
@@ -67,6 +130,60 @@ func inferenceOaiModelFromCatalog(model InferenceModel) OaiInferenceModel {
 		OwnedBy:       "ucloud",
 		Capabilities:  model.Capabilities,
 		ContextWindow: model.ContextWindow,
+	}
+}
+
+func inferenceCodexModelFromCatalog(model InferenceModel, priority int) CodexInferenceModel {
+	displayName := strings.TrimSpace(model.Title)
+	if displayName == "" {
+		displayName = model.Name
+	}
+
+	var description *string
+	if model.Page != nil {
+		desc := strings.TrimSpace(model.Page.ShortDescription)
+		if desc != "" {
+			description = &desc
+		}
+	}
+
+	return CodexInferenceModel{
+		Slug:                           model.Name,
+		DisplayName:                    displayName,
+		Description:                    description,
+		DefaultReasoningLevel:          nil,
+		SupportedReasoningLevels:       []CodexReasoningEffort{},
+		ShellType:                      "shell_command",
+		Visibility:                     "list",
+		SupportedInApi:                 true,
+		Priority:                       priority,
+		AdditionalSpeedTiers:           []string{},
+		ServiceTiers:                   []CodexModelServiceTier{},
+		DefaultServiceTier:             nil,
+		AvailabilityNux:                nil,
+		Upgrade:                        nil,
+		BaseInstructions:               "",
+		IncludeSkillsUsageInstructions: false,
+		SupportsReasoningSummaries:     false,
+		DefaultReasoningSummary:        "auto",
+		SupportVerbosity:               false,
+		DefaultVerbosity:               nil,
+		ApplyPatchToolType:             "freeform",
+		WebSearchToolType:              "text",
+		TruncationPolicy: CodexTruncationPolicy{
+			Mode:  "bytes",
+			Limit: 10000,
+		},
+		SupportsParallelToolCalls:     false,
+		SupportsImageDetailOriginal:   false,
+		ContextWindow:                 model.ContextWindow,
+		MaxContextWindow:              model.ContextWindow,
+		AutoCompactTokenLimit:         nil,
+		EffectiveContextWindowPercent: 95,
+		ExperimentalSupportedTools:    []string{},
+		InputModalities:               []string{"text"},
+		SupportsSearchTool:            false,
+		UseResponsesLite:              false,
 	}
 }
 
@@ -371,6 +488,84 @@ type InferenceChatStreamingToolCallFunction struct {
 	Arguments string `json:"arguments,omitempty"`
 }
 
+type inferenceChatUpstreamCapture struct {
+	CreatedAt string            `json:"created_at"`
+	Kind      string            `json:"kind"`
+	Request   json.RawMessage   `json:"request"`
+	Chunks    []json.RawMessage `json:"chunks"`
+}
+
+func inferenceChatUpstreamCapturePath() string {
+	return filepath.Join("/tmp", fmt.Sprintf("ucloud-inference-upstream-%d.json", time.Now().UnixNano()))
+}
+
+func inferenceChatWriteUpstreamCapture(request []byte, chunks []json.RawMessage) {
+	if !inferenceChatCaptureUpstreamOutput || len(chunks) == 0 {
+		return
+	}
+	capture := inferenceChatUpstreamCapture{
+		CreatedAt: time.Now().Format(time.RFC3339Nano),
+		Kind:      "chat.completions.stream",
+		Request:   append(json.RawMessage(nil), request...),
+		Chunks:    chunks,
+	}
+	encoded, err := json.MarshalIndent(capture, "", "  ")
+	if err != nil {
+		log.Info("Inference upstream capture encode failed: %v", err)
+		return
+	}
+	path := inferenceChatUpstreamCapturePath()
+	if err := os.WriteFile(path, encoded, 0600); err != nil {
+		log.Info("Inference upstream capture write failed: path=%s err=%v", path, err)
+		return
+	}
+	log.Info("Inference upstream capture written: %s chunks=%d", path, len(chunks))
+}
+
+func inferenceChatReadUpstreamReplay(path string) ([]json.RawMessage, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var capture inferenceChatUpstreamCapture
+	if err := json.Unmarshal(data, &capture); err == nil && len(capture.Chunks) > 0 {
+		return capture.Chunks, nil
+	}
+	var chunks []json.RawMessage
+	if err := json.Unmarshal(data, &chunks); err != nil {
+		return nil, err
+	}
+	return chunks, nil
+}
+
+func inferenceChatStreamingResponseFromRaw(raw []byte, history InferenceChatRequest, modelName string, assistantText *strings.Builder, usageSeen InferenceChatUsage) (InferenceChatStreamingResponse, InferenceChatUsage, bool) {
+	var chunk struct {
+		Id      string                          `json:"id"`
+		Object  string                          `json:"object"`
+		Created int64                           `json:"created"`
+		Model   string                          `json:"model"`
+		Choices []InferenceChatStreamingChoice  `json:"choices"`
+		Usage   util.Option[InferenceChatUsage] `json:"usage"`
+	}
+	if jsonErr := json.Unmarshal(raw, &chunk); jsonErr != nil {
+		return InferenceChatStreamingResponse{}, usageSeen, false
+	}
+	chunk.Model = modelName
+	if len(chunk.Choices) > 0 {
+		assistantText.WriteString(chunk.Choices[0].Delta.Content)
+	}
+
+	usageSeen = inferenceChatUsageFromText(history, assistantText.String(), chunk.Usage)
+	return InferenceChatStreamingResponse{
+		Id:      chunk.Id,
+		Object:  chunk.Object,
+		Created: chunk.Created,
+		Model:   chunk.Model,
+		Choices: chunk.Choices,
+		Usage:   usageSeen,
+	}, usageSeen, true
+}
+
 func InferenceChat(owner apm.WalletOwner, history InferenceChatRequest) (InferenceChatResponse, *util.HttpError) {
 	log.Info("1 %v %v", owner, history)
 	if inferenceIsLocked(owner) {
@@ -420,7 +615,6 @@ func InferenceChat(owner apm.WalletOwner, history InferenceChatRequest) (Inferen
 }
 
 func InferenceChatStreaming(owner apm.WalletOwner, history InferenceChatRequest) (chan InferenceChatStreamingResponse, *util.HttpError) {
-	log.Info("2 %v %v", owner, history)
 	ch := make(chan InferenceChatStreamingResponse)
 
 	if inferenceIsLocked(owner) {
@@ -451,6 +645,30 @@ func InferenceChatStreaming(owner apm.WalletOwner, history InferenceChatRequest)
 		if err != nil {
 			return
 		}
+		if inferenceChatReplayUpstreamOutputPath != "" {
+			chunks, err := inferenceChatReadUpstreamReplay(inferenceChatReplayUpstreamOutputPath)
+			if err != nil {
+				log.Info("Inference upstream replay read failed: path=%s err=%v", inferenceChatReplayUpstreamOutputPath, err)
+				ch <- InferenceChatStreamingResponse{Usage: usageSeen}
+				return
+			}
+			log.Info("Inference upstream replay loaded: path=%s chunks=%d", inferenceChatReplayUpstreamOutputPath, len(chunks))
+			sentAny := false
+			for _, raw := range chunks {
+				resp, usage, ok := inferenceChatStreamingResponseFromRaw(raw, history, model.Name, &assistantText, usageSeen)
+				if !ok {
+					log.Info("Inference upstream replay skipped invalid chunk: len=%d", len(raw))
+					continue
+				}
+				usageSeen = usage
+				ch <- resp
+				sentAny = true
+			}
+			if !sentAny {
+				ch <- InferenceChatStreamingResponse{Usage: usageSeen}
+			}
+			return
+		}
 
 		resp, httpErr := inferenceBackendStreamRequest(model.Endpoint.BasePath, "/chat/completions", body)
 		if httpErr != nil {
@@ -461,6 +679,7 @@ func InferenceChatStreaming(owner apm.WalletOwner, history InferenceChatRequest)
 		reader := bufio.NewReader(resp.Body)
 		var event bytes.Buffer
 		sentAny := false
+		capturedChunks := []json.RawMessage{}
 
 		flush := func() {
 			if event.Len() == 0 {
@@ -477,30 +696,10 @@ func InferenceChatStreaming(owner apm.WalletOwner, history InferenceChatRequest)
 			if raw == "" || raw == "[DONE]" {
 				return
 			}
-			var chunk struct {
-				Id      string                          `json:"id"`
-				Object  string                          `json:"object"`
-				Created int64                           `json:"created"`
-				Model   string                          `json:"model"`
-				Choices []InferenceChatStreamingChoice  `json:"choices"`
-				Usage   util.Option[InferenceChatUsage] `json:"usage"`
-			}
-			if jsonErr := json.Unmarshal([]byte(raw), &chunk); jsonErr == nil {
-				chunk.Model = model.Name
-				if len(chunk.Choices) > 0 {
-					assistantText.WriteString(chunk.Choices[0].Delta.Content)
-				}
-
-				usageSeen = inferenceChatUsageFromText(history, assistantText.String(), chunk.Usage)
-
-				ch <- InferenceChatStreamingResponse{
-					Id:      chunk.Id,
-					Object:  chunk.Object,
-					Created: chunk.Created,
-					Model:   chunk.Model,
-					Choices: chunk.Choices,
-					Usage:   usageSeen,
-				}
+			if resp, usage, ok := inferenceChatStreamingResponseFromRaw([]byte(raw), history, model.Name, &assistantText, usageSeen); ok {
+				capturedChunks = append(capturedChunks, append(json.RawMessage(nil), raw...))
+				usageSeen = usage
+				ch <- resp
 				sentAny = true
 			}
 		}
@@ -524,6 +723,7 @@ func InferenceChatStreaming(owner apm.WalletOwner, history InferenceChatRequest)
 
 				cachedTokens, inputTokens, outputTokens := inferenceChatUsageComponents(usageSeen)
 				inferenceReportUsage(owner, model, cachedTokens, inputTokens, outputTokens)
+				inferenceChatWriteUpstreamCapture(body, capturedChunks)
 				return
 			}
 		}

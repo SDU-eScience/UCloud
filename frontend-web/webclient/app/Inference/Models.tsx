@@ -9,7 +9,7 @@ import {useProjectId} from "@/Project/Api";
 import {InferenceCapability, InferenceModel, listModels} from "./api";
 import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
-import ModelInferenceLogo from "@/Inference/ModelLogo";
+import ModelInferenceLogo, {modelProviderName} from "@/Inference/ModelLogo";
 import {injectStyle} from "@/Unstyled";
 import {SingleLineMarkdown} from "@/ui-components/Markdown";
 import HeroSvg from "@/ui-components/icons/logo_esc.svg";
@@ -629,9 +629,9 @@ export default function Models(): React.ReactNode {
         const query = search.trim().toLowerCase();
         return models.filter(model => {
             if (capabilityFilter !== "All" && !model.capabilities.includes(capabilityFilter)) return false;
-            if (providerFilters.length > 0 && !providerFilters.includes(modelProvider(model.name))) return false;
+            if (providerFilters.length > 0 && !providerFilters.includes(modelProviderName(model.name))) return false;
             if (query !== "") {
-                const haystack = [model.title, model.name, model.page?.shortDescription, model.page?.datasheet?.parameters, modelProvider(model.name)]
+                const haystack = [model.title, model.name, model.page?.shortDescription, model.page?.datasheet?.parameters, modelProviderName(model.name)]
                     .filter(Boolean)
                     .join(" ")
                     .toLowerCase();
@@ -841,26 +841,12 @@ interface ModelProviderOption {
 function modelProviderOptions(models: InferenceModel[]): ModelProviderOption[] {
     const options = new Map<string, string>();
     for (const model of models) {
-        const provider = modelProvider(model.name);
+        const provider = modelProviderName(model.name);
         if (!options.has(provider)) options.set(provider, model.name);
     }
     return [...options.entries()]
         .map(([provider, modelName]) => ({provider, modelName}))
         .sort((a, b) => a.provider.localeCompare(b.provider));
-}
-
-function modelProvider(modelName: string): string {
-    const norm = modelName.toLowerCase();
-    if (norm.includes("deepseek")) return "DeepSeek";
-    if (norm.includes("llama")) return "Meta";
-    if (norm.includes("qwen")) return "Qwen";
-    if (norm.includes("minimax")) return "Minimax";
-    if (norm.includes("glm")) return "Z.ai";
-    if (norm.includes("mistral")) return "Mistral";
-    if (norm.includes("google") || norm.includes("gemma")) return "Google";
-    if (norm.includes("kimi") || norm.includes("k2.")) return "Moonshot AI";
-    if (norm.includes("gpt")) return "OpenAI";
-    return "Unknown";
 }
 
 function ModelCatalogCard(props: {model: InferenceModel;}): React.ReactNode {
