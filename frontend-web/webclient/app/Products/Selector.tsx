@@ -12,16 +12,16 @@ import {useUState} from "@/Utilities/UState";
 import {clamp, grantsLink, stopPropagation} from "@/UtilityFunctions";
 import {ProductSupport, ResolvedSupport} from "@/UCloud/ResourceApi";
 import {explainMaintenance, maintenanceIconColor, shouldAllowMaintenanceAccess} from "@/Products/Maintenance";
-import {classConcat, injectStyle, injectStyleSimple} from "@/Unstyled";
+import {classConcat, injectStyle} from "@/Unstyled";
 import {MandatoryField, NoResultsBody} from "@/UtilityComponents";
 import {ComputeSupport, JobQueueStatus} from "@/UCloud/JobsApi";
 import {ThemeColor} from "@/ui-components/theme";
 import {TooltipV2} from "@/ui-components/Tooltip";
-import {useSelector} from "react-redux";
 import {ServiceProviderItem, ServiceProviderSelector} from "@/Applications/ApiTokens/Add";
 import {InputClass} from "@/ui-components/Input";
 import {useProjectId} from "@/Project/Api";
 import {stupidPluralize} from "@/Utilities/TextUtilities";
+import {useProviderBrandings} from "@/Providers/Overview";
 
 interface ComputeCategory {
     provider: string;
@@ -610,8 +610,8 @@ function ProductDescription({serviceProvider, category}: {serviceProvider: strin
 }
 
 function useProductDescription(serviceProvider: string, category: string): string {
-    const providerBrandings = useSelector((r: ReduxObject) => r.providerBrandings.providers);
-    return providerBrandings[serviceProvider]?.productDescription.find(it => it.category === category)?.shortDescription ?? "No description"
+    const providerBrandings = useProviderBrandings();
+    return providerBrandings?.[serviceProvider]?.productDescription.find(it => it.category === category)?.shortDescription ?? "No description"
 }
 
 function naiveCategoryStatus(products: (ComputeCategory | ProductV2)[], productSupport: ResolvedSupport<Product, ProductSupport>[]): Record<string, JobQueueStatus> {
