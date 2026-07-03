@@ -27,11 +27,9 @@ func TestComputeCLI(t *testing.T) {
 
 func TestEnvironmentList(t *testing.T) {
 	input := []string{"environment", "list"}
-
 	cmd, err := Parse(input)
-
-	assert.Error(t, err)
-	assert.Nil(t, cmd)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
 }
 
 func TestJobCreateParams(t *testing.T) {
