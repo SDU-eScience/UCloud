@@ -146,10 +146,20 @@ func ProviderK8s() {
 					}},
 					ExcludeRequestsFrom: []apm.UserCriteria{},
 					Templates: apm.Templates{
-						Type:            apm.TemplatesTypePlainText,
+						Type:            apm.TemplatesTypeStructured,
 						PersonalProject: "Please describe why you are applying for resources",
 						NewProject:      "Please describe why you are applying for resources",
 						ExistingProject: "Please describe why you are applying for resources",
+
+						Structured: apm.TemplatesStructured{
+							RevisionNumber: 0,
+							PersonalProject: []apm.FormField{
+								{Name: "personal_project", Title: "Application", Description: "Please describe why you are applying for resources"}},
+							NewProject: []apm.FormField{{
+								Name: "new_project", Title: "Application", Description: "Please describe why you are applying for resources"}},
+							ExistingProject: []apm.FormField{{
+								Name: "existing_project", Title: "Application", Description: "Please describe why you are applying for resources"}},
+						},
 					},
 				},
 				rpc.InvokeOpts{Headers: projectHeaders},

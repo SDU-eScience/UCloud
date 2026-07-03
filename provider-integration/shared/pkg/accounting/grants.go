@@ -135,6 +135,7 @@ type TemplatesStructured struct {
 	PersonalProject []FormField `json:"personalProject"`
 	NewProject      []FormField `json:"newProject"`
 	ExistingProject []FormField `json:"existingProject"`
+	RevisionNumber  int         `json:"revisionNumber"`
 }
 type Templates struct {
 	Type       TemplatesType       `json:"type"`
@@ -225,7 +226,8 @@ func normalizeTitle(title string) string {
 	return builder
 }
 
-func ParseAnswerFormFields(text string) []AnswerFieldForm {
+// ParseToAnswerForms For converting plain_text to the new format, at some point we can remove this function
+func ParseToAnswerForms(text string) []AnswerForm {
 	lines := strings.Split(text, "\n")
 
 	var sectionSeparators []int
@@ -292,16 +294,30 @@ func ParseAnswerFormFields(text string) []AnswerFieldForm {
 				Name:        "",
 				Title:       title,
 				Description: "",
-				Optional:    false,
-				Rows:        util.OptValue(5),
-				MaxLength:   util.OptValue(4000),
+				Optional:    true,
 			},
 		}
 		result = append(result, field)
 	}
-	return util.NonNilSlice(result)
+	if len(result) == 0 {
+		// We didn't parse any entry, if not just put the text into one answer field,
+		// e.g., gift initiated by the system won't be able to be resolved by
+		// the parsing above
+		result = append(result, AnswerFieldForm{
+			Answer: text,
+			Field: FormField{
+				Name:        "",
+				Title:       "",
+				Description: "",
+				Optional:    true,
+				Rows:        util.OptValue(5),
+			},
+		})
+	}
+	return []AnswerForm{{AnswerFields: util.NonNilSlice(result), TemplateRevisionNumber: -1, AllocatorId: "System"}}
 }
 
+// ParseFormFields Temp parsing for the new format, at some point we can remove this function
 func ParseFormFields(text string) []FormField {
 	lines := strings.Split(text, "\n")
 
@@ -453,8 +469,7 @@ func ParseFormFields(text string) []FormField {
 		}
 	}
 	result = append(smallFields, largeFields...)
-
-	return result
+	return util.NonNilSlice(result)
 }
 
 type AnswerFieldForm struct {
@@ -462,10 +477,16 @@ type AnswerFieldForm struct {
 	Field  FormField `json:"field"`
 }
 
+type AnswerForm struct {
+	AllocatorId            string            `json:"allocatorId"`
+	AnswerFields           []AnswerFieldForm `json:"answerFields"`
+	TemplateRevisionNumber int               `json:"templateRevisionNumber"`
+}
+
 type Form struct {
 	Type         FormType          `json:"type"`
 	Text         string            `json:"text"` // plain_text, grant_giver_initiated - used for legacy form
-	Fields       []AnswerFieldForm `json:"fields"`
+	AnswerForms  []AnswerForm      `json:"answerForms"`
 	SubAllocator util.Option[bool] `json:"subAllocator"` // grant_giver_initiated
 }
 
@@ -831,17 +852,18 @@ var GrantsRetrieveLogo = rpc.Call[GrantsRetrieveLogoRequest, []byte]{
 }
 
 type GrantsExportResponse struct {
-	Id               string                `json:"id"`
-	Title            string                `json:"title"`
-	SubmittedBy      string                `json:"submittedBy"`
-	SubmittedAt      fnd.Timestamp         `json:"submittedAt"`
-	StartDate        fnd.Timestamp         `json:"startDate"`
-	DurationMonths   int                   `json:"durationMonths"`
-	State            GrantApplicationState `json:"state"`
-	GrantGiver       string                `json:"grantGiver"`
-	LastUpdatedAt    fnd.Timestamp         `json:"lastUpdatedAt"`
-	Resources        map[string]int        `json:"resources"`
-	OptionalUserInfo fnd.OptionalUserInfo  `json:"optionalUserInfo"`
+	Id               string                     `json:"id"`
+	Title            string                     `json:"title"`
+	SubmittedBy      string                     `json:"submittedBy"`
+	SubmittedAt      fnd.Timestamp              `json:"submittedAt"`
+	StartDate        fnd.Timestamp              `json:"startDate"`
+	DurationMonths   int                        `json:"durationMonths"`
+	State            GrantApplicationState      `json:"state"`
+	GrantGiver       string                     `json:"grantGiver"`
+	LastUpdatedAt    fnd.Timestamp              `json:"lastUpdatedAt"`
+	Resources        map[string]int             `json:"resources"`
+	OptionalUserInfo fnd.OptionalUserInfo       `json:"optionalUserInfo"`
+	AnswerFields     map[string]AnswerFieldForm `json:"AnswerFields"`
 }
 
 var GrantsExport = rpc.Call[util.Empty, []GrantsExportResponse]{

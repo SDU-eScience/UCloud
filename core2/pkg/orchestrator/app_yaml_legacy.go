@@ -242,6 +242,7 @@ type A1Yaml struct {
 	Vnc                   util.Option[orcapi.VncDescription]       `yaml:"vnc"`
 	Web                   util.Option[orcapi.WebDescription]       `yaml:"web"`
 	Ssh                   util.Option[orcapi.SshDescription]       `yaml:"ssh"`
+	Inference             util.Option[orcapi.InferenceDescription] `yaml:"inference"`
 	Container             util.Option[orcapi.ContainerDescription] `yaml:"container"`
 	Environment           map[string]A1InvocationParameter         `yaml:"environment"`
 	AllowAdditionalMounts util.Option[bool]                        `yaml:"allowAdditionalMounts"`
@@ -501,6 +502,10 @@ func (y *A1Yaml) Normalize() (orcapi.Application, *util.HttpError) {
 	if y.Ssh.Present {
 		ssh := y.Ssh.Value
 		util.ValidateEnum(&ssh.Mode, orcapi.SshModeOptions, "ssh.mode", &err)
+	}
+	if y.Inference.Present {
+		inference := y.Inference.Value
+		util.ValidateEnum(&inference.Mode, orcapi.InferenceModeOptions, "inference.mode", &err)
 	}
 
 	var mappedParameters []orcapi.ApplicationParameter
@@ -804,6 +809,7 @@ func (y *A1Yaml) Normalize() (orcapi.Application, *util.HttpError) {
 					Vnc:             y.Vnc,
 					Web:             y.Web,
 					Ssh:             y.Ssh,
+					Inference:       y.Inference,
 					Container: y.Container.GetOrDefault(orcapi.ContainerDescription{
 						ChangeWorkingDirectory: true,
 						RunAsRoot:              true,

@@ -13,7 +13,7 @@ import {compute} from "@/UCloud";
 import {usePrettyFilePath} from "@/Files/FilePath";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {VirtualMachineRestartReminder} from "./VirtualMachineRestartReminder";
-import {VirtualMachineIconButton} from "@/Applications/Jobs/VirtualMachineIconButton";
+import {IconButton} from "@/ui-components/IconButton";
 
 type VmFolder = compute.AppParameterValueNS.File;
 
@@ -145,7 +145,7 @@ export const VirtualMachineFolders: React.FunctionComponent<{
                     />
                 )}
 
-                <VirtualMachineIconButton tooltip={"Attach folder"} onClick={openFolderSelector} icon={"heroPlus"} />
+                <IconButton tooltip={"Attach folder"} onClick={openFolderSelector} icon={"heroPlus"} />
             </div>
         }
     >
@@ -176,7 +176,7 @@ const FolderRow: React.FunctionComponent<{
     return <div className={VmFolderRow} >
         <Icon name={"ftFolder"} size={"24px"} color={"FtFolderColor"} color2={"FtFolderColor2"} />
         <div className={VmFolderPath} title={path}>{path}</div>
-        <VirtualMachineIconButton tooltip={"Remove folder"} onClick={onRemoveFolder} icon={"heroMinus"} />
+        <IconButton tooltip={"Remove folder"} onClick={onRemoveFolder} icon={"heroMinus"} />
     </div>;
 }
 

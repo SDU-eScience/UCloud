@@ -127,6 +127,10 @@ type internalBucket struct {
 }
 
 func (b *internalBucket) IsCapacityBased() bool { // does not require any mutex
+	if b.Category.ProductType == accapi.ProductTypeInference {
+		return false
+	}
+
 	switch b.Category.AccountingFrequency {
 	case accapi.AccountingFrequencyOnce:
 		return true

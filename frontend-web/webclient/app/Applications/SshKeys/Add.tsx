@@ -41,7 +41,7 @@ export function SshKeysCreate(): React.ReactNode {
     const keyHelp = useMemo(() => {
         return `Must begin with one of the ${validPrefixes.map(it => "`" + it + "`").join(", ")}.
         
-You can learn how to generate an SSH key [here](https://docs.hpc-type3.sdu.dk/intro/ssh-login.html#generate-a-new-ssh-key).`
+You can learn how to generate an SSH key [here](https://docs.cloud.sdu.dk/hands-on/ssh-login.html).`
     }, []);
 
     const titleKey = "key-title";

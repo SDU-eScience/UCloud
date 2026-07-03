@@ -218,20 +218,23 @@ interface SidebarMenuElements {
     predicate: (state: HookStore) => boolean;
 }
 
-const sideBarMenuElements: [
-    SidebarMenuElements,
-    SidebarMenuElements,
-    SidebarMenuElements,
-] = [{
-    items: [
-        {icon: "heroFolder", label: SidebarTabId.FILES, to: AppRoutes.files.drives()},
-        {icon: "heroUserGroup", label: SidebarTabId.PROJECT, to: AppRoutes.project.allocations()},
-        {icon: "heroSquaresPlus", label: SidebarTabId.RESOURCES, to: AppRoutes.resources.publicLinks()},
-        {icon: "heroShoppingBag", label: SidebarTabId.APPLICATIONS, to: AppRoutes.apps.landing()},
-        {icon: "heroServer", label: SidebarTabId.RUNS, to: AppRoutes.compute.jobs()}
-    ],
-    predicate: () => Client.isLoggedIn
-},
+const sideBarMenuElements: SidebarMenuElements[] = [
+    {
+        items: [
+            {icon: "heroFolder", label: SidebarTabId.FILES, to: AppRoutes.files.drives()},
+            {icon: "heroUserGroup", label: SidebarTabId.PROJECT, to: AppRoutes.project.allocations()},
+            {icon: "heroSquaresPlus", label: SidebarTabId.RESOURCES, to: AppRoutes.resources.publicLinks()},
+            {icon: "heroShoppingBag", label: SidebarTabId.APPLICATIONS, to: AppRoutes.apps.landing()},
+            {icon: "heroServer", label: SidebarTabId.RUNS, to: AppRoutes.compute.jobs()}
+        ],
+        predicate: () => Client.isLoggedIn
+    },
+    {
+        items: [
+            {icon:"heroSparkles", label: SidebarTabId.INFERENCE, to: AppRoutes.inference.models()},
+        ],
+        predicate: () => Client.isLoggedIn && hasFeature(Feature.INFERENCE)
+    },
     {
         items: [
             {icon: "heroBolt", label: SidebarTabId.ADMIN, to: AppRoutes.admin.userCreation()},
@@ -429,6 +432,7 @@ function sidebarSubEntries(canApply: boolean, isPersonalWorkspace: boolean, proj
         }, ...(isPersonalWorkspace ? sharesLinksInfo : [])],
         [SidebarTabId.PROJECT]: projectSidebarSubLinks(canApply, isPersonalWorkspace, projectId),
         [SidebarTabId.RESOURCES]: ResourceSubLinksEntries,
+        [SidebarTabId.INFERENCE]: InferenceSubLinksEntries,
         [SidebarTabId.APPLICATIONS]: [],
         [SidebarTabId.RUNS]: ComputeSubLinksEntries,
         [SidebarTabId.ADMIN]: [],
@@ -731,6 +735,27 @@ function myWorkspaceProjectCommand(navigate: NavigateFunction, dispatch: Dispatc
 function ResourceSubLinks(): React.ReactNode {
     return ResourceSubLinksEntries.map(it => <SidebarEntry key={it.text} {...it} />);
 }
+
+function InferenceSubLinks(): React.ReactNode {
+    return InferenceSubLinksEntries.map(it => <SidebarEntry key={it.text} {...it} />);
+}
+
+const InferenceSubLinksEntries: LinkInfo[] = [
+    {
+        to: AppRoutes.inference.models(),
+        text: "Model catalog",
+        icon: "heroBuildingStorefront",
+        tab: SidebarTabId.INFERENCE,
+        defaultHidden: false,
+    },
+    {
+        to: AppRoutes.inference.playground(),
+        text: "Playground",
+        icon: "heroBeaker",
+        tab: SidebarTabId.INFERENCE,
+        defaultHidden: false,
+    },
+];
 
 const ResourceSubLinksEntries: LinkInfo[] = [
     {
@@ -1143,6 +1168,11 @@ function SecondarySidebar({
             {active !== SidebarTabId.RESOURCES ? null : <>
                 <SidebarSectionEmptyHeader />
                 <ResourceSubLinks />
+            </>}
+
+            {active !== SidebarTabId.INFERENCE ? null : <>
+                <SidebarSectionEmptyHeader />
+                <InferenceSubLinks />
             </>}
 
             {/* Note(Jonas) Do it this way to ensure that the frontend doesn't fetch icons every time this is shown. */}

@@ -9,110 +9,65 @@ import (
 	"math"
 	"mime/multipart"
 	"net/http"
-	"slices"
 	"strconv"
 	"strings"
 
 	apm "ucloud.dk/shared/pkg/accounting"
+	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/util"
 )
 
 // Models
 // =====================================================================================================================
 
-type InferenceModelCapability string
-
-const (
-	InferenceModelCapabilityChat            InferenceModelCapability = "Chat"
-	InferenceModelCapabilityTranscription   InferenceModelCapability = "Transcription"
-	InferenceModelCapabilityImageGeneration InferenceModelCapability = "ImageGeneration"
-)
-
-type InferenceModel struct {
-	Id           string                     `json:"id"`
-	Object       string                     `json:"object"`
-	OwnedBy      string                     `json:"owned_by,omitempty"`
-	Capabilities []InferenceModelCapability `json:"capabilities,omitempty"`
+type OaiInferenceModel struct {
+	Id            string                `json:"id"`
+	Object        string                `json:"object"`
+	OwnedBy       string                `json:"owned_by,omitempty"`
+	Capabilities  []InferenceCapability `json:"capabilities,omitempty"`
+	ContextWindow *int                  `json:"context_window,omitempty"`
 }
 
-type InferenceModelsResponse struct {
-	Object string           `json:"object"`
-	Data   []InferenceModel `json:"data"`
+type OaiInferenceModelsResponse struct {
+	Object string              `json:"object"`
+	Data   []OaiInferenceModel `json:"data"`
 }
 
-func InferenceModels() (InferenceModelsResponse, *util.HttpError) {
-	body, httpErr := inferenceBackendJSONRequest(http.MethodGet, "/models", nil, "")
-	if httpErr != nil {
-		return InferenceModelsResponse{}, httpErr
+func OaiInferenceModels(owner apm.WalletOwner) (OaiInferenceModelsResponse, *util.HttpError) {
+	models := InferenceModelListForOwner(owner)
+	resp := OaiInferenceModelsResponse{
+		Object: "list",
+		Data:   make([]OaiInferenceModel, 0, len(models)),
 	}
-
-	var resp InferenceModelsResponse
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return InferenceModelsResponse{}, util.HttpErr(http.StatusBadGateway, "invalid response")
+	for _, model := range models {
+		resp.Data = append(resp.Data, inferenceOaiModelFromCatalog(model))
 	}
-
-	if util.DevelopmentModeEnabled() {
-		modelsToKeep := []string{"qwen3-0.6b", "whisper-1", "sd-1.5-ggml", "stablediffusion"}
-		newResp := resp
-		newResp.Data = nil
-
-		for _, item := range resp.Data {
-			if slices.Contains(modelsToKeep, item.Id) {
-				newResp.Data = append(newResp.Data, item)
-			}
-		}
-
-		resp = newResp
-	}
-
-	for i := range resp.Data {
-		resp.Data[i].Capabilities = inferenceModelCapabilities(resp.Data[i].Id)
-	}
-
 	return resp, nil
 }
 
-func InferenceModelByID(id string) (InferenceModel, *util.HttpError) {
+func OaiInferenceModelByID(owner apm.WalletOwner, id string) (OaiInferenceModel, *util.HttpError) {
 	if strings.TrimSpace(id) == "" {
-		return InferenceModel{}, util.HttpErr(http.StatusBadRequest, "invalid request")
+		return OaiInferenceModel{}, util.HttpErr(http.StatusBadRequest, "invalid request")
 	}
 
-	body, httpErr := inferenceBackendJSONRequest(http.MethodGet, "/models/"+id, nil, "")
-	if httpErr != nil {
-		return InferenceModel{}, httpErr
+	model, ok := InferenceCatalogModelByName(id)
+	if !ok {
+		return OaiInferenceModel{}, util.HttpErr(http.StatusNotFound, "model not found")
 	}
-
-	var resp InferenceModel
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return InferenceModel{}, util.HttpErr(http.StatusBadGateway, "invalid response")
+	if !inferenceModelAvailableToOwner(model, owner) {
+		return OaiInferenceModel{}, util.HttpErr(http.StatusForbidden, "forbidden")
 	}
-
-	resp.Capabilities = inferenceModelCapabilities(resp.Id)
-	return resp, nil
+	return inferenceOaiModelFromCatalog(model), nil
 }
 
-func inferenceModelCapabilities(modelId string) []InferenceModelCapability {
-	id := strings.ToLower(modelId)
-	if id == "" {
-		return []InferenceModelCapability{InferenceModelCapabilityChat}
+func inferenceOaiModelFromCatalog(model InferenceModel) OaiInferenceModel {
+	return OaiInferenceModel{
+		Id:            model.Name,
+		Object:        "model",
+		OwnedBy:       "ucloud",
+		Capabilities:  model.Capabilities,
+		ContextWindow: model.ContextWindow,
 	}
-
-	capabilities := make([]InferenceModelCapability, 0, 3)
-
-	switch id {
-	case "qwen3-0.6b":
-		capabilities = append(capabilities, InferenceModelCapabilityChat)
-	case "whisper-1":
-		capabilities = append(capabilities, InferenceModelCapabilityTranscription)
-	case "sd-1.5-ggml", "stablediffusion":
-		capabilities = append(capabilities, InferenceModelCapabilityImageGeneration)
-	}
-
-	if len(capabilities) == 0 {
-		capabilities = append(capabilities, InferenceModelCapabilityChat)
-	}
-
-	return capabilities
 }
 
 // Chat completions
@@ -139,12 +94,93 @@ type InferenceChatRequest struct {
 	Tools               []InferenceChatTool                     `json:"tools,omitempty"`
 	TopLogprobs         util.Option[int]                        `json:"top_logprobs,omitempty"`
 	TopP                util.Option[float64]                    `json:"top_p,omitempty"`
-	Verbosity           util.Option[string]                     `json:"verbosity,omitempty"`
 }
 
 type InferenceChatMessage struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
+	Role       string                      `json:"role"`
+	Content    InferenceChatMessageContent `json:"content"`
+	Reasoning  InferenceChatMessageContent `json:"reasoning"`
+	Name       string                      `json:"name,omitempty"`
+	ToolCalls  []InferenceChatToolCall     `json:"tool_calls,omitempty"`
+	ToolCallID string                      `json:"tool_call_id,omitempty"`
+}
+
+func (m *InferenceChatMessage) UnmarshalJSON(data []byte) error {
+	type inferenceChatMessageJSON InferenceChatMessage
+	var decoded struct {
+		inferenceChatMessageJSON
+		ReasoningContent InferenceChatMessageContent `json:"reasoning_content"`
+	}
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		return err
+	}
+	*m = InferenceChatMessage(decoded.inferenceChatMessageJSON)
+	if m.Reasoning.String() == "" && decoded.ReasoningContent.String() != "" {
+		m.Reasoning = decoded.ReasoningContent
+	}
+	return nil
+}
+
+type InferenceChatMessageContent struct {
+	Text  string
+	Parts []InferenceChatContentPartText
+	raw   json.RawMessage
+}
+
+type InferenceChatContentPartText struct {
+	Type string `json:"type"`
+	Text string `json:"text"`
+}
+
+func inferenceChatTextContent(text string) InferenceChatMessageContent {
+	return InferenceChatMessageContent{Text: text}
+}
+
+func (c InferenceChatMessageContent) String() string {
+	if len(c.Parts) == 0 {
+		return c.Text
+	}
+
+	var builder strings.Builder
+	for _, part := range c.Parts {
+		if part.Type == "" || part.Type == "text" {
+			builder.WriteString(part.Text)
+		}
+	}
+	return builder.String()
+}
+
+func (c *InferenceChatMessageContent) UnmarshalJSON(data []byte) error {
+	c.Text = ""
+	c.Parts = nil
+	c.raw = append(c.raw[:0], data...)
+
+	if len(data) == 0 || bytes.Equal(data, []byte("null")) {
+		return nil
+	}
+
+	var text string
+	if err := json.Unmarshal(data, &text); err == nil {
+		c.Text = text
+		return nil
+	}
+
+	var parts []InferenceChatContentPartText
+	if err := json.Unmarshal(data, &parts); err != nil {
+		return err
+	}
+	c.Parts = parts
+	return nil
+}
+
+func (c InferenceChatMessageContent) MarshalJSON() ([]byte, error) {
+	if len(c.raw) > 0 {
+		return c.raw, nil
+	}
+	if c.Parts != nil {
+		return json.Marshal(c.Parts)
+	}
+	return json.Marshal(c.Text)
 }
 
 type InferenceChatStreamOptions struct {
@@ -152,9 +188,33 @@ type InferenceChatStreamOptions struct {
 }
 
 type InferenceChatUsage struct {
-	PromptTokens     int `json:"prompt_tokens"`
-	CompletionTokens int `json:"completion_tokens"`
-	TotalTokens      int `json:"total_tokens"`
+	PromptTokens        int                                    `json:"prompt_tokens"`
+	CompletionTokens    int                                    `json:"completion_tokens"`
+	TotalTokens         int                                    `json:"total_tokens"`
+	PromptTokensDetails util.Option[InferenceChatTokenDetails] `json:"prompt_tokens_details,omitempty"`
+}
+
+func (u InferenceChatUsage) MarshalJSON() ([]byte, error) {
+	type inferenceChatUsageJSON struct {
+		PromptTokens        int                        `json:"prompt_tokens"`
+		CompletionTokens    int                        `json:"completion_tokens"`
+		TotalTokens         int                        `json:"total_tokens"`
+		PromptTokensDetails *InferenceChatTokenDetails `json:"prompt_tokens_details,omitempty"`
+	}
+
+	result := inferenceChatUsageJSON{
+		PromptTokens:     u.PromptTokens,
+		CompletionTokens: u.CompletionTokens,
+		TotalTokens:      u.TotalTokens,
+	}
+	if u.PromptTokensDetails.Present {
+		result.PromptTokensDetails = &u.PromptTokensDetails.Value
+	}
+	return json.Marshal(result)
+}
+
+type InferenceChatTokenDetails struct {
+	CachedTokens int `json:"cached_tokens"`
 }
 
 type InferenceChatTool struct {
@@ -169,6 +229,17 @@ type InferenceChatToolFunction struct {
 	Strict      util.Option[bool] `json:"strict,omitempty"`
 }
 
+type InferenceChatToolCall struct {
+	Id       string                        `json:"id"`
+	Type     string                        `json:"type"`
+	Function InferenceChatToolCallFunction `json:"function"`
+}
+
+type InferenceChatToolCallFunction struct {
+	Name      string `json:"name"`
+	Arguments string `json:"arguments"`
+}
+
 type InferenceChatResponse struct {
 	Id      string                `json:"id"`
 	Object  string                `json:"object"`
@@ -176,6 +247,14 @@ type InferenceChatResponse struct {
 	Model   string                `json:"model"`
 	Choices []InferenceChatChoice `json:"choices"`
 	Usage   InferenceChatUsage    `json:"usage"`
+}
+
+func (r InferenceChatResponse) MarshalJSON() ([]byte, error) {
+	type inferenceChatResponseJSON InferenceChatResponse
+	if r.Choices == nil {
+		r.Choices = []InferenceChatChoice{}
+	}
+	return json.Marshal(inferenceChatResponseJSON(r))
 }
 
 type InferenceChatChoice struct {
@@ -193,6 +272,14 @@ type InferenceChatStreamingResponse struct {
 	Usage   InferenceChatUsage             `json:"usage"`
 }
 
+func (r InferenceChatStreamingResponse) MarshalJSON() ([]byte, error) {
+	type inferenceChatStreamingResponseJSON InferenceChatStreamingResponse
+	if r.Choices == nil {
+		r.Choices = []InferenceChatStreamingChoice{}
+	}
+	return json.Marshal(inferenceChatStreamingResponseJSON(r))
+}
+
 type InferenceChatStreamingChoice struct {
 	Index        int                `json:"index"`
 	Delta        InferenceChatDelta `json:"delta"`
@@ -200,23 +287,60 @@ type InferenceChatStreamingChoice struct {
 }
 
 type InferenceChatDelta struct {
-	Role    string `json:"role,omitempty"`
-	Content string `json:"content,omitempty"`
+	Role      string                           `json:"role,omitempty"`
+	Content   string                           `json:"content,omitempty"`
+	Reasoning string                           `json:"reasoning,omitempty"`
+	ToolCalls []InferenceChatStreamingToolCall `json:"tool_calls,omitempty"`
 }
 
-func InferenceChat(owner apm.WalletOwner, history InferenceChatRequest) InferenceChatResponse {
-	if inferenceIsLocked(owner) {
-		return InferenceChatResponse{}
+func (d *InferenceChatDelta) UnmarshalJSON(data []byte) error {
+	type inferenceChatDeltaJSON InferenceChatDelta
+	var decoded struct {
+		inferenceChatDeltaJSON
+		ReasoningContent string `json:"reasoning_content"`
 	}
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		return err
+	}
+	*d = InferenceChatDelta(decoded.inferenceChatDeltaJSON)
+	if d.Reasoning == "" && decoded.ReasoningContent != "" {
+		d.Reasoning = decoded.ReasoningContent
+	}
+	return nil
+}
+
+type InferenceChatStreamingToolCall struct {
+	Index    int                                     `json:"index"`
+	Id       string                                  `json:"id,omitempty"`
+	Type     string                                  `json:"type,omitempty"`
+	Function *InferenceChatStreamingToolCallFunction `json:"function,omitempty"`
+}
+
+type InferenceChatStreamingToolCallFunction struct {
+	Name      string `json:"name,omitempty"`
+	Arguments string `json:"arguments,omitempty"`
+}
+
+func InferenceChat(owner apm.WalletOwner, history InferenceChatRequest) (InferenceChatResponse, *util.HttpError) {
+	log.Info("1 %v %v", owner, history)
+	if inferenceIsLocked(owner) {
+		return InferenceChatResponse{}, util.HttpErr(http.StatusPaymentRequired, "payment required")
+	}
+
+	model, httpErr := inferenceResolveModelForOwner(owner, history.Model)
+	if httpErr != nil {
+		return InferenceChatResponse{}, httpErr
+	}
+	history.Model = model.Endpoint.BackendModelName
 
 	body, err := json.Marshal(history)
 	if err != nil {
-		return InferenceChatResponse{}
+		return InferenceChatResponse{}, util.HttpErr(http.StatusBadRequest, "invalid request")
 	}
 
-	respBody, httpErr := inferenceBackendJSONRequest(http.MethodPost, "/chat/completions", body, "application/json")
+	respBody, httpErr := inferenceBackendJSONRequest(model.Endpoint.BasePath, http.MethodPost, "/chat/completions", body, "application/json")
 	if httpErr != nil {
-		return InferenceChatResponse{}
+		return InferenceChatResponse{}, httpErr
 	}
 
 	var resp struct {
@@ -228,29 +352,38 @@ func InferenceChat(owner apm.WalletOwner, history InferenceChatRequest) Inferenc
 		Usage   util.Option[InferenceChatUsage] `json:"usage"`
 	}
 	if err := json.Unmarshal(respBody, &resp); err != nil {
-		return InferenceChatResponse{}
+		return InferenceChatResponse{}, util.HttpErr(http.StatusBadGateway, "invalid response")
 	}
 
 	usage := inferenceChatUsageFromResponse(history, resp.Usage, resp.Choices)
-	inferenceReportUsage(owner, usage.PromptTokens, usage.CompletionTokens)
+	cachedTokens, inputTokens, outputTokens := inferenceChatUsageComponents(usage)
+	inferenceReportUsage(owner, model, cachedTokens, inputTokens, outputTokens)
 
 	return InferenceChatResponse{
 		Id:      resp.Id,
 		Object:  resp.Object,
 		Created: resp.Created,
-		Model:   resp.Model,
+		Model:   model.Name,
 		Choices: resp.Choices,
 		Usage:   usage,
-	}
+	}, nil
 }
 
-func InferenceChatStreaming(owner apm.WalletOwner, history InferenceChatRequest) chan InferenceChatStreamingResponse {
+func InferenceChatStreaming(owner apm.WalletOwner, history InferenceChatRequest) (chan InferenceChatStreamingResponse, *util.HttpError) {
+	log.Info("2 %v %v", owner, history)
 	ch := make(chan InferenceChatStreamingResponse)
 
 	if inferenceIsLocked(owner) {
 		close(ch)
-		return ch
+		return ch, util.HttpErr(http.StatusPaymentRequired, "payment required")
 	}
+
+	model, httpErr := inferenceResolveModelForOwner(owner, history.Model)
+	if httpErr != nil {
+		close(ch)
+		return ch, httpErr
+	}
+	history.Model = model.Endpoint.BackendModelName
 
 	go func() {
 		defer close(ch)
@@ -269,7 +402,7 @@ func InferenceChatStreaming(owner apm.WalletOwner, history InferenceChatRequest)
 			return
 		}
 
-		resp, httpErr := inferenceBackendStreamRequest("/chat/completions", body)
+		resp, httpErr := inferenceBackendStreamRequest(model.Endpoint.BasePath, "/chat/completions", body)
 		if httpErr != nil {
 			return
 		}
@@ -300,6 +433,7 @@ func InferenceChatStreaming(owner apm.WalletOwner, history InferenceChatRequest)
 				Usage   util.Option[InferenceChatUsage] `json:"usage"`
 			}
 			if jsonErr := json.Unmarshal([]byte(raw), &chunk); jsonErr == nil {
+				chunk.Model = model.Name
 				if len(chunk.Choices) > 0 {
 					assistantText.WriteString(chunk.Choices[0].Delta.Content)
 				}
@@ -334,12 +468,15 @@ func InferenceChatStreaming(owner apm.WalletOwner, history InferenceChatRequest)
 				if !sentAny {
 					ch <- InferenceChatStreamingResponse{Usage: inferenceEstimateChatUsage(history, "")}
 				}
+
+				cachedTokens, inputTokens, outputTokens := inferenceChatUsageComponents(usageSeen)
+				inferenceReportUsage(owner, model, cachedTokens, inputTokens, outputTokens)
 				return
 			}
 		}
 	}()
 
-	return ch
+	return ch, nil
 }
 
 // Transcription
@@ -517,12 +654,18 @@ func InferenceTranscribe(owner apm.WalletOwner, request InferenceTranscriptionRe
 		return InferenceTranscriptionResponse{}, util.HttpErr(http.StatusPaymentRequired, "payment required")
 	}
 
+	model, httpErr := inferenceResolveModelForOwner(owner, request.Model)
+	if httpErr != nil {
+		return InferenceTranscriptionResponse{}, httpErr
+	}
+	request.Model = model.Endpoint.BackendModelName
+
 	body, contentType, httpErr := inferenceBuildTranscriptionMultipart(request)
 	if httpErr != nil {
 		return InferenceTranscriptionResponse{}, httpErr
 	}
 
-	respBody, httpErr := inferenceBackendJSONRequest(http.MethodPost, "/audio/transcriptions", body, contentType)
+	respBody, httpErr := inferenceBackendJSONRequest(model.Endpoint.BasePath, http.MethodPost, "/audio/transcriptions", body, contentType)
 	if httpErr != nil {
 		return InferenceTranscriptionResponse{}, httpErr
 	}
@@ -537,7 +680,7 @@ func InferenceTranscribe(owner apm.WalletOwner, request InferenceTranscriptionRe
 		}
 		if err := json.Unmarshal(respBody, &resp); err == nil {
 			usage := inferenceTranscriptionUsageFromText(resp.Text, resp.Usage)
-			inferenceReportUsage(owner, usage.InputTokens, usage.OutputTokens)
+			inferenceReportUsage(owner, model, 0, usage.InputTokens, usage.OutputTokens)
 			return InferenceTranscriptionResponse{DiarizedJson: &InferenceTranscriptionDiarizedResponse{Task: resp.Task, Duration: resp.Duration, Text: resp.Text, Segments: resp.Segments, Usage: usage}}, nil
 		} else {
 			return InferenceTranscriptionResponse{}, util.HttpErr(http.StatusBadGateway, "invalid response from upstream")
@@ -555,7 +698,7 @@ func InferenceTranscribe(owner apm.WalletOwner, request InferenceTranscriptionRe
 		}
 		if err := json.Unmarshal(respBody, &resp); err == nil {
 			usage := inferenceTranscriptionUsageFromText(resp.Text, resp.Usage)
-			inferenceReportUsage(owner, usage.InputTokens, usage.OutputTokens)
+			inferenceReportUsage(owner, model, 0, usage.InputTokens, usage.OutputTokens)
 			return InferenceTranscriptionResponse{VerboseJson: &InferenceTranscriptionVerboseResponse{Task: resp.Task, Language: resp.Language, Duration: resp.Duration, Text: resp.Text, Segments: resp.Segments, Words: resp.Words, Usage: usage}}, nil
 		} else {
 			return InferenceTranscriptionResponse{}, util.HttpErr(http.StatusBadGateway, "invalid response from upstream")
@@ -569,20 +712,27 @@ func InferenceTranscribe(owner apm.WalletOwner, request InferenceTranscriptionRe
 	}
 	if err := json.Unmarshal(respBody, &resp); err == nil {
 		usage := inferenceTranscriptionUsageFromText(resp.Text, resp.Usage)
-		inferenceReportUsage(owner, usage.InputTokens, usage.OutputTokens)
+		inferenceReportUsage(owner, model, 0, usage.InputTokens, usage.OutputTokens)
 		return InferenceTranscriptionResponse{Json: &InferenceTranscriptionJsonResponse{Text: resp.Text, Logprobs: resp.Logprobs, Usage: usage}}, nil
 	} else {
 		return InferenceTranscriptionResponse{}, util.HttpErr(http.StatusBadGateway, "invalid response from upstream")
 	}
 }
 
-func InferenceTranscribeStreaming(owner apm.WalletOwner, request InferenceTranscriptionRequest) chan InferenceTranscriptionStreamEvent {
+func InferenceTranscribeStreaming(owner apm.WalletOwner, request InferenceTranscriptionRequest) (chan InferenceTranscriptionStreamEvent, *util.HttpError) {
 	ch := make(chan InferenceTranscriptionStreamEvent)
 
 	if inferenceIsLocked(owner) {
 		close(ch)
-		return ch
+		return ch, util.HttpErr(http.StatusPaymentRequired, "payment required")
 	}
+
+	model, httpErr := inferenceResolveModelForOwner(owner, request.Model)
+	if httpErr != nil {
+		close(ch)
+		return ch, httpErr
+	}
+	request.Model = model.Endpoint.BackendModelName
 
 	go func() {
 		defer close(ch)
@@ -593,7 +743,7 @@ func InferenceTranscribeStreaming(owner apm.WalletOwner, request InferenceTransc
 			return
 		}
 
-		resp, httpErr := inferenceBackendRequest(http.MethodPost, "/audio/transcriptions", body, contentType)
+		resp, httpErr := inferenceBackendRequest(model.Endpoint.BasePath, http.MethodPost, "/audio/transcriptions", body, contentType)
 		if httpErr != nil {
 			return
 		}
@@ -658,10 +808,10 @@ func InferenceTranscribeStreaming(owner apm.WalletOwner, request InferenceTransc
 			}
 		}
 
-		inferenceReportUsage(owner, usageSeen.InputTokens, usageSeen.OutputTokens)
+		inferenceReportUsage(owner, model, 0, usageSeen.InputTokens, usageSeen.OutputTokens)
 	}()
 
-	return ch
+	return ch, nil
 }
 
 func inferenceBuildTranscriptionMultipart(request InferenceTranscriptionRequest) ([]byte, string, *util.HttpError) {
@@ -800,13 +950,20 @@ func InferenceGenerateImage(owner apm.WalletOwner, request InferenceImageGenerat
 		return InferenceImageGenerationResponse{}, util.HttpErr(http.StatusPaymentRequired, "payment required")
 	}
 
+	modelName := request.Model.GetOrDefault("")
+	model, httpErr := inferenceResolveModelForOwner(owner, modelName)
+	if httpErr != nil {
+		return InferenceImageGenerationResponse{}, httpErr
+	}
+	request.Model.Set(model.Endpoint.BackendModelName)
+
 	if inferenceGlobals.MockImageGeneration {
 		resp, httpErr := inferenceGenerateMockImageResponse(request)
 		if httpErr != nil {
 			return InferenceImageGenerationResponse{}, httpErr
 		}
 
-		inferenceReportUsage(owner, resp.Usage.InputTokens, resp.Usage.OutputTokens)
+		inferenceReportUsage(owner, model, 0, resp.Usage.InputTokens, resp.Usage.OutputTokens)
 		return resp, nil
 	}
 
@@ -815,7 +972,7 @@ func InferenceGenerateImage(owner apm.WalletOwner, request InferenceImageGenerat
 		return InferenceImageGenerationResponse{}, util.HttpErr(http.StatusBadRequest, "invalid request")
 	}
 
-	respBody, httpErr := inferenceBackendJSONRequest(http.MethodPost, "/images/generations", body, "application/json")
+	respBody, httpErr := inferenceBackendJSONRequest(model.Endpoint.BasePath, http.MethodPost, "/images/generations", body, "application/json")
 	if httpErr != nil {
 		return InferenceImageGenerationResponse{}, httpErr
 	}
@@ -843,17 +1000,25 @@ func InferenceGenerateImage(owner apm.WalletOwner, request InferenceImageGenerat
 		Size:         resp.Size,
 		Usage:        usage,
 	}
-	inferenceReportUsage(owner, usage.InputTokens, usage.OutputTokens)
+	inferenceReportUsage(owner, model, 0, usage.InputTokens, usage.OutputTokens)
 	return result, nil
 }
 
-func InferenceGenerateImageStreaming(owner apm.WalletOwner, request InferenceImageGenerationRequest) chan InferenceImageGenerationStreamEvent {
+func InferenceGenerateImageStreaming(owner apm.WalletOwner, request InferenceImageGenerationRequest) (chan InferenceImageGenerationStreamEvent, *util.HttpError) {
 	ch := make(chan InferenceImageGenerationStreamEvent)
 
 	if inferenceIsLocked(owner) {
 		close(ch)
-		return ch
+		return ch, util.HttpErr(http.StatusPaymentRequired, "payment required")
 	}
+
+	modelName := request.Model.GetOrDefault("")
+	model, httpErr := inferenceResolveModelForOwner(owner, modelName)
+	if httpErr != nil {
+		close(ch)
+		return ch, httpErr
+	}
+	request.Model.Set(model.Endpoint.BackendModelName)
 
 	go func() {
 		defer close(ch)
@@ -872,7 +1037,7 @@ func InferenceGenerateImageStreaming(owner apm.WalletOwner, request InferenceIma
 					Usage:   resp.Usage,
 				}
 			}
-			inferenceReportUsage(owner, resp.Usage.InputTokens, resp.Usage.OutputTokens)
+			inferenceReportUsage(owner, model, 0, resp.Usage.InputTokens, resp.Usage.OutputTokens)
 			return
 		}
 
@@ -881,7 +1046,7 @@ func InferenceGenerateImageStreaming(owner apm.WalletOwner, request InferenceIma
 			return
 		}
 
-		resp, httpErr := inferenceBackendRequest(http.MethodPost, "/images/generations", body, "application/json")
+		resp, httpErr := inferenceBackendRequest(model.Endpoint.BasePath, http.MethodPost, "/images/generations", body, "application/json")
 		if httpErr != nil {
 			return
 		}
@@ -928,7 +1093,7 @@ func InferenceGenerateImageStreaming(owner apm.WalletOwner, request InferenceIma
 					Usage:             inferenceImageUsageFromPayload(request, 0, parsed.Usage),
 				}
 				if streamEvent.Type == "image_generation.completed" {
-					inferenceReportUsage(owner, streamEvent.Usage.InputTokens, streamEvent.Usage.OutputTokens)
+					inferenceReportUsage(owner, model, 0, streamEvent.Usage.InputTokens, streamEvent.Usage.OutputTokens)
 				}
 				ch <- streamEvent
 				sentAny = true
@@ -956,7 +1121,7 @@ func InferenceGenerateImageStreaming(owner apm.WalletOwner, request InferenceIma
 		}
 	}()
 
-	return ch
+	return ch, nil
 }
 
 func inferenceImageRequestCount(request InferenceImageGenerationRequest) int {
@@ -991,8 +1156,8 @@ func parseFormFloat(raw string) (float64, error) {
 	return strconv.ParseFloat(raw, 64)
 }
 
-func inferenceBackendJSONRequest(method string, path string, body []byte, contentType string) ([]byte, *util.HttpError) {
-	resp, httpErr := inferenceBackendRequest(method, path, body, contentType)
+func inferenceBackendJSONRequest(basePath string, method string, path string, body []byte, contentType string) ([]byte, *util.HttpError) {
+	resp, httpErr := inferenceBackendRequest(basePath, method, path, body, contentType)
 	if httpErr != nil {
 		return nil, httpErr
 	}
@@ -1004,24 +1169,26 @@ func inferenceBackendJSONRequest(method string, path string, body []byte, conten
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		log.Info("invalid request: %v %v %v %v %v", method, path, contentType, string(body), string(respBody))
 		return nil, util.HttpErr(resp.StatusCode, "invalid request")
 	}
 
 	return respBody, nil
 }
 
-func inferenceBackendStreamRequest(path string, body []byte) (*http.Response, *util.HttpError) {
-	return inferenceBackendRequest(http.MethodPost, path, body, "application/json")
+func inferenceBackendStreamRequest(basePath string, path string, body []byte) (*http.Response, *util.HttpError) {
+	return inferenceBackendRequest(basePath, http.MethodPost, path, body, "application/json")
 }
 
-func inferenceBackendRequest(method string, path string, body []byte, contentType string) (*http.Response, *util.HttpError) {
-	backend := strings.TrimRight(inferenceGlobals.BackendServer, "/")
+func inferenceBackendRequest(basePath string, method string, path string, body []byte, contentType string) (*http.Response, *util.HttpError) {
+	backend := strings.TrimRight(basePath, "/")
 	if backend == "" {
 		return nil, util.HttpErr(http.StatusServiceUnavailable, "inference backend is not configured")
 	}
 
 	req, err := http.NewRequest(method, backend+path, bytes.NewBuffer(body))
 	if err != nil {
+		log.Info("inferenceBackendRequest err1: %v %v %v %v %v", backend, basePath, method, path, string(body))
 		return nil, util.HttpErr(http.StatusBadRequest, "invalid request")
 	}
 
@@ -1032,10 +1199,27 @@ func inferenceBackendRequest(method string, path string, body []byte, contentTyp
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
+		log.Info("inferenceBackendRequest err2: %v %v %v %v %v %v", backend, basePath, method, path, string(body), err)
 		return nil, util.HttpErr(http.StatusBadGateway, "invalid request")
 	}
 
 	return resp, nil
+}
+
+func inferenceResolveModelForOwner(owner apm.WalletOwner, modelName string) (InferenceModel, *util.HttpError) {
+	modelName = strings.TrimSpace(modelName)
+	if modelName == "" {
+		return InferenceModel{}, util.HttpErr(http.StatusBadRequest, "model is required")
+	}
+
+	model, ok := InferenceCatalogModelByName(modelName)
+	if !ok {
+		return InferenceModel{}, util.HttpErr(http.StatusNotFound, "model not found")
+	}
+	if !inferenceModelAvailableToOwner(model, owner) {
+		return InferenceModel{}, util.HttpErr(http.StatusForbidden, "model is not available")
+	}
+	return model, nil
 }
 
 // Cost estimation
@@ -1052,7 +1236,7 @@ func inferenceEstimateTokensFromText(text string) int {
 func inferenceEstimateChatUsage(history InferenceChatRequest, responseText string) InferenceChatUsage {
 	promptTokens := 0
 	for _, message := range history.Messages {
-		promptTokens += inferenceEstimateTokensFromText(message.Content)
+		promptTokens += inferenceEstimateTokensFromText(message.Content.String())
 	}
 
 	completionTokens := inferenceEstimateTokensFromText(responseText)
@@ -1066,7 +1250,7 @@ func inferenceEstimateChatUsage(history InferenceChatRequest, responseText strin
 func inferenceChatUsageFromResponse(history InferenceChatRequest, usage util.Option[InferenceChatUsage], choices []InferenceChatChoice) InferenceChatUsage {
 	responseText := ""
 	if len(choices) > 0 {
-		responseText = choices[0].Message.Content
+		responseText = choices[0].Message.Content.String()
 	}
 	return inferenceChatUsageFromText(history, responseText, usage)
 }
@@ -1081,6 +1265,23 @@ func inferenceChatUsageFromText(history InferenceChatRequest, responseText strin
 	}
 
 	return inferenceEstimateChatUsage(history, responseText)
+}
+
+func inferenceChatUsageComponents(usage InferenceChatUsage) (cachedTokens int, inputTokens int, outputTokens int) {
+	cachedTokens = 0
+	if usage.PromptTokensDetails.Present {
+		cachedTokens = usage.PromptTokensDetails.Value.CachedTokens
+	}
+	if cachedTokens < 0 {
+		cachedTokens = 0
+	}
+	if cachedTokens > usage.PromptTokens {
+		cachedTokens = usage.PromptTokens
+	}
+
+	inputTokens = usage.PromptTokens - cachedTokens
+	outputTokens = usage.CompletionTokens
+	return cachedTokens, inputTokens, outputTokens
 }
 
 func inferenceTranscriptionUsageFromText(text string, usage util.Option[InferenceTranscriptionUsage]) InferenceTranscriptionUsage {

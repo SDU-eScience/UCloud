@@ -3692,7 +3692,8 @@ export function resourceCreationWithProductSelector<T>(
         browser.renderRows();
     };
 
-    const onProductSelected = (product: ProductV2) => {
+    const onProductSelected = (product: ProductV2 | null) => {
+        if (!product) return;
         onSelect?.(product);
         if (["STORAGE", "INGRESS"].includes(type)) {
             selectedProduct = product;
@@ -3707,7 +3708,7 @@ export function resourceCreationWithProductSelector<T>(
                 },
                 ""
             );
-        } else if (["LICENSE", "NETWORK_IP"].includes(type)) {
+        } else if (["LICENSE", "INFERENCE", "NETWORK_IP"].includes(type)) {
             browser.removeEntryFromCurrentPage(it => it === dummyEntry);
             onCreate(product);
         } else if (type === "COMPUTE") {
@@ -3937,4 +3938,3 @@ export function favoriteRowIcon(row: ResourceBrowserRow) {
     }
     return favoriteIcon;
 }
-

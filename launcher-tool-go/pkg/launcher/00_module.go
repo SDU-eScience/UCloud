@@ -685,6 +685,7 @@ func TestsRun(adminUser, adminPass string) {
 					"password": "mypassword",
 				},
 			},
+			"login_cookie": nil,
 		}
 		testInfoData, _ := json.Marshal(testInfo)
 		err = os.WriteFile(testInfoPath, testInfoData, 0640)

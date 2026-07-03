@@ -13,24 +13,25 @@ import (
 )
 
 type A2Yaml struct {
-	Name            string                  `yaml:"name"`
-	Version         string                  `yaml:"version"`
-	Software        A2Software              `yaml:"software"`
-	Title           util.Option[string]     `yaml:"title"`
-	Description     util.Option[string]     `yaml:"description"`
-	License         util.Option[string]     `yaml:"license"`
-	Documentation   util.Option[string]     `yaml:"documentation"`
-	Features        util.Option[A2Features] `yaml:"features"`
-	Modules         util.Option[A2Module]   `yaml:"modules"`
-	Parameters      map[string]A2Parameter  `yaml:"parameters"`
-	ParametersOrder []string                `yaml:"-"` // needed to preserve YAML declaration order
-	Sbatch          map[string]string       `yaml:"sbatch"`
-	Invocation      string                  `yaml:"invocation"`
-	Environment     map[string]string       `yaml:"environment"`
-	Web             util.Option[A2Web]      `yaml:"web"`
-	Vnc             util.Option[A2Vnc]      `yaml:"vnc"`
-	Ssh             util.Option[A2Ssh]      `yaml:"ssh"`
-	Extensions      []string                `yaml:"extensions"`
+	Name            string                   `yaml:"name"`
+	Version         string                   `yaml:"version"`
+	Software        A2Software               `yaml:"software"`
+	Title           util.Option[string]      `yaml:"title"`
+	Description     util.Option[string]      `yaml:"description"`
+	License         util.Option[string]      `yaml:"license"`
+	Documentation   util.Option[string]      `yaml:"documentation"`
+	Features        util.Option[A2Features]  `yaml:"features"`
+	Modules         util.Option[A2Module]    `yaml:"modules"`
+	Parameters      map[string]A2Parameter   `yaml:"parameters"`
+	ParametersOrder []string                 `yaml:"-"` // needed to preserve YAML declaration order
+	Sbatch          map[string]string        `yaml:"sbatch"`
+	Invocation      string                   `yaml:"invocation"`
+	Environment     map[string]string        `yaml:"environment"`
+	Web             util.Option[A2Web]       `yaml:"web"`
+	Vnc             util.Option[A2Vnc]       `yaml:"vnc"`
+	Ssh             util.Option[A2Ssh]       `yaml:"ssh"`
+	Inference       util.Option[A2Inference] `yaml:"inference"`
+	Extensions      []string                 `yaml:"extensions"`
 }
 
 type A2SoftwareKind string
@@ -369,6 +370,24 @@ var A2SshModeOptions = []A2SshMode{
 	A2SshModeMandatory,
 	A2SshModeOptional,
 	A2SshModeDisabled,
+}
+
+type A2Inference struct {
+	Mode A2InferenceMode `yaml:"mode"`
+}
+
+type A2InferenceMode string
+
+const (
+	A2InferenceModeNone      A2InferenceMode = "None"
+	A2InferenceModeOptional  A2InferenceMode = "Optional"
+	A2InferenceModeMandatory A2InferenceMode = "Mandatory"
+)
+
+var A2InferenceModeOptions = []A2InferenceMode{
+	A2InferenceModeNone,
+	A2InferenceModeOptional,
+	A2InferenceModeMandatory,
 }
 
 type A2Module struct {
@@ -773,6 +792,9 @@ func (y *A2Yaml) Normalize() (orcapi.Application, *util.HttpError) {
 	if y.Ssh.Present {
 		util.ValidateEnum(&y.Ssh.Value.Mode, A2SshModeOptions, "ssh.mode", &err)
 	}
+	if y.Inference.Present {
+		util.ValidateEnum(&y.Inference.Value.Mode, A2InferenceModeOptions, "inference.mode", &err)
+	}
 
 	if err != nil {
 		return orcapi.Application{}, err
@@ -841,6 +863,19 @@ func (y *A2Yaml) Normalize() (orcapi.Application, *util.HttpError) {
 							res.Mode = orcapi.SshModeOptional
 						case A2SshModeMandatory:
 							res.Mode = orcapi.SshModeMandatory
+						}
+						return res
+					}),
+
+					Inference: util.OptMap(y.Inference, func(value A2Inference) orcapi.InferenceDescription {
+						res := orcapi.InferenceDescription{}
+						switch value.Mode {
+						case A2InferenceModeNone:
+							res.Mode = orcapi.InferenceModeNone
+						case A2InferenceModeOptional:
+							res.Mode = orcapi.InferenceModeOptional
+						case A2InferenceModeMandatory:
+							res.Mode = orcapi.InferenceModeMandatory
 						}
 						return res
 					}),

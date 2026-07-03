@@ -1766,11 +1766,67 @@ func GrantsUpdateSettings(actor rpc.Actor, id string, s accapi.GrantRequestSetti
 	}
 
 	w.Mu.Lock()
+	templateHasChanges := applyTemplateChangesIfNeeded(w.Settings, &s)
 	w.Settings = &s
-	lGrantsPersistSettings(w)
+	lGrantsPersistSettings(w, templateHasChanges)
 	w.Mu.Unlock()
 
 	return nil
+}
+
+/**
+ * Detecting changes of the template and applying changes if necessary.
+ * The value will be used by lGrantsPersistSettings to trigger persisting the changes in the database.
+ */
+func applyTemplateChangesIfNeeded(oldSettings *accapi.GrantRequestSettings, newSettings *accapi.GrantRequestSettings) bool {
+	if oldSettings == nil {
+		// if oldSettings is nil, it means that the template is being created for the first time.
+		return true
+	}
+	if !grantCompareTemplateChanges(oldSettings, newSettings) {
+		// Preserving the fields that aren't used to compare changes.
+		newSettings.Templates.Structured.RevisionNumber = oldSettings.Templates.Structured.RevisionNumber
+		return false
+	}
+	// If there are changes, we bump the revision number
+	newSettings.Templates.Structured.RevisionNumber = oldSettings.Templates.Structured.RevisionNumber + 1
+	return true
+}
+func grantCompareTemplateChanges(oldSettings *accapi.GrantRequestSettings, newSettings *accapi.GrantRequestSettings) bool {
+	return grantsTemplateHasChanges(&newSettings.Templates.Structured, &oldSettings.Templates.Structured)
+}
+
+/**
+ * Comparing changes of the current template with incoming one.
+ */
+func grantsFormFieldsHasChanges(incoming []accapi.FormField, current []accapi.FormField) bool {
+	currentFields := make(map[string]accapi.FormField, len(current))
+	for _, f := range current {
+		currentFields[f.Name] = f
+	}
+
+	for _, incomingField := range incoming {
+		currentField, ok := currentFields[incomingField.Name]
+		if !ok {
+			return true
+		}
+		return incomingField != currentField
+	}
+	return false
+}
+
+func grantsTemplateHasChanges(incoming *accapi.TemplatesStructured, current *accapi.TemplatesStructured) bool {
+	if current == nil {
+		return true
+	}
+	if len(incoming.ExistingProject) != len(current.ExistingProject) ||
+		len(incoming.NewProject) != len(current.NewProject) ||
+		len(incoming.PersonalProject) != len(current.PersonalProject) {
+		return true
+	}
+	return grantsFormFieldsHasChanges(incoming.ExistingProject, current.ExistingProject) ||
+		grantsFormFieldsHasChanges(incoming.NewProject, current.NewProject) ||
+		grantsFormFieldsHasChanges(incoming.PersonalProject, current.PersonalProject)
 }
 
 func GrantsBrowseEnabledProjects(actor rpc.Actor) ([]accapi.ProjectToSetting, *util.HttpError) {
@@ -1825,6 +1881,12 @@ func GrantsRetrieveSettings(actor rpc.Actor, isUCloudAdminCall bool, projectId s
 					AllowRequestsFrom:   []accapi.UserCriteria{},
 					ExcludeRequestsFrom: []accapi.UserCriteria{},
 					Templates: accapi.Templates{
+						Structured: accapi.TemplatesStructured{
+							PersonalProject: make([]accapi.FormField, 0),
+							ExistingProject: make([]accapi.FormField, 0),
+							NewProject:      make([]accapi.FormField, 0),
+							RevisionNumber:  0,
+						},
 						Type:            accapi.TemplatesTypeStructured,
 						PersonalProject: defaultTemplate,
 						NewProject:      defaultTemplate,

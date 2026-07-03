@@ -174,26 +174,27 @@ type ApplicationMetadata struct {
 }
 
 type ApplicationInvocationDescription struct {
-	Tool                  ToolReference                  `json:"tool" yaml:"tool"`
-	Invocation            []InvocationParameter          `json:"invocation" yaml:"invocation"`
-	Parameters            []ApplicationParameter         `json:"parameters" yaml:"parameters"`
-	OutputFileGlobs       []string                       `json:"outputFileGlobs" yaml:"outputFileGlobs"`
-	ApplicationType       ApplicationType                `json:"applicationType" yaml:"applicationType"`
-	Vnc                   util.Option[VncDescription]    `json:"vnc" yaml:"vnc"`
-	Web                   util.Option[WebDescription]    `json:"web" yaml:"web"`
-	Ssh                   util.Option[SshDescription]    `json:"ssh" yaml:"ssh"`
-	Container             ContainerDescription           `json:"container" yaml:"container"`
-	Environment           map[string]InvocationParameter `json:"environment" yaml:"environment"`
-	AllowAdditionalMounts util.Option[bool]              `json:"allowAdditionalMounts" yaml:"allowAdditionalMounts"`
-	AllowAdditionalPeers  util.Option[bool]              `json:"allowAdditionalPeers" yaml:"allowAdditionalPeers"`
-	AllowMultiNode        util.Option[bool]              `json:"allowMultiNode" yaml:"allowMultiNode"`
-	AllowPublicIp         util.Option[bool]              `json:"allowPublicIp" yaml:"allowPublicIp"`
-	AllowPublicLink       util.Option[bool]              `json:"allowPublicLink" yaml:"allowPublicLink"`
-	JobAuditLogIsEnabled  util.Option[bool]              `json:"jobAuditLogIsEnabled" yaml:"jobAuditLogIsEnabled"`
-	FileExtensions        []string                       `json:"fileExtensions" yaml:"fileExtensions"`
-	LicenseServers        []string                       `json:"licenseServers" yaml:"licenseServers"`
-	Modules               util.Option[ModulesSection]    `json:"modules" yaml:"modules"`
-	Sbatch                map[string]InvocationParameter `json:"sbatch" yaml:"sbatch"`
+	Tool                  ToolReference                     `json:"tool" yaml:"tool"`
+	Invocation            []InvocationParameter             `json:"invocation" yaml:"invocation"`
+	Parameters            []ApplicationParameter            `json:"parameters" yaml:"parameters"`
+	OutputFileGlobs       []string                          `json:"outputFileGlobs" yaml:"outputFileGlobs"`
+	ApplicationType       ApplicationType                   `json:"applicationType" yaml:"applicationType"`
+	Vnc                   util.Option[VncDescription]       `json:"vnc" yaml:"vnc"`
+	Web                   util.Option[WebDescription]       `json:"web" yaml:"web"`
+	Ssh                   util.Option[SshDescription]       `json:"ssh" yaml:"ssh"`
+	Inference             util.Option[InferenceDescription] `json:"inference" yaml:"inference"`
+	Container             ContainerDescription              `json:"container" yaml:"container"`
+	Environment           map[string]InvocationParameter    `json:"environment" yaml:"environment"`
+	AllowAdditionalMounts util.Option[bool]                 `json:"allowAdditionalMounts" yaml:"allowAdditionalMounts"`
+	AllowAdditionalPeers  util.Option[bool]                 `json:"allowAdditionalPeers" yaml:"allowAdditionalPeers"`
+	AllowMultiNode        util.Option[bool]                 `json:"allowMultiNode" yaml:"allowMultiNode"`
+	AllowPublicIp         util.Option[bool]                 `json:"allowPublicIp" yaml:"allowPublicIp"`
+	AllowPublicLink       util.Option[bool]                 `json:"allowPublicLink" yaml:"allowPublicLink"`
+	JobAuditLogIsEnabled  util.Option[bool]                 `json:"jobAuditLogIsEnabled" yaml:"jobAuditLogIsEnabled"`
+	FileExtensions        []string                          `json:"fileExtensions" yaml:"fileExtensions"`
+	LicenseServers        []string                          `json:"licenseServers" yaml:"licenseServers"`
+	Modules               util.Option[ModulesSection]       `json:"modules" yaml:"modules"`
+	Sbatch                map[string]InvocationParameter    `json:"sbatch" yaml:"sbatch"`
 }
 
 type VncDescription struct {
@@ -221,6 +222,24 @@ var SshModeOptions = []SshMode{
 
 type SshDescription struct {
 	Mode SshMode `json:"mode" yaml:"mode"`
+}
+
+type InferenceMode string
+
+const (
+	InferenceModeNone      InferenceMode = "NONE"
+	InferenceModeOptional  InferenceMode = "OPTIONAL"
+	InferenceModeMandatory InferenceMode = "MANDATORY"
+)
+
+var InferenceModeOptions = []InferenceMode{
+	InferenceModeNone,
+	InferenceModeOptional,
+	InferenceModeMandatory,
+}
+
+type InferenceDescription struct {
+	Mode InferenceMode `json:"mode" yaml:"mode"`
 }
 
 type ContainerDescription struct {
@@ -512,6 +531,9 @@ type AppParameterValue struct {
 	Specification WorkflowSpecification `json:"specification" yaml:"specification"`
 	Modules       []string              `json:"modules" yaml:"modules"`
 	Port          int                   `json:"port" yaml:"port"`
+	Server        string                `json:"server" yaml:"server"`
+	Token         string                `json:"token" yaml:"token"`
+	TokenType     string                `json:"tokenType" yaml:"tokenType"`
 }
 
 func (a *AppParameterValue) Equal(b AppParameterValue) bool {
@@ -539,6 +561,9 @@ func (a *AppParameterValue) Equal(b AppParameterValue) bool {
 	case AppParameterValueTypeWorkflow:
 		return reflect.DeepEqual(a.Specification, b.Specification)
 
+	case AppParameterValueTypeApiServer:
+		return a.Server == b.Server && a.Token == b.Token && a.TokenType == b.TokenType
+
 	default:
 		return reflect.DeepEqual(a.Value, b.Value)
 	}
@@ -560,6 +585,7 @@ const (
 	AppParameterValueTypeWorkflow       AppParameterValueType = "workflow"
 	AppParameterValueTypeModuleList     AppParameterValueType = "modules"
 	AppParameterValueTypePrivateNetwork AppParameterValueType = "private_network"
+	AppParameterValueTypeApiServer      AppParameterValueType = "api_server"
 )
 
 func AppParameterValuePrivateNetwork(networkId string) AppParameterValue {
@@ -573,6 +599,15 @@ func AppParameterValueModuleList(modules []string) AppParameterValue {
 	return AppParameterValue{
 		Type:    AppParameterValueTypeModuleList,
 		Modules: modules,
+	}
+}
+
+func AppParameterApiServer(tokenType string, server string, token string) AppParameterValue {
+	return AppParameterValue{
+		Type:      AppParameterValueTypeApiServer,
+		TokenType: tokenType,
+		Server:    server,
+		Token:     token,
 	}
 }
 

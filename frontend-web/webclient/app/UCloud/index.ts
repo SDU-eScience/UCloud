@@ -1577,6 +1577,7 @@ export type AppParameterValue =
     | AppParameterValueNS.Workflow
     | AppParameterValueNS.ModuleList
     | AppParameterValueNS.PrivateNetwork
+    | AppParameterValueNS.ApiServer
     ;
 export interface SimpleDuration {
     hours: number /* int32 */,
@@ -2719,6 +2720,13 @@ export interface ModuleList {
 export interface PrivateNetwork {
     id: string,
     type: ("private_network"),
+}
+
+export interface ApiServer {
+    server: string,
+    token: string,
+    tokenType: string,
+    type: ("api_server"),
 }
 }
 export namespace NetworkIPSpecificationNS {
@@ -5348,7 +5356,7 @@ export interface WalletBalance {
     balance: number /* int64 */,
     allocated: number /* int64 */,
     used: number /* int64 */,
-    area: ("STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP"),
+    area: ("STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "INFERENCE" | "NETWORK_IP"),
 }
 export interface RetrieveBalanceRequest {
     id?: string,
@@ -5367,7 +5375,7 @@ export interface RetrieveWalletsForProjectsRequest {
 export interface WalletsGrantProviderCreditsRequest {
     provider: string,
 }
-export type Product = ProductNS.Storage | ProductNS.Compute | ProductNS.Ingress | ProductNS.License | ProductNS.NetworkIP
+export type Product = ProductNS.Storage | ProductNS.Compute | ProductNS.Ingress | ProductNS.License | ProductNS.Inference | ProductNS.NetworkIP
 export type ProductAvailability = ProductAvailabilityNS.Available | ProductAvailabilityNS.Unavailable
 export interface FindProductRequest {
     provider: string,
@@ -5381,7 +5389,7 @@ export interface ListProductsRequest {
 }
 export interface ListProductsByAreaRequest {
     provider: string,
-    area: ("STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP"),
+    area: ("STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "INFERENCE" | "NETWORK_IP"),
     showHidden: boolean,
     itemsPerPage?: number /* int32 */,
     page?: number /* int32 */,
@@ -5443,7 +5451,7 @@ export interface ProductsBrowseRequest {
     itemsToSkip?: number /* int64 */,
     filterName?: string,
     filterProvider?: string,
-    filterProductType?: ("STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP" | "PRIVATE_NETWORK"),
+    filterProductType?: ("STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "INFERENCE" | "NETWORK_IP" | "PRIVATE_NETWORK"),
     filterCategory?: string,
     filterUsable?: boolean,
     includeBalance?: boolean,
@@ -5457,7 +5465,7 @@ export interface UsageChart {
     lines: UsageLine[],
 }
 export interface UsageLine {
-    area: ("STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP"),
+    area: ("STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "INFERENCE" | "NETWORK_IP"),
     category: string,
     projectPath?: string,
     projectId?: string,
@@ -5728,7 +5736,7 @@ export interface Storage {
     hiddenInGrantApplications: boolean,
     availability: ProductAvailability,
     priority: number /* int32 */,
-    area: ("STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP"),
+    area: ("STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "INFERENCE" | "NETWORK_IP"),
     /**
      * Included only with certain endpoints which support `includeBalance`
      */
@@ -5746,7 +5754,7 @@ export interface Compute {
     cpu?: number /* int32 */,
     memoryInGigs?: number /* int32 */,
     gpu?: number /* int32 */,
-    area: ("STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP"),
+    area: ("STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "INFERENCE" | "NETWORK_IP"),
     /**
      * Included only with certain endpoints which support `includeBalance`
      */
@@ -5762,7 +5770,7 @@ export interface Ingress {
     availability: ProductAvailability,
     priority: number /* int32 */,
     paymentModel: ("FREE_BUT_REQUIRE_BALANCE" | "PER_ACTIVATION"),
-    area: ("STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP"),
+    area: ("STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "INFERENCE" | "NETWORK_IP"),
     /**
      * Included only with certain endpoints which support `includeBalance`
      */
@@ -5779,12 +5787,27 @@ export interface License {
     priority: number /* int32 */,
     tags: string[],
     paymentModel: ("FREE_BUT_REQUIRE_BALANCE" | "PER_ACTIVATION"),
-    area: ("STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP"),
+    area: ("STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "INFERENCE" | "NETWORK_IP"),
     /**
      * Included only with certain endpoints which support `includeBalance`
      */
     balance?: number /* int64 */,
     type: ("license"),
+}
+export interface Inference {
+    id: string,
+    pricePerUnit: number /* int64 */,
+    category: ProductCategoryId,
+    description: string,
+    hiddenInGrantApplications: boolean,
+    availability: ProductAvailability,
+    priority: number /* int32 */,
+    area: ("STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "INFERENCE" | "NETWORK_IP"),
+    /**
+     * Included only with certain endpoints which support `includeBalance`
+     */
+    balance?: number /* int64 */,
+    type: ("inference"),
 }
 export interface NetworkIP {
     id: string,
@@ -5795,7 +5818,7 @@ export interface NetworkIP {
     availability: ProductAvailability,
     priority: number /* int32 */,
     paymentModel: ("FREE_BUT_REQUIRE_BALANCE" | "PER_ACTIVATION"),
-    area: ("STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP"),
+    area: ("STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "INFERENCE" | "NETWORK_IP"),
     /**
      * Included only with certain endpoints which support `includeBalance`
      */

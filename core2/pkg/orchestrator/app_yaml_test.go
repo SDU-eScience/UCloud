@@ -8,6 +8,7 @@ import (
 	"testing"
 	"ucloud.dk/shared/pkg/assert"
 	"ucloud.dk/shared/pkg/log"
+	orcapi "ucloud.dk/shared/pkg/orchestrators"
 )
 
 //go:embed test-yaml/v2_terminal.yaml
@@ -65,5 +66,53 @@ optional: true
 
 		assert.Equal(t, true, param.Integer.Max.Present)
 		assert.Equal(t, int64(100), param.Integer.Max.Value)
+	}
+}
+
+func TestInferenceDefaultsToNoneWhenOmitted(t *testing.T) {
+	var app A2Yaml
+	err := yaml.Unmarshal([]byte(`
+name: test-app
+version: "1"
+software:
+  type: Container
+  image: ubuntu:latest
+invocation: echo hello
+`), &app)
+	if err != nil {
+		t.Fatalf("Invalid YAML: %s", err)
+	}
+
+	napp, herr := app.Normalize()
+	if herr != nil {
+		t.Fatalf("Invalid app: %s", herr)
+	}
+
+	assert.Equal(t, false, napp.Invocation.Inference.Present)
+}
+
+func TestInferenceMandatory(t *testing.T) {
+	var app A2Yaml
+	err := yaml.Unmarshal([]byte(`
+name: test-app
+version: "1"
+software:
+  type: Container
+  image: ubuntu:latest
+inference:
+  mode: Mandatory
+invocation: echo hello
+`), &app)
+	if err != nil {
+		t.Fatalf("Invalid YAML: %s", err)
+	}
+
+	napp, herr := app.Normalize()
+	if herr != nil {
+		t.Fatalf("Invalid app: %s", herr)
+	}
+
+	if assert.Equal(t, true, napp.Invocation.Inference.Present) {
+		assert.Equal(t, orcapi.InferenceModeMandatory, napp.Invocation.Inference.Value.Mode)
 	}
 }

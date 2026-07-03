@@ -62,13 +62,17 @@ export interface ApiTokenRetrieveOptionsResponse {
     byProvider: Record<string, ApiTokenOptions>;
 }
 
+export interface ApiTokenBrowseRequest extends PaginationRequestV2 {
+    filterHidden?: boolean;
+}
+
 const baseContext = "/api/tokens";
 
 export function create(request: ApiTokenSpecification): APICallParameters<ApiTokenSpecification, ApiToken> {
     return apiCreate(request, baseContext);
 }
 
-export function browse(request: PaginationRequestV2): APICallParameters<PaginationRequestV2, PageV2<ApiToken>> {
+export function browse(request: ApiTokenBrowseRequest): APICallParameters<ApiTokenBrowseRequest, PageV2<ApiToken>> {
     return apiBrowse(request, baseContext);
 }
 

@@ -1,6 +1,6 @@
 # CLI
 
-The Kubernetes integration includes a small operations CLI for inspecting and controlling active jobs.
+The Kubernetes integration includes a small operations CLI for inspecting and controlling active jobs and inference model catalog entries.
 
 Commands are run on the host where the Integration Module is installed:
 
@@ -8,7 +8,7 @@ Commands are run on the host where the Integration Module is installed:
 $ ucloud <command> <subcommand> [options]
 ```
 
-The job commands are available under `ucloud jobs ...`.
+The job commands are available under `ucloud jobs ...`. Inference model catalog commands are available under `ucloud inference models ...`.
 
 ## Notes
 
@@ -113,6 +113,45 @@ If a listed job is not a virtual machine job, the command reports an error for t
 
 Alias: `resume`.
 
+## `inference models` command
+
+The inference model commands manage the model catalog stored by the Integration Module. They do not query the backing inference platform directly.
+
+### `ucloud inference models ls`
+
+Lists inference model catalog entries, including name, title, capabilities, pricing multipliers, endpoint information, and availability.
+
+Options:
+
+- `--json`: Print JSON output.
+
+Alias: `list`.
+
+### `ucloud inference models update <name>`
+
+Updates an existing inference model catalog entry.
+
+Options:
+
+- `--name <name>`: Rename the model. Renaming is only allowed while the model is not public.
+- `--title <title>`: Set the display title.
+- `--capabilities <list>`: Set a comma-separated capability list. Allowed values are `TextGeneration`, `TextToImage`, and `SpeechToText`.
+- `--price-cached <n>`: Set cached input token price multiplier in fixed-point thousandths.
+- `--price-input <n>`: Set input token price multiplier in fixed-point thousandths.
+- `--price-output <n>`: Set output token price multiplier in fixed-point thousandths.
+- `--public <bool>`: Set whether the model is publicly available.
+- `--available-to <list>`: Set a comma-separated list of project IDs allowed to use the model when it is not public.
+- `--base-path <url>`: Set the OpenAI-compatible endpoint base path for the backing model.
+- `--backend-model-name <name>`: Set the model name sent to the backing inference provider.
+
+Price multipliers must be non-negative integers. A value of `1000` means `1x`; `500` means `0.5x`.
+
+### `ucloud inference models rm <name>`
+
+Removes an inference model catalog entry. Removal only affects the Integration Module catalog and does not depend on whether the backing inference platform still lists the model.
+
+Aliases: `remove`, `delete`, `del`.
+
 ## Examples
 
 ```terminal
@@ -127,4 +166,8 @@ $ ucloud jobs queue state gpu-a10/a10
 $ ucloud jobs stop 1234 5678
 $ ucloud jobs suspend 1234
 $ ucloud jobs resume 1234
+$ ucloud inference models ls
+$ ucloud inference models update qwen --title "Qwen" --capabilities TextGeneration --price-input 1000 --price-output 1000
+$ ucloud inference models update qwen --name qwen-public --public true
+$ ucloud inference models rm qwen-public
 ```

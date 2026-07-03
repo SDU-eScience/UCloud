@@ -13,6 +13,7 @@ import {ProjectTitleForNewCore} from "@/Project/InfoCache";
 import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
 import {UserCriteriaEditorReadOnly} from "@/Project/ProjectSettings";
 import {displayErrorMessageOrDefault} from "@/UtilityFunctions";
+import {DefaultTemplateRevision} from "@/Grants/Editor";
 
 const defaultSetting: Grants.RequestSettings = {
     enabled: false,
@@ -20,10 +21,13 @@ const defaultSetting: Grants.RequestSettings = {
     allowRequestsFrom: [],
     excludeRequestsFrom: [],
     templates: {
-        type: "plain_text",
-        personalProject: "No template",
-        newProject: "No template",
-        existingProject: "No template",
+        type: "structured",
+        structured: {
+            personalProject: [],
+            existingProject: [],
+            newProject: [],
+            revisionNumber: DefaultTemplateRevision
+        },
     }
 }
 
