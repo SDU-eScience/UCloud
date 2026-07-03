@@ -294,19 +294,69 @@ type InferenceChatDelta struct {
 }
 
 func (d *InferenceChatDelta) UnmarshalJSON(data []byte) error {
-	type inferenceChatDeltaJSON InferenceChatDelta
 	var decoded struct {
-		inferenceChatDeltaJSON
-		ReasoningContent string `json:"reasoning_content"`
+		Role             string                           `json:"role"`
+		Content          json.RawMessage                  `json:"content"`
+		Reasoning        json.RawMessage                  `json:"reasoning"`
+		ReasoningContent json.RawMessage                  `json:"reasoning_content"`
+		ToolCalls        []InferenceChatStreamingToolCall `json:"tool_calls"`
 	}
 	if err := json.Unmarshal(data, &decoded); err != nil {
 		return err
 	}
-	*d = InferenceChatDelta(decoded.inferenceChatDeltaJSON)
-	if d.Reasoning == "" && decoded.ReasoningContent != "" {
-		d.Reasoning = decoded.ReasoningContent
+
+	content, err := inferenceChatDeltaText(decoded.Content)
+	if err != nil {
+		return err
 	}
+	reasoning, err := inferenceChatDeltaText(decoded.Reasoning)
+	if err != nil {
+		return err
+	}
+	reasoningContent, err := inferenceChatDeltaText(decoded.ReasoningContent)
+	if err != nil {
+		return err
+	}
+	if reasoning == "" {
+		reasoning = reasoningContent
+	}
+
+	d.Role = decoded.Role
+	d.Content = content
+	d.Reasoning = reasoning
+	d.ToolCalls = decoded.ToolCalls
 	return nil
+}
+
+func inferenceChatDeltaText(data json.RawMessage) (string, error) {
+	if len(data) == 0 || bytes.Equal(data, []byte("null")) {
+		return "", nil
+	}
+
+	var text string
+	if err := json.Unmarshal(data, &text); err == nil {
+		return text, nil
+	}
+
+	var part struct {
+		Text string `json:"text"`
+	}
+	if err := json.Unmarshal(data, &part); err == nil && part.Text != "" {
+		return part.Text, nil
+	}
+
+	var parts []struct {
+		Text string `json:"text"`
+	}
+	if err := json.Unmarshal(data, &parts); err != nil {
+		return "", err
+	}
+
+	var builder strings.Builder
+	for _, part := range parts {
+		builder.WriteString(part.Text)
+	}
+	return builder.String(), nil
 }
 
 type InferenceChatStreamingToolCall struct {
@@ -423,7 +473,10 @@ func InferenceChatStreaming(owner apm.WalletOwner, history InferenceChatRequest)
 				return
 			}
 
-			raw = strings.TrimPrefix(raw, "data: ")
+			raw = inferenceSSEDataPayload(raw)
+			if raw == "" || raw == "[DONE]" {
+				return
+			}
 			var chunk struct {
 				Id      string                          `json:"id"`
 				Object  string                          `json:"object"`
@@ -1154,6 +1207,25 @@ func parseFormBool(raw string) bool {
 
 func parseFormFloat(raw string) (float64, error) {
 	return strconv.ParseFloat(raw, 64)
+}
+
+func inferenceSSEDataPayload(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if strings.HasPrefix(raw, "data: ") && !strings.Contains(raw, "\n") {
+		return strings.TrimSpace(strings.TrimPrefix(raw, "data: "))
+	}
+
+	var builder strings.Builder
+	for _, line := range strings.Split(raw, "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "data: ") {
+			if builder.Len() > 0 {
+				builder.WriteByte('\n')
+			}
+			builder.WriteString(strings.TrimPrefix(line, "data: "))
+		}
+	}
+	return strings.TrimSpace(builder.String())
 }
 
 func inferenceBackendJSONRequest(basePath string, method string, path string, body []byte, contentType string) ([]byte, *util.HttpError) {

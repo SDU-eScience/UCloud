@@ -389,6 +389,144 @@ func initInference() {
 		_, _ = w.Write(respData)
 	})
 
+	controller.Mux.HandleFunc(authority+"/v1/responses", func(w http.ResponseWriter, r *http.Request) {
+		apiKeyOwner, httpErr := inferenceAuthenticateRequest(r)
+		if httpErr != nil {
+			http.Error(w, httpErr.Why, httpErr.StatusCode)
+			return
+		}
+		if r.Method != http.MethodPost {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, "invalid request", http.StatusBadRequest)
+			return
+		}
+
+		var request OaiResponseCreateRequest
+		if err := json.Unmarshal(body, &request); err != nil {
+			http.Error(w, "invalid request", http.StatusBadRequest)
+			return
+		}
+
+		if request.Stream {
+			flusher, ok := w.(http.Flusher)
+			if !ok {
+				http.Error(w, "streaming unsupported", http.StatusInternalServerError)
+				return
+			}
+
+			events, httpErr := InferenceResponseCreateStreaming(apiKeyOwner, request)
+			if httpErr != nil {
+				http.Error(w, httpErr.Why, httpErr.StatusCode)
+				return
+			}
+
+			w.Header().Set("Content-Type", "text/event-stream")
+			w.Header().Set("Cache-Control", "no-cache")
+			w.Header().Set("Connection", "keep-alive")
+
+			for event := range events {
+				data, err := json.Marshal(event)
+				if err != nil {
+					continue
+				}
+
+				_, _ = w.Write([]byte("event: "))
+				_, _ = w.Write([]byte(event.Type))
+				_, _ = w.Write([]byte("\n"))
+				_, _ = w.Write([]byte("data: "))
+				_, _ = w.Write(data)
+				_, _ = w.Write([]byte("\n\n"))
+				flusher.Flush()
+
+				if event.Response != nil {
+					event.Response.Instructions = nil
+					dummy, _ := json.Marshal(event)
+					log.Info("Resp: %s", string(dummy))
+				}
+			}
+			return
+		}
+
+		resp, httpErr := InferenceResponseCreate(apiKeyOwner, request)
+		if httpErr != nil {
+			http.Error(w, httpErr.Why, httpErr.StatusCode)
+			return
+		}
+		respData, err := json.Marshal(resp)
+		if err != nil {
+			http.Error(w, "invalid response", http.StatusBadGateway)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(respData)
+	})
+
+	controller.Mux.HandleFunc(authority+"/v1/responses/", func(w http.ResponseWriter, r *http.Request) {
+		apiKeyOwner, httpErr := inferenceAuthenticateRequest(r)
+		if httpErr != nil {
+			http.Error(w, httpErr.Why, httpErr.StatusCode)
+			return
+		}
+
+		path := strings.TrimPrefix(r.URL.Path, "/v1/responses/")
+		path = strings.Trim(path, "/")
+		if path == "" {
+			http.Error(w, "response not found", http.StatusNotFound)
+			return
+		}
+
+		if strings.HasSuffix(path, "/cancel") {
+			if r.Method != http.MethodPost {
+				http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+				return
+			}
+			id := strings.TrimSuffix(path, "/cancel")
+			id = strings.Trim(id, "/")
+			resp, httpErr := InferenceResponseCancel(apiKeyOwner, id)
+			if httpErr != nil {
+				http.Error(w, httpErr.Why, httpErr.StatusCode)
+				return
+			}
+			respData, _ := json.Marshal(resp)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(respData)
+			return
+		}
+
+		switch r.Method {
+		case http.MethodGet:
+			resp, httpErr := InferenceResponsePoll(apiKeyOwner, path)
+			if httpErr != nil {
+				http.Error(w, httpErr.Why, httpErr.StatusCode)
+				return
+			}
+			respData, _ := json.Marshal(resp)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(respData)
+		case http.MethodDelete:
+			resp, httpErr := InferenceResponseDelete(apiKeyOwner, path)
+			if httpErr != nil {
+				http.Error(w, httpErr.Why, httpErr.StatusCode)
+				return
+			}
+			respData, _ := json.Marshal(resp)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(respData)
+		default:
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
+
 	controller.Mux.HandleFunc(authority+"/v1/audio/transcriptions", func(w http.ResponseWriter, r *http.Request) {
 		apiKeyOwner, httpErr := inferenceAuthenticateRequest(r)
 		if httpErr != nil {
