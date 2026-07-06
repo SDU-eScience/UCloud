@@ -1,4 +1,4 @@
-package k8s
+package inference
 
 import (
 	"bytes"
@@ -90,7 +90,8 @@ var (
 	}, []string{"model"})
 )
 
-func initInference() {
+func Init() {
+	initCli()
 	inferenceCfg := &shared.ServiceConfig.Compute.Inference
 	if !inferenceCfg.Enabled {
 		return
@@ -1047,7 +1048,7 @@ func inferenceApiKeyValidate(key string) (apm.WalletOwner, *util.HttpError) {
 	}
 }
 
-func inferenceInitApiTokens() controller.ApiTokenService {
+func InitApiTokens() controller.ApiTokenService {
 	return controller.ApiTokenService{
 		Create:          inferenceCreateApiToken,
 		Revoke:          inferenceRevokeApiToken,

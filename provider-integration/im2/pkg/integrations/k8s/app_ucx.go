@@ -16,6 +16,7 @@ import (
 	ctrl "ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/integrations/k8s/containers"
 	"ucloud.dk/pkg/integrations/k8s/filesystem"
+	"ucloud.dk/pkg/integrations/k8s/inference"
 	"ucloud.dk/pkg/integrations/k8s/kubevirt"
 	"ucloud.dk/pkg/integrations/k8s/shared"
 	fnd "ucloud.dk/shared/pkg/foundation"
@@ -42,7 +43,7 @@ func initAppUcx() ctrl.UcxApplicationService {
 		OnConnect:    ucxOnConnect,
 		OnConnectJob: ucxOnConnectJob,
 		InferencePlaygroundFactory: func(owner orcapi.ResourceOwner, sessionId string) ucx.Application {
-			return InferencePlayground(owner, sessionId)
+			return inference.InferencePlayground(owner, sessionId)
 		},
 	}
 }

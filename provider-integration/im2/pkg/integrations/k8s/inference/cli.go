@@ -1,4 +1,4 @@
-package k8s
+package inference
 
 import (
 	"encoding/json"
@@ -207,7 +207,7 @@ func inferenceCliModelsRemove(args []string) {
 	termio.WriteStyledLine(termio.Bold, termio.Green, 0, "Removed inference model: %s", args[0])
 }
 
-func initInferenceCli() {
+func initCli() {
 	k8sCliInferenceModelsList.Handler(func(r *ipc.Request[util.Empty]) ipc.Response[[]InferenceModel] {
 		if r.Uid != 0 {
 			return ipc.Response[[]InferenceModel]{StatusCode: http.StatusForbidden, ErrorMessage: "Must be run as root"}

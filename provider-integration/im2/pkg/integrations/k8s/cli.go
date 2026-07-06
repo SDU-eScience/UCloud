@@ -5,6 +5,7 @@ import (
 
 	"ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/integrations/k8s/filesystem"
+	"ucloud.dk/pkg/integrations/k8s/inference"
 )
 
 func HandleCliWithoutConfig(command string) bool {
@@ -34,6 +35,6 @@ func HandleCli(command string) {
 	case "jobs":
 		HandleJobsCommand()
 	case "inference":
-		InferenceCli(os.Args[2:])
+		inference.InferenceCli(os.Args[2:])
 	}
 }

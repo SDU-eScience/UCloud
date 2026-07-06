@@ -11,6 +11,7 @@ import (
 	"ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/integrations/k8s/containers"
 	"ucloud.dk/pkg/integrations/k8s/filesystem"
+	"ucloud.dk/pkg/integrations/k8s/inference"
 	"ucloud.dk/pkg/integrations/k8s/shared"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 
@@ -72,10 +73,9 @@ func Init(config *cfg.ServicesConfigurationKubernetes) {
 
 	initStorageScanCli()
 	initJobsCli()
-	initInferenceCli()
-	initInference()
+	inference.Init()
 	initJobAuditLogCleanup()
-	controller.ApiTokens = inferenceInitApiTokens()
+	controller.ApiTokens = inference.InitApiTokens()
 	shared.InitExecutables()
 
 	controller.ProductsRegister(shared.Machines)
