@@ -160,7 +160,7 @@ func Launch() {
 			Role string `json:"role"`
 		}
 
-		if r.Header.Get("x-jwt-payload") == "" && strings.HasPrefix(r.RequestURI, "/api/internal/") {
+		if r.Header.Get("x-jwt-payload") == "" && (strings.HasPrefix(r.RequestURI, "/api/internal/") || strings.HasPrefix(r.RequestURI, "/api/inference/attachments")) {
 			return rpc.Actor{Role: rpc.RoleGuest}, nil
 		}
 

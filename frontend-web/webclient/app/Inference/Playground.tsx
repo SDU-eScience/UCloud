@@ -47,12 +47,14 @@ type PlaygroundOption = { key: string; value: string };
 type PlaygroundAttachmentKind = "image" | "video" | "audio" | "text" | "unsupported";
 type PlaygroundUploadAttachment = {
     localId: string;
+    kind: Exclude<PlaygroundAttachmentKind, "unsupported">;
     attachmentId: string | null;
     fileName: string;
     fileSize: number;
     uploadedBytes: number;
     status: "uploading" | "uploaded" | "error";
     error: string;
+    text: string;
 };
 
 const ComposerActionButtonClass = injectStyleSimple("inference-composer-action", `
@@ -133,6 +135,8 @@ const ThreadListClass = injectStyle("inference-thread-list", k => `
 `);
 
 const MAX_RECONNECT_ATTEMPTS = 5;
+const MAX_TEXT_ATTACHMENT_BYTES = 128 * 1024;
+const PlaygroundProviderDomainContext = React.createContext("");
 
 const playgroundComponents: UcxComponentRegistry = {
     inference_toggle: ({node, model, scope, fn}: UcxRenderContext) => {
@@ -392,17 +396,36 @@ const playgroundComponents: UcxComponentRegistry = {
         const selectedModelOption = modelOptions.find(option => option.key === selectedModel);
         const selectedCapabilities = modelCapabilities(model, selectedModel);
         const value = stringValue(fn.modelValue(model, node.bindPath, scope));
-        const canSend = !disabled && value.trim() !== "";
+        const providerDomain = React.useContext(PlaygroundProviderDomainContext);
         const fileInputRef = React.useRef<HTMLInputElement | null>(null);
         const uploadCancelRef = React.useRef<Record<string, {cancelled: boolean; attachmentId: string | null}>>({});
         const [attachments, setAttachments] = React.useState<PlaygroundUploadAttachment[]>([]);
+        const canSend = !disabled && value.trim() !== "" && attachments.every(attachment => attachment.status === "uploaded");
 
         const send = () => {
             if (!canSend) return;
+            const sentAttachments = attachments.filter(attachment => attachment.kind === "text" || attachment.attachmentId !== null);
             fn.sendUiEvent(node.id, "click", {
-                kind: ValueKind.String,
-                string: value,
+                kind: ValueKind.Object,
+                object: {
+                    prompt: {kind: ValueKind.String, string: value},
+                    attachments: {
+                        kind: ValueKind.List,
+                        list: sentAttachments.map(attachment => ({
+                            kind: ValueKind.Object,
+                            object: {
+                                kind: {kind: ValueKind.String, string: attachment.kind},
+                                attachmentId: {kind: ValueKind.String, string: attachment.attachmentId ?? ""},
+                                fileName: {kind: ValueKind.String, string: attachment.fileName},
+                                url: {kind: ValueKind.String, string: attachment.attachmentId === null ? "" : playgroundAttachmentUrl(providerDomain, attachment.attachmentId)},
+                                text: {kind: ValueKind.String, string: attachment.text},
+                            },
+                        })),
+                    },
+                },
             });
+            setAttachments([]);
+            uploadCancelRef.current = {};
         };
 
         const removeAttachment = (localId: string) => {
@@ -424,18 +447,42 @@ const playgroundComponents: UcxComponentRegistry = {
                 sendFailureNotification(rejection);
                 return;
             }
+            if (kind === "unsupported") return;
+
+            if (kind === "text") {
+                if (file.size > MAX_TEXT_ATTACHMENT_BYTES) {
+                    sendFailureNotification("Text attachments must be 128 KiB or smaller.");
+                    return;
+                }
+                const text = await file.text();
+                const localId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+                setAttachments(current => [...current, {
+                    localId,
+                    kind,
+                    attachmentId: null,
+                    fileName: file.name,
+                    fileSize: file.size,
+                    uploadedBytes: file.size,
+                    status: "uploaded",
+                    error: "",
+                    text,
+                }]);
+                return;
+            }
 
             const localId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
             const cancelState = {cancelled: false, attachmentId: null as string | null};
             uploadCancelRef.current[localId] = cancelState;
             setAttachments(current => [...current, {
                 localId,
+                kind,
                 attachmentId: null,
                 fileName: file.name,
                 fileSize: file.size,
                 uploadedBytes: 0,
                 status: "uploading",
                 error: "",
+                text: "",
             }]);
 
             try {
@@ -647,14 +694,22 @@ const playgroundComponents: UcxComponentRegistry = {
 type ThreadListItem = { id: string; title: string };
 
 type ChatMessagePart = {
-    kind: "text" | "thinking";
+    kind: "text" | "thinking" | "image" | "video" | "audio" | "attachment";
     text: string;
     summary: string;
     body: string;
     open: boolean;
+    fileName: string;
+    url: string;
 };
 
-function AttachmentUploadCard({attachment, onRemove}: {attachment: PlaygroundUploadAttachment; onRemove: () => void}): React.ReactNode {
+type ChatMessageListItem = {
+    role: string;
+    content: string;
+    parts: ChatMessagePart[];
+};
+
+function AttachmentUploadCard({attachment, onRemove}: {attachment: PlaygroundUploadAttachment; onRemove?: () => void}): React.ReactNode {
     const progress = attachment.fileSize <= 0 ? 100 : Math.min(100, Math.round((attachment.uploadedBytes / attachment.fileSize) * 100));
     const uploading = attachment.status === "uploading";
     return <div style={{
@@ -674,14 +729,29 @@ function AttachmentUploadCard({attachment, onRemove}: {attachment: PlaygroundUpl
                 {attachment.fileName}
             </div>
             <div style={{fontSize: 11, color: "var(--textSecondary)"}}>
-                {attachment.status === "error" ? attachment.error : uploading ? `${progress}% uploaded` : `${sizeToString(attachment.uploadedBytes)}`}
+                {attachment.status === "error" ? attachment.error : uploading ? `${progress}% uploaded` : attachment.uploadedBytes === 0 ? null : `${sizeToString(attachment.uploadedBytes)}`}
             </div>
             {uploading && <div style={{height: 3, marginTop: 4, borderRadius: 999, background: "var(--borderColor)", overflow: "hidden"}}>
                 <div style={{height: "100%", width: `${progress}%`, background: "var(--primaryMain)", transition: "width 120ms ease"}}/>
             </div>}
         </div>
-        <IconButton tooltip={"Remove attachment"} onClick={onRemove} icon={"heroTrash"} />
+        {onRemove ? <IconButton tooltip={"Remove attachment"} onClick={onRemove} icon={"heroTrash"} /> : null}
     </div>;
+}
+
+function MessageAttachmentCard({part}: {part: ChatMessagePart}): React.ReactNode {
+    const kind = part.kind === "image" || part.kind === "video" || part.kind === "audio" ? part.kind : "text";
+    return <AttachmentUploadCard attachment={{
+        localId: `${part.kind}-${part.url}-${part.fileName}`,
+        kind,
+        attachmentId: null,
+        fileName: part.fileName || "Unknown",
+        fileSize: 0,
+        uploadedBytes: 0,
+        status: "uploaded",
+        error: "",
+        text: part.text,
+    }}/>;
 }
 
 type ChatMessageNodeProps = Pick<UcxRenderContext, "model" | "scope" | "fn">;
@@ -794,6 +864,7 @@ function ChatMessageNode(
     const modelOptions = textGenerationModelOptions(fn.modelValue(model, "models"));
     const selectedModelOption = modelOptions.find(option => option.key === modelName) ?? modelOptions.find(option => option.key === stringValue(fn.modelValue(model, "chat.modelId")));
     const regenerateModelLabel = selectedModelOption?.value ?? modelName;
+    const allMessages = chatMessagesValue(fn.modelValue(model, "chat.messages"));
     const messageParts = parts.length === 0
         ? [
             {
@@ -806,11 +877,25 @@ function ChatMessageNode(
         ]
         : parts;
 
+    if (shouldHideCollapsedAttachmentMessage(allMessages, messageIndex, role, content, messageParts)) return null;
+
     if (role === "user") {
+        const displayParts = orderUserMessageParts([
+            ...messageParts,
+            ...collapsedAttachmentPartsForMessage(allMessages, messageIndex),
+        ]);
         return (
             <Flex width="100%" justifyContent="flex-end" my={16} flexDirection="column" alignItems="flex-end" gap="6px">
-                <div style={{maxWidth: "78%", borderRadius: 16, padding: "10px 14px", background: "var(--playground-user-bg, var(--secondaryMain))", color: "var(--playground-user-text, var(--textPrimary))", overflowWrap: "anywhere"}}>
-                    {messageParts.map((part, idx) => <span key={idx}>{part.text}</span>)}
+                <div style={{maxWidth: "78%", borderRadius: 16, padding: "10px 14px", background: "var(--playground-user-bg, var(--secondaryMain))", color: "var(--playground-user-text, var(--textPrimary))", overflowWrap: "anywhere", display: "flex", flexDirection: "column", gap: 8}}>
+                    {displayParts.map((part, idx) => {
+                        if (part.kind === "image" && part.url !== "") {
+                            return <img key={idx} src={part.url} alt={part.fileName || "Attachment"} style={{maxWidth: 360, maxHeight: 260, objectFit: "contain", borderRadius: 8}}/>;
+                        }
+                        if (part.kind === "video" || part.kind === "audio" || part.kind === "attachment") {
+                            return <MessageAttachmentCard key={idx} part={part}/>;
+                        }
+                        return <span key={idx} style={{whiteSpace: "pre-wrap"}}>{part.text}</span>;
+                    })}
                 </div>
                 <Flex className={ComposerActionButtonHoverClass} alignItems="center" gap="8px" color="textSecondary" fontSize="12px">
                     <span>{formatTimeOfDay(generatedAt)}</span>
@@ -1389,6 +1474,8 @@ export default function Playground(): React.ReactNode {
         );
     }
 
+    const providerDomain = playgroundProviderDomain(session.connectTo);
+
     return (
         <MainContainer
             main={
@@ -1406,6 +1493,7 @@ export default function Playground(): React.ReactNode {
                     {terminalError === "" ? null : (
                         <Text color="errorMain">{terminalError}</Text>
                     )}
+                    <PlaygroundProviderDomainContext.Provider value={providerDomain}>
                     <UcxView
                         key={`${projectId ?? ""}:${session.sessionToken}`}
                         url={session.connectTo}
@@ -1416,6 +1504,7 @@ export default function Playground(): React.ReactNode {
                         onDisconnected={handleDisconnected}
                         components={playgroundComponents}
                     />
+                    </PlaygroundProviderDomainContext.Provider>
                 </div>
             }
         />
@@ -1468,6 +1557,19 @@ function optionsProp(node: { props?: Record<string, Value> }, key: string): Play
         if (optionKey === "") return [];
         return [{key: optionKey, value: optionValue === "" ? optionKey : optionValue}];
     });
+}
+
+function playgroundProviderDomain(connectTo: string): string {
+    try {
+        return new URL(connectTo).host;
+    } catch {
+        return "";
+    }
+}
+
+function playgroundAttachmentUrl(providerDomain: string, attachmentId: string): string {
+    if (providerDomain === "" || attachmentId === "") return "";
+    return `https://${providerDomain}/api/inference/attachments/download?id=${encodeURIComponent(attachmentId)}`;
 }
 
 function textGenerationModelOptions(value: any): PlaygroundOption[] {
@@ -1556,7 +1658,7 @@ function chatMessagePartsValue(value: any): ChatMessagePart[] {
     return value.list.flatMap((item: Value) => {
         if (item.kind !== ValueKind.Object) return [];
         const kind = stringValue(item.object.kind);
-        if (kind !== "text" && kind !== "thinking") return [];
+        if (kind !== "text" && kind !== "thinking" && kind !== "image" && kind !== "video" && kind !== "audio" && kind !== "attachment") return [];
         return [
             {
                 kind,
@@ -1564,9 +1666,74 @@ function chatMessagePartsValue(value: any): ChatMessagePart[] {
                 summary: stringValue(item.object.summary),
                 body: stringValue(item.object.body),
                 open: boolValue(item.object.open),
+                fileName: stringValue(item.object.fileName),
+                url: stringValue(item.object.url),
             },
         ];
     });
+}
+
+function chatMessagesValue(value: any): ChatMessageListItem[] {
+    if (!value || value.kind !== ValueKind.List) return [];
+    return value.list.flatMap((item: Value) => {
+        if (item.kind !== ValueKind.Object) return [];
+        const role = stringValue(item.object.role);
+        if (role === "") return [];
+        return [{
+            role,
+            content: stringValue(item.object.content),
+            parts: chatMessagePartsValue(item.object.parts),
+        }];
+    });
+}
+
+function isAttachmentMessagePart(part: ChatMessagePart): boolean {
+    return part.kind === "image" || part.kind === "video" || part.kind === "audio" || part.kind === "attachment";
+}
+
+function isAttachmentOnlyUserMessage(message: ChatMessageListItem): boolean {
+    return message.role === "user" && message.parts.length > 0 && message.parts.every(isAttachmentMessagePart);
+}
+
+function isTextUserMessage(role: string, content: string, parts: ChatMessagePart[]): boolean {
+    if (role !== "user" || content.trim() === "") return false;
+    return !parts.every(isAttachmentMessagePart);
+}
+
+function shouldHideCollapsedAttachmentMessage(
+    messages: ChatMessageListItem[],
+    messageIndex: number,
+    role: string,
+    content: string,
+    parts: ChatMessagePart[]
+): boolean {
+    if (!isAttachmentOnlyUserMessage({role, content, parts})) return false;
+    for (let i = messageIndex + 1; i < messages.length; i++) {
+        const message = messages[i];
+        if (message.role === "assistant") return false;
+        if (isTextUserMessage(message.role, message.content, message.parts)) return true;
+    }
+    return false;
+}
+
+function collapsedAttachmentPartsForMessage(messages: ChatMessageListItem[], messageIndex: number): ChatMessagePart[] {
+    const message = messages[messageIndex];
+    if (!message || !isTextUserMessage(message.role, message.content, message.parts)) return [];
+
+    const attachments: ChatMessagePart[] = [];
+    for (let i = messageIndex - 1; i >= 0; i--) {
+        const previous = messages[i];
+        if (!isAttachmentOnlyUserMessage(previous)) break;
+        attachments.unshift(...previous.parts);
+    }
+    return attachments;
+}
+
+function orderUserMessageParts(parts: ChatMessagePart[]): ChatMessagePart[] {
+    return [
+        ...parts.filter(part => !isAttachmentMessagePart(part)),
+        ...parts.filter(isAttachmentMessagePart),
+    ];
 }
 
 function threadListValue(value: any): ThreadListItem[] {

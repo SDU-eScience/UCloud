@@ -5,8 +5,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"html"
 	"io"
 	"mime"
+	"net/url"
 	"path/filepath"
 	"slices"
 	"sort"
@@ -173,11 +175,21 @@ type playgroundChatMessage struct {
 }
 
 type playgroundChatMessagePart struct {
-	Kind    string
-	Text    string
-	Summary string
-	Body    string
-	Open    bool
+	Kind     string
+	Text     string
+	Summary  string
+	Body     string
+	Open     bool
+	FileName string
+	Url      string
+}
+
+type playgroundChatAttachment struct {
+	Kind         string
+	AttachmentId string
+	FileName     string
+	Url          string
+	Text         string
 }
 
 type playgroundChatThread struct {
@@ -519,7 +531,7 @@ func (app *InferencePlaygroundApp) markCurrentThreadDirty() {
 	thread.Dirty = true
 	if thread.Title == "New thread" {
 		for _, msg := range thread.Messages {
-			if msg.Role == "user" {
+			if msg.Role == "user" && !playgroundMessageIsAttachmentOnly(msg) {
 				thread.Title = playgroundThreadTitle(msg.Content)
 				if !thread.TitleGenerated && !thread.TitleGenerationStarted {
 					thread.TitleGenerationStarted = true
@@ -679,6 +691,15 @@ func (app *InferencePlaygroundApp) deleteThread(id string) {
 		app.Chat.Messages = nil
 		app.ensureCurrentThread()
 	}
+}
+
+func playgroundMessageIsAttachmentOnly(msg playgroundChatMessage) bool {
+	if len(msg.Parts) == 1 {
+		kind := msg.Parts[0].Kind
+		return kind == "image" || kind == "video" || kind == "audio" || kind == "attachment"
+	}
+	_, ok := playgroundAttachmentPartFromUrl(msg.Content)
+	return ok
 }
 
 func (app *InferencePlaygroundApp) sortThreads() {
@@ -1062,9 +1083,10 @@ func (app *InferencePlaygroundApp) chatTab() ucx.UiNode {
 				app.Chat.Loading,
 				app.modelOptionsFor(InferenceTextGeneration),
 			).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
-				app.Chat.Prompt = ev.Value.String
+				prompt, attachments := playgroundChatComposerEvent(ev.Value)
+				app.Chat.Prompt = prompt
 				if !app.Chat.Loading {
-					app.runChat()
+					app.runChat(attachments)
 					ucx.AppUpdateModel(app)
 				}
 			}),
@@ -1095,15 +1117,16 @@ func (app *InferencePlaygroundApp) prepareChatMessagesForUi() {
 	}
 }
 
-func (app *InferencePlaygroundApp) runChat() {
+func (app *InferencePlaygroundApp) runChat(attachments []playgroundChatAttachment) {
 	prompt := strings.TrimSpace(app.Chat.Prompt)
+	prompt = playgroundPromptWithTextAttachments(prompt, attachments)
 
 	app.Chat.Loading = true
 
 	request := InferenceChatRequest{
 		Model:               app.Chat.ModelId,
 		Stream:              app.Chat.Streaming,
-		Messages:            app.chatRequestMessages(prompt),
+		Messages:            app.chatRequestMessages(prompt, attachments),
 		StreamOptions:       util.Option[InferenceChatStreamOptions]{},
 		Temperature:         util.OptValue(app.Chat.Temperature),
 		TopP:                util.OptValue(app.Chat.TopP),
@@ -1147,7 +1170,8 @@ func (app *InferencePlaygroundApp) runChat() {
 	} else {
 		owner := app.walletOwner()
 		now := time.Now().UnixMilli()
-		app.Chat.Messages = append(app.Chat.Messages, playgroundChatMessage{Role: "user", Content: prompt, GeneratedAt: now})
+		app.Chat.Messages = append(app.Chat.Messages, playgroundAttachmentMessages(attachments, now)...)
+		app.Chat.Messages = append(app.Chat.Messages, playgroundChatMessage{Role: "user", Content: prompt, Parts: playgroundChatMessageParts(prompt, "", "", false), GeneratedAt: now})
 		app.Chat.Messages = append(app.Chat.Messages, playgroundChatMessage{Role: "assistant", Content: "", Parts: playgroundChatMessageParts("", "", "", false), GeneratedAt: now, ModelName: app.Chat.ModelId, StartedAt: now})
 		assistantIndex := len(app.Chat.Messages) - 1
 		app.Chat.Prompt = ""
@@ -1396,6 +1420,64 @@ func (app *InferencePlaygroundApp) updateThreadAssistantReasoningTitle(threadId 
 	}
 }
 
+func playgroundChatComposerEvent(value ucx.Value) (string, []playgroundChatAttachment) {
+	if value.Kind != ucx.ValueObject {
+		return value.String, nil
+	}
+	prompt := value.Object["prompt"].String
+	attachmentsValue := value.Object["attachments"]
+	attachments := make([]playgroundChatAttachment, 0, len(attachmentsValue.List))
+	if attachmentsValue.Kind == ucx.ValueList {
+		for _, item := range attachmentsValue.List {
+			if item.Kind != ucx.ValueObject {
+				continue
+			}
+			attachments = append(attachments, playgroundChatAttachment{
+				Kind:         item.Object["kind"].String,
+				AttachmentId: item.Object["attachmentId"].String,
+				FileName:     item.Object["fileName"].String,
+				Url:          item.Object["url"].String,
+				Text:         item.Object["text"].String,
+			})
+		}
+	}
+	return prompt, attachments
+}
+
+func playgroundPromptWithTextAttachments(prompt string, attachments []playgroundChatAttachment) string {
+	var builder strings.Builder
+	builder.WriteString(prompt)
+	for _, attachment := range attachments {
+		if attachment.Kind != "text" {
+			continue
+		}
+		if builder.Len() > 0 && !strings.HasSuffix(builder.String(), "\n") {
+			builder.WriteString("\n")
+		}
+		builder.WriteString("<attachment name=\"")
+		builder.WriteString(html.EscapeString(attachment.FileName))
+		builder.WriteString("\">\n")
+		builder.WriteString(attachment.Text)
+		if !strings.HasSuffix(attachment.Text, "\n") {
+			builder.WriteString("\n")
+		}
+		builder.WriteString("</attachment>")
+	}
+	return builder.String()
+}
+
+func playgroundAttachmentMessages(attachments []playgroundChatAttachment, generatedAt int64) []playgroundChatMessage {
+	messages := []playgroundChatMessage{}
+	for _, attachment := range attachments {
+		if attachment.Kind != "image" && attachment.Kind != "video" && attachment.Kind != "audio" {
+			continue
+		}
+		part := playgroundChatMessagePart{Kind: attachment.Kind, FileName: attachment.FileName, Url: attachment.Url}
+		messages = append(messages, playgroundChatMessage{Role: "user", Content: attachment.Url, Parts: []playgroundChatMessagePart{part}, GeneratedAt: generatedAt})
+	}
+	return messages
+}
+
 func playgroundChatMessageParts(content string, reasoning string, reasoningTitle string, reasoningOpen bool) []playgroundChatMessagePart {
 	parts := []playgroundChatMessagePart{}
 	if reasoning != "" {
@@ -1408,9 +1490,67 @@ func playgroundChatMessageParts(content string, reasoning string, reasoningTitle
 			Open:    reasoningOpen,
 		})
 	}
-	parts = appendPlaygroundTextPart(parts, content)
+	if attachmentPart, ok := playgroundAttachmentPartFromUrl(content); ok {
+		parts = append(parts, attachmentPart)
+		return parts
+	}
+	parts = appendPlaygroundContentParts(parts, content)
 
 	return parts
+}
+
+func appendPlaygroundContentParts(parts []playgroundChatMessagePart, content string) []playgroundChatMessagePart {
+	for {
+		start := strings.Index(content, "<attachment name=\"")
+		if start < 0 {
+			return appendPlaygroundTextPart(parts, content)
+		}
+		parts = appendPlaygroundTextPart(parts, content[:start])
+		nameStart := start + len("<attachment name=\"")
+		nameEnd := strings.Index(content[nameStart:], "\">")
+		if nameEnd < 0 {
+			return appendPlaygroundTextPart(parts, content[start:])
+		}
+		nameEnd += nameStart
+		bodyStart := nameEnd + len("\">\n")
+		endTag := "\n</attachment>"
+		bodyEnd := strings.Index(content[bodyStart:], endTag)
+		if bodyEnd < 0 {
+			return appendPlaygroundTextPart(parts, content[start:])
+		}
+		bodyEnd += bodyStart
+		parts = append(parts, playgroundChatMessagePart{Kind: "attachment", Text: content[bodyStart:bodyEnd], FileName: html.UnescapeString(content[nameStart:nameEnd])})
+		content = content[bodyEnd+len(endTag):]
+	}
+}
+
+func playgroundAttachmentPartFromUrl(raw string) (playgroundChatMessagePart, bool) {
+	parsed, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || parsed.Scheme != "https" || parsed.Path != "/api/inference/attachments/download" {
+		return playgroundChatMessagePart{}, false
+	}
+	id := parsed.Query().Get("id")
+	if id == "" {
+		return playgroundChatMessagePart{Kind: "attachment", FileName: "Unknown", Url: raw}, true
+	}
+	fileName := id
+	if attachment, ok := attachmentLookup(id); ok && strings.TrimSpace(attachment.Filename) != "" {
+		fileName = attachment.Filename
+	}
+	kind := playgroundAttachmentKindFromName(id)
+	if kind == "" {
+		kind = "attachment"
+	}
+	return playgroundChatMessagePart{Kind: kind, FileName: fileName, Url: raw}, true
+}
+
+func playgroundAttachmentKindFromName(name string) string {
+	switch kind := strings.Split(mime.TypeByExtension(filepath.Ext(name)), "/")[0]; kind {
+	case "image", "video", "audio":
+		return kind
+	default:
+		return ""
+	}
 }
 
 func appendPlaygroundTextPart(parts []playgroundChatMessagePart, text string) []playgroundChatMessagePart {
@@ -1438,13 +1578,19 @@ func (app *InferencePlaygroundApp) applyChatUsage(usage InferenceChatUsage) {
 	ucx.AppUpdateModel(app)
 }
 
-func (app *InferencePlaygroundApp) chatRequestMessages(prompt string) []InferenceChatMessage {
+func (app *InferencePlaygroundApp) chatRequestMessages(prompt string, attachments []playgroundChatAttachment) []InferenceChatMessage {
 	messages := make([]InferenceChatMessage, 0, len(app.Chat.Messages)+2)
 	if strings.TrimSpace(app.Chat.SystemPrompt) != "" {
 		messages = append(messages, InferenceChatMessage{Role: "system", Content: inferenceChatTextContent(app.Chat.SystemPrompt)})
 	}
 	for _, msg := range app.Chat.Messages {
-		messages = append(messages, InferenceChatMessage{Role: msg.Role, Content: inferenceChatTextContent(msg.Content)})
+		messages = append(messages, InferenceChatMessage{Role: msg.Role, Content: playgroundInferenceContent(msg)})
+	}
+	for _, attachment := range attachments {
+		if attachment.Kind != "image" && attachment.Kind != "video" && attachment.Kind != "audio" {
+			continue
+		}
+		messages = append(messages, InferenceChatMessage{Role: "user", Content: playgroundInferenceAttachmentContent(attachment.Kind, attachment.Url)})
 	}
 	messages = append(messages, InferenceChatMessage{Role: "user", Content: inferenceChatTextContent(prompt)})
 	return messages
@@ -1456,9 +1602,35 @@ func (app *InferencePlaygroundApp) chatRequestMessagesFromHistory() []InferenceC
 		messages = append(messages, InferenceChatMessage{Role: "system", Content: inferenceChatTextContent(app.Chat.SystemPrompt)})
 	}
 	for _, msg := range app.Chat.Messages {
-		messages = append(messages, InferenceChatMessage{Role: msg.Role, Content: inferenceChatTextContent(msg.Content)})
+		messages = append(messages, InferenceChatMessage{Role: msg.Role, Content: playgroundInferenceContent(msg)})
 	}
 	return messages
+}
+
+func playgroundInferenceContent(msg playgroundChatMessage) InferenceChatMessageContent {
+	if len(msg.Parts) == 1 {
+		part := msg.Parts[0]
+		if part.Kind == "image" || part.Kind == "video" || part.Kind == "audio" {
+			return playgroundInferenceAttachmentContent(part.Kind, part.Url)
+		}
+	}
+	if attachmentPart, ok := playgroundAttachmentPartFromUrl(msg.Content); ok && (attachmentPart.Kind == "image" || attachmentPart.Kind == "video" || attachmentPart.Kind == "audio") {
+		return playgroundInferenceAttachmentContent(attachmentPart.Kind, attachmentPart.Url)
+	}
+	return inferenceChatTextContent(msg.Content)
+}
+
+func playgroundInferenceAttachmentContent(kind string, rawUrl string) InferenceChatMessageContent {
+	part := InferenceChatContentPart{Type: kind + "_url"}
+	switch kind {
+	case "image":
+		part.ImageUrl = &rawUrl
+	case "video":
+		part.VideoUrl = &rawUrl
+	case "audio":
+		part.AudioUrl = &rawUrl
+	}
+	return InferenceChatMessageContent{Parts: []InferenceChatContentPart{part}}
 }
 
 func (app *InferencePlaygroundApp) buildChatCurl() string {
@@ -2130,10 +2302,7 @@ func (app *InferencePlaygroundApp) walletOwner() apm.WalletOwner {
 	if app.Owner.Project.Present {
 		return apm.WalletOwnerProject(app.Owner.Project.Value)
 	}
-	if strings.TrimSpace(app.Owner.CreatedBy) != "" {
-		return apm.WalletOwnerUser(app.Owner.CreatedBy)
-	}
-	return apm.WalletOwnerUser("user")
+	return apm.WalletOwnerUser(app.Owner.CreatedBy)
 }
 
 func curlJSONCommand(url string, payload any, streaming bool) string {

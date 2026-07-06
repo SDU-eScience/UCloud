@@ -27,12 +27,14 @@ type Attachment struct {
 	Id        string
 	CreatedBy string
 	ProjectId util.Option[string]
+	Filename  string
 }
 
 type attachmentRow struct {
 	Id        string
 	CreatedBy string
 	ProjectId sql.NullString
+	Filename  string
 }
 
 type attachmentDownloadRequest struct {
@@ -57,6 +59,7 @@ var attachmentDownloadRpc = rpc.Call[attachmentDownloadRequest, attachmentDownlo
 		if contentType := mime.TypeByExtension(filepath.Ext(response.Id)); contentType != "" {
 			w.Header().Set("Content-Type", contentType)
 		}
+		w.Header().Set("Cross-Origin-Resource-Policy", "cross-origin")
 		http.ServeContent(w, r, response.Id, response.Info.ModTime(), response.File)
 	},
 	BaseContext: "inference/attachments",
@@ -131,18 +134,19 @@ func AttachmentCreate(createdBy string, project util.Option[string], filename st
 		db.Exec(
 			tx,
 			`
-				insert into k8s.inference_attachments(id, created_by, project_id)
-				values (:id, :created_by, :project_id)
+				insert into k8s.inference_attachments(id, created_by, project_id, filename)
+				values (:id, :created_by, :project_id, :filename)
 			`,
 			db.Params{
 				"id":         id,
 				"created_by": createdBy,
 				"project_id": attachmentProjectSql(project),
+				"filename":   filepath.Base(filename),
 			},
 		)
 	})
 
-	return Attachment{Id: id, CreatedBy: createdBy, ProjectId: project}, nil
+	return Attachment{Id: id, CreatedBy: createdBy, ProjectId: project, Filename: filepath.Base(filename)}, nil
 }
 
 func AttachmentAppend(id string, data io.Reader) *util.HttpError {
@@ -196,7 +200,7 @@ func AttachmentDeleteExpired() {
 	attachments := db.NewTx(func(tx *db.Transaction) []Attachment {
 		rows := db.Select[attachmentRow](
 			tx,
-			`select id, created_by, project_id from k8s.inference_attachments where created_at < now() - cast('14 days' as interval)`,
+			`select id, created_by, project_id, filename from k8s.inference_attachments where created_at < now() - cast('14 days' as interval)`,
 			db.Params{},
 		)
 		result := make([]Attachment, 0, len(rows))
@@ -244,7 +248,7 @@ func attachmentLookup(id string) (Attachment, bool) {
 	row, ok := db.NewTx2(func(tx *db.Transaction) (attachmentRow, bool) {
 		return db.Get[attachmentRow](
 			tx,
-			`select id, created_by, project_id from k8s.inference_attachments where id = :id`,
+			`select id, created_by, project_id, filename from k8s.inference_attachments where id = :id`,
 			db.Params{"id": id},
 		)
 	})
@@ -275,7 +279,7 @@ func attachmentFromRow(row attachmentRow) Attachment {
 	if row.ProjectId.Valid {
 		project = util.OptValue(row.ProjectId.String)
 	}
-	return Attachment{Id: row.Id, CreatedBy: row.CreatedBy, ProjectId: project}
+	return Attachment{Id: row.Id, CreatedBy: row.CreatedBy, ProjectId: project, Filename: row.Filename}
 }
 
 func attachmentProjectSql(project util.Option[string]) sql.NullString {
