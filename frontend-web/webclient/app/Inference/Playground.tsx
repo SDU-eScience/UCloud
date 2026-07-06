@@ -15,14 +15,14 @@ import UcxView, {UcxComponentRegistry, UcxRenderContext} from "@/UCX/UcxView";
 import {Value, ValueKind} from "@/UCX/protocol";
 import {usePrettyFilePath} from "@/Files/FilePath";
 import {UFile} from "@/UCloud/UFile";
-import {copyToClipboard, doNothing, removeTrailingSlash} from "@/UtilityFunctions";
+import {copyToClipboard, doNothing, extensionFromPath, extensionType, removeTrailingSlash, typeFromMime} from "@/UtilityFunctions";
 import {addStandardInputDialog} from "@/UtilityComponents";
 import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
 import {Operation, Operations, ShortcutKey} from "@/ui-components/Operation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {openPlayground} from "./api";
-import {getParentPath} from "@/Utilities/FileUtilities";
+import {getParentPath, sizeToString} from "@/Utilities/FileUtilities";
 import {ProjectSwitcher} from "@/Project/ProjectSwitcher";
 import {useProjectId} from "@/Project/Api";
 import {usePage} from "@/Navigation/Redux";
@@ -36,6 +36,7 @@ import ModelInferenceLogo from "./ModelLogo";
 import {MarkdownDocument, MarkdownTable} from "@/ui-components/Markdown";
 import {CopyButton} from "@/ui-components/CopyButton";
 import {IconButton} from "@/ui-components/IconButton";
+import {ChunkedFileReader} from "@/Files/ChunkedFileReader";
 
 type PlaygroundSession = {
     connectTo: string;
@@ -43,6 +44,16 @@ type PlaygroundSession = {
 };
 
 type PlaygroundOption = { key: string; value: string };
+type PlaygroundAttachmentKind = "image" | "video" | "audio" | "text" | "unsupported";
+type PlaygroundUploadAttachment = {
+    localId: string;
+    attachmentId: string | null;
+    fileName: string;
+    fileSize: number;
+    uploadedBytes: number;
+    status: "uploading" | "uploaded" | "error";
+    error: string;
+};
 
 const ComposerActionButtonClass = injectStyleSimple("inference-composer-action", `
     width: 32px;
@@ -379,8 +390,12 @@ const playgroundComponents: UcxComponentRegistry = {
         const modelOptions = propModelOptions.length > 0 ? propModelOptions : textGenerationModelOptions(fn.modelValue(model, "models"));
         const selectedModel = stringValue(fn.modelValue(model, "chat.modelId", scope));
         const selectedModelOption = modelOptions.find(option => option.key === selectedModel);
+        const selectedCapabilities = modelCapabilities(model, selectedModel);
         const value = stringValue(fn.modelValue(model, node.bindPath, scope));
         const canSend = !disabled && value.trim() !== "";
+        const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+        const uploadCancelRef = React.useRef<Record<string, {cancelled: boolean; attachmentId: string | null}>>({});
+        const [attachments, setAttachments] = React.useState<PlaygroundUploadAttachment[]>([]);
 
         const send = () => {
             if (!canSend) return;
@@ -388,6 +403,80 @@ const playgroundComponents: UcxComponentRegistry = {
                 kind: ValueKind.String,
                 string: value,
             });
+        };
+
+        const removeAttachment = (localId: string) => {
+            const cancelState = uploadCancelRef.current[localId];
+            if (cancelState) {
+                cancelState.cancelled = true;
+                if (cancelState.attachmentId) {
+                    void fn.invokeRpc("inferenceAttachmentDelete", {id: cancelState.attachmentId}, 30000).catch(doNothing);
+                }
+                delete uploadCancelRef.current[localId];
+            }
+            setAttachments(current => current.filter(item => item.localId !== localId));
+        };
+
+        const uploadFile = async (file: File) => {
+            const kind = await detectPlaygroundAttachmentKind(file);
+            const rejection = playgroundAttachmentRejection(kind, selectedCapabilities);
+            if (rejection) {
+                sendFailureNotification(rejection);
+                return;
+            }
+
+            const localId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+            const cancelState = {cancelled: false, attachmentId: null as string | null};
+            uploadCancelRef.current[localId] = cancelState;
+            setAttachments(current => [...current, {
+                localId,
+                attachmentId: null,
+                fileName: file.name,
+                fileSize: file.size,
+                uploadedBytes: 0,
+                status: "uploading",
+                error: "",
+            }]);
+
+            try {
+                const created = await fn.invokeRpc("inferenceAttachmentCreate", {filename: file.name}, 30000) as Record<string, unknown>;
+                const attachmentId = typeof created.id === "string" ? created.id : "";
+                if (attachmentId === "") throw new Error("Attachment upload failed: missing id");
+                cancelState.attachmentId = attachmentId;
+                setAttachments(current => current.map(item => item.localId === localId ? {...item, attachmentId} : item));
+
+                if (cancelState.cancelled) {
+                    await fn.invokeRpc("inferenceAttachmentDelete", {id: attachmentId}, 30000);
+                    return;
+                }
+
+                const reader = new ChunkedFileReader(file);
+                while (!reader.isEof()) {
+                    if (cancelState.cancelled) {
+                        await fn.invokeRpc("inferenceAttachmentDelete", {id: attachmentId}, 30000);
+                        return;
+                    }
+                    const chunk = new Uint8Array(await reader.readChunk(512 * 1024));
+                    await fn.invokeRpc("inferenceAttachmentAppend", {id: attachmentId, data: chunk}, 120000);
+                    setAttachments(current => current.map(item => item.localId === localId ? {...item, uploadedBytes: reader.offset} : item));
+                }
+
+                if (cancelState.cancelled) {
+                    await fn.invokeRpc("inferenceAttachmentDelete", {id: attachmentId}, 30000);
+                    return;
+                }
+                setAttachments(current => current.map(item => item.localId === localId ? {...item, status: "uploaded", uploadedBytes: file.size} : item));
+            } catch (err) {
+                const message = err instanceof Error ? err.message : String(err);
+                setAttachments(current => current.map(item => item.localId === localId ? {...item, status: "error", error: message} : item));
+                sendFailureNotification(message);
+            }
+        };
+
+        const onFilesSelected = (ev: React.ChangeEvent<HTMLInputElement>) => {
+            const files = Array.from(ev.currentTarget.files ?? []);
+            ev.currentTarget.value = "";
+            for (const file of files) void uploadFile(file);
         };
 
         return (
@@ -405,6 +494,7 @@ const playgroundComponents: UcxComponentRegistry = {
                     overflow: "hidden",
                 }}
             >
+                <input ref={fileInputRef} type="file" multiple style={{display: "none"}} onChange={onFilesSelected}/>
                 <TextArea
                     resize={"none"}
                     rows={rows}
@@ -437,6 +527,13 @@ const playgroundComponents: UcxComponentRegistry = {
                         padding: "14px 16px 8px 16px",
                     }}
                 />
+                {attachments.length > 0 && (
+                    <div style={{display: "flex", flexWrap: "wrap", gap: 8, padding: "0 10px 8px 10px"}}>
+                        {attachments.map(attachment => (
+                            <AttachmentUploadCard key={attachment.localId} attachment={attachment} onRemove={() => removeAttachment(attachment.localId)}/>
+                        ))}
+                    </div>
+                )}
                 <div
                     style={{
                         display: "flex",
@@ -446,14 +543,14 @@ const playgroundComponents: UcxComponentRegistry = {
                         padding: "0 10px 10px 10px",
                     }}
                 >
-                    <Tooltip tooltipContentWidth={180} trigger={
+                    <Tooltip tooltipContentWidth={160} trigger={
                         <span style={{display: "inline-flex"}}>
-                            <button type="button" disabled className={ComposerActionButtonClass}>
+                            <button type="button" disabled={disabled} onClick={() => fileInputRef.current?.click()} className={ComposerActionButtonClass}>
                                 <Icon name="heroPlus" size={18}/>
                             </button>
                         </span>
                     }>
-                        Attachments are not available yet.
+                        Attach file
                     </Tooltip>
                     <RichSelect<PlaygroundOption, keyof PlaygroundOption>
                         items={modelOptions}
@@ -556,6 +653,36 @@ type ChatMessagePart = {
     body: string;
     open: boolean;
 };
+
+function AttachmentUploadCard({attachment, onRemove}: {attachment: PlaygroundUploadAttachment; onRemove: () => void}): React.ReactNode {
+    const progress = attachment.fileSize <= 0 ? 100 : Math.min(100, Math.round((attachment.uploadedBytes / attachment.fileSize) * 100));
+    const uploading = attachment.status === "uploading";
+    return <div style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        maxWidth: 280,
+        minWidth: 180,
+        padding: "8px 10px",
+        border: "1px solid var(--playground-border, var(--borderColor))",
+        borderRadius: 10,
+        background: "var(--playground-surface-raised, var(--dialogToolbar))",
+    }}>
+        <Icon name="heroDocument" size={18}/>
+        <div style={{minWidth: 0, flex: 1}}>
+            <div style={{fontSize: 13, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis"}} title={attachment.fileName}>
+                {attachment.fileName}
+            </div>
+            <div style={{fontSize: 11, color: "var(--textSecondary)"}}>
+                {attachment.status === "error" ? attachment.error : uploading ? `${progress}% uploaded` : `${sizeToString(attachment.uploadedBytes)}`}
+            </div>
+            {uploading && <div style={{height: 3, marginTop: 4, borderRadius: 999, background: "var(--borderColor)", overflow: "hidden"}}>
+                <div style={{height: "100%", width: `${progress}%`, background: "var(--primaryMain)", transition: "width 120ms ease"}}/>
+            </div>}
+        </div>
+        <IconButton tooltip={"Remove attachment"} onClick={onRemove} icon={"heroTrash"} />
+    </div>;
+}
 
 type ChatMessageNodeProps = Pick<UcxRenderContext, "model" | "scope" | "fn">;
 
@@ -1356,6 +1483,55 @@ function textGenerationModelOptions(value: any): PlaygroundOption[] {
         if (name === "") return [];
         return [{key: name, value: title === "" ? name : title}];
     }).sort((a, b) => a.key.localeCompare(b.key));
+}
+
+function modelCapabilities(model: Record<string, Value>, modelName: string): string[] {
+    const models = model.models;
+    if (!models || models.kind !== ValueKind.List) return [];
+    for (const item of models.list) {
+        if (item.kind !== ValueKind.Object) continue;
+        if (stringValue(item.object.name) !== modelName) continue;
+        const capabilities = item.object.capabilities;
+        if (!capabilities || capabilities.kind !== ValueKind.List) return [];
+        return capabilities.list.map(stringValue).filter(Boolean);
+    }
+    return [];
+}
+
+async function detectPlaygroundAttachmentKind(file: File): Promise<PlaygroundAttachmentKind> {
+    const mimeKind = typeFromMime(file.type);
+    if (mimeKind === "image" || mimeKind === "video" || mimeKind === "audio") return mimeKind;
+
+    const extKind = extensionType(extensionFromPath(file.name));
+    if (extKind === "image" || extKind === "video" || extKind === "audio") return extKind;
+    if (extKind === "text" || extKind === "code" || extKind === "markdown") return "text";
+
+    const sample = new Uint8Array(await file.slice(0, Math.min(file.size, 4096)).arrayBuffer());
+    return isUtf8Text(sample) ? "text" : "unsupported";
+}
+
+function playgroundAttachmentRejection(kind: PlaygroundAttachmentKind, capabilities: string[]): string {
+    switch (kind) {
+        case "image":
+            return capabilities.includes("Vision") ? "" : "The selected model does not support image attachments.";
+        case "video":
+            return capabilities.includes("VideoVision") ? "" : "The selected model does not support video attachments.";
+        case "audio":
+            return capabilities.includes("Audio") ? "" : "The selected model does not support audio attachments.";
+        case "text":
+            return "";
+        case "unsupported":
+            return "This file type is not supported by the selected model.";
+    }
+}
+
+function isUtf8Text(bytes: Uint8Array): boolean {
+    try {
+        new TextDecoder("utf-8", {fatal: true}).decode(bytes);
+        return true;
+    } catch {
+        return false;
+    }
 }
 
 function stringValue(value: any): string {

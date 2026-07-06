@@ -50,7 +50,7 @@ import {getProviderTitle, ProviderTitle} from "@/Providers/ProviderTitle";
 import {addShareModal} from "@/Files/Shares";
 import FileBrowse from "@/Files/FileBrowse";
 import {classConcat, injectStyleSimple} from "@/Unstyled";
-import fileType from "magic-bytes.js";
+import {filetypeinfo as fileType} from "magic-bytes.js";
 import {PREVIEW_MAX_SIZE} from "../../site.config.json";
 import {CSSVarCurrentSidebarStickyWidth} from "@/ui-components/List";
 import {

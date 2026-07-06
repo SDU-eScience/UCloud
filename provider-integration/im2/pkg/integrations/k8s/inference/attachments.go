@@ -172,6 +172,26 @@ func AttachmentAppend(id string, data io.Reader) *util.HttpError {
 	return nil
 }
 
+func AttachmentDelete(id string) *util.HttpError {
+	attachment, ok := attachmentLookup(id)
+	if !ok {
+		return nil
+	}
+
+	path, _, err := attachmentPath(attachment)
+	if err == nil {
+		file, opened := filesystem.OpenFile(path, unix.O_RDONLY, 0)
+		util.SilentClose(file)
+		if opened {
+			if deleteErr := filesystem.DoDeleteFile(path); deleteErr != nil {
+				return deleteErr
+			}
+		}
+	}
+	attachmentDeleteMetadata(attachment.Id)
+	return nil
+}
+
 func AttachmentDeleteExpired() {
 	attachments := db.NewTx(func(tx *db.Transaction) []Attachment {
 		rows := db.Select[attachmentRow](

@@ -19,7 +19,7 @@ import {formatDate} from "date-fns";
 import {MarkdownDocument} from "@/ui-components/Markdown";
 
 const fallbackDocs = "https://docs.cloud.sdu.dk";
-const capabilities: InferenceCapability[] = ["TextGeneration", "TextToImage", "SpeechToText"];
+const capabilities: InferenceCapability[] = ["TextGeneration", "TextToImage", "SpeechToText", "Vision", "VideoVision", "Audio"];
 
 export default function ModelPage(): React.ReactNode {
     const [params] = useSearchParams();

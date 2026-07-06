@@ -2,6 +2,7 @@ package inference
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -191,6 +192,27 @@ type playgroundChatThread struct {
 	TitleGenerationStarted bool                    `ucx:"-"`
 }
 
+type playgroundAttachmentCreateRequest struct {
+	Filename string
+}
+
+type playgroundAttachmentCreateResponse struct {
+	Id string
+}
+
+type playgroundAttachmentAppendRequest struct {
+	Id   string
+	Data []byte
+}
+
+type playgroundAttachmentDeleteRequest struct {
+	Id string
+}
+
+var playgroundAttachmentCreateRpc = ucx.Rpc[playgroundAttachmentCreateRequest, playgroundAttachmentCreateResponse]{CallName: "inferenceAttachmentCreate"}
+var playgroundAttachmentAppendRpc = ucx.Rpc[playgroundAttachmentAppendRequest, util.Empty]{CallName: "inferenceAttachmentAppend"}
+var playgroundAttachmentDeleteRpc = ucx.Rpc[playgroundAttachmentDeleteRequest, util.Empty]{CallName: "inferenceAttachmentDelete"}
+
 // App (global) event handlers and init
 // =====================================================================================================================
 
@@ -200,6 +222,7 @@ func (app *InferencePlaygroundApp) Session() **ucx.Session { return &app.session
 func (app *InferencePlaygroundApp) OnInit() {
 	app.refreshModels()
 	app.loadThreads()
+	app.registerAttachmentRpcs()
 	app.Chat.ModelId = app.firstModelFor(InferenceTextGeneration)
 	app.applyChatModelDefaults()
 	app.startThreadFlusher()
@@ -210,6 +233,30 @@ func (app *InferencePlaygroundApp) OnInit() {
 	app.Chat.Curl = app.buildChatCurl()
 	app.Transcription.Curl = app.buildTranscriptionCurl()
 	app.Image.Curl = app.buildImageCurl()
+}
+
+func (app *InferencePlaygroundApp) registerAttachmentRpcs() {
+	playgroundAttachmentCreateRpc.Handler(app.session, func(ctx context.Context, request playgroundAttachmentCreateRequest) (playgroundAttachmentCreateResponse, error) {
+		attachment, err := AttachmentCreate(app.Owner.CreatedBy, app.Owner.Project, request.Filename)
+		if err != nil {
+			return playgroundAttachmentCreateResponse{}, err
+		}
+		return playgroundAttachmentCreateResponse{Id: attachment.Id}, nil
+	})
+
+	playgroundAttachmentAppendRpc.Handler(app.session, func(ctx context.Context, request playgroundAttachmentAppendRequest) (util.Empty, error) {
+		if err := AttachmentAppend(request.Id, bytes.NewReader(request.Data)); err != nil {
+			return util.Empty{}, err
+		}
+		return util.Empty{}, nil
+	})
+
+	playgroundAttachmentDeleteRpc.Handler(app.session, func(ctx context.Context, request playgroundAttachmentDeleteRequest) (util.Empty, error) {
+		if err := AttachmentDelete(request.Id); err != nil {
+			return util.Empty{}, err
+		}
+		return util.Empty{}, nil
+	})
 }
 
 func (app *InferencePlaygroundApp) OnMessage(message ucx.Frame) {
