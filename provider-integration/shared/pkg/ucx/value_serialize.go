@@ -274,6 +274,15 @@ func valueToReflect(input Value, targetType reflect.Type) (reflect.Value, error)
 		}
 
 	case reflect.Slice:
+		if targetType.Elem().Kind() == reflect.Uint8 {
+			if input.Kind != ValueBinary {
+				return reflect.Value{}, fmt.Errorf("expected binary, got %v", input.Kind)
+			}
+			result := reflect.MakeSlice(targetType, len(input.Binary), len(input.Binary))
+			reflect.Copy(result, reflect.ValueOf(input.Binary))
+			return result, nil
+		}
+
 		if input.Kind != ValueList {
 			return reflect.Value{}, fmt.Errorf("expected list, got %v", input.Kind)
 		}
@@ -356,6 +365,8 @@ func valueToAny(input Value) any {
 		return input.F64
 	case ValueString:
 		return input.String
+	case ValueBinary:
+		return append([]byte{}, input.Binary...)
 	case ValueList:
 		result := make([]any, 0, len(input.List))
 		for _, item := range input.List {
@@ -484,7 +495,22 @@ func valueFromReflect(v reflect.Value) (Value, error) {
 	case reflect.Float32, reflect.Float64:
 		return Value{Kind: ValueF64, F64: v.Float()}, nil
 
-	case reflect.Slice, reflect.Array:
+	case reflect.Slice:
+		if v.Type().Elem().Kind() == reflect.Uint8 {
+			return VBinary(v.Bytes()), nil
+		}
+
+		result := make([]Value, 0, v.Len())
+		for i := 0; i < v.Len(); i++ {
+			it, err := valueFromReflectInContainer(v.Index(i))
+			if err != nil {
+				return Value{}, err
+			}
+			result = append(result, it)
+		}
+		return VList(result), nil
+
+	case reflect.Array:
 		result := make([]Value, 0, v.Len())
 		for i := 0; i < v.Len(); i++ {
 			it, err := valueFromReflectInContainer(v.Index(i))

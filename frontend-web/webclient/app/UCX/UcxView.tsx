@@ -1601,6 +1601,8 @@ function displayValue(value: Value | undefined): string {
             return `[${value.list.map(displayValue).join(", ")}]`;
         case ValueKind.Object:
             return "[object]";
+        case ValueKind.Binary:
+            return `[binary ${value.binary.length} bytes]`;
     }
 }
 
