@@ -1007,7 +1007,7 @@ func inferenceResponseInputItemToMessage(raw json.RawMessage) (InferenceChatMess
 		if httpErr != nil {
 			return InferenceChatMessage{}, false, httpErr
 		}
-		return InferenceChatMessage{Role: role, Content: inferenceChatTextContent(content)}, true, nil
+		return InferenceChatMessage{Role: role, Content: content}, true, nil
 	case "reasoning":
 		var reasoning struct {
 			Content []OaiResponseReasoningText `json:"content"`
@@ -1234,7 +1234,7 @@ func inferenceResponseToolOutputContent(raw json.RawMessage) (string, *util.Http
 
 	content, httpErr := inferenceResponseInputContent(raw)
 	if httpErr == nil {
-		return content, nil
+		return content.String(), nil
 	}
 
 	var value any
@@ -1248,34 +1248,54 @@ func inferenceResponseToolOutputContent(raw json.RawMessage) (string, *util.Http
 	return string(encoded), nil
 }
 
-func inferenceResponseInputContent(raw json.RawMessage) (string, *util.HttpError) {
+func inferenceResponseInputContent(raw json.RawMessage) (InferenceChatMessageContent, *util.HttpError) {
 	if len(raw) == 0 || string(raw) == "null" {
-		return "", nil
+		return InferenceChatMessageContent{}, nil
 	}
 
 	var text string
 	if err := json.Unmarshal(raw, &text); err == nil {
-		return text, nil
+		return inferenceChatTextContent(text), nil
 	}
 
-	var parts []struct {
-		Type string `json:"type"`
-		Text string `json:"text"`
-	}
+	var parts []InferenceResponseInputContentPart
 	if err := json.Unmarshal(raw, &parts); err != nil {
-		return "", util.HttpErr(http.StatusBadRequest, "invalid input content")
+		return InferenceChatMessageContent{}, util.HttpErr(http.StatusBadRequest, "invalid input content")
 	}
 
-	var builder strings.Builder
+	result := InferenceChatMessageContent{Parts: make([]InferenceChatContentPart, 0, len(parts))}
 	for _, part := range parts {
 		switch part.Type {
 		case "input_text", "output_text", "text":
-			builder.WriteString(part.Text)
+			result.Parts = append(result.Parts, InferenceChatContentPart{Type: "text", Text: part.Text})
+		case "image_url", "input_image":
+			if part.ImageUrl == nil || *part.ImageUrl == "" {
+				return InferenceChatMessageContent{}, util.HttpErr(http.StatusBadRequest, "invalid image input content")
+			}
+			result.Parts = append(result.Parts, InferenceChatContentPart{Type: "image_url", ImageUrl: part.ImageUrl})
+		case "video_url", "input_video":
+			if part.VideoUrl == nil || *part.VideoUrl == "" {
+				return InferenceChatMessageContent{}, util.HttpErr(http.StatusBadRequest, "invalid video input content")
+			}
+			result.Parts = append(result.Parts, InferenceChatContentPart{Type: "video_url", VideoUrl: part.VideoUrl})
+		case "audio_url", "input_audio":
+			if part.AudioUrl == nil || *part.AudioUrl == "" {
+				return InferenceChatMessageContent{}, util.HttpErr(http.StatusBadRequest, "invalid audio input content")
+			}
+			result.Parts = append(result.Parts, InferenceChatContentPart{Type: "audio_url", AudioUrl: part.AudioUrl})
 		default:
-			return "", util.HttpErr(http.StatusBadRequest, "unsupported input content: %v", part.Type)
+			return InferenceChatMessageContent{}, util.HttpErr(http.StatusBadRequest, "unsupported input content: %v", part.Type)
 		}
 	}
-	return builder.String(), nil
+	return result, nil
+}
+
+type InferenceResponseInputContentPart struct {
+	Type     string  `json:"type"`
+	Text     string  `json:"text,omitempty"`
+	ImageUrl *string `json:"image_url,omitempty"`
+	VideoUrl *string `json:"video_url,omitempty"`
+	AudioUrl *string `json:"audio_url,omitempty"`
 }
 
 func inferenceResponseChatTools(rawTools []json.RawMessage) ([]InferenceChatTool, *util.HttpError) {

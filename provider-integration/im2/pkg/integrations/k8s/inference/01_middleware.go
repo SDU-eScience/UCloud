@@ -257,11 +257,11 @@ type InferenceChatMessageContent struct {
 }
 
 type InferenceChatContentPart struct {
-	Type     string `json:"type"`
-	Text     string `json:"text,omitempty"`
-	ImageUrl any    `json:"image_url,omitempty"`
-	VideoUrl any    `json:"video_url,omitempty"`
-	AudioUrl any    `json:"audio_url,omitempty"`
+	Type     string  `json:"type"`
+	Text     string  `json:"text,omitempty"`
+	ImageUrl *string `json:"image_url,omitempty"`
+	VideoUrl *string `json:"video_url,omitempty"`
+	AudioUrl *string `json:"audio_url,omitempty"`
 }
 
 func inferenceChatTextContent(text string) InferenceChatMessageContent {
