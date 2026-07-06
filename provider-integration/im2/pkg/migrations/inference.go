@@ -293,3 +293,23 @@ func inferenceV11() db.MigrationScript {
 		},
 	}
 }
+
+func inferenceV12() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "inferenceV12",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					create table k8s.inference_attachments(
+						id text primary key,
+						created_by text not null,
+						project_id text null,
+						created_at timestamptz not null default now()
+					)
+				`,
+				db.Params{},
+			)
+		},
+	}
+}

@@ -22,6 +22,9 @@ const (
 	InferenceTextGeneration InferenceCapability = "TextGeneration"
 	InferenceTextToImage    InferenceCapability = "TextToImage"
 	InferenceSpeechToText   InferenceCapability = "SpeechToText"
+	InferenceVision         InferenceCapability = "Vision"
+	InferenceVideoVision    InferenceCapability = "VideoVision"
+	InferenceAudio          InferenceCapability = "Audio"
 )
 
 type InferenceModel struct {
@@ -554,7 +557,7 @@ func inferenceModelValidate(model InferenceModel) *util.HttpError {
 	}
 	for _, capability := range model.Capabilities {
 		switch capability {
-		case InferenceTextGeneration, InferenceTextToImage, InferenceSpeechToText:
+		case InferenceTextGeneration, InferenceTextToImage, InferenceSpeechToText, InferenceVision, InferenceVideoVision, InferenceAudio:
 		default:
 			return util.HttpErr(http.StatusBadRequest, "invalid model capability")
 		}

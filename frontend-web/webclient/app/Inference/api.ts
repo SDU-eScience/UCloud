@@ -15,7 +15,7 @@ export function openPlayground(request: OpenPlaygroundRequest): APICallParameter
     return apiUpdate(request, baseContext, "openPlayground");
 }
 
-export type InferenceCapability = "TextGeneration" | "TextToImage" | "SpeechToText";
+export type InferenceCapability = "TextGeneration" | "TextToImage" | "SpeechToText" | "Vision" | "VideoVision" | "Audio";
 
 export interface InferenceModel {
     name: string;

@@ -23,6 +23,9 @@ const (
 	InferenceTextGeneration InferenceCapability = "TextGeneration"
 	InferenceTextToImage    InferenceCapability = "TextToImage"
 	InferenceSpeechToText   InferenceCapability = "SpeechToText"
+	InferenceVision         InferenceCapability = "Vision"
+	InferenceVideoVision    InferenceCapability = "VideoVision"
+	InferenceAudio          InferenceCapability = "Audio"
 )
 
 type InferenceModel struct {

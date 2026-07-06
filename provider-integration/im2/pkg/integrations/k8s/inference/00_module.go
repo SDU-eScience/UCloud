@@ -286,6 +286,7 @@ func Init() {
 	controller.ProductsRegister([]apm.ProductV2{inferenceGlobals.Product})
 
 	authority := fmt.Sprintf("chat%s", shared.ServiceConfig.Compute.Web.Suffix) // TODO Change for prod
+	AttachmentInit()
 	gateway.SendMessage(gateway.ConfigurationMessage{
 		RouteUp: &gateway.EnvoyRoute{
 			Cluster:      gateway.ServerClusterName,

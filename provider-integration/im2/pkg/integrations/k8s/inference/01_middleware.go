@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -147,6 +148,17 @@ func inferenceCodexModelFromCatalog(model InferenceModel, priority int) CodexInf
 		}
 	}
 
+	inputModalities := []string{"text"}
+	if slices.Contains(model.Capabilities, InferenceVision) {
+		inputModalities = append(inputModalities, "image")
+	}
+	if slices.Contains(model.Capabilities, InferenceVideoVision) {
+		inputModalities = append(inputModalities, "video")
+	}
+	if slices.Contains(model.Capabilities, InferenceAudio) {
+		inputModalities = append(inputModalities, "audio")
+	}
+
 	return CodexInferenceModel{
 		Slug:                           model.Name,
 		DisplayName:                    displayName,
@@ -175,13 +187,13 @@ func inferenceCodexModelFromCatalog(model InferenceModel, priority int) CodexInf
 			Limit: 10000,
 		},
 		SupportsParallelToolCalls:     false,
-		SupportsImageDetailOriginal:   false,
+		SupportsImageDetailOriginal:   slices.Contains(model.Capabilities, InferenceVision),
 		ContextWindow:                 model.ContextWindow,
 		MaxContextWindow:              model.ContextWindow,
 		AutoCompactTokenLimit:         nil,
 		EffectiveContextWindowPercent: 95,
 		ExperimentalSupportedTools:    []string{},
-		InputModalities:               []string{"text"},
+		InputModalities:               inputModalities,
 		SupportsSearchTool:            false,
 		UseResponsesLite:              false,
 	}
@@ -240,13 +252,16 @@ func (m *InferenceChatMessage) UnmarshalJSON(data []byte) error {
 
 type InferenceChatMessageContent struct {
 	Text  string
-	Parts []InferenceChatContentPartText
+	Parts []InferenceChatContentPart
 	raw   json.RawMessage
 }
 
-type InferenceChatContentPartText struct {
-	Type string `json:"type"`
-	Text string `json:"text"`
+type InferenceChatContentPart struct {
+	Type     string `json:"type"`
+	Text     string `json:"text,omitempty"`
+	ImageUrl any    `json:"image_url,omitempty"`
+	VideoUrl any    `json:"video_url,omitempty"`
+	AudioUrl any    `json:"audio_url,omitempty"`
 }
 
 func inferenceChatTextContent(text string) InferenceChatMessageContent {
@@ -282,7 +297,7 @@ func (c *InferenceChatMessageContent) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	var parts []InferenceChatContentPartText
+	var parts []InferenceChatContentPart
 	if err := json.Unmarshal(data, &parts); err != nil {
 		return err
 	}
