@@ -370,7 +370,7 @@ export const ProductSelector: React.FunctionComponent<{
             </Box> : null}
             <Box width={isCompute ? "50%" : "100%"}>
                 {isCompute ? <Box>Machine type <MandatoryField /></Box> : null}
-                <div onClick={onToggle} className={InputClass} style={{display: "flex", height: "33.5px"}} ref={boxRef}>
+                <div onClick={onToggle} className={InputClass} style={{display: "flex", height: "33.5px", cursor: "pointer"}} ref={boxRef}>
                     {selected ?
                         <Flex alignItems={"center"} gap="8px">
                             {isCompute ? <Icon size={24} ml="-4px" name={selectedComputeCategory?.kind === "CPU" ? "heroCpuChip" : "gpu"} /> : <ProviderLogo providerId={selected?.category?.provider ?? "?"} size={24} />}
@@ -390,12 +390,12 @@ export const ProductSelector: React.FunctionComponent<{
         </Flex>
 
         {isCompute && selected ? <>
-            <div className={classConcat(SelectorBoxClass, props.slim === true ? "slim" : undefined)} onClick={onToggle} style={{marginTop: "10px"}}>
+            <div className={classConcat(SelectorBoxClass, props.slim === true ? "slim" : undefined)} style={{marginTop: "10px"}}>
                 <div className="selected">
                     <>
                         {props.slim !== true ?
                             <>
-                                <Flex ml="2px" mt="4px" justifyContent={"space-between"}>
+                                <Flex mt="4px" justifyContent={"space-between"}>
                                     <Flex>{selected?.name}</Flex>
                                     <Box px="8px" py="4px" backgroundColor={`var(--${queueStatusInfo.color})`} color="fixedWhite" borderRadius={"12px"}>{queueStatusInfo.message}</Box>
                                 </Flex>
@@ -606,7 +606,7 @@ const ProductName: React.FunctionComponent<{product: ProductV2}> = ({product}) =
 
 function ProductDescription({serviceProvider, category}: {serviceProvider: string; category: string;}): React.ReactNode {
     const description = useProductDescription(serviceProvider, category);
-    return <Text fontSize={14}>{description}</Text>;
+    return <Text color="textSecondary" fontSize={14}>{description}</Text>;
 }
 
 function useProductDescription(serviceProvider: string, category: string): string {
@@ -725,16 +725,16 @@ const ProductStats: React.FunctionComponent<{product: ProductV2}> = ({product}) 
         case "compute":
             const gpus = computeProduct.gpu ?? 0;
             const gpuType = computeProduct.fraction?.denominator !== 1 ? stupidPluralize(gpus, "MIG") : stupidPluralize(gpus, "GPU");
+            const width = gpus ? "25%" : "33%";
 
             return <>
-                <TableCell>{computeProduct.cpu} {stupidPluralize(computeProduct.cpu ?? 1, "vCPU")}<HardwareModel model={computeProduct.cpuModel} /></TableCell>
-                <TableCell>{computeProduct.memoryInGigs} GB RAM<HardwareModel model={computeProduct.memoryModel} /></TableCell>
-                <TableCell>
-                    {computeProduct.gpu === 0 || computeProduct.gpu == null ?
-                        null :
+                <TableCell width={width}>{computeProduct.cpu} {stupidPluralize(computeProduct.cpu ?? 1, "vCPU")}<HardwareModel model={computeProduct.cpuModel} /></TableCell>
+                <TableCell width={width}>{computeProduct.memoryInGigs} GB RAM<HardwareModel model={computeProduct.memoryModel} /></TableCell>
+                {computeProduct.gpu === 0 || computeProduct.gpu == null ?
+                    null : <TableCell width={width}>
                         <>{" "}{computeProduct.gpu} {gpuType} <HardwareModel model={computeProduct.gpuModel} /></>
-                    }
-                </TableCell>
+                    </TableCell>
+                }
             </>
         default:
             return <></>
@@ -771,11 +771,11 @@ function MachineTypeSelectionSlider(props: {
         <Flex mb="8px">
             <Box ml="4px"><ProductTypeKind category={props.selectedCategory.kind} isFractional={dividerIndex > 0} /></Box>
             {dividerIndex > 0 ? <>
-                <Box style={{position: "absolute", width: "1px", left: `calc(100% * ${dividerIndex / productCount})`, height: "34px", border: "1px solid var(--primaryMain)", borderTopLeftRadius: "12px", borderTopRightRadius: "12px", backgroundColor: "var(--primaryMain)"}}></Box>
+                <Box style={{position: "absolute", width: "6px", left: `calc(100% * ${dividerIndex / productCount})`, height: "33px", border: "1px solid var(--borderColor)", borderTopLeftRadius: "12px", borderTopRightRadius: "12px", backgroundColor: "var(--secondaryMain)", borderBottom: "0px"}}></Box>
                 <Box style={{position: "absolute", left: `calc(100% * ${dividerIndex / productCount} + 20px)`}} ml="4px"><ProductTypeKind category={props.selectedCategory.kind} /></Box>
             </> : null}
         </Flex>
-        <RangeInput value={props.idx} autoFocus onChange={e => props.onSelect(e.target.valueAsNumber)} min={0} max={props.selectedCategory.products.length - 1} markers={
+        <RangeInput value={props.idx} autoFocus onChange={props.onSelect} min={0} max={props.selectedCategory.products.length - 1} markers={
             props.selectedCategory.products.map(p => computeV2ComponentCount(p))}
         />
     </Box>
@@ -810,7 +810,6 @@ function computeV2ComponentCount(c: ProductV2Compute): string {
 export const SelectorBoxClass = injectStyle("selector-box", k => `
     ${k} {
         position: relative;
-        cursor: pointer;
         border-radius: 5px;
         border: 1px solid var(--borderColor, #f00);
         width: 100%;
@@ -837,7 +836,6 @@ export const SelectorBoxClass = injectStyle("selector-box", k => `
     }
 
     ${k} .selected {
-        cursor: pointer;
         padding: 7px 12px;
         line-height: 18px;
     }
