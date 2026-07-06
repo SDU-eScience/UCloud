@@ -221,9 +221,18 @@ type playgroundAttachmentDeleteRequest struct {
 	Id string
 }
 
+type playgroundAttachmentConvertRequest struct {
+	Id string
+}
+
+type playgroundAttachmentConvertResponse struct {
+	Id string
+}
+
 var playgroundAttachmentCreateRpc = ucx.Rpc[playgroundAttachmentCreateRequest, playgroundAttachmentCreateResponse]{CallName: "inferenceAttachmentCreate"}
 var playgroundAttachmentAppendRpc = ucx.Rpc[playgroundAttachmentAppendRequest, util.Empty]{CallName: "inferenceAttachmentAppend"}
 var playgroundAttachmentDeleteRpc = ucx.Rpc[playgroundAttachmentDeleteRequest, util.Empty]{CallName: "inferenceAttachmentDelete"}
+var playgroundAttachmentConvertRpc = ucx.Rpc[playgroundAttachmentConvertRequest, playgroundAttachmentConvertResponse]{CallName: "inferenceAttachmentConvertToMarkdown"}
 
 // App (global) event handlers and init
 // =====================================================================================================================
@@ -268,6 +277,14 @@ func (app *InferencePlaygroundApp) registerAttachmentRpcs() {
 			return util.Empty{}, err
 		}
 		return util.Empty{}, nil
+	})
+
+	playgroundAttachmentConvertRpc.Handler(app.session, func(ctx context.Context, request playgroundAttachmentConvertRequest) (playgroundAttachmentConvertResponse, error) {
+		attachment, err := AttachmentConvertToMarkdown(ctx, request.Id)
+		if err != nil {
+			return playgroundAttachmentConvertResponse{}, err
+		}
+		return playgroundAttachmentConvertResponse{Id: attachment.Id}, nil
 	})
 }
 

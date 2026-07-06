@@ -1,16 +1,19 @@
 package inference
 
 import (
+	"context"
 	"database/sql"
 	"io"
 	"mime"
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
 	"golang.org/x/sys/unix"
+	cfg "ucloud.dk/pkg/config"
 	ctrl "ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/integrations/k8s/filesystem"
 	db "ucloud.dk/shared/pkg/database"
@@ -24,17 +27,19 @@ const attachmentSubPath = "Inference/Attachments"
 const attachmentRetention = 14 * 24 * time.Hour
 
 type Attachment struct {
-	Id        string
-	CreatedBy string
-	ProjectId util.Option[string]
-	Filename  string
+	Id                   string
+	CreatedBy            string
+	ProjectId            util.Option[string]
+	Filename             string
+	MarkdownAttachmentId string
 }
 
 type attachmentRow struct {
-	Id        string
-	CreatedBy string
-	ProjectId sql.NullString
-	Filename  string
+	Id                   string
+	CreatedBy            string
+	ProjectId            sql.NullString
+	Filename             string
+	MarkdownAttachmentId sql.NullString
 }
 
 type attachmentDownloadRequest struct {
@@ -60,6 +65,7 @@ var attachmentDownloadRpc = rpc.Call[attachmentDownloadRequest, attachmentDownlo
 			w.Header().Set("Content-Type", contentType)
 		}
 		w.Header().Set("Cross-Origin-Resource-Policy", "cross-origin")
+		w.Header().Set("Access-Control-Allow-Origin", cfg.Provider.Hosts.UCloudPublic.ToURL())
 		http.ServeContent(w, r, response.Id, response.Info.ModTime(), response.File)
 	},
 	BaseContext: "inference/attachments",
@@ -176,23 +182,71 @@ func AttachmentAppend(id string, data io.Reader) *util.HttpError {
 	return nil
 }
 
+func AttachmentConvertToMarkdown(ctx context.Context, id string) (Attachment, *util.HttpError) {
+	attachment, ok := attachmentLookup(id)
+	if !ok {
+		return Attachment{}, util.HttpErr(http.StatusNotFound, "attachment not found")
+	}
+	if attachment.MarkdownAttachmentId != "" {
+		markdown, ok := attachmentLookup(attachment.MarkdownAttachmentId)
+		if ok {
+			return markdown, nil
+		}
+	}
+
+	path, drive, err := attachmentPath(attachment)
+	if err != nil {
+		return Attachment{}, err
+	}
+	source, ok := filesystem.InternalToUCloudWithDrive(drive, path)
+	if !ok {
+		return Attachment{}, util.HttpErr(http.StatusInternalServerError, "could not resolve attachment path")
+	}
+	markdownId := attachmentMarkdownId(attachment.Id)
+	markdownPath := attachmentPathWithId(attachment, markdownId)
+	markdownSource := util.Parent(source)
+
+	waitCtx, cancel := context.WithTimeout(ctx, 125*time.Second)
+	defer cancel()
+	if err := filesystem.TaskSubmitAndWait(waitCtx, filesystem.TaskSpec{
+		Type:            filesystem.TaskTypeMarkItDown,
+		Mounts:          []filesystem.TaskMount{{UCloudPath: markdownSource}},
+		Source:          source,
+		DeadlineSeconds: util.OptValue(120),
+		CreationState: struct {
+			Username string
+			Icon     string
+		}{Username: attachment.CreatedBy, Icon: "heroDocumentText"},
+	}, time.Second); err != nil {
+		return Attachment{}, err
+	}
+
+	file, opened := filesystem.OpenFile(markdownPath, unix.O_RDONLY, 0)
+	if !opened {
+		return Attachment{}, util.HttpErr(http.StatusInternalServerError, "markdown attachment was not created")
+	}
+	util.SilentClose(file)
+
+	markdown := Attachment{
+		Id:        markdownId,
+		CreatedBy: attachment.CreatedBy,
+		ProjectId: attachment.ProjectId,
+		Filename:  attachmentMarkdownFilename(attachment.Filename),
+	}
+	attachmentStoreMarkdownMetadata(attachment, markdown)
+	return markdown, nil
+}
+
 func AttachmentDelete(id string) *util.HttpError {
 	attachment, ok := attachmentLookup(id)
 	if !ok {
 		return nil
 	}
 
-	path, _, err := attachmentPath(attachment)
-	if err == nil {
-		file, opened := filesystem.OpenFile(path, unix.O_RDONLY, 0)
-		util.SilentClose(file)
-		if opened {
-			if deleteErr := filesystem.DoDeleteFile(path); deleteErr != nil {
-				return deleteErr
-			}
-		}
+	if err := attachmentDeleteFiles(attachment); err != nil {
+		return err
 	}
-	attachmentDeleteMetadata(attachment.Id)
+	attachmentDeleteMetadata(attachment.Id, attachment.MarkdownAttachmentId)
 	return nil
 }
 
@@ -200,7 +254,7 @@ func AttachmentDeleteExpired() {
 	attachments := db.NewTx(func(tx *db.Transaction) []Attachment {
 		rows := db.Select[attachmentRow](
 			tx,
-			`select id, created_by, project_id, filename from k8s.inference_attachments where created_at < now() - cast('14 days' as interval)`,
+			`select id, created_by, project_id, filename, markdown_attachment_id from k8s.inference_attachments where created_at < now() - cast('14 days' as interval)`,
 			db.Params{},
 		)
 		result := make([]Attachment, 0, len(rows))
@@ -219,7 +273,7 @@ func AttachmentDeleteExpired() {
 
 		file, opened := filesystem.OpenFile(path, unix.O_RDONLY, 0)
 		if !opened {
-			attachmentDeleteMetadata(attachment.Id)
+			attachmentDeleteMetadata(attachment.Id, attachment.MarkdownAttachmentId)
 			continue
 		}
 		info, statErr := file.Stat()
@@ -231,11 +285,11 @@ func AttachmentDeleteExpired() {
 			continue
 		}
 
-		if deleteErr := filesystem.DoDeleteFile(path); deleteErr != nil {
+		if deleteErr := attachmentDeleteFiles(attachment); deleteErr != nil {
 			log.Warn("Could not delete expired inference attachment %s: %v", attachment.Id, deleteErr)
 			continue
 		}
-		attachmentDeleteMetadata(attachment.Id)
+		attachmentDeleteMetadata(attachment.Id, attachment.MarkdownAttachmentId)
 	}
 }
 
@@ -248,7 +302,7 @@ func attachmentLookup(id string) (Attachment, bool) {
 	row, ok := db.NewTx2(func(tx *db.Transaction) (attachmentRow, bool) {
 		return db.Get[attachmentRow](
 			tx,
-			`select id, created_by, project_id, filename from k8s.inference_attachments where id = :id`,
+			`select id, created_by, project_id, filename, markdown_attachment_id from k8s.inference_attachments where id = :id`,
 			db.Params{"id": id},
 		)
 	})
@@ -266,6 +320,14 @@ func attachmentPath(attachment Attachment) (string, *orc.Drive, *util.HttpError)
 	return attachmentPathFromBase(basePath, attachment.Id), drive, nil
 }
 
+func attachmentPathWithId(attachment Attachment, id string) string {
+	basePath, _, err := filesystem.InitializeMemberFiles(attachment.CreatedBy, attachment.ProjectId)
+	if err != nil {
+		return ""
+	}
+	return attachmentPathFromBase(basePath, id)
+}
+
 func attachmentDirectory(basePath string) string {
 	return filepath.Join(basePath, attachmentSubPath)
 }
@@ -279,7 +341,11 @@ func attachmentFromRow(row attachmentRow) Attachment {
 	if row.ProjectId.Valid {
 		project = util.OptValue(row.ProjectId.String)
 	}
-	return Attachment{Id: row.Id, CreatedBy: row.CreatedBy, ProjectId: project, Filename: row.Filename}
+	markdownAttachmentId := ""
+	if row.MarkdownAttachmentId.Valid {
+		markdownAttachmentId = row.MarkdownAttachmentId.String
+	}
+	return Attachment{Id: row.Id, CreatedBy: row.CreatedBy, ProjectId: project, Filename: row.Filename, MarkdownAttachmentId: markdownAttachmentId}
 }
 
 func attachmentProjectSql(project util.Option[string]) sql.NullString {
@@ -289,10 +355,74 @@ func attachmentProjectSql(project util.Option[string]) sql.NullString {
 	return sql.NullString{}
 }
 
-func attachmentDeleteMetadata(id string) {
+func attachmentDeleteMetadata(ids ...string) {
+	ids = slices.DeleteFunc(ids, func(id string) bool { return strings.TrimSpace(id) == "" })
+	if len(ids) == 0 {
+		return
+	}
 	db.NewTx0(func(tx *db.Transaction) {
-		db.Exec(tx, `delete from k8s.inference_attachments where id = :id`, db.Params{"id": id})
+		db.Exec(tx, `delete from k8s.inference_attachments where id = some(:ids)`, db.Params{"ids": ids})
 	})
+}
+
+func attachmentStoreMarkdownMetadata(original Attachment, markdown Attachment) {
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				insert into k8s.inference_attachments(id, created_by, project_id, filename)
+				values (:id, :created_by, :project_id, :filename)
+				on conflict (id) do update set
+					created_by = excluded.created_by,
+					project_id = excluded.project_id,
+					filename = excluded.filename
+			`,
+			db.Params{
+				"id":         markdown.Id,
+				"created_by": markdown.CreatedBy,
+				"project_id": attachmentProjectSql(markdown.ProjectId),
+				"filename":   markdown.Filename,
+			},
+		)
+		db.Exec(
+			tx,
+			`update k8s.inference_attachments set markdown_attachment_id = :markdown_id where id = :id`,
+			db.Params{"id": original.Id, "markdown_id": markdown.Id},
+		)
+	})
+}
+
+func attachmentDeleteFiles(attachment Attachment) *util.HttpError {
+	ids := []string{attachment.Id}
+	if attachment.MarkdownAttachmentId != "" {
+		ids = append(ids, attachment.MarkdownAttachmentId)
+	}
+	for _, id := range ids {
+		path := attachmentPathWithId(attachment, id)
+		if path == "" {
+			continue
+		}
+		file, opened := filesystem.OpenFile(path, unix.O_RDONLY, 0)
+		util.SilentClose(file)
+		if opened {
+			if deleteErr := filesystem.DoDeleteFile(path); deleteErr != nil {
+				return deleteErr
+			}
+		}
+	}
+	return nil
+}
+
+func attachmentMarkdownId(id string) string {
+	return strings.TrimSuffix(id, filepath.Ext(id)) + ".md"
+}
+
+func attachmentMarkdownFilename(filename string) string {
+	base := filepath.Base(filename)
+	if base == "." || base == string(filepath.Separator) || base == "" {
+		base = "attachment"
+	}
+	return strings.TrimSuffix(base, filepath.Ext(base)) + ".md"
 }
 
 func attachmentTouch(file interface{ Fd() uintptr }) {

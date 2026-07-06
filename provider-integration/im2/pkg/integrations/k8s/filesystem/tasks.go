@@ -26,8 +26,9 @@ import (
 type TaskType string
 
 const (
-	TaskTypeCopy     TaskType = "copy"
-	TaskTypeTransfer TaskType = "file_transfer"
+	TaskTypeCopy       TaskType = "copy"
+	TaskTypeTransfer   TaskType = "file_transfer"
+	TaskTypeMarkItDown TaskType = "markitdown"
 )
 
 type TaskMount struct {
@@ -35,10 +36,11 @@ type TaskMount struct {
 }
 
 type TaskSpec struct {
-	Type      TaskType
-	Id        string
-	Mounts    []TaskMount
-	TaskToken string
+	Type            TaskType
+	Id              string
+	Mounts          []TaskMount
+	TaskToken       string
+	DeadlineSeconds util.Option[int]
 
 	Source           string // UCloud path prior to submission, mount path in job task
 	Destination      string // UCloud path prior to submission, mount path in job task
@@ -57,8 +59,15 @@ const (
 )
 
 var taskState struct {
-	Mu    sync.RWMutex
-	Cache map[string]int // token to ucloud task id
+	Mu       sync.RWMutex
+	Cache    map[string]int // token to ucloud task id
+	Statuses map[string]fndapi.TaskStatus
+}
+
+type TaskSubmission struct {
+	Id           string
+	TaskToken    string
+	UCloudTaskId int
 }
 
 func taskGetUCloudTaskIdFromToken(token string) (int, bool) {
@@ -124,12 +133,17 @@ func taskCleanupByToken(token string) (string, bool) {
 
 func initTasks() {
 	taskState.Cache = map[string]int{}
+	taskState.Statuses = map[string]fndapi.TaskStatus{}
 
 	tasksInternalPostStatus.Handler(func(info rpc.RequestInfo, request tasksInternalPostStatusRequest) (util.Empty, *util.HttpError) {
 		ucloudTaskId, ok := taskGetUCloudTaskIdFromToken(request.Token)
 		if !ok {
 			return util.Empty{}, util.HttpErr(http.StatusForbidden, "invalid token")
 		}
+
+		taskState.Mu.Lock()
+		taskState.Statuses[request.Token] = request.Update
+		taskState.Mu.Unlock()
 
 		_, err := fndapi.TasksPostStatus.Invoke(fndapi.TasksPostStatusRequest{
 			Update: fndapi.TasksPostStatusRequestUpdate{
@@ -311,6 +325,16 @@ func taskJobReconciler() {
 }
 
 func TaskSubmit(spec TaskSpec) *util.HttpError {
+	_, err := TaskSubmitWithId(spec)
+	return err
+}
+
+func TaskSubmitWithId(spec TaskSpec) (int, *util.HttpError) {
+	submission, err := TaskSubmitWithInfo(spec)
+	return submission.UCloudTaskId, err
+}
+
+func TaskSubmitWithInfo(spec TaskSpec) (TaskSubmission, *util.HttpError) {
 	spec.Id = fmt.Sprintf("task-%s", util.RandomToken(8))
 	spec.TaskToken = util.SecureToken()
 
@@ -324,7 +348,7 @@ func TaskSubmit(spec TaskSpec) *util.HttpError {
 
 	if err != nil {
 		log.Warn("Failed to create background task: %s", err)
-		return util.HttpErr(http.StatusInternalServerError, "failed to create background task")
+		return TaskSubmission{}, util.HttpErr(http.StatusInternalServerError, "failed to create background task")
 	}
 
 	ucloudTaskId := resp.Id
@@ -406,7 +430,7 @@ func TaskSubmit(spec TaskSpec) *util.HttpError {
 					Containers: []k8score.Container{
 						{
 							Name:            "job",
-							Image:           "alpine:latest",
+							Image:           "dreg.cloud.sdu.dk/ucloud/im2:2026.3.91",
 							Command:         []string{"/opt/ucloud/ucloud", "task-processor"},
 							WorkingDir:      "/",
 							ImagePullPolicy: k8score.PullIfNotPresent,
@@ -443,13 +467,101 @@ func TaskSubmit(spec TaskSpec) *util.HttpError {
 		},
 	}
 
+	if spec.DeadlineSeconds.Present {
+		job.Spec.ActiveDeadlineSeconds = util.Pointer(int64(spec.DeadlineSeconds.Value))
+	}
+
 	_, kerr := shared.K8sClient.BatchV1().Jobs(shared.ServiceConfig.Compute.TaskNamespace).Create(context.Background(), &job, k8smeta.CreateOptions{})
 	if kerr != nil {
 		log.Warn("K8s background task failed: %s", kerr)
-		return util.HttpErr(http.StatusInternalServerError, "failed to create background task")
+		return TaskSubmission{}, util.HttpErr(http.StatusInternalServerError, "failed to create background task")
 	}
 
-	return nil
+	return TaskSubmission{Id: spec.Id, TaskToken: spec.TaskToken, UCloudTaskId: ucloudTaskId}, nil
+}
+
+func TaskSubmitAndWait(ctx context.Context, spec TaskSpec, pollInterval time.Duration) *util.HttpError {
+	submission, err := TaskSubmitWithInfo(spec)
+	if err != nil {
+		return err
+	}
+	defer taskForgetStatus(submission.TaskToken)
+	if pollInterval <= 0 {
+		pollInterval = time.Second
+	}
+
+	ticker := time.NewTicker(pollInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return util.HttpErr(http.StatusGatewayTimeout, "task did not finish before the deadline")
+		case <-ticker.C:
+			if status, ok := taskStatusByToken(submission.TaskToken); ok {
+				if err := taskTerminalStatusError(status); err != nil || status.State == fndapi.TaskStateSuccess {
+					return err
+				}
+			}
+
+			job, getErr := shared.K8sClient.BatchV1().Jobs(shared.ServiceConfig.Compute.TaskNamespace).Get(ctx, submission.Id, k8smeta.GetOptions{})
+			if getErr == nil {
+				if done, success := taskJobDone(job); done {
+					if success {
+						return nil
+					}
+					return util.HttpErr(http.StatusInternalServerError, "task failed")
+				}
+			}
+		}
+	}
+}
+
+func taskStatusByToken(token string) (fndapi.TaskStatus, bool) {
+	taskState.Mu.RLock()
+	status, ok := taskState.Statuses[token]
+	taskState.Mu.RUnlock()
+	return status, ok
+}
+
+func taskForgetStatus(token string) {
+	taskState.Mu.Lock()
+	delete(taskState.Statuses, token)
+	taskState.Mu.Unlock()
+}
+
+func taskTerminalStatusError(status fndapi.TaskStatus) *util.HttpError {
+	switch status.State {
+	case fndapi.TaskStateSuccess:
+		return nil
+	case fndapi.TaskStateFailure, fndapi.TaskStateCancelled:
+		if status.Body.Present && strings.TrimSpace(status.Body.Value) != "" {
+			return util.HttpErr(http.StatusInternalServerError, "%s", status.Body.Value)
+		}
+		return util.HttpErr(http.StatusInternalServerError, "task failed")
+	default:
+		return nil
+	}
+}
+
+func taskJobDone(job *k8sbatch.Job) (bool, bool) {
+	for _, cond := range job.Status.Conditions {
+		if cond.Status != k8score.ConditionTrue {
+			continue
+		}
+		switch cond.Type {
+		case k8sbatch.JobComplete:
+			return true, true
+		case k8sbatch.JobFailed:
+			return true, false
+		}
+	}
+	if job.Status.Succeeded > 0 {
+		return true, true
+	}
+	if job.Status.Failed > 0 {
+		return true, false
+	}
+	return false, false
 }
 
 func resolveTaskMounts(spec TaskSpec) ([]k8score.VolumeMount, map[string]string) {

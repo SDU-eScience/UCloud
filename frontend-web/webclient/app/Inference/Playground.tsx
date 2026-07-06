@@ -44,15 +44,16 @@ type PlaygroundSession = {
 };
 
 type PlaygroundOption = { key: string; value: string };
-type PlaygroundAttachmentKind = "image" | "video" | "audio" | "text" | "unsupported";
+type PlaygroundAttachmentKind = "image" | "video" | "audio" | "text" | "convertible" | "unsupported";
 type PlaygroundUploadAttachment = {
     localId: string;
     kind: Exclude<PlaygroundAttachmentKind, "unsupported">;
     attachmentId: string | null;
+    markdownAttachmentId: string | null;
     fileName: string;
     fileSize: number;
     uploadedBytes: number;
-    status: "uploading" | "uploaded" | "error";
+    status: "uploading" | "converting" | "uploaded" | "error";
     error: string;
     text: string;
 };
@@ -404,7 +405,7 @@ const playgroundComponents: UcxComponentRegistry = {
 
         const send = () => {
             if (!canSend) return;
-            const sentAttachments = attachments.filter(attachment => attachment.kind === "text" || attachment.attachmentId !== null);
+            const sentAttachments = attachments.filter(attachment => attachment.kind === "text" || attachment.kind === "convertible" || attachment.attachmentId !== null);
             fn.sendUiEvent(node.id, "click", {
                 kind: ValueKind.Object,
                 object: {
@@ -414,10 +415,10 @@ const playgroundComponents: UcxComponentRegistry = {
                         list: sentAttachments.map(attachment => ({
                             kind: ValueKind.Object,
                             object: {
-                                kind: {kind: ValueKind.String, string: attachment.kind},
+                                kind: {kind: ValueKind.String, string: attachment.kind === "convertible" ? "text" : attachment.kind},
                                 attachmentId: {kind: ValueKind.String, string: attachment.attachmentId ?? ""},
                                 fileName: {kind: ValueKind.String, string: attachment.fileName},
-                                url: {kind: ValueKind.String, string: attachment.attachmentId === null ? "" : playgroundAttachmentUrl(providerDomain, attachment.attachmentId)},
+                                url: {kind: ValueKind.String, string: attachment.attachmentId === null || attachment.kind === "convertible" ? "" : playgroundAttachmentUrl(providerDomain, attachment.attachmentId)},
                                 text: {kind: ValueKind.String, string: attachment.text},
                             },
                         })),
@@ -460,6 +461,7 @@ const playgroundComponents: UcxComponentRegistry = {
                     localId,
                     kind,
                     attachmentId: null,
+                    markdownAttachmentId: null,
                     fileName: file.name,
                     fileSize: file.size,
                     uploadedBytes: file.size,
@@ -477,6 +479,7 @@ const playgroundComponents: UcxComponentRegistry = {
                 localId,
                 kind,
                 attachmentId: null,
+                markdownAttachmentId: null,
                 fileName: file.name,
                 fileSize: file.size,
                 uploadedBytes: 0,
@@ -510,6 +513,22 @@ const playgroundComponents: UcxComponentRegistry = {
 
                 if (cancelState.cancelled) {
                     await fn.invokeRpc("inferenceAttachmentDelete", {id: attachmentId}, 30000);
+                    return;
+                }
+                if (kind === "convertible") {
+                    setAttachments(current => current.map(item => item.localId === localId ? {...item, status: "converting", uploadedBytes: file.size} : item));
+                    const converted = await fn.invokeRpc("inferenceAttachmentConvertToMarkdown", {id: attachmentId}, 150000) as Record<string, unknown>;
+                    const markdownAttachmentId = typeof converted.id === "string" ? converted.id : "";
+                    if (markdownAttachmentId === "") throw new Error("Attachment conversion failed: missing markdown id");
+                    if (cancelState.cancelled) {
+                        await fn.invokeRpc("inferenceAttachmentDelete", {id: attachmentId}, 30000);
+                        return;
+                    }
+                    const markdownUrl = playgroundAttachmentUrl(providerDomain, markdownAttachmentId);
+                    const markdownResp = await fetch(markdownUrl);
+                    if (!markdownResp.ok) throw new Error("Attachment conversion failed: could not download markdown");
+                    const text = await markdownResp.text();
+                    setAttachments(current => current.map(item => item.localId === localId ? {...item, markdownAttachmentId, status: "uploaded", uploadedBytes: file.size, text} : item));
                     return;
                 }
                 setAttachments(current => current.map(item => item.localId === localId ? {...item, status: "uploaded", uploadedBytes: file.size} : item));
@@ -729,7 +748,7 @@ function AttachmentUploadCard({attachment, onRemove}: {attachment: PlaygroundUpl
                 {attachment.fileName}
             </div>
             <div style={{fontSize: 11, color: "var(--textSecondary)"}}>
-                {attachment.status === "error" ? attachment.error : uploading ? `${progress}% uploaded` : attachment.uploadedBytes === 0 ? null : `${sizeToString(attachment.uploadedBytes)}`}
+                {attachment.status === "error" ? attachment.error : attachment.status === "converting" ? "Extracting text" : uploading ? `${progress}% uploaded` : attachment.uploadedBytes === 0 ? null : `${sizeToString(attachment.uploadedBytes)}`}
             </div>
             {uploading && <div style={{height: 3, marginTop: 4, borderRadius: 999, background: "var(--borderColor)", overflow: "hidden"}}>
                 <div style={{height: "100%", width: `${progress}%`, background: "var(--primaryMain)", transition: "width 120ms ease"}}/>
@@ -745,6 +764,7 @@ function MessageAttachmentCard({part}: {part: ChatMessagePart}): React.ReactNode
         localId: `${part.kind}-${part.url}-${part.fileName}`,
         kind,
         attachmentId: null,
+        markdownAttachmentId: null,
         fileName: part.fileName || "Unknown",
         fileSize: 0,
         uploadedBytes: 0,
@@ -1603,6 +1623,7 @@ function modelCapabilities(model: Record<string, Value>, modelName: string): str
 async function detectPlaygroundAttachmentKind(file: File): Promise<PlaygroundAttachmentKind> {
     const mimeKind = typeFromMime(file.type);
     if (mimeKind === "image" || mimeKind === "video" || mimeKind === "audio") return mimeKind;
+    if (isConvertiblePlaygroundAttachment(file.name, file.type)) return "convertible";
 
     const extKind = extensionType(extensionFromPath(file.name));
     if (extKind === "image" || extKind === "video" || extKind === "audio") return extKind;
@@ -1610,6 +1631,23 @@ async function detectPlaygroundAttachmentKind(file: File): Promise<PlaygroundAtt
 
     const sample = new Uint8Array(await file.slice(0, Math.min(file.size, 4096)).arrayBuffer());
     return isUtf8Text(sample) ? "text" : "unsupported";
+}
+
+function isConvertiblePlaygroundAttachment(fileName: string, mimeType: string): boolean {
+    const ext = extensionFromPath(fileName).toLowerCase();
+    if (["pdf", "ppt", "pptx", "doc", "docx", "xls", "xlsx", "epub", "zip"].includes(ext)) return true;
+    return [
+        "application/pdf",
+        "application/vnd.ms-powerpoint",
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/vnd.ms-excel",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "application/epub+zip",
+        "application/zip",
+        "application/x-zip-compressed",
+    ].includes(mimeType.toLowerCase());
 }
 
 function playgroundAttachmentRejection(kind: PlaygroundAttachmentKind, capabilities: string[]): string {
@@ -1621,6 +1659,8 @@ function playgroundAttachmentRejection(kind: PlaygroundAttachmentKind, capabilit
         case "audio":
             return capabilities.includes("Audio") ? "" : "The selected model does not support audio attachments.";
         case "text":
+            return "";
+        case "convertible":
             return "";
         case "unsupported":
             return "This file type is not supported by the selected model.";

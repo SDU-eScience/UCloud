@@ -1,8 +1,11 @@
 FROM ubuntu:24.04
 RUN apt-get update && \
     apt-get install -y ca-certificates qemu-utils && \
+    apt-get install -y --no-install-recommends ffmpeg exiftool python3 python3-pip curl && \
     update-ca-certificates && \
     rm -rf /var/lib/apt/lists/*
+
+RUN pip --no-cache-dir install --break-system-packages markitdown[all]
 
 COPY bin/ucloud_aarch64 /usr/bin/tmp_ucloud_aarch64
 COPY bin/ucloud_x86_64 /usr/bin/tmp_ucloud_x86_64

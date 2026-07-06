@@ -326,3 +326,16 @@ func inferenceV13() db.MigrationScript {
 		},
 	}
 }
+
+func inferenceV14() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "inferenceV14",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`alter table k8s.inference_attachments add column markdown_attachment_id text null`,
+				db.Params{},
+			)
+		},
+	}
+}
