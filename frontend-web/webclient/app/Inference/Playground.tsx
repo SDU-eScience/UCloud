@@ -535,6 +535,7 @@ type ChatMessageListItem = {
 type PlaygroundFrameProps = {
     model: Record<string, Value>;
     fn?: UcxFunctionRegistry;
+    ucxContent?: React.ReactNode;
     connected: boolean;
     mounted: boolean;
     loadingSession?: boolean;
@@ -1276,13 +1277,14 @@ function ThreadListNode({
     );
 }
 
-function PlaygroundFrame({model, fn, connected, mounted, loadingSession = false, error = ""}: PlaygroundFrameProps): React.ReactNode {
+function PlaygroundFrame({model, fn, ucxContent, connected, mounted, loadingSession = false, error = ""}: PlaygroundFrameProps): React.ReactNode {
     const connectionStatus = loadingSession || !mounted ? "Connecting..." : !connected ? "Reconnecting..." : error !== "" ? "Connection issue" : "Connected";
 
     return (
         <MainContainer
             main={
                 <div className={`${PlaygroundThemeClass} ${PlaygroundWorkspaceClass}`} style={{display: "flex", flexDirection: "column", gap: 8, minHeight: 0}}>
+                    {ucxContent ? <div style={{display: "none"}}>{ucxContent}</div> : null}
                     <TabbedCard
                         style={{flex: 1, minHeight: 0, overflow: "hidden"}}
                         rightControls={<>
@@ -1637,10 +1639,11 @@ export default function Playground(): React.ReactNode {
                     onModelChange={handleModelChange}
                     components={playgroundComponents}
                     rehydrateModelPaths={PLAYGROUND_REHYDRATE_PATHS}
-                    renderFrame={({connected, mounted, transportError, model, fn}) => (
+                    renderFrame={({connected, mounted, transportError, content, model, fn}) => (
                         <PlaygroundFrame
                             model={model ?? lastModel}
                             fn={fn}
+                            ucxContent={content}
                             connected={connected}
                             mounted={mounted ?? false}
                             error={terminalError || transportError}
