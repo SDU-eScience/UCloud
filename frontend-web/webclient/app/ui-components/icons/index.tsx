@@ -1308,29 +1308,6 @@ export const extract = (props: any) => (
     />
   </svg>
 );
-export const eye = (props: any) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 60 20"
-    fill="currentcolor"
-    {...props}
-  >
-    <path
-      fill="transparent"
-      stroke="currentcolor"
-      strokeWidth={2}
-      d="M2 10c8 10 38 10 48 0M2 10c8-10 38-10 48 0"
-    />
-    <circle
-      cx={26}
-      cy={10}
-      r={4}
-      fill="none"
-      stroke="currentcolor"
-      strokeWidth={4}
-    />
-  </svg>
-);
 export const favIcon = (props: any) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -1798,12 +1775,10 @@ export const gpu = (props: any) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     xmlSpace="preserve"
-    style={{
-      fillRule: "evenodd",
-      clipRule: "evenodd",
-    }}
-    viewBox="0 0 24 24"
     fill="currentcolor"
+    fillRule="evenodd"
+    clipRule="evenodd"
+    viewBox="0 0 24 24"
     {...props}
   >
     <path
@@ -1815,14 +1790,7 @@ export const gpu = (props: any) => (
       }}
       transform="matrix(.94056 0 0 .99524 .228 .099)"
     />
-    <path
-      d="M3.336 6.45h18.06v11.076H3.336z"
-      style={{
-        stroke: "currentcolor",
-        strokeWidth: 1,
-      }}
-      transform="matrix(.9722 0 0 .90519 .595 1.662)"
-    />
+    <path d="M22 7H3.838v11H22zM11 17l3.5-5H13l1-4-3.5 5H12z" />
   </svg>
 );
 export const grant = (props: any) => (
