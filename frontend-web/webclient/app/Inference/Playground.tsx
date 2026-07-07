@@ -124,7 +124,6 @@ const ThreadListClass = injectStyle("inference-thread-list", k => `
     }
 `);
 
-const MAX_RECONNECT_ATTEMPTS = 5;
 const MAX_TEXT_ATTACHMENT_BYTES = 128 * 1024;
 const PLAYGROUND_REHYDRATE_PATHS = [
     "developer",
@@ -1605,14 +1604,12 @@ export default function Playground(): React.ReactNode {
 
     const handleDisconnected = React.useCallback(() => {
         if (!mountedRef.current) return;
+        setRefreshNonce((v) => v + 1);
     }, []);
 
     const handleTransportError = React.useCallback((message: string) => {
         if (!mountedRef.current) return;
         setTerminalError(message);
-        if (message.includes("Reconnect limit reached")) {
-            setRefreshNonce((v) => v + 1);
-        }
     }, []);
 
     const handleModelChange = React.useCallback((model: Record<string, Value>) => {
@@ -1645,7 +1642,7 @@ export default function Playground(): React.ReactNode {
                     url={session.connectTo}
                     authToken={session.sessionToken}
                     sysHello={JSON.stringify({})}
-                    maxReconnectAttempts={MAX_RECONNECT_ATTEMPTS}
+                    maxReconnectAttempts={0}
                     onConnected={handleConnected}
                     onDisconnected={handleDisconnected}
                     onTransportError={handleTransportError}
