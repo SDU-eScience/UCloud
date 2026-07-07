@@ -1,0 +1,360 @@
+package inference
+
+import (
+	"encoding/json"
+	"path/filepath"
+	"slices"
+	"sort"
+	"strings"
+	"time"
+	"unicode"
+
+	ctrl "ucloud.dk/pkg/controller"
+	"ucloud.dk/pkg/integrations/k8s/filesystem"
+	"ucloud.dk/shared/pkg/util"
+)
+
+const (
+	playgroundChatsSubPath      = "Inference/Chats"
+	playgroundThreadLoadLimit   = 30
+	playgroundThreadMaxJSONSize = 8 * 1024 * 1024
+)
+
+type playgroundPersistedThread struct {
+	Version   int                          `json:"version"`
+	Id        string                       `json:"id"`
+	Title     string                       `json:"title"`
+	CreatedAt string                       `json:"createdAt"`
+	UpdatedAt string                       `json:"updatedAt"`
+	Messages  []playgroundPersistedMessage `json:"messages"`
+}
+
+type playgroundPersistedMessage struct {
+	Role           string `json:"role"`
+	Content        string `json:"content"`
+	Reasoning      string `json:"reasoning,omitempty"`
+	ReasoningTitle string `json:"reasoningTitle,omitempty"`
+	GeneratedAt    string `json:"generatedAt,omitempty"`
+	ModelName      string `json:"modelName,omitempty"`
+	StartedAt      string `json:"startedAt,omitempty"`
+	FirstTokenAt   string `json:"firstTokenAt,omitempty"`
+	FinishedAt     string `json:"finishedAt,omitempty"`
+	OutputTokens   int64  `json:"outputTokens,omitempty"`
+}
+
+func inferencePlaygroundThreadsLoad(owner string, project util.Option[string]) []playgroundChatThread {
+	basePath, _, err := filesystem.InitializeMemberFiles(owner, project)
+	if err != nil {
+		return nil
+	}
+	root := playgroundChatsRoot(basePath)
+	if err := filesystem.DoCreateFolder(root); err != nil {
+		return nil
+	}
+
+	paths := playgroundMostRecentThreadPaths(root, playgroundThreadLoadLimit*4)
+	threads := make([]playgroundChatThread, 0, len(paths))
+	seen := map[string]bool{}
+	for _, path := range paths {
+		thread, ok := playgroundThreadRead(path)
+		if !ok || len(thread.Messages) == 0 {
+			continue
+		}
+		if seen[thread.Id] {
+			continue
+		}
+		seen[thread.Id] = true
+		threads = append(threads, thread)
+		if len(threads) >= playgroundThreadLoadLimit {
+			break
+		}
+	}
+	sort.SliceStable(threads, func(i, j int) bool {
+		return threads[i].UpdatedAt > threads[j].UpdatedAt
+	})
+	return threads
+}
+
+func inferencePlaygroundThreadsFlush(owner string, project util.Option[string], threads []playgroundChatThread, deletedThreadIds []string, deletedThreadPaths []string) bool {
+	dirty := len(deletedThreadIds) > 0 || len(deletedThreadPaths) > 0
+	for _, thread := range threads {
+		if thread.Dirty {
+			dirty = true
+			break
+		}
+	}
+	if !dirty {
+		return true
+	}
+
+	basePath, drive, err := filesystem.InitializeMemberFiles(owner, project)
+	if err != nil {
+		return false
+	}
+	if ctrl.ResourceIsLocked(drive.Resource, drive.Specification.Product) {
+		return false
+	}
+	root := playgroundChatsRoot(basePath)
+	if err := filesystem.DoCreateFolder(root); err != nil {
+		return false
+	}
+
+	deleted := map[string]bool{}
+	for _, path := range deletedThreadPaths {
+		path = strings.TrimSpace(path)
+		if path == "" || deleted[path] {
+			continue
+		}
+		deleted[path] = true
+		if info, statErr := filesystem.Stat(path); statErr == nil && !info.IsDir() {
+			if deleteErr := filesystem.DoDeleteFile(path); deleteErr != nil {
+				return false
+			}
+		}
+	}
+
+	for i := range threads {
+		thread := &threads[i]
+		if !thread.Dirty || len(thread.Messages) == 0 {
+			continue
+		}
+
+		targetPath := playgroundThreadPath(root, *thread)
+		data, jsonErr := json.MarshalIndent(playgroundThreadPersisted(*thread), "", "  ")
+		if jsonErr != nil {
+			return false
+		}
+		data = append(data, '\n')
+		if writeErr := filesystem.WriteFileAtomic(targetPath, data, 0660); writeErr != nil {
+			return false
+		}
+
+		if thread.StoragePath != "" && thread.StoragePath != targetPath {
+			if info, statErr := filesystem.Stat(thread.StoragePath); statErr == nil && !info.IsDir() {
+				if deleteErr := filesystem.DoDeleteFile(thread.StoragePath); deleteErr != nil {
+					return false
+				}
+			}
+		}
+		thread.StoragePath = targetPath
+	}
+
+	return true
+}
+
+func playgroundMostRecentThreadPaths(root string, limit int) []string {
+	years := playgroundSortedChildren(root, true)
+	paths := make([]string, 0, limit)
+	for _, year := range years {
+		yearPath := filepath.Join(root, year)
+		if !playgroundIsDir(yearPath) {
+			continue
+		}
+		months := playgroundSortedChildren(yearPath, true)
+		for _, month := range months {
+			monthPath := filepath.Join(yearPath, month)
+			if !playgroundIsDir(monthPath) {
+				continue
+			}
+			days := playgroundSortedChildren(monthPath, true)
+			for _, day := range days {
+				dayPath := filepath.Join(monthPath, day)
+				if !playgroundIsDir(dayPath) {
+					continue
+				}
+				files := playgroundSortedChildren(dayPath, true)
+				for _, file := range files {
+					if !strings.HasSuffix(file, ".json") || strings.HasPrefix(file, ".") {
+						continue
+					}
+					path := filepath.Join(dayPath, file)
+					if playgroundIsDir(path) {
+						continue
+					}
+					paths = append(paths, path)
+					if len(paths) >= limit {
+						return paths
+					}
+				}
+			}
+		}
+	}
+	return paths
+}
+
+func playgroundSortedChildren(path string, descending bool) []string {
+	names, err := filesystem.ListDirNames(path)
+	if err != nil {
+		return nil
+	}
+	names = slices.DeleteFunc(names, func(name string) bool {
+		return name == "." || name == ".."
+	})
+	sort.Strings(names)
+	if descending {
+		slices.Reverse(names)
+	}
+	return names
+}
+
+func playgroundIsDir(path string) bool {
+	info, err := filesystem.Stat(path)
+	return err == nil && info.IsDir()
+}
+
+func playgroundThreadRead(path string) (playgroundChatThread, bool) {
+	data, err := filesystem.ReadFile(path, playgroundThreadMaxJSONSize)
+	if err != nil {
+		return playgroundChatThread{}, false
+	}
+
+	var persisted playgroundPersistedThread
+	if jsonErr := json.Unmarshal(data, &persisted); jsonErr != nil {
+		return playgroundChatThread{}, false
+	}
+	thread, ok := playgroundThreadFromPersisted(persisted)
+	if !ok {
+		return playgroundChatThread{}, false
+	}
+	thread.StoragePath = path
+	return thread, true
+}
+
+func playgroundThreadPersisted(thread playgroundChatThread) playgroundPersistedThread {
+	messages := make([]playgroundPersistedMessage, 0, len(thread.Messages))
+	for _, msg := range thread.Messages {
+		messages = append(messages, playgroundPersistedMessage{
+			Role:           msg.Role,
+			Content:        msg.Content,
+			Reasoning:      msg.Reasoning,
+			ReasoningTitle: msg.ReasoningTitle,
+			GeneratedAt:    playgroundFormatTime(msg.GeneratedAt),
+			ModelName:      msg.ModelName,
+			StartedAt:      playgroundFormatTime(msg.StartedAt),
+			FirstTokenAt:   playgroundFormatTime(msg.FirstTokenAt),
+			FinishedAt:     playgroundFormatTime(msg.FinishedAt),
+			OutputTokens:   msg.OutputTokens,
+		})
+	}
+	return playgroundPersistedThread{
+		Version:   1,
+		Id:        thread.Id,
+		Title:     thread.Title,
+		CreatedAt: playgroundFormatTime(thread.CreatedAt),
+		UpdatedAt: playgroundFormatTime(thread.UpdatedAt),
+		Messages:  messages,
+	}
+}
+
+func playgroundThreadFromPersisted(persisted playgroundPersistedThread) (playgroundChatThread, bool) {
+	if persisted.Version != 1 || strings.TrimSpace(persisted.Id) == "" {
+		return playgroundChatThread{}, false
+	}
+	createdAt, ok := playgroundParseTime(persisted.CreatedAt)
+	if !ok {
+		return playgroundChatThread{}, false
+	}
+	updatedAt, ok := playgroundParseTime(persisted.UpdatedAt)
+	if !ok {
+		return playgroundChatThread{}, false
+	}
+
+	messages := make([]playgroundChatMessage, 0, len(persisted.Messages))
+	for _, msg := range persisted.Messages {
+		generatedAt, _ := playgroundParseTime(msg.GeneratedAt)
+		startedAt, _ := playgroundParseTime(msg.StartedAt)
+		firstTokenAt, _ := playgroundParseTime(msg.FirstTokenAt)
+		finishedAt, _ := playgroundParseTime(msg.FinishedAt)
+		messages = append(messages, playgroundChatMessage{
+			Role:           msg.Role,
+			Content:        msg.Content,
+			Reasoning:      msg.Reasoning,
+			ReasoningTitle: msg.ReasoningTitle,
+			Parts:          playgroundChatMessageParts(msg.Content, msg.Reasoning, msg.ReasoningTitle, false),
+			GeneratedAt:    generatedAt,
+			ModelName:      msg.ModelName,
+			StartedAt:      startedAt,
+			FirstTokenAt:   firstTokenAt,
+			FinishedAt:     finishedAt,
+			OutputTokens:   msg.OutputTokens,
+		})
+	}
+
+	title := strings.TrimSpace(persisted.Title)
+	if title == "" {
+		title = "New thread"
+	}
+	return playgroundChatThread{
+		Id:                     persisted.Id,
+		Title:                  title,
+		CreatedAt:              createdAt,
+		UpdatedAt:              updatedAt,
+		Messages:               messages,
+		TitleGenerated:         true,
+		TitleGenerationStarted: true,
+	}, true
+}
+
+func playgroundChatsRoot(basePath string) string {
+	return filepath.Join(basePath, playgroundChatsSubPath)
+}
+
+func playgroundThreadPath(root string, thread playgroundChatThread) string {
+	updatedAt := time.UnixMilli(thread.UpdatedAt).UTC()
+	return filepath.Join(
+		root,
+		updatedAt.Format("2006"),
+		updatedAt.Format("01"),
+		updatedAt.Format("02"),
+		playgroundThreadFileName(thread),
+	)
+}
+
+func playgroundThreadFileName(thread playgroundChatThread) string {
+	updatedAt := time.UnixMilli(thread.UpdatedAt).UTC()
+	slug := playgroundThreadTitleSlug(thread.Title)
+	return updatedAt.Format("20060102T150405.000Z") + "-" + slug + "-" + thread.Id + ".json"
+}
+
+func playgroundThreadTitleSlug(title string) string {
+	var builder strings.Builder
+	lastDash := false
+	for _, r := range strings.ToLower(strings.TrimSpace(title)) {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			builder.WriteRune(r)
+			lastDash = false
+			continue
+		}
+		if !lastDash && builder.Len() > 0 {
+			builder.WriteByte('-')
+			lastDash = true
+		}
+		if builder.Len() >= 64 {
+			break
+		}
+	}
+	slug := strings.Trim(builder.String(), "-")
+	if slug == "" {
+		return "new-thread"
+	}
+	return slug
+}
+
+func playgroundFormatTime(ms int64) string {
+	if ms == 0 {
+		return ""
+	}
+	return time.UnixMilli(ms).UTC().Format("2006-01-02T15:04:05.000Z")
+}
+
+func playgroundParseTime(raw string) (int64, bool) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return 0, false
+	}
+	parsed, err := time.Parse(time.RFC3339Nano, raw)
+	if err != nil {
+		return 0, false
+	}
+	return parsed.UnixMilli(), true
+}

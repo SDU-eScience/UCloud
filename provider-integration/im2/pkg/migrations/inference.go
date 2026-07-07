@@ -339,3 +339,21 @@ func inferenceV14() db.MigrationScript {
 		},
 	}
 }
+
+func inferenceV15() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "inferenceV15",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`drop table inference_playground_message`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`drop table inference_playground_thread`,
+				db.Params{},
+			)
+		},
+	}
+}

@@ -17,7 +17,6 @@ import (
 
 	"ucloud.dk/pkg/integrations/k8s/shared"
 	apm "ucloud.dk/shared/pkg/accounting"
-	db "ucloud.dk/shared/pkg/database"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/ucx"
 	"ucloud.dk/shared/pkg/util"
@@ -42,10 +41,11 @@ type InferencePlaygroundApp struct {
 	Route     string
 	Developer bool
 
-	Models           []InferenceModel
-	Threads          []playgroundChatThread
-	DeletedThreadIds []string `ucx:"-"`
-	CurrentThreadId  string
+	Models             []InferenceModel
+	Threads            []playgroundChatThread
+	DeletedThreadIds   []string `ucx:"-"`
+	DeletedThreadPaths []string `ucx:"-"`
+	CurrentThreadId    string
 
 	Chat InferencePlaygroundAppChat
 }
@@ -148,6 +148,7 @@ type playgroundChatThread struct {
 	Messages               []playgroundChatMessage `ucx:"-"`
 	Dirty                  bool                    `ucx:"-"`
 	Deleted                bool                    `ucx:"-"`
+	StoragePath            string                  `ucx:"-"`
 	TitleGenerated         bool                    `ucx:"-"`
 	TitleGenerationStarted bool                    `ucx:"-"`
 }
@@ -358,7 +359,7 @@ func (app *InferencePlaygroundApp) loadThreads() {
 	if owner == "" {
 		return
 	}
-	app.Threads = inferencePlaygroundThreadsLoad(owner)
+	app.Threads = inferencePlaygroundThreadsLoad(owner, app.Owner.Project)
 }
 
 func (app *InferencePlaygroundApp) startThreadFlusher() {
@@ -637,6 +638,12 @@ func playgroundReasoningTitlePrompt(reasoning string) string {
 
 func (app *InferencePlaygroundApp) deleteThread(id string) {
 	app.DeletedThreadIds = append(app.DeletedThreadIds, id)
+	for _, thread := range app.Threads {
+		if thread.Id == id && thread.StoragePath != "" {
+			app.DeletedThreadPaths = append(app.DeletedThreadPaths, thread.StoragePath)
+			break
+		}
+	}
 	app.Threads = slices.DeleteFunc(app.Threads, func(thread playgroundChatThread) bool {
 		return thread.Id == id
 	})
@@ -667,11 +674,12 @@ func (app *InferencePlaygroundApp) flushThreadsLocked() {
 	if owner == "" {
 		return
 	}
-	if inferencePlaygroundThreadsFlush(owner, app.Threads, app.DeletedThreadIds) {
+	if inferencePlaygroundThreadsFlush(owner, app.Owner.Project, app.Threads, app.DeletedThreadIds, app.DeletedThreadPaths) {
 		for i := range app.Threads {
 			app.Threads[i].Dirty = false
 		}
 		app.DeletedThreadIds = nil
+		app.DeletedThreadPaths = nil
 	}
 }
 
@@ -697,195 +705,6 @@ func playgroundNormalizeGeneratedThreadTitle(title string) string {
 		runes = runes[:80]
 	}
 	return strings.TrimSpace(string(runes))
-}
-
-type inferencePlaygroundThreadRow struct {
-	Id        string
-	Title     string
-	CreatedAt time.Time
-	UpdatedAt time.Time
-}
-
-type inferencePlaygroundMessageRow struct {
-	ThreadId       string
-	Role           string
-	Content        string
-	Reasoning      string
-	ReasoningTitle string
-	GeneratedAt    time.Time
-	ModelName      string
-	StartedAt      time.Time
-	FirstTokenAt   time.Time
-	FinishedAt     time.Time
-	OutputTokens   int64
-}
-
-func inferencePlaygroundThreadsLoad(owner string) []playgroundChatThread {
-	return db.NewTx(func(tx *db.Transaction) []playgroundChatThread {
-		threadRows := db.Select[inferencePlaygroundThreadRow](
-			tx,
-			`
-				select id, title, created_at, updated_at
-				from inference_playground_thread
-				where owner_username = :owner
-				order by updated_at desc
-			`,
-			db.Params{"owner": owner},
-		)
-		messageRows := db.Select[inferencePlaygroundMessageRow](
-			tx,
-			`
-				select m.thread_id, m.role, m.content, m.reasoning, m.reasoning_title, m.generated_at,
-				       m.model_name,
-				       coalesce(m.started_at, 'epoch'::timestamptz) as started_at,
-				       coalesce(m.first_token_at, 'epoch'::timestamptz) as first_token_at,
-				       coalesce(m.finished_at, 'epoch'::timestamptz) as finished_at,
-				       m.output_tokens
-				from inference_playground_message m
-				join inference_playground_thread t on t.id = m.thread_id
-				where t.owner_username = :owner
-				order by m.thread_id, m.message_index
-			`,
-			db.Params{"owner": owner},
-		)
-
-		messagesByThread := map[string][]playgroundChatMessage{}
-		for _, row := range messageRows {
-			startedAt := int64(0)
-			if !row.StartedAt.IsZero() {
-				startedAt = row.StartedAt.UnixMilli()
-			}
-			firstTokenAt := int64(0)
-			if !row.FirstTokenAt.IsZero() {
-				firstTokenAt = row.FirstTokenAt.UnixMilli()
-			}
-			finishedAt := int64(0)
-			if !row.FinishedAt.IsZero() {
-				finishedAt = row.FinishedAt.UnixMilli()
-			}
-			messagesByThread[row.ThreadId] = append(messagesByThread[row.ThreadId], playgroundChatMessage{
-				Role:           row.Role,
-				Content:        row.Content,
-				Reasoning:      row.Reasoning,
-				ReasoningTitle: row.ReasoningTitle,
-				Parts:          playgroundChatMessageParts(row.Content, row.Reasoning, row.ReasoningTitle, false),
-				GeneratedAt:    row.GeneratedAt.UnixMilli(),
-				ModelName:      row.ModelName,
-				StartedAt:      startedAt,
-				FirstTokenAt:   firstTokenAt,
-				FinishedAt:     finishedAt,
-				OutputTokens:   row.OutputTokens,
-			})
-		}
-
-		threads := make([]playgroundChatThread, 0, len(threadRows))
-		for _, row := range threadRows {
-			threads = append(threads, playgroundChatThread{
-				Id:                     row.Id,
-				Title:                  row.Title,
-				CreatedAt:              row.CreatedAt.UnixMilli(),
-				UpdatedAt:              row.UpdatedAt.UnixMilli(),
-				Messages:               messagesByThread[row.Id],
-				TitleGenerated:         true,
-				TitleGenerationStarted: true,
-			})
-		}
-		return threads
-	})
-}
-
-func inferencePlaygroundThreadsFlush(owner string, threads []playgroundChatThread, deletedThreadIds []string) bool {
-	dirty := len(deletedThreadIds) > 0
-	for _, thread := range threads {
-		if thread.Dirty {
-			dirty = true
-			break
-		}
-	}
-	if !dirty {
-		return true
-	}
-
-	db.NewTx0(func(tx *db.Transaction) {
-		for _, id := range deletedThreadIds {
-			db.Exec(
-				tx,
-				`delete from inference_playground_thread where owner_username = :owner and id = :id`,
-				db.Params{"owner": owner, "id": id},
-			)
-		}
-
-		for _, thread := range threads {
-			if !thread.Dirty {
-				continue
-			}
-			if len(thread.Messages) == 0 {
-				continue
-			}
-			createdAt := time.UnixMilli(thread.CreatedAt)
-			updatedAt := time.UnixMilli(thread.UpdatedAt)
-			db.Exec(
-				tx,
-				`
-					insert into inference_playground_thread(id, owner_username, title, created_at, updated_at)
-					values (:id, :owner, :title, :created_at, :updated_at)
-					on conflict (id) do update set
-						title = excluded.title,
-						updated_at = excluded.updated_at
-					where inference_playground_thread.owner_username = :owner
-				`,
-				db.Params{
-					"id":         thread.Id,
-					"owner":      owner,
-					"title":      thread.Title,
-					"created_at": createdAt,
-					"updated_at": updatedAt,
-				},
-			)
-			db.Exec(
-				tx,
-				`delete from inference_playground_message where thread_id = :thread_id`,
-				db.Params{"thread_id": thread.Id},
-			)
-			for idx, msg := range thread.Messages {
-				generatedAt := time.UnixMilli(msg.GeneratedAt)
-				if msg.GeneratedAt == 0 {
-					generatedAt = time.Now()
-				}
-				db.Exec(
-					tx,
-					`
-						insert into inference_playground_message(thread_id, message_index, role, content, reasoning, reasoning_title, generated_at,
-						                                         model_name, started_at, first_token_at, finished_at, output_tokens)
-						values (:thread_id, :message_index, :role, :content, :reasoning, :reasoning_title, :generated_at,
-						        :model_name, :started_at, :first_token_at, :finished_at, :output_tokens)
-					`,
-					db.Params{
-						"thread_id":       thread.Id,
-						"message_index":   idx,
-						"role":            msg.Role,
-						"content":         msg.Content,
-						"reasoning":       msg.Reasoning,
-						"reasoning_title": msg.ReasoningTitle,
-						"generated_at":    generatedAt,
-						"model_name":      msg.ModelName,
-						"started_at":      playgroundOptionalTime(msg.StartedAt),
-						"first_token_at":  playgroundOptionalTime(msg.FirstTokenAt),
-						"finished_at":     playgroundOptionalTime(msg.FinishedAt),
-						"output_tokens":   msg.OutputTokens,
-					},
-				)
-			}
-		}
-	})
-	return true
-}
-
-func playgroundOptionalTime(ms int64) any {
-	if ms == 0 {
-		return nil
-	}
-	return time.UnixMilli(ms)
 }
 
 func (app *InferencePlaygroundApp) availableModes() []string {
