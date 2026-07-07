@@ -68,7 +68,7 @@ func ValidateManifest(manifest Manifest) error {
 	if err != nil || len(decoded) != sha256.Size {
 		return fmt.Errorf("sha256 must be a hex-encoded SHA-256 digest")
 	}
-	if manifest.UpdatedAt.IsZero() {
+	if manifest.UpdatedAt.Time().IsZero() {
 		return fmt.Errorf("updatedAt is required")
 	}
 
