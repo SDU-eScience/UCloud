@@ -12,6 +12,8 @@ import (
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	fndapi "ucloud.dk/shared/pkg/foundation"
 )
 
 func TestVerifyManifest(t *testing.T) {
@@ -120,7 +122,7 @@ func TestFetchAndVerifyBinary(t *testing.T) {
 	fetched, err := FetchAndVerifyBinary(context.Background(), server.Client(), Manifest{
 		BinaryUrl: server.URL + "/my-ucx-app",
 		Sha256:    hex.EncodeToString(sum[:]),
-		UpdatedAt: time.Date(2026, 7, 7, 12, 0, 0, 0, time.UTC),
+		UpdatedAt: fndapi.Timestamp(time.Date(2026, 7, 7, 12, 0, 0, 0, time.UTC)),
 	})
 	if err != nil {
 		t.Fatalf("fetch and verify binary: %s", err)
@@ -137,7 +139,7 @@ func testManifestBytes(t *testing.T, binary string) []byte {
 	manifest := Manifest{
 		BinaryUrl: "https://provider.example.org/ucloud/ucx/my-app/my-ucx-app",
 		Sha256:    hex.EncodeToString(sum[:]),
-		UpdatedAt: time.Date(2026, 7, 7, 12, 0, 0, 0, time.UTC),
+		UpdatedAt: fndapi.Timestamp(time.Date(2026, 7, 7, 12, 0, 0, 0, time.UTC)),
 	}
 	data, err := json.Marshal(manifest)
 	if err != nil {
