@@ -51,4 +51,5 @@ func Init() {
 	db.AddMigration(inferenceV13())
 	db.AddMigration(inferenceV14())
 	db.AddMigration(inferenceV15())
+	db.AddMigration(ucxDeliveryV1())
 }
