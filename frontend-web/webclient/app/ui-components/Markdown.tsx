@@ -3,15 +3,14 @@ import ReactMarkdown, {Options} from "react-markdown";
 import ExternalLink from "./ExternalLink";
 import SyntaxHighlighter from "react-syntax-highlighter";
 import {injectStyle} from "@/Unstyled";
-import {Icon, Text} from "@/ui-components/index";
-import {UcxRenderContext} from "@/UCX/UcxView";
-import {Operation, ShortcutKey} from "@/ui-components/Operation";
-import {doNothing} from "@/UtilityFunctions";
-import {addStandardInputDialog} from "@/UtilityComponents";
 import Table from "@/ui-components/Table";
 import Box from "@/ui-components/Box";
 import CodeSnippet from "@/ui-components/CodeSnippet";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
+import "katex/dist/katex.min.css"
+
 
 function CodeBlock(props: {lang?: string; inline?: boolean; children: React.ReactNode}) {
     if (props.inline === true || !props.lang) return <code>{props.children}</code>;
@@ -199,9 +198,16 @@ export function MarkdownDocument({text}: { text: string }): React.ReactNode {
                 "tr",
                 "hr",
                 "blockquote",
+
+                // katex + mathml
+                'span',
+                'math', 'semantics', 'mrow', 'mi', 'mo', 'mn', 'msup', 'msub',
+                'msubsup', 'mfrac', 'msqrt', 'mroot', 'mtable', 'mtr', 'mtd',
+                'mtext', 'annotation',
             ]}
             children={text}
-            remarkPlugins={[remarkGfm]}
+            remarkPlugins={[remarkGfm, remarkMath]}
+            rehypePlugins={[rehypeKatex]}
         />
     );
 }

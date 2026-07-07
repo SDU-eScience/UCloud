@@ -43,6 +43,7 @@ type InferencePlaygroundApp struct {
 
 	Models             []InferenceModel
 	Threads            []playgroundChatThread
+	LoadingThreadIds   []string
 	DeletedThreadIds   []string `ucx:"-"`
 	DeletedThreadPaths []string `ucx:"-"`
 	CurrentThreadId    string
@@ -252,12 +253,12 @@ func (app *InferencePlaygroundApp) OnMessage(message ucx.Frame) {
 		case "chatComposer":
 			prompt, attachments := playgroundChatComposerEvent(message.UiEvent.Value)
 			app.Chat.Prompt = prompt
-			if !app.Chat.Loading {
+			if !app.currentThreadLoading() {
 				app.runChat(attachments)
 				ucx.AppUpdateModel(app)
 			}
 		case "regenerateChat":
-			if !app.Chat.Loading {
+			if !app.currentThreadLoading() {
 				modelId := message.UiEvent.Value.String
 				messageIndex := int64(-1)
 				if message.UiEvent.Value.Kind == ucx.ValueObject {
@@ -370,6 +371,7 @@ func (app *InferencePlaygroundApp) ensureCurrentThread() {
 func (app *InferencePlaygroundApp) createThread() {
 	app.CurrentThreadId = ""
 	app.Chat.Messages = nil
+	app.Chat.Loading = false
 }
 
 func (app *InferencePlaygroundApp) materializeCurrentThread() {
@@ -421,6 +423,7 @@ func (app *InferencePlaygroundApp) openThread(id string) {
 		if app.Threads[i].Id == id && !app.Threads[i].Deleted {
 			app.CurrentThreadId = id
 			app.Chat.Messages = slices.Clone(app.Threads[i].Messages)
+			app.Chat.Loading = app.threadLoading(id)
 			if modelId := playgroundMostRecentMessageModel(app.Chat.Messages); modelId != "" {
 				app.Chat.ModelId = modelId
 				app.applyChatModelDefaults()
@@ -905,6 +908,7 @@ func (app *InferencePlaygroundApp) runChat(attachments []playgroundChatAttachmen
 		app.Chat.Usage.LastQuery = InferencePlaygroundTokenUsage{}
 		app.markCurrentThreadDirty()
 		threadId := app.CurrentThreadId
+		app.setThreadLoading(threadId, true)
 		ucx.AppUpdateUi(app)
 
 		go app.runChatResponse(owner, threadId, assistantIndex, request)
@@ -970,6 +974,7 @@ func (app *InferencePlaygroundApp) regenerateChat(modelId string, messageIndex i
 	owner := app.walletOwner()
 	app.Chat.Usage.LastQuery = InferencePlaygroundTokenUsage{}
 	app.markCurrentThreadDirty()
+	app.setThreadLoading(threadId, true)
 	ucx.AppUpdateModel(app)
 
 	go app.runChatResponse(owner, threadId, assistantIndex, request)
@@ -1058,8 +1063,34 @@ func (app *InferencePlaygroundApp) runChatResponse(owner apm.WalletOwner, thread
 	app.Chat.Curl = app.buildChatCurl()
 	app.Chat.Prompt = ""
 	app.Chat.Loading = false
+	app.setThreadLoading(threadId, false)
 	app.applyChatUsage(usageSeen)
 	ucx.AppUpdateUi(app)
+}
+
+func (app *InferencePlaygroundApp) setThreadLoading(threadId string, loading bool) {
+	if strings.TrimSpace(threadId) == "" {
+		app.Chat.Loading = false
+		return
+	}
+	if loading {
+		if !slices.Contains(app.LoadingThreadIds, threadId) {
+			app.LoadingThreadIds = append(app.LoadingThreadIds, threadId)
+		}
+	} else {
+		app.LoadingThreadIds = slices.DeleteFunc(app.LoadingThreadIds, func(id string) bool {
+			return id == threadId
+		})
+	}
+	app.Chat.Loading = app.currentThreadLoading()
+}
+
+func (app *InferencePlaygroundApp) threadLoading(threadId string) bool {
+	return strings.TrimSpace(threadId) != "" && slices.Contains(app.LoadingThreadIds, threadId)
+}
+
+func (app *InferencePlaygroundApp) currentThreadLoading() bool {
+	return app.threadLoading(app.CurrentThreadId)
 }
 
 func playgroundSyntheticReasoningDeltas(request InferenceChatRequest) []string {

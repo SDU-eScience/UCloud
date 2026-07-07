@@ -215,6 +215,7 @@ const playgroundComponents: UcxComponentRegistry = {
         const fileInputRef = React.useRef<HTMLInputElement | null>(null);
         const uploadCancelRef = React.useRef<Record<string, {cancelled: boolean; attachmentId: string | null}>>({});
         const [attachments, setAttachments] = React.useState<PlaygroundUploadAttachment[]>([]);
+        const [dragActive, setDragActive] = React.useState(false);
         const canSend = !disabled && value.trim() !== "" && attachments.every(attachment => attachment.status === "uploaded");
 
         const send = () => {
@@ -360,18 +361,52 @@ const playgroundComponents: UcxComponentRegistry = {
             for (const file of files) void uploadFile(file);
         };
 
+        const uploadFiles = (files: File[]) => {
+            if (disabled) return;
+            for (const file of files) void uploadFile(file);
+        };
+
+        const onPaste = (ev: React.ClipboardEvent) => {
+            const files = Array.from(ev.clipboardData.files ?? []);
+            if (files.length === 0) return;
+            ev.preventDefault();
+            uploadFiles(files);
+        };
+
+        const onDrop = (ev: React.DragEvent) => {
+            ev.preventDefault();
+            ev.stopPropagation();
+            setDragActive(false);
+            uploadFiles(Array.from(ev.dataTransfer.files ?? []));
+        };
+
         return (
             <Box
                 className={ComposerActionButtonHoverClass}
+                onDragEnter={(ev) => {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    if (!disabled) setDragActive(true);
+                }}
+                onDragOver={(ev) => {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                }}
+                onDragLeave={(ev) => {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    if (!ev.currentTarget.contains(ev.relatedTarget as Node | null)) setDragActive(false);
+                }}
+                onDrop={onDrop}
                 style={{
                     width: "100%",
                     flexShrink: 0,
                     display: "flex",
                     flexDirection: "column",
                     minHeight: 104,
-                    border: "1px solid var(--playground-border, var(--borderColor))",
+                    border: dragActive ? "1px solid var(--primaryMain)" : "1px solid var(--playground-border, var(--borderColor))",
                     borderRadius: 16,
-                    background: "var(--playground-surface, var(--backgroundDefault))",
+                    background: dragActive ? "var(--playground-hover, var(--dialogToolbar))" : "var(--playground-surface, var(--backgroundDefault))",
                     overflow: "hidden",
                 }}
             >
@@ -392,6 +427,7 @@ const playgroundComponents: UcxComponentRegistry = {
                             send();
                         }
                     }}
+                    onPaste={onPaste}
                     style={{
                         resize: "none",
                         border: 0,
@@ -1130,6 +1166,7 @@ function ThreadListNode({
         React.useRef<(left: number, top: number) => void>(doNothing);
     const threads = threadListValue(fn.modelValue(model, node.bindPath));
     const currentThreadId = stringValue(fn.modelValue(model, "currentThreadId"));
+    const loadingThreadIds = stringListValue(fn.modelValue(model, "loadingThreadIds"));
 
     const threadOperations = React.useCallback(
         (thread: ThreadListItem): Operation<ThreadListItem>[] => [
@@ -1217,6 +1254,9 @@ function ThreadListNode({
                                 })
                             }
                             style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 8,
                                 flex: 1,
                                 minWidth: 0,
                                 border: 0,
@@ -1230,7 +1270,8 @@ function ThreadListNode({
                                 textOverflow: "ellipsis",
                             }}
                         >
-                            {thread.title}
+                            {loadingThreadIds.includes(thread.id) ? <UcxSpinner size={14} /> : null}
+                            <span style={{minWidth: 0, overflow: "hidden", textOverflow: "ellipsis"}}>{thread.title}</span>
                         </button>
                         {active ? (
                             <button
@@ -1909,4 +1950,9 @@ function threadListValue(value: any): ThreadListItem[] {
         if (id === "") return [];
         return [{id, title: title === "" ? "New thread" : title}];
     });
+}
+
+function stringListValue(value: any): string[] {
+    if (!value || value.kind !== ValueKind.List) return [];
+    return value.list.map(stringValue).filter(Boolean);
 }

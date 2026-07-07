@@ -61,7 +61,9 @@
         "react-window": "1.8.11",
         "react-x-mermaid": "0.0.10",
         "redux": "5.0.1",
+        "rehype-katex": "^7.0.1",
         "remark-gfm": "4.0.1",
+        "remark-math": "^6.0.0",
         "rusha": "0.8.14",
         "ua-parser-js": "1.0.41",
         "yaml": "2.9.0"
