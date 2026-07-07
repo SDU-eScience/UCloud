@@ -13,6 +13,8 @@ import (
 	"ucloud.dk/pkg/integrations/k8s/filesystem"
 	"ucloud.dk/pkg/integrations/k8s/inference"
 	"ucloud.dk/pkg/integrations/k8s/shared"
+	"ucloud.dk/pkg/ucxdelivery"
+	"ucloud.dk/shared/pkg/log"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 
 	"ucloud.dk/shared/pkg/util"
@@ -77,6 +79,9 @@ func Init(config *cfg.ServicesConfigurationKubernetes) {
 	initJobAuditLogCleanup()
 	controller.ApiTokens = inference.InitApiTokens()
 	shared.InitExecutables()
+	if err := ucxdelivery.Initialize(config.FileSystem.MountPoint, nil); err != nil {
+		log.Warn("UCX delivery: failed to initialize executable cache: %v", err)
+	}
 
 	controller.ProductsRegister(shared.Machines)
 	controller.ProductsRegister(shared.StorageProducts)

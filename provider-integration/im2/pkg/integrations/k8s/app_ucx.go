@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -19,6 +20,7 @@ import (
 	"ucloud.dk/pkg/integrations/k8s/inference"
 	"ucloud.dk/pkg/integrations/k8s/kubevirt"
 	"ucloud.dk/pkg/integrations/k8s/shared"
+	"ucloud.dk/pkg/ucxdelivery"
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
@@ -311,6 +313,16 @@ func ensureUcxBackendAndResolveUpstream(ctx context.Context, app *orcapi.Applica
 	serviceName := deploymentName
 	selector := ucxSelectorLabels(deploymentName)
 	inDevelopmentMode := ucxDevelopmentModePath(app)
+	cacheCurrentPath := util.OptNone[string]()
+	if !inDevelopmentMode.Present {
+		if app.Invocation.Ucx.Present && app.Invocation.Ucx.Value.Executable.Present {
+			path, err := ucxdelivery.ExecutablePath(app.Metadata.Name, app.Metadata.Version)
+			if err != nil {
+				return "", err
+			}
+			cacheCurrentPath.Set(path)
+		}
+	}
 
 	isRunning, err := ucxDeploymentRunning(ctx, namespace, deploymentName)
 	if err != nil {
@@ -319,10 +331,11 @@ func ensureUcxBackendAndResolveUpstream(ctx context.Context, app *orcapi.Applica
 	}
 
 	if !isRunning {
-		script, err := renderUcxInvocationScript(app, inDevelopmentMode.Present)
+		invocation, err := renderUcxInvocationScript(app, inDevelopmentMode.Present)
 		if err != nil {
 			return "", err
 		}
+		script := renderUcxRunnerScript(invocation, app.Metadata.Name, app.Metadata.Version, cacheCurrentPath.Present)
 
 		image := strings.TrimSpace(app.Invocation.Tool.Tool.Value.Description.Image)
 		if image == "" {
@@ -334,7 +347,7 @@ func ensureUcxBackendAndResolveUpstream(ctx context.Context, app *orcapi.Applica
 			return "", err
 		}
 
-		if err := ensureUcxDeployment(ctx, namespace, deploymentName, image, script, selector, inDevelopmentMode); err != nil {
+		if err := ensureUcxDeployment(ctx, namespace, deploymentName, image, script, selector, inDevelopmentMode, cacheCurrentPath); err != nil {
 			log.Warn("UCX provider: failed ensuring deployment %s/%s: %v", namespace, deploymentName, err)
 			return "", err
 		}
@@ -399,6 +412,7 @@ func ensureUcxDeployment(
 	script string,
 	selector map[string]string,
 	developmentModeSubPath util.Option[string],
+	cacheCurrentPath util.Option[string],
 ) error {
 	volumes := []k8score.Volume{}
 	volumeMounts := []k8score.VolumeMount{}
@@ -417,6 +431,30 @@ func ensureUcxDeployment(
 			Name:      "ucloud-filesystem",
 			MountPath: "/opt/ucloud",
 			SubPath:   developmentModeSubPath.Value,
+			ReadOnly:  true,
+		})
+	}
+
+	if cacheCurrentPath.Present {
+		cacheParent := filepath.Dir(cacheCurrentPath.Value)
+		cacheSubPath, ok := strings.CutPrefix(filepath.Clean(cacheParent), filepath.Clean(shared.ServiceConfig.FileSystem.MountPoint)+"/")
+		if !ok {
+			return fmt.Errorf("UCX executable cache path is not inside the provider filesystem")
+		}
+
+		volumes = append(volumes, k8score.Volume{
+			Name: "ucloud-ucx-cache",
+			VolumeSource: k8score.VolumeSource{
+				PersistentVolumeClaim: &k8score.PersistentVolumeClaimVolumeSource{
+					ClaimName: shared.ServiceConfig.FileSystem.ClaimName,
+				},
+			},
+		})
+
+		volumeMounts = append(volumeMounts, k8score.VolumeMount{
+			Name:      "ucloud-ucx-cache",
+			MountPath: "/opt/ucloud-ucx-cache",
+			SubPath:   cacheSubPath,
 			ReadOnly:  true,
 		})
 	}
@@ -566,6 +604,62 @@ func renderUcxInvocationScript(app *orcapi.Application, inDevelopmentMode bool) 
 	}
 
 	return output, nil
+}
+
+func renderUcxRunnerScript(invocation string, appName string, appVersion string, useVerifiedCache bool) string {
+	if !useVerifiedCache {
+		return invocation
+	}
+
+	return fmt.Sprintf(`set -euo pipefail
+WATCHED=/opt/ucloud-ucx-cache/current
+RUNTIME_DIR=/tmp/ucloud-ucx
+RUNTIME_BIN="$RUNTIME_DIR/current"
+mkdir -p "$RUNTIME_DIR"
+
+file_state() {
+  if [ ! -f "$WATCHED" ]; then
+    printf 'missing'
+    return
+  fi
+  sha256sum "$WATCHED" | cut -d ' ' -f 1
+}
+
+LAST_STATE=""
+while true; do
+  while [ ! -f "$WATCHED" ]; do
+    sleep 1
+  done
+
+  CURRENT_STATE="$(file_state)"
+  if [ "$CURRENT_STATE" != "$LAST_STATE" ]; then
+    cp "$WATCHED" "$RUNTIME_BIN.tmp"
+    chmod +x "$RUNTIME_BIN.tmp"
+    mv "$RUNTIME_BIN.tmp" "$RUNTIME_BIN"
+    LAST_STATE="$CURRENT_STATE"
+  fi
+
+  UCX_EXECUTABLE="$RUNTIME_BIN" \
+  UCX_PORT=%d \
+  UCLOUD_UCX_APP_NAME=%s \
+  UCLOUD_UCX_APP_VERSION=%s \
+  bash -lc %s &
+  PID="$!"
+
+  while kill -0 "$PID" 2>/dev/null; do
+    sleep 1
+    NEXT_STATE="$(file_state)"
+    if [ "$NEXT_STATE" != "$LAST_STATE" ]; then
+      kill "$PID" 2>/dev/null || true
+      wait "$PID" 2>/dev/null || true
+      break
+    fi
+  done
+
+  wait "$PID" 2>/dev/null || true
+  sleep 1
+done
+`, ucxBackendPort, strconv.Quote(appName), strconv.Quote(appVersion), strconv.Quote(invocation))
 }
 
 func ucxDeploymentName(name string, version string) string {
