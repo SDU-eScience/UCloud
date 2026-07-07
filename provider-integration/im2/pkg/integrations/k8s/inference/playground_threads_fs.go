@@ -20,12 +20,13 @@ const (
 )
 
 type playgroundPersistedThread struct {
-	Version   int                          `json:"version"`
-	Id        string                       `json:"id"`
-	Title     string                       `json:"title"`
-	CreatedAt string                       `json:"createdAt"`
-	UpdatedAt string                       `json:"updatedAt"`
-	Messages  []playgroundPersistedMessage `json:"messages"`
+	Version   int                           `json:"version"`
+	Id        string                        `json:"id"`
+	Title     string                        `json:"title"`
+	CreatedAt string                        `json:"createdAt"`
+	UpdatedAt string                        `json:"updatedAt"`
+	Usage     InferencePlaygroundTokenUsage `json:"usage"`
+	Messages  []playgroundPersistedMessage  `json:"messages"`
 }
 
 type playgroundPersistedMessage struct {
@@ -241,6 +242,7 @@ func playgroundThreadPersisted(thread playgroundChatThread) playgroundPersistedT
 		Title:     thread.Title,
 		CreatedAt: playgroundFormatTime(thread.CreatedAt),
 		UpdatedAt: playgroundFormatTime(thread.UpdatedAt),
+		Usage:     thread.Usage,
 		Messages:  messages,
 	}
 }
@@ -288,6 +290,7 @@ func playgroundThreadFromPersisted(persisted playgroundPersistedThread) (playgro
 		Title:                  title,
 		CreatedAt:              createdAt,
 		UpdatedAt:              updatedAt,
+		Usage:                  persisted.Usage,
 		Messages:               messages,
 		TitleGenerated:         true,
 		TitleGenerationStarted: true,
