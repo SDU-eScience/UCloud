@@ -75,7 +75,7 @@ const ucxSpinnerFrames = [
     " ⠁ ", " ⠂ ", " ⠄ ", " ⡀ ", " ⢀ ", " ⠠ ", " ⠐ ", " ⠈ ",
 ];
 
-function UcxSpinner({size = 32, margin}: {size?: number; margin?: string}): React.ReactNode {
+export function UcxSpinner({size = 32, margin}: {size?: number; margin?: string}): React.ReactNode {
     const [frame, setFrame] = useState(0);
 
     useEffect(() => {
@@ -128,6 +128,11 @@ export interface UcxFrameRenderArgs {
     transportError: string;
     reconnectingInSeconds?: number;
     content: React.ReactNode;
+    mounted?: boolean;
+    root?: UiNode | null;
+    model?: Record<string, Value>;
+    fn?: UcxFunctionRegistry;
+    components?: UcxComponentRegistry;
 }
 
 export interface UcxViewProps {
@@ -139,9 +144,11 @@ export interface UcxViewProps {
     components?: Partial<UcxComponentRegistry>;
     functions?: Partial<UcxFunctionRegistry>;
     rpcHandlers?: Record<string, UcxRpcHandler>;
+    rehydrateModelPaths?: string[];
     onConnected?: () => void;
     onDisconnected?: (reason: string) => void;
     onTransportError?: (message: string) => void;
+    onModelChange?: (model: Record<string, Value>) => void;
 }
 
 const UcxView: React.FunctionComponent<UcxViewProps> = ({
@@ -153,9 +160,11 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
     components,
     functions,
     rpcHandlers,
+    rehydrateModelPaths,
     onConnected,
     onDisconnected,
     onTransportError,
+    onModelChange,
 }) => {
     const location = useLocation();
     const navigate = useNavigate();
@@ -184,6 +193,7 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
     const onConnectedRef = useRef<typeof onConnected>(onConnected);
     const onDisconnectedRef = useRef<typeof onDisconnected>(onDisconnected);
     const onTransportErrorRef = useRef<typeof onTransportError>(onTransportError);
+    const onModelChangeRef = useRef<typeof onModelChange>(onModelChange);
 
     useEffect(() => {
         modelRef.current = model;
@@ -212,6 +222,14 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
     useEffect(() => {
         onTransportErrorRef.current = onTransportError;
     }, [onTransportError]);
+
+    useEffect(() => {
+        onModelChangeRef.current = onModelChange;
+    }, [onModelChange]);
+
+    useEffect(() => {
+        onModelChangeRef.current?.(model);
+    }, [model]);
 
     const sendFrame = useCallback((frame: Omit<Frame, "seq">) => {
         sessionRef.current?.send(frame);
@@ -400,6 +418,9 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
 
     const resendModelAfterReconnect = useCallback((snapshot: Record<string, Value>, mount: {root: UiNode}) => {
         const bindPaths = collectInputBindPaths(mount.root);
+        for (const path of rehydrateModelPaths ?? []) {
+            bindPaths.add(path);
+        }
         if (bindPaths.size === 0) {
             return;
         }
@@ -422,7 +443,7 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
                 },
             });
         }
-    }, [sendFrame]);
+    }, [rehydrateModelPaths, sendFrame]);
 
     useEffect(() => {
         let disposed = false;
@@ -653,6 +674,11 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
             transportError,
             reconnectingInSeconds,
             content,
+            mounted: root != null,
+            root,
+            model,
+            fn: mergedFunctions,
+            components: mergedComponents,
         })}</>;
     }
 

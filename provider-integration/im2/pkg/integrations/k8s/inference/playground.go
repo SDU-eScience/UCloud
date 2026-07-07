@@ -249,6 +249,13 @@ func (app *InferencePlaygroundApp) OnMessage(message ucx.Frame) {
 		case "deleteThread":
 			app.deleteThread(message.UiEvent.Value.String)
 			ucx.AppUpdateUi(app)
+		case "chatComposer":
+			prompt, attachments := playgroundChatComposerEvent(message.UiEvent.Value)
+			app.Chat.Prompt = prompt
+			if !app.Chat.Loading {
+				app.runChat(attachments)
+				ucx.AppUpdateModel(app)
+			}
 		case "regenerateChat":
 			if !app.Chat.Loading {
 				modelId := message.UiEvent.Value.String
@@ -297,51 +304,15 @@ func (app *InferencePlaygroundApp) OnMessage(message ucx.Frame) {
 // App user-interface and core data management
 // =====================================================================================================================
 
-func (app *InferencePlaygroundApp) tabWrapper(child ucx.UiNode) ucx.UiNode {
-	return ucx.Flex(ucx.FlexProps{}).Sx(
-		ucx.SxHeightRaw("calc(100vh - 174px)"),
-		ucx.SxWidthPercent(100),
-		ucx.SxMt(16),
-	).Children(child)
-}
-
 func (app *InferencePlaygroundApp) UserInterface() ucx.UiNode {
-	modes := app.availableModes()
-	if len(modes) == 0 {
-		modes = []string{playgroundModeChat}
-	}
-
-	tabs := make([]ucx.UiNode, 0, len(modes))
-	for _, mode := range modes {
-		switch mode {
-		case playgroundModeChat:
-			tabs = append(tabs, ucx.Tab("Chat", ucx.IconHeroChatBubbleLeftRight).Children(app.tabWrapper(app.chatTab())))
-		}
-	}
-
 	return ucx.Box().
 		Sx(
-			ucx.SxHeightRaw("calc(100vh - 96px)"),
-			ucx.SxMinHeight(0),
-			ucx.SxOverflow("hidden"),
-			ucx.SxFlexDirectionColumn,
-			ucx.SxDisplayFlex,
+			ucx.SxDisplayNone,
 		).
 		Children(
 			ucx.Router("route"),
 			ucx.QueryParamEx("", "currentThreadId", "threadId", false, true, true, true, []string{"model"}),
 			ucx.QueryParamReadOnlyWhenPresent("chat.modelId", "model"),
-
-			ucx.
-				TabsWithRoute(true).
-				Sx(
-					ucx.SxFlexGrow(1),
-					ucx.SxMinHeight(0),
-					ucx.SxOverflow("hidden"),
-				).
-				Children(append(tabs, ucx.TabsRightControls(
-					InferenceToggleInput("developerMode", "Developer", "developer", true),
-				))...),
 		)
 }
 
@@ -350,16 +321,8 @@ func (app *InferencePlaygroundApp) refreshModels() {
 	app.Models = resp
 }
 
-func (app *InferencePlaygroundApp) threadOwner() string {
-	return strings.TrimSpace(app.Owner.CreatedBy)
-}
-
 func (app *InferencePlaygroundApp) loadThreads() {
-	owner := app.threadOwner()
-	if owner == "" {
-		return
-	}
-	app.Threads = inferencePlaygroundThreadsLoad(owner, app.Owner.Project)
+	app.Threads = inferencePlaygroundThreadsLoad(app.Owner.CreatedBy, app.Owner.Project)
 }
 
 func (app *InferencePlaygroundApp) startThreadFlusher() {
@@ -388,7 +351,7 @@ func (app *InferencePlaygroundApp) startThreadFlusher() {
 }
 
 func (app *InferencePlaygroundApp) ensureCurrentThread() {
-	if app.Developer || app.threadOwner() == "" {
+	if app.Developer {
 		return
 	}
 	if app.CurrentThreadId != "" {
@@ -544,7 +507,7 @@ func (app *InferencePlaygroundApp) generateThreadTitle(threadId string, modelId 
 			Model: modelId,
 			Messages: []InferenceChatMessage{
 				{Role: "system", Content: inferenceChatTextContent("Generate a short chat thread title. Return only the title, without quotes or punctuation at the end. Maximum five words.")},
-				{Role: "user", Content: inferenceChatTextContent(prompt)},
+				{Role: "user", Content: inferenceChatTextContent(prompt[:min(len(prompt), 240)])},
 			},
 			Temperature:         util.OptValue(0.2),
 			TopP:                util.OptValue(0.5),
@@ -626,7 +589,7 @@ func playgroundReasoningTitlePrompt(reasoning string) string {
 	if reasoning == "" {
 		return ""
 	}
-	if newline := strings.IndexAny(reasoning, "\r\n"); newline >= 0 {
+	if newline := strings.IndexAny(reasoning, "\n"); newline >= 0 {
 		reasoning = reasoning[:newline]
 	}
 	runes := []rune(reasoning)
@@ -670,11 +633,7 @@ func (app *InferencePlaygroundApp) sortThreads() {
 }
 
 func (app *InferencePlaygroundApp) flushThreadsLocked() {
-	owner := app.threadOwner()
-	if owner == "" {
-		return
-	}
-	if inferencePlaygroundThreadsFlush(owner, app.Owner.Project, app.Threads, app.DeletedThreadIds, app.DeletedThreadPaths) {
+	if inferencePlaygroundThreadsFlush(app.Owner.CreatedBy, app.Owner.Project, app.Threads, app.DeletedThreadIds, app.DeletedThreadPaths) {
 		for i := range app.Threads {
 			app.Threads[i].Dirty = false
 		}
@@ -1255,7 +1214,7 @@ func playgroundAttachmentMessages(attachments []playgroundChatAttachment, genera
 func playgroundChatMessageParts(content string, reasoning string, reasoningTitle string, reasoningOpen bool) []playgroundChatMessagePart {
 	parts := []playgroundChatMessagePart{}
 	if reasoning != "" {
-		body := strings.TrimLeft(reasoning, "\r\n")
+		body := strings.TrimLeft(reasoning, "\n")
 
 		parts = append(parts, playgroundChatMessagePart{
 			Kind:    "thinking",
