@@ -113,6 +113,15 @@ type StackDataWriteRequest struct {
 
 var StackDataWrite = ucx.Rpc[StackDataWriteRequest, util.Empty]{CallName: "stackDataWrite"}
 
+type StackDataAppendRequest struct {
+	InstanceId string
+	Path       string
+	Data       []byte
+	Perm       uint32
+}
+
+var StackDataAppend = ucx.Rpc[StackDataAppendRequest, util.Empty]{CallName: "stackDataAppend"}
+
 var StackConfirm = ucx.Rpc[fndapi.FindByStringId, util.Empty]{CallName: "stackConfirm"}
 
 // Frontend

@@ -144,6 +144,10 @@ func ucxOnConnect(conn *ws.Conn) {
 		return ucxStackDataWrite(info.Owner, request)
 	})
 
+	ucxapi.StackDataAppend.HandlerProxy(proxy, func(ctx context.Context, request ucxapi.StackDataAppendRequest) (util.Empty, error) {
+		return ucxStackDataAppend(info.Owner, request)
+	})
+
 	ucxapi.StackConfirm.HandlerProxy(proxy, func(ctx context.Context, request fnd.FindByStringId) (util.Empty, error) {
 		mu.Lock()
 		deletionReqId, ok := stackToDeletionRequest[request.Id]
@@ -215,6 +219,19 @@ func ucxOnConnectJob(conn *ws.Conn) {
 		return ucxStackDataWrite(info.Job.Owner, request)
 	})
 
+	ucxapi.StackDataAppend.HandlerProxy(proxy, func(ctx context.Context, request ucxapi.StackDataAppendRequest) (util.Empty, error) {
+		stackId := strings.TrimSpace(info.Job.Specification.Labels["ucloud.dk/stackinstance"])
+		if stackId == "" {
+			return util.Empty{}, fmt.Errorf("job has no stack instance")
+		}
+
+		if request.InstanceId != stackId {
+			return util.Empty{}, fmt.Errorf("invalid stack instance")
+		}
+
+		return ucxStackDataAppend(info.Job.Owner, request)
+	})
+
 	ucxapi.IM.HandlerProxy(proxy, func(ctx context.Context, request ucxapi.Message) (ucxapi.Message, error) {
 		log.Info("Got a job message from '%#v': %s", info.Job.Owner, request.Message)
 		return ucxapi.Message{"Hello from the provider job session!"}, nil
@@ -238,7 +255,15 @@ func ucxResolveJobUpstream(job orcapi.Job, port int) (string, error) {
 }
 
 func ucxStackDataWrite(owner orcapi.ResourceOwner, request ucxapi.StackDataWriteRequest) (util.Empty, error) {
-	if len(request.Data) >= 1024*64 {
+	return ucxStackDataWriteBytes(owner, request.InstanceId, request.Path, []byte(request.Data), request.Perm, unix.O_TRUNC)
+}
+
+func ucxStackDataAppend(owner orcapi.ResourceOwner, request ucxapi.StackDataAppendRequest) (util.Empty, error) {
+	return ucxStackDataWriteBytes(owner, request.InstanceId, request.Path, request.Data, request.Perm, unix.O_APPEND)
+}
+
+func ucxStackDataWriteBytes(owner orcapi.ResourceOwner, instanceId string, path string, data []byte, perm uint32, writeFlag int) (util.Empty, error) {
+	if len(data) >= 1024*64 {
 		return util.Empty{}, fmt.Errorf("input data is too large")
 	}
 
@@ -247,13 +272,13 @@ func ucxStackDataWrite(owner orcapi.ResourceOwner, request ucxapi.StackDataWrite
 		return util.Empty{}, err.AsError()
 	}
 
-	requestedPath := filepath.Join(internalPathMemberFiles, "Jobs", "Stacks", request.InstanceId)
+	requestedPath := filepath.Join(internalPathMemberFiles, "Jobs", "Stacks", instanceId)
 	err = filesystem.DoCreateFolder(requestedPath)
 	if err != nil {
 		return util.Empty{}, err.AsError()
 	}
 
-	pathComponents := util.Components(request.Path)
+	pathComponents := util.Components(path)
 	for _, comp := range pathComponents {
 		if comp != "." && comp != ".." {
 			requestedPath = filepath.Join(requestedPath, comp)
@@ -265,14 +290,14 @@ func ucxStackDataWrite(owner orcapi.ResourceOwner, request ucxapi.StackDataWrite
 		return util.Empty{}, err.AsError()
 	}
 
-	file, ok := filesystem.OpenFile(requestedPath, unix.O_CREAT|unix.O_WRONLY|unix.O_TRUNC, request.Perm)
+	file, ok := filesystem.OpenFile(requestedPath, unix.O_CREAT|unix.O_WRONLY|writeFlag, perm)
 	if !ok {
 		return util.Empty{}, fmt.Errorf("unable to write data at: %s", requestedPath)
 	}
 
 	defer util.SilentClose(file)
 
-	_, gerr := file.WriteString(request.Data)
+	_, gerr := file.Write(data)
 	if gerr != nil {
 		return util.Empty{}, fmt.Errorf("unable to write data: %s", gerr)
 	}

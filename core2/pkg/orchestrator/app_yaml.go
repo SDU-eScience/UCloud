@@ -13,25 +13,26 @@ import (
 )
 
 type A2Yaml struct {
-	Name            string                   `yaml:"name"`
-	Version         string                   `yaml:"version"`
-	Software        A2Software               `yaml:"software"`
-	Title           util.Option[string]      `yaml:"title"`
-	Description     util.Option[string]      `yaml:"description"`
-	License         util.Option[string]      `yaml:"license"`
-	Documentation   util.Option[string]      `yaml:"documentation"`
-	Features        util.Option[A2Features]  `yaml:"features"`
-	Modules         util.Option[A2Module]    `yaml:"modules"`
-	Parameters      map[string]A2Parameter   `yaml:"parameters"`
-	ParametersOrder []string                 `yaml:"-"` // needed to preserve YAML declaration order
-	Sbatch          map[string]string        `yaml:"sbatch"`
-	Invocation      string                   `yaml:"invocation"`
-	Environment     map[string]string        `yaml:"environment"`
-	Web             util.Option[A2Web]       `yaml:"web"`
-	Vnc             util.Option[A2Vnc]       `yaml:"vnc"`
-	Ssh             util.Option[A2Ssh]       `yaml:"ssh"`
-	Inference       util.Option[A2Inference] `yaml:"inference"`
-	Extensions      []string                 `yaml:"extensions"`
+	Name            string                             `yaml:"name"`
+	Version         string                             `yaml:"version"`
+	Software        A2Software                         `yaml:"software"`
+	Title           util.Option[string]                `yaml:"title"`
+	Description     util.Option[string]                `yaml:"description"`
+	License         util.Option[string]                `yaml:"license"`
+	Documentation   util.Option[string]                `yaml:"documentation"`
+	Features        util.Option[A2Features]            `yaml:"features"`
+	Modules         util.Option[A2Module]              `yaml:"modules"`
+	Parameters      map[string]A2Parameter             `yaml:"parameters"`
+	ParametersOrder []string                           `yaml:"-"` // needed to preserve YAML declaration order
+	Sbatch          map[string]string                  `yaml:"sbatch"`
+	Invocation      string                             `yaml:"invocation"`
+	Ucx             util.Option[orcapi.UcxDescription] `yaml:"ucx"`
+	Environment     map[string]string                  `yaml:"environment"`
+	Web             util.Option[A2Web]                 `yaml:"web"`
+	Vnc             util.Option[A2Vnc]                 `yaml:"vnc"`
+	Ssh             util.Option[A2Ssh]                 `yaml:"ssh"`
+	Inference       util.Option[A2Inference]           `yaml:"inference"`
+	Extensions      []string                           `yaml:"extensions"`
 }
 
 type A2SoftwareKind string
@@ -795,6 +796,9 @@ func (y *A2Yaml) Normalize() (orcapi.Application, *util.HttpError) {
 	if y.Inference.Present {
 		util.ValidateEnum(&y.Inference.Value.Mode, A2InferenceModeOptions, "inference.mode", &err)
 	}
+	if validationErr := validateUcxExecutableMetadataSection(y.Ucx, "ucx.executable"); validationErr != nil {
+		err = util.MergeHttpErr(err, validationErr)
+	}
 
 	if err != nil {
 		return orcapi.Application{}, err
@@ -818,6 +822,7 @@ func (y *A2Yaml) Normalize() (orcapi.Application, *util.HttpError) {
 				Invocation: orcapi.ApplicationInvocationDescription{
 					OutputFileGlobs: []string{"*"},
 					ApplicationType: mappedAppType,
+					Ucx:             y.Ucx,
 
 					Tool: orcapi.ToolReference{
 						NameAndVersion: orcapi.NameAndVersion{

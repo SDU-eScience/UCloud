@@ -62,6 +62,7 @@ export interface ApplicationMetadata {
 export interface ApplicationInvocationDescription {
     tool: ToolReference;
     invocation: InvocationParameter[];
+    ucx?: UcxDescription | null;
     parameters: ApplicationParameter[];
     outputFileGlobs: string[];
     applicationType: ("BATCH" | "VNC" | "WEB");
@@ -79,6 +80,16 @@ export interface ApplicationInvocationDescription {
     allowPublicIp: boolean;
     fileExtensions: string[];
     licenseServers: string[];
+}
+
+export interface UcxDescription {
+    executable?: UcxExecutableDescription | null;
+}
+
+export interface UcxExecutableDescription {
+    manifestUrl: string;
+    publicKey: string;
+    binaryName: string;
 }
 
 export interface SimpleDuration {
