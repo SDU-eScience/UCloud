@@ -285,6 +285,7 @@ function ModelPageContent(props: {
                     {props.editing ? null : <Flex gap="12px" flexWrap="wrap">
                         <Link to={AppRoutes.inference.playground(model.name)}><Button type="button" color="successMain">Try now</Button></Link>
                         <ExternalLink href={documentationUrl}><Button type="button" color={docButtonColor}>Documentation</Button></ExternalLink>
+                        <Button type="button" color={docButtonColor} onClick={() => document.getElementById("api-usage")?.scrollIntoView({behavior: "smooth"})}>API usage</Button>
                     </Flex>}
                 </Box>
                 <span className="model-hero-logo"><ModelInferenceLogo modelName={model.name} size={160} /></span>
@@ -317,7 +318,7 @@ function ModelPageContent(props: {
                     <Flex justifyContent="end" mt={12}>
                         <Button color="successMain" type="button" onClick={props.onSaveBenchmarks} disabled={props.savingBenchmarks}>{props.savingBenchmarks ? "Saving..." : "Save benchmarks"}</Button>
                     </Flex>
-                </Section> : <Section>
+                </Section> : <Section id={"api-usage"}>
                     <ConfiguringTools title="API usage" providerId={providerId} server={server} models={models} modelId={model.name} />
                 </Section>}
             </Box>
@@ -345,8 +346,8 @@ function ModelPageContent(props: {
     </div>;
 }
 
-function Section({title, children}: React.PropsWithChildren<{title?: string}>): React.ReactNode {
-    return <section style={{display: "flex", gap: 14, flexDirection: "column"}}>
+function Section({title, id, children}: React.PropsWithChildren<{title?: string, id?: string}>): React.ReactNode {
+    return <section style={{display: "flex", gap: 14, flexDirection: "column"}} id={id}>
         {title ? <h3 className="title" style={{margin: 0}}>{title}</h3> : null}
         {children}
     </section>;
