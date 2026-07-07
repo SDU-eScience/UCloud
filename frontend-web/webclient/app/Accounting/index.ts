@@ -54,7 +54,7 @@ export function updateAllocation(request: BulkRequest<UpdateAllocationRequestIte
     return apiUpdate(request, "/api/accounting", "allocation");
 }
 
-export type WalletOwner = { type: "user"; username: string } | { type: "project"; projectId: string; };
+export type WalletOwner = {type: "user"; username: string} | {type: "project"; projectId: string;};
 
 export function productCategoryEquals(a: ProductCategoryId, b: ProductCategoryId): boolean {
     return a.provider === b.provider && a.name === b.name;
@@ -449,8 +449,8 @@ export function guesstimateProductCategoryDescription(
     return hardcodedProductCategoryDescriptions[provider]?.[normalizedCategory] ?? "";
 }
 
-type BalanceAndCategory = { balance: number; category: ProductCategoryV2; }
-type CombinedBalance = { productType: ProductType, normalizedBalance: number, unit: string };
+type BalanceAndCategory = {balance: number; category: ProductCategoryV2;}
+type CombinedBalance = {productType: ProductType, normalizedBalance: number, unit: string};
 
 export function combineBalances(
     balances: BalanceAndCategory[]
@@ -1233,6 +1233,7 @@ export function buildAllocationDisplayTree(allWallets: WalletV2[]): AllocationDi
         }
     }
 
+    console.timeEnd("buildAllocationDisplayTree")
     return tree;
 }
 
@@ -1247,7 +1248,7 @@ export function explainWallet(wallet: WalletV2): AllocationDisplayWallet | null 
 export function balanceToString(
     category: ProductCategoryV2,
     balance: number,
-    opts?: { precision?: number, removeUnitIfPossible?: boolean }
+    opts?: {precision?: number, removeUnitIfPossible?: boolean}
 ): string {
     const unit = explainUnit(category);
     const normalizedBalance = balance * unit.balanceFactor;
@@ -1266,8 +1267,8 @@ export function truncateValues(
     normalizedBalances: number[],
     isStorage: boolean,
     unit: string,
-    opts?: { removeUnitIfPossible?: boolean, referenceBalance?: number }
-): { truncated: number[]; attachedSuffix: string | null, unitToDisplay: string, canRemoveUnit: boolean } {
+    opts?: {removeUnitIfPossible?: boolean, referenceBalance?: number}
+): {truncated: number[]; attachedSuffix: string | null, unitToDisplay: string, canRemoveUnit: boolean} {
     let canRemoveUnit = opts?.removeUnitIfPossible ?? false;
     let balanceToDisplay = opts?.referenceBalance ?? Math.max(...normalizedBalances);
 
@@ -1371,7 +1372,7 @@ export function balanceToStringFromUnit(
     productType: ProductType | null,
     unit: string,
     normalizedBalance: number,
-    opts?: { precision?: number, removeUnitIfPossible?: boolean, referenceBalance?: number }
+    opts?: {precision?: number, removeUnitIfPossible?: boolean, referenceBalance?: number}
 ): string {
     const isStorage = productType === "STORAGE" || StandardStorageUnitsSi.indexOf(unit) !== -1 ||
         StandardStorageUnits.indexOf(unit) !== -1;
@@ -1395,11 +1396,11 @@ export function balanceToStringFromUnit(
     return builder;
 }
 
-export function normalizeFrequency(frequency: AccountingFrequency):string {
-    if (frequency === "PERIODIC_MINUTE") { return "minute(s)"}
-    if (frequency === "PERIODIC_HOUR") { return "hour(s)"}
-    if (frequency === "PERIODIC_DAY") { return "day(s)"}
-    if (frequency === "ONCE") { return ""}
+export function normalizeFrequency(frequency: AccountingFrequency): string {
+    if (frequency === "PERIODIC_MINUTE") return "minute(s)";
+    if (frequency === "PERIODIC_HOUR") return "hour(s)";
+    if (frequency === "PERIODIC_DAY") return "day(s)";
+    if (frequency === "ONCE") return "";
     return ""
 }
 
@@ -1566,6 +1567,6 @@ export function utcDate(ts: number): string {
     return `${d.getUTCDate().toString().padStart(2, '0')}/${(d.getUTCMonth() + 1).toString().padStart(2, '0')}/${d.getUTCFullYear()}`;
 }
 
-export function periodsOverlap(a: { start: number, end: number }, b: { start: number, end: number }): boolean {
+export function periodsOverlap(a: {start: number, end: number}, b: {start: number, end: number}): boolean {
     return a.start <= b.end && b.start <= a.end;
 }

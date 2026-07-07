@@ -194,9 +194,9 @@ const Playground: React.FunctionComponent = () => {
 
     const main = (
         <>
-            <RangeInput value={value} onChange={(event) => setValue(event.target.valueAsNumber)} max={FAKE_MACHINES.length - 1} markers={FAKE_MACHINES} />
-            <RangeInput value={value} onChange={(event) => setValue(event.target.valueAsNumber)} max={FAKE_MACHINES2.length - 1} markers={FAKE_MACHINES2} />
-            <RangeInput value={value} onChange={(event) => setValue(event.target.valueAsNumber)} max={FAKE_MACHINES3.length - 1} markers={FAKE_MACHINES3} />
+            <RangeInput value={value} onChange={setValue} max={FAKE_MACHINES.length - 1} markers={FAKE_MACHINES} />
+            <RangeInput value={value} onChange={setValue} max={FAKE_MACHINES2.length - 1} markers={FAKE_MACHINES2} />
+            <RangeInput value={value} onChange={setValue} max={FAKE_MACHINES3.length - 1} markers={FAKE_MACHINES3} />
 
             <ChangeOrganizationDetails getValues={getValuesRef} />
             <Button onClick={foo}>View extracted contents</Button>
