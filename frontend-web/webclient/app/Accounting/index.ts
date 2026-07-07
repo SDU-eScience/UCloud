@@ -864,42 +864,38 @@ function allocationNote(
 
     return undefined;
 }
-
-export function buildAllocationDisplayTree(allWallets: WalletV2[]): AllocationDisplayTree {
-    // NOTE(Dan): This function assumes that allWallets are owned by the same owner.
-
+function checkIsCore2Response(wallet: WalletV2[]): boolean {
     // NOTE(Dan): Detect Core2 server by looking for Core2 only fields.
-    const isCore2Response = allWallets.some(
+    return wallet.some(
         w => w.allocationGroups.some(
             ag => ag.group.allocations.some(
                 a => a.retiredQuota !== undefined
             )
         )
     );
+}
 
-
-    const relevantWallets = allWallets.filter(it => !it.paysFor.freeToUse);
-    const tree: AllocationDisplayTree = {
-        yourAllocations: {},
-        subAllocations: {
-            recipients: [],
-        }
-    };
-
-    let ownedByPersonalProviderProject = false;
-    if (allWallets.length > 0) {
-        const owner = allWallets[0].owner;
+function checkIsOwnedByPersonalProviderProject(wallets: WalletV2[]): boolean {
+    if (wallets.length > 0) {
+        const owner = wallets[0].owner;
         if (owner.type === "project") {
             const projectId = owner.projectId;
             let items = projectCache.retrieveFromCacheOnly("")?.items;
             const project = (items ?? []).find(it => it.id === projectId);
             if (project) {
-                ownedByPersonalProviderProject = project.status.personalProviderProjectFor != null;
+                if (project.status.personalProviderProjectFor != null) return true;
             }
         }
     }
+    return false;
+}
 
-    const yourAllocations = tree.yourAllocations;
+export function buildYourAllocations(allWallets: WalletV2[]): AllocationDisplayTree["yourAllocations"] {
+    console.time("buildYourAllocations");
+    const relevantWallets = allWallets.filter(it => !it.paysFor.freeToUse);
+    const isCore2Response = checkIsCore2Response(allWallets);
+    const ownedByPersonalProviderProject = checkIsOwnedByPersonalProviderProject(allWallets);
+    const yourAllocations: AllocationDisplayTree["yourAllocations"] = {};
     {
         const walletsByType = groupBy(relevantWallets, it => it.paysFor.productType);
         for (const [type, wallets] of Object.entries(walletsByType)) {
@@ -1053,24 +1049,41 @@ export function buildAllocationDisplayTree(allWallets: WalletV2[]): AllocationDi
         }
     }
 
-    // Start building the sub-allocations UI
-    const subAllocations = tree.subAllocations;
+    if (isCore2Response) {
+        // TODO(Dan): Clean up this code later when we are getting ready to make the switch. I am currently trying to
+        //   minimize the number of places these changes are visible.
 
-    const filteredSubAllocations: {
-        wallet: WalletV2,
-        childGroup: AllocationGroupWithChild
-    }[] = [];
+        for (const subtree of Object.values(yourAllocations)) {
+            for (const uq of subtree.usageAndQuota) {
+                updateUsageAndQuota(uq);
+            }
 
-    for (const wallet of relevantWallets) {
-        if (wallet.paysFor.freeToUse) continue;
-        const children = wallet.children ?? [];
-        for (const childGroup of children) {
-            filteredSubAllocations.push({wallet, childGroup});
+            for (const w of subtree.wallets) {
+                updateUsageAndQuota(w.usageAndQuota);
+            }
         }
     }
 
-    {
-        for (const {childGroup, wallet} of filteredSubAllocations) {
+    console.timeEnd("buildYourAllocations");
+
+    return yourAllocations;
+}
+
+export function buildSubAllocations(allWallets?: WalletV2[]): AllocationDisplayTree["subAllocations"] {
+    console.time("buildSubAllocations");
+    const subAllocations: AllocationDisplayTree["subAllocations"] = {recipients: []};
+    if (!allWallets) return subAllocations;
+    // NOTE(Dan): This function assumes that allWallets are owned by the same owner.
+    const isCore2Response = checkIsCore2Response(allWallets);
+
+    const relevantWallets = allWallets.filter(it => !it.paysFor.freeToUse);
+
+    const ownedByPersonalProviderProject = checkIsOwnedByPersonalProviderProject(allWallets);
+
+    // Start building the sub-allocations UI
+
+    for (const wallet of relevantWallets) {
+        for (const childGroup of wallet.children ?? []) {
             let allocOwner: WalletOwner;
             if (childGroup.child.projectId) {
                 allocOwner = {type: "project", projectId: childGroup.child.projectId};
@@ -1103,10 +1116,6 @@ export function buildAllocationDisplayTree(allWallets: WalletV2[]): AllocationDi
                 }
             });
 
-            const maxUsable = combineBalances([{
-                balance: wallet.maxUsable,
-                category: wallet.paysFor
-            }]);
             const combinedRetired = childGroup.group.allocations.reduce((acc, val) => acc + (val.retiredUsage ?? 0), 0);
             // Need to have total usage in case retired should be included in final result
             let combinedUsage = childGroup.group.usage;
@@ -1119,7 +1128,6 @@ export function buildAllocationDisplayTree(allWallets: WalletV2[]): AllocationDi
                 combinedUsage = childGroup.group.activeUsage!;
             }
 
-            const localUsage = combineBalances([{balance: childGroup.group.usage, category: wallet.paysFor}]);
             const usage = combineBalances([{balance: combinedUsage, category: wallet.paysFor}]);
             const quota = combineBalances([{balance: combinedQuota, category: wallet.paysFor}]);
             const retiredAmount = combineBalances([{balance: combinedRetired, category: wallet.paysFor}]);
@@ -1205,24 +1213,7 @@ export function buildAllocationDisplayTree(allWallets: WalletV2[]): AllocationDi
     if (isCore2Response) {
         // TODO(Dan): Clean up this code later when we are getting ready to make the switch. I am currently trying to
         //   minimize the number of places these changes are visible.
-
-        const updateUsageAndQuota = (uq: UsageAndQuota) => {
-            uq.raw.retiredAmount = 0;
-            uq.raw.retiredAmountStillCounts = false;
-            uq.updateDisplay();
-        };
-
-        for (const subtree of Object.values(tree.yourAllocations)) {
-            for (const uq of subtree.usageAndQuota) {
-                updateUsageAndQuota(uq);
-            }
-
-            for (const w of subtree.wallets) {
-                updateUsageAndQuota(w.usageAndQuota);
-            }
-        }
-
-        for (const subtree of tree.subAllocations.recipients) {
+        for (const subtree of subAllocations.recipients) {
             for (const uq of subtree.usageAndQuota) {
                 updateUsageAndQuota(uq);
             }
@@ -1233,12 +1224,18 @@ export function buildAllocationDisplayTree(allWallets: WalletV2[]): AllocationDi
         }
     }
 
-    console.timeEnd("buildAllocationDisplayTree")
-    return tree;
+    console.timeEnd("buildSubAllocations");
+    return subAllocations;
 }
 
+function updateUsageAndQuota(uq: UsageAndQuota) {
+    uq.raw.retiredAmount = 0;
+    uq.raw.retiredAmountStillCounts = false;
+    uq.updateDisplay();
+};
+
 export function explainWallet(wallet: WalletV2): AllocationDisplayWallet | null {
-    const tree = Object.values(buildAllocationDisplayTree([wallet]).yourAllocations);
+    const tree = Object.values(buildYourAllocations([wallet]));
     if (tree.length === 0) return null;
     const wallets = tree[0].wallets;
     if (wallets.length === 0) return null;

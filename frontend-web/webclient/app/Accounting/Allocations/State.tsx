@@ -244,11 +244,10 @@ function searchAndFilteringQueryMatches(recipient: AllocationDisplayTreeRecipien
 export function stateReducer(state: State, action: UIAction): State {
     switch (action.type) {
         case "SubProjectData": {
-            const newState = {
+            return rebuildTree({
                 ...state,
                 subprojectInfo: action.projects,
-            };
-            return rebuildTree(newState);
+            });
         }
 
         case "SortSubprojects": {
@@ -262,8 +261,13 @@ export function stateReducer(state: State, action: UIAction): State {
         }
 
         case "WalletsLoaded": {
-            const newState = {
+            const subAllocations = Accounting.buildSubAllocations(action.wallets);
+            const yourAllocations = Accounting.buildYourAllocations(action.wallets);
+
+            const newState: State = {
                 ...state,
+                yourAllocations,
+                subAllocations,
                 remoteData: {
                     ...state.remoteData,
                     wallets: action.wallets,
@@ -399,6 +403,7 @@ export function stateReducer(state: State, action: UIAction): State {
                 ...state,
                 searchQuery: action.newQuery,
                 subAllocations: {
+                    // Note(Jonas): Not sure I understand what this is for
                     ...state.subAllocations,
                 },
             };
@@ -511,8 +516,7 @@ export function stateReducer(state: State, action: UIAction): State {
     }
 
     function rebuildTree(state: State): State {
-        const newTree = Accounting.buildAllocationDisplayTree((state.remoteData.wallets ?? []));
-
+        console.time("rebuildTree");
         const providerOptions: SubProjectKeyValue[] = (() => {
             const providers = new Set<string>();
 
@@ -526,7 +530,7 @@ export function stateReducer(state: State, action: UIAction): State {
                 }
             }
 
-            for (const recipient of newTree.subAllocations.recipients) {
+            for (const recipient of state.subAllocations.recipients) {
                 for (const group of recipient.groups) {
                     providers.add(group.category.provider);
                 }
@@ -540,7 +544,7 @@ export function stateReducer(state: State, action: UIAction): State {
         const productOptions: SubProjectKeyValue[] = (() => {
             const result: SubProjectKeyValue[] = [];
 
-            for (const recipient of newTree.subAllocations.recipients) {
+            for (const recipient of state.subAllocations.recipients) {
                 for (const group of recipient.groups) {
                     let key = productCategoryKey(group.category);
                     if (!result.some(it => it.key === key)) {
@@ -636,7 +640,7 @@ export function stateReducer(state: State, action: UIAction): State {
             };
         }
 
-        newTree.subAllocations.recipients.sort((a, b) => {
+        state.subAllocations.recipients.sort((a, b) => {
             let naturalOrderResult = (() => {
                 switch (state.subprojectSortBy) {
                     case "usagePercentageCompute":
@@ -721,7 +725,7 @@ export function stateReducer(state: State, action: UIAction): State {
             })();
 
             if (!state.subprojectSortByAscending) {
-                return naturalOrderResult * -1;
+                return -naturalOrderResult;
             } else {
                 return naturalOrderResult;
             }
@@ -734,17 +738,18 @@ export function stateReducer(state: State, action: UIAction): State {
         };
 
         const filteredSubProjectIndices: number[] = [];
-        for (let i = 0; i < newTree.subAllocations.recipients.length; i++) {
-            const recipient = newTree.subAllocations.recipients[i];
+        for (let i = 0; i < state.subAllocations.recipients.length; i++) {
+            const recipient = state.subAllocations.recipients[i];
             if (searchAndFilteringQueryMatches(recipient, stateForFiltering, query)) {
                 filteredSubProjectIndices.push(i);
             }
         }
 
+        console.timeEnd("rebuildTree");
         return {
             ...state,
-            yourAllocations: newTree.yourAllocations,
-            subAllocations: newTree.subAllocations,
+            yourAllocations: state.yourAllocations,
+            subAllocations: state.subAllocations,
             filteredSubProjectIndices,
             subprojectFilters,
         };

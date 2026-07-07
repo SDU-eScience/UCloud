@@ -114,6 +114,7 @@ const Allocations: React.FunctionComponent = () => {
 
     const projectInfo = useProjectInfos(subProjectIds);
     useEffect(() => {
+        if (projectInfo.loading || Object.keys(projectInfo.data).length === 0) return;
         dispatchEvent({type: "SubProjectData", projects: projectInfo.data});
     }, [projectInfo]);
 
