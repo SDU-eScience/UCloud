@@ -459,4 +459,3 @@ function PaletteColors(): React.ReactNode {
 
 export default Playground;
 
-

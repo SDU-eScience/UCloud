@@ -176,6 +176,7 @@ type ApplicationMetadata struct {
 type ApplicationInvocationDescription struct {
 	Tool                  ToolReference                     `json:"tool" yaml:"tool"`
 	Invocation            []InvocationParameter             `json:"invocation" yaml:"invocation"`
+	Ucx                   util.Option[UcxDescription]       `json:"ucx" yaml:"ucx"`
 	Parameters            []ApplicationParameter            `json:"parameters" yaml:"parameters"`
 	OutputFileGlobs       []string                          `json:"outputFileGlobs" yaml:"outputFileGlobs"`
 	ApplicationType       ApplicationType                   `json:"applicationType" yaml:"applicationType"`
@@ -195,6 +196,16 @@ type ApplicationInvocationDescription struct {
 	LicenseServers        []string                          `json:"licenseServers" yaml:"licenseServers"`
 	Modules               util.Option[ModulesSection]       `json:"modules" yaml:"modules"`
 	Sbatch                map[string]InvocationParameter    `json:"sbatch" yaml:"sbatch"`
+}
+
+type UcxDescription struct {
+	Executable util.Option[UcxExecutableDescription] `json:"executable" yaml:"executable"`
+}
+
+type UcxExecutableDescription struct {
+	ManifestUrl string `json:"manifestUrl" yaml:"manifestUrl"`
+	PublicKey   string `json:"publicKey" yaml:"publicKey"`
+	BinaryName  string `json:"binaryName" yaml:"binaryName"`
 }
 
 type VncDescription struct {

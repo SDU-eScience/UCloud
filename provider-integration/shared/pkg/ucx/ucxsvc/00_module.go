@@ -2,6 +2,7 @@ package ucxsvc
 
 import (
 	"fmt"
+	"io"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -30,6 +31,7 @@ type Stack struct {
 const (
 	stackLabelInstance    = "ucloud.dk/stackinstance"
 	stackLabelStateFolder = "ucloud.dk/stack-state-folder"
+	stackDataMaxBytes     = 64*1024 - 1
 )
 
 func (s *Stack) Labels() map[string]string {
@@ -172,6 +174,81 @@ func StackWriteFileEx(stack *Stack, path string, data string, mode uint32) {
 		return
 	}
 
+	if len(data) <= stackDataMaxBytes {
+		_ = stackDataWriteString(stack, path, data, mode)
+		return
+	}
+
+	_ = stackDataWriteString(stack, path, data[:stackDataMaxBytes], mode)
+	if !stack.Ok {
+		return
+	}
+
+	remaining := []byte(data[stackDataMaxBytes:])
+	_ = stackDataAppendBytesChunked(stack, path, remaining, mode)
+}
+
+func StackWriteFileBytes(stack *Stack, path string, data []byte) {
+	StackWriteFileBytesEx(stack, path, data, 0660)
+}
+
+func StackWriteFileBytesEx(stack *Stack, path string, data []byte, mode uint32) {
+	if !stack.Ok {
+		return
+	}
+
+	if stackDataWriteString(stack, path, "", mode) != nil {
+		return
+	}
+
+	_ = stackDataAppendBytesChunked(stack, path, data, mode)
+}
+
+func StackOpenFileWriter(stack *Stack, path string) io.Writer {
+	return StackOpenFileWriterEx(stack, path, 0660)
+}
+
+func StackOpenFileWriterEx(stack *Stack, path string, mode uint32) io.Writer {
+	writer := &stackFileWriter{stack: stack, path: path, mode: mode}
+	if stack.Ok && stackDataWriteString(stack, path, "", mode) == nil {
+		writer.initialized = true
+	}
+	return writer
+}
+
+type stackFileWriter struct {
+	stack       *Stack
+	path        string
+	mode        uint32
+	initialized bool
+}
+
+func (w *stackFileWriter) Write(data []byte) (int, error) {
+	if !w.stack.Ok {
+		return 0, fmt.Errorf("stack is not available")
+	}
+
+	if !w.initialized {
+		if err := stackDataWriteString(w.stack, w.path, "", w.mode); err != nil {
+			return 0, err
+		}
+		w.initialized = true
+	}
+
+	written := 0
+	for len(data) > 0 {
+		chunkSize := stackDataChunkSize(len(data))
+		if err := stackDataAppendBytes(w.stack, w.path, data[:chunkSize], w.mode); err != nil {
+			return written, err
+		}
+		written += chunkSize
+		data = data[chunkSize:]
+	}
+
+	return written, nil
+}
+
+func stackDataWriteString(stack *Stack, path string, data string, mode uint32) error {
 	session := *stack.app.Session()
 	_, err := ucxapi.StackDataWrite.Invoke(session, ucxapi.StackDataWriteRequest{
 		InstanceId: stack.InstanceId,
@@ -184,8 +261,48 @@ func StackWriteFileEx(stack *Stack, path string, data string, mode uint32) {
 		log.Warn("Could not write file: %s", err)
 		UiSendFailure(stack.app, "Unable start application stack, try again later.")
 		stack.Ok = false
-		return
+		return err
 	}
+
+	return nil
+}
+
+func stackDataAppendBytesChunked(stack *Stack, path string, data []byte, mode uint32) error {
+	for len(data) > 0 {
+		chunkSize := stackDataChunkSize(len(data))
+		if err := stackDataAppendBytes(stack, path, data[:chunkSize], mode); err != nil {
+			return err
+		}
+		data = data[chunkSize:]
+	}
+
+	return nil
+}
+
+func stackDataChunkSize(remaining int) int {
+	if remaining < stackDataMaxBytes {
+		return remaining
+	}
+	return stackDataMaxBytes
+}
+
+func stackDataAppendBytes(stack *Stack, path string, data []byte, mode uint32) error {
+	session := *stack.app.Session()
+	_, err := ucxapi.StackDataAppend.Invoke(session, ucxapi.StackDataAppendRequest{
+		InstanceId: stack.InstanceId,
+		Path:       path,
+		Data:       data,
+		Perm:       mode,
+	})
+
+	if err != nil {
+		log.Warn("Could not write file: %s", err)
+		UiSendFailure(stack.app, "Unable start application stack, try again later.")
+		stack.Ok = false
+		return err
+	}
+
+	return nil
 }
 
 func StackWriteInitScript(stack *Stack, initScript string) map[string]string {

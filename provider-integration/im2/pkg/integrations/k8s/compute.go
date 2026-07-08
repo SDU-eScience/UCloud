@@ -15,6 +15,7 @@ import (
 	cfg "ucloud.dk/pkg/config"
 	"ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/integrations/k8s/containers"
+	introspection "ucloud.dk/pkg/integrations/k8s/job-introspection"
 	"ucloud.dk/pkg/integrations/k8s/kubevirt"
 	"ucloud.dk/pkg/integrations/k8s/shared"
 	apm "ucloud.dk/shared/pkg/accounting"
@@ -387,6 +388,7 @@ func submit(job orc.Job) (util.Option[string], *util.HttpError) {
 }
 
 func terminate(request controller.JobTerminateRequest) *util.HttpError {
+	introspection.DeleteTokens([]string{request.Job.Id})
 	return backend(request.Job).Terminate(request)
 }
 

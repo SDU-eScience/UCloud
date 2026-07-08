@@ -164,6 +164,7 @@ type KubernetesUcxDevelopmentApp struct {
 
 type KubernetesUcxConfiguration struct {
 	Development []KubernetesUcxDevelopmentApp `json:"development" yaml:"development"`
+	Publish     map[string][]string           `json:"publish" yaml:"publish"`
 }
 
 type KubernetesCompute struct {
@@ -364,6 +365,11 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 		developmentNode, _ := cfgutil.GetChildOrNil(filePath, ucxNode, "development")
 		if developmentNode != nil {
 			cfgutil.Decode(filePath, developmentNode, &cfg.Compute.Ucx.Development, &success)
+		}
+
+		publishNode, _ := cfgutil.GetChildOrNil(filePath, ucxNode, "publish")
+		if publishNode != nil {
+			cfgutil.Decode(filePath, publishNode, &cfg.Compute.Ucx.Publish, &success)
 		}
 	}
 

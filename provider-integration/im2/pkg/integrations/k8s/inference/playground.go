@@ -43,6 +43,7 @@ type InferencePlaygroundApp struct {
 
 	Models             []InferenceModel
 	Threads            []playgroundChatThread
+	LoadingThreadIds   []string
 	DeletedThreadIds   []string `ucx:"-"`
 	DeletedThreadPaths []string `ucx:"-"`
 	CurrentThreadId    string
@@ -102,9 +103,10 @@ type InferencePlaygroundTokenUsageState struct {
 }
 
 type InferencePlaygroundTokenUsage struct {
-	Input    int64
-	Output   int64
-	Reported int64
+	Input       int64
+	CachedInput int64
+	Output      int64
+	Reported    int64
 }
 
 type playgroundChatMessage struct {
@@ -145,6 +147,7 @@ type playgroundChatThread struct {
 	Title                  string
 	CreatedAt              int64
 	UpdatedAt              int64
+	Usage                  InferencePlaygroundTokenUsage
 	Messages               []playgroundChatMessage `ucx:"-"`
 	Dirty                  bool                    `ucx:"-"`
 	Deleted                bool                    `ucx:"-"`
@@ -249,8 +252,15 @@ func (app *InferencePlaygroundApp) OnMessage(message ucx.Frame) {
 		case "deleteThread":
 			app.deleteThread(message.UiEvent.Value.String)
 			ucx.AppUpdateUi(app)
+		case "chatComposer":
+			prompt, attachments := playgroundChatComposerEvent(message.UiEvent.Value)
+			app.Chat.Prompt = prompt
+			if !app.currentThreadLoading() {
+				app.runChat(attachments)
+				ucx.AppUpdateModel(app)
+			}
 		case "regenerateChat":
-			if !app.Chat.Loading {
+			if !app.currentThreadLoading() {
 				modelId := message.UiEvent.Value.String
 				messageIndex := int64(-1)
 				if message.UiEvent.Value.Kind == ucx.ValueObject {
@@ -297,51 +307,15 @@ func (app *InferencePlaygroundApp) OnMessage(message ucx.Frame) {
 // App user-interface and core data management
 // =====================================================================================================================
 
-func (app *InferencePlaygroundApp) tabWrapper(child ucx.UiNode) ucx.UiNode {
-	return ucx.Flex(ucx.FlexProps{}).Sx(
-		ucx.SxHeightRaw("calc(100vh - 174px)"),
-		ucx.SxWidthPercent(100),
-		ucx.SxMt(16),
-	).Children(child)
-}
-
 func (app *InferencePlaygroundApp) UserInterface() ucx.UiNode {
-	modes := app.availableModes()
-	if len(modes) == 0 {
-		modes = []string{playgroundModeChat}
-	}
-
-	tabs := make([]ucx.UiNode, 0, len(modes))
-	for _, mode := range modes {
-		switch mode {
-		case playgroundModeChat:
-			tabs = append(tabs, ucx.Tab("Chat", ucx.IconHeroChatBubbleLeftRight).Children(app.tabWrapper(app.chatTab())))
-		}
-	}
-
 	return ucx.Box().
 		Sx(
-			ucx.SxHeightRaw("calc(100vh - 96px)"),
-			ucx.SxMinHeight(0),
-			ucx.SxOverflow("hidden"),
-			ucx.SxFlexDirectionColumn,
-			ucx.SxDisplayFlex,
+			ucx.SxDisplayNone,
 		).
 		Children(
 			ucx.Router("route"),
 			ucx.QueryParamEx("", "currentThreadId", "threadId", false, true, true, true, []string{"model"}),
 			ucx.QueryParamReadOnlyWhenPresent("chat.modelId", "model"),
-
-			ucx.
-				TabsWithRoute(true).
-				Sx(
-					ucx.SxFlexGrow(1),
-					ucx.SxMinHeight(0),
-					ucx.SxOverflow("hidden"),
-				).
-				Children(append(tabs, ucx.TabsRightControls(
-					InferenceToggleInput("developerMode", "Developer", "developer", true),
-				))...),
 		)
 }
 
@@ -350,16 +324,8 @@ func (app *InferencePlaygroundApp) refreshModels() {
 	app.Models = resp
 }
 
-func (app *InferencePlaygroundApp) threadOwner() string {
-	return strings.TrimSpace(app.Owner.CreatedBy)
-}
-
 func (app *InferencePlaygroundApp) loadThreads() {
-	owner := app.threadOwner()
-	if owner == "" {
-		return
-	}
-	app.Threads = inferencePlaygroundThreadsLoad(owner, app.Owner.Project)
+	app.Threads = inferencePlaygroundThreadsLoad(app.Owner.CreatedBy, app.Owner.Project)
 }
 
 func (app *InferencePlaygroundApp) startThreadFlusher() {
@@ -388,7 +354,7 @@ func (app *InferencePlaygroundApp) startThreadFlusher() {
 }
 
 func (app *InferencePlaygroundApp) ensureCurrentThread() {
-	if app.Developer || app.threadOwner() == "" {
+	if app.Developer {
 		return
 	}
 	if app.CurrentThreadId != "" {
@@ -407,6 +373,8 @@ func (app *InferencePlaygroundApp) ensureCurrentThread() {
 func (app *InferencePlaygroundApp) createThread() {
 	app.CurrentThreadId = ""
 	app.Chat.Messages = nil
+	app.Chat.Loading = false
+	app.Chat.Usage = InferencePlaygroundTokenUsageState{}
 }
 
 func (app *InferencePlaygroundApp) materializeCurrentThread() {
@@ -458,6 +426,9 @@ func (app *InferencePlaygroundApp) openThread(id string) {
 		if app.Threads[i].Id == id && !app.Threads[i].Deleted {
 			app.CurrentThreadId = id
 			app.Chat.Messages = slices.Clone(app.Threads[i].Messages)
+			app.Chat.Usage.Session = app.Threads[i].Usage
+			app.Chat.Usage.LastQuery = InferencePlaygroundTokenUsage{}
+			app.Chat.Loading = app.threadLoading(id)
 			if modelId := playgroundMostRecentMessageModel(app.Chat.Messages); modelId != "" {
 				app.Chat.ModelId = modelId
 				app.applyChatModelDefaults()
@@ -544,7 +515,7 @@ func (app *InferencePlaygroundApp) generateThreadTitle(threadId string, modelId 
 			Model: modelId,
 			Messages: []InferenceChatMessage{
 				{Role: "system", Content: inferenceChatTextContent("Generate a short chat thread title. Return only the title, without quotes or punctuation at the end. Maximum five words.")},
-				{Role: "user", Content: inferenceChatTextContent(prompt)},
+				{Role: "user", Content: inferenceChatTextContent(prompt[:min(len(prompt), 240)])},
 			},
 			Temperature:         util.OptValue(0.2),
 			TopP:                util.OptValue(0.5),
@@ -626,7 +597,7 @@ func playgroundReasoningTitlePrompt(reasoning string) string {
 	if reasoning == "" {
 		return ""
 	}
-	if newline := strings.IndexAny(reasoning, "\r\n"); newline >= 0 {
+	if newline := strings.IndexAny(reasoning, "\n"); newline >= 0 {
 		reasoning = reasoning[:newline]
 	}
 	runes := []rune(reasoning)
@@ -670,11 +641,7 @@ func (app *InferencePlaygroundApp) sortThreads() {
 }
 
 func (app *InferencePlaygroundApp) flushThreadsLocked() {
-	owner := app.threadOwner()
-	if owner == "" {
-		return
-	}
-	if inferencePlaygroundThreadsFlush(owner, app.Owner.Project, app.Threads, app.DeletedThreadIds, app.DeletedThreadPaths) {
+	if inferencePlaygroundThreadsFlush(app.Owner.CreatedBy, app.Owner.Project, app.Threads, app.DeletedThreadIds, app.DeletedThreadPaths) {
 		for i := range app.Threads {
 			app.Threads[i].Dirty = false
 		}
@@ -773,112 +740,6 @@ func (app *InferencePlaygroundApp) applyChatModelDefaults() {
 // Chat interface
 // =====================================================================================================================
 
-func (app *InferencePlaygroundApp) chatTab() ucx.UiNode {
-	app.prepareChatMessagesForUi()
-	chatControls := []ucx.UiNode{}
-	if app.Developer {
-		chatControls = append(chatControls,
-			ucx.AccordionNode("Settings", true).Children(ucx.Box().Sx(ucx.SxDisplayFlex, ucx.SxFlexDirectionColumn, ucx.SxGap(8)).Children(
-				InferenceToggleInput("chat.streaming", "Streaming", "chat.streaming", true),
-				ucx.InputSlider("Max completion tokens", "chat.maxCompletionTokens", 1, 1024*256, 1024, 1024*64, true),
-				ucx.InputSlider("Temperature", "chat.temperature", 0, 2, 0.1, 0.8, true),
-				ucx.InputSlider("Top P", "chat.topP", 0, 1, 0.1, 0.1, true),
-				ucx.TextArea("chat.systemPrompt", "System prompt", "System prompt", "chat.systemPrompt", 4),
-			)),
-
-			app.usageBox("chat"),
-
-			ucx.AccordionNode("Advanced settings", false).Children(ucx.Box().Sx(ucx.SxDisplayFlex, ucx.SxFlexDirectionColumn, ucx.SxGap(8)).Children(
-				ucx.InputSlider("Presence penalty", "chat.presencePenalty", -2, 2, 0.1, 0, true),
-				ucx.InputSlider("Frequency penalty", "chat.frequencyPenalty", -2, 2, 0.1, 0, true),
-				InferenceToggleInput("chat.logprobs", "Logprobs", "chat.logprobs", true),
-				ucx.InputSlider("Top log probs", "chat.topLogprobs", 0, 20, 1, 0, true),
-			)),
-
-			ucx.AccordionNode("Curl", false).Children(
-				ucx.CodeBound("chat.curl"),
-			),
-		)
-	} else {
-		chatControls = append(chatControls,
-			ucx.ButtonEx("newThread", "New thread", ucx.ColorSecondaryMain, ucx.IconHeroPlus, "", ""),
-			InferenceThreadListNode(),
-		)
-	}
-
-	return ucx.Box().
-		Sx(
-			ucx.SxDisplayFlex,
-			ucx.SxFlexDirectionRow,
-			ucx.SxGap(32),
-			ucx.SxAlignSelf("stretch"),
-			ucx.SxWidthPercent(100),
-		).Children(
-		ucx.Box().Sx(
-			ucx.SxFlexGrow(1),
-			ucx.SxMinWidth(0),
-			ucx.SxMinHeight(0),
-			ucx.SxOverflow("hidden"),
-			ucx.SxFlexDirectionColumn,
-			ucx.SxDisplayFlex,
-			ucx.SxGap(16),
-			ucx.SxP(16),
-			ucx.SxBorderRadius(18),
-			ucx.SxBackground("var(--playground-panel, transparent)"),
-		).Children(
-			inferenceChatBox().Sx(
-				ucx.SxFlexGrow(1),
-				ucx.SxMinHeight(0),
-				ucx.SxOverflowY("auto"),
-				ucx.SxPx(8),
-				ucx.SxPy(16),
-			).Children(
-				ucx.List("chat.messages", "No messages yet.").Children(InferenceChatMessageNode()),
-				func() ucx.UiNode {
-					if app.Chat.Loading {
-						return ucx.Box().Sx(ucx.SxDisplayFlex, ucx.SxGap(8)).Children(
-							ucx.Spinner(28),
-						)
-					}
-					return ucx.Box()
-				}(),
-			),
-			InferenceChatComposerNode(
-				"chat.prompt",
-				"Ask anything",
-				3,
-				"heroArrowUp",
-				app.Chat.Loading,
-				app.modelOptionsFor(InferenceTextGeneration),
-			).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
-				prompt, attachments := playgroundChatComposerEvent(ev.Value)
-				app.Chat.Prompt = prompt
-				if !app.Chat.Loading {
-					app.runChat(attachments)
-					ucx.AppUpdateModel(app)
-				}
-			}),
-		),
-
-		ucx.Box().Sx(
-			ucx.SxWidth(320),
-			ucx.SxFlexShrink(0),
-			ucx.SxMinHeight(0),
-			ucx.SxOverflowY("auto"),
-			ucx.SxDisplayFlex,
-			ucx.SxFlexDirectionColumn,
-			ucx.SxGap(16),
-			ucx.SxBorderRadius(16),
-			ucx.SxP(16),
-			ucx.SxBorderColor(ucx.ColorBorderColor),
-			ucx.SxBorderWidth(1),
-			ucx.SxBorderSolid,
-		).Children(
-			chatControls...,
-		),
-	)
-}
-
 func (app *InferencePlaygroundApp) prepareChatMessagesForUi() {
 	for i := range app.Chat.Messages {
 		app.Chat.Messages[i].MessageIndex = int64(i)
@@ -946,6 +807,7 @@ func (app *InferencePlaygroundApp) runChat(attachments []playgroundChatAttachmen
 		app.Chat.Usage.LastQuery = InferencePlaygroundTokenUsage{}
 		app.markCurrentThreadDirty()
 		threadId := app.CurrentThreadId
+		app.setThreadLoading(threadId, true)
 		ucx.AppUpdateUi(app)
 
 		go app.runChatResponse(owner, threadId, assistantIndex, request)
@@ -1011,6 +873,7 @@ func (app *InferencePlaygroundApp) regenerateChat(modelId string, messageIndex i
 	owner := app.walletOwner()
 	app.Chat.Usage.LastQuery = InferencePlaygroundTokenUsage{}
 	app.markCurrentThreadDirty()
+	app.setThreadLoading(threadId, true)
 	ucx.AppUpdateModel(app)
 
 	go app.runChatResponse(owner, threadId, assistantIndex, request)
@@ -1099,8 +962,34 @@ func (app *InferencePlaygroundApp) runChatResponse(owner apm.WalletOwner, thread
 	app.Chat.Curl = app.buildChatCurl()
 	app.Chat.Prompt = ""
 	app.Chat.Loading = false
-	app.applyChatUsage(usageSeen)
+	app.setThreadLoading(threadId, false)
+	app.applyChatUsage(threadId, usageSeen)
 	ucx.AppUpdateUi(app)
+}
+
+func (app *InferencePlaygroundApp) setThreadLoading(threadId string, loading bool) {
+	if strings.TrimSpace(threadId) == "" {
+		app.Chat.Loading = false
+		return
+	}
+	if loading {
+		if !slices.Contains(app.LoadingThreadIds, threadId) {
+			app.LoadingThreadIds = append(app.LoadingThreadIds, threadId)
+		}
+	} else {
+		app.LoadingThreadIds = slices.DeleteFunc(app.LoadingThreadIds, func(id string) bool {
+			return id == threadId
+		})
+	}
+	app.Chat.Loading = app.currentThreadLoading()
+}
+
+func (app *InferencePlaygroundApp) threadLoading(threadId string) bool {
+	return strings.TrimSpace(threadId) != "" && slices.Contains(app.LoadingThreadIds, threadId)
+}
+
+func (app *InferencePlaygroundApp) currentThreadLoading() bool {
+	return app.threadLoading(app.CurrentThreadId)
 }
 
 func playgroundSyntheticReasoningDeltas(request InferenceChatRequest) []string {
@@ -1255,7 +1144,7 @@ func playgroundAttachmentMessages(attachments []playgroundChatAttachment, genera
 func playgroundChatMessageParts(content string, reasoning string, reasoningTitle string, reasoningOpen bool) []playgroundChatMessagePart {
 	parts := []playgroundChatMessagePart{}
 	if reasoning != "" {
-		body := strings.TrimLeft(reasoning, "\r\n")
+		body := strings.TrimLeft(reasoning, "\n")
 
 		parts = append(parts, playgroundChatMessagePart{
 			Kind:    "thinking",
@@ -1334,20 +1223,55 @@ func appendPlaygroundTextPart(parts []playgroundChatMessagePart, text string) []
 	return append(parts, playgroundChatMessagePart{Kind: "text", Text: text})
 }
 
-func (app *InferencePlaygroundApp) applyChatUsage(usage InferenceChatUsage) {
-	inputTokens := int64(usage.PromptTokens)
+func (app *InferencePlaygroundApp) applyChatUsage(threadId string, usage InferenceChatUsage) {
+	cachedInputTokens := int64(0)
+	if usage.PromptTokensDetails.Present {
+		cachedInputTokens = int64(usage.PromptTokensDetails.Value.CachedTokens)
+	}
+	if cachedInputTokens < 0 {
+		cachedInputTokens = 0
+	}
+	if cachedInputTokens > int64(usage.PromptTokens) {
+		cachedInputTokens = int64(usage.PromptTokens)
+	}
+	inputTokens := int64(usage.PromptTokens) - cachedInputTokens
 	outputTokens := int64(usage.CompletionTokens)
 	reportedTokens := int64(usage.TotalTokens)
 	if reportedTokens == 0 {
-		reportedTokens = inputTokens + outputTokens
+		reportedTokens = inputTokens + cachedInputTokens + outputTokens
 	}
 
-	app.Chat.Usage.LastQuery.Input = inputTokens
-	app.Chat.Usage.LastQuery.Output = outputTokens
-	app.Chat.Usage.LastQuery.Reported = reportedTokens
-	app.Chat.Usage.Session.Input += inputTokens
-	app.Chat.Usage.Session.Output += outputTokens
-	app.Chat.Usage.Session.Reported += reportedTokens
+	lastQuery := InferencePlaygroundTokenUsage{
+		Input:       inputTokens,
+		CachedInput: cachedInputTokens,
+		Output:      outputTokens,
+		Reported:    reportedTokens,
+	}
+	updatedThread := false
+	for i := range app.Threads {
+		thread := &app.Threads[i]
+		if thread.Id != threadId {
+			continue
+		}
+		updatedThread = true
+		thread.Usage.Input += inputTokens
+		thread.Usage.CachedInput += cachedInputTokens
+		thread.Usage.Output += outputTokens
+		thread.Usage.Reported += reportedTokens
+		thread.Dirty = true
+		if app.CurrentThreadId == threadId {
+			app.Chat.Usage.Session = thread.Usage
+			app.Chat.Usage.LastQuery = lastQuery
+		}
+		break
+	}
+	if !updatedThread {
+		app.Chat.Usage.LastQuery = lastQuery
+		app.Chat.Usage.Session.Input += inputTokens
+		app.Chat.Usage.Session.CachedInput += cachedInputTokens
+		app.Chat.Usage.Session.Output += outputTokens
+		app.Chat.Usage.Session.Reported += reportedTokens
+	}
 	app.prepareChatMessagesForUi()
 	ucx.AppUpdateModel(app)
 }
@@ -1446,50 +1370,6 @@ func (app *InferencePlaygroundApp) chatCurlMessages() []map[string]string {
 	return messages
 }
 
-func InferenceChatComposerNode(bindPath string, placeholder string, rows int64, sendIcon string, disabled bool, modelOptions []ucx.Option) ucx.UiNode {
-	return ucx.UiNode{
-		Id:         "chatComposer",
-		Component:  "inference_chat_composer",
-		BindPath:   bindPath,
-		Optimistic: true,
-		Props: map[string]ucx.Value{
-			"placeholder":  ucx.VString(placeholder),
-			"rows":         ucx.VS64(rows),
-			"sendIcon":     ucx.VString(sendIcon),
-			"disabled":     ucx.VBool(disabled),
-			"modelOptions": inferenceOptionsValue(modelOptions),
-		},
-	}
-}
-
-func inferenceOptionsValue(options []ucx.Option) ucx.Value {
-	list := make([]ucx.Value, 0, len(options))
-	for _, option := range options {
-		list = append(list, ucx.VObject(map[string]ucx.Value{
-			"key":   ucx.VString(option.Key),
-			"value": ucx.VString(option.Value),
-		}))
-	}
-	return ucx.VList(list)
-}
-
-func InferenceChatMessageNode() ucx.UiNode {
-	return ucx.UiNode{Component: "inference_chat_message"}
-}
-
-func inferenceChatBox() ucx.UiNode {
-	return ucx.UiNode{
-		Component: "inference_chat_box",
-	}
-}
-
-func InferenceThreadListNode() ucx.UiNode {
-	return ucx.UiNode{
-		Component: "inference_thread_list",
-		BindPath:  "threads",
-	}
-}
-
 // Shared UI components
 // =====================================================================================================================
 
@@ -1540,16 +1420,4 @@ func curlJSONCommand(url string, payload any, streaming bool) string {
 		"EOF",
 	)
 	return strings.Join(parts, "\n")
-}
-
-func InferenceToggleInput(id string, label string, bindPath string, optimistic bool) ucx.UiNode {
-	return ucx.UiNode{
-		Id:         id,
-		Component:  "inference_toggle",
-		BindPath:   bindPath,
-		Optimistic: optimistic,
-		Props: map[string]ucx.Value{
-			"label": ucx.VString(label),
-		},
-	}
 }

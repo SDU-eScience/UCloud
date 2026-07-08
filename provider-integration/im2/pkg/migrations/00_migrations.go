@@ -6,6 +6,7 @@ import (
 )
 
 func Init() {
+	// Changes must always be appended to the END of this function
 	db.AddMigration(genericLicensesV1())
 	db.AddMigration(connectionsV1())
 	db.AddMigration(apmEventsV1())
@@ -51,4 +52,6 @@ func Init() {
 	db.AddMigration(inferenceV13())
 	db.AddMigration(inferenceV14())
 	db.AddMigration(inferenceV15())
+	db.AddMigration(ucxDeliveryV1())
+	db.AddMigration(kubevirtV2())
 }

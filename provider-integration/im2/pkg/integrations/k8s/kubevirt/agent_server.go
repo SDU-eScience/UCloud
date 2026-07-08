@@ -3,8 +3,6 @@ package kubevirt
 import (
 	"bytes"
 	"context"
-	"fmt"
-	"net/http"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -14,7 +12,6 @@ import (
 	introspection "ucloud.dk/pkg/integrations/k8s/job-introspection"
 	"ucloud.dk/pkg/integrations/k8s/shared"
 	vmagent "ucloud.dk/pkg/integrations/k8s/vm-agent"
-	db "ucloud.dk/shared/pkg/database"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
@@ -35,76 +32,6 @@ func initAgentServer() {
 			}
 		}
 		vmaSessions.Mu.RUnlock()
-	})
-
-	introspection.IntrospectJob.Handler(func(info rpc.RequestInfo, request introspection.IntrospectAuthRequest) (introspection.IntrospectJobResponse, *util.HttpError) {
-		jobId, _, ok := vmaAuthenticate(request.Token)
-		if !ok {
-			return introspection.IntrospectJobResponse{}, util.HttpErr(http.StatusForbidden, "forbidden")
-		}
-
-		job, ok := ctrl.JobRetrieve(jobId)
-		if !ok {
-			return introspection.IntrospectJobResponse{}, util.HttpErr(http.StatusForbidden, "forbidden")
-		}
-
-		return introspection.IntrospectJobResponse{
-			Job:       *job,
-			ServiceIp: "TODO", // TODO
-		}, nil
-	})
-
-	introspection.IntrospectNetworks.Handler(func(info rpc.RequestInfo, request introspection.IntrospectAuthRequest) (introspection.IntrospectNetworksResponse, *util.HttpError) {
-		jobId, _, ok := vmaAuthenticate(request.Token)
-		if !ok {
-			return introspection.IntrospectNetworksResponse{}, util.HttpErr(http.StatusForbidden, "forbidden")
-		}
-
-		job, ok := ctrl.JobRetrieve(jobId)
-		if !ok {
-			return introspection.IntrospectNetworksResponse{}, util.HttpErr(http.StatusForbidden, "forbidden")
-		}
-
-		networksBySubdomain := map[string]*introspection.IntrospectedNetwork{}
-
-		for _, resc := range job.Specification.Resources {
-			if resc.Type == orc.AppParameterValueTypePrivateNetwork {
-				network, ok := ctrl.PrivateNetworkRetrieve(resc.Id)
-				if ok {
-					networksBySubdomain[network.Specification.Subdomain] = &introspection.IntrospectedNetwork{
-						Id:        network.Id,
-						Name:      network.Specification.Name,
-						Subdomain: network.Specification.Subdomain,
-						Members:   nil,
-					}
-				}
-			}
-		}
-
-		pods := shared.JobPods.List()
-		for _, pod := range pods {
-			for subdomain, network := range networksBySubdomain {
-				if _, ok := pod.Labels[shared.PrivateNetworkLabel(subdomain)]; ok {
-					memberId := pod.Labels["ucloud.dk/jobId"]
-					member, ok := ctrl.JobRetrieve(memberId)
-					if ok {
-						network.Members = append(network.Members, introspection.IntrospectedNetworkMember{
-							Id:     member.Id,
-							Name:   pod.Spec.Hostname,
-							Fqdn:   fmt.Sprintf("%s.%s.%s.svc.cluster.local", pod.Spec.Hostname, pod.Spec.Subdomain, shared.ServiceConfig.Compute.Namespace),
-							Labels: member.Specification.Labels,
-						})
-					}
-				}
-			}
-		}
-
-		result := introspection.IntrospectNetworksResponse{}
-		for _, network := range networksBySubdomain {
-			result.Networks = append(result.Networks, *network)
-		}
-
-		return result, nil
 	})
 
 	vmagent.VmaStream.Handler(func(info rpc.RequestInfo, request util.Empty) (util.Empty, *util.HttpError) {
@@ -229,29 +156,8 @@ func vmaRequestTty(ctx context.Context, jobId string) *ws.Conn {
 	}
 }
 
-func vmaAuthenticate(token string) (string, string, bool) {
-	return db.NewTx3(func(tx *db.Transaction) (string, string, bool) {
-		row, ok := db.Get[struct {
-			JobId    string
-			SrvToken string
-		}](
-			tx,
-			`
-					select job_id, srv_token
-					from k8s.vmagents
-					where agent_token = :agent_token
-			    `,
-			db.Params{
-				"agent_token": string(token),
-			},
-		)
-
-		if ok {
-			return row.JobId, row.SrvToken, true
-		} else {
-			return "", "", false
-		}
-	})
+func vmaAuthenticate(token string) (string, util.Option[string], bool) {
+	return introspection.Authenticate(token)
 }
 
 func vmaServerHandleSession(c *ws.Conn) {
@@ -269,12 +175,12 @@ func vmaServerHandleSession(c *ws.Conn) {
 
 		jobId, srvToken, ok := vmaAuthenticate(string(authMsg))
 
-		if !ok {
+		if !ok || srvToken.IsEmpty() {
 			return
 		}
 
 		s.JobId = jobId
-		s.SendText(srvToken)
+		s.SendText(srvToken.Get())
 
 		vmaSessions.Mu.Lock()
 		vmaSessions.ByJobId[jobId] = append(vmaSessions.ByJobId[jobId], s)

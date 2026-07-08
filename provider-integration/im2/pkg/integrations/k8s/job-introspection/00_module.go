@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"ucloud.dk/pkg/ucxdelivery"
 	"ucloud.dk/shared/pkg/cli"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/termio"
@@ -65,25 +66,68 @@ func Launch() {
 		}
 	}
 
-	if len(os.Args) < 3 {
+	args := os.Args[1:]
+	if len(args) == 0 {
 		writeHelp()
 		return
 	}
 
-	resource := os.Args[2]
-	switch resource {
-	case "private-network", "private-networks", "network", "networks":
-		NetworkCommand()
-	case "job", "jobs":
-		JobCommand()
+	switch args[0] {
+	case "ucx-keygen":
+		os.Exit(ucxdelivery.KeygenCli(args[1:], os.Stdout, os.Stderr))
+
+	case "ucx-sign":
+		os.Exit(ucxdelivery.SignCli(args[1:], os.Stdout, os.Stderr))
+
+	case "ucx-publish":
+		UcxPublishCommand(args[1:])
+
+	case "introspect":
+		args = args[1:]
+		if len(args) < 1 {
+			writeHelp()
+			return
+		}
+
+		resource := args[0]
+		switch resource {
+		case "private-network", "private-networks", "network", "networks":
+			NetworkCommand(args[1:])
+		case "job", "jobs":
+			JobCommand(args[1:])
+		default:
+			writeHelp()
+			os.Exit(1)
+		}
+
 	default:
 		writeHelp()
 		os.Exit(1)
 	}
 }
 
-func NetworkCommand() {
-	args := os.Args[3:]
+func UcxPublishCommand(args []string) {
+	if len(args) != 3 {
+		termio.WriteStyledLine(termio.Bold, termio.Red, 0, "Usage: ucloud ucx-publish <appName> <appVersion> <containerPath>")
+		os.Exit(1)
+	}
+
+	response, err := UcxPublish.Invoke(UcxPublishRequest{
+		Token:         token,
+		AppName:       args[0],
+		AppVersion:    args[1],
+		ContainerPath: args[2],
+	})
+	cli.HandleError("publishing UCX application", err.AsError())
+
+	f := termio.Frame{}
+	f.AppendTitle("UCX application published")
+	f.AppendField("Source", response.UCloudPath)
+	f.AppendField("Binary", response.BinaryName)
+	f.Print()
+}
+
+func NetworkCommand(args []string) {
 	command := "ls"
 	commandArgs := args
 	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
@@ -200,10 +244,10 @@ func NetworkCommand() {
 	}
 }
 
-func JobCommand() {
+func JobCommand(args []string) {
 	fs := flag.NewFlagSet("introspect job", flag.ContinueOnError)
 	jsonOutput := fs.Bool("json", false, "Print JSON output")
-	gerr := fs.Parse(os.Args[3:])
+	gerr := fs.Parse(args)
 	cli.HandleError("parsing flags", gerr)
 	if fs.NArg() > 0 {
 		cli.HandleError("parsing flags", fmt.Errorf("unexpected argument: %s", fs.Arg(0)))

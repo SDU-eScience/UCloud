@@ -7,7 +7,6 @@ import (
 	"sort"
 	"strings"
 	"time"
-	"unicode"
 
 	ctrl "ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/integrations/k8s/filesystem"
@@ -21,12 +20,13 @@ const (
 )
 
 type playgroundPersistedThread struct {
-	Version   int                          `json:"version"`
-	Id        string                       `json:"id"`
-	Title     string                       `json:"title"`
-	CreatedAt string                       `json:"createdAt"`
-	UpdatedAt string                       `json:"updatedAt"`
-	Messages  []playgroundPersistedMessage `json:"messages"`
+	Version   int                           `json:"version"`
+	Id        string                        `json:"id"`
+	Title     string                        `json:"title"`
+	CreatedAt string                        `json:"createdAt"`
+	UpdatedAt string                        `json:"updatedAt"`
+	Usage     InferencePlaygroundTokenUsage `json:"usage"`
+	Messages  []playgroundPersistedMessage  `json:"messages"`
 }
 
 type playgroundPersistedMessage struct {
@@ -52,26 +52,29 @@ func inferencePlaygroundThreadsLoad(owner string, project util.Option[string]) [
 		return nil
 	}
 
-	paths := playgroundMostRecentThreadPaths(root, playgroundThreadLoadLimit*4)
+	paths := playgroundThreadPaths(root)
 	threads := make([]playgroundChatThread, 0, len(paths))
-	seen := map[string]bool{}
+	threadsById := map[string]playgroundChatThread{}
 	for _, path := range paths {
 		thread, ok := playgroundThreadRead(path)
 		if !ok || len(thread.Messages) == 0 {
 			continue
 		}
-		if seen[thread.Id] {
+		current, seen := threadsById[thread.Id]
+		if seen && current.UpdatedAt >= thread.UpdatedAt {
 			continue
 		}
-		seen[thread.Id] = true
+		threadsById[thread.Id] = thread
+	}
+	for _, thread := range threadsById {
 		threads = append(threads, thread)
-		if len(threads) >= playgroundThreadLoadLimit {
-			break
-		}
 	}
 	sort.SliceStable(threads, func(i, j int) bool {
 		return threads[i].UpdatedAt > threads[j].UpdatedAt
 	})
+	if len(threads) > playgroundThreadLoadLimit {
+		threads = threads[:playgroundThreadLoadLimit]
+	}
 	return threads
 }
 
@@ -142,9 +145,9 @@ func inferencePlaygroundThreadsFlush(owner string, project util.Option[string], 
 	return true
 }
 
-func playgroundMostRecentThreadPaths(root string, limit int) []string {
+func playgroundThreadPaths(root string) []string {
 	years := playgroundSortedChildren(root, true)
-	paths := make([]string, 0, limit)
+	paths := []string{}
 	for _, year := range years {
 		yearPath := filepath.Join(root, year)
 		if !playgroundIsDir(yearPath) {
@@ -172,9 +175,6 @@ func playgroundMostRecentThreadPaths(root string, limit int) []string {
 						continue
 					}
 					paths = append(paths, path)
-					if len(paths) >= limit {
-						return paths
-					}
 				}
 			}
 		}
@@ -242,6 +242,7 @@ func playgroundThreadPersisted(thread playgroundChatThread) playgroundPersistedT
 		Title:     thread.Title,
 		CreatedAt: playgroundFormatTime(thread.CreatedAt),
 		UpdatedAt: playgroundFormatTime(thread.UpdatedAt),
+		Usage:     thread.Usage,
 		Messages:  messages,
 	}
 }
@@ -289,6 +290,7 @@ func playgroundThreadFromPersisted(persisted playgroundPersistedThread) (playgro
 		Title:                  title,
 		CreatedAt:              createdAt,
 		UpdatedAt:              updatedAt,
+		Usage:                  persisted.Usage,
 		Messages:               messages,
 		TitleGenerated:         true,
 		TitleGenerationStarted: true,
@@ -300,44 +302,29 @@ func playgroundChatsRoot(basePath string) string {
 }
 
 func playgroundThreadPath(root string, thread playgroundChatThread) string {
-	updatedAt := time.UnixMilli(thread.UpdatedAt).UTC()
+	createdAt := playgroundThreadCreatedTime(thread).UTC()
 	return filepath.Join(
 		root,
-		updatedAt.Format("2006"),
-		updatedAt.Format("01"),
-		updatedAt.Format("02"),
+		createdAt.Format("2006"),
+		createdAt.Format("01"),
+		createdAt.Format("02"),
 		playgroundThreadFileName(thread),
 	)
 }
 
 func playgroundThreadFileName(thread playgroundChatThread) string {
-	updatedAt := time.UnixMilli(thread.UpdatedAt).UTC()
-	slug := playgroundThreadTitleSlug(thread.Title)
-	return updatedAt.Format("20060102T150405.000Z") + "-" + slug + "-" + thread.Id + ".json"
+	createdAt := playgroundThreadCreatedTime(thread).UTC()
+	return createdAt.Format("20060102T150405.000Z") + "-" + thread.Id + ".json"
 }
 
-func playgroundThreadTitleSlug(title string) string {
-	var builder strings.Builder
-	lastDash := false
-	for _, r := range strings.ToLower(strings.TrimSpace(title)) {
-		if unicode.IsLetter(r) || unicode.IsDigit(r) {
-			builder.WriteRune(r)
-			lastDash = false
-			continue
-		}
-		if !lastDash && builder.Len() > 0 {
-			builder.WriteByte('-')
-			lastDash = true
-		}
-		if builder.Len() >= 64 {
-			break
-		}
+func playgroundThreadCreatedTime(thread playgroundChatThread) time.Time {
+	if thread.CreatedAt > 0 {
+		return time.UnixMilli(thread.CreatedAt)
 	}
-	slug := strings.Trim(builder.String(), "-")
-	if slug == "" {
-		return "new-thread"
+	if thread.UpdatedAt > 0 {
+		return time.UnixMilli(thread.UpdatedAt)
 	}
-	return slug
+	return time.Now()
 }
 
 func playgroundFormatTime(ms int64) string {

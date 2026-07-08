@@ -9,6 +9,7 @@ import (
 	"ucloud.dk/shared/pkg/assert"
 	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/util"
 )
 
 //go:embed test-yaml/v2_terminal.yaml
@@ -114,5 +115,83 @@ invocation: echo hello
 
 	if assert.Equal(t, true, napp.Invocation.Inference.Present) {
 		assert.Equal(t, orcapi.InferenceModeMandatory, napp.Invocation.Inference.Value.Mode)
+	}
+}
+
+func TestUcxExecutableMetadataValidation(t *testing.T) {
+	valid := orcapi.ApplicationInvocationDescription{
+		Ucx: util.OptValue(orcapi.UcxDescription{
+			Executable: util.OptValue(orcapi.UcxExecutableDescription{
+				ManifestUrl: "https://provider.example.org/ucloud/ucx/my-app/manifest.json",
+				PublicKey:   "ed25519:BASE64_PUBLIC_KEY",
+				BinaryName:  "my-ucx-app",
+			}),
+		}),
+	}
+	assert.Equal(t, (*util.HttpError)(nil), validateUcxExecutableMetadata(&valid))
+
+	invalid := valid
+	invalid.Ucx.Value.Executable.Value.PublicKey = "rsa:BASE64_PUBLIC_KEY"
+	if validateUcxExecutableMetadata(&invalid) == nil {
+		t.Fatalf("expected invalid UCX executable public key prefix to be rejected")
+	}
+}
+
+func TestA2UcxExecutableMetadata(t *testing.T) {
+	var app A2Yaml
+	err := yaml.Unmarshal([]byte(`
+name: test-ucx-app
+version: "1"
+software:
+  type: UCX
+  image: ucloud/ucx-runner:latest
+invocation: echo hello
+ucx:
+  executable:
+    manifestUrl: https://provider.example.org/ucloud/ucx/my-app/manifest.json
+    publicKey: ed25519:BASE64_PUBLIC_KEY
+    binaryName: my-ucx-app
+`), &app)
+	if err != nil {
+		t.Fatalf("Invalid YAML: %s", err)
+	}
+
+	napp, herr := app.Normalize()
+	if herr != nil {
+		t.Fatalf("Invalid app: %s", herr)
+	}
+
+	if assert.Equal(t, true, napp.Invocation.Ucx.Present) &&
+		assert.Equal(t, true, napp.Invocation.Ucx.Value.Executable.Present) {
+		executable := napp.Invocation.Ucx.Value.Executable.Value
+		assert.Equal(t, "https://provider.example.org/ucloud/ucx/my-app/manifest.json", executable.ManifestUrl)
+		assert.Equal(t, "ed25519:BASE64_PUBLIC_KEY", executable.PublicKey)
+		assert.Equal(t, "my-ucx-app", executable.BinaryName)
+	}
+
+	assert.Equal(t, "echo hello", napp.Invocation.Invocation[0].InvocationParameterJinja.Template)
+}
+
+func TestA2UcxExecutableMetadataRejectsInvalidPublicKey(t *testing.T) {
+	var app A2Yaml
+	err := yaml.Unmarshal([]byte(`
+name: test-ucx-app
+version: "1"
+software:
+  type: UCX
+  image: ucloud/ucx-runner:latest
+invocation: echo hello
+ucx:
+  executable:
+    manifestUrl: https://provider.example.org/ucloud/ucx/my-app/manifest.json
+    publicKey: rsa:BASE64_PUBLIC_KEY
+    binaryName: my-ucx-app
+`), &app)
+	if err != nil {
+		t.Fatalf("Invalid YAML: %s", err)
+	}
+
+	if _, herr := app.Normalize(); herr == nil {
+		t.Fatalf("expected invalid UCX executable public key prefix to be rejected")
 	}
 }
