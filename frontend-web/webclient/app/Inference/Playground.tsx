@@ -125,6 +125,7 @@ const ThreadListClass = injectStyle("inference-thread-list", k => `
 `);
 
 const MAX_TEXT_ATTACHMENT_BYTES = 128 * 1024;
+const PLAYGROUND_SCROLL_BOTTOM_THRESHOLD = 16;
 const PLAYGROUND_REHYDRATE_PATHS = [
     "developer",
     "chat.modelId",
@@ -1306,9 +1307,10 @@ function ConnectionStatusIndicator({connected, text}: {connected: boolean; text:
 }
 
 function ContextWindowIndicator({model, fn}: {model: Record<string, Value>; fn?: UcxFunctionRegistry}): React.ReactNode {
-    const input = numberValue(fn?.modelValue(model, "chat.usage.session.input") ?? model["chat.usage.session.input"]);
-    const cachedInput = numberValue(fn?.modelValue(model, "chat.usage.session.cachedInput") ?? model["chat.usage.session.cachedInput"]);
-    const contextTokens = input + cachedInput;
+    const input = numberValue(fn?.modelValue(model, "chat.usage.lastQuery.input") ?? model["chat.usage.lastQuery.input"]);
+    const cachedInput = numberValue(fn?.modelValue(model, "chat.usage.lastQuery.cachedInput") ?? model["chat.usage.lastQuery.cachedInput"]);
+    const output = numberValue(fn?.modelValue(model, "chat.usage.lastQuery.output") ?? model["chat.usage.lastQuery..output"]);
+    const contextTokens = input + cachedInput + output;
     const modelId = stringValue(fn?.modelValue(model, "chat.modelId") ?? model["chat.modelId"]);
     const contextWindow = modelContextWindow(model, modelId);
     const percent = contextWindow > 0 ? Math.round((contextTokens / contextWindow) * 100) : null;
@@ -1344,7 +1346,9 @@ function PlaygroundConversation({model, fn, connected}: {model: Record<string, V
     const latestMessage = messages[messages.length - 1];
     const latestMessageScrollKey = latestMessage ? chatMessageScrollKey(latestMessage) : "";
     const containerRef = React.useRef<HTMLDivElement | null>(null);
+    const contentRef = React.useRef<HTMLDivElement | null>(null);
     const pinnedToBottomRef = React.useRef(true);
+    const previousScrollHeightRef = React.useRef(0);
     const previousThreadIdRef = React.useRef<string | null>(null);
 
     React.useLayoutEffect(() => {
@@ -1354,8 +1358,26 @@ function PlaygroundConversation({model, fn, connected}: {model: Record<string, V
             previousThreadIdRef.current = currentThreadId;
             pinnedToBottomRef.current = true;
         }
-        if (pinnedToBottomRef.current) el.scrollTop = el.scrollHeight;
+        if (pinnedToBottomRef.current) scrollPlaygroundConversationToBottom(el);
+        previousScrollHeightRef.current = el.scrollHeight;
     }, [currentThreadId, messages.length, latestMessageScrollKey, loading]);
+
+    React.useLayoutEffect(() => {
+        const container = containerRef.current;
+        const content = contentRef.current;
+        if (!container || !content) return;
+
+        const observer = new ResizeObserver(() => {
+            if (!pinnedToBottomRef.current) {
+                previousScrollHeightRef.current = container.scrollHeight;
+                return;
+            }
+            scrollPlaygroundConversationToBottom(container);
+            previousScrollHeightRef.current = container.scrollHeight;
+        });
+        observer.observe(content);
+        return () => observer.disconnect();
+    }, []);
 
     const composerNode = React.useMemo<UiNode>(() => ({
         id: "chatComposer",
@@ -1377,15 +1399,20 @@ function PlaygroundConversation({model, fn, connected}: {model: Record<string, V
                 ref={containerRef}
                 onScroll={(ev) => {
                     const el = ev.currentTarget;
-                    pinnedToBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight <= 8;
+                    const previousScrollHeight = previousScrollHeightRef.current;
+                    const wasPinnedBeforeGrowth = pinnedToBottomRef.current && previousScrollHeight > 0 && el.scrollHeight > previousScrollHeight && el.scrollTop + el.clientHeight >= previousScrollHeight - PLAYGROUND_SCROLL_BOTTOM_THRESHOLD;
+                    pinnedToBottomRef.current = playgroundConversationIsAtBottom(el) || wasPinnedBeforeGrowth;
+                    previousScrollHeightRef.current = el.scrollHeight;
                 }}
                 style={{flex: 1, minHeight: 0, overflowY: "auto", padding: "16px 8px"}}
             >
-                {messages.length === 0 ? <Text color="textSecondary">No messages yet.</Text> : messages.map((message) => {
-                    if (!fn) return null;
-                    return <ChatMessageNode key={message.key} message={message} modelOptions={modelOptions} currentModelId={currentModelId} fn={fn}/>;
-                })}
-                {loading ? <UcxSpinner /> : null}
+                <div ref={contentRef}>
+                    {messages.length === 0 ? <Text color="textSecondary">No messages yet.</Text> : messages.map((message) => {
+                        if (!fn) return null;
+                        return <ChatMessageNode key={message.key} message={message} modelOptions={modelOptions} currentModelId={currentModelId} fn={fn}/>;
+                    })}
+                    {loading ? <UcxSpinner /> : null}
+                </div>
             </div>
             {fn ? playgroundComponents.inference_chat_composer({
                 node: composerNode,
@@ -1396,6 +1423,14 @@ function PlaygroundConversation({model, fn, connected}: {model: Record<string, V
             }) : <DisabledComposerPlaceholder/>}
         </>
     );
+}
+
+function playgroundConversationIsAtBottom(el: HTMLElement): boolean {
+    return el.scrollHeight - el.scrollTop - el.clientHeight <= PLAYGROUND_SCROLL_BOTTOM_THRESHOLD;
+}
+
+function scrollPlaygroundConversationToBottom(el: HTMLElement): void {
+    el.scrollTop = el.scrollHeight;
 }
 
 function DisabledComposerPlaceholder(): React.ReactNode {

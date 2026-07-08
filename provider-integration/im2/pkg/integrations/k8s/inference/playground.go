@@ -148,12 +148,13 @@ type playgroundChatThread struct {
 	CreatedAt              int64
 	UpdatedAt              int64
 	Usage                  InferencePlaygroundTokenUsage
-	Messages               []playgroundChatMessage `ucx:"-"`
-	Dirty                  bool                    `ucx:"-"`
-	Deleted                bool                    `ucx:"-"`
-	StoragePath            string                  `ucx:"-"`
-	TitleGenerated         bool                    `ucx:"-"`
-	TitleGenerationStarted bool                    `ucx:"-"`
+	LastQuery              InferencePlaygroundTokenUsage `ucx:"-"`
+	Messages               []playgroundChatMessage       `ucx:"-"`
+	Dirty                  bool                          `ucx:"-"`
+	Deleted                bool                          `ucx:"-"`
+	StoragePath            string                        `ucx:"-"`
+	TitleGenerated         bool                          `ucx:"-"`
+	TitleGenerationStarted bool                          `ucx:"-"`
 }
 
 type playgroundAttachmentCreateRequest struct {
@@ -427,7 +428,7 @@ func (app *InferencePlaygroundApp) openThread(id string) {
 			app.CurrentThreadId = id
 			app.Chat.Messages = slices.Clone(app.Threads[i].Messages)
 			app.Chat.Usage.Session = app.Threads[i].Usage
-			app.Chat.Usage.LastQuery = InferencePlaygroundTokenUsage{}
+			app.Chat.Usage.LastQuery = app.Threads[i].LastQuery
 			app.Chat.Loading = app.threadLoading(id)
 			if modelId := playgroundMostRecentMessageModel(app.Chat.Messages); modelId != "" {
 				app.Chat.ModelId = modelId
@@ -804,7 +805,6 @@ func (app *InferencePlaygroundApp) runChat(attachments []playgroundChatAttachmen
 		app.Chat.Messages = append(app.Chat.Messages, playgroundChatMessage{Role: "assistant", Content: "", Parts: playgroundChatMessageParts("", "", "", false), GeneratedAt: now, ModelName: app.Chat.ModelId, StartedAt: now})
 		assistantIndex := len(app.Chat.Messages) - 1
 		app.Chat.Prompt = ""
-		app.Chat.Usage.LastQuery = InferencePlaygroundTokenUsage{}
 		app.markCurrentThreadDirty()
 		threadId := app.CurrentThreadId
 		app.setThreadLoading(threadId, true)
@@ -1258,6 +1258,7 @@ func (app *InferencePlaygroundApp) applyChatUsage(threadId string, usage Inferen
 		thread.Usage.CachedInput += cachedInputTokens
 		thread.Usage.Output += outputTokens
 		thread.Usage.Reported += reportedTokens
+		thread.LastQuery = lastQuery
 		thread.Dirty = true
 		if app.CurrentThreadId == threadId {
 			app.Chat.Usage.Session = thread.Usage
