@@ -139,10 +139,12 @@ const PLAYGROUND_REHYDRATE_PATHS = [
     "chat.topLogprobs",
 ];
 const PlaygroundProviderDomainContext = React.createContext("");
-const PlaygroundComposerDraftContext = React.createContext<{draft: string; setDraft: (draft: string) => void} | null>(null);
 
 const playgroundComponents: UcxComponentRegistry = {
-    inference_chat_composer: ({node, model, scope, fn}: UcxRenderContext) => {
+    inference_chat_composer: (ctx: UcxRenderContext) => <PlaygroundChatComposer {...ctx}/>,
+};
+
+function PlaygroundChatComposer({node, model, scope, fn}: UcxRenderContext): React.ReactNode {
         const placeholder = stringProp(node, "placeholder", "Ask something");
         const rows = numberProp(node, "rows", 8);
         const sendIcon = stringProp(node, "sendIcon", "heroPaperAirplane");
@@ -152,16 +154,9 @@ const playgroundComponents: UcxComponentRegistry = {
         const selectedModel = stringValue(fn.modelValue(model, "chat.modelId", scope));
         const selectedModelOption = modelOptions.find(option => option.key === selectedModel);
         const selectedCapabilities = modelCapabilities(model, selectedModel);
-        const draftContext = React.useContext(PlaygroundComposerDraftContext);
         const [localDraft, setLocalDraft] = React.useState(() => stringValue(fn.modelValue(model, node.bindPath, scope)));
-        const value = draftContext?.draft ?? localDraft;
-        const setValue = React.useCallback((next: string) => {
-            if (draftContext) {
-                draftContext.setDraft(next);
-            } else {
-                setLocalDraft(next);
-            }
-        }, [draftContext]);
+        const value = localDraft;
+        const setValue = setLocalDraft;
         const providerDomain = React.useContext(PlaygroundProviderDomainContext);
         const fileInputRef = React.useRef<HTMLInputElement | null>(null);
         const uploadCancelRef = React.useRef<Record<string, {cancelled: boolean; attachmentId: string | null}>>({});
@@ -452,8 +447,7 @@ const playgroundComponents: UcxComponentRegistry = {
                 </div>
             </Box>
         );
-    },
-};
+}
 
 type ThreadListItem = { id: string; title: string };
 
@@ -471,6 +465,23 @@ type ChatMessageListItem = {
     role: string;
     content: string;
     parts: ChatMessagePart[];
+};
+
+type ChatMessageViewModel = {
+    key: string;
+    threadId: string;
+    role: string;
+    content: string;
+    parts: ChatMessagePart[];
+    displayParts: ChatMessagePart[];
+    generatedAt: number;
+    modelName: string;
+    startedAt: number;
+    firstTokenAt: number;
+    finishedAt: number;
+    outputTokens: number;
+    messageIndex: number;
+    hidden: boolean;
 };
 
 type PlaygroundFrameProps = {
@@ -610,7 +621,12 @@ function MessageAttachmentCard({part}: {part: ChatMessagePart}): React.ReactNode
     }}/>;
 }
 
-type ChatMessageNodeProps = Pick<UcxRenderContext, "model" | "scope" | "fn">;
+type ChatMessageNodeProps = {
+    message: ChatMessageViewModel;
+    modelOptions: PlaygroundOption[];
+    currentModelId: string;
+    fn: UcxFunctionRegistry;
+};
 
 function ModelSelectorTrigger({option, modelName}: {option?: PlaygroundOption; modelName: string}): React.ReactNode {
     const label = option?.value ?? (modelName || "Select model");
@@ -699,51 +715,14 @@ function ModelSelectorOption({
     );
 }
 
-function ChatMessageNode(
-    {
-        model,
-        scope,
-        fn,
-    }: ChatMessageNodeProps
-): React.ReactNode {
-    const role = stringValue(fn.modelValue(model, "./role", scope));
-    const content = stringValue(fn.modelValue(model, "./content", scope));
-    const parts = chatMessagePartsValue(fn.modelValue(model, "./parts", scope));
-    const generatedAt = numberValue(fn.modelValue(model, "./generatedAt", scope));
-    const modelName = stringValue(fn.modelValue(model, "./modelName", scope));
-    const startedAt = numberValue(fn.modelValue(model, "./startedAt", scope));
-    const firstTokenAt = numberValue(fn.modelValue(model, "./firstTokenAt", scope));
-    const finishedAt = numberValue(fn.modelValue(model, "./finishedAt", scope));
-    const outputTokens = numberValue(fn.modelValue(model, "./outputTokens", scope));
-    const messageIndex = numberValue(fn.modelValue(model, "./messageIndex", scope));
-    const responseFinished = finishedAt > 0;
-    const modelOptions = textGenerationModelOptions(fn.modelValue(model, "models"));
-    const selectedModelOption = modelOptions.find(option => option.key === modelName) ?? modelOptions.find(option => option.key === stringValue(fn.modelValue(model, "chat.modelId")));
-    const regenerateModelLabel = selectedModelOption?.value ?? modelName;
-    const allMessages = chatMessagesValue(fn.modelValue(model, "chat.messages"));
-    const messageParts = parts.length === 0
-        ? [
-            {
-                kind: "text",
-                text: content,
-                summary: "",
-                body: "",
-                open: false,
-            } as ChatMessagePart,
-        ]
-        : parts;
+const ChatMessageNode = React.memo(function ChatMessageNode({message, modelOptions, currentModelId, fn}: ChatMessageNodeProps): React.ReactNode {
+    if (message.hidden) return null;
 
-    if (shouldHideCollapsedAttachmentMessage(allMessages, messageIndex, role, content, messageParts)) return null;
-
-    if (role === "user") {
-        const displayParts = orderUserMessageParts([
-            ...messageParts,
-            ...collapsedAttachmentPartsForMessage(allMessages, messageIndex),
-        ]);
+    if (message.role === "user") {
         return (
             <Flex width="100%" justifyContent="flex-end" my={16} flexDirection="column" alignItems="flex-end" gap="6px">
                 <div style={{maxWidth: "78%", borderRadius: 16, padding: "10px 14px", background: "var(--playground-user-bg, var(--secondaryMain))", color: "var(--playground-user-text, var(--textPrimary))", overflowWrap: "anywhere", display: "flex", flexDirection: "column", gap: 8}}>
-                    {displayParts.map((part, idx) => {
+                    {message.displayParts.map((part, idx) => {
                         if (part.kind === "image" && part.url !== "") {
                             return <img key={idx} src={part.url} alt={part.fileName || "Attachment"} style={{maxWidth: 360, maxHeight: 260, objectFit: "contain", borderRadius: 8}}/>;
                         }
@@ -754,23 +733,27 @@ function ChatMessageNode(
                     })}
                 </div>
                 <Flex className={ComposerActionButtonHoverClass} alignItems="center" gap="8px" color="textSecondary" fontSize="12px">
-                    <span>{formatTimeOfDay(generatedAt)}</span>
-                    <CopyButton onClick={() => copyToClipboard(content)}/>
+                    <span>{formatTimeOfDay(message.generatedAt)}</span>
+                    <CopyButton onClick={() => copyToClipboard(message.content)}/>
                 </Flex>
             </Flex>
         );
     }
 
+    const responseFinished = message.finishedAt > 0;
+    const selectedModelOption = modelOptions.find(option => option.key === message.modelName) ?? modelOptions.find(option => option.key === currentModelId);
+    const regenerateModelLabel = selectedModelOption?.value ?? message.modelName;
+
     return (
         <Flex flexDirection="column" gap="4px" width="100%" my={16}>
-            {messageParts.map((part, idx) => {
+            {message.parts.map((part, idx) => {
                 if (part.kind === "thinking") {
                     return <ThinkingPart key={idx} part={part}/>;
                 }
                 return <StreamingMarkdownPart key={idx} text={part.text} streaming={!responseFinished}/>;
             })}
             {!responseFinished ? null : <Flex className={ComposerActionButtonHoverClass} alignItems="center" gap="8px" color="textSecondary" fontSize="12px" flexWrap="wrap">
-                <CopyButton onClick={() => copyToClipboard(content)}/>
+                <CopyButton onClick={() => copyToClipboard(message.content)}/>
                 <RichSelect<PlaygroundOption, keyof PlaygroundOption>
                     items={modelOptions}
                     keys={["key", "value"]}
@@ -779,7 +762,7 @@ function ChatMessageNode(
                         kind: ValueKind.Object,
                         object: {
                             modelId: {kind: ValueKind.String, string: option.key},
-                            messageIndex: {kind: ValueKind.S64, s64: messageIndex},
+                            messageIndex: {kind: ValueKind.S64, s64: message.messageIndex},
                         },
                     })}
                     dropdownWidth="340px"
@@ -797,17 +780,25 @@ function ChatMessageNode(
                         />
                     )}
                 />
-                <Tooltip tooltipContentWidth={240} trigger={<span>{formatResponseDuration(startedAt, finishedAt)}</span>}>
+                <Tooltip tooltipContentWidth={240} trigger={<span>{formatResponseDuration(message.startedAt, message.finishedAt)}</span>}>
                     <div style={{display: "flex", flexDirection: "column", gap: 4}}>
-                        <span>Time to first token: {formatDuration(firstTokenAt > 0 && startedAt > 0 ? firstTokenAt - startedAt : 0)}</span>
-                        <span>Output tokens: {outputTokens || "Unknown"}</span>
-                        <span>Tokens per second: {formatTokensPerSecond(outputTokens, firstTokenAt, finishedAt)}</span>
-                        <span>Finished: {formatTimeOfDay(finishedAt)}</span>
+                        <span>Time to first token: {formatDuration(message.firstTokenAt > 0 && message.startedAt > 0 ? message.firstTokenAt - message.startedAt : 0)}</span>
+                        <span>Output tokens: {message.outputTokens || "Unknown"}</span>
+                        <span>Tokens per second: {formatTokensPerSecond(message.outputTokens, message.firstTokenAt, message.finishedAt)}</span>
+                        <span>Finished: {formatTimeOfDay(message.finishedAt)}</span>
                     </div>
                 </Tooltip>
             </Flex>}
         </Flex>
     );
+}, areChatMessageNodePropsEqual);
+
+function areChatMessageNodePropsEqual(prev: ChatMessageNodeProps, next: ChatMessageNodeProps): boolean {
+    if (prev.fn !== next.fn || !chatMessageViewModelEqual(prev.message, next.message)) return false;
+    if (prev.message.role === "user" && next.message.role === "user") return true;
+    if (!playgroundOptionsEqual(prev.modelOptions, next.modelOptions)) return false;
+    if (prev.message.modelName !== "" && next.message.modelName !== "") return true;
+    return prev.currentModelId === next.currentModelId;
 }
 
 function formatTimeOfDay(ms: number): string {
@@ -832,12 +823,12 @@ function formatTokensPerSecond(outputTokens: number, firstTokenAt: number, finis
     return `${(outputTokens / ((finishedAt - firstTokenAt) / 1000)).toFixed(1)}/s`;
 }
 
-function StreamingMarkdownPart({text, streaming}: {text: string; streaming: boolean}): React.ReactNode {
+const StreamingMarkdownPart = React.memo(function StreamingMarkdownPart({text, streaming}: {text: string; streaming: boolean}): React.ReactNode {
     if (!streaming) return <MarkdownDocument text={text}/>;
 
     const stableText = stableStreamingMarkdownPrefix(text);
     return <MarkdownDocument text={stableText}/>;
-}
+});
 
 type StreamingMarkdownStackItem = {
     kind: "fence" | "inlineCode" | "emphasis" | "linkText" | "linkUrl" | "heading";
@@ -1346,6 +1337,12 @@ function PlaygroundConversation({model, fn, connected}: {model: Record<string, V
     const messageItems = messagesValue?.kind === ValueKind.List ? messagesValue.list : [];
     const loading = boolValue(fn?.modelValue(model, "chat.loading") ?? model["chat.loading"]);
     const currentThreadId = stringValue(fn?.modelValue(model, "currentThreadId") ?? model.currentThreadId);
+    const modelsValue = fn?.modelValue(model, "models") ?? model.models;
+    const modelOptions = React.useMemo(() => textGenerationModelOptions(modelsValue), [modelsValue]);
+    const currentModelId = stringValue(fn?.modelValue(model, "chat.modelId") ?? model["chat.modelId"]);
+    const messages = React.useMemo(() => buildChatMessageViewModels(messageItems, currentThreadId), [currentThreadId, messagesValue]);
+    const latestMessage = messages[messages.length - 1];
+    const latestMessageScrollKey = latestMessage ? chatMessageScrollKey(latestMessage) : "";
     const containerRef = React.useRef<HTMLDivElement | null>(null);
     const pinnedToBottomRef = React.useRef(true);
     const previousThreadIdRef = React.useRef<string | null>(null);
@@ -1358,7 +1355,7 @@ function PlaygroundConversation({model, fn, connected}: {model: Record<string, V
             pinnedToBottomRef.current = true;
         }
         if (pinnedToBottomRef.current) el.scrollTop = el.scrollHeight;
-    }, [currentThreadId, messageItems.length, loading, model]);
+    }, [currentThreadId, messages.length, latestMessageScrollKey, loading]);
 
     const composerNode = React.useMemo<UiNode>(() => ({
         id: "chatComposer",
@@ -1384,9 +1381,9 @@ function PlaygroundConversation({model, fn, connected}: {model: Record<string, V
                 }}
                 style={{flex: 1, minHeight: 0, overflowY: "auto", padding: "16px 8px"}}
             >
-                {messageItems.length === 0 ? <Text color="textSecondary">No messages yet.</Text> : messageItems.map((item, idx) => {
-                    if (item.kind !== ValueKind.Object || !fn) return null;
-                    return <ChatMessageNode key={idx} model={model} scope={item.object} fn={fn}/>;
+                {messages.length === 0 ? <Text color="textSecondary">No messages yet.</Text> : messages.map((message) => {
+                    if (!fn) return null;
+                    return <ChatMessageNode key={message.key} message={message} modelOptions={modelOptions} currentModelId={currentModelId} fn={fn}/>;
                 })}
                 {loading ? <UcxSpinner /> : null}
             </div>
@@ -1425,6 +1422,9 @@ function DisabledComposerPlaceholder(): React.ReactNode {
 }
 
 function PlaygroundThreadSidebar({model, fn, connected, footer}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean; footer: React.ReactNode}): React.ReactNode {
+    const threads = threadListValue(fn?.modelValue(model, "threads") ?? model.threads);
+    const currentThreadId = stringValue(fn?.modelValue(model, "currentThreadId") ?? model.currentThreadId);
+    const pendingNewThreadRef = React.useRef<Set<string> | null>(null);
     const node = React.useMemo<UiNode>(() => ({
         id: "threadList",
         component: "inference_thread_list",
@@ -1434,10 +1434,29 @@ function PlaygroundThreadSidebar({model, fn, connected, footer}: {model: Record<
         children: [],
     }), []);
 
+    React.useEffect(() => {
+        const previousThreadIds = pendingNewThreadRef.current;
+        if (!previousThreadIds) return;
+
+        const createdThread = threads.find(thread => !previousThreadIds.has(thread.id));
+        if (!createdThread) return;
+
+        pendingNewThreadRef.current = null;
+        if (createdThread.id !== currentThreadId) {
+            fn?.sendUiEvent("openThread", "click", {
+                kind: ValueKind.String,
+                string: createdThread.id,
+            });
+        }
+    }, [currentThreadId, fn, threads]);
+
     const header = <Button
         type="button"
         disabled={!connected || !fn}
-        onClick={() => fn?.sendUiEvent("newThread", "click")}
+        onClick={() => {
+            pendingNewThreadRef.current = new Set(threads.map(thread => thread.id));
+            fn?.sendUiEvent("newThread", "click");
+        }}
         color={"secondaryMain"}
         width="100%"
     >
@@ -1531,7 +1550,6 @@ export default function Playground(): React.ReactNode {
     const [terminalError, setTerminalError] = React.useState("");
     const [refreshNonce, setRefreshNonce] = React.useState(0);
     const [lastModel, setLastModel] = React.useState<Record<string, Value>>({});
-    const [composerDraft, setComposerDraft] = React.useState("");
     const openRetryCountRef = React.useRef(0);
     const openRetryTimerRef = React.useRef<number | null>(null);
     const mountedRef = React.useRef(true);
@@ -1551,7 +1569,6 @@ export default function Playground(): React.ReactNode {
         previousProjectIdRef.current = projectId;
         openRetryCountRef.current = 0;
         setLastModel({});
-        setComposerDraft("");
         setSession(null);
         setRefreshNonce((x) => x + 1);
     }, [projectId]);
@@ -1620,15 +1637,13 @@ export default function Playground(): React.ReactNode {
 
     if (!session) {
         return (
-            <PlaygroundComposerDraftContext.Provider value={{draft: composerDraft, setDraft: setComposerDraft}}>
-                <PlaygroundFrame
-                    model={lastModel}
-                    connected={false}
-                    mounted={false}
-                    loadingSession={loading}
-                    error={loading ? "" : (terminalError || "Unable to open inference playground.")}
-                />
-            </PlaygroundComposerDraftContext.Provider>
+            <PlaygroundFrame
+                model={lastModel}
+                connected={false}
+                mounted={false}
+                loadingSession={loading}
+                error={loading ? "" : (terminalError || "Unable to open inference playground.")}
+            />
         );
     }
 
@@ -1636,31 +1651,29 @@ export default function Playground(): React.ReactNode {
 
     return (
         <PlaygroundProviderDomainContext.Provider value={providerDomain}>
-            <PlaygroundComposerDraftContext.Provider value={{draft: composerDraft, setDraft: setComposerDraft}}>
-                <UcxView
-                    key={`${projectId ?? ""}:${session.sessionToken}`}
-                    url={session.connectTo}
-                    authToken={session.sessionToken}
-                    sysHello={JSON.stringify({})}
-                    maxReconnectAttempts={0}
-                    onConnected={handleConnected}
-                    onDisconnected={handleDisconnected}
-                    onTransportError={handleTransportError}
-                    onModelChange={handleModelChange}
-                    components={playgroundComponents}
-                    rehydrateModelPaths={PLAYGROUND_REHYDRATE_PATHS}
-                    renderFrame={({connected, mounted, transportError, content, model, fn}) => (
-                        <PlaygroundFrame
-                            model={model ?? lastModel}
-                            fn={fn}
-                            ucxContent={content}
-                            connected={connected}
-                            mounted={mounted ?? false}
-                            error={terminalError || transportError}
-                        />
-                    )}
-                />
-            </PlaygroundComposerDraftContext.Provider>
+            <UcxView
+                key={`${projectId ?? ""}:${session.sessionToken}`}
+                url={session.connectTo}
+                authToken={session.sessionToken}
+                sysHello={JSON.stringify({})}
+                maxReconnectAttempts={0}
+                onConnected={handleConnected}
+                onDisconnected={handleDisconnected}
+                onTransportError={handleTransportError}
+                onModelChange={handleModelChange}
+                components={playgroundComponents}
+                rehydrateModelPaths={PLAYGROUND_REHYDRATE_PATHS}
+                renderFrame={({connected, mounted, transportError, content, model, fn}) => (
+                    <PlaygroundFrame
+                        model={model ?? lastModel}
+                        fn={fn}
+                        ucxContent={content}
+                        connected={connected}
+                        mounted={mounted ?? false}
+                        error={terminalError || transportError}
+                    />
+                )}
+            />
         </PlaygroundProviderDomainContext.Provider>
     );
 }
@@ -1869,9 +1882,8 @@ function chatMessagePartsValue(value: any): ChatMessagePart[] {
     });
 }
 
-function chatMessagesValue(value: any): ChatMessageListItem[] {
-    if (!value || value.kind !== ValueKind.List) return [];
-    return value.list.flatMap((item: Value) => {
+function buildChatMessageViewModels(messageItems: Value[], currentThreadId: string): ChatMessageViewModel[] {
+    const allMessages: ChatMessageListItem[] = messageItems.flatMap((item: Value) => {
         if (item.kind !== ValueKind.Object) return [];
         const role = stringValue(item.object.role);
         if (role === "") return [];
@@ -1881,6 +1893,100 @@ function chatMessagesValue(value: any): ChatMessageListItem[] {
             parts: chatMessagePartsValue(item.object.parts),
         }];
     });
+
+    return messageItems.flatMap((item, idx): ChatMessageViewModel[] => {
+        if (item.kind !== ValueKind.Object) return [];
+
+        const role = stringValue(item.object.role);
+        const content = stringValue(item.object.content);
+        const parts = chatMessagePartsValue(item.object.parts);
+        const messageIndex = item.object.messageIndex ? numberValue(item.object.messageIndex) : idx;
+        const messageParts = parts.length === 0
+            ? [{
+                kind: "text",
+                text: content,
+                summary: "",
+                body: "",
+                open: false,
+                fileName: "",
+                url: "",
+            } as ChatMessagePart]
+            : parts;
+        const hidden = shouldHideCollapsedAttachmentMessage(allMessages, messageIndex, role, content, messageParts);
+        const displayParts = role === "user"
+            ? orderUserMessageParts([
+                ...messageParts,
+                ...collapsedAttachmentPartsForMessage(allMessages, messageIndex),
+            ])
+            : messageParts;
+
+        const key = `${currentThreadId || "thread"}:${idx}:${messageIndex}`;
+        return [{
+            key,
+            threadId: currentThreadId,
+            role,
+            content,
+            parts: messageParts,
+            displayParts,
+            generatedAt: numberValue(item.object.generatedAt),
+            modelName: stringValue(item.object.modelName),
+            startedAt: numberValue(item.object.startedAt),
+            firstTokenAt: numberValue(item.object.firstTokenAt),
+            finishedAt: numberValue(item.object.finishedAt),
+            outputTokens: numberValue(item.object.outputTokens),
+            messageIndex,
+            hidden,
+        }];
+    });
+}
+
+function chatMessageViewModelEqual(a: ChatMessageViewModel, b: ChatMessageViewModel): boolean {
+    return a.key === b.key &&
+        a.threadId === b.threadId &&
+        a.role === b.role &&
+        a.content === b.content &&
+        a.generatedAt === b.generatedAt &&
+        a.modelName === b.modelName &&
+        a.startedAt === b.startedAt &&
+        a.firstTokenAt === b.firstTokenAt &&
+        a.finishedAt === b.finishedAt &&
+        a.outputTokens === b.outputTokens &&
+        a.messageIndex === b.messageIndex &&
+        a.hidden === b.hidden &&
+        chatMessagePartsEqual(a.parts, b.parts) &&
+        chatMessagePartsEqual(a.displayParts, b.displayParts);
+}
+
+function chatMessageScrollKey(message: ChatMessageViewModel): string {
+    return `${message.key}:${message.content}:${message.finishedAt}:${message.parts.map(part => `${part.kind}:${part.text}:${part.body}`).join("|")}`;
+}
+
+function chatMessagePartsEqual(a: ChatMessagePart[], b: ChatMessagePart[]): boolean {
+    if (a === b) return true;
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) {
+        if (!chatMessagePartEqual(a[i], b[i])) return false;
+    }
+    return true;
+}
+
+function chatMessagePartEqual(a: ChatMessagePart, b: ChatMessagePart): boolean {
+    return a.kind === b.kind &&
+        a.text === b.text &&
+        a.summary === b.summary &&
+        a.body === b.body &&
+        a.open === b.open &&
+        a.fileName === b.fileName &&
+        a.url === b.url;
+}
+
+function playgroundOptionsEqual(a: PlaygroundOption[], b: PlaygroundOption[]): boolean {
+    if (a === b) return true;
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) {
+        if (a[i].key !== b[i].key || a[i].value !== b[i].value) return false;
+    }
+    return true;
 }
 
 function isAttachmentMessagePart(part: ChatMessagePart): boolean {

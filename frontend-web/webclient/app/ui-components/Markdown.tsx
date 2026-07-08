@@ -152,6 +152,7 @@ function clamp(value: number, min: number, max: number): number {
 
 export function MarkdownDocument({text}: { text: string }): React.ReactNode {
     if (text.trim() === "") return null;
+    const normalizedText = normalizeMath(text);
     return (
         <ReactMarkdown
             components={{
@@ -205,11 +206,17 @@ export function MarkdownDocument({text}: { text: string }): React.ReactNode {
                 'msubsup', 'mfrac', 'msqrt', 'mroot', 'mtable', 'mtr', 'mtd',
                 'mtext', 'annotation',
             ]}
-            children={text}
+            children={normalizedText}
             remarkPlugins={[remarkGfm, remarkMath]}
             rehypePlugins={[rehypeKatex]}
         />
     );
+}
+
+function normalizeMath(markdown: string): string {
+    return markdown
+        .replace(/\\\[((?:.|\n)*?)\\\]/g, (_, m) => `$$\n${m}\n$$`)
+        .replace(/\\\(((?:\\.|[^\\)])*?)\\\)/g, (_, m) => `$${m}$`);
 }
 
 const PClass = injectStyle("p", k => `
