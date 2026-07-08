@@ -12,6 +12,7 @@ import (
 	"ucloud.dk/pkg/integrations/k8s/containers"
 	"ucloud.dk/pkg/integrations/k8s/filesystem"
 	"ucloud.dk/pkg/integrations/k8s/inference"
+	job_introspection "ucloud.dk/pkg/integrations/k8s/job-introspection"
 	"ucloud.dk/pkg/integrations/k8s/shared"
 	"ucloud.dk/pkg/ucxdelivery"
 	"ucloud.dk/shared/pkg/log"
@@ -75,6 +76,7 @@ func Init(config *cfg.ServicesConfigurationKubernetes) {
 
 	initStorageScanCli()
 	initJobsCli()
+	job_introspection.InitServerHandlers()
 	inference.Init()
 	initJobAuditLogCleanup()
 	controller.ApiTokens = inference.InitApiTokens()
