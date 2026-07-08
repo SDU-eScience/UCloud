@@ -81,7 +81,9 @@ func Init(config *cfg.ServicesConfigurationKubernetes) {
 	initJobAuditLogCleanup()
 	controller.ApiTokens = inference.InitApiTokens()
 	shared.InitExecutables()
-	if err := ucxdelivery.Initialize(config.FileSystem.MountPoint, nil); err != nil {
+	if err := ucxdelivery.InitCache(config.FileSystem.MountPoint, nil, ucxdelivery.CacheOptions{
+		OwnerUid: util.OptValue(filesystem.DefaultUid),
+	}); err != nil {
 		log.Warn("UCX delivery: failed to initialize executable cache: %v", err)
 	}
 	ucxdelivery.RegisterStaticHandler(controller.Mux, config.FileSystem.MountPoint)

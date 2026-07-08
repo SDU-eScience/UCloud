@@ -133,11 +133,25 @@ func PublishVersion(hostingRoot string, appName string, appVersion string, sourc
 		return PublishResult{}, err
 	}
 
+	ownerUid := util.OptNone[int]()
+	if cfg, ok := currentConfig(); ok {
+		ownerUid = cfg.ownerUid
+	}
+
 	versionRoot := filepath.Join(root, PublishedDirectory, "apps", appName, appVersion)
 	releasesRoot := filepath.Join(versionRoot, "releases")
 	releaseName := util.SecureToken()
 	releasePath := filepath.Join(releasesRoot, releaseName)
 	if err := os.MkdirAll(releasePath, 0755); err != nil {
+		return PublishResult{}, err
+	}
+	if err := chownCachePath(versionRoot, ownerUid); err != nil {
+		return PublishResult{}, err
+	}
+	if err := chownCachePath(releasesRoot, ownerUid); err != nil {
+		return PublishResult{}, err
+	}
+	if err := chownCachePath(releasePath, ownerUid); err != nil {
 		return PublishResult{}, err
 	}
 	cleanupRelease := true
@@ -147,7 +161,7 @@ func PublishVersion(hostingRoot string, appName string, appVersion string, sourc
 		}
 	}()
 
-	if err := copyPublishFiles(source, releasePath, binaryName); err != nil {
+	if err := copyPublishFiles(source, releasePath, binaryName, ownerUid); err != nil {
 		return PublishResult{}, err
 	}
 	if _, _, err := validatePublishSource(releasePath, appName, appVersion); err != nil {
@@ -160,6 +174,12 @@ func PublishVersion(hostingRoot string, appName string, appVersion string, sourc
 	_ = os.Remove(nextLink)
 	if err := os.Symlink(filepath.Join("releases", releaseName), nextLink); err != nil {
 		return PublishResult{}, err
+	}
+	if ownerUid.Present {
+		if err := os.Lchown(nextLink, ownerUid.Value, ownerUid.Value); err != nil {
+			_ = os.Remove(nextLink)
+			return PublishResult{}, err
+		}
 	}
 	if err := os.Rename(nextLink, currentLink); err != nil {
 		_ = os.Remove(nextLink)
@@ -267,7 +287,7 @@ func validateManifestPath(binaryUrl string, appName string, appVersion string) (
 	return binaryName, nil
 }
 
-func copyPublishFiles(source string, destination string, binaryName string) error {
+func copyPublishFiles(source string, destination string, binaryName string, ownerUid util.Option[int]) error {
 	files := []string{"manifest.json", "manifest.json.sig", binaryName}
 	for _, name := range files {
 		if name != filepath.Base(name) || name == "." || name == ".." {
@@ -286,14 +306,14 @@ func copyPublishFiles(source string, destination string, binaryName string) erro
 			return fmt.Errorf("publish file must be a regular file: %s", name)
 		}
 
-		if err := copyFile(sourcePath, filepath.Join(destination, name), info.Mode().Perm()); err != nil {
+		if err := copyFile(sourcePath, filepath.Join(destination, name), info.Mode().Perm(), ownerUid); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func copyFile(source string, destination string, mode os.FileMode) error {
+func copyFile(source string, destination string, mode os.FileMode, ownerUid util.Option[int]) error {
 	if err := os.MkdirAll(filepath.Dir(destination), 0755); err != nil {
 		return err
 	}
@@ -305,6 +325,12 @@ func copyFile(source string, destination string, mode os.FileMode) error {
 	out, err := os.OpenFile(destination, os.O_WRONLY|os.O_CREATE|os.O_EXCL, mode)
 	if err != nil {
 		return err
+	}
+	if ownerUid.Present {
+		if err := out.Chown(ownerUid.Value, ownerUid.Value); err != nil {
+			_ = out.Close()
+			return err
+		}
 	}
 	_, copyErr := io.Copy(out, in)
 	closeErr := out.Close()

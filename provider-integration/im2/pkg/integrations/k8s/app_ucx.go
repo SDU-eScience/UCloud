@@ -348,7 +348,7 @@ func ensureUcxBackendAndResolveUpstream(ctx context.Context, app *orcapi.Applica
 			return "", err
 		}
 
-		if err := ensureUcxDeployment(ctx, namespace, deploymentName, image, script, selector, inDevelopmentMode, cacheCurrentPath); err != nil {
+		if err := ensureUcxDeployment(ctx, namespace, deploymentName, image, script, selector, inDevelopmentMode, cacheCurrentPath, app.Metadata.Name, app.Metadata.Version); err != nil {
 			log.Warn("UCX provider: failed ensuring deployment %s/%s: %v", namespace, deploymentName, err)
 			return "", err
 		}
@@ -414,6 +414,8 @@ func ensureUcxDeployment(
 	selector map[string]string,
 	developmentModeSubPath util.Option[string],
 	cacheCurrentPath util.Option[string],
+	appName string,
+	appVersion string,
 ) error {
 	volumes := []k8score.Volume{}
 	volumeMounts := []k8score.VolumeMount{}
@@ -479,7 +481,12 @@ func ensureUcxDeployment(
 							Image:           image,
 							ImagePullPolicy: k8score.PullIfNotPresent,
 							Command:         []string{"/bin/bash", "-lc", script},
-							VolumeMounts:    volumeMounts,
+							Env: []k8score.EnvVar{
+								{Name: "UCX_PORT", Value: fmt.Sprint(ucxBackendPort)},
+								{Name: "UCLOUD_UCX_APP_NAME", Value: appName},
+								{Name: "UCLOUD_UCX_APP_VERSION", Value: appVersion},
+							},
+							VolumeMounts: volumeMounts,
 							Ports: []k8score.ContainerPort{
 								{ContainerPort: ucxBackendPort},
 							},

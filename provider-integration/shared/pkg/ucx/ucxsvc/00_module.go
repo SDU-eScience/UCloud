@@ -3,8 +3,10 @@ package ucxsvc
 import (
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 
 	accapi "ucloud.dk/shared/pkg/accounting"
@@ -32,7 +34,15 @@ const (
 	stackLabelInstance    = "ucloud.dk/stackinstance"
 	stackLabelStateFolder = "ucloud.dk/stack-state-folder"
 	stackDataMaxBytes     = 64*1024 - 1
+	ucxAppNameEnv         = "UCLOUD_UCX_APP_NAME"
+	ucxAppVersionEnv      = "UCLOUD_UCX_APP_VERSION"
+	ucxVmServiceUid       = 11042
 )
+
+type UcxCustomUiServiceInit struct {
+	Labels     map[string]string
+	InitScript string
+}
 
 func (s *Stack) Labels() map[string]string {
 	if !s.Ok {
@@ -319,6 +329,126 @@ func StackWriteInitScript(stack *Stack, initScript string) map[string]string {
 	return map[string]string{
 		"ucloud.dk/initscript": filepath.Join(stack.MountPath, initName),
 	}
+}
+
+func UcxPortLabel(port int) map[string]string {
+	labels := map[string]string{}
+	appName := strings.TrimSpace(os.Getenv(ucxAppNameEnv))
+	appVersion := strings.TrimSpace(os.Getenv(ucxAppVersionEnv))
+	if appName != "" {
+		labels["ucloud.dk/ucxAppName"] = appName
+	}
+	if appVersion != "" {
+		labels["ucloud.dk/ucxAppVersion"] = appVersion
+	}
+	if port > 0 {
+		labels["ucloud.dk/ucxport"] = strconv.Itoa(port)
+	}
+	return labels
+}
+
+func UcxInitCustomUiService(stack *Stack, port int, args string) UcxCustomUiServiceInit {
+	result := UcxCustomUiServiceInit{Labels: UcxPortLabel(port)}
+	if stack == nil || !stack.Ok {
+		return result
+	}
+
+	runnerName := fmt.Sprintf(".ucx-custom-ui-%s.sh", util.SecureToken())
+	runnerPath := filepath.Join(stack.MountPath, runnerName)
+	StackWriteFileEx(stack, runnerName, ucxCustomUiRunnerScript(port, args), 0770)
+	if !stack.Ok {
+		return result
+	}
+
+	result.InitScript = ucxCustomUiServiceInitScript(runnerPath)
+	return result
+}
+
+func ucxCustomUiRunnerScript(port int, args string) string {
+	appName := strings.TrimSpace(os.Getenv(ucxAppNameEnv))
+	appVersion := strings.TrimSpace(os.Getenv(ucxAppVersionEnv))
+	args = strings.TrimSpace(args)
+	invoke := `"$RUNTIME_BIN"`
+	if args != "" {
+		invoke += " " + args
+	}
+
+	return fmt.Sprintf(`#!/usr/bin/env bash
+set -euo pipefail
+
+WATCHED=/opt/ucloud-ucx/current
+RUNTIME_DIR=/tmp/ucloud-ucx-custom-ui
+RUNTIME_BIN="$RUNTIME_DIR/current"
+mkdir -p "$RUNTIME_DIR"
+
+file_state() {
+  if [ ! -f "$WATCHED" ]; then
+    printf 'missing'
+    return
+  fi
+  sha256sum "$WATCHED" | cut -d ' ' -f 1
+}
+
+export UCX_PORT=%d
+export UCLOUD_UCX_APP_NAME=%s
+export UCLOUD_UCX_APP_VERSION=%s
+
+LAST_STATE=""
+while true; do
+  while [ ! -f "$WATCHED" ]; do
+    sleep 1
+  done
+
+  CURRENT_STATE="$(file_state)"
+  if [ "$CURRENT_STATE" != "$LAST_STATE" ]; then
+    cp "$WATCHED" "$RUNTIME_BIN.tmp"
+    chmod +x "$RUNTIME_BIN.tmp"
+    mv "$RUNTIME_BIN.tmp" "$RUNTIME_BIN"
+    LAST_STATE="$CURRENT_STATE"
+  fi
+
+  export UCX_EXECUTABLE="$RUNTIME_BIN"
+  %s &
+  PID="$!"
+
+  while kill -0 "$PID" 2>/dev/null; do
+    sleep 1
+    NEXT_STATE="$(file_state)"
+    if [ "$NEXT_STATE" != "$LAST_STATE" ]; then
+      kill "$PID" 2>/dev/null || true
+      wait "$PID" 2>/dev/null || true
+      break
+    fi
+  done
+
+  wait "$PID" 2>/dev/null || true
+  sleep 1
+done
+`, port, orcapi.EscapeBash(appName), orcapi.EscapeBash(appVersion), invoke)
+}
+
+func ucxCustomUiServiceInitScript(runnerPath string) string {
+	return fmt.Sprintf(`install -d -m 0755 /etc/systemd/system
+cat >/etc/systemd/system/ucloud-ucx-custom-ui.service <<'EOF'
+[Unit]
+Description=UCloud UCX custom UI service
+After=network-online.target remote-fs.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=%d
+Group=%d
+ExecStart=/bin/bash %s
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
+EOF
+systemctl daemon-reload
+systemctl enable --now ucloud-ucx-custom-ui.service
+`, ucxVmServiceUid, ucxVmServiceUid, orcapi.EscapeBash(runnerPath))
 }
 
 func StackConfirmAndOpen(stack *Stack) {

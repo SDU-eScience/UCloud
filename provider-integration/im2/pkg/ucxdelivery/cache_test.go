@@ -21,7 +21,7 @@ func TestCacheRefreshPublishesVerifiedExecutable(t *testing.T) {
 	defer server.Close()
 
 	providerFilesystem := t.TempDir()
-	result, err := refreshTrackedApp(context.Background(), providerFilesystem, server.Client(), request)
+	result, err := refreshTrackedApp(context.Background(), providerFilesystem, server.Client(), util.OptNone[int](), request)
 	if err != nil {
 		t.Fatalf("refresh cache: %s", err)
 	}
@@ -67,7 +67,7 @@ func TestCacheRefreshRejectsInvalidSignatureAndKeepsCurrent(t *testing.T) {
 		t.Fatalf("write current: %s", err)
 	}
 
-	if _, err := refreshTrackedApp(context.Background(), providerFilesystem, server.Client(), request); err == nil {
+	if _, err := refreshTrackedApp(context.Background(), providerFilesystem, server.Client(), util.OptNone[int](), request); err == nil {
 		t.Fatalf("expected invalid signature to fail")
 	}
 	current, err := os.ReadFile(currentPath)
@@ -92,7 +92,7 @@ func TestCacheRefreshRejectsInvalidBinaryHashAndKeepsCurrent(t *testing.T) {
 		t.Fatalf("write current: %s", err)
 	}
 
-	if _, err := refreshTrackedApp(context.Background(), providerFilesystem, server.Client(), request); err == nil {
+	if _, err := refreshTrackedApp(context.Background(), providerFilesystem, server.Client(), util.OptNone[int](), request); err == nil {
 		t.Fatalf("expected binary hash mismatch to fail")
 	}
 	current, err := os.ReadFile(currentPath)
@@ -109,14 +109,14 @@ func TestCacheRefreshReportsNotUpdatedWhenCurrentMatches(t *testing.T) {
 	defer server.Close()
 
 	providerFilesystem := t.TempDir()
-	first, err := refreshTrackedApp(context.Background(), providerFilesystem, server.Client(), request)
+	first, err := refreshTrackedApp(context.Background(), providerFilesystem, server.Client(), util.OptNone[int](), request)
 	if err != nil {
 		t.Fatalf("first refresh: %s", err)
 	}
 	if !first.Updated {
 		t.Fatalf("expected first refresh to update")
 	}
-	second, err := refreshTrackedApp(context.Background(), providerFilesystem, server.Client(), request)
+	second, err := refreshTrackedApp(context.Background(), providerFilesystem, server.Client(), util.OptNone[int](), request)
 	if err != nil {
 		t.Fatalf("second refresh: %s", err)
 	}
