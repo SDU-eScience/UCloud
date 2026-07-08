@@ -40,9 +40,8 @@ import {
     UIAction,
     UIEvent
 } from "@/Accounting/Allocations/State";
-import {VariableSizeList} from "react-window";
+import {List, useDynamicRowHeight, useListRef} from "react-window";
 import {AvatarState} from "@/AvataaarLib/hook";
-import AutoSizer from "react-virtualized-auto-sizer";
 import Avatar from "@/AvataaarLib/avatar";
 import {classConcat, extractDataTags, injectStyle} from "@/Unstyled";
 import {IconName} from "@/ui-components/Icon";
@@ -60,7 +59,6 @@ import {useProject} from "@/Project/cache";
 import {useProjectId} from "@/Project/Api";
 import {AllocationBar} from "@/Accounting/Allocations/AllocationBar";
 import {projectInfoPi, projectInfosPi, projectInfoTitle, useProjectInfo, useProjectInfos} from "@/Project/InfoCache";
-import {useForcedRender} from "@/Utilities/ReactUtilities";
 import {Feature, hasFeature} from "@/Features";
 import {UsageReport} from "@/Accounting/UsageCore2";
 import {dialogStore} from "@/Dialog/DialogStore";
@@ -1031,14 +1029,12 @@ function openUpdater(
 const SubProjectListRow: React.FunctionComponent<{
     style: React.CSSProperties;
     recipient: AllocationDisplayTreeRecipient;
-    listRef: React.RefObject<VariableSizeList<number[]> | null>;
-    rowIdx: number;
     recipientIdx: number;
     avatars: AvatarState;
     state: State;
     setNodeState: (action: TreeAction, reference: string, group?: string | null) => void;
     dispatchEvent: (ev: UIEvent) => void;
-}> = ({style, recipient, listRef, rowIdx, recipientIdx, avatars, state, setNodeState, dispatchEvent}) => {
+}> = ({style, recipient, recipientIdx, avatars, setNodeState, dispatchEvent}) => {
     const projectInfo = useProjectInfo(recipient.owner.reference.type === "user" ? "" : recipient.owner.reference.projectId);
     const workspaceId = recipient.owner.reference["username"] ?? recipient.owner.reference["projectId"] ?? "";
     const pi = recipient.owner.reference.type === "user" ?
@@ -1053,11 +1049,10 @@ const SubProjectListRow: React.FunctionComponent<{
             className={"sub-project-list-row"}
             key={title}
             data-recipient={workspaceId}
-            data-open={openNodes[workspaceId]}
+            data-open={openNodes.has(workspaceId) ? "true" : undefined}
             onActivate={open => {
                 if (open) setNodeState(TreeAction.OPEN, workspaceId);
                 else setNodeState(TreeAction.CLOSE, workspaceId);
-                listRef.current?.resetAfterIndex(rowIdx);
             }}
             left={<Flex gap={"4px"} alignItems={"center"}>
                 <TooltipV2 tooltip={`Project PI: ${pi}`}>
@@ -1100,7 +1095,7 @@ const SubProjectListRow: React.FunctionComponent<{
                     key={g.category.name}
                     data-recipient={workspaceId}
                     data-group={g.category.name}
-                    data-open={openNodes[makeCategoryKeyFromWorkspaceId(workspaceId, g.category.name)]}
+                    data-open={openNodes.has(makeCategoryKeyFromWorkspaceId(workspaceId, g.category.name)) ? "true" : undefined}
                     left={<Flex gap={"4px"}>
                         <Flex gap={"4px"} width={"200px"}>
                             <ProviderLogo providerId={g.category.provider} size={20} />
@@ -1117,7 +1112,6 @@ const SubProjectListRow: React.FunctionComponent<{
                     onActivate={open => {
                         if (open) setNodeState(TreeAction.OPEN, workspaceId, g.category.name);
                         else setNodeState(TreeAction.CLOSE, workspaceId, g.category.name);
-                        listRef.current?.resetAfterIndex(rowIdx);
                     }}
                 >
                     {g.allocations
@@ -1395,7 +1389,6 @@ export function SubProjectList({
     searchBox,
     dispatchEvent,
     suballocationTree,
-    listRef,
     onSubAllocationShortcut,
     avatars
 }: {
@@ -1408,7 +1401,6 @@ export function SubProjectList({
     searchBox: React.RefObject<HTMLInputElement | null>,
     dispatchEvent: (event: UIEvent) => unknown,
     suballocationTree: React.RefObject<TreeApi | null>,
-    listRef: React.RefObject<VariableSizeList<number[]> | null>,
     onSubAllocationShortcut: (target: HTMLElement, ev: KeyboardEvent) => void,
     avatars: AvatarState
 }): React.ReactNode {
@@ -1418,12 +1410,6 @@ export function SubProjectList({
     }, []);
     const openFilters = useCallback(() => {
         setFiltersShown(true);
-    }, []);
-
-    const rerender = useForcedRender();
-    const setNodeStateHack = useCallback((action: TreeAction, reference: string, group?: string | null) => {
-        setNodeState(action, reference, group);
-        rerender();
     }, []);
 
     const childProjectIds = useMemo(() => {
@@ -1570,6 +1556,10 @@ export function SubProjectList({
         );
     }, [state.subAllocations, childProjectInfo]);
 
+    const rowHeight = useDynamicRowHeight({
+        defaultRowHeight: ROW_HEIGHT
+    });
+
     const activeFilterCount = React.useMemo(() => Object.values(state.subprojectFilters).filter(it => it.enabled).length, [state.subprojectFilters]);
 
     return <>
@@ -1627,54 +1617,49 @@ export function SubProjectList({
                                         onClick={onNewSubProject}>here</a>.
                                 </>}
                             </div>}
-                        <AutoSizer>
-                            {({height, width}) => (
-                                <Tree
-                                    apiRef={suballocationTree}
-                                    onAction={(row, action) => {
-                                        if (![TreeAction.TOGGLE, TreeAction.OPEN, TreeAction.CLOSE].includes(action)) return;
-                                        const grantId = row.getAttribute("data-grant-id");
-                                        if (grantId && TreeAction.TOGGLE === action) {
-                                            // Note(Jonas): Just `window.open(AppRoutes...)` will omit the `/app` part, so we add it this way.
-                                            window.open(window.origin + "/app" + AppRoutes.grants.editor(grantId), "_blank");
-                                        } else {
-                                            const recipient = row.getAttribute("data-recipient");
-                                            if (!recipient) return;
-                                            const group = row.getAttribute("data-group");
-                                            setNodeState(action, recipient, group);
-                                            listRef.current?.resetAfterIndex(0);
-                                        }
-                                    }}
-                                    unhandledShortcut={onSubAllocationShortcut}
-                                >
-                                    <VariableSizeList
-                                        itemSize={(idx) => calculateHeightInPx(idx, state)}
-                                        height={height}
-                                        width={width}
-                                        ref={listRef}
-                                        itemCount={state.filteredSubProjectIndices.length}
-                                        itemData={state.filteredSubProjectIndices}
-                                    >
-                                        {({index: rowIdx, style, data}) => {
-                                            const recipientIdx = data[rowIdx];
-                                            const recipient = state.subAllocations.recipients[recipientIdx];
+                        <Tree
+                            apiRef={suballocationTree}
+                            onAction={(row, action) => {
+                                if (![TreeAction.TOGGLE, TreeAction.OPEN, TreeAction.CLOSE].includes(action)) return;
+                                const grantId = row.getAttribute("data-grant-id");
+                                if (grantId && TreeAction.TOGGLE === action) {
+                                    // Note(Jonas): Just `window.open(AppRoutes...)` will omit the `/app` part, so we add it this way.
+                                    window.open(window.origin + "/app" + AppRoutes.grants.editor(grantId), "_blank");
+                                } else {
+                                    const recipient = row.getAttribute("data-recipient");
+                                    if (!recipient) return;
+                                    const group = row.getAttribute("data-group");
+                                    setNodeState(action, recipient, group);
+                                }
+                            }}
+                            unhandledShortcut={onSubAllocationShortcut}
+                        >
+                            <Box height={"480px"}>
+                                <List
+                                    defaultHeight={ROW_HEIGHT}
+                                    rowComponent={({index: rowIdx, style, data}) => {
+                                        const recipientIdx = data[rowIdx];
+                                        const recipient = state.subAllocations.recipients[recipientIdx];
 
-                                            return <SubProjectListRow
-                                                style={style}
-                                                recipient={recipient}
-                                                dispatchEvent={dispatchEvent}
-                                                listRef={listRef}
-                                                rowIdx={rowIdx}
-                                                recipientIdx={recipientIdx}
-                                                avatars={avatars}
-                                                state={state}
-                                                setNodeState={setNodeStateHack}
-                                            />
-                                        }}
-                                    </VariableSizeList>
-                                </Tree>
-                            )}
-                        </AutoSizer>
+                                        return <SubProjectListRow
+                                            style={style}
+                                            recipient={recipient}
+                                            dispatchEvent={dispatchEvent}
+                                            recipientIdx={recipientIdx}
+                                            avatars={avatars}
+                                            state={state}
+                                            setNodeState={(action, reference, group) => {
+                                                setNodeState(action, reference, group);
+                                                rowHeight.setRowHeight(rowIdx, calculateHeightInPx(rowIdx, state));
+                                            }}
+                                        />;
+                                    }}
+                                    rowCount={state.filteredSubProjectIndices.length}
+                                    rowHeight={rowHeight}
+                                    rowProps={{data: state.filteredSubProjectIndices}}
+                                />
+                            </Box>
+                        </Tree>
                     </>}
                 </div>
             </>}
@@ -1686,15 +1671,15 @@ function setNodeState(action: TreeAction, recipient: string, group?: string | nu
     const key = group ? makeCategoryKeyFromWorkspaceId(recipient, group) : recipient;
     switch (action) {
         case TreeAction.CLOSE:
-            delete openNodes[key];
+            openNodes.delete(key);
             break;
         case TreeAction.OPEN: {
-            openNodes[key] = true;
+            openNodes.add(key);
             break;
         }
         case TreeAction.TOGGLE: {
-            openNodes[key] = !openNodes[key];
-            if (!openNodes[key]) delete openNodes[key];
+            if (openNodes.has(key)) openNodes.delete(key);
+            else openNodes.delete(key);
             break;
         }
     }
@@ -1711,11 +1696,11 @@ function calculateHeightInPx(idx: number, state: State): number {
 
     const workspaceId = recipient.owner.reference["username"] ?? recipient.owner.reference["projectId"] ?? "";
     let height = ROW_HEIGHT;
-    const isOpen = openNodes[workspaceId];
+    const isOpen = openNodes.has(workspaceId);
     if (isOpen) {
         height += recipient.groups.length * ROW_HEIGHT;
         recipient.groups.forEach(g => {
-            const isGroupOpen = openNodes[makeCategoryKeyFromWorkspaceId(workspaceId, g.category.name)];
+            const isGroupOpen = openNodes.has(makeCategoryKeyFromWorkspaceId(workspaceId, g.category.name));
             if (isGroupOpen) {
                 height += g.allocations.length * ROW_HEIGHT;
             }
@@ -1729,10 +1714,10 @@ function makeCategoryKeyFromWorkspaceId(workspace: string, name: Accounting.Prod
     return workspace + "$$" + name;
 }
 
-let openNodes: Record<string, boolean> = {};
+let openNodes = new Set<string>();
 
 export function resetOpenNodes() {
-    openNodes = {};
+    openNodes = new Set();
 }
 
 // Utility components

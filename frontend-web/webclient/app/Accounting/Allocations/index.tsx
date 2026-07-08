@@ -35,7 +35,6 @@ import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {usePage} from "@/Navigation/Redux";
 import {useProject} from "@/Project/cache";
 import {OldProjectRole} from "@/Project";
-import {VariableSizeList} from "react-window";
 import {initialState, stateReducer, useEventReducer} from "./State"
 import {GiftSection, RootAllocationSections} from "./ProviderOnlySections";
 import {
@@ -44,7 +43,7 @@ import {
     resetOpenNodes,
 } from "./CommonSections";
 import {projectInfoPi, useProjectInfos} from "@/Project/InfoCache";
-import {sendFailureNotification, sendNotification, SnackType} from "@/Notifications";
+import {sendFailureNotification} from "@/Notifications";
 import {callAPI, useCloudCommand} from "@/Authentication/DataHook";
 import * as Grants from "@/Grants";
 import {DefaultTemplateRevision} from "@/Grants/Editor";
@@ -336,8 +335,6 @@ const Allocations: React.FunctionComponent = () => {
         resetOpenNodes();
     }, [projectId]);
 
-    const listRef = useRef<VariableSizeList<number[]>>(null);
-
     return <MainContainer
         headerSize={0}
         main={<div className={AllocationsStyle}>
@@ -369,7 +366,7 @@ const Allocations: React.FunctionComponent = () => {
                 projectId={projectId} onNewSubProject={onNewSubProject} projectRole={projectRole}
                 state={state} onSearchInput={onSearchInput} onSearchKey={onSearchKey}
                 searchBox={searchBox} dispatchEvent={dispatchEvent}
-                suballocationTree={suballocationTree} listRef={listRef}
+                suballocationTree={suballocationTree}
                 onSubAllocationShortcut={onSubAllocationShortcut} avatars={avatars} />
         </div>}
     />;

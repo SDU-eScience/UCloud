@@ -45,6 +45,7 @@ export const Tree: React.FunctionComponent<{
         function visibleRows(): HTMLElement[] {
             const r = root.current;
             if (!r) return [];
+            // TODO(Jonas): `div[data-open]` should be `div[data-open=true]`, it's cleaner in the SubAllocations t
             // Note(Jonas): Rule is for the divs injected by React-Window. Not a fan, but the specificity is needed.
             const INSANE_RULE = `div.${TreeClass} > div[data-open] > div > div > div > div.${TreeNodeClass}`;
             return Array.from(r.querySelectorAll(`[data-open] > .${TreeNodeClass}, [data-open] > * > .${TreeNodeClass}, ${INSANE_RULE}`));
