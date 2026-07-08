@@ -84,6 +84,7 @@ func Init(config *cfg.ServicesConfigurationKubernetes) {
 	if err := ucxdelivery.Initialize(config.FileSystem.MountPoint, nil); err != nil {
 		log.Warn("UCX delivery: failed to initialize executable cache: %v", err)
 	}
+	ucxdelivery.RegisterStaticHandler(controller.Mux, config.FileSystem.MountPoint)
 
 	controller.ProductsRegister(shared.Machines)
 	controller.ProductsRegister(shared.StorageProducts)

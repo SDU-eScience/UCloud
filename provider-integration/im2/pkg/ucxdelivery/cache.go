@@ -71,6 +71,21 @@ func TrackJob(job orcapi.Job) error {
 		return err
 	}
 
+	trackApp(app)
+	return nil
+}
+
+func TrackApp(app *orcapi.Application) error {
+	tracked, ok, err := trackedAppFromApp(app)
+	if err != nil || !ok {
+		return err
+	}
+
+	trackApp(tracked)
+	return nil
+}
+
+func trackApp(app trackedApp) {
 	db.NewTx0(func(tx *db.Transaction) {
 		db.Exec(
 			tx,
@@ -100,8 +115,6 @@ func TrackJob(job orcapi.Job) error {
 			}
 		}()
 	}
-
-	return nil
 }
 
 func ExecutablePath(appName string, appVersion string) (string, error) {
@@ -117,11 +130,7 @@ func ExecutablePath(appName string, appVersion string) (string, error) {
 	return paths.CurrentPath, nil
 }
 
-func trackedAppFromJob(job orcapi.Job) (trackedApp, bool, error) {
-	if !job.Status.ResolvedApplication.Present {
-		return trackedApp{}, false, nil
-	}
-	app := job.Status.ResolvedApplication.Value
+func trackedAppFromApp(app *orcapi.Application) (trackedApp, bool, error) {
 	if !app.Invocation.Tool.Tool.Present || app.Invocation.Tool.Tool.Value.Description.Backend != orcapi.ToolBackendUcx {
 		return trackedApp{}, false, nil
 	}
@@ -146,6 +155,14 @@ func trackedAppFromJob(job orcapi.Job) (trackedApp, bool, error) {
 		PublicKey:   executable.PublicKey,
 		BinaryName:  executable.BinaryName,
 	}, true, nil
+}
+
+func trackedAppFromJob(job orcapi.Job) (trackedApp, bool, error) {
+	if !job.Status.ResolvedApplication.Present {
+		return trackedApp{}, false, nil
+	}
+	app := &job.Status.ResolvedApplication.Value
+	return trackedAppFromApp(app)
 }
 
 type cacheConfig struct {

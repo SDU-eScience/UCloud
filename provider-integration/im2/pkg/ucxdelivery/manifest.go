@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"strings"
 
+	cfg "ucloud.dk/pkg/config"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 )
 
@@ -153,6 +154,10 @@ func requireHttpsUrl(rawUrl string, field string) error {
 }
 
 func fetchBytes(ctx context.Context, client *http.Client, url string) ([]byte, error) {
+	if strings.HasPrefix(url, cfg.Provider.Hosts.SelfPublic.ToURL()) {
+		withoutPrefix, _ := strings.CutPrefix(url, cfg.Provider.Hosts.SelfPublic.ToURL())
+		url = cfg.Provider.Hosts.Self.ToURL() + withoutPrefix
+	}
 	if client == nil {
 		client = http.DefaultClient
 	}

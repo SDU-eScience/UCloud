@@ -5,10 +5,14 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"slices"
+	"strings"
 
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "ucloud.dk/pkg/controller"
+	"ucloud.dk/pkg/integrations/k8s/filesystem"
 	"ucloud.dk/pkg/integrations/k8s/shared"
+	"ucloud.dk/pkg/ucxdelivery"
 	db "ucloud.dk/shared/pkg/database"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/rpc"
@@ -84,6 +88,46 @@ func InitServerHandlers() {
 		}
 
 		return result, nil
+	})
+
+	UcxPublish.Handler(func(info rpc.RequestInfo, request UcxPublishRequest) (UcxPublishResponse, *util.HttpError) {
+		jobId, _, ok := Authenticate(request.Token)
+		if !ok {
+			return UcxPublishResponse{}, util.HttpErr(http.StatusForbidden, "forbidden")
+		}
+
+		job, ok := ctrl.JobRetrieve(jobId)
+		if !ok {
+			return UcxPublishResponse{}, util.HttpErr(http.StatusForbidden, "forbidden")
+		}
+
+		appName := strings.TrimSpace(request.AppName)
+		appVersion := strings.TrimSpace(request.AppVersion)
+		projects := shared.ServiceConfig.Compute.Ucx.Publish[appName]
+		project := job.Owner.Project.Value
+		if project == "" || len(projects) == 0 || !slices.Contains(projects, project) {
+			return UcxPublishResponse{}, util.HttpErr(http.StatusForbidden, "forbidden")
+		}
+
+		ucloudPath, ok := shared.ContainerPathToUCloudFileMount(job, request.ContainerPath)
+		if !ok {
+			return UcxPublishResponse{}, util.HttpErr(http.StatusBadRequest, "container path is not part of a UCloud file mount")
+		}
+
+		internalPath, ok, _ := filesystem.UCloudToInternal(ucloudPath)
+		if !ok {
+			return UcxPublishResponse{}, util.HttpErr(http.StatusBadRequest, "could not resolve UCloud path")
+		}
+
+		result, err := ucxdelivery.PublishVersion(shared.ServiceConfig.FileSystem.MountPoint, appName, appVersion, internalPath)
+		if err != nil {
+			return UcxPublishResponse{}, util.HttpErr(http.StatusBadRequest, "%s", err.Error())
+		}
+
+		return UcxPublishResponse{
+			UCloudPath: ucloudPath,
+			BinaryName: result.BinaryName,
+		}, nil
 	})
 }
 

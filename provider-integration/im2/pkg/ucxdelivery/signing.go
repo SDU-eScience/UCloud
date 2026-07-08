@@ -36,8 +36,6 @@ type SignOptions struct {
 	ProviderDomain string
 	AppName        string
 	AppVersion     string
-	ManifestPath   string
-	SignaturePath  string
 	PrivateKeyPath string
 	UpdatedAt      time.Time
 }
@@ -114,12 +112,6 @@ func SignBinary(options SignOptions) (SignResult, error) {
 	if strings.TrimSpace(options.BinaryPath) == "" {
 		return SignResult{}, fmt.Errorf("binary path is required")
 	}
-	if strings.TrimSpace(options.ManifestPath) == "" {
-		return SignResult{}, fmt.Errorf("manifest path is required")
-	}
-	if strings.TrimSpace(options.SignaturePath) == "" {
-		return SignResult{}, fmt.Errorf("signature path is required")
-	}
 	if strings.TrimSpace(options.PrivateKeyPath) == "" {
 		return SignResult{}, fmt.Errorf("private key path is required")
 	}
@@ -165,16 +157,19 @@ func SignBinary(options SignOptions) (SignResult, error) {
 		return SignResult{}, err
 	}
 
-	if err := ensureParentDirectory(options.ManifestPath); err != nil {
+	manifestPath := filepath.Join(filepath.Dir(options.BinaryPath), "manifest.json")
+	signaturePath := filepath.Join(filepath.Dir(options.BinaryPath), "manifest.json.sig")
+
+	if err := ensureParentDirectory(manifestPath); err != nil {
 		return SignResult{}, err
 	}
-	if err := os.WriteFile(options.ManifestPath, manifestBytes, 0644); err != nil {
+	if err := os.WriteFile(manifestPath, manifestBytes, 0644); err != nil {
 		return SignResult{}, err
 	}
-	if err := ensureParentDirectory(options.SignaturePath); err != nil {
+	if err := ensureParentDirectory(signaturePath); err != nil {
 		return SignResult{}, err
 	}
-	if err := os.WriteFile(options.SignaturePath, signature, 0644); err != nil {
+	if err := os.WriteFile(signaturePath, signature, 0644); err != nil {
 		return SignResult{}, err
 	}
 

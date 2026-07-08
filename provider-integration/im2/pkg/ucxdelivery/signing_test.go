@@ -31,8 +31,8 @@ func TestSignBinary(t *testing.T) {
 	binaryPath := filepath.Join(dir, "my-ucx-app")
 	privatePath := filepath.Join(dir, "keys", "ucx-signing.key")
 	publicPath := filepath.Join(dir, "keys", "ucx-signing.pub")
-	manifestPath := filepath.Join(dir, "dist", "manifest.json")
-	signaturePath := filepath.Join(dir, "dist", "manifest.json.sig")
+	manifestPath := filepath.Join(dir, "manifest.json")
+	signaturePath := filepath.Join(dir, "manifest.json.sig")
 
 	if err := os.WriteFile(binaryPath, []byte("hello"), 0755); err != nil {
 		t.Fatalf("write binary: %s", err)
@@ -47,8 +47,6 @@ func TestSignBinary(t *testing.T) {
 		ProviderDomain: "provider.example.org",
 		AppName:        "my-app",
 		AppVersion:     "1.0.0",
-		ManifestPath:   manifestPath,
-		SignaturePath:  signaturePath,
 		PrivateKeyPath: privatePath,
 		UpdatedAt:      time.Date(2026, 7, 7, 12, 0, 0, 0, time.UTC),
 	})
@@ -84,7 +82,6 @@ func TestSignBinaryChangesAfterBinaryChanges(t *testing.T) {
 	binaryPath := filepath.Join(dir, "my-ucx-app")
 	privatePath := filepath.Join(dir, "ucx-signing.key")
 	publicPath := filepath.Join(dir, "ucx-signing.pub")
-	manifestPath := filepath.Join(dir, "manifest.json")
 	signaturePath := filepath.Join(dir, "manifest.json.sig")
 
 	if _, err := WriteKeyPair(privatePath, publicPath); err != nil {
@@ -99,8 +96,6 @@ func TestSignBinaryChangesAfterBinaryChanges(t *testing.T) {
 		ProviderDomain: "provider.example.org",
 		AppName:        "my-app",
 		AppVersion:     "1.0.0",
-		ManifestPath:   manifestPath,
-		SignaturePath:  signaturePath,
 		PrivateKeyPath: privatePath,
 		UpdatedAt:      time.Date(2026, 7, 7, 12, 0, 0, 0, time.UTC),
 	}
@@ -138,8 +133,6 @@ func TestSignCliPrintsCatalogMetadata(t *testing.T) {
 	binaryPath := filepath.Join(dir, "my-ucx-app")
 	privatePath := filepath.Join(dir, "ucx-signing.key")
 	publicPath := filepath.Join(dir, "ucx-signing.pub")
-	manifestPath := filepath.Join(dir, "manifest.json")
-	signaturePath := filepath.Join(dir, "manifest.json.sig")
 
 	if err := os.WriteFile(binaryPath, []byte("hello"), 0755); err != nil {
 		t.Fatalf("write binary: %s", err)
@@ -155,8 +148,6 @@ func TestSignCliPrintsCatalogMetadata(t *testing.T) {
 		"--provider-domain", "provider.example.org",
 		"--app-name", "my-app",
 		"--app-version", "1.0.0",
-		"--manifest", manifestPath,
-		"--signature", signaturePath,
 		"--private-key", privatePath,
 	}, stdout, stderr)
 	if code != 0 {

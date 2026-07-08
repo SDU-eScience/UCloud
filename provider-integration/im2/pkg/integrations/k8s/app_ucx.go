@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"path/filepath"
 	"regexp"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -75,6 +74,8 @@ func ucxOnConnect(conn *ws.Conn) {
 			log.Warn("UCX provider: application backend is not UCX")
 			return ucx.ProxyUpstreamSelection{Allowed: false}
 		}
+
+		ucxdelivery.TrackApp(application)
 
 		upstreamUrl, err := ensureUcxBackendAndResolveUpstream(ctx, application)
 		if err != nil {
@@ -639,11 +640,11 @@ while true; do
     LAST_STATE="$CURRENT_STATE"
   fi
 
-  UCX_EXECUTABLE="$RUNTIME_BIN" \
-  UCX_PORT=%d \
-  UCLOUD_UCX_APP_NAME=%s \
-  UCLOUD_UCX_APP_VERSION=%s \
-  bash -lc %s &
+  export UCX_EXECUTABLE="$RUNTIME_BIN"
+  export UCX_PORT=%d
+  export UCLOUD_UCX_APP_NAME=%s
+  export UCLOUD_UCX_APP_VERSION=%s
+  bash -lc $UCX_EXECUTABLE %s &
   PID="$!"
 
   while kill -0 "$PID" 2>/dev/null; do
@@ -659,7 +660,7 @@ while true; do
   wait "$PID" 2>/dev/null || true
   sleep 1
 done
-`, ucxBackendPort, strconv.Quote(appName), strconv.Quote(appVersion), strconv.Quote(invocation))
+`, ucxBackendPort, ctrl.EscapeBash(appName), ctrl.EscapeBash(appVersion), ctrl.EscapeBash(invocation))
 }
 
 func ucxDeploymentName(name string, version string) string {

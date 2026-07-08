@@ -79,6 +79,9 @@ func Launch() {
 	case "ucx-sign":
 		os.Exit(ucxdelivery.SignCli(args[1:], os.Stdout, os.Stderr))
 
+	case "ucx-publish":
+		UcxPublishCommand(args[1:])
+
 	case "introspect":
 		args = args[1:]
 		if len(args) < 1 {
@@ -96,7 +99,32 @@ func Launch() {
 			writeHelp()
 			os.Exit(1)
 		}
+
+	default:
+		writeHelp()
+		os.Exit(1)
 	}
+}
+
+func UcxPublishCommand(args []string) {
+	if len(args) != 3 {
+		termio.WriteStyledLine(termio.Bold, termio.Red, 0, "Usage: ucloud ucx-publish <appName> <appVersion> <containerPath>")
+		os.Exit(1)
+	}
+
+	response, err := UcxPublish.Invoke(UcxPublishRequest{
+		Token:         token,
+		AppName:       args[0],
+		AppVersion:    args[1],
+		ContainerPath: args[2],
+	})
+	cli.HandleError("publishing UCX application", err.AsError())
+
+	f := termio.Frame{}
+	f.AppendTitle("UCX application published")
+	f.AppendField("Source", response.UCloudPath)
+	f.AppendField("Binary", response.BinaryName)
+	f.Print()
 }
 
 func NetworkCommand(args []string) {

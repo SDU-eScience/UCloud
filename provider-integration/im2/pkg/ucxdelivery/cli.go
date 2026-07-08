@@ -32,8 +32,6 @@ func SignCli(args []string, stdout io.Writer, stderr io.Writer) int {
 	providerDomain := flags.String("provider-domain", "", "Provider domain, without scheme or path")
 	appName := flags.String("app-name", "", "Catalog app name")
 	appVersion := flags.String("app-version", "", "Catalog app version")
-	manifestPath := flags.String("manifest", "", "Path to write manifest.json")
-	signaturePath := flags.String("signature", "", "Path to write manifest.json.sig")
 	privateKeyPath := flags.String("private-key", "", "Path to the Ed25519 private key")
 	if err := flags.Parse(args); err != nil {
 		return 2
@@ -44,8 +42,6 @@ func SignCli(args []string, stdout io.Writer, stderr io.Writer) int {
 		ProviderDomain: *providerDomain,
 		AppName:        *appName,
 		AppVersion:     *appVersion,
-		ManifestPath:   *manifestPath,
-		SignaturePath:  *signaturePath,
 		PrivateKeyPath: *privateKeyPath,
 	})
 	if err != nil {
