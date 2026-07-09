@@ -1679,7 +1679,7 @@ function setNodeState(action: TreeAction, recipient: string, group?: string | nu
         }
         case TreeAction.TOGGLE: {
             if (openNodes.has(key)) openNodes.delete(key);
-            else openNodes.delete(key);
+            else openNodes.add(key);
             break;
         }
     }

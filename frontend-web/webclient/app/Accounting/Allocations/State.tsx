@@ -640,7 +640,8 @@ export function stateReducer(state: State, action: UIAction): State {
             };
         }
 
-        state.subAllocations.recipients.sort((a, b) => {
+        const recipients = [...state.subAllocations.recipients];
+        recipients.sort((a, b) => {
             let naturalOrderResult = (() => {
                 switch (state.subprojectSortBy) {
                     case "usagePercentageCompute":
@@ -745,11 +746,10 @@ export function stateReducer(state: State, action: UIAction): State {
             }
         }
 
-        console.timeEnd("rebuildTree");
         return {
             ...state,
             yourAllocations: state.yourAllocations,
-            subAllocations: state.subAllocations,
+            subAllocations: {recipients},
             filteredSubProjectIndices,
             subprojectFilters,
         };
