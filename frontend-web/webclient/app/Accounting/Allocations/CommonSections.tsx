@@ -40,7 +40,7 @@ import {
     UIAction,
     UIEvent
 } from "@/Accounting/Allocations/State";
-import {List, useDynamicRowHeight, useListRef} from "react-window";
+import {DynamicRowHeight, List, useDynamicRowHeight, useListRef} from "react-window";
 import {AvatarState} from "@/AvataaarLib/hook";
 import Avatar from "@/AvataaarLib/avatar";
 import {classConcat, extractDataTags, injectStyle} from "@/Unstyled";
@@ -1026,7 +1026,14 @@ function openUpdater(
     ), doNothing, true);
 }
 
-const SubProjectListRow: React.FunctionComponent<{
+function SubProjectListRow({
+    style,
+    recipient,
+    recipientIdx,
+    avatars,
+    setNodeState,
+    dispatchEvent
+}: {
     style: React.CSSProperties;
     recipient: AllocationDisplayTreeRecipient;
     recipientIdx: number;
@@ -1034,7 +1041,8 @@ const SubProjectListRow: React.FunctionComponent<{
     state: State;
     setNodeState: (action: TreeAction, reference: string, group?: string | null) => void;
     dispatchEvent: (ev: UIEvent) => void;
-}> = ({style, recipient, recipientIdx, avatars, setNodeState, dispatchEvent}) => {
+}): React.ReactNode {
+
     const projectInfo = useProjectInfo(recipient.owner.reference.type === "user" ? "" : recipient.owner.reference.projectId);
     const workspaceId = recipient.owner.reference["username"] ?? recipient.owner.reference["projectId"] ?? "";
     const pi = recipient.owner.reference.type === "user" ?
@@ -1635,37 +1643,60 @@ export function SubProjectList({
                             }}
                             unhandledShortcut={onSubAllocationShortcut}
                         >
-                            <Box height={"480px"}>
-                                <List
-                                    defaultHeight={ROW_HEIGHT}
-                                    rowComponent={({index: rowIdx, style, data}) => {
-                                        const recipientIdx = data[rowIdx];
-                                        const recipient = state.subAllocations.recipients[recipientIdx];
-
-                                        return <SubProjectListRow
-                                            style={style}
-                                            recipient={recipient}
-                                            dispatchEvent={dispatchEvent}
-                                            recipientIdx={recipientIdx}
-                                            avatars={avatars}
-                                            state={state}
-                                            setNodeState={(action, reference, group) => {
-                                                setNodeState(action, reference, group);
-                                                rowHeight.setRowHeight(rowIdx, calculateHeightInPx(rowIdx, state));
-                                            }}
-                                        />;
-                                    }}
-                                    rowCount={state.filteredSubProjectIndices.length}
-                                    rowHeight={rowHeight}
-                                    rowProps={{data: state.filteredSubProjectIndices}}
-                                />
-                            </Box>
+                            <List
+                                style={{height: "480px"}}
+                                defaultHeight={ROW_HEIGHT}
+                                rowComponent={RowComponent}
+                                rowCount={state.filteredSubProjectIndices.length}
+                                rowHeight={rowHeight}
+                                rowProps={{state, dispatchEvent, avatars, rowHeight}}
+                            />
                         </Tree>
                     </>}
                 </div>
             </>}
         </div>
     </>;
+}
+
+function RowComponent({
+    state,
+    index: rowIdx,
+    style,
+    rowHeight,
+    avatars,
+    dispatchEvent
+}: {
+    ariaAttributes: {
+        "aria-posinset": number;
+        "aria-setsize": number;
+        role: "listitem";
+    };
+    index: number;
+    style: React.CSSProperties;
+} & {
+    state: State;
+    dispatchEvent: (ev: UIEvent) => void;
+    avatars: AvatarState;
+    rowHeight: DynamicRowHeight;
+}): React.ReactElement | null {
+
+    const recipientIdx = state.filteredSubProjectIndices[rowIdx];
+    const recipient = state.subAllocations.recipients[recipientIdx];
+
+    return <SubProjectListRow
+        key={rowIdx}
+        style={style}
+        recipient={recipient}
+        dispatchEvent={dispatchEvent}
+        recipientIdx={recipientIdx}
+        avatars={avatars}
+        state={state}
+        setNodeState={(action, reference, group) => {
+            setNodeState(action, reference, group);
+            rowHeight.setRowHeight(rowIdx, calculateHeightInPx(rowIdx, state));
+        }}
+    />;
 }
 
 function setNodeState(action: TreeAction, recipient: string, group?: string | null): void {

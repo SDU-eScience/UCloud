@@ -251,20 +251,18 @@ export function stateReducer(state: State, action: UIAction): State {
         }
 
         case "SortSubprojects": {
-            const newState = {
+            return rebuildTree({
                 ...state,
                 subprojectSortBy: action.sortBy,
                 subprojectSortByAscending: action.ascending,
-            };
-
-            return rebuildTree(newState);
+            });
         }
 
         case "WalletsLoaded": {
             const subAllocations = Accounting.buildSubAllocations(action.wallets);
             const yourAllocations = Accounting.buildYourAllocations(action.wallets);
 
-            const newState: State = {
+            return rebuildTree({
                 ...state,
                 yourAllocations,
                 subAllocations,
@@ -272,9 +270,7 @@ export function stateReducer(state: State, action: UIAction): State {
                     ...state.remoteData,
                     wallets: action.wallets,
                 }
-            };
-
-            return rebuildTree(newState);
+            });
         }
 
         case "ManagedProvidersLoaded": {

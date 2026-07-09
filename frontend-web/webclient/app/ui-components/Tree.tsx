@@ -45,10 +45,10 @@ export const Tree: React.FunctionComponent<{
         function visibleRows(): HTMLElement[] {
             const r = root.current;
             if (!r) return [];
-            // TODO(Jonas): `div[data-open]` should be `div[data-open=true]`, it's cleaner in the SubAllocations t
+            // TODO(Jonas): `div[data-open]` should be `div[data-open=true]`, it's cleaner in the SubAllocations tree 
             // Note(Jonas): Rule is for the divs injected by React-Window. Not a fan, but the specificity is needed.
             const INSANE_RULE = `div.${TreeClass} > div[data-open] > div > div > div > div.${TreeNodeClass}`;
-            return Array.from(r.querySelectorAll(`[data-open] > .${TreeNodeClass}, [data-open] > * > .${TreeNodeClass}, ${INSANE_RULE}`));
+            return Array.from(r.querySelectorAll(`div[role="list"] > div > .${TreeNodeClass}, [data-open] > .${TreeNodeClass}, [data-open] > * > .${TreeNodeClass}, ${INSANE_RULE}`));
         }
 
         function getRow(rowIdx: number): [HTMLElement | null, number] {
