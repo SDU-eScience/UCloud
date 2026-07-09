@@ -47,6 +47,7 @@ func Init() controller.JobsService {
 
 	initSyncthing()
 	initIntegratedTerminal()
+	initIntegratedInferenceSandbox()
 	shared.TerminalRegisterBackend(&terminalBackend{})
 
 	loadIApps()
