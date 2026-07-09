@@ -6,7 +6,7 @@ import {Box, Button, Flex, Icon, Text, TextArea,} from "@/ui-components";
 import {Toggle} from "@/ui-components/Toggle";
 import UcxView, {UcxComponentRegistry, UcxFunctionRegistry, UcxRenderContext, UcxSpinner} from "@/UCX/UcxView";
 import {UiNode, Value, ValueKind} from "@/UCX/protocol";
-import {copyToClipboard, doNothing, extensionFromPath, extensionType, typeFromMime} from "@/UtilityFunctions";
+import {copyToClipboard, doNothing, extensionFromPath, extensionType, removeTrailingSlash, typeFromMime} from "@/UtilityFunctions";
 import {addStandardInputDialog} from "@/UtilityComponents";
 import {sendFailureNotification} from "@/Notifications";
 import {Operation, Operations, ShortcutKey} from "@/ui-components/Operation";
@@ -26,6 +26,8 @@ import {CopyButton} from "@/ui-components/CopyButton";
 import {IconButton} from "@/ui-components/IconButton";
 import {ChunkedFileReader} from "@/Files/ChunkedFileReader";
 import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
+import {dialogStore} from "@/Dialog/DialogStore";
+import type {UFile} from "@/UCloud/UFile";
 
 type PlaygroundSession = {
     connectTo: string;
@@ -1485,23 +1487,100 @@ function PlaygroundThreadSidebar({model, fn, connected, footer}: {model: Record<
         }
     }, [currentThreadId, fn, threads]);
 
-    const header = <Button
-        type="button"
-        disabled={!connected || !fn}
-        onClick={() => {
-            pendingNewThreadRef.current = new Set(threads.map(thread => thread.id));
-            fn?.sendUiEvent("newThread", "click");
-        }}
-        color={"secondaryMain"}
-        width="100%"
-    >
-        <Icon name="heroPlus" size={16} mr={8}/>
-        New thread
-    </Button>;
+    const header = <div style={{display: "flex", flexDirection: "column", gap: 12}}>
+        <Button
+            type="button"
+            disabled={!connected || !fn}
+            onClick={() => {
+                pendingNewThreadRef.current = new Set(threads.map(thread => thread.id));
+                fn?.sendUiEvent("newThread", "click");
+            }}
+            color={"secondaryMain"}
+            width="100%"
+        >
+            <Icon name="heroPlus" size={16} mr={8}/>
+            New thread
+        </Button>
+        <WorkspaceSelector model={model} fn={fn} connected={connected}/>
+    </div>;
 
     return <PlaygroundSidebarShell header={header} footer={footer}>
         {fn ? <ThreadListNode node={node} model={model} fn={fn}/> : <Text color="textSecondary">Loading...</Text>}
     </PlaygroundSidebarShell>;
+}
+
+function WorkspaceSelector({model, fn, connected}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean}): React.ReactNode {
+    const path = stringValue(fn?.modelValue(model, "workspace.path") ?? model["workspace.path"]);
+    const sandboxJobId = stringValue(fn?.modelValue(model, "workspace.sandboxJobId") ?? model["workspace.sandboxJobId"]);
+    const loading = boolValue(fn?.modelValue(model, "workspace.loading") ?? model["workspace.loading"]);
+    const error = stringValue(fn?.modelValue(model, "workspace.error") ?? model["workspace.error"]);
+    const warnings = stringListValue(fn?.modelValue(model, "workspace.warnings") ?? model["workspace.warnings"]);
+
+    const selectFolder = React.useCallback(() => {
+		if (!connected || !fn) return;
+
+		void (async () => {
+			const [{default: FileBrowse}, {api: FilesApi}, {folderFavoriteSelection}] = await Promise.all([
+				import("@/Files/FileBrowse"),
+				import("@/UCloud/FilesApi"),
+				import("@/Files/FavoriteSelect"),
+			]);
+			const isFolderAllowed = (file: UFile): boolean | string => file.status.type === "DIRECTORY";
+			const onSelectFolder = (file: UFile) => {
+				const target = removeTrailingSlash(file.id);
+				fn.sendModelInput("workspace.path", {kind: ValueKind.String, string: target}, "workspace.path");
+				dialogStore.success();
+			};
+			const selection = {
+				text: "Use",
+				onClick: onSelectFolder,
+				show: isFolderAllowed,
+			};
+			const navigateToFolder = (initialPath: string, projectId?: string) => {
+				dialogStore.failure();
+				dialogStore.addDialog(
+					<FileBrowse
+						opts={{
+							isModal: true,
+							managesLocalProject: true,
+							initialPath,
+							initialProject: projectId,
+							additionalOperations: [folderFavoriteSelection(onSelectFolder, isFolderAllowed, navigateToFolder)],
+							selection,
+						}} />,
+					doNothing,
+					true,
+					FilesApi.fileSelectorModalStyle
+				);
+			};
+
+			navigateToFolder(path);
+		})();
+	}, [connected, fn, path]);
+
+    const clearFolder = React.useCallback(() => {
+        fn?.sendModelInput("workspace.path", {kind: ValueKind.String, string: ""}, "workspace.path");
+    }, [fn]);
+
+    return <div style={{border: "1px solid var(--playground-border, var(--borderColor))", borderRadius: 10, padding: 12, display: "flex", flexDirection: "column", gap: 8}}>
+        <div style={{display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8}}>
+            <span style={{fontWeight: 700}}>Workspace</span>
+            {loading ? <UcxSpinner size={16}/> : null}
+        </div>
+        <Text color="textSecondary" style={{fontSize: 12, margin: 0}}>Select a folder before using workspace tools.</Text>
+        {path ? <div style={{fontSize: 12, overflowWrap: "anywhere"}}>{path}</div> : <Text color="textSecondary" style={{fontSize: 12, margin: 0}}>No folder selected.</Text>}
+        {sandboxJobId ? <Text color="textSecondary" style={{fontSize: 12, margin: 0}}>Sandbox ready.</Text> : null}
+        {error ? <Text color="errorMain" style={{fontSize: 12, margin: 0}}>{error}</Text> : null}
+        {warnings.map((warning, idx) => <Text key={idx} color="warningMain" style={{fontSize: 12, margin: 0}}>{warning}</Text>)}
+        <div style={{display: "flex", gap: 8}}>
+            <Button type="button" disabled={!connected || !fn || loading} onClick={selectFolder} color="secondaryMain" height="32px">
+                Select folder
+            </Button>
+            {path ? <Button type="button" disabled={!connected || !fn || loading} onClick={clearFolder} color="errorMain" height="32px">
+                Clear
+            </Button> : null}
+        </div>
+    </div>;
 }
 
 function PlaygroundDeveloperSidebar({model, fn, connected, footer}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean; footer: React.ReactNode}): React.ReactNode {

@@ -48,7 +48,8 @@ type InferencePlaygroundApp struct {
 	DeletedThreadPaths []string `ucx:"-"`
 	CurrentThreadId    string
 
-	Chat InferencePlaygroundAppChat
+	Chat      InferencePlaygroundAppChat
+	Workspace playgroundWorkspaceState
 }
 
 type InferencePlaygroundAppChat struct {
@@ -69,6 +70,16 @@ type InferencePlaygroundAppChat struct {
 	TopLogprobs         int64
 	Messages            []playgroundChatMessage
 	Curl                string
+}
+
+type playgroundWorkspaceState struct {
+	Path         string
+	AppliedPath  string `ucx:"-"`
+	SandboxJobId string
+	ETag         string `ucx:"-"`
+	Loading      bool
+	Error        string
+	Warnings     []string
 }
 
 func InferencePlayground(owner orcapi.ResourceOwner, sessionId string) *InferencePlaygroundApp {
@@ -297,11 +308,62 @@ func (app *InferencePlaygroundApp) OnMessage(message ucx.Frame) {
 			ucx.AppUpdateUi(app)
 			return
 		}
+		if message.ModelInput.Path == "workspace.path" {
+			app.configureWorkspace()
+			ucx.AppUpdateModel(app)
+			return
+		}
 		if app.Chat.ModelId != app.Chat.AppliedDefaultsModelId {
 			app.applyChatModelDefaults()
 			ucx.AppUpdateModel(app)
 		}
 		app.Chat.Curl = app.buildChatCurl()
+	}
+}
+
+func (app *InferencePlaygroundApp) configureWorkspace() {
+	workspacePath := strings.TrimSpace(app.Workspace.Path)
+	app.Workspace.Path = workspacePath
+	app.Workspace.Error = ""
+	app.Workspace.Warnings = nil
+
+	if app.Developer {
+		app.Workspace.Path = ""
+		app.Workspace.AppliedPath = ""
+		app.Workspace.SandboxJobId = ""
+		app.Workspace.ETag = ""
+		return
+	}
+
+	if workspacePath == "" {
+		app.Workspace.AppliedPath = ""
+		app.Workspace.SandboxJobId = ""
+		app.Workspace.ETag = ""
+		return
+	}
+	if workspacePath == app.Workspace.AppliedPath && app.Workspace.SandboxJobId != "" {
+		return
+	}
+
+	app.Workspace.Loading = true
+	defer func() {
+		app.Workspace.Loading = false
+	}()
+
+	sandbox, err := shared.InferenceSandboxSetFolders(app.Owner, util.OptStringIfNotEmpty(app.Workspace.ETag), []string{workspacePath})
+	if err != nil {
+		app.Workspace.Error = err.Why
+		return
+	}
+
+	app.Workspace.AppliedPath = workspacePath
+	app.Workspace.SandboxJobId = sandbox.JobId
+	app.Workspace.ETag = sandbox.ETag
+	app.Workspace.Warnings = append([]string{}, sandbox.Warnings...)
+	if len(sandbox.Folders) == 0 {
+		app.Workspace.AppliedPath = ""
+		app.Workspace.SandboxJobId = ""
+		app.Workspace.Error = "The selected folder could not be mounted."
 	}
 }
 
