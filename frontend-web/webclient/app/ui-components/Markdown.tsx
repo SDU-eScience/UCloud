@@ -170,6 +170,7 @@ export function MarkdownDocument({text}: { text: string }): React.ReactNode {
                 p: p => <p className={PClass}>{p.children}</p>,
                 ul: p => <ul className={UlClass}>{p.children}</ul>,
                 ol: p => <ol className={UlClass}>{p.children}</ol>,
+                strong: p => <strong className={StrongClass}>{p.children}</strong>,
                 blockquote: p => <blockquote className={BlockquoteClass}>{p.children}</blockquote>,
             }}
             allowedElements={[
@@ -281,6 +282,12 @@ const UlClass = injectStyle("ul", k => `
         padding-left: 2em;
         margin-top: 0;
         margin-bottom: 16px;
+    }
+`);
+
+const StrongClass = injectStyle("strong", k => `
+    ${k} {
+        font-weight: bold;
     }
 `);
 

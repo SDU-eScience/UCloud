@@ -26,21 +26,23 @@ type playgroundPersistedThread struct {
 	CreatedAt string                        `json:"createdAt"`
 	UpdatedAt string                        `json:"updatedAt"`
 	Usage     InferencePlaygroundTokenUsage `json:"usage"`
+	Workspace string                        `json:"workspace,omitempty"`
 	LastQuery InferencePlaygroundTokenUsage `json:"lastQuery"`
 	Messages  []playgroundPersistedMessage  `json:"messages"`
 }
 
 type playgroundPersistedMessage struct {
-	Role           string `json:"role"`
-	Content        string `json:"content"`
-	Reasoning      string `json:"reasoning,omitempty"`
-	ReasoningTitle string `json:"reasoningTitle,omitempty"`
-	GeneratedAt    string `json:"generatedAt,omitempty"`
-	ModelName      string `json:"modelName,omitempty"`
-	StartedAt      string `json:"startedAt,omitempty"`
-	FirstTokenAt   string `json:"firstTokenAt,omitempty"`
-	FinishedAt     string `json:"finishedAt,omitempty"`
-	OutputTokens   int64  `json:"outputTokens,omitempty"`
+	Role           string                      `json:"role"`
+	Content        string                      `json:"content"`
+	Reasoning      string                      `json:"reasoning,omitempty"`
+	ReasoningTitle string                      `json:"reasoningTitle,omitempty"`
+	Parts          []playgroundChatMessagePart `json:"parts,omitempty"`
+	GeneratedAt    string                      `json:"generatedAt,omitempty"`
+	ModelName      string                      `json:"modelName,omitempty"`
+	StartedAt      string                      `json:"startedAt,omitempty"`
+	FirstTokenAt   string                      `json:"firstTokenAt,omitempty"`
+	FinishedAt     string                      `json:"finishedAt,omitempty"`
+	OutputTokens   int64                       `json:"outputTokens,omitempty"`
 }
 
 func inferencePlaygroundThreadsLoad(owner string, project util.Option[string]) []playgroundChatThread {
@@ -229,6 +231,7 @@ func playgroundThreadPersisted(thread playgroundChatThread) playgroundPersistedT
 			Content:        msg.Content,
 			Reasoning:      msg.Reasoning,
 			ReasoningTitle: msg.ReasoningTitle,
+			Parts:          msg.Parts,
 			GeneratedAt:    playgroundFormatTime(msg.GeneratedAt),
 			ModelName:      msg.ModelName,
 			StartedAt:      playgroundFormatTime(msg.StartedAt),
@@ -244,6 +247,7 @@ func playgroundThreadPersisted(thread playgroundChatThread) playgroundPersistedT
 		CreatedAt: playgroundFormatTime(thread.CreatedAt),
 		UpdatedAt: playgroundFormatTime(thread.UpdatedAt),
 		Usage:     thread.Usage,
+		Workspace: strings.TrimSpace(thread.WorkspacePath),
 		LastQuery: thread.LastQuery,
 		Messages:  messages,
 	}
@@ -268,12 +272,16 @@ func playgroundThreadFromPersisted(persisted playgroundPersistedThread) (playgro
 		startedAt, _ := playgroundParseTime(msg.StartedAt)
 		firstTokenAt, _ := playgroundParseTime(msg.FirstTokenAt)
 		finishedAt, _ := playgroundParseTime(msg.FinishedAt)
+		parts := msg.Parts
+		if len(parts) == 0 {
+			parts = playgroundChatMessageParts(msg.Content, msg.Reasoning, msg.ReasoningTitle, false)
+		}
 		messages = append(messages, playgroundChatMessage{
 			Role:           msg.Role,
 			Content:        msg.Content,
 			Reasoning:      msg.Reasoning,
 			ReasoningTitle: msg.ReasoningTitle,
-			Parts:          playgroundChatMessageParts(msg.Content, msg.Reasoning, msg.ReasoningTitle, false),
+			Parts:          parts,
 			GeneratedAt:    generatedAt,
 			ModelName:      msg.ModelName,
 			StartedAt:      startedAt,
@@ -297,6 +305,7 @@ func playgroundThreadFromPersisted(persisted playgroundPersistedThread) (playgro
 		CreatedAt:              createdAt,
 		UpdatedAt:              updatedAt,
 		Usage:                  persisted.Usage,
+		WorkspacePath:          strings.TrimSpace(persisted.Workspace),
 		LastQuery:              lastQuery,
 		Messages:               messages,
 		TitleGenerated:         true,

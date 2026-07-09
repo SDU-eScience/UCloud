@@ -28,6 +28,8 @@ import {ChunkedFileReader} from "@/Files/ChunkedFileReader";
 import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
 import {dialogStore} from "@/Dialog/DialogStore";
 import type {UFile} from "@/UCloud/UFile";
+import {Feature, hasFeature} from "@/Features";
+import {prettyFilePath} from "@/Files/FilePath";
 
 type PlaygroundSession = {
     connectTo: string;
@@ -455,13 +457,15 @@ function PlaygroundChatComposer({node, model, scope, fn}: UcxRenderContext): Rea
 type ThreadListItem = { id: string; title: string };
 
 type ChatMessagePart = {
-    kind: "text" | "thinking" | "image" | "video" | "audio" | "attachment";
+    kind: "text" | "thinking" | "image" | "video" | "audio" | "attachment" | "tool";
     text: string;
     summary: string;
     body: string;
     open: boolean;
     fileName: string;
     url: string;
+    toolName: string;
+    status: string;
 };
 
 type ChatMessageListItem = {
@@ -753,6 +757,9 @@ const ChatMessageNode = React.memo(function ChatMessageNode({message, modelOptio
                 if (part.kind === "thinking") {
                     return <ThinkingPart key={idx} part={part}/>;
                 }
+                if (part.kind === "tool") {
+                    return <ToolPart key={idx} part={part}/>;
+                }
                 return <StreamingMarkdownPart key={idx} text={part.text} streaming={!responseFinished}/>;
             })}
             {!responseFinished ? null : <Flex className={ComposerActionButtonHoverClass} alignItems="center" gap="8px" color="textSecondary" fontSize="12px" flexWrap="wrap">
@@ -832,6 +839,87 @@ const StreamingMarkdownPart = React.memo(function StreamingMarkdownPart({text, s
     const stableText = stableStreamingMarkdownPrefix(text);
     return <MarkdownDocument text={stableText}/>;
 });
+
+const ToolDisplayNames: Record<string, string> = {
+    bash: "Bash",
+    glob: "Finding files",
+    grep: "Searching files",
+    read: "Reading file",
+    web_fetch: "Fetching web page",
+    wikipedia_search: "Searching Wikipedia",
+};
+
+function ToolPart({part}: { part: ChatMessagePart }): React.ReactNode {
+    const [expanded, setExpanded] = React.useState(part.status === "error");
+    const statusColor = part.status === "error" ? "var(--errorMain)" : part.status === "running" ? "var(--warningMain)" : "var(--successMain)";
+    const label = toolDisplayName(part.toolName || part.summary || "tool");
+    const status = toolStatusLabel(part.status);
+    const body = (part.body || part.text).trim();
+    return (
+        <div
+            style={{
+                border: "1px solid var(--playground-border, var(--borderColor))",
+                borderRadius: 8,
+                overflow: "hidden",
+                background: "var(--playground-surface-raised, var(--dialogToolbar))",
+                marginBottom: "16px",
+            }}
+        >
+            <button
+                type="button"
+                onClick={() => setExpanded(v => !v)}
+                style={{
+                    width: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "8px 10px",
+                    border: 0,
+                    background: "transparent",
+                    color: "inherit",
+                    cursor: "pointer",
+                    textAlign: "left",
+                }}
+            >
+                <Icon name="heroCommandLine" size={16}/>
+                <span style={{fontWeight: 600, flexShrink: 0}}>{label}</span>
+                <span style={{width: 8, height: 8, borderRadius: 999, background: statusColor, flexShrink: 0}} />
+                <span style={{color: "var(--textSecondary)", fontSize: 12, whiteSpace: "nowrap"}}>{status}</span>
+                <span style={{marginLeft: "auto"}}><Icon name={expanded ? "heroChevronUp" : "heroChevronDown"} size={14}/></span>
+            </button>
+            {expanded ? (
+                <div
+                    style={{
+                        padding: "0 10px 10px 10px",
+                        color: "var(--textSecondary)",
+                        whiteSpace: "normal",
+                    }}
+                >
+                    {body === "" ? <UcxSpinner /> : <MarkdownDocument text={body}/>}
+                </div>
+            ) : null}
+        </div>
+    );
+}
+
+function toolDisplayName(name: string): string {
+    const key = name.trim();
+    if (ToolDisplayNames[key]) return ToolDisplayNames[key];
+    return key.split("_").filter(Boolean).map(capitalizeToolWord).join(" ") || "Tool";
+}
+
+function capitalizeToolWord(word: string): string {
+    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+}
+
+function toolStatusLabel(status: string): string {
+    switch (status) {
+        case "running": return "Running";
+        case "error": return "Failed";
+        case "completed": return "Completed";
+        default: return status ? capitalizeToolWord(status) : "Completed";
+    }
+}
 
 type StreamingMarkdownStackItem = {
     kind: "fence" | "inlineCode" | "emphasis" | "linkText" | "linkUrl" | "heading";
@@ -1273,6 +1361,7 @@ function DeveloperModeToggle({model, fn, connected}: {model: Record<string, Valu
 function PlaygroundWorkspace({model, fn, connected, connectionStatus}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean; connectionStatus: string}): React.ReactNode {
     const developer = boolValue(fn?.modelValue(model, "developer") ?? model.developer);
     const footer = <>
+        {!developer && hasFeature(Feature.INFERENCE_WORKSPACE) ? <WorkspaceSelector model={model} fn={fn} connected={connected}/> : null}
         <ContextWindowIndicator model={model} fn={fn}/>
         <ConnectionStatusIndicator connected={connected} text={connectionStatus}/>
     </>;
@@ -1340,6 +1429,7 @@ function PlaygroundConversation({model, fn, connected}: {model: Record<string, V
     const messagesValue = fn?.modelValue(model, "chat.messages") ?? model["chat.messages"];
     const messageItems = messagesValue?.kind === ValueKind.List ? messagesValue.list : [];
     const loading = boolValue(fn?.modelValue(model, "chat.loading") ?? model["chat.loading"]);
+    const developmentMode = boolValue(fn?.modelValue(model, "developmentMode") ?? model.developmentMode);
     const currentThreadId = stringValue(fn?.modelValue(model, "currentThreadId") ?? model.currentThreadId);
     const modelsValue = fn?.modelValue(model, "models") ?? model.models;
     const modelOptions = React.useMemo(() => textGenerationModelOptions(modelsValue), [modelsValue]);
@@ -1393,7 +1483,7 @@ function PlaygroundConversation({model, fn, connected}: {model: Record<string, V
             sendIcon: {kind: ValueKind.String, string: "heroArrowUp"},
             disabled: {kind: ValueKind.Bool, bool: !connected || loading},
         },
-    }), [connected, loading]);
+    }), [connected, developmentMode, loading]);
 
     return (
         <>
@@ -1501,7 +1591,6 @@ function PlaygroundThreadSidebar({model, fn, connected, footer}: {model: Record<
             <Icon name="heroPlus" size={16} mr={8}/>
             New thread
         </Button>
-        <WorkspaceSelector model={model} fn={fn} connected={connected}/>
     </div>;
 
     return <PlaygroundSidebarShell header={header} footer={footer}>
@@ -1511,13 +1600,27 @@ function PlaygroundThreadSidebar({model, fn, connected, footer}: {model: Record<
 
 function WorkspaceSelector({model, fn, connected}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean}): React.ReactNode {
     const path = stringValue(fn?.modelValue(model, "workspace.path") ?? model["workspace.path"]);
-    const sandboxJobId = stringValue(fn?.modelValue(model, "workspace.sandboxJobId") ?? model["workspace.sandboxJobId"]);
     const loading = boolValue(fn?.modelValue(model, "workspace.loading") ?? model["workspace.loading"]);
+    const chatLoading = boolValue(fn?.modelValue(model, "chat.loading") ?? model["chat.loading"]);
     const error = stringValue(fn?.modelValue(model, "workspace.error") ?? model["workspace.error"]);
-    const warnings = stringListValue(fn?.modelValue(model, "workspace.warnings") ?? model["workspace.warnings"]);
+    const [prettyPath, setPrettyPath] = React.useState("");
+
+    React.useEffect(() => {
+        let cancelled = false;
+        if (!path) {
+            setPrettyPath("");
+            return;
+        }
+        prettyFilePath(path).then(value => {
+            if (!cancelled) setPrettyPath(value);
+        }).catch(() => {
+            if (!cancelled) setPrettyPath(path);
+        });
+        return () => { cancelled = true; };
+    }, [path]);
 
     const selectFolder = React.useCallback(() => {
-		if (!connected || !fn) return;
+		if (!connected || !fn || loading || chatLoading) return;
 
 		void (async () => {
 			const [{default: FileBrowse}, {api: FilesApi}, {folderFavoriteSelection}] = await Promise.all([
@@ -1556,30 +1659,15 @@ function WorkspaceSelector({model, fn, connected}: {model: Record<string, Value>
 
 			navigateToFolder(path);
 		})();
-	}, [connected, fn, path]);
+	}, [chatLoading, connected, fn, loading, path]);
 
-    const clearFolder = React.useCallback(() => {
-        fn?.sendModelInput("workspace.path", {kind: ValueKind.String, string: ""}, "workspace.path");
-    }, [fn]);
-
-    return <div style={{border: "1px solid var(--playground-border, var(--borderColor))", borderRadius: 10, padding: 12, display: "flex", flexDirection: "column", gap: 8}}>
-        <div style={{display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8}}>
-            <span style={{fontWeight: 700}}>Workspace</span>
-            {loading ? <UcxSpinner size={16}/> : null}
-        </div>
-        <Text color="textSecondary" style={{fontSize: 12, margin: 0}}>Select a folder before using workspace tools.</Text>
-        {path ? <div style={{fontSize: 12, overflowWrap: "anywhere"}}>{path}</div> : <Text color="textSecondary" style={{fontSize: 12, margin: 0}}>No folder selected.</Text>}
-        {sandboxJobId ? <Text color="textSecondary" style={{fontSize: 12, margin: 0}}>Sandbox ready.</Text> : null}
-        {error ? <Text color="errorMain" style={{fontSize: 12, margin: 0}}>{error}</Text> : null}
-        {warnings.map((warning, idx) => <Text key={idx} color="warningMain" style={{fontSize: 12, margin: 0}}>{warning}</Text>)}
-        <div style={{display: "flex", gap: 8}}>
-            <Button type="button" disabled={!connected || !fn || loading} onClick={selectFolder} color="secondaryMain" height="32px">
-                Select folder
-            </Button>
-            {path ? <Button type="button" disabled={!connected || !fn || loading} onClick={clearFolder} color="errorMain" height="32px">
-                Clear
-            </Button> : null}
-        </div>
+    return <div style={{display: "flex", alignItems: "center", gap: 0, minWidth: 0, color: error ? "var(--errorMain)" : "var(--textSecondary)", fontSize: 12}}>
+        <span title={error || prettyPath || "No folder selected"} style={{minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1}}>
+            {error || prettyPath || "No folder selected"}
+        </span>
+        {loading ? <UcxSpinner size={14}/> : null}
+        <IconButton tooltip="Select workspace folder" onClick={selectFolder} icon="heroFolderOpen"/>
+        <IconButton tooltip="Selected workspace data is mounted read-only for tools." onClick={doNothing} icon="heroInformationCircle"/>
     </div>;
 }
 
@@ -1981,7 +2069,7 @@ function chatMessagePartsValue(value: any): ChatMessagePart[] {
     return value.list.flatMap((item: Value) => {
         if (item.kind !== ValueKind.Object) return [];
         const kind = stringValue(item.object.kind);
-        if (kind !== "text" && kind !== "thinking" && kind !== "image" && kind !== "video" && kind !== "audio" && kind !== "attachment") return [];
+        if (kind !== "text" && kind !== "thinking" && kind !== "image" && kind !== "video" && kind !== "audio" && kind !== "attachment" && kind !== "tool") return [];
         return [
             {
                 kind,
@@ -1991,6 +2079,8 @@ function chatMessagePartsValue(value: any): ChatMessagePart[] {
                 open: boolValue(item.object.open),
                 fileName: stringValue(item.object.fileName),
                 url: stringValue(item.object.url),
+                toolName: stringValue(item.object.toolName),
+                status: stringValue(item.object.status),
             },
         ];
     });
@@ -2072,7 +2162,7 @@ function chatMessageViewModelEqual(a: ChatMessageViewModel, b: ChatMessageViewMo
 }
 
 function chatMessageScrollKey(message: ChatMessageViewModel): string {
-    return `${message.key}:${message.content}:${message.finishedAt}:${message.parts.map(part => `${part.kind}:${part.text}:${part.body}`).join("|")}`;
+    return `${message.key}:${message.content}:${message.finishedAt}:${message.parts.map(part => `${part.kind}:${part.text}:${part.body}:${part.status}`).join("|")}`;
 }
 
 function chatMessagePartsEqual(a: ChatMessagePart[], b: ChatMessagePart[]): boolean {
@@ -2091,7 +2181,9 @@ function chatMessagePartEqual(a: ChatMessagePart, b: ChatMessagePart): boolean {
         a.body === b.body &&
         a.open === b.open &&
         a.fileName === b.fileName &&
-        a.url === b.url;
+        a.url === b.url &&
+        a.toolName === b.toolName &&
+        a.status === b.status;
 }
 
 function playgroundOptionsEqual(a: PlaygroundOption[], b: PlaygroundOption[]): boolean {

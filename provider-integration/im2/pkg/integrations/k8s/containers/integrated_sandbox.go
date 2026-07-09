@@ -15,6 +15,8 @@ import (
 
 type integratedSandboxConfig = shared.IntegratedSandboxConfig
 
+const integratedSandboxWorkspaceMountPath = "/mnt/workspace"
+
 func integratedSandboxValidateConfiguration(job *orc.Job, configuration json.RawMessage) *util.HttpError {
 	var config integratedSandboxConfig
 	return util.HttpErrorFromErr(json.Unmarshal(configuration, &config))
@@ -31,6 +33,7 @@ func integratedSandboxMutateJobBeforeRegistration(name string, spec *orc.JobSpec
 
 func integratedSandboxMutatePod(dimensions shared.SchedulerDimensions, image string, pod *core.Pod) *util.HttpError {
 	podSpec := &pod.Spec
+	podSpec.TerminationGracePeriodSeconds = util.Pointer(int64(0))
 	for i := 0; i < len(podSpec.Containers); i++ {
 		container := &podSpec.Containers[i]
 
@@ -73,7 +76,11 @@ func integratedSandboxMutateJobNonPersistent(job *orc.Job, configuration json.Ra
 		folder := config.Folders[i]
 		driveId := util.GetOptionalElement(util.Components(folder), 0).Value
 		if controller.DriveCanUse(job.Owner, driveId, false) || (forceReadOnly && controller.DriveCanUse(job.Owner, driveId, true)) {
-			spec.Resources = append(spec.Resources, orc.AppParameterValueFile(folder, false))
+			if forceReadOnly {
+				spec.Resources = append(spec.Resources, orc.AppParameterValueFileWithMountPath(folder, true, integratedSandboxWorkspaceMountPath))
+			} else {
+				spec.Resources = append(spec.Resources, orc.AppParameterValueFile(folder, false))
+			}
 		} else if !forceReadOnly && controller.DriveCanUse(job.Owner, driveId, true) {
 			spec.Resources = append(spec.Resources, orc.AppParameterValueFile(folder, true))
 		}

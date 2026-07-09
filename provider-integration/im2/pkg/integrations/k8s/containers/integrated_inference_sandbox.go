@@ -5,6 +5,7 @@ import (
 	"time"
 
 	core "k8s.io/api/core/v1"
+	networking "k8s.io/api/networking/v1"
 	"ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/integrations/k8s/shared"
 	orc "ucloud.dk/shared/pkg/orchestrators"
@@ -24,6 +25,7 @@ func initIntegratedInferenceSandbox() {
 			MutateJobNonPersistent:          inferenceSandboxMutateJobNonPersistent,
 			MutateJobSpecBeforeRegistration: inferenceSandboxMutateJobBeforeRegistration,
 			MutatePod:                       inferenceSandboxMutatePod,
+			MutateNetworkPolicy:             inferenceSandboxMutateNetworkPolicy,
 			ValidateConfiguration:           integratedSandboxValidateConfiguration,
 		}
 	}
@@ -33,12 +35,19 @@ func inferenceSandboxMutateJobBeforeRegistration(owner orc.ResourceOwner, spec *
 	if err := integratedSandboxMutateJobBeforeRegistration("Inference sandbox", spec); err != nil {
 		return err
 	}
+	spec.Product.Id = shared.IntegratedTerminalAppName
 	spec.Product.Category = shared.IntegratedTerminalAppName
 	return nil
 }
 
 func inferenceSandboxMutatePod(job *orc.Job, configuration json.RawMessage, pod *core.Pod) *util.HttpError {
 	return integratedSandboxMutatePod(integratedTerminalDimensions, integratedTerminalImage, pod)
+}
+
+func inferenceSandboxMutateNetworkPolicy(job *orc.Job, configuration json.RawMessage, firewall *networking.NetworkPolicy, pod *core.Pod) *util.HttpError {
+	shared.AllowNetworkToClusterDNS(firewall)
+	shared.AllowNetworkToPublicInternet(firewall, []int32{80, 443})
+	return nil
 }
 
 func inferenceSandboxMutateJobNonPersistent(job *orc.Job, configuration json.RawMessage) {

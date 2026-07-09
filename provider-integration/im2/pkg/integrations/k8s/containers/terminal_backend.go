@@ -9,6 +9,7 @@ import (
 	"time"
 
 	core "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/remotecommand"
 	"ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/integrations/k8s/shared"
@@ -89,32 +90,10 @@ func (backend *terminalBackend) Start(cmd *shared.TerminalCmd) (shared.TerminalC
 		return nil, util.UserHttpError("command name must not be empty")
 	}
 
-	{
-		// Wait for job to be ready
-		deadline := time.Now().Add(5 * time.Minute)
-		for time.Now().Before(deadline) {
-			job, ok := controller.JobRetrieve(cmd.Sandbox.JobId)
-			if !ok {
-				break
-			}
-
-			if job.Status.State.IsFinal() {
-				break
-			}
-
-			if reason := shared.IsJobLocked(job); reason.Present {
-				break
-			}
-
-			if job.Status.State == orcapi.JobStateRunning {
-				break
-			}
-
-			time.Sleep(5 * time.Second)
-		}
-	}
-
 	podName := idAndRankToPodName(cmd.Sandbox.JobId, 0)
+	if err := waitForTerminalCommandTarget(cmd, podName); err != nil {
+		return nil, err
+	}
 	command, err := buildTerminalCommand(cmd)
 	if err != nil {
 		return nil, err
@@ -178,6 +157,37 @@ func (backend *terminalBackend) Start(cmd *shared.TerminalCmd) (shared.TerminalC
 	}()
 
 	return handle, nil
+}
+
+func waitForTerminalCommandTarget(cmd *shared.TerminalCmd, podName string) *util.HttpError {
+	deadline := time.Now().Add(5 * time.Minute)
+	for time.Now().Before(deadline) {
+		job, ok := controller.JobRetrieve(cmd.Sandbox.JobId)
+		if !ok {
+			return util.UserHttpError("sandbox job not found")
+		}
+		if job.Status.State.IsFinal() {
+			return util.UserHttpError("sandbox job is no longer running")
+		}
+		if reason := shared.IsJobLocked(job); reason.Present {
+			if reason.Value.Err != nil {
+				return reason.Value.Err
+			}
+			return util.UserHttpError("%s", reason.Value.Reason)
+		}
+
+		pod, err := K8sClient.CoreV1().Pods(Namespace).Get(context.Background(), podName, metav1.GetOptions{})
+		if err == nil && pod.Status.Phase == core.PodRunning {
+			for _, status := range pod.Status.ContainerStatuses {
+				if status.Name == ContainerUserJob && status.Ready {
+					return nil
+				}
+			}
+		}
+
+		time.Sleep(2 * time.Second)
+	}
+	return util.UserHttpError("sandbox did not become ready before the command timed out")
 }
 
 func buildTerminalCommand(cmd *shared.TerminalCmd) ([]string, *util.HttpError) {

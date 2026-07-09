@@ -193,20 +193,11 @@ func initProducts() {
 	if ServiceConfig.Compute.IntegratedTerminal.Enabled {
 		// NOTE(Dan): This block must be placed after the general machine loop
 
-		terminalProducts := []struct {
-			name        string
-			category    string
-			description string
-		}{
-			{name: IntegratedTerminalAppName, category: IntegratedTerminalAppName, description: "Product for the integrated terminal"},
-			{name: InferenceSandboxAppName, category: IntegratedTerminalAppName, description: "Product for the inference sandbox"},
-		}
-
-		for _, product := range terminalProducts {
+		{
 			support := orc.JobSupport{
 				Product: apm.ProductReference{
-					Id:       product.name,
-					Category: product.category,
+					Id:       IntegratedTerminalAppName,
+					Category: IntegratedTerminalAppName,
 					Provider: config.Provider.Id,
 				},
 			}
@@ -218,7 +209,7 @@ func initProducts() {
 			machine := apm.ProductV2{
 				Type: apm.ProductTypeCCompute,
 				Category: apm.ProductCategory{
-					Name:        product.category,
+					Name:        IntegratedTerminalAppName,
 					Provider:    config.Provider.Id,
 					ProductType: apm.ProductTypeCompute,
 					AccountingUnit: apm.AccountingUnit{
@@ -231,8 +222,8 @@ func initProducts() {
 					FreeToUse:           true,
 					AllowSubAllocations: false,
 				},
-				Name:                      product.name,
-				Description:               product.description,
+				Name:                      IntegratedTerminalAppName,
+				Description:               "Product for the integrated terminal",
 				ProductType:               apm.ProductTypeCompute,
 				Price:                     1,
 				HiddenInGrantApplications: true,
