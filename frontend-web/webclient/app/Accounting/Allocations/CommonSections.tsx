@@ -1619,7 +1619,7 @@ export function SubProjectList({
                             </div>}
                         <Tree
                             apiRef={suballocationTree}
-                            onAction={(row, action) => {
+                            onAction={(row, action, rowIdx) => {
                                 if (![TreeAction.TOGGLE, TreeAction.OPEN, TreeAction.CLOSE].includes(action)) return;
                                 const grantId = row.getAttribute("data-grant-id");
                                 if (grantId && TreeAction.TOGGLE === action) {
@@ -1630,6 +1630,7 @@ export function SubProjectList({
                                     if (!recipient) return;
                                     const group = row.getAttribute("data-group");
                                     setNodeState(action, recipient, group);
+                                    rowHeight.setRowHeight(rowIdx, calculateHeightInPx(rowIdx, state));
                                 }
                             }}
                             unhandledShortcut={onSubAllocationShortcut}

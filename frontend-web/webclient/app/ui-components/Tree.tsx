@@ -38,7 +38,7 @@ export const Tree: React.FunctionComponent<{
     apiRef?: React.RefObject<TreeApi | null>;
     unhandledShortcut?: (target: HTMLElement, ev: KeyboardEvent) => void;
     children: React.ReactNode;
-    onAction?: (row: HTMLElement, action: TreeAction) => void;
+    onAction?: (row: HTMLElement, action: TreeAction, rowIdx: number) => void;
 }> = props => {
     const root = useRef<HTMLDivElement>(null);
     useEffect(() => {
@@ -83,7 +83,7 @@ export const Tree: React.FunctionComponent<{
                     const [row] = getRow(rowIdx);
                     if (row) {
                         row.toggleAttribute("data-open");
-                        props.onAction?.(row, action);
+                        props.onAction?.(row, action, rowIdx);
                     }
                     break;
                 }
@@ -92,7 +92,7 @@ export const Tree: React.FunctionComponent<{
                     const [row] = getRow(rowIdx);
                     if (row) {
                         row.setAttribute("data-open", "");
-                        props.onAction?.(row, action);
+                        props.onAction?.(row, action, rowIdx);
                     }
                     break;
                 }
@@ -114,7 +114,7 @@ export const Tree: React.FunctionComponent<{
                                 }
                             }
                         }
-                        props.onAction?.(row, action);
+                        props.onAction?.(row, action, rowIdx);
                     }
                     break;
                 }

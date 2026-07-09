@@ -516,7 +516,6 @@ export function stateReducer(state: State, action: UIAction): State {
     }
 
     function rebuildTree(state: State): State {
-        console.time("rebuildTree");
         const providerOptions: SubProjectKeyValue[] = (() => {
             const providers = new Set<string>();
 
