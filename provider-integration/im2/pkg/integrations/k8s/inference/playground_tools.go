@@ -567,13 +567,13 @@ func playgroundToolBashValidate(command string) string {
 		return "command must not be empty"
 	}
 	lower := strings.ToLower(command)
-	blocked := []string{"rm -rf", "shred", ":(){", "mkfs", "dd if=", "chmod -r", "chown -r", "ncat", "apt-get", "pip install", "npm install"}
+	blocked := []string{"shred", ":(){", "mkfs", "dd if=", "chmod -r", "chown -r", "ncat", "apt-get"}
 	for _, pattern := range blocked {
 		if strings.Contains(lower, pattern) {
 			return fmt.Sprintf("command is blocked by policy: %s", strings.TrimSpace(pattern))
 		}
 	}
-	blockedCommands := []string{"curl", "wget", "nc", "ssh", "scp", "apt", "dnf", "yum", "apk"}
+	blockedCommands := []string{"nc", "ssh", "scp", "apt", "dnf", "yum", "apk"}
 	for _, cmd := range blockedCommands {
 		if regexp.MustCompile(`(^|[;&|()\s])` + regexp.QuoteMeta(cmd) + `($|[;&|()\s])`).MatchString(lower) {
 			return fmt.Sprintf("command is blocked by policy: %s", cmd)

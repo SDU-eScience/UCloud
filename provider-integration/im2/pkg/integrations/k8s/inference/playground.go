@@ -1080,7 +1080,7 @@ func (app *InferencePlaygroundApp) prepareChatTools(request *InferenceChatReques
 		return
 	}
 	request.Tools = tools
-	request.ParallelToolCalls = util.OptValue(false)
+	request.ParallelToolCalls = util.OptValue(true)
 }
 
 func playgroundToolsDisabledForModel(model string) bool {
