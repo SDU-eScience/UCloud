@@ -1,21 +1,26 @@
 import * as React from "react";
 import {Image} from "@/ui-components";
-import ProviderInfo from "@/Assets/provider_info.json";
 import {classConcat} from "@/Unstyled";
 import {injectStyle} from "@/Unstyled";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {getProviderTitle} from "@/Providers/ProviderTitle";
+import {providerBrandingStore} from "@/ProviderBrandings/AutomaticProviderBranding";
 
 export function providerLogoPath(providerId: string): string {
-    const logo = ProviderInfo.providers.find(p => p.id === providerId)?.logo ?? "";
+    const logo = providerBrandingStore.getProviderProperty(providerId, "logo");
     if (logo) return `/Images/${logo}`;
     return "";
 }
 
 export const ProviderLogo: React.FunctionComponent<{providerId: string; size: number; className?: string;}> = ({providerId, size, className}) => {
-    const myInfo = ProviderInfo.providers.find(p => p.id === providerId);
+    const [logo, title] = [
+        providerBrandingStore.getProviderProperty(providerId, "logo"),
+        providerBrandingStore.getProviderProperty(providerId, "title")
+    ];
+
+
     return <ProviderLogoWrapper size={size} className={className} tooltip={getProviderTitle(providerId)}>
-        {!myInfo ? (providerId[0] ?? "?").toUpperCase() : <Image src={`/Images/${myInfo.logo}`} alt={`Logo for ${myInfo.title}`} />}
+        {!logo ? (providerId[0] ?? "?").toUpperCase() : <Image src={logo.includes("/") ? logo : `/Images/${logo}`} alt={`Logo for ${title}`} />}
     </ProviderLogoWrapper>
 };
 
