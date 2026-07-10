@@ -125,6 +125,7 @@ type InferencePlaygroundTokenUsage struct {
 type playgroundChatMessage struct {
 	Role           string
 	Content        string
+	Synthetic      bool
 	Reasoning      string
 	ReasoningTitle string
 	Parts          []playgroundChatMessagePart
@@ -391,10 +392,7 @@ func (app *InferencePlaygroundApp) configureWorkspace() {
 		app.Workspace.ETag = ""
 		return
 	}
-
-	if workspacePath == app.Workspace.AppliedPath && app.Workspace.SandboxJobId != "" {
-		return
-	}
+	app.appendWorkspaceHistoryMessage(workspacePath)
 
 	app.Workspace.Loading = true
 	defer func() {
@@ -421,6 +419,24 @@ func (app *InferencePlaygroundApp) configureWorkspace() {
 		app.Workspace.Error = "The selected folder could not be mounted."
 	}
 	app.updateCurrentThreadWorkspacePath(workspacePath)
+}
+
+func (app *InferencePlaygroundApp) appendWorkspaceHistoryMessage(workspacePath string) {
+	message := "Workspace changed: no workspace is selected."
+	if workspacePath != "" {
+		message = "Workspace changed: " + workspacePath
+	}
+	for i := len(app.Chat.Messages) - 1; i >= 0; i-- {
+		if app.Chat.Messages[i].Synthetic {
+			if app.Chat.Messages[i].Content == message {
+				return
+			}
+			break
+		}
+	}
+	now := time.Now().UnixMilli()
+	app.Chat.Messages = append(app.Chat.Messages, playgroundChatMessage{Role: "user", Content: message, Synthetic: true, GeneratedAt: now})
+	app.markCurrentThreadDirty()
 }
 
 // App user-interface and core data management
@@ -591,7 +607,7 @@ func (app *InferencePlaygroundApp) markCurrentThreadDirty() {
 	thread.Dirty = true
 	if thread.Title == "New thread" {
 		for _, msg := range thread.Messages {
-			if msg.Role == "user" && !playgroundMessageIsAttachmentOnly(msg) {
+			if msg.Role == "user" && !msg.Synthetic && !playgroundMessageIsAttachmentOnly(msg) {
 				thread.Title = playgroundThreadTitle(msg.Content)
 				if !thread.TitleGenerated && !thread.TitleGenerationStarted {
 					thread.TitleGenerationStarted = true
@@ -973,7 +989,7 @@ func (app *InferencePlaygroundApp) regenerateChat(modelId string, messageIndex i
 
 	lastUserIndex := -1
 	for i := assistantIndex - 1; i >= 0; i-- {
-		if app.Chat.Messages[i].Role == "user" {
+		if app.Chat.Messages[i].Role == "user" && !app.Chat.Messages[i].Synthetic {
 			lastUserIndex = i
 			break
 		}

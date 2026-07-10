@@ -30,6 +30,7 @@ import {dialogStore} from "@/Dialog/DialogStore";
 import type {UFile} from "@/UCloud/UFile";
 import {Feature, hasFeature} from "@/Features";
 import {prettyFilePath} from "@/Files/FilePath";
+import CodeSnippet from "@/ui-components/CodeSnippet";
 
 type PlaygroundSession = {
     connectTo: string;
@@ -895,7 +896,7 @@ function ToolPart({part}: { part: ChatMessagePart }): React.ReactNode {
                         whiteSpace: "normal",
                     }}
                 >
-                    {body === "" ? <UcxSpinner /> : <MarkdownDocument text={body}/>}
+                    {body === "" ? <UcxSpinner /> : <CodeSnippet lang={"text"}>{body}</CodeSnippet>}
                 </div>
             ) : null}
         </div>
@@ -2089,6 +2090,7 @@ function chatMessagePartsValue(value: any): ChatMessagePart[] {
 function buildChatMessageViewModels(messageItems: Value[], currentThreadId: string): ChatMessageViewModel[] {
     const allMessages: ChatMessageListItem[] = messageItems.flatMap((item: Value) => {
         if (item.kind !== ValueKind.Object) return [];
+        if (boolValue(item.object.synthetic)) return [];
         const role = stringValue(item.object.role);
         if (role === "") return [];
         return [{
@@ -2100,6 +2102,7 @@ function buildChatMessageViewModels(messageItems: Value[], currentThreadId: stri
 
     return messageItems.flatMap((item, idx): ChatMessageViewModel[] => {
         if (item.kind !== ValueKind.Object) return [];
+        if (boolValue(item.object.synthetic)) return [];
 
         const role = stringValue(item.object.role);
         const content = stringValue(item.object.content);

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"ucloud.dk/pkg/integrations/k8s/shared"
+	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -76,20 +77,20 @@ func (app *InferencePlaygroundApp) playgroundToolDefinitions() []InferenceChatTo
 	}
 
 	return []InferenceChatTool{
-		playgroundToolDefinition("glob", "Find files in the selected workspace using a glob pattern.", map[string]any{
+		playgroundToolDefinition("glob", "Find files using a glob pattern. It defaults to the selected workspace; an absolute cwd may be used outside it.", map[string]any{
 			"pattern": map[string]any{"type": "string", "description": "Glob pattern, for example **/*.go."},
-			"cwd":     map[string]any{"type": "string", "description": "Optional directory relative to the workspace root.", "default": "."},
+			"cwd":     map[string]any{"type": "string", "description": "Optional directory. Defaults to the workspace; absolute paths may be used outside it.", "default": "."},
 			"limit":   map[string]any{"type": "integer", "description": "Maximum number of results to return.", "default": 100},
 		}, []string{"pattern"}),
-		playgroundToolDefinition("grep", "Search file contents in the selected workspace.", map[string]any{
+		playgroundToolDefinition("grep", "Search file contents. It defaults to the selected workspace; an absolute path may be used outside it.", map[string]any{
 			"pattern": map[string]any{"type": "string", "description": "Regular expression to search for."},
-			"path":    map[string]any{"type": "string", "description": "Optional file or directory relative to the workspace root.", "default": "."},
+			"path":    map[string]any{"type": "string", "description": "Optional file or directory. Defaults to the workspace; absolute paths may be used outside it.", "default": "."},
 			"include": map[string]any{"type": "string", "description": "Optional include glob."},
 			"exclude": map[string]any{"type": "string", "description": "Optional exclude glob."},
 			"limit":   map[string]any{"type": "integer", "description": "Maximum number of matches to return.", "default": 100},
 		}, []string{"pattern"}),
-		playgroundToolDefinition("read", "Read a text file from the selected workspace.", map[string]any{
-			"path":   map[string]any{"type": "string", "description": "File path relative to the workspace root."},
+		playgroundToolDefinition("read", "Read a text file. Relative paths use the selected workspace; absolute paths may be used outside it.", map[string]any{
+			"path":   map[string]any{"type": "string", "description": "File path relative to the workspace root, or an absolute path outside it."},
 			"offset": map[string]any{"type": "integer", "description": "Optional 1-based line offset.", "default": 1},
 			"limit":  map[string]any{"type": "integer", "description": "Optional maximum number of lines to return.", "default": 200},
 		}, []string{"path"}),
@@ -98,9 +99,9 @@ func (app *InferencePlaygroundApp) playgroundToolDefinitions() []InferenceChatTo
 			"cwd":        map[string]any{"type": "string", "description": "Optional directory relative to the workspace root.", "default": "."},
 			"timeout_ms": map[string]any{"type": "integer", "description": "Optional timeout in milliseconds.", "default": 60000},
 		}, []string{"command"}),
-		playgroundToolDefinition("web_fetch", "Fetch a public http or https URL from inside the sandbox and return capped text or markdown.", map[string]any{
+		playgroundToolDefinition("web_fetch", "Fetch a public http or https URL from inside the sandbox and return capped markdown or HTML.", map[string]any{
 			"url":        map[string]any{"type": "string", "description": "Public http or https URL to fetch."},
-			"format":     map[string]any{"type": "string", "description": "Output format: markdown or text.", "default": "markdown", "enum": []string{"markdown", "text"}},
+			"format":     map[string]any{"type": "string", "description": "Output format: markdown or html.", "default": "markdown", "enum": []string{"markdown", "html"}},
 			"timeout_ms": map[string]any{"type": "integer", "description": "Optional timeout in milliseconds, capped server-side.", "default": playgroundWebFetchDefaultTimeoutMs},
 		}, []string{"url"}),
 		playgroundToolDefinition("wikipedia_search", "Search Wikipedia and return compact result metadata.", map[string]any{
@@ -151,6 +152,7 @@ func (app *InferencePlaygroundApp) playgroundToolDispatchWithMode(call Inference
 	if sandboxErr != "" {
 		return playgroundToolResult{Message: playgroundToolError(call.Id, sandboxErr), Error: sandboxErr}
 	}
+	log.Info("Running in %v %v", sandbox.Folders, sandbox.JobId)
 	var result playgroundToolResult
 	switch name {
 	case "glob":
@@ -241,9 +243,6 @@ func playgroundDeveloperSlashToolCall(prompt string) (InferenceChatToolCall, boo
 }
 
 func (app *InferencePlaygroundApp) inferenceToolGlob(sandbox *shared.InferenceSandbox, call InferenceChatToolCall) playgroundToolResult {
-	if strings.TrimSpace(app.Workspace.Path) == "" {
-		return playgroundToolResult{Message: playgroundToolMessage(call.Id, playgroundToolJSON(map[string]any{"matches": []string{}, "count": 0, "warning": "no workspace folder is attached"})), Output: playgroundToolJSON(map[string]any{"matches": []string{}, "count": 0, "warning": "no workspace folder is attached"})}
-	}
 	var args struct {
 		Pattern string `json:"pattern"`
 		Cwd     string `json:"cwd"`
@@ -258,22 +257,14 @@ func (app *InferencePlaygroundApp) inferenceToolGlob(sandbox *shared.InferenceSa
 	if args.Limit <= 0 || args.Limit > 1000 {
 		args.Limit = 100
 	}
-	cwd, err := playgroundToolContainerPath(args.Cwd)
-	if err != "" {
-		return playgroundToolResult{Message: playgroundToolError(call.Id, err), Error: err}
-	}
-
 	payload := playgroundToolJSON(args)
 	commandResult := playgroundRunSandboxCommand(func() *shared.TerminalCmd {
-		return playgroundToolPython(sandbox, cwd, playgroundToolGlobScript, payload)
+		return playgroundToolExecutable(sandbox, app.playgroundToolWorkingDirectory(), "glob", payload)
 	}, playgroundToolDefaultTimeout)
 	return playgroundToolCommandMessage(call.Id, commandResult)
 }
 
 func (app *InferencePlaygroundApp) inferenceToolGrep(sandbox *shared.InferenceSandbox, call InferenceChatToolCall) playgroundToolResult {
-	if strings.TrimSpace(app.Workspace.Path) == "" {
-		return playgroundToolResult{Message: playgroundToolMessage(call.Id, playgroundToolJSON(map[string]any{"matches": []any{}, "count": 0, "warning": "no workspace folder is attached"})), Output: playgroundToolJSON(map[string]any{"matches": []any{}, "count": 0, "warning": "no workspace folder is attached"})}
-	}
 	var args struct {
 		Pattern string `json:"pattern"`
 		Path    string `json:"path"`
@@ -290,23 +281,14 @@ func (app *InferencePlaygroundApp) inferenceToolGrep(sandbox *shared.InferenceSa
 	if args.Limit <= 0 || args.Limit > 1000 {
 		args.Limit = 100
 	}
-	_, err := playgroundToolContainerPath(args.Path)
-	if err != "" {
-		return playgroundToolResult{Message: playgroundToolError(call.Id, err), Error: err}
-	}
-
 	payload := playgroundToolJSON(args)
 	commandResult := playgroundRunSandboxCommand(func() *shared.TerminalCmd {
-		return playgroundToolPython(sandbox, playgroundToolWorkspaceRoot, playgroundToolGrepScript, payload)
+		return playgroundToolExecutable(sandbox, app.playgroundToolWorkingDirectory(), "grep", payload)
 	}, playgroundToolDefaultTimeout)
 	return playgroundToolCommandMessage(call.Id, commandResult)
 }
 
 func (app *InferencePlaygroundApp) inferenceToolRead(sandbox *shared.InferenceSandbox, call InferenceChatToolCall) playgroundToolResult {
-	if strings.TrimSpace(app.Workspace.Path) == "" {
-		msg := "no workspace folder is attached"
-		return playgroundToolResult{Message: playgroundToolError(call.Id, msg), Error: msg}
-	}
 	var args struct {
 		Path   string `json:"path"`
 		Offset int    `json:"offset"`
@@ -321,14 +303,9 @@ func (app *InferencePlaygroundApp) inferenceToolRead(sandbox *shared.InferenceSa
 	if args.Limit <= 0 || args.Limit > 1000 {
 		args.Limit = 200
 	}
-	_, err := playgroundToolContainerPath(args.Path)
-	if err != "" {
-		return playgroundToolResult{Message: playgroundToolError(call.Id, err), Error: err}
-	}
-
 	payload := playgroundToolJSON(args)
 	commandResult := playgroundRunSandboxCommand(func() *shared.TerminalCmd {
-		return playgroundToolPython(sandbox, playgroundToolWorkspaceRoot, playgroundToolReadScript, payload)
+		return playgroundToolExecutable(sandbox, app.playgroundToolWorkingDirectory(), "read", payload)
 	}, playgroundToolDefaultTimeout)
 	return playgroundToolCommandMessage(call.Id, commandResult)
 }
@@ -352,8 +329,11 @@ func (app *InferencePlaygroundApp) inferenceToolBash(sandbox *shared.InferenceSa
 	if err != "" {
 		return playgroundToolResult{Message: playgroundToolError(call.Id, err), Error: err}
 	}
-	if strings.TrimSpace(app.Workspace.Path) == "" && (args.Cwd == "" || args.Cwd == ".") {
+	if strings.TrimSpace(app.Workspace.Path) == "" {
 		cwd = "/"
+		if args.Cwd != "." {
+			cwd = filepath.Join(cwd, args.Cwd)
+		}
 	}
 	timeout := playgroundToolTimeout(args.TimeoutMs)
 	commandResult := playgroundRunSandboxCommand(func() *shared.TerminalCmd {
@@ -381,14 +361,14 @@ func (app *InferencePlaygroundApp) inferenceToolWebFetch(sandbox *shared.Inferen
 	if args.Format == "" {
 		args.Format = "markdown"
 	}
-	if args.Format != "markdown" && args.Format != "text" {
-		return playgroundToolResult{Message: playgroundToolError(call.Id, "format must be markdown or text"), Error: "format must be markdown or text"}
+	if args.Format != "markdown" && args.Format != "html" {
+		return playgroundToolResult{Message: playgroundToolError(call.Id, "format must be markdown or html"), Error: "format must be markdown or html"}
 	}
 	args.TimeoutMs = playgroundWebToolTimeoutMs(args.TimeoutMs)
 
 	payload := playgroundToolJSON(args)
 	commandResult := playgroundRunSandboxCommand(func() *shared.TerminalCmd {
-		return playgroundToolPython(sandbox, "/", playgroundToolWebFetchScript, payload)
+		return playgroundToolExecutable(sandbox, "/", "web_fetch", payload)
 	}, time.Duration(args.TimeoutMs+1000)*time.Millisecond)
 	return playgroundToolCommandMessage(call.Id, commandResult)
 }
@@ -411,7 +391,7 @@ func (app *InferencePlaygroundApp) inferenceToolWikipediaSearch(sandbox *shared.
 
 	payload := playgroundToolJSON(args)
 	commandResult := playgroundRunSandboxCommand(func() *shared.TerminalCmd {
-		return playgroundToolPython(sandbox, "/", playgroundToolWikipediaSearchScript, payload)
+		return playgroundToolExecutable(sandbox, "/", "wikipedia_search", payload)
 	}, 20*time.Second)
 	return playgroundToolCommandMessage(call.Id, commandResult)
 }
@@ -444,8 +424,15 @@ func playgroundToolContainerPath(path string) (string, string) {
 	return filepath.Join(playgroundToolWorkspaceRoot, clean), ""
 }
 
-func playgroundToolPython(sandbox *shared.InferenceSandbox, cwd string, script string, payload string) *shared.TerminalCmd {
-	cmd := sandbox.Command("/usr/bin/python3", "-c", script, payload)
+func (app *InferencePlaygroundApp) playgroundToolWorkingDirectory() string {
+	if strings.TrimSpace(app.Workspace.Path) == "" {
+		return "/"
+	}
+	return playgroundToolWorkspaceRoot
+}
+
+func playgroundToolExecutable(sandbox *shared.InferenceSandbox, cwd string, tool string, payload string) *shared.TerminalCmd {
+	cmd := sandbox.Command("/mnt/exe/ucloud-inference-tools", tool, payload)
 	cmd.Dir = cwd
 	return cmd
 }
@@ -603,185 +590,5 @@ func playgroundToolJSON(value any) string {
 	}
 	return string(data)
 }
-
-const playgroundToolGlobScript = `
-import json, pathlib, sys
-args = json.loads(sys.argv[1])
-pattern = args.get("Pattern") or args.get("pattern") or ""
-limit = int(args.get("Limit") or args.get("limit") or 100)
-root = pathlib.Path("/mnt/workspace").resolve()
-cwd = pathlib.Path.cwd().resolve()
-results = []
-for item in cwd.glob(pattern):
-    try:
-        resolved = item.resolve()
-        resolved.relative_to(root)
-    except Exception:
-        continue
-    results.append(str(resolved.relative_to(root)))
-results = sorted(dict.fromkeys(results))[:limit]
-print(json.dumps({"matches": results, "count": len(results)}))
-`
-
-const playgroundToolGrepScript = `
-import fnmatch, json, os, pathlib, re, sys
-args = json.loads(sys.argv[1])
-pattern = args.get("Pattern") or args.get("pattern") or ""
-target = args.get("Path") or args.get("path") or "."
-include = args.get("Include") or args.get("include") or ""
-exclude = args.get("Exclude") or args.get("exclude") or ""
-limit = int(args.get("Limit") or args.get("limit") or 100)
-root = pathlib.Path("/mnt/workspace").resolve()
-start = (root / target).resolve()
-start.relative_to(root)
-rx = re.compile(pattern)
-matches = []
-paths = [start]
-if start.is_dir():
-    paths = [pathlib.Path(dp) / f for dp, _, files in os.walk(start) for f in files]
-for path in paths:
-    if len(matches) >= limit:
-        break
-    try:
-        resolved = path.resolve(); rel = str(resolved.relative_to(root))
-    except Exception:
-        continue
-    if include and not fnmatch.fnmatch(rel, include):
-        continue
-    if exclude and fnmatch.fnmatch(rel, exclude):
-        continue
-    try:
-        data = resolved.read_bytes()
-        if b"\0" in data[:4096]:
-            continue
-        text = data.decode("utf-8", "replace")
-    except Exception:
-        continue
-    for line_no, line in enumerate(text.splitlines(), 1):
-        if rx.search(line):
-            matches.append({"path": rel, "line": line_no, "text": line[:1000]})
-            if len(matches) >= limit:
-                break
-print(json.dumps({"matches": matches, "count": len(matches)}))
-`
-
-const playgroundToolReadScript = `
-import json, pathlib, sys
-args = json.loads(sys.argv[1])
-rel_path = args.get("Path") or args.get("path") or ""
-offset = int(args.get("Offset") or args.get("offset") or 1)
-limit = int(args.get("Limit") or args.get("limit") or 200)
-root = pathlib.Path("/mnt/workspace").resolve()
-path = (root / rel_path).resolve()
-path.relative_to(root)
-if path.is_dir():
-    raise SystemExit("path is a directory")
-data = path.read_bytes()
-if b"\0" in data[:4096]:
-    raise SystemExit("file appears to be binary")
-lines = data.decode("utf-8", "replace").splitlines()
-start = max(1, offset)
-end = min(len(lines), start + limit - 1)
-body = "\n".join(f"{idx}: {lines[idx-1]}" for idx in range(start, end + 1))
-print(json.dumps({"path": str(path.relative_to(root)), "offset": start, "lines": end - start + 1 if end >= start else 0, "content": body, "truncated": end < len(lines)}))
-`
-
-const playgroundToolWebFetchScript = `
-import html.parser, ipaddress, json, re, socket, ssl, sys, urllib.error, urllib.parse, urllib.request
-args = json.loads(sys.argv[1])
-url = (args.get("URL") or args.get("url") or "").strip()
-fmt = (args.get("Format") or args.get("format") or "markdown").strip().lower()
-timeout = max(1, min(30, int(args.get("TimeoutMs") or args.get("timeout_ms") or 15000) / 1000))
-limit = 65536
-parsed = urllib.parse.urlparse(url)
-if parsed.scheme not in ("http", "https") or not parsed.netloc:
-    raise SystemExit("only http and https URLs are supported")
-host = parsed.hostname or ""
-try:
-    for info in socket.getaddrinfo(host, parsed.port or (443 if parsed.scheme == "https" else 80), type=socket.SOCK_STREAM):
-        ip = ipaddress.ip_address(info[4][0])
-        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_multicast or ip.is_reserved or ip.is_unspecified:
-            raise SystemExit("resolved address is blocked by policy")
-except SystemExit:
-    raise
-except Exception as exc:
-    raise SystemExit("failed to resolve host: " + str(exc))
-
-class Extractor(html.parser.HTMLParser):
-    def __init__(self):
-        super().__init__()
-        self.skip = 0
-        self.parts = []
-        self.links = []
-    def handle_starttag(self, tag, attrs):
-        if tag in ("script", "style", "noscript"):
-            self.skip += 1
-        if self.skip:
-            return
-        if tag in ("p", "div", "section", "article", "br", "li", "tr", "h1", "h2", "h3"):
-            self.parts.append("\n")
-        if tag == "a":
-            href = dict(attrs).get("href", "").strip()
-            if href:
-                self.links.append(href)
-    def handle_endtag(self, tag):
-        if tag in ("script", "style", "noscript") and self.skip:
-            self.skip -= 1
-        if not self.skip and tag in ("p", "div", "section", "article", "li", "tr", "h1", "h2", "h3"):
-            self.parts.append("\n")
-    def handle_data(self, data):
-        if not self.skip:
-            text = " ".join(data.split())
-            if text:
-                self.parts.append(text + " ")
-
-req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"})
-try:
-    with urllib.request.urlopen(req, timeout=timeout, context=ssl.create_default_context()) as resp:
-        status = getattr(resp, "status", 0)
-        content_type = resp.headers.get("content-type", "")
-        raw = resp.read(limit + 1)
-except urllib.error.HTTPError as exc:
-    raise SystemExit("fetch failed: HTTP " + str(exc.code))
-except Exception as exc:
-    raise SystemExit("fetch failed: " + str(exc))
-truncated = len(raw) > limit
-raw = raw[:limit]
-charset = "utf-8"
-m = re.search(r"charset=([^;]+)", content_type, re.I)
-if m:
-    charset = m.group(1).strip()
-text = raw.decode(charset, "replace")
-if "html" in content_type.lower() or re.search(r"<\s*html|<\s*body", text[:1000], re.I):
-    parser = Extractor(); parser.feed(text)
-    text = "\n".join(line.strip() for line in "".join(parser.parts).splitlines() if line.strip())
-if fmt == "text":
-    output = text[:limit]
-else:
-    output = text[:limit]
-print(json.dumps({"url": url, "status": status, "content_type": content_type, "format": fmt, "content": output, "truncated": truncated or len(text) > limit}))
-`
-
-const playgroundToolWikipediaSearchScript = `
-import html, json, sys, urllib.parse, urllib.request
-args = json.loads(sys.argv[1])
-query = (args.get("Query") or args.get("query") or "").strip()
-limit = max(1, min(10, int(args.get("Limit") or args.get("limit") or 5)))
-params = urllib.parse.urlencode({"action": "query", "list": "search", "srsearch": query, "srlimit": limit, "format": "json", "origin": "*"})
-url = "https://en.wikipedia.org/w/api.php?" + params
-req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"})
-try:
-    with urllib.request.urlopen(req, timeout=15) as resp:
-        data = json.loads(resp.read(65536).decode("utf-8", "replace"))
-except Exception as exc:
-    raise SystemExit("wikipedia search failed: " + str(exc))
-results = []
-for item in data.get("query", {}).get("search", [])[:limit]:
-    title = item.get("title", "")
-    snippet = html.unescape(item.get("snippet", ""))
-    snippet = " ".join(snippet.replace("<span class=\"searchmatch\">", "").replace("</span>", "").split())
-    results.append({"title": title, "snippet": snippet[:500], "url": "https://en.wikipedia.org/wiki/" + urllib.parse.quote(title.replace(" ", "_"))})
-print(json.dumps({"query": query, "results": results, "count": len(results)}))
-`
 
 var _ io.Writer = (*playgroundCappedBuffer)(nil)

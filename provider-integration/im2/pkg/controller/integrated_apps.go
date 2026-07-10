@@ -485,6 +485,9 @@ func IAppRestart(appName string, owner orc.ResourceOwner) *util.HttpError {
 
 	job, ok := JobRetrieve(config.Value.JobId)
 	if !ok || job.Status.State.IsFinal() {
+		// The stale job ID must be detached before IAppConfigure can create a replacement.
+		key := iappConfigKey{AppName: appName, Owner: owner}
+		iappDetachConfig(key, config.Value)
 		return IAppConfigure(appName, owner, util.OptNone[string](), config.Value.Configuration)
 	}
 

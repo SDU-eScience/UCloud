@@ -34,6 +34,7 @@ type playgroundPersistedThread struct {
 type playgroundPersistedMessage struct {
 	Role           string                      `json:"role"`
 	Content        string                      `json:"content"`
+	Synthetic      bool                        `json:"synthetic,omitempty"`
 	Reasoning      string                      `json:"reasoning,omitempty"`
 	ReasoningTitle string                      `json:"reasoningTitle,omitempty"`
 	Parts          []playgroundChatMessagePart `json:"parts,omitempty"`
@@ -229,6 +230,7 @@ func playgroundThreadPersisted(thread playgroundChatThread) playgroundPersistedT
 		messages = append(messages, playgroundPersistedMessage{
 			Role:           msg.Role,
 			Content:        msg.Content,
+			Synthetic:      msg.Synthetic,
 			Reasoning:      msg.Reasoning,
 			ReasoningTitle: msg.ReasoningTitle,
 			Parts:          msg.Parts,
@@ -279,6 +281,7 @@ func playgroundThreadFromPersisted(persisted playgroundPersistedThread) (playgro
 		messages = append(messages, playgroundChatMessage{
 			Role:           msg.Role,
 			Content:        msg.Content,
+			Synthetic:      msg.Synthetic,
 			Reasoning:      msg.Reasoning,
 			ReasoningTitle: msg.ReasoningTitle,
 			Parts:          parts,

@@ -16,6 +16,7 @@ import (
 type integratedSandboxConfig = shared.IntegratedSandboxConfig
 
 const integratedSandboxWorkspaceMountPath = "/mnt/workspace"
+const integratedSandboxTerminationGracePeriodSeconds int64 = 0
 
 func integratedSandboxValidateConfiguration(job *orc.Job, configuration json.RawMessage) *util.HttpError {
 	var config integratedSandboxConfig
@@ -33,7 +34,7 @@ func integratedSandboxMutateJobBeforeRegistration(name string, spec *orc.JobSpec
 
 func integratedSandboxMutatePod(dimensions shared.SchedulerDimensions, image string, pod *core.Pod) *util.HttpError {
 	podSpec := &pod.Spec
-	podSpec.TerminationGracePeriodSeconds = util.Pointer(int64(0))
+	podSpec.TerminationGracePeriodSeconds = util.Pointer(integratedSandboxTerminationGracePeriodSeconds)
 	for i := 0; i < len(podSpec.Containers); i++ {
 		container := &podSpec.Containers[i]
 
@@ -104,14 +105,15 @@ func integratedSandboxShouldRun(
 		return false
 	}
 
-	until := leaseUntil(job.Owner)
+	leaseOwner := integratedSandboxLeaseOwner(job)
+	until := leaseUntil(leaseOwner)
 	if !until.Present {
 		if job.Status.State != orc.JobStateRunning {
 			return false
 		}
 
-		lease(job.Owner)
-		until = leaseUntil(job.Owner)
+		lease(leaseOwner)
+		until = leaseUntil(leaseOwner)
 		if !until.Present {
 			return false
 		}
@@ -147,4 +149,12 @@ func integratedSandboxShouldRun(
 	}
 
 	return true
+}
+
+func integratedSandboxLeaseOwner(job *orc.Job) orc.ResourceOwner {
+	if iapp := controller.IAppRetrieveByJobId(job.Id); iapp.Present {
+		// Sandboxes run as the user, but their lease belongs to the configured workspace.
+		return iapp.Value.Owner
+	}
+	return job.Owner
 }

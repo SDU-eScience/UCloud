@@ -15,6 +15,7 @@ import (
 const inferenceSandboxInactivityDuration = 15 * time.Minute
 
 const integratedInferenceSandboxAppName = shared.InferenceSandboxAppName
+const inferenceSandboxImage = "dreg.cloud.sdu.dk/ucloud/ucloud-inf-tools:2026.3.118"
 
 func initIntegratedInferenceSandbox() {
 	if ServiceConfig.Compute.IntegratedTerminal.Enabled {
@@ -41,7 +42,23 @@ func inferenceSandboxMutateJobBeforeRegistration(owner orc.ResourceOwner, spec *
 }
 
 func inferenceSandboxMutatePod(job *orc.Job, configuration json.RawMessage, pod *core.Pod) *util.HttpError {
-	return integratedSandboxMutatePod(integratedTerminalDimensions, integratedTerminalImage, pod)
+	if err := integratedSandboxMutatePod(integratedTerminalDimensions, inferenceSandboxImage, pod); err != nil {
+		return err
+	}
+
+	for i := range pod.Spec.Containers {
+		container := &pod.Spec.Containers[i]
+		if container.Name == ContainerUserJob {
+			container.VolumeMounts = append(container.VolumeMounts, core.VolumeMount{
+				Name:      "ucloud-filesystem",
+				ReadOnly:  true,
+				MountPath: "/mnt/exe",
+				SubPath:   shared.ExecutablesDir,
+			})
+		}
+	}
+
+	return nil
 }
 
 func inferenceSandboxMutateNetworkPolicy(job *orc.Job, configuration json.RawMessage, firewall *networking.NetworkPolicy, pod *core.Pod) *util.HttpError {

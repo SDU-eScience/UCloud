@@ -103,6 +103,9 @@ func (sandbox *IntegratedSandbox) Command(name string, arg ...string) *TerminalC
 }
 
 func TerminalOpen(owner orc.ResourceOwner, folders []string) (*TerminalSandbox, *util.HttpError) {
+	if err := TerminalLease(owner, integratedSandboxDefaultLeaseDuration); err != nil {
+		return nil, err
+	}
 	sandbox, err := integratedSandboxMutate(IntegratedTerminalAppName, owner, util.OptNone[string](), func(config *IntegratedSandboxConfig) (bool, *util.HttpError) {
 		oldFolders := config.Folders
 		config.Folders = integratedSandboxNormalizeFolders(append(config.Folders, folders...))
@@ -112,7 +115,6 @@ func TerminalOpen(owner orc.ResourceOwner, folders []string) (*TerminalSandbox, 
 		return nil, err
 	}
 
-	_ = TerminalLease(owner, integratedSandboxDefaultLeaseDuration)
 	if leaseUntil := TerminalLeaseUntil(owner); leaseUntil.Present {
 		sandbox.LeaseUntil = leaseUntil.Value
 	}
@@ -144,6 +146,9 @@ func TerminalOpenToJob(jobId string) (*TerminalSandbox, *util.HttpError) {
 }
 
 func TerminalSetFolders(owner orc.ResourceOwner, etag util.Option[string], folders []string) (*TerminalSandbox, *util.HttpError) {
+	if err := TerminalLease(owner, integratedSandboxDefaultLeaseDuration); err != nil {
+		return nil, err
+	}
 	sandbox, err := integratedSandboxMutate(IntegratedTerminalAppName, owner, etag, func(config *IntegratedSandboxConfig) (bool, *util.HttpError) {
 		oldFolders := config.Folders
 		config.Folders = integratedSandboxNormalizeFolders(folders)
@@ -153,7 +158,6 @@ func TerminalSetFolders(owner orc.ResourceOwner, etag util.Option[string], folde
 		return nil, err
 	}
 
-	_ = TerminalLease(owner, integratedSandboxDefaultLeaseDuration)
 	if leaseUntil := TerminalLeaseUntil(owner); leaseUntil.Present {
 		sandbox.LeaseUntil = leaseUntil.Value
 	}
@@ -162,6 +166,9 @@ func TerminalSetFolders(owner orc.ResourceOwner, etag util.Option[string], folde
 }
 
 func TerminalAddFolder(owner orc.ResourceOwner, etag util.Option[string], folder string) (*TerminalSandbox, *util.HttpError) {
+	if err := TerminalLease(owner, integratedSandboxDefaultLeaseDuration); err != nil {
+		return nil, err
+	}
 	sandbox, err := integratedSandboxMutate(IntegratedTerminalAppName, owner, etag, func(config *IntegratedSandboxConfig) (bool, *util.HttpError) {
 		oldFolders := config.Folders
 		config.Folders = integratedSandboxNormalizeFolders(append(config.Folders, folder))
@@ -171,7 +178,6 @@ func TerminalAddFolder(owner orc.ResourceOwner, etag util.Option[string], folder
 		return nil, err
 	}
 
-	_ = TerminalLease(owner, integratedSandboxDefaultLeaseDuration)
 	if leaseUntil := TerminalLeaseUntil(owner); leaseUntil.Present {
 		sandbox.LeaseUntil = leaseUntil.Value
 	}
@@ -180,6 +186,9 @@ func TerminalAddFolder(owner orc.ResourceOwner, etag util.Option[string], folder
 }
 
 func TerminalRemoveFolder(owner orc.ResourceOwner, etag util.Option[string], folder string) (*TerminalSandbox, *util.HttpError) {
+	if err := TerminalLease(owner, integratedSandboxDefaultLeaseDuration); err != nil {
+		return nil, err
+	}
 	sandbox, err := integratedSandboxMutate(IntegratedTerminalAppName, owner, etag, func(config *IntegratedSandboxConfig) (bool, *util.HttpError) {
 		filtered := make([]string, 0, len(config.Folders))
 		for _, existing := range config.Folders {
@@ -194,7 +203,6 @@ func TerminalRemoveFolder(owner orc.ResourceOwner, etag util.Option[string], fol
 		return nil, err
 	}
 
-	_ = TerminalLease(owner, integratedSandboxDefaultLeaseDuration)
 	if leaseUntil := TerminalLeaseUntil(owner); leaseUntil.Present {
 		sandbox.LeaseUntil = leaseUntil.Value
 	}
@@ -211,6 +219,9 @@ func TerminalLeaseUntil(owner orc.ResourceOwner) util.Option[time.Time] {
 }
 
 func InferenceSandboxOpen(owner orc.ResourceOwner, folders []string) (*InferenceSandbox, *util.HttpError) {
+	if err := InferenceSandboxLease(owner, integratedSandboxDefaultLeaseDuration); err != nil {
+		return nil, err
+	}
 	sandbox, err := integratedSandboxMutate(InferenceSandboxAppName, owner, util.OptNone[string](), func(config *IntegratedSandboxConfig) (bool, *util.HttpError) {
 		oldFolders := config.Folders
 		config.Folders = integratedSandboxNormalizeFolders(append(config.Folders, folders...))
@@ -220,7 +231,6 @@ func InferenceSandboxOpen(owner orc.ResourceOwner, folders []string) (*Inference
 		return nil, err
 	}
 
-	_ = InferenceSandboxLease(owner, integratedSandboxDefaultLeaseDuration)
 	if leaseUntil := InferenceSandboxLeaseUntil(owner); leaseUntil.Present {
 		sandbox.LeaseUntil = leaseUntil.Value
 	}
@@ -229,6 +239,9 @@ func InferenceSandboxOpen(owner orc.ResourceOwner, folders []string) (*Inference
 }
 
 func InferenceSandboxSetFolders(owner orc.ResourceOwner, etag util.Option[string], folders []string) (*InferenceSandbox, *util.HttpError) {
+	if err := InferenceSandboxLease(owner, integratedSandboxDefaultLeaseDuration); err != nil {
+		return nil, err
+	}
 	sandbox, err := integratedSandboxMutate(InferenceSandboxAppName, owner, etag, func(config *IntegratedSandboxConfig) (bool, *util.HttpError) {
 		oldFolders := config.Folders
 		config.Folders = integratedSandboxNormalizeFolders(folders)
@@ -238,7 +251,6 @@ func InferenceSandboxSetFolders(owner orc.ResourceOwner, etag util.Option[string
 		return nil, err
 	}
 
-	_ = InferenceSandboxLease(owner, integratedSandboxDefaultLeaseDuration)
 	if leaseUntil := InferenceSandboxLeaseUntil(owner); leaseUntil.Present {
 		sandbox.LeaseUntil = leaseUntil.Value
 	}
@@ -285,8 +297,12 @@ func integratedSandboxMutate(
 	if err != nil {
 		return nil, err
 	}
+	if !current.Present {
+		didUpdate = true
+	}
 
-	if didUpdate || (current.Present && current.Value.IsDetached()) {
+	needsActivation := current.Present && integratedSandboxNeedsActivation(current.Value)
+	if didUpdate || (current.Present && current.Value.IsDetached()) || needsActivation {
 		validation := integratedSandboxValidateFolders(owner, config.Folders)
 		config.Folders = validation.Folders
 
@@ -309,6 +325,14 @@ func integratedSandboxMutate(
 	} else {
 		return integratedSandboxFromConfiguration(appName, current.Value), nil
 	}
+}
+
+func integratedSandboxNeedsActivation(config controller.IAppRunningConfiguration) bool {
+	if config.IsDetached() {
+		return true
+	}
+	job, ok := controller.JobRetrieve(config.JobId)
+	return !ok || job.Status.State.IsFinal() || job.Status.State == orc.JobStateSuspended
 }
 
 func integratedSandboxFromConfiguration(appName string, config controller.IAppRunningConfiguration) *IntegratedSandbox {
