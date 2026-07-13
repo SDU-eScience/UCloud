@@ -14,6 +14,8 @@ export enum Feature {
     INFERENCE,
 
     INFERENCE_WORKSPACE,
+
+    NEW_TOOLTIPS,
 }
 
 enum Environment {
@@ -90,6 +92,12 @@ const featureMap: Record<string, FeatureConfig> = {
     "inference-workspace": {
         feature: Feature.INFERENCE_WORKSPACE,
         showWithoutFlag: allLocalEnvironments,
+        showWithFlag: allEnvironments,
+    },
+
+    "new-tooltips": {
+        feature: Feature.NEW_TOOLTIPS,
+        showWithoutFlag: allDevEnvironments,
         showWithFlag: allEnvironments,
     }
 };

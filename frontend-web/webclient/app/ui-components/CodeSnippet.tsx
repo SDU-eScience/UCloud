@@ -12,7 +12,7 @@ const Style = injectStyle("code-snippet", k => `
         position: relative;
     }
 
-    ${k} button {
+    ${k} > .code-snippet-copy-button {
         position: absolute;
         top: 11px;
         right: 16px;
@@ -54,7 +54,9 @@ const CodeSnippet: React.FunctionComponent<{
         >
             {code}
         </SyntaxHighlighter>
-        <CopyButton onClick={doCopy} />
+        <div className="code-snippet-copy-button">
+            <CopyButton onClick={doCopy} />
+        </div>
     </div>;
 }
 

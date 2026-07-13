@@ -774,7 +774,16 @@ const ChatMessageNode = React.memo(function ChatMessageNode({message, modelOptio
                     elementHeight={42}
                     matchTriggerWidth={false}
                     showSearchField={modelOptions.length > 8}
-                    trigger={<IconButton tooltip={`Regenerate (used: ${regenerateModelLabel})`} icon="heroArrowPath" onClick={doNothing}/>}
+                    trigger={
+                        <IconButton
+                            tooltip={<>
+                                <div>Regenerate</div>
+                                <div style={{fontStyle: "italic"}}>Used: {regenerateModelLabel}</div>
+                            </>}
+                            icon="heroArrowPath"
+                            onClick={doNothing}
+                        />
+                    }
                     RenderRow={(props) => (
                         <ModelSelectorOption
                             option={props.element}
@@ -785,13 +794,13 @@ const ChatMessageNode = React.memo(function ChatMessageNode({message, modelOptio
                     )}
                 />
                 <Tooltip tooltipContentWidth={240} trigger={<span>{formatResponseDuration(message.startedAt, message.finishedAt)}</span>}>
-                    <div style={{display: "flex", flexDirection: "column", gap: 4}}>
+                    <div style={{display: "flex", flexDirection: "column", gap: 4, textAlign: "left"}}>
                         <span>Time to first token: {formatDuration(message.firstTokenAt > 0 && message.startedAt > 0 ? message.firstTokenAt - message.startedAt : 0)}</span>
                         <span>Output tokens: {message.outputTokens || "Unknown"}</span>
-                        <span>Tokens per second: {formatTokensPerSecond(message.outputTokens, message.firstTokenAt, message.finishedAt)}</span>
                         <span>Finished: {formatTimeOfDay(message.finishedAt)}</span>
                     </div>
                 </Tooltip>
+                <span>{formatTokensPerSecond(message.outputTokens, message.firstTokenAt, message.finishedAt)}</span>
             </Flex>}
         </Flex>
     );
@@ -824,7 +833,7 @@ function formatDuration(ms: number): string {
 
 function formatTokensPerSecond(outputTokens: number, firstTokenAt: number, finishedAt: number): string {
     if (outputTokens <= 0 || firstTokenAt <= 0 || finishedAt <= firstTokenAt) return "Unknown";
-    return `${(outputTokens / ((finishedAt - firstTokenAt) / 1000)).toFixed(1)}/s`;
+    return `${(outputTokens / ((finishedAt - firstTokenAt) / 1000)).toFixed(1)} toks/s`;
 }
 
 const StreamingMarkdownPart = React.memo(function StreamingMarkdownPart({text, streaming}: {text: string; streaming: boolean}): React.ReactNode {
@@ -1959,7 +1968,7 @@ export default function Playground(): React.ReactNode {
     const projectId = useProjectId();
     const previousProjectIdRef = React.useRef(projectId);
 
-    usePage("Inference playground", SidebarTabId.INFERENCE);
+    usePage("Chat", SidebarTabId.INFERENCE);
 
     React.useEffect(() => {
         return () => {

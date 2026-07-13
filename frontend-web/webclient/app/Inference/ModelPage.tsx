@@ -414,7 +414,7 @@ function CopyableEndpoint({value}: {value: string}): React.ReactNode {
 
 function fallbackKeyStats(model: InferenceModel): {label: string; value: string; description?: string}[] {
     return [
-        {label: "Context length", value: model.contextWindow ? model.contextWindow.toLocaleString() : "Not specified"},
+        {label: "Cached multiplier", value: formatMultiplier(model.priceMultiplier.cachedInput)},
         {label: "Input multiplier", value: formatMultiplier(model.priceMultiplier.input)},
         {label: "Output multiplier", value: formatMultiplier(model.priceMultiplier.output)},
     ];

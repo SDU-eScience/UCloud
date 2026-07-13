@@ -745,15 +745,15 @@ function InferenceSubLinks(): React.ReactNode {
 const InferenceSubLinksEntries: LinkInfo[] = [
     {
         to: AppRoutes.inference.models(),
-        text: "Model catalog",
+        text: "Models",
         icon: "heroBuildingStorefront",
         tab: SidebarTabId.INFERENCE,
         defaultHidden: false,
     },
     {
         to: AppRoutes.inference.playground(),
-        text: "Playground",
-        icon: "heroBeaker",
+        text: "Chat",
+        icon: "heroChatBubbleLeft",
         tab: SidebarTabId.INFERENCE,
         defaultHidden: false,
     },
