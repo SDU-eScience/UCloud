@@ -31,6 +31,7 @@ import type {UFile} from "@/UCloud/UFile";
 import {Feature, hasFeature} from "@/Features";
 import {prettyFilePath} from "@/Files/FilePath";
 import CodeSnippet from "@/ui-components/CodeSnippet";
+import {IconName} from "@/ui-components/Icon";
 
 type PlaygroundSession = {
     connectTo: string;
@@ -754,15 +755,7 @@ const ChatMessageNode = React.memo(function ChatMessageNode({message, modelOptio
 
     return (
         <Flex flexDirection="column" gap="4px" width="100%" my={16}>
-            {message.parts.map((part, idx) => {
-                if (part.kind === "thinking") {
-                    return <ThinkingPart key={idx} part={part}/>;
-                }
-                if (part.kind === "tool") {
-                    return <ToolPart key={idx} part={part}/>;
-                }
-                return <StreamingMarkdownPart key={idx} text={part.text} streaming={!responseFinished}/>;
-            })}
+            {renderMessageParts(message.parts, !responseFinished)}
             {!responseFinished ? null : <Flex className={ComposerActionButtonHoverClass} alignItems="center" gap="8px" color="textSecondary" fontSize="12px" flexWrap="wrap">
                 <CopyButton onClick={() => copyToClipboard(message.content)}/>
                 <RichSelect<PlaygroundOption, keyof PlaygroundOption>
@@ -842,7 +835,7 @@ const StreamingMarkdownPart = React.memo(function StreamingMarkdownPart({text, s
 });
 
 const ToolDisplayNames: Record<string, string> = {
-    bash: "Bash",
+    bash: "Shell",
     glob: "Finding files",
     grep: "Searching files",
     read: "Reading file",
@@ -850,12 +843,82 @@ const ToolDisplayNames: Record<string, string> = {
     wikipedia_search: "Searching Wikipedia",
 };
 
+const ToolIcons: Record<string, IconName> = {
+    bash: "heroCommandLine",
+    glob: "heroFolderOpen",
+    grep: "heroMagnifyingGlass",
+    read: "heroDocumentText",
+    web_fetch: "heroGlobeEuropeAfrica",
+    wikipedia_search: "heroBookOpen",
+};
+
+function renderMessageParts(parts: ChatMessagePart[], streaming: boolean): React.ReactNode[] {
+    const result: React.ReactNode[] = [];
+    const orderedParts = [...parts.filter(part => part.kind === "tool"), ...parts.filter(part => part.kind !== "tool")];
+    for (let index = 0; index < orderedParts.length;) {
+        const part = orderedParts[index];
+        if (part.kind === "thinking") {
+            result.push(<ThinkingPart key={index} part={part}/>);
+            index++;
+            continue;
+        }
+        if (part.kind === "tool") {
+            const tools: ChatMessagePart[] = [];
+            while (orderedParts[index]?.kind === "tool") {
+                tools.push(orderedParts[index++]);
+            }
+            result.push(<ToolMenu key={index - tools.length} tools={tools}/>);
+            continue;
+        }
+        result.push(<StreamingMarkdownPart key={index} text={part.text} streaming={streaming}/>);
+        index++;
+    }
+    return result;
+}
+
+function ToolMenu({tools}: {tools: ChatMessagePart[]}): React.ReactNode {
+    const [activeIndex, setActiveIndex] = React.useState(() => tools.findIndex(tool => tool.status === "error"));
+    const activeTool = activeIndex >= 0 ? tools[activeIndex] : null;
+    return <div style={{marginBottom: 16}}>
+        <div style={{display: "flex", flexWrap: "wrap", gap: 6, marginBottom: activeTool ? 6 : 0}}>
+            {tools.map((tool, index) => {
+                const label = toolDisplayName(tool.toolName || tool.summary || "tool");
+                const active = index === activeIndex;
+                return <Tooltip key={index} tooltipContentWidth={180} trigger={
+                    <button
+                        type="button"
+                        aria-label={`Show ${label}`}
+                        aria-pressed={active}
+                        onClick={() => setActiveIndex(prev => prev === index ? -1 : index)}
+                        style={{
+                            padding: "0 6px",
+                            height: 30,
+                            border: "1px solid var(--playground-border, var(--borderColor))",
+                            borderRadius: 7,
+                            background: active ? "var(--playground-active, var(--secondaryMain))" : "var(--playground-surface-raised, var(--dialogToolbar))",
+                            color: "inherit",
+                            cursor: "pointer",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center"
+                        }}
+                    >
+                        {tool.status === "running" ? <UcxSpinner size={16}/> : null }
+                        <Icon name={toolIcon(tool.toolName || tool.summary) as any} size={16}/>
+                    </button>
+                }>{label}</Tooltip>;
+            })}
+        </div>
+        {activeTool ? <ToolPart part={activeTool}/> : null}
+    </div>;
+}
+
 function ToolPart({part}: { part: ChatMessagePart }): React.ReactNode {
-    const [expanded, setExpanded] = React.useState(part.status === "error");
     const statusColor = part.status === "error" ? "var(--errorMain)" : part.status === "running" ? "var(--warningMain)" : "var(--successMain)";
     const label = toolDisplayName(part.toolName || part.summary || "tool");
     const status = toolStatusLabel(part.status);
     const body = (part.body || part.text).trim();
+    const icon = toolIcon(part.toolName || part.summary);
     return (
         <div
             style={{
@@ -863,44 +926,170 @@ function ToolPart({part}: { part: ChatMessagePart }): React.ReactNode {
                 borderRadius: 8,
                 overflow: "hidden",
                 background: "var(--playground-surface-raised, var(--dialogToolbar))",
-                marginBottom: "16px",
+                maxHeight: 300,
             }}
         >
-            <button
-                type="button"
-                onClick={() => setExpanded(v => !v)}
-                style={{
-                    width: "100%",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    padding: "8px 10px",
-                    border: 0,
-                    background: "transparent",
-                    color: "inherit",
-                    cursor: "pointer",
-                    textAlign: "left",
-                }}
-            >
-                <Icon name="heroCommandLine" size={16}/>
+            <div style={{display: "flex", alignItems: "center", gap: 8, padding: "8px 10px"}}>
+                <Icon name={icon as any} size={16}/>
                 <span style={{fontWeight: 600, flexShrink: 0}}>{label}</span>
                 <span style={{width: 8, height: 8, borderRadius: 999, background: statusColor, flexShrink: 0}} />
                 <span style={{color: "var(--textSecondary)", fontSize: 12, whiteSpace: "nowrap"}}>{status}</span>
-                <span style={{marginLeft: "auto"}}><Icon name={expanded ? "heroChevronUp" : "heroChevronDown"} size={14}/></span>
-            </button>
-            {expanded ? (
-                <div
-                    style={{
-                        padding: "0 10px 10px 10px",
-                        color: "var(--textSecondary)",
-                        whiteSpace: "normal",
-                    }}
-                >
-                    {body === "" ? <UcxSpinner /> : <CodeSnippet lang={"text"}>{body}</CodeSnippet>}
-                </div>
-            ) : null}
+            </div>
+            <div
+                style={{
+                    padding: "0 10px 10px 10px",
+                    color: "var(--textSecondary)",
+                    whiteSpace: "normal",
+                    maxHeight: 254,
+                    overflowY: "auto",
+                }}
+            >
+                <ToolPartBody part={part} body={body}/>
+            </div>
         </div>
     );
+}
+
+function ToolPartBody({part, body}: {part: ChatMessagePart; body: string}): React.ReactNode {
+    const output = toolOutput(body);
+    if (part.toolName === "bash") return <BashToolResult command={toolArgument(part)} output={output.text}/>;
+    const argumentsValue = toolArguments(part);
+
+    switch (part.toolName) {
+        case "glob": return <GlobToolResult argumentsValue={argumentsValue} result={output.value}/>;
+        case "grep": return <GrepToolResult argumentsValue={argumentsValue} result={output.value}/>;
+        case "read": return <ReadToolResult argumentsValue={argumentsValue} result={output.value}/>;
+        case "web_fetch": return <WebFetchToolResult argumentsValue={argumentsValue} result={output.value}/>;
+        case "wikipedia_search": return <WikipediaToolResult argumentsValue={argumentsValue} result={output.value}/>;
+        default: return <CodeSnippet lang="json">{JSON.stringify(output.value, null, 2)}</CodeSnippet>;
+    }
+}
+
+function BashToolResult({command, output}: {command: string; output: string}): React.ReactNode {
+    return <div style={{display: "flex", flexDirection: "column", gap: 8}}>
+        {command === "" ? null : <CodeSnippet lang="bash">{`$ ${command}`}</CodeSnippet>}
+        {output === "" ? null : <CodeSnippet lang="text">{output}</CodeSnippet>}
+    </div>;
+}
+
+function GlobToolResult({argumentsValue, result}: {argumentsValue: ToolJson | null; result: ToolJson | null}): React.ReactNode {
+    const matches = result ? stringList(result.matches) : [];
+    return <div style={{display: "flex", flexDirection: "column", gap: 8}}>
+        <ToolFields fields={[{label: "Pattern", value: stringValueFrom(argumentsValue?.pattern)}, {label: "Directory", value: stringValueFrom(argumentsValue?.cwd) || "."}, {label: "Matches", value: String(numberValueFrom(result?.count) ?? matches.length)}]}/>
+        <CodeSnippet lang="text">{matches.join("\n")}</CodeSnippet>
+    </div>;
+}
+
+function GrepToolResult({argumentsValue, result}: {argumentsValue: ToolJson | null; result: ToolJson | null}): React.ReactNode {
+    const matches = result ? jsonList(result.matches) : [];
+    return <div style={{display: "flex", flexDirection: "column", gap: 8}}>
+        <ToolFields fields={[{label: "Pattern", value: stringValueFrom(argumentsValue?.pattern)}, {label: "Path", value: stringValueFrom(argumentsValue?.path) || "."}, {label: "Include", value: stringValueFrom(argumentsValue?.include)}, {label: "Exclude", value: stringValueFrom(argumentsValue?.exclude)}, {label: "Matches", value: String(numberValueFrom(result?.count) ?? matches.length)}]}/>
+        <CodeSnippet lang="text">{matches.map(match => `${stringValueFrom(match.path)}:${numberValueFrom(match.line) ?? 0}: ${stringValueFrom(match.text)}`).join("\n")}</CodeSnippet>
+    </div>;
+}
+
+function ReadToolResult({argumentsValue, result}: {argumentsValue: ToolJson | null; result: ToolJson | null}): React.ReactNode {
+    const entries = result ? stringList(result.entries) : [];
+    const content = result ? stringValueFrom(result.content) : "";
+    const count = result ? (numberValueFrom(result.count) ?? numberValueFrom(result.lines) ?? entries.length) : (numberValueFrom(argumentsValue?.limit) ?? 0);
+    return <div style={{display: "flex", flexDirection: "column", gap: 8}}>
+        <ToolFields fields={[{label: "Path", value: stringValueFrom(result?.path) || stringValueFrom(argumentsValue?.path)}, {label: entries.length > 0 ? "Entries" : "Lines", value: String(count)}, {label: "Offset", value: String(numberValueFrom(argumentsValue?.offset) ?? 1)}]}/>
+        {result ? <CodeSnippet lang="text">{entries.length > 0 ? entries.join("\n") : content}</CodeSnippet> : <UcxSpinner />}
+    </div>;
+}
+
+function WebFetchToolResult({argumentsValue, result}: {argumentsValue: ToolJson | null; result: ToolJson | null}): React.ReactNode {
+    const content = stringValueFrom(result?.content);
+    const format = stringValueFrom(result?.format) || stringValueFrom(argumentsValue?.format) || "markdown";
+    return <div style={{display: "flex", flexDirection: "column", gap: 8}}>
+        <ToolFields fields={[{label: "URL", value: stringValueFrom(result?.url) || stringValueFrom(argumentsValue?.url)}, {label: "Format", value: format}, {label: "Status", value: result ? String(numberValueFrom(result.status) ?? "") : ""}, {label: "Content type", value: stringValueFrom(result?.content_type)}]}/>
+        {result ? (format === "markdown" ? <CodeSnippet lang="markdown">{content}</CodeSnippet> : <CodeSnippet lang="html">{content}</CodeSnippet>) : <UcxSpinner />}
+    </div>;
+}
+
+function WikipediaToolResult({argumentsValue, result}: {argumentsValue: ToolJson | null; result: ToolJson | null}): React.ReactNode {
+    const results = jsonList(result?.results);
+    return <div style={{display: "flex", flexDirection: "column", gap: 8}}>
+        <ToolFields fields={[{label: "Query", value: stringValueFrom(result?.query) || stringValueFrom(argumentsValue?.query)}, {label: "Results", value: String(numberValueFrom(result?.count) ?? numberValueFrom(argumentsValue?.limit) ?? results.length)}]}/>
+        {result ? results.map((item, index) => <div key={index} style={{display: "flex", flexDirection: "column", gap: 2}}>
+            <div>{stringValueFrom(item.title)}</div>
+            <div>{stringValueFrom(item.snippet)}</div>
+        </div>) : <UcxSpinner />}
+    </div>;
+}
+
+function ToolFields({fields}: {fields: {label: string; value: string}[]}): React.ReactNode {
+    return <div style={{display: "flex", flexWrap: "wrap", gap: "4px 12px", fontSize: 12}}>
+        {fields.filter(field => field.value !== "").map(field => <span key={field.label}><strong>{field.label}:</strong> {field.value}</span>)}
+    </div>;
+}
+
+type ToolJson = Record<string, unknown>;
+
+function toolJson(value: string): ToolJson | null {
+    try {
+        const parsed = JSON.parse(value);
+        return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : null;
+    } catch {
+        return null;
+    }
+}
+
+function stringValueFrom(value: unknown): string {
+    return typeof value === "string" ? value : "";
+}
+
+function numberValueFrom(value: unknown): number | null {
+    return typeof value === "number" ? value : null;
+}
+
+function boolValueFrom(value: unknown): boolean {
+    return value === true;
+}
+
+function stringList(value: unknown): string[] {
+    return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+}
+
+function jsonList(value: unknown): ToolJson[] {
+    return Array.isArray(value) ? value.filter((item): item is ToolJson => !!item && typeof item === "object" && !Array.isArray(item)) : [];
+}
+
+function toolArgument(part: ChatMessagePart, key = "command"): string {
+    return stringValueFrom(toolArguments(part)?.[key]);
+}
+
+function toolArguments(part: ChatMessagePart): ToolJson | null {
+    return toolJson(part.text) ?? toolJson(toolSection(part.body, "Arguments:"));
+}
+
+function toolOutput(body: string): {value: ToolJson | null; text: string} {
+    const result = toolResult(body);
+    const envelope = toolJson(result);
+    const stdout = stringValueFrom(envelope?.stdout);
+    return {value: toolJson(stdout) ?? envelope, text: stdout || result};
+}
+
+function toolSection(body: string, marker: string): string {
+    const start = body.indexOf(`${marker}\n`);
+    if (start < 0) return "";
+    const contentStart = start + marker.length + 1;
+    const end = ["Result:\n", "Error:\n"].map(section => body.indexOf(section, contentStart)).filter(index => index >= 0)[0] ?? body.length;
+    return body.slice(contentStart, end).trim();
+}
+
+function toolResult(body: string): string {
+    const resultMarker = "Result:\n";
+    const errorMarker = "Error:\n";
+    const resultStart = body.indexOf(resultMarker);
+    const errorStart = body.indexOf(errorMarker);
+    if (resultStart >= 0) return body.slice(resultStart + resultMarker.length, errorStart >= 0 ? errorStart : undefined).trim();
+    if (errorStart >= 0) return body.slice(errorStart + errorMarker.length).trim();
+    return "";
+}
+
+function toolIcon(name: string): IconName {
+    return ToolIcons[name.trim()] ?? "heroCodeBracket";
 }
 
 function toolDisplayName(name: string): string {
@@ -1097,11 +1286,17 @@ function isEscaped(text: string, idx: number): boolean {
 
 function ThinkingPart({part}: { part: ChatMessagePart }): React.ReactNode {
     const [expanded, setExpanded] = React.useState(false);
+    const contentRef = React.useRef<HTMLDivElement>(null);
     const summary = part.summary.trim();
 
     React.useEffect(() => {
         setExpanded(part.open);
     }, [part.open]);
+
+    React.useLayoutEffect(() => {
+        const content = contentRef.current;
+        if (expanded && content) content.scrollTop = content.scrollHeight;
+    }, [expanded, part.body]);
 
     return (
         <div
@@ -1110,7 +1305,8 @@ function ThinkingPart({part}: { part: ChatMessagePart }): React.ReactNode {
                 borderRadius: 8,
                 overflow: "hidden",
                 background: "var(--playground-surface-raised, var(--dialogToolbar))",
-                marginBottom: "16px"
+                marginBottom: "16px",
+                maxHeight: 300,
             }}
         >
             <button
@@ -1145,16 +1341,20 @@ function ThinkingPart({part}: { part: ChatMessagePart }): React.ReactNode {
             </button>
             {expanded ? (
                 <div
+                    ref={contentRef}
                     style={{
                         padding: "0 10px 10px 10px",
                         color: "var(--textSecondary)",
-                        whiteSpace: "normal",
+                        whiteSpace: "pre-wrap",
+                        overflowWrap: "anywhere",
+                        maxHeight: 254,
+                        overflowY: "auto",
                     }}
                 >
                     {part.body.trim() === "" ? (
                         <UcxSpinner />
                     ) : (
-                        <MarkdownDocument text={part.body}/>
+                        part.body
                     )}
                 </div>
             ) : null}

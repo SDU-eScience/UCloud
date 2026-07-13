@@ -1300,18 +1300,31 @@ func (app *InferencePlaygroundApp) appendThreadAssistantPart(threadId string, as
 }
 
 func playgroundUpsertToolPart(parts []playgroundChatMessagePart, part playgroundChatMessagePart) []playgroundChatMessagePart {
-	if part.Kind != "tool" || part.Status == "running" {
+	if part.Kind != "tool" {
 		return append(parts, part)
 	}
-	for i := len(parts) - 1; i >= 0; i-- {
-		existing := parts[i]
-		if existing.Kind == "tool" && existing.Status == "running" && existing.ToolName == part.ToolName && existing.Text == part.Text {
-			updated := slices.Clone(parts)
-			updated[i] = part
-			return updated
+	if part.Status != "running" {
+		for i := len(parts) - 1; i >= 0; i-- {
+			existing := parts[i]
+			if existing.Kind == "tool" && existing.Status == "running" && existing.ToolName == part.ToolName && existing.Text == part.Text {
+				updated := slices.Clone(parts)
+				updated[i] = part
+				return updated
+			}
 		}
 	}
-	return append(parts, part)
+	insertAt := len(parts)
+	for i, existing := range parts {
+		if existing.Kind != "tool" {
+			insertAt = i
+			break
+		}
+	}
+	updated := make([]playgroundChatMessagePart, 0, len(parts)+1)
+	updated = append(updated, parts[:insertAt]...)
+	updated = append(updated, part)
+	updated = append(updated, parts[insertAt:]...)
+	return updated
 }
 
 func inferenceChatUsageAdd(a InferenceChatUsage, b InferenceChatUsage) InferenceChatUsage {
