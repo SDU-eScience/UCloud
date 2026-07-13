@@ -4,12 +4,16 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"math"
+	"math/bits"
 	"net/http"
 	"runtime"
 	"slices"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -36,12 +40,55 @@ var inferenceGlobals struct {
 	Product             apm.ProductV2
 }
 
+var inferenceUsageFlushMu sync.Mutex
+var inferenceUsageWake = make(chan struct{}, 1)
+
+var inferenceAdmission = struct {
+	sync.Mutex
+	Total  int
+	Owners map[string]int
+}{Owners: map[string]int{}}
+
+type inferenceUsageRow struct {
+	Owner         string
+	Scope         string
+	Usage         int64
+	ReportedUsage int64
+}
+
+const inferenceMaxConcurrent = 128
+const inferenceMaxConcurrentPerOwner = 8
+
+func inferenceAcquire(owner apm.WalletOwner) (func(), *util.HttpError) {
+	ownerRef := owner.Reference()
+	inferenceAdmission.Lock()
+	defer inferenceAdmission.Unlock()
+	if inferenceAdmission.Total >= inferenceMaxConcurrent || inferenceAdmission.Owners[ownerRef] >= inferenceMaxConcurrentPerOwner {
+		return nil, util.HttpErr(http.StatusTooManyRequests, "too many concurrent inference requests")
+	}
+	inferenceAdmission.Total++
+	inferenceAdmission.Owners[ownerRef]++
+	return func() {
+		inferenceAdmission.Lock()
+		inferenceAdmission.Total--
+		inferenceAdmission.Owners[ownerRef]--
+		if inferenceAdmission.Owners[ownerRef] == 0 {
+			delete(inferenceAdmission.Owners, ownerRef)
+		}
+		inferenceAdmission.Unlock()
+	}, nil
+}
+
 const (
 	inferenceDevelopmentProviderLocalAI = "localai"
 
 	// Fallback accounting when image-generation usage is missing from backend responses.
 	// Tokens are billed proportionally to generated megapixels (1 megapixel = 1,000,000 pixels).
 	inferenceImageGenerationTokensPerMegaPixel = 1000.0
+	inferenceMaxJSONRequestBytes               = 4 << 20
+	inferenceMaxTranscriptionRequestBytes      = 64 << 20
+	inferenceRequestTimeout                    = 30 * time.Minute
+	inferenceStreamWriteTimeout                = 30 * time.Second
 )
 
 type inferenceDiscoveredModel struct {
@@ -250,7 +297,6 @@ func Init() {
 	})
 
 	orcapi.InferenceUpdateBenchmarksProvider.Handler(func(info rpc.RequestInfo, request orcapi.InferenceUpdateBenchmarksProviderRequest) (util.Empty, *util.HttpError) {
-		_ = info
 		if !inferenceIsAdminOwner(request.Owner) {
 			return util.Empty{}, util.HttpErr(http.StatusForbidden, "forbidden")
 		}
@@ -259,8 +305,6 @@ func Init() {
 		}
 		return util.Empty{}, nil
 	})
-
-	inferenceGlobals.Ready.Store(true)
 
 	inferenceGlobals.Product = apm.ProductV2{
 		Type: apm.ProductTypeCInference,
@@ -284,6 +328,7 @@ func Init() {
 	}
 
 	controller.ProductsRegister([]apm.ProductV2{inferenceGlobals.Product})
+	go inferenceUsageFlushLoop()
 
 	authority := fmt.Sprintf("chat%s", shared.ServiceConfig.Compute.Web.Suffix) // TODO Change for prod
 	AttachmentInit()
@@ -296,6 +341,10 @@ func Init() {
 	})
 
 	controller.Mux.HandleFunc(authority+"/v1/models", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
 		owner, httpErr := inferenceAuthenticateRequest(r)
 		if httpErr != nil {
 			http.Error(w, httpErr.Why, httpErr.StatusCode)
@@ -306,6 +355,10 @@ func Init() {
 	})
 
 	controller.Mux.HandleFunc(authority+"/v1/models/", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
 		owner, httpErr := inferenceAuthenticateRequest(r)
 		if httpErr != nil {
 			http.Error(w, httpErr.Why, httpErr.StatusCode)
@@ -316,39 +369,30 @@ func Init() {
 	})
 
 	controller.Mux.HandleFunc(authority+"/v1/chat/completions", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if r.ContentLength > inferenceMaxJSONRequestBytes {
+			http.Error(w, "request body too large", http.StatusRequestEntityTooLarge)
+			return
+		}
 		apiKeyOwner, httpErr := inferenceAuthenticateRequest(r)
 		if httpErr != nil {
 			http.Error(w, httpErr.Why, httpErr.StatusCode)
 			return
 		}
 
-		body, err := io.ReadAll(r.Body) // TODO limit
-		if err != nil {
-			log.Info("fail 1: %v", err)
-			http.Error(w, "invalid request", http.StatusBadRequest)
-			return
-		}
-
 		var request InferenceChatRequest
-		if err := json.Unmarshal(body, &request); err != nil {
-			log.Info("fail 2: %v", err)
-			log.Info("body was: %s", string(body))
-			http.Error(w, "invalid request", http.StatusBadRequest)
+		if !inferenceDecodeJSON(w, r, inferenceMaxJSONRequestBytes, &request) {
 			return
 		}
-
-		log.Info("body: %s", string(body))
+		ctx, cancel := context.WithTimeout(r.Context(), inferenceRequestTimeout)
+		defer cancel()
 
 		if request.Stream {
-			flusher, ok := w.(http.Flusher)
-			if !ok {
-				http.Error(w, "streaming unsupported", http.StatusInternalServerError)
-				return
-			}
-
-			chunks, httpErr := InferenceChatStreaming(apiKeyOwner, request)
+			chunks, httpErr := InferenceChatStreaming(ctx, apiKeyOwner, request)
 			if httpErr != nil {
-				log.Info("fail 3: %v", httpErr)
 				http.Error(w, httpErr.Why, httpErr.StatusCode)
 				return
 			}
@@ -362,26 +406,25 @@ func Init() {
 				if err != nil {
 					continue
 				}
-
-				_, _ = w.Write([]byte("data: "))
-				_, _ = w.Write(chunkData)
-				_, _ = w.Write([]byte("\n\n"))
-				flusher.Flush()
+				if err := inferenceWriteSSE(w, append(append([]byte("data: "), chunkData...), '\n', '\n')); err != nil {
+					cancel()
+					for range chunks {
+					}
+					return
+				}
 			}
 
-			_, _ = w.Write([]byte("data: [DONE]\n\n"))
-			flusher.Flush()
+			_ = inferenceWriteSSE(w, []byte("data: [DONE]\n\n"))
 			return
 		}
 
-		resp, httpErr := InferenceChat(apiKeyOwner, request)
+		resp, httpErr := InferenceChat(ctx, apiKeyOwner, request)
 		if httpErr != nil {
 			http.Error(w, httpErr.Why, httpErr.StatusCode)
 			return
 		}
 		respData, err := json.Marshal(resp)
 		if err != nil {
-			log.Info("fail 4: %v", err)
 			http.Error(w, "invalid request", http.StatusBadRequest)
 			return
 		}
@@ -392,36 +435,28 @@ func Init() {
 	})
 
 	controller.Mux.HandleFunc(authority+"/v1/responses", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if r.ContentLength > inferenceMaxJSONRequestBytes {
+			http.Error(w, "request body too large", http.StatusRequestEntityTooLarge)
+			return
+		}
 		apiKeyOwner, httpErr := inferenceAuthenticateRequest(r)
 		if httpErr != nil {
 			http.Error(w, httpErr.Why, httpErr.StatusCode)
 			return
 		}
-		if r.Method != http.MethodPost {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-
-		body, err := io.ReadAll(r.Body)
-		if err != nil {
-			http.Error(w, "invalid request", http.StatusBadRequest)
-			return
-		}
-
 		var request OaiResponseCreateRequest
-		if err := json.Unmarshal(body, &request); err != nil {
-			http.Error(w, "invalid request", http.StatusBadRequest)
+		if !inferenceDecodeJSON(w, r, inferenceMaxJSONRequestBytes, &request) {
 			return
 		}
+		ctx, cancel := context.WithTimeout(r.Context(), inferenceRequestTimeout)
+		defer cancel()
 
 		if request.Stream {
-			flusher, ok := w.(http.Flusher)
-			if !ok {
-				http.Error(w, "streaming unsupported", http.StatusInternalServerError)
-				return
-			}
-
-			events, httpErr := InferenceResponseCreateStreaming(apiKeyOwner, request)
+			events, httpErr := InferenceResponseCreateStreaming(ctx, apiKeyOwner, request)
 			if httpErr != nil {
 				http.Error(w, httpErr.Why, httpErr.StatusCode)
 				return
@@ -437,18 +472,23 @@ func Init() {
 					continue
 				}
 
-				_, _ = w.Write([]byte("event: "))
-				_, _ = w.Write([]byte(event.Type))
-				_, _ = w.Write([]byte("\n"))
-				_, _ = w.Write([]byte("data: "))
-				_, _ = w.Write(data)
-				_, _ = w.Write([]byte("\n\n"))
-				flusher.Flush()
+				payload := make([]byte, 0, len(event.Type)+len(data)+16)
+				payload = append(payload, "event: "...)
+				payload = append(payload, event.Type...)
+				payload = append(payload, "\ndata: "...)
+				payload = append(payload, data...)
+				payload = append(payload, '\n', '\n')
+				if err := inferenceWriteSSE(w, payload); err != nil {
+					cancel()
+					for range events {
+					}
+					return
+				}
 			}
 			return
 		}
 
-		resp, httpErr := InferenceResponseCreate(apiKeyOwner, request)
+		resp, httpErr := InferenceResponseCreate(ctx, apiKeyOwner, request)
 		if httpErr != nil {
 			http.Error(w, httpErr.Why, httpErr.StatusCode)
 			return
@@ -524,26 +564,30 @@ func Init() {
 	})
 
 	controller.Mux.HandleFunc(authority+"/v1/audio/transcriptions", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if r.ContentLength > inferenceMaxTranscriptionRequestBytes {
+			http.Error(w, "request body too large", http.StatusRequestEntityTooLarge)
+			return
+		}
 		apiKeyOwner, httpErr := inferenceAuthenticateRequest(r)
 		if httpErr != nil {
 			http.Error(w, httpErr.Why, httpErr.StatusCode)
 			return
 		}
 
-		request, httpErr := InferenceTranscriptionParseRequest(r)
+		request, httpErr := InferenceTranscriptionParseRequest(w, r)
 		if httpErr != nil {
 			http.Error(w, httpErr.Why, httpErr.StatusCode)
 			return
 		}
 
+		ctx, cancel := context.WithTimeout(r.Context(), inferenceRequestTimeout)
+		defer cancel()
 		if request.Stream {
-			flusher, ok := w.(http.Flusher)
-			if !ok {
-				http.Error(w, "streaming unsupported", http.StatusInternalServerError)
-				return
-			}
-
-			events, httpErr := InferenceTranscribeStreaming(apiKeyOwner, request)
+			events, httpErr := InferenceTranscribeStreaming(ctx, apiKeyOwner, request)
 			if httpErr != nil {
 				http.Error(w, httpErr.Why, httpErr.StatusCode)
 				return
@@ -559,18 +603,19 @@ func Init() {
 					continue
 				}
 
-				_, _ = w.Write([]byte("data: "))
-				_, _ = w.Write(data)
-				_, _ = w.Write([]byte("\n\n"))
-				flusher.Flush()
+				if err := inferenceWriteSSE(w, append(append([]byte("data: "), data...), '\n', '\n')); err != nil {
+					cancel()
+					for range events {
+					}
+					return
+				}
 			}
 
-			_, _ = w.Write([]byte("data: [DONE]\n\n"))
-			flusher.Flush()
+			_ = inferenceWriteSSE(w, []byte("data: [DONE]\n\n"))
 			return
 		}
 
-		resp, httpErr := InferenceTranscribe(apiKeyOwner, request)
+		resp, httpErr := InferenceTranscribe(ctx, apiKeyOwner, request)
 		if httpErr != nil {
 			http.Error(w, httpErr.Why, httpErr.StatusCode)
 			return
@@ -591,32 +636,29 @@ func Init() {
 	})
 
 	controller.Mux.HandleFunc(authority+"/v1/images/generations", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if r.ContentLength > inferenceMaxJSONRequestBytes {
+			http.Error(w, "request body too large", http.StatusRequestEntityTooLarge)
+			return
+		}
 		apiKeyOwner, httpErr := inferenceAuthenticateRequest(r)
 		if httpErr != nil {
 			http.Error(w, httpErr.Why, httpErr.StatusCode)
 			return
 		}
 
-		requestBody, err := io.ReadAll(r.Body)
-		if err != nil {
-			http.Error(w, "invalid request", http.StatusBadRequest)
-			return
-		}
-
 		var request InferenceImageGenerationRequest
-		if err := json.Unmarshal(requestBody, &request); err != nil {
-			http.Error(w, "invalid request", http.StatusBadRequest)
+		if !inferenceDecodeJSON(w, r, inferenceMaxJSONRequestBytes, &request) {
 			return
 		}
+		ctx, cancel := context.WithTimeout(r.Context(), inferenceRequestTimeout)
+		defer cancel()
 
 		if request.Stream.GetOrDefault(false) {
-			flusher, ok := w.(http.Flusher)
-			if !ok {
-				http.Error(w, "streaming unsupported", http.StatusInternalServerError)
-				return
-			}
-
-			events, httpErr := InferenceGenerateImageStreaming(apiKeyOwner, request)
+			events, httpErr := InferenceGenerateImageStreaming(ctx, apiKeyOwner, request)
 			if httpErr != nil {
 				http.Error(w, httpErr.Why, httpErr.StatusCode)
 				return
@@ -632,18 +674,19 @@ func Init() {
 					continue
 				}
 
-				_, _ = w.Write([]byte("data: "))
-				_, _ = w.Write(data)
-				_, _ = w.Write([]byte("\n\n"))
-				flusher.Flush()
+				if err := inferenceWriteSSE(w, append(append([]byte("data: "), data...), '\n', '\n')); err != nil {
+					cancel()
+					for range events {
+					}
+					return
+				}
 			}
 
-			_, _ = w.Write([]byte("data: [DONE]\n\n"))
-			flusher.Flush()
+			_ = inferenceWriteSSE(w, []byte("data: [DONE]\n\n"))
 			return
 		}
 
-		respData, httpErr := inferenceGenerateImageResponse(apiKeyOwner, request)
+		respData, httpErr := inferenceGenerateImageResponse(ctx, apiKeyOwner, request)
 		if httpErr != nil {
 			http.Error(w, httpErr.Why, httpErr.StatusCode)
 			return
@@ -653,6 +696,7 @@ func Init() {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write(respData)
 	})
+	inferenceGlobals.Ready.Store(true)
 }
 
 func inferenceIsAdminOwner(owner orcapi.ResourceOwner) bool {
@@ -664,8 +708,46 @@ func inferenceIsAdminOwner(owner orcapi.ResourceOwner) bool {
 
 func inferenceAuthenticateRequest(r *http.Request) (apm.WalletOwner, *util.HttpError) {
 	authHeader := r.Header.Get("Authorization")
-	apiKey, _ := strings.CutPrefix(authHeader, "Bearer ")
+	apiKey, ok := strings.CutPrefix(authHeader, "Bearer ")
+	if !ok || apiKey == "" {
+		return apm.WalletOwner{}, util.HttpErr(http.StatusForbidden, "invalid key")
+	}
 	return inferenceApiKeyValidate(apiKey)
+}
+
+func inferenceDecodeJSON(w http.ResponseWriter, r *http.Request, limit int64, dst any) bool {
+	if r.ContentLength > limit {
+		http.Error(w, "request body too large", http.StatusRequestEntityTooLarge)
+		return false
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, limit)
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(dst); err != nil {
+		var tooLarge *http.MaxBytesError
+		if errors.As(err, &tooLarge) {
+			http.Error(w, "request body too large", http.StatusRequestEntityTooLarge)
+		} else {
+			http.Error(w, "invalid request", http.StatusBadRequest)
+		}
+		return false
+	}
+	var trailing any
+	if err := decoder.Decode(&trailing); err != io.EOF {
+		http.Error(w, "invalid request", http.StatusBadRequest)
+		return false
+	}
+	return true
+}
+
+func inferenceWriteSSE(w http.ResponseWriter, payload []byte) error {
+	controller := http.NewResponseController(w)
+	if err := controller.SetWriteDeadline(time.Now().Add(inferenceStreamWriteTimeout)); err != nil && !errors.Is(err, http.ErrNotSupported) {
+		return err
+	}
+	if _, err := w.Write(payload); err != nil {
+		return err
+	}
+	return controller.Flush()
 }
 
 func inferenceProxyModelsRequest(w http.ResponseWriter, r *http.Request, owner apm.WalletOwner) {
@@ -700,9 +782,6 @@ func inferenceProxyModelsRequest(w http.ResponseWriter, r *http.Request, owner a
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(respData)
 }
-
-// Development mode initializer code (LocalAI)
-// =====================================================================================================================
 
 type inferenceLocalAIApplyRequest struct {
 	Id   string `json:"id,omitempty"`
@@ -741,9 +820,13 @@ func inferenceDiscoverModelsFromEndpoint(base string, availableTo []string) {
 		return
 	}
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(io.LimitReader(resp.Body, inferenceMaxJSONRequestBytes+1))
 	if err != nil {
 		log.Warn("Could not read inference model discovery response from %s: %v", base, err)
+		return
+	}
+	if len(body) > inferenceMaxJSONRequestBytes {
+		log.Warn("Inference model discovery response from %s exceeded the size limit", base)
 		return
 	}
 
@@ -833,7 +916,9 @@ func inferenceDiscoverDynamoModels() {
 		return
 	}
 
-	services, err := shared.K8sClient.CoreV1().Services(namespace).List(context.Background(), metav1.ListOptions{})
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	services, err := shared.K8sClient.CoreV1().Services(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		log.Warn("Could not list Dynamo inference services in namespace %s: %v", namespace, err)
 		return
@@ -872,8 +957,9 @@ func inferenceApplyLocalAIFallbackModels(base string, capability string, candida
 }
 
 func inferenceWaitForModelEndpoint(endpoint string) error {
+	client := http.Client{Timeout: 15 * time.Second}
 	for i := 0; i < 60; i++ {
-		resp, err := http.Get(endpoint)
+		resp, err := client.Get(endpoint)
 		if err == nil {
 			_ = resp.Body.Close()
 			if resp.StatusCode >= 200 && resp.StatusCode < 500 {
@@ -888,6 +974,7 @@ func inferenceWaitForModelEndpoint(endpoint string) error {
 }
 
 func inferenceLocalAIApplyModel(base string, modelId string) error {
+	client := http.Client{Timeout: 30 * time.Second}
 	requestVariants := []inferenceLocalAIApplyRequest{
 		{Id: modelId},
 		{Name: modelId},
@@ -895,7 +982,7 @@ func inferenceLocalAIApplyModel(base string, modelId string) error {
 
 	for _, request := range requestVariants {
 		payload, _ := json.Marshal(request)
-		resp, err := http.Post(
+		resp, err := client.Post(
 			fmt.Sprintf("%s/models/apply", strings.TrimRight(base, "/")),
 			"application/json",
 			bytes.NewBuffer(payload),
@@ -950,159 +1037,131 @@ func inferenceReportUsage(owner apm.WalletOwner, model InferenceModel, cachedTok
 		outputTokens = 0
 	}
 
-	usageNonNormalized := cachedTokens*model.PriceMultiplier.CachedInput + inputTokens*model.PriceMultiplier.Input + outputTokens*model.PriceMultiplier.Output
-	usage := usageNonNormalized / 1000
-	if usage == 0 && usageNonNormalized > 0 {
-		usage = 1
-	}
+	usageNonNormalized := inferenceUsageMultiply(cachedTokens, model.PriceMultiplier.CachedInput)
+	usageNonNormalized = inferenceUsageAdd(usageNonNormalized, inferenceUsageMultiply(inputTokens, model.PriceMultiplier.Input))
+	usageNonNormalized = inferenceUsageAdd(usageNonNormalized, inferenceUsageMultiply(outputTokens, model.PriceMultiplier.Output))
+	usage := inferenceNormalizeUsage(usageNonNormalized)
 
 	metricInferenceCachedInputTokens.WithLabelValues(model.Name).Add(float64(cachedTokens))
 	metricInferenceInputTokens.WithLabelValues(model.Name).Add(float64(inputTokens))
 	metricInferenceOutputTokens.WithLabelValues(model.Name).Add(float64(outputTokens))
 	metricInferenceRequests.WithLabelValues(model.Name).Inc()
 
-	_, _ = apm.ReportUsage.Invoke(fnd.BulkRequest[apm.ReportUsageRequest]{
-		Items: []apm.ReportUsageRequest{
-			{
-				Owner:         owner,
-				IsDeltaCharge: true,
-				CategoryIdV2: apm.ProductCategoryIdV2{
-					Name:     inferenceGlobals.Product.Category.Name,
-					Provider: inferenceGlobals.Product.Category.Provider,
-				},
-				Usage:       int64(usage),
-				Description: apm.ChargeDescription{},
-			},
-		},
+	if usage == 0 {
+		return
+	}
+
+	scope := fmt.Sprintf("inference-%s-%s-%s", inferenceGlobals.Product.Category.Provider, inferenceGlobals.Product.Category.Name, util.SecureToken())
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				insert into inference_usage(owner, scope, usage)
+				values (:owner, :scope, :usage)
+				on conflict (owner) do update set
+					usage = case
+						when inference_usage.usage > 9223372036854775807 - excluded.usage then 9223372036854775807
+						else inference_usage.usage + excluded.usage
+					end,
+					updated_at = now()
+			`,
+			db.Params{"owner": owner.Reference(), "scope": scope, "usage": usage},
+		)
 	})
+	select {
+	case inferenceUsageWake <- struct{}{}:
+	default:
+	}
+}
+
+func inferenceUsageMultiply(tokens int, multiplier int) int64 {
+	if tokens <= 0 || multiplier <= 0 {
+		return 0
+	}
+	high, low := bits.Mul64(uint64(tokens), uint64(multiplier))
+	if high != 0 || low > math.MaxInt64 {
+		return math.MaxInt64
+	}
+	return int64(low)
+}
+
+func inferenceUsageAdd(a int64, b int64) int64 {
+	if a > math.MaxInt64-b {
+		return math.MaxInt64
+	}
+	return a + b
+}
+
+func inferenceNormalizeUsage(usage int64) int64 {
+	if usage <= 0 {
+		return 0
+	}
+	result := usage / 1000
+	if usage%1000 != 0 {
+		result++
+	}
+	return result
+}
+
+func inferenceUsageFlushLoop() {
+	inferenceFlushUsage()
+	ticker := time.NewTicker(10 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+		case <-inferenceUsageWake:
+		}
+		inferenceFlushUsage()
+	}
+}
+
+func inferenceFlushUsage() {
+	inferenceUsageFlushMu.Lock()
+	defer inferenceUsageFlushMu.Unlock()
+
+	rows := db.NewTx(func(tx *db.Transaction) []inferenceUsageRow {
+		return db.Select[inferenceUsageRow](
+			tx,
+			`select owner, scope, usage, reported_usage from inference_usage where usage > reported_usage order by owner`,
+			db.Params{},
+		)
+	})
+	for _, row := range rows {
+		owner := apm.WalletOwnerFromReference(row.Owner)
+		if row.Owner == "" || (owner.Username == "" && owner.ProjectId == "") {
+			log.Warn("Could not report inference usage for invalid owner reference")
+			continue
+		}
+		_, httpErr := apm.ReportUsage.Invoke(fnd.BulkRequest[apm.ReportUsageRequest]{Items: []apm.ReportUsageRequest{{
+			Owner:         owner,
+			IsDeltaCharge: false,
+			CategoryIdV2: apm.ProductCategoryIdV2{
+				Name:     inferenceGlobals.Product.Category.Name,
+				Provider: inferenceGlobals.Product.Category.Provider,
+			},
+			Usage: row.Usage,
+			Description: apm.ChargeDescription{
+				Scope: util.OptValue(row.Scope),
+			},
+		}}})
+		if httpErr != nil {
+			log.Warn("Could not report inference usage: owner=%s usage=%d err=%v", row.Owner, row.Usage, httpErr)
+			continue
+		}
+		db.NewTx0(func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`update inference_usage set reported_usage = greatest(reported_usage, :usage) where owner = :owner`,
+				db.Params{"owner": row.Owner, "usage": row.Usage},
+			)
+		})
+	}
 }
 
 func inferenceIsLocked(owner apm.WalletOwner) bool {
 	return controller.WalletIsLocked(owner, inferenceGlobals.Product.Category.Name).Locked
 }
-
-// API tokens
-// =====================================================================================================================
-
-var inferenceApiKeysCache = util.NewCache[string, string](1 * time.Hour)
-var inferenceTokenIdToKey = util.NewCache[string, string](1 * time.Hour)
-
-func inferenceApiKeyValidate(key string) (apm.WalletOwner, *util.HttpError) {
-	tokenId, secret, ok := inferenceParseToken(key)
-	if !ok {
-		return apm.WalletOwner{}, util.HttpErr(http.StatusForbidden, "invalid key")
-	}
-
-	ownerRef, ok := inferenceApiKeysCache.Get(key, func() (string, error) {
-		type rowType struct {
-			Owner     string
-			TokenHash []byte
-			TokenSalt []byte
-		}
-		row, ok := db.NewTx2(func(tx *db.Transaction) (rowType, bool) {
-			return db.Get[rowType](
-				tx,
-				`
-					select owner, token_hash, token_salt
-					from inference_api_keys
-					where token_id = :token_id and now() <= expires_at
-				`,
-				db.Params{
-					"token_id": tokenId,
-				},
-			)
-		})
-
-		if !ok || !util.CheckPassword(row.TokenHash, row.TokenSalt, secret) {
-			return "", util.HttpErr(http.StatusForbidden, "invalid key").AsError()
-		}
-
-		db.NewTx0(func(tx *db.Transaction) {
-			db.Exec(
-				tx,
-				`update inference_api_keys set last_used_at = now() where token_id = :token_id`,
-				db.Params{
-					"token_id": tokenId,
-				},
-			)
-		})
-
-		if !ok {
-			return "", util.HttpErr(http.StatusForbidden, "invalid key").AsError()
-		} else {
-			inferenceTokenIdToKey.Set(tokenId, key)
-			return row.Owner, nil
-		}
-	})
-
-	if !ok {
-		return apm.WalletOwner{}, util.HttpErr(http.StatusForbidden, "invalid key")
-	}
-
-	inferenceTokenIdToKey.Set(tokenId, key)
-
-	owner := apm.WalletOwnerFromReference(ownerRef)
-	if controller.WalletIsLocked(owner, inferenceGlobals.Product.Category.Name).Locked {
-		return apm.WalletOwner{}, util.HttpErr(http.StatusPaymentRequired, "no more resources available")
-	} else {
-		return owner, nil
-	}
-}
-
-func InitApiTokens() controller.ApiTokenService {
-	return controller.ApiTokenService{
-		Create:          inferenceCreateApiToken,
-		Revoke:          inferenceRevokeApiToken,
-		RetrieveOptions: inferenceRetrieveApiTokenOptions,
-	}
-}
-
-func inferenceCreateApiToken(info rpc.RequestInfo, request orcapi.ApiToken) (orcapi.ApiTokenStatus, *util.HttpError) {
-	_ = info
-
-	if !inferenceGlobals.Ready.Load() {
-		return orcapi.ApiTokenStatus{}, util.HttpErr(http.StatusServiceUnavailable, "inference service is not available")
-	}
-
-	if request.Specification.ExpiresAt.Time().Before(time.Now()) {
-		return orcapi.ApiTokenStatus{}, util.HttpErr(http.StatusBadRequest, "requested token has already expired")
-	}
-
-	if err := inferenceValidateRequestedPermissions(request.Specification.RequestedPermissions); err != nil {
-		return orcapi.ApiTokenStatus{}, err
-	}
-
-	secret := util.SecureToken()
-	hashedToken := util.HashPassword(secret, util.GenSalt())
-
-	db.NewTx0(func(tx *db.Transaction) {
-		db.Exec(
-			tx,
-			`
-				insert into inference_api_keys(token_id, owner, token_hash, token_salt, expires_at)
-				values (:token_id, :owner, :token_hash, :token_salt, :expires_at)
-				on conflict (token_id) do update
-				set
-					owner = excluded.owner,
-					token_hash = excluded.token_hash,
-					token_salt = excluded.token_salt,
-					expires_at = excluded.expires_at
-			`,
-			db.Params{
-				"token_id":   request.Id,
-				"owner":      request.Owner.Project.GetOrDefault(request.Owner.CreatedBy),
-				"token_hash": hashedToken.HashedPassword,
-				"token_salt": hashedToken.Salt,
-				"expires_at": request.Specification.ExpiresAt.Time(),
-			},
-		)
-	})
-
-	status := orcapi.ApiTokenStatus{Server: inferenceServerBase()}
-	status.Token.Set(fmt.Sprintf("uci-%s-%s", request.Id, secret))
-	return status, nil
-}
-
 func inferenceServerBase() string {
 	scheme, _, ok := strings.Cut(cfg.Provider.Hosts.SelfPublic.ToURL(), "://")
 	if !ok {
@@ -1110,77 +1169,6 @@ func inferenceServerBase() string {
 	}
 
 	return fmt.Sprintf("%s://chat%s/v1", scheme, shared.ServiceConfig.Compute.Web.Suffix)
-}
-
-func inferenceParseToken(raw string) (tokenId string, secret string, ok bool) {
-	payload, hasPrefix := strings.CutPrefix(raw, "uci-")
-	if !hasPrefix {
-		return "", "", false
-	}
-
-	tokenId, secret, ok = strings.Cut(payload, "-")
-	if !ok || tokenId == "" || secret == "" {
-		return "", "", false
-	}
-
-	return tokenId, secret, true
-}
-
-func inferenceValidateRequestedPermissions(perms []orcapi.ApiTokenPermission) *util.HttpError {
-	for _, perm := range perms {
-		if perm.Name != "inference" {
-			return util.HttpErr(
-				http.StatusBadRequest,
-				"invalid token requested, %s/%s is not available",
-				perm.Name,
-				perm.Action,
-			)
-		}
-	}
-
-	return nil
-}
-
-func inferenceRevokeApiToken(info rpc.RequestInfo, request fnd.FindByStringId) (util.Empty, *util.HttpError) {
-	log.Info("Revoking inference API token: tokenId=%s user=%s", request.Id, info.Actor.Username)
-
-	db.NewTx0(func(tx *db.Transaction) {
-		db.Exec(
-			tx,
-			`
-			delete from inference_api_keys where token_id = :token_id
-		    `,
-			db.Params{
-				"token_id": request.Id,
-			},
-		)
-	})
-
-	if cacheKey, ok := inferenceTokenIdToKey.GetNow(request.Id); ok {
-		inferenceApiKeysCache.Invalidate(cacheKey)
-	}
-
-	inferenceTokenIdToKey.Invalidate(request.Id)
-
-	return util.Empty{}, nil
-}
-
-func inferenceRetrieveApiTokenOptions(info rpc.RequestInfo, request util.Empty) (orcapi.ApiTokenOptions, *util.HttpError) {
-	_ = info
-	_ = request
-
-	return orcapi.ApiTokenOptions{
-		AvailablePermissions: []orcapi.ApiTokenPermissionSpecification{
-			{
-				Name:        "inference",
-				Title:       "Inference",
-				Description: "API token required for inference services",
-				Actions: map[string]string{
-					"use": "Use",
-				},
-			},
-		},
-	}, nil
 }
 
 func inferencePageToOrc(page *InferenceModelPage) *orcapi.InferenceModelPage {

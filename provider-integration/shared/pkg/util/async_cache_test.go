@@ -125,3 +125,21 @@ func TestFailure(t *testing.T) {
 		t.Errorf("Should have succeeded but got back %v", res)
 	}
 }
+
+func TestImmediateFailure(t *testing.T) {
+	cache := NewCache[string, int](time.Minute)
+
+	res, ok := cache.Get("secret", func() (int, error) {
+		return 0, fmt.Errorf("synthetic failure")
+	})
+	if ok {
+		t.Fatalf("expected failed lookup, got %v", res)
+	}
+
+	res, ok = cache.Get("secret", func() (int, error) {
+		return 1, nil
+	})
+	if ok {
+		t.Fatalf("expected cached failure, got %v", res)
+	}
+}

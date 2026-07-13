@@ -78,7 +78,7 @@ func (c *AsyncCache[K, V]) GetEx(key K, valueGetter func() (V, error)) AsyncCach
 		res, ok = cachedEntry.Result()
 		return AsyncCacheResult[V]{
 			Value:     res,
-			Ok:        true,
+			Ok:        ok,
 			WasCached: false,
 		}
 	}
@@ -93,7 +93,7 @@ func (c *AsyncCache[K, V]) GetEx(key K, valueGetter func() (V, error)) AsyncCach
 	go func() {
 		res, err := valueGetter()
 		if err != nil {
-			log.Warn("Failed to retrieve key '%v'. Cache created at %v. Error: '%v'.", key, c.createdBy, err)
+			log.Warn("Failed to retrieve cache entry. Cache created at %v. Error: '%v'.", c.createdBy, err)
 		} else {
 			entry.Value = OptValue(res)
 		}
@@ -107,7 +107,7 @@ func (c *AsyncCache[K, V]) GetEx(key K, valueGetter func() (V, error)) AsyncCach
 	res, ok = entry.Result()
 	return AsyncCacheResult[V]{
 		Value:     res,
-		Ok:        true,
+		Ok:        ok,
 		WasCached: false,
 	}
 }

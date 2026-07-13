@@ -381,8 +381,16 @@ func InferenceModelRename(oldName string, newName string) *util.HttpError {
 	}
 
 	db.NewTx0(func(tx *db.Transaction) {
-		db.Exec(tx, `update inference_model set title_model_name = :new_name where title_model_name = :old_name`, db.Params{"old_name": oldName, "new_name": newName})
-		db.Exec(tx, `delete from inference_model where name = :name`, db.Params{"name": oldName})
+		db.Exec(
+			tx,
+			`update inference_model set title_model_name = :new_name where title_model_name = :old_name`,
+			db.Params{"old_name": oldName, "new_name": newName},
+		)
+		db.Exec(
+			tx,
+			`delete from inference_model where name = :name`,
+			db.Params{"name": oldName},
+		)
 		inferenceModelUpsertTx(tx, model)
 	})
 
@@ -568,6 +576,9 @@ func inferenceModelValidate(model InferenceModel) *util.HttpError {
 	if strings.TrimSpace(model.Endpoint.BackendModelName) == "" {
 		return util.HttpErr(http.StatusBadRequest, "model endpoint backend model name is required")
 	}
+	if err := inferenceValidateBackendEndpoint(model.Endpoint.BasePath); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -607,7 +618,16 @@ func inferenceModelNormalize(model InferenceModel) InferenceModel {
 		model.Page.Datasheet.Parameters = strings.TrimSpace(model.Page.Datasheet.Parameters)
 		model.Page.Datasheet.ActivatedParameters = strings.TrimSpace(model.Page.Datasheet.ActivatedParameters)
 		model.Page.Datasheet.Quantization = strings.TrimSpace(model.Page.Datasheet.Quantization)
-		if len(model.Page.BenchmarkScores) == 0 && model.Page.ShortDescription == "" && model.Page.DocumentationUrl == "" && model.Page.ReleaseDate == nil && model.Page.About.Description == "" && len(model.Page.About.Highlights) == 0 && len(model.Page.About.KeyStats) == 0 && model.Page.Datasheet.Parameters == "" && model.Page.Datasheet.ActivatedParameters == "" && model.Page.Datasheet.Quantization == "" {
+		if len(model.Page.BenchmarkScores) == 0 &&
+			model.Page.ShortDescription == "" &&
+			model.Page.DocumentationUrl == "" &&
+			model.Page.ReleaseDate == nil &&
+			model.Page.About.Description == "" &&
+			len(model.Page.About.Highlights) == 0 &&
+			len(model.Page.About.KeyStats) == 0 &&
+			model.Page.Datasheet.Parameters == "" &&
+			model.Page.Datasheet.ActivatedParameters == "" &&
+			model.Page.Datasheet.Quantization == "" {
 			model.Page = nil
 		}
 	}

@@ -357,3 +357,24 @@ func inferenceV15() db.MigrationScript {
 		},
 	}
 }
+
+func inferenceV16() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "inferenceV16",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					create table inference_usage (
+						owner text primary key,
+						scope text not null,
+						usage bigint not null default 0 check (usage >= 0),
+						reported_usage bigint not null default 0 check (reported_usage >= 0),
+						updated_at timestamptz not null default now()
+					)
+				`,
+				db.Params{},
+			)
+		},
+	}
+}

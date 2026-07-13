@@ -55,4 +55,5 @@ func Init() {
 	db.AddMigration(ucxDeliveryV1())
 	db.AddMigration(kubevirtV2())
 	db.AddMigration(ipDatabaseV3())
+	db.AddMigration(inferenceV16())
 }
