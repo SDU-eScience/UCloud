@@ -152,7 +152,7 @@ async function onRemoteClipboard(ev: CustomEvent): Promise<void> {
 /**
  * Forward locally pasted text to the remote host.
  */
-function onLocalClipboard(rfb: RFB, ev: ClipboardEvent): void {
+function onLocalClipboard(rfb: any, ev: ClipboardEvent): void {
     const text = ev.clipboardData?.getData("text") ?? "";
     console.log("vnc local clipboard paste");
     if (text) {

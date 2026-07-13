@@ -11,6 +11,9 @@ import (
 //go:embed playground_system_prompt.md
 var playgroundSystemPromptTemplate string
 
+//go:embed playground_system_prompt_simple.md
+var playgroundSystemPromptTemplateSimple string
+
 func (app *InferencePlaygroundApp) chatSystemPrompt() string {
 	if app == nil || app.Developer {
 		return strings.TrimSpace(app.Chat.SystemPrompt)
@@ -29,7 +32,12 @@ func (app *InferencePlaygroundApp) chatSystemPrompt() string {
 	}
 	provider := playgroundModelProvider(model)
 
-	prompt := strings.ReplaceAll(playgroundSystemPromptTemplate, "$MODEL_TITLE", title)
+	basePrompt := playgroundSystemPromptTemplate
+	if model.ChatSettings.DisableTools {
+		basePrompt = playgroundSystemPromptTemplateSimple
+	}
+
+	prompt := strings.ReplaceAll(basePrompt, "$MODEL_TITLE", title)
 	prompt = strings.ReplaceAll(prompt, "$MODEL_PROVIDER", provider)
 	prompt += fmt.Sprintf("\n\nCurrent date is: %s", time.Now().Format("Mon January _2 2006"))
 	return strings.TrimSpace(prompt)

@@ -15,13 +15,15 @@ import (
 	"ucloud.dk/shared/pkg/util"
 )
 
-const playgroundToolMaxIterations = 20
-const playgroundToolWorkspaceRoot = "/mnt/workspace"
-const playgroundToolOutputLimit = 64 * 1024
-const playgroundToolDefaultTimeout = 60 * time.Second
-const playgroundToolMaxTimeout = 2 * time.Minute
-const playgroundWebFetchDefaultTimeoutMs = 15000
-const playgroundWebFetchMaxTimeoutMs = 30000
+const (
+	playgroundToolMaxIterations        = 10
+	playgroundToolWorkspaceRoot        = "/mnt/workspace"
+	playgroundToolOutputLimit          = 64 * 1024
+	playgroundToolDefaultTimeout       = 60 * time.Second
+	playgroundToolMaxTimeout           = 2 * time.Minute
+	playgroundWebFetchDefaultTimeoutMs = 15000
+	playgroundWebFetchMaxTimeoutMs     = 30000
+)
 
 var playgroundWorkspaceToolNames = []string{"glob", "grep", "read", "bash", "web_fetch", "wikipedia_search"}
 

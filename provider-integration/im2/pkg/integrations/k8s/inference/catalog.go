@@ -80,6 +80,7 @@ type InferenceChatSettings struct {
 	TopP                float64 `json:"topP"`
 	MaxCompletionTokens int     `json:"maxCompletionTokens"`
 	SystemPrompt        *string `json:"systemPrompt,omitempty"`
+	DisableTools        bool    `json:"disableTools"`
 }
 
 type InferencePricing struct {
@@ -123,6 +124,7 @@ type inferenceModelRow struct {
 	TopP                   float64
 	MaxCompletionTokens    int
 	SystemPrompt           sql.NullString
+	DisableTools           bool
 	PageMetadata           []byte
 }
 
@@ -156,6 +158,7 @@ func inferenceModelCatalogLoad() {
 					top_p,
 					max_completion_tokens,
 					system_prompt,
+					disable_tools,
 					page_metadata
 				from inference_model
 			`,
@@ -216,6 +219,7 @@ func inferenceModelCatalogLoad() {
 					TopP:                row.TopP,
 					MaxCompletionTokens: row.MaxCompletionTokens,
 					SystemPrompt:        systemPrompt,
+					DisableTools:        row.DisableTools,
 				},
 				Page: page,
 			})
@@ -461,6 +465,7 @@ func inferenceModelUpsertTx(tx *db.Transaction, model InferenceModel) {
 				top_p,
 				max_completion_tokens,
 				system_prompt,
+				disable_tools,
 				page_metadata
 			) values (
 				:name,
@@ -479,6 +484,7 @@ func inferenceModelUpsertTx(tx *db.Transaction, model InferenceModel) {
 				:top_p,
 				:max_completion_tokens,
 				:system_prompt,
+				:disable_tools,
 				cast(:page_metadata as jsonb)
 			) on conflict (name) do update set
 				title = excluded.title,
@@ -496,6 +502,7 @@ func inferenceModelUpsertTx(tx *db.Transaction, model InferenceModel) {
 				top_p = excluded.top_p,
 				max_completion_tokens = excluded.max_completion_tokens,
 				system_prompt = excluded.system_prompt,
+				disable_tools = excluded.disable_tools,
 				page_metadata = excluded.page_metadata
 		`,
 		db.Params{
@@ -515,6 +522,7 @@ func inferenceModelUpsertTx(tx *db.Transaction, model InferenceModel) {
 			"top_p":                    model.ChatSettings.TopP,
 			"max_completion_tokens":    model.ChatSettings.MaxCompletionTokens,
 			"system_prompt":            systemPrompt,
+			"disable_tools":            model.ChatSettings.DisableTools,
 			"page_metadata":            pageMetadata,
 		},
 	)

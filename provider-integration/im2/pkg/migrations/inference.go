@@ -378,3 +378,12 @@ func inferenceV16() db.MigrationScript {
 		},
 	}
 }
+
+func inferenceV17() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "inferenceV17",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(tx, `alter table inference_model add column disable_tools bool not null default false`, db.Params{})
+		},
+	}
+}

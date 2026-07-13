@@ -392,7 +392,11 @@ func (app *InferencePlaygroundApp) configureWorkspace() {
 		app.Workspace.ETag = ""
 		return
 	}
-	app.appendWorkspaceHistoryMessage(workspacePath)
+
+	model, _ := app.modelByName(app.Chat.ModelId)
+	if !model.ChatSettings.DisableTools {
+		app.appendWorkspaceHistoryMessage(workspacePath)
+	}
 
 	app.Workspace.Loading = true
 	defer func() {
@@ -1037,11 +1041,12 @@ func (app *InferencePlaygroundApp) runChatResponse(ctx context.Context, owner ap
 	assistant := ""
 	reasoning := ""
 	usageSeen := InferenceChatUsage{}
+	lastRequestUsage := InferenceChatUsage{}
 	startedAt := time.Now().UnixMilli()
 	firstTokenAt := int64(0)
 	if request.Stream {
 		var err *util.HttpError
-		assistant, reasoning, usageSeen, firstTokenAt, err = app.runChatResponseStreaming(ctx, owner, &request, threadId, assistantIndex, startedAt)
+		assistant, reasoning, usageSeen, lastRequestUsage, firstTokenAt, err = app.runChatResponseStreaming(ctx, owner, &request, threadId, assistantIndex, startedAt)
 		if err != nil {
 			assistant = err.Why
 		}
@@ -1052,6 +1057,7 @@ func (app *InferencePlaygroundApp) runChatResponse(ctx context.Context, owner ap
 		} else {
 			firstTokenAt = time.Now().UnixMilli()
 			usageSeen = resp.Usage
+			lastRequestUsage = resp.Usage
 			if len(resp.Choices) > 0 {
 				assistant = resp.Choices[0].Message.Content.String()
 				reasoning = resp.Choices[0].Message.Reasoning.String()
@@ -1080,15 +1086,17 @@ func (app *InferencePlaygroundApp) runChatResponse(ctx context.Context, owner ap
 	app.Chat.Prompt = ""
 	app.Chat.Loading = false
 	app.setThreadLoading(threadId, false)
-	app.applyChatUsage(threadId, usageSeen)
+	app.applyChatUsage(threadId, usageSeen, lastRequestUsage)
 	ucx.AppUpdateUi(app)
 }
 
 func (app *InferencePlaygroundApp) prepareChatTools(request *InferenceChatRequest) {
+	request.Tools = []InferenceChatTool{}
 	if !request.Stream {
 		return
 	}
-	if playgroundToolsDisabledForModel(request.Model) {
+	model, ok := app.modelByName(request.Model)
+	if ok && model.ChatSettings.DisableTools {
 		return
 	}
 	tools := app.playgroundToolDefinitions()
@@ -1099,10 +1107,6 @@ func (app *InferencePlaygroundApp) prepareChatTools(request *InferenceChatReques
 	request.ParallelToolCalls = util.OptValue(true)
 }
 
-func playgroundToolsDisabledForModel(model string) bool {
-	return util.DevelopmentModeEnabled() && model == "qwen3-0.6b"
-}
-
 type playgroundStreamingToolCall struct {
 	Id        string
 	Type      string
@@ -1110,7 +1114,7 @@ type playgroundStreamingToolCall struct {
 	Arguments strings.Builder
 }
 
-func (app *InferencePlaygroundApp) runChatResponseStreaming(ctx context.Context, owner apm.WalletOwner, request *InferenceChatRequest, threadId string, assistantIndex int, startedAt int64) (string, string, InferenceChatUsage, int64, *util.HttpError) {
+func (app *InferencePlaygroundApp) runChatResponseStreaming(ctx context.Context, owner apm.WalletOwner, request *InferenceChatRequest, threadId string, assistantIndex int, startedAt int64) (string, string, InferenceChatUsage, InferenceChatUsage, int64, *util.HttpError) {
 	var builder strings.Builder
 	var reasoningBuilder strings.Builder
 	usageSeen := InferenceChatUsage{}
@@ -1134,9 +1138,19 @@ func (app *InferencePlaygroundApp) runChatResponseStreaming(ctx context.Context,
 	}
 
 	for iteration := 0; iteration < playgroundToolMaxIterations; iteration++ {
+		if iteration == playgroundToolMaxIterations-1 {
+			request.Messages = append(
+				request.Messages,
+				InferenceChatMessage{
+					Role:    "system",
+					Content: inferenceChatTextContent("This is the last iteration of this turn. You MUST provide a final answer now and must not call any tools."),
+				},
+			)
+			request.ToolChoice = "none"
+		}
 		chunks, err := InferenceChatStreaming(ctx, owner, *request)
 		if err != nil {
-			return "", "", usageSeen, firstTokenAt, err
+			return "", "", usageSeen, InferenceChatUsage{}, firstTokenAt, err
 		}
 
 		toolCallsByIndex := map[int]*playgroundStreamingToolCall{}
@@ -1187,7 +1201,7 @@ func (app *InferencePlaygroundApp) runChatResponseStreaming(ctx context.Context,
 		usageSeen = inferenceChatUsageAdd(usageSeen, streamUsage)
 
 		if len(toolCallOrder) == 0 {
-			return strings.TrimSpace(builder.String()), strings.TrimSpace(reasoningBuilder.String()), usageSeen, firstTokenAt, nil
+			return strings.TrimSpace(builder.String()), strings.TrimSpace(reasoningBuilder.String()), usageSeen, streamUsage, firstTokenAt, nil
 		}
 
 		toolCalls := playgroundStreamingToolCalls(toolCallsByIndex, toolCallOrder)
@@ -1204,7 +1218,7 @@ func (app *InferencePlaygroundApp) runChatResponseStreaming(ctx context.Context,
 	if builder.Len() == 0 {
 		builder.WriteString("Tool call limit reached before a final answer was produced.")
 	}
-	return strings.TrimSpace(builder.String()), strings.TrimSpace(reasoningBuilder.String()), usageSeen, firstTokenAt, nil
+	return strings.TrimSpace(builder.String()), strings.TrimSpace(reasoningBuilder.String()), usageSeen, InferenceChatUsage{}, firstTokenAt, nil
 }
 
 func playgroundStreamingToolCalls(callsByIndex map[int]*playgroundStreamingToolCall, order []int) []InferenceChatToolCall {
@@ -1615,7 +1629,40 @@ func appendPlaygroundTextPart(parts []playgroundChatMessagePart, text string) []
 	return append(parts, playgroundChatMessagePart{Kind: "text", Text: text})
 }
 
-func (app *InferencePlaygroundApp) applyChatUsage(threadId string, usage InferenceChatUsage) {
+func (app *InferencePlaygroundApp) applyChatUsage(threadId string, usage InferenceChatUsage, lastRequestUsage InferenceChatUsage) {
+	turnUsage := playgroundTokenUsageFromChatUsage(usage)
+	lastQuery := playgroundTokenUsageFromChatUsage(lastRequestUsage)
+	updatedThread := false
+	for i := range app.Threads {
+		thread := &app.Threads[i]
+		if thread.Id != threadId {
+			continue
+		}
+		updatedThread = true
+		thread.Usage.Input += turnUsage.Input
+		thread.Usage.CachedInput += turnUsage.CachedInput
+		thread.Usage.Output += turnUsage.Output
+		thread.Usage.Reported += turnUsage.Reported
+		thread.LastQuery = lastQuery
+		thread.Dirty = true
+		if app.CurrentThreadId == threadId {
+			app.Chat.Usage.Session = thread.Usage
+			app.Chat.Usage.LastQuery = lastQuery
+		}
+		break
+	}
+	if !updatedThread {
+		app.Chat.Usage.LastQuery = lastQuery
+		app.Chat.Usage.Session.Input += turnUsage.Input
+		app.Chat.Usage.Session.CachedInput += turnUsage.CachedInput
+		app.Chat.Usage.Session.Output += turnUsage.Output
+		app.Chat.Usage.Session.Reported += turnUsage.Reported
+	}
+	app.prepareChatMessagesForUi()
+	ucx.AppUpdateModel(app)
+}
+
+func playgroundTokenUsageFromChatUsage(usage InferenceChatUsage) InferencePlaygroundTokenUsage {
 	cachedInputTokens := int64(0)
 	if usage.PromptTokensDetails.Present {
 		cachedInputTokens = int64(usage.PromptTokensDetails.Value.CachedTokens)
@@ -1632,41 +1679,12 @@ func (app *InferencePlaygroundApp) applyChatUsage(threadId string, usage Inferen
 	if reportedTokens == 0 {
 		reportedTokens = inputTokens + cachedInputTokens + outputTokens
 	}
-
-	lastQuery := InferencePlaygroundTokenUsage{
+	return InferencePlaygroundTokenUsage{
 		Input:       inputTokens,
 		CachedInput: cachedInputTokens,
 		Output:      outputTokens,
 		Reported:    reportedTokens,
 	}
-	updatedThread := false
-	for i := range app.Threads {
-		thread := &app.Threads[i]
-		if thread.Id != threadId {
-			continue
-		}
-		updatedThread = true
-		thread.Usage.Input += inputTokens
-		thread.Usage.CachedInput += cachedInputTokens
-		thread.Usage.Output += outputTokens
-		thread.Usage.Reported += reportedTokens
-		thread.LastQuery = lastQuery
-		thread.Dirty = true
-		if app.CurrentThreadId == threadId {
-			app.Chat.Usage.Session = thread.Usage
-			app.Chat.Usage.LastQuery = lastQuery
-		}
-		break
-	}
-	if !updatedThread {
-		app.Chat.Usage.LastQuery = lastQuery
-		app.Chat.Usage.Session.Input += inputTokens
-		app.Chat.Usage.Session.CachedInput += cachedInputTokens
-		app.Chat.Usage.Session.Output += outputTokens
-		app.Chat.Usage.Session.Reported += reportedTokens
-	}
-	app.prepareChatMessagesForUi()
-	ucx.AppUpdateModel(app)
 }
 
 func (app *InferencePlaygroundApp) chatRequestMessages(prompt string, attachments []playgroundChatAttachment) []InferenceChatMessage {
@@ -1727,7 +1745,8 @@ func playgroundInferenceAttachmentContent(kind string, rawUrl string) InferenceC
 func (app *InferencePlaygroundApp) buildChatCurl() string {
 	stream := app.Chat.Streaming
 	var tools []InferenceChatTool
-	if stream && !playgroundToolsDisabledForModel(app.Chat.ModelId) {
+	model, ok := app.modelByName(app.Chat.ModelId)
+	if stream && (!ok || !model.ChatSettings.DisableTools) {
 		tools = app.playgroundToolDefinitions()
 	}
 	payload := map[string]any{

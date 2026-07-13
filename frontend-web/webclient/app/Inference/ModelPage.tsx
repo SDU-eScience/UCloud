@@ -435,6 +435,7 @@ function normalizeEditableModel(model: InferenceModel): InferenceModel {
             topP: model.chatSettings?.topP ?? 0.1,
             maxCompletionTokens: model.chatSettings?.maxCompletionTokens ?? 65536,
             systemPrompt: model.chatSettings?.systemPrompt,
+            disableTools: model.chatSettings?.disableTools ?? false,
         },
         page: {
             ...defaults,
@@ -495,6 +496,7 @@ function ModelSettingsEditor(props: {model: InferenceModel; models: InferenceMod
         <label>Top P<Input type="number" step="0.1" min="0" max="1" value={model.chatSettings.topP} onChange={ev => setModel({...model, chatSettings: {...model.chatSettings, topP: parseFloat(ev.currentTarget.value || "0")}})} /></label>
         <label>Max completion tokens<Input type="number" min="1" value={model.chatSettings.maxCompletionTokens} onChange={ev => setModel({...model, chatSettings: {...model.chatSettings, maxCompletionTokens: parseInt(ev.currentTarget.value || "0")}})} /></label>
         <label>System prompt<Input value={model.chatSettings.systemPrompt ?? ""} placeholder="Use global default" onChange={ev => setModel({...model, chatSettings: {...model.chatSettings, systemPrompt: ev.currentTarget.value.trim() === "" ? undefined : ev.currentTarget.value}})} /></label>
+        <label style={{display: "flex", gap: 6, alignItems: "center"}}><input type="checkbox" checked={model.chatSettings.disableTools} onChange={ev => setModel({...model, chatSettings: {...model.chatSettings, disableTools: ev.currentTarget.checked}})} />Disable chat tools</label>
         <Box>
             <Text fontWeight={600}>Capabilities</Text>
             <Flex gap="12px" flexWrap="wrap" mt={8}>{capabilities.map(capability => <label key={capability} style={{display: "flex", gap: 6, alignItems: "center"}}><input type="checkbox" checked={model.capabilities.includes(capability)} onChange={ev => setModel({...model, capabilities: ev.currentTarget.checked ? [...model.capabilities, capability] : model.capabilities.filter(it => it !== capability)})} />{capability}</label>)}</Flex>

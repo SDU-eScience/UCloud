@@ -95,6 +95,7 @@ type InferenceChatSettings struct {
 	TopP                float64 `json:"topP"`
 	MaxCompletionTokens int     `json:"maxCompletionTokens"`
 	SystemPrompt        *string `json:"systemPrompt,omitempty"`
+	DisableTools        bool    `json:"disableTools"`
 }
 
 type InferencePricing struct {

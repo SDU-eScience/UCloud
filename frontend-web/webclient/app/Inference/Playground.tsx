@@ -1660,7 +1660,7 @@ function ConnectionStatusIndicator({connected, text, compact = false}: {connecte
 function ContextWindowIndicator({model, fn}: {model: Record<string, Value>; fn?: UcxFunctionRegistry}): React.ReactNode {
     const input = numberValue(fn?.modelValue(model, "chat.usage.lastQuery.input") ?? model["chat.usage.lastQuery.input"]);
     const cachedInput = numberValue(fn?.modelValue(model, "chat.usage.lastQuery.cachedInput") ?? model["chat.usage.lastQuery.cachedInput"]);
-    const output = numberValue(fn?.modelValue(model, "chat.usage.lastQuery.output") ?? model["chat.usage.lastQuery..output"]);
+    const output = numberValue(fn?.modelValue(model, "chat.usage.lastQuery.output") ?? model["chat.usage.lastQuery.output"]);
     const contextTokens = input + cachedInput + output;
     const modelId = stringValue(fn?.modelValue(model, "chat.modelId") ?? model["chat.modelId"]);
     const contextWindow = modelContextWindow(model, modelId);
@@ -1672,7 +1672,7 @@ function ContextWindowIndicator({model, fn}: {model: Record<string, Value>; fn?:
         color: "var(--textSecondary)",
         fontSize: 12
     }}>
-        <div style={{fontWeight: "bold"}}>Context window</div>
+            <div style={{fontWeight: "bold"}}>Context window</div>
         <div style={{
             display: "flex",
             justifyContent: "space-between",

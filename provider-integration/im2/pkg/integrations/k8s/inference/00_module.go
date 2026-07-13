@@ -56,7 +56,7 @@ type inferenceUsageRow struct {
 	ReportedUsage int64
 }
 
-const inferenceMaxConcurrent = 128
+const inferenceMaxConcurrent = 512
 const inferenceMaxConcurrentPerOwner = 8
 
 func inferenceAcquire(owner apm.WalletOwner) (func(), *util.HttpError) {
@@ -224,6 +224,7 @@ func Init() {
 					TopP:                model.ChatSettings.TopP,
 					MaxCompletionTokens: model.ChatSettings.MaxCompletionTokens,
 					SystemPrompt:        model.ChatSettings.SystemPrompt,
+					DisableTools:        model.ChatSettings.DisableTools,
 				},
 				Page: inferencePageToOrc(model.Page),
 			}
@@ -283,6 +284,7 @@ func Init() {
 				TopP:                request.Model.ChatSettings.TopP,
 				MaxCompletionTokens: request.Model.ChatSettings.MaxCompletionTokens,
 				SystemPrompt:        request.Model.ChatSettings.SystemPrompt,
+				DisableTools:        request.Model.ChatSettings.DisableTools,
 			},
 			Page: inferencePageFromOrc(request.Model.Page),
 		}
@@ -806,12 +808,12 @@ func inferenceAutoConfigureLocalAI() error {
 	inferenceApplyLocalAIFallbackModels(managementBase, "chat", []string{"localai@qwen3-0.6b"})
 	inferenceApplyLocalAIFallbackModels(managementBase, "transcription", []string{"localai@whisper-1"})
 	inferenceApplyLocalAIFallbackModels(managementBase, "image-generation", []string{"localai@sd-1.5-ggml"})
-	inferenceDiscoverModelsFromEndpoint(base, shared.ServiceConfig.Compute.Inference.Access.Testers)
+	inferenceDiscoverModelsFromEndpoint(base, shared.ServiceConfig.Compute.Inference.Access.Testers, true)
 
 	return nil
 }
 
-func inferenceDiscoverModelsFromEndpoint(base string, availableTo []string) {
+func inferenceDiscoverModelsFromEndpoint(base string, availableTo []string, disableTools bool) {
 	base = strings.TrimRight(base, "/")
 	client := http.Client{Timeout: 15 * time.Second}
 	resp, err := client.Get(base + "/models")
@@ -871,6 +873,7 @@ func inferenceDiscoverModelsFromEndpoint(base string, availableTo []string) {
 				Temperature:         0.8,
 				TopP:                0.1,
 				MaxCompletionTokens: 65536,
+				DisableTools:        disableTools,
 			},
 		})
 		if inferenceModelValidate(catalogModel) != nil {
@@ -944,7 +947,7 @@ func inferenceDiscoverDynamoModels() {
 		}
 
 		base := fmt.Sprintf("http://%s.%s.svc.cluster.local:%d/v1", service.Name, service.Namespace, port)
-		inferenceDiscoverModelsFromEndpoint(base, inferenceCfg.Access.Testers)
+		inferenceDiscoverModelsFromEndpoint(base, inferenceCfg.Access.Testers, false)
 	}
 }
 

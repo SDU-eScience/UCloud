@@ -59,6 +59,7 @@ export interface InferenceModel {
         topP: number;
         maxCompletionTokens: number;
         systemPrompt?: string;
+        disableTools: boolean;
     };
     page?: InferenceModelPageMetadata;
 }
