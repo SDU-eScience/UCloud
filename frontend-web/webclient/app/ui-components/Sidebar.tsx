@@ -76,6 +76,7 @@ import {AutomaticBranding} from "@/Applications/Branding/AutomaticBranding";
 import {BrandingResponse} from "@/UCloud/BrandingApi";
 import {Feature, hasFeature} from "@/Features";
 import {setAppFavorites} from "@/Applications/Redux/Reducer";
+import {useInferenceThreads} from "@/Inference/ThreadStore";
 
 const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
     ${k} {
@@ -910,6 +911,7 @@ function SecondarySidebar({
 }: SecondarySidebarProps): React.ReactNode {
     const [drives, favoriteFiles] = useSidebarFilesPage();
     const recentRuns = useSidebarRunsPage();
+    const recentThreads = useInferenceThreads();
     const projectId = useProjectId();
     const lastHover = React.useRef(SidebarTabId.NONE);
     const isPersonalWorkspace = !projectId;
@@ -1175,6 +1177,15 @@ function SecondarySidebar({
             {active !== SidebarTabId.INFERENCE ? null : <>
                 <SidebarSectionEmptyHeader />
                 <InferenceSubLinks />
+                <SidebarSectionHeader tab={SidebarTabId.INFERENCE}>Recent chats</SidebarSectionHeader>
+                {recentThreads.length === 0 ? <SidebarEmpty>No chats yet</SidebarEmpty> : null}
+                {recentThreads.slice(0, 10).map(thread => <SidebarEntry
+                    key={thread.id}
+                    to={AppRoutes.inference.playground(undefined, thread.id)}
+                    text={thread.title || "New thread"}
+                    icon="heroChatBubbleLeft"
+                    tab={SidebarTabId.INFERENCE}
+                />)}
             </>}
 
             {/* Note(Jonas) Do it this way to ensure that the frontend doesn't fetch icons every time this is shown. */}

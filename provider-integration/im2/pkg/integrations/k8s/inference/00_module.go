@@ -241,6 +241,12 @@ func Init() {
 		return result, nil
 	})
 
+	orcapi.InferenceListPlaygroundThreadsProvider.Handler(func(info rpc.RequestInfo, request orcapi.InferenceListPlaygroundThreadsProviderRequest) (orcapi.InferenceListPlaygroundThreadsResponse, *util.HttpError) {
+		return orcapi.InferenceListPlaygroundThreadsResponse{
+			Threads: InferencePlaygroundThreadSummaries(request.Owner.CreatedBy, request.Owner.Project),
+		}, nil
+	})
+
 	orcapi.InferenceUpdateModelProvider.Handler(func(info rpc.RequestInfo, request orcapi.InferenceUpdateModelProviderRequest) (util.Empty, *util.HttpError) {
 		_ = info
 		if !inferenceIsAdminOwner(request.Owner) {

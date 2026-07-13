@@ -17,6 +17,20 @@ type InferenceOpenPlaygroundResponse struct {
 	SessionToken string `json:"sessionToken"`
 }
 
+type InferencePlaygroundThread struct {
+	Id        string `json:"id"`
+	Title     string `json:"title"`
+	UpdatedAt int64  `json:"updatedAt"`
+}
+
+type InferenceListPlaygroundThreadsRequest struct {
+	ProviderId util.Option[string] `json:"providerId"`
+}
+
+type InferenceListPlaygroundThreadsResponse struct {
+	Threads []InferencePlaygroundThread `json:"threads"`
+}
+
 type InferenceCapability string
 
 const (
@@ -129,6 +143,13 @@ var InferenceOpenPlayground = rpc.Call[InferenceOpenPlaygroundRequest, Inference
 	Roles:       rpc.RolesEndUser,
 }
 
+var InferenceListPlaygroundThreads = rpc.Call[InferenceListPlaygroundThreadsRequest, InferenceListPlaygroundThreadsResponse]{
+	BaseContext: inferenceBaseContext,
+	Convention:  rpc.ConventionRetrieve,
+	Operation:   "playgroundThreads",
+	Roles:       rpc.RolesEndUser,
+}
+
 var InferenceListModels = rpc.Call[InferenceListModelsRequest, InferenceListModelsResponse]{
 	BaseContext: inferenceBaseContext,
 	Convention:  rpc.ConventionRetrieve,
@@ -161,10 +182,21 @@ type InferenceOpenPlaygroundProviderResponse struct {
 	SessionToken string `json:"sessionToken"`
 }
 
+type InferenceListPlaygroundThreadsProviderRequest struct {
+	Owner ResourceOwner `json:"owner"`
+}
+
 var InferenceOpenPlaygroundProvider = rpc.Call[InferenceOpenPlaygroundProviderRequest, InferenceOpenPlaygroundProviderResponse]{
 	BaseContext: inferenceProviderBaseContext,
 	Convention:  rpc.ConventionUpdate,
 	Operation:   "openPlayground",
+	Roles:       rpc.RolesService,
+}
+
+var InferenceListPlaygroundThreadsProvider = rpc.Call[InferenceListPlaygroundThreadsProviderRequest, InferenceListPlaygroundThreadsResponse]{
+	BaseContext: inferenceProviderBaseContext,
+	Convention:  rpc.ConventionUpdate,
+	Operation:   "listPlaygroundThreads",
 	Roles:       rpc.RolesService,
 }
 

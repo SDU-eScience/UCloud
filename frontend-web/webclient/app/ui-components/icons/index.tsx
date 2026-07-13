@@ -1786,7 +1786,7 @@ export const gpu = (props: any) => (
       style={{
         fillRule: "nonzero",
         stroke: "currentcolor",
-        strokeWidth: ".77px",
+        strokeWidth: 1,
       }}
       transform="matrix(.94056 0 0 .99524 .228 .099)"
     />
@@ -7883,6 +7883,25 @@ export const shareMenu = (props: any) => (
       }}
       transform="translate(-733 -2823.005)"
     />
+  </svg>
+);
+export const sidebar = (props: any) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    fill="currentcolor"
+    viewBox="0 0 120 90"
+    {...props}
+  >
+    <rect
+      width={114}
+      height={84}
+      x={3}
+      y={3}
+      stroke="currentcolor"
+      strokeWidth={6}
+      rx={21}
+    />
+    <path stroke="currentcolor" strokeWidth={6} d="M36 1v89" />
   </svg>
 );
 export const sortAscending = (props: any) => (

@@ -32,6 +32,7 @@ import {Feature, hasFeature} from "@/Features";
 import {prettyFilePath} from "@/Files/FilePath";
 import CodeSnippet from "@/ui-components/CodeSnippet";
 import {IconName} from "@/ui-components/Icon";
+import {inferenceThreadStore} from "./ThreadStore";
 
 type PlaygroundSession = {
     connectTo: string;
@@ -456,7 +457,7 @@ function PlaygroundChatComposer({node, model, scope, fn}: UcxRenderContext): Rea
         );
 }
 
-type ThreadListItem = { id: string; title: string };
+type ThreadListItem = { id: string; title: string; updatedAt: number };
 
 type ChatMessagePart = {
     kind: "text" | "thinking" | "image" | "video" | "audio" | "attachment" | "tool";
@@ -543,6 +544,13 @@ const PlaygroundWorkspaceClass = injectStyle("inference-playground-workspace", k
         background: var(--playground-panel, transparent);
     }
 
+    ${k} .playground-sidebar[data-collapsed="true"] {
+        box-sizing: border-box;
+        width: 64px;
+        padding: 15px;
+        align-items: center;
+    }
+
     ${k} .playground-sidebar-header,
     ${k} .playground-sidebar-footer {
         flex-shrink: 0;
@@ -580,6 +588,10 @@ const PlaygroundWorkspaceClass = injectStyle("inference-playground-workspace", k
 
         ${k} .playground-sidebar {
             width: 100%;
+        }
+
+        ${k} .playground-sidebar[data-collapsed="true"] {
+            width: 64px;
         }
     }
 `);
@@ -1570,6 +1582,32 @@ function DeveloperModeToggle({model, fn, connected}: {model: Record<string, Valu
 
 function PlaygroundWorkspace({model, fn, connected, connectionStatus}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean; connectionStatus: string}): React.ReactNode {
     const developer = boolValue(fn?.modelValue(model, "developer") ?? model.developer);
+    const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false);
+    const threads = threadListValue(fn?.modelValue(model, "threads") ?? model.threads);
+    const currentThreadId = stringValue(fn?.modelValue(model, "currentThreadId") ?? model.currentThreadId);
+    const pendingNewThreadRef = React.useRef<Set<string> | null>(null);
+
+    React.useEffect(() => {
+        const previousThreadIds = pendingNewThreadRef.current;
+        if (!previousThreadIds) return;
+
+        const createdThread = threads.find(thread => !previousThreadIds.has(thread.id));
+        if (!createdThread) return;
+
+        pendingNewThreadRef.current = null;
+        if (createdThread.id !== currentThreadId) {
+            fn?.sendUiEvent("openThread", "click", {
+                kind: ValueKind.String,
+                string: createdThread.id,
+            });
+        }
+    }, [currentThreadId, fn, threads]);
+
+    const newThread = () => {
+        if (!connected || !fn) return;
+        pendingNewThreadRef.current = new Set(threads.map(thread => thread.id));
+        fn.sendUiEvent("newThread", "click");
+    };
     const footer = <>
         {!developer && hasFeature(Feature.INFERENCE_WORKSPACE) ? <WorkspaceSelector model={model} fn={fn} connected={connected}/> : null}
         <ContextWindowIndicator model={model} fn={fn}/>
@@ -1581,11 +1619,13 @@ function PlaygroundWorkspace({model, fn, connected, connectionStatus}: {model: R
             <div className="playground-main">
                 <PlaygroundConversation model={model} fn={fn} connected={connected}/>
             </div>
-            <div className="playground-sidebar">
-                {developer ? (
-                    <PlaygroundDeveloperSidebar model={model} fn={fn} connected={connected} footer={footer}/>
+            <div className="playground-sidebar" data-collapsed={sidebarCollapsed}>
+                {sidebarCollapsed ? (
+                    <CollapsedPlaygroundSidebar connected={connected} connectionStatus={connectionStatus} onExpand={() => setSidebarCollapsed(false)} onNewThread={developer ? undefined : newThread}/>
+                ) : developer ? (
+                    <PlaygroundDeveloperSidebar model={model} fn={fn} connected={connected} footer={footer} onCollapse={() => setSidebarCollapsed(true)}/>
                 ) : (
-                    <PlaygroundThreadSidebar model={model} fn={fn} connected={connected} footer={footer}/>
+                    <PlaygroundThreadSidebar model={model} fn={fn} connected={connected} footer={footer} onCollapse={() => setSidebarCollapsed(true)} onNewThread={newThread}/>
                 )}
             </div>
         </div>
@@ -1600,10 +1640,20 @@ function PlaygroundSidebarShell({header, children, footer}: React.PropsWithChild
     </>;
 }
 
-function ConnectionStatusIndicator({connected, text}: {connected: boolean; text: string}): React.ReactNode {
-    return <div style={{marginTop: "auto", display: "flex", alignItems: "center", gap: 8, color: "var(--textSecondary)", fontSize: 12}}>
-        <span style={{width: 8, height: 8, borderRadius: 999, background: connected ? "var(--successMain)" : "var(--warningMain)"}}/>
-        {text}
+function CollapsedPlaygroundSidebar({connected, connectionStatus, onExpand, onNewThread}: {connected: boolean; connectionStatus: string; onExpand: () => void; onNewThread?: () => void}): React.ReactNode {
+    return <>
+        <Box mt={3}><IconButton tooltip="Expand sidebar" onClick={onExpand} icon="sidebar" noDefaultFill/></Box>
+        {onNewThread ? <IconButton tooltip="New thread" onClick={onNewThread} icon="heroPencilSquare"/> : null}
+        <ConnectionStatusIndicator connected={connected} text={connectionStatus} compact/>
+    </>;
+}
+
+function ConnectionStatusIndicator({connected, text, compact = false}: {connected: boolean; text: string; compact?: boolean}): React.ReactNode {
+    return <div style={{marginTop: "auto", display: "flex", alignItems: "center", justifyContent: compact ? "center" : undefined, gap: compact ? 0 : 8, color: "var(--textSecondary)", fontSize: 12}}>
+        <Tooltip tooltipContentWidth={160} trigger={<div style={{width: 8, height: 8, borderRadius: 999, background: connected ? "var(--successMain)" : "var(--warningMain)"}}/>}>
+            {text}
+        </Tooltip>
+        {!compact ? text : null}
     </div>;
 }
 
@@ -1758,10 +1808,7 @@ function DisabledComposerPlaceholder(): React.ReactNode {
     </Box>;
 }
 
-function PlaygroundThreadSidebar({model, fn, connected, footer}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean; footer: React.ReactNode}): React.ReactNode {
-    const threads = threadListValue(fn?.modelValue(model, "threads") ?? model.threads);
-    const currentThreadId = stringValue(fn?.modelValue(model, "currentThreadId") ?? model.currentThreadId);
-    const pendingNewThreadRef = React.useRef<Set<string> | null>(null);
+function PlaygroundThreadSidebar({model, fn, connected, footer, onCollapse, onNewThread}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean; footer: React.ReactNode; onCollapse: () => void; onNewThread: () => void}): React.ReactNode {
     const node = React.useMemo<UiNode>(() => ({
         id: "threadList",
         component: "inference_thread_list",
@@ -1771,36 +1818,20 @@ function PlaygroundThreadSidebar({model, fn, connected, footer}: {model: Record<
         children: [],
     }), []);
 
-    React.useEffect(() => {
-        const previousThreadIds = pendingNewThreadRef.current;
-        if (!previousThreadIds) return;
-
-        const createdThread = threads.find(thread => !previousThreadIds.has(thread.id));
-        if (!createdThread) return;
-
-        pendingNewThreadRef.current = null;
-        if (createdThread.id !== currentThreadId) {
-            fn?.sendUiEvent("openThread", "click", {
-                kind: ValueKind.String,
-                string: createdThread.id,
-            });
-        }
-    }, [currentThreadId, fn, threads]);
-
-    const header = <div style={{display: "flex", flexDirection: "column", gap: 12}}>
-        <Button
-            type="button"
-            disabled={!connected || !fn}
-            onClick={() => {
-                pendingNewThreadRef.current = new Set(threads.map(thread => thread.id));
-                fn?.sendUiEvent("newThread", "click");
-            }}
-            color={"secondaryMain"}
-            width="100%"
-        >
-            <Icon name="heroPlus" size={16} mr={8}/>
-            New thread
-        </Button>
+    const header = <div style={{display: "flex", alignItems: "center", gap: 8}}>
+        <div style={{flex: 1, display: "flex", flexDirection: "row", alignItems: "center", gap: "8px"}}>
+            <Button
+                type="button"
+                disabled={!connected || !fn}
+                onClick={onNewThread}
+                color={"secondaryMain"}
+                width="100%"
+            >
+                <Icon name="heroPlus" size={16} mr={8}/>
+                New thread
+            </Button>
+            <IconButton tooltip="Collapse sidebar" onClick={onCollapse} icon="sidebar" noDefaultFill/>
+        </div>
     </div>;
 
     return <PlaygroundSidebarShell header={header} footer={footer}>
@@ -1881,8 +1912,8 @@ function WorkspaceSelector({model, fn, connected}: {model: Record<string, Value>
     </div>;
 }
 
-function PlaygroundDeveloperSidebar({model, fn, connected, footer}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean; footer: React.ReactNode}): React.ReactNode {
-    return <PlaygroundSidebarShell footer={footer}>
+function PlaygroundDeveloperSidebar({model, fn, connected, footer, onCollapse}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean; footer: React.ReactNode; onCollapse: () => void}): React.ReactNode {
+    return <PlaygroundSidebarShell header={<IconButton tooltip="Collapse sidebar" onClick={onCollapse} icon="heroChevronRight"/>} footer={footer}>
         <Section title="Settings" defaultOpen>
             <SettingToggle label="Streaming" path="chat.streaming" model={model} fn={fn} connected={connected}/>
             <SettingSlider label="Max completion tokens" path="chat.maxCompletionTokens" min={1} max={1024 * 256} step={1024} model={model} fn={fn} connected={connected} integer/>
@@ -2046,6 +2077,15 @@ export default function Playground(): React.ReactNode {
             setLastModel(model);
         }
     }, []);
+
+    React.useEffect(() => {
+        if (!session) return;
+        return inferenceThreadStore.beginLiveSession();
+    }, [session]);
+
+    React.useEffect(() => {
+        if (lastModel.threads) inferenceThreadStore.update(threadListValue(lastModel.threads));
+    }, [lastModel]);
 
     if (!session) {
         return (
@@ -2462,8 +2502,9 @@ function threadListValue(value: any): ThreadListItem[] {
         if (item.kind !== ValueKind.Object) return [];
         const id = stringValue(item.object.id);
         const title = stringValue(item.object.title);
+        const updatedAt = numberValue(item.object.updatedAt);
         if (id === "") return [];
-        return [{id, title: title === "" ? "New thread" : title}];
+        return [{id, title: title === "" ? "New thread" : title, updatedAt}];
     });
 }
 

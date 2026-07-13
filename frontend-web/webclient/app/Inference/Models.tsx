@@ -661,7 +661,7 @@ export default function Models(): React.ReactNode {
                     <h1>Production-ready models for research and automation.</h1>
                     <p>Browse a growing catalog of hosted models for text generation. Use them interactively from the playground, through jobs, or through OpenAI-compatible endpoints.</p>
                     <div className="hero-actions">
-                        <Link className="button-link" to={AppRoutes.inference.playground()}><Button type="button">Open playground</Button></Link>
+                        <Link className="button-link" to={AppRoutes.inference.playground()}><Button type="button">Open chat</Button></Link>
                         <Button type="button" color="secondaryMain" onClick={() => document.getElementById("model-catalog")?.scrollIntoView({behavior: "smooth"})}>Browse models</Button>
                     </div>
                 </div>
@@ -733,7 +733,7 @@ export default function Models(): React.ReactNode {
                 <div className="consume-grid">
                     <div className="consume-card">
                         <div className="consume-number"><Icon name={"heroBeaker"} /></div>
-                        <h3>Playground</h3>
+                        <h3>Chat</h3>
                         <p>Try prompts, compare model behavior and iterate on ideas before wiring anything into production workflows.</p>
                     </div>
                     <div className="consume-card">
@@ -754,11 +754,11 @@ export default function Models(): React.ReactNode {
             <div className="panel-inner cta">
                 <div>
                     <h2>Ready to build with hosted inference?</h2>
-                    <p>Open the playground to test a model, or use the catalog to find details and integration settings.</p>
+                    <p>Open the chat to test a model, or use the catalog to find details and integration settings.</p>
                 </div>
                 <div className="cta-actions">
                     <Link className="button-link" to={AppRoutes.inference.playground()}>
-                        <Button type="button" color={"successMain"}>Try the playground</Button>
+                        <Button type="button" color={"successMain"}>Try the models</Button>
                     </Link>
                     <Link className="button-link" to={AppRoutes.grants.newApplication({})}>
                         <Button type="button" color={secondaryCtaColor}>Apply for access</Button>

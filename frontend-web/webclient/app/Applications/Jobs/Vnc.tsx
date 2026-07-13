@@ -8,13 +8,15 @@ import {useParams} from "react-router-dom";
 import {useCallback, useEffect, useLayoutEffect, useRef, useState} from "react";
 import {compute} from "@/UCloud";
 import JobsOpenInteractiveSessionResponse = compute.JobsOpenInteractiveSessionResponse;
-import RFB from "@novnc/novnc/lib/rfb";
+import RFBModule from "@novnc/novnc/lib/rfb";
 import {initLogging} from '@novnc/novnc/lib/util/logging';
 import {Box, Button} from "@/ui-components";
 import {TermAndShellWrapper} from "@/Applications/Jobs/TermAndShellWrapper";
 import {bulkRequestOf} from "@/UtilityFunctions";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {sendFailureNotification} from "@/Notifications";
+
+const RFB = RFBModule.default;
 
 interface ConnectionDetails {
     url: string;

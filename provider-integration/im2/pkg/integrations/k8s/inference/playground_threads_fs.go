@@ -10,6 +10,7 @@ import (
 
 	ctrl "ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/integrations/k8s/filesystem"
+	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -80,6 +81,19 @@ func inferencePlaygroundThreadsLoad(owner string, project util.Option[string]) [
 		threads = threads[:playgroundThreadLoadLimit]
 	}
 	return threads
+}
+
+func InferencePlaygroundThreadSummaries(owner string, project util.Option[string]) []orcapi.InferencePlaygroundThread {
+	threads := inferencePlaygroundThreadsLoad(owner, project)
+	result := make([]orcapi.InferencePlaygroundThread, 0, len(threads))
+	for _, thread := range threads {
+		result = append(result, orcapi.InferencePlaygroundThread{
+			Id:        thread.Id,
+			Title:     thread.Title,
+			UpdatedAt: thread.UpdatedAt,
+		})
+	}
+	return result
 }
 
 func inferencePlaygroundThreadsFlush(owner string, project util.Option[string], threads []playgroundChatThread, deletedThreadIds []string, deletedThreadPaths []string) bool {

@@ -43,6 +43,7 @@ export interface IconBaseProps extends SpaceProps, React.SVGAttributes<HTMLDivEl
     title?: string;
     className?: string;
     style?: CSSProperties;
+    noDefaultFill?: boolean;
 }
 
 export const IconClass = injectStyle("icon", k => `
@@ -74,7 +75,7 @@ const Icon: React.FunctionComponent<IconBaseProps> = ({size = 18, squared = true
     if (props.spinSpeed) style["--spinSpeed"] = props.spinSpeed;
     if (props.rotation) style.transform = `rotate(${props.rotation}deg)`;
     style.cursor = props.cursor ?? "inherit";
-    if (props.name === "fork") {
+    if (props.name === "fork" || props.noDefaultFill) {
         style.fill = "none";
     }
 

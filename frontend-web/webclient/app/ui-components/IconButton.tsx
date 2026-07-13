@@ -39,11 +39,12 @@ export const IconButton: React.FunctionComponent<{
     onClick: () => void;
     icon: IconName;
     color?: ThemeColor;
+    noDefaultFill?: boolean;
 }> = props => {
     const color = props.color ?? "textSecondary";
     return <TooltipV2 tooltip={props.tooltip}>
         <button type="button" className={style} onClick={props.onClick}>
-            <Icon name={props.icon} color={color} />
+            <Icon name={props.icon} color={color} noDefaultFill={props.noDefaultFill} />
         </button>
     </TooltipV2>
 }
