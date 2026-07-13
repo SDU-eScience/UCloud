@@ -69,7 +69,7 @@ if [ -z "$NO_DOCKER" ]; then
 			--platform linux/arm64/v8,linux/amd64 \
 			.
 	else
-		touch bin/ucloud_aarch64 bin/ucmetrics_aarch64 ucviz_aarch64 bin/vmagent_aarch64 bin/ucloud-job-introspection_aarch64 bin/ucloud-inference-tools_aarch64 #hack
+		touch bin/ucloud_aarch64 bin/ucmetrics_aarch64 bin/ucviz_aarch64 bin/vmagent_aarch64 bin/ucloud-job-introspection_aarch64 bin/ucloud-inference-tools_aarch64 #hack
 		docker buildx build \
 			-f Dockerfile \
 			--push \
