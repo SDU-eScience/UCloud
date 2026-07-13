@@ -230,6 +230,13 @@ var PublicIpsControlAddUpdate = rpc.Call[fnd.BulkRequest[ResourceUpdateAndId[Pub
 	Operation:   "update",
 }
 
+var PublicIpsControlReclaim = rpc.Call[fnd.BulkRequest[fnd.FindByStringId], fnd.BulkResponse[util.Empty]]{
+	BaseContext: publicIpControlNamespace,
+	Convention:  rpc.ConventionDelete,
+	Roles:       rpc.RolesProvider,
+	Operation:   "reclaim",
+}
+
 var PublicIpsControlUpdateLabels = rpc.Call[fnd.BulkRequest[PublicIpsUpdateLabelsRequest], util.Empty]{
 	BaseContext: publicIpControlNamespace,
 	Convention:  rpc.ConventionUpdate,

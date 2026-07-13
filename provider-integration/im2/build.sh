@@ -61,7 +61,7 @@ fi
 
 if [ -z "$NO_DOCKER" ]; then
     version=`cat ../../core2/version.txt`
-	if [ -z "$NO_DOCKER" ]; then
+	if [ -z "$UCLOUD_NO_ARM" ]; then
 		docker buildx build \
 			-f Dockerfile \
 			--push \

@@ -4,10 +4,12 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"math/big"
 	"net"
 	"net/http"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -45,10 +47,33 @@ type ipcAddToPoolRequest struct {
 	Private string
 }
 
+type IpReclaimPlanItem struct {
+	ResourceId  string
+	IpAddress   string
+	Owner       string
+	UnusedSince time.Time
+}
+
+type ipReclaimPreviewRequest struct {
+	UnusedForMillis int64
+}
+
+type ipReclaimPreviewResponse struct {
+	PlanId string
+	Items  []IpReclaimPlanItem
+}
+
+type IpReclaimResult struct {
+	IpReclaimPlanItem
+	Error string
+}
+
 var (
 	ipcRetrieveIpPool = ipc.NewCall[util.Empty, []IpPoolEntry]("publicIps.retrievePool")
 	ipcAddToPool      = ipc.NewCall[ipcAddToPoolRequest, util.Empty]("publicIps.addToPool")
 	ipcRemoveFromPool = ipc.NewCall[string, util.Empty]("publicIps.removeFromPool")
+	ipcPreviewReclaim = ipc.NewCall[ipReclaimPreviewRequest, ipReclaimPreviewResponse]("publicIps.reclaim.preview")
+	ipcExecuteReclaim = ipc.NewCall[string, []IpReclaimResult]("publicIps.reclaim.execute")
 )
 
 // initIpDatabase is invoked by the job_database
@@ -64,6 +89,7 @@ func initIpDatabase() {
 	publicIps.Mu.Unlock()
 
 	publicIpLoadPool()
+	publicIpBackfillUnusedSince()
 
 	ipcAddToPool.Handler(func(r *ipc.Request[ipcAddToPoolRequest]) ipc.Response[util.Empty] {
 		if r.Uid != 0 {
@@ -121,6 +147,153 @@ func initIpDatabase() {
 			Payload:    pool,
 		}
 	})
+
+	ipcPreviewReclaim.Handler(func(r *ipc.Request[ipReclaimPreviewRequest]) ipc.Response[ipReclaimPreviewResponse] {
+		if r.Uid != 0 {
+			return ipc.Response[ipReclaimPreviewResponse]{StatusCode: http.StatusForbidden, ErrorMessage: "You must be root to run this command"}
+		}
+		result, err := PublicIpReclaimPreview(time.Duration(r.Payload.UnusedForMillis) * time.Millisecond)
+		if err != nil {
+			return ipc.Response[ipReclaimPreviewResponse]{StatusCode: http.StatusBadRequest, ErrorMessage: err.Error()}
+		}
+		return ipc.Response[ipReclaimPreviewResponse]{StatusCode: http.StatusOK, Payload: result}
+	})
+
+	ipcExecuteReclaim.Handler(func(r *ipc.Request[string]) ipc.Response[[]IpReclaimResult] {
+		if r.Uid != 0 {
+			return ipc.Response[[]IpReclaimResult]{StatusCode: http.StatusForbidden, ErrorMessage: "You must be root to run this command"}
+		}
+		result, err := PublicIpReclaimExecute(r.Payload)
+		if err != nil {
+			return ipc.Response[[]IpReclaimResult]{StatusCode: http.StatusBadRequest, ErrorMessage: err.Error()}
+		}
+		return ipc.Response[[]IpReclaimResult]{StatusCode: http.StatusOK, Payload: result}
+	})
+}
+
+func publicIpSetUnusedSince(id string, when util.Option[time.Time]) {
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`update tracked_ips set unused_since = :unused_since where resource_id = :id`,
+			db.Params{"id": id, "unused_since": when.Sql()},
+		)
+	})
+}
+
+func publicIpBackfillUnusedSince() {
+	initialized := db.NewTx(func(tx *db.Transaction) bool {
+		row, _ := db.Get[struct{ Initialized bool }](
+			tx,
+			`select exists(select 1 from tracked_ips where unused_since is not null) as initialized`,
+			db.Params{},
+		)
+		return row.Initialized
+	})
+	if initialized {
+		return
+	}
+
+	type ipRow struct {
+		ResourceId  string
+		Resource    string
+		UnusedSince time.Time
+	}
+
+	type jobRow struct {
+		Resource string
+	}
+
+	ips := db.NewTx(func(tx *db.Transaction) []ipRow {
+		return db.Select[ipRow](
+			tx,
+			`select resource_id, resource, coalesce(unused_since, to_timestamp(0)) as unused_since from tracked_ips`,
+			db.Params{},
+		)
+	})
+
+	jobs := db.NewTx(func(tx *db.Transaction) []jobRow {
+		return db.Select[jobRow](
+			tx,
+			`select resource from tracked_jobs`,
+			db.Params{},
+		)
+	})
+
+	var parsedJobs []orc.Job
+	for _, row := range jobs {
+		var job orc.Job
+		if json.Unmarshal([]byte(row.Resource), &job) == nil {
+			parsedJobs = append(parsedJobs, job)
+		}
+	}
+
+	lastReleased, referenced := publicIpHistoricalReleases(parsedJobs)
+	now := time.Now()
+	for _, row := range ips {
+		if !row.UnusedSince.IsZero() {
+			continue
+		}
+
+		var ip orc.PublicIp
+		if json.Unmarshal([]byte(row.Resource), &ip) != nil || len(ip.Status.BoundTo) > 0 {
+			continue
+		}
+
+		when, ok := lastReleased[row.ResourceId]
+		if !ok {
+			when = ip.CreatedAt.Time()
+			if referenced[row.ResourceId] || when.IsZero() {
+				when = now
+			}
+		}
+		publicIpSetUnusedSince(row.ResourceId, util.OptValue(when))
+	}
+}
+
+// publicIpHistoricalReleases derives the latest job terminal transition for every IP referenced by a tracked job.
+func publicIpHistoricalReleases(jobs []orc.Job) (map[string]time.Time, map[string]bool) {
+	result := map[string]time.Time{}
+	referenced := map[string]bool{}
+	for _, job := range jobs {
+		ids := map[string]bool{}
+		for _, value := range job.Specification.Parameters {
+			if value.Type == orc.AppParameterValueTypeNetwork {
+				ids[value.Id] = true
+			}
+		}
+		for _, value := range job.Specification.Resources {
+			if value.Type == orc.AppParameterValueTypeNetwork {
+				ids[value.Id] = true
+			}
+		}
+		for _, update := range job.Updates {
+			if update.ResourceList.Present {
+				for _, value := range update.ResourceList.Value {
+					if value.Type == orc.AppParameterValueTypeNetwork {
+						ids[value.Id] = true
+					}
+				}
+			}
+		}
+		for id := range ids {
+			referenced[id] = true
+		}
+		updates := append([]orc.JobUpdate(nil), job.Updates...)
+		sort.SliceStable(updates, func(i, j int) bool { return updates[i].Timestamp.Time().Before(updates[j].Timestamp.Time()) })
+		var terminal time.Time
+		for _, update := range updates {
+			if update.State.Present && update.State.Value.IsFinal() && update.Timestamp.UnixMilli() > 0 {
+				terminal = update.Timestamp.Time()
+			}
+		}
+		for id := range ids {
+			if terminal.After(result[id]) {
+				result[id] = terminal
+			}
+		}
+	}
+	return result, referenced
 }
 
 func publicIpFetchAll() {
@@ -406,6 +579,7 @@ outer:
 		if err == nil {
 			target.Updates = append(target.Updates, newUpdate)
 			PublicIpTrackNew(*target)
+			publicIpSetUnusedSince(target.Id, util.OptValue(time.Now()))
 			return nil
 		} else {
 			log.Info("Failed to allocate an IP address due to an error between UCloud and the provider: %s", err)
@@ -417,6 +591,13 @@ outer:
 }
 
 func PublicIpDelete(address *orc.PublicIp) *util.HttpError {
+	// The provider delete payload can be stale while a job is being started. Core is
+	// authoritative for bindings, so check it once more before releasing this address.
+	fresh, err := orc.PublicIpsControlRetrieve.Invoke(orc.PublicIpsControlRetrieveRequest{Id: address.Id})
+	if err != nil {
+		return err
+	}
+	address = &fresh
 	if len(address.Status.BoundTo) > 0 {
 		return util.UserHttpError("This IP is currently in use by job: %v", strings.Join(address.Status.BoundTo, ", "))
 	}
@@ -444,6 +625,139 @@ func PublicIpDelete(address *orc.PublicIp) *util.HttpError {
 
 	publicIps.Mu.Unlock()
 	return nil
+}
+
+func PublicIpReclaimPreview(unusedFor time.Duration) (ipReclaimPreviewResponse, error) {
+	if unusedFor <= 0 {
+		return ipReclaimPreviewResponse{}, fmt.Errorf("--unused-for must be greater than zero")
+	}
+	type ipRow struct {
+		Resource    string
+		UnusedSince time.Time
+	}
+	tracked := db.NewTx(func(tx *db.Transaction) []ipRow {
+		return db.Select[ipRow](
+			tx,
+			`select resource, unused_since from tracked_ips where unused_since is not null`,
+			db.Params{},
+		)
+	})
+
+	var candidates []IpReclaimPlanItem
+	for _, row := range tracked {
+		var ip orc.PublicIp
+		if json.Unmarshal([]byte(row.Resource), &ip) != nil || len(ip.Status.BoundTo) != 0 || !ip.Status.IpAddress.Present || time.Since(row.UnusedSince) < unusedFor {
+			continue
+		}
+		owner := ip.Owner.CreatedBy
+		if ip.Owner.Project.Present {
+			owner = ip.Owner.Project.Value
+		}
+		candidates = append(candidates, IpReclaimPlanItem{ResourceId: ip.Id, IpAddress: ip.Status.IpAddress.Value, Owner: owner, UnusedSince: row.UnusedSince})
+	}
+
+	planId := util.SecureToken()
+	now := time.Now()
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`delete from ip_reclaim_plans where expires_at < now()`,
+			db.Params{},
+		)
+
+		db.Exec(
+			tx,
+			`
+				insert into ip_reclaim_plans(id, created_at, expires_at, unused_for_ms)
+				values (:id, :created_at, :expires_at, :unused_for_ms)
+			`,
+			db.Params{
+				"id": planId, "created_at": now, "expires_at": now.Add(24 * time.Hour), "unused_for_ms": unusedFor.Milliseconds(),
+			},
+		)
+
+		for _, item := range candidates {
+			db.Exec(
+				tx,
+				`
+					insert into ip_reclaim_plan_items(plan_id, resource_id, ip_address, owner, unused_since)
+					values (:plan_id, :resource_id, :ip_address, :owner, :unused_since)`,
+				db.Params{
+					"plan_id": planId, "resource_id": item.ResourceId, "ip_address": item.IpAddress, "owner": item.Owner, "unused_since": item.UnusedSince,
+				},
+			)
+		}
+	})
+	return ipReclaimPreviewResponse{PlanId: planId, Items: candidates}, nil
+}
+
+func PublicIpReclaimExecute(planId string) ([]IpReclaimResult, error) {
+	if planId == "" {
+		return nil, fmt.Errorf("missing reclaim plan ID")
+	}
+
+	type planRow struct {
+		ResourceId  string
+		IpAddress   string
+		Owner       string
+		UnusedSince time.Time
+	}
+
+	items := db.NewTx(func(tx *db.Transaction) []planRow {
+		return db.Select[planRow](
+			tx,
+			`
+				select i.resource_id, i.ip_address, i.owner, i.unused_since
+				from
+				    ip_reclaim_plan_items i
+					join ip_reclaim_plans p on p.id = i.plan_id
+				where
+				    p.id = :id and p.expires_at >= now()
+			`,
+			db.Params{"id": planId},
+		)
+	})
+
+	if len(items) == 0 {
+		return nil, fmt.Errorf("reclaim plan not found, expired, or empty")
+	}
+
+	result := make([]IpReclaimResult, 0, len(items))
+	for _, item := range items {
+		r := IpReclaimResult{
+			IpReclaimPlanItem: IpReclaimPlanItem{
+				ResourceId:  item.ResourceId,
+				IpAddress:   item.IpAddress,
+				Owner:       item.Owner,
+				UnusedSince: item.UnusedSince,
+			},
+		}
+
+		current := db.NewTx(func(tx *db.Transaction) time.Time {
+			row, _ := db.Get[struct {
+				UnusedSince time.Time
+			}](
+				tx,
+				`
+					select coalesce(unused_since, to_timestamp(0)) as unused_since
+					from tracked_ips where resource_id = :id
+				`,
+				db.Params{"id": item.ResourceId},
+			)
+			return row.UnusedSince
+		})
+		if !current.Equal(item.UnusedSince) {
+			r.Error = "IP activity changed since the preview"
+			result = append(result, r)
+			continue
+		}
+		_, err := orc.PublicIpsControlReclaim.Invoke(fnd.BulkRequestOf(fnd.FindByStringId{Id: item.ResourceId}))
+		if err != nil {
+			r.Error = err.Error()
+		}
+		result = append(result, r)
+	}
+	return result, nil
 }
 
 func PublicIpRetrieveUsedCount(owner orc.ResourceOwner) int {
@@ -695,6 +1009,7 @@ func PublicIpBindToJob(job *orc.Job) ([]orc.PublicIp, []net.IP, error) {
 	} else {
 		for _, ip := range result {
 			PublicIpTrackNew(ip)
+			publicIpSetUnusedSince(ip.Id, util.OptNone[time.Time]())
 		}
 
 		return result, privateIps, nil
@@ -778,6 +1093,7 @@ func PublicIpUnbindFromJob(job *orc.Job) {
 
 	for _, ip := range result {
 		PublicIpTrackNew(ip)
+		publicIpSetUnusedSince(ip.Id, util.OptValue(time.Now()))
 	}
 }
 
@@ -788,6 +1104,8 @@ func IpPoolCliStub(args []string) {
 	}
 
 	switch {
+	case args[0] == "reclaim":
+		ipReclaimCli(args[1:])
 	case cli.IsListCommand(args[0]):
 		pool, err := ipcRetrieveIpPool.Invoke(util.Empty{})
 		cli.HandleError("listing IP pool", err)
@@ -837,6 +1155,65 @@ func IpPoolCliStub(args []string) {
 	default:
 		termio.WriteStyledLine(termio.Bold, termio.Red, 0, "Unknown command")
 	}
+}
+
+func ipReclaimCli(args []string) {
+	if len(args) == 0 {
+		termio.WriteStyledLine(termio.Bold, termio.Red, 0, "Unknown reclaim command")
+		return
+	}
+	switch args[0] {
+	case "preview":
+		fs := flag.NewFlagSet("ips reclaim preview", flag.ExitOnError)
+		unusedFor := fs.Duration("unused-for", 0, "Minimum continuous unused period")
+		_ = fs.Parse(args[1:])
+		response, err := ipcPreviewReclaim.Invoke(ipReclaimPreviewRequest{UnusedForMillis: unusedFor.Milliseconds()})
+		cli.HandleError("previewing IP reclaim", err)
+		termio.WriteStyledLine(termio.Bold, 0, 0, "Reclaim plan: %s (expires in 24 hours)", response.PlanId)
+		ipReclaimTable(response.Items, nil)
+	case "execute":
+		planId := util.GetOptionalElement(args, 1)
+		if !planId.Present {
+			termio.WriteStyledLine(termio.Bold, termio.Red, 0, "Missing reclaim plan ID")
+			return
+		}
+		results, err := ipcExecuteReclaim.Invoke(planId.Value)
+		cli.HandleError("executing IP reclaim", err)
+		items := make([]IpReclaimPlanItem, 0, len(results))
+		errors := map[string]string{}
+		for _, result := range results {
+			items = append(items, result.IpReclaimPlanItem)
+			errors[result.ResourceId] = result.Error
+		}
+		ipReclaimTable(items, errors)
+	default:
+		termio.WriteStyledLine(termio.Bold, termio.Red, 0, "Unknown reclaim command")
+	}
+}
+
+func ipReclaimTable(items []IpReclaimPlanItem, errors map[string]string) {
+	table := &termio.Table{}
+	table.AppendHeader("Resource ID")
+	table.AppendHeader("IP address")
+	table.AppendHeader("Owner")
+	table.AppendHeader("Unused since")
+	if errors != nil {
+		table.AppendHeader("Result")
+	}
+	for _, item := range items {
+		table.Cell("%s", item.ResourceId)
+		table.Cell("%s", item.IpAddress)
+		table.Cell("%s", item.Owner)
+		table.Cell("%s", item.UnusedSince.Format(time.RFC3339))
+		if errors != nil {
+			result := "reclaimed"
+			if errors[item.ResourceId] != "" {
+				result = "skipped: " + errors[item.ResourceId]
+			}
+			table.Cell("%s", result)
+		}
+	}
+	table.Print()
 }
 
 func PublicIpRetrieve(publicIpId string) (*orc.PublicIp, bool) {
