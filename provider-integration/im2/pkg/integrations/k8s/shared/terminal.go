@@ -31,6 +31,7 @@ type IntegratedSandbox struct {
 	AppName    string
 	Owner      orc.ResourceOwner
 	JobId      string
+	Rank       util.Option[int]
 	ETag       string
 	Folders    []string
 	LeaseUntil time.Time
@@ -122,7 +123,7 @@ func TerminalOpen(owner orc.ResourceOwner, folders []string) (*TerminalSandbox, 
 	return sandbox, nil
 }
 
-func TerminalOpenToJob(jobId string) (*TerminalSandbox, *util.HttpError) {
+func TerminalOpenToJob(jobId string, rank util.Option[int]) (*TerminalSandbox, *util.HttpError) {
 	if jobId == "" {
 		return nil, util.UserHttpError("job id must not be empty")
 	}
@@ -139,6 +140,7 @@ func TerminalOpenToJob(jobId string) (*TerminalSandbox, *util.HttpError) {
 		AppName:   IntegratedTerminalAppName,
 		Owner:     job.Owner,
 		JobId:     job.Id,
+		Rank:      rank,
 		AutoLease: false,
 	}
 

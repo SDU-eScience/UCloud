@@ -4,6 +4,13 @@ This page tracks a high-level overview of changes to the version of UCloud
 hosted at cloud.sdu.dk. This page is intended for internal
 use.
 
+## 14-07-26
+
+```
+SDU-Bitten/K8s @ 2026.3.141
+SDU-Odense/K8s @ 2026.3.141
+```
+
 ## 13-07-26
 
 ```

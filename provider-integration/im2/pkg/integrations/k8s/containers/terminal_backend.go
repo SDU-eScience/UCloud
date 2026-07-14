@@ -90,7 +90,7 @@ func (backend *terminalBackend) Start(cmd *shared.TerminalCmd) (shared.TerminalC
 		return nil, util.UserHttpError("command name must not be empty")
 	}
 
-	podName := idAndRankToPodName(cmd.Sandbox.JobId, 0)
+	podName := idAndRankToPodName(cmd.Sandbox.JobId, cmd.Sandbox.Rank.GetOrDefault(0))
 	if err := waitForTerminalCommandTarget(cmd, podName); err != nil {
 		return nil, err
 	}
