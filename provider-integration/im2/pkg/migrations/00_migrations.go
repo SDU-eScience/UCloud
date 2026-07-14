@@ -57,4 +57,5 @@ func Init() {
 	db.AddMigration(ipDatabaseV3())
 	db.AddMigration(inferenceV16())
 	db.AddMigration(inferenceV17())
+	db.AddMigration(jobDatabaseV4())
 }

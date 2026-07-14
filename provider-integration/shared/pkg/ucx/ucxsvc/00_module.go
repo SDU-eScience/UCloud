@@ -498,7 +498,12 @@ func PublicIpCreate(stack *Stack) orcapi.AppParameterValue {
 // Public links
 // =====================================================================================================================
 
-func PublicLinkCreate(stack *Stack, name string, port util.Option[int]) orcapi.AppParameterValue {
+type PublicLinkCreateOptions struct {
+	Port util.Option[int]
+	TLS  bool
+}
+
+func PublicLinkCreate(stack *Stack, name string, options PublicLinkCreateOptions) orcapi.AppParameterValue {
 	if !stack.Ok {
 		return orcapi.AppParameterValue{}
 	}
@@ -528,9 +533,10 @@ func PublicLinkCreate(stack *Stack, name string, port util.Option[int]) orcapi.A
 	}
 
 	result := orcapi.AppParameterValueIngress(links[0].Id)
-	if port.Present {
-		result.Port = port.Value
+	if options.Port.Present {
+		result.Port = options.Port.Value
 	}
+	result.TLS = options.TLS
 	return result
 }
 

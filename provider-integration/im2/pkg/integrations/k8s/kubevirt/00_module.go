@@ -1020,6 +1020,7 @@ func openWebSession(job *orc.Job, sessionType orc.InteractiveSessionType, rank i
 					TargetDomain: ingress.Specification.Domain,
 					Flags:        flags,
 					IsPublic:     true,
+					TLS:          resource.TLS,
 				})
 			}
 		}

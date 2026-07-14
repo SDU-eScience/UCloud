@@ -545,6 +545,7 @@ func openWebSession(job *orc.Job, sessionType orc.InteractiveSessionType, rank i
 			TargetDomain: ingress.TargetDomain,
 			Flags:        flags,
 			IsPublic:     ingress.IsPublic,
+			TLS:          ingress.TLS,
 		})
 	}
 
@@ -560,6 +561,7 @@ func serverFindIngress(job *orc.Job, rank int, suffix util.Option[string]) []con
 			result = append(result, controller.ConfiguredWebIngress{
 				IsPublic:     true,
 				TargetDomain: ingress.Specification.Domain,
+				TLS:          resource.TLS,
 			})
 		}
 	}
