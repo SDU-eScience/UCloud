@@ -314,6 +314,7 @@ export const ProductSelector: React.FunctionComponent<{
     React.useEffect(() => {
         if (type === "COMPUTE" && selected) {
             const sel = selected;
+            setServiceProvider(sel.category.provider);
             setComputeCategory(cat => {
                 for (const categorized of categorizedProducts) {
                     if (isComputeCategory(categorized)) {
@@ -1160,4 +1161,3 @@ function kindFromProduct(prod: ProductV2Compute): "CPU" | "GPU" {
     if (prod.gpu) return "GPU";
     return "CPU";
 }
-

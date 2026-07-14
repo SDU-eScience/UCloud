@@ -7,6 +7,7 @@ use.
 ## 14-07-26
 
 ```
+UCloud/Frontend @ 2026.3.142
 SDU-Bitten/K8s @ 2026.3.141
 SDU-Odense/K8s @ 2026.3.141
 ```
