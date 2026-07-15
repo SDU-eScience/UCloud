@@ -18,6 +18,7 @@ import (
 	"ucloud.dk/pkg/integrations/k8s/filesystem"
 	"ucloud.dk/pkg/integrations/k8s/kubevirt"
 	"ucloud.dk/pkg/integrations/k8s/shared"
+	"ucloud.dk/shared/pkg/rpc"
 
 	k8score "k8s.io/api/core/v1"
 	k8sresource "k8s.io/apimachinery/pkg/api/resource"
@@ -29,6 +30,7 @@ import (
 )
 
 var nextAccounting time.Time
+var nextMountReport time.Time
 
 // NOTE(Dan): This must only be used by code invoked from the goroutine in loopMonitoring. None of the code is
 // thread-safe.
@@ -518,8 +520,31 @@ func loopMonitoring() {
 						tracker.RequestCleanup(job.Id)
 					}
 				}
+
+				if now.After(nextMountReport) {
+					mounts, ok := shared.ResolveJobMounts(job)
+					if ok {
+						for _, mount := range mounts {
+							filesystem.ActivityRecord(
+								rpc.Actor{
+									Username: job.Owner.CreatedBy,
+								},
+								filesystem.ActivityEvent{
+									Kind:      filesystem.ActivityMount,
+									Operation: filesystem.ActivityOperationMount,
+									Targets:   []filesystem.ActivityTarget{{UCloudPath: mount.UCloudPath}},
+								},
+							)
+						}
+					}
+				}
 			}
 		}
+
+		if now.After(nextMountReport) {
+			nextMountReport = now.Add(30 * time.Minute)
+		}
+
 		metricMonitoring.WithLabelValues("CheckingLockState").Observe(timer.Mark().Seconds())
 
 		timer.Mark()
