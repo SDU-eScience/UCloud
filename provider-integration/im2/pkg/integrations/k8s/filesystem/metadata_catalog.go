@@ -251,6 +251,7 @@ var metadataRuntime = struct {
 }{config: MetadataCatalogConfig{IOPS: 30_000, ParallelScans: 8, EntriesPerSSTable: 100_000}}
 
 var metadataCompleteCoverage sync.Map
+var metadataDeletedDrives sync.Map
 var metadataLastGeneration atomic.Uint64
 var metadataNameRefreshes sync.Map
 var metadataDatabases = struct {
@@ -266,6 +267,7 @@ type metadataOpenDatabase struct {
 type metadataScanRequest struct {
 	internalPath string
 	drive        *orc.Drive
+	completions  []func(error)
 }
 
 // MetadataConfigureCatalog configures the aggregate scan budget. Call it before the first request.
@@ -283,8 +285,21 @@ func MetadataConfigureCatalog(config MetadataCatalogConfig) error {
 }
 
 func MetadataSubmitScanRequest(ucloudPath string) {
+	metadataSubmitScanRequest(ucloudPath, nil)
+}
+
+func metadataSubmitScanRequest(ucloudPath string, completion func(error)) {
 	internalPath, ok, drive := UCloudToInternal(ucloudPath)
 	if !ok {
+		if completion != nil {
+			completion(errors.New("unable to resolve metadata scan path"))
+		}
+		return
+	}
+	if _, deleted := metadataDeletedDrives.Load(drive.Id); deleted {
+		if completion != nil {
+			completion(errors.New("metadata scan drive has been deleted"))
+		}
 		return
 	}
 	if !metadataHasCompleteCoverage(drive.Id) {
@@ -293,7 +308,11 @@ func MetadataSubmitScanRequest(ucloudPath string) {
 
 	metadataStartRuntime()
 	metadataRecordScanSubmitted(drive.Id)
-	metadataRuntime.requests <- metadataScanRequest{internalPath: internalPath, drive: drive}
+	request := metadataScanRequest{internalPath: internalPath, drive: drive}
+	if completion != nil {
+		request.completions = append(request.completions, completion)
+	}
+	metadataRuntime.requests <- request
 }
 
 func metadataStartRuntime() {
@@ -313,7 +332,11 @@ func metadataStartRuntime() {
 	for range config.ParallelScans {
 		go func() {
 			for request := range ready {
-				metadataDoScan(request.internalPath, request.drive)
+				log.Info("Beginning scan of: %v", request.internalPath)
+				err := metadataDoScan(request.internalPath, request.drive)
+				for _, completion := range request.completions {
+					completion(err)
+				}
 				done <- request.drive.Id
 			}
 		}()
@@ -334,7 +357,7 @@ func metadataDispatchScans(requests <-chan metadataScanRequest, ready chan<- met
 		select {
 		case request := <-requests:
 			if active[request.drive.Id] {
-				pending[request.drive.Id] = append(pending[request.drive.Id], request)
+				pending[request.drive.Id] = metadataCoalesceScanRequest(pending[request.drive.Id], request)
 			} else {
 				active[request.drive.Id] = true
 				runnable = append(runnable, request)
@@ -352,6 +375,30 @@ func metadataDispatchScans(requests <-chan metadataScanRequest, ready chan<- met
 			}
 		}
 	}
+}
+
+func metadataCoalesceScanRequest(queue []metadataScanRequest, request metadataScanRequest) []metadataScanRequest {
+	for i := range queue {
+		if metadataPathContains(queue[i].internalPath, request.internalPath) {
+			queue[i].completions = append(queue[i].completions, request.completions...)
+			return queue
+		}
+	}
+
+	result := queue[:0]
+	for _, existing := range queue {
+		if metadataPathContains(request.internalPath, existing.internalPath) {
+			request.completions = append(request.completions, existing.completions...)
+			continue
+		}
+		result = append(result, existing)
+	}
+	return append(result, request)
+}
+
+func metadataPathContains(parent, child string) bool {
+	relative, err := filepath.Rel(filepath.Clean(parent), filepath.Clean(child))
+	return err == nil && relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator))
 }
 
 // metadataHasCompleteCoverage returns true if a complete drive-root scan has been published.
@@ -381,10 +428,13 @@ func metadataHasCompleteCoverage(driveID string) bool {
 	return true
 }
 
-func metadataDoScan(internalPath string, drive *orc.Drive) {
+func metadataDoScan(internalPath string, drive *orc.Drive) error {
+	if _, deleted := metadataDeletedDrives.Load(drive.Id); deleted {
+		return errors.New("metadata scan drive has been deleted")
+	}
 	basePath, ok, _ := DriveToLocalPath(drive)
 	if !ok {
-		return
+		return errors.New("unable to resolve metadata scan drive")
 	}
 	metadataRuntime.Lock()
 	limiter := metadataRuntime.limiter
@@ -401,6 +451,26 @@ func metadataDoScan(internalPath string, drive *orc.Drive) {
 	} else if filepath.Clean(internalPath) == filepath.Clean(basePath) {
 		metadataCompleteCoverage.Store(drive.Id, true)
 	}
+	return err
+}
+
+func MetadataDeleteCatalog(driveID string) {
+	metadataDeletedDrives.Store(driveID, true)
+	metadataCompleteCoverage.Delete(driveID)
+	databasePath := metadataDatabasePath(driveID)
+	go func() {
+		metadataWaitForNameRefresh(databasePath)
+		for util.IsAlive {
+			metadataDatabases.Lock()
+			open := metadataDatabases.open[databasePath] != nil
+			metadataDatabases.Unlock()
+			if !open {
+				_ = os.RemoveAll(databasePath)
+				return
+			}
+			time.Sleep(time.Second)
+		}
+	}()
 }
 
 func metadataDatabasePath(driveID string) string {

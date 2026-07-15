@@ -1113,6 +1113,7 @@ func deleteDrive(actor rpc.Actor, drive orc.Drive) *util.HttpError {
 		return util.ServerHttpError("unknown drive")
 	}
 	reportUsedStorage(drive, 0)
+	MetadataDeleteCatalog(drive.Id)
 	err := DoDeleteFile(path)
 	if err == nil {
 		ActivityRecord(actor, ActivityEvent{

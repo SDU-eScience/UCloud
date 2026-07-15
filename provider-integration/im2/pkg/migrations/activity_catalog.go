@@ -36,3 +36,23 @@ func activityCatalogV1() db.MigrationScript {
 		},
 	}
 }
+
+func activityCatalogV2() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "activityCatalogV2",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(tx, `
+				create index fs_activity_event_targets_event_id
+					on fs_activity_event_targets(event_id);
+
+				create table fs_metadata_scan_state(
+					drive_id text not null references tracked_drives(drive_id) on delete cascade,
+					ucloud_path text not null,
+					last_submitted_at timestamptz not null default timestamp 'epoch',
+					last_completed_at timestamptz not null default timestamp 'epoch',
+					primary key (drive_id, ucloud_path)
+				);
+			`, db.Params{})
+		},
+	}
+}

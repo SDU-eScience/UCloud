@@ -40,28 +40,12 @@ func ResolveJobMounts(job *orc.Job) ([]ResolvedJobMount, bool) {
 	ucloudMounts := map[string]ucloudMount{}
 	for _, value := range job.Specification.Resources {
 		if value.Type == orc.AppParameterValueTypeFile {
-			existing, hasExisting := ucloudMounts[value.Path]
-			if hasExisting {
-				if existing.ReadOnly {
-					existing.ReadOnly = value.ReadOnly
-					ucloudMounts[value.Path] = existing
-				}
-			} else {
-				ucloudMounts[value.Path] = ucloudMount{MountPath: value.MountPath, ReadOnly: value.ReadOnly}
-			}
+			ucloudMounts[value.Path] = ucloudMount{MountPath: value.MountPath, ReadOnly: value.ReadOnly}
 		}
 	}
 	for _, value := range job.Specification.Parameters {
 		if value.Type == orc.AppParameterValueTypeFile {
-			existing, hasExisting := ucloudMounts[value.Path]
-			if hasExisting {
-				if existing.ReadOnly {
-					existing.ReadOnly = value.ReadOnly
-					ucloudMounts[value.Path] = existing
-				}
-			} else {
-				ucloudMounts[value.Path] = ucloudMount{MountPath: value.MountPath, ReadOnly: value.ReadOnly}
-			}
+			ucloudMounts[value.Path] = ucloudMount{MountPath: value.MountPath, ReadOnly: value.ReadOnly}
 		}
 	}
 
@@ -83,6 +67,12 @@ func ResolveJobMounts(job *orc.Job) ([]ResolvedJobMount, bool) {
 
 		resolvedMounts[mountPath] = append(existing, mount)
 		return true
+	}
+
+	if job.Output.OutputFolder.Present && len(util.Components(job.Output.OutputFolder.Value)) > 0 {
+		addMount("/work", resolvedMount{
+			UCloudPath: filepath.Clean(job.Output.OutputFolder.Value),
+		})
 	}
 
 	for ucloudPath, mount := range ucloudMounts {

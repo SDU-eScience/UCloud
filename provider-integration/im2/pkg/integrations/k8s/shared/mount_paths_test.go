@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	orc "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/util"
 )
 
 func TestValidateFileMountPath(t *testing.T) {
@@ -112,5 +113,57 @@ func TestContainerPathToUCloudFileMountDuplicateTitles(t *testing.T) {
 
 	if got != "/4/B/Data/result.txt" {
 		t.Fatalf("expected '/4/B/Data/result.txt', got '%s'", got)
+	}
+}
+
+func TestResolveJobMountsIncludesJobFolder(t *testing.T) {
+	job := &orc.Job{}
+	job.Output.OutputFolder = util.OptValue("/4/Jobs/Application/job-1")
+	job.Specification.Resources = []orc.AppParameterValue{
+		orc.AppParameterValueFile("/4/Input", true),
+	}
+
+	mounts, ok := ResolveJobMounts(job)
+	if !ok {
+		t.Fatal("expected mounts to resolve")
+	}
+
+	expected := map[string]ResolvedJobMount{
+		"/work":       {ContainerPath: "/work", UCloudPath: "/4/Jobs/Application/job-1"},
+		"/work/Input": {ContainerPath: "/work/Input", UCloudPath: "/4/Input", ReadOnly: true},
+	}
+	if len(mounts) != len(expected) {
+		t.Fatalf("expected %d mounts, got %d: %#v", len(expected), len(mounts), mounts)
+	}
+
+	for _, mount := range mounts {
+		if mount != expected[mount.ContainerPath] {
+			t.Errorf("unexpected mount: %#v", mount)
+		}
+	}
+}
+
+func TestContainerPathToUCloudFileMountUsesMostSpecificMount(t *testing.T) {
+	job := &orc.Job{}
+	job.Output.OutputFolder = util.OptValue("/4/Jobs/Application/job-1")
+	job.Specification.Resources = []orc.AppParameterValue{
+		orc.AppParameterValueFile("/4/Input", false),
+	}
+
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{input: "/work/result.txt", expected: "/4/Jobs/Application/job-1/result.txt"},
+		{input: "/work/Input/data.txt", expected: "/4/Input/data.txt"},
+	}
+
+	for _, tt := range tests {
+		got, ok := ContainerPathToUCloudFileMount(job, tt.input)
+		if !ok {
+			t.Errorf("expected %q to resolve", tt.input)
+		} else if got != tt.expected {
+			t.Errorf("expected %q, got %q", tt.expected, got)
+		}
 	}
 }

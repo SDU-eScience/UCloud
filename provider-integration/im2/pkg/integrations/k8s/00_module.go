@@ -75,11 +75,18 @@ func Init(config *cfg.ServicesConfigurationKubernetes) {
 	}
 
 	initStorageScanCli()
-	_ = filesystem.MetadataConfigureCatalog(filesystem.MetadataCatalogConfig{
-		IOPS:              45_000,
-		ParallelScans:     8,
-		EntriesPerSSTable: 1024 * 16,
-	})
+	if config.FileSystem.MetadataCatalog.Enabled {
+		metadataConfig := config.FileSystem.MetadataCatalog
+		if err := filesystem.MetadataConfigureCatalog(filesystem.MetadataCatalogConfig{
+			IOPS:              metadataConfig.IOPS,
+			ParallelScans:     metadataConfig.ParallelScans,
+			EntriesPerSSTable: metadataConfig.EntriesPerSSTable,
+		}); err != nil {
+			log.Warn("Unable to configure metadata catalog: %s", err)
+		} else {
+			filesystem.MetadataStartScanner()
+		}
+	}
 	filesystem.InitMetadataCli()
 	initJobsCli()
 	job_introspection.InitServerHandlers()

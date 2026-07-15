@@ -25,6 +25,14 @@ type KubernetesFileSystem struct {
 	TrashStagingArea string
 	ClaimName        string
 	ScanMethod       KubernetesFileSystemScanMethod
+	MetadataCatalog  KubernetesMetadataCatalog
+}
+
+type KubernetesMetadataCatalog struct {
+	Enabled           bool
+	IOPS              int
+	ParallelScans     int
+	EntriesPerSSTable int
 }
 
 type KubernetesFileSystemScanMethod struct {
@@ -320,6 +328,31 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 			}
 		} else {
 			cfg.FileSystem.ScanMethod.Type = K8sScanMethodTypeWalk
+		}
+
+		metadataNode, _ := cfgutil.GetChildOrNil(filePath, fsNode, "metadataCatalog")
+		cfg.FileSystem.MetadataCatalog.Enabled = util.DevelopmentModeEnabled()
+		cfg.FileSystem.MetadataCatalog.IOPS = 45_000
+		cfg.FileSystem.MetadataCatalog.ParallelScans = 8
+		cfg.FileSystem.MetadataCatalog.EntriesPerSSTable = 1024 * 16
+		if metadataNode != nil {
+			if enabled, ok := cfgutil.OptionalChildBool(filePath, metadataNode, "enabled"); ok {
+				cfg.FileSystem.MetadataCatalog.Enabled = enabled
+			}
+			cfg.FileSystem.MetadataCatalog.IOPS = int(cfgutil.OptionalChildInt(
+				filePath, metadataNode, "iops", &success,
+			).GetOrDefault(int64(cfg.FileSystem.MetadataCatalog.IOPS)))
+			cfg.FileSystem.MetadataCatalog.ParallelScans = int(cfgutil.OptionalChildInt(
+				filePath, metadataNode, "parallelScans", &success,
+			).GetOrDefault(int64(cfg.FileSystem.MetadataCatalog.ParallelScans)))
+			cfg.FileSystem.MetadataCatalog.EntriesPerSSTable = int(cfgutil.OptionalChildInt(
+				filePath, metadataNode, "entriesPerSSTable", &success,
+			).GetOrDefault(int64(cfg.FileSystem.MetadataCatalog.EntriesPerSSTable)))
+		}
+		if cfg.FileSystem.MetadataCatalog.IOPS <= 0 || cfg.FileSystem.MetadataCatalog.ParallelScans < 2 ||
+			cfg.FileSystem.MetadataCatalog.EntriesPerSSTable < 10_000 {
+			cfgutil.ReportError(filePath, fsNode, "metadataCatalog requires positive iops, at least 2 parallelScans, and at least 10000 entriesPerSSTable")
+			success = false
 		}
 	}
 

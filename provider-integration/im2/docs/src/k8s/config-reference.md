@@ -214,6 +214,12 @@ services:
     claimName: "ucloud-user-data"
     scanMethod:
       type: Walk
+    metadataCatalog:
+      # Defaults to true in development mode and false otherwise.
+      enabled: false
+      iops: 45000
+      parallelScans: 8
+      entriesPerSSTable: 16384
 
   compute:
     namespace: "ucloud-apps"

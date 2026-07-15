@@ -104,6 +104,11 @@ services:
     claimName: "ucloud-user-data"
     scanMethod:
       type: Walk
+    metadataCatalog:
+      enabled: false
+      iops: 45000
+      parallelScans: 8
+      entriesPerSSTable: 16384
 
 ```
 
