@@ -34,23 +34,23 @@ var Files FileService
 type FileService struct {
 	BrowseFiles                 func(request orcapi.FilesProviderBrowseRequest) (fnd.PageV2[orcapi.ProviderFile], *util.HttpError)
 	RetrieveFile                func(request orcapi.FilesProviderRetrieveRequest) (orcapi.ProviderFile, *util.HttpError)
-	CreateFolder                func(request orcapi.FilesProviderCreateFolderRequest) *util.HttpError
-	Move                        func(request orcapi.FilesProviderMoveOrCopyRequest) *util.HttpError
+	CreateFolder                func(actor rpc.Actor, request orcapi.FilesProviderCreateFolderRequest) *util.HttpError
+	Move                        func(actor rpc.Actor, request orcapi.FilesProviderMoveOrCopyRequest) *util.HttpError
 	Copy                        func(actor rpc.Actor, request orcapi.FilesProviderMoveOrCopyRequest) *util.HttpError
-	MoveToTrash                 func(request orcapi.FilesProviderTrashRequest) *util.HttpError
-	EmptyTrash                  func(request orcapi.FilesProviderTrashRequest) *util.HttpError
-	CreateDownloadSession       func(request FileDownloadSession) *util.HttpError
+	MoveToTrash                 func(actor rpc.Actor, request orcapi.FilesProviderTrashRequest) *util.HttpError
+	EmptyTrash                  func(actor rpc.Actor, request orcapi.FilesProviderTrashRequest) *util.HttpError
+	CreateDownloadSession       func(actor rpc.Actor, request FileDownloadSession) *util.HttpError
 	Download                    func(request FileDownloadSession) (io.ReadSeekCloser, int64, *util.HttpError)
-	CreateUploadSession         func(request orcapi.FilesProviderCreateUploadRequest) (string, *util.HttpError)
+	CreateUploadSession         func(actor rpc.Actor, request orcapi.FilesProviderCreateUploadRequest) (string, *util.HttpError)
 	RetrieveProducts            func() []orcapi.FSSupport
 	TransferSourceInitiate      func(request orcapi.FilesProviderTransferRequestInitiateSource) ([]string, *util.HttpError)
-	TransferDestinationInitiate func(request orcapi.FilesProviderTransferRequestInitiateDestination) (orcapi.FilesProviderTransferResponse, *util.HttpError)
-	TransferSourceBegin         func(request orcapi.FilesProviderTransferRequestStart, session FileTransferSession) *util.HttpError
+	TransferDestinationInitiate func(actor rpc.Actor, request orcapi.FilesProviderTransferRequestInitiateDestination) (orcapi.FilesProviderTransferResponse, *util.HttpError)
+	TransferSourceBegin         func(actor rpc.Actor, request orcapi.FilesProviderTransferRequestStart, session FileTransferSession) *util.HttpError
 	Search                      func(ctx context.Context, query, folder string, flags orcapi.FileFlags, outputChannel chan orcapi.ProviderFile)
 	Uploader                    upload.ServerFileSystem
 
-	CreateDrive          func(drive orcapi.Drive) *util.HttpError
-	DeleteDrive          func(drive orcapi.Drive) *util.HttpError
+	CreateDrive          func(actor rpc.Actor, drive orcapi.Drive) *util.HttpError
+	DeleteDrive          func(actor rpc.Actor, drive orcapi.Drive) *util.HttpError
 	RenameDrive          func(drive orcapi.Drive) *util.HttpError
 	OnUpdatedDriveLabels func(drive orcapi.Drive) *util.HttpError
 
@@ -152,7 +152,7 @@ func initFiles() {
 			var err *util.HttpError = nil
 			for _, item := range request.Items {
 				DriveTrack(&item.ResolvedCollection)
-				err = Files.CreateFolder(item)
+				err = Files.CreateFolder(info.Actor, item)
 
 				if err != nil {
 					break
@@ -173,7 +173,7 @@ func initFiles() {
 				DriveTrack(&item.ResolvedOldCollection)
 				DriveTrack(&item.ResolvedNewCollection)
 
-				err := Files.Move(item)
+				err := Files.Move(info.Actor, item)
 
 				if err != nil {
 					errors = append(errors, err)
@@ -203,7 +203,7 @@ func initFiles() {
 					SessionId: sessionId,
 				}
 
-				err := Files.CreateDownloadSession(session)
+				err := Files.CreateDownloadSession(info.Actor, session)
 				if err != nil {
 					return fnd.BulkResponse[orcapi.FilesProviderCreateDownloadResponse]{}, err
 				}
@@ -287,7 +287,7 @@ func initFiles() {
 			for _, item := range request.Items {
 				DriveTrack(&item.ResolvedCollection)
 
-				err := Files.MoveToTrash(item)
+				err := Files.MoveToTrash(info.Actor, item)
 
 				if err != nil {
 					errors = append(errors, err)
@@ -304,7 +304,7 @@ func initFiles() {
 		orcapi.FilesProviderEmptyTrash.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.FilesProviderTrashRequest]) (fnd.BulkResponse[util.Empty], *util.HttpError) {
 			var errors []*util.HttpError
 			for _, item := range request.Items {
-				err := Files.EmptyTrash(item)
+				err := Files.EmptyTrash(info.Actor, item)
 
 				if err != nil {
 					errors = append(errors, err)
@@ -323,7 +323,7 @@ func initFiles() {
 			for _, item := range request.Items {
 				DriveTrack(&item.ResolvedCollection)
 
-				sessionData, err := Files.CreateUploadSession(item)
+				sessionData, err := Files.CreateUploadSession(info.Actor, item)
 				if err != nil {
 					return fnd.BulkResponse[orcapi.FilesProviderCreateUploadResponse]{}, err
 				}
@@ -399,7 +399,7 @@ func initFiles() {
 				DriveTrack(&request.DestinationDrive)
 				payload := request.FilesProviderTransferRequestInitiateDestination
 
-				resp, err := Files.TransferDestinationInitiate(payload)
+				resp, err := Files.TransferDestinationInitiate(info.Actor, payload)
 				return FilesTransferResponseInitiateDestination(resp.SelectedProtocol, resp.ProtocolParameters), err
 
 			case orcapi.FilesProviderTransferReqTypeStart:
@@ -423,7 +423,7 @@ func initFiles() {
 
 				session.Username = username
 
-				err := Files.TransferSourceBegin(payload, session)
+				err := Files.TransferSourceBegin(info.Actor, payload, session)
 				return FilesTransferResponseStart(), err
 
 			default:
@@ -590,7 +590,7 @@ func initFiles() {
 				if fn == nil {
 					return fnd.BulkResponse[fnd.FindByStringId]{}, util.ServerHttpError("Drive creation is not supported")
 				} else {
-					err := fn(item)
+					err := fn(info.Actor, item)
 					if err != nil {
 						return fnd.BulkResponse[fnd.FindByStringId]{}, err
 					}
@@ -612,7 +612,7 @@ func initFiles() {
 				if fn == nil {
 					return fnd.BulkResponse[util.Empty]{}, util.ServerHttpError("Drive deletion is not supported")
 				} else {
-					err := fn(item)
+					err := fn(info.Actor, item)
 					if err != nil {
 						resp.Responses = append(resp.Responses, util.Empty{})
 					} else {

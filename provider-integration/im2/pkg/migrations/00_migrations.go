@@ -58,4 +58,5 @@ func Init() {
 	db.AddMigration(inferenceV16())
 	db.AddMigration(inferenceV17())
 	db.AddMigration(jobDatabaseV4())
+	db.AddMigration(activityCatalogV1())
 }

@@ -35,6 +35,7 @@ import (
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	orc "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -44,6 +45,11 @@ var Namespace string
 var Enabled = false
 
 const enableDefaultPassword = false
+
+type activityMount struct {
+	UCloudPath string
+	ReadOnly   bool
+}
 
 //go:embed ucloud-vmagent.service
 var vmAgentSystemdFile []byte
@@ -1381,6 +1387,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		PersistentTag string
 	}
 	var unpreparedMounts []unpreparedMount
+	var activityMounts []activityMount
 	for _, param := range job.Specification.Resources {
 		if param.Type == orc.AppParameterValueTypeFile {
 			internalPath, ok, _ := filesystem.UCloudToInternal(param.Path)
@@ -1392,6 +1399,10 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 			if !ok {
 				continue
 			}
+			activityMounts = append(activityMounts, activityMount{
+				UCloudPath: param.Path,
+				ReadOnly:   param.ReadOnly,
+			})
 
 			unpreparedMounts = append(unpreparedMounts, unpreparedMount{
 				SubPath:    subpath,
@@ -1793,7 +1804,20 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		log.Warn("Failed to create VM: %v", err)
 		return util.HttpErr(http.StatusInternalServerError, "failed to create VM")
 	}
+	recordMountActivity(job, activityMounts)
 	return nil
+}
+
+func recordMountActivity(job *orc.Job, mounts []activityMount) {
+	actor := rpc.Actor{Username: job.Owner.CreatedBy}
+	for _, mount := range mounts {
+		filesystem.ActivityRecord(actor, filesystem.ActivityEvent{
+			Kind:      filesystem.ActivityMount,
+			Operation: filesystem.ActivityOperationMount,
+			ReadOnly:  mount.ReadOnly,
+			Targets:   []filesystem.ActivityTarget{{UCloudPath: mount.UCloudPath}},
+		})
+	}
 }
 
 const vmUpdateConflictRetries = 5

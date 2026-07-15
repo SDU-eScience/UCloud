@@ -27,6 +27,7 @@ import (
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	orc "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -46,6 +47,7 @@ type cachedDirEntry struct {
 func InitFiles() controller.FileService {
 	browseCache = lru.NewLRU[string, []cachedDirEntry](256, nil, 5*time.Minute)
 	loadStorageProducts()
+	activityDeleteExpiredEvents()
 
 	initTasks()
 	initScanQueue()
@@ -116,13 +118,20 @@ func OpenFile(path string, mode int, perm uint32) (*os.File, bool) {
 	return os.NewFile(uintptr(fd), components[componentsLength-1]), true
 }
 
-func createDownload(request controller.FileDownloadSession) *util.HttpError {
+func createDownload(actor rpc.Actor, request controller.FileDownloadSession) *util.HttpError {
 	if UCloudPathIsSensitive(request.Path) {
 		return util.UserHttpError("Downloads are disabled for this project")
 	}
 
 	fd, _, err := validateAndOpenFileForDownload(request.Path)
 	util.SilentCloseIfOk(fd, err.AsError())
+	if err == nil {
+		ActivityRecord(actor, ActivityEvent{
+			Kind:      ActivityDirect,
+			Operation: ActivityOperationDownload,
+			Targets:   []ActivityTarget{{UCloudPath: request.Path}},
+		})
+	}
 	return err
 }
 
@@ -159,8 +168,19 @@ func validateAndOpenFileForDownload(path string) (*os.File, int64, *util.HttpErr
 	return fd, info.Size(), nil
 }
 
-func move(request orc.FilesProviderMoveOrCopyRequest) *util.HttpError {
-	return doMove(request, false)
+func move(actor rpc.Actor, request orc.FilesProviderMoveOrCopyRequest) *util.HttpError {
+	err := doMove(request, false)
+	if err == nil {
+		ActivityRecord(actor, ActivityEvent{
+			Kind:      ActivityDirect,
+			Operation: ActivityOperationMove,
+			Targets: []ActivityTarget{
+				{UCloudPath: request.OldId, Role: "source"},
+				{UCloudPath: request.NewId, Role: "destination"},
+			},
+		})
+	}
+	return err
 }
 
 func doMove(request orc.FilesProviderMoveOrCopyRequest, updateTimestamps bool) *util.HttpError {
@@ -261,7 +281,7 @@ func DoCreateFolder(internalPath string) *util.HttpError {
 	return nil
 }
 
-func createFolder(request orc.FilesProviderCreateFolderRequest) *util.HttpError {
+func createFolder(actor rpc.Actor, request orc.FilesProviderCreateFolderRequest) *util.HttpError {
 	internalPath, ok, destDrive := UCloudToInternal(request.Id)
 	if !ok {
 		return util.UserHttpError("Could not find file")
@@ -271,7 +291,15 @@ func createFolder(request orc.FilesProviderCreateFolderRequest) *util.HttpError 
 		return util.PaymentError()
 	}
 
-	return DoCreateFolder(internalPath)
+	err := DoCreateFolder(internalPath)
+	if err == nil {
+		ActivityRecord(actor, ActivityEvent{
+			Kind:      ActivityDirect,
+			Operation: ActivityOperationCreate,
+			Targets:   []ActivityTarget{{UCloudPath: request.Id}},
+		})
+	}
+	return err
 }
 
 func browseFiles(request orc.FilesProviderBrowseRequest) (fnd.PageV2[orc.ProviderFile], *util.HttpError) {
@@ -649,7 +677,7 @@ func loadStorageProducts() {
 	storageSupport = []orc.FSSupport{defaultSupport, shareSupport, projectHomeSupport}
 }
 
-func createUpload(request orc.FilesProviderCreateUploadRequest) (string, *util.HttpError) {
+func createUpload(actor rpc.Actor, request orc.FilesProviderCreateUploadRequest) (string, *util.HttpError) {
 	path, ok, destDrive := UCloudToInternal(request.Id)
 	if !ok {
 		return "", util.UserHttpError("Unable to upload a file here, unable to find parent folder")
@@ -663,6 +691,11 @@ func createUpload(request orc.FilesProviderCreateUploadRequest) (string, *util.H
 		return "", util.PaymentError()
 	}
 
+	ActivityRecord(actor, ActivityEvent{
+		Kind:      ActivityDirect,
+		Operation: ActivityOperationUpload,
+		Targets:   []ActivityTarget{{UCloudPath: request.Id}},
+	})
 	return path, nil
 }
 
@@ -718,8 +751,7 @@ func (u *uploaderFileSystem) OpenFileIfNeeded(session upload.ServerSession, file
 	return &uploaderFile{Path: internalPath, Metadata: fileMeta, err: nil}
 }
 
-func (u *uploaderFileSystem) OnSessionClose(session upload.ServerSession, success bool) {
-
+func (u *uploaderFileSystem) OnSessionClose(_ upload.ServerSession, _ bool) {
 }
 
 func (u *uploaderFile) Write(_ context.Context, data []byte) error {
@@ -844,7 +876,7 @@ func (u *uploaderClientFile) Close() {
 	_ = u.File.Close()
 }
 
-func moveToTrash(request orc.FilesProviderTrashRequest) *util.HttpError {
+func moveToTrash(actor rpc.Actor, request orc.FilesProviderTrashRequest) *util.HttpError {
 	driveId, _ := DriveIdFromUCloudPath(request.Id)
 	expectedTrashLocation, ok, _ := UCloudToInternal(fmt.Sprintf("/%s/Trash", driveId))
 	if !ok {
@@ -865,16 +897,27 @@ func moveToTrash(request orc.FilesProviderTrashRequest) *util.HttpError {
 		return util.ServerHttpError("unknown drive")
 	}
 
-	return doMove(orc.FilesProviderMoveOrCopyRequest{
+	err = doMove(orc.FilesProviderMoveOrCopyRequest{
 		ResolvedOldCollection: request.ResolvedCollection,
 		ResolvedNewCollection: request.ResolvedCollection,
 		OldId:                 request.Id,
 		NewId:                 newPath,
 		ConflictPolicy:        orc.WriteConflictPolicyRename,
 	}, true)
+	if err == nil {
+		ActivityRecord(actor, ActivityEvent{
+			Kind:      ActivityDirect,
+			Operation: ActivityOperationTrash,
+			Targets: []ActivityTarget{
+				{UCloudPath: request.Id, Role: "source"},
+				{UCloudPath: newPath, Role: "destination"},
+			},
+		})
+	}
+	return err
 }
 
-func emptyTrash(request orc.FilesProviderTrashRequest) *util.HttpError {
+func emptyTrash(actor rpc.Actor, request orc.FilesProviderTrashRequest) *util.HttpError {
 	ucloudTrashPath := request.Id
 	trashLocation, ok, _ := UCloudToInternal(ucloudTrashPath)
 	if !ok {
@@ -885,6 +928,11 @@ func emptyTrash(request orc.FilesProviderTrashRequest) *util.HttpError {
 	if err != nil {
 		return err
 	}
+	ActivityRecord(actor, ActivityEvent{
+		Kind:      ActivityDirect,
+		Operation: ActivityOperationDelete,
+		Targets:   []ActivityTarget{{UCloudPath: request.Id}},
+	})
 
 	_ = DoCreateFolder(trashLocation)
 
@@ -923,7 +971,7 @@ func transferSourceInitiate(request orc.FilesProviderTransferRequestInitiateSour
 	return []string{"built-in"}, nil
 }
 
-func transferDestinationInitiate(request orc.FilesProviderTransferRequestInitiateDestination) (orc.FilesProviderTransferResponse, *util.HttpError) {
+func transferDestinationInitiate(actor rpc.Actor, request orc.FilesProviderTransferRequestInitiateDestination) (orc.FilesProviderTransferResponse, *util.HttpError) {
 	if !slices.Contains(request.SupportedProtocols, "built-in") {
 		return orc.FilesProviderTransferResponse{}, &util.HttpError{
 			StatusCode: http.StatusBadRequest,
@@ -951,16 +999,22 @@ func transferDestinationInitiate(request orc.FilesProviderTransferRequestInitiat
 		target = strings.Replace(target, cfg.Provider.Hosts.SelfPublic.ToWebSocketUrl(), cfg.Provider.Hosts.Self.ToWebSocketUrl(), 1)
 	}
 
-	return controller.FilesTransferResponseInitiateDestination(
+	response := controller.FilesTransferResponseInitiateDestination(
 		"built-in",
 		controller.TransferBuiltInParameters{
 			Endpoint: target,
 		},
-	), nil
+	)
+	ActivityRecord(actor, ActivityEvent{
+		Kind:      ActivityDirect,
+		Operation: ActivityOperationUpload,
+		Targets:   []ActivityTarget{{UCloudPath: request.DestinationPath}},
+	})
+	return response, nil
 
 }
 
-func transferSourceBegin(request orc.FilesProviderTransferRequestStart, session controller.FileTransferSession) *util.HttpError {
+func transferSourceBegin(actor rpc.Actor, request orc.FilesProviderTransferRequestStart, session controller.FileTransferSession) *util.HttpError {
 	var parameters controller.TransferBuiltInParameters
 
 	err := json.Unmarshal(session.ProtocolParameters, &parameters)
@@ -983,7 +1037,15 @@ func transferSourceBegin(request orc.FilesProviderTransferRequestStart, session 
 	spec.CreationState.Icon = "heroPaperAirplane"
 	spec.CreationState.Username = session.Username
 
-	return TaskSubmit(spec)
+	taskErr := TaskSubmit(spec)
+	if taskErr == nil {
+		ActivityRecord(actor, ActivityEvent{
+			Kind:      ActivityDirect,
+			Operation: ActivityOperationDownload,
+			Targets:   []ActivityTarget{{UCloudPath: session.SourcePath}},
+		})
+	}
+	return taskErr
 }
 
 func search(ctx context.Context, query, folder string, flags orc.FileFlags, output chan orc.ProviderFile) {
@@ -1024,7 +1086,7 @@ func search(ctx context.Context, query, folder string, flags orc.FileFlags, outp
 	})
 }
 
-func createDrive(drive orc.Drive) *util.HttpError {
+func createDrive(actor rpc.Actor, drive orc.Drive) *util.HttpError {
 	localPath, ok, _ := DriveToLocalPath(&drive)
 	if !ok {
 		return util.ServerHttpError("unknown drive")
@@ -1034,16 +1096,32 @@ func createDrive(drive orc.Drive) *util.HttpError {
 		return util.PaymentError()
 	}
 
-	return DoCreateFolder(localPath)
+	err := DoCreateFolder(localPath)
+	if err == nil {
+		ActivityRecord(actor, ActivityEvent{
+			Kind:      ActivityDirect,
+			Operation: ActivityOperationCreate,
+			Targets:   []ActivityTarget{{UCloudPath: "/" + drive.Id}},
+		})
+	}
+	return err
 }
 
-func deleteDrive(drive orc.Drive) *util.HttpError {
+func deleteDrive(actor rpc.Actor, drive orc.Drive) *util.HttpError {
 	path, ok, _ := DriveToLocalPath(&drive)
 	if !ok {
 		return util.ServerHttpError("unknown drive")
 	}
 	reportUsedStorage(drive, 0)
-	return DoDeleteFile(path)
+	err := DoDeleteFile(path)
+	if err == nil {
+		ActivityRecord(actor, ActivityEvent{
+			Kind:      ActivityDirect,
+			Operation: ActivityOperationDelete,
+			Targets:   []ActivityTarget{{UCloudPath: "/" + drive.Id}},
+		})
+	}
+	return err
 }
 
 func renameDrive(_ orc.Drive) *util.HttpError {

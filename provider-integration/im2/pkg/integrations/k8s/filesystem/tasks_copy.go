@@ -339,7 +339,18 @@ func copyFiles(actor rpc.Actor, request orc.FilesProviderMoveOrCopyRequest) *uti
 		task.Destination = newInternalDest
 	}
 
-	return TaskSubmit(task)
+	taskErr := TaskSubmit(task)
+	if taskErr == nil {
+		ActivityRecord(actor, ActivityEvent{
+			Kind:      ActivityDirect,
+			Operation: ActivityOperationCopy,
+			Targets: []ActivityTarget{
+				{UCloudPath: request.OldId, Role: "source"},
+				{UCloudPath: task.Destination, Role: "destination"},
+			},
+		})
+	}
+	return taskErr
 }
 
 type copyWorker struct {

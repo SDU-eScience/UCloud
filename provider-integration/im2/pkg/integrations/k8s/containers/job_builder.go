@@ -19,6 +19,7 @@ import (
 	introspection "ucloud.dk/pkg/integrations/k8s/job-introspection"
 	"ucloud.dk/pkg/integrations/k8s/shared"
 	orc "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -290,7 +291,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 
 	// Mounts
 	// -----------------------------------------------------------------------------------------------------------------
-	internalToPod, ok := prepareMountsOnJobCreate(job, pod, userContainer, jobFolder)
+	internalToPod, activityMounts, ok := prepareMountsOnJobCreate(job, pod, userContainer, jobFolder)
 	if !ok {
 		return util.ServerHttpError("Unable to use these folders together. One or more are sensitive.")
 	}
@@ -544,8 +545,23 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 			})
 		}
 	}
+	if herr == nil {
+		recordMountActivity(job, activityMounts)
+	}
 
 	return herr
+}
+
+func recordMountActivity(job *orc.Job, mounts []activityMount) {
+	actor := rpc.Actor{Username: job.Owner.CreatedBy}
+	for _, mount := range mounts {
+		filesystem.ActivityRecord(actor, filesystem.ActivityEvent{
+			Kind:      filesystem.ActivityMount,
+			Operation: filesystem.ActivityOperationMount,
+			ReadOnly:  mount.ReadOnly,
+			Targets:   []filesystem.ActivityTarget{{UCloudPath: mount.UCloudPath}},
+		})
+	}
 }
 
 func jobAuditLogIsEnabled(description *orc.ApplicationInvocationDescription) bool {
