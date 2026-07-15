@@ -183,7 +183,7 @@ func ActivityRecord(actor rpc.Actor, event ActivityEvent) {
 				"operation":    event.Operation,
 				"started_at":   event.StartedAt,
 				"read_only":    event.ReadOnly,
-				"performed_by": event.PerformedBy,
+				"performed_by": event.PerformedBy.Sql(),
 				"job_id":       event.JobId.Sql(),
 				"pod":          event.Pod.Sql(),
 				"node":         event.Node.Sql(),

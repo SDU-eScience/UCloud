@@ -75,6 +75,12 @@ func Init(config *cfg.ServicesConfigurationKubernetes) {
 	}
 
 	initStorageScanCli()
+	_ = filesystem.MetadataConfigureCatalog(filesystem.MetadataCatalogConfig{
+		IOPS:              45_000,
+		ParallelScans:     8,
+		EntriesPerSSTable: 1024 * 16,
+	})
+	filesystem.InitMetadataCli()
 	initJobsCli()
 	job_introspection.InitServerHandlers()
 	inference.Init()
