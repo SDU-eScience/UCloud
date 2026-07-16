@@ -32,8 +32,10 @@ type UFileStatus struct {
 	Type FileType     `json:"type"`
 	Icon FileIconHint `json:"icon,omitempty"`
 
-	SizeInBytes                  util.Option[int64] `json:"sizeInBytes"`
-	SizeIncludingChildrenInBytes util.Option[int64] `json:"sizeIncludingChildrenInBytes"`
+	SizeInBytes                  util.Option[int64]  `json:"sizeInBytes"`
+	SizeIncludingChildrenInBytes util.Option[int64]  `json:"sizeIncludingChildrenInBytes"`
+	FileCount                    util.Option[uint64] `json:"fileCount"`
+	DirectoryCount               util.Option[uint64] `json:"directoryCount"`
 
 	ModifiedAt fnd.Timestamp `json:"modifiedAt"`
 	AccessedAt fnd.Timestamp `json:"accessedAt"`

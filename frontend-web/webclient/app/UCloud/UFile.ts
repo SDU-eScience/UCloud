@@ -10,6 +10,8 @@ export interface UFileStatus extends ResourceStatus {
     icon?: FileIconHint;
     sizeInBytes?: number;
     sizeIncludingChildrenInBytes?: number;
+    fileCount?: number;
+    directoryCount?: number;
     modifiedAt?: number;
     accessedAt?: number;
     unixMode?: number;

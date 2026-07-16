@@ -16,6 +16,8 @@ export enum Feature {
     INFERENCE_WORKSPACE,
 
     NEW_TOOLTIPS,
+
+    FILE_BROWSER_STATUS_BAR,
 }
 
 enum Environment {
@@ -97,6 +99,12 @@ const featureMap: Record<string, FeatureConfig> = {
 
     "new-tooltips": {
         feature: Feature.NEW_TOOLTIPS,
+        showWithoutFlag: allDevEnvironments,
+        showWithFlag: allEnvironments,
+    },
+
+    "file-browser-status-bar": {
+        feature: Feature.FILE_BROWSER_STATUS_BAR,
         showWithoutFlag: allDevEnvironments,
         showWithFlag: allEnvironments,
     }

@@ -12,6 +12,8 @@ export type TooltipSide = "top" | "right" | "bottom" | "left";
 interface Tooltip extends SpaceProps {
     children: React.ReactNode;
     trigger: React.ReactNode;
+    triggerClassName?: string;
+    triggerStyle?: React.CSSProperties;
     tooltipContentWidth?: number;
     side?: TooltipSide;
 }
@@ -137,7 +139,7 @@ function LegacyTooltip(props: Tooltip & {portal: HTMLElement}): React.ReactEleme
     }, []);
 
     return <>
-        <div onMouseMove={onHover} onMouseLeave={onLeave}>{props.trigger}</div>
+        <div className={props.triggerClassName} style={props.triggerStyle} onMouseMove={onHover} onMouseLeave={onLeave}>{props.trigger}</div>
         {
             ReactDOM.createPortal(
                 <div className={TooltipContent} ref={tooltipRef} style={{width: `${width}px`}}>{props.children}</div>,
@@ -179,6 +181,8 @@ function AnchoredTooltip(props: Tooltip & {portal: HTMLElement}): React.ReactEle
     return <>
         <div
             ref={triggerRef}
+            className={props.triggerClassName}
+            style={props.triggerStyle}
             onMouseEnter={showTooltip}
             onMouseLeave={hideTooltip}
             onFocus={showTooltip}
@@ -346,9 +350,17 @@ export function TooltipV2(props: React.PropsWithChildren<{
     tooltip?: React.ReactNode;
     contentWidth?: number;
     side?: TooltipSide;
+    triggerClassName?: string;
+    triggerStyle?: React.CSSProperties;
 }>): React.ReactElement {
     if (props.tooltip === undefined) return <>{props.children}</>;
-    return <Tooltip tooltipContentWidth={props.contentWidth} trigger={props.children} side={props.side}>{props.tooltip ?? null}</Tooltip>;
+    return <Tooltip
+        tooltipContentWidth={props.contentWidth}
+        trigger={props.children}
+        triggerClassName={props.triggerClassName}
+        triggerStyle={props.triggerStyle}
+        side={props.side}
+    >{props.tooltip ?? null}</Tooltip>;
 }
 
 const tooltipPortalId = "tooltip-portal";

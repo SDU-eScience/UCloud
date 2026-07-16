@@ -1310,6 +1310,10 @@ export interface Stats {
      * The size of this file and any child (Requires `includeSizes`)
      */
     sizeIncludingChildrenInBytes?: number /* int64 */,
+    /** Number of files directly contained in this directory (Requires `includeSizes`) */
+    fileCount?: number /* uint64 */,
+    /** Number of directories directly contained in this directory (Requires `includeSizes`) */
+    directoryCount?: number /* uint64 */,
     /**
      * The modified at timestamp (Requires `includeTimestamps`)
      */

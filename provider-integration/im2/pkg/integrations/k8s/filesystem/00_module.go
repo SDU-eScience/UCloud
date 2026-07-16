@@ -464,10 +464,38 @@ func retrieveFile(request orc.FilesProviderRetrieveRequest) (orc.ProviderFile, *
 	}
 
 	recursiveSize := util.OptNone[int64]()
-	if info.IsDir() {
+	fileCount := util.OptNone[uint64]()
+	directoryCount := util.OptNone[uint64]()
+	if info.IsDir() && request.Retrieve.Flags.IncludeSizes.GetOrDefault(false) {
 		recursiveSize = metadataRecursiveSize(&request.ResolvedCollection, internalPath)
+		entries, readErr := file.ReadDir(-1)
+		if readErr == nil {
+			var files uint64
+			var directories uint64
+			for _, entry := range entries {
+				isDirectory := entry.IsDir()
+				// Resolve ambiguous entry types only while the directory is below the existing stat threshold.
+				if len(entries) <= 10000 && entry.Type() == 0 {
+					var entryInfo unix.Stat_t
+					if entryErr := unix.Fstatat(int(file.Fd()), entry.Name(), &entryInfo, unix.AT_SYMLINK_NOFOLLOW); entryErr != nil {
+						continue
+					}
+					isDirectory = entryInfo.Mode&unix.S_IFMT == unix.S_IFDIR
+				}
+				if isDirectory {
+					directories++
+				} else {
+					files++
+				}
+			}
+			fileCount.Set(files)
+			directoryCount.Set(directories)
+		}
 	}
-	return nativeStat(&request.ResolvedCollection, internalPath, info, recursiveSize), nil
+	result := nativeStat(&request.ResolvedCollection, internalPath, info, recursiveSize)
+	result.Status.FileCount = fileCount
+	result.Status.DirectoryCount = directoryCount
+	return result, nil
 }
 
 func nativeStat(drive *orc.Drive, internalPath string, info os.FileInfo, recursiveSize util.Option[int64]) orc.ProviderFile {
@@ -483,6 +511,8 @@ func nativeStat(drive *orc.Drive, internalPath string, info os.FileInfo, recursi
 			Icon:                         orc.FileIconHintNone,
 			SizeInBytes:                  util.OptValue[int64](0),
 			SizeIncludingChildrenInBytes: util.OptNone[int64](),
+			FileCount:                    util.OptNone[uint64](),
+			DirectoryCount:               util.OptNone[uint64](),
 			ModifiedAt:                   fnd.Timestamp{},
 			AccessedAt:                   fnd.Timestamp{},
 			UnixMode:                     0,
