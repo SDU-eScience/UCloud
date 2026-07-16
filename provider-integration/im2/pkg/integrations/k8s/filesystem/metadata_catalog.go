@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"path/filepath"
 	"sort"
@@ -451,7 +452,23 @@ func metadataDoScan(internalPath string, drive *orc.Drive) error {
 	} else if filepath.Clean(internalPath) == filepath.Clean(basePath) {
 		metadataCompleteCoverage.Store(drive.Id, true)
 	}
+	if err == nil && shared.ServiceConfig.FileSystem.MetadataCatalog.EnableIntegration {
+		metadataReportAccounting(drive)
+	}
 	return err
+}
+
+func metadataReportAccounting(drive *orc.Drive) {
+	stats, found, err := MetadataLookupDirectoryStats("/" + drive.Id)
+	if err != nil {
+		log.Warn("Unable to retrieve metadata accounting for drive %s: %s", drive.Id, err)
+		return
+	}
+	if !found || !stats.CompleteCoverage {
+		return
+	}
+	sizeInGb := stats.LogicalBytes / 1_000_000_000
+	reportUsedStorage(*drive, int64(min(sizeInGb, uint64(math.MaxInt64))))
 }
 
 func MetadataDeleteCatalog(driveID string) {

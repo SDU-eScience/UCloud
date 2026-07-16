@@ -1,6 +1,7 @@
 package filesystem
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"net/http"
@@ -18,9 +19,9 @@ type metadataCliPathRequest struct {
 }
 
 type metadataCliSearchRequest struct {
-	DriveID string
-	Prefix  string
-	Limit   int
+	Path   string
+	Prefix string
+	Limit  int
 }
 
 type metadataCliDriveRequest struct {
@@ -70,13 +71,18 @@ func InitMetadataCli() {
 		if request.Payload.Limit <= 0 {
 			return metadataCliError[MetadataSearchResponse](http.StatusBadRequest, "Search limit must be positive")
 		}
-		if _, ok := ResolveDrive(request.Payload.DriveID); !ok {
-			return metadataCliError[MetadataSearchResponse](http.StatusNotFound, "Unknown drive")
+		if _, ok, _ := UCloudToInternal(request.Payload.Path); !ok {
+			return metadataCliError[MetadataSearchResponse](http.StatusNotFound, "Unknown UCloud path")
 		}
-		response, err := MetadataSearchByNamePrefix(request.Payload.DriveID, request.Payload.Prefix, request.Payload.Limit)
+		response := MetadataSearchResponse{Results: []MetadataSearchResult{}}
+		complete, err := MetadataSearchByNamePrefix(context.Background(), request.Payload.Path, request.Payload.Prefix, request.Payload.Limit, func(result MetadataSearchResult) bool {
+			response.Results = append(response.Results, result)
+			return true
+		})
 		if err != nil {
 			return metadataCliError[MetadataSearchResponse](http.StatusInternalServerError, err.Error())
 		}
+		response.Complete = complete
 		return ipc.Response[MetadataSearchResponse]{StatusCode: http.StatusOK, Payload: response}
 	})
 
@@ -137,10 +143,10 @@ func MetadataCli(args []string) {
 
 	case "search":
 		if len(args) < 3 {
-			metadataCliMissing("drive ID and basename prefix")
+			metadataCliMissing("UCloud folder path and basename prefix")
 			return
 		}
-		request := metadataCliSearchRequest{DriveID: args[1], Prefix: args[2], Limit: 100}
+		request := metadataCliSearchRequest{Path: args[1], Prefix: args[2], Limit: 100}
 		flags := flag.NewFlagSet("metadata search", flag.ExitOnError)
 		flags.IntVar(&request.Limit, "limit", request.Limit, "Maximum number of results")
 		_ = flags.Parse(args[3:])
@@ -212,7 +218,7 @@ func metadataCliHelp() {
 	frame.AppendTitle("metadata help")
 	frame.AppendField("metadata scan <UCloud path>", "Submit a metadata scan")
 	frame.AppendField("metadata stats <UCloud path>", "Show recursive directory statistics")
-	frame.AppendField("metadata search <drive ID> <prefix> [--limit N]", "Search normalized basenames")
+	frame.AppendField("metadata search <UCloud folder path> <prefix> [--limit N]", "Search normalized basenames")
 	frame.AppendField("metadata metrics <drive ID>", "Show scan, query, and database metrics")
 	frame.Print()
 }

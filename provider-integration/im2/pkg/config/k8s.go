@@ -30,6 +30,7 @@ type KubernetesFileSystem struct {
 
 type KubernetesMetadataCatalog struct {
 	Enabled           bool
+	EnableIntegration bool
 	IOPS              int
 	ParallelScans     int
 	EntriesPerSSTable int
@@ -332,12 +333,16 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 
 		metadataNode, _ := cfgutil.GetChildOrNil(filePath, fsNode, "metadataCatalog")
 		cfg.FileSystem.MetadataCatalog.Enabled = util.DevelopmentModeEnabled()
+		cfg.FileSystem.MetadataCatalog.EnableIntegration = util.DevelopmentModeEnabled()
 		cfg.FileSystem.MetadataCatalog.IOPS = 45_000
 		cfg.FileSystem.MetadataCatalog.ParallelScans = 8
 		cfg.FileSystem.MetadataCatalog.EntriesPerSSTable = 1024 * 16
 		if metadataNode != nil {
 			if enabled, ok := cfgutil.OptionalChildBool(filePath, metadataNode, "enabled"); ok {
 				cfg.FileSystem.MetadataCatalog.Enabled = enabled
+			}
+			if enabled, ok := cfgutil.OptionalChildBool(filePath, metadataNode, "enableIntegration"); ok {
+				cfg.FileSystem.MetadataCatalog.EnableIntegration = enabled
 			}
 			cfg.FileSystem.MetadataCatalog.IOPS = int(cfgutil.OptionalChildInt(
 				filePath, metadataNode, "iops", &success,

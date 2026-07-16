@@ -2,8 +2,10 @@ package filesystem
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
+	"math"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -12,6 +14,7 @@ import (
 	"github.com/cockroachdb/pebble/v2"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+	orc "ucloud.dk/shared/pkg/orchestrators"
 )
 
 type MetadataDirectoryStats struct {
@@ -212,38 +215,85 @@ func MetadataLookupDirectoryStats(ucloudPath string) (result MetadataDirectorySt
 	}, true, nil
 }
 
-func MetadataSearchByNamePrefix(driveID, prefix string, limit int) (response MetadataSearchResponse, err error) {
+func metadataLookupRecursiveSizes(drive *orc.Drive, internalPaths []string) (result map[string]int64, err error) {
+	result = map[string]int64{}
+	if len(internalPaths) == 0 {
+		return result, nil
+	}
 	startedAt := time.Now()
+	defer func() { metadataRecordQuery(drive.Id, "recursive_sizes", time.Since(startedAt), err) }()
+
+	driveRoot, ok, _ := DriveToLocalPath(drive)
+	if !ok {
+		return result, fmt.Errorf("drive %q is not available on this provider", drive.Id)
+	}
+	db, closeDB, err := metadataOpenDatabaseForQuery(drive.Id)
+	if err != nil {
+		if errors.Is(err, errMetadataCatalogNotFound) {
+			return result, nil
+		}
+		return result, err
+	}
+	defer closeDB()
+
+	for _, internalPath := range internalPaths {
+		components, componentErr := metadataComponentsBelowDrive(internalPath, driveRoot)
+		if componentErr != nil {
+			return result, componentErr
+		}
+		entry, found, readErr := metadataReadEntry(db, metadataPathKey(components))
+		if readErr != nil {
+			return result, readErr
+		}
+		if found && entry.EntryType == MetaEntryDirectory && entry.RecursiveLogicalBytes <= math.MaxInt64 {
+			result[internalPath] = int64(entry.RecursiveLogicalBytes)
+		}
+	}
+	return result, nil
+}
+
+// MetadataSearchByNamePrefix streams NAME-index matches below a UCloud folder. A drive root is expressed as /<drive ID>.
+func MetadataSearchByNamePrefix(ctx context.Context, folder, prefix string, limit int, emit func(MetadataSearchResult) bool) (complete bool, err error) {
+	startedAt := time.Now()
+	driveID := ""
 	defer func() { metadataRecordQuery(driveID, "name_prefix", time.Since(startedAt), err) }()
 	if limit <= 0 {
-		return response, errors.New("search limit must be positive")
+		return false, errors.New("search limit must be positive")
 	}
-	if _, ok := ResolveDrive(driveID); !ok {
-		return response, fmt.Errorf("unknown drive %q", driveID)
+	internalPath, ok, drive := UCloudToInternal(folder)
+	if !ok {
+		return false, fmt.Errorf("unknown UCloud path %q", folder)
+	}
+	driveID = drive.Id
+	driveRoot, ok, _ := DriveToLocalPath(drive)
+	if !ok {
+		return false, fmt.Errorf("drive %q is not available on this provider", drive.Id)
+	}
+	folderComponents, err := metadataComponentsBelowDrive(internalPath, driveRoot)
+	if err != nil {
+		return false, err
 	}
 
 	db, closeDB, err := metadataOpenDatabaseForQuery(driveID)
 	if err != nil {
 		if errors.Is(err, errMetadataCatalogNotFound) {
-			return MetadataSearchResponse{Results: []MetadataSearchResult{}, Complete: false}, nil
+			return false, nil
 		}
-		return response, err
+		return false, err
 	}
 	defer closeDB()
 	pendingBefore, err := metadataNameRefreshPending(db)
 	if err != nil {
-		return response, err
+		return false, err
 	}
-	response.Results, err = metadataSearchByNamePrefixInDB(db, driveID, prefix, limit)
-	if err != nil {
-		return response, err
+	if err = metadataSearchByNamePrefixInDB(ctx, db, driveID, folderComponents, prefix, limit, emit); err != nil {
+		return false, err
 	}
 	pendingAfter, err := metadataNameRefreshPending(db)
 	if err != nil {
-		return response, err
+		return false, err
 	}
-	response.Complete = !pendingBefore && !pendingAfter
-	return response, nil
+	return !pendingBefore && !pendingAfter, nil
 }
 
 func metadataNameRefreshPending(db *pebble.DB) (bool, error) {
@@ -257,44 +307,65 @@ func metadataNameRefreshPending(db *pebble.DB) (bool, error) {
 	return err == nil, err
 }
 
-func metadataSearchByNamePrefixInDB(db *pebble.DB, driveID, prefix string, limit int) (results []MetadataSearchResult, err error) {
+func metadataSearchByNamePrefixInDB(ctx context.Context, db *pebble.DB, driveID string, folderComponents []string, prefix string, limit int, emit func(MetadataSearchResult) bool) (err error) {
 	if limit <= 0 {
-		return nil, errors.New("search limit must be positive")
+		return errors.New("search limit must be positive")
 	}
 	normalizedPrefix := metadataNormalizedName([]byte(prefix))
 	lower := append([]byte{MetaKeyspaceName}, normalizedPrefix...)
 	upper := metadataPrefixSuccessor(lower)
 	iter, err := db.NewIter(&pebble.IterOptions{LowerBound: lower, UpperBound: upper})
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer iter.Close()
-	for valid := iter.First(); valid && len(results) < limit; valid = iter.Next() {
+	emitted := 0
+	for valid := iter.First(); valid && emitted < limit; valid = iter.Next() {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
 		pathKey, keyErr := metadataPathKeyFromNameKey(iter.Key())
 		if keyErr != nil {
-			return nil, keyErr
+			return keyErr
 		}
 		entry, present, readErr := metadataReadEntry(db, pathKey)
 		if readErr != nil {
-			return nil, readErr
+			return readErr
 		}
 		if !present {
 			continue
 		}
 		components, keyErr := metadataPathComponents(pathKey)
 		if keyErr != nil {
-			return nil, keyErr
+			return keyErr
+		}
+		if !metadataComponentsContain(folderComponents, components) {
+			continue
 		}
 		path := "/" + driveID
 		if len(components) > 0 {
 			path += "/" + strings.Join(components, "/")
 		}
-		results = append(results, MetadataSearchResult{Path: path, Entry: entry})
+		emitted++
+		if !emit(MetadataSearchResult{Path: path, Entry: entry}) {
+			return nil
+		}
 	}
-	if err = iter.Error(); err != nil {
-		return nil, err
+	return iter.Error()
+}
+
+func metadataComponentsContain(parent, child []string) bool {
+	if len(parent) > len(child) {
+		return false
 	}
-	return results, nil
+	for i := range parent {
+		if parent[i] != child[i] {
+			return false
+		}
+	}
+	return true
 }
 
 func MetadataCatalogMetricsForDrive(driveID string) (result MetadataCatalogMetrics, err error) {

@@ -154,12 +154,47 @@ func TestMetadataScanPublishesAndReplacesSubtree(t *testing.T) {
 	if err = db.Set(staleName, nil, pebble.Sync); err != nil {
 		t.Fatal(err)
 	}
-	results, err := metadataSearchByNamePrefixInDB(db, "drive-1", "NE", 10)
+	var results []MetadataSearchResult
+	err = metadataSearchByNamePrefixInDB(context.Background(), db, "drive-1", nil, "NE", 10, func(result MetadataSearchResult) bool {
+		results = append(results, result)
+		return true
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(results) != 1 || results[0].Path != "/drive-1/alpha/new.txt" {
 		t.Fatalf("unexpected verified prefix results: %#v", results)
+	}
+}
+
+func TestMetadataSearchByNamePrefixInDBUsesPrefixAndFolderScope(t *testing.T) {
+	driveRoot := t.TempDir()
+	databasePath := filepath.Join(t.TempDir(), "catalog")
+	if err := os.MkdirAll(filepath.Join(driveRoot, "selected"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(driveRoot, "other"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	mustWriteMetadataTestFile(t, filepath.Join(driveRoot, "selected", "Report Annual.CSV"), "selected")
+	mustWriteMetadataTestFile(t, filepath.Join(driveRoot, "selected", "Annual Report.CSV"), "not a prefix")
+	mustWriteMetadataTestFile(t, filepath.Join(driveRoot, "other", "Report Annual.CSV"), "other")
+	if err := metadataScanAndPublish(context.Background(), driveRoot, driveRoot, databasePath, rate.NewLimiter(rate.Inf, 1), 2); err != nil {
+		t.Fatal(err)
+	}
+
+	db := openMetadataTestDB(t, databasePath)
+	defer db.Close()
+	var results []MetadataSearchResult
+	err := metadataSearchByNamePrefixInDB(context.Background(), db, "drive-1", []string{"selected"}, "REPORT", 1, func(result MetadataSearchResult) bool {
+		results = append(results, result)
+		return true
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) != 1 || results[0].Path != "/drive-1/selected/Report Annual.CSV" {
+		t.Fatalf("unexpected search results: %#v", results)
 	}
 }
 

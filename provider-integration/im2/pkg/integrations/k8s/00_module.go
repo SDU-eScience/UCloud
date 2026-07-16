@@ -75,7 +75,7 @@ func Init(config *cfg.ServicesConfigurationKubernetes) {
 	}
 
 	initStorageScanCli()
-	if config.FileSystem.MetadataCatalog.Enabled {
+	if config.FileSystem.MetadataCatalog.Enabled || config.FileSystem.MetadataCatalog.EnableIntegration {
 		metadataConfig := config.FileSystem.MetadataCatalog
 		if err := filesystem.MetadataConfigureCatalog(filesystem.MetadataCatalogConfig{
 			IOPS:              metadataConfig.IOPS,
