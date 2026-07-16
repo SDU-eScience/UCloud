@@ -34,6 +34,7 @@ var Files FileService
 type FileService struct {
 	BrowseFiles                 func(request orcapi.FilesProviderBrowseRequest) (fnd.PageV2[orcapi.ProviderFile], *util.HttpError)
 	RetrieveFile                func(request orcapi.FilesProviderRetrieveRequest) (orcapi.ProviderFile, *util.HttpError)
+	Visualize                   func(request orcapi.FilesProviderVisualizeRequest) (orcapi.FilesVisualizeResponse, *util.HttpError)
 	CreateFolder                func(actor rpc.Actor, request orcapi.FilesProviderCreateFolderRequest) *util.HttpError
 	Move                        func(actor rpc.Actor, request orcapi.FilesProviderMoveOrCopyRequest) *util.HttpError
 	Copy                        func(actor rpc.Actor, request orcapi.FilesProviderMoveOrCopyRequest) *util.HttpError
@@ -165,6 +166,14 @@ func initFiles() {
 		orcapi.FilesProviderRetrieve.Handler(func(info rpc.RequestInfo, request orcapi.FilesProviderRetrieveRequest) (orcapi.ProviderFile, *util.HttpError) {
 			DriveTrack(&request.ResolvedCollection)
 			return Files.RetrieveFile(request)
+		})
+
+		orcapi.FilesProviderVisualize.Handler(func(info rpc.RequestInfo, request orcapi.FilesProviderVisualizeRequest) (orcapi.FilesVisualizeResponse, *util.HttpError) {
+			DriveTrack(&request.ResolvedCollection)
+			if Files.Visualize == nil {
+				return orcapi.FilesVisualizeResponse{}, util.HttpErr(http.StatusNotFound, "storage visualization is not supported")
+			}
+			return Files.Visualize(request)
 		})
 
 		orcapi.FilesProviderMove.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.FilesProviderMoveOrCopyRequest]) (fnd.BulkResponse[util.Empty], *util.HttpError) {

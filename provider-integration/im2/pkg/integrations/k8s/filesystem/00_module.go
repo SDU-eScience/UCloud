@@ -64,6 +64,7 @@ func InitFiles() controller.FileService {
 	return controller.FileService{
 		BrowseFiles:                 browseFiles,
 		RetrieveFile:                retrieveFile,
+		Visualize:                   visualize,
 		CreateFolder:                createFolder,
 		Move:                        move,
 		Copy:                        copyFiles,
@@ -689,6 +690,7 @@ func loadStorageProducts() {
 	{
 		defaultSupport.Stats.SizeInBytes = true
 		defaultSupport.Stats.SizeIncludingChildrenInBytes = shared.ServiceConfig.FileSystem.MetadataCatalog.EnableIntegration
+		defaultSupport.Stats.Visualization = shared.ServiceConfig.FileSystem.MetadataCatalog.Enabled && shared.ServiceConfig.FileSystem.MetadataCatalog.EnableIntegration
 		defaultSupport.Stats.ModifiedAt = true
 		defaultSupport.Stats.CreatedAt = true
 		defaultSupport.Stats.AccessedAt = true

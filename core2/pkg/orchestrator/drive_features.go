@@ -3,6 +3,7 @@ package orchestrator
 const (
 	driveStatsSize          SupportFeatureKey = "drive.stats.size"
 	driveStatsRecursiveSize SupportFeatureKey = "drive.stats.recursiveSize"
+	driveStatsVisualization SupportFeatureKey = "drive.stats.visualization"
 	driveStatsTimestamps    SupportFeatureKey = "drive.stats.timestamps"
 	driveStatsUnix          SupportFeatureKey = "drive.stats.unix"
 
@@ -86,6 +87,11 @@ var driveFeatureMapper = []featureMapper{
 		Type: driveType,
 		Key:  driveStatsRecursiveSize,
 		Path: "stats.sizeIncludingChildrenInBytes",
+	},
+	{
+		Type: driveType,
+		Key:  driveStatsVisualization,
+		Path: "stats.visualization",
 	},
 	{
 		Type: driveType,

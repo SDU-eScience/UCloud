@@ -161,6 +161,29 @@ var FilesRetrieve = rpc.Call[FilesRetrieveRequest, UFile]{
 	Roles:       rpc.RolesEndUser,
 }
 
+type FilesVisualizeRequest struct {
+	Path string `json:"path"`
+}
+
+type FilesVisualizeEntry struct {
+	Path        string   `json:"path"`
+	Type        FileType `json:"type"`
+	SizeInBytes uint64   `json:"sizeInBytes"`
+}
+
+type FilesVisualizeResponse struct {
+	Entries       []FilesVisualizeEntry      `json:"entries"`
+	LastUpdatedAt util.Option[fnd.Timestamp] `json:"lastUpdatedAt"`
+	Complete      bool                       `json:"complete"`
+}
+
+var FilesVisualize = rpc.Call[FilesVisualizeRequest, FilesVisualizeResponse]{
+	BaseContext: filesNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "visualize",
+}
+
 var FilesRetrieveProducts = rpc.Call[util.Empty, SupportByProvider[FSSupport]]{
 	BaseContext: filesNamespace,
 	Convention:  rpc.ConventionRetrieve,
@@ -315,6 +338,18 @@ var FilesProviderRetrieve = rpc.Call[FilesProviderRetrieveRequest, ProviderFile]
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesService,
 	Operation:   "retrieve",
+}
+
+type FilesProviderVisualizeRequest struct {
+	Path               string `json:"path"`
+	ResolvedCollection Drive  `json:"resolvedCollection"`
+}
+
+var FilesProviderVisualize = rpc.Call[FilesProviderVisualizeRequest, FilesVisualizeResponse]{
+	BaseContext: fileProviderNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesService,
+	Operation:   "visualize",
 }
 
 var FilesProviderRetrieveProducts = rpc.Call[util.Empty, SupportByProvider[FSSupport]]{
