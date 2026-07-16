@@ -78,3 +78,21 @@ export interface FilesTrashRequestItem {
 export interface FilesEmptyTrashRequestItem {
     id: string;
 }
+
+export interface FilesVisualizeRequest {
+    path: string;
+}
+
+export interface FilesVisualizeEntry {
+    path: string;
+    type: FileType;
+    sizeInBytes: number;
+}
+
+export interface FilesVisualizeResponse {
+    entries: FilesVisualizeEntry[];
+    lastUpdatedAt: number | null;
+    fileCount: number;
+    directoryCount: number;
+    complete: boolean;
+}

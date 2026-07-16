@@ -17,7 +17,7 @@ func TestMetadataVisualizePrioritizesLargestEntries(t *testing.T) {
 	defer db.Close()
 
 	entries := map[string]MetadataEntry{
-		"":                {EntryType: MetaEntryDirectory, RecursiveLogicalBytes: 160, AggregateObservedAt: 123},
+		"":                {EntryType: MetaEntryDirectory, RecursiveLogicalBytes: 160, RecursiveFileCount: 3, RecursiveDirectoryCount: 2, AggregateObservedAt: 123},
 		"small":           {EntryType: MetaEntryDirectory, RecursiveLogicalBytes: 10},
 		"small/child":     {EntryType: MetaEntryRegular, LogicalSize: 9},
 		"large":           {EntryType: MetaEntryDirectory, RecursiveLogicalBytes: 100},
@@ -33,12 +33,15 @@ func TestMetadataVisualizePrioritizesLargestEntries(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	result, observedAt, complete, found, err := metadataVisualizeInDB(db, "drive-1", nil, 1000, time.Second)
+	result, observedAt, fileCount, directoryCount, complete, found, err := metadataVisualizeInDB(db, "drive-1", nil, 1000, time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !found || !complete || observedAt != 123 {
 		t.Fatalf("unexpected traversal metadata: found=%v complete=%v observedAt=%d", found, complete, observedAt)
+	}
+	if fileCount != 3 || directoryCount != 2 {
+		t.Fatalf("unexpected catalog counts: files=%d directories=%d", fileCount, directoryCount)
 	}
 	wantPaths := []string{
 		"/drive-1",
@@ -85,7 +88,7 @@ func TestMetadataVisualizeHonorsEntryLimit(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	result, _, complete, found, err := metadataVisualizeInDB(db, "drive-1", nil, 3, time.Second)
+	result, _, _, _, complete, found, err := metadataVisualizeInDB(db, "drive-1", nil, 3, time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}

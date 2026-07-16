@@ -1,6 +1,6 @@
 import * as React from "react";
 import {UsageReport} from "@/Accounting/UsageCore2";
-import {colorNames} from "@/Accounting/Diagrams/index";
+import {colorNames, contrastColorNames} from "@/Accounting/Diagrams/index";
 import {useMemo, useState} from "react";
 import {useD3} from "@/Utilities/d3";
 import {scaleOrdinal} from "d3-scale";
@@ -62,6 +62,10 @@ export function useBreakdownChart(
             .domain(domain)
             .range(colorNames)
             .unknown("#ccc");
+        const contrastColor = scaleOrdinal<string>()
+            .domain(domain)
+            .range(contrastColorNames)
+            .unknown("var(--textPrimary)");
 
         setTableRows(domain.map(d => {
             return {child: d, color: color(d), value: domainSet[d]};
@@ -125,6 +129,7 @@ export function useBreakdownChart(
             .selectAll()
             .data(arcs)
             .join("text")
+            .attr("fill", d => contrastColor(d.data[0]))
             .attr("transform", d => `translate(${arcLabelGenerator.centroid(d)})`)
             .call(text => text.filter(d => (d.endAngle - d.startAngle) > 0.10).append("tspan")
                 .attr("x", 0)

@@ -63,6 +63,8 @@ import {
     FilesMoveRequestItem,
     FilesTransferRequestItem,
     FilesTrashRequestItem,
+    FilesVisualizeRequest,
+    FilesVisualizeResponse,
     UFile,
     UFileIncludeFlags,
     UFileSpecification,
@@ -203,6 +205,10 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
     public productType = "STORAGE" as const
 
     public idIsUriEncoded = true;
+
+    visualize(request: FilesVisualizeRequest): APICallParameters<FilesVisualizeRequest, FilesVisualizeResponse> {
+        return apiUpdate(request, "/api/files", "visualize");
+    }
 
     renderer: ItemRenderer<UFile, ResourceBrowseCallbacks<UFile, ProductStorage> & ExtraFileCallbacks> = {
     };

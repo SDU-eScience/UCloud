@@ -81,7 +81,7 @@ func visualize(request orc.FilesProviderVisualizeRequest) (orc.FilesVisualizeRes
 		}
 	}
 
-	entries, observedAt, complete, found, err := metadataVisualize(request.Path, filesVisualizationMaxEntries, filesVisualizationMaxDuration)
+	entries, observedAt, fileCount, directoryCount, complete, found, err := metadataVisualize(request.Path, filesVisualizationMaxEntries, filesVisualizationMaxDuration)
 	if err != nil {
 		return orc.FilesVisualizeResponse{}, util.ServerHttpError("failed to query storage metadata")
 	}
@@ -89,40 +89,42 @@ func visualize(request orc.FilesProviderVisualizeRequest) (orc.FilesVisualizeRes
 		return orc.FilesVisualizeResponse{}, util.HttpErr(http.StatusNotFound, "path is not present in the metadata catalog")
 	}
 	return orc.FilesVisualizeResponse{
-		Entries:       entries,
-		LastUpdatedAt: util.OptValue(fnd.Timestamp(time.Unix(0, observedAt))),
-		Complete:      complete,
+		Entries:        entries,
+		LastUpdatedAt:  util.OptValue(fnd.Timestamp(time.Unix(0, observedAt))),
+		FileCount:      fileCount,
+		DirectoryCount: directoryCount,
+		Complete:       complete,
 	}, nil
 }
 
-func metadataVisualize(ucloudPath string, limit int, maxDuration time.Duration) (result []orc.FilesVisualizeEntry, observedAt int64, complete, found bool, err error) {
+func metadataVisualize(ucloudPath string, limit int, maxDuration time.Duration) (result []orc.FilesVisualizeEntry, observedAt int64, fileCount, directoryCount uint64, complete, found bool, err error) {
 	internalPath, ok, drive := UCloudToInternal(ucloudPath)
 	if !ok {
-		return nil, 0, false, false, fmt.Errorf("unknown UCloud path %q", ucloudPath)
+		return nil, 0, 0, 0, false, false, fmt.Errorf("unknown UCloud path %q", ucloudPath)
 	}
 	driveRoot, ok, _ := DriveToLocalPath(drive)
 	if !ok {
-		return nil, 0, false, false, fmt.Errorf("drive %q is not available on this provider", drive.Id)
+		return nil, 0, 0, 0, false, false, fmt.Errorf("drive %q is not available on this provider", drive.Id)
 	}
 	rootComponents, err := metadataComponentsBelowDrive(internalPath, driveRoot)
 	if err != nil {
-		return nil, 0, false, false, err
+		return nil, 0, 0, 0, false, false, err
 	}
 	db, closeDB, err := metadataOpenDatabaseForQuery(drive.Id)
 	if err != nil {
 		if errors.Is(err, errMetadataCatalogNotFound) {
-			return []orc.FilesVisualizeEntry{}, 0, false, false, nil
+			return []orc.FilesVisualizeEntry{}, 0, 0, 0, false, false, nil
 		}
-		return nil, 0, false, false, err
+		return nil, 0, 0, 0, false, false, err
 	}
 	defer closeDB()
 	return metadataVisualizeInDB(db, drive.Id, rootComponents, limit, maxDuration)
 }
 
-func metadataVisualizeInDB(db *pebble.DB, driveID string, rootComponents []string, limit int, maxDuration time.Duration) (result []orc.FilesVisualizeEntry, observedAt int64, complete, found bool, err error) {
+func metadataVisualizeInDB(db *pebble.DB, driveID string, rootComponents []string, limit int, maxDuration time.Duration) (result []orc.FilesVisualizeEntry, observedAt int64, fileCount, directoryCount uint64, complete, found bool, err error) {
 	rootEntry, found, err := metadataReadEntry(db, metadataPathKey(rootComponents))
 	if err != nil || !found {
-		return nil, 0, false, found, err
+		return nil, 0, 0, 0, false, found, err
 	}
 	startedAt := time.Now()
 	deadline := startedAt.Add(maxDuration)
@@ -134,6 +136,10 @@ func metadataVisualizeInDB(db *pebble.DB, driveID string, rootComponents []strin
 	observedAt = rootEntry.ObservedAtUnixNano
 	if rootEntry.EntryType == MetaEntryDirectory {
 		observedAt = rootEntry.AggregateObservedAt
+		fileCount = rootEntry.RecursiveFileCount
+		directoryCount = rootEntry.RecursiveDirectoryCount
+	} else {
+		fileCount = 1
 	}
 
 	queue := &filesVisualizationQueue{}
@@ -141,7 +147,7 @@ func metadataVisualizeInDB(db *pebble.DB, driveID string, rootComponents []strin
 	// Expanding the largest queued directory first gives the entry budget to the most significant subtrees.
 	children, childrenComplete, listErr := metadataVisualizationChildren(db, driveID, rootComponents, deadline)
 	if listErr != nil {
-		return nil, 0, false, true, listErr
+		return nil, 0, 0, 0, false, true, listErr
 	}
 	for _, child := range children {
 		heap.Push(queue, child)
@@ -158,7 +164,7 @@ func metadataVisualizeInDB(db *pebble.DB, driveID string, rootComponents []strin
 		components := util.Components(candidate.path)[1:]
 		children, listedAll, listErr := metadataVisualizationChildren(db, driveID, components, deadline)
 		if listErr != nil {
-			return nil, 0, false, true, listErr
+			return nil, 0, 0, 0, false, true, listErr
 		}
 		complete = complete && listedAll
 		for _, child := range children {
@@ -166,7 +172,7 @@ func metadataVisualizeInDB(db *pebble.DB, driveID string, rootComponents []strin
 		}
 	}
 	complete = complete && queue.Len() == 0
-	return result, observedAt, complete, true, nil
+	return result, observedAt, fileCount, directoryCount, complete, true, nil
 }
 
 func metadataVisualizationChildren(db *pebble.DB, driveID string, parentComponents []string, deadline time.Time) ([]filesVisualizationCandidate, bool, error) {

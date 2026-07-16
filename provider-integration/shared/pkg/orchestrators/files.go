@@ -172,9 +172,11 @@ type FilesVisualizeEntry struct {
 }
 
 type FilesVisualizeResponse struct {
-	Entries       []FilesVisualizeEntry      `json:"entries"`
-	LastUpdatedAt util.Option[fnd.Timestamp] `json:"lastUpdatedAt"`
-	Complete      bool                       `json:"complete"`
+	Entries        []FilesVisualizeEntry      `json:"entries"`
+	LastUpdatedAt  util.Option[fnd.Timestamp] `json:"lastUpdatedAt"`
+	FileCount      uint64                     `json:"fileCount"`
+	DirectoryCount uint64                     `json:"directoryCount"`
+	Complete       bool                       `json:"complete"`
 }
 
 var FilesVisualize = rpc.Call[FilesVisualizeRequest, FilesVisualizeResponse]{
