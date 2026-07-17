@@ -60,4 +60,5 @@ func Init() {
 	db.AddMigration(jobDatabaseV4())
 	db.AddMigration(activityCatalogV1())
 	db.AddMigration(activityCatalogV2())
+	db.AddMigration(k8sV3())
 }

@@ -28,6 +28,17 @@ type PodPendingStatus struct {
 	EstimatedProgress1 util.Option[float64]
 }
 
+type knownPodReplica struct {
+	jobID string
+	rank  int
+	node  string
+}
+
+// The informer can remove a Pod before its terminal status reaches us. Remembering
+// observed replicas lets the Kubernetes integration report that case as a failure
+// without changing the shared unknown-state behavior used by Slurm.
+var knownPodReplicas = map[string]knownPodReplica{}
+
 func Monitor(tracker shared.JobTracker, jobs map[string]*orc.Job) {
 	allPods := shared.JobPods.List()
 
@@ -49,6 +60,7 @@ func Monitor(tracker shared.JobTracker, jobs map[string]*orc.Job) {
 	}
 
 	length := len(allPods)
+	seenReplicas := map[string]util.Empty{}
 	for i := 0; i < length; i++ {
 		pod := allPods[i]
 		idAndRank, ok := podNameToIdAndRank(pod.Name)
@@ -57,6 +69,9 @@ func Monitor(tracker shared.JobTracker, jobs map[string]*orc.Job) {
 			// This pod is not relevant - Do not process it. Most likely this could be a VMI pod.
 			continue
 		}
+		replicaKey := fmt.Sprintf("%s/%d", idAndRank.First, idAndRank.Second)
+		knownPodReplicas[replicaKey] = knownPodReplica{jobID: idAndRank.First, rank: idAndRank.Second, node: pod.Spec.NodeName}
+		seenReplicas[replicaKey] = util.Empty{}
 
 		job, ok := jobs[idAndRank.First]
 		if !ok {
@@ -245,6 +260,38 @@ func Monitor(tracker shared.JobTracker, jobs map[string]*orc.Job) {
 		}
 	}
 
+	for key, replica := range knownPodReplicas {
+		if _, seen := seenReplicas[key]; seen {
+			continue
+		}
+		job, active := jobs[replica.jobID]
+		if !active {
+			delete(knownPodReplicas, key)
+			continue
+		}
+		if _, isIApp := activeIApps[replica.jobID]; isIApp {
+			// Integrated applications intentionally replace Pods while reconciling.
+			delete(knownPodReplicas, key)
+			continue
+		}
+
+		state := orc.JobStateFailure
+		status := "Job has failed for an unknown reason."
+		if job.Status.ExpiresAt.Present && time.Now().After(job.Status.ExpiresAt.Value.Time()) {
+			state = orc.JobStateExpired
+			status = "Job has expired."
+		}
+		if job.Specification.Replicas > 1 {
+			status = fmt.Sprintf("Rank %d: %s", replica.rank, status)
+		}
+		missingState := shared.JobReplicaState{Id: replica.jobID, Rank: replica.rank, State: state, Status: util.OptValue(status)}
+		if replica.node != "" {
+			missingState.Node = util.OptValue(replica.node)
+		}
+		tracker.TrackState(missingState)
+		delete(knownPodReplicas, key)
+	}
+
 	for jobId, iapp := range activeIApps {
 		_, handled := iappsHandled[jobId]
 		job, ok := jobs[jobId]
@@ -274,35 +321,87 @@ func Monitor(tracker shared.JobTracker, jobs map[string]*orc.Job) {
 }
 
 func podToStateAndStatus(pod *core.Pod) (orc.JobState, string) {
-	state := orc.JobStateFailure
-	status := "Unexpected state"
-
 	switch pod.Status.Phase {
 	case core.PodPending:
-		state = orc.JobStateInQueue
-		status = "Job is currently in the queue"
+		return orc.JobStateInQueue, "Job is currently in the queue."
 
 	case core.PodRunning:
-		state = orc.JobStateRunning
-		status = "Job is now running"
+		return orc.JobStateRunning, "Job is now running."
 
-	case core.PodSucceeded:
-		state = orc.JobStateSuccess
-		status = "Job has terminated"
-
-	case core.PodFailed:
-		state = orc.JobStateSuccess
-		status = "Job has terminated with a non-zero exit code"
-		if util.DevelopmentModeEnabled() {
-			podYaml, _ := yaml.Marshal(pod)
-			status += "\n" + string(podYaml)
-		}
-
-	case core.PodUnknown:
-		state = orc.JobStateFailure
-		status = "Job has failed due to an internal error (#1)"
+	case core.PodSucceeded, core.PodFailed:
+		return terminatedPodState(pod)
+	default:
+		return orc.JobStateFailure, "Job failed because Kubernetes could no longer determine its state."
 	}
-	return state, status
+}
+
+// terminatedPodState deliberately uses only PodStatus. Application and node logs
+// often contain more detail, but exposing them here would make job status unreliable
+// and can disclose information outside the job's normal output handling.
+func terminatedPodState(pod *core.Pod) (orc.JobState, string) {
+	if isNodeUnavailable(pod.Status.Reason, pod.Status.Message) {
+		return orc.JobStateFailure, "Job failed because its node was no longer available."
+	}
+	if strings.EqualFold(pod.Status.Reason, "Evicted") {
+		return orc.JobStateFailure, evictionStatus(pod.Status.Message)
+	}
+
+	if terminated, ok := terminatedContainer(pod.Status.ContainerStatuses, ContainerUserJob); ok {
+		return terminationState(terminated)
+	}
+
+	// An init failure means the user workload never started. Auxiliary containers are
+	// only considered after that, since they cannot describe an application exit.
+	for _, status := range pod.Status.InitContainerStatuses {
+		if terminated := status.State.Terminated; terminated != nil && terminated.ExitCode != 0 {
+			return terminationState(terminated)
+		}
+	}
+	for _, status := range pod.Status.ContainerStatuses {
+		if terminated := status.State.Terminated; terminated != nil && terminated.ExitCode != 0 {
+			return terminationState(terminated)
+		}
+	}
+
+	if pod.Status.Phase == core.PodSucceeded {
+		return orc.JobStateSuccess, "Job completed successfully."
+	}
+	return orc.JobStateFailure, "Job failed without termination details."
+}
+
+func terminatedContainer(statuses []core.ContainerStatus, name string) (*core.ContainerStateTerminated, bool) {
+	for _, status := range statuses {
+		if status.Name == name && status.State.Terminated != nil {
+			return status.State.Terminated, true
+		}
+	}
+	return nil, false
+}
+
+func terminationState(terminated *core.ContainerStateTerminated) (orc.JobState, string) {
+	if terminated.Reason == "OOMKilled" {
+		return orc.JobStateFailure, "Job exceeded its memory limit (OOMKilled)."
+	}
+	if terminated.Signal != 0 {
+		return orc.JobStateFailure, fmt.Sprintf("Job was terminated by signal %d.", terminated.Signal)
+	}
+	if terminated.ExitCode == 0 {
+		return orc.JobStateSuccess, "Job completed successfully."
+	}
+	return orc.JobStateFailure, fmt.Sprintf("Job failed with exit code %d.", terminated.ExitCode)
+}
+
+func isNodeUnavailable(reason, message string) bool {
+	text := strings.ToLower(reason + " " + message)
+	return strings.Contains(text, "nodelost") || strings.Contains(text, "node was lost") ||
+		strings.Contains(text, "node is not ready") || strings.Contains(text, "node not ready")
+}
+
+func evictionStatus(message string) string {
+	if strings.Contains(strings.ToLower(message), "memorypressure") || strings.Contains(strings.ToLower(message), "memory pressure") {
+		return "Job was evicted because the node was under memory pressure."
+	}
+	return "Job was evicted by the system."
 }
 
 func OnStart(jobs []orc.Job) {

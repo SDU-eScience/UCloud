@@ -1615,10 +1615,9 @@ export interface SimpleDuration {
  * can be retrieved and that [interactive interfaces](/backend/app-orchestrator-service/wiki/interactive.md) (`VNC`/`WEB`)
  * are available.
  *
- * Once the `Application` terminates at the provider, the provider will update the state to `SUCCESS`. A `Job` has
- * terminated successfully if no internal error occurred in UCloud and in the provider. This means that a `Job` whose
- * software returns with a non-zero exit code is still considered successful. A `Job` might, for example, be placed
- * in `FAILURE` if the `Application` crashed due to a hardware/scheduler failure. Both `SUCCESS` or `FAILURE` are terminal
+ * Once the `Application` terminates at the provider, the provider will update the state to `SUCCESS` only when the
+ * workload completed with exit code zero. A non-zero exit, signal, OOM, or provider/infrastructure failure is reported
+ * as `FAILURE`. Both `SUCCESS` and `FAILURE` are terminal
  * state. Any `Job` which is in a terminal state can no longer receive any updates or change its state.
  *
  * At any point after the user submits the `Job`, they may request cancellation of the `Job`. This will stop the `Job`,

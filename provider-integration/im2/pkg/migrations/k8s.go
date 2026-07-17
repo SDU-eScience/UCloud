@@ -63,3 +63,30 @@ func k8sV2() db.MigrationScript {
 		},
 	}
 }
+
+func k8sV3() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "k8sV3",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(tx, `
+				create table k8s.node_lifecycles(
+					node_name text primary key,
+					node_uid text not null,
+					cordoned boolean not null,
+					available boolean not null,
+					cordon_changed_at timestamptz not null default now(),
+					availability_changed_at timestamptz not null default now(),
+					maintenance_generation bigint not null default 0
+				);
+				create table k8s.node_lifecycle_deliveries(
+					node_name text not null,
+					maintenance_generation bigint not null,
+					event_kind text not null,
+					job_id text not null,
+					delivered_at timestamptz,
+					primary key(node_name, maintenance_generation, event_kind, job_id)
+				)
+			`, db.Params{})
+		},
+	}
+}

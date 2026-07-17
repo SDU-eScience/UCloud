@@ -50,6 +50,9 @@ export interface JobSpecification extends ResourceSpecification {
     sshEnabled?: boolean;
 }
 
+// IN_QUEUE: accepted but not executing. RUNNING: execution started. SUCCESS: exit code 0.
+// FAILURE: non-zero exit, signal, OOM, workload, or infrastructure failure. EXPIRED:
+// allocation elapsed. SUSPENDED: intentionally paused and may resume. CANCELING is transient.
 export type JobState = "IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED" | "SUSPENDED";
 export function isJobStateFinal(state: JobState): boolean {
     switch (state) {
