@@ -7,7 +7,6 @@ import {useToggleSet} from "@/Utilities/ToggleSet";
 import {Label, Input, Image, Box, Flex, Icon, Text, Button, ExternalLink, List} from "@/ui-components";
 import MainContainer from "@/ui-components/MainContainer";
 import TitledCard from "@/ui-components/HighlightedCard";
-import * as Heading from "@/ui-components/Heading";
 import {SyncthingConfig, SyncthingDevice, SyncthingFolder} from "./api";
 import * as Sync from "./api";
 import JobsApi, {JobState} from "@/UCloud/JobsApi";
@@ -47,6 +46,7 @@ import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {PageV2} from "@/UCloud";
 import {addStandardDialog} from "@/UtilityComponents";
 import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
+import {DocumentTypography} from "@/ui-components/Markdown";
 
 let permissionProblems: Record<string, boolean> = {};
 
@@ -886,8 +886,7 @@ const AddDeviceWizard: React.FunctionComponent<{
 
             if (deviceName.length === 0) {
                 setDeviceNameError(
-                    "You need to set a device name. This can any name to help you remember which device this is. " +
-                    "For example: 'Work Phone'."
+                    "Enter a name that will help you remember which device this is. For example: 'Work phone'."
                 );
                 hasErrors = true;
             } else {
@@ -940,39 +939,36 @@ const AddDeviceWizard: React.FunctionComponent<{
         case STEP_INTRO: {
             tutorialContent = (
                 <>
-                    <Heading.h3>Installing Syncthing</Heading.h3>
-                    <Box borderRadius="6px" backgroundColor="warningMain" color="white" p={16} mt={16}>
-                        The synchronization feature is experimental. Please report any errors through the Support Form.
-                    </Box>
+                    <h2>Install Syncthing</h2>
                     <p>
-                        The synchronization feature allows you to synchronize folders between UCloud <i>and</i> your
-                        devices. Changes you make on UCloud are automatically synchronized to your devices and vice
-                        versa.
+                        Synchronize folders between UCloud and your devices. Changes made in either place are
+                        automatically synchronized to the other.
                     </p>
-                    <p>
-                        For synchronization to work, you need to install the 3rd-party tool{" "}
-                        <ExternalLink href="https://syncthing.net">Syncthing</ExternalLink>.
-                    </p>
-                    <TutorialList>
-                        <li>
-                            <div><b>Download and install Syncthing for your platform</b></div>
 
-                            <Flex justifyContent="center" mt="8px">
-                                <ExternalLink href="https://syncthing.net/downloads/">
-                                    <Button><Icon name="open" mr="4px" size="14px" /> Download Syncthing</Button>
-                                </ExternalLink>
-                            </Flex>
-                        </li>
-                        <li>
-                            <b>Open the Syncthing application</b><br /><br />
+                    <div className="tutorial-notice">
+                        <Icon name="warning" size={20} color="warningMain" />
+                        <span>
+                            The synchronization feature is experimental. Please report any errors through the Support Form.
+                        </span>
+                    </div>
 
-                            If you are using a desktop PC/laptop then your window should now look like this:<br />
-
-                            <Flex justifyContent="center" mt="8px">
-                                <Screenshot src={syncthingScreen4} />
-                            </Flex>
-                        </li>
-                    </TutorialList>
+                    <section>
+                        <ol>
+                            <li>
+                                <div className="tutorial-step-copy">
+                                    <b>Download and install Syncthing for your platform</b>
+                                    <ExternalLink href="https://syncthing.net/downloads/">
+                                        <Button mb={16}><Icon name="open" mr="4px" size="14px" /> Download Syncthing</Button>
+                                    </ExternalLink>
+                                </div>
+                            </li>
+                            <li>
+                                <b>Open the Syncthing application</b>
+                                <p>On a desktop or laptop, the application should look like this:</p>
+                                <Screenshot src={syncthingScreen4} alt="The Syncthing application after installation." />
+                            </li>
+                        </ol>
+                    </section>
                 </>
             );
             break;
@@ -981,59 +977,56 @@ const AddDeviceWizard: React.FunctionComponent<{
         case STEP_ADD_DEVICE: {
             tutorialContent = (
                 <>
-                    <Heading.h3>Adding devices</Heading.h3>
-
+                    <h2>Add your device</h2>
                     <p>
-                        Now that Syncthing is installed on your device, UCloud need to know the Device ID generated
-                        by Syncthing to be able to synchronize your files.
+                        UCloud needs the Device ID generated by Syncthing before it can synchronize your files.
                     </p>
 
-                    <Flex>
-                        <TutorialList>
-                            <li>Open Syncthing</li>
-                            <li>
-                                In the <i>Actions</i> menu in the top-right corner, click the <i>Show ID</i> button:
-                            </li>
-                            <li>
-                                A window containing your Device ID, as well as a QR code will appear.<br />
-                                Copy the Device ID and paste it into the field below:
-                            </li>
-                        </TutorialList>
+                    <section className="tutorial-device-guide">
+                        <h3>Find your Device ID</h3>
+                        <div className="tutorial-device-instructions">
+                            <ol>
+                                <li>Open Syncthing.</li>
+                                <li>
+                                    Open the <i>Actions</i> menu in the top-right corner and select <i>Show ID</i>.
+                                </li>
+                                <li>
+                                    A window with your Device ID and a QR code appears. Copy the Device ID and paste it
+                                    into the field below.
+                                </li>
+                            </ol>
+                            <Screenshot src={syncthingScreen1} alt="The Show ID option in Syncthing's Actions menu." />
+                        </div>
+                    </section>
 
-                        <Box ml={"auto"}>
-                            <Screenshot src={syncthingScreen1} />
-                        </Box>
-                    </Flex>
+                    <form className="tutorial-form" onSubmit={tutorialNext}>
+                        <h2>Enter device details</h2>
+                        <div className="tutorial-fields">
+                            <Label>
+                                Device name
+                                <Input inputRef={deviceNameRef} placeholder={"My phone"} error={deviceNameError !== null} />
+                                {!deviceNameError ?
+                                    <Text color="textSecondary">
+                                        A name to help you remember this device. For example: "Work phone".
+                                    </Text> :
+                                    <Text color="errorMain">{deviceNameError}</Text>
+                                }
+                            </Label>
 
-                    <form onSubmit={tutorialNext}>
-                        <Label>
-                            Device name
-                            <Input inputRef={deviceNameRef} placeholder={"My phone"} error={deviceNameError !== null} />
-                            {!deviceNameError ?
-                                <Text color="textSecondary">
-                                    A name to help you remember which device this is. For example: "Work phone".
-                                </Text> :
-                                <Text color="errorMain">{deviceNameError}</Text>
-                            }
-                        </Label>
+                            <Label>
+                                My device ID
+                                <Input
+                                    inputRef={deviceIdRef}
+                                    placeholder="XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX"
+                                    error={deviceIdError !== null}
+                                />
+                                {!deviceIdError ? null :
+                                    <Text color="errorMain">{deviceIdError}</Text>
+                                }
+                            </Label>
+                        </div>
 
-                        <Label mt="8px">
-                            My device ID
-                            <Input
-                                inputRef={deviceIdRef}
-                                placeholder="XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX"
-                                error={deviceIdError !== null}
-                            />
-                            {!deviceIdError ? null :
-                                <Text color="errorMain">{deviceIdError}</Text>
-                            }
-                        </Label>
-
-                        {/*
-                            NOTE(Dan): I am pretty sure this isn't actually needed, but I can't make it work without
-                            atm.
-                        */}
-                        <button type={"submit"} style={{display: "none"}}>Next step</button>
+                        <button type={"submit"} style={{display: "none"}}>Add device</button>
                     </form>
                 </>
             );
@@ -1041,17 +1034,25 @@ const AddDeviceWizard: React.FunctionComponent<{
         }
     }
 
-    return <Flex flexDirection="column" height="100%">
-        <Box flexGrow={1} overflowY="scroll">{tutorialContent}</Box>
-        <Flex ml="auto" mt={30}>
+    return <div className={TutorialWizardClass}>
+
+        <DocumentTypography className="tutorial-content">{tutorialContent}</DocumentTypography>
+        <footer className="tutorial-actions">
+            <div className="tutorial-progress" aria-label={`Step ${tutorialStep + 1} of ${STEP_LAST + 1}`}>
+                <span>Step {tutorialStep + 1} of {STEP_LAST + 1}</span>
+                <div className="tutorial-progress-track" aria-hidden="true">
+                    <div style={{width: `${((tutorialStep + 1) / (STEP_LAST + 1)) * 100}%`}} />
+                </div>
+            </div>
+            <Box flexGrow={1} />
             {tutorialStep < 1 ? null : (
-                <Button onClick={tutorialPrevious}>Previous step</Button>
+                <Button color="secondaryMain" onClick={tutorialPrevious}>Previous step</Button>
             )}
-            <Button marginLeft={10} onClick={tutorialNext}>
-                {tutorialStep === 2 ? "Done" : "Next step"}
+            <Button onClick={tutorialNext}>
+                {tutorialStep === STEP_LAST ? "Add device" : "Next step"}
             </Button>
-        </Flex>
-    </Flex>;
+        </footer>
+    </div>;
 }
 
 const deviceOperations: Operation<SyncthingDevice, OperationCallbacks>[] = [
@@ -1190,15 +1191,150 @@ const TutorialListClass = injectStyle("tutorial-list", k => `
     }
 `);
 
-function Screenshot(props: {src: string}): React.ReactNode {
-    return <Image alt="Descriptive screenshot showing how to set up Syncthing." className={ScreenshotClass}
-        src={props.src} />
-}
-
 const ScreenshotClass = injectStyleSimple("screenshot", `
-    border: 3px solid var(--borderGray);
+    border: 3px solid var(--borderColor);
     max-height: 250px;
 `);
+
+const TutorialWizardClass = injectStyle("tutorial-wizard", k => `
+    ${k} {
+        width: 100%;
+        max-width: 1080px;
+        height: calc(100vh - 48px);
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        background: var(--backgroundDefault);
+    }
+
+    ${k} .tutorial-progress {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        color: var(--textSecondary);
+        font-size: 13px;
+        font-weight: 600;
+    }
+
+    ${k} .tutorial-progress-track {
+        width: 120px;
+        height: 5px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: var(--borderColor);
+    }
+
+    ${k} .tutorial-progress-track > div {
+        height: 100%;
+        border-radius: inherit;
+        background: var(--primaryMain);
+        transition: width 180ms ease-out;
+    }
+
+    ${k} .tutorial-content {
+        min-height: 0;
+        overflow-y: auto;
+        padding: 12px 24px 32px;
+        flex-grow: 1;
+    }
+
+    ${k} .tutorial-notice {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        margin-bottom: 20px;
+        padding: 12px 16px;
+        border: 1px solid var(--warningMain);
+        border-radius: 10px;
+        background: var(--backgroundCard);
+    }
+
+    ${k} .tutorial-notice svg {
+        flex: 0 0 auto;
+        margin-top: 2px;
+    }
+
+    ${k} .tutorial-step-copy {
+        display: flex;
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    ${k} .tutorial-device-guide {
+        margin-top: 24px;
+    }
+
+    ${k} .tutorial-device-instructions {
+        display: grid;
+        grid-template-columns: minmax(260px, 0.8fr) minmax(0, 1.2fr);
+        align-items: start;
+        gap: 28px;
+    }
+
+    ${k} .tutorial-fields {
+        display: grid;
+        grid-template-columns: minmax(180px, 0.7fr) minmax(320px, 1.3fr);
+        align-items: start;
+        gap: 24px;
+    }
+
+    ${k} .tutorial-form label {
+        display: block;
+        font-weight: 600;
+    }
+
+    ${k} .tutorial-form label > div {
+        margin-top: 8px;
+        font-weight: normal;
+    }
+    
+    ${k} .tutorial-form {
+        margin-top: 32px;
+    }
+
+    ${k} .tutorial-form label > input {
+        height: 42px;
+        margin-top: 8px;
+    }
+
+    ${k} ${ScreenshotClass} {
+        display: block;
+        width: 100%;
+        max-height: none;
+        padding: 4px;
+        border: 2px solid var(--borderColorHover);
+        border-radius: 10px;
+        background: var(--backgroundDefault);
+        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.12);
+    }
+
+    ${k} .tutorial-actions {
+        display: flex;
+        gap: 12px;
+        padding: 16px 0;
+        border-top: 1px solid var(--borderColor);
+        background: var(--backgroundDefault);
+        height: 68px;
+        justify-content: center;
+    }
+
+    @media (max-width: 760px) {
+        ${k} {
+            height: calc(100vh - 24px);
+            min-height: 0;
+        }
+
+        ${k} .tutorial-device-instructions, ${k} .tutorial-fields {
+            grid-template-columns: 1fr;
+        }
+    }
+`);
+
+function Screenshot(props: {src: string; alt?: string}): React.ReactNode {
+    return <Image alt={props.alt ?? "Descriptive screenshot showing how to set up Syncthing."} className={ScreenshotClass}
+        src={props.src} />
+}
 
 const DeviceBox = injectStyleSimple("device-box", `
     cursor: pointer;

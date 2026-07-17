@@ -103,6 +103,11 @@ export function MarkdownTable({children}: React.PropsWithChildren): React.ReactN
     </div>;
 }
 
+export function DocumentTypography({className, ...props}: React.HTMLAttributes<HTMLDivElement>): React.ReactNode {
+    const classes = className ? `${DocumentTypographyClass} ${className}` : DocumentTypographyClass;
+    return <div {...props} className={classes} />;
+}
+
 function measureMarkdownTable(wrapper: HTMLDivElement): { scroll: boolean; minWidth: number } {
     const rows = Array.from(wrapper.querySelectorAll("tr"));
     const availableWidth = wrapper.clientWidth;
@@ -154,63 +159,52 @@ export function MarkdownDocument({text}: { text: string }): React.ReactNode {
     if (text.trim() === "") return null;
     const normalizedText = normalizeMath(text);
     return (
-        <ReactMarkdown
-            components={{
-                a: (p) => <ExternalLink href={p.href}>{p.children}</ExternalLink>,
-                pre: (p) => <Box my={16}><CodeSnippet children={p.children} maxHeight=""/></Box>,
-                code: p => <code className={CodeClass}>{p.children}</code>,
-                table: p => <MarkdownTable>{p.children}</MarkdownTable>,
-                h1: p => <h1 className={HeadingClass} style={{fontSize: "23px"}}>{p.children}</h1>,
-                h2: p => <h2 className={HeadingClass} style={{fontSize: "21px"}}>{p.children}</h2>,
-                h3: p => <h3 className={HeadingClass} style={{fontSize: "19px"}}>{p.children}</h3>,
-                h4: p => <h4 className={HeadingClass} style={{fontSize: "17px"}}>{p.children}</h4>,
-                h5: p => <h5 className={HeadingClass} style={{fontSize: "15px"}}>{p.children}</h5>,
-                h6: p => <h6 className={HeadingClass} style={{fontSize: "13px"}}>{p.children}</h6>,
-                hr: p => <hr className={HrClass}/>,
-                p: p => <p className={PClass}>{p.children}</p>,
-                ul: p => <ul className={UlClass}>{p.children}</ul>,
-                ol: p => <ol className={UlClass}>{p.children}</ol>,
-                strong: p => <strong className={StrongClass}>{p.children}</strong>,
-                blockquote: p => <blockquote className={BlockquoteClass}>{p.children}</blockquote>,
-            }}
-            allowedElements={[
-                "h1",
-                "h2",
-                "h3",
-                "h4",
-                "h5",
-                "h6",
-                "br",
-                "a",
-                "p",
-                "strong",
-                "b",
-                "i",
-                "em",
-                "ul",
-                "ol",
-                "li",
-                "pre",
-                "code",
-                "table",
-                "th",
-                "tbody",
-                "thead",
-                "td",
-                "tr",
-                "hr",
-                "blockquote",
+        <DocumentTypography>
+            <ReactMarkdown
+                components={{
+                    a: (p) => <ExternalLink href={p.href}>{p.children}</ExternalLink>,
+                    pre: (p) => <Box my={16}><CodeSnippet children={p.children} maxHeight=""/></Box>,
+                    table: p => <MarkdownTable>{p.children}</MarkdownTable>,
+                }}
+                allowedElements={[
+                    "h1",
+                    "h2",
+                    "h3",
+                    "h4",
+                    "h5",
+                    "h6",
+                    "br",
+                    "a",
+                    "p",
+                    "strong",
+                    "b",
+                    "i",
+                    "em",
+                    "ul",
+                    "ol",
+                    "li",
+                    "pre",
+                    "code",
+                    "table",
+                    "th",
+                    "tbody",
+                    "thead",
+                    "td",
+                    "tr",
+                    "hr",
+                    "blockquote",
 
-                // katex + mathml
-                'span',
-                'math', 'semantics', 'mrow', 'mi', 'mo', 'mn', 'msup', 'msub',
-                'msubsup', 'mfrac', 'msqrt', 'mroot', 'mtable', 'mtr', 'mtd',
-                'mtext', 'annotation',
-            ]}
-            children={normalizedText}
-            remarkPlugins={[remarkGfm, remarkMath]}
-            rehypePlugins={[rehypeKatex]}
-        />
+                    // katex + mathml
+                    'span',
+                    'math', 'semantics', 'mrow', 'mi', 'mo', 'mn', 'msup', 'msub',
+                    'msubsup', 'mfrac', 'msqrt', 'mroot', 'mtable', 'mtr', 'mtd',
+                    'mtext', 'annotation',
+                ]}
+                children={normalizedText}
+                remarkPlugins={[remarkGfm, remarkMath]}
+                rehypePlugins={[rehypeKatex]}
+            />
+        </DocumentTypography>
     );
 }
 
@@ -220,73 +214,77 @@ function normalizeMath(markdown: string): string {
         .replace(/\\\(((?:\\.|[^\\)])*?)\\\)/g, (_, m) => `$${m}$`);
 }
 
-const PClass = injectStyle("p", k => `
+const DocumentTypographyClass = injectStyle("document-typography", k => `
     ${k} {
+        color: var(--textPrimary);
+        font-size: 15px;
+        line-height: 1.65;
+    }
+
+    ${k} h1, ${k} h2, ${k} h3, ${k} h4, ${k} h5, ${k} h6 {
+        padding-bottom: 5px;
+        margin: 24px 0 16px;
+        line-height: 1.3;
+        letter-spacing: -0.01em;
+    }
+
+    ${k} h1 { font-size: 23px; }
+    ${k} h2 { font-size: 21px; }
+    ${k} h3 { font-size: 19px; }
+    ${k} h4 { font-size: 17px; }
+    ${k} h5 { font-size: 15px; }
+    ${k} h6 { font-size: 13px; }
+
+    ${k} p + h1, ${k} p + h2, ${k} p + h3, ${k} p + h4, ${k} p + h5, ${k} p + h6,
+    ${k} h1:first-child, ${k} h2:first-child, ${k} h3:first-child,
+    ${k} h4:first-child, ${k} h5:first-child, ${k} h6:first-child {
+        margin-top: 0;
+    }
+
+    ${k} h1, ${k} h2 {
+        border-bottom: 1px solid var(--document-border, var(--borderColor));
+    }
+
+    ${k} p {
         margin-top: 0;
         margin-bottom: 16px;
     }
-    
-    ${k}:last-child {
+
+    ${k} p:last-child {
         margin-bottom: 0;
     }
-`);
 
-const CodeClass = injectStyle("code", k => `
-    ${k} {
+    ${k} code {
         white-space: break-spaces;
         background: var(--playground-active);
         border-radius: 6px;
         padding: .2em .4em;
         font-size: 85%;
     }
-`);
 
-const HrClass = injectStyle("hr", k => `
-    ${k} {
+    ${k} hr {
         display: block;
         margin: 24px 0;
         border: none;
         height: .25em;
-        background: var(--playground-border);
+        background: var(--document-border, var(--borderColor));
         width: 100%;
     }
-`);
 
-const BlockquoteClass = injectStyle("blockquote", k => `
-    ${k} {
+    ${k} blockquote {
         color: var(--textSecondary);
-        border-left: .25em solid var(--playground-border);
+        border-left: .25em solid var(--document-border, var(--borderColor));
         padding: 0 1em;
         margin: 0;
     }
-`);
 
-const HeadingClass = injectStyle("heading", k => `
-    p + ${k},
-    ${k}:first-child {
-        margin-top: 0 !important;
-    }
-    
-    h1${k}, h2${k} {
-        border-bottom: 1px solid var(--playground-border);
-    }
-    
-    ${k} {
-        padding-bottom: 5px;
-        margin: 24px 0 16px 0;
-    }
-`);
-
-const UlClass = injectStyle("ul", k => `
-    ${k} {
+    ${k} ul, ${k} ol {
         padding-left: 2em;
         margin-top: 0;
         margin-bottom: 16px;
     }
-`);
 
-const StrongClass = injectStyle("strong", k => `
-    ${k} {
+    ${k} strong {
         font-weight: bold;
     }
 `);

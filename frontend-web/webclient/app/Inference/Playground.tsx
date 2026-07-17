@@ -91,6 +91,7 @@ const PlaygroundThemeClass = injectStyle("inference-playground-theme", k => `
         --playground-logo-bg: var(--secondaryMain);
         --playground-border: var(--borderColor);
         --playground-border-hover: var(--borderColorHover);
+        --document-border: var(--playground-border);
     }
 
     html.dark ${k} {
