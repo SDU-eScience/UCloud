@@ -16,6 +16,17 @@ jobs:
     timeout-minutes: 60
 
     steps:
+      - name: Reset runner
+        shell: bash
+        run: |
+          containers="$(docker ps -aq)"
+          if [ -n "$containers" ]; then
+            docker rm -f $containers
+          fi
+          docker system prune --all --volumes --force
+          sudo rm -rf "$GITHUB_WORKSPACE/.compose"
+          sudo chown -R "$USER:$USER" "$GITHUB_WORKSPACE"
+
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
@@ -76,10 +87,14 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
           
-      - name: Delete environment
+      - name: Reset runner
         if: always()
         shell: bash
         run: |
-          set -euo pipefail
-          ./launcher env delete
-          sudo chown -R $USER: .
+          containers="$(docker ps -aq)"
+          if [ -n "$containers" ]; then
+            docker rm -f $containers
+          fi
+          docker system prune --all --volumes --force
+          sudo rm -rf "$GITHUB_WORKSPACE/.compose"
+          sudo chown -R "$USER:$USER" "$GITHUB_WORKSPACE"

@@ -1,13 +1,16 @@
 #!/usr/bin/env bash
 # -*- coding: utf-8 -*-
+set -e
 
-cd launcher-tool-go
-CGO_ENABLED=0 go build -gcflags "all=-N -l" -o ./.launcher-tool -trimpath cmd/launcher-tui/main.go
-cd ..
+ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+cd "$ROOT_DIR/launcher-tool-go"
+CGO_ENABLED=0 go build -gcflags "all=-N -l" -o ./.launcher-tool.tmp -trimpath cmd/launcher-tui/main.go
+mv ./.launcher-tool.tmp ./.launcher-tool
+cd "$ROOT_DIR"
 
 if [[ "${DEBUG:-0}" == "1" ]]; then
-    dlv exec launcher-tool-go/.launcher-tool --headless --listen=0.0.0.0:40381 --api-version=2 -- "$@"
+    dlv exec "$ROOT_DIR/launcher-tool-go/.launcher-tool" --headless --listen=0.0.0.0:40381 --api-version=2 -- "$@"
 else 
-    ./launcher-tool-go/.launcher-tool "$@"
+    "$ROOT_DIR/launcher-tool-go/.launcher-tool" "$@"
 fi
-
