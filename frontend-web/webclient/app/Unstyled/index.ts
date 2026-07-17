@@ -148,6 +148,7 @@ export function unbox(props: BoxProps | SpaceProps): React.CSSProperties {
     if ("objectFit" in props && props.objectFit) result.objectFit = props.objectFit;
     if ("columnGap" in props && props.columnGap) result.columnGap = props.columnGap;
     if ("rowGap" in props && props.rowGap) result.rowGap = props.rowGap;
+    if ("alignSelf" in props && props.alignSelf) result.alignSelf = props.alignSelf?.toString();
 
     return result;
 }

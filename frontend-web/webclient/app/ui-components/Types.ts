@@ -3,7 +3,7 @@ import {
     AlignItemsProps, ColorProps, HeightProps, MaxHeightProps, MaxWidthProps, MinHeightProps, MinWidthProps,
     OverflowProps, TextAlignProps, WidthProps, ZIndexProps, BackgroundProps, JustifyContentProps,
     BorderRadiusProps, VerticalAlignProps, FontSizeProps, SpaceProps,
-    BorderProps
+    BorderProps, AlignSelfProps
 } from "styled-system";
 
 export type Cursor = "auto" | "default" | "none" | "context-menu" | "help" | "pointer" | "progress" | "wait" | "cell" |
@@ -44,6 +44,7 @@ export type BoxProps =
     VerticalAlignProps &
     FontSizeProps &
     BorderProps &
+    AlignSelfProps &
     {cursor?: Cursor} &
     {objectFit?: "contain" | "cover" | "fill" | "none" | "scale-down"} &
     WithEventHandlers &

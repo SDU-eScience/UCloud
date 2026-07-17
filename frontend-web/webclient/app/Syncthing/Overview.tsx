@@ -1,54 +1,43 @@
 import * as React from "react";
-import {NavigateFunction, useNavigate} from "react-router-dom";
-import {useRef, useReducer, useCallback, useEffect, useMemo, useState, useLayoutEffect} from "react";
+import {useNavigate} from "react-router-dom";
+import {useRef, useReducer, useCallback, useEffect, useState} from "react";
 import {usePage} from "@/Navigation/Redux";
 import {default as ReactModal} from "react-modal";
-import {useToggleSet} from "@/Utilities/ToggleSet";
-import {Label, Input, Image, Box, Flex, Icon, Text, Button, ExternalLink, List} from "@/ui-components";
+import {Label, Input, Image, Icon, Text, Button, ExternalLink, Box, Flex} from "@/ui-components";
+import {IconButton} from "@/ui-components/IconButton";
+import {CopyButton} from "@/ui-components/CopyButton";
+import {TooltipV2} from "@/ui-components/Tooltip";
 import MainContainer from "@/ui-components/MainContainer";
-import TitledCard from "@/ui-components/HighlightedCard";
 import {SyncthingConfig, SyncthingDevice, SyncthingFolder} from "./api";
 import * as Sync from "./api";
 import JobsApi, {JobState} from "@/UCloud/JobsApi";
 import {prettyFilePath} from "@/Files/FilePath";
-import {fileName} from "@/Utilities/FileUtilities";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
-import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {deepCopy} from "@/Utilities/CollectionUtilities";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {api as FilesApi, downloadFileContent, findSensitivity} from "@/UCloud/FilesApi";
-import {randomUUID, doNothing, removeTrailingSlash, copyToClipboard, createHTMLElements} from "@/UtilityFunctions";
+import {randomUUID, doNothing, removeTrailingSlash, copyToClipboard} from "@/UtilityFunctions";
 import {getQueryParam} from "@/Utilities/URIUtilities";
 import {callAPI, callAPIWithErrorHandler} from "@/Authentication/DataHook";
 import * as UCloud from "@/UCloud";
 import syncthingScreen1 from "@/Assets/Images/syncthing/syncthing-1.png";
-import syncthingScreen2 from "@/Assets/Images/syncthing/syncthing-2.png";
-import syncthingScreen3 from "@/Assets/Images/syncthing/syncthing-3.png";
 import syncthingScreen4 from "@/Assets/Images/syncthing/syncthing-4.png";
+import syncthingLogo from "@/Assets/Images/syncthing/logo.png";
 
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import FileBrowse from "@/Files/FileBrowse";
 import {CardClass} from "@/ui-components/Card";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
-import {ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts} from "@/ui-components/ResourceBrowser";
 import AppRoutes from "@/Routes";
-import {HTMLTooltip} from "@/ui-components/Tooltip";
-import {divHtml, divText} from "@/Utilities/HTMLUtilities";
-import {arrayToPage} from "@/Types";
-import FileCollectionsApi, {FileCollection, FileCollectionFlags} from "@/UCloud/FileCollectionsApi";
+import FileCollectionsApi, {FileCollection} from "@/UCloud/FileCollectionsApi";
 import {useProjectId} from "@/Project/Api";
 import {Client} from "@/Authentication/HttpClientInstance";
-import HexSpin from "@/LoadingIcon/LoadingIcon";
-import Table, {TableCell, TableHeaderCell, TableRow} from "@/ui-components/Table";
-import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {PageV2} from "@/UCloud";
 import {addStandardDialog} from "@/UtilityComponents";
-import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
+import {sendFailureNotification} from "@/Notifications";
 import {DocumentTypography} from "@/ui-components/Markdown";
-
-let permissionProblems: Record<string, boolean> = {};
 
 // UI state management
 // ================================================================================
@@ -57,7 +46,6 @@ type UIAction =
     | ReloadDeviceWizard
     | RemoveDevice
     | RemoveFolder
-    | ResetAll
     | AddDevice
     | AddFolder
     ;
@@ -83,10 +71,6 @@ interface RemoveFolder {
     folderPath: string;
 }
 
-interface ResetAll {
-    type: "ResetAll";
-}
-
 interface AddDevice {
     type: "AddDevice";
     device: SyncthingDevice;
@@ -104,7 +88,6 @@ interface UIState {
     folders?: SyncthingFolder[];
     etag?: string;
     showDeviceWizard?: boolean;
-    didAddFolder?: boolean;
     updateCount?: number;
 }
 
@@ -152,44 +135,12 @@ function uiReducer(state: UIState, action: UIAction): UIState {
             } else {
                 folders.push({id: randomUUID(), ucloudPath: action.folderPath});
                 copy.folders = folders;
-                copy.didAddFolder = true;
                 copy.updateCount = (copy.updateCount ?? 0) + 1;
             }
             return copy;
         }
 
-        case "ResetAll": {
-            copy.devices = [];
-            copy.folders = [];
-            return copy;
-        }
     }
-}
-
-async function onAction(_: UIState, action: UIAction, cb: ActionCallbacks): Promise<void> {
-    switch (action.type) {
-        case "ResetAll": {
-            callAPIWithErrorHandler(Sync.api.resetConfiguration({provider: cb.provider, productId: cb.productId}));
-            break;
-        }
-    }
-}
-
-interface ActionCallbacks {
-    navigate: NavigateFunction;
-    pureDispatch: (action: UIAction) => void;
-    requestReload: () => void; // NOTE(Dan): use when it is difficult to rollback a change
-    provider: string;
-    productId: string;
-}
-
-interface OperationCallbacks {
-    navigate: NavigateFunction;
-    dispatch: (action: UIAction) => void;
-    requestReload: () => void;
-    permissionProblems: string[];
-    provider: string;
-    productId: string;
 }
 
 // Primary user interface
@@ -201,8 +152,6 @@ export const Overview: React.FunctionComponent = () => {
 const NewOverview: React.FunctionComponent = () => {
     const navigate = useNavigate();
     const [uiState, pureDispatch] = useReducer(uiReducer, {});
-    const folderToggleSet = useToggleSet([]);
-    const deviceToggleSet = useToggleSet([]);
     const didUnmount = useDidUnmount();
 
     const devices = uiState?.devices ?? [];
@@ -233,18 +182,9 @@ const NewOverview: React.FunctionComponent = () => {
         });
     }, [pureDispatch]);
 
-    const actionCb: ActionCallbacks = useMemo(() => ({
-        navigate,
-        pureDispatch,
-        requestReload: reload,
-        provider: provider ?? "",
-        productId: selectedProduct?.product.name ?? "syncthing"
-    }), [navigate, pureDispatch, reload]);
-
     const dispatch = useCallback((action: UIAction) => {
-        onAction(uiState, action, actionCb);
         pureDispatch(action);
-    }, [uiState, pureDispatch, actionCb]);
+    }, [pureDispatch]);
 
     const openWizard = useCallback(() => {
         pureDispatch({type: "ReloadDeviceWizard", visible: true});
@@ -303,14 +243,6 @@ const NewOverview: React.FunctionComponent = () => {
     // Effects
     useEffect(() => reload(), [reload]);
 
-    useEffect(() => {
-        folderToggleSet.uncheckAll();
-    }, [uiState.folders]);
-
-    useEffect(() => {
-        deviceToggleSet.uncheckAll();
-    }, [uiState.devices]);
-
     const eTagRef = useRef(uiState.etag);
     React.useEffect(() => {
         eTagRef.current = uiState.etag;
@@ -340,7 +272,7 @@ const NewOverview: React.FunctionComponent = () => {
         return () => {
             didCancel = true;
         };
-    }, [uiState.updateCount]);
+    }, [uiState.updateCount, selectedProduct]);
 
     usePage("File synchronization", SidebarTabId.FILES);
     useSetRefreshFunction(reload);
@@ -349,67 +281,70 @@ const NewOverview: React.FunctionComponent = () => {
     if (uiState.devices !== undefined && uiState.devices.length === 0) {
         main = <AddDeviceWizard onDeviceAdded={onDeviceAdded} onWizardClose={closeWizard} />;
     } else {
-        main = <Flex gap={"16px"} flexWrap={"wrap"}>
+        main = <div className={SyncthingMainClass}>
             {uiState.showDeviceWizard !== true ? null :
                 <ReactModal
                     isOpen={true}
-                    style={largeModalStyle}
+                    style={{...largeModalStyle, content: {...largeModalStyle.content, overflow: "hidden", padding: 0}}}
                     shouldCloseOnEsc
                     ariaHideApp={false}
                     onRequestClose={closeWizard}
                     className={CardClass}
                 >
-                    <AddDeviceWizard onDeviceAdded={onDeviceAdded} onWizardClose={closeWizard} />
+                    <AddDeviceWizard modal onDeviceAdded={onDeviceAdded} onWizardClose={closeWizard} />
                 </ReactModal>
             }
 
-            <TitledCard
-                icon="heroComputerDesktop"
-                title="My devices"
-                flexBasis={600}
-                flexGrow={1}
-                subtitle={<Flex>
-                    <ExternalLink href="https://syncthing.net/downloads/" mr="8px">
-                        <Button><Icon name="open" mr="4px" size="14px" /> Download Syncthing</Button>
-                    </ExternalLink>
-                    <Button onClick={openWizard}>Add device</Button>
-                </Flex>}
-            >
-                <Text color="textSecondary">
+            <header className="sync-page-header">
+                <Image src={syncthingLogo} alt="Syncthing logo" />
+                <div className="sync-page-heading">
+                    <h1>Syncthing</h1>
+                    <p>Synchronize your files via Syncthing</p>
+                </div>
+                <ExternalLink href="https://docs.cloud.sdu.dk/guide/synch.html">
+                    <Button>
+                        <Icon name="heroArrowTopRightOnSquare" color="primaryContrast" mr={8} />
+                        Documentation
+                    </Button>
+                </ExternalLink>
+            </header>
+
+            <section className="sync-section">
+                <div className="sync-section-header">
+                    <div className="sync-section-title"><h2>Devices</h2></div>
+                    <div className="sync-device-actions">
+                        <IconButton tooltip="Add device" onClick={openWizard} icon="heroPlus" />
+                    </div>
+                </div>
+                <p className="sync-description">
                     UCloud can synchronize files to any of your devices which run Syncthing.
                     Download and install Syncthing to add one of your devices here.
-                </Text>
+                </p>
 
-                <List mt="16px">
-                    <DeviceBrowse devices={devices} dispatch={dispatch}
-                        opts={{embedded: {disableKeyhandlers: true, hideFilters: false}}} />
-                </List>
-            </TitledCard>
+                <DeviceRows devices={devices} dispatch={dispatch} />
+            </section>
 
-            <TitledCard
-                icon="heroFolder"
-                title="Synchronized folders"
-                flexBasis={600}
-                flexGrow={1}
-                subtitle={<Button onClick={openFileSelector}>Add Folder</Button>}
-            >
-                <Text mb="12px" color="textSecondary">
+            <section className="sync-section">
+                <div className="sync-section-header">
+                    <div className="sync-section-title"><h2>Folders</h2></div>
+                    <IconButton tooltip="Add folder" onClick={openFileSelector} icon="heroPlus" />
+                </div>
+                <p className="sync-description">
                     These are the files which will be synchronized to your devices.
                     Add a new folder to start synchronizing data.
-                </Text>
+                </p>
 
                 {uiState.folders?.length === 0 ?
                     <EmptyFolders onAddFolder={openFileSelector} /> :
-                    <SyncedFolders folders={uiState.folders} dispatch={dispatch}
-                        opts={{embedded: {disableKeyhandlers: true, hideFilters: false}}} />
+                    <FolderRows folders={folders} dispatch={dispatch} />
                 }
-            </TitledCard>
+            </section>
 
             {folders.length > 0 && devices.length > 0 ?
                 <ServerStatus productId={selectedProduct?.product.name ?? ""} providerId={provider ?? ""} reload={reload} />
                 : null
             }
-        </Flex>;
+        </div>;
     }
 
     return <MainContainer main={main} />;
@@ -500,8 +435,7 @@ const ServerStatus: React.FunctionComponent<{
     const [status, setStatus] = useState<ServerStatusInfo | null>(null);
     const [restartRequested, setRestartRequested] = useState(false);
 
-    const doRestart = useCallback((e: React.SyntheticEvent) => {
-        e.preventDefault();
+    const doRestart = useCallback(() => {
         setRestartRequested(true);
         if (status !== null) {
             callAPIWithErrorHandler(Sync.api.restart({provider: props.providerId, productId: props.productId}))
@@ -516,6 +450,17 @@ const ServerStatus: React.FunctionComponent<{
 
         props.reload();
     }, [props.providerId, props.productId, props.reload]);
+
+    const requestFactoryReset = useCallback(() => {
+        addStandardDialog({
+            title: "Factory reset Syncthing?",
+            message: "This will reset the server state. Synchronization status of all folders will be removed and all registered devices will be removed. No data will be deleted.",
+            confirmText: "Factory reset",
+            confirmButtonColor: "errorMain",
+            cancelButtonColor: "primaryMain",
+            onConfirm: doFactoryReset,
+        });
+    }, [doFactoryReset]);
 
     useEffect(() => {
         setRestartRequested(false);
@@ -544,337 +489,185 @@ const ServerStatus: React.FunctionComponent<{
         }
     }, [homeDriveId, cacheBust]);
 
-    return <TitledCard
-        icon={"heroArrowsUpDown"}
-        title={"Server status"}
-        flexBasis={600}
-        flexGrow={1}
-    >
-        {status !== null ? null : <>
-            <Flex gap={"16px"} alignItems={"center"} flexDirection={"column"}>
-                <div><i>Syncthing is currently starting up. This process may take a few minutes.</i></div>
-                <div><HexSpin size={48} /></div>
-            </Flex>
-        </>}
-        {status === null ? null : <>
-            <Table tableType={"presentation"}>
-                <tbody>
-                    <TableRow>
-                        <TableHeaderCell width={"200px"}>Status</TableHeaderCell>
-                        <TableCell>
-                            {!restartRequested && status.state === "RUNNING" ? <>
-                                <Icon name={"heroCheck"} color={"successMain"} /> Your Syncthing server is currently running.
-                                (<a style={{color: "var(--primaryMain)"}} href={"#"} onClick={doRestart}>Restart</a>)
-                            </> : <Flex gap={"8px"} alignItems={"center"}>
-                                <HexSpin size={16} margin={"0"} /> <Box flexGrow={1}>Your Syncthing server is currently
-                                    restarting.</Box>
-                            </Flex>}
-                        </TableCell>
-                    </TableRow>
-                    <TableRow>
-                        <TableHeaderCell width={"200px"}>Job ID</TableHeaderCell>
-                        <TableCell>
-                            <ExternalLink href={AppRoutes.prefix + AppRoutes.jobs.view(status.jobId)} target={"_blank"}>
-                                {status.jobId} <Icon name={"open"} size={10} />
+    const running = status !== null && !restartRequested && status.state === "RUNNING";
+    const statusText = running ? "Running" : restartRequested ? "Restarting..." : "Starting...";
+
+    return <>
+        <section className="sync-section sync-status">
+            <div className="sync-section-header">
+                <h2>Server status</h2>
+                <Flex gap={"16px"}>
+                <span className="sync-connection-status" data-transitioning={!running}>
+                    <span className="sync-status-dot"/>
+                    {statusText}
+                </span>
+                    <IconButton tooltip={"Restart"} icon={"heroArrowPath"} onClick={doRestart}/>
+                </Flex>
+            </div>
+            {status === null ? <p className="sync-description">Syncthing is starting. This can take a few minutes.</p> :
+                <>
+                    <div className="sync-server-meta">
+                        <div className="sync-server-meta-item">
+                            <span>Job ID</span>
+                            <ExternalLink href={AppRoutes.prefix + AppRoutes.jobs.view(status.jobId)} target="_blank">
+                                {status.jobId} <Icon name="open" size={10}/>
                             </ExternalLink>
-                        </TableCell>
-                    </TableRow>
-                    <TableRow>
-                        <TableHeaderCell width={"200px"}>Device ID</TableHeaderCell>
-                        <TableCell>{status.deviceId}</TableCell>
-                    </TableRow>
-                    <TableRow>
-                        <TableHeaderCell width={"200px"}>Factory reset</TableHeaderCell>
-                        <TableCell>
-                            <ConfirmationButton
-                                icon={"heroTrash"}
-                                actionText={"Factory reset"}
-                                onAction={doFactoryReset}
-                                width={280}
-                                mt="8px"
-                                mb="4px"
-                            />
-                        </TableCell>
-                    </TableRow>
-                </tbody>
-            </Table>
-        </>}
-    </TitledCard>
+                        </div>
+                        <div className="sync-server-meta-item sync-server-id">
+                            <span>Server ID</span>
+                            <div>
+                                <code>{status.deviceId}</code>
+                                <CopyButton onClick={() => copyToClipboard(status.deviceId)}/>
+                            </div>
+                        </div>
+                    </div>
+                </>
+            }
+        </section>
+
+        <section className="sync-section">
+            <div className="sync-section-header">
+                <h2>Danger zone</h2>
+            </div>
+            <div className="sync-server-actions">
+                <Flex width={"100%"} flexWrap={"wrap"} gap={"16px"}>
+                    <Box flexGrow={1}>
+                        <div><strong>Factory reset</strong></div>
+                        <Box color={"textSecondary"} maxWidth={"50ch"}>
+                            Having issues? Try a factory reset.
+                            No data will be deleted, but you will have to redo the setup.
+                        </Box>
+                    </Box>
+                    <Button color="errorMain" onClick={requestFactoryReset} alignSelf={"end"} flexShrink={0}>
+                        <Icon name="heroTrash" size={15} mr="6px" color="errorContrast"/> Factory reset
+                    </Button>
+                </Flex>
+            </div>
+        </section>
+    </>
 }
 
-function SyncedFolders({folders, dispatch, opts}: {
-    dispatch(action: UIAction): void;
-    folders?: SyncthingFolder[];
-    opts: ResourceBrowserOpts<SyncthingFolder>;
-}): React.ReactNode {
-    useEffect(() => {
-        return () => {
-            permissionProblems = {};
-        }
-    }, []);
+function DeviceRows({devices, dispatch}: {devices: SyncthingDevice[]; dispatch: (action: UIAction) => void}): React.ReactNode {
+    const removeDevice = useCallback((device: SyncthingDevice) => {
+        addStandardDialog({
+            title: "Remove device?",
+            message: `UCloud will stop synchronizing files with ${device.label}.`,
+            confirmText: "Remove",
+            confirmButtonColor: "errorMain",
+            cancelButtonColor: "primaryMain",
+            onConfirm: () => dispatch({type: "RemoveDevice", deviceId: device.deviceId}),
+        });
+    }, [dispatch]);
+
+    return <div className="sync-rows">
+        {devices.map(device => <div className="sync-row" key={device.deviceId}>
+            <div className="sync-row-icon"><Icon name="heroComputerDesktop" size={20} color="textPrimary" /></div>
+            <div className="sync-row-content">
+                <strong>{device.label}</strong>
+                <code>{device.deviceId}</code>
+            </div>
+            <div className="sync-row-actions">
+                <CopyButton onClick={() => copyToClipboard(device.deviceId)} />
+                <IconButton tooltip="Remove device" icon="heroTrash" color="errorMain" onClick={() => removeDevice(device)} />
+            </div>
+        </div>)}
+    </div>;
+}
+
+function FolderRows({folders, dispatch}: {folders: SyncthingFolder[]; dispatch: (action: UIAction) => void}): React.ReactNode {
+    const navigate = useNavigate();
+    const [prettyPaths, setPrettyPaths] = useState<Record<string, string>>({});
+    const [permissionWarnings, setPermissionWarnings] = useState<Record<string, boolean>>({});
 
     useEffect(() => {
-        const validFolders = folders?.filter(it => it.ucloudPath != null);
-        if (!validFolders || validFolders.length === 0) return;
-        Promise.allSettled(validFolders.map(f =>
-            callAPI(FilesApi.browse({path: f!.ucloudPath, itemsPerPage: 250}))
-        )).then(promises => {
-            promises.forEach((p, index) => {
-                if (p.status === "fulfilled") {
-                    if (p.value.items.some(f => f.status.unixOwner !== 11042)) {
-                        permissionProblems[validFolders[index].id] = true;
-                    }
+        let cancelled = false;
+        Promise.all(folders.map(async folder => {
+            const path = await prettyFilePath(folder.ucloudPath).catch(() => folder.ucloudPath);
+            return [folder.id, path] as const;
+        })).then(entries => {
+            if (!cancelled) setPrettyPaths(Object.fromEntries(entries));
+        });
+
+        Promise.allSettled(folders.map(folder =>
+            callAPI(FilesApi.browse({path: folder.ucloudPath, itemsPerPage: 250}))
+        )).then(results => {
+            if (cancelled) return;
+            const warnings: Record<string, boolean> = {};
+            results.forEach((result, index) => {
+                if (result.status === "fulfilled" && result.value.items.some(file => file.status.unixOwner !== 11042)) {
+                    warnings[folders[index].id] = true;
                 }
             });
-            browserRef.current?.rerender();
+            setPermissionWarnings(warnings);
         });
+
+        return () => { cancelled = true; };
     }, [folders]);
 
-    const mountRef = useRef<HTMLDivElement | null>(null);
-    const browserRef = useRef<ResourceBrowser<SyncthingFolder>>(null);
-    const navigate = useNavigate();
-
-    const features: ResourceBrowseFeatures = {
-        dragToSelect: true,
-        showColumnTitles: true,
-    };
-
-    useEffect(() => {
-        const browser = browserRef.current;
-        if (browser && folders) {
-            browser.registerPage(arrayToPage(folders), "/", true);
-            browser.rerender();
-        }
-    }, [folders]);
-
-    useLayoutEffect(() => {
-        const mount = mountRef.current;
-        if (mount && !browserRef.current) {
-            new ResourceBrowser<SyncthingFolder>(mount, "SyncFolders", opts).init(browserRef, features, "/", browser => {
-                browser.setColumns([{name: "Folder"}, {name: "", columnWidth: 0}, {
-                    name: "",
-                    columnWidth: 150
-                }, {name: "", columnWidth: 50}]);
-
-                browser.on("open", (oldPath, newPath, resource) => {
-                    if (resource) {
-                        navigate(AppRoutes.files.path(resource.ucloudPath));
-                        return;
-                    }
-                });
-
-                browser.on("renderRow", (folder, row, dims) => {
-                    const {title} = browser.renderDefaultRow(row, folder.ucloudPath, {
-                        color: "FtFolderColor",
-                        color2: "FtFolderColor2"
-                    });
-                    prettyFilePath(folder.ucloudPath).then(it => {
-                        title.innerText = it;
-                    });
-
-                    if (permissionProblems[folder.id]) {
-                        const [permissionIcon, setPermissionIcon] = ResourceBrowser.defaultIconRenderer();
-                        ResourceBrowser.icons.renderIcon({
-                            name: "warning",
-                            color: "errorMain",
-                            color2: "primaryMain",
-                            height: 64,
-                            width: 64,
-                        }).then(setPermissionIcon);
-
-                        prettyFilePath(folder.ucloudPath).then(prettyPath =>
-                            row.stat2.append(HTMLTooltip(permissionIcon, divText(`Some files in '${fileName(prettyPath)}' might not be synchronized due to lack of permissions.`), {tooltipContentWidth: 250}))
-                        );
-                    }
-
-                    const cb = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as OperationCallbacks;
-
-                    const trigger = browser.defaultButtonRenderer({
-                        onClick: res => {
-                            addStandardDialog({
-                                title: "Remove from Syncthing?",
-                                message: "This will remove the folder from synchronization",
-                                onConfirm() {
-                                    folderOperations.find(it => it.tag === "UNSYNC")?.onClick([res], cb);
-                                },
-                                confirmButtonColor: "errorMain",
-                                cancelButtonColor: "primaryMain",
-                                confirmText: "Remove",
-                            })
-                        },
-                        show: () => true,
-                        text: "",
-                    }, folder, {
-                        color: "errorMain", width: "20px", button: {
-                            name: "close", size: 18, color: "fixedWhite", color2: "fixedWhite", ml: "8px"
-                        }
-                    });
-
-                    if (trigger) {
-                        const d = divHtml("Remove from sync");
-                        const tooltip = HTMLTooltip(trigger, d, {tooltipContentWidth: 160});
-                        row.stat3.append(tooltip);
-                    }
-                });
-
-                browser.setEmptyIcon("ftFolder");
-
-                browser.on("generateBreadcrumbs", () => {
-                    return [];
-                });
-
-                browser.on("fetchOperationsCallback", () => ({
-                    dispatch
-                }));
-
-                browser.on("fetchOperations", () => {
-                    const selected = browser.findSelectedEntries();
-                    const callbacks = browser.dispatchMessage("fetchOperationsCallback", c => c);
-                    return folderOperations.filter(op => op.enabled(selected, callbacks as OperationCallbacks, selected));
-                });
-
-                browser.on("pathToEntry", syncFolder => syncFolder.id);
-            });
-        }
-        if (opts?.reloadRef) {
-            opts.reloadRef.current = () => {
-                browserRef.current?.refresh();
-            }
-        }
-    }, []);
-
-    if (!opts?.embedded && !opts?.isModal) {
-        useSetRefreshFunction(() => {
-            browserRef.current?.refresh();
+    const removeFolder = useCallback((folder: SyncthingFolder) => {
+        addStandardDialog({
+            title: "Stop synchronizing folder?",
+            message: "The folder remains in UCloud, but Syncthing will stop synchronizing it to your devices.",
+            confirmText: "Stop synchronizing",
+            confirmButtonColor: "errorMain",
+            cancelButtonColor: "primaryMain",
+            onConfirm: () => dispatch({type: "RemoveFolder", folderPath: folder.ucloudPath}),
         });
-    }
+    }, [dispatch]);
 
-    return <div ref={mountRef} />;
-}
-
-function DeviceBrowse({devices, dispatch, opts}: {
-    dispatch(action: UIAction): void;
-    devices?: SyncthingDevice[],
-    opts: ResourceBrowserOpts<SyncthingDevice>
-}): React.ReactNode {
-    const mountRef = useRef<HTMLDivElement | null>(null);
-    const browserRef = useRef<ResourceBrowser<SyncthingDevice>>(null);
-
-    const features: ResourceBrowseFeatures = {
-        dragToSelect: true,
-    };
-
-    useEffect(() => {
-        const browser = browserRef.current;
-        if (browser && devices) {
-            browser.registerPage(arrayToPage(devices), "/", true);
-            browser.rerender();
-        }
-    }, [devices]);
-
-    useLayoutEffect(() => {
-        const mount = mountRef.current;
-        if (mount && !browserRef.current) {
-            new ResourceBrowser<SyncthingDevice>(mount, "Syncthing devices", opts).init(browserRef, features, "/", browser => {
-                browser.setColumns([{name: "Folder"}, {name: "", columnWidth: 0}, {
-                    name: "",
-                    columnWidth: 150
-                }, {name: "", columnWidth: 50}]);
-                browser.on("renderRow", (device, row, dims) => {
-                    browser.renderDefaultRow(row, device.label);
-
-                    const trigger = createHTMLElements({
-                        tagType: "div",
-                        style: {marginRight: "24px", marginTop: "auto", marginBottom: "auto"},
-                        className: DeviceBox,
-                        handlers: {
-                            onClick: e => {
-                                e.stopPropagation();
-                                copyToClipboard(device.deviceId);
-                                sendSuccessNotification("Device ID copied to clipboard");
-                            }
-                        },
-                        children: [{
-                            tagType: "code",
-                            innerText: device.deviceId.split("-")[0]
-                        }]
-                    });
-                    row.stat3.append(trigger);
-                    HTMLTooltip(trigger, divHtml(`Copy device ID to clipboard`), {tooltipContentWidth: 300});
-
-                    const cb = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as OperationCallbacks;
-                    const buttonTrigger = browser.defaultButtonRenderer({
-                        onClick: res => {
-                            addStandardDialog({
-                                title: "Remove device from Syncthing?",
-                                message: "This will remove the device from Syncthing.",
-                                onConfirm() {
-                                    deviceOperations.find(it => it.tag === "REMOVE")?.onClick([res], cb);
-                                },
-                                confirmButtonColor: "errorMain",
-                                cancelButtonColor: "primaryMain",
-                                confirmText: "Remove",
-                            })
-                        },
-                        show: () => true,
-                        text: "",
-                    }, device, {
-                        color: "errorMain", width: "20px", button: {
-                            name: "close", size: 18, color: "fixedWhite", color2: "fixedWhite", ml: "8px"
-                        }
-                    });
-
-                    if (buttonTrigger) {
-                        const d = divHtml("Remove device");
-                        const tooltip = HTMLTooltip(buttonTrigger, d, {tooltipContentWidth: 160});
-                        row.stat3.append(tooltip);
-                    }
-                });
-
-                browser.setEmptyIcon("heroComputerDesktop");
-
-                browser.on("fetchOperationsCallback", () => ({
-                    dispatch
-                }));
-
-                browser.on("fetchOperations", () => {
-                    const selected = browser.findSelectedEntries();
-                    const callbacks = browser.dispatchMessage("fetchOperationsCallback", f => f()) as OperationCallbacks;
-                    return deviceOperations.filter(it => it.enabled(selected, callbacks, selected));
-                });
-            });
-        }
-        if (opts?.reloadRef) {
-            opts.reloadRef.current = () => {
-                browserRef.current?.refresh();
-            }
-        }
-    }, []);
-
-    if (!opts?.embedded && !opts?.isModal) {
-        useSetRefreshFunction(() => {
-            browserRef.current?.refresh();
-        });
-    }
-
-    return <div ref={mountRef} />;
+    return <div className="sync-rows">
+        {folders.map(folder => <div className="sync-row" key={folder.id}>
+            <div className="sync-row-icon sync-folder-icon"><Icon name="heroFolder" size={20} color="FtFolderColor" /></div>
+            <button className="sync-row-content sync-row-link" onClick={() => navigate(AppRoutes.files.path(folder.ucloudPath))}>
+                <strong>{prettyPaths[folder.id] ?? folder.ucloudPath}</strong>
+            </button>
+            {permissionWarnings[folder.id] ?
+                <TooltipV2
+                    tooltip="Some files might not be synchronized due to insufficient permissions."
+                    contentWidth={260}
+                    triggerClassName="sync-row-warning"
+                >
+                    <span aria-label="Folder permission warning"><Icon name="warning" size={18} /></span>
+                </TooltipV2> : null}
+            <div className="sync-row-actions">
+                <IconButton tooltip="Open folder" icon="heroFolderOpen" onClick={() => navigate(AppRoutes.files.path(folder.ucloudPath))} />
+                <IconButton tooltip="Stop synchronizing" icon="heroTrash" color="errorMain" onClick={() => removeFolder(folder)} />
+            </div>
+        </div>)}
+    </div>;
 }
 
 const AddDeviceWizard: React.FunctionComponent<{
     onDeviceAdded: (device: SyncthingDevice) => void;
     onWizardClose: () => void;
+    modal?: boolean;
 }> = (props) => {
     const STEP_INTRO = 0;
     const STEP_ADD_DEVICE = 1;
-
     const STEP_LAST = STEP_ADD_DEVICE;
 
     const [tutorialStep, setTutorialStep] = useState(0);
-
     const deviceNameRef = useRef<HTMLInputElement>(null);
     const [deviceNameError, setDeviceNameError] = useState<string | null>(null);
     const deviceIdRef = useRef<HTMLInputElement>(null);
     const [deviceIdError, setDeviceIdError] = useState<string | null>(null);
+    const [showInstructions, setShowInstructions] = useState(false);
+
+    const addDevice = useCallback((e?: React.SyntheticEvent) => {
+        e?.preventDefault();
+        const deviceName = (deviceNameRef.current?.value ?? "").trim();
+        const deviceId = (deviceIdRef.current?.value ?? "").trim();
+        const deviceIdParts = deviceId.split("-");
+        const deviceIdValid = deviceIdParts.length === 8 && deviceIdParts.every(part => part.length === 7);
+
+        setDeviceNameError(deviceName ? null : "Enter a name that helps you recognize this device.");
+        setDeviceIdError(deviceIdValid ? null : "Enter the Device ID shown by Syncthing.");
+
+        if (deviceName && deviceIdValid) {
+            props.onDeviceAdded({deviceId, label: deviceName});
+            props.onWizardClose();
+        }
+    }, [props.onDeviceAdded, props.onWizardClose]);
 
     const tutorialNext = useCallback((e?: React.SyntheticEvent) => {
         e?.preventDefault();
@@ -885,309 +678,555 @@ const AddDeviceWizard: React.FunctionComponent<{
             const deviceId = (deviceIdRef.current?.value ?? "").trim();
 
             if (deviceName.length === 0) {
-                setDeviceNameError(
-                    "Enter a name that will help you remember which device this is. For example: 'Work phone'."
-                );
+                setDeviceNameError("Enter a name that will help you remember which device this is. For example: 'Work phone'.");
                 hasErrors = true;
             } else {
                 setDeviceNameError(null);
             }
 
-            {
-                let deviceIdValid = true;
-                const deviceSplit = deviceId.split("-");
-                if (deviceSplit.length !== 8) {
-                    deviceIdValid = false;
-                }
-
-                if (!deviceSplit.every(chunk => chunk.length === 7)) {
-                    deviceIdValid = false;
-                }
-
-                if (!deviceIdValid) {
-                    setDeviceIdError(
-                        "The device ID you specified doesn't look valid. " +
-                        "Make sure you follow the steps described above to locate your device ID."
-                    );
-                    hasErrors = true;
-                } else {
-                    setDeviceIdError(null);
-                }
+            const deviceSplit = deviceId.split("-");
+            const deviceIdValid = deviceSplit.length === 8 && deviceSplit.every(chunk => chunk.length === 7);
+            if (!deviceIdValid) {
+                setDeviceIdError(
+                    "The device ID you specified doesn't look valid. " +
+                    "Make sure you follow the steps described above to locate your device ID."
+                );
+                hasErrors = true;
+            } else {
+                setDeviceIdError(null);
             }
 
-            if (!hasErrors) {
-                props.onDeviceAdded({deviceId, label: deviceName});
-                setTutorialStep(prev => prev + 1);
-            }
+            if (!hasErrors) props.onDeviceAdded({deviceId, label: deviceName});
         }
 
         if (!hasErrors) {
             if (tutorialStep === STEP_LAST) {
                 props.onWizardClose();
             } else {
-                setTutorialStep(prev => prev + 1);
+                setTutorialStep(previous => previous + 1);
             }
         }
     }, [tutorialStep, props.onDeviceAdded, props.onWizardClose]);
 
     const tutorialPrevious = useCallback(() => {
-        setTutorialStep(prev => prev - 1);
+        setTutorialStep(previous => previous - 1);
     }, []);
 
-    let tutorialContent: React.ReactNode = <></>;
-    switch (tutorialStep) {
-        case STEP_INTRO: {
-            tutorialContent = (
-                <>
-                    <h2>Install Syncthing</h2>
-                    <p>
-                        Synchronize folders between UCloud and your devices. Changes made in either place are
-                        automatically synchronized to the other.
-                    </p>
+    if (!props.modal) {
+        let tutorialContent: React.ReactNode;
+        if (tutorialStep === STEP_INTRO) {
+            tutorialContent = <>
+                <h2>Install Syncthing</h2>
+                <p>
+                    Synchronize folders between UCloud and your devices. Changes made in either place are
+                    automatically synchronized to the other.
+                </p>
 
-                    <div className="tutorial-notice">
-                        <Icon name="warning" size={20} color="warningMain" />
-                        <span>
-                            The synchronization feature is experimental. Please report any errors through the Support Form.
-                        </span>
-                    </div>
+                <div className="tutorial-notice">
+                    <Icon name="warning" size={20} color="warningMain" />
+                    <span>
+                        The synchronization feature is experimental. Please report any errors through the Support Form.
+                    </span>
+                </div>
 
-                    <section>
+                <section>
+                    <ol>
+                        <li>
+                            <div className="tutorial-step-copy">
+                                <b>Download and install Syncthing for your platform</b>
+                                <ExternalLink href="https://syncthing.net/downloads/">
+                                    <Button mb={16}><Icon name="open" mr="4px" size="14px" /> Download Syncthing</Button>
+                                </ExternalLink>
+                            </div>
+                        </li>
+                        <li>
+                            <b>Open the Syncthing application</b>
+                            <p>On a desktop or laptop, the application should look like this:</p>
+                            <Screenshot src={syncthingScreen4} alt="The Syncthing application after installation." />
+                        </li>
+                    </ol>
+                </section>
+            </>;
+        } else {
+            tutorialContent = <>
+                <h2>Add your device</h2>
+                <p>UCloud needs the Device ID generated by Syncthing before it can synchronize your files.</p>
+
+                <section className="tutorial-device-guide">
+                    <h3>Find your Device ID</h3>
+                    <div className="tutorial-device-instructions">
                         <ol>
+                            <li>Open Syncthing.</li>
+                            <li>Open the <i>Actions</i> menu in the top-right corner and select <i>Show ID</i>.</li>
                             <li>
-                                <div className="tutorial-step-copy">
-                                    <b>Download and install Syncthing for your platform</b>
-                                    <ExternalLink href="https://syncthing.net/downloads/">
-                                        <Button mb={16}><Icon name="open" mr="4px" size="14px" /> Download Syncthing</Button>
-                                    </ExternalLink>
-                                </div>
-                            </li>
-                            <li>
-                                <b>Open the Syncthing application</b>
-                                <p>On a desktop or laptop, the application should look like this:</p>
-                                <Screenshot src={syncthingScreen4} alt="The Syncthing application after installation." />
+                                A window with your Device ID and a QR code appears. Copy the Device ID and paste it
+                                into the field below.
                             </li>
                         </ol>
-                    </section>
-                </>
-            );
-            break;
+                        <Screenshot src={syncthingScreen1} alt="The Show ID option in Syncthing's Actions menu." />
+                    </div>
+                </section>
+
+                <form className="tutorial-form" onSubmit={tutorialNext}>
+                    <h2>Enter device details</h2>
+                    <div className="tutorial-fields">
+                        <Label>
+                            Device name
+                            <Input inputRef={deviceNameRef} placeholder="My phone" error={deviceNameError !== null} />
+                            {!deviceNameError ?
+                                <Text color="textSecondary">
+                                    A name to help you remember this device. For example: "Work phone".
+                                </Text> :
+                                <Text color="errorMain">{deviceNameError}</Text>}
+                        </Label>
+                        <Label>
+                            My device ID
+                            <Input
+                                inputRef={deviceIdRef}
+                                placeholder="XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX"
+                                error={deviceIdError !== null}
+                            />
+                            {!deviceIdError ? null : <Text color="errorMain">{deviceIdError}</Text>}
+                        </Label>
+                    </div>
+                    <button type="submit" style={{display: "none"}}>Add device</button>
+                </form>
+            </>;
         }
 
-        case STEP_ADD_DEVICE: {
-            tutorialContent = (
-                <>
-                    <h2>Add your device</h2>
-                    <p>
-                        UCloud needs the Device ID generated by Syncthing before it can synchronize your files.
-                    </p>
-
-                    <section className="tutorial-device-guide">
-                        <h3>Find your Device ID</h3>
-                        <div className="tutorial-device-instructions">
-                            <ol>
-                                <li>Open Syncthing.</li>
-                                <li>
-                                    Open the <i>Actions</i> menu in the top-right corner and select <i>Show ID</i>.
-                                </li>
-                                <li>
-                                    A window with your Device ID and a QR code appears. Copy the Device ID and paste it
-                                    into the field below.
-                                </li>
-                            </ol>
-                            <Screenshot src={syncthingScreen1} alt="The Show ID option in Syncthing's Actions menu." />
-                        </div>
-                    </section>
-
-                    <form className="tutorial-form" onSubmit={tutorialNext}>
-                        <h2>Enter device details</h2>
-                        <div className="tutorial-fields">
-                            <Label>
-                                Device name
-                                <Input inputRef={deviceNameRef} placeholder={"My phone"} error={deviceNameError !== null} />
-                                {!deviceNameError ?
-                                    <Text color="textSecondary">
-                                        A name to help you remember this device. For example: "Work phone".
-                                    </Text> :
-                                    <Text color="errorMain">{deviceNameError}</Text>
-                                }
-                            </Label>
-
-                            <Label>
-                                My device ID
-                                <Input
-                                    inputRef={deviceIdRef}
-                                    placeholder="XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX"
-                                    error={deviceIdError !== null}
-                                />
-                                {!deviceIdError ? null :
-                                    <Text color="errorMain">{deviceIdError}</Text>
-                                }
-                            </Label>
-                        </div>
-
-                        <button type={"submit"} style={{display: "none"}}>Add device</button>
-                    </form>
-                </>
-            );
-            break;
-        }
+        return <div className={TutorialWizardClass}>
+            <DocumentTypography className="tutorial-content">{tutorialContent}</DocumentTypography>
+            <footer className="tutorial-actions">
+                <div className="tutorial-progress" aria-label={`Step ${tutorialStep + 1} of ${STEP_LAST + 1}`}>
+                    <span>Step {tutorialStep + 1} of {STEP_LAST + 1}</span>
+                    <div className="tutorial-progress-track" aria-hidden="true">
+                        <div style={{width: `${((tutorialStep + 1) / (STEP_LAST + 1)) * 100}%`}} />
+                    </div>
+                </div>
+                <Box flexGrow={1} />
+                {tutorialStep < 1 ? null :
+                    <Button color="secondaryMain" onClick={tutorialPrevious}>Previous step</Button>}
+                <Button onClick={tutorialNext}>{tutorialStep === STEP_LAST ? "Add device" : "Next step"}</Button>
+            </footer>
+        </div>;
     }
 
-    return <div className={TutorialWizardClass}>
+    return <div className={TutorialWizardClass} data-modal={props.modal === true}>
+        <DocumentTypography className="tutorial-content">
+            <h2 className={"tutorial-header"}>
+                Connect a device
+                <ExternalLink href="https://syncthing.net/downloads/">
+                    <Button><Icon name="open" mr="4px" size="14px" /> Download Syncthing</Button>
+                </ExternalLink>
+            </h2>
+            <p>Enter the Device ID from Syncthing to synchronize files with UCloud.</p>
 
-        <DocumentTypography className="tutorial-content">{tutorialContent}</DocumentTypography>
-        <footer className="tutorial-actions">
-            <div className="tutorial-progress" aria-label={`Step ${tutorialStep + 1} of ${STEP_LAST + 1}`}>
-                <span>Step {tutorialStep + 1} of {STEP_LAST + 1}</span>
-                <div className="tutorial-progress-track" aria-hidden="true">
-                    <div style={{width: `${((tutorialStep + 1) / (STEP_LAST + 1)) * 100}%`}} />
+            <form className="tutorial-form" onSubmit={addDevice}>
+                <div className="tutorial-fields">
+                    <Label>
+                        Device name
+                        <Input inputRef={deviceNameRef} placeholder="My phone" error={deviceNameError !== null} />
+                        {deviceNameError ? <Text color="errorMain">{deviceNameError}</Text> :
+                            <Text color="textSecondary">For example: "Work phone".</Text>}
+                    </Label>
+                    <Label>
+                        Device ID
+                        <Input
+                            inputRef={deviceIdRef}
+                            placeholder="XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX"
+                            error={deviceIdError !== null}
+                        />
+                        {deviceIdError ? <Text color="errorMain">{deviceIdError}</Text> : null}
+                        <Text color="textSecondary">
+                            Need help finding your Device ID?{" "}
+                            <button type="button" className="tutorial-help-link" onClick={() => setShowInstructions(current => !current)}>
+                                {showInstructions ? "Hide the setup instructions." : "View the setup instructions."}
+                            </button>
+                        </Text>
+                    </Label>
                 </div>
-            </div>
-            <Box flexGrow={1} />
-            {tutorialStep < 1 ? null : (
-                <Button color="secondaryMain" onClick={tutorialPrevious}>Previous step</Button>
-            )}
-            <Button onClick={tutorialNext}>
-                {tutorialStep === STEP_LAST ? "Add device" : "Next step"}
-            </Button>
+                <button type="submit" style={{display: "none"}}>Add device</button>
+            </form>
+
+            {showInstructions ?
+                <div className="device-setup-grid">
+                    <section>
+                        <h3>1. Open Syncthing</h3>
+                        <p>Install the downloaded application, then open Syncthing on the device you want to connect.</p>
+                        <Screenshot src={syncthingScreen4} alt="The Syncthing application after installation." />
+                    </section>
+
+                    <section>
+                        <h3>2. Copy the Device ID</h3>
+                        <p>In Syncthing, open <i>Actions</i>, select <i>Show ID</i>, and copy the Device ID.</p>
+                        <Screenshot src={syncthingScreen1} alt="The Show ID option in Syncthing's Actions menu." />
+                    </section>
+                </div> : null}
+        </DocumentTypography>
+        <footer className="tutorial-actions">
+            <Button color="successMain" onClick={addDevice}>Add device</Button>
         </footer>
     </div>;
 }
 
-const deviceOperations: Operation<SyncthingDevice, OperationCallbacks>[] = [
-    {
-        text: "Copy device ID",
-        icon: "id",
-        enabled: selected => selected.length === 1,
-        onClick: ([device]) => {
-            copyToClipboard(device.deviceId);
-            sendSuccessNotification("Device ID copied to clipboard!");
-        },
-        shortcut: ShortcutKey.C
-    },
-    {
-        text: "Remove",
-        icon: "trash",
-        color: "errorMain",
-        confirm: true,
-        tag: "REMOVE",
-        enabled: selected => selected.length > 0,
-        onClick: (selected, cb) => {
-            for (const device of selected) {
-                cb.dispatch({type: "RemoveDevice", deviceId: device.deviceId});
-            }
-        },
-        shortcut: ShortcutKey.R
-    }
-];
-
-const folderOperations: Operation<SyncthingFolder, OperationCallbacks>[] = [
-    {
-        text: "Remove from sync",
-        icon: "trash",
-        color: "errorMain",
-        confirm: true,
-        tag: "UNSYNC",
-        enabled: selected => selected.length >= 1,
-        onClick: (selected, cb) => {
-            for (const file of selected) {
-                cb.dispatch({type: "RemoveFolder", folderPath: file.ucloudPath});
-            }
-        },
-        shortcut: ShortcutKey.R
-    }
-];
-
 const EmptyFolders: React.FunctionComponent<{
-    didAdd?: boolean;
     onAddFolder: () => void;
-}> = ({onAddFolder, didAdd}) => {
-    return <>
-        {didAdd ? null :
-            <p>
-                Now that UCloud knows about your device, you will be able to add folders on UCloud to
-                synchronization.
-            </p>
-        }
-
-        {!didAdd ? null :
-            <p>
-                We are now applying your changes. To finish the configuration, you must accept the share from the
-                Syncthing application installed on your device.
-            </p>
-        }
-
-        <TutorialList>
-            {didAdd ? null :
-                <li>
-                    <p><b>Mark a folder for synchronization</b></p>
-
-                    <Flex justifyContent="center">
-                        <Button onClick={onAddFolder}>Add folder</Button>
-                    </Flex>
-                </li>
-            }
-
-            <li>
-                <Flex>
-                    <Box flexGrow={1}>
-                        <p><b>Open Syncthing</b></p>
-                        <p>
-                            A pop-up will appear, saying that UCloud wants to connect.
-                            Click the <i>Add device</i> button, then <i>Save</i> in the window that appears. <br />
-                            <b>Note: it can take a few minutes before the pop-up appears.</b>
-                        </p>
-                    </Box>
-                    <Box pl={40}>
-                        <Screenshot src={syncthingScreen2} />
-                    </Box>
-                </Flex>
-            </li>
-
-            <li>
-                <Flex>
-                    <Box flexGrow={1}>
-                        <p><b>A new pop-up will appear</b></p>
-
-                        <p>
-                            This states that UCloud wants to share a folder with you. Click <i>Add</i>, then select
-                            where you want Syncthing to synchronize the files to on your machine by changing{" "}
-                            <i>Folder Path</i>, then press <i>Save</i>.
-                        </p>
-                    </Box>
-
-                    <Box pl={40}>
-                        <Screenshot src={syncthingScreen3} />
-                    </Box>
-                </Flex>
-            </li>
-
-            <li>
-                <p><b>Synchronization should start within a few seconds of clicking <i>Add</i></b></p>
-            </li>
-        </TutorialList>
-
-        <p>
-            For more details see the{" "}
-            <ExternalLink href="https://docs.cloud.sdu.dk/guide/synch.html">
-                UCloud documentation
-            </ExternalLink>.
-        </p>
-    </>
+}> = ({onAddFolder}) => {
+    return <div className="sync-empty">
+        <div className="sync-row-icon sync-folder-icon"><Icon name="heroFolder" size={20} color="FtFolderColor" /></div>
+        <div>
+            <h3>No synchronized folders</h3>
+            <p>Select a folder to begin synchronizing it with your devices.</p>
+        </div>
+        <Button onClick={onAddFolder}>Choose folder</Button>
+    </div>
 };
 
-function TutorialList(props: React.PropsWithChildren): React.ReactNode {
-    return <ol className={TutorialListClass} {...props} />
-}
-
-const TutorialListClass = injectStyle("tutorial-list", k => `
+const SyncthingMainClass = injectStyle("syncthing-main", k => `
     ${k} {
-        padding-top: 0.5em;
+        width: 100%;
+        max-width: 1100px;
+        height: calc(100vh - 32px);
+        margin: 0 auto;
+        padding: 8px 24px 48px;
+        overflow-y: auto;
+        color: var(--textPrimary);
+        font-size: 15px;
+        line-height: 1.55;
     }
 
-    ${k} > li {
-        padding: 0 0 1.5em 0.5em;
+    ${k} h2, ${k} h3, ${k} p {
+        padding: 0;
+        border: 0;
+    }
+
+    ${k} .sync-page-header {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 24px 0 20px;
+    }
+
+    ${k} .sync-page-header img {
+        width: 64px;
+        height: 64px;
+        flex: 0 0 64px;
+    }
+
+    ${k} .sync-page-header h1 {
+        margin: 0;
+        font-size: 30px;
+        font-weight: normal;
+        line-height: 1.2;
+    }
+
+    ${k} .sync-page-heading {
+        min-width: 0;
+        flex: 1;
+    }
+
+    ${k} .sync-page-heading p {
+        margin-top: 3px;
+        color: var(--textSecondary);
+    }
+
+    ${k} h2 {
+        margin: 0;
+        font-size: 20px;
+        line-height: 1.3;
+        letter-spacing: -0.01em;
+    }
+
+    ${k} h3 {
+        margin: 0 0 4px;
+        font-size: 15px;
+        line-height: 1.4;
+    }
+
+    ${k} p {
+        margin: 0;
+        line-height: 1.55;
+    }
+
+    ${k} .sync-description {
+        color: var(--textSecondary);
+    }
+
+    ${k} .sync-section {
+        padding: 22px 0 30px;
+    }
+
+    ${k} .sync-section + .sync-section {
+        margin-top: 12px;
+    }
+
+    ${k} .sync-section-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        margin-bottom: 8px;
+    }
+
+    ${k} .sync-description {
+        margin-bottom: 32px;
+    }
+
+    ${k} .sync-section-title {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+    }
+
+    ${k} .sync-device-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    ${k} .sync-rows {
+        display: grid;
+        gap: 16px;
+    }
+
+    ${k} .sync-row {
+        min-width: 0;
+        min-height: 64px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 10px 12px;
+        margin: -10px -12px;
+        border-radius: 10px;
+        background: transparent;
+        transition: background-color 120ms ease;
+    }
+
+    ${k} .sync-row:hover {
+        background: var(--rowHover);
+    }
+
+    ${k} .sync-row-icon {
+        width: 38px;
+        height: 38px;
+        flex: 0 0 38px;
+        display: grid;
+        place-items: center;
+        border: 1px solid var(--borderColor);
+        border-radius: 10px;
+        background: var(--backgroundCard);
+    }
+
+    ${k} .sync-folder-icon {
+        color: var(--FtFolderColor);
+    }
+
+    ${k} .sync-row-content {
+        min-width: 0;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 2px;
+    }
+
+    ${k} .sync-row-content strong {
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 14px;
+    }
+
+    ${k} .sync-row-content code, ${k} .sync-row-content span {
+        max-width: 100%;
+        overflow: hidden;
+        color: var(--textSecondary);
+        font-size: 12px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    ${k} .sync-row-link {
+        padding: 0;
+        border: 0;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+        text-align: left;
+        cursor: pointer;
+    }
+
+    ${k} .sync-row-actions, ${k} .sync-server-actions, ${k} .sync-connection-status {
+        display: flex;
+        align-items: center;
+    }
+
+    ${k} .sync-row-actions {
+        gap: 2px;
+    }
+
+    ${k} .sync-row-actions button {
+        --icon-button-hover: var(--rowActive);
+    }
+
+    ${k} .sync-server-actions {
+        gap: 8px;
+        margin-top: 20px;
+    }
+
+    ${k} .sync-row-warning {
+        display: inline-flex;
+        color: var(--warningMain);
+    }
+
+    ${k} .sync-empty {
+        min-height: 76px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 12px;
+        border-radius: 10px;
+        background: var(--rowHover);
+    }
+
+    ${k} .sync-empty > div:nth-child(2) {
+        min-width: 0;
+        flex: 1;
+    }
+
+    ${k} .sync-empty p {
+        color: var(--textSecondary);
+    }
+
+    ${k} .sync-connection-status {
+        gap: 8px;
+        color: var(--textSecondary);
+        font-size: 12px;
+    }
+
+    ${k} .sync-status-dot {
+        width: 8px;
+        height: 8px;
+        flex: 0 0 8px;
+        border-radius: 50%;
+        background: var(--green-fg);
+    }
+
+    ${k} .sync-connection-status[data-transitioning="true"] .sync-status-dot {
+        background: var(--warningMain);
+        animation: syncthing-status-pulse 1.6s ease-in-out infinite;
+    }
+
+    @keyframes syncthing-status-pulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: .45; transform: scale(.75); }
+    }
+
+    ${k} .sync-server-meta {
+        display: flex;
+        align-items: flex-start;
+        gap: 48px;
+        margin-top: 16px;
+    }
+
+    ${k} .sync-server-meta-item {
+        min-width: 180px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    ${k} .sync-server-meta-item > span {
+        color: var(--textSecondary);
+        font-size: 12px;
+    }
+
+    ${k} .sync-server-meta-item > a {
+        color: var(--linkColor);
+        font-size: 14px;
+    }
+
+    ${k} .sync-server-meta-item > a:hover {
+        color: var(--linkColorHover);
+    }
+
+    ${k} .sync-server-meta-item > div {
+        color: var(--textPrimary);
+        font-size: 14px;
+    }
+
+    ${k} .sync-server-id {
+        min-width: 0;
+        flex: 1;
+    }
+
+    ${k} .sync-server-id > div {
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    ${k} .sync-server-id code {
+        min-width: 0;
+        overflow: hidden;
+        color: var(--textPrimary);
+        font-family: var(--monospace);
+        font-size: 14px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    @media (max-width: 640px) {
+        ${k} {
+            padding-right: 16px;
+            padding-left: 16px;
+        }
+
+        ${k} .sync-page-header {
+            align-items: flex-start;
+            flex-wrap: wrap;
+        }
+
+        ${k} .sync-page-heading {
+            flex-basis: calc(100% - 80px);
+        }
+
+        ${k} .sync-page-header > a {
+            margin-left: 80px;
+        }
+
+        ${k} .sync-section-header {
+            align-items: flex-start;
+        }
+
+        ${k} .sync-server-meta {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+        ${k} .sync-server-meta {
+            gap: 16px;
+        }
+
+        ${k} .sync-server-meta-item {
+            width: 100%;
+        }
+
+        ${k} .sync-row {
+            gap: 10px;
+            padding-right: 6px;
+        }
+
+        ${k} .sync-empty {
+            align-items: flex-start;
+            flex-wrap: wrap;
+        }
+
+        ${k} .sync-empty > button {
+            margin-left: 48px;
+        }
     }
 `);
 
@@ -1205,6 +1244,10 @@ const TutorialWizardClass = injectStyle("tutorial-wizard", k => `
         display: flex;
         flex-direction: column;
         background: var(--backgroundDefault);
+    }
+
+    ${k}[data-modal="true"] {
+        height: 100%;
     }
 
     ${k} .tutorial-progress {
@@ -1236,6 +1279,21 @@ const TutorialWizardClass = injectStyle("tutorial-wizard", k => `
         overflow-y: auto;
         padding: 12px 24px 32px;
         flex-grow: 1;
+    }
+
+    ${k} .tutorial-header {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 16px;
+        margin: -12px -24px 8px;
+        padding: 12px 24px;
+        border-bottom: 1px solid var(--borderColor);
+    }
+
+    ${k} .tutorial-header > a {
+        margin-left: auto;
     }
 
     ${k} .tutorial-notice {
@@ -1272,6 +1330,22 @@ const TutorialWizardClass = injectStyle("tutorial-wizard", k => `
         gap: 28px;
     }
 
+    ${k} .device-setup-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        align-items: start;
+        gap: 32px;
+        margin-top: 28px;
+    }
+
+    ${k} .device-setup-grid section {
+        min-width: 0;
+    }
+
+    ${k} .device-setup-grid ${ScreenshotClass} {
+        margin-top: 18px;
+    }
+
     ${k} .tutorial-fields {
         display: grid;
         grid-template-columns: minmax(180px, 0.7fr) minmax(320px, 1.3fr);
@@ -1288,9 +1362,27 @@ const TutorialWizardClass = injectStyle("tutorial-wizard", k => `
         margin-top: 8px;
         font-weight: normal;
     }
+
+    ${k} .tutorial-help-link {
+        padding: 0;
+        border: 0;
+        background: transparent;
+        color: var(--linkColor);
+        font: inherit;
+        cursor: pointer;
+    }
+
+    ${k} .tutorial-help-link:hover {
+        color: var(--linkColorHover);
+        text-decoration: underline;
+    }
     
     ${k} .tutorial-form {
         margin-top: 32px;
+    }
+
+    ${k}[data-modal="true"] .tutorial-form {
+        margin-top: 36px;
     }
 
     ${k} .tutorial-form label > input {
@@ -1306,17 +1398,26 @@ const TutorialWizardClass = injectStyle("tutorial-wizard", k => `
         border: 2px solid var(--borderColorHover);
         border-radius: 10px;
         background: var(--backgroundDefault);
-        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.12);
+        box-shadow: var(--defaultShadow);
     }
 
     ${k} .tutorial-actions {
         display: flex;
         gap: 12px;
+        height: 68px;
         padding: 16px 0;
         border-top: 1px solid var(--borderColor);
         background: var(--backgroundDefault);
-        height: 68px;
         justify-content: center;
+    }
+
+    ${k}[data-modal="true"] .tutorial-actions {
+        flex: 0 0 auto;
+        height: auto;
+        padding: 16px 24px;
+        border-top: 0;
+        background: var(--dialogToolbar);
+        justify-content: flex-end;
     }
 
     @media (max-width: 760px) {
@@ -1325,7 +1426,11 @@ const TutorialWizardClass = injectStyle("tutorial-wizard", k => `
             min-height: 0;
         }
 
-        ${k} .tutorial-device-instructions, ${k} .tutorial-fields {
+        ${k}[data-modal="true"] {
+            height: 100%;
+        }
+
+        ${k} .tutorial-device-instructions, ${k} .device-setup-grid, ${k} .tutorial-fields {
             grid-template-columns: 1fr;
         }
     }
@@ -1335,12 +1440,5 @@ function Screenshot(props: {src: string; alt?: string}): React.ReactNode {
     return <Image alt={props.alt ?? "Descriptive screenshot showing how to set up Syncthing."} className={ScreenshotClass}
         src={props.src} />
 }
-
-const DeviceBox = injectStyleSimple("device-box", `
-    cursor: pointer;
-    user-select: none;
-    -webkit-user-select: none;
-`);
-
 
 export default Overview;
