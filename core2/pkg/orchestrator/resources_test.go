@@ -500,6 +500,29 @@ func TestResourceCreateAndUpdateLabels(t *testing.T) {
 	}
 }
 
+func TestResourceRemovesDeletedProjectGroupFromAcl(t *testing.T) {
+	initResourceTest(t)
+
+	owner := actor("owner", "project")
+	id, _, err := ResourceCreateEx[TestResource](
+		testResource,
+		orcapi.ResourceOwner{CreatedBy: owner.Username, Project: util.OptValue("project")},
+		[]orcapi.ResourceAclEntry{
+			{Entity: orcapi.AclEntityProjectGroup("project", "deleted-group")},
+			{Entity: orcapi.AclEntityProjectGroup("project", "remaining-group")},
+		},
+		orcapi.ResourceSpecification{},
+		util.OptNone[string](),
+		&TestResourceData{},
+		0,
+	)
+	assert.Nil(t, err)
+
+	resource := resourceGetBucket(testResource, id).Resources[id]
+	resourceRemoveGroupFromAcls("deleted-group")
+	assert.Equal(t, 2, len(resource.Acl))
+}
+
 func TestResourceBrowseFilterLabels(t *testing.T) {
 	initResourceTest(t)
 

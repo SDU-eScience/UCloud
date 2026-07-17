@@ -1,6 +1,7 @@
 package orchestrator
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"runtime"
@@ -241,6 +242,8 @@ func InitResources() {
 	ResourceRegisterIndexedLabelKey(resourceLabelStackInstance)
 
 	if !resourceGlobals.Testing.Enabled {
+		go resourceListenForProjectGroupUpdates()
+
 		db.NewTx0(func(tx *db.Transaction) {
 			id, ok := db.Get[struct{ Id int64 }](
 				tx,
@@ -252,6 +255,47 @@ func InitResources() {
 				resourceGlobals.IdAcc.Store(id.Id)
 			}
 		})
+	}
+}
+
+func resourceListenForProjectGroupUpdates() {
+	groupUpdates := db.Listen(context.Background(), "project_group_updates")
+	for groupId := range groupUpdates {
+		if !resourceProjectGroupExists(groupId) {
+			resourceRemoveGroupFromAcls(groupId)
+		}
+	}
+}
+
+func resourceProjectGroupExists(groupId string) bool {
+	return db.NewTx(func(tx *db.Transaction) bool {
+		_, exists := db.Get[struct{ Id string }](
+			tx,
+			`select id from project.groups where id = :group_id`,
+			db.Params{"group_id": groupId},
+		)
+		return exists
+	})
+}
+
+// resourceRemoveGroupFromAcls removes ACL entries for a deleted project group from cached resources.
+func resourceRemoveGroupFromAcls(groupId string) {
+	resourceGlobals.Mu.RLock()
+	defer resourceGlobals.Mu.RUnlock()
+
+	for _, globals := range resourceGlobals.ByType {
+		for _, bucket := range globals.Resources {
+			bucket.Mu.Lock()
+			for _, r := range bucket.Resources {
+				// NOTE(Dan): Modifying the resource is sufficient in this case since the persistence layer is
+				// already handling this for us automatically, since we would otherwise not have DB consistency.
+
+				r.Acl = slices.DeleteFunc(r.Acl, func(entry orcapi.ResourceAclEntry) bool {
+					return entry.Entity.Type == orcapi.AclEntityTypeProjectGroup && entry.Entity.Group == groupId
+				})
+			}
+			bucket.Mu.Unlock()
+		}
 	}
 }
 
