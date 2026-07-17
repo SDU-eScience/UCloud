@@ -116,6 +116,13 @@ func TestMetadataScanPublishesAndReplacesSubtree(t *testing.T) {
 		t.Fatal(err)
 	}
 	assertMetadataTestKey(t, db, oldName, true)
+	oldTrigrams, err := metadataTrigramKeys(metadataPathKey([]string{"alpha", "Old.TXT"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range oldTrigrams {
+		assertMetadataTestKey(t, db, key, true)
+	}
 	if err = db.Close(); err != nil {
 		t.Fatal(err)
 	}
@@ -140,6 +147,9 @@ func TestMetadataScanPublishesAndReplacesSubtree(t *testing.T) {
 	assertMetadataTestKey(t, db, metadataPathKey([]string{"alpha", "Old.TXT"}), false)
 	assertMetadataTestKey(t, db, metadataPathKey([]string{"alpha", "nested"}), false)
 	assertMetadataTestKey(t, db, oldName, false)
+	for _, key := range oldTrigrams {
+		assertMetadataTestKey(t, db, key, false)
+	}
 	newPath := metadataPathKey([]string{"alpha", "new.txt"})
 	assertMetadataTestKey(t, db, newPath, true)
 	newName, err := metadataNameKey(newPath)
@@ -154,6 +164,15 @@ func TestMetadataScanPublishesAndReplacesSubtree(t *testing.T) {
 	if err = db.Set(staleName, nil, pebble.Sync); err != nil {
 		t.Fatal(err)
 	}
+	staleTrigrams, err := metadataTrigramKeys(metadataPathKey([]string{"missing", "newer.txt"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range staleTrigrams {
+		if err = db.Set(key, nil, pebble.Sync); err != nil {
+			t.Fatal(err)
+		}
+	}
 	var results []MetadataSearchResult
 	err = metadataSearchByNamePrefixInDB(context.Background(), db, "drive-1", nil, "NE", 10, func(result MetadataSearchResult) bool {
 		results = append(results, result)
@@ -165,9 +184,20 @@ func TestMetadataScanPublishesAndReplacesSubtree(t *testing.T) {
 	if len(results) != 1 || results[0].Path != "/drive-1/alpha/new.txt" {
 		t.Fatalf("unexpected verified prefix results: %#v", results)
 	}
+	results = nil
+	err = metadataSearchByNamePrefixInDB(context.Background(), db, "drive-1", nil, "ewer", 10, func(result MetadataSearchResult) bool {
+		results = append(results, result)
+		return true
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) != 0 {
+		t.Fatalf("unexpected stale trigram results: %#v", results)
+	}
 }
 
-func TestMetadataSearchByNamePrefixInDBUsesPrefixAndFolderScope(t *testing.T) {
+func TestMetadataSearchByNamePrefixInDBPrioritizesPrefixOverTrigramMatches(t *testing.T) {
 	driveRoot := t.TempDir()
 	databasePath := filepath.Join(t.TempDir(), "catalog")
 	if err := os.MkdirAll(filepath.Join(driveRoot, "selected"), 0o755); err != nil {
@@ -185,16 +215,55 @@ func TestMetadataSearchByNamePrefixInDBUsesPrefixAndFolderScope(t *testing.T) {
 
 	db := openMetadataTestDB(t, databasePath)
 	defer db.Close()
+	annualTrigrams, err := metadataTrigramKeys(metadataPathKey([]string{"selected", "Annual Report.CSV"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range annualTrigrams {
+		assertMetadataTestKey(t, db, key, true)
+	}
+	repPrefix := []byte{MetaKeyspaceTrigram, 'r', 'e', 'p', 0}
+	repIter, err := db.NewIter(&pebble.IterOptions{LowerBound: repPrefix, UpperBound: metadataPrefixSuccessor(repPrefix)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	repCount := 0
+	for valid := repIter.First(); valid; valid = repIter.Next() {
+		repCount++
+	}
+	if err = repIter.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if repCount != 3 {
+		t.Fatalf("found %d rep trigram postings, want 3", repCount)
+	}
 	var results []MetadataSearchResult
-	err := metadataSearchByNamePrefixInDB(context.Background(), db, "drive-1", []string{"selected"}, "REPORT", 1, func(result MetadataSearchResult) bool {
+	err = metadataSearchByNamePrefixInDB(context.Background(), db, "drive-1", []string{"selected"}, "REPORT", 2, func(result MetadataSearchResult) bool {
 		results = append(results, result)
 		return true
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(results) != 1 || results[0].Path != "/drive-1/selected/Report Annual.CSV" {
+	want := []string{
+		"/drive-1/selected/Report Annual.CSV",
+		"/drive-1/selected/Annual Report.CSV",
+	}
+	if len(results) != len(want) {
 		t.Fatalf("unexpected search results: %#v", results)
+	}
+	for i := range want {
+		if results[i].Path != want[i] {
+			t.Fatalf("result %d is %q, want %q", i, results[i].Path, want[i])
+		}
+	}
+}
+
+func TestMetadataNameTrigramsUseRunesAndRemoveDuplicates(t *testing.T) {
+	got := metadataNameTrigrams(metadataNormalizedName([]byte("ÅÅÅÅ")))
+	want := [][]byte{[]byte("ååå")}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("unexpected trigrams: got %q, want %q", got, want)
 	}
 }
 
@@ -254,6 +323,39 @@ func TestMetadataRecoversPendingAncestorDelta(t *testing.T) {
 	root = readMetadataTestEntry(t, db, metadataPathKey(nil))
 	if root.RecursiveFileCount != 2 {
 		t.Fatalf("recovery was applied twice: %d", root.RecursiveFileCount)
+	}
+}
+
+func TestMetadataRecoversPendingNameAndTrigramIndexes(t *testing.T) {
+	databasePath := filepath.Join(t.TempDir(), "catalog")
+	db := openMetadataTestDB(t, databasePath)
+	defer db.Close()
+	pathKey := metadataPathKey([]string{"reports", "Annual Summary.csv"})
+	entry := MetadataEntry{EntryType: MetaEntryRegular, AllocatedSize: util.OptValue(uint64(0))}
+	if err := db.Set(pathKey, entry.Encode(), pebble.Sync); err != nil {
+		t.Fatal(err)
+	}
+	pending, err := metadataNameRefreshPending(db)
+	if err != nil || !pending {
+		t.Fatalf("unversioned search index pending=%t, err=%v", pending, err)
+	}
+	if err := db.Set(metadataPendingNameKey, metadataPathKey(nil), pebble.Sync); err != nil {
+		t.Fatal(err)
+	}
+	if err := metadataRecoverPendingNameIndex(db); err != nil {
+		t.Fatal(err)
+	}
+	keys, err := metadataSearchIndexKeys(pathKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range keys {
+		assertMetadataTestKey(t, db, key, true)
+	}
+	assertMetadataTestKey(t, db, metadataPendingNameKey, false)
+	current, err := metadataSearchIndexCurrent(db)
+	if err != nil || !current {
+		t.Fatalf("recovered search index current=%t, err=%v", current, err)
 	}
 }
 

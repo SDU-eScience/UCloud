@@ -252,7 +252,8 @@ func metadataLookupRecursiveSizes(drive *orc.Drive, internalPaths []string) (res
 	return result, nil
 }
 
-// MetadataSearchByNamePrefix streams NAME-index matches below a UCloud folder. A drive root is expressed as /<drive ID>.
+// MetadataSearchByNamePrefix streams name matches below a UCloud folder, with prefix matches first. Substring matching
+// requires at least three normalized characters. A drive root is /<drive ID>.
 func MetadataSearchByNamePrefix(ctx context.Context, folder, prefix string, limit int, emit func(MetadataSearchResult) bool) (complete bool, err error) {
 	startedAt := time.Now()
 	driveID := ""
@@ -302,58 +303,107 @@ func metadataNameRefreshPending(db *pebble.DB) (bool, error) {
 		_ = closer.Close()
 	}
 	if errors.Is(err, pebble.ErrNotFound) {
-		return false, nil
+		current, versionErr := metadataSearchIndexCurrent(db)
+		return !current, versionErr
 	}
 	return err == nil, err
+}
+
+func metadataSearchIndexCurrent(db *pebble.DB) (bool, error) {
+	value, closer, err := db.Get(metadataSearchIndexVersionKey)
+	if errors.Is(err, pebble.ErrNotFound) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	defer closer.Close()
+	return bytes.Equal(value, metadataSearchIndexVersion), nil
 }
 
 func metadataSearchByNamePrefixInDB(ctx context.Context, db *pebble.DB, driveID string, folderComponents []string, prefix string, limit int, emit func(MetadataSearchResult) bool) (err error) {
 	if limit <= 0 {
 		return errors.New("search limit must be positive")
 	}
-	normalizedPrefix := metadataNormalizedName([]byte(prefix))
-	lower := append([]byte{MetaKeyspaceName}, normalizedPrefix...)
-	upper := metadataPrefixSuccessor(lower)
-	iter, err := db.NewIter(&pebble.IterOptions{LowerBound: lower, UpperBound: upper})
+	normalizedQuery := metadataNormalizedName([]byte(prefix))
+	emitted := 0
+	stopped := false
+	searchIndex := func(keyspace byte, indexPrefix []byte, matches func([]byte) bool) error {
+		lower := append([]byte{keyspace}, indexPrefix...)
+		iter, iterErr := db.NewIter(&pebble.IterOptions{LowerBound: lower, UpperBound: metadataPrefixSuccessor(lower)})
+		if iterErr != nil {
+			return iterErr
+		}
+		defer iter.Close()
+		for valid := iter.First(); valid && emitted < limit && !stopped; valid = iter.Next() {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
+			}
+			pathKey, keyErr := metadataPathKeyFromSearchIndexKey(iter.Key(), keyspace)
+			if keyErr != nil {
+				return keyErr
+			}
+			entry, present, readErr := metadataReadEntry(db, pathKey)
+			if readErr != nil {
+				return readErr
+			}
+			if !present {
+				continue
+			}
+			components, keyErr := metadataPathComponents(pathKey)
+			if keyErr != nil {
+				return keyErr
+			}
+			if len(components) == 0 || !metadataComponentsContain(folderComponents, components) {
+				continue
+			}
+			normalizedName := metadataNormalizedName([]byte(components[len(components)-1]))
+			if !matches(normalizedName) {
+				continue
+			}
+			emitted++
+			path := "/" + driveID + "/" + strings.Join(components, "/")
+			stopped = !emit(MetadataSearchResult{Path: path, Entry: entry})
+		}
+		return iter.Error()
+	}
+
+	if err = searchIndex(MetaKeyspaceName, normalizedQuery, func(name []byte) bool {
+		return bytes.HasPrefix(name, normalizedQuery)
+	}); err != nil || emitted >= limit || stopped {
+		return err
+	}
+	trigrams := metadataNameTrigrams(normalizedQuery)
+	if len(trigrams) == 0 {
+		return nil
+	}
+	trigramPrefix := append(append([]byte(nil), trigrams[0]...), 0)
+	trigramBytes, err := db.EstimateDiskUsage(append([]byte{MetaKeyspaceTrigram}, trigramPrefix...), metadataPrefixSuccessor(append([]byte{MetaKeyspaceTrigram}, trigramPrefix...)))
 	if err != nil {
 		return err
 	}
-	defer iter.Close()
-	emitted := 0
-	for valid := iter.First(); valid && emitted < limit; valid = iter.Next() {
+	for _, trigram := range trigrams[1:] {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
 		}
-		pathKey, keyErr := metadataPathKeyFromNameKey(iter.Key())
-		if keyErr != nil {
-			return keyErr
+		candidatePrefix := append(append([]byte(nil), trigram...), 0)
+		lower := append([]byte{MetaKeyspaceTrigram}, candidatePrefix...)
+		candidateBytes, estimateErr := db.EstimateDiskUsage(lower, metadataPrefixSuccessor(lower))
+		if estimateErr != nil {
+			return estimateErr
 		}
-		entry, present, readErr := metadataReadEntry(db, pathKey)
-		if readErr != nil {
-			return readErr
-		}
-		if !present {
-			continue
-		}
-		components, keyErr := metadataPathComponents(pathKey)
-		if keyErr != nil {
-			return keyErr
-		}
-		if !metadataComponentsContain(folderComponents, components) {
-			continue
-		}
-		path := "/" + driveID
-		if len(components) > 0 {
-			path += "/" + strings.Join(components, "/")
-		}
-		emitted++
-		if !emit(MetadataSearchResult{Path: path, Entry: entry}) {
-			return nil
+		if candidateBytes < trigramBytes {
+			trigramPrefix = candidatePrefix
+			trigramBytes = candidateBytes
 		}
 	}
-	return iter.Error()
+	return searchIndex(MetaKeyspaceTrigram, trigramPrefix, func(name []byte) bool {
+		return !bytes.HasPrefix(name, normalizedQuery) && bytes.Contains(name, normalizedQuery)
+	})
 }
 
 func metadataComponentsContain(parent, child []string) bool {
@@ -387,7 +437,7 @@ func MetadataCatalogMetricsForDrive(driveID string) (result MetadataCatalogMetri
 	}
 	databaseBytes := db.Metrics().DiskSpaceUsage()
 	pathBytes, pathErr := db.EstimateDiskUsage([]byte{MetaKeyspacePath}, []byte{MetaKeyspaceName})
-	nameBytes, nameErr := db.EstimateDiskUsage([]byte{MetaKeyspaceName}, []byte{MetaKeyspaceName + 1})
+	nameBytes, nameErr := db.EstimateDiskUsage([]byte{MetaKeyspaceName}, []byte{MetaKeyspaceTrigram + 1})
 	closeDB()
 	if pathErr != nil {
 		return result, pathErr
@@ -411,17 +461,17 @@ func metadataComponentsBelowDrive(internalPath, driveRoot string) ([]string, err
 	return metadataRelativeComponents(relative), nil
 }
 
-func metadataPathKeyFromNameKey(key []byte) ([]byte, error) {
-	if len(key) < 3 || key[0] != MetaKeyspaceName {
-		return nil, errors.New("invalid NAME key")
+func metadataPathKeyFromSearchIndexKey(key []byte, keyspace byte) ([]byte, error) {
+	if len(key) < 3 || key[0] != keyspace {
+		return nil, errors.New("invalid search index key")
 	}
 	separator := bytes.IndexByte(key[1:], 0)
 	if separator < 0 {
-		return nil, errors.New("unterminated NAME key")
+		return nil, errors.New("unterminated search index key")
 	}
 	pathSuffix := key[separator+2:]
 	if len(pathSuffix) == 0 {
-		return nil, errors.New("NAME key does not contain a path")
+		return nil, errors.New("search index key does not contain a path")
 	}
 	return append([]byte{MetaKeyspacePath}, pathSuffix...), nil
 }

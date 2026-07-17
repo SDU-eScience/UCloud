@@ -229,13 +229,16 @@ func (d *metadataValueDecoder) varint() int64 {
 }
 
 const (
-	MetaKeyspacePath = 0x01
-	MetaKeyspaceName = 0x02
+	MetaKeyspacePath    = 0x01
+	MetaKeyspaceName    = 0x02
+	MetaKeyspaceTrigram = 0x03
 )
 
 var errMetadataScanInvalidated = errors.New("metadata scan invalidated by a live filesystem change")
 var metadataPendingAggregateKey = []byte{0x00, 0x01}
 var metadataPendingNameKey = []byte{0x00, 0x02}
+var metadataSearchIndexVersionKey = []byte{0x00, 0x03}
+var metadataSearchIndexVersion = []byte{0x01}
 
 type MetadataCatalogConfig struct {
 	IOPS              int
@@ -423,6 +426,10 @@ func metadataHasCompleteCoverage(driveID string) bool {
 		_ = pendingCloser.Close()
 	}
 	if pendingErr == nil || !errors.Is(pendingErr, pebble.ErrNotFound) {
+		return false
+	}
+	current, err := metadataSearchIndexCurrent(db)
+	if err != nil || !current {
 		return false
 	}
 	metadataCompleteCoverage.Store(driveID, true)
@@ -634,7 +641,7 @@ func metadataScanAndPublish(ctx context.Context, scanPath, driveRoot, databasePa
 	}
 
 	pathBytes, _ := db.EstimateDiskUsage([]byte{MetaKeyspacePath}, []byte{MetaKeyspaceName})
-	nameBytes, _ := db.EstimateDiskUsage([]byte{MetaKeyspaceName}, []byte{MetaKeyspaceName + 1})
+	nameBytes, _ := db.EstimateDiskUsage([]byte{MetaKeyspaceName}, []byte{MetaKeyspaceTrigram + 1})
 	metadataRecordScanContents(filepath.Base(databasePath), output.rootEntry, db.Metrics().DiskSpaceUsage(), pathBytes, nameBytes)
 	releaseDatabase()
 	databaseOpen = false
@@ -936,6 +943,69 @@ func metadataNameKey(pathKey []byte) ([]byte, error) {
 	key = append(key, 0)
 	key = append(key, pathKey[1:]...)
 	return key, nil
+}
+
+func metadataTrigramKeys(pathKey []byte) ([][]byte, error) {
+	components, err := metadataPathComponents(pathKey)
+	if err != nil || len(components) == 0 {
+		return nil, err
+	}
+	normalized := metadataNormalizedName([]byte(components[len(components)-1]))
+	trigrams := metadataNameTrigrams(normalized)
+	keys := make([][]byte, 0, len(trigrams))
+	for _, trigram := range trigrams {
+		key := []byte{MetaKeyspaceTrigram}
+		key = append(key, trigram...)
+		key = append(key, 0)
+		key = append(key, pathKey[1:]...)
+		keys = append(keys, key)
+	}
+	return keys, nil
+}
+
+func metadataNameTrigrams(normalized []byte) [][]byte {
+	if !utf8.Valid(normalized) {
+		if len(normalized) < 3 {
+			return nil
+		}
+		seen := map[string]bool{}
+		result := make([][]byte, 0, len(normalized)-2)
+		for i := 0; i+3 <= len(normalized); i++ {
+			trigram := normalized[i : i+3]
+			if !seen[string(trigram)] {
+				seen[string(trigram)] = true
+				result = append(result, append([]byte(nil), trigram...))
+			}
+		}
+		return result
+	}
+
+	runes := []rune(string(normalized))
+	if len(runes) < 3 {
+		return nil
+	}
+	seen := map[string]bool{}
+	result := make([][]byte, 0, len(runes)-2)
+	for i := 0; i+3 <= len(runes); i++ {
+		trigram := string(runes[i : i+3])
+		if !seen[trigram] {
+			seen[trigram] = true
+			result = append(result, []byte(trigram))
+		}
+	}
+	return result
+}
+
+func metadataSearchIndexKeys(pathKey []byte) ([][]byte, error) {
+	nameKey, err := metadataNameKey(pathKey)
+	if err != nil || nameKey == nil {
+		return nil, err
+	}
+	trigramKeys, err := metadataTrigramKeys(pathKey)
+	if err != nil {
+		return nil, err
+	}
+	return append([][]byte{nameKey}, trigramKeys...), nil
 }
 
 func metadataNormalizedName(name []byte) []byte {
