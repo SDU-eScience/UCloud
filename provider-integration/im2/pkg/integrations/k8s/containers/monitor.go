@@ -81,22 +81,11 @@ func Monitor(tracker shared.JobTracker, jobs map[string]*orc.Job) {
 		}
 
 		iappName := util.OptMapGet(pod.Annotations, IAppAnnotationName)
-		iappEtag := util.OptMapGet(pod.Annotations, IAppAnnotationEtag)
 		if iappName.Present {
 			iappsHandled[job.Id] = util.Empty{}
 			iappConfig, iappOk := activeIApps[job.Id]
 			handler, handlerOk := IApps[iappName.Value]
-			podMatchesConfiguration := true
-			if handlerOk && iappOk && handler.PodMatchesConfiguration != nil {
-				podMatchesConfiguration = handler.PodMatchesConfiguration(job, iappConfig.Configuration, pod)
-			}
-
-			shouldRun := handlerOk &&
-				iappOk &&
-				iappEtag.Present &&
-				handler.ShouldRun(job, iappConfig.Configuration) &&
-				podMatchesConfiguration &&
-				iappEtag.Value == iappConfig.ETag
+			shouldRun := handlerOk && iappOk && iappPodShouldRun(handler, job, iappConfig, pod)
 
 			if !shouldRun {
 				ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)

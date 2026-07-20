@@ -139,13 +139,9 @@ func handleShellNoRetry(session *controller.ShellSession, cols int, rows int, is
 						iappConfig, iappOk := activeIApps[job.Id]
 						handler, handlerOk := IApps[integratedTerminalAppName]
 
-						iappEtag := util.OptMapGet(pod.Annotations, IAppAnnotationEtag)
-
 						shouldRun := handlerOk &&
 							iappOk &&
-							iappEtag.Present &&
-							handler.ShouldRun(job, iappConfig.Configuration) &&
-							iappEtag.Value == iappConfig.ETag
+							iappPodShouldRun(handler, job, iappConfig, pod)
 
 						if shouldRun {
 							break

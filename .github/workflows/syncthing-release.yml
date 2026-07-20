@@ -1,0 +1,77 @@
+name: Syncthing release update
+
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: syncthing-release-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    name: Check for a stable Syncthing release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Update pinned version
+        id: version
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          tag="$(gh api repos/syncthing/syncthing/releases/latest --jq .tag_name)"
+          latest="${tag#v}"
+          if [[ ! "$latest" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Unexpected stable release tag: $tag" >&2
+            exit 1
+          fi
+
+          current="$(perl -ne 'print "$1\n" and exit if /syncthingImageVersion\s*=\s*"([^"]+)"/' provider-integration/im2/pkg/integrations/k8s/containers/syncthing.go)"
+          if [[ -z "$current" ]]; then
+            echo "Could not determine the pinned Syncthing version" >&2
+            exit 1
+          fi
+
+          newest="$(printf '%s\n' "$current" "$latest" | sort -V | tail -n 1)"
+          if [[ "$current" == "$latest" || "$newest" != "$latest" ]]; then
+            echo "No newer Syncthing release found (current: $current, latest: $latest)"
+            exit 0
+          fi
+
+          export SYNCTHING_VERSION="$latest"
+          perl -0pi -e 's/(syncthingImageVersion\s*=\s*")[^"]+/${1}$ENV{SYNCTHING_VERSION}/' provider-integration/im2/pkg/integrations/k8s/containers/syncthing.go
+          perl -pi -e 's/^version=.*/version=$ENV{SYNCTHING_VERSION}/' integrated-applications/syncthing-go/build_docker.sh
+
+          echo "updated=true" >> "$GITHUB_OUTPUT"
+          echo "version=$latest" >> "$GITHUB_OUTPUT"
+          echo "release_url=https://github.com/syncthing/syncthing/releases/tag/$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Create pull request
+        if: steps.version.outputs.updated == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: automation/syncthing-release
+          delete-branch: true
+          commit-message: "Bump Syncthing to ${{ steps.version.outputs.version }}"
+          title: "Bump Syncthing to ${{ steps.version.outputs.version }}"
+          body: |
+            Updates the embedded Syncthing release and container image tag to `${{ steps.version.outputs.version }}`.
+
+            Release: ${{ steps.version.outputs.release_url }}
+
+            Before merging, a maintainer must publish both tagged images by running:
+
+            ```bash
+            integrated-applications/syncthing-go/build_docker.sh
+            ```

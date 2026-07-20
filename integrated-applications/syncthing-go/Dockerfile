@@ -13,10 +13,11 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # Syncthing
+ARG SYNCTHING_VERSION
 RUN apt-get update && apt-get install -y bash wget
 WORKDIR /opt
 RUN if [ "$(uname -p)" = "aarch64" ]; then ARCH=arm64; else ARCH=amd64; fi \
-    && wget "https://github.com/syncthing/syncthing/releases/download/v1.29.2/syncthing-linux-$ARCH-v1.29.2.tar.gz"
+    && wget "https://github.com/syncthing/syncthing/releases/download/v${SYNCTHING_VERSION}/syncthing-linux-$ARCH-v${SYNCTHING_VERSION}.tar.gz"
 RUN tar xzf syncthing*.tar.gz
 RUN rm syncthing*.tar.gz
 RUN mv syncthing* syncthing

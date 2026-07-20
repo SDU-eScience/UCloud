@@ -45,6 +45,7 @@ const syncthingAppName = "syncthing"
 const (
 	syncthingUcxExecutable         = "builtin://ucx-syncthing"
 	syncthingUcxIntegrationVersion = "1"
+	syncthingImageVersion          = "1.29.2"
 	syncthingUcxPort               = 8435
 )
 
@@ -57,6 +58,7 @@ func initSyncthing() {
 
 	if ServiceConfig.Compute.Syncthing.Enabled {
 		IApps[syncthingAppName] = ContainerIAppHandler{
+			Version:                         syncthingImageVersion,
 			Flags:                           0,
 			BeforeRestart:                   syncthingBeforeRestart,
 			ValidateConfiguration:           syncthingValidateConfiguration,
@@ -373,7 +375,6 @@ func syncthingMutatePod(job *orc.Job, configuration json.RawMessage, pod *core.P
 		container := &podSpec.Containers[i]
 
 		if container.Name == ContainerUserJob {
-			container.ImagePullPolicy = "Always"
 			internalSyncthing, _, err := initSyncthingFolder(job.Owner)
 			if err != nil {
 				return err
@@ -413,7 +414,7 @@ func syncthingMutatePod(job *orc.Job, configuration json.RawMessage, pod *core.P
 			}
 
 			if util.DevelopmentModeEnabled() && ServiceConfig.Compute.Syncthing.DevelopmentSourceCode != "" {
-				container.Image = "dreg.cloud.sdu.dk/ucloud/syncthing-go-dev:latest"
+				container.Image = fmt.Sprintf("dreg.cloud.sdu.dk/ucloud/syncthing-go-dev:%s", syncthingImageVersion)
 				container.VolumeMounts = append(container.VolumeMounts, core.VolumeMount{
 					Name:      "ucloud-filesystem",
 					ReadOnly:  false,
@@ -423,7 +424,7 @@ func syncthingMutatePod(job *orc.Job, configuration json.RawMessage, pod *core.P
 
 				container.Command = []string{"bash", "-c", syncthingContainerCommand("cd /opt/source; export PATH=$PATH:/usr/local/go/bin; exec go run . \"$STATE_DIR\"")}
 			} else {
-				container.Image = "dreg.cloud.sdu.dk/ucloud/syncthing-go:latest"
+				container.Image = fmt.Sprintf("dreg.cloud.sdu.dk/ucloud/syncthing-go:%s", syncthingImageVersion)
 				container.Command = []string{"bash", "-c", syncthingContainerCommand("exec /usr/bin/ucloud-sync \"$STATE_DIR\"")}
 			}
 		}

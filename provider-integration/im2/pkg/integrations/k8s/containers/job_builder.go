@@ -116,6 +116,9 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	if iappConfig.Present {
 		pod.Annotations[IAppAnnotationEtag] = iappConfig.Value.ETag
 		pod.Annotations[IAppAnnotationName] = iappConfig.Value.AppName
+		if iappHandler.Value.Version != "" {
+			pod.Annotations[IAppAnnotationVersion] = iappHandler.Value.Version
+		}
 	}
 
 	spec := &pod.Spec

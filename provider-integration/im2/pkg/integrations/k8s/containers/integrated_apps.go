@@ -16,6 +16,7 @@ import (
 
 type ContainerIAppHandler struct {
 	Flags         ctrl.IntegratedApplicationFlag
+	Version       string
 	BeforeRestart func(job *orc.Job) *util.HttpError
 
 	ValidateConfiguration        func(job *orc.Job, configuration json.RawMessage) *util.HttpError
@@ -134,7 +135,28 @@ func iappFindPod(job *orc.Job) (util.Option[*core.Pod], *util.HttpError) {
 	return util.OptValue[*core.Pod](pod), nil
 }
 
+func iappPodShouldRun(handler ContainerIAppHandler, job *orc.Job, configuration ctrl.IAppRunningConfiguration, pod *core.Pod) bool {
+	etag := util.OptMapGet(pod.Annotations, IAppAnnotationEtag)
+	if !etag.Present || etag.Value != configuration.ETag {
+		return false
+	}
+
+	if handler.Version != "" {
+		version := util.OptMapGet(pod.Annotations, IAppAnnotationVersion)
+		if !version.Present || version.Value != handler.Version {
+			return false
+		}
+	}
+
+	if handler.ShouldRun == nil || !handler.ShouldRun(job, configuration.Configuration) {
+		return false
+	}
+
+	return handler.PodMatchesConfiguration == nil || handler.PodMatchesConfiguration(job, configuration.Configuration, pod)
+}
+
 const (
-	IAppAnnotationEtag = "ucloud.dk/iapp-etag"
-	IAppAnnotationName = "ucloud.dk/iapp-name"
+	IAppAnnotationEtag    = "ucloud.dk/iapp-etag"
+	IAppAnnotationName    = "ucloud.dk/iapp-name"
+	IAppAnnotationVersion = "ucloud.dk/iapp-version"
 )
