@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"path"
 	"strings"
+	"time"
 )
 
 type SyncthingConfigXML struct {
@@ -35,7 +36,7 @@ type SyncthingClient struct {
 func NewSyncthingClient(apiKey string) *SyncthingClient {
 	return &SyncthingClient{
 		apiKey:     apiKey,
-		httpClient: &http.Client{},
+		httpClient: &http.Client{Timeout: 10 * time.Second},
 		logger:     log.Default(),
 	}
 }

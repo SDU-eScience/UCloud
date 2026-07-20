@@ -19,6 +19,7 @@ type ContainerIAppHandler struct {
 	BeforeRestart func(job *orc.Job) *util.HttpError
 
 	ValidateConfiguration        func(job *orc.Job, configuration json.RawMessage) *util.HttpError
+	ConfigurationChanged         func(job *orc.Job, configuration json.RawMessage)
 	ResetConfiguration           func(job *orc.Job, configuration json.RawMessage) (json.RawMessage, *util.HttpError)
 	RetrieveDefaultConfiguration func(owner orc.ResourceOwner) json.RawMessage
 	RetrieveLegacyConfiguration  func(owner orc.ResourceOwner) util.Option[json.RawMessage]
@@ -48,9 +49,6 @@ func containerIAppBridge(handler ContainerIAppHandler) ctrl.IntegratedApplicatio
 		Flags: handler.Flags,
 
 		UpdateConfiguration: func(job *orc.Job, etag string, configuration json.RawMessage) *util.HttpError {
-			// This function only needs to perform validation. Configuration updates are automatically triggered by
-			// the reconciliation logic of the monitoring loop.
-
 			pod, err := iappFindPod(job)
 			if err != nil {
 				return err
@@ -64,10 +62,14 @@ func containerIAppBridge(handler ContainerIAppHandler) ctrl.IntegratedApplicatio
 			}
 
 			if needsUpdate {
-				return handler.ValidateConfiguration(job, configuration)
-			} else {
-				return nil
+				if err := handler.ValidateConfiguration(job, configuration); err != nil {
+					return err
+				}
+				if handler.ConfigurationChanged != nil {
+					handler.ConfigurationChanged(job, configuration)
+				}
 			}
+			return nil
 		},
 
 		ResetConfiguration: func(job *orc.Job, configuration json.RawMessage) (json.RawMessage, *util.HttpError) {

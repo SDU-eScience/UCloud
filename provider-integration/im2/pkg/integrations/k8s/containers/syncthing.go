@@ -53,6 +53,7 @@ func initSyncthing() {
 			Flags:                           0,
 			BeforeRestart:                   syncthingBeforeRestart,
 			ValidateConfiguration:           syncthingValidateConfiguration,
+			ConfigurationChanged:            syncthingConfigurationChanged,
 			ResetConfiguration:              syncthingResetConfiguration,
 			RetrieveDefaultConfiguration:    syncthingRetrieveDefaultConfiguration,
 			ShouldRun:                       syncthingShouldRun,
@@ -163,7 +164,46 @@ func syncthingBeforeRestart(job *orc.Job) *util.HttpError {
 
 func syncthingValidateConfiguration(job *orc.Job, configuration json.RawMessage) *util.HttpError {
 	var config orc.SyncthingConfig
-	return util.HttpErrorFromErr(json.Unmarshal(configuration, &config))
+	if err := json.Unmarshal(configuration, &config); err != nil {
+		return util.HttpErrorFromErr(err)
+	}
+
+	folderIds := map[string]bool{}
+	for _, folder := range config.Folders {
+		if folderIds[folder.Id] {
+			return util.UserHttpError("Duplicate Syncthing folder ID: %s", folder.Id)
+		}
+		folderIds[folder.Id] = true
+	}
+
+	deviceIds := map[string]bool{}
+	for _, device := range config.Devices {
+		if deviceIds[device.DeviceId] {
+			return util.UserHttpError("Duplicate Syncthing device ID: %s", device.DeviceId)
+		}
+		deviceIds[device.DeviceId] = true
+	}
+
+	return nil
+}
+
+func syncthingConfigurationChanged(job *orc.Job, configuration json.RawMessage) {
+	config, ok := syncthingRuntimeConfiguration(job, configuration)
+	if !ok {
+		return
+	}
+
+	internalSyncthing, _, folderErr := initSyncthingFolder(job.Owner)
+	if folderErr != nil {
+		return
+	}
+
+	normalizedConfig, marshalErr := json.Marshal(config)
+	if marshalErr != nil {
+		return
+	}
+	_ = filesystem.WriteFileAtomic(filepath.Join(internalSyncthing, "ucloud_config.json"), normalizedConfig, 0660)
+	_ = filesystem.WriteFileAtomic(filepath.Join(internalSyncthing, "job_id.txt"), []byte(job.Id), 0660)
 }
 
 func syncthingResetConfiguration(job *orc.Job, configuration json.RawMessage) (json.RawMessage, *util.HttpError) {
@@ -214,6 +254,10 @@ func syncthingRuntimeConfiguration(job *orc.Job, configuration json.RawMessage) 
 	newFolders := make([]orc.SyncthingFolder, 0, len(config.Folders))
 	for _, folder := range config.Folders {
 		if syncthingFolderAccessible(job, folder) {
+			if folder.Id == "" {
+				hash := sha256.Sum256([]byte(folder.UCloudPath))
+				folder.Id = fmt.Sprintf("%x", hash[:8])
+			}
 			newFolders = append(newFolders, folder)
 		}
 	}
@@ -284,32 +328,9 @@ func syncthingMutateJobNonPersistent(job *orc.Job, configuration json.RawMessage
 
 	for i := 0; i < len(config.Folders); i++ {
 		folder := &config.Folders[i]
-		if folder.Id == "" {
-			folder.Id = util.RandomToken(16)
-		}
-
 		appInvocation.Environment["f"+folder.Id] = orc.InvocationVar(folder.Id)
 		spec.Parameters[folder.Id] = orc.AppParameterValueFile(folder.UCloudPath, false)
 		appInvocation.Parameters = append(appInvocation.Parameters, orc.ApplicationParameterInputFile(folder.Id, false, "file", ""))
-	}
-
-	internalSyncthing, _, err := initSyncthingFolder(job.Owner)
-	if err != nil {
-		log.Warn("Could not find syncthing folder: %v", err)
-	} else {
-		// Write configuration to filesystem for the job to consume
-		fd, ok := filesystem.OpenFile(filepath.Join(internalSyncthing, "ucloud_config.json"), unix.O_WRONLY|unix.O_CREAT|unix.O_TRUNC, 0660)
-		if ok {
-			normalizedConfig, _ := json.Marshal(config)
-			_, _ = fd.Write(normalizedConfig)
-			util.SilentClose(fd)
-		}
-
-		fd, ok = filesystem.OpenFile(filepath.Join(internalSyncthing, "job_id.txt"), unix.O_WRONLY|unix.O_CREAT|unix.O_TRUNC, 0660)
-		if ok {
-			_, _ = fd.Write([]byte(job.Id))
-			util.SilentClose(fd)
-		}
 	}
 }
 
