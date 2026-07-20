@@ -45,7 +45,7 @@ const syncthingAppName = "syncthing"
 const (
 	syncthingUcxExecutable         = "builtin://ucx-syncthing"
 	syncthingUcxIntegrationVersion = "1"
-	syncthingImageVersion          = "1.29.2"
+	syncthingImageVersion          = "2.1.2"
 	syncthingUcxPort               = 8435
 )
 
