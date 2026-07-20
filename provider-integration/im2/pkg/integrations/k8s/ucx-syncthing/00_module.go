@@ -37,6 +37,11 @@ func Launch() {
 	store := newStateStore()
 	api := newAPIRuntime(cfg)
 	go runCollector(context.Background(), cfg, api, store)
+	if publisher, err := newMetricsPublisher(); err != nil {
+		log.Warn("UCX Syncthing: metrics publication disabled: %v", err)
+	} else {
+		go runMetricsPublisher(context.Background(), store, publisher)
+	}
 	ucx.AppServe(func() ucx.Application {
 		return newApplication(store, api)
 	}, util.OptValue(cfg.port))

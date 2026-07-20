@@ -6,10 +6,12 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	syncthing_metrics "ucloud.dk/pkg/integrations/k8s/syncthing-metrics"
 )
 
 const (
-	stateSchemaVersion = 1
+	stateSchemaVersion = syncthing_metrics.SchemaVersion
 	maxFolders         = 2048
 	maxDevices         = 2048
 	maxEnrichmentItems = 32
@@ -109,25 +111,7 @@ type CompletionState struct {
 	Error       string
 }
 
-// MetricsSnapshot is deliberately fixed-shape and identifier-free. A later
-// publication step can consume it without deriving fleet metrics from UI data.
-type MetricsSnapshot struct {
-	SchemaVersion            int
-	PreparedAt               string
-	HealthyInstances         int64
-	DegradedInstances        int64
-	RestartRequiredInstances int64
-	OnlineDevices            int64
-	OfflineDevices           int64
-	OutOfSyncItems           int64
-	OutOfSyncBytes           int64
-	SendBytesPerSecond       float64
-	ReceiveBytesPerSecond    float64
-	FoldersWithErrors        int64
-	DevicesWithErrors        int64
-	TelemetryStale           bool
-	Truncated                bool
-}
+type MetricsSnapshot = syncthing_metrics.Snapshot
 
 type rateSample struct {
 	observedAt time.Time
