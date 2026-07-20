@@ -34,7 +34,7 @@ func EstablishTunnel(name string, port int) int {
 // NOTE(Dan): This is not supposed to be used in production. It will leak memory from old tunnels. It will also
 // eventually run out of ports.
 func EstablishTunnelEx(name string, namespace string, port int) int {
-	key := fmt.Sprintf("%v:%v", name, port)
+	key := fmt.Sprintf("%v:%v:%v", namespace, name, port)
 	tunnelMutex.Lock()
 	myPort, ok := tunnels[key]
 	if !ok {
@@ -48,6 +48,7 @@ func EstablishTunnelEx(name string, namespace string, port int) int {
 	} else {
 		request, targetType, err := resolvePortForwardRequest(name, namespace)
 		if err != nil {
+			releaseTunnel(key, myPort)
 			log.Warn("Failed to establish tunnel to %v:%v %s", name, port, err)
 			return myPort
 		}
@@ -55,6 +56,7 @@ func EstablishTunnelEx(name string, namespace string, port int) int {
 		if targetType == "virtualmachine" {
 			err = establishVirtualMachineTunnel(name, namespace, port, myPort)
 			if err != nil {
+				releaseTunnel(key, myPort)
 				log.Warn("Failed to establish tunnel to %v(%v):%v %s", targetType, name, port, err)
 			}
 			return myPort
@@ -62,6 +64,7 @@ func EstablishTunnelEx(name string, namespace string, port int) int {
 
 		transport, upgrader, err := spdy.RoundTripperFor(K8sConfig)
 		if err != nil {
+			releaseTunnel(key, myPort)
 			log.Warn("Failed to establish tunnel to %v(%v):%v %s", targetType, name, port, err)
 			return myPort
 		}
@@ -79,6 +82,7 @@ func EstablishTunnelEx(name string, namespace string, port int) int {
 		)
 
 		if err != nil {
+			releaseTunnel(key, myPort)
 			log.Warn("Failed to establish tunnel to %v(%v):%v %s", targetType, name, port, err)
 			return myPort
 		}
@@ -86,7 +90,9 @@ func EstablishTunnelEx(name string, namespace string, port int) int {
 		errChan := make(chan error, 1)
 
 		go func() {
-			errChan <- fw.ForwardPorts()
+			forwardErr := fw.ForwardPorts()
+			releaseTunnel(key, myPort)
+			errChan <- forwardErr
 		}()
 
 		select {
@@ -99,6 +105,14 @@ func EstablishTunnelEx(name string, namespace string, port int) int {
 
 		return myPort
 	}
+}
+
+func releaseTunnel(key string, localPort int) {
+	tunnelMutex.Lock()
+	if tunnels[key] == localPort {
+		delete(tunnels, key)
+	}
+	tunnelMutex.Unlock()
 }
 
 func establishVirtualMachineTunnel(name string, namespace string, port int, localPort int) error {

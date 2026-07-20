@@ -1,26 +1,31 @@
 package ucx_syncthing
 
 import (
+	"context"
 	"encoding/json"
+	"strings"
 	"sync"
 	"time"
 
+	"ucloud.dk/shared/pkg/log"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/ucx"
 )
 
 type application struct {
-	mu      sync.Mutex   `ucx:"-"`
-	session *ucx.Session `ucx:"-"`
-	store   *stateStore  `ucx:"-"`
-	once    sync.Once    `ucx:"-"`
+	mu      sync.Mutex      `ucx:"-"`
+	session *ucx.Session    `ucx:"-"`
+	store   *stateStore     `ucx:"-"`
+	api     *apiRuntime     `ucx:"-"`
+	rescans map[string]bool `ucx:"-"`
+	once    sync.Once       `ucx:"-"`
 
 	JobID string
 	State Snapshot
 }
 
-func newApplication(store *stateStore) *application {
-	return &application{store: store, State: store.read()}
+func newApplication(store *stateStore, api *apiRuntime) *application {
+	return &application{store: store, api: api, rescans: map[string]bool{}, State: store.read()}
 }
 
 func (a *application) Mutex() *sync.Mutex {
@@ -50,7 +55,42 @@ func (a *application) OnSysHello(payload string) {
 }
 
 func (a *application) OnMessage(message ucx.Frame) {
-	_ = message
+	if message.Opcode != ucx.OpUiEvent || message.UiEvent.NodeId != "syncthing.rescanFolder" ||
+		message.UiEvent.Event != string(ucx.UiEventClick) || message.UiEvent.Value.Kind != ucx.ValueString {
+		return
+	}
+
+	folderID := strings.TrimSpace(message.UiEvent.Value.String)
+	if folderID == "" || len(folderID) > maxLabelLength || a.rescans[folderID] {
+		return
+	}
+	found := false
+	for _, folder := range a.store.read().Folders {
+		if folder.ID == folderID {
+			found = true
+			break
+		}
+	}
+	if !found {
+		log.Warn("UCX Syncthing: refusing rescan for unknown folder")
+		return
+	}
+
+	a.rescans[folderID] = true
+	go a.rescanFolder(folderID)
+}
+
+func (a *application) rescanFolder(folderID string) {
+	ctx, cancel := context.WithTimeout(a.session.Context(), 30*time.Second)
+	err := apiRequestFolderScan(ctx, a.api, folderID)
+	cancel()
+
+	a.mu.Lock()
+	delete(a.rescans, folderID)
+	a.mu.Unlock()
+	if err != nil && a.session.Context().Err() == nil {
+		log.Warn("UCX Syncthing: failed to request rescan for folder %q: %v", folderID, err)
+	}
 }
 
 func (a *application) publishUpdates() {

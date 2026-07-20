@@ -35,9 +35,10 @@ func Launch() {
 	}
 
 	store := newStateStore()
-	go runCollector(context.Background(), cfg, store)
+	api := newAPIRuntime(cfg)
+	go runCollector(context.Background(), cfg, api, store)
 	ucx.AppServe(func() ucx.Application {
-		return newApplication(store)
+		return newApplication(store, api)
 	}, util.OptValue(cfg.port))
 }
 

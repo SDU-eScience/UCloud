@@ -79,6 +79,22 @@ func findPodByJobIdAndRank(jobId string, rank int) util.Option[*core.Pod] {
 }
 
 func ResolveUcxJobSessionUpstream(job *orc.Job, port int) (string, error) {
+	if port == 0 {
+		if job.Specification.Application.Name != syncthingAppName {
+			return "", fmt.Errorf("job does not support provider-resolved UCX ports")
+		}
+
+		pod := findPodByJobIdAndRank(job.Id, 0)
+		if !pod.Present {
+			return "", fmt.Errorf("could not find pod for Syncthing job")
+		}
+		version := util.OptMapGet(pod.Value.Annotations, AnnotationSyncthingUcxVersion)
+		if !version.Present || version.Value != syncthingUcxIntegrationVersion {
+			return "", fmt.Errorf("Syncthing pod does not provide the current UCX integration")
+		}
+		port = syncthingUcxPort
+	}
+
 	if port <= 0 || port > 65535 {
 		return "", fmt.Errorf("invalid port: %d", port)
 	}

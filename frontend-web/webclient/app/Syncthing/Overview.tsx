@@ -5,7 +5,7 @@ import {usePage} from "@/Navigation/Redux";
 import {default as ReactModal} from "react-modal";
 import {Label, Input, Image, Icon, Text, Button, ExternalLink, Box, Flex} from "@/ui-components";
 import {IconButton} from "@/ui-components/IconButton";
-import {CopyButton} from "@/ui-components/CopyButton";
+import {CopyButton, IconActionButton} from "@/ui-components/CopyButton";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import MainContainer from "@/ui-components/MainContainer";
 import {SyncthingConfig, SyncthingDevice, SyncthingFolder} from "./api";
@@ -36,8 +36,10 @@ import {useProjectId} from "@/Project/Api";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {PageV2} from "@/UCloud";
 import {addStandardDialog} from "@/UtilityComponents";
-import {sendFailureNotification} from "@/Notifications";
+import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
 import {DocumentTypography} from "@/ui-components/Markdown";
+import UcxView, {UcxFunctionRegistry} from "@/UCX/UcxView";
+import {Value, ValueKind, valueToPlain} from "@/UCX/protocol";
 
 // UI state management
 // ================================================================================
@@ -89,6 +91,57 @@ interface UIState {
     etag?: string;
     showDeviceWizard?: boolean;
     updateCount?: number;
+}
+
+interface SyncthingLiveSnapshot {
+    generatedAt: string;
+    health: SyncthingHealthState;
+    telemetry: SyncthingTelemetryState;
+    folders: SyncthingFolderState[];
+    devices: SyncthingDeviceState[];
+}
+
+interface SyncthingHealthState {
+    state: "healthy" | "temporarily_failing" | "restart_required" | string;
+    checkedAt: string;
+    lastSuccessAt: string;
+    error: string;
+}
+
+interface SyncthingTelemetryState {
+    stale: boolean;
+    error: string;
+}
+
+interface SyncthingFolderState {
+    id: string;
+    label: string;
+    state: string;
+    lastScan: string;
+    outOfSyncItems: number;
+    outOfSyncBytes: number;
+    errorCount: number;
+    error: string;
+    watchError: string;
+    errors: Array<{path: string; message: string}>;
+}
+
+interface SyncthingDeviceState {
+    id: string;
+    label: string;
+    online: boolean;
+    paused: boolean;
+    lastSeen: string;
+    sendBytesPerSecond: number;
+    receiveBytesPerSecond: number;
+    rateKnown: boolean;
+    completion: {
+        known: boolean;
+        percent: number;
+        error: string;
+    };
+    lastDisconnectReason: string;
+    connectionError: string;
 }
 
 function uiReducer(state: UIState, action: UIAction): UIState {
@@ -158,6 +211,12 @@ const NewOverview: React.FunctionComponent = () => {
     const folders = uiState?.folders ?? [];
 
     const [selectedProduct, setSelectedProduct] = useState<UCloud.compute.ComputeProductSupportResolved | null>(null);
+    const [liveSnapshot, setLiveSnapshot] = useState<SyncthingLiveSnapshot | null>(null);
+    const [rescanFolder, setRescanFolder] = useState<((folderId: string) => void) | null>(null);
+
+    const updateRescanFolder = useCallback((handler: ((folderId: string) => void) | null) => {
+        setRescanFolder(() => handler);
+    }, []);
 
     const provider = getQueryParam(location.search, "provider");
 
@@ -298,8 +357,8 @@ const NewOverview: React.FunctionComponent = () => {
             <header className="sync-page-header">
                 <Image src={syncthingLogo} alt="Syncthing logo" />
                 <div className="sync-page-heading">
-                    <h1>Syncthing</h1>
-                    <p>Synchronize your files via Syncthing</p>
+                    <h1>File synchronization</h1>
+                    <p>Synchronize your files between UCloud and your devices using Syncthing</p>
                 </div>
                 <ExternalLink href="https://docs.cloud.sdu.dk/guide/synch.html">
                     <Button>
@@ -321,7 +380,7 @@ const NewOverview: React.FunctionComponent = () => {
                     Download and install Syncthing to add one of your devices here.
                 </p>
 
-                <DeviceRows devices={devices} dispatch={dispatch} />
+                <DeviceRows devices={devices} dispatch={dispatch} liveSnapshot={liveSnapshot} />
             </section>
 
             <section className="sync-section">
@@ -336,12 +395,14 @@ const NewOverview: React.FunctionComponent = () => {
 
                 {uiState.folders?.length === 0 ?
                     <EmptyFolders onAddFolder={openFileSelector} /> :
-                    <FolderRows folders={folders} dispatch={dispatch} />
+                    <FolderRows folders={folders} dispatch={dispatch} liveSnapshot={liveSnapshot} onRescanFolder={rescanFolder} />
                 }
             </section>
 
             {folders.length > 0 && devices.length > 0 ?
-                <ServerStatus productId={selectedProduct?.product.name ?? ""} providerId={provider ?? ""} reload={reload} />
+                <ServerStatus productId={selectedProduct?.product.name ?? ""} providerId={provider ?? ""}
+                    reload={reload} liveSnapshot={liveSnapshot} onLiveSnapshot={setLiveSnapshot}
+                    onRescanFolderChange={updateRescanFolder} />
                 : null
             }
         </div>;
@@ -428,7 +489,10 @@ interface ServerStatusInfo {
 const ServerStatus: React.FunctionComponent<{
     productId: string,
     providerId: string,
-    reload: () => void
+    reload: () => void,
+    liveSnapshot: SyncthingLiveSnapshot | null,
+    onLiveSnapshot: (snapshot: SyncthingLiveSnapshot | null) => void,
+    onRescanFolderChange: (handler: ((folderId: string) => void) | null) => void,
 }> = (props) => {
     const homeDriveId = useHomeDrive(props.providerId, "");
     const cacheBust = useTimedRefresh(5000);
@@ -467,6 +531,12 @@ const ServerStatus: React.FunctionComponent<{
     }, [status?.state]);
 
     useEffect(() => {
+        if (status?.state !== "RUNNING" || restartRequested) props.onLiveSnapshot(null);
+    }, [status?.state, restartRequested, props.onLiveSnapshot]);
+
+    useEffect(() => () => props.onLiveSnapshot(null), [props.onLiveSnapshot]);
+
+    useEffect(() => {
         let didCancel = false;
         if (homeDriveId !== null) {
             const basePath = `/${homeDriveId}/Syncthing/`;
@@ -497,10 +567,21 @@ const ServerStatus: React.FunctionComponent<{
             <div className="sync-section-header">
                 <h2>Server status</h2>
                 <Flex gap={"16px"}>
-                <span className="sync-connection-status" data-transitioning={!running}>
-                    <span className="sync-status-dot"/>
-                    {statusText}
-                </span>
+                    {running && status !== null ?
+                        <UcxView
+                            key={status.jobId}
+                            url={Client.computeURL("/api", "/hpc/apps/ucx/connectJob")
+                                .replace("http://", "ws://").replace("https://", "wss://")}
+                            authToken={async () => `${await Client.receiveAccessTokenOrRefreshIt()}\n`}
+                            sysHello={() => JSON.stringify({jobId: status.jobId})}
+                            onModelChange={model => props.onLiveSnapshot(parseLiveSnapshot(model))}
+                            renderFrame={({connected, fn}) => <SyncthingUcxFrame connected={connected} snapshot={props.liveSnapshot}
+                                fn={fn} onRescanFolderChange={props.onRescanFolderChange} />}
+                        /> :
+                        <span className="sync-connection-status" data-transitioning="true">
+                            <span className="sync-status-dot" />
+                            {statusText}
+                        </span>}
                     <IconButton tooltip={"Restart"} icon={"heroArrowPath"} onClick={doRestart}/>
                 </Flex>
             </div>
@@ -547,7 +628,81 @@ const ServerStatus: React.FunctionComponent<{
     </>
 }
 
-function DeviceRows({devices, dispatch}: {devices: SyncthingDevice[]; dispatch: (action: UIAction) => void}): React.ReactNode {
+function SyncthingStatusIndicator({connected, snapshot}: {connected: boolean; snapshot: SyncthingLiveSnapshot | null}): React.ReactNode {
+    if (!connected || snapshot === null) {
+        return <span className="sync-connection-status" data-transitioning="true">
+            <span className="sync-status-dot" />
+            Running - Waiting for status...
+        </span>;
+    }
+
+    const healthy = snapshot.health.state === "healthy";
+    const indicator = <span className="sync-connection-status" data-transitioning={!healthy} data-error={snapshot.health.state === "restart_required"}>
+        <span className="sync-status-dot" />
+        Running - {healthLabel(snapshot.health.state)}
+    </span>;
+    if (!healthy) return indicator;
+
+    return <TooltipV2 tooltip={`Last observed: ${formatObservedTime(snapshot.health.checkedAt)}`} contentWidth={220}
+        triggerStyle={{display: "flex"}}>
+        {indicator}
+    </TooltipV2>;
+}
+
+function SyncthingUcxFrame({connected, snapshot, fn, onRescanFolderChange}: {
+    connected: boolean;
+    snapshot: SyncthingLiveSnapshot | null;
+    fn?: UcxFunctionRegistry;
+    onRescanFolderChange: (handler: ((folderId: string) => void) | null) => void;
+}): React.ReactNode {
+    useEffect(() => {
+        if (!connected || fn === undefined) {
+            onRescanFolderChange(null);
+            return;
+        }
+
+        onRescanFolderChange(folderId => {
+            fn.sendUiEvent("syncthing.rescanFolder", "click", {kind: ValueKind.String, string: folderId});
+        });
+        return () => onRescanFolderChange(null);
+    }, [connected, fn, onRescanFolderChange]);
+
+    return <SyncthingStatusIndicator connected={connected} snapshot={snapshot} />;
+}
+
+function parseLiveSnapshot(model: Record<string, Value>): SyncthingLiveSnapshot | null {
+    const schemaVersion = plainModelValue<number>(model, "state.schemaVersion");
+    const folders = plainModelValue<SyncthingFolderState[]>(model, "state.folders");
+    const devices = plainModelValue<SyncthingDeviceState[]>(model, "state.devices");
+    if (schemaVersion !== 1 || !Array.isArray(folders) || !Array.isArray(devices)) return null;
+
+    return {
+        generatedAt: plainModelValue<string>(model, "state.generatedAt") ?? "",
+        health: {
+            state: plainModelValue<string>(model, "state.health.state") ?? "",
+            checkedAt: plainModelValue<string>(model, "state.health.checkedAt") ?? "",
+            lastSuccessAt: plainModelValue<string>(model, "state.health.lastSuccessAt") ?? "",
+            error: plainModelValue<string>(model, "state.health.error") ?? "",
+        },
+        telemetry: {
+            stale: plainModelValue<boolean>(model, "state.telemetry.stale") ?? true,
+            error: plainModelValue<string>(model, "state.telemetry.error") ?? "",
+        },
+        folders,
+        devices,
+    };
+}
+
+function plainModelValue<T>(model: Record<string, Value>, path: string): T | undefined {
+    const value = model[path];
+    return value === undefined ? undefined : valueToPlain(value) as T;
+}
+
+function DeviceRows({devices, dispatch, liveSnapshot}: {
+    devices: SyncthingDevice[];
+    dispatch: (action: UIAction) => void;
+    liveSnapshot: SyncthingLiveSnapshot | null;
+}): React.ReactNode {
     const removeDevice = useCallback((device: SyncthingDevice) => {
         addStandardDialog({
             title: "Remove device?",
@@ -559,25 +714,52 @@ function DeviceRows({devices, dispatch}: {devices: SyncthingDevice[]; dispatch: 
         });
     }, [dispatch]);
 
+    const liveDevices = new Map(liveSnapshot?.devices.map(device => [device.id, device]));
     return <div className="sync-rows">
-        {devices.map(device => <div className="sync-row" key={device.deviceId}>
+        {devices.map(device => {
+            const live = liveDevices.get(device.deviceId);
+            const error = live?.connectionError || live?.completion.error || live?.lastDisconnectReason;
+            const badge = live ? <LiveBadge text={live.paused ? "Paused" : live.online ? "Online" : "Offline"}
+                tone={live.paused ? "muted" : live.online ? "ok" : "error"} /> : null;
+            const shortName = device.deviceId.split("-")[0];
+            return <div className="sync-row" key={device.deviceId}>
             <div className="sync-row-icon"><Icon name="heroComputerDesktop" size={20} color="textPrimary" /></div>
             <div className="sync-row-content">
-                <strong>{device.label}</strong>
-                <code>{device.deviceId}</code>
+                <div className="sync-row-heading">
+                    <strong>{device.label} ({shortName})</strong>
+                    {!live || live.online || !error ? badge : <TooltipV2 tooltip={error} contentWidth={320} triggerClassName="sync-offline-tooltip">
+                        {badge}
+                    </TooltipV2>}
+                </div>
+                {live ? <div className="sync-live-details">
+                    <span>Last seen: {formatObservedTime(live.lastSeen)}</span>
+                    <span>Send: {live.rateKnown ? `${formatBytes(live.sendBytesPerSecond)}/s` : "Unavailable"}</span>
+                    <span>Receive: {live.rateKnown ? `${formatBytes(live.receiveBytesPerSecond)}/s` : "Unavailable"}</span>
+                    <span>Completion: {live.completion.known ? `${formatPercent(live.completion.percent)}%` : "Unavailable"}</span>
+                    {live.online && error ? <span className="sync-live-error" title={error}>Error: {error}</span> : null}
+                </div> : <div className="sync-live-details">
+                    <span>Last seen: Unknown</span>
+                    <span>Send: Unknown</span>
+                    <span>Receive: Unknown</span>
+                    <span>Completion: Unknown</span>
+                </div>}
             </div>
             <div className="sync-row-actions">
-                <CopyButton onClick={() => copyToClipboard(device.deviceId)} />
+                <CopyButton tooltip={"Copy device ID to clipboard"} onClick={() => copyToClipboard(device.deviceId)} />
                 <IconButton tooltip="Remove device" icon="heroTrash" color="errorMain" onClick={() => removeDevice(device)} />
             </div>
-        </div>)}
+        </div>})}
     </div>;
 }
 
-function FolderRows({folders, dispatch}: {folders: SyncthingFolder[]; dispatch: (action: UIAction) => void}): React.ReactNode {
+function FolderRows({folders, dispatch, liveSnapshot, onRescanFolder}: {
+    folders: SyncthingFolder[];
+    dispatch: (action: UIAction) => void;
+    liveSnapshot: SyncthingLiveSnapshot | null;
+    onRescanFolder: ((folderId: string) => void) | null;
+}): React.ReactNode {
     const navigate = useNavigate();
     const [prettyPaths, setPrettyPaths] = useState<Record<string, string>>({});
-    const [permissionWarnings, setPermissionWarnings] = useState<Record<string, boolean>>({});
 
     useEffect(() => {
         let cancelled = false;
@@ -586,19 +768,6 @@ function FolderRows({folders, dispatch}: {folders: SyncthingFolder[]; dispatch: 
             return [folder.id, path] as const;
         })).then(entries => {
             if (!cancelled) setPrettyPaths(Object.fromEntries(entries));
-        });
-
-        Promise.allSettled(folders.map(folder =>
-            callAPI(FilesApi.browse({path: folder.ucloudPath, itemsPerPage: 250}))
-        )).then(results => {
-            if (cancelled) return;
-            const warnings: Record<string, boolean> = {};
-            results.forEach((result, index) => {
-                if (result.status === "fulfilled" && result.value.items.some(file => file.status.unixOwner !== 11042)) {
-                    warnings[folders[index].id] = true;
-                }
-            });
-            setPermissionWarnings(warnings);
         });
 
         return () => { cancelled = true; };
@@ -615,26 +784,85 @@ function FolderRows({folders, dispatch}: {folders: SyncthingFolder[]; dispatch: 
         });
     }, [dispatch]);
 
+    const liveFolders = new Map(liveSnapshot?.folders.map(folder => [folder.id, folder]));
     return <div className="sync-rows">
-        {folders.map(folder => <div className="sync-row" key={folder.id}>
+        {folders.map(folder => {
+            const live = liveFolders.get(folder.id);
+            const errors = live ? [live.error, live.watchError, ...live.errors.map(error => `${error.path}: ${error.message}`)].filter(Boolean) : [];
+            return <div className="sync-row" key={folder.id}>
             <div className="sync-row-icon sync-folder-icon"><Icon name="heroFolder" size={20} color="FtFolderColor" /></div>
-            <button className="sync-row-content sync-row-link" onClick={() => navigate(AppRoutes.files.path(folder.ucloudPath))}>
-                <strong>{prettyPaths[folder.id] ?? folder.ucloudPath}</strong>
-            </button>
-            {permissionWarnings[folder.id] ?
-                <TooltipV2
-                    tooltip="Some files might not be synchronized due to insufficient permissions."
-                    contentWidth={260}
-                    triggerClassName="sync-row-warning"
-                >
-                    <span aria-label="Folder permission warning"><Icon name="warning" size={18} /></span>
-                </TooltipV2> : null}
+            <div className="sync-row-content">
+                <button className="sync-row-link sync-row-heading" onClick={() => navigate(AppRoutes.files.path(folder.ucloudPath))}>
+                    <strong>{prettyPaths[folder.id] ?? folder.ucloudPath}</strong>
+                    {live ? <LiveBadge text={stateLabel(live.state)} tone={folderStateTone(live.state)} /> : null}
+                </button>
+                {live ? <div className="sync-live-details">
+                    <span>Last scan: {formatObservedTime(live.lastScan)}</span>
+                    <span>Out of sync: {live.outOfSyncItems.toLocaleString()} items ({formatBytes(live.outOfSyncBytes)})</span>
+                    {live.errorCount > 0 || errors.length > 0 ? <span className="sync-live-error" title={errors.join("\n") || "Syncthing reports folder errors"}>
+                        {live.errorCount || errors.length} error(s){errors[0] ? `: ${errors[0]}` : ""}
+                    </span> : null}
+                </div> : <div className="sync-live-details">
+                    <span>Last scan: Unknown</span>
+                    <span>Out of sync: Unknown</span>
+                </div>}
+            </div>
             <div className="sync-row-actions">
+                {live && onRescanFolder ? <IconActionButton tooltip="Rescan folder" icon="heroArrowPath" onClick={() => {
+                    onRescanFolder(folder.id);
+                }} /> : null}
                 <IconButton tooltip="Open folder" icon="heroFolderOpen" onClick={() => navigate(AppRoutes.files.path(folder.ucloudPath))} />
                 <IconButton tooltip="Stop synchronizing" icon="heroTrash" color="errorMain" onClick={() => removeFolder(folder)} />
             </div>
-        </div>)}
+        </div>})}
     </div>;
+}
+
+function LiveBadge({text, tone}: {text: string; tone: "ok" | "active" | "error" | "muted"}): React.ReactNode {
+    return <span className="sync-live-badge" data-tone={tone}>{text}</span>;
+}
+
+function stateLabel(state: string): string {
+    if (!state) return "Unknown";
+    return state.split("-").map(part => part.charAt(0).toUpperCase() + part.slice(1)).join(" ");
+}
+
+function folderStateTone(state: string): "ok" | "active" | "error" | "muted" {
+    if (state === "idle") return "ok";
+    if (state === "error") return "error";
+    if (state.includes("scan") || state.includes("sync")) return "active";
+    return "muted";
+}
+
+function healthLabel(state?: string): string {
+    if (state === "healthy") return "Healthy";
+    if (state === "temporarily_failing") return "Temporarily failing";
+    if (state === "restart_required") return "Restart required";
+    return "Waiting for health result";
+}
+
+function formatObservedTime(value?: string): string {
+    if (!value) return "Never";
+    const timestamp = Date.parse(value);
+    return Number.isFinite(timestamp) ? new Date(timestamp).toLocaleString() : "Unknown";
+}
+
+function formatBytes(value: number): string {
+    if (!Number.isFinite(value) || value < 0) return "Unavailable";
+    const units = ["B", "KiB", "MiB", "GiB", "TiB"];
+    let amount = value;
+    let unit = 0;
+    while (amount >= 1024 && unit < units.length - 1) {
+        amount /= 1024;
+        unit++;
+    }
+    const digits = amount >= 100 || unit === 0 ? 0 : amount >= 10 ? 1 : 2;
+    return `${amount.toFixed(digits)} ${units[unit]}`;
+}
+
+function formatPercent(value: number): string {
+    if (!Number.isFinite(value)) return "0";
+    return Math.max(0, Math.min(100, value)).toFixed(value >= 99.95 ? 0 : 1);
 }
 
 const AddDeviceWizard: React.FunctionComponent<{
@@ -1057,6 +1285,72 @@ const SyncthingMainClass = injectStyle("syncthing-main", k => `
         cursor: pointer;
     }
 
+    ${k} .sync-row-heading {
+        width: 100%;
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    ${k} .sync-row-heading strong {
+        min-width: 0;
+    }
+
+    ${k} .sync-live-badge {
+        flex: 0 0 auto;
+        padding: 1px 7px;
+        border-radius: 999px;
+        background: var(--rowHover);
+        color: var(--textSecondary);
+        font-size: 11px;
+        font-weight: 600;
+        line-height: 18px;
+    }
+
+    ${k} .sync-live-badge[data-tone="ok"] {
+        background: color-mix(in srgb, var(--green-fg) 14%, transparent);
+        color: var(--green-fg);
+    }
+
+    ${k} .sync-live-badge[data-tone="active"] {
+        background: color-mix(in srgb, var(--primaryMain) 14%, transparent);
+        color: var(--primaryMain);
+    }
+
+    ${k} .sync-live-badge[data-tone="error"] {
+        background: color-mix(in srgb, var(--errorMain) 14%, transparent);
+        color: var(--errorMain);
+    }
+
+    ${k} .sync-live-details {
+        width: 100%;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 2px 18px;
+        margin-top: 5px;
+    }
+
+    ${k} .sync-live-details > span {
+        overflow: visible;
+        color: var(--textSecondary);
+        font-size: 12px;
+        text-overflow: clip;
+        white-space: normal;
+    }
+
+    ${k} .sync-live-details > .sync-live-error {
+        width: 100%;
+        overflow: hidden;
+        color: var(--errorMain);
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    ${k} .sync-offline-tooltip {
+        display: inline-flex;
+    }
+
     ${k} .sync-row-actions, ${k} .sync-server-actions, ${k} .sync-connection-status {
         display: flex;
         align-items: center;
@@ -1116,6 +1410,10 @@ const SyncthingMainClass = injectStyle("syncthing-main", k => `
     ${k} .sync-connection-status[data-transitioning="true"] .sync-status-dot {
         background: var(--warningMain);
         animation: syncthing-status-pulse 1.6s ease-in-out infinite;
+    }
+
+    ${k} .sync-connection-status[data-error="true"] .sync-status-dot {
+        background: var(--errorMain);
     }
 
     @keyframes syncthing-status-pulse {

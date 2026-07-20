@@ -77,8 +77,7 @@ type parsedFolderMetrics struct {
 	needBytes int64
 }
 
-func runCollector(ctx context.Context, cfg runtimeConfig, store *stateStore) {
-	api := newAPIRuntime(cfg)
+func runCollector(ctx context.Context, cfg runtimeConfig, api *apiRuntime, store *stateStore) {
 	go runHealthLoop(ctx, cfg, api, store)
 
 	for ctx.Err() == nil {

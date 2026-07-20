@@ -124,7 +124,18 @@ func apiProbeHealth(ctx context.Context, api *apiRuntime) error {
 	return nil
 }
 
+func apiRequestFolderScan(ctx context.Context, api *apiRuntime, folderID string) error {
+	_, err := apiRequestBytes(ctx, api, api.shortClient, http.MethodPost, "/rest/db/scan", url.Values{
+		"folder": []string{folderID},
+	}, 64<<10, true)
+	return err
+}
+
 func apiFetchBytes(ctx context.Context, api *apiRuntime, client *http.Client, path string, query url.Values, maxBytes int64, authenticated bool) ([]byte, error) {
+	return apiRequestBytes(ctx, api, client, http.MethodGet, path, query, maxBytes, authenticated)
+}
+
+func apiRequestBytes(ctx context.Context, api *apiRuntime, client *http.Client, method string, path string, query url.Values, maxBytes int64, authenticated bool) ([]byte, error) {
 	if !strings.HasPrefix(path, "/") {
 		return nil, fmt.Errorf("invalid Syncthing API path")
 	}
@@ -133,7 +144,7 @@ func apiFetchBytes(ctx context.Context, api *apiRuntime, client *http.Client, pa
 		return nil, err
 	}
 	endpoint.RawQuery = query.Encode()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint.String(), nil)
+	req, err := http.NewRequestWithContext(ctx, method, endpoint.String(), nil)
 	if err != nil {
 		return nil, err
 	}

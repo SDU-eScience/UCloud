@@ -190,7 +190,7 @@ func ucxOnConnectJob(conn *ws.Conn) {
 			return ucx.ProxyUpstreamSelection{Allowed: false}
 		}
 
-		if info.Port <= 0 || info.Port > 65535 {
+		if info.Port < 0 || info.Port > 65535 {
 			log.Warn("UCX provider job: invalid upstream port: %d", info.Port)
 			return ucx.ProxyUpstreamSelection{Allowed: false}
 		}
