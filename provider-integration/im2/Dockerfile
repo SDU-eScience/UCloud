@@ -25,9 +25,13 @@ COPY bin/ucloud-job-introspection_x86_64 /usr/bin/tmp_ucloud-job-introspection_x
 COPY bin/ucloud-inference-tools_aarch64 /usr/bin/tmp_ucloud-inference-tools_aarch64
 COPY bin/ucloud-inference-tools_x86_64 /usr/bin/tmp_ucloud-inference-tools_x86_64
 
+COPY bin/ucx-syncthing_aarch64 /usr/bin/tmp_ucx-syncthing_aarch64
+COPY bin/ucx-syncthing_x86_64 /usr/bin/tmp_ucx-syncthing_x86_64
+
 RUN mv /usr/bin/tmp_ucloud_`uname -m` /usr/bin/ucloud && rm /usr/bin/tmp_ucloud_*
 RUN mv /usr/bin/tmp_ucmetrics_`uname -m` /usr/bin/ucmetrics && rm /usr/bin/tmp_ucmetrics*
 RUN mv /usr/bin/tmp_ucviz_`uname -m` /usr/bin/ucviz && rm /usr/bin/tmp_ucviz*
 RUN mv /usr/bin/tmp_vmagent_`uname -m` /usr/bin/vmagent && rm /usr/bin/tmp_vmagent*
 RUN mv /usr/bin/tmp_ucloud-job-introspection_`uname -m` /usr/bin/ucloud-job-introspection && rm /usr/bin/tmp_ucloud-job-introspection*
 RUN mv /usr/bin/tmp_ucloud-inference-tools_`uname -m` /usr/bin/ucloud-inference-tools && rm /usr/bin/tmp_ucloud-inference-tools*
+RUN mv /usr/bin/tmp_ucx-syncthing_`uname -m` /usr/bin/ucx-syncthing && rm /usr/bin/tmp_ucx-syncthing*

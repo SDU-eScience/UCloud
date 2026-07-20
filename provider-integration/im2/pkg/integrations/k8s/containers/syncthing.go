@@ -24,6 +24,7 @@ import (
 	"ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/integrations/k8s/filesystem"
 	"ucloud.dk/pkg/integrations/k8s/shared"
+	"ucloud.dk/pkg/ucxdelivery"
 	"ucloud.dk/shared/pkg/log"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
@@ -40,6 +41,12 @@ var syncthingDimensions = shared.SchedulerDimensions{
 }
 
 const syncthingAppName = "syncthing"
+
+const (
+	syncthingUcxExecutable         = "builtin://ucx-syncthing"
+	syncthingUcxIntegrationVersion = "1"
+	syncthingUcxPort               = 8435
+)
 
 func initSyncthing() {
 	syncthingConfig = ServiceConfig.Compute.Syncthing
@@ -149,7 +156,11 @@ func syncthingGetAssignedPort(pod *core.Pod) util.Option[int] {
 }
 
 func syncthingMutateJobSpec(owner orc.ResourceOwner, spec *orc.JobSpecification) *util.HttpError {
-	spec.Application.Version = "1"
+	spec.Application.Version = syncthingUcxIntegrationVersion
+	if spec.Labels == nil {
+		spec.Labels = map[string]string{}
+	}
+	spec.Labels["ucloud.dk/ucxport"] = strconv.Itoa(syncthingUcxPort)
 	_, ucloudSyncthing, err := initSyncthingFolder(owner)
 	if err != nil {
 		return err
@@ -236,6 +247,11 @@ func syncthingShouldRun(job *orc.Job, configuration json.RawMessage) bool {
 }
 
 func syncthingPodMatchesConfiguration(job *orc.Job, configuration json.RawMessage, pod *core.Pod) bool {
+	observedUcxVersion := util.OptMapGet(pod.Annotations, AnnotationSyncthingUcxVersion)
+	if !observedUcxVersion.Present || observedUcxVersion.Value != syncthingUcxIntegrationVersion {
+		return false
+	}
+
 	config, ok := syncthingRuntimeConfiguration(job, configuration)
 	if !ok {
 		return true
@@ -318,7 +334,13 @@ func syncthingMountedFoldersComputeHash(job *orc.Job) string {
 func syncthingMutateJobNonPersistent(job *orc.Job, configuration json.RawMessage) {
 	config, _ := syncthingRuntimeConfiguration(job, configuration)
 
-	appInvocation := &job.Status.ResolvedApplication.Value.Invocation
+	app := &job.Status.ResolvedApplication.Value
+	app.Metadata.Name = syncthingAppName
+	app.Metadata.Version = syncthingUcxIntegrationVersion
+	app.Invocation.Ucx = util.OptValue(orc.UcxDescription{
+		Executable: util.OptValue(orc.UcxExecutableDescription{ManifestUrl: syncthingUcxExecutable}),
+	})
+	appInvocation := &app.Invocation
 	appInvocation.Environment = map[string]orc.InvocationParameter{}
 
 	spec := &job.Specification
@@ -336,6 +358,10 @@ func syncthingMutateJobNonPersistent(job *orc.Job, configuration json.RawMessage
 
 func syncthingMutatePod(job *orc.Job, configuration json.RawMessage, pod *core.Pod) *util.HttpError {
 	pod.Annotations[AnnotationSyncthingFolders] = syncthingMountedFoldersComputeHash(job)
+	pod.Annotations[AnnotationSyncthingUcxVersion] = syncthingUcxIntegrationVersion
+	if err := ucxdelivery.TrackApp(&job.Status.ResolvedApplication.Value); err != nil {
+		return util.ServerHttpError("failed to track Syncthing UCX executable: %s", err)
+	}
 
 	port := syncthingAllocatePort(pod)
 	if !port.Present {
@@ -395,18 +421,104 @@ func syncthingMutatePod(job *orc.Job, configuration json.RawMessage, pod *core.P
 					SubPath:   ServiceConfig.Compute.Syncthing.DevelopmentSourceCode,
 				})
 
-				container.Command = []string{
-					"bash", "-c", "cd /opt/source ; export PATH=$PATH:/usr/local/go/bin ; go run . \"$STATE_DIR\"; sleep inf",
-				}
+				container.Command = []string{"bash", "-c", syncthingContainerCommand("cd /opt/source; export PATH=$PATH:/usr/local/go/bin; exec go run . \"$STATE_DIR\"")}
 			} else {
 				container.Image = "dreg.cloud.sdu.dk/ucloud/syncthing-go:latest"
-				container.Command = []string{
-					"bash", "-c", "/usr/bin/ucloud-sync \"$STATE_DIR\"",
-				}
+				container.Command = []string{"bash", "-c", syncthingContainerCommand("exec /usr/bin/ucloud-sync \"$STATE_DIR\"")}
 			}
 		}
 	}
 	return nil
+}
+
+func syncthingContainerCommand(syncCommand string) string {
+	return fmt.Sprintf(`set -u
+
+supervise_ucx() {
+  WATCHED=/opt/ucloud-ucx/current
+  RUNTIME_DIR=/tmp/ucloud-ucx-syncthing
+  RUNTIME_BIN="$RUNTIME_DIR/current"
+  mkdir -p "$RUNTIME_DIR"
+
+  file_state() {
+    if [ ! -f "$WATCHED" ]; then
+      printf 'missing'
+      return
+    fi
+    sha256sum "$WATCHED" | cut -d ' ' -f 1
+  }
+
+  export UCX_PORT=%d
+  export UCLOUD_UCX_APP_NAME=%q
+  export UCLOUD_UCX_APP_VERSION=%q
+  LAST_STATE=""
+  UCX_PID=""
+
+  stop_ucx() {
+    [ -z "$UCX_PID" ] || kill "$UCX_PID" 2>/dev/null || true
+    wait "$UCX_PID" 2>/dev/null || true
+    exit 0
+  }
+  trap stop_ucx TERM INT
+
+  while true; do
+    while [ ! -f "$WATCHED" ]; do
+      sleep 1
+    done
+
+    CURRENT_STATE="$(file_state)"
+    if [ "$CURRENT_STATE" != "$LAST_STATE" ]; then
+      if ! cp "$WATCHED" "$RUNTIME_BIN.tmp"; then
+        sleep 1
+        continue
+      fi
+      chmod +x "$RUNTIME_BIN.tmp"
+      mv "$RUNTIME_BIN.tmp" "$RUNTIME_BIN"
+      LAST_STATE="$CURRENT_STATE"
+    fi
+
+    export UCX_EXECUTABLE="$RUNTIME_BIN"
+    "$RUNTIME_BIN" &
+    UCX_PID="$!"
+    while kill -0 "$UCX_PID" 2>/dev/null; do
+      sleep 1
+      NEXT_STATE="$(file_state)"
+      if [ "$NEXT_STATE" != "$LAST_STATE" ]; then
+        kill "$UCX_PID" 2>/dev/null || true
+        wait "$UCX_PID" 2>/dev/null || true
+        break
+      fi
+    done
+    wait "$UCX_PID" 2>/dev/null || true
+    sleep 1
+  done
+}
+
+run_sync() {
+  %s
+}
+
+SYNC_PID=""
+UCX_SUPERVISOR_PID=""
+terminate() {
+  trap - TERM INT
+  [ -z "$SYNC_PID" ] || kill "$SYNC_PID" 2>/dev/null || true
+  [ -z "$UCX_SUPERVISOR_PID" ] || kill "$UCX_SUPERVISOR_PID" 2>/dev/null || true
+  wait 2>/dev/null || true
+  exit 0
+}
+trap terminate TERM INT
+
+supervise_ucx &
+UCX_SUPERVISOR_PID="$!"
+run_sync &
+SYNC_PID="$!"
+wait "$SYNC_PID"
+STATUS="$?"
+kill "$UCX_SUPERVISOR_PID" 2>/dev/null || true
+wait "$UCX_SUPERVISOR_PID" 2>/dev/null || true
+exit "$STATUS"
+`, syncthingUcxPort, syncthingAppName, syncthingUcxIntegrationVersion, syncCommand)
 }
 
 func syncthingAllocatePort(pod *core.Pod) util.Option[int] {
@@ -422,16 +534,13 @@ func syncthingAllocatePort(pod *core.Pod) util.Option[int] {
 	remaining := count
 	for remaining > 0 {
 		port := syncthingConfig.PortMin + (attempt % count)
-		if port == 8434 {
-			// Used by Syncthing for the API.
-			continue
-		}
-
-		_, exists := syncthingPorts[port]
-		if !exists {
-			pod.Annotations[AnnotationSyncthingPort] = fmt.Sprint(port)
-			syncthingPorts[port] = true
-			return util.OptValue(port)
+		if port != syncthingUcxPort {
+			_, exists := syncthingPorts[port]
+			if !exists {
+				pod.Annotations[AnnotationSyncthingPort] = fmt.Sprint(port)
+				syncthingPorts[port] = true
+				return util.OptValue(port)
+			}
 		}
 
 		attempt++
@@ -499,14 +608,20 @@ func syncthingMutateFirewall(job *orc.Job, configuration json.RawMessage, firewa
 			Start:    port.Value,
 			End:      port.Value,
 		},
+		{
+			Protocol: orc.IpProtocolTcp,
+			Start:    syncthingUcxPort,
+			End:      syncthingUcxPort,
+		},
 	})
 
 	return nil
 }
 
 const (
-	AnnotationSyncthingPort    = "ucloud.dk/syncthingPort"
-	AnnotationSyncthingFolders = "ucloud.dk/syncthingFolders"
+	AnnotationSyncthingPort       = "ucloud.dk/syncthingPort"
+	AnnotationSyncthingFolders    = "ucloud.dk/syncthingFolders"
+	AnnotationSyncthingUcxVersion = "ucloud.dk/syncthingUcxVersion"
 )
 
 func syncthingReconfigure() {

@@ -81,6 +81,7 @@ startsvc() {
         CGO_ENABLED=0 $GO build -gcflags "all=-N -l" -o /usr/bin/vmagent -trimpath ucloud.dk/cmd/vmagent
         CGO_ENABLED=0 $GO build -gcflags "all=-N -l" -o /usr/bin/ucloud-job-introspection -trimpath ucloud.dk/cmd/ucloud-job-introspection
         CGO_ENABLED=0 $GO build -gcflags "all=-N -l" -o /usr/bin/ucx-demo -trimpath ucloud.dk/cmd/ucx-demo
+        CGO_ENABLED=0 $GO build -gcflags "all=-N -l" -o /usr/bin/ucx-syncthing -trimpath ucloud.dk/cmd/ucx-syncthing
         CGO_ENABLED=0 $GO build -gcflags "all=-N -l" -o /usr/bin/ucloud-inference-tools -trimpath ucloud.dk/cmd/ucloud-inference-tools
 
         if [ -f "/etc/ucloud/gpfs_mock.yml" ]; then
@@ -175,4 +176,3 @@ case $1 in
         ;;
 
 esac
-
