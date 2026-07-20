@@ -86,11 +86,16 @@ func Monitor(tracker shared.JobTracker, jobs map[string]*orc.Job) {
 			iappsHandled[job.Id] = util.Empty{}
 			iappConfig, iappOk := activeIApps[job.Id]
 			handler, handlerOk := IApps[iappName.Value]
+			podMatchesConfiguration := true
+			if handlerOk && iappOk && handler.PodMatchesConfiguration != nil {
+				podMatchesConfiguration = handler.PodMatchesConfiguration(job, iappConfig.Configuration, pod)
+			}
 
 			shouldRun := handlerOk &&
 				iappOk &&
 				iappEtag.Present &&
 				handler.ShouldRun(job, iappConfig.Configuration) &&
+				podMatchesConfiguration &&
 				iappEtag.Value == iappConfig.ETag
 
 			if !shouldRun {

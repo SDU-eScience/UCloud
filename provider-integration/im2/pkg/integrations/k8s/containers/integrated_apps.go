@@ -23,7 +23,8 @@ type ContainerIAppHandler struct {
 	RetrieveDefaultConfiguration func(owner orc.ResourceOwner) json.RawMessage
 	RetrieveLegacyConfiguration  func(owner orc.ResourceOwner) util.Option[json.RawMessage]
 
-	ShouldRun func(job *orc.Job, configuration json.RawMessage) bool
+	ShouldRun               func(job *orc.Job, configuration json.RawMessage) bool
+	PodMatchesConfiguration func(job *orc.Job, configuration json.RawMessage, pod *core.Pod) bool
 
 	MutateJobNonPersistent          func(job *orc.Job, configuration json.RawMessage)
 	MutatePod                       func(job *orc.Job, configuration json.RawMessage, pod *core.Pod) *util.HttpError

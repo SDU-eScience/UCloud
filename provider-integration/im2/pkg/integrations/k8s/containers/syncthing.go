@@ -2,11 +2,13 @@ package containers
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"math/rand"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -54,6 +56,7 @@ func initSyncthing() {
 			ResetConfiguration:              syncthingResetConfiguration,
 			RetrieveDefaultConfiguration:    syncthingRetrieveDefaultConfiguration,
 			ShouldRun:                       syncthingShouldRun,
+			PodMatchesConfiguration:         syncthingPodMatchesConfiguration,
 			MutateJobNonPersistent:          syncthingMutateJobNonPersistent,
 			MutatePod:                       syncthingMutatePod,
 			MutateService:                   syncthingMutateService,
@@ -110,9 +113,6 @@ func initSyncthingFolderEx(owner orc.ResourceOwner, init bool) (string, string, 
 }
 
 func syncthingBeforeMonitor(pods []*core.Pod, jobs map[string]*orc.Job, appsByJobId map[string]controller.IAppRunningConfiguration) {
-	syncthingPortsMutex.Lock()
-	defer syncthingPortsMutex.Unlock()
-
 	result := map[int]bool{}
 
 	for _, pod := range pods {
@@ -131,7 +131,9 @@ func syncthingBeforeMonitor(pods []*core.Pod, jobs map[string]*orc.Job, appsByJo
 		}
 	}
 
+	syncthingPortsMutex.Lock()
 	syncthingPorts = result
+	syncthingPortsMutex.Unlock()
 }
 
 func syncthingGetAssignedPort(pod *core.Pod) util.Option[int] {
@@ -185,43 +187,92 @@ func syncthingRetrieveDefaultConfiguration(owner orc.ResourceOwner) json.RawMess
 }
 
 func syncthingShouldRun(job *orc.Job, configuration json.RawMessage) bool {
-	var config orc.SyncthingConfig
-	err := json.Unmarshal(configuration, &config)
-	if err != nil {
+	config, ok := syncthingRuntimeConfiguration(job, configuration)
+	if !ok {
 		return false
 	}
 
-	if len(config.Folders) > 0 && len(config.Devices) > 0 {
-		for _, folder := range config.Folders {
-			driveId, ok := filesystem.DriveIdFromUCloudPath(folder.UCloudPath)
-			if !ok {
-				return false
-			}
+	return len(config.Folders) > 0 && len(config.Devices) > 0
+}
 
-			drive, ok := controller.DriveRetrieve(driveId)
-			if !ok {
-				return false
-			}
-
-			storageLocked := controller.ResourceIsLocked(drive.Resource, drive.Specification.Product)
-			if storageLocked {
-				return false
-			}
-
-			if !controller.DriveCanUse(job.Owner, driveId, true) {
-				return false
-			}
-		}
-
+func syncthingPodMatchesConfiguration(job *orc.Job, configuration json.RawMessage, pod *core.Pod) bool {
+	config, ok := syncthingRuntimeConfiguration(job, configuration)
+	if !ok {
 		return true
-	} else {
+	}
+
+	observedFolders := util.OptMapGet(pod.Annotations, AnnotationSyncthingFolders)
+	return observedFolders.Present && observedFolders.Value == syncthingFoldersComputeHash(config)
+}
+
+func syncthingRuntimeConfiguration(job *orc.Job, configuration json.RawMessage) (orc.SyncthingConfig, bool) {
+	var config orc.SyncthingConfig
+	if err := json.Unmarshal(configuration, &config); err != nil {
+		return orc.SyncthingConfig{}, false
+	}
+
+	newFolders := make([]orc.SyncthingFolder, 0, len(config.Folders))
+	for _, folder := range config.Folders {
+		if syncthingFolderAccessible(job, folder) {
+			newFolders = append(newFolders, folder)
+		}
+	}
+	config.Folders = newFolders
+	return config, true
+}
+
+func syncthingFolderAccessible(job *orc.Job, folder orc.SyncthingFolder) bool {
+	driveId, ok := filesystem.DriveIdFromUCloudPath(folder.UCloudPath)
+	if !ok {
 		return false
 	}
+
+	drive, ok := controller.DriveRetrieve(driveId)
+	if !ok || controller.ResourceIsLocked(drive.Resource, drive.Specification.Product) {
+		return false
+	}
+
+	if !controller.DriveCanUse(job.Owner, driveId, false) {
+		return false
+	}
+
+	internalPath, ok, _ := filesystem.UCloudToInternal(folder.UCloudPath)
+	if !ok {
+		return false
+	}
+
+	fd, ok := filesystem.OpenFile(internalPath, unix.O_RDONLY, 0)
+	if !ok {
+		return false
+	}
+	defer util.SilentClose(fd)
+
+	info, err := fd.Stat()
+	return err == nil && info.IsDir()
+}
+
+func syncthingFoldersComputeHash(config orc.SyncthingConfig) string {
+	paths := make([]string, 0, len(config.Folders))
+	for _, folder := range config.Folders {
+		paths = append(paths, folder.UCloudPath)
+	}
+	slices.Sort(paths)
+	serialized, _ := json.Marshal(paths)
+	return fmt.Sprintf("%x", sha256.Sum256(serialized))
+}
+
+func syncthingMountedFoldersComputeHash(job *orc.Job) string {
+	config := orc.SyncthingConfig{}
+	for _, parameter := range job.Specification.Parameters {
+		if parameter.Type == orc.AppParameterValueTypeFile {
+			config.Folders = append(config.Folders, orc.SyncthingFolder{UCloudPath: parameter.Path})
+		}
+	}
+	return syncthingFoldersComputeHash(config)
 }
 
 func syncthingMutateJobNonPersistent(job *orc.Job, configuration json.RawMessage) {
-	var config orc.SyncthingConfig
-	_ = json.Unmarshal(configuration, &config)
+	config, _ := syncthingRuntimeConfiguration(job, configuration)
 
 	appInvocation := &job.Status.ResolvedApplication.Value.Invocation
 	appInvocation.Environment = map[string]orc.InvocationParameter{}
@@ -237,12 +288,9 @@ func syncthingMutateJobNonPersistent(job *orc.Job, configuration json.RawMessage
 			folder.Id = util.RandomToken(16)
 		}
 
-		driveId := util.GetOptionalElement(util.Components(folder.UCloudPath), 0).Value
-		if controller.DriveCanUse(job.Owner, driveId, false) {
-			appInvocation.Environment["f"+folder.Id] = orc.InvocationVar(folder.Id)
-			spec.Parameters[folder.Id] = orc.AppParameterValueFile(folder.UCloudPath, false)
-			appInvocation.Parameters = append(appInvocation.Parameters, orc.ApplicationParameterInputFile(folder.Id, false, "file", ""))
-		}
+		appInvocation.Environment["f"+folder.Id] = orc.InvocationVar(folder.Id)
+		spec.Parameters[folder.Id] = orc.AppParameterValueFile(folder.UCloudPath, false)
+		appInvocation.Parameters = append(appInvocation.Parameters, orc.ApplicationParameterInputFile(folder.Id, false, "file", ""))
 	}
 
 	internalSyncthing, _, err := initSyncthingFolder(job.Owner)
@@ -266,6 +314,8 @@ func syncthingMutateJobNonPersistent(job *orc.Job, configuration json.RawMessage
 }
 
 func syncthingMutatePod(job *orc.Job, configuration json.RawMessage, pod *core.Pod) *util.HttpError {
+	pod.Annotations[AnnotationSyncthingFolders] = syncthingMountedFoldersComputeHash(job)
+
 	port := syncthingAllocatePort(pod)
 	if !port.Present {
 		return util.ServerHttpError("could not allocate a port for Syncthing")
@@ -434,7 +484,8 @@ func syncthingMutateFirewall(job *orc.Job, configuration json.RawMessage, firewa
 }
 
 const (
-	AnnotationSyncthingPort = "ucloud.dk/syncthingPort"
+	AnnotationSyncthingPort    = "ucloud.dk/syncthingPort"
+	AnnotationSyncthingFolders = "ucloud.dk/syncthingFolders"
 )
 
 func syncthingReconfigure() {
