@@ -1,5 +1,5 @@
 import * as React from "react";
-import {useNavigate} from "react-router-dom";
+import {useLocation, useNavigate} from "react-router-dom";
 import {useRef, useReducer, useCallback, useEffect, useState} from "react";
 import {usePage} from "@/Navigation/Redux";
 import {default as ReactModal} from "react-modal";
@@ -40,11 +40,14 @@ import {sendFailureNotification, sendSuccessNotification} from "@/Notifications"
 import {DocumentTypography} from "@/ui-components/Markdown";
 import UcxView, {UcxFunctionRegistry} from "@/UCX/UcxView";
 import {Value, ValueKind, valueToPlain} from "@/UCX/protocol";
+import {ServiceProviderSelector} from "@/Applications/ApiTokens/Add";
+import HexSpin from "@/LoadingIcon/LoadingIcon";
 
 // UI state management
 // ================================================================================
 type UIAction =
     | ReloadConfig
+    | ResetConfig
     | ReloadDeviceWizard
     | RemoveDevice
     | RemoveFolder
@@ -56,6 +59,10 @@ interface ReloadConfig {
     type: "ReloadConfig";
     config: SyncthingConfig;
     etag: string;
+}
+
+interface ResetConfig {
+    type: "ResetConfig";
 }
 
 interface ReloadDeviceWizard {
@@ -147,6 +154,10 @@ interface SyncthingDeviceState {
 function uiReducer(state: UIState, action: UIAction): UIState {
     const copy = deepCopy(state);
     switch (action.type) {
+        case "ResetConfig": {
+            return {};
+        }
+
         case "ReloadConfig": {
             copy.devices = action.config.devices;
             copy.folders = action.config.folders;
@@ -204,6 +215,7 @@ export const Overview: React.FunctionComponent = () => {
 
 const NewOverview: React.FunctionComponent = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const [uiState, pureDispatch] = useReducer(uiReducer, {});
     const didUnmount = useDidUnmount();
 
@@ -213,33 +225,65 @@ const NewOverview: React.FunctionComponent = () => {
     const [selectedProduct, setSelectedProduct] = useState<UCloud.compute.ComputeProductSupportResolved | null>(null);
     const [liveSnapshot, setLiveSnapshot] = useState<SyncthingLiveSnapshot | null>(null);
     const [rescanFolder, setRescanFolder] = useState<((folderId: string) => void) | null>(null);
+    const [providers, setProviders] = useState<string[] | null>(null);
+    const projectId = useProjectId();
 
     const updateRescanFolder = useCallback((handler: ((folderId: string) => void) | null) => {
         setRescanFolder(() => handler);
     }, []);
 
-    const provider = getQueryParam(location.search, "provider");
+    const requestedProvider = getQueryParam(location.search, "provider");
+    const provider = requestedProvider !== null && providers?.includes(requestedProvider) ? requestedProvider : null;
+    const providerRef = useRef(provider);
+    providerRef.current = provider;
+
+    const selectProvider = useCallback((nextProvider: string, replace = false) => {
+        const query = new URLSearchParams(location.search);
+        query.set("provider", nextProvider);
+        navigate(`${AppRoutes.syncthing.syncthing()}?${query.toString()}`, {replace});
+    }, [location.search, navigate]);
 
     useEffect(() => {
-        if (!provider) {
-            navigate("/drives");
+        let cancelled = false;
+        setProviders(null);
+        Sync.fetchProviders().then(result => {
+            if (!cancelled) setProviders(result);
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, [projectId]);
+
+    useEffect(() => {
+        if (providers === null) return;
+        if (providers.length === 0) {
+            navigate("/drives", {replace: true});
+        } else if (provider === null) {
+            selectProvider(providers[0], true);
         }
-    }, []);
+    }, [provider, providers, navigate, selectProvider]);
+
+    useEffect(() => {
+        pureDispatch({type: "ResetConfig"});
+        setSelectedProduct(null);
+        setLiveSnapshot(null);
+        setRescanFolder(null);
+    }, [provider]);
 
     // UI callbacks and state manipulation
     const reload = useCallback(() => {
         if (!provider) return;
         Sync.fetchConfigAndEtag(provider).then(([config, etag]) => {
-            if (didUnmount.current) return;
+            if (didUnmount.current || providerRef.current !== provider) return;
             pureDispatch({type: "ReloadConfig", config, etag});
         });
 
         Sync.fetchProducts(provider).then(product => {
-            if (product.length > 0) {
+            if (providerRef.current === provider && product.length > 0) {
                 setSelectedProduct(product[0]);
             }
         });
-    }, [pureDispatch]);
+    }, [provider, didUnmount]);
 
     const dispatch = useCallback((action: UIAction) => {
         pureDispatch(action);
@@ -297,7 +341,7 @@ const NewOverview: React.FunctionComponent = () => {
             true,
             FilesApi.fileSelectorModalStyle
         );
-    }, [dispatch]);
+    }, [dispatch, provider]);
 
     // Effects
     useEffect(() => reload(), [reload]);
@@ -338,7 +382,8 @@ const NewOverview: React.FunctionComponent = () => {
 
     let main: React.ReactNode;
     if (uiState.devices !== undefined && uiState.devices.length === 0) {
-        main = <AddDeviceWizard onDeviceAdded={onDeviceAdded} onWizardClose={closeWizard} />;
+        main = <AddDeviceWizard onDeviceAdded={onDeviceAdded} onWizardClose={closeWizard}
+            provider={provider ?? undefined} providers={providers ?? []} onProviderChanged={selectProvider} />;
     } else {
         main = <div className={SyncthingMainClass}>
             {uiState.showDeviceWizard !== true ? null :
@@ -401,11 +446,18 @@ const NewOverview: React.FunctionComponent = () => {
 
             {folders.length > 0 && devices.length > 0 ?
                 <ServerStatus productId={selectedProduct?.product.name ?? ""} providerId={provider ?? ""}
-                    reload={reload} liveSnapshot={liveSnapshot} onLiveSnapshot={setLiveSnapshot}
+                    liveSnapshot={liveSnapshot} onLiveSnapshot={setLiveSnapshot}
                     onRescanFolderChange={updateRescanFolder} />
                 : null
             }
+
+            <SyncthingSettings productId={selectedProduct?.product.name ?? ""} provider={provider ?? ""}
+                providers={providers ?? []} onProviderChanged={selectProvider} reload={reload} />
         </div>;
+    }
+
+    if (providers === null || provider === null) {
+        main = <Flex height="100%" alignItems="center" justifyContent="center"><HexSpin /></Flex>;
     }
 
     return <MainContainer main={main} />;
@@ -489,7 +541,6 @@ interface ServerStatusInfo {
 const ServerStatus: React.FunctionComponent<{
     productId: string,
     providerId: string,
-    reload: () => void,
     liveSnapshot: SyncthingLiveSnapshot | null,
     onLiveSnapshot: (snapshot: SyncthingLiveSnapshot | null) => void,
     onRescanFolderChange: (handler: ((folderId: string) => void) | null) => void,
@@ -506,25 +557,6 @@ const ServerStatus: React.FunctionComponent<{
                 .then(doNothing);
         }
     }, [props.providerId, props.productId, status])
-
-    const doFactoryReset = useCallback(async () => {
-        await callAPI(
-            Sync.api.resetConfiguration({provider: props.providerId, productId: props.productId})
-        );
-
-        props.reload();
-    }, [props.providerId, props.productId, props.reload]);
-
-    const requestFactoryReset = useCallback(() => {
-        addStandardDialog({
-            title: "Factory reset Syncthing?",
-            message: "This will reset the server state. Synchronization status of all folders will be removed and all registered devices will be removed. No data will be deleted.",
-            confirmText: "Factory reset",
-            confirmButtonColor: "errorMain",
-            cancelButtonColor: "primaryMain",
-            onConfirm: doFactoryReset,
-        });
-    }, [doFactoryReset]);
 
     useEffect(() => {
         setRestartRequested(false);
@@ -606,26 +638,77 @@ const ServerStatus: React.FunctionComponent<{
             }
         </section>
 
-        <section className="sync-section">
-            <div className="sync-section-header">
-                <h2>Danger zone</h2>
-            </div>
-            <div className="sync-server-actions">
-                <Flex width={"100%"} flexWrap={"wrap"} gap={"16px"}>
-                    <Box flexGrow={1}>
-                        <div><strong>Factory reset</strong></div>
-                        <Box color={"textSecondary"} maxWidth={"50ch"}>
-                            Having issues? Try a factory reset.
-                            No data will be deleted, but you will have to redo the setup.
-                        </Box>
-                    </Box>
-                    <Button color="errorMain" onClick={requestFactoryReset} alignSelf={"end"} flexShrink={0}>
-                        <Icon name="heroTrash" size={15} mr="6px" color="errorContrast"/> Factory reset
-                    </Button>
-                </Flex>
-            </div>
-        </section>
     </>
+}
+
+function SyncthingSettings(props: {
+    productId: string;
+    provider: string;
+    providers: string[];
+    onProviderChanged: (provider: string) => void;
+    reload: () => void;
+}): React.ReactNode {
+    const doFactoryReset = useCallback(async () => {
+        await callAPI(Sync.api.resetConfiguration({provider: props.provider, productId: props.productId}));
+        props.reload();
+    }, [props.provider, props.productId, props.reload]);
+
+    const requestFactoryReset = useCallback(() => {
+        addStandardDialog({
+            title: "Factory reset Syncthing?",
+            message: "This will reset the server state. Synchronization status of all folders will be removed and all registered devices will be removed. No data will be deleted.",
+            confirmText: "Factory reset",
+            confirmButtonColor: "errorMain",
+            cancelButtonColor: "primaryMain",
+            onConfirm: doFactoryReset,
+        });
+    }, [doFactoryReset]);
+
+    return <section className="sync-section">
+        <div className="sync-section-header">
+            <h2>Settings</h2>
+        </div>
+        <div className="sync-server-actions">
+            <Flex width={"100%"} flexWrap={"wrap"} gap={"16px"} alignItems="end">
+                <Box flexGrow={1}>
+                    <div><strong>Service provider</strong></div>
+                    <Box color={"textSecondary"} maxWidth={"50ch"}>
+                        Choose where Syncthing runs. Only folders hosted by this provider can be synchronized.
+                    </Box>
+                </Box>
+                <ProviderSelector provider={props.provider} providers={props.providers}
+                    onProviderChanged={props.onProviderChanged} />
+            </Flex>
+        </div>
+        <div className="sync-server-actions">
+            <Flex width={"100%"} flexWrap={"wrap"} gap={"16px"}>
+                <Box flexGrow={1}>
+                    <div><strong>Factory reset</strong></div>
+                    <Box color={"textSecondary"} maxWidth={"50ch"}>
+                        Having issues? Try a factory reset.
+                        No data will be deleted, but you will have to redo the setup.
+                    </Box>
+                </Box>
+                <Button color="errorMain" onClick={requestFactoryReset} alignSelf={"end"} flexShrink={0}
+                    disabled={!props.productId}>
+                    <Icon name="heroTrash" size={15} mr="6px" color="errorContrast"/> Factory reset
+                </Button>
+            </Flex>
+        </div>
+    </section>;
+}
+
+function ProviderSelector(props: {
+    provider: string;
+    providers: string[];
+    onProviderChanged: (provider: string) => void;
+}): React.ReactNode {
+    return <div className="sync-provider-selector">
+        <ServiceProviderSelector serviceProvider={props.provider}
+            serviceProviders={props.providers.map(key => ({key}))}
+            onSelect={provider => props.onProviderChanged(provider.key)}
+            showLabel={false} />
+    </div>;
 }
 
 function SyncthingStatusIndicator({connected, snapshot}: {connected: boolean; snapshot: SyncthingLiveSnapshot | null}): React.ReactNode {
@@ -869,6 +952,9 @@ const AddDeviceWizard: React.FunctionComponent<{
     onDeviceAdded: (device: SyncthingDevice) => void;
     onWizardClose: () => void;
     modal?: boolean;
+    provider?: string;
+    providers?: string[];
+    onProviderChanged?: (provider: string) => void;
 }> = (props) => {
     const STEP_INTRO = 0;
     const STEP_ADD_DEVICE = 1;
@@ -959,6 +1045,18 @@ const AddDeviceWizard: React.FunctionComponent<{
 
                 <section>
                     <ol>
+                        {props.provider && props.providers && props.onProviderChanged ?
+                            <li>
+                                <div className="tutorial-step-copy">
+                                    <b>Choose a service provider</b>
+                                    <span>
+                                        Syncthing can only synchronize folders hosted by the selected provider.
+                                    </span>
+                                    <ProviderSelector provider={props.provider} providers={props.providers}
+                                        onProviderChanged={props.onProviderChanged} />
+                                    <Box mb={"8px"} />
+                                </div>
+                            </li> : null}
                         <li>
                             <div className="tutorial-step-copy">
                                 <b>Download and install Syncthing for your platform</b>
@@ -1032,7 +1130,7 @@ const AddDeviceWizard: React.FunctionComponent<{
                     </div>
                 </div>
                 <Box flexGrow={1} />
-                {tutorialStep < 1 ? null :
+                {tutorialStep === STEP_INTRO ? null :
                     <Button color="secondaryMain" onClick={tutorialPrevious}>Previous step</Button>}
                 <Button onClick={tutorialNext}>{tutorialStep === STEP_LAST ? "Add device" : "Next step"}</Button>
             </footer>
@@ -1367,6 +1465,11 @@ const SyncthingMainClass = injectStyle("syncthing-main", k => `
     ${k} .sync-server-actions {
         gap: 8px;
         margin-top: 20px;
+    }
+
+    ${k} .sync-provider-selector {
+        width: min(340px, 100%);
+        flex-shrink: 0;
     }
 
     ${k} .sync-row-warning {

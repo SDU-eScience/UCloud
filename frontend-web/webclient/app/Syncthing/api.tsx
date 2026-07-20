@@ -1,6 +1,9 @@
 import { PageV2, compute } from "@/UCloud";
 import { api as JobsApi, Job, isJobStateFinal } from "@/UCloud/JobsApi";
 import { callAPI, apiRetrieve, apiUpdate } from "@/Authentication/DataHook";
+import FileCollectionsApi, {FileCollectionSupport} from "@/UCloud/FileCollectionsApi";
+import {retrieveSupportV2} from "@/UCloud/ResourceApi";
+import {ProductV2Storage} from "@/Accounting";
 
 export interface SyncthingConfig {
     devices: SyncthingDevice[];
@@ -33,6 +36,17 @@ export async function fetchProducts(provider: string): Promise<compute.ComputePr
         providers: provider
     }));
     return products.productsByProvider[provider]?.filter(it => it.product.name === "syncthing") ?? [];
+}
+
+export async function fetchProviders(): Promise<string[]> {
+    const support = await retrieveSupportV2<ProductV2Storage, FileCollectionSupport>(FileCollectionsApi);
+    const driveProviders = Object.entries(support.productsByProvider)
+        .filter(([, products]) => products.some(it => it.support.collection.usersCanCreate))
+        .map(([provider]) => provider)
+        .sort((a, b) => a.localeCompare(b));
+
+    const syncthingProducts = await Promise.all(driveProviders.map(fetchProducts));
+    return driveProviders.filter((_, index) => syncthingProducts[index].length > 0);
 }
 
 export async function fetchServers(): Promise<Job[]> {
@@ -99,4 +113,3 @@ export interface RestartRequest {
 }
 
 export const api = new Api();
-

@@ -426,12 +426,21 @@ function allSidebarCommands(state: HookStore, navigate: NavigateFunction): Comma
 
 function sidebarSubEntries(canApply: boolean, isPersonalWorkspace: boolean, projectId: string | undefined): Record<SidebarTabId, LinkInfo[]> {
     return {
-        [SidebarTabId.FILES]: [{
-            to: AppRoutes.files.drives(),
-            text: "Drives",
-            icon: "ftFileSystem",
-            tab: SidebarTabId.FILES
-        }, ...(isPersonalWorkspace ? sharesLinksInfo : [])],
+        [SidebarTabId.FILES]: [
+            {
+                to: AppRoutes.syncthing.syncthing(),
+                text: "File synchronization",
+                icon: "heroArrowPath",
+                tab: SidebarTabId.FILES
+            },
+            {
+                to: AppRoutes.files.drives(),
+                text: "Drives",
+                icon: "ftFileSystem",
+                tab: SidebarTabId.FILES
+            },
+            ...(isPersonalWorkspace ? sharesLinksInfo : [])
+        ],
         [SidebarTabId.PROJECT]: projectSidebarSubLinks(canApply, isPersonalWorkspace, projectId),
         [SidebarTabId.RESOURCES]: ResourceSubLinksEntries,
         [SidebarTabId.INFERENCE]: InferenceSubLinksEntries,
@@ -1162,6 +1171,15 @@ function SecondarySidebar({
                     <SidebarSectionHeader tab={SidebarTabId.FILES}>Shared files</SidebarSectionHeader>
                     <SidebarLinkColumn links={sharesLinksInfo} />
                 </> : null}
+
+                <SidebarSectionHeader tab={SidebarTabId.FILES} to={AppRoutes.syncthing.syncthing()}>Sync</SidebarSectionHeader>
+                <SidebarEntry
+                    to={AppRoutes.syncthing.syncthing()}
+                    text="File synchronization"
+                    icon="heroCloud"
+                    tab={SidebarTabId.FILES}
+                />
+
             </>}
 
             {active !== SidebarTabId.PROJECT ? null : <>
