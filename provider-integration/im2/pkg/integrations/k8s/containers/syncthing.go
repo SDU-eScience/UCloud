@@ -45,9 +45,80 @@ const syncthingAppName = "syncthing"
 const (
 	syncthingUcxExecutable         = "builtin://ucx-syncthing"
 	syncthingUcxIntegrationVersion = "1"
-	syncthingImageVersion          = "1.29.2"
+	syncthingImageVersion          = "2.1.2"
 	syncthingUcxPort               = 8435
+	syncthingPolicyCheckInterval   = time.Minute
 )
+
+func StartSyncthingPolicyReconciler() {
+	if !ServiceConfig.Compute.Syncthing.Enabled {
+		return
+	}
+
+	go func() {
+		for util.IsAlive {
+			syncthingReconcileMetadataPolicy()
+			time.Sleep(syncthingPolicyCheckInterval)
+		}
+	}()
+}
+
+func syncthingReconcileMetadataPolicy() {
+	for _, observed := range controller.IAppListActiveConfigurations(syncthingAppName) {
+		var config orc.SyncthingConfig
+		if err := json.Unmarshal(observed.Configuration, &config); err != nil || len(config.Folders) == 0 {
+			continue
+		}
+
+		paths := make([]string, 0, len(config.Folders))
+		for _, folder := range config.Folders {
+			paths = append(paths, folder.UCloudPath)
+		}
+
+		policy, err := orc.FileMetadataControlCheckSensitivity.Invoke(orc.FileMetadataSensitivityCheckRequest{Paths: paths})
+		if err != nil {
+			log.Warn("Unable to check file sensitivity for Syncthing owner %v: %s", observed.Owner, err)
+			continue
+		}
+		if len(policy.RestrictedPaths) == 0 {
+			continue
+		}
+
+		current := controller.IAppRetrieveConfiguration(syncthingAppName, observed.Owner)
+		if !current.Present || current.Value.ETag != observed.ETag {
+			continue
+		}
+		if err := json.Unmarshal(current.Value.Configuration, &config); err != nil {
+			continue
+		}
+
+		restricted := map[string]bool{}
+		for _, path := range policy.RestrictedPaths {
+			restricted[path] = true
+		}
+		folders := config.Folders[:0]
+		for _, folder := range config.Folders {
+			if !restricted[folder.UCloudPath] {
+				folders = append(folders, folder)
+			}
+		}
+		config.Folders = folders
+
+		serialized, marshalErr := json.Marshal(config)
+		if marshalErr != nil {
+			continue
+		}
+		configureErr := controller.IAppConfigure(
+			syncthingAppName,
+			observed.Owner,
+			util.OptValue(observed.ETag),
+			serialized,
+		)
+		if configureErr != nil {
+			log.Warn("Unable to remove restricted Syncthing folders for owner %v: %s", observed.Owner, configureErr)
+		}
+	}
+}
 
 func initSyncthing() {
 	syncthingConfig = ServiceConfig.Compute.Syncthing

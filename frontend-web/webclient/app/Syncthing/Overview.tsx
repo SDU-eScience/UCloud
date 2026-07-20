@@ -282,8 +282,8 @@ const NewOverview: React.FunctionComponent = () => {
                             }
 
                             const sensitivity = await findSensitivity(res);
-                            if (sensitivity == "SENSITIVE") {
-                                sendFailureNotification("Folder marked as sensitive cannot be added to Syncthing");
+                            if (sensitivity == "SENSITIVE" || sensitivity == "CONFIDENTIAL") {
+                                sendFailureNotification("Sensitive or confidential folders cannot be added to Syncthing");
                                 return;
                             }
                             const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);

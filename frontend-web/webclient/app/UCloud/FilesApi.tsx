@@ -960,8 +960,8 @@ async function synchronizationOpOnClick(files: UFile[], cb: ResourceBrowseCallba
 
         for (const folder of resolvedFiles) {
             const sensitivity = await findSensitivity(folder);
-            if (sensitivity == "SENSITIVE") {
-                sendFailureNotification("Folder marked as sensitive cannot be added to Syncthing");
+            if (sensitivity == "SENSITIVE" || sensitivity == "CONFIDENTIAL") {
+                sendFailureNotification("Sensitive or confidential folders cannot be added to Syncthing");
                 return;
             }
         }

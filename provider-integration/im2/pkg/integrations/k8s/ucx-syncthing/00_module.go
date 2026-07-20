@@ -17,7 +17,7 @@ const (
 	defaultStateDir       = "/syncthing-state"
 	defaultSyncthingURL   = "http://127.0.0.1:8384"
 	defaultHealthInterval = 5 * time.Second
-	defaultHealthGrace    = 60 * time.Second
+	defaultHealthGrace    = 60 * 60 * time.Second // NOTE(Dan): this needs to be quite high due to folder migrations after upgrade
 )
 
 type runtimeConfig struct {

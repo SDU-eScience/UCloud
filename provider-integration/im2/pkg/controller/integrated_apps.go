@@ -428,6 +428,19 @@ func IAppRetrieveConfiguration(appName string, owner orc.ResourceOwner) util.Opt
 	}
 }
 
+func IAppListActiveConfigurations(appName string) []IAppRunningConfiguration {
+	iappConfigsMutex.Lock()
+	defer iappConfigsMutex.Unlock()
+
+	result := make([]IAppRunningConfiguration, 0)
+	for _, config := range iappConfigs {
+		if config.AppName == appName && iappConfigIsActive(config) {
+			result = append(result, config)
+		}
+	}
+	return result
+}
+
 func IAppReset(appName string, owner orc.ResourceOwner, etag util.Option[string]) *util.HttpError {
 	handler, ok := IntegratedApplications[appName]
 	if !ok {
