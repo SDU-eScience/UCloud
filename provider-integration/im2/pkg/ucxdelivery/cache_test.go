@@ -166,6 +166,113 @@ func TestTrackedAppFromJob(t *testing.T) {
 	}
 }
 
+func TestTrackedBuiltInAppDoesNotRequireUcxToolBackend(t *testing.T) {
+	app := &orcapi.Application{
+		WithAppMetadata: orcapi.WithAppMetadata{
+			Metadata: orcapi.ApplicationMetadata{
+				NameAndVersion: orcapi.NameAndVersion{Name: "syncthing", Version: "1.0.0"},
+			},
+		},
+		WithAppInvocation: orcapi.WithAppInvocation{
+			Invocation: orcapi.ApplicationInvocationDescription{
+				Ucx: util.OptValue(orcapi.UcxDescription{
+					Executable: util.OptValue(orcapi.UcxExecutableDescription{ManifestUrl: "builtin://ucx-syncthing"}),
+				}),
+			},
+		},
+	}
+
+	tracked, ok, err := trackedAppFromApp(app)
+	if err != nil {
+		t.Fatalf("track built-in app: %s", err)
+	}
+	if !ok {
+		t.Fatalf("expected built-in app to be tracked")
+	}
+	if tracked.BinaryName != "ucx-syncthing" || tracked.PublicKey != "" {
+		t.Fatalf("unexpected tracked app: %#v", tracked)
+	}
+}
+
+func TestCacheRefreshPublishesBuiltInExecutable(t *testing.T) {
+	providerFilesystem := t.TempDir()
+	sharedDir := filepath.Join(providerFilesystem, sharedExecutablesDirectory)
+	if err := os.MkdirAll(sharedDir, 0755); err != nil {
+		t.Fatalf("mkdir shared executable dir: %s", err)
+	}
+	sourcePath := filepath.Join(sharedDir, "ucx-syncthing")
+	if err := os.WriteFile(sourcePath, []byte("first"), 0755); err != nil {
+		t.Fatalf("write built-in executable: %s", err)
+	}
+	app := trackedApp{
+		AppName: "syncthing", AppVersion: "1.0.0",
+		ManifestUrl: "builtin://ucx-syncthing", BinaryName: "ucx-syncthing",
+	}
+
+	first, err := refreshTrackedApp(context.Background(), providerFilesystem, nil, util.OptNone[int](), app)
+	if err != nil {
+		t.Fatalf("first refresh: %s", err)
+	}
+	if !first.Updated {
+		t.Fatalf("expected first refresh to update")
+	}
+	if _, err := os.Stat(first.ManifestPath); !os.IsNotExist(err) {
+		t.Fatalf("built-in refresh must not publish a manifest")
+	}
+
+	if err := os.WriteFile(sourcePath, []byte("second"), 0755); err != nil {
+		t.Fatalf("update built-in executable: %s", err)
+	}
+	second, err := refreshTrackedApp(context.Background(), providerFilesystem, nil, util.OptNone[int](), app)
+	if err != nil {
+		t.Fatalf("second refresh: %s", err)
+	}
+	if !second.Updated {
+		t.Fatalf("expected changed built-in executable to update")
+	}
+	current, err := os.ReadFile(second.CurrentPath)
+	if err != nil {
+		t.Fatalf("read current: %s", err)
+	}
+	if string(current) != "second" {
+		t.Fatalf("unexpected current contents: %q", current)
+	}
+	info, err := os.Stat(second.CurrentPath)
+	if err != nil || info.Mode()&0111 == 0 {
+		t.Fatalf("expected executable current file: %v", err)
+	}
+}
+
+func TestCacheRefreshRejectsInvalidBuiltInSourceAndKeepsCurrent(t *testing.T) {
+	providerFilesystem := t.TempDir()
+	sharedDir := filepath.Join(providerFilesystem, sharedExecutablesDirectory)
+	if err := os.MkdirAll(sharedDir, 0755); err != nil {
+		t.Fatalf("mkdir shared executable dir: %s", err)
+	}
+	if err := os.WriteFile(filepath.Join(sharedDir, "ucx-syncthing"), []byte("new"), 0644); err != nil {
+		t.Fatalf("write built-in executable: %s", err)
+	}
+	currentPath := filepath.Join(providerFilesystem, "ucloud-ucx", "apps", "syncthing", "1.0.0", "current")
+	if err := os.MkdirAll(filepath.Dir(currentPath), 0755); err != nil {
+		t.Fatalf("mkdir current dir: %s", err)
+	}
+	if err := os.WriteFile(currentPath, []byte("old"), 0755); err != nil {
+		t.Fatalf("write current: %s", err)
+	}
+	app := trackedApp{
+		AppName: "syncthing", AppVersion: "1.0.0",
+		ManifestUrl: "builtin://ucx-syncthing", BinaryName: "ucx-syncthing",
+	}
+
+	if _, err := refreshTrackedApp(context.Background(), providerFilesystem, nil, util.OptNone[int](), app); err == nil {
+		t.Fatalf("expected non-executable built-in source to fail")
+	}
+	current, err := os.ReadFile(currentPath)
+	if err != nil || string(current) != "old" {
+		t.Fatalf("expected current to remain unchanged, got %q: %v", current, err)
+	}
+}
+
 func testCacheServer(t *testing.T, manifestBinary string, servedBinary string, corruptSignature bool) (*httptest.Server, trackedApp) {
 	t.Helper()
 

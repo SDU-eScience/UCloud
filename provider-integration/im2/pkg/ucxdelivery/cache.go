@@ -20,6 +20,7 @@ import (
 )
 
 const DefaultPollInterval = 1 * time.Second
+const sharedExecutablesDirectory = "ucloud-exe"
 
 var cacheState = struct {
 	mu                 sync.RWMutex
@@ -138,13 +139,25 @@ func ExecutablePath(appName string, appVersion string) (string, error) {
 }
 
 func trackedAppFromApp(app *orcapi.Application) (trackedApp, bool, error) {
-	if !app.Invocation.Tool.Tool.Present || app.Invocation.Tool.Tool.Value.Description.Backend != orcapi.ToolBackendUcx {
-		return trackedApp{}, false, nil
-	}
 	if !app.Invocation.Ucx.Present || !app.Invocation.Ucx.Value.Executable.Present {
 		return trackedApp{}, false, nil
 	}
 	executable := app.Invocation.Ucx.Value.Executable.Value
+	if strings.HasPrefix(executable.ManifestUrl, "builtin://") {
+		binaryName, ok := builtinExecutableName(executable.ManifestUrl)
+		if !ok {
+			return trackedApp{}, false, fmt.Errorf("invalid built-in executable URL")
+		}
+		return trackedApp{
+			AppName:     app.Metadata.Name,
+			AppVersion:  app.Metadata.Version,
+			ManifestUrl: executable.ManifestUrl,
+			BinaryName:  binaryName,
+		}, true, nil
+	}
+	if !app.Invocation.Tool.Tool.Present || app.Invocation.Tool.Tool.Value.Description.Backend != orcapi.ToolBackendUcx {
+		return trackedApp{}, false, nil
+	}
 	if err := requireHttpsUrl(executable.ManifestUrl, "manifestUrl"); err != nil {
 		return trackedApp{}, false, err
 	}
@@ -261,6 +274,11 @@ func refreshTrackedApp(ctx context.Context, providerFilesystem string, client *h
 	if err != nil {
 		return refreshResult{}, err
 	}
+	if binaryName, ok := builtinExecutableName(app.ManifestUrl); ok {
+		return refreshBuiltInExecutable(ctx, providerFilesystem, ownerUid, binaryName, result)
+	} else if strings.HasPrefix(app.ManifestUrl, "builtin://") {
+		return refreshResult{}, fmt.Errorf("invalid built-in executable URL")
+	}
 
 	manifestBytes, err := fetchBytes(ctx, client, app.ManifestUrl)
 	if err != nil {
@@ -313,6 +331,68 @@ func refreshTrackedApp(ctx context.Context, providerFilesystem string, client *h
 	}
 
 	return result, nil
+}
+
+func refreshBuiltInExecutable(ctx context.Context, providerFilesystem string, ownerUid util.Option[int], binaryName string, result refreshResult) (refreshResult, error) {
+	if err := ctx.Err(); err != nil {
+		return refreshResult{}, err
+	}
+	sourcePath := filepath.Join(providerFilesystem, sharedExecutablesDirectory, binaryName)
+	info, err := os.Lstat(sourcePath)
+	if err != nil {
+		return refreshResult{}, err
+	}
+	if !info.Mode().IsRegular() {
+		return refreshResult{}, fmt.Errorf("built-in executable %q is not a regular file", binaryName)
+	}
+	if info.Mode()&0111 == 0 {
+		return refreshResult{}, fmt.Errorf("built-in executable %q is not executable", binaryName)
+	}
+	binaryBytes, err := os.ReadFile(sourcePath)
+	if err != nil {
+		return refreshResult{}, err
+	}
+	sum := sha256.Sum256(binaryBytes)
+	updated, err := currentNeedsUpdate(result.CurrentPath, hex.EncodeToString(sum[:]))
+	if err != nil {
+		return refreshResult{}, err
+	}
+	result.Updated = updated
+
+	if err := os.MkdirAll(result.AppDirectory, 0755); err != nil {
+		return refreshResult{}, err
+	}
+	if err := chownCachePath(result.AppDirectory, ownerUid); err != nil {
+		return refreshResult{}, err
+	}
+	if !updated {
+		if err := chownCachePath(result.CurrentPath, ownerUid); err != nil {
+			return refreshResult{}, err
+		}
+		return result, nil
+	}
+	if err := publishFileAtomically(result.CurrentPath, binaryBytes, 0755, ownerUid); err != nil {
+		return refreshResult{}, err
+	}
+	return result, nil
+}
+
+func builtinExecutableName(manifestUrl string) (string, bool) {
+	const prefix = "builtin://"
+	if !strings.HasPrefix(manifestUrl, prefix) {
+		return "", false
+	}
+
+	name := strings.TrimPrefix(manifestUrl, prefix)
+	if name == "" || name == "." || name == ".." {
+		return "", false
+	}
+	for _, ch := range name {
+		if (ch < 'a' || ch > 'z') && (ch < 'A' || ch > 'Z') && (ch < '0' || ch > '9') && ch != '-' && ch != '_' && ch != '.' {
+			return "", false
+		}
+	}
+	return name, true
 }
 
 func cachePaths(providerFilesystem string, app trackedApp) (refreshResult, error) {

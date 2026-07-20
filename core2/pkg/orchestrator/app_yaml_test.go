@@ -137,6 +137,31 @@ func TestUcxExecutableMetadataValidation(t *testing.T) {
 	}
 }
 
+func TestBuiltInUcxExecutableMetadataValidation(t *testing.T) {
+	valid := orcapi.ApplicationInvocationDescription{
+		Ucx: util.OptValue(orcapi.UcxDescription{
+			Executable: util.OptValue(orcapi.UcxExecutableDescription{ManifestUrl: "builtin://ucx-syncthing"}),
+		}),
+	}
+	assert.Equal(t, (*util.HttpError)(nil), validateUcxExecutableMetadata(&valid))
+
+	for _, manifestUrl := range []string{
+		"builtin://",
+		"builtin://.",
+		"builtin://..",
+		"builtin://foo/bar",
+		"builtin://foo\\bar",
+		"builtin://foo?version=1",
+		"builtin://foo#fragment",
+	} {
+		invalid := valid
+		invalid.Ucx.Value.Executable.Value.ManifestUrl = manifestUrl
+		if validateUcxExecutableMetadata(&invalid) == nil {
+			t.Errorf("expected %q to be rejected", manifestUrl)
+		}
+	}
+}
+
 func TestA2UcxExecutableMetadata(t *testing.T) {
 	var app A2Yaml
 	err := yaml.Unmarshal([]byte(`
@@ -170,6 +195,33 @@ ucx:
 	}
 
 	assert.Equal(t, "echo hello", napp.Invocation.Invocation[0].InvocationParameterJinja.Template)
+}
+
+func TestA2BuiltInUcxExecutableMetadata(t *testing.T) {
+	var app A2Yaml
+	err := yaml.Unmarshal([]byte(`
+name: test-builtin-app
+version: "1"
+software:
+  type: Container
+  image: ubuntu:latest
+invocation: echo hello
+ucx:
+  executable:
+    manifestUrl: builtin://ucx-syncthing
+`), &app)
+	if err != nil {
+		t.Fatalf("Invalid YAML: %s", err)
+	}
+
+	napp, herr := app.Normalize()
+	if herr != nil {
+		t.Fatalf("Invalid app: %s", herr)
+	}
+	executable := napp.Invocation.Ucx.Value.Executable.Value
+	assert.Equal(t, "builtin://ucx-syncthing", executable.ManifestUrl)
+	assert.Equal(t, "", executable.PublicKey)
+	assert.Equal(t, "", executable.BinaryName)
 }
 
 func TestA2UcxExecutableMetadataRejectsInvalidPublicKey(t *testing.T) {
