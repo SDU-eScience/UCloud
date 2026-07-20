@@ -707,7 +707,7 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 				success = false
 			}
 
-			if success && portMin < portMin {
+			if success && portMax < portMin {
 				cfgutil.ReportError(filePath, sshNode, "portMax is less than portMin")
 				success = false
 			}
