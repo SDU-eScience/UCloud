@@ -404,6 +404,51 @@ func TestAwardedNotSetOnCreateProjectFailure(t *testing.T) {
 	assert.False(t, app.Awarded, "Awarded must stay false when project creation fails")
 }
 
+func TestCyclicGrantDoesNotPartiallyAward(t *testing.T) {
+	initGrantsTest(t)
+
+	const recipient = "recipient"
+	const validGiver = "valid-giver"
+	const cyclicGiver = "cyclic-giver"
+	addGrantGiver(t, validGiver)
+	addGrantGiver(t, cyclicGiver)
+
+	now := time.Now()
+	bucket := internalBucketOrInit(cpuCategory)
+	recipientWallet := internalWalletByOwner(bucket, now, internalOwnerByReference(recipient).Id)
+	rootAllocation, err := internalAllocateNoCommit(now, bucket, now, now.AddDate(1, 0, 0), 1000, recipientWallet, internalGraphRoot, util.OptNone[accGrantId]())
+	assert.Nil(t, err)
+	internalCommitAllocation(bucket, now, rootAllocation)
+
+	cyclicGiverWallet := internalWalletByOwner(bucket, now, internalOwnerByReference(cyclicGiver).Id)
+	descendantAllocation, err := internalAllocateNoCommit(now, bucket, now, now.AddDate(1, 0, 0), 1000, cyclicGiverWallet, recipientWallet, util.OptNone[accGrantId]())
+	assert.Nil(t, err)
+	internalCommitAllocation(bucket, now, descendantAllocation)
+
+	allocationCount := len(bucket.AllocationsById)
+	persistHandlerCount := len(accGlobals.OnPersistHandlers)
+	id := accGrantId(grantGlobals.GrantIdAcc.Add(1))
+	app := &grantApplication{Application: &accapi.GrantApplication{
+		Id:        util.IntOrString{Value: strconv.FormatInt(int64(id), 10)},
+		CreatedBy: "applicant",
+		CurrentRevision: accapi.GrantRevision{Document: accapi.GrantDocument{
+			Recipient: accapi.Recipient{Type: accapi.RecipientTypeExistingProject, Id: util.OptValue(recipient)},
+			AllocationRequests: []accapi.AllocationRequest{
+				{Category: cpuCategory.Name, Provider: cpuCategory.Provider, GrantGiver: validGiver, BalanceRequested: util.OptValue[int64](100)},
+				{Category: cpuCategory.Name, Provider: cpuCategory.Provider, GrantGiver: cyclicGiver, BalanceRequested: util.OptValue[int64](100)},
+			},
+			AllocationPeriod: util.OptValue(accapi.Period{Start: util.OptValue(fndapi.Timestamp(now)), End: util.OptValue(fndapi.Timestamp(now.AddDate(1, 0, 0)))}),
+		}},
+		Status: accapi.GrantStatus{OverallState: accapi.GrantApplicationStateApproved},
+	}}
+
+	lGrantsAwardResources(app)
+
+	assert.False(t, app.Awarded, "a rejected allocation must leave the grant unawarded")
+	assert.Equal(t, allocationCount, len(bucket.AllocationsById), "a rejected grant must roll back earlier pending allocations")
+	assert.Equal(t, persistHandlerCount, len(accGlobals.OnPersistHandlers), "a rejected grant must not register a persistence callback")
+}
+
 func TestBrowseFilterActiveInactive(t *testing.T) {
 	grantGlobals.Testing.Enabled = true
 	initGrantsTest(t)

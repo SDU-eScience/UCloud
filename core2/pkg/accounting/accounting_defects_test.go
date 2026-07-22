@@ -1,7 +1,6 @@
 package accounting
 
 import (
-	"math"
 	"net/http"
 	"testing"
 	"time"
@@ -132,10 +131,15 @@ func TestRoutingPrefersEarlierExpiration(t *testing.T) {
 }
 
 func TestGraphCostSupportsLargeQuota(t *testing.T) {
-	e := newEnv(t, capacityCategory)
-	e.AllocateEx(0, 0, 100, math.MaxInt64, "user", "")
+	e := newEnv(t, capacityCategory, false)
+	e.AllocateEx(0, 0, 100, 1<<46, "user", "")
+	e.ReportAbs(1, "user", 1)
+	e.ReportAbs(2, "user", 0)
+
 	wallet := e.Bucket.WalletsById[e.Wallet(e.Owner("user"), e.Tm(0))]
-	_ = lInternalBuildGraph(e.Bucket, e.Tm(1), wallet, 0)
+	if got := wallet.AllocationsByParent[internalGraphRoot].TreeUsage; got != 0 {
+		t.Fatalf("tree usage after decrease = %d, want 0", got)
+	}
 }
 
 func TestRetiredAllocationDoesNotDetermineLiveExpiration(t *testing.T) {
@@ -183,6 +187,12 @@ func TestRequireActiveUsesCurrentValidity(t *testing.T) {
 		wallets := internalRetrieveWallets(e.Tm(10), "user", walletFilter{RequireActive: true})
 		if len(wallets) != 1 {
 			t.Fatalf("current wallet count = %d, want 1", len(wallets))
+		}
+		if got := wallets[0].Quota; got != 100 {
+			t.Fatalf("current wallet quota = %d, want 100", got)
+		}
+		if got := wallets[0].MaxUsable; got != 100 {
+			t.Fatalf("current wallet MaxUsable = %d, want 100", got)
 		}
 	})
 }

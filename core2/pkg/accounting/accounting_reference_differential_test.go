@@ -244,14 +244,26 @@ func compareDifferentialSnapshots(operation int, core, reference differentialSna
 	if len(core.Allocations) != len(reference.Allocations) {
 		return &accountingDifference{operation, "allocations.length", len(core.Allocations), len(reference.Allocations)}
 	}
+
+	type comparison struct {
+		name string
+		a    any
+		b    any
+	}
+
 	for i := range core.Allocations {
 		a, b := core.Allocations[i], reference.Allocations[i]
 		path := fmt.Sprintf("allocations[%d]", a.Id)
-		for _, field := range []struct {
-			name string
-			a    any
-			b    any
-		}{{"identity", [3]int64{a.Id, a.Recipient, a.Parent}, [3]int64{b.Id, b.Recipient, b.Parent}}, {"originalQuota", a.OriginalQuota, b.OriginalQuota}, {"retired", a.Retired, b.Retired}, {"retiredUsage", a.RetiredUsage, b.RetiredUsage}, {"current", a.Current, b.Current}} {
+
+		comparisons := []comparison{
+			{"identity", [3]int64{a.Id, a.Recipient, a.Parent}, [3]int64{b.Id, b.Recipient, b.Parent}},
+			{"originalQuota", a.OriginalQuota, b.OriginalQuota},
+			{"retired", a.Retired, b.Retired},
+			{"retiredUsage", a.RetiredUsage, b.RetiredUsage},
+			{"current", a.Current, b.Current},
+		}
+
+		for _, field := range comparisons {
 			if fmt.Sprint(field.a) != fmt.Sprint(field.b) {
 				return &accountingDifference{operation, path + "." + field.name, field.a, field.b}
 			}
@@ -263,11 +275,14 @@ func compareDifferentialSnapshots(operation int, core, reference differentialSna
 	for i := range core.Groups {
 		a, b := core.Groups[i], reference.Groups[i]
 		path := fmt.Sprintf("groups[recipient=%d,parent=%d]", a.Recipient, a.Parent)
-		for _, field := range []struct {
-			name string
-			a    int64
-			b    int64
-		}{{"recipient", a.Recipient, b.Recipient}, {"parent", a.Parent, b.Parent}, {"flow", a.Flow, b.Flow}, {"retiredUsage", a.RetiredUsage, b.RetiredUsage}, {"contributingQuota", a.ContributingQuota, b.ContributingQuota}} {
+		comparisons := []comparison{
+			{"recipient", a.Recipient, b.Recipient},
+			{"parent", a.Parent, b.Parent},
+			{"flow", a.Flow, b.Flow},
+			{"retiredUsage", a.RetiredUsage, b.RetiredUsage},
+			{"contributingQuota", a.ContributingQuota, b.ContributingQuota},
+		}
+		for _, field := range comparisons {
 			if field.a != field.b {
 				return &accountingDifference{operation, path + "." + field.name, field.a, field.b}
 			}
@@ -279,11 +294,15 @@ func compareDifferentialSnapshots(operation int, core, reference differentialSna
 	for i := range core.Wallets {
 		a, b := core.Wallets[i], reference.Wallets[i]
 		path := fmt.Sprintf("wallets[%d]", a.Id)
-		for _, field := range []struct {
-			name string
-			a    int64
-			b    int64
-		}{{"id", a.Id, b.Id}, {"localUsage", a.LocalUsage, b.LocalUsage}, {"inNode", a.InNode, b.InNode}, {"propagated", a.Propagated, b.Propagated}, {"excess", a.Excess, b.Excess}, {"maxUsable", a.MaxUsable, b.MaxUsable}} {
+		comparisons := []comparison{
+			{"id", a.Id, b.Id},
+			{"localUsage", a.LocalUsage, b.LocalUsage},
+			{"inNode", a.InNode, b.InNode},
+			{"propagated", a.Propagated, b.Propagated},
+			{"excess", a.Excess, b.Excess},
+			{"maxUsable", a.MaxUsable, b.MaxUsable},
+		}
+		for _, field := range comparisons {
 			if field.a != field.b {
 				return &accountingDifference{operation, path + "." + field.name, field.a, field.b}
 			}

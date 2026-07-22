@@ -618,6 +618,26 @@ func internalCommitAllocation(b *internalBucket, now time.Time, allocId accAlloc
 	b.Mu.Unlock()
 }
 
+func internalRollbackAllocation(b *internalBucket, allocId accAllocId) {
+	b.Mu.Lock()
+	defer b.Mu.Unlock()
+
+	alloc := b.AllocationsById[allocId]
+	if alloc == nil || alloc.Committed {
+		return
+	}
+	wallet := b.WalletsById[alloc.BelongsTo]
+	group := wallet.AllocationsByParent[alloc.Parent]
+	delete(group.Allocations, allocId)
+	delete(b.AllocationsById, allocId)
+	if len(group.Allocations) == 0 {
+		delete(wallet.AllocationsByParent, alloc.Parent)
+		if parent := b.WalletsById[alloc.Parent]; parent != nil {
+			delete(parent.ChildrenUsage, alloc.BelongsTo)
+		}
+	}
+}
+
 func lValidateUpdate(now time.Time, alloc *internalAllocation, newQuota util.Option[int64], proposedNewStart time.Time, proposedNewEnd time.Time) (bool, *util.HttpError) {
 	if alloc.Retired {
 		return false, util.HttpErr(http.StatusForbidden, "You cannot update a retired allocation, it has already expired!")
@@ -2108,7 +2128,8 @@ func internalRetrieveWallets(
 
 	for _, b := range potentialBuckets {
 		wId := internalWalletByOwner(b, now, owner.Id)
-		b.Mu.RLock()
+		b.Mu.Lock()
+		lInternalTransitionWallets(b, now, false, wId)
 
 		w := b.WalletsById[wId]
 		groups := w.AllocationsByParent
@@ -2146,7 +2167,7 @@ func internalRetrieveWallets(
 			wallets = append(wallets, apiWallet)
 		}
 
-		b.Mu.RUnlock()
+		b.Mu.Unlock()
 	}
 
 	accGlobals.Mu.RUnlock() // need to be held for during owner lookups
@@ -2367,7 +2388,6 @@ const (
 	internalGraphTimeWeight    = int64(1)
 )
 
-// NOTE(Dan): Must be less than veryLargeNumber of accounting_graph.go
 // NOTE(Dan): Must be (significantly) larger than any cost which can naturally be created from a normal node
 var internalGraphOverAllocationEdgeCost = (&big.Int{}).Lsh(big.NewInt(1), 80)
 

@@ -2019,6 +2019,11 @@ func lGrantsAwardResources(app *grantApplication) {
 
 	accOwner := internalOwnerByReference(owner.Reference()).Id
 	grantedIn := app.lId()
+	type createdAllocation struct {
+		bucket *internalBucket
+		id     accAllocId
+	}
+	var createdAllocations []createdAllocation
 
 	requests := app.Application.CurrentRevision.Document.AllocationRequests
 	for _, req := range requests {
@@ -2041,12 +2046,17 @@ func lGrantsAwardResources(app *grantApplication) {
 		parentOwner := internalOwnerByReference(req.GrantGiver).Id
 		parentWallet := internalWalletByOwner(accBucket, now, parentOwner)
 
-		_, err = internalAllocateNoCommit(now, accBucket, start, end, quota, wallet, parentWallet, util.OptValue(grantedIn))
+		var allocationId accAllocId
+		allocationId, err = internalAllocateNoCommit(now, accBucket, start, end, quota, wallet, parentWallet, util.OptValue(grantedIn))
 		if err != nil {
-			// This only happens in case of bad input. It should never happen. Not doing a panic here to avoid
-			// potential infinite allocations (from the retry loop)
 			log.Warn("could not allocate resources in %s: %s", app.Application.Id, err.Error())
+			for i := len(createdAllocations) - 1; i >= 0; i-- {
+				created := createdAllocations[i]
+				internalRollbackAllocation(created.bucket, created.id)
+			}
+			return
 		}
+		createdAllocations = append(createdAllocations, createdAllocation{bucket: accBucket, id: allocationId})
 	}
 
 	app.Awarded = true

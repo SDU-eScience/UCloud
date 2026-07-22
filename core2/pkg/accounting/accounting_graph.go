@@ -8,8 +8,6 @@ import (
 	"ucloud.dk/shared/pkg/util/mermaid"
 )
 
-var veryLargeNumber = (&big.Int{}).Lsh(big.NewInt(1), 110)
-
 // Graph is an operation-local residual graph. Building or changing a Graph does not itself change accounting state;
 // lInternalReportUsage copies resulting flow on original allocation-group edges back into TreeUsage and ChildrenUsage.
 // Synthetic over-allocation edges are derived from unpropagated usage and are never persisted as allocation flow.
@@ -156,7 +154,7 @@ func (g *Graph) notVisited(node int, path []int) bool {
 
 func (g *Graph) leastExpensivePath(source, destination int) (*big.Int, []int) {
 	parent := make([]int, g.VertexCount)
-	minCost := (&big.Int{}).Set(veryLargeNumber)
+	var minCost *big.Int
 
 	queue := [][]int{{source}}
 
@@ -173,8 +171,8 @@ func (g *Graph) leastExpensivePath(source, destination int) (*big.Int, []int) {
 			}
 			avg := (&big.Int{}).Div(sum, big.NewInt(int64(len(path)-1)))
 
-			if avg.Cmp(minCost) < 0 {
-				minCost.Set(avg)
+			if minCost == nil || avg.Cmp(minCost) < 0 {
+				minCost = (&big.Int{}).Set(avg)
 				for i := len(path) - 1; i >= 1; i-- {
 					parent[path[i]] = path[i-1]
 				}
@@ -202,7 +200,7 @@ func (g *Graph) MinCostFlow(source, destination int, desiredFlow int64) int64 {
 
 	for actualFlow < desiredFlow {
 		pathCost, parent := g.leastExpensivePath(source, destination)
-		if pathCost.Cmp(veryLargeNumber) == 0 { // no more paths
+		if pathCost == nil {
 			break
 		}
 
