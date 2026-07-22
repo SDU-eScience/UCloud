@@ -27,7 +27,7 @@ func FuzzAccountingGraphOperations(f *testing.F) {
 		if capacity {
 			category = capacityCategory
 		}
-		e := newEnv(t, category)
+		e := newEnv(t, category, false) // Reports bypass env helpers and the reference stream would be incomplete.
 		_ = e.diagram.Close()
 
 		level := complexity % 3

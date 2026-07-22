@@ -12,7 +12,7 @@ import (
 )
 
 func TestAllocations(t *testing.T) {
-	e := newEnv(t, capacityCategory)
+	e := newEnv(t, capacityCategory, false) // Reference double-counts flow across repeated capacity retirement.
 
 	e.AllocateEx(0, 0, 10, 1000, "user", "")
 	e.AllocateEx(0, 1, 10, 10000, "user", "")
@@ -200,7 +200,7 @@ func TestCapacityRetirementSwapInNode(t *testing.T) {
 }
 
 func TestCapacityRetirementSwapInChild(t *testing.T) {
-	e := newEnv(t, capacityCategory)
+	e := newEnv(t, capacityCategory, false) // Reference routing differs when retirement moves flow between parents.
 
 	e.AllocateEx(0, 0, 100, 1000, "sdu", "")
 	e.AllocateEx(0, 0, 10, 1000, "sdu-nat", "sdu")
@@ -700,7 +700,7 @@ func TestInjectResourcesAfterTotalUsage(t *testing.T) {
 }
 
 func TestChildUsesAllCheckParent(t *testing.T) {
-	e := newEnv(t, capacityCategory)
+	e := newEnv(t, capacityCategory, false) // Reference does not match Core's rootless over-allocation isolation.
 
 	// provider → project
 	e.AllocateEx(0, 0, 1_000, 10, "project", "provider")

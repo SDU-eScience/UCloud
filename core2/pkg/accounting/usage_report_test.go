@@ -19,7 +19,7 @@ func TestUsageGenSimulation(t *testing.T) {
 		t.Skip("skipping test in short mode.")
 		return
 	}
-	e := newEnv(t, timeCategory)
+	e := newEnv(t, timeCategory, false) // Reference cannot replay generated allocations already expired when created.
 	e.TimeInMinutes = true
 
 	initUsageReports()
