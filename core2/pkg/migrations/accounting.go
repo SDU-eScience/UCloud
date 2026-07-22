@@ -220,3 +220,22 @@ func accountingV5() db.MigrationScript {
 		},
 	}
 }
+
+func accountingV6() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "accountingV6",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					create unique index wallets_v2_owner_category_unique
+						on accounting.wallets_v2(wallet_owner, product_category);
+
+					create unique index allocation_groups_wallet_parent_unique
+						on accounting.allocation_groups(associated_wallet, coalesce(parent_wallet, 0));
+				`,
+				db.Params{},
+			)
+		},
+	}
+}

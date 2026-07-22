@@ -3,6 +3,7 @@ package accounting
 import (
 	"cmp"
 	"fmt"
+	"math"
 	"math/big"
 	"net/http"
 	"os"
@@ -313,23 +314,51 @@ func internalReportUsage(now time.Time, request accapi.ReportUsageRequest) (bool
 		return false, util.HttpErr(http.StatusNotFound, "invalid owner specified")
 	}
 
-	owner := internalOwnerByReference(reference)
+	accGlobals.Mu.RLock()
+	owner := accGlobals.OwnersByReference[reference]
+	accGlobals.Mu.RUnlock()
+	if owner == nil && request.IsDeltaCharge && request.Usage < 0 {
+		return false, util.HttpErr(http.StatusBadRequest, "usage report cannot make usage negative")
+	}
+	if owner == nil {
+		owner = internalOwnerByReference(reference)
+	}
+	if request.IsDeltaCharge && request.Usage < 0 {
+		b.Mu.RLock()
+		wallet := b.WalletsByOwner[owner.Id]
+		b.Mu.RUnlock()
+		if wallet == nil {
+			return false, util.HttpErr(http.StatusBadRequest, "usage report cannot make usage negative")
+		}
+	}
 
 	var scope *scopedUsage
 	if request.Description.Scope.Present {
 		scopeKey := fmt.Sprintf("%d\n%s", owner.Id, request.Description.Scope.Value)
+		accGlobals.Mu.RLock()
+		scope = accGlobals.Usage[scopeKey]
+		accGlobals.Mu.RUnlock()
+		if scope == nil && request.IsDeltaCharge && request.Usage < 0 {
+			return false, util.HttpErr(http.StatusBadRequest, "usage report cannot make usage negative")
+		}
 
-		scope = util.ReadOrInsertBucket(&accGlobals.Mu, accGlobals.Usage, scopeKey, func() *scopedUsage {
-			return &scopedUsage{
-				Key:   scopeKey,
-				Usage: 0,
-				Dirty: true,
-			}
-		})
+		if scope == nil {
+			scope = util.ReadOrInsertBucket(&accGlobals.Mu, accGlobals.Usage, scopeKey, func() *scopedUsage {
+				return &scopedUsage{
+					Key:   scopeKey,
+					Usage: 0,
+					Dirty: true,
+				}
+			})
+		}
 	}
 
 	b.Mu.Lock()
 	defer b.Mu.Unlock()
+	if topologyErrors := lValidateAccountingAcyclic(b); len(topologyErrors) > 0 {
+		log.Error("Rejecting usage report for malformed accounting topology in %s/%s: %v", b.Category.Provider, b.Category.Name, topologyErrors[0])
+		return false, util.HttpErr(http.StatusInternalServerError, "accounting topology is invalid")
+	}
 
 	if scope != nil {
 		scope.Mu.Lock()
@@ -337,6 +366,10 @@ func internalReportUsage(now time.Time, request accapi.ReportUsageRequest) (bool
 	}
 
 	w := lInternalWalletByOwner(b, now, owner.Id)
+	if err := lValidateAccountingGraphState(b, w); err != nil {
+		log.Error("Rejecting usage report for invalid accounting flow in %s/%s: %v", b.Category.Provider, b.Category.Name, err)
+		return false, util.HttpErr(http.StatusInternalServerError, "accounting flow state is invalid")
+	}
 	var visitedWallets map[AccWalletId]bool
 	var delta int64
 	accepted := false
@@ -422,11 +455,19 @@ func internalReportUsage(now time.Time, request accapi.ReportUsageRequest) (bool
 	_, visitedWallets = lInternalReportUsage(b, now, w, deltaToReport)
 	w.LocalUsage += delta
 	w.Dirty = true
-
-	for visitedId, _ := range visitedWallets {
-		visited := b.WalletsById[visitedId]
-		lInternalReevaluate(b, now, visited, false)
+	if delta < 0 {
+		for walletId := range visitedWallets {
+			wallet := b.WalletsById[walletId]
+			if wallet == nil {
+				continue
+			}
+			for changedId := range lInternalReflowExcess(b, now, wallet) {
+				visitedWallets[changedId] = true
+			}
+		}
 	}
+
+	lInternalReevaluateAffected(b, now, visitedWallets)
 
 	return !w.WasLocked, nil
 }
@@ -464,6 +505,9 @@ func internalAllocateNoCommit(
 			parentWallet = b.WalletsById[parent]
 		}
 		lInternalTransitionWallets(b, now, false, recipient, parent)
+		if lInternalAllocationWouldCreateCycle(b, recipient, parent) {
+			return 0, util.HttpErr(http.StatusBadRequest, "allocation would create a cycle")
+		}
 
 		allocationId := accAllocId(accGlobals.AllocIdAcc.Add(1))
 		allocation := &internalAllocation{
@@ -513,6 +557,33 @@ func internalAllocateNoCommit(
 		lCheckAccountingOperation("allocate", b, now, map[AccWalletId]bool{recipient: true, parent: parent != internalGraphRoot}, nil)
 		return allocationId, nil
 	}
+}
+
+func lInternalAllocationWouldCreateCycle(b *internalBucket, recipient, parent AccWalletId) bool {
+	if parent == internalGraphRoot {
+		return false
+	}
+	visited := map[AccWalletId]bool{}
+	queue := []AccWalletId{parent}
+	for len(queue) > 0 {
+		walletId := queue[0]
+		queue = queue[1:]
+		if walletId == recipient {
+			return true
+		}
+		if visited[walletId] {
+			continue
+		}
+		visited[walletId] = true
+		if wallet := b.WalletsById[walletId]; wallet != nil {
+			for parentId := range wallet.AllocationsByParent {
+				if parentId != internalGraphRoot {
+					queue = append(queue, parentId)
+				}
+			}
+		}
+	}
+	return false
 }
 
 type internalOnPersistHandler struct {
@@ -596,6 +667,7 @@ func internalUpdateAllocation(
 		b.Mu.Unlock()
 		return grantedIn, changelog, util.HttpErr(http.StatusForbidden, "You are not allowed to modify this allocation")
 	}
+	lInternalTransitionWallets(b, now, false, iWallet.Id, iParent.Id)
 
 	proposedNewStart := iAlloc.Start
 	if newStart.Present {
@@ -614,7 +686,12 @@ func internalUpdateAllocation(
 		activeQuota := lInternalGroupTotalQuotaContributing(b, iAllocGroup)
 		activeUsage := iAllocGroup.TreeUsage
 
-		if iAlloc.Start.Before(now) && activeQuota+delta < activeUsage {
+		proposedActiveQuota, overflow := checkedAccountingAdd(activeQuota, delta)
+		if overflow {
+			b.Mu.Unlock()
+			return grantedIn, changelog, util.HttpErr(http.StatusForbidden, "The quota update exceeds the supported numeric range")
+		}
+		if iAlloc.Committed && iAlloc.Active && !iAlloc.Retired && proposedActiveQuota < activeUsage {
 			b.Mu.Unlock()
 			return grantedIn, changelog, util.HttpErr(http.StatusForbidden, "You cannot decrease the quota below the current usage!")
 		}
@@ -908,9 +985,11 @@ func lInternalWalletByOwner(b *internalBucket, now time.Time, owner accOwnerId) 
 // The graph algorithms themselves are implemented in `accounting_graph.go`.
 
 func lInternalReportUsage(b *internalBucket, now time.Time, w *internalWallet, delta int64) (int64, map[AccWalletId]bool) {
-	flags := internalGraphFlag(0)
-	if delta >= 0 {
-		flags = internalGraphWithOverAllocation
+	flags := internalGraphWithOverAllocation
+	if delta < 0 {
+		// The caller already removes the reporting wallet's local excess from a decrease. Ancestor escape flow is still
+		// required so funded child flow can be reversed when an ancestor has no persisted upstream flow.
+		flags |= internalGraphWithoutLeafOverAllocation
 	}
 	chargeGraph := lInternalBuildGraph(b, now, w, flags)
 
@@ -931,21 +1010,24 @@ func lInternalReportUsage(b *internalBucket, now time.Time, w *internalWallet, d
 		gSize := len(chargeGraph.VertexToWallet)
 
 		for senderVertex := 0; senderVertex < gSize; senderVertex++ {
-			senderWalletId := chargeGraph.VertexToWallet[senderVertex]
-			senderWallet := b.WalletsById[senderWalletId]
-
 			for receiverVertex := 0; receiverVertex < gSize; receiverVertex++ {
 				if chargeGraph.Original[receiverVertex][senderVertex] {
+					senderWalletId := chargeGraph.VertexToWallet[senderVertex]
+					senderWallet := b.WalletsById[senderWalletId]
 					receiverWalletId := chargeGraph.VertexToWallet[receiverVertex]
 					receiverWallet := b.WalletsById[receiverWalletId]
 					amount := chargeGraph.Adjacent[senderVertex][receiverVertex]
 
-					if senderWallet != nil {
-						group := senderWallet.AllocationsByParent[receiverWalletId]
-						group.TreeUsage = amount
-						group.Dirty = true
-						walletsUpdated[senderWalletId] = true
+					if senderWallet == nil {
+						continue
 					}
+					group := senderWallet.AllocationsByParent[receiverWalletId]
+					if group.TreeUsage == amount {
+						continue
+					}
+					group.TreeUsage = amount
+					group.Dirty = true
+					walletsUpdated[senderWalletId] = true
 
 					if receiverWallet != nil {
 						receiverWallet.ChildrenUsage[senderWalletId] = amount
@@ -1037,27 +1119,27 @@ func lInternalBuildGraph(b *internalBucket, now time.Time, leaf *internalWallet,
 					// NOTE(Dan): The old code would have the cost be negative, but with identical semantics apart
 					// from this. See also the negation we do at the end of this block.
 
-					preferredBalance := lInternalGroupPreferredBalance(b, now, allocationGroup)
-
-					balanceNotConsumed := max(1, preferredBalance-allocationGroup.TreeUsage)
-					balanceFactor := balanceNotConsumed * internalGraphBalanceWeight
-
 					earliestExpiration := lInternalEarliestExpiration(b, allocationGroup)
-					timeFactor := (earliestExpiration.Sub(now).Milliseconds()) * internalGraphTimeWeight
+					if !earliestExpiration.After(now) || activeQuota < allocationGroup.TreeUsage {
+						g.AddEdgeCost(sourceVertex, destinationVertex, (&big.Int{}).Neg(internalGraphRetirementCost))
+					} else {
+						preferredBalance := lInternalGroupPreferredBalance(b, now, allocationGroup)
+						balanceGap := (&big.Int{}).Sub(big.NewInt(preferredBalance), big.NewInt(allocationGroup.TreeUsage))
+						if balanceGap.Sign() <= 0 {
+							balanceGap.SetInt64(1)
+						}
 
-					cost := (&big.Int{}).Mul(big.NewInt(balanceFactor), big.NewInt(timeFactor))
-
-					if timeFactor < 0 || activeQuota < allocationGroup.TreeUsage {
-						cost = internalGraphRetirementCost
-					} else if cost.Cmp(big.NewInt(0)) == -1 {
-						panic("expected cost to be >= 0")
+						// Balance is the primary ordering key. Expiration is a 64-bit secondary key where an earlier
+						// expiration receives the larger score. Min-cost flow then prefers the negated larger score.
+						score := (&big.Int{}).Lsh(balanceGap, 64)
+						remainingMillis := max(int64(0), earliestExpiration.Sub(now).Milliseconds())
+						expirationScore := (&big.Int{}).Sub(big.NewInt(math.MaxInt64), big.NewInt(remainingMillis))
+						score.Add(score, expirationScore)
+						g.AddEdgeCost(sourceVertex, destinationVertex, (&big.Int{}).Neg(score))
 					}
-
-					// Multiply the cost with -1 because it has to be negative going into the graph function
-					g.AddEdgeCost(sourceVertex, destinationVertex, (&big.Int{}).Neg(cost))
 				}
 
-				if flags&internalGraphWithOverAllocation != 0 {
+				if flags&internalGraphWithOverAllocation != 0 && !(flags&internalGraphWithoutLeafOverAllocation != 0 && walletId == leaf.Id) {
 					// This block augments the graph with an over-allocation node which overconsumption will flow
 					// through. This edge is purposefully made very expensive such that this path will only be chosen
 					// for a flow if there are no other ways of using up the charge.
@@ -1065,25 +1147,31 @@ func lInternalBuildGraph(b *internalBucket, now time.Time, leaf *internalWallet,
 					totalAllocated := lInternalWalletTotalAllocatedContributing(b, wallet)
 					activeQuota := lInternalWalletTotalQuotaContributing(b, wallet)
 
-					overAllocation := totalAllocated + wallet.LocalUsage - activeQuota
+					totalWithLocal, totalOverflow := checkedAccountingAdd(totalAllocated, wallet.LocalUsage)
+					overAllocation, subtractionOverflow := checkedAccountingSub(totalWithLocal, activeQuota)
+					if totalOverflow || subtractionOverflow {
+						log.Error("over-allocation arithmetic overflow in %s/%s for wallet %d", b.Category.Provider, b.Category.Name, wallet.Id)
+						continue
+					}
 					if overAllocation > 0 {
 						usageInNode := lInternalWalletTotalUsageInNode(b, wallet)
 						propagatedUsage := lInternalWalletTotalPropagatedUsage(b, wallet)
 
 						overAllocationUsed := usageInNode - propagatedUsage
-						if overAllocationUsed < 0 {
-							log.Warn("overAllocationUsed < 0: %v %v in lInternalBuildGraph(%v, %v, %v)", usageInNode, propagatedUsage, b.Category.Name, leaf.Id, flags)
-							overAllocationUsed = 0
+						if overAllocationUsed < 0 || overAllocationUsed > overAllocation {
+							log.Error("invalid over-allocation usage %d of %d in %s/%s for wallet %d", overAllocationUsed, overAllocation, b.Category.Provider, b.Category.Name, wallet.Id)
+							continue
 						}
+						available := overAllocation - overAllocationUsed
 
 						overAllocationNode := vertexToOverAllocationRoot(vertexIndex)
 
 						// Add edge between root and the over-allocation node
-						g.AddEdge(rootVertex, overAllocationNode, overAllocationUsed-overAllocationUsed, overAllocationUsed)
+						g.AddEdge(rootVertex, overAllocationNode, available, overAllocationUsed)
 						g.AddEdgeCost(rootVertex, overAllocationNode, internalGraphOverAllocationEdgeCost)
 
 						// Add edge between our wallet node and the over-allocation node
-						g.AddEdge(overAllocationNode, vertexIndex, overAllocationUsed-overAllocationUsed, overAllocationUsed)
+						g.AddEdge(overAllocationNode, vertexIndex, available, overAllocationUsed)
 						g.AddEdgeCost(overAllocationNode, vertexIndex, internalGraphOverAllocationEdgeCost)
 					}
 				}
@@ -1094,11 +1182,13 @@ func lInternalBuildGraph(b *internalBucket, now time.Time, leaf *internalWallet,
 	}
 }
 
-func lInternalReflowExcess(b *internalBucket, now time.Time, wallet *internalWallet) {
-	lInternalReflowExcessEx(b, now, wallet, map[AccWalletId]util.Empty{})
+func lInternalReflowExcess(b *internalBucket, now time.Time, wallet *internalWallet) map[AccWalletId]bool {
+	changed := map[AccWalletId]bool{}
+	lInternalReflowExcessEx(b, now, wallet, map[AccWalletId]util.Empty{}, changed)
+	return changed
 }
 
-func lInternalReflowExcessEx(b *internalBucket, now time.Time, wallet *internalWallet, handled map[AccWalletId]util.Empty) {
+func lInternalReflowExcessEx(b *internalBucket, now time.Time, wallet *internalWallet, handled map[AccWalletId]util.Empty, changed map[AccWalletId]bool) {
 	// Similar to the re-balance operation, except this function will only attempt to increase usage by looking at the
 	// local excess which is not being propagated.
 	//
@@ -1111,30 +1201,35 @@ func lInternalReflowExcessEx(b *internalBucket, now time.Time, wallet *internalW
 			handled[childId] = util.Empty{}
 
 			child := b.WalletsById[childId]
-			lInternalReflowExcessEx(b, now, child, handled)
+			lInternalReflowExcessEx(b, now, child, handled, changed)
 		}
 	}
 
-	if wallet.LocalUsage > 0 {
+	if lInternalWalletTotalUsageInNode(b, wallet) > 0 {
 		propagated := lInternalWalletTotalPropagatedUsage(b, wallet)
 		inNode := lInternalWalletTotalUsageInNode(b, wallet)
 		excess := inNode - propagated
 
 		if excess > 0 {
 			usable := lInternalMaxUsable(b, now, wallet)
-			toReport := min(usable, excess, wallet.LocalUsage)
+			toReport := min(usable, excess)
 			if toReport > 0 {
-				lInternalReportUsage(b, now, wallet, toReport)
+				_, updated := lInternalReportUsage(b, now, wallet, toReport)
+				for walletId := range updated {
+					changed[walletId] = true
+				}
 			}
 		}
 	}
 }
 
-func lInternalRebalance(b *internalBucket, now time.Time, wallet *internalWallet, deficit util.Option[int64]) {
-	lInternalRebalanceEx(b, now, wallet, deficit, map[AccWalletId]util.Empty{})
+func lInternalRebalance(b *internalBucket, now time.Time, wallet *internalWallet, deficit util.Option[int64]) map[AccWalletId]bool {
+	changed := map[AccWalletId]bool{}
+	lInternalRebalanceEx(b, now, wallet, deficit, map[AccWalletId]util.Empty{}, changed)
+	return changed
 }
 
-func lInternalRebalanceEx(b *internalBucket, now time.Time, wallet *internalWallet, deficit util.Option[int64], handled map[AccWalletId]util.Empty) {
+func lInternalRebalanceEx(b *internalBucket, now time.Time, wallet *internalWallet, deficit util.Option[int64], handled map[AccWalletId]util.Empty, changed map[AccWalletId]bool) {
 	// The main purpose of this function is to ensure that retired flows are eventually moved to an active flow. This
 	// operation is _only_ done for capacity-based product categories. For time-based products, this is not done (and
 	// must not be done). Instead, time-based product utilizes a different retirement mechanism which locks usage in
@@ -1144,9 +1239,15 @@ func lInternalRebalanceEx(b *internalBucket, now time.Time, wallet *internalWall
 	recharge := func(amount int64) {
 		if amount > 0 {
 			b.disableEvaluation = true
-			lInternalReportUsage(b, now, wallet, -amount)
+			_, updated := lInternalReportUsage(b, now, wallet, -amount)
 			b.disableEvaluation = false
-			lInternalReportUsage(b, now, wallet, amount)
+			for walletId := range updated {
+				changed[walletId] = true
+			}
+			_, updated = lInternalReportUsage(b, now, wallet, amount)
+			for walletId := range updated {
+				changed[walletId] = true
+			}
 		}
 	}
 
@@ -1175,7 +1276,7 @@ func lInternalRebalanceEx(b *internalBucket, now time.Time, wallet *internalWall
 				if !hasHandled {
 					handled[childId] = util.Empty{}
 					child := b.WalletsById[childId]
-					lInternalRebalanceEx(b, now, child, util.OptValue(min(usage, deficit.Value)), handled)
+					lInternalRebalanceEx(b, now, child, util.OptValue(min(usage, deficit.Value)), handled, changed)
 				}
 			}
 
@@ -1194,16 +1295,32 @@ func lInternalReevaluate(b *internalBucket, now time.Time, wallet *internalWalle
 
 	// NOTE(Dan): rebalance cannot be done unconditionally since this will also be triggered by a normal report
 	// which could lead to infinite recursion. The value should be true for all calls not coming from a usage report.
+	changed := map[AccWalletId]bool{wallet.Id: true}
 	if rebalance {
-		lInternalReflowExcess(b, now, wallet)
-		lInternalRebalance(b, now, wallet, util.OptNone[int64]())
+		for walletId := range lInternalReflowExcess(b, now, wallet) {
+			changed[walletId] = true
+		}
+		for walletId := range lInternalRebalance(b, now, wallet, util.OptNone[int64]()) {
+			changed[walletId] = true
+		}
 	}
+	lInternalReevaluateAffected(b, now, changed)
+}
 
+func lInternalReevaluateAffected(b *internalBucket, now time.Time, seeds map[AccWalletId]bool) {
 	visited := map[AccWalletId]util.Empty{}
-	queue := []*internalWallet{wallet}
+	queue := make([]*internalWallet, 0, len(seeds))
+	for walletId := range seeds {
+		if wallet := b.WalletsById[walletId]; wallet != nil {
+			queue = append(queue, wallet)
+		}
+	}
 	for len(queue) > 0 {
 		next := queue[0]
 		queue = queue[1:]
+		if _, alreadyVisited := visited[next.Id]; alreadyVisited {
+			continue
+		}
 
 		visited[next.Id] = util.Empty{}
 
@@ -1428,7 +1545,7 @@ func lInternalWalletTotalAllocatedContributing(b *internalBucket, w *internalWal
 
 		for allocId, _ := range childGroup.Allocations {
 			childAlloc := b.AllocationsById[allocId]
-			if childAlloc.Active && (retiredAllocationsContribute || !childAlloc.Retired) {
+			if childAlloc.Committed && childAlloc.Active && (retiredAllocationsContribute || !childAlloc.Retired) {
 				sum += childAlloc.Quota
 			}
 		}
@@ -1575,7 +1692,7 @@ func lInternalEarliestExpiration(b *internalBucket, g *internalGroup) time.Time 
 
 	for allocId, _ := range g.Allocations {
 		alloc := b.AllocationsById[allocId]
-		if alloc.Active && (first || alloc.End.Before(earliest)) {
+		if alloc.Committed && alloc.Active && !alloc.Retired && alloc.Quota > 0 && (first || alloc.End.Before(earliest)) {
 			first = false
 			earliest = alloc.End
 		}
@@ -1625,6 +1742,15 @@ func lInternalGroupTotalRetired(b *internalBucket, group *internalGroup) int64 {
 		sum += alloc.RetiredUsage
 	}
 	return sum
+}
+
+func lInternalGroupHasCommittedAllocation(b *internalBucket, group *internalGroup) bool {
+	for allocationId := range group.Allocations {
+		if allocation := b.AllocationsById[allocationId]; allocation != nil && allocation.Committed {
+			return true
+		}
+	}
+	return false
 }
 
 // Wallet read-only API
@@ -1704,6 +1830,9 @@ func lInternalWalletToApi(
 
 		for allocId, _ := range g.Allocations {
 			alloc := b.AllocationsById[allocId]
+			if !alloc.Committed {
+				continue
+			}
 			apiAllocs = append(apiAllocs, accapi.Allocation{
 				Id:        int64(allocId),
 				StartDate: fndapi.Timestamp(alloc.Start),
@@ -1773,6 +1902,9 @@ func lInternalWalletToApi(
 	}
 
 	for _, g := range groups {
+		if !lInternalGroupHasCommittedAllocation(b, g) {
+			continue
+		}
 		var parentWalletRef util.Option[accapi.ParentOrChildWallet]
 		if g.ParentWallet != internalGraphRoot {
 			pw := b.WalletsById[g.ParentWallet]
@@ -1807,6 +1939,9 @@ func lInternalWalletToApi(
 			childWallet := b.WalletsById[childId]
 			childOwner := accGlobals.OwnersById[childWallet.OwnedBy]
 			g := childWallet.AllocationsByParent[w.Id]
+			if !lInternalGroupHasCommittedAllocation(b, g) {
+				continue
+			}
 
 			wo := childOwner.WalletOwner()
 			child := accapi.ParentOrChildWallet{
@@ -1836,7 +1971,7 @@ func internalRetrieveWalletByAllocationId(
 	for _, bucket := range accGlobals.BucketsByCategory {
 		bucket.Mu.RLock()
 		locatedAllocation := bucket.AllocationsById[accAllocId(allocationId)]
-		if locatedAllocation != nil {
+		if locatedAllocation != nil && locatedAllocation.Committed {
 			walletId := locatedAllocation.BelongsTo
 			iWallet := bucket.WalletsById[walletId]
 			if iWallet != nil {
@@ -1916,12 +2051,21 @@ func internalRetrieveWallets(
 
 		w := b.WalletsById[wId]
 		groups := w.AllocationsByParent
-		shouldInclude := !filter.RequireActive && len(w.AllocationsByParent) > 0
+		shouldInclude := false
+		if !filter.RequireActive {
+			for _, group := range groups {
+				if lInternalGroupHasCommittedAllocation(b, group) {
+					shouldInclude = true
+					break
+				}
+			}
+		}
 		if filter.RequireActive {
 		anyActive:
 			for _, group := range groups {
 				for allocId, _ := range group.Allocations {
-					if b.AllocationsById[allocId].Active {
+					allocation := b.AllocationsById[allocId]
+					if allocation.Committed && !allocation.Retired && !now.Before(allocation.Start) && now.Before(allocation.End) {
 						shouldInclude = true
 						break anyActive
 					}
@@ -2175,6 +2319,7 @@ type internalGraphFlag int
 
 const (
 	internalGraphWithOverAllocation internalGraphFlag = 1 << iota
+	internalGraphWithoutLeafOverAllocation
 )
 
 const (

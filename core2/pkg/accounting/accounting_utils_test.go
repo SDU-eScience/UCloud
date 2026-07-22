@@ -55,12 +55,9 @@ func newEnv(t *testing.T, cat accapi.ProductCategory) *env {
 	accGlobals.TestingEnabled = true
 	close(providerWalletNotifications)
 	providerWalletNotifications = make(chan AccWalletId, 128)
+	notifications := providerWalletNotifications
 	go func() {
-		for {
-			_, ok := <-providerWalletNotifications
-			if !ok {
-				break
-			}
+		for range notifications {
 		}
 	}()
 	t.Helper()

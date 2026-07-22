@@ -124,6 +124,7 @@ type internalUsageOverTimeAbsoluteDataPoint struct {
 	Timestamp             time.Time
 	Usage                 int64
 	UtilizationPercent100 float64
+	Quota                 util.Option[int64]
 }
 
 func (r *internalUsageOverTimeAbsoluteDataPoint) ToApi() accapi.UsageReportAbsoluteDataPoint {
@@ -409,6 +410,9 @@ func initUsageReports() {
 
 							for i := range prev.UsageOverTime.Absolute {
 								rescaleI64(&prev.UsageOverTime.Absolute[i].Usage)
+								if prev.UsageOverTime.Absolute[i].Quota.Present {
+									rescaleI64(&prev.UsageOverTime.Absolute[i].Quota.Value)
+								}
 							}
 
 							report.Reports = append(report.Reports, prev)
@@ -476,11 +480,18 @@ func usageRetrieveHistoricReports(from time.Time, until time.Time, wallet AccWal
 		g.Mu.RLock()
 		currentReport, ok := g.Reports[wallet]
 		if ok {
-			result = append(result, *currentReport)
+			result = append(result, cloneInternalUsageReport(currentReport))
 		}
 		g.Mu.RUnlock()
 	}
 
+	return result
+}
+
+func cloneInternalUsageReport(report *internalUsageReport) internalUsageReport {
+	result := *report
+	result.UsageOverTime.Delta = slices.Clone(report.UsageOverTime.Delta)
+	result.UsageOverTime.Absolute = slices.Clone(report.UsageOverTime.Absolute)
 	return result
 }
 
@@ -532,7 +543,9 @@ func usageCollapseReports(reports []internalUsageReport) internalUsageReport {
 
 		for _, item := range report.UsageOverTime.Absolute {
 			absoluteUseByTimestamp[item.Timestamp] = absoluteUseByTimestamp[item.Timestamp] + item.Usage
-			if item.UtilizationPercent100 != 0 {
+			if item.Quota.Present {
+				absoluteQuotaByTimestamp[item.Timestamp] += item.Quota.Value
+			} else if item.UtilizationPercent100 != 0 {
 				absoluteQuotaByTimestamp[item.Timestamp] = absoluteQuotaByTimestamp[item.Timestamp] +
 					int64((float64(item.Usage)/item.UtilizationPercent100)*100.0)
 			}
@@ -551,6 +564,7 @@ func usageCollapseReports(reports []internalUsageReport) internalUsageReport {
 			Timestamp:             ts,
 			Usage:                 use,
 			UtilizationPercent100: utilization100,
+			Quota:                 util.OptValue(quota),
 		})
 	}
 
@@ -1147,6 +1161,7 @@ func lUsageSampleWallet(now time.Time, cmp internalSnapshotComparison, b *db.Bat
 				Timestamp:             now,
 				Usage:                 currWallet.TotalUsage,
 				UtilizationPercent100: utilizationPercent100,
+				Quota:                 util.OptValue(currWallet.Quota),
 			})
 
 			report.Dirty = true

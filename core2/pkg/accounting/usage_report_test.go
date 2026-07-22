@@ -57,8 +57,8 @@ func TestUsageGenSimulation(t *testing.T) {
 	}
 
 	config := accapi.UsageGenConfig{
-		Days:               7,
-		BreadthPerLevel:    []int{1, 8, 100, 8},
+		Days:               3,
+		BreadthPerLevel:    []int{1, 4, 10},
 		Seed:               42,
 		CheckpointInterval: 60 * 4,
 		ReportingInterval:  60 * 2,

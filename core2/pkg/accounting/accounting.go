@@ -163,27 +163,7 @@ func initAccounting() {
 	})
 
 	accapi.FindAllProviders.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[accapi.FindAllProvidersRequest]) (fndapi.BulkResponse[accapi.FindAllProvidersResponse], *util.HttpError) {
-		var result []accapi.FindAllProvidersResponse
-
-		categories := ProductCategories()
-		for _, reqItem := range request.Items {
-			providers := map[string]util.Empty{}
-
-			for _, cat := range categories {
-				if cat.FreeToUse || reqItem.IncludeFreeToUse.GetOrDefault(false) {
-					if !reqItem.FilterProductType.Present || reqItem.FilterProductType.Value == cat.ProductType {
-						providers[cat.Provider] = util.Empty{}
-					}
-				}
-			}
-
-			var resp accapi.FindAllProvidersResponse
-			for provider := range providers {
-				resp.Providers = append(resp.Providers, provider)
-			}
-		}
-
-		return fndapi.BulkResponse[accapi.FindAllProvidersResponse]{Responses: result}, nil
+		return findAllProviders(request), nil
 	})
 
 	accapi.WalletsAdminDebug.Handler(func(info rpc.RequestInfo, request accapi.WalletDebugRequest) (accapi.WalletDebugResponse, *util.HttpError) {
@@ -193,6 +173,28 @@ func initAccounting() {
 			StateDump:    json.RawMessage("{}"),
 		}, nil
 	})
+}
+
+func findAllProviders(request fndapi.BulkRequest[accapi.FindAllProvidersRequest]) fndapi.BulkResponse[accapi.FindAllProvidersResponse] {
+	result := make([]accapi.FindAllProvidersResponse, 0, len(request.Items))
+	for _, reqItem := range request.Items {
+		providers := map[string]util.Empty{}
+		for _, cat := range ProductCategories() {
+			if !cat.FreeToUse || reqItem.IncludeFreeToUse.GetOrDefault(false) {
+				if !reqItem.FilterProductType.Present || reqItem.FilterProductType.Value == cat.ProductType {
+					providers[cat.Provider] = util.Empty{}
+				}
+			}
+		}
+
+		var resp accapi.FindAllProvidersResponse
+		for provider := range providers {
+			resp.Providers = append(resp.Providers, provider)
+		}
+		slices.Sort(resp.Providers)
+		result = append(result, resp)
+	}
+	return fndapi.BulkResponse[accapi.FindAllProvidersResponse]{Responses: result}
 }
 
 func RootAllocate(actor rpc.Actor, request accapi.RootAllocateRequest) (string, *util.HttpError) {
@@ -505,6 +507,9 @@ func accountingLoad() {
 		)
 
 		for _, row := range walletRows {
+			if int64(row.Id) > accGlobals.WalletIdAcc.Load() {
+				accGlobals.WalletIdAcc.Store(int64(row.Id))
+			}
 			category, err := ProductCategoryRetrieve(rpc.ActorSystem, row.CatName, row.CatProvider)
 			if err != nil {
 				log.Warn("Could not load wallet with id=%v in category %v/%v", row.Id, row.CatName, row.CatProvider)
@@ -524,6 +529,9 @@ func accountingLoad() {
 				LastSignificantUpdate: row.LastSignificantUpdateAt,
 			}
 
+			if existing := b.WalletsByOwner[wallet.OwnedBy]; existing != nil {
+				panic(fmt.Sprintf("duplicate accounting wallets %d and %d for owner %d in %s/%s", existing.Id, wallet.Id, wallet.OwnedBy, b.Category.Provider, b.Category.Name))
+			}
 			b.WalletsById[wallet.Id] = wallet
 			b.WalletsByOwner[wallet.OwnedBy] = wallet
 
@@ -531,9 +539,6 @@ func accountingLoad() {
 				b.SignificantUpdateAt = wallet.LastSignificantUpdate
 			}
 
-			if int64(row.Id) > accGlobals.WalletIdAcc.Load() {
-				accGlobals.WalletIdAcc.Store(int64(row.Id))
-			}
 		}
 
 		loadTimes.Wallets = timer.Mark()
@@ -567,6 +572,9 @@ func accountingLoad() {
 			_, associatedWallet, ok := internalWalletById(group.AssociatedWallet)
 			_, parentWallet, hasParent := internalWalletById(group.ParentWallet)
 			if ok {
+				if existing := associatedWallet.AllocationsByParent[group.ParentWallet]; existing != nil {
+					panic(fmt.Sprintf("duplicate accounting allocation groups %d and %d for wallet %d and parent %d", existing.Id, group.Id, group.AssociatedWallet, group.ParentWallet))
+				}
 				associatedWallet.AllocationsByParent[group.ParentWallet] = group
 				if hasParent {
 					parentWallet.ChildrenUsage[group.AssociatedWallet] = group.TreeUsage
@@ -694,6 +702,25 @@ func accountingProcessTasksNow(now time.Time, filter func(b *internalBucket) boo
 		for _, handler := range onPersistHandlers {
 			persistHandlersByGrant[handler.GrantId] = handler
 		}
+		handlersToTrigger := map[accGrantId]internalOnPersistHandler{}
+		for _, b := range buckets {
+			for _, allocation := range b.AllocationsById {
+				if allocation.Committed || !allocation.GrantedIn.Present {
+					continue
+				}
+				handler, ok := persistHandlersByGrant[allocation.GrantedIn.Value]
+				if !ok {
+					continue
+				}
+				allocation.Committed = true
+				allocation.Dirty = true
+				wallet := b.WalletsById[allocation.BelongsTo]
+				wallet.AllocationsByParent[allocation.Parent].Dirty = true
+				lInternalAttemptActivation(b, now, allocation, false)
+				lInternalAttemptRetirement(b, now, allocation, false)
+				handlersToTrigger[allocation.GrantedIn.Value] = handler
+			}
+		}
 
 		ownerRequest := struct {
 			Id        []int64
@@ -735,8 +762,6 @@ func accountingProcessTasksNow(now time.Time, filter func(b *internalBucket) boo
 			TreeUsage []int64
 		}{}
 
-		handlersToTrigger := map[accGrantId]internalOnPersistHandler{}
-
 		for _, owner := range accGlobals.OwnersById {
 			if owner.Dirty {
 				ownerRequest.Id = append(ownerRequest.Id, int64(owner.Id))
@@ -767,7 +792,7 @@ func accountingProcessTasksNow(now time.Time, filter func(b *internalBucket) boo
 				}
 
 				for _, ag := range wallet.AllocationsByParent {
-					if ag.Dirty {
+					if ag.Dirty && lInternalGroupHasCommittedAllocation(b, ag) {
 						groupRequests.Id = append(groupRequests.Id, int64(ag.Id))
 						groupRequests.Parent = append(groupRequests.Parent, int64(ag.ParentWallet))
 						groupRequests.Wallet = append(groupRequests.Wallet, int64(ag.AssociatedWallet))
@@ -779,14 +804,6 @@ func accountingProcessTasksNow(now time.Time, filter func(b *internalBucket) boo
 			}
 
 			for _, alloc := range b.AllocationsById {
-				if !alloc.Committed && alloc.GrantedIn.Present {
-					handler, ok := persistHandlersByGrant[alloc.GrantedIn.Value]
-					if ok {
-						handlersToTrigger[alloc.GrantedIn.Value] = handler
-						alloc.Committed = true
-					}
-				}
-
 				if alloc.Dirty && alloc.Committed {
 					allocationRequests.Id = append(allocationRequests.Id, int64(alloc.Id))
 					allocationRequests.AllocationGroup = append(allocationRequests.AllocationGroup, int64(alloc.Group))
@@ -885,6 +902,9 @@ func accountingProcessTasksNow(now time.Time, filter func(b *internalBucket) boo
 								local_usage = excluded.local_usage,
 								was_locked = excluded.was_locked,
 								last_significant_update_at = excluded.last_significant_update_at
+							where
+								wallets_v2.wallet_owner = excluded.wallet_owner
+								and wallets_v2.product_category = excluded.product_category
 						`,
 					db.Params{
 						"id":                         walletRequest.Id,
@@ -923,7 +943,10 @@ func accountingProcessTasksNow(now time.Time, filter func(b *internalBucket) boo
 							from
 								data d
 							on conflict (id) do update set
-								tree_usage = excluded.tree_usage						                               
+								tree_usage = excluded.tree_usage
+							where
+								allocation_groups.associated_wallet = excluded.associated_wallet
+								and allocation_groups.parent_wallet is not distinct from excluded.parent_wallet
 						`,
 					db.Params{
 						"id":         groupRequests.Id,
@@ -977,6 +1000,7 @@ func accountingProcessTasksNow(now time.Time, filter func(b *internalBucket) boo
 								retired = excluded.retired,
 								retired_usage = excluded.retired_usage,
 								retired_quota = excluded.retired_quota
+							where wallet_allocations_v2.associated_allocation_group = excluded.associated_allocation_group
 						`,
 					db.Params{
 						"id":               allocationRequests.Id,

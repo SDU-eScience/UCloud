@@ -339,7 +339,7 @@ func TestCapacityOverConsumptionAndReturnBelowLimitMultipleLevels(t *testing.T) 
 			"P1":    {PUsage: 21, Locked: false},
 			"P2":    {PUsage: 1, Locked: false},
 			"P3":    {PUsage: 20, Locked: true},
-			"P3Sub": {PUsage: 19, Locked: true}, // Only sends 19 since P3 is using 1 (Over allocation)
+			"P3Sub": {PUsage: 20, Locked: true},
 		})
 
 		e.ReportAbs(10, "P3Sub", 4)
@@ -440,14 +440,14 @@ func TestCapacityParentRetireAfterChildOverspend(t *testing.T) {
 	e.Snapshot("retire(p1)", "p2", false)
 	e.ExpectMany(map[string]want{
 		"p1": {PUsage: 0, Locked: true},
-		"p2": {PUsage: 0, Locked: true},
+		"p2": {PUsage: 500, Locked: true},
 	})
 
 	e.ReportAbs(0, "p2", 200)
 	e.Snapshot("abs(p2, 200)", "p2", false)
 	e.ExpectMany(map[string]want{
 		"p1": {PUsage: 0, Locked: true},
-		"p2": {PUsage: 0, Locked: true},
+		"p2": {PUsage: 200, Locked: true},
 	})
 
 	e.Allocate(a{

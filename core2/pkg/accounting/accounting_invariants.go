@@ -239,7 +239,7 @@ func lValidateAccountingWallet(b *internalBucket, now time.Time, wallet *interna
 			if len(allocationErrors) > 0 {
 				canCheckLock = false
 			}
-			if allocation.Active && (!allocation.Retired || !b.IsCapacityBased()) {
+			if allocation.Committed && allocation.Active && (!allocation.Retired || !b.IsCapacityBased()) {
 				contributing, overflow = checkedAccountingAdd(contributing, allocation.Quota)
 				if overflow {
 					errs = append(errs, fmt.Errorf("group %d contributing quota overflows int64", group.Id))
@@ -270,6 +270,124 @@ func lValidateAccountingWallet(b *internalBucket, now time.Time, wallet *interna
 		}
 	}
 	return errs
+}
+
+// lValidateAccountingGraphState checks the operation-local ancestor graph without recursively calculating MaxUsable.
+// The caller must hold the bucket lock.
+func lValidateAccountingGraphState(b *internalBucket, leaf *internalWallet) error {
+	visited := map[AccWalletId]bool{internalGraphRoot: true}
+	queue := []*internalWallet{leaf}
+	var errs []error
+
+	for len(queue) > 0 {
+		wallet := queue[0]
+		queue = queue[1:]
+		if wallet == nil || visited[wallet.Id] {
+			continue
+		}
+		visited[wallet.Id] = true
+
+		inNode := wallet.LocalUsage
+		if inNode < 0 {
+			errs = append(errs, fmt.Errorf("wallet %d has negative local usage %d", wallet.Id, inNode))
+		}
+		for childId, childUsage := range wallet.ChildrenUsage {
+			if childUsage < 0 {
+				errs = append(errs, fmt.Errorf("wallet %d has negative child usage %d for child %d", wallet.Id, childUsage, childId))
+			}
+			var overflow bool
+			inNode, overflow = checkedAccountingAdd(inNode, childUsage)
+			if overflow {
+				errs = append(errs, fmt.Errorf("wallet %d usage in node overflows int64", wallet.Id))
+			}
+		}
+
+		propagated := int64(0)
+		totalContributing := int64(0)
+		for parentId, group := range wallet.AllocationsByParent {
+			if group == nil {
+				errs = append(errs, fmt.Errorf("wallet %d has nil allocation group for parent %d", wallet.Id, parentId))
+				continue
+			}
+			contributing := int64(0)
+			for allocationId := range group.Allocations {
+				allocation := b.AllocationsById[allocationId]
+				if allocation == nil {
+					errs = append(errs, fmt.Errorf("group %d references missing allocation %d", group.Id, allocationId))
+					continue
+				}
+				if allocation.Committed && allocation.Active && (!allocation.Retired || !b.IsCapacityBased()) {
+					var overflow bool
+					contributing, overflow = checkedAccountingAdd(contributing, allocation.Quota)
+					if overflow {
+						errs = append(errs, fmt.Errorf("group %d contributing quota overflows int64", group.Id))
+					}
+				}
+			}
+			if group.TreeUsage < 0 || group.TreeUsage > contributing {
+				errs = append(errs, fmt.Errorf("group %d tree usage %d is outside contributing quota [0,%d]", group.Id, group.TreeUsage, contributing))
+			}
+			var quotaOverflow bool
+			totalContributing, quotaOverflow = checkedAccountingAdd(totalContributing, contributing)
+			if quotaOverflow {
+				errs = append(errs, fmt.Errorf("wallet %d contributing quota overflows int64", wallet.Id))
+			}
+			var overflow bool
+			propagated, overflow = checkedAccountingAdd(propagated, group.TreeUsage)
+			if overflow {
+				errs = append(errs, fmt.Errorf("wallet %d propagated usage overflows int64", wallet.Id))
+			}
+
+			if parentId != internalGraphRoot {
+				parent := b.WalletsById[parentId]
+				if parent == nil {
+					errs = append(errs, fmt.Errorf("group %d references missing parent %d", group.Id, parentId))
+				} else {
+					if mirrored, ok := parent.ChildrenUsage[wallet.Id]; !ok || mirrored != group.TreeUsage {
+						errs = append(errs, fmt.Errorf("group %d usage %d is not mirrored by parent %d", group.Id, group.TreeUsage, parentId))
+					}
+					queue = append(queue, parent)
+				}
+			}
+		}
+		if propagated > inNode {
+			errs = append(errs, fmt.Errorf("wallet %d propagates %d from only %d usage", wallet.Id, propagated, inNode))
+		}
+
+		totalAllocated := int64(0)
+		for childId := range wallet.ChildrenUsage {
+			child := b.WalletsById[childId]
+			if child == nil {
+				continue
+			}
+			group := child.AllocationsByParent[wallet.Id]
+			if group == nil {
+				continue
+			}
+			for allocationId := range group.Allocations {
+				allocation := b.AllocationsById[allocationId]
+				if allocation != nil && allocation.Committed && allocation.Active && (!allocation.Retired || !b.IsCapacityBased()) {
+					var overflow bool
+					totalAllocated, overflow = checkedAccountingAdd(totalAllocated, allocation.Quota)
+					if overflow {
+						errs = append(errs, fmt.Errorf("wallet %d allocated quota overflows int64", wallet.Id))
+					}
+				}
+			}
+		}
+		totalWithLocal, totalOverflow := checkedAccountingAdd(totalAllocated, wallet.LocalUsage)
+		overAllocation, subtractionOverflow := checkedAccountingSub(totalWithLocal, totalContributing)
+		if totalOverflow || subtractionOverflow {
+			errs = append(errs, fmt.Errorf("wallet %d over-allocation arithmetic overflows int64", wallet.Id))
+		} else if overAllocation > 0 {
+			overAllocationUsed := inNode - propagated
+			if overAllocationUsed < 0 || overAllocationUsed > overAllocation {
+				errs = append(errs, fmt.Errorf("wallet %d uses %d of over-allocation capacity %d", wallet.Id, overAllocationUsed, overAllocation))
+			}
+		}
+	}
+
+	return errors.Join(errs...)
 }
 
 func lValidateAccountingAllocation(b *internalBucket, now time.Time, wallet *internalWallet, group *internalGroup, allocation *internalAllocation) []error {
@@ -364,6 +482,13 @@ func checkedAccountingAdd(a, b int64) (int64, bool) {
 		return 0, true
 	}
 	return a + b, false
+}
+
+func checkedAccountingSub(a, b int64) (int64, bool) {
+	if (b > 0 && a < math.MinInt64+b) || (b < 0 && a > math.MaxInt64+b) {
+		return 0, true
+	}
+	return a - b, false
 }
 
 func lAccountingMaxUsableSafely(b *internalBucket, now time.Time, wallet *internalWallet) (result int64, err error) {
