@@ -272,6 +272,7 @@ func TestOverConsumptionFollowedByAllocation(t *testing.T) {
 	})
 }
 
+// TODO fails
 func TestCapacityOverConsumptionAndReturnBelowLimit(t *testing.T) {
 	runTable(t, []accapi.ProductCategory{timeCategory, capacityCategory}, func(e *env) {
 		e.AllocateEx(0, 0, 10, 100, "P1", "")
@@ -297,6 +298,7 @@ func TestCapacityOverConsumptionAndReturnBelowLimit(t *testing.T) {
 	})
 }
 
+// TODO fails
 func TestCapacityOverConsumptionAndReturnBelowLimitMultipleLevels(t *testing.T) {
 	runTable(t, []accapi.ProductCategory{timeCategory, capacityCategory}, func(e *env) {
 		e.AllocateEx(0, 0, 1000, 1000, "P1", "")
@@ -333,6 +335,7 @@ func TestCapacityOverConsumptionAndReturnBelowLimitMultipleLevels(t *testing.T) 
 	})
 }
 
+// TODO fails
 func TestCapacityOverConsumptionAndReturnBelowLimitMultipleAllocationGroups(t *testing.T) {
 	runTable(t, []accapi.ProductCategory{timeCategory, capacityCategory}, func(e *env) {
 		e.AllocateEx(0, 0, 1000, 1000, "P1", "")

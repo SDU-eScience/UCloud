@@ -520,7 +520,7 @@ func TestResourceRemovesDeletedProjectGroupFromAcl(t *testing.T) {
 
 	resource := resourceGetBucket(testResource, id).Resources[id]
 	resourceRemoveGroupFromAcls("deleted-group")
-	assert.Equal(t, 2, len(resource.Acl))
+	assert.Equal(t, 1, len(resource.Acl))
 }
 
 func TestResourceBrowseFilterLabels(t *testing.T) {

@@ -197,7 +197,7 @@ func usageGenReal(actor rpc.Actor, request accapi.UsageGenConfig) *util.HttpErro
 				return
 			}
 
-			internalCommitAllocation(b, allocId)
+			internalCommitAllocation(b, nowTime, allocId)
 
 			maxUsable, ok := internalMaxUsable(nowTime, recipientWallet)
 			if ok && maxUsable == 0 {

@@ -55,8 +55,8 @@ import (
 
 // Core types and globals
 // ---------------------------------------------------------------------------------------------------------------------
-// This section contain the core-types as already introduced along with the global data-structure. From the global
-// data-structure (accGlobals), it is possible to reach all other parts of the system.
+// This section contains the core types and global data structure. From accGlobals, it is possible to reach all other
+// parts of the accounting system.
 //
 // References in the internal accounting system are generally done through numeric IDs. These IDs are all integers, but
 // are separate Go types to reduce chance of accidental misuse. New numeric IDs are generated through the XXXIdAcc
@@ -73,6 +73,35 @@ import (
 // (Note that all other data structures are locked by the bucket.)
 // ---------------------------------------------------------------------------------------------------------------------
 
+// Accounting state has two distinct kinds of usage which must not be conflated:
+//
+//   - LocalUsage is the usage reported directly for one wallet. It is the external accounting fact and is not changed
+//     by routing, allocation activation, or allocation retirement.
+//   - TreeUsage and ChildrenUsage describe how much of that usage is currently routed through allocation groups. They
+//     are internal flow bookkeeping and may change while LocalUsage remains unchanged.
+//
+// For a wallet in a valid stable state:
+//
+//   usage available at the node = LocalUsage + sum(ChildrenUsage)
+//   propagated usage            = sum(TreeUsage for the wallet's parent groups)
+//   excess usage                = usage available at the node - propagated usage
+//
+// Excess is deliberately not propagated to a parent which has not allocated capacity for it. It must remain visible
+// through LocalUsage, lock state, and reporting, and must be routed again if suitable quota later becomes available.
+// The Core does not store excess as a separate field; it is derived from the values above.
+//
+// Capacity and non-capacity categories differ at retirement:
+//
+//   - Capacity usage is a current gauge. Retiring an allocation removes its quota from the graph. Current usage stays
+//     in LocalUsage and must move to another active allocation or become excess. Retired capacity quota must not keep
+//     funding current flow.
+//   - Non-capacity usage is lifetime consumption. Retirement preserves the portion committed to the allocation by
+//     replacing its operational Quota with RetiredUsage. The retained quota supports the retained historic TreeUsage;
+//     a later allocation adds new entitlement and does not reset LocalUsage.
+//
+// Allocation validity uses [Start, End): active at Start and no longer current at End. Active is historical state; the
+// current contributing predicate also considers Retired and the category type. See the individual field comments below.
+
 type accGrantId int
 type accGroupId int
 type AccWalletId int
@@ -80,22 +109,34 @@ type accOwnerId int
 type accAllocId int
 
 var accGlobals struct {
+	// Mu protects every non-atomic field in accGlobals. Locks must be acquired in the order globals, bucket, scope.
 	Mu sync.RWMutex
 
+	// TestingEnabled selects testing behavior for background work and invariant checks. Configure it before concurrent
+	// accounting work starts.
 	TestingEnabled bool
 
+	// OwnersByReference and OwnersById are two indexes of the same owner objects. Reference is the persisted username or
+	// project ID. The legacy model does not retain owner type separately and currently infers it from Reference.
 	OwnersByReference map[string]*internalOwner
 	OwnersById        map[accOwnerId]*internalOwner
 
-	Usage             map[string]*scopedUsage // NOTE(Dan): quite annoying that this has to be global
+	// Usage contains absolute-report baselines for individual scopes. It is global because its legacy persisted key is
+	// owner ID plus scope, rather than being stored in the category bucket. See scopedUsage for important limitations.
+	Usage map[string]*scopedUsage
+
+	// BucketsByCategory contains one independent wallet graph per provider/product-category pair.
 	BucketsByCategory map[accapi.ProductCategoryIdV2]*internalBucket
 
+	// OnPersistHandlers ties grant synchronization callbacks to the persistence transaction which commits allocations.
 	OnPersistHandlers []internalOnPersistHandler
 
-	OwnerIdAcc  atomic.Int64 // does not require mutex
-	WalletIdAcc atomic.Int64 // does not require mutex
-	GroupIdAcc  atomic.Int64 // does not require mutex
-	AllocIdAcc  atomic.Int64 // does not require mutex
+	// These are process-wide high-water marks. IDs are global, not bucket-local, and must never be reused. Atomics are
+	// used so allocating an ID does not require accGlobals.Mu.
+	OwnerIdAcc  atomic.Int64
+	WalletIdAcc atomic.Int64
+	GroupIdAcc  atomic.Int64
+	AllocIdAcc  atomic.Int64
 }
 
 type internalOwner struct {
@@ -114,15 +155,22 @@ func (o *internalOwner) WalletOwner() accapi.WalletOwner {
 
 type internalBucket struct {
 	Mu       sync.RWMutex
-	Category accapi.ProductCategory // does not require any mutex
+	Category accapi.ProductCategory
 
+	// SignificantUpdateAt is the newest LastSignificantUpdate among wallets in this bucket. It is an index used to skip
+	// buckets during provider-notification scans; it is not updated for every internal flow or dirty-state change.
 	SignificantUpdateAt time.Time
 
+	// WalletsById and WalletsByOwner are two indexes of the same wallet objects. A bucket contains at most one wallet for
+	// each owner, and a wallet ID must occur in only one bucket.
 	WalletsById    map[AccWalletId]*internalWallet
 	WalletsByOwner map[accOwnerId]*internalWallet
 
+	// AllocationsById owns every allocation referenced by groups in this bucket. Allocation IDs are process-wide.
 	AllocationsById map[accAllocId]*internalAllocation
 
+	// disableEvaluation is a recursion guard used while rebalance temporarily reverses and reapplies usage. It is only
+	// valid while Mu is held and must be restored before an operation completes.
 	disableEvaluation bool
 }
 
@@ -143,13 +191,28 @@ type internalWallet struct {
 	Id      AccWalletId
 	OwnedBy accOwnerId
 
+	// LocalUsage is usage reported directly for this owner and category. It excludes usage received from children and is
+	// independent of how usage is routed to parents. For capacity categories it is a current gauge and may decrease. For
+	// non-capacity categories it is lifetime consumption and should only increase without an explicit correction.
 	LocalUsage int64
 
+	// AllocationsByParent contains this wallet's incoming quota, grouped by funding parent. The key is a real parent
+	// wallet ID or internalGraphRoot for root allocations. All allocations from one parent share one internalGroup.
 	AllocationsByParent map[AccWalletId]*internalGroup
-	ChildrenUsage       map[AccWalletId]int64
 
-	Dirty                 bool
-	WasLocked             bool
+	// ChildrenUsage is both the reverse child index and the flow received from each child. For child C, this value must
+	// equal C.AllocationsByParent[this wallet].TreeUsage. A zero entry is still meaningful because it records topology.
+	ChildrenUsage map[AccWalletId]int64
+
+	// Dirty means LocalUsage, WasLocked, or other persisted wallet state must be written in the next persistence batch.
+	Dirty bool
+
+	// WasLocked caches whether the wallet had no additional usable quota after the latest completed accounting operation.
+	// In stable state it is equivalent to MaxUsable <= 0. It drives externally visible state-change notifications.
+	WasLocked bool
+
+	// LastSignificantUpdate is the last externally relevant wallet transition, such as lock state or allocation changes.
+	// Rebalancing or reevaluating a wallet does not by itself make the update significant.
 	LastSignificantUpdate time.Time
 }
 
@@ -158,10 +221,16 @@ type internalGroup struct {
 	AssociatedWallet AccWalletId
 	ParentWallet     AccWalletId
 
+	// TreeUsage is the recipient's usage currently charged through this parent. It is the reverse residual capacity of
+	// the group's graph edge; contributing quota minus TreeUsage is its forward residual capacity. The parent mirror is
+	// ParentWallet.ChildrenUsage[AssociatedWallet]. Unsupported usage belongs in derived excess, not stable TreeUsage.
 	TreeUsage int64
 
-	Allocations map[accAllocId]util.Empty // NOTE(Dan): This used to set if the allocation was active (now on allocation instead)
+	// Allocations is membership only and includes future, active, and retired allocations. Lifecycle state is stored on
+	// each internalAllocation; the map value intentionally carries no active flag.
+	Allocations map[accAllocId]util.Empty
 
+	// Dirty means group endpoints or TreeUsage must be included in the next persistence batch.
 	Dirty bool
 }
 
@@ -171,27 +240,45 @@ type internalAllocation struct {
 	Parent    AccWalletId
 	Group     accGroupId
 
+	// GrantedIn links grant-awarded allocations to the logical grant commit. Root/manual allocations have no grant ID.
 	GrantedIn util.Option[accGrantId]
 
+	// Quota is the amount this allocation contributes while current. Capacity retirement leaves the original value here
+	// but excludes the allocation from contributing quota. Non-capacity retirement replaces it with RetiredUsage so the
+	// allocation retains exactly enough operational quota to support its committed historic flow.
 	Quota int64
 
+	// Start and End define the allocation's [Start, End) validity interval.
 	Start time.Time
 	End   time.Time
 
-	Retired      bool
+	// Retired records that the end transition has run. A retired allocation is never currently available for new usage.
+	Retired bool
+
+	// RetiredUsage is the portion of group flow attributed to this allocation when it retired. For non-capacity products
+	// it remains committed lifetime usage and becomes the retained operational Quota. For capacity products it is
+	// historical metadata only and must not continue funding current usage.
 	RetiredUsage int64
+
+	// RetiredQuota preserves the allocation's quota immediately before retirement for history and reporting. It is not
+	// contributing quota.
 	RetiredQuota int64
 
-	// NOTE(Dan): this used to be set in the group. This value remains true after activation and is not set to
-	// false during retirement.
-	Active    bool
-	Dirty     bool
+	// Active means activation has happened at least once. It is historical and intentionally remains true after
+	// retirement. Current availability is Active && !Retired. Category-specific contributing rules additionally decide
+	// whether retired non-capacity quota supports existing flow.
+	Active bool
+
+	// Dirty means allocation state must be considered by the next persistence batch.
+	Dirty bool
+
+	// Committed controls logical visibility of a grant allocation. Uncommitted grant allocations must not become usable
+	// or independently persistable before the grant synchronization marker is committed. Loaded allocations are committed.
 	Committed bool
 }
 
 type scopedUsage struct {
-	Mu sync.RWMutex
-
+	Mu    sync.RWMutex
 	Key   string
 	Usage int64
 	Dirty bool
@@ -250,8 +337,46 @@ func internalReportUsage(now time.Time, request accapi.ReportUsageRequest) (bool
 	}
 
 	w := lInternalWalletByOwner(b, now, owner.Id)
+	var visitedWallets map[AccWalletId]bool
+	var delta int64
+	var reportInvariantError error
+	localUsageBefore := w.LocalUsage
+	scopeUsageBefore := int64(0)
+	if scope != nil {
+		scopeUsageBefore = scope.Usage
+	}
+	defer func() {
+		var invariantErrors []error
+		if reportInvariantError != nil {
+			invariantErrors = append(invariantErrors, reportInvariantError)
+		}
+		if !request.IsDeltaCharge {
+			absoluteUsage := w.LocalUsage
+			if scope != nil {
+				absoluteUsage = scope.Usage
+			}
+			if absoluteUsage != request.Usage {
+				invariantErrors = append(invariantErrors, fmt.Errorf("absolute usage report requested %d but applicable usage is %d", request.Usage, absoluteUsage))
+			}
+		}
+		expectedLocalUsage, overflow := checkedAccountingAdd(localUsageBefore, delta)
+		if overflow {
+			invariantErrors = append(invariantErrors, fmt.Errorf("accepted usage delta %d overflows wallet %d local usage %d", delta, w.Id, localUsageBefore))
+		} else if w.LocalUsage != expectedLocalUsage {
+			invariantErrors = append(invariantErrors, fmt.Errorf("wallet %d local usage changed from %d to %d for accepted delta %d", w.Id, localUsageBefore, w.LocalUsage, delta))
+		}
+		if scope != nil {
+			expectedScopeUsage, scopeOverflow := checkedAccountingAdd(scopeUsageBefore, delta)
+			if scopeOverflow {
+				invariantErrors = append(invariantErrors, fmt.Errorf("accepted usage delta %d overflows scoped usage %q value %d", delta, scope.Key, scopeUsageBefore))
+			} else if scope.Usage != expectedScopeUsage {
+				invariantErrors = append(invariantErrors, fmt.Errorf("scoped usage %q changed from %d to %d for accepted delta %d", scope.Key, scopeUsageBefore, scope.Usage, delta))
+			}
+		}
+		lCheckAccountingOperation("report usage", b, now, visitedWallets, scope, invariantErrors...)
+	}()
 
-	var currentUsage, delta int64
+	var currentUsage int64
 	if scope == nil {
 		currentUsage = w.LocalUsage
 	} else {
@@ -262,6 +387,9 @@ func internalReportUsage(now time.Time, request accapi.ReportUsageRequest) (bool
 		delta = request.Usage
 	} else {
 		delta = request.Usage - currentUsage
+	}
+	if !b.IsCapacityBased() && delta < 0 {
+		reportInvariantError = fmt.Errorf("non-capacity usage decreased from %d by %d", currentUsage, delta)
 	}
 
 	if scope != nil {
@@ -281,7 +409,7 @@ func internalReportUsage(now time.Time, request accapi.ReportUsageRequest) (bool
 		}
 	}
 
-	_, visitedWallets := lInternalReportUsage(b, now, w, deltaToReport)
+	_, visitedWallets = lInternalReportUsage(b, now, w, deltaToReport)
 	w.LocalUsage += delta
 	w.Dirty = true
 
@@ -370,12 +498,18 @@ func internalAllocateNoCommit(
 		}
 
 		lInternalAttemptActivation(b, now, allocation, false)
+		lInternalAttemptRetirement(b, now, allocation, false)
+		lCheckAccountingOperation("allocate", b, now, map[AccWalletId]bool{recipient: true, parent: parent != internalGraphRoot}, nil)
 		return allocationId, nil
 	}
 }
 
 type internalOnPersistHandler struct {
-	GrantId   accGrantId
+	// GrantId identifies the set of uncommitted allocations which must become visible with this callback.
+	GrantId accGrantId
+
+	// OnPersist runs in the same database transaction which persists the grant allocations. It writes the external
+	// synchronization marker which makes the logical grant commit atomic to readers.
 	OnPersist func(tx *db.Transaction)
 }
 
@@ -390,11 +524,12 @@ func internalCommitGrantAllocations(grantId accGrantId, onPersist func(tx *db.Tr
 	accGlobals.Mu.Unlock()
 }
 
-func internalCommitAllocation(b *internalBucket, allocId accAllocId) {
+func internalCommitAllocation(b *internalBucket, now time.Time, allocId accAllocId) {
 	b.Mu.Lock()
 	alloc, ok := b.AllocationsById[allocId]
 	if ok {
 		alloc.Committed = true
+		lCheckAccountingOperation("commit allocation", b, now, map[AccWalletId]bool{alloc.BelongsTo: true, alloc.Parent: alloc.Parent != internalGraphRoot}, nil)
 	}
 	b.Mu.Unlock()
 }
@@ -487,6 +622,7 @@ func internalUpdateAllocation(
 	lInternalAttemptRetirement(b, now, iAlloc, true)
 	lInternalReevaluate(b, now, iWallet, true)
 	lInternalMarkSignificantUpdate(b, now, iWallet)
+	lCheckAccountingOperation("update allocation", b, now, map[AccWalletId]bool{iWallet.Id: true, iParent.Id: true}, nil)
 
 	category := b.Category
 	if iAlloc.GrantedIn.Present {
@@ -570,10 +706,14 @@ func internalCompleteScan(now time.Time, persistence func(buckets []*internalBuc
 
 	for _, b := range buckets {
 		lInternalScanAllocations(b, now)
+		lCheckAccountingOperation("complete scan", b, now, nil, nil)
 	}
 
 	if persistence != nil {
 		persistence(buckets, scopes, accGlobals.OnPersistHandlers)
+	}
+	for _, b := range buckets {
+		lCheckAccountingOperation("persist accounting state", b, now, nil, nil)
 	}
 
 	for _, s := range scopes {
@@ -591,6 +731,7 @@ func internalScanAllocations(b *internalBucket, now time.Time) {
 	b.Mu.Lock()
 	defer b.Mu.Unlock()
 	lInternalScanAllocations(b, now)
+	lCheckAccountingOperation("scan allocations", b, now, nil, nil)
 }
 
 // Entity lookup and initialization
@@ -717,7 +858,7 @@ func lInternalWalletByOwner(b *internalBucket, now time.Time, owner accOwnerId) 
 			AllocationsByParent:   map[AccWalletId]*internalGroup{},
 			ChildrenUsage:         map[AccWalletId]int64{},
 			Dirty:                 true,
-			WasLocked:             false,
+			WasLocked:             true,
 			LastSignificantUpdate: now,
 		}
 
@@ -786,11 +927,13 @@ func lInternalReportUsage(b *internalBucket, now time.Time, w *internalWallet, d
 						group := senderWallet.AllocationsByParent[receiverWalletId]
 						group.TreeUsage = amount
 						group.Dirty = true
+						walletsUpdated[senderWalletId] = true
 					}
 
 					if receiverWallet != nil {
 						receiverWallet.ChildrenUsage[senderWalletId] = amount
 						receiverWallet.Dirty = true
+						walletsUpdated[receiverWalletId] = true
 					}
 				}
 			}
@@ -1420,6 +1563,22 @@ func lInternalGroupTotalRetired(b *internalBucket, group *internalGroup) int64 {
 // ---------------------------------------------------------------------------------------------------------------------
 // This API is needed for UIs and service providers. It mostly serves as a way to read information about the current
 // state. All APIs in this section will tend to copy data out into a different format which can be consumed freely.
+//
+// The similarly named API values have deliberately different meanings:
+//
+//   - LocalUsage is the provider-reported usage belonging directly to this wallet.
+//   - TotalUsage is LocalUsage plus usage received from direct children. It is usage present at this node, not the sum
+//     of usage in the entire descendant tree; child usage has already been aggregated at each edge.
+//   - Quota is incoming contributing quota. Capacity allocations stop contributing when retired; retired non-capacity
+//     allocations retain quota equal to their committed RetiredUsage.
+//   - TotalAllocated is contributing quota granted from this wallet to direct children. It is not incoming quota.
+//   - MaxUsable is additional usage which can currently be routed from the synthetic root to this wallet. It is
+//     headroom, not total quota or current balance. A value of zero means the wallet is locked.
+//   - UiOnlyActiveQuota and UiOnlyActiveUsage intentionally describe only currently active allocation periods for UI
+//     presentation. They are not safe inputs to routing or accounting decisions because they omit retired attribution.
+//
+// Allocation-group Usage is TreeUsage, while allocation-group Quota is contributing quota for that one parent edge.
+// Neither value should be interpreted as the wallet's total local usage.
 
 func internalRetrieveWallet(
 	now time.Time,
