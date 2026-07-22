@@ -1400,10 +1400,71 @@ func lInternalTransitionAllocationSet(b *internalBucket, now time.Time, logTrans
 		return cmp.Compare(a.Id, b.Id)
 	})
 
+	changedWallets := map[AccWalletId]bool{}
+	previousDisableEvaluation := b.disableEvaluation
+	b.disableEvaluation = true
 	for _, alloc := range allocations {
+		wasActive := alloc.Active
+		wasRetired := alloc.Retired
 		lInternalAttemptActivation(b, now, alloc, logTransitions)
 		lInternalAttemptRetirement(b, now, alloc, logTransitions)
+		if wasActive != alloc.Active || wasRetired != alloc.Retired {
+			changedWallets[alloc.BelongsTo] = true
+		}
 	}
+	b.disableEvaluation = previousDisableEvaluation
+
+	if previousDisableEvaluation || len(changedWallets) == 0 {
+		return
+	}
+	if b.IsCapacityBased() {
+		lInternalRerouteCapacityUsage(b, now)
+	} else {
+		for walletId := range changedWallets {
+			lInternalReevaluate(b, now, b.WalletsById[walletId], true)
+		}
+	}
+}
+
+// Capacity usage is a current gauge, so lifecycle changes may move all existing
+// flow without changing LocalUsage. Rebuilding once after the complete transition
+// batch avoids routing through a mixture of old and new allocation states.
+func lInternalRerouteCapacityUsage(b *internalBucket, now time.Time) {
+	walletIds := make([]AccWalletId, 0, len(b.WalletsById))
+	for walletId := range b.WalletsById {
+		walletIds = append(walletIds, walletId)
+	}
+	slices.Sort(walletIds)
+
+	for _, walletId := range walletIds {
+		wallet := b.WalletsById[walletId]
+		for childId, usage := range wallet.ChildrenUsage {
+			if usage != 0 {
+				wallet.ChildrenUsage[childId] = 0
+				wallet.Dirty = true
+			}
+		}
+		for _, group := range wallet.AllocationsByParent {
+			if group.TreeUsage != 0 {
+				group.TreeUsage = 0
+				group.Dirty = true
+			}
+		}
+	}
+
+	changedWallets := make(map[AccWalletId]bool, len(b.WalletsById))
+	for _, walletId := range walletIds {
+		wallet := b.WalletsById[walletId]
+		changedWallets[walletId] = true
+		if wallet.LocalUsage == 0 {
+			continue
+		}
+		_, updated := lInternalReportUsage(b, now, wallet, wallet.LocalUsage)
+		for updatedId := range updated {
+			changedWallets[updatedId] = true
+		}
+	}
+	lInternalReevaluateAffected(b, now, changedWallets)
 }
 
 func lInternalAttemptActivation(b *internalBucket, now time.Time, alloc *internalAllocation, logActivation bool) {
