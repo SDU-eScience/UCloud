@@ -286,10 +286,10 @@ func lValidateAccountingAllocation(b *internalBucket, now time.Time, wallet *int
 	if allocation.Retired && !allocation.Active {
 		errs = append(errs, fmt.Errorf("allocation %d is retired but was never activated", allocation.Id))
 	}
-	if !allocation.Retired && !now.Before(allocation.End) {
+	if allocation.Committed && !allocation.Retired && !now.Before(allocation.End) {
 		errs = append(errs, fmt.Errorf("allocation %d has passed its exclusive end but is not retired", allocation.Id))
 	}
-	if !allocation.Retired && !now.Before(allocation.Start) && !allocation.Active {
+	if allocation.Committed && !allocation.Retired && !now.Before(allocation.Start) && !allocation.Active {
 		errs = append(errs, fmt.Errorf("allocation %d is within its validity interval but inactive", allocation.Id))
 	}
 	if allocation.Retired {

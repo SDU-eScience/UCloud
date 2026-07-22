@@ -180,10 +180,10 @@ func TestCapacityRetirementSwapInNode(t *testing.T) {
 	e.Scan(11)
 
 	e.ExpectMany(map[string]want{
-		"p1":      {PUsage: 100, Locked: true},
-		"sdu-nat": {PUsage: 100, Locked: false},
+		"p1":      {PUsage: 0, Locked: true},
+		"sdu-nat": {PUsage: 0, Locked: false},
 		"sdu-tek": {PUsage: 0, Locked: false},
-		"sdu":     {PUsage: 100, Locked: false},
+		"sdu":     {PUsage: 0, Locked: false},
 	})
 
 	e.Snapshot("after-retire", "p1", false)
@@ -249,6 +249,25 @@ func TestExcessUsageHierarchyTime(t *testing.T) {
 	e.Snapshot("after-new-alloc", "P2", false)
 }
 
+func TestPeriodicUsageDecreaseIsRejectedWithoutMutation(t *testing.T) {
+	e := newEnv(t, timeCategory)
+	e.AllocateEx(0, 0, 100, 100, "user", "")
+	e.ReportAbs(1, "user", 10)
+
+	wallet := e.Bucket.WalletsById[e.Wallet(e.Owner("user"), e.Tm(0))]
+	request := accapi.ReportUsageRequest{
+		Owner:        e.Owner("user").WalletOwner(),
+		CategoryIdV2: e.Bucket.Category.ToId(),
+		Usage:        5,
+	}
+	_, err := internalReportUsage(e.Tm(2), request)
+	if err == nil || err.StatusCode != http.StatusBadRequest {
+		t.Fatalf("periodic decrease error = %v, want HTTP 400", err)
+	}
+	assert.Equal(t, int64(10), wallet.LocalUsage)
+	assert.Equal(t, int64(10), lInternalWalletTotalPropagatedUsage(e.Bucket, wallet))
+}
+
 func TestOverConsumptionFollowedByAllocation(t *testing.T) {
 	runTable(t, []accapi.ProductCategory{timeCategory, capacityCategory}, func(e *env) {
 		e.AllocateEx(0, 0, 10, 1000, "P1", "")
@@ -272,9 +291,8 @@ func TestOverConsumptionFollowedByAllocation(t *testing.T) {
 	})
 }
 
-// TODO fails
 func TestCapacityOverConsumptionAndReturnBelowLimit(t *testing.T) {
-	runTable(t, []accapi.ProductCategory{timeCategory, capacityCategory}, func(e *env) {
+	runTable(t, []accapi.ProductCategory{capacityCategory}, func(e *env) {
 		e.AllocateEx(0, 0, 10, 100, "P1", "")
 		e.AllocateEx(0, 0, 100, 10, "P2", "P1")
 
@@ -298,9 +316,8 @@ func TestCapacityOverConsumptionAndReturnBelowLimit(t *testing.T) {
 	})
 }
 
-// TODO fails
 func TestCapacityOverConsumptionAndReturnBelowLimitMultipleLevels(t *testing.T) {
-	runTable(t, []accapi.ProductCategory{timeCategory, capacityCategory}, func(e *env) {
+	runTable(t, []accapi.ProductCategory{capacityCategory}, func(e *env) {
 		e.AllocateEx(0, 0, 1000, 1000, "P1", "")
 		e.AllocateEx(0, 0, 100, 10, "P2", "P1")
 		e.AllocateEx(0, 0, 100, 20, "P3", "P1")
@@ -335,9 +352,8 @@ func TestCapacityOverConsumptionAndReturnBelowLimitMultipleLevels(t *testing.T) 
 	})
 }
 
-// TODO fails
 func TestCapacityOverConsumptionAndReturnBelowLimitMultipleAllocationGroups(t *testing.T) {
-	runTable(t, []accapi.ProductCategory{timeCategory, capacityCategory}, func(e *env) {
+	runTable(t, []accapi.ProductCategory{capacityCategory}, func(e *env) {
 		e.AllocateEx(0, 0, 1000, 1000, "P1", "")
 		e.AllocateEx(0, 0, 100, 10, "P2", "P1")
 		e.AllocateEx(0, 0, 100, 20, "P3", "P1")
@@ -423,15 +439,15 @@ func TestCapacityParentRetireAfterChildOverspend(t *testing.T) {
 	e.Scan(6)
 	e.Snapshot("retire(p1)", "p2", false)
 	e.ExpectMany(map[string]want{
-		"p1": {PUsage: 500, Locked: true},
-		"p2": {PUsage: 500, Locked: true},
+		"p1": {PUsage: 0, Locked: true},
+		"p2": {PUsage: 0, Locked: true},
 	})
 
 	e.ReportAbs(0, "p2", 200)
 	e.Snapshot("abs(p2, 200)", "p2", false)
 	e.ExpectMany(map[string]want{
-		"p1": {PUsage: 200, Locked: true},
-		"p2": {PUsage: 200, Locked: true},
+		"p1": {PUsage: 0, Locked: true},
+		"p2": {PUsage: 0, Locked: true},
 	})
 
 	e.Allocate(a{
@@ -515,7 +531,7 @@ func TestProviderExpireAndNewPeriodStartsCapacity(t *testing.T) {
 }
 
 func TestProviderExpireAndNewPeriodStartsTime(t *testing.T) {
-	e := newEnv(t, capacityCategory)
+	e := newEnv(t, timeCategory)
 	testProviderExpireAndNewPeriodStarts(*e, false)
 }
 
@@ -588,25 +604,45 @@ func TestProviderExpireAndNewPeriodStartsDelayedScan(t *testing.T) {
 			"C":        {PUsage: 20, Locked: true},
 		})
 
-		e.ReportAbs(1_100, "A", 15)
-		e.ReportAbs(1_105, "B", 2)
-		e.ReportAbs(1_020, "C", 10)
-
-		e.ExpectMany(map[string]want{
-			"provider": {PUsage: 27, Locked: false},
-			"A":        {PUsage: 15, Locked: false},
-			"B":        {PUsage: 2, Locked: false},
-			"C":        {PUsage: 10, Locked: false},
-		})
+		if e.Bucket.IsCapacityBased() {
+			e.ReportAbs(1_100, "A", 15)
+			e.ReportAbs(1_105, "B", 2)
+			e.ReportAbs(1_020, "C", 10)
+			e.ExpectMany(map[string]want{
+				"provider": {PUsage: 27, Locked: false},
+				"A":        {PUsage: 15, Locked: false},
+				"B":        {PUsage: 2, Locked: false},
+				"C":        {PUsage: 10, Locked: false},
+			})
+		} else {
+			e.ReportAbs(1_100, "A", 15)
+			e.ReportAbs(1_105, "B", 7)
+			e.ReportAbs(1_020, "C", 30)
+			e.ExpectMany(map[string]want{
+				"provider": {PUsage: 42, Locked: false},
+				"A":        {PUsage: 15, Locked: false},
+				"B":        {PUsage: 7, Locked: false},
+				"C":        {PUsage: 20, Locked: true},
+			})
+		}
 
 		e.Scan(1_200)
 
-		e.ExpectMany(map[string]want{
-			"provider": {PUsage: 27, Locked: false},
-			"A":        {PUsage: 15, Locked: false},
-			"B":        {PUsage: 2, Locked: false},
-			"C":        {PUsage: 10, Locked: false},
-		})
+		if e.Bucket.IsCapacityBased() {
+			e.ExpectMany(map[string]want{
+				"provider": {PUsage: 27, Locked: false},
+				"A":        {PUsage: 15, Locked: false},
+				"B":        {PUsage: 2, Locked: false},
+				"C":        {PUsage: 10, Locked: false},
+			})
+		} else {
+			e.ExpectMany(map[string]want{
+				"provider": {PUsage: 42, Locked: false},
+				"A":        {PUsage: 15, Locked: false},
+				"B":        {PUsage: 7, Locked: false},
+				"C":        {PUsage: 20, Locked: true},
+			})
+		}
 	})
 }
 

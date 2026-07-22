@@ -70,11 +70,6 @@ func NewGraph(vertexCount int) *Graph {
 func (g *Graph) AddEdge(source, destination int, capacity, flow int64) {
 	g.Adjacent[source][destination] = capacity
 	g.Adjacent[destination][source] = flow
-
-	midway := g.VertexCount / 2
-	if source < midway && destination < midway {
-		g.Original[source][destination] = true
-	}
 }
 
 // AddEdgeCost sets a signed cost on the given edge and the opposite sign on the reverse edge.

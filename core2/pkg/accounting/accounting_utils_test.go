@@ -124,6 +124,7 @@ func (e *env) AllocateEx(now, start, end int, quota int64, recipientRef, parentR
 	if err != nil {
 		e.t.Fatalf("allocate: %v", err)
 	}
+	internalCommitAllocation(e.Bucket, e.Tm(now), id)
 	return id
 }
 

@@ -339,17 +339,17 @@ func internalReportUsage(now time.Time, request accapi.ReportUsageRequest) (bool
 	w := lInternalWalletByOwner(b, now, owner.Id)
 	var visitedWallets map[AccWalletId]bool
 	var delta int64
-	var reportInvariantError error
+	accepted := false
 	localUsageBefore := w.LocalUsage
 	scopeUsageBefore := int64(0)
 	if scope != nil {
 		scopeUsageBefore = scope.Usage
 	}
 	defer func() {
-		var invariantErrors []error
-		if reportInvariantError != nil {
-			invariantErrors = append(invariantErrors, reportInvariantError)
+		if !accepted {
+			return
 		}
+		var invariantErrors []error
 		if !request.IsDeltaCharge {
 			absoluteUsage := w.LocalUsage
 			if scope != nil {
@@ -388,9 +388,19 @@ func internalReportUsage(now time.Time, request accapi.ReportUsageRequest) (bool
 	} else {
 		delta = request.Usage - currentUsage
 	}
-	if !b.IsCapacityBased() && delta < 0 {
-		reportInvariantError = fmt.Errorf("non-capacity usage decreased from %d by %d", currentUsage, delta)
+	applicableUsage, overflow := checkedAccountingAdd(currentUsage, delta)
+	localUsage, localOverflow := checkedAccountingAdd(w.LocalUsage, delta)
+	if overflow || localOverflow {
+		return false, util.HttpErr(http.StatusBadRequest, "usage report exceeds the supported numeric range")
 	}
+	if applicableUsage < 0 || localUsage < 0 {
+		return false, util.HttpErr(http.StatusBadRequest, "usage report cannot make usage negative")
+	}
+	if !b.IsCapacityBased() && delta < 0 {
+		return false, util.HttpErr(http.StatusBadRequest, "non-capacity usage cannot decrease")
+	}
+	accepted = true
+	lInternalTransitionWallets(b, now, false, w.Id)
 
 	if scope != nil {
 		scope.Usage = currentUsage + delta
@@ -453,6 +463,7 @@ func internalAllocateNoCommit(
 		if parent != internalGraphRoot {
 			parentWallet = b.WalletsById[parent]
 		}
+		lInternalTransitionWallets(b, now, false, recipient, parent)
 
 		allocationId := accAllocId(accGlobals.AllocIdAcc.Add(1))
 		allocation := &internalAllocation{
@@ -529,6 +540,8 @@ func internalCommitAllocation(b *internalBucket, now time.Time, allocId accAlloc
 	alloc, ok := b.AllocationsById[allocId]
 	if ok {
 		alloc.Committed = true
+		lInternalAttemptActivation(b, now, alloc, false)
+		lInternalAttemptRetirement(b, now, alloc, false)
 		lCheckAccountingOperation("commit allocation", b, now, map[AccWalletId]bool{alloc.BelongsTo: true, alloc.Parent: alloc.Parent != internalGraphRoot}, nil)
 	}
 	b.Mu.Unlock()
@@ -895,7 +908,11 @@ func lInternalWalletByOwner(b *internalBucket, now time.Time, owner accOwnerId) 
 // The graph algorithms themselves are implemented in `accounting_graph.go`.
 
 func lInternalReportUsage(b *internalBucket, now time.Time, w *internalWallet, delta int64) (int64, map[AccWalletId]bool) {
-	chargeGraph := lInternalBuildGraph(b, now, w, internalGraphWithOverAllocation)
+	flags := internalGraphFlag(0)
+	if delta >= 0 {
+		flags = internalGraphWithOverAllocation
+	}
+	chargeGraph := lInternalBuildGraph(b, now, w, flags)
 
 	rootVertex := chargeGraph.WalletToVertex[internalGraphRoot]
 	walletVertex := chargeGraph.WalletToVertex[w.Id]
@@ -911,7 +928,7 @@ func lInternalReportUsage(b *internalBucket, now time.Time, w *internalWallet, d
 	walletsUpdated[w.Id] = true
 
 	if maxUsable != 0 {
-		gSize := chargeGraph.VertexCount / 2
+		gSize := len(chargeGraph.VertexToWallet)
 
 		for senderVertex := 0; senderVertex < gSize; senderVertex++ {
 			senderWalletId := chargeGraph.VertexToWallet[senderVertex]
@@ -1006,8 +1023,9 @@ func lInternalBuildGraph(b *internalBucket, now time.Time, leaf *internalWallet,
 
 				{
 					// Capacity
-					capacity := activeQuota - allocationGroup.TreeUsage
+					capacity := max(0, activeQuota-allocationGroup.TreeUsage)
 					g.AddEdge(sourceVertex, destinationVertex, capacity, allocationGroup.TreeUsage)
+					g.Original[sourceVertex][destinationVertex] = true
 				}
 
 				{
@@ -1161,8 +1179,7 @@ func lInternalRebalanceEx(b *internalBucket, now time.Time, wallet *internalWall
 				}
 			}
 
-			maxUsable := lInternalMaxUsable(b, now, wallet)
-			recharge(min(maxUsable, deficit.Value, wallet.LocalUsage))
+			recharge(min(deficit.Value, wallet.LocalUsage))
 		}
 	}
 }
@@ -1215,14 +1232,65 @@ func lInternalReevaluate(b *internalBucket, now time.Time, wallet *internalWalle
 // on the Active flag (in the rare cases where retirement happens before activation).
 
 func lInternalScanAllocations(b *internalBucket, now time.Time) {
-	for _, alloc := range b.AllocationsById {
-		lInternalAttemptActivation(b, now, alloc, true)
-		lInternalAttemptRetirement(b, now, alloc, true)
+	lInternalTransitionAllocations(b, now, true)
+}
+
+func lInternalTransitionAllocations(b *internalBucket, now time.Time, logTransitions bool) {
+	allocations := make([]*internalAllocation, 0, len(b.AllocationsById))
+	for _, allocation := range b.AllocationsById {
+		allocations = append(allocations, allocation)
+	}
+	lInternalTransitionAllocationSet(b, now, logTransitions, allocations)
+}
+
+func lInternalTransitionWallets(b *internalBucket, now time.Time, logTransitions bool, walletIds ...AccWalletId) {
+	visited := map[AccWalletId]bool{internalGraphRoot: true}
+	allocationsById := map[accAllocId]*internalAllocation{}
+	for len(walletIds) > 0 {
+		walletId := walletIds[0]
+		walletIds = walletIds[1:]
+		if visited[walletId] {
+			continue
+		}
+		visited[walletId] = true
+		wallet := b.WalletsById[walletId]
+		if wallet == nil {
+			continue
+		}
+		for parentId, group := range wallet.AllocationsByParent {
+			walletIds = append(walletIds, parentId)
+			for allocationId := range group.Allocations {
+				allocationsById[allocationId] = b.AllocationsById[allocationId]
+			}
+		}
+	}
+
+	allocations := make([]*internalAllocation, 0, len(allocationsById))
+	for _, allocation := range allocationsById {
+		allocations = append(allocations, allocation)
+	}
+	lInternalTransitionAllocationSet(b, now, logTransitions, allocations)
+}
+
+func lInternalTransitionAllocationSet(b *internalBucket, now time.Time, logTransitions bool, allocations []*internalAllocation) {
+	slices.SortFunc(allocations, func(a, b *internalAllocation) int {
+		if result := a.End.Compare(b.End); result != 0 {
+			return result
+		}
+		if result := a.Start.Compare(b.Start); result != 0 {
+			return result
+		}
+		return cmp.Compare(a.Id, b.Id)
+	})
+
+	for _, alloc := range allocations {
+		lInternalAttemptActivation(b, now, alloc, logTransitions)
+		lInternalAttemptRetirement(b, now, alloc, logTransitions)
 	}
 }
 
 func lInternalAttemptActivation(b *internalBucket, now time.Time, alloc *internalAllocation, logActivation bool) {
-	if !alloc.Active && now.Add(1*time.Second).After(alloc.Start) && now.Before(alloc.End) {
+	if alloc.Committed && !alloc.Active && !now.Before(alloc.Start) && now.Before(alloc.End) {
 		wallet := b.WalletsById[alloc.BelongsTo]
 
 		alloc.Active = true
@@ -1240,7 +1308,7 @@ func lInternalAttemptActivation(b *internalBucket, now time.Time, alloc *interna
 }
 
 func lInternalAttemptRetirement(b *internalBucket, now time.Time, alloc *internalAllocation, logRetirement bool) {
-	if !alloc.Retired && now.Add(1*time.Second).After(alloc.End) {
+	if alloc.Committed && !alloc.Retired && !now.Before(alloc.End) {
 		wallet := b.WalletsById[alloc.BelongsTo]
 		group := wallet.AllocationsByParent[alloc.Parent]
 
@@ -1457,7 +1525,7 @@ func lInternalWalletTotalQuotaContributingAt(b *internalBucket, w *internalWalle
 	for _, group := range w.AllocationsByParent {
 		for allocId := range group.Allocations {
 			alloc := b.AllocationsById[allocId]
-			if !alloc.Retired && (alloc.Start.Before(at) || alloc.Start.Equal(at)) && at.Before(alloc.End) {
+			if alloc.Committed && !alloc.Retired && (alloc.Start.Before(at) || alloc.Start.Equal(at)) && at.Before(alloc.End) {
 				sum += alloc.Quota
 			}
 		}
@@ -1494,7 +1562,7 @@ func lInternalGroupTotalQuotaContributing(b *internalBucket, group *internalGrou
 	sum := int64(0)
 	for allocId, _ := range group.Allocations {
 		alloc := b.AllocationsById[allocId]
-		if alloc.Active && (retiredAllocationsContribute || !alloc.Retired) {
+		if alloc.Committed && alloc.Active && (retiredAllocationsContribute || !alloc.Retired) {
 			sum += alloc.Quota
 		}
 	}
