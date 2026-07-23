@@ -9,11 +9,13 @@ import (
 	"math"
 	"net/http"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -406,6 +408,37 @@ func Launch() {
 	err = srv.ListenAndServe()
 
 	log.Fatal("Failed to start listener: %s", err)
+}
+
+func LaunchAccountingSnapshot() {
+	if !cfg.Parse("/etc/ucloud") {
+		return
+	}
+
+	dbConfig := cfg.Configuration.Database
+	db.Database = db.ConnectReadOnly(
+		dbConfig.Username,
+		dbConfig.Password,
+		dbConfig.Host.Address,
+		dbConfig.Host.Port,
+		dbConfig.Database,
+		dbConfig.Ssl,
+	)
+
+	snapshot := acc.AnalyzeSnapshot()
+
+	if err := os.WriteFile("/tmp/snapshot.yml", snapshot, 0660); err != nil {
+		panic(err)
+	}
+
+	if _, err := os.Stdout.Write(snapshot); err != nil {
+		panic(err)
+	}
+	db.Database.Connection.Close()
+
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+	<-stop
 }
 
 func launchMetricsServer() {

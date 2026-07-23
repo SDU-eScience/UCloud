@@ -405,16 +405,35 @@ func RetrieveAncestors(now time.Time, category accapi.ProductCategoryIdV2, owner
 	return internalRetrieveAncestors(now, category, owner)
 }
 
-func accountingLoad() {
-	var loadTimes struct {
-		WalletOwners     time.Duration
-		ScopedUsage      time.Duration
-		Wallets          time.Duration
-		AllocationGroups time.Duration
-		Allocations      time.Duration
-	}
+type accountingLoadTimes struct {
+	WalletOwners     time.Duration
+	ScopedUsage      time.Duration
+	Wallets          time.Duration
+	AllocationGroups time.Duration
+	Allocations      time.Duration
+}
 
-	db.NewTx0(func(tx *db.Transaction) {
+func accountingLoad() {
+	loadTimes := db.NewTx(func(tx *db.Transaction) accountingLoadTimes {
+		return accountingLoadFromTx(tx, time.Now(), nil)
+	})
+
+	log.Info(
+		"Accounting system is ready."+
+			"\n\tLoad times:"+
+			"\n\t\tWallet owners: %v"+
+			"\n\t\tScoped usage: %v"+
+			"\n\t\tWallets: %v"+
+			"\n\t\tAllocation groups: %v"+
+			"\n\t\tAllocations: %v",
+		loadTimes.WalletOwners, loadTimes.ScopedUsage, loadTimes.Wallets, loadTimes.AllocationGroups,
+		loadTimes.Allocations,
+	)
+}
+
+func accountingLoadFromTx(tx *db.Transaction, now time.Time, onLoadError func(string)) accountingLoadTimes {
+	var loadTimes accountingLoadTimes
+	{
 		timer := util.NewTimer()
 		accGlobals.OwnersByReference = map[string]*internalOwner{}
 		accGlobals.OwnersById = map[accOwnerId]*internalOwner{}
@@ -502,6 +521,7 @@ func accountingLoad() {
 				from
 					accounting.wallets_v2 w
 					join accounting.product_categories pc on w.product_category = pc.id
+				order by w.id
 		    `,
 			db.Params{},
 		)
@@ -512,7 +532,11 @@ func accountingLoad() {
 			}
 			category, err := ProductCategoryRetrieve(rpc.ActorSystem, row.CatName, row.CatProvider)
 			if err != nil {
-				log.Warn("Could not load wallet with id=%v in category %v/%v", row.Id, row.CatName, row.CatProvider)
+				if onLoadError != nil {
+					onLoadError(fmt.Sprintf("could not load wallet %d in category %s/%s", row.Id, row.CatProvider, row.CatName))
+				} else {
+					log.Warn("Could not load wallet with id=%v in category %v/%v", row.Id, row.CatName, row.CatProvider)
+				}
 				continue
 			}
 
@@ -530,7 +554,12 @@ func accountingLoad() {
 			}
 
 			if existing := b.WalletsByOwner[wallet.OwnedBy]; existing != nil {
-				panic(fmt.Sprintf("duplicate accounting wallets %d and %d for owner %d in %s/%s", existing.Id, wallet.Id, wallet.OwnedBy, b.Category.Provider, b.Category.Name))
+				message := fmt.Sprintf("duplicate accounting wallets %d and %d for owner %d in %s/%s", existing.Id, wallet.Id, wallet.OwnedBy, b.Category.Provider, b.Category.Name)
+				if onLoadError == nil {
+					panic(message)
+				}
+				onLoadError(message)
+				continue
 			}
 			b.WalletsById[wallet.Id] = wallet
 			b.WalletsByOwner[wallet.OwnedBy] = wallet
@@ -555,6 +584,7 @@ func accountingLoad() {
 			`
 				select ag.id, coalesce(ag.parent_wallet, 0) as parent_wallet, ag.associated_wallet, ag.tree_usage
 				from accounting.allocation_groups ag
+				order by ag.id
 		    `,
 			db.Params{},
 		)
@@ -573,12 +603,19 @@ func accountingLoad() {
 			_, parentWallet, hasParent := internalWalletById(group.ParentWallet)
 			if ok {
 				if existing := associatedWallet.AllocationsByParent[group.ParentWallet]; existing != nil {
-					panic(fmt.Sprintf("duplicate accounting allocation groups %d and %d for wallet %d and parent %d", existing.Id, group.Id, group.AssociatedWallet, group.ParentWallet))
+					message := fmt.Sprintf("duplicate accounting allocation groups %d and %d for wallet %d and parent %d", existing.Id, group.Id, group.AssociatedWallet, group.ParentWallet)
+					if onLoadError == nil {
+						panic(message)
+					}
+					onLoadError(message)
+					continue
 				}
 				associatedWallet.AllocationsByParent[group.ParentWallet] = group
 				if hasParent {
 					parentWallet.ChildrenUsage[group.AssociatedWallet] = group.TreeUsage
 				}
+			} else if onLoadError != nil {
+				onLoadError(fmt.Sprintf("accounting allocation group %d references unavailable wallet %d", group.Id, group.AssociatedWallet))
 			}
 
 			if int64(row.Id) > accGlobals.GroupIdAcc.Load() {
@@ -620,6 +657,7 @@ func accountingLoad() {
 				from
 					accounting.wallet_allocations_v2 alloc
 					join accounting.allocation_groups ag on alloc.associated_allocation_group = ag.id
+				order by alloc.id
 		    `,
 			db.Params{},
 		)
@@ -629,8 +667,13 @@ func accountingLoad() {
 
 			if ok {
 				ag, ok := wallet.AllocationsByParent[AccWalletId(row.ParentWallet)]
-				if !ok {
-					panic(fmt.Sprintf("inconsistent DB or load alloc = %v", row.Id))
+				if !ok || ag.Id != accGroupId(row.AllocGroup) {
+					message := fmt.Sprintf("inconsistent DB or load alloc = %v", row.Id)
+					if onLoadError == nil {
+						panic(message)
+					}
+					onLoadError(message)
+					continue
 				}
 
 				ag.Allocations[accAllocId(row.Id)] = util.Empty{}
@@ -646,7 +689,7 @@ func accountingLoad() {
 					Retired:      row.Retired,
 					RetiredUsage: row.RetiredUsage,
 					RetiredQuota: row.RetiredQuota,
-					Active:       time.Now().After(row.AllocationStartTime), // TODO we don't know if it was activated
+					Active:       now.After(row.AllocationStartTime), // TODO we don't know if it was activated
 					Dirty:        false,
 					Committed:    true,
 				}
@@ -656,6 +699,8 @@ func accountingLoad() {
 				}
 
 				b.AllocationsById[accAllocId(row.Id)] = alloc
+			} else if onLoadError != nil {
+				onLoadError(fmt.Sprintf("accounting allocation %d references unavailable wallet %d", row.Id, row.WalletId))
 			}
 
 			if int64(row.Id) > accGlobals.AllocIdAcc.Load() {
@@ -664,19 +709,8 @@ func accountingLoad() {
 		}
 
 		loadTimes.Allocations = timer.Mark()
-	})
-
-	log.Info(
-		"Accounting system is ready."+
-			"\n\tLoad times:"+
-			"\n\t\tWallet owners: %v"+
-			"\n\t\tScoped usage: %v"+
-			"\n\t\tWallets: %v"+
-			"\n\t\tAllocation groups: %v"+
-			"\n\t\tAllocations: %v",
-		loadTimes.WalletOwners, loadTimes.ScopedUsage, loadTimes.Wallets, loadTimes.AllocationGroups,
-		loadTimes.Allocations,
-	)
+	}
+	return loadTimes
 }
 
 var accountingScansDisabled = atomic.Bool{}

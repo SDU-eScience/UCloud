@@ -325,21 +325,34 @@ func (ctx *Transaction) open() *Transaction {
 }
 
 func Connect(username, password, host string, port int, database string, ssl bool) *Pool {
+	return connect(username, password, host, port, database, ssl, false)
+}
+
+func ConnectReadOnly(username, password, host string, port int, database string, ssl bool) *Pool {
+	return connect(username, password, host, port, database, ssl, true)
+}
+
+func connect(username, password, host string, port int, database string, ssl bool, readOnly bool) *Pool {
 	sslMode := "enable"
 	if !ssl {
 		sslMode = "disable"
+	}
+	readOnlyParam := ""
+	if readOnly {
+		readOnlyParam = "&default_transaction_read_only=on"
 	}
 
 	pool, err := pgxpool.New(
 		context.Background(),
 		fmt.Sprintf(
-			"postgres://%v:%v@%v:%v/%v?sslmode=%v&pool_max_conns=32&pool_max_conn_lifetime=1000000h",
+			"postgres://%v:%v@%v:%v/%v?sslmode=%v&pool_max_conns=32&pool_max_conn_lifetime=1000000h%v",
 			username,
 			password,
 			host,
 			port,
 			database,
 			sslMode,
+			readOnlyParam,
 		),
 	)
 

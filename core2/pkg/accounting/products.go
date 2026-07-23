@@ -578,37 +578,40 @@ func productFilterApplies(product accapi.ProductV2, filter accapi.ProductsFilter
 }
 
 func productsLoad() {
-	db.NewTx0(func(tx *db.Transaction) {
-		providers := map[string]util.Empty{}
-		productsByProvider.Buckets = make(map[string]*providerBucket)
-		rows := db.Select[struct {
-			Name                      string
-			Category                  string
-			Provider                  string
-			Price                     int64
-			Description               string
-			Cpu                       sql.NullInt32
-			Gpu                       sql.NullInt32
-			MemoryInGigs              sql.NullInt32
-			CpuModel                  sql.NullString
-			GpuModel                  sql.NullString
-			MemoryModel               sql.NullString
-			HiddenInGrantApplications bool
-			FractionNumerator         sql.Null[int]
-			FractionDenominator       sql.Null[int]
+	db.NewTx0(productsLoadFromTx)
+}
 
-			ProductType         string
-			AccountingFrequency string
-			FreeToUse           bool
-			AllowSubAllocations bool
+func productsLoadFromTx(tx *db.Transaction) {
+	providers := map[string]util.Empty{}
+	productsByProvider.Buckets = make(map[string]*providerBucket)
+	rows := db.Select[struct {
+		Name                      string
+		Category                  string
+		Provider                  string
+		Price                     int64
+		Description               string
+		Cpu                       sql.NullInt32
+		Gpu                       sql.NullInt32
+		MemoryInGigs              sql.NullInt32
+		CpuModel                  sql.NullString
+		GpuModel                  sql.NullString
+		MemoryModel               sql.NullString
+		HiddenInGrantApplications bool
+		FractionNumerator         sql.Null[int]
+		FractionDenominator       sql.Null[int]
 
-			UnitName          string
-			UnitNamePlural    string
-			UnitFreqSuffix    bool
-			UnitFloatingPoint bool
-		}](
-			tx,
-			`
+		ProductType         string
+		AccountingFrequency string
+		FreeToUse           bool
+		AllowSubAllocations bool
+
+		UnitName          string
+		UnitNamePlural    string
+		UnitFreqSuffix    bool
+		UnitFloatingPoint bool
+	}](
+		tx,
+		`
 				select
 					p.name, 
 					pc.category,
@@ -635,58 +638,57 @@ func productsLoad() {
 					join accounting.accounting_units u on pc.accounting_unit = u.id
 				order by pc.provider, pc.category, p.name
 		    `,
-			db.Params{},
-		)
+		db.Params{},
+	)
 
-		for _, row := range rows {
-			cat := accapi.ProductCategory{
-				Name:        row.Category,
-				Provider:    row.Provider,
-				ProductType: accapi.ProductType(row.ProductType),
-				AccountingUnit: accapi.AccountingUnit{
-					Name:                   row.UnitName,
-					NamePlural:             row.UnitNamePlural,
-					FloatingPoint:          row.UnitFloatingPoint,
-					DisplayFrequencySuffix: row.UnitFreqSuffix,
-				},
-				AccountingFrequency: accapi.AccountingFrequency(row.AccountingFrequency),
-				FreeToUse:           row.FreeToUse,
-				AllowSubAllocations: row.AllowSubAllocations,
-			}
-
-			p := accapi.ProductV2{
-				Type:                      accapi.ProductTypeCCreate(accapi.ProductType(row.ProductType)),
-				Category:                  cat,
-				Name:                      row.Name,
-				Description:               row.Description,
-				ProductType:               accapi.ProductType(row.ProductType),
-				Price:                     row.Price,
-				HiddenInGrantApplications: row.HiddenInGrantApplications,
-				Usage:                     util.OptNone[int64](),
-				Cpu:                       int(row.Cpu.Int32),
-				CpuModel:                  row.CpuModel.String,
-				MemoryInGigs:              int(row.MemoryInGigs.Int32),
-				MemoryModel:               row.MemoryModel.String,
-				Gpu:                       int(row.Gpu.Int32),
-				GpuModel:                  row.GpuModel.String,
-				Fraction: (&accapi.Fraction{
-					Numerator:   util.SqlNullToOpt(row.FractionNumerator).GetOrDefault(1),
-					Denominator: util.SqlNullToOpt(row.FractionDenominator).GetOrDefault(1),
-				}).Normalize(),
-			}
-
-			// NOTE(Dan): ordering done by query
-			bucket := util.ReadOrInsertBucket(&productsByProvider.Mu, productsByProvider.Buckets, p.Category.Provider, nil)
-			bucket.Products = append(bucket.Products, p)
-
-			providers[p.Category.Provider] = util.Empty{}
+	for _, row := range rows {
+		cat := accapi.ProductCategory{
+			Name:        row.Category,
+			Provider:    row.Provider,
+			ProductType: accapi.ProductType(row.ProductType),
+			AccountingUnit: accapi.AccountingUnit{
+				Name:                   row.UnitName,
+				NamePlural:             row.UnitNamePlural,
+				FloatingPoint:          row.UnitFloatingPoint,
+				DisplayFrequencySuffix: row.UnitFreqSuffix,
+			},
+			AccountingFrequency: accapi.AccountingFrequency(row.AccountingFrequency),
+			FreeToUse:           row.FreeToUse,
+			AllowSubAllocations: row.AllowSubAllocations,
 		}
 
-		var providersArr []string
-		for provider := range providers {
-			providersArr = append(providersArr, provider)
+		p := accapi.ProductV2{
+			Type:                      accapi.ProductTypeCCreate(accapi.ProductType(row.ProductType)),
+			Category:                  cat,
+			Name:                      row.Name,
+			Description:               row.Description,
+			ProductType:               accapi.ProductType(row.ProductType),
+			Price:                     row.Price,
+			HiddenInGrantApplications: row.HiddenInGrantApplications,
+			Usage:                     util.OptNone[int64](),
+			Cpu:                       int(row.Cpu.Int32),
+			CpuModel:                  row.CpuModel.String,
+			MemoryInGigs:              int(row.MemoryInGigs.Int32),
+			MemoryModel:               row.MemoryModel.String,
+			Gpu:                       int(row.Gpu.Int32),
+			GpuModel:                  row.GpuModel.String,
+			Fraction: (&accapi.Fraction{
+				Numerator:   util.SqlNullToOpt(row.FractionNumerator).GetOrDefault(1),
+				Denominator: util.SqlNullToOpt(row.FractionDenominator).GetOrDefault(1),
+			}).Normalize(),
 		}
-		slices.Sort(providersArr)
-		productsByProvider.Providers = providersArr
-	})
+
+		// NOTE(Dan): ordering done by query
+		bucket := util.ReadOrInsertBucket(&productsByProvider.Mu, productsByProvider.Buckets, p.Category.Provider, nil)
+		bucket.Products = append(bucket.Products, p)
+
+		providers[p.Category.Provider] = util.Empty{}
+	}
+
+	var providersArr []string
+	for provider := range providers {
+		providersArr = append(providersArr, provider)
+	}
+	slices.Sort(providersArr)
+	productsByProvider.Providers = providersArr
 }

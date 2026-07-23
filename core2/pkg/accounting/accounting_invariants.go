@@ -159,6 +159,10 @@ func lValidateAccountingTree(b *internalBucket, now time.Time) error {
 }
 
 func lValidateAccountingWallet(b *internalBucket, now time.Time, wallet *internalWallet) []error {
+	return lValidateAccountingWalletWithLockCheck(b, now, wallet, true)
+}
+
+func lValidateAccountingWalletWithLockCheck(b *internalBucket, now time.Time, wallet *internalWallet, checkLock bool) []error {
 	var errs []error
 	if wallet.Id == internalGraphRoot {
 		errs = append(errs, errors.New("synthetic graph root is stored as a wallet"))
@@ -261,7 +265,7 @@ func lValidateAccountingWallet(b *internalBucket, now time.Time, wallet *interna
 	if propagated > inNode {
 		errs = append(errs, fmt.Errorf("wallet %d propagates %d but only has %d local and child usage", wallet.Id, propagated, inNode))
 	}
-	if canCheckLock {
+	if canCheckLock && checkLock {
 		maxUsable, err := lAccountingMaxUsableSafely(b, now, wallet)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("wallet %d cannot calculate MaxUsable: %w", wallet.Id, err))

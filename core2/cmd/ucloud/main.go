@@ -10,6 +10,11 @@ import (
 
 func main() {
 	util.DeploymentName = "Core"
+	if slices.Contains(os.Args, "accounting-snapshot") {
+		util.DeploymentName = "Core/Accounting snapshot"
+		launcher.LaunchAccountingSnapshot()
+		return
+	}
 	if slices.Contains(os.Args, "foundation") {
 		util.DeploymentName = "Core/Foundation"
 	}
