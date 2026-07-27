@@ -398,12 +398,13 @@ const HoverClass = injectStyle("hover-class", k => `
     }
 `);
 
-function allSidebarCommands(state: HookStore, navigate: NavigateFunction): Command[] {
+function allSidebarCommands(state: HookStore, navigate: NavigateFunction, activeProjectId: string | undefined): Command[] {
     const result: Command[] = []
 
-    const projectId = state.projectCache?.project.id;
-    const canApply = !projectId || isAdminOrPI(state.projectCache?.project.status.myRole);
-    const sidebarSubCommands = sidebarSubEntries(canApply, !projectId, projectId);
+    const cachedProject = state.projectCache?.project;
+    const activeProject = cachedProject?.id === activeProjectId ? cachedProject : undefined;
+    const canApply = !activeProjectId || isAdminOrPI(activeProject?.status.myRole);
+    const sidebarSubCommands = sidebarSubEntries(canApply, !activeProjectId, activeProjectId);
 
     for (const group of sideBarMenuElements) {
         if (group.predicate(state)) {
@@ -441,7 +442,7 @@ function sidebarSubEntries(canApply: boolean, isPersonalWorkspace: boolean, proj
             },
             ...(isPersonalWorkspace ? sharesLinksInfo : [])
         ],
-        [SidebarTabId.PROJECT]: projectSidebarSubLinks(canApply, isPersonalWorkspace, projectId),
+        [SidebarTabId.PROJECT]: projectSidebarSubLinks(canApply, isPersonalWorkspace, projectId).filter(it => !it.disabled),
         [SidebarTabId.RESOURCES]: ResourceSubLinksEntries,
         [SidebarTabId.INFERENCE]: InferenceSubLinksEntries,
         [SidebarTabId.APPLICATIONS]: [],
@@ -490,9 +491,10 @@ export function Sidebar(): React.ReactNode {
     }, [setHoveredPage]);
 
     const reduxState = useSelector<ReduxObject, HookStore>(it => it.hookStore);
+    const activeProjectId = useSelector<ReduxObject, string | undefined>(it => it.project.project);
     const navigate = useNavigate();
 
-    useProvideCommands(staticProvider(allSidebarCommands(reduxState, navigate)));
+    useProvideCommands(staticProvider(allSidebarCommands(reduxState, navigate, activeProjectId)));
     const [dialog, setOpenDialog] = React.useState<DialogOptions>("");
 
     if (useFrameHidden()) return null;
@@ -846,7 +848,7 @@ if (hasFeature(Feature.STACKS)) {
 
 function projectSidebarSubLinks(canApply: boolean, isPersonalWorkspace: boolean, projectId?: string): LinkInfo[] {
     const tab = SidebarTabId.PROJECT;
-    const {allocations, usage} = AppRoutes.accounting;
+    const {allocations, usage, usageBreakdown} = AppRoutes.accounting;
     const {members, settings, subprojects} = AppRoutes.project;
     const {outgoing} = AppRoutes.grants;
     return [{
@@ -869,6 +871,8 @@ function projectSidebarSubLinks(canApply: boolean, isPersonalWorkspace: boolean,
         defaultHidden: true,
     }, {
         to: usage(), text: "Usage", icon: "heroPresentationChartLine", tab
+    }, {
+        to: usageBreakdown(), text: "Usage breakdown", icon: "heroClipboardDocumentList", tab, disabled: !canApply
     }, {
         to: outgoing(), text: "Grant applications", icon: "heroDocumentText", tab, defaultHidden: true,
     },
@@ -925,7 +929,8 @@ function SecondarySidebar({
     const lastHover = React.useRef(SidebarTabId.NONE);
     const isPersonalWorkspace = !projectId;
     const project = useProject();
-    const canApply = isPersonalWorkspace || isAdminOrPI(project.fetch().status.myRole);
+    const projectDetails = project.fetch();
+    const canApply = isPersonalWorkspace || projectDetails.id === projectId && isAdminOrPI(projectDetails.status.myRole);
 
     const onClear = useCallback(() => {
         clearClicked();

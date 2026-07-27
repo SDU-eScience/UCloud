@@ -5,10 +5,12 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"os"
 	"slices"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
-    "os"
 
 	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
@@ -219,6 +221,161 @@ func TaskRetrieveOwner(taskId int) (TaskOwner, bool) {
 		} else {
 			return TaskOwner{}, false
 		}
+	})
+}
+
+type UsageBreakdownResource struct {
+	Type         string
+	Id           string
+	Title        string
+	CreatedBy    string
+	ProjectId    string
+	ProjectTitle string
+	Exists       bool
+}
+
+var usageBreakdownResourceCache = struct {
+	mu          sync.Mutex
+	initialized bool
+	resources   map[string]UsageBreakdownResource
+}{resources: map[string]UsageBreakdownResource{}}
+
+// UsageBreakdownRetrieveResources performs a privileged bulk lookup of resource and workspace metadata. It deliberately
+// bypasses resource authorization and must only be called after the caller has authorized the complete usage breakdown.
+// Resource metadata is immutable, so the first call eagerly caches all jobs and drives for the lifetime of the process.
+// Later calls only retrieve uncached resources. Unknown and deleted resources retain the workspace metadata supplied by
+// the caller and are not cached, allowing a later call to discover resources created after the initial cache population.
+func UsageBreakdownRetrieveResources(requested []UsageBreakdownResource) []UsageBreakdownResource {
+	if len(requested) == 0 {
+		return []UsageBreakdownResource{}
+	}
+
+	usageBreakdownResourceCache.mu.Lock()
+	if !usageBreakdownResourceCache.initialized {
+		for _, resource := range usageBreakdownRetrieveAllResourcesFromDatabase() {
+			usageBreakdownResourceCache.resources[usageBreakdownResourceKey(resource)] = resource
+		}
+		usageBreakdownResourceCache.initialized = true
+	}
+
+	result := make([]UsageBreakdownResource, 0, len(requested))
+	missing := make([]UsageBreakdownResource, 0)
+	for _, resource := range requested {
+		if cached, ok := usageBreakdownResourceCache.resources[usageBreakdownResourceKey(resource)]; ok {
+			result = append(result, cached)
+		} else {
+			missing = append(missing, resource)
+		}
+	}
+	usageBreakdownResourceCache.mu.Unlock()
+
+	retrieved := usageBreakdownRetrieveRequestedResourcesFromDatabase(missing)
+	result = append(result, retrieved...)
+	usageBreakdownResourceCache.mu.Lock()
+	for _, resource := range retrieved {
+		if resource.Exists {
+			usageBreakdownResourceCache.resources[usageBreakdownResourceKey(resource)] = resource
+		}
+	}
+	usageBreakdownResourceCache.mu.Unlock()
+	return result
+}
+
+func usageBreakdownResourceKey(resource UsageBreakdownResource) string {
+	return resource.Type + "\x00" + resource.Id
+}
+
+func usageBreakdownRetrieveAllResourcesFromDatabase() []UsageBreakdownResource {
+	return db.NewTx(func(tx *db.Transaction) []UsageBreakdownResource {
+		return db.Select[UsageBreakdownResource](
+			tx,
+			`
+				select
+					case r.type when 'file_collection' then 'drive' else 'job' end as type,
+					r.id::text as id,
+					case
+						when r.type = 'file_collection' then coalesce(d.title, '')
+						when r.type = 'job' then coalesce(nullif(j.name, ''), a.title, j.application_name, '')
+						else ''
+					end as title,
+					r.created_by,
+					coalesce(r.project, '') as project_id,
+					coalesce(p.title, '') as project_title,
+					true as exists
+				from
+					provider.resource r
+					left join file_orchestrator.file_collections d on r.type = 'file_collection' and d.resource = r.id
+					left join app_orchestrator.jobs j on r.type = 'job' and j.resource = r.id
+					left join app_store.applications a on a.name = j.application_name and a.version = j.application_version
+					left join project.projects p on p.id = r.project
+				where
+					r.type in ('file_collection', 'job')
+			`,
+			db.Params{},
+		)
+	})
+}
+
+func usageBreakdownRetrieveRequestedResourcesFromDatabase(requested []UsageBreakdownResource) []UsageBreakdownResource {
+	if len(requested) == 0 {
+		return []UsageBreakdownResource{}
+	}
+
+	types := make([]string, 0, len(requested))
+	ids := make([]int64, 0, len(requested))
+	createdBy := make([]string, 0, len(requested))
+	projectIds := make([]string, 0, len(requested))
+	for _, resource := range requested {
+		id, err := strconv.ParseInt(resource.Id, 10, 64)
+		if err != nil {
+			continue
+		}
+		types = append(types, resource.Type)
+		ids = append(ids, id)
+		createdBy = append(createdBy, resource.CreatedBy)
+		projectIds = append(projectIds, resource.ProjectId)
+	}
+	if len(ids) == 0 {
+		return []UsageBreakdownResource{}
+	}
+
+	return db.NewTx(func(tx *db.Transaction) []UsageBreakdownResource {
+		return db.Select[UsageBreakdownResource](
+			tx,
+			`
+				with requested as (
+					select
+						unnest(cast(:types as text[])) as type,
+						unnest(cast(:ids as bigint[])) as id,
+						unnest(cast(:created_by as text[])) as created_by,
+						unnest(cast(:project_ids as text[])) as project_id
+				)
+				select
+					requested.type,
+					requested.id::text as id,
+					case
+						when requested.type = 'drive' then coalesce(d.title, '')
+						when requested.type = 'job' then coalesce(nullif(j.name, ''), a.title, j.application_name, '')
+						else ''
+					end as title,
+					coalesce(r.created_by, requested.created_by) as created_by,
+					coalesce(r.project, requested.project_id) as project_id,
+					coalesce(p.title, '') as project_title,
+					r.id is not null as exists
+				from
+					requested
+					left join provider.resource r on
+						r.id = requested.id
+						and r.type = case when requested.type = 'drive' then 'file_collection' else requested.type end
+					left join file_orchestrator.file_collections d on requested.type = 'drive' and d.resource = r.id
+					left join app_orchestrator.jobs j on requested.type = 'job' and j.resource = r.id
+					left join app_store.applications a on a.name = j.application_name and a.version = j.application_version
+					left join project.projects p on p.id = coalesce(r.project, nullif(requested.project_id, ''))
+				where
+					requested.type in ('drive', 'job')
+			`,
+			db.Params{"types": types, "ids": ids, "created_by": createdBy, "project_ids": projectIds},
+		)
 	})
 }
 

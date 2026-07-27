@@ -22,7 +22,8 @@ export interface SimpleRichItem {
 }
 
 const SIMPLE_RICH_SELECT_OPENED_EVENT = "ucloud:simple-rich-select-opened";
-interface SimpleRichSelectOpenedDetail {
+const RICH_SELECT_OPENED_EVENT = "ucloud:rich-select-opened";
+interface RichSelectOpenedDetail {
     sourceId: string;
 }
 
@@ -47,7 +48,7 @@ export const SimpleRichSelect: React.FunctionComponent<{
         if (typeof window === "undefined") return;
 
         const onAnySimpleRichSelectOpened = (event: Event) => {
-            const customEvent = event as CustomEvent<SimpleRichSelectOpenedDetail>;
+            const customEvent = event as CustomEvent<RichSelectOpenedDetail>;
             if (customEvent.detail?.sourceId === instanceIdRef.current) return;
             setInstanceVersion(current => current + 1);
         };
@@ -60,7 +61,7 @@ export const SimpleRichSelect: React.FunctionComponent<{
 
     const announceOpen = useCallback(() => {
         if (typeof window === "undefined") return;
-        window.dispatchEvent(new CustomEvent<SimpleRichSelectOpenedDetail>(SIMPLE_RICH_SELECT_OPENED_EVENT, {
+        window.dispatchEvent(new CustomEvent<RichSelectOpenedDetail>(SIMPLE_RICH_SELECT_OPENED_EVENT, {
             detail: {sourceId: instanceIdRef.current},
         }));
     }, []);
@@ -191,6 +192,19 @@ export function RichSelect<T, K extends keyof T>(props: {
     const [query, setQuery] = useState("");
     const closeFn = useRef<() => void>(doNothing);
     const triggerRef = useRef<HTMLDivElement>(null);
+    const instanceIdRef = useRef(`rich-select-${Math.random().toString(36).slice(2)}`);
+
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+
+        const closeWhenAnotherRichSelectOpens = (event: Event) => {
+            const customEvent = event as CustomEvent<RichSelectOpenedDetail>;
+            if (customEvent.detail?.sourceId !== instanceIdRef.current) closeFn.current();
+        };
+
+        window.addEventListener(RICH_SELECT_OPENED_EVENT, closeWhenAnotherRichSelectOpens as EventListener);
+        return () => window.removeEventListener(RICH_SELECT_OPENED_EVENT, closeWhenAnotherRichSelectOpens as EventListener);
+    }, []);
 
     const filteredElements = useMemo(() => {
         const withKeys = props.items.map((it, itIdx) => ({idx: itIdx, ...it}));
@@ -213,6 +227,9 @@ export function RichSelect<T, K extends keyof T>(props: {
     const height = Math.min(370, (props.elementHeight ?? 40) * limitedElements.length + searchFieldHeight);
 
     const onTriggerClick = useCallback(() => {
+        window.dispatchEvent(new CustomEvent<RichSelectOpenedDetail>(RICH_SELECT_OPENED_EVENT, {
+            detail: {sourceId: instanceIdRef.current},
+        }));
         setQuery("");
         setDropdownTop(undefined);
 

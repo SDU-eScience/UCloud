@@ -56,6 +56,7 @@ import SshKeyCreate from "@/Applications/SshKeys/Add";
 import ApiTokenCreate from "@/Applications/ApiTokens/Add";
 import GrantEditor from "@/Grants/Editor";
 import ResourceUsage from "@/Accounting/UsageCore2";
+import UsageBreakdown from "@/Accounting/UsageBreakdown";
 import ResourceAllocations from "@/Accounting/Allocations";
 import Connection from "@/Providers/Connection";
 import PrivateNetworksRouter from "@/Applications/PrivateNetwork/Router";
@@ -243,6 +244,8 @@ const Core = (): React.ReactNode => (
 
                     <Route path={AppRoutes.accounting.usage()}
                            element={React.createElement(requireAuth(ResourceUsage))} />
+                    <Route path={AppRoutes.accounting.usageBreakdown()}
+                           element={React.createElement(requireAuth(UsageBreakdown))} />
                     <Route path={AppRoutes.accounting.allocations()}
                            element={React.createElement(requireAuth(ResourceAllocations))} />
 

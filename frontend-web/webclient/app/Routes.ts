@@ -46,6 +46,7 @@ const resources = {
 const project = {
     members: () => `/projects/members`,
     usage: () => accounting.usage(),
+    usageBreakdown: () => accounting.usageBreakdown(),
     allocations: () => accounting.allocations(),
     settings: (page: string) => `/project/settings${page === "" ? "" : "/" + page}`,
     subprojects: () => accounting.allocations(),
@@ -133,6 +134,7 @@ const grants = {
 
 const accounting = {
     usage: () => "/usage",
+    usageBreakdown: () => "/usage/breakdown",
     allocations: () => "/allocations",
 }
 

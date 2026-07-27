@@ -61,7 +61,7 @@ func initAccounting() {
 		return WalletsBrowse(info.Actor, request), nil
 	})
 
-	accapi.UsageBreakdownBrowse.Handler(func(info rpc.RequestInfo, request accapi.UsageBreakdownBrowseRequest) (fndapi.PageV2[accapi.UsageBreakdownItem], *util.HttpError) {
+	accapi.UsageBreakdownBrowse.Handler(func(info rpc.RequestInfo, request accapi.UsageBreakdownBrowseRequest) (accapi.UsageBreakdownBrowseResponse, *util.HttpError) {
 		return UsageBreakdownBrowse(info.Actor, request)
 	})
 

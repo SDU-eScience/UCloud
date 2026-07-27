@@ -364,6 +364,41 @@ func accountingV6() db.MigrationScript {
 
 				-- Production databases do not require this, but some development databases might
 				delete from accounting.scoped_usage where wallet_id is null;
+				
+				with 
+					ranked AS (
+						select
+							wallet_id,
+							key,
+							count(*) over (
+								partition by wallet_id, resource_suffix
+							) AS duplicate_count,
+							row_number() over (
+								partition by wallet_id, resource_suffix
+								order by
+									usage,
+									last_updated_at,
+									key
+							) AS priority
+						from accounting.scoped_usage
+					),
+					to_delete as (
+						select wallet_id, key
+						from ranked
+						where
+							duplicate_count > 1
+							and priority = 1
+					)
+				delete from accounting.scoped_usage as su
+				using to_delete as d
+				where
+					su.wallet_id = d.wallet_id
+					and su.key = d.key
+				;
+				
+				update accounting.scoped_usage set key = resource_suffix where true;
+				
+				alter table accounting.scoped_usage drop column resource_suffix;
 			`
 
 			for _, statement := range strings.Split(script, ";") {
