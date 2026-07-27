@@ -256,7 +256,9 @@ done
 				return
 			}
 
-			linkAttachment := ucxsvc.PublicLinkCreate(stack, stackId, util.OptValue(8080))
+			linkAttachment := ucxsvc.PublicLinkCreate(stack, stackId, ucxsvc.PublicLinkCreateOptions{
+				Port: util.OptValue(8080),
+			})
 			networkAttachment := ucxsvc.PrivateNetworkCreate(stack, stackId)
 
 			for i := 1; i <= 3; i++ {

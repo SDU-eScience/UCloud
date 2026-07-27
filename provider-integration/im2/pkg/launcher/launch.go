@@ -335,7 +335,10 @@ func Launch() {
 		}
 
 		s := &http.Server{
-			Addr: fmt.Sprintf(":%v", serverPort),
+			Addr:              fmt.Sprintf(":%v", serverPort),
+			ReadHeaderTimeout: 10 * time.Second,
+			IdleTimeout:       2 * time.Minute,
+			MaxHeaderBytes:    1 << 20,
 			Handler: collapseServerSlashes(
 				http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 					handler, _ := rpc.DefaultServer.Mux.Handler(request)

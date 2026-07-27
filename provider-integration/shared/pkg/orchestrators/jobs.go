@@ -59,14 +59,23 @@ type DynamicTarget struct {
 	DefaultName util.Option[string]    `json:"defaultName"`
 }
 
+// JobState describes the outcome of workload execution, rather than merely whether
+// UCloud successfully submitted it to a provider. Cancellation currently has no
+// separate state and retains the historical SUCCESS outcome.
 type JobState string
 
 const (
-	JobStateInQueue   JobState = "IN_QUEUE"
-	JobStateRunning   JobState = "RUNNING"
-	JobStateSuccess   JobState = "SUCCESS"
-	JobStateFailure   JobState = "FAILURE"
-	JobStateExpired   JobState = "EXPIRED"
+	// JobStateInQueue means the job was accepted but workload execution has not started.
+	JobStateInQueue JobState = "IN_QUEUE"
+	// JobStateRunning means workload execution has started.
+	JobStateRunning JobState = "RUNNING"
+	// JobStateSuccess means the workload completed with exit code 0.
+	JobStateSuccess JobState = "SUCCESS"
+	// JobStateFailure means a non-zero exit, signal, OOM, workload, or infrastructure failure occurred.
+	JobStateFailure JobState = "FAILURE"
+	// JobStateExpired means the job was terminated because its time allocation elapsed.
+	JobStateExpired JobState = "EXPIRED"
+	// JobStateSuspended means execution was intentionally paused and may resume.
 	JobStateSuspended JobState = "SUSPENDED"
 )
 

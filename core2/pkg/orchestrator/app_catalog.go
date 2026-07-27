@@ -2004,6 +2004,12 @@ func validateUcxExecutableMetadataSection(ucx util.Option[orcapi.UcxDescription]
 	if strings.TrimSpace(executable.ManifestUrl) == "" {
 		return util.HttpErr(http.StatusBadRequest, "%s.manifestUrl is required", path)
 	}
+	if strings.HasPrefix(executable.ManifestUrl, "builtin://") {
+		if _, ok := builtinUcxExecutableName(executable.ManifestUrl); !ok {
+			return util.HttpErr(http.StatusBadRequest, "%s.manifestUrl must contain a valid built-in executable name", path)
+		}
+		return nil
+	}
 	if !strings.HasPrefix(executable.ManifestUrl, "https://") {
 		return util.HttpErr(http.StatusBadRequest, "%s.manifestUrl must be an HTTPS URL", path)
 	}
@@ -2018,6 +2024,24 @@ func validateUcxExecutableMetadataSection(ucx util.Option[orcapi.UcxDescription]
 	}
 
 	return nil
+}
+
+func builtinUcxExecutableName(manifestUrl string) (string, bool) {
+	const prefix = "builtin://"
+	if !strings.HasPrefix(manifestUrl, prefix) {
+		return "", false
+	}
+
+	name := strings.TrimPrefix(manifestUrl, prefix)
+	if name == "" || name == "." || name == ".." {
+		return "", false
+	}
+	for _, ch := range name {
+		if (ch < 'a' || ch > 'z') && (ch < 'A' || ch > 'Z') && (ch < '0' || ch > '9') && ch != '-' && ch != '_' && ch != '.' {
+			return "", false
+		}
+	}
+	return name, true
 }
 
 func AppStudioCreateToolDirect(tool *orcapi.Tool) *util.HttpError {

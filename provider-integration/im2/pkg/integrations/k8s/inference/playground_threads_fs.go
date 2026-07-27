@@ -10,6 +10,7 @@ import (
 
 	ctrl "ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/integrations/k8s/filesystem"
+	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -26,20 +27,24 @@ type playgroundPersistedThread struct {
 	CreatedAt string                        `json:"createdAt"`
 	UpdatedAt string                        `json:"updatedAt"`
 	Usage     InferencePlaygroundTokenUsage `json:"usage"`
+	Workspace string                        `json:"workspace,omitempty"`
+	LastQuery InferencePlaygroundTokenUsage `json:"lastQuery"`
 	Messages  []playgroundPersistedMessage  `json:"messages"`
 }
 
 type playgroundPersistedMessage struct {
-	Role           string `json:"role"`
-	Content        string `json:"content"`
-	Reasoning      string `json:"reasoning,omitempty"`
-	ReasoningTitle string `json:"reasoningTitle,omitempty"`
-	GeneratedAt    string `json:"generatedAt,omitempty"`
-	ModelName      string `json:"modelName,omitempty"`
-	StartedAt      string `json:"startedAt,omitempty"`
-	FirstTokenAt   string `json:"firstTokenAt,omitempty"`
-	FinishedAt     string `json:"finishedAt,omitempty"`
-	OutputTokens   int64  `json:"outputTokens,omitempty"`
+	Role           string                      `json:"role"`
+	Content        string                      `json:"content"`
+	Synthetic      bool                        `json:"synthetic,omitempty"`
+	Reasoning      string                      `json:"reasoning,omitempty"`
+	ReasoningTitle string                      `json:"reasoningTitle,omitempty"`
+	Parts          []playgroundChatMessagePart `json:"parts,omitempty"`
+	GeneratedAt    string                      `json:"generatedAt,omitempty"`
+	ModelName      string                      `json:"modelName,omitempty"`
+	StartedAt      string                      `json:"startedAt,omitempty"`
+	FirstTokenAt   string                      `json:"firstTokenAt,omitempty"`
+	FinishedAt     string                      `json:"finishedAt,omitempty"`
+	OutputTokens   int64                       `json:"outputTokens,omitempty"`
 }
 
 func inferencePlaygroundThreadsLoad(owner string, project util.Option[string]) []playgroundChatThread {
@@ -76,6 +81,19 @@ func inferencePlaygroundThreadsLoad(owner string, project util.Option[string]) [
 		threads = threads[:playgroundThreadLoadLimit]
 	}
 	return threads
+}
+
+func InferencePlaygroundThreadSummaries(owner string, project util.Option[string]) []orcapi.InferencePlaygroundThread {
+	threads := inferencePlaygroundThreadsLoad(owner, project)
+	result := make([]orcapi.InferencePlaygroundThread, 0, len(threads))
+	for _, thread := range threads {
+		result = append(result, orcapi.InferencePlaygroundThread{
+			Id:        thread.Id,
+			Title:     thread.Title,
+			UpdatedAt: thread.UpdatedAt,
+		})
+	}
+	return result
 }
 
 func inferencePlaygroundThreadsFlush(owner string, project util.Option[string], threads []playgroundChatThread, deletedThreadIds []string, deletedThreadPaths []string) bool {
@@ -226,8 +244,10 @@ func playgroundThreadPersisted(thread playgroundChatThread) playgroundPersistedT
 		messages = append(messages, playgroundPersistedMessage{
 			Role:           msg.Role,
 			Content:        msg.Content,
+			Synthetic:      msg.Synthetic,
 			Reasoning:      msg.Reasoning,
 			ReasoningTitle: msg.ReasoningTitle,
+			Parts:          msg.Parts,
 			GeneratedAt:    playgroundFormatTime(msg.GeneratedAt),
 			ModelName:      msg.ModelName,
 			StartedAt:      playgroundFormatTime(msg.StartedAt),
@@ -243,6 +263,8 @@ func playgroundThreadPersisted(thread playgroundChatThread) playgroundPersistedT
 		CreatedAt: playgroundFormatTime(thread.CreatedAt),
 		UpdatedAt: playgroundFormatTime(thread.UpdatedAt),
 		Usage:     thread.Usage,
+		Workspace: strings.TrimSpace(thread.WorkspacePath),
+		LastQuery: thread.LastQuery,
 		Messages:  messages,
 	}
 }
@@ -266,12 +288,17 @@ func playgroundThreadFromPersisted(persisted playgroundPersistedThread) (playgro
 		startedAt, _ := playgroundParseTime(msg.StartedAt)
 		firstTokenAt, _ := playgroundParseTime(msg.FirstTokenAt)
 		finishedAt, _ := playgroundParseTime(msg.FinishedAt)
+		parts := msg.Parts
+		if len(parts) == 0 {
+			parts = playgroundChatMessageParts(msg.Content, msg.Reasoning, msg.ReasoningTitle, false)
+		}
 		messages = append(messages, playgroundChatMessage{
 			Role:           msg.Role,
 			Content:        msg.Content,
+			Synthetic:      msg.Synthetic,
 			Reasoning:      msg.Reasoning,
 			ReasoningTitle: msg.ReasoningTitle,
-			Parts:          playgroundChatMessageParts(msg.Content, msg.Reasoning, msg.ReasoningTitle, false),
+			Parts:          parts,
 			GeneratedAt:    generatedAt,
 			ModelName:      msg.ModelName,
 			StartedAt:      startedAt,
@@ -285,16 +312,49 @@ func playgroundThreadFromPersisted(persisted playgroundPersistedThread) (playgro
 	if title == "" {
 		title = "New thread"
 	}
+	lastQuery := persisted.LastQuery
+	if playgroundTokenUsageIsZero(lastQuery) {
+		lastQuery = playgroundPersistedLastQueryFallback(persisted.Usage, messages)
+	}
 	return playgroundChatThread{
 		Id:                     persisted.Id,
 		Title:                  title,
 		CreatedAt:              createdAt,
 		UpdatedAt:              updatedAt,
 		Usage:                  persisted.Usage,
+		WorkspacePath:          strings.TrimSpace(persisted.Workspace),
+		LastQuery:              lastQuery,
 		Messages:               messages,
 		TitleGenerated:         true,
 		TitleGenerationStarted: true,
 	}, true
+}
+
+func playgroundTokenUsageIsZero(usage InferencePlaygroundTokenUsage) bool {
+	return usage.Input == 0 && usage.CachedInput == 0 && usage.Output == 0 && usage.Reported == 0
+}
+
+func playgroundPersistedLastQueryFallback(usage InferencePlaygroundTokenUsage, messages []playgroundChatMessage) InferencePlaygroundTokenUsage {
+	lastAssistantOutput := int64(0)
+	for i := len(messages) - 1; i >= 0; i-- {
+		if messages[i].Role == "assistant" && messages[i].OutputTokens > 0 {
+			lastAssistantOutput = messages[i].OutputTokens
+			break
+		}
+	}
+	if lastAssistantOutput == 0 || lastAssistantOutput > usage.Output {
+		lastAssistantOutput = usage.Output
+	}
+	reported := usage.Input + usage.CachedInput + lastAssistantOutput
+	if usage.Reported > 0 && reported == 0 {
+		reported = usage.Reported
+	}
+	return InferencePlaygroundTokenUsage{
+		Input:       usage.Input,
+		CachedInput: usage.CachedInput,
+		Output:      lastAssistantOutput,
+		Reported:    reported,
+	}
 }
 
 func playgroundChatsRoot(basePath string) string {

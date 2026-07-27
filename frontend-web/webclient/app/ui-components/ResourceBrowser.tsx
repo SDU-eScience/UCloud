@@ -442,6 +442,7 @@ export class ResourceBrowser<T> {
         }
         this.renderRows();
         this.renderOperations();
+        this.dispatchMessage("rowSelectionUpdated", fn => fn());
     }
 
     public init(
@@ -2479,22 +2480,28 @@ export class ResourceBrowser<T> {
                 );
                 const baseFileIdx = parseInt(this.rows[0].container.getAttribute("data-idx")!);
 
-                const oldSelectedCount = this.isSelected.reduce((acc, entry) => acc + entry, 0);
-
+                let selectionChanged = false;
                 for (let i = 0; i < this.rows.length; i++) {
+                    const selectionIndex = i + baseFileIdx;
+                    if (selectionIndex < 0 || selectionIndex >= this.isSelected.length) continue;
+                    let selected = this.isSelected[selectionIndex];
                     if (i >= lowerOffset && i <= upperOffset) {
-                        this.isSelected[i + baseFileIdx] = 1;
+                        selected = 1;
                     } else {
                         // NOTE(Dan): When scrolling, then we should never turn anything off if scrolling has begun
                         // TODO(Dan): Maybe we should just move the scrolling region along with the scrolling?
-                        if (initialScrollTop === scrollStart) this.isSelected[i + baseFileIdx] = 0;
+                        if (initialScrollTop === scrollStart) selected = 0;
+                    }
+                    if (this.isSelected[selectionIndex] !== selected) {
+                        this.isSelected[selectionIndex] = selected;
+                        selectionChanged = true;
                     }
                 }
 
-                const newSelectedCount = this.isSelected.reduce((acc, entry) => acc + entry, 0)
-                if (oldSelectedCount !== newSelectedCount) {
+                if (selectionChanged) {
                     this.renderRows();
                     this.renderOperations();
+                    this.dispatchMessage("rowSelectionUpdated", fn => fn());
                 }
             };
 

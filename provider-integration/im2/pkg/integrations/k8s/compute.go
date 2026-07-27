@@ -83,6 +83,7 @@ var monitoringHealthCounter = atomic.Int64{}
 
 func InitComputeLater() {
 	controller.IAppReconfigureAll()
+	containers.StartSyncthingPolicyReconciler()
 
 	initJobQueue()
 

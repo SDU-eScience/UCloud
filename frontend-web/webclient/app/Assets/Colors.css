@@ -54,6 +54,35 @@ html.light {
     --gray-fg: var(--gray-60);
     --blue-fg: var(--blue-60);
     --pink-fg: var(--pink-60);
+
+    --chart-blue-main: var(--blue-60);
+    --chart-purple-main: var(--purple-60);
+    --chart-orange-main: var(--orange-60);
+    --chart-green-main: var(--green-60);
+    --chart-red-main: var(--red-60);
+    --chart-yellow-main: var(--yellow-60);
+    --chart-pink-main: var(--pink-60);
+    --chart-blue-alt: var(--blue-80);
+    --chart-purple-alt: var(--purple-80);
+    --chart-orange-alt: var(--orange-80);
+    --chart-green-alt: var(--green-80);
+    --chart-red-alt: var(--red-80);
+    --chart-yellow-alt: var(--yellow-80);
+    --chart-pink-alt: var(--pink-80);
+    --chart-blue-muted: var(--blue-70);
+    --chart-purple-muted: var(--purple-70);
+    --chart-orange-muted: var(--orange-70);
+    --chart-green-muted: var(--green-70);
+    --chart-red-muted: var(--red-70);
+    --chart-yellow-muted: var(--yellow-70);
+    --chart-pink-muted: var(--pink-70);
+    --chart-main-contrast: var(--fixedWhite);
+    --chart-alt-contrast: var(--fixedWhite);
+    --chart-muted-contrast: var(--fixedWhite);
+    --chart-list-bar: #4C94EB;
+    --chart-list-hover: #D9E9FA;
+    --chart-hover-on-fill: var(--primaryMain);
+    --chart-hover-on-surface: var(--primaryMain);
 }
 
 html.dark {
@@ -113,6 +142,35 @@ html.dark {
     --gray-fg: var(--gray-40);
     --blue-fg: var(--blue-40);
     --pink-fg: var(--pink-40);
+
+    --chart-blue-main: var(--blue-40);
+    --chart-purple-main: var(--purple-40);
+    --chart-orange-main: var(--orange-40);
+    --chart-green-main: var(--green-40);
+    --chart-red-main: var(--red-40);
+    --chart-yellow-main: var(--yellow-40);
+    --chart-pink-main: var(--pink-40);
+    --chart-blue-alt: var(--blue-50);
+    --chart-purple-alt: var(--purple-50);
+    --chart-orange-alt: var(--orange-50);
+    --chart-green-alt: var(--green-50);
+    --chart-red-alt: var(--red-50);
+    --chart-yellow-alt: var(--yellow-50);
+    --chart-pink-alt: var(--pink-50);
+    --chart-blue-muted: var(--blue-60);
+    --chart-purple-muted: var(--purple-60);
+    --chart-orange-muted: var(--orange-60);
+    --chart-green-muted: var(--green-60);
+    --chart-red-muted: var(--red-60);
+    --chart-yellow-muted: var(--yellow-60);
+    --chart-pink-muted: var(--pink-60);
+    --chart-main-contrast: var(--fixedBlack);
+    --chart-alt-contrast: var(--fixedBlack);
+    --chart-muted-contrast: var(--fixedWhite);
+    --chart-list-bar: #1674E4;
+    --chart-list-hover: var(--gray-80);
+    --chart-hover-on-fill: var(--primaryMain);
+    --chart-hover-on-surface: var(--primaryMain);
 }
 
 html.light {

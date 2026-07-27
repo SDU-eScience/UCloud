@@ -86,6 +86,21 @@ var FileMetadataDocBrowse = rpc.Call[FileMetadataDocBrowseRequest, fnd.PageV2[Fi
 	Convention:  rpc.ConventionBrowse,
 }
 
+type FileMetadataSensitivityCheckRequest struct {
+	Paths []string `json:"paths"`
+}
+
+type FileMetadataSensitivityCheckResponse struct {
+	RestrictedPaths []string `json:"restrictedPaths"`
+}
+
+var FileMetadataControlCheckSensitivity = rpc.Call[FileMetadataSensitivityCheckRequest, FileMetadataSensitivityCheckResponse]{
+	BaseContext: fileMetadataDocContext + "/control",
+	Roles:       rpc.RolesProvider,
+	Convention:  rpc.ConventionUpdate,
+	Operation:   "checkSensitivity",
+}
+
 // =====================================================================================================================
 
 const fileMetadataNamespaceContext = "files/metadataTemplates"

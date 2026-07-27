@@ -27,6 +27,7 @@ import (
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	orc "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -37,27 +38,33 @@ var browseCache *lru.LRU[string, []cachedDirEntry]
 const SensitivityXattr string = "user.sensitivity"
 
 type cachedDirEntry struct {
-	absPath string
-	hasInfo bool
-	skip    bool
-	info    os.FileInfo
+	absPath             string
+	hasInfo             bool
+	skip                bool
+	info                os.FileInfo
+	recursiveSize       util.Option[int64]
+	recursiveSizeLoaded bool
 }
 
 func InitFiles() controller.FileService {
 	browseCache = lru.NewLRU[string, []cachedDirEntry](256, nil, 5*time.Minute)
 	loadStorageProducts()
+	activityDeleteExpiredEvents()
 
 	initTasks()
-	initScanQueue()
-	go func() {
-		for util.IsAlive {
-			time.Sleep(loopMonitoring())
-		}
-	}()
+	if !shared.ServiceConfig.FileSystem.MetadataCatalog.EnableIntegration {
+		initScanQueue()
+		go func() {
+			for util.IsAlive {
+				time.Sleep(loopMonitoring())
+			}
+		}()
+	}
 
 	return controller.FileService{
 		BrowseFiles:                 browseFiles,
 		RetrieveFile:                retrieveFile,
+		Visualize:                   visualize,
 		CreateFolder:                createFolder,
 		Move:                        move,
 		Copy:                        copyFiles,
@@ -116,13 +123,20 @@ func OpenFile(path string, mode int, perm uint32) (*os.File, bool) {
 	return os.NewFile(uintptr(fd), components[componentsLength-1]), true
 }
 
-func createDownload(request controller.FileDownloadSession) *util.HttpError {
+func createDownload(actor rpc.Actor, request controller.FileDownloadSession) *util.HttpError {
 	if UCloudPathIsSensitive(request.Path) {
 		return util.UserHttpError("Downloads are disabled for this project")
 	}
 
 	fd, _, err := validateAndOpenFileForDownload(request.Path)
 	util.SilentCloseIfOk(fd, err.AsError())
+	if err == nil {
+		ActivityRecord(actor, ActivityEvent{
+			Kind:      ActivityDirect,
+			Operation: ActivityOperationDownload,
+			Targets:   []ActivityTarget{{UCloudPath: request.Path}},
+		})
+	}
 	return err
 }
 
@@ -159,8 +173,19 @@ func validateAndOpenFileForDownload(path string) (*os.File, int64, *util.HttpErr
 	return fd, info.Size(), nil
 }
 
-func move(request orc.FilesProviderMoveOrCopyRequest) *util.HttpError {
-	return doMove(request, false)
+func move(actor rpc.Actor, request orc.FilesProviderMoveOrCopyRequest) *util.HttpError {
+	err := doMove(request, false)
+	if err == nil {
+		ActivityRecord(actor, ActivityEvent{
+			Kind:      ActivityDirect,
+			Operation: ActivityOperationMove,
+			Targets: []ActivityTarget{
+				{UCloudPath: request.OldId, Role: "source"},
+				{UCloudPath: request.NewId, Role: "destination"},
+			},
+		})
+	}
+	return err
 }
 
 func doMove(request orc.FilesProviderMoveOrCopyRequest, updateTimestamps bool) *util.HttpError {
@@ -261,7 +286,7 @@ func DoCreateFolder(internalPath string) *util.HttpError {
 	return nil
 }
 
-func createFolder(request orc.FilesProviderCreateFolderRequest) *util.HttpError {
+func createFolder(actor rpc.Actor, request orc.FilesProviderCreateFolderRequest) *util.HttpError {
 	internalPath, ok, destDrive := UCloudToInternal(request.Id)
 	if !ok {
 		return util.UserHttpError("Could not find file")
@@ -271,7 +296,15 @@ func createFolder(request orc.FilesProviderCreateFolderRequest) *util.HttpError 
 		return util.PaymentError()
 	}
 
-	return DoCreateFolder(internalPath)
+	err := DoCreateFolder(internalPath)
+	if err == nil {
+		ActivityRecord(actor, ActivityEvent{
+			Kind:      ActivityDirect,
+			Operation: ActivityOperationCreate,
+			Targets:   []ActivityTarget{{UCloudPath: request.Id}},
+		})
+	}
+	return err
 }
 
 func browseFiles(request orc.FilesProviderBrowseRequest) (fnd.PageV2[orc.ProviderFile], *util.HttpError) {
@@ -332,6 +365,9 @@ func browseFiles(request orc.FilesProviderBrowseRequest) (fnd.PageV2[orc.Provide
 					entry.skip = true
 				}
 			}
+			if sortBy == "SIZE" {
+				populateRecursiveSizes(&request.ResolvedCollection, entries)
+			}
 		}
 
 		cmpFunction := compareFileByPath
@@ -365,11 +401,9 @@ func browseFiles(request orc.FilesProviderBrowseRequest) (fnd.PageV2[orc.Provide
 		return fnd.EmptyPage[orc.ProviderFile](), nil
 	}
 
-	items := make([]orc.ProviderFile, min(request.Browse.ItemsPerPage, len(fileList)-offset))
-
-	itemIdx := 0
+	selected := make([]*cachedDirEntry, 0, min(request.Browse.ItemsPerPage, len(fileList)-offset))
 	i := offset
-	for i < len(fileList) && itemIdx < request.Browse.ItemsPerPage {
+	for i < len(fileList) && len(selected) < request.Browse.ItemsPerPage {
 		entry := &fileList[i]
 		i++
 
@@ -391,10 +425,13 @@ func browseFiles(request orc.FilesProviderBrowseRequest) (fnd.PageV2[orc.Provide
 
 		if !entry.hasInfo {
 			continue
-		} else {
-			items[itemIdx] = nativeStat(&request.ResolvedCollection, entry.absPath, entry.info)
-			itemIdx += 1
 		}
+		selected = append(selected, entry)
+	}
+	populateRecursiveSizesForEntries(&request.ResolvedCollection, selected)
+	items := make([]orc.ProviderFile, len(selected))
+	for itemIdx, entry := range selected {
+		items[itemIdx] = nativeStat(&request.ResolvedCollection, entry.absPath, entry.info, entry.recursiveSize)
 	}
 
 	nextToken := util.OptNone[string]()
@@ -403,7 +440,7 @@ func browseFiles(request orc.FilesProviderBrowseRequest) (fnd.PageV2[orc.Provide
 	}
 
 	return fnd.PageV2[orc.ProviderFile]{
-		Items:        items[:itemIdx],
+		Items:        items,
 		ItemsPerPage: 250,
 		Next:         nextToken,
 	}, nil
@@ -426,10 +463,42 @@ func retrieveFile(request orc.FilesProviderRetrieveRequest) (orc.ProviderFile, *
 		return orc.ProviderFile{}, util.UserHttpError("Could not find file: %s", util.FileName(request.Retrieve.Id))
 	}
 
-	return nativeStat(&request.ResolvedCollection, internalPath, info), nil
+	recursiveSize := util.OptNone[int64]()
+	fileCount := util.OptNone[uint64]()
+	directoryCount := util.OptNone[uint64]()
+	if info.IsDir() && request.Retrieve.Flags.IncludeSizes.GetOrDefault(false) {
+		recursiveSize = metadataRecursiveSize(&request.ResolvedCollection, internalPath)
+		entries, readErr := file.ReadDir(-1)
+		if readErr == nil {
+			var files uint64
+			var directories uint64
+			for _, entry := range entries {
+				isDirectory := entry.IsDir()
+				// Resolve ambiguous entry types only while the directory is below the existing stat threshold.
+				if len(entries) <= 10000 && entry.Type() == 0 {
+					var entryInfo unix.Stat_t
+					if entryErr := unix.Fstatat(int(file.Fd()), entry.Name(), &entryInfo, unix.AT_SYMLINK_NOFOLLOW); entryErr != nil {
+						continue
+					}
+					isDirectory = entryInfo.Mode&unix.S_IFMT == unix.S_IFDIR
+				}
+				if isDirectory {
+					directories++
+				} else {
+					files++
+				}
+			}
+			fileCount.Set(files)
+			directoryCount.Set(directories)
+		}
+	}
+	result := nativeStat(&request.ResolvedCollection, internalPath, info, recursiveSize)
+	result.Status.FileCount = fileCount
+	result.Status.DirectoryCount = directoryCount
+	return result, nil
 }
 
-func nativeStat(drive *orc.Drive, internalPath string, info os.FileInfo) orc.ProviderFile {
+func nativeStat(drive *orc.Drive, internalPath string, info os.FileInfo, recursiveSize util.Option[int64]) orc.ProviderFile {
 	ucloudPath, ok := InternalToUCloudWithDrive(drive, internalPath)
 	if !ok {
 		ucloudPath = util.FileName(internalPath)
@@ -442,6 +511,8 @@ func nativeStat(drive *orc.Drive, internalPath string, info os.FileInfo) orc.Pro
 			Icon:                         orc.FileIconHintNone,
 			SizeInBytes:                  util.OptValue[int64](0),
 			SizeIncludingChildrenInBytes: util.OptNone[int64](),
+			FileCount:                    util.OptNone[uint64](),
+			DirectoryCount:               util.OptNone[uint64](),
 			ModifiedAt:                   fnd.Timestamp{},
 			AccessedAt:                   fnd.Timestamp{},
 			UnixMode:                     0,
@@ -461,6 +532,7 @@ func nativeStat(drive *orc.Drive, internalPath string, info os.FileInfo) orc.Pro
 	result.Status.UnixGroup = FileGid(info)
 	if info.IsDir() {
 		result.Status.Type = orc.FileTypeDirectory
+		result.Status.SizeIncludingChildrenInBytes = recursiveSize
 
 		if strings.HasSuffix(internalPath, "/Jobs") {
 			result.Status.Icon = orc.FileIconHintDirectoryJobs
@@ -470,6 +542,53 @@ func nativeStat(drive *orc.Drive, internalPath string, info os.FileInfo) orc.Pro
 	}
 
 	return result
+}
+
+func metadataRecursiveSize(drive *orc.Drive, internalPath string) util.Option[int64] {
+	if !shared.ServiceConfig.FileSystem.MetadataCatalog.EnableIntegration {
+		return util.OptNone[int64]()
+	}
+	sizes, err := metadataLookupRecursiveSizes(drive, []string{internalPath})
+	if err != nil {
+		return util.OptNone[int64]()
+	}
+	size, found := sizes[internalPath]
+	if !found {
+		return util.OptNone[int64]()
+	}
+	return util.OptValue(size)
+}
+
+func populateRecursiveSizes(drive *orc.Drive, entries []cachedDirEntry) {
+	pointers := make([]*cachedDirEntry, len(entries))
+	for i := range entries {
+		pointers[i] = &entries[i]
+	}
+	populateRecursiveSizesForEntries(drive, pointers)
+}
+
+func populateRecursiveSizesForEntries(drive *orc.Drive, entries []*cachedDirEntry) {
+	if !shared.ServiceConfig.FileSystem.MetadataCatalog.EnableIntegration {
+		return
+	}
+	paths := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		if entry.hasInfo && entry.info.IsDir() && !entry.recursiveSizeLoaded {
+			paths = append(paths, entry.absPath)
+		}
+	}
+	sizes, err := metadataLookupRecursiveSizes(drive, paths)
+	if err != nil {
+		return
+	}
+	for _, entry := range entries {
+		if entry.hasInfo && entry.info.IsDir() {
+			entry.recursiveSizeLoaded = true
+		}
+		if size, found := sizes[entry.absPath]; found {
+			entry.recursiveSize.Set(size)
+		}
+	}
 }
 
 func compareFileByPath(a, b cachedDirEntry) int {
@@ -488,7 +607,13 @@ func compareFileBySize(a, b cachedDirEntry) int {
 	}
 
 	aSize := a.info.Size()
+	if a.info.IsDir() && a.recursiveSize.Present {
+		aSize = a.recursiveSize.Value
+	}
 	bSize := b.info.Size()
+	if b.info.IsDir() && b.recursiveSize.Present {
+		bSize = b.recursiveSize.Value
+	}
 	if aSize < bSize {
 		return -1
 	} else if aSize > bSize {
@@ -594,6 +719,8 @@ func loadStorageProducts() {
 
 	{
 		defaultSupport.Stats.SizeInBytes = true
+		defaultSupport.Stats.SizeIncludingChildrenInBytes = shared.ServiceConfig.FileSystem.MetadataCatalog.EnableIntegration
+		defaultSupport.Stats.Visualization = shared.ServiceConfig.FileSystem.MetadataCatalog.Enabled && shared.ServiceConfig.FileSystem.MetadataCatalog.EnableIntegration
 		defaultSupport.Stats.ModifiedAt = true
 		defaultSupport.Stats.CreatedAt = true
 		defaultSupport.Stats.AccessedAt = true
@@ -649,7 +776,7 @@ func loadStorageProducts() {
 	storageSupport = []orc.FSSupport{defaultSupport, shareSupport, projectHomeSupport}
 }
 
-func createUpload(request orc.FilesProviderCreateUploadRequest) (string, *util.HttpError) {
+func createUpload(actor rpc.Actor, request orc.FilesProviderCreateUploadRequest) (string, *util.HttpError) {
 	path, ok, destDrive := UCloudToInternal(request.Id)
 	if !ok {
 		return "", util.UserHttpError("Unable to upload a file here, unable to find parent folder")
@@ -663,6 +790,11 @@ func createUpload(request orc.FilesProviderCreateUploadRequest) (string, *util.H
 		return "", util.PaymentError()
 	}
 
+	ActivityRecord(actor, ActivityEvent{
+		Kind:      ActivityDirect,
+		Operation: ActivityOperationUpload,
+		Targets:   []ActivityTarget{{UCloudPath: request.Id}},
+	})
 	return path, nil
 }
 
@@ -718,8 +850,7 @@ func (u *uploaderFileSystem) OpenFileIfNeeded(session upload.ServerSession, file
 	return &uploaderFile{Path: internalPath, Metadata: fileMeta, err: nil}
 }
 
-func (u *uploaderFileSystem) OnSessionClose(session upload.ServerSession, success bool) {
-
+func (u *uploaderFileSystem) OnSessionClose(_ upload.ServerSession, _ bool) {
 }
 
 func (u *uploaderFile) Write(_ context.Context, data []byte) error {
@@ -844,7 +975,7 @@ func (u *uploaderClientFile) Close() {
 	_ = u.File.Close()
 }
 
-func moveToTrash(request orc.FilesProviderTrashRequest) *util.HttpError {
+func moveToTrash(actor rpc.Actor, request orc.FilesProviderTrashRequest) *util.HttpError {
 	driveId, _ := DriveIdFromUCloudPath(request.Id)
 	expectedTrashLocation, ok, _ := UCloudToInternal(fmt.Sprintf("/%s/Trash", driveId))
 	if !ok {
@@ -865,16 +996,27 @@ func moveToTrash(request orc.FilesProviderTrashRequest) *util.HttpError {
 		return util.ServerHttpError("unknown drive")
 	}
 
-	return doMove(orc.FilesProviderMoveOrCopyRequest{
+	err = doMove(orc.FilesProviderMoveOrCopyRequest{
 		ResolvedOldCollection: request.ResolvedCollection,
 		ResolvedNewCollection: request.ResolvedCollection,
 		OldId:                 request.Id,
 		NewId:                 newPath,
 		ConflictPolicy:        orc.WriteConflictPolicyRename,
 	}, true)
+	if err == nil {
+		ActivityRecord(actor, ActivityEvent{
+			Kind:      ActivityDirect,
+			Operation: ActivityOperationTrash,
+			Targets: []ActivityTarget{
+				{UCloudPath: request.Id, Role: "source"},
+				{UCloudPath: newPath, Role: "destination"},
+			},
+		})
+	}
+	return err
 }
 
-func emptyTrash(request orc.FilesProviderTrashRequest) *util.HttpError {
+func emptyTrash(actor rpc.Actor, request orc.FilesProviderTrashRequest) *util.HttpError {
 	ucloudTrashPath := request.Id
 	trashLocation, ok, _ := UCloudToInternal(ucloudTrashPath)
 	if !ok {
@@ -885,6 +1027,11 @@ func emptyTrash(request orc.FilesProviderTrashRequest) *util.HttpError {
 	if err != nil {
 		return err
 	}
+	ActivityRecord(actor, ActivityEvent{
+		Kind:      ActivityDirect,
+		Operation: ActivityOperationDelete,
+		Targets:   []ActivityTarget{{UCloudPath: request.Id}},
+	})
 
 	_ = DoCreateFolder(trashLocation)
 
@@ -923,7 +1070,7 @@ func transferSourceInitiate(request orc.FilesProviderTransferRequestInitiateSour
 	return []string{"built-in"}, nil
 }
 
-func transferDestinationInitiate(request orc.FilesProviderTransferRequestInitiateDestination) (orc.FilesProviderTransferResponse, *util.HttpError) {
+func transferDestinationInitiate(actor rpc.Actor, request orc.FilesProviderTransferRequestInitiateDestination) (orc.FilesProviderTransferResponse, *util.HttpError) {
 	if !slices.Contains(request.SupportedProtocols, "built-in") {
 		return orc.FilesProviderTransferResponse{}, &util.HttpError{
 			StatusCode: http.StatusBadRequest,
@@ -951,16 +1098,22 @@ func transferDestinationInitiate(request orc.FilesProviderTransferRequestInitiat
 		target = strings.Replace(target, cfg.Provider.Hosts.SelfPublic.ToWebSocketUrl(), cfg.Provider.Hosts.Self.ToWebSocketUrl(), 1)
 	}
 
-	return controller.FilesTransferResponseInitiateDestination(
+	response := controller.FilesTransferResponseInitiateDestination(
 		"built-in",
 		controller.TransferBuiltInParameters{
 			Endpoint: target,
 		},
-	), nil
+	)
+	ActivityRecord(actor, ActivityEvent{
+		Kind:      ActivityDirect,
+		Operation: ActivityOperationUpload,
+		Targets:   []ActivityTarget{{UCloudPath: request.DestinationPath}},
+	})
+	return response, nil
 
 }
 
-func transferSourceBegin(request orc.FilesProviderTransferRequestStart, session controller.FileTransferSession) *util.HttpError {
+func transferSourceBegin(actor rpc.Actor, request orc.FilesProviderTransferRequestStart, session controller.FileTransferSession) *util.HttpError {
 	var parameters controller.TransferBuiltInParameters
 
 	err := json.Unmarshal(session.ProtocolParameters, &parameters)
@@ -983,10 +1136,23 @@ func transferSourceBegin(request orc.FilesProviderTransferRequestStart, session 
 	spec.CreationState.Icon = "heroPaperAirplane"
 	spec.CreationState.Username = session.Username
 
-	return TaskSubmit(spec)
+	taskErr := TaskSubmit(spec)
+	if taskErr == nil {
+		ActivityRecord(actor, ActivityEvent{
+			Kind:      ActivityDirect,
+			Operation: ActivityOperationDownload,
+			Targets:   []ActivityTarget{{UCloudPath: session.SourcePath}},
+		})
+	}
+	return taskErr
 }
 
 func search(ctx context.Context, query, folder string, flags orc.FileFlags, output chan orc.ProviderFile) {
+	if shared.ServiceConfig.FileSystem.MetadataCatalog.EnableIntegration {
+		metadataCatalogSearch(ctx, query, folder, flags, output)
+		return
+	}
+
 	initialFolder, ok, _ := UCloudToInternal(folder)
 	driveId, ok2 := DriveIdFromUCloudPath(folder)
 	defer close(output)
@@ -1012,7 +1178,7 @@ func search(ctx context.Context, query, folder string, flags orc.FileFlags, outp
 		}
 
 		if q.Matches(path) {
-			match := nativeStat(drive, path, info)
+			match := nativeStat(drive, path, info, util.OptNone[int64]())
 			output <- match
 		}
 
@@ -1024,7 +1190,72 @@ func search(ctx context.Context, query, folder string, flags orc.FileFlags, outp
 	})
 }
 
-func createDrive(drive orc.Drive) *util.HttpError {
+func metadataCatalogSearch(ctx context.Context, query, folder string, flags orc.FileFlags, output chan orc.ProviderFile) {
+	defer close(output)
+	if query == "" {
+		return
+	}
+	driveID, ok := DriveIdFromUCloudPath(folder)
+	if !ok {
+		return
+	}
+	drive, ok := ResolveDrive(driveID)
+	if !ok {
+		return
+	}
+
+	_, _ = MetadataSearchByNamePrefix(ctx, folder, query, math.MaxInt, func(result MetadataSearchResult) bool {
+		name := util.FileName(result.Path)
+		if flags.FilterHiddenFiles.Value && strings.HasPrefix(name, ".") {
+			return true
+		}
+		if extension := flags.FilterByFileExtension.Value; extension != "" && !strings.EqualFold(filepath.Ext(name), extension) {
+			return true
+		}
+		select {
+		case output <- metadataProviderFile(drive, result):
+			return true
+		case <-ctx.Done():
+			return false
+		}
+	})
+}
+
+func metadataProviderFile(drive *orc.Drive, result MetadataSearchResult) orc.ProviderFile {
+	entry := result.Entry
+	fileType := orc.FileTypeFile
+	recursiveSize := util.OptNone[int64]()
+	if entry.EntryType == MetaEntryDirectory {
+		fileType = orc.FileTypeDirectory
+		if entry.RecursiveLogicalBytes <= math.MaxInt64 {
+			recursiveSize.Set(int64(entry.RecursiveLogicalBytes))
+		}
+	}
+	modifiedAt := fnd.Timestamp(time.Unix(0, entry.ModificationTime))
+	accessedAt := fnd.Timestamp{}
+	if entry.AccessTime.Present {
+		accessedAt = fnd.Timestamp(time.Unix(0, entry.AccessTime.Value))
+	}
+	mode := entry.Mode.GetOrDefault(0)
+	internalPath, _, _ := UCloudToInternal(result.Path)
+	return orc.ProviderFile{
+		Id: result.Path,
+		Status: orc.UFileStatus{
+			Type:                         fileType,
+			SizeInBytes:                  util.OptValue(int64(min(entry.LogicalSize, uint64(math.MaxInt64)))),
+			SizeIncludingChildrenInBytes: recursiveSize,
+			ModifiedAt:                   modifiedAt,
+			AccessedAt:                   accessedAt,
+			UnixMode:                     int(mode & 0o777),
+			UnixOwner:                    DefaultUid,
+			UnixGroup:                    DefaultUid,
+		},
+		CreatedAt:         modifiedAt,
+		LegacySensitivity: getInheritedSensitivity(drive, internalPath).Value,
+	}
+}
+
+func createDrive(actor rpc.Actor, drive orc.Drive) *util.HttpError {
 	localPath, ok, _ := DriveToLocalPath(&drive)
 	if !ok {
 		return util.ServerHttpError("unknown drive")
@@ -1034,16 +1265,33 @@ func createDrive(drive orc.Drive) *util.HttpError {
 		return util.PaymentError()
 	}
 
-	return DoCreateFolder(localPath)
+	err := DoCreateFolder(localPath)
+	if err == nil {
+		ActivityRecord(actor, ActivityEvent{
+			Kind:      ActivityDirect,
+			Operation: ActivityOperationCreate,
+			Targets:   []ActivityTarget{{UCloudPath: "/" + drive.Id}},
+		})
+	}
+	return err
 }
 
-func deleteDrive(drive orc.Drive) *util.HttpError {
+func deleteDrive(actor rpc.Actor, drive orc.Drive) *util.HttpError {
 	path, ok, _ := DriveToLocalPath(&drive)
 	if !ok {
 		return util.ServerHttpError("unknown drive")
 	}
 	reportUsedStorage(drive, 0)
-	return DoDeleteFile(path)
+	MetadataDeleteCatalog(drive.Id)
+	err := DoDeleteFile(path)
+	if err == nil {
+		ActivityRecord(actor, ActivityEvent{
+			Kind:      ActivityDirect,
+			Operation: ActivityOperationDelete,
+			Targets:   []ActivityTarget{{UCloudPath: "/" + drive.Id}},
+		})
+	}
+	return err
 }
 
 func renameDrive(_ orc.Drive) *util.HttpError {

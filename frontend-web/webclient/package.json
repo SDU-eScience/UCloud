@@ -22,6 +22,7 @@
         "test-report": "npx playwright show-report"
     },
     "dependencies": {
+        "@floating-ui/dom": "1.7.4",
         "@novnc/novnc": "1.5.0",
         "@observablehq/plot": "0.6.17",
         "@reduxjs/toolkit": "2.12.0",
@@ -53,7 +54,7 @@
         "react-markdown": "10.1.0",
         "react-modal": "3.16.3",
         "react-redux": "9.3.0",
-        "react-router": "8.0.1",
+        "react-router": "8.3.0",
         "react-router-dom": "7.18.0",
         "react-syntax-highlighter": "16.1.1",
         "react-transition-group": "4.4.5",

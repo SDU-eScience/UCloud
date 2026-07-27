@@ -79,9 +79,38 @@ func Launch() {
 		log.Fatal("Unable to find version file.")
 	}
 
+	Version = strings.TrimSpace(string(versionBytes))
+
+	featureBytes, err := os.ReadFile(repoRootPath + "/.compose/features.json")
+	if err == nil {
+		_ = json.Unmarshal(featureBytes, &ClusterFeatures)
+	}
+
+	RegisterServices()
+
+	if cliCommand == "env" && slices.Contains(os.Args, "delete") {
+		ClusterDelete()
+		return
+	}
+
+	if cliCommand == "init-test" {
+		if ClusterFeatures == nil {
+			ClusterFeatures = map[Feature]bool{}
+		}
+		ClusterFeatures[FeatureProviderK8s] = true
+		RegisterServices()
+		ClusterDelete()
+
+		ClusterFeatures = map[Feature]bool{
+			FeatureProviderK8s: true,
+		}
+		RegisterServices()
+		ClusterStart(false)
+		return
+	}
+
 	refreshTokenBytes, _ := os.ReadFile(repoRootPath + "/.compose/refresh_token.txt")
 	refreshToken := strings.TrimSpace(string(refreshTokenBytes))
-	Version = strings.TrimSpace(string(versionBytes))
 
 	RpcClientConfigure(refreshToken)
 
@@ -93,19 +122,6 @@ func Launch() {
 	if !ready {
 		hasCluster = ComposeClusterExists()
 	}
-
-	featureBytes, err := os.ReadFile(repoRootPath + "/.compose/features.json")
-	if err == nil {
-		_ = json.Unmarshal(featureBytes, &ClusterFeatures)
-	}
-
-	if cliCommand == "init-test" {
-		ClusterFeatures = map[Feature]bool{
-			FeatureProviderK8s: true,
-		}
-	}
-
-	RegisterServices()
 
 	if !ready {
 		if hasCluster {
@@ -155,14 +171,8 @@ func Launch() {
 				break
 			}
 		}
-	case "init-test":
-		// Do nothing (service was already initialized)
 	case "test":
 		TestsRun("user", "mypassword")
-	case "env":
-		if slices.Contains(os.Args, "delete") {
-			ClusterDelete()
-		}
 	}
 }
 
@@ -306,7 +316,9 @@ func ClusterDelete() {
 	InstallerSetProgress(steps)
 
 	RegisterServices()
-	ComposeDown(true)
+	if ComposeClusterExists() {
+		ComposeDown(true)
+	}
 
 	shuttingDownStep.Completed = true
 	InstallerSetProgress(steps)

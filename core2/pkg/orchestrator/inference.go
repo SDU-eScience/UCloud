@@ -29,6 +29,18 @@ func initInference() {
 		return orcapi.InferenceOpenPlaygroundResponse(resp), nil
 	})
 
+	orcapi.InferenceListPlaygroundThreads.Handler(func(info rpc.RequestInfo, request orcapi.InferenceListPlaygroundThreadsRequest) (orcapi.InferenceListPlaygroundThreadsResponse, *util.HttpError) {
+		providerId, err := inferenceSelectProvider(info.Actor, request.ProviderId)
+		if err != nil {
+			return orcapi.InferenceListPlaygroundThreadsResponse{}, err
+		}
+
+		return InvokeProvider(providerId, orcapi.InferenceListPlaygroundThreadsProvider,
+			orcapi.InferenceListPlaygroundThreadsProviderRequest{Owner: inferenceActorToOwner(info.Actor)},
+			ProviderCallOpts{Username: util.OptValue(info.Actor.Username)},
+		)
+	})
+
 	orcapi.InferenceListModels.Handler(func(info rpc.RequestInfo, request orcapi.InferenceListModelsRequest) (orcapi.InferenceListModelsResponse, *util.HttpError) {
 		providerId, err := inferenceSelectProvider(info.Actor, request.ProviderId)
 		if err != nil {

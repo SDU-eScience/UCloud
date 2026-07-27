@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"time"
 
@@ -25,6 +24,8 @@ import (
 
 const attachmentSubPath = "Inference/Attachments"
 const attachmentRetention = 14 * 24 * time.Hour
+const attachmentMaxChunkBytes = 8 << 20
+const attachmentMaxFileBytes = 64 << 20
 
 type Attachment struct {
 	Id                   string
@@ -110,7 +111,6 @@ func AttachmentInit() {
 }
 
 func AttachmentCreate(createdBy string, project util.Option[string], filename string) (Attachment, *util.HttpError) {
-	createdBy = strings.TrimSpace(createdBy)
 	if createdBy == "" {
 		return Attachment{}, util.HttpErr(http.StatusBadRequest, "created by is required")
 	}
@@ -156,6 +156,14 @@ func AttachmentCreate(createdBy string, project util.Option[string], filename st
 }
 
 func AttachmentAppend(id string, data io.Reader) *util.HttpError {
+	chunk, readErr := io.ReadAll(io.LimitReader(data, attachmentMaxChunkBytes+1))
+	if readErr != nil {
+		return util.HttpErr(http.StatusBadRequest, "could not read attachment data")
+	}
+	if len(chunk) > attachmentMaxChunkBytes {
+		return util.HttpErr(http.StatusRequestEntityTooLarge, "attachment chunk is too large")
+	}
+
 	attachment, ok := attachmentLookup(id)
 	if !ok {
 		return util.HttpErr(http.StatusNotFound, "attachment not found")
@@ -174,8 +182,19 @@ func AttachmentAppend(id string, data io.Reader) *util.HttpError {
 		return util.HttpErr(http.StatusNotFound, "attachment not found")
 	}
 	defer util.SilentClose(file)
+	if lockErr := unix.Flock(int(file.Fd()), unix.LOCK_EX); lockErr != nil {
+		return util.HttpErr(http.StatusInternalServerError, "could not lock attachment")
+	}
+	defer func() { _ = unix.Flock(int(file.Fd()), unix.LOCK_UN) }()
 
-	if _, copyErr := io.Copy(file, data); copyErr != nil {
+	info, statErr := file.Stat()
+	if statErr != nil {
+		return util.HttpErr(http.StatusInternalServerError, "could not inspect attachment")
+	}
+	if info.Size()+int64(len(chunk)) > attachmentMaxFileBytes {
+		return util.HttpErr(http.StatusRequestEntityTooLarge, "attachment is too large")
+	}
+	if _, copyErr := file.Write(chunk); copyErr != nil {
 		return util.HttpErr(http.StatusInternalServerError, "could not append attachment")
 	}
 	attachmentTouch(file)
@@ -208,16 +227,23 @@ func AttachmentConvertToMarkdown(ctx context.Context, id string) (Attachment, *u
 
 	waitCtx, cancel := context.WithTimeout(ctx, 125*time.Second)
 	defer cancel()
-	if err := filesystem.TaskSubmitAndWait(waitCtx, filesystem.TaskSpec{
-		Type:            filesystem.TaskTypeMarkItDown,
-		Mounts:          []filesystem.TaskMount{{UCloudPath: markdownSource}},
-		Source:          source,
-		DeadlineSeconds: util.OptValue(120),
-		CreationState: struct {
-			Username string
-			Icon     string
-		}{Username: attachment.CreatedBy, Icon: "heroDocumentText"},
-	}, time.Second); err != nil {
+
+	err = filesystem.TaskSubmitAndWait(
+		waitCtx,
+		filesystem.TaskSpec{
+			Type:            filesystem.TaskTypeMarkItDown,
+			Mounts:          []filesystem.TaskMount{{UCloudPath: markdownSource}},
+			Source:          source,
+			DeadlineSeconds: util.OptValue(120),
+			CreationState: struct {
+				Username string
+				Icon     string
+			}{Username: attachment.CreatedBy, Icon: "heroDocumentText"},
+		},
+		time.Second,
+	)
+
+	if err != nil {
 		return Attachment{}, err
 	}
 
@@ -294,7 +320,6 @@ func AttachmentDeleteExpired() {
 }
 
 func attachmentLookup(id string) (Attachment, bool) {
-	id = strings.TrimSpace(id)
 	if !attachmentValidId(id) {
 		return Attachment{}, false
 	}
@@ -345,7 +370,13 @@ func attachmentFromRow(row attachmentRow) Attachment {
 	if row.MarkdownAttachmentId.Valid {
 		markdownAttachmentId = row.MarkdownAttachmentId.String
 	}
-	return Attachment{Id: row.Id, CreatedBy: row.CreatedBy, ProjectId: project, Filename: row.Filename, MarkdownAttachmentId: markdownAttachmentId}
+	return Attachment{
+		Id:                   row.Id,
+		CreatedBy:            row.CreatedBy,
+		ProjectId:            project,
+		Filename:             row.Filename,
+		MarkdownAttachmentId: markdownAttachmentId,
+	}
 }
 
 func attachmentProjectSql(project util.Option[string]) sql.NullString {
@@ -356,7 +387,6 @@ func attachmentProjectSql(project util.Option[string]) sql.NullString {
 }
 
 func attachmentDeleteMetadata(ids ...string) {
-	ids = slices.DeleteFunc(ids, func(id string) bool { return strings.TrimSpace(id) == "" })
 	if len(ids) == 0 {
 		return
 	}

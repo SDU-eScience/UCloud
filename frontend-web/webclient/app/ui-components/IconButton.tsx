@@ -35,15 +35,16 @@ const style = injectStyle("vm-icon-button", k => `
 `);
 
 export const IconButton: React.FunctionComponent<{
-    tooltip: string;
+    tooltip: React.ReactNode;
     onClick: () => void;
     icon: IconName;
     color?: ThemeColor;
+    noDefaultFill?: boolean;
 }> = props => {
     const color = props.color ?? "textSecondary";
     return <TooltipV2 tooltip={props.tooltip}>
-        <button type="button" className={style} onClick={props.onClick} aria-label={props.tooltip}>
-            <Icon name={props.icon} color={color} />
+        <button type="button" className={style} onClick={props.onClick}>
+            <Icon name={props.icon} color={color} noDefaultFill={props.noDefaultFill} />
         </button>
     </TooltipV2>
 }

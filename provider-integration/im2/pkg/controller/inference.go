@@ -79,6 +79,7 @@ func initInference() {
 			SessionToken: sessionId,
 		}, nil
 	})
+
 }
 
 func inferencePlaygroundReadAuthToken(conn *ws.Conn) (string, bool) {

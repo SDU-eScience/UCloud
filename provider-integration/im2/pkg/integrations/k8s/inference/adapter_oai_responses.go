@@ -1,12 +1,12 @@
 package inference
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	apm "ucloud.dk/shared/pkg/accounting"
@@ -14,17 +14,19 @@ import (
 )
 
 const inferenceResponseStoreTTL = 30 * time.Minute
+const inferenceResponseStoreMaxEntries = 256
+const inferenceResponseStoreMaxEntriesPerOwner = 16
 
 var inferenceResponseGlobals = struct {
 	Mu        sync.RWMutex
 	Responses map[string]inferenceStoredResponse
-	IdAcc     atomic.Int64
 }{
 	Responses: map[string]inferenceStoredResponse{},
 }
 
 type inferenceStoredResponse struct {
 	Response  OaiResponse
+	Owner     string
 	CreatedAt time.Time
 }
 
@@ -273,7 +275,7 @@ type OaiResponseDeleteResponse struct {
 	Deleted bool   `json:"deleted"`
 }
 
-func InferenceResponseCreate(owner apm.WalletOwner, request OaiResponseCreateRequest) (OaiResponse, *util.HttpError) {
+func InferenceResponseCreate(ctx context.Context, owner apm.WalletOwner, request OaiResponseCreateRequest) (OaiResponse, *util.HttpError) {
 	if httpErr := inferenceResponseValidateRequest(request); httpErr != nil {
 		return OaiResponse{}, httpErr
 	}
@@ -284,32 +286,34 @@ func InferenceResponseCreate(owner apm.WalletOwner, request OaiResponseCreateReq
 		queued := inferenceResponseBase(id, createdAt, request)
 		queued.Status = "queued"
 		queued.Background = true
-		inferenceResponseStoreSet(queued)
+		inferenceResponseStoreSet(owner, queued)
 
 		go func() {
+			backgroundCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), inferenceRequestTimeout)
+			defer cancel()
 			inProgress := queued
 			inProgress.Status = "in_progress"
-			inferenceResponseStoreSet(inProgress)
+			inferenceResponseStoreSet(owner, inProgress)
 
 			chatRequest, httpErr := inferenceResponseChatRequest(request)
 			if httpErr != nil {
 				failed := inferenceResponseFailed(id, createdAt, request, httpErr.Why)
 				failed.Background = true
-				inferenceResponseStoreSet(failed)
+				inferenceResponseStoreSet(owner, failed)
 				return
 			}
 
-			chatResponse, httpErr := InferenceChat(owner, chatRequest)
+			chatResponse, httpErr := InferenceChat(backgroundCtx, owner, chatRequest)
 			if httpErr != nil {
 				failed := inferenceResponseFailed(id, createdAt, request, httpErr.Why)
 				failed.Background = true
-				inferenceResponseStoreSet(failed)
+				inferenceResponseStoreSet(owner, failed)
 				return
 			}
 
 			resp := inferenceResponseFromChat(id, request, chatResponse)
 			resp.Background = true
-			inferenceResponseStoreSet(resp)
+			inferenceResponseStoreSet(owner, resp)
 		}()
 
 		return queued, nil
@@ -320,17 +324,17 @@ func InferenceResponseCreate(owner apm.WalletOwner, request OaiResponseCreateReq
 		return OaiResponse{}, httpErr
 	}
 
-	chatResponse, httpErr := InferenceChat(owner, chatRequest)
+	chatResponse, httpErr := InferenceChat(ctx, owner, chatRequest)
 	if httpErr != nil {
 		return OaiResponse{}, httpErr
 	}
 
 	resp := inferenceResponseFromChat(id, request, chatResponse)
-	inferenceResponseStoreSet(resp)
+	inferenceResponseStoreSet(owner, resp)
 	return resp, nil
 }
 
-func InferenceResponseCreateStreaming(owner apm.WalletOwner, request OaiResponseCreateRequest) (chan OaiResponseStreamEvent, *util.HttpError) {
+func InferenceResponseCreateStreaming(ctx context.Context, owner apm.WalletOwner, request OaiResponseCreateRequest) (chan OaiResponseStreamEvent, *util.HttpError) {
 	ch := make(chan OaiResponseStreamEvent)
 	if httpErr := inferenceResponseValidateRequest(request); httpErr != nil {
 		close(ch)
@@ -343,7 +347,7 @@ func InferenceResponseCreateStreaming(owner apm.WalletOwner, request OaiResponse
 		return ch, httpErr
 	}
 
-	chatChunks, httpErr := InferenceChatStreaming(owner, chatRequest)
+	chatChunks, httpErr := InferenceChatStreaming(ctx, owner, chatRequest)
 	if httpErr != nil {
 		close(ch)
 		return ch, httpErr
@@ -560,7 +564,7 @@ func InferenceResponseCreateStreaming(owner apm.WalletOwner, request OaiResponse
 			resp.Output[toolCall.OutputIndex] = toolCall.ResponseItem("completed")
 		}
 		resp.Usage = inferenceResponseUsage(usage, reasoning.String())
-		inferenceResponseStoreSet(resp)
+		inferenceResponseStoreSet(owner, resp)
 		ch <- OaiResponseStreamEvent{Type: "response.completed", Response: &resp}
 	}()
 
@@ -850,8 +854,8 @@ func inferenceResponseLocalShellAction(arguments string) OaiResponseLocalShellAc
 	return OaiResponseLocalShellAction{Type: "exec", Command: parsed.Command, Env: parsed.Env, TimeoutMs: parsed.TimeoutMs, User: parsed.User, WorkingDirectory: parsed.WorkingDirectory}
 }
 
-func InferenceResponsePoll(_ apm.WalletOwner, id string) (OaiResponse, *util.HttpError) {
-	resp, ok := inferenceResponseStoreGet(id)
+func InferenceResponsePoll(owner apm.WalletOwner, id string) (OaiResponse, *util.HttpError) {
+	resp, ok := inferenceResponseStoreGet(owner, id)
 	if !ok {
 		return OaiResponse{}, util.HttpErr(http.StatusNotFound, "response not found")
 	}
@@ -862,7 +866,10 @@ func InferenceResponseCancel(owner apm.WalletOwner, id string) (OaiResponse, *ut
 	return InferenceResponsePoll(owner, id)
 }
 
-func InferenceResponseDelete(_ apm.WalletOwner, id string) (OaiResponseDeleteResponse, *util.HttpError) {
+func InferenceResponseDelete(owner apm.WalletOwner, id string) (OaiResponseDeleteResponse, *util.HttpError) {
+	if _, ok := inferenceResponseStoreGet(owner, id); !ok {
+		return OaiResponseDeleteResponse{}, util.HttpErr(http.StatusNotFound, "response not found")
+	}
 	inferenceResponseStoreDelete(id)
 	return OaiResponseDeleteResponse{Id: id, Object: "response", Deleted: true}, nil
 }
@@ -1673,24 +1680,51 @@ func inferenceResponseUsage(usage InferenceChatUsage, reasoningText string) *Oai
 }
 
 func inferenceResponseNewId(prefix string) string {
-	return fmt.Sprintf("%s_%d_%d", prefix, time.Now().UnixNano(), inferenceResponseGlobals.IdAcc.Add(1))
+	return fmt.Sprintf("%s_%s", prefix, util.SecureToken())
 }
 
-func inferenceResponseStoreSet(response OaiResponse) {
+func inferenceResponseStoreSet(owner apm.WalletOwner, response OaiResponse) {
 	inferenceResponseGlobals.Mu.Lock()
 	defer inferenceResponseGlobals.Mu.Unlock()
 	inferenceResponseStoreCleanLocked()
-	inferenceResponseGlobals.Responses[response.Id] = inferenceStoredResponse{Response: response, CreatedAt: time.Now()}
+	ownerRef := owner.Reference()
+	oldestOwnerId := ""
+	oldestOwnerTime := time.Now()
+	ownerEntries := 0
+	oldestId := ""
+	oldestTime := time.Now()
+	for id, stored := range inferenceResponseGlobals.Responses {
+		if stored.CreatedAt.Before(oldestTime) {
+			oldestId = id
+			oldestTime = stored.CreatedAt
+		}
+		if stored.Owner == ownerRef {
+			ownerEntries++
+			if stored.CreatedAt.Before(oldestOwnerTime) {
+				oldestOwnerId = id
+				oldestOwnerTime = stored.CreatedAt
+			}
+		}
+	}
+	if _, replacing := inferenceResponseGlobals.Responses[response.Id]; !replacing {
+		if ownerEntries >= inferenceResponseStoreMaxEntriesPerOwner && oldestOwnerId != "" {
+			delete(inferenceResponseGlobals.Responses, oldestOwnerId)
+		} else if len(inferenceResponseGlobals.Responses) >= inferenceResponseStoreMaxEntries && oldestId != "" {
+			delete(inferenceResponseGlobals.Responses, oldestId)
+		}
+	}
+	inferenceResponseGlobals.Responses[response.Id] = inferenceStoredResponse{Response: response, Owner: ownerRef, CreatedAt: time.Now()}
 }
 
-func inferenceResponseStoreGet(id string) (OaiResponse, bool) {
+func inferenceResponseStoreGet(owner apm.WalletOwner, id string) (OaiResponse, bool) {
 	inferenceResponseGlobals.Mu.RLock()
 	stored, ok := inferenceResponseGlobals.Responses[id]
 	inferenceResponseGlobals.Mu.RUnlock()
-	if !ok || time.Since(stored.CreatedAt) > inferenceResponseStoreTTL {
-		if ok {
-			inferenceResponseStoreDelete(id)
-		}
+	if !ok || stored.Owner != owner.Reference() {
+		return OaiResponse{}, false
+	}
+	if time.Since(stored.CreatedAt) > inferenceResponseStoreTTL {
+		inferenceResponseStoreDelete(id)
 		return OaiResponse{}, false
 	}
 	return stored.Response, true

@@ -7,11 +7,13 @@ import (
 	"net/http"
 	"slices"
 	"strings"
+	"time"
 
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/integrations/k8s/filesystem"
 	"ucloud.dk/pkg/integrations/k8s/shared"
+	syncthing_metrics "ucloud.dk/pkg/integrations/k8s/syncthing-metrics"
 	"ucloud.dk/pkg/ucxdelivery"
 	db "ucloud.dk/shared/pkg/database"
 	orc "ucloud.dk/shared/pkg/orchestrators"
@@ -20,6 +22,23 @@ import (
 )
 
 func InitServerHandlers() {
+	syncthing_metrics.Publish.Handler(func(info rpc.RequestInfo, request syncthing_metrics.PublishRequest) (syncthing_metrics.PublishResponse, *util.HttpError) {
+		jobId, _, ok := Authenticate(request.Token)
+		if !ok {
+			return syncthing_metrics.PublishResponse{}, util.HttpErr(http.StatusForbidden, "forbidden")
+		}
+		job, ok := ctrl.JobRetrieve(jobId)
+		if !ok || job.Specification.Application.Name != "syncthing" || job.Status.State != orc.JobStateRunning {
+			syncthing_metrics.SyncthingSnapshots.Remove([]string{jobId})
+			return syncthing_metrics.PublishResponse{}, util.HttpErr(http.StatusForbidden, "forbidden")
+		}
+		if !syncthing_metrics.ValidSyncthingSnapshot(request.Snapshot) {
+			return syncthing_metrics.PublishResponse{}, util.HttpErr(http.StatusBadRequest, "invalid Syncthing metrics snapshot")
+		}
+		syncthing_metrics.SyncthingSnapshots.Publish(jobId, request.Snapshot, time.Now())
+		return syncthing_metrics.PublishResponse{}, nil
+	})
+
 	IntrospectJob.Handler(func(info rpc.RequestInfo, request IntrospectAuthRequest) (IntrospectJobResponse, *util.HttpError) {
 		jobId, _, ok := Authenticate(request.Token)
 		if !ok {
@@ -186,6 +205,7 @@ func DeleteTokens(jobIds []string) {
 	if len(jobIds) == 0 {
 		return
 	}
+	syncthing_metrics.SyncthingSnapshots.Remove(jobIds)
 
 	db.NewTx0(func(tx *db.Transaction) {
 		db.Exec(

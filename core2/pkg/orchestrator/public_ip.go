@@ -88,6 +88,15 @@ func initPublicIps() {
 		return ResourceRetrieve[orcapi.PublicIp](info.Actor, publicIpType, ResourceParseId(request.Id), request.ResourceFlags)
 	})
 
+	orcapi.PublicIpsControlReclaim.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[fndapi.FindByStringId]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
+		for _, item := range request.Items {
+			if err := PublicIpReclaim(info.Actor, item.Id); err != nil {
+				return fndapi.BulkResponse[util.Empty]{}, err
+			}
+		}
+		return fndapi.BulkResponse[util.Empty]{Responses: make([]util.Empty, len(request.Items))}, nil
+	})
+
 	orcapi.PublicIpsUpdateAcl.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.UpdatedAcl]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
 		for _, item := range request.Items {
 			err := ResourceUpdateAcl(info.Actor, publicIpType, item)
@@ -350,6 +359,44 @@ func PublicIpDelete(actor rpc.Actor, request fndapi.BulkRequest[fndapi.FindByStr
 	}
 
 	return fndapi.BulkResponse[util.Empty]{Responses: make([]util.Empty, len(request.Items))}, nil
+}
+
+func PublicIpReclaim(actor rpc.Actor, id string) *util.HttpError {
+	ip, _, specification, err := ResourceRetrieveEx[orcapi.PublicIp](
+		actor,
+		publicIpType,
+		ResourceParseId(id),
+		orcapi.PermissionProvider,
+		orcapi.ResourceFlags{IncludeProduct: true, IncludeSupport: true},
+	)
+	if err != nil {
+		return err
+	}
+	if len(ip.Status.BoundTo) > 0 {
+		return util.UserHttpError("This IP is currently in use by job: %s", strings.Join(ip.Status.BoundTo, ", "))
+	}
+	if !resourceSpecificationHasProduct(specification) {
+		return util.ServerHttpError("IP has no product")
+	}
+
+	_, err = InvokeProvider(specification.Product.Provider, orcapi.PublicIpsProviderDelete, fndapi.BulkRequestOf(ip), ProviderCallOpts{
+		Username: util.OptValue(ip.Owner.CreatedBy),
+		Reason:   util.OptValue("Reclaiming unused public IP (provider initiated)"),
+	})
+	if err != nil {
+		return err
+	}
+
+	ok := ResourceUpdate[any](actor, publicIpType, ResourceParseId(id), orcapi.PermissionProvider, func(r *resource, mapped any) {
+		r.Confirmed = true
+		r.MarkedForDeletion = true
+	})
+
+	if !ok {
+		return util.HttpErr(http.StatusNotFound, "not found or permission denied")
+	}
+
+	return nil
 }
 
 func PublicIpBind(id string, jobId string) {

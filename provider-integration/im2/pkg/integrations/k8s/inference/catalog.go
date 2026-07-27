@@ -80,6 +80,7 @@ type InferenceChatSettings struct {
 	TopP                float64 `json:"topP"`
 	MaxCompletionTokens int     `json:"maxCompletionTokens"`
 	SystemPrompt        *string `json:"systemPrompt,omitempty"`
+	DisableTools        bool    `json:"disableTools"`
 }
 
 type InferencePricing struct {
@@ -123,6 +124,7 @@ type inferenceModelRow struct {
 	TopP                   float64
 	MaxCompletionTokens    int
 	SystemPrompt           sql.NullString
+	DisableTools           bool
 	PageMetadata           []byte
 }
 
@@ -156,6 +158,7 @@ func inferenceModelCatalogLoad() {
 					top_p,
 					max_completion_tokens,
 					system_prompt,
+					disable_tools,
 					page_metadata
 				from inference_model
 			`,
@@ -216,6 +219,7 @@ func inferenceModelCatalogLoad() {
 					TopP:                row.TopP,
 					MaxCompletionTokens: row.MaxCompletionTokens,
 					SystemPrompt:        systemPrompt,
+					DisableTools:        row.DisableTools,
 				},
 				Page: page,
 			})
@@ -381,8 +385,16 @@ func InferenceModelRename(oldName string, newName string) *util.HttpError {
 	}
 
 	db.NewTx0(func(tx *db.Transaction) {
-		db.Exec(tx, `update inference_model set title_model_name = :new_name where title_model_name = :old_name`, db.Params{"old_name": oldName, "new_name": newName})
-		db.Exec(tx, `delete from inference_model where name = :name`, db.Params{"name": oldName})
+		db.Exec(
+			tx,
+			`update inference_model set title_model_name = :new_name where title_model_name = :old_name`,
+			db.Params{"old_name": oldName, "new_name": newName},
+		)
+		db.Exec(
+			tx,
+			`delete from inference_model where name = :name`,
+			db.Params{"name": oldName},
+		)
 		inferenceModelUpsertTx(tx, model)
 	})
 
@@ -453,6 +465,7 @@ func inferenceModelUpsertTx(tx *db.Transaction, model InferenceModel) {
 				top_p,
 				max_completion_tokens,
 				system_prompt,
+				disable_tools,
 				page_metadata
 			) values (
 				:name,
@@ -471,6 +484,7 @@ func inferenceModelUpsertTx(tx *db.Transaction, model InferenceModel) {
 				:top_p,
 				:max_completion_tokens,
 				:system_prompt,
+				:disable_tools,
 				cast(:page_metadata as jsonb)
 			) on conflict (name) do update set
 				title = excluded.title,
@@ -488,6 +502,7 @@ func inferenceModelUpsertTx(tx *db.Transaction, model InferenceModel) {
 				top_p = excluded.top_p,
 				max_completion_tokens = excluded.max_completion_tokens,
 				system_prompt = excluded.system_prompt,
+				disable_tools = excluded.disable_tools,
 				page_metadata = excluded.page_metadata
 		`,
 		db.Params{
@@ -507,6 +522,7 @@ func inferenceModelUpsertTx(tx *db.Transaction, model InferenceModel) {
 			"top_p":                    model.ChatSettings.TopP,
 			"max_completion_tokens":    model.ChatSettings.MaxCompletionTokens,
 			"system_prompt":            systemPrompt,
+			"disable_tools":            model.ChatSettings.DisableTools,
 			"page_metadata":            pageMetadata,
 		},
 	)
@@ -568,6 +584,9 @@ func inferenceModelValidate(model InferenceModel) *util.HttpError {
 	if strings.TrimSpace(model.Endpoint.BackendModelName) == "" {
 		return util.HttpErr(http.StatusBadRequest, "model endpoint backend model name is required")
 	}
+	if err := inferenceValidateBackendEndpoint(model.Endpoint.BasePath); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -607,7 +626,16 @@ func inferenceModelNormalize(model InferenceModel) InferenceModel {
 		model.Page.Datasheet.Parameters = strings.TrimSpace(model.Page.Datasheet.Parameters)
 		model.Page.Datasheet.ActivatedParameters = strings.TrimSpace(model.Page.Datasheet.ActivatedParameters)
 		model.Page.Datasheet.Quantization = strings.TrimSpace(model.Page.Datasheet.Quantization)
-		if len(model.Page.BenchmarkScores) == 0 && model.Page.ShortDescription == "" && model.Page.DocumentationUrl == "" && model.Page.ReleaseDate == nil && model.Page.About.Description == "" && len(model.Page.About.Highlights) == 0 && len(model.Page.About.KeyStats) == 0 && model.Page.Datasheet.Parameters == "" && model.Page.Datasheet.ActivatedParameters == "" && model.Page.Datasheet.Quantization == "" {
+		if len(model.Page.BenchmarkScores) == 0 &&
+			model.Page.ShortDescription == "" &&
+			model.Page.DocumentationUrl == "" &&
+			model.Page.ReleaseDate == nil &&
+			model.Page.About.Description == "" &&
+			len(model.Page.About.Highlights) == 0 &&
+			len(model.Page.About.KeyStats) == 0 &&
+			model.Page.Datasheet.Parameters == "" &&
+			model.Page.Datasheet.ActivatedParameters == "" &&
+			model.Page.Datasheet.Quantization == "" {
 			model.Page = nil
 		}
 	}

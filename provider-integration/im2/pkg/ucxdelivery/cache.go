@@ -16,17 +16,24 @@ import (
 	db "ucloud.dk/shared/pkg/database"
 	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/util"
 )
 
-const DefaultPollInterval = 30 * time.Second
+const DefaultPollInterval = 1 * time.Second
+const sharedExecutablesDirectory = "ucloud-exe"
 
 var cacheState = struct {
 	mu                 sync.RWMutex
 	providerFilesystem string
 	client             *http.Client
+	ownerUid           util.Option[int]
 	initialized        bool
 	cancel             context.CancelFunc
 }{}
+
+type CacheOptions struct {
+	OwnerUid util.Option[int]
+}
 
 type trackedApp struct {
 	AppName     string
@@ -45,7 +52,7 @@ type refreshResult struct {
 	Manifest      Manifest
 }
 
-func Initialize(providerFilesystem string, client *http.Client) error {
+func InitCache(providerFilesystem string, client *http.Client, options CacheOptions) error {
 	if strings.TrimSpace(providerFilesystem) == "" {
 		return fmt.Errorf("provider filesystem is required")
 	}
@@ -57,6 +64,7 @@ func Initialize(providerFilesystem string, client *http.Client) error {
 	}
 	cacheState.providerFilesystem = providerFilesystem
 	cacheState.client = client
+	cacheState.ownerUid = options.OwnerUid
 	cacheState.initialized = true
 	cacheState.cancel = cancel
 	cacheState.mu.Unlock()
@@ -109,7 +117,7 @@ func trackApp(app trackedApp) {
 
 	if cfg, ok := currentConfig(); ok {
 		go func() {
-			if _, err := refreshTrackedApp(context.Background(), cfg.providerFilesystem, cfg.client, app); err != nil {
+			if _, err := refreshTrackedApp(context.Background(), cfg.providerFilesystem, cfg.client, cfg.ownerUid, app); err != nil {
 				recordRefreshError(app, err)
 				log.Warn("UCX delivery: failed to refresh tracked app %s@%s: %v", app.AppName, app.AppVersion, err)
 			}
@@ -131,13 +139,25 @@ func ExecutablePath(appName string, appVersion string) (string, error) {
 }
 
 func trackedAppFromApp(app *orcapi.Application) (trackedApp, bool, error) {
-	if !app.Invocation.Tool.Tool.Present || app.Invocation.Tool.Tool.Value.Description.Backend != orcapi.ToolBackendUcx {
-		return trackedApp{}, false, nil
-	}
 	if !app.Invocation.Ucx.Present || !app.Invocation.Ucx.Value.Executable.Present {
 		return trackedApp{}, false, nil
 	}
 	executable := app.Invocation.Ucx.Value.Executable.Value
+	if strings.HasPrefix(executable.ManifestUrl, "builtin://") {
+		binaryName, ok := builtinExecutableName(executable.ManifestUrl)
+		if !ok {
+			return trackedApp{}, false, fmt.Errorf("invalid built-in executable URL")
+		}
+		return trackedApp{
+			AppName:     app.Metadata.Name,
+			AppVersion:  app.Metadata.Version,
+			ManifestUrl: executable.ManifestUrl,
+			BinaryName:  binaryName,
+		}, true, nil
+	}
+	if !app.Invocation.Tool.Tool.Present || app.Invocation.Tool.Tool.Value.Description.Backend != orcapi.ToolBackendUcx {
+		return trackedApp{}, false, nil
+	}
 	if err := requireHttpsUrl(executable.ManifestUrl, "manifestUrl"); err != nil {
 		return trackedApp{}, false, err
 	}
@@ -168,6 +188,7 @@ func trackedAppFromJob(job orcapi.Job) (trackedApp, bool, error) {
 type cacheConfig struct {
 	providerFilesystem string
 	client             *http.Client
+	ownerUid           util.Option[int]
 }
 
 func currentConfig() (cacheConfig, bool) {
@@ -176,6 +197,7 @@ func currentConfig() (cacheConfig, bool) {
 	return cacheConfig{
 		providerFilesystem: cacheState.providerFilesystem,
 		client:             cacheState.client,
+		ownerUid:           cacheState.ownerUid,
 	}, cacheState.initialized
 }
 
@@ -205,7 +227,7 @@ func refreshAllTrackedApps(ctx context.Context) {
 		if ctx.Err() != nil {
 			return
 		}
-		if _, err := refreshTrackedApp(ctx, cfg.providerFilesystem, cfg.client, app); err != nil {
+		if _, err := refreshTrackedApp(ctx, cfg.providerFilesystem, cfg.client, cfg.ownerUid, app); err != nil {
 			recordRefreshError(app, err)
 			log.Warn("UCX delivery: failed to refresh tracked app %s@%s: %v", app.AppName, app.AppVersion, err)
 		} else {
@@ -247,10 +269,15 @@ func recordRefreshError(app trackedApp, err error) {
 	})
 }
 
-func refreshTrackedApp(ctx context.Context, providerFilesystem string, client *http.Client, app trackedApp) (refreshResult, error) {
+func refreshTrackedApp(ctx context.Context, providerFilesystem string, client *http.Client, ownerUid util.Option[int], app trackedApp) (refreshResult, error) {
 	result, err := cachePaths(providerFilesystem, app)
 	if err != nil {
 		return refreshResult{}, err
+	}
+	if binaryName, ok := builtinExecutableName(app.ManifestUrl); ok {
+		return refreshBuiltInExecutable(ctx, providerFilesystem, ownerUid, binaryName, result)
+	} else if strings.HasPrefix(app.ManifestUrl, "builtin://") {
+		return refreshResult{}, fmt.Errorf("invalid built-in executable URL")
 	}
 
 	manifestBytes, err := fetchBytes(ctx, client, app.ManifestUrl)
@@ -284,20 +311,88 @@ func refreshTrackedApp(ctx context.Context, providerFilesystem string, client *h
 	if err := os.MkdirAll(result.AppDirectory, 0755); err != nil {
 		return refreshResult{}, err
 	}
-	if err := publishFileAtomically(result.ManifestPath, manifestBytes, 0644); err != nil {
+	if err := chownCachePath(result.AppDirectory, ownerUid); err != nil {
 		return refreshResult{}, err
 	}
-	if err := publishFileAtomically(result.SignaturePath, signatureBytes, 0644); err != nil {
+	if err := publishFileAtomically(result.ManifestPath, manifestBytes, 0644, ownerUid); err != nil {
+		return refreshResult{}, err
+	}
+	if err := publishFileAtomically(result.SignaturePath, signatureBytes, 0644, ownerUid); err != nil {
 		return refreshResult{}, err
 	}
 	if !updated {
+		if err := chownCachePath(result.CurrentPath, ownerUid); err != nil {
+			return refreshResult{}, err
+		}
 		return result, nil
 	}
-	if err := publishFileAtomically(result.CurrentPath, binaryBytes, 0755); err != nil {
+	if err := publishFileAtomically(result.CurrentPath, binaryBytes, 0755, ownerUid); err != nil {
 		return refreshResult{}, err
 	}
 
 	return result, nil
+}
+
+func refreshBuiltInExecutable(ctx context.Context, providerFilesystem string, ownerUid util.Option[int], binaryName string, result refreshResult) (refreshResult, error) {
+	if err := ctx.Err(); err != nil {
+		return refreshResult{}, err
+	}
+	sourcePath := filepath.Join(providerFilesystem, sharedExecutablesDirectory, binaryName)
+	info, err := os.Lstat(sourcePath)
+	if err != nil {
+		return refreshResult{}, err
+	}
+	if !info.Mode().IsRegular() {
+		return refreshResult{}, fmt.Errorf("built-in executable %q is not a regular file", binaryName)
+	}
+	if info.Mode()&0111 == 0 {
+		return refreshResult{}, fmt.Errorf("built-in executable %q is not executable", binaryName)
+	}
+	binaryBytes, err := os.ReadFile(sourcePath)
+	if err != nil {
+		return refreshResult{}, err
+	}
+	sum := sha256.Sum256(binaryBytes)
+	updated, err := currentNeedsUpdate(result.CurrentPath, hex.EncodeToString(sum[:]))
+	if err != nil {
+		return refreshResult{}, err
+	}
+	result.Updated = updated
+
+	if err := os.MkdirAll(result.AppDirectory, 0755); err != nil {
+		return refreshResult{}, err
+	}
+	if err := chownCachePath(result.AppDirectory, ownerUid); err != nil {
+		return refreshResult{}, err
+	}
+	if !updated {
+		if err := chownCachePath(result.CurrentPath, ownerUid); err != nil {
+			return refreshResult{}, err
+		}
+		return result, nil
+	}
+	if err := publishFileAtomically(result.CurrentPath, binaryBytes, 0755, ownerUid); err != nil {
+		return refreshResult{}, err
+	}
+	return result, nil
+}
+
+func builtinExecutableName(manifestUrl string) (string, bool) {
+	const prefix = "builtin://"
+	if !strings.HasPrefix(manifestUrl, prefix) {
+		return "", false
+	}
+
+	name := strings.TrimPrefix(manifestUrl, prefix)
+	if name == "" || name == "." || name == ".." {
+		return "", false
+	}
+	for _, ch := range name {
+		if (ch < 'a' || ch > 'z') && (ch < 'A' || ch > 'Z') && (ch < '0' || ch > '9') && ch != '-' && ch != '_' && ch != '.' {
+			return "", false
+		}
+	}
+	return name, true
 }
 
 func cachePaths(providerFilesystem string, app trackedApp) (refreshResult, error) {
@@ -360,7 +455,7 @@ func currentNeedsUpdate(currentPath string, expectedSha256 string) (bool, error)
 	return hex.EncodeToString(sum[:]) != strings.ToLower(expectedSha256), nil
 }
 
-func publishFileAtomically(destination string, contents []byte, mode os.FileMode) error {
+func publishFileAtomically(destination string, contents []byte, mode os.FileMode, ownerUid util.Option[int]) error {
 	dir := filepath.Dir(destination)
 	tmp, err := os.CreateTemp(dir, ".tmp-*")
 	if err != nil {
@@ -377,8 +472,21 @@ func publishFileAtomically(destination string, contents []byte, mode os.FileMode
 		_ = tmp.Close()
 		return err
 	}
+	if ownerUid.Present {
+		if err := tmp.Chown(ownerUid.Value, ownerUid.Value); err != nil {
+			_ = tmp.Close()
+			return err
+		}
+	}
 	if err := tmp.Close(); err != nil {
 		return err
 	}
 	return os.Rename(tmpName, destination)
+}
+
+func chownCachePath(path string, ownerUid util.Option[int]) error {
+	if !ownerUid.Present {
+		return nil
+	}
+	return os.Chown(path, ownerUid.Value, ownerUid.Value)
 }

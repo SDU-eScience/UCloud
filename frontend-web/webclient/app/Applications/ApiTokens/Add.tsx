@@ -300,15 +300,17 @@ export function ServiceProviderSelector({
     serviceProviders,
     renderRow = ServiceProviderItem,
     renderSelectedRow = ServiceProviderItem,
+    showLabel = true,
 }: {
     onSelect: (el: {key: string}) => void;
     serviceProvider: string;
     serviceProviders: {key: string}[];
     renderRow?: (props: RichSelectProps<{key: string}>) => React.ReactNode
     renderSelectedRow?: (props: RichSelectProps<{key: string}>) => React.ReactNode
+    showLabel?: boolean;
 }) {
     return <div className={ServiceProviderSelectorStyle} data-has-service-provider={!!serviceProvider}>
-        Service provider <MandatoryField />
+        {showLabel ? <>Service provider <MandatoryField /></> : <Box width={"300px"} />}
         <RichSelect
             fullWidth
             elementHeight={38}

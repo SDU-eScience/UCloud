@@ -214,6 +214,14 @@ services:
     claimName: "ucloud-user-data"
     scanMethod:
       type: Walk
+    metadataCatalog:
+      # Defaults to true in development mode and false otherwise.
+      enabled: false
+      # Enables catalog-backed search, recursive sizes, and accounting. Uses the same default as enabled.
+      enableIntegration: false
+      iops: 45000
+      parallelScans: 8
+      entriesPerSSTable: 16384
 
   compute:
     namespace: "ucloud-apps"

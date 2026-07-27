@@ -89,11 +89,13 @@ type ConfiguredWebEndpoint struct {
 	TargetDomain string
 	Flags        RegisteredIngressFlags
 	IsPublic     bool
+	TLS          bool
 }
 
 type ConfiguredWebIngress struct {
 	IsPublic     bool
 	TargetDomain string
+	TLS          bool
 }
 
 type FollowJobSession struct {
@@ -1660,6 +1662,7 @@ type webSessionIngress struct {
 	JobId     string
 	Rank      int
 	Target    cfg.HostInfo
+	TLS       bool
 	Suffix    string
 	Flags     RegisteredIngressFlags
 	AuthToken util.Option[string]
@@ -1760,18 +1763,19 @@ func ingressMapKeyForIngress(ingress webSessionIngress) string {
 	}
 
 	return fmt.Sprintf(
-		"%s|%s|%s|%d|%s|%d",
+		"%s|%s|%s|%d|%s|%d|%t",
 		kind,
 		ingress.Suffix,
 		ingress.Address,
 		ingress.Flags,
 		ingress.Target.Address,
 		ingress.Target.Port,
+		ingress.TLS,
 	)
 }
 
 func clusterNameForIngress(session *webSession, ingress webSessionIngress) string {
-	base := fmt.Sprintf("%s:%d", ingress.Target.Address, ingress.Target.Port)
+	base := fmt.Sprintf("%s:%d:%t", ingress.Target.Address, ingress.Target.Port, ingress.TLS)
 	hash := util.Sha256([]byte(base))
 	return "job_" + session.JobId + "_" + fmt.Sprint(session.Rank) + "_" + hash[0:12]
 }
@@ -1843,6 +1847,7 @@ func IngressRegisterEndpointsWithJob(job *orcapi.Job, rank int, requestedSuffix 
 				JobId:     job.Id,
 				Rank:      rank,
 				Target:    endpoint.Host,
+				TLS:       endpoint.TLS,
 				Suffix:    suffix,
 				Flags:     endpoint.Flags,
 				AuthToken: token,
@@ -1877,10 +1882,10 @@ func IngressRegisterEndpointsWithJob(job *orcapi.Job, rank int, requestedSuffix 
 					db.Exec(
 						tx,
 						`
-							insert into web_sessions(job_id, rank, target_address, target_port, address, suffix, 
-								auth_token, flags) 
-							values (:job_id, :rank, :target_address, :target_port, :address, :suffix, 
-								:auth_token, :flags)
+							insert into web_sessions(job_id, rank, target_address, target_port, address, suffix,
+								auth_token, flags, tls)
+							values (:job_id, :rank, :target_address, :target_port, :address, :suffix,
+								:auth_token, :flags, :tls)
 						`,
 						db.Params{
 							"job_id":         job.Id,
@@ -1891,6 +1896,7 @@ func IngressRegisterEndpointsWithJob(job *orcapi.Job, rank int, requestedSuffix 
 							"auth_token":     sqlToken,
 							"flags":          endpoint.Flags,
 							"address":        address,
+							"tls":            endpoint.TLS,
 						},
 					)
 				})
@@ -1938,6 +1944,7 @@ func jobsLoadSessions() {
 			Rank          int
 			TargetAddress string
 			TargetPort    int
+			Tls           bool
 			Suffix        sql.NullString
 			AuthToken     sql.NullString
 			Flags         int
@@ -1945,7 +1952,7 @@ func jobsLoadSessions() {
 		}](
 			tx,
 			`
-				select job_id, rank, target_address, target_port, address, suffix, auth_token, flags
+				select job_id, rank, target_address, target_port, address, suffix, auth_token, flags, tls
 				from web_sessions
 		    `,
 			db.Params{},
@@ -1981,6 +1988,7 @@ func jobsLoadSessions() {
 					Address: row.TargetAddress,
 					Port:    row.TargetPort,
 				},
+				TLS:       row.Tls,
 				Suffix:    row.Suffix.String,
 				Flags:     RegisteredIngressFlags(row.Flags),
 				AuthToken: tok,
@@ -2036,6 +2044,7 @@ func jobRoutesRefresh() {
 								Address: ingress.Target.Address,
 								Port:    ingress.Target.Port,
 								UseDNS:  !unicode.IsDigit([]rune(ingress.Target.Address)[0]),
+								TLS:     ingress.TLS,
 							},
 
 							RouteUp: &gw.EnvoyRoute{

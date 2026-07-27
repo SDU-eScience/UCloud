@@ -66,7 +66,7 @@ func inferenceGenerateMockImageResponse(request InferenceImageGenerationRequest)
 		response.Background = request.Background
 	}
 
-	response.Usage = inferenceImageUsageFromPayload(request, len(response.Data), util.OptNone[InferenceImageGenerationUsage]())
+	response.Usage = inferenceEstimateImageUsage(request, len(response.Data))
 
 	return response, nil
 }

@@ -542,6 +542,7 @@ type AppParameterValue struct {
 	Specification WorkflowSpecification `json:"specification" yaml:"specification"`
 	Modules       []string              `json:"modules" yaml:"modules"`
 	Port          int                   `json:"port" yaml:"port"`
+	TLS           bool                  `json:"tls" yaml:"tls"`
 	Server        string                `json:"server" yaml:"server"`
 	Token         string                `json:"token" yaml:"token"`
 	TokenType     string                `json:"tokenType" yaml:"tokenType"`

@@ -63,6 +63,8 @@ import {
     FilesMoveRequestItem,
     FilesTransferRequestItem,
     FilesTrashRequestItem,
+    FilesVisualizeRequest,
+    FilesVisualizeResponse,
     UFile,
     UFileIncludeFlags,
     UFileSpecification,
@@ -203,6 +205,10 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
     public productType = "STORAGE" as const
 
     public idIsUriEncoded = true;
+
+    visualize(request: FilesVisualizeRequest): APICallParameters<FilesVisualizeRequest, FilesVisualizeResponse> {
+        return apiUpdate(request, "/api/files", "visualize");
+    }
 
     renderer: ItemRenderer<UFile, ResourceBrowseCallbacks<UFile, ProductStorage> & ExtraFileCallbacks> = {
     };
@@ -954,8 +960,8 @@ async function synchronizationOpOnClick(files: UFile[], cb: ResourceBrowseCallba
 
         for (const folder of resolvedFiles) {
             const sensitivity = await findSensitivity(folder);
-            if (sensitivity == "SENSITIVE") {
-                sendFailureNotification("Folder marked as sensitive cannot be added to Syncthing");
+            if (sensitivity == "SENSITIVE" || sensitivity == "CONFIDENTIAL") {
+                sendFailureNotification("Sensitive or confidential folders cannot be added to Syncthing");
                 return;
             }
         }
