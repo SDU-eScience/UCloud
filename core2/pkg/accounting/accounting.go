@@ -61,6 +61,10 @@ func initAccounting() {
 		return WalletsBrowse(info.Actor, request), nil
 	})
 
+	accapi.UsageBreakdownBrowse.Handler(func(info rpc.RequestInfo, request accapi.UsageBreakdownBrowseRequest) (fndapi.PageV2[accapi.UsageBreakdownItem], *util.HttpError) {
+		return UsageBreakdownBrowse(info.Actor, request)
+	})
+
 	accapi.WalletsBrowseInternal.Handler(func(info rpc.RequestInfo, request accapi.WalletsBrowseInternalRequest) (accapi.WalletsBrowseInternalResponse, *util.HttpError) {
 		if !validateOwner(request.Owner) {
 			return accapi.WalletsBrowseInternalResponse{}, util.HttpErr(http.StatusNotFound, "unknown owner")
