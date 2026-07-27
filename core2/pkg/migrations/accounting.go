@@ -1,6 +1,10 @@
 package migrations
 
-import db "ucloud.dk/shared/pkg/database"
+import (
+	"strings"
+
+	db "ucloud.dk/shared/pkg/database"
+)
 
 func accountingV1() db.MigrationScript {
 	return db.MigrationScript{
@@ -221,6 +225,32 @@ func accountingV5() db.MigrationScript {
 	}
 }
 
+/*
+func accountingV7() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "accountingV7",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					create unique index wallets_v2_owner_category_unique
+						on accounting.wallets_v2(wallet_owner, product_category);
+				`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`
+					create unique index allocation_groups_wallet_parent_unique
+						on accounting.allocation_groups(associated_wallet, coalesce(parent_wallet, 0));
+				`,
+				db.Params{},
+			)
+		},
+	}
+}
+*/
+
 func accountingV6() db.MigrationScript {
 	return db.MigrationScript{
 		Id: "accountingV6",
@@ -228,12 +258,152 @@ func accountingV6() db.MigrationScript {
 			db.Exec(
 				tx,
 				`
-					create unique index wallets_v2_owner_category_unique
-						on accounting.wallets_v2(wallet_owner, product_category);
-
-					create unique index allocation_groups_wallet_parent_unique
-						on accounting.allocation_groups(associated_wallet, coalesce(parent_wallet, 0));
+					alter table accounting.scoped_usage add column if not exists 
+						resource_suffix text generated always as (regexp_replace(key, '.*\n'::text, ''::text)) stored;
 				`,
+				db.Params{},
+			)
+
+			db.Exec(
+				tx,
+				`
+					alter table accounting.scoped_usage
+						add column wallet_id int8 references accounting.wallets_v2(id),
+						add column last_updated_at timestamptz default now() not null;
+				`,
+				db.Params{},
+			)
+
+			script := `
+				delete from accounting.scoped_usage
+				where resource_suffix ilike '202%-%'; -- Legacy VMs
+
+				-- Legacy VMs
+				delete from accounting.scoped_usage
+				where resource_suffix ilike '%-2024-%';
+
+				-- Legacy drives
+				delete from accounting.scoped_usage
+				where resource_suffix ilike 'hippo-%';
+
+				update accounting.scoped_usage
+				set wallet_id = w.id
+				from
+					provider.resource r
+					join accounting.products p on p.id = r.product
+					join accounting.product_categories pc on pc.id = p.category
+					join accounting.wallet_owner wo  on
+					(r.project is not null and wo.project_id = r.project)
+						or (r.project is null and wo.username = r.created_by)
+					join accounting.wallets_v2 w on w.wallet_owner = wo.id and w.product_category = pc.id
+				where
+					resource_suffix ilike 'drive-%'
+				  and r.id = split_part(replace(replace(resource_suffix, 'aau-k8', ''), 'sdu-odense', ''), '-', 3)::bigint;
+
+				delete from accounting.scoped_usage where resource_suffix ilike 'drive-%' and wallet_id is null;
+
+				with translation_table as (
+					select old.id as old_id, new.id as new_id
+					from
+						accounting.products old
+						join accounting.product_categories old_category on old.category = old_category.id
+						join accounting.products new on old.name = new.name
+						join accounting.product_categories new_category on 
+							new.category = new_category.id 
+							and new_category.category = old_category.category 
+							and new_category.provider != old_category.provider
+					where
+						old_category.provider = 'ucloud'
+						and old_category.product_type = 'COMPUTE'
+						and old.name != 'terminal'
+						and old.name != 'syncthing'
+				)
+				update provider.resource
+				set product = new_id
+				from translation_table
+				where product = old_id;
+
+				update accounting.scoped_usage
+				set wallet_id = w.id, last_updated_at = coalesce(j.started_at, r.created_at)
+				from
+					provider.resource r
+					join app_orchestrator.jobs j on r.id = j.resource
+					join accounting.products p on p.id = r.product
+					join accounting.product_categories pc on pc.id = p.category
+					join accounting.wallet_owner wo  on
+					(r.project is not null and wo.project_id = r.project)
+						or (r.project is null and wo.username = r.created_by)
+					join accounting.wallets_v2 w on w.wallet_owner = wo.id and w.product_category = pc.id
+				where
+					resource_suffix ilike 'job-%'
+				  and r.id = split_part(resource_suffix, '-', 2)::bigint;
+				;
+
+				update accounting.scoped_usage c
+				set wallet_id = w.id, last_updated_at = coalesce(j.started_at, r.created_at)
+				from
+					app_orchestrator.jobs j
+					join provider.resource r on r.id = j.resource
+					join accounting.products p on p.id = r.product
+					join accounting.product_categories pc on pc.id = p.category
+					join accounting.wallet_owner wo  on
+					(r.project is not null and wo.project_id = r.project)
+						or (r.project is null and wo.username = r.created_by)
+					join accounting.wallets_v2 w on w.wallet_owner = wo.id and w.product_category = pc.id
+				where
+					c.resource_suffix = j.resource::text;
+
+				-- These are all missing
+				delete from accounting.scoped_usage where resource_suffix ilike 'job-%' and wallet_id is null;
+
+				-- At this point, these are guaranteed to not be valid anymore
+				delete from accounting.scoped_usage
+				where
+					resource_suffix ~ '^[0-9.]+$'
+					and wallet_id is null;
+
+				-- Production databases do not require this, but some development databases might
+				delete from accounting.scoped_usage where wallet_id is null;
+			`
+
+			for _, statement := range strings.Split(script, ";") {
+				db.Exec(tx, statement, db.Params{})
+			}
+
+			// Existing rows must be assigned to wallets before this statement. A non-empty legacy table intentionally
+			// makes the migration fail safely until the deployment-specific key migration is inserted above.
+			db.Exec(
+				tx,
+				`alter table accounting.scoped_usage alter column wallet_id set not null`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`alter table accounting.scoped_usage drop constraint scoped_usage_pkey`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`alter table accounting.scoped_usage add primary key (wallet_id, key)`,
+				db.Params{},
+			)
+
+			db.Exec(
+				tx,
+				`
+					with this_should_not_exist as (
+						select id from accounting.allocation_groups where associated_wallet = parent_wallet
+					)
+					delete from accounting.wallet_allocations_v2
+					using this_should_not_exist as bad
+					where associated_allocation_group = bad.id
+				`,
+				db.Params{},
+			)
+
+			db.Exec(
+				tx,
+				`delete from accounting.allocation_groups where parent_wallet = associated_wallet`,
 				db.Params{},
 			)
 		},

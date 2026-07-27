@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"ucloud.dk/shared/pkg/log"
-	"ucloud.dk/shared/pkg/util"
 )
 
 type accountingInvariantMode int
@@ -26,10 +25,14 @@ func accountingInvariantModeCurrent() accountingInvariantMode {
 	if accountingInvariantChecks != accountingInvariantModeAutomatic {
 		return accountingInvariantChecks
 	}
-	if accGlobals.TestingEnabled || util.DevelopmentModeEnabled() {
+	if accGlobals.TestingEnabled {
 		return accountingInvariantModePanic
 	}
 	return accountingInvariantModeDisabled
+}
+
+func accountingInvariantChecksEnabled() bool {
+	return accountingInvariantModeCurrent() != accountingInvariantModeDisabled
 }
 
 func handleAccountingInvariantError(operation string, err error) {
@@ -49,7 +52,7 @@ func handleAccountingInvariantError(operation string, err error) {
 // lCheckAccountingOperation validates only wallets which could have been changed by an operation.
 // The caller must hold the bucket lock. A nil wallet set means that the operation can affect the entire bucket.
 func lCheckAccountingOperation(operation string, b *internalBucket, now time.Time, walletIds map[AccWalletId]bool, scope *scopedUsage, additionalErrors ...error) {
-	if accountingInvariantModeCurrent() == accountingInvariantModeDisabled {
+	if !accountingInvariantChecksEnabled() {
 		return
 	}
 

@@ -61,56 +61,18 @@ type snapshotReport struct {
 
 func AnalyzeSnapshot() []byte {
 	report := db.NewTx(func(tx *db.Transaction) snapshotReport {
-		db.Exec(tx, "set transaction isolation level repeatable read, read only", db.Params{})
-		now, _ := db.Get[struct{ Now time.Time }](tx, "select transaction_timestamp() as now", db.Params{})
+		db.Exec(
+			tx,
+			"set transaction isolation level repeatable read, read only",
+			db.Params{},
+		)
+		now, _ := db.Get[struct{ Now time.Time }](
+			tx,
+			"select transaction_timestamp() as now",
+			db.Params{},
+		)
 
-		result := snapshotReport{
-			Findings: []snapshotFinding{},
-			Buckets:  []snapshotBucket{},
-		}
-		result.Totals, _ = db.Get[snapshotTotals](tx, `
-			select
-				(select count(*) from accounting.product_categories) as buckets,
-				(select count(*) from accounting.wallets_v2) as wallets,
-				(select count(*) from accounting.allocation_groups) as groups,
-				(select count(*) from accounting.wallet_allocations_v2) as allocations,
-				(select count(*) from accounting.scoped_usage) as scopes
-		`, db.Params{})
-		persistedWalletValues := map[AccWalletId]snapshotPersistedWalletValues{}
-		for _, row := range db.Select[snapshotPersistedWalletValues](tx, `
-			select id, excess_usage, total_allocated, total_retired_allocated
-			from accounting.wallets_v2
-			order by id
-		`, db.Params{}) {
-			persistedWalletValues[row.Id] = row
-		}
-
-		productsLoadFromTx(tx)
-		accountingLoadFromTx(tx, now.Now, func(message string) {
-			result.Summary.LoadErrors++
-			result.Findings = append(result.Findings, snapshotFinding{
-				Code:    snapshotLoadFindingCode(message),
-				Details: message,
-				Impact:  "the malformed row and rows depending on it were excluded from wallet checks",
-			})
-		})
-		for _, scope := range accGlobals.Usage {
-			if scope.Usage < 0 {
-				result.Findings = append(result.Findings, snapshotFinding{
-					Code:    "negative-scoped-usage",
-					Details: fmt.Sprintf("scope %q has usage %d", scope.Key, scope.Usage),
-					Impact:  "absolute reports against this scope use an invalid baseline",
-				})
-			}
-		}
-		result.Buckets, result.Summary.AffectedWallets = analyzeLoadedSnapshot(now.Now, persistedWalletValues)
-		result.Summary.BrokenBuckets = len(result.Buckets)
-		result.Summary.Findings = len(result.Findings)
-		for _, bucket := range result.Buckets {
-			result.Summary.Findings += len(bucket.Findings)
-		}
-		slices.SortFunc(result.Findings, compareSnapshotFindings)
-		return result
+		return analyzeSnapshotFromTx(tx, now.Now)
 	})
 
 	encoded, err := yaml.Marshal(report)
@@ -118,6 +80,71 @@ func AnalyzeSnapshot() []byte {
 		panic(err)
 	}
 	return encoded
+}
+
+func analyzeSnapshotFromTx(tx *db.Transaction, now time.Time) snapshotReport {
+	result := snapshotReport{
+		Findings: []snapshotFinding{},
+		Buckets:  []snapshotBucket{},
+	}
+	result.Totals, _ = db.Get[snapshotTotals](
+		tx,
+		`
+				select
+					(select count(*) from accounting.product_categories) as buckets,
+					(select count(*) from accounting.wallets_v2) as wallets,
+					(select count(*) from accounting.allocation_groups) as groups,
+					(select count(*) from accounting.wallet_allocations_v2) as allocations,
+					(select count(*) from accounting.scoped_usage) as scopes
+			`,
+		db.Params{},
+	)
+	persistedWalletValues := map[AccWalletId]snapshotPersistedWalletValues{}
+	rows := db.Select[snapshotPersistedWalletValues](
+		tx,
+		`
+				select id, excess_usage, total_allocated, total_retired_allocated
+				from accounting.wallets_v2
+				order by id
+			`,
+		db.Params{},
+	)
+
+	for _, row := range rows {
+		persistedWalletValues[row.Id] = row
+	}
+
+	productsLoadFromTx(tx)
+	accountingLoadFromTx(tx, now, func(message string) {
+		result.Summary.LoadErrors++
+		result.Findings = append(result.Findings, snapshotFinding{
+			Code:    snapshotLoadFindingCode(message),
+			Details: message,
+			Impact:  "the malformed row and rows depending on it were excluded from wallet checks",
+		})
+	})
+	for _, bucket := range accGlobals.BucketsByCategory {
+		for _, wallet := range bucket.WalletsById {
+			for _, scope := range wallet.ScopedUsage {
+				if scope.Usage < 0 {
+					result.Findings = append(result.Findings, snapshotFinding{
+						Code:      "negative-scoped-usage",
+						WalletIds: []AccWalletId{wallet.Id},
+						Details:   fmt.Sprintf("wallet %d scope %q has usage %d", wallet.Id, scope.Key, scope.Usage),
+						Impact:    "absolute reports against this scope use an invalid baseline",
+					})
+				}
+			}
+		}
+	}
+	result.Buckets, result.Summary.AffectedWallets = analyzeLoadedSnapshot(now, persistedWalletValues)
+	result.Summary.BrokenBuckets = len(result.Buckets)
+	result.Summary.Findings = len(result.Findings)
+	for _, bucket := range result.Buckets {
+		result.Summary.Findings += len(bucket.Findings)
+	}
+	slices.SortFunc(result.Findings, compareSnapshotFindings)
+	return result
 }
 
 func analyzeLoadedSnapshot(now time.Time, persistedWalletValues map[AccWalletId]snapshotPersistedWalletValues) ([]snapshotBucket, int) {

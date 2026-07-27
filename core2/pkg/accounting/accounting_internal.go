@@ -69,7 +69,7 @@ import (
 //
 // ---------------------------------------------------------------------------------------------------------------------
 // accGlobals & internalBucket REQUIRE A MUTEX FOR ANY READ OR WRITE OPERATION.
-// MUTEX LOCK ORDER: globals > bucket > scopedUsage
+// MUTEX LOCK ORDER: globals > bucket
 //
 // (Note that all other data structures are locked by the bucket.)
 // ---------------------------------------------------------------------------------------------------------------------
@@ -110,7 +110,7 @@ type accOwnerId int
 type accAllocId int
 
 var accGlobals struct {
-	// Mu protects every non-atomic field in accGlobals. Locks must be acquired in the order globals, bucket, scope.
+	// Mu protects every non-atomic field in accGlobals. Locks must be acquired in the order globals, bucket.
 	Mu sync.RWMutex
 
 	// TestingEnabled selects testing behavior for background work and invariant checks. Configure it before concurrent
@@ -121,10 +121,6 @@ var accGlobals struct {
 	// project ID. The legacy model does not retain owner type separately and currently infers it from Reference.
 	OwnersByReference map[string]*internalOwner
 	OwnersById        map[accOwnerId]*internalOwner
-
-	// Usage contains absolute-report baselines for individual scopes. It is global because its legacy persisted key is
-	// owner ID plus scope, rather than being stored in the category bucket. See scopedUsage for important limitations.
-	Usage map[string]*scopedUsage
 
 	// BucketsByCategory contains one independent wallet graph per provider/product-category pair.
 	BucketsByCategory map[accapi.ProductCategoryIdV2]*internalBucket
@@ -196,6 +192,10 @@ type internalWallet struct {
 	// independent of how usage is routed to parents. For capacity categories it is a current gauge and may decrease. For
 	// non-capacity categories it is lifetime consumption and should only increase without an explicit correction.
 	LocalUsage int64
+
+	// ScopedUsage contains absolute-report baselines keyed by the unmodified scope supplied by the API. Scope identity is
+	// wallet-local so the same key can be used independently in different product categories.
+	ScopedUsage map[string]*scopedUsage
 
 	// AllocationsByParent contains this wallet's incoming quota, grouped by funding parent. The key is a real parent
 	// wallet ID or internalGraphRoot for root allocations. All allocations from one parent share one internalGroup.
@@ -279,10 +279,10 @@ type internalAllocation struct {
 }
 
 type scopedUsage struct {
-	Mu    sync.RWMutex
-	Key   string
-	Usage int64
-	Dirty bool
+	Key           string
+	Usage         int64
+	LastUpdatedAt time.Time
+	Dirty         bool
 }
 
 // Public to internal adapter
@@ -332,43 +332,32 @@ func internalReportUsage(now time.Time, request accapi.ReportUsageRequest) (bool
 		}
 	}
 
-	var scope *scopedUsage
-	if request.Description.Scope.Present {
-		scopeKey := fmt.Sprintf("%d\n%s", owner.Id, request.Description.Scope.Value)
-		accGlobals.Mu.RLock()
-		scope = accGlobals.Usage[scopeKey]
-		accGlobals.Mu.RUnlock()
-		if scope == nil && request.IsDeltaCharge && request.Usage < 0 {
-			return false, util.HttpErr(http.StatusBadRequest, "usage report cannot make usage negative")
-		}
-
-		if scope == nil {
-			scope = util.ReadOrInsertBucket(&accGlobals.Mu, accGlobals.Usage, scopeKey, func() *scopedUsage {
-				return &scopedUsage{
-					Key:   scopeKey,
-					Usage: 0,
-					Dirty: true,
-				}
-			})
-		}
-	}
-
 	b.Mu.Lock()
 	defer b.Mu.Unlock()
-	if topologyErrors := lValidateAccountingAcyclic(b); len(topologyErrors) > 0 {
-		log.Error("Rejecting usage report for malformed accounting topology in %s/%s: %v", b.Category.Provider, b.Category.Name, topologyErrors[0])
-		return false, util.HttpErr(http.StatusInternalServerError, "accounting topology is invalid")
-	}
-
-	if scope != nil {
-		scope.Mu.Lock()
-		defer scope.Mu.Unlock()
+	invariantsEnabled := accountingInvariantChecksEnabled()
+	if invariantsEnabled {
+		if topologyErrors := lValidateAccountingAcyclic(b); len(topologyErrors) > 0 {
+			log.Error("Rejecting usage report for malformed accounting topology in %s/%s: %v", b.Category.Provider, b.Category.Name, topologyErrors[0])
+			return false, util.HttpErr(http.StatusInternalServerError, "accounting topology is invalid")
+		}
 	}
 
 	w := lInternalWalletByOwner(b, now, owner.Id)
-	if err := lValidateAccountingGraphState(b, w); err != nil {
-		log.Error("Rejecting usage report for invalid accounting flow in %s/%s: %v", b.Category.Provider, b.Category.Name, err)
-		return false, util.HttpErr(http.StatusInternalServerError, "accounting flow state is invalid")
+	var scope *scopedUsage
+	if request.Description.Scope.Present {
+		scope = w.ScopedUsage[request.Description.Scope.Value]
+		if scope == nil && request.IsDeltaCharge && request.Usage < 0 {
+			return false, util.HttpErr(http.StatusBadRequest, "usage report cannot make usage negative")
+		}
+		if scope == nil {
+			scope = &scopedUsage{Key: request.Description.Scope.Value}
+		}
+	}
+	if invariantsEnabled {
+		if err := lValidateAccountingGraphState(b, w); err != nil {
+			log.Error("Rejecting usage report for invalid accounting flow in %s/%s: %v", b.Category.Provider, b.Category.Name, err)
+			return false, util.HttpErr(http.StatusInternalServerError, "accounting flow state is invalid")
+		}
 	}
 	var visitedWallets map[AccWalletId]bool
 	var delta int64
@@ -379,7 +368,7 @@ func internalReportUsage(now time.Time, request accapi.ReportUsageRequest) (bool
 		scopeUsageBefore = scope.Usage
 	}
 	defer func() {
-		if !accepted {
+		if !accepted || !invariantsEnabled {
 			return
 		}
 		var invariantErrors []error
@@ -436,7 +425,9 @@ func internalReportUsage(now time.Time, request accapi.ReportUsageRequest) (bool
 	lInternalTransitionWallets(b, now, false, w.Id)
 
 	if scope != nil {
+		w.ScopedUsage[scope.Key] = scope
 		scope.Usage = currentUsage + delta
+		scope.LastUpdatedAt = now
 		scope.Dirty = true
 	}
 
@@ -770,16 +761,11 @@ func internalUpdateAllocation(
 	return grantedIn, changelog, nil
 }
 
-func internalCompleteScan(now time.Time, persistence func(buckets []*internalBucket, scopes []*scopedUsage, onPersistHandlers []internalOnPersistHandler)) {
+func internalCompleteScan(now time.Time, persistence func(buckets []*internalBucket, onPersistHandlers []internalOnPersistHandler)) {
 	var buckets []*internalBucket
-	var scopes []*scopedUsage
 	accGlobals.Mu.Lock()
 	for _, b := range accGlobals.BucketsByCategory {
 		buckets = append(buckets, b)
-	}
-
-	for _, s := range accGlobals.Usage {
-		scopes = append(scopes, s)
 	}
 
 	slices.SortFunc(buckets, func(a, b *internalBucket) int {
@@ -796,22 +782,8 @@ func internalCompleteScan(now time.Time, persistence func(buckets []*internalBuc
 		}
 	})
 
-	slices.SortFunc(scopes, func(a, b *scopedUsage) int {
-		if a.Key < b.Key {
-			return -1
-		} else if a.Key > b.Key {
-			return 1
-		} else {
-			return 0
-		}
-	})
-
 	for _, b := range buckets {
 		b.Mu.Lock()
-	}
-
-	for _, s := range scopes {
-		s.Mu.Lock()
 	}
 
 	for _, b := range buckets {
@@ -820,14 +792,10 @@ func internalCompleteScan(now time.Time, persistence func(buckets []*internalBuc
 	}
 
 	if persistence != nil {
-		persistence(buckets, scopes, accGlobals.OnPersistHandlers)
+		persistence(buckets, accGlobals.OnPersistHandlers)
 	}
 	for _, b := range buckets {
 		lCheckAccountingOperation("persist accounting state", b, now, nil, nil)
-	}
-
-	for _, s := range scopes {
-		s.Mu.Unlock()
 	}
 
 	for _, b := range buckets {
@@ -965,6 +933,7 @@ func lInternalWalletByOwner(b *internalBucket, now time.Time, owner accOwnerId) 
 			Id:                    AccWalletId(accGlobals.WalletIdAcc.Add(1)),
 			OwnedBy:               owner,
 			LocalUsage:            0,
+			ScopedUsage:           map[string]*scopedUsage{},
 			AllocationsByParent:   map[AccWalletId]*internalGroup{},
 			ChildrenUsage:         map[AccWalletId]int64{},
 			Dirty:                 true,
@@ -1410,6 +1379,11 @@ func lInternalTransitionWallets(b *internalBucket, now time.Time, logTransitions
 }
 
 func lInternalTransitionAllocationSet(b *internalBucket, now time.Time, logTransitions bool, allocations []*internalAllocation) {
+	lInternalSortAllocations(allocations)
+	lInternalTransitionSortedAllocationSet(b, now, logTransitions, allocations)
+}
+
+func lInternalSortAllocations(allocations []*internalAllocation) {
 	slices.SortFunc(allocations, func(a, b *internalAllocation) int {
 		if result := a.End.Compare(b.End); result != 0 {
 			return result
@@ -1419,7 +1393,10 @@ func lInternalTransitionAllocationSet(b *internalBucket, now time.Time, logTrans
 		}
 		return cmp.Compare(a.Id, b.Id)
 	})
+}
 
+// lInternalTransitionSortedAllocationSet transitions allocations ordered by end, start, and ID.
+func lInternalTransitionSortedAllocationSet(b *internalBucket, now time.Time, logTransitions bool, allocations []*internalAllocation) {
 	changedWallets := map[AccWalletId]bool{}
 	previousDisableEvaluation := b.disableEvaluation
 	b.disableEvaluation = true

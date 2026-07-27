@@ -207,8 +207,7 @@ func assertFuzzAccountingUsage(t *testing.T, e *env, owners []string, local []in
 			continue
 		}
 		for scopeIndex, scopeName := range []string{"scope-a", "scope-b"} {
-			key := fmt.Sprintf("%d\n%s", owner.Id, scopeName)
-			scope := accGlobals.Usage[key]
+			scope := wallet.ScopedUsage[scopeName]
 			if scope == nil || scope.Usage != scopes[i][scopeIndex] {
 				got := int64(-1)
 				if scope != nil {

@@ -437,7 +437,6 @@ func accountingLoadFromTx(tx *db.Transaction, now time.Time, onLoadError func(st
 		timer := util.NewTimer()
 		accGlobals.OwnersByReference = map[string]*internalOwner{}
 		accGlobals.OwnersById = map[accOwnerId]*internalOwner{}
-		accGlobals.Usage = map[string]*scopedUsage{}
 		accGlobals.BucketsByCategory = map[accapi.ProductCategoryIdV2]*internalBucket{}
 
 		// Wallet owners
@@ -477,29 +476,6 @@ func accountingLoadFromTx(tx *db.Transaction, now time.Time, onLoadError func(st
 		}
 
 		loadTimes.WalletOwners = timer.Mark()
-
-		// Scoped usage
-		// -------------------------------------------------------------------------------------------------------------
-		usageRows := db.Select[struct {
-			Key   string
-			Usage int64
-		}](
-			tx,
-			`
-				select key, usage
-				from accounting.scoped_usage
-		    `,
-			db.Params{},
-		)
-
-		for _, row := range usageRows {
-			accGlobals.Usage[row.Key] = &scopedUsage{
-				Key:   row.Key,
-				Usage: row.Usage,
-			}
-		}
-
-		loadTimes.ScopedUsage = timer.Mark()
 
 		// Wallets
 		// -------------------------------------------------------------------------------------------------------------
@@ -546,6 +522,7 @@ func accountingLoadFromTx(tx *db.Transaction, now time.Time, onLoadError func(st
 				Id:                    AccWalletId(row.Id),
 				OwnedBy:               accOwnerId(row.WalletOwner),
 				LocalUsage:            row.LocalUsage,
+				ScopedUsage:           make(map[string]*scopedUsage),
 				AllocationsByParent:   make(map[AccWalletId]*internalGroup),
 				ChildrenUsage:         make(map[AccWalletId]int64),
 				Dirty:                 false,
@@ -571,6 +548,43 @@ func accountingLoadFromTx(tx *db.Transaction, now time.Time, onLoadError func(st
 		}
 
 		loadTimes.Wallets = timer.Mark()
+
+		// Scoped usage
+		// -------------------------------------------------------------------------------------------------------------
+		usageRows := db.Select[struct {
+			WalletId      int
+			Key           string
+			Usage         int64
+			LastUpdatedAt time.Time
+		}](
+			tx,
+			`
+				select wallet_id, key, usage, last_updated_at
+				from accounting.scoped_usage
+				order by wallet_id, key
+		    `,
+			db.Params{},
+		)
+
+		for _, row := range usageRows {
+			_, wallet, ok := internalWalletById(AccWalletId(row.WalletId))
+			if !ok {
+				message := fmt.Sprintf("accounting scoped usage %q references unavailable wallet %d", row.Key, row.WalletId)
+				if onLoadError != nil {
+					onLoadError(message)
+				} else {
+					log.Warn("%s", message)
+				}
+				continue
+			}
+			wallet.ScopedUsage[row.Key] = &scopedUsage{
+				Key:           row.Key,
+				Usage:         row.Usage,
+				LastUpdatedAt: row.LastUpdatedAt,
+			}
+		}
+
+		loadTimes.ScopedUsage = timer.Mark()
 
 		// Allocation groups
 		// -------------------------------------------------------------------------------------------------------------
@@ -689,7 +703,7 @@ func accountingLoadFromTx(tx *db.Transaction, now time.Time, onLoadError func(st
 					Retired:      row.Retired,
 					RetiredUsage: row.RetiredUsage,
 					RetiredQuota: row.RetiredQuota,
-					Active:       now.After(row.AllocationStartTime), // TODO we don't know if it was activated
+					Active:       !now.Before(row.AllocationStartTime), // TODO we don't know if it was activated
 					Dirty:        false,
 					Committed:    true,
 				}
@@ -723,7 +737,7 @@ func accountingProcessTasksNow(now time.Time, filter func(b *internalBucket) boo
 	accountingProcessMutex.Lock()
 
 	timer := util.NewTimer()
-	internalCompleteScan(now, func(buckets []*internalBucket, scopes []*scopedUsage, onPersistHandlers []internalOnPersistHandler) {
+	internalCompleteScan(now, func(buckets []*internalBucket, onPersistHandlers []internalOnPersistHandler) {
 		var actualBuckets []*internalBucket
 		for _, b := range buckets {
 			if filter == nil || filter(b) {
@@ -773,8 +787,10 @@ func accountingProcessTasksNow(now time.Time, filter func(b *internalBucket) boo
 		}{}
 
 		usageRequests := struct {
-			Key   []string
-			Usage []int64
+			WalletId      []int64
+			Key           []string
+			Usage         []int64
+			LastUpdatedAt []int64
 		}{}
 
 		allocationRequests := struct {
@@ -824,6 +840,15 @@ func accountingProcessTasksNow(now time.Time, filter func(b *internalBucket) boo
 
 					wallet.Dirty = false
 				}
+				for _, scope := range wallet.ScopedUsage {
+					if scope.Dirty {
+						usageRequests.WalletId = append(usageRequests.WalletId, int64(wallet.Id))
+						usageRequests.Key = append(usageRequests.Key, scope.Key)
+						usageRequests.Usage = append(usageRequests.Usage, scope.Usage)
+						usageRequests.LastUpdatedAt = append(usageRequests.LastUpdatedAt, scope.LastUpdatedAt.UnixMilli())
+						scope.Dirty = false
+					}
+				}
 
 				for _, ag := range wallet.AllocationsByParent {
 					if ag.Dirty && lInternalGroupHasCommittedAllocation(b, ag) {
@@ -851,14 +876,6 @@ func accountingProcessTasksNow(now time.Time, filter func(b *internalBucket) boo
 
 					alloc.Dirty = false
 				}
-			}
-		}
-
-		for _, scope := range scopes {
-			if scope.Dirty {
-				usageRequests.Key = append(usageRequests.Key, scope.Key)
-				usageRequests.Usage = append(usageRequests.Usage, scope.Usage)
-				scope.Dirty = false
 			}
 		}
 
@@ -1056,21 +1073,28 @@ func accountingProcessTasksNow(now time.Time, filter func(b *internalBucket) boo
 					`
 						with data as (
 							select
+								unnest(cast(:wallet_id as int8[])) as wallet_id,
 								unnest(cast(:key as text[])) as key,
-								unnest(cast(:usage as int8[])) as usage
+								unnest(cast(:usage as int8[])) as usage,
+								unnest(cast(:last_updated_at as int8[])) as last_updated_at
 						)
-						insert into accounting.scoped_usage(key, usage) 
+						insert into accounting.scoped_usage(wallet_id, key, usage, last_updated_at)
 						select
+							wallet_id,
 							key,
-							usage
+							usage,
+							to_timestamp(last_updated_at / 1000.0)
 						from
 							data d
-						on conflict (key) do update set
-							usage = excluded.usage
+						on conflict (wallet_id, key) do update set
+							usage = excluded.usage,
+							last_updated_at = excluded.last_updated_at
 					`,
 					db.Params{
-						"key":   usageRequests.Key,
-						"usage": usageRequests.Usage,
+						"wallet_id":       usageRequests.WalletId,
+						"key":             usageRequests.Key,
+						"usage":           usageRequests.Usage,
+						"last_updated_at": usageRequests.LastUpdatedAt,
 					},
 				)
 			}

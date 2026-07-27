@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"database/sql"
 	"encoding/pem"
+	"flag"
 	"fmt"
 	"math"
 	"net/http"
@@ -410,6 +411,25 @@ func Launch() {
 	log.Fatal("Failed to start listener: %s", err)
 }
 
+func LaunchMigrationsOnly() {
+	if !cfg.Parse("/etc/ucloud") {
+		return
+	}
+
+	dbConfig := cfg.Configuration.Database
+	db.Database = db.Connect(
+		dbConfig.Username,
+		dbConfig.Password,
+		dbConfig.Host.Address,
+		dbConfig.Host.Port,
+		dbConfig.Database,
+		dbConfig.Ssl,
+	)
+
+	migrations.Init()
+	db.Migrate()
+}
+
 func LaunchAccountingSnapshot() {
 	if !cfg.Parse("/etc/ucloud") {
 		return
@@ -439,6 +459,147 @@ func LaunchAccountingSnapshot() {
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 	<-stop
+}
+
+func LaunchAccountingAudit(args []string) {
+	if len(args) == 0 {
+		panic("accounting-audit requires capture or compare")
+	}
+
+	switch args[0] {
+	case "capture":
+		flags := flag.NewFlagSet("accounting-audit capture", flag.ExitOnError)
+		output := flags.String("output", "", "compressed accounting audit output file")
+		if err := flags.Parse(args[1:]); err != nil {
+			panic(err)
+		}
+		if *output == "" {
+			panic("accounting-audit capture requires --output")
+		}
+		if _, err := os.Stat(*output); err == nil {
+			panic(fmt.Sprintf("accounting audit output already exists: %s", *output))
+		} else if !os.IsNotExist(err) {
+			panic(err)
+		}
+		if !cfg.Parse("/etc/ucloud") {
+			return
+		}
+		dbConfig := cfg.Configuration.Database
+		db.Database = db.ConnectReadOnly(dbConfig.Username, dbConfig.Password, dbConfig.Host.Address, dbConfig.Host.Port, dbConfig.Database, dbConfig.Ssl)
+		defer db.Database.Connection.Close()
+		capture := acc.CaptureAccountingAudit(dbConfig.Database)
+		encoded, err := acc.EncodeAccountingAuditCapture(capture)
+		if err != nil {
+			panic(err)
+		}
+		if err := acc.WriteAccountingAuditFile(*output, encoded); err != nil {
+			panic(err)
+		}
+		fmt.Printf(
+			"Captured accounting state at %s: wallets=%d groups=%d allocations=%d scopes=%d findings=%d\n",
+			capture.CapturedAt.UTC().Format(time.RFC3339),
+			len(capture.Wallets),
+			len(capture.Groups),
+			len(capture.Allocations),
+			len(capture.Scopes),
+			len(capture.Findings),
+		)
+	case "compare":
+		flags := flag.NewFlagSet("accounting-audit compare", flag.ExitOnError)
+		beforePath := flags.String("before", "", "capture before repair and reflow")
+		afterPath := flags.String("after", "", "capture after repair and reflow")
+		htmlPath := flags.String("html", "accounting-audit-report.html", "standalone HTML report output file")
+		if err := flags.Parse(args[1:]); err != nil {
+			panic(err)
+		}
+		if *beforePath == "" || *afterPath == "" {
+			panic("accounting-audit compare requires --before and --after")
+		}
+		beforeAbsolute, err := filepath.Abs(*beforePath)
+		if err != nil {
+			panic(err)
+		}
+		afterAbsolute, err := filepath.Abs(*afterPath)
+		if err != nil {
+			panic(err)
+		}
+		htmlAbsolute, err := filepath.Abs(*htmlPath)
+		if err != nil {
+			panic(err)
+		}
+		if htmlAbsolute == beforeAbsolute || htmlAbsolute == afterAbsolute {
+			panic("HTML report path must not replace a capture file")
+		}
+		before, err := acc.ReadAccountingAuditCapture(*beforePath)
+		if err != nil {
+			panic(err)
+		}
+		after, err := acc.ReadAccountingAuditCapture(*afterPath)
+		if err != nil {
+			panic(err)
+		}
+		report, err := acc.CompareAccountingAudits(before, after)
+		if err != nil {
+			panic(err)
+		}
+		html, err := acc.RenderAccountingAuditHTML(report)
+		if err != nil {
+			panic(err)
+		}
+		if err := acc.WriteAccountingAuditFile(*htmlPath, html); err != nil {
+			panic(err)
+		}
+		if _, err := os.Stdout.Write(acc.RenderAccountingAuditTerminal(report)); err != nil {
+			panic(err)
+		}
+		fmt.Printf("HTML report: %s\n", *htmlPath)
+	default:
+		panic(fmt.Sprintf("unknown accounting audit command %q", args[0]))
+	}
+}
+
+func LaunchAccountingRepair(args []string) {
+	if len(args) == 0 {
+		panic("accounting-repair requires duplicates, findings, or reflow")
+	}
+
+	flags := flag.NewFlagSet("accounting-repair "+args[0], flag.ExitOnError)
+	apply := flags.Bool("apply", false, "apply changes; the default is a read-only dry run")
+	provider := flags.String("provider", "", "product provider for reflow")
+	category := flags.String("category", "", "product category for reflow")
+	usageSource := flags.String("usage-source", "", "reflow source: no-scopes, all-scoped, or mixed")
+	if err := flags.Parse(args[1:]); err != nil {
+		panic(err)
+	}
+
+	if !cfg.Parse("/etc/ucloud") {
+		return
+	}
+	dbConfig := cfg.Configuration.Database
+	if *apply {
+		db.Database = db.Connect(dbConfig.Username, dbConfig.Password, dbConfig.Host.Address, dbConfig.Host.Port, dbConfig.Database, dbConfig.Ssl)
+	} else {
+		db.Database = db.ConnectReadOnly(dbConfig.Username, dbConfig.Password, dbConfig.Host.Address, dbConfig.Host.Port, dbConfig.Database, dbConfig.Ssl)
+	}
+	defer db.Database.Connection.Close()
+
+	var output []byte
+	switch args[0] {
+	case "duplicates":
+		output = acc.RepairAccountingDuplicates(*apply)
+	case "findings":
+		output = acc.RepairAccountingFindings(*apply)
+	case "reflow":
+		if *provider == "" || *category == "" || *usageSource == "" {
+			panic("reflow requires --provider, --category, and --usage-source")
+		}
+		output = acc.RepairAccountingBucketReflow(*provider, *category, *usageSource, *apply)
+	default:
+		panic(fmt.Sprintf("unknown accounting repair %q", args[0]))
+	}
+	if _, err := os.Stdout.Write(output); err != nil {
+		panic(err)
+	}
 }
 
 func launchMetricsServer() {

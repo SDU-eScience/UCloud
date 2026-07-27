@@ -28,8 +28,48 @@ func TestRejectedScopedUsageDoesNotCreateScope(t *testing.T) {
 	if err == nil || err.StatusCode != http.StatusBadRequest {
 		t.Fatalf("scoped decrease error = %v, want HTTP 400", err)
 	}
-	if len(accGlobals.Usage) != 0 {
-		t.Fatalf("rejected report created %d scoped usage entries", len(accGlobals.Usage))
+	wallet := e.Bucket.WalletsById[e.Wallet(e.Owner("user"), e.Tm(2))]
+	if len(wallet.ScopedUsage) != 0 {
+		t.Fatalf("rejected report created %d scoped usage entries", len(wallet.ScopedUsage))
+	}
+}
+
+func TestScopedUsageIsWalletLocal(t *testing.T) {
+	e := newEnv(t, capacityCategory)
+	otherCategory := e.Bucket.Category
+	otherCategory.Name += "-other"
+	otherBucket := internalBucketOrInit(otherCategory)
+	owner := e.Owner("user")
+
+	report := func(at int, bucket *internalBucket, usage int64) {
+		t.Helper()
+		_, err := internalReportUsage(e.Tm(at), accapi.ReportUsageRequest{
+			Owner:        owner.WalletOwner(),
+			CategoryIdV2: bucket.Category.ToId(),
+			Usage:        usage,
+			Description:  accapi.ChargeDescription{Scope: util.OptValue("same-key")},
+		})
+		if err != nil {
+			t.Fatalf("report usage: %v", err)
+		}
+	}
+	report(1, e.Bucket, 10)
+	report(2, otherBucket, 20)
+	report(3, e.Bucket, 15)
+
+	first := e.Bucket.WalletsByOwner[owner.Id]
+	second := otherBucket.WalletsByOwner[owner.Id]
+	if first.LocalUsage != 15 || first.ScopedUsage["same-key"].Usage != 15 {
+		t.Fatalf("first wallet usage = %d/%d, want 15/15", first.LocalUsage, first.ScopedUsage["same-key"].Usage)
+	}
+	if second.LocalUsage != 20 || second.ScopedUsage["same-key"].Usage != 20 {
+		t.Fatalf("second wallet usage = %d/%d, want 20/20", second.LocalUsage, second.ScopedUsage["same-key"].Usage)
+	}
+	if !first.ScopedUsage["same-key"].LastUpdatedAt.Equal(e.Tm(3)) {
+		t.Fatalf("first scope timestamp = %s, want %s", first.ScopedUsage["same-key"].LastUpdatedAt, e.Tm(3))
+	}
+	if !second.ScopedUsage["same-key"].LastUpdatedAt.Equal(e.Tm(2)) {
+		t.Fatalf("second scope timestamp = %s, want %s", second.ScopedUsage["same-key"].LastUpdatedAt, e.Tm(2))
 	}
 }
 
@@ -313,7 +353,7 @@ func TestUsageReportRejectsExistingCycleWithoutMutation(t *testing.T) {
 		Usage:        1,
 	}
 	previousMode := accountingInvariantChecks
-	accountingInvariantChecks = accountingInvariantModeDisabled
+	accountingInvariantChecks = accountingInvariantModeLog
 	_, err := internalReportUsage(e.Tm(1), request)
 	accountingInvariantChecks = previousMode
 	if err == nil || err.StatusCode != http.StatusInternalServerError {
@@ -375,7 +415,7 @@ func TestUsageReportRejectsFlowAboveQuotaWithoutMutation(t *testing.T) {
 		Usage:        1,
 	}
 	previousMode := accountingInvariantChecks
-	accountingInvariantChecks = accountingInvariantModeDisabled
+	accountingInvariantChecks = accountingInvariantModeLog
 	_, err := internalReportUsage(e.Tm(1), request)
 	accountingInvariantChecks = previousMode
 	if err == nil || err.StatusCode != http.StatusInternalServerError {

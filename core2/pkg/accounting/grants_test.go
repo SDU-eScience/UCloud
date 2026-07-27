@@ -161,7 +161,6 @@ func initGrantsTest(t *testing.T) {
 	grantGlobals.Testing.Enabled = true
 	accGlobals.OwnersByReference = make(map[string]*internalOwner)
 	accGlobals.OwnersById = make(map[accOwnerId]*internalOwner)
-	accGlobals.Usage = make(map[string]*scopedUsage)
 	accGlobals.BucketsByCategory = make(map[accapi.ProductCategoryIdV2]*internalBucket)
 
 	rpc.LookupActor = func(username string) (rpc.Actor, bool) {

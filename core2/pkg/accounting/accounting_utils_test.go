@@ -66,7 +66,6 @@ func newEnv(t *testing.T, cat accapi.ProductCategory, compareReference ...bool) 
 
 	accGlobals.OwnersByReference = map[string]*internalOwner{}
 	accGlobals.OwnersById = map[accOwnerId]*internalOwner{}
-	accGlobals.Usage = map[string]*scopedUsage{}
 	accGlobals.BucketsByCategory = map[accapi.ProductCategoryIdV2]*internalBucket{}
 
 	internalBucketOrInit(capacityCategory)
