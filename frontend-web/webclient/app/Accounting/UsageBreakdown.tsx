@@ -29,6 +29,7 @@ import AutoSizer from "react-virtualized-auto-sizer";
 import {fetchAll} from "@/Utilities/PageUtilities";
 import {RichSelect, RichSelectProps} from "@/ui-components/RichSelect";
 import {TooltipV2} from "@/ui-components/Tooltip";
+import {createPortal} from "react-dom";
 
 type UsageBreakdownResourceType = "drive" | "job";
 
@@ -62,8 +63,16 @@ interface UsageBreakdownBrowseRequest extends PaginationRequestV2 {
     filterReportedAtMax?: number;
     filterUsageMin?: number;
     filterUsageMax?: number;
+    workspaceSearch?: string;
+    createdBySearch?: string;
     sortBy?: UsageBreakdownSortBy;
     sortDirection?: UsageBreakdownSortDirection;
+}
+
+interface UsageBreakdownAutocompleteSuggestion {
+    type: UsageBreakdownEntityFilter["type"];
+    value: string;
+    label: string;
 }
 
 interface UsageBreakdownBrowseResponse {
@@ -72,6 +81,8 @@ interface UsageBreakdownBrowseResponse {
     next?: string;
     totalUsage: number;
     totalCount: number;
+    workspaceAutocomplete: UsageBreakdownAutocompleteSuggestion[];
+    createdByAutocomplete: UsageBreakdownAutocompleteSuggestion[];
 }
 
 interface UsageBreakdownCategoryState {
@@ -112,6 +123,7 @@ interface UsageBreakdownVirtualListData {
     items: UsageBreakdownItem[];
     projectId: string | undefined;
     onFilterEntity: (type: UsageBreakdownEntityFilter["type"], value: string) => void;
+    showCreatedBy: boolean;
 }
 
 const usageBreakdownContext = "/api/accounting/v2/usageBreakdown";
@@ -129,6 +141,10 @@ const UsageBreakdownStyle = injectStyle("usage-breakdown", k => `
     ${k} .usage-breakdown-grid {
         display: grid;
         grid-template-columns: minmax(200px, 0.8fr) minmax(280px, 1.3fr) minmax(220px, 1fr) 180px 180px;
+    }
+
+    ${k} .usage-breakdown-grid-no-created-by {
+        grid-template-columns: minmax(200px, 0.8fr) minmax(280px, 1.3fr) 180px 180px;
     }
 
     ${k} .usage-breakdown-grid-header {
@@ -234,6 +250,67 @@ const UsageBreakdownStyle = injectStyle("usage-breakdown", k => `
         font: inherit;
         padding: 0;
         text-align: left;
+    }
+
+    ${k} .usage-breakdown-search-header {
+        position: relative;
+        width: 100%;
+    }
+
+    ${k} .usage-breakdown-search-label {
+        align-items: center;
+        display: flex;
+        justify-content: space-between;
+        width: 100%;
+    }
+
+    ${k} .usage-breakdown-search-button {
+        background: transparent;
+        border: 0;
+        color: inherit;
+        cursor: pointer;
+        display: flex;
+        padding: 2px;
+    }
+
+    ${k} .usage-breakdown-search-input {
+        border: 1px solid var(--borderColor);
+        border-radius: 4px;
+        box-sizing: border-box;
+        font: inherit;
+        min-width: 0;
+        padding: 5px 8px;
+        width: 100%;
+    }
+
+    .usage-breakdown-autocomplete {
+        background: var(--backgroundDefault);
+        border: 1px solid var(--borderColor);
+        border-radius: 4px;
+        box-shadow: var(--defaultShadow);
+        max-height: 280px;
+        overflow-y: auto;
+        position: fixed;
+        z-index: 1000;
+    }
+
+    .usage-breakdown-autocomplete button {
+        background: transparent;
+        border: 0;
+        color: inherit;
+        cursor: pointer;
+        display: block;
+        overflow: hidden;
+        padding: 8px 10px;
+        text-align: left;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        width: 100%;
+    }
+
+    .usage-breakdown-autocomplete button:hover,
+    .usage-breakdown-autocomplete button[data-active="true"] {
+        background: var(--rowHover);
     }
 
     ${k} .usage-breakdown-sort-button {
@@ -391,6 +468,102 @@ function UsageBreakdownWorkspaceName({item, projectId, onFilterEntity}: {
     </Flex>;
 }
 
+function UsageBreakdownSearchHeader({label, loadSuggestions, onSelect}: {
+    label: string;
+    loadSuggestions: (query: string) => Promise<UsageBreakdownAutocompleteSuggestion[]>;
+    onSelect: UsageBreakdownVirtualListData["onFilterEntity"];
+}): React.ReactNode {
+    const [open, setOpen] = React.useState(false);
+    const [query, setQuery] = React.useState("");
+    const [suggestions, setSuggestions] = React.useState<UsageBreakdownAutocompleteSuggestion[]>([]);
+    const [activeIndex, setActiveIndex] = React.useState(0);
+    const inputRef = React.useRef<HTMLInputElement>(null);
+    const load = React.useEffectEvent(loadSuggestions);
+
+    React.useEffect(() => {
+        if (!open) return;
+        let cancelled = false;
+        const timeout = window.setTimeout(() => {
+            load(query).then(result => {
+                if (cancelled) return;
+                setSuggestions(result);
+                setActiveIndex(0);
+            }).catch(() => {
+                if (!cancelled) setSuggestions([]);
+            });
+        }, 15);
+        return () => {
+            cancelled = true;
+            window.clearTimeout(timeout);
+        };
+    }, [open, query]);
+
+    function select(suggestion: UsageBreakdownAutocompleteSuggestion): void {
+        setOpen(false);
+        setQuery("");
+        onSelect(suggestion.type, suggestion.value);
+    }
+
+    const inputRect = inputRef.current?.getBoundingClientRect();
+    const optionsId = `usage-breakdown-${label.toLowerCase().replaceAll(" ", "-")}-suggestions`;
+    return <div className="usage-breakdown-search-header">
+        {!open ? <div className="usage-breakdown-search-label">
+            <span>{label}</span>
+            <button
+                aria-label={`Search ${label.toLowerCase()}`}
+                className="usage-breakdown-search-button"
+                onClick={() => setOpen(true)}
+                type="button"
+            ><Icon name="search" size={18} /></button>
+        </div> : <input
+            aria-autocomplete="list"
+            aria-controls={optionsId}
+            aria-expanded={suggestions.length > 0}
+            aria-label={`Search ${label.toLowerCase()}`}
+            autoFocus
+            className="usage-breakdown-search-input"
+            onBlur={() => window.setTimeout(() => setOpen(false), 100)}
+            onChange={event => {
+                setQuery(event.target.value);
+                setSuggestions([]);
+            }}
+            onKeyDown={event => {
+                if (event.key === "Escape") {
+                    setOpen(false);
+                } else if (event.key === "ArrowDown" && suggestions.length > 0) {
+                    event.preventDefault();
+                    setActiveIndex(index => (index + 1) % suggestions.length);
+                } else if (event.key === "ArrowUp" && suggestions.length > 0) {
+                    event.preventDefault();
+                    setActiveIndex(index => (index - 1 + suggestions.length) % suggestions.length);
+                } else if (event.key === "Enter" && suggestions[activeIndex]) {
+                    event.preventDefault();
+                    select(suggestions[activeIndex]);
+                }
+            }}
+            placeholder={`Search ${label.toLowerCase()}...`}
+            ref={inputRef}
+            role="combobox"
+            value={query}
+        />}
+        {!open || suggestions.length === 0 || !inputRect ? null : createPortal(<div
+            className="usage-breakdown-autocomplete"
+            id={optionsId}
+            role="listbox"
+            style={{left: inputRect.left, top: inputRect.bottom + 4, width: inputRect.width}}
+        >
+            {suggestions.map((suggestion, index) => <button
+                data-active={index === activeIndex}
+                key={`${suggestion.type}-${suggestion.value}`}
+                onMouseDown={event => event.preventDefault()}
+                onClick={() => select(suggestion)}
+                role="option"
+                type="button"
+            >{suggestion.label}</button>)}
+        </div>, document.body)}
+    </div>;
+}
+
 function usageBreakdownItemKey(item: UsageBreakdownItem): string {
     return `resource-${item.resource.type}-${item.resource.id}`;
 }
@@ -413,7 +586,7 @@ UsageBreakdownVirtualListOuter.displayName = "UsageBreakdownVirtualListOuter";
 function UsageBreakdownVirtualRow({index, style, data}: ListChildComponentProps<UsageBreakdownVirtualListData>): React.ReactNode {
     const item = data.items[index];
     return <div
-        className="usage-breakdown-grid usage-breakdown-grid-row"
+        className={`usage-breakdown-grid usage-breakdown-grid-row${data.showCreatedBy ? "" : " usage-breakdown-grid-no-created-by"}`}
         role="row"
         aria-rowindex={index + 2}
         style={style}
@@ -424,14 +597,14 @@ function UsageBreakdownVirtualRow({index, style, data}: ListChildComponentProps<
         <div className="usage-breakdown-grid-cell" role="cell">
             <UsageBreakdownWorkspaceName item={item} projectId={data.projectId} onFilterEntity={data.onFilterEntity} />
         </div>
-        <div className="usage-breakdown-grid-cell usage-breakdown-created-by" role="cell">
+        {!data.showCreatedBy ? null : <div className="usage-breakdown-grid-cell usage-breakdown-created-by" role="cell">
             {item.resource.type !== "job" || !item.createdBy ? "-" : <button
                 className="usage-breakdown-link-button"
                 onClick={() => data.onFilterEntity("createdBy", item.createdBy)}
                 title={item.createdBy}
                 type="button"
             >{item.createdBy}</button>}
-        </div>
+        </div>}
         <div className="usage-breakdown-grid-cell" role="cell">
             {dateToString(item.lastUpdatedAt)}
         </div>
@@ -476,16 +649,18 @@ function UsageBreakdownProviderOption({element, onSelect, dataProps}: RichSelect
     </Flex>;
 }
 
-function UsageBreakdownCategory({category, projectId, loadMore, onFilterEntity, sortBy, sortDirection, onSort}: {
+function UsageBreakdownCategory({category, projectId, loadMore, loadSuggestions, onFilterEntity, sortBy, sortDirection, onSort}: {
     category: UsageBreakdownCategoryState;
     projectId?: string;
     loadMore: (category: UsageBreakdownCategoryState) => void;
+    loadSuggestions: (type: "workspace" | "createdBy", query: string, category: UsageBreakdownCategoryState) => Promise<UsageBreakdownAutocompleteSuggestion[]>;
     onFilterEntity: UsageBreakdownVirtualListData["onFilterEntity"];
     sortBy: UsageBreakdownSortBy;
     sortDirection: UsageBreakdownSortDirection;
     onSort: (sortBy: UsageBreakdownSortBy) => void;
 }): React.ReactNode {
     const paysFor = category.wallet.paysFor;
+    const showCreatedBy = paysFor.productType !== "STORAGE";
     const sortIndicator = (column: UsageBreakdownSortBy) => sortBy !== column ? "" : sortDirection === "ascending" ? " ↑" : " ↓";
 
     return <div>
@@ -495,10 +670,18 @@ function UsageBreakdownCategory({category, projectId, loadMore, onFilterEntity, 
             </p> :
             <div className="usage-breakdown-table" role="table" aria-rowcount={category.items.length + 1}>
                 <div className="usage-breakdown-grid-container">
-                    <div className="usage-breakdown-grid usage-breakdown-grid-header" role="row" aria-rowindex={1}>
+                    <div className={`usage-breakdown-grid usage-breakdown-grid-header${showCreatedBy ? "" : " usage-breakdown-grid-no-created-by"}`} role="row" aria-rowindex={1}>
                         <div className="usage-breakdown-grid-cell" role="columnheader">Resource</div>
-                        <div className="usage-breakdown-grid-cell" role="columnheader">Workspace</div>
-                        <div className="usage-breakdown-grid-cell" role="columnheader">Created by</div>
+                        <div className="usage-breakdown-grid-cell" role="columnheader"><UsageBreakdownSearchHeader
+                            label="Workspace"
+                            loadSuggestions={query => loadSuggestions("workspace", query, category)}
+                            onSelect={onFilterEntity}
+                        /></div>
+                        {!showCreatedBy ? null : <div className="usage-breakdown-grid-cell" role="columnheader"><UsageBreakdownSearchHeader
+                            label="Created by"
+                            loadSuggestions={query => loadSuggestions("createdBy", query, category)}
+                            onSelect={onFilterEntity}
+                        /></div>}
                         <div className="usage-breakdown-grid-cell" role="columnheader">
                             <button className="usage-breakdown-sort-button" onClick={() => onSort("reportedAt")} type="button">
                                 Last reported{sortIndicator("reportedAt")}
@@ -516,7 +699,7 @@ function UsageBreakdownCategory({category, projectId, loadMore, onFilterEntity, 
                                 className="usage-breakdown-virtual-list"
                                 height={height}
                                 itemCount={category.items.length}
-                                itemData={{category: paysFor, items: category.items, projectId, onFilterEntity}}
+                                itemData={{category: paysFor, items: category.items, projectId, onFilterEntity, showCreatedBy}}
                                 itemKey={usageBreakdownVirtualItemKey}
                                 itemSize={56}
                                 onItemsRendered={({visibleStopIndex}) => {
@@ -732,6 +915,21 @@ const UsageBreakdownPage: React.FunctionComponent = () => {
         }
     }
 
+    async function loadSuggestions(type: "workspace" | "createdBy", query: string, category: UsageBreakdownCategoryState): Promise<UsageBreakdownAutocompleteSuggestion[]> {
+        const page = await callAPI<UsageBreakdownBrowseResponse>({
+            ...usageBreakdownBrowse({
+                itemsPerPage: 1,
+                categoryName: category.wallet.paysFor.name,
+                categoryProvider: category.wallet.paysFor.provider,
+                filterReportedAtMin: category.wallet.paysFor.productType === "COMPUTE" ? reportedAfter : undefined,
+                workspaceSearch: type === "workspace" ? query : undefined,
+                createdBySearch: type === "createdBy" ? query : undefined,
+            }),
+            projectOverride: projectId ?? "",
+        });
+        return type === "workspace" ? page.workspaceAutocomplete : page.createdByAutocomplete;
+    }
+
     function selectCategory(category: ProductCategoryV2): void {
         const next = new URLSearchParams(searchParams);
         next.set("provider", category.provider);
@@ -905,6 +1103,7 @@ const UsageBreakdownPage: React.FunctionComponent = () => {
                     category={selectedCategory}
                     projectId={projectId}
                     loadMore={loadMore}
+                    loadSuggestions={loadSuggestions}
                     onFilterEntity={filterEntity}
                     sortBy={sortBy}
                     sortDirection={sortDirection}

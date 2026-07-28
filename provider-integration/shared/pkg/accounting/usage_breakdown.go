@@ -45,6 +45,19 @@ const (
 	UsageBreakdownSortDescending UsageBreakdownSortDirection = "descending"
 )
 
+type UsageBreakdownAutocompleteType string
+
+const (
+	UsageBreakdownAutocompleteProject   UsageBreakdownAutocompleteType = "project"
+	UsageBreakdownAutocompleteCreatedBy UsageBreakdownAutocompleteType = "createdBy"
+)
+
+type UsageBreakdownAutocompleteSuggestion struct {
+	Type  UsageBreakdownAutocompleteType `json:"type"`
+	Value string                         `json:"value"`
+	Label string                         `json:"label"`
+}
+
 type UsageBreakdownBrowseRequest struct {
 	ItemsPerPage        int                                      `json:"itemsPerPage"`
 	Next                util.Option[string]                      `json:"next"`
@@ -56,16 +69,20 @@ type UsageBreakdownBrowseRequest struct {
 	FilterReportedAtMax util.Option[uint64]                      `json:"filterReportedAtMax"`
 	FilterUsageMin      util.Option[int64]                       `json:"filterUsageMin"`
 	FilterUsageMax      util.Option[int64]                       `json:"filterUsageMax"`
+	WorkspaceSearch     util.Option[string]                      `json:"workspaceSearch"`
+	CreatedBySearch     util.Option[string]                      `json:"createdBySearch"`
 	SortBy              util.Option[UsageBreakdownSortBy]        `json:"sortBy"`
 	SortDirection       util.Option[UsageBreakdownSortDirection] `json:"sortDirection"`
 }
 
 type UsageBreakdownBrowseResponse struct {
-	Items        []UsageBreakdownItem `json:"items"`
-	ItemsPerPage int                  `json:"itemsPerPage"`
-	Next         util.Option[string]  `json:"next"`
-	TotalUsage   int64                `json:"totalUsage"`
-	TotalCount   int                  `json:"totalCount"`
+	Items                 []UsageBreakdownItem                   `json:"items"`
+	ItemsPerPage          int                                    `json:"itemsPerPage"`
+	Next                  util.Option[string]                    `json:"next"`
+	TotalUsage            int64                                  `json:"totalUsage"`
+	TotalCount            int                                    `json:"totalCount"`
+	WorkspaceAutocomplete []UsageBreakdownAutocompleteSuggestion `json:"workspaceAutocomplete"`
+	CreatedByAutocomplete []UsageBreakdownAutocompleteSuggestion `json:"createdByAutocomplete"`
 }
 
 // UsageBreakdownBrowse returns a current usage breakdown. It is not a time-bound statement or invoice.

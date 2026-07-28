@@ -245,6 +245,7 @@ func usageBreakdownCursorFor(item accapi.UsageBreakdownItem, sortBy accapi.Usage
 }
 
 func usageBreakdownPage(items []accapi.UsageBreakdownItem, request accapi.UsageBreakdownBrowseRequest) accapi.UsageBreakdownBrowseResponse {
+	workspaceAutocomplete, createdByAutocomplete := usageBreakdownAutocomplete(items, request)
 	filtered := make([]accapi.UsageBreakdownItem, 0, len(items))
 	var totalUsage int64
 	for _, item := range items {
@@ -289,11 +290,85 @@ func usageBreakdownPage(items []accapi.UsageBreakdownItem, request accapi.UsageB
 	end := min(start+pageSize, len(filtered))
 	response := accapi.UsageBreakdownBrowseResponse{
 		Items: filtered[start:end], ItemsPerPage: pageSize, TotalUsage: totalUsage, TotalCount: len(filtered),
+		WorkspaceAutocomplete: workspaceAutocomplete, CreatedByAutocomplete: createdByAutocomplete,
 	}
 	if end < len(filtered) {
 		response.Next.Set(usageBreakdownCursorFor(filtered[end-1], sortBy, direction))
 	}
 	return response
+}
+
+func usageBreakdownAutocomplete(items []accapi.UsageBreakdownItem, request accapi.UsageBreakdownBrowseRequest) ([]accapi.UsageBreakdownAutocompleteSuggestion, []accapi.UsageBreakdownAutocompleteSuggestion) {
+	workspaces := map[string]accapi.UsageBreakdownAutocompleteSuggestion{}
+	createdBy := map[string]accapi.UsageBreakdownAutocompleteSuggestion{}
+	workspaceQuery := strings.ToLower(strings.TrimSpace(request.WorkspaceSearch.Value))
+	createdByQuery := strings.ToLower(strings.TrimSpace(request.CreatedBySearch.Value))
+
+	for _, item := range items {
+		if request.FilterReportedAtMin.Present && item.LastUpdatedAt.Time().Before(fndapi.TimeFromUnixMilli(request.FilterReportedAtMin.Value).Time()) {
+			continue
+		}
+		if request.FilterReportedAtMax.Present && item.LastUpdatedAt.Time().After(fndapi.TimeFromUnixMilli(request.FilterReportedAtMax.Value).Time()) {
+			continue
+		}
+		if request.FilterUsageMin.Present && item.Usage < request.FilterUsageMin.Value {
+			continue
+		}
+		if request.FilterUsageMax.Present && item.Usage > request.FilterUsageMax.Value {
+			continue
+		}
+
+		if request.WorkspaceSearch.Present {
+			value := item.Workspace.Username
+			suggestionType := accapi.UsageBreakdownAutocompleteCreatedBy
+			if item.Workspace.Type == accapi.WalletOwnerTypeProject {
+				value = item.Workspace.ProjectId
+				suggestionType = accapi.UsageBreakdownAutocompleteProject
+			}
+			label := item.WorkspaceTitle
+			if label == "" {
+				label = value
+			}
+			if value != "" && (workspaceQuery == "" || strings.Contains(strings.ToLower(label), workspaceQuery) || strings.Contains(strings.ToLower(value), workspaceQuery)) {
+				key := string(suggestionType) + "\x00" + value
+				workspaces[key] = accapi.UsageBreakdownAutocompleteSuggestion{Type: suggestionType, Value: value, Label: label}
+			}
+		}
+
+		if request.CreatedBySearch.Present && item.Resource.Type == accapi.UsageBreakdownResourceTypeJob && item.CreatedBy != "" &&
+			(createdByQuery == "" || strings.Contains(strings.ToLower(item.CreatedBy), createdByQuery)) {
+			createdBy[item.CreatedBy] = accapi.UsageBreakdownAutocompleteSuggestion{
+				Type: accapi.UsageBreakdownAutocompleteCreatedBy, Value: item.CreatedBy, Label: item.CreatedBy,
+			}
+		}
+	}
+
+	return usageBreakdownSortedSuggestions(workspaces, workspaceQuery), usageBreakdownSortedSuggestions(createdBy, createdByQuery)
+}
+
+func usageBreakdownSortedSuggestions(source map[string]accapi.UsageBreakdownAutocompleteSuggestion, query string) []accapi.UsageBreakdownAutocompleteSuggestion {
+	result := make([]accapi.UsageBreakdownAutocompleteSuggestion, 0, len(source))
+	for _, suggestion := range source {
+		result = append(result, suggestion)
+	}
+	slices.SortFunc(result, func(a, b accapi.UsageBreakdownAutocompleteSuggestion) int {
+		aPrefix := strings.HasPrefix(strings.ToLower(a.Label), query) || strings.HasPrefix(strings.ToLower(a.Value), query)
+		bPrefix := strings.HasPrefix(strings.ToLower(b.Label), query) || strings.HasPrefix(strings.ToLower(b.Value), query)
+		if aPrefix != bPrefix {
+			if aPrefix {
+				return -1
+			}
+			return 1
+		}
+		if result := strings.Compare(strings.ToLower(a.Label), strings.ToLower(b.Label)); result != 0 {
+			return result
+		}
+		if result := strings.Compare(a.Value, b.Value); result != 0 {
+			return result
+		}
+		return strings.Compare(string(a.Type), string(b.Type))
+	})
+	return result[:min(10, len(result))]
 }
 
 func usageBreakdownCursorForItem(item accapi.UsageBreakdownItem, sortBy accapi.UsageBreakdownSortBy, direction accapi.UsageBreakdownSortDirection) usageBreakdownCursor {

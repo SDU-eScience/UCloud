@@ -147,6 +147,35 @@ func TestUsageBreakdownFiltersAggregatesSortsAndPaginates(t *testing.T) {
 	}
 }
 
+func TestUsageBreakdownAutocomplete(t *testing.T) {
+	items := []accapi.UsageBreakdownItem{
+		usageBreakdownTestItem("1", 10, 1, "alice", "project-a"),
+		usageBreakdownTestItem("2", 20, 2, "bob", "project-b"),
+		usageBreakdownTestItem("3", 30, 3, "alice", "project-a"),
+		usageBreakdownTestItem("4", 40, 4, "malice", "project-c"),
+	}
+	items[0].WorkspaceTitle = "Alpha research"
+	items[1].WorkspaceTitle = "Beta research"
+	items[2].WorkspaceTitle = "Alpha research"
+	items[3].WorkspaceTitle = "Research alpha"
+	items[1].Resource.Type = accapi.UsageBreakdownResourceTypeDrive
+	request := accapi.UsageBreakdownBrowseRequest{
+		FilterProject: util.OptValue("project-b"), WorkspaceSearch: util.OptValue("alpha"),
+		CreatedBySearch: util.OptValue("a"), FilterReportedAtMin: util.OptValue(uint64(testUsageBreakdownTime(1).UnixMilli())),
+	}
+
+	page := usageBreakdownPage(items, request)
+	if len(page.WorkspaceAutocomplete) != 2 || page.WorkspaceAutocomplete[0].Value != "project-a" || page.WorkspaceAutocomplete[1].Value != "project-c" {
+		t.Errorf("workspace autocomplete = %#v", page.WorkspaceAutocomplete)
+	}
+	if len(page.CreatedByAutocomplete) != 2 || page.CreatedByAutocomplete[0].Value != "alice" || page.CreatedByAutocomplete[1].Value != "malice" {
+		t.Errorf("created-by autocomplete = %#v", page.CreatedByAutocomplete)
+	}
+	if page.TotalCount != 1 || page.Items[0].Resource.Id != "2" {
+		t.Errorf("filtered page = %#v", page)
+	}
+}
+
 func TestUsageBreakdownAuthorization(t *testing.T) {
 	e := newEnv(t, capacityCategory)
 	project := rpc.ProjectId("00000000-0000-0000-0000-000000000001")
