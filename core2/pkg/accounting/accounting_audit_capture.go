@@ -16,6 +16,7 @@ import (
 
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database"
+	"ucloud.dk/shared/pkg/util"
 )
 
 const accountingAuditSchemaVersion = 2
@@ -176,6 +177,8 @@ type accountingAuditWalletRow struct {
 
 func CaptureAccountingAudit(databaseName string) AccountingAuditCapture {
 	return db.NewTx(func(tx *db.Transaction) AccountingAuditCapture {
+		tx.NoDevResetThisIsNotAHackIPromise = true
+
 		db.Exec(
 			tx,
 			"set transaction isolation level repeatable read, read only",
@@ -443,7 +446,7 @@ func captureAccountingAuditJobUsage(tx *db.Transaction, capturedAt time.Time) []
 	rows := db.Select[accountingAuditJobUsageRow](
 		tx,
 		`
-			select s.wallet_id, s.resource_suffix as key, coalesce(j.resource, 0) as job_id,
+			select s.wallet_id, s.key as key, coalesce(j.resource, 0) as job_id,
 				s.usage as scoped_usage, j.current_state as state, j.replicas,
 				pc.accounting_frequency, unit.name as unit_name,
 				unit.floating_point as unit_floating_point,
@@ -465,7 +468,7 @@ func captureAccountingAuditJobUsage(tx *db.Transaction, capturedAt time.Time) []
 				end as fallback_runtime_millis,
 				coalesce(runtime.running_updates, 0) as running_updates
 			from accounting.scoped_usage s
-			left join app_orchestrator.jobs j on s.resource_suffix = 'job-' || j.resource::text
+			left join app_orchestrator.jobs j on s.key = 'job-' || j.resource::text
 			left join provider.resource r on r.id = j.resource
 			left join accounting.products p on p.id = r.product
 			left join accounting.product_categories pc on pc.id = p.category
@@ -484,8 +487,8 @@ func captureAccountingAuditJobUsage(tx *db.Transaction, capturedAt time.Time) []
 				) transitions
 				where transitions.state = 'RUNNING'
 			) runtime on true
-			where s.resource_suffix ~ '^job-[0-9]+$'
-			order by s.wallet_id, s.resource_suffix
+			where s.key ~ '^job-[0-9]+$'
+			order by s.wallet_id, s.key
 		`,
 		db.Params{"captured_at": capturedAt},
 	)
@@ -621,16 +624,12 @@ func ReadAccountingAuditCapture(path string) (AccountingAuditCapture, error) {
 
 func WriteAccountingAuditFile(path string, content []byte) error {
 	directory := filepath.Dir(path)
-	temporary, err := os.CreateTemp(directory, ".accounting-audit-*")
+	temporary, err := os.OpenFile(filepath.Join(directory, fmt.Sprintf(".accounting-audit-%s", util.SecureToken())), os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		return err
 	}
 	temporaryPath := temporary.Name()
 	defer os.Remove(temporaryPath)
-	if err := temporary.Chmod(0600); err != nil {
-		_ = temporary.Close()
-		return err
-	}
 	if _, err := temporary.Write(content); err != nil {
 		_ = temporary.Close()
 		return err

@@ -2,6 +2,7 @@ package accounting
 
 import (
 	"cmp"
+	"encoding/json"
 	"fmt"
 	"math"
 	"math/big"
@@ -1147,11 +1148,11 @@ func lInternalBuildGraph(b *internalBucket, now time.Time, leaf *internalWallet,
 						propagatedUsage := lInternalWalletTotalPropagatedUsage(b, wallet)
 
 						overAllocationUsed := usageInNode - propagatedUsage
-						if overAllocationUsed < 0 || overAllocationUsed > overAllocation {
+						if overAllocationUsed < 0 {
 							log.Error("invalid over-allocation usage %d of %d in %s/%s for wallet %d", overAllocationUsed, overAllocation, b.Category.Provider, b.Category.Name, wallet.Id)
 							continue
 						}
-						available := overAllocation - overAllocationUsed
+						available := max(int64(0), overAllocation-overAllocationUsed)
 
 						overAllocationNode := vertexToOverAllocationRoot(vertexIndex)
 
@@ -1169,6 +1170,129 @@ func lInternalBuildGraph(b *internalBucket, now time.Time, leaf *internalWallet,
 
 		return g
 	}
+}
+
+func lInternalProduceReproduction(b *internalBucket, now time.Time, leaf *internalWallet, flags internalGraphFlag, walletToVertex map[AccWalletId]int) string {
+	type walletSnapshot struct {
+		Id             AccWalletId `json:"id"`
+		LocalUsage     int64       `json:"localUsage"`
+		ChildUsage     int64       `json:"childUsage"`
+		TotalAllocated int64       `json:"totalAllocated"`
+	}
+	type groupSnapshot struct {
+		Wallet      AccWalletId  `json:"wallet"`
+		Parent      AccWalletId  `json:"parent"`
+		TreeUsage   int64        `json:"treeUsage"`
+		Allocations []accAllocId `json:"allocations,omitempty"`
+	}
+	type allocationSnapshot struct {
+		Id           accAllocId `json:"id"`
+		Quota        int64      `json:"quota"`
+		Start        int64      `json:"start"`
+		End          int64      `json:"end"`
+		Retired      bool       `json:"retired"`
+		RetiredUsage int64      `json:"retiredUsage"`
+		Active       bool       `json:"active"`
+		Committed    bool       `json:"committed"`
+	}
+	type groupKey struct {
+		wallet AccWalletId
+		parent AccWalletId
+	}
+
+	walletIds := make([]AccWalletId, 0, len(walletToVertex)-1)
+	for walletId := range walletToVertex {
+		if walletId != internalGraphRoot {
+			walletIds = append(walletIds, walletId)
+		}
+	}
+	slices.Sort(walletIds)
+
+	groups := map[groupKey]*internalGroup{}
+	wallets := make([]walletSnapshot, 0, len(walletIds))
+	for _, walletId := range walletIds {
+		wallet := b.WalletsById[walletId]
+		childUsage := int64(0)
+		for _, usage := range wallet.ChildrenUsage {
+			childUsage += usage
+		}
+		wallets = append(wallets, walletSnapshot{
+			Id:             walletId,
+			LocalUsage:     wallet.LocalUsage,
+			ChildUsage:     childUsage,
+			TotalAllocated: lInternalWalletTotalAllocatedContributing(b, wallet),
+		})
+
+		for parentId, group := range wallet.AllocationsByParent {
+			groups[groupKey{wallet: walletId, parent: parentId}] = group
+		}
+	}
+
+	groupKeys := make([]groupKey, 0, len(groups))
+	for key := range groups {
+		groupKeys = append(groupKeys, key)
+	}
+	slices.SortFunc(groupKeys, func(a, b groupKey) int {
+		if result := cmp.Compare(a.wallet, b.wallet); result != 0 {
+			return result
+		}
+		return cmp.Compare(a.parent, b.parent)
+	})
+
+	allocationIds := map[accAllocId]bool{}
+	groupStates := make([]groupSnapshot, 0, len(groupKeys))
+	for _, key := range groupKeys {
+		group := groups[key]
+		state := groupSnapshot{Wallet: key.wallet, Parent: key.parent, TreeUsage: group.TreeUsage}
+		for allocationId := range group.Allocations {
+			state.Allocations = append(state.Allocations, allocationId)
+			allocationIds[allocationId] = true
+		}
+		slices.Sort(state.Allocations)
+		groupStates = append(groupStates, state)
+	}
+
+	sortedAllocationIds := make([]accAllocId, 0, len(allocationIds))
+	for allocationId := range allocationIds {
+		sortedAllocationIds = append(sortedAllocationIds, allocationId)
+	}
+	slices.Sort(sortedAllocationIds)
+	allocations := make([]allocationSnapshot, 0, len(sortedAllocationIds))
+	for _, allocationId := range sortedAllocationIds {
+		allocation := b.AllocationsById[allocationId]
+		allocations = append(allocations, allocationSnapshot{
+			Id:           allocation.Id,
+			Quota:        allocation.Quota,
+			Start:        allocation.Start.UnixMilli(),
+			End:          allocation.End.UnixMilli(),
+			Retired:      allocation.Retired,
+			RetiredUsage: allocation.RetiredUsage,
+			Active:       allocation.Active,
+			Committed:    allocation.Committed,
+		})
+	}
+
+	payload, err := json.Marshal(struct {
+		Now         int64                `json:"now"`
+		Leaf        AccWalletId          `json:"leaf"`
+		Flags       internalGraphFlag    `json:"flags"`
+		Capacity    bool                 `json:"capacity"`
+		Wallets     []walletSnapshot     `json:"wallets"`
+		Groups      []groupSnapshot      `json:"groups"`
+		Allocations []allocationSnapshot `json:"allocations"`
+	}{
+		Now:         now.UnixMilli(),
+		Leaf:        leaf.Id,
+		Flags:       flags,
+		Capacity:    b.IsCapacityBased(),
+		Wallets:     wallets,
+		Groups:      groupStates,
+		Allocations: allocations,
+	})
+	if err != nil {
+		return fmt.Sprintf(`{"snapshotError":%q}`, err.Error())
+	}
+	return string(payload)
 }
 
 func lInternalReflowExcess(b *internalBucket, now time.Time, wallet *internalWallet) map[AccWalletId]bool {

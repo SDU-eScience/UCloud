@@ -426,6 +426,24 @@ func TestUsageReportRejectsFlowAboveQuotaWithoutMutation(t *testing.T) {
 	}
 }
 
+func TestBuildGraphPreservesExcessWhileCapacityFlowIsCleared(t *testing.T) {
+	e := newEnv(t, capacityCategory, false)
+	e.AllocateEx(0, 0, 100, 1, "user", "")
+	wallet := e.Bucket.WalletsById[e.Wallet(e.Owner("user"), e.Tm(0))]
+	wallet.LocalUsage = 2
+
+	graph := lInternalBuildGraph(e.Bucket, e.Tm(1), wallet, internalGraphWithOverAllocation)
+	rootVertex := graph.WalletToVertex[internalGraphRoot]
+	walletVertex := graph.WalletToVertex[wallet.Id]
+	overAllocationVertex := walletVertex + len(graph.VertexToWallet)
+	if got := graph.Adjacent[overAllocationVertex][rootVertex]; got != wallet.LocalUsage {
+		t.Fatalf("synthetic reverse flow = %d, want existing excess %d", got, wallet.LocalUsage)
+	}
+	if got := graph.Adjacent[rootVertex][overAllocationVertex]; got != 0 {
+		t.Fatalf("synthetic forward capacity = %d, want no additional over-allocation", got)
+	}
+}
+
 func testProviderProduct(provider string, productType accapi.ProductType, free bool) accapi.ProductV2 {
 	return accapi.ProductV2{
 		Type: accapi.ProductTypeCCreate(productType),

@@ -463,7 +463,7 @@ func LaunchAccountingSnapshot() {
 
 func LaunchAccountingAudit(args []string) {
 	if len(args) == 0 {
-		panic("accounting-audit requires capture or compare")
+		panic("accounting-audit requires capture, compare, or overflow")
 	}
 
 	switch args[0] {
@@ -553,6 +553,22 @@ func LaunchAccountingAudit(args []string) {
 			panic(err)
 		}
 		fmt.Printf("HTML report: %s\n", *htmlPath)
+	case "overflow":
+		flags := flag.NewFlagSet("accounting-audit overflow", flag.ExitOnError)
+		provider := flags.String("provider", "", "limit analysis to a product provider")
+		category := flags.String("category", "", "limit analysis to a product category")
+		if err := flags.Parse(args[1:]); err != nil {
+			panic(err)
+		}
+		if !cfg.Parse("/etc/ucloud") {
+			return
+		}
+		dbConfig := cfg.Configuration.Database
+		db.Database = db.ConnectReadOnly(dbConfig.Username, dbConfig.Password, dbConfig.Host.Address, dbConfig.Host.Port, dbConfig.Database, dbConfig.Ssl)
+		defer db.Database.Connection.Close()
+		if _, err := os.Stdout.Write(acc.AnalyzeAccountingOverflow(*provider, *category)); err != nil {
+			panic(err)
+		}
 	default:
 		panic(fmt.Sprintf("unknown accounting audit command %q", args[0]))
 	}
