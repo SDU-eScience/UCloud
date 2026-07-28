@@ -37,6 +37,7 @@ const TreeClass = injectStyle("tree", k => ``);
 export const Tree: React.FunctionComponent<{
     apiRef?: React.RefObject<TreeApi | null>;
     unhandledShortcut?: (target: HTMLElement, ev: KeyboardEvent) => void;
+    allowMultiSelection?: boolean;
     children: React.ReactNode;
     onAction?: (row: HTMLElement, action: TreeAction, rowIdx: number) => void;
 }> = props => {
@@ -74,7 +75,7 @@ export const Tree: React.FunctionComponent<{
             return root.current.hasAttribute("data-active");
         };
 
-        const handleAction = (action: TreeAction) => {
+        const handleAction = (action: TreeAction, isShiftKeyDown: boolean) => {
             let rowIdx = visibleRows().findIndex(it => it.hasAttribute("data-selected"))
             let initialRowIdx = rowIdx;
 
@@ -120,12 +121,12 @@ export const Tree: React.FunctionComponent<{
                 }
 
                 case TreeAction.GO_UP: {
-                    rowIdx--;
+                    rowIdx = visibleRows().findIndex(it => it.hasAttribute("data-selected")) - 1;
                     break;
                 }
 
                 case TreeAction.GO_DOWN: {
-                    rowIdx++;
+                    rowIdx = visibleRows().findLastIndex(it => it.hasAttribute("data-selected")) + 1;
                     break;
                 }
 
@@ -164,7 +165,7 @@ export const Tree: React.FunctionComponent<{
                 }
             } else {
                 ev.preventDefault();
-                handleAction(action);
+                handleAction(action, ev.metaKey);
             }
         };
 
@@ -175,7 +176,7 @@ export const Tree: React.FunctionComponent<{
                         .forEach(tree => tree.removeAttribute("data-active"));
 
                     root?.current?.setAttribute("data-active", "");
-                    handleAction(TreeAction.GO_TO_TOP);
+                    handleAction(TreeAction.GO_TO_TOP, false);
                 },
                 deactivate: () => {
                     document.body.querySelectorAll(`.${TreeClass}[data-active]`)

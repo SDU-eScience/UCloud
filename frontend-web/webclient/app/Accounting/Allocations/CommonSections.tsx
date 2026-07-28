@@ -9,7 +9,7 @@ import {
     normalizedBalanceToRaw,
     ProductCategoryV2,
     ProductType,
-    UsageAndQuota
+    UsageAndQuota,
 } from "@/Accounting";
 import {Tree, TreeAction, TreeApi, TreeNode} from "@/ui-components/Tree";
 import {
@@ -22,25 +22,32 @@ import {
     Input,
     Label,
     Link,
+    MainContainer,
     Relative,
     Text,
     TextArea,
-    Truncate
+    Truncate,
 } from "@/ui-components";
 import AppRoutes from "@/Routes";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
-import {bulkRequestOf, chunkedString, doNothing, timestampUnixMs} from "@/UtilityFunctions";
+import {
+    bulkRequestOf,
+    chunkedString,
+    createHTMLElements,
+    doNothing,
+    timestampUnixMs,
+} from "@/UtilityFunctions";
 import {dateToStringNoTime} from "@/Utilities/DateUtilities";
-import {TooltipV2} from "@/ui-components/Tooltip";
+import {HTMLTooltip, TooltipV2} from "@/ui-components/Tooltip";
 import {OldProjectRole} from "@/Project";
 import {
     State,
     SubProjectFilter,
     subProjectsDefaultSettings,
     UIAction,
-    UIEvent
+    UIEvent,
 } from "@/Accounting/Allocations/State";
-import {DynamicRowHeight, List, useDynamicRowHeight, useListRef} from "react-window";
+import {DynamicRowHeight, List, useDynamicRowHeight} from "react-window";
 import {AvatarState} from "@/AvataaarLib/hook";
 import Avatar from "@/AvataaarLib/avatar";
 import {classConcat, extractDataTags, injectStyle} from "@/Unstyled";
@@ -58,16 +65,42 @@ import {ExportHeader, exportUsage, header} from "@/Accounting/Usage";
 import {useProject} from "@/Project/cache";
 import {useProjectId} from "@/Project/Api";
 import {AllocationBar} from "@/Accounting/Allocations/AllocationBar";
-import {projectInfoPi, projectInfosPi, projectInfoTitle, useProjectInfo, useProjectInfos} from "@/Project/InfoCache";
+import {
+    ProjectInfo,
+    projectInfoPi,
+    projectInfosPi,
+    projectInfoTitle,
+    useProjectInfo,
+    useProjectInfos,
+} from "@/Project/InfoCache";
 import {Feature, hasFeature} from "@/Features";
 import {UsageReport} from "@/Accounting/UsageCore2";
 import {dialogStore} from "@/Dialog/DialogStore";
 import * as Heading from "@/ui-components/Heading";
 import DatePicker from "react-datepicker";
-import {callAPIWithErrorHandler} from "@/Authentication/DataHook";
+import {callAPI, callAPIWithErrorHandler} from "@/Authentication/DataHook";
 import {DatePickerClass} from "@/ui-components/DatePicker";
 import {getProviderTitle} from "@/Providers/ProviderTitle";
-import {sendFailureNotification, sendInformationNotification, sendNotification, sendSuccessNotification, SnackType} from "@/Notifications";
+import {
+    sendFailureNotification,
+    sendInformationNotification,
+    sendSuccessNotification,
+} from "@/Notifications";
+import {
+    EmptyReasonTag,
+    ResourceBrowseFeatures,
+    ResourceBrowser,
+    ResourceBrowserOpts,
+} from "@/ui-components/ResourceBrowser";
+import {useDispatch} from "react-redux";
+import {useNavigate} from "react-router-dom";
+import {SimpleAvatarComponentCache} from "@/Files/Shares";
+import {arrayToPage} from "@/Types";
+import {FlexClass} from "@/ui-components/Flex";
+import {divText} from "@/Utilities/HTMLUtilities";
+import {TruncateClass} from "@/ui-components/Truncate";
+import {ButtonClass} from "@/ui-components/Button";
+import {ReactStaticRenderer} from "@/Utilities/ReactStaticRenderer";
 
 const allocationFiltersModalStyle: ReactModal.Styles = {
     ...largeModalStyle,
@@ -87,8 +120,8 @@ interface Datapoint {
 }
 
 export const YourAllocations: React.FunctionComponent<{
-    allocations: [string, AllocationDisplayTreeYourAllocation][],
-    allocationTree: React.RefObject<TreeApi | null>,
+    allocations: [string, AllocationDisplayTreeYourAllocation][];
+    allocationTree: React.RefObject<TreeApi | null>;
     indent: number;
     state: State;
 }> = ({allocations, allocationTree, indent, state}) => {
@@ -138,46 +171,45 @@ export const YourAllocations: React.FunctionComponent<{
                 </Button>
             </div>
             <div className="your-allocations-container">
-                {state.remoteData.wallets === undefined ? <>
+                {state.remoteData.wallets === undefined ?
                     <HexSpin size={64} />
-                </> : <>
-                    <div>
-                        {allocations.length !== 0 ? null : <div style={{marginLeft: "20px", marginTop: "10px"}}>
-                            You do not have any allocations at the moment. You can apply for resources{" "}
-                            <Link to={AppRoutes.grants.editor()}>here</Link>.
-                        </div>}
-                        <Tree apiRef={allocationTree}>
-                            {allocations.map(([rawType, tree]) => {
-                                const type = rawType as ProductType;
+                    : <>
+                        <div>
+                            {allocations.length !== 0 ? null : <div style={{marginLeft: "20px", marginTop: "10px"}}>
+                                You do not have any allocations at the moment. You can apply for resources{" "}
+                                <Link to={AppRoutes.grants.editor()}>here</Link>.
+                            </div>}
+                            <Tree apiRef={allocationTree}>
+                                {allocations.map(([rawType, tree]) => {
+                                    const type = rawType as ProductType;
 
-                                return <TreeNode
-                                    key={rawType}
-                                    left={<Flex gap={"4px"}>
-                                        <Icon name={Accounting.productTypeToIcon(type)} size={20} />
-                                        {Accounting.productAreaTitle(type)}
-                                    </Flex>}
-                                    right={<Flex flexDirection={"row"} gap={"8px"}>
-                                        {tree.usageAndQuota.map((uq, idx) => <React.Fragment key={idx}>
-                                            <ProgressBar uq={uq} responsive />
-                                        </React.Fragment>
-                                        )}
-                                    </Flex>}
-                                    indent={indent}
-                                >
-                                    {tree.wallets.map((wallet, idx) =>
-                                        <TreeNode
-                                            key={idx}
-                                            left={<Flex gap={"4px"}>
-                                                <ProviderLogo providerId={wallet.category.provider} size={20} />
-                                                <code>{wallet.category.name}</code>
-                                            </Flex>}
-                                            right={<Flex flexDirection={"row"} gap={"8px"}>
-                                                <ProgressBar uq={wallet.usageAndQuota} responsive />
-                                            </Flex>}
-                                            indent={indent * 2}
-                                        >
-                                            {wallet.allocations
-                                                .map(alloc =>
+                                    return <TreeNode
+                                        key={rawType}
+                                        left={<Flex gap={"4px"}>
+                                            <Icon name={Accounting.productTypeToIcon(type)} size={20} />
+                                            {Accounting.productAreaTitle(type)}
+                                        </Flex>}
+                                        right={<Flex flexDirection={"row"} gap={"8px"}>
+                                            {tree.usageAndQuota.map((uq, idx) => <React.Fragment key={idx}>
+                                                <ProgressBar uq={uq} responsive />
+                                            </React.Fragment>
+                                            )}
+                                        </Flex>}
+                                        indent={indent}
+                                    >
+                                        {tree.wallets.map((wallet, idx) =>
+                                            <TreeNode
+                                                key={idx}
+                                                left={<Flex gap={"4px"}>
+                                                    <ProviderLogo providerId={wallet.category.provider} size={20} />
+                                                    <code>{wallet.category.name}</code>
+                                                </Flex>}
+                                                right={<Flex flexDirection={"row"} gap={"8px"}>
+                                                    <ProgressBar uq={wallet.usageAndQuota} responsive />
+                                                </Flex>}
+                                                indent={indent * 2}
+                                            >
+                                                {wallet.allocations.map(alloc =>
                                                     <TreeNode
                                                         key={alloc.id}
                                                         className={alloc.note?.rowShouldBeGreyedOut ? "disabled-alloc" : undefined}
@@ -219,15 +251,14 @@ export const YourAllocations: React.FunctionComponent<{
                                                             </div>
                                                         </Flex>}
                                                     />
-                                                )
-                                            }
-                                        </TreeNode>
-                                    )}
-                                </TreeNode>
-                            })}
-                        </Tree>
-                    </div>
-                </>}
+                                                )}
+                                            </TreeNode>
+                                        )}
+                                    </TreeNode>
+                                })}
+                            </Tree>
+                        </div>
+                    </>}
             </div>
         </div>
     </>;
@@ -239,11 +270,11 @@ export const yourAllocationsStyle = injectStyle("your-allocations", k => `
         align-items: center;
         margin-bottom: 14px;
     }
-    
+
     ${k} .your-allocations-header > h3 {
         flex-grow: 1;
     }
-    
+
     ${k} .your-allocations-container {
         border: 1px solid var(--borderColor);
         border-radius: 5px;
@@ -260,7 +291,7 @@ const keyMetricsStyle = injectStyle("key-metrics", k => `
         border-radius: 5px;
         overflow: auto;
     }
-    
+
     ${k} .key-metrics-header-container {
         display: flex;
         flex-direction: row;
@@ -268,11 +299,11 @@ const keyMetricsStyle = injectStyle("key-metrics", k => `
         margin-top: 14px;
         align-items: center;
     }
-   
+
     ${k} .key-metrics-header-container > h3 {
         flex-grow: 1;
     }
-    
+
     ${k} .key-metrics-container {
         display: flex;
         flex-direction: row;
@@ -282,18 +313,18 @@ const keyMetricsStyle = injectStyle("key-metrics", k => `
     ${k} .filters-button {
         width: 35px;
     }
-    
+
     ${k} .key-metrics-input {
         width: 400px;
         display: flex;
         gap: 10px;
     }
-    
+
     ${k} .key-metrics-input > .key-metrics-search-box {
         flex-grow: 1;
         display: flex;
     }
-    
+
     ${k} .key-metrics-card-container {
         display: flex;
         flex-direction: row;
@@ -303,7 +334,7 @@ const keyMetricsStyle = injectStyle("key-metrics", k => `
         flex-grow: 0;
         gap: 14px;
     }
-    
+
     ${k} .key-metrics-card {
         width: 25%;
         background: var(--primaryMain);
@@ -313,11 +344,11 @@ const keyMetricsStyle = injectStyle("key-metrics", k => `
         font-size: 20px;
         flex-grow: 1;
     }
-    
+
     ${k} .key-metrics-card h3 {
         font-weight: 500;
     }
-    
+
     ${k} .key-metrics-list {
         width: 100%;
         border: 1px solid var(--borderColor);
@@ -325,23 +356,23 @@ const keyMetricsStyle = injectStyle("key-metrics", k => `
         padding-left: 16px;
         padding-right: 16px;
     }
-    
+
     ${k} .key-metrics-line {
         display: flex;
     }
-    
+
     ${k} .key-metric-table-left {
         flex-grow: 1;
     }
-    
+
     ${k} .key-metric-table-right {
-        flex-shrink: 0; 
+        flex-shrink: 0;
     }
-    
+
     ${k} .key-metrics-settings-container {
         flex-grow: 1;
     }
-    
+
     ${k} .key-metrics-setting-text {
         display: flex;
         flex-direction: column;
@@ -425,47 +456,47 @@ const subProjectsStyle = injectStyle("sub-projects", k => `
         flex-grow: 1;
         gap: 10px;
     }
-    
+
     ${k} .sub-projects-container {
         border: 1px solid var(--borderColor);
         padding: 10px 0px;
         border-radius: 5px;
     }
-    
+
     ${k} .filters-button {
         width: 35px;
     }
-    
+
     ${k} .new-sub-project-button {
         margin-right: 4px;
     }
-    
+
     ${k} .sub-project-list-row {
         padding: 0 20px;
     }
-    
+
     ${k} .sub-projects-sorting-container {
         display: flex;
-        padding-top: 6px;            
+        padding-top: 6px;
     }
-    
+
     ${k} .sub-projects-sorting-headers {
         display: block;
         flex-grow: 1;
     }
-    
+
     ${k} .sub-projects-sorting-selector {
         display: flex;
         align-items: center;
-        gap: 9px;  
+        gap: 9px;
     }
-    
+
     ${k} .sort-button {
         padding-right: 22px;
     }
-    
+
     ${k} .sub-project-filter-title {
-        font-size: 11pt; 
+        font-size: 11pt;
         margin: 0;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -536,7 +567,6 @@ const KeyMetricSettingsRow: React.FunctionComponent<{
     setting: KeyMetricSetting;
     onChange: (setting: KeyMetricSetting) => void;
 }> = (props) => {
-
     const onChecked = useCallback(() => {
         props.onChange(produce(props.setting, draft => {
             draft.enabled = !draft.enabled;
@@ -553,7 +583,7 @@ const KeyMetricSettingsRow: React.FunctionComponent<{
         props.onChange(produce(props.setting, draft => {
             draft.starred = !draft.starred;
         }))
-    }, [props.setting, props.onChange])
+    }, [props.setting, props.onChange]);
 
     let selectedOpt = props.setting.selected;
     return <ListRow
@@ -627,16 +657,16 @@ const keyMetricDefaultSettings: Record<string, KeyMetricSetting> = {
         enabled: false
     },
     /*
-    Note(Louise): Leave this code disabled until we decide if it is needed or not
-     "Overallocation indicators": {
-        title: "Overallocation indicators",
-        description: "Shows the distribution of how your resources are used: at risk of running out, underused or ok",
-        options: [],
-        selected: "",
-        starred: false,
-        enabled: false
-    },
-    */
+      Note(Louise): Leave this code disabled until we decide if it is needed or not
+       "Overallocation indicators": {
+          title: "Overallocation indicators",
+          description: "Shows the distribution of how your resources are used: at risk of running out, underused or ok",
+          options: [],
+          selected: "",
+          starred: false,
+          enabled: false
+      },
+      */
 };
 
 export const KeyMetrics: React.FunctionComponent<{
@@ -671,7 +701,7 @@ export const KeyMetrics: React.FunctionComponent<{
     for (const wallet of state.remoteData.wallets ?? []) {
         let totalQuota = 0;
         for (const child of wallet.children ?? []) {
-            totalQuota += child.group.usage ?? 0
+            totalQuota += child.group.usage ?? 0;
         }
         usageByProduct[productCategoryKey(wallet.paysFor)] = totalQuota;
     }
@@ -680,7 +710,7 @@ export const KeyMetrics: React.FunctionComponent<{
     for (const wallet of state.remoteData.wallets ?? []) {
         let totalQuota = 0;
         for (const child of wallet.children ?? []) {
-            totalQuota += child.group.activeQuota ?? 0
+            totalQuota += child.group.activeQuota ?? 0;
         }
         quotaByProduct[productCategoryKey(wallet.paysFor)] = totalQuota;
     }
@@ -904,45 +934,59 @@ const FilteredUsageAndQuota: React.FunctionComponent<{
             return (order[a.raw.unit] ?? 99) - (order[b.raw.unit] ?? 99);
         });
 
-    return <>
-        {filteredEntries.map((uq, idx) => {
-            if (idx > 2) return null;
-            return <ProgressBar key={idx} uq={uq} responsive />;
-        })}
-    </>
+    return filteredEntries.map((uq, idx) => {
+        if (idx > 2) return null;
+        return <ProgressBar key={idx} uq={uq} responsive />;
+    })
 }
 
-function DurationSelector(props: {periodRef: {start: Date | null; end: Date | null}}) {
+function DurationSelector(props: {
+    periodRef: {start: Date | null; end: Date | null};
+}) {
     const originalStart = useMemo(() => props.periodRef.start, []);
     const originalEnd = useMemo(() => props.periodRef.end, []);
     const [startDate, setStartDate] = useState<Date | null>(props.periodRef.start);
     const [endDate, setEndDate] = useState<Date | null>(props.periodRef.end);
 
     const onChange = React.useCallback((dates: [Date | null, Date | null]) => {
-        const [start, end] = dates
+        const [start, end] = dates;
         props.periodRef.start = start;
         props.periodRef.end = end;
-        setStartDate(start)
-        setEndDate(end)
+        setStartDate(start);
+        setEndDate(end);
     }, []);
 
     return <Label>
         Allocation period
         (Current: {dateToStringNoTime(originalStart?.getTime() ?? new Date().getTime())} - {dateToStringNoTime(originalEnd?.getTime() ?? new Date().getTime())})
         <br />
-        <DatePicker
-            selected={startDate}
-            onChange={onChange}
-            startDate={startDate}
-            endDate={endDate}
-            selectsRange
-            dateFormat="MM/yyyy"
-            minDate={new Date()}
-            showMonthYearPicker
-            required
-            className={DatePickerClass}
-        />
-    </Label>
+        <Flex>
+            <DatePicker
+                selectsStart
+                selected={startDate}
+                onChange={onChange}
+                startDate={startDate}
+                endDate={endDate}
+                dateFormat="MM/yyyy"
+                minDate={new Date()}
+                showMonthYearPicker
+                required
+                className={DatePickerClass}
+            />
+            <DatePicker
+                selectsEnd
+                selected={endDate}
+                onChange={onChange}
+                startDate={startDate}
+                endDate={endDate}
+                dateFormat="MM/yyyy"
+                minDate={startDate ?? new Date()}
+                showMonthYearPicker
+                required
+                className={DatePickerClass}
+            />
+        </Flex>
+    </Label>;
 }
 
 function openUpdater(
@@ -1178,20 +1222,22 @@ function SubProjectListRow({
                                             dispatchEvent,
                                             idx,
                                             gidx,
-                                            recipientIdx,
+                                            recipientIdx
                                         )}
                                         disabled={alloc.end < new Date().getTime()}
-                                        data-ridx={recipientIdx} data-idx={idx}
-                                        data-gidx={gidx} />
-                                </Flex>}
+                                        data-ridx={recipientIdx}
+                                        data-idx={idx}
+                                        data-gidx={gidx}
+                                    />
+                                </Flex>
+                                }
                             />
-                        )
-                    }
-                </TreeNode>)}
+                        )}
+                </TreeNode>
+            )}
         </TreeNode>
     </div>;
 }
-
 
 const SubProjectFiltersRow: React.FunctionComponent<{
     setting: SubProjectFilter;
@@ -1269,8 +1315,7 @@ const SubProjectFiltersRow: React.FunctionComponent<{
 }
 
 const NoneSelectedOptionKey = "None selected";
-const SingleUserProjects = "Personal workspaces"
-
+const SingleUserProjects = "Personal workspaces";
 
 export const SubProjectFilters: React.FunctionComponent<{
     filtersShown: boolean;
@@ -1384,8 +1429,8 @@ export const SubProjectFilters: React.FunctionComponent<{
                 <Button color={"successMain"} type="button" onClick={closeFilters}>Done</Button>
             </Flex>
         </Flex>
-    </ReactModal>;
-}
+    </ReactModal>
+};
 
 export function SubProjectList({
     projectId,
@@ -1627,6 +1672,7 @@ export function SubProjectList({
                             </div>}
                         <Tree
                             apiRef={suballocationTree}
+                            allowMultiSelection
                             onAction={(row, action, rowIdx) => {
                                 if (![TreeAction.TOGGLE, TreeAction.OPEN, TreeAction.CLOSE].includes(action)) return;
                                 const grantId = row.getAttribute("data-grant-id");
@@ -1652,11 +1698,276 @@ export function SubProjectList({
                                 rowProps={{state, dispatchEvent, avatars, rowHeight}}
                             />
                         </Tree>
+                        <SubAllocationBrowser
+                            allocations={state.subAllocations.recipients}
+                        />
                     </>}
                 </div>
-            </>}
+            </>
+            }
         </div>
     </>;
+}
+
+const FEATURES: ResourceBrowseFeatures = {
+    renderSpinnerWhenLoading: true,
+    sorting: true,
+    filters: false,
+    breadcrumbsSeparatedBySlashes: false,
+    projectSwitcher: true,
+    showColumnTitles: true,
+    dragToSelect: true,
+};
+
+type AllocationTypes =
+    | Accounting.AllocationDisplayTreeRecipient
+    | Accounting.AllocationDisplayTreeRecipient["groups"][0]
+    | Accounting.AllocationDisplayTreeRecipient["groups"][0]["allocations"][0];
+
+function isAllocationDisplayTreeRecipient(v: AllocationTypes) {
+    return "owner" in v;
+}
+
+function isAllocationGroup(v: AllocationTypes) {
+    return "totalGranted" in v && "category" in v;
+}
+
+function isAllocation(v: AllocationTypes) {
+    return "allocationId" in v;
+}
+
+export function SubAllocationBrowser(
+    props: {opts?: ResourceBrowserOpts<AllocationTypes>} & {
+        allocations: Accounting.AllocationDisplayTree["subAllocations"]["recipients"];
+    }
+): React.ReactNode {
+    // TODO(Jonas): Filters are NOT taken into account with this approach. Expand!!!!
+    const mountRef = React.useRef<HTMLDivElement | null>(null);
+    const browserRef = React.useRef<ResourceBrowser<AllocationTypes> | null>(null);
+    const dispatch = useDispatch();
+    const navigate = useNavigate();
+
+    React.useLayoutEffect(() => {
+        if (browserRef.current) {
+            browserRef.current.registerPage(
+                arrayToPage(props.allocations, props.allocations.length),
+                "/",
+                true
+            );
+            browserRef.current.rerender();
+        }
+    }, [props.allocations]);
+
+    const progressBarCache = React.useRef<Record<string, ReactStaticRenderer>>({});
+
+    const projectIds: string[] = React.useMemo(() => {
+        const ids = new Set<string>();
+        for (const alloc of props.allocations) {
+            if (alloc.owner.reference.type === "project") {
+                ids.add(alloc.owner.reference.projectId);
+            }
+        }
+        return [...ids];
+    }, [props.allocations]);
+
+    const projectInfos = useProjectInfos(projectIds);
+
+    const projectInfosRef = useRef<Record<string, ProjectInfo | null>>({});
+    projectInfosRef.current = projectInfos.data;
+
+    React.useEffect(() => {
+        browserRef.current?.rerender();
+    }, [projectInfos.data]);
+
+    React.useLayoutEffect(() => {
+        const mount = mountRef.current;
+        if (mount && !browserRef.current) {
+            new ResourceBrowser<AllocationTypes>(
+                mount,
+                "Suballocations",
+                props.opts
+            ).init(browserRef, FEATURES, "", (browser) => {
+                browser.setColumns([{name: ""}, {name: "", columnWidth: 0}, {name: "", columnWidth: 0}, {name: "", columnWidth: 0}, {name: "", columnWidth: 100}]);
+
+                browser.on("skipOpen", (oldPath, path, resource) => {
+                    console.log("skipOpen", oldPath, path, resource)
+                    return resource != null;
+                });
+
+                browser.on("open", (oldPath, newPath, resource) => {
+
+                });
+
+                browser.on("unhandledShortcut", () => {});
+
+                browser.on("wantToFetchNextPage", async (path) => {});
+
+                browser.on("renderRow", (allocation, row, dims) => {
+                    if (isAllocationDisplayTreeRecipient(allocation)) {
+                        const pi = allocation.owner.reference.type === "user" ?
+                            allocation.owner.reference.username :
+                            projectInfoPi(projectInfosRef.current[allocation.owner.reference.projectId], allocation.owner.primaryUsername) ?? "-";
+                        const title = allocation.owner.reference.type === "user" ?
+                            allocation.owner.reference.username :
+                            projectInfoTitle(projectInfosRef.current[allocation.owner.reference.projectId], allocation.owner.title) ?? "-";
+
+
+                        {
+                            const wrapper = row.title;
+                            wrapper.classList.add(FlexClass);
+                            const leftChild = document.createElement("div");
+                            wrapper.appendChild(leftChild);
+                            leftChild.className = FlexClass;
+                            leftChild.style.gap = "4px";
+                            const avatar = document.createElement("div"); // avatar(pi);
+                            HTMLTooltip(avatar, divText(`Project PI: ${pi}`));
+                            leftChild.appendChild(avatar);
+                            const titleEl = document.createElement("div");
+                            leftChild.append(title);
+                            titleEl.className = TruncateClass;
+                            titleEl.title = title;
+                            titleEl.style.width = "400px";
+                            titleEl.innerText = title;
+                        }
+                        {
+                            const rightChild = createHTMLElements({tagType: "div", className: "sub-alloc"});
+                            row.stat4.append(rightChild);
+                            // TODO(Ensure uniqueness!
+                            const allocationIdentifier = allocation.usageAndQuota.map(({raw}) => `${raw.maxUsable}-${raw.retiredAmount}-${raw.usage}`).join("-");
+                            const entry = progressBarCache.current[allocationIdentifier];
+                            if (entry) {
+                                rightChild.prepend(entry.clone());
+                            } else {
+                                const filteredUsageAndQuota = new ReactStaticRenderer(() => <FilteredUsageAndQuota entries={allocation.usageAndQuota} />).promise;
+                                filteredUsageAndQuota.then(result => {
+                                    progressBarCache.current[allocationIdentifier] = result;
+                                    rightChild.prepend(result.clone());
+                                })
+                            }
+                            if (allocation.owner.reference.type === "project") {
+                                const div = document.createElement("div");
+                                rightChild.append(div);
+                                div.onclick = () =>
+                                    navigate(
+                                        AppRoutes.grants.grantGiverInitiatedEditor({
+                                            title: title,
+                                            piUsernameHint: pi,
+                                            projectId: allocation.owner.reference["projectId"],
+                                            start: timestampUnixMs(),
+                                            end: timestampUnixMs() + 1000 * 60 * 60 * 24 * 365,
+                                            subAllocator: false,
+                                        })
+                                    );
+                                {
+                                    const iconButton = createHTMLElements({tagType: "button", className: ButtonClass + " " + SmallIconButtonStyle});
+
+                                    div.appendChild(iconButton);
+                                    const tooltip = "Allocate more resources";
+                                    HTMLTooltip(iconButton, createHTMLElements({tagType: "div", className: TruncateClass, innerText: tooltip}));
+                                    iconButton.setAttribute("data-has-sub", "true");
+                                    const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
+                                    iconButton.append(icon);
+                                    icon.style.height = icon.style.width = "12px";
+                                    ResourceBrowser.icons.renderIcon({
+                                        name: "heroBanknotes", color: "primaryContrast", color2: "primaryContrast", width: 24, height: 24
+                                    }).then(setIcon);
+                                    const rel = document.createElement("div");
+                                    rel.style.position = "relative";
+                                    iconButton.append(rel);
+                                    const subDiv = createHTMLElements({tagType: "div", className: "sub"});
+                                    rel.append(subDiv);
+                                    const [subIcon, setSubIcon] = ResourceBrowser.defaultIconRenderer();
+                                    subIcon.style.height = subIcon.style.width = "12px";
+                                    ResourceBrowser.icons.renderIcon({
+                                        name: "heroPlusCircle", color: "primaryContrast", color2: "primaryContrast", width: 24, height: 24
+                                    }).then(setSubIcon);
+                                    subDiv.append(subIcon);
+                                }
+                            }
+                        }
+                    } else if (isAllocationGroup(allocation)) {
+                    } else if (isAllocation(allocation)) {
+                    }
+                });
+
+                browser.on("endRenderPage", () => {
+                    SimpleAvatarComponentCache.fetchMissingAvatars();
+                });
+
+                browser.on("generateBreadcrumbs", () => []);
+
+                browser.on("renderEmptyPage", (reason) => {
+                    const e = browser.emptyPageElement;
+                    switch (reason.tag) {
+                        case EmptyReasonTag.LOADING: {
+                            e.reason.append("We are fetching your suballocations...");
+                            break;
+                        }
+
+                        case EmptyReasonTag.EMPTY: {
+                            if (Object.values(browser.browseFilters).length !== 0)
+                                e.reason.append("No suballocations found with active filters.");
+                            else e.reason.append("You have no suballocations.");
+                            break;
+                        }
+
+                        case EmptyReasonTag.NOT_FOUND_OR_NO_PERMISSIONS: {
+                            e.reason.append(
+                                "We could not find any data related to your suballocations."
+                            );
+                            e.providerReason.append(reason.information ?? "");
+                            break;
+                        }
+
+                        case EmptyReasonTag.UNABLE_TO_FULFILL: {
+                            e.reason.append(
+                                "We are currently unable to show your suballocations. Try again later."
+                            );
+                            e.providerReason.append(reason.information ?? "");
+                            break;
+                        }
+                    }
+                });
+
+                // TODO
+                browser.setEmptyIcon("heroCircleStack");
+
+                browser.on("fetchOperationsCallback", () => ({
+                    dispatch,
+                    navigate,
+                    isCreating: false,
+                    api: {isCoreResource: true},
+                    invokeCommand: callAPI,
+                    reload: () => browser.refresh(),
+                }));
+
+                // TODO(Jonas)
+                browser.on("pathToEntry", (al) => {
+                    if (isAllocationDisplayTreeRecipient(al)) {
+                        return al.owner.reference.type === "project"
+                            ? al.owner.reference.projectId
+                            : al.owner.reference.username;
+                    } else if (isAllocationGroup(al)) {
+                        return al.category.name;
+                    } else if (isAllocation(al)) {
+                        return al.allocationId.toString();
+                    }
+                    return "";
+                });
+
+                browser.on("fetchOperations", () => {
+                    const entries = browser.findSelectedEntries();
+                    const callbacks = browser.dispatchMessage(
+                        "fetchOperationsCallback",
+                        (fn) => fn()
+                    );
+                    return []; // retrieveOperations().filter(it => it.enabled(entries, callbacks as any, entries));
+                });
+            });
+        }
+    }, []);
+
+    return <MainContainer main={<div ref={mountRef} />} />;
 }
 
 function RowComponent({
@@ -1761,17 +2072,17 @@ const SmallIconButtonStyle = injectStyle("small-icon-button", k => `
     ${k}:hover {
         color: var(--primaryContrast) !important;
     }
-        
+
     ${k} {
         height: 25px !important;
         width: 25px !important;
         padding: 12px !important;
     }
-    
+
     ${k} svg {
         margin: 0;
     }
-    
+
     ${k}[data-has-sub=true] svg {
         width: 14px;
         height: 14px;
@@ -1779,13 +2090,13 @@ const SmallIconButtonStyle = injectStyle("small-icon-button", k => `
         left: -2px;
         top: -1px;
     }
-    
+
     ${k} .sub {
         position: absolute;
         left: -15px;
         top: -10px;
     }
-    
+
     ${k} .sub > svg {
         width: 12px;
         height: 12px;
