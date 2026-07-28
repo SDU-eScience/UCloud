@@ -660,15 +660,15 @@ const TopPickCardGridStyle = injectStyle("top-pick-grid", k => `
         gap: 16px;
     }
     
-    ${k}:has(*:first-child:nth-last-child(n + 5)) {
+    ${k}:has(*:first-child:nth-last-child(n + 6)) {
         min-height: calc(115px * 2 + 16px);
     }
     
-    ${k} > *:first-child:nth-last-child(n + 5) {
+    ${k} > *:first-child:nth-last-child(n + 6) {
         grid-row: span 2;
     }
     
-    ${k} > *:first-child:nth-last-child(n + 5) > * {
+    ${k} > *:first-child:nth-last-child(n + 6) > * {
         height: calc(115px * 2 + 16px);
     }
     
