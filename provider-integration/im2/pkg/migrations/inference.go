@@ -293,3 +293,97 @@ func inferenceV11() db.MigrationScript {
 		},
 	}
 }
+
+func inferenceV12() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "inferenceV12",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					create table k8s.inference_attachments(
+						id text primary key,
+						created_by text not null,
+						project_id text null,
+						created_at timestamptz not null default now()
+					)
+				`,
+				db.Params{},
+			)
+		},
+	}
+}
+
+func inferenceV13() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "inferenceV13",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`alter table k8s.inference_attachments add column filename text not null default ''`,
+				db.Params{},
+			)
+		},
+	}
+}
+
+func inferenceV14() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "inferenceV14",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`alter table k8s.inference_attachments add column markdown_attachment_id text null`,
+				db.Params{},
+			)
+		},
+	}
+}
+
+func inferenceV15() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "inferenceV15",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`drop table inference_playground_message`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`drop table inference_playground_thread`,
+				db.Params{},
+			)
+		},
+	}
+}
+
+func inferenceV16() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "inferenceV16",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					create table inference_usage (
+						owner text primary key,
+						scope text not null,
+						usage bigint not null default 0 check (usage >= 0),
+						reported_usage bigint not null default 0 check (reported_usage >= 0),
+						updated_at timestamptz not null default now()
+					)
+				`,
+				db.Params{},
+			)
+		},
+	}
+}
+
+func inferenceV17() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "inferenceV17",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(tx, `alter table inference_model add column disable_tools bool not null default false`, db.Params{})
+		},
+	}
+}

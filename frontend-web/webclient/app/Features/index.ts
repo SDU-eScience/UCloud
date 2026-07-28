@@ -12,6 +12,12 @@ export enum Feature {
     STACKS,
 
     INFERENCE,
+
+    INFERENCE_WORKSPACE,
+
+    NEW_TOOLTIPS,
+
+    FILE_BROWSER_STATUS_BAR,
 }
 
 enum Environment {
@@ -82,6 +88,24 @@ const featureMap: Record<string, FeatureConfig> = {
     "inference": {
         feature: Feature.INFERENCE,
         showWithoutFlag: [Environment.PUBLIC_DEV, Environment.LOCAL_DEV_STACK],
+        showWithFlag: allEnvironments,
+    },
+
+    "inference-workspace": {
+        feature: Feature.INFERENCE_WORKSPACE,
+        showWithoutFlag: allLocalEnvironments,
+        showWithFlag: allEnvironments,
+    },
+
+    "new-tooltips": {
+        feature: Feature.NEW_TOOLTIPS,
+        showWithoutFlag: allDevEnvironments,
+        showWithFlag: allEnvironments,
+    },
+
+    "file-browser-status-bar": {
+        feature: Feature.FILE_BROWSER_STATUS_BAR,
+        showWithoutFlag: allDevEnvironments,
         showWithFlag: allEnvironments,
     }
 };

@@ -1308,29 +1308,6 @@ export const extract = (props: any) => (
     />
   </svg>
 );
-export const eye = (props: any) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 60 20"
-    fill="currentcolor"
-    {...props}
-  >
-    <path
-      fill="transparent"
-      stroke="currentcolor"
-      strokeWidth={2}
-      d="M2 10c8 10 38 10 48 0M2 10c8-10 38-10 48 0"
-    />
-    <circle
-      cx={26}
-      cy={10}
-      r={4}
-      fill="none"
-      stroke="currentcolor"
-      strokeWidth={4}
-    />
-  </svg>
-);
 export const favIcon = (props: any) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -1797,78 +1774,23 @@ export const globeEuropeSolid = (props: any) => (
 export const gpu = (props: any) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
+    xmlSpace="preserve"
     fill="currentcolor"
-    aria-hidden="true"
+    fillRule="evenodd"
+    clipRule="evenodd"
     viewBox="0 0 24 24"
     {...props}
   >
     <path
-      d="M3.088 20.72a.75.75 0 0 1-.75-.75V4.438c0-.012 1.5 0 1.5 0v15.53a.75.75 0 0 1-.75.75zM2.336 5.87V4.437L.828 4.422l-.007 1.44z"
+      d="M3.088 20.719a.75.75 0 0 1-.75-.75V4.439c0-.012 1.5 0 1.5 0v15.53a.75.75 0 0 1-.75.75ZM2.336 5.87V4.437L.828 4.422l-.007 1.44z"
       style={{
+        fillRule: "nonzero",
         stroke: "currentcolor",
-        strokeWidth: 0.2,
-        strokeDasharray: "none",
-        strokeOpacity: 1,
+        strokeWidth: 1,
       }}
+      transform="matrix(.94056 0 0 .99524 .228 .099)"
     />
-    <path
-      fill="none"
-      d="M9.564 1.601h.133v.178h-.133z"
-      style={{
-        fill: "currentcolor",
-        fillOpacity: 0,
-      }}
-    />
-    <path
-      fill="none"
-      d="M3.336 6.45h18.06v11.076H3.336z"
-      style={{
-        fill: "currentcolor",
-        fillOpacity: 0,
-        stroke: "currentcolor",
-        strokeOpacity: 1,
-      }}
-    />
-    <text
-      xmlSpace="preserve"
-      x={6.763}
-      y={12.951}
-      style={{
-        fontSize: "7.74367px",
-        direction: "ltr",
-        mixBlendMode: "lighten",
-        fill: "none",
-        stroke: "currentcolor",
-        strokeWidth: 0.793701,
-        strokeLinecap: "butt",
-        strokeLinejoin: "miter",
-        strokeMiterlimit: 1.6,
-        strokeDasharray: "none",
-        strokeDashoffset: 0,
-        strokeOpacity: 1,
-        paintOrder: "normal",
-        opacity: 1,
-      }}
-      transform="scale(.83775 1.19368)"
-    >
-      <tspan
-        x={6.763}
-        y={12.951}
-        style={{
-          fill: "none",
-          stroke: "currentcolor",
-          strokeWidth: 0.793701,
-          strokeLinecap: "butt",
-          strokeLinejoin: "miter",
-          strokeMiterlimit: 1.6,
-          strokeDasharray: "none",
-          strokeOpacity: 1,
-          paintOrder: "normal",
-        }}
-      >
-        {"GPU"}
-      </tspan>
-    </text>
+    <path d="M22 7H3.838v11H22zM11 17l3.5-5H13l1-4-3.5 5H12z" />
   </svg>
 );
 export const grant = (props: any) => (
@@ -7961,6 +7883,25 @@ export const shareMenu = (props: any) => (
       }}
       transform="translate(-733 -2823.005)"
     />
+  </svg>
+);
+export const sidebar = (props: any) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    fill="currentcolor"
+    viewBox="0 0 120 90"
+    {...props}
+  >
+    <rect
+      width={114}
+      height={84}
+      x={3}
+      y={3}
+      stroke="currentcolor"
+      strokeWidth={6}
+      rx={21}
+    />
+    <path stroke="currentcolor" strokeWidth={6} d="M36 1v89" />
   </svg>
 );
 export const sortAscending = (props: any) => (

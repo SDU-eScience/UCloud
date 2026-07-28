@@ -218,6 +218,11 @@ func reportUsedStorage(drive orc.Drive, sizeInGb int64) {
 }
 
 func RequestScan(driveId string) {
+	if shared.ServiceConfig.FileSystem.MetadataCatalog.EnableIntegration {
+		MetadataSubmitScanRequest("/" + driveId)
+		return
+	}
+
 	// NOTE(Dan): This doesn't currently set the submitted_at timestamp on purpose. If it turns out that this is a bad
 	// idea then it should be changed.
 	drive, ok := ctrl.DriveRetrieve(driveId)

@@ -25,6 +25,15 @@ type KubernetesFileSystem struct {
 	TrashStagingArea string
 	ClaimName        string
 	ScanMethod       KubernetesFileSystemScanMethod
+	MetadataCatalog  KubernetesMetadataCatalog
+}
+
+type KubernetesMetadataCatalog struct {
+	Enabled           bool
+	EnableIntegration bool
+	IOPS              int
+	ParallelScans     int
+	EntriesPerSSTable int
 }
 
 type KubernetesFileSystemScanMethod struct {
@@ -164,6 +173,7 @@ type KubernetesUcxDevelopmentApp struct {
 
 type KubernetesUcxConfiguration struct {
 	Development []KubernetesUcxDevelopmentApp `json:"development" yaml:"development"`
+	Publish     map[string][]string           `json:"publish" yaml:"publish"`
 }
 
 type KubernetesCompute struct {
@@ -320,6 +330,35 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 		} else {
 			cfg.FileSystem.ScanMethod.Type = K8sScanMethodTypeWalk
 		}
+
+		metadataNode, _ := cfgutil.GetChildOrNil(filePath, fsNode, "metadataCatalog")
+		cfg.FileSystem.MetadataCatalog.Enabled = util.DevelopmentModeEnabled()
+		cfg.FileSystem.MetadataCatalog.EnableIntegration = util.DevelopmentModeEnabled()
+		cfg.FileSystem.MetadataCatalog.IOPS = 45_000
+		cfg.FileSystem.MetadataCatalog.ParallelScans = 8
+		cfg.FileSystem.MetadataCatalog.EntriesPerSSTable = 1024 * 16
+		if metadataNode != nil {
+			if enabled, ok := cfgutil.OptionalChildBool(filePath, metadataNode, "enabled"); ok {
+				cfg.FileSystem.MetadataCatalog.Enabled = enabled
+			}
+			if enabled, ok := cfgutil.OptionalChildBool(filePath, metadataNode, "enableIntegration"); ok {
+				cfg.FileSystem.MetadataCatalog.EnableIntegration = enabled
+			}
+			cfg.FileSystem.MetadataCatalog.IOPS = int(cfgutil.OptionalChildInt(
+				filePath, metadataNode, "iops", &success,
+			).GetOrDefault(int64(cfg.FileSystem.MetadataCatalog.IOPS)))
+			cfg.FileSystem.MetadataCatalog.ParallelScans = int(cfgutil.OptionalChildInt(
+				filePath, metadataNode, "parallelScans", &success,
+			).GetOrDefault(int64(cfg.FileSystem.MetadataCatalog.ParallelScans)))
+			cfg.FileSystem.MetadataCatalog.EntriesPerSSTable = int(cfgutil.OptionalChildInt(
+				filePath, metadataNode, "entriesPerSSTable", &success,
+			).GetOrDefault(int64(cfg.FileSystem.MetadataCatalog.EntriesPerSSTable)))
+		}
+		if cfg.FileSystem.MetadataCatalog.IOPS <= 0 || cfg.FileSystem.MetadataCatalog.ParallelScans < 2 ||
+			cfg.FileSystem.MetadataCatalog.EntriesPerSSTable < 10_000 {
+			cfgutil.ReportError(filePath, fsNode, "metadataCatalog requires positive iops, at least 2 parallelScans, and at least 10000 entriesPerSSTable")
+			success = false
+		}
 	}
 
 	computeNode := cfgutil.RequireChild(filePath, services, "compute", &success)
@@ -364,6 +403,11 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 		developmentNode, _ := cfgutil.GetChildOrNil(filePath, ucxNode, "development")
 		if developmentNode != nil {
 			cfgutil.Decode(filePath, developmentNode, &cfg.Compute.Ucx.Development, &success)
+		}
+
+		publishNode, _ := cfgutil.GetChildOrNil(filePath, ucxNode, "publish")
+		if publishNode != nil {
+			cfgutil.Decode(filePath, publishNode, &cfg.Compute.Ucx.Publish, &success)
 		}
 	}
 
@@ -663,7 +707,7 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 				success = false
 			}
 
-			if success && portMin < portMin {
+			if success && portMax < portMin {
 				cfgutil.ReportError(filePath, sshNode, "portMax is less than portMin")
 				success = false
 			}

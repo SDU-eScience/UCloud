@@ -15,7 +15,25 @@ export function openPlayground(request: OpenPlaygroundRequest): APICallParameter
     return apiUpdate(request, baseContext, "openPlayground");
 }
 
-export type InferenceCapability = "TextGeneration" | "TextToImage" | "SpeechToText";
+export interface PlaygroundThread {
+    id: string;
+    title: string;
+    updatedAt: number;
+}
+
+export interface ListPlaygroundThreadsRequest {
+    providerId: string | null;
+}
+
+export interface ListPlaygroundThreadsResponse {
+    threads: PlaygroundThread[];
+}
+
+export function listPlaygroundThreads(request: ListPlaygroundThreadsRequest): APICallParameters<ListPlaygroundThreadsRequest, ListPlaygroundThreadsResponse> {
+    return apiRetrieve(request, baseContext, "playgroundThreads");
+}
+
+export type InferenceCapability = "TextGeneration" | "TextToImage" | "SpeechToText" | "Vision" | "VideoVision" | "Audio";
 
 export interface InferenceModel {
     name: string;
@@ -41,6 +59,7 @@ export interface InferenceModel {
         topP: number;
         maxCompletionTokens: number;
         systemPrompt?: string;
+        disableTools: boolean;
     };
     page?: InferenceModelPageMetadata;
 }

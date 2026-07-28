@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"maps"
+	"net/url"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -95,10 +96,52 @@ func brandingMonitorProvider(provider string) {
 		}
 		failedAttemptCount = 0
 		didComplain = false
+		providerBrandingNormalizeUrls(provider, &branding)
 		providerBrandingsGlobals.Mu.Lock()
 		providerBrandingsGlobals.ProviderBrandings[provider] = branding
 		providerBrandingsGlobals.Ready.Store(true)
 		providerBrandingsGlobals.Mu.Unlock()
 		time.Sleep(10 * time.Second)
 	}
+}
+
+func providerBrandingNormalizeUrls(provider string, branding *orcapi.ProviderBranding) {
+	providerDomain, ok := ProviderDomain(provider)
+	if !ok {
+		return
+	}
+
+	branding.Url = providerBrandingNormalizeSingleUrl(providerDomain, branding.Url)
+	if branding.Logo.Present {
+		branding.Logo.Value = providerBrandingNormalizeSingleUrl(providerDomain, branding.Logo.Value)
+	}
+
+	for idx := range branding.Sections {
+		if branding.Sections[idx].Image.Present {
+			branding.Sections[idx].Image.Value = providerBrandingNormalizeSingleUrl(providerDomain, branding.Sections[idx].Image.Value)
+		}
+	}
+
+	for idx := range branding.ProductDescription {
+		image := &branding.ProductDescription[idx].Section.Image
+		if image.Present {
+			image.Value = providerBrandingNormalizeSingleUrl(providerDomain, image.Value)
+		}
+	}
+}
+
+func providerBrandingNormalizeSingleUrl(providerDomain string, value string) string {
+	if value == "" {
+		return value
+	}
+
+	base, err := url.Parse(providerDomain)
+	if err != nil {
+		return value
+	}
+	relative, err := url.Parse(value)
+	if err != nil || relative.IsAbs() || relative.Host != "" {
+		return value
+	}
+	return base.ResolveReference(relative).String()
 }

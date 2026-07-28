@@ -11,7 +11,7 @@ import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {InferenceBenchmark, InferenceCapability, InferenceModel, listModels, updateBenchmarks, updateModel} from "./api";
 import ConfiguringTools from "./ConfiguringTools";
-import ModelInferenceLogo from "./ModelLogo";
+import ModelInferenceLogo, {modelProviderName} from "./ModelLogo";
 import {CopyButton} from "@/ui-components/CopyButton";
 import {injectStyle} from "@/Unstyled";
 import {useIsLightThemeStored} from "@/ui-components/theme";
@@ -19,7 +19,7 @@ import {formatDate} from "date-fns";
 import {MarkdownDocument} from "@/ui-components/Markdown";
 
 const fallbackDocs = "https://docs.cloud.sdu.dk";
-const capabilities: InferenceCapability[] = ["TextGeneration", "TextToImage", "SpeechToText"];
+const capabilities: InferenceCapability[] = ["TextGeneration", "TextToImage", "SpeechToText", "Vision", "VideoVision", "Audio"];
 
 export default function ModelPage(): React.ReactNode {
     const [params] = useSearchParams();
@@ -285,6 +285,7 @@ function ModelPageContent(props: {
                     {props.editing ? null : <Flex gap="12px" flexWrap="wrap">
                         <Link to={AppRoutes.inference.playground(model.name)}><Button type="button" color="successMain">Try now</Button></Link>
                         <ExternalLink href={documentationUrl}><Button type="button" color={docButtonColor}>Documentation</Button></ExternalLink>
+                        <Button type="button" color={docButtonColor} onClick={() => document.getElementById("api-usage")?.scrollIntoView({behavior: "smooth"})}>API usage</Button>
                     </Flex>}
                 </Box>
                 <span className="model-hero-logo"><ModelInferenceLogo modelName={model.name} size={160} /></span>
@@ -317,7 +318,7 @@ function ModelPageContent(props: {
                     <Flex justifyContent="end" mt={12}>
                         <Button color="successMain" type="button" onClick={props.onSaveBenchmarks} disabled={props.savingBenchmarks}>{props.savingBenchmarks ? "Saving..." : "Save benchmarks"}</Button>
                     </Flex>
-                </Section> : <Section>
+                </Section> : <Section id={"api-usage"}>
                     <ConfiguringTools title="API usage" providerId={providerId} server={server} models={models} modelId={model.name} />
                 </Section>}
             </Box>
@@ -345,8 +346,8 @@ function ModelPageContent(props: {
     </div>;
 }
 
-function Section({title, children}: React.PropsWithChildren<{title?: string}>): React.ReactNode {
-    return <section style={{display: "flex", gap: 14, flexDirection: "column"}}>
+function Section({title, id, children}: React.PropsWithChildren<{title?: string, id?: string}>): React.ReactNode {
+    return <section style={{display: "flex", gap: 14, flexDirection: "column"}} id={id}>
         {title ? <h3 className="title" style={{margin: 0}}>{title}</h3> : null}
         {children}
     </section>;
@@ -383,7 +384,7 @@ const DATE_FORMAT = "dd/MM/yyyy";
 function Datasheet({model}: {model: InferenceModel}): React.ReactNode {
     const page = model.page;
     const rows: [string, React.ReactNode][] = [
-        ["Model provider", <Flex key="provider" gap="8px" alignItems="center"><ModelInferenceLogo modelName={model.name} />{providerName(model.name)}</Flex>],
+        ["Model provider", <Flex key="provider" gap="8px" alignItems="center"><ModelInferenceLogo modelName={model.name} />{modelProviderName(model.name)}</Flex>],
         ["Release date", page?.releaseDate ? formatDate(new Date(page.releaseDate), DATE_FORMAT) : null],
         ["Capabilities", model.capabilities.join(", ")],
         ["Endpoint", <CopyableEndpoint key="endpoint" value={model.name} />],
@@ -413,24 +414,10 @@ function CopyableEndpoint({value}: {value: string}): React.ReactNode {
 
 function fallbackKeyStats(model: InferenceModel): {label: string; value: string; description?: string}[] {
     return [
-        {label: "Context length", value: model.contextWindow ? model.contextWindow.toLocaleString() : "Not specified"},
+        {label: "Cached multiplier", value: formatMultiplier(model.priceMultiplier.cachedInput)},
         {label: "Input multiplier", value: formatMultiplier(model.priceMultiplier.input)},
         {label: "Output multiplier", value: formatMultiplier(model.priceMultiplier.output)},
     ];
-}
-
-function providerName(modelName: string): string {
-    const norm = modelName.toLowerCase();
-    if (norm.includes("deepseek")) return "DeepSeek";
-    if (norm.includes("llama")) return "Meta";
-    if (norm.includes("qwen")) return "Qwen";
-    if (norm.includes("minimax")) return "Minimax";
-    if (norm.includes("glm")) return "Z.ai";
-    if (norm.includes("mistral")) return "Mistral";
-    if (norm.includes("google") || norm.includes("gemma")) return "Google";
-    if (norm.includes("kimi") || norm.includes("k2.")) return "Moonshot AI";
-    if (norm.includes("gpt")) return "OpenAI";
-    return "Unknown";
 }
 
 function formatMultiplier(value: number): string {
@@ -448,6 +435,7 @@ function normalizeEditableModel(model: InferenceModel): InferenceModel {
             topP: model.chatSettings?.topP ?? 0.1,
             maxCompletionTokens: model.chatSettings?.maxCompletionTokens ?? 65536,
             systemPrompt: model.chatSettings?.systemPrompt,
+            disableTools: model.chatSettings?.disableTools ?? false,
         },
         page: {
             ...defaults,
@@ -508,6 +496,7 @@ function ModelSettingsEditor(props: {model: InferenceModel; models: InferenceMod
         <label>Top P<Input type="number" step="0.1" min="0" max="1" value={model.chatSettings.topP} onChange={ev => setModel({...model, chatSettings: {...model.chatSettings, topP: parseFloat(ev.currentTarget.value || "0")}})} /></label>
         <label>Max completion tokens<Input type="number" min="1" value={model.chatSettings.maxCompletionTokens} onChange={ev => setModel({...model, chatSettings: {...model.chatSettings, maxCompletionTokens: parseInt(ev.currentTarget.value || "0")}})} /></label>
         <label>System prompt<Input value={model.chatSettings.systemPrompt ?? ""} placeholder="Use global default" onChange={ev => setModel({...model, chatSettings: {...model.chatSettings, systemPrompt: ev.currentTarget.value.trim() === "" ? undefined : ev.currentTarget.value}})} /></label>
+        <label style={{display: "flex", gap: 6, alignItems: "center"}}><input type="checkbox" checked={model.chatSettings.disableTools} onChange={ev => setModel({...model, chatSettings: {...model.chatSettings, disableTools: ev.currentTarget.checked}})} />Disable chat tools</label>
         <Box>
             <Text fontWeight={600}>Capabilities</Text>
             <Flex gap="12px" flexWrap="wrap" mt={8}>{capabilities.map(capability => <label key={capability} style={{display: "flex", gap: 6, alignItems: "center"}}><input type="checkbox" checked={model.capabilities.includes(capability)} onChange={ev => setModel({...model, capabilities: ev.currentTarget.checked ? [...model.capabilities, capability] : model.capabilities.filter(it => it !== capability)})} />{capability}</label>)}</Flex>

@@ -24,12 +24,19 @@ type mountedFolder struct {
 type mountResult struct {
 	Folders                 map[string]mountedFolder
 	MountedDrivesAsReadOnly map[string]bool
+	ActivityMounts          []activityMount
 }
 
 type resolvedMount struct {
 	SubPath    string
 	ReadOnly   bool
 	IsExplicit bool
+	UCloudPath string
+}
+
+type activityMount struct {
+	UCloudPath string
+	ReadOnly   bool
 }
 
 func calculateMounts(job *orc.Job, internalJobFolder string) (mountResult, bool) {
@@ -76,7 +83,7 @@ func calculateMounts(job *orc.Job, internalJobFolder string) (mountResult, bool)
 		return internalToSubpath(path)
 	}
 
-	addMount := func(containerPath, subpath string, readOnly bool, isExplicit bool) {
+	addMount := func(containerPath, subpath string, readOnly bool, isExplicit bool, ucloudPath string) bool {
 		existing, _ := resolvedMounts[containerPath]
 
 		hasExistingExplicit := false
@@ -89,17 +96,23 @@ func calculateMounts(job *orc.Job, internalJobFolder string) (mountResult, bool)
 
 		if (isExplicit || hasExistingExplicit) && len(existing) > 0 {
 			hasMountPathConflict = true
-			return
+			return false
 		}
 
-		existing = append(existing, resolvedMount{SubPath: subpath, ReadOnly: readOnly, IsExplicit: isExplicit})
+		existing = append(existing, resolvedMount{
+			SubPath:    subpath,
+			ReadOnly:   readOnly,
+			IsExplicit: isExplicit,
+			UCloudPath: ucloudPath,
+		})
 		resolvedMounts[containerPath] = existing
+		return true
 	}
 
 	addInternalMount := func(containerPath, internalPath string, readOnly bool, isExplicit bool) {
 		sub, ok := internalToSubpath(internalPath)
 		if ok {
-			addMount(containerPath, sub, readOnly, isExplicit)
+			addMount(containerPath, sub, readOnly, isExplicit, "")
 		}
 	}
 
@@ -110,7 +123,7 @@ func calculateMounts(job *orc.Job, internalJobFolder string) (mountResult, bool)
 
 		sub, ok := ucloudToSubpath(ucloudPath)
 		if ok {
-			addMount(containerPath, sub, readOnly, isExplicit)
+			addMount(containerPath, sub, readOnly, isExplicit, ucloudPath)
 		}
 	}
 
@@ -162,6 +175,7 @@ func calculateMounts(job *orc.Job, internalJobFolder string) (mountResult, bool)
 	}
 
 	mountPaths := map[string]mountedFolder{}
+	var activityMounts []activityMount
 
 	mountIdx := 0
 	for containerPath, mounts := range resolvedMounts {
@@ -174,6 +188,12 @@ func calculateMounts(job *orc.Job, internalJobFolder string) (mountResult, bool)
 				SubPath:      mount.SubPath,
 				PodPath:      containerPath,
 				ReadOnly:     mount.ReadOnly,
+			}
+			if mount.UCloudPath != "" {
+				activityMounts = append(activityMounts, activityMount{
+					UCloudPath: mount.UCloudPath,
+					ReadOnly:   mount.ReadOnly,
+				})
 			}
 
 			mountIdx++
@@ -193,6 +213,12 @@ func calculateMounts(job *orc.Job, internalJobFolder string) (mountResult, bool)
 					PodPath:      resolvedContainerPath,
 					ReadOnly:     mount.ReadOnly,
 				}
+				if mount.UCloudPath != "" {
+					activityMounts = append(activityMounts, activityMount{
+						UCloudPath: mount.UCloudPath,
+						ReadOnly:   mount.ReadOnly,
+					})
+				}
 
 				mountIdx++
 			}
@@ -206,17 +232,18 @@ func calculateMounts(job *orc.Job, internalJobFolder string) (mountResult, bool)
 	return mountResult{
 		Folders:                 mountPaths,
 		MountedDrivesAsReadOnly: mountedDrivesAsReadOnly,
+		ActivityMounts:          activityMounts,
 	}, true
 }
 
-// prepareMountsOnJobCreate add relevant mounts into the pod and returns a mapping from internal paths (including the
-// mount point) to their corresponding paths inside the container.
+// prepareMountsOnJobCreate adds relevant mounts into the pod and returns a mapping from internal paths (including the
+// mount point) to their corresponding paths inside the container, along with user mounts for activity recording.
 func prepareMountsOnJobCreate(
 	job *orc.Job,
 	pod *core.Pod,
 	userContainer *core.Container,
 	jobFolder string,
-) (map[string]string, bool) {
+) (map[string]string, []activityMount, bool) {
 	spec := &pod.Spec
 
 	fsVolume := "ucloud-filesystem"
@@ -232,7 +259,7 @@ func prepareMountsOnJobCreate(
 
 	mounts, ok := calculateMounts(job, jobFolder)
 	if !ok {
-		return map[string]string{}, false
+		return map[string]string{}, nil, false
 	}
 
 	folders := mounts.Folders
@@ -266,5 +293,5 @@ func prepareMountsOnJobCreate(
 		pod.Annotations[shared.AnnotationMountedDriveAsReadOnly] = string(driveReadOnlyBytes)
 	}
 
-	return result, true
+	return result, mounts.ActivityMounts, true
 }

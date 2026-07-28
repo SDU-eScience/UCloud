@@ -1503,7 +1503,7 @@ function EditorTab({
         icon={isSettings ? <Icon name="heroCog6Tooth" size="18px" />
             : isReleaseNotes ? <Icon name="heroGift" size="18px" />
                 : <FullpathFileLanguageIcon filePath={tabTitle} />}
-        title={<Truncate title={prettyFullPath} ml="8px" width="50%">{isSettings ? "Editor settings" : tabTitle}</Truncate>}
+        title={<Truncate title={prettyFullPath} ml="8px" width="180px">{isSettings ? "Editor settings" : tabTitle}</Truncate>}
         iconEnter={() => setHovered(true)}
         iconLeave={() => setHovered(false)}
         cursor={isDirty && !hovered ? "circle" : "close"}

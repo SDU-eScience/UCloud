@@ -28,6 +28,7 @@ import (
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	orc "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -103,7 +104,7 @@ func transferSourceInitiate(request orc.FilesProviderTransferRequestInitiateSour
 	return []string{"built-in"}, nil
 }
 
-func transferDestinationInitiate(request orc.FilesProviderTransferRequestInitiateDestination) (orc.FilesProviderTransferResponse, *util.HttpError) {
+func transferDestinationInitiate(_ rpc.Actor, request orc.FilesProviderTransferRequestInitiateDestination) (orc.FilesProviderTransferResponse, *util.HttpError) {
 	if !slices.Contains(request.SupportedProtocols, "built-in") {
 		return orc.FilesProviderTransferResponse{}, &util.HttpError{
 			StatusCode: http.StatusBadRequest,
@@ -157,7 +158,7 @@ func transferDestinationInitiate(request orc.FilesProviderTransferRequestInitiat
 	return resp, nil
 }
 
-func transferSourceBegin(request orc.FilesProviderTransferRequestStart, session ctrl.FileTransferSession) *util.HttpError {
+func transferSourceBegin(_ rpc.Actor, request orc.FilesProviderTransferRequestStart, session ctrl.FileTransferSession) *util.HttpError {
 	err := RegisterTask(TaskInfoSpecification{
 		Type:          FileTaskTransfer,
 		UCloudSource:  util.OptValue[string](session.SourcePath),
@@ -569,7 +570,7 @@ func retrieve(request orc.FilesProviderRetrieveRequest) (orc.ProviderFile, *util
 	return result, nil
 }
 
-func createFolder(request orc.FilesProviderCreateFolderRequest) *util.HttpError {
+func createFolder(_ rpc.Actor, request orc.FilesProviderCreateFolderRequest) *util.HttpError {
 	internalPath := UCloudToInternalWithDrive(request.ResolvedCollection, request.Id)
 	err := os.MkdirAll(internalPath, 0770)
 	if err != nil {
@@ -619,11 +620,11 @@ func doMoveFiles(ucloudSource, ucloudDest string, conflictPolicy orc.WriteConfli
 	return nil
 }
 
-func moveFiles(request orc.FilesProviderMoveOrCopyRequest) *util.HttpError {
+func moveFiles(_ rpc.Actor, request orc.FilesProviderMoveOrCopyRequest) *util.HttpError {
 	return doMoveFiles(request.OldId, request.NewId, request.ConflictPolicy)
 }
 
-func emptyTrash(request orc.FilesProviderTrashRequest) *util.HttpError {
+func emptyTrash(_ rpc.Actor, request orc.FilesProviderTrashRequest) *util.HttpError {
 	task := TaskInfoSpecification{
 		Type:          FileTaskTypeEmptyTrash,
 		CreatedAt:     fnd.Timestamp(time.Now()),
@@ -655,7 +656,7 @@ func processEmptyTrash(task *TaskInfo) TaskProcessingResult {
 	return TaskProcessingResult{}
 }
 
-func moveToTrash(request orc.FilesProviderTrashRequest) *util.HttpError {
+func moveToTrash(_ rpc.Actor, request orc.FilesProviderTrashRequest) *util.HttpError {
 	if cfg.Services.Unmanaged {
 		parents := util.Parents(request.Id)
 		root := ""
@@ -880,7 +881,7 @@ func validateDownloadAndOpenFile(session ctrl.FileDownloadSession) (*os.File, os
 	return file, stat, nil
 }
 
-func createDownload(session ctrl.FileDownloadSession) *util.HttpError {
+func createDownload(_ rpc.Actor, session ctrl.FileDownloadSession) *util.HttpError {
 	file, _, err := validateDownloadAndOpenFile(session)
 	if err != nil {
 		return err
@@ -890,7 +891,7 @@ func createDownload(session ctrl.FileDownloadSession) *util.HttpError {
 	}
 }
 
-func createUpload(request orc.FilesProviderCreateUploadRequest) (string, *util.HttpError) {
+func createUpload(_ rpc.Actor, request orc.FilesProviderCreateUploadRequest) (string, *util.HttpError) {
 	// TODO(Dan): This can fail if we do not have permissions to write at this path
 	path := UCloudToInternalWithDrive(request.ResolvedCollection, request.Id)
 

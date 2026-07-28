@@ -30,11 +30,12 @@ import (
 	cfg "ucloud.dk/pkg/config"
 	ctrl "ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/integrations/k8s/filesystem"
+	introspection "ucloud.dk/pkg/integrations/k8s/job-introspection"
 	"ucloud.dk/pkg/integrations/k8s/shared"
-	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	orc "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -44,6 +45,11 @@ var Namespace string
 var Enabled = false
 
 const enableDefaultPassword = false
+
+type activityMount struct {
+	UCloudPath string
+	ReadOnly   bool
+}
 
 //go:embed ucloud-vmagent.service
 var vmAgentSystemdFile []byte
@@ -1020,6 +1026,7 @@ func openWebSession(job *orc.Job, sessionType orc.InteractiveSessionType, rank i
 					TargetDomain: ingress.Specification.Domain,
 					Flags:        flags,
 					IsPublic:     true,
+					TLS:          resource.TLS,
 				})
 			}
 		}
@@ -1380,6 +1387,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		PersistentTag string
 	}
 	var unpreparedMounts []unpreparedMount
+	var activityMounts []activityMount
 	for _, param := range job.Specification.Resources {
 		if param.Type == orc.AppParameterValueTypeFile {
 			internalPath, ok, _ := filesystem.UCloudToInternal(param.Path)
@@ -1391,6 +1399,10 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 			if !ok {
 				continue
 			}
+			activityMounts = append(activityMounts, activityMount{
+				UCloudPath: param.Path,
+				ReadOnly:   param.ReadOnly,
+			})
 
 			unpreparedMounts = append(unpreparedMounts, unpreparedMount{
 				SubPath:    subpath,
@@ -1408,6 +1420,14 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		MountFolder:   "/opt",
 		PersistentTag: "ucloud-opt",
 	})
+	if ucxCacheMount := shared.UcxCacheMountForJob(job); ucxCacheMount.Present {
+		unpreparedMounts = append(unpreparedMounts, unpreparedMount{
+			SubPath:       ucxCacheMount.Value.SubPath,
+			ReadOnly:      true,
+			MountPath:     ucxCacheMount.Value.MountPath,
+			PersistentTag: "ucloud-ucx-cache",
+		})
+	}
 
 	jobFolder, herr := JobFolder(job)
 	if herr != nil {
@@ -1443,23 +1463,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 
 			agentTok := util.SecureToken()
 			srvTok := util.SecureToken()
-			db.NewTx0(func(tx *db.Transaction) {
-				db.Exec(
-					tx,
-					`
-						insert into k8s.vmagents(job_id, agent_token, srv_token)
-						values (:job_id, :agent_token, :srv_token)
-						on conflict (job_id) do update set 
-						    agent_token = excluded.agent_token, 
-						    srv_token = excluded.srv_token
-					`,
-					db.Params{
-						"job_id":      job.Id,
-						"agent_token": agentTok,
-						"srv_token":   srvTok,
-					},
-				)
-			})
+			introspection.StoreToken(job.Id, agentTok, util.OptValue(srvTok))
 
 			writeConfFile := func(name string, data []byte, mode os.FileMode) *util.HttpError {
 				tokPath := filepath.Join(confDir, name)
@@ -1800,7 +1804,20 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		log.Warn("Failed to create VM: %v", err)
 		return util.HttpErr(http.StatusInternalServerError, "failed to create VM")
 	}
+	recordMountActivity(job, activityMounts)
 	return nil
+}
+
+func recordMountActivity(job *orc.Job, mounts []activityMount) {
+	actor := rpc.Actor{Username: job.Owner.CreatedBy}
+	for _, mount := range mounts {
+		filesystem.ActivityRecord(actor, filesystem.ActivityEvent{
+			Kind:      filesystem.ActivityMount,
+			Operation: filesystem.ActivityOperationMount,
+			ReadOnly:  mount.ReadOnly,
+			Targets:   []filesystem.ActivityTarget{{UCloudPath: mount.UCloudPath}},
+		})
+	}
 }
 
 const vmUpdateConflictRetries = 5

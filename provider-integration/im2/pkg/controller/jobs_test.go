@@ -2,6 +2,7 @@ package controller
 
 import (
 	"testing"
+	"time"
 
 	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
@@ -102,5 +103,19 @@ func TestJobForTrackingRemovesApiServerResourcesAfterQueue(t *testing.T) {
 	}
 	if sanitized.Specification.Resources[0].Type != orc.AppParameterValueTypeFile {
 		t.Fatalf("expected file resource to remain")
+	}
+}
+
+func TestParseIpReclaimDurationAcceptsDays(t *testing.T) {
+	tests := map[string]time.Duration{
+		"30d":     30 * 24 * time.Hour,
+		"1d12h":   36 * time.Hour,
+		"1.5d30m": 36*time.Hour + 30*time.Minute,
+	}
+	for input, expected := range tests {
+		actual, err := parseIpReclaimDuration(input)
+		if err != nil || actual != expected {
+			t.Errorf("parseIpReclaimDuration(%q) = %v, %v; want %v, nil", input, actual, err, expected)
+		}
 	}
 }

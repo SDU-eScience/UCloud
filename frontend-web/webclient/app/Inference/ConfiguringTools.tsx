@@ -73,7 +73,7 @@ export default function ConfiguringTools({
     };
 
     const resolvedServer = tokenStatus?.server ?? server;
-    const apiToken = tokenStatus?.token ?? "$API_TOK";
+    const apiToken = tokenStatus?.token ?? "$UCLOUD_INFERENCE_TOK";
     const configuredModels = modelId ? models.filter(model => model.name === modelId) : models.filter(model => model.capabilities.includes("TextGeneration"));
     const modelRefs = configuredModels.length > 0 ? configuredModels.map(model => ({
         id: model.name,
@@ -112,7 +112,7 @@ export default function ConfiguringTools({
     "messages": [{"role": "user", "content": "Hello"}]
   }'`} />
 
-                <Text>Only the chat completions API is supported. Other OpenAI APIs, such as the responses API, are not available.</Text>
+                <Text>Only the a limited set of APIs are supported. Prefer using the chat completions API when possible.</Text>
             </ToolGuide>
 
             <ToolGuide id="vscode" title="VS Code" openTool={openTool} setOpenTool={setOpenTool}>
@@ -177,7 +177,7 @@ export default function ConfiguringTools({
                 <ul>
                     <li>Export your API key before starting Codex:</li>
                 </ul>
-                <CodeSnippet lang="bash" children={`export API_TOK="${tokenStatus?.token ?? "your-api-key"}"`} />
+                <CodeSnippet lang="bash" children={`export UCLOUD_INFERENCE_TOK="${tokenStatus?.token ?? "your-api-key"}"`} />
                 <ul>
                     <li>Create or edit <code>~/.codex/config.toml</code>.</li>
                     <li>Add a custom provider:</li>
@@ -188,7 +188,7 @@ model_provider = "ucloud"
 [model_providers.ucloud]
 name = "UCloud"
 base_url = "${resolvedServer}"
-env_key = "API_TOK"`} />
+env_key = "UCLOUD_INFERENCE_TOK"`} />
                 <ul>
                     <li>Start Codex normally with <CopyableInline value="codex" />.</li>
                     <li>To use the model directly from the command line, run <CopyableInline value={`codex --model "${firstModelId}"`} />.</li>

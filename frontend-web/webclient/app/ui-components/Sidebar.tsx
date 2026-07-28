@@ -75,6 +75,7 @@ import {AutomaticBranding} from "@/Applications/Branding/AutomaticBranding";
 import {BrandingResponse} from "@/UCloud/BrandingApi";
 import {Feature, hasFeature} from "@/Features";
 import {setAppFavorites} from "@/Applications/Redux/Reducer";
+import {useInferenceThreads} from "@/Inference/ThreadStore";
 
 const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
     ${k} {
@@ -424,12 +425,21 @@ function allSidebarCommands(state: HookStore, navigate: NavigateFunction): Comma
 
 function sidebarSubEntries(canApply: boolean, isPersonalWorkspace: boolean, projectId: string | undefined): Record<SidebarTabId, LinkInfo[]> {
     return {
-        [SidebarTabId.FILES]: [{
-            to: AppRoutes.files.drives(),
-            text: "Drives",
-            icon: "ftFileSystem",
-            tab: SidebarTabId.FILES
-        }, ...(isPersonalWorkspace ? sharesLinksInfo : [])],
+        [SidebarTabId.FILES]: [
+            {
+                to: AppRoutes.syncthing.syncthing(),
+                text: "File synchronization",
+                icon: "heroArrowPath",
+                tab: SidebarTabId.FILES
+            },
+            {
+                to: AppRoutes.files.drives(),
+                text: "Drives",
+                icon: "ftFileSystem",
+                tab: SidebarTabId.FILES
+            },
+            ...(isPersonalWorkspace ? sharesLinksInfo : [])
+        ],
         [SidebarTabId.PROJECT]: projectSidebarSubLinks(canApply, isPersonalWorkspace, projectId),
         [SidebarTabId.RESOURCES]: ResourceSubLinksEntries,
         [SidebarTabId.INFERENCE]: InferenceSubLinksEntries,
@@ -743,15 +753,15 @@ function InferenceSubLinks(): React.ReactNode {
 const InferenceSubLinksEntries: LinkInfo[] = [
     {
         to: AppRoutes.inference.models(),
-        text: "Model catalog",
+        text: "Models",
         icon: "heroBuildingStorefront",
         tab: SidebarTabId.INFERENCE,
         defaultHidden: false,
     },
     {
         to: AppRoutes.inference.playground(),
-        text: "Playground",
-        icon: "heroBeaker",
+        text: "Chat",
+        icon: "heroChatBubbleLeft",
         tab: SidebarTabId.INFERENCE,
         defaultHidden: false,
     },
@@ -908,6 +918,7 @@ function SecondarySidebar({
 }: SecondarySidebarProps): React.ReactNode {
     const [drives, favoriteFiles] = useSidebarFilesPage();
     const recentRuns = useSidebarRunsPage();
+    const recentThreads = useInferenceThreads();
     const projectId = useProjectId();
     const lastHover = React.useRef(SidebarTabId.NONE);
     const isPersonalWorkspace = !projectId;
@@ -1158,6 +1169,15 @@ function SecondarySidebar({
                     <SidebarSectionHeader tab={SidebarTabId.FILES}>Shared files</SidebarSectionHeader>
                     <SidebarLinkColumn links={sharesLinksInfo} />
                 </> : null}
+
+                <SidebarSectionHeader tab={SidebarTabId.FILES} to={AppRoutes.syncthing.syncthing()}>Sync</SidebarSectionHeader>
+                <SidebarEntry
+                    to={AppRoutes.syncthing.syncthing()}
+                    text="File synchronization"
+                    icon="heroCloud"
+                    tab={SidebarTabId.FILES}
+                />
+
             </>}
 
             {active !== SidebarTabId.PROJECT ? null : <>
@@ -1173,6 +1193,15 @@ function SecondarySidebar({
             {active !== SidebarTabId.INFERENCE ? null : <>
                 <SidebarSectionEmptyHeader />
                 <InferenceSubLinks />
+                <SidebarSectionHeader tab={SidebarTabId.INFERENCE}>Recent chats</SidebarSectionHeader>
+                {recentThreads.length === 0 ? <SidebarEmpty>No chats yet</SidebarEmpty> : null}
+                {recentThreads.slice(0, 10).map(thread => <SidebarEntry
+                    key={thread.id}
+                    to={AppRoutes.inference.playground(undefined, thread.id)}
+                    text={thread.title || "New thread"}
+                    icon="heroChatBubbleLeft"
+                    tab={SidebarTabId.INFERENCE}
+                />)}
             </>}
 
             {/* Note(Jonas) Do it this way to ensure that the frontend doesn't fetch icons every time this is shown. */}

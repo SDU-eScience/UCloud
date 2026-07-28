@@ -24,6 +24,7 @@ export enum ValueKind {
     String = 4,
     List = 5,
     Object = 6,
+    Binary = 7,
 }
 
 export type Value =
@@ -33,9 +34,10 @@ export type Value =
     | { kind: ValueKind.F64; f64: number }
     | { kind: ValueKind.String; string: string }
     | { kind: ValueKind.List; list: Value[] }
-    | { kind: ValueKind.Object; object: Record<string, Value> };
+    | { kind: ValueKind.Object; object: Record<string, Value> }
+    | { kind: ValueKind.Binary; binary: Uint8Array };
 
-export type PlainValue = null | boolean | number | string | PlainValue[] | { [key: string]: PlainValue };
+export type PlainValue = null | boolean | number | string | Uint8Array | PlainValue[] | { [key: string]: PlainValue };
 
 const valueRootKey = "";
 
@@ -117,7 +119,11 @@ class BinaryWriter {
     writeString(v: string) {
         const encoded = this.encoder.encode(v);
         this.writeU32(encoded.length);
-        for (const b of encoded) this.bytes.push(b);
+        this.writeBytes(encoded);
+    }
+
+    writeBytes(v: Uint8Array) {
+        for (const b of v) this.bytes.push(b);
     }
 
     stringByteLength(v: string): number {
@@ -169,8 +175,12 @@ class BinaryReader {
 
     readString(): string {
         const len = this.readU32();
+        return this.decoder.decode(this.readBytes(len));
+    }
+
+    readBytes(len: number): Uint8Array {
         this.ensure(len);
-        const out = this.decoder.decode(this.bytes.subarray(this.offset, this.offset + len));
+        const out = this.bytes.slice(this.offset, this.offset + len);
         this.offset += len;
         return out;
     }
@@ -355,6 +365,10 @@ function encodeValue(w: BinaryWriter, value: Value) {
         case ValueKind.String:
             w.writeString(value.string);
             break;
+        case ValueKind.Binary:
+            w.writeU32(value.binary.length);
+            w.writeBytes(value.binary);
+            break;
         case ValueKind.List:
             w.writeU32(value.list.length);
             for (const item of value.list) encodeValue(w, item);
@@ -378,6 +392,10 @@ function decodeValue(r: BinaryReader): Value {
             return {kind, f64: r.readF64()};
         case ValueKind.String:
             return {kind, string: r.readString()};
+        case ValueKind.Binary: {
+            const length = r.readU32();
+            return {kind, binary: r.readBytes(length)};
+        }
         case ValueKind.List: {
             const count = r.readU32();
             const list: Value[] = [];
@@ -432,6 +450,8 @@ export function valueToPlain(value: Value): PlainValue {
             return value.f64;
         case ValueKind.String:
             return value.string;
+        case ValueKind.Binary:
+            return value.binary;
         case ValueKind.List:
             return value.list.map(valueToPlain);
         case ValueKind.Object: {
@@ -462,6 +482,10 @@ export function plainToValue(value: PlainValue): Value {
 
     if (typeof value === "string") {
         return {kind: ValueKind.String, string: value};
+    }
+
+    if (value instanceof Uint8Array) {
+        return {kind: ValueKind.Binary, binary: value};
     }
 
     if (Array.isArray(value)) {

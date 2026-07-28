@@ -85,6 +85,7 @@ import {GrantApplicationBrowse} from "./Grants/GrantApplicationBrowse";
 import {IngoingSharesBrowse} from "@/Files/Shares";
 import {JobsRouter} from "@/Applications/Jobs/Router";
 import {DrivesRouter, FilesRouter} from "@/Files/Router";
+import FilesVisualization from "@/Files/Visualization";
 import LicenseRouter from "./Applications/Licenses";
 import PublicLinksRouter from "@/Applications/PublicLinks/Router";
 import SharesApi from "@/UCloud/SharesApi";
@@ -120,6 +121,7 @@ const Core = (): React.ReactNode => (
                     <Route path={AppRoutes.dashboard.dashboardB()}
                            element={React.createElement(requireAuth(Dashboard))} />
                     <Route path={"/drives/*"} element={React.createElement(requireAuth(DrivesRouter))} />
+                    <Route path={AppRoutes.files.visualize()} element={React.createElement(requireAuth(FilesVisualization))} />
                     <Route path="/files/*" element={React.createElement(requireAuth(FilesRouter))} />
 
                     <Route path={AppRoutes.users.registration()} element={<Registration />} />

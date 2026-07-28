@@ -40,6 +40,7 @@ type FSSupport struct {
 	Stats struct {
 		SizeInBytes                  bool `json:"sizeInBytes"`
 		SizeIncludingChildrenInBytes bool `json:"sizeIncludingChildrenInBytes"`
+		Visualization                bool `json:"visualization"`
 		ModifiedAt                   bool `json:"modifiedAt"`
 		CreatedAt                    bool `json:"createdAt"`
 		AccessedAt                   bool `json:"accessedAt"`

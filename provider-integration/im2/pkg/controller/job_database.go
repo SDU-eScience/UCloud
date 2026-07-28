@@ -12,6 +12,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"ucloud.dk/pkg/gateway"
 	"ucloud.dk/pkg/ipc"
+	"ucloud.dk/pkg/ucxdelivery"
 
 	db "ucloud.dk/shared/pkg/database"
 	fnd "ucloud.dk/shared/pkg/foundation"
@@ -165,6 +166,9 @@ func JobTrackNew(job orc.Job) {
 		metricTrackUpdateMemory.Observe(timer.Mark().Seconds())
 
 		jobTrackUpdateServer(&job)
+		if err := ucxdelivery.TrackJob(job); err != nil {
+			log.Warn("UCX delivery: failed to track job %s: %v", job.Id, err)
+		}
 
 		if refreshRoutes {
 			timer.Mark()

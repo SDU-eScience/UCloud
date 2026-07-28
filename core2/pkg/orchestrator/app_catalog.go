@@ -1927,6 +1927,9 @@ func AppStudioCreateApplication(app *orcapi.Application) *util.HttpError {
 
 	var err *util.HttpError
 	var result *internalApplication
+	if validationErr := validateUcxExecutableMetadata(&app.Invocation); validationErr != nil {
+		return validationErr
+	}
 
 	toolName := app.Invocation.Tool.Name
 	toolVersion := app.Invocation.Tool.Version
@@ -1986,6 +1989,59 @@ func AppStudioCreateApplication(app *orcapi.Application) *util.HttpError {
 	}
 
 	return err
+}
+
+func validateUcxExecutableMetadata(invocation *orcapi.ApplicationInvocationDescription) *util.HttpError {
+	return validateUcxExecutableMetadataSection(invocation.Ucx, "invocation.ucx.executable")
+}
+
+func validateUcxExecutableMetadataSection(ucx util.Option[orcapi.UcxDescription], path string) *util.HttpError {
+	if !ucx.Present || !ucx.Value.Executable.Present {
+		return nil
+	}
+
+	executable := ucx.Value.Executable.Value
+	if strings.TrimSpace(executable.ManifestUrl) == "" {
+		return util.HttpErr(http.StatusBadRequest, "%s.manifestUrl is required", path)
+	}
+	if strings.HasPrefix(executable.ManifestUrl, "builtin://") {
+		if _, ok := builtinUcxExecutableName(executable.ManifestUrl); !ok {
+			return util.HttpErr(http.StatusBadRequest, "%s.manifestUrl must contain a valid built-in executable name", path)
+		}
+		return nil
+	}
+	if !strings.HasPrefix(executable.ManifestUrl, "https://") {
+		return util.HttpErr(http.StatusBadRequest, "%s.manifestUrl must be an HTTPS URL", path)
+	}
+	if strings.TrimSpace(executable.PublicKey) == "" {
+		return util.HttpErr(http.StatusBadRequest, "%s.publicKey is required", path)
+	}
+	if !strings.HasPrefix(executable.PublicKey, "ed25519:") {
+		return util.HttpErr(http.StatusBadRequest, "%s.publicKey must use the ed25519: prefix", path)
+	}
+	if strings.TrimSpace(executable.BinaryName) == "" {
+		return util.HttpErr(http.StatusBadRequest, "%s.binaryName is required", path)
+	}
+
+	return nil
+}
+
+func builtinUcxExecutableName(manifestUrl string) (string, bool) {
+	const prefix = "builtin://"
+	if !strings.HasPrefix(manifestUrl, prefix) {
+		return "", false
+	}
+
+	name := strings.TrimPrefix(manifestUrl, prefix)
+	if name == "" || name == "." || name == ".." {
+		return "", false
+	}
+	for _, ch := range name {
+		if (ch < 'a' || ch > 'z') && (ch < 'A' || ch > 'Z') && (ch < '0' || ch > '9') && ch != '-' && ch != '_' && ch != '.' {
+			return "", false
+		}
+	}
+	return name, true
 }
 
 func AppStudioCreateToolDirect(tool *orcapi.Tool) *util.HttpError {

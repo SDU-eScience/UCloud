@@ -390,6 +390,7 @@ type EnvoyCluster struct {
 	Address string
 	Port    int
 	UseDNS  bool
+	TLS     bool
 }
 
 type RouteType int

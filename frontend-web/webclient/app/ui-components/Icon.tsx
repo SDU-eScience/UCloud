@@ -43,6 +43,7 @@ export interface IconBaseProps extends SpaceProps, React.SVGAttributes<HTMLDivEl
     title?: string;
     className?: string;
     style?: CSSProperties;
+    noDefaultFill?: boolean;
 }
 
 export const IconClass = injectStyle("icon", k => `
@@ -74,7 +75,7 @@ const Icon: React.FunctionComponent<IconBaseProps> = ({size = 18, squared = true
     if (props.spinSpeed) style["--spinSpeed"] = props.spinSpeed;
     if (props.rotation) style.transform = `rotate(${props.rotation}deg)`;
     style.cursor = props.cursor ?? "inherit";
-    if (props.name === "fork") {
+    if (props.name === "fork" || props.noDefaultFill) {
         style.fill = "none";
     }
 
@@ -87,9 +88,9 @@ Icon.displayName = "Icon";
 export const EveryIcon = (): React.ReactNode => {
     const iconNames: IconName[] = Object.keys(icons) as unknown as IconName[];
     return (
-        <Grid gap={"16px"} gridTemplateColumns={"repeat(auto-fit, minmax(250px, 1fr)"}>
+        <Grid gap={"16px"} gridTemplateColumns={"repeat(auto-fit, minmax(220px, 1fr)"}>
             {iconNames.map((it, i) =>
-                (<span style={{fontSize: "12px"}} title={it} key={i}><Icon name={it} key={i} color="iconColor" color2="iconColor2" size={64} /> {it}</span>)
+                (<span style={{fontSize: "12px"}} title={it} key={i}><Icon name={it} key={i} color="iconColor" color2="iconColor2" size={32} /> {it}</span>)
             )}
         </Grid>
     );

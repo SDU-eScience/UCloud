@@ -122,7 +122,7 @@ func initStartup() {
 
 	err := ApplyMountOverrides(
 		context.Background(),
-		[]string{"/work", "/etc/ucloud", "/opt/ucloud"},
+		[]string{"/work", "/etc/ucloud", "/opt/ucloud", "/opt/ucloud-ucx"},
 		MountOverrideOptions{
 			TimeoutSec:   "1s",
 			LazyUnmount:  true,

@@ -140,6 +140,7 @@ const files = {
     drives: () => "/drives",
     drive: (driveId: string) => buildQueryString("/files", {path: "/" + driveId}),
     path: (path: string) => buildQueryString("/files", {path}),
+    visualize: (path?: string) => buildQueryString("/files/visualize", {path}),
     preview: (path: string) => "/files/properties/" + encodeURIComponent(path)
 }
 

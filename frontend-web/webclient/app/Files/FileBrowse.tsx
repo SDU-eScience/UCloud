@@ -76,8 +76,12 @@ import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {HTMLTooltip} from "@/ui-components/Tooltip";
 import SharesApi, {OutgoingShareGroup} from "@/UCloud/SharesApi";
 import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
-import {ProductStorage} from "@/Accounting";
+import {browseWalletsV2, ProductStorage, WalletV2} from "@/Accounting";
 import {genericSet} from "@/Utilities/ReduxHooks";
+import {createPortal} from "react-dom";
+import {FileBrowserStatusBar, FileBrowserStatusData} from "./FileBrowserStatusBar";
+import {fetchAll} from "@/Utilities/PageUtilities";
+import {Feature, hasFeature} from "@/Features";
 
 export enum SensitivityLevel {
     "INHERIT" = "Inherit",
@@ -94,6 +98,7 @@ const collectionCache = new AsyncCache<FileCollection>({globalTtl: 15_000});
 const collectionCacheForCompletion = new AsyncCache<FileCollection[]>({globalTtl: 60_000});
 const trashCache = new AsyncCache<UFile>();
 const metadataTemplateCache = new AsyncCache<string>();
+const driveUsageCache = new AsyncCache<{bytes: number}>({globalTtl: 15 * 60_000});
 
 const defaultRetrieveFlags: Partial<UFileIncludeFlags> & {itemsPerPage: number} = {
     includeMetadata: true,
@@ -151,6 +156,10 @@ function FileBrowse({
     }
 
     const [providerRestriction, setProviderRestriction] = React.useState<string | null>(null);
+    const [statusBarTarget, setStatusBarTarget] = React.useState<HTMLElement | null>(null);
+    const [statusBarData, setStatusBarData] = React.useState<FileBrowserStatusData | null>(null);
+    const statusRequest = useRef(0);
+    const statusBarEnabled = hasFeature(Feature.FILE_BROWSER_STATUS_BAR);
 
     const isInitialMount = useRef<boolean>(true);
     useEffect(() => {
@@ -204,8 +213,92 @@ function FileBrowse({
         let shares: Record<string, OutgoingShareGroup> = {};
         let initialFetchDone = false;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<UFile>(mount, RESOURCE_NAME, opts).init(browserRef, features, undefined, browser => {
+            const resourceBrowser = new ResourceBrowser<UFile>(mount, RESOURCE_NAME, opts);
+            resourceBrowser.init(browserRef, features, undefined, browser => {
                 browser.setColumns(rowTitles);
+
+                const updateStatusSelection = () => setStatusBarData(current => current == null ? null : {
+                    ...current,
+                    selected: browser.findSelectedEntries(),
+                });
+                browser.on("rowSelectionUpdated", updateStatusSelection);
+
+                const loadStatus = async (path: string, collection: FileCollection) => {
+                    if (!statusBarEnabled || opts?.embedded || opts?.isModal) return;
+                    const requestId = ++statusRequest.current;
+                    if (path === SEARCH) {
+                        setStatusBarData(null);
+                        return;
+                    }
+
+                    try {
+                        const rootPath = `/${pathComponents(path)[0]}`;
+                        const directoryPromise = folderCache.retrieve(path, () => callAPI(FilesApi.retrieve({
+                            id: path,
+                            includeSizes: true,
+                        })));
+                        const drivePromise = path === rootPath
+                            ? directoryPromise
+                            : callAPI(FilesApi.retrieve({id: rootPath, includeSizes: true})).catch(() => directoryPromise);
+                        const walletsPromise = callAPI(browseWalletsV2({filterType: "STORAGE", itemsPerPage: 250}))
+                            .catch(() => ({items: [], itemsPerPage: 250}));
+                        const preciseOwnUsagePromise = driveUsageCache.retrieve(
+                            `${activeProject.current ?? ""}/${collection.specification.product.provider}/${collection.specification.product.category}`,
+                            async () => {
+                                const drives = await fetchAll<FileCollection>(next => callAPI(FileCollectionsApi.browse({
+                                    itemsPerPage: 250,
+                                    next,
+                                    filterMemberFiles: "all",
+                                    ...opts?.additionalFilters,
+                                })));
+                                const matchingDrives = drives.filter(it =>
+                                    it.specification.product.provider === collection.specification.product.provider &&
+                                    it.specification.product.category === collection.specification.product.category
+                                );
+                                let nextDrive = 0;
+                                let bytes = 0;
+                                const workers = Array.from({length: Math.min(6, matchingDrives.length)}, async () => {
+                                    while (nextDrive < matchingDrives.length) {
+                                        const candidate = matchingDrives[nextDrive++];
+                                        try {
+                                            const root = await callAPI(FilesApi.retrieve({id: `/${candidate.id}`, includeSizes: true}));
+                                            bytes += root.status.sizeIncludingChildrenInBytes ?? 0;
+                                        } catch {
+                                            // Missing permissions are handled by validating the sum against accounting usage.
+                                        }
+                                    }
+                                });
+                                await Promise.all(workers);
+                                return {bytes};
+                            }
+                        ).catch(() => undefined);
+                        const [directory, drive, wallets] = await Promise.all([
+                            directoryPromise,
+                            drivePromise,
+                            walletsPromise,
+                        ]);
+                        if (requestId !== statusRequest.current || browser.currentPath !== path) return;
+                        const wallet = (wallets.items as WalletV2[]).find(it =>
+                            it.paysFor.provider === collection.specification.product.provider &&
+                            it.paysFor.name === collection.specification.product.category
+                        );
+                        setStatusBarData({
+                            path,
+                            directory,
+                            drive,
+                            wallet,
+                            selected: browser.findSelectedEntries(),
+                        });
+                        const preciseOwnUsage = await preciseOwnUsagePromise;
+                        if (requestId !== statusRequest.current || browser.currentPath !== path) return;
+                        setStatusBarData(current => current?.path === path ? {
+                            ...current,
+                            preciseOwnUsageBytes: preciseOwnUsage?.bytes,
+                        } : current);
+                    } catch {
+                        if (requestId === statusRequest.current) setStatusBarData(null);
+                    }
+                };
 
                 callAPI(SharesApi.browseOutgoing({itemsPerPage: 250})).then((result: PageV2<OutgoingShareGroup>) => {
                     shares = associateBy(result.items, s => s.sourceFilePath);
@@ -1269,6 +1362,7 @@ function FileBrowse({
                     }
 
                     if (newPath !== SEARCH) lastActiveFilePath = newPath;
+                    setStatusBarData(null);
 
                     if (openTriggeredByPath.current === newPath) {
                         openTriggeredByPath.current = null;
@@ -1291,7 +1385,7 @@ function FileBrowse({
                     const collectionId = pathComponents(newPath)[0];
 
                     folderCache
-                        .retrieve(newPath, () => callAPI(FilesApi.retrieve({id: newPath})))
+                        .retrieve(newPath, () => callAPI(FilesApi.retrieve({id: newPath, includeSizes: true})))
                         .then(() => browser.renderOperations());
 
                     collectionCache
@@ -1302,7 +1396,8 @@ function FileBrowse({
                                 includeSupport: true,
                                 ...opts?.additionalFilters
                             })
-                        )).then(() => {
+                        )).then(collection => {
+                            loadStatus(newPath, collection);
                             if (!opts?.embedded) {
                                 const collection = collectionCache.retrieveFromCacheOnly(collectionId);
                                 if (!collection?.specification.product.provider) return;
@@ -1539,6 +1634,15 @@ function FileBrowse({
                     }
                 });
             });
+
+            if (statusBarEnabled && !opts?.embedded && !opts?.isModal) {
+                const statusHost = document.createElement("div");
+                statusHost.style.flexGrow = "0";
+                statusHost.style.flexShrink = "0";
+                statusHost.style.minHeight = "52px";
+                mount.append(statusHost);
+                setStatusBarTarget(statusHost);
+            }
         }
 
         const b = browserRef.current;
@@ -1598,6 +1702,7 @@ function FileBrowse({
                     setLocalProject ? {setLocalProject, initialProject: activeProject.current} : undefined,
                 )
                 : switcher}
+            {statusBarTarget && statusBarData ? createPortal(<FileBrowserStatusBar data={statusBarData} />, statusBarTarget) : null}
         </>}
     />;
 

@@ -77,7 +77,7 @@ func handleShellNoRetry(session *controller.ShellSession, cols int, rows int, is
 		lastActivity.Store(time.Now().UnixMilli())
 	} else {
 		var err *util.HttpError
-		sandbox, err = shared.TerminalOpenToJob(session.Job.Id)
+		sandbox, err = shared.TerminalOpenToJob(session.Job.Id, util.OptValue(session.Rank))
 		if err != nil {
 			log.Info("Failure while configuring integrated terminal: %s", err)
 			return false
@@ -139,13 +139,9 @@ func handleShellNoRetry(session *controller.ShellSession, cols int, rows int, is
 						iappConfig, iappOk := activeIApps[job.Id]
 						handler, handlerOk := IApps[integratedTerminalAppName]
 
-						iappEtag := util.OptMapGet(pod.Annotations, IAppAnnotationEtag)
-
 						shouldRun := handlerOk &&
 							iappOk &&
-							iappEtag.Present &&
-							handler.ShouldRun(job, iappConfig.Configuration) &&
-							iappEtag.Value == iappConfig.ETag
+							iappPodShouldRun(handler, job, iappConfig, pod)
 
 						if shouldRun {
 							break

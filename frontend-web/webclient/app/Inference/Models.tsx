@@ -9,10 +9,11 @@ import {useProjectId} from "@/Project/Api";
 import {InferenceCapability, InferenceModel, listModels} from "./api";
 import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
-import ModelInferenceLogo from "@/Inference/ModelLogo";
+import ModelInferenceLogo, {modelProviderName} from "@/Inference/ModelLogo";
 import {injectStyle} from "@/Unstyled";
 import {SingleLineMarkdown} from "@/ui-components/Markdown";
-import HeroSvg from "@/ui-components/icons/logo_esc.svg";
+// import HeroImage from "@/ui-components/icons/logo_esc.svg";
+import HeroImage from "@/Assets/Images/inference/ucloud-ai-logo.png";
 import {RichSelect} from "@/ui-components/RichSelect";
 import {useIsLightThemeStored} from "@/ui-components/theme";
 
@@ -128,25 +129,23 @@ const pageStyle = injectStyle("inference-models-page", k => `
     }
 
     ${k} .hero-icon {
-        bottom: -120px;
-        filter: grayscale(1) saturate(0.50) drop-shadow(0 0 0 rgba(81, 161, 255, 0));
-        height: min(42vw, 520px);
+        bottom: -55px;
+        filter: grayscale(0.0) saturate(0.70) drop-shadow(0 0 0 rgba(81, 161, 255, 0));
+        max-height: min(42vw, 520px);
         mask-image: linear-gradient(135deg, rgba(0, 0, 0, 0.92) 0%, rgba(0, 0, 0, 0.62) 46%, rgba(0, 0, 0, 0) 86%);
-        opacity: 0.22;
+        opacity: 0.60;
         pointer-events: none;
         position: absolute;
         right: 0;
-        transform: rotate(-12deg);
-        transform-origin: 58% 58%;
         transition: filter 420ms ease, opacity 420ms ease, transform 520ms ease;
-        width: min(42vw, 520px);
+        max-width: min(42vw, 520px);
     }
 
     ${k} .hero:hover .hero-icon,
     ${k} .hero:focus-within .hero-icon {
         filter: grayscale(0.15) saturate(1.35) drop-shadow(0 0 30px rgba(81, 161, 255, 0.28));
-        opacity: 0.50;
-        transform: rotate(-12deg) translate3d(-6px, -4px, 0) scale(1.015);
+        opacity: 0.80;
+        transform: translate3d(-6px, -4px, 0) scale(1.015);
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -629,9 +628,9 @@ export default function Models(): React.ReactNode {
         const query = search.trim().toLowerCase();
         return models.filter(model => {
             if (capabilityFilter !== "All" && !model.capabilities.includes(capabilityFilter)) return false;
-            if (providerFilters.length > 0 && !providerFilters.includes(modelProvider(model.name))) return false;
+            if (providerFilters.length > 0 && !providerFilters.includes(modelProviderName(model.name))) return false;
             if (query !== "") {
-                const haystack = [model.title, model.name, model.page?.shortDescription, model.page?.datasheet?.parameters, modelProvider(model.name)]
+                const haystack = [model.title, model.name, model.page?.shortDescription, model.page?.datasheet?.parameters, modelProviderName(model.name)]
                     .filter(Boolean)
                     .join(" ")
                     .toLowerCase();
@@ -662,11 +661,11 @@ export default function Models(): React.ReactNode {
                     <h1>Production-ready models for research and automation.</h1>
                     <p>Browse a growing catalog of hosted models for text generation. Use them interactively from the playground, through jobs, or through OpenAI-compatible endpoints.</p>
                     <div className="hero-actions">
-                        <Link className="button-link" to={AppRoutes.inference.playground()}><Button type="button">Open playground</Button></Link>
+                        <Link className="button-link" to={AppRoutes.inference.playground()}><Button type="button">Open chat</Button></Link>
                         <Button type="button" color="secondaryMain" onClick={() => document.getElementById("model-catalog")?.scrollIntoView({behavior: "smooth"})}>Browse models</Button>
                     </div>
                 </div>
-                <img className="hero-icon" src={HeroSvg} alt="" aria-hidden="true" />
+                <img className="hero-icon" src={HeroImage} alt="" aria-hidden="true" />
             </div>
         </section>
 
@@ -734,7 +733,7 @@ export default function Models(): React.ReactNode {
                 <div className="consume-grid">
                     <div className="consume-card">
                         <div className="consume-number"><Icon name={"heroBeaker"} /></div>
-                        <h3>Playground</h3>
+                        <h3>Chat</h3>
                         <p>Try prompts, compare model behavior and iterate on ideas before wiring anything into production workflows.</p>
                     </div>
                     <div className="consume-card">
@@ -755,11 +754,11 @@ export default function Models(): React.ReactNode {
             <div className="panel-inner cta">
                 <div>
                     <h2>Ready to build with hosted inference?</h2>
-                    <p>Open the playground to test a model, or use the catalog to find details and integration settings.</p>
+                    <p>Open the chat to test a model, or use the catalog to find details and integration settings.</p>
                 </div>
                 <div className="cta-actions">
                     <Link className="button-link" to={AppRoutes.inference.playground()}>
-                        <Button type="button" color={"successMain"}>Try the playground</Button>
+                        <Button type="button" color={"successMain"}>Try the models</Button>
                     </Link>
                     <Link className="button-link" to={AppRoutes.grants.newApplication({})}>
                         <Button type="button" color={secondaryCtaColor}>Apply for access</Button>
@@ -841,26 +840,12 @@ interface ModelProviderOption {
 function modelProviderOptions(models: InferenceModel[]): ModelProviderOption[] {
     const options = new Map<string, string>();
     for (const model of models) {
-        const provider = modelProvider(model.name);
+        const provider = modelProviderName(model.name);
         if (!options.has(provider)) options.set(provider, model.name);
     }
     return [...options.entries()]
         .map(([provider, modelName]) => ({provider, modelName}))
         .sort((a, b) => a.provider.localeCompare(b.provider));
-}
-
-function modelProvider(modelName: string): string {
-    const norm = modelName.toLowerCase();
-    if (norm.includes("deepseek")) return "DeepSeek";
-    if (norm.includes("llama")) return "Meta";
-    if (norm.includes("qwen")) return "Qwen";
-    if (norm.includes("minimax")) return "Minimax";
-    if (norm.includes("glm")) return "Z.ai";
-    if (norm.includes("mistral")) return "Mistral";
-    if (norm.includes("google") || norm.includes("gemma")) return "Google";
-    if (norm.includes("kimi") || norm.includes("k2.")) return "Moonshot AI";
-    if (norm.includes("gpt")) return "OpenAI";
-    return "Unknown";
 }
 
 function ModelCatalogCard(props: {model: InferenceModel;}): React.ReactNode {

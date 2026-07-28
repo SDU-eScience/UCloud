@@ -197,3 +197,30 @@ func projectsV4() db.MigrationScript {
 		},
 	}
 }
+
+func projectsV5() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "projectsV5",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					create or replace function project.notify_project_group_delete()
+					returns trigger as $$
+						begin
+							if (tg_op = 'DELETE') then
+								perform pg_notify('project_updates', old.project::text);
+								perform pg_notify('project_group_updates', old.project::text);
+								return old;
+							else
+								perform pg_notify('project_updates', new.project::text);
+								return new;
+							end if;
+						end;
+					$$ language plpgsql;
+			`,
+				db.Params{},
+			)
+		},
+	}
+}

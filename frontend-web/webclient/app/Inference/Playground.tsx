@@ -1,33 +1,21 @@
 import * as React from "react";
-import ReactModal from "react-modal";
 
 import {callAPI} from "@/Authentication/DataHook";
-import {dialogStore} from "@/Dialog/DialogStore";
-import FileBrowse from "@/Files/FileBrowse";
 import {MainContainer} from "@/ui-components/MainContainer";
-import {Box, Button, ExternalLink, Flex, Icon, Image, Input, Text, TextArea,} from "@/ui-components";
-import CodeSnippet from "@/ui-components/CodeSnippet";
+import {Box, Button, Flex, Icon, Text, TextArea,} from "@/ui-components";
 import {Toggle} from "@/ui-components/Toggle";
-import {largeModalStyle} from "@/Utilities/ModalUtilities";
-import {api as FilesApi} from "@/UCloud/FilesApi";
-import {Selection} from "@/ui-components/ResourceBrowser";
-import UcxView, {UcxComponentRegistry, UcxRenderContext} from "@/UCX/UcxView";
-import {Value, ValueKind} from "@/UCX/protocol";
-import {usePrettyFilePath} from "@/Files/FilePath";
-import {UFile} from "@/UCloud/UFile";
-import {copyToClipboard, doNothing, removeTrailingSlash} from "@/UtilityFunctions";
+import UcxView, {UcxComponentRegistry, UcxFunctionRegistry, UcxRenderContext, UcxSpinner} from "@/UCX/UcxView";
+import {UiNode, Value, ValueKind} from "@/UCX/protocol";
+import {copyToClipboard, doNothing, extensionFromPath, extensionType, removeTrailingSlash, typeFromMime} from "@/UtilityFunctions";
 import {addStandardInputDialog} from "@/UtilityComponents";
-import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
+import {sendFailureNotification} from "@/Notifications";
 import {Operation, Operations, ShortcutKey} from "@/ui-components/Operation";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 import {openPlayground} from "./api";
-import {getParentPath} from "@/Utilities/FileUtilities";
+import {sizeToString} from "@/Utilities/FileUtilities";
 import {ProjectSwitcher} from "@/Project/ProjectSwitcher";
 import {useProjectId} from "@/Project/Api";
 import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
-import * as Heading from "@/ui-components/Heading";
 import Tooltip from "@/ui-components/Tooltip";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {RichSelect} from "@/ui-components/RichSelect";
@@ -36,6 +24,15 @@ import ModelInferenceLogo from "./ModelLogo";
 import {MarkdownDocument, MarkdownTable} from "@/ui-components/Markdown";
 import {CopyButton} from "@/ui-components/CopyButton";
 import {IconButton} from "@/ui-components/IconButton";
+import {ChunkedFileReader} from "@/Files/ChunkedFileReader";
+import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
+import {dialogStore} from "@/Dialog/DialogStore";
+import type {UFile} from "@/UCloud/UFile";
+import {Feature, hasFeature} from "@/Features";
+import {prettyFilePath} from "@/Files/FilePath";
+import CodeSnippet from "@/ui-components/CodeSnippet";
+import {IconName} from "@/ui-components/Icon";
+import {inferenceThreadStore} from "./ThreadStore";
 
 type PlaygroundSession = {
     connectTo: string;
@@ -43,6 +40,19 @@ type PlaygroundSession = {
 };
 
 type PlaygroundOption = { key: string; value: string };
+type PlaygroundAttachmentKind = "image" | "video" | "audio" | "text" | "convertible" | "unsupported";
+type PlaygroundUploadAttachment = {
+    localId: string;
+    kind: Exclude<PlaygroundAttachmentKind, "unsupported">;
+    attachmentId: string | null;
+    markdownAttachmentId: string | null;
+    fileName: string;
+    fileSize: number;
+    uploadedBytes: number;
+    status: "uploading" | "converting" | "uploaded" | "error";
+    error: string;
+    text: string;
+};
 
 const ComposerActionButtonClass = injectStyleSimple("inference-composer-action", `
     width: 32px;
@@ -71,7 +81,7 @@ const ComposerActionButtonHoverClass = injectStyle("inference-composer-action-ho
 
 const PlaygroundThemeClass = injectStyle("inference-playground-theme", k => `
     ${k} {
-        --playground-panel: transparent;
+        --playground-panel: #ffffff;
         --playground-surface: var(--backgroundDefault);
         --playground-surface-raised: var(--dialogToolbar);
         --playground-hover: var(--dialogToolbar);
@@ -81,6 +91,7 @@ const PlaygroundThemeClass = injectStyle("inference-playground-theme", k => `
         --playground-logo-bg: var(--secondaryMain);
         --playground-border: var(--borderColor);
         --playground-border-hover: var(--borderColorHover);
+        --document-border: var(--playground-border);
     }
 
     html.dark ${k} {
@@ -121,256 +132,28 @@ const ThreadListClass = injectStyle("inference-thread-list", k => `
     }
 `);
 
-const MAX_RECONNECT_ATTEMPTS = 5;
+const MAX_TEXT_ATTACHMENT_BYTES = 128 * 1024;
+const PLAYGROUND_SCROLL_BOTTOM_THRESHOLD = 16;
+const PLAYGROUND_REHYDRATE_PATHS = [
+    "developer",
+    "chat.modelId",
+    "chat.streaming",
+    "chat.maxCompletionTokens",
+    "chat.temperature",
+    "chat.topP",
+    "chat.systemPrompt",
+    "chat.presencePenalty",
+    "chat.frequencyPenalty",
+    "chat.logprobs",
+    "chat.topLogprobs",
+];
+const PlaygroundProviderDomainContext = React.createContext("");
 
 const playgroundComponents: UcxComponentRegistry = {
-    inference_toggle: ({node, model, scope, fn}: UcxRenderContext) => {
-        const label = stringProp(node, "label", "");
-        const checked = boolValue(fn.modelValue(model, node.bindPath, scope));
+    inference_chat_composer: (ctx: UcxRenderContext) => <PlaygroundChatComposer {...ctx}/>,
+};
 
-        return (
-            <div
-                style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: 8,
-                    width: "100%",
-                    ...fn.sxStyle(node),
-                }}
-            >
-                {label === "" ? (
-                    <span/>
-                ) : (
-                    <span
-                        style={{fontWeight: 600, userSelect: "none", cursor: "pointer"}}
-                        onClick={() =>
-                            fn.sendBoundInput(
-                                node,
-                                {kind: ValueKind.Bool, bool: !checked},
-                                model,
-                                scope
-                            )
-                        }
-                    >
-            {label}
-          </span>
-                )}
-                <Toggle
-                    height={18}
-                    checked={checked}
-                    onChange={() =>
-                        fn.sendBoundInput(
-                            node,
-                            {kind: ValueKind.Bool, bool: !checked},
-                            model,
-                            scope
-                        )
-                    }
-                />
-            </div>
-        );
-    },
-
-    inference_image_preview: ({node, model, scope, fn}: UcxRenderContext) => {
-        return <ImagePreviewNode node={node} model={model} scope={scope} fn={fn}/>;
-    },
-
-    inference_transcription_composer: ({
-                                           node,
-                                           model,
-                                           scope,
-                                           fn,
-                                       }: UcxRenderContext) => {
-        const filePathBindPath = stringProp(
-            node,
-            "filePathBindPath",
-            "transcriptionFilePath"
-        );
-        const promptBindPath = stringProp(
-            node,
-            "promptBindPath",
-            "transcriptionPrompt"
-        );
-        const filePathPlaceholder = stringProp(
-            node,
-            "filePathPlaceholder",
-            "Audio file path"
-        );
-        const promptPlaceholder = stringProp(
-            node,
-            "promptPlaceholder",
-            "Optional prompt"
-        );
-        const rows = numberProp(node, "rows", 4);
-        const sendIcon = stringProp(node, "sendIcon", "heroPaperAirplane");
-        const disabled = boolProp(node, "disabled", false);
-        const filePath = stringValue(fn.modelValue(model, filePathBindPath, scope));
-        const prettyPath = usePrettyFilePath(filePath);
-        const prompt = stringValue(fn.modelValue(model, promptBindPath, scope));
-        const canSend = !disabled && filePath.trim() !== "";
-
-        const send = () => {
-            if (!canSend) return;
-            fn.sendUiEvent(node.id, "click", {kind: ValueKind.Null});
-        };
-
-        const openFileBrowser = () => {
-            const selection: Selection<UFile> = {
-                text: "Use",
-                onClick: (res) => {
-                    const target = removeTrailingSlash(res.id);
-                    fn.sendBoundInput(
-                        {...node, bindPath: filePathBindPath} as any,
-                        {kind: ValueKind.String, string: target},
-                        model,
-                        scope
-                    );
-                    dialogStore.success();
-                },
-                show: (file) => file.status.type === "FILE",
-            };
-
-            dialogStore.addDialog(
-                <FileBrowse
-                    opts={{
-                        isModal: true,
-                        managesLocalProject: true,
-                        initialPath: getParentPath(filePath) ?? "",
-                        selection,
-                        additionalOperations: [],
-                    }}
-                />,
-                doNothing,
-                true,
-                FilesApi.fileSelectorModalStyle
-            );
-        };
-
-        return (
-            <Box
-                style={{
-                    position: "relative",
-                    width: "100%",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 8,
-                }}
-            >
-                <div style={{display: "flex", gap: 8, alignItems: "center"}}>
-                    <Input
-                        value={prettyPath}
-                        placeholder={filePathPlaceholder}
-                        readOnly={true}
-                        onClick={openFileBrowser}
-                        title={filePath || filePathPlaceholder}
-                        style={{cursor: "pointer"}}
-                    />
-                    <Button type="button" onClick={openFileBrowser} m={0}>
-                        Browse
-                    </Button>
-                </div>
-                <TextArea
-                    rows={rows}
-                    placeholder={promptPlaceholder}
-                    value={prompt}
-                    onChange={(ev) =>
-                        fn.sendBoundInput(
-                            {...node, bindPath: promptBindPath} as any,
-                            {kind: ValueKind.String, string: ev.currentTarget.value},
-                            model,
-                            scope
-                        )
-                    }
-                    onKeyDown={(ev) => {
-                        if ((ev.ctrlKey || ev.metaKey) && ev.key === "Enter") {
-                            ev.preventDefault();
-                            ev.stopPropagation();
-                            send();
-                        }
-                    }}
-                    style={{paddingRight: 96, paddingBottom: 44, resize: "none"}}
-                />
-                <div
-                    style={{
-                        position: "absolute",
-                        right: 24,
-                        bottom: 12,
-                        padding: 0,
-                        width: 36,
-                        height: 36,
-                    }}
-                >
-                    <Button type="button" disabled={!canSend} onClick={send} m={0}>
-                        <Icon name={sendIcon as any} size={14}/>
-                    </Button>
-                </div>
-            </Box>
-        );
-    },
-
-    inference_image_composer: ({node, model, scope, fn}: UcxRenderContext) => {
-        const placeholder = stringProp(
-            node,
-            "placeholder",
-            "Describe the image to generate"
-        );
-        const rows = numberProp(node, "rows", 4);
-        const sendIcon = stringProp(node, "sendIcon", "heroSparkles");
-        const disabled = boolProp(node, "disabled", false);
-        const value = stringValue(fn.modelValue(model, node.bindPath, scope));
-        const canSend = !disabled && value.trim() !== "";
-
-        const send = () => {
-            if (!canSend) return;
-            fn.sendUiEvent(node.id, "click", {
-                kind: ValueKind.String,
-                string: value,
-            });
-        };
-
-        return (
-            <Box style={{position: "relative", width: "100%"}}>
-                <TextArea
-                    rows={rows}
-                    placeholder={placeholder}
-                    value={value}
-                    onChange={(ev) =>
-                        fn.sendBoundInput(
-                            node,
-                            {kind: ValueKind.String, string: ev.currentTarget.value},
-                            model,
-                            scope
-                        )
-                    }
-                    onKeyDown={(ev) => {
-                        if ((ev.ctrlKey || ev.metaKey) && ev.key === "Enter") {
-                            ev.preventDefault();
-                            ev.stopPropagation();
-                            send();
-                        }
-                    }}
-                    style={{paddingRight: 96, paddingBottom: 44, resize: "none"}}
-                />
-                <div
-                    style={{
-                        position: "absolute",
-                        right: 24,
-                        bottom: 12,
-                        padding: 0,
-                        width: 36,
-                        height: 36,
-                    }}
-                >
-                    <Button type="button" disabled={!canSend} onClick={send} m={0}>
-                        <Icon name={sendIcon as any} size={14}/>
-                    </Button>
-                </div>
-            </Box>
-        );
-    },
-
-    inference_chat_composer: ({node, model, scope, fn}: UcxRenderContext) => {
+function PlaygroundChatComposer({node, model, scope, fn}: UcxRenderContext): React.ReactNode {
         const placeholder = stringProp(node, "placeholder", "Ask something");
         const rows = numberProp(node, "rows", 8);
         const sendIcon = stringProp(node, "sendIcon", "heroPaperAirplane");
@@ -379,45 +162,219 @@ const playgroundComponents: UcxComponentRegistry = {
         const modelOptions = propModelOptions.length > 0 ? propModelOptions : textGenerationModelOptions(fn.modelValue(model, "models"));
         const selectedModel = stringValue(fn.modelValue(model, "chat.modelId", scope));
         const selectedModelOption = modelOptions.find(option => option.key === selectedModel);
-        const value = stringValue(fn.modelValue(model, node.bindPath, scope));
-        const canSend = !disabled && value.trim() !== "";
+        const selectedCapabilities = modelCapabilities(model, selectedModel);
+        const [localDraft, setLocalDraft] = React.useState(() => stringValue(fn.modelValue(model, node.bindPath, scope)));
+        const value = localDraft;
+        const setValue = setLocalDraft;
+        const providerDomain = React.useContext(PlaygroundProviderDomainContext);
+        const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+        const uploadCancelRef = React.useRef<Record<string, {cancelled: boolean; attachmentId: string | null}>>({});
+        const [attachments, setAttachments] = React.useState<PlaygroundUploadAttachment[]>([]);
+        const [dragActive, setDragActive] = React.useState(false);
+        const canSend = !disabled && value.trim() !== "" && attachments.every(attachment => attachment.status === "uploaded");
 
         const send = () => {
             if (!canSend) return;
+            const sentAttachments = attachments.filter(attachment => attachment.kind === "text" || attachment.kind === "convertible" || attachment.attachmentId !== null);
             fn.sendUiEvent(node.id, "click", {
-                kind: ValueKind.String,
-                string: value,
+                kind: ValueKind.Object,
+                object: {
+                    prompt: {kind: ValueKind.String, string: value},
+                    attachments: {
+                        kind: ValueKind.List,
+                        list: sentAttachments.map(attachment => ({
+                            kind: ValueKind.Object,
+                            object: {
+                                kind: {kind: ValueKind.String, string: attachment.kind === "convertible" ? "text" : attachment.kind},
+                                attachmentId: {kind: ValueKind.String, string: attachment.attachmentId ?? ""},
+                                fileName: {kind: ValueKind.String, string: attachment.fileName},
+                                url: {kind: ValueKind.String, string: attachment.attachmentId === null || attachment.kind === "convertible" ? "" : playgroundAttachmentUrl(providerDomain, attachment.attachmentId)},
+                                text: {kind: ValueKind.String, string: attachment.text},
+                            },
+                        })),
+                    },
+                },
             });
+            setValue("");
+            setAttachments([]);
+            uploadCancelRef.current = {};
+        };
+
+        const removeAttachment = (localId: string) => {
+            const cancelState = uploadCancelRef.current[localId];
+            if (cancelState) {
+                cancelState.cancelled = true;
+                if (cancelState.attachmentId) {
+                    void fn.invokeRpc("inferenceAttachmentDelete", {id: cancelState.attachmentId}, 30000).catch(doNothing);
+                }
+                delete uploadCancelRef.current[localId];
+            }
+            setAttachments(current => current.filter(item => item.localId !== localId));
+        };
+
+        const uploadFile = async (file: File) => {
+            const kind = await detectPlaygroundAttachmentKind(file);
+            const rejection = playgroundAttachmentRejection(kind, selectedCapabilities);
+            if (rejection) {
+                sendFailureNotification(rejection);
+                return;
+            }
+            if (kind === "unsupported") return;
+
+            if (kind === "text") {
+                if (file.size > MAX_TEXT_ATTACHMENT_BYTES) {
+                    sendFailureNotification("Text attachments must be 128 KiB or smaller.");
+                    return;
+                }
+                const text = await file.text();
+                const localId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+                setAttachments(current => [...current, {
+                    localId,
+                    kind,
+                    attachmentId: null,
+                    markdownAttachmentId: null,
+                    fileName: file.name,
+                    fileSize: file.size,
+                    uploadedBytes: file.size,
+                    status: "uploaded",
+                    error: "",
+                    text,
+                }]);
+                return;
+            }
+
+            const localId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+            const cancelState = {cancelled: false, attachmentId: null as string | null};
+            uploadCancelRef.current[localId] = cancelState;
+            setAttachments(current => [...current, {
+                localId,
+                kind,
+                attachmentId: null,
+                markdownAttachmentId: null,
+                fileName: file.name,
+                fileSize: file.size,
+                uploadedBytes: 0,
+                status: "uploading",
+                error: "",
+                text: "",
+            }]);
+
+            try {
+                const created = await fn.invokeRpc("inferenceAttachmentCreate", {filename: file.name}, 30000) as Record<string, unknown>;
+                const attachmentId = typeof created.id === "string" ? created.id : "";
+                if (attachmentId === "") throw new Error("Attachment upload failed: missing id");
+                cancelState.attachmentId = attachmentId;
+                setAttachments(current => current.map(item => item.localId === localId ? {...item, attachmentId} : item));
+
+                if (cancelState.cancelled) {
+                    await fn.invokeRpc("inferenceAttachmentDelete", {id: attachmentId}, 30000);
+                    return;
+                }
+
+                const reader = new ChunkedFileReader(file);
+                while (!reader.isEof()) {
+                    if (cancelState.cancelled) {
+                        await fn.invokeRpc("inferenceAttachmentDelete", {id: attachmentId}, 30000);
+                        return;
+                    }
+                    const chunk = new Uint8Array(await reader.readChunk(512 * 1024));
+                    await fn.invokeRpc("inferenceAttachmentAppend", {id: attachmentId, data: chunk}, 120000);
+                    setAttachments(current => current.map(item => item.localId === localId ? {...item, uploadedBytes: reader.offset} : item));
+                }
+
+                if (cancelState.cancelled) {
+                    await fn.invokeRpc("inferenceAttachmentDelete", {id: attachmentId}, 30000);
+                    return;
+                }
+                if (kind === "convertible") {
+                    setAttachments(current => current.map(item => item.localId === localId ? {...item, status: "converting", uploadedBytes: file.size} : item));
+                    const converted = await fn.invokeRpc("inferenceAttachmentConvertToMarkdown", {id: attachmentId}, 150000) as Record<string, unknown>;
+                    const markdownAttachmentId = typeof converted.id === "string" ? converted.id : "";
+                    if (markdownAttachmentId === "") throw new Error("Attachment conversion failed: missing markdown id");
+                    if (cancelState.cancelled) {
+                        await fn.invokeRpc("inferenceAttachmentDelete", {id: attachmentId}, 30000);
+                        return;
+                    }
+                    const markdownUrl = playgroundAttachmentUrl(providerDomain, markdownAttachmentId);
+                    const markdownResp = await fetch(markdownUrl);
+                    if (!markdownResp.ok) throw new Error("Attachment conversion failed: could not download markdown");
+                    const text = await markdownResp.text();
+                    setAttachments(current => current.map(item => item.localId === localId ? {...item, markdownAttachmentId, status: "uploaded", uploadedBytes: file.size, text} : item));
+                    return;
+                }
+                setAttachments(current => current.map(item => item.localId === localId ? {...item, status: "uploaded", uploadedBytes: file.size} : item));
+            } catch (err) {
+                const message = err instanceof Error ? err.message : String(err);
+                setAttachments(current => current.map(item => item.localId === localId ? {...item, status: "error", error: message} : item));
+                sendFailureNotification(message);
+            }
+        };
+
+        const onFilesSelected = (ev: React.ChangeEvent<HTMLInputElement>) => {
+            const files = Array.from(ev.currentTarget.files ?? []);
+            ev.currentTarget.value = "";
+            for (const file of files) void uploadFile(file);
+        };
+
+        const uploadFiles = (files: File[]) => {
+            if (disabled) return;
+            for (const file of files) void uploadFile(file);
+        };
+
+        const onPaste = (ev: React.ClipboardEvent) => {
+            const files = Array.from(ev.clipboardData.files ?? []);
+            if (files.length === 0) return;
+            ev.preventDefault();
+            uploadFiles(files);
+        };
+
+        const onDrop = (ev: React.DragEvent) => {
+            ev.preventDefault();
+            ev.stopPropagation();
+            setDragActive(false);
+            uploadFiles(Array.from(ev.dataTransfer.files ?? []));
         };
 
         return (
             <Box
                 className={ComposerActionButtonHoverClass}
+                onDragEnter={(ev) => {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    if (!disabled) setDragActive(true);
+                }}
+                onDragOver={(ev) => {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                }}
+                onDragLeave={(ev) => {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    if (!ev.currentTarget.contains(ev.relatedTarget as Node | null)) setDragActive(false);
+                }}
+                onDrop={onDrop}
                 style={{
                     width: "100%",
                     flexShrink: 0,
                     display: "flex",
                     flexDirection: "column",
                     minHeight: 104,
-                    border: "1px solid var(--playground-border, var(--borderColor))",
+                    border: dragActive ? "1px solid var(--primaryMain)" : "1px solid var(--playground-border, var(--borderColor))",
                     borderRadius: 16,
-                    background: "var(--playground-surface, var(--backgroundDefault))",
+                    background: dragActive ? "var(--playground-hover, var(--dialogToolbar))" : "var(--playground-surface, var(--backgroundDefault))",
                     overflow: "hidden",
                 }}
             >
+                <input ref={fileInputRef} type="file" multiple style={{display: "none"}} onChange={onFilesSelected}/>
                 <TextArea
                     resize={"none"}
                     rows={rows}
                     placeholder={placeholder}
                     value={value}
-                    onChange={(ev) =>
-                        fn.sendBoundInput(
-                            node,
-                            {kind: ValueKind.String, string: ev.currentTarget.value},
-                            model,
-                            scope
-                        )
-                    }
+                    onChange={(ev) => {
+                        const next = ev.currentTarget.value;
+                        setValue(next);
+                    }}
                     onKeyDown={(ev) => {
                         if ((ev.ctrlKey || ev.metaKey) && ev.key === "Enter") {
                             ev.preventDefault();
@@ -425,6 +382,7 @@ const playgroundComponents: UcxComponentRegistry = {
                             send();
                         }
                     }}
+                    onPaste={onPaste}
                     style={{
                         resize: "none",
                         border: 0,
@@ -437,6 +395,13 @@ const playgroundComponents: UcxComponentRegistry = {
                         padding: "14px 16px 8px 16px",
                     }}
                 />
+                {attachments.length > 0 && (
+                    <div style={{display: "flex", flexWrap: "wrap", gap: 8, padding: "0 10px 8px 10px"}}>
+                        {attachments.map(attachment => (
+                            <AttachmentUploadCard key={attachment.localId} attachment={attachment} onRemove={() => removeAttachment(attachment.localId)}/>
+                        ))}
+                    </div>
+                )}
                 <div
                     style={{
                         display: "flex",
@@ -446,27 +411,20 @@ const playgroundComponents: UcxComponentRegistry = {
                         padding: "0 10px 10px 10px",
                     }}
                 >
-                    <Tooltip tooltipContentWidth={180} trigger={
+                    <Tooltip tooltipContentWidth={160} trigger={
                         <span style={{display: "inline-flex"}}>
-                            <button type="button" disabled className={ComposerActionButtonClass}>
+                            <button type="button" disabled={disabled} onClick={() => fileInputRef.current?.click()} className={ComposerActionButtonClass}>
                                 <Icon name="heroPlus" size={18}/>
                             </button>
                         </span>
                     }>
-                        Attachments are not available yet.
+                        Attach file
                     </Tooltip>
                     <RichSelect<PlaygroundOption, keyof PlaygroundOption>
                         items={modelOptions}
                         keys={["key", "value"]}
                         selected={selectedModelOption}
-                        onSelect={(option) =>
-                            fn.sendBoundInput(
-                                {...node, bindPath: "chat.modelId"} as any,
-                                {kind: ValueKind.String, string: option.key},
-                                model,
-                                scope
-                            )
-                        }
+                        onSelect={(option) => fn.sendModelInput("chat.modelId", {kind: ValueKind.String, string: option.key}, "chat.modelId")}
                         dropdownWidth="340px"
                         dropdownVerticalGap={8}
                         elementHeight={42}
@@ -498,66 +456,199 @@ const playgroundComponents: UcxComponentRegistry = {
                 </div>
             </Box>
         );
-    },
+}
 
-    inference_chat_message: ({model, scope, fn}: UcxRenderContext) => {
-        return <ChatMessageNode model={model} scope={scope} fn={fn}/>;
-    },
-
-    inference_chat_box: ({
-                             node,
-                             model,
-                             scope,
-                             fn,
-                             renderChildren,
-                         }: UcxRenderContext) => {
-        const containerRef = React.useRef<HTMLDivElement | null>(null);
-        const pinnedToBottomRef = React.useRef(true);
-        const currentThreadId = stringValue(fn.modelValue(model, "currentThreadId"));
-        const previousThreadIdRef = React.useRef<string | null>(null);
-
-        React.useLayoutEffect(() => {
-            const el = containerRef.current;
-            if (!el) return;
-            if (previousThreadIdRef.current !== currentThreadId) {
-                previousThreadIdRef.current = currentThreadId;
-                pinnedToBottomRef.current = true;
-            }
-            if (pinnedToBottomRef.current) {
-                el.scrollTop = el.scrollHeight;
-            }
-        }, [currentThreadId, model, scope]);
-
-        return (
-            <div
-                ref={containerRef}
-                onScroll={(ev) => {
-                    const el = ev.currentTarget;
-                    pinnedToBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight <= 8;
-                }}
-                style={{overflowY: "auto", ...fn.sxStyle(node)}}
-            >
-                {renderChildren()}
-            </div>
-        );
-    },
-
-    inference_thread_list: ({node, model, fn}: UcxRenderContext) => {
-        return <ThreadListNode node={node} model={model} fn={fn}/>;
-    },
-};
-
-type ThreadListItem = { id: string; title: string };
+type ThreadListItem = { id: string; title: string; updatedAt: number };
 
 type ChatMessagePart = {
-    kind: "text" | "thinking";
+    kind: "text" | "thinking" | "image" | "video" | "audio" | "attachment" | "tool";
     text: string;
     summary: string;
     body: string;
     open: boolean;
+    fileName: string;
+    url: string;
+    toolName: string;
+    status: string;
 };
 
-type ChatMessageNodeProps = Pick<UcxRenderContext, "model" | "scope" | "fn">;
+type ChatMessageListItem = {
+    role: string;
+    content: string;
+    parts: ChatMessagePart[];
+};
+
+type ChatMessageViewModel = {
+    key: string;
+    threadId: string;
+    role: string;
+    content: string;
+    parts: ChatMessagePart[];
+    displayParts: ChatMessagePart[];
+    generatedAt: number;
+    modelName: string;
+    startedAt: number;
+    firstTokenAt: number;
+    finishedAt: number;
+    outputTokens: number;
+    messageIndex: number;
+    hidden: boolean;
+};
+
+type PlaygroundFrameProps = {
+    model: Record<string, Value>;
+    fn?: UcxFunctionRegistry;
+    ucxContent?: React.ReactNode;
+    connected: boolean;
+    mounted: boolean;
+    loadingSession?: boolean;
+    error?: string;
+    connectionStatus?: string;
+};
+
+const PlaygroundWorkspaceClass = injectStyle("inference-playground-workspace", k => `
+    ${k} .playground-body {
+        display: flex;
+        flex-direction: row;
+        gap: 32px;
+        align-self: stretch;
+        width: 100%;
+        min-height: 0;
+        height: calc(100vh - 115px);
+    }
+
+    ${k} .playground-main {
+        flex: 1;
+        min-width: 0;
+        min-height: 0;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        padding: 16px;
+        border-radius: 18px;
+        border: 1px solid var(--borderColor);
+        background: var(--playground-panel, transparent);
+    }
+
+    ${k} .playground-sidebar {
+        width: 320px;
+        flex-shrink: 0;
+        min-height: 0;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        border-radius: 16px;
+        padding: 16px;
+        border: 1px solid var(--borderColor);
+        background: var(--playground-panel, transparent);
+    }
+
+    ${k} .playground-sidebar[data-collapsed="true"] {
+        box-sizing: border-box;
+        width: 64px;
+        padding: 15px;
+        align-items: center;
+    }
+
+    ${k} .playground-sidebar-header,
+    ${k} .playground-sidebar-footer {
+        flex-shrink: 0;
+    }
+    
+    ${k} .playground-sidebar-footer {
+        display: flex;
+        gap: 16px;
+        flex-direction: column;
+    }
+
+    ${k} .playground-sidebar-body {
+        min-height: 0;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        flex-grow: 1;
+        gap: 16px;
+    }
+
+    ${k} .playground-body {
+        margin-top: 16px;
+    }
+
+    @media (max-width: 900px) {
+        ${k} .playground-body {
+            height: auto;
+            min-height: calc(100vh - 174px);
+            flex-direction: column;
+        }
+
+        ${k} .playground-main {
+            min-height: 62vh;
+        }
+
+        ${k} .playground-sidebar {
+            width: 100%;
+        }
+
+        ${k} .playground-sidebar[data-collapsed="true"] {
+            width: 64px;
+        }
+    }
+`);
+
+function AttachmentUploadCard({attachment, onRemove}: {attachment: PlaygroundUploadAttachment; onRemove?: () => void}): React.ReactNode {
+    const progress = attachment.fileSize <= 0 ? 100 : Math.min(100, Math.round((attachment.uploadedBytes / attachment.fileSize) * 100));
+    const uploading = attachment.status === "uploading";
+    return <div style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        maxWidth: 280,
+        minWidth: 180,
+        padding: "8px 10px",
+        border: "1px solid var(--playground-border, var(--borderColor))",
+        borderRadius: 10,
+        background: "var(--playground-surface-raised, var(--dialogToolbar))",
+    }}>
+        <Icon name="heroDocument" size={18}/>
+        <div style={{minWidth: 0, flex: 1}}>
+            <div style={{fontSize: 13, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis"}} title={attachment.fileName}>
+                {attachment.fileName}
+            </div>
+            <div style={{fontSize: 11, color: "var(--textSecondary)"}}>
+                {attachment.status === "error" ? attachment.error : attachment.status === "converting" ? "Extracting text" : uploading ? `${progress}% uploaded` : attachment.uploadedBytes === 0 ? null : `${sizeToString(attachment.uploadedBytes)}`}
+            </div>
+            {uploading && <div style={{height: 3, marginTop: 4, borderRadius: 999, background: "var(--borderColor)", overflow: "hidden"}}>
+                <div style={{height: "100%", width: `${progress}%`, background: "var(--primaryMain)", transition: "width 120ms ease"}}/>
+            </div>}
+        </div>
+        {onRemove ? <IconButton tooltip={"Remove attachment"} onClick={onRemove} icon={"heroTrash"} /> : null}
+    </div>;
+}
+
+function MessageAttachmentCard({part}: {part: ChatMessagePart}): React.ReactNode {
+    const kind = part.kind === "image" || part.kind === "video" || part.kind === "audio" ? part.kind : "text";
+    return <AttachmentUploadCard attachment={{
+        localId: `${part.kind}-${part.url}-${part.fileName}`,
+        kind,
+        attachmentId: null,
+        markdownAttachmentId: null,
+        fileName: part.fileName || "Unknown",
+        fileSize: 0,
+        uploadedBytes: 0,
+        status: "uploaded",
+        error: "",
+        text: part.text,
+    }}/>;
+}
+
+type ChatMessageNodeProps = {
+    message: ChatMessageViewModel;
+    modelOptions: PlaygroundOption[];
+    currentModelId: string;
+    fn: UcxFunctionRegistry;
+};
 
 function ModelSelectorTrigger({option, modelName}: {option?: PlaygroundOption; modelName: string}): React.ReactNode {
     const label = option?.value ?? (modelName || "Select model");
@@ -641,68 +732,45 @@ function ModelSelectorOption({
             >
                 {option.value}
             </span>
-            {selected ? <Icon name="heroCheck" size={16} color="primaryMain"/> : <span style={{width: 16}}/>}
+            {selected ? <Icon name="heroCheck" size={16} color="successMain"/> : <span style={{width: 16}}/>}
         </div>
     );
 }
 
-function ChatMessageNode(
-    {
-        model,
-        scope,
-        fn,
-    }: ChatMessageNodeProps
-): React.ReactNode {
-    const role = stringValue(fn.modelValue(model, "./role", scope));
-    const content = stringValue(fn.modelValue(model, "./content", scope));
-    const parts = chatMessagePartsValue(fn.modelValue(model, "./parts", scope));
-    const generatedAt = numberValue(fn.modelValue(model, "./generatedAt", scope));
-    const modelName = stringValue(fn.modelValue(model, "./modelName", scope));
-    const startedAt = numberValue(fn.modelValue(model, "./startedAt", scope));
-    const firstTokenAt = numberValue(fn.modelValue(model, "./firstTokenAt", scope));
-    const finishedAt = numberValue(fn.modelValue(model, "./finishedAt", scope));
-    const outputTokens = numberValue(fn.modelValue(model, "./outputTokens", scope));
-    const messageIndex = numberValue(fn.modelValue(model, "./messageIndex", scope));
-    const responseFinished = finishedAt > 0;
-    const modelOptions = textGenerationModelOptions(fn.modelValue(model, "models"));
-    const selectedModelOption = modelOptions.find(option => option.key === modelName) ?? modelOptions.find(option => option.key === stringValue(fn.modelValue(model, "chat.modelId")));
-    const regenerateModelLabel = selectedModelOption?.value ?? modelName;
-    const messageParts = parts.length === 0
-        ? [
-            {
-                kind: "text",
-                text: content,
-                summary: "",
-                body: "",
-                open: false,
-            } as ChatMessagePart,
-        ]
-        : parts;
+const ChatMessageNode = React.memo(function ChatMessageNode({message, modelOptions, currentModelId, fn}: ChatMessageNodeProps): React.ReactNode {
+    if (message.hidden) return null;
 
-    if (role === "user") {
+    if (message.role === "user") {
         return (
             <Flex width="100%" justifyContent="flex-end" my={16} flexDirection="column" alignItems="flex-end" gap="6px">
-                <div style={{maxWidth: "78%", borderRadius: 16, padding: "10px 14px", background: "var(--playground-user-bg, var(--secondaryMain))", color: "var(--playground-user-text, var(--textPrimary))", overflowWrap: "anywhere"}}>
-                    {messageParts.map((part, idx) => <span key={idx}>{part.text}</span>)}
+                <div style={{maxWidth: "78%", borderRadius: 16, padding: "10px 14px", background: "var(--playground-user-bg, var(--secondaryMain))", color: "var(--playground-user-text, var(--textPrimary))", overflowWrap: "anywhere", display: "flex", flexDirection: "column", gap: 8}}>
+                    {message.displayParts.map((part, idx) => {
+                        if (part.kind === "image" && part.url !== "") {
+                            return <img key={idx} src={part.url} alt={part.fileName || "Attachment"} style={{maxWidth: 360, maxHeight: 260, objectFit: "contain", borderRadius: 8}}/>;
+                        }
+                        if (part.kind === "video" || part.kind === "audio" || part.kind === "attachment") {
+                            return <MessageAttachmentCard key={idx} part={part}/>;
+                        }
+                        return <span key={idx} style={{whiteSpace: "pre-wrap"}}>{part.text}</span>;
+                    })}
                 </div>
                 <Flex className={ComposerActionButtonHoverClass} alignItems="center" gap="8px" color="textSecondary" fontSize="12px">
-                    <span>{formatTimeOfDay(generatedAt)}</span>
-                    <CopyButton onClick={() => copyToClipboard(content)}/>
+                    <span>{formatTimeOfDay(message.generatedAt)}</span>
+                    <CopyButton onClick={() => copyToClipboard(message.content)}/>
                 </Flex>
             </Flex>
         );
     }
 
+    const responseFinished = message.finishedAt > 0;
+    const selectedModelOption = modelOptions.find(option => option.key === message.modelName) ?? modelOptions.find(option => option.key === currentModelId);
+    const regenerateModelLabel = selectedModelOption?.value ?? message.modelName;
+
     return (
         <Flex flexDirection="column" gap="4px" width="100%" my={16}>
-            {messageParts.map((part, idx) => {
-                if (part.kind === "thinking") {
-                    return <ThinkingPart key={idx} part={part}/>;
-                }
-                return <StreamingMarkdownPart key={idx} text={part.text} streaming={!responseFinished}/>;
-            })}
+            {renderMessageParts(message.parts, !responseFinished)}
             {!responseFinished ? null : <Flex className={ComposerActionButtonHoverClass} alignItems="center" gap="8px" color="textSecondary" fontSize="12px" flexWrap="wrap">
-                <CopyButton onClick={() => copyToClipboard(content)}/>
+                <CopyButton onClick={() => copyToClipboard(message.content)}/>
                 <RichSelect<PlaygroundOption, keyof PlaygroundOption>
                     items={modelOptions}
                     keys={["key", "value"]}
@@ -711,7 +779,7 @@ function ChatMessageNode(
                         kind: ValueKind.Object,
                         object: {
                             modelId: {kind: ValueKind.String, string: option.key},
-                            messageIndex: {kind: ValueKind.S64, s64: messageIndex},
+                            messageIndex: {kind: ValueKind.S64, s64: message.messageIndex},
                         },
                     })}
                     dropdownWidth="340px"
@@ -719,7 +787,16 @@ function ChatMessageNode(
                     elementHeight={42}
                     matchTriggerWidth={false}
                     showSearchField={modelOptions.length > 8}
-                    trigger={<IconButton tooltip={`Regenerate (used: ${regenerateModelLabel})`} icon="heroArrowPath" onClick={doNothing}/>}
+                    trigger={
+                        <IconButton
+                            tooltip={<>
+                                <div>Regenerate</div>
+                                <div style={{fontStyle: "italic"}}>Used: {regenerateModelLabel}</div>
+                            </>}
+                            icon="heroArrowPath"
+                            onClick={doNothing}
+                        />
+                    }
                     RenderRow={(props) => (
                         <ModelSelectorOption
                             option={props.element}
@@ -729,17 +806,25 @@ function ChatMessageNode(
                         />
                     )}
                 />
-                <Tooltip tooltipContentWidth={240} trigger={<span>{formatResponseDuration(startedAt, finishedAt)}</span>}>
-                    <div style={{display: "flex", flexDirection: "column", gap: 4}}>
-                        <span>Time to first token: {formatDuration(firstTokenAt > 0 && startedAt > 0 ? firstTokenAt - startedAt : 0)}</span>
-                        <span>Output tokens: {outputTokens || "Unknown"}</span>
-                        <span>Tokens per second: {formatTokensPerSecond(outputTokens, firstTokenAt, finishedAt)}</span>
-                        <span>Finished: {formatTimeOfDay(finishedAt)}</span>
+                <Tooltip tooltipContentWidth={240} trigger={<span>{formatResponseDuration(message.startedAt, message.finishedAt)}</span>}>
+                    <div style={{display: "flex", flexDirection: "column", gap: 4, textAlign: "left"}}>
+                        <span>Time to first token: {formatDuration(message.firstTokenAt > 0 && message.startedAt > 0 ? message.firstTokenAt - message.startedAt : 0)}</span>
+                        <span>Output tokens: {message.outputTokens || "Unknown"}</span>
+                        <span>Finished: {formatTimeOfDay(message.finishedAt)}</span>
                     </div>
                 </Tooltip>
+                <span>{formatTokensPerSecond(message.outputTokens, message.firstTokenAt, message.finishedAt)}</span>
             </Flex>}
         </Flex>
     );
+}, areChatMessageNodePropsEqual);
+
+function areChatMessageNodePropsEqual(prev: ChatMessageNodeProps, next: ChatMessageNodeProps): boolean {
+    if (prev.fn !== next.fn || !chatMessageViewModelEqual(prev.message, next.message)) return false;
+    if (prev.message.role === "user" && next.message.role === "user") return true;
+    if (!playgroundOptionsEqual(prev.modelOptions, next.modelOptions)) return false;
+    if (prev.message.modelName !== "" && next.message.modelName !== "") return true;
+    return prev.currentModelId === next.currentModelId;
 }
 
 function formatTimeOfDay(ms: number): string {
@@ -761,14 +846,291 @@ function formatDuration(ms: number): string {
 
 function formatTokensPerSecond(outputTokens: number, firstTokenAt: number, finishedAt: number): string {
     if (outputTokens <= 0 || firstTokenAt <= 0 || finishedAt <= firstTokenAt) return "Unknown";
-    return `${(outputTokens / ((finishedAt - firstTokenAt) / 1000)).toFixed(1)}/s`;
+    return `${(outputTokens / ((finishedAt - firstTokenAt) / 1000)).toFixed(1)} toks/s`;
 }
 
-function StreamingMarkdownPart({text, streaming}: {text: string; streaming: boolean}): React.ReactNode {
+const StreamingMarkdownPart = React.memo(function StreamingMarkdownPart({text, streaming}: {text: string; streaming: boolean}): React.ReactNode {
     if (!streaming) return <MarkdownDocument text={text}/>;
 
     const stableText = stableStreamingMarkdownPrefix(text);
     return <MarkdownDocument text={stableText}/>;
+});
+
+const ToolDisplayNames: Record<string, string> = {
+    bash: "Shell",
+    glob: "Finding files",
+    grep: "Searching files",
+    read: "Reading file",
+    web_fetch: "Fetching web page",
+    wikipedia_search: "Searching Wikipedia",
+};
+
+const ToolIcons: Record<string, IconName> = {
+    bash: "heroCommandLine",
+    glob: "heroFolderOpen",
+    grep: "heroMagnifyingGlass",
+    read: "heroDocumentText",
+    web_fetch: "heroGlobeEuropeAfrica",
+    wikipedia_search: "heroBookOpen",
+};
+
+function renderMessageParts(parts: ChatMessagePart[], streaming: boolean): React.ReactNode[] {
+    const result: React.ReactNode[] = [];
+    const orderedParts = [...parts.filter(part => part.kind === "tool"), ...parts.filter(part => part.kind !== "tool")];
+    for (let index = 0; index < orderedParts.length;) {
+        const part = orderedParts[index];
+        if (part.kind === "thinking") {
+            result.push(<ThinkingPart key={index} part={part}/>);
+            index++;
+            continue;
+        }
+        if (part.kind === "tool") {
+            const tools: ChatMessagePart[] = [];
+            while (orderedParts[index]?.kind === "tool") {
+                tools.push(orderedParts[index++]);
+            }
+            result.push(<ToolMenu key={index - tools.length} tools={tools}/>);
+            continue;
+        }
+        result.push(<StreamingMarkdownPart key={index} text={part.text} streaming={streaming}/>);
+        index++;
+    }
+    return result;
+}
+
+function ToolMenu({tools}: {tools: ChatMessagePart[]}): React.ReactNode {
+    const [activeIndex, setActiveIndex] = React.useState(() => tools.findIndex(tool => tool.status === "error"));
+    const activeTool = activeIndex >= 0 ? tools[activeIndex] : null;
+    return <div style={{marginBottom: 16}}>
+        <div style={{display: "flex", flexWrap: "wrap", gap: 6, marginBottom: activeTool ? 6 : 0}}>
+            {tools.map((tool, index) => {
+                const label = toolDisplayName(tool.toolName || tool.summary || "tool");
+                const active = index === activeIndex;
+                return <Tooltip key={index} tooltipContentWidth={180} trigger={
+                    <button
+                        type="button"
+                        aria-label={`Show ${label}`}
+                        aria-pressed={active}
+                        onClick={() => setActiveIndex(prev => prev === index ? -1 : index)}
+                        style={{
+                            padding: "0 6px",
+                            height: 30,
+                            border: "1px solid var(--playground-border, var(--borderColor))",
+                            borderRadius: 7,
+                            background: active ? "var(--playground-active, var(--secondaryMain))" : "var(--playground-surface-raised, var(--dialogToolbar))",
+                            color: "inherit",
+                            cursor: "pointer",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center"
+                        }}
+                    >
+                        {tool.status === "running" ? <UcxSpinner size={16}/> : null }
+                        <Icon name={toolIcon(tool.toolName || tool.summary) as any} size={16}/>
+                    </button>
+                }>{label}</Tooltip>;
+            })}
+        </div>
+        {activeTool ? <ToolPart part={activeTool}/> : null}
+    </div>;
+}
+
+function ToolPart({part}: { part: ChatMessagePart }): React.ReactNode {
+    const statusColor = part.status === "error" ? "var(--errorMain)" : part.status === "running" ? "var(--warningMain)" : "var(--successMain)";
+    const label = toolDisplayName(part.toolName || part.summary || "tool");
+    const status = toolStatusLabel(part.status);
+    const body = (part.body || part.text).trim();
+    const icon = toolIcon(part.toolName || part.summary);
+    return (
+        <div
+            style={{
+                border: "1px solid var(--playground-border, var(--borderColor))",
+                borderRadius: 8,
+                overflow: "hidden",
+                background: "var(--playground-surface-raised, var(--dialogToolbar))",
+                maxHeight: 300,
+            }}
+        >
+            <div style={{display: "flex", alignItems: "center", gap: 8, padding: "8px 10px"}}>
+                <Icon name={icon as any} size={16}/>
+                <span style={{fontWeight: 600, flexShrink: 0}}>{label}</span>
+                <span style={{width: 8, height: 8, borderRadius: 999, background: statusColor, flexShrink: 0}} />
+                <span style={{color: "var(--textSecondary)", fontSize: 12, whiteSpace: "nowrap"}}>{status}</span>
+            </div>
+            <div
+                style={{
+                    padding: "0 10px 10px 10px",
+                    color: "var(--textSecondary)",
+                    whiteSpace: "normal",
+                    maxHeight: 254,
+                    overflowY: "auto",
+                }}
+            >
+                <ToolPartBody part={part} body={body}/>
+            </div>
+        </div>
+    );
+}
+
+function ToolPartBody({part, body}: {part: ChatMessagePart; body: string}): React.ReactNode {
+    const output = toolOutput(body);
+    if (part.toolName === "bash") return <BashToolResult command={toolArgument(part)} output={output.text}/>;
+    const argumentsValue = toolArguments(part);
+
+    switch (part.toolName) {
+        case "glob": return <GlobToolResult argumentsValue={argumentsValue} result={output.value}/>;
+        case "grep": return <GrepToolResult argumentsValue={argumentsValue} result={output.value}/>;
+        case "read": return <ReadToolResult argumentsValue={argumentsValue} result={output.value}/>;
+        case "web_fetch": return <WebFetchToolResult argumentsValue={argumentsValue} result={output.value}/>;
+        case "wikipedia_search": return <WikipediaToolResult argumentsValue={argumentsValue} result={output.value}/>;
+        default: return <CodeSnippet lang="json">{JSON.stringify(output.value, null, 2)}</CodeSnippet>;
+    }
+}
+
+function BashToolResult({command, output}: {command: string; output: string}): React.ReactNode {
+    return <div style={{display: "flex", flexDirection: "column", gap: 8}}>
+        {command === "" ? null : <CodeSnippet lang="bash">{`$ ${command}`}</CodeSnippet>}
+        {output === "" ? null : <CodeSnippet lang="text">{output}</CodeSnippet>}
+    </div>;
+}
+
+function GlobToolResult({argumentsValue, result}: {argumentsValue: ToolJson | null; result: ToolJson | null}): React.ReactNode {
+    const matches = result ? stringList(result.matches) : [];
+    return <div style={{display: "flex", flexDirection: "column", gap: 8}}>
+        <ToolFields fields={[{label: "Pattern", value: stringValueFrom(argumentsValue?.pattern)}, {label: "Directory", value: stringValueFrom(argumentsValue?.cwd) || "."}, {label: "Matches", value: String(numberValueFrom(result?.count) ?? matches.length)}]}/>
+        <CodeSnippet lang="text">{matches.join("\n")}</CodeSnippet>
+    </div>;
+}
+
+function GrepToolResult({argumentsValue, result}: {argumentsValue: ToolJson | null; result: ToolJson | null}): React.ReactNode {
+    const matches = result ? jsonList(result.matches) : [];
+    return <div style={{display: "flex", flexDirection: "column", gap: 8}}>
+        <ToolFields fields={[{label: "Pattern", value: stringValueFrom(argumentsValue?.pattern)}, {label: "Path", value: stringValueFrom(argumentsValue?.path) || "."}, {label: "Include", value: stringValueFrom(argumentsValue?.include)}, {label: "Exclude", value: stringValueFrom(argumentsValue?.exclude)}, {label: "Matches", value: String(numberValueFrom(result?.count) ?? matches.length)}]}/>
+        <CodeSnippet lang="text">{matches.map(match => `${stringValueFrom(match.path)}:${numberValueFrom(match.line) ?? 0}: ${stringValueFrom(match.text)}`).join("\n")}</CodeSnippet>
+    </div>;
+}
+
+function ReadToolResult({argumentsValue, result}: {argumentsValue: ToolJson | null; result: ToolJson | null}): React.ReactNode {
+    const entries = result ? stringList(result.entries) : [];
+    const content = result ? stringValueFrom(result.content) : "";
+    const count = result ? (numberValueFrom(result.count) ?? numberValueFrom(result.lines) ?? entries.length) : (numberValueFrom(argumentsValue?.limit) ?? 0);
+    return <div style={{display: "flex", flexDirection: "column", gap: 8}}>
+        <ToolFields fields={[{label: "Path", value: stringValueFrom(result?.path) || stringValueFrom(argumentsValue?.path)}, {label: entries.length > 0 ? "Entries" : "Lines", value: String(count)}, {label: "Offset", value: String(numberValueFrom(argumentsValue?.offset) ?? 1)}]}/>
+        {result ? <CodeSnippet lang="text">{entries.length > 0 ? entries.join("\n") : content}</CodeSnippet> : <UcxSpinner />}
+    </div>;
+}
+
+function WebFetchToolResult({argumentsValue, result}: {argumentsValue: ToolJson | null; result: ToolJson | null}): React.ReactNode {
+    const content = stringValueFrom(result?.content);
+    const format = stringValueFrom(result?.format) || stringValueFrom(argumentsValue?.format) || "markdown";
+    return <div style={{display: "flex", flexDirection: "column", gap: 8}}>
+        <ToolFields fields={[{label: "URL", value: stringValueFrom(result?.url) || stringValueFrom(argumentsValue?.url)}, {label: "Format", value: format}, {label: "Status", value: result ? String(numberValueFrom(result.status) ?? "") : ""}, {label: "Content type", value: stringValueFrom(result?.content_type)}]}/>
+        {result ? (format === "markdown" ? <CodeSnippet lang="markdown">{content}</CodeSnippet> : <CodeSnippet lang="html">{content}</CodeSnippet>) : <UcxSpinner />}
+    </div>;
+}
+
+function WikipediaToolResult({argumentsValue, result}: {argumentsValue: ToolJson | null; result: ToolJson | null}): React.ReactNode {
+    const results = jsonList(result?.results);
+    return <div style={{display: "flex", flexDirection: "column", gap: 8}}>
+        <ToolFields fields={[{label: "Query", value: stringValueFrom(result?.query) || stringValueFrom(argumentsValue?.query)}, {label: "Results", value: String(numberValueFrom(result?.count) ?? numberValueFrom(argumentsValue?.limit) ?? results.length)}]}/>
+        {result ? results.map((item, index) => <div key={index} style={{display: "flex", flexDirection: "column", gap: 2}}>
+            <div>{stringValueFrom(item.title)}</div>
+            <div>{stringValueFrom(item.snippet)}</div>
+        </div>) : <UcxSpinner />}
+    </div>;
+}
+
+function ToolFields({fields}: {fields: {label: string; value: string}[]}): React.ReactNode {
+    return <div style={{display: "flex", flexWrap: "wrap", gap: "4px 12px", fontSize: 12}}>
+        {fields.filter(field => field.value !== "").map(field => <span key={field.label}><strong>{field.label}:</strong> {field.value}</span>)}
+    </div>;
+}
+
+type ToolJson = Record<string, unknown>;
+
+function toolJson(value: string): ToolJson | null {
+    try {
+        const parsed = JSON.parse(value);
+        return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : null;
+    } catch {
+        return null;
+    }
+}
+
+function stringValueFrom(value: unknown): string {
+    return typeof value === "string" ? value : "";
+}
+
+function numberValueFrom(value: unknown): number | null {
+    return typeof value === "number" ? value : null;
+}
+
+function boolValueFrom(value: unknown): boolean {
+    return value === true;
+}
+
+function stringList(value: unknown): string[] {
+    return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+}
+
+function jsonList(value: unknown): ToolJson[] {
+    return Array.isArray(value) ? value.filter((item): item is ToolJson => !!item && typeof item === "object" && !Array.isArray(item)) : [];
+}
+
+function toolArgument(part: ChatMessagePart, key = "command"): string {
+    return stringValueFrom(toolArguments(part)?.[key]);
+}
+
+function toolArguments(part: ChatMessagePart): ToolJson | null {
+    return toolJson(part.text) ?? toolJson(toolSection(part.body, "Arguments:"));
+}
+
+function toolOutput(body: string): {value: ToolJson | null; text: string} {
+    const result = toolResult(body);
+    const envelope = toolJson(result);
+    const stdout = stringValueFrom(envelope?.stdout);
+    return {value: toolJson(stdout) ?? envelope, text: stdout || result};
+}
+
+function toolSection(body: string, marker: string): string {
+    const start = body.indexOf(`${marker}\n`);
+    if (start < 0) return "";
+    const contentStart = start + marker.length + 1;
+    const end = ["Result:\n", "Error:\n"].map(section => body.indexOf(section, contentStart)).filter(index => index >= 0)[0] ?? body.length;
+    return body.slice(contentStart, end).trim();
+}
+
+function toolResult(body: string): string {
+    const resultMarker = "Result:\n";
+    const errorMarker = "Error:\n";
+    const resultStart = body.indexOf(resultMarker);
+    const errorStart = body.indexOf(errorMarker);
+    if (resultStart >= 0) return body.slice(resultStart + resultMarker.length, errorStart >= 0 ? errorStart : undefined).trim();
+    if (errorStart >= 0) return body.slice(errorStart + errorMarker.length).trim();
+    return "";
+}
+
+function toolIcon(name: string): IconName {
+    return ToolIcons[name.trim()] ?? "heroCodeBracket";
+}
+
+function toolDisplayName(name: string): string {
+    const key = name.trim();
+    if (ToolDisplayNames[key]) return ToolDisplayNames[key];
+    return key.split("_").filter(Boolean).map(capitalizeToolWord).join(" ") || "Tool";
+}
+
+function capitalizeToolWord(word: string): string {
+    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+}
+
+function toolStatusLabel(status: string): string {
+    switch (status) {
+        case "running": return "Running";
+        case "error": return "Failed";
+        case "completed": return "Completed";
+        default: return status ? capitalizeToolWord(status) : "Completed";
+    }
 }
 
 type StreamingMarkdownStackItem = {
@@ -946,11 +1308,17 @@ function isEscaped(text: string, idx: number): boolean {
 
 function ThinkingPart({part}: { part: ChatMessagePart }): React.ReactNode {
     const [expanded, setExpanded] = React.useState(false);
+    const contentRef = React.useRef<HTMLDivElement>(null);
     const summary = part.summary.trim();
 
     React.useEffect(() => {
         setExpanded(part.open);
     }, [part.open]);
+
+    React.useLayoutEffect(() => {
+        const content = contentRef.current;
+        if (expanded && content) content.scrollTop = content.scrollHeight;
+    }, [expanded, part.body]);
 
     return (
         <div
@@ -959,7 +1327,8 @@ function ThinkingPart({part}: { part: ChatMessagePart }): React.ReactNode {
                 borderRadius: 8,
                 overflow: "hidden",
                 background: "var(--playground-surface-raised, var(--dialogToolbar))",
-                marginBottom: "16px"
+                marginBottom: "16px",
+                maxHeight: 300,
             }}
         >
             <button
@@ -994,16 +1363,20 @@ function ThinkingPart({part}: { part: ChatMessagePart }): React.ReactNode {
             </button>
             {expanded ? (
                 <div
+                    ref={contentRef}
                     style={{
                         padding: "0 10px 10px 10px",
                         color: "var(--textSecondary)",
-                        whiteSpace: "normal",
+                        whiteSpace: "pre-wrap",
+                        overflowWrap: "anywhere",
+                        maxHeight: 254,
+                        overflowY: "auto",
                     }}
                 >
                     {part.body.trim() === "" ? (
-                        <Text color="textSecondary">Thinking...</Text>
+                        <UcxSpinner />
                     ) : (
-                        <MarkdownDocument text={part.body}/>
+                        part.body
                     )}
                 </div>
             ) : null}
@@ -1023,6 +1396,7 @@ function ThreadListNode({
         React.useRef<(left: number, top: number) => void>(doNothing);
     const threads = threadListValue(fn.modelValue(model, node.bindPath));
     const currentThreadId = stringValue(fn.modelValue(model, "currentThreadId"));
+    const loadingThreadIds = stringListValue(fn.modelValue(model, "loadingThreadIds"));
 
     const threadOperations = React.useCallback(
         (thread: ThreadListItem): Operation<ThreadListItem>[] => [
@@ -1110,6 +1484,9 @@ function ThreadListNode({
                                 })
                             }
                             style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 8,
                                 flex: 1,
                                 minWidth: 0,
                                 border: 0,
@@ -1123,7 +1500,8 @@ function ThreadListNode({
                                 textOverflow: "ellipsis",
                             }}
                         >
-                            {thread.title}
+                            {loadingThreadIds.includes(thread.id) ? <UcxSpinner size={14} /> : null}
+                            <span style={{minWidth: 0, overflow: "hidden", textOverflow: "ellipsis"}}>{thread.title}</span>
                         </button>
                         {active ? (
                             <button
@@ -1170,17 +1548,459 @@ function ThreadListNode({
     );
 }
 
+function PlaygroundFrame({model, fn, ucxContent, connected, mounted, loadingSession = false, error = ""}: PlaygroundFrameProps): React.ReactNode {
+    const connectionStatus = loadingSession || !mounted ? "Connecting..." : !connected ? "Reconnecting..." : error !== "" ? "Connection issue" : "Connected";
+
+    return (
+        <MainContainer
+            main={
+                <div className={`${PlaygroundThemeClass} ${PlaygroundWorkspaceClass}`} style={{display: "flex", flexDirection: "column", gap: 8, minHeight: 0}}>
+                    {ucxContent ? <div style={{display: "none"}}>{ucxContent}</div> : null}
+                    <TabbedCard
+                        style={{flex: 1, minHeight: 0, overflow: "hidden"}}
+                        rightControls={<>
+                            <DeveloperModeToggle model={model} fn={fn} connected={connected && mounted}/>
+                            <ProjectSwitcher/>
+                        </>}
+                    >
+                        <TabbedCardTab name="Chat" icon="heroChatBubbleLeftRight">
+                            <PlaygroundWorkspace model={model} fn={fn} connected={connected && mounted && error === ""} connectionStatus={connectionStatus}/>
+                        </TabbedCardTab>
+                    </TabbedCard>
+                </div>
+            }
+        />
+    );
+}
+
+function DeveloperModeToggle({model, fn, connected}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean}): React.ReactNode {
+    const developer = boolValue(fn?.modelValue(model, "developer") ?? model.developer);
+    return <div style={{display: "flex", alignItems: "center", gap: 8, marginRight: 16}}>
+        <span style={{fontWeight: 600, userSelect: "none"}}>Developer</span>
+        <Toggle height={18} checked={developer} onChange={() => connected && fn?.sendModelInput("developer", {kind: ValueKind.Bool, bool: !developer}, "developerMode")}/>
+    </div>;
+}
+
+function PlaygroundWorkspace({model, fn, connected, connectionStatus}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean; connectionStatus: string}): React.ReactNode {
+    const developer = boolValue(fn?.modelValue(model, "developer") ?? model.developer);
+    const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false);
+    const threads = threadListValue(fn?.modelValue(model, "threads") ?? model.threads);
+    const currentThreadId = stringValue(fn?.modelValue(model, "currentThreadId") ?? model.currentThreadId);
+    const pendingNewThreadRef = React.useRef<Set<string> | null>(null);
+
+    React.useEffect(() => {
+        const previousThreadIds = pendingNewThreadRef.current;
+        if (!previousThreadIds) return;
+
+        const createdThread = threads.find(thread => !previousThreadIds.has(thread.id));
+        if (!createdThread) return;
+
+        pendingNewThreadRef.current = null;
+        if (createdThread.id !== currentThreadId) {
+            fn?.sendUiEvent("openThread", "click", {
+                kind: ValueKind.String,
+                string: createdThread.id,
+            });
+        }
+    }, [currentThreadId, fn, threads]);
+
+    const newThread = () => {
+        if (!connected || !fn) return;
+        pendingNewThreadRef.current = new Set(threads.map(thread => thread.id));
+        fn.sendUiEvent("newThread", "click");
+    };
+    const footer = <>
+        {!developer && hasFeature(Feature.INFERENCE_WORKSPACE) ? <WorkspaceSelector model={model} fn={fn} connected={connected}/> : null}
+        <ContextWindowIndicator model={model} fn={fn}/>
+        <ConnectionStatusIndicator connected={connected} text={connectionStatus}/>
+    </>;
+
+    return (
+        <div className="playground-body">
+            <div className="playground-main">
+                <PlaygroundConversation model={model} fn={fn} connected={connected}/>
+            </div>
+            <div className="playground-sidebar" data-collapsed={sidebarCollapsed}>
+                {sidebarCollapsed ? (
+                    <CollapsedPlaygroundSidebar connected={connected} connectionStatus={connectionStatus} onExpand={() => setSidebarCollapsed(false)} onNewThread={developer ? undefined : newThread}/>
+                ) : developer ? (
+                    <PlaygroundDeveloperSidebar model={model} fn={fn} connected={connected} footer={footer} onCollapse={() => setSidebarCollapsed(true)}/>
+                ) : (
+                    <PlaygroundThreadSidebar model={model} fn={fn} connected={connected} footer={footer} onCollapse={() => setSidebarCollapsed(true)} onNewThread={newThread}/>
+                )}
+            </div>
+        </div>
+    );
+}
+
+function PlaygroundSidebarShell({header, children, footer}: React.PropsWithChildren<{header?: React.ReactNode; footer: React.ReactNode}>): React.ReactNode {
+    return <>
+        {header ? <div className="playground-sidebar-header">{header}</div> : null}
+        <div className="playground-sidebar-body">{children}</div>
+        <div className="playground-sidebar-footer">{footer}</div>
+    </>;
+}
+
+function CollapsedPlaygroundSidebar({connected, connectionStatus, onExpand, onNewThread}: {connected: boolean; connectionStatus: string; onExpand: () => void; onNewThread?: () => void}): React.ReactNode {
+    return <>
+        <Box mt={3}><IconButton tooltip="Expand sidebar" onClick={onExpand} icon="sidebar" noDefaultFill/></Box>
+        {onNewThread ? <IconButton tooltip="New thread" onClick={onNewThread} icon="heroPencilSquare"/> : null}
+        <ConnectionStatusIndicator connected={connected} text={connectionStatus} compact/>
+    </>;
+}
+
+function ConnectionStatusIndicator({connected, text, compact = false}: {connected: boolean; text: string; compact?: boolean}): React.ReactNode {
+    return <div style={{marginTop: "auto", display: "flex", alignItems: "center", justifyContent: compact ? "center" : undefined, gap: compact ? 0 : 8, color: "var(--textSecondary)", fontSize: 12}}>
+        <Tooltip tooltipContentWidth={160} trigger={<div style={{width: 8, height: 8, borderRadius: 999, background: connected ? "var(--successMain)" : "var(--warningMain)"}}/>}>
+            {text}
+        </Tooltip>
+        {!compact ? text : null}
+    </div>;
+}
+
+function ContextWindowIndicator({model, fn}: {model: Record<string, Value>; fn?: UcxFunctionRegistry}): React.ReactNode {
+    const input = numberValue(fn?.modelValue(model, "chat.usage.lastQuery.input") ?? model["chat.usage.lastQuery.input"]);
+    const cachedInput = numberValue(fn?.modelValue(model, "chat.usage.lastQuery.cachedInput") ?? model["chat.usage.lastQuery.cachedInput"]);
+    const output = numberValue(fn?.modelValue(model, "chat.usage.lastQuery.output") ?? model["chat.usage.lastQuery.output"]);
+    const contextTokens = input + cachedInput + output;
+    const modelId = stringValue(fn?.modelValue(model, "chat.modelId") ?? model["chat.modelId"]);
+    const contextWindow = modelContextWindow(model, modelId);
+    const percent = contextWindow > 0 ? Math.round((contextTokens / contextWindow) * 100) : null;
+
+    if (contextTokens <= 0 && percent === null) return null;
+
+    return <div style={{
+        color: "var(--textSecondary)",
+        fontSize: 12
+    }}>
+            <div style={{fontWeight: "bold"}}>Context window</div>
+        <div style={{
+            display: "flex",
+            justifyContent: "space-between",
+            gap: 8,
+        }}>
+            <span>{compactTokenCount(contextTokens)} tokens</span>
+            {percent === null ? null : <span>{percent}% used</span>}
+        </div>
+    </div>;
+
+}
+
+function PlaygroundConversation({model, fn, connected}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean}): React.ReactNode {
+    const messagesValue = fn?.modelValue(model, "chat.messages") ?? model["chat.messages"];
+    const messageItems = messagesValue?.kind === ValueKind.List ? messagesValue.list : [];
+    const loading = boolValue(fn?.modelValue(model, "chat.loading") ?? model["chat.loading"]);
+    const developmentMode = boolValue(fn?.modelValue(model, "developmentMode") ?? model.developmentMode);
+    const currentThreadId = stringValue(fn?.modelValue(model, "currentThreadId") ?? model.currentThreadId);
+    const modelsValue = fn?.modelValue(model, "models") ?? model.models;
+    const modelOptions = React.useMemo(() => textGenerationModelOptions(modelsValue), [modelsValue]);
+    const currentModelId = stringValue(fn?.modelValue(model, "chat.modelId") ?? model["chat.modelId"]);
+    const messages = React.useMemo(() => buildChatMessageViewModels(messageItems, currentThreadId), [currentThreadId, messagesValue]);
+    const latestMessage = messages[messages.length - 1];
+    const latestMessageScrollKey = latestMessage ? chatMessageScrollKey(latestMessage) : "";
+    const containerRef = React.useRef<HTMLDivElement | null>(null);
+    const contentRef = React.useRef<HTMLDivElement | null>(null);
+    const pinnedToBottomRef = React.useRef(true);
+    const previousScrollHeightRef = React.useRef(0);
+    const previousThreadIdRef = React.useRef<string | null>(null);
+
+    React.useLayoutEffect(() => {
+        const el = containerRef.current;
+        if (!el) return;
+        if (previousThreadIdRef.current !== currentThreadId) {
+            previousThreadIdRef.current = currentThreadId;
+            pinnedToBottomRef.current = true;
+        }
+        if (pinnedToBottomRef.current) scrollPlaygroundConversationToBottom(el);
+        previousScrollHeightRef.current = el.scrollHeight;
+    }, [currentThreadId, messages.length, latestMessageScrollKey, loading]);
+
+    React.useLayoutEffect(() => {
+        const container = containerRef.current;
+        const content = contentRef.current;
+        if (!container || !content) return;
+
+        const observer = new ResizeObserver(() => {
+            if (!pinnedToBottomRef.current) {
+                previousScrollHeightRef.current = container.scrollHeight;
+                return;
+            }
+            scrollPlaygroundConversationToBottom(container);
+            previousScrollHeightRef.current = container.scrollHeight;
+        });
+        observer.observe(content);
+        return () => observer.disconnect();
+    }, []);
+
+    const composerNode = React.useMemo<UiNode>(() => ({
+        id: "chatComposer",
+        component: "inference_chat_composer",
+        bindPath: "chat.prompt",
+        optimistic: true,
+        children: [],
+        props: {
+            placeholder: {kind: ValueKind.String, string: "Ask anything"},
+            rows: {kind: ValueKind.S64, s64: 3},
+            sendIcon: {kind: ValueKind.String, string: "heroArrowUp"},
+            disabled: {kind: ValueKind.Bool, bool: !connected || loading},
+        },
+    }), [connected, developmentMode, loading]);
+
+    return (
+        <>
+            <div
+                ref={containerRef}
+                onScroll={(ev) => {
+                    const el = ev.currentTarget;
+                    const previousScrollHeight = previousScrollHeightRef.current;
+                    const wasPinnedBeforeGrowth = pinnedToBottomRef.current && previousScrollHeight > 0 && el.scrollHeight > previousScrollHeight && el.scrollTop + el.clientHeight >= previousScrollHeight - PLAYGROUND_SCROLL_BOTTOM_THRESHOLD;
+                    pinnedToBottomRef.current = playgroundConversationIsAtBottom(el) || wasPinnedBeforeGrowth;
+                    previousScrollHeightRef.current = el.scrollHeight;
+                }}
+                style={{flex: 1, minHeight: 0, overflowY: "auto", padding: "16px 8px"}}
+            >
+                <div ref={contentRef}>
+                    {messages.length === 0 ? <Text color="textSecondary">No messages yet.</Text> : messages.map((message) => {
+                        if (!fn) return null;
+                        return <ChatMessageNode key={message.key} message={message} modelOptions={modelOptions} currentModelId={currentModelId} fn={fn}/>;
+                    })}
+                    {loading ? <UcxSpinner /> : null}
+                </div>
+            </div>
+            {fn ? playgroundComponents.inference_chat_composer({
+                node: composerNode,
+                model,
+                fn,
+                components: playgroundComponents,
+                renderChildren: () => [],
+            }) : <DisabledComposerPlaceholder/>}
+        </>
+    );
+}
+
+function playgroundConversationIsAtBottom(el: HTMLElement): boolean {
+    return el.scrollHeight - el.scrollTop - el.clientHeight <= PLAYGROUND_SCROLL_BOTTOM_THRESHOLD;
+}
+
+function scrollPlaygroundConversationToBottom(el: HTMLElement): void {
+    el.scrollTop = el.scrollHeight;
+}
+
+function DisabledComposerPlaceholder(): React.ReactNode {
+    return <Box className={ComposerActionButtonHoverClass} style={{width: "100%", flexShrink: 0, minHeight: 104, border: "1px solid var(--playground-border, var(--borderColor))", borderRadius: 16, background: "var(--playground-surface, var(--backgroundDefault))", overflow: "hidden"}}>
+        <TextArea
+            resize="none"
+            rows={3}
+            placeholder="Ask anything"
+            value=""
+            disabled
+            onChange={doNothing}
+            style={{resize: "none", border: 0, boxShadow: "none", background: "transparent", width: "100%", minHeight: 0, padding: "14px 16px 8px 16px"}}
+        />
+        <div style={{display: "flex", alignItems: "center", gap: 6, flexShrink: 0, padding: "0 10px 10px 10px"}}>
+            <button type="button" disabled className={ComposerActionButtonClass}>
+                <Icon name="heroPlus" size={18}/>
+            </button>
+            <div style={{flex: 1}}/>
+            <button type="button" disabled className={ComposerActionButtonClass}>
+                <Icon name="heroArrowUp" size={18}/>
+            </button>
+        </div>
+    </Box>;
+}
+
+function PlaygroundThreadSidebar({model, fn, connected, footer, onCollapse, onNewThread}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean; footer: React.ReactNode; onCollapse: () => void; onNewThread: () => void}): React.ReactNode {
+    const node = React.useMemo<UiNode>(() => ({
+        id: "threadList",
+        component: "inference_thread_list",
+        bindPath: "threads",
+        optimistic: false,
+        props: {},
+        children: [],
+    }), []);
+
+    const header = <div style={{display: "flex", alignItems: "center", gap: 8}}>
+        <div style={{flex: 1, display: "flex", flexDirection: "row", alignItems: "center", gap: "8px"}}>
+            <Button
+                type="button"
+                disabled={!connected || !fn}
+                onClick={onNewThread}
+                color={"secondaryMain"}
+                width="100%"
+            >
+                <Icon name="heroPlus" size={16} mr={8}/>
+                New thread
+            </Button>
+            <IconButton tooltip="Collapse sidebar" onClick={onCollapse} icon="sidebar" noDefaultFill/>
+        </div>
+    </div>;
+
+    return <PlaygroundSidebarShell header={header} footer={footer}>
+        {fn ? <ThreadListNode node={node} model={model} fn={fn}/> : <Text color="textSecondary">Loading...</Text>}
+    </PlaygroundSidebarShell>;
+}
+
+function WorkspaceSelector({model, fn, connected}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean}): React.ReactNode {
+    const path = stringValue(fn?.modelValue(model, "workspace.path") ?? model["workspace.path"]);
+    const loading = boolValue(fn?.modelValue(model, "workspace.loading") ?? model["workspace.loading"]);
+    const chatLoading = boolValue(fn?.modelValue(model, "chat.loading") ?? model["chat.loading"]);
+    const error = stringValue(fn?.modelValue(model, "workspace.error") ?? model["workspace.error"]);
+    const [prettyPath, setPrettyPath] = React.useState("");
+
+    React.useEffect(() => {
+        let cancelled = false;
+        if (!path) {
+            setPrettyPath("");
+            return;
+        }
+        prettyFilePath(path).then(value => {
+            if (!cancelled) setPrettyPath(value);
+        }).catch(() => {
+            if (!cancelled) setPrettyPath(path);
+        });
+        return () => { cancelled = true; };
+    }, [path]);
+
+    const selectFolder = React.useCallback(() => {
+		if (!connected || !fn || loading || chatLoading) return;
+
+		void (async () => {
+			const [{default: FileBrowse}, {api: FilesApi}, {folderFavoriteSelection}] = await Promise.all([
+				import("@/Files/FileBrowse"),
+				import("@/UCloud/FilesApi"),
+				import("@/Files/FavoriteSelect"),
+			]);
+			const isFolderAllowed = (file: UFile): boolean | string => file.status.type === "DIRECTORY";
+			const onSelectFolder = (file: UFile) => {
+				const target = removeTrailingSlash(file.id);
+				fn.sendModelInput("workspace.path", {kind: ValueKind.String, string: target}, "workspace.path");
+				dialogStore.success();
+			};
+			const selection = {
+				text: "Use",
+				onClick: onSelectFolder,
+				show: isFolderAllowed,
+			};
+			const navigateToFolder = (initialPath: string, projectId?: string) => {
+				dialogStore.failure();
+				dialogStore.addDialog(
+					<FileBrowse
+						opts={{
+							isModal: true,
+							managesLocalProject: true,
+							initialPath,
+							initialProject: projectId,
+							additionalOperations: [folderFavoriteSelection(onSelectFolder, isFolderAllowed, navigateToFolder)],
+							selection,
+						}} />,
+					doNothing,
+					true,
+					FilesApi.fileSelectorModalStyle
+				);
+			};
+
+			navigateToFolder(path);
+		})();
+	}, [chatLoading, connected, fn, loading, path]);
+
+    return <div style={{display: "flex", alignItems: "center", gap: 0, minWidth: 0, color: error ? "var(--errorMain)" : "var(--textSecondary)", fontSize: 12}}>
+        <span title={error || prettyPath || "No folder selected"} style={{minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1}}>
+            {error || prettyPath || "No folder selected"}
+        </span>
+        {loading ? <UcxSpinner size={14}/> : null}
+        <IconButton tooltip="Select workspace folder" onClick={selectFolder} icon="heroFolderOpen"/>
+        <IconButton tooltip="Selected workspace data is mounted read-only for tools." onClick={doNothing} icon="heroInformationCircle"/>
+    </div>;
+}
+
+function PlaygroundDeveloperSidebar({model, fn, connected, footer, onCollapse}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean; footer: React.ReactNode; onCollapse: () => void}): React.ReactNode {
+    return <PlaygroundSidebarShell header={<IconButton tooltip="Collapse sidebar" onClick={onCollapse} icon="heroChevronRight"/>} footer={footer}>
+        <Section title="Settings" defaultOpen>
+            <SettingToggle label="Streaming" path="chat.streaming" model={model} fn={fn} connected={connected}/>
+            <SettingSlider label="Max completion tokens" path="chat.maxCompletionTokens" min={1} max={1024 * 256} step={1024} model={model} fn={fn} connected={connected} integer/>
+            <SettingSlider label="Temperature" path="chat.temperature" min={0} max={2} step={0.1} model={model} fn={fn} connected={connected}/>
+            <SettingSlider label="Top P" path="chat.topP" min={0} max={1} step={0.1} model={model} fn={fn} connected={connected}/>
+            <SettingTextArea label="System prompt" path="chat.systemPrompt" model={model} fn={fn} connected={connected}/>
+        </Section>
+        <Section title="Usage" defaultOpen>
+            <UsageRow label="Session input tokens" value={numberValue(fn?.modelValue(model, "chat.usage.session.input") ?? model["chat.usage.session.input"])}/>
+            <UsageRow label="Session cached input tokens" value={numberValue(fn?.modelValue(model, "chat.usage.session.cachedInput") ?? model["chat.usage.session.cachedInput"])}/>
+            <UsageRow label="Session output tokens" value={numberValue(fn?.modelValue(model, "chat.usage.session.output") ?? model["chat.usage.session.output"])}/>
+            <UsageRow label="Session tokens reported for usage" value={numberValue(fn?.modelValue(model, "chat.usage.session.reported") ?? model["chat.usage.session.reported"])}/>
+            <UsageRow label="Latest input tokens" value={numberValue(fn?.modelValue(model, "chat.usage.lastQuery.input") ?? model["chat.usage.lastQuery.input"])}/>
+            <UsageRow label="Latest cached input tokens" value={numberValue(fn?.modelValue(model, "chat.usage.lastQuery.cachedInput") ?? model["chat.usage.lastQuery.cachedInput"])}/>
+            <UsageRow label="Latest output tokens" value={numberValue(fn?.modelValue(model, "chat.usage.lastQuery.output") ?? model["chat.usage.lastQuery.output"])}/>
+            <UsageRow label="Latest tokens reported for usage" value={numberValue(fn?.modelValue(model, "chat.usage.lastQuery.reported") ?? model["chat.usage.lastQuery.reported"])}/>
+        </Section>
+        <Section title="Advanced settings">
+            <SettingSlider label="Presence penalty" path="chat.presencePenalty" min={-2} max={2} step={0.1} model={model} fn={fn} connected={connected}/>
+            <SettingSlider label="Frequency penalty" path="chat.frequencyPenalty" min={-2} max={2} step={0.1} model={model} fn={fn} connected={connected}/>
+            <SettingToggle label="Logprobs" path="chat.logprobs" model={model} fn={fn} connected={connected}/>
+            <SettingSlider label="Top log probs" path="chat.topLogprobs" min={0} max={20} step={1} model={model} fn={fn} connected={connected} integer/>
+        </Section>
+        <Section title="Curl">
+            <pre style={{whiteSpace: "pre-wrap", overflowWrap: "anywhere", fontSize: 12}}>{stringValue(fn?.modelValue(model, "chat.curl") ?? model["chat.curl"])}</pre>
+        </Section>
+    </PlaygroundSidebarShell>;
+}
+
+function Section({title, defaultOpen = false, children}: React.PropsWithChildren<{title: string; defaultOpen?: boolean}>): React.ReactNode {
+    const [open, setOpen] = React.useState(defaultOpen);
+    return <div style={{border: "1px solid var(--playground-border, var(--borderColor))", borderRadius: 10}}>
+        <button type="button" onClick={() => setOpen(v => !v)} style={{width: "100%", border: 0, background: "transparent", color: "inherit", padding: "10px 12px", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", fontWeight: 600}}>
+            {title}
+            <Icon name={open ? "heroChevronUp" : "heroChevronDown"} size={16}/>
+        </button>
+        {open ? <div style={{display: "flex", flexDirection: "column", gap: 10, padding: "0 12px 12px 12px"}}>{children}</div> : null}
+    </div>;
+}
+
+function SettingToggle({label, path, model, fn, connected}: {label: string; path: string; model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean}): React.ReactNode {
+    const checked = boolValue(fn?.modelValue(model, path) ?? model[path]);
+    return <div style={{display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8}}>
+        <span style={{fontWeight: 600}}>{label}</span>
+        <Toggle height={18} checked={checked} onChange={() => connected && fn?.sendModelInput(path, {kind: ValueKind.Bool, bool: !checked}, path)}/>
+    </div>;
+}
+
+function SettingSlider({label, path, min, max, step, model, fn, connected, integer = false}: {label: string; path: string; min: number; max: number; step: number; model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean; integer?: boolean}): React.ReactNode {
+    const modelNumber = numberValue(fn?.modelValue(model, path) ?? model[path]);
+    const [value, setValue] = React.useState(modelNumber);
+    React.useEffect(() => setValue(modelNumber), [modelNumber]);
+    const commit = (next: number) => fn?.sendModelInput(path, integer ? {kind: ValueKind.S64, s64: Math.round(next)} : {kind: ValueKind.F64, f64: next}, path);
+    return <label style={{display: "flex", flexDirection: "column", gap: 4}}>
+        <span style={{display: "flex", justifyContent: "space-between", gap: 8}}><span>{label}</span><span>{integer ? Math.round(value) : value.toFixed(1)}</span></span>
+        <input disabled={!connected || !fn} type="range" min={min} max={max} step={step} value={value || min} onChange={ev => { const next = Number(ev.currentTarget.value); setValue(next); commit(next); }}/>
+    </label>;
+}
+
+function SettingTextArea({label, path, model, fn, connected}: {label: string; path: string; model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean}): React.ReactNode {
+    const modelText = stringValue(fn?.modelValue(model, path) ?? model[path]);
+    const [value, setValue] = React.useState(modelText);
+    React.useEffect(() => setValue(modelText), [modelText]);
+    return <label style={{display: "flex", flexDirection: "column", gap: 4}}>
+        <span>{label}</span>
+        <TextArea rows={4} value={value} disabled={!connected || !fn} onChange={ev => { const next = ev.currentTarget.value; setValue(next); fn?.sendModelInput(path, {kind: ValueKind.String, string: next}, path); }}/>
+    </label>;
+}
+
+function UsageRow({label, value}: {label: string; value: number}): React.ReactNode {
+    return <div style={{display: "flex", justifyContent: "space-between", gap: 8}}><span>{label}</span><span style={{textAlign: "right"}}>{value}</span></div>;
+}
+
 export default function Playground(): React.ReactNode {
     const [session, setSession] = React.useState<PlaygroundSession | null>(null);
     const [loading, setLoading] = React.useState(true);
     const [terminalError, setTerminalError] = React.useState("");
     const [refreshNonce, setRefreshNonce] = React.useState(0);
-    const retryCountRef = React.useRef(0);
+    const [lastModel, setLastModel] = React.useState<Record<string, Value>>({});
+    const openRetryCountRef = React.useRef(0);
+    const openRetryTimerRef = React.useRef<number | null>(null);
     const mountedRef = React.useRef(true);
     const projectId = useProjectId();
     const previousProjectIdRef = React.useRef(projectId);
 
-    usePage("Inference playground", SidebarTabId.INFERENCE);
+    usePage("Chat", SidebarTabId.INFERENCE);
 
     React.useEffect(() => {
         return () => {
@@ -1191,107 +2011,123 @@ export default function Playground(): React.ReactNode {
     React.useEffect(() => {
         if (previousProjectIdRef.current === projectId) return;
         previousProjectIdRef.current = projectId;
-        retryCountRef.current = 0;
+        openRetryCountRef.current = 0;
+        setLastModel({});
         setSession(null);
         setRefreshNonce((x) => x + 1);
     }, [projectId]);
 
     React.useEffect(() => {
         let cancelled = false;
+        if (openRetryTimerRef.current !== null) {
+            window.clearTimeout(openRetryTimerRef.current);
+            openRetryTimerRef.current = null;
+        }
 
         setLoading(true);
-        setSession(null);
         void callAPI(openPlayground({providerId: null}))
             .then((result) => {
                 if (cancelled) return;
+                openRetryCountRef.current = 0;
                 setSession(result);
                 setLoading(false);
                 setTerminalError("");
             })
             .catch((err) => {
                 if (cancelled) return;
-                setSession(null);
                 setLoading(false);
                 setTerminalError(
                     err instanceof Error
                         ? err.message
                         : "Failed to open the inference playground"
                 );
+                const retry = openRetryCountRef.current++;
+                const retryDelay = Math.min(30000, 1000 * Math.pow(2, Math.min(retry, 5)));
+                openRetryTimerRef.current = window.setTimeout(() => {
+                    if (!mountedRef.current) return;
+                    setRefreshNonce((v) => v + 1);
+                }, retryDelay);
             });
 
         return () => {
             cancelled = true;
+            if (openRetryTimerRef.current !== null) {
+                window.clearTimeout(openRetryTimerRef.current);
+                openRetryTimerRef.current = null;
+            }
         };
     }, [refreshNonce]);
 
     const handleConnected = React.useCallback(() => {
         if (!mountedRef.current) return;
-        retryCountRef.current = 0;
         setTerminalError("");
     }, []);
 
     const handleDisconnected = React.useCallback(() => {
         if (!mountedRef.current) return;
-
-        const nextRetry = retryCountRef.current + 1;
-        if (nextRetry > MAX_RECONNECT_ATTEMPTS) {
-            setTerminalError("Disconnected. Reconnect limit reached.");
-            return;
-        }
-
-        retryCountRef.current = nextRetry;
         setRefreshNonce((v) => v + 1);
     }, []);
 
+    const handleTransportError = React.useCallback((message: string) => {
+        if (!mountedRef.current) return;
+        setTerminalError(message);
+    }, []);
+
+    const handleModelChange = React.useCallback((model: Record<string, Value>) => {
+        if (Object.keys(model).length > 0) {
+            setLastModel(model);
+        }
+    }, []);
+
+    React.useEffect(() => {
+        if (!session) return;
+        return inferenceThreadStore.beginLiveSession();
+    }, [session]);
+
+    React.useEffect(() => {
+        if (lastModel.threads) inferenceThreadStore.update(threadListValue(lastModel.threads));
+    }, [lastModel]);
+
     if (!session) {
         return (
-            <MainContainer
-                main={
-                    <div style={{padding: 24}}>
-                        <Text>
-                            {loading
-                                ? "Opening inference playground..."
-                                : "Unable to open inference playground."}
-                        </Text>
-                        {terminalError === "" ? null : (
-                            <Text color="errorMain">{terminalError}</Text>
-                        )}
-                    </div>
-                }
+            <PlaygroundFrame
+                model={lastModel}
+                connected={false}
+                mounted={false}
+                loadingSession={loading}
+                error={loading ? "" : (terminalError || "Unable to open inference playground.")}
             />
         );
     }
 
+    const providerDomain = playgroundProviderDomain(session.connectTo);
+
     return (
-        <MainContainer
-            main={
-                <div className={PlaygroundThemeClass} style={{display: "flex", flexDirection: "column", gap: 8}}>
-                    <Flex mb={24}>
-                        <h3
-                            className="title"
-                            style={{marginTop: "auto", marginBottom: "auto"}}
-                        >
-                            AI Inference: Playground
-                        </h3>
-                        <Box flexGrow={1}/>
-                        <ProjectSwitcher/>
-                    </Flex>
-                    {terminalError === "" ? null : (
-                        <Text color="errorMain">{terminalError}</Text>
-                    )}
-                    <UcxView
-                        key={`${projectId ?? ""}:${session.sessionToken}`}
-                        url={session.connectTo}
-                        authToken={session.sessionToken}
-                        sysHello={JSON.stringify({})}
-                        maxReconnectAttempts={MAX_RECONNECT_ATTEMPTS}
-                        onConnected={handleConnected}
-                        onDisconnected={handleDisconnected}
-                        components={playgroundComponents}
+        <PlaygroundProviderDomainContext.Provider value={providerDomain}>
+            <UcxView
+                key={`${projectId ?? ""}:${session.sessionToken}`}
+                url={session.connectTo}
+                authToken={session.sessionToken}
+                sysHello={JSON.stringify({})}
+                maxReconnectAttempts={0}
+                onConnected={handleConnected}
+                onDisconnected={handleDisconnected}
+                onTransportError={handleTransportError}
+                onModelChange={handleModelChange}
+                components={playgroundComponents}
+                rehydrateModelPaths={PLAYGROUND_REHYDRATE_PATHS}
+                renderFrame={({connected, mounted, transportError, content, model, fn}) => (
+                    <PlaygroundFrame
+                        model={model ?? lastModel}
+                        fn={fn}
+                        ucxContent={content}
+                        connected={connected}
+                        mounted={mounted ?? false}
+                        error={terminalError || transportError}
                     />
-                </div>
-            }
-        />
+                )}
+            />
+        </PlaygroundProviderDomainContext.Provider>
     );
 }
 
@@ -1343,6 +2179,19 @@ function optionsProp(node: { props?: Record<string, Value> }, key: string): Play
     });
 }
 
+function playgroundProviderDomain(connectTo: string): string {
+    try {
+        return new URL(connectTo).host;
+    } catch {
+        return "";
+    }
+}
+
+function playgroundAttachmentUrl(providerDomain: string, attachmentId: string): string {
+    if (providerDomain === "" || attachmentId === "") return "";
+    return `https://${providerDomain}/api/inference/attachments/download?id=${encodeURIComponent(attachmentId)}`;
+}
+
 function textGenerationModelOptions(value: any): PlaygroundOption[] {
     if (!value || value.kind !== ValueKind.List) return [];
     return value.list.flatMap((item: Value) => {
@@ -1356,6 +2205,97 @@ function textGenerationModelOptions(value: any): PlaygroundOption[] {
         if (name === "") return [];
         return [{key: name, value: title === "" ? name : title}];
     }).sort((a, b) => a.key.localeCompare(b.key));
+}
+
+function modelCapabilities(model: Record<string, Value>, modelName: string): string[] {
+    const models = model.models;
+    if (!models || models.kind !== ValueKind.List) return [];
+    for (const item of models.list) {
+        if (item.kind !== ValueKind.Object) continue;
+        if (stringValue(item.object.name) !== modelName) continue;
+        const capabilities = item.object.capabilities;
+        if (!capabilities || capabilities.kind !== ValueKind.List) return [];
+        return capabilities.list.map(stringValue).filter(Boolean);
+    }
+    return [];
+}
+
+function modelContextWindow(model: Record<string, Value>, modelName: string): number {
+    const models = model.models;
+    if (!models || models.kind !== ValueKind.List) return 0;
+    for (const item of models.list) {
+        if (item.kind !== ValueKind.Object) continue;
+        if (stringValue(item.object.name) !== modelName) continue;
+        return numberValue(item.object.contextWindow);
+    }
+    return 0;
+}
+
+function compactTokenCount(tokens: number): string {
+    if (tokens >= 1_000_000) {
+        const value = tokens / 1_000_000;
+        return `${value >= 10 ? value.toFixed(0) : value.toFixed(1)}M`;
+    }
+    if (tokens >= 1_000) {
+        return `${Math.round(tokens / 1_000)}K`;
+    }
+    return tokens.toLocaleString();
+}
+
+async function detectPlaygroundAttachmentKind(file: File): Promise<PlaygroundAttachmentKind> {
+    const mimeKind = typeFromMime(file.type);
+    if (mimeKind === "image" || mimeKind === "video" || mimeKind === "audio") return mimeKind;
+    if (isConvertiblePlaygroundAttachment(file.name, file.type)) return "convertible";
+
+    const extKind = extensionType(extensionFromPath(file.name));
+    if (extKind === "image" || extKind === "video" || extKind === "audio") return extKind;
+    if (extKind === "text" || extKind === "code" || extKind === "markdown") return "text";
+
+    const sample = new Uint8Array(await file.slice(0, Math.min(file.size, 4096)).arrayBuffer());
+    return isUtf8Text(sample) ? "text" : "unsupported";
+}
+
+function isConvertiblePlaygroundAttachment(fileName: string, mimeType: string): boolean {
+    const ext = extensionFromPath(fileName).toLowerCase();
+    if (["pdf", "ppt", "pptx", "doc", "docx", "xls", "xlsx", "epub", "zip"].includes(ext)) return true;
+    return [
+        "application/pdf",
+        "application/vnd.ms-powerpoint",
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/vnd.ms-excel",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "application/epub+zip",
+        "application/zip",
+        "application/x-zip-compressed",
+    ].includes(mimeType.toLowerCase());
+}
+
+function playgroundAttachmentRejection(kind: PlaygroundAttachmentKind, capabilities: string[]): string {
+    switch (kind) {
+        case "image":
+            return capabilities.includes("Vision") ? "" : "The selected model does not support image attachments.";
+        case "video":
+            return capabilities.includes("VideoVision") ? "" : "The selected model does not support video attachments.";
+        case "audio":
+            return capabilities.includes("Audio") ? "" : "The selected model does not support audio attachments.";
+        case "text":
+            return "";
+        case "convertible":
+            return "";
+        case "unsupported":
+            return "This file type is not supported by the selected model.";
+    }
+}
+
+function isUtf8Text(bytes: Uint8Array): boolean {
+    try {
+        new TextDecoder("utf-8", {fatal: true}).decode(bytes);
+        return true;
+    } catch {
+        return false;
+    }
 }
 
 function stringValue(value: any): string {
@@ -1380,7 +2320,7 @@ function chatMessagePartsValue(value: any): ChatMessagePart[] {
     return value.list.flatMap((item: Value) => {
         if (item.kind !== ValueKind.Object) return [];
         const kind = stringValue(item.object.kind);
-        if (kind !== "text" && kind !== "thinking") return [];
+        if (kind !== "text" && kind !== "thinking" && kind !== "image" && kind !== "video" && kind !== "audio" && kind !== "attachment" && kind !== "tool") return [];
         return [
             {
                 kind,
@@ -1388,9 +2328,173 @@ function chatMessagePartsValue(value: any): ChatMessagePart[] {
                 summary: stringValue(item.object.summary),
                 body: stringValue(item.object.body),
                 open: boolValue(item.object.open),
+                fileName: stringValue(item.object.fileName),
+                url: stringValue(item.object.url),
+                toolName: stringValue(item.object.toolName),
+                status: stringValue(item.object.status),
             },
         ];
     });
+}
+
+function buildChatMessageViewModels(messageItems: Value[], currentThreadId: string): ChatMessageViewModel[] {
+    const allMessages: ChatMessageListItem[] = messageItems.flatMap((item: Value) => {
+        if (item.kind !== ValueKind.Object) return [];
+        if (boolValue(item.object.synthetic)) return [];
+        const role = stringValue(item.object.role);
+        if (role === "") return [];
+        return [{
+            role,
+            content: stringValue(item.object.content),
+            parts: chatMessagePartsValue(item.object.parts),
+        }];
+    });
+
+    return messageItems.flatMap((item, idx): ChatMessageViewModel[] => {
+        if (item.kind !== ValueKind.Object) return [];
+        if (boolValue(item.object.synthetic)) return [];
+
+        const role = stringValue(item.object.role);
+        const content = stringValue(item.object.content);
+        const parts = chatMessagePartsValue(item.object.parts);
+        const messageIndex = item.object.messageIndex ? numberValue(item.object.messageIndex) : idx;
+        const messageParts = parts.length === 0
+            ? [{
+                kind: "text",
+                text: content,
+                summary: "",
+                body: "",
+                open: false,
+                fileName: "",
+                url: "",
+            } as ChatMessagePart]
+            : parts;
+        const hidden = shouldHideCollapsedAttachmentMessage(allMessages, messageIndex, role, content, messageParts);
+        const displayParts = role === "user"
+            ? orderUserMessageParts([
+                ...messageParts,
+                ...collapsedAttachmentPartsForMessage(allMessages, messageIndex),
+            ])
+            : messageParts;
+
+        const key = `${currentThreadId || "thread"}:${idx}:${messageIndex}`;
+        return [{
+            key,
+            threadId: currentThreadId,
+            role,
+            content,
+            parts: messageParts,
+            displayParts,
+            generatedAt: numberValue(item.object.generatedAt),
+            modelName: stringValue(item.object.modelName),
+            startedAt: numberValue(item.object.startedAt),
+            firstTokenAt: numberValue(item.object.firstTokenAt),
+            finishedAt: numberValue(item.object.finishedAt),
+            outputTokens: numberValue(item.object.outputTokens),
+            messageIndex,
+            hidden,
+        }];
+    });
+}
+
+function chatMessageViewModelEqual(a: ChatMessageViewModel, b: ChatMessageViewModel): boolean {
+    return a.key === b.key &&
+        a.threadId === b.threadId &&
+        a.role === b.role &&
+        a.content === b.content &&
+        a.generatedAt === b.generatedAt &&
+        a.modelName === b.modelName &&
+        a.startedAt === b.startedAt &&
+        a.firstTokenAt === b.firstTokenAt &&
+        a.finishedAt === b.finishedAt &&
+        a.outputTokens === b.outputTokens &&
+        a.messageIndex === b.messageIndex &&
+        a.hidden === b.hidden &&
+        chatMessagePartsEqual(a.parts, b.parts) &&
+        chatMessagePartsEqual(a.displayParts, b.displayParts);
+}
+
+function chatMessageScrollKey(message: ChatMessageViewModel): string {
+    return `${message.key}:${message.content}:${message.finishedAt}:${message.parts.map(part => `${part.kind}:${part.text}:${part.body}:${part.status}`).join("|")}`;
+}
+
+function chatMessagePartsEqual(a: ChatMessagePart[], b: ChatMessagePart[]): boolean {
+    if (a === b) return true;
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) {
+        if (!chatMessagePartEqual(a[i], b[i])) return false;
+    }
+    return true;
+}
+
+function chatMessagePartEqual(a: ChatMessagePart, b: ChatMessagePart): boolean {
+    return a.kind === b.kind &&
+        a.text === b.text &&
+        a.summary === b.summary &&
+        a.body === b.body &&
+        a.open === b.open &&
+        a.fileName === b.fileName &&
+        a.url === b.url &&
+        a.toolName === b.toolName &&
+        a.status === b.status;
+}
+
+function playgroundOptionsEqual(a: PlaygroundOption[], b: PlaygroundOption[]): boolean {
+    if (a === b) return true;
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) {
+        if (a[i].key !== b[i].key || a[i].value !== b[i].value) return false;
+    }
+    return true;
+}
+
+function isAttachmentMessagePart(part: ChatMessagePart): boolean {
+    return part.kind === "image" || part.kind === "video" || part.kind === "audio" || part.kind === "attachment";
+}
+
+function isAttachmentOnlyUserMessage(message: ChatMessageListItem): boolean {
+    return message.role === "user" && message.parts.length > 0 && message.parts.every(isAttachmentMessagePart);
+}
+
+function isTextUserMessage(role: string, content: string, parts: ChatMessagePart[]): boolean {
+    if (role !== "user" || content.trim() === "") return false;
+    return !parts.every(isAttachmentMessagePart);
+}
+
+function shouldHideCollapsedAttachmentMessage(
+    messages: ChatMessageListItem[],
+    messageIndex: number,
+    role: string,
+    content: string,
+    parts: ChatMessagePart[]
+): boolean {
+    if (!isAttachmentOnlyUserMessage({role, content, parts})) return false;
+    for (let i = messageIndex + 1; i < messages.length; i++) {
+        const message = messages[i];
+        if (message.role === "assistant") return false;
+        if (isTextUserMessage(message.role, message.content, message.parts)) return true;
+    }
+    return false;
+}
+
+function collapsedAttachmentPartsForMessage(messages: ChatMessageListItem[], messageIndex: number): ChatMessagePart[] {
+    const message = messages[messageIndex];
+    if (!message || !isTextUserMessage(message.role, message.content, message.parts)) return [];
+
+    const attachments: ChatMessagePart[] = [];
+    for (let i = messageIndex - 1; i >= 0; i--) {
+        const previous = messages[i];
+        if (!isAttachmentOnlyUserMessage(previous)) break;
+        attachments.unshift(...previous.parts);
+    }
+    return attachments;
+}
+
+function orderUserMessageParts(parts: ChatMessagePart[]): ChatMessagePart[] {
+    return [
+        ...parts.filter(part => !isAttachmentMessagePart(part)),
+        ...parts.filter(isAttachmentMessagePart),
+    ];
 }
 
 function threadListValue(value: any): ThreadListItem[] {
@@ -1399,202 +2503,13 @@ function threadListValue(value: any): ThreadListItem[] {
         if (item.kind !== ValueKind.Object) return [];
         const id = stringValue(item.object.id);
         const title = stringValue(item.object.title);
+        const updatedAt = numberValue(item.object.updatedAt);
         if (id === "") return [];
-        return [{id, title: title === "" ? "New thread" : title}];
+        return [{id, title: title === "" ? "New thread" : title, updatedAt}];
     });
 }
 
-type ImagePreviewNodeProps = Pick<
-    UcxRenderContext,
-    "node" | "model" | "scope" | "fn"
->;
-
-const ImagePreviewNode: React.FC<ImagePreviewNodeProps> = ({
-                                                               node,
-                                                               model,
-                                                               scope,
-                                                               fn,
-                                                           }) => {
-    const output = stringValue(fn.modelValue(model, node.bindPath, scope));
-    const images = React.useMemo(() => parseImagePreviewItems(output), [output]);
-    const [selectedImage, setSelectedImage] = React.useState<string | null>(null);
-    const [selectedIndex, setSelectedIndex] = React.useState(0);
-
-    React.useEffect(() => {
-        if (selectedImage !== null && !images.includes(selectedImage)) {
-            setSelectedImage(null);
-            setSelectedIndex(0);
-        }
-    }, [images, selectedImage]);
-
-    const openImage = (src: string, idx: number) => {
-        setSelectedImage(src);
-        setSelectedIndex(idx);
-    };
-
-    const closeImage = () => {
-        setSelectedImage(null);
-        setSelectedIndex(0);
-    };
-
-    return (
-        <div
-            style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 12,
-                ...fn.sxStyle(node),
-            }}
-        >
-            {output.trim() === "" ? (
-                <Text color="textSecondary">You have not requested anything yet.</Text>
-            ) : null}
-            {output.trim() !== "" && images.length === 0 ? (
-                <Text color="textSecondary">
-                    Image preview is not possible for this response format.
-                </Text>
-            ) : null}
-            {images.length === 0 ? null : (
-                <div
-                    style={{
-                        display: "grid",
-                        gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-                        gap: 12,
-                    }}
-                >
-                    {images.map((src, idx) => (
-                        <button
-                            key={`${idx}-${src.slice(0, 12)}`}
-                            type="button"
-                            onClick={() => openImage(src, idx)}
-                            style={{
-                                border: "1px solid var(--playground-border, var(--borderColor))",
-                                borderRadius: 8,
-                                padding: 8,
-                                background: "var(--playground-surface, var(--backgroundDefault))",
-                                minWidth: 0,
-                                display: "block",
-                                textDecoration: "none",
-                                color: "inherit",
-                                cursor: "pointer",
-                                textAlign: "left",
-                            }}
-                        >
-                            <img
-                                src={src}
-                                alt={`Generated image ${idx + 1}`}
-                                style={{
-                                    display: "block",
-                                    width: "100%",
-                                    maxHeight: 280,
-                                    objectFit: "contain",
-                                    borderRadius: 6,
-                                }}
-                            />
-                        </button>
-                    ))}
-                </div>
-            )}
-            <ReactModal
-                isOpen={selectedImage !== null}
-                onRequestClose={closeImage}
-                style={{
-                    ...largeModalStyle,
-                    content: {
-                        ...largeModalStyle.content,
-                        width: "92vw",
-                        height: "92vh",
-                        maxHeight: "92vh",
-                        top: "4vh",
-                        left: "4vw",
-                        overflow: "hidden",
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 12,
-                    },
-                }}
-                ariaHideApp={false}
-            >
-                <div
-                    style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        gap: 16,
-                    }}
-                >
-                    <Text style={{fontWeight: 600}}>Image {selectedIndex + 1}</Text>
-                    <Button type="button" onClick={closeImage} m={0}>
-                        Close
-                    </Button>
-                </div>
-                {selectedImage === null ? null : (
-                    <div
-                        style={{
-                            flex: 1,
-                            minHeight: 0,
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            padding: 16,
-                            background: "var(--playground-surface, var(--backgroundDefault))",
-                            borderRadius: 8,
-                        }}
-                    >
-                        <img
-                            src={selectedImage}
-                            alt={`Generated image ${selectedIndex + 1}`}
-                            style={{
-                                maxWidth: "100%",
-                                maxHeight: "100%",
-                                objectFit: "contain",
-                                borderRadius: 8,
-                            }}
-                        />
-                    </div>
-                )}
-            </ReactModal>
-            {output.trim() === "" ? null : (
-                <div style={{display: "flex", flexDirection: "column", gap: 8}}>
-                    <Text style={{fontWeight: 600}}>JSON response:</Text>
-                    <CodeSnippet maxHeight="320px">{output}</CodeSnippet>
-                </div>
-            )}
-        </div>
-    );
-};
-
-function parseImagePreviewItems(output: string): string[] {
-    if (!output.trim()) return [];
-
-    let parsed: any;
-    try {
-        parsed = JSON.parse(output);
-    } catch {
-        return [];
-    }
-
-    const items: string[] = [];
-    if (parsed && Array.isArray(parsed.data)) {
-        for (const item of parsed.data) {
-            if (!item || typeof item !== "object") continue;
-            const url = typeof item.url === "string" ? item.url : "";
-            const b64 = typeof item.b64_json === "string" ? item.b64_json : "";
-            if (url.startsWith("data:")) {
-                items.push(url);
-            } else if (b64 !== "") {
-                items.push(`data:image/png;base64,${b64}`);
-            }
-        }
-        return items;
-    }
-
-    const url = typeof parsed?.url === "string" ? parsed.url : "";
-    const b64 = typeof parsed?.b64_json === "string" ? parsed.b64_json : "";
-    if (url.startsWith("data:")) {
-        items.push(url);
-    } else if (b64 !== "") {
-        items.push(`data:image/png;base64,${b64}`);
-    }
-    return items;
+function stringListValue(value: any): string[] {
+    if (!value || value.kind !== ValueKind.List) return [];
+    return value.list.map(stringValue).filter(Boolean);
 }
