@@ -3,7 +3,7 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {useCallback, useRef, useState} from "react";
 import * as React from "react";
 import {Box, Icon, Input, Label} from "@/ui-components";
-import {SettingsActions, SettingsSection} from "./SettingsComponents";
+import {SettingsActions, SettingsSection} from "@/ui-components/SettingsComponents";
 
 enum ChangePasswordError {
     BAD_CURRENT,

@@ -5,7 +5,7 @@ import Box from "@/ui-components/Box";
 import * as Heading from "@/ui-components/Heading";
 import {TwoFactorSetupState} from "./settingsApi";
 import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
-import {SettingsSection} from "./SettingsComponents";
+import {SettingsSection} from "@/ui-components/SettingsComponents";
 
 import googlePlay from "@/Assets/Images/google-play-badge.png";
 import appStore from "@/Assets/Images/app-store-badge.png";
@@ -33,7 +33,6 @@ export class TwoFactorSetup extends React.Component<{setLoading: (loading: boole
                     </Heading.h3>
                 ) : null}
                 <b>{this.displayConnectedStatus()}</b>
-                <Divider />
                 {!this.state.isConnectedToAccount ? this.setupPage() : undefined}
             </SettingsSection>
         );
