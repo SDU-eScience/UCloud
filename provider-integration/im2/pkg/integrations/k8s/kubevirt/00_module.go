@@ -493,22 +493,32 @@ func follow(session *ctrl.FollowJobSession) {
 		return
 	}
 
+	workFolder := filepath.Join(jobFolder, "work")
 	logsFolder := filepath.Join(jobFolder, "logs")
+	logFolders := func() []string {
+		if info, err := os.Stat(logsFolder); err == nil && info.IsDir() {
+			return []string{logsFolder, workFolder}
+		}
+		return []string{workFolder, logsFolder}
+	}
 
 	trackFile := func(baseName string, file trackedLogFile) {
 		_, exists := logFiles[baseName]
 
 		if !exists {
-			stdout, ok1 := filesystem.OpenFile(filepath.Join(logsFolder, baseName), unix.O_RDONLY, 0)
-			if ok1 {
+			for _, folder := range logFolders() {
+				stdout, ok := filesystem.OpenFile(filepath.Join(folder, baseName), unix.O_RDONLY, 0)
+				if !ok {
+					continue
+				}
+
 				sinfo, err := stdout.Stat()
-				if err == nil {
-					if sinfo.Size() > 1024*256 {
-						_, _ = stdout.Seek(sinfo.Size()-1024*256, io.SeekStart)
-					}
+				if err == nil && sinfo.Size() > 1024*256 {
+					_, _ = stdout.Seek(sinfo.Size()-1024*256, io.SeekStart)
 				}
 				file.File = stdout
 				logFiles[baseName] = file
+				break
 			}
 		}
 	}
@@ -550,7 +560,6 @@ func follow(session *ctrl.FollowJobSession) {
 	}
 
 	readBuffer := make([]byte, 1024*4)
-	kvStatsPath := filepath.Join(logsFolder, ".ucmetrics-stats")
 	var kvStatsLastMtime int64
 	var kvStatsLastSize int64
 	kvStatsLastContent := ""
@@ -568,9 +577,13 @@ func follow(session *ctrl.FollowJobSession) {
 
 		trackAllFiles()
 		if !utilizationDataTracked {
-			path := filepath.Join(logsFolder, ".ucviz-utilization-data")
-			ring, err := util.FsRingOpen(path, utilSerializer)
-			if err == nil {
+			for _, folder := range logFolders() {
+				path := filepath.Join(folder, ".ucviz-utilization-data")
+				ring, err := util.FsRingOpen(path, utilSerializer)
+				if err != nil {
+					continue
+				}
+
 				ring.OnReset = func() {
 					select {
 					case utilizationResetChannel <- util.Empty{}:
@@ -585,6 +598,7 @@ func follow(session *ctrl.FollowJobSession) {
 					_ = ring.Follow(context.Background(), utilizationChannel, 256)
 					util.SilentClose(ring)
 				}()
+				break
 			}
 		}
 
@@ -608,9 +622,21 @@ func follow(session *ctrl.FollowJobSession) {
 			}
 		}
 
-		if finfo, err := os.Stat(kvStatsPath); err == nil {
-			currentMtime := finfo.ModTime().UnixNano()
-			currentSize := finfo.Size()
+		var kvStatsPath string
+		var kvStatsInfo os.FileInfo
+		for _, folder := range logFolders() {
+			candidatePath := filepath.Join(folder, ".ucmetrics-stats")
+			candidateInfo, err := os.Stat(candidatePath)
+			if err == nil {
+				kvStatsPath = candidatePath
+				kvStatsInfo = candidateInfo
+				break
+			}
+		}
+
+		if kvStatsInfo != nil {
+			currentMtime := kvStatsInfo.ModTime().UnixNano()
+			currentSize := kvStatsInfo.Size()
 			if currentMtime != kvStatsLastMtime || currentSize != kvStatsLastSize {
 				if f, ok := filesystem.OpenFile(kvStatsPath, unix.O_RDONLY, 0); ok {
 					data, readErr := io.ReadAll(f)
@@ -1441,7 +1467,11 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 			return util.HttpErr(http.StatusInternalServerError, "internal error")
 		}
 
-		logsDir := filepath.Join(jobFolder, "logs")
+		logsDir := filepath.Join(jobFolder, "work")
+		legacyLogsDir := filepath.Join(jobFolder, "logs")
+		if info, statErr := os.Stat(legacyLogsDir); statErr == nil && info.IsDir() {
+			logsDir = legacyLogsDir
+		}
 		logsDirSubPath, ok := strings.CutPrefix(logsDir, filepath.Clean(ServiceConfig.FileSystem.MountPoint)+"/")
 		if !ok {
 			log.Warn("sub path to folder is invalid: %v %s", job.Id, err)
