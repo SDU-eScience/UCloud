@@ -18,6 +18,8 @@ export enum Feature {
     NEW_TOOLTIPS,
 
     FILE_BROWSER_STATUS_BAR,
+
+    NEW_CONTEXT_MENU,
 }
 
 enum Environment {
@@ -105,6 +107,12 @@ const featureMap: Record<string, FeatureConfig> = {
 
     "file-browser-status-bar": {
         feature: Feature.FILE_BROWSER_STATUS_BAR,
+        showWithoutFlag: allDevEnvironments,
+        showWithFlag: allEnvironments,
+    },
+
+    "new-context-menu": {
+        feature: Feature.NEW_CONTEXT_MENU,
         showWithoutFlag: allDevEnvironments,
         showWithFlag: allEnvironments,
     }

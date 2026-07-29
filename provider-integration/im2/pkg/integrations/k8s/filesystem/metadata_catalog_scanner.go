@@ -243,11 +243,14 @@ func metadataUCloudPathContains(parent, child string) bool {
 
 func metadataClaimScheduledScan(candidate metadataScanCandidate, now time.Time, interval time.Duration) bool {
 	return db.NewTx[bool](func(tx *db.Transaction) bool {
+		// Candidates are assembled outside this transaction and may refer to a drive removed in the meantime.
 		_, ok := db.Get[struct{ DriveId string }](tx, `
 			insert into fs_metadata_scan_state(
 				drive_id, ucloud_path, last_submitted_at, last_completed_at
 			)
-			values (:drive_id, :ucloud_path, :now, timestamp 'epoch')
+			select :drive_id, :ucloud_path, :now, timestamp 'epoch'
+			from tracked_drives
+			where drive_id = :drive_id
 			on conflict (drive_id, ucloud_path) do update
 			set last_submitted_at = excluded.last_submitted_at
 			where

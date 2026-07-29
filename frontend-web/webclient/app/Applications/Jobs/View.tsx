@@ -1533,7 +1533,7 @@ const CompletedText: React.FunctionComponent<{job: Job, state: JobState}> = ({jo
         <Box flexGrow={1} />
         {isUnknownApp || isSyncthingApp(job) ? null :
             <Link to={buildQueryString(`/jobs/create`, {app: app.name, version: app.version, import: job.id})}>
-                <Button>Run application again</Button>
+                <Button>Run again</Button>
             </Link>
         }
     </Flex>;

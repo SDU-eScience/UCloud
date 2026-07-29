@@ -54,7 +54,7 @@ const AnchoredTooltipContent = injectStyle("anchored-tooltip-content", k => `
         background: contrast-color(var(--backgroundDefault));
         color: var(--backgroundDefault);
         position: fixed;
-        z-index: 10000;
+        z-index: 90000;
         overflow-wrap: anywhere;
         text-align: center;
         font-size: 12px;

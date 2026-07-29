@@ -4,12 +4,27 @@ import {
     Permission,
     PERMISSIONS_TAG,
     ResourceApi,
+    ResourceApiActions,
     ResourceBrowseCallbacks,
     ResourceUpdate,
 } from "@/UCloud/ResourceApi";
 import {BulkRequest, BulkResponse, PageV2} from "@/UCloud/index";
 import FileCollectionsApi, {FileCollection, FileCollectionSupport} from "@/UCloud/FileCollectionsApi";
-import {Box, Button, Card, ExternalLink, Flex, FtIcon, Icon, MainContainer, Markdown, Select, Text, TextArea, Truncate} from "@/ui-components";
+import {
+    Box,
+    Button,
+    Card,
+    ExternalLink,
+    Flex,
+    FtIcon,
+    Icon,
+    MainContainer,
+    Markdown,
+    Select,
+    Text,
+    TextArea,
+    Truncate
+} from "@/ui-components";
 import * as React from "react";
 import {useCallback, useEffect, useMemo, useState} from "react";
 import {fileName, getParentPath, readableUnixMode, sizeToString} from "@/Utilities/FileUtilities";
@@ -29,7 +44,8 @@ import {
     typeFromMime
 } from "@/UtilityFunctions";
 import * as Heading from "@/ui-components/Heading";
-import {Operation, ShortcutKey} from "@/ui-components/Operation";
+import {Operation, operationsToActions, ShortcutKey} from "@/ui-components/Operation";
+import {ActionItem, CommonActionShortcut} from "@/ui-components/Actions";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {ItemRenderer} from "@/ui-components/Browse";
 import {prettyFilePath, usePrettyFilePath} from "@/Files/FilePath";
@@ -84,6 +100,7 @@ import {GuessedFile} from "magic-bytes.js/dist/model/tree";
 import {sendFailureNotification, sendInformationNotification, sendSuccessNotification} from "@/Notifications";
 import {terminalOpen, terminalOpenTab} from "@/Terminal/State";
 import {genericSet} from "@/Utilities/ReduxHooks";
+import {Feature, hasFeature} from "@/Features";
 
 export function normalizeDownloadEndpoint(endpoint: string): string {
     const e = endpoint.replace("integration-module:8889", "localhost:8889");
@@ -107,6 +124,54 @@ export interface ExtraFileCallbacks {
     allowMoveCopyOverride?: boolean;
     syncthingConfig?: SyncthingConfig;
     setSynchronization?: (file: UFile[], shouldAdd: boolean) => void;
+    openFile(file: UFile, newWindow: boolean): void;
+    copyToClipboard(files: UFile[], cut: boolean): void;
+    canPasteFromClipboard(): boolean;
+    pasteFromClipboard(): void;
+}
+
+export type FileBrowseCallbacks = ResourceBrowseCallbacks<UFile, ProductStorage> & ExtraFileCallbacks;
+
+const FILE_SYNCHRONIZATION_TAG = "file-synchronization";
+const FILE_SELECTED_EMPTY_TRASH_TAG = "file-selected-empty-trash";
+const COPY_SHORTCUT: CommonActionShortcut = {code: "KeyC", key: "C", modifier: "primary"};
+const CUT_SHORTCUT: CommonActionShortcut = {code: "KeyX", key: "X", modifier: "primary"};
+const PASTE_SHORTCUT: CommonActionShortcut = {code: "KeyV", key: "V", modifier: "primary"};
+const RENAME_SHORTCUT: CommonActionShortcut = {code: "F2", key: "F2"};
+const DELETE_SHORTCUT: CommonActionShortcut = {code: "Delete", key: "Delete"};
+
+export function hasReadPermission(permissions: Permission[]): boolean {
+    return permissions.some(permission => permission === "READ" || permission === "EDIT" || permission === "ADMIN");
+}
+
+export function hasReadAndWritePermission(permissions: Permission[]): boolean {
+    return permissions.some(permission => permission === "EDIT" || permission === "ADMIN");
+}
+
+export function hasAdminPermission(permissions: Permission[]): boolean {
+    return permissions.includes("ADMIN");
+}
+
+function canCopyFiles(selected: UFile[]): boolean {
+    return selected.length > 0 && selected.every(file => hasReadPermission(file.permissions.myself));
+}
+
+function canCutFiles(selected: UFile[], callbacks: FileBrowseCallbacks): boolean | string {
+    if (callbacks.isSearch || selected.length === 0) return false;
+    if ((callbacks.collection?.status.resolvedSupport?.support as FileCollectionSupport | undefined)?.files.isReadOnly) {
+        return "File system is read-only";
+    }
+    return selected.every(file => hasReadAndWritePermission(file.permissions.myself)) &&
+        selected.every(file => file.status.icon !== "DIRECTORY_TRASH");
+}
+
+function canPasteFiles(selected: UFile[], callbacks: FileBrowseCallbacks): boolean | string {
+    if (selected.length !== 0 || callbacks.isSearch || !callbacks.canPasteFromClipboard()) return false;
+    if ((callbacks.collection?.status.resolvedSupport?.support as FileCollectionSupport | undefined)?.files.isReadOnly) {
+        return "File system is read-only";
+    }
+    return hasReadAndWritePermission(callbacks.collection?.permissions?.myself ?? []) ||
+        "You do not have write permissions in this folder";
 }
 
 export function isSensitivitySupported(resource: UFile): boolean {
@@ -194,7 +259,7 @@ function useSensitivity(resource: UFile): SensitivityLevel | null {
 }
 
 class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
-    ResourceUpdate, UFileIncludeFlags, UFileStatus, FileCollectionSupport> {
+    ResourceUpdate, UFileIncludeFlags, UFileStatus, FileCollectionSupport, FileBrowseCallbacks> {
     constructor() {
         super("files");
         this.sortEntries = [];
@@ -210,7 +275,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
         return apiUpdate(request, "/api/files", "visualize");
     }
 
-    renderer: ItemRenderer<UFile, ResourceBrowseCallbacks<UFile, ProductStorage> & ExtraFileCallbacks> = {
+    renderer: ItemRenderer<UFile, FileBrowseCallbacks> = {
     };
 
     private defaultRetrieveFlags: Partial<UFileIncludeFlags> = {
@@ -245,10 +310,175 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
         return <FilePreview initialFile={file} />
     }
 
-    public retrieveOperations(): Operation<UFile, ResourceBrowseCallbacks<UFile, ProductStorage>>[] {
+    public retrieveActions(): ResourceApiActions<UFile, ProductStorage, FileBrowseCallbacks> {
+        if (!hasFeature(Feature.NEW_CONTEXT_MENU)) return this.retrieveOperations();
+
+        const operations = this.retrieveOperations();
+        const findOperation = (predicate: (operation: Operation<UFile, FileBrowseCallbacks>) => boolean) => {
+            const operation = operations.find(predicate);
+            if (!operation) throw new Error("Missing file operation");
+            const action = operationsToActions([operation]).actions[0];
+            if (action === "divider" || !action) throw new Error("Invalid file operation");
+            return action;
+        };
+        const byText = (text: string) => findOperation(operation => operation.text === text);
+        const withOverrides = (
+            action: ActionItem<UFile, FileBrowseCallbacks>,
+            overrides: Partial<ActionItem<UFile, FileBrowseCallbacks>>
+        ): ActionItem<UFile, FileBrowseCallbacks> => ({...action, ...overrides});
+        const withoutShortcut = (action: ActionItem<UFile, FileBrowseCallbacks>) =>
+            withOverrides(action, {shortcut: undefined});
+
+        const open: ActionItem<UFile, FileBrowseCallbacks> = {
+            text: "Open",
+            enabled: selected => selected.length === 1,
+            onClick: ([file], callbacks) => callbacks.openFile(file, false),
+        };
+        const openInNewWindow: ActionItem<UFile, FileBrowseCallbacks> = {
+            text: "Open in new window",
+            icon: "heroArrowTopRightOnSquare",
+            enabled: selected => selected.length === 1,
+            onClick: ([file], callbacks) => callbacks.openFile(file, true),
+        };
+        const copy: ActionItem<UFile, FileBrowseCallbacks> = {
+            text: "Copy",
+            icon: "heroDocumentDuplicate",
+            enabled: canCopyFiles,
+            onClick: (selected, callbacks) => callbacks.copyToClipboard(selected, false),
+            shortcut: COPY_SHORTCUT,
+        };
+        const cut: ActionItem<UFile, FileBrowseCallbacks> = {
+            text: "Cut",
+            icon: "heroScissors",
+            enabled: canCutFiles,
+            onClick: (selected, callbacks) => callbacks.copyToClipboard(selected, true),
+            shortcut: CUT_SHORTCUT,
+        };
+        const paste: ActionItem<UFile, FileBrowseCallbacks> = {
+            text: "Paste",
+            icon: "heroClipboard",
+            enabled: canPasteFiles,
+            onClick: (_, callbacks) => callbacks.pasteFromClipboard(),
+            shortcut: PASTE_SHORTCUT,
+        };
+
+        const openWith = withOverrides(withoutShortcut(byText("Open with...")), {icon: undefined});
+        const download = withoutShortcut(byText("Download"));
+        const copyTo = withOverrides(withoutShortcut(byText("Copy to...")), {icon: undefined});
+        const moveTo = withOverrides(withoutShortcut(byText("Move to...")), {icon: undefined});
+        const transferTo = withOverrides(withoutShortcut(byText("Transfer to...")), {icon: undefined});
+        const share = withOverrides(withoutShortcut(byText("Share")), {text: "Share with..."});
+        const synchronization = findOperation(operation => operation.tag === FILE_SYNCHRONIZATION_TAG);
+        const addToSynchronization = withOverrides(withoutShortcut(synchronization), {
+            text: "Add to synchronization",
+            icon: undefined,
+            enabled: (selected, callbacks) => {
+                const enabled = synchronization.enabled(selected, callbacks);
+                return enabled === true && !areAllSynchronized(selected, callbacks);
+            },
+        });
+        const rename = withOverrides(byText("Rename"), {shortcut: RENAME_SHORTCUT});
+        const deleteAction = withOverrides(byText("Move to trash"), {
+            text: "Delete",
+            shortcut: DELETE_SHORTCUT,
+            confirmationText: selected => selected.length === 1 ?
+                "Are you sure you want to move this item to the trash?" :
+                `Are you sure you want to move these ${selected.length} items to the trash?`,
+        });
+        const emptyTrash = withOverrides(
+            withoutShortcut(findOperation(operation => operation.tag === FILE_SELECTED_EMPTY_TRASH_TAG)),
+            {
+                text: "Empty trash",
+                confirmationText: "Are you sure you want to permanently delete everything in the trash?",
+                confirmationButtonText: "Empty",
+            }
+        );
+        const propertiesOperation = withoutShortcut(byText("Properties"));
+        const properties = withOverrides(propertiesOperation, {
+            icon: undefined,
+            enabled: (selected, callbacks) => callbacks.viewProperties != null &&
+                (selected.length === 1 || (selected.length === 0 && callbacks.directory != null)),
+            onClick: (selected, callbacks) => callbacks.viewProperties!(selected[0] ?? callbacks.directory!),
+        });
+        const newFolder = withOverrides(withoutShortcut(byText("Create folder")), {text: "New folder"});
+        const newFile = withOverrides(withoutShortcut(byText("Create file")), {text: "New file", icon: undefined});
+        const openTerminal = withoutShortcut(byText("Open terminal"));
+
+        const hiddenFromTopbar = new Set([
+            "Copy to...",
+            "Move to...",
+            "Transfer to...",
+            "Change sensitivity",
+        ]);
+        const topbarOrder = new Map([
+            ["Go to parent folder", 0],
+            ["Open with...", 1],
+            ["Download", 2],
+            ["Share", 3],
+            ["Sync", 4],
+            ["Rename", 5],
+            ["Move to trash", 6],
+            ["Empty Trash", 7],
+            ["Create folder", 8],
+            ["Create file", 9],
+            ["Upload files", 10],
+            ["Open terminal", 11],
+            ["Properties", 12],
+        ]);
+        const topbarOperations = operations.filter(operation =>
+            !hiddenFromTopbar.has(typeof operation.text === "string" ? operation.text : "") &&
+            operation.tag !== FILE_SYNCHRONIZATION_TAG
+        ).sort((a, b) => {
+            const aOrder = typeof a.text === "string" ? topbarOrder.get(a.text) : undefined;
+            const bOrder = typeof b.text === "string" ? topbarOrder.get(b.text) : undefined;
+            if (aOrder == null) return bOrder == null ? 0 : -1;
+            if (bOrder == null) return 1;
+            return aOrder - bOrder;
+        });
+        const topbar = operationsToActions(topbarOperations);
+
+        return {
+            topbar: topbar.actions,
+            appearance: action => {
+                const appearance = topbar.appearance(action as ActionItem<UFile, FileBrowseCallbacks>);
+                return appearance ? {...appearance, iconSize: 16, iconSpacing: "8px"} : undefined;
+            },
+            topbarMaxVisible: 4,
+            contextMenu: [
+                open,
+                openInNewWindow,
+                openWith,
+                download,
+                "divider",
+                copy,
+                cut,
+                "divider",
+                copyTo,
+                moveTo,
+                transferTo,
+                "divider",
+                share,
+                addToSynchronization,
+                "divider",
+                rename,
+                deleteAction,
+                emptyTrash,
+                "divider",
+                newFolder,
+                newFile,
+                paste,
+                "divider",
+                openTerminal,
+                "divider",
+                properties,
+            ],
+        };
+    }
+
+    public retrieveOperations(): Operation<UFile, FileBrowseCallbacks>[] {
         const base = super.retrieveOperations()
             .filter(it => it.tag !== CREATE_TAG && it.tag !== PERMISSIONS_TAG && it.tag !== DELETE_TAG);
-        const ourOps: Operation<UFile, ResourceBrowseCallbacks<UFile, ProductStorage> & ExtraFileCallbacks>[] = [
+        const ourOps: Operation<UFile, FileBrowseCallbacks>[] = [
             {
                 text: "Use this folder",
                 primary: true,
@@ -285,7 +515,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                         return false;
                     }
 
-                    if (cb.collection?.permissions?.myself?.some(perm => perm === "ADMIN" || perm === "EDIT") != true) {
+                    if (!hasReadAndWritePermission(cb.collection?.permissions?.myself ?? [])) {
                         return "You do not have write permissions in this folder";
                     }
                     return true;
@@ -312,7 +542,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     if ((support as FileCollectionSupport).files.isReadOnly) {
                         return "File system is read-only";
                     }
-                    if (cb.collection?.permissions?.myself?.some(perm => perm === "ADMIN" || perm === "EDIT") != true) {
+                    if (!hasReadAndWritePermission(cb.collection?.permissions?.myself ?? [])) {
                         return "You do not have write permissions in this folder";
                     }
                     return true;
@@ -324,8 +554,8 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
             },
 
             {
-                text: "Launch with...",
-                icon: "open",
+                text: "Open with...",
+                icon: "heroArrowTopRightOnSquare",
                 enabled: (selected, cb) => selected.length === 1 && cb.collection != null,
                 onClick: (selected) => {
                     dialogStore.addDialog(
@@ -351,7 +581,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
             },
             {
                 text: "Rename",
-                icon: "rename",
+                icon: "heroPencilSquare",
                 enabled: (selected, cb) => {
                     if (cb.isSearch) return false;
                     const support = cb.collection?.status.resolvedSupport?.support;
@@ -361,7 +591,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     }
                     if (selected.some(it => it.status.icon === "DIRECTORY_TRASH")) return false;
                     return selected.length === 1 &&
-                        selected.every(it => it.permissions.myself.some(p => p === "EDIT" || p === "ADMIN"));
+                        selected.every(it => hasReadAndWritePermission(it.permissions.myself));
                 },
                 onClick: ([selected], cb) => {
                     const op = () => cb.startRenaming?.(selected, fileName(selected.id));
@@ -371,7 +601,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
             },
             {
                 text: "Download",
-                icon: "download",
+                icon: "heroArrowDownTray",
                 enabled: selected => selected.length > 0 && selected.every(it => it.status.type === "FILE"),
                 onClick: async (selected, cb) => {
                     this.download(selected.map(it => it.id));
@@ -379,13 +609,13 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 shortcut: ShortcutKey.D
             },
             {
-                icon: "copy",
+                icon: "heroDocumentDuplicate",
                 text: "Copy to...",
                 enabled: (selected, cb) =>
                     (cb.isModal !== true || !!cb.allowMoveCopyOverride) &&
                     !cb.isSearch &&
                     selected.length > 0 &&
-                    selected.every(it => it.permissions.myself.some(p => p === "READ" || p === "ADMIN")),
+                    selected.every(it => hasReadPermission(it.permissions.myself)),
                 onClick: (selected, cb) => {
                     this.copyModal(selected.map(it => it.id), selected[0].specification.product.provider, cb.reload);
                 },
@@ -398,7 +628,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     !cb.isSearch &&
                     (cb.isModal !== true || !!cb.allowMoveCopyOverride) &&
                     selected.length > 0 &&
-                    selected.every(it => it.permissions.myself.some(p => p === "READ" || p === "ADMIN")) &&
+                    selected.every(it => hasReadPermission(it.permissions.myself)) &&
                     selected.every(it => it.status.type === "DIRECTORY"),
                 onClick: (selected, cb) => {
                     const pathRef = {current: getParentPath(selected[0].id)};
@@ -448,7 +678,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 shortcut: ShortcutKey.T,
             },
             {
-                icon: "move",
+                icon: "heroFolderArrowRight",
                 text: "Move to...",
                 enabled: (selected, cb) => {
                     if (cb.isSearch) return false;
@@ -460,7 +690,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     if (selected.some(it => it.status.icon === "DIRECTORY_TRASH")) return false;
                     return (cb.isModal !== true || !!cb.allowMoveCopyOverride) &&
                         selected.length > 0 &&
-                        selected.every(it => it.permissions.myself.some(p => p === "EDIT" || p === "ADMIN"));
+                        selected.every(it => hasReadAndWritePermission(it.permissions.myself));
                 },
                 onClick: (selected, cb) => {
                     const op = () => this.moveModal(selected.map(it => it.id), selected[0].specification.product.provider, cb.reload);
@@ -469,7 +699,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 shortcut: ShortcutKey.M
             },
             {
-                icon: "share",
+                icon: "heroShare",
                 text: "Share",
                 enabled: (selected, cb) => {
                     if (Client.hasActiveProject) return false;
@@ -479,7 +709,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     if (!support) return false;
                     if ((support as FileCollectionSupport).files.sharesSupported === false) return false;
 
-                    const isMissingPermissions = selected.some(it => !it.permissions.myself.some(p => p === "ADMIN"));
+                    const isMissingPermissions = selected.some(it => !hasAdminPermission(it.permissions.myself));
                     const hasNonDirectories = selected.some(it => it.status.type != "DIRECTORY");
 
                     if (isMissingPermissions) {
@@ -509,7 +739,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 enabled(selected, cb) {
                     if (cb.isSearch) return false;
                     if (!cb.syncthingConfig) return false;
-                    if (cb.collection?.permissions?.myself?.some(perm => perm === "ADMIN" || perm === "EDIT") != true) {
+                    if (!hasReadAndWritePermission(cb.collection?.permissions?.myself ?? [])) {
                         return false;
                     }
 
@@ -535,7 +765,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
             {
                 // Empty trash of current directory
                 text: "Empty Trash",
-                icon: "trash",
+                icon: "heroTrash",
                 color: "errorMain",
                 primary: true,
                 enabled: (selected, cb) => {
@@ -596,6 +826,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
             {
                 // Item row synchronization
                 text: synchronizationOpText,
+                tag: FILE_SYNCHRONIZATION_TAG,
                 icon: "refresh",
                 enabled: (selected, cb) => !cb.isSearch && synchronizationOpEnabled(false, selected, cb),
                 onClick: (selected, cb) => {
@@ -622,7 +853,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                         return false;
                     }
 
-                    if (cb.collection?.permissions?.myself?.some(perm => perm === "ADMIN" || perm === "EDIT") != true) {
+                    if (!hasReadAndWritePermission(cb.collection?.permissions?.myself ?? [])) {
                         return "You do not have write permissions in this folder";
                     }
 
@@ -651,7 +882,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     if ((support as FileCollectionSupport).files.isReadOnly) {
                         return "File system is read-only";
                     }
-                    if (cb.collection?.permissions?.myself?.some(perm => perm === "ADMIN" || perm === "EDIT") != true) {
+                    if (!hasReadAndWritePermission(cb.collection?.permissions?.myself ?? [])) {
                         return "You do not have write permissions in this folder";
                     }
                     return true;
@@ -664,9 +895,13 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 color: "textPrimary",
             },
             {
-                icon: "trash",
+                icon: "heroTrash",
                 text: "Move to trash",
                 confirm: true,
+                confirmationText: selected => selected.length === 1 ?
+                    "Are you sure you want to move this item to the trash?" :
+                    `Are you sure you want to move these ${selected.length} items to the trash?`,
+                confirmationButtonText: "Delete",
                 color: "errorMain",
                 enabled: (selected, cb) => {
                     if (cb.isSearch) return false;
@@ -679,7 +914,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                         return false;
                     }
                     return selected.length > 0 &&
-                        selected.every(it => it.permissions.myself.some(p => p === "EDIT" || p === "ADMIN"))
+                        selected.every(it => hasReadAndWritePermission(it.permissions.myself))
                         && selected.every(f => f.specification.product)
                         && selected.every(f => f.status.icon !== "DIRECTORY_TRASH");
                 },
@@ -695,9 +930,12 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 shortcut: ShortcutKey.R
             },
             {
-                icon: "trash",
+                icon: "heroTrash",
                 text: "Empty Trash",
+                tag: FILE_SELECTED_EMPTY_TRASH_TAG,
                 confirm: true,
+                confirmationText: "Are you sure you want to permanently delete everything in the trash?",
+                confirmationButtonText: "Empty",
                 color: "errorMain",
                 enabled: (selected, cb) => {
                     const support = cb.collection?.status.resolvedSupport?.support;
@@ -717,8 +955,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
             },
         ];
 
-        // FIXME(Jonas): Not great that the cast is through `unknown`
-        return base.concat(ourOps as unknown as Operation<UFile, ResourceBrowseCallbacks<UFile, ProductStorage>>[]);
+        return base.concat(ourOps);
     }
 
     public transfer(request: BulkRequest<FilesTransferRequestItem>): APICallParameters<BulkRequest<{}>> {
@@ -888,20 +1125,22 @@ function handleSyncthingWarning(files: UFile[], cb: ExtraFileCallbacks, op: () =
     }
 }
 
-function synchronizationOpText(files: UFile[], callbacks: ResourceBrowseCallbacks<UFile, ProductStorage> & ExtraFileCallbacks): string {
+function synchronizationOpText(files: UFile[], callbacks: FileBrowseCallbacks): string {
     const devices: SyncthingDevice[] = callbacks.syncthingConfig?.devices ?? [];
     if (devices.length === 0) return "Sync setup";
 
-    const synchronized: SyncthingFolder[] = callbacks.syncthingConfig?.folders ?? [];
-    const resolvedFiles = files.length === 0 ? (callbacks.directory ? [callbacks.directory] : []) : files;
-
-    const allSynchronized = resolvedFiles.every(selected => synchronized.some(it => it.ucloudPath === selected.id));
-
-    if (allSynchronized) {
+    if (areAllSynchronized(files, callbacks)) {
         return "Remove from sync";
     } else {
         return "Add to sync";
     }
+}
+
+function areAllSynchronized(files: UFile[], callbacks: FileBrowseCallbacks): boolean {
+    const synchronized: SyncthingFolder[] = callbacks.syncthingConfig?.folders ?? [];
+    const resolvedFiles = files.length === 0 ? (callbacks.directory ? [callbacks.directory] : []) : files;
+    return resolvedFiles.length > 0 &&
+        resolvedFiles.every(selected => synchronized.some(it => it.ucloudPath === selected.id));
 }
 
 function isAnySynchronized(files: UFile[], callbacks: ExtraFileCallbacks): boolean {
@@ -917,7 +1156,7 @@ function isAnySynchronized(files: UFile[], callbacks: ExtraFileCallbacks): boole
     return synchronizedFolders.find(it => it.ucloudPath && filePaths.includes(it.ucloudPath)) != null;
 }
 
-function synchronizationOpEnabled(isDir: boolean, files: UFile[], cb: ResourceBrowseCallbacks<UFile, ProductStorage> & ExtraFileCallbacks): boolean | string {
+function synchronizationOpEnabled(isDir: boolean, files: UFile[], cb: FileBrowseCallbacks): boolean | string {
     const support = cb.collection?.status.resolvedSupport?.support;
     if (!support) return false;
 
@@ -942,10 +1181,10 @@ function synchronizationOpEnabled(isDir: boolean, files: UFile[], cb: ResourceBr
     return true;
 }
 
-async function synchronizationOpOnClick(files: UFile[], cb: ResourceBrowseCallbacks<UFile, ProductStorage> & ExtraFileCallbacks) {
+async function synchronizationOpOnClick(files: UFile[], cb: FileBrowseCallbacks) {
     const synchronized: SyncthingFolder[] = cb.syncthingConfig?.folders ?? [];
     const resolvedFiles = files.length === 0 ? (cb.directory ? [cb.directory] : []) : files;
-    const allSynchronized = resolvedFiles.every(selected => synchronized.some(it => it.ucloudPath === selected.id));
+    const allSynchronized = areAllSynchronized(files, cb);
 
     if (!cb.syncthingConfig) return;
     if (!allSynchronized) {
@@ -982,10 +1221,7 @@ async function synchronizationOpOnClick(files: UFile[], cb: ResourceBrowseCallba
 }
 
 export function isReadonly(entries: Permission[]): boolean {
-    const isAdmin = entries.includes("ADMIN");
-    const isEdit = entries.includes("EDIT") || isAdmin;
-    const isRead = entries.includes("READ");
-    return isRead && !isEdit;
+    return hasReadPermission(entries) && !hasReadAndWritePermission(entries);
 }
 
 async function queryTemplateName(name: string, invokeCommand: InvokeCommand, next?: string): Promise<string> {
@@ -1143,7 +1379,7 @@ export async function addFileSensitivityDialog(file: UFile, invokeCommand: Invok
         );
         return;
     }
-    if (file.permissions.myself?.some(perm => perm === "ADMIN" || perm === "EDIT") != true) {
+    if (!hasReadAndWritePermission(file.permissions.myself ?? [])) {
         return;
     }
 
@@ -1520,7 +1756,7 @@ export function FilePreview({initialFile}: {
                 shortcut: ShortcutKey.C
             },
             {
-                icon: "move",
+                icon: "heroFolderArrowRight",
                 text: "Move file",
                 enabled: () => file.fileHint !== "DIRECTORY_TRASH",
                 onClick: () => {
