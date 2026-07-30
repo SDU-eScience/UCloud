@@ -34,7 +34,6 @@ export interface OpenWithFastPath {
         name: string;
         version?: string;
     };
-    openJobAfterLaunch: boolean;
     parameters?: Record<string, UCloud.compute.AppParameterValue>;
     machine?: {
         preferredVcpuCount?: number;

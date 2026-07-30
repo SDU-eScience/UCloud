@@ -143,7 +143,10 @@ const RENAME_SHORTCUT: CommonActionShortcut = {code: "F2", key: "F2"};
 const DELETE_SHORTCUT: CommonActionShortcut = {code: "Delete", key: "Delete"};
 const COMPRESSION_FAST_PATH: OpenWithFastPath = {
     application: {name: "archiver"},
-    openJobAfterLaunch: false,
+    machine: {preferredVcpuCount: 4}
+};
+const UNCOMPRESSION_FAST_PATH: OpenWithFastPath = {
+    application: {name: "unarchiver"},
     machine: {preferredVcpuCount: 4}
 };
 
@@ -169,11 +172,6 @@ async function startCompression(
         }
     });
 
-    if (COMPRESSION_FAST_PATH.openJobAfterLaunch) {
-        callbacks.navigate(AppRoutes.jobs.view(result.jobId));
-        return;
-    }
-
     registerJobBackgroundTask({
         jobId: result.jobId,
         projectId: result.projectId,
@@ -195,6 +193,39 @@ async function startCompression(
             }
         },
         onSuccess: () => callbacks.reloadCurrentFolderIfUnpaginated(resolvePath(getParentPath(folder.id)))
+    });
+}
+
+function isCompressedFile(file: UFile): boolean {
+    const name = fileName(file.id).toLowerCase();
+    return file.status.type === "FILE" && COMPRESSION_FORMATS.some(format => name.endsWith(format.extension));
+}
+
+async function startUncompression(file: UFile, callbacks: FileBrowseCallbacks): Promise<void> {
+    const archiveName = fileName(file.id);
+    const result = await launchOpenWithFastPath(file, UNCOMPRESSION_FAST_PATH);
+
+    registerJobBackgroundTask({
+        jobId: result.jobId,
+        projectId: result.projectId,
+        display: {
+            icon: "heroArchiveBox",
+            title: `Uncompressing ${archiveName}`,
+            runningTitle: `Uncompressing ${archiveName}`,
+            cancelTitle: "Stop uncompression?",
+            cancelMessage: `Stop uncompressing ${archiveName}?`,
+            startingMessage: `Starting uncompression of ${archiveName}...`,
+            successNotification: `${archiveName} has been uncompressed`,
+            failureNotification: `Could not uncompress ${archiveName}`,
+            stateMessages: {
+                IN_QUEUE: "Waiting for a machine",
+                RUNNING: "Uncompressing archive",
+                CANCELING: "Stopping uncompression",
+                SUCCESS: "Archive uncompressed",
+                FAILURE: "Uncompression failed",
+            }
+        },
+        onSuccess: () => callbacks.reloadCurrentFolderIfUnpaginated(resolvePath(getParentPath(file.id)))
     });
 }
 
@@ -438,6 +469,18 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 }
             }))
         };
+        const uncompress: ActionItem<UFile, FileBrowseCallbacks> = {
+            text: "Uncompress",
+            icon: "heroArchiveBox",
+            enabled: selected => selected.length === 1 && isCompressedFile(selected[0]),
+            onClick: async ([file], callbacks) => {
+                try {
+                    await startUncompression(file, callbacks);
+                } catch (error) {
+                    displayErrorMessageOrDefault(error, "Failed to start uncompression.");
+                }
+            }
+        };
         const download = withoutShortcut(byText("Download"));
         const copyTo = withOverrides(withoutShortcut(byText("Copy to...")), {icon: undefined});
         const moveTo = withOverrides(withoutShortcut(byText("Move to...")), {icon: undefined});
@@ -490,7 +533,6 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
             ["Open with...", 1],
             ["Download", 2],
             ["Share", 3],
-            ["Sync", 4],
             ["Rename", 5],
             ["Move to trash", 6],
             ["Empty Trash", 7],
@@ -498,7 +540,8 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
             ["Create file", 9],
             ["Upload files", 10],
             ["Open terminal", 11],
-            ["Properties", 12],
+            ["Sync", 12],
+            ["Properties", 13],
         ]);
         const topbarOperations = operations.filter(operation =>
             !hiddenFromTopbar.has(typeof operation.text === "string" ? operation.text : "") &&
@@ -534,6 +577,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 "divider",
                 share,
                 compress,
+                uncompress,
                 addToSynchronization,
                 "divider",
                 rename,
