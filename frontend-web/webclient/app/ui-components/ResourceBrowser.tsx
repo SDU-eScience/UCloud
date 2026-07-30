@@ -123,6 +123,7 @@ export interface ResourceBrowserOpts<T> {
     //        to ensure that some keyhandler are only done for the active modal, and not a potential parent ResourceBrowser-component. 
     isModal?: boolean;
     selection?: Selection<T>;
+    height?: string;
 }
 
 export interface ResourceBrowseHeaderControls {
@@ -544,6 +545,7 @@ export class ResourceBrowser<T> {
         embedded?: EmbeddedSettings;
         selector: boolean;
         columnTitles: ColumnTitleList;
+        height?: string;
     };
     // Note(Jonas): To use for project change listening.
     private initialPath: string | undefined = "";
@@ -563,7 +565,8 @@ export class ResourceBrowser<T> {
             columnTitles: [{name: ""}, {name: "", columnWidth: 20}, {name: "", columnWidth: 20}, {name: "", columnWidth: 20}, {
                 name: "",
                 columnWidth: 20
-            }]
+            }],
+            height: opts?.height
         }
     };
 
@@ -685,6 +688,10 @@ export class ResourceBrowser<T> {
             if (location) {
                 location.setAttribute("in-modal", "");
             }
+        }
+
+        if (this.opts.height) {
+            this.root.style.maxHeight = this.opts.height;
         }
 
 
