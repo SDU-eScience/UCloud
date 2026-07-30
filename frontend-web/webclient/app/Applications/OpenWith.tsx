@@ -6,13 +6,13 @@ import {Button} from "@/ui-components";
 import {bulkRequestOf, isLightThemeStored} from "@/UtilityFunctions";
 import {getParentPath} from "@/Utilities/FileUtilities";
 import {useNavigate} from "react-router-dom";
-import {browseWalletsV2, ProductV2, ProductV2Compute, WalletV2} from "@/Accounting";
+import {browseWalletsV2, ProductV2Compute, WalletV2} from "@/Accounting";
 import {dialogStore} from "@/Dialog/DialogStore";
 import * as UCloud from "@/UCloud";
 import {displayErrorMessageOrDefault, joinToString} from "@/UtilityFunctions";
 import {findRelevantMachinesForApplication, Machines} from "@/Applications/Jobs/Widgets/Machines";
 import {ResolvedSupport} from "@/UCloud/ResourceApi";
-import {callAPI as baseCallAPI, callAPI} from "@/Authentication/DataHook";
+import {callAPI as baseCallAPI} from "@/Authentication/DataHook";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {
     ResourceBrowser,
@@ -29,8 +29,83 @@ import * as AppStore from "@/Applications/AppStoreApi";
 import {ApplicationWithExtension} from "@/Applications/AppStoreApi";
 import {sendFailureNotification} from "@/Notifications";
 
+export interface OpenWithFastPath {
+    application: {
+        name: string;
+        version?: string;
+    };
+    openJobAfterLaunch: boolean;
+    parameters?: Record<string, UCloud.compute.AppParameterValue>;
+    machine?: {
+        preferredVcpuCount?: number;
+    };
+}
+
+type OpenWithLaunchResult = {
+    jobId: string;
+    projectId: string | null;
+    applicationName: string;
+    applicationVersion: string;
+};
+
+type ApiCaller = <T>(parameters: APICallParameters<unknown, T>) => Promise<T>;
+
+export async function launchOpenWithFastPath(file: UFile, fastPath: OpenWithFastPath): Promise<OpenWithLaunchResult> {
+    const projectId = Client.projectId;
+    const provider = file.specification.product.provider;
+    const callInProject: ApiCaller = parameters => baseCallAPI({
+        ...parameters,
+        projectOverride: projectId ?? ""
+    });
+
+    const [application, products, machineSupport, wallets] = await Promise.all([
+        callInProject(AppStore.findByNameAndVersion({
+            appName: fastPath.application.name,
+            appVersion: fastPath.application.version
+        })),
+        callInProject(UCloud.accounting.products.browse({
+            filterUsable: true,
+            filterProductType: "COMPUTE",
+            itemsPerPage: 250,
+            includeBalance: true,
+            includeMaxBalance: true
+        })),
+        callInProject(UCloud.compute.jobs.retrieveProducts({providers: provider})),
+        fetchWallets(callInProject)
+    ]);
+
+    const relevantMachines = findRelevantMachinesForApplication(
+        application,
+        machineSupport,
+        (products as unknown as UCloud.PageV2<ProductV2Compute>).items,
+        wallets
+    );
+    const preferredVcpuCount = fastPath.machine?.preferredVcpuCount ?? 4;
+    const machine = relevantMachines
+        .filter(product => product.category.provider === provider)
+        .filter(product => (product.gpu ?? 0) === 0 && product.cpu != null)
+        .sort((a, b) => {
+            const distance = Math.abs(a.cpu! - preferredVcpuCount) - Math.abs(b.cpu! - preferredVcpuCount);
+            if (distance !== 0) return distance;
+            if (a.cpu !== b.cpu) return a.cpu! - b.cpu!;
+            return `${a.category.name}/${a.name}`.localeCompare(`${b.category.name}/${b.name}`);
+        })[0];
+
+    if (!machine) {
+        throw new Error(`No suitable CPU-only machine is available from ${provider}.`);
+    }
+
+    const jobId = await submitOpenWithJob(file, application.metadata.name, application.metadata.version, machine, callInProject, fastPath.parameters);
+    return {
+        jobId,
+        projectId: projectId ?? null,
+        applicationName: application.metadata.name,
+        applicationVersion: application.metadata.version
+    };
+}
+
 export function OpenWithBrowser({opts, file}: {file: UFile, opts?: ResourceBrowserOpts<ApplicationWithExtension>}): React.ReactNode {
-    const [selectedProduct, setSelectedProduct] = useState<ProductV2 | null>(null);
+    const [selectedProduct, setSelectedProduct] = useState<ProductV2Compute | null>(null);
     const browserRef = React.useRef<ResourceBrowser<ApplicationWithExtension> | null>(null);
     const [switcher, setSwitcherWorkaround] = React.useState<React.ReactNode>(<></>);
     const mountRef = React.useRef<HTMLDivElement | null>(null);
@@ -40,6 +115,9 @@ export function OpenWithBrowser({opts, file}: {file: UFile, opts?: ResourceBrows
     const productComputeRef = React.useRef<UCloud.PageV2<ProductV2Compute>>(emptyPageV2);
     const machineSupportRef = React.useRef<compute.JobsRetrieveProductsResponse>(null);
     const walletsRef = React.useRef<WalletV2[]>([]);
+    const machineInfoPromiseRef = React.useRef<Promise<void> | null>(null);
+    const machineInfoGenerationRef = React.useRef(0);
+    const [machineInfoLoading, setMachineInfoLoading] = React.useState(false);
 
     const activeProject = React.useRef(Client.projectId);
 
@@ -96,6 +174,7 @@ export function OpenWithBrowser({opts, file}: {file: UFile, opts?: ResourceBrows
                     const button = browser.defaultButtonRenderer({
                         onClick: async () => {
                             try {
+                                await waitForLatestMachineInfo();
                                 const resolvedApplication = await callAPI(
                                     AppStore.findByNameAndVersion({
                                         appName: entry.metadata.name,
@@ -161,12 +240,13 @@ export function OpenWithBrowser({opts, file}: {file: UFile, opts?: ResourceBrows
     }, []);
 
     const setLocalProject = async (projectId?: string) => {
-        const b = browserRef.current;
-        if (b) {
-            b.canConsumeResources = await checkCanConsumeResources(projectId ?? null, {api: JobsApi});
-        }
         activeProject.current = projectId;
         fetchInfo();
+        const b = browserRef.current;
+        if (b) {
+            const canConsumeResources = await checkCanConsumeResources(projectId ?? null, {api: JobsApi});
+            if (activeProject.current === projectId) b.canConsumeResources = canConsumeResources;
+        }
     };
 
     if (!opts?.embedded && !opts?.isModal) {
@@ -183,48 +263,21 @@ export function OpenWithBrowser({opts, file}: {file: UFile, opts?: ResourceBrows
                 machines={productsRef.current}
                 support={supportRef.current}
                 onMachineChange={setSelectedProduct}
-                loading={false}
+                loading={machineInfoLoading}
             />
             <Button mt={"8px"} fullWidth onClick={async () => {
                 if (!selectedApp || !selectedProduct) return;
                 try {
-                    const response = await callAPI<BulkResponse<FindByStringId | null>>(
-                        JobsApi.create(bulkRequestOf({
-                            application: {
-                                name: selectedApp.metadata.name,
-                                version: selectedApp.metadata.version,
-                            },
-                            product: {
-                                id: selectedProduct.name,
-                                provider: selectedProduct.category.provider,
-                                category: selectedProduct.category.name
-                            },
-                            parameters: {},
-                            replicas: 1,
-                            allowDuplicateJob: true,
-                            timeAllocation: {
-                                hours: 3,
-                                minutes: 0,
-                                seconds: 0
-                            },
-                            resources: [{
-                                type: "file",
-                                path: file.status.type === "DIRECTORY" ? file.id : getParentPath(file.id),
-                                readOnly: false
-                            }],
-                            openedFile: file.id
-                        }))
+                    const jobId = await submitOpenWithJob(
+                        file,
+                        selectedApp.metadata.name,
+                        selectedApp.metadata.version,
+                        selectedProduct,
+                        callAPI
                     );
 
                     dialogStore.success();
-
-                    const ids = response?.responses;
-                    if (!ids || ids.length === 0) {
-                        sendFailureNotification("UCloud failed to submit the job");
-                        return;
-                    }
-
-                    navigate(`/jobs/properties/${ids[0]?.id}?app=${selectedApp.metadata.name}`);
+                    navigate(`/jobs/properties/${jobId}?app=${selectedApp.metadata.name}`);
                 } catch (e) {
                     sendFailureNotification("UCloud failed to submit the job");
                 }
@@ -232,55 +285,116 @@ export function OpenWithBrowser({opts, file}: {file: UFile, opts?: ResourceBrows
         </> : null}
     </div>;
 
-    function fetchInfo() {
+    function fetchInfo(): Promise<void> {
+        const generation = ++machineInfoGenerationRef.current;
+        const projectId = activeProject.current;
+        const callInProject: ApiCaller = parameters => baseCallAPI({
+            ...parameters,
+            projectOverride: projectId ?? ""
+        });
         productComputeRef.current = emptyPageV2;
         machineSupportRef.current = {productsByProvider: {}};
         walletsRef.current = [];
         supportRef.current = [];
+        setMachineInfoLoading(true);
 
-        callAPI(UCloud.accounting.products.browse({
-            filterUsable: true,
-            filterProductType: "COMPUTE",
-            itemsPerPage: 250,
-            includeBalance: true,
-            includeMaxBalance: true
-        })).then((products) => {
-            productComputeRef.current = products as unknown as UCloud.PageV2<ProductV2Compute>;
-
+        const promise = Promise.all([
+            callInProject(UCloud.accounting.products.browse({
+                filterUsable: true,
+                filterProductType: "COMPUTE",
+                itemsPerPage: 250,
+                includeBalance: true,
+                includeMaxBalance: true
+            })),
+            fetchWallets(callInProject)
+        ]).then(async ([products, wallets]) => {
             const providers = new Set(products.items.map(it => it.category.provider));
-
+            let support: compute.JobsRetrieveProductsResponse = {productsByProvider: {}};
             if (providers.size > 0) {
-                callAPI(UCloud.compute.jobs.retrieveProducts({
+                support = await callInProject(UCloud.compute.jobs.retrieveProducts({
                     providers: joinToString(Array.from(providers), ",")
-                })).then(support => {
-                    machineSupportRef.current = support;
-                    const items: ResolvedSupport[] = [];
-                    let productsByProvider = support.productsByProvider;
-                    for (const provider of Object.keys(productsByProvider)) {
-                        const providerProducts = productsByProvider[provider];
-                        // TODO(Dan): We need to fix some of these types soon. We are still using a lot of the old generated stuff.
-                        for (const item of providerProducts) items.push(item as unknown as ResolvedSupport);
-                    }
-                    supportRef.current = items;
-                }).catch(err => displayErrorMessageOrDefault(err, "Failed to fetch support."));
+                }));
             }
-        }).catch(err => displayErrorMessageOrDefault(err, "Failed to fetch products."));
 
-        fetchWallets().then(wallets => walletsRef.current = wallets);
+            if (generation !== machineInfoGenerationRef.current) return;
+            productComputeRef.current = products as unknown as UCloud.PageV2<ProductV2Compute>;
+            machineSupportRef.current = support;
+            walletsRef.current = wallets;
+            supportRef.current = Object.values(support.productsByProvider)
+                .flatMap(providerProducts => providerProducts as unknown as ResolvedSupport[]);
+        }).finally(() => {
+            if (generation === machineInfoGenerationRef.current) setMachineInfoLoading(false);
+        });
+        machineInfoPromiseRef.current = promise;
+        promise.catch(err => {
+            if (generation === machineInfoGenerationRef.current) {
+                displayErrorMessageOrDefault(err, "Failed to fetch machines.");
+            }
+        });
+        return promise;
+    }
+
+    async function waitForLatestMachineInfo(): Promise<void> {
+        while (true) {
+            const promise = machineInfoPromiseRef.current ?? fetchInfo();
+            try {
+                await promise;
+            } catch (error) {
+                if (promise !== machineInfoPromiseRef.current) continue;
+                throw error;
+            }
+            if (promise === machineInfoPromiseRef.current) return;
+        }
     }
 }
 
-async function fetchWallets(next?: string): Promise<WalletV2[]> {
-    const result = await callAPI(browseWalletsV2({
+async function fetchWallets(apiCall: ApiCaller, next?: string): Promise<WalletV2[]> {
+    const result = await apiCall(browseWalletsV2({
         itemsPerPage: 250,
         next
     }));
 
     if (result.next) {
-        return result.items.concat(await fetchWallets(result.next));
+        return result.items.concat(await fetchWallets(apiCall, result.next));
     }
 
     return result.items;
+}
+
+async function submitOpenWithJob(
+    file: UFile,
+    applicationName: string,
+    applicationVersion: string,
+    product: ProductV2Compute,
+    apiCall: ApiCaller,
+    parameters: Record<string, UCloud.compute.AppParameterValue> = {}
+): Promise<string> {
+    let parent = getParentPath(file.id);
+    if (parent === "/") parent = file.id;
+
+    const response = await apiCall<BulkResponse<FindByStringId | null>>(
+        JobsApi.create(bulkRequestOf({
+            application: {name: applicationName, version: applicationVersion},
+            product: {
+                id: product.name,
+                provider: product.category.provider,
+                category: product.category.name
+            },
+            parameters,
+            replicas: 1,
+            allowDuplicateJob: true,
+            timeAllocation: {hours: 3, minutes: 0, seconds: 0},
+            resources: [{
+                type: "file",
+                path: parent,
+                readOnly: false
+            }],
+            openedFile: file.id
+        }))
+    );
+    const jobId = response.responses?.[0]?.id;
+    if (!jobId) throw new Error("UCloud failed to submit the job");
+    return jobId;
 }
 
 function isActiveProject(projectId: string | undefined) {

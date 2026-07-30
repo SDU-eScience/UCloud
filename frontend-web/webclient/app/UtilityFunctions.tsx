@@ -224,11 +224,13 @@ export function extensionType(ext: string): ExtensionType {
         case "wmv":
             return "video";
         case "gz":
+        case "xz":
         case "zip":
         case "tar":
         case "tgz":
         case "tbz":
         case "bz2":
+        case "7z":
             return "archive";
         case "dat":
             return "binary";

@@ -156,7 +156,8 @@ export class HttpClient {
                         accessTokenOverride === undefined ? `Bearer ${token}` : `Bearer ${accessTokenOverride}`
                     );
 
-                    const signedIntent = signIntentToCall(this.username ?? "", this.projectId ?? null, params);
+                    const requestProjectId = projectOverride ?? this.projectId;
+                    const signedIntent = signIntentToCall(this.username ?? "", requestProjectId || null, params);
                     if (signedIntent !== null) {
                         req.setRequestHeader("UCloud-Signed-Intent", signedIntent);
                     }

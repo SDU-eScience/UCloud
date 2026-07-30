@@ -16,6 +16,7 @@ interface Tooltip extends SpaceProps {
     triggerStyle?: React.CSSProperties;
     tooltipContentWidth?: number;
     side?: TooltipSide;
+    open?: boolean;
 }
 
 const TooltipContent = injectStyleSimple("tooltip-content", `
@@ -106,7 +107,7 @@ function getPortal(): HTMLElement {
 const Tooltip: React.FunctionComponent<Tooltip> = props => {
     const portal = getPortal();
 
-    if (hasFeature(Feature.NEW_TOOLTIPS)) {
+    if (hasFeature(Feature.NEW_TOOLTIPS) || props.open !== undefined) {
         return <AnchoredTooltip {...props} portal={portal} />;
     }
 
@@ -150,7 +151,7 @@ function LegacyTooltip(props: Tooltip & {portal: HTMLElement}): React.ReactEleme
 }
 
 function AnchoredTooltip(props: Tooltip & {portal: HTMLElement}): React.ReactElement {
-    const [open, setOpen] = useState(false);
+    const [hoverOpen, setHoverOpen] = useState(false);
     const [openImmediately, setOpenImmediately] = useState(false);
     const triggerRef = useRef<HTMLDivElement>(null);
     const tooltipRef = useRef<HTMLDivElement>(null);
@@ -159,13 +160,15 @@ function AnchoredTooltip(props: Tooltip & {portal: HTMLElement}): React.ReactEle
 
     function showTooltip() {
         setOpenImmediately(recentlyClosedTooltip());
-        setOpen(true);
+        setHoverOpen(true);
     }
 
     function hideTooltip() {
         tooltipClosedAt = Date.now();
-        setOpen(false);
+        setHoverOpen(false);
     }
+
+    const open = props.open === true || hoverOpen;
 
     useEffect(() => {
         const trigger = triggerRef.current;
@@ -350,12 +353,14 @@ export function TooltipV2(props: React.PropsWithChildren<{
     tooltip?: React.ReactNode;
     contentWidth?: number;
     side?: TooltipSide;
+    open?: boolean;
     triggerClassName?: string;
     triggerStyle?: React.CSSProperties;
 }>): React.ReactElement {
     if (props.tooltip === undefined) return <>{props.children}</>;
     return <Tooltip
         tooltipContentWidth={props.contentWidth}
+        open={props.open}
         trigger={props.children}
         triggerClassName={props.triggerClassName}
         triggerStyle={props.triggerStyle}
