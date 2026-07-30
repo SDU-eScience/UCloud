@@ -169,14 +169,6 @@ const pageStyle = injectStyle("inference-models-page", k => `
         max-width: 720px;
     }
 
-    ${k} .hero p.eyebrow {
-        color: rgba(255, 255, 255, 0.68);
-        font-weight: 700;
-        letter-spacing: 0.12em;
-        margin: 0;
-        text-transform: uppercase;
-    }
-
     ${k} .hero h1 {
         font-size: clamp(32px, 5vw, 52px);
         line-height: 1;
@@ -648,18 +640,14 @@ export default function Models(): React.ReactNode {
     const secondaryCtaColor = lightTheme ? "primaryMain" : "secondaryMain";
 
     return <MainContainer main={<Box className={pageStyle}>
-        {error === "" ? null : <Text color="errorMain">{error}</Text>}
-        {loading ? <Text>Loading inference models...</Text> : null}
-
         <section className="panel hero">
             <div className="panel-inner hero-content">
                 <div className="hero-top">
                     <ProjectSwitcher />
                 </div>
                 <div className="hero-copy">
-                    <p className="eyebrow">AI Inference</p>
-                    <h1>Production-ready models for research and automation.</h1>
-                    <p>Browse a growing catalog of hosted models for text generation. Use them interactively from the playground, through jobs, or through OpenAI-compatible endpoints.</p>
+                    <h1>AI models for <br/> research and automation.</h1>
+                    <p>Browse a growing catalog of hosted models. Use them interactively from the chat, in your jobs, or through OpenAI-compatible endpoints.</p>
                     <div className="hero-actions">
                         <Link className="button-link" to={AppRoutes.inference.playground()}><Button type="button">Open chat</Button></Link>
                         <Button type="button" color="secondaryMain" onClick={() => document.getElementById("model-catalog")?.scrollIntoView({behavior: "smooth"})}>Browse models</Button>
@@ -711,6 +699,8 @@ export default function Models(): React.ReactNode {
                         />}
                     />
                 </Flex>
+
+                {error === "" ? null : <Text color="errorMain">{error}</Text>}
 
                 {models.length === 0 && !loading ? <p className="no-results">No inference models are available.</p> : null}
                 {models.length !== 0 && filteredModels.length === 0 ? <p className="no-results">No models match the selected filters.</p> : null}

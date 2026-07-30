@@ -126,6 +126,10 @@ class SshKeyApi {
                 color: "errorMain",
                 enabled: (selected) => selected.length > 0,
                 confirm: true,
+                confirmationText: selected => selected.length === 1 ?
+                    "Are you sure you want to delete this SSH key?" :
+                    `Are you sure you want to delete these ${selected.length} SSH keys?`,
+                confirmationButtonText: "Delete",
                 onClick: async (selected, cb) => {
                     await cb.invokeCommand(
                         this.delete(bulkRequestOf(

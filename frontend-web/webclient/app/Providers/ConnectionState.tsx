@@ -40,9 +40,8 @@ class ConnectionState extends UState<ConnectionState> {
                     }
                 });
             } catch (e) {
-                window.setTimeout(() => {
-                    this.fetch(maxAgeMs);
-                }, 10_000);
+                // Treat failed requests as fetches too. Callers can explicitly retry with fetchFresh().
+                this.lastFetch = timestampUnixMs();
             }
         });
     }

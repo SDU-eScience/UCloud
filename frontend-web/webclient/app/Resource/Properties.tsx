@@ -2,10 +2,10 @@ import * as React from "react";
 import {device, deviceBreakpoint} from "@/ui-components/Hide";
 import {
     AclEntity,
+    AnyResourceApi,
     ProductSupport,
     Resource,
     ResourceAclEntry,
-    ResourceApi,
     ResourceBrowseCallbacks,
     ResourceSpecification,
     SupportByProvider,
@@ -169,7 +169,7 @@ const ContentWrapper = injectStyleSimple("content-wrapper", `
 `);
 
 interface PropertiesProps<Res extends Resource, Prod extends Product, Spec extends ResourceSpecification> {
-    api: ResourceApi<Res, Prod, Spec>;
+    api: AnyResourceApi<Res, Prod, Spec>;
     embedded?: EmbeddedSettings;
     classname?: string;
 
@@ -380,7 +380,7 @@ function canEditPermission(support: ProductSupport | undefined, namespace: strin
 }
 
 // TODO(Jonas): Find a less dramatic name
-function PredicatedPermissionsTable<T extends Resource, P extends Product>(props: {show?: boolean; api: ResourceApi<T, P>; res: Resource | null}): React.ReactNode {
+function PredicatedPermissionsTable<T extends Resource, P extends Product>(props: {show?: boolean; api: AnyResourceApi<T, P>; res: Resource | null}): React.ReactNode {
     const [acl, setAcl] = React.useState(props.res?.permissions.others ?? []);
 
     React.useEffect(() => {

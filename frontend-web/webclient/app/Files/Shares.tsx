@@ -651,7 +651,9 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                 browser.on("fetchOperations", () => {
                     const entries = browser.findSelectedEntries();
                     const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as ResourceBrowseCallbacks<Share>;
-                    return SharesApi.retrieveOperations().filter(op => op.enabled(entries, callbacks, entries));
+                    const actions = SharesApi.retrieveActions();
+                    if (!Array.isArray(actions)) return actions;
+                    return actions.filter(op => op.enabled(entries, callbacks, entries));
                 });
                 browser.on("generateBreadcrumbs", () => [{title: "Shared with me", absolutePath: ""}]);
                 browser.on("search", query => {
@@ -710,4 +712,3 @@ export const StateIconAndColor: Record<ShareState, {name: IconName, color: Theme
     "PENDING": {color: "primaryMain", name: "questionSolid"},
     "REJECTED": {color: "errorMain", name: "close"},
 }
-

@@ -19,7 +19,18 @@ import {UsageReport, usageReportRetrieve} from "@/Accounting/UsageCore2";
 import {timestampUnixMs} from "@/UtilityFunctions";
 import {produce} from "immer";
 import {Feature} from "@/Features";
+
 import {getProviderTitle, getShortProviderTitle} from "@/Providers/ProviderTitle";
+
+function startOfCurrentYear(): number {
+    const now = new Date();
+    return Date.UTC(now.getUTCFullYear(), 0, 1);
+}
+
+function endOfCurrentYear(): number {
+    const now = new Date();
+    return Date.UTC(now.getUTCFullYear() + 1, 0, 1) - 1;
+}
 
 const fuzzyMatcher = newFuzzyMatchFuse<{title: string}, "title">(["title"]);
 
@@ -50,7 +61,9 @@ export interface State extends Accounting.AllocationDisplayTree {
     }
 
     rootAllocations?: {
-        year: number;
+        start: number;
+        end: number;
+        duration?: number | null;
         resources: Record<string, number>;
     }
 
@@ -281,7 +294,9 @@ export function stateReducer(state: State, action: UIAction): State {
                     managedProviders: action.providerIds,
                 },
                 rootAllocations: {
-                    year: new Date().getUTCFullYear(),
+                    start: startOfCurrentYear(),
+                    end: endOfCurrentYear(),
+                    duration: new Date().getUTCFullYear(),
                     resources: {},
                 },
             };
@@ -340,7 +355,9 @@ export function stateReducer(state: State, action: UIAction): State {
 
         case "UpdateRootAllocations": {
             const currentRoot = state.rootAllocations ?? {
-                year: new Date().getUTCFullYear(),
+                start: startOfCurrentYear(),
+                end: endOfCurrentYear(),
+                duration: new Date().getUTCFullYear(),
                 resources: {},
             };
             return {
@@ -360,7 +377,9 @@ export function stateReducer(state: State, action: UIAction): State {
             return {
                 ...state,
                 rootAllocations: {
-                    year: new Date().getUTCFullYear(),
+                    start: startOfCurrentYear(),
+                    end: endOfCurrentYear(),
+                    duration: new Date().getUTCFullYear(),
                     resources: {},
                 }
             };

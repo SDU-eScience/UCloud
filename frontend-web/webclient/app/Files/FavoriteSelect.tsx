@@ -2,17 +2,16 @@ import {dialogStore} from "@/Dialog/DialogStore";
 import * as React from "react";
 import {FileType} from ".";
 import {UFile} from "@/UCloud/UFile";
-import FilesApi, {ExtraFileCallbacks} from "@/UCloud/FilesApi";
+import FilesApi, {FileBrowseCallbacks} from "@/UCloud/FilesApi";
 import {callAPIWithErrorHandler} from "@/Authentication/DataHook";
 import FavoritesBrowse from "./FavoritesBrowse";
 import {Operation, ShortcutKey} from "@/ui-components/Operation";
 
-import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
 import {sendFailureNotification} from "@/Notifications";
 
 
 
-type FileOperation = Operation<UFile, ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks>
+type FileOperation = Operation<UFile, FileBrowseCallbacks>
 export function addFavoriteSelect(onSelect: (file: UFile) => void, isFileAllowed: (file: UFile) => boolean | string, allowedTypes: FileType[], text: string, navigateToFolder: (path: string) => void) {
     dialogStore.addDialog(<FavoritesBrowse navigateToFolder={navigateToFolder} selection={{
         text,

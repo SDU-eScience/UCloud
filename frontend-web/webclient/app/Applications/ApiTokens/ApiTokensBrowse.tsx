@@ -205,6 +205,10 @@ function retrieveOperations(): Operation<Api.ApiToken, StandardCallbacks<Api.Api
         color: "errorMain",
         enabled: (selected) => selected.length > 0,
         confirm: true,
+        confirmationText: selected => selected.length === 1 ?
+            "Are you sure you want to revoke this API token?" :
+            `Are you sure you want to revoke these ${selected.length} API tokens?`,
+        confirmationButtonText: "Revoke",
         onClick: async (selected, cb) => {
             const promises: Promise<unknown>[] = [];
             for (const element of selected) {

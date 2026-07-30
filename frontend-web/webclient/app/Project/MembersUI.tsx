@@ -857,6 +857,8 @@ const GroupCard: React.FunctionComponent<{
                         color: "errorMain",
                         text: "Delete",
                         icon: "heroTrash",
+                        confirmationText: "Are you sure you want to delete this group?",
+                        confirmationButtonText: "Delete",
                         enabled: () => true,
                         onClick: () => props.handleDeleteGroup(props.group.id),
                         shortcut: ShortcutKey.E

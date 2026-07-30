@@ -228,7 +228,9 @@ export function PrivateNetworkBrowse({
                     const entries = browser.findSelectedEntries();
                     const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as ResourceBrowseCallbacks<PrivateNetwork, Product>;
 
-                    const operations = PrivateNetworkApi.retrieveOperations();
+                    const actions = PrivateNetworkApi.retrieveActions();
+                    if (!Array.isArray(actions)) return actions;
+                    const operations = actions;
                     const create = operations.find(it => it.tag === CREATE_TAG);
                     if (create) {
                         create.enabled = () => true;
