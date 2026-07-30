@@ -557,6 +557,7 @@ export function randomUUID(): string {
     }
 }
 
+// TODO(Jonas): Remove. Replace with AppRoutes var.
 export function grantsLink(): string {
     return "/grants";
 }

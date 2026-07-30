@@ -48,7 +48,7 @@ import {
     UIEvent,
 } from "@/Accounting/Allocations/State";
 import {DynamicRowHeight, List, useDynamicRowHeight} from "react-window";
-import {AvatarState} from "@/AvataaarLib/hook";
+import {AvatarState, useAvatars} from "@/AvataaarLib/hook";
 import Avatar from "@/AvataaarLib/avatar";
 import {classConcat, extractDataTags, injectStyle} from "@/Unstyled";
 import {IconName} from "@/ui-components/Icon";
@@ -88,6 +88,7 @@ import {
 } from "@/Notifications";
 import {
     EmptyReasonTag,
+    providerIcon,
     ResourceBrowseFeatures,
     ResourceBrowser,
     ResourceBrowserOpts,
@@ -99,8 +100,8 @@ import {arrayToPage} from "@/Types";
 import {FlexClass} from "@/ui-components/Flex";
 import {divText} from "@/Utilities/HTMLUtilities";
 import {TruncateClass} from "@/ui-components/Truncate";
-import {ButtonClass} from "@/ui-components/Button";
 import {ReactStaticRenderer} from "@/Utilities/ReactStaticRenderer";
+import {BaseLinkClass} from "@/ui-components/BaseLink";
 
 const allocationFiltersModalStyle: ReactModal.Styles = {
     ...largeModalStyle,
@@ -1670,7 +1671,7 @@ export function SubProjectList({
                                         onClick={onNewSubProject}>here</a>.
                                 </>}
                             </div>}
-                        <Tree
+                        {/* <Tree
                             apiRef={suballocationTree}
                             allowMultiSelection
                             onAction={(row, action, rowIdx) => {
@@ -1697,9 +1698,10 @@ export function SubProjectList({
                                 rowHeight={rowHeight}
                                 rowProps={{state, dispatchEvent, avatars, rowHeight}}
                             />
-                        </Tree>
+                        </Tree> */}
                         <SubAllocationBrowser
-                            allocations={state.subAllocations.recipients}
+                            /* TODO(Jonas): yowza */
+                            state={state}
                         />
                     </>}
                 </div>
@@ -1711,7 +1713,6 @@ export function SubProjectList({
 
 const FEATURES: ResourceBrowseFeatures = {
     renderSpinnerWhenLoading: true,
-    sorting: true,
     filters: false,
     breadcrumbsSeparatedBySlashes: false,
     projectSwitcher: true,
@@ -1736,9 +1737,35 @@ function isAllocation(v: AllocationTypes) {
     return "allocationId" in v;
 }
 
+let SmallIconButtonFragments: Record<string, ReactStaticRenderer | null> = {};
+new ReactStaticRenderer(() =>
+    <SmallIconButton tooltip="Allocate more resources"
+        icon={"heroBanknotes"}
+        subIcon={"heroPlusCircle"}
+        subColor1={"primaryContrast"}
+        subColor2={"primaryContrast"}
+    />
+).promise.then(it => SmallIconButtonFragments["heroBankNotes"] = it);
+new ReactStaticRenderer(() =>
+    <SmallIconButton icon={"heroPencil"} />
+).promise.then(it => SmallIconButtonFragments["heroPencil"] = it);
+
+let ChevronIcon: ReactStaticRenderer | null;
+new ReactStaticRenderer(() =>
+    <Icon
+        data-chevron={"true"}
+        color="textPrimary"
+        size={15}
+        name="heroChevronDown"
+        className={"open-chevron"}
+        cursor={"pointer"}
+        rotate={25}
+    />
+).promise.then(it => ChevronIcon = it);
+
 export function SubAllocationBrowser(
     props: {opts?: ResourceBrowserOpts<AllocationTypes>} & {
-        allocations: Accounting.AllocationDisplayTree["subAllocations"]["recipients"];
+        state: State;
     }
 ): React.ReactNode {
     // TODO(Jonas): Filters are NOT taken into account with this approach. Expand!!!!
@@ -1747,28 +1774,43 @@ export function SubAllocationBrowser(
     const dispatch = useDispatch();
     const navigate = useNavigate();
 
+    const filteredAllocations = React.useMemo(() => {
+        return props.state.subAllocations.recipients.filter((_, idx) => props.state.filteredSubProjectIndices.includes(idx));
+    }, [props.state.subAllocations.recipients, props.state.filteredSubProjectIndices]);
+
     React.useLayoutEffect(() => {
         if (browserRef.current) {
             browserRef.current.registerPage(
-                arrayToPage(props.allocations, props.allocations.length),
+                arrayToPage(filteredAllocations, filteredAllocations.length),
                 "/",
                 true
             );
-            browserRef.current.rerender();
+
+            Promise.all(filteredAllocations.map(all => new ReactStaticRenderer(() => <FilteredUsageAndQuota entries={all.usageAndQuota} />)
+                .promise.then(result => {
+                    // TODO(Ensure uniqueness!
+                    const allocationIdentifier = id(all);
+                    progressBarCache.current[allocationIdentifier] = result;
+                }))
+            ).then(() => {
+                browserRef.current?.rerender();
+            });
         }
-    }, [props.allocations]);
+    }, [filteredAllocations]);
 
     const progressBarCache = React.useRef<Record<string, ReactStaticRenderer>>({});
 
     const projectIds: string[] = React.useMemo(() => {
         const ids = new Set<string>();
-        for (const alloc of props.allocations) {
+        for (const alloc of filteredAllocations) {
             if (alloc.owner.reference.type === "project") {
                 ids.add(alloc.owner.reference.projectId);
             }
         }
         return [...ids];
-    }, [props.allocations]);
+    }, [filteredAllocations]);
+
+    const avatarState = useAvatars();
 
     const projectInfos = useProjectInfos(projectIds);
 
@@ -1789,104 +1831,208 @@ export function SubAllocationBrowser(
             ).init(browserRef, FEATURES, "", (browser) => {
                 browser.setColumns([{name: ""}, {name: "", columnWidth: 0}, {name: "", columnWidth: 0}, {name: "", columnWidth: 0}, {name: "", columnWidth: 100}]);
 
+                avatarState.subscribe(() => {
+                    browser.rerender();
+                });
+
                 browser.on("skipOpen", (oldPath, path, resource) => {
-                    console.log("skipOpen", oldPath, path, resource)
+                    if (!resource) return false;
+                    addOrRemoveEntries(browser, resource, progressBarCache.current);
                     return resource != null;
                 });
 
-                browser.on("open", (oldPath, newPath, resource) => {
+                browser.on("open", (oldPath, newPath, resource) => {});
 
+                browser.on("unhandledShortcut", ev => {
+                    if (ev.code === "ArrowLeft" || ev.code === "ArrowRight") {
+                        const entries = browser.findSelectedEntries();
+                        for (const entry of entries) {
+                            addOrRemoveEntries(browser, entry, progressBarCache.current, ev.code === "ArrowLeft" ? TreeAction.CLOSE : TreeAction.OPEN);
+                        }
+                    }
                 });
-
-                browser.on("unhandledShortcut", () => {});
 
                 browser.on("wantToFetchNextPage", async (path) => {});
 
-                browser.on("renderRow", (allocation, row, dims) => {
-                    if (isAllocationDisplayTreeRecipient(allocation)) {
-                        const pi = allocation.owner.reference.type === "user" ?
-                            allocation.owner.reference.username :
-                            projectInfoPi(projectInfosRef.current[allocation.owner.reference.projectId], allocation.owner.primaryUsername) ?? "-";
-                        const title = allocation.owner.reference.type === "user" ?
-                            allocation.owner.reference.username :
-                            projectInfoTitle(projectInfosRef.current[allocation.owner.reference.projectId], allocation.owner.title) ?? "-";
-
-
+                let lastCategory: ProductCategoryV2 | null = null;
+                browser.on("renderRow", (resource, row, dims) => {
+                    if (isAllocationDisplayTreeRecipient(resource)) {
+                        const pi = resource.owner.reference.type === "user" ?
+                            resource.owner.reference.username :
+                            projectInfoPi(projectInfosRef.current[resource.owner.reference.projectId], resource.owner.primaryUsername) ?? "-";
+                        const title = resource.owner.reference.type === "user" ?
+                            resource.owner.reference.username :
+                            projectInfoTitle(projectInfosRef.current[resource.owner.reference.projectId], resource.owner.title) ?? "-";
                         {
-                            const wrapper = row.title;
-                            wrapper.classList.add(FlexClass);
-                            const leftChild = document.createElement("div");
-                            wrapper.appendChild(leftChild);
-                            leftChild.className = FlexClass;
-                            leftChild.style.gap = "4px";
-                            const avatar = document.createElement("div"); // avatar(pi);
-                            HTMLTooltip(avatar, divText(`Project PI: ${pi}`));
-                            leftChild.appendChild(avatar);
-                            const titleEl = document.createElement("div");
-                            leftChild.append(title);
-                            titleEl.className = TruncateClass;
-                            titleEl.title = title;
-                            titleEl.style.width = "400px";
-                            titleEl.innerText = title;
+                            // Title with chevron
+                            const wrapper = document.createElement("div");
+                            row.title.append(wrapper);
+                            wrapper.style.display = "flex";
+                            const avatarWrapper = document.createElement("div");
+                            wrapper.append(avatarWrapper);
+
+                            SimpleAvatarComponentCache.appendTo(avatarWrapper, pi, `Project PI: ${pi}`).then(avatar => {
+                                avatar.style.marginTop = "-4px";
+                                const div = divText(title);
+                                div.classList.add(TruncateClass, FlexClass);
+                                div.style.marginBottom = div.style.marginTop = "auto";
+                                div.style.paddingLeft = "8px";
+                                wrapper.append(div);
+                                wrapper.style.display = "flex";
+                            });
+
+                            wrapper.prepend(ChevronIcon!.clone());
+                            const chrevron = wrapper.children.item(0)! as HTMLDivElement;
+                            chrevron.style.rotate = "-90deg";
+                            chrevron.onclick = () => {
+                                browser.dispatchMessage("skipOpen", fn => fn("", "", resource));
+                            }
                         }
                         {
-                            const rightChild = createHTMLElements({tagType: "div", className: "sub-alloc"});
-                            row.stat4.append(rightChild);
-                            // TODO(Ensure uniqueness!
-                            const allocationIdentifier = allocation.usageAndQuota.map(({raw}) => `${raw.maxUsable}-${raw.retiredAmount}-${raw.usage}`).join("-");
+                            // Progress bars and link button
+                            const allocationIdentifier = id(resource);
                             const entry = progressBarCache.current[allocationIdentifier];
                             if (entry) {
-                                rightChild.prepend(entry.clone());
-                            } else {
-                                const filteredUsageAndQuota = new ReactStaticRenderer(() => <FilteredUsageAndQuota entries={allocation.usageAndQuota} />).promise;
-                                filteredUsageAndQuota.then(result => {
-                                    progressBarCache.current[allocationIdentifier] = result;
-                                    rightChild.prepend(result.clone());
-                                })
-                            }
-                            if (allocation.owner.reference.type === "project") {
-                                const div = document.createElement("div");
-                                rightChild.append(div);
-                                div.onclick = () =>
-                                    navigate(
-                                        AppRoutes.grants.grantGiverInitiatedEditor({
-                                            title: title,
-                                            piUsernameHint: pi,
-                                            projectId: allocation.owner.reference["projectId"],
-                                            start: timestampUnixMs(),
-                                            end: timestampUnixMs() + 1000 * 60 * 60 * 24 * 365,
-                                            subAllocator: false,
-                                        })
-                                    );
-                                {
-                                    const iconButton = createHTMLElements({tagType: "button", className: ButtonClass + " " + SmallIconButtonStyle});
+                                const clone = entry.clone();
+                                row.stat4.append(clone);
+                                const subAllocRoot = row.stat4.children.item(0)!;
+                                subAllocRoot.className = "sub-alloc";
 
-                                    div.appendChild(iconButton);
-                                    const tooltip = "Allocate more resources";
-                                    HTMLTooltip(iconButton, createHTMLElements({tagType: "div", className: TruncateClass, innerText: tooltip}));
-                                    iconButton.setAttribute("data-has-sub", "true");
-                                    const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
-                                    iconButton.append(icon);
-                                    icon.style.height = icon.style.width = "12px";
-                                    ResourceBrowser.icons.renderIcon({
-                                        name: "heroBanknotes", color: "primaryContrast", color2: "primaryContrast", width: 24, height: 24
-                                    }).then(setIcon);
-                                    const rel = document.createElement("div");
-                                    rel.style.position = "relative";
-                                    iconButton.append(rel);
-                                    const subDiv = createHTMLElements({tagType: "div", className: "sub"});
-                                    rel.append(subDiv);
-                                    const [subIcon, setSubIcon] = ResourceBrowser.defaultIconRenderer();
-                                    subIcon.style.height = subIcon.style.width = "12px";
-                                    ResourceBrowser.icons.renderIcon({
-                                        name: "heroPlusCircle", color: "primaryContrast", color2: "primaryContrast", width: 24, height: 24
-                                    }).then(setSubIcon);
-                                    subDiv.append(subIcon);
+                                if (resource.owner.reference.type === "project") {
+                                    const link = document.createElement("div");
+                                    subAllocRoot.append(link);
+                                    const {projectId} = resource.owner.reference;
+                                    link.onclick = () => {
+                                        navigate(AppRoutes.grants.grantGiverInitiatedEditor({
+                                            title,
+                                            projectId,
+                                            piUsernameHint: pi,
+                                            start: timestampUnixMs(),
+                                            end: timestampUnixMs() + (1000 * 60 * 60 * 24 * 365),
+                                            subAllocator: false,
+                                        }))
+                                    };
+                                    const buttonClone = SmallIconButtonFragments["heroBankNotes"]?.clone()
+                                    if (buttonClone) link.append(buttonClone);
                                 }
                             }
                         }
-                    } else if (isAllocationGroup(allocation)) {
-                    } else if (isAllocation(allocation)) {
+                    } else if (isAllocationGroup(resource)) {
+                        lastCategory = resource.category;
+                        const wrapper = document.createElement("div");
+                        row.title.append(wrapper)
+                        const div = document.createElement("div");
+                        div.className = FlexClass;
+                        wrapper.append(div);
+                        // Title with chevron
+                        div.append(ChevronIcon!.clone());
+                        const chevron = div.children.item(0)! as HTMLDivElement;
+                        chevron.onclick = () => {
+                            browser.dispatchMessage("skipOpen", fn => fn("", "", resource));
+                        }
+                        const p = providerIcon(resource.category.provider, {width: "20px", height: "20px", marginTop: "auto", marginBottom: "auto"});
+                        p.style.marginTop = p.style.marginBottom = "auto"
+                        const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
+                        icon.style.height = icon.style.width = "20px";
+                        icon.style.marginTop = icon.style.marginBottom = "auto";
+                        ResourceBrowser.icons.renderIcon({
+                            name: Accounting.productTypeToIcon(resource.category.productType),
+                            color: "iconColor",
+                            color2: "iconColor2",
+                            height: 128,
+                            width: 128,
+                        }).then(setIcon);
+
+                        div.append(p);
+                        div.append(icon);
+                        const code = document.createElement("code");
+                        code.innerText = id(resource);
+                        div.append(code);
+                        div.style.paddingLeft = "16px";
+                        // Progress bars and link button
+                        const allocationIdentifier = id(resource);
+                        const entry = progressBarCache.current[allocationIdentifier];
+                        if (entry) {
+                            const clone = entry.clone();
+                            row.stat4.append(clone);
+                            const subAllocRoot = row.stat4.children.item(0)!;
+                            subAllocRoot.className = "sub-alloc";
+                        }
+
+                        // [Provider Icon]
+                        // [Product type icon]
+
+
+                    } else if (isAllocation(resource)) {
+                        // Title
+                        const wrapper = row.title;
+                        const b = document.createElement("b");
+                        wrapper.append(b);
+                        wrapper.style.gap = "4px";
+
+                        b.innerText = "Allocation id: ";
+                        b.style.paddingLeft = "32px";
+                        const code = document.createElement("code");
+
+                        code.innerText = chunkedString(id(resource).padStart(6, "0"), 3, false).join(" ");
+                        wrapper.append(code);
+
+                        const flex = createHTMLElements({
+                            tagType: "div",
+                            className: FlexClass,
+                            style: {width: "250px"},
+                            innerText: `Period: ${dateToStringNoTime(resource.start)} — ${dateToStringNoTime(resource.end)}`
+                        });
+                        wrapper.append(flex);
+
+                        if (resource.grantedIn) {
+                            const link = document.createElement("a");
+                            link.href = `/app/${AppRoutes.grants.editor(resource.grantedIn)}`;
+                            link.target = "_blank";
+                            link.innerText = "View grant application";
+                            link.onclick = e => e.stopPropagation();
+                            link.className = BaseLinkClass;
+                            wrapper.append(link);
+                            const [extLinkIcon, setExtLinkIcon] = ResourceBrowser.defaultIconRenderer();
+                            extLinkIcon.style.width = extLinkIcon.style.height = "18px";
+                            ResourceBrowser.icons.renderIcon({
+                                name: "heroArrowTopRightOnSquare",
+                                color: "linkColor",
+                                color2: "linkColor",
+                                width: 32,
+                                height: 32,
+                            }).then(setExtLinkIcon);
+                            extLinkIcon.className = BaseLinkClass;
+                            link.append(extLinkIcon);
+                        }
+                        if (resource.note) {/* <>
+                            <TooltipV2 tooltip={resource.note.text}>
+                                <Icon name={resource.note.icon}
+                                    color={resource.note.iconColor} />
+                            </TooltipV2>
+                        </>; */}
+
+                        if (lastCategory) {
+                            row.stat4.append(Accounting.balanceToString(lastCategory, resource.quota));
+                        }
+
+                        const buttonClone = SmallIconButtonFragments["heroPencil"]?.clone()
+                        if (buttonClone) {
+                            // buttonClone["onclick"] = (e) => {
+                            // const category = findCategoryFromAllocation(resource);
+                            // openUpdater(
+                            //     category,
+                            //     resource.allocationId,
+                            //     new Date(resource.start),
+                            //     new Date(resource.end),
+                            //     resource.quota,
+                            //     "title"
+                            // );
+                            //}
+                            // buttonClone["disabled"] = resource.end < new Date().getTime();
+
+                            row.stat4.append(buttonClone);
+                        }
                     }
                 });
 
@@ -1941,26 +2087,11 @@ export function SubAllocationBrowser(
                     reload: () => browser.refresh(),
                 }));
 
-                // TODO(Jonas)
-                browser.on("pathToEntry", (al) => {
-                    if (isAllocationDisplayTreeRecipient(al)) {
-                        return al.owner.reference.type === "project"
-                            ? al.owner.reference.projectId
-                            : al.owner.reference.username;
-                    } else if (isAllocationGroup(al)) {
-                        return al.category.name;
-                    } else if (isAllocation(al)) {
-                        return al.allocationId.toString();
-                    }
-                    return "";
-                });
+                browser.on("pathToEntry", al => id(al));
 
                 browser.on("fetchOperations", () => {
                     const entries = browser.findSelectedEntries();
-                    const callbacks = browser.dispatchMessage(
-                        "fetchOperationsCallback",
-                        (fn) => fn()
-                    );
+                    const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn());
                     return []; // retrieveOperations().filter(it => it.enabled(entries, callbacks as any, entries));
                 });
             });
@@ -1968,6 +2099,19 @@ export function SubAllocationBrowser(
     }, []);
 
     return <MainContainer main={<div ref={mountRef} />} />;
+}
+
+function id(al: AllocationTypes) {
+    if (isAllocationDisplayTreeRecipient(al)) {
+        return al.owner.reference.type === "project"
+            ? al.owner.reference.projectId
+            : al.owner.reference.username;
+    } else if (isAllocationGroup(al)) {
+        return al.category.name;
+    } else if (isAllocation(al)) {
+        return al.allocationId.toString();
+    }
+    return "";
 }
 
 function RowComponent({
@@ -2025,6 +2169,52 @@ function setNodeState(action: TreeAction, recipient: string, group?: string | nu
             else openNodes.add(key);
             break;
         }
+    }
+}
+
+function addOrRemoveEntries(browser: ResourceBrowser<AllocationTypes>, resource: AllocationTypes, progressBarCache: Record<string, ReactStaticRenderer>, action?: TreeAction) {
+    const idx = browser.findVirtualRowIndex(it => it === resource);
+    if (isAllocationDisplayTreeRecipient(resource)) {
+        const groups = resource.groups;
+        if (groups.length && idx !== null) {
+            if (browser.findVirtualRowIndex(it => it === groups[0]) === null) {
+                if (action === TreeAction.CLOSE) return;
+                groups.forEach(g => {
+                    const identifier = id(g);
+                    if (progressBarCache[identifier]) return;
+                    new ReactStaticRenderer(() => <ProgressBar uq={g.usageAndQuota} />)
+                        .promise.then(result => progressBarCache[identifier] = result);
+                });
+                browser.insertEntriesIntoCurrentPageAt(groups, idx + 1);
+            } else {
+                if (action === TreeAction.OPEN) return;
+                for (const g of resource.groups) {
+                    browser.removeEntryFromCurrentPage(it => it === g);
+                    for (const a of g.allocations) {
+                        browser.removeEntryFromCurrentPage(it => it === a);
+                    }
+                }
+            }
+        }
+
+        browser.rerender();
+    } else if (isAllocationGroup(resource)) {
+        // TODO(Jonas): If closed already, close parent
+        const allocations = resource.allocations;
+        if (allocations.length && idx !== null) {
+            if (browser.findVirtualRowIndex(it => it === allocations[0]) === null) {
+                if (action === TreeAction.CLOSE) return;
+                browser.insertEntriesIntoCurrentPageAt(allocations, idx + 1);
+            } else {
+                if (action === TreeAction.OPEN) return;
+                for (const alloc of allocations) {
+                    browser.removeEntryFromCurrentPage(it => it === alloc);
+                }
+            }
+        }
+        browser.rerender();
+    } else if (isAllocation(resource)) {
+        // do nothing
     }
 }
 
@@ -2106,7 +2296,7 @@ const SmallIconButtonStyle = injectStyle("small-icon-button", k => `
     }
 `);
 
-const SmallIconButton: React.FunctionComponent<{
+function SmallIconButton(props: React.PropsWithChildren<{
     icon: IconName;
     subIcon?: IconName;
     subColor1?: ThemeColor;
@@ -2115,7 +2305,7 @@ const SmallIconButton: React.FunctionComponent<{
     tooltip?: string;
     onClick?: (ev: HTMLButtonElement) => void;
     disabled?: boolean;
-}> = props => {
+}>): React.ReactNode {
     const ref = useRef<HTMLButtonElement>(null);
     const onClick = useCallback(() => {
         props?.onClick?.(ref.current!);

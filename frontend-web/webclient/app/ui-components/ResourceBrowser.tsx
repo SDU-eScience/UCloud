@@ -397,7 +397,6 @@ export class ResourceBrowser<T> {
     // DOM component references
     root: HTMLElement;
     private operations: HTMLElement;
-    allocations: HTMLElement;
     filters: HTMLElement;
     rightFilters: HTMLElement;
     sessionFilters: HTMLElement;
@@ -608,7 +607,6 @@ export class ResourceBrowser<T> {
                     <img alt="search" class="search-icon">
                     <img alt="refresh" class="refresh-icon">
                 </div>
-                <div class="allocations"></div>
                 <div class="operations"></div>
                 <div style="display: flex; overflow-x: auto;">
                     <div class="filters"></div>
@@ -646,7 +644,6 @@ export class ResourceBrowser<T> {
         `;
 
         this.operations = this.root.querySelector<HTMLElement>(".operations")!;
-        this.allocations = this.root.querySelector<HTMLElement>(".allocations")!;
         this.dragIndicator = this.root.querySelector<HTMLDivElement>(".drag-indicator")!;
         this.entryDragIndicator = this.root.querySelector<HTMLDivElement>(".file-drag-indicator")!;
         this.entryDragIndicatorContent = this.root.querySelector<HTMLDivElement>(".file-drag-indicator-content")!;
@@ -1111,7 +1108,7 @@ export class ResourceBrowser<T> {
             <h3 style="text-align: center;">This project cannot consume resources</h3>
             This property is set for certain projects which are only meant for allocating resources. If you wish
             to consume any of these resources for testing purposes, then please allocate resources to a small
-            separate test project. This can be done from the "Resource Allocations" menu in the project
+            separate test project. This can be done from the "Resource allocations" menu in the project
             management interface.
         </p>
         `;
@@ -2382,6 +2379,13 @@ export class ResourceBrowser<T> {
 
         this.cachedData[this.currentPath] = page;
         this.dispatchMessage("sort", fn => fn(page));
+    }
+
+    insertEntriesIntoCurrentPageAt(items: T[], idx: number) {
+        let page = this.cachedData[this.currentPath] ?? [];
+        const left = page.slice(0, idx);
+        const right = page.slice(idx);
+        this.cachedData[this.currentPath] = [...left, ...items, ...right]
     }
 
     removeEntryFromCurrentPage(predicate: (entry: T) => boolean) {

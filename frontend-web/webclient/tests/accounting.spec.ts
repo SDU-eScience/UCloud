@@ -15,44 +15,47 @@ test("Apply for resources, approve (from admin user), verify resources are in al
         // Gifts are given to users, so "You do not have any allocations at the moment" is never presented
         test.skip();
     }
-    test.setTimeout(60_000);
+    test.setTimeout(180_000);
     const adminUserPage = await Admin.newLoggedInAdminPage(adminPage);
     await Components.projectSwitcher(adminUserPage, "click");
     await adminUserPage.getByText(ProviderInfo.providerTitle()).click();
 
-    // Create user with no resources
-    const {username, password} = User.newUserCredentials();
+    for (let i = 0; i < 10; i++) {
 
-    await User.create(adminUserPage, {username, password});
+        // Create user with no resources
+        const {username, password} = User.newUserCredentials();
 
-    const newUserPage = await context.browser()?.newPage();
-    if (!newUserPage) throw Error("Couldn't create page-instance for new user. Exiting");
-    await User.login(newUserPage, {username, password}, true);
+        await User.create(adminUserPage, {username, password});
 
-    await Accounting.goTo(newUserPage, "Allocations");
-    await newUserPage.getByText("You do not have any allocations at the moment.").waitFor();
-    await Components.projectSwitcher(newUserPage, "click");
-    await newUserPage.getByText("No projects found").waitFor();
+        const newUserPage = await context.browser()?.newPage();
+        if (!newUserPage) throw Error("Couldn't create page-instance for new user. Exiting");
+        await User.login(newUserPage, {username, password}, true);
 
-    await Accounting.goTo(newUserPage, "Apply for resources");
+        await Accounting.goTo(newUserPage, "Allocations");
+        await newUserPage.getByText("You do not have any allocations at the moment.").waitFor();
+        await Components.projectSwitcher(newUserPage, "click");
+        await newUserPage.getByText("No projects found").waitFor();
 
-    const projectName = Accounting.Project.newProjectName();
-    await Accounting.GrantApplication.fillProjectName(newUserPage, projectName);
-    await Accounting.GrantApplication.toggleGrantGiver(newUserPage, ProviderInfo.providerTitle());
-    await Accounting.GrantApplication.fillQuotaFields(newUserPage, [[PRODUCTS.compute, 1000], [PRODUCTS.storage, 1000]]);
-    await Accounting.GrantApplication.fillDefaultApplicationTextFields(newUserPage, true);
+        await Accounting.goTo(newUserPage, "Apply for resources");
 
-    const id = await Accounting.GrantApplication.submit(newUserPage);
+        const projectName = Accounting.Project.newProjectName();
+        await Accounting.GrantApplication.fillProjectName(newUserPage, projectName);
+        await Accounting.GrantApplication.toggleGrantGiver(newUserPage, ProviderInfo.providerTitle());
+        await Accounting.GrantApplication.fillQuotaFields(newUserPage, [[PRODUCTS.compute, 1000], [PRODUCTS.storage, 1000]]);
+        await Accounting.GrantApplication.fillDefaultApplicationTextFields(newUserPage, true);
 
-    await Accounting.goTo(adminUserPage, "Grant applications");
-    await adminUserPage.getByText("Show applications received").click();
-    await Rows.actionByRowTitle(adminUserPage, `${id}: ${projectName}`, "dblclick");
-    await Accounting.GrantApplication.approve(adminUserPage);
+        const id = await Accounting.GrantApplication.submit(newUserPage);
 
-    await Accounting.goTo(newUserPage, "Allocations");
-    await newUserPage.getByText("You do not have any allocations at the moment.").waitFor();
-    await Project.changeTo(newUserPage, projectName);
+        await Accounting.goTo(adminUserPage, "Grant applications");
+        await adminUserPage.getByText("Show applications received").click();
+        await Rows.actionByRowTitle(adminUserPage, `${id}: ${projectName}`, "dblclick");
+        await Accounting.GrantApplication.approve(adminUserPage);
 
-    await newUserPage.getByText("0K / 1K Core-hours (0%)").first().hover();
-    await newUserPage.getByText("0 GB / 1,000 GB (0%)").first().hover();
+        await Accounting.goTo(newUserPage, "Allocations");
+        await newUserPage.getByText("You do not have any allocations at the moment.").waitFor();
+        await Project.changeTo(newUserPage, projectName);
+
+        await newUserPage.getByText("0K / 1K Core-hours (0%)").first().hover();
+        await newUserPage.getByText("0 GB / 1,000 GB (0%)").first().hover();
+    }
 });
