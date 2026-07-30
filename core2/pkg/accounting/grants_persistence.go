@@ -227,7 +227,7 @@ func grantsLoad(id accGrantId, prefetchHint []accGrantId) {
 				RevisionNumber: revision.RevisionNumber,
 				Document: accapi.GrantDocument{
 					Recipient:          accapi.RecipientFromReference(accapi.RecipientType(revision.RecipientType), revision.Recipient),
-					AllocationRequests: nil,
+					AllocationRequests: []accapi.AllocationRequest{},
 					Form: accapi.Form{
 						Type: revision.FormType,
 						Text: revision.Form,
@@ -258,7 +258,7 @@ func grantsLoad(id accGrantId, prefetchHint []accGrantId) {
 				if err != nil {
 					log.Warn("Failed to parse structured form: %s", err)
 				}
-				currentRevision.Document.Form.AnswerForms = answerForms
+				currentRevision.Document.Form.AnswerForms = util.NonNilSlice(answerForms)
 			}
 			app.Status.Revisions = append(app.Status.Revisions, currentRevision)
 
@@ -334,8 +334,7 @@ func grantsLoad(id accGrantId, prefetchHint []accGrantId) {
 				app.CurrentRevision = app.Status.Revisions[len(app.Status.Revisions)-1]
 			}
 
-			app.Status.Comments = util.NonNilSlice(app.Status.Comments)
-			app.Status.Revisions = util.NonNilSlice(app.Status.Revisions)
+			grantNormalizeApplication(app)
 
 			result = append(result, *app)
 		}

@@ -140,6 +140,8 @@ var grantsProjectCache = util.NewCache[string, grantsProjectInfo](4 * time.Hour)
 var userInfoCache = util.NewCache[string, fndapi.OptionalUserInfo](10 * time.Minute)
 
 func GrantApplicationProcess(actor rpc.Actor, app accapi.GrantApplication) accapi.GrantApplication {
+	grantNormalizeApplication(&app)
+
 	// Find optional user information if any
 	userInfo, _ := userInfoCache.Get(app.CreatedBy, func() (fndapi.OptionalUserInfo, error) {
 		result, _ := fndapi.UsersRetrieveOptionalInfo.Invoke(fndapi.UsersRetrieveOptionalInfoRequest{Username: util.OptValue(app.CreatedBy)})
@@ -182,6 +184,49 @@ func GrantApplicationProcess(actor rpc.Actor, app accapi.GrantApplication) accap
 	grantAttachUnreadCommentStatus(&app, actor.Username)
 
 	return app
+}
+
+func grantNormalizeRevision(revision *accapi.GrantRevision) {
+	document := &revision.Document
+	form := &document.Form
+
+	document.AllocationRequests = util.NonNilSlice(document.AllocationRequests)
+
+	form.AnswerForms = util.NonNilSlice(form.AnswerForms)
+	for i := range form.AnswerForms {
+		form.AnswerForms[i].AnswerFields = util.NonNilSlice(form.AnswerForms[i].AnswerFields)
+	}
+
+	if document.ReferenceIds.Present {
+		document.ReferenceIds.Value = util.NonNilSlice(document.ReferenceIds.Value)
+	}
+}
+
+func grantNormalizeApplication(application *accapi.GrantApplication) {
+	grantNormalizeRevision(&application.CurrentRevision)
+	application.Status.StateBreakdown = util.NonNilSlice(application.Status.StateBreakdown)
+	application.Status.Comments = util.NonNilSlice(application.Status.Comments)
+	application.Status.Revisions = util.NonNilSlice(application.Status.Revisions)
+	application.Status.ApplicationHistory = util.NonNilSlice(application.Status.ApplicationHistory)
+
+	for i := range application.Status.Revisions {
+		grantNormalizeRevision(&application.Status.Revisions[i])
+	}
+	for i := range application.Status.ApplicationHistory {
+		grantNormalizeApplication(&application.Status.ApplicationHistory[i])
+	}
+}
+
+func grantNormalizeTemplates(templates *accapi.Templates) {
+	templates.Structured.PersonalProject = util.NonNilSlice(templates.Structured.PersonalProject)
+	templates.Structured.NewProject = util.NonNilSlice(templates.Structured.NewProject)
+	templates.Structured.ExistingProject = util.NonNilSlice(templates.Structured.ExistingProject)
+}
+
+func grantNormalizeSettings(settings *accapi.GrantRequestSettings) {
+	settings.AllowRequestsFrom = util.NonNilSlice(settings.AllowRequestsFrom)
+	settings.ExcludeRequestsFrom = util.NonNilSlice(settings.ExcludeRequestsFrom)
+	grantNormalizeTemplates(&settings.Templates)
 }
 
 type grantSettings struct {
@@ -1400,7 +1445,7 @@ func GrantsBrowse(actor rpc.Actor, req accapi.GrantsBrowseRequest) fndapi.PageV2
 	}
 
 	result := fndapi.PageV2[accapi.GrantApplication]{
-		Items:        items,
+		Items:        util.NonNilSlice(items),
 		ItemsPerPage: itemsPerPage,
 	}
 
@@ -1468,7 +1513,7 @@ func grantSearchFuzzily(searchTerm []string) []string {
 		results = append(results, hit.ID)
 	}
 
-	return results
+	return util.NonNilSlice(results)
 }
 
 // NOTE(Dan): This function assumes auth has already taken place.
@@ -1509,7 +1554,9 @@ func GrantsRetrieve(actor rpc.Actor, id string) (accapi.GrantApplication, *util.
 	app, roles := grantsRead(actor, grantAuthReadWrite, idActual, nil)
 
 	if app == nil {
-		return accapi.GrantApplication{}, util.HttpErr(http.StatusNotFound, "not found")
+		result := accapi.GrantApplication{}
+		grantNormalizeApplication(&result)
+		return result, util.HttpErr(http.StatusNotFound, "not found")
 	} else {
 		app.Mu.RLock()
 		// Record that the user has visited the application
@@ -1610,7 +1657,7 @@ func GrantsRetrieveGrantGivers(actor rpc.Actor, req accapi.RetrieveGrantGiversRe
 		b := grantGetAppBucket(accGrantId(appId))
 		app, _ := grantsReadEx(actor, grantAuthReadWrite, b, accGrantId(appId), nil)
 		if app == nil {
-			return nil, util.HttpErr(http.StatusNotFound, "unknown application")
+			return []accapi.GrantGiver{}, util.HttpErr(http.StatusNotFound, "unknown application")
 		}
 
 		app.Mu.RLock()
@@ -1620,7 +1667,7 @@ func GrantsRetrieveGrantGivers(actor rpc.Actor, req accapi.RetrieveGrantGiversRe
 
 		createdByActor, ok := rpc.LookupActor(createdBy)
 		if !ok {
-			return nil, util.HttpErr(http.StatusInternalServerError, "corrupt application, unknown applicant")
+			return []accapi.GrantGiver{}, util.HttpErr(http.StatusInternalServerError, "corrupt application, unknown applicant")
 		}
 
 		applicantActor = createdByActor
@@ -1718,6 +1765,12 @@ func GrantsRetrieveGrantGivers(actor rpc.Actor, req accapi.RetrieveGrantGiversRe
 			lAddPotentialGrantGiver(b, parent)
 			b.Mu.RUnlock()
 		}
+	}
+
+	for i := range result {
+		grantGiver := &result[i]
+		grantGiver.Categories = util.NonNilSlice(grantGiver.Categories)
+		grantNormalizeTemplates(&grantGiver.Templates)
 	}
 
 	slices.SortFunc(result, func(a, b accapi.GrantGiver) int {
@@ -1841,9 +1894,11 @@ func GrantsBrowseEnabledProjects(actor rpc.Actor) ([]accapi.ProjectToSetting, *u
 		for project, _ := range bucket.PublicGrantGivers {
 			settingsFromBucket, ok := bucket.Settings[project]
 			if ok && settingsFromBucket.Settings.Enabled {
+				projectSettings := settingsFromBucket.lDeepCopy()
+				grantNormalizeSettings(&projectSettings)
 				settings = append(
 					settings,
-					accapi.ProjectToSetting{ProjectId: project, Settings: settingsFromBucket.lDeepCopy()},
+					accapi.ProjectToSetting{ProjectId: project, Settings: projectSettings},
 				)
 			}
 		}
@@ -1856,7 +1911,9 @@ func GrantsBrowseEnabledProjects(actor rpc.Actor) ([]accapi.ProjectToSetting, *u
 func GrantsRetrieveSettings(actor rpc.Actor, isUCloudAdminCall bool, projectId string) (accapi.GrantRequestSettings, *util.HttpError) {
 	if !isUCloudAdminCall {
 		if !actor.Project.Present || !actor.Membership[rpc.ProjectId(actor.Project.Value)].Satisfies(rpc.ProjectRoleAdmin) {
-			return accapi.GrantRequestSettings{}, util.HttpErr(http.StatusForbidden, "forbidden")
+			result := accapi.GrantRequestSettings{}
+			grantNormalizeSettings(&result)
+			return result, util.HttpErr(http.StatusForbidden, "forbidden")
 		}
 	}
 
@@ -1901,6 +1958,7 @@ func GrantsRetrieveSettings(actor rpc.Actor, isUCloudAdminCall bool, projectId s
 	}
 	result := w.lDeepCopy()
 	b.Mu.RUnlock()
+	grantNormalizeSettings(&result)
 	return result, nil
 }
 
@@ -1949,7 +2007,7 @@ func GrantsRetrieveLogo(id string) ([]byte, *util.HttpError) {
 	})
 
 	if ok {
-		return logo, nil
+		return util.NonNilSlice(logo), nil
 	} else {
 		return nil, util.HttpErr(http.StatusNotFound, "not found")
 	}
