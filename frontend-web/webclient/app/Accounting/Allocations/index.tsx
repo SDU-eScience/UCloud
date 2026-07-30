@@ -70,7 +70,7 @@ const AllocationsStyle = injectStyle("allocations", k => `
         margin: 15px 0;
     }
     
-    ${k} .disabled-alloc .row-left, ${k} .disabled-alloc .low-opaqueness {
+    ${k} .row .disabled-alloc, ${k} .disabled-alloc .low-opaqueness {
         filter: opacity(0.5);
     }
     
