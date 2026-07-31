@@ -44,8 +44,10 @@ export const ShellWithSession: React.FunctionComponent<{
     sessionWithProvider: InteractiveSession | null;
     autofit?: boolean;
     xtermRef?: React.RefObject<Terminal | null>;
+    focusedTerminalRef?: React.RefObject<Terminal | null>;
     reconnect: () => void;
-}> = ({sessionWithProvider, autofit, xtermRef, reconnect}) => {
+    onTitleChange?: (title: string) => void;
+}> = ({sessionWithProvider, autofit, xtermRef, focusedTerminalRef, reconnect, onTitleChange}) => {
     const {termRef, terminal, fitAddon} = useXTerm({autofit});
     const [closed, setClosed] = useState<boolean>(false);
     let sessionIdentifier: string | null = null;
@@ -58,6 +60,29 @@ export const ShellWithSession: React.FunctionComponent<{
             xtermRef.current = terminal;
         }
     }, [xtermRef, terminal]);
+
+    useEffect(() => {
+        if (!focusedTerminalRef) return;
+        focusedTerminalRef.current = terminal;
+        return () => {
+            if (focusedTerminalRef.current === terminal) focusedTerminalRef.current = null;
+        };
+    }, [focusedTerminalRef, terminal]);
+
+    useEffect(() => {
+        if (!onTitleChange) return;
+
+        const titleChange = terminal.onTitleChange(onTitleChange);
+        const iconTitleChange = terminal.parser.registerOscHandler(1, title => {
+            onTitleChange(title);
+            return true;
+        });
+
+        return () => {
+            titleChange.dispose();
+            iconTitleChange.dispose();
+        };
+    }, [terminal, onTitleChange]);
 
     useEffect(() => {
         if (sessionIdentifier === null || sessionWithProvider === null) return;

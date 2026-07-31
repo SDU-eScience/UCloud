@@ -62,7 +62,7 @@ import MetadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/Meta
 import {SyncthingConfig, SyncthingDevice, SyncthingFolder} from "@/Syncthing/api";
 import {Link, useNavigate, useParams} from "react-router-dom";
 import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
-import {getProviderTitle, ProviderTitle} from "@/Providers/ProviderTitle";
+import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {addShareModal} from "@/Files/Shares";
 import FileBrowse from "@/Files/FileBrowse";
 import {classConcat, injectStyleSimple} from "@/Unstyled";
@@ -981,11 +981,10 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 },
                 onClick: (selected, cb) => {
                     const providerId = cb.collection?.status?.resolvedProduct?.category?.provider ?? "";
-                    const providerTitle = getProviderTitle(providerId);
                     const folder = cb.directory?.id ?? "/";
 
                     cb.dispatch(terminalOpen());
-                    cb.dispatch(terminalOpenTab({tab: {title: providerTitle, folder}}));
+                    cb.dispatch(terminalOpenTab({tab: {title: "Terminal", folder, providerId}}));
                 },
                 shortcut: ShortcutKey.O
             },
@@ -1726,11 +1725,10 @@ export function FilePreview({initialFile}: {
     const openTerminal = useCallback(() => {
         if (!drive) return;
         const providerId = drive.specification.product.provider;
-        const providerTitle = getProviderTitle(providerId) ?? providerId;
         const folder = getParentPath(initialFile.id);
 
         dispatch(terminalOpen());
-        dispatch(terminalOpenTab({tab: {title: providerTitle, folder}}));
+        dispatch(terminalOpenTab({tab: {title: "Terminal", folder, providerId}}));
     }, [drive, initialFile]);
 
     const newFolder = useCallback(async (path: string) => {
