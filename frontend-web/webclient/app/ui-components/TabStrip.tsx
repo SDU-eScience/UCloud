@@ -1,8 +1,7 @@
 import * as React from "react";
-import {useCallback, useEffect, useRef, useState} from "react";
+import {useCallback, useEffect, useLayoutEffect, useRef, useState} from "react";
 import {injectStyle} from "@/Unstyled";
 import Icon, {IconName} from "@/ui-components/Icon";
-import Truncate from "@/ui-components/Truncate";
 import {TooltipV2} from "@/ui-components/Tooltip";
 
 const TAB_DROP_ANIMATION_MS = 160;
@@ -57,7 +56,6 @@ export function TabStrip({
     const dragRef = useRef<TabDragState | null>(null);
     const dropFrameRef = useRef<number | null>(null);
     const [drag, setDrag] = useState<TabDragState | null>(null);
-    const [suppressTransitions, setSuppressTransitions] = useState(false);
     const [hoveredClose, setHoveredClose] = useState<string | null>(null);
 
     useEffect(() => {
@@ -141,18 +139,17 @@ export function TabStrip({
             dropFrameRef.current = null;
         }
 
-        onReorder(currentDrag.order);
-        setSuppressTransitions(true);
-        window.requestAnimationFrame(() => setSuppressTransitions(false));
+        const reorderedIds = currentDrag.order;
         dragRef.current = null;
         setDrag(null);
+        onReorder(reorderedIds);
     }, [onReorder]);
 
     const finishDrag = useCallback((commit: boolean) => {
         const currentDrag = dragRef.current;
         if (!currentDrag || currentDrag.dropping) return;
 
-        if (!commit || !currentDrag.order.some((id, index) => id !== currentDrag.originalOrder[index])) {
+        if (!commit) {
             dragRef.current = null;
             setDrag(null);
             return;
@@ -167,12 +164,18 @@ export function TabStrip({
             if (!pendingDrag?.dropping) return;
 
             const destinationSlot = pendingDrag.slots[pendingDrag.order.indexOf(pendingDrag.id)];
+            if (Math.abs(pendingDrag.pointerLeft - destinationSlot.left) < 0.5) {
+                dropFrameRef.current = null;
+                commitDrop();
+                return;
+            }
+
             const animatedDrop = {...pendingDrag, pointerLeft: destinationSlot.left};
             dragRef.current = animatedDrop;
             setDrag(animatedDrop);
             dropFrameRef.current = null;
         });
-    }, []);
+    }, [commitDrop]);
 
     useEffect(() => {
         if (drag === null) return;
@@ -243,7 +246,7 @@ export function TabStrip({
         return {transform: `translateX(${left - baseSlot.left}px)`};
     }, [drag]);
 
-    return <div className={`${TabStripClass} ${className ?? ""}`} ref={tabsRef} role="tablist">
+    return <div className={`${TabStripClass} ${className ?? ""}`} ref={tabsRef} role="tablist" data-reordering={drag !== null}>
         {items.map(item => {
             const isActive = item.id === activeId;
             const closeIcon = hoveredClose === item.id ? item.closeIconOnHover ?? item.closeIcon ?? "close" : item.closeIcon ?? "close";
@@ -259,7 +262,6 @@ export function TabStrip({
                 data-active={isActive}
                 data-dragging={drag?.id === item.id}
                 data-dropping={drag?.dropping && drag.id === item.id}
-                data-suppress-transition={suppressTransitions}
                 style={dragStyle(item.id)}
                 onPointerDown={e => beginDrag(e, item.id)}
                 onMouseDown={e => {
@@ -286,9 +288,7 @@ export function TabStrip({
                 }}
             >
                 {item.icon ? <span className="tab-strip-icon">{item.icon}</span> : null}
-                <TooltipV2 tooltip={item.tooltip} side="top" triggerClassName={TitleTooltipTrigger}>
-                    <Truncate className="tab-strip-title">{item.title}</Truncate>
-                </TooltipV2>
+                <TabStripTitle title={item.title} tooltip={item.tooltip} />
                 <TooltipV2 tooltip={item.closeTooltip} side="top" contentWidth={150} triggerClassName={CloseTooltipTrigger}>
                     <button
                         type="button"
@@ -309,29 +309,62 @@ export function TabStrip({
     </div>;
 }
 
+function TabStripTitle({title, tooltip}: {title: React.ReactNode; tooltip?: React.ReactNode}): React.ReactNode {
+    const titleRef = useRef<HTMLDivElement | null>(null);
+    const [isOverflowing, setIsOverflowing] = useState(false);
+
+    const updateOverflow = useCallback(() => {
+        const element = titleRef.current;
+        if (!element) return;
+        setIsOverflowing(element.scrollWidth > element.clientWidth);
+    }, []);
+
+    useLayoutEffect(() => {
+        updateOverflow();
+        const element = titleRef.current;
+        if (!element || typeof ResizeObserver === "undefined") return;
+
+        const observer = new ResizeObserver(updateOverflow);
+        observer.observe(element);
+        return () => observer.disconnect();
+    }, [title, updateOverflow]);
+
+    return <div className={TabTitleSlot}>
+        <TooltipV2 tooltip={isOverflowing ? tooltip : undefined} side="top" triggerClassName={TitleTooltipTrigger}>
+            <div ref={titleRef} className={TabTitleClass}>{title}</div>
+        </TooltipV2>
+    </div>;
+}
+
 const TabStripClass = injectStyle("tab-strip", k => `
     ${k} {
         min-width: 0;
         height: 100%;
         display: flex;
         align-items: stretch;
-        gap: 4px;
-        flex: 1 1 auto;
+        justify-content: flex-start;
+        gap: 8px;
+        flex: 1 1 0;
+        width: 0;
         overflow-x: auto;
         overflow-y: hidden;
+        box-sizing: border-box;
+        user-select: none;
+        -webkit-user-select: none;
     }
 
     ${k} .tab-strip-item {
         min-width: 184px;
         width: auto;
         max-width: none;
-        height: 36px;
-        margin-top: auto;
-        padding: 0 4px 0 8px;
+        height: 40px;
+        align-self: center;
+        padding: 0 10px;
         display: flex;
         flex: 1 0 184px;
         align-items: center;
         gap: 6px;
+        box-sizing: border-box;
         border: 1px solid var(--borderColor);
         border-radius: 7px;
         background: transparent;
@@ -341,6 +374,10 @@ const TabStripClass = injectStyle("tab-strip", k => `
         font-size: 13px;
         line-height: 1;
         touch-action: none;
+        transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+    }
+
+    ${k}[data-reordering="true"] .tab-strip-item {
         transition: transform ${TAB_DROP_ANIMATION_MS}ms ease, background-color 120ms ease, border-color 120ms ease, color 120ms ease;
     }
 
@@ -352,10 +389,6 @@ const TabStripClass = injectStyle("tab-strip", k => `
 
     ${k} .tab-strip-item[data-dragging="true"][data-dropping="true"] {
         transition: transform ${TAB_DROP_ANIMATION_MS}ms ease;
-    }
-
-    ${k} .tab-strip-item[data-suppress-transition="true"] {
-        transition: none !important;
     }
 
     ${k} .tab-strip-item img {
@@ -384,12 +417,6 @@ const TabStripClass = injectStyle("tab-strip", k => `
         display: inline-flex;
         flex: none;
         align-items: center;
-    }
-
-    ${k} .tab-strip-title {
-        width: 100%;
-        min-width: 0;
-        text-align: left;
     }
 
     ${k} .tab-strip-close {
@@ -421,11 +448,28 @@ const TabStripClass = injectStyle("tab-strip", k => `
     }
 `);
 
-const TitleTooltipTrigger = injectStyle("tab-strip-title-tooltip-trigger", k => `
+const TabTitleSlot = injectStyle("tab-strip-title-slot", k => `
     ${k} {
         min-width: 0;
         flex: 1 1 auto;
         overflow: hidden;
+    }
+`);
+
+const TitleTooltipTrigger = injectStyle("tab-strip-title-tooltip-trigger", k => `
+    ${k} {
+        width: 100%;
+        overflow: hidden;
+    }
+`);
+
+const TabTitleClass = injectStyle("tab-strip-title", k => `
+    ${k} {
+        width: 100%;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        text-align: left;
     }
 `);
 

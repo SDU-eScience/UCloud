@@ -88,7 +88,7 @@ import {
 } from "./UFile";
 import AppRoutes from "@/Routes";
 import {allowEditing, Editor, EditorApi, Vfs} from "@/Editor/Editor";
-import {TooltipV2} from "@/ui-components/Tooltip";
+import {IconButton} from "@/ui-components/IconButton";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {useDispatch} from "react-redux";
 import {VirtualFile} from "@/Files/FileTree";
@@ -1920,39 +1920,12 @@ export function FilePreview({initialFile}: {
         dirtyFileCountRef={dirtyFileCountRef}
         toolbarBeforeSettings={
             <>
-                {ext === "markdown" ?
-                    <TooltipV2 tooltip={"Preview (ctrl+b)"} contentWidth={80}>
-                        <Icon
-                            name={"heroMagnifyingGlass"}
-                            size={"20px"}
-                            cursor={"pointer"}
-                            onClick={requestPreviewToggle}
-                        />
-                    </TooltipV2> : null}
-
-                <TooltipV2 tooltip={"Save (ctrl+s)"} contentWidth={100}>
-                    <Icon
-                        name={"floppyDisk"}
-                        size={"20px"}
-                        cursor={"pointer"}
-                        onClick={onSave}
-                    />
-                </TooltipV2>
-
+                {ext === "markdown" ? <IconButton compact tooltip="Preview (Ctrl + B)" onClick={requestPreviewToggle} icon="heroMagnifyingGlass" /> : null}
             </>
         }
-        toolbar={
+        statusBar={
             <>
-                {!supportsTerminal ? null :
-                    <TooltipV2 tooltip={"Open terminal"} contentWidth={130}>
-                        <Icon
-                            name={"terminalSolid"}
-                            size={"20px"}
-                            cursor={"pointer"}
-                            onClick={openTerminal}
-                        />
-                    </TooltipV2>
-                }
+                {!supportsTerminal ? null : <IconButton compact tooltip="Open terminal" onClick={openTerminal} icon="terminalSolid" color="fixedWhite" hoverColor="primaryLight" />}
             </>
         }
         initialFolderPath={removeTrailingSlash(getParentPath(initialFile.id))}
@@ -1967,8 +1940,8 @@ export function FilePreview({initialFile}: {
         operations={operations}
         fileHeaderOperations={
             <>
-                <Icon name="heroDocumentPlus" cursor="pointer" size="18px" onClick={() => newFile(initialFile.id)} />
-                <Icon name="heroFolderPlus" cursor="pointer" size="18px" onClick={() => newFolder(initialFile.id)} />
+                <IconButton compact tooltip="New file" onClick={() => newFile(initialFile.id)} icon="heroDocumentPlus" />
+                <IconButton compact tooltip="New folder" onClick={() => newFolder(initialFile.id)} icon="heroFolderPlus" />
             </>
         }
         help={

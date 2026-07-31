@@ -2,9 +2,8 @@ import * as React from "react";
 import {terminalClose, terminalCloseTab, terminalOpen, terminalOpenTab, terminalReorderTabs, terminalSelectTab, terminalUpdateTabTitle, TerminalState, TerminalPageContext, TerminalTab, useTerminalState} from "@/Terminal/State";
 import {useCallback, useEffect, useRef, useState} from "react";
 import {useLocation} from "react-router-dom";
-import {Icon} from "@/ui-components";
+import {IconButton} from "@/ui-components/IconButton";
 import {TabStrip} from "@/ui-components/TabStrip";
-import {TooltipV2} from "@/ui-components/Tooltip";
 import {injectStyle} from "@/Unstyled";
 import {callAPI, noopCall, useCloudAPI} from "@/Authentication/DataHook";
 import {BulkResponse} from "@/UCloud";
@@ -27,7 +26,7 @@ import {sendFailureNotification} from "@/Notifications";
 
 const MIN_TERMINAL_SIZE = 160;
 const TERMINAL_COLLAPSED_SIZE = 53;
-const TERMINAL_CHROME_HEIGHT = 85;
+const TERMINAL_CHROME_HEIGHT = 90;
 function terminalTabId(tab: TerminalTab, index: number): string {
     return tab.uniqueId ?? `terminal-tab-${index}`;
 }
@@ -35,7 +34,7 @@ function terminalTabId(tab: TerminalTab, index: number): string {
 const Wrapper = injectStyle("wrapper", k => `
     ${k} {
         --tc-pad: 16px;
-        --tc-controls-height: 45px;
+        --tc-controls-height: 50px;
         width: calc(100vw - var(--currentSidebarStickyWidth));
         height: var(--termsize, 0px);
         max-height: calc(100vh - 48px);
@@ -94,58 +93,15 @@ const Wrapper = injectStyle("wrapper", k => `
         font-family: var(--sansSerif);
     }
 
-    ${k} .control:focus-visible {
-        outline: 2px solid var(--primaryMain);
-        outline-offset: 1px;
-    }
-
-    ${k} .control {
-        width: 16px;
-        height: 16px;
-        padding: 0;
-        display: inline-flex;
-        flex: none;
-        align-items: center;
-        justify-content: center;
-        border: 0;
-        border-radius: 6px;
-        background: transparent;
-        color: var(--textSecondary);
-        cursor: pointer;
-        font: inherit;
-        transition: background-color 120ms ease, color 120ms ease;
-    }
-
-    ${k} .control:hover {
-        background: var(--rowHover);
-        color: var(--textPrimary);
-    }
-
     ${k} .controls-spacer {
         flex: 0 0 1px;
         height: 24px;
         background: var(--borderColor);
     }
 
-    ${k} .control {
-        width: 32px;
-        height: 32px;
-    }
-
     ${k} .contents {
         width: 100%;
         height: calc(100% - var(--tc-controls-height));
-    }
-`);
-
-const TerminalControlTooltipTrigger = injectStyle("terminal-control-tooltip-trigger", k => `
-    ${k} {
-        width: 32px;
-        height: 32px;
-        display: inline-flex;
-        flex: none;
-        align-items: center;
-        justify-content: center;
     }
 `);
 
@@ -453,28 +409,8 @@ export const TerminalContainer: React.FunctionComponent = () => {
 
             <div className="controls-spacer" />
 
-            <TooltipV2 tooltip={`New terminal (${newTerminalShortcut})`} side="top" contentWidth={170} triggerClassName={TerminalControlTooltipTrigger}>
-                <button
-                    type="button"
-                    className="control"
-                    onClick={() => void createNewTerminal()}
-                    aria-label="New terminal"
-                >
-                    <Icon name="heroPlus" size={15} />
-                </button>
-            </TooltipV2>
-
-            <TooltipV2 tooltip={state.open ? "Collapse terminal" : "Expand terminal"} side="top" contentWidth={130} triggerClassName={TerminalControlTooltipTrigger}>
-                <button
-                    type="button"
-                    className="control"
-                    onClick={toggle}
-                    aria-expanded={state.open}
-                    aria-label={state.open ? "Collapse terminal" : "Expand terminal"}
-                >
-                    <Icon name={state.open ? "anglesDownSolid" : "anglesUpSolid"} size={15} />
-                </button>
-            </TooltipV2>
+            <IconButton tooltip={`New terminal (${newTerminalShortcut})`} onClick={() => void createNewTerminal()} icon="heroPlus" />
+            <IconButton tooltip={state.open ? "Collapse terminal" : "Expand terminal"} onClick={toggle} icon={state.open ? "anglesDownSolid" : "anglesUpSolid"} ariaExpanded={state.open} />
         </div>
 
         {state.tabs.map((tab, idx) =>

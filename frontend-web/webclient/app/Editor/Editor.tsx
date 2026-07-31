@@ -28,6 +28,8 @@ import ITextModel = editor.ITextModel;
 import EndOfLineSequence = editor.EndOfLineSequence;
 import {sendFailureNotification, sendInformationNotification, sendSuccessNotification} from "@/Notifications";
 import {TabStrip} from "@/ui-components/TabStrip";
+import {IconButton} from "@/ui-components/IconButton";
+import {CSSVarCurrentSidebarStickyWidth} from "@/ui-components/List";
 
 export interface Vfs {
     isReal(): boolean;
@@ -332,14 +334,20 @@ const EditorClass = injectStyle("editor", k => `
         width: 100%;
         max-width: 100%;
         height: 100%;
+        min-height: 0;
+        box-sizing: border-box;
+        padding-bottom: 36px;
+        overflow: hidden;
         --borderThickness: 2px;
     }
     
     ${k} > .main-content {
         display: flex;
         flex-direction: column;
-        width: 100%;
+        flex: 1 1 auto;
+        width: 0;
         height: 100%;
+        min-height: 0;
         min-width: 600px;
     }
     
@@ -347,7 +355,7 @@ const EditorClass = injectStyle("editor", k => `
     ${k} .title-bar {
         display: flex;
         align-items: center;
-        height: 45px;
+        height: 50px;
         width: 100%;
         flex-shrink: 0;
         border-bottom: var(--borderThickness) solid var(--borderColor);
@@ -355,10 +363,11 @@ const EditorClass = injectStyle("editor", k => `
     
     ${k} .panels {
         display: flex;
+        flex: 1 1 auto;
         width: 100%;
-        height: 100%;
-        max-height: calc(100% - 45px - 21px);
-        overflow-y: scroll;
+        height: auto;
+        min-height: 0;
+        overflow-y: auto;
     }
     
     ${k} .panels > div > .code {
@@ -393,6 +402,7 @@ export const Editor: React.FunctionComponent<{
     initialFolderPath: string;
     toolbarBeforeSettings?: React.ReactNode;
     toolbar?: React.ReactNode;
+    statusBar?: React.ReactNode;
     apiRef?: React.RefObject<EditorApi | null>;
     customContent?: React.ReactNode;
     showCustomContent?: boolean;
@@ -418,6 +428,9 @@ export const Editor: React.FunctionComponent<{
     const currentTheme = useSelector((red: ReduxObject) => red.sidebar.theme);
     const monacoInstance = useMonaco(engine === "monaco");
     const [editor, setEditor] = useState<IStandaloneCodeEditor | null>(null);
+    const [cursorPosition, setCursorPosition] = useState({line: 1, column: 1});
+    const [readOnlyMode, setReadOnlyMode] = useState(props.readOnly === true);
+    const [sidebarOpen, setSidebarOpen] = useState(true);
     const monacoRef = useRef<any>(null);
     const [tabs, setTabs] = useState<{open: string[], closed: string[]}>({
         open: [state.currentPath],
@@ -846,11 +859,12 @@ export const Editor: React.FunctionComponent<{
         editor.updateOptions({readOnly: props.readOnly});
 
         if (props.readOnly) {
-            setReadonlyWarning(editor);
+            setReadonlyWarning(editor, () => setReadOnlyMode(false));
         }
 
 
         setEditor(editor);
+        setReadOnlyMode(editor.getOption(EditorOption.readOnly));
 
         const vimEnabled = getEditorOption("vim") === true;
         mapStoredBindings();
@@ -859,11 +873,25 @@ export const Editor: React.FunctionComponent<{
         }
     }, [monacoInstance]);
 
+    useEffect(() => {
+        if (!editor) return;
+
+        const updateCursorPosition = () => {
+            const position = editor.getPosition();
+            if (!position) return;
+            setCursorPosition({line: position.lineNumber, column: position.column});
+        };
+
+        updateCursorPosition();
+        const listener = editor.onDidChangeCursorPosition(updateCursorPosition);
+        return () => listener.dispose();
+    }, [editor, state.currentPath]);
+
     React.useEffect(() => {
         if (vimMode) {
             vimMode.listeners["vim-keypress"].push(() => {
                 if (!allowEditing() && editor) {
-                    allowEditDialog(editor);
+                    allowEditDialog(editor, () => setReadOnlyMode(false));
                 }
             });
         }
@@ -1170,6 +1198,7 @@ export const Editor: React.FunctionComponent<{
     const showEditorHelp = tabs.open.length === 0;
 
     const isMarkdown = extensionType(extensionFromPath(state.currentPath)) === "markdown";
+    const toolbarBeforeSettings = (tabs.open.length === 0 || isReleaseNotesOpen || isSettingsOpen || props.showCustomContent) && !isMarkdown ? null : props.toolbarBeforeSettings;
 
     return <div className={EditorClass} onKeyDown={onKeyDown}>
         <FileTree
@@ -1178,6 +1207,8 @@ export const Editor: React.FunctionComponent<{
             onNodeActivated={onNodeActivated}
             root={state.sidebar.root}
             width="250px"
+            canResize
+            visible={sidebarOpen}
             initialFolder={props.initialFolderPath}
             initialFilePath={props.initialFilePath}
             fileHeaderOperations={props.fileHeaderOperations}
@@ -1186,12 +1217,12 @@ export const Editor: React.FunctionComponent<{
             onRename={onRename}
         />
         <div className={"main-content"}>
-            <div className={"title-bar-code"} style={{minWidth: "400px", paddingRight: "12px", width: "100%"}}>
+            <div className={"title-bar-code"} style={{boxSizing: "border-box", minWidth: "400px", padding: "0 8px", width: "100%"}}>
                 <div onContextMenu={e => {
                     e.preventDefault();
                     e.stopPropagation();
                     openTabOperations(undefined, {x: e.clientX, y: e.clientY});
-                }} style={{display: "flex", height: "100%", minWidth: 0, width: "100%"}}>
+                }} style={{display: "flex", flex: "1 1 auto", height: "100%", minWidth: 0}}>
                     <TabStrip
                         items={tabs.open.map(path => {
                             const isSettings = path === SETTINGS_PATH;
@@ -1201,9 +1232,7 @@ export const Editor: React.FunctionComponent<{
                                 id: path,
                                 title: <EditorTabLabel path={path} />,
                                 tooltip: <EditorTabLabel path={path} fullPath />,
-                                icon: isSettings ? <Icon name="heroCog6Tooth" size="18px" />
-                                    : isReleaseNotes ? <Icon name="heroGift" size="18px" />
-                                        : <FullpathFileLanguageIcon filePath={path} />,
+                                icon: isSettings || isReleaseNotes ? undefined : <FullpathFileLanguageIcon filePath={path} />,
                                 closeIcon: isDirty ? "circle" as const : "close" as const,
                                 closeIconOnHover: "close" as const,
                                 closeLabel: `Close ${fileName(path)}`,
@@ -1227,23 +1256,15 @@ export const Editor: React.FunctionComponent<{
                         location={"IN_ROW"}
                     />
                 </div>
-                <Flex alignItems={"center"} ml="16px" gap="16px">
-                    {(tabs.open.length === 0 || isReleaseNotesOpen || isSettingsOpen || props.showCustomContent) && !isMarkdown ? null :
-                        props.toolbarBeforeSettings
-                    }
-                    {showReleaseNoteIcon ? <TooltipV2 tooltip={"See release notes"} contentWidth={100}>
-                        <Icon name={"heroGift"} size={"20px"} cursor={"pointer"} onClick={toggleReleaseNotes} />
-                    </TooltipV2> : null}
-                    <TooltipV2 tooltip={"Settings"} contentWidth={100}>
-                        <Icon name={"heroCog6Tooth"} size={"20px"} cursor={"pointer"} onClick={toggleSettings} />
-                    </TooltipV2>
+                {toolbarBeforeSettings || props.toolbar ? <Flex className={HeaderActions} alignItems={"center"}>
+                    {toolbarBeforeSettings}
                     {props.toolbar}
-                </Flex>
+                </Flex> : null}
             </div>
             <div className={"panels"}>
                 {isSettingsOpen ?
                     <Flex gap={"32px"} maxHeight="100%" flexDirection={"column"} margin={64} width={"100%"} height={"100%"}>
-                        <MonacoEditorSettings editor={editor} setVimMode={setVimMode} />
+                        <MonacoEditorSettings editor={editor} setVimMode={setVimMode} onReadOnlyChange={setReadOnlyMode} />
                     </Flex> : null}
                 {isReleaseNotesOpen ? <Box p="18px" maxHeight="calc(100% - 64px)"><Markdown children={EditorReleaseNotes} /></Box> : null}
                 <>
@@ -1267,19 +1288,33 @@ export const Editor: React.FunctionComponent<{
                 </>
             </div>
             <div className={StatusBarWrapper}>
-                <div className={StatusBar} />
-                {tabs.open.length === 0 || settingsOrReleaseNotesOpen || props.customContent ? null : <Box ml="auto" className={HoverHighlight} width={"fit-content"} mr="8px">
-                    <RichSelect
-                        key={activeSyntax}
-                        items={languageList}
-                        keys={SyntaxSelectorKeys}
-                        FullRenderSelected={p => <Text px="8px" textAlign="end">{p.element?.displayName}</Text>}
-                        elementHeight={29}
-                        RenderRow={LanguageItem}
-                        selected={selectedSynax}
-                        onSelect={setModelLanguage}
-                    />
-                </Box>}
+                <div className={StatusBar}>
+                    <IconButton compact tooltip={sidebarOpen ? "Hide sidebar" : "Show sidebar"} onClick={() => setSidebarOpen(open => !open)} icon="sidebar" color="fixedWhite" hoverColor="primaryLight" noDefaultFill />
+                    <Flex alignItems="center" gap="8px" ml="auto">
+                        {tabs.open.length === 0 || settingsOrReleaseNotesOpen || props.customContent ? null : <Box className={HoverHighlight} width={"fit-content"}>
+                            <RichSelect
+                                key={activeSyntax}
+                                items={languageList}
+                                keys={SyntaxSelectorKeys}
+                                FullRenderSelected={p => <Text px="8px" textAlign="end">{p.element?.displayName}</Text>}
+                                elementHeight={29}
+                                RenderRow={LanguageItem}
+                                selected={selectedSynax}
+                                onSelect={setModelLanguage}
+                            />
+                        </Box>}
+                        <Flex className={StatusIconGroup} alignItems="center">
+                            {props.statusBar}
+                            {showReleaseNoteIcon ? <IconButton compact tooltip="See release notes" onClick={toggleReleaseNotes} icon="heroGift" color="fixedWhite" hoverColor="primaryLight" /> : null}
+                            <IconButton compact tooltip="Settings" onClick={toggleSettings} icon="heroCog6Tooth" color="fixedWhite" hoverColor="primaryLight" />
+                        </Flex>
+                        <span className={StatusPosition}>{cursorPosition.line}:{cursorPosition.column}</span>
+                        <span className={StatusModeBadge} data-readonly={readOnlyMode}>
+                            <Icon name={readOnlyMode ? "heroLockClosed" : "heroLockOpen"} color="fixedWhite" size={14} />
+                            {readOnlyMode ? "Read-only" : "Read-write"}
+                        </span>
+                    </Flex>
+                </div>
             </div>
         </div>
     </div>;
@@ -1290,6 +1325,18 @@ const HoverHighlight = injectStyle("hover-highlight", k => `
         background-color: var(--primaryLight);
     }
         `);
+
+const HeaderActions = injectStyle("editor-header-actions", k => `
+    ${k} {
+        gap: 0;
+        flex: 0 0 auto;
+        margin-left: 16px;
+    }
+
+    ${k}:empty {
+        display: none;
+    }
+`);
 
 /* TODO(Jonas): Improve parameters this is... not good */
 function tabOperations(
@@ -1471,27 +1518,74 @@ function EditorTabLabel({path, fullPath = false}: {path: string; fullPath?: bool
 }
 
 const StatusBar = injectStyle("status-bar", k => `
-    ${k} input {
-            background: transparent;
-            border: none;
-            color: white
-        }
-        `);
-
-const StatusBarWrapper = injectStyle("status-bar-wrapper", k => `
     ${k} {
         display: flex;
-        height: 24px;
-        left: calc(var(--currentSidebarWidth) + 250px);
+        align-items: center;
+        gap: 16px;
         width: 100%;
-        background-color: var(--primaryMain);
-        color: white;
-        padding-left: 4px;
+        height: 100%;
     }
 
     ${k} input {
         background: transparent;
         border: none;
+        color: white;
+    }
+`);
+
+const StatusIconGroup = injectStyle("editor-status-icon-group", k => `
+    ${k} {
+        display: flex;
+        align-items: center;
+        gap: 0;
+    }
+`);
+
+const StatusBarWrapper = injectStyle("status-bar-wrapper", k => `
+    ${k} {
+        position: fixed;
+        bottom: var(--termsize, 0px);
+        left: var(${CSSVarCurrentSidebarStickyWidth});
+        z-index: 9;
+        box-sizing: border-box;
+        display: flex;
+        width: calc(100vw - var(${CSSVarCurrentSidebarStickyWidth}));
+        height: 36px;
+        background-color: var(--primaryMain);
+        color: white;
+        padding: 2px 8px;
+    }
+
+    ${k} input {
+        background: transparent;
+        border: none;
+    }
+`);
+
+const StatusModeBadge = injectStyle("editor-status-mode-badge", k => `
+    ${k} {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        height: 24px;
+        padding: 0 8px;
+        border-radius: 999px;
+        background: color-mix(in srgb, white 18%, transparent);
+        font-size: 12px;
+        line-height: 1;
+        white-space: nowrap;
+    }
+
+    ${k}[data-readonly="true"] {
+        background: color-mix(in srgb, var(--warningMain) 70%, transparent);
+    }
+`);
+
+const StatusPosition = injectStyle("editor-status-position", k => `
+    ${k} {
+        font-family: var(--monospace, monospace);
+        font-size: 12px;
+        white-space: nowrap;
     }
 `);
 
@@ -1617,7 +1711,7 @@ const AvailableSettings: [
         ["Word wrap", EditorOption.wordWrap, ["wordWrapColumn", "on", "off", "bounded"]],
     ];
 
-function MonacoEditorSettings({editor, setVimMode}: {editor: IStandaloneCodeEditor | null, setVimMode(enable: boolean): void;}) {
+function MonacoEditorSettings({editor, setVimMode, onReadOnlyChange}: {editor: IStandaloneCodeEditor | null, setVimMode(enable: boolean): void; onReadOnlyChange?: (readOnly: boolean) => void;}) {
     const setOption = React.useCallback((setting: EditorOption, value: editor.FindComputedEditorOptionValueById<EditorOption>) => {
         if (!editor) return;
 
@@ -1645,8 +1739,9 @@ function MonacoEditorSettings({editor, setVimMode}: {editor: IStandaloneCodeEdit
             <Select defaultValue={allowEditing() ? "Allow" : "Disallow"} onChange={e => {
                 const canEdit = e.target.value === "Allow";
                 setOption(EditorOption.readOnly, !canEdit);
+                onReadOnlyChange?.(!canEdit);
 
-                if (!canEdit) setReadonlyWarning(editor);
+                if (!canEdit) setReadonlyWarning(editor, () => onReadOnlyChange?.(false));
 
                 setAllowEditing(canEdit.toString());
             }}>
@@ -1787,7 +1882,9 @@ function VimKeyBindings() {
                         <option>visual</option>
                     </Select>
                 </Label>
-                <Icon ml="12px" mt="28px" onClick={() => unmapBinding(binding.key)} name="close" />
+                <Box ml="8px" mt="20px">
+                    <IconButton tooltip="Remove key binding" onClick={() => unmapBinding(binding.key)} icon="close" />
+                </Box>
             </Flex>)
             }
         </div >
@@ -1858,13 +1955,13 @@ function useShowReleaseNoteIcon() {
     return {showReleaseNoteIcon, onShowReleaseNotesShown};
 }
 
-function setReadonlyWarning(editor: IStandaloneCodeEditor) {
+function setReadonlyWarning(editor: IStandaloneCodeEditor, onReadOnlyChange?: () => void) {
     editor.onDidAttemptReadOnlyEdit(e => {
-        allowEditDialog(editor);
+        allowEditDialog(editor, onReadOnlyChange);
     });
 }
 
-function allowEditDialog(editor: IStandaloneCodeEditor) {
+function allowEditDialog(editor: IStandaloneCodeEditor, onReadOnlyChange?: () => void) {
     addStandardDialog({
         title: "Enable editing?",
         message: "Editing files is disabled. This can be changed later in settings. Enable?",
@@ -1872,6 +1969,7 @@ function allowEditDialog(editor: IStandaloneCodeEditor) {
         onConfirm() {
             editor.updateOptions({readOnly: false});
             setAllowEditing(true.toString());
+            onReadOnlyChange?.();
         },
         cancelText: "Dismiss",
         addToFront: true,

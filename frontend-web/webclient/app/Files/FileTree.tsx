@@ -31,20 +31,56 @@ interface FileTreeProps {
     operations?: (file?: VirtualFile) => Operation<VirtualFile, null | undefined>[];
     width?: string;
     canResize?: boolean;
+    visible?: boolean;
     fileHeaderOperations?: React.ReactNode;
     renamingFile?: string;
     onRename?: (args: {newAbsolutePath: string, oldAbsolutePath: string, cancel: boolean}) => void;
 }
 
 export function FileTree({tree, onTreeAction, onNodeActivated, root, ...props}: FileTreeProps) {
-    const width = props.width ?? "250px";
-    const resizeSetting = props.canResize ? "horizontal" : "none";
+    const initialWidth = parseFloat(props.width ?? "250px") || 250;
+    const [treeWidth, setTreeWidth] = React.useState(initialWidth);
+    const isResizing = React.useRef(false);
+    const treeRef = React.useRef<HTMLDivElement | null>(null);
+
+    const setWidth = React.useCallback((width: number) => {
+        const left = treeRef.current?.getBoundingClientRect().left ?? 0;
+        const maxWidth = Math.max(180, window.innerWidth - left - 600);
+        setTreeWidth(Math.min(Math.max(width, 180), maxWidth));
+    }, []);
+
+    const pointerMoveHandler = React.useCallback((e: PointerEvent) => {
+        if (!isResizing.current) return;
+        const left = treeRef.current?.getBoundingClientRect().left ?? 0;
+        setWidth(e.clientX - left);
+    }, [setWidth]);
+
+    const stopResize = React.useCallback(() => {
+        if (!isResizing.current) return;
+        isResizing.current = false;
+        window.removeEventListener("pointermove", pointerMoveHandler);
+        window.removeEventListener("pointerup", stopResize);
+        window.removeEventListener("pointercancel", stopResize);
+        window.removeEventListener("blur", stopResize);
+    }, [pointerMoveHandler]);
+
+    React.useEffect(() => stopResize, [stopResize]);
+
+    const onResizeStart = React.useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+        if (!props.canResize || e.button !== 0) return;
+        e.preventDefault();
+        isResizing.current = true;
+        window.addEventListener("pointermove", pointerMoveHandler);
+        window.addEventListener("pointerup", stopResize);
+        window.addEventListener("pointercancel", stopResize);
+        window.addEventListener("blur", stopResize);
+    }, [pointerMoveHandler, props.canResize, stopResize]);
 
     const [operations, setOperations] = React.useState<Operation<VirtualFile, null | undefined>[]>([]);
 
     const style = {
-        "--tree-width": width,
-        "--resize-setting": resizeSetting,
+        "--tree-width": `${treeWidth}px`,
+        display: props.visible === false ? "none" : undefined,
     } as React.CSSProperties;
 
     const getOperations = React.useCallback((file?: VirtualFile) => {
@@ -62,11 +98,10 @@ export function FileTree({tree, onTreeAction, onNodeActivated, root, ...props}: 
 
     const prettyInitialFolderPath = usePrettyFilePath(props.initialFolder);
 
-    return <div onContextMenu={e => onContextMenu(e, undefined)} style={style} className={FileTreeClass}>
+    return <div ref={treeRef} onContextMenu={e => onContextMenu(e, undefined)} style={style} className={FileTreeClass}>
         <Flex alignItems={"center"} pl="6px" className="title-bar" gap={"8px"}>
             <FtIcon fileIcon={{type: "DIRECTORY", ext: extensionFromPath(props.initialFolder)}} size={"18px"} />
-            <Box width="150px"><Truncate width="150px" title={prettyInitialFolderPath} maxWidth="150px">{fileName(prettyInitialFolderPath)}</Truncate></Box>
-            <Flex flexGrow={1} />
+            <Box minWidth={0} flexGrow={1}><Truncate width="100%" title={prettyInitialFolderPath}>{fileName(prettyInitialFolderPath)}</Truncate></Box>
             {props.fileHeaderOperations ? (
                 <>
                     {props.fileHeaderOperations}
@@ -74,7 +109,7 @@ export function FileTree({tree, onTreeAction, onNodeActivated, root, ...props}: 
                 </>
             ) : null}
         </Flex>
-        <Box overflowY="auto" maxHeight={"calc(100vh - 34px)"}>
+        <Box className="tree-content" overflowY="auto">
             <Tree apiRef={tree} onAction={onTreeAction}>
                 <FileNode
                     initialFolder={props.initialFolder}
@@ -98,6 +133,7 @@ export function FileTree({tree, onTreeAction, onNodeActivated, root, ...props}: 
                 location={"IN_ROW"}
             />
         </Box>
+        {props.canResize ? <div className="tree-resizer" onPointerDown={onResizeStart} /> : null}
     </div>
 }
 
@@ -157,7 +193,7 @@ const FileNode: React.FunctionComponent<{
         }}
         slim
         left={
-            <Flex gap={"8px"} alignItems={"center"} fontSize={"12px"}>
+            <Flex gap={"8px"} alignItems={"center"} fontSize={"12px"} minWidth={0}>
                 {props.node.file.isDirectory ? null :
                     <FullpathFileLanguageIcon filePath={props.node.file.absolutePath} size="16px" />
                 }
@@ -178,7 +214,7 @@ const FileNode: React.FunctionComponent<{
                         }
                     }} defaultValue={fileName(props.node.file.absolutePath)} width={1} /> :
                     // Note(Jonas): A bit fragile, but this component relies on the tree-node CSS variable called --indent
-                    <Truncate title={prettyPath} maxWidth="calc(200px - var(--indent))">{fileName(prettyPath)}</Truncate>}
+                    <Truncate title={prettyPath} maxWidth="calc(var(--tree-width) - var(--indent) - 64px)">{fileName(prettyPath)}</Truncate>}
             </Flex >
         }
         children={children}
@@ -187,15 +223,52 @@ const FileNode: React.FunctionComponent<{
 
 const FileTreeClass = injectStyle("file-tree", k => `
     ${k} {
+        position: relative;
         width: var(--tree-width);
         max-width: var(--tree-width);
         height: 100%;
-        resize: var(--resize-setting);
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
         flex-shrink: 0;
+        overflow: hidden;
         border-right: var(--borderThickness) solid var(--borderColor);
     }
 
+    ${k} > .tree-content {
+        min-height: 0;
+        flex: 1 1 auto;
+    }
+
+    ${k} .tree-resizer {
+        width: 8px;
+        height: 100%;
+        position: absolute;
+        top: 0;
+        right: -4px;
+        background: transparent;
+        cursor: col-resize;
+        touch-action: none;
+        z-index: 1;
+    }
+
+    ${k} .tree-resizer::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 3px;
+        width: 2px;
+        background: transparent;
+    }
+
+    ${k} .tree-resizer:hover::before,
+    ${k} .tree-resizer:active::before {
+        background: var(--primaryMain);
+    }
+
     ${k} > .tree-header {
+        flex: none;
         border-bottom: var(--borderThickness) solid var(--borderColor);
     }
 `);
