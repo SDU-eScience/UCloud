@@ -1,5 +1,6 @@
 import {classConcat, injectStyle} from "@/Unstyled";
 import {isLightThemeStored} from "@/UtilityFunctions";
+import {xtermThemes} from "@/Applications/Jobs/XTermLib";
 import * as React from "react";
 
 export function TermAndShellWrapper(props: React.PropsWithChildren<{addPadding: boolean}>) {
@@ -18,11 +19,19 @@ const TermAndShellWrapperClass = injectStyle("term-and-wrapper", k => `
     }
 
     ${k}.light {
-        background: #ffffff;
+        background: ${xtermThemes.light.background};
     }
 
     ${k}.dark {
-        background: #282a36;
+        background: ${xtermThemes.dark.background};
+    }
+
+    html.light ${k} {
+        background: ${xtermThemes.light.background};
+    }
+
+    html.dark ${k} {
+        background: ${xtermThemes.dark.background};
     }
 
     ${k} > .contents {

@@ -8,20 +8,26 @@ import {BulkResponse} from "@/UCloud";
 import JobsApi, {InteractiveSession} from "@/UCloud/JobsApi";
 import {bulkRequestOf, bulkResponseOf} from "@/UtilityFunctions";
 import {ShellWithSession} from "@/Applications/Jobs/Shell";
+import {xtermThemes} from "@/Applications/Jobs/XTermLib";
 import {Terminal} from "@xterm/xterm";
 import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
 import {CSSVarCurrentSidebarStickyWidth} from "@/ui-components/List";
-import {Tab} from "@/Editor/Editor";
 import {Operation, Operations, ShortcutKey} from "@/ui-components/Operation";
 import {useDispatch} from "react-redux";
 import {Dispatch} from "@reduxjs/toolkit";
 
+const MIN_TERMINAL_SIZE = 160;
+const TERMINAL_COLLAPSED_SIZE = 53;
+const TERMINAL_CHROME_HEIGHT = 85;
+
 const Wrapper = injectStyle("wrapper", k => `
     ${k} {
         --tc-pad: 16px;
+        --tc-controls-height: 45px;
         width: calc(100vw - var(--currentSidebarStickyWidth));
         height: var(--termsize, 0px);
-        background: var(--backgroundDefault);
+        max-height: calc(100vh - 48px);
+        background: ${xtermThemes.light.background};
         color: var(--textPrimary);
         position: fixed;
         bottom: 0;
@@ -30,56 +36,166 @@ const Wrapper = injectStyle("wrapper", k => `
         padding-right: var(--tc-pad);
         user-select: none;
         -webkit-user-select: none;
-        font-family: 'Jetbrains Mono', 'Ubuntu Mono', courier-new, courier, monospace;
+        font-family: var(--sansSerif);
+        z-index: 10;
+    }
+
+    html.dark ${k} {
+        background: ${xtermThemes.dark.background};
     }
 
     ${k} .resizer {
         width: calc(100% + var(--tc-pad) * 2);
-        height: 2px;
-        background: black;
+        height: 8px;
+        background: transparent;
         cursor: row-resize;
         position: relative;
         left: calc(var(--tc-pad) * -1);
+        touch-action: none;
+        z-index: 1;
+    }
+
+    ${k} .resizer::before {
+        content: "";
+        position: absolute;
+        top: 3px;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: var(--borderColor);
+    }
+
+    ${k} .resizer:hover::before,
+    ${k} .resizer:active::before {
+        background: var(--primaryMain);
     }
 
     ${k} .controls {
-        width: 100%;
+        width: calc(100% + var(--tc-pad) * 2);
         margin-left: calc(-1 * var(--tc-pad));
-
-        height: 32px;
+        height: var(--tc-controls-height);
+        padding: 4px 8px 4px 12px;
         display: flex;
         align-items: center;
+        gap: 8px;
+        background: var(--backgroundCard);
+        font-family: var(--sansSerif);
+    }
+
+    ${k} .tabs {
+        min-width: 0;
+        height: 100%;
+        display: flex;
+        align-items: stretch;
+        gap: 4px;
+        flex: 1 1 auto;
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+
+    ${k} .tabs::-webkit-scrollbar {
+        display: none;
+    }
+
+    ${k} .terminal-tab {
+        min-width: 132px;
+        width: 184px;
+        max-width: 220px;
+        height: 36px;
+        margin-top: auto;
+        padding: 0 4px 0 8px;
+        display: flex;
+        flex: 0 1 184px;
+        align-items: center;
+        gap: 6px;
+        border: 1px solid var(--borderColor);
+        border-radius: 7px;
+        background: transparent;
+        color: var(--textSecondary);
+        cursor: pointer;
+        font-family: var(--sansSerif);
+        font-size: 13px;
+        line-height: 1;
+        transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+    }
+
+    ${k} .terminal-tab:hover {
+        background: var(--rowHover);
+        border-color: var(--borderColorHover);
+        color: var(--textPrimary);
+    }
+
+    ${k} .terminal-tab[data-active="true"] {
+        background: var(--rowActive);
+        border-color: var(--primaryMain);
+        color: var(--textPrimary);
+    }
+
+    ${k} .terminal-tab:focus-visible,
+    ${k} .control:focus-visible,
+    ${k} .tab-close:focus-visible {
+        outline: 2px solid var(--primaryMain);
+        outline-offset: 1px;
+    }
+
+    ${k} .tab-icon,
+    ${k} .tab-title {
+        flex: none;
+    }
+
+    ${k} .tab-title {
+        min-width: 0;
+        flex: 1 1 auto;
+        text-align: left;
+    }
+
+    ${k} .tab-close,
+    ${k} .control {
+        width: 16px;
+        height: 16px;
+        padding: 0;
+        display: inline-flex;
+        flex: none;
+        align-items: center;
+        justify-content: center;
+        border: 0;
+        border-radius: 6px;
+        background: transparent;
+        color: var(--textSecondary);
+        cursor: pointer;
+        font: inherit;
+        transition: background-color 120ms ease, color 120ms ease;
+    }
+
+    ${k} .tab-close:hover,
+    ${k} .control:hover {
+        background: var(--rowHover);
+        color: var(--textPrimary);
+    }
+
+    ${k} .tab-close {
+        opacity: 0.75;
+    }
+
+    ${k} .terminal-tab:hover .tab-close,
+    ${k} .terminal-tab[data-active="true"] .tab-close {
+        opacity: 1;
+    }
+
+    ${k} .controls-spacer {
+        flex: 0 0 1px;
+        height: 24px;
+        background: var(--borderColor);
     }
 
     ${k} .control {
-        cursor: pointer;
-    }
-
-    ${k} .tab:first-child {
-        border-left: 1px solid black;
-    }
-
-    ${k} .tab {
-        width: 150px;
-        text-overflow: ellipsis;
-        text-align: center;
-        border-right: 1px solid black;
-        cursor: pointer;
-    }
-
-    ${k} .tab:hover {
-        background: var(--textPrimary);
-        color: var(--backgroundDefault);
-    }
-
-    ${k} .tab.active {
-        background: var(--textPrimary);
-        color: var(--backgroundDefault);
+        width: 32px;
+        height: 32px;
     }
 
     ${k} .contents {
         width: 100%;
-        height: calc(100% - 32px);
+        height: calc(100% - var(--tc-controls-height));
     }
 `);
 
@@ -88,38 +204,53 @@ export const TerminalContainer: React.FunctionComponent = () => {
     const dispatch = useDispatch();
 
     const termSizeSaved = useRef<number>(400);
+    const isResizing = useRef(false);
 
     const setSize = useCallback((size: number) => {
-        if (size > 0) termSizeSaved.current = size;
+        if (size > 0) {
+            const maxSize = Math.max(MIN_TERMINAL_SIZE, window.innerHeight - 48);
+            termSizeSaved.current = Math.min(Math.max(size, MIN_TERMINAL_SIZE), maxSize);
+        }
         document.body.style.setProperty("--termsize", `${termSizeSaved.current}px`);
     }, []);
 
     useEffect(() => {
         if (state.open) {
-            document.body.style.setProperty("--termsize", `${termSizeSaved.current}px`);
+            setSize(termSizeSaved.current);
         } else {
             if (state.tabs.length === 0) {
                 document.body.style.setProperty("--termsize", "0px");
             } else {
-                document.body.style.setProperty("--termsize", "32px");
+                document.body.style.setProperty("--termsize", `${TERMINAL_COLLAPSED_SIZE}px`);
             }
         }
-    }, [state.open, state.tabs.length]);
+    }, [state.open, state.tabs.length, setSize]);
 
-    const mouseMoveHandler: (e: MouseEvent) => void = useCallback(e => {
+    const pointerMoveHandler: (e: PointerEvent) => void = useCallback(e => {
         const size = window.innerHeight - e.clientY;
         setSize(size);
     }, []);
 
-    const mouseUpHandler: (e: MouseEvent) => void = useCallback(() => {
-        document.body.removeEventListener("mousemove", mouseMoveHandler);
-        document.body.removeEventListener("mouseup", mouseUpHandler);
-    }, []);
+    const stopResize = useCallback(() => {
+        if (!isResizing.current) return;
+        isResizing.current = false;
+        window.removeEventListener("pointermove", pointerMoveHandler);
+        window.removeEventListener("pointerup", stopResize);
+        window.removeEventListener("pointercancel", stopResize);
+        window.removeEventListener("blur", stopResize);
+    }, [pointerMoveHandler]);
 
-    const onDragStart = useCallback(() => {
-        document.body.addEventListener("mousemove", mouseMoveHandler);
-        document.body.addEventListener("mouseup", mouseUpHandler);
-    }, []);
+    useEffect(() => stopResize, [stopResize]);
+
+    const onDragStart = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+        if (!state.open || e.button !== 0) return;
+        e.preventDefault();
+        isResizing.current = true;
+        window.addEventListener("pointermove", pointerMoveHandler);
+        window.addEventListener("pointerup", stopResize);
+        window.addEventListener("pointercancel", stopResize);
+        window.addEventListener("blur", stopResize);
+    }, [pointerMoveHandler, state.open, stopResize]);
 
     const toggle = useCallback(() => {
         if (state.open) {
@@ -143,31 +274,56 @@ export const TerminalContainer: React.FunctionComponent = () => {
     }, [state]);
 
     const tabComponents = useMemo(() => state.tabs.map((tab, idx) => (
-        <Tab
-            key={idx}
-            title={<Truncate>{tab.title}</Truncate>}
-            onRowClick={() => dispatch(terminalSelectTab({tabIdx: idx}))}
-            isActive={idx === state.activeTab}
-            icon={<div />}
-            onClose={e => {
-                e.stopPropagation();
-                closeTerminal(idx);
+        <div
+            key={tab.uniqueId ?? idx}
+            className="terminal-tab"
+            role="tab"
+            tabIndex={0}
+            aria-selected={idx === state.activeTab}
+            data-active={idx === state.activeTab}
+            onClick={e => {
+                if (e.button === 1) {
+                    e.preventDefault();
+                    closeTerminal(idx);
+                } else if (e.button === 0) {
+                    dispatch(terminalSelectTab({tabIdx: idx}));
+                }
             }}
-            cursor="close"
+            onKeyDown={e => {
+                if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    dispatch(terminalSelectTab({tabIdx: idx}));
+                }
+            }}
             onContextMenu={e => {
                 e.preventDefault();
                 e.stopPropagation();
                 openTabOperations(idx, {x: e.clientX, y: e.clientY});
             }}
-        />
+        >
+            <Icon className="tab-icon" name="terminalSolid" size={15} color="textPrimary" />
+            <Truncate className="tab-title" title={tab.title}>{tab.title}</Truncate>
+            <button
+                type="button"
+                className="tab-close"
+                aria-label={`Close ${tab.title}`}
+                title="Close tab"
+                onClick={e => {
+                    e.stopPropagation();
+                    closeTerminal(idx);
+                }}
+            >
+                <Icon name="close" size={10} />
+            </button>
+        </div>
     )), [state.tabs, state.activeTab, closeTerminal]);
 
     const openTabOperationWindow = useRef<(x: number, y: number) => void>(noopCall)
 
     return <div className={Wrapper}>
-        <div className={"resizer"} onMouseDown={onDragStart} />
+        <div className={"resizer"} onPointerDown={state.open ? onDragStart : undefined} />
         <div className="controls">
-            {tabComponents}
+            <div className="tabs">{tabComponents}</div>
 
             <Operations
                 entityNameSingular={""}
@@ -180,11 +336,18 @@ export const TerminalContainer: React.FunctionComponent = () => {
                 location={"IN_ROW"}
             />
 
-            <div style={{flexGrow: 1}} />
+            <div className="controls-spacer" />
 
-            <div className="control" onClick={toggle}>
-                <Icon name={state.open ? "anglesDownSolid" : "anglesUpSolid"} size={16} />
-            </div>
+            <button
+                type="button"
+                className="control"
+                onClick={toggle}
+                aria-expanded={state.open}
+                aria-label={state.open ? "Collapse terminal" : "Expand terminal"}
+                title={state.open ? "Collapse terminal" : "Expand terminal"}
+            >
+                <Icon name={state.open ? "anglesDownSolid" : "anglesUpSolid"} size={15} />
+            </button>
         </div>
 
         {state.tabs.map((tab, idx) =>
@@ -201,7 +364,6 @@ function tabOperations(dispatch: Dispatch, tabIdx: number, state: TerminalState)
             onClick() {
                 dispatch(terminalCloseTab({tabIdx: tabIdx}));
             },
-            "shortcut": ShortcutKey.A,
         },
         {
             text: "Close others", enabled: () => state.tabs.length > 1,
@@ -211,7 +373,6 @@ function tabOperations(dispatch: Dispatch, tabIdx: number, state: TerminalState)
                     dispatch(terminalCloseTab({tabIdx: idx}));
                 }
             },
-            "shortcut": ShortcutKey.B,
         },
         {
             text: "Close to the right", enabled: () => true /* todo */, onClick() {
@@ -223,7 +384,6 @@ function tabOperations(dispatch: Dispatch, tabIdx: number, state: TerminalState)
                     terminalSelectTab({tabIdx})
                 }
             },
-            "shortcut": ShortcutKey.C,
         },
         {
             text: "Close all", enabled: () => true, onClick() {
@@ -232,7 +392,6 @@ function tabOperations(dispatch: Dispatch, tabIdx: number, state: TerminalState)
                 }
                 dispatch(terminalClose());
             },
-            "shortcut": ShortcutKey.D,
         },
     ];
 }
@@ -264,10 +423,10 @@ const IndividualTerminal: React.FunctionComponent<{tab: TerminalTab, hidden: boo
 
             let termHeight = parseInt(getCssPropertyValue("--termsize"));
             if (isNaN(termHeight)) termHeight = 0;
-            termHeight -= 64;
+            termHeight -= TERMINAL_CHROME_HEIGHT;
 
-            const cols = Math.floor(width / 10);
-            const rows = Math.floor(termHeight / 20);
+            const cols = Math.max(1, Math.floor(width / 10));
+            const rows = Math.max(1, Math.floor(termHeight / 20));
 
             setSize([cols, rows]);
         }, 100);
