@@ -1826,7 +1826,6 @@ export function FilePreview({initialFile}: {
                     const suffix = file.isDirectory ? "/placeholder" : "";
                     newFolder(file.absolutePath + suffix).then(doNothing);
                 },
-                shortcut: ShortcutKey.F,
             },
             {
                 icon: "heroDocumentPlus",
@@ -1836,7 +1835,6 @@ export function FilePreview({initialFile}: {
                     const suffix = file.isDirectory ? "/placeholder" : "";
                     newFile(file.absolutePath + suffix).then(doNothing);
                 },
-                shortcut: ShortcutKey.G,
             },
             {
                 icon: "edit",
@@ -1845,7 +1843,6 @@ export function FilePreview({initialFile}: {
                 onClick: () => {
                     setRenamingFile(file.absolutePath);
                 },
-                shortcut: ShortcutKey.E
             },
             {
                 icon: "trash",
@@ -1862,7 +1859,6 @@ export function FilePreview({initialFile}: {
                     reload();
                     sendSuccessNotification("File(s) moved to trash");
                 },
-                shortcut: ShortcutKey.R
             },
             {
                 icon: "copy",
@@ -1871,7 +1867,6 @@ export function FilePreview({initialFile}: {
                 onClick: () => {
                     api.copyModal([file.absolutePath], initialFile.specification.product.provider, reload);
                 },
-                shortcut: ShortcutKey.C
             },
             {
                 icon: "heroFolderArrowRight",
@@ -1880,8 +1875,6 @@ export function FilePreview({initialFile}: {
                 onClick: () => {
                     api.moveModal([file.absolutePath], initialFile.specification.product.provider, reload);
                 },
-                shortcut: ShortcutKey.M
-                // MOVE
             },
             {
                 icon: "download",
@@ -1890,8 +1883,6 @@ export function FilePreview({initialFile}: {
                 onClick: async () => {
                     api.download([file.absolutePath]);
                 },
-                shortcut: ShortcutKey.D
-                // DOWNLOAD
             },
             {
                 icon: "properties",
@@ -1902,7 +1893,6 @@ export function FilePreview({initialFile}: {
                         dispatch(setPopInChild({el: <FileProperties routingNamespace={api.routingNamespace} file={ufile} inPopIn />}));
                     });
                 },
-                shortcut: ShortcutKey.V,
             },
         ];
     }, []);

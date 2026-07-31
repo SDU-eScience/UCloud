@@ -212,6 +212,7 @@ export const TerminalContainer: React.FunctionComponent = () => {
     const termSizeSaved = useRef<number>(400);
     const isResizing = useRef(false);
     const activeTerminalRef = useRef<Terminal | null>(null);
+    const terminalRoot = useRef<HTMLDivElement | null>(null);
     const creatingTerminal = useRef(false);
     const focusAfterCreate = useRef(false);
     const activeTabId = state.tabs[state.activeTab]?.uniqueId;
@@ -272,13 +273,6 @@ export const TerminalContainer: React.FunctionComponent = () => {
                 return;
             }
 
-            if (e.code === "KeyW" && e.altKey && !e.shiftKey && state.activeTab >= 0 && state.activeTab < state.tabs.length) {
-                e.preventDefault();
-                e.stopPropagation();
-                dispatch(terminalCloseTab({tabIdx: state.activeTab}));
-                return;
-            }
-
             if (e.code === "Backquote" && !e.shiftKey && !e.altKey) {
                 e.preventDefault();
                 e.stopPropagation();
@@ -291,16 +285,6 @@ export const TerminalContainer: React.FunctionComponent = () => {
                 return;
             }
 
-            if (state.tabs.length < 2 || !e.altKey || e.shiftKey) return;
-            if (e.code !== "PageUp" && e.code !== "PageDown") return;
-
-            e.preventDefault();
-            e.stopPropagation();
-
-            const direction = e.code === "PageUp" ? -1 : 1;
-            const currentTab = Math.max(0, state.activeTab);
-            const nextTab = (currentTab + direction + state.tabs.length) % state.tabs.length;
-            dispatch(terminalSelectTab({tabIdx: nextTab}));
         };
 
         window.addEventListener("keydown", listener, true);
@@ -377,7 +361,7 @@ export const TerminalContainer: React.FunctionComponent = () => {
 
     const indexOfTab = useCallback((id: string) => state.tabs.findIndex((tab, index) => terminalTabId(tab, index) === id), [state.tabs]);
 
-    return <div className={Wrapper}>
+    return <div ref={terminalRoot} className={Wrapper}>
         <div className={"resizer"} onPointerDown={state.open ? onDragStart : undefined} />
         <div className="controls">
             <TabStrip
@@ -390,6 +374,7 @@ export const TerminalContainer: React.FunctionComponent = () => {
                     closeTooltip: idx === state.activeTab ? "Close tab (Ctrl + Alt + W)" : "Close tab",
                 }))}
                 activeId={activeTabId}
+                shortcutScope={terminalRoot}
                 onActivate={id => dispatch(terminalSelectTab({tabIdx: indexOfTab(id)}))}
                 onClose={id => closeTerminal(indexOfTab(id))}
                 onContextMenu={(id, position) => openTabOperations(indexOfTab(id), position)}

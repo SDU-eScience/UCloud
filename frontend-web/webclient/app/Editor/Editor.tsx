@@ -5,7 +5,6 @@ import {editor} from "monaco-editor";
 import {Uri} from "monaco-editor";
 import {AsyncCache} from "@/Utilities/AsyncCache";
 import {injectStyle} from "@/Unstyled";
-import {TreeAction, TreeApi} from "@/ui-components/Tree";
 import {Box, Flex, FtIcon, Icon, Image, Markdown, Select, Text, Input, Label, Button} from "@/ui-components";
 import {fileName, pathComponents} from "@/Utilities/FileUtilities";
 import {capitalized, copyToClipboard, errorMessageOrDefault, extensionFromPath, extensionType, getLanguageList, languageFromExtension, populateLanguages} from "@/UtilityFunctions";
@@ -30,6 +29,7 @@ import {sendFailureNotification, sendInformationNotification, sendSuccessNotific
 import {TabStrip} from "@/ui-components/TabStrip";
 import {IconButton} from "@/ui-components/IconButton";
 import {CSSVarCurrentSidebarStickyWidth} from "@/ui-components/List";
+import {VirtualizedTreeApi} from "@/ui-components/VirtualizedTree";
 
 export interface Vfs {
     isReal(): boolean;
@@ -182,6 +182,7 @@ function singleEditorReducer(state: EditorState, action: EditorAction): EditorSt
 
         case "EditorActionFilesLoaded": {
             const [newRoot, leaf] = findOrAppendNodeForMutation(state.sidebar.root, action.path);
+            leaf.childrenLoaded = true;
             leaf.children = action.files.map(it => {
                 const existing = leaf.children.find(child => child.file.absolutePath === it.absolutePath);
                 return existing ?? {
@@ -425,6 +426,7 @@ export const Editor: React.FunctionComponent<{
     const [engine, setEngine] = useState<EditorEngine>(localStorage.getItem("editor-engine") as EditorEngine ?? "monaco");
     const [state, dispatch] = useReducer(singleEditorReducer, 0, () => defaultEditor(props.vfs, props.title, props.initialFolderPath, props.initialFilePath));
     const editorView = useRef<HTMLDivElement>(null);
+    const editorRoot = useRef<HTMLDivElement>(null);
     const currentTheme = useSelector((red: ReduxObject) => red.sidebar.theme);
     const monacoInstance = useMonaco(engine === "monaco");
     const [editor, setEditor] = useState<IStandaloneCodeEditor | null>(null);
@@ -436,34 +438,6 @@ export const Editor: React.FunctionComponent<{
         open: [state.currentPath],
         closed: [],
     });
-
-    React.useEffect(() => {
-        const tabListener = (ev: KeyboardEvent) => {
-            const hasAlt = ev.altKey;
-            const parsed = ev.code.startsWith("Digit") ? parseInt(ev.code.replace("Digit", "")) : NaN;
-
-            if (ev.code === "KeyW" && hasAlt) {
-                ev.preventDefault();
-                ev.stopPropagation();
-
-                closeTab(state.currentPath, tabs.open.findIndex(it => it === state.currentPath));
-            } else if (!isNaN(parsed) && hasAlt) {
-                ev.preventDefault();
-                ev.stopPropagation();
-
-                if (tabs.open.length > 0) {
-                    const clampedValue = Math.min(parsed - 1, tabs.open.length - 1);
-                    openTab(tabs.open[clampedValue]);
-                }
-            }
-        };
-
-        window.addEventListener("keydown", tabListener);
-        return () => {
-            window.removeEventListener("keydown", tabListener);
-        }
-
-    }, [state.currentPath, tabs]);
 
     const [dirtyFiles, setDirtyFiles] = React.useState<Set<string>>(new Set());
 
@@ -542,10 +516,12 @@ export const Editor: React.FunctionComponent<{
     // opposite of reactive. There isn't much we can do about this.
     const engineRef = useRef<EditorEngine>("monaco");
     const stateRef = useRef<EditorState>(null);
-    const tree = useRef<TreeApi | null>(null);
+    const tree = useRef<VirtualizedTreeApi | null>(null);
     const [vimMode, setVimModeObject] = useState<any /* vimAdapter */>(null);
+    const [vimEditorMode, setVimEditorMode] = useState<string | null>(null);
 
     const editorRef = useRef<IStandaloneCodeEditor | null>(null);
+    const vimCommandBar = useRef<HTMLDivElement>(null);
     const showingCustomContent = useRef<boolean>(props.showCustomContent === true);
 
     useEffect(() => {
@@ -582,6 +558,11 @@ export const Editor: React.FunctionComponent<{
     }, [props.apiRef, state.currentPath]);
 
     const didUnmount = useDidUnmount();
+    const directoryCache = useRef(new AsyncCache<VirtualFile[]>());
+
+    useEffect(() => {
+        directoryCache.current.invalidateAll();
+    }, [props.vfs]);
 
     const reloadBuffer = useCallback((name: string, content: string, syntax: string) => {
         const editor = editorRef.current;
@@ -605,13 +586,13 @@ export const Editor: React.FunctionComponent<{
                         });
                     });
                     editor.setModel(model);
-                } else {
+                } else if (editor.getModel() !== existingModel) {
                     editor.setModel(existingModel);
                 }
                 break;
             }
         }
-    }, [dirtyFiles]);
+    }, []);
 
     React.useEffect(() => {
         return disposeModels;
@@ -671,7 +652,8 @@ export const Editor: React.FunctionComponent<{
                         editorState = editor.saveViewState();
                     }
 
-                    const oldContent = await readBuffer();
+                    const cachedOldContent = state.cachedFiles[oldPath];
+                    const oldContent = !dirtyFilesRef.current.has(oldPath) && typeof cachedOldContent === "string" ? cachedOldContent : await readBuffer();
                     props.vfs.setDirtyFileContent(oldPath, oldContent);
                     dispatch({type: "EditorActionSaveState", editorState, oldContent, newPath: path});
                 } else {
@@ -696,7 +678,8 @@ export const Editor: React.FunctionComponent<{
 
                 const monaco = monacoRef.current;
                 if (syntax && monaco && editor) {
-                    monaco.editor.setModelLanguage(editor.getModel(), syntax);
+                    const model = editor.getModel();
+                    if (model && model.getLanguageId() !== syntax) monaco.editor.setModelLanguage(model, syntax);
                     setActiveSyntax(syntax);
                 }
             }
@@ -706,7 +689,7 @@ export const Editor: React.FunctionComponent<{
             sendFailureNotification(errorMessageOrDefault(error, "Failed to fetch file"));
             return true; // What does true or false mean in this context?
         }
-    }, [state, props.vfs, dispatch, reloadBuffer, readBuffer, props.onOpenFile, dirtyFiles, state.sidebar.root, state.cachedFiles]);
+    }, [state, props.vfs, dispatch, reloadBuffer, readBuffer, props.onOpenFile, state.sidebar.root, state.cachedFiles]);
 
     useEffect(() => {
         const listener = (ev: KeyboardEvent) => {
@@ -747,10 +730,18 @@ export const Editor: React.FunctionComponent<{
         }
     }, [props.onOpenFile]);
 
-    const invalidateTree = useCallback(async (folder: string): Promise<void> => {
-        const files = await props.vfs.listFiles(folder);
-        dispatch({type: "EditorActionFilesLoaded", path: folder, files});
+    const loadDirectory = useCallback((folder: string, invalidate = false): Promise<VirtualFile[]> => {
+        if (invalidate) directoryCache.current.invalidate(folder);
+        return directoryCache.current.retrieve(folder, async () => {
+            const files = await props.vfs.listFiles(folder);
+            if (!didUnmount.current) dispatch({type: "EditorActionFilesLoaded", path: folder, files});
+            return files;
+        });
     }, [props.vfs]);
+
+    const invalidateTree = useCallback(async (folder: string): Promise<void> => {
+        await loadDirectory(folder, true);
+    }, [loadDirectory]);
 
     const onFileSaved = React.useCallback((path: string): RevertSaveFunction => {
         const model = getModelFromEditor(path);
@@ -869,7 +860,7 @@ export const Editor: React.FunctionComponent<{
         const vimEnabled = getEditorOption("vim") === true;
         mapStoredBindings();
         if (vimEnabled) {
-            setVimModeObject(initVimMode(editor, getStatusBarElement()));
+            setVimModeObject(initVimMode(editor, vimCommandBar.current));
         }
     }, [monacoInstance]);
 
@@ -888,21 +879,32 @@ export const Editor: React.FunctionComponent<{
     }, [editor, state.currentPath]);
 
     React.useEffect(() => {
-        if (vimMode) {
-            vimMode.listeners["vim-keypress"].push(() => {
-                if (!allowEditing() && editor) {
-                    allowEditDialog(editor, () => setReadOnlyMode(false));
-                }
-            });
+        if (!vimMode) {
+            setVimEditorMode(null);
+            return;
         }
+
+        setVimEditorMode("NORMAL");
+        vimMode.on("vim-mode-change", (mode: unknown) => setVimEditorMode(vimModeLabel(mode)));
+        const onVimKeypress = () => {
+            if (!allowEditing() && editor) {
+                allowEditDialog(editor, () => setReadOnlyMode(false));
+            }
+        };
+        vimMode.on("vim-keypress", onVimKeypress);
     }, [vimMode]);
 
+    const initialOpenCompleted = useRef(false);
+
     useLayoutEffect(() => {
+        if (initialOpenCompleted.current) return;
+
         // NOTE(Dan): This timer is needed to make sure that if the file opens faster than the engine can initialize
         // then we do reload the file. See the branch when returns early in openFile.
         let timer = -1;
         const fn = async () => {
             const res = await openFile(state.currentPath, false);
+            if (res) initialOpenCompleted.current = true;
             if (!res) timer = window.setTimeout(fn, 50);
         };
         timer = window.setTimeout(fn, 50);
@@ -916,7 +918,7 @@ export const Editor: React.FunctionComponent<{
         setVimModeObject(vimModeObject => {
             updateEditorSetting("vim", active);
             if (active) {
-                return initVimMode(editorRef.current, getStatusBarElement());
+                return initVimMode(editorRef.current, vimCommandBar.current);
             } else {
                 vimModeObject?.dispose();
                 return null;
@@ -930,18 +932,18 @@ export const Editor: React.FunctionComponent<{
     }, [currentTheme]);
 
     useEffect(() => {
-        const listener = () => {
-            if (!editor) return;
-            editor.layout();
-        };
+        const node = editorView.current;
+        if (!editor || !node) return;
 
-        const interval = window.setInterval(listener, 200);
-
-        window.addEventListener("resize", listener);
+        const layout = () => editor.layout();
+        const observer = new ResizeObserver(layout);
+        observer.observe(node);
+        window.addEventListener("resize", layout);
+        layout();
 
         return () => {
-            window.removeEventListener("resize", listener);
-            window.clearInterval(interval);
+            observer.disconnect();
+            window.removeEventListener("resize", layout);
         };
     }, [editor]);
 
@@ -960,35 +962,36 @@ export const Editor: React.FunctionComponent<{
         }
     }, []);
 
-    const onOpen = useCallback((path: string, element: HTMLElement) => {
-        const root = state.sidebar.root;
-        const node = findNode(root, path);
-        if (!node || node.file.isDirectory) {
-            props.vfs.listFiles(path).then(files => {
-                if (didUnmount.current) return;
-                dispatch({type: "EditorActionFilesLoaded", path, files});
-            })
-        } else {
-            // NOTE(Dan): This ensures that onOpen is always allowed to be called. This might be something we want to
-            // do directly in TreeNode if we know it has no children.
-            element.removeAttribute("data-open");
-            openTab(path);
-        }
-    }, [editor, state, props.vfs, dispatch, reloadBuffer, readBuffer]);
+    useEffect(() => {
+        const listener = (event: KeyboardEvent) => {
+            if (!event.altKey || (!event.ctrlKey && !event.metaKey) || event.shiftKey) return;
 
-    const onNodeActivated = useCallback((open: boolean, row: HTMLElement) => {
-        const path = row.getAttribute("data-path");
-        if (path) {
-            onOpen(path, row);
-        }
-    }, [onOpen]);
+            if (event.code === "Digit1") {
+                event.preventDefault();
+                event.stopPropagation();
+                if (tree.current?.isActive()) {
+                    tree.current.deactivate();
+                    setSidebarOpen(false);
+                } else if (!sidebarOpen) {
+                    setSidebarOpen(true);
+                    window.requestAnimationFrame(() => tree.current?.activate());
+                } else {
+                    tree.current?.activate();
+                }
+            } else if (event.code === "Digit2") {
+                event.preventDefault();
+                event.stopPropagation();
+                editorRef.current?.focus();
+            }
+        };
 
-    const onTreeAction = useCallback((row: HTMLElement, action: TreeAction) => {
-        if (action === TreeAction.OPEN || action === TreeAction.TOGGLE) {
-            const path = row.getAttribute("data-path");
-            if (path) onOpen(path, row);
-        }
-    }, [onOpen]);
+        window.addEventListener("keydown", listener, true);
+        return () => window.removeEventListener("keydown", listener, true);
+    }, [sidebarOpen]);
+
+    const onDirectoryPrefetch = useCallback((file: VirtualFile) => {
+        void loadDirectory(file.absolutePath).catch(noopCall);
+    }, [loadDirectory]);
 
     const toggleSettings = useCallback(() => {
         saveBufferIfNeeded().then(() => {
@@ -1017,7 +1020,7 @@ export const Editor: React.FunctionComponent<{
     const openTab = React.useCallback(async (path: string) => {
         if (state.currentPath === path) return;
         await openFile(path, true);
-        const fileWasFetched = getModelFromEditor(path)?.getValue() ?? state.cachedFiles[path] != null;
+        const fileWasFetched = getModelFromEditor(path) != null || state.cachedFiles[path] != null;
         if (fileWasFetched) {
             setTabs(tabs => {
                 if (tabs.open.includes(path)) {
@@ -1200,11 +1203,11 @@ export const Editor: React.FunctionComponent<{
     const isMarkdown = extensionType(extensionFromPath(state.currentPath)) === "markdown";
     const toolbarBeforeSettings = (tabs.open.length === 0 || isReleaseNotesOpen || isSettingsOpen || props.showCustomContent) && !isMarkdown ? null : props.toolbarBeforeSettings;
 
-    return <div className={EditorClass} onKeyDown={onKeyDown}>
+    return <div ref={editorRoot} className={EditorClass} onKeyDown={onKeyDown}>
         <FileTree
             tree={tree}
-            onTreeAction={onTreeAction}
-            onNodeActivated={onNodeActivated}
+            onFileActivated={file => openTab(file.absolutePath)}
+            onDirectoryPrefetch={onDirectoryPrefetch}
             root={state.sidebar.root}
             width="250px"
             canResize
@@ -1239,6 +1242,7 @@ export const Editor: React.FunctionComponent<{
                             };
                         })}
                         activeId={state.currentPath}
+                        shortcutScope={editorRoot}
                         onActivate={path => openTab(path)}
                         onClose={path => doClose(path, tabs.open.indexOf(path))}
                         onContextMenu={(path, position) => openTabOperations(path, position)}
@@ -1289,7 +1293,8 @@ export const Editor: React.FunctionComponent<{
             </div>
             <div className={StatusBarWrapper}>
                 <div className={StatusBar}>
-                    <IconButton compact tooltip={sidebarOpen ? "Hide sidebar" : "Show sidebar"} onClick={() => setSidebarOpen(open => !open)} icon="sidebar" color="fixedWhite" hoverColor="primaryLight" noDefaultFill />
+                    <IconButton compact tooltip="Toggle sidebar (Ctrl + Alt + 1)" onClick={() => setSidebarOpen(open => !open)} icon="sidebar" color="fixedWhite" hoverColor="primaryLight" noDefaultFill />
+                    <div ref={vimCommandBar} className={VimCommandBar} />
                     <Flex alignItems="center" gap="8px" ml="auto">
                         {tabs.open.length === 0 || settingsOrReleaseNotesOpen || props.customContent ? null : <Box className={HoverHighlight} width={"fit-content"}>
                             <RichSelect
@@ -1309,6 +1314,7 @@ export const Editor: React.FunctionComponent<{
                             <IconButton compact tooltip="Settings" onClick={toggleSettings} icon="heroCog6Tooth" color="fixedWhite" hoverColor="primaryLight" />
                         </Flex>
                         <span className={StatusPosition}>{cursorPosition.line}:{cursorPosition.column}</span>
+                        {vimMode ? <span className={StatusModeBadge}>{vimEditorMode ?? "NORMAL"}</span> : null}
                         <span className={StatusModeBadge} data-readonly={readOnlyMode}>
                             <Icon name={readOnlyMode ? "heroLockClosed" : "heroLockOpen"} color="fixedWhite" size={14} />
                             {readOnlyMode ? "Read-only" : "Read-write"}
@@ -1559,6 +1565,27 @@ const StatusBarWrapper = injectStyle("status-bar-wrapper", k => `
     ${k} input {
         background: transparent;
         border: none;
+    }
+`);
+
+const VimCommandBar = injectStyle("vim-command-bar", k => `
+    ${k} {
+        min-width: 0;
+        color: white;
+        font-size: 12px;
+        white-space: nowrap;
+    }
+
+    ${k} > span:first-child,
+    ${k} > span:last-child {
+        display: none;
+    }
+
+    ${k} input {
+        width: 180px;
+        padding: 0;
+        outline: none;
+        font: inherit;
     }
 `);
 
@@ -1976,8 +2003,14 @@ function allowEditDialog(editor: IStandaloneCodeEditor, onReadOnlyChange?: () =>
     });
 }
 
-function getStatusBarElement(): Element | null {
-    return document.getElementsByClassName(StatusBar).item(0);
+function vimModeLabel(mode: unknown): string {
+    const modeInfo = typeof mode === "object" && mode !== null ? mode as {mode?: unknown; subMode?: unknown} : undefined;
+    const name = typeof mode === "string" ? mode : typeof modeInfo?.mode === "string" ? modeInfo.mode : "normal";
+    if (name === "visual") {
+        if (modeInfo?.subMode === "linewise") return "VISUAL LINE";
+        if (modeInfo?.subMode === "blockwise") return "VISUAL BLOCK";
+    }
+    return name.toUpperCase();
 }
 
 function virtualFileSort(a: VirtualFile, b: VirtualFile): number {

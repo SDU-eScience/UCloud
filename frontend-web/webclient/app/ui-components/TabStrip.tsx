@@ -42,6 +42,7 @@ export function TabStrip({
     onContextMenu,
     onReorder,
     className,
+    shortcutScope,
 }: {
     items: TabStripItem[];
     activeId?: string;
@@ -50,6 +51,7 @@ export function TabStrip({
     onContextMenu?: (id: string, position: {x: number; y: number}) => void;
     onReorder(ids: string[]): void;
     className?: string;
+    shortcutScope?: React.RefObject<HTMLElement | null>;
 }): React.ReactNode {
     const tabsRef = useRef<HTMLDivElement | null>(null);
     const tabRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -79,6 +81,44 @@ export function TabStrip({
 
         return () => window.cancelAnimationFrame(frame);
     }, [activeId]);
+
+    useEffect(() => {
+        const listener = (event: KeyboardEvent) => {
+            if (event.defaultPrevented) return;
+            const activeElement = document.activeElement;
+            const tabs = tabsRef.current;
+            if (!activeElement || (!tabs?.contains(activeElement) && !shortcutScope?.current?.contains(activeElement))) return;
+
+            const activeIndex = items.findIndex(item => item.id === activeId);
+            if (activeIndex < 0 || items.length === 0) return;
+
+            const primaryModifier = event.ctrlKey || event.metaKey;
+            if (!event.altKey || !primaryModifier || event.shiftKey) return;
+            let nextIndex: number | undefined;
+            let close = false;
+
+            if (event.code === "KeyW") {
+                close = true;
+            } else if (event.code === "PageUp" || event.code === "PageDown") {
+                nextIndex = activeIndex + (event.code === "PageUp" ? -1 : 1);
+            }
+
+            if (close) {
+                event.preventDefault();
+                event.stopPropagation();
+                onClose(activeId!);
+                return;
+            }
+
+            if (nextIndex === undefined || nextIndex === activeIndex) return;
+            event.preventDefault();
+            event.stopPropagation();
+            onActivate(items[(nextIndex + items.length) % items.length].id);
+        };
+
+        window.addEventListener("keydown", listener, true);
+        return () => window.removeEventListener("keydown", listener, true);
+    }, [activeId, items, onActivate, onClose, shortcutScope]);
 
     const handleDragMove = useCallback((e: PointerEvent) => {
         const currentDrag = dragRef.current;
@@ -357,7 +397,7 @@ const TabStripClass = injectStyle("tab-strip", k => `
         min-width: 184px;
         width: auto;
         max-width: none;
-        height: 40px;
+        height: 32px;
         align-self: center;
         padding: 0 10px;
         display: flex;
