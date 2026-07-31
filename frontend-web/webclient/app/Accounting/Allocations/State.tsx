@@ -555,6 +555,7 @@ export function stateReducer(state: State, action: UIAction): State {
                 .sort((a, b) => a.title.localeCompare(b.title));
         })();
 
+        console.time("productOptions");
         const productOptions: SubProjectKeyValue[] = (() => {
             const result: SubProjectKeyValue[] = [];
 
@@ -576,6 +577,7 @@ export function stateReducer(state: State, action: UIAction): State {
 
             return result.sort((a, b) => a.title.localeCompare(b.title));
         })();
+        console.timeEnd("productOptions");
 
         const currentProductTypeFilter =
             state.subprojectFilters[SubProjectFilterSetting.ALLOCATED_BY_PRODUCT_TYPE] ??
@@ -759,6 +761,7 @@ export function stateReducer(state: State, action: UIAction): State {
                 filteredSubProjectIndices.push(i);
             }
         }
+
 
         return {
             ...state,

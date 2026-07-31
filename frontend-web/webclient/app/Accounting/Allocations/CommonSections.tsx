@@ -101,7 +101,6 @@ import {FlexClass} from "@/ui-components/Flex";
 import {divText} from "@/Utilities/HTMLUtilities";
 import {TruncateClass} from "@/ui-components/Truncate";
 import {ReactStaticRenderer} from "@/Utilities/ReactStaticRenderer";
-import {BaseLinkClass} from "@/ui-components/BaseLink";
 import {Operation} from "@/ui-components/Operation";
 
 const allocationFiltersModalStyle: ReactModal.Styles = {
@@ -1839,15 +1838,18 @@ export function SubAllocationBrowser(
                 browser.on("unhandledShortcut", ev => {
                     if (ev.code === "ArrowLeft" || ev.code === "ArrowRight") {
                         const entries = browser.findSelectedEntries();
+                        const promises: Promise<void>[] = [];
                         for (const entry of entries) {
-                            addOrRemoveEntries(browser, entry, progressBarCache.current, ev.code === "ArrowLeft" ? TreeAction.CLOSE : TreeAction.OPEN);
+                            promises.push(addOrRemoveEntries(browser, entry, progressBarCache.current, ev.code === "ArrowLeft" ? TreeAction.CLOSE : TreeAction.OPEN));
                         }
 
-                        browser.rerender();
+                        Promise.all(promises).then(() => {
+                            browser.rerender();
 
-                        for (const e of entries) {
-                            browser.selectAndShow(it => it === e);
-                        }
+                            for (const e of entries) {
+                                browser.selectAndShow(it => it === e);
+                            }
+                        });
                     }
                 });
 
@@ -2153,7 +2155,7 @@ function retrieveOperations(): Operation<AllocationTypes, {navigate: NavigateFun
                 // Any selected not allocation, maybe remove this line
                 if (selected.every(it => !isAllocation(it))) return false;
                 // Any selected that's expired? Might be confusing if we don't explain why one is not updated
-                const expired = selected.filter(it => isAllocation(it) && it.end > new Date().getTime());
+                const expired = selected.filter(it => isAllocation(it) && it.end < new Date().getTime());
                 if (expired.length > 0) {
                     if (expired.length === 1) {
                         return "The allocation has expired";
@@ -2163,7 +2165,14 @@ function retrieveOperations(): Operation<AllocationTypes, {navigate: NavigateFun
                 }
                 return true;
             },
-            text: "Edit allocation",
+            text(selected) {
+                let count = 0;
+                for (const entry of selected) {
+                    if (isAllocation(entry)) count += 1;
+                    if (count >= 2) return "Edit allocations";
+                }
+                return "Edit allocation";
+            },
             icon: "heroPencil",
             onClick(selected) {
                 // ah geez
@@ -2230,8 +2239,9 @@ function setNodeState(action: TreeAction, recipient: string, group?: string | nu
     }
 }
 
-function addOrRemoveEntries(browser: ResourceBrowser<AllocationTypes>, resource: AllocationTypes, progressBarCache: Record<string, ReactStaticRenderer>, action?: TreeAction) {
+async function addOrRemoveEntries(browser: ResourceBrowser<AllocationTypes>, resource: AllocationTypes, progressBarCache: Record<string, ReactStaticRenderer>, action?: TreeAction): Promise<void> {
     const idx = browser.findVirtualRowIndex(it => it === resource);
+    const promises: Promise<ReactStaticRenderer>[] = [];
     if (isAllocationDisplayTreeRecipient(resource)) {
         const groups = resource.groups;
         if (groups.length && idx !== null) {
@@ -2240,8 +2250,9 @@ function addOrRemoveEntries(browser: ResourceBrowser<AllocationTypes>, resource:
                 groups.forEach(g => {
                     const identifier = id(g);
                     if (progressBarCache[identifier]) return;
-                    new ReactStaticRenderer(() => <ProgressBar uq={g.usageAndQuota} />)
-                        .promise.then(result => progressBarCache[identifier] = result);
+                    // TODO(Jonas): Await for this finishing and rerender;
+                    promises.push(new ReactStaticRenderer(() => <ProgressBar uq={g.usageAndQuota} />)
+                        .promise.then(result => progressBarCache[identifier] = result));
                 });
                 browser.insertEntriesIntoCurrentPageAt(groups, idx + 1);
             } else {
@@ -2257,11 +2268,22 @@ function addOrRemoveEntries(browser: ResourceBrowser<AllocationTypes>, resource:
 
         if (!action) browser.rerender();
     } else if (isAllocationGroup(resource)) {
-        // TODO(Jonas): If closed already, close parent
         const allocations = resource.allocations;
         if (allocations.length && idx !== null) {
             if (browser.findVirtualRowIndex(it => it === allocations[0]) === null) {
-                if (action === TreeAction.CLOSE) return;
+                // TODO(Jonas): If closed already, close parent
+                if (action === TreeAction.CLOSE) {
+                    const idx = browser.findVirtualRowIndex(it => {
+                        if (!isAllocationDisplayTreeRecipient(it)) return false;
+                        return it.groups.find(it => it === resource) != null;
+                    });
+
+                    if (idx) {
+                        const allocationGroup = browser.cachedData[browser.currentPath][idx];
+                        addOrRemoveEntries(browser, allocationGroup, progressBarCache, TreeAction.CLOSE);
+                    }
+                    return;
+                }
                 browser.insertEntriesIntoCurrentPageAt(allocations, idx + 1);
             } else {
                 if (action === TreeAction.OPEN) return;
@@ -2272,8 +2294,21 @@ function addOrRemoveEntries(browser: ResourceBrowser<AllocationTypes>, resource:
         }
         if (!action) browser.rerender();
     } else if (isAllocation(resource)) {
-        // do nothing
+        if (action === TreeAction.CLOSE) {
+            const idx = browser.findVirtualRowIndex(it => {
+                if (!isAllocationGroup(it)) return false;
+                return it.allocations.find(it => it.allocationId === resource.allocationId) != null;
+            });
+
+            if (idx) {
+                const allocationGroup = browser.cachedData[browser.currentPath][idx];
+                addOrRemoveEntries(browser, allocationGroup, progressBarCache, TreeAction.CLOSE);
+            }
+            return;
+        }
     }
+
+    await Promise.all(promises);
 }
 
 const ROW_HEIGHT = 48;

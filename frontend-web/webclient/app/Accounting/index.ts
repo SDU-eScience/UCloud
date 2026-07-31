@@ -891,7 +891,6 @@ function checkIsOwnedByPersonalProviderProject(wallets: WalletV2[]): boolean {
 }
 
 export function buildYourAllocations(allWallets: WalletV2[]): AllocationDisplayTree["yourAllocations"] {
-    console.time("buildYourAllocations");
     const relevantWallets = allWallets.filter(it => !it.paysFor.freeToUse);
     const isCore2Response = checkIsCore2Response(allWallets);
     const ownedByPersonalProviderProject = checkIsOwnedByPersonalProviderProject(allWallets);
@@ -1064,13 +1063,11 @@ export function buildYourAllocations(allWallets: WalletV2[]): AllocationDisplayT
         }
     }
 
-    console.timeEnd("buildYourAllocations");
 
     return yourAllocations;
 }
 
 export function buildSubAllocations(allWallets?: WalletV2[]): AllocationDisplayTree["subAllocations"] {
-    console.time("buildSubAllocations");
     const subAllocations: AllocationDisplayTree["subAllocations"] = {recipients: []};
     if (!allWallets) return subAllocations;
     // NOTE(Dan): This function assumes that allWallets are owned by the same owner.
@@ -1083,6 +1080,7 @@ export function buildSubAllocations(allWallets?: WalletV2[]): AllocationDisplayT
     // Start building the sub-allocations UI
 
     for (const wallet of relevantWallets) {
+        console.time("childGroup of wallet.children");
         for (const childGroup of wallet.children ?? []) {
             let allocOwner: WalletOwner;
             if (childGroup.child.projectId) {
@@ -1170,7 +1168,9 @@ export function buildSubAllocations(allWallets?: WalletV2[]): AllocationDisplayT
             newGroup.totalGranted = totalAllocated;
             recipient.groups.push(newGroup);
         }
+        console.timeEnd("childGroup of wallet.children");
 
+        console.time("const recipient of subAllocations.recipients")
         for (const recipient of subAllocations.recipients) {
             const uqBuilder: UsageAndQuota[] = [];
             for (const group of recipient.groups) {
@@ -1208,6 +1208,7 @@ export function buildSubAllocations(allWallets?: WalletV2[]): AllocationDisplayT
 
             recipient.usageAndQuota = uqBuilder;
         }
+        console.timeEnd("const recipient of subAllocations.recipients")
     }
 
     if (isCore2Response) {
@@ -1224,7 +1225,6 @@ export function buildSubAllocations(allWallets?: WalletV2[]): AllocationDisplayT
         }
     }
 
-    console.timeEnd("buildSubAllocations");
     return subAllocations;
 }
 
