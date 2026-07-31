@@ -6,7 +6,7 @@ import {Uri} from "monaco-editor";
 import {AsyncCache} from "@/Utilities/AsyncCache";
 import {injectStyle} from "@/Unstyled";
 import {TreeAction, TreeApi} from "@/ui-components/Tree";
-import {Box, Flex, FtIcon, Icon, Image, Markdown, Select, Truncate, Text, Input, Label, Button} from "@/ui-components";
+import {Box, Flex, FtIcon, Icon, Image, Markdown, Select, Text, Input, Label, Button} from "@/ui-components";
 import {fileName, pathComponents} from "@/Utilities/FileUtilities";
 import {capitalized, copyToClipboard, errorMessageOrDefault, extensionFromPath, extensionType, getLanguageList, languageFromExtension, populateLanguages} from "@/UtilityFunctions";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
@@ -24,10 +24,10 @@ import {RichSelect, RichSelectChildComponent} from "@/ui-components/RichSelect";
 import {initVimMode, VimMode} from "monaco-vim";
 import {addStandardDialog} from "@/UtilityComponents";
 import {FileWriteFailure, WriteFailureEvent} from "@/Files/Uploader";
-import {IconName} from "@/ui-components/Icon";
 import ITextModel = editor.ITextModel;
 import EndOfLineSequence = editor.EndOfLineSequence;
 import {sendFailureNotification, sendInformationNotification, sendSuccessNotification} from "@/Notifications";
+import {TabStrip} from "@/ui-components/TabStrip";
 
 export interface Vfs {
     isReal(): boolean;
@@ -347,7 +347,7 @@ const EditorClass = injectStyle("editor", k => `
     ${k} .title-bar {
         display: flex;
         align-items: center;
-        height: 34px;
+        height: 45px;
         width: 100%;
         flex-shrink: 0;
         border-bottom: var(--borderThickness) solid var(--borderColor);
@@ -357,7 +357,7 @@ const EditorClass = injectStyle("editor", k => `
         display: flex;
         width: 100%;
         height: 100%;
-        max-height: calc(100% - 32px - 21px);
+        max-height: calc(100% - 45px - 21px);
         overflow-y: scroll;
     }
     
@@ -803,10 +803,6 @@ export const Editor: React.FunctionComponent<{
     }, []);
 
     useLayoutEffect(() => {
-        document.querySelector(`.${EditorTabClass}[data-active=true]`)?.scrollIntoView();;
-    }, [state.currentPath]);
-
-    useLayoutEffect(() => {
         const m = monacoInstance;
         const node = editorView.current;
         if (!m || !node) return;
@@ -1195,25 +1191,30 @@ export const Editor: React.FunctionComponent<{
                     e.preventDefault();
                     e.stopPropagation();
                     openTabOperations(undefined, {x: e.clientX, y: e.clientY});
-                }} style={{display: "flex", height: "32px", maxWidth: `calc(100 % - 48px)`, overflowX: "auto", width: "100%"}}>
-                    {tabs.open.map((t, index) =>
-                        <EditorTab
-                            key={t}
-                            isDirty={dirtyFiles.has(t) && props.vfs.isReal()}
-                            isActive={t === state.currentPath}
-                            onActivate={() => openTab(t)}
-                            onContextMenu={e => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                openTabOperations(t, {x: e.clientX, y: e.clientY});
-                            }}
-                            close={() => {
-                                doClose(t, index)
-                            }}
-                            children={t}
-                        />
-                    )}
-                    <Box mx="auto" />
+                }} style={{display: "flex", height: "100%", minWidth: 0, width: "100%"}}>
+                    <TabStrip
+                        items={tabs.open.map(path => {
+                            const isSettings = path === SETTINGS_PATH;
+                            const isReleaseNotes = path === RELEASE_NOTES_PATH;
+                            const isDirty = dirtyFiles.has(path) && props.vfs.isReal();
+                            return {
+                                id: path,
+                                title: <EditorTabLabel path={path} />,
+                                tooltip: <EditorTabLabel path={path} fullPath />,
+                                icon: isSettings ? <Icon name="heroCog6Tooth" size="18px" />
+                                    : isReleaseNotes ? <Icon name="heroGift" size="18px" />
+                                        : <FullpathFileLanguageIcon filePath={path} />,
+                                closeIcon: isDirty ? "circle" as const : "close" as const,
+                                closeIconOnHover: "close" as const,
+                                closeLabel: `Close ${fileName(path)}`,
+                            };
+                        })}
+                        activeId={state.currentPath}
+                        onActivate={path => openTab(path)}
+                        onClose={path => doClose(path, tabs.open.indexOf(path))}
+                        onContextMenu={(path, position) => openTabOperations(path, position)}
+                        onReorder={open => setTabs(tabs => ({...tabs, open}))}
+                    />
                     <Operations
                         entityNameSingular={""}
                         operations={operations}
@@ -1455,98 +1456,19 @@ function tabOperations(
 
 const SyntaxSelectorKeys = ["language" as const];
 
-const LEFT_MOUSE_BUTTON = 0;
-const MIDDLE_MOUSE_BUTTON = 1;
-function EditorTab({
-    isDirty,
-    isActive,
-    close,
-    onActivate,
-    onContextMenu,
-    children: title
-}: React.PropsWithChildren<{
-    isActive: boolean;
-    isDirty: boolean;
-    onContextMenu?: React.MouseEventHandler<any>;
-    onActivate(): void;
-    close(): void;
-}>): React.ReactNode {
-    const [hovered, setHovered] = useState(false);
-
-    const isSettings = title === SETTINGS_PATH;
-    const isReleaseNotes = title === RELEASE_NOTES_PATH;
-
-    const onClose = React.useCallback((e: React.SyntheticEvent<HTMLDivElement>) => {
-        e.preventDefault();
-        e.stopPropagation();
-
-        close();
-    }, [close]);
-
+function EditorTabLabel({path, fullPath = false}: {path: string; fullPath?: boolean}): React.ReactNode {
+    const isSettings = path === SETTINGS_PATH;
+    const isReleaseNotes = path === RELEASE_NOTES_PATH;
+    const resolvedPath = usePrettyFilePath(path);
     const prettyFullPath =
         isSettings ? "Settings" :
             isReleaseNotes ? "Release notes" :
-                usePrettyFilePath(title as string);
+                resolvedPath;
 
-    const tabTitle = fileName(prettyFullPath);
-
-    return <Tab
-        isActive={isActive}
-        onContextMenu={onContextMenu}
-        onRowClick={e => {
-            if (e.button === LEFT_MOUSE_BUTTON) {
-                onActivate();
-            } else if (e.button == MIDDLE_MOUSE_BUTTON) {
-                onClose(e);
-            }
-        }}
-        icon={isSettings ? <Icon name="heroCog6Tooth" size="18px" />
-            : isReleaseNotes ? <Icon name="heroGift" size="18px" />
-                : <FullpathFileLanguageIcon filePath={tabTitle} />}
-        title={<Truncate title={prettyFullPath} ml="8px" width="180px">{isSettings ? "Editor settings" : tabTitle}</Truncate>}
-        iconEnter={() => setHovered(true)}
-        iconLeave={() => setHovered(false)}
-        cursor={isDirty && !hovered ? "circle" : "close"}
-        onClose={onClose}
-    />
+    if (fullPath) return prettyFullPath;
+    if (isSettings) return "Editor settings";
+    return fileName(prettyFullPath);
 }
-
-export function Tab({onContextMenu, isActive, onRowClick, icon, title, iconEnter, iconLeave, cursor, onClose}: {
-    onContextMenu?: React.MouseEventHandler<any>;
-    isActive: boolean;
-    cursor: IconName;
-    onRowClick: React.MouseEventHandler<any>;
-    icon: React.ReactNode;
-    title: React.ReactNode;
-    iconEnter?: React.MouseEventHandler<HTMLDivElement>;
-    iconLeave?: React.MouseEventHandler<HTMLDivElement>;
-    onClose?: React.MouseEventHandler<HTMLDivElement>;
-}): React.ReactNode {
-    return <Flex onContextMenu={onContextMenu} className={EditorTabClass} mt="auto" data-active={isActive} minWidth="250px" width="250px" onClick={onRowClick}>
-        {icon}
-        <Box flexGrow={1}>
-            {title}
-        </Box>
-        <Icon
-            className={IconHoverBlockClass}
-            onMouseEnter={iconEnter}
-            onMouseLeave={iconLeave}
-            cursor="pointer" name={cursor}
-            size={16}
-            onClick={onClose} />
-    </Flex>
-}
-
-const IconHoverBlockClass = injectStyle("icon-hover-block", k => `
-    ${k} {
-        padding: 4px;
-    }
-
-    ${k}:hover {
-        background-color: var(--secondaryMain);
-        border-radius: 4px;
-    }
-`);
 
 const StatusBar = injectStyle("status-bar", k => `
     ${k} input {
@@ -1570,27 +1492,6 @@ const StatusBarWrapper = injectStyle("status-bar-wrapper", k => `
     ${k} input {
         background: transparent;
         border: none;
-    }
-`);
-
-const EditorTabClass = injectStyle("editor-tab-class", k => `
-    ${k} {
-        height: 32px;
-        font-size: 12px;
-        padding-left: 12px;
-        padding-right: 12px;
-        cursor: pointer;
-        user-select: none;
-        border-right: 2px solid var(--borderColor);
-    }
-
-    ${k} > * {
-        margin-top: auto;
-        margin-bottom: auto;
-    }
-
-    ${k}[data-active="true"], ${k}:hover  {
-        background-color: var(--borderColor);
     }
 `);
 
