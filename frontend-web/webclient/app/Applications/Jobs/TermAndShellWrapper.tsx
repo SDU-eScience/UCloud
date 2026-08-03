@@ -16,6 +16,7 @@ const TermAndShellWrapperClass = injectStyle("term-and-wrapper", k => `
         height: 100%;
         width: 100%;
         flex-direction: column;
+        position: relative;
     }
 
     ${k}.light {
@@ -40,16 +41,50 @@ const TermAndShellWrapperClass = injectStyle("term-and-wrapper", k => `
     }
 
     ${k} > .warn {
-        position: fixed;
-        bottom: 0;
-        left: var(--currentSidebarStickyWidth);
-        z-index: 1000000;
-        width: calc(100vw - var(--currentSidebarStickyWidth));
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        z-index: 1;
+        max-width: calc(100% - 24px);
+        box-sizing: border-box;
         display: flex;
-        padding: 16px;
+        padding: 4px 0;
         align-items: center;
-        background: black;
-        color: white;
+        gap: 8px;
+        font-family: "Jetbrains Mono", "Ubuntu Mono", courier-new, courier, monospace;
+        font-size: 14px;
+        line-height: 1.4;
+        color: ${xtermThemes.light.foreground};
+    }
+
+    ${k}.dark > .warn,
+    html.dark ${k} > .warn {
+        color: ${xtermThemes.dark.foreground};
+    }
+
+    ${k} > .warn > .reconnect-button {
+        border: 0;
+        padding: 0;
+        margin: 0;
+        font: inherit;
+        color: var(--primaryMain);
+        background: transparent;
+        cursor: pointer;
+    }
+
+    ${k}.dark > .warn > .reconnect-button,
+    html.dark ${k} > .warn > .reconnect-button {
+        color: var(--primaryLight);
+    }
+
+    ${k} > .warn > .reconnect-button:hover {
+        color: var(--primaryLight);
+        text-decoration: underline;
+    }
+
+    ${k} > .warn > .reconnect-button:focus-visible {
+        outline: 1px solid var(--primaryMain);
+        outline-offset: 2px;
     }
 
     ${k}[data-add-padding="true"] {

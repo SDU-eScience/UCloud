@@ -9,7 +9,7 @@ import {callAPI, noopCall, useCloudAPI} from "@/Authentication/DataHook";
 import {BulkResponse} from "@/UCloud";
 import JobsApi, {InteractiveSession} from "@/UCloud/JobsApi";
 import {bulkRequestOf, bulkResponseOf, createKeyboardShortcut} from "@/UtilityFunctions";
-import {ShellWithSession} from "@/Applications/Jobs/Shell";
+import {INTEGRATED_TERMINAL_RECONNECT_ATTEMPTS, ShellWithSession} from "@/Applications/Jobs/Shell";
 import {xtermThemes} from "@/Applications/Jobs/XTermLib";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {Terminal} from "@xterm/xterm";
@@ -460,10 +460,10 @@ const IndividualTerminal: React.FunctionComponent<{tab: TerminalTab, tabIdx: num
     );
 
     const doReconnect = useCallback(() => {
-        openSession(JobsApi.openTerminalInFolder(
+        return openSession(JobsApi.openTerminalInFolder(
             bulkRequestOf({folder: props.tab.folder}))
         );
-    }, [props.tab.folder]);
+    }, [openSession, props.tab.folder]);
 
     const updateTitle = useCallback((title: string) => {
         const normalizedTitle = title.trim();
@@ -473,7 +473,7 @@ const IndividualTerminal: React.FunctionComponent<{tab: TerminalTab, tabIdx: num
 
     useEffect(() => {
         doReconnect();
-    }, [props.tab.folder]);
+    }, [doReconnect]);
 
     useEffect(() => {
         const i = window.setInterval(() => {
@@ -506,10 +506,12 @@ const IndividualTerminal: React.FunctionComponent<{tab: TerminalTab, tabIdx: num
     return <div style={{display: props.hidden ? "none" : "block"}}>
         <ShellWithSession
             sessionWithProvider={sessionWithProvider}
+            connectionError={sessionResp.error?.why}
             xtermRef={terminal}
             focusedTerminalRef={props.focusedTerminalRef}
             autofit={false}
             reconnect={doReconnect}
+            maxReconnectAttempts={INTEGRATED_TERMINAL_RECONNECT_ATTEMPTS}
             onTitleChange={updateTitle}
         />
     </div>;
