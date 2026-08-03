@@ -102,6 +102,7 @@ import {divText} from "@/Utilities/HTMLUtilities";
 import {TruncateClass} from "@/ui-components/Truncate";
 import {ReactStaticRenderer} from "@/Utilities/ReactStaticRenderer";
 import {Operation} from "@/ui-components/Operation";
+import {defaultAvatar} from "@/AvataaarLib";
 
 const allocationFiltersModalStyle: ReactModal.Styles = {
     ...largeModalStyle,
@@ -1743,6 +1744,10 @@ new ReactStaticRenderer(() =>
         rotate={25}
     />
 ).promise.then(it => ChevronIcon = it);
+let defaultAvatarSvg: ReactStaticRenderer | null;
+new ReactStaticRenderer(() => {
+    return <Avatar style={{height: "80px", width: "80px"}} avatarStyle="Circle" {...defaultAvatar} />;
+}).promise.then(it => defaultAvatarSvg = it);
 
 export function SubAllocationBrowser(
     props: {opts?: ResourceBrowserOpts<AllocationTypes>} & {
@@ -2206,45 +2211,6 @@ function retrieveOperations(): Operation<AllocationTypes, {navigate: NavigateFun
     ];
 }
 
-function RowComponent({
-    state,
-    index: rowIdx,
-    style,
-    rowHeight,
-    avatars,
-    dispatchEvent
-}: {
-    ariaAttributes: {
-        "aria-posinset": number;
-        "aria-setsize": number;
-        role: "listitem";
-    };
-    index: number;
-    style: React.CSSProperties;
-} & {
-    state: State;
-    dispatchEvent: (ev: UIEvent) => void;
-    avatars: AvatarState;
-    rowHeight: DynamicRowHeight;
-}): React.ReactElement | null {
-
-    const recipientIdx = state.filteredSubProjectIndices[rowIdx];
-    const recipient = state.subAllocations.recipients[recipientIdx];
-
-    return <SubProjectListRow
-        key={rowIdx}
-        style={style}
-        recipient={recipient}
-        dispatchEvent={dispatchEvent}
-        recipientIdx={recipientIdx}
-        avatars={avatars}
-        state={state}
-        setNodeState={(action, reference, group) => {
-            setNodeState(action, reference, group);
-            rowHeight.setRowHeight(rowIdx, calculateHeightInPx(rowIdx, state));
-        }}
-    />;
-}
 
 function setNodeState(action: TreeAction, recipient: string, group?: string | null): void {
     const key = group ? makeCategoryKeyFromWorkspaceId(recipient, group) : recipient;
@@ -2276,6 +2242,7 @@ async function addOrRemoveEntries(browser: ResourceBrowser<AllocationTypes>, res
                     const identifier = id(g);
                     if (progressBarCache[identifier]) return;
                     // TODO(Jonas): Await for this finishing and rerender;
+                    progressBarCache[identifier] = defaultAvatarSvg!;
                     promises.push(new ReactStaticRenderer(() => <ProgressBar uq={g.usageAndQuota} />)
                         .promise.then(result => progressBarCache[identifier] = result));
                 });
