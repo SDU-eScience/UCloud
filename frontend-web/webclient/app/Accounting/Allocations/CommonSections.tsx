@@ -1987,15 +1987,18 @@ export function SubAllocationBrowser(
 
                         row.stat4.style.gap = "8px";
                         if (lastCategory) {
-                            row.stat4.append(Accounting.balanceToString(lastCategory, resource.quota));
+                            const text = divText(Accounting.balanceToString(lastCategory, resource.quota))
+                            text.style.marginBottom = text.style.marginTop = "auto";
+                            row.stat4.append(text);
                         }
-                        if (resource.note) {
 
+                        if (resource.note) {
                             if (resource.note?.rowShouldBeGreyedOut) {
                                 wrapper.classList.add("disabled-alloc");
                             }
 
                             const [noteIcon, setNoteIcon] = ResourceBrowser.defaultIconRenderer();
+                            noteIcon.style.marginTop = "-4px";
                             ResourceBrowser.icons.renderIcon({
                                 name: resource.note.icon,
                                 color: resource.note.iconColor,
