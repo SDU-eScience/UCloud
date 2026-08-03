@@ -1605,10 +1605,6 @@ export function SubProjectList({
         );
     }, [state.subAllocations, childProjectInfo]);
 
-    const rowHeight = useDynamicRowHeight({
-        defaultRowHeight: ROW_HEIGHT
-    });
-
     const activeFilterCount = React.useMemo(() => Object.values(state.subprojectFilters).filter(it => it.enabled).length, [state.subprojectFilters]);
 
     return <>
@@ -1666,34 +1662,6 @@ export function SubProjectList({
                                         onClick={onNewSubProject}>here</a>.
                                 </>}
                             </div>}
-                        {/* <Tree
-                            apiRef={suballocationTree}
-                            allowMultiSelection
-                            onAction={(row, action, rowIdx) => {
-                                if (![TreeAction.TOGGLE, TreeAction.OPEN, TreeAction.CLOSE].includes(action)) return;
-                                const grantId = row.getAttribute("data-grant-id");
-                                if (grantId && TreeAction.TOGGLE === action) {
-                                    // Note(Jonas): Just `window.open(AppRoutes...)` will omit the `/app` part, so we add it this way.
-                                    window.open(window.origin + "/app" + AppRoutes.grants.editor(grantId), "_blank");
-                                } else {
-                                    const recipient = row.getAttribute("data-recipient");
-                                    if (!recipient) return;
-                                    const group = row.getAttribute("data-group");
-                                    setNodeState(action, recipient, group);
-                                    rowHeight.setRowHeight(rowIdx, calculateHeightInPx(rowIdx, state));
-                                }
-                            }}
-                            unhandledShortcut={onSubAllocationShortcut}
-                        >
-                            <List
-                                style={{height: "480px"}}
-                                defaultHeight={ROW_HEIGHT}
-                                rowComponent={RowComponent}
-                                rowCount={state.filteredSubProjectIndices.length}
-                                rowHeight={rowHeight}
-                                rowProps={{state, dispatchEvent, avatars, rowHeight}}
-                            />
-                        </Tree> */}
                         <SubAllocationBrowser
                             /* TODO(Jonas): yowza */
                             state={state}
@@ -1811,7 +1779,7 @@ export function SubAllocationBrowser(
             new ResourceBrowser<AllocationTypes>(
                 mount,
                 "Suballocations",
-                ({...props.opts, height: `calc(800px - ${10 * 2 + 16 * 2}px)`})
+                ({...props.opts, rowHeight: 48, height: `calc(800px - ${10 * 2 + 16 * 2}px)`})
             ).init(browserRef, FEATURES, "", (browser) => {
                 browser.setColumns([{name: ""}, {name: "", columnWidth: 0}, {name: "", columnWidth: 0}, {name: "", columnWidth: 0}, {name: "", columnWidth: 500}]);
 
@@ -2214,25 +2182,6 @@ function retrieveOperations(): Operation<AllocationTypes, {navigate: NavigateFun
     ];
 }
 
-
-function setNodeState(action: TreeAction, recipient: string, group?: string | null): void {
-    const key = group ? makeCategoryKeyFromWorkspaceId(recipient, group) : recipient;
-    switch (action) {
-        case TreeAction.CLOSE:
-            openNodes.delete(key);
-            break;
-        case TreeAction.OPEN: {
-            openNodes.add(key);
-            break;
-        }
-        case TreeAction.TOGGLE: {
-            if (openNodes.has(key)) openNodes.delete(key);
-            else openNodes.add(key);
-            break;
-        }
-    }
-}
-
 async function addOrRemoveEntries(browser: ResourceBrowser<AllocationTypes>, resource: AllocationTypes, progressBarCache: Record<string, ReactStaticRenderer>, action?: TreeAction): Promise<void> {
     const idx = browser.findVirtualRowIndex(it => it === resource);
     const promises: Promise<ReactStaticRenderer>[] = [];
@@ -2307,29 +2256,6 @@ async function addOrRemoveEntries(browser: ResourceBrowser<AllocationTypes>, res
 }
 
 const ROW_HEIGHT = 48;
-
-function calculateHeightInPx(idx: number, state: State): number {
-    if (state.subAllocations.recipients.length <= idx) return 0; // Already handled
-
-    const recipientIdx = state.filteredSubProjectIndices[idx];
-    const recipient = state.subAllocations.recipients[recipientIdx];
-
-
-    const workspaceId = recipient.owner.reference["username"] ?? recipient.owner.reference["projectId"] ?? "";
-    let height = ROW_HEIGHT;
-    const isOpen = openNodes.has(workspaceId);
-    if (isOpen) {
-        height += recipient.groups.length * ROW_HEIGHT;
-        recipient.groups.forEach(g => {
-            const isGroupOpen = openNodes.has(makeCategoryKeyFromWorkspaceId(workspaceId, g.category.name));
-            if (isGroupOpen) {
-                height += g.allocations.length * ROW_HEIGHT;
-            }
-        });
-    }
-
-    return height;
-}
 
 function makeCategoryKeyFromWorkspaceId(workspace: string, name: Accounting.ProductCategoryV2["name"]): string {
     return workspace + "$$" + name;

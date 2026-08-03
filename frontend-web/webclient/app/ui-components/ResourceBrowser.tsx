@@ -124,7 +124,8 @@ export interface ResourceBrowserOpts<T> {
     isModal?: boolean;
     selection?: Selection<T>;
     height?: string;
-    rowHeight?: string;
+    // Row height in px
+    rowHeight?: number;
 }
 
 export interface ResourceBrowseHeaderControls {
@@ -547,7 +548,7 @@ export class ResourceBrowser<T> {
         selector: boolean;
         columnTitles: ColumnTitleList;
         height?: string;
-        rowSize?: string;
+        rowSize?: number;
     };
     // Note(Jonas): To use for project change listening.
     private initialPath: string | undefined = "";
@@ -601,7 +602,13 @@ export class ResourceBrowser<T> {
         // Mount primary UI and stylesheets
         const browserClass = injectResourceBrowserStyle();
         this.root.classList.add(browserClass.class);
-        this.root.style.setProperty("--resourceBrowserRowSize", this.opts.rowSize ?? `${ResourceBrowser.rowSize}px`);
+
+        if (this.opts.rowSize) {
+            this.rowSize = this.opts.rowSize;
+            this.maxRows = (Math.max(1080, window.screen.height) / this.rowSize) + ResourceBrowser.extraRowsToPreRender;
+        }
+
+        this.root.style.setProperty("--resourceBrowserRowSize", `${(this.opts.rowSize ?? this.rowSize)}px`);
         this.root.innerHTML = `
             <header>
                 <div class="header-first-row">
@@ -945,7 +952,7 @@ export class ResourceBrowser<T> {
 
         // Mount rows and attach event handlers
         const rows: HTMLDivElement[] = [];
-        for (let i = 0; i < ResourceBrowser.maxRows; i++) {
+        for (let i = 0; i < this.maxRows; i++) {
             const row = divHtml(`
                 <div class="favorite"></div>
                 <div class="title"></div>
@@ -1173,11 +1180,11 @@ export class ResourceBrowser<T> {
         const containerWidth = this.scrollingContainerWidth;
 
         // Determine the total size of the page and figure out where we are
-        const totalSize = ResourceBrowser.rowSize * page.length;
+        const totalSize = this.rowSize * page.length;
         const firstVisiblePixel = this.scrolling.parentElement!.scrollTop;
         this.scrollPosition[this.currentPath] = firstVisiblePixel;
 
-        const firstRowInsideRegion = Math.ceil(firstVisiblePixel / ResourceBrowser.rowSize);
+        const firstRowInsideRegion = Math.ceil(firstVisiblePixel / this.rowSize);
         const firstRowToRender = Math.max(0, firstRowInsideRegion - ResourceBrowser.extraRowsToPreRender);
 
         this.scrolling.style.height = `${totalSize}px`;
@@ -1185,20 +1192,20 @@ export class ResourceBrowser<T> {
         const findRow = (idx: number): ResourceBrowserRow | null => {
             const rowNumber = idx - firstRowToRender;
             if (rowNumber < 0) return null;
-            if (rowNumber >= ResourceBrowser.maxRows) return null;
+            if (rowNumber >= this.maxRows) return null;
             return this.rows[rowNumber];
         }
 
 
         // Reset rows and place them accordingly
-        for (let i = 0; i < ResourceBrowser.maxRows; i++) {
+        for (let i = 0; i < this.maxRows; i++) {
             const row = this.rows[i];
             row.container.classList.add("hidden");
             row.container.removeAttribute("data-selected");
             row.container.removeAttribute("data-idx");
             row.container.style.position = "absolute";
             row.star.style.display = !this.features.showStar ? "none" : "block";
-            const top = Math.min(totalSize - ResourceBrowser.rowSize, (firstRowToRender + i) * ResourceBrowser.rowSize);
+            const top = Math.min(totalSize - this.rowSize, (firstRowToRender + i) * this.rowSize);
             row.container.style.top = `${top}px`;
             row.title.innerHTML = "";
             row.stat1.innerHTML = "";
@@ -1227,7 +1234,7 @@ export class ResourceBrowser<T> {
                 // i * ResourceBrowser = top of active row.
                 // + ResourceBrowser.rowSize / 2 = middle of active row
                 // - this.renameField...height / 2 = subtract half of renameField to get wanted top position for renameField.
-                this.renameField.style.top = `${i * ResourceBrowser.rowSize + (ResourceBrowser.rowSize / 2 - this.renameField.getBoundingClientRect().height / 2)}px`;
+                this.renameField.style.top = `${i * this.rowSize + (this.rowSize / 2 - this.renameField.getBoundingClientRect().height / 2)}px`;
                 this.renameField.value = this.renameValue;
                 this.renameField.focus();
             }
@@ -1243,7 +1250,7 @@ export class ResourceBrowser<T> {
                 row,
                 {
                     width: containerWidth,
-                    height: ResourceBrowser.rowSize,
+                    height: this.rowSize,
                     x, y
                 }
             ));
@@ -1433,7 +1440,7 @@ export class ResourceBrowser<T> {
     placeTitleComponent(element: HTMLElement, dimensions: RenderDimensions, estimatedHeight?: number) {
         const height = estimatedHeight ?? 40;
         element.style.left = dimensions.x + "px";
-        const absY = dimensions.y + (ResourceBrowser.rowSize - height) / 2;
+        const absY = dimensions.y + (this.rowSize - height) / 2;
         element.style.top = absY + "px";
         element.style.width = (dimensions.width * (ResourceBrowser.rowTitleSizePercentage / 100)) + "px";
 
@@ -2325,8 +2332,8 @@ export class ResourceBrowser<T> {
         const scrollingContainer = this.scrolling.parentElement!;
         const height = this.scrollingContainerHeight;
 
-        const firstRowPixel = rowIdx * ResourceBrowser.rowSize;
-        const lastRowPixel = firstRowPixel + ResourceBrowser.rowSize;
+        const firstRowPixel = rowIdx * this.rowSize;
+        const lastRowPixel = firstRowPixel + this.rowSize;
 
         const firstVisiblePixel = scrollingContainer.scrollTop;
         const lastVisiblePixel = firstVisiblePixel + height;
@@ -2747,11 +2754,11 @@ export class ResourceBrowser<T> {
 
                 const lowerOffset = Math.max(
                     0,
-                    Math.floor((lowerY - scrollingRectangle.top - scrollOffset) / ResourceBrowser.rowSize) + rowOffset
+                    Math.floor((lowerY - scrollingRectangle.top - scrollOffset) / this.rowSize) + rowOffset
                 );
                 const upperOffset = Math.min(
                     this.rows.length,
-                    Math.floor((upperY - scrollingRectangle.top - scrollOffset) / ResourceBrowser.rowSize) + rowOffset
+                    Math.floor((upperY - scrollingRectangle.top - scrollOffset) / this.rowSize) + rowOffset
                 );
                 const baseFileIdx = parseInt(this.rows[0].container.getAttribute("data-idx")!);
 
@@ -3522,9 +3529,9 @@ export class ResourceBrowser<T> {
     }
 
     static rowTitleSizePercentage = 56;
-    static rowSize = 55;
+    rowSize = 55;
     static extraRowsToPreRender = 6;
-    static maxRows = (Math.max(1080, window.screen.height) / ResourceBrowser.rowSize) + ResourceBrowser.extraRowsToPreRender;
+    maxRows = (Math.max(1080, window.screen.height) / this.rowSize) + ResourceBrowser.extraRowsToPreRender;
 
     private addCheckboxToFilter(filter: FilterCheckbox) {
         const wrapper = document.createElement("label");
