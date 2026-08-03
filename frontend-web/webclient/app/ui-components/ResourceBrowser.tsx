@@ -124,6 +124,7 @@ export interface ResourceBrowserOpts<T> {
     isModal?: boolean;
     selection?: Selection<T>;
     height?: string;
+    rowHeight?: string;
 }
 
 export interface ResourceBrowseHeaderControls {
@@ -546,6 +547,7 @@ export class ResourceBrowser<T> {
         selector: boolean;
         columnTitles: ColumnTitleList;
         height?: string;
+        rowSize?: string;
     };
     // Note(Jonas): To use for project change listening.
     private initialPath: string | undefined = "";
@@ -566,7 +568,8 @@ export class ResourceBrowser<T> {
                 name: "",
                 columnWidth: 20
             }],
-            height: opts?.height
+            height: opts?.height,
+            rowSize: opts?.rowHeight
         }
     };
 
@@ -596,8 +599,9 @@ export class ResourceBrowser<T> {
 
     mount() {
         // Mount primary UI and stylesheets
-        const browserClass = injectResourceBrowserStyle(ResourceBrowser.rowSize);
+        const browserClass = injectResourceBrowserStyle();
         this.root.classList.add(browserClass.class);
+        this.root.style.setProperty("--resourceBrowserRowSize", this.opts.rowSize ?? `${ResourceBrowser.rowSize}px`);
         this.root.innerHTML = `
             <header>
                 <div class="header-first-row">

@@ -47,7 +47,7 @@ import {
     UIAction,
     UIEvent,
 } from "@/Accounting/Allocations/State";
-import {DynamicRowHeight, List, useDynamicRowHeight} from "react-window";
+import {DynamicRowHeight, useDynamicRowHeight} from "react-window";
 import {AvatarState, useAvatars} from "@/AvataaarLib/hook";
 import Avatar from "@/AvataaarLib/avatar";
 import {classConcat, extractDataTags, injectStyle} from "@/Unstyled";
@@ -992,10 +992,7 @@ function DurationSelector(props: {
 
 function openUpdater(
     category: ProductCategoryV2,
-    allocationId: number,
-    originalStart: Date | null,
-    originalEnd: Date | null,
-    originalQuota: number,
+    allocation: Accounting.TreeAllocation,
     workspaceTitle: any,
     dispatchEvent: (ev: UIEvent) => void,
     idx: number,
@@ -1003,16 +1000,16 @@ function openUpdater(
     ridx: number
 ): void {
     const periodRef = {
-        start: originalStart,
-        end: originalEnd,
+        start: new Date(allocation.start),
+        end: new Date(allocation.end),
     }
-    let quota = originalQuota;
+    let quota = allocation.quota;
     let reason = "";
     dialogStore.addDialog((
         <form onSubmit={async ev => {
             ev.preventDefault();
             ev.stopPropagation();
-            if (quota == originalQuota && originalStart == periodRef.start && originalEnd == periodRef.end) {
+            if (quota == allocation.quota && allocation.start == periodRef.start.getTime() && allocation.end == periodRef.end.getTime()) {
                 sendInformationNotification("No changes made");
                 dialogStore.success()
             } else if (reason === "") {
@@ -1020,7 +1017,7 @@ function openUpdater(
             } else {
                 const success = (await callAPIWithErrorHandler(
                     Accounting.updateAllocationV2(bulkRequestOf({
-                        allocationId: allocationId,
+                        allocationId: allocation.allocationId,
                         newQuota: quota,
                         newStart: periodRef.start?.getTime() ?? new Date().getTime(),
                         newEnd: periodRef.end?.getTime() ?? new Date().getTime(),
@@ -1046,7 +1043,7 @@ function openUpdater(
             <div onKeyDown={e => e.stopPropagation()}>
                 <div>
                     <Heading.h3>Update {category.name} ({getProviderTitle(category.provider)}) allocation
-                        (ID: {allocationId}) belonging to "{workspaceTitle}"</Heading.h3>
+                        (ID: {allocation.allocationId}) belonging to "{workspaceTitle}"</Heading.h3>
                     <Divider />
                     <Flex mb={"16px"} flexDirection={"row"}>
                         <DurationSelector periodRef={periodRef} />
@@ -1215,10 +1212,7 @@ function SubProjectListRow({
                                         icon={"heroPencil"}
                                         onClick={(e) => openUpdater(
                                             g.category,
-                                            alloc.allocationId,
-                                            new Date(alloc.start),
-                                            new Date(alloc.end),
-                                            alloc.quota,
+                                            alloc,
                                             title,
                                             dispatchEvent,
                                             idx,
@@ -1657,7 +1651,7 @@ export function SubProjectList({
                     </div>
                 </Flex>
 
-                <div className="sub-projects-container" style={{height: "500px", width: "100%"}}>
+                <div className="sub-projects-container" style={{height: "800px", width: "100%"}}>
                     {state.remoteData.wallets === undefined ? <>
                         <HexSpin size={64} />
                     </> : <>
@@ -1722,18 +1716,18 @@ const FEATURES: ResourceBrowseFeatures = {
 
 type AllocationTypes =
     | Accounting.AllocationDisplayTreeRecipient
-    | Accounting.AllocationDisplayTreeRecipient["groups"][0]
-    | Accounting.AllocationDisplayTreeRecipient["groups"][0]["allocations"][0];
+    | Accounting.TreeAllocationGroup
+    | Accounting.TreeAllocation;
 
-function isAllocationDisplayTreeRecipient(v: AllocationTypes) {
+function isAllocationDisplayTreeRecipient(v: AllocationTypes): v is Accounting.AllocationDisplayTreeRecipient {
     return "owner" in v;
 }
 
-function isAllocationGroup(v: AllocationTypes) {
+function isAllocationGroup(v: AllocationTypes): v is Accounting.TreeAllocationGroup {
     return "totalGranted" in v && "category" in v;
 }
 
-function isAllocation(v: AllocationTypes) {
+function isAllocation(v: AllocationTypes): v is Accounting.TreeAllocation {
     return "allocationId" in v;
 }
 
@@ -1755,7 +1749,6 @@ export function SubAllocationBrowser(
         state: State;
     }
 ): React.ReactNode {
-    // TODO(Jonas): Filters are NOT taken into account with this approach. Expand!!!!
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<AllocationTypes> | null>(null);
     const dispatch = useDispatch();
@@ -1775,7 +1768,6 @@ export function SubAllocationBrowser(
 
             Promise.all(filteredAllocations.map(all => new ReactStaticRenderer(() => <FilteredUsageAndQuota entries={all.usageAndQuota} />)
                 .promise.then(result => {
-                    // TODO(Ensure uniqueness!
                     const allocationIdentifier = id(all);
                     progressBarCache.current[allocationIdentifier] = result;
                 }))
@@ -1814,7 +1806,7 @@ export function SubAllocationBrowser(
             new ResourceBrowser<AllocationTypes>(
                 mount,
                 "Suballocations",
-                ({...props.opts, height: `calc(500px - ${10 * 2 + 16 * 2}px)`})
+                ({...props.opts, height: `calc(800px - ${10 * 2 + 16 * 2}px)`})
             ).init(browserRef, FEATURES, "", (browser) => {
                 browser.setColumns([{name: ""}, {name: "", columnWidth: 0}, {name: "", columnWidth: 0}, {name: "", columnWidth: 0}, {name: "", columnWidth: 500}]);
 
@@ -1845,10 +1837,6 @@ export function SubAllocationBrowser(
 
                         Promise.all(promises).then(() => {
                             browser.rerender();
-
-                            for (const e of entries) {
-                                browser.selectAndShow(it => it === e);
-                            }
                         });
                     }
                 });
@@ -1873,6 +1861,7 @@ export function SubAllocationBrowser(
                             const avatarWrapper = document.createElement("div");
                             wrapper.append(avatarWrapper);
 
+                            // Not always rendered correctly.
                             SimpleAvatarComponentCache.appendTo(avatarWrapper, pi, `Project PI: ${pi}`).then(avatar => {
                                 avatar.style.marginTop = "-4px";
                                 const div = divText(title);
@@ -1884,9 +1873,9 @@ export function SubAllocationBrowser(
                             });
 
                             wrapper.prepend(ChevronIcon!.clone());
-                            const chrevron = wrapper.children.item(0)! as HTMLDivElement;
-                            chrevron.style.rotate = "-90deg";
-                            chrevron.onclick = () => {
+                            const chevron = wrapper.children.item(0)! as HTMLDivElement;
+                            chevron.style.rotate = "-90deg";
+                            chevron.onclick = () => {
                                 addOrRemoveEntries(browser, resource, progressBarCache.current);
                             }
                         }
@@ -1912,6 +1901,7 @@ export function SubAllocationBrowser(
                         // Title with chevron
                         div.append(ChevronIcon!.clone());
                         const chevron = div.children.item(0)! as HTMLDivElement;
+                        chevron.style.rotate = "-90deg";
                         chevron.onclick = () => {
                             addOrRemoveEntries(browser, resource, progressBarCache.current);
                         }
@@ -1933,7 +1923,7 @@ export function SubAllocationBrowser(
                         code.style.marginTop = code.style.marginBottom = "auto";
                         code.innerText = id(resource);
                         div.append(code);
-                        div.style.paddingLeft = "36px";
+                        div.style.paddingLeft = "32px";
                         // Progress bars and link button
                         const allocationIdentifier = id(resource);
                         const entry = progressBarCache.current[allocationIdentifier];
@@ -2174,8 +2164,35 @@ function retrieveOperations(): Operation<AllocationTypes, {navigate: NavigateFun
                 return "Edit allocation";
             },
             icon: "heroPencil",
-            onClick(selected) {
-                // ah geez
+            onClick(selected, extra, all) {
+                const [first] = selected;
+                if (!isAllocation(first)) return;
+                if (!all) return;
+                let group: Accounting.TreeAllocationGroup | null = null;
+                let recipient: Accounting.AllocationDisplayTreeRecipient | null = null;
+                outer: for (const entry of all) {
+                    if (isAllocationDisplayTreeRecipient(entry)) {
+                        for (const g of entry.groups) {
+                            for (const a of g.allocations) {
+                                if (a.allocationId === first.allocationId) {
+                                    group = g;
+                                    recipient = entry;
+                                    break outer;
+                                }
+                            }
+                        }
+                    }
+                };
+
+                if (!group || !recipient) {
+                    return;
+                }
+
+                const title = recipient.owner.reference.type === "user" ?
+                    recipient.owner.reference.username :
+                    projectInfoTitle(extra.projectInfos.current[recipient.owner.reference.projectId], recipient.owner.title) ?? "-";
+
+                openUpdater(group.category, first, title, () => void 0, -1, -1, -1);
             },
         },
     ];

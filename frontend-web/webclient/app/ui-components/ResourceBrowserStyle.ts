@@ -3,8 +3,12 @@ import {injectStyle, makeClassName} from "@/Unstyled";
 let didInject = false;
 
 const BrowserClass = makeClassName("browser");
-export function injectResourceBrowserStyle(rowSize: number) {
+export function injectResourceBrowserStyle() {
     if (!didInject) injectStyle("ignored", () => `
+        ${BrowserClass.dot} {
+            --resourceBrowserRowSize: 0px;
+        }
+
         body[data-cursor=not-allowed] * {
             cursor: not-allowed !important;
         }
@@ -35,7 +39,7 @@ export function injectResourceBrowserStyle(rowSize: number) {
             display: none;
             top: 0;
             left: 0;
-            height: ${rowSize}px;
+            height: var(--resourceBrowserRowSize);
             user-select: none;
             -webkit-user-select: none;
         }
@@ -138,10 +142,12 @@ export function injectResourceBrowserStyle(rowSize: number) {
             overflow: hidden;
         }
         
+        /* I think this can be removed */
         ${BrowserClass.dot} header[data-has-filters], ${BrowserClass.dot} header[data-has-allocations] {
             height: 136px;
         }
 
+        /* I think this can be removed */
         ${BrowserClass.dot} header[data-has-filters][data-has-allocations] {
             height: 162px;
         }
@@ -275,7 +281,7 @@ export function injectResourceBrowserStyle(rowSize: number) {
             display: flex;
             flex-direction: row;
             container-type: inline-size;
-            height: ${rowSize}px;
+            height: var(--resourceBrowserRowSize);
             width: 100%;
             align-items: center;
             border-top: 0.5px solid var(--borderColor);

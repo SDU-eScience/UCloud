@@ -775,23 +775,27 @@ export interface AllocationDisplayTreeRecipient {
 
     usageAndQuota: UsageAndQuota[];
 
-    groups: {
-        category: ProductCategoryV2;
-        usageAndQuota: UsageAndQuota;
-        totalGranted: number;
+    groups: TreeAllocationGroup[];
+}
 
-        allocations: {
-            allocationId: number;
-            quota: number;
-            retiredQuota?: number;
-            note?: AllocationNote;
-            isEditing: boolean;
-            grantedIn?: number;
+export interface TreeAllocationGroup {
+    category: ProductCategoryV2;
+    usageAndQuota: UsageAndQuota;
+    totalGranted: number;
 
-            start: number;
-            end: number;
-        }[];
-    }[];
+    allocations: TreeAllocation[];
+}
+
+export interface TreeAllocation {
+    allocationId: number;
+    quota: number;
+    retiredQuota?: number;
+    note?: AllocationNote;
+    isEditing: boolean;
+    grantedIn?: number;
+
+    start: number;
+    end: number;
 }
 
 export interface AllocationDisplayTree {
