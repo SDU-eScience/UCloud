@@ -1874,7 +1874,11 @@ export function SubAllocationBrowser(
 
                             wrapper.prepend(ChevronIcon!.clone());
                             const chevron = wrapper.children.item(0)! as HTMLDivElement;
-                            chevron.style.rotate = "-90deg";
+                            const isOpen = browser.findVirtualRowIndex(e => e === resource.groups[0]) !== null;
+                            chevron.style.marginTop = chevron.style.marginBottom = "auto";
+                            if (!isOpen) {
+                                chevron.children.item(0)!["style"].rotate = "-90deg";
+                            }
                             chevron.onclick = () => {
                                 addOrRemoveEntries(browser, resource, progressBarCache.current);
                             }
@@ -1901,7 +1905,11 @@ export function SubAllocationBrowser(
                         // Title with chevron
                         div.append(ChevronIcon!.clone());
                         const chevron = div.children.item(0)! as HTMLDivElement;
-                        chevron.style.rotate = "-90deg";
+                        const isOpen = browser.findVirtualRowIndex(e => e === resource.allocations[0]) !== null;
+                        chevron.style.marginTop = chevron.style.marginBottom = "auto";
+                        if (!isOpen) {
+                            chevron.children.item(0)!["style"].rotate = "-90deg";
+                        }
                         chevron.onclick = () => {
                             addOrRemoveEntries(browser, resource, progressBarCache.current);
                         }
