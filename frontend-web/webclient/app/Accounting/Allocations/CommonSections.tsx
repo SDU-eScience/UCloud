@@ -1890,6 +1890,7 @@ export function SubAllocationBrowser(
                         p.style.marginTop = p.style.marginBottom = "auto"
                         const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
                         icon.style.marginTop = icon.style.marginBottom = "auto";
+                        icon.style.height = icon.style.width = "24px";
                         ResourceBrowser.icons.renderIcon({
                             name: Accounting.productTypeToIcon(resource.category.productType),
                             color: "iconColor",
@@ -1927,6 +1928,7 @@ export function SubAllocationBrowser(
                         wrapper.style.display = "flex";
 
                         const [bankIcon, setBankIcon] = ResourceBrowser.defaultIconRenderer();
+                        bankIcon.style.height = bankIcon.style.width = "24px";
                         ResourceBrowser.icons.renderIcon({
                             name: "heroBanknotes",
                             color: "iconColor",
@@ -1967,6 +1969,7 @@ export function SubAllocationBrowser(
 
                             const [noteIcon, setNoteIcon] = ResourceBrowser.defaultIconRenderer();
                             noteIcon.style.marginTop = "-4px";
+                            noteIcon.style.height = noteIcon.style.width = "24px";
                             ResourceBrowser.icons.renderIcon({
                                 name: resource.note.icon,
                                 color: resource.note.iconColor,
