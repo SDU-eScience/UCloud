@@ -4,6 +4,7 @@ import FileApi = UCloud.file.orchestrator;
 import {useSyncExternalStore} from "react";
 import {ExternalStoreBase} from "@/Utilities/ReduxUtilities";
 import {PackagedFile} from "./HTML5FileSelector";
+import {reportBackgroundTaskChange} from "@/Services/BackgroundTasks/BackgroundTaskChanges";
 
 export type WriteConflictPolicy = NonNullable<PropType<FileApi.FilesCreateUploadRequestItem, "conflictPolicy">>;
 export type UploadProtocol = NonNullable<GetElementType<PropType<FileApi.FilesCreateUploadRequestItem, "supportedProtocols">>>;
@@ -35,6 +36,10 @@ export interface Upload {
     uploadEvents: {timestamp: number, filesCompleted: number, progressInBytes: number}[];
 }
 
+export function uploadIsTerminal(upload: Upload): boolean {
+    return !upload.paused && (upload.terminationRequested || upload.error != null || upload.state === UploadState.DONE);
+}
+
 export function uploadTrackProgress(upload: Upload): void {
     const now = timestampUnixMs();
     upload.uploadEvents = upload.uploadEvents.filter(evt => now - evt.timestamp < 10_000);
@@ -64,9 +69,24 @@ export const UploadConfig = {
 
 export const uploadStore = new class extends ExternalStoreBase {
     private uploads: Upload[] = [];
+    private observedStates = new Map<Upload, boolean>();
+
+    private observeChanges(uploads: Upload[]): void {
+        for (const upload of uploads) {
+            const terminal = uploadIsTerminal(upload);
+            const previousTerminal = this.observedStates.get(upload);
+            if (previousTerminal === undefined) {
+                reportBackgroundTaskChange(`Starting upload of ${upload.folderName ?? upload.name}...`);
+            } else if (!previousTerminal && terminal) {
+                reportBackgroundTaskChange(`${upload.folderName ?? upload.name} has been completed`);
+            }
+            this.observedStates.set(upload, terminal);
+        }
+    }
 
     public setUploads(uploads: Upload[]) {
-        this.uploads = uploads;
+        this.observeChanges(uploads);
+        this.uploads = [...uploads];
         this.emitChange();
     }
 
@@ -76,6 +96,7 @@ export const uploadStore = new class extends ExternalStoreBase {
             // Find possible entries in resumables
             upload.terminationRequested = true;
         }
+        this.observeChanges(this.uploads);
         this.emitChange();
     }
 
@@ -85,6 +106,7 @@ export const uploadStore = new class extends ExternalStoreBase {
             upload.paused = true;
             upload.state = UploadState.PENDING;
         }
+        this.observeChanges(this.uploads);
         this.emitChange();
     }
 
@@ -103,6 +125,13 @@ export const uploadStore = new class extends ExternalStoreBase {
                 }
             });
         });
+        this.observeChanges(this.uploads);
+        this.emitChange();
+    }
+
+    public notifyChanges(): void {
+        this.observeChanges(this.uploads);
+        this.uploads = [...this.uploads];
         this.emitChange();
     }
 
@@ -110,6 +139,7 @@ export const uploadStore = new class extends ExternalStoreBase {
         /* Note(Jonas): This is intended as pointer equality. Does this make sense in a Javascript context? */
         /* Note(Jonas): Yes. */
         this.uploads = this.uploads.filter(u => !batch.some(b => b === u)); // Note(Jonas): iterates through uploads and omits the ones in the list in the arguments
+        for (const upload of batch) this.observedStates.delete(upload);
         // Note(Jonas): Find possible entries in paused uploads and remove it. 
         setPausedFilesInFolder(entries => {
             let cpy = [...entries];

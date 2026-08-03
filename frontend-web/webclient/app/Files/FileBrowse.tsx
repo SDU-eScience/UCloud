@@ -844,6 +844,12 @@ function FileBrowse({
                         isWorkspaceAdmin: checkIsWorkspaceAdmin(),
                         navigate: to => navigate(to),
                         reload: () => browser.refresh(),
+                        reloadCurrentFolderIfUnpaginated: path => {
+                            const files = browser.cachedData[path];
+                            if (browser.root.isConnected && browser.currentPath === path && files && files.length < 250) {
+                                browser.refresh();
+                            }
+                        },
                         syncthingConfig,
                         setSynchronization(files: UFile[], shouldAdd: boolean): void {
                             if (!syncthingConfig) return;
