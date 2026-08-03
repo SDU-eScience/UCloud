@@ -7,7 +7,7 @@ import {AsyncCache} from "@/Utilities/AsyncCache";
 import {injectStyle} from "@/Unstyled";
 import {Box, Flex, FtIcon, Icon, Image, Markdown, Select, Text, Input, Label, Button} from "@/ui-components";
 import {fileName, pathComponents} from "@/Utilities/FileUtilities";
-import {capitalized, copyToClipboard, errorMessageOrDefault, extensionFromPath, extensionType, getLanguageList, languageFromExtension, populateLanguages} from "@/UtilityFunctions";
+import {capitalized, copyToClipboard, createKeyboardShortcut, errorMessageOrDefault, extensionFromPath, extensionType, getLanguageList, languageFromExtension, populateLanguages} from "@/UtilityFunctions";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {usePrettyFilePath} from "@/Files/FilePath";
@@ -1293,32 +1293,35 @@ export const Editor: React.FunctionComponent<{
             </div>
             <div className={StatusBarWrapper}>
                 <div className={StatusBar}>
-                    <IconButton compact tooltip="Toggle sidebar (Ctrl + Alt + 1)" onClick={() => setSidebarOpen(open => !open)} icon="sidebar" color="fixedWhite" hoverColor="primaryLight" noDefaultFill />
+                    <IconButton compact tooltip={`Toggle sidebar (${createKeyboardShortcut("1", ["ctrl", "alt"])})`} onClick={() => setSidebarOpen(open => !open)} icon="sidebar" color="fixedWhite" hoverColor="primaryLight" noDefaultFill />
                     <div ref={vimCommandBar} className={VimCommandBar} />
                     <Flex alignItems="center" gap="8px" ml="auto">
-                        {tabs.open.length === 0 || settingsOrReleaseNotesOpen || props.customContent ? null : <Box className={HoverHighlight} width={"fit-content"}>
-                            <RichSelect
-                                key={activeSyntax}
-                                items={languageList}
-                                keys={SyntaxSelectorKeys}
-                                FullRenderSelected={p => <Text px="8px" textAlign="end">{p.element?.displayName}</Text>}
-                                elementHeight={29}
-                                RenderRow={LanguageItem}
-                                selected={selectedSynax}
-                                onSelect={setModelLanguage}
-                            />
-                        </Box>}
+                        {tabs.open.length === 0 || settingsOrReleaseNotesOpen || props.customContent ? null : <>
+                            {vimMode ? <span className={StatusModeBadge}>{vimEditorMode ?? "NORMAL"}</span> : null}
+                            <span className={StatusPosition}>{cursorPosition.line}:{cursorPosition.column}</span>
+                            <Box className={HoverHighlight} width={"fit-content"}>
+                                <RichSelect
+                                    key={activeSyntax}
+                                    items={languageList}
+                                    keys={SyntaxSelectorKeys}
+                                    FullRenderSelected={p => <Text px="8px" textAlign="end">{p.element?.displayName}</Text>}
+                                    elementHeight={29}
+                                    RenderRow={LanguageItem}
+                                    selected={selectedSynax}
+                                    onSelect={setModelLanguage}
+                                />
+                            </Box>
+                            <span className={StatusModeBadge} data-readonly={readOnlyMode}>
+                                <Icon name={readOnlyMode ? "heroLockClosed" : "heroLockOpen"} color="fixedWhite" size={14} />
+                                    {readOnlyMode ? "Read-only" : "Read-write"}
+                            </span>
+                        </>}
                         <Flex className={StatusIconGroup} alignItems="center">
                             {props.statusBar}
                             {showReleaseNoteIcon ? <IconButton compact tooltip="See release notes" onClick={toggleReleaseNotes} icon="heroGift" color="fixedWhite" hoverColor="primaryLight" /> : null}
                             <IconButton compact tooltip="Settings" onClick={toggleSettings} icon="heroCog6Tooth" color="fixedWhite" hoverColor="primaryLight" />
                         </Flex>
-                        <span className={StatusPosition}>{cursorPosition.line}:{cursorPosition.column}</span>
-                        {vimMode ? <span className={StatusModeBadge}>{vimEditorMode ?? "NORMAL"}</span> : null}
-                        <span className={StatusModeBadge} data-readonly={readOnlyMode}>
-                            <Icon name={readOnlyMode ? "heroLockClosed" : "heroLockOpen"} color="fixedWhite" size={14} />
-                            {readOnlyMode ? "Read-only" : "Read-write"}
-                        </span>
+
                     </Flex>
                 </div>
             </div>
@@ -1372,7 +1375,6 @@ function tabOperations(
                 });
             },
             enabled: () => anyTabsClosed,
-            shortcut: ShortcutKey.U,
         }, {
             text: "Close all",
             onClick: () => {
@@ -1384,7 +1386,6 @@ function tabOperations(
                 });
             },
             enabled: () => anyTabsOpen,
-            shortcut: ShortcutKey.U,
         }];
     }
 
@@ -1408,7 +1409,6 @@ function tabOperations(
 
         },
         enabled: () => true,
-        shortcut: ShortcutKey.W,
     }, {
         text: "Close others",
         onClick: () => {
@@ -1422,7 +1422,6 @@ function tabOperations(
             openTab(tabPath);
         },
         enabled: () => true,
-        shortcut: ShortcutKey.E,
     }, {
         text: "Close to the right",
         onClick: () => {
@@ -1446,7 +1445,6 @@ function tabOperations(
             })
         },
         enabled: () => true,
-        shortcut: ShortcutKey.R,
     }, {
         text: "Close saved tabs",
         onClick: () => {
@@ -1466,7 +1464,6 @@ function tabOperations(
             })
         },
         enabled: () => tabs.open.length > 0,
-        shortcut: ShortcutKey.T,
     }, {
         text: "Close all",
         onClick: () => {
@@ -1478,7 +1475,6 @@ function tabOperations(
             });
         },
         enabled: () => true,
-        shortcut: ShortcutKey.U,
     }, {
         text: "Copy path to clipboard",
         onClick: () => {
@@ -1486,7 +1482,6 @@ function tabOperations(
             sendInformationNotification("Path copied!")
         },
         enabled: () => true,
-        shortcut: ShortcutKey.U,
     }, {
         text: "Re-open closed tab",
         onClick: () => {
@@ -1503,7 +1498,6 @@ function tabOperations(
             });
         },
         enabled: () => anyTabsClosed,
-        shortcut: ShortcutKey.U,
     }];
 }
 

@@ -8,7 +8,7 @@ import {injectStyle} from "@/Unstyled";
 import {callAPI, noopCall, useCloudAPI} from "@/Authentication/DataHook";
 import {BulkResponse} from "@/UCloud";
 import JobsApi, {InteractiveSession} from "@/UCloud/JobsApi";
-import {bulkRequestOf, bulkResponseOf} from "@/UtilityFunctions";
+import {bulkRequestOf, bulkResponseOf, createKeyboardShortcut} from "@/UtilityFunctions";
 import {ShellWithSession} from "@/Applications/Jobs/Shell";
 import {xtermThemes} from "@/Applications/Jobs/XTermLib";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
@@ -123,14 +123,14 @@ function isNewTerminalShortcut(event: KeyboardEvent): boolean {
 }
 
 function preferredNewTerminalShortcut(): string {
-    if (typeof navigator === "undefined") return "Ctrl + Alt + T";
+    if (typeof navigator === "undefined") return createKeyboardShortcut("T", ["ctrl", "alt"]);
 
     const isLinux = /Linux/i.test(navigator.userAgent) || /Linux/i.test(navigator.platform);
-    if (!isLinux) return "Ctrl + Alt + T";
+    if (!isLinux) return createKeyboardShortcut("T", ["ctrl", "alt"]);
 
     const languages = [navigator.language, ...(navigator.languages ?? [])];
     const isDanish = languages.some(language => /^da(?:-|$)/i.test(language));
-    return isDanish ? "Ctrl + Alt + +" : "Ctrl + Alt + =";
+    return createKeyboardShortcut(isDanish ? "+" : "=", ["ctrl", "alt"]);
 }
 
 async function homeDriveFolder(providerId: string): Promise<string> {
@@ -371,7 +371,7 @@ export const TerminalContainer: React.FunctionComponent = () => {
                     tooltip: tab.title,
                     icon: <ProviderLogo providerId={tab.providerId} size={20} />,
                     closeLabel: `Close ${tab.title}`,
-                    closeTooltip: idx === state.activeTab ? "Close tab (Ctrl + Alt + W)" : "Close tab",
+                    closeTooltip: idx === state.activeTab ? `Close tab (${createKeyboardShortcut("W", ["ctrl", "alt"])})` : "Close tab",
                 }))}
                 activeId={activeTabId}
                 shortcutScope={terminalRoot}

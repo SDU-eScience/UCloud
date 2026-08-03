@@ -479,15 +479,10 @@ const VirtualizedTreeClass = injectStyle("virtualized-tree", k => `
 
     ${k} .virtualized-tree-row[data-selected="true"] {
         background-color: var(--rowHover);
-        box-shadow: inset 2px 0 var(--primaryMain);
     }
 
     ${k}[data-focused="true"] .virtualized-tree-row[data-selected="true"] {
         background-color: var(--rowActive);
-    }
-
-    ${k}[data-focused="true"] .virtualized-tree-row[data-focused="true"] {
-        box-shadow: inset 3px 0 var(--primaryMain);
     }
 
 `);
