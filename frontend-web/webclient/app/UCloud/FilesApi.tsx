@@ -60,7 +60,7 @@ import {Spacer} from "@/ui-components/Spacer";
 import metadataNamespaceApi from "@/UCloud/MetadataNamespaceApi";
 import MetadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/MetadataNamespaceApi";
 import {SyncthingConfig, SyncthingDevice, SyncthingFolder} from "@/Syncthing/api";
-import {Link, useNavigate, useParams} from "react-router-dom";
+import {Link, useParams} from "react-router-dom";
 import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {addShareModal} from "@/Files/Shares";
@@ -87,7 +87,7 @@ import {
     UFileStatus
 } from "./UFile";
 import AppRoutes from "@/Routes";
-import {allowEditing, Editor, EditorApi, Vfs} from "@/Editor/Editor";
+import {allowEditing, Editor, EditorApi, EditorLoadingState, Vfs} from "@/Editor/Editor";
 import {IconButton} from "@/ui-components/IconButton";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {useDispatch} from "react-redux";
@@ -102,6 +102,7 @@ import {terminalOpen, terminalOpenTab} from "@/Terminal/State";
 import {genericSet} from "@/Utilities/ReduxHooks";
 import {Feature, hasFeature} from "@/Features";
 import {registerJobBackgroundTask} from "@/Services/BackgroundTasks/JobBackgroundTask";
+import {UcxSpinner} from "@/UCX/UcxView";
 
 export function normalizeDownloadEndpoint(endpoint: string): string {
     const e = endpoint.replace("integration-module:8889", "localhost:8889");
@@ -379,22 +380,36 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
         const {id} = useParams<{id?: string}>();
 
         const [fileData, fetchFile] = useCloudAPI<UFile | null>({noop: true}, null);
+        const [loadedFileId, setLoadedFileId] = useState<string>();
 
         React.useEffect(() => {
             if (!id) return;
-            fetchFile(this.retrieve({
+            let active = true;
+            void fetchFile(this.retrieve({
                 id,
                 includeUpdates: true,
                 includeOthers: true,
                 includeSupport: true,
                 ...this.defaultRetrieveFlags
-            }))
-        }, [id]);
+            })).finally(() => {
+                if (active) setLoadedFileId(id);
+            });
+            return () => {
+                active = false;
+            };
+        }, [fetchFile, id]);
 
         const file = fileData.data;
 
         if (!id) return <MainContainer main={<h1>Missing file id.</h1>} />;
-        if (!file) return <MainContainer main={<h1><Link to={AppRoutes.files.drives()}>File not found. Click to go to drives.</Link></h1>} />;
+        if (loadedFileId !== id || fileData.loading) {
+            return <EditorLoadingState><UcxSpinner /></EditorLoadingState>;
+        }
+        if (!file) {
+            return <EditorLoadingState>
+                <h1><Link to={AppRoutes.files.drives()}>File not found. Click here to go to drives.</Link></h1>
+            </EditorLoadingState>;
+        }
 
         return <FilePreview initialFile={file} />
     }
@@ -1804,7 +1819,6 @@ export function FilePreview({initialFile}: {
                     const suffix = initialFile.status.type === "DIRECTORY" ? "/placeholder" : "";
                     newFolder(initialFile.id + suffix).then(doNothing);
                 },
-                shortcut: ShortcutKey.F,
             }, {
                 icon: "heroDocumentPlus",
                 text: "New file",
@@ -1813,7 +1827,6 @@ export function FilePreview({initialFile}: {
                     const suffix = initialFile.status.type === "DIRECTORY" ? "/placeholder" : "";
                     newFile(initialFile.id + suffix).then(doNothing);
                 },
-                shortcut: ShortcutKey.G,
             }];
         }
 
@@ -1897,8 +1910,6 @@ export function FilePreview({initialFile}: {
         ];
     }, []);
 
-    const navigate = useNavigate();
-
     if (initialFile.status.type === "DIRECTORY") {
         return <MainContainer main={<FileProperties file={initialFile} routingNamespace={api.routingNamespace} />} />
     }
@@ -1910,12 +1921,12 @@ export function FilePreview({initialFile}: {
         dirtyFileCountRef={dirtyFileCountRef}
         toolbarBeforeSettings={
             <>
-                {ext === "markdown" ? <IconButton compact tooltip="Preview (Ctrl + B)" onClick={requestPreviewToggle} icon="heroMagnifyingGlass" /> : null}
+                {ext === "markdown" ? <IconButton tooltip="Preview (Ctrl + B)" onClick={requestPreviewToggle} icon="heroMagnifyingGlass" /> : null}
             </>
         }
         statusBar={
             <>
-                {!supportsTerminal ? null : <IconButton compact tooltip="Open terminal" onClick={openTerminal} icon="terminalSolid" color="fixedWhite" hoverColor="primaryLight" />}
+                {!supportsTerminal ? null : <IconButton tooltip="Open terminal" onClick={openTerminal} icon="terminalSolid" color="textPrimary" />}
             </>
         }
         initialFolderPath={removeTrailingSlash(getParentPath(initialFile.id))}
@@ -1935,15 +1946,13 @@ export function FilePreview({initialFile}: {
             </>
         }
         help={
-            <Flex mx="auto" mt="150px">
-                <Box>
-                    <Text mb="12px">Create new file and start working</Text>
-                    <Flex mx="auto">
-                        <Button mx="auto" onClick={() => newFile(initialFile.id)}>New file</Button>
-                        <Button mx="auto" onClick={() => newFolder(initialFile.id)}>New folder</Button>
-                    </Flex>
-                    <Button width="95%" m="5px" onClick={() => navigate(AppRoutes.files.path(getParentPath(initialFile.id)))}>Go to parent folder</Button>
-                </Box>
+            <Flex width="100%" height="100%" alignItems="center" justifyContent="center" flexDirection="column" gap="16px">
+                <Icon name="heroDocument" size={64} color="textSecondary" />
+                <Box>Create a file or folder to start!</Box>
+                <Flex gap={"8px"}>
+                    <Button onClick={() => newFile(initialFile.id)}>New file</Button>
+                    <Button onClick={() => newFolder(initialFile.id)}>New folder</Button>
+                </Flex>
             </Flex>
         }
         readOnly={!allowEditing()}
@@ -2114,7 +2123,8 @@ class PreviewVfs implements Vfs {
             window.dispatchEvent(new CustomEvent<WriteToFileEventProps>(EventKeys.WriteToFile, {
                 detail: {
                     path,
-                    content
+                    content,
+                    notifyBackgroundTask: false,
                 }
             }));
         } catch (e) {
@@ -2137,6 +2147,7 @@ export const EventKeys = {WriteToFile: "write-to-file-event"};
 export interface WriteToFileEventProps {
     path: string;
     content: string;
+    notifyBackgroundTask?: boolean;
 }
 
 function FileProperties({file, routingNamespace, inPopIn}: {file: UFile, routingNamespace: string, inPopIn?: boolean;}) {

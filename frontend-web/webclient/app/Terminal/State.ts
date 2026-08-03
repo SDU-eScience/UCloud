@@ -56,11 +56,14 @@ const terminalSlice = createSlice({
             state.pageContext = action.payload;
         },
         terminalCloseTab(state, action: PayloadAction<{tabIdx: number}>) {
+            if (action.payload.tabIdx < 0 || action.payload.tabIdx >= state.tabs.length) return;
+
+            const activeTab = state.tabs[state.activeTab];
             const tabs = [...state.tabs];
             tabs.splice(action.payload.tabIdx, 1);
-            const newActiveTab = Math.min(state.tabs.length - 2, state.activeTab);
             state.tabs = tabs;
-            state.activeTab = newActiveTab;
+            const activeTabIndex = tabs.indexOf(activeTab);
+            state.activeTab = activeTabIndex === -1 ? Math.min(action.payload.tabIdx, tabs.length - 1) : activeTabIndex;
             state.open = state.open && tabs.length > 0;
         },
         terminalSelectTab(state, action: PayloadAction<{tabIdx: number}>) {

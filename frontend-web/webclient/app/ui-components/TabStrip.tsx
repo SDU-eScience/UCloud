@@ -4,6 +4,8 @@ import {injectStyle} from "@/Unstyled";
 import Icon, {IconName} from "@/ui-components/Icon";
 import {TooltipV2} from "@/ui-components/Tooltip";
 
+const TAB_GAP = 8;
+const TAB_DRAG_THRESHOLD = 4;
 const TAB_DROP_ANIMATION_MS = 160;
 
 interface TabSlot {
@@ -17,9 +19,11 @@ interface TabDragState {
     originalOrder: string[];
     pointerId: number;
     pointerOffset: number;
+    pointerStartX: number;
     pointerLeft: number;
-    slots: TabSlot[];
-    draggedWidth: number;
+    slots: Record<string, TabSlot>;
+    offsets: Record<string, number>;
+    started: boolean;
     dropping: boolean;
 }
 
@@ -43,6 +47,9 @@ export function TabStrip({
     onReorder,
     className,
     shortcutScope,
+    allowUnfocusedShortcuts = false,
+    slim = false,
+    autoSize = true,
 }: {
     items: TabStripItem[];
     activeId?: string;
@@ -52,42 +59,52 @@ export function TabStrip({
     onReorder(ids: string[]): void;
     className?: string;
     shortcutScope?: React.RefObject<HTMLElement | null>;
+    allowUnfocusedShortcuts?: boolean;
+    slim?: boolean;
+    autoSize?: boolean;
 }): React.ReactNode {
     const tabsRef = useRef<HTMLDivElement | null>(null);
     const tabRefs = useRef<Record<string, HTMLDivElement | null>>({});
     const dragRef = useRef<TabDragState | null>(null);
     const dropFrameRef = useRef<number | null>(null);
+    const dropTimerRef = useRef<number | null>(null);
+    const onReorderRef = useRef(onReorder);
     const [drag, setDrag] = useState<TabDragState | null>(null);
     const [hoveredClose, setHoveredClose] = useState<string | null>(null);
+    const itemIds = items.map(item => item.id);
+    const itemOrder = JSON.stringify(itemIds);
 
-    useEffect(() => {
+    useLayoutEffect(() => {
+        onReorderRef.current = onReorder;
+    }, [onReorder]);
+
+    useLayoutEffect(() => {
         if (!activeId) return;
+        if (drag) return;
 
-        const frame = window.requestAnimationFrame(() => {
-            const tabs = tabsRef.current;
-            const tab = tabRefs.current[activeId];
-            if (!tabs || !tab) return;
+        const tabs = tabsRef.current;
+        const tab = tabRefs.current[activeId];
+        if (!tabs || !tab) return;
 
-            const tabLeft = tab.offsetLeft;
-            const tabRight = tabLeft + tab.offsetWidth;
-            const visibleLeft = tabs.scrollLeft;
-            const visibleRight = visibleLeft + tabs.clientWidth;
-            if (tabLeft < visibleLeft) {
-                tabs.scrollTo({left: tabLeft, behavior: "smooth"});
-            } else if (tabRight > visibleRight) {
-                tabs.scrollTo({left: tabRight - tabs.clientWidth, behavior: "smooth"});
-            }
-        });
-
-        return () => window.cancelAnimationFrame(frame);
-    }, [activeId]);
+        const tabLeft = tab.offsetLeft;
+        const tabRight = tabLeft + tab.offsetWidth;
+        const visibleLeft = tabs.scrollLeft;
+        const visibleRight = visibleLeft + tabs.clientWidth;
+        if (tabLeft < visibleLeft) {
+            tabs.scrollLeft = tabLeft;
+        } else if (tabRight > visibleRight) {
+            tabs.scrollLeft = tabRight - tabs.clientWidth;
+        }
+    }, [activeId, drag !== null, itemOrder]);
 
     useEffect(() => {
         const listener = (event: KeyboardEvent) => {
             if (event.defaultPrevented) return;
             const activeElement = document.activeElement;
             const tabs = tabsRef.current;
-            if (!activeElement || (!tabs?.contains(activeElement) && !shortcutScope?.current?.contains(activeElement))) return;
+            const inShortcutScope = tabs?.contains(activeElement) || shortcutScope?.current?.contains(activeElement);
+            const canHandleWithoutFocus = allowUnfocusedShortcuts && activeElement === document.body;
+            if (!activeElement || (!inShortcutScope && !canHandleWithoutFocus)) return;
 
             const activeIndex = items.findIndex(item => item.id === activeId);
             if (activeIndex < 0 || items.length === 0) return;
@@ -101,6 +118,8 @@ export function TabStrip({
                 close = true;
             } else if (event.code === "PageUp" || event.code === "PageDown") {
                 nextIndex = activeIndex + (event.code === "PageUp" ? -1 : 1);
+            } else if (event.metaKey && (event.code === "BracketLeft" || event.code === "BracketRight")) {
+                nextIndex = activeIndex + (event.code === "BracketLeft" ? -1 : 1);
             }
 
             if (close) {
@@ -118,12 +137,14 @@ export function TabStrip({
 
         window.addEventListener("keydown", listener, true);
         return () => window.removeEventListener("keydown", listener, true);
-    }, [activeId, items, onActivate, onClose, shortcutScope]);
+    }, [activeId, allowUnfocusedShortcuts, items, onActivate, onClose, shortcutScope]);
 
     const handleDragMove = useCallback((e: PointerEvent) => {
         const currentDrag = dragRef.current;
         const tabs = tabsRef.current;
         if (!currentDrag || currentDrag.dropping || !tabs || e.pointerId !== currentDrag.pointerId) return;
+
+        if (!currentDrag.started && Math.abs(e.clientX - currentDrag.pointerStartX) < TAB_DRAG_THRESHOLD) return;
 
         e.preventDefault();
         const tabsRect = tabs.getBoundingClientRect();
@@ -134,20 +155,33 @@ export function TabStrip({
             tabs.scrollLeft += Math.max(1, Math.ceil((e.clientX - tabsRect.right + edgeSize) / 4));
         }
 
-        const rawPointerLeft = e.clientX + tabs.scrollLeft - currentDrag.pointerOffset;
-        const containerLeft = tabsRect.left + tabs.scrollLeft;
-        const containerRight = tabsRect.right + tabs.scrollLeft;
+        const rawPointerLeft = e.clientX - tabsRect.left + tabs.scrollLeft - currentDrag.pointerOffset;
+        const containerLeft = tabs.scrollLeft;
+        const containerRight = containerLeft + tabs.clientWidth;
+        const draggedWidth = currentDrag.slots[currentDrag.id].width;
         const minPointerLeft = containerLeft;
-        const maxPointerLeft = Math.max(minPointerLeft, containerRight - currentDrag.draggedWidth);
+        const maxPointerLeft = Math.max(minPointerLeft, containerRight - draggedWidth);
         const pointerLeft = Math.min(Math.max(rawPointerLeft, minPointerLeft), maxPointerLeft);
+        const atLeftEdge = tabs.scrollLeft <= 0.5 && pointerLeft <= minPointerLeft;
+        const atRightEdge = tabs.scrollLeft + tabs.clientWidth >= tabs.scrollWidth - 0.5 && pointerLeft >= maxPointerLeft;
         let order = currentDrag.order;
         let currentIndex = order.indexOf(currentDrag.id);
 
-        if (pointerLeft > currentDrag.pointerLeft) {
+        if (atLeftEdge) {
+            if (currentIndex > 0) {
+                order = [currentDrag.id, ...order.filter(id => id !== currentDrag.id)];
+                currentIndex = 0;
+            }
+        } else if (atRightEdge) {
+            if (currentIndex < order.length - 1) {
+                order = [...order.filter(id => id !== currentDrag.id), currentDrag.id];
+                currentIndex = order.length - 1;
+            }
+        } else if (pointerLeft > currentDrag.pointerLeft) {
             while (currentIndex < order.length - 1) {
                 const targetId = order[currentIndex + 1];
-                const targetSlot = currentDrag.slots[currentDrag.originalOrder.indexOf(targetId)];
-                if (pointerLeft + currentDrag.draggedWidth <= targetSlot.left + targetSlot.width / 2) break;
+                const targetSlot = slotsForOrder(currentDrag, order)[targetId];
+                if (pointerLeft + draggedWidth < targetSlot.left + targetSlot.width / 2) break;
 
                 order = [...order];
                 order.splice(currentIndex, 0, order.splice(currentIndex + 1, 1)[0]);
@@ -156,8 +190,8 @@ export function TabStrip({
         } else if (pointerLeft < currentDrag.pointerLeft) {
             while (currentIndex > 0) {
                 const targetId = order[currentIndex - 1];
-                const targetSlot = currentDrag.slots[currentDrag.originalOrder.indexOf(targetId)];
-                if (pointerLeft >= targetSlot.left + targetSlot.width / 2) break;
+                const targetSlot = slotsForOrder(currentDrag, order)[targetId];
+                if (pointerLeft > targetSlot.left + targetSlot.width / 2) break;
 
                 order = [...order];
                 order.splice(currentIndex - 1, 0, order.splice(currentIndex, 1)[0]);
@@ -165,97 +199,130 @@ export function TabStrip({
             }
         }
 
-        const nextDrag = {...currentDrag, order, pointerLeft};
+        const nextDrag = {...currentDrag, order, pointerLeft, started: true};
         dragRef.current = nextDrag;
         setDrag(nextDrag);
     }, []);
+
+    const clearDrag = useCallback(() => {
+        const currentDrag = dragRef.current;
+        const capturedTab = currentDrag ? tabRefs.current[currentDrag.id] : null;
+        if (currentDrag && capturedTab?.hasPointerCapture(currentDrag.pointerId)) {
+            capturedTab.releasePointerCapture(currentDrag.pointerId);
+        }
+        if (dropFrameRef.current !== null) window.cancelAnimationFrame(dropFrameRef.current);
+        if (dropTimerRef.current !== null) window.clearTimeout(dropTimerRef.current);
+        dropFrameRef.current = null;
+        dropTimerRef.current = null;
+        dragRef.current = null;
+        setDrag(null);
+    }, []);
+
+    useLayoutEffect(() => {
+        const currentDrag = dragRef.current;
+        if (currentDrag && (!sameOrder(itemIds, currentDrag.originalOrder) || !sameGeometry(currentDrag, tabRefs.current))) {
+            clearDrag();
+        }
+        if (hoveredClose && !itemIds.includes(hoveredClose)) setHoveredClose(null);
+    });
+
+    useLayoutEffect(() => {
+        const tabs = tabsRef.current;
+        if (!tabs || typeof ResizeObserver === "undefined") return;
+
+        const observer = new ResizeObserver(() => {
+            const currentDrag = dragRef.current;
+            if (currentDrag && !sameGeometry(currentDrag, tabRefs.current)) clearDrag();
+        });
+        observer.observe(tabs);
+        itemIds.forEach(id => {
+            const tab = tabRefs.current[id];
+            if (tab) observer.observe(tab);
+        });
+        return () => observer.disconnect();
+    }, [clearDrag, itemOrder]);
 
     const commitDrop = useCallback(() => {
         const currentDrag = dragRef.current;
         if (!currentDrag?.dropping) return;
 
-        if (dropFrameRef.current !== null) {
-            window.cancelAnimationFrame(dropFrameRef.current);
-            dropFrameRef.current = null;
+        clearDrag();
+        if (currentDrag.order.some((id, index) => id !== currentDrag.originalOrder[index])) {
+            onReorderRef.current(currentDrag.order);
         }
-
-        const reorderedIds = currentDrag.order;
-        dragRef.current = null;
-        setDrag(null);
-        onReorder(reorderedIds);
-    }, [onReorder]);
+    }, [clearDrag]);
 
     const finishDrag = useCallback((commit: boolean) => {
         const currentDrag = dragRef.current;
         if (!currentDrag || currentDrag.dropping) return;
 
-        if (!commit) {
-            dragRef.current = null;
-            setDrag(null);
+        if (!commit || !currentDrag.started) {
+            clearDrag();
             return;
         }
 
         const dropping = {...currentDrag, dropping: true};
         dragRef.current = dropping;
         setDrag(dropping);
-
         dropFrameRef.current = window.requestAnimationFrame(() => {
             const pendingDrag = dragRef.current;
             if (!pendingDrag?.dropping) return;
 
-            const destinationSlot = pendingDrag.slots[pendingDrag.order.indexOf(pendingDrag.id)];
-            if (Math.abs(pendingDrag.pointerLeft - destinationSlot.left) < 0.5) {
-                dropFrameRef.current = null;
+            dropFrameRef.current = null;
+            const destination = slotsForOrder(pendingDrag, pendingDrag.order)[pendingDrag.id];
+            if (Math.abs(pendingDrag.pointerLeft - destination.left) < 0.5) {
                 commitDrop();
                 return;
             }
 
-            const animatedDrop = {...pendingDrag, pointerLeft: destinationSlot.left};
+            const animatedDrop = {...pendingDrag, pointerLeft: destination.left};
             dragRef.current = animatedDrop;
             setDrag(animatedDrop);
-            dropFrameRef.current = null;
+            dropTimerRef.current = window.setTimeout(commitDrop, TAB_DROP_ANIMATION_MS + 50);
         });
-    }, [commitDrop]);
+    }, [clearDrag, commitDrop]);
 
-    useEffect(() => {
-        if (drag === null) return;
-
-        const handleDragEnd = (e: PointerEvent) => {
+    useLayoutEffect(() => {
+        const pointerUp = (e: PointerEvent) => {
             if (dragRef.current?.pointerId === e.pointerId) finishDrag(true);
         };
-        const handleDragCancel = (e: PointerEvent) => {
+        const pointerCancel = (e: PointerEvent) => {
             if (dragRef.current?.pointerId === e.pointerId) finishDrag(false);
         };
+        const cancel = () => finishDrag(false);
 
-        window.addEventListener("pointermove", handleDragMove);
-        window.addEventListener("pointerup", handleDragEnd);
-        window.addEventListener("pointercancel", handleDragCancel);
+        window.addEventListener("pointermove", handleDragMove, true);
+        window.addEventListener("pointerup", pointerUp, true);
+        window.addEventListener("pointercancel", pointerCancel, true);
+        window.addEventListener("blur", cancel);
         return () => {
-            window.removeEventListener("pointermove", handleDragMove);
-            window.removeEventListener("pointerup", handleDragEnd);
-            window.removeEventListener("pointercancel", handleDragCancel);
+            window.removeEventListener("pointermove", handleDragMove, true);
+            window.removeEventListener("pointerup", pointerUp, true);
+            window.removeEventListener("pointercancel", pointerCancel, true);
+            window.removeEventListener("blur", cancel);
+            if (dropFrameRef.current !== null) window.cancelAnimationFrame(dropFrameRef.current);
+            if (dropTimerRef.current !== null) window.clearTimeout(dropTimerRef.current);
         };
-    }, [drag !== null, finishDrag, handleDragMove]);
-
-    useEffect(() => () => {
-        if (dropFrameRef.current !== null) window.cancelAnimationFrame(dropFrameRef.current);
-    }, []);
+    }, [finishDrag, handleDragMove]);
 
     const beginDrag = useCallback((e: React.PointerEvent<HTMLDivElement>, id: string) => {
-        if (e.button !== 0 || (e.target as HTMLElement).closest(".tab-strip-close")) return;
+        if (e.button !== 0 || dragRef.current || (e.target as HTMLElement).closest(".tab-strip-close")) return;
 
         const tabs = tabsRef.current;
         const tab = tabRefs.current[id];
         if (!tabs || !tab) return;
 
         const originalOrder = items.map(item => item.id);
-        const tabIndex = originalOrder.indexOf(id);
-        if (tabIndex < 0 || originalOrder.some(tabId => !tabRefs.current[tabId])) return;
+        if (originalOrder.some(tabId => !tabRefs.current[tabId])) return;
 
-        const scrollLeft = tabs.scrollLeft;
-        const slots = originalOrder.map(tabId => {
-            const rect = tabRefs.current[tabId]!.getBoundingClientRect();
-            return {left: rect.left + scrollLeft, width: rect.width};
+        const tabsRect = tabs.getBoundingClientRect();
+        const slots: Record<string, TabSlot> = {};
+        const offsets: Record<string, number> = {};
+        originalOrder.forEach(tabId => {
+            const item = tabRefs.current[tabId]!;
+            const itemRect = item.getBoundingClientRect();
+            slots[tabId] = {left: itemRect.left - tabsRect.left + tabs.scrollLeft, width: itemRect.width};
+            offsets[tabId] = item.offsetLeft;
         });
         const rect = tab.getBoundingClientRect();
         const nextDrag: TabDragState = {
@@ -264,32 +331,27 @@ export function TabStrip({
             originalOrder,
             pointerId: e.pointerId,
             pointerOffset: e.clientX - rect.left,
-            pointerLeft: rect.left + scrollLeft,
+            pointerStartX: e.clientX,
+            pointerLeft: slots[id].left,
             slots,
-            draggedWidth: slots[tabIndex].width,
+            offsets,
+            started: false,
             dropping: false,
         };
 
         dragRef.current = nextDrag;
-        setDrag(nextDrag);
         e.currentTarget.setPointerCapture(e.pointerId);
     }, [items]);
 
-    const dragStyle = useCallback((id: string): React.CSSProperties | undefined => {
-        if (!drag) return undefined;
+    const destinationSlots = drag ? slotsForOrder(drag, drag.order) : null;
 
-        const baseSlot = drag.slots[drag.originalOrder.indexOf(id)];
-        const destinationSlot = drag.slots[drag.order.indexOf(id)];
-        if (!baseSlot || !destinationSlot) return undefined;
-
-        const left = id === drag.id ? drag.pointerLeft : destinationSlot.left;
-        return {transform: `translateX(${left - baseSlot.left}px)`};
-    }, [drag]);
-
-    return <div className={`${TabStripClass} ${className ?? ""}`} ref={tabsRef} role="tablist" data-reordering={drag !== null}>
+    return <div className={`${TabStripClass} ${className ?? ""}`} ref={tabsRef} role="tablist" data-reordering={drag !== null} data-slim={slim.toString()} data-auto-size={autoSize.toString()}>
         {items.map(item => {
             const isActive = item.id === activeId;
             const closeIcon = hoveredClose === item.id ? item.closeIconOnHover ?? item.closeIcon ?? "close" : item.closeIcon ?? "close";
+            const baseSlot = drag?.slots[item.id];
+            const destinationSlot = destinationSlots?.[item.id];
+            const left = item.id === drag?.id ? drag.pointerLeft : destinationSlot?.left;
             return <div
                 key={item.id}
                 ref={node => {
@@ -302,7 +364,7 @@ export function TabStrip({
                 data-active={isActive}
                 data-dragging={drag?.id === item.id}
                 data-dropping={drag?.dropping && drag.id === item.id}
-                style={dragStyle(item.id)}
+                style={baseSlot && left !== undefined ? {transform: `translateX(${left - baseSlot.left}px)`} : undefined}
                 onPointerDown={e => beginDrag(e, item.id)}
                 onMouseDown={e => {
                     if (e.button === 1 && !(e.target as HTMLElement).closest(".tab-strip-close")) {
@@ -311,7 +373,7 @@ export function TabStrip({
                     }
                 }}
                 onTransitionEnd={e => {
-                    if (e.propertyName === "transform" && drag?.dropping && drag.id === item.id) commitDrop();
+                    if (e.target === e.currentTarget && e.propertyName === "transform" && drag?.dropping && drag.id === item.id) commitDrop();
                 }}
                 onClick={() => onActivate(item.id)}
                 onKeyDown={e => {
@@ -329,7 +391,7 @@ export function TabStrip({
             >
                 {item.icon ? <span className="tab-strip-icon">{item.icon}</span> : null}
                 <TabStripTitle title={item.title} tooltip={item.tooltip} />
-                <TooltipV2 tooltip={item.closeTooltip} side="top" contentWidth={150} triggerClassName={CloseTooltipTrigger}>
+                <TooltipV2 tooltip={item.closeTooltip} side="top" contentWidth={150} triggerClassName={`${CloseTooltipTrigger} tab-strip-close-tooltip`}>
                     <button
                         type="button"
                         className="tab-strip-close"
@@ -347,6 +409,32 @@ export function TabStrip({
             </div>;
         })}
     </div>;
+}
+
+function slotsForOrder(drag: TabDragState, order: string[]): Record<string, TabSlot> {
+    const slots: Record<string, TabSlot> = {};
+    let left = drag.slots[drag.originalOrder[0]]?.left ?? 0;
+
+    for (const id of order) {
+        const width = drag.slots[id]?.width ?? 0;
+        slots[id] = {left, width};
+        left += width + TAB_GAP;
+    }
+
+    return slots;
+}
+
+function sameOrder(first: string[], second: string[]): boolean {
+    return first.length === second.length && first.every((id, index) => id === second[index]);
+}
+
+function sameGeometry(drag: TabDragState, refs: Record<string, HTMLDivElement | null>): boolean {
+    return drag.originalOrder.every(id => {
+        const tab = refs[id];
+        if (!tab) return false;
+
+        return tab.offsetLeft === drag.offsets[id] && Math.abs(tab.getBoundingClientRect().width - drag.slots[id].width) < 0.5;
+    });
 }
 
 function TabStripTitle({title, tooltip}: {title: React.ReactNode; tooltip?: React.ReactNode}): React.ReactNode {
@@ -370,7 +458,7 @@ function TabStripTitle({title, tooltip}: {title: React.ReactNode; tooltip?: Reac
     }, [title, updateOverflow]);
 
     return <div className={TabTitleSlot}>
-        <TooltipV2 tooltip={isOverflowing ? tooltip : undefined} side="top" triggerClassName={TitleTooltipTrigger}>
+        <TooltipV2 tooltip={tooltip} disabled={!isOverflowing} side="top" triggerClassName={TitleTooltipTrigger}>
             <div ref={titleRef} className={TabTitleClass}>{title}</div>
         </TooltipV2>
     </div>;
@@ -383,7 +471,7 @@ const TabStripClass = injectStyle("tab-strip", k => `
         display: flex;
         align-items: stretch;
         justify-content: flex-start;
-        gap: 8px;
+        gap: ${TAB_GAP}px;
         flex: 1 1 0;
         width: 0;
         overflow-x: auto;
@@ -417,6 +505,27 @@ const TabStripClass = injectStyle("tab-strip", k => `
         transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
     }
 
+    ${k}[data-slim="true"] .tab-strip-item {
+        min-width: 160px;
+        flex-basis: 160px;
+        height: 24px;
+        padding: 0 7px;
+        gap: 4px;
+        border-radius: 5px;
+        font-size: 12px;
+    }
+
+    ${k}[data-auto-size="false"] .tab-strip-item {
+        flex-grow: 0;
+    }
+
+    ${k}[data-auto-size="false"][data-slim="true"] .tab-strip-item {
+        min-width: 0;
+        width: fit-content;
+        max-width: 160px;
+        flex: 0 1 auto;
+    }
+
     ${k}[data-reordering="true"] .tab-strip-item {
         transition: transform ${TAB_DROP_ANIMATION_MS}ms ease, background-color 120ms ease, border-color 120ms ease, color 120ms ease;
     }
@@ -445,6 +554,10 @@ const TabStripClass = injectStyle("tab-strip", k => `
         background: var(--rowActive);
         border-color: var(--primaryMain);
         color: var(--textPrimary);
+    }
+
+    html.dark ${k} .tab-strip-item[data-active="true"] {
+        background: #233558;
     }
 
     ${k} .tab-strip-item:focus-visible,
@@ -477,8 +590,17 @@ const TabStripClass = injectStyle("tab-strip", k => `
         transition: background-color 120ms ease, color 120ms ease;
     }
 
+    ${k}[data-slim="true"] .tab-strip-close {
+        width: 14px;
+        height: 14px;
+    }
+
+    ${k}[data-slim="true"] .tab-strip-close-tooltip {
+        margin-left: 2px;
+    }
+
     ${k} .tab-strip-close:hover {
-        background: var(--rowHover);
+        background: var(--borderColorHover);
         color: var(--textPrimary);
     }
 

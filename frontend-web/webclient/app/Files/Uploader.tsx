@@ -741,7 +741,7 @@ const Uploader: React.FunctionComponent = () => {
         e.stopImmediatePropagation();
         e.stopPropagation();
         e.preventDefault();
-        const {path, content} = e.detail;
+        const {path, content, notifyBackgroundTask} = e.detail;
         const allUploads: Upload[] = uploads;
         let didFetch = false;
         const packaged = toPackagedFile(path, content);
@@ -754,6 +754,7 @@ const Uploader: React.FunctionComponent = () => {
             filesDiscovered: 0,
             state: UploadState.PENDING,
             conflictPolicy: "REPLACE",
+            notifyBackgroundTask,
             targetPath: getParentPath(path),
             fileFetcher: async () => {
                 if (didFetch) return null;

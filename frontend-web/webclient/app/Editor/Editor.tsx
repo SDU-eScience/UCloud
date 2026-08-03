@@ -5,13 +5,12 @@ import {editor} from "monaco-editor";
 import {Uri} from "monaco-editor";
 import {AsyncCache} from "@/Utilities/AsyncCache";
 import {injectStyle} from "@/Unstyled";
-import {Box, Flex, FtIcon, Icon, Image, Markdown, Select, Text, Input, Label, Button} from "@/ui-components";
+import {Box, Flex, FtIcon, Image, Select, Text, Input, Label, Button} from "@/ui-components";
 import {fileName, pathComponents} from "@/Utilities/FileUtilities";
 import {capitalized, copyToClipboard, createKeyboardShortcut, errorMessageOrDefault, extensionFromPath, extensionType, getLanguageList, languageFromExtension, populateLanguages} from "@/UtilityFunctions";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
-import {TooltipV2} from "@/ui-components/Tooltip";
 import {usePrettyFilePath} from "@/Files/FilePath";
-import {Operation, Operations, ShortcutKey} from "@/ui-components/Operation";
+import {Operation, Operations} from "@/ui-components/Operation";
 import IStandaloneCodeEditor = editor.IStandaloneCodeEditor;
 import EditorOption = editor.EditorOption;
 import {EditorSidebarNode, FileTree, VirtualFile} from "@/Files/FileTree";
@@ -21,7 +20,7 @@ import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {useBeforeUnload} from "react-router-dom";
 import {RichSelect, RichSelectChildComponent} from "@/ui-components/RichSelect";
 import {initVimMode, VimMode} from "monaco-vim";
-import {addStandardDialog} from "@/UtilityComponents";
+import {addStandardDialog, addStandardInputDialog} from "@/UtilityComponents";
 import {FileWriteFailure, WriteFailureEvent} from "@/Files/Uploader";
 import ITextModel = editor.ITextModel;
 import EndOfLineSequence = editor.EndOfLineSequence;
@@ -337,9 +336,10 @@ const EditorClass = injectStyle("editor", k => `
         height: 100%;
         min-height: 0;
         box-sizing: border-box;
-        padding-bottom: 36px;
+        padding: 8px 8px 44px;
+        gap: 8px;
         overflow: hidden;
-        --borderThickness: 2px;
+        background: var(--backgroundCard);
     }
     
     ${k} > .main-content {
@@ -350,16 +350,19 @@ const EditorClass = injectStyle("editor", k => `
         height: 100%;
         min-height: 0;
         min-width: 600px;
+        overflow: hidden;
+        border: 1px solid var(--borderColor);
+        border-radius: 8px;
+        background: var(--backgroundDefault);
     }
     
     ${k} .title-bar-code,
     ${k} .title-bar {
         display: flex;
         align-items: center;
-        height: 50px;
+        height: 36px;
         width: 100%;
         flex-shrink: 0;
-        border-bottom: var(--borderThickness) solid var(--borderColor);
     }
     
     ${k} .panels {
@@ -368,6 +371,7 @@ const EditorClass = injectStyle("editor", k => `
         width: 100%;
         height: auto;
         min-height: 0;
+        margin-top: 10px;
         overflow-y: auto;
     }
     
@@ -376,6 +380,41 @@ const EditorClass = injectStyle("editor", k => `
         height: 100%;
     }
 `);
+
+const EditorLoadingSidebar = injectStyle("editor-loading-sidebar", k => `
+    ${k} {
+        width: 250px;
+        max-width: 250px;
+        height: 100%;
+        flex: 0 0 250px;
+        box-sizing: border-box;
+        border: 1px solid var(--borderColor);
+        border-radius: 8px;
+        background: var(--backgroundDefault);
+    }
+`);
+
+const EditorLoadingContent = injectStyle("editor-loading-content", k => `
+    ${k} {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+    }
+`);
+
+export function EditorLoadingState({children}: React.PropsWithChildren): React.ReactNode {
+    return <div className={EditorClass}>
+        <div className={EditorLoadingSidebar} />
+        <div className="main-content">
+            <div className="title-bar-code" style={{boxSizing: "border-box", minWidth: "400px", padding: "0 8px", width: "100%"}} />
+            <div className="panels">
+                <div className={EditorLoadingContent}>{children}</div>
+            </div>
+        </div>
+    </div>;
+}
 
 type EditorEngine =
     | "monaco";
@@ -390,12 +429,9 @@ export interface EditorApi {
 }
 
 const SETTINGS_PATH = "xXx__/SETTINGS\\__xXx";
-const RELEASE_NOTES_PATH = "xXx__/RELEASE_NOTES\\__xXx";
 
-const SPECIAL_PATHS = [SETTINGS_PATH, RELEASE_NOTES_PATH, "", "/"];
+const SPECIAL_PATHS = [SETTINGS_PATH, "", "/"];
 
-const CURRENT_EDITOR_VERSION = "0.1";
-const EDITOR_VERSION_STORAGE_KEY = "editor-version";
 export const Editor: React.FunctionComponent<{
     vfs: Vfs;
     title: string;
@@ -430,7 +466,6 @@ export const Editor: React.FunctionComponent<{
     const currentTheme = useSelector((red: ReduxObject) => red.sidebar.theme);
     const monacoInstance = useMonaco(engine === "monaco");
     const [editor, setEditor] = useState<IStandaloneCodeEditor | null>(null);
-    const [cursorPosition, setCursorPosition] = useState({line: 1, column: 1});
     const [readOnlyMode, setReadOnlyMode] = useState(props.readOnly === true);
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const monacoRef = useRef<any>(null);
@@ -446,8 +481,6 @@ export const Editor: React.FunctionComponent<{
     if (!props.isModal) {
         if (state.currentPath === SETTINGS_PATH) {
             usePage("Settings", SidebarTabId.FILES);
-        } else if (state.currentPath === RELEASE_NOTES_PATH) {
-            usePage("Release notes", SidebarTabId.FILES);
         } else if (state.currentPath === "") {
             usePage("Preview", SidebarTabId.FILES);
         } else {
@@ -504,13 +537,10 @@ export const Editor: React.FunctionComponent<{
         return;
     }, []);
 
-    const {showReleaseNoteIcon, onShowReleaseNotesShown} = useShowReleaseNoteIcon();
-
     const [operations, setOperations] = useState<Operation<any, null | undefined>[]>([]);
     const anyTabOpen = tabs.open.length > 0;
     const isSettingsOpen = state.currentPath === SETTINGS_PATH && anyTabOpen;
-    const isReleaseNotesOpen = state.currentPath === RELEASE_NOTES_PATH && anyTabOpen;
-    const settingsOrReleaseNotesOpen = isSettingsOpen || isReleaseNotesOpen;
+    const specialPageOpen = isSettingsOpen;
 
     // NOTE(Dan): This code is quite ref heavy given that the components we are controlling are very much the
     // opposite of reactive. There isn't much we can do about this.
@@ -864,20 +894,6 @@ export const Editor: React.FunctionComponent<{
         }
     }, [monacoInstance]);
 
-    useEffect(() => {
-        if (!editor) return;
-
-        const updateCursorPosition = () => {
-            const position = editor.getPosition();
-            if (!position) return;
-            setCursorPosition({line: position.lineNumber, column: position.column});
-        };
-
-        updateCursorPosition();
-        const listener = editor.onDidChangeCursorPosition(updateCursorPosition);
-        return () => listener.dispose();
-    }, [editor, state.currentPath]);
-
     React.useEffect(() => {
         if (!vimMode) {
             setVimEditorMode(null);
@@ -925,6 +941,23 @@ export const Editor: React.FunctionComponent<{
             }
         })
     }, []);
+
+    const toggleReadOnlyMode = React.useCallback(() => {
+        const currentEditor = editorRef.current;
+        if (!currentEditor) return;
+
+        if (readOnlyMode) {
+            if (props.readOnly) {
+                allowEditDialog(currentEditor, () => setReadOnlyMode(false));
+            } else {
+                currentEditor.updateOptions({readOnly: false});
+                setReadOnlyMode(false);
+            }
+        } else {
+            currentEditor.updateOptions({readOnly: true});
+            setReadOnlyMode(true);
+        }
+    }, [props.readOnly, readOnlyMode]);
 
     useEffect(() => {
         const theme = currentTheme === "light" ? "light" : "ucloud-dark";
@@ -1002,19 +1035,6 @@ export const Editor: React.FunctionComponent<{
             })
             dispatch({type: "EditorActionOpenFile", path: SETTINGS_PATH})
         });
-    }, []);
-
-    const toggleReleaseNotes = useCallback(() => {
-        saveBufferIfNeeded().then(() => {
-            setTabs(tabs => {
-                if (tabs.open.includes(RELEASE_NOTES_PATH)) {
-                    return tabs;
-                } else return {open: [...tabs.open, RELEASE_NOTES_PATH], closed: tabs.closed};
-            })
-            dispatch({type: "EditorActionOpenFile", path: RELEASE_NOTES_PATH})
-        });
-
-        onShowReleaseNotesShown();
     }, []);
 
     const openTab = React.useCallback(async (path: string) => {
@@ -1201,7 +1221,7 @@ export const Editor: React.FunctionComponent<{
     const showEditorHelp = tabs.open.length === 0;
 
     const isMarkdown = extensionType(extensionFromPath(state.currentPath)) === "markdown";
-    const toolbarBeforeSettings = (tabs.open.length === 0 || isReleaseNotesOpen || isSettingsOpen || props.showCustomContent) && !isMarkdown ? null : props.toolbarBeforeSettings;
+    const toolbarBeforeSettings = (tabs.open.length === 0 || isSettingsOpen || props.showCustomContent) && !isMarkdown ? null : props.toolbarBeforeSettings;
 
     return <div ref={editorRoot} className={EditorClass} onKeyDown={onKeyDown}>
         <FileTree
@@ -1229,24 +1249,29 @@ export const Editor: React.FunctionComponent<{
                     <TabStrip
                         items={tabs.open.map(path => {
                             const isSettings = path === SETTINGS_PATH;
-                            const isReleaseNotes = path === RELEASE_NOTES_PATH;
                             const isDirty = dirtyFiles.has(path) && props.vfs.isReal();
                             return {
                                 id: path,
                                 title: <EditorTabLabel path={path} />,
                                 tooltip: <EditorTabLabel path={path} fullPath />,
-                                icon: isSettings || isReleaseNotes ? undefined : <FullpathFileLanguageIcon filePath={path} />,
+                                icon: isSettings ? undefined : <FullpathFileLanguageIcon filePath={path} size="14px" />,
                                 closeIcon: isDirty ? "circle" as const : "close" as const,
                                 closeIconOnHover: "close" as const,
                                 closeLabel: `Close ${fileName(path)}`,
                             };
                         })}
                         activeId={state.currentPath}
+                        slim
+                        autoSize={false}
                         shortcutScope={editorRoot}
+                        allowUnfocusedShortcuts
                         onActivate={path => openTab(path)}
                         onClose={path => doClose(path, tabs.open.indexOf(path))}
                         onContextMenu={(path, position) => openTabOperations(path, position)}
-                        onReorder={open => setTabs(tabs => ({...tabs, open}))}
+                        onReorder={open => setTabs(tabs => {
+                            if (open.length !== tabs.open.length || open.some(path => !tabs.open.includes(path))) return tabs;
+                            return {...tabs, open};
+                        })}
                     />
                     <Operations
                         entityNameSingular={""}
@@ -1270,11 +1295,10 @@ export const Editor: React.FunctionComponent<{
                     <Flex gap={"32px"} maxHeight="100%" flexDirection={"column"} margin={64} width={"100%"} height={"100%"}>
                         <MonacoEditorSettings editor={editor} setVimMode={setVimMode} onReadOnlyChange={setReadOnlyMode} />
                     </Flex> : null}
-                {isReleaseNotesOpen ? <Box p="18px" maxHeight="calc(100% - 64px)"><Markdown children={EditorReleaseNotes} /></Box> : null}
                 <>
                     {showEditorHelp ? help : null}
                     <div style={{
-                        display: props.showCustomContent || showEditorHelp || settingsOrReleaseNotesOpen ? "none" : "block",
+                        display: props.showCustomContent || showEditorHelp || specialPageOpen ? "none" : "block",
                         width: "100%",
                         height: "100%",
                     }}>
@@ -1282,7 +1306,7 @@ export const Editor: React.FunctionComponent<{
                     </div>
 
                     <div style={{
-                        display: !settingsOrReleaseNotesOpen && props.showCustomContent && tabs.open.length > 0 ? "block" : "none",
+                        display: !specialPageOpen && props.showCustomContent && tabs.open.length > 0 ? "block" : "none",
                         width: "100%",
                         height: "100%",
                         maxHeight: "100%",
@@ -1293,13 +1317,13 @@ export const Editor: React.FunctionComponent<{
             </div>
             <div className={StatusBarWrapper}>
                 <div className={StatusBar}>
-                    <IconButton compact tooltip={`Toggle sidebar (${createKeyboardShortcut("1", ["ctrl", "alt"])})`} onClick={() => setSidebarOpen(open => !open)} icon="sidebar" color="fixedWhite" hoverColor="primaryLight" noDefaultFill />
+                    <IconButton tooltip={`Toggle sidebar (${createKeyboardShortcut("1", ["ctrl", "alt"])})`} onClick={() => setSidebarOpen(open => !open)} icon="sidebar" color="textPrimary" noDefaultFill />
                     <div ref={vimCommandBar} className={VimCommandBar} />
-                    <Flex alignItems="center" gap="8px" ml="auto">
-                        {tabs.open.length === 0 || settingsOrReleaseNotesOpen || props.customContent ? null : <>
+                    <Flex alignItems="center" gap="18px" ml="auto">
+                        {tabs.open.length === 0 || specialPageOpen || props.customContent ? null : <>
                             {vimMode ? <span className={StatusModeBadge}>{vimEditorMode ?? "NORMAL"}</span> : null}
-                            <span className={StatusPosition}>{cursorPosition.line}:{cursorPosition.column}</span>
-                            <Box className={HoverHighlight} width={"fit-content"}>
+                            <EditorCursorPosition editor={editor} currentPath={state.currentPath} />
+                            <Box className={SyntaxSelector} width={"fit-content"}>
                                 <RichSelect
                                     key={activeSyntax}
                                     items={languageList}
@@ -1311,15 +1335,17 @@ export const Editor: React.FunctionComponent<{
                                     onSelect={setModelLanguage}
                                 />
                             </Box>
-                            <span className={StatusModeBadge} data-readonly={readOnlyMode}>
-                                <Icon name={readOnlyMode ? "heroLockClosed" : "heroLockOpen"} color="fixedWhite" size={14} />
-                                    {readOnlyMode ? "Read-only" : "Read-write"}
-                            </span>
+                            <IconButton
+
+                                tooltip={readOnlyMode ? "Enable editing" : "Disable editing"}
+                                onClick={toggleReadOnlyMode}
+                                icon={readOnlyMode ? "heroLockClosed" : "heroLockOpen"}
+                                color={readOnlyMode ? "warningMain" : "textPrimary"}
+                            />
                         </>}
                         <Flex className={StatusIconGroup} alignItems="center">
                             {props.statusBar}
-                            {showReleaseNoteIcon ? <IconButton compact tooltip="See release notes" onClick={toggleReleaseNotes} icon="heroGift" color="fixedWhite" hoverColor="primaryLight" /> : null}
-                            <IconButton compact tooltip="Settings" onClick={toggleSettings} icon="heroCog6Tooth" color="fixedWhite" hoverColor="primaryLight" />
+                            <IconButton tooltip="Settings" onClick={toggleSettings} icon="heroCog6Tooth" color="textPrimary" />
                         </Flex>
 
                     </Flex>
@@ -1329,11 +1355,19 @@ export const Editor: React.FunctionComponent<{
     </div>;
 };
 
-const HoverHighlight = injectStyle("hover-highlight", k => `
-    ${k}:hover {
-        background-color: var(--primaryLight);
+const SyntaxSelector = injectStyle("editor-syntax-selector", k => `
+    ${k} {
+        display: inline-flex;
+        align-items: center;
+        height: 24px;
+        border-radius: 999px;
+        overflow: hidden;
     }
-        `);
+
+    ${k}:hover {
+        background: var(--rowActive);
+    }
+`);
 
 const HeaderActions = injectStyle("editor-header-actions", k => `
     ${k} {
@@ -1505,12 +1539,8 @@ const SyntaxSelectorKeys = ["language" as const];
 
 function EditorTabLabel({path, fullPath = false}: {path: string; fullPath?: boolean}): React.ReactNode {
     const isSettings = path === SETTINGS_PATH;
-    const isReleaseNotes = path === RELEASE_NOTES_PATH;
     const resolvedPath = usePrettyFilePath(path);
-    const prettyFullPath =
-        isSettings ? "Settings" :
-            isReleaseNotes ? "Release notes" :
-                resolvedPath;
+    const prettyFullPath = isSettings ? "Settings" : resolvedPath;
 
     if (fullPath) return prettyFullPath;
     if (isSettings) return "Editor settings";
@@ -1521,7 +1551,7 @@ const StatusBar = injectStyle("status-bar", k => `
     ${k} {
         display: flex;
         align-items: center;
-        gap: 16px;
+        gap: 24px;
         width: 100%;
         height: 100%;
     }
@@ -1529,7 +1559,7 @@ const StatusBar = injectStyle("status-bar", k => `
     ${k} input {
         background: transparent;
         border: none;
-        color: white;
+        color: var(--textPrimary);
     }
 `);
 
@@ -1537,23 +1567,23 @@ const StatusIconGroup = injectStyle("editor-status-icon-group", k => `
     ${k} {
         display: flex;
         align-items: center;
-        gap: 0;
+        gap: 8px;
     }
 `);
 
 const StatusBarWrapper = injectStyle("status-bar-wrapper", k => `
     ${k} {
         position: fixed;
-        bottom: var(--termsize, 0px);
+        bottom: calc(var(--termsize, 0px) + 4px);
         left: var(${CSSVarCurrentSidebarStickyWidth});
         z-index: 9;
         box-sizing: border-box;
         display: flex;
         width: calc(100vw - var(${CSSVarCurrentSidebarStickyWidth}));
         height: 36px;
-        background-color: var(--primaryMain);
-        color: white;
-        padding: 2px 8px;
+        background-color: transparent;
+        color: var(--textPrimary);
+        padding: 1px 8px;
     }
 
     ${k} input {
@@ -1565,7 +1595,7 @@ const StatusBarWrapper = injectStyle("status-bar-wrapper", k => `
 const VimCommandBar = injectStyle("vim-command-bar", k => `
     ${k} {
         min-width: 0;
-        color: white;
+        color: var(--textPrimary);
         font-size: 12px;
         white-space: nowrap;
     }
@@ -1591,26 +1621,130 @@ const StatusModeBadge = injectStyle("editor-status-mode-badge", k => `
         height: 24px;
         padding: 0 8px;
         border-radius: 999px;
-        background: color-mix(in srgb, white 18%, transparent);
+        background: color-mix(in srgb, var(--textPrimary) 12%, transparent);
         font-size: 12px;
         line-height: 1;
         white-space: nowrap;
     }
 
-    ${k}[data-readonly="true"] {
-        background: color-mix(in srgb, var(--warningMain) 70%, transparent);
-    }
 `);
 
 const StatusPosition = injectStyle("editor-status-position", k => `
     ${k} {
+        display: inline-flex;
+        align-items: center;
+        height: 24px;
+        padding: 0 4px;
+        border: 0;
+        border-radius: 4px;
+        background: transparent;
+        color: inherit;
+        cursor: pointer;
+        font: inherit;
         font-family: var(--monospace, monospace);
         font-size: 12px;
         white-space: nowrap;
     }
+
+    ${k}:hover {
+        background: var(--rowActive);
+    }
+
+    ${k}:focus-visible {
+        outline: 2px solid var(--primaryMain);
+        outline-offset: 1px;
+    }
 `);
 
+function EditorCursorPosition({editor, currentPath}: {editor: IStandaloneCodeEditor | null; currentPath: string}): React.ReactNode {
+    const [position, setPosition] = useState({line: 1, column: 1});
+
+    useEffect(() => {
+        if (!editor) return;
+
+        const updatePosition = () => {
+            const nextPosition = editor.getPosition();
+            if (!nextPosition) return;
+            setPosition({line: nextPosition.lineNumber, column: nextPosition.column});
+        };
+
+        updatePosition();
+        const listener = editor.onDidChangeCursorPosition(updatePosition);
+        return () => listener.dispose();
+    }, [editor, currentPath]);
+
+    const openPositionDialog = () => {
+        const model = editor?.getModel();
+        if (!editor || !model) return;
+
+        void addStandardInputDialog({
+            title: "Go to line and column",
+            help: <Text>Enter a line or a position in the format <code>line:column</code>.</Text>,
+            placeholder: `${position.line}:${position.column}`,
+            confirmText: "Go",
+            validationFailureMessage: "Enter a valid line and column.",
+            validator: value => parseEditorPosition(value) !== null,
+        }).then(({result}) => {
+            const nextPosition = parseEditorPosition(result);
+            if (!nextPosition) return;
+
+            if (nextPosition.lineNumber > model.getLineCount()) nextPosition.lineNumber = model.getLineCount();
+            if (nextPosition.column > model.getLineMaxColumn(nextPosition.lineNumber)) nextPosition.column = model.getLineMaxColumn(nextPosition.lineNumber);
+            editor.setPosition(nextPosition);
+            editor.revealPositionInCenter(nextPosition);
+            editor.focus();
+        }).catch(() => undefined);
+    };
+
+    return <button
+        type="button"
+        className={StatusPosition}
+        onClick={openPositionDialog}
+        aria-label={`Go to line ${position.line}, column ${position.column}`}
+    >{position.line}:{position.column}</button>;
+}
+
+function parseEditorPosition(value: string): {lineNumber: number; column: number} | null {
+    const match = /^(\d+)(?:\s*:\s*(\d+))?$/.exec(value.trim());
+    if (!match) return null;
+
+    const lineNumber = Number(match[1]);
+    const column = match[2] === undefined ? 1 : Number(match[2]);
+    if (!Number.isSafeInteger(lineNumber) || !Number.isSafeInteger(column) || lineNumber < 1 || column < 1) return null;
+    return {lineNumber, column};
+}
+
 const fallbackIcon = toIconPath("default");
+const monochromeFileIconLanguages = new Set([
+    "c",
+    "clojure",
+    "d",
+    "dart",
+    "default",
+    "haskell",
+    "haxe",
+    "jinja2",
+    "liquid",
+    "lua",
+    "notebook",
+    "ocaml",
+    "odata",
+    "perl",
+    "prolog",
+    "pug",
+    "rust",
+    "scala",
+    "swift",
+    "tex",
+    "webpack",
+]);
+
+const DarkModeMonochromeFileIcon = injectStyle("dark-mode-monochrome-file-icon", k => `
+    html.dark ${k} {
+        filter: brightness(0) invert(1);
+    }
+`);
+
 const LanguageItem: RichSelectChildComponent<{language: string; displayName: string}> = props => {
     const language = props.element?.language;
     if (!language) return null;
@@ -1625,28 +1759,29 @@ export function FullpathFileLanguageIcon({filePath, size}: {filePath: string; si
 }
 
 function FileLanguageIcon({language, ext, size = "18px", m = "2px 8px 0px 8px"}: {ext?: string; language: string; size?: string; m?: string;}): React.ReactNode {
-    const [iconPath, setIconPath] = useState(toIconPath(language ?? ""));
     const [didError, setError] = useState(false);
+    const [iconPath, setIconPath] = useState(toIconPath(language ?? ""));
 
     React.useEffect(() => {
-        if (language) {
-            setIconPath(toIconPath(language));
-        }
+        setError(false);
+        setIconPath(toIconPath(language));
     }, [language]);
 
+    const isMonochrome = monochromeFileIconLanguages.has(language) || iconPath === fallbackIcon;
+    const className = isMonochrome ? DarkModeMonochromeFileIcon : undefined;
+
     if (didError && ext) {
-        return <FtIcon fileIcon={{type: "FILE", ext}} size={"18px"} />
+        return <FtIcon fileIcon={{type: "FILE", ext}} size={size} />
     }
 
     return <Image
+        className={className}
         m={m}
-        background={"var(--successContrast)"}
-        borderRadius={"4px"}
         height={size}
         width={size}
         onError={() => {
             setError(true);
-            setIconPath(fallbackIcon)
+            setIconPath(fallbackIcon);
         }}
         alt={"Icon for " + language}
         src={iconPath}
@@ -1952,30 +2087,6 @@ function setAllowEditing(doAllow: string) {
     localStorage.setItem(ALLOW_EDITING_KEY, doAllow);
 }
 
-function useShowReleaseNoteIcon() {
-    const [showReleaseNoteIcon, setShowReleaseNotePrompt] = useState(false);
-
-    /*
-    React.useEffect(() => {
-        const lastUsedEditorVersion = localStorage.getItem(EDITOR_VERSION_STORAGE_KEY)
-        if (!localStorage.getItem(EDITOR_VERSION_STORAGE_KEY)) {
-            localStorage.setItem(EDITOR_VERSION_STORAGE_KEY, CURRENT_EDITOR_VERSION);
-        }
-
-        if (CURRENT_EDITOR_VERSION !== lastUsedEditorVersion) {
-            setShowReleaseNotePrompt(true);
-        }
-    }, []);
-     */
-
-    const onShowReleaseNotesShown = React.useCallback(() => {
-        localStorage.setItem(EDITOR_VERSION_STORAGE_KEY, CURRENT_EDITOR_VERSION);
-        setShowReleaseNotePrompt(false);
-    }, []);
-
-    return {showReleaseNoteIcon, onShowReleaseNotesShown};
-}
-
 function setReadonlyWarning(editor: IStandaloneCodeEditor, onReadOnlyChange?: () => void) {
     editor.onDidAttemptReadOnlyEdit(e => {
         allowEditDialog(editor, onReadOnlyChange);
@@ -2015,10 +2126,3 @@ function virtualFileSort(a: VirtualFile, b: VirtualFile): number {
 }
 
 type RevertSaveFunction = () => void;
-
-const EditorReleaseNotes = `
-# Preview editor
-
-## 1.0 initial release
-
-    `;

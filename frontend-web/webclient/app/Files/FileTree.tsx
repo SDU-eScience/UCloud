@@ -116,13 +116,12 @@ export function FileTree({tree, onFileActivated, onDirectoryPrefetch, root, ...p
     }, [props.onRename, props.renamingFile, treeWidth]);
 
     return <div ref={treeRef} onContextMenu={e => onContextMenu(e, undefined)} style={style} className={FileTreeClass}>
-        <Flex alignItems={"center"} pl="6px" className="title-bar" gap={"8px"}>
-            <FtIcon fileIcon={{type: "DIRECTORY", ext: extensionFromPath(props.initialFolder)}} size={"18px"} />
+        <Flex alignItems={"center"} px="8px" className="title-bar" gap={"8px"}>
+            <Icon size={"18px"} name={"heroFolder"} color={"FtFolderColor"} />
             <Box minWidth={0} flexGrow={1}><Truncate width="100%" title={prettyInitialFolderPath}>{fileName(prettyInitialFolderPath)}</Truncate></Box>
             {props.fileHeaderOperations ? (
                 <>
                     {props.fileHeaderOperations}
-                    <Box mr="8px" />
                 </>
             ) : null}
         </Flex>
@@ -288,7 +287,9 @@ const FileTreeClass = injectStyle("file-tree", k => `
         flex-direction: column;
         flex-shrink: 0;
         overflow: hidden;
-        border-right: var(--borderThickness) solid var(--borderColor);
+        border: 1px solid var(--borderColor);
+        border-radius: 8px;
+        background: var(--backgroundDefault);
     }
 
     ${k} > .tree-content {
@@ -308,23 +309,7 @@ const FileTreeClass = injectStyle("file-tree", k => `
         z-index: 1;
     }
 
-    ${k} .tree-resizer::before {
-        content: "";
-        position: absolute;
-        top: 0;
-        bottom: 0;
-        left: 3px;
-        width: 2px;
-        background: transparent;
-    }
-
-    ${k} .tree-resizer:hover::before,
-    ${k} .tree-resizer:active::before {
-        background: var(--primaryMain);
-    }
-
     ${k} > .tree-header {
         flex: none;
-        border-bottom: var(--borderThickness) solid var(--borderColor);
     }
 `);

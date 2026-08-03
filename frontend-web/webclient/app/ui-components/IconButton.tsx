@@ -17,11 +17,7 @@ const style = injectStyle("vm-icon-button", k => `
         justify-content: center;
         cursor: pointer;
         transition: background-color 120ms ease, opacity 120ms ease;
-        --icon-button-hover: var(--secondaryMain);
-    }
-    
-    html.dark ${k} {
-        --icon-button-hover: #30343a;
+        --icon-button-hover: var(--rowActive);
     }
 
     ${k}:hover {

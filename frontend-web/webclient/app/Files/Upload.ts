@@ -33,6 +33,7 @@ export interface Upload {
     terminationRequested?: true;
     paused?: true;
     resume?: () => Promise<void>;
+    notifyBackgroundTask?: boolean;
     uploadEvents: {timestamp: number, filesCompleted: number, progressInBytes: number}[];
 }
 
@@ -75,10 +76,12 @@ export const uploadStore = new class extends ExternalStoreBase {
         for (const upload of uploads) {
             const terminal = uploadIsTerminal(upload);
             const previousTerminal = this.observedStates.get(upload);
-            if (previousTerminal === undefined) {
-                reportBackgroundTaskChange(`Starting upload of ${upload.folderName ?? upload.name}...`);
-            } else if (!previousTerminal && terminal) {
-                reportBackgroundTaskChange(`${upload.folderName ?? upload.name} has been completed`);
+            if (upload.notifyBackgroundTask !== false) {
+                if (previousTerminal === undefined) {
+                    reportBackgroundTaskChange(`Starting upload of ${upload.folderName ?? upload.name}...`);
+                } else if (!previousTerminal && terminal) {
+                    reportBackgroundTaskChange(`${upload.folderName ?? upload.name} has been completed`);
+                }
             }
             this.observedStates.set(upload, terminal);
         }
