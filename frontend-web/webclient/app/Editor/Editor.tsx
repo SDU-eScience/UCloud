@@ -6,11 +6,12 @@ import {Uri} from "monaco-editor";
 import {AsyncCache} from "@/Utilities/AsyncCache";
 import {injectStyle} from "@/Unstyled";
 import {Box, Flex, FtIcon, Image, Select, Text, Input, Label, Button} from "@/ui-components";
-import {fileName, pathComponents} from "@/Utilities/FileUtilities";
+import {fileName, getParentPath, pathComponents} from "@/Utilities/FileUtilities";
 import {capitalized, copyToClipboard, createKeyboardShortcut, errorMessageOrDefault, extensionFromPath, extensionType, getLanguageList, languageFromExtension, populateLanguages} from "@/UtilityFunctions";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {usePrettyFilePath} from "@/Files/FilePath";
 import {Operation, Operations} from "@/ui-components/Operation";
+import {ActionEntry} from "@/ui-components/Actions";
 import IStandaloneCodeEditor = editor.IStandaloneCodeEditor;
 import EditorOption = editor.EditorOption;
 import {EditorSidebarNode, FileTree, VirtualFile} from "@/Files/FileTree";
@@ -444,7 +445,7 @@ export const Editor: React.FunctionComponent<{
     customContent?: React.ReactNode;
     showCustomContent?: boolean;
     onOpenFile?: (path: string, content: string | Uint8Array) => void;
-    operations?: (file?: VirtualFile) => Operation<VirtualFile, null | undefined>[];
+    actions?: (file?: VirtualFile) => ActionEntry<VirtualFile, null>[];
     help?: React.ReactNode;
     fileHeaderOperations?: React.ReactNode;
     renamingFile?: string;
@@ -470,7 +471,7 @@ export const Editor: React.FunctionComponent<{
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const monacoRef = useRef<any>(null);
     const [tabs, setTabs] = useState<{open: string[], closed: string[]}>({
-        open: [state.currentPath],
+        open: props.initialFilePath ? [state.currentPath] : [],
         closed: [],
     });
 
@@ -914,6 +915,10 @@ export const Editor: React.FunctionComponent<{
 
     useLayoutEffect(() => {
         if (initialOpenCompleted.current) return;
+        if (!props.initialFilePath) {
+            initialOpenCompleted.current = true;
+            return;
+        }
 
         // NOTE(Dan): This timer is needed to make sure that if the file opens faster than the engine can initialize
         // then we do reload the file. See the branch when returns early in openFile.
@@ -1151,7 +1156,7 @@ export const Editor: React.FunctionComponent<{
             oldModel.dispose();
         }
 
-        invalidateTree(props.initialFolderPath);
+        invalidateTree(getParentPath(args.newAbsolutePath));
     }, []);
 
     const setModelLanguage = React.useCallback((element: {
@@ -1235,7 +1240,7 @@ export const Editor: React.FunctionComponent<{
             initialFolder={props.initialFolderPath}
             initialFilePath={props.initialFilePath}
             fileHeaderOperations={props.fileHeaderOperations}
-            operations={props.operations}
+            actions={props.actions}
             renamingFile={props.renamingFile}
             onRename={onRename}
         />

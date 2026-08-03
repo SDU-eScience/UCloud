@@ -1,13 +1,13 @@
 import * as React from "react";
 import {injectStyle} from "@/Unstyled";
-import {Operation, Operations} from "@/ui-components/Operation";
-import {doNothing, extensionFromPath} from "@/UtilityFunctions";
+import {doNothing} from "@/UtilityFunctions";
 import {usePrettyFilePath} from "./FilePath";
-import {Box, Flex, FtIcon, Icon, Input, Truncate} from "@/ui-components";
+import {Box, Flex, Icon, Input, Truncate} from "@/ui-components";
 import {fileName, getParentPath} from "@/Utilities/FileUtilities";
 import {FullpathFileLanguageIcon} from "@/Editor/Editor";
 import {FileIconHint} from ".";
 import {VirtualizedTree, VirtualizedTreeApi} from "@/ui-components/VirtualizedTree";
+import {ActionEntry, ActionMenu} from "@/ui-components/Actions";
 
 export interface EditorSidebarNode {
     file: VirtualFile;
@@ -29,7 +29,7 @@ interface FileTreeProps {
     root: EditorSidebarNode;
     initialFolder: string;
     initialFilePath?: string;
-    operations?: (file?: VirtualFile) => Operation<VirtualFile, null | undefined>[];
+    actions?: (file?: VirtualFile) => ActionEntry<VirtualFile, null>[];
     width?: string;
     canResize?: boolean;
     visible?: boolean;
@@ -77,25 +77,28 @@ export function FileTree({tree, onFileActivated, onDirectoryPrefetch, root, ...p
         window.addEventListener("blur", stopResize);
     }, [pointerMoveHandler, props.canResize, stopResize]);
 
-    const [operations, setOperations] = React.useState<Operation<VirtualFile, null | undefined>[]>([]);
+    const [contextMenu, setContextMenu] = React.useState<{
+        file?: VirtualFile;
+        left: number;
+        top: number;
+    } | null>(null);
 
     const style = {
         "--tree-width": `${treeWidth}px`,
         display: props.visible === false ? "none" : undefined,
     } as React.CSSProperties;
 
-    const getOperations = React.useCallback((file?: VirtualFile) => {
-        const {operations} = props;
-        if (!operations) return;
-        setOperations(operations(file));
-    }, [props.operations]);
-
     const openOperations = React.useRef<(left: number, top: number) => void>(doNothing);
     const onContextMenu = React.useCallback((ev: React.MouseEvent, file?: VirtualFile) => {
         ev.preventDefault();
-        getOperations(file);
-        openOperations.current(ev.clientX, ev.clientY);
-    }, [getOperations]);
+        setContextMenu({file, left: ev.clientX, top: ev.clientY});
+    }, []);
+
+    React.useLayoutEffect(() => {
+        if (!contextMenu) return;
+        openOperations.current(contextMenu.left, contextMenu.top);
+        setContextMenu(null);
+    }, [contextMenu]);
 
     const prettyInitialFolderPath = usePrettyFilePath(props.initialFolder);
     const initialExpandedIds = React.useMemo(() => parentPathsWithin(
@@ -147,16 +150,12 @@ export function FileTree({tree, onFileActivated, onDirectoryPrefetch, root, ...p
                     onContextMenu(event, node.file);
                 }}
             />
-            <Operations
-                entityNameSingular={""}
-                operations={operations}
-                forceEvaluationOnOpen={true}
+            <ActionMenu
+                actions={props.actions?.(contextMenu?.file) ?? []}
                 openFnRef={openOperations}
                 selected={[]}
-                row={42 as any} // This works, for some reason
-                extra={null}
-                hidden
-                location={"IN_ROW"}
+                callbacks={null}
+                trigger={null}
             />
         </Box>
         {props.canResize ? <div className="tree-resizer" onPointerDown={onResizeStart} /> : null}
@@ -173,9 +172,12 @@ const FileTreeNodeContent: React.FunctionComponent<{
     onToggle(): void;
 }> = ({node, branch, expanded, treeWidth, renamingFile, onRename, onToggle}) => {
     const didRename = React.useRef(false);
+    const renameInput = React.useRef<HTMLInputElement | null>(null);
 
     const renameFile = React.useCallback((newName: string, cancel: boolean) => {
         didRename.current = true;
+        newName = newName.trim();
+        if (!cancel && newName.length === 0) cancel = true;
         const parentPath = getParentPath(node.file.absolutePath);
         const newFullPath = parentPath + newName;
         onRename?.({
@@ -189,11 +191,16 @@ const FileTreeNodeContent: React.FunctionComponent<{
 
     const isRenaming = renamingFile === node.file.absolutePath;
 
-    React.useEffect(() => {
-        if (isRenaming) {
-            didRename.current = false;
-        }
-    }, [isRenaming]);
+    React.useLayoutEffect(() => {
+        if (!isRenaming) return;
+        didRename.current = false;
+
+        const initialValue = fileName(node.file.absolutePath);
+        const extensionStart = initialValue.lastIndexOf(".");
+        const selectionEnd = extensionStart === -1 ? initialValue.length : extensionStart;
+        renameInput.current?.focus();
+        renameInput.current?.setSelectionRange(0, selectionEnd);
+    }, [isRenaming, node.file.absolutePath]);
 
     const toggleFromIcon = React.useCallback((event: React.MouseEvent) => {
         event.stopPropagation();
@@ -234,15 +241,24 @@ const FileTreeNodeContent: React.FunctionComponent<{
         }
 
         {isRenaming ?
-            <Input autoFocus onBlur={e => {
-                e.preventDefault();
-                if (didRename.current) return;
-                renameFile(e.target["value"], false);
-            }} onKeyDown={e => {
-                e.stopPropagation();
-                if (e.key === "Enter") renameFile(e.target["value"], false);
-                else if (e.key === "Escape") renameFile("", true);
-            }} defaultValue={fileName(node.file.absolutePath)} width={1} /> :
+            <Input
+                inputRef={renameInput}
+                autoFocus
+                noBorder
+                style={{padding: 0, height: "auto", boxShadow: "none", backgroundColor: "transparent"}}
+                onBlur={e => {
+                    e.preventDefault();
+                    if (didRename.current) return;
+                    renameFile(e.target["value"], false);
+                }}
+                onKeyDown={e => {
+                    e.stopPropagation();
+                    if (e.key === "Enter") renameFile(e.target["value"], false);
+                    else if (e.key === "Escape") renameFile("", true);
+                }}
+                defaultValue={fileName(node.file.absolutePath)}
+                width={1}
+            /> :
             <Truncate title={prettyPath} maxWidth={`${treeWidth - 88}px`}>{fileName(prettyPath)}</Truncate>}
     </Flex>;
 }

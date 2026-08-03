@@ -30,6 +30,7 @@ import FilesApi, {
     initEmptyFileUpload,
     isReadonly,
     isSensitivitySupported,
+    showFileProperties,
 } from "@/UCloud/FilesApi";
 import {fileName, getParentPath, pathComponents, resolvePath, sizeToString} from "@/Utilities/FileUtilities";
 import {AsyncCache} from "@/Utilities/AsyncCache";
@@ -921,7 +922,7 @@ function FileBrowse({
                             startRenaming(resource.id);
                         },
                         viewProperties(res: UFile): void {
-                            navigate(AppRoutes.resource.properties(FilesApi.routingNamespace, res.id))
+                            showFileProperties(res);
                         },
                         commandLoading: false,
                         invokeCommand: call => callAPI(call),

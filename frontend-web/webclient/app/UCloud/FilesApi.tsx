@@ -13,7 +13,6 @@ import FileCollectionsApi, {FileCollection, FileCollectionSupport} from "@/UClou
 import {
     Box,
     Button,
-    Card,
     ExternalLink,
     Flex,
     FtIcon,
@@ -30,6 +29,7 @@ import {useCallback, useEffect, useMemo, useState} from "react";
 import {fileName, resolvePath, getParentPath, readableUnixMode, sizeToString} from "@/Utilities/FileUtilities";
 import {
     bulkRequestOf,
+    copyToClipboard,
     displayErrorMessageOrDefault,
     doNothing,
     errorMessageOrDefault,
@@ -45,7 +45,7 @@ import {
 } from "@/UtilityFunctions";
 import * as Heading from "@/ui-components/Heading";
 import {Operation, operationsToActions, ShortcutKey} from "@/ui-components/Operation";
-import {ActionItem, CommonActionShortcut} from "@/ui-components/Actions";
+import {ActionEntry, ActionItem, CommonActionShortcut} from "@/ui-components/Actions";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {ItemRenderer} from "@/ui-components/Browse";
 import {prettyFilePath, usePrettyFilePath} from "@/Files/FilePath";
@@ -65,7 +65,7 @@ import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {addShareModal} from "@/Files/Shares";
 import FileBrowse from "@/Files/FileBrowse";
-import {classConcat, injectStyleSimple} from "@/Unstyled";
+import {classConcat, injectStyle, injectStyleSimple} from "@/Unstyled";
 import {filetypeinfo as fileType} from "magic-bytes.js";
 import {PREVIEW_MAX_SIZE} from "../../site.config.json";
 import {CSSVarCurrentSidebarStickyWidth} from "@/ui-components/List";
@@ -89,12 +89,12 @@ import {
 import AppRoutes from "@/Routes";
 import {allowEditing, Editor, EditorApi, EditorLoadingState, Vfs} from "@/Editor/Editor";
 import {IconButton} from "@/ui-components/IconButton";
+import {CopyButton} from "@/ui-components/CopyButton";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {useDispatch} from "react-redux";
 import {VirtualFile} from "@/Files/FileTree";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {buildQueryString} from "@/Utilities/URIUtilities";
-import {setPopInChild} from "@/ui-components/PopIn";
 import {FileWriteFailure, WriteFailureEvent} from "@/Files/Uploader";
 import {GuessedFile} from "magic-bytes.js/dist/model/tree";
 import {sendFailureNotification, sendInformationNotification, sendSuccessNotification} from "@/Notifications";
@@ -466,7 +466,23 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
             shortcut: PASTE_SHORTCUT,
         };
 
-        const openWith = withOverrides(withoutShortcut(byText("Open with...")), {icon: undefined});
+        const openWithApplication = withOverrides(withoutShortcut(byText("Open with...")), {
+            text: "Application",
+            icon: undefined,
+        });
+        const openWith: ActionItem<UFile, FileBrowseCallbacks> = {
+            text: "Open with...",
+            enabled: (selected, callbacks) => selected.length === 1 && callbacks.collection != null,
+            onClick: doNothing,
+            children: [
+                openWithApplication,
+                {
+                    text: "Editor",
+                    enabled: selected => selected.length === 1,
+                    onClick: ([file], callbacks) => callbacks.navigate(AppRoutes.files.preview(file.id)),
+                },
+            ],
+        };
         const compress: ActionItem<UFile, FileBrowseCallbacks> = {
             text: "Compress",
             icon: "heroArchiveBox",
@@ -1568,11 +1584,14 @@ export function FilePreview({initialFile}: {
     const vfs = useMemo(() => {
         return new PreviewVfs(initialFile);
     }, []);
+    const initialDirectoryPath = initialFile.status.type === "DIRECTORY" ? initialFile.id + "/placeholder" : initialFile.id;
 
-    const [vfsTitle, setTitle] = useState(getParentPath(initialFile.id));
+    const [vfsTitle, setTitle] = useState(
+        initialFile.status.type === "DIRECTORY" ? initialFile.id : getParentPath(initialFile.id)
+    );
 
     React.useEffect(() => {
-        prettyFilePath(getParentPath(initialFile.id)).then(t => {
+        prettyFilePath(initialFile.status.type === "DIRECTORY" ? initialFile.id : getParentPath(initialFile.id)).then(t => {
             setTitle(t);
         })
     }, []);
@@ -1686,6 +1705,7 @@ export function FilePreview({initialFile}: {
         const editor = editorRef.current;
         if (!editor) return;
         if (node) return;
+        if (initialFile.status.type === "DIRECTORY" && editor.path === initialFile.id) return;
 
         const path = editor.path;
 
@@ -1740,7 +1760,7 @@ export function FilePreview({initialFile}: {
     const openTerminal = useCallback(() => {
         if (!drive) return;
         const providerId = drive.specification.product.provider;
-        const folder = getParentPath(initialFile.id);
+        const folder = initialFile.status.type === "DIRECTORY" ? initialFile.id : getParentPath(initialFile.id);
 
         dispatch(terminalOpen());
         dispatch(terminalOpenTab({tab: {title: "Terminal", folder, providerId}}));
@@ -1799,7 +1819,7 @@ export function FilePreview({initialFile}: {
         return success;
     }, []);
 
-    const operations = useCallback((file?: VirtualFile): Operation<VirtualFile, null | undefined>[] => {
+    const actions = useCallback((file?: VirtualFile): ActionEntry<VirtualFile, null>[] => {
         const reload = () => {
             let path: string;
             if (file) {
@@ -1812,7 +1832,7 @@ export function FilePreview({initialFile}: {
 
         if (!file) {
             return [{
-                icon: "heroFolderPlus",
+                icon: "uploadFolder",
                 text: "New folder",
                 enabled: () => true,
                 onClick: () => {
@@ -1820,7 +1840,6 @@ export function FilePreview({initialFile}: {
                     newFolder(initialFile.id + suffix).then(doNothing);
                 },
             }, {
-                icon: "heroDocumentPlus",
                 text: "New file",
                 enabled: () => true,
                 onClick: () => {
@@ -1832,25 +1851,36 @@ export function FilePreview({initialFile}: {
 
         return [
             {
-                icon: "heroFolderPlus",
-                text: "New folder",
+                text: "Open",
+                enabled: () => !file.isDirectory,
+                onClick: () => editorRef.current?.openFile(file.absolutePath),
+            },
+            {
+                icon: "heroArrowDownTray",
+                text: "Download",
+                enabled: () => !file.isDirectory,
+                onClick: async () => {
+                    api.download([file.absolutePath]);
+                },
+            },
+            "divider",
+            {
+                text: "Copy to...",
                 enabled: () => true,
                 onClick: () => {
-                    const suffix = file.isDirectory ? "/placeholder" : "";
-                    newFolder(file.absolutePath + suffix).then(doNothing);
+                    api.copyModal([file.absolutePath], initialFile.specification.product.provider, reload);
                 },
             },
             {
-                icon: "heroDocumentPlus",
-                text: "New file",
-                enabled: () => true,
+                text: "Move to...",
+                enabled: () => file.fileHint !== "DIRECTORY_TRASH",
                 onClick: () => {
-                    const suffix = file.isDirectory ? "/placeholder" : "";
-                    newFile(file.absolutePath + suffix).then(doNothing);
+                    api.moveModal([file.absolutePath], initialFile.specification.product.provider, reload);
                 },
             },
+            "divider",
             {
-                icon: "edit",
+                icon: "heroPencilSquare",
                 text: "Rename",
                 enabled: () => file.fileHint !== "DIRECTORY_TRASH",
                 onClick: () => {
@@ -1858,9 +1888,11 @@ export function FilePreview({initialFile}: {
                 },
             },
             {
-                icon: "trash",
+                icon: "heroTrash",
                 text: "Move to trash",
                 enabled: () => file.fileHint !== "DIRECTORY_TRASH",
+                destructive: true,
+                confirmationText: "Are you sure you want to move this item to the trash?",
                 onClick: async () => {
                     await callAPI(
                         api.trash({
@@ -1873,46 +1905,36 @@ export function FilePreview({initialFile}: {
                     sendSuccessNotification("File(s) moved to trash");
                 },
             },
+            "divider",
             {
-                icon: "copy",
-                text: "Copy file",
+                icon: "uploadFolder",
+                text: "New folder",
                 enabled: () => true,
                 onClick: () => {
-                    api.copyModal([file.absolutePath], initialFile.specification.product.provider, reload);
+                    const suffix = file.isDirectory ? "/placeholder" : "";
+                    newFolder(file.absolutePath + suffix).then(doNothing);
                 },
             },
             {
-                icon: "heroFolderArrowRight",
-                text: "Move file",
-                enabled: () => file.fileHint !== "DIRECTORY_TRASH",
+                text: "New file",
+                enabled: () => true,
                 onClick: () => {
-                    api.moveModal([file.absolutePath], initialFile.specification.product.provider, reload);
+                    const suffix = file.isDirectory ? "/placeholder" : "";
+                    newFile(file.absolutePath + suffix).then(doNothing);
                 },
             },
+            "divider",
             {
-                icon: "download",
-                text: "Download file",
-                enabled: () => !file.isDirectory,
-                onClick: async () => {
-                    api.download([file.absolutePath]);
-                },
-            },
-            {
-                icon: "properties",
-                text: "View properties",
+                text: "Properties",
                 enabled: () => vfs.isReal(),
                 onClick() {
                     vfs.getFileInfo(file.absolutePath).then(ufile => {
-                        dispatch(setPopInChild({el: <FileProperties routingNamespace={api.routingNamespace} file={ufile} inPopIn />}));
+                        showFileProperties(ufile);
                     });
                 },
             },
         ];
     }, []);
-
-    if (initialFile.status.type === "DIRECTORY") {
-        return <MainContainer main={<FileProperties file={initialFile} routingNamespace={api.routingNamespace} />} />
-    }
 
     return <Editor
         apiRef={editorRef}
@@ -1929,8 +1951,10 @@ export function FilePreview({initialFile}: {
                 {!supportsTerminal ? null : <IconButton tooltip="Open terminal" onClick={openTerminal} icon="terminalSolid" color="textPrimary" />}
             </>
         }
-        initialFolderPath={removeTrailingSlash(getParentPath(initialFile.id))}
-        initialFilePath={initialFile.id}
+        initialFolderPath={removeTrailingSlash(
+            initialFile.status.type === "DIRECTORY" ? initialFile.id : getParentPath(initialFile.id)
+        )}
+        initialFilePath={initialFile.status.type === "FILE" ? initialFile.id : undefined}
         title={vfsTitle}
         vfs={vfs}
         showCustomContent={node != null}
@@ -1938,20 +1962,20 @@ export function FilePreview({initialFile}: {
         onOpenFile={onOpenFile}
         onRename={onRename}
         renamingFile={renamingFile}
-        operations={operations}
+        actions={actions}
         fileHeaderOperations={
             <>
-                <IconButton compact tooltip="New file" onClick={() => newFile(initialFile.id)} icon="heroDocumentPlus" />
-                <IconButton compact tooltip="New folder" onClick={() => newFolder(initialFile.id)} icon="heroFolderPlus" />
+                <IconButton compact tooltip="New file" onClick={() => newFile(initialDirectoryPath)} icon="heroDocumentPlus" />
+                <IconButton compact tooltip="New folder" onClick={() => newFolder(initialDirectoryPath)} icon="heroFolderPlus" />
             </>
         }
         help={
             <Flex width="100%" height="100%" alignItems="center" justifyContent="center" flexDirection="column" gap="16px">
                 <Icon name="heroDocument" size={64} color="textSecondary" />
-                <Box>Create a file or folder to start!</Box>
+                <Box>Select a file to edit.</Box>
                 <Flex gap={"8px"}>
-                    <Button onClick={() => newFile(initialFile.id)}>New file</Button>
-                    <Button onClick={() => newFolder(initialFile.id)}>New folder</Button>
+                    <Button onClick={() => newFile(initialDirectoryPath)}>New file</Button>
+                    <Button onClick={() => newFolder(initialDirectoryPath)}>New folder</Button>
                 </Flex>
             </Flex>
         }
@@ -2150,56 +2174,157 @@ export interface WriteToFileEventProps {
     notifyBackgroundTask?: boolean;
 }
 
-function FileProperties({file, routingNamespace, inPopIn}: {file: UFile, routingNamespace: string, inPopIn?: boolean;}) {
+const FilePropertiesClass = injectStyle("file-properties", k => `
+    ${k} {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+        min-width: min(100%, 560px);
+    }
+
+    ${k} .header {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid var(--borderColor);
+    }
+
+    ${k} .header-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 96px;
+        height: 96px;
+        flex: 0 0 96px;
+    }
+
+    ${k} .header-content {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        gap: 6px;
+    }
+
+    ${k} .type {
+        color: var(--textSecondary);
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+    }
+
+    ${k} .path {
+        color: var(--textSecondary);
+        font-size: 13px;
+    }
+
+    ${k} .details {
+        display: flex;
+        flex-direction: column;
+        margin: 0;
+    }
+
+    ${k} .details > div {
+        display: grid;
+        grid-template-columns: minmax(110px, .35fr) minmax(0, 1fr);
+        align-items: center;
+        gap: 20px;
+        height: 52px;
+        box-sizing: border-box;
+        padding: 10px 0;
+        border-bottom: 1px solid var(--borderColor);
+    }
+
+    ${k} .details dt {
+        color: var(--textSecondary);
+    }
+
+    ${k} .details dd {
+        min-width: 0;
+        margin: 0;
+        overflow-wrap: anywhere;
+    }
+
+    ${k} .actions {
+        display: flex;
+        justify-content: flex-end;
+    }
+
+    @media (max-width: 600px) {
+        ${k} .header {
+            align-items: flex-start;
+        }
+
+        ${k} .header-icon {
+            width: 72px;
+            height: 72px;
+            flex-basis: 72px;
+        }
+
+        ${k} .header-icon > svg {
+            width: 72px;
+            height: 72px;
+        }
+
+        ${k} .details > div {
+            grid-template-columns: minmax(90px, .35fr) minmax(0, 1fr);
+            gap: 8px;
+        }
+    }
+`);
+
+export function showFileProperties(file: UFile): void {
+    dialogStore.addDialog(
+        <FileProperties file={file} routingNamespace={api.routingNamespace} />,
+        doNothing,
+        true,
+    );
+}
+
+function FileProperties({file, routingNamespace}: {file: UFile, routingNamespace: string;}) {
     const prettyPath = usePrettyFilePath(file.id);
 
-    return <>
-        <Flex maxWidth={inPopIn ? `var(--popInWidth)` : undefined}>
-            <FtIcon fileIcon={{type: file.status.type, ext: extensionFromPath(file.id)}} size={128} />
-            <Box maxWidth={inPopIn ? `calc(var(--popInWidth) - 128px - 32px)` : undefined} ml={inPopIn ? "16px" : "32px"}>
-                <Truncate fontSize={25}>{fileName(file.id)}</Truncate>
-                <Truncate fontSize={20}>{prettierString(file.status.type)}</Truncate>
-            </Box>
-        </Flex>
-        <Card mt="12px">
-            <div><b>Path:</b> <Truncate title={prettyPath}>{prettyPath}</Truncate></div>
-            <div>
-                <b>Product: </b>
-                {file.specification.product.id === file.specification.product.category ?
-                    <>{file.specification.product.id}</> :
-                    <>{file.specification.product.id} / {file.specification.product.category}</>
-                }
+    return <div className={FilePropertiesClass}>
+        <div className="header">
+            <div className="header-icon">
+                <FtIcon fileIcon={{type: file.status.type, ext: extensionFromPath(file.id)}} size={96} />
             </div>
-            <Flex gap="8px">
-                <b>Provider: </b>
-                <ProviderTitle providerId={file.specification.product.provider} />
-            </Flex>
-            <div><b>Created at:</b> {dateToString(file.createdAt)}</div>
-            {file.status.modifiedAt ?
-                <div><b>Modified at:</b> {dateToString(file.status.modifiedAt)}</div> : null}
-            {file.status.accessedAt ?
-                <div><b>Accessed at:</b> {dateToString(file.status.accessedAt)}</div> : null}
+            <div className="header-content">
+                <Truncate fontSize={25}>{fileName(file.id)}</Truncate>
+                <Truncate className="path" title={getParentPath(prettyPath)}>{getParentPath(prettyPath)}</Truncate>
+            </div>
+        </div>
+        <dl className="details">
+            <div><dt><b>Path:</b></dt><dd>
+                <Flex alignItems="center" gap="8px" minWidth={0}>
+                    <Truncate flexGrow={1} title={prettyPath}>{prettyPath}</Truncate>
+                    <CopyButton tooltip="Copy file path" onClick={() => copyToClipboard(prettyPath)} />
+                </Flex>
+            </dd></div>
+            <div><dt><b>Product:</b></dt><dd>
+                {file.specification.product.id === file.specification.product.category ?
+                    file.specification.product.id :
+                    `${file.specification.product.id} / ${file.specification.product.category}`
+                } @ <ProviderTitle providerId={file.specification.product.provider} />
+            </dd></div>
+            <div><dt><b>Created at:</b></dt><dd>{dateToString(file.createdAt)}</dd></div>
+            {file.status.modifiedAt ? <div><dt><b>Modified at:</b></dt><dd>{dateToString(file.status.modifiedAt)}</dd></div> : null}
+            {file.status.accessedAt ? <div><dt><b>Accessed at:</b></dt><dd>{dateToString(file.status.accessedAt)}</dd></div> : null}
             {file.status.sizeInBytes != null && file.status.type !== "DIRECTORY" ?
-                <div><b>Size:</b> {sizeToString(file.status.sizeInBytes)}</div> : null}
+                <div><dt><b>Size:</b></dt><dd>{sizeToString(file.status.sizeInBytes)}</dd></div> : null}
             {file.status.sizeIncludingChildrenInBytes != null && file.status.type === "DIRECTORY" ?
-                <div><b>Size:</b> {sizeToString(file.status.sizeIncludingChildrenInBytes)}
-                </div> : null
-            }
+                <div><dt><b>Size:</b></dt><dd>{sizeToString(file.status.sizeIncludingChildrenInBytes)}</dd></div> : null}
             {file.status.unixOwner != null && file.status.unixGroup != null ?
-                <div><b>UID/GID</b>: {file.status.unixOwner}/{file.status.unixGroup}</div> :
-                null
-            }
+                <div><dt><b>UID/GID:</b></dt><dd>{file.status.unixOwner}/{file.status.unixGroup}</dd></div> : null}
             {file.status.unixMode != null ?
-                <div><b>Unix mode:</b> {readableUnixMode(file.status.unixMode)}</div> :
-                null
-            }
-            <Box mt={"16px"} mb={"8px"}>
-                <Link to={buildQueryString(`/${routingNamespace}`, {path: getParentPath(file.id)})}>
-                    <Button fullWidth>View in folder</Button>
-                </Link>
-            </Box>
-        </Card>
-    </>
+                <div><dt><b>Unix mode:</b></dt><dd>{readableUnixMode(file.status.unixMode)}</dd></div> : null}
+        </dl>
+        <div className="actions">
+            <Link to={buildQueryString(`/${routingNamespace}`, {path: getParentPath(file.id)})}>
+                <Button>View in folder</Button>
+            </Link>
+        </div>
+    </div>
 }
 
 export {api};
