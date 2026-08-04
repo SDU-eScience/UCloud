@@ -357,6 +357,40 @@ const UsagePage: React.FunctionComponent = () => {
         }
     }, [state.openReport]);
 
+    const exportAbsoluteChildrenUsageOverTime = useCallback(() => {
+        if (!state.openReport) return;
+
+        let workspaceName = project.fetch().specification.title;
+        if (workspaceName === "") workspaceName = "My workspace";
+        workspaceName = workspaceName.toLowerCase().replace(" ", "-");
+
+        const abs = state.openReport.usageOverTime.childrenAbsolute;
+        exportUsage(
+            abs,
+            [
+                {
+                    key: "timestamp",
+                    value: "Timestamp",
+                    defaultChecked: true,
+                },
+                {
+                    key: "usage",
+                    value: "Usage",
+                    defaultChecked: true,
+                },
+                {
+                    key: "child",
+                    value: "Sub-project",
+                    defaultChecked: true,
+                },
+            ],
+            project.fetch().specification.title,
+            {
+                fileName: `usage-children-absolute-over-time-${state.openReport.title.toLowerCase()}-${workspaceName}`,
+            }
+        )
+    }, [state.openReport]);
+
     const exportAbsoluteUsageOverTime = useCallback(() => {
         if (!state.openReport) return;
 
@@ -725,32 +759,34 @@ const UsagePage: React.FunctionComponent = () => {
                 </Card>
             }
 
-            {r.usageOverTime.delta.length <= 1 ? null :
-                <Card>
-                    <Flex mb={8}>
-                        <h3 style={{flexGrow: 1}}>Change in usage over time</h3>
-                        <Button onClick={exportDeltaOverTime}>
-                            <Icon name={"heroArrowDownTray"} mr={8} />
-                            Export
-                        </Button>
-                    </Flex>
-                    <svg ref={deltaOverTime.chartRef} width={deltaChartWidth} height={chartHeight(deltaChartWidth)} />
-                    <Flex flexWrap={"wrap"} gap={"16px"} ml={40} fontSize={"80%"}>
-                        {deltaOverTime.labels.map(label =>
-                            <Flex key={label.child} gap={"4px"} alignItems={"center"}>
-                                <Box width={14} height={14} flexShrink={0} style={{background: label.color}} />
-                                <div>{childToLabel(label.child)}</div>
-                            </Flex>
-                        )}
-                    </Flex>
-                </Card>
-            }
+            {r.usageOverTime.delta.length <= 1 ? null : (
+                r.unitAndFrequency.frequency == "ONCE" ? null : (
+                    <Card>
+                        <Flex mb={8}>
+                            <h3 style={{flexGrow: 1}}>Change in usage over time</h3>
+                            <Button onClick={exportDeltaOverTime}>
+                                <Icon name={"heroArrowDownTray"} mr={8} />
+                                Export
+                            </Button>
+                        </Flex>
+                        <svg ref={deltaOverTime.chartRef} width={deltaChartWidth} height={chartHeight(deltaChartWidth)} />
+                        <Flex flexWrap={"wrap"} gap={"16px"} ml={40} fontSize={"80%"}>
+                            {deltaOverTime.labels.map(label =>
+                                <Flex key={label.child} gap={"4px"} alignItems={"center"}>
+                                    <Box width={14} height={14} flexShrink={0} style={{background: label.color}} />
+                                    <div>{childToLabel(label.child)}</div>
+                                </Flex>
+                            )}
+                        </Flex>
+                    </Card>
+                )
+            )}
 
             {r.usageOverTime.childrenAbsolute.length <= 1 ? null :
                 <Card>
                     <Flex mb={8}>
-                        <h3 style={{flexGrow: 1}}>Usage over time</h3>
-                        <Button onClick={exportDeltaOverTime}>
+                        <h3 style={{flexGrow: 1}}>Usage over time (Stacked)</h3>
+                        <Button onClick={exportAbsoluteChildrenUsageOverTime}>
                             <Icon name={"heroArrowDownTray"} mr={8} />
                             Export
                         </Button>
@@ -770,8 +806,10 @@ const UsagePage: React.FunctionComponent = () => {
             {r.usageOverTime.childrenAbsolute.length <= 1 ? null :
                 <Card>
                     <Flex mb={8}>
-                        <h3 style={{flexGrow: 1}}>Usage over time</h3>
-                        <Button onClick={exportAbsoluteUsageOverTime}>
+                        <h3 style={{flexGrow: 1}}>
+                            Usage over time (Seperate)
+                        </h3>
+                        <Button onClick={exportAbsoluteChildrenUsageOverTime}>
                             <Icon name={"heroArrowDownTray"} mr={8} />
                             Export
                         </Button>
