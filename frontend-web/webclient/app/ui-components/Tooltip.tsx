@@ -17,6 +17,7 @@ interface Tooltip extends SpaceProps {
     tooltipContentWidth?: number;
     side?: TooltipSide;
     open?: boolean;
+    disabled?: boolean;
 }
 
 const TooltipContent = injectStyleSimple("tooltip-content", `
@@ -119,6 +120,7 @@ function LegacyTooltip(props: Tooltip & {portal: HTMLElement}): React.ReactEleme
 
     const tooltipRef = useRef<HTMLDivElement>(null);
     const onHover = useCallback((ev: React.MouseEvent) => {
+        if (props.disabled) return;
         const tooltip = tooltipRef.current;
         if (!tooltip) return;
 
@@ -131,7 +133,7 @@ function LegacyTooltip(props: Tooltip & {portal: HTMLElement}): React.ReactEleme
         tooltip.style.top = ev.clientY - tooltip.getBoundingClientRect().height / 2 + "px";
         if (width <= 100) tooltip.classList.add(TooltipSlim);
         tooltip.classList.add(TooltipVisible);
-    }, []);
+    }, [props.disabled, width]);
 
     const onLeave = useCallback(() => {
         const tooltip = tooltipRef.current;
@@ -168,7 +170,7 @@ function AnchoredTooltip(props: Tooltip & {portal: HTMLElement}): React.ReactEle
         setHoverOpen(false);
     }
 
-    const open = props.open === true || hoverOpen;
+    const open = !props.disabled && (props.open === true || hoverOpen);
 
     useEffect(() => {
         const trigger = triggerRef.current;
@@ -354,6 +356,7 @@ export function TooltipV2(props: React.PropsWithChildren<{
     contentWidth?: number;
     side?: TooltipSide;
     open?: boolean;
+    disabled?: boolean;
     triggerClassName?: string;
     triggerStyle?: React.CSSProperties;
 }>): React.ReactElement {
@@ -361,6 +364,7 @@ export function TooltipV2(props: React.PropsWithChildren<{
     return <Tooltip
         tooltipContentWidth={props.contentWidth}
         open={props.open}
+        disabled={props.disabled}
         trigger={props.children}
         triggerClassName={props.triggerClassName}
         triggerStyle={props.triggerStyle}

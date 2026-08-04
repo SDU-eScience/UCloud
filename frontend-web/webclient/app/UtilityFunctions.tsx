@@ -667,6 +667,16 @@ export const isLikelyMac = navigator["userAgentData"]?.["platform"] === "macOS" 
     navigator["platform"]?.toLocaleLowerCase().includes("mac") ||
     navigator["userAgent"]?.toLocaleLowerCase().includes("macintosh");
 
+export type KeyboardShortcutModifier = "ctrl" | "alt";
+
+export function createKeyboardShortcut(key: string, modifiers: KeyboardShortcutModifier[] = []): string {
+    const normalizedModifiers = modifiers.map(modifier => {
+        if (modifier === "ctrl") return isLikelyMac ? "⌘" : "Ctrl";
+        return isLikelyMac ? "⌥" : "Alt";
+    });
+    return [...normalizedModifiers, key].join(" + ");
+}
+
 export function deepEquals(a: any, b: any): boolean {
     if (a === b) return true;
 

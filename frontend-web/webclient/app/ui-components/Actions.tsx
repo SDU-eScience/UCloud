@@ -132,6 +132,7 @@ const ActionMenuItemClass = injectStyle("action-menu-item", k => `
         font-size: 13px;
         line-height: 1;
         cursor: pointer;
+        outline: none;
     }
 
     ${k}[data-active="true"] {

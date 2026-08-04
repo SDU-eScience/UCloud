@@ -30,6 +30,7 @@ import FilesApi, {
     initEmptyFileUpload,
     isReadonly,
     isSensitivitySupported,
+    showFileProperties,
 } from "@/UCloud/FilesApi";
 import {fileName, getParentPath, pathComponents, resolvePath, sizeToString} from "@/Utilities/FileUtilities";
 import {AsyncCache} from "@/Utilities/AsyncCache";
@@ -82,6 +83,7 @@ import {createPortal} from "react-dom";
 import {FileBrowserStatusBar, FileBrowserStatusData} from "./FileBrowserStatusBar";
 import {fetchAll} from "@/Utilities/PageUtilities";
 import {Feature, hasFeature} from "@/Features";
+import {terminalSetPageContext} from "@/Terminal/State";
 
 export enum SensitivityLevel {
     "INHERIT" = "Inherit",
@@ -154,6 +156,13 @@ function FileBrowse({
     if (!opts?.embedded && !opts?.isModal) {
         usePage("Files", SidebarTabId.FILES);
     }
+
+    useEffect(() => {
+        if (opts?.embedded || opts?.isModal) return;
+        return () => {
+            dispatch(terminalSetPageContext(null));
+        };
+    }, [dispatch, opts?.embedded, opts?.isModal]);
 
     const [providerRestriction, setProviderRestriction] = React.useState<string | null>(null);
     const [statusBarTarget, setStatusBarTarget] = React.useState<HTMLElement | null>(null);
@@ -913,7 +922,7 @@ function FileBrowse({
                             startRenaming(resource.id);
                         },
                         viewProperties(res: UFile): void {
-                            navigate(AppRoutes.resource.properties(FilesApi.routingNamespace, res.id))
+                            showFileProperties(res);
                         },
                         commandLoading: false,
                         invokeCommand: call => callAPI(call),
@@ -1424,6 +1433,12 @@ function FileBrowse({
                                 ...opts?.additionalFilters
                             })
                         )).then(collection => {
+                            if (!didUnmount.current && !opts?.embedded && !opts?.isModal && browser.currentPath === newPath) {
+                                dispatch(terminalSetPageContext({
+                                    folder: newPath,
+                                    providerId: collection.specification.product.provider,
+                                }));
+                            }
                             loadStatus(newPath, collection);
                             if (!opts?.embedded) {
                                 const collection = collectionCache.retrieveFromCacheOnly(collectionId);
