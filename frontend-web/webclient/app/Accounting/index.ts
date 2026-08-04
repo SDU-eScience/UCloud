@@ -1071,7 +1071,7 @@ export function buildYourAllocations(allWallets: WalletV2[]): AllocationDisplayT
     return yourAllocations;
 }
 
-export function buildSubAllocations(allWallets?: WalletV2[]): AllocationDisplayTree["subAllocations"] {
+export function buildSubAllocations(allWallets: WalletV2[]): AllocationDisplayTree["subAllocations"] {
     const subAllocations: AllocationDisplayTree["subAllocations"] = {recipients: []};
     if (!allWallets) return subAllocations;
     // NOTE(Dan): This function assumes that allWallets are owned by the same owner.
@@ -1083,8 +1083,8 @@ export function buildSubAllocations(allWallets?: WalletV2[]): AllocationDisplayT
 
     // Start building the sub-allocations UI
 
+    // Optimize(Jonas): These iterations are the slow parts
     for (const wallet of relevantWallets) {
-        console.time("childGroup of wallet.children");
         for (const childGroup of wallet.children ?? []) {
             let allocOwner: WalletOwner;
             if (childGroup.child.projectId) {
@@ -1172,9 +1172,7 @@ export function buildSubAllocations(allWallets?: WalletV2[]): AllocationDisplayT
             newGroup.totalGranted = totalAllocated;
             recipient.groups.push(newGroup);
         }
-        console.timeEnd("childGroup of wallet.children");
 
-        console.time("const recipient of subAllocations.recipients")
         for (const recipient of subAllocations.recipients) {
             const uqBuilder: UsageAndQuota[] = [];
             for (const group of recipient.groups) {
@@ -1212,7 +1210,6 @@ export function buildSubAllocations(allWallets?: WalletV2[]): AllocationDisplayT
 
             recipient.usageAndQuota = uqBuilder;
         }
-        console.timeEnd("const recipient of subAllocations.recipients")
     }
 
     if (isCore2Response) {

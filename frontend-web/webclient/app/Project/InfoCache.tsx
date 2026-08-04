@@ -259,19 +259,17 @@ export function useProjectInfos(ids: Array<string | null | undefined>): ProjectI
     return React.useMemo(() => ({data, loading, error}), [data, loading, error]);
 }
 
-export function ProjectTitle(
-    {
-        id,
-        loadingFallback = null,
-        missingFallback = null,
-        render,
-    }: {
-        id: string;
-        loadingFallback?: ReactNode;
-        missingFallback?: ReactNode;
-        render?: (title: string, info: ProjectInfo) => ReactNode;
-    }
-) {
+export function ProjectTitle({
+    id,
+    loadingFallback = null,
+    missingFallback = null,
+    render,
+}: {
+    id: string;
+    loadingFallback?: ReactNode;
+    missingFallback?: ReactNode;
+    render?: (title: string, info: ProjectInfo) => ReactNode;
+}) {
     const {data, loading, error} = useProjectInfo(id);
 
     if (loading) return <>{loadingFallback}</>;

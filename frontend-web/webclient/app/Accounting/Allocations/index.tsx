@@ -366,8 +366,7 @@ const Allocations: React.FunctionComponent = () => {
                 projectId={projectId} onNewSubProject={onNewSubProject} projectRole={projectRole}
                 state={state} onSearchInput={onSearchInput} onSearchKey={onSearchKey}
                 searchBox={searchBox} dispatchEvent={dispatchEvent}
-                suballocationTree={suballocationTree}
-                onSubAllocationShortcut={onSubAllocationShortcut} avatars={avatars} />
+            />
         </div>}
     />;
 };

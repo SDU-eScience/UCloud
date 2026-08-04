@@ -1437,9 +1437,6 @@ export function SubProjectList({
     onSearchKey,
     searchBox,
     dispatchEvent,
-    suballocationTree,
-    onSubAllocationShortcut,
-    avatars
 }: {
     projectId: string | undefined,
     onNewSubProject: () => Promise<void>,
@@ -1449,9 +1446,6 @@ export function SubProjectList({
     onSearchKey: (event: React.KeyboardEvent<Element>) => void,
     searchBox: React.RefObject<HTMLInputElement | null>,
     dispatchEvent: (event: UIEvent) => unknown,
-    suballocationTree: React.RefObject<TreeApi | null>,
-    onSubAllocationShortcut: (target: HTMLElement, ev: KeyboardEvent) => void,
-    avatars: AvatarState
 }): React.ReactNode {
     const [filtersShown, setFiltersShown] = useState(false);
     const closeFilters = useCallback(() => {
@@ -1662,10 +1656,7 @@ export function SubProjectList({
                                         onClick={onNewSubProject}>here</a>.
                                 </>}
                             </div>}
-                        <SubAllocationBrowser
-                            /* TODO(Jonas): yowza */
-                            state={state}
-                        />
+                        <SubAllocationBrowser state={state} />
                     </>}
                 </div>
             </>
