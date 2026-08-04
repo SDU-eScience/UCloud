@@ -33,35 +33,46 @@ export function useUsageOverTimeChart(
     const unitNormalizationFactor = unit?.balanceFactor ?? 1;
     const unitName = unit?.name ?? "";
 
-    const tableRows = useMemo(() => {
+    const childColors = useMemo(() => {
+        if (!openReport) return new Map<string, string>();
 
+        const children = Array.from(
+            new Set(
+                openReport.usageOverTime.childrenAbsolute
+                    .map(p => p.child)
+                    .filter((x): x is string => !!x)
+            )
+        ).sort();
+
+        const scale = scaleOrdinal<string>()
+            .domain(children)
+            .range(colorNames)
+            .unknown("#ccc");
+
+        return new Map(children.map(child => [
+            child,
+            scale(child)
+        ]));
+    }, [openReport]);
+
+    const tableRows = useMemo(() => {
         if (!openReport) return [];
 
         const domainSet: Record<string, number> = {};
 
         for (const point of openReport.usageOverTime.childrenAbsolute) {
-            const key = point.child ?? "";
-
-            domainSet[key] = point.usage ?? 0;
+            if (!point.child) continue;
+            domainSet[point.child] = point.usage;
         }
 
-        const domain = Object.keys(domainSet).sort((a, b) =>
-            domainSet[b] - domainSet[a]
-        );
-
-        const color = scaleOrdinal<string>()
-            .domain(domain)
-            .range(colorNames)
-            .unknown("#ccc");
-
-
-        return domain.map((child) => ({
-            usage: domainSet[child],
-            child: child,
-            color: color(child),
-        }));
-
-    }, [openReport, chartWidth, chartHeight, labelFormatter]);
+        return Object.keys(domainSet)
+            .sort((a, b) => domainSet[b] - domainSet[a])
+            .map(child => ({
+                usage: domainSet[child],
+                child,
+                color: childColors.get(child) ?? "#ccc",
+            }));
+    }, [openReport, childColors]);
 
 
     const chart = useD3(node => {
@@ -70,18 +81,20 @@ export function useUsageOverTimeChart(
         const r = openReport;
         if (r == null) return;
 
-        const childData = r.usageOverTime.childrenAbsolute;
+        const childData = r.usageOverTime.childrenAbsolute.filter(
+            p => p.child != null && p.child !== ""
+        );
         if (childData.length === 0)
             return;
 
         const children = Array.from(
-            new Set(childData.map(d => d.child ?? "Unknown"))
+            new Set(childData.map(d => d.child!))
         );
 
         const groupedData = new Map<string, typeof childData>();
 
         for (const point of childData) {
-            const child = point.child ?? "Unknown";
+            const child = point.child!;
 
             if (!groupedData.has(child)) {
                 groupedData.set(child, []);
@@ -154,10 +167,8 @@ export function useUsageOverTimeChart(
 
         // Color scheme
         // -------------------------------------------------------------------------------------------------------------
-        const color = scaleOrdinal<string>()
-            .domain(children)
-            .range(colorNames)
-            .unknown("#ccc");
+        const color = (child: string) =>
+            childColors.get(child) ?? "#ccc";
 
         const balanceToString = (normalizedBalance: number) => {
             return balanceToStringFromUnit(null, unitName, normalizedBalance, {referenceBalance: 1000, removeUnitIfPossible: true});
@@ -274,7 +285,8 @@ export function useUsageOverTimeChart(
             if (timeSlot !== prevTimeslot) {
                 prevTimeslot = timeSlot ?? 0;
 
-                const points = timestampMap.get(timeSlot ?? 0) ?? [];
+                const points = (timestampMap.get(timeSlot ?? 0) ?? [])
+                    .sort((a, b) => b.usage - a.usage);
 
                 tooltip.innerHTML = "";
 

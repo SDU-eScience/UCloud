@@ -10,6 +10,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"golang.org/x/exp/maps"
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
@@ -550,18 +551,62 @@ func usageCollapseReports(reports []internalUsageReport) internalUsageReport {
 
 	result.SubProjectHealth = lastReport.SubProjectHealth // NOTE(Dan): Idle is recomputed below
 
-	deltaUsageByChild := map[AccWalletId]int64{}
+	// Every timestamp seen in the reports.
+	allTimestamps := map[time.Time]util.Empty{}
 
+	// Absolute usage for each child.
+	// child -> timestamp -> usage
+	absoluteUsageByChild := map[AccWalletId]map[time.Time]int64{}
+
+	// Delta data grouped by child (for later)
+	deltaByChild := map[AccWalletId]map[time.Time]int64{}
+	allDeltaTimestamps := map[time.Time]util.Empty{}
+
+	// Absolute usage for local
 	absoluteUseByTimestamp := map[time.Time]int64{}
 	absoluteQuotaByTimestamp := map[time.Time]int64{}
 
-	absoluteUsageByChild := map[AccWalletId]int64{}
-
 	for _, report := range reports {
-		for _, item := range report.UsageOverTime.Delta {
-			if item.Child.Present {
-				deltaUsageByChild[item.Child.Value] = deltaUsageByChild[item.Child.Value] + item.Change
+		// Absolute child usage
+		for _, item := range report.UsageOverTime.ChildrenAbsolute {
+			if !item.Child.Present {
+				// Skip wallet-level values.
+				continue
 			}
+
+			child := item.Child.Value
+
+			timeline, ok := absoluteUsageByChild[child]
+			if !ok {
+				timeline = make(map[time.Time]int64)
+				absoluteUsageByChild[child] = timeline
+			}
+
+			// Absolute values overwrite previous ones at the same timestamp.
+			// (There should normally only be one.)
+			timeline[item.Timestamp] = item.Usage
+
+			allTimestamps[item.Timestamp] = util.Empty{}
+		}
+
+		// Delta timeline
+		for _, item := range report.UsageOverTime.Delta {
+			if !item.Child.Present {
+				continue
+			}
+
+			child := item.Child.Value
+
+			timeline, ok := deltaByChild[child]
+			if !ok {
+				timeline = make(map[time.Time]int64)
+				deltaByChild[child] = timeline
+			}
+
+			// Multiple changes can happen at the same timestamp.
+			timeline[item.Timestamp] += item.Change
+
+			allDeltaTimestamps[item.Timestamp] = util.Empty{}
 		}
 
 		for _, item := range report.UsageOverTime.Absolute {
@@ -571,13 +616,139 @@ func usageCollapseReports(reports []internalUsageReport) internalUsageReport {
 					int64((float64(item.Usage)/item.UtilizationPercent100)*100.0)
 			}
 		}
+	}
 
-		for _, item := range report.UsageOverTime.ChildrenAbsolute {
-			if item.Child.Present {
-				absoluteUsageByChild[item.Child.Value] = absoluteUsageByChild[item.Child.Value] + item.Usage
+	timestamps := maps.Keys(allTimestamps)
+	slices.SortFunc(timestamps, func(a, b time.Time) int {
+		return a.Compare(b)
+	})
+
+	if len(timestamps) == 0 {
+		return result
+	}
+
+	// child -> timestamp -> usage (with gaps filled)
+	filledUsageByChild := make(map[AccWalletId]map[time.Time]int64)
+
+	for child, timeline := range absoluteUsageByChild {
+		filled := make(map[time.Time]int64)
+
+		// Sort the timestamps where this child has a datapoint.
+		childTimestamps := make([]time.Time, 0, len(timeline))
+		for ts := range timeline {
+			childTimestamps = append(childTimestamps, ts)
+		}
+
+		slices.SortFunc(childTimestamps, func(a, b time.Time) int {
+			return a.Compare(b)
+		})
+
+		// Shouldn't happen, but be safe.
+		if len(childTimestamps) == 0 {
+			continue
+		}
+
+		firstTimestamp := childTimestamps[0]
+		currentUsage := timeline[firstTimestamp]
+
+		nextIndex := 0
+
+		for _, ts := range timestamps {
+			// Advance whenever we reach another real datapoint.
+			if nextIndex < len(childTimestamps) &&
+				ts.Equal(childTimestamps[nextIndex]) {
+
+				currentUsage = timeline[childTimestamps[nextIndex]]
+				nextIndex++
 			}
+
+			filled[ts] = currentUsage
+		}
+
+		filledUsageByChild[child] = filled
+	}
+
+	// Determine each child's usage at the end of the reporting period.
+	finalUsage := make(map[AccWalletId]int64)
+
+	lastTimestamp := timestamps[len(timestamps)-1]
+
+	for child, timeline := range filledUsageByChild {
+		finalUsage[child] = timeline[lastTimestamp]
+	}
+
+	// Select the top 10 users by final usage.
+	topUsers := util.TopNKeys(finalUsage, 10)
+
+	// Convert to a set for efficient lookups.
+	topUserSet := make(map[AccWalletId]util.Empty, len(topUsers))
+	for _, child := range topUsers {
+		topUserSet[child] = util.Empty{}
+	}
+
+	// child -> timestamp -> datapoint
+	collapsedByChild := make(map[util.Option[AccWalletId]]map[time.Time]internalUsageOverTimeAbsoluteChildrenDataPoint)
+
+	otherChild := util.OptValue(AccWalletId(-1))
+
+	for child, timeline := range filledUsageByChild {
+		// Decide whether this child gets its own series
+		outputChild := otherChild
+
+		if _, ok := topUserSet[child]; ok {
+			outputChild = util.OptValue(child)
+		}
+
+		series, ok := collapsedByChild[outputChild]
+		if !ok {
+			series = make(map[time.Time]internalUsageOverTimeAbsoluteChildrenDataPoint)
+			collapsedByChild[outputChild] = series
+		}
+
+		for _, ts := range timestamps {
+			usage := timeline[ts]
+
+			entry, exists := series[ts]
+			if !exists {
+				entry = internalUsageOverTimeAbsoluteChildrenDataPoint{
+					Timestamp: ts,
+					Child:     outputChild,
+					Usage:     usage,
+				}
+			} else {
+				// Only happens for "Other"
+				entry.Usage += usage
+			}
+
+			series[ts] = entry
 		}
 	}
+
+	for _, series := range collapsedByChild {
+		for _, point := range series {
+			result.UsageOverTime.ChildrenAbsolute = append(
+				result.UsageOverTime.ChildrenAbsolute,
+				point,
+			)
+		}
+	}
+
+	slices.SortFunc(
+		result.UsageOverTime.ChildrenAbsolute,
+		func(a, b internalUsageOverTimeAbsoluteChildrenDataPoint) int {
+			if a.Timestamp.Before(b.Timestamp) {
+				return -1
+			}
+			if a.Timestamp.After(b.Timestamp) {
+				return 1
+			}
+
+			aChild := a.Child.GetOrDefault(-2)
+			bChild := b.Child.GetOrDefault(-2)
+
+			return cmp.Compare(aChild, bChild)
+		},
+	)
 
 	for ts := range absoluteUseByTimestamp {
 		use := absoluteUseByTimestamp[ts]
@@ -598,224 +769,98 @@ func usageCollapseReports(reports []internalUsageReport) internalUsageReport {
 		return cmp.Compare(a.Timestamp.UnixMilli(), b.Timestamp.UnixMilli())
 	})
 
-	result.SubProjectHealth.Idle = result.SubProjectHealth.SubProjectCount - len(deltaUsageByChild)
+	//Delta
 
-	topUsersFromChildren := util.TopNKeys(deltaUsageByChild, 10)
-	deltaDataPointsByChild := map[util.Option[AccWalletId]]map[time.Time]internalUsageOverTimeDeltaDataPoint{}
-	absoluteDataPointsByChild := map[util.Option[AccWalletId]]map[time.Time]internalUsageOverTimeAbsoluteChildrenDataPoint{}
-	allDeltaTimestamps := map[time.Time]util.Empty{}
-	allAbsoluteChildrenTimeStamps := map[time.Time]util.Empty{}
+	// child -> timestamp -> filled delta value
+	filledDeltaByChild := make(map[AccWalletId]map[time.Time]int64)
 
-	for _, report := range reports {
-		for _, item := range report.UsageOverTime.Delta {
-			itemCopy := item
-			if !item.Child.Present {
-				itemCopy.Child = util.OptNone[AccWalletId]()
-			} else {
-				if !slices.Contains(topUsersFromChildren, item.Child.Value) {
-					itemCopy.Child = util.OptValue(AccWalletId(-1))
-				}
-			}
-
-			m, ok := deltaDataPointsByChild[itemCopy.Child]
-			if !ok {
-				m = map[time.Time]internalUsageOverTimeDeltaDataPoint{}
-				deltaDataPointsByChild[itemCopy.Child] = m
-			}
-
-			curr, ok := m[itemCopy.Timestamp]
-			if ok {
-				curr.Change += itemCopy.Change
-			} else {
-				curr = itemCopy
-			}
-			deltaDataPointsByChild[itemCopy.Child][itemCopy.Timestamp] = curr
-			allDeltaTimestamps[itemCopy.Timestamp] = util.Empty{}
-		}
-
-		for _, item := range report.UsageOverTime.ChildrenAbsolute {
-			itemCopy := item
-			if !item.Child.Present {
-				itemCopy.Child = util.OptNone[AccWalletId]()
-			} else {
-				if !slices.Contains(topUsersFromChildren, item.Child.Value) {
-					itemCopy.Child = util.OptValue(AccWalletId(-1))
-				}
-			}
-
-			m, ok := absoluteDataPointsByChild[itemCopy.Child]
-			if !ok {
-				m = map[time.Time]internalUsageOverTimeAbsoluteChildrenDataPoint{}
-				absoluteDataPointsByChild[itemCopy.Child] = m
-			}
-			curr, ok := m[itemCopy.Timestamp]
-			if ok {
-				curr.Usage = item.Usage
-			} else {
-				curr = itemCopy
-			}
-			absoluteDataPointsByChild[itemCopy.Child][itemCopy.Timestamp] = curr
-			allAbsoluteChildrenTimeStamps[itemCopy.Timestamp] = util.Empty{}
-		}
+	deltaTimestamps := make([]time.Time, 0, len(allDeltaTimestamps))
+	for ts := range allDeltaTimestamps {
+		deltaTimestamps = append(deltaTimestamps, ts)
 	}
 
-	// Ensure that all timestamps are filled out
-	for child, m := range deltaDataPointsByChild {
-		for ts := range allDeltaTimestamps {
-			_, ok := m[ts]
-			if !ok {
-				m[ts] = internalUsageOverTimeDeltaDataPoint{
+	slices.SortFunc(deltaTimestamps, func(a, b time.Time) int {
+		return a.Compare(b)
+	})
+
+	for child, timeline := range deltaByChild {
+		filled := make(map[time.Time]int64)
+
+		for _, ts := range deltaTimestamps {
+			change, ok := timeline[ts]
+
+			if ok {
+				filled[ts] = change
+			} else {
+				// Missing delta means no activity.
+				filled[ts] = 0
+			}
+		}
+
+		filledDeltaByChild[child] = filled
+	}
+
+	// child -> timestamp -> delta datapoint
+	collapsedDeltaByChild := make(
+		map[util.Option[AccWalletId]]map[time.Time]internalUsageOverTimeDeltaDataPoint,
+	)
+
+	for child, timeline := range filledDeltaByChild {
+		// Decide if this child gets its own series
+		outputChild := otherChild
+
+		if _, ok := topUserSet[child]; ok {
+			outputChild = util.OptValue(child)
+		}
+
+		series, ok := collapsedDeltaByChild[outputChild]
+		if !ok {
+			series = make(map[time.Time]internalUsageOverTimeDeltaDataPoint)
+			collapsedDeltaByChild[outputChild] = series
+		}
+
+		for _, ts := range timestamps {
+			change := timeline[ts]
+
+			entry, exists := series[ts]
+			if !exists {
+				entry = internalUsageOverTimeDeltaDataPoint{
 					Timestamp: ts,
-					Child:     child,
-					Change:    0,
+					Child:     outputChild,
+					Change:    change,
 				}
-			}
-		}
-	}
-
-	for child, m := range absoluteDataPointsByChild {
-		// Sorted timestamps for this child
-		childTimestamps := make([]time.Time, 0, len(m))
-		for ts := range m {
-			childTimestamps = append(childTimestamps, ts)
-		}
-
-		sort.Slice(childTimestamps, func(i, j int) bool {
-			return childTimestamps[j].After(childTimestamps[i])
-		})
-
-		first := m[childTimestamps[0]]
-
-		for ts := range allAbsoluteChildrenTimeStamps {
-			if _, ok := m[ts]; ok {
-				continue
-			}
-
-			idx := sort.Search(len(childTimestamps), func(i int) bool {
-				return childTimestamps[i].After(ts)
-			})
-
-			var source internalUsageOverTimeAbsoluteChildrenDataPoint
-
-			if idx == 0 {
-				// No previous entry, use first entry
-				source = first
 			} else {
-				// Use previous entry
-				source = m[childTimestamps[idx-1]]
+				// Only happens for "Other"
+				entry.Change += change
 			}
 
-			m[ts] = internalUsageOverTimeAbsoluteChildrenDataPoint{
-				Timestamp: ts,
-				Usage:     source.Usage,
-				Child:     child,
-			}
+			series[ts] = entry
 		}
 	}
-
-	{
-		for _, dataMap := range absoluteDataPointsByChild {
-			var data []internalUsageOverTimeAbsoluteChildrenDataPoint
-
-			for _, item := range dataMap {
-				data = append(data, item)
-			}
-			slices.SortFunc(data, func(a, b internalUsageOverTimeAbsoluteChildrenDataPoint) int {
-				return a.Timestamp.Compare(b.Timestamp)
-			})
-
-			// NOTE(Dan): The step size controls roughly how many elements we want to display before we consolidate
-			// data points. In this case, we are aiming to store up to 540 before we start consolidation. Which
-			// corresponds to roughly 90 days with sampling every 4 hours.
-			stepSize := max(1.0, float64(len(data))/540.0)
-			acc := 0.0
-
-			first := true
-			currentEntry := internalUsageOverTimeAbsoluteChildrenDataPoint{}
-			needNewEntry := true
-
-			for _, entry := range data {
-				acc += 1
-				if acc >= stepSize {
-					acc -= stepSize
-
-					if !first {
-						result.UsageOverTime.ChildrenAbsolute = append(result.UsageOverTime.ChildrenAbsolute, currentEntry)
-						needNewEntry = true
-					} else {
-						first = false
-					}
-				}
-
-				if needNewEntry {
-					currentEntry = internalUsageOverTimeAbsoluteChildrenDataPoint{
-						Timestamp: entry.Timestamp,
-						Child:     entry.Child,
-						Usage:     0,
-					}
-					needNewEntry = false
-				}
-
-				currentEntry.Usage += entry.Usage
-			}
-
-			if !needNewEntry {
-				result.UsageOverTime.ChildrenAbsolute = append(result.UsageOverTime.ChildrenAbsolute, currentEntry)
-			}
+	for _, series := range collapsedDeltaByChild {
+		for _, point := range series {
+			result.UsageOverTime.Delta = append(
+				result.UsageOverTime.Delta,
+				point,
+			)
 		}
 	}
-
-	{
-		for _, dataMap := range deltaDataPointsByChild {
-			var data []internalUsageOverTimeDeltaDataPoint
-
-			for _, item := range dataMap {
-				data = append(data, item)
+	slices.SortFunc(
+		result.UsageOverTime.Delta,
+		func(a, b internalUsageOverTimeDeltaDataPoint) int {
+			if a.Timestamp.Before(b.Timestamp) {
+				return -1
 			}
-			slices.SortFunc(data, func(a, b internalUsageOverTimeDeltaDataPoint) int {
-				return a.Timestamp.Compare(b.Timestamp)
-			})
-
-			// NOTE(Dan): The step size controls roughly how many elements we want to display before we consolidate
-			// data points. In this case, we are aiming to store up to 540 before we start consolidation. Which
-			// corresponds to roughly 90 days with sampling every 4 hours.
-			stepSize := max(1.0, float64(len(data))/540.0)
-			acc := 0.0
-
-			first := true
-			currentEntry := internalUsageOverTimeDeltaDataPoint{}
-			needNewEntry := true
-
-			for _, entry := range data {
-				acc += 1
-				if acc >= stepSize {
-					acc -= stepSize
-
-					if !first {
-						result.UsageOverTime.Delta = append(result.UsageOverTime.Delta, currentEntry)
-						needNewEntry = true
-					} else {
-						first = false
-					}
-				}
-
-				if needNewEntry {
-					currentEntry = internalUsageOverTimeDeltaDataPoint{
-						Timestamp: entry.Timestamp,
-						Child:     entry.Child,
-						Change:    0,
-					}
-					needNewEntry = false
-				}
-
-				currentEntry.Change += entry.Change
+			if a.Timestamp.After(b.Timestamp) {
+				return 1
 			}
 
-			if !needNewEntry {
-				result.UsageOverTime.Delta = append(result.UsageOverTime.Delta, currentEntry)
-			}
-		}
-	}
+			aChild := a.Child.GetOrDefault(-2)
+			bChild := b.Child.GetOrDefault(-2)
+
+			return cmp.Compare(aChild, bChild)
+		},
+	)
 
 	slices.SortFunc(result.UsageOverTime.Delta, func(a, b internalUsageOverTimeDeltaDataPoint) int {
 		if a.Timestamp.Before(b.Timestamp) {

@@ -89,7 +89,6 @@ export function useAbsoluteOverTimeChart(
 
         const byTimestampKey = group(data, d => d.timestamp, d => d.child ?? "");
 
-        // Split stack into positive and negative
         const keys = (union(data.map(it => it.child ?? "")))
 
         const positiveStack = stack<number>()
@@ -140,7 +139,17 @@ export function useAbsoluteOverTimeChart(
                 tooltip.append(document.createElement("br"));
             }
 
-            for (const child of domain) {
+            const sortedChildren = domain
+                .map(child => ({
+                    child,
+                    usage: usageBucket.get(child)?.reduce(
+                        (sum, d) => sum + d.usage,
+                        0
+                    ) ?? 0,
+                }))
+                .sort((a, b) => b.usage - a.usage);
+
+            for (const {child, usage} of sortedChildren) {
                 const container = document.createElement("div");
                 container.style.display = "flex";
                 container.style.gap = "8px";
@@ -164,12 +173,15 @@ export function useAbsoluteOverTimeChart(
 
                 {
                     const node = document.createElement("div");
-                    const change = usageBucket.get(child)?.reduce(
-                        (sum, d) => sum + d.usage,
-                        0
-                    ) ?? 0;
-                    node.append(balanceToStringFromUnit(null, unitName, change * unitNormalizationFactor));
 
+                    node.append(
+                        balanceToStringFromUnit(
+                            null,
+                            unitName,
+                            usage * unitNormalizationFactor
+                        )
+                    );
+                    
                     container.append(node);
                 }
 
