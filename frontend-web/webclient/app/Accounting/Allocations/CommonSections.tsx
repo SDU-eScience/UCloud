@@ -1656,7 +1656,7 @@ export function SubProjectList({
                                         onClick={onNewSubProject}>here</a>.
                                 </>}
                             </div>}
-                        <SubAllocationBrowser state={state} opts={{embedded: {disableKeyhandlers: false, hideFilters: false}}} />
+                        <AllocationBrowser state={state} opts={{embedded: {disableKeyhandlers: false, hideFilters: false}}} />
                     </>}
                 </div>
             </>
@@ -1709,7 +1709,7 @@ new ReactStaticRenderer(() => {
     return <Avatar style={{height: "80px", width: "80px"}} avatarStyle="Circle" {...defaultAvatar} />;
 }).promise.then(it => defaultAvatarSvg = it);
 
-export function SubAllocationBrowser(props: {opts?: ResourceBrowserOpts<AllocationTypes>, state: State;}): React.ReactNode {
+export function AllocationBrowser(props: {opts?: ResourceBrowserOpts<AllocationTypes>, state: State;}): React.ReactNode {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<AllocationTypes> | null>(null);
     const dispatch = useDispatch();

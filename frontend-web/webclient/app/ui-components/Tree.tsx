@@ -75,7 +75,7 @@ export const Tree: React.FunctionComponent<{
             return root.current.hasAttribute("data-active");
         };
 
-        const handleAction = (action: TreeAction, isShiftKeyDown: boolean) => {
+        const handleAction = (action: TreeAction) => {
             let rowIdx = visibleRows().findIndex(it => it.hasAttribute("data-selected"))
             let initialRowIdx = rowIdx;
 
@@ -165,7 +165,7 @@ export const Tree: React.FunctionComponent<{
                 }
             } else {
                 ev.preventDefault();
-                handleAction(action, ev.metaKey);
+                handleAction(action);
             }
         };
 
@@ -176,7 +176,7 @@ export const Tree: React.FunctionComponent<{
                         .forEach(tree => tree.removeAttribute("data-active"));
 
                     root?.current?.setAttribute("data-active", "");
-                    handleAction(TreeAction.GO_TO_TOP, false);
+                    handleAction(TreeAction.GO_TO_TOP);
                 },
                 deactivate: () => {
                     document.body.querySelectorAll(`.${TreeClass}[data-active]`)
