@@ -1656,7 +1656,7 @@ export function SubProjectList({
                                         onClick={onNewSubProject}>here</a>.
                                 </>}
                             </div>}
-                        <SubAllocationBrowser state={state} />
+                        <SubAllocationBrowser state={state} opts={{embedded: {disableKeyhandlers: false, hideFilters: false}}} />
                     </>}
                 </div>
             </>
@@ -1672,6 +1672,7 @@ const FEATURES: ResourceBrowseFeatures = {
     projectSwitcher: true,
     showColumnTitles: true,
     dragToSelect: true,
+    showHeaderInEmbedded: true,
 };
 
 type AllocationTypes =
@@ -1708,19 +1709,15 @@ new ReactStaticRenderer(() => {
     return <Avatar style={{height: "80px", width: "80px"}} avatarStyle="Circle" {...defaultAvatar} />;
 }).promise.then(it => defaultAvatarSvg = it);
 
-export function SubAllocationBrowser(
-    props: {opts?: ResourceBrowserOpts<AllocationTypes>} & {
-        state: State;
-    }
-): React.ReactNode {
+export function SubAllocationBrowser(props: {opts?: ResourceBrowserOpts<AllocationTypes>, state: State;}): React.ReactNode {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<AllocationTypes> | null>(null);
     const dispatch = useDispatch();
     const navigate = useNavigate();
 
-    const filteredAllocations = React.useMemo(() => {
-        return props.state.subAllocations.recipients.filter((_, idx) => props.state.filteredSubProjectIndices.includes(idx));
-    }, [props.state.subAllocations.recipients, props.state.filteredSubProjectIndices]);
+    const filteredAllocations = React.useMemo(() =>
+        props.state.subAllocations.recipients.filter((_, idx) => props.state.filteredSubProjectIndices.includes(idx)),
+        [props.state.subAllocations.recipients, props.state.filteredSubProjectIndices]);
 
     React.useLayoutEffect(() => {
         if (browserRef.current) {
@@ -1729,6 +1726,8 @@ export function SubAllocationBrowser(
                 "/",
                 true
             );
+
+            browserRef.current.rerender();
 
             Promise.all(filteredAllocations.map(all => new ReactStaticRenderer(() => <FilteredUsageAndQuota entries={all.usageAndQuota} />)
                 .promise.then(result => {
