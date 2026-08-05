@@ -15,9 +15,10 @@ const (
 	driveOpsShares          SupportFeatureKey = "drive.ops.shares"
 	driveOpsTerminal        SupportFeatureKey = "drive.ops.terminal"
 
-	driveAcl        SupportFeatureKey = "drive.acl"
-	driveManagement SupportFeatureKey = "drive.management" // create & rename
-	driveDeletion   SupportFeatureKey = "drive.deletion"
+	driveAcl                   SupportFeatureKey = "drive.acl"
+	driveManagement            SupportFeatureKey = "drive.management" // create & rename
+	driveDeletion              SupportFeatureKey = "drive.deletion"
+	driveContainerRepositories SupportFeatureKey = "drive.containerRepositories"
 )
 
 var driveFeatureMapper = []featureMapper{
@@ -40,6 +41,11 @@ var driveFeatureMapper = []featureMapper{
 		Type: driveType,
 		Key:  driveManagement,
 		Path: "collection.usersCanRename",
+	},
+	{
+		Type: driveType,
+		Key:  driveContainerRepositories,
+		Path: "containerRepositories",
 	},
 
 	{

@@ -56,6 +56,8 @@ type FSSupport struct {
 		UsersCanRename bool `json:"usersCanRename"`
 	} `json:"collection"`
 
+	ContainerRepositories bool `json:"containerRepositories"`
+
 	Files struct {
 		AclModifiable            bool `json:"aclModifiable"`
 		TrashSupported           bool `json:"trashSupported"`

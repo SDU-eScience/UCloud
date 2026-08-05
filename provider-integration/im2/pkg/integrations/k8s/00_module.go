@@ -13,6 +13,7 @@ import (
 	"ucloud.dk/pkg/integrations/k8s/filesystem"
 	"ucloud.dk/pkg/integrations/k8s/inference"
 	job_introspection "ucloud.dk/pkg/integrations/k8s/job-introspection"
+	"ucloud.dk/pkg/integrations/k8s/registry"
 	"ucloud.dk/pkg/integrations/k8s/shared"
 	syncthing_metrics "ucloud.dk/pkg/integrations/k8s/syncthing-metrics"
 	"ucloud.dk/pkg/ucxdelivery"
@@ -93,6 +94,7 @@ func Init(config *cfg.ServicesConfigurationKubernetes) {
 	job_introspection.InitServerHandlers()
 	syncthing_metrics.InitCollector()
 	inference.Init()
+	registry.Init()
 	initJobAuditLogCleanup()
 	controller.ApiTokens = inference.InitApiTokens()
 	shared.InitExecutables()

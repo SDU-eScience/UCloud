@@ -75,6 +75,15 @@ var DrivesRename = ucx.Rpc[fndapi.BulkRequest[orcapi.DriveRenameRequest], util.E
 var DrivesUpdateLabels = ucx.Rpc[fndapi.BulkRequest[orcapi.DrivesUpdateLabelsRequest], util.Empty]{CallName: "drivesUpdateLabels"}
 var DrivesRetrieveProducts = ucx.Rpc[util.Empty, []orcapi.ResolvedSupport[orcapi.FSSupport]]{CallName: "drivesRetrieveProducts"}
 
+// Container repositories
+// ---------------------------------------------------------------------------------------------------------------------
+
+var ContainerRepositoriesCreate = ucx.Rpc[[]orcapi.ContainerRepositorySpecification, []orcapi.ContainerRepository]{CallName: "containerRepositoriesCreate"}
+var ContainerRepositoriesDelete = ucx.Rpc[[]string, util.Empty]{CallName: "containerRepositoriesDelete"}
+var ContainerRepositoriesRetrieve = ucx.Rpc[orcapi.ContainerRepositoriesRetrieveRequest, orcapi.ContainerRepository]{CallName: "containerRepositoriesRetrieve"}
+var ContainerRepositoriesUpdateLabels = ucx.Rpc[fndapi.BulkRequest[orcapi.ContainerRepositoriesUpdateLabelsRequest], util.Empty]{CallName: "containerRepositoriesUpdateLabels"}
+var ContainerRepositoriesRetrieveProducts = ucx.Rpc[util.Empty, []orcapi.ResolvedSupport[orcapi.FSSupport]]{CallName: "containerRepositoriesRetrieveProducts"}
+
 // Jobs
 // ---------------------------------------------------------------------------------------------------------------------
 
