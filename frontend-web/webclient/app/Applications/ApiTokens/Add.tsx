@@ -1,6 +1,6 @@
 import * as React from "react";
 import {callAPI, useCloudAPI} from "@/Authentication/DataHook";
-import {Box, Button, Image, Divider, Flex, Icon, Input, MainContainer, Select, Link} from "@/ui-components";
+import {Box, Button, Image, Divider, Flex, Icon, Input, MainContainer, Link} from "@/ui-components";
 import * as Api from "./api";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {PeriodStyle} from "@/Accounting/Usage";
@@ -35,7 +35,7 @@ function Add() {
     const optionsData = options.data.byProvider;
     const serviceProviders = Object.keys(optionsData);
     const [projectId, setProjectId] = React.useState<string | undefined>(getStoredProject() ?? undefined);
-    const [activePermissions, setActivePermissions] = React.useState(new Set<string>());
+    const [activePermissions, setActivePermissions] = React.useState(new Map<string, Set<string>>());
     const [tokenStatus, setTokenStatus] = React.useState<ApiTokenStatus | null>(null);
 
     const mappedServiceProviders = serviceProviders.map(it => ({key: it}));
@@ -52,11 +52,10 @@ function Add() {
 
         const requestedPermissions: Api.ApiTokenPermission[] = [];
 
-        for (const permission of activePermissions) {
-            requestedPermissions.push({
-                name: permission,
-                action: (document.querySelector(`[data-permission=${permission}]`) as HTMLSelectElement).value
-            });
+        for (const [permission, actions] of activePermissions) {
+            for (const action of actions) {
+                requestedPermissions.push({name: permission, action});
+            }
         }
 
         if (!title) {
@@ -132,7 +131,7 @@ function Add() {
             <Flex>
                 <ServiceProviderSelector serviceProvider={serviceProvider} serviceProviders={mappedServiceProviders} onSelect={el => {
                     setServiceProvider(el.key);
-                    setActivePermissions(new Set());
+                    setActivePermissions(new Map());
                 }} />
                 {serviceProvider !== "" ? null :
                     <div style={{gap: 0}}>
@@ -161,11 +160,16 @@ function Add() {
                                 chevron
                                 fullWidth
                             >
-                                {availablePermissions.map(p => <Permission onClick={() => {
+                                {availablePermissions.map(p => <Permission key={p.name} onClick={() => {
                                     if (activePermissions.has(p.name)) {
                                         return;
                                     } else {
-                                        return setActivePermissions(set => new Set([...set, p.name]))
+                                        return setActivePermissions(current => {
+                                            const next = new Map(current);
+                                            const firstAction = Object.keys(p.actions)[0];
+                                            next.set(p.name, firstAction == null ? new Set() : new Set([firstAction]));
+                                            return next;
+                                        });
                                     }
                                 }} {...p} />)}
                             </ClickableDropdown>
@@ -173,13 +177,31 @@ function Add() {
                     </div>
                     {activePermissions.size > 0 ? <Divider m={"0px"} /> : null}
                     <div style={{maxHeight: "400px", overflowY: "auto"}}>
-                        {[...activePermissions].map(p =>
-                            <ActivePermissions clearPermission={() => {
-                                setActivePermissions(permissions => {
-                                    permissions.delete(p);
-                                    return new Set([...permissions]);
+                        {[...activePermissions].map(([permission, actions]) =>
+                            <ActivePermissions key={permission} clearPermission={() => {
+                                setActivePermissions(current => {
+                                    const next = new Map(current);
+                                    next.delete(permission);
+                                    return next;
                                 })
-                            }} permission={p} availablePermissions={availablePermissions} />
+                            }} toggleAction={action => {
+                                setActivePermissions(current => {
+                                    const next = new Map(current);
+                                    const selectedActions = new Set(next.get(permission) ?? []);
+                                    if (selectedActions.has(action)) {
+                                        selectedActions.delete(action);
+                                    } else {
+                                        selectedActions.add(action);
+                                    }
+
+                                    if (selectedActions.size === 0) {
+                                        next.delete(permission);
+                                    } else {
+                                        next.set(permission, selectedActions);
+                                    }
+                                    return next;
+                                });
+                            }} permission={permission} selectedActions={actions} availablePermissions={availablePermissions} />
                         )}
                     </div>
                 </div>
@@ -234,7 +256,9 @@ const PermissionWindow = injectStyle("permission-window", cl => `
 
 function ActivePermissions(props: {
     clearPermission(): void;
+    toggleAction(action: string): void;
     permission: string;
+    selectedActions: Set<string>;
     availablePermissions: Api.ApiTokenPermissionSpecification[]
 }): React.ReactNode {
     const permissionSpecification = props.availablePermissions.find(it => it.name === props.permission);
@@ -251,13 +275,11 @@ function ActivePermissions(props: {
                 {permissionSpecification.description}
             </div>
         </div>
-        <Flex ml="auto" my="auto" height="35px">
-            <Select ml="auto" width="180px" data-permission={props.permission}>
-                {actionKeys.map(key => {
-                    const value = permissionSpecification.actions[key];
-                    return <option value={key}>{value}</option>
-                })}
-            </Select>
+        <Flex ml="auto" my="auto" alignItems="center" gap="12px" flexWrap="wrap">
+            {actionKeys.map(key => <label key={key} style={{display: "flex", gap: 6, alignItems: "center"}}>
+                <input type="checkbox" checked={props.selectedActions.has(key)} onChange={() => props.toggleAction(key)} />
+                {permissionSpecification.actions[key]}
+            </label>)}
             <Icon onClick={props.clearPermission} cursor="pointer" name="close" mt="auto" ml="12px" mb="10px" />
         </Flex>
     </Flex>

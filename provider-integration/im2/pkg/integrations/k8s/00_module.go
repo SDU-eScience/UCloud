@@ -96,7 +96,12 @@ func Init(config *cfg.ServicesConfigurationKubernetes) {
 	inference.Init()
 	registry.Init()
 	initJobAuditLogCleanup()
-	controller.ApiTokens = inference.InitApiTokens()
+	controller.ApiTokens = controller.ApiTokenService{
+		Providers: []controller.ApiTokenProvider{
+			inference.InitApiTokens(),
+			registry.InitApiTokens(),
+		},
+	}
 	shared.InitExecutables()
 	if err := ucxdelivery.InitCache(config.FileSystem.MountPoint, nil, ucxdelivery.CacheOptions{
 		OwnerUid: util.OptValue(filesystem.DefaultUid),
