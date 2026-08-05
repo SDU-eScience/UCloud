@@ -231,9 +231,10 @@ const tickRate = 50;
 export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
     actionText?: string,
     icon?: IconName,
+    iconSize?: number,
     align?: "left" | "center",
     actionKey?: string;
-    onAction?: (actionKey?: string) => void;
+    onAction?: (actionKey?: string) => Promise<void>;
     hoverColor?: ThemeColor;
     disabled?: boolean;
 }> = props => {
@@ -365,7 +366,7 @@ export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
         width={props.width}
     >
         {!props.icon ? null : <div className={"ucloud-native-icons"}>
-            <Icon name={props.icon} size={"20"} mb="3px" />
+            <Icon name={props.icon} size={props.iconSize ?? 20} mb="3px" />
         </div>}
         <div className={"icons"}>
             <svg className="progress" viewBox="0 0 32 32">

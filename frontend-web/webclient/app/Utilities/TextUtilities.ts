@@ -11,6 +11,11 @@ export function stupidPluralize(count: number, text: string): string {
     return text;
 }
 
+export function pluralize(count: number, singular: string, plural: string = singular + "s") {
+    if (count === 1) return singular;
+    return plural;
+}
+
 export function removePrefixFrom(prefix: string, text: string): string {
     if (text.indexOf(prefix) === 0) {
         return text.substring(prefix.length);

@@ -25,7 +25,7 @@ const Connection: React.FunctionComponent = () => {
                     )
                 );
                 navigate("/");
-            } catch (e) {
+            } catch (e: any) {
                 setErrorMessage(extractErrorMessage(e));
             }
         })();

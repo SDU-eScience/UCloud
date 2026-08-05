@@ -1,11 +1,22 @@
 import {Browser, test as setup, Page} from "@playwright/test";
-import {Accounting, Admin, Components, Project, Rows, TestUsers, User} from "./shared";
+import {Accounting, Admin, Components, Project, ProviderInfo, Rows, TestUsers, User} from "./shared";
 import fs from "fs";
+import {default as data} from "./test_data.json" with {type: "json"};
+import {default as pAndP} from "./provider_and_products.json" with {type: "json"};
+const PRODUCTS = pAndP.find(it => it.location_origin === data.location_origin)!.products_used_in_tests;
 
 setup("Setup 'pi', 'admin', and 'user'", async ({page, browser}) => {
+    if (data.login_cookie) {
+        await page.context().addCookies([data.login_cookie]);
+    }
+
     setup.setTimeout(120_000);
 
     const ucloudAdminPage = await Admin.newLoggedInAdminPage(page);
+    if (data.login_cookie) {
+        await ucloudAdminPage.context().addCookies([data.login_cookie]);
+    }
+
 
     const pi = await createNewUserAndLogin(ucloudAdminPage, browser, "pi");
     const admin = await createNewUserAndLogin(ucloudAdminPage, browser, "admin");
@@ -20,11 +31,11 @@ setup("Setup 'pi', 'admin', and 'user'", async ({page, browser}) => {
     await ucloudAdminPage.reload();
     await Accounting.goTo(ucloudAdminPage, "Grant applications");
     await ucloudAdminPage.getByText("Show applications received").click();
-    await Project.changeTo(ucloudAdminPage, "Provider K8s");
+    await Project.changeTo(ucloudAdminPage, ProviderInfo.providerTitle());
     await Rows.actionByRowTitle(ucloudAdminPage, `${idProject}: ${projectName}`, "dblclick");
     await Accounting.GrantApplication.approve(ucloudAdminPage);
 
-    const userList = [pi, admin, user]
+    const userList = [pi, admin, user];
 
     for (const testUser of userList) {
         const grantId = await makeGrantApplication(testUser.page);
@@ -72,10 +83,12 @@ async function waitForHiddenGrantNotification(page: Page): Promise<void> {
 }
 
 async function createNewUserAndLogin(ucloudAdminPage: Page, browser: Browser, kind: "admin" | "pi" | "user"): Promise<{page: Page, credentials: {username: string; password: string;}}> {
-    const credentials = User.newUserCredentials();
-    credentials.username = kind + credentials.username;
+    const credentials = User.newUserCredentials(kind);
     await User.create(ucloudAdminPage, credentials);
     const page = await browser.newPage();
+    if (data.login_cookie) {
+        await page.context().addCookies([data.login_cookie]);
+    }
     await User.login(page, credentials, true);
     await Components.goToDashboard(page);
     return {page, credentials};
@@ -85,21 +98,26 @@ async function makeGrantApplication(page: Page, projectName?: string): Promise<s
     await Accounting.goTo(page, "Apply for resources");
     if (projectName) {
         await Accounting.GrantApplication.fillProjectName(page, projectName);
-        await Accounting.GrantApplication.toggleGrantGiver(page, "Provider K8s");
-        await Accounting.GrantApplication.fillQuotaFields(page, {
-            "Core-hours requested": 100,
-            "GB requested": 10,
-            "IPs requested": 10,
-            "Licenses requested": 10,
-        });
+        await Accounting.GrantApplication.toggleGrantGiver(page, ProviderInfo.providerTitle());
+        await Accounting.GrantApplication.setMonths(page, 1);
+
+        const requestedResources: [string, number][] = [
+            [PRODUCTS.compute, 50],
+            [PRODUCTS.storage, 10],
+            [PRODUCTS.license, projectName ? 3 : 1],
+        ];
+
+        if (PRODUCTS.public_ip != null) {
+            requestedResources.push([PRODUCTS.public_ip, 5]);
+        }
+
+        await Accounting.GrantApplication.fillQuotaFields(page, requestedResources);
     } else {
         await page.getByRole("link", {name: "select an existing project instead"}).click();
-        await Accounting.GrantApplication.toggleGrantGiver(page, "Provider K8s");
-        await Accounting.GrantApplication.fillQuotaFields(page, {
-            "GB requested": 1
-        });
+        await Accounting.GrantApplication.toggleGrantGiver(page, ProviderInfo.providerTitle());
+        await Accounting.GrantApplication.fillQuotaFields(page, [[PRODUCTS.storage, 1]]);
     }
-    await Accounting.GrantApplication.fillDefaultApplicationTextFields(page);
+    await Accounting.GrantApplication.fillDefaultApplicationTextFields(page, !!projectName);
 
     return await Accounting.GrantApplication.submit(page);
 }

@@ -49,7 +49,7 @@ function Modification(): React.ReactNode {
                     onClick={async () => {
                         SimpleAvatarComponentCache.deleteCachedAvatar(Client.username!);
                         avatarState.setAvatar(Client.username!, avatar);
-                        dispatch(await saveAvatar(avatar));
+                        await saveAvatar(dispatch, avatar);
                     }}
                     mt="5px"
                     mb="5px"
@@ -160,7 +160,7 @@ function Modification(): React.ReactNode {
         try {
             const r = await promises.makeCancelable(Client.get<AvatarType>(findAvatarQuery, undefined)).promise;
             setAvatar(r.response);
-        } catch (e) {
+        } catch (e: any) {
             if (!e.isCanceled)
                 sendFailureNotification(errorMessageOrDefault(e, "An error occurred fetching current Avatar"));
         } finally {

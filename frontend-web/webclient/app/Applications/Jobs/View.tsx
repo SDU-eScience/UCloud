@@ -1106,7 +1106,7 @@ const RunningContent: React.FunctionComponent<{
     }, [status.expiresAt]);
 
 
-    const suspendJob = React.useCallback(() => {
+    const suspendJob = React.useCallback(async () => {
         try {
             setSuspended(true);
             invokeCommand(JobsApi.suspend(bulkRequestOf({id: job.id})));
@@ -1178,8 +1178,8 @@ const RunningContent: React.FunctionComponent<{
         }
     }, [job.updates.length]);
 
-    const ingresses = job.specification.resources.filter(it => it.type === "ingress") as AppParameterValueNS.Ingress[];
-    const peers = job.specification.resources.filter(it => it.type === "peer") as AppParameterValueNS.Peer[];
+    const ingresses = job.specification.resources?.filter(it => it.type === "ingress") ?? [];
+    const peers = job.specification.resources?.filter(it => it.type === "peer") ?? [];
 
     if (localStorage.getItem("fakeLinks")) {
         ingresses.push({
@@ -1560,7 +1560,7 @@ const CompletedText: React.FunctionComponent<{ job: Job, state: JobState }> = ({
         <Box flexGrow={1}/>
         {isUnknownApp || isSyncthingApp(job) ? null :
             <Link to={buildQueryString(`/jobs/create`, {app: app.name, version: app.version, import: job.id})}>
-                <Button>Run application again</Button>
+                <Button>Run again</Button>
             </Link>
         }
     </Flex>;

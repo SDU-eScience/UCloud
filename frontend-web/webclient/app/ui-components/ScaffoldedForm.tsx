@@ -53,8 +53,8 @@ export interface ImageElement extends BaseElement {
 
 export interface SelectorElement extends BaseElement {
     type: "Selector";
-    onShow: () => Promise<unknown>;
-    displayValue: (data: unknown | null) => string;
+    onShow: () => Promise<any>;
+    displayValue: (data: any | null) => string;
 }
 
 const BaseComponent: React.FunctionComponent<{
@@ -79,8 +79,8 @@ const BaseComponent: React.FunctionComponent<{
 
 export const ScaffoldedForm: React.FunctionComponent<{
     element: ScaffoldedFormElement;
-    data: unknown | null;
-    onUpdate: (newData: unknown) => void;
+    data: any | null;
+    onUpdate: (newData: any) => void;
     ancestorId?: string;
     errors: React.RefObject<Record<string, string>>;
 }> = ({ancestorId, element, data, onUpdate, errors}) => {

@@ -1,4 +1,4 @@
-import {productTypeToIcon, ProductV2, ProductV2NetworkIP} from "@/Accounting";
+import {ProductNetworkIP, productTypeToIcon, ProductV2, ProductV2NetworkIP} from "@/Accounting";
 import {callAPI} from "@/Authentication/DataHook";
 import {bulkRequestOf, displayErrorMessageOrDefault, extractErrorMessage, stopPropagation} from "@/UtilityFunctions";
 import MainContainer from "@/ui-components/MainContainer";
@@ -214,7 +214,7 @@ export function NetworkIPBrowse({
                 });
 
                 browser.on("fetchOperationsCallback", () => {
-                    const callbacks: ResourceBrowseCallbacks<NetworkIP> = {
+                    const callbacks: ResourceBrowseCallbacks<NetworkIP, ProductNetworkIP> = {
                         supportByProvider: {productsByProvider: {}},
                         dispatch,
                         isWorkspaceAdmin: checkIsWorkspaceAdmin(),
@@ -234,9 +234,11 @@ export function NetworkIPBrowse({
 
                 browser.on("fetchOperations", () => {
                     const entries = browser.findSelectedEntries();
-                    const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as ResourceBrowseCallbacks<NetworkIP>;
+                    const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as ResourceBrowseCallbacks<NetworkIP, ProductNetworkIP>;
 
-                    const operations = NetworkIPApi.retrieveOperations();
+                    const actions = NetworkIPApi.retrieveActions();
+                    if (!Array.isArray(actions)) return actions;
+                    const operations = actions;
                     const create = operations.find(it => it.tag === CREATE_TAG);
                     if (create) {
                         create.enabled = () => true;
@@ -264,10 +266,6 @@ export function NetworkIPBrowse({
                                                 },
                                                 owner: {createdBy: ""},
                                             } as NetworkIP;
-
-                                            browser.insertEntryIntoCurrentPage(networkIP);
-                                            browser.renderRows();
-                                            browser.selectAndShow(it => it === networkIP);
 
                                             try {
                                                 const response = (await callAPI(
@@ -309,9 +307,12 @@ export function NetworkIPBrowse({
                                                     );
                                                 }
 
+                                                const newNetworkIP = await callAPI(NetworkIPApi.retrieve({id: networkIP.id}));
+                                                browser.insertEntryIntoCurrentPage(newNetworkIP);
+                                                browser.renderRows();
+                                                browser.selectAndShow(it => it === newNetworkIP);
                                                 dialogStore.success();
-                                                browser.refresh();
-                                            } catch (e) {
+                                            } catch (e: any) {
                                                 sendFailureNotification("Failed to activate public IP. " + extractErrorMessage(e));
                                                 browser.refresh();
                                                 return;

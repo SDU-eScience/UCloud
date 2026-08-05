@@ -1,7 +1,10 @@
 package ucx
 
 import (
+	"bytes"
 	"testing"
+
+	"ucloud.dk/shared/pkg/util"
 )
 
 func TestStructToModelSerializesScalarsAndTags(t *testing.T) {
@@ -389,5 +392,54 @@ func TestValueUnmarshalSupportsBarePrimitiveAndArrayRoots(t *testing.T) {
 	}
 	if array != [3]string{"a", "b", "c"} {
 		t.Fatalf("unexpected array value: got %#v", array)
+	}
+}
+
+func TestValueMarshalUnmarshalSupportsBinarySlices(t *testing.T) {
+	type model struct {
+		Name string
+		Data []byte
+	}
+
+	input := model{Name: "payload", Data: []byte{0, 1, 2, 255}}
+	encoded, err := ValueMarshal(input)
+	if err != nil {
+		t.Fatalf("ValueMarshal returned error: %v", err)
+	}
+
+	data, ok := encoded["data"]
+	if !ok {
+		t.Fatalf("missing data key")
+	}
+	if data.Kind != ValueBinary {
+		t.Fatalf("data kind: got %v want %v", data.Kind, ValueBinary)
+	}
+	if !ValuesEqual(data, VBinary(input.Data)) {
+		t.Fatalf("unexpected binary value: got %#v want %#v", data, VBinary(input.Data))
+	}
+
+	var decoded model
+	if err := ValueUnmarshal(encoded, &decoded); err != nil {
+		t.Fatalf("ValueUnmarshal returned error: %v", err)
+	}
+	if decoded.Name != input.Name || !ValuesEqual(VBinary(decoded.Data), VBinary(input.Data)) {
+		t.Fatalf("unexpected decoded value: %#v", decoded)
+	}
+}
+
+func TestValueEncodeDecodeSupportsBinary(t *testing.T) {
+	input := VObject(map[string]Value{
+		"data": VBinary([]byte{0, 7, 255}),
+	})
+
+	buf := util.NewBuffer(&bytes.Buffer{})
+	ValueEncode(buf, input)
+	if buf.Error != nil {
+		t.Fatalf("ValueEncode returned error: %v", buf.Error)
+	}
+
+	decoded := ValueDecode(util.NewBufferBytes(buf.ReadRemainingBytes()))
+	if !ValuesEqual(decoded, input) {
+		t.Fatalf("unexpected decoded value: got %#v want %#v", decoded, input)
 	}
 }

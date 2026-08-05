@@ -75,7 +75,8 @@ const Categories: React.FunctionComponent = () => {
         move(e, false).then(doNothing);
     }, [move]);
 
-    const deleteCategory = useCallback(async (key: string) => {
+    const deleteCategory = useCallback(async (key?: string) => {
+        if (!key) return;
         const id = parseInt(key);
         await callAPIWithErrorHandler(AppStore.deleteCategory({id}));
         fetchCategories();
@@ -90,7 +91,7 @@ const Categories: React.FunctionComponent = () => {
 
             <Button onClick={createCategory}>Create category</Button>
 
-            {categories.length < 1 ? <>No categories here</>: <>
+            {categories.length < 1 ? <>No categories here</> : <>
                 {categories.map((c, idx) => {
                     return <ListRow
                         key={c.metadata.id}

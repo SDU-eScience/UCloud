@@ -1,7 +1,7 @@
 import {Client} from "@/Authentication/HttpClientInstance";
 import {MainContainer} from "@/ui-components/MainContainer";
 import * as React from "react";
-import {PRODUCT_NAME} from "@/../site.config.json" with {type: "json"};
+import {PRODUCT_NAME} from "@/../site.config.json";
 import {Box, Button, Flex, TextArea} from "@/ui-components";
 import {errorMessageOrDefault} from "@/UtilityFunctions";
 import {sendFailureNotification} from "@/Notifications";

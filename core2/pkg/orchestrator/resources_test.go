@@ -74,6 +74,19 @@ func initResourceTest(t *testing.T) {
 	}
 }
 
+func TestApiServerResourcesAreNotPersistable(t *testing.T) {
+	resources := []orcapi.AppParameterValue{
+		orcapi.AppParameterValueFile("/123/path", true),
+		orcapi.AppParameterApiServer("Inference", "https://example.com/v1", "uci-secret"),
+	}
+
+	filtered := jobPersistableResources(resources)
+
+	if assert.Equal(t, 1, len(filtered)) {
+		assert.Equal(t, orcapi.AppParameterValueTypeFile, filtered[0].Type)
+	}
+}
+
 func TestReadAndWritePath(t *testing.T) {
 	initResourceTest(t)
 
@@ -485,6 +498,29 @@ func TestResourceCreateAndUpdateLabels(t *testing.T) {
 	if assert.Nil(t, err) {
 		assert.Equal(t, 0, len(retrieved.Labels))
 	}
+}
+
+func TestResourceRemovesDeletedProjectGroupFromAcl(t *testing.T) {
+	initResourceTest(t)
+
+	owner := actor("owner", "project")
+	id, _, err := ResourceCreateEx[TestResource](
+		testResource,
+		orcapi.ResourceOwner{CreatedBy: owner.Username, Project: util.OptValue("project")},
+		[]orcapi.ResourceAclEntry{
+			{Entity: orcapi.AclEntityProjectGroup("project", "deleted-group")},
+			{Entity: orcapi.AclEntityProjectGroup("project", "remaining-group")},
+		},
+		orcapi.ResourceSpecification{},
+		util.OptNone[string](),
+		&TestResourceData{},
+		0,
+	)
+	assert.Nil(t, err)
+
+	resource := resourceGetBucket(testResource, id).Resources[id]
+	resourceRemoveGroupFromAcls("deleted-group")
+	assert.Equal(t, 2, len(resource.Acl))
 }
 
 func TestResourceBrowseFilterLabels(t *testing.T) {

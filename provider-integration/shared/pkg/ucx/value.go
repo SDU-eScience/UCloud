@@ -19,6 +19,7 @@ const (
 	ValueString ValueKind = 4
 	ValueList   ValueKind = 5
 	ValueObject ValueKind = 6
+	ValueBinary ValueKind = 7
 )
 
 type Value struct {
@@ -29,6 +30,7 @@ type Value struct {
 	String string
 	List   []Value
 	Object map[string]Value
+	Binary []byte
 }
 
 func ValueEncode(buf *util.UBuffer, v Value) {
@@ -47,6 +49,9 @@ func ValueEncode(buf *util.UBuffer, v Value) {
 		buf.WriteU64(math.Float64bits(v.F64))
 	case ValueString:
 		buf.WriteString(v.String)
+	case ValueBinary:
+		buf.WriteU32(uint32(len(v.Binary)))
+		buf.WriteBytes(v.Binary)
 	case ValueList:
 		buf.WriteU32(uint32(len(v.List)))
 		for _, it := range v.List {
@@ -73,6 +78,8 @@ func ValueDecode(buf *util.UBuffer) Value {
 		result.F64 = math.Float64frombits(buf.ReadU64())
 	case ValueString:
 		result.String = buf.ReadString()
+	case ValueBinary:
+		result.Binary = buf.ReadNext(int(buf.ReadU32()))
 	case ValueList:
 		count := buf.ReadU32()
 		result.List = make([]Value, count)
@@ -166,6 +173,10 @@ func VF64(input float64) Value {
 
 func VString(input string) Value {
 	return Value{Kind: ValueString, String: input}
+}
+
+func VBinary(input []byte) Value {
+	return Value{Kind: ValueBinary, Binary: append([]byte{}, input...)}
 }
 
 func VList(input []Value) Value {

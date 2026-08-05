@@ -43,10 +43,11 @@ export function useJobVizProperties(processor: StreamProcessor): Record<string, 
     useEffect(() => {
         const listener = processor.on("kvPropertiesUpdated", ({newProperties}) => {
             setProperties(newProperties);
-        });
+        })
 
         return () => {
-            processor.removeListener(listener);
+            // Note(Jonas): First arg is just to make the compiler stop complaining. It's not used.
+            processor.removeListener("kvPropertiesUpdated", listener);
         };
     }, [processor]);
 
@@ -109,7 +110,11 @@ export class StreamProcessor {
         return listener;
     }
 
-    removeListener<K extends keyof EventMap>(listener: (ev: EventMap[K]) => void) {
+    /* 
+        Note(Jonas): Unused `type` seems to be need for the function to understand what listener we are providing.
+        And it seems any one will do????
+    */
+    removeListener<K extends keyof EventMap>(_: K, listener: (ev: EventMap[K]) => void) {
         this.listeners = this.listeners.filter(([, itListener]) => itListener !== listener);
     }
 

@@ -10,6 +10,8 @@ export interface UFileStatus extends ResourceStatus {
     icon?: FileIconHint;
     sizeInBytes?: number;
     sizeIncludingChildrenInBytes?: number;
+    fileCount?: number;
+    directoryCount?: number;
     modifiedAt?: number;
     accessedAt?: number;
     unixMode?: number;
@@ -77,4 +79,22 @@ export interface FilesTrashRequestItem {
 
 export interface FilesEmptyTrashRequestItem {
     id: string;
+}
+
+export interface FilesVisualizeRequest {
+    path: string;
+}
+
+export interface FilesVisualizeEntry {
+    path: string;
+    type: FileType;
+    sizeInBytes: number;
+}
+
+export interface FilesVisualizeResponse {
+    entries: FilesVisualizeEntry[];
+    lastUpdatedAt: number | null;
+    fileCount: number;
+    directoryCount: number;
+    complete: boolean;
 }

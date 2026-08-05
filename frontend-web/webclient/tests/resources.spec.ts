@@ -1,9 +1,15 @@
 import {expect, test} from "@playwright/test";
 import {User, Resources, Applications, Runs, Components, Terminal, TestContexts, testCtx, Project, Rows} from "./shared";
+import {default as pAndP} from "./provider_and_products.json" with {type: "json"};
+import {default as data} from "./test_data.json" with {type: "json"};
+const PRODUCTS = pAndP.find(it => it.location_origin === data.location_origin)!.products_used_in_tests;
 
 test.beforeEach(async ({page}, testInfo) => {
+    if (data.login_cookie) {
+        await page.context().addCookies([data.login_cookie]);
+    }
     const args = testCtx(testInfo.titlePath);
-    await User.login(page, args.user);
+    await User.loginDirect(page, args.user);
     if (args.projectName) await Project.changeTo(page, args.projectName);
 });
 
@@ -16,17 +22,16 @@ TestContexts.map(ctx => {
             test("Create public link, view properties, delete", async ({page}) => {
                 const publicLinkName = await PublicLinks.createNew(page);
                 await Resources.open(page, publicLinkName);
-                await expect(page.getByText("ID:")).toHaveCount(1);
-                await expect(page.getByText("Product:")).toHaveCount(1);
-                await expect(page.getByText("Created by:")).toHaveCount(1);
-                await expect(page.getByText("Created at:")).toHaveCount(1);
+                await expect(page.locator("b").filter({hasText: "ID:"})).toHaveCount(1);
+                await expect(page.locator("b").filter({hasText: "Product:"})).toHaveCount(1);
+                await expect(page.locator("b").filter({hasText: "Created by:"})).toHaveCount(1);
+                await expect(page.locator("b").filter({hasText: "Created at:"})).toHaveCount(1);
                 await page.goBack();
                 await PublicLinks.delete(page, publicLinkName);
             });
 
 
             test("interface(s) connectivity", async ({page}) => {
-                test.setTimeout(120_000);
                 const publicLinkName = await PublicLinks.createNew(page);
                 await Applications.openAppBySearch(page, Applications.AppNames.TestApplication);
                 await Components.selectAvailableMachineType(page);
@@ -55,6 +60,7 @@ TestContexts.map(ctx => {
 
         /* Resources.IPs */
         test("Public IPs - check public IPs work", async ({page}) => {
+            if (PRODUCTS.public_ip == null) test.skip();
             const publicIp = await IPs.createNew(page);
             await Rows.actionByRowTitle(page, publicIp, "dblclick");
 
@@ -65,6 +71,8 @@ TestContexts.map(ctx => {
             await Runs.submitAndWaitForRunning(page);
             await page.getByText(`Successfully attached the following IP addresses: ${publicIp}`).hover();
             await Runs.terminateViewedRun(page);
+            await Resources.goTo(page, "IP addresses");
+            await IPs.delete(page, publicIp);
         });
 
         test("Create ssh key, delete ssh key", async ({page}) => {
@@ -76,7 +84,6 @@ TestContexts.map(ctx => {
         });
 
         test("SSH - check SSH connections work", async ({page}) => {
-            test.setTimeout(60_000);
             await Resources.goTo(page, "SSH keys");
             const sshkey = await SSHKeys.createNew(page);
             await Applications.openAppBySearch(page, "Test application");
@@ -92,7 +99,7 @@ TestContexts.map(ctx => {
             const terminalPage = await Runs.openTerminal(page);
 
             await Terminal.enterCmd(terminalPage, "cat /etc/ucloud/ssh/authorized_keys.ucloud");
-            await terminalPage.getByText(Resources.SSHKeys.DefaultSSHKey).first().hover();
+            await expect(terminalPage.getByText(Resources.SSHKeys.DefaultSSHKey).first()).toBeVisible();
             await terminalPage.close();
 
             await Runs.terminateViewedRun(page);

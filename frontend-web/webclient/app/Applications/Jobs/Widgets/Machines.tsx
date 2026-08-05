@@ -2,7 +2,7 @@ import * as React from "react";
 import {useEffect, useMemo, useState} from "react";
 import {accounting, compute} from "@/UCloud";
 import ComputeProductReference = accounting.ProductReference;
-import {ProductV2, productCategoryEquals, ProductV2Compute, ProductCompute, WalletV2} from "@/Accounting";
+import {ProductV2, productCategoryEquals, ProductV2Compute, ProductCompute, WalletV2, Product} from "@/Accounting";
 import {ProductSelector} from "@/Products/Selector";
 import {ResolvedSupport} from "@/UCloud/ResourceApi";
 import JobsRetrieveProductsResponse = compute.JobsRetrieveProductsResponse;
@@ -16,9 +16,8 @@ export function findRelevantMachinesForApplication(
     computeProducts: ProductV2Compute[],
     wallets: WalletV2[]
 ): ProductV2Compute[] {
-    const supportedProducts: ProductCompute[] = ([] as ProductCompute[]).concat.apply(
-        [],
-        Object.values(machineSupport.productsByProvider).map(products =>
+    const supportedProducts: ProductCompute[] =
+        Object.values(machineSupport.productsByProvider).flatMap(products =>
             products
                 .filter(it => {
                     const tool = application.invocation.tool.tool!;
@@ -44,9 +43,8 @@ export function findRelevantMachinesForApplication(
                 .filter(product =>
                     computeProducts.some(wallet => productCategoryEquals(product.product.category, wallet.category))
                 )
-                .map(it => it.product)
-        )
-    );
+                .map(it => it.product as unknown as ProductCompute)
+        );
 
     const result: ProductV2Compute[] = [];
 

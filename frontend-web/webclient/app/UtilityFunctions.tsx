@@ -224,11 +224,13 @@ export function extensionType(ext: string): ExtensionType {
         case "wmv":
             return "video";
         case "gz":
+        case "xz":
         case "zip":
         case "tar":
         case "tgz":
         case "tbz":
         case "bz2":
+        case "7z":
             return "archive";
         case "dat":
             return "binary";
@@ -664,6 +666,16 @@ export const isLikelyMac = navigator["userAgentData"]?.["platform"] === "macOS" 
     navigator["platform"]?.toLocaleLowerCase().includes("mac") ||
     navigator["userAgent"]?.toLocaleLowerCase().includes("macintosh");
 
+export type KeyboardShortcutModifier = "ctrl" | "alt";
+
+export function createKeyboardShortcut(key: string, modifiers: KeyboardShortcutModifier[] = []): string {
+    const normalizedModifiers = modifiers.map(modifier => {
+        if (modifier === "ctrl") return isLikelyMac ? "⌘" : "Ctrl";
+        return isLikelyMac ? "⌥" : "Alt";
+    });
+    return [...normalizedModifiers, key].join(" + ");
+}
+
 export function deepEquals(a: any, b: any): boolean {
     if (a === b) return true;
 
@@ -681,12 +693,4 @@ export function getOrNull<T>(array: T[], index: number): T | null {
     if (index < 0) return null;
     if (index >= array.length) return null;
     return array[index];
-}
-
-/*
-    ThreadDefer-like function. Sets timeout with 0 millis delay.
-    Do note that they will be called in order of deferment, not inverse, like other languages.
-*/
-export function threadDeferLike(func: () => void): void {
-    setTimeout(func, 0);
 }

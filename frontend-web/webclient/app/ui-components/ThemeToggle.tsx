@@ -1,10 +1,10 @@
 import * as React from "react";
 import {useDispatch} from "react-redux";
-import {toggleThemeRedux} from "@/Applications/Redux/Actions";
 import {isLightThemeStored} from "@/UtilityFunctions";
 import {toggleTheme} from "./theme";
 import Icon from "./Icon";
 import {injectStyle} from "@/Unstyled";
+import {toggleThemeRedux} from "@/Applications/Redux/Reducer";
 
 export function ThemeToggler(): React.ReactNode {
     const isLightTheme = isLightThemeStored();
@@ -20,8 +20,8 @@ export function ThemeToggler(): React.ReactNode {
 
     return (
         <button className={ThemeToggle} aria-label="Toggle theme" onClick={toggleActive}>
-            <Icon size="24px" cursor="pointer" color="fixedWhite" name="heroSun" className={ToggleIcon} opacity={!active?0:1}/>
-            <Icon size="24px" cursor="pointer" color="fixedWhite" name="heroMoon" className={ToggleIcon} opacity={active?0:1}/>
+            <Icon size="24px" cursor="pointer" color="fixedWhite" name="heroSun" className={ToggleIcon} opacity={!active ? 0 : 1} />
+            <Icon size="24px" cursor="pointer" color="fixedWhite" name="heroMoon" className={ToggleIcon} opacity={active ? 0 : 1} />
         </button>
     );
 }

@@ -9,7 +9,7 @@ import {mail} from "@/UCloud";
 import EmailSettings = mail.EmailSettings;
 import retrieveEmailSettings = mail.retrieveEmailSettings;
 import toggleEmailSettings = mail.toggleEmailSettings;
-import {SettingsCheckboxRow, SettingsSection} from "./SettingsComponents";
+import {SettingsCheckboxRow, SettingsSection} from "@/ui-components/SettingsComponents";
 import {sendFailureNotification} from "@/Notifications";
 
 export interface UserDetailsState {

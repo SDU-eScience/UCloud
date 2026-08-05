@@ -4,29 +4,29 @@
         "outDir": "./dist/",
         "alwaysStrict": true,
         "strictNullChecks": true,
+        "strictPropertyInitialization": false,
         "noImplicitThis": true,
         "noImplicitAny": false,
         "allowSyntheticDefaultImports": true,
         "allowUnreachableCode": false,
         "noFallthroughCasesInSwitch": true,
         "allowUnusedLabels": false,
-        "module": "esnext",
         "lib": [
             "ESNext",
-            "dom"
+            "dom",
+            "ES2023"
         ],
         "skipLibCheck": true,
-        "target": "es2015",
+        "target": "es2020",
         "jsx": "react",
         "pretty": true,
         "allowJs": true,
-        "moduleResolution": "node",
+        "moduleResolution": "bundler",
         "resolveJsonModule": true,
+        "module": "esnext",
         "sourceMap": true,
-        "baseUrl": ".",
         "types": [
             "vite/client",
-            "monaco-editor/monaco",
         ],
         "paths": {
             "@/*": [
@@ -36,6 +36,8 @@
     },
     "exclude": [
         "./__tests__/*",
-        "./dist/*"
+        "./dist/*",
+        "./playwright.config.ts",
+        "./tests/*"
     ]
 }

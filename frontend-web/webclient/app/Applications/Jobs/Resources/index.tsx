@@ -1,4 +1,4 @@
-import {useCallback, useState} from "react";
+import {Dispatch, SetStateAction, useCallback, useState} from "react";
 import {setWidgetValues} from "@/Applications/Jobs/Widgets";
 import {flushSync} from "react-dom";
 import {ApplicationParameter} from "@/Applications/AppStoreApi";
@@ -12,7 +12,7 @@ export interface ResourceHook {
     params: ApplicationParameter[];
     errors: Record<string, string>;
     provider?: string;
-    setErrors: (newErrors: Record<string, string>) => void;
+    setErrors: Dispatch<SetStateAction<Record<string, string>>>;
     warning: string;
     setWarning: (warning: string) => void;
 }

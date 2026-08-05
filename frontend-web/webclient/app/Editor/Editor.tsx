@@ -5,14 +5,13 @@ import {editor} from "monaco-editor";
 import {Uri} from "monaco-editor";
 import {AsyncCache} from "@/Utilities/AsyncCache";
 import {injectStyle} from "@/Unstyled";
-import {TreeAction, TreeApi} from "@/ui-components/Tree";
-import {Box, Flex, FtIcon, Icon, Image, Markdown, Select, Truncate, Text, Input, Label, Button} from "@/ui-components";
-import {fileName, pathComponents} from "@/Utilities/FileUtilities";
-import {capitalized, copyToClipboard, errorMessageOrDefault, extensionFromPath, extensionType, getLanguageList, languageFromExtension, populateLanguages} from "@/UtilityFunctions";
+import {Box, Flex, FtIcon, Image, Select, Text, Input, Label, Button} from "@/ui-components";
+import {fileName, getParentPath, pathComponents} from "@/Utilities/FileUtilities";
+import {capitalized, copyToClipboard, createKeyboardShortcut, errorMessageOrDefault, extensionFromPath, extensionType, getLanguageList, languageFromExtension, populateLanguages} from "@/UtilityFunctions";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
-import {TooltipV2} from "@/ui-components/Tooltip";
 import {usePrettyFilePath} from "@/Files/FilePath";
-import {Operation, Operations, ShortcutKey} from "@/ui-components/Operation";
+import {Operation, Operations} from "@/ui-components/Operation";
+import {ActionEntry} from "@/ui-components/Actions";
 import IStandaloneCodeEditor = editor.IStandaloneCodeEditor;
 import EditorOption = editor.EditorOption;
 import {EditorSidebarNode, FileTree, VirtualFile} from "@/Files/FileTree";
@@ -22,12 +21,15 @@ import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {useBeforeUnload} from "react-router-dom";
 import {RichSelect, RichSelectChildComponent} from "@/ui-components/RichSelect";
 import {initVimMode, VimMode} from "monaco-vim";
-import {addStandardDialog} from "@/UtilityComponents";
+import {addStandardDialog, addStandardInputDialog} from "@/UtilityComponents";
 import {FileWriteFailure, WriteFailureEvent} from "@/Files/Uploader";
-import {IconName} from "@/ui-components/Icon";
 import ITextModel = editor.ITextModel;
 import EndOfLineSequence = editor.EndOfLineSequence;
 import {sendFailureNotification, sendInformationNotification, sendSuccessNotification} from "@/Notifications";
+import {TabStrip} from "@/ui-components/TabStrip";
+import {IconButton} from "@/ui-components/IconButton";
+import {CSSVarCurrentSidebarStickyWidth} from "@/ui-components/List";
+import {VirtualizedTreeApi} from "@/ui-components/VirtualizedTree";
 
 export interface Vfs {
     isReal(): boolean;
@@ -180,6 +182,7 @@ function singleEditorReducer(state: EditorState, action: EditorAction): EditorSt
 
         case "EditorActionFilesLoaded": {
             const [newRoot, leaf] = findOrAppendNodeForMutation(state.sidebar.root, action.path);
+            leaf.childrenLoaded = true;
             leaf.children = action.files.map(it => {
                 const existing = leaf.children.find(child => child.file.absolutePath === it.absolutePath);
                 return existing ?? {
@@ -332,33 +335,45 @@ const EditorClass = injectStyle("editor", k => `
         width: 100%;
         max-width: 100%;
         height: 100%;
-        --borderThickness: 2px;
+        min-height: 0;
+        box-sizing: border-box;
+        padding: 8px 8px 44px;
+        gap: 8px;
+        overflow: hidden;
+        background: var(--backgroundCard);
     }
     
     ${k} > .main-content {
         display: flex;
         flex-direction: column;
-        width: 100%;
+        flex: 1 1 auto;
+        width: 0;
         height: 100%;
+        min-height: 0;
         min-width: 600px;
+        overflow: hidden;
+        border: 1px solid var(--borderColor);
+        border-radius: 8px;
+        background: var(--backgroundDefault);
     }
     
     ${k} .title-bar-code,
     ${k} .title-bar {
         display: flex;
         align-items: center;
-        height: 34px;
+        height: 36px;
         width: 100%;
         flex-shrink: 0;
-        border-bottom: var(--borderThickness) solid var(--borderColor);
     }
     
     ${k} .panels {
         display: flex;
+        flex: 1 1 auto;
         width: 100%;
-        height: 100%;
-        max-height: calc(100% - 32px - 21px);
-        overflow-y: scroll;
+        height: auto;
+        min-height: 0;
+        margin-top: 10px;
+        overflow-y: auto;
     }
     
     ${k} .panels > div > .code {
@@ -366,6 +381,41 @@ const EditorClass = injectStyle("editor", k => `
         height: 100%;
     }
 `);
+
+const EditorLoadingSidebar = injectStyle("editor-loading-sidebar", k => `
+    ${k} {
+        width: 250px;
+        max-width: 250px;
+        height: 100%;
+        flex: 0 0 250px;
+        box-sizing: border-box;
+        border: 1px solid var(--borderColor);
+        border-radius: 8px;
+        background: var(--backgroundDefault);
+    }
+`);
+
+const EditorLoadingContent = injectStyle("editor-loading-content", k => `
+    ${k} {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+    }
+`);
+
+export function EditorLoadingState({children}: React.PropsWithChildren): React.ReactNode {
+    return <div className={EditorClass}>
+        <div className={EditorLoadingSidebar} />
+        <div className="main-content">
+            <div className="title-bar-code" style={{boxSizing: "border-box", minWidth: "400px", padding: "0 8px", width: "100%"}} />
+            <div className="panels">
+                <div className={EditorLoadingContent}>{children}</div>
+            </div>
+        </div>
+    </div>;
+}
 
 type EditorEngine =
     | "monaco";
@@ -380,12 +430,9 @@ export interface EditorApi {
 }
 
 const SETTINGS_PATH = "xXx__/SETTINGS\\__xXx";
-const RELEASE_NOTES_PATH = "xXx__/RELEASE_NOTES\\__xXx";
 
-const SPECIAL_PATHS = [SETTINGS_PATH, RELEASE_NOTES_PATH, "", "/"];
+const SPECIAL_PATHS = [SETTINGS_PATH, "", "/"];
 
-const CURRENT_EDITOR_VERSION = "0.1";
-const EDITOR_VERSION_STORAGE_KEY = "editor-version";
 export const Editor: React.FunctionComponent<{
     vfs: Vfs;
     title: string;
@@ -393,11 +440,12 @@ export const Editor: React.FunctionComponent<{
     initialFolderPath: string;
     toolbarBeforeSettings?: React.ReactNode;
     toolbar?: React.ReactNode;
+    statusBar?: React.ReactNode;
     apiRef?: React.RefObject<EditorApi | null>;
     customContent?: React.ReactNode;
     showCustomContent?: boolean;
     onOpenFile?: (path: string, content: string | Uint8Array) => void;
-    operations?: (file: VirtualFile) => Operation<any>[];
+    actions?: (file?: VirtualFile) => ActionEntry<VirtualFile, null>[];
     help?: React.ReactNode;
     fileHeaderOperations?: React.ReactNode;
     renamingFile?: string;
@@ -415,42 +463,17 @@ export const Editor: React.FunctionComponent<{
     const [engine, setEngine] = useState<EditorEngine>(localStorage.getItem("editor-engine") as EditorEngine ?? "monaco");
     const [state, dispatch] = useReducer(singleEditorReducer, 0, () => defaultEditor(props.vfs, props.title, props.initialFolderPath, props.initialFilePath));
     const editorView = useRef<HTMLDivElement>(null);
+    const editorRoot = useRef<HTMLDivElement>(null);
     const currentTheme = useSelector((red: ReduxObject) => red.sidebar.theme);
     const monacoInstance = useMonaco(engine === "monaco");
     const [editor, setEditor] = useState<IStandaloneCodeEditor | null>(null);
+    const [readOnlyMode, setReadOnlyMode] = useState(props.readOnly === true);
+    const [sidebarOpen, setSidebarOpen] = useState(true);
     const monacoRef = useRef<any>(null);
     const [tabs, setTabs] = useState<{open: string[], closed: string[]}>({
-        open: [state.currentPath],
+        open: props.initialFilePath ? [state.currentPath] : [],
         closed: [],
     });
-
-    React.useEffect(() => {
-        const tabListener = (ev: KeyboardEvent) => {
-            const hasAlt = ev.altKey;
-            const parsed = ev.code.startsWith("Digit") ? parseInt(ev.code.replace("Digit", "")) : NaN;
-
-            if (ev.code === "KeyW" && hasAlt) {
-                ev.preventDefault();
-                ev.stopPropagation();
-
-                closeTab(state.currentPath, tabs.open.findIndex(it => it === state.currentPath));
-            } else if (!isNaN(parsed) && hasAlt) {
-                ev.preventDefault();
-                ev.stopPropagation();
-
-                if (tabs.open.length > 0) {
-                    const clampedValue = Math.min(parsed - 1, tabs.open.length - 1);
-                    openTab(tabs.open[clampedValue]);
-                }
-            }
-        };
-
-        window.addEventListener("keydown", tabListener);
-        return () => {
-            window.removeEventListener("keydown", tabListener);
-        }
-
-    }, [state.currentPath, tabs]);
 
     const [dirtyFiles, setDirtyFiles] = React.useState<Set<string>>(new Set());
 
@@ -459,8 +482,6 @@ export const Editor: React.FunctionComponent<{
     if (!props.isModal) {
         if (state.currentPath === SETTINGS_PATH) {
             usePage("Settings", SidebarTabId.FILES);
-        } else if (state.currentPath === RELEASE_NOTES_PATH) {
-            usePage("Release notes", SidebarTabId.FILES);
         } else if (state.currentPath === "") {
             usePage("Preview", SidebarTabId.FILES);
         } else {
@@ -501,10 +522,10 @@ export const Editor: React.FunctionComponent<{
                                         if (failedUpload) {
                                             sendFailureNotification(failedUpload.error ?? "Upload for file " + fileName(failedUpload.name) + " failed.");
                                         }
-                                        window.removeEventListener(FileWriteFailure, onFileWriteFailure)
+                                        window.removeEventListener(FileWriteFailure, {handleEvent: onFileWriteFailure})
                                     }
 
-                                    window.addEventListener(FileWriteFailure, onFileWriteFailure)
+                                    window.addEventListener(FileWriteFailure, {handleEvent: onFileWriteFailure})
                                 }
                             },
                             confirmText: "Save changes",
@@ -517,22 +538,21 @@ export const Editor: React.FunctionComponent<{
         return;
     }, []);
 
-    const {showReleaseNoteIcon, onShowReleaseNotesShown} = useShowReleaseNoteIcon();
-
-    const [operations, setOperations] = useState<Operation<any, undefined>[]>([]);
+    const [operations, setOperations] = useState<Operation<any, null | undefined>[]>([]);
     const anyTabOpen = tabs.open.length > 0;
     const isSettingsOpen = state.currentPath === SETTINGS_PATH && anyTabOpen;
-    const isReleaseNotesOpen = state.currentPath === RELEASE_NOTES_PATH && anyTabOpen;
-    const settingsOrReleaseNotesOpen = isSettingsOpen || isReleaseNotesOpen;
+    const specialPageOpen = isSettingsOpen;
 
     // NOTE(Dan): This code is quite ref heavy given that the components we are controlling are very much the
     // opposite of reactive. There isn't much we can do about this.
     const engineRef = useRef<EditorEngine>("monaco");
     const stateRef = useRef<EditorState>(null);
-    const tree = useRef<TreeApi | null>(null);
+    const tree = useRef<VirtualizedTreeApi | null>(null);
     const [vimMode, setVimModeObject] = useState<any /* vimAdapter */>(null);
+    const [vimEditorMode, setVimEditorMode] = useState<string | null>(null);
 
     const editorRef = useRef<IStandaloneCodeEditor | null>(null);
+    const vimCommandBar = useRef<HTMLDivElement>(null);
     const showingCustomContent = useRef<boolean>(props.showCustomContent === true);
 
     useEffect(() => {
@@ -569,6 +589,11 @@ export const Editor: React.FunctionComponent<{
     }, [props.apiRef, state.currentPath]);
 
     const didUnmount = useDidUnmount();
+    const directoryCache = useRef(new AsyncCache<VirtualFile[]>());
+
+    useEffect(() => {
+        directoryCache.current.invalidateAll();
+    }, [props.vfs]);
 
     const reloadBuffer = useCallback((name: string, content: string, syntax: string) => {
         const editor = editorRef.current;
@@ -592,13 +617,13 @@ export const Editor: React.FunctionComponent<{
                         });
                     });
                     editor.setModel(model);
-                } else {
+                } else if (editor.getModel() !== existingModel) {
                     editor.setModel(existingModel);
                 }
                 break;
             }
         }
-    }, [dirtyFiles]);
+    }, []);
 
     React.useEffect(() => {
         return disposeModels;
@@ -658,7 +683,8 @@ export const Editor: React.FunctionComponent<{
                         editorState = editor.saveViewState();
                     }
 
-                    const oldContent = await readBuffer();
+                    const cachedOldContent = state.cachedFiles[oldPath];
+                    const oldContent = !dirtyFilesRef.current.has(oldPath) && typeof cachedOldContent === "string" ? cachedOldContent : await readBuffer();
                     props.vfs.setDirtyFileContent(oldPath, oldContent);
                     dispatch({type: "EditorActionSaveState", editorState, oldContent, newPath: path});
                 } else {
@@ -683,7 +709,8 @@ export const Editor: React.FunctionComponent<{
 
                 const monaco = monacoRef.current;
                 if (syntax && monaco && editor) {
-                    monaco.editor.setModelLanguage(editor.getModel(), syntax);
+                    const model = editor.getModel();
+                    if (model && model.getLanguageId() !== syntax) monaco.editor.setModelLanguage(model, syntax);
                     setActiveSyntax(syntax);
                 }
             }
@@ -693,7 +720,7 @@ export const Editor: React.FunctionComponent<{
             sendFailureNotification(errorMessageOrDefault(error, "Failed to fetch file"));
             return true; // What does true or false mean in this context?
         }
-    }, [state, props.vfs, dispatch, reloadBuffer, readBuffer, props.onOpenFile, dirtyFiles, state.sidebar.root, state.cachedFiles]);
+    }, [state, props.vfs, dispatch, reloadBuffer, readBuffer, props.onOpenFile, state.sidebar.root, state.cachedFiles]);
 
     useEffect(() => {
         const listener = (ev: KeyboardEvent) => {
@@ -734,10 +761,18 @@ export const Editor: React.FunctionComponent<{
         }
     }, [props.onOpenFile]);
 
-    const invalidateTree = useCallback(async (folder: string): Promise<void> => {
-        const files = await props.vfs.listFiles(folder);
-        dispatch({type: "EditorActionFilesLoaded", path: folder, files});
+    const loadDirectory = useCallback((folder: string, invalidate = false): Promise<VirtualFile[]> => {
+        if (invalidate) directoryCache.current.invalidate(folder);
+        return directoryCache.current.retrieve(folder, async () => {
+            const files = await props.vfs.listFiles(folder);
+            if (!didUnmount.current) dispatch({type: "EditorActionFilesLoaded", path: folder, files});
+            return files;
+        });
     }, [props.vfs]);
+
+    const invalidateTree = useCallback(async (folder: string): Promise<void> => {
+        await loadDirectory(folder, true);
+    }, [loadDirectory]);
 
     const onFileSaved = React.useCallback((path: string): RevertSaveFunction => {
         const model = getModelFromEditor(path);
@@ -803,10 +838,6 @@ export const Editor: React.FunctionComponent<{
     }, []);
 
     useLayoutEffect(() => {
-        document.querySelector(`.${EditorTabClass}[data-active=true]`)?.scrollIntoView();;
-    }, [state.currentPath]);
-
-    useLayoutEffect(() => {
         const m = monacoInstance;
         const node = editorView.current;
         if (!m || !node) return;
@@ -850,35 +881,51 @@ export const Editor: React.FunctionComponent<{
         editor.updateOptions({readOnly: props.readOnly});
 
         if (props.readOnly) {
-            setReadonlyWarning(editor);
+            setReadonlyWarning(editor, () => setReadOnlyMode(false));
         }
 
 
         setEditor(editor);
+        setReadOnlyMode(editor.getOption(EditorOption.readOnly));
 
         const vimEnabled = getEditorOption("vim") === true;
         mapStoredBindings();
         if (vimEnabled) {
-            setVimModeObject(initVimMode(editor, getStatusBarElement()));
+            setVimModeObject(initVimMode(editor, vimCommandBar.current));
         }
     }, [monacoInstance]);
 
     React.useEffect(() => {
-        if (vimMode) {
-            vimMode.listeners["vim-keypress"].push(() => {
-                if (!allowEditing() && editor) {
-                    allowEditDialog(editor);
-                }
-            });
+        if (!vimMode) {
+            setVimEditorMode(null);
+            return;
         }
+
+        setVimEditorMode("NORMAL");
+        vimMode.on("vim-mode-change", (mode: unknown) => setVimEditorMode(vimModeLabel(mode)));
+        const onVimKeypress = () => {
+            if (!allowEditing() && editor) {
+                allowEditDialog(editor, () => setReadOnlyMode(false));
+            }
+        };
+        vimMode.on("vim-keypress", onVimKeypress);
     }, [vimMode]);
 
+    const initialOpenCompleted = useRef(false);
+
     useLayoutEffect(() => {
+        if (initialOpenCompleted.current) return;
+        if (!props.initialFilePath) {
+            initialOpenCompleted.current = true;
+            return;
+        }
+
         // NOTE(Dan): This timer is needed to make sure that if the file opens faster than the engine can initialize
         // then we do reload the file. See the branch when returns early in openFile.
         let timer = -1;
         const fn = async () => {
             const res = await openFile(state.currentPath, false);
+            if (res) initialOpenCompleted.current = true;
             if (!res) timer = window.setTimeout(fn, 50);
         };
         timer = window.setTimeout(fn, 50);
@@ -892,7 +939,7 @@ export const Editor: React.FunctionComponent<{
         setVimModeObject(vimModeObject => {
             updateEditorSetting("vim", active);
             if (active) {
-                return initVimMode(editorRef.current, getStatusBarElement());
+                return initVimMode(editorRef.current, vimCommandBar.current);
             } else {
                 vimModeObject?.dispose();
                 return null;
@@ -900,24 +947,41 @@ export const Editor: React.FunctionComponent<{
         })
     }, []);
 
+    const toggleReadOnlyMode = React.useCallback(() => {
+        const currentEditor = editorRef.current;
+        if (!currentEditor) return;
+
+        if (readOnlyMode) {
+            if (props.readOnly) {
+                allowEditDialog(currentEditor, () => setReadOnlyMode(false));
+            } else {
+                currentEditor.updateOptions({readOnly: false});
+                setReadOnlyMode(false);
+            }
+        } else {
+            currentEditor.updateOptions({readOnly: true});
+            setReadOnlyMode(true);
+        }
+    }, [props.readOnly, readOnlyMode]);
+
     useEffect(() => {
         const theme = currentTheme === "light" ? "light" : "ucloud-dark";
         monacoInstance?.editor?.setTheme(theme);
     }, [currentTheme]);
 
     useEffect(() => {
-        const listener = () => {
-            if (!editor) return;
-            editor.layout();
-        };
+        const node = editorView.current;
+        if (!editor || !node) return;
 
-        const interval = window.setInterval(listener, 200);
-
-        window.addEventListener("resize", listener);
+        const layout = () => editor.layout();
+        const observer = new ResizeObserver(layout);
+        observer.observe(node);
+        window.addEventListener("resize", layout);
+        layout();
 
         return () => {
-            window.removeEventListener("resize", listener);
-            window.clearInterval(interval);
+            observer.disconnect();
+            window.removeEventListener("resize", layout);
         };
     }, [editor]);
 
@@ -936,35 +1000,36 @@ export const Editor: React.FunctionComponent<{
         }
     }, []);
 
-    const onOpen = useCallback((path: string, element: HTMLElement) => {
-        const root = state.sidebar.root;
-        const node = findNode(root, path);
-        if (!node || node.file.isDirectory) {
-            props.vfs.listFiles(path).then(files => {
-                if (didUnmount.current) return;
-                dispatch({type: "EditorActionFilesLoaded", path, files});
-            })
-        } else {
-            // NOTE(Dan): This ensures that onOpen is always allowed to be called. This might be something we want to
-            // do directly in TreeNode if we know it has no children.
-            element.removeAttribute("data-open");
-            openTab(path);
-        }
-    }, [editor, state, props.vfs, dispatch, reloadBuffer, readBuffer]);
+    useEffect(() => {
+        const listener = (event: KeyboardEvent) => {
+            if (!event.altKey || (!event.ctrlKey && !event.metaKey) || event.shiftKey) return;
 
-    const onNodeActivated = useCallback((open: boolean, row: HTMLElement) => {
-        const path = row.getAttribute("data-path");
-        if (path) {
-            onOpen(path, row);
-        }
-    }, [onOpen]);
+            if (event.code === "Digit1") {
+                event.preventDefault();
+                event.stopPropagation();
+                if (tree.current?.isActive()) {
+                    tree.current.deactivate();
+                    setSidebarOpen(false);
+                } else if (!sidebarOpen) {
+                    setSidebarOpen(true);
+                    window.requestAnimationFrame(() => tree.current?.activate());
+                } else {
+                    tree.current?.activate();
+                }
+            } else if (event.code === "Digit2") {
+                event.preventDefault();
+                event.stopPropagation();
+                editorRef.current?.focus();
+            }
+        };
 
-    const onTreeAction = useCallback((row: HTMLElement, action: TreeAction) => {
-        if (action === TreeAction.OPEN || action === TreeAction.TOGGLE) {
-            const path = row.getAttribute("data-path");
-            if (path) onOpen(path, row);
-        }
-    }, [onOpen]);
+        window.addEventListener("keydown", listener, true);
+        return () => window.removeEventListener("keydown", listener, true);
+    }, [sidebarOpen]);
+
+    const onDirectoryPrefetch = useCallback((file: VirtualFile) => {
+        void loadDirectory(file.absolutePath).catch(noopCall);
+    }, [loadDirectory]);
 
     const toggleSettings = useCallback(() => {
         saveBufferIfNeeded().then(() => {
@@ -977,23 +1042,10 @@ export const Editor: React.FunctionComponent<{
         });
     }, []);
 
-    const toggleReleaseNotes = useCallback(() => {
-        saveBufferIfNeeded().then(() => {
-            setTabs(tabs => {
-                if (tabs.open.includes(RELEASE_NOTES_PATH)) {
-                    return tabs;
-                } else return {open: [...tabs.open, RELEASE_NOTES_PATH], closed: tabs.closed};
-            })
-            dispatch({type: "EditorActionOpenFile", path: RELEASE_NOTES_PATH})
-        });
-
-        onShowReleaseNotesShown();
-    }, []);
-
     const openTab = React.useCallback(async (path: string) => {
         if (state.currentPath === path) return;
         await openFile(path, true);
-        const fileWasFetched = getModelFromEditor(path)?.getValue() ?? state.cachedFiles[path] != null;
+        const fileWasFetched = getModelFromEditor(path) != null || state.cachedFiles[path] != null;
         if (fileWasFetched) {
             setTabs(tabs => {
                 if (tabs.open.includes(path)) {
@@ -1104,7 +1156,7 @@ export const Editor: React.FunctionComponent<{
             oldModel.dispose();
         }
 
-        invalidateTree(props.initialFolderPath);
+        invalidateTree(getParentPath(args.newAbsolutePath));
     }, []);
 
     const setModelLanguage = React.useCallback((element: {
@@ -1174,46 +1226,58 @@ export const Editor: React.FunctionComponent<{
     const showEditorHelp = tabs.open.length === 0;
 
     const isMarkdown = extensionType(extensionFromPath(state.currentPath)) === "markdown";
+    const toolbarBeforeSettings = (tabs.open.length === 0 || isSettingsOpen || props.showCustomContent) && !isMarkdown ? null : props.toolbarBeforeSettings;
 
-    return <div className={EditorClass} onKeyDown={onKeyDown}>
+    return <div ref={editorRoot} className={EditorClass} onKeyDown={onKeyDown}>
         <FileTree
             tree={tree}
-            onTreeAction={onTreeAction}
-            onNodeActivated={onNodeActivated}
+            onFileActivated={file => openTab(file.absolutePath)}
+            onDirectoryPrefetch={onDirectoryPrefetch}
             root={state.sidebar.root}
             width="250px"
+            canResize
+            visible={sidebarOpen}
             initialFolder={props.initialFolderPath}
             initialFilePath={props.initialFilePath}
             fileHeaderOperations={props.fileHeaderOperations}
-            operations={props.operations}
+            actions={props.actions}
             renamingFile={props.renamingFile}
             onRename={onRename}
         />
         <div className={"main-content"}>
-            <div className={"title-bar-code"} style={{minWidth: "400px", paddingRight: "12px", width: "100%"}}>
+            <div className={"title-bar-code"} style={{boxSizing: "border-box", minWidth: "400px", padding: "0 8px", width: "100%"}}>
                 <div onContextMenu={e => {
                     e.preventDefault();
                     e.stopPropagation();
                     openTabOperations(undefined, {x: e.clientX, y: e.clientY});
-                }} style={{display: "flex", height: "32px", maxWidth: `calc(100 % - 48px)`, overflowX: "auto", width: "100%"}}>
-                    {tabs.open.map((t, index) =>
-                        <EditorTab
-                            key={t}
-                            isDirty={dirtyFiles.has(t) && props.vfs.isReal()}
-                            isActive={t === state.currentPath}
-                            onActivate={() => openTab(t)}
-                            onContextMenu={e => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                openTabOperations(t, {x: e.clientX, y: e.clientY});
-                            }}
-                            close={() => {
-                                doClose(t, index)
-                            }}
-                            children={t}
-                        />
-                    )}
-                    <Box mx="auto" />
+                }} style={{display: "flex", flex: "1 1 auto", height: "100%", minWidth: 0}}>
+                    <TabStrip
+                        items={tabs.open.map(path => {
+                            const isSettings = path === SETTINGS_PATH;
+                            const isDirty = dirtyFiles.has(path) && props.vfs.isReal();
+                            return {
+                                id: path,
+                                title: <EditorTabLabel path={path} />,
+                                tooltip: <EditorTabLabel path={path} fullPath />,
+                                icon: isSettings ? undefined : <FullpathFileLanguageIcon filePath={path} size="14px" />,
+                                closeIcon: isDirty ? "circle" as const : "close" as const,
+                                closeIconOnHover: "close" as const,
+                                closeLabel: `Close ${fileName(path)}`,
+                            };
+                        })}
+                        activeId={state.currentPath}
+                        slim
+                        autoSize={false}
+                        shortcutScope={editorRoot}
+                        allowUnfocusedShortcuts
+                        onActivate={path => openTab(path)}
+                        onClose={path => doClose(path, tabs.open.indexOf(path))}
+                        onContextMenu={(path, position) => openTabOperations(path, position)}
+                        onReorder={open => setTabs(tabs => {
+                            if (open.length !== tabs.open.length || open.some(path => !tabs.open.includes(path))) return tabs;
+                            return {...tabs, open};
+                        })}
+                    />
                     <Operations
                         entityNameSingular={""}
                         operations={operations}
@@ -1226,29 +1290,20 @@ export const Editor: React.FunctionComponent<{
                         location={"IN_ROW"}
                     />
                 </div>
-                <Flex alignItems={"center"} ml="16px" gap="16px">
-                    {(tabs.open.length === 0 || isReleaseNotesOpen || isSettingsOpen || props.showCustomContent) && !isMarkdown ? null :
-                        props.toolbarBeforeSettings
-                    }
-                    {showReleaseNoteIcon ? <TooltipV2 tooltip={"See release notes"} contentWidth={100}>
-                        <Icon name={"heroGift"} size={"20px"} cursor={"pointer"} onClick={toggleReleaseNotes} />
-                    </TooltipV2> : null}
-                    <TooltipV2 tooltip={"Settings"} contentWidth={100}>
-                        <Icon name={"heroCog6Tooth"} size={"20px"} cursor={"pointer"} onClick={toggleSettings} />
-                    </TooltipV2>
+                {toolbarBeforeSettings || props.toolbar ? <Flex className={HeaderActions} alignItems={"center"}>
+                    {toolbarBeforeSettings}
                     {props.toolbar}
-                </Flex>
+                </Flex> : null}
             </div>
             <div className={"panels"}>
                 {isSettingsOpen ?
                     <Flex gap={"32px"} maxHeight="100%" flexDirection={"column"} margin={64} width={"100%"} height={"100%"}>
-                        <MonacoEditorSettings editor={editor} setVimMode={setVimMode} />
+                        <MonacoEditorSettings editor={editor} setVimMode={setVimMode} onReadOnlyChange={setReadOnlyMode} />
                     </Flex> : null}
-                {isReleaseNotesOpen ? <Box p="18px" maxHeight="calc(100% - 64px)"><Markdown children={EditorReleaseNotes} /></Box> : null}
                 <>
                     {showEditorHelp ? help : null}
                     <div style={{
-                        display: props.showCustomContent || showEditorHelp || settingsOrReleaseNotesOpen ? "none" : "block",
+                        display: props.showCustomContent || showEditorHelp || specialPageOpen ? "none" : "block",
                         width: "100%",
                         height: "100%",
                     }}>
@@ -1256,7 +1311,7 @@ export const Editor: React.FunctionComponent<{
                     </div>
 
                     <div style={{
-                        display: !settingsOrReleaseNotesOpen && props.showCustomContent && tabs.open.length > 0 ? "block" : "none",
+                        display: !specialPageOpen && props.showCustomContent && tabs.open.length > 0 ? "block" : "none",
                         width: "100%",
                         height: "100%",
                         maxHeight: "100%",
@@ -1266,29 +1321,70 @@ export const Editor: React.FunctionComponent<{
                 </>
             </div>
             <div className={StatusBarWrapper}>
-                <div className={StatusBar} />
-                {tabs.open.length === 0 || settingsOrReleaseNotesOpen || props.customContent ? null : <Box ml="auto" className={HoverHighlight} width={"fit-content"} mr="8px">
-                    <RichSelect
-                        key={activeSyntax}
-                        items={languageList}
-                        keys={SyntaxSelectorKeys}
-                        FullRenderSelected={p => <Text px="8px" textAlign="end">{p.element?.displayName}</Text>}
-                        elementHeight={29}
-                        RenderRow={LanguageItem}
-                        selected={selectedSynax}
-                        onSelect={setModelLanguage}
-                    />
-                </Box>}
+                <div className={StatusBar}>
+                    <IconButton tooltip={`Toggle sidebar (${createKeyboardShortcut("1", ["ctrl", "alt"])})`} onClick={() => setSidebarOpen(open => !open)} icon="sidebar" color="textPrimary" noDefaultFill />
+                    <div ref={vimCommandBar} className={VimCommandBar} />
+                    <Flex alignItems="center" gap="18px" ml="auto">
+                        {tabs.open.length === 0 || specialPageOpen || props.customContent ? null : <>
+                            {vimMode ? <span className={StatusModeBadge}>{vimEditorMode ?? "NORMAL"}</span> : null}
+                            <EditorCursorPosition editor={editor} currentPath={state.currentPath} />
+                            <Box className={SyntaxSelector} width={"fit-content"}>
+                                <RichSelect
+                                    key={activeSyntax}
+                                    items={languageList}
+                                    keys={SyntaxSelectorKeys}
+                                    FullRenderSelected={p => <Text px="8px" textAlign="end">{p.element?.displayName}</Text>}
+                                    elementHeight={29}
+                                    RenderRow={LanguageItem}
+                                    selected={selectedSynax}
+                                    onSelect={setModelLanguage}
+                                />
+                            </Box>
+                            <IconButton
+
+                                tooltip={readOnlyMode ? "Enable editing" : "Disable editing"}
+                                onClick={toggleReadOnlyMode}
+                                icon={readOnlyMode ? "heroLockClosed" : "heroLockOpen"}
+                                color={readOnlyMode ? "warningMain" : "textPrimary"}
+                            />
+                        </>}
+                        <Flex className={StatusIconGroup} alignItems="center">
+                            {props.statusBar}
+                            <IconButton tooltip="Settings" onClick={toggleSettings} icon="heroCog6Tooth" color="textPrimary" />
+                        </Flex>
+
+                    </Flex>
+                </div>
             </div>
         </div>
     </div>;
 };
 
-const HoverHighlight = injectStyle("hover-highlight", k => `
-    ${k}:hover {
-        background-color: var(--primaryLight);
+const SyntaxSelector = injectStyle("editor-syntax-selector", k => `
+    ${k} {
+        display: inline-flex;
+        align-items: center;
+        height: 24px;
+        border-radius: 999px;
+        overflow: hidden;
     }
-        `);
+
+    ${k}:hover {
+        background: var(--rowActive);
+    }
+`);
+
+const HeaderActions = injectStyle("editor-header-actions", k => `
+    ${k} {
+        gap: 0;
+        flex: 0 0 auto;
+        margin-left: 16px;
+    }
+
+    ${k}:empty {
+        display: none;
+    }
+`);
 
 /* TODO(Jonas): Improve parameters this is... not good */
 function tabOperations(
@@ -1298,7 +1394,7 @@ function tabOperations(
     tabs: {open: string[], closed: string[]},
     dirtyFiles: Set<string>,
     currentPath: string,
-): Operation<any>[] {
+): Operation<any, null | undefined>[] {
     const anyTabsOpen = tabs.open.length > 0;
     const anyTabsClosed = tabs.closed.length > 0;
     if (!tabPath) {
@@ -1318,7 +1414,6 @@ function tabOperations(
                 });
             },
             enabled: () => anyTabsClosed,
-            shortcut: ShortcutKey.U,
         }, {
             text: "Close all",
             onClick: () => {
@@ -1330,7 +1425,6 @@ function tabOperations(
                 });
             },
             enabled: () => anyTabsOpen,
-            shortcut: ShortcutKey.U,
         }];
     }
 
@@ -1354,7 +1448,6 @@ function tabOperations(
 
         },
         enabled: () => true,
-        shortcut: ShortcutKey.W,
     }, {
         text: "Close others",
         onClick: () => {
@@ -1368,7 +1461,6 @@ function tabOperations(
             openTab(tabPath);
         },
         enabled: () => true,
-        shortcut: ShortcutKey.E,
     }, {
         text: "Close to the right",
         onClick: () => {
@@ -1392,7 +1484,6 @@ function tabOperations(
             })
         },
         enabled: () => true,
-        shortcut: ShortcutKey.R,
     }, {
         text: "Close saved tabs",
         onClick: () => {
@@ -1412,7 +1503,6 @@ function tabOperations(
             })
         },
         enabled: () => tabs.open.length > 0,
-        shortcut: ShortcutKey.T,
     }, {
         text: "Close all",
         onClick: () => {
@@ -1424,7 +1514,6 @@ function tabOperations(
             });
         },
         enabled: () => true,
-        shortcut: ShortcutKey.U,
     }, {
         text: "Copy path to clipboard",
         onClick: () => {
@@ -1432,7 +1521,6 @@ function tabOperations(
             sendInformationNotification("Path copied!")
         },
         enabled: () => true,
-        shortcut: ShortcutKey.U,
     }, {
         text: "Re-open closed tab",
         onClick: () => {
@@ -1449,122 +1537,58 @@ function tabOperations(
             });
         },
         enabled: () => anyTabsClosed,
-        shortcut: ShortcutKey.U,
     }];
 }
 
 const SyntaxSelectorKeys = ["language" as const];
 
-const LEFT_MOUSE_BUTTON = 0;
-const MIDDLE_MOUSE_BUTTON = 1;
-function EditorTab({
-    isDirty,
-    isActive,
-    close,
-    onActivate,
-    onContextMenu,
-    children: title
-}: React.PropsWithChildren<{
-    isActive: boolean;
-    isDirty: boolean;
-    onContextMenu?: React.MouseEventHandler<any>;
-    onActivate(): void;
-    close(): void;
-}>): React.ReactNode {
-    const [hovered, setHovered] = useState(false);
+function EditorTabLabel({path, fullPath = false}: {path: string; fullPath?: boolean}): React.ReactNode {
+    const isSettings = path === SETTINGS_PATH;
+    const resolvedPath = usePrettyFilePath(path);
+    const prettyFullPath = isSettings ? "Settings" : resolvedPath;
 
-    const isSettings = title === SETTINGS_PATH;
-    const isReleaseNotes = title === RELEASE_NOTES_PATH;
-
-    const onClose = React.useCallback((e: React.SyntheticEvent<HTMLDivElement>) => {
-        e.preventDefault();
-        e.stopPropagation();
-
-        close();
-    }, [close]);
-
-    const prettyFullPath =
-        isSettings ? "Settings" :
-            isReleaseNotes ? "Release notes" :
-                usePrettyFilePath(title as string);
-
-    const tabTitle = fileName(prettyFullPath);
-
-    return <Tab
-        isActive={isActive}
-        onContextMenu={onContextMenu}
-        onRowClick={e => {
-            if (e.button === LEFT_MOUSE_BUTTON) {
-                onActivate();
-            } else if (e.button == MIDDLE_MOUSE_BUTTON) {
-                onClose(e);
-            }
-        }}
-        icon={isSettings ? <Icon name="heroCog6Tooth" size="18px" />
-            : isReleaseNotes ? <Icon name="heroGift" size="18px" />
-                : <FullpathFileLanguageIcon filePath={tabTitle} />}
-        title={<Truncate title={prettyFullPath} ml="8px" width="50%">{isSettings ? "Editor settings" : tabTitle}</Truncate>}
-        iconEnter={() => setHovered(true)}
-        iconLeave={() => setHovered(false)}
-        cursor={isDirty && !hovered ? "circle" : "close"}
-        onClose={onClose}
-    />
+    if (fullPath) return prettyFullPath;
+    if (isSettings) return "Editor settings";
+    return fileName(prettyFullPath);
 }
 
-export function Tab({onContextMenu, isActive, onRowClick, icon, title, iconEnter, iconLeave, cursor, onClose}: {
-    onContextMenu?: React.MouseEventHandler<any>;
-    isActive: boolean;
-    cursor: IconName;
-    onRowClick: React.MouseEventHandler<any>;
-    icon: React.ReactNode;
-    title: React.ReactNode;
-    iconEnter?: React.MouseEventHandler<HTMLDivElement>;
-    iconLeave?: React.MouseEventHandler<HTMLDivElement>;
-    onClose?: React.MouseEventHandler<HTMLDivElement>;
-}): React.ReactNode {
-    return <Flex onContextMenu={onContextMenu} className={EditorTabClass} mt="auto" data-active={isActive} minWidth="250px" width="250px" onClick={onRowClick}>
-        {icon}
-        <Box flexGrow={1}>
-            {title}
-        </Box>
-        <Icon
-            className={IconHoverBlockClass}
-            onMouseEnter={iconEnter}
-            onMouseLeave={iconLeave}
-            cursor="pointer" name={cursor}
-            size={16}
-            onClick={onClose} />
-    </Flex>
-}
-
-const IconHoverBlockClass = injectStyle("icon-hover-block", k => `
+const StatusBar = injectStyle("status-bar", k => `
     ${k} {
-        padding: 4px;
+        display: flex;
+        align-items: center;
+        gap: 24px;
+        width: 100%;
+        height: 100%;
     }
 
-    ${k}:hover {
-        background-color: var(--secondaryMain);
-        border-radius: 4px;
+    ${k} input {
+        background: transparent;
+        border: none;
+        color: var(--textPrimary);
     }
 `);
 
-const StatusBar = injectStyle("status-bar", k => `
-    ${k} input {
-            background: transparent;
-            border: none;
-            color: white
-        }
-        `);
+const StatusIconGroup = injectStyle("editor-status-icon-group", k => `
+    ${k} {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+`);
 
 const StatusBarWrapper = injectStyle("status-bar-wrapper", k => `
     ${k} {
+        position: fixed;
+        bottom: calc(var(--termsize, 0px) + 4px);
+        left: var(${CSSVarCurrentSidebarStickyWidth});
+        z-index: 9;
+        box-sizing: border-box;
         display: flex;
-        height: 24px;
-        left: calc(var(--currentSidebarWidth) + 250px);
-        width: 100%;
-        background-color: var(--primaryMain);
-        color: white;
-        padding-left: 4px;
+        width: calc(100vw - var(${CSSVarCurrentSidebarStickyWidth}));
+        height: 36px;
+        background-color: transparent;
+        color: var(--textPrimary);
+        padding: 1px 8px;
     }
 
     ${k} input {
@@ -1573,28 +1597,159 @@ const StatusBarWrapper = injectStyle("status-bar-wrapper", k => `
     }
 `);
 
-const EditorTabClass = injectStyle("editor-tab-class", k => `
+const VimCommandBar = injectStyle("vim-command-bar", k => `
     ${k} {
-        height: 32px;
+        min-width: 0;
+        color: var(--textPrimary);
         font-size: 12px;
-        padding-left: 12px;
-        padding-right: 12px;
-        cursor: pointer;
-        user-select: none;
-        border-right: 2px solid var(--borderColor);
+        white-space: nowrap;
     }
 
-    ${k} > * {
-        margin-top: auto;
-        margin-bottom: auto;
+    ${k} > span:first-child,
+    ${k} > span:last-child {
+        display: none;
     }
 
-    ${k}[data-active="true"], ${k}:hover  {
-        background-color: var(--borderColor);
+    ${k} input {
+        width: 180px;
+        padding: 0;
+        outline: none;
+        font: inherit;
     }
 `);
 
+const StatusModeBadge = injectStyle("editor-status-mode-badge", k => `
+    ${k} {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        height: 24px;
+        padding: 0 8px;
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--textPrimary) 12%, transparent);
+        font-size: 12px;
+        line-height: 1;
+        white-space: nowrap;
+    }
+
+`);
+
+const StatusPosition = injectStyle("editor-status-position", k => `
+    ${k} {
+        display: inline-flex;
+        align-items: center;
+        height: 24px;
+        padding: 0 4px;
+        border: 0;
+        border-radius: 4px;
+        background: transparent;
+        color: inherit;
+        cursor: pointer;
+        font: inherit;
+        font-family: var(--monospace, monospace);
+        font-size: 12px;
+        white-space: nowrap;
+    }
+
+    ${k}:hover {
+        background: var(--rowActive);
+    }
+
+    ${k}:focus-visible {
+        outline: 2px solid var(--primaryMain);
+        outline-offset: 1px;
+    }
+`);
+
+function EditorCursorPosition({editor, currentPath}: {editor: IStandaloneCodeEditor | null; currentPath: string}): React.ReactNode {
+    const [position, setPosition] = useState({line: 1, column: 1});
+
+    useEffect(() => {
+        if (!editor) return;
+
+        const updatePosition = () => {
+            const nextPosition = editor.getPosition();
+            if (!nextPosition) return;
+            setPosition({line: nextPosition.lineNumber, column: nextPosition.column});
+        };
+
+        updatePosition();
+        const listener = editor.onDidChangeCursorPosition(updatePosition);
+        return () => listener.dispose();
+    }, [editor, currentPath]);
+
+    const openPositionDialog = () => {
+        const model = editor?.getModel();
+        if (!editor || !model) return;
+
+        void addStandardInputDialog({
+            title: "Go to line and column",
+            help: <Text>Enter a line or a position in the format <code>line:column</code>.</Text>,
+            placeholder: `${position.line}:${position.column}`,
+            confirmText: "Go",
+            validationFailureMessage: "Enter a valid line and column.",
+            validator: value => parseEditorPosition(value) !== null,
+        }).then(({result}) => {
+            const nextPosition = parseEditorPosition(result);
+            if (!nextPosition) return;
+
+            if (nextPosition.lineNumber > model.getLineCount()) nextPosition.lineNumber = model.getLineCount();
+            if (nextPosition.column > model.getLineMaxColumn(nextPosition.lineNumber)) nextPosition.column = model.getLineMaxColumn(nextPosition.lineNumber);
+            editor.setPosition(nextPosition);
+            editor.revealPositionInCenter(nextPosition);
+            editor.focus();
+        }).catch(() => undefined);
+    };
+
+    return <button
+        type="button"
+        className={StatusPosition}
+        onClick={openPositionDialog}
+        aria-label={`Go to line ${position.line}, column ${position.column}`}
+    >{position.line}:{position.column}</button>;
+}
+
+function parseEditorPosition(value: string): {lineNumber: number; column: number} | null {
+    const match = /^(\d+)(?:\s*:\s*(\d+))?$/.exec(value.trim());
+    if (!match) return null;
+
+    const lineNumber = Number(match[1]);
+    const column = match[2] === undefined ? 1 : Number(match[2]);
+    if (!Number.isSafeInteger(lineNumber) || !Number.isSafeInteger(column) || lineNumber < 1 || column < 1) return null;
+    return {lineNumber, column};
+}
+
 const fallbackIcon = toIconPath("default");
+const monochromeFileIconLanguages = new Set([
+    "c",
+    "clojure",
+    "d",
+    "dart",
+    "default",
+    "haskell",
+    "haxe",
+    "jinja2",
+    "liquid",
+    "lua",
+    "notebook",
+    "ocaml",
+    "odata",
+    "perl",
+    "prolog",
+    "pug",
+    "rust",
+    "scala",
+    "swift",
+    "tex",
+    "webpack",
+]);
+
+const DarkModeMonochromeFileIcon = injectStyle("dark-mode-monochrome-file-icon", k => `
+    html.dark ${k} {
+        filter: brightness(0) invert(1);
+    }
+`);
+
 const LanguageItem: RichSelectChildComponent<{language: string; displayName: string}> = props => {
     const language = props.element?.language;
     if (!language) return null;
@@ -1609,28 +1764,29 @@ export function FullpathFileLanguageIcon({filePath, size}: {filePath: string; si
 }
 
 function FileLanguageIcon({language, ext, size = "18px", m = "2px 8px 0px 8px"}: {ext?: string; language: string; size?: string; m?: string;}): React.ReactNode {
-    const [iconPath, setIconPath] = useState(toIconPath(language ?? ""));
     const [didError, setError] = useState(false);
+    const [iconPath, setIconPath] = useState(toIconPath(language ?? ""));
 
     React.useEffect(() => {
-        if (language) {
-            setIconPath(toIconPath(language));
-        }
+        setError(false);
+        setIconPath(toIconPath(language));
     }, [language]);
 
+    const isMonochrome = monochromeFileIconLanguages.has(language) || iconPath === fallbackIcon;
+    const className = isMonochrome ? DarkModeMonochromeFileIcon : undefined;
+
     if (didError && ext) {
-        return <FtIcon fileIcon={{type: "FILE", ext}} size={"18px"} />
+        return <FtIcon fileIcon={{type: "FILE", ext}} size={size} />
     }
 
     return <Image
+        className={className}
         m={m}
-        background={"var(--successContrast)"}
-        borderRadius={"4px"}
         height={size}
         width={size}
         onError={() => {
             setError(true);
-            setIconPath(fallbackIcon)
+            setIconPath(fallbackIcon);
         }}
         alt={"Icon for " + language}
         src={iconPath}
@@ -1716,7 +1872,7 @@ const AvailableSettings: [
         ["Word wrap", EditorOption.wordWrap, ["wordWrapColumn", "on", "off", "bounded"]],
     ];
 
-function MonacoEditorSettings({editor, setVimMode}: {editor: IStandaloneCodeEditor | null, setVimMode(enable: boolean): void;}) {
+function MonacoEditorSettings({editor, setVimMode, onReadOnlyChange}: {editor: IStandaloneCodeEditor | null, setVimMode(enable: boolean): void; onReadOnlyChange?: (readOnly: boolean) => void;}) {
     const setOption = React.useCallback((setting: EditorOption, value: editor.FindComputedEditorOptionValueById<EditorOption>) => {
         if (!editor) return;
 
@@ -1744,8 +1900,9 @@ function MonacoEditorSettings({editor, setVimMode}: {editor: IStandaloneCodeEdit
             <Select defaultValue={allowEditing() ? "Allow" : "Disallow"} onChange={e => {
                 const canEdit = e.target.value === "Allow";
                 setOption(EditorOption.readOnly, !canEdit);
+                onReadOnlyChange?.(!canEdit);
 
-                if (!canEdit) setReadonlyWarning(editor);
+                if (!canEdit) setReadonlyWarning(editor, () => onReadOnlyChange?.(false));
 
                 setAllowEditing(canEdit.toString());
             }}>
@@ -1886,7 +2043,9 @@ function VimKeyBindings() {
                         <option>visual</option>
                     </Select>
                 </Label>
-                <Icon ml="12px" mt="28px" onClick={() => unmapBinding(binding.key)} name="close" />
+                <Box ml="8px" mt="20px">
+                    <IconButton tooltip="Remove key binding" onClick={() => unmapBinding(binding.key)} icon="close" />
+                </Box>
             </Flex>)
             }
         </div >
@@ -1933,37 +2092,13 @@ function setAllowEditing(doAllow: string) {
     localStorage.setItem(ALLOW_EDITING_KEY, doAllow);
 }
 
-function useShowReleaseNoteIcon() {
-    const [showReleaseNoteIcon, setShowReleaseNotePrompt] = useState(false);
-
-    /*
-    React.useEffect(() => {
-        const lastUsedEditorVersion = localStorage.getItem(EDITOR_VERSION_STORAGE_KEY)
-        if (!localStorage.getItem(EDITOR_VERSION_STORAGE_KEY)) {
-            localStorage.setItem(EDITOR_VERSION_STORAGE_KEY, CURRENT_EDITOR_VERSION);
-        }
-
-        if (CURRENT_EDITOR_VERSION !== lastUsedEditorVersion) {
-            setShowReleaseNotePrompt(true);
-        }
-    }, []);
-     */
-
-    const onShowReleaseNotesShown = React.useCallback(() => {
-        localStorage.setItem(EDITOR_VERSION_STORAGE_KEY, CURRENT_EDITOR_VERSION);
-        setShowReleaseNotePrompt(false);
-    }, []);
-
-    return {showReleaseNoteIcon, onShowReleaseNotesShown};
-}
-
-function setReadonlyWarning(editor: IStandaloneCodeEditor) {
+function setReadonlyWarning(editor: IStandaloneCodeEditor, onReadOnlyChange?: () => void) {
     editor.onDidAttemptReadOnlyEdit(e => {
-        allowEditDialog(editor);
+        allowEditDialog(editor, onReadOnlyChange);
     });
 }
 
-function allowEditDialog(editor: IStandaloneCodeEditor) {
+function allowEditDialog(editor: IStandaloneCodeEditor, onReadOnlyChange?: () => void) {
     addStandardDialog({
         title: "Enable editing?",
         message: "Editing files is disabled. This can be changed later in settings. Enable?",
@@ -1971,14 +2106,21 @@ function allowEditDialog(editor: IStandaloneCodeEditor) {
         onConfirm() {
             editor.updateOptions({readOnly: false});
             setAllowEditing(true.toString());
+            onReadOnlyChange?.();
         },
         cancelText: "Dismiss",
         addToFront: true,
     });
 }
 
-function getStatusBarElement(): Element | null {
-    return document.getElementsByClassName(StatusBar).item(0);
+function vimModeLabel(mode: unknown): string {
+    const modeInfo = typeof mode === "object" && mode !== null ? mode as {mode?: unknown; subMode?: unknown} : undefined;
+    const name = typeof mode === "string" ? mode : typeof modeInfo?.mode === "string" ? modeInfo.mode : "normal";
+    if (name === "visual") {
+        if (modeInfo?.subMode === "linewise") return "VISUAL LINE";
+        if (modeInfo?.subMode === "blockwise") return "VISUAL BLOCK";
+    }
+    return name.toUpperCase();
 }
 
 function virtualFileSort(a: VirtualFile, b: VirtualFile): number {
@@ -1989,10 +2131,3 @@ function virtualFileSort(a: VirtualFile, b: VirtualFile): number {
 }
 
 type RevertSaveFunction = () => void;
-
-const EditorReleaseNotes = `
-# Preview editor
-
-## 1.0 initial release
-
-    `;

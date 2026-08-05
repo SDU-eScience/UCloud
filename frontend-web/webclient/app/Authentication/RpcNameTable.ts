@@ -328,6 +328,7 @@ case '/api/grants/v2/retrieveLogo': return 'grants.v2.retrieveLogo';
 case '/api/files/browse': return 'files.browse';
 case '/api/files/retrieve': return 'files.retrieve';
 case '/api/files/retrieveProducts': return 'files.retrieveProducts';
+case '/api/files/visualize': return 'files.visualize';
 case '/api/ingresses/control/browse': return 'ingresses.control.browse';
 case '/api/ingresses/control/retrieve': return 'ingresses.control.retrieve';
 case '/api/projects/membership/search': return 'project.members.search';

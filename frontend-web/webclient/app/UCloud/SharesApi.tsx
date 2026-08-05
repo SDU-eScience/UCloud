@@ -18,7 +18,6 @@ import {accounting, BulkRequest, FindByStringId, PaginationRequestV2} from "@/UC
 import {apiBrowse, apiCreate, apiRetrieve, apiUpdate} from "@/Authentication/DataHook";
 import {bulkRequestOf} from "@/UtilityFunctions";
 import ProductReference = accounting.ProductReference;
-import {ValuePill} from "@/Resource/Filter";
 import Icon from "@/ui-components/Icon";
 
 export interface ShareSpecification extends ResourceSpecification {
@@ -112,7 +111,7 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
     title = "File Share";
     productType = "STORAGE" as const;
 
-    renderer: ItemRenderer<Share, ResourceBrowseCallbacks<Share>> = {
+    renderer: ItemRenderer<Share, ResourceBrowseCallbacks<Share, Product>> = {
         MainTitle({resource}) {
             if (!resource) return null;
             /* Note(Jonas): If this is shared by logged-in user, we have access to original drive title */
@@ -137,7 +136,7 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
         super("shares");
     }
 
-    retrieveOperations(): Operation<Share, ResourceBrowseCallbacks<Share>>[] {
+    retrieveOperations() {
         const baseOperations = super.retrieveOperations().filter(op => {
             return op.tag !== CREATE_TAG;
         });
@@ -158,12 +157,16 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
             }
         }
 
-        return [
+        const operations: Operation<Share, ResourceBrowseCallbacks<Share, Product>>[] = [
             {
                 text: "Accept",
                 icon: "check",
                 color: "successMain",
                 confirm: true,
+                confirmationText: selected => selected.length === 1 ?
+                    "Are you sure you want to accept this share?" :
+                    `Are you sure you want to accept these ${selected.length} shares?`,
+                confirmationButtonText: "Accept",
                 primary: true,
                 enabled: (selected, cb) => {
                     return selected.length > 0 && selected.every(share =>
@@ -185,6 +188,10 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
                 icon: "close",
                 color: "errorMain",
                 confirm: true,
+                confirmationText: selected => selected.length === 1 ?
+                    "Are you sure you want to decline this share?" :
+                    `Are you sure you want to decline these ${selected.length} shares?`,
+                confirmationButtonText: "Decline",
                 primary: true,
                 enabled: (selected, cb) => {
                     return selected.length > 0 && selected.every(share =>
@@ -205,6 +212,10 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
                 icon: "heroTrash",
                 color: "errorMain",
                 confirm: true,
+                confirmationText: selected => selected.length === 1 ?
+                    "Are you sure you want to remove this share?" :
+                    `Are you sure you want to remove these ${selected.length} shares?`,
+                confirmationButtonText: "Remove",
                 enabled: (selected, cb) => {
                     return selected.length > 0 && selected.every(share =>
                         share.owner.createdBy !== Client.username && share.status.state === "APPROVED"
@@ -221,6 +232,7 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
             },
             ...baseOperations
         ];
+        return operations;
     }
 
     approve(request: BulkRequest<FindByStringId>): APICallParameters {

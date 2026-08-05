@@ -38,7 +38,7 @@ import {isAdminOrPI} from "@/Project";
 import {PermissionsTable} from "@/Resource/PermissionEditor";
 import {useProject} from "@/Project/cache";
 import {useProjectId} from "@/Project/Api";
-import {productTypeToIcon, ProductV2, ProductV2PrivateNetwork} from "@/Accounting";
+import {Product, productTypeToIcon, ProductV2, ProductV2PrivateNetwork} from "@/Accounting";
 import {ProductSelector} from "@/Products/Selector";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {AsyncCache} from "@/Utilities/AsyncCache";
@@ -80,7 +80,7 @@ export function PrivateNetworkBrowse({
     const browserRef = React.useRef<ResourceBrowser<PrivateNetwork> | null>(null);
     const dispatch = useDispatch();
     const navigate = useNavigate();
-    usePage("Private networks", SidebarTabId.RESOURCES);
+    if (!opts?.isModal) usePage("Private networks", SidebarTabId.RESOURCES);
     const [switcher, setSwitcherWorkaround] = React.useState<React.ReactNode>(<></>);
 
     React.useEffect(() => {
@@ -206,7 +206,7 @@ export function PrivateNetworkBrowse({
                 });
 
                 browser.on("fetchOperationsCallback", () => {
-                    const callbacks: ResourceBrowseCallbacks<PrivateNetwork> = {
+                    const callbacks: ResourceBrowseCallbacks<PrivateNetwork, Product> = {
                         supportByProvider: {productsByProvider: {}},
                         dispatch,
                         isWorkspaceAdmin: checkIsWorkspaceAdmin(),
@@ -226,9 +226,11 @@ export function PrivateNetworkBrowse({
 
                 browser.on("fetchOperations", () => {
                     const entries = browser.findSelectedEntries();
-                    const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as ResourceBrowseCallbacks<PrivateNetwork>;
+                    const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as ResourceBrowseCallbacks<PrivateNetwork, Product>;
 
-                    const operations = PrivateNetworkApi.retrieveOperations();
+                    const actions = PrivateNetworkApi.retrieveActions();
+                    if (!Array.isArray(actions)) return actions;
+                    const operations = actions;
                     const create = operations.find(it => it.tag === CREATE_TAG);
                     if (create) {
                         create.enabled = () => true;
@@ -291,7 +293,7 @@ export function PrivateNetworkBrowse({
 
                                             dialogStore.success();
                                             browser.refresh();
-                                        } catch (e) {
+                                        } catch (e: any) {
                                             sendFailureNotification("Failed to create private network. " + extractErrorMessage(e));
                                             browser.refresh();
                                         }
@@ -337,7 +339,7 @@ export function PrivateNetworkBrowse({
 
     return <MainContainer
         main={<>
-            <div ref={mountRef}/>
+            <div ref={mountRef} />
             {headerControls?.projectSwitcherTarget
                 ? createProjectSwitcherPortal(headerControls.projectSwitcherTarget)
                 : switcher}
@@ -395,7 +397,7 @@ function PrivateNetworkCreate({onCreate, onCancel, products}: PrivateNetworkCrea
             </Box>
 
             <Box>
-                <Label>Name<MandatoryField/></Label>
+                <Label>Name<MandatoryField /></Label>
                 <Input
                     autoFocus
                     placeholder={"My private network"}
@@ -405,7 +407,7 @@ function PrivateNetworkCreate({onCreate, onCancel, products}: PrivateNetworkCrea
             </Box>
 
             <Box>
-                <Label>Subdomain<MandatoryField/></Label>
+                <Label>Subdomain<MandatoryField /></Label>
                 <Input
                     placeholder={"my-network"}
                     value={subdomain}
@@ -418,8 +420,8 @@ function PrivateNetworkCreate({onCreate, onCancel, products}: PrivateNetworkCrea
             </Box>
 
             <Box>
-                <Label>Choose a product<MandatoryField/></Label>
-                <ProductSelector slim onSelect={setSelectedProduct} products={products} selected={product}/>
+                <Label>Choose a product<MandatoryField /></Label>
+                <ProductSelector slim onSelect={setSelectedProduct} products={products} selected={product} />
                 <div style={{color: "var(--textSecondary)"}}>This network can be used with machines
                     from <i>{shortProviderId}</i>.
                 </div>
@@ -459,7 +461,7 @@ function PrivateNetworkCreate({onCreate, onCancel, products}: PrivateNetworkCrea
         </div>
 
         <Flex justifyContent="end" px={"20px"} py={"12px"} margin={"0 -20px -20px -20px"} background={"var(--dialogToolbar)"}
-              gap={"8px"}>
+            gap={"8px"}>
             <Button color={"errorMain"} type="button" onClick={onCancel}>Cancel</Button>
             <Button
                 color={"successMain"}

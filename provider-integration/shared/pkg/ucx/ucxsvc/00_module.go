@@ -2,8 +2,11 @@ package ucxsvc
 
 import (
 	"fmt"
+	"io"
+	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 
 	accapi "ucloud.dk/shared/pkg/accounting"
@@ -30,7 +33,16 @@ type Stack struct {
 const (
 	stackLabelInstance    = "ucloud.dk/stackinstance"
 	stackLabelStateFolder = "ucloud.dk/stack-state-folder"
+	stackDataMaxBytes     = 64*1024 - 1
+	ucxAppNameEnv         = "UCLOUD_UCX_APP_NAME"
+	ucxAppVersionEnv      = "UCLOUD_UCX_APP_VERSION"
+	ucxVmServiceUid       = 11042
 )
+
+type UcxCustomUiServiceInit struct {
+	Labels     map[string]string
+	InitScript string
+}
 
 func (s *Stack) Labels() map[string]string {
 	if !s.Ok {
@@ -172,6 +184,81 @@ func StackWriteFileEx(stack *Stack, path string, data string, mode uint32) {
 		return
 	}
 
+	if len(data) <= stackDataMaxBytes {
+		_ = stackDataWriteString(stack, path, data, mode)
+		return
+	}
+
+	_ = stackDataWriteString(stack, path, data[:stackDataMaxBytes], mode)
+	if !stack.Ok {
+		return
+	}
+
+	remaining := []byte(data[stackDataMaxBytes:])
+	_ = stackDataAppendBytesChunked(stack, path, remaining, mode)
+}
+
+func StackWriteFileBytes(stack *Stack, path string, data []byte) {
+	StackWriteFileBytesEx(stack, path, data, 0660)
+}
+
+func StackWriteFileBytesEx(stack *Stack, path string, data []byte, mode uint32) {
+	if !stack.Ok {
+		return
+	}
+
+	if stackDataWriteString(stack, path, "", mode) != nil {
+		return
+	}
+
+	_ = stackDataAppendBytesChunked(stack, path, data, mode)
+}
+
+func StackOpenFileWriter(stack *Stack, path string) io.Writer {
+	return StackOpenFileWriterEx(stack, path, 0660)
+}
+
+func StackOpenFileWriterEx(stack *Stack, path string, mode uint32) io.Writer {
+	writer := &stackFileWriter{stack: stack, path: path, mode: mode}
+	if stack.Ok && stackDataWriteString(stack, path, "", mode) == nil {
+		writer.initialized = true
+	}
+	return writer
+}
+
+type stackFileWriter struct {
+	stack       *Stack
+	path        string
+	mode        uint32
+	initialized bool
+}
+
+func (w *stackFileWriter) Write(data []byte) (int, error) {
+	if !w.stack.Ok {
+		return 0, fmt.Errorf("stack is not available")
+	}
+
+	if !w.initialized {
+		if err := stackDataWriteString(w.stack, w.path, "", w.mode); err != nil {
+			return 0, err
+		}
+		w.initialized = true
+	}
+
+	written := 0
+	for len(data) > 0 {
+		chunkSize := stackDataChunkSize(len(data))
+		if err := stackDataAppendBytes(w.stack, w.path, data[:chunkSize], w.mode); err != nil {
+			return written, err
+		}
+		written += chunkSize
+		data = data[chunkSize:]
+	}
+
+	return written, nil
+}
+
+func stackDataWriteString(stack *Stack, path string, data string, mode uint32) error {
 	session := *stack.app.Session()
 	_, err := ucxapi.StackDataWrite.Invoke(session, ucxapi.StackDataWriteRequest{
 		InstanceId: stack.InstanceId,
@@ -184,8 +271,48 @@ func StackWriteFileEx(stack *Stack, path string, data string, mode uint32) {
 		log.Warn("Could not write file: %s", err)
 		UiSendFailure(stack.app, "Unable start application stack, try again later.")
 		stack.Ok = false
-		return
+		return err
 	}
+
+	return nil
+}
+
+func stackDataAppendBytesChunked(stack *Stack, path string, data []byte, mode uint32) error {
+	for len(data) > 0 {
+		chunkSize := stackDataChunkSize(len(data))
+		if err := stackDataAppendBytes(stack, path, data[:chunkSize], mode); err != nil {
+			return err
+		}
+		data = data[chunkSize:]
+	}
+
+	return nil
+}
+
+func stackDataChunkSize(remaining int) int {
+	if remaining < stackDataMaxBytes {
+		return remaining
+	}
+	return stackDataMaxBytes
+}
+
+func stackDataAppendBytes(stack *Stack, path string, data []byte, mode uint32) error {
+	session := *stack.app.Session()
+	_, err := ucxapi.StackDataAppend.Invoke(session, ucxapi.StackDataAppendRequest{
+		InstanceId: stack.InstanceId,
+		Path:       path,
+		Data:       data,
+		Perm:       mode,
+	})
+
+	if err != nil {
+		log.Warn("Could not write file: %s", err)
+		UiSendFailure(stack.app, "Unable start application stack, try again later.")
+		stack.Ok = false
+		return err
+	}
+
+	return nil
 }
 
 func StackWriteInitScript(stack *Stack, initScript string) map[string]string {
@@ -202,6 +329,126 @@ func StackWriteInitScript(stack *Stack, initScript string) map[string]string {
 	return map[string]string{
 		"ucloud.dk/initscript": filepath.Join(stack.MountPath, initName),
 	}
+}
+
+func UcxPortLabel(port int) map[string]string {
+	labels := map[string]string{}
+	appName := strings.TrimSpace(os.Getenv(ucxAppNameEnv))
+	appVersion := strings.TrimSpace(os.Getenv(ucxAppVersionEnv))
+	if appName != "" {
+		labels["ucloud.dk/ucxAppName"] = appName
+	}
+	if appVersion != "" {
+		labels["ucloud.dk/ucxAppVersion"] = appVersion
+	}
+	if port > 0 {
+		labels["ucloud.dk/ucxport"] = strconv.Itoa(port)
+	}
+	return labels
+}
+
+func UcxInitCustomUiService(stack *Stack, port int, args string) UcxCustomUiServiceInit {
+	result := UcxCustomUiServiceInit{Labels: UcxPortLabel(port)}
+	if stack == nil || !stack.Ok {
+		return result
+	}
+
+	runnerName := fmt.Sprintf(".ucx-custom-ui-%s.sh", util.SecureToken())
+	runnerPath := filepath.Join(stack.MountPath, runnerName)
+	StackWriteFileEx(stack, runnerName, ucxCustomUiRunnerScript(port, args), 0770)
+	if !stack.Ok {
+		return result
+	}
+
+	result.InitScript = ucxCustomUiServiceInitScript(runnerPath)
+	return result
+}
+
+func ucxCustomUiRunnerScript(port int, args string) string {
+	appName := strings.TrimSpace(os.Getenv(ucxAppNameEnv))
+	appVersion := strings.TrimSpace(os.Getenv(ucxAppVersionEnv))
+	args = strings.TrimSpace(args)
+	invoke := `"$RUNTIME_BIN"`
+	if args != "" {
+		invoke += " " + args
+	}
+
+	return fmt.Sprintf(`#!/usr/bin/env bash
+set -euo pipefail
+
+WATCHED=/opt/ucloud-ucx/current
+RUNTIME_DIR=/tmp/ucloud-ucx-custom-ui
+RUNTIME_BIN="$RUNTIME_DIR/current"
+mkdir -p "$RUNTIME_DIR"
+
+file_state() {
+  if [ ! -f "$WATCHED" ]; then
+    printf 'missing'
+    return
+  fi
+  sha256sum "$WATCHED" | cut -d ' ' -f 1
+}
+
+export UCX_PORT=%d
+export UCLOUD_UCX_APP_NAME=%s
+export UCLOUD_UCX_APP_VERSION=%s
+
+LAST_STATE=""
+while true; do
+  while [ ! -f "$WATCHED" ]; do
+    sleep 1
+  done
+
+  CURRENT_STATE="$(file_state)"
+  if [ "$CURRENT_STATE" != "$LAST_STATE" ]; then
+    cp "$WATCHED" "$RUNTIME_BIN.tmp"
+    chmod +x "$RUNTIME_BIN.tmp"
+    mv "$RUNTIME_BIN.tmp" "$RUNTIME_BIN"
+    LAST_STATE="$CURRENT_STATE"
+  fi
+
+  export UCX_EXECUTABLE="$RUNTIME_BIN"
+  %s &
+  PID="$!"
+
+  while kill -0 "$PID" 2>/dev/null; do
+    sleep 1
+    NEXT_STATE="$(file_state)"
+    if [ "$NEXT_STATE" != "$LAST_STATE" ]; then
+      kill "$PID" 2>/dev/null || true
+      wait "$PID" 2>/dev/null || true
+      break
+    fi
+  done
+
+  wait "$PID" 2>/dev/null || true
+  sleep 1
+done
+`, port, orcapi.EscapeBash(appName), orcapi.EscapeBash(appVersion), invoke)
+}
+
+func ucxCustomUiServiceInitScript(runnerPath string) string {
+	return fmt.Sprintf(`install -d -m 0755 /etc/systemd/system
+cat >/etc/systemd/system/ucloud-ucx-custom-ui.service <<'EOF'
+[Unit]
+Description=UCloud UCX custom UI service
+After=network-online.target remote-fs.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=%d
+Group=%d
+ExecStart=/bin/bash %s
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
+EOF
+systemctl daemon-reload
+systemctl enable --now ucloud-ucx-custom-ui.service
+`, ucxVmServiceUid, ucxVmServiceUid, orcapi.EscapeBash(runnerPath))
 }
 
 func StackConfirmAndOpen(stack *Stack) {
@@ -251,7 +498,12 @@ func PublicIpCreate(stack *Stack) orcapi.AppParameterValue {
 // Public links
 // =====================================================================================================================
 
-func PublicLinkCreate(stack *Stack, name string, port util.Option[int]) orcapi.AppParameterValue {
+type PublicLinkCreateOptions struct {
+	Port util.Option[int]
+	TLS  bool
+}
+
+func PublicLinkCreate(stack *Stack, name string, options PublicLinkCreateOptions) orcapi.AppParameterValue {
 	if !stack.Ok {
 		return orcapi.AppParameterValue{}
 	}
@@ -281,9 +533,10 @@ func PublicLinkCreate(stack *Stack, name string, port util.Option[int]) orcapi.A
 	}
 
 	result := orcapi.AppParameterValueIngress(links[0].Id)
-	if port.Present {
-		result.Port = port.Value
+	if options.Port.Present {
+		result.Port = options.Port.Value
 	}
+	result.TLS = options.TLS
 	return result
 }
 

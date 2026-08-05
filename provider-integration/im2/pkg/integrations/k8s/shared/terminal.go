@@ -15,17 +15,23 @@ import (
 )
 
 const IntegratedTerminalAppName = "terminal"
+const InferenceSandboxAppName = "inference-sandbox"
 
-const terminalDefaultLeaseDuration = 15 * time.Minute
-const terminalLeaseRefreshInterval = 5 * time.Minute
+const integratedTerminalLabel = "terminal sandbox"
+const inferenceSandboxLabel = "inference sandbox"
 
-type IntegratedTerminalConfig struct {
+const integratedSandboxDefaultLeaseDuration = 15 * time.Minute
+const integratedSandboxLeaseRefreshInterval = 5 * time.Minute
+
+type IntegratedSandboxConfig struct {
 	Folders []string `json:"folders"`
 }
 
-type TerminalSandbox struct {
+type IntegratedSandbox struct {
+	AppName    string
 	Owner      orc.ResourceOwner
 	JobId      string
+	Rank       util.Option[int]
 	ETag       string
 	Folders    []string
 	LeaseUntil time.Time
@@ -33,6 +39,11 @@ type TerminalSandbox struct {
 
 	Warnings []string
 }
+
+type IntegratedTerminalConfig = IntegratedSandboxConfig
+type InferenceSandboxConfig = IntegratedSandboxConfig
+type TerminalSandbox = IntegratedSandbox
+type InferenceSandbox = IntegratedSandbox
 
 // NOTE(Dan): I tend to not like using interfaces, especially like this. Unfortunately, the API surface has to live in
 // shared for various reasons while the implementation code cannot. In practice, it is safe to assume that there is only
@@ -52,8 +63,8 @@ type TerminalBackend interface {
 
 var terminalBackend TerminalBackend
 
-var terminalLeaseMutex sync.Mutex
-var terminalLeaseUntil = map[string]time.Time{}
+var integratedSandboxLeaseMutex sync.Mutex
+var integratedSandboxLeaseUntilByKey = map[string]time.Time{}
 
 func TerminalRegisterBackend(backend TerminalBackend) {
 	terminalBackend = backend
@@ -81,7 +92,7 @@ type TerminalCmd struct {
 	leaseOnce  sync.Once
 }
 
-func (sandbox *TerminalSandbox) Command(name string, arg ...string) *TerminalCmd {
+func (sandbox *IntegratedSandbox) Command(name string, arg ...string) *TerminalCmd {
 	return &TerminalCmd{
 		Sandbox: sandbox,
 		Path:    name,
@@ -93,16 +104,18 @@ func (sandbox *TerminalSandbox) Command(name string, arg ...string) *TerminalCmd
 }
 
 func TerminalOpen(owner orc.ResourceOwner, folders []string) (*TerminalSandbox, *util.HttpError) {
-	sandbox, err := terminalMutate(owner, util.OptNone[string](), func(config *IntegratedTerminalConfig) (bool, *util.HttpError) {
+	if err := TerminalLease(owner, integratedSandboxDefaultLeaseDuration); err != nil {
+		return nil, err
+	}
+	sandbox, err := integratedSandboxMutate(IntegratedTerminalAppName, owner, util.OptNone[string](), func(config *IntegratedSandboxConfig) (bool, *util.HttpError) {
 		oldFolders := config.Folders
-		config.Folders = terminalNormalizeFolders(append(config.Folders, folders...))
+		config.Folders = integratedSandboxNormalizeFolders(append(config.Folders, folders...))
 		return !slices.Equal(oldFolders, config.Folders), nil
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	_ = TerminalLease(owner, terminalDefaultLeaseDuration)
 	if leaseUntil := TerminalLeaseUntil(owner); leaseUntil.Present {
 		sandbox.LeaseUntil = leaseUntil.Value
 	}
@@ -110,7 +123,7 @@ func TerminalOpen(owner orc.ResourceOwner, folders []string) (*TerminalSandbox, 
 	return sandbox, nil
 }
 
-func TerminalOpenToJob(jobId string) (*TerminalSandbox, *util.HttpError) {
+func TerminalOpenToJob(jobId string, rank util.Option[int]) (*TerminalSandbox, *util.HttpError) {
 	if jobId == "" {
 		return nil, util.UserHttpError("job id must not be empty")
 	}
@@ -124,8 +137,10 @@ func TerminalOpenToJob(jobId string) (*TerminalSandbox, *util.HttpError) {
 	}
 
 	sandbox := &TerminalSandbox{
+		AppName:   IntegratedTerminalAppName,
 		Owner:     job.Owner,
 		JobId:     job.Id,
+		Rank:      rank,
 		AutoLease: false,
 	}
 
@@ -133,16 +148,18 @@ func TerminalOpenToJob(jobId string) (*TerminalSandbox, *util.HttpError) {
 }
 
 func TerminalSetFolders(owner orc.ResourceOwner, etag util.Option[string], folders []string) (*TerminalSandbox, *util.HttpError) {
-	sandbox, err := terminalMutate(owner, etag, func(config *IntegratedTerminalConfig) (bool, *util.HttpError) {
+	if err := TerminalLease(owner, integratedSandboxDefaultLeaseDuration); err != nil {
+		return nil, err
+	}
+	sandbox, err := integratedSandboxMutate(IntegratedTerminalAppName, owner, etag, func(config *IntegratedSandboxConfig) (bool, *util.HttpError) {
 		oldFolders := config.Folders
-		config.Folders = terminalNormalizeFolders(folders)
+		config.Folders = integratedSandboxNormalizeFolders(folders)
 		return !slices.Equal(oldFolders, config.Folders), nil
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	_ = TerminalLease(owner, terminalDefaultLeaseDuration)
 	if leaseUntil := TerminalLeaseUntil(owner); leaseUntil.Present {
 		sandbox.LeaseUntil = leaseUntil.Value
 	}
@@ -151,16 +168,18 @@ func TerminalSetFolders(owner orc.ResourceOwner, etag util.Option[string], folde
 }
 
 func TerminalAddFolder(owner orc.ResourceOwner, etag util.Option[string], folder string) (*TerminalSandbox, *util.HttpError) {
-	sandbox, err := terminalMutate(owner, etag, func(config *IntegratedTerminalConfig) (bool, *util.HttpError) {
+	if err := TerminalLease(owner, integratedSandboxDefaultLeaseDuration); err != nil {
+		return nil, err
+	}
+	sandbox, err := integratedSandboxMutate(IntegratedTerminalAppName, owner, etag, func(config *IntegratedSandboxConfig) (bool, *util.HttpError) {
 		oldFolders := config.Folders
-		config.Folders = terminalNormalizeFolders(append(config.Folders, folder))
+		config.Folders = integratedSandboxNormalizeFolders(append(config.Folders, folder))
 		return !slices.Equal(oldFolders, config.Folders), nil
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	_ = TerminalLease(owner, terminalDefaultLeaseDuration)
 	if leaseUntil := TerminalLeaseUntil(owner); leaseUntil.Present {
 		sandbox.LeaseUntil = leaseUntil.Value
 	}
@@ -169,21 +188,23 @@ func TerminalAddFolder(owner orc.ResourceOwner, etag util.Option[string], folder
 }
 
 func TerminalRemoveFolder(owner orc.ResourceOwner, etag util.Option[string], folder string) (*TerminalSandbox, *util.HttpError) {
-	sandbox, err := terminalMutate(owner, etag, func(config *IntegratedTerminalConfig) (bool, *util.HttpError) {
+	if err := TerminalLease(owner, integratedSandboxDefaultLeaseDuration); err != nil {
+		return nil, err
+	}
+	sandbox, err := integratedSandboxMutate(IntegratedTerminalAppName, owner, etag, func(config *IntegratedSandboxConfig) (bool, *util.HttpError) {
 		filtered := make([]string, 0, len(config.Folders))
 		for _, existing := range config.Folders {
 			if existing != folder {
 				filtered = append(filtered, existing)
 			}
 		}
-		config.Folders = terminalNormalizeFolders(filtered)
+		config.Folders = integratedSandboxNormalizeFolders(filtered)
 		return true, nil
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	_ = TerminalLease(owner, terminalDefaultLeaseDuration)
 	if leaseUntil := TerminalLeaseUntil(owner); leaseUntil.Present {
 		sandbox.LeaseUntil = leaseUntil.Value
 	}
@@ -192,40 +213,73 @@ func TerminalRemoveFolder(owner orc.ResourceOwner, etag util.Option[string], fol
 }
 
 func TerminalLease(owner orc.ResourceOwner, duration time.Duration) *util.HttpError {
-	if owner.CreatedBy == "" {
-		return util.UserHttpError("terminal sandbox requires an explicit owner")
-	}
-
-	terminalLeaseMutex.Lock()
-	terminalLeaseUntil[terminalLeaseKey(owner)] = time.Now().Add(duration)
-	terminalLeaseMutex.Unlock()
-	return nil
-
+	return integratedSandboxLease(IntegratedTerminalAppName, owner, duration)
 }
 
 func TerminalLeaseUntil(owner orc.ResourceOwner) util.Option[time.Time] {
-	terminalLeaseMutex.Lock()
-	defer terminalLeaseMutex.Unlock()
-
-	leaseUntil, ok := terminalLeaseUntil[terminalLeaseKey(owner)]
-	if !ok {
-		return util.OptNone[time.Time]()
-	}
-
-	return util.OptValue(leaseUntil)
+	return integratedSandboxLeaseUntil(IntegratedTerminalAppName, owner)
 }
 
-func terminalMutate(
-	owner orc.ResourceOwner,
-	etag util.Option[string],
-	mutate func(config *IntegratedTerminalConfig) (bool, *util.HttpError),
-) (*TerminalSandbox, *util.HttpError) {
-	if owner.CreatedBy == "" {
-		return nil, util.UserHttpError("terminal sandbox requires an explicit owner")
+func InferenceSandboxOpen(owner orc.ResourceOwner, folders []string) (*InferenceSandbox, *util.HttpError) {
+	if err := InferenceSandboxLease(owner, integratedSandboxDefaultLeaseDuration); err != nil {
+		return nil, err
+	}
+	sandbox, err := integratedSandboxMutate(InferenceSandboxAppName, owner, util.OptNone[string](), func(config *IntegratedSandboxConfig) (bool, *util.HttpError) {
+		oldFolders := config.Folders
+		config.Folders = integratedSandboxNormalizeFolders(append(config.Folders, folders...))
+		return !slices.Equal(oldFolders, config.Folders), nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
-	current := controller.IAppRetrieveConfiguration(IntegratedTerminalAppName, owner)
-	config := IntegratedTerminalConfig{}
+	if leaseUntil := InferenceSandboxLeaseUntil(owner); leaseUntil.Present {
+		sandbox.LeaseUntil = leaseUntil.Value
+	}
+	sandbox.AutoLease = false
+	return sandbox, nil
+}
+
+func InferenceSandboxSetFolders(owner orc.ResourceOwner, etag util.Option[string], folders []string) (*InferenceSandbox, *util.HttpError) {
+	if err := InferenceSandboxLease(owner, integratedSandboxDefaultLeaseDuration); err != nil {
+		return nil, err
+	}
+	sandbox, err := integratedSandboxMutate(InferenceSandboxAppName, owner, etag, func(config *IntegratedSandboxConfig) (bool, *util.HttpError) {
+		oldFolders := config.Folders
+		config.Folders = integratedSandboxNormalizeFolders(folders)
+		return !slices.Equal(oldFolders, config.Folders), nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if leaseUntil := InferenceSandboxLeaseUntil(owner); leaseUntil.Present {
+		sandbox.LeaseUntil = leaseUntil.Value
+	}
+	sandbox.AutoLease = false
+	return sandbox, nil
+}
+
+func InferenceSandboxLease(owner orc.ResourceOwner, duration time.Duration) *util.HttpError {
+	return integratedSandboxLease(InferenceSandboxAppName, owner, duration)
+}
+
+func InferenceSandboxLeaseUntil(owner orc.ResourceOwner) util.Option[time.Time] {
+	return integratedSandboxLeaseUntil(InferenceSandboxAppName, owner)
+}
+
+func integratedSandboxMutate(
+	appName string,
+	owner orc.ResourceOwner,
+	etag util.Option[string],
+	mutate func(config *IntegratedSandboxConfig) (bool, *util.HttpError),
+) (*IntegratedSandbox, *util.HttpError) {
+	if owner.CreatedBy == "" {
+		return nil, util.UserHttpError("%s requires an explicit owner", integratedSandboxLabel(appName))
+	}
+
+	current := controller.IAppRetrieveConfiguration(appName, owner)
+	config := IntegratedSandboxConfig{}
 	currentEtag := util.OptNone[string]()
 
 	if current.Present {
@@ -245,9 +299,13 @@ func terminalMutate(
 	if err != nil {
 		return nil, err
 	}
+	if !current.Present {
+		didUpdate = true
+	}
 
-	if didUpdate || (current.Present && current.Value.IsDetached()) {
-		validation := terminalValidateFolders(owner, config.Folders)
+	needsActivation := current.Present && integratedSandboxNeedsActivation(current.Value)
+	if didUpdate || (current.Present && current.Value.IsDetached()) || needsActivation {
+		validation := integratedSandboxValidateFolders(owner, config.Folders)
 		config.Folders = validation.Folders
 
 		data, err := json.Marshal(config)
@@ -255,48 +313,89 @@ func terminalMutate(
 			return nil, util.HttpErrorFromErr(err)
 		}
 
-		if err := controller.IAppConfigure(IntegratedTerminalAppName, owner, currentEtag, data); err != nil {
+		if err := controller.IAppConfigure(appName, owner, currentEtag, data); err != nil {
 			return nil, err
 		}
 
-		updated := controller.IAppRetrieveConfiguration(IntegratedTerminalAppName, owner)
+		updated := controller.IAppRetrieveConfiguration(appName, owner)
 		if !updated.Present {
-			return nil, util.ServerHttpError("error configuring terminal sandbox")
+			return nil, util.ServerHttpError("error configuring %s", integratedSandboxLabel(appName))
 		}
-		sandbox := terminalSandboxFromConfiguration(updated.Value)
+		sandbox := integratedSandboxFromConfiguration(appName, updated.Value)
 		sandbox.Warnings = validation.Warnings
 		return sandbox, nil
 	} else {
-		return terminalSandboxFromConfiguration(current.Value), nil
+		return integratedSandboxFromConfiguration(appName, current.Value), nil
 	}
 }
 
-func terminalSandboxFromConfiguration(config controller.IAppRunningConfiguration) *TerminalSandbox {
-	var parsed IntegratedTerminalConfig
+func integratedSandboxNeedsActivation(config controller.IAppRunningConfiguration) bool {
+	if config.IsDetached() {
+		return true
+	}
+	job, ok := controller.JobRetrieve(config.JobId)
+	return !ok || job.Status.State.IsFinal() || job.Status.State == orc.JobStateSuspended
+}
+
+func integratedSandboxFromConfiguration(appName string, config controller.IAppRunningConfiguration) *IntegratedSandbox {
+	var parsed IntegratedSandboxConfig
 	_ = json.Unmarshal(config.Configuration, &parsed)
-	sandbox := &TerminalSandbox{
+	sandbox := &IntegratedSandbox{
+		AppName: appName,
 		Owner:   config.Owner,
 		JobId:   config.JobId,
 		ETag:    config.ETag,
-		Folders: append([]string{}, terminalNormalizeFolders(parsed.Folders)...),
+		Folders: append([]string{}, integratedSandboxNormalizeFolders(parsed.Folders)...),
 	}
 
-	if leaseUntil := TerminalLeaseUntil(config.Owner); leaseUntil.Present {
+	if leaseUntil := integratedSandboxLeaseUntil(appName, config.Owner); leaseUntil.Present {
 		sandbox.LeaseUntil = leaseUntil.Value
 	}
 
 	return sandbox
 }
 
-func terminalLeaseKey(owner orc.ResourceOwner) string {
+func integratedSandboxLease(appName string, owner orc.ResourceOwner, duration time.Duration) *util.HttpError {
+	if owner.CreatedBy == "" {
+		return util.UserHttpError("%s requires an explicit owner", integratedSandboxLabel(appName))
+	}
+
+	integratedSandboxLeaseMutex.Lock()
+	integratedSandboxLeaseUntilByKey[integratedSandboxLeaseKey(appName, owner)] = time.Now().Add(duration)
+	integratedSandboxLeaseMutex.Unlock()
+	return nil
+}
+
+func integratedSandboxLabel(appName string) string {
+	switch appName {
+	case InferenceSandboxAppName:
+		return inferenceSandboxLabel
+	default:
+		return integratedTerminalLabel
+	}
+}
+
+func integratedSandboxLeaseUntil(appName string, owner orc.ResourceOwner) util.Option[time.Time] {
+	integratedSandboxLeaseMutex.Lock()
+	defer integratedSandboxLeaseMutex.Unlock()
+
+	leaseUntil, ok := integratedSandboxLeaseUntilByKey[integratedSandboxLeaseKey(appName, owner)]
+	if !ok {
+		return util.OptNone[time.Time]()
+	}
+
+	return util.OptValue(leaseUntil)
+}
+
+func integratedSandboxLeaseKey(appName string, owner orc.ResourceOwner) string {
 	project := ""
 	if owner.Project.Present {
 		project = owner.Project.Value
 	}
-	return owner.CreatedBy + "|" + project
+	return appName + "|" + owner.CreatedBy + "|" + project
 }
 
-func terminalNormalizeFolders(folders []string) []string {
+func integratedSandboxNormalizeFolders(folders []string) []string {
 	result := make([]string, 0, len(folders))
 	seen := map[string]util.Empty{}
 	for _, folder := range folders {
@@ -312,13 +411,13 @@ func terminalNormalizeFolders(folders []string) []string {
 	return result
 }
 
-type terminalValidateFoldersResult struct {
+type integratedSandboxValidateFoldersResult struct {
 	Warnings []string
 	Folders  []string
 }
 
-func terminalValidateFolders(owner orc.ResourceOwner, folders []string) terminalValidateFoldersResult {
-	sb := terminalValidateFoldersResult{}
+func integratedSandboxValidateFolders(owner orc.ResourceOwner, folders []string) integratedSandboxValidateFoldersResult {
+	sb := integratedSandboxValidateFoldersResult{}
 	newFolders := make([]string, 0, len(folders))
 	for _, folder := range folders {
 		driveId, ok := orc.DriveIdFromUCloudPath(folder)
@@ -395,7 +494,7 @@ func (cmd *TerminalCmd) Start() {
 
 	sandbox := cmd.Sandbox
 	if sandbox == nil {
-		cmd.fail(util.ServerHttpError("terminal sandbox is not available"))
+		cmd.fail(util.ServerHttpError("sandbox is not available"))
 		return
 	}
 	if terminalBackend == nil {
@@ -403,7 +502,7 @@ func (cmd *TerminalCmd) Start() {
 		return
 	}
 	if sandbox.AutoLease {
-		if err := TerminalLease(sandbox.Owner, terminalDefaultLeaseDuration); err != nil {
+		if err := integratedSandboxLease(sandbox.AppName, sandbox.Owner, integratedSandboxDefaultLeaseDuration); err != nil {
 			cmd.fail(err)
 			return
 		}
@@ -438,7 +537,7 @@ func (cmd *TerminalCmd) Start() {
 }
 
 func terminalLeaseLoop(cmd *TerminalCmd, stop chan util.Empty) {
-	ticker := time.NewTicker(terminalLeaseRefreshInterval)
+	ticker := time.NewTicker(integratedSandboxLeaseRefreshInterval)
 	defer ticker.Stop()
 
 	for {
@@ -452,8 +551,8 @@ func terminalLeaseLoop(cmd *TerminalCmd, stop chan util.Empty) {
 			if cmd.Err() != nil {
 				return
 			}
-			if err := TerminalLease(cmd.Sandbox.Owner, terminalDefaultLeaseDuration); err != nil {
-				log.Warn("Failed to refresh terminal lease: %s", err)
+			if err := integratedSandboxLease(cmd.Sandbox.AppName, cmd.Sandbox.Owner, integratedSandboxDefaultLeaseDuration); err != nil {
+				log.Warn("Failed to refresh sandbox lease: %s", err)
 			}
 		}
 	}
@@ -496,7 +595,7 @@ func (cmd *TerminalCmd) Resize(cols, rows int) {
 
 	handle.Resize(cols, rows)
 	if cmd.Sandbox != nil && cmd.Sandbox.AutoLease {
-		_ = TerminalLease(cmd.Sandbox.Owner, terminalDefaultLeaseDuration)
+		_ = integratedSandboxLease(cmd.Sandbox.AppName, cmd.Sandbox.Owner, integratedSandboxDefaultLeaseDuration)
 	}
 }
 

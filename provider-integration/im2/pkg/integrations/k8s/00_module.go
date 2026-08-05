@@ -11,7 +11,12 @@ import (
 	"ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/integrations/k8s/containers"
 	"ucloud.dk/pkg/integrations/k8s/filesystem"
+	"ucloud.dk/pkg/integrations/k8s/inference"
+	job_introspection "ucloud.dk/pkg/integrations/k8s/job-introspection"
 	"ucloud.dk/pkg/integrations/k8s/shared"
+	syncthing_metrics "ucloud.dk/pkg/integrations/k8s/syncthing-metrics"
+	"ucloud.dk/pkg/ucxdelivery"
+	"ucloud.dk/shared/pkg/log"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 
 	"ucloud.dk/shared/pkg/util"
@@ -71,11 +76,32 @@ func Init(config *cfg.ServicesConfigurationKubernetes) {
 	}
 
 	initStorageScanCli()
+	if config.FileSystem.MetadataCatalog.Enabled || config.FileSystem.MetadataCatalog.EnableIntegration {
+		metadataConfig := config.FileSystem.MetadataCatalog
+		if err := filesystem.MetadataConfigureCatalog(filesystem.MetadataCatalogConfig{
+			IOPS:              metadataConfig.IOPS,
+			ParallelScans:     metadataConfig.ParallelScans,
+			EntriesPerSSTable: metadataConfig.EntriesPerSSTable,
+		}); err != nil {
+			log.Warn("Unable to configure metadata catalog: %s", err)
+		} else {
+			filesystem.MetadataStartScanner()
+		}
+	}
+	filesystem.InitMetadataCli()
 	initJobsCli()
-	initInference()
+	job_introspection.InitServerHandlers()
+	syncthing_metrics.InitCollector()
+	inference.Init()
 	initJobAuditLogCleanup()
-	controller.ApiTokens = inferenceInitApiTokens()
+	controller.ApiTokens = inference.InitApiTokens()
 	shared.InitExecutables()
+	if err := ucxdelivery.InitCache(config.FileSystem.MountPoint, nil, ucxdelivery.CacheOptions{
+		OwnerUid: util.OptValue(filesystem.DefaultUid),
+	}); err != nil {
+		log.Warn("UCX delivery: failed to initialize executable cache: %v", err)
+	}
+	ucxdelivery.RegisterStaticHandler(controller.Mux, config.FileSystem.MountPoint)
 
 	controller.ProductsRegister(shared.Machines)
 	controller.ProductsRegister(shared.StorageProducts)
@@ -110,11 +136,11 @@ func IsJobLocked(job *orc.Job) util.Option[shared.LockedReason] {
 
 func IsJobLockedEx(job *orc.Job, jobAnnotations map[string]string) util.Option[shared.LockedReason] {
 	timer := util.NewTimer()
-	isLocked := controller.ResourceIsLocked(job.Resource, job.Specification.Product)
+	lockInfo := controller.RetrieveResourceLockInfo(job.Resource, job.Specification.Product)
 	metricComputeLocked.Observe(timer.Mark().Seconds())
 
-	if isLocked {
-		reason := fmt.Sprintf("Insufficient funds for %v", job.Specification.Product.Category)
+	if lockInfo.Locked {
+		reason := controller.MakeInsufficientFundsMessage(lockInfo, job.Specification.Product.Category)
 		return util.OptValue(shared.LockedReason{
 			Reason: reason,
 			Err: &util.HttpError{
@@ -157,11 +183,12 @@ func IsJobLockedEx(job *orc.Job, jobAnnotations map[string]string) util.Option[s
 		}
 
 		timer.Mark()
-		storageLocked := controller.ResourceIsLocked(mount.RealDrive.Resource, mount.RealDrive.Specification.Product)
+		lockInfo := controller.RetrieveResourceLockInfo(mount.RealDrive.Resource, mount.RealDrive.Specification.Product)
+
 		metricStorageLocked.Observe(timer.Mark().Seconds())
 
-		if storageLocked {
-			reason := fmt.Sprintf("Insufficient funds for %v", mount.RealDrive.Specification.Product.Category)
+		if lockInfo.Locked {
+			reason := controller.MakeInsufficientFundsMessage(lockInfo, mount.RealDrive.Specification.Product.Category)
 			return util.OptValue(shared.LockedReason{
 				Reason: reason,
 				Err: &util.HttpError{

@@ -22,6 +22,7 @@ import * as Heading from "@/ui-components/Heading";
 import Warning from "@/ui-components/Warning";
 import {doNothing} from "@/UtilityFunctions";
 import {sendFailureNotification} from "@/Notifications";
+import {DriveChange} from "@/ui-components/Sidebar";
 
 
 export type FileCollection = Resource<FileCollectionUpdate, FileCollectionStatus, FileCollectionSpecification>;
@@ -38,6 +39,7 @@ export interface FileCollectionSupport extends ProductSupport {
     stats: {
         sizeInBytes?: boolean;
         sizeIncludingChildrenInBytes?: boolean;
+        visualization?: boolean;
 
         modifiedAt?: boolean;
         createdAt?: boolean;
@@ -122,7 +124,7 @@ class FileCollectionsApi extends ResourceApi<FileCollection, ProductStorage, Fil
         return super.browse(req);
     }
 
-    retrieveOperations(): Operation<FileCollection, ResourceBrowseCallbacks<FileCollection>>[] {
+    retrieveOperations(): Operation<FileCollection, ResourceBrowseCallbacks<FileCollection, ProductStorage>>[] {
         const baseOperations = super.retrieveOperations();
         const permissions = baseOperations.find(it => it.tag === PERMISSIONS_TAG);
         if (permissions) {
@@ -227,6 +229,9 @@ class FileCollectionsApi extends ResourceApi<FileCollection, ProductStorage, Fil
                                             return;
                                         }
                                         defaultOnClick(selected, cb, all);
+                                        window.setTimeout(() => {
+                                            window.dispatchEvent(new CustomEvent(DriveChange));
+                                        }, 1_000);
                                         dialogStore.success();
                                     }
                                 }}>

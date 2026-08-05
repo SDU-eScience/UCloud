@@ -20,7 +20,7 @@ export const NetworkIPResource: React.FunctionComponent<{
     application: Application;
     params: ApplicationParameter[];
     errors: Record<string, string>;
-    setErrors: (errors: Record<string, string>) => void;
+    setErrors: React.Dispatch<React.SetStateAction<Record<string, string>>>
     onAdd: () => void;
     onRemove: (id: string) => void;
     provider?: string;

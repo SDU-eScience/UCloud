@@ -9,7 +9,17 @@ export enum Feature {
 
     NEW_VM_UI,
 
-    STACKS
+    STACKS,
+
+    INFERENCE,
+
+    INFERENCE_WORKSPACE,
+
+    NEW_TOOLTIPS,
+
+    FILE_BROWSER_STATUS_BAR,
+
+    NEW_CONTEXT_MENU,
 }
 
 enum Environment {
@@ -73,6 +83,36 @@ const featureMap: Record<string, FeatureConfig> = {
 
     "stacks": {
         feature: Feature.STACKS,
+        showWithoutFlag: allDevEnvironments,
+        showWithFlag: allEnvironments,
+    },
+
+    "inference": {
+        feature: Feature.INFERENCE,
+        showWithoutFlag: [Environment.PUBLIC_DEV, Environment.LOCAL_DEV_STACK],
+        showWithFlag: allEnvironments,
+    },
+
+    "inference-workspace": {
+        feature: Feature.INFERENCE_WORKSPACE,
+        showWithoutFlag: allLocalEnvironments,
+        showWithFlag: allEnvironments,
+    },
+
+    "new-tooltips": {
+        feature: Feature.NEW_TOOLTIPS,
+        showWithoutFlag: allDevEnvironments,
+        showWithFlag: allEnvironments,
+    },
+
+    "file-browser-status-bar": {
+        feature: Feature.FILE_BROWSER_STATUS_BAR,
+        showWithoutFlag: allDevEnvironments,
+        showWithFlag: allEnvironments,
+    },
+
+    "new-context-menu": {
+        feature: Feature.NEW_CONTEXT_MENU,
         showWithoutFlag: allDevEnvironments,
         showWithFlag: allEnvironments,
     }

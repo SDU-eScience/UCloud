@@ -1,5 +1,4 @@
 export {default as Absolute} from "./Absolute";
-export {default as Accordion} from "./Accordion";
 export {default as Box} from "./Box";
 export {default as Button} from "./Button";
 export {default as Card} from "./Card";
@@ -33,3 +32,4 @@ export {default as ExternalLink} from "./ExternalLink";
 export {default as Markdown} from "./Markdown";
 export {SelectableTextWrapper, SelectableText} from "./SelectableText";
 export {default as MainContainer} from "./MainContainer";
+export {default as RangeInput} from "./RangeInput";

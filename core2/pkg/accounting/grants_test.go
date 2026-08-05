@@ -562,7 +562,7 @@ func TestUserCriteriaAllowExclude(t *testing.T) {
 		}},
 		Templates: accapi.Templates{Type: accapi.TemplatesTypePlainText},
 	}
-	assert.Nil(t, GrantsUpdateSettings(*admin, giver, s))
+	assert.Nil(t, GrantsUpdateSettings(*admin, giver, s, false))
 	a1 := actor("u1", "")
 	a1.Domain = "foo.com"
 	a1.OrgId = "x"
@@ -627,7 +627,7 @@ func TestGrantGiverUpdateAndRetrieve(t *testing.T) {
 		},
 		Templates: accapi.Templates{Type: accapi.TemplatesTypePlainText},
 	}
-	assert.Nil(t, GrantsUpdateSettings(*admin, giver, newSettings))
+	assert.Nil(t, GrantsUpdateSettings(*admin, giver, newSettings, false))
 
 	alice := actor("alice", "")
 	alice.Domain = "foo.com"
@@ -927,7 +927,7 @@ func TestCannotApply(t *testing.T) {
 		Description:       "test giver",
 		AllowRequestsFrom: []accapi.UserCriteria{},
 		Templates:         accapi.Templates{Type: accapi.TemplatesTypePlainText},
-	})
+	}, false)
 	assert.Nil(t, err)
 
 	user := actor("user", "")
@@ -951,7 +951,7 @@ func TestTransferToTargetWhichUserCannotApplyTo(t *testing.T) {
 		Description:       "test giver",
 		AllowRequestsFrom: []accapi.UserCriteria{},
 		Templates:         accapi.Templates{Type: accapi.TemplatesTypePlainText},
-	})
+	}, false)
 	assert.Nil(t, err)
 
 	user := actor("user", "")

@@ -14,7 +14,7 @@ import {
 import {useDispatch} from "react-redux";
 import MainContainer from "@/ui-components/MainContainer";
 import {callAPI, noopCall} from "@/Authentication/DataHook";
-import {api as FileCollectionsApi, FileCollection, FileCollectionSupport} from "@/UCloud/FileCollectionsApi";
+import {api as FileCollectionsApi, FileCollection, FileCollectionSupport, FileCollectionSpecification} from "@/UCloud/FileCollectionsApi";
 import {AsyncCache} from "@/Utilities/AsyncCache";
 import {FindByStringId, PageV2} from "@/UCloud";
 import {dateToString} from "@/Utilities/DateUtilities";
@@ -26,7 +26,7 @@ import {
     retrieveSupportV2,
     SupportByProviderV2, supportV2ProductMatch
 } from "@/UCloud/ResourceApi";
-import {ProductV2, ProductV2Storage} from "@/Accounting";
+import {ProductStorage, ProductV2, ProductV2Storage} from "@/Accounting";
 import {bulkRequestOf} from "@/UtilityFunctions";
 import {usePage} from "@/Navigation/Redux";
 import AppRoutes from "@/Routes";
@@ -49,6 +49,7 @@ import {slimModalStyle} from "@/Utilities/ModalUtilities";
 import {connectionState} from "@/Providers/ConnectionState";
 import {useProjectId} from "@/Project/Api";
 import {sendFailureNotification} from "@/Notifications";
+import {DriveChange} from "@/ui-components/Sidebar";
 
 const collectionsOnOpen = new AsyncCache<PageV2<FileCollection>>({globalTtl: 500});
 const supportByProvider = new AsyncCache<SupportByProviderV2<ProductV2Storage, FileCollectionSupport>>({
@@ -207,7 +208,7 @@ const DriveBrowse: React.FunctionComponent<{
                 browser.on("fetchOperationsCallback", () => {
                     const cachedSupport = supportByProvider.retrieveFromCacheOnly(Client.projectId ?? "");
                     const support = cachedSupport ?? {productsByProvider: {}};
-                    const callbacks: ResourceBrowseCallbacks<FileCollection> = {
+                    const callbacks: ResourceBrowseCallbacks<FileCollection, ProductStorage, FileCollectionSpecification> = {
                         supportByProvider: support,
                         dispatch,
                         isWorkspaceAdmin: isWorkspaceAdmin.current,
@@ -236,7 +237,9 @@ const DriveBrowse: React.FunctionComponent<{
                 browser.on("fetchOperations", () => {
                     const selected = browser.findSelectedEntries();
                     const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as unknown as any;
-                    const operations = FileCollectionsApi.retrieveOperations();
+                    const actions = FileCollectionsApi.retrieveActions();
+                    if (!Array.isArray(actions)) return actions;
+                    const operations = actions;
                     const create = operations.find(it => it.tag === CREATE_TAG);
                     if (create) {
                         create.onClick = () => {
@@ -308,7 +311,8 @@ const DriveBrowse: React.FunctionComponent<{
 
                                             browser.renderRows();
                                             dialogStore.success();
-                                        } catch (e) {
+                                            window.dispatchEvent(new CustomEvent(DriveChange));
+                                        } catch (e: any) {
                                             sendFailureNotification("Failed to create new drive. " + extractErrorMessage(e));
                                             browser.refresh();
                                             return;

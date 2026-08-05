@@ -1,7 +1,12 @@
 import {test, expect} from "@playwright/test";
-import {User, Drive, Project, Rows, testCtx, Components, ctxUser, sharedTestProjectName, TestContexts} from "./shared";
+import {User, Drive, Project, Rows, testCtx, Components, ctxUser, sharedTestProjectName, TestContexts, NetworkCalls} from "./shared";
+import {default as data} from "./test_data.json" with {type: "json"};
 
 test.beforeEach(async ({page}, testInfo) => {
+    if (data.login_cookie) {
+        await page.context().addCookies([data["login_cookie"]]);
+    }
+
     const args = testCtx(testInfo.titlePath);
     await User.login(page, args.user);
     if (args.projectName) await Project.changeTo(page, args.projectName);
@@ -45,12 +50,19 @@ TestContexts.map(ctx => {
         });
 
         test("Drives - check change permissions works", async ({page: adminPage, browser}) => {
+            test.setTimeout(60_000);
             if (ctx === "Project User" || ctx === "Personal Workspace") test.skip();
 
             const userPage = await (await browser.newContext()).newPage();
             if (!userPage) throw Error("Failed to create user page");
             const userInfo = ctxUser("Project User")!;
             const projectName = sharedTestProjectName();
+
+
+            if (data["login_cookie"]) {
+                await userPage.context().addCookies([data["login_cookie"]]);
+            }
+
             await User.login(userPage, userInfo);
 
             // Create drive
@@ -61,12 +73,12 @@ TestContexts.map(ctx => {
             // See that drive is not visible for project user
             await Project.changeTo(userPage, projectName);
             await Drive.goToDrives(userPage);
-            /* TODO(Jonas): Find a different approach */
-            await userPage.waitForLoadState("networkidle");
 
             // Change rights for user to allow viewing
             await Drive.openPermissions(adminPage, driveName);
-            await adminPage.locator(`div[data-group='All users']`).locator("#Read").click();
+            await NetworkCalls.awaitResponse(adminPage, "**/api/files/collections/updateAcl", async () => {
+                await adminPage.locator(`div[data-group='All users']`).locator("#Read").click();
+            });
 
             // Reload drives for user, see drive appears
             await userPage.waitForTimeout(1_000)

@@ -6,13 +6,13 @@ import {fullScreenModalStyle} from "@/Utilities/ModalUtilities";
 import {findElement, widgetId, WidgetProps, WidgetSetter, WidgetValidator} from "@/Applications/Jobs/Widgets/index";
 import {callAPI, useCloudAPI} from "@/Authentication/DataHook";
 import {CardClass} from "@/ui-components/Card";
-import {ApplicationParameter, ApplicationParameterNS} from "@/Applications/AppStoreApi";
+import {ApplicationParameterNS} from "@/Applications/AppStoreApi";
 import WorkflowEditor from "@/Applications/Workflows/Editor";
 import * as WorkflowApi from "@/Applications/Workflows";
-import {Workflow, WorkflowLanguage, WorkflowSpecification} from "@/Applications/Workflows";
+import {Workflow, WorkflowSpecification} from "@/Applications/Workflows";
 import {AppLogo, hashF} from "@/Applications/AppToolLogo";
 import {emptyPageV2} from "@/Utilities/PageUtilities";
-import {bulkRequestOf, deepEquals, threadDeferLike, doNothing, timestampUnixMs} from "@/UtilityFunctions";
+import {bulkRequestOf, deepEquals, doNothing, timestampUnixMs} from "@/UtilityFunctions";
 import {SingleLineMarkdown} from "@/ui-components/Markdown";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {TooltipV2} from "@/ui-components/Tooltip";
@@ -275,7 +275,7 @@ export const WorkflowParameter: React.FunctionComponent<WorkflowProps> = props =
         setExpanded(p => !p);
         const box = descriptionRef.current;
         if (box) {
-            threadDeferLike(() => box.scrollIntoView(true));
+            window.queueMicrotask(() => box.scrollIntoView(true));
         }
     }, []);
 

@@ -51,15 +51,16 @@ export function ReservationParameter({
 
     const projectId = useProjectId();
     useEffect(() => {
-        fetchWallets(Accounting.browseWalletsV2({itemsPerPage: 250}));
+        fetchWallets(Accounting.browseWalletsV2({itemsPerPage: 1000}));
         fetchProducts(UCloud.accounting.products.browse({
             filterUsable: true,
             filterProductType: "COMPUTE",
-            itemsPerPage: 250,
+            itemsPerPage: 1000,
             includeBalance: true,
             includeMaxBalance: true
         }));
     }, [projectId]);
+
     useEffect(() => {
         const s = new Set<string>();
         products.data.items.forEach(it => s.add(it.category.provider));
@@ -188,7 +189,6 @@ export function ReservationParameter({
         )}
 
         <div style={{paddingTop: "20px"}}>
-            <Label>Machine type <MandatoryField /></Label>
             <Machines machines={allMachines} loading={machineSupport.loading} support={support}
                 onMachineChange={setSelectedMachine} />
             {errors["product"] ? <TextP color={"errorMain"}>{errors["product"]}</TextP> : null}

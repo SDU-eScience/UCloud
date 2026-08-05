@@ -19,7 +19,7 @@ export interface ProjectInfo {
 }
 
 export async function lookupProjectInformation(projectIds: string[]): Promise<Record<string, ProjectInfo>> {
-    const result = await callAPI<{ projects: Record<string, ProjectInfo>}>(
+    const result = await callAPI<{projects: Record<string, ProjectInfo>}>(
         apiUpdate(bulkRequestOf(...projectIds.map(id => ({id}))), "/api/projects/v2", "retrieveInformation")
     );
 
@@ -61,7 +61,7 @@ function subscribe(id: string, cb: () => void) {
 
 const queued = new Set<string>();
 const inflight = new Set<string>();
-const resolvers = new Map<string, Array<{ resolve: () => void; reject: (e: unknown) => void }>>();
+const resolvers = new Map<string, Array<{resolve: () => void; reject: (e: unknown) => void}>>();
 let timer: ReturnType<typeof setTimeout> | null = null;
 
 function stage(id: string) {
@@ -195,7 +195,7 @@ export function projectInfoTitle(info: ProjectInfo | null | undefined, fallback?
 
 export function useProjectInfos(ids: Array<string | null | undefined>): ProjectInfos {
     const key = ids.join("|");
-    const idlePlaceholder: CacheRecord = { status: "idle", data: null, error: null };
+    const idlePlaceholder: CacheRecord = {status: "idle", data: null, error: null};
     const lastSnapshotRef = React.useRef<CacheRecord[] | null>(null);
 
     const getSnapshot = () => {
@@ -256,7 +256,7 @@ export function useProjectInfos(ids: Array<string | null | undefined>): ProjectI
         return obj;
     }, [key, records]);
 
-    return React.useMemo(() => ({ data, loading, error }), [data, loading, error]);
+    return React.useMemo(() => ({data, loading, error}), [data, loading, error]);
 }
 
 export function ProjectTitle(
@@ -281,7 +281,7 @@ export function ProjectTitle(
     return <>{render ? render(data.title, data) : data.title}</>;
 }
 
-export function PrefetchProjectInfos({ids}: { ids: string[] }) {
+export function PrefetchProjectInfos({ids}: {ids: string[]}) {
     useEffect(() => {
         const missing = ids.filter((id) => !(cache.get(id)?.status === "ready"));
         if (missing.length) {
@@ -302,7 +302,7 @@ export const ProjectTitleForNewCore: React.FunctionComponent<{
         if (!looksLikeUUID(props.id)) {
             return <>{props.id}</>;
         } else {
-            return <ProjectTitle id={props.id} loadingFallback={<>{props.title}</>}/>;
+            return <ProjectTitle id={props.id} loadingFallback={<>{props.title}</>} />;
         }
     }
 }

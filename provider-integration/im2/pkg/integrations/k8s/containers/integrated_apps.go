@@ -16,14 +16,17 @@ import (
 
 type ContainerIAppHandler struct {
 	Flags         ctrl.IntegratedApplicationFlag
+	Version       string
 	BeforeRestart func(job *orc.Job) *util.HttpError
 
 	ValidateConfiguration        func(job *orc.Job, configuration json.RawMessage) *util.HttpError
+	ConfigurationChanged         func(job *orc.Job, configuration json.RawMessage)
 	ResetConfiguration           func(job *orc.Job, configuration json.RawMessage) (json.RawMessage, *util.HttpError)
 	RetrieveDefaultConfiguration func(owner orc.ResourceOwner) json.RawMessage
 	RetrieveLegacyConfiguration  func(owner orc.ResourceOwner) util.Option[json.RawMessage]
 
-	ShouldRun func(job *orc.Job, configuration json.RawMessage) bool
+	ShouldRun               func(job *orc.Job, configuration json.RawMessage) bool
+	PodMatchesConfiguration func(job *orc.Job, configuration json.RawMessage, pod *core.Pod) bool
 
 	MutateJobNonPersistent          func(job *orc.Job, configuration json.RawMessage)
 	MutatePod                       func(job *orc.Job, configuration json.RawMessage, pod *core.Pod) *util.HttpError
@@ -47,9 +50,6 @@ func containerIAppBridge(handler ContainerIAppHandler) ctrl.IntegratedApplicatio
 		Flags: handler.Flags,
 
 		UpdateConfiguration: func(job *orc.Job, etag string, configuration json.RawMessage) *util.HttpError {
-			// This function only needs to perform validation. Configuration updates are automatically triggered by
-			// the reconciliation logic of the monitoring loop.
-
 			pod, err := iappFindPod(job)
 			if err != nil {
 				return err
@@ -63,10 +63,14 @@ func containerIAppBridge(handler ContainerIAppHandler) ctrl.IntegratedApplicatio
 			}
 
 			if needsUpdate {
-				return handler.ValidateConfiguration(job, configuration)
-			} else {
-				return nil
+				if err := handler.ValidateConfiguration(job, configuration); err != nil {
+					return err
+				}
+				if handler.ConfigurationChanged != nil {
+					handler.ConfigurationChanged(job, configuration)
+				}
 			}
+			return nil
 		},
 
 		ResetConfiguration: func(job *orc.Job, configuration json.RawMessage) (json.RawMessage, *util.HttpError) {
@@ -84,7 +88,7 @@ func containerIAppBridge(handler ContainerIAppHandler) ctrl.IntegratedApplicatio
 				defer cancelFunc()
 
 				_ = K8sClient.CoreV1().Pods(Namespace).Delete(timeout, pod.Value.Name, metav1.DeleteOptions{
-					GracePeriodSeconds: util.Pointer(int64(0)),
+					GracePeriodSeconds: util.Pointer(integratedSandboxTerminationGracePeriodSeconds),
 					PropagationPolicy:  util.Pointer(metav1.DeletePropagationBackground),
 				})
 			}
@@ -131,7 +135,28 @@ func iappFindPod(job *orc.Job) (util.Option[*core.Pod], *util.HttpError) {
 	return util.OptValue[*core.Pod](pod), nil
 }
 
+func iappPodShouldRun(handler ContainerIAppHandler, job *orc.Job, configuration ctrl.IAppRunningConfiguration, pod *core.Pod) bool {
+	etag := util.OptMapGet(pod.Annotations, IAppAnnotationEtag)
+	if !etag.Present || etag.Value != configuration.ETag {
+		return false
+	}
+
+	if handler.Version != "" {
+		version := util.OptMapGet(pod.Annotations, IAppAnnotationVersion)
+		if !version.Present || version.Value != handler.Version {
+			return false
+		}
+	}
+
+	if handler.ShouldRun == nil || !handler.ShouldRun(job, configuration.Configuration) {
+		return false
+	}
+
+	return handler.PodMatchesConfiguration == nil || handler.PodMatchesConfiguration(job, configuration.Configuration, pod)
+}
+
 const (
-	IAppAnnotationEtag = "ucloud.dk/iapp-etag"
-	IAppAnnotationName = "ucloud.dk/iapp-name"
+	IAppAnnotationEtag    = "ucloud.dk/iapp-etag"
+	IAppAnnotationName    = "ucloud.dk/iapp-name"
+	IAppAnnotationVersion = "ucloud.dk/iapp-version"
 )

@@ -9,6 +9,7 @@ import {anyFolderDuplicates} from "../Widgets/GenericFiles";
 import {Application, ApplicationParameter} from "@/Applications/AppStoreApi";
 import AppRoutes from "@/Routes";
 import {doNothing} from "@/UtilityFunctions";
+import {Dispatch, SetStateAction} from "react";
 
 export function folderResourceAllowed(app: Application): boolean {
     if (app.invocation.allowAdditionalMounts != null) return app.invocation.allowAdditionalMounts;
@@ -25,7 +26,7 @@ export const FolderResource: React.FunctionComponent<{
     application: Application;
     params: ApplicationParameter[];
     errors: Record<string, string>;
-    setErrors: (errors: Record<string, string>) => void;
+    setErrors: Dispatch<SetStateAction<Record<string, string>>>;
     warning: string;
     setWarning: (warning: string) => void;
     onAdd: () => void;

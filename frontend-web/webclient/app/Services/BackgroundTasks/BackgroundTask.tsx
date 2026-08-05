@@ -4,12 +4,12 @@ import {Box, Card, Heading, Icon} from "@/ui-components";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import Flex from "@/ui-components/Flex";
 
-import {Upload, UploadState, uploadStore, useUploads} from "@/Files/Upload";
+import {Upload, UploadState, uploadIsTerminal, uploadStore, useUploads} from "@/Files/Upload";
 import {injectStyle, injectStyleSimple, makeKeyframe} from "@/Unstyled";
 import {stopPropagation} from "@/UtilityFunctions";
 import {ExternalStoreBase} from "@/Utilities/ReduxUtilities";
 import {IconName} from "@/ui-components/Icon";
-import {TaskRow, UploadCallback, UploaderRow, uploadIsTerminal} from "@/Files/Uploader";
+import {TaskRow, UploadCallback, UploaderRow} from "@/Files/Uploader";
 import {addStandardDialog} from "@/UtilityComponents";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {ThemeColor} from "@/ui-components/theme";
@@ -18,6 +18,16 @@ import {SidebarDialog} from "@/ui-components/Sidebar";
 import {groupBy} from "@/Utilities/CollectionUtilities";
 import {apiUpdate, callAPI} from "@/Authentication/DataHook";
 import {sendInformationNotification} from "@/Notifications";
+import {
+    cancelJobBackgroundTask,
+    clearFinishedJobBackgroundTasks,
+    JobBackgroundTask,
+    removeJobBackgroundTask,
+    useJobBackgroundTasks
+} from "@/Services/BackgroundTasks/JobBackgroundTask";
+import {useNavigate} from "react-router-dom";
+import AppRoutes from "@/Routes";
+import {reportBackgroundTaskChange, useBackgroundTaskChanges} from "@/Services/BackgroundTasks/BackgroundTaskChanges";
 
 const iconNames = Object.keys(icons) as IconName[];
 
@@ -69,7 +79,27 @@ export interface BackgroundTask {
 }
 
 export const taskStore = new class extends ExternalStoreBase {
-    public addTask(task: BackgroundTask) {
+    private observedStates: Record<number, {indeterminate: boolean; terminal: boolean}> = {};
+
+    public addTask(task: BackgroundTask, notify = true) {
+        const previousTask = this.inProgress[task.taskId] ?? this.finishedTasks[task.taskId];
+        const previousState = this.observedStates[task.taskId];
+        const indeterminate = TaskOperations.isIndeterminate(task);
+        const terminal = TaskOperations.isTaskTerminal(task);
+
+        if (notify) {
+            if (previousTask == null && previousState == null) {
+                reportBackgroundTaskChange(`Starting ${task.status.title}...`);
+            } else if (previousState?.terminal === false && terminal) {
+                reportBackgroundTaskChange(`${task.status.title} has been completed`);
+            } else if (previousState?.indeterminate !== indeterminate) {
+                reportBackgroundTaskChange(indeterminate ?
+                    `${task.status.title} has been updated` :
+                    `${task.status.title} has started`);
+            }
+        }
+
+        this.observedStates[task.taskId] = {indeterminate, terminal};
         if (TaskOperations.isTaskTerminal(task)) {
             taskStore.addFinishedTask(task);
         } else {
@@ -85,6 +115,7 @@ export const taskStore = new class extends ExternalStoreBase {
 
     public removeFinishedTask(task: BackgroundTask) {
         delete this.finishedTasks[task.taskId];
+        delete this.observedStates[task.taskId];
         // TODO(Jonas): Mark as read. Needs backend support.
         this.emitChange();
     }
@@ -165,6 +196,49 @@ function TaskItem({task}: {task: BackgroundTask;}): React.JSX.Element {
         }}
         removeOrCancel={resumeOrCancel}
     />
+}
+
+function JobTaskItem({task, openJob}: {task: JobBackgroundTask; openJob: (task: JobBackgroundTask) => void;}): React.JSX.Element {
+    const isFinished = task.state === "SUCCESS" || task.state === "FAILURE" || task.state === "EXPIRED";
+    const failed = task.state === "FAILURE" || task.state === "EXPIRED";
+    const removeOrCancel = isFinished ?
+        <TooltipV2 tooltip="Clear task" contentWidth={100}>
+            <Icon name="close" cursor="pointer" onClick={event => {
+                event.stopPropagation();
+                removeJobBackgroundTask(task);
+            }} />
+        </TooltipV2> :
+        <Icon name="close" cursor="pointer" color="errorMain" onClick={event => {
+            event.stopPropagation();
+            addStandardDialog({
+                title: task.display.cancelTitle,
+                message: task.display.cancelMessage,
+                confirmText: "Stop",
+                cancelText: "Back",
+                onConfirm: () => void cancelJobBackgroundTask(task),
+                onCancel: () => void 0,
+                cancelButtonColor: "successMain",
+                confirmButtonColor: "errorMain",
+                stopEvents: true
+            });
+        }} />;
+
+    return <div style={{cursor: "pointer"}} onClick={() => openJob(task)}>
+        <TaskRow
+            icon={<Icon name={task.display.icon} size={16} />}
+            title={isFinished ? task.display.title : task.display.runningTitle}
+            body={task.display.body}
+            progress={task.progress}
+            error={failed ? task.progress : undefined}
+            progressInfo={{
+                indeterminate: task.percentage100 === undefined && !isFinished,
+                stopped: isFinished,
+                limit: 100,
+                progress: task.state === "SUCCESS" ? 100 : task.percentage100 ?? 0,
+            }}
+            removeOrCancel={removeOrCancel}
+        />
+    </div>;
 }
 
 const INDETERMINATE_VALUES = {
@@ -309,6 +383,25 @@ function promptCancel(task: BackgroundTask) {
 
 export function TaskList({dialog, setOpenDialog}: SidebarDialog): React.ReactNode {
     const [uploads] = useUploads();
+    const jobTasks = useJobBackgroundTasks();
+    const latestChange = useBackgroundTaskChanges();
+    const navigate = useNavigate();
+    const lastChangeSequence = React.useRef(latestChange?.sequence ?? 0);
+    const [visibleChange, setVisibleChange] = React.useState<string | undefined>();
+    const notificationTimer = React.useRef<number | undefined>(undefined);
+
+    React.useEffect(() => {
+        if (latestChange == null || latestChange.sequence === lastChangeSequence.current) return;
+
+        lastChangeSequence.current = latestChange.sequence;
+        setVisibleChange(latestChange.message);
+        if (notificationTimer.current !== undefined) window.clearTimeout(notificationTimer.current);
+        notificationTimer.current = window.setTimeout(() => setVisibleChange(undefined), 3_000);
+    }, [latestChange]);
+
+    React.useEffect(() => () => {
+        if (notificationTimer.current !== undefined) window.clearTimeout(notificationTimer.current);
+    }, []);
 
     const fileUploads = React.useMemo(() => {
         const uploadGrouping = groupBy(uploads, t => uploadIsTerminal(t) ? "finished" : "uploading")
@@ -323,7 +416,7 @@ export function TaskList({dialog, setOpenDialog}: SidebarDialog): React.ReactNod
     const finishedTasks = React.useSyncExternalStore(s => taskStore.subscribe(s), () => taskStore.finishedTasks);
     const finishedTaskList = Object.values(finishedTasks).sort((a, b) => a.createdAt - b.createdAt);;
 
-    const anyFinished = finishedTaskList.length + fileUploads.finished.length > 0;
+    const anyFinished = finishedTaskList.length + fileUploads.finished.length + jobTasks.finished.length > 0;
     const uploadCallbacks: UploadCallback = React.useMemo(() => ({
         startUploads: () => void 0, // Doesn't make sense in this context
         clearUploads: b => uploadStore.clearUploads(b, () => void 0),
@@ -350,7 +443,8 @@ export function TaskList({dialog, setOpenDialog}: SidebarDialog): React.ReactNod
 
     const rippleColoring: React.CSSProperties = {};
 
-    const anyFailed = finishedTaskList.find(it => it.status.state === TaskState.FAILURE) != null;
+    const anyFailed = finishedTaskList.find(it => it.status.state === TaskState.FAILURE) != null ||
+        jobTasks.finished.some(it => it.state === "FAILURE" || it.state === "EXPIRED");
 
     if (anyFailed)
         rippleColoring["--ringColor"] = "var(--errorMain)";
@@ -358,7 +452,7 @@ export function TaskList({dialog, setOpenDialog}: SidebarDialog): React.ReactNod
         rippleColoring["--ringColor"] = "#fff";
     }
 
-    const inProgressCount = Object.values(inProgressTasks).length + activeUploadCount;
+    const inProgressCount = Object.values(inProgressTasks).length + activeUploadCount + jobTasks.inProgress.length;
 
     const rippleRef = React.useRef<HTMLDivElement>(null);
 
@@ -372,7 +466,7 @@ export function TaskList({dialog, setOpenDialog}: SidebarDialog): React.ReactNod
         }
     }
 
-    const noEntries = (inProgressCount + fileUploads.finished.length + fileUploads.finished.length + finishedTaskList.length) === 0;
+    const noEntries = (inProgressCount + fileUploads.finished.length + finishedTaskList.length + jobTasks.finished.length) === 0;
 
     const isOpen = dialog === "BackgroundTask";
 
@@ -384,7 +478,9 @@ export function TaskList({dialog, setOpenDialog}: SidebarDialog): React.ReactNod
             open={isOpen}
             onOpeningTriggerClick={() => setOpenDialog("BackgroundTask")}
             onClose={() => setOpenDialog("")}
-            trigger={<div ref={rippleRef} className={RippleCenter} style={rippleColoring} />}
+            trigger={<TooltipV2 open={visibleChange !== undefined} tooltip={visibleChange} side="right" contentWidth={230}>
+                <div ref={rippleRef} className={RippleCenter} style={rippleColoring} />
+            </TooltipV2>}
         >
             <Card cursor="default" backgroundColor={"var(--backgroundDefault)"} onClick={stopPropagation} width="450px" maxHeight={"566px"} style={{paddingTop: "20px", paddingBottom: "20px"}}>
                 <Box height={"526px"} overflowY="auto">
@@ -393,9 +489,10 @@ export function TaskList({dialog, setOpenDialog}: SidebarDialog): React.ReactNod
                             No background tasks found
                         </Heading>
                     </Flex> : null}
-                    {fileUploads.uploading.length + inProgressTaskList.length ? <h4>Tasks in progress</h4> : null}
+                    {fileUploads.uploading.length + inProgressTaskList.length + jobTasks.inProgress.length ? <h4>Tasks in progress</h4> : null}
                     {fileUploads.uploading.map((u, i) => <UploaderRow key={u.name + u.targetPath + i} upload={u} callbacks={uploadCallbacks} />)}
                     {inProgressTaskList.map(t => <TaskItem key={t.taskId} task={t} />)}
+                    {jobTasks.inProgress.map(task => <JobTaskItem key={task.jobId} task={task} openJob={task => navigate(AppRoutes.jobs.view(task.jobId))} />)}
                     {anyFinished ? <Flex>
                         <h4 style={{marginBottom: "8px"}}>Finished tasks</h4>
                         <Box ml="auto">
@@ -403,12 +500,14 @@ export function TaskList({dialog, setOpenDialog}: SidebarDialog): React.ReactNod
                                 <Icon name="close" onClick={() => {
                                     taskStore.finishedTasks = {};
                                     uploadStore.clearUploads(fileUploads.finished, () => void 0);
+                                    clearFinishedJobBackgroundTasks();
                                 }} />
                             </TooltipV2>
                         </Box>
                     </Flex> : null}
                     {fileUploads.finished.map((u, i) => <UploaderRow key={u.name + u.targetPath + i} upload={u} callbacks={uploadCallbacks} />)}
                     {finishedTaskList.map(t => <TaskItem key={t.taskId} task={t} />)}
+                    {jobTasks.finished.map(task => <JobTaskItem key={task.jobId} task={task} openJob={task => navigate(AppRoutes.jobs.view(task.jobId))} />)}
                 </Box>
             </Card>
         </ClickableDropdown>

@@ -29,7 +29,7 @@ import {useNavigate} from "react-router-dom";
 import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
 import {useDispatch} from "react-redux";
 import AppRoutes from "@/Routes";
-import {Operation} from "@/ui-components/Operation";
+import {appendOperationsToActions, Operation} from "@/ui-components/Operation";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {jobCache} from "./View";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
@@ -51,6 +51,7 @@ import {SimpleAvatarComponentCache} from "@/Files/Shares";
 import {divText} from "@/Utilities/HTMLUtilities";
 import {TruncateClass} from "@/ui-components/Truncate";
 import {sendFailureNotification} from "@/Notifications";
+import {ProductCompute} from "@/Accounting";
 
 const defaultRetrieveFlags: {itemsPerPage: number} = {
     itemsPerPage: 250,
@@ -72,7 +73,7 @@ const simpleViewColumnTitles: ColumnTitleList = [{name: ""}, {name: "", sortById
 
 
 const RESOURCE_NAME = "JOBS";
-function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?: boolean; operations?: Operation<Job, ResourceBrowseCallbacks<Job>>[]; jobTypeFilter?: JobTypeFilter}}): React.ReactNode {
+function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?: boolean; operations?: Operation<Job, ResourceBrowseCallbacks<Job, ProductCompute>>[]; jobTypeFilter?: JobTypeFilter}}): React.ReactNode {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<Job> | null>(null);
     const navigate = useNavigate();
@@ -355,7 +356,7 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                 browser.on("pathToEntry", j => j.id);
                 browser.on("fetchOperationsCallback", () => {
                     const support = {productsByProvider: {}};
-                    const callbacks: ResourceBrowseCallbacks<Job> & {isModal: boolean} = {
+                    const callbacks: ResourceBrowseCallbacks<Job, ProductCompute> = {
                         api: JobsApi,
                         navigate: to => navigate(to),
                         commandLoading: false,
@@ -379,7 +380,11 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                 browser.on("fetchOperations", () => {
                     const entries = browser.findSelectedEntries();
                     const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as any;
-                    return JobsApi.retrieveOperations().filter(op => op.enabled(entries, callbacks, entries)).concat(opts?.operations ?? []);
+                    const actions = JobsApi.retrieveActions();
+                    if (!Array.isArray(actions)) {
+                        return appendOperationsToActions(actions, opts?.operations ?? [], entries);
+                    }
+                    return actions.filter(op => op.enabled(entries, callbacks, entries)).concat(opts?.operations ?? []);
                 });
                 browser.on("generateBreadcrumbs", () => {
                     if (opts?.omitBreadcrumbs) return [];
@@ -443,9 +448,11 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
     const setLocalProject = opts?.isModal ? (projectId?: string) => {
         const b = browserRef.current;
         if (b) {
-            b.canConsumeResources = checkCanConsumeResources(projectId ?? null, {api: JobsApi});
-            activeProject.current = projectId;
-            b.refresh();
+            checkCanConsumeResources(projectId ?? null, {api: JobsApi}).then(canConsume => {
+                b.canConsumeResources = canConsume;
+                activeProject.current = projectId;
+                b.refresh();
+            });
         }
     } : undefined;
 

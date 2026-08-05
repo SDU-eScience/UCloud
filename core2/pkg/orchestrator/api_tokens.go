@@ -193,6 +193,9 @@ func ApiTokenBrowse(actor rpc.Actor, request orcapi.ApiTokenBrowseRequest) (fnda
 		request.ItemsPerPage,
 		orcapi.ResourceFlags{},
 		func(item orcapi.ApiToken) bool {
+			if request.FilterHidden && strings.HasPrefix(item.Specification.Title, ".") {
+				return false
+			}
 			return true
 		},
 		func(a orcapi.ApiToken, b orcapi.ApiToken) int {
@@ -244,7 +247,7 @@ func ApiTokenRetrieveOptions(actor rpc.Actor) orcapi.ApiTokenRetrieveOptionsResp
 		}
 	}
 
-	optionsByProvider[""] = orcapi.ApiTokenOptions{}
+	optionsByProvider[""] = orcapi.ApiTokenOptions{AvailablePermissions: []orcapi.ApiTokenPermissionSpecification{}}
 
 	return orcapi.ApiTokenRetrieveOptionsResponse{ByProvider: optionsByProvider}
 }

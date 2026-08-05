@@ -10,7 +10,6 @@ import (
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
-	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -27,7 +26,8 @@ type resourceLoadRow struct {
 	Labels              sql.NullString
 }
 
-func resourceLoadInternal(tx *db.Transaction, typeName string, rows []resourceLoadRow) map[ResourceId]*resource {
+func resourceLoadInternal(tx *db.Transaction, typeName string, rows []resourceLoadRow, profileIndexLoad bool) map[ResourceId]*resource {
+	sectionStart := time.Now()
 	foundResources := map[ResourceId]*resource{}
 	var foundResourceIds []int64
 	for _, row := range rows {
@@ -66,8 +66,12 @@ func resourceLoadInternal(tx *db.Transaction, typeName string, rows []resourceLo
 			foundResourceIds = append(foundResourceIds, int64(r.Id))
 		}
 	}
+	if profileIndexLoad {
+		resourceLoadIndexSectionDuration.WithLabelValues(typeName, "materialize_resources").Observe(time.Since(sectionStart).Seconds())
+	}
 
 	if len(foundResources) > 0 {
+		sectionStart = time.Now()
 		aclRows := db.Select[struct {
 			ResourceId   int64
 			Username     sql.NullString
@@ -88,7 +92,11 @@ func resourceLoadInternal(tx *db.Transaction, typeName string, rows []resourceLo
 				"ids": foundResourceIds,
 			},
 		)
+		if profileIndexLoad {
+			resourceLoadIndexSectionDuration.WithLabelValues(typeName, "acl_query").Observe(time.Since(sectionStart).Seconds())
+		}
 
+		sectionStart = time.Now()
 		for _, row := range aclRows {
 			r, ok := foundResources[ResourceId(row.ResourceId)]
 			if !ok {
@@ -121,15 +129,26 @@ func resourceLoadInternal(tx *db.Transaction, typeName string, rows []resourceLo
 				r.Acl = append(r.Acl, entry)
 			}
 		}
+		if profileIndexLoad {
+			resourceLoadIndexSectionDuration.WithLabelValues(typeName, "acl_materialize").Observe(time.Since(sectionStart).Seconds())
+		}
 	}
 
 	g := resourceGetGlobals(typeName)
+	sectionStart = time.Now()
 	g.OnLoad(tx, foundResourceIds, foundResources)
+	if profileIndexLoad {
+		resourceLoadIndexSectionDuration.WithLabelValues(typeName, "on_load").Observe(time.Since(sectionStart).Seconds())
+	}
 
+	sectionStart = time.Now()
 	for key, resc := range foundResources {
 		if resc.Extra == nil {
 			delete(foundResources, key)
 		}
+	}
+	if profileIndexLoad {
+		resourceLoadIndexSectionDuration.WithLabelValues(typeName, "prune_unloaded").Observe(time.Since(sectionStart).Seconds())
 	}
 
 	return foundResources
@@ -185,13 +204,8 @@ func resourceLoad(typeName string, id ResourceId, prefetchHint []ResourceId) {
 			},
 		)
 
-		return resourceLoadInternal(tx, typeName, rows)
+		return resourceLoadInternal(tx, typeName, rows, false)
 	})
-
-	_, ok := resources[id]
-	if !ok {
-		log.Warn("Did not find: %v when missing cache!", id)
-	}
 
 	for _, r := range resources {
 		b := resourceGetBucket(typeName, r.Id)
@@ -374,6 +388,7 @@ func lResourcePersist(g *resourceTypeGlobal, r *resource) {
 }
 
 func resourceLoadIndex(b *resourceIndexBucket, typeName string, reference string) {
+	totalStart := time.Now()
 	actorRef := reference
 	providerRef := ""
 	providerParam := sql.NullString{}
@@ -386,8 +401,10 @@ func resourceLoadIndex(b *resourceIndexBucket, typeName string, reference string
 		actorParam = sql.NullString{Valid: true, String: actorRef}
 	}
 
+	txStart := time.Now()
 	resources := db.NewTx(func(tx *db.Transaction) map[ResourceId]*resource {
 		tx.NoDevResetThisIsNotAHackIPromise = true
+		sectionStart := time.Now()
 		rows := db.Select[resourceLoadRow](
 			tx,
 			`
@@ -433,10 +450,13 @@ func resourceLoadIndex(b *resourceIndexBucket, typeName string, reference string
 				"type":               typeName,
 			},
 		)
+		resourceLoadIndexSectionDuration.WithLabelValues(typeName, "query").Observe(time.Since(sectionStart).Seconds())
 
-		return resourceLoadInternal(tx, typeName, rows)
+		return resourceLoadInternal(tx, typeName, rows, true)
 	})
+	resourceLoadIndexSectionDuration.WithLabelValues(typeName, "transaction").Observe(time.Since(txStart).Seconds())
 
+	sectionStart := time.Now()
 	var ids []ResourceId
 	labelsByOwner := map[string][]ResourceId{}
 	for id := range resources {
@@ -447,8 +467,10 @@ func resourceLoadIndex(b *resourceIndexBucket, typeName string, reference string
 		}
 	}
 	slices.Sort(ids)
+	resourceLoadIndexSectionDuration.WithLabelValues(typeName, "build_ids").Observe(time.Since(sectionStart).Seconds())
 
 	{
+		sectionStart = time.Now()
 		b.Mu.Lock()
 		if _, exists := b.ByOwner[reference]; !exists {
 			b.ByOwner[reference] = ids
@@ -464,8 +486,10 @@ func resourceLoadIndex(b *resourceIndexBucket, typeName string, reference string
 			}
 		}
 		b.Mu.Unlock()
+		resourceLoadIndexSectionDuration.WithLabelValues(typeName, "build_index").Observe(time.Since(sectionStart).Seconds())
 	}
 
+	sectionStart = time.Now()
 	for _, r := range resources {
 		b := resourceGetBucket(typeName, r.Id)
 		b.Mu.Lock()
@@ -474,6 +498,8 @@ func resourceLoadIndex(b *resourceIndexBucket, typeName string, reference string
 		}
 		b.Mu.Unlock()
 	}
+	resourceLoadIndexSectionDuration.WithLabelValues(typeName, "populate_buckets").Observe(time.Since(sectionStart).Seconds())
+	resourceLoadIndexSectionDuration.WithLabelValues(typeName, "total").Observe(time.Since(totalStart).Seconds())
 }
 
 func resourceLoadProvider(providerId string) *resourceProvider {

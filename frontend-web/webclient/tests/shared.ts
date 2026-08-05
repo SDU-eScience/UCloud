@@ -3,16 +3,26 @@ import fs from "fs";
 
 // Note(Jonas): If it complains that it doesn"t exist, create it.
 import {default as data} from "./test_data.json" with {type: "json"};
+import {default as providerAndProductsImport} from "./provider_and_products.json" with {type: "json"};
 import {default as testUsers} from "../test_data/user_test_data.json" with {type: "json"};
 
-
 const LoginPageUrl = ucloudUrl("login");
+
+export function isDev(url: string): boolean {
+    return url === "https://dev.cloud.sdu.dk";
+}
+
+export function isProd(url: string): boolean {
+    return url === "https://cloud.sdu.dk";
+}
+
+export function isLocalDev(url: string): boolean {
+    return url === "https://ucloud.localhost.direct";
+}
 
 export type Contexts =
     | "Project PI" | "Project Admin" | "Project User" | "Personal Workspace";
 
-// The usage of this should be legal, but something (maybe this?) is causing the Playwright UI to refresh.
-// https://playwright.dev/docs/test-parameterize
 export const TestContexts: Contexts[] = ["Project PI", "Project Admin", "Project User", "Personal Workspace"];
 
 export const TestUsers: Record<Contexts, {username: string; password: string;}> = {
@@ -22,22 +32,48 @@ export const TestUsers: Record<Contexts, {username: string; password: string;}> 
     "Personal Workspace": data.users.with_resources
 };
 
+const providerAndProducts = providerAndProductsImport.find(it => it.location_origin === data.location_origin);
+
+if (!providerAndProducts) {
+    throw Error("Location origin doesn't match any provider/product combination");
+}
+
+export const ProviderInfo = {
+    providerTitle(): string {
+        return providerAndProducts.provider_used_in_tests;
+    },
+}
+
 export const User = {
-    newUserCredentials(): {username: string; password: string;} {
-        const username = Help.newResourceName("user");
+    newUserCredentials(postfix?: string): {username: string; password: string;} {
+        const username = Help.newResourceName(`test-user-${postfix ?? ""}`);
         return {username, password: username + "_" + username};
     },
 
     async toLoginPage(page: Page): Promise<void> {
         await page.goto(LoginPageUrl);
+        await page.waitForTimeout(1000);
+        await page.waitForLoadState("domcontentloaded");
     },
 
     async login(page: Page, user: {username: string; password: string;}, fillUserInfo: boolean = false): Promise<void> {
         await this.toLoginPage(page);
+        if (await page.getByText("Other login options").isVisible()) {
+            await page.getByText("Other login options").click();
+        }
         await page.getByRole("textbox", {name: "Username"}).fill(user.username);
         await page.getByRole("textbox", {name: "Password"}).fill(user.password);
         await page.getByRole("button", {name: "Login"}).click();
         await page.waitForLoadState("domcontentloaded");
+
+        await page.waitForTimeout(500);
+
+        if (page.url().endsWith("/sla")) {
+            await page.getByRole("button", {name: "I have read and accept the terms of service"}).click();
+            await page.getByRole("dialog").getByRole("button", {name: "I have read and accept the terms of service"}).click();
+            await page.waitForURL("**/app");
+        }
+
 
         if (fillUserInfo) {
             await this.dismissAdditionalInfoPrompt(page);
@@ -46,6 +82,22 @@ export const User = {
             await this.setAdditionalUserInfo(page);
             await this.disableNotifications(page);
         }
+    },
+
+    async loginDirect(page: Page, user: {username: string; password: string;}): Promise<void> {
+        const service = "web";
+        const response = await page.request.post(`/auth/login?service=${service}`, {
+            headers: {Accept: "application/json", Origin: data.location_origin},
+            multipart: {service, username: user.username, password: user.password},
+        });
+        if (!response.ok()) throw new Error(`Login failed: ${response.status()} ${await response.text()}`);
+
+        const tokens: {accessToken: string; csrfToken: string} = await response.json();
+        await page.addInitScript(({accessToken, csrfToken}) => {
+            localStorage.setItem("accessToken", accessToken);
+            localStorage.setItem("csrfToken", csrfToken);
+        }, tokens);
+        await page.goto(ucloudUrl(""), {waitUntil: "domcontentloaded"});
     },
 
 
@@ -64,7 +116,7 @@ export const User = {
         await page.getByRole("textbox", {name: "Password", exact: true}).fill(user.password);
         await page.getByRole("textbox", {name: "Repeat password", exact: true}).fill(user.password);
 
-        await page.getByRole("textbox", {name: "Email"}).fill(user.username + "@mail.dk");
+        await page.getByRole("textbox", {name: "Email"}).fill(user.username + "@e2etest.internal");
 
         await page.getByRole("textbox", {name: "First names"}).fill(user.username)
         await page.getByRole("textbox", {name: "Last name"}).fill(Math.random() > .5 ? "the Second" : "the Third");
@@ -110,6 +162,11 @@ export const User = {
         if (!userPage) throw Error("Failed to create userpage");
 
         await User.create(admin, user);
+
+        if (data["login_cookie"]) {
+            await userPage.context().addCookies([data["login_cookie"]]);
+        }
+
         await User.login(userPage, user, true);
 
         switch (ctx) {
@@ -117,7 +174,7 @@ export const User = {
             case "Project PI":
             case "Project User": {
                 const projectName = Project.newProjectName();
-                await fillApplicationAndSubmit(admin, projectName, quotas);
+                await fillApplicationAndSubmit(admin, projectName, quotas, true);
                 await Accounting.GrantApplication.approve(admin);
                 await Components.goToDashboard(admin);
                 await Project.changeTo(admin, projectName);
@@ -134,9 +191,9 @@ export const User = {
                 break;
             }
             case "Personal Workspace": {
-                const id = await fillApplicationAndSubmit(userPage, undefined, quotas);
+                const id = await fillApplicationAndSubmit(userPage, undefined, quotas, false);
                 await Accounting.goTo(admin, "Grant applications");
-                await Project.changeTo(admin, "Provider K8s");
+                await Project.changeTo(admin, ProviderInfo.providerTitle());
                 await admin.getByText("Show applications received").click();
                 await Rows.actionByRowTitle(admin, `${id}: Personal workspace of ${user.username}`, "dblclick");
                 await Accounting.GrantApplication.approve(admin);
@@ -146,7 +203,7 @@ export const User = {
 
         return {userPage, user};
 
-        async function fillApplicationAndSubmit(page: Page, projectName: string | undefined, quotas: RequestedQuotas): Promise<string> {
+        async function fillApplicationAndSubmit(page: Page, projectName: string | undefined, quotas: RequestedQuotas, isNewProject: boolean): Promise<string> {
             await Accounting.goTo(page, "Apply for resources");
             if (!projectName) {
                 await page.getByText("select an existing project instead").click();
@@ -154,21 +211,16 @@ export const User = {
                 await Accounting.GrantApplication.fillProjectName(page, projectName);
             }
 
-            await Accounting.GrantApplication.toggleGrantGiver(page, "Provider K8s");
+            await Accounting.GrantApplication.toggleGrantGiver(page, ProviderInfo.providerTitle());
 
             await Accounting.GrantApplication.fillQuotaFields(page, quotas);
-            await Accounting.GrantApplication.fillDefaultApplicationTextFields(page);
+            await Accounting.GrantApplication.fillDefaultApplicationTextFields(page, isNewProject);
             return await Accounting.GrantApplication.submit(page);
         }
     }
 }
 
-interface RequestedQuotas {
-    "Core-hours requested"?: number,
-    "GB requested"?: number,
-    "IPs requested"?: number;
-    "Licenses requested"?: number;
-}
+type RequestedQuotas = [string, number][];
 
 export function ucloudUrl(pathname: string): string {
     return ("/app/" + pathname).replaceAll("//", "/");
@@ -243,7 +295,7 @@ export const File = {
     },
 
     async create(page: Page, name: string): Promise<void> {
-        await page.locator('div[data-disabled="false"]', {hasText: "Create folder"}).click();
+        await page.getByRole("button", {name: "Create folder", disabled: false}).click();
         await page.getByRole("textbox").nth(1).fill(name);
         await NetworkCalls.awaitResponse(page, "**/files/folder", async () => {
             await page.getByRole("textbox").nth(1).press("Enter");
@@ -254,9 +306,8 @@ export const File = {
 
     async moveToTrash(page: Page, name: string): Promise<void> {
         await NetworkCalls.awaitResponse(page, "**/files/trash", async () => {
-            await this.actionByRowTitle(page, name, "click");
             await File.openOperationsDropsdown(page, name);
-            await Components.clickConfirmationButton(page, "Move to trash");
+            await Components.clickConfirmationButton(page, "Delete");
         });
     },
 
@@ -277,8 +328,7 @@ export const File = {
     },
 
     async openOperationsDropsdown(page: Page, file: string): Promise<void> {
-        await File.actionByRowTitle(page, file, "click");
-        await page.locator(".operation.in-header").last().click();
+        await File.actionByRowTitle(page, file, "rightclick");
     },
 
     async moveFileTo(page: Page, fileToMove: string, targetFolder: string): Promise<void> {
@@ -319,14 +369,14 @@ export const File = {
     async moveFileToTrash(page: Page, fileName: string): Promise<void> {
         await this.openOperationsDropsdown(page, fileName);
         await NetworkCalls.awaitResponse(page, "**/api/files/trash", async () => {
-            await Components.clickConfirmationButton(page, "Move to trash");
+            await Components.clickConfirmationButton(page, "Delete");
         });
     },
 
     async emptyTrash(page: Page): Promise<void> {
         await page.getByText("Empty Trash").click();
         await NetworkCalls.awaitResponse(page, "**/api/files/emptyTrash", async () => {
-            await page.getByRole("button", {name: "Empty trash"}).click();
+            await page.getByRole("dialog").getByRole("button", {name: "Empty trash", exact: true}).click();
         });
     },
 
@@ -346,15 +396,24 @@ export const File = {
 
     async ensureDialogDriveActive(page: Page, driveName: string): Promise<void> {
         // Check locator input for content
-        await page.getByRole("dialog").isVisible();
+        await page.getByRole("dialog").waitFor();
         const drive = driveName.startsWith("Member Files:") ? "Member Files" : driveName
+
         const correctDrive = await page.getByRole("dialog")
             .getByRole('listitem', {name: drive, exact: false}).isVisible();
 
-        if (correctDrive) {
+        const correctProvider = await page.evaluate(() => {
+            const iconName = window.location.host === "ucloud.localhost.direct" ? "im2k8s.png" : "sdu.png";
+            return document.querySelector("div.ReactModal__Content div.provider-icon > div[style*=background-image]")?.["style"]
+                .getPropertyValue("background-image").includes(iconName);
+        });
+
+        if (correctDrive && correctProvider) {
             // Already matches. No work to be done.
             return;
         }
+
+
 
         // if not matches, click
         await page.getByRole("dialog").locator("div.drive-icon-dropdown").click();
@@ -381,7 +440,7 @@ export const File = {
                 didClick = true;
             }
         }
-        await page.getByText("/work").click();
+        await page.getByText("/work").click({force: true});
     },
 
     async createShareLinkForFolder(page: Page, foldername: string): Promise<string> {
@@ -398,8 +457,7 @@ export const File = {
 
     async _openShareModal(page: Page, foldername: string): Promise<void> {
         await this.openOperationsDropsdown(page, foldername);
-        await this.actionByRowTitle(page, foldername, "rightclick");
-        await page.getByText("Share").last().click();
+        await page.getByText("Share with...").last().click();
     },
 
     async triggerStorageScan(page: Page, driveName: string): Promise<void> {
@@ -416,7 +474,27 @@ export const File = {
 };
 
 export const Drive = {
-    ...Rows,
+
+    // Specific for drive (right now) is that resources can have same name, without being from same provider. This is problematic!
+    async actionByRowTitle(page: Page, name: string, action: "click" | "dblclick" | "hover"): Promise<void> {
+        await page.locator(".scrolling").first().hover();
+        for (let i = 0; i < 50; i++) {
+            await page.mouse.wheel(0, -5000);
+        }
+
+        let iterations = 100;
+        const locator = page.locator(".scrolling").locator(".row").filter({hasText: providerAndProducts.drive_provider}).getByText(name);
+        while (!await locator.isVisible()) {
+            await page.mouse.wheel(0, 150);
+            iterations -= 1;
+            if (iterations <= 0) {
+                console.warn("Many such iterations, no result");
+                break;
+            }
+        }
+        await locator[action]();
+    },
+
     newDriveNameOrMemberFiles(ctx: Contexts): string {
         if (ctx === "Project User") return this.memberFiles(ctxUser("Project User").username);
         return Help.newResourceName("DriveName");
@@ -445,27 +523,35 @@ export const Drive = {
         if (!page.url().includes("/app/drives")) {
             await this.goToDrives(page);
         }
-
+        await this.actionByRowTitle(page, name, "click");
         await NetworkCalls.awaitResponse(page, "**/api/files/browse**", async () => {
             await this.actionByRowTitle(page, name, "dblclick");
-            await Components.projectSwitcher(page, "hover")
         });
+
+        await Components.projectSwitcher(page, "hover")
 
         await page.waitForLoadState("domcontentloaded");
     },
 
     async create(page: Page, name: string): Promise<void> {
         await this.goToDrives(page);
-        await page.locator('div[data-disabled="false"]', {hasText: "Create drive"}).click();
+        await page.getByRole("button", {name: "Create drive", disabled: false}).click();
         await page.getByRole("textbox", {name: "Choose a name"}).fill(name);
+
+        if (await page.getByRole("dialog").getByText("No product selected").isVisible()) {
+            await page.getByRole("dialog").getByText("No product selected").click();
+            await page.getByRole("cell", {name: providerAndProducts.products_used_in_tests.storage}).click();
+        }
+
         await NetworkCalls.awaitResponse(page, "**/api/files/collections**", async () => {
-            await page.getByRole("button", {name: "Create", disabled: false}).click();
+            await page.getByRole("dialog").getByRole("button", {name: "Create", exact: true, disabled: false}).click();
         })
     },
 
     async delete(page: Page, name: string): Promise<void> {
         await this.goToDrives(page);
-        await Rows.actionByRowTitle(page, name, "click");
+        await this.actionByRowTitle(page, name, "click");
+
         await page.getByText("Delete").click();
         await page.locator("#collectionName").fill(name);
         await page.getByRole("button", {name: "I understand what I am doing", disabled: false}).click();
@@ -476,7 +562,7 @@ export const Drive = {
     },
 
     async properties(page: Page, name: string): Promise<void> {
-        await Rows.actionByRowTitle(page, name, "click");
+        await this.actionByRowTitle(page, name, "click");
         await page.getByText("Properties").click();
     }
 };
@@ -510,14 +596,21 @@ export const Components = {
     },
 
     async clickConfirmationButton(page: Page, text: string, delay = 1500): Promise<void> {
-        await page.getByRole("button", {name: text}).click({delay});
+        const directButton = page.getByRole("button", {name: text}).filter({visible: true}).first();
+        if (await directButton.isVisible()) {
+            await directButton.click({delay});
+            return;
+        }
+
+        await page.getByText(text, {exact: true}).filter({visible: true}).last().click();
+        await page.getByRole("alertdialog").getByRole("button", {name: text, exact: true}).click();
     },
 
     async selectAvailableMachineType(page: Page): Promise<void> {
         await page.waitForLoadState("networkidle");
         await page.getByText('No machine type selected').first().click();
         await page.getByRole('cell', {
-            name: data.products_by_provider_and_type.k8s.COMPUTE.name,
+            name: providerAndProducts.machine_used_in_tests,
             disabled: false
         }).first().click();
     },
@@ -542,6 +635,7 @@ export const Components = {
     },
 
     async useDialogBrowserItem(page: Page, rowTitle: string, buttonName: string = "Use") {
+        await Rows.actionByRowTitle(page, rowTitle, "hover", true);
         await page.getByRole("dialog").locator(".row", {hasText: rowTitle}).getByRole("button", {name: buttonName}).click();
     },
     async goToDashboard(page: Page): Promise<void> {
@@ -644,7 +738,7 @@ export const Runs = {
         await Components.projectSwitcher(page, "hover");
         await Applications.actionByRowTitle(page, jobName, "click");
         await NetworkCalls.awaitResponse(page, "**/api/jobs/retrieve?id=**", async () => {
-            await page.getByText("Run application again").click();
+            await page.getByText("Run again").click();
         })
         await page.getByText("No machine type selected").waitFor({state: "hidden"});
         await Runs.submitAndWaitForRunning(page);
@@ -655,7 +749,7 @@ export const Runs = {
         await Components.projectSwitcher(page, "hover");
         await page.locator(".row").getByText(jobName).click();
         await NetworkCalls.awaitResponse(page, "**/jobs/terminate", async () => {
-            await Components.clickConfirmationButton(page, "Stop");
+            await Components.clickConfirmationButton(page, "Stop", 6_000);
         });
     },
 
@@ -663,7 +757,7 @@ export const Runs = {
         await NetworkCalls.awaitResponse(page, "**/jobs/terminate", async () => {
             await Components.clickConfirmationButton(page, "Stop application");
         });
-        await page.getByText("Run application again").waitFor();
+        await page.getByText("Run again").waitFor();
     },
 
     async setJobTitle(page: Page, name: string): Promise<void> {
@@ -694,11 +788,12 @@ export const Runs = {
     },
 
     async openTerminal(page: Page): Promise<Page> {
-        await page.locator("div[class^=notification]").waitFor({state: "hidden"});
         const terminalPagePromise = page.waitForEvent("popup");
         await page.getByRole("button", {name: "Open terminal"}).click();
         const terminalPage = await terminalPagePromise;
-        await terminalPage.getByText("/work", {exact: false}).first().click();
+        // Note(Jonas): Maybe locator.click({force: true}) is better.
+        await terminalPage.locator("span", {hasText: "/work"}).waitFor();
+        await terminalPage.keyboard.press("Tab");
         return terminalPage;
     },
 
@@ -710,10 +805,10 @@ export const Runs = {
         async addFolder(page: Page, driveName: string, folderName: string): Promise<void> {
             await page.getByRole("button", {name: "Add folder"}).click();
             await NetworkCalls.awaitResponse(page, "**/api/files/browse?**", async () => {
-                await page.getByRole("textbox", {name: "No directory selected"}).click();
+                await page.getByRole("textbox", {name: "Folder name"}).click();
             });
             await File.ensureDialogDriveActive(page, driveName);
-            await page.getByRole("dialog").locator(".row", {hasText: folderName}).getByRole("button", {name: "Use"}).click();
+            await Components.useDialogBrowserItem(page, folderName, "Use");
         },
 
         async addPublicLink(page: Page, publicLinkName: string): Promise<void> {
@@ -786,16 +881,14 @@ export const Project = {
 
 export const Resources = {
     ...Rows,
-
     async open(page: Page, resourceName: string) {
         await this.actionByRowTitle(page, resourceName, "dblclick");
     },
 
     async goTo(page: Page, resource: "Links" | "IP addresses" | "SSH keys" | "Licenses" | "Private networks") {
         await page.getByRole("link", {name: "Go to Resources"}).hover();
-        await page.waitForTimeout(300);
-        await page.getByText(resource).first().click();
-        await Components.projectSwitcher(page, "hover");
+        await page.getByRole("link", {name: resource, exact: true}).click();
+        await page.locator(`div[data-component="project-switcher"]`).first().waitFor();
     },
 
     PublicLinks: {
@@ -807,17 +900,30 @@ export const Resources = {
             await NetworkCalls.awaitProducts(page, async () => {
                 await Resources.goTo(page, "Links");
             });
+
             const name = publicLinkName ?? this.newPublicLinkName();
-            await page.getByText("Create public link").click();
-            // Note(Jonas): nth(1) because we are skipping the hidden search field
-            await page.getByRole("textbox").nth(1).fill(name);
-            await page.getByRole("button", {name: "Create", disabled: false}).click();
+
+            await page.getByRole("button", {name: /^Create public link/}).click();
+            await page.getByPlaceholder("my-link").fill(name);
+
+            if (await page.getByRole("dialog").getByText("No product selected").isVisible()) {
+                await page.getByRole("dialog").getByText("No product selected").click();
+                await page.getByRole('cell', {name: providerAndProducts.products_used_in_tests.public_link}).click();
+            }
+
+
+            await NetworkCalls.awaitResponse(page, "**/api/ingresses", async () => {
+                await page.getByRole("dialog").getByRole("button", {name: "Create", exact: true, disabled: false}).click();
+            });
+            await page.getByRole("dialog").waitFor({state: "hidden"});
             return name;
         },
 
         async delete(page: Page, name: string): Promise<void> {
             await Rows.actionByRowTitle(page, name, "click");
-            await Components.clickConfirmationButton(page, "Delete");
+            await NetworkCalls.awaitResponse(page, "**/api/ingresses", async () => {
+                await Components.clickConfirmationButton(page, "Delete");
+            });
         }
     },
 
@@ -827,12 +933,15 @@ export const Resources = {
                 await Resources.goTo(page, "IP addresses");
             });
 
-            await page.getByText("Create public IP").click();
+            await page.getByRole("button", {name: /^Create public IP/}).click();
 
-            await page.getByRole("dialog").getByText("public-ip").hover();
+            if (providerAndProducts.products_used_in_tests.public_ip == null) {
+                throw Error("Public IP is null in `IPs.createNew`. This should have been caught before.")
+            }
+            await page.getByRole("dialog").getByText(providerAndProducts.products_used_in_tests.public_ip).waitFor();
             await this.fillPortRowInDialog(page);
             const result = await NetworkCalls.awaitResponse(page, "**/api/networkips", async () => {
-                await page.getByRole("button", {name: "create", disabled: false}).click();
+                await page.getByRole("dialog").getByRole("button", {name: "Create", exact: true, disabled: false}).click();
             });
             await page.getByRole("dialog").waitFor({state: "hidden"});
 
@@ -846,7 +955,7 @@ export const Resources = {
         async fillPortRowInDialog(page: Page): Promise<void> {
             await page.getByRole("dialog").locator("input").first().fill("123");
             await page.getByRole("dialog").locator("input").nth(1).fill("321");
-            await page.locator("td > button").click();
+            await page.getByRole("dialog").locator("td > button").click();
         },
 
         async delete(page: Page, name: string): Promise<void> {
@@ -866,7 +975,9 @@ export const Resources = {
 
         async delete(page: Page, name: string): Promise<void> {
             await Rows.actionByRowTitle(page, name, "click");
-            await Components.clickConfirmationButton(page, "Delete");
+            await NetworkCalls.awaitResponse(page, "**/api/ssh", async () => {
+                await Components.clickConfirmationButton(page, "Delete");
+            });
         },
 
         async createNew(page: Page): Promise<string> {
@@ -886,10 +997,14 @@ export const Resources = {
         async activateLicense(page: Page): Promise<number> {
             await page.waitForLoadState("networkidle");
             await page.getByText("Activate license").click();
-            await page.getByRole("dialog").getByText("test-license-Quota based").waitFor();
+
+            if (await page.getByRole("dialog").getByText("No product selected").isVisible()) {
+                await page.getByRole("dialog").getByText("No product selected").click();
+                await page.getByRole('cell', {name: providerAndProducts.products_used_in_tests.license}).click();
+            }
 
             const result = (await NetworkCalls.awaitResponse(page, "**/api/licenses", async () => {
-                await page.getByRole("dialog").getByRole("button", {name: "Activate"}).click();
+                await page.getByRole("dialog").getByRole("button", {name: "Activate", disabled: false}).click();
             }));
 
             const obj: {responses: {id: number}[]} = JSON.parse(await result.text());
@@ -916,7 +1031,20 @@ export const Resources = {
             await page.waitForTimeout(2000);
             await page.getByPlaceholder("My private network").fill(name);
             await page.getByPlaceholder("my-network").fill(subdomain);
-            await page.getByRole("button", {name: "Create"}).click();
+
+            if (await page.getByRole("dialog").getByText("No product selected").isVisible()) {
+                await page.getByRole("dialog").getByText("No product selected").click();
+                await page.getByRole("cell", {name: providerAndProducts.products_used_in_tests.private_network}).last().click();
+            }
+
+
+            await page.getByRole("dialog").getByRole("button", {name: "Create", exact: true}).click();
+        },
+
+        async delete(page: Page, name: string): Promise<void> {
+            await Resources.goTo(page, "Private networks");
+            await Rows.actionByRowTitle(page, name, "click");
+            await Components.clickConfirmationButton(page, "Delete");
         }
     }
 }
@@ -931,11 +1059,14 @@ export const Terminal = {
     },
 
     async createFile(page: Page, sizeInGB: number) {
-        await this.enterCmd(page, `fallocate -l ${sizeInGB}G example`);
-    },
+        if (isDev(data.location_origin)) {
+            // fallocate is not supported on dev.
+            await this.enterCmd(page, `dd if=/dev/zero of=example bs=1000 count=${sizeInGB * 1000000} && echo "file creation done!"`);
+        } else {
+            await this.enterCmd(page, `fallocate -l ${sizeInGB}G example && echo "file creation done!"`);
+        }
 
-    async createLargeFile(page: Page): Promise<void> {
-        await this.createFile(page, 5);
+        await page.getByText("file creation done!", {exact: true}).waitFor({timeout: 300_000});
     }
 }
 
@@ -1008,23 +1139,26 @@ export const Accounting = {
             await page.getByPlaceholder("Please enter the title of your project").fill(projectName);
         },
 
-        async toggleGrantGiver(page: Page, grantGiver: "Provider K8s"): Promise<void> {
+        async setMonths(page: Page, months: number): Promise<void> {
+            await page.getByLabel("Duration").selectOption(`${months}`);
+        },
+
+        async toggleGrantGiver(page: Page, grantGiver: string): Promise<void> {
             await page.waitForLoadState();
             await page.locator("label", {hasText: grantGiver}).waitFor();
             await page.locator("label", {hasText: grantGiver}).last().click();
         },
 
         async fillQuotaFields(page: Page, quotas: RequestedQuotas): Promise<void> {
-            for (const key of Object.keys(quotas)) {
-                if (quotas[key] == null) continue;
-                await page.getByRole("spinbutton", {name: key}).fill(quotas[key].toString());
+            for (const [productName, quota] of quotas) {
+                await page.locator(`input[id *= '/${productName}/']`).fill(quota.toString());
             }
         },
 
-        async fillDefaultApplicationTextFields(page: Page): Promise<void> {
-            const textFields = [{name: "Application", content: "Text description"}];
+        async fillDefaultApplicationTextFields(page: Page, isNewProject: boolean): Promise<void> {
+            const textFields = isNewProject ? providerAndProducts.application_text_fields.new : providerAndProducts.application_text_fields.existing;
             for (const applicationField of textFields) {
-                await page.getByRole("textbox", {name: applicationField.name, exact: true}).fill(applicationField.content);
+                await page.getByRole("textbox", {name: applicationField}).last().fill("Testing purposes");
             }
         },
 
@@ -1049,10 +1183,7 @@ export const Accounting = {
 };
 
 export const Admin = {
-    AdminUser: {
-        username: "user",
-        password: "mypassword"
-    },
+    AdminUser: data.users.admin,
 
     async newLoggedInAdminPage(existingPage: Page): Promise<Page> {
         const page = existingPage;
@@ -1069,8 +1200,9 @@ export const Admin = {
 async function _move(page: Page, oldName: string, newName: string) {
     await Rows.actionByRowTitle(page, oldName, "click");
     await page.getByText("Rename").click();
-    await page.getByRole("textbox").nth(1).fill(newName);
-    await page.getByRole("textbox").nth(1).press("Enter");
+    const renameField = page.locator("input.rename-field");
+    await renameField.fill(newName);
+    await renameField.press("Enter");
 }
 
 export function testCtx(args: string[]): {user: {username: string; password: string;}; projectName?: string;} {

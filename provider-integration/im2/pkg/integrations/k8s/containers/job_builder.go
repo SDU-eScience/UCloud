@@ -16,9 +16,11 @@ import (
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/integrations/k8s/filesystem"
+	introspection "ucloud.dk/pkg/integrations/k8s/job-introspection"
 	"ucloud.dk/pkg/integrations/k8s/shared"
 	"ucloud.dk/shared/pkg/foundation"
 	orc "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -116,6 +118,9 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	if iappConfig.Present {
 		pod.Annotations[IAppAnnotationEtag] = iappConfig.Value.ETag
 		pod.Annotations[IAppAnnotationName] = iappConfig.Value.AppName
+		if iappHandler.Value.Version != "" {
+			pod.Annotations[IAppAnnotationVersion] = iappHandler.Value.Version
+		}
 	}
 
 	spec := &pod.Spec
@@ -383,7 +388,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 
 	// Mounts
 	// -----------------------------------------------------------------------------------------------------------------
-	internalToPod, ok := prepareMountsOnJobCreate(job, pod, userContainer, jobFolder)
+	internalToPod, activityMounts, ok := prepareMountsOnJobCreate(job, pod, userContainer, jobFolder)
 	if !ok {
 		return util.ServerHttpError("Unable to use these folders together. One or more are sensitive.")
 	}
@@ -438,17 +443,16 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		Name:      multiNodeVolume.Name,
 		MountPath: "/etc/ucloud",
 	})
-	if util.DevelopmentModeEnabled() {
+	userContainer.VolumeMounts = append(userContainer.VolumeMounts, core.VolumeMount{
+		Name:      optUCloudVolumeName,
+		MountPath: "/opt/ucloud",
+	})
+	if ucxCacheMount := shared.UcxCacheMountForJob(job); ucxCacheMount.Present {
 		userContainer.VolumeMounts = append(userContainer.VolumeMounts, core.VolumeMount{
 			Name:      "ucloud-filesystem",
 			ReadOnly:  true,
-			MountPath: "/opt/ucloud",
-			SubPath:   shared.ExecutablesDir,
-		})
-	} else {
-		userContainer.VolumeMounts = append(userContainer.VolumeMounts, core.VolumeMount{
-			Name:      optUCloudVolumeName,
-			MountPath: "/opt/ucloud",
+			MountPath: ucxCacheMount.Value.MountPath,
+			SubPath:   ucxCacheMount.Value.SubPath,
 		})
 	}
 
@@ -463,10 +467,13 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 
 	multiNodeScript := strings.Builder{}
 	{
+		introspectionToken := introspection.EnsureToken(job.Id, util.OptNone[string]())
+
 		appendLine := func(format string, args ...any) {
 			multiNodeScript.WriteString(fmt.Sprintf(format+"\n", args...))
 		}
 
+		appendLine("printf '%%s\\n' '%s' > /etc/ucloud/token", introspectionToken)
 		appendLine("echo '%d' > /etc/ucloud/number_of_nodes.txt", job.Specification.Replicas)
 		for rank := 0; rank < job.Specification.Replicas; rank++ {
 			hostname := shared.JobHostName(job, rank)
@@ -506,6 +513,8 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		for _, exe := range executables {
 			exeCopyCommand.WriteString(fmt.Sprintf("cp /mnt/exe/%s /opt/ucloud/%s ; ", exe, exe))
 		}
+		exeCopyCommand.WriteString("cp /mnt/exe/ucloud-job-introspection /opt/ucloud/ucloud ; ")
+		exeCopyCommand.WriteString("cp /mnt/exe/provider-hostname.txt /opt/ucloud/provider-hostname.txt ; ")
 	}
 	ucvizContainer.Command = []string{"sh", "-c", exeCopyCommand.String()}
 
@@ -633,8 +642,23 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 			})
 		}
 	}
+	if herr == nil {
+		recordMountActivity(job, activityMounts)
+	}
 
 	return herr
+}
+
+func recordMountActivity(job *orc.Job, mounts []activityMount) {
+	actor := rpc.Actor{Username: job.Owner.CreatedBy}
+	for _, mount := range mounts {
+		filesystem.ActivityRecord(actor, filesystem.ActivityEvent{
+			Kind:      filesystem.ActivityMount,
+			Operation: filesystem.ActivityOperationMount,
+			ReadOnly:  mount.ReadOnly,
+			Targets:   []filesystem.ActivityTarget{{UCloudPath: mount.UCloudPath}},
+		})
+	}
 }
 
 func jobAuditLogIsEnabled(description *orc.ApplicationInvocationDescription) bool {

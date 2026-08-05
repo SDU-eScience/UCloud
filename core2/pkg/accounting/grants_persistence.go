@@ -13,6 +13,7 @@ import (
 	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
+	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -85,6 +86,7 @@ func grantsLoad(id accGrantId, prefetchHint []accGrantId) {
 		revisionsPromise := db.BatchSelect[struct {
 			ApplicationId   int
 			Form            string
+			FormType        accapi.FormType
 			ParentProjectId sql.Null[string]
 			Recipient       string
 			RecipientType   string
@@ -106,6 +108,7 @@ func grantsLoad(id accGrantId, prefetchHint []accGrantId) {
 					f.parent_project_id,
 					f.recipient,
 					f.recipient_type,
+					f.form_type,
 					f.reference_ids,
 					f.revision_number,
 					r.created_at,
@@ -218,15 +221,15 @@ func grantsLoad(id accGrantId, prefetchHint []accGrantId) {
 				continue
 			}
 
-			app.Status.Revisions = append(app.Status.Revisions, accapi.GrantRevision{
+			currentRevision := accapi.GrantRevision{
 				CreatedAt:      fndapi.Timestamp(revision.CreatedAt),
 				UpdatedBy:      revision.UpdatedBy,
 				RevisionNumber: revision.RevisionNumber,
 				Document: accapi.GrantDocument{
 					Recipient:          accapi.RecipientFromReference(accapi.RecipientType(revision.RecipientType), revision.Recipient),
-					AllocationRequests: nil,
+					AllocationRequests: []accapi.AllocationRequest{},
 					Form: accapi.Form{
-						Type: accapi.FormTypePlainText,
+						Type: revision.FormType,
 						Text: revision.Form,
 					},
 					ReferenceIds:    util.OptValue(revision.ReferenceIds),
@@ -236,7 +239,28 @@ func grantsLoad(id accGrantId, prefetchHint []accGrantId) {
 						End:   util.OptValue[fndapi.Timestamp](fndapi.Timestamp(revision.GrantEnd)),
 					}),
 				},
-			})
+			}
+
+			if currentRevision.Document.Form.Type == accapi.FormTypePlainText {
+				currentRevision.Document.Form.AnswerForms = accapi.ParseToAnswerForms(revision.Form)
+				currentRevision.Document.Form.Type = accapi.FormTypeStructured
+			} else if currentRevision.Document.Form.Type == accapi.FormTypeStructured {
+				jsonStr := currentRevision.Document.Form.Text
+				var answerForms = []accapi.AnswerForm{
+					{
+						AllocatorId:            "",
+						AnswerFields:           make([]accapi.AnswerFieldForm, 0),
+						TemplateRevisionNumber: -1,
+					},
+				}
+
+				err := json.Unmarshal([]byte(jsonStr), &answerForms)
+				if err != nil {
+					log.Warn("Failed to parse structured form: %s", err)
+				}
+				currentRevision.Document.Form.AnswerForms = util.NonNilSlice(answerForms)
+			}
+			app.Status.Revisions = append(app.Status.Revisions, currentRevision)
 
 			if revision.ProjectTitle.Valid {
 				app.Status.ProjectTitle.Set(revision.ProjectTitle.V)
@@ -250,9 +274,17 @@ func grantsLoad(id accGrantId, prefetchHint []accGrantId) {
 				continue
 			}
 
+			updatedBy := ""
+			if approval.UpdatedBy.Valid {
+				updatedBy = approval.UpdatedBy.V
+				if updatedBy == rpc.ActorSystem.Username {
+					updatedBy = "UCloud System"
+				}
+			}
 			app.Status.StateBreakdown = append(app.Status.StateBreakdown, accapi.GrantGiverApprovalState{
-				ProjectId: approval.ProjectId,
-				State:     accapi.GrantApplicationState(approval.State),
+				ProjectId:     approval.ProjectId,
+				State:         accapi.GrantApplicationState(approval.State),
+				LastUpdatedBy: updatedBy,
 			})
 		}
 
@@ -302,8 +334,7 @@ func grantsLoad(id accGrantId, prefetchHint []accGrantId) {
 				app.CurrentRevision = app.Status.Revisions[len(app.Status.Revisions)-1]
 			}
 
-			app.Status.Comments = util.NonNilSlice(app.Status.Comments)
-			app.Status.Revisions = util.NonNilSlice(app.Status.Revisions)
+			grantNormalizeApplication(app)
 
 			result = append(result, *app)
 		}
@@ -394,6 +425,36 @@ func grantsLoadUnawarded() {
 	}
 }
 
+func parseToStructuredFormFields(templateString string) []accapi.FormField {
+	if templateString == "" {
+		return make([]accapi.FormField, 0)
+	}
+	return accapi.ParseFormFields(templateString)
+}
+
+func formFieldsToJsonString(fields []accapi.FormField) string {
+	b, err := json.Marshal(fields)
+	if err != nil {
+		log.Warn("Failed to serialize form fields: %s", err)
+		return ""
+	}
+	return string(b)
+}
+
+func deserializeFormFields(raw string) ([]accapi.FormField, error) {
+	if raw == "" {
+		return make([]accapi.FormField, 0), nil
+	}
+
+	fields := make([]accapi.FormField, 0)
+	err := json.Unmarshal([]byte(raw), &fields)
+	if err != nil {
+		return make([]accapi.FormField, 0), err
+	}
+
+	return util.NonNilSlice(fields), nil
+}
+
 func grantsLoadSettings() {
 	if grantGlobals.Testing.Enabled {
 		return
@@ -405,11 +466,14 @@ func grantsLoadSettings() {
 			PersonalProject string
 			ExistingProject string
 			NewProject      string
+			RevisionNumber  int
 		}](
 			tx,
 			`
-				select t.project_id, t.personal_project, t.existing_project, t.new_project
+				select distinct  on (t.project_id) 
+				t.project_id, t.personal_project, t.existing_project, t.new_project, t.revision_number
 				from "grant".templates t
+				order by t.project_id, t.revision_number desc
 		    `,
 			db.Params{},
 		)
@@ -461,13 +525,36 @@ func grantsLoadSettings() {
 		)
 
 		result := map[string]accapi.GrantRequestSettings{}
+		newProjectFields := make([]accapi.FormField, 0)
+		existingProjectFields := make([]accapi.FormField, 0)
+
 		for _, template := range templates {
 			existing := result[template.ProjectId]
+			// Trying to deserialize form fields
+			personalProjectFields, err := deserializeFormFields(template.PersonalProject)
+			if err == nil {
+				newProjectFields, _ = deserializeFormFields(template.NewProject)
+				existingProjectFields, _ = deserializeFormFields(template.ExistingProject)
+			} else {
+				// We are going to try to parse it as structured form fields
+				personalProjectFields = parseToStructuredFormFields(template.PersonalProject)
+				newProjectFields = parseToStructuredFormFields(template.NewProject)
+				existingProjectFields = parseToStructuredFormFields(template.ExistingProject)
+			}
+
 			existing.Templates = accapi.Templates{
-				Type:            accapi.TemplatesTypePlainText,
+				Type: accapi.TemplatesTypeStructured,
+				// For legacy purposes
 				PersonalProject: template.PersonalProject,
 				NewProject:      template.NewProject,
 				ExistingProject: template.ExistingProject,
+				// Structured template
+				Structured: accapi.TemplatesStructured{
+					PersonalProject: personalProjectFields,
+					NewProject:      newProjectFields,
+					ExistingProject: existingProjectFields,
+					RevisionNumber:  template.RevisionNumber,
+				},
 			}
 
 			result[template.ProjectId] = existing
@@ -537,10 +624,15 @@ func grantsLoadSettings() {
 		for projectId, settings := range result {
 			if settings.Templates.Type == "" {
 				settings.Templates = accapi.Templates{
-					Type:            accapi.TemplatesTypePlainText,
+					Type:            accapi.TemplatesTypeStructured,
 					PersonalProject: defaultTemplate,
 					NewProject:      defaultTemplate,
 					ExistingProject: defaultTemplate,
+					Structured: accapi.TemplatesStructured{
+						PersonalProject: parseToStructuredFormFields(defaultTemplate),
+						NewProject:      parseToStructuredFormFields(defaultTemplate),
+						ExistingProject: parseToStructuredFormFields(defaultTemplate),
+					},
 				}
 
 				result[projectId] = settings
@@ -560,7 +652,7 @@ func grantsLoadSettings() {
 	}
 }
 
-func lGrantsPersistSettings(settings *grantSettings) {
+func lGrantsPersistSettings(settings *grantSettings, templateHasChanges bool) {
 	if grantGlobals.Testing.Enabled {
 		return
 	}
@@ -607,23 +699,37 @@ func lGrantsPersistSettings(settings *grantSettings) {
 			},
 		)
 
-		db.Exec(
-			tx,
-			`
-				insert into "grant".templates(project_id, personal_project, existing_project, new_project) 
-				values (:project, :personal, :existing, :new)
-				on conflict (project_id) do update set
-					personal_project = excluded.personal_project,
-					new_project = excluded.new_project,
-					existing_project = excluded.existing_project
+		var personalProject string
+		var existingProject string
+		var newProject string
+		if len(s.Templates.Structured.PersonalProject) > 0 {
+			// If we have structured templates, we need to serialize them to JSON
+			personalProject = formFieldsToJsonString(s.Templates.Structured.PersonalProject)
+			newProject = formFieldsToJsonString(s.Templates.Structured.NewProject)
+			existingProject = formFieldsToJsonString(s.Templates.Structured.ExistingProject)
+		} else {
+			// converting to structured form fields
+			personalProject = formFieldsToJsonString(parseToStructuredFormFields(s.Templates.PersonalProject))
+			newProject = formFieldsToJsonString(parseToStructuredFormFields(s.Templates.NewProject))
+			existingProject = formFieldsToJsonString(parseToStructuredFormFields(s.Templates.ExistingProject))
+		}
+
+		if templateHasChanges {
+			db.Exec(
+				tx,
+				`
+				insert into "grant".templates(project_id, personal_project, existing_project, new_project, revision_number) 
+				values (:project, :personal, :existing, :new, :revision)
 		    `,
-			db.Params{
-				"project":  settings.ProjectId,
-				"personal": s.Templates.PersonalProject,
-				"new":      s.Templates.NewProject,
-				"existing": s.Templates.ExistingProject,
-			},
-		)
+				db.Params{
+					"project":  settings.ProjectId,
+					"personal": personalProject,
+					"new":      newProject,
+					"existing": existingProject,
+					"revision": s.Templates.Structured.RevisionNumber,
+				},
+			)
+		}
 
 		db.Exec(
 			tx,
@@ -653,12 +759,12 @@ func lGrantsPersistSettings(settings *grantSettings) {
 				tx,
 				`
 					with data as (
-						select 
-							:project project, 
+						select
+							:project project,
 							unnest(cast(:type as text[])) type,
 							unnest(cast(:applicants as text[])) applicant_id
 					)
-					insert into "grant".allow_applications_from(project_id, type, applicant_id) 
+					insert into "grant".allow_applications_from(project_id, type, applicant_id)
 					select project, type, case when applicant_id = '' then null else applicant_id end
 					from data
 				`,
@@ -932,6 +1038,7 @@ func lGrantsPersist(app *grantApplication) {
 			var formsRecipient []string
 			var formsRecipientType []string
 			var form []string
+			var formType []accapi.FormType
 			var formsReferences []string // json array
 
 			for _, rev := range appl.Status.Revisions {
@@ -946,8 +1053,28 @@ func lGrantsPersist(app *grantApplication) {
 				case accapi.RecipientTypePersonalWorkspace:
 					sqlRecipientType = "personal"
 				}
+
 				formsRecipientType = append(formsRecipientType, sqlRecipientType)
-				form = append(form, rev.Document.Form.Text)
+
+				switch rev.Document.Form.Type {
+				case accapi.FormTypeStructured:
+					b, err := json.Marshal(rev.Document.Form.AnswerForms)
+					if err == nil {
+						form = append(form, string(b))
+					} else {
+						form = append(form, "Failed to marshal")
+						log.Error("Failed to marshal form fields for application %d", app.lId())
+					}
+
+				case accapi.FormTypePlainText:
+					form = append(form, rev.Document.Form.Text)
+
+				default:
+					form = append(form, "")
+					log.Warn("Unknown form type %q for application %d", rev.Document.Form.Type, app.lId())
+				}
+
+				formType = append(formType, rev.Document.Form.Type)
 
 				jsonArr, _ := json.Marshal(util.NonNilSlice(rev.Document.ReferenceIds.GetOrDefault([]string{})))
 				formsReferences = append(formsReferences, string(jsonArr))
@@ -963,6 +1090,7 @@ func lGrantsPersist(app *grantApplication) {
 								unnest(cast(:recipients as text[])) as recipient,
 								unnest(cast(:recipient_types as text[])) as recipient_type,
 								unnest(cast(:form as text[])) as form,
+								unnest(cast(:form_types as text[])) as form_type,
 								unnest(cast(:refs as text[])) as refs
 						),
 						refs_unwrapped as (
@@ -975,7 +1103,7 @@ func lGrantsPersist(app *grantApplication) {
 							group by rev
 						)
 					insert into "grant".forms(application_id, revision_number, parent_project_id, recipient, 
-						recipient_type, form, reference_ids) 
+						recipient_type, form, form_type, reference_ids) 
 					select
 						:app_id,
 						d.rev,
@@ -983,6 +1111,7 @@ func lGrantsPersist(app *grantApplication) {
 						d.recipient,
 						d.recipient_type,
 						d.form,
+                        d.form_type,
 						coalesce(r.refs, cast(array[] as text[]))
 					from
 						data d
@@ -998,15 +1127,18 @@ func lGrantsPersist(app *grantApplication) {
 					"recipients":      formsRecipient,
 					"recipient_types": formsRecipientType,
 					"form":            form,
+					"form_types":      formType,
 					"refs":            formsReferences,
 				},
 			)
 
 			var approvalStates []string
 			var approvalGivers []string
+			var approvalUpdaters []string
 			for _, a := range appl.Status.StateBreakdown {
 				approvalStates = append(approvalStates, string(a.State))
 				approvalGivers = append(approvalGivers, a.ProjectId)
+				approvalUpdaters = append(approvalUpdaters, a.LastUpdatedBy)
 			}
 
 			db.Exec(
@@ -1015,11 +1147,12 @@ func lGrantsPersist(app *grantApplication) {
 					with data as (
 						select
 							unnest(cast(:states as text[])) state,
-							unnest(cast(:grant_givers as text[])) grant_giver
+							unnest(cast(:grant_givers as text[])) grant_giver,
+							unnest(cast(:grant_updaters as text[])) updater
 					)
 					insert into "grant".grant_giver_approvals(application_id, project_id, project_title,
 						state, updated_by, last_update) 
-					select :app_id, d.grant_giver, p.title, d.state, '_ucloud', now()
+					select :app_id, d.grant_giver, p.title, d.state, d.updater, now()
 					from
 						data d
 						join project.projects p on d.grant_giver = p.id
@@ -1030,9 +1163,10 @@ func lGrantsPersist(app *grantApplication) {
 						last_update = excluded.last_update
 			    `,
 				db.Params{
-					"app_id":       app.lId(),
-					"states":       approvalStates,
-					"grant_givers": approvalGivers,
+					"app_id":         app.lId(),
+					"states":         approvalStates,
+					"grant_givers":   approvalGivers,
+					"grant_updaters": approvalUpdaters,
 				},
 			)
 		})

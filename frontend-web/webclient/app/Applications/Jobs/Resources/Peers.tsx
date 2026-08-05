@@ -6,6 +6,7 @@ import {Widget} from "@/Applications/Jobs/Widgets";
 import {Application, ApplicationParameter} from "@/Applications/AppStoreApi";
 import {doNothing} from "@/UtilityFunctions";
 import {Feature, hasFeature} from "@/Features";
+import {Dispatch, SetStateAction} from "react";
 
 export function peerResourceAllowed(app: Application) {
     const invocation = app.invocation;
@@ -18,7 +19,7 @@ export const PeerResource: React.FunctionComponent<{
     application: Application;
     params: ApplicationParameter[];
     errors: Record<string, string>;
-    setErrors: (errors: Record<string, string>) => void;
+    setErrors: Dispatch<SetStateAction<Record<string, string>>>
     onAdd: () => void;
     onRemove: (id: string) => void;
 }> = ({application, params, errors, onAdd, onRemove, setErrors}) => {

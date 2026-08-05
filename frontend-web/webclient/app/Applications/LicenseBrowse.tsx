@@ -21,7 +21,7 @@ import {
 import {doNothing, extractErrorMessage} from "@/UtilityFunctions";
 import AppRoutes from "@/Routes";
 import {AsyncCache} from "@/Utilities/AsyncCache";
-import {productTypeToIcon, ProductV2License} from "@/Accounting";
+import {ProductLicense, productTypeToIcon, ProductV2License} from "@/Accounting";
 import {bulkRequestOf} from "@/UtilityFunctions";
 import {FindByStringId} from "@/UCloud";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
@@ -208,7 +208,7 @@ export function LicenseBrowse({
                 browser.setEmptyIcon(productTypeToIcon("LICENSE"));
 
                 browser.on("fetchOperationsCallback", () => {
-                    const callbacks: ResourceBrowseCallbacks<License> = {
+                    const callbacks: ResourceBrowseCallbacks<License, ProductLicense> = {
                         supportByProvider: supportByProvider.retrieveFromCacheOnly("") ?? {productsByProvider: {}},
                         dispatch,
                         isWorkspaceAdmin: checkIsWorkspaceAdmin(),
@@ -233,7 +233,9 @@ export function LicenseBrowse({
                 browser.on("fetchOperations", () => {
                     const entries = browser.findSelectedEntries();
                     const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn());
-                    const operations = LicenseApi.retrieveOperations();
+                    const actions = LicenseApi.retrieveActions();
+                    if (!Array.isArray(actions)) return actions;
+                    const operations = actions;
                     const create = operations.find(it => it.tag === CREATE_TAG);
                     if (create) {
                         create.enabled = () => true;
@@ -300,7 +302,7 @@ export function LicenseBrowse({
                                         dialogStore.success();
                                         browser.refresh();
                                     }
-                                } catch (e) {
+                                } catch (e: any) {
                                     sendFailureNotification("Failed to create license. " + extractErrorMessage(e));
                                     browser.refresh();
                                     return;

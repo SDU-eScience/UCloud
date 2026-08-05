@@ -15,7 +15,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {injectStyle} from "@/Unstyled";
 import {SelectProps} from "@/ui-components/Select";
-import {threadDeferLike, useEffectSkipMount} from "@/UtilityFunctions";
+import {useEffectSkipMount} from "@/UtilityFunctions";
 import {Toggle} from "@/ui-components/Toggle";
 import {compute} from "@/UCloud";
 import AppParameterValueNS = compute.AppParameterValueNS;
@@ -164,7 +164,7 @@ const HighlightedSelected: React.FunctionComponent<SelectProps & {children: Reac
         const s = ref.current;
         if (s) {
             s.classList.remove(highlightChange);
-            threadDeferLike(() => s.classList.add(highlightChange));
+            window.queueMicrotask(() => s.classList.add(highlightChange));
         }
     }, [props.value]);
     return <Select selectRef={ref} {...props}>{children}</Select>;
@@ -458,13 +458,13 @@ export const ModuleListParameter: React.FunctionComponent<ModuleListProps> = pro
 export function ModuleMarkdown({children}: React.PropsWithChildren): React.ReactNode {
     return <ReactMarkdown
         components={{
-            a: LinkBlock,
-            h1: SimpleHeading,
-            h2: SimpleHeading,
-            h3: SimpleHeading,
-            h4: SimpleHeading,
-            h5: SimpleHeading,
-            h6: SimpleHeading,
+            a: p => <LinkBlock href={p.href}>{p.children}</LinkBlock>,
+            h1: p => <SimpleHeading children={p.children} />,
+            h2: p => <SimpleHeading children={p.children} />,
+            h3: p => <SimpleHeading children={p.children} />,
+            h4: p => <SimpleHeading children={p.children} />,
+            h5: p => <SimpleHeading children={p.children} />,
+            h6: p => <SimpleHeading children={p.children} />,
         }}
         allowedElements={["h1", "h2", "h3", "h4", "h5", "h6", "br", "a", "p", "strong", "b", "i", "em", "ul", "ol", "li"]}
         children={children as string}
@@ -472,11 +472,11 @@ export function ModuleMarkdown({children}: React.PropsWithChildren): React.React
     />
 }
 
-function LinkBlock(props: {href?: string; children: React.ReactNode & React.ReactNode[]}) {
+function LinkBlock(props: {href?: string; children: React.ReactNode}) {
     return <ExternalLink href={props.href}>{props.children}</ExternalLink>;
 }
 
-function SimpleHeading(props: {children: React.ReactNode & React.ReactNode[]}) {
+function SimpleHeading(props: {children: React.ReactNode}) {
     return <Heading.h4>{props.children}</Heading.h4>;
 }
 

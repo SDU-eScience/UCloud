@@ -118,6 +118,7 @@ const (
 	ProductTypeStorage        ProductType = "STORAGE"
 	ProductTypeIngress        ProductType = "INGRESS"
 	ProductTypeLicense        ProductType = "LICENSE"
+	ProductTypeInference      ProductType = "INFERENCE"
 	ProductTypeNetworkIp      ProductType = "NETWORK_IP"
 	ProductTypePrivateNetwork ProductType = "PRIVATE_NETWORK"
 )
@@ -182,6 +183,7 @@ const (
 	ProductTypeCCompute        ProductTypeC = "compute"
 	ProductTypeCIngress        ProductTypeC = "ingress"
 	ProductTypeCLicense        ProductTypeC = "license"
+	ProductTypeCInference      ProductTypeC = "inference"
 	ProductTypeCNetworkIp      ProductTypeC = "network_ip"
 	ProductTypeCPrivateNetwork ProductTypeC = "private_network"
 )
@@ -196,6 +198,8 @@ func ProductTypeCCreate(t ProductType) ProductTypeC {
 		return ProductTypeCIngress
 	case ProductTypeLicense:
 		return ProductTypeCLicense
+	case ProductTypeInference:
+		return ProductTypeCInference
 	case ProductTypeNetworkIp:
 		return ProductTypeCNetworkIp
 	case ProductTypePrivateNetwork:

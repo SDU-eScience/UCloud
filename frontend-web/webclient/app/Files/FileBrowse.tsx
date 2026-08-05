@@ -20,15 +20,17 @@ import {
     favoriteRowIcon,
     ResourceBrowseHeaderControls,
     createProjectSwitcherPortal,
+    OperationGroup,
 } from "@/ui-components/ResourceBrowser";
 import FilesApi, {
     addFileSensitivityDialog,
-    ExtraFileCallbacks,
+    FileBrowseCallbacks,
     FileSensitivityNamespace,
     FileSensitivityVersion,
     initEmptyFileUpload,
     isReadonly,
     isSensitivitySupported,
+    showFileProperties,
 } from "@/UCloud/FilesApi";
 import {fileName, getParentPath, pathComponents, resolvePath, sizeToString} from "@/Utilities/FileUtilities";
 import {AsyncCache} from "@/Utilities/AsyncCache";
@@ -56,10 +58,10 @@ import MetadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/Meta
 import {bulkRequestOf} from "@/UtilityFunctions";
 import metadataDocumentApi, {FileMetadataDocument, FileMetadataDocumentOrDeleted, FileMetadataHistory} from "@/UCloud/MetadataDocumentApi";
 
-import {ResourceBrowseCallbacks, ResourceOwner, ResourcePermissions, SupportByProvider} from "@/UCloud/ResourceApi";
+import {ResourceOwner, ResourcePermissions, SupportByProvider} from "@/UCloud/ResourceApi";
 import {Client, WSFactory} from "@/Authentication/HttpClientInstance";
 import ProductReference = accounting.ProductReference;
-import {Operation} from "@/ui-components/Operation";
+import {appendOperationsToActions, Operation} from "@/ui-components/Operation";
 import {visualizeWhitespaces} from "@/Utilities/TextUtilities";
 import {usePage} from "@/Navigation/Redux";
 import AppRoutes from "@/Routes";
@@ -75,6 +77,13 @@ import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {HTMLTooltip} from "@/ui-components/Tooltip";
 import SharesApi, {OutgoingShareGroup} from "@/UCloud/SharesApi";
 import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
+import {browseWalletsV2, ProductStorage, WalletV2} from "@/Accounting";
+import {genericSet} from "@/Utilities/ReduxHooks";
+import {createPortal} from "react-dom";
+import {FileBrowserStatusBar, FileBrowserStatusData} from "./FileBrowserStatusBar";
+import {fetchAll} from "@/Utilities/PageUtilities";
+import {Feature, hasFeature} from "@/Features";
+import {terminalSetPageContext} from "@/Terminal/State";
 
 export enum SensitivityLevel {
     "INHERIT" = "Inherit",
@@ -91,6 +100,7 @@ const collectionCache = new AsyncCache<FileCollection>({globalTtl: 15_000});
 const collectionCacheForCompletion = new AsyncCache<FileCollection[]>({globalTtl: 60_000});
 const trashCache = new AsyncCache<UFile>();
 const metadataTemplateCache = new AsyncCache<string>();
+const driveUsageCache = new AsyncCache<{bytes: number}>({globalTtl: 15 * 60_000});
 
 const defaultRetrieveFlags: Partial<UFileIncludeFlags> & {itemsPerPage: number} = {
     includeMetadata: true,
@@ -123,7 +133,7 @@ interface AdditionalResourceBrowserOpts {
     initialPath?: string;
     managesLocalProject?: boolean; // TODO(Jonas): Having both managesLocalProject and initialProject might not be for the best.
     initialProject?: string;
-    additionalOperations?: Operation<UFile, ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks>[];
+    additionalOperations?: Operation<UFile, FileBrowseCallbacks>[];
 }
 let lastActiveProject: string | undefined = "";
 type SortById = "PATH" | "MODIFIED_AT" | "SIZE";
@@ -147,7 +157,18 @@ function FileBrowse({
         usePage("Files", SidebarTabId.FILES);
     }
 
+    useEffect(() => {
+        if (opts?.embedded || opts?.isModal) return;
+        return () => {
+            dispatch(terminalSetPageContext(null));
+        };
+    }, [dispatch, opts?.embedded, opts?.isModal]);
+
     const [providerRestriction, setProviderRestriction] = React.useState<string | null>(null);
+    const [statusBarTarget, setStatusBarTarget] = React.useState<HTMLElement | null>(null);
+    const [statusBarData, setStatusBarData] = React.useState<FileBrowserStatusData | null>(null);
+    const statusRequest = useRef(0);
+    const statusBarEnabled = hasFeature(Feature.FILE_BROWSER_STATUS_BAR);
 
     const isInitialMount = useRef<boolean>(true);
     useEffect(() => {
@@ -201,8 +222,92 @@ function FileBrowse({
         let shares: Record<string, OutgoingShareGroup> = {};
         let initialFetchDone = false;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<UFile>(mount, RESOURCE_NAME, opts).init(browserRef, features, undefined, browser => {
+            const resourceBrowser = new ResourceBrowser<UFile>(mount, RESOURCE_NAME, opts);
+            resourceBrowser.init(browserRef, features, undefined, browser => {
                 browser.setColumns(rowTitles);
+
+                const updateStatusSelection = () => setStatusBarData(current => current == null ? null : {
+                    ...current,
+                    selected: browser.findSelectedEntries(),
+                });
+                browser.on("rowSelectionUpdated", updateStatusSelection);
+
+                const loadStatus = async (path: string, collection: FileCollection) => {
+                    if (!statusBarEnabled || opts?.embedded || opts?.isModal) return;
+                    const requestId = ++statusRequest.current;
+                    if (path === SEARCH) {
+                        setStatusBarData(null);
+                        return;
+                    }
+
+                    try {
+                        const rootPath = `/${pathComponents(path)[0]}`;
+                        const directoryPromise = folderCache.retrieve(path, () => callAPI(FilesApi.retrieve({
+                            id: path,
+                            includeSizes: true,
+                        })));
+                        const drivePromise = path === rootPath
+                            ? directoryPromise
+                            : callAPI(FilesApi.retrieve({id: rootPath, includeSizes: true})).catch(() => directoryPromise);
+                        const walletsPromise = callAPI(browseWalletsV2({filterType: "STORAGE", itemsPerPage: 250}))
+                            .catch(() => ({items: [], itemsPerPage: 250}));
+                        const preciseOwnUsagePromise = driveUsageCache.retrieve(
+                            `${activeProject.current ?? ""}/${collection.specification.product.provider}/${collection.specification.product.category}`,
+                            async () => {
+                                const drives = await fetchAll<FileCollection>(next => callAPI(FileCollectionsApi.browse({
+                                    itemsPerPage: 250,
+                                    next,
+                                    filterMemberFiles: "all",
+                                    ...opts?.additionalFilters,
+                                })));
+                                const matchingDrives = drives.filter(it =>
+                                    it.specification.product.provider === collection.specification.product.provider &&
+                                    it.specification.product.category === collection.specification.product.category
+                                );
+                                let nextDrive = 0;
+                                let bytes = 0;
+                                const workers = Array.from({length: Math.min(6, matchingDrives.length)}, async () => {
+                                    while (nextDrive < matchingDrives.length) {
+                                        const candidate = matchingDrives[nextDrive++];
+                                        try {
+                                            const root = await callAPI(FilesApi.retrieve({id: `/${candidate.id}`, includeSizes: true}));
+                                            bytes += root.status.sizeIncludingChildrenInBytes ?? 0;
+                                        } catch {
+                                            // Missing permissions are handled by validating the sum against accounting usage.
+                                        }
+                                    }
+                                });
+                                await Promise.all(workers);
+                                return {bytes};
+                            }
+                        ).catch(() => undefined);
+                        const [directory, drive, wallets] = await Promise.all([
+                            directoryPromise,
+                            drivePromise,
+                            walletsPromise,
+                        ]);
+                        if (requestId !== statusRequest.current || browser.currentPath !== path) return;
+                        const wallet = (wallets.items as WalletV2[]).find(it =>
+                            it.paysFor.provider === collection.specification.product.provider &&
+                            it.paysFor.name === collection.specification.product.category
+                        );
+                        setStatusBarData({
+                            path,
+                            directory,
+                            drive,
+                            wallet,
+                            selected: browser.findSelectedEntries(),
+                        });
+                        const preciseOwnUsage = await preciseOwnUsagePromise;
+                        if (requestId !== statusRequest.current || browser.currentPath !== path) return;
+                        setStatusBarData(current => current?.path === path ? {
+                            ...current,
+                            preciseOwnUsageBytes: preciseOwnUsage?.bytes,
+                        } : current);
+                    } catch {
+                        if (requestId === statusRequest.current) setStatusBarData(null);
+                    }
+                };
 
                 callAPI(SharesApi.browseOutgoing({itemsPerPage: 250})).then((result: PageV2<OutgoingShareGroup>) => {
                     shares = associateBy(result.items, s => s.sourceFilePath);
@@ -653,15 +758,46 @@ function FileBrowse({
                 browser.on("fetchOperations", () => {
                     function groupOperations<R>(ops: Operation<UFile, R>[]): OperationOrGroup<UFile, R>[] {
                         const result: OperationOrGroup<UFile, R>[] = [];
+                        const restOperations: Operation<UFile, R>[] = [];
+                        let splitButtonGroups = new Map<string, Operation<UFile, R>[]>();
+
+                        // Finding split buttons and grouping them together
+                        ops.forEach(op => {
+                            if (op.splitButtonGroupId) {
+                                if (!splitButtonGroups.has(op.splitButtonGroupId)) {
+                                    splitButtonGroups.set(op.splitButtonGroupId, [op]);
+                                }
+                                else {
+                                    splitButtonGroups.get(op.splitButtonGroupId)?.push(op);
+                                }
+                            }
+                            else {
+                                restOperations.push(op);
+                            }
+                        });
+
+                        // Creating split buttons
+                        splitButtonGroups.forEach((operations, k) => {
+                            result.push({
+                                color: "secondaryMain",
+                                icon: "ellipsis",
+                                text: "",
+                                iconRotation: 90,
+                                operations: operations,
+                                buttonStyle: "split",
+                            })
+                        });
+
                         let i = 0;
-                        for (; i < ops.length && result.length < 4; i++) {
-                            const op = ops[i];
+                        // A max of 4 buttons for the view else we collapse them 
+                        for (; i < restOperations.length && result.length < 4; i++) {
+                            const op = restOperations[i];
                             result.push(op);
                         }
 
                         const overflow: Operation<UFile, R>[] = [];
-                        for (; i < ops.length; i++) {
-                            overflow.push(ops[i]);
+                        for (; i < restOperations.length; i++) {
+                            overflow.push(restOperations[i]);
                         }
 
                         if (overflow.length > 0) {
@@ -678,10 +814,14 @@ function FileBrowse({
                     }
 
                     const selected = browser.findSelectedEntries();
-                    const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks;
-                    const enabledOperations = FilesApi.retrieveOperations().filter(op => op.enabled(selected, callbacks, selected));
+                    const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as FileBrowseCallbacks;
+                    const actions = FilesApi.retrieveActions();
+                    if (!Array.isArray(actions)) {
+                        return appendOperationsToActions(actions, opts?.additionalOperations ?? [], selected);
+                    }
+                    const enabledOperations = actions.filter(op => op.enabled(selected, callbacks, selected));
                     if (opts?.additionalOperations) {
-                        opts.additionalOperations.forEach(op => {
+                        (opts.additionalOperations).forEach(op => {
                             if (op.enabled(selected, callbacks, selected)) enabledOperations.push(op);
                         })
                     }
@@ -702,7 +842,7 @@ function FileBrowse({
                     const supportByProvider: SupportByProvider = {productsByProvider: {}};
                     supportByProvider.productsByProvider[collection.specification.product.provider] = [collection.status.resolvedSupport!];
 
-                    const callbacks: ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks = {
+                    const callbacks: FileBrowseCallbacks = {
                         supportByProvider,
                         collection: collection,
                         isSearch,
@@ -713,6 +853,12 @@ function FileBrowse({
                         isWorkspaceAdmin: checkIsWorkspaceAdmin(),
                         navigate: to => navigate(to),
                         reload: () => browser.refresh(),
+                        reloadCurrentFolderIfUnpaginated: path => {
+                            const files = browser.cachedData[path];
+                            if (browser.root.isConnected && browser.currentPath === path && files && files.length < 250) {
+                                browser.refresh();
+                            }
+                        },
                         syncthingConfig,
                         setSynchronization(files: UFile[], shouldAdd: boolean): void {
                             if (!syncthingConfig) return;
@@ -746,6 +892,24 @@ function FileBrowse({
                                 defaultErrorHandler(e);
                             });
                         },
+                        openFile(file: UFile, newWindow: boolean): void {
+                            if (newWindow) {
+                                const target = file.status.type === "FILE" ?
+                                    AppRoutes.files.preview(file.id) : AppRoutes.files.path(file.id);
+                                window.open("/app" + target, "_blank", "noopener,noreferrer");
+                            } else {
+                                browser.open(file.id, false, file);
+                            }
+                        },
+                        copyToClipboard(files: UFile[], cut: boolean): void {
+                            browser.copyToClipboard(files, cut);
+                        },
+                        canPasteFromClipboard(): boolean {
+                            return browser.canPasteFromClipboard();
+                        },
+                        pasteFromClipboard(): void {
+                            browser.pasteFromClipboard();
+                        },
                         startFolderCreation(): void {
                             showCreateDirectory();
                         },
@@ -758,7 +922,7 @@ function FileBrowse({
                             startRenaming(resource.id);
                         },
                         viewProperties(res: UFile): void {
-                            navigate(AppRoutes.resource.properties(FilesApi.routingNamespace, res.id))
+                            showFileProperties(res);
                         },
                         commandLoading: false,
                         invokeCommand: call => callAPI(call),
@@ -1234,29 +1398,30 @@ function FileBrowse({
                     }
 
                     if (newPath !== SEARCH) lastActiveFilePath = newPath;
+                    setStatusBarData(null);
 
                     if (openTriggeredByPath.current === newPath) {
                         openTriggeredByPath.current = null;
                     } else if (!isSelector) {
-                        //                                                     Note(Jonas): Edge case that we want to navigate to FileTable on breadcrumb click (Job/View)
+                        // Note(Jonas): Edge case that we want to navigate to FileTable on breadcrumb click (Job/View)
                         if (!isInitialMount.current && (oldPath !== newPath || opts?.embedded)) {
                             navigate("/files?path=" + encodeURIComponent(newPath));
                         }
                     }
 
                     if (!isSelector) {
-                        dispatch({
-                            type: "GENERIC_SET", payload: {
+                        dispatch(
+                            genericSet({
                                 property: "uploadPath",
                                 newValue: newPath, defaultValue: newPath
-                            }
-                        });
+                            })
+                        );
                     }
 
                     const collectionId = pathComponents(newPath)[0];
 
                     folderCache
-                        .retrieve(newPath, () => callAPI(FilesApi.retrieve({id: newPath})))
+                        .retrieve(newPath, () => callAPI(FilesApi.retrieve({id: newPath, includeSizes: true})))
                         .then(() => browser.renderOperations());
 
                     collectionCache
@@ -1267,7 +1432,14 @@ function FileBrowse({
                                 includeSupport: true,
                                 ...opts?.additionalFilters
                             })
-                        )).then(() => {
+                        )).then(collection => {
+                            if (!didUnmount.current && !opts?.embedded && !opts?.isModal && browser.currentPath === newPath) {
+                                dispatch(terminalSetPageContext({
+                                    folder: newPath,
+                                    providerId: collection.specification.product.provider,
+                                }));
+                            }
+                            loadStatus(newPath, collection);
                             if (!opts?.embedded) {
                                 const collection = collectionCache.retrieveFromCacheOnly(collectionId);
                                 if (!collection?.specification.product.provider) return;
@@ -1504,6 +1676,15 @@ function FileBrowse({
                     }
                 });
             });
+
+            if (statusBarEnabled && !opts?.embedded && !opts?.isModal) {
+                const statusHost = document.createElement("div");
+                statusHost.style.flexGrow = "0";
+                statusHost.style.flexShrink = "0";
+                statusHost.style.minHeight = "52px";
+                mount.append(statusHost);
+                setStatusBarTarget(statusHost);
+            }
         }
 
         const b = browserRef.current;
@@ -1515,10 +1696,10 @@ function FileBrowse({
         addProjectSwitcherInPortal(browserRef, setSwitcherWorkaround, setLocalProject ? {setLocalProject, initialProject: activeProject.current} : undefined);
     }, []);
 
-    const setLocalProject = opts?.managesLocalProject ? (projectId?: string) => {
+    const setLocalProject = opts?.managesLocalProject ? async (projectId?: string) => {
         const b = browserRef.current;
         if (b) {
-            b.canConsumeResources = checkCanConsumeResources(projectId ?? null, {api: FilesApi});
+            b.canConsumeResources = await checkCanConsumeResources(projectId ?? null, {api: FilesApi});
         }
         activeProject.current = projectId;
         clearAndFetchCollections();
@@ -1529,13 +1710,16 @@ function FileBrowse({
         if (!b) return;
 
         if (opts?.initialPath !== undefined) {
-            b.canConsumeResources = checkCanConsumeResources(Client.projectId ?? null, {api: FilesApi});
+            (async function () {
 
-            if (selectorPathRef.current === "") {
-                clearAndFetchCollections();
-            } else {
-                b.open(selectorPathRef.current);
-            }
+                if (selectorPathRef.current === "") {
+                    clearAndFetchCollections();
+                } else {
+                    b.open(selectorPathRef.current);
+                }
+
+                b.canConsumeResources = await checkCanConsumeResources(Client.projectId ?? null, {api: FilesApi});
+            })();
         } else {
             const path = getQueryParamOrElse(location.search, "path", "");
             if (path) {
@@ -1560,6 +1744,7 @@ function FileBrowse({
                     setLocalProject ? {setLocalProject, initialProject: activeProject.current} : undefined,
                 )
                 : switcher}
+            {statusBarTarget && statusBarData ? createPortal(<FileBrowserStatusBar data={statusBarData} />, statusBarTarget) : null}
         </>}
     />;
 
@@ -1633,7 +1818,7 @@ function folderNote(
 }
 
 // Note(Jonas): Temporary as there should be a better solution, not because the element is temporary
-function temporaryDriveDropdownFunction(browser: ResourceBrowser<unknown>, posX: number, posY: number): void {
+function temporaryDriveDropdownFunction(browser: ResourceBrowser<UFile>, posX: number, posY: number): void {
     const filteredCollections = collectionCacheForCompletion.retrieveFromCacheOnly("") ?? [];
 
     function generateElements(filter?: string): HTMLLIElement[] {

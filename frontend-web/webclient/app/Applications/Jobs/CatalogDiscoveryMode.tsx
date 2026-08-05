@@ -63,7 +63,7 @@ export const CatalogDiscoveryModeSwitcher: React.FunctionComponent = () => {
         closeFn.current();
     }, []);
 
-    const onKeyboardSelect = useCallback((el: HTMLElement) => {
+    const onKeyboardSelect = useCallback((el?: Element) => {
         const mode = el?.getAttribute("data-mode");
         if (mode) onModeChange(mode);
     }, [onModeChange]);

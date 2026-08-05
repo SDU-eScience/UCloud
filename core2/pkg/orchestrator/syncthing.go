@@ -97,6 +97,18 @@ func initSyncthing() {
 				}
 			}
 		}
+		paths := make([]string, 0, len(request.Config.Folders))
+		for _, folder := range request.Config.Folders {
+			paths = append(paths, folder.UCloudPath)
+		}
+		restricted, policyErr := MetadataCheckRestrictedPaths(info.Actor, paths)
+		if policyErr != nil {
+			return util.Empty{}, policyErr
+		}
+		if len(restricted) > 0 {
+			return util.Empty{}, util.UserHttpError("Sensitive or confidential folders cannot be synchronized: %s", restricted[0])
+		}
+
 		_, err := InvokeProvider(
 			request.Provider,
 			orcapi.SyncthingProviderUpdateConfiguration,

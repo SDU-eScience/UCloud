@@ -71,6 +71,14 @@ func initMetadata() {
 			return result, nil
 		})
 
+		orcapi.FileMetadataControlCheckSensitivity.Handler(func(
+			info rpc.RequestInfo,
+			request orcapi.FileMetadataSensitivityCheckRequest,
+		) (orcapi.FileMetadataSensitivityCheckResponse, *util.HttpError) {
+			restricted, err := MetadataCheckRestrictedPaths(info.Actor, request.Paths)
+			return orcapi.FileMetadataSensitivityCheckResponse{RestrictedPaths: restricted}, err
+		})
+
 		orcapi.FileMetadataDocCreate.Handler(func(
 			info rpc.RequestInfo,
 			request fndapi.BulkRequest[orcapi.FileMetadataDocCreateRequest],
@@ -408,6 +416,90 @@ func MetadataBrowseOwner(
 	}
 
 	return result
+}
+
+func metadataSensitivityByOwner(owner orcapi.ResourceOwner) []MetadataDocument {
+	ownerRef := owner.Project.GetOrDefault(owner.CreatedBy)
+	metadataLoadIfNeededByOwner(ownerRef)
+
+	b := metadataBucketByKey(ownerRef)
+	b.Mu.RLock()
+	idx, ok := b.ByOwner[ownerRef]
+	b.Mu.RUnlock()
+	if !ok {
+		return nil
+	}
+
+	idx.Mu.RLock()
+	paths := make([]string, 0, len(idx.Elements))
+	for path := range idx.Elements {
+		paths = append(paths, path)
+	}
+	idx.Mu.RUnlock()
+
+	result := make([]MetadataDocument, 0, len(paths))
+	for _, path := range paths {
+		doc, ok := metadataAtPath(path, "")
+		if ok && doc.Sensitivity.Present {
+			result = append(result, doc)
+		}
+	}
+	return result
+}
+
+func MetadataCheckRestrictedPaths(actor rpc.Actor, paths []string) ([]string, *util.HttpError) {
+	restricted := make([]string, 0)
+	metadataByOwner := map[orcapi.ResourceOwner][]MetadataDocument{}
+
+	for _, requestedPath := range paths {
+		path := filepath.Clean(requestedPath)
+		driveId, ok := orcapi.DriveIdFromUCloudPath(path)
+		if !ok {
+			return nil, util.HttpErr(http.StatusNotFound, "not found")
+		}
+
+		drive, err := ResourceRetrieve[orcapi.Drive](actor, driveType, ResourceParseId(driveId), orcapi.ResourceFlags{})
+		if err != nil {
+			return nil, err
+		}
+
+		documents, ok := metadataByOwner[drive.Owner]
+		if !ok {
+			documents = metadataSensitivityByOwner(drive.Owner)
+			metadataByOwner[drive.Owner] = documents
+		}
+
+		isRestricted := false
+		ancestors := append(util.Parents(path), path)
+		for i := len(ancestors) - 1; i >= 0; i-- {
+			doc, ok := metadataAtPath(ancestors[i], "")
+			if !ok || !doc.Sensitivity.Present {
+				continue
+			}
+
+			isRestricted = doc.Sensitivity.Value == SensitivitySensitive || doc.Sensitivity.Value == SensitivityConfidential
+			break
+		}
+
+		if !isRestricted {
+			prefix := strings.TrimSuffix(path, "/") + "/"
+			for _, doc := range documents {
+				if doc.Path != path && !strings.HasPrefix(doc.Path, prefix) {
+					continue
+				}
+				if doc.Sensitivity.Value == SensitivitySensitive || doc.Sensitivity.Value == SensitivityConfidential {
+					isRestricted = true
+					break
+				}
+			}
+		}
+
+		if isRestricted {
+			restricted = append(restricted, requestedPath)
+		}
+	}
+
+	return restricted, nil
 }
 
 func MetadataMigrateToNewPath(sourcePath string, destinationPath string) {

@@ -1,7 +1,14 @@
 import test, {expect} from "@playwright/test";
 import {Components, User} from "./shared";
 import {default as data} from "./test_data.json" with {type: "json"};
-const user = data.users.with_resources;
+const user = data.users.without_resources;
+
+
+test.beforeEach(async ({page}) => {
+    if (data.login_cookie) {
+        await page.context().addCookies([data.login_cookie]);
+    }
+})
 
 test("Login using password, logout", async ({page}) => {
     await User.login(page, user);
@@ -13,7 +20,7 @@ test("While logged in, ensure docs link works", async ({page}) => {
     await User.login(page, user);
     await Components.toggleUserMenu(page);
     const ucloudDocsPagePromise = page.waitForEvent("popup");
-    await page.getByText("Docs").click();
+    await page.locator("div").filter({hasText: /(UCloud docs|Docs)$/}).click();
     const ucloudDocsPage = await ucloudDocsPagePromise;
     await expect(ucloudDocsPage.getByText("UCloud User Guide¶")).toHaveCount(1);
     expect(ucloudDocsPage.url()).toMatch("https://docs.cloud.sdu.dk/");

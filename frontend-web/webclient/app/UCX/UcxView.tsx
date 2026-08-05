@@ -1,7 +1,6 @@
 import * as React from "react";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {
-    Accordion,
     Button,
     Card,
     Checkbox,
@@ -22,7 +21,6 @@ import {Toggle} from "@/ui-components/Toggle";
 import * as UCloud from "@/UCloud";
 import * as Accounting from "@/Accounting";
 import {productCategoryEquals, ProductV2, ProductV2Compute, WalletV2} from "@/Accounting";
-import HexSpin from "@/LoadingIcon/LoadingIcon";
 import {
     decodeFrame,
     Frame,
@@ -48,6 +46,9 @@ import {ModuleMarkdown} from "@/Applications/Jobs/Widgets/ModuleList";
 import remarkGfm from "remark-gfm";
 import ReactMarkdown from "react-markdown";
 import * as Heading from "@/ui-components/Heading";
+import {UcxAccordion} from "@/UCX/UcxAccordion";
+import {injectStyle} from "@/Unstyled";
+import {useIsLightThemeStored} from "@/ui-components/theme";
 
 type ValueProvider = string | (() => string | Promise<string>);
 export type UcxRpcPayload = PlainValue;
@@ -58,13 +59,56 @@ export interface UcxFunctionRegistry {
     sendUiEvent: (nodeId: string, event?: string, value?: Value) => void;
     sendModelInput: (bindPath: string, value: Value, nodeId?: string) => void;
     registerRouter: (bindPath: string, nodeId: string, model: Record<string, Value>, scope?: Record<string, Value>) => void;
+    registerQueryParam: (bindPath: string, nodeId: string, key: string, model: Record<string, Value>, scope?: Record<string, Value>, options?: {replace?: boolean; removeWhenEmpty?: boolean; sendMissing?: boolean; writeToUrl?: boolean; clearKeys?: string[]}) => void;
     navigateSpa: (to: string, nodeId: string) => void;
     buildSpaHref: (to: string) => string;
     currentRoutePath: string;
     invokeRpc: (name: string, payload?: UcxRpcPayload, timeoutMs?: number) => Promise<UcxRpcPayload>;
     modelValue: (model: Record<string, Value>, path: string, scope?: Record<string, Value>) => Value | undefined;
     sxStyle: (node: UiNode) => React.CSSProperties;
+
     [key: string]: unknown;
+}
+
+const ucxSpinnerFrames = [
+    " ⣾ ", " ⣽ ", " ⣻ ", " ⢿ ", " ⡿ ", " ⣟ ", " ⣯ ", " ⣷ ",
+    " ⠁ ", " ⠂ ", " ⠄ ", " ⡀ ", " ⢀ ", " ⠠ ", " ⠐ ", " ⠈ ",
+];
+
+export function UcxSpinner({size = 32, margin}: {size?: number; margin?: string}): React.ReactNode {
+    const [frame, setFrame] = useState(0);
+
+    useEffect(() => {
+        const interval = window.setInterval(() => {
+            setFrame(current => (current + 1) % ucxSpinnerFrames.length);
+        }, 70);
+        return () => window.clearInterval(interval);
+    }, []);
+
+    const lightMode = useIsLightThemeStored();
+    const color = lightMode ? "var(--primaryMain)" : "var(--foreground)";
+
+    return <span
+        data-tag="loading-spinner"
+        aria-label="Loading"
+        role="status"
+        style={{
+            width: size,
+            height: size,
+            margin,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: color,
+            fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+            fontSize: Math.max(12, Math.round(size * 0.72)),
+            lineHeight: 1,
+            whiteSpace: "pre",
+            userSelect: "none",
+        }}
+    >
+        {ucxSpinnerFrames[frame]}
+    </span>;
 }
 
 export interface UcxRenderContext {
@@ -72,6 +116,7 @@ export interface UcxRenderContext {
     model: Record<string, Value>;
     scope?: Record<string, Value>;
     fn: UcxFunctionRegistry;
+    components: UcxComponentRegistry;
     renderChildren: (scopeOverride?: Record<string, Value>) => React.ReactNode;
 }
 
@@ -83,6 +128,11 @@ export interface UcxFrameRenderArgs {
     transportError: string;
     reconnectingInSeconds?: number;
     content: React.ReactNode;
+    mounted?: boolean;
+    root?: UiNode | null;
+    model?: Record<string, Value>;
+    fn?: UcxFunctionRegistry;
+    components?: UcxComponentRegistry;
 }
 
 export interface UcxViewProps {
@@ -94,37 +144,12 @@ export interface UcxViewProps {
     components?: Partial<UcxComponentRegistry>;
     functions?: Partial<UcxFunctionRegistry>;
     rpcHandlers?: Record<string, UcxRpcHandler>;
+    rehydrateModelPaths?: string[];
     onConnected?: () => void;
     onDisconnected?: (reason: string) => void;
     onTransportError?: (message: string) => void;
+    onModelChange?: (model: Record<string, Value>) => void;
 }
-
-const UcxAccordion: React.FunctionComponent<React.PropsWithChildren<{
-    title: string;
-    open: boolean;
-}>> = ({title, open, children}) => {
-    const [isOpen, setIsOpen] = useState(open);
-
-    return <div style={{display: "flex", flexDirection: "column", gap: 4}}>
-        <div
-            onClick={() => setIsOpen(v => !v)}
-            style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                cursor: "pointer",
-                userSelect: "none",
-                padding: "4px 0",
-                borderBottom: "1px solid var(--borderColor)",
-                marginBottom: "8px",
-            }}
-        >
-            <div style={{fontWeight: 600}}>{title}</div>
-            <Icon name="heroChevronDown" size={12} rotation={isOpen ? 0 : -90} />
-        </div>
-        {isOpen ? <div>{children}</div> : null}
-    </div>;
-};
 
 const UcxView: React.FunctionComponent<UcxViewProps> = ({
     url,
@@ -135,9 +160,11 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
     components,
     functions,
     rpcHandlers,
+    rehydrateModelPaths,
     onConnected,
     onDisconnected,
     onTransportError,
+    onModelChange,
 }) => {
     const location = useLocation();
     const navigate = useNavigate();
@@ -157,6 +184,7 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
     const authCompleteRef = useRef(false);
     const modelRef = useRef<Record<string, Value>>({});
     const activeRouterBindPathRef = useRef<string | undefined>(undefined);
+    const queryParamUrlValuesRef = useRef<Record<string, string>>({});
     const currentRoutePath = useMemo(() => routePathFromSearch(location.search), [location.search]);
     const authTokenRef = useRef<ValueProvider>(authToken);
     const sysHelloRef = useRef<ValueProvider>(sysHello);
@@ -165,6 +193,7 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
     const onConnectedRef = useRef<typeof onConnected>(onConnected);
     const onDisconnectedRef = useRef<typeof onDisconnected>(onDisconnected);
     const onTransportErrorRef = useRef<typeof onTransportError>(onTransportError);
+    const onModelChangeRef = useRef<typeof onModelChange>(onModelChange);
 
     useEffect(() => {
         modelRef.current = model;
@@ -193,6 +222,14 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
     useEffect(() => {
         onTransportErrorRef.current = onTransportError;
     }, [onTransportError]);
+
+    useEffect(() => {
+        onModelChangeRef.current = onModelChange;
+    }, [onModelChange]);
+
+    useEffect(() => {
+        onModelChangeRef.current?.(model);
+    }, [model]);
 
     const sendFrame = useCallback((frame: Omit<Frame, "seq">) => {
         sessionRef.current?.send(frame);
@@ -256,6 +293,64 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
         }
     }, [currentRoutePath, sendModelInput]);
 
+    const registerQueryParam = useCallback((bindPath: string, nodeId: string, key: string, model: Record<string, Value>, scope?: Record<string, Value>, options?: {replace?: boolean; removeWhenEmpty?: boolean; sendMissing?: boolean; writeToUrl?: boolean; clearKeys?: string[]}) => {
+        if (!bindPath || !key) return;
+
+        const params = new URLSearchParams(location.search);
+        const hasParam = params.has(key);
+        const fromUrl = params.get(key) ?? "";
+        const bound = modelString(model, bindPath, scope);
+        let previousUrl = queryParamUrlValuesRef.current[key];
+
+        if (previousUrl === undefined) {
+            queryParamUrlValuesRef.current[key] = fromUrl;
+            previousUrl = fromUrl;
+            if (hasParam) {
+                if (fromUrl !== bound) {
+                    sendModelInput(bindPath, {kind: ValueKind.String, string: fromUrl}, `query-param:${nodeId}`);
+                }
+                return;
+            }
+        }
+
+        if (!hasParam && options?.sendMissing === false) {
+            queryParamUrlValuesRef.current[key] = fromUrl;
+            return;
+        }
+
+        if (previousUrl !== fromUrl) {
+            queryParamUrlValuesRef.current[key] = fromUrl;
+            if (fromUrl === bound) return;
+            sendModelInput(bindPath, {kind: ValueKind.String, string: fromUrl}, `query-param:${nodeId}`);
+            return;
+        }
+
+        if (fromUrl === bound) return;
+
+        if (options?.writeToUrl === false) return;
+
+        const removeWhenEmpty = options?.removeWhenEmpty ?? true;
+        if (bound === "" && removeWhenEmpty && params.has(key)) {
+            params.delete(key);
+        } else if (bound !== "" && params.get(key) !== bound) {
+            for (const clearKey of options?.clearKeys ?? []) {
+                if (clearKey !== key) params.delete(clearKey);
+            }
+            params.set(key, bound);
+        } else {
+            return;
+        }
+
+        const search = params.toString();
+        queryParamUrlValuesRef.current[key] = bound;
+        const replace = options?.replace ?? (!hasParam && previousUrl === "");
+        navigate({
+            pathname: location.pathname,
+            search: search ? `?${search}` : "",
+            hash: location.hash,
+        }, {replace});
+    }, [location.hash, location.pathname, location.search, navigate, sendModelInput]);
+
     const buildSpaHref = useCallback((to: string) => {
         const params = new URLSearchParams(location.search);
         params.set("p", to ?? "");
@@ -299,13 +394,14 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
         sendUiEvent,
         sendModelInput,
         registerRouter,
+        registerQueryParam,
         navigateSpa,
         buildSpaHref,
         currentRoutePath,
         invokeRpc,
         modelValue,
         sxStyle,
-    }), [buildSpaHref, currentRoutePath, invokeRpc, navigateSpa, registerRouter, sendBoundInput, sendModelInput, sendUiEvent]);
+    }), [buildSpaHref, currentRoutePath, invokeRpc, navigateSpa, registerQueryParam, registerRouter, sendBoundInput, sendModelInput, sendUiEvent]);
 
     useEffect(() => {
         const bindPath = activeRouterBindPathRef.current;
@@ -322,6 +418,9 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
 
     const resendModelAfterReconnect = useCallback((snapshot: Record<string, Value>, mount: {root: UiNode}) => {
         const bindPaths = collectInputBindPaths(mount.root);
+        for (const path of rehydrateModelPaths ?? []) {
+            bindPaths.add(path);
+        }
         if (bindPaths.size === 0) {
             return;
         }
@@ -344,7 +443,7 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
                 },
             });
         }
-    }, [sendFrame]);
+    }, [rehydrateModelPaths, sendFrame]);
 
     useEffect(() => {
         let disposed = false;
@@ -405,7 +504,7 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
                 if (socket.readyState !== WebSocket.OPEN) {
                     return;
                 }
-                socket.send(bytes);
+                socket.send(bytes as Uint8Array<ArrayBuffer>);
             });
 
             socket.onopen = () => {
@@ -575,6 +674,11 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
             transportError,
             reconnectingInSeconds,
             content,
+            mounted: root != null,
+            root,
+            model,
+            fn: mergedFunctions,
+            components: mergedComponents,
         })}</>;
     }
 
@@ -598,6 +702,7 @@ const NodeRenderer: React.FunctionComponent<{
         model,
         scope,
         fn,
+        components,
         renderChildren: (scopeOverride?: Record<string, Value>) => node.children.map(child =>
             <NodeRenderer
                 key={child.id}
@@ -621,6 +726,26 @@ const RouterNode: React.FunctionComponent<{
         if (!node.bindPath) return;
         fn.registerRouter(node.bindPath, node.id, model, scope);
     }, [fn, model, node.bindPath, node.id, scope]);
+
+    return null;
+};
+
+const QueryParamNode: React.FunctionComponent<{
+    node: UiNode;
+    model: Record<string, Value>;
+    scope?: Record<string, Value>;
+    fn: UcxFunctionRegistry;
+}> = ({node, model, scope, fn}) => {
+    useEffect(() => {
+        if (!node.bindPath) return;
+        fn.registerQueryParam(node.bindPath, node.id, stringProp(node, "key", ""), model, scope, {
+            replace: boolProp(node, "replace", false),
+            removeWhenEmpty: boolProp(node, "removeWhenEmpty", true),
+            sendMissing: boolProp(node, "sendMissing", true),
+            writeToUrl: boolProp(node, "writeToUrl", true),
+            clearKeys: stringListProp(node, "clearKeys"),
+        });
+    }, [fn, model, node.bindPath, node.id, node.props, scope]);
 
     return null;
 };
@@ -665,6 +790,7 @@ const baseComponents: UcxComponentRegistry = {
         </div>;
     },
     router: ({node, model, scope, fn}) => <RouterNode node={node} model={model} scope={scope} fn={fn} />,
+    query_param: ({node, model, scope, fn}) => <QueryParamNode node={node} model={model} scope={scope} fn={fn} />,
     link: ({node, fn, renderChildren}) => {
         const to = optionalStringProp(node, "to");
         if (to == null) return null;
@@ -713,14 +839,14 @@ const baseComponents: UcxComponentRegistry = {
         if (!text) return null;
         return <ReactMarkdown
             components={{
-                a: MarkdownLink,
-                h1: MarkdownHeading,
-                h2: MarkdownHeading,
-                h3: MarkdownHeading,
-                h4: MarkdownHeading,
-                h5: MarkdownHeading,
-                h6: MarkdownHeading,
-                pre: CodeSnippet,
+                a: p => <MarkdownLink children={p.children} />,
+                h1: p => <MarkdownHeading children={p.children} />,
+                h2: p => <MarkdownHeading children={p.children} />,
+                h3: p => <MarkdownHeading children={p.children} />,
+                h4: p => <MarkdownHeading children={p.children} />,
+                h5: p => <MarkdownHeading children={p.children} />,
+                h6: p => <MarkdownHeading children={p.children} />,
+                pre: p => <CodeSnippet children={p.children} maxHeight="" />,
             }}
             allowedElements={["h1", "h2", "h3", "h4", "h5", "h6", "br", "a", "p", "strong", "b", "i", "em", "ul", "ol", "li", "pre", "code"]}
             children={text as string}
@@ -906,7 +1032,7 @@ const baseComponents: UcxComponentRegistry = {
         </Flex>;
     },
     divider: ({node, fn}) => <Divider />,
-    spinner: ({node}) => <HexSpin size={numberProp(node, "size", 32)} margin={optionalStringProp(node, "margin")} />,
+    spinner: ({node}) => <UcxSpinner size={numberProp(node, "size", 32)} margin={optionalStringProp(node, "margin")} />,
     table: ({node, model, scope, fn}) => {
         const rows = modelList(model, node.bindPath, scope)
             .filter(it => it.kind === ValueKind.Object)
@@ -930,24 +1056,34 @@ const baseComponents: UcxComponentRegistry = {
             </Table>
         </div>;
     },
-    tabs: ({node, renderChildren, fn}) => {
-        const renderedChildren = React.Children.toArray(renderChildren());
+    tabs: ({node, model, scope, fn, components}) => {
+        const tabChildren = node.children.filter(child => !boolProp(child, "rightControls", false));
+        const rightControlChildren = node.children.filter(child => boolProp(child, "rightControls", false));
+        const renderedChildren = tabChildren.map(child => <NodeRenderer
+            key={child.id}
+            node={child}
+            model={model}
+            scope={scope}
+            fn={fn}
+            components={components}
+        />);
         const bindToRoute = boolProp(node, "bindToRoute", false);
-        const routeKeys = node.children.map((child, idx) => tabRouteKey(child, idx));
+        const routeKeys = tabChildren.map((child, idx) => tabRouteKey(child, idx));
         const selectedIndex = bindToRoute ? Math.max(0, routeKeys.indexOf(fn.currentRoutePath)) : undefined;
 
-        useEffect(() => {
-            if (!bindToRoute || routeKeys.length === 0) return;
-            const selectedRoute = routeKeys[selectedIndex ?? 0] ?? "";
-            if (selectedRoute !== "" && selectedRoute !== fn.currentRoutePath) {
-                fn.navigateSpa(selectedRoute, node.id);
-            }
-        }, [bindToRoute, fn, node.id, routeKeys, selectedIndex]);
+        const rightControls = rightControlChildren.length === 0 ? undefined : rightControlChildren.map(child => <NodeRenderer
+            key={child.id}
+            node={child}
+            model={model}
+            scope={scope}
+            fn={fn}
+            components={components}
+        />);
 
-        return <TabbedCard style={fn.sxStyle(node)} activeIndex={selectedIndex} onTabChange={bindToRoute ? idx => {
+        return <TabbedCard style={fn.sxStyle(node)} rightControls={rightControls} activeIndex={selectedIndex} onTabChange={bindToRoute ? idx => {
             fn.navigateSpa(routeKeys[idx] ?? "", node.id);
         } : undefined}>
-            {node.children.map((child, idx) =>
+            {tabChildren.map((child, idx) =>
                 <TabbedCardTab
                     key={child.id}
                     name={stringProp(child, "name", `Tab ${idx + 1}`)}
@@ -1438,6 +1574,12 @@ function optionalStringProp(node: UiNode, key: string): string | undefined {
     return undefined;
 }
 
+function stringListProp(node: UiNode, key: string): string[] {
+    const value = prop(node, key);
+    if (!value || value.kind !== ValueKind.List) return [];
+    return value.list.flatMap(item => item.kind === ValueKind.String ? [item.string] : []);
+}
+
 function simpleOptionsProp(node: UiNode, key: string): {key: string; value: string}[] {
     const raw = prop(node, key);
     if (!raw || raw.kind !== ValueKind.List) {
@@ -1485,6 +1627,8 @@ function displayValue(value: Value | undefined): string {
             return `[${value.list.map(displayValue).join(", ")}]`;
         case ValueKind.Object:
             return "[object]";
+        case ValueKind.Binary:
+            return `[binary ${value.binary.length} bytes]`;
     }
 }
 
@@ -1591,7 +1735,8 @@ const MachineTypeSelectorNode: React.FunctionComponent<{
 
     const loading = wallets.loading || products.loading || machineSupport.loading;
 
-    const onSelect = useCallback((product: ProductV2) => {
+    const onSelect = useCallback((product: ProductV2 | null) => {
+        if (!product) return;
         if (product.productType !== "COMPUTE") {
             return;
         }
@@ -1839,11 +1984,11 @@ const FieldLabel = ({children, onClick}: React.PropsWithChildren<{onClick?: Reac
     return <div onClick={onClick} style={{fontWeight: 600, marginTop: "6px", cursor: onClick ? "pointer" : undefined}}>{children}</div>;
 };
 
-function MarkdownLink(props: {href?: string; children: React.ReactNode & React.ReactNode[]}) {
+function MarkdownLink(props: {href?: string; children: React.ReactNode}) {
     return <ExternalLink href={props.href}>{props.children}</ExternalLink>;
 }
 
-function MarkdownHeading(props: {children: React.ReactNode & React.ReactNode[]}) {
+function MarkdownHeading(props: {children: React.ReactNode}) {
     return <Heading.h4>{props.children}</Heading.h4>;
 }
 

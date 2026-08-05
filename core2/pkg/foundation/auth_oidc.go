@@ -3,6 +3,7 @@ package foundation
 import (
 	"fmt"
 	"net/http"
+	strings "strings"
 	"sync"
 	"time"
 
@@ -155,10 +156,27 @@ func initAuthOidc() {
 			response := IdpResponse{
 				Idp:        1,
 				Identity:   claimJson.PreferredUsername,
-				FirstNames: util.OptValue(claimJson.FirstNames),
-				LastName:   util.OptValue(claimJson.LastName),
+				FirstNames: util.OptStringIfNotEmpty(claimJson.FirstNames),
+				LastName:   util.OptStringIfNotEmpty(claimJson.LastName),
 				OrgId:      util.OptStringIfNotEmpty(claimJson.HomeOrganization),
 				Email:      util.OptStringIfNotEmpty(claimJson.Email),
+			}
+
+			if !response.FirstNames.Present && claimJson.GivenName != "" {
+				response.FirstNames.Set(strings.Split(claimJson.GivenName, " ")[0])
+			}
+			if !response.LastName.Present && claimJson.GivenName != "" {
+				names := strings.Split(claimJson.GivenName, " ")
+				if len(names) > 1 {
+					response.LastName.Set(names[len(names)-1])
+				}
+			}
+
+			if !response.FirstNames.Present && response.Email.Present {
+				atIdx := strings.Index(response.Email.Value, "@")
+				if atIdx > 0 {
+					response.FirstNames.Set(response.Email.Value[:atIdx])
+				}
 			}
 
 			// TODO Clean this up

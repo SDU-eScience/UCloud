@@ -13,6 +13,7 @@ import {
     InvokeCommand
 } from "@/Authentication/DataHook";
 import {Operation, ShortcutKey} from "@/ui-components/Operation";
+import type {ResourceBrowserActions} from "@/ui-components/Actions";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {ResourcePermissionEditor} from "@/Resource/PermissionEditor";
 import {doNothing, errorMessageOrDefault} from "@/UtilityFunctions";
@@ -25,7 +26,7 @@ import {Product, ProductType, ProductV2} from "@/Accounting";
 import {NavigateFunction} from "react-router-dom";
 import {fetchAll} from "@/Utilities/PageUtilities";
 import * as Accounting from "@/Accounting";
-import {EmbeddedSettings} from "@/ui-components/ResourceBrowser";
+import type {EmbeddedSettings} from "@/ui-components/ResourceBrowser";
 
 import {MainContainer} from "@/ui-components";
 import {sendFailureNotification} from "@/Notifications";
@@ -156,11 +157,16 @@ export function findSupport<S extends ProductSupport = ProductSupport>(
         ?.find(it => it.product.name === ref.id && it.product.category.name === ref.category) ?? null as any;
 }
 
-export interface ResourceBrowseCallbacks<Res extends Resource> {
+export type AnyResourceApi<Res extends Resource, Prod extends Product = Product,
+    Spec extends ResourceSpecification = ResourceSpecification> =
+    ResourceApi<Res, Prod, Spec, any, any, any, any, any>;
+
+export interface ResourceBrowseCallbacks<Res extends Resource, Prod extends Product = Product, Spec extends ResourceSpecification = ResourceSpecification> {
     commandLoading: boolean;
     invokeCommand: InvokeCommand;
+    isModal?: boolean;
     reload: () => void;
-    api: ResourceApi<Res, never>;
+    api: AnyResourceApi<Res, Prod, Spec>;
     isCreating: boolean;
     startCreation?: () => void;
     cancelCreation?: () => void;
@@ -177,13 +183,23 @@ export interface ResourceBrowseCallbacks<Res extends Resource> {
     creationDisabled?: boolean;
 }
 
+export type ResourceActionCallbacks<Res extends Resource, Prod extends Product = Product,
+    Callbacks extends ResourceBrowseCallbacks<Res, Prod> = ResourceBrowseCallbacks<Res, Prod>> =
+    Callbacks & {all: Res[]};
+
+export type ResourceApiActions<Res extends Resource, Prod extends Product = Product,
+    Callbacks extends ResourceBrowseCallbacks<Res, Prod> = ResourceBrowseCallbacks<Res, Prod>> =
+    Operation<Res, Callbacks>[] |
+    ResourceBrowserActions<Res, ResourceActionCallbacks<Res, Prod, Callbacks>>;
+
 export abstract class ResourceApi<Res extends Resource,
     Prod extends Product,
     Spec extends ResourceSpecification = ResourceSpecification,
     Update extends ResourceUpdate = ResourceUpdate,
     Flags extends ResourceIncludeFlags = ResourceIncludeFlags,
     Status extends ResourceStatus = ResourceStatus,
-    Support extends ProductSupport = ProductSupport> {
+    Support extends ProductSupport = ProductSupport,
+    Callbacks extends ResourceBrowseCallbacks<Res, Prod> = ResourceBrowseCallbacks<Res, Prod>> {
     protected namespace: string;
     protected baseContext: string;
 
@@ -224,7 +240,7 @@ export abstract class ResourceApi<Res extends Resource,
         resource?: Res;
         reload?: () => void;
         closeProperties?: () => void;
-        api: ResourceApi<Res, Prod, Spec, Update, Flags, Status, Support>;
+        api: AnyResourceApi<Res, Prod, Spec>;
         embedded?: EmbeddedSettings;
     }> = props => <MainContainer main={<ResourceProperties {...props} api={this} />} />
 
@@ -233,7 +249,7 @@ export abstract class ResourceApi<Res extends Resource,
         this.baseContext = "/api/" + namespace.replace(".", "/") + "/";
     }
 
-    public retrieveOperations(): Operation<Res, ResourceBrowseCallbacks<Res>>[] {
+    public retrieveOperations(): Operation<Res, Callbacks>[] {
         return [
             {
                 text: "Back to " + this.titlePlural.toLowerCase(),
@@ -336,6 +352,10 @@ export abstract class ResourceApi<Res extends Resource,
         ];
     }
 
+    public retrieveActions(): ResourceApiActions<Res, Prod, Callbacks> {
+        return this.retrieveOperations();
+    }
+
     public get titlePlural(): string {
         if (this.title.endsWith("s")) return this.title + "es";
         return this.title + "s";
@@ -385,4 +405,3 @@ export const UCLOUD_CORE = "ucloud_core";
 export function placeholderProduct(): {id: "", category: "", provider: string} {
     return {"id": "", "category": "", "provider": UCLOUD_CORE};
 }
-

@@ -25,6 +25,15 @@ type KubernetesFileSystem struct {
 	TrashStagingArea string
 	ClaimName        string
 	ScanMethod       KubernetesFileSystemScanMethod
+	MetadataCatalog  KubernetesMetadataCatalog
+}
+
+type KubernetesMetadataCatalog struct {
+	Enabled           bool
+	EnableIntegration bool
+	IOPS              int
+	ParallelScans     int
+	EntriesPerSSTable int
 }
 
 type KubernetesFileSystemScanMethod struct {
@@ -122,8 +131,38 @@ type KubernetesSyncthingConfiguration struct {
 
 type KubernetesInferenceConfiguration struct {
 	Enabled             bool
+	Provider            KubernetesInferenceProvider
 	BackendServer       string
 	DevelopmentProvider string
+	Development         KubernetesInferenceDevelopmentConfiguration
+	Dynamo              KubernetesInferenceDynamoConfiguration
+	Access              KubernetesInferenceAccessConfiguration
+}
+
+type KubernetesInferenceProvider string
+
+const (
+	KubernetesInferenceProviderDevelopment KubernetesInferenceProvider = "development"
+	KubernetesInferenceProviderDynamo      KubernetesInferenceProvider = "dynamo"
+)
+
+var KubernetesInferenceProviderOptions = []KubernetesInferenceProvider{
+	KubernetesInferenceProviderDevelopment,
+	KubernetesInferenceProviderDynamo,
+}
+
+type KubernetesInferenceDevelopmentConfiguration struct {
+	Provider string
+	Server   string
+}
+
+type KubernetesInferenceDynamoConfiguration struct {
+	Namespace string
+}
+
+type KubernetesInferenceAccessConfiguration struct {
+	Administrators []string
+	Testers        []string
 }
 
 type KubernetesUcxDevelopmentApp struct {
@@ -134,6 +173,7 @@ type KubernetesUcxDevelopmentApp struct {
 
 type KubernetesUcxConfiguration struct {
 	Development []KubernetesUcxDevelopmentApp `json:"development" yaml:"development"`
+	Publish     map[string][]string           `json:"publish" yaml:"publish"`
 }
 
 type KubernetesCompute struct {
@@ -290,6 +330,35 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 		} else {
 			cfg.FileSystem.ScanMethod.Type = K8sScanMethodTypeWalk
 		}
+
+		metadataNode, _ := cfgutil.GetChildOrNil(filePath, fsNode, "metadataCatalog")
+		cfg.FileSystem.MetadataCatalog.Enabled = util.DevelopmentModeEnabled()
+		cfg.FileSystem.MetadataCatalog.EnableIntegration = util.DevelopmentModeEnabled()
+		cfg.FileSystem.MetadataCatalog.IOPS = 45_000
+		cfg.FileSystem.MetadataCatalog.ParallelScans = 8
+		cfg.FileSystem.MetadataCatalog.EntriesPerSSTable = 1024 * 16
+		if metadataNode != nil {
+			if enabled, ok := cfgutil.OptionalChildBool(filePath, metadataNode, "enabled"); ok {
+				cfg.FileSystem.MetadataCatalog.Enabled = enabled
+			}
+			if enabled, ok := cfgutil.OptionalChildBool(filePath, metadataNode, "enableIntegration"); ok {
+				cfg.FileSystem.MetadataCatalog.EnableIntegration = enabled
+			}
+			cfg.FileSystem.MetadataCatalog.IOPS = int(cfgutil.OptionalChildInt(
+				filePath, metadataNode, "iops", &success,
+			).GetOrDefault(int64(cfg.FileSystem.MetadataCatalog.IOPS)))
+			cfg.FileSystem.MetadataCatalog.ParallelScans = int(cfgutil.OptionalChildInt(
+				filePath, metadataNode, "parallelScans", &success,
+			).GetOrDefault(int64(cfg.FileSystem.MetadataCatalog.ParallelScans)))
+			cfg.FileSystem.MetadataCatalog.EntriesPerSSTable = int(cfgutil.OptionalChildInt(
+				filePath, metadataNode, "entriesPerSSTable", &success,
+			).GetOrDefault(int64(cfg.FileSystem.MetadataCatalog.EntriesPerSSTable)))
+		}
+		if cfg.FileSystem.MetadataCatalog.IOPS <= 0 || cfg.FileSystem.MetadataCatalog.ParallelScans < 2 ||
+			cfg.FileSystem.MetadataCatalog.EntriesPerSSTable < 10_000 {
+			cfgutil.ReportError(filePath, fsNode, "metadataCatalog requires positive iops, at least 2 parallelScans, and at least 10000 entriesPerSSTable")
+			success = false
+		}
 	}
 
 	computeNode := cfgutil.RequireChild(filePath, services, "compute", &success)
@@ -335,21 +404,84 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 		if developmentNode != nil {
 			cfgutil.Decode(filePath, developmentNode, &cfg.Compute.Ucx.Development, &success)
 		}
+
+		publishNode, _ := cfgutil.GetChildOrNil(filePath, ucxNode, "publish")
+		if publishNode != nil {
+			cfgutil.Decode(filePath, publishNode, &cfg.Compute.Ucx.Publish, &success)
+		}
 	}
 
 	inferenceNode, _ := cfgutil.GetChildOrNil(filePath, computeNode, "inference")
 	if inferenceNode != nil {
 		cfg.Compute.Inference.Enabled = cfgutil.RequireChildBool(filePath, inferenceNode, "enabled", &success)
 		if cfg.Compute.Inference.Enabled {
-			backendServer := cfgutil.OptionalChildText(filePath, inferenceNode, "backendServer", &success)
-			if backendServer == "" {
-				cfgutil.ReportError(filePath, inferenceNode, "'services.compute.inference.backendServer' must be set when inference is enabled")
+			provider := KubernetesInferenceProvider(cfgutil.OptionalChildText(filePath, inferenceNode, "provider", &success))
+			if provider == "" {
+				provider = KubernetesInferenceProviderDevelopment
+			}
+			if provider != KubernetesInferenceProviderDevelopment && provider != KubernetesInferenceProviderDynamo {
+				cfgutil.ReportError(filePath, inferenceNode, "expected 'services.compute.inference.provider' to be one of %v", KubernetesInferenceProviderOptions)
 				success = false
-			} else {
-				cfg.Compute.Inference.BackendServer = backendServer
+			}
+			cfg.Compute.Inference.Provider = provider
+
+			accessNode, _ := cfgutil.GetChildOrNil(filePath, inferenceNode, "access")
+			if accessNode != nil {
+				administratorsNode, _ := cfgutil.GetChildOrNil(filePath, accessNode, "administrators")
+				if administratorsNode != nil {
+					cfgutil.Decode(filePath, administratorsNode, &cfg.Compute.Inference.Access.Administrators, &success)
+				}
+
+				testersNode, _ := cfgutil.GetChildOrNil(filePath, accessNode, "testers")
+				if testersNode != nil {
+					cfgutil.Decode(filePath, testersNode, &cfg.Compute.Inference.Access.Testers, &success)
+				}
+
+				for _, admin := range cfg.Compute.Inference.Access.Administrators {
+					found := false
+					for _, tester := range cfg.Compute.Inference.Access.Testers {
+						if tester == admin {
+							found = true
+							break
+						}
+					}
+					if !found {
+						cfg.Compute.Inference.Access.Testers = append(cfg.Compute.Inference.Access.Testers, admin)
+					}
+				}
 			}
 
-			cfg.Compute.Inference.DevelopmentProvider = cfgutil.OptionalChildText(filePath, inferenceNode, "developmentProvider", &success)
+			switch provider {
+			case KubernetesInferenceProviderDevelopment:
+				developmentNode, _ := cfgutil.GetChildOrNil(filePath, inferenceNode, "development")
+				if developmentNode != nil {
+					cfg.Compute.Inference.Development.Provider = cfgutil.RequireChildText(filePath, developmentNode, "provider", &success)
+					cfg.Compute.Inference.Development.Server = cfgutil.RequireChildText(filePath, developmentNode, "server", &success)
+				} else {
+					cfg.Compute.Inference.Development.Provider = cfgutil.OptionalChildText(filePath, inferenceNode, "developmentProvider", &success)
+					cfg.Compute.Inference.Development.Server = cfgutil.OptionalChildText(filePath, inferenceNode, "backendServer", &success)
+					if cfg.Compute.Inference.Development.Server == "" {
+						cfgutil.ReportError(filePath, inferenceNode, "'services.compute.inference.development.server' must be set when development inference is enabled")
+						success = false
+					}
+				}
+
+				if cfg.Compute.Inference.Development.Provider == "" {
+					cfgutil.ReportError(filePath, inferenceNode, "'services.compute.inference.development.provider' must be set when development inference is enabled")
+					success = false
+				}
+				cfg.Compute.Inference.BackendServer = cfg.Compute.Inference.Development.Server
+				cfg.Compute.Inference.DevelopmentProvider = cfg.Compute.Inference.Development.Provider
+
+			case KubernetesInferenceProviderDynamo:
+				dynamoNode, _ := cfgutil.GetChildOrNil(filePath, inferenceNode, "dynamo")
+				if dynamoNode == nil {
+					cfgutil.ReportError(filePath, inferenceNode, "'services.compute.inference.dynamo' must be set when Dynamo inference is enabled")
+					success = false
+				} else {
+					cfg.Compute.Inference.Dynamo.Namespace = cfgutil.RequireChildText(filePath, dynamoNode, "namespace", &success)
+				}
+			}
 		}
 	}
 
@@ -575,7 +707,7 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 				success = false
 			}
 
-			if success && portMin < portMin {
+			if success && portMax < portMin {
 				cfgutil.ReportError(filePath, sshNode, "portMax is less than portMin")
 				success = false
 			}

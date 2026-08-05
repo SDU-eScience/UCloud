@@ -1,23 +1,23 @@
 import {Client} from "@/Authentication/HttpClientInstance";
-import {SetStatusLoading} from "@/Navigation/Redux";
 import * as React from "react";
 import {Button, Divider, ExternalLink, Flex, Input} from "@/ui-components";
 import Box from "@/ui-components/Box";
 import * as Heading from "@/ui-components/Heading";
 import {TwoFactorSetupState} from "./settingsApi";
 import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
-import {SettingsSection} from "./SettingsComponents";
+import {SettingsSection} from "@/ui-components/SettingsComponents";
 
 import googlePlay from "@/Assets/Images/google-play-badge.png";
 import appStore from "@/Assets/Images/app-store-badge.png";
 import {sendFailureNotification} from "@/Notifications";
+import {setStatusLoading} from "@/Navigation/Redux";
 
 interface TwoFactorSetupProps {
     loading: boolean;
     mustActivate2fa: boolean;
 }
 
-export class TwoFactorSetup extends React.Component<SetStatusLoading & TwoFactorSetupProps, TwoFactorSetupState> {
+export class TwoFactorSetup extends React.Component<{setLoading: (loading: boolean) => void;} & TwoFactorSetupProps, TwoFactorSetupState> {
     public state = TwoFactorSetup.initialState();
 
     public componentDidMount() {
@@ -33,7 +33,6 @@ export class TwoFactorSetup extends React.Component<SetStatusLoading & TwoFactor
                     </Heading.h3>
                 ) : null}
                 <b>{this.displayConnectedStatus()}</b>
-                <Divider />
                 {!this.state.isConnectedToAccount ? this.setupPage() : undefined}
             </SettingsSection>
         );
@@ -44,7 +43,7 @@ export class TwoFactorSetup extends React.Component<SetStatusLoading & TwoFactor
         try {
             const res = await Client.get("2fa/status", "/auth");
             this.setState(() => ({isConnectedToAccount: res.response.connected}));
-        } catch (res) {
+        } catch (res: any) {
             const why: string = res.response.why ?? "";
             sendFailureNotification(`Could not fetch 2FA status. ${why}`);
         } finally {
@@ -194,7 +193,7 @@ export class TwoFactorSetup extends React.Component<SetStatusLoading & TwoFactor
             await Client.invalidateAccessToken();
 
             this.setState(() => ({isConnectedToAccount: true}));
-        } catch (res) {
+        } catch (res: any) {
             const response = res.response;
             const why: string = response?.why ?? "Could not submit verification code. Try again later";
             sendFailureNotification(why);

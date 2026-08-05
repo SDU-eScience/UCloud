@@ -634,7 +634,7 @@ class Simple implements UBinaryType {
     }
 
     encodeToJson() {
-        return { fie: this.fie, hund: this.hund, enumeration: TopCompanion.serialName(this.enumeration) }
+        return {fie: this.fie, hund: this.hund, enumeration: TopCompanion.serialName(this.enumeration)}
     }
 
     static create(
@@ -698,7 +698,7 @@ function useAllocator<R>(block: (allocator: BinaryAllocator) => R): R {
     return block(allocator);
 }
 
-export function loadMessage<T>(ctor: { new(b: BufferAndOffset): T }, view: DataView) {
+export function loadMessage<T>(ctor: {new(b: BufferAndOffset): T}, view: DataView) {
     const alloc = BinaryAllocator.fromView(view);
     return new ctor(alloc.root());
 }
@@ -714,7 +714,7 @@ export function messageTest() {
     });
 
     useAllocator(alloc => {
-        const decoded = SimpleCompanion.decodeFromJson(alloc, { fie: 1337, hund: "gamer", enumeration: "Eyepatch" });
+        const decoded = SimpleCompanion.decodeFromJson(alloc, {fie: 1337, hund: "gamer", enumeration: "Eyepatch"});
         console.log(decoded.encodeToJson());
         console.log(alloc.slicedBuffer());
     })

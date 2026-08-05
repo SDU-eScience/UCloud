@@ -156,7 +156,8 @@ export class HttpClient {
                         accessTokenOverride === undefined ? `Bearer ${token}` : `Bearer ${accessTokenOverride}`
                     );
 
-                    const signedIntent = signIntentToCall(this.username ?? "", this.projectId ?? null, params);
+                    const requestProjectId = projectOverride ?? this.projectId;
+                    const signedIntent = signIntentToCall(this.username ?? "", requestProjectId || null, params);
                     if (signedIntent !== null) {
                         req.setRequestHeader("UCloud-Signed-Intent", signedIntent);
                     }
@@ -215,7 +216,7 @@ export class HttpClient {
                     req.send();
                 }
             });
-        } catch (e) {
+        } catch (e: any) {
             console.warn(e);
             if (!this.isPublicPage) {
                 if (nextAllowedFailureNotificationTS < new Date().getTime()) {
@@ -411,7 +412,7 @@ export class HttpClient {
                             } else {
                                 reject(req.response);
                             }
-                        } catch (e) {
+                        } catch (e: any) {
                             reject(e.response);
                         }
                     };
@@ -474,7 +475,7 @@ export class HttpClient {
                         }
                         reject({status: req.status, response: req.response});
                     }
-                } catch (e) {
+                } catch (e: any) {
                     reject({status: e.status, response: e.response});
                 }
             };
@@ -546,7 +547,7 @@ export class HttpClient {
                 return;
             }
             throw Error("The server was unreachable, please try again later.");
-        } catch (err) {
+        } catch (err: any) {
             sendFailureNotification(err.message);
         }
     }

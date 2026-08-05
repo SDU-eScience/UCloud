@@ -47,7 +47,7 @@ export interface ClickableDropdownProps<T> {
     /**
      * Requires `arrowkeyNavigationKey` to be set or that `props.children` are provided.
      **/
-    onSelect?: (el: HTMLElement | undefined) => void;
+    onSelect?: (el: Element | undefined) => void;
 
     chevron?: boolean;
     overflow?: string;
@@ -135,7 +135,7 @@ function ClickableDropdown<T>({
     const handleKeyPress: (ev: KeyboardEvent) => void = useCallback((event): void => {
         if (props.arrowkeyNavigationKey) {
             const navigationKey = props.arrowkeyNavigationKey ?? "data-active";
-            _onKeyDown(event, divRef, counter, navigationKey, props.onSelect, props.hoverColor ?? "primaryLight")
+            _onKeyDown(event, divRef, counter, navigationKey, props.hoverColor ?? "primaryLight", props.onSelect)
         }
 
         if (event.key === "Escape" && open) {
@@ -226,7 +226,8 @@ function ClickableDropdown<T>({
         const screenWidth = window.innerWidth;
 
         let x = parseInt((left ?? "0")?.toString().replace("px", ""));
-        if (isNaN(x)) x = 0;
+        const hasNumericX = !isNaN(x);
+        if (!hasNumericX) x = 0;
 
         let y = parseInt((top ?? dropdownRef.current?.getBoundingClientRect().y ?? "0")?.toString().replace("px", ""));
         if (isNaN(y)) y = 0;
@@ -237,8 +238,14 @@ function ClickableDropdown<T>({
             heightAsNumber = Math.max(props.height, heightAsNumber);
         }
 
-        if (x + widthAsNumber >= screenWidth) {
-            left = x - widthAsNumber;
+        if (hasNumericX && !isNaN(widthAsNumber)) {
+            if (x + widthAsNumber >= screenWidth) {
+                left = x - widthAsNumber;
+            }
+
+            if (x < 8) {
+                left = 8;
+            }
         }
 
         if (props.height) {
@@ -300,6 +307,8 @@ function extractLeftAlignedPosition(el: HTMLDivElement | null, width: string | n
     if (!el) return null;
     const rect = el.getBoundingClientRect();
     if (width === undefined || width === "100%") return rect.x + "px";
+    const widthAsNumber = typeof width === "number" ? width : parseInt(width.replace("px", ""));
+    if (!isNaN(widthAsNumber)) return `${rect.x + rect.width - widthAsNumber}px`;
     return `calc(${rect.x + rect.width}px - ${width})`;
 }
 
@@ -308,11 +317,11 @@ export default ClickableDropdown;
 
 function _onKeyDown(
     e: KeyboardEvent,
-    wrapper: React.RefObject<HTMLDivElement | null>,
+    wrapper: React.RefObject<Element | null>,
     index: React.RefObject<number>,
     entryKey: string,
-    onSelect: ((el: Element | undefined) => void) | undefined,
     hoverColor: ThemeColor,
+    onSelect?: ((el: Element | undefined) => void),
 ) {
     if (!wrapper.current) return;
     const isUp = e.key === "ArrowUp";

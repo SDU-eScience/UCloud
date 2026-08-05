@@ -4,27 +4,85 @@ import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
 import {RichSelect, RichSelectChildComponent} from "@/ui-components/RichSelect";
 import {classConcat, injectStyle} from "@/Unstyled";
+import {ShortcutKey} from "@/ui-components/Operation";
+import {Shortcut} from "@/ui-components/ResourceBrowser";
 
-export type VmPowerTone = "success" | "warning" | "neutral";
+export type VmPowerTone = "success" | "warning" | "neutral" | "none";
 
 export interface VmActionItem {
     key: string;
     value: string;
     icon: IconName;
     color: ThemeColor;
+    shortcut?: ShortcutKey;
+}
+
+function extractShortcutKey(shortcut: ShortcutKey): string {
+    const splitted = shortcut?.split("Key");
+    if (splitted.length === 1) return shortcut; // Backspace or Enter
+    if (splitted.length === 2) return splitted[1];
+    return "";
 }
 
 export const VmActionRow: RichSelectChildComponent<VmActionItem> = ({element, onSelect, dataProps}) => {
     if (!element) return null;
     return <Box p="8px" onClick={onSelect} {...dataProps}>
-        <Flex gap="8px" alignItems="center">
+        <Flex alignItems="center" gap="8px">
             <Icon name={element.icon} color={element.color} />
             <span>{element.value}</span>
+            {element.shortcut ? <ShortcutTable shortcut={<Shortcut alt name={""} keys={[extractShortcutKey(element.shortcut)]}></Shortcut>} /> : <></>}
         </Flex>
-    </Box>;
+    </Box>
 };
 
-export const SplitDropdownTrigger = injectStyle("split-dropdown-trigger", k => `
+function getDefaultToneLook(tone: VmPowerTone): string {
+    if (tone === "none") {
+        return SecondarySplitDropdownTrigger;
+    }
+    return PrimarySplitDropdownTrigger;
+
+}
+
+export const SecondarySplitDropdownTrigger = injectStyle("secondary-split-dropdown-trigger", k => `
+    ${k} {
+        position: relative;
+        width: 35px;
+        height: 35px;
+        border-radius: 8px;
+        user-select: none;
+        -webkit-user-select: none;
+        background: var(--secondaryMain);
+        padding: 6px;
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
+        border-left 1px;
+        cursor: pointer;
+    }
+
+    ${k}:hover {
+        background: var(--secondaryDark);
+    }
+
+    ${k}[data-disabled="true"] {
+        opacity: 0.25;
+        cursor: not-allowed;
+    }
+
+    ${k}[data-disabled="true"]:hover {
+        background: var(--secondaryMain);
+    }
+
+    ${k} > svg {
+        color: var(--secondaryContrast);
+        position: absolute;
+        bottom: 9px;
+        right: 10px;
+        height: 16px;
+    }
+`);
+
+
+export const PrimarySplitDropdownTrigger = injectStyle("primary-split-dropdown-trigger", k => `
     ${k} {
         position: relative;
         width: 35px;
@@ -98,17 +156,18 @@ const SuccessSplitDropdownTrigger = injectStyle("success-split-dropdown-trigger"
     }
 `);
 
-export const VmActionSplitButton: React.FunctionComponent<{
-    tone: VmPowerTone;
-    disabled: boolean;
-    buttonColor: ThemeColor;
-    buttonText: string;
-    buttonIcon: IconName;
-    onButtonClick: () => void;
-    menuItems: VmActionItem[];
-    onSelectMenuItem: (item: VmActionItem) => void;
-    dropdownWidth?: string;
-}> = ({
+function getToneLook(tone: VmPowerTone): string {
+    switch (tone) {
+        case "success":
+            return SuccessSplitDropdownTrigger;
+        case "warning":
+            return DangerSplitDropdownTrigger;
+        default:
+            return "";
+    }
+}
+
+export function VmActionSplitButton({
     tone,
     disabled,
     buttonColor,
@@ -116,22 +175,53 @@ export const VmActionSplitButton: React.FunctionComponent<{
     buttonIcon,
     onButtonClick,
     menuItems,
+    shortcut,
     onSelectMenuItem,
     dropdownWidth = "260px",
-}) => {
-    const powerDropdownClass =
-        tone === "success"
-            ? classConcat(SplitDropdownTrigger, SuccessSplitDropdownTrigger)
-            : tone === "warning"
-                ? classConcat(SplitDropdownTrigger, DangerSplitDropdownTrigger)
-                : SplitDropdownTrigger;
+}: {
+    tone: VmPowerTone;
+    disabled: boolean;
+    buttonColor: ThemeColor;
+    buttonText: string;
+    buttonIcon: IconName;
+    onButtonClick: () => void;
+    menuItems: VmActionItem[];
+    shortcut?: ShortcutKey;
+    onSelectMenuItem: (item: VmActionItem) => void;
+    dropdownWidth?: string;
+}): React.ReactNode {
+    const powerDropdownClass = classConcat(
+        getDefaultToneLook(tone),
+        getToneLook(tone)
+    );
+
+    // Adding shortcut keys if any
+    React.useEffect(() => {
+        const handleKeyDown = (ev: KeyboardEvent) => {
+            if (!ev.altKey) return;
+
+            if (shortcut && ev.code === shortcut && !disabled) {
+                ev.preventDefault();
+                onButtonClick();
+            }
+
+            const matchingItem = menuItems.find(item => item.shortcut === ev.code);
+            if (matchingItem && !disabled) {
+                ev.preventDefault();
+                onSelectMenuItem(matchingItem);
+            }
+        };
+
+        document.addEventListener("keydown", handleKeyDown);
+        return () => document.removeEventListener("keydown", handleKeyDown);
+    }, [shortcut, onButtonClick, menuItems, onSelectMenuItem, disabled]);
 
     return <Flex>
         <Button color={buttonColor} onClick={onButtonClick} disabled={disabled} attachedLeft>
             <Icon name={buttonIcon} mr="8px" />
             {buttonText}
+            {shortcut ? <Box ml="8px"><ShortcutTable shortcut={<Shortcut name="" alt keys={[extractShortcutKey(shortcut)]}></Shortcut>} /></Box> : null}
         </Button>
-
         <RichSelect
             items={menuItems}
             keys={["value"]}
@@ -149,3 +239,7 @@ export const VmActionSplitButton: React.FunctionComponent<{
         />
     </Flex>;
 };
+
+function ShortcutTable({shortcut}: {shortcut: React.ReactNode}): React.ReactNode {
+    return <Box ml="auto"><table><tbody>{shortcut}</tbody></table></Box>;
+}

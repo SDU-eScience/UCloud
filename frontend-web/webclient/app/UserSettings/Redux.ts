@@ -1,60 +1,45 @@
 import {Client} from "@/Authentication/HttpClientInstance";
-import {Action} from "redux";
-
 import {findAvatarQuery, saveAvatarQuery} from "@/Utilities/AvatarUtilities";
 import {errorMessageOrDefault} from "@/UtilityFunctions";
 import {initAvatar} from "@/DefaultObjects";
 import {AvatarType} from "@/AvataaarLib";
-import {PayloadAction} from "@reduxjs/toolkit";
-import {sendFailureNotification, sendNotification, sendSuccessNotification} from "@/Notifications";
+import {createSlice, Dispatch, PayloadAction} from "@reduxjs/toolkit";
+import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
 
-export type AvatarActions = SaveAvataaar | SetAvatarError;
-
-type SaveAvataaar = PayloadAction<{avatar: AvatarType, loading: true}, typeof AVATAR_SAVE>;
-function saveAvataaar(avatar: AvatarType): SaveAvataaar {
-    return {
-        type: AVATAR_SAVE,
-        payload: {avatar, loading: true}
-    };
-}
-
-export async function saveAvatar(avatar: AvatarType): Promise<SaveAvataaar | SetAvatarError> {
+export async function saveAvatar(dispatch: Dispatch, avatar: AvatarType): Promise<void> {
     try {
         await Client.post(saveAvatarQuery, avatar, undefined);
+        dispatch(avatarSave(avatar));
         sendSuccessNotification("Avatar updated");
-        return saveAvataaar(avatar);
     } catch (e) {
         sendFailureNotification(errorMessageOrDefault(e, "An error occurred saving the avatar"));
-        return setAvatarError();
     }
 }
 
-type SetAvatarError = Action<typeof AVATAR_ERROR>;
-export function setAvatarError(): SetAvatarError {
-    return {
-        type: AVATAR_ERROR,
-    };
-}
-
-export async function findAvatar(): Promise<SaveAvataaar | null> {
+export async function findAvatar(): Promise<ReturnType<typeof avatarSave> | null> {
     try {
         const res = await Client.get<AvatarType>(findAvatarQuery, undefined);
-        return saveAvataaar(res.response);
+        return avatarSave(res.response);
     } catch (e) {
         sendFailureNotification(`Fetching avatar: ${errorMessageOrDefault(e, "An error occurred fetching your avatar.")}`);
         return null;
     }
 }
 
-export const AVATAR_SAVE = "AVATAR_SAVE";
-export const AVATAR_ERROR = "AVATAR_ERROR";
-
-export const avatarReducer = (state: AvatarType = initAvatar(), action: AvatarActions) => {
-    switch (action.type) {
-        case AVATAR_SAVE:
-            return {...state, ...action.payload.avatar, loading: false};
-        case AVATAR_ERROR:
-        default:
-            return state;
+const avatarSlice = createSlice({
+    name: "avatar",
+    initialState: initAvatar(),
+    reducers: {
+        avatarSave(state, action: PayloadAction<AvatarType>) {
+            for (const key of Object.keys(action.payload)) {
+                state[key] = action.payload[key];
+            }
+        },
+        avatarError(state, action: PayloadAction<string>) {
+            state.error = action.payload;
+        }
     }
-};
+});
+
+export const {avatarError, avatarSave} = avatarSlice.actions;
+export const avatarReducer = avatarSlice.reducer;

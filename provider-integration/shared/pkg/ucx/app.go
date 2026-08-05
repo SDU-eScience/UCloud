@@ -61,6 +61,10 @@ func (s *Session) Incoming() <-chan Frame {
 	return s.incoming
 }
 
+func (s *Session) Context() context.Context {
+	return s.ctx
+}
+
 func (s *Session) nextSeq() int64 {
 	return atomic.AddInt64(&s.serverSeq, 1) - 1
 }
@@ -276,7 +280,6 @@ func RunAppWebSocket(conn *ws.Conn, ctx context.Context, authHandler SessionAuth
 	}()
 
 	go func() {
-		defer close(toWebsocket)
 		defer func() { done <- struct{}{} }()
 		session := NewSessionWithContext(ctx, toWebsocket, fromWebsocket)
 		handler(ctx, session)
@@ -322,7 +325,6 @@ func RunAppWebSocketApplication(conn *ws.Conn, ctx context.Context, app Applicat
 	}()
 
 	go func() {
-		defer close(toWebsocket)
 		defer func() { done <- struct{}{} }()
 
 		session := NewSessionWithContext(ctx, toWebsocket, fromWebsocket)

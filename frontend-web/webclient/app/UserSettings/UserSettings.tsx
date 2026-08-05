@@ -1,10 +1,7 @@
 import {Client} from "@/Authentication/HttpClientInstance";
-import {MainContainer} from "@/ui-components/MainContainer";
-import {setLoading, usePage} from "@/Navigation/Redux";
+import {setStatusLoading, usePage} from "@/Navigation/Redux";
 import * as React from "react";
 import {useDispatch, useSelector} from "react-redux";
-import {Box, Flex} from "@/ui-components";
-import * as Heading from "@/ui-components/Heading";
 import {ChangePassword} from "@/UserSettings/ChangePassword";
 import {Sessions} from "@/UserSettings/Sessions";
 import {TwoFactorSetup} from "./TwoFactorSetup";
@@ -15,7 +12,7 @@ import {refreshFunctionCache} from "@/Utilities/ReduxUtilities";
 import {ChangeNotificationSettings} from "./ChangeNotificationSettings";
 import {ChangeJobReportSettings} from "./ChangeJobReportSettings";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
-import {SettingsNavSection, SettingsNavigator} from "./SettingsComponents";
+import {SettingsNavSection, SettingsPage} from "@/ui-components/SettingsComponents";
 
 function UserSettings(): React.ReactNode {
 
@@ -25,7 +22,7 @@ function UserSettings(): React.ReactNode {
     const dispatch = useDispatch();
 
     const setHeaderLoading = React.useCallback((loading: boolean) => {
-        dispatch(setLoading(loading));
+        dispatch(setStatusLoading(loading));
     }, [dispatch]);
 
     const mustActivate2fa =
@@ -41,7 +38,7 @@ function UserSettings(): React.ReactNode {
         {id: "notifications", label: "Notification settings"},
         {id: "job-report", label: "Job report settings"},
         {id: "two-factor", label: "Two factor authentication"},
-        {id: "password", label: "Change password"},
+        ...(Client.userInfo?.principalType === "password" ? [{id: "password", label: "Change password"}] : []),
         {id: "sessions", label: "Active sessions"},
     ];
 
@@ -50,49 +47,22 @@ function UserSettings(): React.ReactNode {
         loading={headerLoading}
         setLoading={setHeaderLoading}
     />;
-    return (
-        <Flex alignItems="center" flexDirection="column">
-            <Box width="100%" maxWidth="1200px" padding={"8px"}>
-                <MainContainer
-                    header={<Heading.h1>User settings</Heading.h1>}
-                    main={(
-                        <Flex gap={"24px"} flexDirection={"column"}>
-                            <SettingsNavigator sections={sections}/>
-
-                            {mustActivate2fa ? twoFactorSetup : (
-                                <>
-                                    <ChangeUserDetails/>
-                                    <ChangeOrganizationDetails/>
-                                    <ChangeEmailSettings
-                                        setLoading={setHeaderLoading}
-                                    />
-                                    <ChangeNotificationSettings
-                                        setLoading={setHeaderLoading}
-                                    />
-                                    <ChangeJobReportSettings
-                                        setLoading={setHeaderLoading}
-                                    />
-
-                                    {twoFactorSetup}
-
-                                    <ChangePassword
-                                        setLoading={setHeaderLoading}
-                                    />
-
-                                    <Sessions
-                                        setLoading={setHeaderLoading}
-                                        setRefresh={fn => refreshFunctionCache.setRefreshFunction(fn ?? (() => undefined))}
-                                    />
-                                    <CustomTheming/>
-                                </>
-                            )}
-
-                        </Flex>
-                    )}
-                />
-            </Box>
-        </Flex>
-    );
+    return <SettingsPage title="User settings" sections={sections}>
+        {mustActivate2fa ? twoFactorSetup : <>
+            <ChangeUserDetails />
+            <ChangeOrganizationDetails />
+            <ChangeEmailSettings setLoading={setHeaderLoading} />
+            <ChangeNotificationSettings setLoading={setHeaderLoading} />
+            <ChangeJobReportSettings setLoading={setHeaderLoading} />
+            {twoFactorSetup}
+            <ChangePassword setLoading={setHeaderLoading} />
+            <Sessions
+                setLoading={setHeaderLoading}
+                setRefresh={fn => refreshFunctionCache.setRefreshFunction(fn ?? (() => undefined))}
+            />
+            <CustomTheming />
+        </>}
+    </SettingsPage>;
 }
 
 export default UserSettings;

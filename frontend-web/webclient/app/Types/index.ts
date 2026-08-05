@@ -1,6 +1,5 @@
 import {emptyPage} from "@/Utilities/PageUtilities";
 import {PayloadAction} from "@reduxjs/toolkit";
-import {Action} from "redux";
 
 declare global {
     const DEVELOPMENT_ENV: boolean;
@@ -54,5 +53,4 @@ export function arrayToPage<T>(items: T[], itemsPerPage = 50, page = 0): Page<T>
     };
 }
 
-export type SetLoadingAction<T extends string> = PayloadAction<{loading: boolean}, T>;
 export type Error<T extends string> = PayloadAction<{error?: string, statusCode?: number}, T>;

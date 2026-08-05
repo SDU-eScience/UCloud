@@ -38,11 +38,11 @@ type MachinesLabelFilter = {
 };
 
 export default function StackView(): React.ReactNode {
-	const {id} = useParams<{id: string}>();
-	const navigate = useNavigate();
-	const [stackState, fetchStack] = useCloudAPI<StackApi.Stack | null>({noop: true}, null);
-	const [commandLoading, invokeCommand] = useCloudCommand();
-	const [ucxAuthenticated, setUcxAuthenticated] = React.useState(false);
+    const {id} = useParams<{id: string}>();
+    const navigate = useNavigate();
+    const [stackState, fetchStack] = useCloudAPI<StackApi.Stack | null>({noop: true}, null);
+    const [commandLoading, invokeCommand] = useCloudCommand();
+    const [ucxAuthenticated, setUcxAuthenticated] = React.useState(false);
 
     usePage("Stack", SidebarTabId.RUNS);
 
@@ -55,99 +55,99 @@ export default function StackView(): React.ReactNode {
         refreshStack();
     }, [refreshStack]);
 
-	const stack = stackState.data;
-	const status = stack?.status;
-	const jobs = status?.jobs ?? [];
-	const uiMode = status?.ucxUiMode ?? "None";
-	const ucxConnectJobId = status?.ucxConnectJobId ?? null;
-	const ucxConnectJob = React.useMemo(() => {
-		if (!ucxConnectJobId) return null;
-		return jobs.find(job => job.id === ucxConnectJobId) ?? null;
-	}, [jobs, ucxConnectJobId]);
-	const ucxTargetRunning = ucxConnectJob?.status.state === "RUNNING";
-	const shouldAttemptUcxConnection = uiMode === "Replacement" && !!ucxConnectJobId && ucxTargetRunning;
+    const stack = stackState.data;
+    const status = stack?.status;
+    const jobs = status?.jobs ?? [];
+    const uiMode = status?.ucxUiMode ?? "None";
+    const ucxConnectJobId = status?.ucxConnectJobId ?? null;
+    const ucxConnectJob = React.useMemo(() => {
+        if (!ucxConnectJobId) return null;
+        return jobs.find(job => job.id === ucxConnectJobId) ?? null;
+    }, [jobs, ucxConnectJobId]);
+    const ucxTargetRunning = ucxConnectJob?.status.state === "RUNNING";
+    const shouldAttemptUcxConnection = uiMode === "Replacement" && !!ucxConnectJobId && ucxTargetRunning;
 
-	const ucxConnectJobUrl = React.useMemo(() => {
-		return Client.computeURL("/api", "/hpc/apps/ucx/connectJob")
-			.replace("http://", "ws://")
-			.replace("https://", "wss://");
-	}, []);
+    const ucxConnectJobUrl = React.useMemo(() => {
+        return Client.computeURL("/api", "/hpc/apps/ucx/connectJob")
+            .replace("http://", "ws://")
+            .replace("https://", "wss://");
+    }, []);
 
-	const ucxRpcHandlers = React.useMemo<Record<string, UcxRpcHandler>>(() => {
-		const connectJobSpecification = ucxConnectJob?.specification as (Job["specification"] & {labels?: Record<string, string>}) | undefined;
-		const stackStateFolder = connectJobSpecification?.labels?.["ucloud.dk/stack-state-folder"];
-		const stackPathToFile = (fileName: string) => {
-			const trimmedFileName = fileName.trim();
-			if (!trimmedFileName) {
-				throw new Error("Missing file name");
-			}
+    const ucxRpcHandlers = React.useMemo<Record<string, UcxRpcHandler>>(() => {
+        const connectJobSpecification = ucxConnectJob?.specification as (Job["specification"] & {labels?: Record<string, string>}) | undefined;
+        const stackStateFolder = connectJobSpecification?.labels?.["ucloud.dk/stack-state-folder"];
+        const stackPathToFile = (fileName: string) => {
+            const trimmedFileName = fileName.trim();
+            if (!trimmedFileName) {
+                throw new Error("Missing file name");
+            }
 
-			const trimmedBase = (stackStateFolder ?? "").trim();
-			if (!trimmedBase) {
-				throw new Error("Stack state folder not found on connected job");
-			}
+            const trimmedBase = (stackStateFolder ?? "").trim();
+            if (!trimmedBase) {
+                throw new Error("Stack state folder not found on connected job");
+            }
 
-			return `${trimmedBase.replace(/\/+$/, "")}/${trimmedFileName.replace(/^\/+/, "")}`;
-		};
+            return `${trimmedBase.replace(/\/+$/, "")}/${trimmedFileName.replace(/^\/+/, "")}`;
+        };
 
-		return {
-			uiSendMessage: raw => {
-				const payload = raw as {message: string; success: boolean};
-				if (!payload.success) {
-					sendFailureNotification(payload.message);
-				}
-			},
-			stackRefresh: async () => {
-				refreshStack();
-			},
-			stackOpen: raw => {
-				const payload = raw as {id: string};
-				navigate(`${AppRoutes.prefix}${AppRoutes.stacks.view(payload.id)}`);
-			},
-			stackCopyFile: async raw => {
-				try {
-					const payload = raw as {fileName?: string};
-					const fileName = payload.fileName?.trim() ?? "";
-					const path = stackPathToFile(fileName);
-					const blob = await downloadFileContent(path);
-					await copyToClipboard(await blob.text());
-					sendSuccessNotification(`Copied ${fileName} to clipboard`);
-				} catch (err) {
-					sendFailureNotification(err instanceof Error ? err.message : "Failed to copy stack file content");
-				}
-			},
-			stackDownloadFile: async raw => {
-				try {
-					const payload = raw as {fileName?: string};
-					const fileName = payload.fileName?.trim() ?? "";
-					const path = stackPathToFile(fileName);
-					const blob = await downloadFileContent(path);
-					const link = document.createElement("a");
-					const blobUrl = URL.createObjectURL(blob);
-					link.href = blobUrl;
-					link.download = fileName;
-					document.body.appendChild(link);
-					link.click();
-					if (link.parentNode === document.body) {
-						document.body.removeChild(link);
-					}
-					URL.revokeObjectURL(blobUrl);
-				} catch (err) {
-					sendFailureNotification(err instanceof Error ? err.message : "Failed to download stack file");
-				}
-			},
-		};
-	}, [navigate, refreshStack, ucxConnectJob]);
+        return {
+            uiSendMessage: raw => {
+                const payload = raw as {message: string; success: boolean};
+                if (!payload.success) {
+                    sendFailureNotification(payload.message);
+                }
+            },
+            stackRefresh: async () => {
+                refreshStack();
+            },
+            stackOpen: raw => {
+                const payload = raw as {id: string};
+                navigate(`${AppRoutes.prefix}${AppRoutes.stacks.view(payload.id)}`);
+            },
+            stackCopyFile: async raw => {
+                try {
+                    const payload = raw as {fileName?: string};
+                    const fileName = payload.fileName?.trim() ?? "";
+                    const path = stackPathToFile(fileName);
+                    const blob = await downloadFileContent(path);
+                    await copyToClipboard(await blob.text());
+                    sendSuccessNotification(`Copied ${fileName} to clipboard`);
+                } catch (err) {
+                    sendFailureNotification(err instanceof Error ? err.message : "Failed to copy stack file content");
+                }
+            },
+            stackDownloadFile: async raw => {
+                try {
+                    const payload = raw as {fileName?: string};
+                    const fileName = payload.fileName?.trim() ?? "";
+                    const path = stackPathToFile(fileName);
+                    const blob = await downloadFileContent(path);
+                    const link = document.createElement("a");
+                    const blobUrl = URL.createObjectURL(blob);
+                    link.href = blobUrl;
+                    link.download = fileName;
+                    document.body.appendChild(link);
+                    link.click();
+                    if (link.parentNode === document.body) {
+                        document.body.removeChild(link);
+                    }
+                    URL.revokeObjectURL(blobUrl);
+                } catch (err) {
+                    sendFailureNotification(err instanceof Error ? err.message : "Failed to download stack file");
+                }
+            },
+        };
+    }, [navigate, refreshStack, ucxConnectJob]);
 
-	React.useEffect(() => {
-		setUcxAuthenticated(false);
-	}, [ucxConnectJobId]);
+    React.useEffect(() => {
+        setUcxAuthenticated(false);
+    }, [ucxConnectJobId]);
 
-	React.useEffect(() => {
-		if (!shouldAttemptUcxConnection) {
-			setUcxAuthenticated(false);
-		}
-	}, [shouldAttemptUcxConnection]);
+    React.useEffect(() => {
+        if (!shouldAttemptUcxConnection) {
+            setUcxAuthenticated(false);
+        }
+    }, [shouldAttemptUcxConnection]);
 
     const pollIntervalMs = React.useMemo(() => {
         if (uiMode === "Replacement") return 2000;
@@ -155,17 +155,17 @@ export default function StackView(): React.ReactNode {
         return hasLiveJobs ? 5000 : 15000;
     }, [uiMode, jobs]);
 
-	React.useEffect(() => {
-		if (!id) return;
+    React.useEffect(() => {
+        if (!id) return;
 
-		const timer = window.setInterval(() => {
-			refreshStack();
+        const timer = window.setInterval(() => {
+            refreshStack();
         }, pollIntervalMs);
 
-		return () => {
-			window.clearInterval(timer);
-		};
-	}, [id, pollIntervalMs, refreshStack]);
+        return () => {
+            window.clearInterval(timer);
+        };
+    }, [id, pollIntervalMs, refreshStack]);
 
     const restartVm = React.useCallback((job: Job) => {
         addStandardDialog({
@@ -318,10 +318,10 @@ export default function StackView(): React.ReactNode {
         return {
             stack_machines: ctx => {
                 const props = ctx.node.props;
-                let isPlain = valueToPlain(props["isPlain"] ?? { kind: ValueKind.Null });
+                let isPlain = valueToPlain(props["isPlain"] ?? {kind: ValueKind.Null});
                 if (isPlain == null || typeof isPlain !== "boolean") isPlain = false;
                 let labelFilter: MachinesLabelFilter | undefined = undefined;
-                const plainLabelFilter = valueToPlain(props["labelFilter"] ?? { kind: ValueKind.Null });
+                const plainLabelFilter = valueToPlain(props["labelFilter"] ?? {kind: ValueKind.Null});
                 if (plainLabelFilter != null && typeof plainLabelFilter === "object" && !Array.isArray(plainLabelFilter)) {
                     const label = (plainLabelFilter as Record<string, unknown>)["label"];
                     const value = (plainLabelFilter as Record<string, unknown>)["value"];
@@ -331,7 +331,7 @@ export default function StackView(): React.ReactNode {
                 }
 
                 return <MachinesInStack commandLoading={commandLoading} suspendVm={suspendVm} restartVm={restartVm}
-                                        status={status} plain={isPlain} labelFilter={labelFilter} />;
+                    status={status} plain={isPlain} labelFilter={labelFilter} />;
             },
             stack_resources: ctx => {
                 return <ResourcesInStack openResourcesDialog={openResourcesDialog} status={status} />;
@@ -364,45 +364,45 @@ export default function StackView(): React.ReactNode {
                 {id && stackState.error ? <p>Could not load stack: {stackState.error.why}</p> : null}
                 {id && !stackState.loading && !stackState.error && !stack ? <p>Stack not found.</p> : null}
 
-				{!stack || (uiMode === "Replacement" && ucxAuthenticated) ? null : (
-					<>
+                {!stack || (uiMode === "Replacement" && ucxAuthenticated) ? null : (
+                    <>
                         <ResourcesInStack status={status} openResourcesDialog={openResourcesDialog} />
                         <MachinesInStack status={status} commandLoading={commandLoading} suspendVm={suspendVm}
-                                         restartVm={restartVm} />
-					</>
-				)}
+                            restartVm={restartVm} />
+                    </>
+                )}
 
-				{stack && shouldAttemptUcxConnection ? (
-					<div style={{display: ucxAuthenticated ? "block" : "none"}}>
-						<UcxView
-							key={ucxConnectJobId ?? ""}
-							url={ucxConnectJobUrl}
-							authToken={async () => {
-								const accessToken = await Client.receiveAccessTokenOrRefreshIt();
-								const project = getStoredProject() ?? "";
-								return `${accessToken}\n${project}`;
-							}}
-							sysHello={() => JSON.stringify({jobId: ucxConnectJobId})}
-							rpcHandlers={ucxRpcHandlers}
+                {stack && shouldAttemptUcxConnection ? (
+                    <div style={{display: ucxAuthenticated ? "block" : "none"}}>
+                        <UcxView
+                            key={ucxConnectJobId ?? ""}
+                            url={ucxConnectJobUrl}
+                            authToken={async () => {
+                                const accessToken = await Client.receiveAccessTokenOrRefreshIt();
+                                const project = getStoredProject() ?? "";
+                                return `${accessToken}\n${project}`;
+                            }}
+                            sysHello={() => JSON.stringify({jobId: ucxConnectJobId})}
+                            rpcHandlers={ucxRpcHandlers}
                             components={ucxComponentRegistry}
-							onConnected={() => setUcxAuthenticated(true)}
-							onDisconnected={() => setUcxAuthenticated(false)}
-							renderFrame={({content}) => content}
-						/>
-					</div>
-				) : null}
+                            onConnected={() => setUcxAuthenticated(true)}
+                            onDisconnected={() => setUcxAuthenticated(false)}
+                            renderFrame={({content}) => content}
+                        />
+                    </div>
+                ) : null}
             </div>
         }
     />;
 }
 
 function isVirtualMachineJob(job: Job): boolean {
-	return job.status.resolvedApplication?.invocation.tool.tool?.description.backend === "VIRTUAL_MACHINE";
+    return job.status.resolvedApplication?.invocation.tool.tool?.description.backend === "VIRTUAL_MACHINE";
 }
 
 const ResourcesInStack: React.FunctionComponent<{
     status?: StackStatus | null;
-    openResourcesDialog: (kind: string) => void;
+    openResourcesDialog: (kind: "jobs" | "licenses" | "publicLinks" | "publicIps" | "networks") => void;
 }> = ({openResourcesDialog, status}) => {
     const jobs = status?.jobs ?? [];
 
@@ -477,79 +477,79 @@ const MachinesInStack: React.FunctionComponent<{
                 </TableRow>
             </TableHeader>
             <tbody>
-            {filteredJobs.map(job => {
-                const isVm = isVirtualMachineJob(job);
-                const isTerminalState = isJobStateTerminal(job.status.state);
-                const isSuspended = job.status.state === "SUSPENDED";
+                {filteredJobs.map(job => {
+                    const isVm = isVirtualMachineJob(job);
+                    const isTerminalState = isJobStateTerminal(job.status.state);
+                    const isSuspended = job.status.state === "SUSPENDED";
 
-                const actionItems: VmActionItem[] = [];
-                if (isVm && !isTerminalState && !isSuspended) {
-                    actionItems.push({
-                        key: "restart",
-                        value: "Restart",
-                        icon: "heroArrowPath",
-                        color: "warningMain",
-                    });
-                }
+                    const actionItems: VmActionItem[] = [];
+                    if (isVm && !isTerminalState && !isSuspended) {
+                        actionItems.push({
+                            key: "restart",
+                            value: "Restart",
+                            icon: "heroArrowPath",
+                            color: "warningMain",
+                        });
+                    }
 
-                const powerTone: "success" | "warning" | "neutral" = isTerminalState
-                    ? "neutral"
-                    : isSuspended
-                        ? "success"
-                        : "warning";
+                    const powerTone: "success" | "warning" | "neutral" = isTerminalState
+                        ? "neutral"
+                        : isSuspended
+                            ? "success"
+                            : "warning";
 
-                return <TableRow key={job.id} className={isTerminalState ? JobRowMuted : undefined}>
-                    <TableCell>
-                        <div className={JobName}>{job.specification.name ?? shortUUID(job.id)}</div>
-                        <div className={JobMetaInline}>
-                            ID: {shortUUID(job.id)}
-                            {" | "}
-                            Started: {job.status.startedAt ? dateToString(job.status.startedAt) : "Pending"}
-                        </div>
-                    </TableCell>
-                    <TableCell>
-                        <div className={JobStateBadge} data-state={job.status.state}>{stateToTitle(job.status.state)}</div>
-                    </TableCell>
-                    <TableCell>
-                        <div className={JobMetaInline}>{job.specification.product.id}</div>
-                    </TableCell>
-                    <TableCell>
-                        <Flex gap="8px" flexWrap="wrap">
-                            {!isVm ? null : (
-                                <VmActionSplitButton
-                                    tone={powerTone}
-                                    disabled={commandLoading || isTerminalState}
-                                    buttonColor={!isTerminalState
-                                        ? (isSuspended ? "successMain" : "warningMain")
-                                        : "primaryMain"
-                                    }
-                                    buttonIcon={!isTerminalState ? "heroPower" : "heroCog6Tooth"}
-                                    buttonText={!isTerminalState
-                                        ? (isSuspended ? "Power on" : "Power off")
-                                        : "Actions"
-                                    }
-                                    onButtonClick={() => {
-                                        if (isTerminalState) return;
-                                        suspendVm(job);
-                                    }}
-                                    menuItems={actionItems}
-                                    onSelectMenuItem={item => {
-                                        if (item.key === "restart") restartVm(job);
-                                    }}
-                                    dropdownWidth="220px"
-                                />
-                            )}
+                    return <TableRow key={job.id} className={isTerminalState ? JobRowMuted : undefined}>
+                        <TableCell>
+                            <div className={JobName}>{job.specification.name ?? shortUUID(job.id)}</div>
+                            <div className={JobMetaInline}>
+                                ID: {shortUUID(job.id)}
+                                {" | "}
+                                Started: {job.status.startedAt ? dateToString(job.status.startedAt) : "Pending"}
+                            </div>
+                        </TableCell>
+                        <TableCell>
+                            <div className={JobStateBadge} data-state={job.status.state}>{stateToTitle(job.status.state)}</div>
+                        </TableCell>
+                        <TableCell>
+                            <div className={JobMetaInline}>{job.specification.product.id}</div>
+                        </TableCell>
+                        <TableCell>
+                            <Flex gap="8px" flexWrap="wrap">
+                                {!isVm ? null : (
+                                    <VmActionSplitButton
+                                        tone={powerTone}
+                                        disabled={commandLoading || isTerminalState}
+                                        buttonColor={!isTerminalState
+                                            ? (isSuspended ? "successMain" : "warningMain")
+                                            : "primaryMain"
+                                        }
+                                        buttonIcon={!isTerminalState ? "heroPower" : "heroCog6Tooth"}
+                                        buttonText={!isTerminalState
+                                            ? (isSuspended ? "Power on" : "Power off")
+                                            : "Actions"
+                                        }
+                                        onButtonClick={() => {
+                                            if (isTerminalState) return;
+                                            suspendVm(job);
+                                        }}
+                                        menuItems={actionItems}
+                                        onSelectMenuItem={item => {
+                                            if (item.key === "restart") restartVm(job);
+                                        }}
+                                        dropdownWidth="220px"
+                                    />
+                                )}
 
-                            <ExternalLink href={`${AppRoutes.prefix}${AppRoutes.jobs.view(job.id)}`}>
-                                <Button>
-                                    <Icon name={"heroArrowTopRightOnSquare"} mr={"8px"} />
-                                    Details
-                                </Button>
-                            </ExternalLink>
-                        </Flex>
-                    </TableCell>
-                </TableRow>;
-            })}
+                                <ExternalLink href={`${AppRoutes.prefix}${AppRoutes.jobs.view(job.id)}`}>
+                                    <Button>
+                                        <Icon name={"heroArrowTopRightOnSquare"} mr={"8px"} />
+                                        Details
+                                    </Button>
+                                </ExternalLink>
+                            </Flex>
+                        </TableCell>
+                    </TableRow>;
+                })}
             </tbody>
         </Table>
     </div>;

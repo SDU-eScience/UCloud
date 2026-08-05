@@ -140,6 +140,8 @@ var grantsProjectCache = util.NewCache[string, grantsProjectInfo](4 * time.Hour)
 var userInfoCache = util.NewCache[string, fndapi.OptionalUserInfo](10 * time.Minute)
 
 func GrantApplicationProcess(actor rpc.Actor, app accapi.GrantApplication) accapi.GrantApplication {
+	grantNormalizeApplication(&app)
+
 	// Find optional user information if any
 	userInfo, _ := userInfoCache.Get(app.CreatedBy, func() (fndapi.OptionalUserInfo, error) {
 		result, _ := fndapi.UsersRetrieveOptionalInfo.Invoke(fndapi.UsersRetrieveOptionalInfoRequest{Username: util.OptValue(app.CreatedBy)})
@@ -182,6 +184,49 @@ func GrantApplicationProcess(actor rpc.Actor, app accapi.GrantApplication) accap
 	grantAttachUnreadCommentStatus(&app, actor.Username)
 
 	return app
+}
+
+func grantNormalizeRevision(revision *accapi.GrantRevision) {
+	document := &revision.Document
+	form := &document.Form
+
+	document.AllocationRequests = util.NonNilSlice(document.AllocationRequests)
+
+	form.AnswerForms = util.NonNilSlice(form.AnswerForms)
+	for i := range form.AnswerForms {
+		form.AnswerForms[i].AnswerFields = util.NonNilSlice(form.AnswerForms[i].AnswerFields)
+	}
+
+	if document.ReferenceIds.Present {
+		document.ReferenceIds.Value = util.NonNilSlice(document.ReferenceIds.Value)
+	}
+}
+
+func grantNormalizeApplication(application *accapi.GrantApplication) {
+	grantNormalizeRevision(&application.CurrentRevision)
+	application.Status.StateBreakdown = util.NonNilSlice(application.Status.StateBreakdown)
+	application.Status.Comments = util.NonNilSlice(application.Status.Comments)
+	application.Status.Revisions = util.NonNilSlice(application.Status.Revisions)
+	application.Status.ApplicationHistory = util.NonNilSlice(application.Status.ApplicationHistory)
+
+	for i := range application.Status.Revisions {
+		grantNormalizeRevision(&application.Status.Revisions[i])
+	}
+	for i := range application.Status.ApplicationHistory {
+		grantNormalizeApplication(&application.Status.ApplicationHistory[i])
+	}
+}
+
+func grantNormalizeTemplates(templates *accapi.Templates) {
+	templates.Structured.PersonalProject = util.NonNilSlice(templates.Structured.PersonalProject)
+	templates.Structured.NewProject = util.NonNilSlice(templates.Structured.NewProject)
+	templates.Structured.ExistingProject = util.NonNilSlice(templates.Structured.ExistingProject)
+}
+
+func grantNormalizeSettings(settings *accapi.GrantRequestSettings) {
+	settings.AllowRequestsFrom = util.NonNilSlice(settings.AllowRequestsFrom)
+	settings.ExcludeRequestsFrom = util.NonNilSlice(settings.ExcludeRequestsFrom)
+	grantNormalizeTemplates(&settings.Templates)
 }
 
 type grantSettings struct {
@@ -318,6 +363,11 @@ func grantsReadEx(actor rpc.Actor, action grantAuthType, b *grantAppBucket, id a
 		}
 
 		if app.Application.CreatedBy == actor.Username {
+			roles = append(roles, grantActorRoleSubmitter)
+		}
+
+		//This is the case in gifts. Grant is createdBy the system, but the user should be able to open it as their own.
+		if recipient.Type == accapi.RecipientTypePersonalWorkspace && recipient.Username.Value == actor.Username {
 			roles = append(roles, grantActorRoleSubmitter)
 		}
 
@@ -819,8 +869,9 @@ func GrantsSubmitRevisionEx(actor rpc.Actor, req accapi.GrantsSubmitRevisionRequ
 		app.Application.Status.OverallState = accapi.GrantApplicationStateApproved
 		app.Application.Status.StateBreakdown = []accapi.GrantGiverApprovalState{
 			{
-				ProjectId: grantGiverInitiatedId,
-				State:     accapi.GrantApplicationStateApproved,
+				ProjectId:     grantGiverInitiatedId,
+				State:         accapi.GrantApplicationStateApproved,
+				LastUpdatedBy: app.Application.Status.ProjectPI,
 			},
 		}
 
@@ -832,8 +883,9 @@ func GrantsSubmitRevisionEx(actor rpc.Actor, req accapi.GrantsSubmitRevisionRequ
 		breakdown := []accapi.GrantGiverApprovalState{}
 		for grantGiver, _ := range grantGivers {
 			breakdown = append(breakdown, accapi.GrantGiverApprovalState{
-				ProjectId: grantGiver,
-				State:     accapi.GrantApplicationStateInProgress,
+				ProjectId:     grantGiver,
+				State:         accapi.GrantApplicationStateInProgress,
+				LastUpdatedBy: "",
 			})
 		}
 		app.Application.Status.StateBreakdown = breakdown
@@ -1135,6 +1187,7 @@ func GrantsUpdateState(actor rpc.Actor, req accapi.GrantsUpdateStateRequest) *ut
 
 				if breakdown.ProjectId == string(actor.Project.Value) {
 					breakdown.State = req.NewState
+					breakdown.LastUpdatedBy = actor.Username
 					anyUpdated = true
 				}
 
@@ -1392,7 +1445,7 @@ func GrantsBrowse(actor rpc.Actor, req accapi.GrantsBrowseRequest) fndapi.PageV2
 	}
 
 	result := fndapi.PageV2[accapi.GrantApplication]{
-		Items:        items,
+		Items:        util.NonNilSlice(items),
 		ItemsPerPage: itemsPerPage,
 	}
 
@@ -1460,7 +1513,7 @@ func grantSearchFuzzily(searchTerm []string) []string {
 		results = append(results, hit.ID)
 	}
 
-	return results
+	return util.NonNilSlice(results)
 }
 
 // NOTE(Dan): This function assumes auth has already taken place.
@@ -1501,7 +1554,9 @@ func GrantsRetrieve(actor rpc.Actor, id string) (accapi.GrantApplication, *util.
 	app, roles := grantsRead(actor, grantAuthReadWrite, idActual, nil)
 
 	if app == nil {
-		return accapi.GrantApplication{}, util.HttpErr(http.StatusNotFound, "not found")
+		result := accapi.GrantApplication{}
+		grantNormalizeApplication(&result)
+		return result, util.HttpErr(http.StatusNotFound, "not found")
 	} else {
 		app.Mu.RLock()
 		// Record that the user has visited the application
@@ -1532,6 +1587,9 @@ func grantProjectIsNewlyCreatedAndNotYetApproved(app *grantApplication) bool {
 func grantRetrieveApplicationHistoryOfReceiver(actor rpc.Actor, app *grantApplication, result *accapi.GrantApplication) {
 	recipientActor, ok := rpc.LookupActor(app.Application.CreatedBy) // Actor PI
 	if ok {
+		if recipientActor.Username == rpc.ActorSystem.Username {
+			return
+		}
 		grantGiveProjectId := actor.Project.Value
 
 		switch app.Application.CurrentRevision.Document.Recipient.Type {
@@ -1599,7 +1657,7 @@ func GrantsRetrieveGrantGivers(actor rpc.Actor, req accapi.RetrieveGrantGiversRe
 		b := grantGetAppBucket(accGrantId(appId))
 		app, _ := grantsReadEx(actor, grantAuthReadWrite, b, accGrantId(appId), nil)
 		if app == nil {
-			return nil, util.HttpErr(http.StatusNotFound, "unknown application")
+			return []accapi.GrantGiver{}, util.HttpErr(http.StatusNotFound, "unknown application")
 		}
 
 		app.Mu.RLock()
@@ -1609,7 +1667,7 @@ func GrantsRetrieveGrantGivers(actor rpc.Actor, req accapi.RetrieveGrantGiversRe
 
 		createdByActor, ok := rpc.LookupActor(createdBy)
 		if !ok {
-			return nil, util.HttpErr(http.StatusInternalServerError, "corrupt application, unknown applicant")
+			return []accapi.GrantGiver{}, util.HttpErr(http.StatusInternalServerError, "corrupt application, unknown applicant")
 		}
 
 		applicantActor = createdByActor
@@ -1665,12 +1723,25 @@ func GrantsRetrieveGrantGivers(actor rpc.Actor, req accapi.RetrieveGrantGiversRe
 				gg.Templates = sWrapper.Settings.Templates
 				sWrapper.Mu.RUnlock()
 			} else {
+				defaultForm := accapi.FormField{
+					Name:        "Default Template",
+					Description: defaultTemplate,
+					MaxLength:   util.OptValue(4000),
+					Title:       "Default Template",
+					Rows:        util.OptValue(100),
+					Optional:    false,
+				}
 				gg.Description = ""
 				gg.Templates = accapi.Templates{
 					Type:            accapi.TemplatesTypePlainText,
 					PersonalProject: defaultTemplate,
 					NewProject:      defaultTemplate,
 					ExistingProject: defaultTemplate,
+					Structured: accapi.TemplatesStructured{
+						PersonalProject: []accapi.FormField{defaultForm},
+						NewProject:      []accapi.FormField{defaultForm},
+						ExistingProject: []accapi.FormField{defaultForm},
+					},
 				}
 			}
 			result = append(result, gg)
@@ -1696,6 +1767,12 @@ func GrantsRetrieveGrantGivers(actor rpc.Actor, req accapi.RetrieveGrantGiversRe
 		}
 	}
 
+	for i := range result {
+		grantGiver := &result[i]
+		grantGiver.Categories = util.NonNilSlice(grantGiver.Categories)
+		grantNormalizeTemplates(&grantGiver.Templates)
+	}
+
 	slices.SortFunc(result, func(a, b accapi.GrantGiver) int {
 		return strings.Compare(a.Id, b.Id)
 	})
@@ -1703,10 +1780,12 @@ func GrantsRetrieveGrantGivers(actor rpc.Actor, req accapi.RetrieveGrantGiversRe
 	return util.NonNilSlice(result), nil
 }
 
-func GrantsUpdateSettings(actor rpc.Actor, id string, s accapi.GrantRequestSettings) *util.HttpError {
-	if !actor.Project.Present || string(actor.Project.Value) != id ||
-		!actor.Membership[rpc.ProjectId(id)].Satisfies(rpc.ProjectRoleAdmin) {
-		return util.HttpErr(http.StatusForbidden, "forbidden")
+func GrantsUpdateSettings(actor rpc.Actor, id string, s accapi.GrantRequestSettings, isUCloudAdminCall bool) *util.HttpError {
+	if !isUCloudAdminCall {
+		if !actor.Project.Present || string(actor.Project.Value) != id ||
+			!actor.Membership[rpc.ProjectId(id)].Satisfies(rpc.ProjectRoleAdmin) {
+			return util.HttpErr(http.StatusForbidden, "forbidden")
+		}
 	}
 	b := grantGetSettingsBucket(id)
 
@@ -1740,22 +1819,112 @@ func GrantsUpdateSettings(actor rpc.Actor, id string, s accapi.GrantRequestSetti
 	}
 
 	w.Mu.Lock()
+	templateHasChanges := applyTemplateChangesIfNeeded(w.Settings, &s)
 	w.Settings = &s
-	lGrantsPersistSettings(w)
+	lGrantsPersistSettings(w, templateHasChanges)
 	w.Mu.Unlock()
 
 	return nil
 }
 
-func GrantsRetrieveSettings(actor rpc.Actor) (accapi.GrantRequestSettings, *util.HttpError) {
-	if !actor.Project.Present || !actor.Membership[rpc.ProjectId(actor.Project.Value)].Satisfies(rpc.ProjectRoleAdmin) {
-		return accapi.GrantRequestSettings{}, util.HttpErr(http.StatusForbidden, "forbidden")
+/**
+ * Detecting changes of the template and applying changes if necessary.
+ * The value will be used by lGrantsPersistSettings to trigger persisting the changes in the database.
+ */
+func applyTemplateChangesIfNeeded(oldSettings *accapi.GrantRequestSettings, newSettings *accapi.GrantRequestSettings) bool {
+	if oldSettings == nil {
+		// if oldSettings is nil, it means that the template is being created for the first time.
+		return true
+	}
+	if !grantCompareTemplateChanges(oldSettings, newSettings) {
+		// Preserving the fields that aren't used to compare changes.
+		newSettings.Templates.Structured.RevisionNumber = oldSettings.Templates.Structured.RevisionNumber
+		return false
+	}
+	// If there are changes, we bump the revision number
+	newSettings.Templates.Structured.RevisionNumber = oldSettings.Templates.Structured.RevisionNumber + 1
+	return true
+}
+func grantCompareTemplateChanges(oldSettings *accapi.GrantRequestSettings, newSettings *accapi.GrantRequestSettings) bool {
+	return grantsTemplateHasChanges(&newSettings.Templates.Structured, &oldSettings.Templates.Structured)
+}
+
+/**
+ * Comparing changes of the current template with incoming one.
+ */
+func grantsFormFieldsHasChanges(incoming []accapi.FormField, current []accapi.FormField) bool {
+	currentFields := make(map[string]accapi.FormField, len(current))
+	for _, f := range current {
+		currentFields[f.Name] = f
 	}
 
-	b := grantGetSettingsBucket(string(actor.Project.Value))
+	for _, incomingField := range incoming {
+		currentField, ok := currentFields[incomingField.Name]
+		if !ok {
+			return true
+		}
+		return incomingField != currentField
+	}
+	return false
+}
+
+func grantsTemplateHasChanges(incoming *accapi.TemplatesStructured, current *accapi.TemplatesStructured) bool {
+	if current == nil {
+		return true
+	}
+	if len(incoming.ExistingProject) != len(current.ExistingProject) ||
+		len(incoming.NewProject) != len(current.NewProject) ||
+		len(incoming.PersonalProject) != len(current.PersonalProject) {
+		return true
+	}
+	return grantsFormFieldsHasChanges(incoming.ExistingProject, current.ExistingProject) ||
+		grantsFormFieldsHasChanges(incoming.NewProject, current.NewProject) ||
+		grantsFormFieldsHasChanges(incoming.PersonalProject, current.PersonalProject)
+}
+
+func GrantsBrowseEnabledProjects(actor rpc.Actor) ([]accapi.ProjectToSetting, *util.HttpError) {
+	settings := make([]accapi.ProjectToSetting, 0)
+
+	if actor.Role != rpc.RoleAdmin {
+		return settings, util.HttpErr(http.StatusForbidden, "Need admin rights to get enabled status")
+	}
+
+	for _, bucket := range grantGlobals.SettingBuckets {
+		bucket.Mu.Lock()
+		for project, _ := range bucket.PublicGrantGivers {
+			settingsFromBucket, ok := bucket.Settings[project]
+			if ok && settingsFromBucket.Settings.Enabled {
+				projectSettings := settingsFromBucket.lDeepCopy()
+				grantNormalizeSettings(&projectSettings)
+				settings = append(
+					settings,
+					accapi.ProjectToSetting{ProjectId: project, Settings: projectSettings},
+				)
+			}
+		}
+		bucket.Mu.Unlock()
+	}
+
+	return settings, nil
+}
+
+func GrantsRetrieveSettings(actor rpc.Actor, isUCloudAdminCall bool, projectId string) (accapi.GrantRequestSettings, *util.HttpError) {
+	if !isUCloudAdminCall {
+		if !actor.Project.Present || !actor.Membership[rpc.ProjectId(actor.Project.Value)].Satisfies(rpc.ProjectRoleAdmin) {
+			result := accapi.GrantRequestSettings{}
+			grantNormalizeSettings(&result)
+			return result, util.HttpErr(http.StatusForbidden, "forbidden")
+		}
+	}
+
+	lookupId := string(actor.Project.Value)
+	if isUCloudAdminCall {
+		lookupId = projectId
+	}
+	b := grantGetSettingsBucket(lookupId)
 
 	b.Mu.RLock()
-	w, ok := b.Settings[string(actor.Project.Value)]
+	w, ok := b.Settings[lookupId]
 	if !ok {
 		b.Mu.RUnlock()
 		{
@@ -1769,7 +1938,13 @@ func GrantsRetrieveSettings(actor rpc.Actor) (accapi.GrantRequestSettings, *util
 					AllowRequestsFrom:   []accapi.UserCriteria{},
 					ExcludeRequestsFrom: []accapi.UserCriteria{},
 					Templates: accapi.Templates{
-						Type:            accapi.TemplatesTypePlainText,
+						Structured: accapi.TemplatesStructured{
+							PersonalProject: make([]accapi.FormField, 0),
+							ExistingProject: make([]accapi.FormField, 0),
+							NewProject:      make([]accapi.FormField, 0),
+							RevisionNumber:  0,
+						},
+						Type:            accapi.TemplatesTypeStructured,
 						PersonalProject: defaultTemplate,
 						NewProject:      defaultTemplate,
 						ExistingProject: defaultTemplate,
@@ -1783,6 +1958,7 @@ func GrantsRetrieveSettings(actor rpc.Actor) (accapi.GrantRequestSettings, *util
 	}
 	result := w.lDeepCopy()
 	b.Mu.RUnlock()
+	grantNormalizeSettings(&result)
 	return result, nil
 }
 
@@ -1831,7 +2007,7 @@ func GrantsRetrieveLogo(id string) ([]byte, *util.HttpError) {
 	})
 
 	if ok {
-		return logo, nil
+		return util.NonNilSlice(logo), nil
 	} else {
 		return nil, util.HttpErr(http.StatusNotFound, "not found")
 	}
@@ -2114,14 +2290,46 @@ func initGrants() {
 		})
 
 		accapi.GrantsRetrieveRequestSettings.Handler(func(info rpc.RequestInfo, request util.Empty) (accapi.GrantRequestSettings, *util.HttpError) {
-			return GrantsRetrieveSettings(info.Actor)
+			return GrantsRetrieveSettings(info.Actor, false, "")
+		})
+
+		accapi.GrantsRetrieveRequestSettingsAdmin.Handler(func(info rpc.RequestInfo, request fndapi.FindByStringId) (accapi.GrantRequestSettings, *util.HttpError) {
+			if info.Actor.Role != rpc.RoleAdmin {
+				return accapi.GrantRequestSettings{}, util.HttpErr(http.StatusForbidden, "Permission denied - need to be admin to use this endpoint")
+			}
+			projectExists := false
+			db.NewTx0(func(tx *db.Transaction) {
+				_, projectExists = coreutil.ProjectRetrieveFromDatabase(tx, request.Id)
+			})
+			if !projectExists {
+				return accapi.GrantRequestSettings{}, util.HttpErr(http.StatusBadRequest, "Project does not exist")
+			}
+			return GrantsRetrieveSettings(info.Actor, true, request.Id)
+		})
+
+		accapi.GrantsBrowseEnabledProjects.Handler(func(info rpc.RequestInfo, request util.Empty) ([]accapi.ProjectToSetting, *util.HttpError) {
+			return GrantsBrowseEnabledProjects(info.Actor)
+		})
+
+		accapi.GrantsUpdateRequestSettingsAdmin.Handler(func(info rpc.RequestInfo, request accapi.ProjectToSetting) (util.Empty, *util.HttpError) {
+			if info.Actor.Role != rpc.RoleAdmin {
+				return util.Empty{}, util.HttpErr(http.StatusForbidden, "Permission denied - need to be admin to use this endpoint")
+			}
+			projectExists := false
+			db.NewTx0(func(tx *db.Transaction) {
+				_, projectExists = coreutil.ProjectRetrieveFromDatabase(tx, request.ProjectId)
+			})
+			if !projectExists {
+				return util.Empty{}, util.HttpErr(http.StatusBadRequest, "Project does not exist")
+			}
+			return util.Empty{}, GrantsUpdateSettings(info.Actor, request.ProjectId, request.Settings, true)
 		})
 
 		accapi.GrantsUpdateRequestSettings.Handler(func(info rpc.RequestInfo, request accapi.GrantRequestSettings) (util.Empty, *util.HttpError) {
 			if !info.Actor.Project.Present {
 				return util.Empty{}, util.HttpErr(http.StatusBadRequest, "bad request - no project")
 			}
-			return util.Empty{}, GrantsUpdateSettings(info.Actor, string(info.Actor.Project.Value), request)
+			return util.Empty{}, GrantsUpdateSettings(info.Actor, string(info.Actor.Project.Value), request, false)
 		})
 
 		accapi.GrantsUploadLogo.Handler(func(info rpc.RequestInfo, request []byte) (util.Empty, *util.HttpError) {
@@ -2330,19 +2538,18 @@ func grantSendEmail(event grantEvent) *util.HttpError {
 	currDoc := event.Application.CurrentRevision.Document
 	switch currDoc.Recipient.Type {
 	case accapi.RecipientTypeNewProject:
-		applicantProjectTitle = currDoc.Recipient.Title.Value
+		// If it's empty, then the title is just the name of the project
+		if event.Application.ProjectId.IsEmpty() {
+			applicantProjectTitle = currDoc.Recipient.Title.Value
+		} else {
+			// If approved
+			applicantProjectTitle = grantsRetrieveProjectTitleByProjectId(event.Application.ProjectId.Value)
+		}
+
 	case accapi.RecipientTypePersonalWorkspace:
-		applicantProjectTitle = fmt.Sprintf("personal workspace of: %v", event.Application.CreatedBy)
+		applicantProjectTitle = fmt.Sprintf("Personal workspace of %v", event.Application.CreatedBy)
 	case accapi.RecipientTypeExistingProject:
-		projectId := currDoc.Recipient.Id.Value
-		applicantProjectTitle = db.NewTx(func(tx *db.Transaction) string {
-			project, ok := coreutil.ProjectRetrieveFromDatabase(tx, projectId)
-			if !ok {
-				return projectId
-			} else {
-				return project.Id
-			}
-		})
+		applicantProjectTitle = grantsRetrieveProjectTitleByProjectId(currDoc.Recipient.Id.Value)
 	}
 
 	mailTemplate := map[string]any{
@@ -2380,4 +2587,21 @@ func grantSendEmail(event grantEvent) *util.HttpError {
 	}
 
 	return nil
+}
+
+func grantsRetrieveProjectTitleByProjectId(projectId string) string {
+	if projectId == "" {
+		projectId = "no project"
+		log.Warn("No project id has been provided")
+		return projectId
+	}
+	applicantProjectTitle := db.NewTx(func(tx *db.Transaction) string {
+		project, ok := coreutil.ProjectRetrieveFromDatabase(tx, projectId)
+		if !ok {
+			return projectId
+		}
+
+		return project.Specification.Title
+	})
+	return applicantProjectTitle
 }

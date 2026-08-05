@@ -28,6 +28,7 @@ const (
 	jobMetricSampleRateParam    = "ucMetricSampleRate"
 	jobMetricSampleRateDefault  = "250ms"
 	jobMetricSampleRateDisabled = "0ms"
+	jobLoadCacheConcurrency     = 32
 )
 
 var jobMetricAllowedSampleRates = map[string]bool{
@@ -43,6 +44,13 @@ var jobMetricAllowedSampleRates = map[string]bool{
 	"120000ms": true,
 }
 
+var jobLoadCache = struct {
+	Mu    sync.Mutex
+	Cond  *sync.Cond
+	Ready bool
+	Jobs  map[ResourceId]*internalJob
+}{}
+
 func initJobs() {
 	InitResourceType(
 		jobType,
@@ -53,6 +61,10 @@ func initJobs() {
 		jobPersistCommitted,
 	)
 
+	jobLoadCache.Jobs = map[ResourceId]*internalJob{}
+	jobLoadCache.Cond = sync.NewCond(&jobLoadCache.Mu)
+	go jobLoadCachePopulate()
+
 	jobNotificationsPending.EntriesByUser = map[string]map[string]orcapi.Job{}
 
 	go jobNotificationsLoopSendPending()
@@ -60,6 +72,12 @@ func initJobs() {
 	orcapi.JobsCreate.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.JobSpecification]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
 		if sourceIPisRestricted(info) {
 			return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
+		}
+
+		for _, reqItem := range request.Items {
+			if reqItem.Application.Name == "syncthing" {
+				return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(http.StatusBadRequest, "this application cannot be started through this endpoint")
+			}
 		}
 
 		created, err := JobCreate(info.Actor, request)
@@ -169,7 +187,7 @@ func initJobs() {
 
 						if validatedResources.Present {
 							oldResources := job.Resources
-							job.Resources = validatedResources.Value
+							job.Resources = jobPersistableResources(validatedResources.Value)
 
 							for _, old := range oldResources {
 								found := false
@@ -215,10 +233,6 @@ func initJobs() {
 	})
 
 	orcapi.JobsBrowse.Handler(func(info rpc.RequestInfo, request orcapi.JobsBrowseRequest) (fndapi.PageV2[orcapi.Job], *util.HttpError) {
-		if sourceIPisRestricted(info) {
-			return fndapi.PageV2[orcapi.Job]{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
-		}
-
 		return JobsBrowse(info.Actor, request.Next, request.ItemsPerPage, request.JobFlags)
 	})
 
@@ -227,9 +241,6 @@ func initJobs() {
 	})
 
 	orcapi.JobsRetrieve.Handler(func(info rpc.RequestInfo, request orcapi.JobsRetrieveRequest) (orcapi.Job, *util.HttpError) {
-		if sourceIPisRestricted(info) {
-			return orcapi.Job{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
-		}
 		return JobsRetrieve(info.Actor, request.Id, request.JobFlags)
 	})
 
@@ -242,9 +253,6 @@ func initJobs() {
 	})
 
 	orcapi.JobsSearch.Handler(func(info rpc.RequestInfo, request orcapi.JobsSearchRequest) (fndapi.PageV2[orcapi.Job], *util.HttpError) {
-		if sourceIPisRestricted(info) {
-			return fndapi.PageV2[orcapi.Job]{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
-		}
 		return JobsSearch(info.Actor, request.Query, request.Next, request.ItemsPerPage, request.JobFlags)
 	})
 
@@ -269,11 +277,12 @@ func initJobs() {
 			}
 
 			spec := reqItem.Spec
+			persistedResources := jobPersistableResources(spec.Resources)
 
 			support, _ := SupportByProduct[orcapi.JobSupport](jobType, spec.Product)
 
 			encodedParams, _ := json.Marshal(spec.Parameters)
-			encodedResources, _ := json.Marshal(spec.Resources)
+			encodedResources, _ := json.Marshal(persistedResources)
 			encodedProduct, _ := json.Marshal(support.Product)
 			encodedSupport, _ := json.Marshal(support.ResolvedSupport)
 			encodedMachineType, _ := json.Marshal(map[string]any{
@@ -295,7 +304,7 @@ func initJobs() {
 					Name:           spec.Name,
 					Replicas:       spec.Replicas,
 					Parameters:     spec.Parameters,
-					Resources:      spec.Resources,
+					Resources:      persistedResources,
 					TimeAllocation: spec.TimeAllocation,
 					OpenedFile:     spec.OpenedFile,
 					SshEnabled:     spec.SshEnabled,
@@ -338,9 +347,6 @@ func initJobs() {
 	})
 
 	orcapi.JobsUpdateAcl.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.UpdatedAcl]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
-		if sourceIPisRestricted(info) {
-			return fndapi.BulkResponse[util.Empty]{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
-		}
 		var responses []util.Empty
 		for _, item := range request.Items {
 			err := ResourceUpdateAcl(info.Actor, jobType, item)
@@ -353,16 +359,10 @@ func initJobs() {
 	})
 
 	orcapi.JobsExtend.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.JobsExtendRequestItem]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
-		if sourceIPisRestricted(info) {
-			return fndapi.BulkResponse[util.Empty]{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
-		}
 		return JobsExtendBulk(info.Actor, request)
 	})
 
 	orcapi.JobsTerminate.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[fndapi.FindByStringId]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
-		if sourceIPisRestricted(info) {
-			return fndapi.BulkResponse[util.Empty]{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
-		}
 		return JobsTerminateBulk(info.Actor, request)
 	})
 
@@ -462,10 +462,6 @@ func initJobs() {
 	})
 
 	orcapi.JobsOpenInteractiveSession.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.JobsOpenInteractiveSessionRequestItem]) (fndapi.BulkResponse[orcapi.OpenSessionWithProvider], *util.HttpError) {
-		if sourceIPisRestricted(info) {
-			return fndapi.BulkResponse[orcapi.OpenSessionWithProvider]{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
-		}
-
 		updatesByProvider := map[string][]orcapi.JobsProviderOpenInteractiveSessionRequestItem{}
 		indicesByProvider := map[string][]int{}
 
@@ -611,31 +607,6 @@ func initJobs() {
 	})
 
 	orcapi.JobsOpenTerminalInFolder.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.JobsOpenTerminalInFolderRequestItem]) (fndapi.BulkResponse[orcapi.OpenSessionWithProvider], *util.HttpError) {
-		if sourceIPisRestricted(info) {
-			return fndapi.BulkResponse[orcapi.OpenSessionWithProvider]{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
-		}
-
-		if info.Actor.Project.Present {
-			policies := policiesByProject(info.Actor.Project.String())
-			specifications, ok := policies[fndapi.RestrictIntegratedApplications.String()]
-			if ok {
-				for _, property := range specifications.Properties {
-					if property.Name == "allowList" {
-						restricted := true
-						for _, element := range property.TextElements {
-							if element == "terminal" {
-								restricted = false
-								break
-							}
-						}
-						if restricted {
-							return fndapi.BulkResponse[orcapi.OpenSessionWithProvider]{}, util.HttpErr(http.StatusForbidden, "Project does not allow users to use the integrated terminal")
-						}
-					}
-				}
-			}
-		}
-
 		updatesByProvider := map[string][]orcapi.JobsOpenTerminalInFolderRequestItem{}
 		indicesByProvider := map[string][]int{}
 
@@ -800,16 +771,10 @@ func initJobs() {
 	})
 
 	orcapi.JobSettingsRetrieve.Handler(func(info rpc.RequestInfo, request util.Empty) (orcapi.JobSettings, *util.HttpError) {
-		if sourceIPisRestricted(info) {
-			return orcapi.JobSettings{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
-		}
 		return JobSettingsRetrieve(info.Actor), nil
 	})
 
 	orcapi.JobSettingsUpdate.Handler(func(info rpc.RequestInfo, request orcapi.JobSettings) (util.Empty, *util.HttpError) {
-		if sourceIPisRestricted(info) {
-			return util.Empty{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
-		}
 		err := JobSettingsUpdate(info.Actor, request)
 		if err != nil {
 			return util.Empty{}, err
@@ -870,7 +835,8 @@ func JobCreate(actor rpc.Actor, request fndapi.BulkRequest[orcapi.JobSpecificati
 		}
 
 		encodedParams, _ := json.Marshal(spec.Parameters)
-		encodedResources, _ := json.Marshal(spec.Resources)
+		persistedResources := jobPersistableResources(spec.Resources)
+		encodedResources, _ := json.Marshal(persistedResources)
 		encodedProduct, _ := json.Marshal(support.Product)
 		encodedSupport, _ := json.Marshal(support.ResolvedSupport)
 		encodedMachineType, _ := json.Marshal(map[string]any{
@@ -904,7 +870,7 @@ func JobCreate(actor rpc.Actor, request fndapi.BulkRequest[orcapi.JobSpecificati
 			Hostname:       spec.Hostname,
 			Replicas:       spec.Replicas,
 			Parameters:     spec.Parameters,
-			Resources:      spec.Resources,
+			Resources:      persistedResources,
 			TimeAllocation: spec.TimeAllocation,
 			OpenedFile:     spec.OpenedFile,
 			SshEnabled:     spec.SshEnabled,
@@ -933,7 +899,7 @@ func JobCreate(actor rpc.Actor, request fndapi.BulkRequest[orcapi.JobSpecificati
 			Updates:   nil,
 		}
 
-		job, err := ResourceCreateThroughProvider(actor, jobType, spec.ResourceSpecification, extra, orcapi.JobsProviderCreate)
+		job, err := jobCreateThroughProvider(actor, spec, extra)
 		if err != nil {
 			return nil, err
 		}
@@ -942,7 +908,7 @@ func JobCreate(actor rpc.Actor, request fndapi.BulkRequest[orcapi.JobSpecificati
 			jobBindResource(job.Id, param)
 		}
 
-		for _, resc := range spec.Resources {
+		for _, resc := range persistedResources {
 			jobBindResource(job.Id, resc)
 		}
 
@@ -950,6 +916,58 @@ func JobCreate(actor rpc.Actor, request fndapi.BulkRequest[orcapi.JobSpecificati
 	}
 
 	return created, nil
+}
+
+func jobCreateThroughProvider(actor rpc.Actor, spec orcapi.JobSpecification, extra *internalJob) (orcapi.Job, *util.HttpError) {
+	var empty orcapi.Job
+
+	if !resourceSpecificationHasProduct(spec.ResourceSpecification) {
+		return empty, util.HttpErr(http.StatusBadRequest, "resource does not specify a product")
+	}
+
+	if err := ResourceValidateAllocation(actor, spec.ResourceSpecification.Product); err != nil {
+		return empty, err
+	}
+
+	id, job, err := ResourceCreate[orcapi.Job](actor, jobType, spec.ResourceSpecification, extra)
+	if err != nil {
+		return empty, err
+	}
+
+	providerJob := job
+	providerJob.Specification.Resources = spec.Resources // NOTE(Dan): Pass unfiltered resources to provider
+	resp, err := InvokeProvider(spec.ResourceSpecification.Product.Provider, orcapi.JobsProviderCreate, fndapi.BulkRequestOf(providerJob), ProviderCallOpts{
+		Username: util.OptValue(actor.Username),
+		Reason:   util.OptValue("Creating resource: " + jobType),
+	})
+
+	if err != nil {
+		ResourceDelete(actor, jobType, id)
+		return empty, err
+	}
+
+	providerId := ""
+	if len(resp.Responses) > 0 {
+		providerId = resp.Responses[0].Id
+	}
+	if providerId != "" {
+		ResourceSystemUpdate(jobType, id, func(r *resource, mapped orcapi.Job) {
+			r.ProviderId.Set(providerId)
+		})
+	}
+
+	ResourceConfirm(jobType, id)
+	return job, nil
+}
+
+func jobPersistableResources(resources []orcapi.AppParameterValue) []orcapi.AppParameterValue {
+	result := make([]orcapi.AppParameterValue, 0, len(resources))
+	for _, resource := range resources {
+		if resource.Type != orcapi.AppParameterValueTypeApiServer {
+			result = append(result, resource)
+		}
+	}
+	return result
 }
 
 func JobsRenameBulk(actor rpc.Actor, request fndapi.BulkRequest[orcapi.JobRenameRequest]) *util.HttpError {
@@ -1389,35 +1407,6 @@ func jobsValidateForSubmission(actor rpc.Actor, spec *orcapi.JobSpecification) *
 		return util.HttpErr(http.StatusBadRequest, "unknown application requested")
 	}
 
-	if actor.Project.Present {
-		var allowedApps []string
-		polices := policiesByProject(actor.Project.String())
-		specification, restricted := polices[fndapi.RestrictApplications.String()]
-		if restricted {
-			for _, property := range specification.Properties {
-				if property.Name == "applications" {
-					allowedApps = property.TextElements
-					break
-				}
-			}
-			allowed := false
-			if len(allowedApps) == 0 {
-				return util.HttpErr(http.StatusForbidden, "Application is not allowed to run in this project context.")
-			} else {
-				for _, allowedApp := range allowedApps {
-					println(allowedApp)
-					if allowedApp == app.Metadata.Name {
-						allowed = true
-						break
-					}
-				}
-			}
-			if !allowed {
-				return util.HttpErr(http.StatusForbidden, "Application is not allowed to run in this project context.")
-			}
-		}
-	}
-
 	support, ok := SupportByProduct[orcapi.JobSupport](jobType, spec.Product)
 	if !ok {
 		return util.HttpErr(http.StatusBadRequest, "bad machine type requested")
@@ -1542,6 +1531,10 @@ func jobsValidateForSubmission(actor rpc.Actor, spec *orcapi.JobSpecification) *
 	}
 
 	for name, value := range spec.Parameters {
+		if value.Type == orcapi.AppParameterValueTypeApiServer {
+			return util.HttpErr(http.StatusBadRequest, "api_server values must be supplied as resources")
+		}
+
 		newValue := value
 		err := jobValidateValue(actor, &newValue, tool.Backend, support, util.OptNone[string]())
 		if err != nil {
@@ -1733,6 +1726,17 @@ func jobValidateValue(
 		if network.Status.ResolvedProduct.Value.Category.Provider != support.Product.Category.Provider {
 			return util.HttpErr(http.StatusForbidden, "you cannot use this network at this provider")
 		}
+
+	case orcapi.AppParameterValueTypeApiServer:
+		if err := util.ValidateStringE(&value.Server, "api server", 0); err != nil {
+			return err
+		}
+		if err := util.ValidateStringE(&value.Token, "api server token", util.StringValidationAllowLong); err != nil {
+			return err
+		}
+		if err := util.ValidateStringE(&value.TokenType, "api server token type", 0); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -1915,107 +1919,165 @@ type internalJob struct {
 	LastFlushedUpdate atomic.Uint64
 }
 
-func jobLoad(tx *db.Transaction, ids []int64, resources map[ResourceId]*resource) {
-	rows := db.Select[struct {
-		Resource             int64
-		ApplicationName      string
-		ApplicationVersion   string
-		CurrentState         string
-		TimeAllocationMillis sql.Null[int64]
-		Hostname             sql.Null[string]
-		Replicas             int
-		OutputFolder         sql.NullString
-		Name                 sql.NullString
-		StartedAt            sql.Null[time.Time]
-		ExportedParameters   sql.NullString
-		OpenedFile           sql.NullString
-		SshEnabled           bool
-		Parameters           string
-		MountedResources     string
-		Updates              string
-	}](
-		tx,
-		`
-			with
-				inputs as (
-					select 
-						j.resource, 
-						coalesce(
-							jsonb_agg(jsonb_build_object('name', input.name, 'value', input.value))
-								filter (where input.name is not null),
-							cast('[]' as jsonb)
-						) as parameters
-					from
-						app_orchestrator.jobs j
-						left join app_orchestrator.job_input_parameters input on j.resource = input.job_id
-					where
-						j.resource = some(cast(:ids as int8[]))
-					group by j.resource
-				),
-				mounts as (
-					select 
-						j.resource, 
-						coalesce(
-							jsonb_agg(input.resource) filter (where input.resource is not null), 
-							cast('[]' as jsonb)
-						) as mounted_resources
-					from
-						app_orchestrator.jobs j
-						left join app_orchestrator.job_resources input on j.resource = input.job_id
-					where
-						j.resource = some(cast(:ids as int8[]))
-					group by j.resource
-				),
-				updates as (
-				    select
-						j.resource,
-						coalesce(
-							jsonb_agg(
-								u.extra || jsonb_build_object(
-									'timestamp', (floor(extract(epoch from u.created_at) * 1000)),
-									'status', u.status
-								)
-							) filter (where u.created_at is not null), 
-							cast('[]' as jsonb)) as updates
-				    from
-				        app_orchestrator.jobs j
-						left join provider.resource_update u on j.resource = u.resource
-					where
-						j.resource = some(cast(:ids as int8[]))
-				    group by j.resource
-				)
-			select
-				j.resource,
-				j.application_name,
-				j.application_version,
-				j.current_state,
-				j.time_allocation_millis,
-				j.replicas,
-				j.output_folder,
-				j.name,
-				j.hostname,
-				j.started_at,
-				j.job_parameters as exported_parameters,
-				j.opened_file,
-				j.ssh_enabled,
-				i.parameters,
-				m.mounted_resources,
-				u.updates
-			from
-				app_orchestrator.jobs j
-				join inputs i on i.resource = j.resource
-				join mounts m on m.resource = j.resource
-				join updates u on u.resource = j.resource
-			where
-				j.resource = some(cast(:ids as int8[]))
-	    `,
-		db.Params{
-			"ids": ids,
-		},
-	)
+type jobLoadRow struct {
+	Resource             int64
+	ApplicationName      string
+	ApplicationVersion   string
+	CurrentState         string
+	TimeAllocationMillis sql.Null[int64]
+	Hostname             sql.Null[string]
+	Replicas             int
+	OutputFolder         sql.NullString
+	Name                 sql.NullString
+	StartedAt            sql.Null[time.Time]
+	ExportedParameters   sql.NullString
+	OpenedFile           sql.NullString
+	SshEnabled           bool
+	Parameters           string
+	MountedResources     string
+	Updates              string
+}
 
+func jobLoad(tx *db.Transaction, ids []int64, resources map[ResourceId]*resource) {
+	jobLoadCache.Mu.Lock()
+	for !jobLoadCache.Ready {
+		jobLoadCache.Cond.Wait()
+	}
+
+	for _, id := range ids {
+		cached := jobLoadCache.Jobs[ResourceId(id)]
+		if cached == nil {
+			continue
+		}
+
+		r := resources[ResourceId(id)]
+		if r != nil {
+			r.Extra = cached.Clone()
+		}
+	}
+	jobLoadCache.Mu.Unlock()
+}
+
+func jobLoadCachePopulate() {
+	totalStart := time.Now()
+	var wg sync.WaitGroup
+	jobsByBucket := make([]map[ResourceId]*internalJob, jobLoadCacheConcurrency)
+
+	for bucket := 0; bucket < jobLoadCacheConcurrency; bucket++ {
+		wg.Add(1)
+		go func(bucket int) {
+			defer wg.Done()
+			rows := jobLoadCachePopulateBucket(bucket, jobLoadCacheConcurrency)
+			jobsByBucket[bucket] = jobLoadRowsToMap(rows)
+		}(bucket)
+	}
+
+	wg.Wait()
+
+	jobs := map[ResourceId]*internalJob{}
+	for _, bucketJobs := range jobsByBucket {
+		for id, job := range bucketJobs {
+			jobs[id] = job
+		}
+	}
+
+	jobLoadCache.Mu.Lock()
+	jobLoadCache.Jobs = jobs
+	jobLoadCache.Ready = true
+	jobLoadCache.Cond.Broadcast()
+	jobLoadCache.Mu.Unlock()
+
+	duration := time.Since(totalStart)
+	log.Info("Loaded job cache with %d jobs in %s", len(jobs), duration)
+}
+
+func jobLoadCachePopulateBucket(bucket int, rank int) []jobLoadRow {
+	return db.NewTx(func(tx *db.Transaction) []jobLoadRow {
+		rows := db.Select[jobLoadRow](
+			tx,
+			`
+				with
+					jobs as (
+						select j.*
+						from app_orchestrator.jobs j
+						where j.resource % cast(:concurrency as int8) = cast(:bucket as int8)
+					),
+					inputs as (
+						select 
+							j.resource, 
+							coalesce(
+								jsonb_agg(jsonb_build_object('name', input.name, 'value', input.value))
+									filter (where input.name is not null),
+								cast('[]' as jsonb)
+							) as parameters
+						from
+							jobs j
+							left join app_orchestrator.job_input_parameters input on j.resource = input.job_id
+						group by j.resource
+					),
+					mounts as (
+						select 
+							j.resource, 
+							coalesce(
+								jsonb_agg(input.resource) filter (where input.resource is not null), 
+								cast('[]' as jsonb)
+							) as mounted_resources
+						from
+							jobs j
+							left join app_orchestrator.job_resources input on j.resource = input.job_id
+						group by j.resource
+					),
+					updates as (
+					    select
+							j.resource,
+							coalesce(
+								jsonb_agg(
+									u.extra || jsonb_build_object(
+										'timestamp', (floor(extract(epoch from u.created_at) * 1000)),
+										'status', u.status
+									)
+								) filter (where u.created_at is not null), 
+								cast('[]' as jsonb)) as updates
+					    from
+					        jobs j
+							left join provider.resource_update u on j.resource = u.resource
+					    group by j.resource
+					)
+				select
+					j.resource,
+					j.application_name,
+					j.application_version,
+					j.current_state,
+					j.time_allocation_millis,
+					j.replicas,
+					j.output_folder,
+					j.name,
+					j.hostname,
+					j.started_at,
+					j.job_parameters as exported_parameters,
+					j.opened_file,
+					j.ssh_enabled,
+					i.parameters,
+					m.mounted_resources,
+					u.updates
+				from
+					jobs j
+					join inputs i on i.resource = j.resource
+					join mounts m on m.resource = j.resource
+					join updates u on u.resource = j.resource
+			`,
+			db.Params{
+				"bucket":      int64(bucket),
+				"concurrency": int64(rank),
+			},
+		)
+		return rows
+	})
+}
+
+func jobLoadRowsToMap(rows []jobLoadRow) map[ResourceId]*internalJob {
+	result := make(map[ResourceId]*internalJob, len(rows))
 	for _, row := range rows {
-		r := resources[ResourceId(row.Resource)]
 		info := &internalJob{
 			Application: orcapi.NameAndVersion{
 				Name:    row.ApplicationName,
@@ -2054,6 +2116,7 @@ func jobLoad(tx *db.Transaction, ids []int64, resources map[ResourceId]*resource
 		}
 
 		_ = json.Unmarshal([]byte(row.MountedResources), &info.Resources)
+
 		_ = json.Unmarshal([]byte(row.Updates), &info.Updates)
 
 		slices.SortFunc(info.Updates, func(a, b orcapi.JobUpdate) int {
@@ -2069,8 +2132,45 @@ func jobLoad(tx *db.Transaction, ids []int64, resources map[ResourceId]*resource
 		}
 
 		info.LastFlushedUpdate.Store(uint64(len(info.Updates)))
-		r.Extra = info
+		result[ResourceId(row.Resource)] = info
 	}
+
+	return result
+}
+
+func (j *internalJob) Clone() *internalJob {
+	result := *j
+	result.Parameters = make(map[string]orcapi.AppParameterValue, len(j.Parameters))
+	for key, value := range j.Parameters {
+		result.Parameters[key] = value
+	}
+	result.Resources = append([]orcapi.AppParameterValue(nil), j.Resources...)
+	result.Updates = append([]orcapi.JobUpdate(nil), j.Updates...)
+	result.JobParametersJson.MachineType = append([]byte(nil), j.JobParametersJson.MachineType...)
+	if j.JobParametersJson.ResolvedResources.Ingress != nil {
+		result.JobParametersJson.ResolvedResources.Ingress = make(map[string]orcapi.Ingress, len(j.JobParametersJson.ResolvedResources.Ingress))
+		for key, value := range j.JobParametersJson.ResolvedResources.Ingress {
+			result.JobParametersJson.ResolvedResources.Ingress[key] = value
+		}
+	}
+	result.LastFlushedUpdate.Store(j.LastFlushedUpdate.Load())
+	return &result
+}
+
+func jobLoadCachePut(id ResourceId, info *internalJob) {
+	jobLoadCache.Mu.Lock()
+	if jobLoadCache.Jobs != nil {
+		if info == nil {
+			delete(jobLoadCache.Jobs, id)
+		} else {
+			jobLoadCache.Jobs[id] = info.Clone()
+		}
+	}
+	jobLoadCache.Mu.Unlock()
+}
+
+func jobLoadCacheDelete(id ResourceId) {
+	jobLoadCachePut(id, nil)
 }
 
 func jobPersist(b *db.Batch, r *resource) {
@@ -2263,9 +2363,15 @@ func jobPersist(b *db.Batch, r *resource) {
 }
 
 func jobPersistCommitted(r *resource) {
+	if r.MarkedForDeletion {
+		jobLoadCacheDelete(r.Id)
+		return
+	}
+
 	info := r.Extra.(*internalJob)
 	info.LastFlushedUpdate.Store(uint64(len(info.Updates)))
 	info.ChangeFlags = 0
+	jobLoadCachePut(r.Id, info)
 }
 
 func jobTransform(

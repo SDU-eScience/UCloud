@@ -11,6 +11,7 @@ import * as Heading from "@/ui-components/Heading";
 import BaseLink from "@/ui-components/BaseLink";
 import {Application, ApplicationParameter} from "@/Applications/AppStoreApi";
 import {doNothing} from "@/UtilityFunctions";
+import {Dispatch, SetStateAction} from "react";
 
 export function ingressResourceAllowed(app: Application, bindLinkToPort = false): boolean {
     if (app.invocation.allowPublicLink === false) return false;
@@ -26,7 +27,7 @@ export const IngressResource: React.FunctionComponent<{
     onAdd: () => void;
     onRemove: (id: string) => void;
     provider?: string;
-    setErrors: (errors: Record<string, string>) => void;
+    setErrors: Dispatch<SetStateAction<Record<string, string>>>;
 }> = ({application, bindLinkToPort, params, errors, onAdd, onRemove, provider, setErrors}) => {
     if (!ingressResourceAllowed(application, bindLinkToPort)) return null;
 

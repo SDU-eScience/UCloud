@@ -183,7 +183,7 @@ export async function callAPIWithErrorHandler<T>(
 ): Promise<T | null> {
     try {
         return await callAPI<T>(parameters);
-    } catch (e) {
+    } catch (e: any) {
         defaultErrorHandler(e);
         return null;
     }
@@ -263,7 +263,7 @@ export function useAsyncWork(): AsyncWorker {
         setIsLoading(true);
         try {
             await fn();
-        } catch (e) {
+        } catch (e: any) {
             if (didCancel) return;
             if (e.request) {
                 const why = e.response?.why ?? e.request.statusText;
@@ -318,7 +318,7 @@ export function useCloudAPI<T, Parameters = any>(
                         if (!didCancel) {
                             dispatch({type: "FETCH_SUCCESS", payload: result});
                         }
-                    } catch (e) {
+                    } catch (e: any) {
                         if (!didCancel) {
                             const statusCode = e.request.status;
                             const why = e.response?.why ?? "An error occurred. Please reload the page.";

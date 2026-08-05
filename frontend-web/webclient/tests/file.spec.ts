@@ -1,6 +1,8 @@
 import {test, expect} from '@playwright/test';
-import {Components, Drive, File, User, Rows, Terminal, NetworkCalls, Project, testCtx, TestContexts, Contexts, ctxUser, Runs, Accounting, Applications, Admin} from "./shared";
+import {Components, Drive, File, User, Rows, Terminal, NetworkCalls, Project, testCtx, TestContexts, Contexts, ctxUser, Runs, Accounting, Applications, Admin, isDev, isProd} from "./shared";
 import {default as data} from "./test_data.json" with {type: "json"};
+import {default as pAndP} from "./provider_and_products.json" with {type: "json"};
+const PRODUCTS = pAndP.find(it => it.location_origin === data.location_origin)!.products_used_in_tests;
 
 const {dirname} = import.meta;
 
@@ -8,6 +10,10 @@ const Drives: Record<string, string> = {};
 
 
 test.beforeEach(async ({page, userAgent}, testInfo) => {
+    if (data.login_cookie) {
+        await page.context().addCookies([data.login_cookie]);
+    }
+
     const doSkipInitialization = testInfo.titlePath.find(it => ["Files - accounting works"].includes(it));
     if (doSkipInitialization) {
         await Admin.newLoggedInAdminPage(page);
@@ -47,7 +53,7 @@ TestContexts.map(ctx => {
             await File.create(page, folderName);
             await Components.clickRefreshAndWait(page);
             await Rows.actionByRowTitle(page, folderName, "click");
-            await page.locator("div.operation.in-header").last().click();
+            await File.openOperationsDropsdown(page, folderName);
             await page.getByText('Change sensitivity').click();
             // TODO(Jonas): Ensure NO confidential is present (or ensure that specific one has? If they happen simultaniously, more than one could be)
             await page.locator('#sensitivityDialogValue').selectOption('CONFIDENTIAL');
@@ -56,6 +62,8 @@ TestContexts.map(ctx => {
             // TODO(Jonas): Ensure 1 confidential is present (or ensure that specific one has?)
 
             await expect(page.getByText("C", {exact: true})).toHaveCount(1);
+
+            await File.moveFileToTrash(page, folderName);
         });
 
         test("Favorite file, unfavorite file", async ({page}) => {
@@ -68,14 +76,14 @@ TestContexts.map(ctx => {
             await File.toggleFavorite(page, folder);
             await page.getByRole("link", {name: "Go to Files"}).hover();
             await expect(page.getByText(folder)).toHaveCount(1);
+            await File.moveFileToTrash(page, folder);
         });
 
         test("View properties", async ({page}) => {
             const folderName = File.newFolderName();
             await File.create(page, folderName);
-            await Rows.actionByRowTitle(page, folderName, "click");
-            await page.locator("div.operation.in-header").last().click();
-            await page.getByText("Properties").click();
+            await File.openOperationsDropsdown(page, folderName);
+            await page.getByRole("menu").getByText("Properties", {exact: true}).click();
 
             await expect(page.locator("b").filter({hasText: "Path"})).toHaveCount(1);
             await expect(page.locator("b").filter({hasText: "Product"})).toHaveCount(1);
@@ -85,10 +93,13 @@ TestContexts.map(ctx => {
             await expect(page.locator("b").filter({hasText: "Accessed at"})).toHaveCount(1);
             await expect(page.locator("b").filter({hasText: "UID/GID"})).toHaveCount(1);
             await expect(page.locator("b").filter({hasText: "Unix mode"})).toHaveCount(1);
+
+            await page.goBack();
+            await File.moveFileToTrash(page, folderName);
         });
 
         test("Stress testing the row selector", async ({page}) => {
-            test.setTimeout(180_000);
+            test.setTimeout(60_000);
             if (ctx === "Project User") test.skip();
             for (let i = 0; i < 100; i++) {
                 await File.create(page, "Folder" + i);
@@ -107,6 +118,10 @@ TestContexts.map(ctx => {
                 await page.getByText(testFileContents).waitFor({state: "visible"});
                 await Components.toggleTasksDialog(page);
                 await page.locator("svg > circle").first().waitFor({state: "visible"});
+
+                await page.keyboard.press("Escape");
+                await page.goBack();
+                await File.moveFileToTrash(page, testFileName);
             });
 
             test("Upload file, download file, validate contents", async ({page}) => {
@@ -115,6 +130,7 @@ TestContexts.map(ctx => {
                 await File.uploadFiles(page, [{name: testFileName, contents: testFileContents}]);
                 const result = await File.download(page, testFileName);
                 expect(result).toBe(testFileContents);
+                await File.moveFileToTrash(page, testFileName);
             });
         });
 
@@ -145,6 +161,13 @@ TestContexts.map(ctx => {
                 await File.open(page, folderName1);
                 await File.open(page, folderName2);
                 await File.open(page, folderName3);
+                // TODO: Clean-up folders for project-user ctx
+
+                for (let i = 0; i < 3; i++) {
+                    await page.goBack();
+                }
+
+                await File.moveFileToTrash(page, folderName1);
             });
 
             test("Rename", async ({page}) => {
@@ -154,6 +177,8 @@ TestContexts.map(ctx => {
                 await File.rename(page, folderName, newFolderName)
                 await File.open(page, newFolderName);
                 await expect(page.getByText("This folder is empty")).toHaveCount(1);
+                await page.goBack();
+                await File.moveFileToTrash(page, newFolderName);
             });
 
             test("Move file", async ({page}) => {
@@ -164,6 +189,8 @@ TestContexts.map(ctx => {
                 await File.moveFileTo(page, uploadedFileName, folderTarget);
                 await File.actionByRowTitle(page, folderTarget, "dblclick");
                 await expect(page.getByText(uploadedFileName)).toHaveCount(1);
+                await page.goBack();
+                await File.moveFileToTrash(page, folderTarget);
             });
 
             test("Move folder", async ({page}) => {
@@ -186,6 +213,7 @@ TestContexts.map(ctx => {
                 await page.getByRole("dialog").locator(".row", {hasText: "From"}).getByRole("button", {name: "Move to"}).click();
                 await expect(page.getByText("Unable to move file.")).toHaveCount(1);
                 await page.keyboard.press("Escape");
+                await File.moveFileToTrash(page, rootFolder);
             });
 
             test("Copy file", async ({page}) => {
@@ -200,6 +228,9 @@ TestContexts.map(ctx => {
                     await Components.clickRefreshAndWait(page);
                     await page.waitForTimeout(200);
                 }
+
+                await page.goBack();
+                await File.moveFileToTrash(page, folder);
             });
 
             test("Copy file to self (check renaming)", async ({page}) => {
@@ -213,6 +244,11 @@ TestContexts.map(ctx => {
                 while (!await page.locator(".row").getByText("File(1).txt", {exact: true}).isVisible()) {
                     await Components.clickRefreshAndWait(page);
                     await page.waitForTimeout(200);
+                }
+
+                if (ctx === "Project User") {
+                    await File.moveToTrash(page, "File.txt");
+                    await File.moveToTrash(page, "File(1).txt");
                 }
             });
 
@@ -229,6 +265,9 @@ TestContexts.map(ctx => {
                     await Components.clickRefreshAndWait(page);
                     await page.waitForTimeout(200);
                 }
+
+                await File.moveFileToTrash(page, folderToCopy);
+                await File.moveFileToTrash(page, folderToCopy + "(1)");
             });
 
             test("Move to trash, empty trash", async ({page}) => {
@@ -246,6 +285,7 @@ TestContexts.map(ctx => {
         });
 
         test("Files - search works", async ({page}) => {
+            test.setTimeout(120_000);
             const theFolderToFind = "Please find meeee";
             const foldersToCreate = `A/B/C/D/${theFolderToFind}`;
             await File.create(page, foldersToCreate);
@@ -269,11 +309,22 @@ TestContexts.map(ctx => {
         });
 
         test("Files - accounting works", async ({page: adminPage, context}) => {
-            test.setTimeout(240_000);
-            const {userPage, user} = await User.createUserWithProjectAndAssignRole(adminPage, context, ctx, {"Core-hours requested": 5, "GB requested": 2});
+            test.setTimeout(120_000);
+            const AUTOGIFTED_RESOURCES = (isProd(data.location_origin) || isDev(data.location_origin)) && ctx == "Personal Workspace";
+
+            const quotas: [string, number][] = [[PRODUCTS.compute, 1]];
+            // Skip applying for storage for personal workspaces, as they already are given gifts.
+            if (AUTOGIFTED_RESOURCES == false) {
+                quotas.push([PRODUCTS.storage, 2]);
+            }
+            const {userPage, user} = await User.createUserWithProjectAndAssignRole(adminPage, context, ctx, quotas);
 
             await Accounting.goTo(userPage, "Allocations");
-            await userPage.getByText("0 GB / 2 GB (0%)").first().waitFor();
+            if (AUTOGIFTED_RESOURCES) {
+                await userPage.getByText(`0 GB / 5 GB (0%)`).first().waitFor();
+            } else {
+                await userPage.getByText(`0 GB / 2 GB (0%)`).first().waitFor();
+            }
 
             const jobName = Runs.newJobName();
             const term = await Applications.runAppAndOpenTerminalWithTerminalPage(userPage, Applications.AppNames.TestApplication, 1, undefined, jobName);
@@ -286,7 +337,14 @@ TestContexts.map(ctx => {
 
             await File.triggerStorageScan(userPage, driveName);
             await Accounting.goTo(userPage, "Allocations");
-            await userPage.getByText("1 GB / 2 GB (50%)").first().waitFor();
+
+            const locator = userPage.getByText(AUTOGIFTED_RESOURCES ? `1 GB / 5 GB (20%)` : `1 GB / 2 GB (50%)`).first();
+
+            while (!await locator.isVisible()) {
+                await userPage.reload();
+                await userPage.waitForTimeout(5_000);
+
+            }
 
             await Drive.goToDrives(userPage);
             await Drive.openDrive(userPage, driveName);
@@ -305,114 +363,122 @@ TestContexts.map(ctx => {
             test.setTimeout(120_000);
             const args = testCtx(["", ctx]);
             const user = args.user;
-            const drive = ctx === "Project User" ? Drive.newDriveNameOrMemberFiles(ctx) : Drives[userAgent! + user.username];
+            const drive = ctx === "Project User" ? user.username : Drives[userAgent! + user.username];
             const testFileName = "test_single_file.txt";
             const testFileContents = "Single test file content.";
             await File.uploadFiles(page, [{name: testFileName, contents: testFileContents}]);
             await File.openIntegratedTerminal(page);
-            await Terminal.enterCmd(page, `cat ${drive}/${testFileName}`);
+            await Terminal.enterCmd(page, `cat "${drive}/${testFileName}"`);
             await expect(page.getByText(testFileContents)).toHaveCount(1);
+            await page.locator("div > svg[class*=icon-hover-block]").first().click()
+            await File.moveFileToTrash(page, testFileName);
 
-            if (ctx !== "Personal Workspace") {
-                await Project.changeTo(page, "My workspace");
-            }
 
-            await Runs.goToRuns(page);
+        });
 
-            await page.locator(".row", {hasText: "Integrated terminal"}).first().click();
+        if (!ctx.startsWith("Project")) {
+            test("Files - folder sharing works", async ({page, browser}) => {
+                // Create folder
+                const folderToShare = File.newFolderName();
+                await File.create(page, folderToShare);
 
-            await NetworkCalls.awaitResponse(page, "**/jobs/terminate", async () => {
-                await Components.clickConfirmationButton(page, "Stop");
+                const url = page.url();
+
+                // Share with user
+                await File.shareFolderWith(page, folderToShare, data.users.without_resources.username);
+
+                // Ensure share exists
+                await File.goToSharedByMe(page);
+                await page.getByText(folderToShare, {exact: false}).waitFor({state: "visible"})
+                await page.getByText("1 pending", {exact: false}).first().waitFor({state: "visible"});
+
+                // Open new page and login for user folder is shared with
+                const sharedWithUserPage = await browser.newPage();
+                if (data["login_cookie"]) {
+                    await sharedWithUserPage.context().addCookies([data["login_cookie"]]);
+                }
+
+                await User.login(sharedWithUserPage, data.users.without_resources);
+
+                // Accept share
+                await File.goToSharedWithMe(sharedWithUserPage);
+                await Components.clickConfirmationButton(sharedWithUserPage, "Accept");
+
+                // Check folder is available
+                await File.actionByRowTitle(sharedWithUserPage, folderToShare, "dblclick");
+                await sharedWithUserPage.getByText("This folder is empty").waitFor({state: "visible"});
+
+                // Delete share
+                await Components.clickRefreshAndWait(page);
+                await page.locator(".row", {hasText: folderToShare}).click();
+                await Components.clickConfirmationButton(page, "Delete share");
+
+                // See that access has been revoked for receiver
+                // Should be `await Components.clickRefreshAndWait(sharedWithUserPage);`, but blocked by #5268
+                while (!await sharedWithUserPage.getByText("We could not find any data related to this folder.").isVisible()) {
+                    await sharedWithUserPage.waitForTimeout(1_000);
+                    await sharedWithUserPage.reload();
+                }
+
+                await page.goto(url);
+
+                await File.moveToTrash(page, folderToShare);
+
             });
-
-            if (ctx !== "Personal Workspace") {
-                await Project.changeTo(page, args.projectName!);
-            }
-        });
-
-        test("Files - folder sharing works", async ({page, browser}) => {
-            if (ctx.startsWith("Project")) test.skip();
-            // Create folder
-            const folderToShare = File.newFolderName();
-            await File.create(page, folderToShare);
-
-            // Share with user
-            await File.shareFolderWith(page, folderToShare, data.users.without_resources.username);
-
-            // Ensure share exists
-            await File.goToSharedByMe(page);
-            await page.getByText(folderToShare, {exact: false}).waitFor({state: "visible"})
-            await page.getByText("1 pending", {exact: false}).first().waitFor({state: "visible"});
-
-            // Open new page and login for user folder is shared with
-            const sharedWithUserPage = await browser.newPage();
-            await User.login(sharedWithUserPage, data.users.without_resources);
-
-            // Accept share
-            await File.goToSharedWithMe(sharedWithUserPage);
-            await sharedWithUserPage.locator(".row", {hasText: folderToShare}).getByRole("button", {name: "Accept"}).click();
-
-            // Check folder is available
-            await File.actionByRowTitle(sharedWithUserPage, folderToShare, "dblclick");
-            await sharedWithUserPage.getByText("This folder is empty").waitFor({state: "visible"});
-
-            // Delete share
-            await Components.clickRefreshAndWait(page);
-            await page.locator(".row", {hasText: folderToShare}).click();
-            await Components.clickConfirmationButton(page, "Delete share");
-
-            // See that access has been revoked for receiver
-            // Should be `await Components.clickRefreshAndWait(sharedWithUserPage);`, but blocked by #5268
-            await sharedWithUserPage.reload();
-            await sharedWithUserPage.getByText("We could not find any data related to this folder.").waitFor({state: "visible"});
-        });
+        }
 
         test("Files - Syncthing works", async ({page, userAgent}) => {
-            test.setTimeout(60_000);
             const folderName = File.newFolderName();
             const deviceName = File.newFolderName().replace("FolderName", "DeviceName");
             await File.create(page, folderName);
 
+            const url = page.url()
+
             const result = await NetworkCalls.awaitResponse(page, "**/iapps/syncthing/retrieve**", async () => {
-                await page.locator("div.operation", {hasText: "Sync"}).click();
+                await page.getByRole("button", {name: /^Sync/}).click();
             });
 
             const syncthingDevicesText = await result.text();
             const parsedDevices: {config: {devices: any[]}} = JSON.parse(syncthingDevicesText);
             if (parsedDevices.config.devices.length > 0) {
-                await page.getByText("Add device").first().click();
+                await page.getByRole("button", {name: "Add device", exact: true}).click();
             }
 
-            await page.getByText("Next step").click();
+            await page.getByRole("button", {name: "Next step", exact: true}).click();
             await page.getByRole("textbox", {name: "Device name"}).fill(deviceName);
             await page.getByRole("textbox", {name: "My device ID"}).fill("1111111-1111111-1111111-1111111-1111111-1111111-1111111-1111111");
-            await page.getByText("Next step").filter({visible: true}).first().click();
+            await page.getByRole("button", {name: "Add device", exact: true}).click();
 
             await NetworkCalls.awaitResponse(page, "**/api/files/browse**", async () => {
-                await page.getByRole("button", {name: "Add folder"}).filter({visible: true}).first().click();
+                await page.getByRole("button", {name: "Choose folder", exact: true}).click();
             });
             const user = ctxUser(ctx);
             const drive = ctx === "Project User" ? Drive.newDriveNameOrMemberFiles(ctx) : Drives[userAgent! + user.username];
             await File.ensureDialogDriveActive(page, drive);
 
             await NetworkCalls.awaitResponse(page, "**/api/iapps/syncthing/update", async () => {
-                await page.getByRole("dialog").locator(".row", {hasText: folderName}).getByRole("button", {name: "Sync"}).click();
+                await Components.useDialogBrowserItem(page, folderName, "Sync");
             });
             await page.getByRole("dialog").waitFor({state: "hidden"});
 
             // Remove folder
             await page.getByText(folderName).waitFor();
-            await page.locator("div[class^=card] .row:not(.hidden)").last().getByRole("button").click();
+            await page.locator(".sync-row").filter({hasText: folderName})
+                .getByRole("button").last().click();
             await NetworkCalls.awaitResponse(page, "**/api/iapps/syncthing/update", async () => {
-                await page.getByRole("dialog").getByRole("button", {name: "Remove"}).click();
+                await page.getByRole("dialog").getByRole("button", {name: "Stop synchronizing", exact: true}).click();
             });
 
             // Remove syncthing device
             await page.getByText(deviceName).waitFor();
-            await page.getByRole("button", {name: "", exact: true}).first().click();
+            await page.locator(".sync-row").filter({hasText: deviceName}).getByRole("button").last().click();
             await NetworkCalls.awaitResponse(page, "**/api/iapps/syncthing/update", async () => {
-                await page.getByRole("button", {name: "Remove"}).click();
+                await page.getByRole("dialog").getByRole("button", {name: "Remove", exact: true}).click();
             });
+
+            await page.goto(url);
+
+            await File.moveToTrash(page, folderName);
         });
     });
 });

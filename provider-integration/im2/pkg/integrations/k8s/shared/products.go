@@ -193,45 +193,47 @@ func initProducts() {
 	if ServiceConfig.Compute.IntegratedTerminal.Enabled {
 		// NOTE(Dan): This block must be placed after the general machine loop
 
-		support := orc.JobSupport{
-			Product: apm.ProductReference{
-				Id:       "terminal",
-				Category: "terminal",
-				Provider: config.Provider.Id,
-			},
-		}
-
-		support.Docker.Enabled = false
-		support.VirtualMachine.Enabled = false
-		support.Native.Enabled = false
-
-		machine := apm.ProductV2{
-			Type: apm.ProductTypeCCompute,
-			Category: apm.ProductCategory{
-				Name:        "terminal",
-				Provider:    config.Provider.Id,
-				ProductType: apm.ProductTypeCompute,
-				AccountingUnit: apm.AccountingUnit{
-					Name:                   "Core",
-					NamePlural:             "Core",
-					FloatingPoint:          false,
-					DisplayFrequencySuffix: true,
+		{
+			support := orc.JobSupport{
+				Product: apm.ProductReference{
+					Id:       IntegratedTerminalAppName,
+					Category: IntegratedTerminalAppName,
+					Provider: config.Provider.Id,
 				},
-				AccountingFrequency: apm.AccountingFrequencyPeriodicHour,
-				FreeToUse:           true,
-				AllowSubAllocations: false,
-			},
-			Name:                      "terminal",
-			Description:               "Product for the integrated terminal",
-			ProductType:               apm.ProductTypeCompute,
-			Price:                     1,
-			HiddenInGrantApplications: true,
-			Cpu:                       1,
-			MemoryInGigs:              1,
-		}
+			}
 
-		Machines = append(Machines, machine)
-		MachineSupport = append(MachineSupport, support)
+			support.Docker.Enabled = false
+			support.VirtualMachine.Enabled = false
+			support.Native.Enabled = false
+
+			machine := apm.ProductV2{
+				Type: apm.ProductTypeCCompute,
+				Category: apm.ProductCategory{
+					Name:        IntegratedTerminalAppName,
+					Provider:    config.Provider.Id,
+					ProductType: apm.ProductTypeCompute,
+					AccountingUnit: apm.AccountingUnit{
+						Name:                   "Core",
+						NamePlural:             "Core",
+						FloatingPoint:          false,
+						DisplayFrequencySuffix: true,
+					},
+					AccountingFrequency: apm.AccountingFrequencyPeriodicHour,
+					FreeToUse:           true,
+					AllowSubAllocations: false,
+				},
+				Name:                      IntegratedTerminalAppName,
+				Description:               "Product for the integrated terminal",
+				ProductType:               apm.ProductTypeCompute,
+				Price:                     1,
+				HiddenInGrantApplications: true,
+				Cpu:                       1,
+				MemoryInGigs:              1,
+			}
+
+			Machines = append(Machines, machine)
+			MachineSupport = append(MachineSupport, support)
+		}
 	}
 
 	if ServiceConfig.Compute.PublicIps.Enabled {

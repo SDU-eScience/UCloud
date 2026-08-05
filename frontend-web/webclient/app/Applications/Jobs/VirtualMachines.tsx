@@ -32,9 +32,9 @@ import {PublicLinkBrowse} from "@/Applications/PublicLinks/PublicLinkBrowse";
 import {PrivateNetworkBrowse} from "@/Applications/PrivateNetwork/PrivateNetworkBrowse";
 import {NetworkIPBrowse} from "@/Applications/NetworkIP/NetworkIPBrowse";
 import {VirtualMachineRestartReminder} from "./VirtualMachineRestartReminder";
-import {VirtualMachineIconButton} from "@/Applications/Jobs/VirtualMachineIconButton";
+import {IconButton} from "@/ui-components/IconButton";
 import {HeroHeaderCard, HeroHeaderGrid, HeroMetric} from "@/Applications/Jobs/HeroHeader";
-import {SplitDropdownTrigger, VmActionItem, VmActionRow, VmActionSplitButton} from "@/Applications/Jobs/VmActionSplitButton";
+import {PrimarySplitDropdownTrigger, VmActionItem, VmActionRow, VmActionSplitButton} from "@/Applications/Jobs/VmActionSplitButton";
 import PublicLinkApi, {PublicLink} from "@/UCloud/PublicLinkApi";
 import PrivateNetworkApi, {PrivateNetwork} from "@/UCloud/PrivateNetworkApi";
 import NetworkIPApi, {NetworkIP} from "@/UCloud/NetworkIPApi";
@@ -341,7 +341,7 @@ export const VirtualMachineStatus: React.FunctionComponent<{
     const onSelectLaunchMenuItem = useCallback((item: VmActionItem) => {
         if (item.key.startsWith("iface:")) {
             let url = item.key.substring("iface:".length);
-            if (!url.startsWith("/app/")) {
+            if (!url.startsWith("/app/") && !url.startsWith("https:/")) {
                 url = "/app/" + url;
                 url = url.replaceAll("//", "/");
             }
@@ -742,21 +742,21 @@ export const VirtualMachineStatus: React.FunctionComponent<{
                     <Flex gap={"8px"} alignItems={"center"}>
 
                         <SafeLogo name={job?.specification?.application?.name ?? "unknown"}
-                                  type={"APPLICATION"}
-                                  size={"32px"}/>
+                            type={"APPLICATION"}
+                            size={"32px"} />
 
                         <Heading.h2>{appTitle} {appVersion}</Heading.h2>
                     </Flex>
                 </Box>
 
-                <Box flexGrow={1}/>
+                <Box flexGrow={1} />
 
                 <Flex flexDirection="row" alignItems="center" gap="10px">
                     {!showInterfaceControls ? null : (
                         <Flex>
                             <Link to={supportsTerminal ? terminalLink : (desktopTarget?.link ?? "")} target="_blank" aria-disabled={interfaceDisabled}>
                                 <Button disabled={interfaceDisabled} attachedLeft={hasLaunchMenu}>
-                                    <Icon name={supportsTerminal ? "heroCommandLine" : "heroComputerDesktop"} mr="8px"/>
+                                    <Icon name={supportsTerminal ? "heroCommandLine" : "heroComputerDesktop"} mr="8px" />
                                     {supportsTerminal
                                         ? "Open terminal"
                                         : `Open ${desktopTarget?.target ?? defaultInterfaceName ?? (supportsVnc ? "desktop" : "interface")}`
@@ -774,7 +774,7 @@ export const VirtualMachineStatus: React.FunctionComponent<{
                                     dropdownWidth="300px"
                                     matchTriggerWidth={false}
                                     trigger={
-                                        <div className={SplitDropdownTrigger} data-disabled={interfaceDisabled}>
+                                        <div className={PrimarySplitDropdownTrigger} data-disabled={interfaceDisabled}>
                                             <Icon name="heroChevronDown"/>
                                         </div>
                                     }
@@ -814,7 +814,7 @@ export const VirtualMachineStatus: React.FunctionComponent<{
             <div className={HeroHeaderGrid}>
                 <HeroMetric title={"ID"}>{shortUUID(job.id)}</HeroMetric>
                 <HeroMetric title="Provider">
-                    <ProviderTitle providerId={job.specification.product.provider}/>
+                    <ProviderTitle providerId={job.specification.product.provider} />
                 </HeroMetric>
                 <HeroMetric title="Machine type">{job.specification.product.id}</HeroMetric>
                 <HeroMetric title="Launched by">{job.owner.createdBy}</HeroMetric>
@@ -847,7 +847,7 @@ export const VirtualMachineStatus: React.FunctionComponent<{
                                     >
                                         {sshCommand ?? "Not announced by provider yet"}
                                     </code>
-                                    <VirtualMachineIconButton
+                                    <IconButton
                                         tooltip={"Copy to clipboard"}
                                         onClick={() => sshCommand ? copyToClipboard(sshCommand) : undefined}
                                         icon={"heroDocumentDuplicate"}
@@ -857,19 +857,19 @@ export const VirtualMachineStatus: React.FunctionComponent<{
                                 <dt>Public links</dt>
                                 <dd className={VmDetailRowWithAction}>
                                     <span>{accessIngresses.length > 0 ? accessIngresses.length : "None"}</span>
-                                    <VirtualMachineIconButton tooltip={"Manage"} onClick={openPublicLinksManager} icon={"heroWrenchScrewdriver"} />
+                                    <IconButton tooltip={"Manage"} onClick={openPublicLinksManager} icon={"heroWrenchScrewdriver"} />
                                 </dd>
 
                                 <dt>Public IPs</dt>
                                 <dd className={VmDetailRowWithAction}>
                                     <span>{accessPublicIps.length > 0 ? accessPublicIps.length : "None"}</span>
-                                    <VirtualMachineIconButton tooltip={"Manage"} onClick={openPublicIpsManager} icon={"heroWrenchScrewdriver"} />
+                                    <IconButton tooltip={"Manage"} onClick={openPublicIpsManager} icon={"heroWrenchScrewdriver"} />
                                 </dd>
 
                                 <dt>Connected networks</dt>
                                 <dd className={VmDetailRowWithAction}>
                                     <span>{accessPrivateNetworks.length > 0 ? accessPrivateNetworks.length : "None"}</span>
-                                    <VirtualMachineIconButton tooltip={"Manage"} onClick={openPrivateNetworksManager} icon={"heroWrenchScrewdriver"} />
+                                    <IconButton tooltip={"Manage"} onClick={openPrivateNetworksManager} icon={"heroWrenchScrewdriver"} />
                                 </dd>
                             </div>
                         </div>
@@ -910,7 +910,7 @@ export const VirtualMachineStatus: React.FunctionComponent<{
                     jobId={job.id}
                     providerId={job.specification.product.provider}
                     parameters={job.specification.parameters}
-                    resources={job.specification.resources}
+                    resources={job.specification.resources ?? []}
                     onFolderAdded={onFolderAdded}
                     onFolderRemoved={onFolderRemoved}
                     showRestartIndicator={hasPendingFolderRestart}
@@ -1043,7 +1043,7 @@ const VmAccessResourceManagerDialog: React.FunctionComponent<{
             <div className={VmAccessManagerHeader}>
                 <Heading.h3>
                     <Flex gap={"8px"} alignItems={"center"}>
-                        <VirtualMachineIconButton tooltip={"Back"} onClick={onBackToManage} icon={"heroArrowLeft"} />
+                        <IconButton tooltip={"Back"} onClick={onBackToManage} icon={"heroArrowLeft"} />
                         {selectTitle}
                     </Flex>
                 </Heading.h3>
@@ -1065,7 +1065,7 @@ const VmAccessResourceManagerDialog: React.FunctionComponent<{
         <div className={VmAccessManagerHeader}>
             <Heading.h3>{title}</Heading.h3>
             <div className={VmAccessManagerControls}>
-                <VirtualMachineIconButton tooltip={"Attach resource"} onClick={onAddResource} icon={"heroPlus"} />
+                <IconButton tooltip={"Attach resource"} onClick={onAddResource} icon={"heroPlus"} />
             </div>
         </div>
 
@@ -1090,13 +1090,13 @@ const VmAccessResourceManagerDialog: React.FunctionComponent<{
                                 error={!inlineCreationIsValid}
                             />
                         </form>
-                        <VirtualMachineIconButton
+                        <IconButton
                             tooltip={"Confirm"}
                             onClick={onInlineCreationConfirm}
                             icon={"heroCheck"}
                             color={inlineCreationIsValid ? "successMain" : "textSecondary"}
                         />
-                        <VirtualMachineIconButton
+                        <IconButton
                             tooltip={"Cancel"}
                             onClick={closeInlineCreation}
                             icon={"heroMinus"}
@@ -1107,7 +1107,7 @@ const VmAccessResourceManagerDialog: React.FunctionComponent<{
                 {attached.map((resource, idx) => (
                     <Flex key={`${vmAccessResourceKey(resource)}-${idx}`} gap={"8px"}>
                         <Box flexGrow={1}>{labelForResource(resource)}</Box>
-                        <VirtualMachineIconButton
+                        <IconButton
                             tooltip={"Remove resource"}
                             onClick={() => onRemoveResource(resource)}
                             icon={"heroMinus"}

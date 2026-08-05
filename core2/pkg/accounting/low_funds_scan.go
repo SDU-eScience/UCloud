@@ -97,7 +97,7 @@ func lowFundsScan(lowFundsLimitInPercent float32) {
 					pc.provider,
 					coalesce(pm.username, wo.username) username,
 					wo.project_id is not null is_project,
-					coalesce(p.title, concat('Personal workspace - ', wo.username)) project_title
+					coalesce(p.title, concat('Personal workspace of ', wo.username)) project_title
 				from
 					accounting.wallets_v2 w join
 					active_usage au on w.id = au.wallet_id join

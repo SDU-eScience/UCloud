@@ -1,4 +1,5 @@
-import {Operation, ShortcutKey} from "@/ui-components/Operation";
+import {actionsToOperations, Operation, OperationEnabled, operationsToActions, ShortcutKey} from "@/ui-components/Operation";
+import {ActionAppearance, ActionBar, ActionEntry, ActionItem, ActionMenu, ResourceBrowserActions} from "@/ui-components/Actions";
 import {IconName} from "@/ui-components/Icon";
 import {
     ThemeColor,
@@ -28,8 +29,8 @@ import {PageV2} from "@/UCloud";
 import {injectStyle as unstyledInjectStyle} from "@/Unstyled";
 import {InputClass} from "./Input";
 import {getStartOfDay} from "@/Utilities/DateUtilities";
-import {createPortal} from "react-dom";
-import {ProjectSwitcher, FilterInputClass, projectCache} from "@/Project/ProjectSwitcher";
+import {createPortal, flushSync} from "react-dom";
+import {ProjectSwitcher, FilterInputClass, projectCache, fetchProjects} from "@/Project/ProjectSwitcher";
 import {addProjectListener, removeProjectListener} from "@/Project/ReduxState";
 import {ProductType, ProductV2} from "@/Accounting";
 import ProviderInfo from "@/Assets/provider_info.json";
@@ -39,17 +40,22 @@ import {divHtml, divText, image} from "@/Utilities/HTMLUtilities";
 import {ConfirmationButtonPlainHTML} from "./ConfirmationAction";
 import {HTMLTooltip} from "./Tooltip";
 import {ButtonClass} from "./Button";
-import {DELETE_TAG, ResourceIncludeFlags} from "@/UCloud/ResourceApi";
+import {CREATE_TAG, DELETE_TAG, PERMISSIONS_TAG, PROPERTIES_TAG, ResourceIncludeFlags} from "@/UCloud/ResourceApi";
 import {TruncateClass} from "./Truncate";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import Flex, {FlexClass} from "./Flex";
 import * as Heading from "@/ui-components/Heading";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {isAdminOrPI} from "@/Project";
-import {callAPI, noopCall} from "@/Authentication/DataHook";
+import {noopCall} from "@/Authentication/DataHook";
 import {injectResourceBrowserStyle, ShortcutClass} from "./ResourceBrowserStyle";
 import {ASC, DESC, Filter, FilterCheckbox, FilterInput, FilterOption, FilterWithOptions, MultiOption, MultiOptionFilter, SORT_BY, SORT_DIRECTION} from "./ResourceBrowserFilters";
 import {sendInformationNotification} from "@/Notifications";
+import {UFile} from "@/UCloud/UFile";
+import ReactClient from "react-dom/client";
+import type {Root} from "react-dom/client";
+import {VmActionItem, VmActionSplitButton} from "@/Applications/Jobs/VmActionSplitButton";
+import {Feature, hasFeature} from "@/Features";
 
 const CLEAR_FILTER_VALUE = "\n\nCLEAR_FILTER\n\n";
 const UTILITY_COLOR: ThemeColor = "textPrimary";
@@ -126,7 +132,7 @@ export interface ResourceBrowseHeaderControls {
 
 export type OperationOrGroup<T, R> = Operation<T, R> | OperationGroup<T, R>;
 
-export function isOperation<T, R>(op: OperationOrGroup<unknown, unknown>): op is Operation<T, R> {
+export function isOperation<T, R>(op: OperationOrGroup<T, R>): op is Operation<T, R> {
     return !("operations" in op);
 }
 
@@ -138,6 +144,131 @@ export interface OperationGroup<T, R> {
     backgroundColor?: ThemeColor,
     operations: Operation<T, R>[];
     iconRotation?: number;
+    operationGroupId?: string;
+    buttonStyle?: string
+}
+
+export type {ResourceBrowserActions} from "@/ui-components/Actions";
+
+function legacyBrowserOperationsToActions<T, C>(operations: OperationOrGroup<T, C>[], all: T[], flattenGroups = false): {
+    actions: ActionEntry<T, C>[];
+    appearance: (action: ActionItem<T, C>) => ActionAppearance | undefined;
+} {
+    const actions: ActionEntry<T, C>[] = [];
+    const appearances = new Map<ActionItem<T, C>, ActionAppearance>();
+    const addAdapted = (operationList: Operation<T, C>[]) => {
+        const result: ActionEntry<T, C>[] = [];
+        for (const operation of operationList) {
+            const adapted = operationsToActions([operation], all);
+            for (const entry of adapted.actions) {
+                if (entry !== "divider") {
+                    const value = adapted.appearance(entry);
+                    appearances.set(entry, {
+                        ...value,
+                        iconSize: 16,
+                        iconSpacing: "8px",
+                        groupOnly: "hackNotInTheContextMenu" in operation || value?.groupOnly,
+                    });
+                }
+                result.push(entry);
+            }
+        }
+        return result;
+    };
+
+    for (const entry of operations) {
+        if (isOperation(entry)) {
+            actions.push(...addAdapted([entry]));
+            continue;
+        }
+
+        const children = addAdapted(entry.operations);
+        if (flattenGroups) {
+            actions.push(...children);
+            continue;
+        }
+        if (entry.buttonStyle === "split" && children.length) {
+            const [first, ...rest] = children;
+            if (first !== "divider") {
+                first.children = rest;
+                appearances.set(first, {
+                    ...appearances.get(first),
+                    iconSize: 18,
+                });
+                actions.push(first);
+            }
+            continue;
+        }
+
+        const group: ActionItem<T, C> = {
+            text: entry.text,
+            icon: entry.icon,
+            shortcut: entry.shortcut,
+            enabled: () => true,
+            onClick: doNothing,
+            children,
+        };
+        appearances.set(group, {
+            color: entry.color,
+            iconRotation: entry.iconRotation,
+            iconSize: 16,
+            iconSpacing: "8px",
+            groupOnly: true,
+        });
+        actions.push(group);
+    }
+
+    return {actions, appearance: action => appearances.get(action)};
+}
+
+function organizeResourceContextMenu<T, C>(actions: ActionEntry<T, C>[]): ActionEntry<T, C>[] {
+    const general: ActionEntry<T, C>[] = [];
+    const sharing: ActionEntry<T, C>[] = [];
+    const modification: ActionEntry<T, C>[] = [];
+    const creation: ActionEntry<T, C>[] = [];
+    const properties: ActionEntry<T, C>[] = [];
+
+    for (const entry of actions) {
+        if (entry === "divider") continue;
+        const text = typeof entry.text === "string" ? entry.text : "";
+        entry.shortcut = undefined;
+
+        if (text === "Copy" || text.startsWith("Copy ")) {
+            entry.icon = "heroDocumentDuplicate";
+            entry.shortcut = {code: "KeyC", key: "C", modifier: "primary"};
+        }
+        if (text === "Download" || text.startsWith("Export ")) entry.icon = "heroArrowDownTray";
+        if (entry.tag === PROPERTIES_TAG || text === "Properties") {
+            entry.icon = undefined;
+            properties.push(entry);
+        } else if (entry.tag === CREATE_TAG || text.startsWith("Create ") || text === "Add SSH key") {
+            const enabled = entry.enabled;
+            entry.enabled = (selected, callbacks) => selected.length === 0 && enabled(selected, callbacks);
+            creation.push(entry);
+        } else if (entry.tag === PERMISSIONS_TAG || ["Permissions", "Share", "Invite", "Manage share"].includes(text)) {
+            entry.icon = "heroShare";
+            sharing.push(entry);
+        } else if (text === "Rename" || text === "Edit") {
+            entry.icon = "heroPencilSquare";
+            if (text === "Rename") entry.shortcut = {code: "F2", key: "F2"};
+            modification.push(entry);
+        } else if (entry.tag === DELETE_TAG || ["Delete", "Delete share", "Remove", "Revoke", "Stop"].includes(text) ||
+            (entry.destructive && text !== "Accept" && text !== "Decline")) {
+            entry.icon = "heroTrash";
+            entry.shortcut = {code: "Delete", key: "Delete"};
+            modification.push(entry);
+        } else {
+            general.push(entry);
+        }
+    }
+
+    const result: ActionEntry<T, C>[] = [];
+    for (const section of [general, sharing, modification, creation, properties]) {
+        if (!section.length) continue;
+        if (result.length) result.push("divider");
+        result.push(...section);
+    }
+    return result;
 }
 
 export enum SelectionMode {
@@ -198,7 +329,7 @@ interface ResourceBrowserListenerMap<T> {
 
     "renderEmptyPage": (reason: EmptyReason) => void;
 
-    "fetchOperations": () => OperationOrGroup<T, unknown>[];
+    "fetchOperations": () => OperationOrGroup<T, any>[] | ResourceBrowserActions<T, any>;
     "fetchOperationsCallback": () => unknown | null;
     "fetchBrowserFeatures": () => ControlDescription[] | undefined;
 
@@ -308,6 +439,12 @@ export class ResourceBrowser<T> {
     // Context menu
     private contextMenu: HTMLDivElement;
     private contextMenuHandlers: (() => void)[] = [];
+    private actionBarRoot?: Root;
+    private actionMenuRoot?: Root;
+    private actionMenuOpenRef = React.createRef<(left: number, top: number) => void>();
+    private actionMenuCloseRef = React.createRef<() => void>();
+    private reactActionMenuOpen = false;
+    private readonly useNewActions: boolean;
 
     // Rename
     renameField: HTMLInputElement;
@@ -411,10 +548,14 @@ export class ResourceBrowser<T> {
     };
     // Note(Jonas): To use for project change listening.
     private initialPath: string | undefined = "";
+    private uniqueListenerId: string;
 
     constructor(root: HTMLElement, resourceName: string, opts: ResourceBrowserOpts<T> | undefined) {
         this.root = root;
+        this.uniqueListenerId = resourceName + Math.random().toString();
+
         this.resourceName = resourceName;
+        this.useNewActions = hasFeature(Feature.NEW_CONTEXT_MENU);
         this.isModal = !!opts?.isModal;
         ResourceBrowser.isAnyModalOpen = ResourceBrowser.isAnyModalOpen || this.isModal;
         this.opts = {
@@ -434,6 +575,7 @@ export class ResourceBrowser<T> {
         }
         this.renderRows();
         this.renderOperations();
+        this.dispatchMessage("rowSelectionUpdated", fn => fn());
     }
 
     public init(
@@ -524,6 +666,13 @@ export class ResourceBrowser<T> {
             providerReason: this.root.querySelector(".page-empty .provider-reason")!,
         };
 
+        if (this.useNewActions) {
+            this.actionBarRoot = ReactClient.createRoot(this.operations);
+            const actionMenuContainer = document.createElement("div");
+            this.root.appendChild(actionMenuContainer);
+            this.actionMenuRoot = ReactClient.createRoot(actionMenuContainer);
+        }
+
         if (this.opts.embedded) {
             this.root.style.height = "auto";
             this.emptyPageElement.container.style.marginTop = "0px";
@@ -546,8 +695,10 @@ export class ResourceBrowser<T> {
             if (!this.root.isConnected) {
                 this.dispatchMessage("unmount", fn => fn());
                 if (this.isModal) ResourceBrowser.isAnyModalOpen = false;
-                removeThemeListener(this.resourceName);
-                removeProjectListener(this.resourceName);
+                removeThemeListener(this.uniqueListenerId);
+                removeProjectListener(this.uniqueListenerId);
+                this.actionBarRoot?.unmount();
+                this.actionMenuRoot?.unmount();
 
                 window.clearInterval(unmountInterval);
             }
@@ -751,7 +902,7 @@ export class ResourceBrowser<T> {
                 return;
             }
 
-            if (this.contextMenuHandlers.length) {
+            if (this.contextMenuHandlers.length || this.reactActionMenuOpen) {
                 this.closeContextMenu();
             }
 
@@ -772,7 +923,7 @@ export class ResourceBrowser<T> {
 
             attemptCloseRenameField(e);
 
-            if (this.contextMenuHandlers.length) this.closeContextMenu();
+            if (this.contextMenuHandlers.length || this.reactActionMenuOpen) this.closeContextMenu();
         });
 
         const clearEntryBelowCursor = () => {
@@ -854,25 +1005,25 @@ export class ResourceBrowser<T> {
 
         this.scrolling.append(...rows);
 
-        addThemeListener(this.resourceName, () => {
+        addThemeListener(this.uniqueListenerId, () => {
             this.rerender();
             this.rerenderUtilityIcons();
         });
         const path = this.initialPath;
         if (path !== undefined) {
-            const evaluateProjectStatus = (projectId?: string | null) => {
-                this.canConsumeResources = checkCanConsumeResources(
+            const evaluateProjectStatus = async (projectId?: string | null) => {
+                this.canConsumeResources = await checkCanConsumeResources(
                     projectId ?? null,
                     this.dispatchMessage("fetchOperationsCallback", fn => fn()) as unknown as null | {
                         api: {isCoreResource: boolean}
                     },
                 );
-                if (!this.canConsumeResources) {
-                    this.renderCantConsumeResources();
-                }
+
+                this.rerender();
             };
 
-            addProjectListener(this.resourceName, project => {
+
+            addProjectListener(this.uniqueListenerId, project => {
                 evaluateProjectStatus(project);
             });
 
@@ -1414,7 +1565,117 @@ export class ResourceBrowser<T> {
     }
 
     renderOperations() {
+        if (this.useNewActions) {
+            this.renderActionBar();
+            return;
+        }
         this.renderOperationsIn(false);
+    }
+
+    private fetchActions(location: "topbar" | "contextMenu"): null | {
+        actions: ActionEntry<T, any>[];
+        selected: T[];
+        callbacks: any;
+        appearance?: (action: ActionItem<T, any>) => ActionAppearance | undefined;
+        maxVisible?: number;
+    } {
+        const rawCallbacks = this.dispatchMessage("fetchOperationsCallback", fn => fn());
+        if (rawCallbacks === null) return null;
+
+        const page = this.cachedData[this.currentPath] ?? [];
+        const callbacks = typeof rawCallbacks === "object" && rawCallbacks !== null ?
+            {...rawCallbacks, all: page} : rawCallbacks;
+        const fetched = this.dispatchMessage("fetchOperations", fn => fn());
+        let actions: ActionEntry<T, any>[];
+        let appearance: ((action: ActionItem<T, any>) => ActionAppearance | undefined) | undefined;
+
+        if (Array.isArray(fetched)) {
+            const operations = [...fetched];
+            if (location === "topbar" && !this.isModal) {
+                const custom = this.dispatchMessage("fetchBrowserFeatures", fn => fn());
+                operations.unshift(controlsOperation<T>(this.features, custom));
+            }
+            const adapted = legacyBrowserOperationsToActions(operations, page, location === "contextMenu");
+            actions = location === "contextMenu" ? organizeResourceContextMenu(adapted.actions) : adapted.actions;
+            appearance = adapted.appearance;
+        } else {
+            actions = fetched[location] ?? fetched[location === "topbar" ? "contextMenu" : "topbar"] ?? [];
+            appearance = fetched.appearance;
+            if (location === "topbar" && !this.isModal) {
+                const custom = this.dispatchMessage("fetchBrowserFeatures", fn => fn());
+                const controls = legacyBrowserOperationsToActions([controlsOperation<T>(this.features, custom)], page);
+                const controlActions = controls.actions;
+                const previousAppearance = appearance;
+                appearance = action => controls.appearance(action) ?? previousAppearance?.(action);
+                actions = [...controlActions, ...actions];
+            }
+        }
+
+        return {
+            actions,
+            selected: this.findSelectedEntries(),
+            callbacks,
+            appearance,
+            maxVisible: location === "topbar" && !Array.isArray(fetched) ? fetched.topbarMaxVisible : undefined,
+        };
+    }
+
+    copyToClipboard(entries: T[], cut: boolean): void {
+        if (!this.features.supportsMove || !this.features.supportsCopy) return;
+        ResourceBrowser.clipboard[this.resourceName] = entries;
+        ResourceBrowser.clipboardIsCut[this.resourceName] = cut;
+        if (entries.length) {
+            const key = isLikelyMac ? "⌘" : "Ctrl + ";
+            sendInformationNotification(`${entries.length} copied to clipboard. Use ${key}V to insert.`);
+        }
+    }
+
+    canPasteFromClipboard(): boolean {
+        return !!this.features.supportsMove && !!this.features.supportsCopy &&
+            !!ResourceBrowser.clipboard[this.resourceName]?.length;
+    }
+
+    pasteFromClipboard(): void {
+        if (!this.canPasteFromClipboard()) return;
+        this.dispatchMessage(
+            ResourceBrowser.clipboardIsCut[this.resourceName] ? "move" : "copy",
+            fn => fn(ResourceBrowser.clipboard[this.resourceName] as T[], this.currentPath)
+        );
+        if (ResourceBrowser.clipboardIsCut[this.resourceName]) ResourceBrowser.clipboard[this.resourceName] = [];
+    }
+
+    private renderActionBar() {
+        const snapshot = this.fetchActions("topbar");
+        this.shortCuts = {} as Record<ShortcutKey, () => void>;
+        if (!snapshot || !snapshot.actions.length || !this.canConsumeResources) {
+            this.actionBarRoot?.render(null);
+            return;
+        }
+        this.actionBarRoot?.render(<ActionBar
+            actions={snapshot.actions}
+            selected={snapshot.selected}
+            callbacks={snapshot.callbacks}
+            appearance={snapshot.appearance}
+            hideShortcuts={ResourceBrowser.hideShortcuts}
+            maxVisible={snapshot.maxVisible}
+        />);
+    }
+
+    private openActionMenu(x: number, y: number) {
+        const snapshot = this.fetchActions("contextMenu");
+        if (!snapshot || !snapshot.actions.length || !this.canConsumeResources) return;
+        flushSync(() => this.actionMenuRoot?.render(<ActionMenu
+            actions={snapshot.actions}
+            selected={snapshot.selected}
+            callbacks={snapshot.callbacks}
+            appearance={snapshot.appearance}
+            trigger={null}
+            openFnRef={this.actionMenuOpenRef}
+            closeFnRef={this.actionMenuCloseRef}
+            onOpen={() => this.reactActionMenuOpen = true}
+            onClose={() => this.reactActionMenuOpen = false}
+        />));
+        this.actionMenuOpenRef.current?.(x, y);
     }
 
     private renderFiltersInContextMenu(filter: FilterWithOptions | MultiOptionFilter, x: number, y: number) {
@@ -1569,14 +1830,77 @@ export class ResourceBrowser<T> {
         }
     }
 
+    private renderVmActionSplitButton(
+        opGroup: OperationGroup<T, unknown>,
+        selected: T[],
+        callbacks: unknown,
+        page: T[]
+    ): HTMLElement {
+        const container = document.createElement("div");
+        container.className = "operation";
+        container.style.display = "flex";
+
+        const root = ReactClient.createRoot(container);
+
+        const mainOp = opGroup.operations[0];
+        const rest = opGroup.operations.slice(1);
+
+        const enableResult: OperationEnabled = mainOp.enabled(selected, callbacks, page);
+        const isEnabled = enableResult === true;
+
+
+        const getText = (op): string => {
+            return typeof op.text === "string" ? op.text : op.text(selected, callbacks);
+        }
+        // Rest are menu items
+        const menuItems: VmActionItem[] = rest.map((childOp, idx) => ({
+            key: idx.toString(),
+            value: getText(childOp),
+            icon: childOp.icon ?? "questionSolid",
+            color: childOp.color ?? "textPrimary",
+            shortcut: childOp.shortcut,
+        }));
+        root.render(
+            <div onClick={stopPropagationAndPreventDefault}>
+                <VmActionSplitButton
+                    tone="none"
+                    disabled={!isEnabled}
+                    buttonColor={mainOp.color ?? "secondaryMain"}
+                    buttonText={getText(mainOp)}
+                    buttonIcon={mainOp.icon ?? "ellipsis"}
+                    menuItems={menuItems}
+                    shortcut={mainOp.shortcut}
+                    onSelectMenuItem={(item) => {
+                        const foundOp = rest[parseInt(item.key)];
+                        if (foundOp && foundOp.enabled(selected, callbacks, page) === true) {
+                            foundOp.onClick(selected, callbacks, page);
+                        }
+                    }}
+                    onButtonClick={() => {
+                        mainOp.onClick(selected, callbacks, page);
+                    }}
+                />
+            </div>
+        );
+
+        return container;
+    }
+
+
     private renderOperationsIn(useContextMenu: boolean, contextOpts?: {
         x: number,
         y: number,
     }) {
-        const callbacks = this.dispatchMessage("fetchOperationsCallback", fn => fn());
-        if (callbacks === null) return;
+        const rawCallbacks = this.dispatchMessage("fetchOperationsCallback", fn => fn());
+        if (rawCallbacks === null) return;
+        const currentPage = this.cachedData[this.currentPath] ?? [];
+        const callbacks = typeof rawCallbacks === "object" ? {...rawCallbacks, all: currentPage} : rawCallbacks;
 
-        const operations = this.dispatchMessage("fetchOperations", fn => fn());
+        const fetchedOperations = this.dispatchMessage("fetchOperations", fn => fn());
+        const operations = Array.isArray(fetchedOperations) ? fetchedOperations : actionsToOperations(
+            fetchedOperations[useContextMenu ? "contextMenu" : "topbar"] ??
+            fetchedOperations[useContextMenu ? "topbar" : "contextMenu"] ?? []
+        );
 
         if (!useContextMenu && !this.isModal) {
             const custom = this.dispatchMessage("fetchBrowserFeatures", f => f());
@@ -1598,7 +1922,7 @@ export class ResourceBrowser<T> {
         const page = this.cachedData[this.currentPath] ?? [];
 
         const renderOpIconAndText = (
-            op: OperationOrGroup<unknown, unknown>,
+            op: OperationOrGroup<T, any>,
             element: HTMLElement,
             shortcut?: string,
             inContextMenu?: boolean
@@ -1726,7 +2050,7 @@ export class ResourceBrowser<T> {
         }
 
         const renderOperationsInContextMenu = (
-            operations: OperationOrGroup<T, unknown>[],
+            operations: OperationOrGroup<T, any>[],
             posX: number,
             posY: number,
             counter: number = 1,
@@ -1879,7 +2203,13 @@ export class ResourceBrowser<T> {
             const target = this.operations;
             target.innerHTML = "";
             for (const op of operations) {
-                target.append(renderOperation(op));
+                if ("buttonStyle" in op && op.buttonStyle === "split") {
+                    // Rendering SplitButton
+                    target.append(this.renderVmActionSplitButton(op, selected, callbacks, page));
+                }
+                else {
+                    target.append(renderOperation(op));
+                }
             }
         } else {
             const posX = contextOpts?.x ?? 0;
@@ -2107,6 +2437,8 @@ export class ResourceBrowser<T> {
 
     // Context menu
     closeContextMenu() {
+        this.actionMenuCloseRef.current?.();
+        this.reactActionMenuOpen = false;
         this.contextMenuHandlers = [];
         this.contextMenu.style.removeProperty("transform");
         this.contextMenu.style.removeProperty("max-height");
@@ -2408,22 +2740,28 @@ export class ResourceBrowser<T> {
                 );
                 const baseFileIdx = parseInt(this.rows[0].container.getAttribute("data-idx")!);
 
-                const oldSelectedCount = this.isSelected.reduce((acc, entry) => acc + entry, 0);
-
+                let selectionChanged = false;
                 for (let i = 0; i < this.rows.length; i++) {
+                    const selectionIndex = i + baseFileIdx;
+                    if (selectionIndex < 0 || selectionIndex >= this.isSelected.length) continue;
+                    let selected = this.isSelected[selectionIndex];
                     if (i >= lowerOffset && i <= upperOffset) {
-                        this.isSelected[i + baseFileIdx] = 1;
+                        selected = 1;
                     } else {
                         // NOTE(Dan): When scrolling, then we should never turn anything off if scrolling has begun
                         // TODO(Dan): Maybe we should just move the scrolling region along with the scrolling?
-                        if (initialScrollTop === scrollStart) this.isSelected[i + baseFileIdx] = 0;
+                        if (initialScrollTop === scrollStart) selected = 0;
+                    }
+                    if (this.isSelected[selectionIndex] !== selected) {
+                        this.isSelected[selectionIndex] = selected;
+                        selectionChanged = true;
                     }
                 }
 
-                const newSelectedCount = this.isSelected.reduce((acc, entry) => acc + entry, 0)
-                if (oldSelectedCount !== newSelectedCount) {
+                if (selectionChanged) {
                     this.renderRows();
                     this.renderOperations();
+                    this.dispatchMessage("rowSelectionUpdated", fn => fn());
                 }
             };
 
@@ -2507,8 +2845,9 @@ export class ResourceBrowser<T> {
             this.renderRows();
         }
 
-        if (this.contextMenuHandlers.length) this.closeContextMenu();
-        this.renderOperationsIn(true, {x: event.clientX, y: event.clientY});
+        if (this.contextMenuHandlers.length || this.reactActionMenuOpen) this.closeContextMenu();
+        if (this.useNewActions) this.openActionMenu(event.clientX, event.clientY);
+        else this.renderOperationsIn(true, {x: event.clientX, y: event.clientY});
     }
 
     private onStarClicked(index: number) {
@@ -2639,14 +2978,7 @@ export class ResourceBrowser<T> {
                     } else {
                         if (this.contextMenuHandlers.length) return;
 
-                        const newClipboard = this.findSelectedEntries();
-                        ResourceBrowser.clipboard[this.resourceName] = newClipboard;
-                        ResourceBrowser.clipboardIsCut[this.resourceName] = ev.code === "KeyX";
-
-                        if (newClipboard.length) {
-                            const key = isLikelyMac ? "⌘" : "Ctrl + ";
-                            sendInformationNotification(`${newClipboard.length} copied to clipboard. Use ${key}V to insert.`);
-                        }
+                        this.copyToClipboard(this.findSelectedEntries(), ev.code === "KeyX");
                     }
                     break;
                 }
@@ -2656,14 +2988,7 @@ export class ResourceBrowser<T> {
                         didHandle = false;
                     } else {
                         if (this.contextMenuHandlers.length) return;
-                        if (ResourceBrowser.clipboard[this.resourceName]?.length) {
-                            this.dispatchMessage(
-                                ResourceBrowser.clipboardIsCut[this.resourceName] ? "move" : "copy",
-                                fn => fn(ResourceBrowser.clipboard[this.resourceName] as T[], this.currentPath)
-                            );
-
-                            if (ResourceBrowser.clipboardIsCut[this.resourceName]) ResourceBrowser.clipboard[this.resourceName] = [];
-                        }
+                        this.pasteFromClipboard();
                     }
                     break;
                 }
@@ -2933,9 +3258,14 @@ export class ResourceBrowser<T> {
     }
 
     triggerOperation(predicate: (op: Operation<T, unknown>) => boolean): boolean {
-        const callbacks = this.dispatchMessage("fetchOperationsCallback", fn => fn());
-        if (callbacks === null) return false;
-        const ops = this.dispatchMessage("fetchOperations", fn => fn());
+        const rawCallbacks = this.dispatchMessage("fetchOperationsCallback", fn => fn());
+        if (rawCallbacks === null) return false;
+        const page = this.cachedData[this.currentPath] ?? [];
+        const callbacks = typeof rawCallbacks === "object" ? {...rawCallbacks, all: page} : rawCallbacks;
+        const fetched = this.dispatchMessage("fetchOperations", fn => fn());
+        const ops = Array.isArray(fetched) ? fetched : actionsToOperations(
+            fetched.contextMenu ?? fetched.topbar ?? []
+        );
         for (const op of ops) {
             let toCheck: Operation<T, unknown>[] = [];
             if (!isOperation(op)) {
@@ -2946,7 +3276,7 @@ export class ResourceBrowser<T> {
 
             for (const child of toCheck) {
                 if (predicate(child)) {
-                    child.onClick(this.findSelectedEntries(), callbacks, this.cachedData[this.currentPath] ?? []);
+                    child.onClick(this.findSelectedEntries(), callbacks, page);
                     return true;
                 }
             }
@@ -3622,7 +3952,8 @@ export function resourceCreationWithProductSelector<T>(
         browser.renderRows();
     };
 
-    const onProductSelected = (product: ProductV2) => {
+    const onProductSelected = (product: ProductV2 | null) => {
+        if (!product) return;
         onSelect?.(product);
         if (["STORAGE", "INGRESS"].includes(type)) {
             selectedProduct = product;
@@ -3637,7 +3968,7 @@ export function resourceCreationWithProductSelector<T>(
                 },
                 ""
             );
-        } else if (["LICENSE", "NETWORK_IP"].includes(type)) {
+        } else if (["LICENSE", "INFERENCE", "NETWORK_IP"].includes(type)) {
             browser.removeEntryFromCurrentPage(it => it === dummyEntry);
             onCreate(product);
         } else if (type === "COMPUTE") {
@@ -3698,10 +4029,10 @@ export function checkIsWorkspaceAdmin(): boolean {
     return isAdminOrPI(project.status.myRole);
 }
 
-export function checkCanConsumeResources(
+export async function checkCanConsumeResources(
     projectId: string | null,
     callbacks: null | {api: {isCoreResource: boolean}},
-): boolean {
+): Promise<boolean> {
     if (!projectId) return true;
     if (!callbacks) return true;
 
@@ -3710,8 +4041,7 @@ export function checkCanConsumeResources(
 
     if (api.isCoreResource) return true;
 
-    const project = projectCache.retrieveFromCacheOnly("")?.items.find(it => it.id === projectId);
-    // Don't consider yet-to-be-fetched projects as non-consumer
+    const project = (await projectCache.retrieve("", fetchProjects)).items.find(it => it.id === projectId);
     if (!project) return true;
 
     return project.specification.canConsumeResources !== false;
@@ -3755,12 +4085,12 @@ interface ShortcutProps {
     keys: string | string[];
 }
 
-const Shortcut: React.FunctionComponent<ShortcutProps> = props => {
+export const Shortcut: React.FunctionComponent<ShortcutProps> = props => {
     const normalizedKeys = typeof props.keys === "string" ? [props.keys] : props.keys;
     return <tr>
         <td>{props.name}</td>
         <td>
-            <Flex gap={"4px"} justifyContent={"end"}>
+            <Flex gap={"8px"} justifyContent={"end"}>
                 {normalizedKeys.map(((k, i) =>
                     <React.Fragment key={i}>
                         {i > 0 && <> or </>}
@@ -3844,7 +4174,7 @@ function ControlsDialog({features, custom}: {features: ResourceBrowseFeatures, c
     </div>
 }
 
-export function controlsOperation(features: ResourceBrowseFeatures, custom?: ControlDescription[]): Operation<unknown, {
+export function controlsOperation<T>(features: ResourceBrowseFeatures, custom?: ControlDescription[]): Operation<T, {
     isModal?: boolean
 }> & {hackNotInTheContextMenu: true} {
     return {
@@ -3852,7 +4182,6 @@ export function controlsOperation(features: ResourceBrowseFeatures, custom?: Con
         icon: "keyboardSolid",
         onClick: () => dialogStore.addDialog(<ControlsDialog features={features} custom={custom} />, noopCall),
         enabled: (selected, cb) => !cb.isModal,
-        shortcut: ShortcutKey.Z,
         hackNotInTheContextMenu: true
     };
 }

@@ -165,7 +165,7 @@ export const ApplicationGroups: React.FunctionComponent = () => {
                                         </Box>
                                     </Flex>
                                 } right={
-                                    <ConfirmationButton onAction={() => {
+                                    <ConfirmationButton onAction={async () => {
                                         invokeCommand(AppStore.deleteGroup({id: group.metadata.id})).then(doNothing);
                                         fetchGroups();
                                     }} icon="heroTrash" />
