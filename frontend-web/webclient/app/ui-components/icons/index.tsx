@@ -6104,6 +6104,23 @@ export const heroXCircle = (props: any) => (
     />
   </svg>
 );
+export const heroXMark = (props: any) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    fill="currentcolor"
+    stroke="currentColor"
+    strokeWidth={1.5}
+    className="hero-x-mark_svg__size-6"
+    viewBox="0 0 24 24"
+    {...props}
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M6 18 18 6M6 6l12 12"
+    />
+  </svg>
+);
 export const home = (props: any) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
