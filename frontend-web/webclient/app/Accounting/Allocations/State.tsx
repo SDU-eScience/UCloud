@@ -476,15 +476,8 @@ export function stateReducer(state: State, action: UIAction): State {
         }
 
         case "UpdateAllocation": {
-            const recipient = getOrNull(state.subAllocations.recipients, action.recipientIdx);
-            if (!recipient) return state;
-            const group = getOrNull(recipient.groups, action.groupIdx);
-            if (!group) return state;
-            const allocation = getOrNull(group.allocations, action.allocationIdx);
-            if (!allocation) return state;
-
-            const allocationId = allocation.allocationId;
             const newWallets = deepCopy(state.remoteData.wallets);
+
             const newState: State = {
                 ...state,
                 remoteData: {
