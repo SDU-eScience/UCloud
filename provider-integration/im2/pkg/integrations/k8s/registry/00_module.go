@@ -17,9 +17,11 @@ import (
 func Init() {
 	controller.InitContainerRepositoryDatabase()
 	controller.ContainerRepositories = controller.ContainerRepositoryService{
-		Create:    accountingCreateRepository,
-		Delete:    accountingZeroAndDeleteRepository,
-		OnDeleted: accountingRepositoryDeleted,
+		Create:       accountingCreateRepository,
+		Delete:       accountingZeroAndDeleteRepository,
+		BrowseImages: browseImages,
+		DeleteImage:  deleteImage,
+		OnDeleted:    accountingRepositoryDeleted,
 	}
 
 	if err := registerAuthentication(); err != nil {

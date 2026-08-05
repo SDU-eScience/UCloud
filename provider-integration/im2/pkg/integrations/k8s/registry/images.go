@@ -1,0 +1,315 @@
+package registry
+
+import (
+	"context"
+	"errors"
+	"net/http"
+	"sort"
+	"strconv"
+	"strings"
+
+	ocid "github.com/distribution/distribution/v3"
+	"github.com/distribution/reference"
+	"github.com/opencontainers/go-digest"
+	v1 "github.com/opencontainers/image-spec/specs-go/v1"
+	fnd "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/log"
+	orc "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/util"
+)
+
+type imageLayer struct {
+	descriptor v1.Descriptor
+	platforms  map[string]bool
+}
+
+type taggedImage struct {
+	repository     ocid.Repository
+	repositoryName string
+	tag            string
+	descriptor     v1.Descriptor
+}
+
+func browseImages(request orc.ContainerRepositoriesProviderBrowseImagesRequest) (fnd.PageV2[orc.ContainerRepositoryImage], *util.HttpError) {
+	owner := walletOwner(request.ResolvedRepository)
+	lock := accountingOwnerLock(owner)
+	lock.Lock()
+	defer lock.Unlock()
+
+	ctx := context.Background()
+	catalog, err := accountingCatalog(ctx)
+	if err != nil {
+		return fnd.PageV2[orc.ContainerRepositoryImage]{}, util.HttpErr(http.StatusInternalServerError, "unable to browse container images")
+	}
+
+	root := request.ResolvedRepository.Specification.Name
+	if request.Repository.Present && !repositoryBelongsToRoot(root, request.Repository.Value) {
+		return fnd.PageV2[orc.ContainerRepositoryImage]{}, util.HttpErr(http.StatusBadRequest, "invalid container image")
+	}
+	if request.Tag.Present && !request.Repository.Present {
+		return fnd.PageV2[orc.ContainerRepositoryImage]{}, util.HttpErr(http.StatusBadRequest, "invalid container image")
+	}
+
+	groups := make([]orc.ContainerRepositoryImage, 0)
+	images := make([]taggedImage, 0)
+	for _, repositoryName := range catalog {
+		if !repositoryBelongsToRoot(root, repositoryName) {
+			continue
+		}
+		if request.Repository.Present && repositoryName != request.Repository.Value {
+			continue
+		}
+
+		named, nameErr := reference.WithName(repositoryName)
+		if nameErr != nil {
+			continue
+		}
+		repository, repositoryErr := registryAccounting.namespace.Repository(ctx, named)
+		if repositoryErr != nil {
+			return fnd.PageV2[orc.ContainerRepositoryImage]{}, util.HttpErr(http.StatusInternalServerError, "unable to browse container images")
+		}
+		tags := repository.Tags(ctx)
+		tagNames, tagsErr := tags.All(ctx)
+		if tagsErr != nil {
+			if _, empty := tagsErr.(ocid.ErrRepositoryUnknown); empty {
+				continue
+			}
+			return fnd.PageV2[orc.ContainerRepositoryImage]{}, util.HttpErr(http.StatusInternalServerError, "unable to browse container images")
+		}
+		sort.Strings(tagNames)
+		if !request.Repository.Present {
+			if len(tagNames) == 0 {
+				continue
+			}
+			groups = append(groups, orc.ContainerRepositoryImage{
+				Kind:       "IMAGE",
+				Name:       strings.TrimPrefix(strings.TrimPrefix(repositoryName, root), "/"),
+				Repository: repositoryName,
+				TagCount:   len(tagNames),
+				Layers:     []orc.ContainerRepositoryImageLayer{},
+			})
+			continue
+		}
+		for _, tag := range tagNames {
+			if request.Tag.Present && tag != request.Tag.Value {
+				continue
+			}
+			descriptor, descriptorErr := tags.Get(ctx, tag)
+			if descriptorErr != nil {
+				return fnd.PageV2[orc.ContainerRepositoryImage]{}, util.HttpErr(http.StatusInternalServerError, "unable to browse container images")
+			}
+			images = append(images, taggedImage{
+				repository:     repository,
+				repositoryName: repositoryName,
+				tag:            tag,
+				descriptor:     descriptor,
+			})
+		}
+	}
+
+	itemsPerPage := request.ItemsPerPage
+	if itemsPerPage <= 0 || itemsPerPage > 250 {
+		itemsPerPage = 100
+	}
+	offset := 0
+	entryCount := len(images)
+	if !request.Repository.Present {
+		entryCount = len(groups)
+	}
+	if request.Next.Present {
+		parsed, parseErr := strconv.Atoi(request.Next.Value)
+		if parseErr != nil || parsed < 0 || parsed > entryCount {
+			return fnd.PageV2[orc.ContainerRepositoryImage]{}, util.HttpErr(http.StatusBadRequest, "invalid pagination token")
+		}
+		offset = parsed
+	}
+	end := min(offset+itemsPerPage, entryCount)
+	next := util.Option[string]{}
+	if end < entryCount {
+		next = util.OptValue(strconv.Itoa(end))
+	}
+	if !request.Repository.Present {
+		return fnd.PageV2[orc.ContainerRepositoryImage]{
+			Items:        util.NonNilSlice(groups[offset:end]),
+			ItemsPerPage: itemsPerPage,
+			Next:         next,
+		}, nil
+	}
+	pageItems := make([]orc.ContainerRepositoryImage, 0, end-offset)
+	for _, image := range images[offset:end] {
+		described, imageErr := describeImage(ctx, image.repository, image.repositoryName, image.tag, image.descriptor)
+		if imageErr != nil {
+			return fnd.PageV2[orc.ContainerRepositoryImage]{}, util.HttpErr(http.StatusInternalServerError, "unable to inspect container image")
+		}
+		pageItems = append(pageItems, described)
+	}
+	return fnd.PageV2[orc.ContainerRepositoryImage]{
+		Items:        util.NonNilSlice(pageItems),
+		ItemsPerPage: itemsPerPage,
+		Next:         next,
+	}, nil
+}
+
+func describeImage(ctx context.Context, repository ocid.Repository, repositoryName, tag string, descriptor v1.Descriptor) (orc.ContainerRepositoryImage, error) {
+	seen := map[digest.Digest]bool{}
+	layers := map[digest.Digest]*imageLayer{}
+	total := int64(0)
+	mediaType, err := describeManifest(ctx, repository, descriptor.Digest, "", seen, layers, &total)
+	if err != nil {
+		return orc.ContainerRepositoryImage{}, err
+	}
+
+	resultLayers := make([]orc.ContainerRepositoryImageLayer, 0, len(layers))
+	for _, layer := range layers {
+		platforms := make([]string, 0, len(layer.platforms))
+		for platform := range layer.platforms {
+			if platform != "" {
+				platforms = append(platforms, platform)
+			}
+		}
+		sort.Strings(platforms)
+		resultLayers = append(resultLayers, orc.ContainerRepositoryImageLayer{
+			Digest:      layer.descriptor.Digest.String(),
+			MediaType:   layer.descriptor.MediaType,
+			SizeInBytes: layer.descriptor.Size,
+			Platforms:   util.NonNilSlice(platforms),
+		})
+	}
+	sort.Slice(resultLayers, func(i, j int) bool { return resultLayers[i].Digest < resultLayers[j].Digest })
+
+	return orc.ContainerRepositoryImage{
+		Kind:        "TAG",
+		Repository:  repositoryName,
+		Tag:         tag,
+		Digest:      descriptor.Digest.String(),
+		MediaType:   mediaType,
+		SizeInBytes: total,
+		Layers:      resultLayers,
+	}, nil
+}
+
+func describeManifest(ctx context.Context, repository ocid.Repository, manifestDigest digest.Digest, platform string, seen map[digest.Digest]bool, layers map[digest.Digest]*imageLayer, total *int64) (string, error) {
+	if err := addReachableBlob(ctx, manifestDigest, seen, total); err != nil {
+		return "", err
+	}
+	manifests, err := repository.Manifests(ctx)
+	if err != nil {
+		return "", err
+	}
+	manifest, err := manifests.Get(ctx, manifestDigest)
+	if err != nil {
+		return "", err
+	}
+	mediaType, _, err := manifest.Payload()
+	if err != nil {
+		return "", err
+	}
+
+	for _, referenced := range manifest.References() {
+		exists, existsErr := manifests.Exists(ctx, referenced.Digest)
+		if existsErr != nil {
+			return "", existsErr
+		}
+		if exists {
+			childPlatform := platformName(referenced.Platform)
+			if childPlatform == "" {
+				childPlatform = platform
+			}
+			if !seen[referenced.Digest] {
+				if _, walkErr := describeManifest(ctx, repository, referenced.Digest, childPlatform, seen, layers, total); walkErr != nil {
+					return "", walkErr
+				}
+			}
+			continue
+		}
+
+		blobDescriptor, statErr := registryAccounting.namespace.BlobStatter().Stat(ctx, referenced.Digest)
+		if statErr != nil {
+			return "", statErr
+		}
+		if !seen[referenced.Digest] {
+			if err := addSize(blobDescriptor.Size, total); err != nil {
+				return "", err
+			}
+			seen[referenced.Digest] = true
+		}
+		if isLayerMediaType(referenced.MediaType) {
+			layer := layers[referenced.Digest]
+			if layer == nil {
+				referenced.Size = blobDescriptor.Size
+				layer = &imageLayer{descriptor: referenced, platforms: map[string]bool{}}
+				layers[referenced.Digest] = layer
+			}
+			layer.platforms[platform] = true
+		}
+	}
+	return mediaType, nil
+}
+
+func addReachableBlob(ctx context.Context, blobDigest digest.Digest, seen map[digest.Digest]bool, total *int64) error {
+	if seen[blobDigest] {
+		return nil
+	}
+	descriptor, err := registryAccounting.namespace.BlobStatter().Stat(ctx, blobDigest)
+	if err != nil {
+		return err
+	}
+	if err := addSize(descriptor.Size, total); err != nil {
+		return err
+	}
+	seen[blobDigest] = true
+	return nil
+}
+
+func addSize(size int64, total *int64) error {
+	if size < 0 || *total > int64(^uint64(0)>>1)-size {
+		return errors.New("container image size exceeds int64")
+	}
+	*total += size
+	return nil
+}
+
+func deleteImage(request orc.ContainerRepositoriesProviderDeleteImageRequest) *util.HttpError {
+	root := request.ResolvedRepository.Specification.Name
+	if !repositoryBelongsToRoot(root, request.Repository) || strings.TrimSpace(request.Tag) == "" {
+		return util.HttpErr(http.StatusBadRequest, "invalid container image")
+	}
+
+	named, err := reference.WithName(request.Repository)
+	if err != nil {
+		return util.HttpErr(http.StatusBadRequest, "invalid container image")
+	}
+	repository, err := registryAccounting.namespace.Repository(context.Background(), named)
+	if err != nil {
+		return util.HttpErr(http.StatusNotFound, "container image not found")
+	}
+	ctx := context.Background()
+	tags := repository.Tags(ctx)
+	if _, err = tags.Get(ctx, request.Tag); err != nil {
+		return util.HttpErr(http.StatusNotFound, "container image not found")
+	}
+	if err = tags.Untag(ctx, request.Tag); err != nil {
+		log.Warn("Unable to delete container image %s:%s: %v", request.Repository, request.Tag, err)
+		return util.HttpErr(http.StatusInternalServerError, "unable to delete container image")
+	}
+	return nil
+}
+
+func repositoryBelongsToRoot(root, repository string) bool {
+	return repository == root || strings.HasPrefix(repository, root+"/")
+}
+
+func isLayerMediaType(mediaType string) bool {
+	return strings.Contains(strings.ToLower(mediaType), "layer")
+}
+
+func platformName(platform *v1.Platform) string {
+	if platform == nil {
+		return ""
+	}
+	result := platform.OS + "/" + platform.Architecture
+	if platform.Variant != "" {
+		result += "/" + platform.Variant
+	}
+	return strings.Trim(result, "/")
+}

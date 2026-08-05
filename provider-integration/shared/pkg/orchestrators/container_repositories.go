@@ -25,6 +25,25 @@ type ContainerRepositoryFlags struct {
 	ResourceFlags
 }
 
+type ContainerRepositoryImageLayer struct {
+	Digest      string   `json:"digest"`
+	MediaType   string   `json:"mediaType"`
+	SizeInBytes int64    `json:"sizeInBytes"`
+	Platforms   []string `json:"platforms"`
+}
+
+type ContainerRepositoryImage struct {
+	Kind        string                          `json:"kind"`
+	Name        string                          `json:"name"`
+	Repository  string                          `json:"repository"`
+	Tag         string                          `json:"tag"`
+	TagCount    int                             `json:"tagCount"`
+	Digest      string                          `json:"digest"`
+	MediaType   string                          `json:"mediaType"`
+	SizeInBytes int64                           `json:"sizeInBytes"`
+	Layers      []ContainerRepositoryImageLayer `json:"layers"`
+}
+
 const containerRepositoryNamespace = "containerRepositories"
 
 var ContainerRepositoriesCreate = rpc.Call[fnd.BulkRequest[ContainerRepositorySpecification], fnd.BulkResponse[fnd.FindByStringId]]{
@@ -89,6 +108,34 @@ var ContainerRepositoriesRetrieveProducts = rpc.Call[util.Empty, SupportByProvid
 	Operation:   "products",
 }
 
+type ContainerRepositoriesBrowseImagesRequest struct {
+	RepositoryId string              `json:"repositoryId"`
+	Repository   util.Option[string] `json:"repository"`
+	Tag          util.Option[string] `json:"tag"`
+	ItemsPerPage int                 `json:"itemsPerPage"`
+	Next         util.Option[string] `json:"next"`
+}
+
+var ContainerRepositoriesBrowseImages = rpc.Call[ContainerRepositoriesBrowseImagesRequest, fnd.PageV2[ContainerRepositoryImage]]{
+	BaseContext: containerRepositoryNamespace,
+	Convention:  rpc.ConventionBrowse,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "images",
+}
+
+type ContainerRepositoriesDeleteImageRequest struct {
+	RepositoryId string `json:"repositoryId"`
+	Repository   string `json:"repository"`
+	Tag          string `json:"tag"`
+}
+
+var ContainerRepositoriesDeleteImage = rpc.Call[fnd.BulkRequest[ContainerRepositoriesDeleteImageRequest], fnd.BulkResponse[util.Empty]]{
+	BaseContext: containerRepositoryNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "deleteImage",
+}
+
 const containerRepositoryControlNamespace = "containerRepositories/control"
 
 type ContainerRepositoriesControlRetrieveRequest struct {
@@ -135,4 +182,32 @@ var ContainerRepositoriesProviderOnUpdatedLabels = rpc.Call[fnd.BulkRequest[Cont
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesPrivileged,
 	Operation:   "onUpdatedLabels",
+}
+
+type ContainerRepositoriesProviderBrowseImagesRequest struct {
+	ResolvedRepository ContainerRepository `json:"resolvedRepository"`
+	Repository         util.Option[string] `json:"repository"`
+	Tag                util.Option[string] `json:"tag"`
+	ItemsPerPage       int                 `json:"itemsPerPage"`
+	Next               util.Option[string] `json:"next"`
+}
+
+var ContainerRepositoriesProviderBrowseImages = rpc.Call[ContainerRepositoriesProviderBrowseImagesRequest, fnd.PageV2[ContainerRepositoryImage]]{
+	BaseContext: containerRepositoryProviderNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesPrivileged,
+	Operation:   "browseImages",
+}
+
+type ContainerRepositoriesProviderDeleteImageRequest struct {
+	ResolvedRepository ContainerRepository `json:"resolvedRepository"`
+	Repository         string              `json:"repository"`
+	Tag                string              `json:"tag"`
+}
+
+var ContainerRepositoriesProviderDeleteImage = rpc.Call[fnd.BulkRequest[ContainerRepositoriesProviderDeleteImageRequest], fnd.BulkResponse[util.Empty]]{
+	BaseContext: containerRepositoryProviderNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesPrivileged,
+	Operation:   "deleteImage",
 }

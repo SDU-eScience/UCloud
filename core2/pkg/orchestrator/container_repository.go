@@ -84,6 +84,14 @@ func initContainerRepositories() {
 		return ContainerRepositoryRetrieveProducts(), nil
 	})
 
+	orcapi.ContainerRepositoriesBrowseImages.Handler(func(info rpc.RequestInfo, request orcapi.ContainerRepositoriesBrowseImagesRequest) (fndapi.PageV2[orcapi.ContainerRepositoryImage], *util.HttpError) {
+		return ContainerRepositoryBrowseImages(info.Actor, request)
+	})
+
+	orcapi.ContainerRepositoriesDeleteImage.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ContainerRepositoriesDeleteImageRequest]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
+		return ContainerRepositoryDeleteImage(info.Actor, request)
+	})
+
 	orcapi.ContainerRepositoriesControlRetrieve.Handler(func(info rpc.RequestInfo, request orcapi.ContainerRepositoriesControlRetrieveRequest) (orcapi.ContainerRepository, *util.HttpError) {
 		return ResourceRetrieve[orcapi.ContainerRepository](info.Actor, containerRepositoryType, ResourceParseId(request.Id), request.ResourceFlags)
 	})
@@ -253,6 +261,70 @@ func ContainerRepositoryRetrieveProducts() orcapi.SupportByProvider[orcapi.FSSup
 		result.ProductsByProvider[provider] = util.NonNilSlice(filtered)
 	}
 	return result
+}
+
+func ContainerRepositoryBrowseImages(actor rpc.Actor, request orcapi.ContainerRepositoriesBrowseImagesRequest) (fndapi.PageV2[orcapi.ContainerRepositoryImage], *util.HttpError) {
+	repository, _, _, err := ResourceRetrieveEx[orcapi.ContainerRepository](
+		actor,
+		containerRepositoryType,
+		ResourceParseId(request.RepositoryId),
+		orcapi.PermissionRead,
+		orcapi.ResourceFlagsIncludeAll(),
+	)
+	if err != nil {
+		return fndapi.PageV2[orcapi.ContainerRepositoryImage]{}, err
+	}
+
+	return InvokeProvider(
+		repository.Specification.Product.Provider,
+		orcapi.ContainerRepositoriesProviderBrowseImages,
+		orcapi.ContainerRepositoriesProviderBrowseImagesRequest{
+			ResolvedRepository: repository,
+			Repository:         request.Repository,
+			Tag:                request.Tag,
+			ItemsPerPage:       request.ItemsPerPage,
+			Next:               request.Next,
+		},
+		ProviderCallOpts{
+			Username: util.OptValue(actor.Username),
+			Reason:   util.OptValue("browse container repository images"),
+		},
+	)
+}
+
+func ContainerRepositoryDeleteImage(actor rpc.Actor, request fndapi.BulkRequest[orcapi.ContainerRepositoriesDeleteImageRequest]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
+	result := fndapi.BulkResponse[util.Empty]{Responses: make([]util.Empty, 0, len(request.Items))}
+	for _, item := range request.Items {
+		repository, _, _, err := ResourceRetrieveEx[orcapi.ContainerRepository](
+			actor,
+			containerRepositoryType,
+			ResourceParseId(item.RepositoryId),
+			orcapi.PermissionEdit,
+			orcapi.ResourceFlagsIncludeAll(),
+		)
+		if err != nil {
+			return fndapi.BulkResponse[util.Empty]{}, err
+		}
+
+		_, err = InvokeProvider(
+			repository.Specification.Product.Provider,
+			orcapi.ContainerRepositoriesProviderDeleteImage,
+			fndapi.BulkRequestOf(orcapi.ContainerRepositoriesProviderDeleteImageRequest{
+				ResolvedRepository: repository,
+				Repository:         item.Repository,
+				Tag:                item.Tag,
+			}),
+			ProviderCallOpts{
+				Username: util.OptValue(actor.Username),
+				Reason:   util.OptValue("delete container repository image"),
+			},
+		)
+		if err != nil {
+			return fndapi.BulkResponse[util.Empty]{}, err
+		}
+		result.Responses = append(result.Responses, util.Empty{})
+	}
+	return result, nil
 }
 
 func containerRepositoryValidateSpecification(spec orcapi.ContainerRepositorySpecification) *util.HttpError {

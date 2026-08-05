@@ -56,7 +56,7 @@ type FSSupport struct {
 		UsersCanRename bool `json:"usersCanRename"`
 	} `json:"collection"`
 
-	ContainerRepositories bool `json:"containerRepositories"`
+	ContainerRepositories ContainerRepositoriesSupport `json:"containerRepositories"`
 
 	Files struct {
 		AclModifiable            bool `json:"aclModifiable"`
@@ -67,6 +67,11 @@ type FSSupport struct {
 		SharesSupported          bool `json:"sharesSupported"`
 		OpenInTerminal           bool `json:"openInTerminal"`
 	} `json:"files"`
+}
+
+type ContainerRepositoriesSupport struct {
+	Enabled bool   `json:"enabled"`
+	Server  string `json:"server"`
 }
 
 type MemberFilesFilter string

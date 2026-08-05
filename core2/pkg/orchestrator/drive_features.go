@@ -45,7 +45,7 @@ var driveFeatureMapper = []featureMapper{
 	{
 		Type: driveType,
 		Key:  driveContainerRepositories,
-		Path: "containerRepositories",
+		Path: "containerRepositories.enabled",
 	},
 
 	{

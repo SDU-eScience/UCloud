@@ -4,6 +4,8 @@ import {ItemRenderer} from "@/ui-components/Browse";
 import {ProductStorage} from "@/Accounting";
 import {Operation} from "@/ui-components/Operation";
 import {Client} from "@/Authentication/HttpClientInstance";
+import {apiBrowse, apiUpdate} from "@/Authentication/DataHook";
+import {BulkRequest, BulkResponse, PageV2, PaginationRequestV2} from "@/UCloud";
 import {
     CREATE_TAG,
     ProductSupport,
@@ -30,7 +32,10 @@ export interface ContainerRepositorySupport extends ProductSupport {
     collection?: {
         usersCanCreate?: boolean;
     };
-    containerRepositories?: boolean;
+    containerRepositories?: {
+        enabled?: boolean;
+        server?: string;
+    };
 }
 
 export type ContainerRepository = Resource<
@@ -38,6 +43,31 @@ export type ContainerRepository = Resource<
     ContainerRepositoryStatus,
     ContainerRepositorySpecification
 >;
+
+export interface ContainerRepositoryImageLayer {
+    digest: string;
+    mediaType: string;
+    sizeInBytes: number;
+    platforms: string[];
+}
+
+export interface ContainerRepositoryImage {
+    kind: "IMAGE" | "TAG";
+    name: string;
+    repository: string;
+    tag: string;
+    tagCount: number;
+    digest: string;
+    mediaType: string;
+    sizeInBytes: number;
+    layers: ContainerRepositoryImageLayer[];
+}
+
+export interface DeleteContainerRepositoryImageRequest {
+    repositoryId: string;
+    repository: string;
+    tag: string;
+}
 
 class ContainerRepositoriesApi extends ResourceApi<
     ContainerRepository,
@@ -76,6 +106,20 @@ class ContainerRepositoriesApi extends ResourceApi<
         return "Container repositories";
     }
 
+    browseImages(request: PaginationRequestV2 & {repositoryId: string; repository?: string; tag?: string}): APICallParameters<
+        PaginationRequestV2 & {repositoryId: string; repository?: string; tag?: string},
+        PageV2<ContainerRepositoryImage>
+    > {
+        return apiBrowse(request, this.baseContext, "images");
+    }
+
+    deleteImage(request: BulkRequest<DeleteContainerRepositoryImageRequest>): APICallParameters<
+        BulkRequest<DeleteContainerRepositoryImageRequest>,
+        BulkResponse<Record<string, never>>
+    > {
+        return apiUpdate(request, this.baseContext, "deleteImage");
+    }
+
     retrieveOperations(): Operation<
         ContainerRepository,
         ResourceBrowseCallbacks<ContainerRepository, ProductStorage>
@@ -96,7 +140,7 @@ class ContainerRepositoriesApi extends ResourceApi<
 
                 const anySupported = providers.some(products => products.some(entry => {
                     const support = entry.support as ContainerRepositorySupport;
-                    return support.containerRepositories === true && support.collection?.usersCanCreate === true;
+                    return support.containerRepositories?.enabled === true && support.collection?.usersCanCreate === true;
                 }));
                 if (!anySupported) return false;
 

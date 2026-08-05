@@ -732,7 +732,10 @@ func loadStorageProducts() {
 		defaultSupport.Collection.UsersCanCreate = true
 		defaultSupport.Collection.UsersCanDelete = true
 		defaultSupport.Collection.UsersCanRename = true
-		defaultSupport.ContainerRepositories = shared.ServiceConfig.Registry.Enabled
+		defaultSupport.ContainerRepositories.Enabled = shared.ServiceConfig.Registry.Enabled
+		if shared.ServiceConfig.Registry.Enabled {
+			defaultSupport.ContainerRepositories.Server = shared.ServiceConfig.Registry.Host
+		}
 
 		defaultSupport.Files.AclModifiable = false
 		defaultSupport.Files.TrashSupported = true

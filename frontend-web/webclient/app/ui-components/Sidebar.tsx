@@ -1187,10 +1187,10 @@ function SecondarySidebar({
                 />
 
                 {!hasFeature(Feature.CONTAINER_REPOSITORIES) || isPersonalWorkspace ? null : <>
-                    <SidebarSectionHeader tab={SidebarTabId.FILES} to={AppRoutes.containerRepositories.browse()}>Container registry</SidebarSectionHeader>
+                    <SidebarSectionHeader tab={SidebarTabId.FILES} to={AppRoutes.containerRepositories.browse()}>Registries</SidebarSectionHeader>
                     <SidebarEntry
                         to={AppRoutes.containerRepositories.browse()}
-                        text="Container repositories"
+                        text="Container registry"
                         icon="heroArchiveBox"
                         tab={SidebarTabId.FILES}
                     />
