@@ -75,14 +75,15 @@ var DrivesRename = ucx.Rpc[fndapi.BulkRequest[orcapi.DriveRenameRequest], util.E
 var DrivesUpdateLabels = ucx.Rpc[fndapi.BulkRequest[orcapi.DrivesUpdateLabelsRequest], util.Empty]{CallName: "drivesUpdateLabels"}
 var DrivesRetrieveProducts = ucx.Rpc[util.Empty, []orcapi.ResolvedSupport[orcapi.FSSupport]]{CallName: "drivesRetrieveProducts"}
 
-// Container registries
+// Container repositories
 // ---------------------------------------------------------------------------------------------------------------------
 
-var ContainerRegistriesCreate = ucx.Rpc[[]orcapi.ContainerRegistrySpecification, []orcapi.ContainerRegistry]{CallName: "containerRegistriesCreate"}
-var ContainerRegistriesDelete = ucx.Rpc[[]string, util.Empty]{CallName: "containerRegistriesDelete"}
-var ContainerRegistriesRetrieve = ucx.Rpc[orcapi.ContainerRegistriesRetrieveRequest, orcapi.ContainerRegistry]{CallName: "containerRegistriesRetrieve"}
-var ContainerRegistriesUpdateLabels = ucx.Rpc[fndapi.BulkRequest[orcapi.ContainerRegistriesUpdateLabelsRequest], util.Empty]{CallName: "containerRegistriesUpdateLabels"}
-var ContainerRegistriesRetrieveProducts = ucx.Rpc[util.Empty, []orcapi.ResolvedSupport[orcapi.FSSupport]]{CallName: "containerRegistriesRetrieveProducts"}
+var ContainerRepositoriesCreate = ucx.Rpc[[]orcapi.ContainerRepositorySpecification, []orcapi.ContainerRepository]{CallName: "containerRepositoriesCreate"}
+var ContainerRepositoriesDelete = ucx.Rpc[[]string, util.Empty]{CallName: "containerRepositoriesDelete"}
+var ContainerRepositoriesBrowse = ucx.Rpc[orcapi.ContainerRepositoriesBrowseRequest, fndapi.PageV2[orcapi.ContainerRepository]]{CallName: "containerRepositoriesBrowse"}
+var ContainerRepositoriesRetrieve = ucx.Rpc[orcapi.ContainerRepositoriesRetrieveRequest, orcapi.ContainerRepository]{CallName: "containerRepositoriesRetrieve"}
+var ContainerRepositoriesUpdateLabels = ucx.Rpc[fndapi.BulkRequest[orcapi.ContainerRepositoriesUpdateLabelsRequest], util.Empty]{CallName: "containerRepositoriesUpdateLabels"}
+var ContainerRepositoriesRetrieveProducts = ucx.Rpc[util.Empty, []orcapi.ResolvedSupport[orcapi.FSSupport]]{CallName: "containerRepositoriesRetrieveProducts"}
 
 // Jobs
 // ---------------------------------------------------------------------------------------------------------------------

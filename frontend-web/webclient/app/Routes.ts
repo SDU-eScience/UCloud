@@ -144,6 +144,10 @@ const files = {
     preview: (path: string) => "/files/properties/" + encodeURIComponent(path)
 }
 
+const containerRepositories = {
+    browse: () => "/container-repositories",
+}
+
 const supportAssist = {
     base: () => "/support-assist",
     user() {
@@ -182,6 +186,7 @@ const AppRoutes = {
     accounting,
     providers,
     files,
+    containerRepositories,
     supportAssist,
     prefix: "/app",
 };

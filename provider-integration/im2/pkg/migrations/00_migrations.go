@@ -62,5 +62,5 @@ func Init() {
 	db.AddMigration(activityCatalogV2())
 	db.AddMigration(k8sV3())
 	db.AddMigration(apiTokensV1())
-	db.AddMigration(containerRegistriesV1())
+	db.AddMigration(containerRepositoriesV1())
 }

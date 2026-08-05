@@ -20,6 +20,8 @@ export enum Feature {
     FILE_BROWSER_STATUS_BAR,
 
     NEW_CONTEXT_MENU,
+
+    CONTAINER_REPOSITORIES,
 }
 
 enum Environment {
@@ -113,6 +115,12 @@ const featureMap: Record<string, FeatureConfig> = {
 
     "new-context-menu": {
         feature: Feature.NEW_CONTEXT_MENU,
+        showWithoutFlag: allDevEnvironments,
+        showWithFlag: allEnvironments,
+    },
+
+    "container-repositories": {
+        feature: Feature.CONTAINER_REPOSITORIES,
         showWithoutFlag: allDevEnvironments,
         showWithFlag: allEnvironments,
     }

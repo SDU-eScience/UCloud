@@ -8,28 +8,28 @@ import (
 	"ucloud.dk/shared/pkg/util"
 )
 
-const containerRegistryApiTokenKind = "containerRegistry"
+const containerRepositoryApiTokenKind = "containerRepository"
 
 func InitApiTokens() controller.ApiTokenProvider {
 	return controller.ApiTokenProvider{
-		Kind:    containerRegistryApiTokenKind,
-		Options: containerRegistryApiTokenOptions(),
-		Create:  createContainerRegistryApiToken,
+		Kind:    containerRepositoryApiTokenKind,
+		Options: containerRepositoryApiTokenOptions(),
+		Create:  createContainerRepositoryApiToken,
 	}
 }
 
-func createContainerRegistryApiToken(info rpc.RequestInfo, request orcapi.ApiToken) (orcapi.ApiTokenStatus, *util.HttpError) {
+func createContainerRepositoryApiToken(info rpc.RequestInfo, request orcapi.ApiToken) (orcapi.ApiTokenStatus, *util.HttpError) {
 	_ = info
-	return controller.ApiTokenCreate(containerRegistryApiTokenKind, "https://"+shared.ServiceConfig.Registry.Host, request)
+	return controller.ApiTokenCreate(containerRepositoryApiTokenKind, "https://"+shared.ServiceConfig.Registry.Host, request)
 }
 
-func containerRegistryApiTokenOptions() orcapi.ApiTokenOptions {
+func containerRepositoryApiTokenOptions() orcapi.ApiTokenOptions {
 	return orcapi.ApiTokenOptions{
 		AvailablePermissions: []orcapi.ApiTokenPermissionSpecification{
 			{
-				Name:        containerRegistryApiTokenKind,
-				Title:       "Container registries",
-				Description: "API token used to authenticate with container registries. Access is limited by registry permissions and the token permissions.",
+				Name:        containerRepositoryApiTokenKind,
+				Title:       "Container repositories",
+				Description: "API token used to authenticate with container repositories. Access is limited by repository permissions and the token permissions.",
 				Actions: map[string]string{
 					"pull": "Pull images",
 					"push": "Push images",

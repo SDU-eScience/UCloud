@@ -163,7 +163,7 @@ func handleAuthenticationToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	identity, authErr := controller.ApiTokenValidateWithIdentity(containerRegistryApiTokenKind, apiToken)
+	identity, authErr := controller.ApiTokenValidateWithIdentity(containerRepositoryApiTokenKind, apiToken)
 	if authErr != nil {
 		http.Error(w, "invalid API token", http.StatusUnauthorized)
 		return
@@ -233,7 +233,7 @@ func authorizedTokenAccess(identity controller.ApiTokenIdentity, rawScopes []str
 				continue
 			}
 
-			registry, ok := controller.ContainerRegistryRetrieveByRepository(parts[1])
+			repository, ok := controller.ContainerRepositoryRetrieveByRepository(parts[1])
 			if !ok {
 				continue
 			}
@@ -242,11 +242,11 @@ func authorizedTokenAccess(identity controller.ApiTokenIdentity, rawScopes []str
 			for _, action := range strings.Split(parts[2], ",") {
 				switch action {
 				case "pull":
-					if canPull && controller.ResourceCanUse(actor, registry.Owner, registry.Permissions, true) {
+					if canPull && controller.ResourceCanUse(actor, repository.Owner, repository.Permissions, true) {
 						entry.Actions = append(entry.Actions, action)
 					}
 				case "push":
-					if canPush && controller.ResourceCanUse(actor, registry.Owner, registry.Permissions, false) {
+					if canPush && controller.ResourceCanUse(actor, repository.Owner, repository.Permissions, false) {
 						entry.Actions = append(entry.Actions, action)
 					}
 				}
@@ -261,7 +261,7 @@ func authorizedTokenAccess(identity controller.ApiTokenIdentity, rawScopes []str
 
 func apiTokenAllows(permissions []orc.ApiTokenPermission, action string) bool {
 	for _, permission := range permissions {
-		if permission.Name == containerRegistryApiTokenKind && permission.Action == action {
+		if permission.Name == containerRepositoryApiTokenKind && permission.Action == action {
 			return true
 		}
 	}

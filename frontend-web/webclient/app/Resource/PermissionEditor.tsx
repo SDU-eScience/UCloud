@@ -20,6 +20,7 @@ import Spinner from "@/LoadingIcon/LoadingIcon";
 import {classConcat} from "@/Unstyled";
 import {Toggle} from "@/ui-components/Toggle";
 import {Product} from "@/Accounting";
+import {IconName} from "@/ui-components/Icon";
 
 interface ResourcePermissionEditorProps<Res extends Resource, Prod extends Product, Spec extends ResourceSpecification> {
     reload: () => void;
@@ -114,11 +115,27 @@ interface PermissionsProps {
     anyGroupHasPermission: boolean;
     showMissingPermissionHelp: boolean;
     replaceWriteWithUse?: boolean;
+    readLabel?: string;
+    readIcon?: IconName;
+    writeLabel?: string;
+    writeIcon?: IconName;
     title: string;
     acl: ResourceAclEntry[];
     updateAcl: (group: string, permission: Permission | null) => Promise<void>;
 }
-export function PermissionsTable({warning, anyGroupHasPermission, showMissingPermissionHelp, title, updateAcl, acl, replaceWriteWithUse}: PermissionsProps) {
+export function PermissionsTable({
+    warning,
+    anyGroupHasPermission,
+    showMissingPermissionHelp,
+    title,
+    updateAcl,
+    acl,
+    replaceWriteWithUse,
+    readLabel = "Read",
+    readIcon = "heroMagnifyingGlass",
+    writeLabel = "Write",
+    writeIcon = "heroPencil",
+}: PermissionsProps) {
     const projectId = useProjectId();
     const project = useProject();
     const groups = project.fetch().status.groups ?? [];
@@ -180,25 +197,25 @@ export function PermissionsTable({warning, anyGroupHasPermission, showMissingPer
                                 <RadioTile
                                     label={"None"}
                                     onChange={() => updateAcl(g, null)}
-                                    icon={"close"}
+                                    icon={"heroXMark"}
                                     name={summary.id}
                                     checked={permissions.length === 0}
                                     height={40}
                                     fontSize={"0.5em"}
                                 />
                                 <RadioTile
-                                    label={"Read"}
+                                    label={readLabel}
                                     onChange={() => updateAcl(g, "READ")}
-                                    icon={"search"}
+                                    icon={readIcon}
                                     name={summary.id}
                                     checked={permissions.indexOf("READ") !== -1 && permissions.length === 1}
                                     height={40}
                                     fontSize={"0.5em"}
                                 />
                                 <RadioTile
-                                    label={"Write"}
+                                    label={writeLabel}
                                     onChange={() => updateAcl(g, "EDIT")}
-                                    icon={"edit"}
+                                    icon={writeIcon}
                                     name={summary.id}
                                     checked={permissions.indexOf("EDIT") !== -1}
                                     height={40}

@@ -17,10 +17,10 @@ import (
 )
 
 func Init() {
-	controller.InitContainerRegistryDatabase()
-	controller.ContainerRegistries = controller.ContainerRegistryService{
-		Create: func(registry *orc.ContainerRegistry) *util.HttpError { return nil },
-		Delete: func(registry *orc.ContainerRegistry) *util.HttpError { return nil },
+	controller.InitContainerRepositoryDatabase()
+	controller.ContainerRepositories = controller.ContainerRepositoryService{
+		Create: func(repository *orc.ContainerRepository) *util.HttpError { return nil },
+		Delete: func(repository *orc.ContainerRepository) *util.HttpError { return nil },
 	}
 
 	if err := registerAuthentication(); err != nil {
