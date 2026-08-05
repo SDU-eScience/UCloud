@@ -59,8 +59,8 @@ func containerRegistryTrackInMemory(registry orc.ContainerRegistry) {
 	if previous, ok := trackedContainerRegistries.ById[registry.Id]; ok {
 		delete(trackedContainerRegistries.ByName, previous.Specification.Name)
 	}
-	copy := registry
-	trackedContainerRegistries.ById[registry.Id] = &copy
+	copied := registry
+	trackedContainerRegistries.ById[registry.Id] = &copied
 	trackedContainerRegistries.ByName[registry.Specification.Name] = registry.Id
 	trackedContainerRegistries.Mutex.Unlock()
 }
