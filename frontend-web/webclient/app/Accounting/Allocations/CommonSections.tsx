@@ -47,7 +47,6 @@ import {
     UIAction,
     UIEvent,
 } from "@/Accounting/Allocations/State";
-import {DynamicRowHeight, useDynamicRowHeight} from "react-window";
 import {AvatarState, useAvatars} from "@/AvataaarLib/hook";
 import Avatar from "@/AvataaarLib/avatar";
 import {classConcat, extractDataTags, injectStyle} from "@/Unstyled";
@@ -994,11 +993,8 @@ function DurationSelector(props: {
 function openUpdater(
     category: ProductCategoryV2,
     allocation: Accounting.TreeAllocation,
-    workspaceTitle: any,
+    workspaceTitle: string,
     dispatchEvent: (ev: UIEvent) => void,
-    idx: number,
-    gidx: number,
-    ridx: number
 ): void {
     const periodRef = {
         start: new Date(allocation.start),
@@ -1029,9 +1025,7 @@ function openUpdater(
                 if (success) {
                     dispatchEvent({
                         type: "UpdateAllocation",
-                        allocationIdx: idx,
-                        recipientIdx: ridx,
-                        groupIdx: gidx,
+                        allocationId: allocation.allocationId,
                         newQuota: quota,
                         newStart: periodRef.start ?? new Date(),
                         newEnd: periodRef.end ?? new Date(),
@@ -1215,10 +1209,7 @@ function SubProjectListRow({
                                             g.category,
                                             alloc,
                                             title,
-                                            dispatchEvent,
-                                            idx,
-                                            gidx,
-                                            recipientIdx
+                                            dispatchEvent
                                         )}
                                         disabled={alloc.end < new Date().getTime()}
                                         data-ridx={recipientIdx}
@@ -1656,7 +1647,7 @@ export function SubProjectList({
                                         onClick={onNewSubProject}>here</a>.
                                 </>}
                             </div>}
-                        <AllocationBrowser state={state} opts={{embedded: {disableKeyhandlers: false, hideFilters: false}}} />
+                        <AllocationBrowser state={state} dispatchEvent={dispatchEvent} opts={{embedded: {disableKeyhandlers: false, hideFilters: false}}} />
                     </>}
                 </div>
             </>
@@ -1709,7 +1700,7 @@ new ReactStaticRenderer(() => {
     return <Avatar style={{height: "80px", width: "80px"}} avatarStyle="Circle" {...defaultAvatar} />;
 }).promise.then(it => defaultAvatarSvg = it);
 
-export function AllocationBrowser(props: {opts?: ResourceBrowserOpts<AllocationTypes>, state: State;}): React.ReactNode {
+export function AllocationBrowser(props: {opts?: ResourceBrowserOpts<AllocationTypes>, state: State; dispatchEvent: (ev: UIEvent) => void;}): React.ReactNode {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<AllocationTypes> | null>(null);
     const dispatch = useDispatch();
@@ -1769,7 +1760,7 @@ export function AllocationBrowser(props: {opts?: ResourceBrowserOpts<AllocationT
             new ResourceBrowser<AllocationTypes>(
                 mount,
                 "Suballocations",
-                ({...props.opts, rowHeight: 48, height: `calc(800px - ${10 * 2 + 16 * 2}px)`})
+                ({...props.opts, rowHeight: 55, height: `calc(800px - ${10 * 2 + 16 * 2}px)`})
             ).init(browserRef, FEATURES, "", (browser) => {
                 browser.setColumns([{name: ""}, {name: "", columnWidth: 0}, {name: "", columnWidth: 0}, {name: "", columnWidth: 0}, {name: "", columnWidth: 500}]);
 
@@ -2019,6 +2010,7 @@ export function AllocationBrowser(props: {opts?: ResourceBrowserOpts<AllocationT
                     dispatch,
                     navigate,
                     isCreating: false,
+                    dispatchEvent: props.dispatchEvent,
                     api: {isCoreResource: true},
                     invokeCommand: callAPI,
                     projectInfos: projectInfosRef,
@@ -2034,27 +2026,12 @@ export function AllocationBrowser(props: {opts?: ResourceBrowserOpts<AllocationT
                 });
             });
         }
-        if (browserRef.current) {
-            const header = browserRef.current.root.querySelector("header");
-            if (header) {
-                const headerFirstRow = header.querySelector("div.header-first-row") as HTMLDivElement | null;
-                if (headerFirstRow) {
-                    headerFirstRow.style.display = "none";
-                }
-                header.style.height = "40px"
-            }
-
-            const rowsTitle = browserRef.current.root.querySelector("div.rows-title") as HTMLDivElement | null;;
-            if (rowsTitle) {
-                rowsTitle.style.display = "none";
-            }
-        }
     }, []);
 
     return <MainContainer main={<div ref={mountRef} />} />;
 }
 
-function id(al: AllocationTypes) {
+function id(al: AllocationTypes): string {
     if (isAllocationDisplayTreeRecipient(al)) {
         return al.owner.reference.type === "project"
             ? al.owner.reference.projectId
@@ -2067,7 +2044,7 @@ function id(al: AllocationTypes) {
     return "";
 }
 
-function retrieveOperations(): Operation<AllocationTypes, {navigate: NavigateFunction; projectInfos: React.RefObject<Record<string, ProjectInfo | null>>}>[] {
+function retrieveOperations(): Operation<AllocationTypes, {navigate: NavigateFunction; projectInfos: React.RefObject<Record<string, ProjectInfo | null>>, dispatchEvent: (ev: UIEvent) => void;}>[] {
     return [
         // Tree
         {
@@ -2169,7 +2146,7 @@ function retrieveOperations(): Operation<AllocationTypes, {navigate: NavigateFun
                     recipient.owner.reference.username :
                     projectInfoTitle(extra.projectInfos.current[recipient.owner.reference.projectId], recipient.owner.title) ?? "-";
 
-                openUpdater(group.category, first, title, () => void 0, -1, -1, -1);
+                openUpdater(group.category, first, title, extra.dispatchEvent);
             },
         },
     ];
@@ -2186,7 +2163,6 @@ async function addOrRemoveEntries(browser: ResourceBrowser<AllocationTypes>, res
                 groups.forEach(g => {
                     const identifier = id(g);
                     if (progressBarCache[identifier]) return;
-                    // TODO(Jonas): Await for this finishing and rerender;
                     progressBarCache[identifier] = defaultAvatarSvg!;
                     promises.push(new ReactStaticRenderer(() => <ProgressBar uq={g.usageAndQuota} />)
                         .promise.then(result => progressBarCache[identifier] = result));
@@ -2247,8 +2223,6 @@ async function addOrRemoveEntries(browser: ResourceBrowser<AllocationTypes>, res
 
     await Promise.all(promises);
 }
-
-const ROW_HEIGHT = 48;
 
 function makeCategoryKeyFromWorkspaceId(workspace: string, name: Accounting.ProductCategoryV2["name"]): string {
     return workspace + "$$" + name;
