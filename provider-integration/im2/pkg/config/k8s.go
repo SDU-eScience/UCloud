@@ -16,7 +16,19 @@ import (
 type ServicesConfigurationKubernetes struct {
 	FileSystem        KubernetesFileSystem
 	Compute           KubernetesCompute
+	Registry          KubernetesRegistryConfiguration
 	SensitiveProjects []string
+}
+
+type KubernetesRegistryConfiguration struct {
+	Enabled bool
+	Host    string
+	Secrets KubernetesRegistrySecrets
+}
+
+type KubernetesRegistrySecrets struct {
+	AuthSharedSecret     string
+	RegistrySharedSecret string
 }
 
 type KubernetesFileSystem struct {
@@ -302,6 +314,19 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 	sensitiveProjects, _ := cfgutil.GetChildOrNil(filePath, services, "sensitiveProjects")
 	if sensitiveProjects != nil {
 		cfgutil.Decode(filePath, sensitiveProjects, &cfg.SensitiveProjects, &success)
+	}
+
+	registryNode, _ := cfgutil.GetChildOrNil(filePath, services, "registry")
+	if registryNode != nil {
+		cfg.Registry.Enabled = cfgutil.RequireChildBool(filePath, registryNode, "enabled", &success)
+		if cfg.Registry.Enabled {
+			cfg.Registry.Host = cfgutil.RequireChildText(filePath, registryNode, "host", &success)
+			secretsNode := cfgutil.RequireChild(filePath, registryNode, "secrets", &success)
+			if secretsNode != nil {
+				cfg.Registry.Secrets.AuthSharedSecret = cfgutil.RequireChildText(filePath, secretsNode, "authSharedSecret", &success)
+				cfg.Registry.Secrets.RegistrySharedSecret = cfgutil.RequireChildText(filePath, secretsNode, "registrySharedSecret", &success)
+			}
+		}
 	}
 
 	fsNode := cfgutil.RequireChild(filePath, services, "fileSystem", &success)

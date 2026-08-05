@@ -94,14 +94,15 @@ func Init(config *cfg.ServicesConfigurationKubernetes) {
 	job_introspection.InitServerHandlers()
 	syncthing_metrics.InitCollector()
 	inference.Init()
-	registry.Init()
-	initJobAuditLogCleanup()
-	controller.ApiTokens = controller.ApiTokenService{
-		Providers: []controller.ApiTokenProvider{
-			inference.InitApiTokens(),
-			registry.InitApiTokens(),
-		},
+	if config.Registry.Enabled {
+		registry.Init()
 	}
+	initJobAuditLogCleanup()
+	apiTokenProviders := []controller.ApiTokenProvider{inference.InitApiTokens()}
+	if config.Registry.Enabled {
+		apiTokenProviders = append(apiTokenProviders, registry.InitApiTokens())
+	}
+	controller.ApiTokens = controller.ApiTokenService{Providers: apiTokenProviders}
 	shared.InitExecutables()
 	if err := ucxdelivery.InitCache(config.FileSystem.MountPoint, nil, ucxdelivery.CacheOptions{
 		OwnerUid: util.OptValue(filesystem.DefaultUid),

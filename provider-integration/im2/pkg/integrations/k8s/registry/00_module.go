@@ -12,10 +12,17 @@ import (
 	"ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/gateway"
 	"ucloud.dk/pkg/integrations/k8s/shared"
+	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
 )
 
 func Init() {
+	controller.InitContainerRegistryDatabase()
+	controller.ContainerRegistries = controller.ContainerRegistryService{
+		Create: func(registry *orc.ContainerRegistry) *util.HttpError { return nil },
+		Delete: func(registry *orc.ContainerRegistry) *util.HttpError { return nil },
+	}
+
 	if err := registerAuthentication(); err != nil {
 		panic(err)
 	}
@@ -25,6 +32,8 @@ func Init() {
 
 	// Distribution uses its package-global logrus logger even when embedded as a handler.
 	logrus.SetLevel(logrus.PanicLevel)
+
+	registryHost := shared.ServiceConfig.Registry.Host
 
 	config := ocidconfig.Configuration{
 		Version: ocidconfig.CurrentVersion,
@@ -51,8 +60,8 @@ func Init() {
 			"repository": {{Name: accountingMiddlewareName}},
 		},
 		HTTP: ocidconfig.HTTP{
-			Host:   "https://" + VirtualHost,
-			Secret: util.SecureToken(),
+			Host:   "https://" + registryHost,
+			Secret: shared.ServiceConfig.Registry.Secrets.RegistrySharedSecret,
 		},
 		Notifications: ocidconfig.Notifications{Endpoints: nil},
 		Redis:         ocidconfig.Redis{},
@@ -60,15 +69,15 @@ func Init() {
 	}
 
 	app := ocidhandlers.NewApp(context.Background(), &config)
-	controller.Mux.Handle(VirtualHost+"/", auditingMiddleware(app))
+	controller.Mux.HandleFunc(registryHost+"/auth/token", handleAuthenticationToken)
+	controller.Mux.Handle(registryHost+"/", auditingMiddleware(app))
 	gateway.SendMessage(gateway.ConfigurationMessage{
 		RouteUp: &gateway.EnvoyRoute{
 			Cluster:      gateway.ServerClusterName,
-			CustomDomain: VirtualHost,
+			CustomDomain: registryHost,
 			Type:         gateway.RouteTypeIngress,
 		},
 	})
 }
 
 const RegistriesDirectory = "registries"
-const VirtualHost = "registry.localhost.direct"

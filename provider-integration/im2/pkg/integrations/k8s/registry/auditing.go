@@ -25,7 +25,7 @@ func contextWithRequestState(r *http.Request, state *requestState) context.Conte
 }
 
 func auditRegistryRequest(r *http.Request, grant *ocidauth.Grant, access []ocidauth.Access, status int, responseBytes int64, duration time.Duration) {
-	panic("TODO audit registry request")
+	// TODO
 }
 
 type auditResponseWriter struct {

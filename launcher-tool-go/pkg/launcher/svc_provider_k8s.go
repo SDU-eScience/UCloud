@@ -1,6 +1,7 @@
 package launcher
 
 import (
+	"bytes"
 	_ "embed"
 	"errors"
 	"fmt"
@@ -195,7 +196,9 @@ func ProviderK8s() {
 				return err
 			}
 
-			err = os.WriteFile(filepath.Join(imConfig, "config.yaml"), k8sProviderConfig, 0660)
+			providerConfig := bytes.Replace(k8sProviderConfig, []byte("<registry-auth-shared-secret>"), []byte(util.SecureToken()), 1)
+			providerConfig = bytes.Replace(providerConfig, []byte("<registry-shared-secret>"), []byte(util.SecureToken()), 1)
+			err = os.WriteFile(filepath.Join(imConfig, "config.yaml"), providerConfig, 0660)
 			if err != nil {
 				return err
 			}

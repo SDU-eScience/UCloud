@@ -133,3 +133,10 @@ services:
     mountPoint: /mnt/storage
     trashStagingArea: /mnt/storage/trash
     claimName: cephfs
+
+  registry:
+    enabled: true
+    host: registry.localhost.direct
+    secrets:
+      authSharedSecret: <registry-auth-shared-secret>
+      registrySharedSecret: <registry-shared-secret>

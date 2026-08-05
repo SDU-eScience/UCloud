@@ -2,6 +2,7 @@ package registry
 
 import (
 	"ucloud.dk/pkg/controller"
+	"ucloud.dk/pkg/integrations/k8s/shared"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
@@ -19,7 +20,7 @@ func InitApiTokens() controller.ApiTokenProvider {
 
 func createContainerRegistryApiToken(info rpc.RequestInfo, request orcapi.ApiToken) (orcapi.ApiTokenStatus, *util.HttpError) {
 	_ = info
-	return controller.ApiTokenCreate(containerRegistryApiTokenKind, "https://"+VirtualHost, request)
+	return controller.ApiTokenCreate(containerRegistryApiTokenKind, "https://"+shared.ServiceConfig.Registry.Host, request)
 }
 
 func containerRegistryApiTokenOptions() orcapi.ApiTokenOptions {
