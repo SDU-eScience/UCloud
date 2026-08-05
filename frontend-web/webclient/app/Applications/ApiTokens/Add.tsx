@@ -10,12 +10,13 @@ import {GenericTextArea, GenericTextField, MandatoryField} from "@/UtilityCompon
 import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {ProviderLogo, ProviderLogoWrapper} from "@/Providers/ProviderLogo";
-import {RichSelect, RichSelectProps} from "@/ui-components/RichSelect";
+import {RichSelect, RichSelectProps, SimpleRichSelect} from "@/ui-components/RichSelect";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {ProjectSwitcher} from "@/Project/ProjectSwitcher";
 import {displayErrorMessageOrDefault, doNothing} from "@/UtilityFunctions";
 import {ApiToken, ApiTokenStatus} from "./api";
 import * as Heading from "@/ui-components/Heading";
+import {IconButton} from "@/ui-components/IconButton";
 import AppRoutes from "@/Routes";
 import Routes from "@/Routes";
 import {getStoredProject} from "@/Project/ReduxState";
@@ -41,7 +42,6 @@ function Add() {
     const mappedServiceProviders = serviceProviders.map(it => ({key: it}));
 
     const availablePermissions = optionsData[serviceProvider]?.availablePermissions ?? [];
-
 
     const submit = React.useCallback(async () => {
         const titleElement = document.getElementById(API_TOKEN_TITLE_KEY) as HTMLInputElement;
@@ -154,25 +154,33 @@ function Add() {
                 <div className={PermissionWindow} data-has-active={activePermissions.size > 0}>
                     <div className="header">
                         <div>{activePermissions.size} permission(s)</div>
-                        <Box ml="auto" width="135px">
-                            <ClickableDropdown
-                                trigger={"Add permissions"}
-                                chevron
-                                fullWidth
-                            >
-                                {availablePermissions.map(p => <Permission key={p.name} onClick={() => {
+                        <Box ml="auto" width="250px">
+                            <RichSelect
+                                items={availablePermissions}
+                                keys={["title"]}
+                                RenderSelected={() => <Box p={"4px"} textAlign="left" minHeight={25}>Add permissions</Box>}
+                                RenderRow={p => p.element == null ? null : <Permission
+                                    {...p.element}
+                                    dataProps={p.dataProps}
+                                    onClick={p.onSelect}
+                                />}
+                                onSelect={p => {
                                     if (activePermissions.has(p.name)) {
                                         return;
-                                    } else {
-                                        return setActivePermissions(current => {
-                                            const next = new Map(current);
-                                            const firstAction = Object.keys(p.actions)[0];
-                                            next.set(p.name, firstAction == null ? new Set() : new Set([firstAction]));
-                                            return next;
-                                        });
                                     }
-                                }} {...p} />)}
-                            </ClickableDropdown>
+
+                                    return setActivePermissions(current => {
+                                        const next = new Map(current);
+                                        const firstAction = Object.keys(p.actions)[0];
+                                        next.set(p.name, firstAction == null ? new Set() : new Set([firstAction]));
+                                        return next;
+                                    });
+                                }}
+                                dropdownWidth="250px"
+                                elementHeight={32}
+                                matchTriggerWidth={false}
+                                chevronPlacement={{position: "absolute", bottom: "5px", right: "5px"}}
+                            />
                         </Box>
                     </div>
                     {activePermissions.size > 0 ? <Divider m={"0px"} /> : null}
@@ -245,7 +253,7 @@ const PermissionWindow = injectStyle("permission-window", cl => `
     }
 
     ${cl} ${ActivePermissionClass.dot} ${ActivePermissionTitle.dot} {
-        font-size: 18px;
+        font-size: 16px;
     }
 
     ${cl} ${ActivePermissionClass.dot} ${ActivePermissionDescription.dot} {
@@ -280,7 +288,7 @@ function ActivePermissions(props: {
                 <input type="checkbox" checked={props.selectedActions.has(key)} onChange={() => props.toggleAction(key)} />
                 {permissionSpecification.actions[key]}
             </label>)}
-            <Icon onClick={props.clearPermission} cursor="pointer" name="close" mt="auto" ml="12px" mb="10px" />
+            <IconButton tooltip="Remove permission" onClick={props.clearPermission} icon="close" />
         </Flex>
     </Flex>
 }
@@ -288,8 +296,9 @@ function ActivePermissions(props: {
 
 function Permission(props: Api.ApiTokenPermissionSpecification & {
     onClick(): void;
+    dataProps?: Record<string, string>;
 }): React.ReactNode {
-    return <Flex key={props.name} onClick={props.onClick} height={"32px"} alignItems={"center"} gap={"8px"}>
+    return <Flex {...props.dataProps} onClick={props.onClick} height={"32px"} alignItems={"center"} gap={"8px"} p={"4px"}>
         <b>{props.title}</b>
     </Flex>
 }
