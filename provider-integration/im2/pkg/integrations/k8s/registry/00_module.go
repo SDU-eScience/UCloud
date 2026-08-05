@@ -12,15 +12,14 @@ import (
 	"ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/gateway"
 	"ucloud.dk/pkg/integrations/k8s/shared"
-	orc "ucloud.dk/shared/pkg/orchestrators"
-	"ucloud.dk/shared/pkg/util"
 )
 
 func Init() {
 	controller.InitContainerRepositoryDatabase()
 	controller.ContainerRepositories = controller.ContainerRepositoryService{
-		Create: func(repository *orc.ContainerRepository) *util.HttpError { return nil },
-		Delete: func(repository *orc.ContainerRepository) *util.HttpError { return nil },
+		Create:    accountingCreateRepository,
+		Delete:    accountingZeroAndDeleteRepository,
+		OnDeleted: accountingRepositoryDeleted,
 	}
 
 	if err := registerAuthentication(); err != nil {
@@ -52,6 +51,14 @@ func Init() {
 			"redirect": {
 				"disable": true,
 			},
+			"maintenance": {
+				"uploadpurging": map[any]any{
+					"enabled":  true,
+					"age":      "24h",
+					"interval": "1h",
+					"dryrun":   false,
+				},
+			},
 		},
 		Auth: ocidconfig.Auth{
 			authenticationName: {},
@@ -69,6 +76,9 @@ func Init() {
 	}
 
 	app := ocidhandlers.NewApp(context.Background(), &config)
+	if err := initRegistryAccounting(filepath.Join(shared.ServiceConfig.FileSystem.MountPoint, RegistriesDirectory)); err != nil {
+		panic(err)
+	}
 	controller.Mux.HandleFunc(registryHost+"/auth/token", handleAuthenticationToken)
 	controller.Mux.Handle(registryHost+"/", auditingMiddleware(app))
 	gateway.SendMessage(gateway.ConfigurationMessage{

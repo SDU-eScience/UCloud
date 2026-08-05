@@ -20,3 +20,23 @@ func containerRepositoriesV1() db.MigrationScript {
 		},
 	}
 }
+
+func containerRepositoriesV2() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "containerRepositoriesV2",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(tx, `
+				create table if not exists container_repository_accounting(
+					repository_id text primary key,
+					repository_name text not null,
+					owner_type text not null,
+					username text not null,
+					project_id text not null,
+					category text not null,
+					exact_bytes bigint not null,
+					reported_usage bigint not null
+				)
+			`, db.Params{})
+		},
+	}
+}

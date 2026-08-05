@@ -30,6 +30,7 @@ type requestStateKey struct{}
 type requestState struct {
 	grant  *ocidauth.Grant
 	access []ocidauth.Access
+	owner  apm.WalletOwner
 }
 
 func requestStateFromContext(ctx context.Context) *requestState {
@@ -101,6 +102,7 @@ func authenticateAndAuthorize(r *http.Request, access ...ocidauth.Access) (*ocid
 	}
 
 	state.grant = grant
+	state.owner = claims.Owner
 	return grant, nil
 }
 

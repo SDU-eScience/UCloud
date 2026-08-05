@@ -102,3 +102,13 @@ func ContainerRepositoryRetrieveByRepository(repositoryName string) (orc.Contain
 	ContainerRepositoryTrack(repository)
 	return repository, true
 }
+
+func ContainerRepositoryEnumerateKnown() []orc.ContainerRepository {
+	trackedContainerRepositories.Mutex.Lock()
+	result := make([]orc.ContainerRepository, 0, len(trackedContainerRepositories.ById))
+	for _, repository := range trackedContainerRepositories.ById {
+		result = append(result, *repository)
+	}
+	trackedContainerRepositories.Mutex.Unlock()
+	return result
+}

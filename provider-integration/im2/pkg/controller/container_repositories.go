@@ -14,6 +14,7 @@ var ContainerRepositories ContainerRepositoryService
 type ContainerRepositoryService struct {
 	Create          func(repository *orc.ContainerRepository) *util.HttpError
 	Delete          func(repository *orc.ContainerRepository) *util.HttpError
+	OnDeleted       func(repository *orc.ContainerRepository)
 	OnUpdatedLabels func(repository *orc.ContainerRepository) *util.HttpError
 }
 
@@ -45,6 +46,9 @@ func initContainerRepositories() {
 				return fnd.BulkResponse[util.Empty]{}, err
 			}
 			ContainerRepositoryRemove(item.Id)
+			if ContainerRepositories.OnDeleted != nil {
+				ContainerRepositories.OnDeleted(&item)
+			}
 			response.Responses = append(response.Responses, util.Empty{})
 		}
 		return response, nil
