@@ -5,10 +5,10 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"os"
 	"slices"
 	"strings"
 	"time"
-    "os"
 
 	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
@@ -225,6 +225,21 @@ func ProjectsListUpdatedAfter(timestamp time.Time) []rpc.ProjectId {
 		}
 
 		return result
+	})
+}
+
+func PoliciesListUpdatedAfter(timestamp time.Time) []fndapi.PoliciesForProject {
+	return db.NewTx(func(tx *db.Transaction= []fndapi.PoliciesForProject) {
+		rows := db.Select[struct {
+			policyName string
+			projectId  string
+			policyProperties string
+		}](
+			tx,
+			``,
+			db.Params{
+				"timestamp": timestamp,
+			})
 	})
 }
 

@@ -177,7 +177,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 			}
 
 			vnc := orc.VncDescription{
-				Password: "mypassword",
+				Password: VNCRedirectPassword,
 				Port:     20000,
 			}
 			if job.Status.ResolvedApplication.Present && job.Status.ResolvedApplication.Value.Invocation.Vnc.Present {

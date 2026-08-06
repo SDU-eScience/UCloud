@@ -101,8 +101,6 @@ func loadProjectPoliciesFromDB() {
 				Properties: properties,
 			}
 
-			log.Debug("Loading policy %v \n", specification)
-
 			policies.EnabledPolices[row.PolicyName] = specification
 			projectPolicies.PoliciesByProject[projectId] = policies
 		}
@@ -117,7 +115,7 @@ func policiesRetrieve(actor rpc.Actor, request fndapi.RetrievePoliciesRequest) (
 		if !actor.Project.Present {
 			return nil, util.HttpErr(http.StatusBadRequest, "Polices only applicable to projects")
 		}
-		if !actor.Membership[actor.Project.Value].Equals(rpc.ProjectRolePI) {
+		if !actor.Membership[actor.Project.Value].Equals(rpc.ProjectRoleDataManager) {
 			return nil, util.HttpErr(http.StatusForbidden, "Only data managers may list the policies")
 		}
 		projectId = actor.Project.String()
@@ -125,13 +123,13 @@ func policiesRetrieve(actor rpc.Actor, request fndapi.RetrievePoliciesRequest) (
 
 	result := make(map[string]fndapi.Policy, len(policySchemas))
 
-	projectPolicies.Mu.RLock()
+	projectPolicies.Mu.Lock()
 	_, ok := projectPolicies.PoliciesByProject[projectId]
 	if !ok {
-		projectPolicies.PoliciesByProject[projectId] = &AssociatedPolicies{}
+		projectPolicies.PoliciesByProject[projectId] = &AssociatedPolicies{EnabledPolices: make(map[string]fndapi.PolicySpecification)}
 	}
 	policies := maps.Clone(projectPolicies.PoliciesByProject[projectId].EnabledPolices)
-	projectPolicies.Mu.RUnlock()
+	projectPolicies.Mu.Unlock()
 	for name, schema := range policySchemas {
 
 		specification, ok := policies[name]
@@ -159,7 +157,18 @@ func policiesUpdate(actor rpc.Actor, request fndapi.PoliciesUpdateRequest) (util
 		return util.Empty{}, util.HttpErr(http.StatusForbidden, "Only data managers may update the policies")
 	}
 
-	filteredUpdates := map[string]map[string]fndapi.PolicySpecification{}
+	//Validate that all updates are for the active project
+	for _, specification := range request.UpdatedPolicies {
+		if specification.Project != actor.Project.Value {
+			return util.Empty{}, util.HttpErr(http.StatusBadRequest, "You can only update policies in the current project")
+		}
+		properties := specification.Properties
+		for propertyName, propertyValue := range properties {
+			propertyValue
+		}
+	}
+
+	filteredUpdates := make(map[string]map[string]fndapi.PolicySpecification, len(request.UpdatedPolicies))
 	for _, specification := range request.UpdatedPolicies {
 		projectId := string(specification.Project)
 		filteredUpdates[projectId][specification.Schema] = specification
@@ -172,7 +181,7 @@ func policiesUpdate(actor rpc.Actor, request fndapi.PoliciesUpdateRequest) (util
 				_, ok := policySchemas[specification.Schema]
 				//When trying to update a schema that does not exist, we just skip it
 				if !ok {
-					log.Debug("Unknown Schema ", specification.Schema)
+					log.Warn("Unknown Schema: %v ", specification.Schema)
 					continue
 				}
 
@@ -206,7 +215,7 @@ func policiesUpdate(actor rpc.Actor, request fndapi.PoliciesUpdateRequest) (util
 					db.BatchExec(
 						b,
 						`
-					insert into project.policies (policy_name, policy_property, project_id)
+					insert into project.policies (policy_name, policy_properties, project_id)
 					values (:policy_name, :policy_properties, :project_id)
 					on conflict (policy_name, project_id) do 
 						update set policy_property = excluded.policy_property,
@@ -234,12 +243,12 @@ func policiesUpdate(actor rpc.Actor, request fndapi.PoliciesUpdateRequest) (util
 				}
 				projectId := string(specification.Project)
 				if !isEnabled {
-					policies, ok := projectPolicies.PoliciesByProject[projectId]
+					_, ok := projectPolicies.PoliciesByProject[projectId]
 					//If no policies are enabled for the project then just skip the deletion
 					if !ok {
 						continue
 					}
-					policies.EnabledPolices[specification.Schema] = fndapi.PolicySpecification{}
+					delete(projectPolicies.PoliciesByProject, projectId)
 				} else {
 					policies, ok := projectPolicies.PoliciesByProject[projectId]
 					if !ok {

@@ -8,7 +8,6 @@ import (
 	"ucloud.dk/core/pkg/coreutil"
 	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
-	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -58,18 +57,14 @@ func initPolicySubscriptions() {
 // policiesByProject returns mapping of [schema Name] => PolicySpecification. If no policy is cached for the project it
 // will attempt to retrieve it from DB. This is also how it is populated.
 func policiesByProject(projectId string) map[string]*fndapi.PolicySpecification {
-	projectPolicies := map[string]*fndapi.PolicySpecification{}
 	policyCache.Mu.Lock()
 	projectPolicies, ok := policyCache.PoliciesByProject[projectId]
 	if !ok {
-		log.Debug("No policies for project %v", projectId)
 		db.NewTx0(func(tx *db.Transaction) {
 			policySpecifications, policiesOk := coreutil.PolicySpecificationsRetrieveFromDatabase(tx, projectId)
 			if policiesOk {
 				policyCache.PoliciesByProject[projectId] = policySpecifications
 				projectPolicies = policySpecifications
-			} else {
-				log.Debug("No policies for project %v found in DB", projectId)
 			}
 		})
 	}
@@ -95,7 +90,10 @@ func sourceIPisRestricted(info rpc.RequestInfo) bool {
 					if allowedIps == "" {
 						break
 					}
-					_, subnet, _ := net.ParseCIDR(allowedIps)
+					_, subnet, err := net.ParseCIDR(allowedIps)
+					if err != nil {
+						continue
+					}
 					ip := net.ParseIP(util.ClientIP(info.HttpRequest).String())
 					if subnet.Contains(ip) {
 						isRestricted = false

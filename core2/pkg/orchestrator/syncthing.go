@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"net/http"
+	"slices"
 
 	"ucloud.dk/shared/pkg/foundation"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
@@ -16,11 +17,8 @@ func syncthingIsRestricted(actor rpc.Actor) bool {
 			isRestricted := true
 			for _, property := range policies.Properties {
 				if property.Name == "allowList" {
-					for _, element := range property.TextElements {
-						if element == "syncthing" {
-							isRestricted = false
-							break
-						}
+					if slices.Contains(property.TextElements, "syncthing") {
+						isRestricted = false
 					}
 				}
 			}

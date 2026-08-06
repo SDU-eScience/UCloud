@@ -261,8 +261,8 @@ func syncthingValidateConfiguration(job *orc.Job, configuration json.RawMessage)
 			dInfo, found := controller.DriveRetrieve(driveId)
 			if found {
 				policySpecs, hasRestriction := controller.RetrievePoliciesByProject(dInfo.Owner.Project.String())[foundation.RestrictIntegratedApplications.String()]
-				isAllowed := false
 				if hasRestriction {
+					isAllowed := false
 					for _, property := range policySpecs.Properties {
 						if property.Name == "allowList" {
 							for _, element := range property.TextElements {
@@ -272,9 +272,9 @@ func syncthingValidateConfiguration(job *orc.Job, configuration json.RawMessage)
 							}
 						}
 					}
-				}
-				if !isAllowed {
-					return util.HttpErr(http.StatusForbidden, "Project does not allow usage of syncthing (IM)")
+					if !isAllowed {
+						return util.HttpErr(http.StatusForbidden, "Project does not allow usage of syncthing (IM)")
+					}
 				}
 			}
 		}

@@ -20,7 +20,7 @@ func policiesV1() db.MigrationScript {
 					returns trigger as $$
 					begin
 						perform pg_notify('policy_updates', new.project_id::text);
-						return new;
+						return new;,.
 					end;
 					$$ language plpgsql;
 				`,

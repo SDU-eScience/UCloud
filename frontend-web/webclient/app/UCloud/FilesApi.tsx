@@ -118,18 +118,26 @@ export interface ExtraFileCallbacks {
     collection?: FileCollection;
     directory?: UFile;
     isModal?: boolean;
+
     startFileCreation(): void;
+
     startFolderCreation(): void;
+
     isSearch: boolean;
     // HACK(Jonas): This is because resource view is technically embedded, but is not in dialog, so it's allowed in
     // special case.
     allowMoveCopyOverride?: boolean;
     syncthingConfig?: SyncthingConfig;
     setSynchronization?: (file: UFile[], shouldAdd: boolean) => void;
+
     openFile(file: UFile, newWindow: boolean): void;
+
     copyToClipboard(files: UFile[], cut: boolean): void;
+
     canPasteFromClipboard(): boolean;
+
     pasteFromClipboard(): void;
+
     reloadCurrentFolderIfUnpaginated(path: string): void;
 }
 
@@ -365,8 +373,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
         return apiUpdate(request, "/api/files", "visualize");
     }
 
-    renderer: ItemRenderer<UFile, FileBrowseCallbacks> = {
-    };
+    renderer: ItemRenderer<UFile, FileBrowseCallbacks> = {};
 
     private defaultRetrieveFlags: Partial<UFileIncludeFlags> = {
         includeMetadata: true,
@@ -377,7 +384,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
     };
 
     public Properties = () => {
-        const {id} = useParams<{ id?: string }>();
+        const {id} = useParams<{id?: string}>();
 
         const [fileData, fetchFile] = useCloudAPI<UFile | null>({noop: true}, null);
         const [loadedFileId, setLoadedFileId] = useState<string>();
@@ -411,7 +418,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
             </EditorLoadingState>;
         }
 
-        return <FilePreview initialFile={file}/>
+        return <FilePreview initialFile={file} />
     }
 
     public retrieveActions(): ResourceApiActions<UFile, ProductStorage, FileBrowseCallbacks> {
@@ -710,7 +717,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 enabled: (selected, cb) => selected.length === 1 && cb.collection != null,
                 onClick: (selected) => {
                     dialogStore.addDialog(
-                        <OpenWithBrowser opts={{isModal: true}} file={selected[0]}/>,
+                        <OpenWithBrowser opts={{isModal: true}} file={selected[0]} />,
                         doNothing,
                         true,
                         this.fileSelectorModalStyle,
@@ -820,7 +827,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                                 }
                             },
                             initialPath: pathRef.current,
-                        }}/>,
+                        }} />,
                         doNothing,
                         true,
                         this.fileSelectorModalStyle
@@ -1163,10 +1170,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
             this.createDownload(bulkRequestOf(
                 ...ids.map(id => ({id})),
             ))
-        ).catch(err => {
-            snackbarStore.addFailure(extractErrorMessage(err), false);
-        });
-        ;
+        );
 
         const responses = result?.responses ?? [];
         for (const {endpoint} of responses) {
@@ -1210,7 +1214,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     filterProvider: provider
                 },
                 initialPath: pathRef.current,
-            }}/>,
+            }} />,
             doNothing,
             true,
             this.fileSelectorModalStyle
@@ -1250,7 +1254,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 },
                 initialPath: pathRef.current,
                 additionalFilters: {filterProvider: provider}
-            }}/>,
+            }} />,
             doNothing,
             true,
             this.fileSelectorModalStyle
@@ -1268,7 +1272,7 @@ function handleSyncthingWarning(files: UFile[], cb: ExtraFileCallbacks, op: () =
                 {operationText} the folder(s) will break Syncthing synchronization for this folder.
                 {(["Moving", "Renaming"] as typeof operationText[]).includes(operationText) ?
                     <div>
-                        <br/>
+                        <br />
                         To learn how to move a folder or rename a folder with Syncthing, click <ExternalLink
                         href={"https://docs.syncthing.net/users/faq.html#how-do-i-rename-move-a-synced-folder"}>here</ExternalLink>.
                     </div> : null}
@@ -1512,10 +1516,10 @@ export async function addFileSensitivityDialog(file: UFile, invokeCommand: Invok
         dialogStore.addDialog(
             <>
                 <Heading.h2>
-                    Sensitive files not supported <Icon name="warning" color="errorMain" size="32"/>
+                    Sensitive files not supported <Icon name="warning" color="errorMain" size="32" />
                 </Heading.h2>
                 <p>
-                    This provider (<ProviderTitle providerId={file.specification.product.provider}/>) has declared
+                    This provider (<ProviderTitle providerId={file.specification.product.provider} />) has declared
                     that they do not support sensitive data. This means that you <b>cannot/should not</b>:
 
                     <ul>
@@ -1543,7 +1547,7 @@ export async function addFileSensitivityDialog(file: UFile, invokeCommand: Invok
     }
 
     dialogStore.addDialog(<SensitivityDialog file={file} invokeCommand={invokeCommand}
-                                             onUpdated={onUpdated}/>, () => undefined, true);
+                                             onUpdated={onUpdated} />, () => undefined, true);
 }
 
 const api = new FilesApi();
@@ -1600,7 +1604,7 @@ export function FilePreview({initialFile}: {
         })
     }, []);
 
-    const mediaFileMetadata: null | { type: ExtensionType, data: string, error: string | null } = useMemo(() => {
+    const mediaFileMetadata: null | {type: ExtensionType, data: string, error: string | null} = useMemo(() => {
         let [file, contentBuffer] = openFile;
 
         const isSvg = extensionFromPath(file) === "svg";
@@ -1691,14 +1695,14 @@ export function FilePreview({initialFile}: {
                 return null;
             case "image":
                 // Note(Jonas): extensions like .HEIC will fall back to just showing the alt.
-                return <img key={elementKey} className={Image} alt={elementKey} src={mediaFileMetadata.data}/>
+                return <img key={elementKey} className={Image} alt={elementKey} src={mediaFileMetadata.data} />
             case "audio":
-                return <audio key={elementKey} className={Audio} controls src={mediaFileMetadata.data}/>;
+                return <audio key={elementKey} className={Audio} controls src={mediaFileMetadata.data} />;
             case "video":
-                return <video key={elementKey} className={Video} src={mediaFileMetadata.data} controls/>;
+                return <video key={elementKey} className={Video} src={mediaFileMetadata.data} controls />;
             case "pdf":
                 return <object key={elementKey} type="application/pdf"
-                               className={classConcat("fullscreen", PreviewObject)} data={mediaFileMetadata.data}/>;
+                               className={classConcat("fullscreen", PreviewObject)} data={mediaFileMetadata.data} />;
             case "markdown":
                 return <div key={elementKey} className={MarkdownStyling}><Markdown>{mediaFileMetadata.data}</Markdown>
                 </div>;
@@ -2306,29 +2310,56 @@ function FileProperties({file, routingNamespace}: {file: UFile, routingNamespace
             </div>
         </div>
         <dl className="details">
-            <div><dt><b>Path:</b></dt><dd>
-                <Flex alignItems="center" gap="8px" minWidth={0}>
-                    <Truncate flexGrow={1} title={prettyPath}>{prettyPath}</Truncate>
-                    <CopyButton tooltip="Copy file path" onClick={() => copyToClipboard(prettyPath)} />
-                </Flex>
-            </dd></div>
-            <div><dt><b>Product:</b></dt><dd>
-                {file.specification.product.id === file.specification.product.category ?
-                    file.specification.product.id :
-                    `${file.specification.product.id} / ${file.specification.product.category}`
-                } @ <ProviderTitle providerId={file.specification.product.provider} />
-            </dd></div>
-            <div><dt><b>Created at:</b></dt><dd>{dateToString(file.createdAt)}</dd></div>
-            {file.status.modifiedAt ? <div><dt><b>Modified at:</b></dt><dd>{dateToString(file.status.modifiedAt)}</dd></div> : null}
-            {file.status.accessedAt ? <div><dt><b>Accessed at:</b></dt><dd>{dateToString(file.status.accessedAt)}</dd></div> : null}
+            <div>
+                <dt><b>Path:</b></dt>
+                <dd>
+                    <Flex alignItems="center" gap="8px" minWidth={0}>
+                        <Truncate flexGrow={1} title={prettyPath}>{prettyPath}</Truncate>
+                        <CopyButton tooltip="Copy file path" onClick={() => copyToClipboard(prettyPath)} />
+                    </Flex>
+                </dd>
+            </div>
+            <div>
+                <dt><b>Product:</b></dt>
+                <dd>
+                    {file.specification.product.id === file.specification.product.category ?
+                        file.specification.product.id :
+                        `${file.specification.product.id} / ${file.specification.product.category}`
+                    } @ <ProviderTitle providerId={file.specification.product.provider} />
+                </dd>
+            </div>
+            <div>
+                <dt><b>Created at:</b></dt>
+                <dd>{dateToString(file.createdAt)}</dd>
+            </div>
+            {file.status.modifiedAt ? <div>
+                <dt><b>Modified at:</b></dt>
+                <dd>{dateToString(file.status.modifiedAt)}</dd>
+            </div> : null}
+            {file.status.accessedAt ? <div>
+                <dt><b>Accessed at:</b></dt>
+                <dd>{dateToString(file.status.accessedAt)}</dd>
+            </div> : null}
             {file.status.sizeInBytes != null && file.status.type !== "DIRECTORY" ?
-                <div><dt><b>Size:</b></dt><dd>{sizeToString(file.status.sizeInBytes)}</dd></div> : null}
+                <div>
+                    <dt><b>Size:</b></dt>
+                    <dd>{sizeToString(file.status.sizeInBytes)}</dd>
+                </div> : null}
             {file.status.sizeIncludingChildrenInBytes != null && file.status.type === "DIRECTORY" ?
-                <div><dt><b>Size:</b></dt><dd>{sizeToString(file.status.sizeIncludingChildrenInBytes)}</dd></div> : null}
+                <div>
+                    <dt><b>Size:</b></dt>
+                    <dd>{sizeToString(file.status.sizeIncludingChildrenInBytes)}</dd>
+                </div> : null}
             {file.status.unixOwner != null && file.status.unixGroup != null ?
-                <div><dt><b>UID/GID:</b></dt><dd>{file.status.unixOwner}/{file.status.unixGroup}</dd></div> : null}
+                <div>
+                    <dt><b>UID/GID:</b></dt>
+                    <dd>{file.status.unixOwner}/{file.status.unixGroup}</dd>
+                </div> : null}
             {file.status.unixMode != null ?
-                <div><dt><b>Unix mode:</b></dt><dd>{readableUnixMode(file.status.unixMode)}</dd></div> : null}
+                <div>
+                    <dt><b>Unix mode:</b></dt>
+                    <dd>{readableUnixMode(file.status.unixMode)}</dd>
+                </div> : null}
         </dl>
         <div className="actions">
             <Link to={buildQueryString(`/${routingNamespace}`, {path: getParentPath(file.id)})}>

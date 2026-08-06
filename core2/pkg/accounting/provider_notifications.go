@@ -597,8 +597,8 @@ func providerNotificationHandleClient(conn *ws.Conn) {
 			projectsToSend = map[int]util.Empty{}
 			categoriesToSend = map[int]util.Empty{}
 			usersToSend = map[int]util.Empty{}
-			walletsToSend = nil
-			policiesToSend = nil
+			walletsToSend = []*accapi.WalletV2{}
+			policiesToSend = map[int]fndapi.PoliciesForProject{}
 
 			if err != nil {
 				cancel()

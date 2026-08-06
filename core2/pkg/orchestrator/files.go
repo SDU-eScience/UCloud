@@ -421,7 +421,7 @@ func FilesCreateDownload(
 	request fndapi.BulkRequest[fndapi.FindByStringId],
 ) (fndapi.BulkResponse[orcapi.FilesCreateDownloadResponse], *util.HttpError) {
 	if actor.Project.Present {
-		_, isRestricted := policiesByProject(string(actor.Project.Value))[fndapi.RestrictDownloads.String()]
+		_, isRestricted := policiesByProject(string(actor.Project.Value))[string(fndapi.RestrictDownloads)]
 		if isRestricted {
 			return fndapi.BulkResponse[orcapi.FilesCreateDownloadResponse]{}, util.HttpErr(http.StatusForbidden, "This project does not allow downloads")
 		}
@@ -962,8 +962,8 @@ func FilesTransfer(actor rpc.Actor, request orcapi.FilesTransferRequest) *util.H
 
 	if actor.Project.Present {
 		var allowedProviders []string
-		polices := policiesByProject(actor.Project.String())
-		policySpecification, isRestricted := polices[fndapi.RestrictProviderTransfers.String()]
+		polices := policiesByProject(string(actor.Project.Value))
+		policySpecification, isRestricted := polices[string(fndapi.RestrictProviderTransfers)]
 		if isRestricted {
 			for _, property := range policySpecification.Properties {
 				if property.Name == "allowedProviders" {

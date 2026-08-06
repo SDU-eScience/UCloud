@@ -513,7 +513,7 @@ func openWebSession(
 		if hasRestriction {
 			flags = controller.RegisteredIngressFlagsVnc
 			port = 6080
-			vncRedirectPassword.Set("mypassword")
+			vncRedirectPassword.Set(VNCRedirectPassword)
 		}
 	}
 
@@ -640,7 +640,8 @@ func JobAnnotations(job *orc.Job, rank int) map[string]string {
 }
 
 const (
-	ContainerUserJob  = "user-job"
-	ContainerAuditLog = "audit-log"
-	ContainerProxyVNC = "proxy-vnc"
+	ContainerUserJob    = "user-job"
+	ContainerAuditLog   = "audit-log"
+	ContainerProxyVNC   = "proxy-vnc"
+	VNCRedirectPassword = "UIA7uBhFW82rc6Jj3ht1u3eqyd17gxFFBVI35DjBJlSUxziF845RGvjtMyIkROMT"
 )
