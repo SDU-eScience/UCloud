@@ -96,6 +96,7 @@ func Init(config *cfg.ServicesConfigurationKubernetes) {
 	inference.Init()
 	if config.Registry.Enabled {
 		registry.Init()
+		initContainerSnapshots()
 	}
 	initJobAuditLogCleanup()
 	apiTokenProviders := []controller.ApiTokenProvider{inference.InitApiTokens()}

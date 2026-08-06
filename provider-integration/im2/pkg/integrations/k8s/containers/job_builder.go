@@ -477,6 +477,8 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		}
 	}
 
+	addSnapshotExcludedMounts(pod, userContainer)
+
 	if herr = enforceImageRegistry(pod); herr != nil {
 		return herr
 	}
@@ -558,6 +560,51 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	}
 
 	return herr
+}
+
+func addSnapshotExcludedMounts(pod *core.Pod, container *core.Container) {
+	paths := []string{
+		"/tmp",
+		"/var/tmp",
+		"/var/cache/apt",
+		"/var/cache/dnf",
+		"/var/cache/yum",
+		"/root/.cache",
+		"/root/.npm",
+		"/home/ucloud/.cache",
+		"/home/ucloud/.npm",
+		"/opt/conda/pkgs",
+	}
+	permissions := core.Container{
+		Name:    "snapshot-exclude-permissions",
+		Image:   "alpine:latest",
+		Command: []string{"sh", "-c", "chmod 1777 /snapshot-excludes/*"},
+	}
+	for idx, path := range paths {
+		alreadyMounted := false
+		for _, mount := range container.VolumeMounts {
+			if mount.MountPath == path {
+				alreadyMounted = true
+				break
+			}
+		}
+		if alreadyMounted {
+			continue
+		}
+
+		name := fmt.Sprintf("snapshot-exclude-%d", idx)
+		pod.Spec.Volumes = append(pod.Spec.Volumes, core.Volume{
+			Name:         name,
+			VolumeSource: core.VolumeSource{EmptyDir: &core.EmptyDirVolumeSource{}},
+		})
+		container.VolumeMounts = append(container.VolumeMounts, core.VolumeMount{Name: name, MountPath: path})
+		permissions.VolumeMounts = append(permissions.VolumeMounts, core.VolumeMount{
+			Name: name, MountPath: fmt.Sprintf("/snapshot-excludes/%d", idx),
+		})
+	}
+	if len(permissions.VolumeMounts) > 0 {
+		pod.Spec.InitContainers = append(pod.Spec.InitContainers, permissions)
+	}
 }
 
 func recordMountActivity(job *orc.Job, mounts []activityMount) {

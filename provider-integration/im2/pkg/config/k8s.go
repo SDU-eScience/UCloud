@@ -22,14 +22,22 @@ type ServicesConfigurationKubernetes struct {
 }
 
 type KubernetesRegistryConfiguration struct {
-	Enabled bool
-	Host    string
-	Secrets KubernetesRegistrySecrets
+	Enabled  bool
+	Host     string
+	Secrets  KubernetesRegistrySecrets
+	Snapshot KubernetesRegistrySnapshotConfiguration
 }
 
 type KubernetesRegistrySecrets struct {
 	AuthSharedSecret     string
 	RegistrySharedSecret string
+}
+
+type KubernetesRegistrySnapshotConfiguration struct {
+	ContainerdSocket    string
+	ContainerdNamespace string
+	HelperImage         string
+	DeadlineSeconds     int
 }
 
 type KubernetesFileSystem struct {
@@ -327,6 +335,38 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 			if secretsNode != nil {
 				cfg.Registry.Secrets.AuthSharedSecret = cfgutil.RequireChildText(filePath, secretsNode, "authSharedSecret", &success)
 				cfg.Registry.Secrets.RegistrySharedSecret = cfgutil.RequireChildText(filePath, secretsNode, "registrySharedSecret", &success)
+			}
+
+			cfg.Registry.Snapshot.ContainerdSocket = "/var/run/k3s/containerd/containerd.sock"
+			cfg.Registry.Snapshot.ContainerdNamespace = "k8s.io"
+			cfg.Registry.Snapshot.HelperImage = "dreg.cloud.sdu.dk/ucloud-dev/nerdctl-support:2.3.5"
+			cfg.Registry.Snapshot.DeadlineSeconds = 3600
+			snapshotNode, _ := cfgutil.GetChildOrNil(filePath, registryNode, "snapshot")
+			if snapshotNode != nil {
+				if value := cfgutil.OptionalChildText(filePath, snapshotNode, "containerdSocket", &success); value != "" {
+					cfg.Registry.Snapshot.ContainerdSocket = value
+				}
+				if value := cfgutil.OptionalChildText(filePath, snapshotNode, "containerdNamespace", &success); value != "" {
+					cfg.Registry.Snapshot.ContainerdNamespace = value
+				}
+				if value := cfgutil.OptionalChildText(filePath, snapshotNode, "helperImage", &success); value != "" {
+					cfg.Registry.Snapshot.HelperImage = value
+				}
+				cfg.Registry.Snapshot.DeadlineSeconds = int(cfgutil.OptionalChildInt(
+					filePath, snapshotNode, "deadlineSeconds", &success,
+				).GetOrDefault(int64(cfg.Registry.Snapshot.DeadlineSeconds)))
+			}
+			if !strings.HasPrefix(cfg.Registry.Snapshot.ContainerdSocket, "/") {
+				cfgutil.ReportError(filePath, registryNode, "registry.snapshot.containerdSocket must be an absolute path")
+				success = false
+			}
+			if _, err := reference.ParseNormalizedNamed(cfg.Registry.Snapshot.HelperImage); err != nil {
+				cfgutil.ReportError(filePath, registryNode, "registry.snapshot.helperImage must be a valid container image")
+				success = false
+			}
+			if cfg.Registry.Snapshot.DeadlineSeconds <= 0 || cfg.Registry.Snapshot.DeadlineSeconds > 3600 {
+				cfgutil.ReportError(filePath, registryNode, "registry.snapshot.deadlineSeconds must be between 1 and 3600")
+				success = false
 			}
 		}
 	}

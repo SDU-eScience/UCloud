@@ -389,6 +389,18 @@ func submit(job orc.Job) (util.Option[string], *util.HttpError) {
 }
 
 func terminate(request controller.JobTerminateRequest) *util.HttpError {
+	containerSnapshotExecutions.Lock()
+	delayed, err := delayTerminationForContainerSnapshot(request)
+	containerSnapshotExecutions.Unlock()
+
+	if delayed || err != nil {
+		return err
+	}
+
+	return terminateNow(request)
+}
+
+func terminateNow(request controller.JobTerminateRequest) *util.HttpError {
 	introspection.DeleteTokens([]string{request.Job.Id})
 	return backend(request.Job).Terminate(request)
 }

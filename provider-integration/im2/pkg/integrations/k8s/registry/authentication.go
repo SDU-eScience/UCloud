@@ -87,7 +87,7 @@ func authenticateAndAuthorize(r *http.Request, access ...ocidauth.Access) (*ocid
 		},
 		jwt.WithValidMethods([]string{jwt.SigningMethodHS512.Alg()}),
 		jwt.WithIssuer(registryJWTIssuer),
-		jwt.WithAudience(shared.ServiceConfig.Registry.Host),
+		jwt.WithAudience(Service()),
 	)
 	if err != nil || !token.Valid {
 		return nil, registryAuthChallenge{access: access, cause: errors.New("invalid authorization token")}
@@ -123,7 +123,15 @@ type registryAuthChallenge struct {
 func (c registryAuthChallenge) Error() string { return c.cause.Error() }
 
 func (c registryAuthChallenge) SetHeaders(r *http.Request, w http.ResponseWriter) {
-	value := fmt.Sprintf("Bearer realm=%q,service=%q", "https://"+shared.ServiceConfig.Registry.Host+"/auth/token", shared.ServiceConfig.Registry.Host)
+	scheme := "http"
+	if r.TLS != nil {
+		scheme = "https"
+	}
+	if forwardedProto := r.Header.Get("X-Forwarded-Proto"); forwardedProto != "" {
+		scheme = strings.TrimSpace(strings.Split(forwardedProto, ",")[0])
+	}
+	realm := fmt.Sprintf("%s://%s/auth/token", scheme, r.Host)
+	value := fmt.Sprintf("Bearer realm=%q,service=%q", realm, Service())
 	if scope := registryScope(c.access); scope != "" {
 		value += fmt.Sprintf(",scope=%q", scope)
 	}
@@ -172,7 +180,7 @@ func handleAuthenticationToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	requestedService := r.URL.Query().Get("service")
-	if requestedService != "" && requestedService != shared.ServiceConfig.Registry.Host {
+	if requestedService != "" && requestedService != Service() {
 		http.Error(w, "invalid registry service", http.StatusBadRequest)
 		return
 	}
@@ -184,7 +192,7 @@ func handleAuthenticationToken(w http.ResponseWriter, r *http.Request) {
 		RegisteredClaims: jwt.RegisteredClaims{
 			Issuer:    registryJWTIssuer,
 			Subject:   ownerReference,
-			Audience:  jwt.ClaimStrings{shared.ServiceConfig.Registry.Host},
+			Audience:  jwt.ClaimStrings{Service()},
 			ExpiresAt: jwt.NewNumericDate(now.Add(registryJWTExpiry)),
 			IssuedAt:  jwt.NewNumericDate(now),
 			NotBefore: jwt.NewNumericDate(now),

@@ -12,6 +12,7 @@ import (
 	"ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/gateway"
 	"ucloud.dk/pkg/integrations/k8s/shared"
+	"ucloud.dk/shared/pkg/util"
 )
 
 func Init() {
@@ -69,8 +70,8 @@ func Init() {
 			"repository": {{Name: accountingMiddlewareName}},
 		},
 		HTTP: ocidconfig.HTTP{
-			Host:   "https://" + registryHost,
-			Secret: shared.ServiceConfig.Registry.Secrets.RegistrySharedSecret,
+			Secret:       shared.ServiceConfig.Registry.Secrets.RegistrySharedSecret,
+			RelativeURLs: true,
 		},
 		Notifications: ocidconfig.Notifications{Endpoints: nil},
 		Redis:         ocidconfig.Redis{},
@@ -90,6 +91,20 @@ func Init() {
 			Type:         gateway.RouteTypeIngress,
 		},
 	})
+}
+
+func Server() string {
+	if util.DevelopmentModeEnabled() {
+		return "http://" + Service()
+	}
+	return "https://" + Service()
+}
+
+func Service() string {
+	if util.DevelopmentModeEnabled() {
+		return shared.ServiceConfig.Registry.Host + ":8889"
+	}
+	return shared.ServiceConfig.Registry.Host
 }
 
 const RegistriesDirectory = "registries"

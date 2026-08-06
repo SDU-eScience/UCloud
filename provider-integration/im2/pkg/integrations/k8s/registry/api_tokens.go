@@ -1,8 +1,10 @@
 package registry
 
 import (
+	"time"
+
 	"ucloud.dk/pkg/controller"
-	"ucloud.dk/pkg/integrations/k8s/shared"
+	fnd "ucloud.dk/shared/pkg/foundation"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
@@ -20,7 +22,47 @@ func InitApiTokens() controller.ApiTokenProvider {
 
 func createContainerRepositoryApiToken(info rpc.RequestInfo, request orcapi.ApiToken) (orcapi.ApiTokenStatus, *util.HttpError) {
 	_ = info
-	return controller.ApiTokenCreate(containerRepositoryApiTokenKind, "https://"+shared.ServiceConfig.Registry.Host, request)
+	return controller.ApiTokenCreate(containerRepositoryApiTokenKind, Server(), request)
+}
+
+type SnapshotToken struct {
+	Id     string
+	Secret string
+}
+
+func CreateSnapshotToken(owner orcapi.ResourceOwner, lifetime time.Duration) (SnapshotToken, *util.HttpError) {
+	now := time.Now()
+	tokenId := util.SecureToken()
+	request := orcapi.ApiToken{
+		Resource: orcapi.Resource{
+			Id:        tokenId,
+			CreatedAt: fnd.Timestamp(now),
+			Owner:     owner,
+		},
+		Specification: orcapi.ApiTokenSpecification{
+			Title:       "Container snapshot",
+			Description: "Short-lived token used to publish a container snapshot.",
+			RequestedPermissions: []orcapi.ApiTokenPermission{
+				{Name: containerRepositoryApiTokenKind, Action: "pull"},
+				{Name: containerRepositoryApiTokenKind, Action: "push"},
+			},
+			ExpiresAt: fnd.Timestamp(now.Add(lifetime)),
+		},
+	}
+	status, err := controller.ApiTokenCreate(containerRepositoryApiTokenKind, Server(), request)
+	if err != nil {
+		return SnapshotToken{}, err
+	}
+	if !status.Token.Present {
+		return SnapshotToken{}, util.ServerHttpError("registry did not return a snapshot token")
+	}
+	return SnapshotToken{Id: tokenId, Secret: status.Token.Value}, nil
+}
+
+func RevokeSnapshotToken(tokenId string) {
+	if tokenId != "" {
+		_, _ = controller.ApiTokenRevoke(rpc.RequestInfo{}, fnd.FindByStringId{Id: tokenId})
+	}
 }
 
 func containerRepositoryApiTokenOptions() orcapi.ApiTokenOptions {
