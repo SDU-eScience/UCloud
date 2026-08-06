@@ -477,16 +477,9 @@ export function stateReducer(state: State, action: UIAction): State {
 
         case "UpdateAllocation": {
             const newWallets = deepCopy(state.remoteData.wallets);
+            const recipients = deepCopy(state.subAllocations.recipients);
 
-            const newState: State = {
-                ...state,
-                remoteData: {
-                    ...state.remoteData,
-                    wallets: newWallets,
-                },
-            };
-
-            outer: for (const wallet of (newState.remoteData.wallets ?? [])) {
+            outer: for (const wallet of (newWallets ?? [])) {
                 const allChildren = wallet.children ?? [];
                 for (const childGroup of allChildren) {
                     for (const alloc of childGroup.group.allocations) {
@@ -500,8 +493,25 @@ export function stateReducer(state: State, action: UIAction): State {
                 }
             }
 
-            newState.subAllocations = Accounting.buildSubAllocations(newState.remoteData.wallets ?? []);
-            return rebuildTree(newState);
+            // Note(Jonas): To avoid a full rebuild of the suballocation tree
+            recipients.forEach(t => t.groups.find(g => {
+                const allocation = g.allocations.find(a => a.allocationId === action.allocationId);
+                if (allocation) {
+                    allocation.quota = action.newQuota;
+                    allocation.start = action.newStart.getTime();
+                    allocation.end = action.newEnd.getTime();
+                }
+            }));
+
+            return {
+                ...state,
+                subAllocations: {recipients},
+                remoteData: {
+                    ...state.remoteData,
+                    wallets: newWallets,
+                },
+            };
+
         }
 
         case "UsageReportLoaded": {

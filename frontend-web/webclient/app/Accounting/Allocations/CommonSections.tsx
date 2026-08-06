@@ -2094,36 +2094,16 @@ function retrieveOperations(): Operation<AllocationTypes, {navigate: NavigateFun
         },
         {
             enabled(selected, extra, all) {
-                // Empty, bail
-                if (selected.length === 0) return false;
-                // Any selected not allocation, maybe remove this line
-                if (selected.every(it => !isAllocation(it))) return false;
-                // Any selected that's expired? Might be confusing if we don't explain why one is not updated
-                const expired = selected.filter(it => isAllocation(it) && it.end < new Date().getTime());
-                if (expired.length > 0) {
-                    if (expired.length === 1) {
-                        return "The allocation has expired";
-                    } else {
-                        return `${expired.length} of the selected allocations have expired`;
-                    }
-                }
-                return true;
+                return selected.length === 1 && isAllocation(selected[0]);
             },
-            text(selected) {
-                let count = 0;
-                for (const entry of selected) {
-                    if (isAllocation(entry)) count += 1;
-                    if (count >= 2) return "Edit allocations";
-                }
-                return "Edit allocation";
-            },
+            text: "Edit allocation",
             icon: "heroPencil",
             onClick(selected, extra, all) {
                 const [first] = selected;
                 if (!isAllocation(first)) return;
                 if (!all) return;
-                let group: Accounting.TreeAllocationGroup | null = null;
                 let recipient: Accounting.AllocationDisplayTreeRecipient | null = null;
+                let group: Accounting.TreeAllocationGroup | null = null;
                 outer: for (const entry of all) {
                     if (isAllocationDisplayTreeRecipient(entry)) {
                         for (const g of entry.groups) {
