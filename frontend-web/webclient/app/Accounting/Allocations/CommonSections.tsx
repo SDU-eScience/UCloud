@@ -2186,8 +2186,11 @@ async function addEntries(browser: ResourceBrowser<AllocationTypes>, resource: A
 
 async function removeEntries(browser: ResourceBrowser<AllocationTypes>, resource: AllocationTypes) {
     if (isAllocationDisplayTreeRecipient(resource)) {
-        for (const alloc of resource.groups) {
-            browser.removeEntryFromCurrentPage(it => it === alloc);
+        for (const group of resource.groups) {
+            browser.removeEntryFromCurrentPage(it => it === group);
+            for (const alloc of group.allocations) {
+                browser.removeEntryFromCurrentPage(it => it === alloc);
+            }
         }
     } else if (isAllocationGroup(resource)) {
         for (const alloc of resource.allocations) {
