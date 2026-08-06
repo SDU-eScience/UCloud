@@ -1706,9 +1706,30 @@ export function AllocationBrowser(props: {opts?: ResourceBrowserOpts<AllocationT
     const dispatch = useDispatch();
     const navigate = useNavigate();
 
-    const filteredAllocations = React.useMemo(() =>
-        props.state.subAllocations.recipients.filter((_, idx) => props.state.filteredSubProjectIndices.includes(idx)),
-        [props.state.subAllocations.recipients, props.state.filteredSubProjectIndices]);
+    const progressBarCache = React.useRef<Record<string, ReactStaticRenderer>>({});
+
+    const filteredAllocations = React.useMemo(() => {
+        const result: AllocationTypes[] = [];
+        const promises: Promise<ReactStaticRenderer>[] = [];
+        for (const [idx, recipient] of props.state.subAllocations.recipients.entries()) {
+            const rId = id(recipient);
+            if (props.state.filteredSubProjectIndices.includes(idx)) {
+                result.push(recipient);
+                addToCacheIfMissing(recipient, progressBarCache.current);
+                if (openNodes.has(rId)) {
+                    for (const group of recipient.groups) {
+                        const gId = id(group);
+                        result.push(group);
+                        addToCacheIfMissing(group, progressBarCache.current);
+                        if (openNodes.has(gId)) {
+                            result.push(...group.allocations)
+                        }
+                    }
+                }
+            }
+        }
+        return result;
+    }, [props.state.subAllocations.recipients, props.state.filteredSubProjectIndices]);
 
     React.useLayoutEffect(() => {
         if (browserRef.current) {
@@ -1719,23 +1740,12 @@ export function AllocationBrowser(props: {opts?: ResourceBrowserOpts<AllocationT
             );
 
             browserRef.current.rerender();
-
-            Promise.all(filteredAllocations.map(all => new ReactStaticRenderer(() => <FilteredUsageAndQuota entries={all.usageAndQuota} />)
-                .promise.then(result => {
-                    const allocationIdentifier = id(all);
-                    progressBarCache.current[allocationIdentifier] = result;
-                }))
-            ).then(() => {
-                browserRef.current?.rerender();
-            });
         }
     }, [filteredAllocations]);
 
-    const progressBarCache = React.useRef<Record<string, ReactStaticRenderer>>({});
-
     const projectIds: string[] = React.useMemo(() => {
         const ids = new Set<string>();
-        for (const alloc of filteredAllocations) {
+        for (const alloc of filteredAllocations.filter(it => isAllocationDisplayTreeRecipient(it))) {
             if (alloc.owner.reference.type === "project") {
                 ids.add(alloc.owner.reference.projectId);
             }
@@ -1828,14 +1838,11 @@ export function AllocationBrowser(props: {opts?: ResourceBrowserOpts<AllocationT
 
                             wrapper.prepend(ChevronIcon!.clone());
                             const chevron = wrapper.children.item(0)! as HTMLDivElement;
-                            const isOpen = browser.findVirtualRowIndex(e => e === resource.groups[0]) !== null;
                             chevron.style.marginTop = chevron.style.marginBottom = "auto";
-                            if (!isOpen) {
+                            if (!openNodes.has(id(resource))) {
                                 chevron.children.item(0)!["style"].rotate = "-90deg";
                             }
-                            chevron.onclick = () => {
-                                addOrRemoveEntries(browser, resource, progressBarCache.current);
-                            }
+                            chevron.onclick = () => browser.dispatchMessage("skipOpen", fn => fn("", "", resource));
                         }
                         {
                             // Progress bars and link button
@@ -1859,14 +1866,11 @@ export function AllocationBrowser(props: {opts?: ResourceBrowserOpts<AllocationT
                         // Title with chevron
                         div.append(ChevronIcon!.clone());
                         const chevron = div.children.item(0)! as HTMLDivElement;
-                        const isOpen = browser.findVirtualRowIndex(e => e === resource.allocations[0]) !== null;
                         chevron.style.marginTop = chevron.style.marginBottom = "auto";
-                        if (!isOpen) {
+                        if (!openNodes.has(id(resource))) {
                             chevron.children.item(0)!["style"].rotate = "-90deg";
                         }
-                        chevron.onclick = () => {
-                            addOrRemoveEntries(browser, resource, progressBarCache.current);
-                        }
+                        chevron.onclick = () => browser.dispatchMessage("skipOpen", fn => fn("", "", resource));
                         const p = providerIcon(resource.category.provider, {marginTop: "auto", marginBottom: "auto"});
                         p.style.marginTop = p.style.marginBottom = "auto"
                         const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
@@ -1884,7 +1888,7 @@ export function AllocationBrowser(props: {opts?: ResourceBrowserOpts<AllocationT
                         div.append(icon);
                         const code = document.createElement("code");
                         code.style.marginTop = code.style.marginBottom = "auto";
-                        code.innerText = id(resource);
+                        code.innerText = resource.category.name;
                         div.append(code);
                         div.style.paddingLeft = "32px";
                         // Progress bars and link button
@@ -2037,7 +2041,7 @@ function id(al: AllocationTypes): string {
             ? al.owner.reference.projectId
             : al.owner.reference.username;
     } else if (isAllocationGroup(al)) {
-        return al.category.name;
+        return al.category.name + al.allocations.map(it => it.allocationId.toString()).join("-");
     } else if (isAllocation(al)) {
         return al.allocationId.toString();
     }
@@ -2132,76 +2136,77 @@ function retrieveOperations(): Operation<AllocationTypes, {navigate: NavigateFun
     ];
 }
 
-async function addOrRemoveEntries(browser: ResourceBrowser<AllocationTypes>, resource: AllocationTypes, progressBarCache: Record<string, ReactStaticRenderer>, action?: TreeAction): Promise<void> {
-    const idx = browser.findVirtualRowIndex(it => it === resource);
-    const promises: Promise<ReactStaticRenderer>[] = [];
+async function addToCacheIfMissing(resource: AllocationTypes, progressBarCache: Record<string, ReactStaticRenderer>) {
+    const rId = id(resource);
     if (isAllocationDisplayTreeRecipient(resource)) {
-        const groups = resource.groups;
-        if (groups.length && idx !== null) {
-            if (browser.findVirtualRowIndex(it => it === groups[0]) === null) {
-                if (action === TreeAction.CLOSE) return;
-                groups.forEach(g => {
-                    const identifier = id(g);
-                    if (progressBarCache[identifier]) return;
-                    progressBarCache[identifier] = defaultAvatarSvg!;
-                    promises.push(new ReactStaticRenderer(() => <ProgressBar uq={g.usageAndQuota} />)
-                        .promise.then(result => progressBarCache[identifier] = result));
-                });
-                browser.insertEntriesIntoCurrentPageAt(groups, idx + 1);
-            } else {
-                if (action === TreeAction.OPEN) return;
-                for (const g of resource.groups) {
-                    browser.removeEntryFromCurrentPage(it => it === g);
-                    for (const a of g.allocations) {
-                        browser.removeEntryFromCurrentPage(it => it === a);
-                    }
-                }
-            }
+        if (!progressBarCache[rId]) {
+            new ReactStaticRenderer(() => {
+                return <FilteredUsageAndQuota entries={resource.usageAndQuota} />
+            }).promise.then(it =>
+                progressBarCache[rId] = it
+            );
         }
-
-        if (!action) browser.rerender();
     } else if (isAllocationGroup(resource)) {
-        const allocations = resource.allocations;
-        if (allocations.length && idx !== null) {
-            if (browser.findVirtualRowIndex(it => it === allocations[0]) === null) {
-                // TODO(Jonas): If closed already, close parent
-                if (action === TreeAction.CLOSE) {
-                    const idx = browser.findVirtualRowIndex(it => {
-                        if (!isAllocationDisplayTreeRecipient(it)) return false;
-                        return it.groups.find(it => it === resource) != null;
-                    });
-
-                    if (idx) {
-                        const allocationGroup = browser.cachedData[browser.currentPath][idx];
-                        addOrRemoveEntries(browser, allocationGroup, progressBarCache, TreeAction.CLOSE);
-                    }
-                    return;
-                }
-                browser.insertEntriesIntoCurrentPageAt(allocations, idx + 1);
-            } else {
-                if (action === TreeAction.OPEN) return;
-                for (const alloc of allocations) {
-                    browser.removeEntryFromCurrentPage(it => it === alloc);
-                }
-            }
-        }
-        if (!action) browser.rerender();
-    } else if (isAllocation(resource)) {
-        if (action === TreeAction.CLOSE) {
-            const idx = browser.findVirtualRowIndex(it => {
-                if (!isAllocationGroup(it)) return false;
-                return it.allocations.find(it => it.allocationId === resource.allocationId) != null;
-            });
-
-            if (idx) {
-                const allocationGroup = browser.cachedData[browser.currentPath][idx];
-                addOrRemoveEntries(browser, allocationGroup, progressBarCache, TreeAction.CLOSE);
-            }
-            return;
+        if (!progressBarCache[rId]) {
+            new ReactStaticRenderer(() => {
+                return <ProgressBar uq={resource.usageAndQuota} />
+            }).promise.then(it =>
+                progressBarCache[rId] = it
+            );
         }
     }
+}
 
-    await Promise.all(promises);
+async function addOrRemoveEntries(browser: ResourceBrowser<AllocationTypes>, resource: AllocationTypes, progressBarCache: Record<string, ReactStaticRenderer>, action?: TreeAction) {
+    debugger;
+    const resourceId = id(resource);
+    if (openNodes.has(resourceId) || isAllocation(resource)) {
+        if (action === TreeAction.OPEN) return;
+        openNodes.delete(resourceId);
+        removeEntries(browser, resource);
+    } else {
+        if (action === TreeAction.CLOSE) return;
+        openNodes.add(resourceId);
+        addEntries(browser, resource, progressBarCache)
+    }
+}
+
+async function addEntries(browser: ResourceBrowser<AllocationTypes>, resource: AllocationTypes, progressBarCache: Record<string, ReactStaticRenderer>) {
+    const idx = browser.findVirtualRowIndex(it => it === resource);
+    if (idx == null) return;
+    if (isAllocationDisplayTreeRecipient(resource)) {
+        resource.groups.forEach(g => addToCacheIfMissing(g, progressBarCache));
+        browser.insertEntriesIntoCurrentPageAt(resource.groups, idx + 1);
+    } else if (isAllocationGroup(resource)) {
+        browser.insertEntriesIntoCurrentPageAt(resource.allocations, idx + 1);
+    } else if (isAllocation(resource)) {
+        // Nothing
+    }
+}
+
+async function removeEntries(browser: ResourceBrowser<AllocationTypes>, resource: AllocationTypes) {
+    if (isAllocationDisplayTreeRecipient(resource)) {
+        for (const alloc of resource.groups) {
+            browser.removeEntryFromCurrentPage(it => it === alloc);
+        }
+    } else if (isAllocationGroup(resource)) {
+        for (const alloc of resource.allocations) {
+            browser.removeEntryFromCurrentPage(it => it === alloc);
+        }
+    } else if (isAllocation(resource)) {
+        const idx = browser.findVirtualRowIndex(it => {
+            if (!isAllocationGroup(it)) return false;
+            return it.allocations.find(it => it.allocationId === resource.allocationId) != null;
+        });
+
+        if (idx) {
+            const allocationGroup = browser.cachedData[browser.currentPath][idx] as Accounting.TreeAllocationGroup;
+            for (const alloc of allocationGroup.allocations) {
+                browser.removeEntryFromCurrentPage(it => it === alloc);
+            }
+            openNodes.delete(id(allocationGroup));
+        }
+    }
 }
 
 function makeCategoryKeyFromWorkspaceId(workspace: string, name: Accounting.ProductCategoryV2["name"]): string {

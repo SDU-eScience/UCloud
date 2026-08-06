@@ -562,6 +562,9 @@ export class ResourceBrowser<T> {
         this.useNewActions = hasFeature(Feature.NEW_CONTEXT_MENU);
         this.isModal = !!opts?.isModal;
         ResourceBrowser.isAnyModalOpen = ResourceBrowser.isAnyModalOpen || this.isModal;
+        if (opts?.rowHeight) {
+            this.rowSize = opts.rowHeight;
+        }
         this.opts = {
             embedded: opts?.embedded,
             selector: !!opts?.selection,
@@ -1044,6 +1047,8 @@ export class ResourceBrowser<T> {
 
             evaluateProjectStatus(Client.projectId);
         }
+
+        this.reevaluateSize();
     }
 
     reevaluateSize() {
@@ -2331,6 +2336,7 @@ export class ResourceBrowser<T> {
     ensureRowIsVisible(rowIdx: number, topAligned: boolean, ignoreEvent: boolean = false) {
         const scrollingContainer = this.scrolling.parentElement!;
         const height = this.scrollingContainerHeight;
+        console.log({height});
 
         const firstRowPixel = rowIdx * this.rowSize;
         const lastRowPixel = firstRowPixel + this.rowSize;
