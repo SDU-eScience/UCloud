@@ -961,7 +961,7 @@ function DurationSelector(props: {
         Allocation period
         (Current: {dateToStringNoTime(originalStart?.getTime() ?? new Date().getTime())} - {dateToStringNoTime(originalEnd?.getTime() ?? new Date().getTime())})
         <br />
-        <Flex>
+        <Flex gap="8px">
             <DatePicker
                 selectsStart
                 selected={startDate}
@@ -1040,7 +1040,7 @@ function openUpdater(
                     <Heading.h3>Update {category.name} ({getProviderTitle(category.provider)}) allocation
                         (ID: {allocation.allocationId}) belonging to "{workspaceTitle}"</Heading.h3>
                     <Divider />
-                    <Flex mb={"16px"} flexDirection={"row"}>
+                    <Flex gap="8px" mb={"16px"} flexDirection={"row"}>
                         <DurationSelector periodRef={periodRef} />
                         <Label ml={"auto"}>
                             Allocation quota (Current: {Accounting.balanceToString(category, quota)})
@@ -1695,32 +1695,27 @@ new ReactStaticRenderer(() =>
         rotate={25}
     />
 ).promise.then(it => ChevronIcon = it);
-let defaultAvatarSvg: ReactStaticRenderer | null;
-new ReactStaticRenderer(() => {
-    return <Avatar style={{height: "80px", width: "80px"}} avatarStyle="Circle" {...defaultAvatar} />;
-}).promise.then(it => defaultAvatarSvg = it);
 
+const progressBarCache: {current: Record<string, ReactStaticRenderer>} = {current: {}};
 export function AllocationBrowser(props: {opts?: ResourceBrowserOpts<AllocationTypes>, state: State; dispatchEvent: (ev: UIEvent) => void;}): React.ReactNode {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<AllocationTypes> | null>(null);
     const dispatch = useDispatch();
     const navigate = useNavigate();
 
-    const progressBarCache = React.useRef<Record<string, ReactStaticRenderer>>({});
 
     const filteredAllocations = React.useMemo(() => {
         const result: AllocationTypes[] = [];
-        const promises: Promise<ReactStaticRenderer>[] = [];
         for (const [idx, recipient] of props.state.subAllocations.recipients.entries()) {
             const rId = id(recipient);
             if (props.state.filteredSubProjectIndices.includes(idx)) {
                 result.push(recipient);
-                addToCacheIfMissing(recipient, progressBarCache.current);
+
                 if (openNodes.has(rId)) {
                     for (const group of recipient.groups) {
                         const gId = id(group);
                         result.push(group);
-                        addToCacheIfMissing(group, progressBarCache.current);
+
                         if (openNodes.has(gId)) {
                             result.push(...group.allocations)
                         }
@@ -1730,6 +1725,17 @@ export function AllocationBrowser(props: {opts?: ResourceBrowserOpts<AllocationT
         }
         return result;
     }, [props.state.subAllocations.recipients, props.state.filteredSubProjectIndices]);
+
+    React.useEffect(() => {
+        debugger;
+        for (const recipient of filteredAllocations) {
+            if (!isAllocationDisplayTreeRecipient(recipient)) continue;
+            addToCacheIfMissing(recipient, progressBarCache.current);
+            for (const group of recipient.groups) {
+                addToCacheIfMissing(group, progressBarCache.current);
+            }
+        }
+    }, [filteredAllocations]);
 
     React.useLayoutEffect(() => {
         if (browserRef.current) {
@@ -1786,6 +1792,7 @@ export function AllocationBrowser(props: {opts?: ResourceBrowserOpts<AllocationT
                 browser.on("skipOpen", (oldPath, path, resource) => {
                     if (!resource) return false;
                     addOrRemoveEntries(browser, resource, progressBarCache.current);
+                    browser.rerender();
                     return resource != null;
                 });
 
@@ -1846,7 +1853,7 @@ export function AllocationBrowser(props: {opts?: ResourceBrowserOpts<AllocationT
                         }
                         {
                             // Progress bars and link button
-                            const allocationIdentifier = id(resource);
+                            const allocationIdentifier = progressCacheId(resource);
                             const entry = progressBarCache.current[allocationIdentifier];
                             if (entry) {
                                 const clone = entry.clone();
@@ -1892,7 +1899,7 @@ export function AllocationBrowser(props: {opts?: ResourceBrowserOpts<AllocationT
                         div.append(code);
                         div.style.paddingLeft = "32px";
                         // Progress bars and link button
-                        const allocationIdentifier = id(resource);
+                        const allocationIdentifier = progressCacheId(resource);
                         const entry = progressBarCache.current[allocationIdentifier];
                         if (entry) {
                             const clone = entry.clone();
@@ -2136,22 +2143,31 @@ function retrieveOperations(): Operation<AllocationTypes, {navigate: NavigateFun
     ];
 }
 
-async function addToCacheIfMissing(resource: AllocationTypes, progressBarCache: Record<string, ReactStaticRenderer>) {
-    const rId = id(resource);
+function progressCacheId(resource: AllocationTypes): string {
     if (isAllocationDisplayTreeRecipient(resource)) {
-        if (!progressBarCache[rId]) {
+        return resource.groups.map(it => it.usageAndQuota.display.usageAndQuotaPercent).join(",");
+    } else if (isAllocationGroup(resource)) {
+        return resource.usageAndQuota.display.usageAndQuotaPercent;
+    }
+    return "";
+}
+
+async function addToCacheIfMissing(resource: AllocationTypes, progressBarCache: Record<string, ReactStaticRenderer>) {
+    const progressBarId = progressCacheId(resource);
+    if (isAllocationDisplayTreeRecipient(resource)) {
+        if (!progressBarCache[progressBarId]) {
             new ReactStaticRenderer(() => {
                 return <FilteredUsageAndQuota entries={resource.usageAndQuota} />
             }).promise.then(it =>
-                progressBarCache[rId] = it
+                progressBarCache[progressBarId] = it
             );
         }
     } else if (isAllocationGroup(resource)) {
-        if (!progressBarCache[rId]) {
+        if (!progressBarCache[progressBarId]) {
             new ReactStaticRenderer(() => {
                 return <ProgressBar uq={resource.usageAndQuota} />
             }).promise.then(it =>
-                progressBarCache[rId] = it
+                progressBarCache[progressBarId] = it
             );
         }
     }

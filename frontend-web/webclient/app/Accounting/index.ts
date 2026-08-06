@@ -1134,7 +1134,7 @@ export function buildSubAllocations(allWallets: WalletV2[]): AllocationDisplayTr
             const quota = combineBalances([{balance: combinedQuota, category: wallet.paysFor}]);
             const retiredAmount = combineBalances([{balance: combinedRetired, category: wallet.paysFor}]);
             let totalAllocated = 0;
-            const newGroup: AllocationDisplayTree["subAllocations"]["recipients"][0]["groups"][0] = {
+            const newGroup: TreeAllocationGroup = {
                 category: wallet.paysFor,
                 usageAndQuota: new UsageAndQuota({
                     usage: usage?.[0]?.normalizedBalance ?? 0,
