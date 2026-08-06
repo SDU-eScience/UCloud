@@ -940,13 +940,17 @@ func terminate(request ctrl.JobTerminateRequest) *util.HttpError {
 	shared.ClearAssignedSshPort(request.Job)
 	shared.RemoveFromQueue(request.Job.Id)
 
-	name := vmName(request.Job.Id, 0)
-	err := KubevirtClient.VirtualMachine(Namespace).Delete(context.Background(), name, k8smeta.DeleteOptions{})
-	if err != nil && !k8serrors.IsNotFound(err) {
-		log.Info("Failed to delete VM: %v", err)
-		return util.ServerHttpError("Failed to delete VM")
+	if !request.SkipResourceDeletion {
+		name := vmName(request.Job.Id, 0)
+		err := KubevirtClient.VirtualMachine(Namespace).Delete(context.Background(), name, k8smeta.DeleteOptions{})
+		if err != nil && !k8serrors.IsNotFound(err) {
+			log.Info("Failed to delete VM: %v", err)
+			return util.ServerHttpError("Failed to delete VM")
+		}
 	}
-	diskCleanup(request.Job)
+	if !request.IsCleanup {
+		diskCleanup(request.Job)
+	}
 
 	if !request.IsCleanup {
 		job, ok := ctrl.JobRetrieve(request.Job.Id)
