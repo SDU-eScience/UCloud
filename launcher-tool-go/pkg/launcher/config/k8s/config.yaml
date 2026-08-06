@@ -58,6 +58,8 @@ provider:
 services:
   type: Kubernetes
   compute:
+    allowedRegistries: []
+
     web:
       enabled: true
       prefix: "k8s-"

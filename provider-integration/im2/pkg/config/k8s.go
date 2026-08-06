@@ -6,6 +6,7 @@ import (
 	"net"
 	"strings"
 
+	"github.com/distribution/reference"
 	"gopkg.in/yaml.v3"
 	apm "ucloud.dk/shared/pkg/accounting"
 	"ucloud.dk/shared/pkg/cfgutil"
@@ -191,6 +192,7 @@ type KubernetesUcxConfiguration struct {
 type KubernetesCompute struct {
 	Machines                        map[string]K8sMachineCategory
 	MachineImpersonation            map[string]string
+	AllowedRegistries               []string
 	EstimatedContainerDownloadSpeed float64 // MB/s
 	Namespace                       string
 	TaskNamespace                   string
@@ -387,6 +389,18 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 	}
 
 	computeNode := cfgutil.RequireChild(filePath, services, "compute", &success)
+	allowedRegistriesNode, _ := cfgutil.GetChildOrNil(filePath, computeNode, "allowedRegistries")
+	if allowedRegistriesNode != nil {
+		cfgutil.Decode(filePath, allowedRegistriesNode, &cfg.Compute.AllowedRegistries, &success)
+		for _, registry := range cfg.Compute.AllowedRegistries {
+			registry = strings.TrimSpace(registry)
+			parsed, err := reference.ParseNormalizedNamed(registry + "/ucloud-validation")
+			if err != nil || reference.Domain(parsed) != registry {
+				cfgutil.ReportError(filePath, allowedRegistriesNode, "invalid registry host: %s", registry)
+				success = false
+			}
+		}
+	}
 	cfg.Compute.Namespace = cfgutil.OptionalChildText(filePath, services, "namespace", &success)
 	if cfg.Compute.Namespace == "" {
 		cfg.Compute.Namespace = "ucloud-apps"

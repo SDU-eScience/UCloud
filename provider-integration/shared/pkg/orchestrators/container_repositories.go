@@ -143,6 +143,19 @@ type ContainerRepositoriesControlRetrieveRequest struct {
 	ContainerRepositoryFlags
 }
 
+type ContainerRepositoriesControlBrowseRequest struct {
+	ItemsPerPage int                 `json:"itemsPerPage"`
+	Next         util.Option[string] `json:"next"`
+
+	ContainerRepositoryFlags
+}
+
+var ContainerRepositoriesControlBrowse = rpc.Call[ContainerRepositoriesControlBrowseRequest, fnd.PageV2[ContainerRepository]]{
+	BaseContext: containerRepositoryControlNamespace,
+	Convention:  rpc.ConventionBrowse,
+	Roles:       rpc.RolesProvider,
+}
+
 var ContainerRepositoriesControlRetrieve = rpc.Call[ContainerRepositoriesControlRetrieveRequest, ContainerRepository]{
 	BaseContext: containerRepositoryControlNamespace,
 	Convention:  rpc.ConventionRetrieve,

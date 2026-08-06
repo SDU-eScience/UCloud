@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	reference "github.com/distribution/reference"
 	core "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -476,6 +477,10 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		}
 	}
 
+	if herr = enforceImageRegistry(pod); herr != nil {
+		return herr
+	}
+
 	// NOTE(Dan): Check if the job is allowed to be submitted. This must be immediately before the job creation. It
 	// must not be moved down or up. Do not add code between these two.
 	if reason := shared.IsJobLockedEx(job, pod.Annotations); reason.Present {
@@ -682,4 +687,33 @@ func jobAuditLogSetup(job *orc.Job, rank int, spec *core.PodSpec, userContainer 
 		Name:  "UCLOUD_WORKSPACE_ID",
 		Value: job.Owner.Project.GetOrDefault(job.Owner.CreatedBy),
 	})
+}
+
+func enforceImageRegistry(pod *core.Pod) *util.HttpError {
+	image := ""
+	for _, container := range pod.Spec.Containers {
+		if container.Name == ContainerUserJob {
+			image = strings.TrimSpace(container.Image)
+			break
+		}
+	}
+
+	named, err := reference.ParseNormalizedNamed(image)
+	if err != nil {
+		return util.UserHttpError("invalid container image: %s", image)
+	}
+
+	registry := reference.Domain(named)
+	allowed := []string{"dockerregistry.cloud.sdu.dk", "dreg.cloud.sdu.dk"}
+	allowed = append(allowed, ServiceConfig.Compute.AllowedRegistries...)
+	if ServiceConfig.Registry.Enabled {
+		allowed = append(allowed, ServiceConfig.Registry.Host)
+	}
+
+	for _, candidate := range allowed {
+		if strings.EqualFold(strings.TrimSpace(candidate), registry) {
+			return nil
+		}
+	}
+	return util.UserHttpError("container images from registry %s are not allowed", registry)
 }

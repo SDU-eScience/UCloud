@@ -96,6 +96,18 @@ func initContainerRepositories() {
 		return ResourceRetrieve[orcapi.ContainerRepository](info.Actor, containerRepositoryType, ResourceParseId(request.Id), request.ResourceFlags)
 	})
 
+	orcapi.ContainerRepositoriesControlBrowse.Handler(func(info rpc.RequestInfo, request orcapi.ContainerRepositoriesControlBrowseRequest) (fndapi.PageV2[orcapi.ContainerRepository], *util.HttpError) {
+		return ResourceBrowse(
+			info.Actor,
+			containerRepositoryType,
+			request.Next,
+			request.ItemsPerPage,
+			request.ResourceFlags,
+			func(item orcapi.ContainerRepository) bool { return true },
+			nil,
+		), nil
+	})
+
 	orcapi.ContainerRepositoriesControlRegister.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ProviderRegisteredResource[orcapi.ContainerRepositorySpecification]]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
 		providerId, _ := strings.CutPrefix(info.Actor.Username, fndapi.ProviderSubjectPrefix)
 		responses := make([]fndapi.FindByStringId, 0, len(request.Items))
