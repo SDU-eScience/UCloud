@@ -2158,16 +2158,27 @@ async function addToCacheIfMissing(resource: AllocationTypes, progressBarCache: 
 }
 
 async function addOrRemoveEntries(browser: ResourceBrowser<AllocationTypes>, resource: AllocationTypes, progressBarCache: Record<string, ReactStaticRenderer>, action?: TreeAction) {
-    debugger;
     const resourceId = id(resource);
     if (openNodes.has(resourceId) || isAllocation(resource)) {
+        // Close
         if (action === TreeAction.OPEN) return;
         openNodes.delete(resourceId);
         removeEntries(browser, resource);
     } else {
-        if (action === TreeAction.CLOSE) return;
+        // Open
+        if (action === TreeAction.CLOSE) {
+            // Edge case when AllocationGroup is already closed. We then close the parent instead.
+            const idx = browser.findVirtualRowIndex(it => isAllocationDisplayTreeRecipient(it) && it.groups.find(it => it === resource) != null);
+            if (idx != null) {
+                const parentNode = browser.cachedData[browser.currentPath][idx];
+                if (parentNode) {
+                    removeEntries(browser, parentNode);
+                }
+            }
+            return;
+        }
         openNodes.add(resourceId);
-        addEntries(browser, resource, progressBarCache)
+        addEntries(browser, resource, progressBarCache);
     }
 }
 
@@ -2186,17 +2197,21 @@ async function addEntries(browser: ResourceBrowser<AllocationTypes>, resource: A
 
 async function removeEntries(browser: ResourceBrowser<AllocationTypes>, resource: AllocationTypes) {
     if (isAllocationDisplayTreeRecipient(resource)) {
+        // Remove all children
         for (const group of resource.groups) {
             browser.removeEntryFromCurrentPage(it => it === group);
+            // Remove all childrens children
             for (const alloc of group.allocations) {
                 browser.removeEntryFromCurrentPage(it => it === alloc);
             }
         }
     } else if (isAllocationGroup(resource)) {
+        // Remove all children
         for (const alloc of resource.allocations) {
             browser.removeEntryFromCurrentPage(it => it === alloc);
         }
     } else if (isAllocation(resource)) {
+        // Find parent AllocationGroup and close siblings
         const idx = browser.findVirtualRowIndex(it => {
             if (!isAllocationGroup(it)) return false;
             return it.allocations.find(it => it.allocationId === resource.allocationId) != null;
