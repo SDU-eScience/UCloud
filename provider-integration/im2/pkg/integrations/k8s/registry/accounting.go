@@ -14,6 +14,7 @@ import (
 
 	ocid "github.com/distribution/distribution/v3"
 	ocidstorage "github.com/distribution/distribution/v3/registry/storage"
+	"github.com/distribution/distribution/v3/registry/storage/driver"
 	ocidfs "github.com/distribution/distribution/v3/registry/storage/driver/filesystem"
 	"github.com/distribution/reference"
 	"github.com/opencontainers/go-digest"
@@ -344,7 +345,11 @@ func accountingScanOwner(ctx context.Context, owner apm.WalletOwner, override *a
 
 	catalog, err := accountingCatalog(ctx)
 	if err != nil {
-		return nil, err
+		if _, ok := errors.AsType[driver.PathNotFoundError](err); ok {
+			catalog = make([]string, 0)
+		} else {
+			return nil, err
+		}
 	}
 	seenBlobs := map[digest.Digest]bool{}
 	seenManifests := map[digest.Digest]bool{}

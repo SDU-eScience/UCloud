@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	ocid "github.com/distribution/distribution/v3"
+	"github.com/distribution/distribution/v3/registry/storage/driver"
 	"github.com/distribution/reference"
 	"github.com/opencontainers/go-digest"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
@@ -39,7 +40,11 @@ func browseImages(request orc.ContainerRepositoriesProviderBrowseImagesRequest) 
 	ctx := context.Background()
 	catalog, err := accountingCatalog(ctx)
 	if err != nil {
-		return fnd.PageV2[orc.ContainerRepositoryImage]{}, util.HttpErr(http.StatusInternalServerError, "unable to browse container images")
+		if _, ok := errors.AsType[driver.PathNotFoundError](err); ok {
+			return fnd.PageV2[orc.ContainerRepositoryImage]{Items: make([]orc.ContainerRepositoryImage, 0)}, nil
+		} else {
+			return fnd.PageV2[orc.ContainerRepositoryImage]{}, util.HttpErr(http.StatusInternalServerError, "unable to browse container images")
+		}
 	}
 
 	root := request.ResolvedRepository.Specification.Name
