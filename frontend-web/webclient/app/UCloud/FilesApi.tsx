@@ -35,7 +35,7 @@ import {
     errorMessageOrDefault,
     extensionFromPath,
     ExtensionType,
-    extensionType,
+    extensionType, extractErrorMessage,
     inDevEnvironment,
     onDevSite,
     prettierString,
@@ -118,18 +118,26 @@ export interface ExtraFileCallbacks {
     collection?: FileCollection;
     directory?: UFile;
     isModal?: boolean;
+
     startFileCreation(): void;
+
     startFolderCreation(): void;
+
     isSearch: boolean;
     // HACK(Jonas): This is because resource view is technically embedded, but is not in dialog, so it's allowed in
     // special case.
     allowMoveCopyOverride?: boolean;
     syncthingConfig?: SyncthingConfig;
     setSynchronization?: (file: UFile[], shouldAdd: boolean) => void;
+
     openFile(file: UFile, newWindow: boolean): void;
+
     copyToClipboard(files: UFile[], cut: boolean): void;
+
     canPasteFromClipboard(): boolean;
+
     pasteFromClipboard(): void;
+
     reloadCurrentFolderIfUnpaginated(path: string): void;
 }
 
@@ -365,8 +373,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
         return apiUpdate(request, "/api/files", "visualize");
     }
 
-    renderer: ItemRenderer<UFile, FileBrowseCallbacks> = {
-    };
+    renderer: ItemRenderer<UFile, FileBrowseCallbacks> = {};
 
     private defaultRetrieveFlags: Partial<UFileIncludeFlags> = {
         includeMetadata: true,
@@ -1266,7 +1273,8 @@ function handleSyncthingWarning(files: UFile[], cb: ExtraFileCallbacks, op: () =
                 {(["Moving", "Renaming"] as typeof operationText[]).includes(operationText) ?
                     <div>
                         <br />
-                        To learn how to move a folder or rename a folder with Syncthing, click <ExternalLink href={"https://docs.syncthing.net/users/faq.html#how-do-i-rename-move-a-synced-folder"}>here</ExternalLink>.
+                        To learn how to move a folder or rename a folder with Syncthing, click <ExternalLink
+                        href={"https://docs.syncthing.net/users/faq.html#how-do-i-rename-move-a-synced-folder"}>here</ExternalLink>.
                     </div> : null}
             </div>,
             onConfirm: op,
@@ -1539,7 +1547,7 @@ export async function addFileSensitivityDialog(file: UFile, invokeCommand: Invok
     }
 
     dialogStore.addDialog(<SensitivityDialog file={file} invokeCommand={invokeCommand}
-        onUpdated={onUpdated} />, () => undefined, true);
+                                             onUpdated={onUpdated} />, () => undefined, true);
 }
 
 const api = new FilesApi();
@@ -1693,9 +1701,11 @@ export function FilePreview({initialFile}: {
             case "video":
                 return <video key={elementKey} className={Video} src={mediaFileMetadata.data} controls />;
             case "pdf":
-                return <object key={elementKey} type="application/pdf" className={classConcat("fullscreen", PreviewObject)} data={mediaFileMetadata.data} />;
+                return <object key={elementKey} type="application/pdf"
+                               className={classConcat("fullscreen", PreviewObject)} data={mediaFileMetadata.data} />;
             case "markdown":
-                return <div key={elementKey} className={MarkdownStyling}><Markdown>{mediaFileMetadata.data}</Markdown></div>;
+                return <div key={elementKey} className={MarkdownStyling}><Markdown>{mediaFileMetadata.data}</Markdown>
+                </div>;
         }
 
         return null;
@@ -1795,7 +1805,11 @@ export function FilePreview({initialFile}: {
         }, 1000);
     }, [openFile[0]]);
 
-    const onRename = React.useCallback(async ({newAbsolutePath, oldAbsolutePath, cancel}: {newAbsolutePath: string, oldAbsolutePath: string, cancel: boolean}): Promise<boolean> => {
+    const onRename = React.useCallback(async ({newAbsolutePath, oldAbsolutePath, cancel}: {
+        newAbsolutePath: string,
+        oldAbsolutePath: string,
+        cancel: boolean
+    }): Promise<boolean> => {
         let success = false;
         if (cancel) {
             setRenamingFile(undefined);
@@ -2118,7 +2132,8 @@ class PreviewVfs implements Vfs {
 
         if (file.status.type !== "FILE") {
             throw window.Error("Only files can be previewed");
-        };
+        }
+        ;
 
         if (file.status.sizeInBytes === 0) {
             return "";
@@ -2295,29 +2310,56 @@ function FileProperties({file, routingNamespace}: {file: UFile, routingNamespace
             </div>
         </div>
         <dl className="details">
-            <div><dt><b>Path:</b></dt><dd>
-                <Flex alignItems="center" gap="8px" minWidth={0}>
-                    <Truncate flexGrow={1} title={prettyPath}>{prettyPath}</Truncate>
-                    <CopyButton tooltip="Copy file path" onClick={() => copyToClipboard(prettyPath)} />
-                </Flex>
-            </dd></div>
-            <div><dt><b>Product:</b></dt><dd>
-                {file.specification.product.id === file.specification.product.category ?
-                    file.specification.product.id :
-                    `${file.specification.product.id} / ${file.specification.product.category}`
-                } @ <ProviderTitle providerId={file.specification.product.provider} />
-            </dd></div>
-            <div><dt><b>Created at:</b></dt><dd>{dateToString(file.createdAt)}</dd></div>
-            {file.status.modifiedAt ? <div><dt><b>Modified at:</b></dt><dd>{dateToString(file.status.modifiedAt)}</dd></div> : null}
-            {file.status.accessedAt ? <div><dt><b>Accessed at:</b></dt><dd>{dateToString(file.status.accessedAt)}</dd></div> : null}
+            <div>
+                <dt><b>Path:</b></dt>
+                <dd>
+                    <Flex alignItems="center" gap="8px" minWidth={0}>
+                        <Truncate flexGrow={1} title={prettyPath}>{prettyPath}</Truncate>
+                        <CopyButton tooltip="Copy file path" onClick={() => copyToClipboard(prettyPath)} />
+                    </Flex>
+                </dd>
+            </div>
+            <div>
+                <dt><b>Product:</b></dt>
+                <dd>
+                    {file.specification.product.id === file.specification.product.category ?
+                        file.specification.product.id :
+                        `${file.specification.product.id} / ${file.specification.product.category}`
+                    } @ <ProviderTitle providerId={file.specification.product.provider} />
+                </dd>
+            </div>
+            <div>
+                <dt><b>Created at:</b></dt>
+                <dd>{dateToString(file.createdAt)}</dd>
+            </div>
+            {file.status.modifiedAt ? <div>
+                <dt><b>Modified at:</b></dt>
+                <dd>{dateToString(file.status.modifiedAt)}</dd>
+            </div> : null}
+            {file.status.accessedAt ? <div>
+                <dt><b>Accessed at:</b></dt>
+                <dd>{dateToString(file.status.accessedAt)}</dd>
+            </div> : null}
             {file.status.sizeInBytes != null && file.status.type !== "DIRECTORY" ?
-                <div><dt><b>Size:</b></dt><dd>{sizeToString(file.status.sizeInBytes)}</dd></div> : null}
+                <div>
+                    <dt><b>Size:</b></dt>
+                    <dd>{sizeToString(file.status.sizeInBytes)}</dd>
+                </div> : null}
             {file.status.sizeIncludingChildrenInBytes != null && file.status.type === "DIRECTORY" ?
-                <div><dt><b>Size:</b></dt><dd>{sizeToString(file.status.sizeIncludingChildrenInBytes)}</dd></div> : null}
+                <div>
+                    <dt><b>Size:</b></dt>
+                    <dd>{sizeToString(file.status.sizeIncludingChildrenInBytes)}</dd>
+                </div> : null}
             {file.status.unixOwner != null && file.status.unixGroup != null ?
-                <div><dt><b>UID/GID:</b></dt><dd>{file.status.unixOwner}/{file.status.unixGroup}</dd></div> : null}
+                <div>
+                    <dt><b>UID/GID:</b></dt>
+                    <dd>{file.status.unixOwner}/{file.status.unixGroup}</dd>
+                </div> : null}
             {file.status.unixMode != null ?
-                <div><dt><b>Unix mode:</b></dt><dd>{readableUnixMode(file.status.unixMode)}</dd></div> : null}
+                <div>
+                    <dt><b>Unix mode:</b></dt>
+                    <dd>{readableUnixMode(file.status.unixMode)}</dd>
+                </div> : null}
         </dl>
         <div className="actions">
             <Link to={buildQueryString(`/${routingNamespace}`, {path: getParentPath(file.id)})}>

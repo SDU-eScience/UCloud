@@ -2232,14 +2232,23 @@ func initGrants() {
 
 	if !grantGlobals.Testing.Enabled {
 		accapi.GrantsBrowse.Handler(func(info rpc.RequestInfo, request accapi.GrantsBrowseRequest) (fndapi.PageV2[accapi.GrantApplication], *util.HttpError) {
+			if sourceIPisRestricted(info) {
+				return fndapi.PageV2[accapi.GrantApplication]{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
+			}
 			return GrantsBrowse(info.Actor, request), nil
 		})
 
 		accapi.GrantsRetrieve.Handler(func(info rpc.RequestInfo, request fndapi.FindByStringId) (accapi.GrantApplication, *util.HttpError) {
+			if sourceIPisRestricted(info) {
+				return accapi.GrantApplication{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
+			}
 			return GrantsRetrieve(info.Actor, request.Id)
 		})
 
 		accapi.GrantsSubmitRevision.Handler(func(info rpc.RequestInfo, request accapi.GrantsSubmitRevisionRequest) (fndapi.FindByStringId, *util.HttpError) {
+			if sourceIPisRestricted(info) {
+				return fndapi.FindByStringId{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
+			}
 			id, err := GrantsSubmitRevision(info.Actor, request)
 			if err != nil {
 				return fndapi.FindByStringId{}, err
@@ -2262,6 +2271,9 @@ func initGrants() {
 		})
 
 		accapi.GrantsPostComment.Handler(func(info rpc.RequestInfo, request accapi.GrantsPostCommentRequest) (fndapi.FindByStringId, *util.HttpError) {
+			if sourceIPisRestricted(info) {
+				return fndapi.FindByStringId{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
+			}
 			id, err := GrantsPostComment(info.Actor, request)
 			if err != nil {
 				return fndapi.FindByStringId{}, err
@@ -2271,6 +2283,9 @@ func initGrants() {
 		})
 
 		accapi.GrantsDeleteComment.Handler(func(info rpc.RequestInfo, request accapi.GrantsDeleteCommentRequest) (util.Empty, *util.HttpError) {
+			if sourceIPisRestricted(info) {
+				return util.Empty{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
+			}
 			return util.Empty{}, GrantsDeleteComment(info.Actor, request)
 		})
 

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/rand"
+	"net/http"
 	"os"
 	"path/filepath"
 	"slices"
@@ -25,6 +26,7 @@ import (
 	"ucloud.dk/pkg/integrations/k8s/filesystem"
 	"ucloud.dk/pkg/integrations/k8s/shared"
 	"ucloud.dk/pkg/ucxdelivery"
+	"ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
@@ -254,6 +256,28 @@ func syncthingValidateConfiguration(job *orc.Job, configuration json.RawMessage)
 
 	folderIds := map[string]bool{}
 	for _, folder := range config.Folders {
+		driveId, ok := filesystem.DriveIdFromUCloudPath(folder.UCloudPath)
+		if ok {
+			dInfo, found := controller.DriveRetrieve(driveId)
+			if found {
+				policySpecs, hasRestriction := controller.RetrievePoliciesByProject(dInfo.Owner.Project.String())[foundation.RestrictIntegratedApplications.String()]
+				if hasRestriction {
+					isAllowed := false
+					for _, property := range policySpecs.Properties {
+						if property.Name == "allowList" {
+							for _, element := range property.TextElements {
+								if element == "syncthing" {
+									isAllowed = true
+								}
+							}
+						}
+					}
+					if !isAllowed {
+						return util.HttpErr(http.StatusForbidden, "Project does not allow usage of syncthing (IM)")
+					}
+				}
+			}
+		}
 		if folderIds[folder.Id] {
 			return util.UserHttpError("Duplicate Syncthing folder ID: %s", folder.Id)
 		}

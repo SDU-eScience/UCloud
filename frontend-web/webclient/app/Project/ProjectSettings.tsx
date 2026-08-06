@@ -222,34 +222,34 @@ const MoveFieldControls: React.FunctionComponent<MoveFieldControlsProps> = ({
     setSettings,
 }) => {
     const move = useCallback((direction: "up" | "down") => {
-        setSettings(prev => {
-        const items = [...prev.templates.structured[projectType]];
+            setSettings(prev => {
+                const items = [...prev.templates.structured[projectType]];
 
-        const targetIdx =
-            direction === "up" ? idx - 1 : idx + 1;
+                const targetIdx =
+                    direction === "up" ? idx - 1 : idx + 1;
 
-        if (targetIdx < 0 || targetIdx >= items.length) {
-            return prev;
-        }
+                if (targetIdx < 0 || targetIdx >= items.length) {
+                    return prev;
+                }
 
-        [items[idx], items[targetIdx]] = [
-            items[targetIdx],
-            items[idx],
-        ];
+                [items[idx], items[targetIdx]] = [
+                    items[targetIdx],
+                    items[idx],
+                ];
 
-        return {
-            ...prev,
-            templates: {
-            ...prev.templates,
-            structured: {
-                ...prev.templates.structured,
-                [projectType]: items,
-            },
-            },
-        };
-        });
-    },
-    [idx, projectType, setSettings]
+                return {
+                    ...prev,
+                    templates: {
+                        ...prev.templates,
+                        structured: {
+                            ...prev.templates.structured,
+                            [projectType]: items,
+                        },
+                    },
+                };
+            });
+        },
+        [idx, projectType, setSettings]
     );
 
     return <Flex gap="4px">
@@ -344,9 +344,9 @@ const TemplateForm: React.FunctionComponent<TemplateFormProps> = ({
                     </Flex>
                     <br />
                     <Flex justifyContent={"space-between"}>
-                        <span style={{ display: "flex" }}>
+                        <span style={{display: "flex"}}>
                             <Label cursor="pointer" width="unset" fontSize={"12px"} marginTop={"5px"}>
-                                <Checkbox size={30} checked={field.optional} onChange={()=>updateFormField(idx, 'optional', !field.optional, projectType)}>
+                                <Checkbox size={30} checked={field.optional} onChange={() => updateFormField(idx, 'optional', !field.optional, projectType)}>
                                 </Checkbox>
                                 Optional
                             </Label>
@@ -360,7 +360,9 @@ const TemplateForm: React.FunctionComponent<TemplateFormProps> = ({
                             />
                         </Flex>
                     </Flex>
-                    { settings.templates.structured[projectType].length > idx + 1 ? <div><br/><hr style={{border:("solid 1px var(--secondaryDark)")}}/></div> : <></> }
+                    {settings.templates.structured[projectType].length > idx + 1 ? <div><br />
+                        <hr style={{border: ("solid 1px var(--secondaryDark)")}} />
+                    </div> : <></>}
                 </React.Fragment>
             })
         }
@@ -402,12 +404,12 @@ export const ProjectSettings: React.FunctionComponent = () => {
         templates: {
             type: "structured",
             structured: {
-                        personalProject: [createDefaultApplicationField()],
-                        existingProject: [createDefaultApplicationField()],
-                        newProject: [createDefaultApplicationField()],
-                        revisionNumber: -1
-                    },
-            }
+                personalProject: [createDefaultApplicationField()],
+                existingProject: [createDefaultApplicationField()],
+                newProject: [createDefaultApplicationField()],
+                revisionNumber: -1
+            },
+        }
     });
     const description = useRef<HTMLInputElement>(null);
     useEffect(() => {
@@ -603,102 +605,102 @@ export const ProjectSettings: React.FunctionComponent = () => {
             </SettingsSection>
 
             {canManageProject ? <SettingsSection
-                    id="grant-applications"
-                    title="Grant applications"
-                    description="Configure how applicants describe their project and who can submit applications."
-                >
-                    <form onSubmit={onSave}>
-                        <Box mb={24}>
-                            <UpdateProjectLogo />
-                        </Box>
-                        <Box mb={24}>
-                            <label style={{width: "100%"}}>
-                                Project description <br />
-                                <TextArea width="100%" rows={5} inputRef={description} />
-                            </label>
-                        </Box>
+                id="grant-applications"
+                title="Grant applications"
+                description="Configure how applicants describe their project and who can submit applications."
+            >
+                <form onSubmit={onSave}>
+                    <Box mb={24}>
+                        <UpdateProjectLogo />
+                    </Box>
+                    <Box mb={24}>
+                        <label style={{width: "100%"}}>
+                            Project description <br />
+                            <TextArea width="100%" rows={5} inputRef={description} />
+                        </label>
+                    </Box>
+                    <Box mb={12}>
+                        <Heading.h4 bold>Application form</Heading.h4>
+                        <Text color="textSecondary">
+                            Define the information applicants must provide for each type of project.
+                        </Text>
+                    </Box>
+                    <TabbedCard>
+                        <TabbedCardTab name="Personal projects" icon="heroUser">
+                            <TemplateForm
+                                projectType="personalProject"
+                                settings={settings}
+                                setSettings={setSettings}
+                                updateFormField={updateFormField}
+                                removeFormField={removeFormField}
+                                updateFormFieldLimits={updateFormFieldLimits}
+                            />
+                        </TabbedCardTab>
+                        <TabbedCardTab name="Existing projects" icon="heroUsers">
+                            <TemplateForm
+                                projectType="existingProject"
+                                settings={settings}
+                                setSettings={setSettings}
+                                updateFormField={updateFormField}
+                                removeFormField={removeFormField}
+                                updateFormFieldLimits={updateFormFieldLimits}
+                            />
+                        </TabbedCardTab>
+                        <TabbedCardTab name="New projects" icon="heroUserPlus">
+                            <TemplateForm
+                                projectType="newProject"
+                                settings={settings}
+                                setSettings={setSettings}
+                                updateFormField={updateFormField}
+                                removeFormField={removeFormField}
+                                updateFormFieldLimits={updateFormFieldLimits}
+                            />
+                        </TabbedCardTab>
+                    </TabbedCard>
+                    {settings.enabled && <Box mt={32}>
                         <Box mb={12}>
-                            <Heading.h4 bold>Application form</Heading.h4>
+                            <Heading.h4 bold>Application sources</Heading.h4>
                             <Text color="textSecondary">
-                                Define the information applicants must provide for each type of project.
+                                Choose who may apply and optionally exclude specific groups from submitting applications.
                             </Text>
                         </Box>
-                        <TabbedCard>
-                            <TabbedCardTab name="Personal projects" icon="heroUser">
-                                <TemplateForm
-                                    projectType="personalProject"
-                                    settings={settings}
-                                    setSettings={setSettings}
-                                    updateFormField={updateFormField}
-                                    removeFormField={removeFormField}
-                                    updateFormFieldLimits={updateFormFieldLimits}
-                                />
-                            </TabbedCardTab>
-                            <TabbedCardTab name="Existing projects" icon="heroUsers">
-                                <TemplateForm
-                                    projectType="existingProject"
-                                    settings={settings}
-                                    setSettings={setSettings}
-                                    updateFormField={updateFormField}
-                                    removeFormField={removeFormField}
-                                    updateFormFieldLimits={updateFormFieldLimits}
-                                />
-                            </TabbedCardTab>
-                            <TabbedCardTab name="New projects" icon="heroUserPlus">
-                                <TemplateForm
-                                    projectType="newProject"
-                                    settings={settings}
-                                    setSettings={setSettings}
-                                    updateFormField={updateFormField}
-                                    removeFormField={removeFormField}
-                                    updateFormFieldLimits={updateFormFieldLimits}
-                                />
-                            </TabbedCardTab>
-                        </TabbedCard>
-                        {settings.enabled && <Box mt={32}>
-                            <Box mb={12}>
-                                <Heading.h4 bold>Application sources</Heading.h4>
-                                <Text color="textSecondary">
-                                    Choose who may apply and optionally exclude specific groups from submitting applications.
+                        <div className={GrantSourcesClass}>
+                            <div className="grant-source-panel">
+                                <Heading.h5>Allow applications from</Heading.h5>
+                                <Text className="grant-source-description" color="textSecondary">
+                                    Applications are accepted from these sources.
                                 </Text>
-                            </Box>
-                            <div className={GrantSourcesClass}>
-                                <div className="grant-source-panel">
-                                    <Heading.h5>Allow applications from</Heading.h5>
-                                    <Text className="grant-source-description" color="textSecondary">
-                                        Applications are accepted from these sources.
-                                    </Text>
-                                    <UserCriteriaEditor
-                                        criteria={settings.allowRequestsFrom}
-                                        projectId={projectId}
-                                        onSubmit={onAllowAdd}
-                                        isExclusion={false}
-                                        onRemove={onAllowRemove}
-                                        showSubprojects={settings.enabled}
-                                    />
-                                </div>
-
-                                <div className="grant-source-panel">
-                                    <Heading.h5>Exclude applications from</Heading.h5>
-                                    <Text className="grant-source-description" color="textSecondary">
-                                        Matching sources are blocked even when otherwise allowed.
-                                    </Text>
-                                    <UserCriteriaEditor
-                                        criteria={settings.excludeRequestsFrom}
-                                        projectId={projectId}
-                                        onSubmit={onExcludeAdd}
-                                        isExclusion={true}
-                                        onRemove={onExcludeRemove}
-                                        showSubprojects={false}
-                                    />
-                                </div>
+                                <UserCriteriaEditor
+                                    criteria={settings.allowRequestsFrom}
+                                    projectId={projectId}
+                                    onSubmit={onAllowAdd}
+                                    isExclusion={false}
+                                    onRemove={onAllowRemove}
+                                    showSubprojects={settings.enabled}
+                                />
                             </div>
-                        </Box>}
 
-                        <Flex justifyContent={"center"} mt={32}>
-                            <Button type={"submit"} fullWidth>Save grant application settings</Button>
-                        </Flex>
-                    </form>
+                            <div className="grant-source-panel">
+                                <Heading.h5>Exclude applications from</Heading.h5>
+                                <Text className="grant-source-description" color="textSecondary">
+                                    Matching sources are blocked even when otherwise allowed.
+                                </Text>
+                                <UserCriteriaEditor
+                                    criteria={settings.excludeRequestsFrom}
+                                    projectId={projectId}
+                                    onSubmit={onExcludeAdd}
+                                    isExclusion={true}
+                                    onRemove={onExcludeRemove}
+                                    showSubprojects={false}
+                                />
+                            </div>
+                        </div>
+                    </Box>}
+
+                    <Flex justifyContent={"center"} mt={32}>
+                        <Button type={"submit"} fullWidth>Save grant application settings</Button>
+                    </Flex>
+                </form>
             </SettingsSection> : null}
 
             <SettingsSection id="project-membership" title="Project membership" mb={0}>
@@ -1137,9 +1139,12 @@ const UserCriteriaRowEditor: React.FunctionComponent<{
 
 function userCriteriaConstraint(criterion: Grants.UserCriteria): string {
     switch (criterion.type) {
-        case "wayf": return criterion.org;
-        case "email": return criterion.domain;
-        case "anyone": return "No constraint";
+        case "wayf":
+            return criterion.org;
+        case "email":
+            return criterion.domain;
+        case "anyone":
+            return "No constraint";
     }
 }
 

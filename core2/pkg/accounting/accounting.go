@@ -28,6 +28,9 @@ func initAccounting() {
 	go accountingProcessTasks()
 
 	accapi.RootAllocate.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[accapi.RootAllocateRequest]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
+		if sourceIPisRestricted(info) {
+			return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(http.StatusForbidden, "Client IP is not allowed by project")
+		}
 		var result []fndapi.FindByStringId
 		for _, reqItem := range request.Items {
 			id, err := RootAllocate(info.Actor, reqItem)
@@ -41,6 +44,9 @@ func initAccounting() {
 	})
 
 	accapi.UpdateAllocation.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[accapi.UpdateAllocationRequest]) (util.Empty, *util.HttpError) {
+		if sourceIPisRestricted(info) {
+			return util.Empty{}, util.HttpErr(http.StatusForbidden, "Client IP is not allowed by project")
+		}
 		return UpdateAllocation(info.Actor, request.Items)
 	})
 
@@ -58,6 +64,9 @@ func initAccounting() {
 	})
 
 	accapi.WalletsBrowse.Handler(func(info rpc.RequestInfo, request accapi.WalletsBrowseRequest) (fndapi.PageV2[accapi.WalletV2], *util.HttpError) {
+		if sourceIPisRestricted(info) {
+			return fndapi.PageV2[accapi.WalletV2]{}, util.HttpErr(http.StatusForbidden, "Client IP is not allowed by project")
+		}
 		return WalletsBrowse(info.Actor, request), nil
 	})
 

@@ -27,14 +27,23 @@ func initDrives() {
 	)
 
 	orcapi.DrivesBrowse.Handler(func(info rpc.RequestInfo, request orcapi.DrivesBrowseRequest) (fndapi.PageV2[orcapi.Drive], *util.HttpError) {
+		if sourceIPisRestricted(info) {
+			return fndapi.PageV2[orcapi.Drive]{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
+		}
 		return DriveBrowse(info.Actor, request), nil
 	})
 
 	orcapi.DrivesRetrieve.Handler(func(info rpc.RequestInfo, request orcapi.DrivesRetrieveRequest) (orcapi.Drive, *util.HttpError) {
+		if sourceIPisRestricted(info) {
+			return orcapi.Drive{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
+		}
 		return ResourceRetrieve[orcapi.Drive](info.Actor, driveType, ResourceParseId(request.Id), request.ResourceFlags)
 	})
 
 	orcapi.DrivesCreate.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.DriveSpecification]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
+		if sourceIPisRestricted(info) {
+			return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
+		}
 		created, err := DriveCreateBulk(info.Actor, request)
 		if err != nil {
 			return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
@@ -49,6 +58,9 @@ func initDrives() {
 	})
 
 	orcapi.DrivesRename.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.DriveRenameRequest]) (util.Empty, *util.HttpError) {
+		if sourceIPisRestricted(info) {
+			return util.Empty{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
+		}
 		for _, reqItem := range request.Items {
 			err := DriveRename(info.Actor, reqItem.Id, reqItem.NewTitle)
 			if err != nil {
@@ -62,6 +74,10 @@ func initDrives() {
 	orcapi.DrivesSearch.Handler(func(info rpc.RequestInfo, request orcapi.DrivesSearchRequest) (fndapi.PageV2[orcapi.Drive], *util.HttpError) {
 		// TODO Sorting through the items would be ideal
 
+		if sourceIPisRestricted(info) {
+			return fndapi.PageV2[orcapi.Drive]{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
+		}
+
 		items := ResourceBrowse[orcapi.Drive](info.Actor, driveType, request.Next, request.ItemsPerPage, request.ResourceFlags, func(item orcapi.Drive) bool {
 			return strings.Contains(strings.ToLower(item.Specification.Title), strings.ToLower(request.Query))
 		}, nil)
@@ -74,6 +90,10 @@ func initDrives() {
 	})
 
 	orcapi.DrivesUpdateAcl.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.UpdatedAcl]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
+		if sourceIPisRestricted(info) {
+			return fndapi.BulkResponse[util.Empty]{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
+		}
+
 		var responses []util.Empty
 		for _, item := range request.Items {
 			err := ResourceUpdateAcl(info.Actor, driveType, item)
@@ -90,6 +110,9 @@ func initDrives() {
 	})
 
 	orcapi.DrivesDelete.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[fndapi.FindByStringId]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
+		if sourceIPisRestricted(info) {
+			return fndapi.BulkResponse[util.Empty]{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
+		}
 		return DriveDelete(info.Actor, request)
 	})
 

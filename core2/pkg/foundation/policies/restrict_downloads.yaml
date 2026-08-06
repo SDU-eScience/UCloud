@@ -1,0 +1,15 @@
+name: "RestrictDownloads"
+title: "Restrict downloads"
+
+description: >
+  Controls whether users are allowed to download data from the portal 
+  to their local machine. Note that this policy may be ineffective if
+  the provider allows direct access to the data.
+
+configuration:
+  - name: "enabled"
+    type: "Bool"
+    title: "Enabled"
+    description: >
+      If enabled, downloads to the client machine are blocked. 
+      If disabled, downloads are allowed.

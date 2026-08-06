@@ -86,6 +86,10 @@ func initEvents() {
 			}
 		}
 	}()
+
+	policyCache.Mu.Lock()
+	policyCache.PoliciesByProject = make(map[string]map[string]*fnd.PolicySpecification)
+	policyCache.Mu.Unlock()
 }
 
 func eventHandleNotification(nType EventNotificationMessageType, notification any) {
@@ -187,6 +191,10 @@ func eventHandleNotification(nType EventNotificationMessageType, notification an
 		}
 
 		eventUpdateReplayFromToNow()
+
+	case EventNotificationMessagePolicesUpdated:
+		update := notification.(*EventPoliciesUpdated)
+		updatePolicyCacheForProject(update.ProjectId, update.PoliciesSpecifications)
 	}
 }
 
@@ -214,6 +222,7 @@ const (
 	EvOpCategoryInfo uint8 = 3
 	EvOpUserInfo     uint8 = 4
 	EvOpReplayUser   uint8 = 5
+	EvOpPolicyChange uint8 = 6
 )
 
 const (
@@ -226,6 +235,7 @@ func eventHandleSession(session *ws.Conn, userReplayChannel chan string, replayF
 	projects := make(map[uint32]fnd.Project)
 	products := make(map[uint32]apm.ProductCategory)
 	users := make(map[uint32]string)
+	policies := make(map[uint32]fnd.PoliciesForProject)
 
 	writeBuf := buf{}
 	writeBuf.PutU8(EvOpAuth)
@@ -346,6 +356,25 @@ func eventHandleSession(session *ws.Conn, userReplayChannel chan string, replayF
 					}
 
 					eventHandleNotification(EventNotificationMessageProjectUpdated, &notification)
+				case EvOpPolicyChange:
+					ref := readBuf.GetU32()
+					policiesJson := readBuf.GetString()
+					var projectPolicies fnd.PoliciesForProject
+					err := json.Unmarshal([]byte(policiesJson), &projectPolicies)
+					if err != nil {
+						log.Warn("Failed to read policies: %v\n%v", err, policiesJson)
+						return
+					}
+
+					policies[ref] = projectPolicies
+
+					notification := EventPoliciesUpdated{
+						ProjectId:              projectPolicies.ProjectId,
+						PoliciesSpecifications: projectPolicies.PoliciesByName,
+					}
+
+					eventHandleNotification(EventNotificationMessagePolicesUpdated, &notification)
+
 				default:
 					log.Warn("Invalid APM opcode received: %v", op)
 				}
@@ -365,6 +394,7 @@ type EventNotificationMessageType int
 const (
 	EventNotificationMessageWalletUpdated EventNotificationMessageType = iota
 	EventNotificationMessageProjectUpdated
+	EventNotificationMessagePolicesUpdated
 )
 
 type EventWalletUpdated struct {
@@ -382,6 +412,11 @@ type EventProjectUpdated struct {
 	LastUpdate fnd.Timestamp
 	Project    fnd.Project
 	ProjectComparison
+}
+
+type EventPoliciesUpdated struct {
+	ProjectId              string
+	PoliciesSpecifications map[string]*fnd.PolicySpecification
 }
 
 type buf struct {
@@ -830,6 +865,53 @@ func ResourceIsLocked(resource orc.Resource, ref apm.ProductReference) bool {
 
 func RetrieveResourceLockInfo(resource orc.Resource, ref apm.ProductReference) ResourceLockInfo {
 	return WalletIsLocked(apm.WalletOwnerFromIds(resource.Owner.CreatedBy, resource.Owner.Project.Value), ref.Category)
+}
+
+var policyCache struct {
+	Mu                sync.RWMutex
+	PoliciesByProject map[string]map[string]*fnd.PolicySpecification
+}
+
+func RetrievePoliciesByProject(projectId string) map[string]*fnd.PolicySpecification {
+	if RunsServerCode() {
+		projectPolicies := map[string]*fnd.PolicySpecification{}
+		policyCache.Mu.Lock()
+		projectPolicies, ok := policyCache.PoliciesByProject[projectId]
+		if !ok {
+			log.Debug("No policies for project %v", projectId)
+			policySpecifications, policiesOk := policySpecificationsRetrieveFromCore(projectId)
+			if policiesOk {
+				policyCache.PoliciesByProject[projectId] = policySpecifications
+				projectPolicies = policySpecifications
+			} else {
+				log.Debug("No policies for project %v found in DB", projectId)
+			}
+
+		}
+		policyCache.Mu.Unlock()
+		return projectPolicies
+	} else {
+		panic("RetrievePoliciesByProject is only implemented for server mode")
+	}
+}
+
+func policySpecificationsRetrieveFromCore(projectId string) (map[string]*fnd.PolicySpecification, bool) {
+	retrievedPolices, err := fnd.PoliciesRetrieve.Invoke(fnd.RetrievePoliciesRequest{ProjectId: projectId})
+	if err != nil {
+		fmt.Printf("Error %v\n", err)
+		return nil, false
+	}
+	var policies = make(map[string]*fnd.PolicySpecification)
+	for _, policy := range retrievedPolices {
+		policies[policy.Specification.Schema] = &policy.Specification
+	}
+	return policies, true
+}
+
+func updatePolicyCacheForProject(projectId string, policySpecifications map[string]*fnd.PolicySpecification) {
+	policyCache.Mu.Lock()
+	policyCache.PoliciesByProject[projectId] = policySpecifications
+	policyCache.Mu.Unlock()
 }
 
 func MakeInsufficientFundsMessage(lockInfo ResourceLockInfo, category string) string {

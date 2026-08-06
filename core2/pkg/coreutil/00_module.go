@@ -5,10 +5,10 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"os"
 	"slices"
 	"strings"
 	"time"
-    "os"
 
 	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
@@ -168,6 +168,42 @@ func ProjectRetrieveFromDatabaseViaGroupId(tx *db.Transaction, groupId string) (
 	}
 }
 
+func PolicySpecificationsRetrieveFromDatabase(tx *db.Transaction, projectId string) (map[string]*fndapi.PolicySpecification, bool) {
+
+	rows := db.Select[struct {
+		ProjectId        string
+		PolicyName       string
+		PolicyProperties string
+	}](
+		tx,
+		`
+			select project_id, policy_name, policy_properties 
+			from project.policies
+			where project_id = :id
+		`,
+		db.Params{
+			"id": projectId,
+		},
+	)
+	var policies = make(map[string]*fndapi.PolicySpecification)
+	for _, row := range rows {
+		properties := []fndapi.PolicyPropertyValue{}
+		err := json.Unmarshal([]byte(row.PolicyProperties), &properties)
+		if err != nil {
+			log.Debug("Error unmarshalling policy properties on update")
+			return nil, false
+		}
+		specification := fndapi.PolicySpecification{
+			Schema:     row.PolicyName,
+			Project:    rpc.ProjectId(row.ProjectId),
+			Properties: properties,
+		}
+
+		policies[specification.Schema] = &specification
+	}
+	return policies, true
+}
+
 func ProjectsListUpdatedAfter(timestamp time.Time) []rpc.ProjectId {
 	return db.NewTx(func(tx *db.Transaction) []rpc.ProjectId {
 		rows := db.Select[struct{ Id string }](
@@ -189,6 +225,21 @@ func ProjectsListUpdatedAfter(timestamp time.Time) []rpc.ProjectId {
 		}
 
 		return result
+	})
+}
+
+func PoliciesListUpdatedAfter(timestamp time.Time) []fndapi.PoliciesForProject {
+	return db.NewTx(func(tx *db.Transaction= []fndapi.PoliciesForProject) {
+		rows := db.Select[struct {
+			policyName string
+			projectId  string
+			policyProperties string
+		}](
+			tx,
+			``,
+			db.Params{
+				"timestamp": timestamp,
+			})
 	})
 }
 

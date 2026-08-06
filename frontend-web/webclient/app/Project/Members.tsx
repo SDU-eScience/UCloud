@@ -462,7 +462,8 @@ export const ProjectMembers: React.FunctionComponent = () => {
     const RoleToOrder: Readonly<Record<ProjectRole, number>> = {
         PI: 0,
         ADMIN: 1,
-        USER: 2
+        DATA_MANAGER: 2,
+        USER: 3
     };
 
     React.useEffect(() => {

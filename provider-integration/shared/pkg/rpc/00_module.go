@@ -62,18 +62,21 @@ type ProjectRole string
 type ProviderId string
 
 const (
-	ProjectRolePI    ProjectRole = "PI"
-	ProjectRoleAdmin ProjectRole = "ADMIN"
-	ProjectRoleUser  ProjectRole = "USER"
+	ProjectRolePI          ProjectRole = "PI"
+	ProjectRoleAdmin       ProjectRole = "ADMIN"
+	ProjectRoleDataManager ProjectRole = "DATA_MANAGER"
+	ProjectRoleUser        ProjectRole = "USER"
 )
 
-var ProjectRoleOptions = []ProjectRole{ProjectRolePI, ProjectRoleAdmin, ProjectRoleUser}
+var ProjectRoleOptions = []ProjectRole{ProjectRolePI, ProjectRoleAdmin, ProjectRoleDataManager, ProjectRoleUser}
 
 func (p ProjectRole) Power() int {
 	switch p {
 	case ProjectRolePI:
-		return 3
+		return 4
 	case ProjectRoleAdmin:
+		return 3
+	case ProjectRoleDataManager:
 		return 2
 	case ProjectRoleUser:
 		return 1
@@ -98,6 +101,10 @@ func (p ProjectRole) Satisfies(requirement ProjectRole) bool {
 	} else {
 		return false
 	}
+}
+
+func (p ProjectRole) Equals(requirement ProjectRole) bool {
+	return p == requirement
 }
 
 type GroupMembership map[GroupId]ProjectId

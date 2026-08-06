@@ -1,0 +1,21 @@
+name: "RestrictProviderTransfers"
+title: "Restrict file transfers between providers"
+
+description: >
+  Controls which providers may participate in data transfers for this project.
+
+configuration:
+  - name: "enabled"
+    type: "Bool"
+    title: "Enabled"
+    description: >
+      If enabled, users will only be able to transfer files between specific providers.
+      If disabled, users can move files between any provider they have access to.
+  - name: "allowedProviders"
+    type: "Providers"
+    title: "Allowed providers"
+    description: >
+      Only the listed providers may be used as source or destination for file 
+      transfers. This option does not guarantee that data transfer between 
+      selected providers is possible, that is, providers may overrule this 
+      with their own transfer policies.
