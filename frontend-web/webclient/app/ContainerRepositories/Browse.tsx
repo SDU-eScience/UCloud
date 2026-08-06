@@ -24,7 +24,8 @@ import {
 } from "@/UCloud/ContainerRepositoriesApi";
 import {
     CREATE_TAG,
-    Permission,
+    Permission, PERMISSIONS_TAG,
+    PROPERTIES_TAG,
     ResourceAclEntry,
     ResourceBrowseCallbacks,
     retrieveSupportV2,
@@ -45,7 +46,7 @@ import {ProductSelector} from "@/Products/Selector";
 import {Box, Button, Flex, Input, Label, Text} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {MandatoryField} from "@/UtilityComponents";
-import {PermissionsTable} from "@/Resource/PermissionEditor";
+import {PermissionsTable, ResourcePermissionEditor} from "@/Resource/PermissionEditor";
 import {useProject} from "@/Project/cache";
 import {isAdminOrPI} from "@/Project";
 import {useProjectId} from "@/Project/Api";
@@ -740,9 +741,41 @@ export default function ContainerRepositoryBrowse({
                                 "fetchOperationsCallback",
                                 fn => fn(),
                             ) as ResourceBrowseCallbacks<ContainerRepository, ProductStorage, ContainerRepositorySpecification>;
-                            const operations = ContainerRepositoriesApi.retrieveOperations() as unknown as Operation<BrowserEntry, typeof callbacks>[];
+                            const operations = (ContainerRepositoriesApi.retrieveOperations() as unknown as Operation<BrowserEntry, typeof callbacks>[])
+                                .filter(operation => operation.tag !== PROPERTIES_TAG);
                             const create = operations.find(operation => operation.tag === CREATE_TAG);
                             if (create) create.onClick = () => openCreation(browser);
+
+                            const permissionOp = operations.find(op => op.tag === PERMISSIONS_TAG)!;
+                            permissionOp.enabled = (selected, cb) => {
+                                if (selected.length !== 1) return false;
+                                const entry = selected[0] as ContainerRepository;
+
+                                return entry.owner.project != null &&
+                                    entry.permissions.myself.some(it => it === "ADMIN");
+                            };
+                            permissionOp.onClick = ([resource]) => dialogStore.addDialog(
+                                <ResourcePermissionEditor
+                                    reload={() => browser.refresh()}
+                                    entity={resource as ContainerRepository}
+                                    api={ContainerRepositoriesApi}
+                                    accessDescription={
+                                        <Text mb="12px">
+                                            By default, only you and the project administrators can use this repository.
+                                            You can modify these permissions later on the <b>Properties</b> page.
+                                        </Text>
+                                    }
+                                    showMissingPermissionHelp={false}
+                                    noPermissionsWarning="Warning"
+                                    readLabel="Pull"
+                                    readIcon="heroArrowDownTray"
+                                    writeLabel="Push"
+                                    writeIcon="heroArrowUpTray"
+                                />,
+                                doNothing,
+                                true,
+                                slimModalStyle,
+                            );
 
                             const enabledOps = operations.filter(operation => operation.enabled(selected, callbacks, selected));
                             if (configureRegistryOp) enabledOps.push(configureRegistryOp as unknown as Operation<BrowserEntry, typeof callbacks>);

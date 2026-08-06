@@ -1,6 +1,6 @@
 import * as React from "react";
 import {ShakingBox} from "@/UtilityComponents";
-import {Box, Button, Flex, RadioTile, RadioTilesContainer, Text, Truncate} from "@/ui-components/index";
+import {Box, Button, Flex, Label, RadioTile, RadioTilesContainer, Text, Truncate} from "@/ui-components/index";
 import {useCloudCommand} from "@/Authentication/DataHook";
 import {bulkRequestOf, doNothing} from "@/UtilityFunctions";
 import {useCallback, useEffect, useState} from "react";
@@ -28,6 +28,11 @@ interface ResourcePermissionEditorProps<Res extends Resource, Prod extends Produ
     api: AnyResourceApi<Res, Prod, Spec>;
     showMissingPermissionHelp?: boolean;
     noPermissionsWarning?: string;
+    accessDescription?: React.ReactNode;
+    readLabel?: string;
+    readIcon?: IconName;
+    writeLabel?: string;
+    writeIcon?: IconName;
 }
 
 export function ResourcePermissionEditor<Res extends Resource, Prod extends Product, Spec extends ResourceSpecification>(
@@ -99,14 +104,28 @@ export function ResourcePermissionEditor<Res extends Resource, Prod extends Prod
         return <Spinner />;
     }
 
-    return <PermissionsTable
+    const permissions = <PermissionsTable
         acl={acl}
         updateAcl={updateAcl}
         warning={warning}
         anyGroupHasPermission={anyGroupHasPermission}
         showMissingPermissionHelp={props.showMissingPermissionHelp ?? true}
         title={api.title.toLocaleLowerCase()}
-    />
+        readLabel={props.readLabel}
+        readIcon={props.readIcon}
+        writeLabel={props.writeLabel}
+        writeIcon={props.writeIcon}
+    />;
+
+    if (!props.accessDescription) return permissions;
+
+    return <Box mb={"20px"}>
+        <Label>Choose access</Label>
+        <Box maxHeight="400px" overflowY="auto">
+            {props.accessDescription}
+            {permissions}
+        </Box>
+    </Box>;
 }
 
 
