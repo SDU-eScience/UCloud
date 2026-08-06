@@ -1559,8 +1559,7 @@ func GrantsRetrieve(actor rpc.Actor, id string) (accapi.GrantApplication, *util.
 		return result, util.HttpErr(http.StatusNotFound, "not found")
 	} else {
 		app.Mu.RLock()
-		// Record that the user has visited the application
-		grantRecordUserApplicationVisit(app.Application.Id.Value, actor.Username)
+		appId := app.Application.Id.Value
 		result := app.lDeepCopy()
 
 		isApprover := false
@@ -1571,10 +1570,15 @@ func GrantsRetrieve(actor rpc.Actor, id string) (accapi.GrantApplication, *util.
 			}
 		}
 
-		if isApprover && !grantProjectIsNewlyCreatedAndNotYetApproved(app) {
-			grantRetrieveApplicationHistoryOfReceiver(actor, app, &result)
-		}
+		shouldRetrieveHistory := isApprover && !grantProjectIsNewlyCreatedAndNotYetApproved(app)
 		app.Mu.RUnlock()
+
+		// Record that the user has visited the application
+		grantRecordUserApplicationVisit(appId, actor.Username)
+
+		if shouldRetrieveHistory {
+			grantRetrieveApplicationHistoryOfReceiver(actor, result, &result)
+		}
 		return GrantApplicationProcess(actor, result), nil
 	}
 }
@@ -1584,20 +1588,20 @@ func grantProjectIsNewlyCreatedAndNotYetApproved(app *grantApplication) bool {
 }
 
 // Retrieves the application history of the receiver in the context of the grant giver
-func grantRetrieveApplicationHistoryOfReceiver(actor rpc.Actor, app *grantApplication, result *accapi.GrantApplication) {
-	recipientActor, ok := rpc.LookupActor(app.Application.CreatedBy) // Actor PI
+func grantRetrieveApplicationHistoryOfReceiver(actor rpc.Actor, app accapi.GrantApplication, result *accapi.GrantApplication) {
+	recipientActor, ok := rpc.LookupActor(app.CreatedBy) // Actor PI
 	if ok {
 		if recipientActor.Username == rpc.ActorSystem.Username {
 			return
 		}
 		grantGiveProjectId := actor.Project.Value
 
-		switch app.Application.CurrentRevision.Document.Recipient.Type {
+		switch app.CurrentRevision.Document.Recipient.Type {
 		case accapi.RecipientTypeNewProject:
-			recipientActor.Project = util.OptValue(rpc.ProjectId(app.Application.ProjectId.Value))
+			recipientActor.Project = util.OptValue(rpc.ProjectId(app.ProjectId.Value))
 			break
 		case accapi.RecipientTypeExistingProject:
-			recipientActor.Project = util.OptValue(rpc.ProjectId(app.Application.CurrentRevision.Document.Recipient.Id.Value))
+			recipientActor.Project = util.OptValue(rpc.ProjectId(app.CurrentRevision.Document.Recipient.Id.Value))
 			break
 		}
 
@@ -1607,7 +1611,7 @@ func grantRetrieveApplicationHistoryOfReceiver(actor rpc.Actor, app *grantApplic
 		})
 		for _, recipientApplication := range pages.Items {
 
-			if recipientApplication.Id == app.Application.Id {
+			if recipientApplication.Id == app.Id {
 				continue
 			}
 
@@ -1702,7 +1706,7 @@ func GrantsRetrieveGrantGivers(actor rpc.Actor, req accapi.RetrieveGrantGiversRe
 		return false
 	}
 
-	lAddPotentialGrantGiver := func(b *grantSettingsBucket, grantGiver string) {
+	lAddPotentialGrantGiver := func(grantGiver string) {
 		if grantsCanApply(applicantActor, recipient, grantGiver) {
 			wallets := internalRetrieveWallets(now, grantGiver, walletFilter{RequireActive: false})
 			var categories []accapi.ProductCategory
@@ -1717,7 +1721,7 @@ func GrantsRetrieveGrantGivers(actor rpc.Actor, req accapi.RetrieveGrantGiversRe
 				Categories: util.NonNilSlice(categories),
 			}
 
-			if sWrapper, ok := b.Settings[grantGiver]; ok {
+			if sWrapper, ok := grantsRetrieveSettings(grantGiver); ok {
 				sWrapper.Mu.RLock()
 				gg.Description = sWrapper.Settings.Description
 				gg.Templates = sWrapper.Settings.Templates
@@ -1750,20 +1754,22 @@ func GrantsRetrieveGrantGivers(actor rpc.Actor, req accapi.RetrieveGrantGiversRe
 
 	for _, b := range grantGlobals.SettingBuckets {
 		b.Mu.RLock()
+		grantGivers := make([]string, 0, len(b.PublicGrantGivers))
 		for grantGiver, _ := range b.PublicGrantGivers {
 			if _, ok := parents[grantGiver]; !ok {
-				lAddPotentialGrantGiver(b, grantGiver)
+				grantGivers = append(grantGivers, grantGiver)
 			}
 		}
 		b.Mu.RUnlock()
+
+		for _, grantGiver := range grantGivers {
+			lAddPotentialGrantGiver(grantGiver)
+		}
 	}
 
 	for parent, _ := range parents {
 		if parent != "" {
-			b := grantGetSettingsBucket(parent)
-			b.Mu.RLock()
-			lAddPotentialGrantGiver(b, parent)
-			b.Mu.RUnlock()
+			lAddPotentialGrantGiver(parent)
 		}
 	}
 
@@ -1810,13 +1816,13 @@ func GrantsUpdateSettings(actor rpc.Actor, id string, s accapi.GrantRequestSetti
 		}
 		b.Settings[id] = w
 	}
-	b.Mu.Unlock()
 
 	if s.Enabled {
 		b.PublicGrantGivers[string(actor.Project.Value)] = util.Empty{}
 	} else {
 		delete(b.PublicGrantGivers, string(actor.Project.Value))
 	}
+	b.Mu.Unlock()
 
 	w.Mu.Lock()
 	templateHasChanges := applyTemplateChangesIfNeeded(w.Settings, &s)
