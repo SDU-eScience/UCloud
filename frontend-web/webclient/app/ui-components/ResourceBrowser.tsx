@@ -2336,7 +2336,6 @@ export class ResourceBrowser<T> {
     ensureRowIsVisible(rowIdx: number, topAligned: boolean, ignoreEvent: boolean = false) {
         const scrollingContainer = this.scrolling.parentElement!;
         const height = this.scrollingContainerHeight;
-        console.log({height});
 
         const firstRowPixel = rowIdx * this.rowSize;
         const lastRowPixel = firstRowPixel + this.rowSize;
