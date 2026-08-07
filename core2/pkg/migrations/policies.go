@@ -12,6 +12,7 @@ func policiesV1() db.MigrationScript {
 					    policy_name text not null,
 					    policy_properties jsonb not null,
 					    project_id text not null references project.projects(id) on delete cascade,
+					    last_modified_at timestamp with time zone default now() not null,
 					    primary key (project_id, policy_name)
 					)
 			    `,
@@ -30,22 +31,6 @@ func policiesV1() db.MigrationScript {
 					on project.policies
 					for each row
 					execute function project.notify_policy_change();
-				`,
-				`
-					create or replace function project.notify_policy_deleted()
-					returns trigger as $$
-					begin
-						perform pg_notify('policy_deleted', old.project_id::text);
-						return old;
-					end;
-					$$ language plpgsql;
-				`,
-				`
-					create trigger policy_delete_trigger
-					after delete
-					on project.policies
-					for each row
-					execute function project.notify_policy_deleted();
 				`,
 			}
 

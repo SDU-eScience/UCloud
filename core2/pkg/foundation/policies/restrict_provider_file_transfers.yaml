@@ -1,4 +1,4 @@
-name: "RestrictProviderTransfers"
+name: "RestrictProviderFileTransfers"
 title: "Restrict file transfers between providers"
 
 description: >
