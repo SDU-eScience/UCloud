@@ -64,7 +64,6 @@ import {useProjectId} from "@/Project/Api";
 import {AllocationBar} from "@/Accounting/Allocations/AllocationBar";
 import {projectInfoPi, projectInfosPi, projectInfoTitle, useProjectInfo, useProjectInfos} from "@/Project/InfoCache";
 import {useForcedRender} from "@/Utilities/ReactUtilities";
-import {Feature, hasFeature} from "@/Features";
 import {UsageReport} from "@/Accounting/UsageCore2";
 import {dialogStore} from "@/Dialog/DialogStore";
 import * as Heading from "@/ui-components/Heading";
@@ -729,8 +728,6 @@ export const KeyMetrics: React.FunctionComponent<{
     const atRiskPercentage = total > 0 ? (atRisk / total) * 100 : 0;
     const underusedPercentage = underused > 0 ? (underused / total) * 100 : 0;
 
-    if (!hasFeature(Feature.ALLOCATIONS_PAGE_IMPROVEMENTS) || Math.random() > -1) return null;
-
     return <>
         <ReactModal
             isOpen={filtersShown}
@@ -1337,14 +1334,13 @@ export const SubProjectFilters: React.FunctionComponent<{
             </Flex>
             <Box flexGrow={1} minHeight={0} overflowY={"auto"}>
                 {Object.values(settings).map(setting => (
-                    setting.feature === undefined || hasFeature(setting.feature) ?
-                        <SubProjectFiltersRow
-                            key={setting.title}
-                            setting={setting}
-                            onChange={onSettingsChanged}
-                            dispatchEvent={dispatchEvent}
-                            state={state}
-                        /> : null
+                    <SubProjectFiltersRow
+                        key={setting.title}
+                        setting={setting}
+                        onChange={onSettingsChanged}
+                        dispatchEvent={dispatchEvent}
+                        state={state}
+                    />
                 ))}
                 <Divider />
                 <div className="sub-projects-sorting-container">

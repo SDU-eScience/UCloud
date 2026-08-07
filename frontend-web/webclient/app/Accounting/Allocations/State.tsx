@@ -18,7 +18,6 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {UsageReport, usageReportRetrieve} from "@/Accounting/UsageCore2";
 import {timestampUnixMs} from "@/UtilityFunctions";
 import {produce} from "immer";
-import {Feature} from "@/Features";
 
 import {getProviderTitle, getShortProviderTitle} from "@/Providers/ProviderTitle";
 
@@ -87,7 +86,6 @@ export interface SubProjectFilter {
     options: SubProjectKeyValue[];
     selected?: string;
     enabled: boolean;
-    feature?: Feature;
 }
 
 // State reducer
@@ -916,7 +914,6 @@ export const subProjectsDefaultSettings: Record<string, SubProjectFilter> = {
         options: ["1 month", "2 months", "3 months", "6 months"].map(it => ({key: it, title: it})),
         selected: undefined,
         enabled: false,
-        feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
     },
     [SubProjectFilterSetting.ALLOCATED_BY_PRODUCT_TYPE]: {
         setting: SubProjectFilterSetting.ALLOCATED_BY_PRODUCT_TYPE,
@@ -925,7 +922,6 @@ export const subProjectsDefaultSettings: Record<string, SubProjectFilter> = {
         options: productTypes.map(it => productTypeToName(it)).map(it => ({key: it, title: it})),
         selected: undefined,
         enabled: false,
-        feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
     },
     [SubProjectFilterSetting.ALLOCATED_BY_PRODUCT]: {
         setting: SubProjectFilterSetting.ALLOCATED_BY_PRODUCT,
@@ -934,7 +930,6 @@ export const subProjectsDefaultSettings: Record<string, SubProjectFilter> = {
         options: [],
         selected: undefined,
         enabled: false,
-        feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
     },
     [SubProjectFilterSetting.ALLOCATED_BY_PROVIDER]: {
         setting: SubProjectFilterSetting.ALLOCATED_BY_PROVIDER,
@@ -943,7 +938,6 @@ export const subProjectsDefaultSettings: Record<string, SubProjectFilter> = {
         options: [],
         selected: undefined,
         enabled: false,
-        feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
     },
     [SubProjectFilterSetting.EXPIRED_ALLOCATIONS]: {
         setting: SubProjectFilterSetting.EXPIRED_ALLOCATIONS,
@@ -957,7 +951,6 @@ export const subProjectsDefaultSettings: Record<string, SubProjectFilter> = {
         ].map(it => ({key: it, title: it})),
         selected: undefined,
         enabled: false,
-        feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
     },
     [SubProjectFilterSetting.PERSONAL_WORKSPACES]: {
         setting: SubProjectFilterSetting.PERSONAL_WORKSPACES,
@@ -976,7 +969,6 @@ export const subProjectsDefaultSettings: Record<string, SubProjectFilter> = {
         options: [],
         selected: undefined,
         enabled: false,
-        feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
     },
     */
 };

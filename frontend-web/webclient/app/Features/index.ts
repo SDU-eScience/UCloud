@@ -1,11 +1,7 @@
 import {inDevEnvironment, onDevSite} from "@/UtilityFunctions";
 
 export enum Feature {
-    COMPONENT_STORED_CUT_COPY,
-
     REORDER_APP_GROUP,
-
-    ALLOCATIONS_PAGE_IMPROVEMENTS,
 
     STACKS,
 
@@ -52,21 +48,10 @@ interface FeatureConfig {
 }
 
 const featureMap: Record<string, FeatureConfig> = {
-    "component-stored-cut-copy": {
-        feature: Feature.COMPONENT_STORED_CUT_COPY,
-        showWithoutFlag: allEnvironments,
-    },
-
     "reorder-app-group": {
         feature: Feature.REORDER_APP_GROUP,
         showWithoutFlag: allDevEnvironments,
         showWithFlag: allDevEnvironments,
-    },
-
-    "allocations-improvements": {
-        feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
-        showWithFlag: allEnvironments,
-        showWithoutFlag: allEnvironments,
     },
     
     "stacks": {
