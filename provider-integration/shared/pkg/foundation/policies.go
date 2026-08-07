@@ -1,6 +1,9 @@
 package foundation
 
 import (
+	"encoding/json"
+
+	"gopkg.in/yaml.v3"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -271,6 +274,208 @@ type RestrictSourceIPRangeSpecification struct {
 
 func (r *RestrictSourceIPRangeSpecification) IsEnabled() bool {
 	return r.Values.Enabled
+}
+
+// Decoders
+
+func decodePolicySchema[T any](data []byte) (Schema, error) {
+	var schema PolicySchema[T]
+
+	if err := yaml.Unmarshal(data, &schema); err != nil {
+		return nil, err
+	}
+
+	return &schema, nil
+}
+
+func schemaDecoder[T any](data []byte) (Schema, error) {
+	return decodePolicySchema[T](data)
+}
+
+var SchemaDecoders = map[PolicyName]func([]byte) (Schema, error){
+	RestrictApplications:           schemaDecoder[RestrictApplicationsConfig],
+	RestrictCutAndPaste:            schemaDecoder[RestrictCutAndPasteConfig],
+	RestrictDownloads:              schemaDecoder[RestrictDownloadsConfig],
+	RestrictIntegratedApplications: schemaDecoder[RestrictIntegratedApplicationsConfig],
+	RestrictInternetAccess:         schemaDecoder[RestrictInternetAccessConfig],
+	RestrictOrganizationMembers:    schemaDecoder[RestrictOrganizationMembersConfig],
+	RestrictProviderFileTransfers:  schemaDecoder[RestrictProviderFileTransfersConfig],
+	RestrictPublicIPs:              schemaDecoder[RestrictPublicIPsConfig],
+	RestrictPublicLinks:            schemaDecoder[RestrictPublicLinksConfig],
+	RestrictSourceIPRange:          schemaDecoder[RestrictSourceIpRangeConfig],
+}
+
+func decodeRestrictApplications(data []byte, project rpc.ProjectId) (Specification, error) {
+	var values RestrictApplicationsValues
+
+	if err := json.Unmarshal(data, &values); err != nil {
+		return nil, err
+	}
+
+	return &RestrictApplicationsSpecification{
+		PolicySpecification: PolicySpecification[RestrictApplicationsValues]{
+			Schema:  RestrictApplications,
+			Project: project,
+			Values:  values,
+		},
+	}, nil
+}
+
+func decodeRestrictCutAndPaste(data []byte, project rpc.ProjectId) (Specification, error) {
+	var values RestrictCutAndPasteValues
+
+	if err := json.Unmarshal(data, &values); err != nil {
+		return nil, err
+	}
+
+	return &RestrictCutAndPasteSpecification{
+		PolicySpecification: PolicySpecification[RestrictCutAndPasteValues]{
+			Schema:  RestrictCutAndPaste,
+			Project: project,
+			Values:  values,
+		},
+	}, nil
+}
+
+func decodeRestrictDownloads(data []byte, project rpc.ProjectId) (Specification, error) {
+	var values RestrictDownloadsValues
+
+	if err := json.Unmarshal(data, &values); err != nil {
+		return nil, err
+	}
+
+	return &RestrictDownloadsSpecification{
+		PolicySpecification: PolicySpecification[RestrictDownloadsValues]{
+			Schema:  RestrictDownloads,
+			Project: project,
+			Values:  values,
+		},
+	}, nil
+}
+
+func decodeRestrictIntegratedApplications(data []byte, project rpc.ProjectId) (Specification, error) {
+	var values RestrictIntegratedApplicationsValues
+
+	if err := json.Unmarshal(data, &values); err != nil {
+		return nil, err
+	}
+
+	return &RestrictIntegratedApplicationsSpecification{
+		PolicySpecification: PolicySpecification[RestrictIntegratedApplicationsValues]{
+			Schema:  RestrictIntegratedApplications,
+			Project: project,
+			Values:  values,
+		},
+	}, nil
+}
+
+func decodeRestrictInternetAccess(data []byte, project rpc.ProjectId) (Specification, error) {
+	var values RestrictInternetAccessValues
+
+	if err := json.Unmarshal(data, &values); err != nil {
+		return nil, err
+	}
+
+	return &RestrictInternetAccessSpecification{
+		PolicySpecification: PolicySpecification[RestrictInternetAccessValues]{
+			Schema:  RestrictInternetAccess,
+			Project: project,
+			Values:  values,
+		},
+	}, nil
+}
+
+func decodeRestrictOrganizationMembers(data []byte, project rpc.ProjectId) (Specification, error) {
+	var values RestrictOrganizationMembersValues
+
+	if err := json.Unmarshal(data, &values); err != nil {
+		return nil, err
+	}
+
+	return &RestrictOrganizationMembersSpecification{
+		PolicySpecification: PolicySpecification[RestrictOrganizationMembersValues]{
+			Schema:  RestrictOrganizationMembers,
+			Project: project,
+			Values:  values,
+		},
+	}, nil
+}
+
+func decodeRestrictProviderTransfers(data []byte, project rpc.ProjectId) (Specification, error) {
+	var values RestrictProviderFileTransfersValues
+
+	if err := json.Unmarshal(data, &values); err != nil {
+		return nil, err
+	}
+
+	return &RestrictProviderFileTransfersSpecification{
+		PolicySpecification: PolicySpecification[RestrictProviderFileTransfersValues]{
+			Schema:  RestrictProviderFileTransfers,
+			Project: project,
+			Values:  values,
+		},
+	}, nil
+}
+
+func decodeRestrictPublicIPs(data []byte, project rpc.ProjectId) (Specification, error) {
+	var values RestrictPublicIPsValues
+
+	if err := json.Unmarshal(data, &values); err != nil {
+		return nil, err
+	}
+
+	return &RestrictPublicIPsSpecification{
+		PolicySpecification: PolicySpecification[RestrictPublicIPsValues]{
+			Schema:  RestrictPublicIPs,
+			Project: project,
+			Values:  values,
+		},
+	}, nil
+}
+
+func decodeRestrictPublicLinks(data []byte, project rpc.ProjectId) (Specification, error) {
+	var values RestrictPublicLinksValues
+
+	if err := json.Unmarshal(data, &values); err != nil {
+		return nil, err
+	}
+
+	return &RestrictPublicLinksSpecification{
+		PolicySpecification: PolicySpecification[RestrictPublicLinksValues]{
+			Schema:  RestrictPublicLinks,
+			Project: project,
+			Values:  values,
+		},
+	}, nil
+}
+
+func decodeRestrictSourceIPRange(data []byte, project rpc.ProjectId) (Specification, error) {
+	var values RestrictSourceIPRangeValues
+
+	if err := json.Unmarshal(data, &values); err != nil {
+		return nil, err
+	}
+
+	return &RestrictSourceIPRangeSpecification{
+		PolicySpecification: PolicySpecification[RestrictSourceIPRangeValues]{
+			Schema:  RestrictSourceIPRange,
+			Project: project,
+			Values:  values,
+		},
+	}, nil
+}
+
+var SpecificationDecoders = map[PolicyName]func([]byte, rpc.ProjectId) (Specification, error){
+	RestrictApplications:           decodeRestrictApplications,
+	RestrictCutAndPaste:            decodeRestrictCutAndPaste,
+	RestrictDownloads:              decodeRestrictDownloads,
+	RestrictIntegratedApplications: decodeRestrictIntegratedApplications,
+	RestrictInternetAccess:         decodeRestrictInternetAccess,
+	RestrictOrganizationMembers:    decodeRestrictOrganizationMembers,
+	RestrictProviderFileTransfers:  decodeRestrictProviderTransfers,
+	RestrictPublicIPs:              decodeRestrictPublicIPs,
+	RestrictPublicLinks:            decodeRestrictPublicLinks,
+	RestrictSourceIPRange:          decodeRestrictSourceIPRange,
 }
 
 // API

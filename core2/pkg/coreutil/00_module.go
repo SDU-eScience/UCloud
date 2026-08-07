@@ -168,7 +168,10 @@ func ProjectRetrieveFromDatabaseViaGroupId(tx *db.Transaction, groupId string) (
 	}
 }
 
-func PolicySpecificationsRetrieveFromDatabase(tx *db.Transaction, projectId string) (map[string]*fndapi.PolicySpecification, bool) {
+func PolicySpecificationsRetrieveFromDatabase(
+	tx *db.Transaction,
+	projectId string,
+) (map[fndapi.PolicyName]fndapi.Specification, bool) {
 
 	rows := db.Select[struct {
 		ProjectId        string
@@ -177,7 +180,7 @@ func PolicySpecificationsRetrieveFromDatabase(tx *db.Transaction, projectId stri
 	}](
 		tx,
 		`
-			select project_id, policy_name, policy_properties 
+			select project_id, policy_name, policy_properties
 			from project.policies
 			where project_id = :id
 		`,
@@ -185,22 +188,30 @@ func PolicySpecificationsRetrieveFromDatabase(tx *db.Transaction, projectId stri
 			"id": projectId,
 		},
 	)
-	var policies = make(map[string]*fndapi.PolicySpecification)
+
+	policies := make(map[fndapi.PolicyName]fndapi.Specification)
+
 	for _, row := range rows {
-		properties := []fndapi.PolicyPropertyValue{}
-		err := json.Unmarshal([]byte(row.PolicyProperties), &properties)
-		if err != nil {
-			log.Debug("Error unmarshalling policy properties on update")
+		policyName := fndapi.PolicyName(row.PolicyName)
+
+		decoder, ok := fndapi.SpecificationDecoders[policyName]
+		if !ok {
+			log.Debug("Unknown policy %s", row.PolicyName)
 			return nil, false
 		}
-		specification := fndapi.PolicySpecification{
-			Schema:     row.PolicyName,
-			Project:    rpc.ProjectId(row.ProjectId),
-			Properties: properties,
+
+		specification, err := decoder(
+			[]byte(row.PolicyProperties),
+			rpc.ProjectId(row.ProjectId),
+		)
+		if err != nil {
+			log.Debug("Error unmarshalling policy %s: %v", row.PolicyName, err)
+			return nil, false
 		}
 
-		policies[specification.Schema] = &specification
+		policies[policyName] = specification
 	}
+
 	return policies, true
 }
 
