@@ -1048,6 +1048,15 @@ func emptyTrash(actor rpc.Actor, request orc.FilesProviderTrashRequest) *util.Ht
 }
 
 func DoDeleteFile(internalPath string) *util.HttpError {
+	return DoStageFileForDeletion(internalPath, util.RandomToken(16))
+}
+
+func DoStageFileForDeletion(internalPath string, stagingName string) *util.HttpError {
+	if stagingName == "" || stagingName == "." || stagingName == ".." ||
+		filepath.IsAbs(stagingName) || filepath.Base(stagingName) != stagingName {
+		return util.ServerHttpError("Invalid trash staging name")
+	}
+
 	parentDir, ok1 := OpenFile(filepath.Dir(internalPath), unix.O_RDONLY, 0)
 	stagingArea, ok2 := OpenFile(shared.ServiceConfig.FileSystem.TrashStagingArea, unix.O_RDONLY, 0)
 	defer util.SilentClose(parentDir)
@@ -1060,7 +1069,7 @@ func DoDeleteFile(internalPath string) *util.HttpError {
 		int(parentDir.Fd()),
 		filepath.Base(internalPath),
 		int(stagingArea.Fd()),
-		util.RandomToken(16),
+		stagingName,
 	)
 
 	if err != nil {

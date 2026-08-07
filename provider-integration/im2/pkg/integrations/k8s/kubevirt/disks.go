@@ -125,48 +125,57 @@ func diskPrepareForJob(job *orc.Job, pvcName string, owner metak8s.OwnerReferenc
 	}
 
 	diskPath := filepath.Join(targetDir, "disk.img") // required by KubeVirt
-	err := os.MkdirAll(targetDir, 0700)
-	if err != nil {
-		log.Warn("Failed to create virtual machine image: %s", err)
-		return util.HttpErr(http.StatusInternalServerError, "failed to create virtual machine images")
+	_, err := os.Stat(diskPath)
+	hasExistingDisk := err == nil
+	if err != nil && !os.IsNotExist(err) {
+		log.Warn("Failed to inspect existing VM image: %s", err)
+		return util.HttpErr(http.StatusInternalServerError, "failed to prepare VM image")
 	}
 
-	stdout, _, ok := util.RunCommand([]string{
-		"qemu-img",
-		"convert",
-		"-p",
-		"-O",
-		"raw",
-		sourcePath,
-		diskPath,
-	})
+	if !hasExistingDisk {
+		err = os.MkdirAll(targetDir, 0700)
+		if err != nil {
+			log.Warn("Failed to create virtual machine image: %s", err)
+			return util.HttpErr(http.StatusInternalServerError, "failed to create virtual machine images")
+		}
 
-	if !ok {
-		_ = os.Remove(diskPath)
-		log.Warn("Failed to convert VM image to disk.img: %s", stdout)
-		return util.HttpErr(http.StatusInternalServerError, "failed to convert VM image")
-	}
+		stdout, _, ok := util.RunCommand([]string{
+			"qemu-img",
+			"convert",
+			"-p",
+			"-O",
+			"raw",
+			sourcePath,
+			diskPath,
+		})
 
-	stdout, _, ok = util.RunCommand([]string{
-		"qemu-img",
-		"resize",
-		"-f",
-		"raw",
-		diskPath,
-		fmt.Sprintf("%dG", diskSize),
-	})
+		if !ok {
+			_ = os.Remove(diskPath)
+			log.Warn("Failed to convert VM image to disk.img: %s", stdout)
+			return util.HttpErr(http.StatusInternalServerError, "failed to convert VM image")
+		}
 
-	if !ok {
-		_ = os.Remove(diskPath)
-		log.Warn("Failed to convert VM image to disk.img: %s", stdout)
-		return util.HttpErr(http.StatusInternalServerError, "failed to convert VM image")
-	}
+		stdout, _, ok = util.RunCommand([]string{
+			"qemu-img",
+			"resize",
+			"-f",
+			"raw",
+			diskPath,
+			fmt.Sprintf("%dG", diskSize),
+		})
 
-	err = os.Chown(diskPath, diskCacheUid, diskCacheUid)
-	if err != nil {
-		_ = os.Remove(diskPath)
-		log.Warn("Failed to change owner of VM image: %s", err)
-		return util.HttpErr(http.StatusInternalServerError, "failed to convert VM image")
+		if !ok {
+			_ = os.Remove(diskPath)
+			log.Warn("Failed to convert VM image to disk.img: %s", stdout)
+			return util.HttpErr(http.StatusInternalServerError, "failed to convert VM image")
+		}
+
+		err = os.Chown(diskPath, diskCacheUid, diskCacheUid)
+		if err != nil {
+			_ = os.Remove(diskPath)
+			log.Warn("Failed to change owner of VM image: %s", err)
+			return util.HttpErr(http.StatusInternalServerError, "failed to convert VM image")
+		}
 	}
 
 	storageClassName := ""
@@ -279,8 +288,11 @@ func diskCleanup(job *orc.Job) {
 	if herr == nil {
 		targetDir := filepath.Join(internalMemberFiles, "Jobs", "VirtualMachines", job.Id)
 		diskPath := filepath.Join(targetDir, "disk.img") // required by KubeVirt
-
-		_ = os.Remove(diskPath)
+		stagingName := fmt.Sprintf("virtual-machine-job-%s-disk-%s.img", job.Id, util.RandomToken(16))
+		herr = filesystem.DoStageFileForDeletion(diskPath, stagingName)
+		if herr != nil {
+			log.Warn("Failed to move VM disk to trash staging for job %s: %s", job.Id, herr.Why)
+		}
 	}
 }
 

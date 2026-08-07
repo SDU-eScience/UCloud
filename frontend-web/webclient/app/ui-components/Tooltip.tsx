@@ -1,11 +1,10 @@
 import * as React from "react";
 import {SpaceProps} from "styled-system";
 import * as ReactDOM from "react-dom";
-import {useCallback, useEffect, useId, useRef, useState} from "react";
+import {useEffect, useId, useRef, useState} from "react";
 import {arrow, autoUpdate, computePosition, flip, offset, shift} from "@floating-ui/dom";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {doNothing} from "@/UtilityFunctions";
-import {Feature, hasFeature} from "@/Features";
 
 export type TooltipSide = "top" | "right" | "bottom" | "left";
 
@@ -19,32 +18,6 @@ interface Tooltip extends SpaceProps {
     open?: boolean;
     disabled?: boolean;
 }
-
-const TooltipContent = injectStyleSimple("tooltip-content", `
-    padding: 16px;
-    border-radius: 8px;
-    background: var(--textPrimary);
-    color: var(--backgroundDefault);
-    position: fixed;
-    z-index: 10000;
-    transition: opacity ease;
-    transition-duration: 0s;
-    transition-delay: 0s;
-    opacity: 0;
-    pointer-events: none;
-`);
-
-const TooltipVisible = injectStyleSimple("tooltip-visible", `
-    transition-delay: 0.2s;
-    transition-duration: .25s;
-    opacity: 1;
-`);
-
-const TooltipSlim = injectStyleSimple("tooltip-slim", `
-    padding: 8px;
-    border-radius: 8px;
-    text-align: center;
-`);
 
 const AnchoredTooltipContent = injectStyle("anchored-tooltip-content", k => `
     ${k} {
@@ -107,50 +80,8 @@ function getPortal(): HTMLElement {
 
 const Tooltip: React.FunctionComponent<Tooltip> = props => {
     const portal = getPortal();
-
-    if (hasFeature(Feature.NEW_TOOLTIPS) || props.open !== undefined) {
-        return <AnchoredTooltip {...props} portal={portal} />;
-    }
-
-    return <LegacyTooltip {...props} portal={portal} />;
+    return <AnchoredTooltip {...props} portal={portal} />;
 };
-
-function LegacyTooltip(props: Tooltip & {portal: HTMLElement}): React.ReactElement {
-    const width = props.tooltipContentWidth ?? 300;
-
-    const tooltipRef = useRef<HTMLDivElement>(null);
-    const onHover = useCallback((ev: React.MouseEvent) => {
-        if (props.disabled) return;
-        const tooltip = tooltipRef.current;
-        if (!tooltip) return;
-
-        tooltip.style.left = ev.clientX + 20 + "px";
-
-        if (ev.clientX + width + 20 > window.innerWidth) {
-            tooltip.style.left = ev.clientX - width + "px";
-        }
-
-        tooltip.style.top = ev.clientY - tooltip.getBoundingClientRect().height / 2 + "px";
-        if (width <= 100) tooltip.classList.add(TooltipSlim);
-        tooltip.classList.add(TooltipVisible);
-    }, [props.disabled, width]);
-
-    const onLeave = useCallback(() => {
-        const tooltip = tooltipRef.current;
-        if (!tooltip) return;
-        tooltip.className = TooltipContent;
-    }, []);
-
-    return <>
-        <div className={props.triggerClassName} style={props.triggerStyle} onMouseMove={onHover} onMouseLeave={onLeave}>{props.trigger}</div>
-        {
-            ReactDOM.createPortal(
-                <div className={TooltipContent} ref={tooltipRef} style={{width: `${width}px`}}>{props.children}</div>,
-                props.portal
-            )
-        }
-    </>;
-}
 
 function AnchoredTooltip(props: Tooltip & {portal: HTMLElement}): React.ReactElement {
     const [hoverOpen, setHoverOpen] = useState(false);
@@ -259,48 +190,7 @@ export function HTMLTooltipEx(tooltip: HTMLElement, opts?: {tooltipContentWidth?
     leaveListener: () => void;
 } {
     getPortal(); // Note(Jonas): Init portal.
-
-    if (hasFeature(Feature.NEW_TOOLTIPS)) {
-        return anchoredHTMLTooltip(tooltip, opts?.side ?? "bottom");
-    }
-
-    const width = opts?.tooltipContentWidth ?? 200;
-    const contentWrapper = document.getElementById(tooltipElementID);
-    if (!contentWrapper) {
-        return { moveListener: doNothing, leaveListener: doNothing };
-    }
-
-    contentWrapper.style.position = "absolute";
-    contentWrapper.className = TooltipContent;
-    contentWrapper.style.width = `${width}px`;
-    contentWrapper.style.display = "block";
-
-    function onHover(ev: MouseEvent) {
-        if (!contentWrapper) return;
-        contentWrapper.replaceChildren(tooltip);
-        contentWrapper.classList.add(TooltipVisible);
-
-        contentWrapper.style.position = "fixed"; // Hack(Jonas): Absolute height of absolute elements are 0, so we briefly modify it.
-        contentWrapper.style.position = "absolute"; // Hack(Jonas): Set to absolute again as is intended state.
-
-        contentWrapper.style.left = ev.clientX + 20 + "px";
-        if (ev.clientX + width + 20 > window.innerWidth) {
-            contentWrapper.style.left = ev.clientX - width + "px";
-        }
-
-        contentWrapper.style.top = ev.clientY - contentWrapper.getBoundingClientRect().height / 2 + "px";
-    }
-
-    function onLeave() {
-        if (!contentWrapper) return;
-        contentWrapper.className = TooltipContent;
-    }
-
-    tooltip.onmouseleave = onLeave;
-    return {
-        moveListener: onHover,
-        leaveListener: onLeave,
-    };
+    return anchoredHTMLTooltip(tooltip, opts?.side ?? "bottom");
 }
 
 let activeHTMLTooltipCleanup: (() => void) | undefined;

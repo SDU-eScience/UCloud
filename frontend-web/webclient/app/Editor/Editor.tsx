@@ -10,8 +10,7 @@ import {fileName, getParentPath, pathComponents} from "@/Utilities/FileUtilities
 import {capitalized, copyToClipboard, createKeyboardShortcut, errorMessageOrDefault, extensionFromPath, extensionType, getLanguageList, languageFromExtension, populateLanguages} from "@/UtilityFunctions";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {usePrettyFilePath} from "@/Files/FilePath";
-import {Operation, Operations} from "@/ui-components/Operation";
-import {ActionEntry} from "@/ui-components/Actions";
+import {ActionEntry, ActionMenu} from "@/ui-components/Actions";
 import IStandaloneCodeEditor = editor.IStandaloneCodeEditor;
 import EditorOption = editor.EditorOption;
 import {EditorSidebarNode, FileTree, VirtualFile} from "@/Files/FileTree";
@@ -271,11 +270,11 @@ export async function getMonaco() {
         const monaco = await import("monaco-editor");
 
 
-        const editorWorker = (await import('monaco-editor/esm/vs/editor/editor.worker?worker')).default;
-        const jsonWorker = (await import('monaco-editor/esm/vs/language/json/json.worker?worker')).default;
-        const cssWorker = (await import('monaco-editor/esm/vs/language/css/css.worker?worker')).default;
-        const htmlWorker = (await import('monaco-editor/esm/vs/language/html/html.worker?worker')).default;
-        const tsWorker = (await import('monaco-editor/esm/vs/language/typescript/ts.worker?worker')).default;
+        const editorWorker = (await import('monaco-editor/editor/editor.worker?worker')).default;
+        const jsonWorker = (await import('monaco-editor/language/json/json.worker?worker')).default;
+        const cssWorker = (await import('monaco-editor/language/css/css.worker?worker')).default;
+        const htmlWorker = (await import('monaco-editor/language/html/html.worker?worker')).default;
+        const tsWorker = (await import('monaco-editor/language/typescript/ts.worker?worker')).default;
 
         populateLanguages(monaco.languages.getLanguages().map(l =>
             ({language: l.id, extensions: l.extensions?.map(it => it.slice(1)) ?? []}))
@@ -370,10 +369,10 @@ const EditorClass = injectStyle("editor", k => `
         display: flex;
         flex: 1 1 auto;
         width: 100%;
-        height: auto;
+        height: 0;
         min-height: 0;
         margin-top: 10px;
-        overflow-y: auto;
+        overflow: hidden;
     }
     
     ${k} .panels > div > .code {
@@ -538,7 +537,11 @@ export const Editor: React.FunctionComponent<{
         return;
     }, []);
 
-    const [operations, setOperations] = useState<Operation<any, null | undefined>[]>([]);
+    const [tabContextMenu, setTabContextMenu] = useState<{
+        title?: string;
+        left: number;
+        top: number;
+    } | null>(null);
     const anyTabOpen = tabs.open.length > 0;
     const isSettingsOpen = state.currentPath === SETTINGS_PATH && anyTabOpen;
     const specialPageOpen = isSettingsOpen;
@@ -1083,13 +1086,18 @@ export const Editor: React.FunctionComponent<{
         setTabs({open: result, closed});
     }, [state.currentPath, tabs]);
 
-    const openTabOperationWindow = useRef<(x: number, y: number) => void>(noopCall)
+    const openTabActionMenu = useRef<(x: number, y: number) => void>(noopCall);
+    const openTabContextMenu = React.useCallback((title: string | undefined, position: {x: number; y: number;}) => {
+        setTabContextMenu({title, left: position.x, top: position.y});
+    }, []);
 
-    const openTabOperations = React.useCallback((title: string | undefined, position: {x: number; y: number;}) => {
-        const ops = tabOperations(title, setTabs, openTab, tabs, dirtyFiles, state.currentPath);
-        setOperations(ops);
-        openTabOperationWindow.current(position.x, position.y);
-    }, [tabs, state.currentPath, dirtyFiles]);
+    useLayoutEffect(() => {
+        if (!tabContextMenu) return;
+        openTabActionMenu.current(tabContextMenu.left, tabContextMenu.top);
+        setTabContextMenu(null);
+    }, [tabContextMenu]);
+
+    const actions = tabActions(tabContextMenu?.title, setTabs, openTab, tabs, dirtyFiles, state.currentPath);
 
     useBeforeUnload((e: BeforeUnloadEvent): BeforeUnloadEvent => {
         const anyDirty = dirtyFiles.size > 0;
@@ -1249,7 +1257,7 @@ export const Editor: React.FunctionComponent<{
                 <div onContextMenu={e => {
                     e.preventDefault();
                     e.stopPropagation();
-                    openTabOperations(undefined, {x: e.clientX, y: e.clientY});
+                    openTabContextMenu(undefined, {x: e.clientX, y: e.clientY});
                 }} style={{display: "flex", flex: "1 1 auto", height: "100%", minWidth: 0}}>
                     <TabStrip
                         items={tabs.open.map(path => {
@@ -1272,22 +1280,18 @@ export const Editor: React.FunctionComponent<{
                         allowUnfocusedShortcuts
                         onActivate={path => openTab(path)}
                         onClose={path => doClose(path, tabs.open.indexOf(path))}
-                        onContextMenu={(path, position) => openTabOperations(path, position)}
+                        onContextMenu={(path, position) => openTabContextMenu(path, position)}
                         onReorder={open => setTabs(tabs => {
                             if (open.length !== tabs.open.length || open.some(path => !tabs.open.includes(path))) return tabs;
                             return {...tabs, open};
                         })}
                     />
-                    <Operations
-                        entityNameSingular={""}
-                        operations={operations}
-                        forceEvaluationOnOpen={true}
-                        openFnRef={openTabOperationWindow}
+                    <ActionMenu
+                        actions={actions}
+                        openFnRef={openTabActionMenu}
                         selected={[]}
-                        extra={null}
-                        row={42}
-                        hidden
-                        location={"IN_ROW"}
+                        callbacks={null}
+                        trigger={null}
                     />
                 </div>
                 {toolbarBeforeSettings || props.toolbar ? <Flex className={HeaderActions} alignItems={"center"}>
@@ -1387,14 +1391,14 @@ const HeaderActions = injectStyle("editor-header-actions", k => `
 `);
 
 /* TODO(Jonas): Improve parameters this is... not good */
-function tabOperations(
+function tabActions(
     tabPath: string | undefined,
     setTabs: React.Dispatch<React.SetStateAction<{open: string[], closed: string[]}>>,
     openTab: (path: string) => void,
     tabs: {open: string[], closed: string[]},
     dirtyFiles: Set<string>,
     currentPath: string,
-): Operation<any, null | undefined>[] {
+): ActionEntry<string, null>[] {
     const anyTabsOpen = tabs.open.length > 0;
     const anyTabsClosed = tabs.closed.length > 0;
     if (!tabPath) {
@@ -1514,7 +1518,7 @@ function tabOperations(
             });
         },
         enabled: () => true,
-    }, {
+    }, "divider", {
         text: "Copy path to clipboard",
         onClick: () => {
             copyToClipboard(tabPath);

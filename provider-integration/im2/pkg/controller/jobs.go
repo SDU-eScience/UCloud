@@ -143,8 +143,9 @@ const (
 )
 
 type JobTerminateRequest struct {
-	Job       *orcapi.Job
-	IsCleanup bool
+	Job                  *orcapi.Job
+	IsCleanup            bool
+	SkipResourceDeletion bool
 }
 
 func validateFileMountPathsOnSubmission(job *orcapi.Job) *util.HttpError {

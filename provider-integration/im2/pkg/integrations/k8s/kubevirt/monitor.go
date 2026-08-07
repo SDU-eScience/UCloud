@@ -17,7 +17,10 @@ import (
 const (
 	releasedPvScanInterval       = time.Minute
 	releasedPvPermissionInterval = 5 * time.Minute
+	missingVmGracePeriod         = 5 * time.Minute
 )
+
+var missingVmSince = map[string]time.Time{}
 
 var releasedPvCleanupState struct {
 	nextScan               time.Time
@@ -26,7 +29,20 @@ var releasedPvCleanupState struct {
 }
 
 func Monitor(tracker shared.JobTracker, jobs map[string]*orc.Job) {
+	for jobId := range missingVmSince {
+		if _, active := jobs[jobId]; !active {
+			delete(missingVmSince, jobId)
+		}
+	}
+
+	// In case of an error, we must not imply that the VM was deleted. We start by preserving all active VM states
+	// before we run any KubeVirt queries. We then update only the known results.
+	for _, job := range jobs {
+		tracker.PreserveState(job.Id)
+	}
+
 	if !Enabled {
+		missingVmSince = map[string]time.Time{}
 		return
 	}
 
@@ -34,6 +50,7 @@ func Monitor(tracker shared.JobTracker, jobs map[string]*orc.Job) {
 
 	activeInstances, err := KubevirtClient.VirtualMachineInstance(Namespace).List(context.Background(), metav1.ListOptions{})
 	if err != nil {
+		missingVmSince = map[string]time.Time{}
 		log.Info("Failed to fetch virtual machines instances: %v", err)
 		return
 	}
@@ -47,10 +64,12 @@ func Monitor(tracker shared.JobTracker, jobs map[string]*orc.Job) {
 
 	activeMachines, err := KubevirtClient.VirtualMachine(Namespace).List(context.Background(), metav1.ListOptions{})
 	if err != nil {
+		missingVmSince = map[string]time.Time{}
 		log.Info("Failed to fetch virtual machines: %v", err)
 		return
 	}
 
+	seenJobs := map[string]util.Empty{}
 	length = len(activeMachines.Items)
 	for i := 0; i < length; i++ {
 		machine := &activeMachines.Items[i]
@@ -59,6 +78,8 @@ func Monitor(tracker shared.JobTracker, jobs map[string]*orc.Job) {
 		if !ok {
 			continue
 		}
+		seenJobs[jobId] = util.Empty{}
+		delete(missingVmSince, jobId)
 
 		if hasInstance && machine.Status.Ready {
 			tracker.TrackState(
@@ -72,13 +93,56 @@ func Monitor(tracker shared.JobTracker, jobs map[string]*orc.Job) {
 		} else {
 			tracker.TrackState(
 				shared.JobReplicaState{
-					Id:    jobId,
-					Rank:  0,
-					State: orc.JobStateSuspended,
-					Node:  util.OptNone[string](),
+					Id:     jobId,
+					Rank:   0,
+					State:  orc.JobStateSuspended,
+					Node:   util.OptNone[string](),
+					Status: util.OptValue("The virtual machine is powered off."),
 				},
 			)
 		}
+	}
+
+	for jobId, job := range jobs {
+		if job.Status.State == orc.JobStateInQueue {
+			delete(missingVmSince, jobId)
+			continue
+		}
+		if _, ok := seenJobs[jobId]; ok {
+			continue
+		}
+
+		missingSince, missingBefore := missingVmSince[jobId]
+		if !missingBefore {
+			missingVmSince[jobId] = time.Now()
+		} else if time.Since(missingSince) >= missingVmGracePeriod {
+			_, err = KubevirtClient.VirtualMachine(Namespace).Get(
+				context.Background(),
+				vmName(jobId, 0),
+				metav1.GetOptions{},
+			)
+			delete(missingVmSince, jobId)
+			if k8serrors.IsNotFound(err) {
+				tracker.TrackState(shared.JobReplicaState{
+					Id:    jobId,
+					Rank:  0,
+					State: orc.JobStateSuccess,
+				})
+				tracker.RequestCleanupWithoutResourceDeletion(jobId)
+				continue
+			}
+			if err != nil {
+				log.Info("Failed to confirm missing virtual machine %s: %v", vmName(jobId, 0), err)
+			}
+		}
+
+		tracker.TrackState(shared.JobReplicaState{
+			Id:     jobId,
+			Rank:   0,
+			State:  orc.JobStateSuspended,
+			Node:   util.OptNone[string](),
+			Status: util.OptValue("The virtual machine is powered off."),
+		})
 	}
 }
 
