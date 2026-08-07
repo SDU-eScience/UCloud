@@ -865,10 +865,6 @@ function allocationNote(
     return undefined;
 }
 
-function checkIsCore2Response(): boolean {
-    return true; // Verified elsewhere
-}
-
 function checkIsOwnedByPersonalProviderProject(wallets: WalletV2[]): boolean {
     if (wallets.length > 0) {
         const owner = wallets[0].owner;
@@ -886,7 +882,6 @@ function checkIsOwnedByPersonalProviderProject(wallets: WalletV2[]): boolean {
 
 export function buildYourAllocations(allWallets: WalletV2[]): AllocationDisplayTree["yourAllocations"] {
     const relevantWallets = allWallets.filter(it => !it.paysFor.freeToUse);
-    const isCore2Response = checkIsCore2Response();
     const ownedByPersonalProviderProject = checkIsOwnedByPersonalProviderProject(allWallets);
     const yourAllocations: AllocationDisplayTree["yourAllocations"] = {};
     {
@@ -989,31 +984,21 @@ export function buildYourAllocations(allWallets: WalletV2[]): AllocationDisplayT
 
                                 let quotaString = "";
                                 if (shouldShowRetiredAmount && note !== undefined) {
-                                    if (isCore2Response) {
-                                        const isCapacityBased = wallet.paysFor.accountingFrequency === "ONCE";
-                                        if (isCapacityBased) {
-                                            quotaString = balanceToString(
-                                                wallet.paysFor,
-                                                alloc.retiredQuota!,
-                                                {precision: 2}
-                                            );
-                                        } else {
-                                            quotaString += balanceToString(
-                                                wallet.paysFor,
-                                                alloc.quota,
-                                                {precision: 2}
-                                            );
-                                            quotaString += " / ";
-                                            quotaString += balanceToString(wallet.paysFor, alloc.retiredQuota!, {precision: 2});
-                                        }
+                                    const isCapacityBased = wallet.paysFor.accountingFrequency === "ONCE";
+                                    if (isCapacityBased) {
+                                        quotaString = balanceToString(
+                                            wallet.paysFor,
+                                            alloc.retiredQuota!,
+                                            {precision: 2}
+                                        );
                                     } else {
                                         quotaString += balanceToString(
                                             wallet.paysFor,
-                                            alloc.retiredUsage ?? 0,
+                                            alloc.quota,
                                             {precision: 2}
                                         );
                                         quotaString += " / ";
-                                        quotaString += balanceToString(wallet.paysFor, alloc.quota, {precision: 2});
+                                        quotaString += balanceToString(wallet.paysFor, alloc.retiredQuota!, {precision: 2});
                                     }
                                 } else {
                                     quotaString += balanceToString(wallet.paysFor, alloc.quota, {precision: 2});
@@ -1042,18 +1027,14 @@ export function buildYourAllocations(allWallets: WalletV2[]): AllocationDisplayT
         }
     }
 
-    if (isCore2Response) {
-        // TODO(Dan): Clean up this code later when we are getting ready to make the switch. I am currently trying to
-        //   minimize the number of places these changes are visible.
 
-        for (const subtree of Object.values(yourAllocations)) {
-            for (const uq of subtree.usageAndQuota) {
-                updateUsageAndQuota(uq);
-            }
+    for (const subtree of Object.values(yourAllocations)) {
+        for (const uq of subtree.usageAndQuota) {
+            updateUsageAndQuota(uq);
+        }
 
-            for (const w of subtree.wallets) {
-                updateUsageAndQuota(w.usageAndQuota);
-            }
+        for (const w of subtree.wallets) {
+            updateUsageAndQuota(w.usageAndQuota);
         }
     }
 
