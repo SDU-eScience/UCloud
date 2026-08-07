@@ -45,6 +45,11 @@ export interface State extends Accounting.AllocationDisplayTree {
         reports?: UsageReport[];
     };
 
+    cache: {
+        projects: Accounting.AllocationDisplayTree["subAllocations"];
+        personalWorkspace?: Accounting.AllocationDisplayTree["subAllocations"];
+    };
+
     searchQuery: string;
 
     subprojectSortBy?: string;
@@ -257,33 +262,36 @@ function searchAndFilteringQueryMatches(recipient: AllocationDisplayTreeRecipien
 export function stateReducer(state: State, action: UIAction): State {
     switch (action.type) {
         case "SubProjectData": {
-            const newState = {
+            return rebuildTree({
                 ...state,
                 subprojectInfo: action.projects,
-            };
-            return rebuildTree(newState);
+            });
         }
 
         case "SortSubprojects": {
-            const newState = {
+            return rebuildTree({
                 ...state,
                 subprojectSortBy: action.sortBy,
                 subprojectSortByAscending: action.ascending,
-            };
-
-            return rebuildTree(newState);
+            });
         }
 
         case "WalletsLoaded": {
-            const newState = {
+            const subAllocations = Accounting.buildSubAllocations(action.wallets, state.viewOnlyProjects);
+            const yourAllocations = Accounting.buildYourAllocations(action.wallets);
+
+            return rebuildTree({
                 ...state,
+                yourAllocations,
+                subAllocations,
+                cache: {
+                    projects: subAllocations,
+                },
                 remoteData: {
                     ...state.remoteData,
                     wallets: action.wallets,
                 }
-            };
-
-            return rebuildTree(newState);
+            });
         }
 
         case "ManagedProvidersLoaded": {
@@ -455,7 +463,15 @@ export function stateReducer(state: State, action: UIAction): State {
         }
 
         case "ToggleViewOnlyProjects": {
-            return rebuildTree({...state, viewOnlyProjects: !state.viewOnlyProjects});
+            const viewOnlyProjects = !state.viewOnlyProjects;
+            if (viewOnlyProjects) {
+                const subAllocations = state.cache.projects;
+                return rebuildTree({...state, subAllocations, viewOnlyProjects});
+            }
+
+            let subAllocations = state.cache.personalWorkspace ?? Accounting.buildSubAllocations(state.remoteData.wallets ?? [], viewOnlyProjects);
+
+            return rebuildTree({...state, subAllocations, cache: {...state.cache, personalWorkspace: subAllocations}, viewOnlyProjects});
         }
 
         case "SubProjectFilterSettingsLoad": {
@@ -530,7 +546,6 @@ export function stateReducer(state: State, action: UIAction): State {
     }
 
     function rebuildTree(state: State): State {
-        const newTree = Accounting.buildAllocationDisplayTree((state.remoteData.wallets ?? []));
 
         const providerOptions: SubProjectKeyValue[] = (() => {
             const providers = new Set<string>();
@@ -545,7 +560,7 @@ export function stateReducer(state: State, action: UIAction): State {
                 }
             }
 
-            for (const recipient of newTree.subAllocations.recipients) {
+            for (const recipient of state.subAllocations.recipients) {
                 for (const group of recipient.groups) {
                     providers.add(group.category.provider);
                 }
@@ -559,7 +574,7 @@ export function stateReducer(state: State, action: UIAction): State {
         const productOptions: SubProjectKeyValue[] = (() => {
             const result: SubProjectKeyValue[] = [];
 
-            for (const recipient of newTree.subAllocations.recipients) {
+            for (const recipient of state.subAllocations.recipients) {
                 for (const group of recipient.groups) {
                     let key = productCategoryKey(group.category);
                     if (!result.some(it => it.key === key)) {
@@ -655,7 +670,9 @@ export function stateReducer(state: State, action: UIAction): State {
             };
         }
 
-        newTree.subAllocations.recipients.sort((a, b) => {
+        const recipients = [...state.subAllocations.recipients];
+
+        recipients.sort((a, b) => {
             let naturalOrderResult = (() => {
                 switch (state.subprojectSortBy) {
                     case "usagePercentageCompute":
@@ -753,8 +770,8 @@ export function stateReducer(state: State, action: UIAction): State {
         };
 
         const filteredSubProjectIndices: number[] = [];
-        for (let i = 0; i < newTree.subAllocations.recipients.length; i++) {
-            const recipient = newTree.subAllocations.recipients[i];
+        for (let i = 0; i < state.subAllocations.recipients.length; i++) {
+            const recipient = state.subAllocations.recipients[i];
             if (searchAndFilteringQueryMatches(recipient, stateForFiltering, query)) {
                 filteredSubProjectIndices.push(i);
             }
@@ -762,8 +779,8 @@ export function stateReducer(state: State, action: UIAction): State {
 
         return {
             ...state,
-            yourAllocations: newTree.yourAllocations,
-            subAllocations: newTree.subAllocations,
+            yourAllocations: state.yourAllocations,
+            subAllocations: {recipients},
             filteredSubProjectIndices,
             subprojectFilters,
         };
@@ -905,6 +922,9 @@ export function initialState(): State {
         subprojectSortByAscending: true,
         subprojectInfo: {},
         subprojectFilters: subProjectsDefaultSettings,
+        cache: {
+            projects: {recipients: []},
+        }
     };
 }
 
