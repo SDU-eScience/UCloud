@@ -2002,7 +2002,7 @@ export async function downloadFileContent(path: string): Promise<Blob> {
 }
 
 const MAX_HEIGHT = `calc(100vw - 15px - 15px - 240px - var(${CSSVarCurrentSidebarStickyWidth}));`
-const HEIGHT = "calc(100vh - 100px);";
+const HEIGHT = "100%";
 
 const MarkdownStyling = injectStyleSimple("markdown-styling", `
     max-width: 900px;
@@ -2010,22 +2010,26 @@ const MarkdownStyling = injectStyleSimple("markdown-styling", `
 `);
 
 const Audio = injectStyleSimple("preview-audio", `
+    display: block;
     margin-top: auto;
     margin-bottom: auto;
 `);
 
 const Image = injectStyleSimple("preview-image", `
+    display: block;
     object-fit: contain;
     max-width: ${MAX_HEIGHT}
     max-height: ${HEIGHT}
 `);
 
 const Video = injectStyleSimple("preview-video", `
+    display: block;
     max-width: ${MAX_HEIGHT}
     max-height: ${HEIGHT}
 `);
 
 const PreviewObject = injectStyleSimple("preview-pdf", `
+    display: block;
     max-width: ${MAX_HEIGHT}
     width: 100%;
     height: ${HEIGHT};

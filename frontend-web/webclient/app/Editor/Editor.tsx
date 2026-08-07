@@ -369,10 +369,10 @@ const EditorClass = injectStyle("editor", k => `
         display: flex;
         flex: 1 1 auto;
         width: 100%;
-        height: auto;
+        height: 0;
         min-height: 0;
         margin-top: 10px;
-        overflow-y: auto;
+        overflow: hidden;
     }
     
     ${k} .panels > div > .code {
