@@ -270,11 +270,11 @@ export async function getMonaco() {
         const monaco = await import("monaco-editor");
 
 
-        const editorWorker = (await import('monaco-editor/esm/vs/editor/editor.worker?worker')).default;
-        const jsonWorker = (await import('monaco-editor/esm/vs/language/json/json.worker?worker')).default;
-        const cssWorker = (await import('monaco-editor/esm/vs/language/css/css.worker?worker')).default;
-        const htmlWorker = (await import('monaco-editor/esm/vs/language/html/html.worker?worker')).default;
-        const tsWorker = (await import('monaco-editor/esm/vs/language/typescript/ts.worker?worker')).default;
+        const editorWorker = (await import('monaco-editor/editor/editor.worker?worker')).default;
+        const jsonWorker = (await import('monaco-editor/language/json/json.worker?worker')).default;
+        const cssWorker = (await import('monaco-editor/language/css/css.worker?worker')).default;
+        const htmlWorker = (await import('monaco-editor/language/html/html.worker?worker')).default;
+        const tsWorker = (await import('monaco-editor/language/typescript/ts.worker?worker')).default;
 
         populateLanguages(monaco.languages.getLanguages().map(l =>
             ({language: l.id, extensions: l.extensions?.map(it => it.slice(1)) ?? []}))

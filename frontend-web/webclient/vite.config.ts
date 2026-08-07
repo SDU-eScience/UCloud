@@ -63,7 +63,8 @@ export default ({mode, port, ...rest}: {mode: Mode; port?: number;}): UserConfig
         resolve: {
             alias: {
                 //@ts-ignore
-                "@": path.resolve(__dirname, "./app")
+                "@": path.resolve(__dirname, "./app"),
+                "monaco-editor/esm/vs": "monaco-editor"
             }
         },
         server: {
