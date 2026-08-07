@@ -1,4 +1,4 @@
-import {actionsToOperations, Operation, OperationEnabled, operationsToActions, ShortcutKey} from "@/ui-components/Operation";
+import {Operation, operationsToActions, ShortcutKey} from "@/ui-components/Operation";
 import {ActionAppearance, ActionBar, ActionEntry, ActionItem, ActionMenu, ResourceBrowserActions} from "@/ui-components/Actions";
 import {IconName} from "@/ui-components/Icon";
 import {
@@ -13,7 +13,6 @@ import {
     capitalized,
     createHTMLElements,
     doNothing,
-    inDevEnvironment,
     isLikelyMac,
     stopPropagation,
     stopPropagationAndPreventDefault,
@@ -37,7 +36,6 @@ import ProviderInfo from "@/Assets/provider_info.json";
 import {ProductSelector} from "@/Products/Selector";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {divHtml, divText, image} from "@/Utilities/HTMLUtilities";
-import {ConfirmationButtonPlainHTML} from "./ConfirmationAction";
 import {HTMLTooltip} from "./Tooltip";
 import {ButtonClass} from "./Button";
 import {CREATE_TAG, DELETE_TAG, PERMISSIONS_TAG, PROPERTIES_TAG, ResourceIncludeFlags} from "@/UCloud/ResourceApi";
@@ -54,8 +52,6 @@ import {sendInformationNotification} from "@/Notifications";
 import {UFile} from "@/UCloud/UFile";
 import ReactClient from "react-dom/client";
 import type {Root} from "react-dom/client";
-import {VmActionItem, VmActionSplitButton} from "@/Applications/Jobs/VmActionSplitButton";
-import {Feature, hasFeature} from "@/Features";
 
 const CLEAR_FILTER_VALUE = "\n\nCLEAR_FILTER\n\n";
 const UTILITY_COLOR: ThemeColor = "textPrimary";
@@ -444,7 +440,6 @@ export class ResourceBrowser<T> {
     private actionMenuOpenRef = React.createRef<(left: number, top: number) => void>();
     private actionMenuCloseRef = React.createRef<() => void>();
     private reactActionMenuOpen = false;
-    private readonly useNewActions: boolean;
 
     // Rename
     renameField: HTMLInputElement;
@@ -555,7 +550,6 @@ export class ResourceBrowser<T> {
         this.uniqueListenerId = resourceName + Math.random().toString();
 
         this.resourceName = resourceName;
-        this.useNewActions = hasFeature(Feature.NEW_CONTEXT_MENU);
         this.isModal = !!opts?.isModal;
         ResourceBrowser.isAnyModalOpen = ResourceBrowser.isAnyModalOpen || this.isModal;
         this.opts = {
@@ -666,12 +660,10 @@ export class ResourceBrowser<T> {
             providerReason: this.root.querySelector(".page-empty .provider-reason")!,
         };
 
-        if (this.useNewActions) {
-            this.actionBarRoot = ReactClient.createRoot(this.operations);
-            const actionMenuContainer = document.createElement("div");
-            this.root.appendChild(actionMenuContainer);
-            this.actionMenuRoot = ReactClient.createRoot(actionMenuContainer);
-        }
+        this.actionBarRoot = ReactClient.createRoot(this.operations);
+        const actionMenuContainer = document.createElement("div");
+        this.root.appendChild(actionMenuContainer);
+        this.actionMenuRoot = ReactClient.createRoot(actionMenuContainer);
 
         if (this.opts.embedded) {
             this.root.style.height = "auto";
@@ -1567,11 +1559,7 @@ export class ResourceBrowser<T> {
     }
 
     renderOperations() {
-        if (this.useNewActions) {
-            this.renderActionBar();
-            return;
-        }
-        this.renderOperationsIn(false);
+        this.renderActionBar();
     }
 
     private fetchActions(location: "topbar" | "contextMenu"): null | {
@@ -1829,394 +1817,6 @@ export class ResourceBrowser<T> {
             });
 
             menuList.append(element);
-        }
-    }
-
-    private renderVmActionSplitButton(
-        opGroup: OperationGroup<T, unknown>,
-        selected: T[],
-        callbacks: unknown,
-        page: T[]
-    ): HTMLElement {
-        const container = document.createElement("div");
-        container.className = "operation";
-        container.style.display = "flex";
-
-        const root = ReactClient.createRoot(container);
-
-        const mainOp = opGroup.operations[0];
-        const rest = opGroup.operations.slice(1);
-
-        const enableResult: OperationEnabled = mainOp.enabled(selected, callbacks, page);
-        const isEnabled = enableResult === true;
-
-
-        const getText = (op): string => {
-            return typeof op.text === "string" ? op.text : op.text(selected, callbacks);
-        }
-        // Rest are menu items
-        const menuItems: VmActionItem[] = rest.map((childOp, idx) => ({
-            key: idx.toString(),
-            value: getText(childOp),
-            icon: childOp.icon ?? "questionSolid",
-            color: childOp.color ?? "textPrimary",
-            shortcut: childOp.shortcut,
-        }));
-        root.render(
-            <div onClick={stopPropagationAndPreventDefault}>
-                <VmActionSplitButton
-                    tone="none"
-                    disabled={!isEnabled}
-                    buttonColor={mainOp.color ?? "secondaryMain"}
-                    buttonText={getText(mainOp)}
-                    buttonIcon={mainOp.icon ?? "ellipsis"}
-                    menuItems={menuItems}
-                    shortcut={mainOp.shortcut}
-                    onSelectMenuItem={(item) => {
-                        const foundOp = rest[parseInt(item.key)];
-                        if (foundOp && foundOp.enabled(selected, callbacks, page) === true) {
-                            foundOp.onClick(selected, callbacks, page);
-                        }
-                    }}
-                    onButtonClick={() => {
-                        mainOp.onClick(selected, callbacks, page);
-                    }}
-                />
-            </div>
-        );
-
-        return container;
-    }
-
-
-    private renderOperationsIn(useContextMenu: boolean, contextOpts?: {
-        x: number,
-        y: number,
-    }) {
-        const rawCallbacks = this.dispatchMessage("fetchOperationsCallback", fn => fn());
-        if (rawCallbacks === null) return;
-        const currentPage = this.cachedData[this.currentPath] ?? [];
-        const callbacks = typeof rawCallbacks === "object" ? {...rawCallbacks, all: currentPage} : rawCallbacks;
-
-        const fetchedOperations = this.dispatchMessage("fetchOperations", fn => fn());
-        const operations = Array.isArray(fetchedOperations) ? fetchedOperations : actionsToOperations(
-            fetchedOperations[useContextMenu ? "contextMenu" : "topbar"] ??
-            fetchedOperations[useContextMenu ? "topbar" : "contextMenu"] ?? []
-        );
-
-        if (!useContextMenu && !this.isModal) {
-            const custom = this.dispatchMessage("fetchBrowserFeatures", f => f());
-            operations.unshift(controlsOperation(this.features, custom));
-        }
-
-        if (operations.length === 0 || !this.canConsumeResources) {
-            this.operations.innerHTML = "";
-            return;
-        }
-
-        if (!useContextMenu) {
-            this.shortCuts = {} as Record<ShortcutKey, () => void>;
-
-            printDuplicateShortcuts(operations);
-        }
-
-        const selected = this.findSelectedEntries();
-        const page = this.cachedData[this.currentPath] ?? [];
-
-        const renderOpIconAndText = (
-            op: OperationOrGroup<T, any>,
-            element: HTMLElement,
-            shortcut?: string,
-            inContextMenu?: boolean
-        ) => {
-            const isConfirmButton = isOperation(op) && op.confirm;
-            // Set the icon
-            const icon = image(placeholderImage, {height: 16, width: 16, alt: "Icon"});
-            let contrastColor = selectContrastColor(
-                op.color ??
-                (isConfirmButton ?
-                    "errorMain" :
-                    inContextMenu ? "backgroundDefault" :
-                        ("operations" in op ? "primaryMain" : "secondaryMain")
-                )
-            );
-
-            // Hack(Jonas): Very specific DriveBrowser fix, for Delete Drive coloring of Trash-icon.
-            // The `errorContrast` is white. So kinda works for Dark Theme, not for Light Theme.
-            if (inContextMenu && isOperation(op) && op.tag === DELETE_TAG && !op.confirm) contrastColor = op.color!;
-            ResourceBrowser.icons.renderIcon({
-                name: op.icon as IconName,
-                color: contrastColor,
-                color2: contrastColor,
-                width: 64,
-                height: 64,
-            }).then(url => icon.src = url);
-            if (op.iconRotation) {
-                icon.style.transform = `rotate(${op.iconRotation}deg)`;
-            }
-
-            // ...and the text
-            const operationText = typeof op.text === "string" ? op.text : op.text(selected, callbacks);
-
-            if (isConfirmButton) {
-                const opEnabled = op.enabled(selected, callbacks, page) === true;
-
-                const button = ConfirmationButtonPlainHTML(
-                    icon,
-                    operationText,
-                    () => {
-                        op.onClick(selected, callbacks);
-                        if (useContextMenu) this.closeContextMenu();
-                    },
-                    {
-                        asSquare: inContextMenu,
-                        color: op.color ?? "errorMain",
-                        hoverColor: undefined,
-                        disabled: !opEnabled
-                    }
-                );
-
-                // HACK(Jonas): Very hacky way to solve styling for confirmation button in the two different contexts.
-                if (inContextMenu) {
-                    element.style.height = "40px";
-                    button.style.height = "40px";
-                    button.style.width = "100%";
-                    button.querySelectorAll("button > div.ucloud-native-icons").forEach(it => {
-                        it["style"].marginLeft = "-6px";
-                        it["style"].marginTop = "-2px";
-                    });
-                    button.style.fontSize = "16px";
-                    button.querySelectorAll("button > div.icons").forEach(it => {
-                        it["style"].marginLeft = "-10px";
-                    });
-                    button.querySelector("button > ul")!["style"].marginLeft = "-60px";
-                } else {
-                    element.style.height = "35px";
-                    button.style.height = "35px";
-
-                    const textChildren = button.querySelectorAll("button > ul > li");
-                    textChildren.item(0)["style"].marginTop = "8px";
-
-                    button.querySelectorAll("button > div.ucloud-native-icons").forEach(it => {
-                        it["style"].marginLeft = "-6px";
-                        it["style"].marginTop = "-2px";
-                    });
-                    button.querySelectorAll("button > div.icons").forEach(it => {
-                        it["style"].marginTop = "0px";
-                        it["style"].marginLeft = "-8px";
-                    });
-                    button.querySelectorAll("button > ul").forEach(it => {
-                        it["style"]["marginTop"] = "-8px";
-                    });
-
-                    button.querySelectorAll("button > ul > li").forEach(it => {
-                        it["style"]["right"] = "unset";
-                    });
-                }
-
-                element.style.padding = "0";
-
-                element.append(button);
-                element.setAttribute("data-is-confirm", "true");
-                return;
-            }
-
-            {
-                element.append(icon);
-
-                if (!isOperation(op)) {
-                    if (op.backgroundColor) {
-                        element.style.setProperty("--bgColor", `var(--${op.backgroundColor})`);
-                        element.style.setProperty("--hoverColor", `var(--${selectHoverColor(op.backgroundColor)})`);
-                        element.style.color = `var(--${selectContrastColor(op.backgroundColor)})`;
-                    }
-                }
-            }
-
-            {
-                if (operationText) {
-                    element.append(operationText);
-                }
-                if (operationText && shortcut) {
-                    const shortcutItems = shortcut.split("+");
-                    for (const [index, item] of shortcutItems.entries()) {
-                        const shortcutElement = document.createElement("div");
-                        shortcutElement.className = ShortcutClass;
-                        if (!inContextMenu && ResourceBrowser.hideShortcuts) shortcutElement.classList.add("HideShortcuts");
-                        if (index === 0) shortcutElement.style.marginLeft = "auto";
-                        shortcutElement.innerText = item;
-                        element.append(shortcutElement);
-                    }
-                }
-            }
-        }
-
-        const renderOperationsInContextMenu = (
-            operations: OperationOrGroup<T, any>[],
-            posX: number,
-            posY: number,
-            counter: number = 1,
-            allowCreation: boolean = true
-        ): number => {
-            const menu = this.contextMenu;
-            if (allowCreation) {
-                let opCount = 0;
-                for (const op of operations) {
-                    if (!isOperation(op)) {
-                        opCount += op.operations.length;
-                    } else {
-                        opCount++;
-                    }
-                }
-                this.prepareContextMenu(posX, posY, opCount);
-            }
-
-            const menuList = allowCreation ? document.createElement("ul") : menu.querySelector("ul")!;
-            if (allowCreation) menu.append(menuList);
-            let shortcutNumber = counter;
-
-            const useShortcuts = !this.opts?.embedded && !this.opts?.selector;
-            for (const child of operations) {
-                if (child["hackNotInTheContextMenu"]) continue;
-                if (!isOperation(child)) {
-                    counter += renderOperationsInContextMenu(child.operations, posX, posY, shortcutNumber, false);
-                    shortcutNumber = counter + 1;
-                    continue;
-                }
-
-                const text = child.enabled(selected, callbacks, page);
-                const isDisabled = typeof text === "string";
-
-                const item = document.createElement("li");
-                const isConfirm = isOperation(child) && child.confirm;
-
-                if (isDisabled) {
-                    item.style.cursor = "not-allowed";
-                    item.style.filter = "opacity(25%)";
-                    const d = document.createElement("div");
-                    d.innerText = text;
-                    HTMLTooltip(item, d, {tooltipContentWidth: 450});
-                }
-
-                renderOpIconAndText(child, item, shortcutNumber <= 9 && useShortcuts && !isDisabled ? `${shortcutNumber}` : undefined, true);
-
-                const myIndex = shortcutNumber - 1;
-                this.contextMenuHandlers.push(() => {
-                    if (isDisabled) {
-                        // No action
-                    } else if (isConfirm) {
-                        // This case is handled inside the button.
-                    } else {
-                        child.onClick(selected, callbacks, page);
-                    }
-                });
-
-                shortcutNumber++;
-
-                item.addEventListener("mouseover", () => {
-                    this.findActiveContextMenuItem(true);
-                    this.selectContextMenuItem(myIndex);
-                });
-
-                item.addEventListener("click", ev => {
-                    ev.stopPropagation();
-                    this.findActiveContextMenuItem(true);
-                    this.selectContextMenuItem(myIndex);
-                    if (!isDisabled) {
-                        this.onContextMenuItemSelection();
-                    }
-                });
-
-                menuList.append(item);
-            }
-            return counter;
-        };
-
-        let opCount = 0;
-
-        const renderOperation = (
-            op: OperationOrGroup<T, unknown>
-        ): HTMLElement => {
-            const useShortcuts = !this.opts?.selector;
-            const element = document.createElement("div");
-            element.classList.add("operation");
-
-            if (op.text === "" && op.icon === "keyboardSolid") { // Note(Jonas): Edge case: Keyboard shortcuts button. 
-                element.style.width = "35px";
-            }
-
-            const isConfirmButton = isOperation(op) && op.confirm;
-            if (!isConfirmButton) {
-                element.classList.add(ButtonClass);
-
-                const color = op?.color ?? "secondaryMain";
-                element.style.setProperty("--bgColor", `var(--${color})`);
-                element.style.setProperty("--hoverColor", `var(--${selectHoverColor(color)})`);
-                element.style.color = `var(--${selectContrastColor(color)})`;
-            }
-            element.classList.add(!useContextMenu ? "in-header" : "in-context-menu");
-
-            const enabled = isOperation(op) ? op.enabled(selected, callbacks, page) : true;
-            const handleDisabled = !useContextMenu && typeof enabled === "string";
-
-            element.setAttribute("data-disabled", typeof enabled === "string" ? true.toString() : (!enabled).toString());
-            if (handleDisabled) {
-                const d = document.createElement("div");
-                d.innerText = enabled;
-                if (isOperation(op) && !op.confirm) {
-                    element.style.cursor = "not-allowed";
-                    element.style.filter = "opacity(25%)";
-                }
-                HTMLTooltip(element, d, {tooltipContentWidth: 230});
-            }
-
-            renderOpIconAndText(op, element, useShortcuts && op.shortcut ? `${ALT_KEY} + ${op.shortcut.replace("Key", "")}` : undefined);
-
-            {
-                // ...and the handlers
-                const handler = (ev?: Event) => {
-                    ev?.stopPropagation();
-                    if (!isOperation(op)) {
-                        const elementBounding = element.getBoundingClientRect();
-                        renderOperationsInContextMenu(
-                            op.operations,
-                            elementBounding.left,
-                            (elementBounding.top + elementBounding.height),
-                        );
-                    } else if (isOperation(op) && enabled === true) {
-                        if (this.contextMenuHandlers.length) this.closeContextMenu();
-                        op.onClick(selected, callbacks, page);
-                    }
-                };
-
-                element.addEventListener("click", handler);
-                if (!useContextMenu) {
-                    if (op.shortcut) {
-                        this.shortCuts[op.shortcut] = handler;
-                    }
-                    opCount++;
-                }
-            }
-
-            return element;
-        }
-
-        if (!useContextMenu) {
-            const target = this.operations;
-            target.innerHTML = "";
-            for (const op of operations) {
-                if ("buttonStyle" in op && op.buttonStyle === "split") {
-                    // Rendering SplitButton
-                    target.append(this.renderVmActionSplitButton(op, selected, callbacks, page));
-                }
-                else {
-                    target.append(renderOperation(op));
-                }
-            }
-        } else {
-            const posX = contextOpts?.x ?? 0;
-            const posY = contextOpts?.y ?? 0;
-            renderOperationsInContextMenu(operations, posX, posY);
         }
     }
 
@@ -2848,8 +2448,7 @@ export class ResourceBrowser<T> {
         }
 
         if (this.contextMenuHandlers.length || this.reactActionMenuOpen) this.closeContextMenu();
-        if (this.useNewActions) this.openActionMenu(event.clientX, event.clientY);
-        else this.renderOperationsIn(true, {x: event.clientX, y: event.clientY});
+        this.openActionMenu(event.clientX, event.clientY);
     }
 
     private onStarClicked(index: number) {
@@ -3259,29 +2858,38 @@ export class ResourceBrowser<T> {
         this.closeContextMenu();
     }
 
-    triggerOperation(predicate: (op: Operation<T, unknown>) => boolean): boolean {
+    triggerOperation(predicate: (op: {tag?: string}) => boolean): boolean {
         const rawCallbacks = this.dispatchMessage("fetchOperationsCallback", fn => fn());
         if (rawCallbacks === null) return false;
         const page = this.cachedData[this.currentPath] ?? [];
         const callbacks = typeof rawCallbacks === "object" ? {...rawCallbacks, all: page} : rawCallbacks;
         const fetched = this.dispatchMessage("fetchOperations", fn => fn());
-        const ops = Array.isArray(fetched) ? fetched : actionsToOperations(
-            fetched.contextMenu ?? fetched.topbar ?? []
-        );
-        for (const op of ops) {
-            let toCheck: Operation<T, unknown>[] = [];
-            if (!isOperation(op)) {
-                toCheck = op.operations;
-            } else {
-                toCheck = [op];
-            }
+        const selected = this.findSelectedEntries();
 
-            for (const child of toCheck) {
-                if (predicate(child)) {
-                    child.onClick(this.findSelectedEntries(), callbacks, page);
-                    return true;
+        if (Array.isArray(fetched)) {
+            for (const entry of fetched) {
+                const operations = isOperation(entry) ? [entry] : entry.operations;
+                for (const operation of operations) {
+                    if (predicate(operation)) {
+                        operation.onClick(selected, callbacks, page);
+                        return true;
+                    }
                 }
             }
+            return false;
+        }
+
+        const triggerAction = (entry: ActionEntry<T, any>): boolean => {
+            if (entry === "divider") return false;
+            if (predicate(entry)) {
+                entry.onClick(selected, callbacks);
+                return true;
+            }
+            return entry.children?.some(triggerAction) ?? false;
+        };
+
+        for (const entry of fetched.contextMenu ?? fetched.topbar ?? []) {
+            if (triggerAction(entry)) return true;
         }
 
         return false;
@@ -4051,28 +3659,6 @@ export async function checkCanConsumeResources(
 
 // https://stackoverflow.com/a/13139830
 export const placeholderImage = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
-
-function printDuplicateShortcuts<T>(operations: OperationOrGroup<T, unknown>[]) {
-    if (!inDevEnvironment()) return;
-
-    const shortCuts = operations.map(it => {
-        if (isOperation(it)) {
-            return ({shortcut: it.shortcut, text: it.text.toString()})
-        } else {
-            return [{shortcut: it.shortcut, text: it.text.toString()}, it.operations.map(it => ({
-                shortcut: it.shortcut,
-                text: it.text.toString()
-            }))]
-        }
-    }).flat(5);
-    const entries: Record<string, string> = {};
-    for (const short of shortCuts) {
-        if (entries[short.shortcut ?? ""]) {
-            console.log(`Shortcut: ${short.shortcut} already reserved for ${entries[short.shortcut ?? ""]}, attempted to use for ${short.text}`);
-        }
-        entries[short.shortcut ?? ""] = short.text;
-    }
-}
 
 const ARROW_UP = "↑";
 const ARROW_DOWN = "↓";

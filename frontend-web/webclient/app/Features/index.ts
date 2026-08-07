@@ -7,19 +7,13 @@ export enum Feature {
 
     ALLOCATIONS_PAGE_IMPROVEMENTS,
 
-    NEW_VM_UI,
-
     STACKS,
 
     INFERENCE,
 
     INFERENCE_WORKSPACE,
 
-    NEW_TOOLTIPS,
-
     FILE_BROWSER_STATUS_BAR,
-
-    NEW_CONTEXT_MENU,
 }
 
 enum Environment {
@@ -75,12 +69,6 @@ const featureMap: Record<string, FeatureConfig> = {
         showWithoutFlag: allEnvironments,
     },
     
-    "new-vm-ui": {
-        feature: Feature.NEW_VM_UI,
-        showWithFlag: allEnvironments,
-        showWithoutFlag: allEnvironments,
-    },
-
     "stacks": {
         feature: Feature.STACKS,
         showWithoutFlag: allDevEnvironments,
@@ -99,20 +87,8 @@ const featureMap: Record<string, FeatureConfig> = {
         showWithFlag: allEnvironments,
     },
 
-    "new-tooltips": {
-        feature: Feature.NEW_TOOLTIPS,
-        showWithoutFlag: allDevEnvironments,
-        showWithFlag: allEnvironments,
-    },
-
     "file-browser-status-bar": {
         feature: Feature.FILE_BROWSER_STATUS_BAR,
-        showWithoutFlag: allDevEnvironments,
-        showWithFlag: allEnvironments,
-    },
-
-    "new-context-menu": {
-        feature: Feature.NEW_CONTEXT_MENU,
         showWithoutFlag: allDevEnvironments,
         showWithFlag: allEnvironments,
     }

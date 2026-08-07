@@ -416,13 +416,6 @@ export function injectResourceBrowserStyle(rowSize: number) {
             --badgeColor: var(--errorMain);
         }
 
-        ${BrowserClass.dot} .operation {
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
         ${BrowserClass.dot} .operations {
             display: flex;
             flex-direction: row;
@@ -469,10 +462,6 @@ export function injectResourceBrowserStyle(rowSize: number) {
             ${BrowserClass.dot} .${ShortcutClass}, ${BrowserClass.dot} .ShortCutPlusSymbol {
                 display: none;
             }
-        }
-
-        ${BrowserClass.dot} .HideShortcuts {
-            display: none;
         }
 
         ${BrowserClass.dot} .context-menu li[data-selected=true] {

@@ -56,7 +56,6 @@ import {RichSelect, RichSelectChildComponent} from "@/ui-components/RichSelect";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import * as JobViz from "@/Applications/Jobs/JobViz"
 import {VirtualMachineStatus} from "@/Applications/Jobs/VirtualMachines";
-import {Feature, hasFeature} from "@/Features";
 
 export const jobCache = new class extends ExternalStoreBase {
     private cache: PageV2<Job> = {items: [], itemsPerPage: 100};
@@ -507,7 +506,7 @@ export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode
         return <MainContainer main={<Heading.h2>An error occurred</Heading.h2>} />;
     }
 
-    if (isVirtualMachine && job && status && hasFeature(Feature.NEW_VM_UI)) {
+    if (isVirtualMachine && job && status) {
         const vm = <VirtualMachineStatus
             job={job}
             status={status}
