@@ -865,15 +865,8 @@ function allocationNote(
     return undefined;
 }
 
-function checkIsCore2Response(wallet: WalletV2[]): boolean {
-    // NOTE(Dan): Detect Core2 server by looking for Core2 only fields.
-    return wallet.some(
-        w => w.allocationGroups.some(
-            ag => ag.group.allocations.some(
-                a => a.retiredQuota !== undefined
-            )
-        )
-    );
+function checkIsCore2Response(): boolean {
+    return true; // Verified elsewhere
 }
 
 function checkIsOwnedByPersonalProviderProject(wallets: WalletV2[]): boolean {
@@ -893,7 +886,7 @@ function checkIsOwnedByPersonalProviderProject(wallets: WalletV2[]): boolean {
 
 export function buildYourAllocations(allWallets: WalletV2[]): AllocationDisplayTree["yourAllocations"] {
     const relevantWallets = allWallets.filter(it => !it.paysFor.freeToUse);
-    const isCore2Response = checkIsCore2Response(allWallets);
+    const isCore2Response = checkIsCore2Response();
     const ownedByPersonalProviderProject = checkIsOwnedByPersonalProviderProject(allWallets);
     const yourAllocations: AllocationDisplayTree["yourAllocations"] = {};
     {
@@ -1068,19 +1061,16 @@ export function buildYourAllocations(allWallets: WalletV2[]): AllocationDisplayT
     return yourAllocations;
 }
 
+// NOTE(Dan): This function assumes that allWallets are owned by the same owner.
 export function buildSubAllocations(allWallets: WalletV2[], onlyProjects: boolean): AllocationDisplayTree["subAllocations"] {
     const subAllocations: AllocationDisplayTree["subAllocations"] = {recipients: []};
     if (!allWallets) return subAllocations;
-    // NOTE(Dan): This function assumes that allWallets are owned by the same owner.
-    const isCore2Response = checkIsCore2Response(allWallets);
 
     const relevantWallets = allWallets.filter(it => !it.paysFor.freeToUse);
 
     const ownedByPersonalProviderProject = checkIsOwnedByPersonalProviderProject(allWallets);
 
     // Start building the sub-allocations UI
-
-    // Optimize(Jonas): These iterations are the slow parts
     for (const wallet of relevantWallets) {
         for (const childGroup of wallet.children ?? []) {
             let allocOwner: WalletOwner;
@@ -1110,24 +1100,10 @@ export function buildSubAllocations(allWallets: WalletV2[], onlyProjects: boolea
 
             const shouldUseRetired = wallet.paysFor.accountingFrequency === "ONCE";
 
-            let combinedQuota = 0;
-            childGroup.group.allocations.forEach(alloc => {
-                if (allocationIsActive(alloc, new Date().getTime())) {
-                    combinedQuota += alloc.quota;
-                }
-            });
 
             const combinedRetired = childGroup.group.allocations.reduce((acc, val) => acc + (val.retiredUsage ?? 0), 0);
-            // Need to have total usage in case retired should be included in final result
-            let combinedUsage = childGroup.group.usage;
-            if (!shouldUseRetired) {
-                combinedUsage += combinedRetired;
-            }
-
-            if (isCore2Response) {
-                combinedQuota = childGroup.group.activeQuota!;
-                combinedUsage = childGroup.group.activeUsage!;
-            }
+            const combinedQuota = childGroup.group.activeQuota!;
+            const combinedUsage = childGroup.group.activeUsage!;
 
             const usage = combineBalances([{balance: combinedUsage, category: wallet.paysFor}]);
             const quota = combineBalances([{balance: combinedQuota, category: wallet.paysFor}]);
@@ -1211,17 +1187,13 @@ export function buildSubAllocations(allWallets: WalletV2[], onlyProjects: boolea
         }
     }
 
-    if (isCore2Response) {
-        // TODO(Dan): Clean up this code later when we are getting ready to make the switch. I am currently trying to
-        //   minimize the number of places these changes are visible.
-        for (const subtree of subAllocations.recipients) {
-            for (const uq of subtree.usageAndQuota) {
-                updateUsageAndQuota(uq);
-            }
+    for (const subtree of subAllocations.recipients) {
+        for (const uq of subtree.usageAndQuota) {
+            updateUsageAndQuota(uq);
+        }
 
-            for (const g of subtree.groups) {
-                updateUsageAndQuota(g.usageAndQuota);
-            }
+        for (const g of subtree.groups) {
+            updateUsageAndQuota(g.usageAndQuota);
         }
     }
 
