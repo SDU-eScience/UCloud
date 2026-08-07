@@ -153,6 +153,7 @@ const ActionMenuItemClass = injectStyle("action-menu-item", k => `
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+         padding-bottom: 1px;
     }
 
     ${k} > .action-menu-shortcut {
