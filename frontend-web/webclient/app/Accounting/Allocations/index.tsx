@@ -133,8 +133,6 @@ const Allocations: React.FunctionComponent = () => {
         }
     });
 
-    const [isLoading, invokeCommand] = useCloudCommand();
-
     useEffect(() => {
         if (!projectId) return;
         (async () => {
