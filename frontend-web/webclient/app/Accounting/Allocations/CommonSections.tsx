@@ -1061,9 +1061,11 @@ const SubProjectListRow: React.FunctionComponent<{
             }}
             left={<Flex gap={"4px"} alignItems={"center"}>
                 <TooltipV2 tooltip={`Project PI: ${pi}`}>
-                    <Avatar {...avatars.avatarFromCache(pi)}
-                        style={{height: "32px", width: "auto", marginTop: "-4px"}}
-                        avatarStyle={"Circle"} />
+                    <Flex my="auto">
+                        <Avatar {...avatars.avatarFromCache(pi)}
+                            style={{height: "32px", width: "auto", marginTop: "-4px"}}
+                            avatarStyle={"Circle"} />
+                    </Flex>
                 </TooltipV2>
                 <Truncate
                     title={title}
