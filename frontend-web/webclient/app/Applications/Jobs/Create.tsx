@@ -23,7 +23,7 @@ import {findElement, OptionalWidgetSearch, setWidgetValues, validateWidgets, Wid
 import * as Heading from "@/ui-components/Heading";
 import {FolderResource, folderResourceAllowed} from "@/Applications/Jobs/Resources/Folders";
 import {IngressResource, ingressResourceAllowed} from "@/Applications/Jobs/Resources/Ingress";
-import {PeerResource, peerResourceAllowed} from "@/Applications/Jobs/Resources/Peers";
+import {peerResourceAllowed} from "@/Applications/Jobs/Resources/Peers";
 import {PrivateNetworkResource} from "@/Applications/Jobs/Resources/PrivateNetworks";
 import {createSpaceForLoadedResources, injectResources, ResourceHook, useResource} from "@/Applications/Jobs/Resources";
 import {
@@ -65,7 +65,6 @@ import {Application, ApplicationGroup, ApplicationParameter} from "@/Application
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {defaultEmailSettings, UserDetailsState} from "@/UserSettings/ChangeEmailSettings";
-import {Feature, hasFeature} from "@/Features";
 import retrieveEmailSettings = mail.retrieveEmailSettings;
 import toggleEmailSettings = mail.toggleEmailSettings;
 import {useDiscovery} from "@/Applications/Hooks";
@@ -530,10 +529,8 @@ export const Create: React.FunctionComponent = () => {
             const newSpace = createSpaceForLoadedResources(networks, resources, "network");
             setTimeout(() => injectResources(newSpace, resources, "network"), 0);
         }
-        if (hasFeature(Feature.NEW_VM_UI)) {
-            const newSpace = createSpaceForLoadedResources(privateNetworks, resources, "private_network");
-            setTimeout(() => injectResources(newSpace, resources, "private_network"), 0);
-        }
+        const newSpace = createSpaceForLoadedResources(privateNetworks, resources, "private_network");
+        setTimeout(() => injectResources(newSpace, resources, "private_network"), 0);
 
         folders.setErrors({});
         ingress.setErrors({});
@@ -959,11 +956,6 @@ export const Create: React.FunctionComponent = () => {
                             {...ingress}
                             application={application}
                             bindLinkToPort={bindLinkToPort}
-                        />
-
-                        <PeerResource
-                            {...peers}
-                            application={application}
                         />
 
                         <PrivateNetworkResource

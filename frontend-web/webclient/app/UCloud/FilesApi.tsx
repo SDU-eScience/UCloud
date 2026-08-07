@@ -100,7 +100,6 @@ import {GuessedFile} from "magic-bytes.js/dist/model/tree";
 import {sendFailureNotification, sendInformationNotification, sendSuccessNotification} from "@/Notifications";
 import {terminalOpen, terminalOpenTab} from "@/Terminal/State";
 import {genericSet} from "@/Utilities/ReduxHooks";
-import {Feature, hasFeature} from "@/Features";
 import {registerJobBackgroundTask} from "@/Services/BackgroundTasks/JobBackgroundTask";
 import {UcxSpinner} from "@/UCX/UcxView";
 
@@ -415,8 +414,6 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
     }
 
     public retrieveActions(): ResourceApiActions<UFile, ProductStorage, FileBrowseCallbacks> {
-        if (!hasFeature(Feature.NEW_CONTEXT_MENU)) return this.retrieveOperations();
-
         const operations = this.retrieveOperations();
         const findOperation = (predicate: (operation: Operation<UFile, FileBrowseCallbacks>) => boolean) => {
             const operation = operations.find(predicate);
