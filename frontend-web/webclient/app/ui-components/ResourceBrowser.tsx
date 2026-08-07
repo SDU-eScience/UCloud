@@ -698,7 +698,9 @@ export class ResourceBrowser<T> {
                 removeThemeListener(this.uniqueListenerId);
                 removeProjectListener(this.uniqueListenerId);
                 this.actionBarRoot?.unmount();
+                this.actionBarRoot = undefined;
                 this.actionMenuRoot?.unmount();
+                this.actionMenuRoot = undefined;
 
                 window.clearInterval(unmountInterval);
             }
