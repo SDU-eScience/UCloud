@@ -15,13 +15,13 @@ import (
 // policyCache is a mapping of projectId -> map[schemaName] -> PolicySpecification
 var policyCache struct {
 	Mu                sync.RWMutex
-	PoliciesByProject map[string]map[string]*fndapi.PolicySpecification
+	PoliciesByProject map[string]map[fndapi.PolicyName]fndapi.Specification
 }
 
 func initPolicySubscriptions() {
 
 	policyCache.Mu.Lock()
-	policyCache.PoliciesByProject = make(map[string]map[string]*fndapi.PolicySpecification)
+	policyCache.PoliciesByProject = make(map[string]map[fndapi.PolicyName]fndapi.Specification)
 	policyCache.Mu.Unlock()
 
 	go func() {
@@ -29,7 +29,7 @@ func initPolicySubscriptions() {
 		policyDeletes := db.Listen(context.Background(), "policy_deleted")
 
 		var projectId string
-		var policySpecifications map[string]*fndapi.PolicySpecification
+		var policySpecifications map[fndapi.PolicyName]fndapi.Specification
 		var policiesOk bool
 
 		for {
@@ -56,7 +56,7 @@ func initPolicySubscriptions() {
 
 // policiesByProject returns mapping of [schema Name] => PolicySpecification. If no policy is cached for the project it
 // will attempt to retrieve it from DB. This is also how it is populated.
-func policiesByProject(projectId string) map[string]*fndapi.PolicySpecification {
+func policiesByProject(projectId string) map[fndapi.PolicyName]fndapi.Specification {
 	policyCache.Mu.Lock()
 	projectPolicies, ok := policyCache.PoliciesByProject[projectId]
 	if !ok {
@@ -73,7 +73,7 @@ func policiesByProject(projectId string) map[string]*fndapi.PolicySpecification 
 	return projectPolicies
 }
 
-func updatePolicyCacheForProject(projectId string, policySpecifications map[string]*fndapi.PolicySpecification) {
+func updatePolicyCacheForProject(projectId string, policySpecifications map[fndapi.PolicyName]fndapi.Specification) {
 	policyCache.Mu.Lock()
 	policyCache.PoliciesByProject[projectId] = policySpecifications
 	policyCache.Mu.Unlock()

@@ -49,7 +49,7 @@ func initProviderNotifications() {
 	providerNotifications.PoliciesByProvider = map[string]map[string]chan fndapi.PoliciesForProject{}
 
 	policyCache.Mu.Lock()
-	policyCache.PoliciesByProject = make(map[string]map[string]*fndapi.PolicySpecification)
+	policyCache.PoliciesByProject = make(map[string]map[fndapi.PolicyName]fndapi.Specification)
 	policyCache.Mu.Unlock()
 
 	go func() {
@@ -67,7 +67,7 @@ func initProviderNotifications() {
 			var walletId AccWalletId
 			var walletOk bool
 
-			var policySpecifications map[string]*fndapi.PolicySpecification
+			var policySpecifications map[fndapi.PolicyName]fndapi.Specification
 			var projectIdForPolices string
 			var policiesOk bool
 
@@ -340,6 +340,16 @@ func providerNotificationHandleClient(conn *ws.Conn) {
 				}
 			}
 		}
+
+		updatedPolicies := coreutil.PoliciesListUpdatedAfter(now)
+		for _, p := range updatedPolicies {
+			select {
+			case <-ctx.Done():
+				return
+			case policyUpdates <- p:
+			}
+		}
+
 	}()
 
 	// Request processing

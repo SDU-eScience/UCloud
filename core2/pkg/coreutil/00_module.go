@@ -240,17 +240,70 @@ func ProjectsListUpdatedAfter(timestamp time.Time) []rpc.ProjectId {
 }
 
 func PoliciesListUpdatedAfter(timestamp time.Time) []fndapi.PoliciesForProject {
-	return db.NewTx(func(tx *db.Transaction= []fndapi.PoliciesForProject) {
+	return db.NewTx(func(tx *db.Transaction) []fndapi.PoliciesForProject {
 		rows := db.Select[struct {
-			policyName string
-			projectId  string
-			policyProperties string
+			ProjectId        string
+			PolicyName       string
+			PolicyProperties string
 		}](
 			tx,
-			``,
+			`
+				select
+					project_id,
+					policy_name,
+					policy_properties
+				from project.policies
+				where modified_at > :timestamp
+				order by project_id
+			`,
 			db.Params{
 				"timestamp": timestamp,
-			})
+			},
+		)
+
+		result := make([]fndapi.PoliciesForProject, 0)
+		projects := make(map[string]int)
+
+		for _, row := range rows {
+			projectId := row.ProjectId
+
+			index, ok := projects[projectId]
+			if !ok {
+				index = len(result)
+				projects[projectId] = index
+
+				result = append(result, fndapi.PoliciesForProject{
+					ProjectId:      projectId,
+					PoliciesByName: make(map[fndapi.PolicyName]fndapi.Specification),
+				})
+			}
+
+			policyName := fndapi.PolicyName(row.PolicyName)
+
+			decoder, ok := fndapi.SpecificationDecoders[policyName]
+			if !ok {
+				log.Warn("Unknown policy %s", policyName)
+				continue
+			}
+
+			specification, err := decoder(
+				[]byte(row.PolicyProperties),
+				rpc.ProjectId(row.ProjectId),
+			)
+			if err != nil {
+				log.Warn(
+					"Failed to decode policy %s for project %s: %v",
+					policyName,
+					projectId,
+					err,
+				)
+				continue
+			}
+
+			result[index].PoliciesByName[policyName] = specification
+		}
+
+		return result
 	})
 }
 
