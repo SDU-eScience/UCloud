@@ -329,10 +329,6 @@ const Allocations: React.FunctionComponent = () => {
         />
     }
 
-    React.useEffect(() => {
-        resetOpenNodes();
-    }, [projectId]);
-
     const listRef = useRef<VariableSizeList<number[]>>(null);
 
     return <MainContainer

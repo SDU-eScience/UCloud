@@ -9,8 +9,6 @@ import {
     normalizedBalanceToRaw,
     ProductCategoryV2,
     ProductType,
-    productTypes,
-    productTypeToName,
     UsageAndQuota
 } from "@/Accounting";
 import {Tree, TreeAction, TreeApi, TreeNode} from "@/ui-components/Tree";
@@ -1421,6 +1419,11 @@ export function SubProjectList({
         setFiltersShown(true);
     }, []);
 
+    React.useEffect(() => {
+        resetOpenNodes();
+        listRef.current?.resetAfterIndex(0);
+    }, [projectId, state.subAllocations.recipients, state.searchQuery]);
+
     const rerender = useForcedRender();
     const setNodeStateHack = useCallback((action: TreeAction, reference: string, group?: string | null) => {
         setNodeState(action, reference, group);
@@ -1436,6 +1439,7 @@ export function SubProjectList({
         }
         return ids;
     }, [state.subAllocations.recipients]);
+
 
     const childProjectInfo = useProjectInfos(childProjectIds);
 
