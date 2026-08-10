@@ -57,6 +57,23 @@ export interface ApplicationMetadata {
     public: boolean;
     flavorName?: string;
     groupId?: number | null;
+    variant?: ApplicationVariant;
+}
+
+export interface ApplicationVariant {
+    id: number;
+    revisionId: number;
+    baseApplication: NameAndVersion;
+    createdBy: string;
+    project?: string;
+    image: string;
+    imageDigest: string;
+    provider: string;
+    title: string;
+    publishedToProject: boolean;
+    state: "PENDING" | "ACTIVE" | "FAILED" | "DELETED";
+    failure?: string;
+    createdAt: number;
 }
 
 export interface ApplicationInvocationDescription {

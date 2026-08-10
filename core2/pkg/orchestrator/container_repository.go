@@ -169,7 +169,7 @@ func initContainerRepositories() {
 }
 
 func ContainerRepositoryCreate(actor rpc.Actor, request fndapi.BulkRequest[orcapi.ContainerRepositorySpecification]) ([]orcapi.ContainerRepository, *util.HttpError) {
-	if !actor.Project.Present || !actor.Membership[actor.Project.Value].Satisfies(rpc.ProjectRoleAdmin) {
+	if actor.Project.Present && !actor.Membership[actor.Project.Value].Satisfies(rpc.ProjectRoleAdmin) {
 		return nil, util.HttpErr(http.StatusForbidden, "you need project administrator privileges to do this operation")
 	}
 

@@ -920,7 +920,7 @@ function ContainerRepositoryCreate({products, onCreate, onCancel}: ContainerRepo
         <Box>
             <Heading.h3>Create a container repository</Heading.h3>
             <Box mt="8px">
-                Container repositories store container images for your projects and can be used to control access to them.
+                Container repositories store container images for your workspace and control access to them.
             </Box>
         </Box>
 

@@ -123,6 +123,8 @@ func initProducts() {
 
 		if allowContainer {
 			support.Docker.Enabled = true
+			support.Docker.ApplicationVariants = ServiceConfig.Registry.Enabled
+			support.Docker.ContainerSnapshots = ServiceConfig.Registry.Enabled
 			support.Docker.Web = ServiceConfig.Compute.Web.Enabled
 			support.Docker.Vnc = ServiceConfig.Compute.Web.Enabled
 			support.Docker.Logs = true

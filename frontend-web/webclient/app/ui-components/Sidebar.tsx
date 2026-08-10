@@ -1182,7 +1182,7 @@ function SecondarySidebar({
                     tab={SidebarTabId.FILES}
                 />
 
-                {!hasFeature(Feature.CONTAINER_REPOSITORIES) || isPersonalWorkspace ? null : <>
+                {!hasFeature(Feature.CONTAINER_REPOSITORIES) ? null : <>
                     <SidebarSectionHeader tab={SidebarTabId.FILES} to={AppRoutes.containerRepositories.browse()}>Registries</SidebarSectionHeader>
                     <SidebarEntry
                         to={AppRoutes.containerRepositories.browse()}

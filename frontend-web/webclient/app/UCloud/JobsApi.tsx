@@ -27,6 +27,8 @@ import {apiRetrieve, apiUpdate} from "@/Authentication/DataHook";
 import AppRoutes from "@/Routes";
 import {ThemeColor} from "@/ui-components/theme";
 import {Application, ApplicationParameter, NameAndVersion} from "@/Applications/AppStoreApi";
+import {BackgroundTask} from "@/Services/BackgroundTasks/BackgroundTask";
+import {openCreateApplicationVariant} from "@/Applications/Jobs/CreateApplicationVariant";
 
 export interface DynamicParameters {
     parametersByProvider: Record<string, ApplicationParameter[]>;
@@ -133,6 +135,8 @@ export interface DockerSupport {
     timeExtension?: boolean;
     utilization?: boolean;
     bindLinkToPort?: boolean;
+    applicationVariants?: boolean;
+    containerSnapshots?: boolean;
 }
 
 export interface VirtualMachineSupport {
@@ -165,6 +169,13 @@ export interface ComputeUtilization {
 export interface ExtendRequest {
     jobId: string;
     requestedTime: SimpleDuration;
+}
+
+export interface CreateApplicationVariantRequest {
+    jobId: string;
+    rank: number;
+    title: string;
+    publishedToProject: boolean;
 }
 
 export type ResumeRequest = FindByStringId;
@@ -278,7 +289,7 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
             if (resource == null || browseType !== BrowseType.Card) return null;
             return (
                 <ListRowStat>
-                    {resource.status.resolvedApplication?.metadata?.title ?? resource.specification.application.name}
+                    {resource.status.resolvedApplication?.metadata?.flavorName ?? resource.status.resolvedApplication?.metadata?.title ?? resource.specification.application.name}
                     {" "}
                     {resource.specification.application.version}
                 </ListRowStat>
@@ -344,6 +355,25 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
         }];
 
         ourOps.push({
+            enabled: selected => {
+                if (selected.length !== 1) return false;
+                const job = selected[0];
+                const support = job.status.resolvedSupport?.support as ComputeSupport | undefined;
+                return job.status.state === "RUNNING" &&
+                    job.owner.project != null &&
+                    job.permissions.myself.includes("EDIT") &&
+                    job.status.resolvedApplication?.invocation.tool.tool?.description.backend === "DOCKER" &&
+                    support?.docker.applicationVariants === true &&
+                    support?.docker.containerSnapshots === true;
+            },
+            icon: "heroSquare3Stack3D",
+            onClick: ([job], callbacks) => {
+                openCreateApplicationVariant(job, request => callbacks.invokeCommand<BackgroundTask>(this.createApplicationVariant(request)));
+            },
+            text: "Save as...",
+        });
+
+        ourOps.push({
             enabled(selected) {
                 // NOTE(Dan): This should work regardless of job and job state. Even for provider registered
                 // jobs this shouldn't be an issue since this is just a name used by the end-user.
@@ -362,6 +392,10 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
 
     terminate(request: BulkRequest<FindByStringId>): APICallParameters<BulkRequest<FindByStringId>, BulkResponse<any | null>> {
         return apiUpdate(request, this.baseContext, "terminate");
+    }
+
+    createApplicationVariant(request: CreateApplicationVariantRequest): APICallParameters<CreateApplicationVariantRequest, BackgroundTask> {
+        return apiUpdate(request, this.baseContext, "createApplicationVariant");
     }
 
     /* Untested */

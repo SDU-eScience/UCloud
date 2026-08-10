@@ -144,11 +144,7 @@ class ContainerRepositoriesApi extends ResourceApi<
                 }));
                 if (!anySupported) return false;
 
-                if (!Client.hasActiveProject) {
-                    return "Container repositories can only be created in a project.";
-                }
-
-                if (!callbacks.isWorkspaceAdmin) {
+                if (Client.hasActiveProject && !callbacks.isWorkspaceAdmin) {
                     return "Only project administrators can create a new container repository!";
                 }
                 return true;

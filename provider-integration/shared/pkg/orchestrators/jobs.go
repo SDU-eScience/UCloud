@@ -393,6 +393,8 @@ type JobSupport struct {
 	Product apm.ProductReference `json:"product"`
 	Docker  struct {
 		UniversalBackendSupport
+		ApplicationVariants bool `json:"applicationVariants,omitempty"`
+		ContainerSnapshots  bool `json:"containerSnapshots,omitempty"`
 	} `json:"docker"`
 	VirtualMachine struct {
 		UniversalBackendSupport
@@ -635,6 +637,20 @@ var JobsUpdateLabels = rpc.Call[fnd.BulkRequest[JobsUpdateLabelsRequest], util.E
 	Operation:   "updateLabels",
 }
 
+type JobsCreateApplicationVariantRequest struct {
+	JobId              string `json:"jobId"`
+	Rank               int    `json:"rank"`
+	Title              string `json:"title"`
+	PublishedToProject bool   `json:"publishedToProject"`
+}
+
+var JobsCreateApplicationVariant = rpc.Call[JobsCreateApplicationVariantRequest, fnd.Task]{
+	BaseContext: jobNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "createApplicationVariant",
+}
+
 // Job Control API
 // =====================================================================================================================
 
@@ -815,6 +831,21 @@ var JobsProviderRequestDynamicParameters = rpc.Call[JobsProviderRequestDynamicPa
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesPrivileged,
 	Operation:   "requestDynamicParameters",
+}
+
+type JobsProviderCreateApplicationVariantRequest struct {
+	Job         Job    `json:"job"`
+	VariantId   int64  `json:"variantId"`
+	Image       string `json:"image"`
+	Rank        int    `json:"rank"`
+	RequestedBy string `json:"requestedBy"`
+}
+
+var JobsProviderCreateApplicationVariant = rpc.Call[JobsProviderCreateApplicationVariantRequest, fnd.Task]{
+	BaseContext: jobProviderNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesPrivileged,
+	Operation:   "createApplicationVariant",
 }
 
 var JobsProviderOpenTerminalInFolder = rpc.Call[fnd.BulkRequest[JobsOpenTerminalInFolderRequestItem], fnd.BulkResponse[OpenSession]]{

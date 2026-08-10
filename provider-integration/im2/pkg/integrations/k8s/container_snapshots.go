@@ -23,6 +23,7 @@ import (
 	"ucloud.dk/pkg/integrations/k8s/containers"
 	"ucloud.dk/pkg/integrations/k8s/registry"
 	"ucloud.dk/pkg/integrations/k8s/shared"
+	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
@@ -35,6 +36,8 @@ const (
 	containerSnapshotTokenAnnotation   = "ucloud.dk/containerSnapshotTokenId"
 	containerSnapshotStopAnnotation    = "ucloud.dk/containerSnapshotStopRequested"
 	containerSnapshotCleanupAnnotation = "ucloud.dk/containerSnapshotCleanupRequested"
+	containerSnapshotVariantAnnotation = "ucloud.dk/containerSnapshotVariantId"
+	containerSnapshotTaskAnnotation    = "ucloud.dk/containerSnapshotTaskId"
 )
 
 var containerSnapshotImagePattern = regexp.MustCompile(`^[a-z0-9]+([._-][a-z0-9]+)*(/[a-z0-9]+([._-][a-z0-9]+)*)*:[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$`)
@@ -79,6 +82,14 @@ func initContainerSnapshots() {
 }
 
 func startContainerSnapshot(jobId, image string, rank int) (string, *util.HttpError) {
+	return startContainerSnapshotEx(jobId, image, rank, 0, 0, true)
+}
+
+func startContainerSnapshotAsync(jobId, image string, rank int, variantId int64, taskId int) (string, *util.HttpError) {
+	return startContainerSnapshotEx(jobId, image, rank, variantId, taskId, false)
+}
+
+func startContainerSnapshotEx(jobId, image string, rank int, variantId int64, taskId int, wait bool) (string, *util.HttpError) {
 	if !containerSnapshotImagePattern.MatchString(image) {
 		return "", util.HttpErr(http.StatusBadRequest, "image must use a lowercase repository path and include a valid tag")
 	}
@@ -92,9 +103,6 @@ func startContainerSnapshot(jobId, image string, rank int) (string, *util.HttpEr
 	}
 	if job.Status.State != orc.JobStateRunning {
 		return "", util.HttpErr(http.StatusBadRequest, "job must be running")
-	}
-	if !job.Owner.Project.Present || job.Owner.Project.Value == "" {
-		return "", util.HttpErr(http.StatusBadRequest, "job must belong to a project")
 	}
 	if rank < 0 || rank >= job.Specification.Replicas {
 		return "", util.HttpErr(http.StatusBadRequest, "rank must be between 0 and %d", job.Specification.Replicas-1)
@@ -122,7 +130,7 @@ func startContainerSnapshot(jobId, image string, rank int) (string, *util.HttpEr
 		containerId = value
 	}
 
-	repository, herr := registry.RepositoryFindProjectDefault(job.Owner.Project.Value)
+	repository, herr := registry.RepositoryFindDefault(job.Owner)
 	if herr != nil {
 		return "", herr
 	}
@@ -198,6 +206,10 @@ nerdctl --address "$CONTAINERD_ADDRESS" --namespace "$CONTAINERD_NAMESPACE" $NER
 			},
 		},
 	}
+	if variantId > 0 {
+		helpJob.Annotations[containerSnapshotVariantAnnotation] = strconv.FormatInt(variantId, 10)
+		helpJob.Annotations[containerSnapshotTaskAnnotation] = strconv.Itoa(taskId)
+	}
 	if util.DevelopmentModeEnabled() {
 		helpJob.Spec.Template.Spec.HostAliases = []core.HostAlias{{
 			IP: shared.ProviderHostname, Hostnames: []string{shared.ServiceConfig.Registry.Host},
@@ -258,12 +270,19 @@ nerdctl --address "$CONTAINERD_ADDRESS" --namespace "$CONTAINERD_NAMESPACE" $NER
 		registry.RevokeSnapshotToken(token.Id)
 		return "", util.HttpErrorFromErr(kerr)
 	}
+	message := "Saving the container. Your job is paused while this finishes. This usually takes a few minutes."
+	if variantId > 0 {
+		message = "Saving your application variant. Your job is paused while this finishes. This usually takes a few minutes."
+	}
 	_ = controller.JobTrackMessage([]controller.JobMessage{{
 		JobId:   job.Id,
-		Message: fmt.Sprintf("Container snapshot to %s started. The job cannot stop until snapshotting finishes.", destination),
+		Message: message,
 	}})
 
 	execution := monitorContainerSnapshot(name)
+	if !wait {
+		return destination, nil
+	}
 	result := <-execution.Done
 	if result.Err != "" {
 		return "", util.ServerHttpError("container snapshot failed: %s", result.Err)
@@ -321,6 +340,67 @@ func runContainerSnapshotMonitor(name string, execution *containerSnapshotExecut
 	jobId := ""
 	stopRequested := false
 	cleanupRequested := false
+	if snapshotJob != nil {
+		jobId = snapshotJob.Labels[containerSnapshotJobLabel]
+		stopRequested = snapshotJob.Annotations[containerSnapshotStopAnnotation] == "true"
+		cleanupRequested = snapshotJob.Annotations[containerSnapshotCleanupAnnotation] == "true"
+	}
+
+	variantId, _ := strconv.ParseInt(snapshotJobAnnotation(snapshotJob, containerSnapshotVariantAnnotation), 10, 64)
+	taskId, _ := strconv.Atoi(snapshotJobAnnotation(snapshotJob, containerSnapshotTaskAnnotation))
+	if variantId > 0 && taskId > 0 {
+		if result.Err == "" {
+			if job, ok := controller.JobRetrieve(jobId); ok {
+				validated, validationErr := registry.ValidateApplicationVariantImage(job.Owner, result.Image, job.Owner.Project.Present)
+				if validationErr != nil {
+					result.Err = validationErr.Why
+				} else {
+					callback := orc.ApplicationVariantCompleteSnapshotRequest{
+						VariantId: variantId, TaskId: taskId, Image: validated.Image, ImageDigest: validated.ImageDigest,
+					}
+					for {
+						_, callbackErr := orc.ApplicationVariantsControlCompleteSnapshot.Invoke(callback)
+						if callbackErr == nil {
+							break
+						}
+						if callbackErr.StatusCode < 500 {
+							result.Err = "image was published, but variant activation failed: " + callbackErr.Why
+							break
+						}
+						time.Sleep(2 * time.Second)
+					}
+				}
+			} else {
+				result.Err = "source job is no longer available"
+			}
+		}
+		if result.Err != "" {
+			failure := orc.ApplicationVariantCompleteSnapshotRequest{
+				VariantId: variantId, TaskId: taskId, Failure: util.OptValue(result.Err),
+			}
+			for {
+				_, callbackErr := orc.ApplicationVariantsControlCompleteSnapshot.Invoke(failure)
+				if callbackErr == nil || callbackErr.StatusCode < 500 {
+					break
+				}
+				time.Sleep(2 * time.Second)
+			}
+			postContainerSnapshotTask(
+				taskId,
+				fnd.TaskStateFailure,
+				"We could not save your application variant. "+result.Err,
+				util.OptNone[string](),
+			)
+		} else {
+			postContainerSnapshotTask(
+				taskId,
+				fnd.TaskStateSuccess,
+				"Your application variant is ready",
+				util.OptValue(fmt.Sprintf("Image location: %s", result.Image)),
+			)
+		}
+	}
+
 	for {
 		containerSnapshotExecutions.Lock()
 		if current, err := shared.K8sClient.BatchV1().Jobs(namespace).Get(context.Background(), name, meta.GetOptions{}); err == nil {
@@ -349,9 +429,15 @@ func runContainerSnapshotMonitor(name string, execution *containerSnapshotExecut
 	releaseContainerSnapshotReservation(name)
 
 	if jobId != "" {
-		message := fmt.Sprintf("Container snapshot finished: %s", result.Image)
+		message := fmt.Sprintf("The container is ready. Image location: %s", result.Image)
+		if variantId > 0 {
+			message = fmt.Sprintf("Your application variant is ready. Image location: %s", result.Image)
+		}
 		if result.Err != "" {
-			message = fmt.Sprintf("Container snapshot failed: %s", result.Err)
+			message = fmt.Sprintf("We could not save the container. %s", result.Err)
+			if variantId > 0 {
+				message = fmt.Sprintf("We could not save your application variant. %s", result.Err)
+			}
 		}
 		_ = controller.JobTrackMessage([]controller.JobMessage{{JobId: jobId, Message: message}})
 	}
@@ -363,6 +449,13 @@ func runContainerSnapshotMonitor(name string, execution *containerSnapshotExecut
 
 	execution.Done <- result
 	close(execution.Done)
+}
+
+func snapshotJobAnnotation(job *batch.Job, key string) string {
+	if job == nil {
+		return ""
+	}
+	return job.Annotations[key]
 }
 
 func containerSnapshotLogs(name string) string {

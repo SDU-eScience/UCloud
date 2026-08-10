@@ -3,6 +3,7 @@ package foundation
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"runtime"
@@ -188,13 +189,18 @@ func lTaskPersist(b *db.Batch, task *internalTask) {
 	// NOTE(Dan): Do not insert a check on the dirty flag here.
 	task.Dirty = false
 
+	meta := util.OptNone[string]()
+	if task.Task.Meta.Present {
+		meta.Set(string(task.Task.Meta.Value))
+	}
+
 	db.BatchExec(
 		b,
 		`
-			insert into task.tasks_v2(id, created_at, modified_at, created_by, owned_by, state, progress, 
-				can_pause, can_cancel, progress_percentage, icon, body, title)  
+			insert into task.tasks_v2(id, created_at, modified_at, created_by, owned_by, state, progress,
+				can_pause, can_cancel, progress_percentage, icon, body, title, meta)
 			values (:id, :created_at, :modified_at, :created_by, :provider, :state, :progress, :can_pause, :can_cancel,
-				:progress_percent, :icon, :body, :title)
+				:progress_percent, :icon, :body, :title, :meta)
 			on conflict (id) do update set
 				modified_at = excluded.modified_at,
 				state = excluded.state,
@@ -204,7 +210,8 @@ func lTaskPersist(b *db.Batch, task *internalTask) {
 				can_cancel = excluded.can_cancel,
 				icon = excluded.icon,
 				body = excluded.body,
-				title = excluded.title
+				title = excluded.title,
+				meta = excluded.meta
 	    `,
 		db.Params{
 			"id":               task.Id,
@@ -220,6 +227,7 @@ func lTaskPersist(b *db.Batch, task *internalTask) {
 			"icon":             task.Task.Icon.Sql(),
 			"body":             task.Task.Status.Body.Sql(),
 			"title":            task.Task.Status.Title.Sql(),
+			"meta":             meta.Sql(),
 		},
 	)
 }
@@ -293,6 +301,7 @@ func taskLoad(id util.Option[taskId], username util.Option[string]) {
 			Icon               sql.Null[string]
 			Body               sql.Null[string]
 			Title              sql.Null[string]
+			Meta               sql.Null[string]
 		}](
 			tx,
 			`
@@ -309,7 +318,8 @@ func taskLoad(id util.Option[taskId], username util.Option[string]) {
 					progress_percentage,
 					icon,
 					body,
-					title
+					title,
+					meta
 				from
 					task.tasks_v2
 				where
@@ -343,6 +353,11 @@ func taskLoad(id util.Option[taskId], username util.Option[string]) {
 				progressPercent.Clear()
 			}
 
+			meta := util.OptNone[json.RawMessage]()
+			if row.Meta.Valid {
+				meta.Set(json.RawMessage(row.Meta.V))
+			}
+
 			result = append(result, &internalTask{
 				Id: taskId(row.Id),
 				Task: &fndapi.Task{
@@ -352,6 +367,7 @@ func taskLoad(id util.Option[taskId], username util.Option[string]) {
 					CreatedBy:  row.CreatedBy,
 					Provider:   row.ProviderId,
 					Icon:       util.SqlNullToOpt(row.Icon),
+					Meta:       meta,
 					Status: fndapi.TaskStatus{
 						State:              fndapi.TaskState(row.State),
 						Title:              util.SqlNullToOpt(row.Title),
@@ -441,6 +457,9 @@ func TaskCreate(actor rpc.Actor, task fndapi.TasksCreateRequest) (fndapi.Task, *
 	util.ValidateStringIfPresent(&task.Body, "body", util.StringValidationAllowEmpty, &err)
 	util.ValidateStringIfPresent(&task.Progress, "progress", util.StringValidationAllowEmpty, &err)
 	util.ValidateStringIfPresent(&task.Icon, "icon", util.StringValidationAllowEmpty, &err)
+	if task.Meta.Present && !json.Valid(task.Meta.Value) {
+		err = util.HttpErr(http.StatusBadRequest, "meta must be valid JSON")
+	}
 	util.ValidateString(&task.User, "user", 0, &err)
 	if err != nil {
 		return fndapi.Task{}, err
@@ -473,6 +492,7 @@ func TaskCreate(actor rpc.Actor, task fndapi.TasksCreateRequest) (fndapi.Task, *
 				CanCancel: task.CanCancel,
 			},
 			Icon: task.Icon,
+			Meta: task.Meta,
 		},
 		Dirty: false, // Task is written directly to DB immediately after this
 	}

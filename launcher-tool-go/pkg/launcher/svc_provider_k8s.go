@@ -29,6 +29,9 @@ var k8sInitScript []byte
 //go:embed config/k8s/kubevirt_init.sh
 var k8sKubevirtInitScript []byte
 
+//go:embed config/k8s/registries.yaml
+var k8sRegistriesConfig []byte
+
 func ProviderK8s() {
 	provider := Service{
 		Name:     "k8s",
@@ -42,6 +45,11 @@ func ProviderK8s() {
 	storage := AddDirectory(provider, "storage")
 	imConfig := AddDirectory(provider, "config")
 	logDir := AddDirectory(provider, "logs")
+	k3sRegistriesConfig := ""
+	if provider.Enabled() {
+		k3sRegistriesConfig = filepath.Join(imConfig, "registries.yaml")
+		_ = os.WriteFile(k3sRegistriesConfig, k8sRegistriesConfig, 0644)
+	}
 
 	volumes := []string{
 		Mount(imConfig, "/etc/ucloud"),
@@ -71,6 +79,9 @@ func ProviderK8s() {
 		Ports:    []string{"51240:51233"},
 		Command:  []string{"sleep", "inf"},
 		Volumes:  volumes,
+		Networks: map[string]DockerComposeServiceNetwork{
+			"default": {Aliases: []string{"registry.localhost.direct"}},
+		},
 	})
 
 	writeYaml := func(path string, data map[string]any, perm os.FileMode) error {
@@ -267,6 +278,7 @@ func ProviderK8s() {
 				Mount(cni, "/var/lib/cni"),
 				Mount(kubelet, "/var/lib/kubelet"),
 				Mount(etc, "/etc/rancher"),
+				Mount(k3sRegistriesConfig, "/etc/rancher/k3s/registries.yaml"),
 				Mount(storage, "/mnt/storage"),
 				Mount(imConfig, "/etc/ucloud"),
 			},

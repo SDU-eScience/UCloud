@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"net/url"
 	"sort"
 	"strconv"
 	"strings"
@@ -13,11 +14,84 @@ import (
 	"github.com/distribution/reference"
 	"github.com/opencontainers/go-digest"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
+	"ucloud.dk/pkg/controller"
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
 )
+
+func ValidateApplicationVariantImage(owner orc.ResourceOwner, image string, requireProjectAccess bool) (orc.ApplicationVariantValidateImageResponse, *util.HttpError) {
+	server, err := url.Parse(Server())
+	if err != nil || server.Host == "" {
+		return orc.ApplicationVariantValidateImageResponse{}, util.ServerHttpError("invalid registry configuration")
+	}
+	prefix := server.Host + "/"
+	if !strings.HasPrefix(image, prefix) {
+		return orc.ApplicationVariantValidateImageResponse{}, util.HttpErr(http.StatusBadRequest, "image is not hosted by this provider")
+	}
+	referenceText := strings.TrimPrefix(image, prefix)
+	repositoryName := referenceText
+	lastSlash := strings.LastIndex(repositoryName, "/")
+	if digestIndex := strings.LastIndex(repositoryName, "@"); digestIndex > lastSlash {
+		repositoryName = repositoryName[:digestIndex]
+	} else if tagIndex := strings.LastIndex(repositoryName, ":"); tagIndex > lastSlash {
+		repositoryName = repositoryName[:tagIndex]
+	}
+	repositoryResource, ok := controller.ContainerRepositoryRetrieveByRepository(repositoryName)
+	if !ok {
+		return orc.ApplicationVariantValidateImageResponse{}, util.HttpErr(http.StatusNotFound, "container image repository not found")
+	}
+	if !controller.ResourceCanUse(owner, repositoryResource.Owner, repositoryResource.Permissions, true) {
+		return orc.ApplicationVariantValidateImageResponse{}, util.HttpErr(http.StatusForbidden, "container image is not readable")
+	}
+	if requireProjectAccess {
+		if !owner.Project.Present {
+			return orc.ApplicationVariantValidateImageResponse{}, util.HttpErr(http.StatusForbidden, "container image is not available to the project")
+		}
+		defaultRepository, defaultErr := RepositoryFindProjectDefault(owner.Project.Value)
+		if defaultErr != nil || repositoryResource.Specification.Name != defaultRepository {
+			return orc.ApplicationVariantValidateImageResponse{}, util.HttpErr(http.StatusForbidden, "shared variants must use the project's default repository")
+		}
+	}
+
+	named, nameErr := reference.WithName(repositoryName)
+	if nameErr != nil {
+		return orc.ApplicationVariantValidateImageResponse{}, util.HttpErr(http.StatusBadRequest, "invalid container image")
+	}
+	repository, repositoryErr := registryAccounting.namespace.Repository(context.Background(), named)
+	if repositoryErr != nil {
+		return orc.ApplicationVariantValidateImageResponse{}, util.HttpErr(http.StatusNotFound, "container image not found")
+	}
+	var descriptor v1.Descriptor
+	if digestIndex := strings.LastIndex(referenceText, "@"); digestIndex >= 0 {
+		parsedDigest, digestErr := digest.Parse(referenceText[digestIndex+1:])
+		if digestErr != nil {
+			return orc.ApplicationVariantValidateImageResponse{}, util.HttpErr(http.StatusBadRequest, "invalid container image digest")
+		}
+		manifests, manifestsErr := repository.Manifests(context.Background())
+		if manifestsErr != nil {
+			return orc.ApplicationVariantValidateImageResponse{}, util.HttpErr(http.StatusNotFound, "container image not found")
+		}
+		exists, existsErr := manifests.Exists(context.Background(), parsedDigest)
+		if existsErr != nil || !exists {
+			return orc.ApplicationVariantValidateImageResponse{}, util.HttpErr(http.StatusNotFound, "container image not found")
+		}
+		descriptor.Digest = parsedDigest
+	} else {
+		tagIndex := strings.LastIndex(referenceText, ":")
+		if tagIndex <= strings.LastIndex(referenceText, "/") {
+			return orc.ApplicationVariantValidateImageResponse{}, util.HttpErr(http.StatusBadRequest, "container image must include a tag or digest")
+		}
+		tag := referenceText[tagIndex+1:]
+		descriptor, err = repository.Tags(context.Background()).Get(context.Background(), tag)
+		if err != nil {
+			return orc.ApplicationVariantValidateImageResponse{}, util.HttpErr(http.StatusNotFound, "container image not found")
+		}
+	}
+	digestImage := prefix + repositoryName + "@" + descriptor.Digest.String()
+	return orc.ApplicationVariantValidateImageResponse{Image: image, ImageDigest: digestImage}, nil
+}
 
 type imageLayer struct {
 	descriptor v1.Descriptor

@@ -16,33 +16,55 @@ import (
 	"ucloud.dk/shared/pkg/util"
 )
 
-var repositoryFindProjectDefaultMu sync.Mutex
+var repositoryFindDefaultMu sync.Mutex
 
 func RepositoryFindProjectDefault(projectId string) (string, *util.HttpError) {
 	if projectId == "" {
 		return "", util.HttpErr(http.StatusBadRequest, "project ID is required")
 	}
+	return RepositoryFindDefault(orc.ResourceOwner{Project: util.OptValue(projectId)})
+}
 
-	repositoryFindProjectDefaultMu.Lock()
-	defer repositoryFindProjectDefaultMu.Unlock()
+func RepositoryFindDefault(owner orc.ResourceOwner) (string, *util.HttpError) {
+	if !owner.Project.Present && owner.CreatedBy == "" {
+		return "", util.HttpErr(http.StatusBadRequest, "repository owner is required")
+	}
 
-	providerId := "container-repository-project-" + projectId
+	repositoryFindDefaultMu.Lock()
+	defer repositoryFindDefaultMu.Unlock()
+
+	ownerType := "user"
+	ownerId := owner.CreatedBy
+	ownerTitle := owner.CreatedBy
+	if owner.Project.Present {
+		ownerType = "project"
+		ownerId = owner.Project.Value
+		project, ok := controller.ProjectRetrieve(owner.Project.Value)
+		if !ok {
+			return "", util.HttpErr(http.StatusNotFound, "project not found")
+		}
+		ownerTitle = project.Specification.Title
+	}
+	providerId := "container-repository-" + ownerType + "-" + ownerId
 	if repository, found, err := repositoryFindByProviderId(providerId); err != nil {
 		return "", err
 	} else if found {
+		if accountingErr := accountingCreateRepository(&repository); accountingErr != nil {
+			return "", accountingErr
+		}
 		controller.ContainerRepositoryTrack(repository)
 		return repository.Specification.Name, nil
 	}
 
-	project, ok := controller.ProjectRetrieve(projectId)
-	if !ok {
-		return "", util.HttpErr(http.StatusNotFound, "project not found")
-	}
-
-	baseName := repositoryProjectName(project.Specification.Title)
+	baseName := repositoryProjectName(ownerTitle)
 	for suffix := 0; ; suffix++ {
 		name := repositoryProjectNameWithSuffix(baseName, suffix)
+		createdBy := util.OptNone[string]()
+		if !owner.Project.Present {
+			createdBy.Set(owner.CreatedBy)
+		}
 		request := orc.ProviderRegisteredResource[orc.ContainerRepositorySpecification]{
+			CreatedBy: createdBy,
 			Spec: orc.ContainerRepositorySpecification{
 				Name: name,
 				ResourceSpecification: orc.ResourceSpecification{
@@ -54,8 +76,8 @@ func RepositoryFindProjectDefault(projectId string) (string, *util.HttpError) {
 				},
 			},
 			ProviderGeneratedId: util.OptValue(providerId),
-			Project:             util.OptValue(projectId),
-			ProjectAllRead:      true,
+			Project:             owner.Project,
+			ProjectAllRead:      owner.Project.Present,
 		}
 
 		response, err := orc.ContainerRepositoriesControlRegister.Invoke(fnd.BulkRequestOf(request))
@@ -85,6 +107,9 @@ func RepositoryFindProjectDefault(projectId string) (string, *util.HttpError) {
 		if repository, found, findErr := repositoryFindByProviderId(providerId); findErr != nil {
 			return "", findErr
 		} else if found {
+			if accountingErr := accountingCreateRepository(&repository); accountingErr != nil {
+				return "", accountingErr
+			}
 			controller.ContainerRepositoryTrack(repository)
 			return repository.Specification.Name, nil
 		}

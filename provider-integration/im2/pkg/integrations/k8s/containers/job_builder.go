@@ -2,8 +2,10 @@ package containers
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -18,6 +20,7 @@ import (
 	"ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/integrations/k8s/filesystem"
 	introspection "ucloud.dk/pkg/integrations/k8s/job-introspection"
+	"ucloud.dk/pkg/integrations/k8s/registry"
 	"ucloud.dk/pkg/integrations/k8s/shared"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/rpc"
@@ -26,6 +29,17 @@ import (
 
 func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	podName := idAndRankToPodName(job.Id, rank)
+	var variantPullSecret *core.Secret
+	variantPullTokenId := ""
+	keepVariantPullSecret := false
+	defer func() {
+		if variantPullSecret != nil && !keepVariantPullSecret {
+			_ = K8sClient.CoreV1().Secrets(ServiceConfig.Compute.Namespace).Delete(
+				context.Background(), variantPullSecret.Name, meta.DeleteOptions{},
+			)
+			registry.RevokeSnapshotToken(variantPullTokenId)
+		}
+	}()
 
 	{
 		timeout, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -478,6 +492,16 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	}
 
 	addSnapshotExcludedMounts(pod, userContainer)
+	if resolvedApplication.Metadata.Variant.Present {
+		if _, validationErr := registry.ValidateApplicationVariantImage(job.Owner, resolvedApplication.Metadata.Variant.Value.ImageDigest, false); validationErr != nil {
+			return util.HttpErr(http.StatusBadRequest, "application variant image is no longer available")
+		}
+		variantPullSecret, variantPullTokenId, herr = createApplicationVariantPullSecret(job.Owner, namespace, podName)
+		if herr != nil {
+			return herr
+		}
+		pod.Spec.ImagePullSecrets = append(pod.Spec.ImagePullSecrets, core.LocalObjectReference{Name: variantPullSecret.Name})
+	}
 
 	if herr = enforceImageRegistry(pod); herr != nil {
 		return herr
@@ -502,6 +526,11 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 			Kind:       "Pod",
 			Name:       pod.Name,
 			UID:        pod.UID,
+		}
+		if variantPullSecret != nil {
+			variantPullSecret.OwnerReferences = append(variantPullSecret.OwnerReferences, ownerReference)
+			_, _ = K8sClient.CoreV1().Secrets(namespace).Update(ctx, variantPullSecret, meta.UpdateOptions{})
+			keepVariantPullSecret = true
 		}
 	}
 	if firewall != nil && herr == nil {
@@ -750,17 +779,47 @@ func enforceImageRegistry(pod *core.Pod) *util.HttpError {
 		return util.UserHttpError("invalid container image: %s", image)
 	}
 
-	registry := reference.Domain(named)
+	registryHost := reference.Domain(named)
 	allowed := []string{"dockerregistry.cloud.sdu.dk", "dreg.cloud.sdu.dk"}
 	allowed = append(allowed, ServiceConfig.Compute.AllowedRegistries...)
 	if ServiceConfig.Registry.Enabled {
 		allowed = append(allowed, ServiceConfig.Registry.Host)
+		if util.DevelopmentModeEnabled() {
+			allowed = append(allowed, registry.Service())
+		}
 	}
 
 	for _, candidate := range allowed {
-		if strings.EqualFold(strings.TrimSpace(candidate), registry) {
+		if strings.EqualFold(strings.TrimSpace(candidate), registryHost) {
 			return nil
 		}
 	}
-	return util.UserHttpError("container images from registry %s are not allowed", registry)
+	return util.UserHttpError("container images from registry %s are not allowed", registryHost)
+}
+
+func createApplicationVariantPullSecret(owner orc.ResourceOwner, namespace, podName string) (*core.Secret, string, *util.HttpError) {
+	token, herr := registry.CreatePullToken(owner, time.Hour)
+	if herr != nil {
+		return nil, "", herr
+	}
+	credentials := base64.StdEncoding.EncodeToString([]byte("ucloud:" + token.Secret))
+	configuration, _ := json.Marshal(map[string]any{
+		"auths": map[string]any{
+			registry.Service(): map[string]string{
+				"username": "ucloud",
+				"password": token.Secret,
+				"auth":     credentials,
+			},
+		},
+	})
+	secret, err := K8sClient.CoreV1().Secrets(namespace).Create(context.Background(), &core.Secret{
+		ObjectMeta: meta.ObjectMeta{GenerateName: podName + "-registry-"},
+		Type:       core.SecretTypeDockerConfigJson,
+		Data:       map[string][]byte{core.DockerConfigJsonKey: configuration},
+	}, meta.CreateOptions{})
+	if err != nil {
+		registry.RevokeSnapshotToken(token.Id)
+		return nil, "", util.HttpErrorFromErr(err)
+	}
+	return secret, token.Id, nil
 }

@@ -199,9 +199,12 @@ var ApiTokensOptionsCache = util.NewCache[string, orcapi.ApiTokenOptions](5 * ti
 
 func ApiTokenRetrieveOptions(actor rpc.Actor) orcapi.ApiTokenRetrieveOptionsResponse {
 	providers, err := accapi.FindRelevantProviders.Invoke(fndapi.BulkRequestOf(accapi.FindRelevantProvidersRequest{
-		Username:         actor.Username,
+		Username: actor.Username,
+		Project: util.OptMap(actor.Project, func(project rpc.ProjectId) string {
+			return string(project)
+		}),
 		IncludeFreeToUse: util.OptValue(false),
-		UseProject:       false,
+		UseProject:       true,
 	}))
 
 	optionsByProvider := map[string]orcapi.ApiTokenOptions{}

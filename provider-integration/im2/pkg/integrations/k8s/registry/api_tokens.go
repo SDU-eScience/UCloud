@@ -31,8 +31,32 @@ type SnapshotToken struct {
 }
 
 func CreateSnapshotToken(owner orcapi.ResourceOwner, lifetime time.Duration) (SnapshotToken, *util.HttpError) {
+	return createShortLivedToken(
+		owner,
+		lifetime,
+		"Container snapshot",
+		"Short-lived token used to publish a container snapshot.",
+		[]string{"pull", "push"},
+	)
+}
+
+func CreatePullToken(owner orcapi.ResourceOwner, lifetime time.Duration) (SnapshotToken, *util.HttpError) {
+	return createShortLivedToken(
+		owner,
+		lifetime,
+		"Application variant image pull",
+		"Short-lived token used to pull an application variant image.",
+		[]string{"pull"},
+	)
+}
+
+func createShortLivedToken(owner orcapi.ResourceOwner, lifetime time.Duration, title, description string, actions []string) (SnapshotToken, *util.HttpError) {
 	now := time.Now()
 	tokenId := util.SecureToken()
+	permissions := make([]orcapi.ApiTokenPermission, 0, len(actions))
+	for _, action := range actions {
+		permissions = append(permissions, orcapi.ApiTokenPermission{Name: containerRepositoryApiTokenKind, Action: action})
+	}
 	request := orcapi.ApiToken{
 		Resource: orcapi.Resource{
 			Id:        tokenId,
@@ -40,13 +64,10 @@ func CreateSnapshotToken(owner orcapi.ResourceOwner, lifetime time.Duration) (Sn
 			Owner:     owner,
 		},
 		Specification: orcapi.ApiTokenSpecification{
-			Title:       "Container snapshot",
-			Description: "Short-lived token used to publish a container snapshot.",
-			RequestedPermissions: []orcapi.ApiTokenPermission{
-				{Name: containerRepositoryApiTokenKind, Action: "pull"},
-				{Name: containerRepositoryApiTokenKind, Action: "push"},
-			},
-			ExpiresAt: fnd.Timestamp(now.Add(lifetime)),
+			Title:                title,
+			Description:          description,
+			RequestedPermissions: permissions,
+			ExpiresAt:            fnd.Timestamp(now.Add(lifetime)),
 		},
 	}
 	status, err := controller.ApiTokenCreate(containerRepositoryApiTokenKind, Server(), request)

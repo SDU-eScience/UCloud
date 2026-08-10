@@ -116,6 +116,7 @@ var appCatalogGlobals struct {
 type appCatalogBucket struct {
 	Mu                     sync.RWMutex
 	Applications           map[string][]*internalApplication // sorted with the oldest first and newest last
+	ApplicationVariants    map[int64]*internalApplicationVariant
 	ApplicationPermissions map[string][]orcapi.AclEntity
 	Tools                  map[string][]*internalTool
 	Groups                 map[AppGroupId]*internalAppGroup
@@ -196,6 +197,7 @@ type internalApplication struct {
 	Public            bool
 	Group             util.Option[AppGroupId]
 	ModifiedAt        time.Time
+	Variant           util.Option[orcapi.ApplicationVariant]
 }
 
 type internalTool struct {
@@ -366,6 +368,15 @@ func AppIsRelevant(
 	app orcapi.Application,
 	discovery AppDiscovery,
 ) bool {
+	if app.Metadata.Variant.Present {
+		provider := app.Metadata.Variant.Value.Provider
+		if discovery.Mode == orcapi.CatalogDiscoveryModeSelected {
+			return discovery.Selected.Present && discovery.Selected.Value == provider
+		}
+		if discovery.Mode == orcapi.CatalogDiscoveryModeAvailable && !slices.Contains(appRelevantProvidersForUser(actor.Username, actor.Project), provider) {
+			return false
+		}
+	}
 	switch discovery.Mode {
 	case "", orcapi.CatalogDiscoveryModeAll:
 		return true
@@ -507,7 +518,10 @@ func AppRetrieve(
 
 	app.Mu.RLock()
 	hasPermissions := app.Public
-	if !hasPermissions {
+	if app.Variant.Present {
+		hasPermissions = applicationVariantCanRead(actor, app.Variant.Value)
+	}
+	if !hasPermissions && !app.Variant.Present {
 		if actor.Role == rpc.RoleAdmin || actor.Username == rpc.ActorSystem.Username {
 			hasPermissions = true
 		} else {
@@ -560,6 +574,7 @@ func AppRetrieve(
 						Metadata: orcapi.ApplicationGroupMetadata{Id: int(app.Group.GetOrDefault(AppGroupId(-1)))},
 					},
 					CreatedAt: fndapi.Timestamp(app.CreatedAt),
+					Variant:   app.Variant,
 				},
 			},
 			WithAppInvocation: orcapi.WithAppInvocation{
@@ -1927,6 +1942,9 @@ func AppStudioCreateApplication(app *orcapi.Application) *util.HttpError {
 
 	var err *util.HttpError
 	var result *internalApplication
+	if strings.HasPrefix(app.Metadata.Name, "variant-") {
+		return util.HttpErr(http.StatusBadRequest, "application names beginning with variant- are reserved")
+	}
 	if validationErr := validateUcxExecutableMetadata(&app.Invocation); validationErr != nil {
 		return validationErr
 	}
@@ -2052,6 +2070,9 @@ func AppStudioCreateToolDirect(tool *orcapi.Tool) *util.HttpError {
 }
 
 func AppStudioCreateTool(tool *orcapi.ToolReference) *util.HttpError {
+	if strings.HasPrefix(tool.Name, "variant-") {
+		return util.HttpErr(http.StatusBadRequest, "tool names beginning with variant- are reserved")
+	}
 	var err *util.HttpError
 	var result *internalTool
 
