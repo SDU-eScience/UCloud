@@ -1444,19 +1444,23 @@ func ProjectAcceptInviteLink(actor rpc.Actor, token string) (fndapi.ProjectInvit
 	projectPolicies.Mu.Unlock()
 
 	if hasRestrictions {
-		policySpec, restrictingMemberOrgs := projectRestrictions.EnabledPolices[fndapi.RestrictOrganizationMembers.String()]
-		if restrictingMemberOrgs {
-			var allowedOrgs []string
-			for _, property := range policySpec.Properties {
-				if property.Name == "organizations" {
-					allowedOrgs = property.TextElements
-				}
-				break
+		specification, restrictingMemberOrgs := projectRestrictions.ConfiguredPolicies[fndapi.RestrictOrganizationMembers]
+		if restrictingMemberOrgs && specification.IsEnabled() {
+			policy, ok := specification.(*fndapi.RestrictOrganizationMembersSpecification)
+			if !ok {
+				return fndapi.ProjectInviteLinkInfo{},
+					util.HttpErr(
+						http.StatusForbidden,
+						"Project does not allow your organization.",
+					)
 			}
-			for _, org := range allowedOrgs {
-				if org == actor.OrgId {
-					return fndapi.ProjectInviteLinkInfo{}, util.HttpErr(http.StatusForbidden, "Project does not allow your organization.")
-				}
+
+			if slices.Contains(policy.Values.Organizations, actor.OrgId) {
+				return fndapi.ProjectInviteLinkInfo{},
+					util.HttpErr(
+						http.StatusForbidden,
+						"Project does not allow your organization.",
+					)
 			}
 		}
 	}
@@ -1613,56 +1617,53 @@ func ProjectCreateInvite(actor rpc.Actor, recipient string) *util.HttpError {
 
 	restrictingProjectMemberOrganization := false
 	var allowedOrgs []string
+
 	if actor.Project.Present {
-		projectPolicies.Mu.Lock()
-		policies, found := projectPolicies.PoliciesByProject[actor.Project.String()]
+		projectPolicies.Mu.RLock()
+		policies, found := projectPolicies.PoliciesByProject[string(actor.Project.Value)]
+		projectPolicies.Mu.RUnlock()
+
 		if found {
-			policySpecification, restricted := policies.EnabledPolices[fndapi.RestrictOrganizationMembers.String()]
-			if restricted {
-				restrictingProjectMemberOrganization = true
-				for _, property := range policySpecification.Properties {
-					if property.Name == "organizations" {
-						allowedOrgs = property.TextElements
-						break
-					}
+			specification, ok := policies.ConfiguredPolicies[fndapi.RestrictOrganizationMembers]
+			if ok && specification.IsEnabled() {
+				policy, ok := specification.(*fndapi.RestrictOrganizationMembersSpecification)
+				if ok {
+					restrictingProjectMemberOrganization = true
+					allowedOrgs = policy.Values.Organizations
 				}
 			}
 		}
-		projectPolicies.Mu.Unlock()
 	}
 
 	if restrictingProjectMemberOrganization {
-		canBeInvited := false
-		for _, org := range allowedOrgs {
-			if org == recipientActor.OrgId {
-				canBeInvited = true
-			}
-		}
-		if !canBeInvited {
+		if !slices.Contains(allowedOrgs, recipientActor.OrgId) {
 			errorMessage := "Cannot invite user."
+
 			if len(allowedOrgs) == 0 {
-				errorMessage = errorMessage + " Invites disabled by project manager"
+				errorMessage += " Invites disabled by project manager"
 			} else {
-				errorMessage = errorMessage + " Only users from"
+				errorMessage += " Only users from"
+
 				for i, org := range allowedOrgs {
 					if i == len(allowedOrgs)-1 {
-						errorMessage = errorMessage + fmt.Sprintf(" %s", org)
+						errorMessage += fmt.Sprintf(" %s", org)
 					} else {
-						errorMessage = errorMessage + fmt.Sprintf(" %s,", org)
+						errorMessage += fmt.Sprintf(" %s,", org)
 					}
 				}
-				errorMessage = errorMessage + " allowed to be invited."
+
+				errorMessage += " allowed to be invited."
 			}
 
-			//remove invite if already sent
-			_, found := info.InvitesSent[recipientActor.Username]
-			if found {
+			// Remove invite if already sent.
+			if _, found := info.InvitesSent[recipientActor.Username]; found {
 				delete(info.InvitesSent, recipientActor.Username)
 			}
 
 			return util.HttpErr(http.StatusForbidden, errorMessage)
 		}
 	}
+
 	info.Mu.Lock()
 	alreadyAMember := false
 	for _, member := range info.Project.Status.Members {

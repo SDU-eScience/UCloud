@@ -11,21 +11,26 @@ import (
 )
 
 func syncthingIsRestricted(actor rpc.Actor) bool {
-	if actor.Project.Present {
-		policies, hasRestriction := policiesByProject(actor.Project.String())[foundation.RestrictIntegratedApplications.String()]
-		if hasRestriction {
-			isRestricted := true
-			for _, property := range policies.Properties {
-				if property.Name == "allowList" {
-					if slices.Contains(property.TextElements, "syncthing") {
-						isRestricted = false
-					}
-				}
-			}
-			return isRestricted
-		}
+	if !actor.Project.Present {
+		return false
 	}
-	return false
+
+	policies := policiesByProject(actor.Project.String())
+
+	specification, ok := policies[foundation.RestrictIntegratedApplications]
+	if !ok {
+		return false
+	}
+
+	integratedApplications, ok := specification.(*foundation.RestrictIntegratedApplicationsSpecification)
+	if !ok || !integratedApplications.IsEnabled() {
+		return false
+	}
+
+	return !slices.Contains(
+		integratedApplications.Values.AllowList,
+		"syncthing",
+	)
 }
 
 func initSyncthing() {

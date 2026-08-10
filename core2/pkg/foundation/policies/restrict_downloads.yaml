@@ -7,8 +7,7 @@ description: >
   the provider allows direct access to the data.
 
 configuration:
-  - name: "enabled"
-    type: "Bool"
+  enabled:
     title: "Enabled"
     description: >
       If enabled, downloads to the client machine are blocked. 

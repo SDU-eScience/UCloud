@@ -6,13 +6,11 @@ description: >
   are not a part of the organization.
 
 configuration:
-  - name: "enabled"
-    type: "Bool"
+  enabled:
     title: "Enabled"
     description:  >
       If enabled, invitations to users outside the specified organization are rejected.
-  - name: "organizations"
-    type: "TextList"
+  organizations:
     title: "Organizations"
     description: >
       The list of organizations which are allowed in the project.

@@ -1,18 +1,30 @@
 name: "RestrictInternetAccess"
 title: "Restrict Internet access"
+
 description: >
-  Limits outbound Internet connectivity from workloads belonging to the project.
+  Restricts outbound Internet connectivity for workloads belonging to the project.
 
 configuration:
-  - name: "enabled"
-    type: "Bool"
+  enabled:
     title: "Enabled"
     description: >
-      If enabled, restriction of internet access will be activated and a limited predefined 
-      subnet range is enforced.
-  - name: "allowedSubnets"
-    type: "Subnet"
+      If enabled, the project will only be able to access destinations that are
+      allowed by this policy.
+      If disabled, workloads have unrestricted outbound Internet access (within
+      the regular network limitations).
+
+  allowedSubnets:
     title: "Allowed subnets"
     description: >
-      Only the specified destination subnets are reachable. An empty string means 
-      no Internet access is allowed.
+      List of destination subnets that workloads in the project are allowed
+      to access.
+      
+      ```
+        An empty list indicates that no outbound Internet access is allowed.
+      
+        Any additions to the list will allow workloads to access destinations
+        within the specified subnets.
+      
+        This configuration only affects outbound Internet connectivity from
+        workloads belonging to the project.
+      ```

@@ -5,14 +5,12 @@ description: >
   Controls which providers may participate in data transfers for this project.
 
 configuration:
-  - name: "enabled"
-    type: "Bool"
+  enabled:
     title: "Enabled"
     description: >
       If enabled, users will only be able to transfer files between specific providers.
       If disabled, users can move files between any provider they have access to.
-  - name: "allowedProviders"
-    type: "Providers"
+  allowedProviders:
     title: "Allowed providers"
     description: >
       Only the listed providers may be used as source or destination for file 

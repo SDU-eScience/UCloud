@@ -96,7 +96,7 @@ func loadProjectPoliciesFromDB() {
 				projectPolicies.PoliciesByProject[row.ProjectId] = policies
 			}
 			pname := fndapi.PolicyName(row.PolicyName)
-			decoder, ok := specificationDecoders[pname]
+			decoder, ok := fndapi.SpecificationDecoders[pname]
 			if !ok {
 				log.Fatal("Unknown policy %v", row.PolicyName)
 			}

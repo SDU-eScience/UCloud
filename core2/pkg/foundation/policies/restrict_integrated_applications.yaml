@@ -7,16 +7,14 @@ description: >
     be opened from the file browser.
 
 configuration:
-    - name: "enabled"
-      type: Bool
+    enabled:
       title: "Enabled"
       description: >
         If this option is checked, then restrictions will apply and only
         applications found on the allow-list can be run. If it is not
         checked then all integrated applications can be run and the
         allow-list is ignored.
-    - name: "allowList"
-      type: EnumSet
+    allowList:
       title: "Allow-list"
       description: >
         List of applications which are explicitly allowed.

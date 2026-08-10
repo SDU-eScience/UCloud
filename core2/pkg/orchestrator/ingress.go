@@ -67,12 +67,20 @@ func initIngresses() {
 		if sourceIPisRestricted(info) {
 			return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
 		}
+
 		if info.Actor.Project.Present {
-			_, restricted := policiesByProject(string(info.Actor.Project.Value))[fndapi.RestrictPublicLinks.String()]
-			if restricted {
-				return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(http.StatusForbidden, "Project does not allow creation of public links")
+			policies := policiesByProject(info.Actor.Project.String())
+
+			specification, ok := policies[fndapi.RestrictPublicLinks]
+			if ok && specification.IsEnabled() {
+				return fndapi.BulkResponse[fndapi.FindByStringId]{},
+					util.HttpErr(
+						http.StatusForbidden,
+						"Project does not allow creation of public links",
+					)
 			}
 		}
+
 		created, err := IngressCreate(info.Actor, request)
 		if err != nil {
 			return fndapi.BulkResponse[fndapi.FindByStringId]{}, err

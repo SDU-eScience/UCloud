@@ -60,11 +60,18 @@ func initPublicIps() {
 			return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
 		}
 		if info.Actor.Project.Present {
-			_, restricted := policiesByProject(info.Actor.Project.String())[fndapi.RestrictPublicIPs.String()]
-			if restricted {
-				return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(http.StatusForbidden, "Project does not allow public IPs.")
+			policies := policiesByProject(info.Actor.Project.String())
+
+			specification, ok := policies[fndapi.RestrictPublicIPs]
+			if ok && specification.IsEnabled() {
+				return fndapi.BulkResponse[fndapi.FindByStringId]{},
+					util.HttpErr(
+						http.StatusForbidden,
+						"Project does not allow public IPs.",
+					)
 			}
 		}
+
 		created, err := PublicIpCreate(info.Actor, request)
 		if err != nil {
 			return fndapi.BulkResponse[fndapi.FindByStringId]{}, err

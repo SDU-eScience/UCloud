@@ -4,8 +4,7 @@ description: >
   Controls whether workloads in the project may be assigned public IP addresses.
 
 configuration:
-  - name: "enabled"
-    type: "Bool"
+  enabled:
     title: "Enabled"
     description: >
       If enabled, public IP creation and use is disabled. Existing public 

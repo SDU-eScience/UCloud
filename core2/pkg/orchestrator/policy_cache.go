@@ -80,28 +80,40 @@ func updatePolicyCacheForProject(projectId string, policySpecifications map[fnda
 }
 
 func sourceIPisRestricted(info rpc.RequestInfo) bool {
-	if info.Actor.Project.Present {
-		sourceIpSpecs, hasSourceRestriction := policiesByProject(info.Actor.Project.String())[fndapi.RestrictSourceIPRange.String()]
-		if hasSourceRestriction {
-			isRestricted := true
-			for _, property := range sourceIpSpecs.Properties {
-				if property.Name == "allowedClientSubnets" {
-					allowedIps := property.Text
-					if allowedIps == "" {
-						break
-					}
-					_, subnet, err := net.ParseCIDR(allowedIps)
-					if err != nil {
-						continue
-					}
-					ip := net.ParseIP(util.ClientIP(info.HttpRequest).String())
-					if subnet.Contains(ip) {
-						isRestricted = false
-					}
-				}
-			}
-			return isRestricted
-		}
+	if !info.Actor.Project.Present {
+		return false
 	}
-	return false
+
+	policies := policiesByProject(info.Actor.Project.String())
+
+	specification, ok := policies[fndapi.RestrictSourceIPRange]
+	if !ok {
+		return false
+	}
+
+	sourceIPSpecification, ok := specification.(*fndapi.RestrictSourceIPRangeSpecification)
+	if !ok {
+		return false
+	}
+
+	if !sourceIPSpecification.IsEnabled() {
+		return false
+	}
+
+	allowedSubnets := sourceIPSpecification.Values.AllowedSubnets
+	if allowedSubnets == "" {
+		return true
+	}
+
+	ip := net.ParseIP(util.ClientIP(info.HttpRequest).String())
+	if ip == nil {
+		return true
+	}
+
+	_, subnet, err := net.ParseCIDR(allowedSubnets)
+	if err != nil {
+		return true
+	}
+
+	return !subnet.Contains(ip)
 }
