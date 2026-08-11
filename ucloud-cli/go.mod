@@ -32,6 +32,4 @@ require (
 
 replace ucloud.dk/shared => ../provider-integration/shared
 
-//replace ucloud-tui.dk/gonja/v2 => ../provider-integration/gonja
-
 replace ucloud.dk/pgxscan => ../provider-integration/pgxscan
