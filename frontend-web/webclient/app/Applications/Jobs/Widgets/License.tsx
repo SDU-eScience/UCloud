@@ -43,6 +43,7 @@ export const LicenseParameter: React.FunctionComponent<LicenseProps> = props => 
     const onUse = useCallback((license: License) => {
         LicenseSetter(props.parameter, {type: "license_server", id: license.id});
         WidgetSetProvider(props.parameter, license.specification.product.provider);
+        props.onValueChange?.();
         props.setErrors(errors => {
             if (errors[props.parameter.name]) {
                 delete errors[props.parameter.name];
@@ -51,7 +52,7 @@ export const LicenseParameter: React.FunctionComponent<LicenseProps> = props => 
                 return errors;
             }
         });
-    }, [props.parameter]);
+    }, [props.parameter, props.onValueChange]);
 
     const filters = React.useMemo(() => ({filterState: "READY"}), []);
 
@@ -62,6 +63,8 @@ export const LicenseParameter: React.FunctionComponent<LicenseProps> = props => 
             placeholder="Select license server..."
             cursor="pointer"
             onClick={doOpen}
+            readOnly
+            data-field-activator
         />
     </Flex>;
 };

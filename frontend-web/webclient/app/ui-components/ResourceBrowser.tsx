@@ -523,7 +523,17 @@ export class ResourceBrowser<T> {
     };
 
     public static isAnyModalOpen = false;
+    private static selectionBrowsers: ResourceBrowser<any>[] = [];
     private readonly isModal: boolean;
+
+    private static activeSelectionBrowser(): ResourceBrowser<any> | undefined {
+        ResourceBrowser.selectionBrowsers = ResourceBrowser.selectionBrowsers.filter(browser => browser.root.isConnected);
+        const modal = ResourceBrowser.selectionBrowsers.findLast(browser => browser.isModal);
+        if (modal) return modal;
+        const focused = document.activeElement;
+        return ResourceBrowser.selectionBrowsers.findLast(browser => focused != null && browser.root.contains(focused)) ??
+            ResourceBrowser.selectionBrowsers.at(-1);
+    }
 
     static hideShortcuts = localStorage.getItem("hide-shortcuts") === "true";
 
@@ -539,6 +549,7 @@ export class ResourceBrowser<T> {
     public opts: {
         embedded?: EmbeddedSettings;
         selector: boolean;
+        selection?: Selection<T>;
         columnTitles: ColumnTitleList;
     };
     // Note(Jonas): To use for project change listening.
@@ -555,11 +566,13 @@ export class ResourceBrowser<T> {
         this.opts = {
             embedded: opts?.embedded,
             selector: !!opts?.selection,
+            selection: opts?.selection,
             columnTitles: [{name: ""}, {name: "", columnWidth: 20}, {name: "", columnWidth: 20}, {name: "", columnWidth: 20}, {
                 name: "",
                 columnWidth: 20
             }]
         }
+        if (opts?.selection) ResourceBrowser.selectionBrowsers.push(this);
     };
 
     private clearSelected() {
@@ -880,6 +893,23 @@ export class ResourceBrowser<T> {
                 }
             };
             document.addEventListener("keydown", keyDownListener);
+        }
+
+        if (this.opts.selection) {
+            const useShortcutListener = (event: KeyboardEvent) => {
+                if (!this.root.isConnected) {
+                    document.removeEventListener("keydown", useShortcutListener, true);
+                    return;
+                }
+                if (ResourceBrowser.activeSelectionBrowser() !== this || event.code !== "Enter" || !event.altKey ||
+                    event.ctrlKey || event.metaKey) return;
+                const selected = this.findSelectedEntries();
+                if (selected.length !== 1 || this.opts.selection?.show(selected[0]) !== true) return;
+                event.preventDefault();
+                event.stopImmediatePropagation();
+                this.opts.selection.onClick(selected[0]);
+            };
+            document.addEventListener("keydown", useShortcutListener, true);
         }
 
         const attemptCloseRenameField = (ev: MouseEvent) => {
@@ -1342,7 +1372,7 @@ export class ResourceBrowser<T> {
         if (!selection.show || show === true || typeof show === "string") {
             const disabled = typeof show === "string";
             const button = document.createElement("button");
-            button.innerText = selection.text;
+            button.innerText = this.opts.embedded ? "Use" : selection.text;
             button.className = ButtonClass;
             button.style.height = opts?.height ?? "32px";
             button.style.width = opts?.width ?? "96px";
@@ -1601,6 +1631,22 @@ export class ResourceBrowser<T> {
             }
         }
 
+        const selection = this.opts.selection;
+        if (selection) {
+            const actionText = this.opts.embedded ? "Use" : selection.text;
+            const useAction: ActionItem<T, any> = {
+                text: actionText,
+                icon: "check",
+                shortcut: ShortcutKey.Enter,
+                enabled: selected => selected.length === 1 ? selection.show(selected[0]) : false,
+                onClick: selected => selection.onClick(selected[0]),
+            };
+            actions = [useAction, ...actions.filter(action =>
+                action === "divider" || typeof action.text !== "string" ||
+                    (action.text !== actionText && action.text !== "Use")
+            )];
+        }
+
         return {
             actions,
             selected: this.findSelectedEntries(),
@@ -1648,6 +1694,7 @@ export class ResourceBrowser<T> {
             appearance={snapshot.appearance}
             hideShortcuts={ResourceBrowser.hideShortcuts}
             maxVisible={snapshot.maxVisible}
+            enableShortcuts={!this.opts.selection}
         />);
     }
 
@@ -2397,6 +2444,10 @@ export class ResourceBrowser<T> {
     private onRowClicked(index: number, event: MouseEvent) {
         if (timestampUnixMs() < this.ignoreRowClicksUntil) return;
         if (index < 0 || index >= this.rows.length) return;
+        if (this.opts.selection) {
+            ResourceBrowser.selectionBrowsers = ResourceBrowser.selectionBrowsers.filter(browser => browser !== this);
+            ResourceBrowser.selectionBrowsers.push(this);
+        }
         const row = this.rows[index];
         const entryIdxS = row.container.getAttribute("data-idx");
         const entryIdx = entryIdxS ? parseInt(entryIdxS) : undefined;

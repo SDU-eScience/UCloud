@@ -29,11 +29,13 @@ export const EnumParameter: React.FunctionComponent<EnumProps> = props => {
     const error = props.errors[props.parameter.name] != null;
     const defaultValue = readEnumDefaultValue(props.parameter.defaultValue);
     const hasDefaultValue = defaultValue !== undefined && defaultValue !== "";
-    const showEmptyOption = props.parameter.optional && !hasDefaultValue;
+    const hasDefaultOption = props.parameter.options.some(it => it.value === defaultValue);
+    const selectedValue = hasDefaultValue ? defaultValue : props.parameter.options[0]?.value ?? "";
 
     return <Flex>
-        <Select defaultValue={defaultValue} id={widgetId(props.parameter)} error={error}>
-            {showEmptyOption ? <option value={""} /> : null}
+        <Select defaultValue={selectedValue} data-default-value={selectedValue}
+            id={widgetId(props.parameter)} error={error}>
+            {hasDefaultValue && !hasDefaultOption ? <option value={defaultValue}>{defaultValue}</option> : null}
             {props.parameter.options.map(it => (
                 <option key={it.value} value={it.value}>{it.name}</option>
             ))}
@@ -53,6 +55,9 @@ export const EnumValidator: WidgetValidator = (param) => {
                 if (opt.value === elem.value) {
                     return {valid: true, value: {type: "text", value: elem.value}};
                 }
+            }
+            if (readEnumDefaultValue(param.defaultValue) === elem.value) {
+                return {valid: true, value: {type: "text", value: elem.value}};
             }
             return {valid: false, message: `Invalid value: ${elem.value}`};
         }

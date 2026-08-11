@@ -3,7 +3,7 @@ import {fuzzySearch} from "@/Utilities/CollectionUtilities";
 import {CSSProperties, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {doNothing, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
-import {injectStyle} from "@/Unstyled";
+import {DataAttributes, injectStyle, unboxDataTags} from "@/Unstyled";
 import {Flex, Icon, Input, Relative} from "@/ui-components/index";
 import {FilterInputClass} from "@/Project/ProjectSwitcher";
 import Box from "@/ui-components/Box";
@@ -187,7 +187,11 @@ export function RichSelect<T, K extends keyof T>(props: {
     dropdownVerticalGap?: number;
     disabled?: boolean;
     showSearchField?: boolean;
-}): React.ReactNode {
+    groupBy?: (element: T) => string;
+    renderGroup?: (group: string) => React.ReactNode;
+    focusable?: boolean;
+    autoFocus?: boolean;
+} & DataAttributes): React.ReactNode {
     const [query, setQuery] = useState("");
     const closeFn = useRef<() => void>(doNothing);
     const triggerRef = useRef<HTMLDivElement>(null);
@@ -195,8 +199,18 @@ export function RichSelect<T, K extends keyof T>(props: {
     const filteredElements = useMemo(() => {
         const withKeys = props.items.map((it, itIdx) => ({idx: itIdx, ...it}));
         if (query === "") return withKeys;
-        return fuzzySearch(withKeys, props.keys, query);
-    }, [query, props.items, props.keys]);
+        const result = fuzzySearch(withKeys, props.keys, query);
+        if (!props.groupBy) return result;
+
+        const groupOrder = new Map<string, number>();
+        for (const item of props.items) {
+            const group = props.groupBy(item);
+            if (!groupOrder.has(group)) groupOrder.set(group, groupOrder.size);
+        }
+        return result.sort((a, b) =>
+            (groupOrder.get(props.groupBy!(a)) ?? 0) - (groupOrder.get(props.groupBy!(b)) ?? 0)
+        );
+    }, [query, props.items, props.keys, props.groupBy]);
 
     const limitedElements = useMemo(() => {
         if (filteredElements.length > 500) {
@@ -208,9 +222,13 @@ export function RichSelect<T, K extends keyof T>(props: {
 
     const [dropdownSize, setDropdownSize] = useState(props.dropdownWidth ?? "300px");
     const [dropdownTop, setDropdownTop] = useState<string | undefined>(undefined);
-    const showSearchField = props.items.length > 1 && props.showSearchField !== false;
+    const showSearchField = props.showSearchField === true || props.items.length > 1 && props.showSearchField !== false;
     const searchFieldHeight = showSearchField ? INPUT_FIELD_HEIGHT : 0;
-    const height = Math.min(370, (props.elementHeight ?? 40) * limitedElements.length + searchFieldHeight);
+    const groupCount = useMemo(() => {
+        if (!props.groupBy) return 0;
+        return new Set(limitedElements.map(props.groupBy)).size;
+    }, [limitedElements, props.groupBy]);
+    const height = Math.min(370, (props.elementHeight ?? 40) * limitedElements.length + groupCount * 28 + searchFieldHeight);
 
     const onTriggerClick = useCallback(() => {
         setQuery("");
@@ -255,6 +273,7 @@ export function RichSelect<T, K extends keyof T>(props: {
     }
 
     return <ClickableDropdown
+        {...unboxDataTags(props)}
         trigger={trigger}
         onOpeningTriggerClick={onTriggerClick}
         rightAligned={props.rightAligned ?? true}
@@ -279,6 +298,8 @@ export function RichSelect<T, K extends keyof T>(props: {
             if (item) props.onSelect(item);
             closeFn.current();
         }}
+        focusable={props.focusable !== false}
+        autoFocus={props.autoFocus}
     >
         <div style={{height: height + "px", width: dropdownSize}}>
             {!showSearchField ? null : (
@@ -311,17 +332,27 @@ export function RichSelect<T, K extends keyof T>(props: {
             )}
 
             <div className={ResultWrapperClass} style={{maxHeight: (height - searchFieldHeight) + "px", height: height + "px"}}>
-                {limitedElements.map(it => <props.RenderRow
-                    element={it}
-                    key={it.idx}
-                    onSelect={() => {
-                        props.onSelect(it);
-                    }}
-                    dataProps={{
-                        "data-idx": it.idx.toString(),
-                        "data-active": (props.selected === it).toString()
-                    }}
-                />)}
+                {limitedElements.map((it, index) => {
+                    const group = props.groupBy?.(it);
+                    const previousGroup = index === 0 ? undefined : props.groupBy?.(limitedElements[index - 1]);
+                    return <React.Fragment key={it.idx}>
+                        {group == null || group === previousGroup ? null : (
+                            <Box className="no-hover-effect" px="8px" py="5px" color="textSecondary" style={{fontWeight: 600}}>
+                                {props.renderGroup?.(group) ?? group}
+                            </Box>
+                        )}
+                        <props.RenderRow
+                            element={it}
+                            onSelect={() => {
+                                props.onSelect(it);
+                            }}
+                            dataProps={{
+                                "data-idx": it.idx.toString(),
+                                "data-active": (props.selected === it).toString()
+                            }}
+                        />
+                    </React.Fragment>;
+                })}
 
                 {limitedElements.length !== 0 ? null : <>
                     {props.noResultsItem ?

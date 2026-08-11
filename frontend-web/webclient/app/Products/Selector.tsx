@@ -79,6 +79,7 @@ export const ProductSelector: React.FunctionComponent<{
     slim?: boolean;
     loading?: boolean;
     onSelect: (product: ProductV2 | null) => void;
+    fieldNavigation?: boolean;
 }> = ({selected, ...props}) => {
     const portalRef = React.useRef<HTMLDivElement | null>(null);
     if (!portalRef.current) {
@@ -196,6 +197,7 @@ export const ProductSelector: React.FunctionComponent<{
         if (!input) return;
 
         const query = input.value.toLowerCase();
+        arrowKeyIndex.current = -1;
         lastSearchQuery.current = query;
 
         if (isCompute) {
@@ -217,6 +219,20 @@ export const ProductSelector: React.FunctionComponent<{
 
     const arrowKeyIndex = React.useRef(-1);
     const itemWrapperRef = React.useRef<HTMLTableSectionElement>(null);
+
+    const moveActiveRow = (direction: 1 | -1) => {
+        const listEntries = itemWrapperRef.current?.querySelectorAll<HTMLElement>("[data-active]");
+        if (!listEntries || listEntries.length === 0) return;
+        arrowKeyIndex.current = clamp(arrowKeyIndex.current, -1, listEntries.length - 1);
+        const oldIndex = arrowKeyIndex.current;
+        arrowKeyIndex.current += direction;
+        if (arrowKeyIndex.current >= listEntries.length) arrowKeyIndex.current = 0;
+        if (arrowKeyIndex.current < 0) arrowKeyIndex.current = listEntries.length - 1;
+        if (oldIndex !== -1) listEntries.item(oldIndex).style.backgroundColor = "";
+        const activeRow = listEntries.item(arrowKeyIndex.current);
+        activeRow.style.backgroundColor = "var(--rowHover)";
+        activeRow.scrollIntoView({behavior: oldIndex === -1 ? "auto" : "smooth", block: "nearest"});
+    };
 
     const [isOpen, setIsOpen] = React.useState(false);
     const onClose = React.useCallback(() => {
@@ -344,14 +360,26 @@ export const ProductSelector: React.FunctionComponent<{
     }, [isCompute, serviceProvider, projectId, categorizedProducts]);
 
     const queueStatusInfo = statusStringAndColor(queueStatus ?? JobQueueStatus.FULL);
+    const selectShownProduct = (product: ProductV2 | ComputeCategory) => {
+        if (isComputeCategory(product)) {
+            props.onSelect(product.products[0]);
+            setComputeCategory(product);
+        } else {
+            props.onSelect(product);
+        }
+        onClose();
+        if (props.fieldNavigation) window.requestAnimationFrame(() => boxRef.current?.focus());
+    };
 
     return <>
-        <Flex gap="15px">
-            {isCompute ? <Box width="50%">
+        <div className={ProductSelectorContainerClass}>
+        <div className={ProductSelectorFieldsClass} data-is-compute={isCompute}>
+            {isCompute ? <Box minWidth={0}>
                 {serviceProviders.length === 0 ? <Box onClick={onToggle}><Label>Service provider <MandatoryField /> <Input disabled value={"You have no active allocations for this workspace"} /></Label></Box> :
                     <ServiceProviderSelector
                         serviceProvider={serviceProvider}
                         serviceProviders={serviceProviders}
+                        data-job-info-field={props.fieldNavigation ? "service-provider" : undefined}
                         onSelect={el => {
                             setServiceProvider(el.key);
                             if (el.key !== serviceProvider) props.onSelect(null);
@@ -369,9 +397,23 @@ export const ProductSelector: React.FunctionComponent<{
                             return <ServiceProviderItem {...props} />
                         }} />}
             </Box> : null}
-            <Box width={isCompute ? "50%" : "100%"}>
+            <Box minWidth={0}>
                 {isCompute ? <Box>Machine type <MandatoryField /></Box> : null}
-                <div onClick={onToggle} className={InputClass} style={{display: "flex", height: "33.5px", cursor: "pointer"}} ref={boxRef}>
+                <div
+                    onClick={onToggle}
+                    onKeyDown={event => {
+                        if (!props.fieldNavigation || (event.key !== "Enter" && event.key !== " ") ||
+                            event.metaKey || event.ctrlKey || event.altKey) return;
+                        event.preventDefault();
+                        onToggle(event);
+                    }}
+                    tabIndex={props.fieldNavigation ? 0 : undefined}
+                    role={props.fieldNavigation ? "button" : undefined}
+                    data-job-info-field={props.fieldNavigation ? "machine" : undefined}
+                    className={InputClass}
+                    style={{display: "flex", height: "33.5px", cursor: "pointer"}}
+                    ref={boxRef}
+                >
                     {selected ?
                         <Flex alignItems={"center"} gap="8px">
                             {isCompute ? <Icon size={24} ml="-4px" name={selectedComputeCategory?.kind === "CPU" ? "heroCpuChip" : "gpu"} /> : <ProviderLogo providerId={selected?.category?.provider ?? "?"} size={24} />}
@@ -388,7 +430,7 @@ export const ProductSelector: React.FunctionComponent<{
                     <Icon ml="auto" name="heroChevronDown" />
                 </div>
             </Box>
-        </Flex>
+        </div>
 
         {isCompute && selected ? <>
             <div className={classConcat(SelectorBoxClass, props.slim === true ? "slim" : undefined)} style={{marginTop: "10px"}}>
@@ -398,7 +440,8 @@ export const ProductSelector: React.FunctionComponent<{
                             <>
                                 <Flex mt="4px" justifyContent={"space-between"}>
                                     <Flex>{selected?.name}</Flex>
-                                    <Box px="8px" py="4px" backgroundColor={`var(--${queueStatusInfo.color})`} color="fixedWhite" borderRadius={"12px"}>{queueStatusInfo.message}</Box>
+                                    <Box className={QueueStatusTextClass} px="8px" py="4px" backgroundColor={`var(--${queueStatusInfo.color})`} color="fixedWhite" borderRadius={"12px"}>{queueStatusInfo.message}</Box>
+                                    <Box className={QueueStatusCompactClass}><JobQueueStatusIndicator status={queueStatus ?? JobQueueStatus.FULL} /></Box>
                                 </Flex>
                                 {selected ? <Box mb="12px">
                                     <ProductDescription serviceProvider={selected.category.provider} category={selected.category.name} />
@@ -424,12 +467,14 @@ export const ProductSelector: React.FunctionComponent<{
                 <MachineTypeSelectionSlider
                     idx={selectedComputeCategory?.products.findIndex(prod => prod === selected) ?? -1}
                     support={props.support}
+                    fieldNavigation={props.fieldNavigation}
                     onSelect={idx => {
                         if (!selectedComputeCategory) return;
                         props.onSelect(selectedComputeCategory.products[idx])
                     }} selectedCategory={selectedComputeCategory} />
             </div>
         </> : null}
+        </div>
 
         {!isOpen ? null :
             ReactDOM.createPortal(
@@ -457,58 +502,29 @@ export const ProductSelector: React.FunctionComponent<{
                                 <Input
                                     placeholder={`Search ${productName}s...`}
                                     autoComplete={"off"}
+                                    autoFocus
                                     inputRef={searchRef}
                                     onInput={onSearchType}
                                     onKeyDown={e => {
+                                        console.log("hi!", e, itemWrapperRef.current, e.key);
                                         e.stopPropagation();
                                         if (!itemWrapperRef.current) return;
                                         if (["ArrowUp", "ArrowDown"].includes(e.key)) {
-                                            const isDown = e.key === "ArrowDown";
-                                            const isUp = e.key === "ArrowUp";
-
-                                            const listEntries = itemWrapperRef.current.querySelectorAll(`[data-active]`);
-                                            // If listEntries.length has changed, the active index may no longer be valid, but we may also not
-                                            // have used the keys yet, so -1 can be the active index.
-                                            arrowKeyIndex.current = clamp(arrowKeyIndex.current, -1, listEntries.length - 1);
-                                            if (listEntries.length === 0) return;
-
-                                            const oldIndex = arrowKeyIndex.current;
-                                            let behavior: "instant" | "smooth" = "instant";
-                                            if (isDown) {
-                                                arrowKeyIndex.current += 1;
-                                                if (arrowKeyIndex.current >= listEntries.length) {
-                                                    arrowKeyIndex.current = 0;
-                                                    behavior = "smooth";
-                                                }
-                                            } else if (isUp) {
-                                                arrowKeyIndex.current -= 1;
-                                                if (arrowKeyIndex.current < 0) {
-                                                    arrowKeyIndex.current = listEntries.length - 1;
-                                                    behavior = "smooth";
-                                                }
-                                            }
-
-                                            if (oldIndex !== -1) listEntries.item(oldIndex)["style"].backgroundColor = "";
-                                            listEntries.item(arrowKeyIndex.current)["style"].backgroundColor = "var(--lightBlue)";
-                                            listEntries.item(arrowKeyIndex.current).scrollIntoView({behavior, block: "nearest"});
-                                            e.stopPropagation();
+                                            e.preventDefault();
+                                            moveActiveRow(e.key === "ArrowDown" ? 1 : -1);
                                         } else if (e.key === "Enter") {
-                                            const items = itemWrapperRef.current.querySelectorAll("[data-active]");
+                                            e.preventDefault();
+                                            const items = itemWrapperRef.current.querySelectorAll<HTMLElement>("[data-active]");
                                             if (items.length === 0) return;
                                             if (arrowKeyIndex.current === -1) return;
-                                            const p = items.item(arrowKeyIndex.current).getAttribute("data-active") as string;
-                                            try {
-                                                props.onSelect(categorizedProducts[parseInt(p, 10)] as ProductV2);
-                                                onClose();
-                                            } catch (e) {
-                                                console.warn("An error ocurred parsing index for array", e);
-                                            }
+                                            items.item(arrowKeyIndex.current).click();
                                         } else if (e.key === "Escape") {
                                             e.stopPropagation();
                                             if (e.target["value"] !== "") {
                                                 e.target["value"] = "";
                                             } else {
                                                 onClose();
+                                                if (props.fieldNavigation) window.requestAnimationFrame(() => boxRef.current?.focus());
                                             }
                                         }
                                     }}
@@ -528,11 +544,7 @@ export const ProductSelector: React.FunctionComponent<{
                                             if (!showHeadings) return null;
                                             let queueStatus = queueStatuses[p.category] ?? JobQueueStatus.FULL;
 
-                                            return <tr key={i} onClick={() => {
-                                                props.onSelect(p.products[0]);
-                                                setComputeCategory(p);
-                                                setIsOpen(false);
-                                            }} className="table-info">
+                                            return <tr key={i} data-active={i.toString()} onClick={() => selectShownProduct(p)} className="table-info">
                                                 <TableCell><Icon size={24} name={p.kind === "CPU" ? "heroCpuChip" : "gpu"} /></TableCell>
                                                 <TableCell>{p.kind}</TableCell>
                                                 <TableCell>{p.category}</TableCell>
@@ -752,6 +764,7 @@ function MachineTypeSelectionSlider(props: {
     onSelect: (index: number) => void;
     idx: number;
     support: ResolvedSupport<Product, ProductSupport>[] | undefined;
+    fieldNavigation?: boolean;
 }): React.ReactNode {
 
     const dividerIndex: number = React.useMemo(() => {
@@ -776,7 +789,9 @@ function MachineTypeSelectionSlider(props: {
                 <Box style={{position: "absolute", left: `calc(100% * ${dividerIndex / productCount} + 20px)`}} ml="4px"><ProductTypeKind category={props.selectedCategory.kind} /></Box>
             </> : null}
         </Flex>
-        <RangeInput value={props.idx} autoFocus onChange={props.onSelect} min={0} max={props.selectedCategory.products.length - 1} markers={
+        <RangeInput value={props.idx} autoFocus={!props.fieldNavigation}
+            data-navigation-field={props.fieldNavigation || undefined}
+            onChange={props.onSelect} min={0} max={props.selectedCategory.products.length - 1} markers={
             props.selectedCategory.products.map(p => computeV2ComponentCount(p))}
         />
     </Box>
@@ -823,6 +838,10 @@ export const SelectorBoxClass = injectStyle("selector-box", k => `
 
     ${k}:hover {
         border-color: var(--borderColorHover);
+    }
+
+    ${k}:focus-within {
+        border-color: var(--primaryMain);
     }
 
     ${k}[data-omit-border="true"] {
@@ -882,6 +901,46 @@ export const SelectorBoxClass = injectStyle("selector-box", k => `
         position: absolute;
         top: 30%;
         right: 5px;
+    }
+`);
+
+const ProductSelectorFieldsClass = injectStyleSimple("product-selector-fields", `
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 15px;
+
+    &[data-is-compute="true"] {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+`);
+
+const QueueStatusTextClass = injectStyleSimple("machine-queue-status-text", ``);
+
+const QueueStatusCompactClass = injectStyleSimple("machine-queue-status-compact", `
+    display: none;
+    align-items: center;
+    padding: 8px;
+`);
+
+const ProductSelectorContainerClass = injectStyleSimple("product-selector-container", `
+    container-type: inline-size;
+
+    @container (max-width: 600px) {
+        .${ProductSelectorFieldsClass}[data-is-compute="true"] {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .${QueueStatusTextClass} {
+            display: none;
+        }
+
+        .${QueueStatusCompactClass} {
+            display: flex;
+        }
+
+        .${SelectorBoxClass} {
+            min-width: 0;
+        }
     }
 `);
 
@@ -1106,7 +1165,7 @@ function JobQueueStatusIndicator(props: {
     const size = "12px";
 
     return <TooltipV2 tooltip={props.multiple ? messageMultiple : message}>
-        <div style={{width: size, height: size, borderRadius: size, backgroundColor: `var(--${color})`}} />
+        <div tabIndex={0} style={{width: size, height: size, borderRadius: size, backgroundColor: `var(--${color})`}} />
     </TooltipV2>;
 }
 

@@ -8,18 +8,52 @@ import {KeyboardEventHandler, useCallback, useRef, useState} from "react";
 import {injectStyle} from "@/Unstyled";
 import {Input} from "@/ui-components";
 import {noopCall} from "@/Authentication/DataHook";
+import {DropdownClass} from "@/ui-components/Dropdown";
+import {TruncateClass} from "@/ui-components/Truncate";
 
 export function UtilityBar(props: {
     onSearch?: (query: string) => void;
     zIndex?: number;
     initialSearchQuery?: string;
+    leading?: React.ReactNode;
+    responsive?: boolean;
 }): React.ReactNode {
-    return (<Flex zIndex={props.zIndex ?? 1} alignItems={"center"} gap={"16px"}>
-        {props.onSearch && <SearchIcon initialQuery={props.initialSearchQuery} onSearch={props.onSearch} />}
-        <RefreshIcon />
-        <ProjectSwitcher />
+    return (<Flex className={props.responsive ? ResponsiveUtilityBarClass : undefined}
+        zIndex={props.zIndex ?? 1} alignItems="center" gap="16px">
+        <Flex className="utility-buttons" alignItems="center" gap="16px">
+            {props.leading}
+            {props.onSearch && <SearchIcon initialQuery={props.initialSearchQuery} onSearch={props.onSearch} />}
+            <RefreshIcon />
+        </Flex>
+        <div className="utility-project"><ProjectSwitcher /></div>
     </Flex>);
 }
+
+const ResponsiveUtilityBarClass = injectStyle("responsive-utility-bar", key => `
+    @media (max-width: 900px) {
+        ${key} {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr);
+            width: 100%;
+        }
+
+        ${key} .utility-buttons {
+            justify-content: flex-end;
+        }
+
+        ${key} .utility-project,
+        ${key} .utility-project > [data-component="project-switcher"],
+        ${key} .utility-project .${DropdownClass},
+        ${key} .utility-project [data-dropdown-trigger] > div {
+            width: 100%;
+        }
+
+        ${key} .utility-project .${TruncateClass} {
+            flex-grow: 1;
+            width: auto !important;
+        }
+    }
+`);
 
 const SearchClass = injectStyle("search", k => `
     ${k} {

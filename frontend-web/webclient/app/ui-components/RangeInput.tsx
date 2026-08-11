@@ -1,8 +1,8 @@
 import * as React from "react";
-import {injectStyle} from "@/Unstyled";
+import {DataAttributes, injectStyle, unboxDataTags} from "@/Unstyled";
 import Flex from "./Flex";
 
-interface RangeInputProps {
+type RangeInputProps = {
     value: number;
     autoFocus?: boolean;
     onChange: (value: number) => void;
@@ -11,7 +11,7 @@ interface RangeInputProps {
     background?: string | undefined;
     thumbColor?: string | undefined;
     markers?: string[];
-}
+} & DataAttributes;
 
 const MarkerWrapperStyle = injectStyle("thingy-style", cl => `
     ${cl} {
@@ -78,7 +78,8 @@ export default function RangeInput(props: RangeInputProps): React.ReactNode {
     }, [props.markers]);
 
     return (<>
-        <input value={props.value} style={style} autoFocus={props.autoFocus} onChange={e => props.onChange(e.target.valueAsNumber)}
+        <input {...unboxDataTags(props)} value={props.value} style={style} autoFocus={props.autoFocus}
+            onChange={e => props.onChange(e.target.valueAsNumber)}
             className={RangeInputStyle} min={props.min ?? 0} max={props.max} type="range" list={markers ? "markers" : undefined} />
         {markers}
     </>);

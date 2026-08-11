@@ -5,7 +5,7 @@ import * as Api from "./api";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {PeriodStyle} from "@/Accounting/Usage";
 import {addDays, addMonths, formatDistanceToNow, startOfToday} from "date-fns";
-import {injectStyle, makeClassName} from "@/Unstyled";
+import {DataAttributes, injectStyle, makeClassName} from "@/Unstyled";
 import {GenericTextArea, GenericTextField, MandatoryField} from "@/UtilityComponents";
 import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
@@ -332,6 +332,7 @@ export function ServiceProviderSelector({
     renderRow = ServiceProviderItem,
     renderSelectedRow = ServiceProviderItem,
     showLabel = true,
+    ...dataAttributes
 }: {
     onSelect: (el: {key: string}) => void;
     serviceProvider: string;
@@ -339,7 +340,7 @@ export function ServiceProviderSelector({
     renderRow?: (props: RichSelectProps<{key: string}>) => React.ReactNode
     renderSelectedRow?: (props: RichSelectProps<{key: string}>) => React.ReactNode
     showLabel?: boolean;
-}) {
+} & DataAttributes) {
     return <div className={ServiceProviderSelectorStyle} data-has-service-provider={!!serviceProvider}>
         {showLabel ? <>Service provider <MandatoryField /></> : <Box width={"300px"} />}
         <RichSelect
@@ -349,6 +350,7 @@ export function ServiceProviderSelector({
             selected={({key: serviceProvider})}
             items={serviceProviders}
             keys={["key"]}
+            {...dataAttributes}
             RenderRow={renderRow}
             onSelect={onSelect}>
         </RichSelect>

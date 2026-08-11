@@ -564,6 +564,7 @@ export function explainUnitEx(
 
 export function priceToString(product: ProductV2, numberOfUnits: number, durationInMinutes?: number, opts?: {
     showSuffix: boolean
+    display?: {precision?: number}
 }): string {
     const unit = explainUnit(product.category);
     const pricePerUnitPerFrequency = product.price * (1 / unit.frequencyFactor);
@@ -585,7 +586,7 @@ export function priceToString(product: ProductV2, numberOfUnits: number, duratio
         return `${numerator} / ${fraction.denominator} ${unit.name}${frequencySuffix}`;
     }
 
-    let withoutSuffix = balanceToStringFromUnit(product.category.productType, unit.name, totalPrice);
+    let withoutSuffix = balanceToStringFromUnit(product.category.productType, unit.name, totalPrice, opts?.display);
     if (unit.desiredFrequency !== "ONCE" && opts?.showSuffix !== false) {
         return withoutSuffix + "/" + frequencyToSuffix(unit.desiredFrequency, false);
     } else {

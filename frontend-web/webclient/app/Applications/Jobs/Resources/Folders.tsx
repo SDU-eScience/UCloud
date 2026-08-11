@@ -1,15 +1,11 @@
 import * as React from "react";
-import {Box, Button, Card, Flex} from "@/ui-components";
+import {Box, Card} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
-import Link from "@/ui-components/Link";
-import BaseLink from "@/ui-components/BaseLink";
-import {Widget} from "@/Applications/Jobs/Widgets";
 import Warning from "@/ui-components/Warning";
 import {anyFolderDuplicates} from "../Widgets/GenericFiles";
 import {Application, ApplicationParameter} from "@/Applications/AppStoreApi";
-import AppRoutes from "@/Routes";
-import {doNothing} from "@/UtilityFunctions";
 import {Dispatch, SetStateAction} from "react";
+import {CompactResourceRows} from "@/Applications/Jobs/Resources/CompactResourceRows";
 
 export function folderResourceAllowed(app: Application): boolean {
     if (app.invocation.allowAdditionalMounts != null) return app.invocation.allowAdditionalMounts;
@@ -31,72 +27,28 @@ export const FolderResource: React.FunctionComponent<{
     setWarning: (warning: string) => void;
     onAdd: () => void;
     onRemove: (id: string) => void;
-}> = ({application, params, errors, onAdd, onRemove, warning, setWarning, setErrors}) => {
+    sectionClassName?: string;
+    cardId?: string;
+    heading?: React.ReactNode;
+}> = ({application, params, errors, onAdd, onRemove, warning, setWarning, setErrors, sectionClassName, cardId, heading}) => {
     return !folderResourceAllowed(application) ? null : (
-        <Card>
-            <Box>
-                <Flex alignItems="center">
-                    <Box flexGrow={1}>
-                        <Heading.h4>Select folders to use</Heading.h4>
-                    </Box>
-                    <Button type={"button"} ml={"5px"} lineHeight={"16px"} onClick={onAdd}>Add folder</Button>
-                </Flex>
-
-                <Box my="6px">
-                    <Warning warning={warning} clearWarning={() => setWarning("")} />
-                </Box>
-
-                <Box mb={8} mt={8}>
-                    {params.length !== 0 ? (
-                        <>
-                            Your files will be available at <code>/work/</code>.
-                        </>
-                    ) : (
-                        <>
-                            If you need to use your {" "}
-                            <Link
-                                to={AppRoutes.files.drives()}
-                                target="_blank"
-                            >
-                                files
-                            </Link>
-                            {" "}
-                            in this job then click {" "}
-                            <BaseLink
-                                href="#"
-                                onClick={e => {
-                                    e.preventDefault();
-                                    onAdd();
-                                }}
-                            >
-                                &quot;Add folder&quot;
-                            </BaseLink>
-                            {" "}
-                            to select the relevant
-                            files.
-                        </>
-                    )}
-                </Box>
-
-                {params.map(entry => (
-                    <Box key={entry.name} mb={"7px"}>
-                        <Widget
-                            parameter={entry}
-                            errors={errors}
-                            setWarning={setWarning}
-                            setErrors={setErrors}
-                            application={application}
-                            injectWorkflowParameters={doNothing}
-                            onRemove={() => {
-                                onRemove(entry.name);
-                                if (!anyFolderDuplicates()) {
-                                    setWarning("");
-                                }
-                            }}
-                        />
-                    </Box>
-                ))}
-            </Box>
+        <Card className={sectionClassName} id={cardId}>
+            {heading ?? <Heading.h4>Storage</Heading.h4>}
+            <Warning warning={warning} clearWarning={() => setWarning("")} />
+            <CompactResourceRows
+                singularLabel="Folder"
+                firstRowDescription={"Add directories to your job. Available in /work."}
+                application={application}
+                params={params}
+                errors={errors}
+                setErrors={setErrors}
+                setWarning={setWarning}
+                onAdd={onAdd}
+                onRemove={id => {
+                    onRemove(id);
+                    if (!anyFolderDuplicates()) setWarning("");
+                }}
+            />
         </Card>
     );
 };

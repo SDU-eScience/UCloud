@@ -1,30 +1,29 @@
 import * as React from "react";
-import {useCallback, useEffect, useMemo, useState} from "react";
+import {JSX, useCallback, useEffect, useMemo, useState} from "react";
 import {InvokeCommand, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {useLocation, useNavigate} from "react-router-dom";
 import {MainContainer} from "@/ui-components/MainContainer";
-import {AppHeader} from "@/Applications/View";
+import {ApplicationSelector, AppHeader} from "@/Applications/View";
 import {
     Box,
     Button,
     Card,
-    ContainerForText,
     ExternalLink,
     Flex,
     Grid,
     Icon,
+    Input,
     Label,
     Link,
     Markdown,
     Select,
     Tooltip
 } from "@/ui-components";
-import {findElement, OptionalWidgetSearch, setWidgetValues, validateWidgets, Widget} from "@/Applications/Jobs/Widgets";
+import {clearWidgetValue, FieldGroup, FieldRow, findElement, setWidgetValues, validateWidgets, Widget} from "@/Applications/Jobs/Widgets";
 import * as Heading from "@/ui-components/Heading";
 import {FolderResource, folderResourceAllowed} from "@/Applications/Jobs/Resources/Folders";
-import {IngressResource, ingressResourceAllowed} from "@/Applications/Jobs/Resources/Ingress";
+import {ingressResourceAllowed} from "@/Applications/Jobs/Resources/Ingress";
 import {peerResourceAllowed} from "@/Applications/Jobs/Resources/Peers";
-import {PrivateNetworkResource} from "@/Applications/Jobs/Resources/PrivateNetworks";
 import {createSpaceForLoadedResources, injectResources, ResourceHook, useResource} from "@/Applications/Jobs/Resources";
 import {
     awaitReservationMount,
@@ -40,21 +39,22 @@ import {
     displayErrorMessageOrDefault,
     extractErrorCode,
     prettierString,
+    createKeyboardShortcut,
+    isLikelyMac,
     useDidMount
 } from "@/UtilityFunctions";
 import {addStandardDialog, OverallocationLink, WalletWarning} from "@/UtilityComponents";
 import {ImportParameters} from "@/Applications/Jobs/Widgets/ImportParameters";
 import LoadingIcon from "@/LoadingIcon/LoadingIcon";
 import {usePage} from "@/Navigation/Redux";
-import {NetworkIPResource, networkIPResourceAllowed} from "@/Applications/Jobs/Resources/NetworkIPs";
+import {networkIPResourceAllowed} from "@/Applications/Jobs/Resources/NetworkIPs";
 import {getQueryParam} from "@/Utilities/URIUtilities";
 import {default as JobsApi, DynamicParameters, JobSpecification} from "@/UCloud/JobsApi";
 import {BulkResponse, compute, FindByStringId, mail} from "@/UCloud";
-import {explainWallet, priceToString, ProductV2, UNABLE_TO_USE_FULL_ALLOC_MESSAGE, WalletV2} from "@/Accounting";
+import {explainUnit, explainWallet, priceToString, ProductV2, UNABLE_TO_USE_FULL_ALLOC_MESSAGE, WalletV2} from "@/Accounting";
 import {SshWidget} from "@/Applications/Jobs/Widgets/Ssh";
 import {connectionState} from "@/Providers/ConnectionState";
 import {useUState} from "@/Utilities/UState";
-import {Spacer} from "@/ui-components/Spacer";
 import {injectStyle} from "@/Unstyled";
 import {UtilityBar} from "@/Navigation/UtilityBar";
 import {validateMachineReservation} from "@/Applications/Jobs/Widgets/Machines";
@@ -71,15 +71,150 @@ import {useDiscovery} from "@/Applications/Hooks";
 import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
 import {CreateUcxJob} from "@/Applications/Jobs/CreateUcx";
 import * as ApiTokens from "@/Applications/ApiTokens/api";
+import Warning from "@/ui-components/Warning";
+import {ShortcutClass} from "@/ui-components/ResourceBrowserStyle";
+import {CompactResourceRowsContent} from "@/Applications/Jobs/Resources/CompactResourceRows";
+import {stupidPluralize} from "@/Utilities/TextUtilities";
 
 interface InsufficientFunds {
     why?: string;
     errorCode?: string;
 }
 
+function JobCardHeading({children, shortcut, shortcutsVisible, action}: React.PropsWithChildren<{
+    shortcut: string;
+    shortcutsVisible: boolean;
+    action?: React.ReactNode;
+}>): React.ReactNode {
+    return <Flex alignItems="center" gap="8px" mb={"16px"}>
+        <Heading.h4>{children}</Heading.h4>
+        {!shortcutsVisible ? null : (
+            <span className={ShortcutClass}>{createKeyboardShortcut(shortcut, ["ctrl", "alt"])}</span>
+        )}
+        {!action ? null : <Box ml="auto">{action}</Box>}
+    </Flex>;
+}
+
+function closeOpenDropdown(field: HTMLElement): void {
+    const dropdown = field.getAttribute("aria-expanded") === "true" ? field :
+        field.querySelector<HTMLElement>("[aria-expanded='true']");
+    dropdown?.querySelector<HTMLElement>("[data-dropdown-trigger]")?.click();
+}
+
+const JOB_NAVIGATION_SELECTOR = [
+    "[data-job-info-field]",
+    "[data-navigation-field]",
+    "[data-field-row] input:not([type='hidden'])",
+    "[data-field-row] select",
+    "[data-field-row] textarea",
+    "[data-field-row] [role='switch']",
+    "[data-field-row] [data-field-activator]",
+].join(", ");
+
+function isDisabledNavigationTarget(element: HTMLElement): boolean {
+    return element.matches(":disabled, [aria-disabled='true']");
+}
+
+function findSpatialNavigationTarget(
+    current: HTMLElement,
+    candidates: HTMLElement[],
+    key: "ArrowLeft" | "ArrowRight" | "ArrowUp" | "ArrowDown",
+): HTMLElement | null {
+    const currentRect = current.getBoundingClientRect();
+    const vertical = key === "ArrowUp" || key === "ArrowDown";
+    const forward = key === "ArrowRight" || key === "ArrowDown";
+    const overlaps = (aStart: number, aEnd: number, bStart: number, bEnd: number) =>
+        Math.min(aEnd, bEnd) > Math.max(aStart, bStart);
+    const visible = candidates.map(element => ({element, rect: element.getBoundingClientRect()})).filter(candidate => {
+        if (candidate.element === current || candidate.element.offsetParent === null ||
+            isDisabledNavigationTarget(candidate.element)) return false;
+        const currentCenter = vertical ? currentRect.top + currentRect.height / 2 : currentRect.left + currentRect.width / 2;
+        const candidateCenter = vertical ? candidate.rect.top + candidate.rect.height / 2 : candidate.rect.left + candidate.rect.width / 2;
+        if ((candidateCenter - currentCenter) * (forward ? 1 : -1) <= 4) return false;
+        return vertical ?
+            overlaps(currentRect.left, currentRect.right, candidate.rect.left, candidate.rect.right) :
+            overlaps(currentRect.top, currentRect.bottom, candidate.rect.top, candidate.rect.bottom);
+    });
+    if (visible.length === 0) return null;
+
+    const primaryDistance = (rect: DOMRect) => Math.max(0, vertical ?
+        (forward ? rect.top - currentRect.bottom : currentRect.top - rect.bottom) :
+        (forward ? rect.left - currentRect.right : currentRect.left - rect.right));
+    const nearest = visible.reduce((best, candidate) =>
+        primaryDistance(candidate.rect) < primaryDistance(best.rect) ? candidate : best
+    );
+    const sameLane = visible.filter(candidate => vertical ?
+        overlaps(nearest.rect.top, nearest.rect.bottom, candidate.rect.top, candidate.rect.bottom) :
+        overlaps(nearest.rect.left, nearest.rect.right, candidate.rect.left, candidate.rect.right)
+    );
+    const secondaryDistance = (rect: DOMRect) => vertical ?
+        Math.abs(rect.left + rect.width / 2 - (currentRect.left + currentRect.width / 2)) :
+        Math.abs(rect.top + rect.height / 2 - (currentRect.top + currentRect.height / 2));
+    return sameLane.reduce((best, candidate) =>
+        secondaryDistance(candidate.rect) < secondaryDistance(best.rect) ? candidate : best
+    ).element;
+}
+
+function JobInformationNavigation({children}: React.PropsWithChildren): React.ReactNode {
+    const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+        if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+        const target = event.target as HTMLElement;
+        const current = target.closest<HTMLElement>("[data-job-info-field]");
+        if (!current) return;
+
+        if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) {
+            const start = target.selectionStart;
+            const end = target.selectionEnd;
+            if (start !== null && end !== null) {
+                if (event.key === "ArrowLeft" && (start !== 0 || end !== 0)) return;
+                if (event.key === "ArrowRight" && (start !== target.value.length || end !== target.value.length)) return;
+            }
+        }
+
+        const next = findSpatialNavigationTarget(
+            current,
+            Array.from(event.currentTarget.querySelectorAll<HTMLElement>("[data-job-info-field]")),
+            event.key,
+        );
+        if (!next) return;
+        event.preventDefault();
+        closeOpenDropdown(current);
+        next.focus();
+    };
+
+    return <div onKeyDown={onKeyDown}>{children}</div>;
+}
+
+function JobFieldNavigation({children}: React.PropsWithChildren): React.ReactNode {
+    const onKeyDownCapture = (event: React.KeyboardEvent<HTMLDivElement>) => {
+        if ((event.key !== "ArrowUp" && event.key !== "ArrowDown") || event.metaKey || event.ctrlKey || event.altKey) return;
+        const target = event.target as HTMLElement;
+        if (target instanceof HTMLTextAreaElement) return;
+
+        const current = target.closest<HTMLElement>(JOB_NAVIGATION_SELECTOR);
+        if (!current) return;
+        const candidates = Array.from(event.currentTarget.querySelectorAll<HTMLElement>(JOB_NAVIGATION_SELECTOR));
+
+        const next = findSpatialNavigationTarget(current, candidates, event.key);
+
+        if (!next) return;
+        event.preventDefault();
+        event.stopPropagation();
+        closeOpenDropdown(current);
+        next.focus();
+    };
+
+    return <div className={JobCreateMainClass} onKeyDownCapture={onKeyDownCapture}>{children}</div>;
+}
+
+function removeDisplayedUnit(value: string, unit: string): string {
+    const suffix = ` ${unit}`;
+    return value.endsWith(suffix) ? value.slice(0, -suffix.length) : value;
+}
+
 const EstimatesContainerClass = injectStyle("estimates-container", k => `
     ${k} {
-        margin-top: 20px;
+        margin-top: 0;
     }
     
     ${k} table {
@@ -92,8 +227,209 @@ const EstimatesContainerClass = injectStyle("estimates-container", k => `
     }
     
     ${k} td {
-        font-family: var(--monospace);
+        font-variant-numeric: tabular-nums;
         text-align: right;
+    }
+
+    ${k} .cost-unit {
+        color: var(--textSecondary);
+        font-size: 12px;
+        font-weight: 400;
+        text-align: right;
+        padding-right: 0;
+    }
+`);
+
+const JobCreateLayoutClass = injectStyle("job-create-layout", key => `
+    ${key} {
+        display: grid;
+        grid-template-areas: "main sidebar";
+        grid-template-columns: minmax(0, 1fr) 300px;
+        gap: 24px;
+        width: 100%;
+        align-items: start;
+    }
+
+    @media (max-width: 1000px) {
+        ${key} {
+            grid-template-areas: "sidebar" "main";
+            grid-template-columns: minmax(0, 1fr);
+            padding-bottom: 96px;
+        }
+    }
+`);
+
+const JobCreateMainClass = injectStyle("job-create-main", key => `
+    ${key} {
+        grid-area: main;
+        min-width: 0;
+    }
+`);
+
+const JobCreateHeaderClass = injectStyle("job-create-header", key => `
+    ${key} {
+        display: flex;
+        margin: 32px 50px 0;
+    }
+
+    @media (max-width: 600px) {
+        ${key} {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr);
+            gap: 16px;
+            margin: 24px 16px 0;
+        }
+
+        ${key} .job-create-header-spacer {
+            display: none;
+        }
+    }
+`);
+
+const JobCreateHeaderActionsClass = injectStyle("job-create-header-actions", key => `
+    ${key} {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 8px;
+        min-width: 0;
+    }
+
+    @media (max-width: 600px) {
+        ${key} {
+            align-items: stretch;
+            width: 100%;
+        }
+
+        ${key} .job-create-documentation {
+            display: none;
+        }
+    }
+`);
+
+const KeyboardNavigationGuideClass = injectStyle("keyboard-navigation-guide", key => `
+    ${key} {
+        color: var(--textSecondary);
+        font-size: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        margin-top: 24px;
+    }
+
+    ${key} .keyboard-navigation-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 12px;
+    }
+
+    ${key} .keyboard-navigation-action {
+        text-align: right;
+    }
+
+    @media (max-width: 1000px) {
+        ${key} {
+            display: none;
+        }
+    }
+`);
+
+const JobCreateContentClass = injectStyle("job-create-content", key => `
+    ${key} {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin: 0 50px;
+    }
+
+    @media (max-width: 600px) {
+        ${key} {
+            margin: 0 16px;
+        }
+    }
+`);
+
+const JobSubmissionSidebarClass = injectStyle("job-submission-sidebar", key => `
+    ${key} {
+        grid-area: sidebar;
+        position: sticky;
+        top: 20px;
+        margin-top: 24px;
+        min-width: 0;
+    }
+
+    @media (max-width: 1000px) {
+        ${key} {
+            position: static;
+        }
+    }
+`);
+
+const JobSubmissionSecondaryClass = injectStyle("job-submission-secondary", key => `
+    ${key} > *:first-child {
+        width: 100%;
+    }
+`);
+
+const JobSubmissionSummaryClass = injectStyle("job-submission-summary", key => `
+    ${key} {
+        border-top: 1px solid var(--borderColor);
+        margin-top: 20px;
+        padding-top: 16px;
+    }
+
+    @media (max-width: 1000px) {
+        ${key} {
+            position: fixed;
+            left: calc(var(--sidebarBlockWidth, var(--sidebarWidth)) + 16px);
+            right: 16px;
+            bottom: 16px;
+            z-index: 1000;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 16px;
+            align-items: center;
+            margin: 0;
+            padding: 12px 16px;
+            border: 1px solid var(--borderColor);
+            border-radius: 8px;
+            background: var(--backgroundDefault);
+            box-shadow: var(--defaultShadow);
+        }
+
+        ${key} .desktop-cost-row {
+            display: none;
+        }
+    }
+`);
+
+const JobSubmitButtonClass = injectStyle("job-submit-button", key => `
+    ${key} {
+        margin-top: 24px;
+    }
+
+    ${key} button {
+        width: 100%;
+    }
+
+    @media (max-width: 1000px) {
+        ${key} {
+            margin-top: 0;
+        }
+
+        ${key} button {
+            width: auto;
+            white-space: nowrap;
+        }
+    }
+`);
+
+const SubmitShortcutClass = injectStyle("job-submit-shortcut", key => `
+    @media (max-width: 600px) {
+        ${key} {
+            display: none;
+        }
     }
 `);
 
@@ -110,6 +446,7 @@ function getLicense(app: Application): string | undefined {
 export const Create: React.FunctionComponent = () => {
     const [emailNotifications, setEmailNotifications] = React.useState<UserDetailsState>(initialState);
     const [jobEmailNotifications, setJobEmailNotifications] = useState<"never" | "start" | "ends" | "start_or_ends">("never");
+    const [shortcutsVisible, setShortcutsVisible] = useState(false);
     const navigate = useNavigate();
     const location = useLocation();
     const appName = getQueryParam(location.search, "app");
@@ -168,6 +505,8 @@ export const Create: React.FunctionComponent = () => {
         if (wallet === null) return null;
         return explainWallet(wallet);
     }, [estimatedCost.wallet]);
+    const costUnit = displayWallet?.usageAndQuota.raw.unit ??
+        (estimatedCost.product ? explainUnit(estimatedCost.product.category).name : "");
     const [discovery] = useDiscovery();
     const dnsHostnameSeed = React.useRef((Math.floor(Math.random() * 9000) + 1000).toString());
     const [jobName, setJobName] = useState("");
@@ -514,7 +853,7 @@ export const Create: React.FunctionComponent = () => {
         // Note(Jonas) Pt. II: The actual injection of resources should happen after the function terminates, as React will re-render the component,
         // and only then will the required input-fields be present. The setTimeout-callback will then be called to fill in the newly created input-fields.
         if (folderResourceAllowed(application)) {
-            const newSpace = createSpaceForLoadedResources(folders, resources, "file");
+            const newSpace = createSpaceForLoadedResources(folders, resources, "file", true);
             setTimeout(() => injectResources(newSpace, resources, "file"), 0);
         }
         if (peerResourceAllowed(application)) {
@@ -522,14 +861,14 @@ export const Create: React.FunctionComponent = () => {
             setTimeout(() => injectResources(newSpace, resources, "peer"), 0);
         }
         if (ingressResourceAllowed(application, bindLinkToPort)) {
-            const newSpace = createSpaceForLoadedResources(ingress, resources, "ingress");
+            const newSpace = createSpaceForLoadedResources(ingress, resources, "ingress", true);
             setTimeout(() => injectResources(newSpace, resources, "ingress"), 0);
         }
         if (networkIPResourceAllowed(application)) {
-            const newSpace = createSpaceForLoadedResources(networks, resources, "network");
+            const newSpace = createSpaceForLoadedResources(networks, resources, "network", true);
             setTimeout(() => injectResources(newSpace, resources, "network"), 0);
         }
-        const newSpace = createSpaceForLoadedResources(privateNetworks, resources, "private_network");
+        const newSpace = createSpaceForLoadedResources(privateNetworks, resources, "private_network", true);
         setTimeout(() => injectResources(newSpace, resources, "private_network"), 0);
 
         folders.setErrors({});
@@ -586,6 +925,7 @@ export const Create: React.FunctionComponent = () => {
             reservationValidation.options !== undefined &&
             Object.keys(foldersValidation.errors).length === 0 &&
             Object.keys(peersValidation.errors).length === 0 &&
+            Object.keys(networkValidation.errors).length === 0 &&
             Object.keys(ingressValidation.errors).length === 0 &&
             Object.keys(privateNetworkValidation.errors).length === 0
         ) {
@@ -647,6 +987,63 @@ export const Create: React.FunctionComponent = () => {
         }
     }, [application, folders, peers, ingress, networks, privateNetworks, navigate, hasCustomDnsHostname, dnsHostname]);
 
+    const isMissingConnection = estimatedCost.product != null &&
+        connectionState.canConnectToProvider(estimatedCost.product.category.provider);
+    const errorCount = countMandatoryAndOptionalErrors(parameters.filter(it =>
+        PARAMETER_TYPE_FILTER.includes(it.type)
+    ).map(it => it.name), errors) + countErrors(folders.errors, ingress.errors, networks.errors, peers.errors, privateNetworks.errors);
+    const anyError = errorCount > 0;
+
+    useEffect(() => {
+        const cardIds: Record<string, string> = {
+            KeyJ: "job-card-information",
+            KeyS: "job-card-storage",
+            KeyT: "job-card-script",
+            KeyI: "job-card-readme",
+            KeyM: "job-card-modules",
+            KeyC: "job-card-connectivity",
+            KeyP: "job-card-parameters",
+        };
+        const primaryPressed = (event: KeyboardEvent) => isLikelyMac ? event.metaKey : event.ctrlKey;
+        const focusCard = (id: string) => {
+            const card = document.getElementById(id);
+            if (!card) return;
+            if (document.activeElement instanceof HTMLElement) closeOpenDropdown(document.activeElement);
+            const focusTarget = Array.from(card.querySelectorAll<HTMLElement>(
+                `[data-card-first-field], ${JOB_NAVIGATION_SELECTOR}, input:not([type=hidden]), select, button:not(:disabled), [role=button][tabindex='0'], [role=switch]`
+            )).find(element => !isDisabledNavigationTarget(element));
+            card.scrollIntoView({block: "nearest"});
+            focusTarget?.focus();
+        };
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (document.querySelector(".ReactModal__Overlay")) return;
+            if (event.defaultPrevented || !event.altKey || !primaryPressed(event)) return;
+            setShortcutsVisible(true);
+            if (event.key === "Enter") {
+                event.preventDefault();
+                if (!anyError && !isLoading && sshValid && !isMissingConnection) submitJob(false);
+                return;
+            }
+            const cardId = cardIds[event.code];
+            if (!cardId) return;
+            event.preventDefault();
+            focusCard(cardId);
+        };
+        const onModifierChange = (event: KeyboardEvent) => {
+            setShortcutsVisible(event.altKey && primaryPressed(event));
+        };
+        const hideShortcuts = () => setShortcutsVisible(false);
+
+        document.addEventListener("keydown", onKeyDown);
+        document.addEventListener("keyup", onModifierChange);
+        window.addEventListener("blur", hideShortcuts);
+        return () => {
+            document.removeEventListener("keydown", onKeyDown);
+            document.removeEventListener("keyup", onModifierChange);
+            window.removeEventListener("blur", hideShortcuts);
+        };
+    }, [anyError, isLoading, isMissingConnection, sshValid, submitJob]);
+
     if (applicationResp.loading || isInitialMount) return <MainContainer main={<LoadingIcon size={36} />} />;
 
     if (application == null) {
@@ -661,8 +1058,8 @@ export const Create: React.FunctionComponent = () => {
         return <CreateUcxJob application={application} appGroup={applicationResp?.data ?? null} />;
     }
 
-    let mandatoryWorkflow = parameters.filter(it => !it.optional && it.type === "workflow");
-    if (mandatoryWorkflow.length > 1) mandatoryWorkflow = [mandatoryWorkflow[0]];
+    let workflowParams = parameters.filter(it => it.type === "workflow");
+    if (workflowParams.length > 1) workflowParams = [workflowParams[0]];
 
     let modulesParam = parameters.filter(it => it.type === "modules");
     if (modulesParam.length > 0) modulesParam = [modulesParam[0]];
@@ -673,184 +1070,140 @@ export const Create: React.FunctionComponent = () => {
         !it.optional && it.type !== "workflow" && it.type !== "modules" && it.type !== "readme"
     );
 
-    const activeParameters = parameters.filter(it =>
-        it.optional && activeOptParams.indexOf(it.name) !== -1 && it.type !== "readme"
-    )
-
-    const inactiveParameters = parameters.filter(it =>
-        !(!it.optional || activeOptParams.indexOf(it.name) !== -1) && it.type !== "readme"
+    const optionalParameters = parameters.filter(it =>
+        it.optional && it.type !== "workflow" && it.type !== "modules" && it.type !== "readme"
     );
-
-    const isMissingConnection = estimatedCost.product != null &&
-        connectionState.canConnectToProvider(estimatedCost.product.category.provider);
-
-    const errorCount = countMandatoryAndOptionalErrors(parameters.filter(it =>
-        PARAMETER_TYPE_FILTER.includes(it.type)
-    ).map(it => it.name), errors) + countErrors(folders.errors, ingress.errors, networks.errors, peers.errors, privateNetworks.errors);
-    const anyError = errorCount > 0;
 
     const appGroup = applicationResp?.data;
     const license = getLicense(application);
+    const hasParameters = mandatoryParameters.length + optionalParameters.length > 0;
+    const sshMode = application.invocation.ssh?.mode ?? "DISABLED";
+    const hasConnectivity = sshMode !== "DISABLED" ||
+        ingressResourceAllowed(application, bindLinkToPort) || peerResourceAllowed(application) ||
+        networkIPResourceAllowed(application);
+    const connectivityEnabled = sshEnabled || ingress.params.length > 1 || privateNetworks.params.length > 1 ||
+        networks.params.length > 1;
+
+
+    let submitControl: JSX.Element;
+    {
+        const buttonControl = <>
+            <Button type="button" color="successMain" disabled={anyError} onClick={() => submitJob(false)}>
+                <Icon name="heroPlay" mr={8} />
+                <span>Submit</span>
+                <span
+                    className={`${ShortcutClass} ${SubmitShortcutClass}`}
+                    style={{
+                        marginLeft: "12px",
+                        backgroundColor: "var(--successDark)",
+                        color: "var(--fixedWhite)",
+                        mixBlendMode: "normal"
+                    }}
+                >
+                    {createKeyboardShortcut("Enter", ["ctrl", "alt"])}
+                </span>
+            </Button>
+        </>;
+
+        if (anyError) {
+            submitControl = <TooltipV2 tooltip={`${errorCount} parameter ${stupidPluralize(errorCount, "error")} to resolve before submitting.`}>
+                {buttonControl}
+            </TooltipV2>
+        } else {
+            submitControl = buttonControl;
+        }
+    }
 
     return <MainContainer
         main={
             <>
-                <Flex mx="50px" mt="32px">
+                <div className={JobCreateHeaderClass}>
                     <AppHeader
                         title={appGroup?.specification?.title ?? application.metadata.title}
                         application={application}
                         flavors={appGroup?.status?.applications ?? []}
                         allVersions={application.versions ?? []}
+                        showSelectors={false}
+                        responsiveDescription
+                        description={<div className={MarkdownWrapper}>
+                            <Markdown unwrapDisallowed disallowedElements={["image", "heading"]}>
+                                {application.metadata.description}
+                            </Markdown>
+                        </div>}
                     />
-                    <Box flexGrow={1} />
+                    <Box className="job-create-header-spacer" flexGrow={1} />
 
-                    <Flex height={"35px"} alignItems={"center"} gap={"18px"}>
-                        {!application.metadata.website ? null : (
-                            <ExternalLink href={application.metadata.website}>
-                                <Button>
-                                    <Icon name="heroArrowTopRightOnSquare" color="primaryContrast" />
-                                    <div>Documentation</div>
-                                </Button>
-                            </ExternalLink>
-                        )}
-                        {license ? <TooltipV2 tooltip={`License: ${license}`}><Icon size="24" name="fileSignatureSolid" /></TooltipV2> : null}
-                        <UtilityBar />
-                    </Flex>
-                </Flex>
-                <ContainerForText>
-                    <Grid gridTemplateColumns={"1fr"} gap={"24px"} width={"100%"} mb={"24px"} mt={"24px"}>
+                    <div className={JobCreateHeaderActionsClass}>
+                        <UtilityBar responsive leading={<>
+                            {!application.metadata.website ? null : (
+                                <ExternalLink className="job-create-documentation" href={application.metadata.website}>
+                                    <Button>
+                                        <Icon name="heroArrowTopRightOnSquare" color="primaryContrast" />
+                                        <div>Documentation</div>
+                                    </Button>
+                                </ExternalLink>
+                            )}
+                            {license ? <TooltipV2 tooltip={`License: ${license}`}><Icon size="24" name="fileSignatureSolid" /></TooltipV2> : null}
+                        </>} />
+                    </div>
+                </div>
+                <div className={JobCreateContentClass}>
+                    <div className={JobCreateLayoutClass}>
+                    <JobFieldNavigation>
+                    <Grid gridTemplateColumns="1fr" gap="24px" width="100%" mb="24px" mt="24px">
                         {insufficientFunds ? <WalletWarning errorCode={insufficientFunds.errorCode} /> : null}
-                        {isMissingConnection ?
-                            <Box mt={32}>
-                                <Link to={"/providers/connect"}>
-                                    <Icon name="warning" color="warningMain" mx={8} />
-                                    Connection required!
-                                </Link>
-                            </Box> :
-                            <Spacer
-                                left={<Flex maxWidth="800px" flexDirection={"column"}>
-                                    <div className={MarkdownWrapper}>
-                                        <Markdown
-                                            unwrapDisallowed
-                                            disallowedElements={[
-                                                "image",
-                                                "heading"
-                                            ]}
-                                        >
-                                            {application.metadata.description}
-                                        </Markdown>
-                                    </div>
-
-                                    <Box flexGrow={1} />
-
-                                    <Label mt={"16px"}>
-                                        E-mail notification settings
-                                        <Select width={"300px"} onChange={onChangeJobEmailNotification} name={"job-email-notifications"}>
-                                            <option value="never" selected={jobEmailNotifications === "never"}>Do not notify me</option>
-                                            <option value="start_or_ends" selected={jobEmailNotifications === "start_or_ends"}>Notify me when a job starts or stops</option>
-                                        </Select>
-                                    </Label>
-                                </Flex>}
-                                right={
-                                    <div>
-                                        <Flex>
-                                            <ImportParameters application={application} onImport={onLoadParameters}
-                                                importDialogOpen={importDialogOpen}
-                                                setImportDialogOpen={setImportDialogOpen}
-                                                onImportDialogClose={() => setImportDialogOpen(false)} />
-
-                                            {anyError ?
-                                                <Tooltip trigger={
-                                                    <Button ml={"10px"} type="button" color={"successMain"} disabled>
-                                                        <Icon name="heroPlay" mr={8} />
-                                                        Submit
-                                                    </Button>
-                                                }>
-                                                    {errorCount} parameter error{errorCount > 1 ? "s" : ""} to resolve
-                                                    before submitting.
-                                                </Tooltip>
-                                                :
-                                                <Button
-                                                    color={"successMain"}
-                                                    type={"button"}
-                                                    ml={"10px"}
-                                                    disabled={isLoading || !sshValid || isMissingConnection}
-                                                    onClick={() => submitJob(false)}
-                                                >
-                                                    <Icon name="heroPlay" mr={8} />
-                                                    Submit
-                                                </Button>
-                                            }
-                                        </Flex>
-
-                                        <div className={EstimatesContainerClass}>
-                                            <table>
-                                                <tbody>
-                                                    <tr>
-                                                        <th>Estimated cost</th>
-                                                        <td>
-                                                            {!estimatedCost.product ?
-                                                                "-" :
-                                                                priceToString(
-                                                                    estimatedCost.product,
-                                                                    estimatedCost.numberOfNodes,
-                                                                    estimatedCost.durationInMinutes,
-                                                                    {showSuffix: false}
-                                                                )
-                                                            }
-                                                        </td>
-                                                    </tr>
-                                                    <tr>
-                                                        <th>Current balance</th>
-                                                        <td>
-                                                            {displayWallet === null ?
-                                                                "-" :
-                                                                displayWallet.usageAndQuota.display.currentBalance
-                                                            }
-                                                        </td>
-                                                    </tr>
-                                                    {displayWallet === null || !displayWallet.usageAndQuota.display.displayOverallocationWarning ? null :
-                                                        <tr>
-                                                            <th>Usable balance</th>
-                                                            <td>
-                                                                <OverallocationLink>
-                                                                    <TooltipV2 tooltip={UNABLE_TO_USE_FULL_ALLOC_MESSAGE}>
-                                                                        <Icon name={"heroExclamationTriangle"} color={"warningMain"} />
-                                                                        {displayWallet.usageAndQuota.display.maxUsableBalance}
-                                                                    </TooltipV2>
-                                                                </OverallocationLink>
-                                                            </td>
-                                                        </tr>
-                                                    }
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </div>
-                                }
-                            />
-                        }
-                        <Card pt="25px">
-                            <ReservationParameter
-                                application={application}
-                                errors={reservationErrors}
-                                onJobNameChange={setJobName}
-                                onEstimatedCostChange={(durationInMinutes, numberOfNodes, wallet, product) =>
-                                    setEstimatedCost({durationInMinutes, wallet, numberOfNodes, product})}
-                            />
+                        {!isMissingConnection ? null : <Box mt={32}>
+                            <Link to="/providers/connect">
+                                <Icon name="warning" color="warningMain" mx={8} />
+                                Connection required!
+                            </Link>
+                        </Box>}
+                        <Card id="job-card-information">
+                            <JobCardHeading shortcut="J" shortcutsVisible={shortcutsVisible} action={
+                                <ImportParameters application={application} onImport={onLoadParameters}
+                                    importDialogOpen={importDialogOpen}
+                                    setImportDialogOpen={setImportDialogOpen}
+                                    onImportDialogClose={() => setImportDialogOpen(false)} />
+                            }>
+                                Job information
+                            </JobCardHeading>
+                            <JobInformationNavigation>
+                                <Box mt="16px" mb="20px">
+                                    <ApplicationSelector
+                                        application={application}
+                                        flavors={appGroup?.status?.applications ?? []}
+                                        allVersions={application.versions ?? []}
+                                        showLabels
+                                        jobCreateLayout
+                                        fieldNavigation
+                                        autoFocusFlavor
+                                    />
+                                </Box>
+                                <ReservationParameter
+                                    application={application}
+                                    errors={reservationErrors}
+                                    onJobNameChange={setJobName}
+                                    fieldNavigation
+                                    onEstimatedCostChange={(durationInMinutes, numberOfNodes, wallet, product) =>
+                                        setEstimatedCost({durationInMinutes, wallet, numberOfNodes, product})}
+                                />
+                            </JobInformationNavigation>
                         </Card>
 
                         <div data-last-used-file-path="" hidden />
                         <FolderResource
                             {...folders}
                             application={application}
+                            cardId="job-card-storage"
+                            heading={<JobCardHeading shortcut="S" shortcutsVisible={shortcutsVisible}>Storage</JobCardHeading>}
                         />
 
                         {/*Workflow*/}
-                        {mandatoryWorkflow.length === 0 ? null : (
-                            <Card>
-                                <Heading.h4>Script</Heading.h4>
-                                <Grid gridTemplateColumns={"1fr"} gap={"16px"} mt={"16px"}>
-                                    {mandatoryWorkflow.map(param => (
+                        {workflowParams.length === 0 ? null : (
+                            <Card id="job-card-script">
+                                <JobCardHeading shortcut="T" shortcutsVisible={shortcutsVisible}>Script</JobCardHeading>
+                                <Grid gridTemplateColumns={"1fr"} gap={"16px"}>
+                                    {workflowParams.map(param => (
                                         <Widget key={param.name} parameter={param} errors={errors} provider={provider}
                                             injectWorkflowParameters={setWorkflowInjectParameters}
                                             setErrors={setErrors} active application={application} bindLinkToPort={bindLinkToPort} />
@@ -861,14 +1214,14 @@ export const Create: React.FunctionComponent = () => {
 
                         {/*Readme*/}
                         {readmeParams.length === 0 ? null : (
-                            <Card backgroundColor={"var(--warningMain)"} color={"warningContrast"}>
-                                <Heading.h4>
+                            <Card id="job-card-readme" backgroundColor="var(--warningMain)" color="warningContrast">
+                                <JobCardHeading shortcut="I" shortcutsVisible={shortcutsVisible}>
                                     {estimatedCost.product == null ?
                                         "Information" :
                                         `Information from ${getProviderTitle(estimatedCost.product.category.provider)}`
                                     }
-                                </Heading.h4>
-                                <Grid gridTemplateColumns={"1fr"} gap={"16px"} mt={"16px"}>
+                                </JobCardHeading>
+                                <Grid gridTemplateColumns={"1fr"} gap={"16px"}>
                                     {readmeParams.map(param => (
                                         <Widget key={param.name} parameter={param} errors={errors} provider={provider}
                                             injectWorkflowParameters={setWorkflowInjectParameters}
@@ -880,9 +1233,9 @@ export const Create: React.FunctionComponent = () => {
 
                         {/*Modules*/}
                         {modulesParam.length === 0 ? null : (
-                            <Card>
-                                <Heading.h4>Modules</Heading.h4>
-                                <Grid gridTemplateColumns={"1fr"} gap={"16px"} mt={"16px"}>
+                            <Card id="job-card-modules">
+                                <JobCardHeading shortcut="M" shortcutsVisible={shortcutsVisible}>Modules</JobCardHeading>
+                                <Grid gridTemplateColumns={"1fr"} gap={"16px"}>
                                     {modulesParam.map(param => (
                                         <Widget key={param.name} parameter={param} errors={errors} provider={provider}
                                             injectWorkflowParameters={setWorkflowInjectParameters}
@@ -892,86 +1245,173 @@ export const Create: React.FunctionComponent = () => {
                             </Card>
                         )}
 
+                        {!hasConnectivity ? null : <Card id="job-card-connectivity">
+                            <JobCardHeading shortcut="C" shortcutsVisible={shortcutsVisible}>Connectivity</JobCardHeading>
+                            {!connectivityEnabled ? null : <Box mt="16px">
+                                <Warning>
+                                    Options in this section can make your job publicly accessible. Secure you job accordingly.
+                                </Warning>
+                            </Box>}
+                            <Box mt="16px">
+                                <FieldGroup>
+                                    {sshMode === "DISABLED" ? null : <>
+                                        <SshWidget embedded fieldRow application={application} onSshStatusChanged={setSshEnabled}
+                                            onSshKeysValid={setSshValid} initialEnabledStatus={initialSshEnabled} />
+                                    </>}
+                                    {!ingressResourceAllowed(application, bindLinkToPort) ? null : <>
+                                        <CompactResourceRowsContent singularLabel="Public link" {...ingress}
+                                            firstRowDescription="Public links make your job accessible through a web browser. Anyone with the link can access your application."
+                                            application={application} bindLinkToPort={bindLinkToPort} />
+                                    </>}
+                                    {!peerResourceAllowed(application) ? null : <>
+                                        {privateNetworks.params.length <= 1 ? null : (
+                                            <FieldRow
+                                                title="Hostname"
+                                                description="Your job will be identified by this name within the network."
+                                                control={<Input value={dnsHostname} onChange={onDnsHostnameChange} />}
+                                                bold={dnsHostname.length > 0}
+                                            />
+                                        )}
+                                        <CompactResourceRowsContent singularLabel="Private network" {...privateNetworks}
+                                            firstRowDescription="Connect this job to a network of other jobs."
+                                            application={application} />
+                                    </>}
+                                    {!networkIPResourceAllowed(application) ? null : <>
+                                        <CompactResourceRowsContent singularLabel="Public IP" {...networks}
+                                            firstRowDescription="Make your job reachable from the Internet."
+                                            application={application} />
+                                    </>}
+                                </FieldGroup>
+                            </Box>
+                        </Card>}
+
                         {/* Parameters */}
-                        {mandatoryParameters.length === 0 ? null : (
-                            <Card>
-                                <Heading.h4>Mandatory Parameters</Heading.h4>
-                                <Grid gridTemplateColumns={"1fr"} gap={"16px"} mt={"16px"}>
-                                    {mandatoryParameters.map(param => (
-                                        <Widget key={param.name} parameter={param} errors={errors} provider={provider}
-                                            injectWorkflowParameters={setWorkflowInjectParameters}
-                                            setErrors={setErrors} active application={application} bindLinkToPort={bindLinkToPort} />
-                                    ))}
-                                </Grid>
+                        {!hasParameters ? null : (
+                            <Card id="job-card-parameters">
+                                <JobCardHeading shortcut="P" shortcutsVisible={shortcutsVisible}>Parameters</JobCardHeading>
+                                <Box mt="16px">
+                                    <FieldGroup>
+                                        {[...mandatoryParameters, ...optionalParameters].map(param => (
+                                            <Widget
+                                                key={param.name}
+                                                fieldGroup
+                                                selected={!param.optional || activeOptParams.includes(param.name)}
+                                                parameter={param}
+                                                errors={errors}
+                                                provider={provider}
+                                                injectWorkflowParameters={setWorkflowInjectParameters}
+                                                setErrors={setErrors}
+                                                application={application}
+                                                bindLinkToPort={bindLinkToPort}
+                                                onValueChange={() => setActiveOptParams(current =>
+                                                    current.includes(param.name) ? current : [...current, param.name]
+                                                )}
+                                                onSelectedChange={selected => setActiveOptParams(current => selected ?
+                                                    (current.includes(param.name) ? current : [...current, param.name]) :
+                                                    current.filter(name => name !== param.name)
+                                                )}
+                                                onClear={!param.optional ? undefined : () => {
+                                                    clearWidgetValue(param);
+                                                    setActiveOptParams(current => current.filter(name => name !== param.name));
+                                                    setErrors(current => {
+                                                        if (!current[param.name]) return current;
+                                                        const next = {...current};
+                                                        delete next[param.name];
+                                                        return next;
+                                                    });
+                                                }}
+                                            />
+                                        ))}
+                                    </FieldGroup>
+                                </Box>
                             </Card>
                         )}
-                        {activeParameters.length === 0 ? null : (
-                            <Card>
-                                <Heading.h4>Additional Parameters</Heading.h4>
-                                <Grid gridTemplateColumns={"1fr"} gap={"16px"} mt={"16px"}>
-                                    {activeParameters.map(param => (
-                                        <Widget
-                                            key={param.name} parameter={param} errors={errors} provider={provider}
-                                            injectWorkflowParameters={setWorkflowInjectParameters}
-                                            setErrors={setErrors}
-                                            active
-                                            application={application}
-                                            bindLinkToPort={bindLinkToPort}
-                                            onRemove={() => {
-                                                if (errors[param.name]) {
-                                                    delete errors[param.name];
-                                                    setErrors({...errors});
-                                                }
-                                                setActiveOptParams(activeOptParams.filter(it => it !== param.name));
-                                            }}
-                                        />
-                                    ))}
-                                </Grid>
-                            </Card>
-                        )}
-                        {inactiveParameters.length === 0 ? null : (
-                            <Card>
-                                <OptionalWidgetSearch pool={inactiveParameters} mapper={param => (
-                                    <Widget key={param.name} parameter={param} errors={errors} provider={provider}
-                                        setErrors={setErrors}
-                                        active={false}
-                                        application={application}
-                                        bindLinkToPort={bindLinkToPort}
-                                        onActivate={() => {
-                                            setActiveOptParams([...activeOptParams, param.name]);
-                                        }}
-                                        injectWorkflowParameters={setWorkflowInjectParameters}
-                                    />
-                                )} />
-                            </Card>
-                        )}
-
-                        {/* SSH */}
-                        <SshWidget application={application} onSshStatusChanged={setSshEnabled}
-                            onSshKeysValid={setSshValid} initialEnabledStatus={initialSshEnabled} />
-
-                        {/* Resources */}
-
-                        <IngressResource
-                            {...ingress}
-                            application={application}
-                            bindLinkToPort={bindLinkToPort}
-                        />
-
-                        <PrivateNetworkResource
-                            {...privateNetworks}
-                            application={application}
-                            dnsHostname={dnsHostname}
-                            onDnsHostnameChange={onDnsHostnameChange}
-                        />
-
-                        <NetworkIPResource
-                            {...networks}
-                            application={application}
-                        />
 
                     </Grid>
-                </ContainerForText>
+                    </JobFieldNavigation>
+                    <aside className={JobSubmissionSidebarClass}>
+                        <Card>
+                            <div className={JobSubmissionSecondaryClass}>
+                                <Label>
+                                    E-mail notification settings
+                                    <Select width="100%" onChange={onChangeJobEmailNotification} name="job-email-notifications">
+                                        <option value="never" selected={jobEmailNotifications === "never"}>Do not notify me</option>
+                                        <option value="start_or_ends" selected={jobEmailNotifications === "start_or_ends"}>Notify me when a job starts or stops</option>
+                                    </Select>
+                                </Label>
+                            </div>
+                            <div className={JobSubmissionSummaryClass}>
+                                <div className={EstimatesContainerClass}>
+                                    <table>
+                                        {!costUnit ? null : <thead>
+                                            <tr>
+                                                <th />
+                                                <th className="cost-unit">{costUnit}</th>
+                                            </tr>
+                                        </thead>}
+                                        <tbody>
+                                            <tr>
+                                                <th>Est. cost</th>
+                                                <td>
+                                                    {!estimatedCost.product ? "-" : removeDisplayedUnit(priceToString(
+                                                        estimatedCost.product,
+                                                        estimatedCost.numberOfNodes,
+                                                        estimatedCost.durationInMinutes,
+                                                        {showSuffix: false, display: {precision: 2}}
+                                                    ), explainUnit(estimatedCost.product.category).name)}
+                                                </td>
+                                            </tr>
+                                            <tr className="desktop-cost-row">
+                                                <th>Balance</th>
+                                                <td>{displayWallet === null ? "-" : removeDisplayedUnit(
+                                                    displayWallet.usageAndQuota.display.currentBalance,
+                                                    costUnit
+                                                )}</td>
+                                            </tr>
+                                            {displayWallet === null || !displayWallet.usageAndQuota.display.displayOverallocationWarning ? null :
+                                                <tr className="desktop-cost-row">
+                                                    <th>Usable balance</th>
+                                                    <td>
+                                                        <OverallocationLink>
+                                                            <TooltipV2 tooltip={UNABLE_TO_USE_FULL_ALLOC_MESSAGE}>
+                                                                <Icon name="heroExclamationTriangle" color="warningMain" />
+                                                                {removeDisplayedUnit(
+                                                                    displayWallet.usageAndQuota.display.maxUsableBalance,
+                                                                    costUnit
+                                                                )}
+                                                            </TooltipV2>
+                                                        </OverallocationLink>
+                                                    </td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div className={JobSubmitButtonClass}>
+                                    {submitControl}
+                                </div>
+                            </div>
+                        </Card>
+                        <div className={KeyboardNavigationGuideClass}>
+                            <div className="keyboard-navigation-row">
+                                <Flex gap={"4px"}>
+                                    <span className={ShortcutClass}>↑</span>
+                                    <span className={ShortcutClass}>↓</span>
+                                    <span className={ShortcutClass}>←</span>
+                                    <span className={ShortcutClass}>→</span>
+                                </Flex>
+                                <span className="keyboard-navigation-action">Move between fields</span>
+                            </div>
+                            <div className="keyboard-navigation-row">
+                                <Flex>
+                                    <span className={ShortcutClass}>{createKeyboardShortcut("letter", ["ctrl", "alt"])}</span>
+                                </Flex>
+                                <span className="keyboard-navigation-action">Jump to a section</span>
+                            </div>
+                        </div>
+                    </aside>
+                    </div>
+                </div>
             </>}
     />;
 }

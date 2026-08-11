@@ -8,7 +8,6 @@ import {doNothing, removeTrailingSlash} from "@/UtilityFunctions";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {api as FilesApi} from "@/UCloud/FilesApi";
 import {prettyFilePath} from "@/Files/FilePath";
-import {FolderResourceNS} from "../Resources";
 import {getProviderField, providerMismatchError} from "../Create";
 import {injectStyleSimple} from "@/Unstyled";
 import FileBrowse from "@/Files/FileBrowse";
@@ -66,6 +65,7 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
             }
             FilesSetter(props.parameter, {path: target, readOnly: false, type: "file"});
             WidgetSetProvider(props.parameter, res.specification.product.provider);
+            props.onValueChange?.();
             dialogStore.success();
 
             setLastActivePath(res.status.type === "DIRECTORY" ? res.id : getParentPath(res.id));
@@ -129,7 +129,7 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
             true,
             FilesApi.fileSelectorModalStyle
         );
-    }, [props.errors]);
+    }, [props.errors, props.onValueChange]);
 
     const error = props.errors[props.parameter.name] != null;
     return <>
@@ -139,6 +139,8 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
             className={FileInputClass}
             placeholder={`No ${isDirectoryInput ? "directory" : "file"} selected`}
             onClick={onActivate}
+            readOnly
+            data-field-activator
             error={error}
         />
     </>;
@@ -176,15 +178,8 @@ export const FilesSetter: WidgetSetter = (param, value) => {
 };
 
 function findAllFolderNames(): string[] {
-    const result: string[] = [];
-    let count = 0;
-    while (true) {
-        const name: `${FolderResourceNS}${number}` = `resourceFolder${count++}`;
-        const element = findElement({name});
-        if (!element) break;
-        result.push(element.value);
-    }
-    return result;
+    return Array.from(document.querySelectorAll<HTMLInputElement>("input[type=hidden][id^='app-param-resourceFolder']"))
+        .map(element => element.value);
 }
 
 export function anyFolderDuplicates(): boolean {

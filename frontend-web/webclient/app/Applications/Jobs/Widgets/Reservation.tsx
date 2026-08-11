@@ -27,7 +27,8 @@ export function ReservationParameter({
     onEstimatedCostChange,
     nameLabelAction,
     additionalNameInput,
-    onJobNameChange
+    onJobNameChange,
+    fieldNavigation,
 }: React.PropsWithChildren<{
     application: Application;
     errors: ReservationErrors;
@@ -35,6 +36,7 @@ export function ReservationParameter({
     nameLabelAction?: React.ReactNode;
     additionalNameInput?: React.ReactNode;
     onJobNameChange?: (name: string) => void;
+    fieldNavigation?: boolean;
 }>): React.ReactNode {
     // Estimated cost
     const [selectedMachine, setSelectedMachine] = useState<ProductV2Compute | null>(null);
@@ -134,7 +136,7 @@ export function ReservationParameter({
     }, []);
 
     return <div>
-        <Flex justifyContent="space-between" gap="15px">
+        <div className={classConcat(ReservationFieldsClass, additionalNameInput ? ReservationFieldsWithAdditionalClass : undefined)}>
             <Label>
                 <Flex gap="8px" alignItems="center">
                     <span>Job name</span>
@@ -145,6 +147,7 @@ export function ReservationParameter({
                     id={reservationName}
                     placeholder={"Example: Run with parameters XYZ"}
                     onChange={ev => onJobNameChange?.((ev.target as HTMLInputElement).value)}
+                    data-job-info-field={fieldNavigation ? "job-name" : undefined}
                 />
                 {errors["name"] ? <TextP color={"errorMain"}>{errors["name"]}</TextP> : null}
             </Label>
@@ -156,12 +159,13 @@ export function ReservationParameter({
                         <Input
                             id={reservationHours}
                             className={classConcat(JobCreateInput, "hours-kind")}
-                            type="number"
-                            step={1}
-                            min={1}
+                            type="text"
+                            inputMode="numeric"
+                            pattern="[0-9]+"
                             onBlur={recalculateCost}
                             defaultValue={Math.max(1, application.invocation.tool.tool?.description?.defaultTimeAllocation?.hours ?? 1)}
                             style={{minWidth: "100px"}}
+                            data-job-info-field={fieldNavigation ? "hours" : undefined}
                         />
                     </Label>
                     <Button width="40px" data-amount={1} onClick={adjustHours}>+1</Button>
@@ -169,7 +173,7 @@ export function ReservationParameter({
                     <Button width="40px" data-amount={24} onClick={adjustHours}>+24</Button>
                 </Flex>
                 : null}
-        </Flex>
+        </div>
         {toolBackend === "VIRTUAL_MACHINE" ?
             <input type={"hidden"} id={reservationHours} value={"1"} />
             : null}
@@ -181,6 +185,7 @@ export function ReservationParameter({
                     <Label>
                         Number of nodes
                         <Input id={reservationReplicas} className={JobCreateInput} onBlur={recalculateCost}
+                            data-job-info-field={fieldNavigation ? "nodes" : undefined}
                             defaultValue={"1"} />
                     </Label>
                 </Flex>
@@ -190,6 +195,7 @@ export function ReservationParameter({
 
         <div style={{paddingTop: "20px"}}>
             <Machines machines={allMachines} loading={machineSupport.loading} support={support}
+                fieldNavigation={fieldNavigation}
                 onMachineChange={setSelectedMachine} />
             {errors["product"] ? <TextP color={"errorMain"}>{errors["product"]}</TextP> : null}
         </div>
@@ -201,6 +207,33 @@ export type ReservationValues = Pick<UCloud.compute.JobSpecification, "name" | "
 export const JobCreateInput = injectStyle("job-or-hours-input", k => `
     ${k}::placeholder {
         color: var(--textSecondary);
+    }
+`);
+
+const ReservationFieldsClass = injectStyle("reservation-fields", key => `
+    ${key} {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 244px;
+        gap: 15px;
+        align-items: start;
+    }
+
+    @media (max-width: 600px) {
+        ${key} {
+            grid-template-columns: minmax(0, 1fr);
+        }
+    }
+`);
+
+const ReservationFieldsWithAdditionalClass = injectStyle("reservation-fields-with-additional", key => `
+    ${key} {
+        grid-template-columns: minmax(0, 1fr) auto 244px;
+    }
+
+    @media (max-width: 600px) {
+        ${key} {
+            grid-template-columns: minmax(0, 1fr);
+        }
     }
 `);
 

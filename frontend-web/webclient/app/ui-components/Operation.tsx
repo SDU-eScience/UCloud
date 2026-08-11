@@ -104,7 +104,6 @@ export interface OperationProps<EntityType, Extras = undefined> {
     extra: Extras;
     entityNameSingular: string;
     entityNamePlural?: string;
-    dropdownTag?: string;
     row?: EntityType;
     showSelectedCount?: boolean;
     displayTitle?: boolean;
@@ -192,7 +191,6 @@ function NewOperations<EntityType, Extras>(props: PropsWithChildren<OperationPro
                 selected={selected}
                 callbacks={props.extra}
                 appearance={adapted.appearance}
-                dropdownTag={props.dropdownTag}
                 openFnRef={props.openFnRef}
                 trigger={null}
             />;
@@ -216,7 +214,6 @@ function NewOperations<EntityType, Extras>(props: PropsWithChildren<OperationPro
                 selected={selected}
                 callbacks={props.extra}
                 appearance={adapted.appearance}
-                dropdownTag={props.dropdownTag}
                 openFnRef={props.openFnRef}
             /> : <Box ml="29px" />}
         </>;
@@ -255,7 +252,6 @@ function NewOperations<EntityType, Extras>(props: PropsWithChildren<OperationPro
             selected={props.selected}
             callbacks={props.extra}
             appearance={adapted.appearance}
-            dropdownTag={props.dropdownTag}
         />
         <Box mr="8px" />
     </Flex>;

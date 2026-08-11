@@ -1,11 +1,11 @@
 import {SafeLogo} from "@/Applications/AppToolLogo";
 import * as React from "react";
-import {Box, Flex, Tooltip, Truncate} from "@/ui-components";
+import {Box, Flex, Label, Tooltip, Truncate} from "@/ui-components";
 import Text from "@/ui-components/Text";
 import * as Pages from "./Pages";
 import {useNavigate} from "react-router-dom";
 import {FavoriteToggle} from "@/Applications/FavoriteToggle";
-import {injectStyleSimple} from "@/Unstyled";
+import {classConcat, injectStyleSimple} from "@/Unstyled";
 import {Application} from "@/Applications/AppStoreApi";
 import {RichSelect} from "@/ui-components/RichSelect";
 import {useMemo} from "react";
@@ -17,29 +17,18 @@ export const AppHeader: React.FunctionComponent<{
     allVersions: string[];
     flavors: Application[];
     title: string;
+    showSelectors?: boolean;
+    description?: React.ReactNode;
+    responsiveDescription?: boolean;
 }> = props => {
-    const newestVersion = props.allVersions[0];
-    const navigate = useNavigate();
-
-    const searchableFlavor: {searchKey: string, app: Application}[] = useMemo(() => {
-        return props.flavors.map(app => {
-            return {searchKey: app.metadata.flavorName ?? DEFAULT_FLAVOR_NAME, app};
-        }).sort((a, b) => {
-            return a.searchKey.localeCompare(b.searchKey);
-        });
-    }, [props.flavors]);
-
-    const searchableVersions = useMemo(() => props.allVersions.map(version => ({searchKey: version, version})),
-        [props.flavors]);
-
     return (
-        <Flex flexDirection={"row"}>
-            <Box mr={16} mt="auto">
+        <Flex className={props.responsiveDescription ? ResponsiveAppHeaderClass : undefined} flexDirection={"row"}>
+            <Box className="app-header-logo" mr={16} mt={props.description ? "4px" : "auto"}>
                 <SafeLogo type={"APPLICATION"} name={props.application.metadata.name} size={"64px"} />
             </Box>
             {/* minWidth=0 is required for the ellipsed text children to work */}
-            <Flex flexDirection={"column"} minWidth={0}>
-                <Box>
+            <Flex className="app-header-content" flexDirection={"column"} minWidth={0}>
+                <Box className="app-header-title">
                     <Flex>
                         <Text verticalAlign="center" alignItems="center" fontSize={30} mr="5px">
                             {props.title}
@@ -49,61 +38,166 @@ export const AppHeader: React.FunctionComponent<{
                         </Box>
                     </Flex>
                 </Box>
-                <Flex marginTop="2px" gap={"8px"}>
-                    <Box>
-                        <RichSelect
-                            items={searchableFlavor}
-                            keys={["searchKey"]}
-                            selected={{searchKey: "", app: props.application}}
-                            dropdownWidth={"300px"}
-                            elementHeight={37}
-                            RenderRow={p =>
-                                <Box p={"8px"} onClick={p.onSelect} {...p.dataProps}>
-                                    {p.element?.app?.metadata?.flavorName ?? DEFAULT_FLAVOR_NAME}
-                                </Box>
-                            }
-                            RenderSelected={p =>
-                                <Box p={"8px"} onClick={p.onSelect} {...p.dataProps}>
-                                    {p.element?.app?.metadata?.flavorName ?? DEFAULT_FLAVOR_NAME}
-                                </Box>
-                            }
-                            onSelect={p => {
-                                navigate(Pages.runApplicationWithName(p.app.metadata.name));
-                            }}
-                        />
-                    </Box>
-
-                    <RichSelect
-                        items={searchableVersions}
-                        keys={["searchKey"]}
-                        selected={{searchKey: "", version: props.application.metadata.version}}
-                        dropdownWidth={"150px"}
-                        RenderRow={p => <Truncate width="150px" title={p.element?.version} p={"8px"} onClick={p.onSelect} {...p.dataProps}> {p.element?.version}</Truncate>}
-                        RenderSelected={p => <Truncate width="130px" title={p.element?.version} p={"8px"} onClick={p.onSelect} {...p.dataProps}>{p.element?.version}</Truncate>}
-                        onSelect={p => {
-                            navigate(Pages.runApplication({name: props.application.metadata.name, version: p.version}))
-                        }}
-                    />
-                    {newestVersion !== props.application.metadata.version ?
-                        <Tooltip tooltipContentWidth={390} trigger={
-                            <div className={TriggerDiv} onClick={e => {
-                                e.preventDefault();
-                                navigate(Pages.runApplication({name: props.application.metadata.name, version: newestVersion}));
-                            }}>
-                                New version available.
-                            </div>
-                        }>
-                            <div onClick={e => e.stopPropagation()}>
-                                You are not using the newest version of the app.<br />
-                                Click to use the newest version.
-                            </div>
-                        </Tooltip>
-                        : null}
-                </Flex>
+                {!props.description ? null : <Box className="app-header-description" mt="8px" maxWidth="800px">{props.description}</Box>}
+                {props.showSelectors === false ? null : <ApplicationSelector {...props} />}
             </Flex>
         </Flex>
     );
 };
+
+const ResponsiveAppHeaderClass = injectStyleSimple("responsive-app-header", `
+    @media (max-width: 600px) {
+        display: grid;
+        grid-template-columns: 64px minmax(0, 1fr);
+        column-gap: 16px;
+        row-gap: 12px;
+        width: 100%;
+
+        > .app-header-logo {
+            margin: 0 !important;
+        }
+
+        > .app-header-content {
+            display: contents;
+        }
+
+        .app-header-title {
+            align-self: center;
+            min-width: 0;
+        }
+
+        .app-header-description {
+            grid-column: 1 / -1;
+            margin-top: 0 !important;
+        }
+    }
+`);
+
+interface FlavorOption {
+    app: Application;
+    group: "UCloud managed applications" | "Your applications";
+    latestVersion: string;
+    searchKey: string;
+}
+
+export const ApplicationSelector: React.FunctionComponent<{
+    application: Application;
+    allVersions: string[];
+    flavors: Application[];
+    showLabels?: boolean;
+    jobCreateLayout?: boolean;
+    fieldNavigation?: boolean;
+    autoFocusFlavor?: boolean;
+}> = props => {
+    const newestVersion = props.allVersions[0];
+    const navigate = useNavigate();
+    const searchableFlavor = useMemo<FlavorOption[]>(() => props.flavors.map(app => {
+        const variant = app.metadata.variant;
+        const group: FlavorOption["group"] = variant ? "Your applications" : "UCloud managed applications";
+        return {
+            app,
+            group,
+            latestVersion: app.versions?.[0] ?? app.metadata.version,
+            searchKey: variant?.title ?? app.metadata.flavorName ?? DEFAULT_FLAVOR_NAME,
+        };
+    }).sort((a, b) => a.group.localeCompare(b.group) || a.searchKey.localeCompare(b.searchKey)), [props.flavors]);
+    const selectedFlavor = searchableFlavor.find(it => it.app.metadata.name === props.application.metadata.name) ?? {
+        app: props.application,
+        group: props.application.metadata.variant ? "Your applications" : "UCloud managed applications",
+        latestVersion: newestVersion ?? props.application.metadata.version,
+        searchKey: props.application.metadata.variant?.title ?? props.application.metadata.flavorName ?? DEFAULT_FLAVOR_NAME,
+    } as FlavorOption;
+    const searchableVersions = useMemo(() => props.allVersions.map(version => ({searchKey: version, version})),
+        [props.allVersions]);
+
+    const caretPlacement: React.CSSProperties = {position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)"};
+
+    return <div className={classConcat(ApplicationSelectorClass, props.jobCreateLayout ? JobCreateApplicationSelectorClass : undefined)}>
+        <Label style={{minWidth: 0}}>
+            {!props.showLabels ? null : <Box mb="8px">Flavor</Box>}
+            <RichSelect
+                items={searchableFlavor}
+                keys={["searchKey", "latestVersion"]}
+                selected={selectedFlavor}
+                fullWidth
+                matchTriggerWidth={false}
+                dropdownWidth="min(380px, calc(100vw - 40px))"
+                elementHeight={37}
+                groupBy={item => item.group}
+                showSearchField
+                focusable={props.fieldNavigation}
+                autoFocus={props.autoFocusFlavor}
+                data-job-info-field={props.fieldNavigation ? "flavor" : undefined}
+                data-card-first-field={props.fieldNavigation || undefined}
+                chevronPlacement={caretPlacement}
+                RenderRow={p => <Flex p="8px" alignItems="center" onClick={p.onSelect} {...p.dataProps}>
+                    <Truncate title={p.element?.searchKey}>{p.element?.searchKey}</Truncate>
+                    <Text ml="auto" color="textSecondary" fontSize="12px">Latest: {p.element?.latestVersion}</Text>
+                </Flex>}
+                RenderSelected={p => <Flex p="7px" pr="48px" alignItems="center" {...p.dataProps}>
+                    <Truncate title={p.element?.searchKey}>{p.element?.searchKey}</Truncate>
+                </Flex>}
+                onSelect={p => navigate(Pages.runApplicationWithName(p.app.metadata.name))}
+            />
+        </Label>
+
+        <Label style={{minWidth: 0}}>
+            {!props.showLabels ? null : <Box mb="8px">Version</Box>}
+            <RichSelect
+                items={searchableVersions}
+                keys={["searchKey"]}
+                selected={{searchKey: props.application.metadata.version, version: props.application.metadata.version}}
+                fullWidth
+                matchTriggerWidth={false}
+                dropdownWidth="min(220px, calc(100vw - 40px))"
+                focusable={props.fieldNavigation}
+                data-job-info-field={props.fieldNavigation ? "version" : undefined}
+                chevronPlacement={caretPlacement}
+                RenderRow={p => <Truncate title={p.element?.version} p="8px" onClick={p.onSelect} {...p.dataProps}>{p.element?.version}</Truncate>}
+                RenderSelected={p => <Truncate title={p.element?.version} p="8px" pr="48px" {...p.dataProps}>{p.element?.version}</Truncate>}
+                onSelect={p => navigate(Pages.runApplication({name: props.application.metadata.name, version: p.version}))}
+            />
+        </Label>
+        {newestVersion !== props.application.metadata.version ?
+            <Box style={{gridColumn: "1 / -1"}}><Tooltip tooltipContentWidth={390} trigger={
+                <div className={TriggerDiv} onClick={e => {
+                    e.preventDefault();
+                    navigate(Pages.runApplication({name: props.application.metadata.name, version: newestVersion}));
+                }}>
+                    New version available.
+                </div>
+            }>
+                <div onClick={e => e.stopPropagation()}>
+                    You are not using the newest version of the app.<br />
+                    Click to use the newest version.
+                </div>
+            </Tooltip></Box>
+            : null}
+    </div>;
+};
+
+const ApplicationSelectorClass = injectStyleSimple("application-selector", `
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(180px, 240px);
+    gap: 8px;
+    width: 100%;
+    min-width: min(600px, calc(100vw - 120px));
+
+    @media (max-width: 600px) {
+        grid-template-columns: minmax(0, 1fr);
+        min-width: min(100%, calc(100vw - 40px));
+    }
+`);
+
+const JobCreateApplicationSelectorClass = injectStyleSimple("job-create-application-selector", `
+    grid-template-columns: minmax(0, 1fr) 244px;
+    gap: 15px;
+    min-width: 0;
+
+    @media (max-width: 600px) {
+        grid-template-columns: minmax(0, 1fr);
+    }
+`);
 
 const TriggerDiv = injectStyleSimple("trigger-div", `
     padding-left: 12px;

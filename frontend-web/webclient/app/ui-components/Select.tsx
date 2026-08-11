@@ -56,7 +56,6 @@ const SelectClass = injectStyle("select", k => `
     ${k}:focus {
         outline: 0;
         border-color: var(--primaryMain);
-        box-shadow: 0 0 3px -1px var(--primaryMain);
     }
 
     ${k}:disabled {
