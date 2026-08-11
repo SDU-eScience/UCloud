@@ -186,7 +186,7 @@ func bindCommand(args []string, cmd any) error {
 
 func Parse(commands []string) (com.Command, error) {
 	if len(commands) == 0 {
-		return nil, fmt.Errorf("no mainCommand")
+		return nil, fmt.Errorf("No command specified.")
 	}
 
 	commands, mainCommand := Consume(commands)
@@ -196,7 +196,7 @@ func Parse(commands []string) (com.Command, error) {
 
 	parserRoute, ok := commandParsers[mainCommand]
 	if !ok {
-		return nil, fmt.Errorf("mainCommand %s not found", mainCommand)
+		return nil, fmt.Errorf("unknown command %s", mainCommand)
 	}
 
 	createFunc, ok := parserRoute[subCommand]
