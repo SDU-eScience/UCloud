@@ -74,8 +74,9 @@ type KubernetesPublicLinkConfiguration struct {
 }
 
 type KubernetesVirtualMachines struct {
-	Enabled bool
-	Storage struct {
+	Enabled           bool
+	PodLevelResources bool
+	Storage           struct {
 		Type     KubernetesVmVolMode
 		HostPath string
 		Csi      KubernetesVmVolCsiConfig
@@ -779,6 +780,8 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 
 		enabled, ok := cfgutil.OptionalChildBool(filePath, vmNode, "enabled")
 		vms.Enabled = enabled && ok
+		podLevelResources, ok := cfgutil.OptionalChildBool(filePath, vmNode, "podLevelResources")
+		vms.PodLevelResources = podLevelResources && ok
 
 		if vms.Enabled {
 			storageNode := cfgutil.RequireChild(filePath, vmNode, "storage", &success)

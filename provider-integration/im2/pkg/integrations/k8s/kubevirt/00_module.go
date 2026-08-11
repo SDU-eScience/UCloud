@@ -334,6 +334,43 @@ func vmiFsMutator() {
 				annotations = make(map[string]string)
 			}
 
+			if annotations["ucloud.dk/podLevelResources"] == "true" {
+				podResources := k8score.ResourceRequirements{
+					Limits:   k8score.ResourceList{},
+					Requests: k8score.ResourceList{},
+				}
+				for _, resourceName := range []k8score.ResourceName{k8score.ResourceCPU, k8score.ResourceMemory} {
+					if quantity, ok := vm.Spec.Template.Spec.Domain.Resources.Limits[resourceName]; ok {
+						podResources.Limits[resourceName] = quantity
+					}
+					if quantity, ok := vm.Spec.Template.Spec.Domain.Resources.Requests[resourceName]; ok {
+						podResources.Requests[resourceName] = quantity
+					}
+				}
+				ops = append(ops, jsonPatchOp{Op: "add", Path: "/spec/resources", Value: podResources})
+
+				removeContainerResources := func(containers []k8score.Container, path string) {
+					for containerIdx, container := range containers {
+						for _, resourceName := range []k8score.ResourceName{k8score.ResourceCPU, k8score.ResourceMemory} {
+							if _, ok := container.Resources.Limits[resourceName]; ok {
+								ops = append(ops, jsonPatchOp{
+									Op:   "remove",
+									Path: fmt.Sprintf("/spec/%s/%d/resources/limits/%s", path, containerIdx, resourceName),
+								})
+							}
+							if _, ok := container.Resources.Requests[resourceName]; ok {
+								ops = append(ops, jsonPatchOp{
+									Op:   "remove",
+									Path: fmt.Sprintf("/spec/%s/%d/resources/requests/%s", path, containerIdx, resourceName),
+								})
+							}
+						}
+					}
+				}
+				removeContainerResources(pod.Spec.Containers, "containers")
+				removeContainerResources(pod.Spec.InitContainers, "initContainers")
+			}
+
 			for cIdx, container := range pod.Spec.Containers {
 				if len(container.Command) == 1 && container.Command[0] == "/usr/libexec/virtiofsd" {
 					ops = append(ops, []jsonPatchOp{
@@ -1291,6 +1328,14 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		vm.Namespace = Namespace
 	} else {
 		vm = existingVm
+	}
+	if vm.Annotations == nil {
+		vm.Annotations = make(map[string]string)
+	}
+	if ServiceConfig.Compute.VirtualMachines.PodLevelResources || slices.Contains(cfg.Provider.Maintenance.UserAllowList, job.Owner.CreatedBy) {
+		vm.Annotations["ucloud.dk/podLevelResources"] = "true"
+	} else {
+		delete(vm.Annotations, "ucloud.dk/podLevelResources")
 	}
 
 	strategy := kvcore.RunStrategyAlways
