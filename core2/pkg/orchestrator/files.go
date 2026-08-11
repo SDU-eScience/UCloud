@@ -967,52 +967,56 @@ func FilesTransfer(actor rpc.Actor, request orcapi.FilesTransferRequest) *util.H
 		return util.MergeHttpErr(err1, err2)
 	}
 
-	if actor.Project.Present {
-		policies := policiesByProject(actor.Project.String())
-
-		specification, ok := policies[fndapi.RestrictProviderFileTransfers]
-		if ok && specification.IsEnabled() {
-			policy, ok := specification.(*fndapi.RestrictProviderFileTransfersSpecification)
+	if sourceDrive.Owner.Project.Present {
+		sourceDrivePolicies := policiesByProject(sourceDrive.Owner.Project.Value)
+		if specification, ok := sourceDrivePolicies[fndapi.RestrictProviderFileTransfers]; ok && specification.IsEnabled() {
+			values, ok := specification.GetValues().(fndapi.RestrictProviderFileTransfersValues)
 			if !ok {
 				return util.HttpErr(
-					http.StatusForbidden,
-					"Project does not allow transfers between providers",
+					http.StatusInternalServerError,
+					"Policy wrongly configured at source project",
 				)
 			}
-
-			allowedProviders := policy.Values.AllowedProviders
-
-			if len(allowedProviders) == 0 {
+			if len(values.AllowedProviders) == 0 {
 				return util.HttpErr(
 					http.StatusForbidden,
-					"Project does not allow transfers between providers",
+					"Source project does not allow transfers between providers",
 				)
 			}
-
-			sourceProviderAllowed := slices.Contains(
-				allowedProviders,
-				sourceDrive.Specification.Product.Provider,
-			)
-			if !sourceProviderAllowed {
+			if !slices.Contains(values.AllowedProviders, destDrive.Specification.Product.Provider) {
 				return util.HttpErr(
 					http.StatusForbidden,
 					fmt.Sprintf(
-						"Project does not allow transfers from %v",
-						sourceDrive.Specification.Product.Provider,
+						"Source project does not allow transfers to %v",
+						destDrive.Specification.Product.Provider,
 					),
 				)
 			}
+		}
+	}
 
-			destProviderAllowed := slices.Contains(
-				allowedProviders,
-				destDrive.Specification.Product.Provider,
-			)
-			if !destProviderAllowed {
+	if destDrive.Owner.Project.Present {
+		destDrivePolicies := policiesByProject(destDrive.Owner.Project.Value)
+		if specification, ok := destDrivePolicies[fndapi.RestrictProviderFileTransfers]; ok && specification.IsEnabled() {
+			values, ok := specification.GetValues().(fndapi.RestrictProviderFileTransfersValues)
+			if !ok {
+				return util.HttpErr(
+					http.StatusInternalServerError,
+					"Policy wrongly configured at destination project",
+				)
+			}
+			if len(values.AllowedProviders) == 0 {
+				return util.HttpErr(
+					http.StatusForbidden,
+					"Destination project does not allow transfers between providers",
+				)
+			}
+			if !slices.Contains(values.AllowedProviders, sourceDrive.Specification.Product.Provider) {
 				return util.HttpErr(
 					http.StatusForbidden,
 					fmt.Sprintf(
-						"Project does not allow transfers to %v",
-						destDrive.Specification.Product.Provider,
+						"Destination project does not allow transfers from %v",
+						sourceDrive.Specification.Product.Provider,
 					),
 				)
 			}
