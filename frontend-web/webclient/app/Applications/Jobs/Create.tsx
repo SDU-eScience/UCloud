@@ -473,6 +473,7 @@ export const Create: React.FunctionComponent = () => {
         {productsByProvider: {}}
     );
     const [workflowInjectedParameters, setWorkflowInjectParameters] = useState<ApplicationParameter[]>([]);
+    const [dynamicParametersLoadedFor, setDynamicParametersLoadedFor] = useState<string | null>(null);
 
     const application = applicationResp?.data?.status?.applications?.find(it => it.metadata.name === appName);
 
@@ -597,6 +598,7 @@ export const Create: React.FunctionComponent = () => {
     const [reservationErrors, setReservationErrors] = useState<ReservationErrors>({});
 
     const [importDialogOpen, setImportDialogOpen] = useState(false);
+    const closeImportDialog = useCallback(() => setImportDialogOpen(false), []);
 
     const retrieveEmailNotificationSettings = useCallback(async () => {
         const emailSettings = await invokeCommand(
@@ -731,19 +733,23 @@ export const Create: React.FunctionComponent = () => {
 
     useEffect(() => {
         if (!application) return;
+        const applicationKey = `${application.metadata.name}:${application.metadata.version}`;
         fetchInjectedParameters(JobsApi.requestDynamicParameters({
             application: {name: application.metadata.name, version: application.metadata.version}
-        })).then(() => setTimeout(() => {
-            try {
-                const groupId = application.metadata.groupId;
-                const [storedGroupId, jobSpec] = appParams.current;
-                if (storedGroupId === groupId) {
-                    onLoadParameters(jobSpec);
+        })).then(() => {
+            setDynamicParametersLoadedFor(applicationKey);
+            setTimeout(() => {
+                try {
+                    const groupId = application.metadata.groupId;
+                    const [storedGroupId, jobSpec] = appParams.current;
+                    if (storedGroupId === groupId) {
+                        onLoadParameters(jobSpec);
+                    }
+                } catch (e) {
+                    console.warn(e);
                 }
-            } catch (e) {
-                console.warn(e);
-            }
-        }, 0));
+            }, 0);
+        });
     }, [application]);
 
     const parameters = useMemo(() => {
@@ -1160,10 +1166,13 @@ export const Create: React.FunctionComponent = () => {
                         </Box>}
                         <Card id="job-card-information">
                             <JobCardHeading shortcut="J" shortcutsVisible={shortcutsVisible} action={
-                                <ImportParameters application={application} onImport={onLoadParameters}
+                                dynamicParametersLoadedFor !== `${application.metadata.name}:${application.metadata.version}` ||
+                                injectedParameters.data === null ? null :
+                                <ImportParameters application={application} dynamicParameters={injectedParameters.data}
+                                    onImport={onLoadParameters}
                                     importDialogOpen={importDialogOpen}
                                     setImportDialogOpen={setImportDialogOpen}
-                                    onImportDialogClose={() => setImportDialogOpen(false)} />
+                                    onImportDialogClose={closeImportDialog} />
                             }>
                                 Job information
                             </JobCardHeading>

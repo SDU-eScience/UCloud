@@ -11,7 +11,7 @@ import JobSpecification = compute.JobSpecification;
 import AppParameterValue = compute.AppParameterValue;
 import {TextP} from "@/ui-components/Text";
 import {callAPI, useCloudCommand} from "@/Authentication/DataHook";
-import {default as JobsApi} from "@/UCloud/JobsApi";
+import {default as JobsApi, DynamicParameters} from "@/UCloud/JobsApi";
 import {bulkRequestOf} from "@/UtilityFunctions";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {api as FilesApi, normalizeDownloadEndpoint} from "@/UCloud/FilesApi";
@@ -24,8 +24,9 @@ import {FilesCreateDownloadResponseItem, UFile} from "@/UCloud/UFile";
 import {Application} from "@/Applications/AppStoreApi";
 import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
 
-export function ImportParameters({application, onImport, importDialogOpen, onImportDialogClose, setImportDialogOpen}: React.PropsWithChildren<{
+export function ImportParameters({application, dynamicParameters, onImport, importDialogOpen, onImportDialogClose, setImportDialogOpen}: React.PropsWithChildren<{
     application: Application;
+    dynamicParameters: DynamicParameters | null;
     onImport: (parameters: Partial<UCloud.compute.JobSpecification>) => void;
     importDialogOpen: boolean;
     setImportDialogOpen: React.Dispatch<React.SetStateAction<boolean>>;
@@ -34,20 +35,6 @@ export function ImportParameters({application, onImport, importDialogOpen, onImp
     const didLoadParameters = React.useRef(false);
 
     const jobId = getQueryParam(location.search, "import");
-
-    React.useEffect(() => {
-        if (jobId) {
-            callAPI(JobsApi.retrieve({id: jobId})).then(it => {
-                if (!didLoadParameters.current) {
-                    readParsedJSON(it.status.jobParametersJson).then(() => {
-                        sendSuccessNotification("Imported job parameters");
-                    });
-                }
-            }).catch(it => {
-                console.warn("Failed to auto-import parameters from query params.", it);
-            });
-        }
-    }, [jobId]);
 
     const [messages, setMessages] = useState<ImportMessage[]>([]);
 
@@ -67,7 +54,7 @@ export function ImportParameters({application, onImport, importDialogOpen, onImp
                 result = {messages: [{type: "error", message: "Corrupt or invalid import file"}]};
             }
 
-            result = await cleanupImportResult(application, result)
+            result = await cleanupImportResult(application, dynamicParameters, result)
             setMessages(result.messages);
 
             if (typeof result.output === "undefined") {
@@ -77,7 +64,21 @@ export function ImportParameters({application, onImport, importDialogOpen, onImp
                 onImportDialogClose();
             }
         }
-    }, []);
+    }, [application, dynamicParameters, onImport, onImportDialogClose]);
+
+    React.useEffect(() => {
+        if (jobId) {
+            callAPI(JobsApi.retrieve({id: jobId})).then(it => {
+                if (!didLoadParameters.current) {
+                    readParsedJSON(it.status.jobParametersJson).then(() => {
+                        sendSuccessNotification("Imported job parameters");
+                    });
+                }
+            }).catch(it => {
+                console.warn("Failed to auto-import parameters from query params.", it);
+            });
+        }
+    }, [jobId, readParsedJSON]);
 
     const importParameters = useCallback((file: File) => {
         const fileReader = new FileReader();
@@ -96,7 +97,7 @@ export function ImportParameters({application, onImport, importDialogOpen, onImp
             }
         };
         fileReader.readAsText(file);
-    }, []);
+    }, [readParsedJSON]);
 
     const [, invokeCommand] = useCloudCommand();
 
@@ -115,7 +116,7 @@ export function ImportParameters({application, onImport, importDialogOpen, onImp
         } catch (e) {
             errorMessageOrDefault(e, "Failed to fetch parameters from job file.")
         }
-    }, []);
+    }, [importParameters, invokeCommand]);
 
     return <Box flexShrink={0}>
         <Flex flexDirection="row" flexWrap="wrap">
@@ -346,6 +347,7 @@ async function importVersion2(application: Application, json: any): Promise<Impo
 // noinspection SuspiciousTypeOfGuard
 async function cleanupImportResult(
     application: Application,
+    dynamicParameters: DynamicParameters | null,
     result: ImportResult
 ): Promise<ImportResult> {
     const output = result.output;
@@ -356,7 +358,12 @@ async function cleanupImportResult(
         return result;
     }
 
-    let parameterTypes = [...(application.invocation.parameters) ?? []];
+    const importedProvider = typeof output.product === "object" && output.product !== null &&
+        typeof output.product.provider === "string" ? output.product.provider : null;
+    const providerParameters = importedProvider === null
+        ? Object.values(dynamicParameters?.parametersByProvider ?? {}).flat()
+        : dynamicParameters?.parametersByProvider[importedProvider] ?? [];
+    let parameterTypes = [...providerParameters, ...(application.invocation.parameters ?? [])];
     const values = output.parameters ?? {};
     const resources = output.resources ?? [];
 
