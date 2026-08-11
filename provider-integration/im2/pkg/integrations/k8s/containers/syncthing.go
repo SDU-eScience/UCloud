@@ -259,21 +259,17 @@ func syncthingValidateConfiguration(job *orc.Job, configuration json.RawMessage)
 		driveId, ok := filesystem.DriveIdFromUCloudPath(folder.UCloudPath)
 		if ok {
 			dInfo, found := controller.DriveRetrieve(driveId)
-			if found {
-				policySpecs, hasRestriction := controller.RetrievePoliciesByProject(dInfo.Owner.Project.String())[foundation.RestrictIntegratedApplications.String()]
-				if hasRestriction {
-					isAllowed := false
-					for _, property := range policySpecs.Properties {
-						if property.Name == "allowList" {
-							for _, element := range property.TextElements {
-								if element == "syncthing" {
-									isAllowed = true
-								}
-							}
+			if found && dInfo.Owner.Project.Present {
+				policies := controller.RetrievePoliciesByProject(dInfo.Owner.Project.Value)
+				if policy, ok := policies[foundation.RestrictIntegratedApplications]; ok {
+					values, ok := policy.GetValues().(foundation.RestrictIntegratedApplicationsValues)
+					if ok && values.Enabled {
+						if len(values.AllowList) == 0 {
+							return util.HttpErr( http.StatusForbidden, "Project does not allow usage of integrated applications (IM)")
 						}
-					}
-					if !isAllowed {
-						return util.HttpErr(http.StatusForbidden, "Project does not allow usage of syncthing (IM)")
+						if !slices.Contains(values.AllowList, "syncthing") {
+							return util.HttpErr(http.StatusForbidden, "Project does not allow usage of syncthing (IM)")
+						}
 					}
 				}
 			}

@@ -90,7 +90,7 @@ type ConfiguredWebEndpoint struct {
 	TargetDomain        string
 	Flags               RegisteredIngressFlags
 	IsPublic            bool
-	TLS          bool
+	TLS                 bool
 	VncPasswordOverride util.Option[string]
 }
 
@@ -400,9 +400,11 @@ func initJobs() {
 					jobCleanupShellSessions()
 					if item.Job.Owner.Project.Present {
 						policies := RetrievePoliciesByProject(item.Job.Owner.Project.Value)
-						_, isRestricted := policies[fnd.RestrictCutAndPaste.String()]
-						if isRestricted {
-							break
+						if policy, ok := policies[fnd.RestrictCutAndPaste]; ok {
+							values, ok := policy.GetValues().(fnd.RestrictCutAndPasteValues)
+							if ok && values.Enabled {
+								break
+							}
 						}
 					}
 					shellSessionsMutex.Lock()
@@ -490,33 +492,29 @@ func initJobs() {
 				if ok {
 					dInfo, found := DriveRetrieve(driveId)
 					if found {
-						policies := RetrievePoliciesByProject(dInfo.Owner.Project.String())
-						iAppSpecs, hasIntegratedRestrictions := policies[fnd.RestrictIntegratedApplications.String()]
-						if hasIntegratedRestrictions {
-							isRestricted := true
-							for _, property := range iAppSpecs.Properties {
-								if property.Name == "allowList" {
-									for _, element := range property.TextElements {
-										if element == "terminal" {
-											isRestricted = false
-											break
-										}
-									}
-									break
-								}
-							}
-							if isRestricted {
-								return fnd.BulkResponse[orcapi.OpenSession]{}, util.HttpErr(http.StatusForbidden, "Project does not allow integrated terminal (IM side)")
-							}
-						}
-						if IsSourceIPRestricted(policies, info) {
-							return fnd.BulkResponse[orcapi.OpenSession]{}, util.HttpErr(http.StatusForbidden, "Client IP is not allowed")
-						}
 						if dInfo.Owner.Project.Present {
 							policies := RetrievePoliciesByProject(dInfo.Owner.Project.Value)
-							_, isRestricted := policies[fnd.RestrictCutAndPaste.String()]
-							if isRestricted {
-								return fnd.BulkResponse[orcapi.OpenSession]{}, util.HttpErr(http.StatusForbidden, "Project does not allow integrated terminal (IM side)")
+							if policy, ok := policies[fnd.RestrictIntegratedApplications]; ok {
+								values, ok := policy.GetValues().(fnd.RestrictIntegratedApplicationsValues)
+								if ok && values.Enabled {
+									if !slices.Contains(values.AllowList, "terminal") {
+										return fnd.BulkResponse[orcapi.OpenSession]{}, util.HttpErr(http.StatusForbidden, "Project does not allow integrated terminal (IM side)")
+									}
+								}
+							}
+							if IsSourceIPRestricted(policies, info) {
+								return fnd.BulkResponse[orcapi.OpenSession]{}, util.HttpErr(http.StatusForbidden, "Client IP is not allowed")
+							}
+							if dInfo.Owner.Project.Present {
+								if policy, ok := policies[fnd.RestrictCutAndPaste]; ok {
+									values, ok := policy.GetValues().(fnd.RestrictCutAndPasteValues)
+									if ok && values.Enabled {
+										return fnd.BulkResponse[orcapi.OpenSession]{}, util.HttpErr(
+											http.StatusForbidden,
+											"Project does not allow integrated terminal (IM side)",
+										)
+									}
+								}
 							}
 						}
 					} else {
@@ -2134,24 +2132,26 @@ func jobRoutesRefresh() {
 	webSessionsMutex.Unlock()
 }
 
-func IsSourceIPRestricted(projectPolices map[string]*fnd.PolicySpecification, info rpc.RequestInfo) bool {
-	sourceIPSpecs, hasSourceIpRestriction := projectPolices[fnd.RestrictSourceIPRange.String()]
-	if hasSourceIpRestriction {
-		isRestricted := true
-		for _, property := range sourceIPSpecs.Properties {
-			if property.Name == "allowedClientSubnets" {
-				allowedIps := property.Text
-				if allowedIps == "" {
-					break
-				}
-				_, subnet, _ := net.ParseCIDR(allowedIps)
-				ip := net.ParseIP(util.ClientIP(info.HttpRequest).String())
-				if subnet.Contains(ip) {
-					isRestricted = false
-				}
-			}
-		}
-		return isRestricted
+func IsSourceIPRestricted(projectPolicies map[fnd.PolicyName]fnd.Specification, info rpc.RequestInfo) bool {
+	policy, ok := projectPolicies[fnd.RestrictSourceIPRange]
+	if !ok {
+		return false
 	}
-	return false
+
+	values, ok := policy.GetValues().(fnd.RestrictSourceIPRangeValues)
+	if !ok || !values.Enabled {
+		return false
+	}
+
+	if values.AllowedSubnets == "" {
+		return true
+	}
+
+	_, subnet, err := net.ParseCIDR(values.AllowedSubnets)
+	if err != nil {
+		return true
+	}
+
+	ip := net.ParseIP(util.ClientIP(info.HttpRequest).String())
+	return !subnet.Contains(ip)
 }

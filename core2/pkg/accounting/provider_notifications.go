@@ -58,7 +58,33 @@ func initProviderNotifications() {
 		projectUpdates := db.Listen(context.Background(), "project_updates")
 		groupUpdates := db.Listen(context.Background(), "project_group_updates")
 		policyUpdates := db.Listen(context.Background(), "policy_updates")
-		policyDeletes := db.Listen(context.Background(), "policy_deleted")
+
+		broadcastPoliciesForProject := func(projectId string, policySpecifications map[fndapi.PolicyName]fndapi.Specification) {
+			relevantProviders := retrieveRelevantProviders(projectId)
+			var allChannels []chan fndapi.PoliciesForProject
+
+			providerNotifications.Mu.Lock()
+
+			for provider := range relevantProviders {
+				channels, ok := providerNotifications.PoliciesByProvider[provider]
+				if ok {
+					for _, ch := range channels {
+						allChannels = append(allChannels, ch)
+					}
+				}
+			}
+
+			providerNotifications.Mu.Unlock()
+
+			updatePolicyCacheForProject(projectId, policySpecifications)
+
+			for _, ch := range allChannels {
+				select {
+				case ch <- fndapi.PoliciesForProject{ProjectId: projectId, PoliciesByName: policySpecifications}:
+				case <-time.After(200 * time.Millisecond):
+				}
+			}
+		}
 
 		for {
 			var project fndapi.Project
@@ -68,7 +94,7 @@ func initProviderNotifications() {
 			var walletOk bool
 
 			var policySpecifications map[fndapi.PolicyName]fndapi.Specification
-			var projectIdForPolices string
+			var projectIdForPolicies string
 			var policiesOk bool
 
 			select {
@@ -89,13 +115,8 @@ func initProviderNotifications() {
 				db.NewTx0(func(tx *db.Transaction) {
 					policySpecifications, policiesOk = coreutil.PolicySpecificationsRetrieveFromDatabase(tx, projectId)
 				})
-				projectIdForPolices = projectId
+				projectIdForPolicies = projectId
 
-			case projectId := <-policyDeletes:
-				db.NewTx0(func(tx *db.Transaction) {
-					policySpecifications, policiesOk = coreutil.PolicySpecificationsRetrieveFromDatabase(tx, projectId)
-				})
-				projectIdForPolices = projectId
 			}
 
 			if projectOk {
@@ -119,8 +140,17 @@ func initProviderNotifications() {
 					case ch <- &project:
 					case <-time.After(200 * time.Millisecond):
 					}
-
 				}
+
+				// Project membership changed, so newly relevant providers need
+				// the current policy state even if the policies themselves did not change.
+				db.NewTx0(func(tx *db.Transaction) {
+					policySpecifications, policiesOk = coreutil.PolicySpecificationsRetrieveFromDatabase(tx, project.Id)
+				})
+				if policiesOk {
+					broadcastPoliciesForProject(project.Id, policySpecifications)
+				}
+
 			} else if walletOk {
 				wallet, ok := internalRetrieveWallet(time.Now(), walletId, false)
 				if ok && !wallet.PaysFor.FreeToUse && len(wallet.AllocationGroups) != 0 {
@@ -143,30 +173,7 @@ func initProviderNotifications() {
 					}
 				}
 			} else if policiesOk {
-				relevantProviders := retrieveRelevantProviders(projectIdForPolices)
-				var allChannels []chan fndapi.PoliciesForProject
-
-				providerNotifications.Mu.Lock()
-
-				for provider := range relevantProviders {
-					channels, ok := providerNotifications.PoliciesByProvider[provider]
-					if ok {
-						for _, ch := range channels {
-							allChannels = append(allChannels, ch)
-						}
-					}
-				}
-
-				providerNotifications.Mu.Unlock()
-
-				updatePolicyCacheForProject(projectIdForPolices, policySpecifications)
-
-				for _, ch := range allChannels {
-					select {
-					case ch <- fndapi.PoliciesForProject{ProjectId: projectIdForPolices, PoliciesByName: policySpecifications}:
-					case <-time.After(200 * time.Millisecond):
-					}
-				}
+				broadcastPoliciesForProject(projectIdForPolicies, policySpecifications)
 			}
 		}
 	}()
@@ -341,7 +348,7 @@ func providerNotificationHandleClient(conn *ws.Conn) {
 			}
 		}
 
-		updatedPolicies := coreutil.PoliciesListUpdatedAfter(now)
+		updatedPolicies := coreutil.PoliciesListUpdatedAfter(replayFrom)
 		for _, p := range updatedPolicies {
 			select {
 			case <-ctx.Done():

@@ -508,12 +508,14 @@ func openWebSession(
 
 	vncRedirectPassword := util.Option[string]{}
 	if job.Owner.Project.Present {
-		_, hasRestriction := controller.RetrievePoliciesByProject(job.Owner.Project.Value)[fnd.RestrictCutAndPaste.String()]
-
-		if hasRestriction {
-			flags = controller.RegisteredIngressFlagsVnc
-			port = 6080
-			vncRedirectPassword.Set(VNCRedirectPassword)
+		policies := controller.RetrievePoliciesByProject(job.Owner.Project.Value)
+		if policy, ok := policies[fnd.RestrictCutAndPaste]; ok {
+			values, ok := policy.GetValues().(fnd.RestrictCutAndPasteValues)
+			if ok && values.Enabled {
+				flags = controller.RegisteredIngressFlagsVnc
+				port = 6080
+				vncRedirectPassword.Set(VNCRedirectPassword)
+			}
 		}
 	}
 

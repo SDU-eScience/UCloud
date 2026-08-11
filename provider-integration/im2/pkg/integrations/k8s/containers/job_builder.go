@@ -158,63 +158,65 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	memoryMegabytes := int64(product.MemoryInGigs * 1000)
 
 	if job.Owner.Project.Present {
-		_, hasRestriction := controller.RetrievePoliciesByProject(job.Owner.Project.String())[foundation.RestrictCutAndPaste.String()]
-		if hasRestriction {
+		policies := controller.RetrievePoliciesByProject(job.Owner.Project.Value)
+		if policy, ok := policies[foundation.RestrictCutAndPaste]; ok {
+			values, ok := policy.GetValues().(foundation.RestrictCutAndPasteValues)
+			if ok && values.Enabled {
+				// (Henrik) If this restriction is in effect then the sidecar needs to consume resources from the main job
+				// to run. It is accepted that if the machine is to small the main job is killed OOM while there always
+				// is enough to run the VNC needed to connect.
 
-			// (Henrik) If this restriction is in effect then the sidecar needs to consume resources from the main job
-			// to run. It is accepted that if the machine is to small the main job is killed OOM while there always
-			// is enough to run the VNC needed to connect.
+				vncCPUMillis := min(max(500, cpuMillis/4), 1000)
+				vncMemMB := min(max(750, memoryMegabytes/4), 4000)
 
-			vncCPUMillis := min(max(500, cpuMillis/4), 1000)
-			vncMemMB := min(max(750, memoryMegabytes/4), 4000)
+				cpuMillis = max(1, cpuMillis-vncCPUMillis)
+				memoryMegabytes = max(1, memoryMegabytes-vncMemMB)
 
-			cpuMillis = max(1, cpuMillis-vncCPUMillis)
-			memoryMegabytes = max(1, memoryMegabytes-vncMemMB)
+				url := "http://localhost"
+				if job.Status.ResolvedApplication.Present && job.Status.ResolvedApplication.Value.Invocation.Web.Present {
+					url = fmt.Sprintf("%v:%v", url, job.Status.ResolvedApplication.Value.Invocation.Web.Value.Port)
+				}
 
-			url := "http://localhost"
-			if job.Status.ResolvedApplication.Present && job.Status.ResolvedApplication.Value.Invocation.Web.Present {
-				url = fmt.Sprintf("%v:%v", url, job.Status.ResolvedApplication.Value.Invocation.Web.Value.Port)
-			}
+				vnc := orc.VncDescription{
+					Password: VNCRedirectPassword,
+					Port:     20000,
+				}
+				if job.Status.ResolvedApplication.Present && job.Status.ResolvedApplication.Value.Invocation.Vnc.Present {
+					vnc = job.Status.ResolvedApplication.Value.Invocation.Vnc.Value
+				}
 
-			vnc := orc.VncDescription{
-				Password: VNCRedirectPassword,
-				Port:     20000,
-			}
-			if job.Status.ResolvedApplication.Present && job.Status.ResolvedApplication.Value.Invocation.Vnc.Present {
-				vnc = job.Status.ResolvedApplication.Value.Invocation.Vnc.Value
-			}
+				spec.Containers = append(spec.Containers, core.Container{
+					Name:  ContainerProxyVNC,
+					Image: "mrcolorrain/vnc-browser:debian",
+					Env: []core.EnvVar{
+						{Name: "AUTO_START_BROWSER", Value: "true"},
+						{Name: "BROWSER_OPTIONS", Value: "--start-fullscreen --kiosk"},
+						{Name: "STARTING_WEBSITE_URL", Value: url},
 
-			spec.Containers = append(spec.Containers, core.Container{
-				Name:  ContainerProxyVNC,
-				Image: "mrcolorrain/vnc-browser:debian",
-				Env: []core.EnvVar{
-					{Name: "AUTO_START_BROWSER", Value: "true"},
-					{Name: "BROWSER_OPTIONS", Value: "--start-fullscreen --kiosk"},
-					{Name: "STARTING_WEBSITE_URL", Value: url},
+						{Name: "AUTO_START_VNC", Value: "true"},
+						{Name: "VNC_RESOLUTION", Value: "1280x720"},
+						{Name: "VNC_PASSWORD", Value: vnc.Password},
+						{Name: "VNC_OPTIONS", Value: "SendCutText=false"},
 
-					{Name: "AUTO_START_VNC", Value: "true"},
-					{Name: "VNC_RESOLUTION", Value: "1280x720"},
-					{Name: "VNC_PASSWORD", Value: vnc.Password},
-					{Name: "VNC_OPTIONS", Value: "SendCutText=false"},
-
-					{Name: "AUTO_START_XTERM", Value: "false"},
-				},
-				ImagePullPolicy: core.PullIfNotPresent,
-				Resources: core.ResourceRequirements{
-					Limits: map[core.ResourceName]resource.Quantity{
-						core.ResourceCPU:    *resource.NewScaledQuantity(int64(vncCPUMillis), resource.Milli),
-						core.ResourceMemory: *resource.NewScaledQuantity(int64(vncMemMB), resource.Mega),
+						{Name: "AUTO_START_XTERM", Value: "false"},
 					},
-					Requests: map[core.ResourceName]resource.Quantity{
-						core.ResourceCPU:    *resource.NewScaledQuantity(int64(vncCPUMillis), resource.Milli),
-						core.ResourceMemory: *resource.NewScaledQuantity(int64(vncMemMB), resource.Mega),
+					ImagePullPolicy: core.PullIfNotPresent,
+					Resources: core.ResourceRequirements{
+						Limits: map[core.ResourceName]resource.Quantity{
+							core.ResourceCPU:    *resource.NewScaledQuantity(int64(vncCPUMillis), resource.Milli),
+							core.ResourceMemory: *resource.NewScaledQuantity(int64(vncMemMB), resource.Mega),
+						},
+						Requests: map[core.ResourceName]resource.Quantity{
+							core.ResourceCPU:    *resource.NewScaledQuantity(int64(vncCPUMillis), resource.Milli),
+							core.ResourceMemory: *resource.NewScaledQuantity(int64(vncMemMB), resource.Mega),
+						},
 					},
-				},
-				SecurityContext: &core.SecurityContext{
-					RunAsNonRoot:             util.BoolPointer(!application.Container.RunAsRoot),
-					AllowPrivilegeEscalation: util.BoolPointer(application.Container.RunAsRoot),
-				},
-			})
+					SecurityContext: &core.SecurityContext{
+						RunAsNonRoot:             util.BoolPointer(!application.Container.RunAsRoot),
+						AllowPrivilegeEscalation: util.BoolPointer(application.Container.RunAsRoot),
+					},
+				})
+			}
 		}
 	}
 
@@ -241,31 +243,19 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		allowNetworkTo(firewall, job.Id)
 
 		if job.Owner.Project.Present {
-			policyAccessSpec, hasEngressRestriction := controller.RetrievePoliciesByProject(job.Owner.Project.String())[foundation.RestrictInternetAccess.String()]
-			if hasEngressRestriction {
-				for _, prop := range policyAccessSpec.Properties {
-					if prop.Name == "allowedSubnets" {
-						if prop.Text == "" {
-							firewall.Spec.PolicyTypes = []networking.PolicyType{networking.PolicyTypeEgress}
-						} else {
-							allowNetworkTo(firewall, prop.Text)
-						}
-						break
-					}
+			policies := controller.RetrievePoliciesByProject(job.Owner.Project.Value)
+
+			if policy, ok := policies[foundation.RestrictInternetAccess]; ok {
+				values, ok := policy.GetValues().(foundation.RestrictInternetAccessValues)
+				if ok && values.Enabled {
+					allowCIDR(firewall, values.AllowedSubnets, networking.PolicyTypeEgress)
 				}
 			}
 
-			policySourceSpec, hasIngressRestriction := controller.RetrievePoliciesByProject(job.Owner.Project.String())[foundation.RestrictSourceIPRange.String()]
-			if hasIngressRestriction {
-				for _, prop := range policySourceSpec.Properties {
-					if prop.Name == "allowedSubnets" {
-						if prop.Text == "" {
-							firewall.Spec.PolicyTypes = []networking.PolicyType{networking.PolicyTypeIngress}
-						} else {
-							allowNetworkFrom(firewall, prop.Text)
-						}
-						break
-					}
+			if policy, ok := policies[foundation.RestrictSourceIPRange]; ok {
+				values, ok := policy.GetValues().(foundation.RestrictSourceIPRangeValues)
+				if ok && values.Enabled {
+					allowCIDR(firewall, values.AllowedSubnets, networking.PolicyTypeIngress)
 				}
 			}
 		}
@@ -663,6 +653,20 @@ func recordMountActivity(job *orc.Job, mounts []activityMount) {
 
 func jobAuditLogIsEnabled(description *orc.ApplicationInvocationDescription) bool {
 	return description.JobAuditLogIsEnabled.Present && description.JobAuditLogIsEnabled.Value
+}
+
+func allowCIDR(policy *networking.NetworkPolicy, cidr string, policyType networking.PolicyType) {
+	if cidr == "" {
+		policy.Spec.PolicyTypes = append(policy.Spec.PolicyTypes, policyType)
+		return
+	}
+	peer := networking.NetworkPolicyPeer{IPBlock: &networking.IPBlock{CIDR: cidr}}
+	switch policyType {
+	case networking.PolicyTypeIngress:
+		policy.Spec.Ingress = append(policy.Spec.Ingress, networking.NetworkPolicyIngressRule{From: []networking.NetworkPolicyPeer{peer}})
+	case networking.PolicyTypeEgress:
+		policy.Spec.Egress = append(policy.Spec.Egress, networking.NetworkPolicyEgressRule{To: []networking.NetworkPolicyPeer{peer}})
+	}
 }
 
 func allowNetworkFrom(policy *networking.NetworkPolicy, jobId string) {

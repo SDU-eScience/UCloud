@@ -88,7 +88,7 @@ func initEvents() {
 	}()
 
 	policyCache.Mu.Lock()
-	policyCache.PoliciesByProject = make(map[string]map[string]*fnd.PolicySpecification)
+	policyCache.PoliciesByProject = make(map[string]map[fnd.PolicyName]fnd.Specification)
 	policyCache.Mu.Unlock()
 }
 
@@ -416,7 +416,7 @@ type EventProjectUpdated struct {
 
 type EventPoliciesUpdated struct {
 	ProjectId              string
-	PoliciesSpecifications map[string]*fnd.PolicySpecification
+	PoliciesSpecifications map[fnd.PolicyName]fnd.Specification
 }
 
 type buf struct {
@@ -869,12 +869,12 @@ func RetrieveResourceLockInfo(resource orc.Resource, ref apm.ProductReference) R
 
 var policyCache struct {
 	Mu                sync.RWMutex
-	PoliciesByProject map[string]map[string]*fnd.PolicySpecification
+	PoliciesByProject map[string]map[fnd.PolicyName]fnd.Specification
 }
 
-func RetrievePoliciesByProject(projectId string) map[string]*fnd.PolicySpecification {
+func RetrievePoliciesByProject(projectId string) map[fnd.PolicyName]fnd.Specification {
 	if RunsServerCode() {
-		projectPolicies := map[string]*fnd.PolicySpecification{}
+		projectPolicies := map[fnd.PolicyName]fnd.Specification{}
 		policyCache.Mu.Lock()
 		projectPolicies, ok := policyCache.PoliciesByProject[projectId]
 		if !ok {
@@ -895,20 +895,20 @@ func RetrievePoliciesByProject(projectId string) map[string]*fnd.PolicySpecifica
 	}
 }
 
-func policySpecificationsRetrieveFromCore(projectId string) (map[string]*fnd.PolicySpecification, bool) {
+func policySpecificationsRetrieveFromCore(projectId string) (map[fnd.PolicyName]fnd.Specification, bool) {
 	retrievedPolices, err := fnd.PoliciesRetrieve.Invoke(fnd.RetrievePoliciesRequest{ProjectId: projectId})
 	if err != nil {
 		fmt.Printf("Error %v\n", err)
 		return nil, false
 	}
-	var policies = make(map[string]*fnd.PolicySpecification)
+	var policies = make(map[fnd.PolicyName]fnd.Specification)
 	for _, policy := range retrievedPolices {
-		policies[policy.Specification.Schema] = &policy.Specification
+		policies[policy.Specification.GetSpecificationName()] = policy.Specification
 	}
 	return policies, true
 }
 
-func updatePolicyCacheForProject(projectId string, policySpecifications map[string]*fnd.PolicySpecification) {
+func updatePolicyCacheForProject(projectId string, policySpecifications map[fnd.PolicyName]fnd.Specification) {
 	policyCache.Mu.Lock()
 	policyCache.PoliciesByProject[projectId] = policySpecifications
 	policyCache.Mu.Unlock()

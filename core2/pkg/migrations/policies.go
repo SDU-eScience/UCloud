@@ -12,7 +12,7 @@ func policiesV1() db.MigrationScript {
 					    policy_name text not null,
 					    policy_properties jsonb not null,
 					    project_id text not null references project.projects(id) on delete cascade,
-					    last_modified_at timestamp with time zone default now() not null,
+					    modified_at timestamp with time zone default now() not null,
 					    primary key (project_id, policy_name)
 					)
 			    `,
