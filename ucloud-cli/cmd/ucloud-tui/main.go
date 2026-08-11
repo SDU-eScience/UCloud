@@ -7,7 +7,11 @@ import (
 )
 
 func main() {
-	err := cli.ExecuteCommand(os.Args[1:]...)
+	if len(os.Args) == 1 {
+		println("Usage: <command>")
+		return
+	}
+	err := cli.ExecuteCommand(os.Args[0:]...) // Command execution
 	if err != nil {
 		panic(err)
 	}
