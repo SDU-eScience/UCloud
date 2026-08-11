@@ -282,6 +282,7 @@ services:
 
     virtualMachines:
       enabled: true
+      podLevelResources: false
       storage:
         type: "CsiStaticPv" # or "HostPath"
         csi:
