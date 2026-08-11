@@ -34,9 +34,9 @@ import {dateToStringNoTime} from "@/Utilities/DateUtilities";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {OldProjectRole} from "@/Project";
 import {
+    loadWallets,
     State,
     SubProjectFilter,
-    SubProjectFilterSetting,
     subProjectsDefaultSettings,
     UIAction,
     UIEvent
@@ -68,8 +68,8 @@ import * as Heading from "@/ui-components/Heading";
 import DatePicker from "react-datepicker";
 import {callAPIWithErrorHandler} from "@/Authentication/DataHook";
 import {DatePickerClass} from "@/ui-components/DatePicker";
-import {getProviderTitle, getShortProviderTitle} from "@/Providers/ProviderTitle";
-import {sendFailureNotification, sendInformationNotification, sendNotification, sendSuccessNotification, SnackType} from "@/Notifications";
+import {getProviderTitle} from "@/Providers/ProviderTitle";
+import {sendFailureNotification, sendInformationNotification, sendSuccessNotification} from "@/Notifications";
 
 const allocationFiltersModalStyle: ReactModal.Styles = {
     ...largeModalStyle,
@@ -983,15 +983,14 @@ function openUpdater(
                     }))
                 )) !== null;
 
+                // TODO(Jonas): Preferably, this should be a single wallet that's fetched, based on an allocation ID.
+                const wallets = await loadWallets();
+
                 if (success) {
                     dispatchEvent({
                         type: "UpdateAllocation",
-                        allocationIdx: idx,
-                        recipientIdx: ridx,
-                        groupIdx: gidx,
-                        newQuota: quota,
-                        newStart: periodRef.start ?? new Date(),
-                        newEnd: periodRef.end ?? new Date(),
+                        wallets: wallets ?? [],
+                        allocationId,
                     });
                     sendSuccessNotification("Update Success");
                     dialogStore.success();
@@ -1419,16 +1418,17 @@ export function SubProjectList({
         setFiltersShown(true);
     }, []);
 
-    React.useEffect(() => {
-        resetOpenNodes();
-        listRef.current?.resetAfterIndex(0);
-    }, [projectId, state.subAllocations.recipients, state.searchQuery]);
-
     const rerender = useForcedRender();
     const setNodeStateHack = useCallback((action: TreeAction, reference: string, group?: string | null) => {
         setNodeState(action, reference, group);
         rerender();
     }, []);
+
+
+    React.useEffect(() => {
+        resetOpenNodes();
+        listRef.current?.resetAfterIndex(0);
+    }, [projectId, state.searchQuery]);
 
     const childProjectIds = useMemo(() => {
         const ids: string[] = [];
@@ -1736,7 +1736,7 @@ function makeCategoryKeyFromWorkspaceId(workspace: string, name: Accounting.Prod
 
 let openNodes: Record<string, boolean> = {};
 
-export function resetOpenNodes() {
+function resetOpenNodes() {
     openNodes = {};
 }
 

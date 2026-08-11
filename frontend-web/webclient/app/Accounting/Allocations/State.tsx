@@ -103,7 +103,7 @@ export type UIAction =
     | {type: "GiftsLoaded", gifts: Gifts.GiftWithCriteria[]}
     | {type: "UpdateSearchQuery", newQuery: string}
     | {type: "SetEditing", recipientIdx: number, groupIdx: number, allocationIdx: number, isEditing: boolean}
-    | {type: "UpdateAllocation", allocationIdx: number, groupIdx: number, recipientIdx: number, newQuota: number, newStart: Date, newEnd: Date}
+    | {type: "UpdateAllocation", allocationId: number, wallets: Accounting.WalletV2[]}
     | {type: "UpdateGift", data: Partial<State["gifts"]>}
     | {type: "GiftCreated", gift: Gifts.GiftWithCriteria}
     | {type: "GiftDeleted", id: number}
@@ -276,6 +276,7 @@ export function stateReducer(state: State, action: UIAction): State {
 
         case "WalletsLoaded": {
             const subAllocations = Accounting.buildSubAllocations(action.wallets, state.viewOnlyProjects);
+
             const yourAllocations = Accounting.buildYourAllocations(action.wallets);
 
             return rebuildTree({
@@ -461,15 +462,15 @@ export function stateReducer(state: State, action: UIAction): State {
         }
 
         case "ToggleViewOnlyProjects": {
-            const viewOnlyProjects = !state.viewOnlyProjects;
-            if (viewOnlyProjects) {
-                const subAllocations = state.cache.projects;
-                return rebuildTree({...state, subAllocations, viewOnlyProjects});
-            }
-
-            let subAllocations = state.cache.personalWorkspace ?? Accounting.buildSubAllocations(state.remoteData.wallets ?? [], viewOnlyProjects);
-
-            return rebuildTree({...state, subAllocations, cache: {...state.cache, personalWorkspace: subAllocations}, viewOnlyProjects});
+            return rebuildTree(produce(state, draft => {
+                draft.viewOnlyProjects = !state.viewOnlyProjects;
+                if (draft.viewOnlyProjects) {
+                    draft.subAllocations = state.cache.projects;
+                } else {
+                    draft.subAllocations = state.cache.personalWorkspace ?? Accounting.buildSubAllocations(state.remoteData.wallets ?? [], draft.viewOnlyProjects);
+                    draft.cache.personalWorkspace = draft.subAllocations;
+                }
+            }));
         }
 
         case "SubProjectFilterSettingsLoad": {
@@ -489,38 +490,25 @@ export function stateReducer(state: State, action: UIAction): State {
         }
 
         case "UpdateAllocation": {
-            const recipient = getOrNull(state.subAllocations.recipients, action.recipientIdx);
-            if (!recipient) return state;
-            const group = getOrNull(recipient.groups, action.groupIdx);
-            if (!group) return state;
-            const allocation = getOrNull(group.allocations, action.allocationIdx);
-            if (!allocation) return state;
+            return rebuildTree(produce(state, draft => {
+                const updatedWallet = action.wallets.find(w =>
+                    w.children?.find(ag =>
+                        ag.group.allocations.find(a =>
+                            a.id === action.allocationId
+                        ) != null)
+                    != null);
 
-            const allocationId = allocation.allocationId;
-            const newWallets = deepCopy(state.remoteData.wallets);
-            const newState: State = {
-                ...state,
-                remoteData: {
-                    ...state.remoteData,
-                    wallets: newWallets,
-                },
-            };
-
-            outer: for (const wallet of (newState.remoteData.wallets ?? [])) {
-                const allChildren = wallet.children ?? [];
-                for (const childGroup of allChildren) {
-                    for (const alloc of childGroup.group.allocations) {
-                        if (alloc.id === allocationId) {
-                            alloc.quota = action.newQuota;
-                            alloc.startDate = action.newStart.getTime();
-                            alloc.endDate = action.newEnd.getTime();
-                            break outer;
-                        }
+                if (updatedWallet) {
+                    draft.remoteData.wallets = action.wallets;
+                    const subAllocations = Accounting.buildSubAllocations(action.wallets, state.viewOnlyProjects);
+                    if (state.viewOnlyProjects) {
+                        draft.cache.projects = subAllocations;
+                    } else {
+                        draft.cache.personalWorkspace = subAllocations;
                     }
+                    draft.subAllocations = subAllocations;
                 }
-            }
-
-            return rebuildTree(newState);
+            }));
         }
 
         case "UsageReportLoaded": {
@@ -792,6 +780,17 @@ export type UIEvent =
     | {type: "Init"}
     ;
 
+export async function loadWallets(filterChildrenByIdleTimeInDays?: number, filterType?: Accounting.ProductType) {
+    return await fetchAll(next =>
+        callAPI(Accounting.browseWalletsV2({
+            itemsPerPage: 250,
+            next,
+            includeChildren: true,
+            ...(filterChildrenByIdleTimeInDays !== undefined ? {filterChildrenByIdleTimeInDays} : {}),
+        }))
+    );
+}
+
 export function useEventReducer(didCancel: React.RefObject<boolean>, doDispatch: (action: UIAction) => void): (event: UIEvent) => unknown {
     return useCallback(async (event: UIEvent) => {
         function dispatch(ev: UIAction) {
@@ -799,22 +798,13 @@ export function useEventReducer(didCancel: React.RefObject<boolean>, doDispatch:
             doDispatch(ev);
         }
 
-        function loadWallets(filterChildrenByIdleTimeInDays?: number) {
-            fetchAll(next =>
-                callAPI(Accounting.browseWalletsV2({
-                    itemsPerPage: 250,
-                    next,
-                    includeChildren: true,
-                    ...(filterChildrenByIdleTimeInDays !== undefined ? {filterChildrenByIdleTimeInDays} : {}),
-                }))
-            ).then(wallets => {
-                dispatch({type: "WalletsLoaded", wallets});
-            });
-        }
+
 
         switch (event.type) {
             case "Init": {
-                loadWallets();
+                loadWallets().then(wallets => {
+                    dispatch({type: "WalletsLoaded", wallets});
+                });
 
                 fetchManagedProviders().then(providers => {
                     dispatch({type: "ManagedProvidersLoaded", providerIds: providers});
@@ -866,7 +856,9 @@ export function useEventReducer(didCancel: React.RefObject<boolean>, doDispatch:
 
                 const idleSetting = event.settings[SubProjectFilterSetting.IDLE_SUB_PROJECTS];
                 if (idleSetting?.enabled) {
-                    loadWallets(idleFilterToDays(idleSetting.selected));
+                    loadWallets(idleFilterToDays(idleSetting.selected)).then(wallets => {
+                        dispatch({type: "WalletsLoaded", wallets});
+                    });
                 }
                 break;
             }
@@ -876,7 +868,9 @@ export function useEventReducer(didCancel: React.RefObject<boolean>, doDispatch:
 
                 if (event.setting === SubProjectFilterSetting.IDLE_SUB_PROJECTS) {
                     const filterDays = event.enabled ? idleFilterToDays(event.newValue) : undefined;
-                    loadWallets(filterDays);
+                    loadWallets(filterDays).then(wallets => {
+                        dispatch({type: "WalletsLoaded", wallets});
+                    });
                 }
                 break;
             }
