@@ -7,8 +7,13 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
+
+	"gopkg.in/yaml.v3"
+	"ucloud.dk/ucloud_cli/pkg/shared"
 )
 
 type ConnectCommand struct {
@@ -36,7 +41,7 @@ func cliAuth(w http.ResponseWriter, r *http.Request) error {
 	if token == "" {
 		return fmt.Errorf("no token received")
 	}
-	return nil
+	return saveToken(token)
 }
 
 func startAuthServer(ready chan<- string, authDone chan<- error) error {
@@ -79,6 +84,57 @@ func openBrowser(url string) error {
 		log.Fatal(err)
 	}
 	return err
+}
+
+func saveToken(token string) error {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return err
+	}
+
+	dir := filepath.Join(home, ".config", "ucloud")
+	path := filepath.Join(dir, "config.yaml")
+
+	// Make sure ~/.config/ucloud exists.
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		return err
+	}
+
+	var cfg shared.Config
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return err
+		}
+
+		// Config doesn't exist yet, create an empty one.
+		data = []byte{}
+	}
+
+	// Empty config is valid.
+	if len(data) > 0 {
+		if err := yaml.Unmarshal(data, &cfg); err != nil {
+			return err
+		}
+	}
+
+	// Make sure the workspace map exists.
+	if cfg.Workspaces == nil {
+		cfg.Workspaces = make(map[string]shared.Workspace)
+	}
+
+	workspace := cfg.Workspaces[cfg.CurrentWorkspace]
+	workspace.Token = token
+
+	cfg.Workspaces[cfg.CurrentWorkspace] = workspace
+
+	data, err = yaml.Marshal(&cfg)
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(path, data, 0600)
 }
 
 func performConnection() error {
