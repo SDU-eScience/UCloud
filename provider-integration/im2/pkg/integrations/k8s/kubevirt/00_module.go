@@ -1351,7 +1351,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	if vm.Annotations == nil {
 		vm.Annotations = make(map[string]string)
 	}
-	if ServiceConfig.Compute.VirtualMachines.PodLevelResources || slices.Contains(cfg.Provider.Maintenance.UserAllowList, job.Owner.CreatedBy) {
+	if ServiceConfig.Compute.VirtualMachines.PodLevelResources {
 		vm.Annotations["ucloud.dk/podLevelResources"] = "true"
 	} else {
 		delete(vm.Annotations, "ucloud.dk/podLevelResources")
