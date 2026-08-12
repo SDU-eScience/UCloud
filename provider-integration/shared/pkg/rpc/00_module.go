@@ -138,9 +138,16 @@ type serverHandlerData struct {
 	byMethod map[string]func(w http.ResponseWriter, r *http.Request)
 }
 
+type RequestPolicy func(
+	callName string,
+	info RequestInfo,
+) *util.HttpError
+
 type Server struct {
 	Mux      *http.ServeMux
 	handlers map[string]*serverHandlerData
+
+	RequestPolicies RequestPolicy
 }
 
 type Client struct {
@@ -172,7 +179,7 @@ type Call[Req any, Resp any] struct {
 func rpcBaseContext(context string) string {
 	if context == "" {
 		return ""
-  } else if context == "/" {
+	} else if context == "/" {
 		return "/"
 	} else if !strings.HasPrefix(context, "auth") && !strings.HasPrefix(context, "ucloud/") {
 		return fmt.Sprintf("api/%s", context)
@@ -484,7 +491,11 @@ func (c *Call[Req, Resp]) HandlerEx(server *Server, handler ServerHandler[Req, R
 						Actor:       actor,
 					}
 
-					response, err = rpcServerSafeInvokeHandler(c, handler, info, request)
+					err = server.RequestPolicies(c.FullName(), info)
+
+					if err == nil {
+						response, err = rpcServerSafeInvokeHandler(c, handler, info, request)
+					}
 				}
 			}
 		}

@@ -2,6 +2,7 @@ package foundation
 
 import (
 	"encoding/json"
+	"net"
 	"net/http"
 	"sync"
 
@@ -231,4 +232,139 @@ func policiesUpdate(actor rpc.Actor, request fndapi.PoliciesUpdateRequest) (util
 	}
 
 	return util.Empty{}, nil
+}
+
+func SourceIpPolicy(callName string, info rpc.RequestInfo) *util.HttpError {
+	if _, ok := sourceIpRestrictedEndpoints[callName]; !ok {
+		return nil
+	}
+
+	if SourceIpIsRestricted(info) {
+		return util.HttpErr(
+			http.StatusForbidden,
+			"Client IP is not allowed by project",
+		)
+	}
+
+	return nil
+}
+
+func SourceIpIsRestricted(info rpc.RequestInfo) bool {
+	if !info.Actor.Project.Present {
+		return false
+	}
+
+	projectPolicies.Mu.RLock()
+	policies := projectPolicies.PoliciesByProject[string(info.Actor.Project.Value)].ConfiguredPolicies
+	projectPolicies.Mu.RUnlock()
+
+	specification, ok := policies[fndapi.RestrictSourceIPRange]
+	if !ok {
+		return false
+	}
+
+	sourceIPSpecification, ok := specification.(*fndapi.RestrictSourceIPRangeSpecification)
+	if !ok {
+		return false
+	}
+
+	if !sourceIPSpecification.IsEnabled() {
+		return false
+	}
+
+	allowedSubnets := sourceIPSpecification.Values.AllowedSubnets
+	if allowedSubnets == "" {
+		return true
+	}
+
+	ip := net.ParseIP(util.ClientIP(info.HttpRequest).String())
+	if ip == nil {
+		return true
+	}
+
+	_, subnet, err := net.ParseCIDR(allowedSubnets)
+	if err != nil {
+		return true
+	}
+
+	return !subnet.Contains(ip)
+}
+
+var sourceIpRestrictedEndpoints = map[string]struct{}{
+	// accounting
+	"accounting.v2.rootAllocate":     {},
+	"accounting.v2.updateAllocation": {},
+	"accounting.v2.wallets.browse":   {},
+
+	// drive
+	"files.collections.browse":    {},
+	"files.collections.retrieve":  {},
+	"files.collections":           {},
+	"files.collections.rename":    {},
+	"files.collections.search":    {},
+	"files.collections.updateAcl": {},
+	"files.collections.delete":    {},
+
+	// files
+	"files.browse":     {},
+	"files.retrieve":   {},
+	"files.move":       {},
+	"files.copy":       {},
+	"files.upload":     {},
+	"files.download":   {},
+	"files.folder":     {},
+	"files.delete":     {},
+	"files.trash":      {},
+	"files.emptyTrash": {},
+	"files.transfer":   {},
+	"files.streamingSearch": {},
+
+	// grants
+	"grant.v2.export":         {},
+	"grant.v2.exportCsv":      {},
+	"grant.v2.browse":         {},
+	"grant.v2.retrieve":       {},
+	"grant.v2.submitRevision": {},
+	"grant.v2.postComment":    {},
+	"grant.v2.deleteComment":  {},
+
+	// ingresses
+	"ingresses.browse":           {},
+	"ingresses.control.browse":   {},
+	"ingresses.control.retrieve": {},
+	"ingresses":                  {},
+	"ingresses.retrieve":         {},
+	"ingresses.search":           {},
+	"ingresses.delete":           {},
+	"ingresses.updateAcl":        {},
+
+	// jobs
+	"jobs":                       {},
+	"jobs.control.browseSshKeys": {},
+
+	// licenses
+	"licenses.browse":    {},
+	"licenses.retrieve":  {},
+	"licenses.delete":    {},
+	"licenses.updateAcl": {},
+	"licenses":           {},
+
+	// public_ips
+	"networkips.browse":           {},
+	"networkips.delete":           {},
+	"networkips":                  {},
+	"networkips.retrieve":         {},
+	"networkips.control.retrieve": {},
+	"networkips.updateAcl":        {},
+
+	// ssh
+	"ssh":          {},
+	"ssh.retrieve": {},
+	"ssh.browse":   {},
+	"ssh.delete":   {},
+
+	// tokens
+	"tokens": {},
+	"tokens.browse": {},
+	"tokens.revoke": {},
 }

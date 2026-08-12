@@ -39,17 +39,10 @@ func initIngresses() {
 	)
 
 	orcapi.IngressesBrowse.Handler(func(info rpc.RequestInfo, request orcapi.IngressesBrowseRequest) (fndapi.PageV2[orcapi.Ingress], *util.HttpError) {
-		if sourceIPisRestricted(info) {
-			return fndapi.PageV2[orcapi.Ingress]{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
-		}
-
 		return IngressBrowse(info.Actor, request), nil
 	})
 
 	orcapi.IngressesControlBrowse.Handler(func(info rpc.RequestInfo, request orcapi.IngressesControlBrowseRequest) (fndapi.PageV2[orcapi.Ingress], *util.HttpError) {
-		if sourceIPisRestricted(info) {
-			return fndapi.PageV2[orcapi.Ingress]{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
-		}
 		return ResourceBrowse[orcapi.Ingress](
 			info.Actor,
 			ingressType,
@@ -64,9 +57,6 @@ func initIngresses() {
 	})
 
 	orcapi.IngressesCreate.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.IngressSpecification]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
-		if sourceIPisRestricted(info) {
-			return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
-		}
 
 		if info.Actor.Project.Present {
 			policies := policiesByProject(info.Actor.Project.String())
@@ -95,16 +85,10 @@ func initIngresses() {
 	})
 
 	orcapi.IngressesDelete.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[fndapi.FindByStringId]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
-		if sourceIPisRestricted(info) {
-			return fndapi.BulkResponse[util.Empty]{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
-		}
 		return IngressDelete(info.Actor, request)
 	})
 
 	orcapi.IngressesSearch.Handler(func(info rpc.RequestInfo, request orcapi.IngressesSearchRequest) (fndapi.PageV2[orcapi.Ingress], *util.HttpError) {
-		if sourceIPisRestricted(info) {
-			return fndapi.PageV2[orcapi.Ingress]{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
-		}
 		return ResourceBrowse[orcapi.Ingress](
 			info.Actor,
 			ingressType,
@@ -123,23 +107,14 @@ func initIngresses() {
 	})
 
 	orcapi.IngressesRetrieve.Handler(func(info rpc.RequestInfo, request orcapi.IngressesRetrieveRequest) (orcapi.Ingress, *util.HttpError) {
-		if sourceIPisRestricted(info) {
-			return orcapi.Ingress{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
-		}
 		return ResourceRetrieve[orcapi.Ingress](info.Actor, ingressType, ResourceParseId(request.Id), request.ResourceFlags)
 	})
 
 	orcapi.IngressesControlRetrieve.Handler(func(info rpc.RequestInfo, request orcapi.IngressesControlRetrieveRequest) (orcapi.Ingress, *util.HttpError) {
-		if sourceIPisRestricted(info) {
-			return orcapi.Ingress{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
-		}
 		return ResourceRetrieve[orcapi.Ingress](info.Actor, ingressType, ResourceParseId(request.Id), request.ResourceFlags)
 	})
 
 	orcapi.IngressesUpdateAcl.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.UpdatedAcl]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
-		if sourceIPisRestricted(info) {
-			return fndapi.BulkResponse[util.Empty]{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
-		}
 		for _, item := range request.Items {
 			err := ResourceUpdateAcl(info.Actor, ingressType, item)
 			if err != nil {

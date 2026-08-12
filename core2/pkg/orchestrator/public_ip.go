@@ -28,9 +28,6 @@ func initPublicIps() {
 	)
 
 	orcapi.PublicIpsBrowse.Handler(func(info rpc.RequestInfo, request orcapi.PublicIpsBrowseRequest) (fndapi.PageV2[orcapi.PublicIp], *util.HttpError) {
-		if sourceIPisRestricted(info) {
-			return fndapi.PageV2[orcapi.PublicIp]{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
-		}
 		return PublicIpBrowse(info.Actor, request), nil
 	})
 
@@ -49,16 +46,10 @@ func initPublicIps() {
 	})
 
 	orcapi.PublicIpsDelete.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[fndapi.FindByStringId]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
-		if sourceIPisRestricted(info) {
-			return fndapi.BulkResponse[util.Empty]{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
-		}
 		return PublicIpDelete(info.Actor, request)
 	})
 
 	orcapi.PublicIpsCreate.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.PublicIPSpecification]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
-		if sourceIPisRestricted(info) {
-			return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
-		}
 		if info.Actor.Project.Present {
 			policies := policiesByProject(info.Actor.Project.String())
 
@@ -103,16 +94,10 @@ func initPublicIps() {
 	})
 
 	orcapi.PublicIpsRetrieve.Handler(func(info rpc.RequestInfo, request orcapi.PublicIpsRetrieveRequest) (orcapi.PublicIp, *util.HttpError) {
-		if sourceIPisRestricted(info) {
-			return orcapi.PublicIp{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
-		}
 		return ResourceRetrieve[orcapi.PublicIp](info.Actor, publicIpType, ResourceParseId(request.Id), request.ResourceFlags)
 	})
 
 	orcapi.PublicIpsControlRetrieve.Handler(func(info rpc.RequestInfo, request orcapi.PublicIpsControlRetrieveRequest) (orcapi.PublicIp, *util.HttpError) {
-		if sourceIPisRestricted(info) {
-			return orcapi.PublicIp{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
-		}
 		return ResourceRetrieve[orcapi.PublicIp](info.Actor, publicIpType, ResourceParseId(request.Id), request.ResourceFlags)
 	})
 
@@ -126,9 +111,6 @@ func initPublicIps() {
 	})
 
 	orcapi.PublicIpsUpdateAcl.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.UpdatedAcl]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
-		if sourceIPisRestricted(info) {
-			return fndapi.BulkResponse[util.Empty]{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
-		}
 		for _, item := range request.Items {
 			err := ResourceUpdateAcl(info.Actor, publicIpType, item)
 			if err != nil {

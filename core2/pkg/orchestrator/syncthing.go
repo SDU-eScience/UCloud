@@ -1,6 +1,7 @@
 package orchestrator
 
 import (
+	"net"
 	"net/http"
 	"slices"
 
@@ -31,6 +32,38 @@ func syncthingIsRestricted(actor rpc.Actor) bool {
 		integratedApplications.Values.AllowList,
 		"syncthing",
 	)
+}
+
+func syncthingDriveDeniesActorsSourceIp(info rpc.RequestInfo, dInfo orcapi.Drive) bool {
+	policies := policiesByProject(dInfo.Owner.Project.Value)
+	if spec, ok := policies[foundation.RestrictSourceIPRange]; ok {
+		sourceIPSpecification, ok := spec.(*foundation.RestrictSourceIPRangeSpecification)
+		if !ok {
+			return false
+		}
+
+		if !sourceIPSpecification.IsEnabled() {
+			return false
+		}
+
+		allowedSubnets := sourceIPSpecification.Values.AllowedSubnets
+		if allowedSubnets == "" {
+			return true
+		}
+
+		ip := net.ParseIP(util.ClientIP(info.HttpRequest).String())
+		if ip == nil {
+			return true
+		}
+
+		_, subnet, err := net.ParseCIDR(allowedSubnets)
+		if err != nil {
+			return true
+		}
+
+		return !subnet.Contains(ip)
+	}
+	return false
 }
 
 func initSyncthing() {
@@ -94,7 +127,7 @@ func initSyncthing() {
 					if syncthingIsRestricted(actorWithProject) {
 						return util.Empty{}, util.HttpErr(http.StatusForbidden, "Project does not allow users to use Syncthing")
 					}
-					if sourceIPisRestricted(info) {
+					if syncthingDriveDeniesActorsSourceIp(info, dInfo) {
 						return util.Empty{}, util.HttpErr(http.StatusForbidden, "Client IP is not accepted by project")
 					}
 				}
