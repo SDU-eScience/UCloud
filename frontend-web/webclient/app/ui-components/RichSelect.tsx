@@ -1,6 +1,6 @@
 import * as React from "react";
 import {fuzzySearch} from "@/Utilities/CollectionUtilities";
-import {CSSProperties, useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {CSSProperties, useCallback, useMemo, useRef, useState} from "react";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {doNothing, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import {DataAttributes, injectStyle, unboxDataTags} from "@/Unstyled";
@@ -21,11 +21,6 @@ export interface SimpleRichItem {
     value: string;
 }
 
-const SIMPLE_RICH_SELECT_OPENED_EVENT = "ucloud:simple-rich-select-opened";
-interface SimpleRichSelectOpenedDetail {
-    sourceId: string;
-}
-
 export const SimpleRichSelect: React.FunctionComponent<{
     items: SimpleRichItem[];
     selected?: SimpleRichItem;
@@ -39,31 +34,7 @@ export const SimpleRichSelect: React.FunctionComponent<{
     noResultsItem?: SimpleRichItem;
     searchable?: boolean;
 }> = props => {
-    const instanceIdRef = useRef(`simple-rich-select-${Math.random().toString(36).slice(2)}`);
-    const [instanceVersion, setInstanceVersion] = useState(0);
     const closeFn = useRef<() => void>(doNothing);
-
-    useEffect(() => {
-        if (typeof window === "undefined") return;
-
-        const onAnySimpleRichSelectOpened = (event: Event) => {
-            const customEvent = event as CustomEvent<SimpleRichSelectOpenedDetail>;
-            if (customEvent.detail?.sourceId === instanceIdRef.current) return;
-            setInstanceVersion(current => current + 1);
-        };
-
-        window.addEventListener(SIMPLE_RICH_SELECT_OPENED_EVENT, onAnySimpleRichSelectOpened as EventListener);
-        return () => {
-            window.removeEventListener(SIMPLE_RICH_SELECT_OPENED_EVENT, onAnySimpleRichSelectOpened as EventListener);
-        };
-    }, []);
-
-    const announceOpen = useCallback(() => {
-        if (typeof window === "undefined") return;
-        window.dispatchEvent(new CustomEvent<SimpleRichSelectOpenedDetail>(SIMPLE_RICH_SELECT_OPENED_EVENT, {
-            detail: {sourceId: instanceIdRef.current},
-        }));
-    }, []);
 
     if (props.searchable === false) {
         const triggerText = props.selected?.value ?? props.placeholder ?? "Select...";
@@ -77,9 +48,8 @@ export const SimpleRichSelect: React.FunctionComponent<{
             requestAnimationFrame(() => optionsRef.current?.focus());
         };
 
-        return <div onMouseDownCapture={announceOpen} style={props.mt === undefined ? undefined : {marginTop: props.mt}}>
+        return <div style={props.mt === undefined ? undefined : {marginTop: props.mt}}>
             <ClickableDropdown
-                key={`${instanceIdRef.current}:${instanceVersion}`}
                 trigger={
                     <div className={TriggerClass} style={{width: props.fullWidth ? "100%" : dropdownWidth, minWidth: 0}}>
                         <Box p={"4px"} textAlign={"left"} minHeight={25}>
@@ -133,9 +103,8 @@ export const SimpleRichSelect: React.FunctionComponent<{
         </div>
     }
 
-	return <div onMouseDownCapture={announceOpen} style={props.mt === undefined ? undefined : {marginTop: props.mt}}>
+	return <div style={props.mt === undefined ? undefined : {marginTop: props.mt}}>
 	    <RichSelect
-	        key={`${instanceIdRef.current}:${instanceVersion}`}
 	        items={props.items}
 	        keys={["key"]}
         openFnRef={props.openFnRef}
@@ -228,7 +197,7 @@ export function RichSelect<T, K extends keyof T>(props: {
         if (!props.groupBy) return 0;
         return new Set(limitedElements.map(props.groupBy)).size;
     }, [limitedElements, props.groupBy]);
-    const height = Math.min(370, (props.elementHeight ?? 40) * limitedElements.length + groupCount * 28 + searchFieldHeight);
+    const height = Math.min(370, (props.elementHeight ?? 40) * limitedElements.length + groupCount * 30 + searchFieldHeight);
 
     const onTriggerClick = useCallback(() => {
         setQuery("");

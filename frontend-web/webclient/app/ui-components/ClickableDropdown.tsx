@@ -66,11 +66,17 @@ export type ClickableDropdownProps<T> = {
 } & DataAttributes;
 
 const dropdownPortal = "dropdown-portal";
+export const DROPDOWN_OPENED_EVENT = "ucloud:dropdown-opened";
+
+export function announceDropdownOpen(sourceId: string): void {
+    window.dispatchEvent(new CustomEvent<string>(DROPDOWN_OPENED_EVENT, {detail: sourceId}));
+}
 
 function ClickableDropdown<T>({
     keepOpenOnClick, onChange, onOpeningTriggerClick, ...props
 }: PropsWithChildren<ClickableDropdownProps<T>>): React.ReactNode {
     const dropdownRef = useRef<HTMLDivElement>(null);
+    const instanceIdRef = useRef(`dropdown-${Math.random().toString(36).slice(2)}`);
     const [open, setOpen] = useState(props.open ?? false);
     const [location, setLocation] = useState<[number, number]>([0, 0]);
     const isControlled = useMemo(() => props.open !== undefined, []);
@@ -111,9 +117,18 @@ function ClickableDropdown<T>({
     if (props.closeFnRef) props.closeFnRef.current = close;
 
     const doOpen = useCallback(() => {
+        announceDropdownOpen(instanceIdRef.current);
         onOpeningTriggerClick?.();
         if (!isControlled) setOpen(true);
     }, [onOpeningTriggerClick]);
+
+    useEffect(() => {
+        const onDropdownOpened = (event: Event) => {
+            if (open && (event as CustomEvent<string>).detail !== instanceIdRef.current) close();
+        };
+        window.addEventListener(DROPDOWN_OPENED_EVENT, onDropdownOpened);
+        return () => window.removeEventListener(DROPDOWN_OPENED_EVENT, onDropdownOpened);
+    }, [close, open]);
 
     const forceOpen = useCallback((left: number, top: number) => {
         setLocation([left, top]);

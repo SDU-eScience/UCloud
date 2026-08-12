@@ -51,7 +51,7 @@ import {networkIPResourceAllowed} from "@/Applications/Jobs/Resources/NetworkIPs
 import {getQueryParam} from "@/Utilities/URIUtilities";
 import {default as JobsApi, DynamicParameters, JobSpecification} from "@/UCloud/JobsApi";
 import {BulkResponse, compute, FindByStringId, mail} from "@/UCloud";
-import {explainUnit, explainWallet, priceToString, ProductV2, UNABLE_TO_USE_FULL_ALLOC_MESSAGE, WalletV2} from "@/Accounting";
+import {balanceToStringFromUnit, calculateProductCost, explainUnit, explainWallet, priceToString, ProductV2, UNABLE_TO_USE_FULL_ALLOC_MESSAGE, WalletV2} from "@/Accounting";
 import {SshWidget} from "@/Applications/Jobs/Widgets/Ssh";
 import {connectionState} from "@/Providers/ConnectionState";
 import {useUState} from "@/Utilities/UState";
@@ -1089,6 +1089,34 @@ export const Create: React.FunctionComponent = () => {
         networkIPResourceAllowed(application);
     const connectivityEnabled = sshEnabled || ingress.params.length > 1 || privateNetworks.params.length > 1 ||
         networks.params.length > 1;
+    const sectionShortcuts = [{shortcut: "J", label: "Jump to job information"}];
+    if (folderResourceAllowed(application)) sectionShortcuts.push({shortcut: "S", label: "Jump to storage"});
+    if (workflowParams.length > 0) sectionShortcuts.push({shortcut: "T", label: "Jump to script"});
+    if (readmeParams.length > 0) sectionShortcuts.push({shortcut: "I", label: "Jump to information"});
+    if (modulesParam.length > 0) sectionShortcuts.push({shortcut: "M", label: "Jump to modules"});
+    if (hasConnectivity) sectionShortcuts.push({shortcut: "C", label: "Jump to connectivity"});
+    if (hasParameters) sectionShortcuts.push({shortcut: "P", label: "Jump to parameters"});
+
+    const walletUsage = displayWallet == null ? 0 : Math.max(0,
+        displayWallet.usageAndQuota.raw.usage -
+        (displayWallet.usageAndQuota.raw.retiredAmountStillCounts ? 0 : displayWallet.usageAndQuota.raw.retiredAmount)
+    );
+    const costDisplayValues = [
+        estimatedCost.product == null || estimatedCost.product.category.freeToUse ? 0 : calculateProductCost(
+            estimatedCost.product,
+            estimatedCost.numberOfNodes,
+            estimatedCost.durationInMinutes,
+        ),
+        displayWallet == null ? 0 : displayWallet.usageAndQuota.raw.quota - walletUsage,
+        displayWallet?.usageAndQuota.display.displayOverallocationWarning ? displayWallet.usageAndQuota.raw.maxUsable : 0,
+    ].map(Math.abs).filter(value => value > 0);
+    const costDisplayReference = costDisplayValues.length === 0 ? undefined : Math.min(...costDisplayValues);
+    const formatWalletBalance = (balance: number) => balanceToStringFromUnit(
+        displayWallet!.usageAndQuota.raw.type,
+        costUnit,
+        balance,
+        {precision: 2, referenceBalance: costDisplayReference},
+    );
 
 
     let submitControl: JSX.Element;
@@ -1366,14 +1394,14 @@ export const Create: React.FunctionComponent = () => {
                                                         estimatedCost.product,
                                                         estimatedCost.numberOfNodes,
                                                         estimatedCost.durationInMinutes,
-                                                        {showSuffix: false, display: {precision: 2}}
+                                                        {showSuffix: false, display: {precision: 2, referenceBalance: costDisplayReference}}
                                                     ), explainUnit(estimatedCost.product.category).name)}
                                                 </td>
                                             </tr>
                                             <tr className="desktop-cost-row">
                                                 <th>Balance</th>
                                                 <td>{displayWallet === null ? "-" : removeDisplayedUnit(
-                                                    displayWallet.usageAndQuota.display.currentBalance,
+                                                    formatWalletBalance(displayWallet.usageAndQuota.raw.quota - walletUsage),
                                                     costUnit
                                                 )}</td>
                                             </tr>
@@ -1385,7 +1413,7 @@ export const Create: React.FunctionComponent = () => {
                                                             <TooltipV2 tooltip={UNABLE_TO_USE_FULL_ALLOC_MESSAGE}>
                                                                 <Icon name="heroExclamationTriangle" color="warningMain" />
                                                                 {removeDisplayedUnit(
-                                                                    displayWallet.usageAndQuota.display.maxUsableBalance,
+                                                                    formatWalletBalance(displayWallet.usageAndQuota.raw.maxUsable),
                                                                     costUnit
                                                                 )}
                                                             </TooltipV2>
@@ -1411,12 +1439,12 @@ export const Create: React.FunctionComponent = () => {
                                 </Flex>
                                 <span className="keyboard-navigation-action">Move between fields</span>
                             </div>
-                            <div className="keyboard-navigation-row">
-                                <Flex>
-                                    <span className={ShortcutClass}>{createKeyboardShortcut("letter", ["ctrl", "alt"])}</span>
-                                </Flex>
-                                <span className="keyboard-navigation-action">Jump to a section</span>
-                            </div>
+                            {sectionShortcuts.map(({shortcut, label}) => (
+                                <div key={shortcut} className="keyboard-navigation-row">
+                                    <span className={ShortcutClass}>{createKeyboardShortcut(shortcut, ["ctrl", "alt"])}</span>
+                                    <span className="keyboard-navigation-action">{label}</span>
+                                </div>
+                            ))}
                         </div>
                     </aside>
                     </div>

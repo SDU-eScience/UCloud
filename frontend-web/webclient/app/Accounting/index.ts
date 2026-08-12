@@ -564,19 +564,12 @@ export function explainUnitEx(
 
 export function priceToString(product: ProductV2, numberOfUnits: number, durationInMinutes?: number, opts?: {
     showSuffix: boolean
-    display?: {precision?: number}
+    display?: {precision?: number, referenceBalance?: number}
 }): string {
+    const totalPrice = calculateProductCost(product, numberOfUnits, durationInMinutes);
     const unit = explainUnit(product.category);
-    const pricePerUnitPerFrequency = product.price * (1 / unit.frequencyFactor);
     const fraction = product.type === "compute" ? normalizeFraction((product as ProductV2Compute).fraction) : {numerator: 1, denominator: 1};
     const fractionMultiplier = fraction.numerator / fraction.denominator;
-    const durationInMinutesOrDefault = durationInMinutes ?? frequencyToMillis(unit.desiredFrequency) / frequencyToMillis("PERIODIC_MINUTE");
-    let normalizedDuration = durationInMinutesOrDefault * unit.frequencyFactor;
-    if (unit.desiredFrequency === "ONCE") {
-        normalizedDuration = 1;
-    }
-
-    const totalPrice = normalizedDuration * pricePerUnitPerFrequency * numberOfUnits * unit.balanceFactor * fractionMultiplier;
 
     if (totalPrice === 0 || product.category.freeToUse) return "Free";
 
@@ -599,6 +592,20 @@ export function priceToString(product: ProductV2, numberOfUnits: number, duratio
         }
         return withoutSuffix;
     }
+}
+
+export function calculateProductCost(product: ProductV2, numberOfUnits: number, durationInMinutes?: number): number {
+    const unit = explainUnit(product.category);
+    const pricePerUnitPerFrequency = product.price * (1 / unit.frequencyFactor);
+    const fraction = product.type === "compute" ? normalizeFraction((product as ProductV2Compute).fraction) : {numerator: 1, denominator: 1};
+    const fractionMultiplier = fraction.numerator / fraction.denominator;
+    const durationInMinutesOrDefault = durationInMinutes ?? frequencyToMillis(unit.desiredFrequency) / frequencyToMillis("PERIODIC_MINUTE");
+    let normalizedDuration = durationInMinutesOrDefault * unit.frequencyFactor;
+    if (unit.desiredFrequency === "ONCE") {
+        normalizedDuration = 1;
+    }
+
+    return normalizedDuration * pricePerUnitPerFrequency * numberOfUnits * unit.balanceFactor * fractionMultiplier;
 }
 
 const StandardStorageUnitsSi = ["KB", "MB", "GB", "TB", "PB", "EB"];

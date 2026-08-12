@@ -22,6 +22,7 @@ import {ServiceProviderItem, ServiceProviderSelector} from "@/Applications/ApiTo
 import {InputClass} from "@/ui-components/Input";
 import {useProjectId} from "@/Project/Api";
 import {stupidPluralize} from "@/Utilities/TextUtilities";
+import {announceDropdownOpen, DROPDOWN_OPENED_EVENT} from "@/ui-components/ClickableDropdown";
 
 interface ComputeCategory {
     provider: string;
@@ -81,6 +82,7 @@ export const ProductSelector: React.FunctionComponent<{
     onSelect: (product: ProductV2 | null) => void;
     fieldNavigation?: boolean;
 }> = ({selected, ...props}) => {
+    const dropdownIdRef = React.useRef(`product-selector-${Math.random().toString(36).slice(2)}`);
     const portalRef = React.useRef<HTMLDivElement | null>(null);
     if (!portalRef.current) {
         portalRef.current = document.createElement("div");
@@ -240,9 +242,18 @@ export const ProductSelector: React.FunctionComponent<{
     }, []);
 
     const onOpen = React.useCallback(() => {
+        announceDropdownOpen(dropdownIdRef.current);
         arrowKeyIndex.current = -1;
         setIsOpen(true);
     }, []);
+
+    React.useEffect(() => {
+        const onDropdownOpened = (event: Event) => {
+            if ((event as CustomEvent<string>).detail !== dropdownIdRef.current) onClose();
+        };
+        window.addEventListener(DROPDOWN_OPENED_EVENT, onDropdownOpened);
+        return () => window.removeEventListener(DROPDOWN_OPENED_EVENT, onDropdownOpened);
+    }, [onClose]);
 
     const onToggle = React.useCallback((e: React.SyntheticEvent) => {
         e.stopPropagation();

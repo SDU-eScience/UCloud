@@ -15,7 +15,7 @@ import {ApplicationParameterNS} from "@/Applications/AppStoreApi";
 import {fileFavoriteSelection, folderFavoriteSelection} from "@/Files/FavoriteSelect";
 import {UFile} from "@/UCloud/UFile";
 import {Selection} from "@/ui-components/ResourceBrowser";
-import {getParentPath} from "@/Utilities/FileUtilities";
+import {getParentPath, pathComponents} from "@/Utilities/FileUtilities";
 
 type GenericFileParam =
     ApplicationParameterNS.InputFile |
@@ -68,7 +68,9 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
             props.onValueChange?.();
             dialogStore.success();
 
-            setLastActivePath(res.status.type === "DIRECTORY" ? res.id : getParentPath(res.id));
+            setLastActivePath(
+                res.status.type === "DIRECTORY" && pathComponents(res.id).length === 1 ? res.id : getParentPath(res.id)
+            );
             if (anyFolderDuplicates()) {
                 props.setWarning?.("Duplicate folders selected. This is not always supported.");
             }
