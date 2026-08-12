@@ -252,14 +252,28 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 
 			if policy, ok := policies[foundation.RestrictInternetAccess]; ok {
 				values, ok := policy.GetValues().(foundation.RestrictInternetAccessValues)
-				if ok && values.Enabled {
+				if !ok {
+					return util.HttpErr(
+						http.StatusInternalServerError,
+						"Restrict Internet Access policy malformed",
+					)
+				}
+
+				if values.Enabled {
 					allowCIDR(firewall, values.AllowedSubnets, networking.PolicyTypeEgress)
 				}
 			}
 
 			if policy, ok := policies[foundation.RestrictSourceIPRange]; ok {
 				values, ok := policy.GetValues().(foundation.RestrictSourceIPRangeValues)
-				if ok && values.Enabled {
+				if !ok {
+					return util.HttpErr(
+						http.StatusInternalServerError,
+						"Restrict Source IP policy malformed",
+					)
+				}
+
+				if values.Enabled {
 					allowCIDR(firewall, values.AllowedSubnets, networking.PolicyTypeIngress)
 				}
 			}
