@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"slices"
@@ -511,7 +512,14 @@ func openWebSession(
 		policies := controller.RetrievePoliciesByProject(job.Owner.Project.Value)
 		if policy, ok := policies[fnd.RestrictCutAndPaste]; ok {
 			values, ok := policy.GetValues().(fnd.RestrictCutAndPasteValues)
-			if ok && values.Enabled {
+			if !ok {
+				return controller.ConfiguredWebSessionResult{},
+					util.HttpErr(
+						http.StatusInternalServerError,
+						"Cut and paste policy is malformed")
+			}
+
+			if values.Enabled {
 				flags = controller.RegisteredIngressFlagsVnc
 				port = 6080
 				vncRedirectPassword.Set(VNCRedirectPassword)

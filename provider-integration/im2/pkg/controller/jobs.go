@@ -403,7 +403,11 @@ func initJobs() {
 						if policy, ok := policies[fnd.RestrictCutAndPaste]; ok {
 							values, ok := policy.GetValues().(fnd.RestrictCutAndPasteValues)
 							if ok && values.Enabled {
-								break
+								errors = append(errors, &util.HttpError{
+									StatusCode: http.StatusForbidden,
+									Why:        "Shell sessions are disabled by policy",
+								})
+								continue
 							}
 						}
 					}
@@ -489,36 +493,65 @@ func initJobs() {
 		orcapi.JobsProviderOpenTerminalInFolder.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.JobsOpenTerminalInFolderRequestItem]) (fnd.BulkResponse[orcapi.OpenSession], *util.HttpError) {
 			for _, item := range request.Items {
 				driveId, ok := orcapi.DriveIdFromUCloudPath(item.Folder)
-				if ok {
-					dInfo, found := DriveRetrieve(driveId)
-					if found {
-						if dInfo.Owner.Project.Present {
-							policies := RetrievePoliciesByProject(dInfo.Owner.Project.Value)
-							if policy, ok := policies[fnd.RestrictIntegratedApplications]; ok {
-								values, ok := policy.GetValues().(fnd.RestrictIntegratedApplicationsValues)
-								if ok && values.Enabled {
-									if !slices.Contains(values.AllowList, "terminal") {
-										return fnd.BulkResponse[orcapi.OpenSession]{}, util.HttpErr(http.StatusForbidden, "Project does not allow integrated terminal (IM side)")
-									}
-								}
-							}
-							if IsSourceIPRestricted(policies, info) {
-								return fnd.BulkResponse[orcapi.OpenSession]{}, util.HttpErr(http.StatusForbidden, "Client IP is not allowed")
-							}
-							if dInfo.Owner.Project.Present {
-								if policy, ok := policies[fnd.RestrictCutAndPaste]; ok {
-									values, ok := policy.GetValues().(fnd.RestrictCutAndPasteValues)
-									if ok && values.Enabled {
-										return fnd.BulkResponse[orcapi.OpenSession]{}, util.HttpErr(
-											http.StatusForbidden,
-											"Project does not allow integrated terminal (IM side)",
-										)
-									}
-								}
-							}
-						}
-					} else {
-						return fnd.BulkResponse[orcapi.OpenSession]{}, util.HttpErr(http.StatusNotFound, "Folder cannot be found")
+
+				if !ok {
+					return fnd.BulkResponse[orcapi.OpenSession]{},
+						util.HttpErr(
+							http.StatusNotFound,
+							"Drive cannot be found",
+						)
+				}
+
+				dInfo, found := DriveRetrieve(driveId)
+				if !found {
+					return fnd.BulkResponse[orcapi.OpenSession]{},
+						util.HttpErr(
+							http.StatusNotFound,
+							"Drive info cannot be found",
+						)
+				}
+
+				if !dInfo.Owner.Project.Present {
+					// Skip since policies only apply to projects.
+					continue
+				}
+
+				policies := RetrievePoliciesByProject(dInfo.Owner.Project.Value)
+
+				if IsSourceIPRestricted(policies, info) {
+					return fnd.BulkResponse[orcapi.OpenSession]{},
+						util.HttpErr(http.StatusForbidden, "Client IP is not allowed")
+				}
+
+				if policy, ok := policies[fnd.RestrictIntegratedApplications]; ok {
+					if values, ok := policy.GetValues().(fnd.RestrictIntegratedApplicationsValues); !ok {
+						return fnd.BulkResponse[orcapi.OpenSession]{},
+							util.HttpErr(
+								http.StatusInternalServerError,
+								"Integrated applications policy is malformed",
+							)
+					} else if values.Enabled && !slices.Contains(values.AllowList, "terminal") {
+						return fnd.BulkResponse[orcapi.OpenSession]{},
+							util.HttpErr(
+								http.StatusForbidden,
+								"Project does not allow integrated terminal due to integrated applications policy (IM side)",
+							)
+					}
+				}
+
+				if policy, ok := policies[fnd.RestrictCutAndPaste]; ok {
+					if values, ok := policy.GetValues().(fnd.RestrictCutAndPasteValues); !ok {
+						return fnd.BulkResponse[orcapi.OpenSession]{},
+							util.HttpErr(
+								http.StatusInternalServerError,
+								"Cut and paste policy is malformed",
+							)
+					} else if values.Enabled {
+						return fnd.BulkResponse[orcapi.OpenSession]{},
+							util.HttpErr(
+								http.StatusForbidden,
+								"Project does not allow integrated terminal due to cut and paste policy (IM side)",
+							)
 					}
 				}
 			}
