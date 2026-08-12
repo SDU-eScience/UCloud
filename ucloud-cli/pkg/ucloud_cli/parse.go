@@ -199,6 +199,14 @@ func Parse(commands []string) (com.Command, error) {
 		return nil, fmt.Errorf("unknown command %s", mainCommand)
 	}
 
+	if len(parserRoute) == 1 {
+		// Has no subcommands but itself is a command
+		if len(subCommand) != 0 {
+			return nil, fmt.Errorf("command %s has no subcommands", mainCommand)
+		}
+		subCommand = mainCommand
+	}
+
 	createFunc, ok := parserRoute[subCommand]
 	if !ok {
 		return nil, fmt.Errorf("subcommand %s not found", subCommand)

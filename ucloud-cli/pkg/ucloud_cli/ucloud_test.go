@@ -32,6 +32,14 @@ func TestEnvironmentList(t *testing.T) {
 	assert.NotNil(t, cmd)
 }
 
+func TestConnectCommand(t *testing.T) {
+	input := []string{"connect"}
+	cmd, _ := Parse(input)
+	assert.NotNil(t, cmd)
+	err := cmd.Execute()
+	assert.NoError(t, err)
+}
+
 func TestJobCreateParams(t *testing.T) {
 	input := []string{"job", "create", "--param", "image=ubuntu", "--param", "cpu=1", "--param", "memory=1024"}
 	cmd, err := Parse(input)
