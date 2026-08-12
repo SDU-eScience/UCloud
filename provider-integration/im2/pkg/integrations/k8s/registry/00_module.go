@@ -2,6 +2,7 @@ package registry
 
 import (
 	"context"
+	"net/http"
 	"path/filepath"
 
 	ocidconfig "github.com/distribution/distribution/v3/configuration"
@@ -82,8 +83,8 @@ func Init() {
 	if err := initRegistryAccounting(filepath.Join(shared.ServiceConfig.FileSystem.MountPoint, RegistriesDirectory)); err != nil {
 		panic(err)
 	}
-	controller.Mux.HandleFunc(registryHost+"/auth/token", handleAuthenticationToken)
-	controller.Mux.Handle(registryHost+"/", auditingMiddleware(app))
+	controller.Mux.Handle(registryHost+"/auth/token", auditingMiddleware(http.HandlerFunc(handleAuthenticationToken), true))
+	controller.Mux.Handle(registryHost+"/", auditingMiddleware(app, false))
 	gateway.SendMessage(gateway.ConfigurationMessage{
 		RouteUp: &gateway.EnvoyRoute{
 			Cluster:      gateway.ServerClusterName,

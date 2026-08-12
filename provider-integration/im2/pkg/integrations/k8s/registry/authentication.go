@@ -28,9 +28,10 @@ const (
 type requestStateKey struct{}
 
 type requestState struct {
-	grant  *ocidauth.Grant
-	access []ocidauth.Access
-	owner  apm.WalletOwner
+	grant      *ocidauth.Grant
+	access     []ocidauth.Access
+	owner      apm.WalletOwner
+	apiTokenId string
 }
 
 func requestStateFromContext(ctx context.Context) *requestState {
@@ -103,6 +104,7 @@ func authenticateAndAuthorize(r *http.Request, access ...ocidauth.Access) (*ocid
 
 	state.grant = grant
 	state.owner = claims.Owner
+	state.apiTokenId = claims.ApiTokenId
 	return grant, nil
 }
 
@@ -186,6 +188,18 @@ func handleAuthenticationToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	access := authorizedTokenAccess(identity, r.URL.Query()["scope"])
+	state := requestStateFromContext(r.Context())
+	state.grant = &ocidauth.Grant{User: ocidauth.UserInfo{Name: identity.Username}}
+	state.owner = identity.Owner
+	state.apiTokenId = identity.TokenId
+	for _, entry := range access {
+		for _, action := range entry.Actions {
+			state.access = append(state.access, ocidauth.Access{
+				Resource: ocidauth.Resource{Type: entry.Type, Name: entry.Name},
+				Action:   action,
+			})
+		}
+	}
 	now := time.Now()
 	ownerReference := identity.Owner.Reference()
 	claims := registryJWTClaims{
