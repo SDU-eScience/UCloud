@@ -383,6 +383,25 @@ func vmiFsMutator() {
 						// The following is needed to allow the alternative sandboxing mode that the virtiofs daemon will go into when running as root.
 						{Op: "remove", Path: fmt.Sprintf("/spec/containers/%d/securityContext/capabilities/drop", cIdx)},
 					}...)
+
+					for argIdx, arg := range container.Args {
+						if arg == "--cache=auto" {
+							ops = append(ops, jsonPatchOp{
+								Op:    "replace",
+								Path:  fmt.Sprintf("/spec/containers/%d/args/%d", cIdx, argIdx),
+								Value: "--cache=metadata",
+							})
+						}
+					}
+
+					if annotations["ucloud.dk/podLevelResources"] != "true" {
+						if _, ok := container.Resources.Limits[k8score.ResourceMemory]; ok {
+							ops = append(ops, jsonPatchOp{
+								Op:   "remove",
+								Path: fmt.Sprintf("/spec/containers/%d/resources/limits/%s", cIdx, k8score.ResourceMemory),
+							})
+						}
+					}
 				}
 
 				for mountIdx, mount := range container.VolumeMounts {
