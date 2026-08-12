@@ -143,8 +143,8 @@ export const ProductSelector: React.FunctionComponent<{
             if (cCompare !== 0) return cCompare;
 
             if (a.type === "compute" && b.type === "compute") {
-                let aVal = (a.cpu ?? 1) + (a.gpu ?? 0 * ((a.fraction?.numerator ?? 1) / (a.fraction?.denominator ?? 1)));
-                let bVal = (b.cpu ?? 1) + (b.gpu ?? 0 * ((b.fraction?.numerator ?? 1) / (b.fraction?.denominator ?? 1)));
+                let aVal = (a.cpu ?? 1) + (a.gpu ?? 0) * ((a.fraction?.numerator ?? 1) / (a.fraction?.denominator ?? 1));
+                let bVal = (b.cpu ?? 1) + (b.gpu ?? 0) * ((b.fraction?.numerator ?? 1) / (b.fraction?.denominator ?? 1));
 
                 return aVal - bVal;
             }
@@ -456,21 +456,20 @@ export const ProductSelector: React.FunctionComponent<{
                                 </Flex>
                                 {selected ? <Box mb="12px">
                                     <ProductDescription serviceProvider={selected.category.provider} category={selected.category.name} />
-                                    <table>
-                                        <tbody>
-                                            <tr>
-                                                <ProductStats product={selected} />
-                                                <td>Price: {priceToString(selected, 1)}</td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
+                                    <Flex gap="32px" alignItems="flex-end" marginTop={16}>
+                                        <ProductStatsSummary product={selected} />
+                                        {selected.category.accountingFrequency === "ONCE" ?
+                                            <div>Price: {priceToString(selected, 1)}</div> : null}
+                                    </Flex>
                                 </Box> : null}
                             </> :
                             <Flex alignItems={"center"} gap={"8px"}>
                                 <ProviderLogo className={"provider-logo"} providerId={selected?.category?.provider ?? "?"} size={24} />
                                 {selected.name}
-                                <Box>-</Box>
-                                <Box>{priceToString(selected, 1)}</Box>
+                                {selected.category.accountingFrequency === "ONCE" ? <>
+                                    <Box>-</Box>
+                                    <Box>{priceToString(selected, 1)}</Box>
+                                </> : null}
                             </Flex>
                         }
                     </>
@@ -752,12 +751,16 @@ const ProductStats: React.FunctionComponent<{product: ProductV2}> = ({product}) 
             const width = gpus ? "25%" : "33%";
 
             return <>
-                <TableCell width={width}>{computeProduct.cpu} {stupidPluralize(computeProduct.cpu ?? 1, "vCPU")}<HardwareModel model={computeProduct.cpuModel} /></TableCell>
-                <TableCell width={width}>{computeProduct.memoryInGigs} GB RAM<HardwareModel model={computeProduct.memoryModel} /></TableCell>
+                <HardwareStat width={width} model={computeProduct.cpuModel}>
+                    {computeProduct.cpu} {stupidPluralize(computeProduct.cpu ?? 1, "vCPU")}
+                </HardwareStat>
+                <HardwareStat width={width} model={computeProduct.memoryModel}>
+                    {computeProduct.memoryInGigs} GB RAM
+                </HardwareStat>
                 {computeProduct.gpu === 0 || computeProduct.gpu == null ?
-                    null : <TableCell width={width}>
-                        <>{" "}{computeProduct.gpu} {gpuType} <HardwareModel model={computeProduct.gpuModel} /></>
-                    </TableCell>
+                    null : <HardwareStat width={width} model={computeProduct.gpuModel}>
+                        {computeProduct.gpu} {gpuType}
+                    </HardwareStat>
                 }
             </>
         default:
@@ -765,9 +768,38 @@ const ProductStats: React.FunctionComponent<{product: ProductV2}> = ({product}) 
     }
 }
 
-const HardwareModel: React.FunctionComponent<{model?: string | null}> = props => {
-    if (!props.model) return null;
-    return <span style={{color: "#a9b0b9"}}>{" "}({props.model})</span>
+const ProductStatsSummary: React.FunctionComponent<{product: ProductV2Compute}> = ({product}) => {
+    const gpus = product.gpu ?? 0;
+    const gpuType = product.fraction?.denominator !== 1 ? stupidPluralize(gpus, "MIG") : stupidPluralize(gpus, "GPU");
+
+    return <>
+        <HardwareStatSummary model={product.cpuModel}>
+            {product.cpu} {stupidPluralize(product.cpu ?? 1, "vCPU")}
+        </HardwareStatSummary>
+        <HardwareStatSummary model={product.memoryModel}>
+            {product.memoryInGigs} GB RAM
+        </HardwareStatSummary>
+        {gpus === 0 ? null : <HardwareStatSummary model={product.gpuModel}>
+            {gpus} {gpuType}
+        </HardwareStatSummary>}
+    </>
+}
+
+const HardwareStatSummary: React.FunctionComponent<React.PropsWithChildren<{model?: string | null}>> = props => {
+    return <div>
+        {props.model ? <div style={{color: "var(--textSecondary)", fontSize: "12px", marginBottom: "2px"}}>{props.model}</div> : null}
+        <div>{props.children}</div>
+    </div>
+}
+
+const HardwareStat: React.FunctionComponent<React.PropsWithChildren<{
+    model?: string | null;
+    width: string;
+}>> = props => {
+    return <TableCell width={props.width}>
+        {props.model ? <div style={{color: "var(--textSecondary)", fontSize: "12px", marginBottom: "2px"}}>{props.model}</div> : null}
+        <div>{props.children}</div>
+    </TableCell>
 }
 
 function MachineTypeSelectionSlider(props: {
@@ -791,22 +823,38 @@ function MachineTypeSelectionSlider(props: {
     if (!props.selectedCategory) return null;
 
     const productCount = props.selectedCategory.products.length;
+    const dividerAt = dividerIndex <= 0 || productCount <= 1 ? undefined :
+        (dividerIndex - 0.5) / (productCount - 1);
 
-    return <Box mb="8px" mx="32px" px="8px" onClick={stopPropagation}>
-        <Flex mb="8px">
+    return <Box my="16px" mx="32px" px="8px" onClick={stopPropagation}>
+        <Flex mb="8px" style={{position: "relative"}}>
             <Box ml="4px"><ProductTypeKind category={props.selectedCategory.kind} isFractional={dividerIndex > 0} /></Box>
-            {dividerIndex > 0 ? <>
-                <Box style={{position: "absolute", width: "6px", left: `calc(100% * ${dividerIndex / productCount})`, height: "33px", border: "1px solid var(--borderColor)", borderTopLeftRadius: "12px", borderTopRightRadius: "12px", backgroundColor: "var(--secondaryMain)", borderBottom: "0px"}}></Box>
-                <Box style={{position: "absolute", left: `calc(100% * ${dividerIndex / productCount} + 20px)`}} ml="4px"><ProductTypeKind category={props.selectedCategory.kind} /></Box>
-            </> : null}
+            {dividerAt == null ? null : <div className={MachineTypeDividerLabelTrackClass} style={{"--machineTypeDivider": `${dividerAt * 100}%`} as React.CSSProperties}>
+                <Box className="divider-label" ml="10px"><ProductTypeKind category={props.selectedCategory.kind} /></Box>
+            </div>}
         </Flex>
         <RangeInput value={props.idx} autoFocus={!props.fieldNavigation}
             data-navigation-field={props.fieldNavigation || undefined}
+            dividerAt={dividerAt}
             onChange={props.onSelect} min={0} max={props.selectedCategory.products.length - 1} markers={
             props.selectedCategory.products.map(p => computeV2ComponentCount(p))}
         />
     </Box>
 }
+
+const MachineTypeDividerLabelTrackClass = injectStyle("machine-type-divider-label-track", key => `
+    ${key} {
+        position: absolute;
+        inset: 0 14px;
+        pointer-events: none;
+    }
+
+    ${key} > .divider-label {
+        position: absolute;
+        left: var(--machineTypeDivider);
+        white-space: nowrap;
+    }
+`);
 
 function ProductTypeKind(props: {
     category: "CPU" | "GPU";
@@ -827,12 +875,19 @@ function ProductTypeKind(props: {
 function computeV2ComponentCount(c: ProductV2Compute): string {
     if (c.gpu) {
         if (c.fraction && c.fraction?.denominator != 1) {
-            return `${c.fraction.numerator * c.price} / ${c.fraction.denominator}`;
+            return unicodeFraction(c.fraction.numerator * c.price, c.fraction.denominator);
         }
         return c.gpu.toString();
     }
     return c.cpu?.toString() ?? "";
 };
+
+function unicodeFraction(numerator: number, denominator: number): string {
+    const superscript = "⁰¹²³⁴⁵⁶⁷⁸⁹";
+    const subscript = "₀₁₂₃₄₅₆₇₈₉";
+    const format = (value: number, digits: string) => value.toString().replace(/\d/g, digit => digits[Number(digit)]);
+    return `${format(numerator, superscript)}⁄${format(denominator, subscript)}`;
+}
 
 export const SelectorBoxClass = injectStyle("selector-box", k => `
     ${k} {
@@ -956,126 +1011,81 @@ const ProductSelectorContainerClass = injectStyleSimple("product-selector-contai
 `);
 
 export const ProductSelectorPlayground: React.FunctionComponent = () => {
-    const [selected, setSelected] = React.useState<ProductV2 | null>(null);
-    return <>
-        <Box height={50} width={400}>
+    const [selected, setSelected] = React.useState<ProductV2 | null>(
+        products.find(product => product.fraction?.denominator === 7) ?? products[0]
+    );
+    return <Box>
+        <Text fontSize={20} fontWeight={600}>Machine type selector</Text>
+        <Box mt="12px">
             <ProductSelector
                 products={products}
                 loading={false}
                 selected={selected}
-                onSelect={setSelected}
-                slim
+                onSelect={product => {
+                    if (product != null) setSelected(product);
+                }}
             />
         </Box>
-        <ProductSelector
-            products={products}
-            loading={false}
-            selected={selected}
-            onSelect={setSelected}
-        />
-    </>
+    </Box>
 };
 
 const products: ProductV2Compute[] = (() => {
     let res: ProductV2Compute[] = [];
     res = res.concat(generateProducts({
-        baseName: "hm1",
+        baseName: "cpu-amd-zen5",
         maxCpuCount: 128,
-        memPerCore: 32,
-        providerName: "hippo",
-        cpuModel: "AMD EPYC 7742",
-
-    }));
-
-    res = res.concat(generateProducts({
-        baseName: "hm2",
-        maxCpuCount: 128,
-        memPerCore: 8,
-        providerName: "hippo",
-        cpuModel: "AMD EPYC 7713",
-    }));
-
-    res = res.concat(generateProducts({
-        baseName: "u1-standard",
-        maxCpuCount: 64,
-        memPerCore: 6,
-        providerName: "ucloud",
-        cpuModel: "Intel Xeon Gold 6130",
-    }));
-
-    res = res.concat(generateProducts({
-        baseName: "u1-fat",
-        maxCpuCount: 64,
-        memPerCore: 12,
-        providerName: "ucloud",
-        cpuModel: "Intel Xeon Gold 6130",
-    }));
-
-    res = res.concat(generateProducts({
-        baseName: "u1-gpu",
-        maxCpuCount: 64,
         memPerCore: 3,
-        maxGpuCount: 4,
         providerName: "ucloud",
-        cpuModel: "Intel Xeon Gold 6230",
-        gpuModel: "NVIDIA V100",
+        cpuModel: "AMD EPYC 9535",
+        memoryModel: "DDR5-6000",
     }));
 
-    res = res.concat(generateProducts({
-        baseName: "u2-gpu",
-        maxCpuCount: 96,
-        memPerCore: 21,
-        maxGpuCount: 8,
-        providerName: "ucloud",
-        cpuModel: "AMD EPYC 7F72",
-        gpuModel: "NVIDIA A100"
-    }));
+    const gpuCategory: ProductCategoryV2 = {
+        name: "gpu-nvidia-b200",
+        provider: "ucloud",
+        productType: "COMPUTE",
+        accountingUnit: {name: "GPU", namePlural: "GPU", floatingPoint: false, displayFrequencySuffix: true},
+        accountingFrequency: "PERIODIC_MINUTE",
+        freeToUse: false,
+    };
+    for (let gpu = 1; gpu <= 6; gpu++) {
+        res.push({
+            type: "compute",
+            category: gpuCategory,
+            name: `gpu-nvidia-b200-${gpu}-mig.1g`,
+            description: "A B200 MIG compute product",
+            productType: "COMPUTE",
+            price: gpu,
+            fraction: {numerator: 1, denominator: 7},
+            hiddenInGrantApplications: false,
+            cpu: gpu * 6,
+            cpuModel: "AMD EPYC 9655",
+            memoryInGigs: gpu * 36,
+            memoryModel: "DDR5-6400",
+            gpu,
+            gpuModel: "B200-mig.1g.23gb",
+        });
+    }
+    for (let gpu = 1; gpu <= 8; gpu++) {
+        res.push({
+            type: "compute",
+            category: gpuCategory,
+            name: `gpu-nvidia-b200-${gpu}-gpu`,
+            description: "A B200 GPU compute product",
+            productType: "COMPUTE",
+            price: gpu,
+            fraction: {numerator: 1, denominator: 1},
+            hiddenInGrantApplications: false,
+            cpu: gpu * 48,
+            cpuModel: "AMD EPYC 9655",
+            memoryInGigs: gpu * 288,
+            memoryModel: "DDR5-6400",
+            gpu,
+            gpuModel: "NVIDIA B200",
+        });
+    }
 
-    res = res.concat(generateProducts({
-        baseName: "st-slim",
-        maxCpuCount: 32,
-        memPerCore: 4,
-        providerName: "sophia",
-        cpuModel: "AMD EPYC 7351"
-    }));
-
-    res = res.concat(generateProducts({
-        baseName: "st-fat",
-        maxCpuCount: 32,
-        memPerCore: 8,
-        providerName: "sophia",
-        cpuModel: "AMD EPYC 7351"
-    }));
-
-    res = res.concat(generateProducts({
-        baseName: "uc-a10",
-        maxCpuCount: 40,
-        maxGpuCount: 4,
-        memPerCore: 4,
-        providerName: "aau",
-        gpuModel: "NVIDIA A10"
-    }));
-
-    res = res.concat(generateProducts({
-        baseName: "uc-general",
-        maxCpuCount: 16,
-        memPerCore: 4,
-        providerName: "aau",
-    }));
-
-    res = res.concat(generateProducts({
-        baseName: "uc-t4",
-        maxCpuCount: 16,
-        memPerCore: 4,
-        maxGpuCount: 4,
-        providerName: "aau",
-        gpuModel: "NVIDIA T4"
-    }));
-
-    return res
-        .map(value => ({value, sort: Math.random()}))
-        .sort((a, b) => a.sort - b.sort)
-        .map(it => it.value);
+    return res;
 })();
 
 function generateProducts(

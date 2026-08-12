@@ -555,8 +555,11 @@ export const ShortcutClass = injectStyle("shortcut", k => `
         min-width: 18px;
         height: 18px;
         display: flex;
+        flex: 0 0 auto;
         align-items: center;
         justify-content: center;
+        width: max-content;
+        white-space: nowrap;
         user-select: none;
         -webkit-user-select: none;
         padding: 0 5px;
