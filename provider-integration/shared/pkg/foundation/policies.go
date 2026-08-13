@@ -3,6 +3,7 @@ package foundation
 import (
 	"encoding/json"
 	"fmt"
+
 	"gopkg.in/yaml.v3"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
@@ -305,167 +306,127 @@ var SchemaDecoders = map[PolicyName]func([]byte) (Schema, error){
 	RestrictSourceIPRange:          schemaDecoder[RestrictSourceIpRangeConfig],
 }
 
-func decodeRestrictApplications(data []byte, project rpc.ProjectId) (Specification, error) {
-	var values RestrictApplicationsValues
+func decodeRestrictApplications(data []byte) (Specification, error) {
+	var specification PolicySpecification[RestrictApplicationsValues]
 
-	if err := json.Unmarshal(data, &values); err != nil {
+	if err := json.Unmarshal(data, &specification); err != nil {
 		return nil, err
 	}
 
 	return &RestrictApplicationsSpecification{
-		PolicySpecification: PolicySpecification[RestrictApplicationsValues]{
-			Schema:  RestrictApplications,
-			Project: project,
-			Values:  values,
-		},
+		PolicySpecification: specification,
 	}, nil
 }
 
-func decodeRestrictCutAndPaste(data []byte, project rpc.ProjectId) (Specification, error) {
-	var values RestrictCutAndPasteValues
+func decodeRestrictCutAndPaste(data []byte) (Specification, error) {
+	var specification PolicySpecification[RestrictCutAndPasteValues]
 
-	if err := json.Unmarshal(data, &values); err != nil {
+	if err := json.Unmarshal(data, &specification); err != nil {
 		return nil, err
 	}
 
 	return &RestrictCutAndPasteSpecification{
-		PolicySpecification: PolicySpecification[RestrictCutAndPasteValues]{
-			Schema:  RestrictCutAndPaste,
-			Project: project,
-			Values:  values,
-		},
+		PolicySpecification: specification,
 	}, nil
 }
 
-func decodeRestrictDownloads(data []byte, project rpc.ProjectId) (Specification, error) {
-	var values RestrictDownloadsValues
+func decodeRestrictDownloads(data []byte) (Specification, error) {
+	var specification PolicySpecification[RestrictDownloadsValues]
 
-	if err := json.Unmarshal(data, &values); err != nil {
+	if err := json.Unmarshal(data, &specification); err != nil {
 		return nil, err
 	}
 
 	return &RestrictDownloadsSpecification{
-		PolicySpecification: PolicySpecification[RestrictDownloadsValues]{
-			Schema:  RestrictDownloads,
-			Project: project,
-			Values:  values,
-		},
+		PolicySpecification: specification,
 	}, nil
 }
 
-func decodeRestrictIntegratedApplications(data []byte, project rpc.ProjectId) (Specification, error) {
-	var values RestrictIntegratedApplicationsValues
+func decodeRestrictIntegratedApplications(data []byte) (Specification, error) {
+	var specification PolicySpecification[RestrictIntegratedApplicationsValues]
 
-	if err := json.Unmarshal(data, &values); err != nil {
+	if err := json.Unmarshal(data, &specification); err != nil {
 		return nil, err
 	}
 
 	return &RestrictIntegratedApplicationsSpecification{
-		PolicySpecification: PolicySpecification[RestrictIntegratedApplicationsValues]{
-			Schema:  RestrictIntegratedApplications,
-			Project: project,
-			Values:  values,
-		},
+		PolicySpecification: specification,
 	}, nil
 }
 
-func decodeRestrictInternetAccess(data []byte, project rpc.ProjectId) (Specification, error) {
-	var values RestrictInternetAccessValues
+func decodeRestrictInternetAccess(data []byte) (Specification, error) {
+	var specification PolicySpecification[RestrictInternetAccessValues]
 
-	if err := json.Unmarshal(data, &values); err != nil {
+	if err := json.Unmarshal(data, &specification); err != nil {
 		return nil, err
 	}
 
 	return &RestrictInternetAccessSpecification{
-		PolicySpecification: PolicySpecification[RestrictInternetAccessValues]{
-			Schema:  RestrictInternetAccess,
-			Project: project,
-			Values:  values,
-		},
+		PolicySpecification: specification,
 	}, nil
 }
 
-func decodeRestrictOrganizationMembers(data []byte, project rpc.ProjectId) (Specification, error) {
-	var values RestrictOrganizationMembersValues
+func decodeRestrictOrganizationMembers(data []byte) (Specification, error) {
+	var specification PolicySpecification[RestrictOrganizationMembersValues]
 
-	if err := json.Unmarshal(data, &values); err != nil {
+	if err := json.Unmarshal(data, &specification); err != nil {
 		return nil, err
 	}
 
 	return &RestrictOrganizationMembersSpecification{
-		PolicySpecification: PolicySpecification[RestrictOrganizationMembersValues]{
-			Schema:  RestrictOrganizationMembers,
-			Project: project,
-			Values:  values,
-		},
+		PolicySpecification: specification,
 	}, nil
 }
 
-func decodeRestrictProviderTransfers(data []byte, project rpc.ProjectId) (Specification, error) {
-	var values RestrictProviderFileTransfersValues
+func decodeRestrictProviderTransfers(data []byte) (Specification, error) {
+	var specification PolicySpecification[RestrictProviderFileTransfersValues]
 
-	if err := json.Unmarshal(data, &values); err != nil {
+	if err := json.Unmarshal(data, &specification); err != nil {
 		return nil, err
 	}
 
 	return &RestrictProviderFileTransfersSpecification{
-		PolicySpecification: PolicySpecification[RestrictProviderFileTransfersValues]{
-			Schema:  RestrictProviderFileTransfers,
-			Project: project,
-			Values:  values,
-		},
+		PolicySpecification: specification,
 	}, nil
 }
 
-func decodeRestrictPublicIPs(data []byte, project rpc.ProjectId) (Specification, error) {
-	var values RestrictPublicIPsValues
+func decodeRestrictPublicIPs(data []byte) (Specification, error) {
+	var specification PolicySpecification[RestrictPublicIPsValues]
 
-	if err := json.Unmarshal(data, &values); err != nil {
+	if err := json.Unmarshal(data, &specification); err != nil {
 		return nil, err
 	}
 
 	return &RestrictPublicIPsSpecification{
-		PolicySpecification: PolicySpecification[RestrictPublicIPsValues]{
-			Schema:  RestrictPublicIPs,
-			Project: project,
-			Values:  values,
-		},
+		PolicySpecification: specification,
 	}, nil
 }
 
-func decodeRestrictPublicLinks(data []byte, project rpc.ProjectId) (Specification, error) {
-	var values RestrictPublicLinksValues
+func decodeRestrictPublicLinks(data []byte) (Specification, error) {
+	var specification PolicySpecification[RestrictPublicLinksValues]
 
-	if err := json.Unmarshal(data, &values); err != nil {
+	if err := json.Unmarshal(data, &specification); err != nil {
 		return nil, err
 	}
 
 	return &RestrictPublicLinksSpecification{
-		PolicySpecification: PolicySpecification[RestrictPublicLinksValues]{
-			Schema:  RestrictPublicLinks,
-			Project: project,
-			Values:  values,
-		},
+		PolicySpecification: specification,
 	}, nil
 }
 
-func decodeRestrictSourceIPRange(data []byte, project rpc.ProjectId) (Specification, error) {
-	var values RestrictSourceIPRangeValues
+func decodeRestrictSourceIPRange(data []byte) (Specification, error) {
+	var specification PolicySpecification[RestrictSourceIPRangeValues]
 
-	if err := json.Unmarshal(data, &values); err != nil {
+	if err := json.Unmarshal(data, &specification); err != nil {
 		return nil, err
 	}
 
 	return &RestrictSourceIPRangeSpecification{
-		PolicySpecification: PolicySpecification[RestrictSourceIPRangeValues]{
-			Schema:  RestrictSourceIPRange,
-			Project: project,
-			Values:  values,
-		},
+		PolicySpecification: specification,
 	}, nil
 }
 
-var SpecificationDecoders = map[PolicyName]func([]byte, rpc.ProjectId) (Specification, error){
+var SpecificationDecoders = map[PolicyName]func([]byte) (Specification, error){
 	RestrictApplications:           decodeRestrictApplications,
 	RestrictCutAndPaste:            decodeRestrictCutAndPaste,
 	RestrictDownloads:              decodeRestrictDownloads,
@@ -498,8 +459,6 @@ type PoliciesUpdateRequest struct {
 }
 
 func (r *PoliciesUpdateRequest) UnmarshalJSON(data []byte) error {
-	type Alias PoliciesUpdateRequest
-
 	var raw struct {
 		UpdatedPolicies map[PolicyName]json.RawMessage `json:"updatedPolicies"`
 	}
@@ -512,22 +471,23 @@ func (r *PoliciesUpdateRequest) UnmarshalJSON(data []byte) error {
 
 	for policyName, rawPolicy := range raw.UpdatedPolicies {
 		var metadata struct {
-			Schema PolicyName `json:"schema"`
+			Schema  PolicyName    `json:"schema"`
 			Project rpc.ProjectId `json:"project"`
 		}
 		if err := json.Unmarshal(rawPolicy, &metadata); err != nil {
 			return fmt.Errorf("invalid %s policy: %w", policyName, err)
 		}
 		if metadata.Schema != policyName {
-			return fmt.Errorf("policy key %q does not match schema %q", policyName, metadata.Schema, )
+			return fmt.Errorf("policy key %q does not match schema %q", policyName, metadata.Schema)
 		}
 		decoder, ok := SpecificationDecoders[metadata.Schema]
 		if !ok {
 			return fmt.Errorf("unknown policy schema %q", metadata.Schema)
 		}
-		specification, err := decoder(rawPolicy, metadata.Project)
+		specification, err := decoder(rawPolicy)
+		fmt.Printf("specification: %v\n", specification)
 		if err != nil {
-			return fmt.Errorf("failed to decode %s policy: %w", policyName, err, )
+			return fmt.Errorf("failed to decode %s policy: %w", policyName, err)
 		}
 		r.UpdatedPolicies[policyName] = specification
 	}

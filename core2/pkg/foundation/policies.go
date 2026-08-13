@@ -102,10 +102,7 @@ func loadProjectPoliciesFromDB() {
 				log.Fatal("Unknown policy %v", row.PolicyName)
 			}
 
-			specification, err := decoder(
-				[]byte(row.PolicyProperties),
-				rpc.ProjectId(row.ProjectId),
-			)
+			specification, err := decoder([]byte(row.PolicyProperties))
 			if err != nil {
 				log.Fatal("Error loading policy %v : %v", row.PolicyName, err)
 			}

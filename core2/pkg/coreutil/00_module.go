@@ -200,10 +200,8 @@ func PolicySpecificationsRetrieveFromDatabase(
 			return nil, false
 		}
 
-		specification, err := decoder(
-			[]byte(row.PolicyProperties),
-			rpc.ProjectId(row.ProjectId),
-		)
+		specification, err := decoder([]byte(row.PolicyProperties))
+
 		if err != nil {
 			log.Debug("Error unmarshalling policy %s: %v", row.PolicyName, err)
 			return nil, false
@@ -286,10 +284,8 @@ func PoliciesListUpdatedAfter(timestamp time.Time) []fndapi.PoliciesForProject {
 				continue
 			}
 
-			specification, err := decoder(
-				[]byte(row.PolicyProperties),
-				rpc.ProjectId(row.ProjectId),
-			)
+			specification, err := decoder([]byte(row.PolicyProperties))
+
 			if err != nil {
 				log.Warn(
 					"Failed to decode policy %s for project %s: %v",
