@@ -516,7 +516,7 @@ func openWebSession(
 				return controller.ConfiguredWebSessionResult{},
 					util.HttpErr(
 						http.StatusInternalServerError,
-						"Cut and paste policy is malformed")
+						"Misconfigured Policy")
 			}
 
 			if values.Enabled {

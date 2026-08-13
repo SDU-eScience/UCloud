@@ -263,9 +263,15 @@ func syncthingValidateConfiguration(job *orc.Job, configuration json.RawMessage)
 				policies := controller.RetrievePoliciesByProject(dInfo.Owner.Project.Value)
 				if policy, ok := policies[foundation.RestrictIntegratedApplications]; ok {
 					values, ok := policy.GetValues().(foundation.RestrictIntegratedApplicationsValues)
-					if ok && values.Enabled {
+					if !ok {
+						return util.HttpErr(
+							http.StatusInternalServerError,
+							"Misconfigured Policy",
+						)
+					}
+					if values.Enabled {
 						if len(values.AllowList) == 0 {
-							return util.HttpErr( http.StatusForbidden, "Project does not allow usage of integrated applications (IM)")
+							return util.HttpErr(http.StatusForbidden, "Project does not allow usage of integrated applications (IM)")
 						}
 						if !slices.Contains(values.AllowList, "syncthing") {
 							return util.HttpErr(http.StatusForbidden, "Project does not allow usage of syncthing (IM)")

@@ -161,12 +161,14 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	if job.Owner.Project.Present {
 		policies := controller.RetrievePoliciesByProject(job.Owner.Project.Value)
 		if policy, ok := policies[foundation.RestrictCutAndPaste]; ok {
-			if values, ok := policy.GetValues().(foundation.RestrictCutAndPasteValues); !ok {
+			values, ok := policy.GetValues().(foundation.RestrictCutAndPasteValues)
+			if !ok {
 				return util.HttpErr(
 					http.StatusInternalServerError,
 					"Misconfigured Policy",
 				)
-			} else if values.Enabled {
+			}
+			if values.Enabled {
 				// (Henrik) If this restriction is in effect then the sidecar needs to consume resources from the main job
 				// to run. It is accepted that if the machine is to small the main job is killed OOM while there always
 				// is enough to run the VNC needed to connect.
@@ -255,7 +257,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 				if !ok {
 					return util.HttpErr(
 						http.StatusInternalServerError,
-						"Restrict Internet Access policy malformed",
+						"Misconfigured Policy",
 					)
 				}
 
@@ -269,7 +271,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 				if !ok {
 					return util.HttpErr(
 						http.StatusInternalServerError,
-						"Restrict Source IP policy malformed",
+						"Misconfigured Policy",
 					)
 				}
 

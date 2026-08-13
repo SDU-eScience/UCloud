@@ -402,7 +402,14 @@ func initJobs() {
 						policies := RetrievePoliciesByProject(item.Job.Owner.Project.Value)
 						if policy, ok := policies[fnd.RestrictCutAndPaste]; ok {
 							values, ok := policy.GetValues().(fnd.RestrictCutAndPasteValues)
-							if ok && values.Enabled {
+							if !ok {
+								errors = append(errors, &util.HttpError{
+									StatusCode: http.StatusInternalServerError,
+									Why: "Misconfigured Policy",
+								})
+								continue
+							}
+							if values.Enabled {
 								errors = append(errors, &util.HttpError{
 									StatusCode: http.StatusForbidden,
 									Why:        "Shell sessions are disabled by policy",
@@ -524,13 +531,15 @@ func initJobs() {
 				}
 
 				if policy, ok := policies[fnd.RestrictIntegratedApplications]; ok {
-					if values, ok := policy.GetValues().(fnd.RestrictIntegratedApplicationsValues); !ok {
+					values, ok := policy.GetValues().(fnd.RestrictIntegratedApplicationsValues)
+					if !ok {
 						return fnd.BulkResponse[orcapi.OpenSession]{},
 							util.HttpErr(
 								http.StatusInternalServerError,
-								"Integrated applications policy is malformed",
+								"Misconfigured Policy",
 							)
-					} else if values.Enabled && !slices.Contains(values.AllowList, "terminal") {
+					}
+					if values.Enabled && !slices.Contains(values.AllowList, "terminal") {
 						return fnd.BulkResponse[orcapi.OpenSession]{},
 							util.HttpErr(
 								http.StatusForbidden,
@@ -540,13 +549,15 @@ func initJobs() {
 				}
 
 				if policy, ok := policies[fnd.RestrictCutAndPaste]; ok {
-					if values, ok := policy.GetValues().(fnd.RestrictCutAndPasteValues); !ok {
+					values, ok := policy.GetValues().(fnd.RestrictCutAndPasteValues)
+					if !ok {
 						return fnd.BulkResponse[orcapi.OpenSession]{},
 							util.HttpErr(
 								http.StatusInternalServerError,
-								"Cut and paste policy is malformed",
+								"Misconfigured Policy",
 							)
-					} else if values.Enabled {
+					}
+					if values.Enabled {
 						return fnd.BulkResponse[orcapi.OpenSession]{},
 							util.HttpErr(
 								http.StatusForbidden,
