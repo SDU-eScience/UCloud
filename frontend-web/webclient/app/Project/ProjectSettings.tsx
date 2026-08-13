@@ -751,14 +751,6 @@ interface Policy {
     specification: Specification;
 }
 
-interface PolicySpecification<T> {
-    schema: PolicyName;
-    project: string; // ProjectId
-    values: T;
-}
-
-
-
 interface PolicySchemaBase {
     name: PolicyName;
     title: string;
@@ -842,34 +834,67 @@ interface PoliciesUpdateRequest {
 }
 
 interface Specification {
-    // TODO
+    schema: PolicyName;
+    project: string;
+    values: any;
 }
 
 function PolicySchemas({schemas}: {schemas: Record<string, Policy>}) {
+    const updateRef = React.useRef<Record<string, Specification>>({});
+    const submitChanges = React.useCallback((updatedPolicies: Record<PolicyName, Specification>) => {
+        callAPI(PolicyAPI.updatePolicies({updatedPolicies}));
+        updateRef.current = {};
+    }, []);
+
     return <Card>{
         Object.keys(schemas).map(key => {
             const policy = schemas[key];
-            return <PolicySchemaEntry key={key} policy={policy} />
+            return <PolicySchemaEntry key={key} updateRef={updateRef} policy={policy} />
         })}
-        <Button ml="auto" onClick={() => console.log("TODO")}>Save changes</Button>
+        <Button ml="auto" onClick={() => submitChanges(updateRef.current)}>Save changes</Button>
     </Card>;
 }
 
 const asCheckBox = true;
-function PolicySchemaEntry({policy}: {policy: Policy}): React.ReactNode {
+function PolicySchemaEntry({policy, updateRef}: {policy: Policy; updateRef: React.RefObject<Record<string, Specification>>}): React.ReactNode {
     const [enabled, setEnabled] = React.useState(!"This should be based on the enabled key inside the specification".toString());
+    const projectId = useProjectId();
 
     return <Box key={policy.schema.name} my="12px" pb="20px" borderBottom={"1px solid var(--borderColor)"}>
         <Flex justifyContent={"space-between"}>
             <b>{policy.schema.title}</b>
             {asCheckBox ? <Label cursor="pointer" style={{gap: "8px", marginTop: 0}} width="fit-content">
                 {policy.schema.configuration.enabled.title}
-                <Checkbox style={{marginLeft: "6px", marginTop: "-4px"}} checked={enabled} onChange={() => setEnabled(enabled => !enabled)} />
+                <Checkbox style={{marginLeft: "6px", marginTop: "-4px"}} checked={enabled} onChange={() => setEnabled(enabled => {
+                    if (!updateRef.current[policy.schema.name]) updateRef.current[policy.schema.name] = {
+                        project: projectId!,
+                        schema: policy.schema.name,
+                        values: {}
+                    };
+                    updateRef.current[policy.schema.name].values["enabled"] = !enabled;
+                    return !enabled
+                })} />
             </Label> :
-                <Flex cursor="pointer" gap="8px" onClick={() => setEnabled(enabled => !enabled)}>
+                <Flex cursor="pointer" gap="8px" onClick={() => setEnabled(enabled => {
+                    if (!updateRef.current[policy.schema.name]) updateRef.current[policy.schema.name] = {
+                        project: projectId!,
+                        schema: policy.schema.name,
+                        values: {}
+                    };
+                    updateRef.current[policy.schema.name].values["enabled"] = !enabled;
+                    return !enabled
+                })}>
                     {policy.schema.configuration.enabled.title}
                     <Box mt="1px" mr="8px">
-                        <Toggle checked={enabled} onChange={() => setEnabled(enabled => !enabled)} height={18} />
+                        <Toggle checked={enabled} onChange={() => setEnabled(enabled => {
+                            if (!updateRef.current[policy.schema.name]) updateRef.current[policy.schema.name] = {
+                                project: projectId!,
+                                schema: policy.schema.name,
+                                values: {}
+                            };
+                            updateRef.current[policy.schema.name].values["enabled"] = !enabled;
+                            return !enabled
+                        })} height={18} />
                     </Box>
                 </Flex>
             }
@@ -877,11 +902,11 @@ function PolicySchemaEntry({policy}: {policy: Policy}): React.ReactNode {
         <Box mt="-10px" style={{color: "var(--textSecondary)"}}>
             <Markdown>{policy.schema.description}</Markdown>
         </Box>
-        {enabled ? <PolicyConfiguration policy={policy} /> : null}
+        {enabled ? <PolicyConfiguration updateRef={updateRef} policy={policy} /> : null}
     </Box>
 }
 
-function PolicyConfiguration({policy}: {policy: Policy}): React.ReactNode {
+function PolicyConfiguration({policy, updateRef}: {policy: Policy; updateRef: React.RefObject<Record<string, Specification>>}): React.ReactNode {
     switch (policy.schema.name) {
         case "RestrictApplications": {
             const [searchApps, setSearchApps] = useState<DataListItem[]>([]);
@@ -924,8 +949,9 @@ function PolicyConfiguration({policy}: {policy: Policy}): React.ReactNode {
                         }, 500);
                     }}
                     onSelect={it => {
-                        setAllowedApps(new Set([it.value, ...allowedApps]));
-                        console.log(document.getElementById("app"));
+                        const newAllowedApps = new Set([it.value, ...allowedApps]);
+                        setAllowedApps(newAllowedApps);
+                        updateRef.current[policy.schema.name].values[applications.title] = [...newAllowedApps];
                         (document.getElementById("allowed-apps") as HTMLInputElement).value = "";
                     }}
                     RenderRow={({item}) => (<AppRow appName={item.value} />)}
@@ -1034,7 +1060,7 @@ const PolicyAPI = new class {
 
 function ProjectPolicies() {
     const projectId = useProjectId();
-    const [schemas, setSchemas] = useState({})
+    const [schemas, setSchemas] = useState<Record<string, Policy>>({})
     React.useEffect(() => {
         if (projectId) {
             callAPI(PolicyAPI.retrievePolicies({projectId})).then(setSchemas);
