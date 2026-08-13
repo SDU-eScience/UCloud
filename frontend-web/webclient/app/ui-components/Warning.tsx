@@ -8,6 +8,7 @@ interface WarningProps {
     clearWarning?: () => void;
     warning?: string;
     children?: React.ReactNode
+    mb?: string;
 }
 
 const WarningClass = injectStyleSimple("warning", `
@@ -30,7 +31,7 @@ const Warning: React.FunctionComponent<WarningProps> = props => {
     if (!props.warning && !props.children) return null;
 
     return (
-        <div className={WarningClass}>
+        <Box className={WarningClass} mb={props.mb}>
             <Icon name="warning" size={20} color="warningMain" />
             <div>{props.warning}</div>
             {props.children}
@@ -39,7 +40,7 @@ const Warning: React.FunctionComponent<WarningProps> = props => {
                     <IconButton icon={"heroXMark"} tooltip={"Close"} onClick={props.clearWarning} />
                 </Box>
             )}
-        </div>
+        </Box>
     );
 };
 

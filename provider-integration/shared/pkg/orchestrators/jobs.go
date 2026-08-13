@@ -638,10 +638,11 @@ var JobsUpdateLabels = rpc.Call[fnd.BulkRequest[JobsUpdateLabelsRequest], util.E
 }
 
 type JobsCreateApplicationVariantRequest struct {
-	JobId              string `json:"jobId"`
-	Rank               int    `json:"rank"`
-	Title              string `json:"title"`
-	PublishedToProject bool   `json:"publishedToProject"`
+	JobId              string             `json:"jobId"`
+	Rank               int                `json:"rank"`
+	Title              string             `json:"title"`
+	PublishedToProject bool               `json:"publishedToProject"`
+	TargetVariantId    util.Option[int64] `json:"targetVariantId"`
 }
 
 var JobsCreateApplicationVariant = rpc.Call[JobsCreateApplicationVariantRequest, fnd.Task]{
@@ -834,11 +835,13 @@ var JobsProviderRequestDynamicParameters = rpc.Call[JobsProviderRequestDynamicPa
 }
 
 type JobsProviderCreateApplicationVariantRequest struct {
-	Job         Job    `json:"job"`
-	VariantId   int64  `json:"variantId"`
-	Image       string `json:"image"`
-	Rank        int    `json:"rank"`
-	RequestedBy string `json:"requestedBy"`
+	Job             Job            `json:"job"`
+	VariantId       int64          `json:"variantId"`
+	Revision        int64          `json:"revision"`
+	BaseApplication NameAndVersion `json:"baseApplication"`
+	Image           string         `json:"image"`
+	Rank            int            `json:"rank"`
+	RequestedBy     string         `json:"requestedBy"`
 }
 
 var JobsProviderCreateApplicationVariant = rpc.Call[JobsProviderCreateApplicationVariantRequest, fnd.Task]{

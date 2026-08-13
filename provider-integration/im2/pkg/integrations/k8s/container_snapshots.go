@@ -30,14 +30,17 @@ import (
 )
 
 const (
-	containerSnapshotLabel             = "ucloud.dk/containerSnapshot"
-	containerSnapshotJobLabel          = "ucloud.dk/containerSnapshotJobId"
-	containerSnapshotImageAnnotation   = "ucloud.dk/containerSnapshotImage"
-	containerSnapshotTokenAnnotation   = "ucloud.dk/containerSnapshotTokenId"
-	containerSnapshotStopAnnotation    = "ucloud.dk/containerSnapshotStopRequested"
-	containerSnapshotCleanupAnnotation = "ucloud.dk/containerSnapshotCleanupRequested"
-	containerSnapshotVariantAnnotation = "ucloud.dk/containerSnapshotVariantId"
-	containerSnapshotTaskAnnotation    = "ucloud.dk/containerSnapshotTaskId"
+	containerSnapshotLabel                 = "ucloud.dk/containerSnapshot"
+	containerSnapshotJobLabel              = "ucloud.dk/containerSnapshotJobId"
+	containerSnapshotImageAnnotation       = "ucloud.dk/containerSnapshotImage"
+	containerSnapshotTokenAnnotation       = "ucloud.dk/containerSnapshotTokenId"
+	containerSnapshotStopAnnotation        = "ucloud.dk/containerSnapshotStopRequested"
+	containerSnapshotCleanupAnnotation     = "ucloud.dk/containerSnapshotCleanupRequested"
+	containerSnapshotVariantAnnotation     = "ucloud.dk/containerSnapshotVariantId"
+	containerSnapshotTaskAnnotation        = "ucloud.dk/containerSnapshotTaskId"
+	containerSnapshotBaseNameAnnotation    = "ucloud.dk/containerSnapshotBaseName"
+	containerSnapshotBaseVersionAnnotation = "ucloud.dk/containerSnapshotBaseVersion"
+	containerSnapshotRequestedByAnnotation = "ucloud.dk/containerSnapshotRequestedBy"
 )
 
 var containerSnapshotImagePattern = regexp.MustCompile(`^[a-z0-9]+([._-][a-z0-9]+)*(/[a-z0-9]+([._-][a-z0-9]+)*)*:[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$`)
@@ -82,14 +85,14 @@ func initContainerSnapshots() {
 }
 
 func startContainerSnapshot(jobId, image string, rank int) (string, *util.HttpError) {
-	return startContainerSnapshotEx(jobId, image, rank, 0, 0, true)
+	return startContainerSnapshotEx(jobId, image, rank, 0, 0, orc.NameAndVersion{}, "", true)
 }
 
-func startContainerSnapshotAsync(jobId, image string, rank int, variantId int64, taskId int) (string, *util.HttpError) {
-	return startContainerSnapshotEx(jobId, image, rank, variantId, taskId, false)
+func startContainerSnapshotAsync(jobId, image string, rank int, variantId int64, taskId int, baseApplication orc.NameAndVersion, requestedBy string) (string, *util.HttpError) {
+	return startContainerSnapshotEx(jobId, image, rank, variantId, taskId, baseApplication, requestedBy, false)
 }
 
-func startContainerSnapshotEx(jobId, image string, rank int, variantId int64, taskId int, wait bool) (string, *util.HttpError) {
+func startContainerSnapshotEx(jobId, image string, rank int, variantId int64, taskId int, baseApplication orc.NameAndVersion, requestedBy string, wait bool) (string, *util.HttpError) {
 	if !containerSnapshotImagePattern.MatchString(image) {
 		return "", util.HttpErr(http.StatusBadRequest, "image must use a lowercase repository path and include a valid tag")
 	}
@@ -209,6 +212,9 @@ nerdctl --address "$CONTAINERD_ADDRESS" --namespace "$CONTAINERD_NAMESPACE" $NER
 	if variantId > 0 {
 		helpJob.Annotations[containerSnapshotVariantAnnotation] = strconv.FormatInt(variantId, 10)
 		helpJob.Annotations[containerSnapshotTaskAnnotation] = strconv.Itoa(taskId)
+		helpJob.Annotations[containerSnapshotBaseNameAnnotation] = baseApplication.Name
+		helpJob.Annotations[containerSnapshotBaseVersionAnnotation] = baseApplication.Version
+		helpJob.Annotations[containerSnapshotRequestedByAnnotation] = requestedBy
 	}
 	if util.DevelopmentModeEnabled() {
 		helpJob.Spec.Template.Spec.HostAliases = []core.HostAlias{{
@@ -272,7 +278,7 @@ nerdctl --address "$CONTAINERD_ADDRESS" --namespace "$CONTAINERD_NAMESPACE" $NER
 	}
 	message := "Saving the container. Your job is paused while this finishes. This usually takes a few minutes."
 	if variantId > 0 {
-		message = "Saving your application variant. Your job is paused while this finishes. This usually takes a few minutes."
+		message = "Saving your flavor. Your job is paused while this finishes. This usually takes a few minutes."
 	}
 	_ = controller.JobTrackMessage([]controller.JobMessage{{
 		JobId:   job.Id,
@@ -356,7 +362,13 @@ func runContainerSnapshotMonitor(name string, execution *containerSnapshotExecut
 					result.Err = validationErr.Why
 				} else {
 					callback := orc.ApplicationVariantCompleteSnapshotRequest{
-						VariantId: variantId, TaskId: taskId, Image: validated.Image, ImageDigest: validated.ImageDigest,
+						VariantId: variantId, TaskId: taskId,
+						BaseApplication: orc.NameAndVersion{
+							Name:    snapshotJobAnnotation(snapshotJob, containerSnapshotBaseNameAnnotation),
+							Version: snapshotJobAnnotation(snapshotJob, containerSnapshotBaseVersionAnnotation),
+						},
+						RequestedBy: snapshotJobAnnotation(snapshotJob, containerSnapshotRequestedByAnnotation),
+						Image:       validated.Image, ImageDigest: validated.ImageDigest,
 					}
 					for {
 						_, callbackErr := orc.ApplicationVariantsControlCompleteSnapshot.Invoke(callback)
@@ -388,14 +400,14 @@ func runContainerSnapshotMonitor(name string, execution *containerSnapshotExecut
 			postContainerSnapshotTask(
 				taskId,
 				fnd.TaskStateFailure,
-				"We could not save your application variant. "+result.Err,
+				"We could not save your flavor. "+result.Err,
 				util.OptNone[string](),
 			)
 		} else {
 			postContainerSnapshotTask(
 				taskId,
 				fnd.TaskStateSuccess,
-				"Your application variant is ready",
+				"Your flavor is ready",
 				util.OptValue(fmt.Sprintf("Image location: %s", result.Image)),
 			)
 		}
@@ -431,12 +443,12 @@ func runContainerSnapshotMonitor(name string, execution *containerSnapshotExecut
 	if jobId != "" {
 		message := fmt.Sprintf("The container is ready. Image location: %s", result.Image)
 		if variantId > 0 {
-			message = fmt.Sprintf("Your application variant is ready. Image location: %s", result.Image)
+			message = fmt.Sprintf("Your flavor is ready. Image location: %s", result.Image)
 		}
 		if result.Err != "" {
 			message = fmt.Sprintf("We could not save the container. %s", result.Err)
 			if variantId > 0 {
-				message = fmt.Sprintf("We could not save your application variant. %s", result.Err)
+				message = fmt.Sprintf("We could not save your flavor. %s", result.Err)
 			}
 		}
 		_ = controller.JobTrackMessage([]controller.JobMessage{{JobId: jobId, Message: message}})

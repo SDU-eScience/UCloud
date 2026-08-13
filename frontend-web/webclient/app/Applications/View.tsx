@@ -9,6 +9,12 @@ import {classConcat, injectStyleSimple} from "@/Unstyled";
 import {Application} from "@/Applications/AppStoreApi";
 import {RichSelect} from "@/ui-components/RichSelect";
 import {useMemo} from "react";
+import {openFlavorManagement} from "@/Applications/FlavorManagement";
+import {dialogStore} from "@/Dialog/DialogStore";
+import {Client} from "@/Authentication/HttpClientInstance";
+import {checkIsWorkspaceAdmin} from "@/ui-components/ResourceBrowser";
+import Warning from "@/ui-components/Warning";
+import BaseLink from "@/ui-components/BaseLink";
 
 const DEFAULT_FLAVOR_NAME = "Default";
 
@@ -93,6 +99,7 @@ export const ApplicationSelector: React.FunctionComponent<{
     jobCreateLayout?: boolean;
     fieldNavigation?: boolean;
     autoFocusFlavor?: boolean;
+    reloadFlavors?(): void | Promise<void>;
 }> = props => {
     const newestVersion = props.allVersions[0];
     const navigate = useNavigate();
@@ -114,12 +121,28 @@ export const ApplicationSelector: React.FunctionComponent<{
     } as FlavorOption;
     const searchableVersions = useMemo(() => props.allVersions.map(version => ({searchKey: version, version})),
         [props.allVersions]);
+    const customFlavors = props.flavors.filter(app => app.metadata.variant &&
+        (app.metadata.variant.createdBy === Client.username || checkIsWorkspaceAdmin()));
+    const baseLatestVersion = props.application.metadata.variant ?
+        props.flavors.find(app => app.metadata.name === props.application.metadata.variant?.baseApplication.name)?.versions?.[0] :
+        undefined;
 
     const caretPlacement: React.CSSProperties = {position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)"};
 
     return <div className={classConcat(ApplicationSelectorClass, props.jobCreateLayout ? JobCreateApplicationSelectorClass : undefined)}>
         <Label style={{minWidth: 0}}>
-            {!props.showLabels ? null : <Box mb="8px">Flavor</Box>}
+            {!props.showLabels ? null : <Flex mb="8px" gap="6px">
+                <Box>Flavor</Box>
+
+                {customFlavors.length === 0 ? null : <BaseLink onClick={event => {
+                    event.preventDefault();
+                    openFlavorManagement(customFlavors, props.reloadFlavors ?? (() => undefined), variant => {
+                        if (props.application.metadata.variant?.id !== variant.id) return;
+                        dialogStore.success();
+                        navigate(Pages.runApplication(variant.baseApplication));
+                    });
+                }}>(Manage your flavors)</BaseLink>}
+            </Flex>}
             <RichSelect
                 items={searchableFlavor}
                 keys={["searchKey", "latestVersion"]}
@@ -178,6 +201,15 @@ export const ApplicationSelector: React.FunctionComponent<{
                 </div>
             </Tooltip></Box>
             : null}
+        {!props.jobCreateLayout || !props.application.metadata.variant || !baseLatestVersion ||
+        baseLatestVersion === props.application.metadata.variant.baseApplication.version ? null :
+            <Box style={{gridColumn: "1 / -1"}}>
+                <Warning mb={"0"}>
+                    This flavor uses base application version {props.application.metadata.variant.baseApplication.version}.
+                    The latest version is {baseLatestVersion}.
+                </Warning>
+            </Box>
+        }
     </div>;
 };
 

@@ -1014,9 +1014,10 @@ export const Create: React.FunctionComponent = () => {
             const card = document.getElementById(id);
             if (!card) return;
             if (document.activeElement instanceof HTMLElement) closeOpenDropdown(document.activeElement);
-            const focusTarget = Array.from(card.querySelectorAll<HTMLElement>(
-                `[data-card-first-field], ${JOB_NAVIGATION_SELECTOR}, input:not([type=hidden]), select, button:not(:disabled), [role=button][tabindex='0'], [role=switch]`
-            )).find(element => !isDisabledNavigationTarget(element));
+            const navigationTargets = Array.from(card.querySelectorAll<HTMLElement>(JOB_NAVIGATION_SELECTOR))
+                .filter(element => !isDisabledNavigationTarget(element));
+            const focusTarget = navigationTargets.find(element => element.hasAttribute("data-card-first-field")) ??
+                navigationTargets[0];
             card.scrollIntoView({block: "nearest"});
             focusTarget?.focus();
         };
@@ -1213,6 +1214,19 @@ export const Create: React.FunctionComponent = () => {
                                         jobCreateLayout
                                         fieldNavigation
                                         autoFocusFlavor
+                                        reloadFlavors={() => fetchApplication(
+                                            AppStore.findGroupByApplication({
+                                                appName,
+                                                appVersion: appVersion ?? undefined,
+                                                flags: {
+                                                    includeApplications: true,
+                                                    includeInvocation: true,
+                                                    includeStars: true,
+                                                    includeVersions: true,
+                                                },
+                                                ...discovery,
+                                            })
+                                        )}
                                     />
                                 </Box>
                                 <ReservationParameter

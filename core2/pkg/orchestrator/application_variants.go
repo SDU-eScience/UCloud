@@ -224,7 +224,7 @@ func applicationVariantReserve(actor rpc.Actor, requested orcapi.NameAndVersion,
 	applicationVariantReservationMu.Lock()
 	defer applicationVariantReservationMu.Unlock()
 	if !applicationVariantTitleAvailable(workspace, group, title, 0) {
-		return nil, "", util.HttpErr(http.StatusConflict, "a variant with this title already exists")
+		return nil, "", util.HttpErr(http.StatusConflict, "a flavor with this title already exists")
 	}
 	imageName := applicationVariantImageName(workspace, base.Metadata.Title, title)
 	type createdVariant struct {
@@ -330,20 +330,76 @@ func applicationVariantSetFailure(id int64, failure string) {
 	}
 }
 
-func applicationVariantMaterialize(internal *internalApplicationVariant, image, imageDigest, actor string) (orcapi.ApplicationVariant, *util.HttpError) {
+func applicationVariantBeginPush(internal *internalApplicationVariant) (string, int64, bool) {
+	internal.Mu.Lock()
+	defer internal.Mu.Unlock()
+	if internal.Value.State != orcapi.ApplicationVariantStateActive {
+		return "", 0, false
+	}
+	_, updated := db.NewTx2(func(tx *db.Transaction) (struct{ Id int64 }, bool) {
+		return db.Get[struct{ Id int64 }](
+			tx,
+			`
+				update app_store.application_variants
+				set failure = 'PUSH_PENDING', modified_at = now()
+				where
+					id = :id
+					and state = 'ACTIVE'
+					and failure is null
+				returning id
+			`,
+			db.Params{
+				"id": internal.Value.Id,
+			},
+		)
+	})
+	if !updated {
+		return "", 0, false
+	}
+	return internal.ImageName, internal.RevisionCount + 1, true
+}
+
+func applicationVariantCancelPush(internal *internalApplicationVariant) {
+	internal.Mu.Lock()
+	defer internal.Mu.Unlock()
+	if internal.Value.State != orcapi.ApplicationVariantStateActive || internal.Value.RevisionId == 0 {
+		return
+	}
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				update app_store.application_variants
+				set failure = null, modified_at = now()
+				where
+					id = :id
+					and state = 'ACTIVE'
+					and failure = 'PUSH_PENDING'
+			`,
+			db.Params{
+				"id": internal.Value.Id,
+			},
+		)
+	})
+}
+
+func applicationVariantMaterialize(internal *internalApplicationVariant, image, imageDigest, actor string, baseOverride util.Option[orcapi.NameAndVersion]) (orcapi.ApplicationVariant, *util.HttpError) {
 	variant, _ := applicationVariantSnapshot(internal)
+	if baseOverride.Present {
+		variant.BaseApplication = baseOverride.Value
+	}
 	base, ok := AppRetrieve(rpc.ActorSystem, variant.BaseApplication.Name, variant.BaseApplication.Version, AppDiscoveryAll, AppCatalogIncludeGroups)
 	if !ok || !base.Invocation.Tool.Tool.Present {
 		return orcapi.ApplicationVariant{}, util.HttpErr(http.StatusBadRequest, "base application is no longer available")
 	}
 	internal.Mu.Lock()
-	variant = internal.Value
-	if variant.State == orcapi.ApplicationVariantStateDeleted {
+	if internal.Value.State == orcapi.ApplicationVariantStateDeleted {
 		internal.Mu.Unlock()
-		return orcapi.ApplicationVariant{}, util.HttpErr(http.StatusConflict, "variant was deleted")
+		return orcapi.ApplicationVariant{}, util.HttpErr(http.StatusConflict, "flavor was deleted")
 	}
 
-	result := variant
+	result := internal.Value
+	result.BaseApplication = variant.BaseApplication
 	var materialized orcapi.Application
 	db.NewTx0(func(tx *db.Transaction) {
 		revision, _ := db.Get[struct {
@@ -378,11 +434,18 @@ func applicationVariantMaterialize(internal *internalApplicationVariant, image, 
 			tx,
 			`
 				update app_store.application_variants
-				set state = 'ACTIVE', failure = null, modified_at = now()
+				set
+					base_name = :base_name,
+					base_version = :base_version,
+					state = 'ACTIVE',
+					failure = null,
+					modified_at = now()
 				where id = :id
 			`,
 			db.Params{
-				"id": variant.Id,
+				"id":           variant.Id,
+				"base_name":    result.BaseApplication.Name,
+				"base_version": result.BaseApplication.Version,
 			},
 		)
 	})
@@ -547,15 +610,48 @@ func initApplicationVariantRpc() {
 		if !ok || !support.Support.Docker.ApplicationVariants || !support.Support.Docker.ContainerSnapshots {
 			return fndapi.Task{}, util.HttpErr(http.StatusBadRequest, "the provider does not support container snapshots")
 		}
-		variant, imageName, err := applicationVariantReserve(info.Actor, job.Specification.Application, provider, request.Title, request.PublishedToProject)
-		if err != nil {
-			return fndapi.Task{}, err
+		var variant *internalApplicationVariant
+		var imageName string
+		var revision int64
+		_, managedBase, _, baseErr := applicationVariantBase(info.Actor, job.Specification.Application)
+		if baseErr != nil {
+			return fndapi.Task{}, baseErr
+		}
+		if request.TargetVariantId.Present {
+			var found bool
+			variant, found = applicationVariantRetrieve(request.TargetVariantId.Value)
+			if !found {
+				return fndapi.Task{}, util.HttpErr(http.StatusNotFound, "flavor not found")
+			}
+			current, targetGroup := applicationVariantSnapshot(variant)
+			_, _, jobGroup, _ := applicationVariantBase(info.Actor, job.Specification.Application)
+			if !applicationVariantCanManage(info.Actor, current) || current.State != orcapi.ApplicationVariantStateActive {
+				return fndapi.Task{}, util.HttpErr(http.StatusNotFound, "flavor not found")
+			}
+			if targetGroup != jobGroup || current.Provider != provider {
+				return fndapi.Task{}, util.HttpErr(http.StatusBadRequest, "the flavor is not compatible with this job")
+			}
+			var pushStarted bool
+			imageName, revision, pushStarted = applicationVariantBeginPush(variant)
+			if !pushStarted {
+				return fndapi.Task{}, util.HttpErr(http.StatusConflict, "a new flavor version is already being saved")
+			}
+		} else {
+			var reserveErr *util.HttpError
+			variant, imageName, reserveErr = applicationVariantReserve(info.Actor, job.Specification.Application, provider, request.Title, request.PublishedToProject)
+			if reserveErr != nil {
+				return fndapi.Task{}, reserveErr
+			}
+			revision = 1
 		}
 		current, _ := applicationVariantSnapshot(variant)
 		task, err := InvokeProvider(provider, orcapi.JobsProviderCreateApplicationVariant, orcapi.JobsProviderCreateApplicationVariantRequest{
-			Job: job, VariantId: current.Id, Image: imageName + ":r1", Rank: request.Rank, RequestedBy: info.Actor.Username,
+			Job: job, VariantId: current.Id, Revision: revision, BaseApplication: managedBase, Image: fmt.Sprintf("%s:r%d", imageName, revision), Rank: request.Rank, RequestedBy: info.Actor.Username,
 		}, ProviderCallOpts{Username: util.OptValue(info.Actor.Username), Reason: util.OptValue("create application variant")})
 		if err != nil {
+			if request.TargetVariantId.Present {
+				applicationVariantCancelPush(variant)
+			}
 			applicationVariantSetFailure(current.Id, err.Why)
 			return fndapi.Task{}, err
 		}
@@ -576,17 +672,17 @@ func initApplicationVariantRpc() {
 		if err != nil {
 			return orcapi.ApplicationVariant{}, err
 		}
-		return applicationVariantMaterialize(variant, validated.Image, validated.ImageDigest, info.Actor.Username)
+		return applicationVariantMaterialize(variant, validated.Image, validated.ImageDigest, info.Actor.Username, util.OptNone[orcapi.NameAndVersion]())
 	})
 
 	orcapi.ApplicationVariantsRetrieve.Handler(func(info rpc.RequestInfo, request orcapi.FindApplicationVariant) (orcapi.ApplicationVariant, *util.HttpError) {
 		internal, ok := applicationVariantRetrieve(request.Id)
 		if !ok {
-			return orcapi.ApplicationVariant{}, util.HttpErr(http.StatusNotFound, "variant not found")
+			return orcapi.ApplicationVariant{}, util.HttpErr(http.StatusNotFound, "flavor not found")
 		}
 		variant, _ := applicationVariantSnapshot(internal)
 		if !applicationVariantCanRead(info.Actor, variant) {
-			return orcapi.ApplicationVariant{}, util.HttpErr(http.StatusNotFound, "variant not found")
+			return orcapi.ApplicationVariant{}, util.HttpErr(http.StatusNotFound, "flavor not found")
 		}
 		return variant, nil
 	})
@@ -630,11 +726,11 @@ func initApplicationVariantRpc() {
 	orcapi.ApplicationVariantsUpdate.Handler(func(info rpc.RequestInfo, request orcapi.ApplicationVariantUpdateRequest) (orcapi.ApplicationVariant, *util.HttpError) {
 		internal, ok := applicationVariantRetrieve(request.Id)
 		if !ok {
-			return orcapi.ApplicationVariant{}, util.HttpErr(http.StatusNotFound, "variant not found")
+			return orcapi.ApplicationVariant{}, util.HttpErr(http.StatusNotFound, "flavor not found")
 		}
 		variant, baseGroup := applicationVariantSnapshot(internal)
 		if !applicationVariantCanManage(info.Actor, variant) || variant.State == orcapi.ApplicationVariantStateDeleted {
-			return orcapi.ApplicationVariant{}, util.HttpErr(http.StatusNotFound, "variant not found")
+			return orcapi.ApplicationVariant{}, util.HttpErr(http.StatusNotFound, "flavor not found")
 		}
 		if request.Title.Present {
 			request.Title.Value = strings.TrimSpace(request.Title.Value)
@@ -642,7 +738,7 @@ func initApplicationVariantRpc() {
 				return orcapi.ApplicationVariant{}, err
 			}
 			if !applicationVariantTitleAvailable(applicationVariantWorkspaceKey(variant), baseGroup, request.Title.Value, variant.Id) {
-				return orcapi.ApplicationVariant{}, util.HttpErr(http.StatusConflict, "a variant with this title already exists")
+				return orcapi.ApplicationVariant{}, util.HttpErr(http.StatusConflict, "a flavor with this title already exists")
 			}
 			variant.Title = request.Title.Value
 		}
@@ -665,7 +761,7 @@ func initApplicationVariantRpc() {
 			applicationVariantReservationMu.Lock()
 			if !applicationVariantTitleAvailable(applicationVariantWorkspaceKey(variant), baseGroup, variant.Title, variant.Id) {
 				applicationVariantReservationMu.Unlock()
-				return orcapi.ApplicationVariant{}, util.HttpErr(http.StatusConflict, "a variant with this title already exists")
+				return orcapi.ApplicationVariant{}, util.HttpErr(http.StatusConflict, "a flavor with this title already exists")
 			}
 		}
 		internal.Mu.Lock()
@@ -674,7 +770,7 @@ func initApplicationVariantRpc() {
 			if request.Title.Present {
 				applicationVariantReservationMu.Unlock()
 			}
-			return orcapi.ApplicationVariant{}, util.HttpErr(http.StatusNotFound, "variant not found")
+			return orcapi.ApplicationVariant{}, util.HttpErr(http.StatusNotFound, "flavor not found")
 		}
 		if request.Title.Present {
 			internal.Value.Title = variant.Title
@@ -704,7 +800,7 @@ func initApplicationVariantRpc() {
 		}
 		applicationVariantCacheUpdateMetadata(variant)
 		if validatedImage.Present {
-			return applicationVariantMaterialize(internal, validatedImage.Value.Image, validatedImage.Value.ImageDigest, info.Actor.Username)
+			return applicationVariantMaterialize(internal, validatedImage.Value.Image, validatedImage.Value.ImageDigest, info.Actor.Username, util.OptNone[orcapi.NameAndVersion]())
 		}
 		return variant, nil
 	})
@@ -712,11 +808,11 @@ func initApplicationVariantRpc() {
 	orcapi.ApplicationVariantsDelete.Handler(func(info rpc.RequestInfo, request orcapi.FindApplicationVariant) (util.Empty, *util.HttpError) {
 		internal, ok := applicationVariantRetrieve(request.Id)
 		if !ok {
-			return util.Empty{}, util.HttpErr(http.StatusNotFound, "variant not found")
+			return util.Empty{}, util.HttpErr(http.StatusNotFound, "flavor not found")
 		}
 		variant, baseGroup := applicationVariantSnapshot(internal)
 		if !applicationVariantCanManage(info.Actor, variant) {
-			return util.Empty{}, util.HttpErr(http.StatusNotFound, "variant not found")
+			return util.Empty{}, util.HttpErr(http.StatusNotFound, "flavor not found")
 		}
 		internal.Mu.Lock()
 		wasDeleted := internal.Value.State == orcapi.ApplicationVariantStateDeleted
@@ -747,23 +843,33 @@ func initApplicationVariantRpc() {
 		provider, ok := strings.CutPrefix(info.Actor.Username, fndapi.ProviderSubjectPrefix)
 		internal, found := applicationVariantRetrieve(request.VariantId)
 		if !ok || !found {
-			return util.Empty{}, util.HttpErr(http.StatusNotFound, "variant not found")
+			return util.Empty{}, util.HttpErr(http.StatusNotFound, "flavor not found")
 		}
 		variant, _ := applicationVariantSnapshot(internal)
 		if provider != variant.Provider {
-			return util.Empty{}, util.HttpErr(http.StatusNotFound, "variant not found")
+			return util.Empty{}, util.HttpErr(http.StatusNotFound, "flavor not found")
 		}
 		if variant.State == orcapi.ApplicationVariantStateDeleted {
-			return util.Empty{}, util.HttpErr(http.StatusConflict, "variant was deleted")
+			return util.Empty{}, util.HttpErr(http.StatusConflict, "flavor was deleted")
 		}
 		if request.Failure.Present {
+			applicationVariantCancelPush(internal)
 			applicationVariantSetFailure(variant.Id, request.Failure.Value)
 			return util.Empty{}, nil
 		}
 		if variant.RevisionId != 0 && variant.ImageDigest == request.ImageDigest {
+			applicationVariantCancelPush(internal)
 			return util.Empty{}, nil
 		}
-		_, err := applicationVariantMaterialize(internal, request.Image, request.ImageDigest, variant.CreatedBy)
+		actor := request.RequestedBy
+		if actor == "" {
+			actor = variant.CreatedBy
+		}
+		baseOverride := util.OptNone[orcapi.NameAndVersion]()
+		if request.BaseApplication.Name != "" {
+			baseOverride.Set(request.BaseApplication)
+		}
+		_, err := applicationVariantMaterialize(internal, request.Image, request.ImageDigest, actor, baseOverride)
 		return util.Empty{}, err
 	})
 }

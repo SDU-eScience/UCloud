@@ -1,5 +1,5 @@
 import {buildQueryString} from "@/Utilities/URIUtilities";
-import {apiBrowse, apiRetrieve, apiSearch, apiUpdate} from "@/Authentication/DataHook";
+import {apiBrowse, apiDelete, apiRetrieve, apiSearch, apiUpdate} from "@/Authentication/DataHook";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {FindByLongId, PaginationRequestV2} from "@/UCloud";
 import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
@@ -593,6 +593,20 @@ export function updatePublicFlag(request: {
 
 export function listAllApplications(request: {}): APICallParameters<unknown, { items: NameAndVersion[] }> {
     return apiRetrieve(request, baseContext, "allApplications");
+}
+
+const applicationVariantContext = `${baseContext}/variants`;
+
+export function updateApplicationVariant(request: {
+    id: number;
+    title?: string;
+    publishedToProject?: boolean;
+}): APICallParameters<unknown, ApplicationVariant> {
+    return apiUpdate(request, applicationVariantContext, "update");
+}
+
+export function deleteApplicationVariant(request: {id: number}): APICallParameters<unknown, unknown> {
+    return apiDelete(request, applicationVariantContext);
 }
 
 // Starred applications

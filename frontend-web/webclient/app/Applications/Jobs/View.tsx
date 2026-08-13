@@ -1717,7 +1717,7 @@ const RunningButtonGroup: React.FunctionComponent<{
             request => callAPI<BackgroundTask>(JobsApi.createApplicationVariant(request)),
         )}>
             <Icon name="heroSquare3Stack3D" />
-            <div style={{minWidth: "130px", maxWidth: "164px"}}><Truncate>Save as...</Truncate></div>
+            <div style={{minWidth: "130px", maxWidth: "164px"}}><Truncate>Save as flavor</Truncate></div>
         </Button>}
         {!supportTerminal ? null : (
             <Flex>

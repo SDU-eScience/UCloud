@@ -105,11 +105,13 @@ var ApplicationVariantsProviderValidateImage = rpc.Call[ApplicationVariantValida
 }
 
 type ApplicationVariantCompleteSnapshotRequest struct {
-	VariantId   int64               `json:"variantId"`
-	TaskId      int                 `json:"taskId"`
-	Image       string              `json:"image"`
-	ImageDigest string              `json:"imageDigest"`
-	Failure     util.Option[string] `json:"failure"`
+	VariantId       int64               `json:"variantId"`
+	TaskId          int                 `json:"taskId"`
+	BaseApplication NameAndVersion      `json:"baseApplication"`
+	RequestedBy     string              `json:"requestedBy"`
+	Image           string              `json:"image"`
+	ImageDigest     string              `json:"imageDigest"`
+	Failure         util.Option[string] `json:"failure"`
 }
 
 var ApplicationVariantsControlCompleteSnapshot = rpc.Call[ApplicationVariantCompleteSnapshotRequest, util.Empty]{

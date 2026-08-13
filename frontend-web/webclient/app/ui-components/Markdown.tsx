@@ -23,7 +23,7 @@ function CodeBlock(props: {lang?: string; inline?: boolean; children: React.Reac
 }
 
 function LinkBlock(props: {href?: string; children: React.ReactNode} & React.AnchorHTMLAttributes<HTMLAnchorElement>) {
-    return <ExternalLink color={"primaryDark"} href={props.href}>{props.children}</ExternalLink>;
+    return <ExternalLink href={props.href}>{props.children}</ExternalLink>;
 }
 
 function Markdown(props: Options): React.ReactNode {

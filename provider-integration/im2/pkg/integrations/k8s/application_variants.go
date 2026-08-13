@@ -25,13 +25,13 @@ func initApplicationVariants() {
 			JobId: request.Job.Id,
 			Application: orc.NameAndVersion{
 				Name:    fmt.Sprintf("variant-%d", request.VariantId),
-				Version: "r1",
+				Version: fmt.Sprintf("r%d", request.Revision),
 			},
 		})
 		task, err := fnd.TasksCreate.Invoke(fnd.TasksCreateRequest{
 			User:      request.RequestedBy,
-			Title:     util.OptValue("Saving application variant"),
-			Progress:  util.OptValue("Getting ready to save your application variant"),
+			Title:     util.OptValue("Saving flavor"),
+			Progress:  util.OptValue("Getting ready to save your flavor"),
 			CanCancel: false,
 			Icon:      util.OptValue("heroSquare3Stack3D"),
 			Meta:      util.OptValue(json.RawMessage(meta)),
@@ -39,15 +39,23 @@ func initApplicationVariants() {
 		if err != nil {
 			return fnd.Task{}, err
 		}
-		_, err = startContainerSnapshotAsync(request.Job.Id, request.Image, request.Rank, request.VariantId, task.Id)
+		_, err = startContainerSnapshotAsync(
+			request.Job.Id,
+			request.Image,
+			request.Rank,
+			request.VariantId,
+			task.Id,
+			request.BaseApplication,
+			request.RequestedBy,
+		)
 		if err != nil {
-			postContainerSnapshotTask(task.Id, fnd.TaskStateFailure, "We could not save your application variant. "+err.Why, util.OptNone[string]())
+			postContainerSnapshotTask(task.Id, fnd.TaskStateFailure, "We could not save your flavor. "+err.Why, util.OptNone[string]())
 			_, _ = orc.ApplicationVariantsControlCompleteSnapshot.Invoke(orc.ApplicationVariantCompleteSnapshotRequest{
 				VariantId: request.VariantId, TaskId: task.Id, Failure: util.OptValue(err.Why),
 			})
 			return fnd.Task{}, err
 		}
-		postContainerSnapshotTask(task.Id, fnd.TaskStateRunning, "Saving your application variant", util.OptNone[string]())
+		postContainerSnapshotTask(task.Id, fnd.TaskStateRunning, "Saving your flavor", util.OptNone[string]())
 		return task, nil
 	})
 }
@@ -55,7 +63,7 @@ func initApplicationVariants() {
 func postContainerSnapshotTask(taskId int, state fnd.TaskState, progress string, body util.Option[string]) {
 	status := fnd.TaskStatus{
 		State:    state,
-		Title:    util.OptValue("Saving application variant"),
+		Title:    util.OptValue("Saving flavor"),
 		Body:     body,
 		Progress: util.OptValue(progress),
 	}

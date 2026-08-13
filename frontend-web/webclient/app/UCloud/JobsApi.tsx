@@ -176,6 +176,7 @@ export interface CreateApplicationVariantRequest {
     rank: number;
     title: string;
     publishedToProject: boolean;
+    targetVariantId?: number;
 }
 
 export type ResumeRequest = FindByStringId;
@@ -370,7 +371,7 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
             onClick: ([job], callbacks) => {
                 openCreateApplicationVariant(job, request => callbacks.invokeCommand<BackgroundTask>(this.createApplicationVariant(request)));
             },
-            text: "Save as...",
+            text: "Save as flavor",
         });
 
         ourOps.push({
