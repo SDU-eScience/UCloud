@@ -255,7 +255,11 @@ func SourceIpIsRestricted(info rpc.RequestInfo) bool {
 	}
 
 	projectPolicies.Mu.RLock()
-	policies := projectPolicies.PoliciesByProject[string(info.Actor.Project.Value)].ConfiguredPolicies
+	policiesObject, ok := projectPolicies.PoliciesByProject[string(info.Actor.Project.Value)]
+	if !ok {
+		return false
+	}
+	policies := maps.Clone(policiesObject.ConfiguredPolicies)
 	projectPolicies.Mu.RUnlock()
 
 	specification, ok := policies[fndapi.RestrictSourceIPRange]
@@ -306,17 +310,17 @@ var sourceIpRestrictedEndpoints = map[string]struct{}{
 	"files.collections.delete":    {},
 
 	// files
-	"files.browse":     {},
-	"files.retrieve":   {},
-	"files.move":       {},
-	"files.copy":       {},
-	"files.upload":     {},
-	"files.download":   {},
-	"files.folder":     {},
-	"files.delete":     {},
-	"files.trash":      {},
-	"files.emptyTrash": {},
-	"files.transfer":   {},
+	"files.browse":          {},
+	"files.retrieve":        {},
+	"files.move":            {},
+	"files.copy":            {},
+	"files.upload":          {},
+	"files.download":        {},
+	"files.folder":          {},
+	"files.delete":          {},
+	"files.trash":           {},
+	"files.emptyTrash":      {},
+	"files.transfer":        {},
 	"files.streamingSearch": {},
 
 	// grants
@@ -364,7 +368,7 @@ var sourceIpRestrictedEndpoints = map[string]struct{}{
 	"ssh.delete":   {},
 
 	// tokens
-	"tokens": {},
+	"tokens":        {},
 	"tokens.browse": {},
 	"tokens.revoke": {},
 }
