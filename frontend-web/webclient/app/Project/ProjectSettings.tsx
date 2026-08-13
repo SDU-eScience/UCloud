@@ -9,12 +9,12 @@ import {
     Checkbox,
     TextArea,
     DataList,
-    Icon,
-    Tooltip
+    Tooltip,
+    Markdown
 } from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
-import {addStandardDialog, ConfirmCancelButtons} from "@/UtilityComponents";
-import {callAPI, callAPIWithErrorHandler, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {addStandardDialog, ConfirmCancelButtons, NoResultsBody} from "@/UtilityComponents";
+import {apiRetrieve, apiUpdate, callAPI, callAPIWithErrorHandler, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {useNavigate} from "react-router-dom";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {MainContainer} from "@/ui-components/MainContainer";
@@ -24,7 +24,7 @@ import {usePage} from "@/Navigation/Redux";
 import {useCallback, useEffect, useRef, useState} from "react";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import ProjectAPI, {useProjectId} from "@/Project/Api";
-import {bulkRequestOf, copyToClipboard} from "@/UtilityFunctions";
+import {bulkRequestOf, copyToClipboard, doNothing} from "@/UtilityFunctions";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {useProject} from "./cache";
 import {injectStyle} from "@/Unstyled";
@@ -33,7 +33,6 @@ import {ProjectLogo} from "@/Grants/ProjectLogo";
 import {HiddenInputField} from "@/ui-components/Input";
 import {IconButton} from "@/ui-components/IconButton";
 import {CopyButton} from "@/ui-components/CopyButton";
-import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {SimpleRichItem, SimpleRichSelect} from "@/ui-components/RichSelect";
 import {inSuccessRange} from "@/UtilityFunctions";
 import Table, {TableCell, TableHeaderCell, TableRow} from "@/ui-components/Table";
@@ -41,10 +40,22 @@ import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {ProjectSwitcher} from "./ProjectSwitcher";
 import WAYF from "@/Grants/wayf-idps.json";
 import {FlexClass} from "@/ui-components/Flex";
-import {OldProjectRole, isAdminOrPI} from ".";
+import {OldProjectRole, ProjectRole, isAdminOrPI, isDataSteward} from ".";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import AppRoutes from "@/Routes";
-import {sendFailureNotification, sendInformationNotification, sendSuccessNotification} from "@/Notifications";
+import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
+import {Application, retrieveAppLogo, search} from "@/Applications/AppStoreApi";
+import {Toggle} from "@/ui-components/Toggle";
+import SearchResults from "@/Applications/Search";
+import {AppCard2} from "@/Applications/Landing";
+import {Gradient, GradientWithPolygons} from "@/ui-components/GradientBackground";
+import {AppGrid} from "@/Applications/Category";
+import {emptyPage} from "@/Utilities/PageUtilities";
+import {useDiscovery} from "@/Applications/Hooks";
+import {SafeLogo} from "@/Applications/AppToolLogo";
+import {NewDataList} from "@/UserSettings/ChangeUserDetails";
+import {DataListItem} from "@/UserSettings/types";
+import {Tag} from "@/Applications/Card";
 
 const wayfIdpsPairs = WAYF.wayfIdps.map(it => ({value: it, content: it}));
 
@@ -222,33 +233,33 @@ const MoveFieldControls: React.FunctionComponent<MoveFieldControlsProps> = ({
     setSettings,
 }) => {
     const move = useCallback((direction: "up" | "down") => {
-            setSettings(prev => {
-                const items = [...prev.templates.structured[projectType]];
+        setSettings(prev => {
+            const items = [...prev.templates.structured[projectType]];
 
-                const targetIdx =
-                    direction === "up" ? idx - 1 : idx + 1;
+            const targetIdx =
+                direction === "up" ? idx - 1 : idx + 1;
 
-                if (targetIdx < 0 || targetIdx >= items.length) {
-                    return prev;
-                }
+            if (targetIdx < 0 || targetIdx >= items.length) {
+                return prev;
+            }
 
-                [items[idx], items[targetIdx]] = [
-                    items[targetIdx],
-                    items[idx],
-                ];
+            [items[idx], items[targetIdx]] = [
+                items[targetIdx],
+                items[idx],
+            ];
 
-                return {
-                    ...prev,
-                    templates: {
-                        ...prev.templates,
-                        structured: {
-                            ...prev.templates.structured,
-                            [projectType]: items,
-                        },
+            return {
+                ...prev,
+                templates: {
+                    ...prev.templates,
+                    structured: {
+                        ...prev.templates.structured,
+                        [projectType]: items,
                     },
-                };
-            });
-        },
+                },
+            };
+        });
+    },
         [idx, projectType, setSettings]
     );
 
@@ -569,6 +580,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
     const sections: SettingsNavSection[] = [
         {id: "project-information", label: "Project information"},
         ...(canManageProject ? [{id: "grant-applications", label: "Grant applications"}] : []),
+        ...(isDataSteward(status.myRole) ? [{id: "project-policies", label: "Project policies"}] : []),
         {id: "project-membership", label: "Project membership"},
     ];
 
@@ -703,6 +715,11 @@ export const ProjectSettings: React.FunctionComponent = () => {
                 </form>
             </SettingsSection> : null}
 
+            {isDataSteward(status.myRole) ?
+                <SettingsSection id="project-policies" title="Project policies">
+                    <ProjectPolicies />
+                </SettingsSection> : null}
+
             <SettingsSection id="project-membership" title="Project membership" mb={0}>
                 <LeaveProject
                     onSuccess={() => navigate("/")}
@@ -714,6 +731,310 @@ export const ProjectSettings: React.FunctionComponent = () => {
         </div>
     </SettingsPage>
 };
+
+
+type PolicyName =
+    | "RestrictApplications"
+    | "RestrictCutAndPaste"
+    | "RestrictDownloads"
+    | "RestrictIntegratedApplications"
+    | "RestrictInternetAccess"
+    | "RestrictOrganizationMembers"
+    | "RestrictProviderFileTransfers"
+    | "RestrictPublicIPs"
+    | "RestrictPublicLinks"
+    | "RestrictSourceIPRange";
+
+interface Policy {
+    schema: PolicySchema;
+    specification: Specification;
+}
+
+interface PolicySpecification<T> {
+    schema: PolicyName;
+    project: string; // ProjectId
+    values: T;
+}
+
+
+
+interface PolicySchemaBase {
+    name: PolicyName;
+    title: string;
+    description: string;
+    configuration: Record<string, ConfigurationEntry>;
+}
+
+interface ConfigurationEntry {
+    title: string;
+    description: string;
+}
+
+interface RestrictApplications extends PolicySchemaBase {
+    name: "RestrictApplications";
+    configuration: {enabled: ConfigurationEntry; applications: ConfigurationEntry};
+}
+
+interface RestrictCutAndPaste extends PolicySchemaBase {
+    name: "RestrictCutAndPaste";
+    configuration: {enabled: ConfigurationEntry};
+}
+
+interface RestrictDownloads extends PolicySchemaBase {
+    name: "RestrictDownloads";
+    configuration: {enabled: ConfigurationEntry};
+}
+
+interface RestrictIntegratedApplications extends PolicySchemaBase {
+    name: "RestrictIntegratedApplications";
+    configuration: {enabled: ConfigurationEntry; allowList: ConfigurationEntry};
+}
+
+interface RestrictInternetAccess extends PolicySchemaBase {
+    name: "RestrictInternetAccess";
+    configuration: {enabled: ConfigurationEntry; allowedSubnets: ConfigurationEntry};
+}
+
+interface RestrictOrganizationMembers extends PolicySchemaBase {
+    name: "RestrictOrganizationMembers";
+    configuration: {enabled: ConfigurationEntry; organizations: ConfigurationEntry};
+}
+
+interface RestrictProviderFileTransfers extends PolicySchemaBase {
+    name: "RestrictProviderFileTransfers";
+    configuration: {enabled: ConfigurationEntry; allowedProviders: ConfigurationEntry};
+}
+
+interface RestrictPublicIPs extends PolicySchemaBase {
+    name: "RestrictPublicIPs";
+    configuration: {enabled: ConfigurationEntry};
+}
+
+interface RestrictPublicLinks extends PolicySchemaBase {
+    name: "RestrictPublicLinks";
+    configuration: {enabled: ConfigurationEntry};
+}
+
+interface RestrictSourceIPRange extends PolicySchemaBase {
+    name: "RestrictSourceIPRange";
+    configuration: {enabled: ConfigurationEntry; allowedSubnets: ConfigurationEntry};
+}
+
+type PolicySchema =
+    | RestrictApplications
+    | RestrictCutAndPaste
+    | RestrictDownloads
+    | RestrictIntegratedApplications
+    | RestrictInternetAccess
+    | RestrictOrganizationMembers
+    | RestrictProviderFileTransfers
+    | RestrictPublicIPs
+    | RestrictPublicLinks
+    | RestrictSourceIPRange
+
+interface RetrievePoliciesRequest {
+    projectId: string;
+}
+
+interface PoliciesUpdateRequest {
+    updatedPolicies: Record<PolicyName, Specification>;
+}
+
+interface Specification {
+    // TODO
+}
+
+function PolicySchemas({schemas}: {schemas: Record<string, Policy>}) {
+    return <Box>{
+        Object.keys(schemas).map(key => {
+            const policy = schemas[key];
+            return <PolicySchemaEntry policy={policy} />
+        })}
+        <Button onClick={() => console.log("TODO")}>Save changes</Button>
+    </Box>;
+}
+
+function PolicySchemaEntry({policy}: {policy: Policy}): React.ReactNode {
+    const [enabled, setEnabled] = React.useState(!"This should be based on the enabled key inside the specification".toString());
+
+    return <Box key={policy.schema.name} my="12px" pb="20px" borderBottom={"1px solid var(--borderColor)"}>
+        <Flex justifyContent={"space-between"}>
+            <b>{policy.schema.title}</b>
+            <Flex cursor="pointer" gap="8px" onClick={() => setEnabled(enabled => !enabled)}>
+                {policy.schema.configuration.enabled.title}
+                <Box mt="1px" mr="8px">
+                    <Toggle checked={enabled} onChange={() => setEnabled(enabled => !enabled)} height={18} />
+                </Box>
+            </Flex>
+        </Flex>
+        <Box mt="-10px" style={{color: "var(--textSecondary)"}}>
+            <Markdown>{policy.schema.description}</Markdown>
+        </Box>
+        {enabled ? <PolicyConfiguration policy={policy} /> : null}
+    </Box>
+}
+
+function PolicyConfiguration({policy}: {policy: Policy}): React.ReactNode {
+    switch (policy.schema.name) {
+        case "RestrictApplications": {
+            const [searchApps, setSearchApps] = useState<DataListItem[]>([]);
+            const ref = useRef<HTMLInputElement | null>(null);
+            const [allowedApps, setAllowedApps] = useState(new Set<string>());
+            const timeoutId = useRef(-1);
+            const [discovery] = useDiscovery();
+
+            const {applications} = policy.schema.configuration;
+            return <ConfigurationEntry entry={applications}>
+                <NewDataList
+                    id={"integrated-app"}
+                    items={searchApps}
+                    title={""}
+                    didUpdateQuery={(query) => {
+                        if (timeoutId.current !== -1) {
+                            window.clearTimeout(timeoutId.current);
+                        }
+
+                        if (query === "") {
+                            setSearchApps([]);
+                            return;
+                        }
+
+                        timeoutId.current = window.setTimeout(() => {
+                            callAPI(search({
+                                query,
+                                discovery: discovery.discovery,
+                                itemsPerPage: 100,
+                            })).then(result => {
+                                // TODO(Jonas): Get group members of an app
+
+                                setSearchApps(result.items.map(it => ({
+                                    key: it.metadata.name,
+                                    value: it.metadata.name,
+                                    tags: ""
+                                })))
+                            })
+                        }, 500);
+                    }}
+                    onSelect={it => {
+                        setAllowedApps(new Set([it.value, ...allowedApps]));
+                        (document.getElementById("integrated-app") as HTMLInputElement).value = "";
+                    }}
+                    RenderRow={({item}) => (<AppRow appName={item.value} />)}
+                    placeholder={"Integrated application name..."}
+                    ref={ref}
+                />
+            </ConfigurationEntry>;
+        }
+        case "RestrictCutAndPaste": {
+            // Only contains "enabled". Handled above
+            return null;
+        }
+        case "RestrictDownloads": {
+            // Only contains "enabled". Handled above
+            return null;
+        }
+        case "RestrictIntegratedApplications": {
+            const {allowList} = policy.schema.configuration;
+            const ref = useRef<HTMLInputElement | null>(null);
+            const items: DataListItem[] = [{key: "syncthing", value: "syncthing", tags: ""}, {key: "terminal", value: "terminal", tags: ""}]
+            const [allowedApps, setAllowedApps] = useState(new Set<string>());
+
+            return <ConfigurationEntry entry={allowList}>
+                {allowedApps.size === 0 ? "No integrated app allowed" : [...allowedApps].map(it => <Tag label={it} />)}
+                <NewDataList
+                    id={"integrated-app"}
+                    items={items}
+                    title={""}
+                    onSelect={it => {
+                        setAllowedApps(new Set([it.value, ...allowedApps]));
+                        (document.getElementById("integrated-app") as HTMLInputElement).value = "";
+                    }}
+                    RenderRow={({item}) => (<AppRow appName={item.value} />)}
+                    placeholder={"Integrated application name..."}
+                    ref={ref}
+                />
+            </ConfigurationEntry>;
+        }
+        case "RestrictInternetAccess": {
+            const {allowedSubnets} = policy.schema.configuration;
+            return <ConfigurationEntry entry={allowedSubnets}>
+                <Input type="text" />
+            </ConfigurationEntry>;
+        }
+        case "RestrictOrganizationMembers": {
+            const {organizations} = policy.schema.configuration;
+            return <ConfigurationEntry entry={organizations}>
+                <Input type="text" />
+            </ConfigurationEntry>;
+        }
+        case "RestrictProviderFileTransfers": {
+            const {allowedProviders} = policy.schema.configuration;
+            return <ConfigurationEntry entry={allowedProviders}>
+                <Input type="text" />
+            </ConfigurationEntry>;
+        }
+        case "RestrictPublicIPs": {
+            // Only contains "enabled". Handled above
+            return null;
+        }
+        case "RestrictPublicLinks": {
+            // Only contains "enabled". Handled above
+            return null;
+        }
+        case "RestrictSourceIPRange": {
+            const {allowedSubnets} = policy.schema.configuration;
+            return <ConfigurationEntry entry={allowedSubnets}>
+                <Input type="text" />
+            </ConfigurationEntry>;
+        }
+    }
+}
+
+function AppRow({appName}: {appName: string}) {
+    return <Flex>
+        <SafeLogo name={appName} type={"APPLICATION"} size={"24px"} />
+        {appName}
+    </Flex>
+}
+
+function ConfigurationEntry({entry, children}: {entry: ConfigurationEntry; children: React.ReactNode}): React.ReactNode {
+    return <Box mt="12px" borderTop="1px solid var(--borderColor)" pt="12px" ml="24px">
+        <b style={{marginBottom: "8px"}}>
+            {entry.title}
+        </b>
+        <Box mt="-10px" style={{color: "var(--textSecondary)"}}>
+            <Markdown>
+                {entry.description}
+            </Markdown>
+        </Box>
+        {children}
+    </Box>
+}
+
+const PolicyAPI = new class {
+    baseContext = "/api/projects/v2/policies";
+
+    retrievePolicies(request: RetrievePoliciesRequest): APICallParameters<RetrievePoliciesRequest, Record<string, Policy>> {
+        return apiRetrieve(request, this.baseContext);
+    }
+
+    updatePolicies(request: PoliciesUpdateRequest): APICallParameters<PoliciesUpdateRequest, void> {
+        return apiUpdate(request, this.baseContext, "");
+    }
+}();
+
+function ProjectPolicies() {
+    const projectId = useProjectId();
+    const [schemas, setSchemas] = useState({})
+    React.useEffect(() => {
+        if (projectId) {
+            callAPI(PolicyAPI.retrievePolicies({projectId})).then(setSchemas);
+        }
+    }, [projectId]);
+
+    return <PolicySchemas schemas={schemas} />;
+}
+
 
 interface ChangeProjectTitleProps {
     projectId: string;

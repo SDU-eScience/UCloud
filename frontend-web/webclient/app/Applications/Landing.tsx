@@ -552,21 +552,6 @@ export const AppCard2: React.FunctionComponent<{
     </ReactRouterLink>;
 };
 
-const AppCardGridStyle = injectStyle("app-card-grid", k => `
-    ${k} {
-        display: flex;
-        flex-direction: row;
-        column-gap: 32px;
-        row-gap: 10px;
-        flex-wrap: wrap;
-    }
-    
-    ${k} *:nth-child(3n+1):nth-last-child(-n+3),
-    ${k} *:nth-child(3n+1):nth-last-child(-n+3) ~ * {
-        --appCardBorderColor: transparent;
-    }
-`);
-
 const CategoryCardStyle = injectStyle("category-card", k => `
     ${k} {
         border-radius: 8px;
