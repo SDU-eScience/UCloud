@@ -241,42 +241,58 @@ func InitResources() {
 	ResourceRegisterIndexedLabelKey(resourceLabelStackName)
 	ResourceRegisterIndexedLabelKey(resourceLabelStackInstance)
 
-	orcapi.ResourcesControlCheckExistence.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ResourceExistenceCheck]) (fndapi.BulkResponse[bool], *util.HttpError) {
-		provider, ok := strings.CutPrefix(info.Actor.Username, fndapi.ProviderSubjectPrefix)
-		if !ok {
-			return fndapi.BulkResponse[bool]{}, util.HttpErr(http.StatusForbidden, "forbidden")
-		}
+	if !resourceGlobals.Testing.Enabled {
+		orcapi.ResourcesControlCheckExistence.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ResourceExistenceCheck]) (fndapi.BulkResponse[bool], *util.HttpError) {
+			if len(request.Items) > 1000 {
+				return fndapi.BulkResponse[bool]{}, util.HttpErr(http.StatusBadRequest, "too many items")
+			}
 
-		responses := db.NewTx(func(tx *db.Transaction) []bool {
-			result := make([]bool, 0, len(request.Items))
-			for _, item := range request.Items {
-				_, exists := db.Get[struct{ Id int64 }](
+			provider, ok := strings.CutPrefix(info.Actor.Username, fndapi.ProviderSubjectPrefix)
+			if !ok {
+				return fndapi.BulkResponse[bool]{}, util.HttpErr(http.StatusForbidden, "forbidden")
+			}
+
+			responses := db.NewTx(func(tx *db.Transaction) []bool {
+				ids := make([]int64, 0, len(request.Items))
+				types := make([]string, 0, len(request.Items))
+				for _, item := range request.Items {
+					ids = append(ids, int64(ResourceParseId(item.Id)))
+					types = append(types, item.Type)
+				}
+
+				rows := db.Select[struct{ Exists bool }](
 					tx,
 					`
-						select r.id
+					with input as (
+						select id, type, ordinality
 						from
-							provider.resource r
-							left join accounting.products p on r.product = p.id
-							left join accounting.product_categories pc on p.category = pc.id
-						where
-							r.id = :id
-							and r.type = :type
-							and coalesce(r.provider, pc.provider) = :provider
-							and r.confirmed_by_provider = true
-					`,
+							unnest(cast(:ids as bigint[]), cast(:types as text[])) with ordinality as i(id, type, ordinality)
+					)
+					select coalesce(coalesce(r.provider, pc.provider) = :provider, false) as exists
+					from
+						input i
+						left join provider.resource r on r.id = i.id and r.type = i.type
+						left join accounting.products p on r.product = p.id
+						left join accounting.product_categories pc on p.category = pc.id
+					order by i.ordinality
+				`,
 					db.Params{
-						"id":       ResourceParseId(item.Id),
-						"type":     item.Type,
+						"ids":      ids,
+						"types":    types,
 						"provider": provider,
 					},
 				)
-				result = append(result, exists)
-			}
-			return result
-		})
 
-		return fndapi.BulkResponse[bool]{Responses: responses}, nil
-	})
+				result := make([]bool, 0, len(rows))
+				for _, row := range rows {
+					result = append(result, row.Exists)
+				}
+				return result
+			})
+
+			return fndapi.BulkResponse[bool]{Responses: responses}, nil
+		})
+	}
 
 	if !resourceGlobals.Testing.Enabled {
 		go resourceListenForProjectGroupUpdates()

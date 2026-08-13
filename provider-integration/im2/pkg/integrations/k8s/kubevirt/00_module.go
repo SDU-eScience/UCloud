@@ -1021,13 +1021,11 @@ func terminate(request ctrl.JobTerminateRequest) *util.HttpError {
 		})
 		ctrl.JobTrackNew(copied)
 
-		_, _ = orc.JobsControlAddUpdate.Invoke(fndapi.BulkRequest[orc.ResourceUpdateAndId[orc.JobUpdate]]{
-			Items: []orc.ResourceUpdateAndId[orc.JobUpdate]{
-				{
-					Id: job.Id,
-					Update: orc.JobUpdate{
-						State: util.OptValue(orc.JobStateSuccess),
-					},
+		_ = ctrl.JobSendUpdates([]orc.ResourceUpdateAndId[orc.JobUpdate]{
+			{
+				Id: job.Id,
+				Update: orc.JobUpdate{
+					State: util.OptValue(orc.JobStateSuccess),
 				},
 			},
 		})
