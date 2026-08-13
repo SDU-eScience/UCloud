@@ -849,7 +849,7 @@ function PolicySchemas({schemas}: {schemas: Record<string, Policy>}) {
     return <Card>{
         Object.keys(schemas).map(key => {
             const policy = schemas[key];
-            return <PolicySchemaEntry policy={policy} />
+            return <PolicySchemaEntry key={key} policy={policy} />
         })}
         <Button ml="auto" onClick={() => console.log("TODO")}>Save changes</Button>
     </Card>;
@@ -894,7 +894,7 @@ function PolicyConfiguration({policy}: {policy: Policy}): React.ReactNode {
             return <ConfigurationEntry entry={applications}>
                 {allowedApps.size === 0 ? "No application allowed" : [...allowedApps].map(it => <Tag label={it} />)}
                 <NewDataList
-                    id={"app"}
+                    id={"allowed-apps"}
                     items={searchApps}
                     title={""}
                     didUpdateQuery={(query) => {
@@ -925,10 +925,11 @@ function PolicyConfiguration({policy}: {policy: Policy}): React.ReactNode {
                     }}
                     onSelect={it => {
                         setAllowedApps(new Set([it.value, ...allowedApps]));
-                        (document.getElementById("app") as HTMLInputElement).value = "";
+                        console.log(document.getElementById("app"));
+                        (document.getElementById("allowed-apps") as HTMLInputElement).value = "";
                     }}
                     RenderRow={({item}) => (<AppRow appName={item.value} />)}
-                    placeholder={"Application name..."}
+                    placeholder={"Search by application name..."}
                     ref={ref}
                 />
             </ConfigurationEntry>;
@@ -950,12 +951,12 @@ function PolicyConfiguration({policy}: {policy: Policy}): React.ReactNode {
             return <ConfigurationEntry entry={allowList}>
                 {allowedApps.size === 0 ? "No integrated app allowed" : [...allowedApps].map(it => <Tag label={it} />)}
                 <NewDataList
-                    id={"integrated-app"}
+                    id={"allowed-integrated-apps"}
                     items={items}
                     title={""}
                     onSelect={it => {
                         setAllowedApps(new Set([it.value, ...allowedApps]));
-                        (document.getElementById("integrated-app") as HTMLInputElement).value = "";
+                        (document.getElementById("allowed-integrated-apps") as HTMLInputElement).value = "";
                     }}
                     RenderRow={({item}) => (<AppRow appName={item.value} />)}
                     placeholder={"Integrated application name..."}
