@@ -848,19 +848,37 @@ function PolicySchemas({schemas}: {schemas: Record<string, Policy>}) {
         updateRef.current = {};
     }, []);
 
+    const projectId = useProjectId();
+    const togglePolicy = React.useCallback((schemaName: PolicyName) => {
+        if (!updateRef.current[schemaName]) {
+            updateRef.current[schemaName] = {
+                project: projectId!,
+                schema: schemaName,
+                values: {
+                    enabled: true
+                }
+            }
+        } else {
+            updateRef.current[schemaName].values.enabled = updateRef.current[schemaName].values.enabled;
+        }
+    }, [projectId]);
+
+    const updatePolicyRule = React.useCallback((schemaName: PolicyName, rule: string, value: any) => {
+        updateRef.current[schemaName].values[rule] = value;
+    }, []);
+
     return <Card>{
         Object.keys(schemas).map(key => {
             const policy = schemas[key];
-            return <PolicySchemaEntry key={key} updateRef={updateRef} policy={policy} />
+            return <PolicySchemaEntry key={key} togglePolicy={togglePolicy} policy={policy} updatePolicyRule={updatePolicyRule} />
         })}
         <Button ml="auto" onClick={() => submitChanges(updateRef.current)}>Save changes</Button>
     </Card>;
 }
 
 const asCheckBox = true;
-function PolicySchemaEntry({policy, updateRef}: {policy: Policy; updateRef: React.RefObject<Record<string, Specification>>}): React.ReactNode {
+function PolicySchemaEntry({ policy, togglePolicy, updatePolicyRule }: { policy: Policy; togglePolicy: (schemaName: PolicyName) => void; updatePolicyRule: (policyName: PolicyName, rule: string, value: any) => void }): React.ReactNode {
     const [enabled, setEnabled] = React.useState(!"This should be based on the enabled key inside the specification".toString());
-    const projectId = useProjectId();
 
     return <Box key={policy.schema.name} my="12px" pb="20px" borderBottom={"1px solid var(--borderColor)"}>
         <Flex justifyContent={"space-between"}>
@@ -868,33 +886,18 @@ function PolicySchemaEntry({policy, updateRef}: {policy: Policy; updateRef: Reac
             {asCheckBox ? <Label cursor="pointer" style={{gap: "8px", marginTop: 0}} width="fit-content">
                 {policy.schema.configuration.enabled.title}
                 <Checkbox style={{marginLeft: "6px", marginTop: "-4px"}} checked={enabled} onChange={() => setEnabled(enabled => {
-                    if (!updateRef.current[policy.schema.name]) updateRef.current[policy.schema.name] = {
-                        project: projectId!,
-                        schema: policy.schema.name,
-                        values: {}
-                    };
-                    updateRef.current[policy.schema.name].values["enabled"] = !enabled;
+                    togglePolicy(policy.schema.name);
                     return !enabled
                 })} />
             </Label> :
                 <Flex cursor="pointer" gap="8px" onClick={() => setEnabled(enabled => {
-                    if (!updateRef.current[policy.schema.name]) updateRef.current[policy.schema.name] = {
-                        project: projectId!,
-                        schema: policy.schema.name,
-                        values: {}
-                    };
-                    updateRef.current[policy.schema.name].values["enabled"] = !enabled;
+                    togglePolicy(policy.schema.name);
                     return !enabled
                 })}>
                     {policy.schema.configuration.enabled.title}
                     <Box mt="1px" mr="8px">
                         <Toggle checked={enabled} onChange={() => setEnabled(enabled => {
-                            if (!updateRef.current[policy.schema.name]) updateRef.current[policy.schema.name] = {
-                                project: projectId!,
-                                schema: policy.schema.name,
-                                values: {}
-                            };
-                            updateRef.current[policy.schema.name].values["enabled"] = !enabled;
+                            togglePolicy(policy.schema.name)
                             return !enabled
                         })} height={18} />
                     </Box>
@@ -904,11 +907,11 @@ function PolicySchemaEntry({policy, updateRef}: {policy: Policy; updateRef: Reac
         <Box mt="-10px" style={{color: "var(--textSecondary)"}}>
             <Markdown>{policy.schema.description}</Markdown>
         </Box>
-        {enabled ? <PolicyConfiguration updateRef={updateRef} policy={policy} /> : null}
+        {enabled ? <PolicyConfiguration updatePolicyRule={updatePolicyRule} policy={policy} /> : null}
     </Box>
 }
 
-function PolicyConfiguration({policy, updateRef}: {policy: Policy; updateRef: React.RefObject<Record<string, Specification>>}): React.ReactNode {
+function PolicyConfiguration({ policy, updatePolicyRule }: { policy: Policy; updatePolicyRule: (policyName: PolicyName, rule: string, value: any) => void}): React.ReactNode {
     switch (policy.schema.name) {
         case "RestrictApplications": {
             const [searchApps, setSearchApps] = useState<DataListItem[]>([]);
@@ -953,7 +956,7 @@ function PolicyConfiguration({policy, updateRef}: {policy: Policy; updateRef: Re
                     onSelect={it => {
                         const newAllowedApps = new Set([it.value, ...allowedApps]);
                         setAllowedApps(newAllowedApps);
-                        updateRef.current[policy.schema.name].values[applications.title] = [...newAllowedApps];
+                        updatePolicyRule(policy.schema.name, applications.title, [...newAllowedApps]);
                         (document.getElementById("allowed-apps") as HTMLInputElement).value = "";
                     }}
                     RenderRow={({item}) => (<AppRow appName={item.value} />)}
@@ -985,7 +988,7 @@ function PolicyConfiguration({policy, updateRef}: {policy: Policy; updateRef: Re
                     onSelect={it => {
                         const newAllowedApps = new Set([it.value, ...allowedApps]);
                         setAllowedApps(newAllowedApps);
-                        updateRef.current[policy.schema.name].values[allowList.title] = [...newAllowedApps];
+                        updatePolicyRule(policy.schema.name, allowList.title, [...newAllowedApps]);
                         (document.getElementById("allowed-integrated-apps") as HTMLInputElement).value = "";
                     }}
                     RenderRow={({item}) => (<AppRow appName={item.value} />)}
