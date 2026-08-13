@@ -68,11 +68,12 @@ func cliAuth(w http.ResponseWriter, r *http.Request) error {
 	projectId := r.URL.Query().Get("projectId")
 	projectTitle := r.URL.Query().Get("projectTitle")
 
+	//message := fmt.Sprintf("ProjectId %s\nProjectTitle %s\nToken received %s\n", projectId, projectTitle, token)
 	io.WriteString(w, successMessage())
 	if token == "" {
 		return fmt.Errorf("no token received")
 	}
-	return saveToken(token, projectId, projectTitle)
+	return saveConfig(token, projectId, projectTitle)
 }
 
 func startAuthServer(ready chan<- string, authDone chan<- error) error {
@@ -142,7 +143,7 @@ func repositoryProjectName(title string) string {
 	return name
 }
 
-func saveToken(token string, projectId string, projectTitle string) error {
+func saveConfig(token string, projectId string, projectTitle string) error {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return err
