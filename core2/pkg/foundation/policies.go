@@ -254,13 +254,13 @@ func SourceIpIsRestricted(info rpc.RequestInfo) bool {
 		return false
 	}
 
-	projectPolicies.Mu.RLock()
-	policiesObject, ok := projectPolicies.PoliciesByProject[string(info.Actor.Project.Value)]
+	projectPolicies.Mu.Lock()
+	_, ok := projectPolicies.PoliciesByProject[string(info.Actor.Project.Value)]
 	if !ok {
-		return false
+		projectPolicies.PoliciesByProject[string(info.Actor.Project.Value)] = &AssociatedPolicies{ConfiguredPolicies: make(map[fndapi.PolicyName]fndapi.Specification)}
 	}
-	policies := maps.Clone(policiesObject.ConfiguredPolicies)
-	projectPolicies.Mu.RUnlock()
+	policies := maps.Clone(projectPolicies.PoliciesByProject[string(info.Actor.Project.Value)].ConfiguredPolicies)
+	projectPolicies.Mu.Unlock()
 
 	specification, ok := policies[fndapi.RestrictSourceIPRange]
 	if !ok {
