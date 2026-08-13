@@ -100,7 +100,6 @@ import {GuessedFile} from "magic-bytes.js/dist/model/tree";
 import {sendFailureNotification, sendInformationNotification, sendSuccessNotification} from "@/Notifications";
 import {terminalOpen, terminalOpenTab} from "@/Terminal/State";
 import {genericSet} from "@/Utilities/ReduxHooks";
-import {Feature, hasFeature} from "@/Features";
 import {registerJobBackgroundTask} from "@/Services/BackgroundTasks/JobBackgroundTask";
 import {UcxSpinner} from "@/UCX/UcxView";
 
@@ -422,8 +421,6 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
     }
 
     public retrieveActions(): ResourceApiActions<UFile, ProductStorage, FileBrowseCallbacks> {
-        if (!hasFeature(Feature.NEW_CONTEXT_MENU)) return this.retrieveOperations();
-
         const operations = this.retrieveOperations();
         const findOperation = (predicate: (operation: Operation<UFile, FileBrowseCallbacks>) => boolean) => {
             const operation = operations.find(predicate);
@@ -2019,7 +2016,7 @@ export async function downloadFileContent(path: string): Promise<Blob> {
 }
 
 const MAX_HEIGHT = `calc(100vw - 15px - 15px - 240px - var(${CSSVarCurrentSidebarStickyWidth}));`
-const HEIGHT = "calc(100vh - 100px);";
+const HEIGHT = "100%";
 
 const MarkdownStyling = injectStyleSimple("markdown-styling", `
     max-width: 900px;
@@ -2027,22 +2024,26 @@ const MarkdownStyling = injectStyleSimple("markdown-styling", `
 `);
 
 const Audio = injectStyleSimple("preview-audio", `
+    display: block;
     margin-top: auto;
     margin-bottom: auto;
 `);
 
 const Image = injectStyleSimple("preview-image", `
+    display: block;
     object-fit: contain;
     max-width: ${MAX_HEIGHT}
     max-height: ${HEIGHT}
 `);
 
 const Video = injectStyleSimple("preview-video", `
+    display: block;
     max-width: ${MAX_HEIGHT}
     max-height: ${HEIGHT}
 `);
 
 const PreviewObject = injectStyleSimple("preview-pdf", `
+    display: block;
     max-width: ${MAX_HEIGHT}
     width: 100%;
     height: ${HEIGHT};

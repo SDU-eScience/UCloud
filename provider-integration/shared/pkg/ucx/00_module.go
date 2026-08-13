@@ -8,7 +8,7 @@ import (
 	"ucloud.dk/shared/pkg/util"
 )
 
-const maxSysHelloPayloadBytes = 64 * 1024
+const maxSysHelloPayloadBytes = 1024 * 1024 * 8
 
 type Opcode uint8
 

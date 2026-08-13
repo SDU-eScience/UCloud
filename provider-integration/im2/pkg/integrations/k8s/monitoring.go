@@ -76,6 +76,7 @@ type jobTracker struct {
 	jobs                 map[string]*orc.Job
 	gangs                map[string]jobGang
 	terminationRequested []string
+	cleanupWithoutDelete []string
 	nodeAssignments      map[string]map[string]util.Empty
 	nodeEvents           map[string]string
 	nodeEventJobs        map[string]map[string]util.Empty
@@ -186,6 +187,10 @@ func (t *jobTracker) TrackState(state shared.JobReplicaState) bool {
 	return true
 }
 
+func (t *jobTracker) PreserveState(jobId string) {
+	t.batch.PreserveState(jobId)
+}
+
 func (t *jobTracker) takeNodeEvent(nodeName, jobID string) (string, bool) {
 	message, affected := t.nodeEvents[nodeName]
 	if !affected {
@@ -212,6 +217,12 @@ func (t *jobTracker) warnForNode(nodeName, jobID string) {
 func (t *jobTracker) RequestCleanup(jobId string) {
 	if !slices.Contains(t.terminationRequested, jobId) {
 		t.terminationRequested = append(t.terminationRequested, jobId)
+	}
+}
+
+func (t *jobTracker) RequestCleanupWithoutResourceDeletion(jobId string) {
+	if !slices.Contains(t.cleanupWithoutDelete, jobId) {
+		t.cleanupWithoutDelete = append(t.cleanupWithoutDelete, jobId)
 	}
 }
 
@@ -661,11 +672,23 @@ func loopMonitoring() {
 	metricMonitoring.WithLabelValues("RemoveFromQueue").Observe(timer.Mark().Seconds())
 
 	timer.Mark()
-	containers.Monitor(tracker, activeJobs)
+	containerJobs := map[string]*orc.Job{}
+	for jobId, job := range activeJobs {
+		if backendIsContainers(job) {
+			containerJobs[jobId] = job
+		}
+	}
+	containers.Monitor(tracker, containerJobs)
 	metricMonitoring.WithLabelValues("ContainerMonitor").Observe(timer.Mark().Seconds())
 
 	timer.Mark()
-	kubevirt.Monitor(tracker, activeJobs)
+	kubevirtJobs := map[string]*orc.Job{}
+	for jobId, job := range activeJobs {
+		if backendIsKubevirt(job) {
+			kubevirtJobs[jobId] = job
+		}
+	}
+	kubevirt.Monitor(tracker, kubevirtJobs)
 	metricMonitoring.WithLabelValues("VirtualMachineMonitor").Observe(timer.Mark().Seconds())
 	publishNodeLifecycleEvents(tracker, nodeLifecycleEvents)
 
@@ -770,9 +793,24 @@ func loopMonitoring() {
 			}
 		}
 
+		for _, jobId := range tracker.cleanupWithoutDelete {
+			job, ok := controller.JobRetrieve(jobId)
+			if ok {
+				_ = terminate(controller.JobTerminateRequest{
+					Job:                  job,
+					IsCleanup:            true,
+					SkipResourceDeletion: true,
+				})
+			}
+		}
+
 		for _, jobId := range batchResults.TerminatedDueToUnknownState {
 			job, ok := controller.JobRetrieve(jobId)
 			if ok {
+				if backendIsKubevirt(job) {
+					log.Warn("Refusing unknown-state cleanup for virtual machine job %s", jobId)
+					continue
+				}
 				_ = terminate(controller.JobTerminateRequest{Job: job, IsCleanup: true})
 			}
 		}

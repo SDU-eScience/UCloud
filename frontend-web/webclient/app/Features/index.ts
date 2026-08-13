@@ -1,13 +1,7 @@
 import {inDevEnvironment, onDevSite} from "@/UtilityFunctions";
 
 export enum Feature {
-    COMPONENT_STORED_CUT_COPY,
-
     REORDER_APP_GROUP,
-
-    ALLOCATIONS_PAGE_IMPROVEMENTS,
-
-    NEW_VM_UI,
 
     STACKS,
 
@@ -15,11 +9,7 @@ export enum Feature {
 
     INFERENCE_WORKSPACE,
 
-    NEW_TOOLTIPS,
-
     FILE_BROWSER_STATUS_BAR,
-
-    NEW_CONTEXT_MENU,
 }
 
 enum Environment {
@@ -58,29 +48,12 @@ interface FeatureConfig {
 }
 
 const featureMap: Record<string, FeatureConfig> = {
-    "component-stored-cut-copy": {
-        feature: Feature.COMPONENT_STORED_CUT_COPY,
-        showWithoutFlag: allEnvironments,
-    },
-
     "reorder-app-group": {
         feature: Feature.REORDER_APP_GROUP,
         showWithoutFlag: allDevEnvironments,
         showWithFlag: allDevEnvironments,
     },
-
-    "allocations-improvements": {
-        feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
-        showWithFlag: allEnvironments,
-        showWithoutFlag: allEnvironments,
-    },
     
-    "new-vm-ui": {
-        feature: Feature.NEW_VM_UI,
-        showWithFlag: allEnvironments,
-        showWithoutFlag: allEnvironments,
-    },
-
     "stacks": {
         feature: Feature.STACKS,
         showWithoutFlag: allDevEnvironments,
@@ -99,20 +72,8 @@ const featureMap: Record<string, FeatureConfig> = {
         showWithFlag: allEnvironments,
     },
 
-    "new-tooltips": {
-        feature: Feature.NEW_TOOLTIPS,
-        showWithoutFlag: allDevEnvironments,
-        showWithFlag: allEnvironments,
-    },
-
     "file-browser-status-bar": {
         feature: Feature.FILE_BROWSER_STATUS_BAR,
-        showWithoutFlag: allDevEnvironments,
-        showWithFlag: allEnvironments,
-    },
-
-    "new-context-menu": {
-        feature: Feature.NEW_CONTEXT_MENU,
         showWithoutFlag: allDevEnvironments,
         showWithFlag: allEnvironments,
     }

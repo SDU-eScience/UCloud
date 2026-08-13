@@ -334,6 +334,43 @@ func vmiFsMutator() {
 				annotations = make(map[string]string)
 			}
 
+			if annotations["ucloud.dk/podLevelResources"] == "true" {
+				podResources := k8score.ResourceRequirements{
+					Limits:   k8score.ResourceList{},
+					Requests: k8score.ResourceList{},
+				}
+				for _, resourceName := range []k8score.ResourceName{k8score.ResourceCPU, k8score.ResourceMemory} {
+					if quantity, ok := vm.Spec.Template.Spec.Domain.Resources.Limits[resourceName]; ok {
+						podResources.Limits[resourceName] = quantity
+					}
+					if quantity, ok := vm.Spec.Template.Spec.Domain.Resources.Requests[resourceName]; ok {
+						podResources.Requests[resourceName] = quantity
+					}
+				}
+				ops = append(ops, jsonPatchOp{Op: "add", Path: "/spec/resources", Value: podResources})
+
+				removeContainerResources := func(containers []k8score.Container, path string) {
+					for containerIdx, container := range containers {
+						for _, resourceName := range []k8score.ResourceName{k8score.ResourceCPU, k8score.ResourceMemory} {
+							if _, ok := container.Resources.Limits[resourceName]; ok {
+								ops = append(ops, jsonPatchOp{
+									Op:   "remove",
+									Path: fmt.Sprintf("/spec/%s/%d/resources/limits/%s", path, containerIdx, resourceName),
+								})
+							}
+							if _, ok := container.Resources.Requests[resourceName]; ok {
+								ops = append(ops, jsonPatchOp{
+									Op:   "remove",
+									Path: fmt.Sprintf("/spec/%s/%d/resources/requests/%s", path, containerIdx, resourceName),
+								})
+							}
+						}
+					}
+				}
+				removeContainerResources(pod.Spec.Containers, "containers")
+				removeContainerResources(pod.Spec.InitContainers, "initContainers")
+			}
+
 			for cIdx, container := range pod.Spec.Containers {
 				if len(container.Command) == 1 && container.Command[0] == "/usr/libexec/virtiofsd" {
 					ops = append(ops, []jsonPatchOp{
@@ -346,6 +383,25 @@ func vmiFsMutator() {
 						// The following is needed to allow the alternative sandboxing mode that the virtiofs daemon will go into when running as root.
 						{Op: "remove", Path: fmt.Sprintf("/spec/containers/%d/securityContext/capabilities/drop", cIdx)},
 					}...)
+
+					for argIdx, arg := range container.Args {
+						if arg == "--cache=auto" {
+							ops = append(ops, jsonPatchOp{
+								Op:    "replace",
+								Path:  fmt.Sprintf("/spec/containers/%d/args/%d", cIdx, argIdx),
+								Value: "--cache=metadata",
+							})
+						}
+					}
+
+					if annotations["ucloud.dk/podLevelResources"] != "true" {
+						if _, ok := container.Resources.Limits[k8score.ResourceMemory]; ok {
+							ops = append(ops, jsonPatchOp{
+								Op:   "remove",
+								Path: fmt.Sprintf("/spec/containers/%d/resources/limits/%s", cIdx, k8score.ResourceMemory),
+							})
+						}
+					}
 				}
 
 				for mountIdx, mount := range container.VolumeMounts {
@@ -940,13 +996,17 @@ func terminate(request ctrl.JobTerminateRequest) *util.HttpError {
 	shared.ClearAssignedSshPort(request.Job)
 	shared.RemoveFromQueue(request.Job.Id)
 
-	name := vmName(request.Job.Id, 0)
-	err := KubevirtClient.VirtualMachine(Namespace).Delete(context.Background(), name, k8smeta.DeleteOptions{})
-	if err != nil && !k8serrors.IsNotFound(err) {
-		log.Info("Failed to delete VM: %v", err)
-		return util.ServerHttpError("Failed to delete VM")
+	if !request.SkipResourceDeletion {
+		name := vmName(request.Job.Id, 0)
+		err := KubevirtClient.VirtualMachine(Namespace).Delete(context.Background(), name, k8smeta.DeleteOptions{})
+		if err != nil && !k8serrors.IsNotFound(err) {
+			log.Info("Failed to delete VM: %v", err)
+			return util.ServerHttpError("Failed to delete VM")
+		}
 	}
-	diskCleanup(request.Job)
+	if !request.IsCleanup {
+		diskCleanup(request.Job)
+	}
 
 	if !request.IsCleanup {
 		job, ok := ctrl.JobRetrieve(request.Job.Id)
@@ -1287,6 +1347,14 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		vm.Namespace = Namespace
 	} else {
 		vm = existingVm
+	}
+	if vm.Annotations == nil {
+		vm.Annotations = make(map[string]string)
+	}
+	if ServiceConfig.Compute.VirtualMachines.PodLevelResources {
+		vm.Annotations["ucloud.dk/podLevelResources"] = "true"
+	} else {
+		delete(vm.Annotations, "ucloud.dk/podLevelResources")
 	}
 
 	strategy := kvcore.RunStrategyAlways

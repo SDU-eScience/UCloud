@@ -8,7 +8,6 @@ import {Application, ApplicationParameter} from "@/Applications/AppStoreApi";
 import AppRoutes from "@/Routes";
 import {doNothing} from "@/UtilityFunctions";
 import {peerResourceAllowed} from "@/Applications/Jobs/Resources/Peers";
-import {Feature, hasFeature} from "@/Features";
 
 export function PrivateNetworkResource({
     application,
@@ -31,7 +30,7 @@ export function PrivateNetworkResource({
     dnsHostname: string;
     onDnsHostnameChange: (ev: React.SyntheticEvent) => void;
 }) {
-    if (!peerResourceAllowed(application) || !hasFeature(Feature.NEW_VM_UI)) return null;
+    if (!peerResourceAllowed(application)) return null;
 
     return (
         <Card>

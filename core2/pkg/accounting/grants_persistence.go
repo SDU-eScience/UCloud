@@ -609,7 +609,9 @@ func grantsLoadSettings() {
 			result[public.ProjectId] = existing
 
 			b := grantGetSettingsBucket(public.ProjectId)
+			b.Mu.Lock()
 			b.PublicGrantGivers[public.ProjectId] = util.Empty{}
+			b.Mu.Unlock()
 		}
 
 		for _, description := range descriptions {
@@ -645,10 +647,12 @@ func grantsLoadSettings() {
 	for projectId, settingsLoop := range allSettings {
 		settings := settingsLoop
 		b := grantGetSettingsBucket(projectId)
+		b.Mu.Lock()
 		b.Settings[projectId] = &grantSettings{
 			ProjectId: projectId,
 			Settings:  &settings,
 		}
+		b.Mu.Unlock()
 	}
 }
 

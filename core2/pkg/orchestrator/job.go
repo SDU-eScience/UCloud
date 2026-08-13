@@ -2004,14 +2004,26 @@ func jobLoadCachePopulate() {
 
 func jobLoadCachePopulateBucket(bucket int, rank int) []jobLoadRow {
 	return db.NewTx(func(tx *db.Transaction) []jobLoadRow {
-		rows := db.Select[jobLoadRow](
-			tx,
-			`
+		var rows []jobLoadRow
+		var lastResource int64
+		for {
+			batch := db.Select[jobLoadRow](
+				tx,
+				`
 				with
 					jobs as (
 						select j.*
 						from app_orchestrator.jobs j
 						where j.resource % cast(:concurrency as int8) = cast(:bucket as int8)
+							and j.resource > cast(:last_resource as int8)
+							and not exists (
+								select 1
+								from provider.resource_update u
+								where u.resource = j.resource
+								offset 10000
+							)
+						order by j.resource
+						limit 10000
 					),
 					inputs as (
 						select 
@@ -2076,12 +2088,21 @@ func jobLoadCachePopulateBucket(bucket int, rank int) []jobLoadRow {
 					join inputs i on i.resource = j.resource
 					join mounts m on m.resource = j.resource
 					join updates u on u.resource = j.resource
-			`,
-			db.Params{
-				"bucket":      int64(bucket),
-				"concurrency": int64(rank),
-			},
-		)
+				order by j.resource
+				`,
+				db.Params{
+					"bucket":        int64(bucket),
+					"concurrency":   int64(rank),
+					"last_resource": lastResource,
+				},
+			)
+			rows = append(rows, batch...)
+			if len(batch) < 10000 {
+				break
+			}
+			lastResource = batch[len(batch)-1].Resource
+			log.Info("%v: Job batch loaded.", bucket)
+		}
 		return rows
 	})
 }
