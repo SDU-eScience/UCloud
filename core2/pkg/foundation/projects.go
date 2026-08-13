@@ -1450,8 +1450,8 @@ func ProjectAcceptInviteLink(actor rpc.Actor, token string) (fndapi.ProjectInvit
 			if !ok {
 				return fndapi.ProjectInviteLinkInfo{},
 					util.HttpErr(
-						http.StatusForbidden,
-						"Project does not allow your organization.",
+						http.StatusInternalServerError,
+						"Misconfigured Policy",
 					)
 			}
 
@@ -1602,6 +1602,33 @@ func ProjectBrowseInvites(actor rpc.Actor, request fndapi.ProjectBrowseInvitesRe
 	}
 }
 
+func projectMemberOrganizationRestriction(
+	projectID string,
+) (restricting bool, allowedOrgs []string, err *util.HttpError) {
+	projectPolicies.Mu.RLock()
+	defer projectPolicies.Mu.RUnlock()
+
+	policies, found := projectPolicies.PoliciesByProject[projectID]
+	if !found {
+		return false, nil, nil
+	}
+
+	specification, ok := policies.ConfiguredPolicies[fndapi.RestrictOrganizationMembers]
+	if !ok || !specification.IsEnabled() {
+		return false, nil, nil
+	}
+
+	policy, ok := specification.(*fndapi.RestrictOrganizationMembersSpecification)
+	if !ok {
+		return false, nil, util.HttpErr(
+			http.StatusInternalServerError,
+			"Misconfigured Policy",
+		)
+	}
+
+	return true, slices.Clone(policy.Values.Organizations), nil
+}
+
 func ProjectCreateInvite(actor rpc.Actor, recipient string) *util.HttpError {
 	_, info, err := projectRetrieve(actor, string(actor.Project.Value), projectFlagsAll,
 		fndapi.ProjectRoleAdmin)
@@ -1619,21 +1646,13 @@ func ProjectCreateInvite(actor rpc.Actor, recipient string) *util.HttpError {
 	var allowedOrgs []string
 
 	if actor.Project.Present {
-		projectPolicies.Mu.RLock()
-		policies, found := projectPolicies.PoliciesByProject[string(actor.Project.Value)]
-		projectPolicies.Mu.RUnlock()
-
-		if found {
-			specification, ok := policies.ConfiguredPolicies[fndapi.RestrictOrganizationMembers]
-			if ok && specification.IsEnabled() {
-				policy, ok := specification.(*fndapi.RestrictOrganizationMembersSpecification)
-				if ok {
-					restrictingProjectMemberOrganization = true
-					allowedOrgs = policy.Values.Organizations
-				}
-			}
+		restrictingProjectMemberOrganization, allowedOrgs, err = projectMemberOrganizationRestriction(string(actor.Project.Value))
+		if err != nil {
+			return err
 		}
 	}
+
+	info.Mu.Lock()
 
 	if restrictingProjectMemberOrganization {
 		if !slices.Contains(allowedOrgs, recipientActor.OrgId) {
@@ -1642,17 +1661,9 @@ func ProjectCreateInvite(actor rpc.Actor, recipient string) *util.HttpError {
 			if len(allowedOrgs) == 0 {
 				errorMessage += " Invites disabled by project manager"
 			} else {
-				errorMessage += " Only users from"
-
-				for i, org := range allowedOrgs {
-					if i == len(allowedOrgs)-1 {
-						errorMessage += fmt.Sprintf(" %s", org)
-					} else {
-						errorMessage += fmt.Sprintf(" %s,", org)
-					}
-				}
-
-				errorMessage += " allowed to be invited."
+				errorMessage += " Only users from " +
+					strings.Join(allowedOrgs, ", ") +
+					" allowed to be invited."
 			}
 
 			// Remove invite if already sent.
@@ -1660,11 +1671,11 @@ func ProjectCreateInvite(actor rpc.Actor, recipient string) *util.HttpError {
 				delete(info.InvitesSent, recipientActor.Username)
 			}
 
+			info.Mu.Unlock()
 			return util.HttpErr(http.StatusForbidden, errorMessage)
 		}
 	}
 
-	info.Mu.Lock()
 	alreadyAMember := false
 	for _, member := range info.Project.Status.Members {
 		if member.Username == recipient {
@@ -1683,14 +1694,10 @@ func ProjectCreateInvite(actor rpc.Actor, recipient string) *util.HttpError {
 		}
 	}
 	projectTitle := info.Project.Specification.Title
+
 	info.Mu.Unlock()
 
 	if !alreadyInvited && !alreadyAMember {
-		recipientInfo := projectRetrieveUserInfo(recipient)
-		recipientInfo.Mu.Lock()
-		recipientInfo.InvitedTo[string(actor.Project.Value)] = util.Empty{}
-		recipientInfo.Mu.Unlock()
-
 		db.NewTx0(func(tx *db.Transaction) {
 			db.Exec(
 				tx,
@@ -1706,6 +1713,11 @@ func ProjectCreateInvite(actor rpc.Actor, recipient string) *util.HttpError {
 				},
 			)
 		})
+
+		recipientInfo := projectRetrieveUserInfo(recipient)
+		recipientInfo.Mu.Lock()
+		recipientInfo.InvitedTo[string(actor.Project.Value)] = util.Empty{}
+		recipientInfo.Mu.Unlock()
 
 		_, err = fndapi.NotificationsCreate.Invoke(fndapi.NotificationsCreateRequest{
 			User: recipient,
