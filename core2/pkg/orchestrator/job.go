@@ -1405,13 +1405,13 @@ func jobsValidateForSubmission(actor rpc.Actor, spec *orcapi.JobSpecification) *
 	if app.Metadata.Variant.Present {
 		variant := app.Metadata.Variant.Value
 		if variant.State != orcapi.ApplicationVariantStateActive {
-			return util.HttpErr(http.StatusBadRequest, "the application variant is no longer active")
+			return util.HttpErr(http.StatusBadRequest, "the flavor is no longer active")
 		}
 		if spec.Product.Provider != variant.Provider {
-			return util.HttpErr(http.StatusBadRequest, "the application variant is not available at this provider")
+			return util.HttpErr(http.StatusBadRequest, "the flavor is not available at this provider")
 		}
 		if _, validateErr := applicationVariantValidateImage(actor, variant.Provider, variant.ImageDigest, false); validateErr != nil {
-			return util.HttpErr(http.StatusBadRequest, "the application variant image is no longer available; delete or update the variant")
+			return util.HttpErr(http.StatusBadRequest, "the flavor image is no longer available; delete or update the flavor")
 		}
 	}
 

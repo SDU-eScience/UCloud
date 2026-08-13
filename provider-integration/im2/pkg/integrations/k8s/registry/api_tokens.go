@@ -44,8 +44,8 @@ func CreatePullToken(owner orcapi.ResourceOwner, lifetime time.Duration) (Snapsh
 	return createShortLivedToken(
 		owner,
 		lifetime,
-		"Application variant image pull",
-		"Short-lived token used to pull an application variant image.",
+		"Flavor image pull",
+		"Short-lived token used to pull a flavor image.",
 		[]string{"pull"},
 	)
 }

@@ -494,7 +494,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	addSnapshotExcludedMounts(pod, userContainer)
 	if resolvedApplication.Metadata.Variant.Present {
 		if _, validationErr := registry.ValidateApplicationVariantImage(job.Owner, resolvedApplication.Metadata.Variant.Value.ImageDigest, false); validationErr != nil {
-			return util.HttpErr(http.StatusBadRequest, "application variant image is no longer available")
+			return util.HttpErr(http.StatusBadRequest, "flavor image is no longer available")
 		}
 		variantPullSecret, variantPullTokenId, herr = createApplicationVariantPullSecret(job.Owner, namespace, podName)
 		if herr != nil {
