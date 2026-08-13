@@ -16,7 +16,6 @@ type Workspace struct {
 	Title       string `yaml:"title"`
 	Environment string `yaml:"environment"`
 	Project     string `yaml:"project"`
-	Token       string `yaml:"token,omitempty"`
 	TokenRef    string `yaml:"tokenRef,omitempty"`
 }
 

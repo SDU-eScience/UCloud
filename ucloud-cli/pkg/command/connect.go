@@ -11,7 +11,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 
+	anyascii "github.com/anyascii/go"
 	"gopkg.in/yaml.v3"
 	"ucloud.dk/ucloud_cli/pkg/shared"
 )
@@ -35,13 +37,15 @@ func getRoot(w http.ResponseWriter, r *http.Request) {
 
 func cliAuth(w http.ResponseWriter, r *http.Request) error {
 	token := r.URL.Query().Get("token")
+	projectId := r.URL.Query().Get("projectId")
+	projectTitle := r.URL.Query().Get("projectTitle")
 
-	message := fmt.Sprintf("Token received %s\n", token)
+	message := fmt.Sprintf("ProjectId %s\nProjectTitle %s\nToken received %s\n", projectId, projectTitle, token)
 	io.WriteString(w, message)
 	if token == "" {
 		return fmt.Errorf("no token received")
 	}
-	return saveToken(token)
+	return saveToken(token, projectId, projectTitle)
 }
 
 func startAuthServer(ready chan<- string, authDone chan<- error) error {
@@ -86,7 +90,32 @@ func openBrowser(url string) error {
 	return err
 }
 
-func saveToken(token string) error {
+func repositoryProjectName(title string) string {
+	transliterated := strings.ToLower(anyascii.Transliterate(title))
+	var result strings.Builder
+	separator := false
+	for _, r := range transliterated {
+		if r >= 'a' && r <= 'z' || r >= '0' && r <= '9' {
+			if separator && result.Len() > 0 {
+				result.WriteByte('-')
+			}
+			result.WriteRune(r)
+			separator = false
+		} else {
+			separator = true
+		}
+	}
+	name := strings.Trim(result.String(), "-")
+	if name == "" {
+		name = "project"
+	}
+	if len(name) > 32 {
+		name = strings.TrimRight(name[:32], "-")
+	}
+	return name
+}
+
+func saveToken(token string, projectId string, projectTitle string) error {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return err
@@ -124,8 +153,27 @@ func saveToken(token string) error {
 		cfg.Workspaces = make(map[string]shared.Workspace)
 	}
 
+	if cfg.Environments == nil {
+		cfg.Environments = make(map[string]shared.Environment)
+		cfg.Environments["ucloud"] = shared.Environment{
+			URL: "https://cloud.sdu.dk",
+		}
+	}
+	// Defaults
+
+	cfg.DefaultEnvironment = "ucloud"
+	cfg.Defaults = shared.Defaults{
+		Output:       "table",
+		ItemsPerPage: 100,
+	}
+
+	cfg.CurrentWorkspace = repositoryProjectName(projectTitle)
+	cfg.Workspaces[cfg.CurrentWorkspace] = shared.Workspace{}
 	workspace := cfg.Workspaces[cfg.CurrentWorkspace]
-	workspace.Token = token
+	workspace.TokenRef = token
+	workspace.Project = projectId
+	workspace.Title = projectTitle
+	workspace.Environment = cfg.DefaultEnvironment
 
 	cfg.Workspaces[cfg.CurrentWorkspace] = workspace
 
