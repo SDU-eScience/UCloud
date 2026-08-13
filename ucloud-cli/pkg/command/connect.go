@@ -35,13 +35,40 @@ func getRoot(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, "UCloud-CLI server is running!")
 }
 
+func successMessage() string {
+	return `
+	<!DOCTYPE html>
+	<html>
+		<head>
+		<style>
+		html, body {
+			height: 100%;
+			margin: 0;
+		}
+		body {
+			display: block;
+			align-items: center;
+			justify-content: center;
+			font-family: sans-serif;
+			text-align: center;
+		}
+		</style>
+		</head>
+		<body>
+			<h1>Successfully connected to UCloud.</h1>
+			<p>You can now close this window.</p>
+		</body>
+	</html>
+`
+
+}
+
 func cliAuth(w http.ResponseWriter, r *http.Request) error {
 	token := r.URL.Query().Get("token")
 	projectId := r.URL.Query().Get("projectId")
 	projectTitle := r.URL.Query().Get("projectTitle")
 
-	message := fmt.Sprintf("ProjectId %s\nProjectTitle %s\nToken received %s\n", projectId, projectTitle, token)
-	io.WriteString(w, message)
+	io.WriteString(w, successMessage())
 	if token == "" {
 		return fmt.Errorf("no token received")
 	}
@@ -181,6 +208,7 @@ func saveToken(token string, projectId string, projectTitle string) error {
 	if err != nil {
 		return err
 	}
+	fmt.Println("Saving config to:", path)
 
 	return os.WriteFile(path, data, 0600)
 }
