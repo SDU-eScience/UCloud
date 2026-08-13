@@ -389,12 +389,22 @@ func FilesCreateDownload(
 		policies := policiesByProject(actor.Project.String())
 
 		specification, ok := policies[fndapi.RestrictDownloads]
-		if ok && specification.IsEnabled() {
-			return fndapi.BulkResponse[orcapi.FilesCreateDownloadResponse]{},
-				util.HttpErr(
-					http.StatusForbidden,
-					"This project does not allow downloads",
-				)
+		if ok {
+			values, ok := specification.GetValues().(fndapi.RestrictDownloadsValues)
+			if !ok {
+				return fndapi.BulkResponse[orcapi.FilesCreateDownloadResponse]{},
+					util.HttpErr(
+						http.StatusInternalServerError,
+						"Misconfigured Policy",
+					)
+			}
+			if values.Enabled {
+				return fndapi.BulkResponse[orcapi.FilesCreateDownloadResponse]{},
+					util.HttpErr(
+						http.StatusForbidden,
+						"This project does not allow downloads",
+					)
+			}
 		}
 	}
 
@@ -938,7 +948,7 @@ func FilesTransfer(actor rpc.Actor, request orcapi.FilesTransferRequest) *util.H
 			if !ok {
 				return util.HttpErr(
 					http.StatusInternalServerError,
-					"Policy wrongly configured at source project",
+					"Misconfigured policy at source project",
 				)
 			}
 			if len(values.AllowedProviders) == 0 {
@@ -966,7 +976,7 @@ func FilesTransfer(actor rpc.Actor, request orcapi.FilesTransferRequest) *util.H
 			if !ok {
 				return util.HttpErr(
 					http.StatusInternalServerError,
-					"Policy wrongly configured at destination project",
+					"Misconfigured policy at destination project",
 				)
 			}
 			if len(values.AllowedProviders) == 0 {

@@ -62,12 +62,22 @@ func initIngresses() {
 			policies := policiesByProject(info.Actor.Project.String())
 
 			specification, ok := policies[fndapi.RestrictPublicLinks]
-			if ok && specification.IsEnabled() {
-				return fndapi.BulkResponse[fndapi.FindByStringId]{},
+			if ok {
+				values, ok := specification.GetValues().(fndapi.RestrictPublicLinksValues)
+				if !ok {
+					return fndapi.BulkResponse[fndapi.FindByStringId]{},
 					util.HttpErr(
-						http.StatusForbidden,
-						"Project does not allow creation of public links",
+						http.StatusInternalServerError,
+						"Misconfigured Policy",
 					)
+				}
+				if values.Enabled {
+					return fndapi.BulkResponse[fndapi.FindByStringId]{},
+						util.HttpErr(
+							http.StatusForbidden,
+							"Project does not allow creation of public links",
+						)
+				}
 			}
 		}
 

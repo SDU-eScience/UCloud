@@ -1444,18 +1444,13 @@ func ProjectAcceptInviteLink(actor rpc.Actor, token string) (fndapi.ProjectInvit
 	projectPolicies.Mu.Unlock()
 
 	if hasRestrictions {
-		specification, restrictingMemberOrgs := projectRestrictions.ConfiguredPolicies[fndapi.RestrictOrganizationMembers]
-		if restrictingMemberOrgs && specification.IsEnabled() {
-			policy, ok := specification.(*fndapi.RestrictOrganizationMembersSpecification)
+		policy, restrictingMemberOrgs := projectRestrictions.ConfiguredPolicies[fndapi.RestrictOrganizationMembers]
+		if restrictingMemberOrgs {
+			specification, ok := policy.GetValues().(fndapi.RestrictOrganizationMembersValues)
 			if !ok {
-				return fndapi.ProjectInviteLinkInfo{},
-					util.HttpErr(
-						http.StatusInternalServerError,
-						"Misconfigured Policy",
-					)
+				return fndapi.ProjectInviteLinkInfo{}, util.HttpErr(http.StatusNotFound, "Misconfigured Policy")
 			}
-
-			if slices.Contains(policy.Values.Organizations, actor.OrgId) {
+			if specification.Enabled && slices.Contains(specification.Organizations, actor.OrgId) {
 				return fndapi.ProjectInviteLinkInfo{},
 					util.HttpErr(
 						http.StatusForbidden,
