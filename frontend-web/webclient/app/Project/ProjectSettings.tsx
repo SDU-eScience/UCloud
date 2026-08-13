@@ -10,7 +10,8 @@ import {
     TextArea,
     DataList,
     Tooltip,
-    Markdown
+    Markdown,
+    Card
 } from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {addStandardDialog, ConfirmCancelButtons, NoResultsBody} from "@/UtilityComponents";
@@ -845,27 +846,33 @@ interface Specification {
 }
 
 function PolicySchemas({schemas}: {schemas: Record<string, Policy>}) {
-    return <Box>{
+    return <Card>{
         Object.keys(schemas).map(key => {
             const policy = schemas[key];
             return <PolicySchemaEntry policy={policy} />
         })}
-        <Button onClick={() => console.log("TODO")}>Save changes</Button>
-    </Box>;
+        <Button ml="auto" onClick={() => console.log("TODO")}>Save changes</Button>
+    </Card>;
 }
 
+const asCheckBox = true;
 function PolicySchemaEntry({policy}: {policy: Policy}): React.ReactNode {
     const [enabled, setEnabled] = React.useState(!"This should be based on the enabled key inside the specification".toString());
 
     return <Box key={policy.schema.name} my="12px" pb="20px" borderBottom={"1px solid var(--borderColor)"}>
         <Flex justifyContent={"space-between"}>
             <b>{policy.schema.title}</b>
-            <Flex cursor="pointer" gap="8px" onClick={() => setEnabled(enabled => !enabled)}>
+            {asCheckBox ? <Label cursor="pointer" style={{gap: "8px", marginTop: 0}} width="fit-content">
                 {policy.schema.configuration.enabled.title}
-                <Box mt="1px" mr="8px">
-                    <Toggle checked={enabled} onChange={() => setEnabled(enabled => !enabled)} height={18} />
-                </Box>
-            </Flex>
+                <Checkbox style={{marginLeft: "6px", marginTop: "-4px"}} checked={enabled} onChange={() => setEnabled(enabled => !enabled)} />
+            </Label> :
+                <Flex cursor="pointer" gap="8px" onClick={() => setEnabled(enabled => !enabled)}>
+                    {policy.schema.configuration.enabled.title}
+                    <Box mt="1px" mr="8px">
+                        <Toggle checked={enabled} onChange={() => setEnabled(enabled => !enabled)} height={18} />
+                    </Box>
+                </Flex>
+            }
         </Flex>
         <Box mt="-10px" style={{color: "var(--textSecondary)"}}>
             <Markdown>{policy.schema.description}</Markdown>
@@ -885,8 +892,9 @@ function PolicyConfiguration({policy}: {policy: Policy}): React.ReactNode {
 
             const {applications} = policy.schema.configuration;
             return <ConfigurationEntry entry={applications}>
+                {allowedApps.size === 0 ? "No application allowed" : [...allowedApps].map(it => <Tag label={it} />)}
                 <NewDataList
-                    id={"integrated-app"}
+                    id={"app"}
                     items={searchApps}
                     title={""}
                     didUpdateQuery={(query) => {
@@ -899,14 +907,14 @@ function PolicyConfiguration({policy}: {policy: Policy}): React.ReactNode {
                             return;
                         }
 
+                        if (query.length < 3) return;
+
                         timeoutId.current = window.setTimeout(() => {
                             callAPI(search({
                                 query,
                                 discovery: discovery.discovery,
                                 itemsPerPage: 100,
                             })).then(result => {
-                                // TODO(Jonas): Get group members of an app
-
                                 setSearchApps(result.items.map(it => ({
                                     key: it.metadata.name,
                                     value: it.metadata.name,
@@ -917,10 +925,10 @@ function PolicyConfiguration({policy}: {policy: Policy}): React.ReactNode {
                     }}
                     onSelect={it => {
                         setAllowedApps(new Set([it.value, ...allowedApps]));
-                        (document.getElementById("integrated-app") as HTMLInputElement).value = "";
+                        (document.getElementById("app") as HTMLInputElement).value = "";
                     }}
                     RenderRow={({item}) => (<AppRow appName={item.value} />)}
-                    placeholder={"Integrated application name..."}
+                    placeholder={"Application name..."}
                     ref={ref}
                 />
             </ConfigurationEntry>;
@@ -991,9 +999,9 @@ function PolicyConfiguration({policy}: {policy: Policy}): React.ReactNode {
 }
 
 function AppRow({appName}: {appName: string}) {
-    return <Flex>
-        <SafeLogo name={appName} type={"APPLICATION"} size={"24px"} />
-        {appName}
+    return <Flex gap="8px" my="auto">
+        <Box my="auto"><SafeLogo name={appName} type={"APPLICATION"} size={"18px"} /></Box>
+        <Text my="auto">{appName}</Text>
     </Flex>
 }
 
