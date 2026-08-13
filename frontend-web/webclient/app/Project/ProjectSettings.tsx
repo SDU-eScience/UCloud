@@ -234,33 +234,33 @@ const MoveFieldControls: React.FunctionComponent<MoveFieldControlsProps> = ({
     setSettings,
 }) => {
     const move = useCallback((direction: "up" | "down") => {
-        setSettings(prev => {
-            const items = [...prev.templates.structured[projectType]];
+            setSettings(prev => {
+                const items = [...prev.templates.structured[projectType]];
 
-            const targetIdx =
-                direction === "up" ? idx - 1 : idx + 1;
+                const targetIdx =
+                    direction === "up" ? idx - 1 : idx + 1;
 
-            if (targetIdx < 0 || targetIdx >= items.length) {
-                return prev;
-            }
+                if (targetIdx < 0 || targetIdx >= items.length) {
+                    return prev;
+                }
 
-            [items[idx], items[targetIdx]] = [
-                items[targetIdx],
-                items[idx],
-            ];
+                [items[idx], items[targetIdx]] = [
+                    items[targetIdx],
+                    items[idx],
+                ];
 
-            return {
-                ...prev,
-                templates: {
-                    ...prev.templates,
-                    structured: {
-                        ...prev.templates.structured,
-                        [projectType]: items,
+                return {
+                    ...prev,
+                    templates: {
+                        ...prev.templates,
+                        structured: {
+                            ...prev.templates.structured,
+                            [projectType]: items,
+                        },
                     },
-                },
-            };
-        });
-    },
+                };
+            });
+        },
         [idx, projectType, setSettings]
     );
 
@@ -856,6 +856,7 @@ function PolicySchemas({schemas}: {schemas: Record<string, Policy>}) {
 }
 
 const asCheckBox = true;
+
 function PolicySchemaEntry({policy, updateRef}: {policy: Policy; updateRef: React.RefObject<Record<string, Specification>>}): React.ReactNode {
     const [enabled, setEnabled] = React.useState(!"This should be based on the enabled key inside the specification".toString());
     const projectId = useProjectId();
@@ -864,17 +865,17 @@ function PolicySchemaEntry({policy, updateRef}: {policy: Policy; updateRef: Reac
         <Flex justifyContent={"space-between"}>
             <b>{policy.schema.title}</b>
             {asCheckBox ? <Label cursor="pointer" style={{gap: "8px", marginTop: 0}} width="fit-content">
-                {policy.schema.configuration.enabled.title}
-                <Checkbox style={{marginLeft: "6px", marginTop: "-4px"}} checked={enabled} onChange={() => setEnabled(enabled => {
-                    if (!updateRef.current[policy.schema.name]) updateRef.current[policy.schema.name] = {
-                        project: projectId!,
-                        schema: policy.schema.name,
-                        values: {}
-                    };
-                    updateRef.current[policy.schema.name].values["enabled"] = !enabled;
-                    return !enabled
-                })} />
-            </Label> :
+                    {policy.schema.configuration.enabled.title}
+                    <Checkbox style={{marginLeft: "6px", marginTop: "-4px"}} checked={enabled} onChange={() => setEnabled(enabled => {
+                        if (!updateRef.current[policy.schema.name]) updateRef.current[policy.schema.name] = {
+                            project: projectId!,
+                            schema: policy.schema.name,
+                            values: {}
+                        };
+                        updateRef.current[policy.schema.name].values["enabled"] = !enabled;
+                        return !enabled
+                    })} />
+                </Label> :
                 <Flex cursor="pointer" gap="8px" onClick={() => setEnabled(enabled => {
                     if (!updateRef.current[policy.schema.name]) updateRef.current[policy.schema.name] = {
                         project: projectId!,

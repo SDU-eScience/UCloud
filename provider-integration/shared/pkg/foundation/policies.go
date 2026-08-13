@@ -2,7 +2,7 @@ package foundation
 
 import (
 	"encoding/json"
-
+	"fmt"
 	"gopkg.in/yaml.v3"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
@@ -495,6 +495,43 @@ var PoliciesRetrieve = rpc.Call[RetrievePoliciesRequest, map[PolicyName]Policy]{
 
 type PoliciesUpdateRequest struct {
 	UpdatedPolicies map[PolicyName]Specification `yaml:"updatedPolicies" json:"updatedPolicies"`
+}
+
+func (r *PoliciesUpdateRequest) UnmarshalJSON(data []byte) error {
+	type Alias PoliciesUpdateRequest
+
+	var raw struct {
+		UpdatedPolicies map[PolicyName]json.RawMessage `json:"updatedPolicies"`
+	}
+
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+
+	r.UpdatedPolicies = make(map[PolicyName]Specification, len(raw.UpdatedPolicies))
+
+	for policyName, rawPolicy := range raw.UpdatedPolicies {
+		var metadata struct {
+			Schema PolicyName `json:"schema"`
+			Project rpc.ProjectId `json:"project"`
+		}
+		if err := json.Unmarshal(rawPolicy, &metadata); err != nil {
+			return fmt.Errorf("invalid %s policy: %w", policyName, err)
+		}
+		if metadata.Schema != policyName {
+			return fmt.Errorf("policy key %q does not match schema %q", policyName, metadata.Schema, )
+		}
+		decoder, ok := SpecificationDecoders[metadata.Schema]
+		if !ok {
+			return fmt.Errorf("unknown policy schema %q", metadata.Schema)
+		}
+		specification, err := decoder(rawPolicy, metadata.Project)
+		if err != nil {
+			return fmt.Errorf("failed to decode %s policy: %w", policyName, err, )
+		}
+		r.UpdatedPolicies[policyName] = specification
+	}
+	return nil
 }
 
 var PoliciesUpdate = rpc.Call[PoliciesUpdateRequest, util.Empty]{
