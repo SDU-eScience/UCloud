@@ -35,43 +35,6 @@ function isComputeCategory(val: ProductV2 | ComputeCategory): val is ComputeCate
     return "kind" in val;
 }
 
-function legacyGroupName(product: ProductV2): string {
-    const numberSuffix = product.name.match(/(^.*)-(\d+)$/);
-    if (numberSuffix != null) {
-        return numberSuffix[1];
-    }
-
-    return product.name;
-}
-
-function productGroupName(product: ProductV2): string {
-    if (product.type !== "compute") {
-        return legacyGroupName(product);
-    }
-
-    const computeProduct = product as ProductV2Compute;
-    const fraction = computeProduct.fraction;
-    if (!fraction) {
-        return legacyGroupName(product);
-    }
-
-    if (fraction.numerator === 1 && fraction.denominator === 1) {
-        return product.category.name;
-    }
-
-    if ((computeProduct.gpu ?? 0) > 0) {
-        const gpuModel = (computeProduct.gpuModel ?? "").toLowerCase();
-        if (gpuModel.includes("nvidia") || gpuModel.includes("mig")) {
-            return `${product.category.name}-mig.${fraction.numerator}g`;
-        } else {
-            return `${product.category.name}-frac`;
-        }
-    }
-
-    const milliCpu = Math.floor((fraction.numerator * 1000) / fraction.denominator);
-    return `${product.category.name}-mcpu.${milliCpu}`;
-}
-
 export const ProductSelector: React.FunctionComponent<{
     products: ProductV2[];
     support?: ResolvedSupport[];
@@ -457,7 +420,7 @@ export const ProductSelector: React.FunctionComponent<{
                                 {selected ? <Box mb="12px">
                                     <ProductDescription serviceProvider={selected.category.provider} category={selected.category.name} />
                                     <Flex gap="32px" alignItems="flex-end" marginTop={16}>
-                                        <ProductStatsSummary product={selected} />
+                                        <ProductStatsSummary product={selected as ProductV2Compute} />
                                         {selected.category.accountingFrequency === "ONCE" ?
                                             <div>Price: {priceToString(selected, 1)}</div> : null}
                                     </Flex>
@@ -806,7 +769,7 @@ function MachineTypeSelectionSlider(props: {
     selectedCategory?: ComputeCategory;
     onSelect: (index: number) => void;
     idx: number;
-    support: ResolvedSupport<Product, ProductSupport>[] | undefined;
+    support: ResolvedSupport[] | undefined;
     fieldNavigation?: boolean;
 }): React.ReactNode {
 
@@ -871,22 +834,14 @@ function ProductTypeKind(props: {
     }
 }
 
-
 function computeV2ComponentCount(c: ProductV2Compute): string {
     if (c.gpu) {
         if (c.fraction && c.fraction?.denominator != 1) {
-            return unicodeFraction(c.fraction.numerator * c.price, c.fraction.denominator);
+            return `${c.fraction.numerator * c.price}/${c.fraction.denominator}`
         }
         return c.gpu.toString();
     }
     return c.cpu?.toString() ?? "";
-};
-
-function unicodeFraction(numerator: number, denominator: number): string {
-    const superscript = "⁰¹²³⁴⁵⁶⁷⁸⁹";
-    const subscript = "₀₁₂₃₄₅₆₇₈₉";
-    const format = (value: number, digits: string) => value.toString().replace(/\d/g, digit => digits[Number(digit)]);
-    return `${format(numerator, superscript)}⁄${format(denominator, subscript)}`;
 }
 
 export const SelectorBoxClass = injectStyle("selector-box", k => `

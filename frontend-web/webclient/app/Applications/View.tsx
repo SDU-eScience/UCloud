@@ -73,9 +73,14 @@ const ResponsiveAppHeaderClass = injectStyleSimple("responsive-app-header", `
     }
 `);
 
+enum FlavorGrouping {
+    UCloudManaged = "UCloud managed flavors",
+    YourFlavors = "Your flavors"
+}
+
 interface FlavorOption {
     app: Application;
-    group: "UCloud managed applications" | "Your applications";
+    group: FlavorGrouping;
     latestVersion: string;
     searchKey: string;
 }
@@ -93,7 +98,7 @@ export const ApplicationSelector: React.FunctionComponent<{
     const navigate = useNavigate();
     const searchableFlavor = useMemo<FlavorOption[]>(() => props.flavors.map(app => {
         const variant = app.metadata.variant;
-        const group: FlavorOption["group"] = variant ? "Your applications" : "UCloud managed applications";
+        const group: FlavorOption["group"] = variant ? FlavorGrouping.YourFlavors : FlavorGrouping.UCloudManaged;
         return {
             app,
             group,
@@ -103,7 +108,7 @@ export const ApplicationSelector: React.FunctionComponent<{
     }).sort((a, b) => a.group.localeCompare(b.group) || a.searchKey.localeCompare(b.searchKey)), [props.flavors]);
     const selectedFlavor = searchableFlavor.find(it => it.app.metadata.name === props.application.metadata.name) ?? {
         app: props.application,
-        group: props.application.metadata.variant ? "Your applications" : "UCloud managed applications",
+        group: props.application.metadata.variant ? FlavorGrouping.YourFlavors : FlavorGrouping.UCloudManaged,
         latestVersion: newestVersion ?? props.application.metadata.version,
         searchKey: props.application.metadata.variant?.title ?? props.application.metadata.flavorName ?? DEFAULT_FLAVOR_NAME,
     } as FlavorOption;

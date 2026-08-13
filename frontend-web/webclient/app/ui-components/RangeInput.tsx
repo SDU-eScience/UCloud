@@ -20,9 +20,16 @@ const MarkerWrapperStyle = injectStyle("range-input-markers", cl => `
         --rangeThumbSize: 28px;
         --rangeMarkerSize: 6px;
         --rangeAnimationDuration: 120ms;
+        --rangeMarkerColor: var(--gray-40);
+        --rangeMarkerFilledColor: var(--fixedWhite);
         --displayProgress: var(--rangeProgress);
         position: relative;
         width: 100%;
+    }
+    
+    html.dark ${cl} {
+        --rangeMarkerColor: var(--gray-5);
+        --rangeMarkerFilledColor: var(--gray-5);
     }
 
     ${cl}[data-pointer-active="true"] {
@@ -31,7 +38,7 @@ const MarkerWrapperStyle = injectStyle("range-input-markers", cl => `
 
     ${cl} > .marker-marks {
         position: absolute;
-        z-index: 3;
+        z-index: 1;
         inset: calc(var(--rangeInputHeight) / 2) calc(var(--rangeThumbSize) / 2) auto;
         display: flex;
         justify-content: space-between;
@@ -110,14 +117,18 @@ const MarkerWrapperStyle = injectStyle("range-input-markers", cl => `
         width: var(--rangeMarkerSize);
         height: var(--rangeMarkerSize);
         border-radius: 50%;
-        background-color: color-mix(in srgb, var(--fixedWhite) 75%, transparent);
+        background-color: var(--rangeMarkerColor);
         cursor: pointer;
         pointer-events: auto;
-        transition: transform var(--rangeAnimationDuration) ease-out;
+        transition: transform var(--rangeAnimationDuration) ease-out, background-color var(--rangeAnimationDuration) ease-out;
     }
 
     ${cl} .marker-mark:hover {
         transform: scale(1.4);
+    }
+
+    ${cl} .marker-mark[data-filled="true"] {
+        background-color: var(--rangeMarkerFilledColor);
     }
 
     ${cl} > .marker-labels {
@@ -132,6 +143,7 @@ const MarkerWrapperStyle = injectStyle("range-input-markers", cl => `
         cursor: pointer;
         min-height: 20px;
         white-space: nowrap;
+        font-variant-numeric: diagonal-fractions tabular-nums;
     }
 `);
 
@@ -210,7 +222,13 @@ export default function RangeInput(props: RangeInputProps): React.ReactNode {
         </div>
         {!markers ? null : <>
             <div className="marker-marks">
-                {markers.map((_, idx) => <div key={idx} className="marker-mark" onClick={() => props.onChange(idx)} />)}
+                {markers.map((_, idx) => <div
+                    key={idx}
+                    className="marker-mark"
+                    data-filled={props.value >= idx}
+                    style={{pointerEvents: props.value === idx ? "none" : "auto"}}
+                    onClick={() => props.onChange(idx)}
+                />)}
             </div>
             <div className="marker-labels">
                 {markers.map((v, idx) => <div

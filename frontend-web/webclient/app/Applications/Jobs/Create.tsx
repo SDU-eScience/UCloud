@@ -269,7 +269,7 @@ const JobCreateMainClass = injectStyle("job-create-main", key => `
 const JobCreateHeaderClass = injectStyle("job-create-header", key => `
     ${key} {
         display: flex;
-        margin: 32px 50px 0;
+        margin: 32px 50px 24px;
     }
 
     @media (max-width: 600px) {
@@ -277,7 +277,7 @@ const JobCreateHeaderClass = injectStyle("job-create-header", key => `
             display: grid;
             grid-template-columns: minmax(0, 1fr);
             gap: 16px;
-            margin: 24px 16px 0;
+            margin: 24px 16px 24px;
         }
 
         ${key} .job-create-header-spacer {
@@ -355,7 +355,6 @@ const JobSubmissionSidebarClass = injectStyle("job-submission-sidebar", key => `
         grid-area: sidebar;
         position: sticky;
         top: 20px;
-        margin-top: 24px;
         min-width: 0;
     }
 
@@ -1184,7 +1183,7 @@ export const Create: React.FunctionComponent = () => {
                 <div className={JobCreateContentClass}>
                     <div className={JobCreateLayoutClass}>
                     <JobFieldNavigation>
-                    <Grid gridTemplateColumns="1fr" gap="24px" width="100%" mb="24px" mt="24px">
+                    <Grid gridTemplateColumns="1fr" gap="24px" width="100%" mb="24px">
                         {insufficientFunds ? <WalletWarning errorCode={insufficientFunds.errorCode} /> : null}
                         {!isMissingConnection ? null : <Box mt={32}>
                             <Link to="/providers/connect">

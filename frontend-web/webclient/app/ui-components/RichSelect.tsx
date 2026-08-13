@@ -306,7 +306,7 @@ export function RichSelect<T, K extends keyof T>(props: {
                     const previousGroup = index === 0 ? undefined : props.groupBy?.(limitedElements[index - 1]);
                     return <React.Fragment key={it.idx}>
                         {group == null || group === previousGroup ? null : (
-                            <Box className="no-hover-effect" px="8px" py="5px" color="textSecondary" style={{fontWeight: 600}}>
+                            <Box className="no-hover-effect" px="8px" py={"5px"} style={{fontWeight: 600}} borderBottom={"1px solid var(--borderColor)"} onClick={e => e.stopPropagation()}>
                                 {props.renderGroup?.(group) ?? group}
                             </Box>
                         )}

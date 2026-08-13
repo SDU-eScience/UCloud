@@ -402,6 +402,7 @@ const FieldRowClass = injectStyleSimple("job-field-row", `
     grid-template-columns: minmax(180px, 2fr) minmax(240px, 3fr);
     min-height: 64px;
     background: var(--backgroundCard);
+    column-gap: 24px;
 
     &:has(> div:nth-child(2) > div:first-child :focus) > div:first-child {
         font-style: italic;
@@ -428,7 +429,7 @@ const FieldControlClass = injectStyleSimple("job-field-control", `
     align-content: center;
     align-items: center;
     min-width: 0;
-    padding: 10px 12px;
+    padding: 10px 0;
 `);
 
 const FieldControlBodyClass = injectStyleSimple("job-field-control-body", `
