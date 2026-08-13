@@ -236,33 +236,33 @@ const MoveFieldControls: React.FunctionComponent<MoveFieldControlsProps> = ({
     setSettings,
 }) => {
     const move = useCallback((direction: "up" | "down") => {
-        setSettings(prev => {
-            const items = [...prev.templates.structured[projectType]];
+            setSettings(prev => {
+                const items = [...prev.templates.structured[projectType]];
 
-            const targetIdx =
-                direction === "up" ? idx - 1 : idx + 1;
+                const targetIdx =
+                    direction === "up" ? idx - 1 : idx + 1;
 
-            if (targetIdx < 0 || targetIdx >= items.length) {
-                return prev;
-            }
+                if (targetIdx < 0 || targetIdx >= items.length) {
+                    return prev;
+                }
 
-            [items[idx], items[targetIdx]] = [
-                items[targetIdx],
-                items[idx],
-            ];
+                [items[idx], items[targetIdx]] = [
+                    items[targetIdx],
+                    items[idx],
+                ];
 
-            return {
-                ...prev,
-                templates: {
-                    ...prev.templates,
-                    structured: {
-                        ...prev.templates.structured,
-                        [projectType]: items,
+                return {
+                    ...prev,
+                    templates: {
+                        ...prev.templates,
+                        structured: {
+                            ...prev.templates.structured,
+                            [projectType]: items,
+                        },
                     },
-                },
-            };
-        });
-    },
+                };
+            });
+        },
         [idx, projectType, setSettings]
     );
 
