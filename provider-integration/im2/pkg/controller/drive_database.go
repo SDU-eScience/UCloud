@@ -74,6 +74,8 @@ func InitDriveDatabase() {
 		)
 	})
 
+	initTrackedResourceReconciliation()
+
 	driveTrackIpc.Handler(func(r *ipc.Request[fnd.FindByStringId]) ipc.Response[util.Empty] {
 		// NOTE(Dan): Since we are not returning any information about the drive, we simply track it regardless if this
 		// was a drive that belongs to the user or not.

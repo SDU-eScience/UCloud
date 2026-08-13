@@ -241,6 +241,43 @@ func InitResources() {
 	ResourceRegisterIndexedLabelKey(resourceLabelStackName)
 	ResourceRegisterIndexedLabelKey(resourceLabelStackInstance)
 
+	orcapi.ResourcesControlCheckExistence.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ResourceExistenceCheck]) (fndapi.BulkResponse[bool], *util.HttpError) {
+		provider, ok := strings.CutPrefix(info.Actor.Username, fndapi.ProviderSubjectPrefix)
+		if !ok {
+			return fndapi.BulkResponse[bool]{}, util.HttpErr(http.StatusForbidden, "forbidden")
+		}
+
+		responses := db.NewTx(func(tx *db.Transaction) []bool {
+			result := make([]bool, 0, len(request.Items))
+			for _, item := range request.Items {
+				_, exists := db.Get[struct{ Id int64 }](
+					tx,
+					`
+						select r.id
+						from
+							provider.resource r
+							left join accounting.products p on r.product = p.id
+							left join accounting.product_categories pc on p.category = pc.id
+						where
+							r.id = :id
+							and r.type = :type
+							and coalesce(r.provider, pc.provider) = :provider
+							and r.confirmed_by_provider = true
+					`,
+					db.Params{
+						"id":       ResourceParseId(item.Id),
+						"type":     item.Type,
+						"provider": provider,
+					},
+				)
+				result = append(result, exists)
+			}
+			return result
+		})
+
+		return fndapi.BulkResponse[bool]{Responses: responses}, nil
+	})
+
 	if !resourceGlobals.Testing.Enabled {
 		go resourceListenForProjectGroupUpdates()
 
@@ -631,6 +668,22 @@ func ResourceRetrieveEx[T any](
 		errorMessage = util.HttpErr(http.StatusForbidden, "write permission is required")
 	}
 	return result, orcapi.Resource{}, orcapi.ResourceSpecification{}, errorMessage
+}
+
+func ResourceValidateProviderBatch(actor rpc.Actor, typeName string, ids []string) *util.HttpError {
+	for _, id := range ids {
+		_, _, _, err := ResourceRetrieveEx[any](
+			actor,
+			typeName,
+			ResourceParseId(id),
+			orcapi.PermissionProvider,
+			orcapi.ResourceFlags{},
+		)
+		if err != nil {
+			return util.HttpErr(http.StatusNotFound, "not found or permission denied (%v)", id)
+		}
+	}
+	return nil
 }
 
 type ResourceSortByFn[T any] func(a T, b T) int

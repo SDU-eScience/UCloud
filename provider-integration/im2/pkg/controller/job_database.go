@@ -28,6 +28,11 @@ import (
 var activeJobs = make(map[string]*orc.Job)
 var activeJobsMutex = sync.RWMutex{}
 
+var missingJobConfirmations = struct {
+	sync.Mutex
+	Counts map[string]int
+}{Counts: make(map[string]int)}
+
 type trackRequestType struct {
 	JobId      string
 	ProviderId string
@@ -421,10 +426,28 @@ func (b *JobUpdateBatch) flush() {
 	})
 
 	if err != nil {
-		b.failed = true
-		log.Warn("Failed to flush updated jobs: %v", err)
-		return
+		purged := jobConfirmMissingFromCore(b.entries)
+		if len(purged) > 0 {
+			b.entries = slices.DeleteFunc(b.entries, func(entry orc.ResourceUpdateAndId[orc.JobUpdate]) bool {
+				return slices.Contains(purged, entry.Id)
+			})
+			if len(b.entries) == 0 {
+				b.entries = b.entries[:0]
+				return
+			}
+
+			_, err = orc.JobsControlAddUpdate.Invoke(fnd.BulkRequest[orc.ResourceUpdateAndId[orc.JobUpdate]]{
+				Items: b.entries,
+			})
+		}
+
+		if err != nil {
+			b.failed = true
+			log.Warn("Failed to flush updated jobs: %v", err)
+			return
+		}
 	}
+	jobResetMissingConfirmations(b.entries)
 
 	var nodeAllocJobIds []string
 	var nodeAllocNodeIds []string
@@ -544,6 +567,74 @@ func (b *JobUpdateBatch) flush() {
 	}
 
 	b.entries = b.entries[:0]
+}
+
+func jobResetMissingConfirmations(entries []orc.ResourceUpdateAndId[orc.JobUpdate]) {
+	missingJobConfirmations.Lock()
+	for _, entry := range entries {
+		delete(missingJobConfirmations.Counts, entry.Id)
+	}
+	missingJobConfirmations.Unlock()
+}
+
+func jobConfirmMissingFromCore(entries []orc.ResourceUpdateAndId[orc.JobUpdate]) []string {
+	checks := make([]orc.ResourceExistenceCheck, 0, len(entries))
+	seen := make(map[string]util.Empty)
+	for _, entry := range entries {
+		if _, ok := seen[entry.Id]; ok {
+			continue
+		}
+		seen[entry.Id] = util.Empty{}
+		checks = append(checks, orc.ResourceExistenceCheck{Type: "job", Id: entry.Id})
+	}
+
+	response, err := orc.ResourcesControlCheckExistence.Invoke(fnd.BulkRequest[orc.ResourceExistenceCheck]{Items: checks})
+	if err != nil || len(response.Responses) != len(checks) {
+		missingJobConfirmations.Lock()
+		for _, check := range checks {
+			delete(missingJobConfirmations.Counts, check.Id)
+		}
+		missingJobConfirmations.Unlock()
+		return nil
+	}
+
+	var purged []string
+	missingJobConfirmations.Lock()
+	for i, exists := range response.Responses {
+		id := checks[i].Id
+		if exists {
+			delete(missingJobConfirmations.Counts, id)
+			continue
+		}
+
+		missingJobConfirmations.Counts[id]++
+		if missingJobConfirmations.Counts[id] >= resourceMissingConfirmationThreshold {
+			delete(missingJobConfirmations.Counts, id)
+			purged = append(purged, id)
+		}
+	}
+	missingJobConfirmations.Unlock()
+
+	for _, id := range purged {
+		jobPurgeTracked(id)
+		log.Warn("Purged job %v after %v confirmations that it does not exist in Core", id, resourceMissingConfirmationThreshold)
+	}
+	return purged
+}
+
+func jobPurgeTracked(jobId string) {
+	activeJobsMutex.Lock()
+	delete(activeJobs, jobId)
+	activeJobsMutex.Unlock()
+
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`delete from tracked_jobs where job_id = :job_id`,
+			db.Params{"job_id": jobId},
+		)
+	})
+	jobRoutesRefresh()
 }
 
 type JobUpdateBatchResults struct {

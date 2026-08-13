@@ -97,6 +97,14 @@ func initJobs() {
 			updatesById[item.Id] = append(updatesById[item.Id], item.Update)
 		}
 
+		var jobIds []string
+		for jobId := range updatesById {
+			jobIds = append(jobIds, jobId)
+		}
+		if err := ResourceValidateProviderBatch(info.Actor, jobType, jobIds); err != nil {
+			return util.Empty{}, err
+		}
+
 		for jobId, updates := range updatesById {
 			validatedResources := util.OptNone[[]orcapi.AppParameterValue]()
 			{
