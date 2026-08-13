@@ -20,7 +20,7 @@ interface ApplicationCardProps {
     application?: ApplicationSummaryWithFavorite
 }
 
-export const Tag = ({label, bg = "infoMain"}: {label: string; bg?: ThemeColor}): React.ReactNode => (
+export const Tag = ({label, bg = "infoMain"}: {label: React.ReactNode; bg?: ThemeColor}): React.ReactNode => (
     <div style={{
         marginRight: "3px",
         background: `var(--${bg})`,
@@ -57,7 +57,7 @@ const ApplicationCardClass = injectStyle("application-card", k => `
         user-select: none;
         transition: border-color 0.2s;
     }
-    
+
     ${k}:hover {
         border-color: var(--primaryDark);
     }
@@ -65,7 +65,7 @@ const ApplicationCardClass = injectStyle("application-card", k => `
     ${k} > div.image {
         width: 100px;
         height: 100px;
-        
+
         min-width: 75px;
         min-height: 75px;
         margin-top: auto;
@@ -78,7 +78,7 @@ const ApplicationCardClass = injectStyle("application-card", k => `
         color: var(--textSecondary);
         width: calc(100% - 120px);
     }
-    
+
     ${k} .${TitleAndDescriptionClass} h2 {
         font-size: 1.2rem;
         color: var(--textPrimary);
@@ -92,7 +92,7 @@ const ApplicationCardClass = injectStyle("application-card", k => `
         padding-right: 8px;
         height: 90px;
     }
-    
+
     ${k} > div.image > * {
         margin-left: auto;
         margin-right: auto;

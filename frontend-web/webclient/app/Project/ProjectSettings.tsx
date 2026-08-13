@@ -11,10 +11,11 @@ import {
     DataList,
     Tooltip,
     Markdown,
-    Card
+    Card,
+    Icon
 } from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
-import {addStandardDialog, ConfirmCancelButtons, NoResultsBody} from "@/UtilityComponents";
+import {addStandardDialog, ConfirmCancelButtons} from "@/UtilityComponents";
 import {apiRetrieve, apiUpdate, callAPI, callAPIWithErrorHandler, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {useNavigate} from "react-router-dom";
 import {dialogStore} from "@/Dialog/DialogStore";
@@ -25,7 +26,7 @@ import {usePage} from "@/Navigation/Redux";
 import {useCallback, useEffect, useRef, useState} from "react";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import ProjectAPI, {useProjectId} from "@/Project/Api";
-import {bulkRequestOf, copyToClipboard, doNothing} from "@/UtilityFunctions";
+import {bulkRequestOf, copyToClipboard} from "@/UtilityFunctions";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {useProject} from "./cache";
 import {injectStyle} from "@/Unstyled";
@@ -41,22 +42,23 @@ import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {ProjectSwitcher} from "./ProjectSwitcher";
 import WAYF from "@/Grants/wayf-idps.json";
 import {FlexClass} from "@/ui-components/Flex";
-import {OldProjectRole, ProjectRole, isAdminOrPI, isDataSteward} from ".";
+import {OldProjectRole, isAdminOrPI, isDataSteward} from ".";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import AppRoutes from "@/Routes";
 import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
-import {Application, retrieveAppLogo, search} from "@/Applications/AppStoreApi";
+import {search} from "@/Applications/AppStoreApi";
 import {Toggle} from "@/ui-components/Toggle";
-import SearchResults from "@/Applications/Search";
-import {AppCard2} from "@/Applications/Landing";
-import {Gradient, GradientWithPolygons} from "@/ui-components/GradientBackground";
-import {AppGrid} from "@/Applications/Category";
-import {emptyPage} from "@/Utilities/PageUtilities";
 import {useDiscovery} from "@/Applications/Hooks";
 import {SafeLogo} from "@/Applications/AppToolLogo";
 import {NewDataList} from "@/UserSettings/ChangeUserDetails";
 import {DataListItem} from "@/UserSettings/types";
 import {Tag} from "@/Applications/Card";
+import ProviderBrowse from "@/Admin/Providers/Browse";
+import ProvidersApi from "@/UCloud/ProvidersApi";
+import { useUState } from "@/Utilities/UState";
+import { connectionState } from "@/Providers/ConnectionState";
+import { ProviderTitle } from "@/Providers/ProviderTitle";
+import { ProviderLogo } from "@/Providers/ProviderLogo";
 
 const wayfIdpsPairs = WAYF.wayfIdps.map(it => ({value: it, content: it}));
 
@@ -105,13 +107,13 @@ const ActionContainer = injectStyle("action-container", k => `
     ${k} {
         container-type: inline-size;
     }
-    
+
     ${k} label {
         font-weight: bold;
         display: block;
         margin-top: 16px;
     }
-    
+
     @container (min-width: 800px) {
         ${k} form label {
             width: 50%;
@@ -120,7 +122,7 @@ const ActionContainer = injectStyle("action-container", k => `
         ${k} form > .${FlexClass} {
             flex-direction: row;
         }
-    }     
+    }
 
     @container (max-width: 799px) {
         ${k} form label {
@@ -975,13 +977,15 @@ function PolicyConfiguration({policy, updateRef}: {policy: Policy; updateRef: Re
             const [allowedApps, setAllowedApps] = useState(new Set<string>());
 
             return <ConfigurationEntry entry={allowList}>
-                {allowedApps.size === 0 ? "No integrated app allowed" : [...allowedApps].map(it => <Tag label={it} />)}
+                {allowedApps.size === 0 ? "No integrated app allowed" : [...allowedApps].map(it => <Tag label={<Box>{it} <Icon size="12px" ml="5px" name="close" /></Box>} />)}
                 <NewDataList
                     id={"allowed-integrated-apps"}
                     items={items}
                     title={""}
                     onSelect={it => {
-                        setAllowedApps(new Set([it.value, ...allowedApps]));
+                        const newAllowedApps = new Set([it.value, ...allowedApps]);
+                        setAllowedApps(newAllowedApps);
+                        updateRef.current[policy.schema.name].values[allowList.title] = [...newAllowedApps];
                         (document.getElementById("allowed-integrated-apps") as HTMLInputElement).value = "";
                     }}
                     RenderRow={({item}) => (<AppRow appName={item.value} />)}
@@ -1004,8 +1008,26 @@ function PolicyConfiguration({policy, updateRef}: {policy: Policy; updateRef: Re
         }
         case "RestrictProviderFileTransfers": {
             const {allowedProviders} = policy.schema.configuration;
+            const ref = useRef<HTMLInputElement>(null)
+            const [providers, setProviders] = React.useState<DataListItem[]>([]);
+            const state = useUState(connectionState);
+            React.useEffect(() => {
+                state.fetch();
+            }, []);
+
+            React.useEffect(() => {
+                setProviders(state.providers.map(it => ({
+                    key: it.provider,
+                    value: it.providerTitle,
+                    tags: it.provider + " " + it.providerTitle,
+                })))
+                // Note(Jonas): Length is used, as state.providers seems to change every render
+            }, [state.providers.length]);
+
             return <ConfigurationEntry entry={allowedProviders}>
-                <Input type="text" />
+                <NewDataList items={providers} id="allowed-providers" title={""} onSelect={provider => {
+
+                }} placeholder={"Search providers..."} ref={ref} RenderRow={({item}) => <ProviderRow providerTitle={item.value} />} />
             </ConfigurationEntry>;
         }
         case "RestrictPublicIPs": {
@@ -1030,6 +1052,13 @@ function AppRow({appName}: {appName: string}) {
         <Box my="auto"><SafeLogo name={appName} type={"APPLICATION"} size={"18px"} /></Box>
         <Text my="auto">{appName}</Text>
     </Flex>
+}
+
+function ProviderRow({providerTitle}: {providerTitle: string}): React.ReactNode {
+   return <Flex gap="8px" my="auto">
+       <Box my="auto"><ProviderLogo providerId={providerTitle} size={22}/></Box>
+       <Text my="auto"><ProviderTitle providerId={providerTitle}/></Text>
+   </Flex>
 }
 
 function ConfigurationEntry({entry, children}: {entry: ConfigurationEntry; children: React.ReactNode}): React.ReactNode {
