@@ -18,9 +18,13 @@ import (
 	"ucloud.dk/ucloud_cli/pkg/shared"
 )
 
+const defaultServer = "https://cloud.sdu.dk"
+const devServer = "https://ucloud.localhost.direct"
+
 type ConnectCommand struct {
 	Token  string `flag:"token" usage:"Token"`
 	Server string `flag:"server" usage:"Server"`
+	Dev    bool   `flag:"dev" usage:"Dev mode"`
 }
 
 var ConnectCommands = map[string]CommandFunc{
@@ -28,7 +32,7 @@ var ConnectCommands = map[string]CommandFunc{
 }
 
 func (c *ConnectCommand) Execute() error {
-	return performConnection()
+	return performConnection(c.Dev)
 }
 
 func getRoot(w http.ResponseWriter, r *http.Request) {
@@ -60,7 +64,6 @@ func successMessage() string {
 		</body>
 	</html>
 `
-
 }
 
 func cliAuth(w http.ResponseWriter, r *http.Request) error {
@@ -68,7 +71,6 @@ func cliAuth(w http.ResponseWriter, r *http.Request) error {
 	projectId := r.URL.Query().Get("projectId")
 	projectTitle := r.URL.Query().Get("projectTitle")
 
-	//message := fmt.Sprintf("ProjectId %s\nProjectTitle %s\nToken received %s\n", projectId, projectTitle, token)
 	io.WriteString(w, successMessage())
 	if token == "" {
 		return fmt.Errorf("no token received")
@@ -214,7 +216,7 @@ func saveConfig(token string, projectId string, projectTitle string) error {
 	return os.WriteFile(path, data, 0600)
 }
 
-func performConnection() error {
+func performConnection(dev bool) error {
 	ready := make(chan string)
 	authDone := make(chan error, 1)
 
@@ -226,8 +228,14 @@ func performConnection() error {
 
 	from := <-ready
 
-	connectionUrl := "https://ucloud.localhost.direct/app/connect?redirect=" +
-		url.QueryEscape(from)
+	var connectionUrl string
+	if dev {
+		connectionUrl = devServer + "/app/connect?redirect=" +
+			url.QueryEscape(from)
+	} else {
+		connectionUrl = defaultServer + "/app/connect?redirect=" +
+			url.QueryEscape(from)
+	}
 
 	if err := openBrowser(connectionUrl); err != nil {
 		return err

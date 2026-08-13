@@ -33,7 +33,7 @@ func TestEnvironmentList(t *testing.T) {
 }
 
 func TestConnectCommand(t *testing.T) {
-	input := []string{"connect"}
+	input := []string{"connect", "--dev"}
 	cmd, _ := Parse(input)
 	assert.NotNil(t, cmd)
 	err := cmd.Execute()

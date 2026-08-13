@@ -198,22 +198,27 @@ func Parse(commands []string) (com.Command, error) {
 	if !ok {
 		return nil, fmt.Errorf("unknown command %s", mainCommand)
 	}
+	var cmd com.Command
+	var createFunc com.CommandFunc
 
-	if len(parserRoute) == 1 {
-		// Has no subcommands but itself is a command
-		if len(subCommand) != 0 {
-			return nil, fmt.Errorf("command %s has no subcommands", mainCommand)
-		}
-		subCommand = mainCommand
+	hasSubCommand := len(parserRoute) > 1
+	commandName := mainCommand
+
+	if hasSubCommand {
+		commandName = subCommand
+		commands, _ = Consume(commands)
 	}
 
-	createFunc, ok := parserRoute[subCommand]
+	createFunc, ok = parserRoute[commandName]
 	if !ok {
-		return nil, fmt.Errorf("subcommand %s not found", subCommand)
-	}
-	cmd := createFunc()
+		if hasSubCommand {
+			return nil, fmt.Errorf("subcommand %s not found", commandName)
+		}
 
-	commands, _ = Consume(commands)
+		return nil, fmt.Errorf("command %s not found", commandName)
+	}
+
+	cmd = createFunc()
 
 	err := bindCommand(commands, cmd)
 
