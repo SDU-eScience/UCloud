@@ -189,34 +189,36 @@ func Parse(commands []string) (com.Command, error) {
 		return nil, fmt.Errorf("No command specified.")
 	}
 
-	commands, mainCommand := Consume(commands)
-	subCommand := Peek(commands)
+	var subCommand string
+	mainCommand := commands[0]
+	if len(commands) > 1 {
+		subCommand = commands[1] // secondary positional
+	}
 
 	commandParsers := registerCommandParser()
 
 	parserRoute, ok := commandParsers[mainCommand]
+
 	if !ok {
 		return nil, fmt.Errorf("unknown command %s", mainCommand)
 	}
+
 	var cmd com.Command
 	var createFunc com.CommandFunc
 
-	hasSubCommand := len(parserRoute) > 1
-	commandName := mainCommand
-
-	if hasSubCommand {
-		commandName = subCommand
-		commands, _ = Consume(commands)
-	}
-
-	createFunc, ok = parserRoute[commandName]
+	sliceCount := 1 // Used to remove the found commands
+	createFunc, ok = parserRoute[subCommand]
 	if !ok {
-		if hasSubCommand {
-			return nil, fmt.Errorf("subcommand %s not found", commandName)
+		// No subcommand is found, then there is only 1 command
+		createFunc, ok = parserRoute[mainCommand]
+		if !ok {
+			return nil, fmt.Errorf("command %s not found", mainCommand)
 		}
-
-		return nil, fmt.Errorf("command %s not found", commandName)
+	} else {
+		sliceCount = 2
 	}
+
+	commands = commands[sliceCount:]
 
 	cmd = createFunc()
 
