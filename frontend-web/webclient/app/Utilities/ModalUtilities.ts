@@ -18,6 +18,23 @@ export const largeModalStyle: ReactModal.Styles = {
     }
 };
 
+export const fileSelectorModalStyle: ReactModal.Styles = {
+    content: {
+        borderRadius: "6px",
+        width: "min(1200px, calc(100vw - 24px))",
+        height: "90vh",
+        maxHeight: "90vh",
+        position: "fixed",
+        top: "5vh",
+        left: "50%",
+        transform: "translateX(-50%)",
+        outline: "none",
+        padding: 0,
+        overflow: "hidden",
+    },
+    overlay: largeModalStyle.overlay,
+};
+
 export const fullScreenModalStyle: ReactModal.Styles = {
     content: {
         borderRadius: "6px",

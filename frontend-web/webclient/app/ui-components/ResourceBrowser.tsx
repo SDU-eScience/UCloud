@@ -1,5 +1,5 @@
 import {Operation, operationsToActions, ShortcutKey} from "@/ui-components/Operation";
-import {ActionAppearance, ActionBar, ActionEntry, ActionItem, ActionMenu, ResourceBrowserActions} from "@/ui-components/Actions";
+import {ActionAppearance, ActionBar, ActionEntry, ActionItem, ActionMenu, hasAvailableActions, ResourceBrowserActions} from "@/ui-components/Actions";
 import {IconName} from "@/ui-components/Icon";
 import {
     ThemeColor,
@@ -40,7 +40,6 @@ import {HTMLTooltip} from "./Tooltip";
 import {ButtonClass} from "./Button";
 import {CREATE_TAG, DELETE_TAG, PERMISSIONS_TAG, PROPERTIES_TAG, ResourceIncludeFlags} from "@/UCloud/ResourceApi";
 import {TruncateClass} from "./Truncate";
-import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import Flex, {FlexClass} from "./Flex";
 import * as Heading from "@/ui-components/Heading";
 import {dialogStore} from "@/Dialog/DialogStore";
@@ -343,6 +342,7 @@ interface ResourceBrowserListenerMap<T> {
 
     "sort": (page: T[]) => void;
     "fetchFilters": () => Filter[];
+    "renderUtilityControls": (container: HTMLElement) => void;
 }
 
 interface ResourceBrowserRow {
@@ -399,10 +399,12 @@ export class ResourceBrowser<T> {
     sessionFilters: HTMLElement;
     public header: HTMLElement;
     public breadcrumbs: HTMLUListElement;
+    private utilityControls: HTMLDivElement;
     private scrolling: HTMLDivElement;
     private entryDragIndicator: HTMLDivElement;
     entryDragIndicatorContent: HTMLDivElement;
     private dragIndicator: HTMLDivElement;
+    private dragOverlay: HTMLDivElement;
     private rows: ResourceBrowserRow[] = [];
 
     // Selection state
@@ -585,6 +587,12 @@ export class ResourceBrowser<T> {
         this.dispatchMessage("rowSelectionUpdated", fn => fn());
     }
 
+    public clearSelection(): boolean {
+        if (!this.isSelected.some(selected => selected !== 0)) return false;
+        this.clearSelected();
+        return true;
+    }
+
     public init(
         ref: React.RefObject<ResourceBrowser<T> | null>,
         features: ResourceBrowseFeatures,
@@ -610,9 +618,10 @@ export class ResourceBrowser<T> {
                         <ul></ul>
                         <input class="location-bar">
                     </div>
-                    <div style="flex-grow: 1;"></div>
+                    <div class="utility-spacer"></div>
                     <div class="search-field-wrapper"><input class="${InputClass} search-field" data-hidden></div>
                     <img alt="search" class="search-icon">
+                    <div class="utility-controls"></div>
                     <img alt="refresh" class="refresh-icon">
                 </div>
                 <div class="allocations"></div>
@@ -657,11 +666,18 @@ export class ResourceBrowser<T> {
         this.dragIndicator = this.root.querySelector<HTMLDivElement>(".drag-indicator")!;
         this.entryDragIndicator = this.root.querySelector<HTMLDivElement>(".file-drag-indicator")!;
         this.entryDragIndicatorContent = this.root.querySelector<HTMLDivElement>(".file-drag-indicator-content")!;
+        // Keep fixed overlays in the viewport coordinate system, even when the browser is inside a transformed modal.
+        this.dragOverlay = document.createElement("div");
+        this.dragOverlay.classList.add(browserClass.class);
+        this.dragOverlay.style.display = "contents";
+        this.dragOverlay.append(this.entryDragIndicatorContent, this.entryDragIndicator, this.dragIndicator);
+        document.body.appendChild(this.dragOverlay);
         this.contextMenu = this.root.querySelector<HTMLDivElement>(".context-menu")!;
         this.scrolling = this.root.querySelector<HTMLDivElement>(".scrolling")!;
         this.renameField = this.root.querySelector<HTMLInputElement>(".rename-field")!;
         this.locationBar = this.root.querySelector<HTMLInputElement>(".location-bar")!;
         this.header = this.root.querySelector("header")!; // Add UtilityBar
+        this.utilityControls = this.root.querySelector<HTMLDivElement>(".utility-controls")!;
         this.filters = this.root.querySelector<HTMLDivElement>(".filters")!;
         this.sessionFilters = this.root.querySelector<HTMLDivElement>(".session-filters")!;
         this.rightFilters = this.root.querySelector<HTMLDivElement>(".right-sort-filters")!;
@@ -685,14 +701,8 @@ export class ResourceBrowser<T> {
         }
 
         if (this.isModal) {
-            this.root.style.maxHeight = `calc(${largeModalStyle.content?.maxHeight} - 64px)`;
             this.root.style.overflowY = "hidden";
             this.scrolling.style.overflowY = "auto";
-
-            const location = this.root.querySelector(".location");
-            if (location) {
-                location.setAttribute("in-modal", "");
-            }
         }
 
 
@@ -706,6 +716,7 @@ export class ResourceBrowser<T> {
                 this.actionBarRoot = undefined;
                 this.actionMenuRoot?.unmount();
                 this.actionMenuRoot = undefined;
+                this.dragOverlay.remove();
 
                 window.clearInterval(unmountInterval);
             }
@@ -840,6 +851,7 @@ export class ResourceBrowser<T> {
                 icon.addEventListener("transitionend", evListener);
                 icon.style.transform = "rotate(405deg)";
             });
+            this.renderUtilityControls();
         }
 
         if (!this.opts.embedded?.disableKeyhandlers) {
@@ -1059,6 +1071,16 @@ export class ResourceBrowser<T> {
         if (!this.root.isConnected) {
             window.removeEventListener("resize", () => this.reevaluateSize());
             return;
+        }
+
+        if (this.isModal) {
+            const modal = this.root.closest<HTMLElement>(".ReactModal__Content");
+            if (modal) {
+                const modalStyle = window.getComputedStyle(modal);
+                const modalBottom = modal.getBoundingClientRect().bottom - parseFloat(modalStyle.paddingBottom || "0");
+                const availableHeight = Math.max(0, modalBottom - this.root.getBoundingClientRect().top);
+                this.root.style.maxHeight = `${availableHeight}px`;
+            }
         }
 
         const parent = this.scrolling.parentElement!;
@@ -1478,6 +1500,12 @@ export class ResourceBrowser<T> {
                 height: 64
             }).then(url => searchIcon.src = url);
         }
+        this.renderUtilityControls();
+    }
+
+    private renderUtilityControls() {
+        this.utilityControls.replaceChildren();
+        this.dispatchMessage("renderUtilityControls", fn => fn(this.utilityControls));
     }
 
     renderBreadcrumbs() {
@@ -1683,8 +1711,9 @@ export class ResourceBrowser<T> {
     private renderActionBar() {
         const snapshot = this.fetchActions("topbar");
         this.shortCuts = {} as Record<ShortcutKey, () => void>;
-        if (!snapshot || !snapshot.actions.length || !this.canConsumeResources) {
-            this.actionBarRoot?.render(null);
+        const hasActions = snapshot && hasAvailableActions(snapshot.actions, snapshot.selected, snapshot.callbacks);
+        if (!snapshot || !hasActions || !this.canConsumeResources) {
+            this.actionBarRoot?.render(<div className="operations-empty">No actions available</div>);
             return;
         }
         this.actionBarRoot?.render(<ActionBar
@@ -1869,7 +1898,7 @@ export class ResourceBrowser<T> {
 
     clearFilters() {
         const filtersToKeep = this.dispatchMessage("fetchFilters", fn => fn())
-            .filter(it => it.type === "input").map((it: FilterInput) => it.key);
+            .flatMap(filter => filter.type === "multi-option" ? filter.keys : [filter.key]);
         for (const key of Object.keys(this.browseFilters)) {
             if (!filtersToKeep.includes(key)) delete this.browseFilters[key];
         }
@@ -3041,6 +3070,7 @@ export class ResourceBrowser<T> {
             return this.defaultEmptyPage(this.resourceName, e, {});
         },
         fetchFilters: () => [],
+        renderUtilityControls: doNothing,
 
         renderLocationBar: prompt => {
             return {rendered: prompt, normalized: prompt};

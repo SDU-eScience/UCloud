@@ -1867,10 +1867,9 @@ function WorkspaceSelector({model, fn, connected}: {model: Record<string, Value>
 		if (!connected || !fn || loading || chatLoading) return;
 
 		void (async () => {
-			const [{default: FileBrowse}, {api: FilesApi}, {folderFavoriteSelection}] = await Promise.all([
+			const [{default: FileBrowse}, {api: FilesApi}] = await Promise.all([
 				import("@/Files/FileBrowse"),
 				import("@/UCloud/FilesApi"),
-				import("@/Files/FavoriteSelect"),
 			]);
 			const isFolderAllowed = (file: UFile): boolean | string => file.status.type === "DIRECTORY";
 			const onSelectFolder = (file: UFile) => {
@@ -1892,7 +1891,6 @@ function WorkspaceSelector({model, fn, connected}: {model: Record<string, Value>
 							managesLocalProject: true,
 							initialPath,
 							initialProject: projectId,
-							additionalOperations: [folderFavoriteSelection(onSelectFolder, isFolderAllowed, navigateToFolder)],
 							selection,
 						}} />,
 					doNothing,

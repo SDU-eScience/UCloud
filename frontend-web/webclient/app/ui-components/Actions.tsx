@@ -343,6 +343,10 @@ function evaluateActions<T, C>(actions: ActionEntry<T, C>[], selected: T[], call
     return result;
 }
 
+export function hasAvailableActions<T, C>(actions: ActionEntry<T, C>[], selected: T[], callbacks: C): boolean {
+    return evaluateActions(actions, selected, callbacks).some(entry => entry !== "divider");
+}
+
 function firstEnabledIndex<T, C>(entries: EvaluatedEntry<T, C>[]): number {
     return entries.findIndex(entry => entry !== "divider" && entry.enabled === true);
 }

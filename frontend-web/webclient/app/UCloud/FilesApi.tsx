@@ -52,7 +52,7 @@ import {prettyFilePath, usePrettyFilePath} from "@/Files/FilePath";
 import {launchOpenWithFastPath, OpenWithBrowser, OpenWithFastPath} from "@/Applications/OpenWith";
 import {addStandardDialog, addStandardInputDialog} from "@/UtilityComponents";
 import {ProductStorage} from "@/Accounting";
-import {largeModalStyle} from "@/Utilities/ModalUtilities";
+import {fileSelectorModalStyle} from "@/Utilities/ModalUtilities";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {apiCreate, apiUpdate, callAPI, InvokeCommand, useCloudAPI} from "@/Authentication/DataHook";
 import metadataDocumentApi from "@/UCloud/MetadataDocumentApi";
@@ -646,7 +646,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                         updates: []
                     })
                 },
-                shortcut: ShortcutKey.F
+                shortcut: ShortcutKey.G
             },
             {
                 text: "Upload files",
@@ -659,7 +659,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     if ((support as FileCollectionSupport).files.isReadOnly) {
                         return "File system is read-only";
                     }
-                    if (!(selected.length === 0 && cb.onSelect === undefined)) {
+                    if (!(selected.length === 0 && (cb.onSelect === undefined || cb.isModal))) {
                         return false;
                     }
 
@@ -1147,7 +1147,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
         return apiUpdate(request, this.baseContext, "emptyTrash");
     }
 
-    fileSelectorModalStyle = largeModalStyle;
+    fileSelectorModalStyle = fileSelectorModalStyle;
 
     // -- Shared file operations -- 
     // TODO(Dan): We should probably add a feature flag for file types

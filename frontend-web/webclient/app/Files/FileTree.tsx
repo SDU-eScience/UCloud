@@ -8,6 +8,13 @@ import {FullpathFileLanguageIcon} from "@/Editor/Editor";
 import {FileIconHint} from ".";
 import {VirtualizedTree, VirtualizedTreeApi} from "@/ui-components/VirtualizedTree";
 import {ActionEntry, ActionMenu} from "@/ui-components/Actions";
+import {ResourceIncludeFlags} from "@/UCloud/ResourceApi";
+import {FileSelectorSidebar, FileTreeResourceNode, FileTreeResourceOperations} from "./FileSelectorSidebar";
+import {AsyncCache} from "@/Utilities/AsyncCache";
+import {callAPI} from "@/Authentication/DataHook";
+import FilesApi from "@/UCloud/FilesApi";
+import {fetchAll} from "@/Utilities/PageUtilities";
+import {UFile} from "@/UCloud/UFile";
 
 export interface EditorSidebarNode {
     file: VirtualFile;
@@ -22,27 +29,105 @@ export interface VirtualFile {
     fileHint?: FileIconHint;
 }
 
-interface FileTreeProps {
+interface RootedFileTreeProps {
     tree: React.RefObject<VirtualizedTreeApi | null>
     onFileActivated(file: VirtualFile): void;
-    onDirectoryPrefetch(file: VirtualFile): void;
-    root: EditorSidebarNode;
-    initialFolder: string;
+    loadEntries?: (path: string) => Promise<VirtualFile[]>;
+    reloadRef?: React.RefObject<((path: string) => Promise<void>) | null>;
     initialFilePath?: string;
     actions?: (file?: VirtualFile) => ActionEntry<VirtualFile, null>[];
+    directoryOperations?: (file: VirtualFile) => ActionEntry<VirtualFile, null>[];
+    fileOperations?: (file: VirtualFile) => ActionEntry<VirtualFile, null>[];
+    onSelectionChange?(file?: VirtualFile): void;
     width?: string;
     canResize?: boolean;
     visible?: boolean;
     fileHeaderOperations?: React.ReactNode;
     renamingFile?: string;
     onRename?: (args: {newAbsolutePath: string, oldAbsolutePath: string, cancel: boolean}) => void;
+    selectedPath?: string;
+    additionalFilters?: Record<string, string> & ResourceIncludeFlags;
 }
 
-export function FileTree({tree, onFileActivated, onDirectoryPrefetch, root, ...props}: FileTreeProps) {
+interface FullFileTreeProps {
+    basePath: "/";
+    tree?: React.RefObject<VirtualizedTreeApi | null>;
+    initialPath?: string;
+    initialProject?: string;
+    additionalFilters?: Record<string, string> & ResourceIncludeFlags;
+    selectedPath?: string;
+    includeFiles?: boolean;
+    onActivated(path: string, project?: string): void;
+    onKeyboardActivate?(): void;
+    onSelectionChange?(node?: FileTreeResourceNode): void;
+    projectOperations?: FileTreeResourceOperations;
+    driveOperations?: FileTreeResourceOperations;
+    directoryOperations?: FileTreeResourceOperations;
+    fileOperations?: FileTreeResourceOperations;
+}
+
+type FileTreeProps = ({basePath: string} & RootedFileTreeProps) | FullFileTreeProps;
+
+export function FileTree(props: FileTreeProps): React.ReactNode {
+    if (props.basePath === "/" && "onActivated" in props) {
+        return <FileSelectorSidebar
+            tree={props.tree}
+            initialPath={props.initialPath}
+            initialProject={props.initialProject}
+            additionalFilters={props.additionalFilters}
+            selectedPath={props.selectedPath}
+            includeFiles={props.includeFiles}
+            onOpen={props.onActivated}
+            onKeyboardActivate={props.onKeyboardActivate}
+            onSelectionChange={props.onSelectionChange}
+            projectOperations={props.projectOperations}
+            driveOperations={props.driveOperations}
+            directoryOperations={props.directoryOperations}
+            fileOperations={props.fileOperations}
+        />;
+    }
+    return <RootedFileTree {...props as {basePath: string} & RootedFileTreeProps} />;
+}
+
+function RootedFileTree({tree, onFileActivated, ...props}: {basePath: string} & RootedFileTreeProps) {
     const initialWidth = parseFloat(props.width ?? "250px") || 250;
     const [treeWidth, setTreeWidth] = React.useState(initialWidth);
     const isResizing = React.useRef(false);
     const treeRef = React.useRef<HTMLDivElement | null>(null);
+    const cache = React.useRef(new AsyncCache<VirtualFile[]>());
+    const [root, setRoot] = React.useState<EditorSidebarNode>(() => ({
+        file: {absolutePath: props.basePath, isDirectory: true},
+        children: [],
+    }));
+
+    const defaultLoadEntries = React.useCallback(async (path: string): Promise<VirtualFile[]> => {
+        const files = await fetchAll<UFile>(next => callAPI(FilesApi.browse({
+            path,
+            itemsPerPage: 250,
+            next,
+            ...props.additionalFilters,
+        })));
+        return files.map(file => ({
+            absolutePath: file.id,
+            isDirectory: file.status.type === "DIRECTORY",
+            fileHint: file.status.icon,
+        }));
+    }, [props.additionalFilters]);
+
+    const loadDirectory = React.useCallback((path: string, invalidate = false): Promise<void> => {
+        if (invalidate) cache.current.invalidate(path);
+        return cache.current.retrieve(path, () => (props.loadEntries ?? defaultLoadEntries)(path)).then(files => {
+            setRoot(current => updateDirectory(current, path, files));
+        });
+    }, [defaultLoadEntries, props.loadEntries]);
+
+    React.useEffect(() => {
+        cache.current.invalidateAll();
+        setRoot({file: {absolutePath: props.basePath, isDirectory: true}, children: []});
+        void loadDirectory(props.basePath, true);
+    }, [loadDirectory, props.additionalFilters, props.basePath, props.loadEntries]);
+
+    React.useImperativeHandle(props.reloadRef, () => path => loadDirectory(path, true), [loadDirectory]);
 
     const setWidth = React.useCallback((width: number) => {
         const left = treeRef.current?.getBoundingClientRect().left ?? 0;
@@ -100,11 +185,11 @@ export function FileTree({tree, onFileActivated, onDirectoryPrefetch, root, ...p
         setContextMenu(null);
     }, [contextMenu]);
 
-    const prettyInitialFolderPath = usePrettyFilePath(props.initialFolder);
+    const prettyInitialFolderPath = usePrettyFilePath(props.basePath);
     const initialExpandedIds = React.useMemo(() => parentPathsWithin(
         props.initialFilePath,
-        props.initialFolder,
-    ), [props.initialFilePath, props.initialFolder]);
+        props.basePath,
+    ), [props.initialFilePath, props.basePath]);
 
     const renderNode = React.useCallback((node: EditorSidebarNode, state: {expanded: boolean; focused: boolean; selected: boolean; toggle(): void}) => {
         return <FileTreeNodeContent
@@ -117,6 +202,11 @@ export function FileTree({tree, onFileActivated, onDirectoryPrefetch, root, ...p
             onToggle={state.toggle}
         />;
     }, [props.onRename, props.renamingFile, treeWidth]);
+
+    const prefetchDirectory = React.useCallback((node: EditorSidebarNode) => {
+        if (node.childrenLoaded) return;
+        void loadDirectory(node.file.absolutePath);
+    }, [loadDirectory]);
 
     return <div ref={treeRef} onContextMenu={e => onContextMenu(e, undefined)} style={style} className={FileTreeClass}>
         <Flex alignItems={"center"} px="8px" className="title-bar" gap={"8px"}>
@@ -140,10 +230,12 @@ export function FileTree({tree, onFileActivated, onDirectoryPrefetch, root, ...p
                 label="Files"
                 initialExpandedIds={initialExpandedIds}
                 initialSelectedId={props.initialFilePath}
+                selectedId={props.selectedPath}
+                onSelectionChange={selected => props.onSelectionChange?.(selected[0]?.file)}
                 onActivate={node => {
                     if (!node.file.isDirectory) onFileActivated(node.file);
                 }}
-                onPrefetch={node => onDirectoryPrefetch(node.file)}
+                onPrefetch={prefetchDirectory}
                 onContextMenu={(event, node) => {
                     event.preventDefault();
                     event.stopPropagation();
@@ -151,9 +243,11 @@ export function FileTree({tree, onFileActivated, onDirectoryPrefetch, root, ...p
                 }}
             />
             <ActionMenu
-                actions={props.actions?.(contextMenu?.file) ?? []}
+                actions={contextMenu?.file
+                    ? (contextMenu.file.isDirectory ? props.directoryOperations?.(contextMenu.file) : props.fileOperations?.(contextMenu.file)) ?? props.actions?.(contextMenu.file) ?? []
+                    : props.actions?.() ?? []}
                 openFnRef={openOperations}
-                selected={[]}
+                selected={contextMenu?.file ? [contextMenu.file] : []}
                 callbacks={null}
                 trigger={null}
             />
@@ -277,6 +371,33 @@ function isDirectoryNode(node: EditorSidebarNode): boolean {
 
 function getNodeLabel(node: EditorSidebarNode): string {
     return fileName(node.file.absolutePath);
+}
+
+function updateDirectory(root: EditorSidebarNode, path: string, files: VirtualFile[]): EditorSidebarNode {
+    if (root.file.absolutePath === path) {
+        return {
+            ...root,
+            childrenLoaded: true,
+            children: files
+                .map(file => {
+                    const existing = root.children.find(child => child.file.absolutePath === file.absolutePath);
+                    return existing ? {...existing, file} : {file, children: []};
+                })
+                .sort((a, b) => virtualFileSort(a.file, b.file)),
+        };
+    }
+    return {
+        ...root,
+        children: root.children.map(child =>
+            (path === child.file.absolutePath || path.startsWith(child.file.absolutePath.replace(/\/$/, "") + "/")) ?
+                updateDirectory(child, path, files) : child
+        ),
+    };
+}
+
+function virtualFileSort(a: VirtualFile, b: VirtualFile): number {
+    if (a.isDirectory !== b.isDirectory) return a.isDirectory ? -1 : 1;
+    return a.absolutePath.localeCompare(b.absolutePath);
 }
 
 function parentPathsWithin(path: string | undefined, root: string): string[] {

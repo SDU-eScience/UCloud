@@ -12,7 +12,6 @@ import {getProviderField, providerMismatchError} from "../Create";
 import {injectStyleSimple} from "@/Unstyled";
 import FileBrowse from "@/Files/FileBrowse";
 import {ApplicationParameterNS} from "@/Applications/AppStoreApi";
-import {fileFavoriteSelection, folderFavoriteSelection} from "@/Files/FavoriteSelect";
 import {UFile} from "@/UCloud/UFile";
 import {Selection} from "@/ui-components/ResourceBrowser";
 import {getParentPath, pathComponents} from "@/Utilities/FileUtilities";
@@ -96,27 +95,6 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
             show: providerRestriction
         };
 
-        const op = isDirectoryInput ? folderFavoriteSelection : fileFavoriteSelection;
-
-        const navigateToFolder = (path: string, projectId?: string) => {
-            dialogStore.failure();
-            dialogStore.addDialog(
-                <FileBrowse
-                    opts={{
-                        additionalFilters,
-                        isModal: true,
-                        managesLocalProject: true,
-                        initialPath: path,
-                        initialProject: projectId,
-                        additionalOperations: [op(onClick, providerRestriction, navigateToFolder)],
-                        selection,
-                    }} />,
-                doNothing,
-                true,
-                FilesApi.fileSelectorModalStyle
-            );
-        }
-
         dialogStore.addDialog(
             <FileBrowse
                 opts={{
@@ -124,7 +102,6 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
                     isModal: true,
                     managesLocalProject: true,
                     initialPath: getLastActivePath(),
-                    additionalOperations: [op(onClick, providerRestriction, navigateToFolder)],
                     selection,
                 }} />,
             doNothing,

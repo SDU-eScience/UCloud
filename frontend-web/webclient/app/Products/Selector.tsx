@@ -479,7 +479,6 @@ export const ProductSelector: React.FunctionComponent<{
                                     inputRef={searchRef}
                                     onInput={onSearchType}
                                     onKeyDown={e => {
-                                        console.log("hi!", e, itemWrapperRef.current, e.key);
                                         e.stopPropagation();
                                         if (!itemWrapperRef.current) return;
                                         if (["ArrowUp", "ArrowDown"].includes(e.key)) {

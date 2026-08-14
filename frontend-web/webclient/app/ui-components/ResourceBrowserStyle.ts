@@ -102,8 +102,24 @@ export function injectResourceBrowserStyle(rowSize: number) {
             margin-left: 16px;
         }
 
+        ${BrowserClass.dot} header .utility-controls:not(:empty) + .refresh-icon {
+            margin-left: 16px;
+        }
+
         ${BrowserClass.dot} header .header-first-row .location-bar {
             flex-grow: 1;
+        }
+
+        ${BrowserClass.dot} header .header-first-row .location {
+            min-width: 0;
+        }
+
+        ${BrowserClass.dot} header .header-first-row .utility-spacer {
+            flex-grow: 1;
+        }
+
+        ${BrowserClass.dot} header[has-location-bar] .header-first-row .utility-spacer {
+            display: none;
         }
 
         .header-first-row .search-icon[data-shown] {
@@ -192,11 +208,6 @@ export function injectResourceBrowserStyle(rowSize: number) {
             transition: margin-right 0.2s;
         }
 
-        ${BrowserClass.dot} header[has-location-bar] .location[in-modal] {
-            max-width: 480px;
-            overflow-x: clip;
-        }
-        
         ${BrowserClass.dot} header[has-location-bar] .location input {
             outline: none;
             border: 0;
@@ -420,6 +431,14 @@ export function injectResourceBrowserStyle(rowSize: number) {
             display: flex;
             flex-direction: row;
             gap: 8px;
+        }
+
+        ${BrowserClass.dot} .operations-empty {
+            display: flex;
+            align-items: center;
+            height: 35px;
+            color: var(--textSecondary);
+            font-style: italic;
         }
 
         ${BrowserClass.dot} .context-menu {
