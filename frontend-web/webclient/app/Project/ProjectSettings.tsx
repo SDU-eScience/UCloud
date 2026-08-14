@@ -53,12 +53,10 @@ import {SafeLogo} from "@/Applications/AppToolLogo";
 import {NewDataList} from "@/UserSettings/ChangeUserDetails";
 import {DataListItem} from "@/UserSettings/types";
 import {Tag} from "@/Applications/Card";
-import ProviderBrowse from "@/Admin/Providers/Browse";
-import ProvidersApi from "@/UCloud/ProvidersApi";
-import { useUState } from "@/Utilities/UState";
-import { connectionState } from "@/Providers/ConnectionState";
-import { ProviderTitle } from "@/Providers/ProviderTitle";
-import { ProviderLogo } from "@/Providers/ProviderLogo";
+import {useUState } from "@/Utilities/UState";
+import {connectionState} from "@/Providers/ConnectionState";
+import {ProviderTitle} from "@/Providers/ProviderTitle";
+import {ProviderLogo} from "@/Providers/ProviderLogo";
 
 const wayfIdpsPairs = WAYF.wayfIdps.map(it => ({value: it, content: it}));
 
@@ -750,7 +748,7 @@ type PolicyName =
 
 interface Policy {
     schema: PolicySchema;
-    specification: Specification;
+    specification?: Specification;
 }
 
 interface PolicySchemaBase {
@@ -838,11 +836,19 @@ interface PoliciesUpdateRequest {
 interface Specification {
     schema: PolicyName;
     project: string;
-    values: any;
+    values: {enabled: boolean} & Record<string, any>;
 }
 
 function PolicySchemas({schemas}: {schemas: Record<string, Policy>}) {
     const updateRef = React.useRef<Record<string, Specification>>({});
+    React.useEffect(() => {
+        for (const key of Object.keys(schemas)) {
+            if (schemas[key].specification){
+                updateRef.current[key] = schemas[key].specification;
+            }
+        }
+    }, [schemas]);
+
     const submitChanges = React.useCallback((updatedPolicies: Record<PolicyName, Specification>) => {
         callAPI(PolicyAPI.updatePolicies({updatedPolicies}));
         updateRef.current = {};
@@ -878,7 +884,7 @@ function PolicySchemas({schemas}: {schemas: Record<string, Policy>}) {
 
 const asCheckBox = true;
 function PolicySchemaEntry({ policy, togglePolicy, updatePolicyRule }: { policy: Policy; togglePolicy: (schemaName: PolicyName) => void; updatePolicyRule: (policyName: PolicyName, rule: string, value: any) => void }): React.ReactNode {
-    const [enabled, setEnabled] = React.useState(!"This should be based on the enabled key inside the specification".toString());
+    const [enabled, setEnabled] = React.useState(policy.specification?.values.enabled ?? false);
 
     return <Box key={policy.schema.name} my="12px" pb="20px" borderBottom={"1px solid var(--borderColor)"}>
         <Flex justifyContent={"space-between"}>
@@ -916,13 +922,20 @@ function PolicyConfiguration({ policy, updatePolicyRule }: { policy: Policy; upd
         case "RestrictApplications": {
             const [searchApps, setSearchApps] = useState<DataListItem[]>([]);
             const ref = useRef<HTMLInputElement | null>(null);
-            const [allowedApps, setAllowedApps] = useState(new Set<string>());
+
+            const values = policy.specification?.values as Partial<{ applications: string[] }> | undefined;
+            const [allowedApps, setAllowedApps] = useState(new Set<string>(values?.applications ?? []));
+
             const timeoutId = useRef(-1);
             const [discovery] = useDiscovery();
 
             const {applications} = policy.schema.configuration;
             return <ConfigurationEntry entry={applications}>
-                {allowedApps.size === 0 ? "No application allowed" : [...allowedApps].map(it => <Tag label={it} />)}
+                {allowedApps.size === 0 ? "No application allowed" : [...allowedApps].map(it => <LabelTag label={it} onClick={() => {
+                    allowedApps.delete(it);
+                    setAllowedApps(new Set([...allowedApps]));
+                    updatePolicyRule(policy.schema.name, applications.title, [...allowedApps]);
+                }} />)}
                 <NewDataList
                     id={"allowed-apps"}
                     items={searchApps}
@@ -975,12 +988,18 @@ function PolicyConfiguration({ policy, updatePolicyRule }: { policy: Policy; upd
         }
         case "RestrictIntegratedApplications": {
             const {allowList} = policy.schema.configuration;
+            const values = policy.specification?.values as Partial<{allowList: string[]}> | undefined
             const ref = useRef<HTMLInputElement | null>(null);
             const items: DataListItem[] = [{key: "syncthing", value: "syncthing", tags: ""}, {key: "terminal", value: "terminal", tags: ""}]
-            const [allowedApps, setAllowedApps] = useState(new Set<string>());
+            const [allowedApps, setAllowedApps] = useState(new Set<string>(values?.allowList));
 
             return <ConfigurationEntry entry={allowList}>
-                {allowedApps.size === 0 ? "No integrated app allowed" : [...allowedApps].map(it => <Tag label={<Box>{it} <Icon size="12px" ml="5px" name="close" /></Box>} />)}
+                {allowedApps.size === 0 ? "No integrated app allowed" : [...allowedApps].map(it => <LabelTag label={it} onClick={() => {
+                    allowedApps.delete(it);
+                    setAllowedApps(new Set([...allowedApps]));
+                    updatePolicyRule(policy.schema.name, "allowList", [...allowedApps]);
+                    (document.getElementById("allowed-integrated-apps") as HTMLInputElement).value = "";
+                }} />)}
                 <NewDataList
                     id={"allowed-integrated-apps"}
                     items={items}
@@ -988,7 +1007,7 @@ function PolicyConfiguration({ policy, updatePolicyRule }: { policy: Policy; upd
                     onSelect={it => {
                         const newAllowedApps = new Set([it.value, ...allowedApps]);
                         setAllowedApps(newAllowedApps);
-                        updatePolicyRule(policy.schema.name, allowList.title, [...newAllowedApps]);
+                        updatePolicyRule(policy.schema.name, "allowList", [...newAllowedApps]);
                         (document.getElementById("allowed-integrated-apps") as HTMLInputElement).value = "";
                     }}
                     RenderRow={({item}) => (<AppRow appName={item.value} />)}
@@ -998,25 +1017,57 @@ function PolicyConfiguration({ policy, updatePolicyRule }: { policy: Policy; upd
             </ConfigurationEntry>;
         }
         case "RestrictInternetAccess": {
+            const values = policy.specification?.values as Partial<{ allowedSubnets: string }> | undefined;
             const {allowedSubnets} = policy.schema.configuration;
             return <ConfigurationEntry entry={allowedSubnets}>
-                <Input type="text" />
+                <Input defaultValue={values?.allowedSubnets} type="text" onChange={e => {
+                    updatePolicyRule(policy.schema.name, "allowedSubnets", e.target.value);
+                }} />
             </ConfigurationEntry>;
         }
         case "RestrictOrganizationMembers": {
             const {organizations} = policy.schema.configuration;
+            const values = policy.specification?.values as Partial<{ organizations: string[] }> | undefined;
+            const [allowedOrgs, setAllowedOrgs] = useState<Set<string>>(new Set(values?.organizations));
+            const ref = useRef<HTMLInputElement>(null);
+            const items: DataListItem[] = React.useMemo(() => wayfIdpsPairs.map(it => ({
+                key: it.value,
+                value: it.content,
+                tags: "",
+            })), []);
             return <ConfigurationEntry entry={organizations}>
-                <Input type="text" />
+                {allowedOrgs.size === 0 ? "No orgs allowed" : [...allowedOrgs].map(it => <LabelTag onClick={() => {
+                    allowedOrgs.delete(it);
+                    setAllowedOrgs(new Set([...allowedOrgs]));
+                    updatePolicyRule(policy.schema.name, "organizations", [...allowedOrgs]);
+                }} label={it} />)}
+                <NewDataList
+                    id="org-members"
+                    onSelect={item => {
+                        allowedOrgs.add(item.key);
+                        setAllowedOrgs(new Set([...allowedOrgs]));
+                        updatePolicyRule(policy.schema.name, "organizations", [...allowedOrgs]);
+                        (document.getElementById("org-members") as HTMLInputElement).value = "";
+                    }}
+                    items={items}
+                    title={""}
+                    placeholder={"Enter organization name..."}
+                    ref={ref}
+                />
             </ConfigurationEntry>;
         }
         case "RestrictProviderFileTransfers": {
             const {allowedProviders} = policy.schema.configuration;
+            const values = policy.specification?.values as Partial<{ allowedProviders: string[] }> | undefined;
             const ref = useRef<HTMLInputElement>(null)
             const [providers, setProviders] = React.useState<DataListItem[]>([]);
             const state = useUState(connectionState);
             React.useEffect(() => {
                 state.fetch();
             }, []);
+
+            // Note(Jonas): Stupied namigng
+            const [providerSet, setProviderSet] = useState<Set<string>>(new Set(values?.allowedProviders));
 
             React.useEffect(() => {
                 setProviders(state.providers.map(it => ({
@@ -1028,8 +1079,16 @@ function PolicyConfiguration({ policy, updatePolicyRule }: { policy: Policy; upd
             }, [state.providers.length]);
 
             return <ConfigurationEntry entry={allowedProviders}>
+                {providerSet.size === 0 ? "No providers allowed" : [...providerSet].map(it => <LabelTag onClick={() => {
+                    providerSet.delete(it);
+                    setProviderSet(new Set([...providerSet]));
+                    updatePolicyRule(policy.schema.name, "organizations", [...providerSet]);
+                }} label={it} />)}
                 <NewDataList items={providers} id="allowed-providers" title={""} onSelect={provider => {
-
+                    const newProviderSet = new Set([...providerSet, provider.key]);
+                    setProviderSet(newProviderSet);
+                    updatePolicyRule(policy.schema.name, "allowedProviders", [...newProviderSet]);
+                    (document.getElementById("allowed-providers") as HTMLInputElement).value = "";
                 }} placeholder={"Search providers..."} ref={ref} RenderRow={({item}) => <ProviderRow providerTitle={item.value} />} />
             </ConfigurationEntry>;
         }
@@ -1042,12 +1101,24 @@ function PolicyConfiguration({ policy, updatePolicyRule }: { policy: Policy; upd
             return null;
         }
         case "RestrictSourceIPRange": {
+            const values = policy.specification?.values as Partial<{allowedSubnets: string}> | undefined;
+
             const {allowedSubnets} = policy.schema.configuration;
             return <ConfigurationEntry entry={allowedSubnets}>
-                <Input type="text" />
+                <Input type="text" defaultValue={values?.allowedSubnets} onChange={e => {
+                    updatePolicyRule(policy.schema.name, "allowedSubnets", e.target.value);
+                }} />
             </ConfigurationEntry>;
         }
     }
+}
+
+function LabelTag({ onClick, label }: { onClick(): void; label: string; }): React.ReactNode {
+    return <Tag
+        label={
+            <Box>{label} <Icon cursor="pointer" size="12px" ml="5px" name="close" onClick={onClick} /></Box>
+        }
+    />
 }
 
 function AppRow({appName}: {appName: string}) {
@@ -1462,13 +1533,14 @@ const UserCriteriaRowEditor: React.FunctionComponent<{
     const inputRef = useRef<HTMLInputElement>(null);
     const onClick = useCallback((e) => {
         e.preventDefault();
+        if (!inputRef.current) return;
         switch (type.type) {
             case "email":
-                if (inputRef.current!.value.indexOf(".") === -1 || inputRef.current!.value.indexOf(" ") !== -1) {
+                if (inputRef.current.value.indexOf(".") === -1 || inputRef.current!.value.indexOf(" ") !== -1) {
                     sendFailureNotification("This does not look like a valid email domain. Try again.");
                     return;
                 }
-                if (inputRef.current!.value.indexOf("@") !== -1) {
+                if (inputRef.current.value.indexOf("@") !== -1) {
                     sendFailureNotification("Only the domain should be added. Example: 'sdu.dk'.");
                     return;
                 }
