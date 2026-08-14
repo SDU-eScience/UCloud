@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"ucloud.dk/core/pkg/coreutil"
@@ -56,10 +57,16 @@ func initPolicySubscriptions() {
 func policiesByProject(projectId string) map[fndapi.PolicyName]fndapi.Specification {
 	policyCache.Mu.Lock()
 	projectPolicies, ok := policyCache.PoliciesByProject[projectId]
+	fmt.Printf("polices was cached ok: %v \n ", ok)
 	if !ok {
+		fmt.Printf("Getting policies by project %v\n", projectId)
 		db.NewTx0(func(tx *db.Transaction) {
 			policySpecifications, policiesOk := coreutil.PolicySpecificationsRetrieveFromDatabase(tx, projectId)
 			if policiesOk {
+				fmt.Printf("Setting cache for policy %v\n", projectId)
+				for name, specification := range policySpecifications {
+					fmt.Printf("Setting %v with specification %v\n", name, specification.GetValues())
+				}
 				policyCache.PoliciesByProject[projectId] = policySpecifications
 				projectPolicies = policySpecifications
 			}

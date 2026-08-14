@@ -72,9 +72,9 @@ func loadProjectPoliciesFromDB() {
 
 	db.NewTx0(func(tx *db.Transaction) {
 		rows := db.Select[struct {
-			ProjectId        string
-			PolicyName       string
-			PolicyProperties string
+			ProjectId        string `json:"project"`
+			PolicyName       string `json:"schema"`
+			PolicyProperties string `json:"values"`
 		}](
 			tx,
 			`
@@ -88,6 +88,12 @@ func loadProjectPoliciesFromDB() {
 		projectPolicies.Mu.Lock()
 		defer projectPolicies.Mu.Unlock()
 
+		type policySpecificationRaw struct {
+			Schema  fndapi.PolicyName `json:"schema"`
+			Project rpc.ProjectId     `json:"project"`
+			Values  json.RawMessage   `json:"values"`
+		}
+
 		for _, row := range rows {
 			policies, ok := projectPolicies.PoliciesByProject[row.ProjectId]
 			if !ok {
@@ -96,18 +102,28 @@ func loadProjectPoliciesFromDB() {
 				}
 				projectPolicies.PoliciesByProject[row.ProjectId] = policies
 			}
-			pname := fndapi.PolicyName(row.PolicyName)
-			decoder, ok := fndapi.SpecificationDecoders[pname]
+			policyName := fndapi.PolicyName(row.PolicyName)
+			decoder, ok := fndapi.SpecificationDecoders[policyName]
 			if !ok {
-				log.Fatal("Unknown policy %v", row.PolicyName)
+				log.Fatal("Unknown policy %v", policyName)
 			}
 
-			specification, err := decoder([]byte(row.PolicyProperties))
+			specificationData := policySpecificationRaw{
+				Schema:  policyName,
+				Project: rpc.ProjectId(row.ProjectId),
+				Values:  json.RawMessage(row.PolicyProperties),
+			}
+			data, err := json.Marshal(specificationData)
 			if err != nil {
-				log.Fatal("Error loading policy %v : %v", row.PolicyName, err)
+				log.Debug("Failed to marshal policy specification: %v", err)
+			}
+			specification, err := decoder(data)
+
+			if err != nil {
+				log.Fatal("Error loading policy %v : %v", policyName, err)
 			}
 
-			policies.ConfiguredPolicies[pname] = specification
+			policies.ConfiguredPolicies[policyName] = specification
 		}
 	})
 }

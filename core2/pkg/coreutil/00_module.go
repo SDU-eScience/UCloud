@@ -168,15 +168,16 @@ func ProjectRetrieveFromDatabaseViaGroupId(tx *db.Transaction, groupId string) (
 	}
 }
 
+
 func PolicySpecificationsRetrieveFromDatabase(
 	tx *db.Transaction,
 	projectId string,
 ) (map[fndapi.PolicyName]fndapi.Specification, bool) {
 
 	rows := db.Select[struct {
-		ProjectId        string
-		PolicyName       string
-		PolicyProperties string
+		ProjectId        string `json:"project"`
+		PolicyName       string `json:"schema"`
+		PolicyProperties string `json:"values"`
 	}](
 		tx,
 		`
@@ -191,21 +192,35 @@ func PolicySpecificationsRetrieveFromDatabase(
 
 	policies := make(map[fndapi.PolicyName]fndapi.Specification)
 
+	type policySpecificationRaw struct {
+		Schema  fndapi.PolicyName `json:"schema"`
+		Project rpc.ProjectId     `json:"project"`
+		Values  json.RawMessage   `json:"values"`
+	}
+
 	for _, row := range rows {
 		policyName := fndapi.PolicyName(row.PolicyName)
-
+		fmt.Printf("policyName: %v\n", policyName)
 		decoder, ok := fndapi.SpecificationDecoders[policyName]
 		if !ok {
 			log.Debug("Unknown policy %s", row.PolicyName)
 			return nil, false
 		}
-
-		specification, err := decoder([]byte(row.PolicyProperties))
-
+		specificationData := policySpecificationRaw{
+			Schema:  policyName,
+			Project: rpc.ProjectId(row.ProjectId),
+			Values:  json.RawMessage(row.PolicyProperties),
+		}
+		data, err := json.Marshal(specificationData)
+		if err != nil {
+			log.Debug("Failed to marshal policy specification: %v", err)
+		}
+		specification, err := decoder(data)
 		if err != nil {
 			log.Debug("Error unmarshalling policy %s: %v", row.PolicyName, err)
 			return nil, false
 		}
+		fmt.Printf("Values when getting %v \n", specification.GetValues())
 
 		policies[policyName] = specification
 	}

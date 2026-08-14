@@ -385,10 +385,13 @@ func FilesCreateDownload(
 	actor rpc.Actor,
 	request fndapi.BulkRequest[fndapi.FindByStringId],
 ) (fndapi.BulkResponse[orcapi.FilesCreateDownloadResponse], *util.HttpError) {
+	fmt.Printf("project is present: %v \n ", actor.Project.Present)
 	if actor.Project.Present {
 		policies := policiesByProject(actor.Project.String())
 
 		specification, ok := policies[fndapi.RestrictDownloads]
+		fmt.Printf("ok: %v \n ", ok)
+		fmt.Printf("specification: %v \n ", specification)
 		if ok {
 			values, ok := specification.GetValues().(fndapi.RestrictDownloadsValues)
 			if !ok {
@@ -398,6 +401,7 @@ func FilesCreateDownload(
 						"Misconfigured Policy",
 					)
 			}
+			fmt.Printf("enabled: %v \n ", values.Enabled)
 			if values.Enabled {
 				return fndapi.BulkResponse[orcapi.FilesCreateDownloadResponse]{},
 					util.HttpErr(
