@@ -15,7 +15,7 @@ configuration:
         checked then all integrated applications can be run and the
         allow-list is ignored.
     allowList:
-      title: "Allow-list"
+      title: "AllowList"
       description: >
         List of applications which are explicitly allowed.
       options:
