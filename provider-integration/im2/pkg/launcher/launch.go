@@ -230,6 +230,10 @@ func Launch() {
 
 	rpc.DefaultServer.Mux = http.NewServeMux()
 
+	rpc.DefaultServer.RequestPolicies = func(callName string, info rpc.RequestInfo) *util.HttpError {
+		return nil
+	}
+
 	if mode == cfg.ServerModeServer {
 		rpc.DefaultClient = &rpc.Client{
 			RefreshToken: cfg.Server.RefreshToken,
