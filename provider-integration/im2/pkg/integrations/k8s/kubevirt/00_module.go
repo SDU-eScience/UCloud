@@ -1827,8 +1827,8 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 					err = herr.AsError()
 				} else if service != nil {
 					serviceAddr := service.Spec.ClusterIP
-					if serviceAddr != "" && job.Specification.Labels["ucloud.dk/serviceIpAddress"] != serviceAddr {
-						job.Specification.Labels["ucloud.dk/serviceIpAddress"] = serviceAddr
+					if serviceAddr != "" && job.Specification.Labels[orc.ResourceLabelServiceIpAddress] != serviceAddr {
+						job.Specification.Labels[orc.ResourceLabelServiceIpAddress] = serviceAddr
 						_, _ = orc.JobsControlUpdateLabels.Invoke(fndapi.BulkRequestOf(orc.JobsUpdateLabelsRequest{
 							Id:     job.Id,
 							Labels: job.Specification.Labels,
@@ -1883,7 +1883,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 
 				if herr == nil {
 					serviceAddr := baseService.Spec.ClusterIP
-					job.Specification.Labels["ucloud.dk/serviceIpAddress"] = serviceAddr
+					job.Specification.Labels[orc.ResourceLabelServiceIpAddress] = serviceAddr
 					_, _ = orc.JobsControlUpdateLabels.Invoke(fndapi.BulkRequestOf(orc.JobsUpdateLabelsRequest{
 						Id:     job.Id,
 						Labels: job.Specification.Labels,
