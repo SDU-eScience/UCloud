@@ -436,6 +436,18 @@ const initialState: UserDetailsState = {
     settings: defaultEmailSettings
 };
 
+function filterUnsetOptionalParameters(
+    parameters: ApplicationParameter[],
+    values: Record<string, compute.AppParameterValue>,
+    activeOptionalParameters: string[],
+): Record<string, compute.AppParameterValue> {
+    const active = new Set(activeOptionalParameters);
+    return Object.fromEntries(Object.entries(values).filter(([name]) => {
+        const parameter = parameters.find(it => it.name === name);
+        return parameter?.optional !== true || active.has(name);
+    }));
+}
+
 function getLicense(app: Application): string | undefined {
     return app.invocation.tool.tool?.description.license
 }
@@ -776,6 +788,7 @@ export const Create: React.FunctionComponent = () => {
 
         const reservationOptions = getReservationValues();
         const {values} = validateWidgets(parameters);
+        const parameterValues = filterUnsetOptionalParameters(parameters, values, activeOptParams);
         const foldersResources = validateWidgets(folders.params);
         // TODO(Jonas): This should preferably not validate, but just get the values (e.g. one field could be missing)
         const peersResources = validateWidgets(peers.params);
@@ -796,7 +809,7 @@ export const Create: React.FunctionComponent = () => {
             siteVersion: 3,
             request: {
                 ...reservationOptions,
-                parameters: values,
+                parameters: parameterValues,
                 resources: Object.values(foldersResources.values)
                     .concat(Object.values(peersResources.values))
                     .concat(Object.values(ingressResources.values))
@@ -927,6 +940,7 @@ export const Create: React.FunctionComponent = () => {
         if (!application) return;
 
         const {errors, values} = validateWidgets(parameters!);
+        const parameterValues = filterUnsetOptionalParameters(parameters!, values, activeOptParams);
         setErrors(errors)
 
         const reservationValidation = validateReservation();
@@ -964,7 +978,7 @@ export const Create: React.FunctionComponent = () => {
             const request: JobSpecification = {
                 ...reservationValidation.options,
                 application: application?.metadata,
-                parameters: values,
+                parameters: parameterValues,
                 resources: Object.values(foldersValidation.values)
                     .concat(Object.values(peersValidation.values))
                     .concat(Object.values(ingressValidation.values))
@@ -1011,7 +1025,8 @@ export const Create: React.FunctionComponent = () => {
                 }
             }
         }
-    }, [application, folders, peers, ingress, networks, privateNetworks, navigate, hasCustomDnsHostname, dnsHostname]);
+    }, [application, folders, peers, ingress, networks, privateNetworks, navigate, hasCustomDnsHostname, dnsHostname,
+        parameters, activeOptParams]);
 
     const isMissingConnection = estimatedCost.product != null &&
         connectionState.canConnectToProvider(estimatedCost.product.category.provider);
@@ -1240,7 +1255,7 @@ export const Create: React.FunctionComponent = () => {
                                 Job information
                             </JobCardHeading>
                             <JobInformationNavigation>
-                                {!canImportParameters ? null : <ImportMessages messages={importMessages} />}
+                                {!canImportParameters ? null : <ImportMessages messages={importMessages} onClear={() => setImportMessages([])} />}
                                 <Box mt="16px" mb="20px">
                                     <ApplicationSelector
                                         application={application}
