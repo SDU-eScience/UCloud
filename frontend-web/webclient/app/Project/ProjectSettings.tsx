@@ -855,17 +855,17 @@ function PolicySchemas({schemas}: {schemas: Record<string, Policy>}) {
     }, []);
 
     const projectId = useProjectId();
-    const togglePolicy = React.useCallback((schemaName: PolicyName) => {
+    const togglePolicy = React.useCallback((schemaName: PolicyName, enabled: boolean) => {
         if (!updateRef.current[schemaName]) {
             updateRef.current[schemaName] = {
                 project: projectId!,
                 schema: schemaName,
                 values: {
-                    enabled: true
+                    enabled
                 }
             }
         } else {
-            updateRef.current[schemaName].values.enabled = updateRef.current[schemaName].values.enabled;
+            updateRef.current[schemaName].values.enabled = enabled;
         }
     }, [projectId]);
 
@@ -883,7 +883,7 @@ function PolicySchemas({schemas}: {schemas: Record<string, Policy>}) {
 }
 
 const asCheckBox = true;
-function PolicySchemaEntry({ policy, togglePolicy, updatePolicyRule }: { policy: Policy; togglePolicy: (schemaName: PolicyName) => void; updatePolicyRule: (policyName: PolicyName, rule: string, value: any) => void }): React.ReactNode {
+function PolicySchemaEntry({policy, togglePolicy, updatePolicyRule}: { policy: Policy; togglePolicy: (schemaName: PolicyName, enabled: boolean) => void; updatePolicyRule: (policyName: PolicyName, rule: string, value: any) => void }): React.ReactNode {
     const [enabled, setEnabled] = React.useState(policy.specification?.values.enabled ?? false);
 
     return <Box key={policy.schema.name} my="12px" pb="20px" borderBottom={"1px solid var(--borderColor)"}>
@@ -892,19 +892,19 @@ function PolicySchemaEntry({ policy, togglePolicy, updatePolicyRule }: { policy:
             {asCheckBox ? <Label cursor="pointer" style={{gap: "8px", marginTop: 0}} width="fit-content">
                 {policy.schema.configuration.enabled.title}
                 <Checkbox style={{marginLeft: "6px", marginTop: "-4px"}} checked={enabled} onChange={() => setEnabled(enabled => {
-                    togglePolicy(policy.schema.name);
-                    return !enabled
+                    togglePolicy(policy.schema.name, !enabled);
+                    return !enabled;
                 })} />
             </Label> :
                 <Flex cursor="pointer" gap="8px" onClick={() => setEnabled(enabled => {
-                    togglePolicy(policy.schema.name);
-                    return !enabled
+                    togglePolicy(policy.schema.name, !enabled);
+                    return !enabled;
                 })}>
                     {policy.schema.configuration.enabled.title}
                     <Box mt="1px" mr="8px">
                         <Toggle checked={enabled} onChange={() => setEnabled(enabled => {
-                            togglePolicy(policy.schema.name)
-                            return !enabled
+                            togglePolicy(policy.schema.name, !enabled)
+                            return !enabled;
                         })} height={18} />
                     </Box>
                 </Flex>
