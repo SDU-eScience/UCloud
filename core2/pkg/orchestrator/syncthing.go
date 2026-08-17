@@ -114,6 +114,8 @@ func initSyncthing() {
 	orcapi.SyncthingUpdateConfiguration.Handler(func(info rpc.RequestInfo, request orcapi.IAppUpdateConfigurationRequest[orcapi.SyncthingConfig]) (util.Empty, *util.HttpError) {
 		// NOTE(Dan): This used to do permission checks in the Core, but this is no longer required since the provider
 		// will do this instead.
+
+		//Policy Check
 		for _, folder := range request.Config.Folders {
 			driveID, found := orcapi.DriveIdFromUCloudPath(folder.UCloudPath)
 			if found {

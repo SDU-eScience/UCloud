@@ -603,6 +603,29 @@ func initJobs() {
 	})
 
 	orcapi.JobsOpenTerminalInFolder.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.JobsOpenTerminalInFolderRequestItem]) (fndapi.BulkResponse[orcapi.OpenSessionWithProvider], *util.HttpError) {
+		if info.Actor.Project.Present {
+			policies := policiesByProject(string(info.Actor.Project.Value))
+			specification, ok := policies[fndapi.RestrictIntegratedApplications]
+			if ok {
+				values, ok := specification.GetValues().(fndapi.RestrictIntegratedApplicationsValues)
+				if !ok {
+					return fndapi.BulkResponse[orcapi.OpenSessionWithProvider]{},
+						util.HttpErr(
+							http.StatusForbidden,
+							"Malformed Policy.",
+						)
+				}
+
+				if values.Enabled && !slices.Contains(values.AllowList, "terminal") {
+					return fndapi.BulkResponse[orcapi.OpenSessionWithProvider]{},
+						util.HttpErr(
+							http.StatusForbidden,
+							"Integrated application is not allowed by project polices.",
+						)
+				}
+			}
+		}
+
 		updatesByProvider := map[string][]orcapi.JobsOpenTerminalInFolderRequestItem{}
 		indicesByProvider := map[string][]int{}
 
