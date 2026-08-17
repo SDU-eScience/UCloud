@@ -309,6 +309,7 @@ interface ResourceBrowserListenerMap<T> {
     // skipOpen is called pre-navigation/calling "open". If it returns `true`, calling open is skipped.
     "skipOpen": (oldPath: string, path: string, resource?: T) => boolean;
     "open": (oldPath: string, path: string, resource?: T) => void;
+    "refresh": () => void;
     "wantToFetchNextPage": (path: string) => Promise<void>;
     "search": (query: string) => void;
     "searchHidden": () => void;
@@ -611,6 +612,7 @@ export class ResourceBrowser<T> {
         // Mount primary UI and stylesheets
         const browserClass = injectResourceBrowserStyle(ResourceBrowser.rowSize);
         this.root.classList.add(browserClass.class);
+        this.root.style.position = "relative";
         this.root.innerHTML = `
             <header>
                 <div class="header-first-row">
@@ -1103,6 +1105,7 @@ export class ResourceBrowser<T> {
     public canConsumeResources = true;
 
     refresh() {
+        this.dispatchMessage("refresh", fn => fn());
         this.open(this.currentPath, true);
     }
 
@@ -3052,6 +3055,7 @@ export class ResourceBrowser<T> {
 
     private defaultHandlers: Partial<ResourceBrowserListenerMap<T>> = {
         open: doNothing,
+        refresh: doNothing,
         skipOpen: () => false,
         rowSelectionUpdated: doNothing,
         mount: doNothing,
@@ -3369,12 +3373,17 @@ export class ResourceBrowser<T> {
     }
 
     private prepareEmptyContainer() {
-        const containerTop = this.scrollingContainerTop;
-        const containerLeft = this.scrollingContainerLeft;
-        const containerHeight = this.scrollingContainerHeight;
-        const containerWidth = this.scrollingContainerWidth;
+        // Modal layout can settle after the cached browser dimensions are measured.
+        const container = this.scrolling.parentElement!;
+        const containerBounds = container.getBoundingClientRect();
+        const rootBounds = this.root.getBoundingClientRect();
+        const containerTop = containerBounds.top - rootBounds.top;
+        const containerLeft = containerBounds.left - rootBounds.left;
+        const containerHeight = containerBounds.height;
+        const containerWidth = containerBounds.width;
         const e = this.emptyPageElement;
         e.container.style.display = "flex";
+        e.container.style.position = "absolute";
         e.graphic.innerHTML = "";
         e.reason.innerHTML = "";
         e.providerReason.innerHTML = "";
