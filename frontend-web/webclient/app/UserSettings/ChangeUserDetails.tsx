@@ -466,7 +466,7 @@ export function NewDataList({items, onSelect, title, disabled, placeholder, Rend
 
     const hasUnselectable = React.useMemo(() => items.find(it => it.unselectable) != null, [items]);
 
-    return <Box mt="0.5em" pt="0.5em" >
+    return <Box mt={title ? "0.5em" : 0} pt={title ? "0.5em" : 0}>
         <Label>
             {title}
             <Flex>
@@ -559,7 +559,7 @@ export function NewDataList({items, onSelect, title, disabled, placeholder, Rend
     }
 }
 
-const ChevronPlacement = injectStyleSimple("chevron-placement", `    
+const ChevronPlacement = injectStyleSimple("chevron-placement", `
     cursor: pointer;
     position: relative;
     width: 0px;
