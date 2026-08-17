@@ -13,10 +13,10 @@ import (
 	"ucloud.dk/shared/pkg/util"
 )
 
-func auditingMiddleware(next http.Handler, tokenEndpoint bool) http.Handler {
+func auditMiddleware(next http.Handler, tokenEndpoint bool) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		state := &requestState{}
-		r = r.WithContext(contextWithRequestState(r, state))
+		r = r.WithContext(auditContextWithRequestState(r, state))
 		response := &auditResponseWriter{ResponseWriter: w}
 		startedAt := time.Now()
 
@@ -25,11 +25,20 @@ func auditingMiddleware(next http.Handler, tokenEndpoint bool) http.Handler {
 	})
 }
 
-func contextWithRequestState(r *http.Request, state *requestState) context.Context {
+func auditContextWithRequestState(r *http.Request, state *requestState) context.Context {
+	// NOTE(Dan): I am not a big fan of this style of programming, but in this case there is really not much we can do.
 	return context.WithValue(r.Context(), requestStateKey{}, state)
 }
 
-func auditRegistryRequest(r *http.Request, state *requestState, tokenEndpoint bool, status int, responseBytes int64, receivedAt time.Time, duration time.Duration) {
+func auditRegistryRequest(
+	r *http.Request,
+	state *requestState,
+	tokenEndpoint bool,
+	status int,
+	responseBytes int64,
+	receivedAt time.Time,
+	duration time.Duration,
+) {
 	if rpc.AuditConsumer == nil {
 		return
 	}
@@ -77,8 +86,12 @@ func auditRegistryRequest(r *http.Request, state *requestState, tokenEndpoint bo
 	})
 
 	event := rpc.HttpCallLogEntry{
-		JobId:             util.OptStringIfNotEmpty(r.Header.Get("Job-Id")).GetOrDefault(util.RandomTokenNoTs(8)),
-		HandledBy:         rpc.ServiceInstance{Definition: rpc.ServiceDefinition{Name: "ucloud", Version: "ucloud"}, Hostname: "hostname", Port: 8080},
+		JobId: util.OptStringIfNotEmpty(r.Header.Get("Job-Id")).GetOrDefault(util.RandomTokenNoTs(8)),
+		HandledBy: rpc.ServiceInstance{
+			Definition: rpc.ServiceDefinition{Name: "ucloud", Version: "ucloud"},
+			Hostname:   "hostname",
+			Port:       8080,
+		},
 		CausedBy:          util.OptNone[string](),
 		RequestName:       requestName,
 		UserAgent:         util.OptStringIfNotEmpty(r.Header.Get("User-Agent")),

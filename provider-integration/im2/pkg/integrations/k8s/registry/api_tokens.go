@@ -15,12 +15,12 @@ const containerRepositoryApiTokenKind = "containerRepository"
 func InitApiTokens() controller.ApiTokenProvider {
 	return controller.ApiTokenProvider{
 		Kind:    containerRepositoryApiTokenKind,
-		Options: containerRepositoryApiTokenOptions(),
-		Create:  createContainerRepositoryApiToken,
+		Options: apiTokensContainerRepositoryOptions(),
+		Create:  apiTokensCreateForContainerRepository,
 	}
 }
 
-func createContainerRepositoryApiToken(info rpc.RequestInfo, request orcapi.ApiToken) (orcapi.ApiTokenStatus, *util.HttpError) {
+func apiTokensCreateForContainerRepository(info rpc.RequestInfo, request orcapi.ApiToken) (orcapi.ApiTokenStatus, *util.HttpError) {
 	_ = info
 	return controller.ApiTokenCreate(containerRepositoryApiTokenKind, Server(), request)
 }
@@ -30,8 +30,8 @@ type SnapshotToken struct {
 	Secret string
 }
 
-func CreateSnapshotToken(owner orcapi.ResourceOwner, lifetime time.Duration) (SnapshotToken, *util.HttpError) {
-	return createShortLivedToken(
+func ApiTokensCreateForSnapshot(owner orcapi.ResourceOwner, lifetime time.Duration) (SnapshotToken, *util.HttpError) {
+	return apiTokensCreateShortLived(
 		owner,
 		lifetime,
 		"Container snapshot",
@@ -40,8 +40,8 @@ func CreateSnapshotToken(owner orcapi.ResourceOwner, lifetime time.Duration) (Sn
 	)
 }
 
-func CreatePullToken(owner orcapi.ResourceOwner, lifetime time.Duration) (SnapshotToken, *util.HttpError) {
-	return createShortLivedToken(
+func ApiTokensCreateForPull(owner orcapi.ResourceOwner, lifetime time.Duration) (SnapshotToken, *util.HttpError) {
+	return apiTokensCreateShortLived(
 		owner,
 		lifetime,
 		"Flavor image pull",
@@ -50,7 +50,12 @@ func CreatePullToken(owner orcapi.ResourceOwner, lifetime time.Duration) (Snapsh
 	)
 }
 
-func createShortLivedToken(owner orcapi.ResourceOwner, lifetime time.Duration, title, description string, actions []string) (SnapshotToken, *util.HttpError) {
+func apiTokensCreateShortLived(
+	owner orcapi.ResourceOwner,
+	lifetime time.Duration,
+	title, description string,
+	actions []string,
+) (SnapshotToken, *util.HttpError) {
 	now := time.Now()
 	tokenId := util.SecureToken()
 	permissions := make([]orcapi.ApiTokenPermission, 0, len(actions))
@@ -80,19 +85,20 @@ func createShortLivedToken(owner orcapi.ResourceOwner, lifetime time.Duration, t
 	return SnapshotToken{Id: tokenId, Secret: status.Token.Value}, nil
 }
 
-func RevokeSnapshotToken(tokenId string) {
+func ApiTokensRevoke(tokenId string) {
 	if tokenId != "" {
 		_, _ = controller.ApiTokenRevoke(rpc.RequestInfo{}, fnd.FindByStringId{Id: tokenId})
 	}
 }
 
-func containerRepositoryApiTokenOptions() orcapi.ApiTokenOptions {
+func apiTokensContainerRepositoryOptions() orcapi.ApiTokenOptions {
 	return orcapi.ApiTokenOptions{
 		AvailablePermissions: []orcapi.ApiTokenPermissionSpecification{
 			{
-				Name:        containerRepositoryApiTokenKind,
-				Title:       "Container repositories",
-				Description: "API token used to authenticate with container repositories. Access is limited by repository permissions and the token permissions.",
+				Name:  containerRepositoryApiTokenKind,
+				Title: "Container repositories",
+				Description: "API token used to authenticate with container repositories. " +
+					"Access is limited by repository permissions and the token permissions.",
 				Actions: map[string]string{
 					"pull": "Pull images",
 					"push": "Push images",

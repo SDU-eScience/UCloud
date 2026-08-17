@@ -35,7 +35,7 @@ type requestState struct {
 }
 
 func requestStateFromContext(ctx context.Context) *requestState {
-	// Guaranteed to not be nil
+	// NOTE(Dan): Guaranteed to not be nil
 	state, _ := ctx.Value(requestStateKey{}).(*requestState)
 	return state
 }
@@ -251,7 +251,7 @@ func authorizedTokenAccess(identity controller.ApiTokenIdentity, rawScopes []str
 	canPush := apiTokenAllows(identity.Permissions, "push")
 	var result []registryJWTAccess
 	for _, rawScope := range rawScopes {
-		for _, scope := range strings.Fields(rawScope) {
+		for scope := range strings.FieldsSeq(rawScope) {
 			parts := strings.SplitN(scope, ":", 3)
 			if len(parts) != 3 || parts[0] != "repository" {
 				continue
@@ -263,7 +263,7 @@ func authorizedTokenAccess(identity controller.ApiTokenIdentity, rawScopes []str
 			}
 
 			entry := registryJWTAccess{Type: parts[0], Name: parts[1]}
-			for _, action := range strings.Split(parts[2], ",") {
+			for action := range strings.SplitSeq(parts[2], ",") {
 				switch action {
 				case "pull":
 					if canPull && controller.ResourceCanUse(actor, repository.Owner, repository.Permissions, true) {

@@ -37,7 +37,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 			_ = K8sClient.CoreV1().Secrets(ServiceConfig.Compute.Namespace).Delete(
 				context.Background(), variantPullSecret.Name, meta.DeleteOptions{},
 			)
-			registry.RevokeSnapshotToken(variantPullTokenId)
+			registry.ApiTokensRevoke(variantPullTokenId)
 		}
 	}()
 
@@ -493,7 +493,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 
 	addSnapshotExcludedMounts(pod, userContainer)
 	if resolvedApplication.Metadata.Variant.Present {
-		if _, validationErr := registry.ValidateApplicationVariantImage(job.Owner, resolvedApplication.Metadata.Variant.Value.ImageDigest, false); validationErr != nil {
+		if _, validationErr := registry.ImagesValidateVariant(job.Owner, resolvedApplication.Metadata.Variant.Value.ImageDigest, false); validationErr != nil {
 			return util.HttpErr(http.StatusBadRequest, "flavor image is no longer available")
 		}
 		variantPullSecret, variantPullTokenId, herr = createApplicationVariantPullSecret(job.Owner, namespace, podName)
@@ -798,7 +798,7 @@ func enforceImageRegistry(pod *core.Pod) *util.HttpError {
 }
 
 func createApplicationVariantPullSecret(owner orc.ResourceOwner, namespace, podName string) (*core.Secret, string, *util.HttpError) {
-	token, herr := registry.CreatePullToken(owner, time.Hour)
+	token, herr := registry.ApiTokensCreateForPull(owner, time.Hour)
 	if herr != nil {
 		return nil, "", herr
 	}
@@ -818,7 +818,7 @@ func createApplicationVariantPullSecret(owner orc.ResourceOwner, namespace, podN
 		Data:       map[string][]byte{core.DockerConfigJsonKey: configuration},
 	}, meta.CreateOptions{})
 	if err != nil {
-		registry.RevokeSnapshotToken(token.Id)
+		registry.ApiTokensRevoke(token.Id)
 		return nil, "", util.HttpErrorFromErr(err)
 	}
 	return secret, token.Id, nil

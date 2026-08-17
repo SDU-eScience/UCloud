@@ -22,7 +22,7 @@ import (
 	"ucloud.dk/shared/pkg/util"
 )
 
-func ValidateApplicationVariantImage(owner orc.ResourceOwner, image string, requireProjectAccess bool) (orc.ApplicationVariantValidateImageResponse, *util.HttpError) {
+func ImagesValidateVariant(owner orc.ResourceOwner, image string, requireProjectAccess bool) (orc.ApplicationVariantValidateImageResponse, *util.HttpError) {
 	server, err := url.Parse(Server())
 	if err != nil || server.Host == "" {
 		return orc.ApplicationVariantValidateImageResponse{}, util.ServerHttpError("invalid registry configuration")
@@ -106,9 +106,9 @@ type taggedImage struct {
 	descriptor     v1.Descriptor
 }
 
-func browseImages(request orc.ContainerRepositoriesProviderBrowseImagesRequest) (fnd.PageV2[orc.ContainerRepositoryImage], *util.HttpError) {
+func imagesBrowse(request orc.ContainerRepositoriesProviderBrowseImagesRequest) (fnd.PageV2[orc.ContainerRepositoryImage], *util.HttpError) {
 	owner := walletOwner(request.ResolvedRepository)
-	lock := accountingOwnerLock(owner)
+	lock := repositoryOwnerLock(owner)
 	lock.Lock()
 	defer lock.Unlock()
 
@@ -217,7 +217,7 @@ func browseImages(request orc.ContainerRepositoriesProviderBrowseImagesRequest) 
 	}
 	pageItems := make([]orc.ContainerRepositoryImage, 0, end-offset)
 	for _, image := range images[offset:end] {
-		described, imageErr := describeImage(ctx, image.repository, image.repositoryName, image.tag, image.descriptor)
+		described, imageErr := imagesDescribe(ctx, image.repository, image.repositoryName, image.tag, image.descriptor)
 		if imageErr != nil {
 			return fnd.PageV2[orc.ContainerRepositoryImage]{}, util.HttpErr(http.StatusInternalServerError, "unable to inspect container image")
 		}
@@ -230,11 +230,16 @@ func browseImages(request orc.ContainerRepositoriesProviderBrowseImagesRequest) 
 	}, nil
 }
 
-func describeImage(ctx context.Context, repository ocid.Repository, repositoryName, tag string, descriptor v1.Descriptor) (orc.ContainerRepositoryImage, error) {
+func imagesDescribe(
+	ctx context.Context,
+	repository ocid.Repository,
+	repositoryName, tag string,
+	descriptor v1.Descriptor,
+) (orc.ContainerRepositoryImage, error) {
 	seen := map[digest.Digest]bool{}
 	layers := map[digest.Digest]*imageLayer{}
 	total := int64(0)
-	mediaType, err := describeManifest(ctx, repository, descriptor.Digest, "", seen, layers, &total)
+	mediaType, err := imagesDescribeManifest(ctx, repository, descriptor.Digest, "", seen, layers, &total)
 	if err != nil {
 		return orc.ContainerRepositoryImage{}, err
 	}
@@ -268,10 +273,25 @@ func describeImage(ctx context.Context, repository ocid.Repository, repositoryNa
 	}, nil
 }
 
-func describeManifest(ctx context.Context, repository ocid.Repository, manifestDigest digest.Digest, platform string, seen map[digest.Digest]bool, layers map[digest.Digest]*imageLayer, total *int64) (string, error) {
-	if err := addReachableBlob(ctx, manifestDigest, seen, total); err != nil {
-		return "", err
+func imagesDescribeManifest(
+	ctx context.Context,
+	repository ocid.Repository,
+	manifestDigest digest.Digest,
+	platform string,
+	seen map[digest.Digest]bool,
+	layers map[digest.Digest]*imageLayer,
+	total *int64,
+) (string, error) {
+	if !seen[manifestDigest] {
+		descriptor, err := registryAccounting.namespace.BlobStatter().Stat(ctx, manifestDigest)
+		if err != nil {
+			return "", err
+		}
+
+		*total += descriptor.Size
+		seen[manifestDigest] = true
 	}
+
 	manifests, err := repository.Manifests(ctx)
 	if err != nil {
 		return "", err
@@ -291,12 +311,12 @@ func describeManifest(ctx context.Context, repository ocid.Repository, manifestD
 			return "", existsErr
 		}
 		if exists {
-			childPlatform := platformName(referenced.Platform)
+			childPlatform := imagesPlatformName(referenced.Platform)
 			if childPlatform == "" {
 				childPlatform = platform
 			}
 			if !seen[referenced.Digest] {
-				if _, walkErr := describeManifest(ctx, repository, referenced.Digest, childPlatform, seen, layers, total); walkErr != nil {
+				if _, walkErr := imagesDescribeManifest(ctx, repository, referenced.Digest, childPlatform, seen, layers, total); walkErr != nil {
 					return "", walkErr
 				}
 			}
@@ -308,12 +328,10 @@ func describeManifest(ctx context.Context, repository ocid.Repository, manifestD
 			return "", statErr
 		}
 		if !seen[referenced.Digest] {
-			if err := addSize(blobDescriptor.Size, total); err != nil {
-				return "", err
-			}
+			*total += blobDescriptor.Size
 			seen[referenced.Digest] = true
 		}
-		if isLayerMediaType(referenced.MediaType) {
+		if imagesIsLayerMediaType(referenced.MediaType) {
 			layer := layers[referenced.Digest]
 			if layer == nil {
 				referenced.Size = blobDescriptor.Size
@@ -326,30 +344,7 @@ func describeManifest(ctx context.Context, repository ocid.Repository, manifestD
 	return mediaType, nil
 }
 
-func addReachableBlob(ctx context.Context, blobDigest digest.Digest, seen map[digest.Digest]bool, total *int64) error {
-	if seen[blobDigest] {
-		return nil
-	}
-	descriptor, err := registryAccounting.namespace.BlobStatter().Stat(ctx, blobDigest)
-	if err != nil {
-		return err
-	}
-	if err := addSize(descriptor.Size, total); err != nil {
-		return err
-	}
-	seen[blobDigest] = true
-	return nil
-}
-
-func addSize(size int64, total *int64) error {
-	if size < 0 || *total > int64(^uint64(0)>>1)-size {
-		return errors.New("container image size exceeds int64")
-	}
-	*total += size
-	return nil
-}
-
-func deleteImage(request orc.ContainerRepositoriesProviderDeleteImageRequest) *util.HttpError {
+func imagesDelete(request orc.ContainerRepositoriesProviderDeleteImageRequest) *util.HttpError {
 	root := request.ResolvedRepository.Specification.Name
 	if !repositoryBelongsToRoot(root, request.Repository) || strings.TrimSpace(request.Tag) == "" {
 		return util.HttpErr(http.StatusBadRequest, "invalid container image")
@@ -375,16 +370,12 @@ func deleteImage(request orc.ContainerRepositoriesProviderDeleteImageRequest) *u
 	return nil
 }
 
-func repositoryBelongsToRoot(root, repository string) bool {
-	return repository == root || strings.HasPrefix(repository, root+"/")
-}
-
-func isLayerMediaType(mediaType string) bool {
+func imagesIsLayerMediaType(mediaType string) bool {
 	mediaType = strings.ToLower(mediaType)
 	return strings.Contains(mediaType, "layer") || mediaType == schema2.MediaTypeLayer
 }
 
-func platformName(platform *v1.Platform) string {
+func imagesPlatformName(platform *v1.Platform) string {
 	if platform == nil {
 		return ""
 	}

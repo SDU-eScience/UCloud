@@ -254,7 +254,7 @@ nerdctl --address "$CONTAINERD_ADDRESS" --namespace "$CONTAINERD_NAMESPACE" $NER
 		releaseContainerSnapshotReservation(name)
 		return "", util.HttpErr(http.StatusConflict, "job replica is no longer available")
 	}
-	token, herr = registry.CreateSnapshotToken(job.Owner, time.Hour)
+	token, herr = registry.ApiTokensCreateForSnapshot(job.Owner, time.Hour)
 	if herr != nil {
 		releaseContainerSnapshotReservation(name)
 		return "", herr
@@ -268,12 +268,12 @@ nerdctl --address "$CONTAINERD_ADDRESS" --namespace "$CONTAINERD_NAMESPACE" $NER
 	_, kerr := shared.K8sClient.BatchV1().Jobs(shared.ServiceConfig.Compute.TaskNamespace).Create(context.Background(), helpJob, meta.CreateOptions{})
 	if apierrors.IsAlreadyExists(kerr) {
 		releaseContainerSnapshotReservation(name)
-		registry.RevokeSnapshotToken(token.Id)
+		registry.ApiTokensRevoke(token.Id)
 		return "", util.HttpErr(http.StatusConflict, "a snapshot is already running for this job")
 	}
 	if kerr != nil {
 		releaseContainerSnapshotReservation(name)
-		registry.RevokeSnapshotToken(token.Id)
+		registry.ApiTokensRevoke(token.Id)
 		return "", util.HttpErrorFromErr(kerr)
 	}
 	message := "Saving the container. Your job is paused while this finishes. This usually takes a few minutes."
@@ -357,7 +357,7 @@ func runContainerSnapshotMonitor(name string, execution *containerSnapshotExecut
 	if variantId > 0 && taskId > 0 {
 		if result.Err == "" {
 			if job, ok := controller.JobRetrieve(jobId); ok {
-				validated, validationErr := registry.ValidateApplicationVariantImage(job.Owner, result.Image, job.Owner.Project.Present)
+				validated, validationErr := registry.ImagesValidateVariant(job.Owner, result.Image, job.Owner.Project.Present)
 				if validationErr != nil {
 					result.Err = validationErr.Why
 				} else {
@@ -436,7 +436,7 @@ func runContainerSnapshotMonitor(name string, execution *containerSnapshotExecut
 		time.Sleep(2 * time.Second)
 	}
 	if snapshotJob != nil {
-		registry.RevokeSnapshotToken(snapshotJob.Annotations[containerSnapshotTokenAnnotation])
+		registry.ApiTokensRevoke(snapshotJob.Annotations[containerSnapshotTokenAnnotation])
 	}
 	releaseContainerSnapshotReservation(name)
 

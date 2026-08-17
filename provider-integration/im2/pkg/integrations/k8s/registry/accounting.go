@@ -155,13 +155,13 @@ func (s *accountingManifestService) Delete(ctx context.Context, dgst digest.Dige
 	if !ok {
 		return ocid.ErrAccessDenied
 	}
-	lock := accountingOwnerLock(walletOwner(repository))
+	lock := repositoryOwnerLock(walletOwner(repository))
 	lock.Lock()
 	defer lock.Unlock()
 
 	err := s.ManifestService.Delete(ctx, dgst)
 	if err == nil {
-		markAccountingDirty(walletOwner(repository))
+		repositoryMarkDirty(walletOwner(repository))
 	}
 	return err
 }
@@ -179,7 +179,7 @@ func (s *accountingTagService) Tag(ctx context.Context, tag string, descriptor v
 	}
 
 	owner := walletOwner(repository)
-	lock := accountingOwnerLock(owner)
+	lock := repositoryOwnerLock(owner)
 	lock.Lock()
 	defer lock.Unlock()
 
@@ -189,7 +189,7 @@ func (s *accountingTagService) Tag(ctx context.Context, tag string, descriptor v
 	if err := s.TagService.Tag(ctx, tag, descriptor); err != nil {
 		return err
 	}
-	markAccountingDirty(owner)
+	repositoryMarkDirty(owner)
 	return nil
 }
 
@@ -199,13 +199,13 @@ func (s *accountingTagService) Untag(ctx context.Context, tag string) error {
 		return ocid.ErrAccessDenied
 	}
 	owner := walletOwner(repository)
-	lock := accountingOwnerLock(owner)
+	lock := repositoryOwnerLock(owner)
 	lock.Lock()
 	defer lock.Unlock()
 
 	err := s.TagService.Untag(ctx, tag)
 	if err == nil {
-		markAccountingDirty(owner)
+		repositoryMarkDirty(owner)
 	}
 	return err
 }
@@ -233,12 +233,12 @@ type repositoryAccountingRow struct {
 	ReportedUsage  int64
 }
 
-func initRegistryAccounting(root string) error {
-	driver, err := ocidfs.FromParameters(map[string]any{"rootdirectory": root})
+func initAccounting(root string) error {
+	regDriver, err := ocidfs.FromParameters(map[string]any{"rootdirectory": root})
 	if err != nil {
 		return err
 	}
-	namespace, err := ocidstorage.NewRegistry(context.Background(), driver, ocidstorage.EnableDelete)
+	namespace, err := ocidstorage.NewRegistry(context.Background(), regDriver, ocidstorage.EnableDelete)
 	if err != nil {
 		return err
 	}
@@ -260,7 +260,7 @@ func accountingLoop() {
 		case ownerKey := <-registryAccounting.dirty:
 			if err := accountingReconcileOwnerKey(ownerKey); err != nil {
 				log.Warn("Failed to reconcile container registry accounting for %s: %v", ownerKey, err)
-				time.AfterFunc(accountingRetryInterval, func() { markAccountingDirtyKey(ownerKey) })
+				time.AfterFunc(accountingRetryInterval, func() { repositoryMarkDirtyEx(ownerKey) })
 			}
 		case <-ticker.C:
 			accountingReconcileAll()
@@ -274,14 +274,14 @@ func accountingReconcileAll() {
 	activeRepositoryIds := map[string]bool{}
 	for _, repository := range repositories {
 		owner := walletOwner(repository)
-		owners[accountingOwnerKey(owner)] = owner
+		owners[repositoryOwnerKey(owner)] = owner
 		activeRepositoryIds[repository.Id] = true
 	}
 
 	for ownerKey := range owners {
 		if err := accountingReconcileOwnerKey(ownerKey); err != nil {
 			log.Warn("Failed to reconcile container registry accounting for %s: %v", ownerKey, err)
-			markAccountingDirtyKey(ownerKey)
+			repositoryMarkDirtyEx(ownerKey)
 		}
 	}
 	accountingClearStaleScopes(activeRepositoryIds)
@@ -292,7 +292,7 @@ func accountingReconcileOwnerKey(ownerKey string) error {
 	found := false
 	for _, repository := range controller.ContainerRepositoryEnumerateKnown() {
 		candidate := walletOwner(repository)
-		if accountingOwnerKey(candidate) == ownerKey {
+		if repositoryOwnerKey(candidate) == ownerKey {
 			owner = candidate
 			found = true
 			break
@@ -302,22 +302,22 @@ func accountingReconcileOwnerKey(ownerKey string) error {
 		return nil
 	}
 
-	lock := accountingOwnerLock(owner)
+	lock := repositoryOwnerLock(owner)
 	lock.Lock()
 	defer lock.Unlock()
 
 	usage, err := accountingScanOwner(context.Background(), owner, nil)
 	if err != nil {
-		accountingSetReady(owner, false)
+		repositorySetReady(owner, false)
 		return err
 	}
 	accountingPersistCalculated(usage)
 	if err := accountingReport(usage); err != nil {
-		accountingSetReady(owner, false)
+		repositorySetReady(owner, false)
 		return err
 	}
 	accountingPersistReported(usage)
-	accountingSetReady(owner, true)
+	repositorySetReady(owner, true)
 	return nil
 }
 
@@ -502,7 +502,7 @@ func accountingCatalog(ctx context.Context) ([]string, error) {
 }
 
 func accountingCheckTagMutation(ctx context.Context, owner apm.WalletOwner, repository, tag string, descriptor v1.Descriptor) error {
-	if !accountingIsReady(owner) {
+	if !repositoryIsReady(owner) {
 		return errors.New("registry accounting is temporarily unavailable")
 	}
 	prospective, err := accountingScanOwner(ctx, owner, &accountingTagOverride{
@@ -644,122 +644,5 @@ func accountingClearStaleScopes(active map[string]bool) {
 				db.Exec(tx, `delete from container_repository_accounting where repository_id = :id`, db.Params{"id": row.RepositoryId})
 			})
 		}
-	}
-}
-
-func accountingZeroAndDeleteRepository(repository *orc.ContainerRepository) *util.HttpError {
-	owner := walletOwner(*repository)
-	lock := accountingOwnerLock(owner)
-	lock.Lock()
-	defer lock.Unlock()
-
-	request := apm.ReportUsageRequest{
-		IsDeltaCharge: false,
-		Owner:         owner,
-		CategoryIdV2: apm.ProductCategoryIdV2{
-			Name:     repository.Specification.Product.Category,
-			Provider: config.Provider.Id,
-		},
-		Usage:       0,
-		Description: apm.ChargeDescription{Scope: util.OptValue("repository-" + repository.Id)},
-	}
-	if _, err := apm.ReportUsage.Invoke(fnd.BulkRequest[apm.ReportUsageRequest]{Items: []apm.ReportUsageRequest{request}}); err != nil {
-		return util.HttpErr(http.StatusServiceUnavailable, "unable to clear repository accounting: %v", err)
-	}
-	restoreAccounting := true
-	defer func() {
-		if restoreAccounting {
-			markAccountingDirty(owner)
-		}
-	}()
-
-	catalog, err := accountingCatalog(context.Background())
-	if err != nil {
-		return util.HttpErr(http.StatusInternalServerError, "unable to enumerate registry repositories: %v", err)
-	}
-	remover, ok := registryAccounting.namespace.(ocid.RepositoryRemover)
-	if !ok {
-		return util.HttpErr(http.StatusInternalServerError, "registry does not support repository deletion")
-	}
-	root := repository.Specification.Name
-	for _, repositoryName := range catalog {
-		if repositoryName != root && !strings.HasPrefix(repositoryName, root+"/") {
-			continue
-		}
-		named, err := reference.WithName(repositoryName)
-		if err != nil {
-			return util.HttpErr(http.StatusInternalServerError, "invalid registry repository name: %v", err)
-		}
-		if err := remover.Remove(context.Background(), named); err != nil {
-			return util.HttpErr(http.StatusInternalServerError, "unable to delete registry repository: %v", err)
-		}
-	}
-	db.NewTx0(func(tx *db.Transaction) {
-		db.Exec(tx, `delete from container_repository_accounting where repository_id = :id`, db.Params{"id": repository.Id})
-	})
-	restoreAccounting = false
-	return nil
-}
-
-func accountingCreateRepository(repository *orc.ContainerRepository) *util.HttpError {
-	// A newly created repository has no reachable tags. Marking its owner ready allows the first tag operation to
-	// perform the authoritative prospective scan after the controller has tracked the resource.
-	owner := walletOwner(*repository)
-	for _, existing := range controller.ContainerRepositoryEnumerateKnown() {
-		if walletOwner(existing) == owner {
-			return nil
-		}
-	}
-	accountingSetReady(owner, true)
-	return nil
-}
-
-func accountingRepositoryDeleted(repository *orc.ContainerRepository) {
-	owner := walletOwner(*repository)
-	accountingSetReady(owner, false)
-	markAccountingDirty(owner)
-}
-
-func walletOwner(repository orc.ContainerRepository) apm.WalletOwner {
-	return apm.WalletOwnerFromIds(repository.Owner.CreatedBy, repository.Owner.Project.Value)
-}
-
-func accountingOwnerKey(owner apm.WalletOwner) string {
-	return string(owner.Type) + ":" + owner.Reference()
-}
-
-func accountingOwnerLock(owner apm.WalletOwner) *sync.Mutex {
-	key := accountingOwnerKey(owner)
-	registryAccounting.mu.Lock()
-	lock := registryAccounting.locks[key]
-	if lock == nil {
-		lock = &sync.Mutex{}
-		registryAccounting.locks[key] = lock
-	}
-	registryAccounting.mu.Unlock()
-	return lock
-}
-
-func accountingSetReady(owner apm.WalletOwner, ready bool) {
-	registryAccounting.mu.Lock()
-	registryAccounting.ready[accountingOwnerKey(owner)] = ready
-	registryAccounting.mu.Unlock()
-}
-
-func accountingIsReady(owner apm.WalletOwner) bool {
-	registryAccounting.mu.Lock()
-	ready := registryAccounting.ready[accountingOwnerKey(owner)]
-	registryAccounting.mu.Unlock()
-	return ready
-}
-
-func markAccountingDirty(owner apm.WalletOwner) {
-	markAccountingDirtyKey(accountingOwnerKey(owner))
-}
-
-func markAccountingDirtyKey(ownerKey string) {
-	select {
-	case registryAccounting.dirty <- ownerKey:
-	default:
 	}
 }

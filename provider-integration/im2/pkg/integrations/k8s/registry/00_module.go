@@ -19,11 +19,11 @@ import (
 func Init() {
 	controller.InitContainerRepositoryDatabase()
 	controller.ContainerRepositories = controller.ContainerRepositoryService{
-		Create:       accountingCreateRepository,
-		Delete:       accountingZeroAndDeleteRepository,
-		BrowseImages: browseImages,
-		DeleteImage:  deleteImage,
-		OnDeleted:    accountingRepositoryDeleted,
+		Create:       repositoryCreate,
+		Delete:       repositoryDelete,
+		BrowseImages: imagesBrowse,
+		DeleteImage:  imagesDelete,
+		OnDeleted:    repositoryOnDeleted,
 	}
 
 	if err := registerAuthentication(); err != nil {
@@ -80,11 +80,11 @@ func Init() {
 	}
 
 	app := ocidhandlers.NewApp(context.Background(), &config)
-	if err := initRegistryAccounting(filepath.Join(shared.ServiceConfig.FileSystem.MountPoint, RegistriesDirectory)); err != nil {
+	if err := initAccounting(filepath.Join(shared.ServiceConfig.FileSystem.MountPoint, RegistriesDirectory)); err != nil {
 		panic(err)
 	}
-	controller.Mux.Handle(registryHost+"/auth/token", auditingMiddleware(http.HandlerFunc(handleAuthenticationToken), true))
-	controller.Mux.Handle(registryHost+"/", auditingMiddleware(app, false))
+	controller.Mux.Handle(registryHost+"/auth/token", auditMiddleware(http.HandlerFunc(handleAuthenticationToken), true))
+	controller.Mux.Handle(registryHost+"/", auditMiddleware(app, false))
 	gateway.SendMessage(gateway.ConfigurationMessage{
 		RouteUp: &gateway.EnvoyRoute{
 			Cluster:      gateway.ServerClusterName,
