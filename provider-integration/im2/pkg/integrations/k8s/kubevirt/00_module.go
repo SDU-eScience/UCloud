@@ -1276,7 +1276,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		},
 	}
 
-	if forwards, ok := job.Specification.Labels["ucloud.dk/serviceforwardstcp"]; ok {
+	if forwards, ok := job.Specification.Labels[orc.ResourceLabelServiceForwardTcp]; ok {
 		var ports []int
 		err := json.Unmarshal([]byte(forwards), &ports)
 		if err == nil {

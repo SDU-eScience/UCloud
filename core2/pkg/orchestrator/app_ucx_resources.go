@@ -679,7 +679,7 @@ func appUcxCreateResource[Spec any, Resc any](
 					continue
 				}
 
-				stack := strings.TrimSpace(baseSpec.Labels[resourceLabelStackInstance])
+				stack := strings.TrimSpace(baseSpec.Labels[orcapi.ResourceLabelStackInstance])
 				s.Mu.RLock()
 				_, exists := s.Stacks[stack]
 				s.Mu.RUnlock()
@@ -700,7 +700,7 @@ func appUcxCreateResource[Spec any, Resc any](
 					continue
 				}
 
-				stack := strings.TrimSpace(rescSpec.Labels[resourceLabelStackInstance])
+				stack := strings.TrimSpace(rescSpec.Labels[orcapi.ResourceLabelStackInstance])
 				if stack == "" {
 					continue
 				}
@@ -724,7 +724,7 @@ func appUcxResourceInSession[Resc any](
 		return false
 	}
 
-	instance := strings.TrimSpace(labels[resourceLabelStackInstance])
+	instance := strings.TrimSpace(labels[orcapi.ResourceLabelStackInstance])
 	if instance == "" {
 		return false
 	}
@@ -885,7 +885,7 @@ func appUcxBrowseResource[Req any, Resc any](
 			for key, value := range flags.FilterLabels {
 				labels[key] = value
 			}
-			labels[resourceLabelStackInstance] = stackName
+			labels[orcapi.ResourceLabelStackInstance] = stackName
 			flags.FilterLabels = labels
 
 			page, err := browse(actor, stackRequest)
@@ -931,7 +931,7 @@ func appUcxDeleteResource[Resc any](
 			resc, err := retrieve(actor, id)
 			if err == nil {
 				rescSpec := baseSpecGetter(resc)
-				instance := rescSpec.Labels[resourceLabelStackInstance]
+				instance := rescSpec.Labels[orcapi.ResourceLabelStackInstance]
 				s.Mu.Lock()
 				_, exists := s.Stacks[instance]
 				s.Mu.Unlock()

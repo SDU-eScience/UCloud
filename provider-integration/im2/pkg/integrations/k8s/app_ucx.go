@@ -134,10 +134,10 @@ func ucxOnConnect(conn *ws.Conn) {
 		return ucxapi.Stack{
 			InstanceId: instanceId,
 			Labels: map[string]string{
-				"ucloud.dk/stack":              "true",
-				"ucloud.dk/stackname":          request.StackType,
-				"ucloud.dk/stackinstance":      instanceId,
-				"ucloud.dk/stack-state-folder": ucloudPath,
+				orcapi.ResourceLabelStack:            "true",
+				orcapi.ResourceLabelStackName:        request.StackType,
+				orcapi.ResourceLabelStackInstance:    instanceId,
+				orcapi.ResourceLabelStackStateFolder: ucloudPath,
 			},
 			Mount: orcapi.AppParameterValueFileWithMountPath(ucloudPath, false, "/etc/ucloud-stack"),
 		}, nil
@@ -210,7 +210,7 @@ func ucxOnConnectJob(conn *ws.Conn) {
 	})
 
 	ucxapi.StackDataWrite.HandlerProxy(proxy, func(ctx context.Context, request ucxapi.StackDataWriteRequest) (util.Empty, error) {
-		stackId := strings.TrimSpace(info.Job.Specification.Labels["ucloud.dk/stackinstance"])
+		stackId := strings.TrimSpace(info.Job.Specification.Labels[orcapi.ResourceLabelStackInstance])
 		if stackId == "" {
 			return util.Empty{}, fmt.Errorf("job has no stack instance")
 		}
@@ -223,7 +223,7 @@ func ucxOnConnectJob(conn *ws.Conn) {
 	})
 
 	ucxapi.StackDataAppend.HandlerProxy(proxy, func(ctx context.Context, request ucxapi.StackDataAppendRequest) (util.Empty, error) {
-		stackId := strings.TrimSpace(info.Job.Specification.Labels["ucloud.dk/stackinstance"])
+		stackId := strings.TrimSpace(info.Job.Specification.Labels[orcapi.ResourceLabelStackInstance])
 		if stackId == "" {
 			return util.Empty{}, fmt.Errorf("job has no stack instance")
 		}

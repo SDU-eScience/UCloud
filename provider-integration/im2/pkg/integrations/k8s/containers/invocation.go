@@ -81,7 +81,7 @@ func prepareInvocationOnJobCreate(
 			jobFolder, pathMapperInternalToPod)
 	}
 
-	initScript, hasInitScript := job.Specification.Labels["ucloud.dk/initscript"]
+	initScript, hasInitScript := job.Specification.Labels[orc.ResourceLabelInitScript]
 
 	path := filepath.Join(jobFolder, fmt.Sprintf("job-%d.sh", rank))
 	jobFile, ok := filesystem.OpenFile(path, unix.O_WRONLY|unix.O_CREAT|unix.O_TRUNC, 0700)

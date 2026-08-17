@@ -146,12 +146,6 @@ var resourceLabelIndex struct {
 	IndexedKey map[string]util.Empty
 }
 
-const (
-	resourceLabelStackName     = "ucloud.dk/stackname"
-	resourceLabelStackInstance = "ucloud.dk/stackinstance"
-	resourceLabelStack         = "ucloud.dk/stack"
-)
-
 type resourceTypeFlags int64
 
 const (
@@ -237,9 +231,9 @@ func InitResources() {
 	resourceGlobals.ByType = map[string]*resourceTypeGlobal{}
 	resourceGlobals.Providers = map[string]*resourceProvider{}
 	resourceLabelIndex.IndexedKey = map[string]util.Empty{}
-	ResourceRegisterIndexedLabelKey(resourceLabelStack)
-	ResourceRegisterIndexedLabelKey(resourceLabelStackName)
-	ResourceRegisterIndexedLabelKey(resourceLabelStackInstance)
+	ResourceRegisterIndexedLabelKey(orcapi.ResourceLabelStack)
+	ResourceRegisterIndexedLabelKey(orcapi.ResourceLabelStackName)
+	ResourceRegisterIndexedLabelKey(orcapi.ResourceLabelStackInstance)
 
 	if !resourceGlobals.Testing.Enabled {
 		go resourceListenForProjectGroupUpdates()
