@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	ocid "github.com/distribution/distribution/v3"
+	"github.com/distribution/distribution/v3/manifest/schema2"
 	"github.com/distribution/distribution/v3/registry/storage/driver"
 	"github.com/distribution/reference"
 	"github.com/opencontainers/go-digest"
@@ -379,7 +380,8 @@ func repositoryBelongsToRoot(root, repository string) bool {
 }
 
 func isLayerMediaType(mediaType string) bool {
-	return strings.Contains(strings.ToLower(mediaType), "layer")
+	mediaType = strings.ToLower(mediaType)
+	return strings.Contains(mediaType, "layer") || mediaType == schema2.MediaTypeLayer
 }
 
 func platformName(platform *v1.Platform) string {
