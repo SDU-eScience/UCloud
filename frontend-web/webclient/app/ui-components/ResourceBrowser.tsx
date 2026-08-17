@@ -1723,7 +1723,7 @@ export class ResourceBrowser<T> {
             appearance={snapshot.appearance}
             hideShortcuts={ResourceBrowser.hideShortcuts}
             maxVisible={snapshot.maxVisible}
-            enableShortcuts={!this.opts.selection}
+            enableShortcuts={!this.opts.selection || this.opts.selector}
         />);
     }
 

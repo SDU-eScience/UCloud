@@ -38,6 +38,7 @@ import {AsyncCache} from "@/Utilities/AsyncCache";
 import {api as FileCollectionsApi, FileCollection} from "@/UCloud/FileCollectionsApi";
 import {
     createHTMLElements,
+    createKeyboardShortcut,
     defaultErrorHandler,
     displayErrorMessageOrDefault,
     doNothing,
@@ -88,6 +89,7 @@ import {FileTree} from "./FileTree";
 import {injectStyle} from "@/Unstyled";
 import {ActionEntry, ResourceBrowserActions} from "@/ui-components/Actions";
 import {VirtualizedTreeApi} from "@/ui-components/VirtualizedTree";
+import {ShortcutClass} from "@/ui-components/ResourceBrowserStyle";
 
 export enum SensitivityLevel {
     "INHERIT" = "Inherit",
@@ -1775,26 +1777,33 @@ function FileBrowse({
     return <MainContainer
         main={<>
             <div className={isSelector ? FileSelectorLayoutClass : undefined}>
-                {isSelector ? <FileTree
-                    basePath="/"
-                    tree={selectorTree}
-                    initialPath={opts?.initialPath}
-                    initialProject={opts?.initialProject}
-                    additionalFilters={opts?.additionalFilters}
-                    selectedPath={selectorActivePath}
-                    includeFiles={false}
-                    onActivated={openFromSidebar}
-                    onKeyboardActivate={() => {
-                        selectorTree.current?.deactivate();
-                        mountRef.current?.focus({preventScroll: true});
-                    }}
-                /> : null}
+                {isSelector ? <>
+                    <div className="selector-content">
+                        <FileTree
+                            basePath="/"
+                            tree={selectorTree}
+                            initialPath={opts?.initialPath}
+                            initialProject={opts?.initialProject}
+                            additionalFilters={opts?.additionalFilters}
+                            selectedPath={selectorActivePath}
+                            includeFiles={false}
+                            onActivated={openFromSidebar}
+                            onKeyboardActivate={() => {
+                                selectorTree.current?.deactivate();
+                                mountRef.current?.focus({preventScroll: true});
+                            }}
+                        />
 
-                <div
-                    ref={mountRef}
-                    className={isSelector ? "selector-browser" : undefined}
-                    tabIndex={isSelector ? -1 : undefined}
-                />
+                        <div
+                            ref={mountRef}
+                            className="selector-browser"
+                            tabIndex={-1}
+                        />
+                    </div>
+                    <FileSelectorKeyboardGuide />
+                </> : (
+                    <div ref={mountRef} />
+                )}
             </div>
 
             {!isSelector && headerControls?.projectSwitcherTarget
@@ -1850,18 +1859,92 @@ function selectorActions<T, C>(actions: ResourceBrowserActions<T, C>): ResourceB
 const FileSelectorLayoutClass = injectStyle("file-selector-layout", k => `
     ${k} {
         display: flex;
+        flex-direction: column;
         width: calc(100% + 16px);
         height: calc(90vh - 16px);
         min-height: 336px;
-        gap: 12px;
         margin-left: -16px;
     }
 
-    ${k} > .selector-browser {
+    ${k} > .selector-content {
+        display: flex;
+        flex: 1 1 auto;
+        min-height: 0;
+        gap: 12px;
+    }
+
+    ${k} .selector-browser {
         flex: 1;
         min-width: 0;
         height: 100%;
         outline: none;
+    }
+`);
+
+function FileSelectorKeyboardGuide(): React.ReactNode {
+    return <div className={FileSelectorKeyboardGuideClass}>
+        <div className="keyboard-navigation-row">
+            <span className={ShortcutClass}>{createKeyboardShortcut("1", ["ctrl", "alt"])}</span>
+            <span className="keyboard-navigation-action">Focus sidebar</span>
+        </div>
+        <div className="keyboard-navigation-row">
+            <span className={ShortcutClass}>{createKeyboardShortcut("2", ["ctrl", "alt"])}</span>
+            <span className="keyboard-navigation-action">Focus files</span>
+        </div>
+        <div className="keyboard-navigation-row">
+            <div className="keyboard-navigation-keys">
+                <span className={ShortcutClass}>↑</span>
+                <span className={ShortcutClass}>↓</span>
+                <span className={ShortcutClass}>←</span>
+                <span className={ShortcutClass}>→</span>
+            </div>
+            <span className="keyboard-navigation-action">Navigate files</span>
+        </div>
+        <div className="keyboard-navigation-row">
+            <span className={ShortcutClass}>{createKeyboardShortcut("Enter", ["alt"])}</span>
+            <span className="keyboard-navigation-action">Select</span>
+        </div>
+    </div>;
+}
+
+const FileSelectorKeyboardGuideClass = injectStyle("file-selector-keyboard-guide", key => `
+    ${key} {
+        color: var(--textSecondary);
+        font-size: 12px;
+        display: flex;
+        width: calc(100% + 16px);
+        box-sizing: border-box;
+        padding: 12px;
+        border-top: 1px solid var(--borderColor);
+    }
+
+    ${key} .keyboard-navigation-row {
+        display: flex;
+        flex: 1 1 0;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        min-width: 0;
+        padding: 0 12px;
+    }
+
+    ${key} .keyboard-navigation-row + .keyboard-navigation-row {
+        border-left: 1px solid var(--borderColor);
+    }
+
+    ${key} .keyboard-navigation-keys {
+        display: flex;
+        gap: 4px;
+    }
+
+    ${key} .keyboard-navigation-action {
+        white-space: nowrap;
+    }
+
+    @media (max-width: 1000px) {
+        ${key} {
+            display: none;
+        }
     }
 `);
 
