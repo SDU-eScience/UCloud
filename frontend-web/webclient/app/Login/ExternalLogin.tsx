@@ -69,7 +69,7 @@ export function ExternalLogin({initialState}: {initialState?: any}): React.React
         <Text fontSize={24} fontWeight={600}>Connect to {service.title}?</Text>
         <Text mt={12}>{service.description}</Text>
         <Text mt={12}>The service will receive a token that can access UCloud as you.</Text>
-        <Flex gap={12} mt={24} justifyContent="flex-end">
+        <Flex gap={"12px"} mt={24} justifyContent="flex-end">
             <Button color="secondaryMain" onClick={() => window.location.assign("/app/login")}>Cancel</Button>
             <Button color="primaryMain" onClick={() => {
                 service.handle(response);
