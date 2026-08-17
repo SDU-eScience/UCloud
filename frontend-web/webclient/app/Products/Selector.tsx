@@ -419,7 +419,7 @@ export const ProductSelector: React.FunctionComponent<{
                                 </Flex>
                                 {selected ? <Box mb="12px">
                                     <ProductDescription serviceProvider={selected.category.provider} category={selected.category.name} />
-                                    <Flex gap="32px" alignItems="flex-end" marginTop={16}>
+                                    <Flex gap="32px" alignItems="flex-end" marginTop={16} flexWrap={"wrap"}>
                                         <ProductStatsSummary product={selected as ProductV2Compute} />
                                         {selected.category.accountingFrequency === "ONCE" ?
                                             <div>Price: {priceToString(selected, 1)}</div> : null}
@@ -749,8 +749,7 @@ const ProductStatsSummary: React.FunctionComponent<{product: ProductV2Compute}> 
 
 const HardwareStatSummary: React.FunctionComponent<React.PropsWithChildren<{model?: string | null}>> = props => {
     return <div>
-        {props.model ? <div style={{color: "var(--textSecondary)", fontSize: "12px", marginBottom: "2px"}}>{props.model}</div> : null}
-        <div>{props.children}</div>
+        <div>{props.children} {props.model ? <span style={{color: "var(--textSecondary)"}}>({props.model})</span> : null}</div>
     </div>
 }
 
