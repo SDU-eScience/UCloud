@@ -510,7 +510,7 @@ export function injectResourceBrowserStyle(rowSize: number) {
             outline: 0;
             color: var(--textPrimary);
             z-index: 1;
-            left: 12px;
+            left: 8px;
         }
 
         @media screen and (max-width: 860px) {
