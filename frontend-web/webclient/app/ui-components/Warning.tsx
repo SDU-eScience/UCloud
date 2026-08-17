@@ -20,6 +20,7 @@ const WarningClass = injectStyleSimple("warning", `
     border: 1px solid var(--warningMain);
     border-radius: 10px;
     background: var(--backgroundCard);
+    align-items: center;
 
     & svg {
         flex: 0 0 auto;
@@ -37,7 +38,7 @@ const Warning: React.FunctionComponent<WarningProps> = props => {
             {props.children}
             {!props.clearWarning ? null : (
                 <Box ml={"auto"}>
-                    <IconButton icon={"heroXMark"} tooltip={"Close"} onClick={props.clearWarning} />
+                    <IconButton icon={"heroXMark"} tooltip={"Dismiss"} onClick={props.clearWarning} />
                 </Box>
             )}
         </Box>
