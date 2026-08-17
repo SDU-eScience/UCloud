@@ -74,6 +74,26 @@ func initJobs() {
 			if reqItem.Application.Name == "syncthing" {
 				return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(http.StatusBadRequest, "this application cannot be started through this endpoint")
 			}
+			// Check if publicIP Policy is enabled
+			if len(reqItem.Resources) > 0 && info.Actor.Project.Present {
+				for _, value := range reqItem.Resources {
+					if value.Type == orcapi.AppParameterValueTypeNetwork {
+						policies := policiesByProject(string(info.Actor.Project.Value))
+						specification, ok := policies[fndapi.RestrictPublicIPs]
+						if ok {
+							values, ok := specification.GetValues().(fndapi.RestrictPublicIPsValues)
+							if !ok {
+								return fndapi.BulkResponse[fndapi.FindByStringId]{},
+									util.HttpErr(http.StatusInternalServerError, "Malformed policy")
+							}
+							if values.Enabled {
+								return fndapi.BulkResponse[fndapi.FindByStringId]{},
+									util.HttpErr(http.StatusForbidden, "Project policies does not allow usage of public IPs")
+							}
+						}
+					}
+				}
+			}
 		}
 
 		created, err := JobCreate(info.Actor, request)
