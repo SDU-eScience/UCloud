@@ -458,6 +458,12 @@ type PoliciesUpdateRequest struct {
 	UpdatedPolicies map[PolicyName]Specification `yaml:"updatedPolicies" json:"updatedPolicies"`
 }
 
+var PoliciesUpdate = rpc.Call[PoliciesUpdateRequest, util.Empty]{
+	BaseContext: policiesBaseContext,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+}
+
 func (r *PoliciesUpdateRequest) UnmarshalJSON(data []byte) error {
 	var raw struct {
 		UpdatedPolicies map[PolicyName]json.RawMessage `json:"updatedPolicies"`
@@ -494,8 +500,83 @@ func (r *PoliciesUpdateRequest) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-var PoliciesUpdate = rpc.Call[PoliciesUpdateRequest, util.Empty]{
-	BaseContext: policiesBaseContext,
-	Convention:  rpc.ConventionUpdate,
-	Roles:       rpc.RolesEndUser,
+func (p *PoliciesForProject) UnmarshalJSON(data []byte) error {
+	var raw struct {
+		ProjectId      string                         `json:"ProjectId"`
+		PoliciesByName map[PolicyName]json.RawMessage `json:"PoliciesByName"`
+	}
+
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+
+	p.ProjectId = raw.ProjectId
+	p.PoliciesByName = make(map[PolicyName]Specification)
+
+	for name, rawSpec := range raw.PoliciesByName {
+		decoder, ok := SpecificationDecoders[name]
+		if !ok {
+			return fmt.Errorf("unknown policy %q", name)
+		}
+
+		spec, err := decoder(rawSpec)
+		if err != nil {
+			return err
+		}
+
+		p.PoliciesByName[name] = spec
+	}
+
+	return nil
+}
+
+func (p *Policy) UnmarshalJSON(data []byte) error {
+	var raw struct {
+		Schema        json.RawMessage `json:"schema"`
+		Specification json.RawMessage `json:"specification"`
+	}
+
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+
+	// First decode the schema metadata so we know which decoder to use.
+	var schemaMetadata struct {
+		Name PolicyName `json:"name"`
+	}
+
+	if err := json.Unmarshal(raw.Schema, &schemaMetadata); err != nil {
+		return fmt.Errorf("failed to decode schema metadata: %w", err)
+	}
+
+	sDecoder, ok := SchemaDecoders[schemaMetadata.Name]
+	if !ok {
+		return fmt.Errorf("unknown policy schema %q", schemaMetadata.Name)
+	}
+
+	schema, err := sDecoder(raw.Schema)
+	if err != nil {
+		return fmt.Errorf("failed to decode %s schema: %w", schemaMetadata.Name, err)
+	}
+
+	// Decode the specification using its schema.
+
+	specificationDecoder, ok := SpecificationDecoders[schema.GetSchemaName()]
+	if !ok {
+		return fmt.Errorf("unknown policy specification %q", schema.GetSchemaName())
+	}
+
+	specification, err := specificationDecoder(raw.Specification)
+	if err != nil {
+		return fmt.Errorf(
+			"failed to decode %s specification: %w",
+			schema.GetSchemaName(),
+			err,
+		)
+	}
+
+	p.Schema = schema
+	p.Specification = specification
+
+	return nil
 }

@@ -874,21 +874,31 @@ var policyCache struct {
 
 func RetrievePoliciesByProject(projectId string) map[fnd.PolicyName]fnd.Specification {
 	if RunsServerCode() {
-		projectPolicies := map[fnd.PolicyName]fnd.Specification{}
-		policyCache.Mu.Lock()
+		policyCache.Mu.RLock()
 		projectPolicies, ok := policyCache.PoliciesByProject[projectId]
-		if !ok {
-			log.Debug("No policies for project %v", projectId)
-			policySpecifications, policiesOk := policySpecificationsRetrieveFromCore(projectId)
-			if policiesOk {
-				policyCache.PoliciesByProject[projectId] = policySpecifications
-				projectPolicies = policySpecifications
-			} else {
-				log.Debug("No policies for project %v found in DB", projectId)
-			}
+		policyCache.Mu.RUnlock()
 
+		if ok {
+			return projectPolicies
+		}
+
+		policySpecifications, policiesOk := policySpecificationsRetrieveFromCore(projectId)
+
+		if !policiesOk {
+			return nil
+		}
+
+		policyCache.Mu.Lock()
+		// Check again in case a websocket notification populated it
+		// while the RPC was running.
+		if existing, ok := policyCache.PoliciesByProject[projectId]; ok {
+			projectPolicies = existing
+		} else {
+			policyCache.PoliciesByProject[projectId] = policySpecifications
+			projectPolicies = policySpecifications
 		}
 		policyCache.Mu.Unlock()
+
 		return projectPolicies
 	} else {
 		panic("RetrievePoliciesByProject is only implemented for server mode")
@@ -898,7 +908,6 @@ func RetrievePoliciesByProject(projectId string) map[fnd.PolicyName]fnd.Specific
 func policySpecificationsRetrieveFromCore(projectId string) (map[fnd.PolicyName]fnd.Specification, bool) {
 	retrievedPolices, err := fnd.PoliciesRetrieve.Invoke(fnd.RetrievePoliciesRequest{ProjectId: projectId})
 	if err != nil {
-		fmt.Printf("Error %v\n", err)
 		return nil, false
 	}
 	var policies = make(map[fnd.PolicyName]fnd.Specification)

@@ -552,20 +552,12 @@ func providerNotificationHandleClient(conn *ws.Conn) {
 			out.WriteString(string(projectJson))
 		}
 
-		for policyRef, _ := range policiesToSend {
-			project := policies.RefToProjectId[policyRef]
+		for policyRef, projectPolicies := range policiesToSend {
+			projectPoliciesJson, _ := json.Marshal(projectPolicies)
 
-			policyCache.Mu.Lock()
-			currentPolices := policyCache.PoliciesByProject[project]
-			projectPolicies := fndapi.PoliciesForProject{
-				project,
-				currentPolices,
-			}
-			currentProjectPoliciesJson, _ := json.Marshal(projectPolicies)
-			policyCache.Mu.Unlock()
 			out.WriteU8(opPolicyChange)
 			out.WriteU32(uint32(policyRef))
-			out.WriteString(string(currentProjectPoliciesJson))
+			out.WriteString(string(projectPoliciesJson))
 		}
 
 		for categoryRef, _ := range categoriesToSend {

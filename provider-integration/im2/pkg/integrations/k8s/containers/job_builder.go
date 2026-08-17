@@ -158,9 +158,12 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	cpuMillis := shared.NodeCpuMillisNormalizedWithReserved(&product)
 	memoryMegabytes := int64(product.MemoryInGigs * 1000)
 
+	fmt.Printf("Present: %v \n", job.Owner.Project.Present)
 	if job.Owner.Project.Present {
 		policies := controller.RetrievePoliciesByProject(job.Owner.Project.Value)
+		fmt.Printf("Policies: %v\n", policies)
 		if policy, ok := policies[foundation.RestrictCutAndPaste]; ok {
+			fmt.Printf("Policy found: %v \n", policy)
 			values, ok := policy.GetValues().(foundation.RestrictCutAndPasteValues)
 			if !ok {
 				return util.HttpErr(
@@ -168,6 +171,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 					"Misconfigured Policy",
 				)
 			}
+			fmt.Printf("Policy enabled: %v \n", values.Enabled)
 			if values.Enabled {
 				// (Henrik) If this restriction is in effect then the sidecar needs to consume resources from the main job
 				// to run. It is accepted that if the machine is to small the main job is killed OOM while there always

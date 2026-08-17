@@ -168,6 +168,11 @@ func ProjectRetrieveFromDatabaseViaGroupId(tx *db.Transaction, groupId string) (
 	}
 }
 
+type policySpecificationRaw struct {
+	Schema  fndapi.PolicyName `json:"schema"`
+	Project rpc.ProjectId     `json:"project"`
+	Values  json.RawMessage   `json:"values"`
+}
 
 func PolicySpecificationsRetrieveFromDatabase(
 	tx *db.Transaction,
@@ -192,18 +197,11 @@ func PolicySpecificationsRetrieveFromDatabase(
 
 	policies := make(map[fndapi.PolicyName]fndapi.Specification)
 
-	type policySpecificationRaw struct {
-		Schema  fndapi.PolicyName `json:"schema"`
-		Project rpc.ProjectId     `json:"project"`
-		Values  json.RawMessage   `json:"values"`
-	}
-
 	for _, row := range rows {
 		policyName := fndapi.PolicyName(row.PolicyName)
-		fmt.Printf("policyName: %v\n", policyName)
 		decoder, ok := fndapi.SpecificationDecoders[policyName]
 		if !ok {
-			log.Debug("Unknown policy %s", row.PolicyName)
+			log.Warn("Unknown policy %s", row.PolicyName)
 			return nil, false
 		}
 		specificationData := policySpecificationRaw{
@@ -213,14 +211,13 @@ func PolicySpecificationsRetrieveFromDatabase(
 		}
 		data, err := json.Marshal(specificationData)
 		if err != nil {
-			log.Debug("Failed to marshal policy specification: %v", err)
+			log.Warn("Failed to marshal policy specification: %v", err)
 		}
 		specification, err := decoder(data)
 		if err != nil {
-			log.Debug("Error unmarshalling policy %s: %v", row.PolicyName, err)
+			log.Warn("Error unmarshalling policy %s: %v", row.PolicyName, err)
 			return nil, false
 		}
-		fmt.Printf("Values when getting %v \n", specification.GetValues())
 
 		policies[policyName] = specification
 	}
@@ -299,7 +296,18 @@ func PoliciesListUpdatedAfter(timestamp time.Time) []fndapi.PoliciesForProject {
 				continue
 			}
 
-			specification, err := decoder([]byte(row.PolicyProperties))
+			specificationData := policySpecificationRaw{
+				Schema:  policyName,
+				Project: rpc.ProjectId(row.ProjectId),
+				Values:  json.RawMessage(row.PolicyProperties),
+			}
+			data, err := json.Marshal(specificationData)
+
+			if err != nil {
+				log.Warn("Failed to marshal policy specification: %v", err)
+			}
+
+			specification, err := decoder(data)
 
 			if err != nil {
 				log.Warn(
