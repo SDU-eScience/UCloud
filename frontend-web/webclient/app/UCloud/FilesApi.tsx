@@ -1466,9 +1466,9 @@ function SensitivityDialog({file, invokeCommand, onUpdated}: {
 
     return (<form id={"sensitivityDialog"} onSubmit={onUpdate} style={{width: "100%"}}>
         <Text fontSize={24} mb="12px">Change sensitivity</Text>
-        <Select my="8px" id={"sensitivityDialogValue"} selectRef={selection}>
+        <Select my="8px" id={"sensitivityDialogValue"} selectRef={selection} defaultValue={originalSensitivity}>
             {Object.keys(SensitivityLevelMap).map(it =>
-                <option key={it} value={it} selected={it === originalSensitivity}>{prettierString(it)}</option>
+                <option key={it} value={it}>{prettierString(it)}</option>
             )}
         </Select>
         <TextArea

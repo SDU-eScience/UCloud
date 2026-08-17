@@ -4,7 +4,7 @@ import {default as ReactModal} from "react-modal";
 import {defaultModalStyle, largeModalStyle} from "@/Utilities/ModalUtilities";
 import {Box, Button, Flex, Icon} from "@/ui-components";
 import CONF from "../../../../site.config.json";
-import {useCallback, useState} from "react";
+import {useCallback} from "react";
 import {errorMessageOrDefault} from "@/UtilityFunctions";
 import {compute} from "@/UCloud";
 import JobSpecification = compute.JobSpecification;
@@ -24,7 +24,7 @@ import {FilesCreateDownloadResponseItem, UFile} from "@/UCloud/UFile";
 import {Application} from "@/Applications/AppStoreApi";
 import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
 
-export function ImportParameters({application, dynamicParameters, onImport, automaticImport, importDialogOpen, onImportDialogClose, setImportDialogOpen}: React.PropsWithChildren<{
+export function ImportParameters({application, dynamicParameters, onImport, automaticImport, importDialogOpen, onImportDialogClose, setImportDialogOpen, onMessagesChange}: React.PropsWithChildren<{
     application: Application;
     dynamicParameters: DynamicParameters | null;
     onImport: (parameters: Partial<UCloud.compute.JobSpecification>) => void;
@@ -32,13 +32,12 @@ export function ImportParameters({application, dynamicParameters, onImport, auto
     importDialogOpen: boolean;
     setImportDialogOpen: React.Dispatch<React.SetStateAction<boolean>>;
     onImportDialogClose: () => void;
+    onMessagesChange: (messages: ImportMessage[]) => void;
 }>): React.ReactNode {
     const didLoadParameters = React.useRef(false);
     const lastAutomaticImport = React.useRef<typeof automaticImport>(null);
 
     const jobId = getQueryParam(location.search, "import");
-
-    const [messages, setMessages] = useState<ImportMessage[]>([]);
 
     const readParsedJSON = useCallback(async (parsedJson: any) => {
         if (typeof parsedJson === "object") {
@@ -57,7 +56,7 @@ export function ImportParameters({application, dynamicParameters, onImport, auto
             }
 
             result = await cleanupImportResult(application, dynamicParameters, result)
-            setMessages(result.messages);
+            onMessagesChange(result.messages);
 
             if (typeof result.output === "undefined") {
                 // Do nothing
@@ -66,7 +65,7 @@ export function ImportParameters({application, dynamicParameters, onImport, auto
                 onImportDialogClose();
             }
         }
-    }, [application, dynamicParameters, onImport, onImportDialogClose]);
+    }, [application, dynamicParameters, onImport, onImportDialogClose, onMessagesChange]);
 
     React.useEffect(() => {
         if (!automaticImport || lastAutomaticImport.current === automaticImport) return;
@@ -133,22 +132,6 @@ export function ImportParameters({application, dynamicParameters, onImport, auto
                 Import
             </Button>
         </Flex>
-
-        {messages.length === 0 ? null : (
-            <Box>
-                <TextP bold>We have attempted to your import your previous job</TextP>
-                <ul>
-                    {messages.map((it, i) =>
-                        <li key={i}>
-                            {it.type === "error" ? <Icon mr="8px" name={"warning"} color={"errorMain"} /> : null}
-                            {it.type === "warning" ? <Icon mr="8px" name={"warning"} color={"warningMain"} /> : null}
-                            {it.type === "info" ? <Icon mr="8px" name={"info"} /> : null}
-                            {it.message}
-                        </li>
-                    )}
-                </ul>
-            </Box>
-        )}
 
         <ReactModal
             isOpen={importDialogOpen}
@@ -231,7 +214,25 @@ export function ImportParameters({application, dynamicParameters, onImport, auto
     </Box>;
 };
 
-type ImportMessage =
+export function ImportMessages({messages}: {messages: ImportMessage[]}): React.ReactNode {
+    if (messages.length === 0) return null;
+
+    return <Box>
+        <TextP bold>We have attempted to your import your previous job</TextP>
+        <ul>
+            {messages.map((it, i) =>
+                <li key={i}>
+                    {it.type === "error" ? <Icon mr="8px" name={"warning"} color={"errorMain"} /> : null}
+                    {it.type === "warning" ? <Icon mr="8px" name={"warning"} color={"warningMain"} /> : null}
+                    {it.type === "info" ? <Icon mr="8px" name={"info"} /> : null}
+                    {it.message}
+                </li>
+            )}
+        </ul>
+    </Box>;
+}
+
+export type ImportMessage =
     {type: "info", message: string} |
     {type: "warning", message: string} |
     {type: "error", message: string};

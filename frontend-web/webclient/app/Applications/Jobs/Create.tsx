@@ -17,7 +17,6 @@ import {
     Link,
     Markdown,
     Select,
-    Tooltip
 } from "@/ui-components";
 import {clearWidgetValue, FieldGroup, FieldRow, findElement, setWidgetValues, validateWidgets, Widget} from "@/Applications/Jobs/Widgets";
 import * as Heading from "@/ui-components/Heading";
@@ -34,7 +33,6 @@ import {
     validateReservation
 } from "@/Applications/Jobs/Widgets/Reservation";
 import {
-    doNothing,
     bulkRequestOf,
     displayErrorMessageOrDefault,
     extractErrorCode,
@@ -44,7 +42,7 @@ import {
     useDidMount
 } from "@/UtilityFunctions";
 import {addStandardDialog, OverallocationLink, WalletWarning} from "@/UtilityComponents";
-import {ImportParameters} from "@/Applications/Jobs/Widgets/ImportParameters";
+import {ImportMessages, ImportMessage, ImportParameters} from "@/Applications/Jobs/Widgets/ImportParameters";
 import LoadingIcon from "@/LoadingIcon/LoadingIcon";
 import {usePage} from "@/Navigation/Redux";
 import {networkIPResourceAllowed} from "@/Applications/Jobs/Resources/NetworkIPs";
@@ -620,6 +618,7 @@ export const Create: React.FunctionComponent = () => {
     const [reservationErrors, setReservationErrors] = useState<ReservationErrors>({});
 
     const [importDialogOpen, setImportDialogOpen] = useState(false);
+    const [importMessages, setImportMessages] = useState<ImportMessage[]>([]);
     const closeImportDialog = useCallback(() => setImportDialogOpen(false), []);
 
     const retrieveEmailNotificationSettings = useCallback(async () => {
@@ -728,6 +727,14 @@ export const Create: React.FunctionComponent = () => {
             setDynamicParametersLoadedFor(applicationKey);
         });
     }, [application]);
+
+    const canImportParameters = application != null &&
+        dynamicParametersLoadedFor === `${application.metadata.name}:${application.metadata.version}` &&
+        injectedParameters.data !== null;
+
+    useEffect(() => {
+        if (!canImportParameters) setImportMessages([]);
+    }, [canImportParameters]);
 
     const parameters = useMemo(() => {
         let injected: ApplicationParameter[] = [];
@@ -1221,18 +1228,19 @@ export const Create: React.FunctionComponent = () => {
                         </Box>}
                         <Card id="job-card-information">
                             <JobCardHeading shortcut="J" shortcutsVisible={shortcutsVisible} action={
-                                dynamicParametersLoadedFor !== `${application.metadata.name}:${application.metadata.version}` ||
-                                injectedParameters.data === null ? null :
+                                !canImportParameters ? null :
                                 <ImportParameters application={application} dynamicParameters={injectedParameters.data}
                                     onImport={onLoadParameters}
                                     automaticImport={appParams.current}
                                     importDialogOpen={importDialogOpen}
                                     setImportDialogOpen={setImportDialogOpen}
+                                    onMessagesChange={setImportMessages}
                                     onImportDialogClose={closeImportDialog} />
                             }>
                                 Job information
                             </JobCardHeading>
                             <JobInformationNavigation>
+                                {!canImportParameters ? null : <ImportMessages messages={importMessages} />}
                                 <Box mt="16px" mb="20px">
                                     <ApplicationSelector
                                         application={application}
@@ -1401,9 +1409,9 @@ export const Create: React.FunctionComponent = () => {
                             <div className={JobSubmissionSecondaryClass}>
                                 <Label>
                                     E-mail notification settings
-                                    <Select width="100%" onChange={onChangeJobEmailNotification} name="job-email-notifications">
-                                        <option value="never" selected={jobEmailNotifications === "never"}>Do not notify me</option>
-                                        <option value="start_or_ends" selected={jobEmailNotifications === "start_or_ends"}>Notify me when a job starts or stops</option>
+                                    <Select width="100%" value={jobEmailNotifications} onChange={onChangeJobEmailNotification} name="job-email-notifications">
+                                        <option value="never">Do not notify me</option>
+                                        <option value="start_or_ends">Notify me when a job starts or stops</option>
                                     </Select>
                                 </Label>
                             </div>
