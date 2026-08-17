@@ -59,6 +59,9 @@ func applicationVariantSnapshot(internal *internalApplicationVariant) (orcapi.Ap
 }
 
 func applicationVariantCanRead(actor rpc.Actor, variant orcapi.ApplicationVariant) bool {
+	if variant.State == orcapi.ApplicationVariantStateDeleted {
+		return false
+	}
 	if actor.Username == rpc.ActorSystem.Username {
 		return true
 	}
@@ -483,7 +486,8 @@ func applicationVariantBuildApplication(base orcapi.Application, variant orcapi.
 }
 
 func applicationVariantCacheAdd(app orcapi.Application, addToGroup bool) {
-	if !app.Metadata.Variant.Present || !app.Invocation.Tool.Tool.Present {
+	if !app.Metadata.Variant.Present || app.Metadata.Variant.Value.State == orcapi.ApplicationVariantStateDeleted ||
+		!app.Invocation.Tool.Tool.Present {
 		return
 	}
 	tool := app.Invocation.Tool.Tool.Value.Description
@@ -712,9 +716,16 @@ func initApplicationVariantRpc() {
 		result := fndapi.PageV2[orcapi.ApplicationVariant]{ItemsPerPage: limit}
 		if offset < len(variants) {
 			for _, variant := range variants[offset:end] {
-				if applicationVariantCanRead(info.Actor, variant) {
-					result.Items = append(result.Items, variant)
+				internal, ok := applicationVariantRetrieve(variant.Id)
+				if !ok {
+					continue
 				}
+				internal.Mu.RLock()
+				current := internal.Value
+				if current.State != orcapi.ApplicationVariantStateDeleted && applicationVariantCanRead(info.Actor, current) {
+					result.Items = append(result.Items, current)
+				}
+				internal.Mu.RUnlock()
 			}
 		}
 		if end < len(variants) {
@@ -772,6 +783,50 @@ func initApplicationVariantRpc() {
 			}
 			return orcapi.ApplicationVariant{}, util.HttpErr(http.StatusNotFound, "flavor not found")
 		}
+		_, updated := db.NewTx2(func(tx *db.Transaction) (struct{ Id int64 }, bool) {
+			return db.Get[struct{ Id int64 }](
+				tx,
+				`
+					update app_store.application_variants as v
+					set
+						title = :title,
+						published_to_project = :published,
+						modified_at = now()
+					where
+						v.id = :id
+						and v.state <> 'DELETED'
+						and (
+							:title_changed = false
+							or not exists (
+								select 1
+								from
+									app_store.application_variants other
+								where
+									other.id <> v.id
+									and other.state <> 'DELETED'
+									and coalesce(other.project_id, other.created_by) = coalesce(v.project_id, v.created_by)
+									and other.base_group = v.base_group
+									and lower(other.title) = lower(:title)
+							)
+						)
+					returning v.id
+				`,
+				db.Params{
+					"id":            variant.Id,
+					"title":         variant.Title,
+					"published":     variant.PublishedToProject,
+					"title_changed": request.Title.Present,
+				},
+			)
+		})
+		if !updated {
+			internal.Mu.Unlock()
+			if request.Title.Present {
+				applicationVariantReservationMu.Unlock()
+				return orcapi.ApplicationVariant{}, util.HttpErr(http.StatusConflict, "a flavor with this title already exists")
+			}
+			return orcapi.ApplicationVariant{}, util.HttpErr(http.StatusNotFound, "flavor not found")
+		}
 		if request.Title.Present {
 			internal.Value.Title = variant.Title
 		}
@@ -779,21 +834,6 @@ func initApplicationVariantRpc() {
 			internal.Value.PublishedToProject = variant.PublishedToProject
 		}
 		variant = internal.Value
-		db.NewTx0(func(tx *db.Transaction) {
-			db.Exec(
-				tx,
-				`
-					update app_store.application_variants
-					set title = :title, published_to_project = :published, modified_at = now()
-					where id = :id
-				`,
-				db.Params{
-					"id":        variant.Id,
-					"title":     variant.Title,
-					"published": variant.PublishedToProject,
-				},
-			)
-		})
 		internal.Mu.Unlock()
 		if request.Title.Present {
 			applicationVariantReservationMu.Unlock()
