@@ -74,11 +74,12 @@ func initJobs() {
 			if reqItem.Application.Name == "syncthing" {
 				return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(http.StatusBadRequest, "this application cannot be started through this endpoint")
 			}
-			// Check if publicIP Policy is enabled
+			// Check if any policies that might be enabled
 			if len(reqItem.Resources) > 0 && info.Actor.Project.Present {
+				policies := policiesByProject(string(info.Actor.Project.Value))
 				for _, value := range reqItem.Resources {
+					// Public IPs
 					if value.Type == orcapi.AppParameterValueTypeNetwork {
-						policies := policiesByProject(string(info.Actor.Project.Value))
 						specification, ok := policies[fndapi.RestrictPublicIPs]
 						if ok {
 							values, ok := specification.GetValues().(fndapi.RestrictPublicIPsValues)
@@ -89,6 +90,22 @@ func initJobs() {
 							if values.Enabled {
 								return fndapi.BulkResponse[fndapi.FindByStringId]{},
 									util.HttpErr(http.StatusForbidden, "Project policies does not allow usage of public IPs")
+							}
+						}
+					}
+
+					// Public Links
+					if value.Type == orcapi.AppParameterValueTypeIngress {
+						specification, ok := policies[fndapi.RestrictPublicLinks]
+						if ok {
+							values, ok := specification.GetValues().(fndapi.RestrictPublicLinksValues)
+							if !ok {
+								return fndapi.BulkResponse[fndapi.FindByStringId]{},
+									util.HttpErr(http.StatusInternalServerError, "Malformed policy")
+							}
+							if values.Enabled {
+								return fndapi.BulkResponse[fndapi.FindByStringId]{},
+									util.HttpErr(http.StatusForbidden, "Project policies does not allow usage of public links")
 							}
 						}
 					}
