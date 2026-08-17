@@ -24,15 +24,17 @@ import {FilesCreateDownloadResponseItem, UFile} from "@/UCloud/UFile";
 import {Application} from "@/Applications/AppStoreApi";
 import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
 
-export function ImportParameters({application, dynamicParameters, onImport, importDialogOpen, onImportDialogClose, setImportDialogOpen}: React.PropsWithChildren<{
+export function ImportParameters({application, dynamicParameters, onImport, automaticImport, importDialogOpen, onImportDialogClose, setImportDialogOpen}: React.PropsWithChildren<{
     application: Application;
     dynamicParameters: DynamicParameters | null;
     onImport: (parameters: Partial<UCloud.compute.JobSpecification>) => void;
+    automaticImport?: {siteVersion: 3; request: Partial<UCloud.compute.JobSpecification>} | null;
     importDialogOpen: boolean;
     setImportDialogOpen: React.Dispatch<React.SetStateAction<boolean>>;
     onImportDialogClose: () => void;
 }>): React.ReactNode {
     const didLoadParameters = React.useRef(false);
+    const lastAutomaticImport = React.useRef<typeof automaticImport>(null);
 
     const jobId = getQueryParam(location.search, "import");
 
@@ -65,6 +67,12 @@ export function ImportParameters({application, dynamicParameters, onImport, impo
             }
         }
     }, [application, dynamicParameters, onImport, onImportDialogClose]);
+
+    React.useEffect(() => {
+        if (!automaticImport || lastAutomaticImport.current === automaticImport) return;
+        lastAutomaticImport.current = automaticImport;
+        readParsedJSON(automaticImport);
+    }, [automaticImport, readParsedJSON]);
 
     React.useEffect(() => {
         if (jobId) {

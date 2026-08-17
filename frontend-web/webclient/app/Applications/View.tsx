@@ -100,6 +100,7 @@ export const ApplicationSelector: React.FunctionComponent<{
     fieldNavigation?: boolean;
     autoFocusFlavor?: boolean;
     reloadFlavors?: FlavorRefresh;
+    onApplicationChange?: () => void;
 }> = props => {
     const newestVersion = props.allVersions[0];
     const navigate = useNavigate();
@@ -139,6 +140,7 @@ export const ApplicationSelector: React.FunctionComponent<{
                     openFlavorManagement(customFlavors, props.reloadFlavors ?? (() => undefined), variant => {
                         if (props.application.metadata.variant?.id !== variant.id) return;
                         dialogStore.success();
+                        props.onApplicationChange?.();
                         navigate(Pages.runApplication(variant.baseApplication));
                     });
                 }}>(Manage your flavors)</BaseLink>}
@@ -165,7 +167,10 @@ export const ApplicationSelector: React.FunctionComponent<{
                 RenderSelected={p => <Flex p="7px" pr="48px" alignItems="center" {...p.dataProps}>
                     <Truncate title={p.element?.searchKey}>{p.element?.searchKey}</Truncate>
                 </Flex>}
-                onSelect={p => navigate(Pages.runApplicationWithName(p.app.metadata.name))}
+                onSelect={p => {
+                    props.onApplicationChange?.();
+                    navigate(Pages.runApplicationWithName(p.app.metadata.name));
+                }}
             />
         </Label>
 
@@ -183,13 +188,17 @@ export const ApplicationSelector: React.FunctionComponent<{
                 chevronPlacement={caretPlacement}
                 RenderRow={p => <Truncate title={p.element?.version} p="8px" onClick={p.onSelect} {...p.dataProps}>{p.element?.version}</Truncate>}
                 RenderSelected={p => <Truncate title={p.element?.version} p="8px" pr="48px" {...p.dataProps}>{p.element?.version}</Truncate>}
-                onSelect={p => navigate(Pages.runApplication({name: props.application.metadata.name, version: p.version}))}
+                onSelect={p => {
+                    props.onApplicationChange?.();
+                    navigate(Pages.runApplication({name: props.application.metadata.name, version: p.version}));
+                }}
             />
         </Label>
         {newestVersion !== props.application.metadata.version ?
             <Box style={{gridColumn: "1 / -1"}}><Tooltip tooltipContentWidth={390} trigger={
                 <div className={TriggerDiv} onClick={e => {
                     e.preventDefault();
+                    props.onApplicationChange?.();
                     navigate(Pages.runApplication({name: props.application.metadata.name, version: newestVersion}));
                 }}>
                     New version available.

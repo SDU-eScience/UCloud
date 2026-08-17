@@ -695,47 +695,13 @@ export const Create: React.FunctionComponent = () => {
 
     useUState(connectionState);
 
-    /* Note(Jonas): While this is a pretty weird data-type, I don't think we every need to store more than one,
-        which is why I'm not using a Record<string, T>  */
-    const appParams = React.useRef<[groupId: number, Partial<JobSpecification>]>([-1, {}]);
+    const appParams = React.useRef<{siteVersion: 3; request: Partial<JobSpecification>} | null>(null);
     // NOTE(Jonas): Not entirely sure a ref is strictly needed, but should be more consistent.
     const sshEnabledRef = React.useRef(false);
     sshEnabledRef.current = sshEnabled;
     useEffect(() => {
         if (appName === "syncthing" && !localStorage.getItem("syncthingRedirect")) {
             navigate("/drives");
-        }
-
-        if (application?.metadata.groupId) {
-            const reservationOptions = getReservationValues();
-
-            const {values} = validateWidgets(parameters);
-            const foldersResources = validateWidgets(folders.params);
-            // TODO(Jonas): This should preferably not validate, but just get the values (e.g. one field could be missing)
-            const peersResources = validateWidgets(peers.params);
-            const networkResources = validateWidgets(networks.params);
-            const ingressResources = validateWidgets(ingress.params);
-            const privateNetworkResources = validateWidgets(privateNetworks.params);
-            for (const err of [
-                ...Object.values(foldersResources.errors).map(it => "Folders: " + it),
-                ...Object.values(peersResources.errors).map(it => "Connected jobs: " + it),
-                ...Object.values(networkResources.errors).map(it => "IPs: " + it),
-                ...Object.values(ingressResources.errors).map(it => "Public link: " + it),
-                ...Object.values(privateNetworkResources.errors).map(it => "Private network: " + it)
-            ]) {
-                sendFailureNotification(err);
-            }
-
-            appParams.current = [application.metadata.groupId, {
-                ...reservationOptions,
-                parameters: values,
-                resources: Object.values(foldersResources.values)
-                    .concat(Object.values(peersResources.values))
-                    .concat(Object.values(ingressResources.values))
-                    .concat(Object.values(networkResources.values))
-                    .concat(Object.values(privateNetworkResources.values)),
-                sshEnabled: sshEnabledRef.current
-            }];
         }
 
         fetchApplication(
@@ -760,17 +726,6 @@ export const Create: React.FunctionComponent = () => {
             application: {name: application.metadata.name, version: application.metadata.version}
         })).then(() => {
             setDynamicParametersLoadedFor(applicationKey);
-            setTimeout(() => {
-                try {
-                    const groupId = application.metadata.groupId;
-                    const [storedGroupId, jobSpec] = appParams.current;
-                    if (storedGroupId === groupId) {
-                        onLoadParameters(jobSpec);
-                    }
-                } catch (e) {
-                    console.warn(e);
-                }
-            }, 0);
         });
     }, [application]);
 
@@ -808,6 +763,42 @@ export const Create: React.FunctionComponent = () => {
         const fromApp = application?.invocation?.parameters ?? [];
         return [...injected, ...fromApp, ...workflowInjectedParameters];
     }, [application, injectedParameters, workflowInjectedParameters, estimatedCost.product]);
+
+    const saveParameters = () => {
+        if (!application) return;
+
+        const reservationOptions = getReservationValues();
+        const {values} = validateWidgets(parameters);
+        const foldersResources = validateWidgets(folders.params);
+        // TODO(Jonas): This should preferably not validate, but just get the values (e.g. one field could be missing)
+        const peersResources = validateWidgets(peers.params);
+        const networkResources = validateWidgets(networks.params);
+        const ingressResources = validateWidgets(ingress.params);
+        const privateNetworkResources = validateWidgets(privateNetworks.params);
+        for (const err of [
+            ...Object.values(foldersResources.errors).map(it => "Folders: " + it),
+            ...Object.values(peersResources.errors).map(it => "Connected jobs: " + it),
+            ...Object.values(networkResources.errors).map(it => "IPs: " + it),
+            ...Object.values(ingressResources.errors).map(it => "Public link: " + it),
+            ...Object.values(privateNetworkResources.errors).map(it => "Private network: " + it)
+        ]) {
+            sendFailureNotification(err);
+        }
+
+        appParams.current = {
+            siteVersion: 3,
+            request: {
+                ...reservationOptions,
+                parameters: values,
+                resources: Object.values(foldersResources.values)
+                    .concat(Object.values(peersResources.values))
+                    .concat(Object.values(ingressResources.values))
+                    .concat(Object.values(networkResources.values))
+                    .concat(Object.values(privateNetworkResources.values)),
+                sshEnabled: sshEnabledRef.current
+            }
+        };
+    };
 
 
     React.useEffect(() => {
@@ -920,7 +911,7 @@ export const Create: React.FunctionComponent = () => {
             if (newCount > 0) {
                 setReloadHack({importFrom: reloadHack.importFrom, count: newCount});
             } else {
-                appParams.current = [-1, {}];
+                appParams.current = null;
             }
         }
     }, [onLoadParameters, reloadHack]);
@@ -1234,6 +1225,7 @@ export const Create: React.FunctionComponent = () => {
                                 injectedParameters.data === null ? null :
                                 <ImportParameters application={application} dynamicParameters={injectedParameters.data}
                                     onImport={onLoadParameters}
+                                    automaticImport={appParams.current}
                                     importDialogOpen={importDialogOpen}
                                     setImportDialogOpen={setImportDialogOpen}
                                     onImportDialogClose={closeImportDialog} />
@@ -1251,6 +1243,7 @@ export const Create: React.FunctionComponent = () => {
                                         fieldNavigation
                                         autoFocusFlavor
                                         reloadFlavors={reloadFlavors}
+                                        onApplicationChange={saveParameters}
                                     />
                                 </Box>
                                 <ReservationParameter
