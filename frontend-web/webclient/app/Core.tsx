@@ -42,6 +42,7 @@ import StudioTopPicks from "@/Applications/Studio/TopPicksEditor";
 import UserCreation from "@/Admin/UserCreation";
 import UserSettings from "@/UserSettings/UserSettings";
 import Wayf from "@/Login/Wayf";
+import {ExternalLogin} from "@/Login/ExternalLogin";
 import Demo from "@/Playground/Demo";
 import LagTest from "@/Playground/LagTest";
 import Providers from "@/Admin/Providers/Browse";
@@ -114,6 +115,8 @@ const Core = (): React.ReactNode => (
             <React.Suspense fallback={<MainContainer main={<div>Loading...</div>} />}>
                 <Routes>
                     <Route path={AppRoutes.login.login()} element={<LoginPage />} />
+                    <Route path={AppRoutes.login.loginExternal()} element={<ExternalLogin />} />
+                    <Route path={AppRoutes.login.loginExternalWayf()} element={<Wayf external />} />
                     <Route path={AppRoutes.login.loginSuccess()} element={<LoginSuccess />} />
                     <Route path={AppRoutes.login.loginWayf()} element={<Wayf />} />
                     <Route path={AppRoutes.dashboard.dashboardA()}

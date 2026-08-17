@@ -2,6 +2,7 @@ import * as React from "react";
 import {inDevEnvironment} from "@/UtilityFunctions";
 import {LoginPage} from "./Login";
 import {Navigate} from "react-router-dom";
+import {ExternalLogin} from "./ExternalLogin";
 
 // https://stackoverflow.com/a/2138471
 export function setCookie(name: string, value: string, days: number): void {
@@ -14,10 +15,10 @@ export function setCookie(name: string, value: string, days: number): void {
     document.cookie = name + "=" + (value || "") + expires + "; path=/";
 }
 
-export function getCookie(name: string): string | null {
-    const lsAuthState = localStorage.getItem("authState");
+export function getCookie(name: string, storageKey = "authState"): string | null {
+    const lsAuthState = localStorage.getItem(storageKey);
     if (lsAuthState !== null) {
-        localStorage.removeItem("authState");
+        localStorage.removeItem(storageKey);
         return lsAuthState;
     }
 
@@ -37,8 +38,8 @@ function eraseCookie(name: string): void {
 type WayfTestState = "success" | "2fa";
 const testState: WayfTestState | null = null;
 
-function Wayf(): React.ReactNode {
-    const authCookieName = "authState";
+function Wayf({external = false}: {external?: boolean}): React.ReactNode {
+    const authCookieName = external ? "externalAuthState" : "authState";
 
     if (inDevEnvironment()) {
         if (testState === "success") {
@@ -74,6 +75,7 @@ function Wayf(): React.ReactNode {
     } else {
         const authState = JSON.parse(decodeURIComponent(authStateCookie));
         eraseCookie(authCookieName);
+        if (external) return <ExternalLogin initialState={authState} />;
         return <LoginPage initialState={authState} />;
     }
 

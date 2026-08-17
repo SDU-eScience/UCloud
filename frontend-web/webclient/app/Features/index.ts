@@ -1,6 +1,8 @@
 import {inDevEnvironment, onDevSite} from "@/UtilityFunctions";
 
 export enum Feature {
+    EXTERNAL_LOGIN_TEST,
+
     REORDER_APP_GROUP,
 
     STACKS,
@@ -48,6 +50,12 @@ interface FeatureConfig {
 }
 
 const featureMap: Record<string, FeatureConfig> = {
+    "external-login-test": {
+        feature: Feature.EXTERNAL_LOGIN_TEST,
+        showWithoutFlag: allDevEnvironments,
+        showWithFlag: allDevEnvironments,
+    },
+
     "reorder-app-group": {
         feature: Feature.REORDER_APP_GROUP,
         showWithoutFlag: allDevEnvironments,

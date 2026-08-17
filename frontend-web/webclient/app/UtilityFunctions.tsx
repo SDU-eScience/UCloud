@@ -466,6 +466,8 @@ export function useFrameHidden(): boolean {
     return [
         "/app/login",
         "/app/login/wayf",
+        "/app/login/external",
+        "/app/login/external/wayf",
         "/app/applications/shell/",
         "/app/applications/web/",
         "/app/applications/vnc/",
