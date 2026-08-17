@@ -7,11 +7,10 @@ import CONF from "../../../../site.config.json";
 import {useCallback} from "react";
 import {errorMessageOrDefault} from "@/UtilityFunctions";
 import {compute} from "@/UCloud";
-import JobSpecification = compute.JobSpecification;
 import AppParameterValue = compute.AppParameterValue;
 import {TextP} from "@/ui-components/Text";
 import {callAPI, useCloudCommand} from "@/Authentication/DataHook";
-import {default as JobsApi, DynamicParameters} from "@/UCloud/JobsApi";
+import {default as JobsApi, DynamicParameters, JobSpecification} from "@/UCloud/JobsApi";
 import {bulkRequestOf} from "@/UtilityFunctions";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {api as FilesApi, normalizeDownloadEndpoint} from "@/UCloud/FilesApi";
@@ -23,12 +22,13 @@ import {ShortcutKey} from "@/ui-components/Operation";
 import {FilesCreateDownloadResponseItem, UFile} from "@/UCloud/UFile";
 import {Application} from "@/Applications/AppStoreApi";
 import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
+import Warning from "@/ui-components/Warning";
 
 export function ImportParameters({application, dynamicParameters, onImport, automaticImport, importDialogOpen, onImportDialogClose, setImportDialogOpen, onMessagesChange}: React.PropsWithChildren<{
     application: Application;
     dynamicParameters: DynamicParameters | null;
-    onImport: (parameters: Partial<UCloud.compute.JobSpecification>) => void;
-    automaticImport?: {siteVersion: 3; request: Partial<UCloud.compute.JobSpecification>} | null;
+    onImport: (parameters: Partial<JobSpecification>) => void;
+    automaticImport?: {siteVersion: 3; request: Partial<JobSpecification>} | null | undefined;
     importDialogOpen: boolean;
     setImportDialogOpen: React.Dispatch<React.SetStateAction<boolean>>;
     onImportDialogClose: () => void;
@@ -214,22 +214,24 @@ export function ImportParameters({application, dynamicParameters, onImport, auto
     </Box>;
 };
 
-export function ImportMessages({messages}: {messages: ImportMessage[]}): React.ReactNode {
+export function ImportMessages({messages, onClear}: {
+    messages: ImportMessage[];
+    onClear: () => void;
+}): React.ReactNode {
     if (messages.length === 0) return null;
 
-    return <Box>
-        <TextP bold>We have attempted to your import your previous job</TextP>
-        <ul>
-            {messages.map((it, i) =>
-                <li key={i}>
-                    {it.type === "error" ? <Icon mr="8px" name={"warning"} color={"errorMain"} /> : null}
-                    {it.type === "warning" ? <Icon mr="8px" name={"warning"} color={"warningMain"} /> : null}
-                    {it.type === "info" ? <Icon mr="8px" name={"info"} /> : null}
-                    {it.message}
-                </li>
-            )}
-        </ul>
-    </Box>;
+    return <Warning clearWarning={onClear}>
+        <Box>
+            <TextP bold>We have attempted to your import your previous job</TextP>
+            <ul style={{paddingLeft: "14px"}}>
+                {messages.map((it, i) =>
+                    <li key={i}>
+                        {it.message}
+                    </li>
+                )}
+            </ul>
+        </Box>
+    </Warning>;
 }
 
 export type ImportMessage =
