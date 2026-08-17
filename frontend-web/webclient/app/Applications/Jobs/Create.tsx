@@ -1,6 +1,6 @@
 import * as React from "react";
 import {JSX, useCallback, useEffect, useMemo, useState} from "react";
-import {InvokeCommand, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {callAPI, InvokeCommand, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {useLocation, useNavigate} from "react-router-dom";
 import {MainContainer} from "@/ui-components/MainContainer";
 import {ApplicationSelector, AppHeader} from "@/Applications/View";
@@ -463,6 +463,7 @@ export const Create: React.FunctionComponent = () => {
         {noop: true},
         null
     );
+    const [flavors, setFlavors] = useState<Application[]>([]);
     const [injectedParameters, fetchInjectedParameters] = useCloudAPI<DynamicParameters | null>(
         {noop: true},
         null
@@ -508,6 +509,28 @@ export const Create: React.FunctionComponent = () => {
     const costUnit = displayWallet?.usageAndQuota.raw.unit ??
         (estimatedCost.product ? explainUnit(estimatedCost.product.category).name : "");
     const [discovery] = useDiscovery();
+
+    useEffect(() => {
+        setFlavors(applicationResp?.data?.status?.applications ?? []);
+    }, [applicationResp?.data]);
+
+    const reloadFlavors = useCallback(async () => {
+        const group = await callAPI(AppStore.findGroupByApplication({
+            appName,
+            appVersion: appVersion ?? undefined,
+            flags: {
+                includeApplications: true,
+                includeInvocation: true,
+                includeStars: true,
+                includeVersions: true,
+            },
+            ...discovery,
+        }));
+        const updatedFlavors = group.status.applications ?? [];
+        setFlavors(updatedFlavors);
+        return updatedFlavors;
+    }, [appName, appVersion, discovery]);
+
     const dnsHostnameSeed = React.useRef((Math.floor(Math.random() * 9000) + 1000).toString());
     const [jobName, setJobName] = useState("");
     const [dnsHostname, setDnsHostname] = useState("");
@@ -1023,7 +1046,20 @@ export const Create: React.FunctionComponent = () => {
         };
         const onKeyDown = (event: KeyboardEvent) => {
             if (document.querySelector(".ReactModal__Overlay")) return;
-            if (event.defaultPrevented || !event.altKey || !primaryPressed(event)) return;
+            if (event.defaultPrevented) return;
+            if ((event.key === "ArrowUp" || event.key === "ArrowDown") &&
+                !event.metaKey && !event.ctrlKey && !event.altKey &&
+                !document.activeElement?.closest(JOB_NAVIGATION_SELECTOR)) {
+                const focusTarget = Array.from(document.querySelectorAll<HTMLElement>(JOB_NAVIGATION_SELECTOR))
+                    .find(element => element.offsetParent !== null && !isDisabledNavigationTarget(element));
+                if (focusTarget) {
+                    event.preventDefault();
+                    focusTarget.focus();
+                    focusTarget.scrollIntoView({block: "nearest"});
+                }
+                return;
+            }
+            if (!event.altKey || !primaryPressed(event)) return;
             setShortcutsVisible(true);
             if (event.key === "Enter") {
                 event.preventDefault();
@@ -1155,7 +1191,7 @@ export const Create: React.FunctionComponent = () => {
                     <AppHeader
                         title={appGroup?.specification?.title ?? application.metadata.title}
                         application={application}
-                        flavors={appGroup?.status?.applications ?? []}
+                        flavors={flavors}
                         allVersions={application.versions ?? []}
                         showSelectors={false}
                         responsiveDescription
@@ -1208,25 +1244,13 @@ export const Create: React.FunctionComponent = () => {
                                 <Box mt="16px" mb="20px">
                                     <ApplicationSelector
                                         application={application}
-                                        flavors={appGroup?.status?.applications ?? []}
+                                        flavors={flavors}
                                         allVersions={application.versions ?? []}
                                         showLabels
                                         jobCreateLayout
                                         fieldNavigation
                                         autoFocusFlavor
-                                        reloadFlavors={() => fetchApplication(
-                                            AppStore.findGroupByApplication({
-                                                appName,
-                                                appVersion: appVersion ?? undefined,
-                                                flags: {
-                                                    includeApplications: true,
-                                                    includeInvocation: true,
-                                                    includeStars: true,
-                                                    includeVersions: true,
-                                                },
-                                                ...discovery,
-                                            })
-                                        )}
+                                        reloadFlavors={reloadFlavors}
                                     />
                                 </Box>
                                 <ReservationParameter

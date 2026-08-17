@@ -9,7 +9,7 @@ import {classConcat, injectStyleSimple} from "@/Unstyled";
 import {Application} from "@/Applications/AppStoreApi";
 import {RichSelect} from "@/ui-components/RichSelect";
 import {useMemo} from "react";
-import {openFlavorManagement} from "@/Applications/FlavorManagement";
+import {FlavorRefresh, openFlavorManagement} from "@/Applications/FlavorManagement";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {checkIsWorkspaceAdmin} from "@/ui-components/ResourceBrowser";
@@ -99,7 +99,7 @@ export const ApplicationSelector: React.FunctionComponent<{
     jobCreateLayout?: boolean;
     fieldNavigation?: boolean;
     autoFocusFlavor?: boolean;
-    reloadFlavors?(): void | Promise<void>;
+    reloadFlavors?: FlavorRefresh;
 }> = props => {
     const newestVersion = props.allVersions[0];
     const navigate = useNavigate();
