@@ -30,10 +30,8 @@ export const providerBrandingStore = new class extends ExternalStoreBase {
 
     public getProviderProperty<Property extends keyof ProviderBranding>(providerId: string, providerProperty: Property): ProviderBranding[Property] | undefined {
         const property = this.branding.providers[providerId]?.[providerProperty];
-        const useFallback = providerProperty === "logo" && (property as string)?.includes("/");
         if (!property) console.warn(`Property '${providerProperty}' missing for ${providerId}`, this.branding);
-        if (useFallback) console.warn(`Using fallback logo for ${providerId}. Actual value: ${property}`)
-        return property && !useFallback ? property : ProviderInfo.providers.find(it => it.id === providerId)?.[providerProperty as string];
+        return property ? property : ProviderInfo.providers.find(it => it.id === providerId)?.[providerProperty as string];
     }
 }
 
