@@ -54,7 +54,7 @@ import {DataListItem} from "@/UserSettings/types";
 import {Tag} from "@/Applications/Card";
 import {useUState } from "@/Utilities/UState";
 import {connectionState} from "@/Providers/ConnectionState";
-import {ProviderTitle} from "@/Providers/ProviderTitle";
+import {getProviderTitle, ProviderTitle} from "@/Providers/ProviderTitle";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 
 const wayfIdpsPairs = WAYF.wayfIdps.map(it => ({value: it, content: it}));
@@ -953,19 +953,19 @@ function PolicyConfiguration({policy, updatePolicyRule}: { policy: Policy; updat
                             })).then(result => {
                                 setSearchApps(result.items.map(it => ({
                                     key: it.metadata.name,
-                                    value: it.metadata.name,
+                                    value: it.metadata.title,
                                     tags: ""
                                 })))
                             })
                         }, 500);
                     }}
                     onSelect={it => {
-                        const newAllowedApps = new Set([it.value, ...allowedApps]);
+                        const newAllowedApps = new Set([it.key, ...allowedApps]);
                         setAllowedApps(newAllowedApps);
                         updatePolicyRule(policy.schema.name, "applications", [...newAllowedApps]);
                         (document.getElementById("allowed-apps") as HTMLInputElement).value = "";
                     }}
-                    RenderRow={({item}) => (<AppRow appName={item.value} />)}
+                    RenderRow={({item}) => (<AppRow item={item} />)}
                     placeholder={"Search by application name..."}
                     ref={ref}
                 />
@@ -1003,7 +1003,7 @@ function PolicyConfiguration({policy, updatePolicyRule}: { policy: Policy; updat
                         updatePolicyRule(policy.schema.name, "allowList", [...newAllowedApps]);
                         (document.getElementById("allowed-integrated-apps") as HTMLInputElement).value = "";
                     }}
-                    RenderRow={({item}) => (<AppRow appName={item.value} />)}
+                    RenderRow={({item}) => (<AppRow item={item} />)}
                     placeholder={"Integrated application name..."}
                     ref={ref}
                 />
@@ -1078,7 +1078,7 @@ function PolicyConfiguration({policy, updatePolicyRule}: { policy: Policy; updat
                     providerSet.delete(it);
                     setProviderSet(new Set([...providerSet]));
                     updatePolicyRule(policy.schema.name, "organizations", [...providerSet]);
-                }} label={it} />)}
+                }} label={getProviderTitle(it)} />)}
                 <NewDataList items={providers} id="allowed-providers" title={""} onSelect={provider => {
                     const newProviderSet = new Set([...providerSet, provider.key]);
                     setProviderSet(newProviderSet);
@@ -1109,7 +1109,7 @@ function PolicyConfiguration({policy, updatePolicyRule}: { policy: Policy; updat
     }
 }
 
-const u8Range = /(0|1([0-9]{0,2})|[3-9][0-9]{0,1}|2[0-9]{0,1}|2[0-4][0-9]|25[0-5])/;
+const u8Range = /(0|1(\d{0,2})|[3-9]\d{0,1}|2\d{0,1}|2[0-4]\d|25[0-5])/;
 const ipRange = new RegExp(`${u8Range.source}((\.${u8Range.source}){3})`);
 const subnet = /\/(3[0-2]|[1-9]|2[1-9])/;
 const cidrRegex = new RegExp(`^${ipRange.source}${subnet.source}$`);
@@ -1122,10 +1122,10 @@ function LabelTag({onClick, label}: {onClick(): void; label: string;}): React.Re
     />
 }
 
-function AppRow({appName}: {appName: string}): React.ReactNode {
+function AppRow({item}: {item: DataListItem}): React.ReactNode {
     return <Flex gap="8px" my="auto">
-        <Box my="auto"><SafeLogo name={appName} type={"APPLICATION"} size={"18px"} /></Box>
-        <Text my="auto">{appName}</Text>
+        <Box my="auto"><SafeLogo name={item.key} type={"APPLICATION"} size={"18px"} /></Box>
+        <Text my="auto">{item.value}</Text>
     </Flex>
 }
 
