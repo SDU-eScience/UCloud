@@ -23,6 +23,7 @@ export type ClickableDropdownProps<T> = {
 
     fullWidth?: boolean;
     height?: number;
+    contentWidth?: string | number;
     rightAligned?: boolean;
     width?: string | number;
     minWidth?: string;
@@ -298,7 +299,7 @@ function ClickableDropdown<T>({
         left={left}
         fixed={props.rightAligned || props.useMousePositioning}
         maxHeight={`${props.height}px`}
-        width={width}
+        width={props.contentWidth ?? width}
         hover={false}
         visible={open}
         onClick={e => {

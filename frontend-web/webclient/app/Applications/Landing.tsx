@@ -116,7 +116,7 @@ const LandingPage: React.FunctionComponent = () => {
                     {landingPage.categories.length < 1 ? null :
                         <div>
                             <h3>Browse by category</h3>
-                            <Grid gap={"16px"} gridTemplateColumns={"repeat(auto-fit, minmax(250px, 1fr)"}>
+                            <Grid gap={"16px"} gridTemplateColumns={"repeat(auto-fit, minmax(250px, 1fr))"}>
                                 {landingPage.categories.map((c, idx) =>
                                     <CategoryCard key={c.metadata.id} id={c.metadata.id} idx={idx}
                                         categoryTitle={c.specification.title} />

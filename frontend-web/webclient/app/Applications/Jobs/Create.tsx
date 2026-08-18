@@ -73,6 +73,14 @@ import Warning from "@/ui-components/Warning";
 import {ShortcutClass} from "@/ui-components/ResourceBrowserStyle";
 import {CompactResourceRowsContent} from "@/Applications/Jobs/Resources/CompactResourceRows";
 import {stupidPluralize} from "@/Utilities/TextUtilities";
+import {
+    closeOpenDropdown,
+    FIELD_NAVIGATION_SELECTOR,
+    isDisabledNavigationTarget,
+    KeyboardNavigation,
+    SubmitShortcut,
+    useSubmitShortcut,
+} from "@/Applications/KeyboardNavigation";
 
 interface InsufficientFunds {
     why?: string;
@@ -91,118 +99,6 @@ function JobCardHeading({children, shortcut, shortcutsVisible, action}: React.Pr
         )}
         {!action ? null : <Box ml="auto">{action}</Box>}
     </Flex>;
-}
-
-function closeOpenDropdown(field: HTMLElement): void {
-    const dropdown = field.getAttribute("aria-expanded") === "true" ? field :
-        field.querySelector<HTMLElement>("[aria-expanded='true']");
-    dropdown?.querySelector<HTMLElement>("[data-dropdown-trigger]")?.click();
-}
-
-const JOB_NAVIGATION_SELECTOR = [
-    "[data-job-info-field]",
-    "[data-navigation-field]",
-    "[data-field-row] input:not([type='hidden'])",
-    "[data-field-row] select",
-    "[data-field-row] textarea",
-    "[data-field-row] [role='switch']",
-    "[data-field-row] [data-field-activator]",
-].join(", ");
-
-function isDisabledNavigationTarget(element: HTMLElement): boolean {
-    return element.matches(":disabled, [aria-disabled='true']");
-}
-
-function findSpatialNavigationTarget(
-    current: HTMLElement,
-    candidates: HTMLElement[],
-    key: "ArrowLeft" | "ArrowRight" | "ArrowUp" | "ArrowDown",
-): HTMLElement | null {
-    const currentRect = current.getBoundingClientRect();
-    const vertical = key === "ArrowUp" || key === "ArrowDown";
-    const forward = key === "ArrowRight" || key === "ArrowDown";
-    const overlaps = (aStart: number, aEnd: number, bStart: number, bEnd: number) =>
-        Math.min(aEnd, bEnd) > Math.max(aStart, bStart);
-    const visible = candidates.map(element => ({element, rect: element.getBoundingClientRect()})).filter(candidate => {
-        if (candidate.element === current || candidate.element.offsetParent === null ||
-            isDisabledNavigationTarget(candidate.element)) return false;
-        const currentCenter = vertical ? currentRect.top + currentRect.height / 2 : currentRect.left + currentRect.width / 2;
-        const candidateCenter = vertical ? candidate.rect.top + candidate.rect.height / 2 : candidate.rect.left + candidate.rect.width / 2;
-        if ((candidateCenter - currentCenter) * (forward ? 1 : -1) <= 4) return false;
-        return vertical ?
-            overlaps(currentRect.left, currentRect.right, candidate.rect.left, candidate.rect.right) :
-            overlaps(currentRect.top, currentRect.bottom, candidate.rect.top, candidate.rect.bottom);
-    });
-    if (visible.length === 0) return null;
-
-    const primaryDistance = (rect: DOMRect) => Math.max(0, vertical ?
-        (forward ? rect.top - currentRect.bottom : currentRect.top - rect.bottom) :
-        (forward ? rect.left - currentRect.right : currentRect.left - rect.right));
-    const nearest = visible.reduce((best, candidate) =>
-        primaryDistance(candidate.rect) < primaryDistance(best.rect) ? candidate : best
-    );
-    const sameLane = visible.filter(candidate => vertical ?
-        overlaps(nearest.rect.top, nearest.rect.bottom, candidate.rect.top, candidate.rect.bottom) :
-        overlaps(nearest.rect.left, nearest.rect.right, candidate.rect.left, candidate.rect.right)
-    );
-    const secondaryDistance = (rect: DOMRect) => vertical ?
-        Math.abs(rect.left + rect.width / 2 - (currentRect.left + currentRect.width / 2)) :
-        Math.abs(rect.top + rect.height / 2 - (currentRect.top + currentRect.height / 2));
-    return sameLane.reduce((best, candidate) =>
-        secondaryDistance(candidate.rect) < secondaryDistance(best.rect) ? candidate : best
-    ).element;
-}
-
-function JobInformationNavigation({children}: React.PropsWithChildren): React.ReactNode {
-    const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-        if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
-        const target = event.target as HTMLElement;
-        const current = target.closest<HTMLElement>("[data-job-info-field]");
-        if (!current) return;
-
-        if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) {
-            const start = target.selectionStart;
-            const end = target.selectionEnd;
-            if (start !== null && end !== null) {
-                if (event.key === "ArrowLeft" && (start !== 0 || end !== 0)) return;
-                if (event.key === "ArrowRight" && (start !== target.value.length || end !== target.value.length)) return;
-            }
-        }
-
-        const next = findSpatialNavigationTarget(
-            current,
-            Array.from(event.currentTarget.querySelectorAll<HTMLElement>("[data-job-info-field]")),
-            event.key,
-        );
-        if (!next) return;
-        event.preventDefault();
-        closeOpenDropdown(current);
-        next.focus();
-    };
-
-    return <div onKeyDown={onKeyDown}>{children}</div>;
-}
-
-function JobFieldNavigation({children}: React.PropsWithChildren): React.ReactNode {
-    const onKeyDownCapture = (event: React.KeyboardEvent<HTMLDivElement>) => {
-        if ((event.key !== "ArrowUp" && event.key !== "ArrowDown") || event.metaKey || event.ctrlKey || event.altKey) return;
-        const target = event.target as HTMLElement;
-        if (target instanceof HTMLTextAreaElement) return;
-
-        const current = target.closest<HTMLElement>(JOB_NAVIGATION_SELECTOR);
-        if (!current) return;
-        const candidates = Array.from(event.currentTarget.querySelectorAll<HTMLElement>(JOB_NAVIGATION_SELECTOR));
-
-        const next = findSpatialNavigationTarget(current, candidates, event.key);
-
-        if (!next) return;
-        event.preventDefault();
-        event.stopPropagation();
-        closeOpenDropdown(current);
-        next.focus();
-    };
-
-    return <div className={JobCreateMainClass} onKeyDownCapture={onKeyDownCapture}>{children}</div>;
 }
 
 function removeDisplayedUnit(value: string, unit: string): string {
@@ -418,14 +314,6 @@ const JobSubmitButtonClass = injectStyle("job-submit-button", key => `
         ${key} button {
             width: auto;
             white-space: nowrap;
-        }
-    }
-`);
-
-const SubmitShortcutClass = injectStyle("job-submit-shortcut", key => `
-    @media (max-width: 600px) {
-        ${key} {
-            display: none;
         }
     }
 `);
@@ -1035,6 +923,8 @@ export const Create: React.FunctionComponent = () => {
     ).map(it => it.name), errors) + countErrors(folders.errors, ingress.errors, networks.errors, peers.errors, privateNetworks.errors);
     const anyError = errorCount > 0;
 
+    useSubmitShortcut(() => submitJob(false), anyError || isLoading || !sshValid || isMissingConnection);
+
     useEffect(() => {
         const cardIds: Record<string, string> = {
             KeyJ: "job-card-information",
@@ -1050,7 +940,7 @@ export const Create: React.FunctionComponent = () => {
             const card = document.getElementById(id);
             if (!card) return;
             if (document.activeElement instanceof HTMLElement) closeOpenDropdown(document.activeElement);
-            const navigationTargets = Array.from(card.querySelectorAll<HTMLElement>(JOB_NAVIGATION_SELECTOR))
+            const navigationTargets = Array.from(card.querySelectorAll<HTMLElement>(FIELD_NAVIGATION_SELECTOR))
                 .filter(element => !isDisabledNavigationTarget(element));
             const focusTarget = navigationTargets.find(element => element.hasAttribute("data-card-first-field")) ??
                 navigationTargets[0];
@@ -1062,8 +952,8 @@ export const Create: React.FunctionComponent = () => {
             if (event.defaultPrevented) return;
             if ((event.key === "ArrowUp" || event.key === "ArrowDown") &&
                 !event.metaKey && !event.ctrlKey && !event.altKey &&
-                !document.activeElement?.closest(JOB_NAVIGATION_SELECTOR)) {
-                const focusTarget = Array.from(document.querySelectorAll<HTMLElement>(JOB_NAVIGATION_SELECTOR))
+                !document.activeElement?.closest(FIELD_NAVIGATION_SELECTOR)) {
+                const focusTarget = Array.from(document.querySelectorAll<HTMLElement>(FIELD_NAVIGATION_SELECTOR))
                     .find(element => element.offsetParent !== null && !isDisabledNavigationTarget(element));
                 if (focusTarget) {
                     event.preventDefault();
@@ -1074,11 +964,6 @@ export const Create: React.FunctionComponent = () => {
             }
             if (!event.altKey || !primaryPressed(event)) return;
             setShortcutsVisible(true);
-            if (event.key === "Enter") {
-                event.preventDefault();
-                if (!anyError && !isLoading && sshValid && !isMissingConnection) submitJob(false);
-                return;
-            }
             const cardId = cardIds[event.code];
             if (!cardId) return;
             event.preventDefault();
@@ -1174,17 +1059,7 @@ export const Create: React.FunctionComponent = () => {
             <Button type="button" color="successMain" disabled={anyError} onClick={() => submitJob(false)}>
                 <Icon name="heroPlay" mr={8} />
                 <span>Submit</span>
-                <span
-                    className={`${ShortcutClass} ${SubmitShortcutClass}`}
-                    style={{
-                        marginLeft: "12px",
-                        backgroundColor: "var(--successDark)",
-                        color: "var(--fixedWhite)",
-                        mixBlendMode: "normal"
-                    }}
-                >
-                    {createKeyboardShortcut("Enter", ["ctrl", "alt"])}
-                </span>
+                <SubmitShortcut />
             </Button>
         </>;
 
@@ -1232,7 +1107,7 @@ export const Create: React.FunctionComponent = () => {
                 </div>
                 <div className={JobCreateContentClass}>
                     <div className={JobCreateLayoutClass}>
-                    <JobFieldNavigation>
+                    <KeyboardNavigation className={JobCreateMainClass} horizontalSelector="[data-job-info-field]">
                     <Grid gridTemplateColumns="1fr" gap="24px" width="100%" mb="24px">
                         {insufficientFunds ? <WalletWarning errorCode={insufficientFunds.errorCode} /> : null}
                         {!isMissingConnection ? null : <Box mt={32}>
@@ -1254,7 +1129,7 @@ export const Create: React.FunctionComponent = () => {
                             }>
                                 Job information
                             </JobCardHeading>
-                            <JobInformationNavigation>
+                            <div>
                                 {!canImportParameters ? null : <ImportMessages messages={importMessages} onClear={() => setImportMessages([])} />}
                                 <Box mt="16px" mb="20px">
                                     <ApplicationSelector
@@ -1277,7 +1152,7 @@ export const Create: React.FunctionComponent = () => {
                                     onEstimatedCostChange={(durationInMinutes, numberOfNodes, wallet, product) =>
                                         setEstimatedCost({durationInMinutes, wallet, numberOfNodes, product})}
                                 />
-                            </JobInformationNavigation>
+                            </div>
                         </Card>
 
                         <div data-last-used-file-path="" hidden />
@@ -1418,7 +1293,7 @@ export const Create: React.FunctionComponent = () => {
                         )}
 
                     </Grid>
-                    </JobFieldNavigation>
+                    </KeyboardNavigation>
                     <aside className={JobSubmissionSidebarClass}>
                         <Card>
                             <div className={JobSubmissionSecondaryClass}>
