@@ -11,7 +11,6 @@ import {
     DataList,
     Tooltip,
     Markdown,
-    Card,
     Icon
 } from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
@@ -873,42 +872,27 @@ function PolicySchemas({schemas}: {schemas: Record<string, Policy>}) {
         updateRef.current[schemaName].values[rule] = value;
     }, []);
 
-    return <Card>{
+    return <Box>{
         Object.keys(schemas).map(key => {
             const policy = schemas[key];
             return <PolicySchemaEntry key={key} togglePolicy={togglePolicy} policy={policy} updatePolicyRule={updatePolicyRule} />
         })}
         <Button ml="auto" onClick={() => submitChanges(updateRef.current)}>Save changes</Button>
-    </Card>;
+    </Box>;
 }
 
-const asCheckBox = true;
 function PolicySchemaEntry({policy, togglePolicy, updatePolicyRule}: { policy: Policy; togglePolicy: (schemaName: PolicyName, enabled: boolean) => void; updatePolicyRule: (policyName: PolicyName, rule: string, value: any) => void }): React.ReactNode {
     const [enabled, setEnabled] = React.useState(policy.specification?.values.enabled ?? false);
 
-    return <Box key={policy.schema.name} my="12px" pb="20px" borderBottom={"1px solid var(--borderColor)"}>
+    return <Box key={policy.schema.name} my="24px" pb="20px">
         <Flex justifyContent={"space-between"}>
             <b>{policy.schema.title}</b>
-            {asCheckBox ? <Label cursor="pointer" style={{gap: "8px", marginTop: 0}} width="fit-content">
-                {policy.schema.configuration.enabled.title}
-                <Checkbox style={{marginLeft: "6px", marginTop: "-4px"}} checked={enabled} onChange={() => setEnabled(enabled => {
-                    togglePolicy(policy.schema.name, !enabled);
-                    return !enabled;
-                })} />
-            </Label> :
-                <Flex cursor="pointer" gap="8px" onClick={() => setEnabled(enabled => {
-                    togglePolicy(policy.schema.name, !enabled);
-                    return !enabled;
-                })}>
-                    {policy.schema.configuration.enabled.title}
-                    <Box mt="1px" mr="8px">
-                        <Toggle checked={enabled} onChange={() => setEnabled(enabled => {
-                            togglePolicy(policy.schema.name, !enabled)
-                            return !enabled;
-                        })} height={18} />
-                    </Box>
-                </Flex>
-            }
+                <Box mt="1px" mr="8px">
+                    <Toggle activeColor="primaryMain" checked={enabled} onChange={() => setEnabled(enabled => {
+                        togglePolicy(policy.schema.name, !enabled)
+                        return !enabled;
+                    })} height={18} />
+                </Box>
         </Flex>
         <Box mt="-10px" style={{color: "var(--textSecondary)"}}>
             <Markdown>{policy.schema.description}</Markdown>
@@ -917,7 +901,7 @@ function PolicySchemaEntry({policy, togglePolicy, updatePolicyRule}: { policy: P
     </Box>
 }
 
-function PolicyConfiguration({ policy, updatePolicyRule }: { policy: Policy; updatePolicyRule: (policyName: PolicyName, rule: string, value: any) => void}): React.ReactNode {
+function PolicyConfiguration({policy, updatePolicyRule}: {policy: Policy; updatePolicyRule: (policyName: PolicyName, rule: string, value: any) => void}): React.ReactNode {
     switch (policy.schema.name) {
         case "RestrictApplications": {
             const [searchApps, setSearchApps] = useState<DataListItem[]>([]);
@@ -1102,10 +1086,9 @@ function PolicyConfiguration({ policy, updatePolicyRule }: { policy: Policy; upd
         }
         case "RestrictSourceIPRange": {
             const values = policy.specification?.values as Partial<{allowedSubnets: string}> | undefined;
-
             const {allowedSubnets} = policy.schema.configuration;
             return <ConfigurationEntry entry={allowedSubnets}>
-                <Input type="text" defaultValue={values?.allowedSubnets} onChange={e => {
+                <Input type="text" placeholder="Enter a CIDR, e.g. '10.0.0.1/24'" defaultValue={values?.allowedSubnets} onChange={e => {
                     updatePolicyRule(policy.schema.name, "allowedSubnets", e.target.value);
                 }} />
             </ConfigurationEntry>;
@@ -1113,10 +1096,10 @@ function PolicyConfiguration({ policy, updatePolicyRule }: { policy: Policy; upd
     }
 }
 
-function LabelTag({ onClick, label }: { onClick(): void; label: string; }): React.ReactNode {
+function LabelTag({onClick, label}: {onClick(): void; label: string;}): React.ReactNode {
     return <Tag
         label={
-            <Box>{label} <Icon cursor="pointer" size="12px" ml="5px" name="close" onClick={onClick} /></Box>
+            <Box>{label} <Icon cursor="pointer" size="12px" ml="5px" mt="-2px" name="close" onClick={onClick} /></Box>
         }
     />
 }
@@ -1136,7 +1119,7 @@ function ProviderRow({providerTitle}: {providerTitle: string}): React.ReactNode 
 }
 
 function ConfigurationEntry({entry, children}: {entry: ConfigurationEntry; children: React.ReactNode}): React.ReactNode {
-    return <Box mt="12px" borderTop="1px solid var(--borderColor)" pt="12px" ml="24px">
+    return <Box mt="12px" borderLeft="1px solid var(--borderColor)" pl="24px" pt="12px" ml="24px">
         <b style={{marginBottom: "8px"}}>
             {entry.title}
         </b>

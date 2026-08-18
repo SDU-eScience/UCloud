@@ -27,7 +27,6 @@ export const Tag = ({label, bg = "infoMain"}: {label: React.ReactNode; bg?: Them
         display: "inline-block",
         lineHeight: 1.5,
         color: "var(--infoContrast)",
-        textTransform: "uppercase",
         fontSize: "10px",
         fontWeight: 500,
         borderRadius: "6px",
