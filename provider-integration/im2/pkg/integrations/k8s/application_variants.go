@@ -25,7 +25,7 @@ func initApplicationVariants() {
 			JobId: request.Job.Id,
 			Application: orc.NameAndVersion{
 				Name:    fmt.Sprintf("variant-%d", request.VariantId),
-				Version: fmt.Sprintf("r%d", request.Revision),
+				Version: fmt.Sprintf("v%d", request.Revision),
 			},
 		})
 		task, err := fnd.TasksCreate.Invoke(fnd.TasksCreateRequest{

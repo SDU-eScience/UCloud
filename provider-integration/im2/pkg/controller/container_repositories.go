@@ -82,7 +82,9 @@ func initContainerRepositories() {
 			if ContainerRepositories.DeleteImage == nil {
 				return fnd.BulkResponse[util.Empty]{}, util.HttpErr(http.StatusBadRequest, "Container repository image deletion is not supported")
 			}
-			ContainerRepositoryTrack(item.ResolvedRepository)
+			if item.Image == "" {
+				ContainerRepositoryTrack(item.ResolvedRepository)
+			}
 			if err := ContainerRepositories.DeleteImage(item); err != nil {
 				return fnd.BulkResponse[util.Empty]{}, err
 			}

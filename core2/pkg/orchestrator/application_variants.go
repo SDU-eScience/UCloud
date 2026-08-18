@@ -210,6 +210,24 @@ func applicationVariantImageBase(image string) string {
 	return name
 }
 
+func applicationVariantImageTag(image string) string {
+	lastSlash := strings.LastIndex(image, "/")
+	if tag := strings.LastIndex(image, ":"); tag > lastSlash {
+		return image[tag+1:]
+	}
+	return ""
+}
+
+func applicationVariantVersionNumber(image string, fallback int64) int64 {
+	tag := applicationVariantImageTag(image)
+	if len(tag) > 1 && (tag[0] == 'r' || tag[0] == 'v') {
+		if number, err := strconv.ParseInt(tag[1:], 10, 64); err == nil {
+			return number
+		}
+	}
+	return fallback
+}
+
 func applicationVariantReserve(actor rpc.Actor, requested orcapi.NameAndVersion, provider, title string, published bool) (*internalApplicationVariant, string, *util.HttpError) {
 	if published && !actor.Project.Present {
 		return nil, "", util.HttpErr(http.StatusBadRequest, "a personal variant cannot be published to a project")
@@ -467,7 +485,10 @@ func applicationVariantBuildApplication(base orcapi.Application, variant orcapi.
 	_ = json.Unmarshal(encoded, &result)
 
 	name := fmt.Sprintf("variant-%d", variant.Id)
-	version := fmt.Sprintf("r%d", revision)
+	version := fmt.Sprintf("v%d", revision)
+	if tag := applicationVariantImageTag(variant.Image); applicationVariantVersionNumber(variant.Image, 0) != 0 {
+		version = tag
+	}
 	result.Metadata.Name = name
 	result.Metadata.Version = version
 	result.Metadata.CreatedAt = fndapi.Timestamp(createdAt)
@@ -569,14 +590,168 @@ func applicationVariantLoadRevisions(rows []applicationVariantRevisionLoadRow) {
 		if !ok || !base.Invocation.Tool.Tool.Present {
 			continue
 		}
-		revisionNumbers[row.VariantId]++
+		fallbackRevision := revisionNumbers[row.VariantId] + 1
+		revision := applicationVariantVersionNumber(row.Image, fallbackRevision)
+		revisionNumbers[row.VariantId] = max(revisionNumbers[row.VariantId], revision)
 		revisionVariant := variant
 		revisionVariant.RevisionId = row.Id
 		revisionVariant.Image = row.Image
 		revisionVariant.ImageDigest = row.ImageDigest
-		app := applicationVariantBuildApplication(base, revisionVariant, revisionNumbers[row.VariantId], row.CreatedAt)
+		internal.Mu.Lock()
+		internal.RevisionCount = max(internal.RevisionCount, revision)
+		internal.Mu.Unlock()
+		app := applicationVariantBuildApplication(base, revisionVariant, revision, row.CreatedAt)
 		applicationVariantCacheAdd(app, variant.State == orcapi.ApplicationVariantStateActive && variant.RevisionId == row.Id)
 	}
+}
+
+func applicationVariantRevision(id int64, version string) (int64, string, bool) {
+	app, ok := appRetrieve(fmt.Sprintf("variant-%d", id), version)
+	if !ok {
+		return 0, "", false
+	}
+	app.Mu.RLock()
+	defer app.Mu.RUnlock()
+	if !app.Variant.Present || app.Variant.Value.Id != id {
+		return 0, "", false
+	}
+	return app.Variant.Value.RevisionId, app.Variant.Value.Image, true
+}
+
+func applicationVariantRevisionVariant(id, revisionId int64) (orcapi.ApplicationVariant, bool) {
+	name := fmt.Sprintf("variant-%d", id)
+	b := appBucket(name)
+	b.Mu.RLock()
+	apps := append([]*internalApplication(nil), b.Applications[name]...)
+	b.Mu.RUnlock()
+	for index := len(apps) - 1; index >= 0; index-- {
+		app := apps[index]
+		app.Mu.RLock()
+		if app.Variant.Present && app.Variant.Value.Id == id && app.Variant.Value.RevisionId == revisionId {
+			result := app.Variant.Value
+			app.Mu.RUnlock()
+			return result, true
+		}
+		app.Mu.RUnlock()
+	}
+	return orcapi.ApplicationVariant{}, false
+}
+
+func applicationVariantCacheDeleteRevision(id int64, version string) {
+	name := fmt.Sprintf("variant-%d", id)
+	b := appBucket(name)
+	b.Mu.Lock()
+	defer b.Mu.Unlock()
+	apps := b.Applications[name]
+	for index, app := range apps {
+		if app.Version != version {
+			continue
+		}
+		b.Applications[name] = util.RemoveAtIndex(apps, index)
+		tools := b.Tools[app.Tool.Name]
+		for toolIndex, tool := range tools {
+			if tool.Version == version {
+				b.Tools[app.Tool.Name] = util.RemoveAtIndex(tools, toolIndex)
+				break
+			}
+		}
+		break
+	}
+}
+
+func applicationVariantDeleteVersion(
+	info rpc.RequestInfo,
+	internal *internalApplicationVariant,
+	variant orcapi.ApplicationVariant,
+	version string,
+) *util.HttpError {
+	revisionId, image, found := applicationVariantRevision(variant.Id, version)
+	if !found {
+		return util.HttpErr(http.StatusNotFound, "flavor version not found")
+	}
+
+	_, err := InvokeProvider(
+		variant.Provider,
+		orcapi.ContainerRepositoriesProviderDeleteImage,
+		fndapi.BulkRequestOf(orcapi.ContainerRepositoriesProviderDeleteImageRequest{
+			Image: image,
+		}),
+		ProviderCallOpts{
+			Username: util.OptValue(info.Actor.Username),
+			Reason:   util.OptValue("delete application variant version"),
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	type revision struct {
+		Id          int64
+		Image       string
+		ImageDigest string
+	}
+	remaining, deleted := db.NewTx2(func(tx *db.Transaction) (revision, bool) {
+		_, removed := db.Get[struct{ Id int64 }](
+			tx,
+			`
+				delete from app_store.application_variant_revisions
+				where
+					id = :revision
+					and variant_id = :variant
+				returning id
+			`,
+			db.Params{
+				"revision": revisionId,
+				"variant":  variant.Id,
+			},
+		)
+		if !removed {
+			return revision{}, false
+		}
+		return db.Get[revision](
+			tx,
+			`
+				select
+					id,
+					image,
+					image_digest
+				from
+					app_store.application_variant_revisions
+				where variant_id = :variant
+				order by id desc
+				limit 1
+			`,
+			db.Params{
+				"variant": variant.Id,
+			},
+		)
+	})
+	if !deleted {
+		return util.HttpErr(http.StatusNotFound, "flavor version not found")
+	}
+
+	previous, hasPrevious := applicationVariantRevisionVariant(variant.Id, remaining.Id)
+	internal.Mu.Lock()
+	current := internal.Value
+	if current.RevisionId == revisionId {
+		current.RevisionId = 0
+		current.Image = ""
+		current.ImageDigest = ""
+		if remaining.Id != 0 {
+			current.RevisionId = remaining.Id
+			current.Image = remaining.Image
+			current.ImageDigest = remaining.ImageDigest
+			if hasPrevious {
+				current.BaseApplication = previous.BaseApplication
+			}
+		}
+		internal.Value = current
+	}
+	internal.Mu.Unlock()
+
+	applicationVariantCacheDeleteRevision(variant.Id, version)
+	applicationVariantCacheUpdateMetadata(current)
+	return nil
 }
 
 func applicationVariantValidateImage(actor rpc.Actor, provider, image string, requireProjectAccess bool) (orcapi.ApplicationVariantValidateImageResponse, *util.HttpError) {
@@ -650,7 +825,7 @@ func initApplicationVariantRpc() {
 		}
 		current, _ := applicationVariantSnapshot(variant)
 		task, err := InvokeProvider(provider, orcapi.JobsProviderCreateApplicationVariant, orcapi.JobsProviderCreateApplicationVariantRequest{
-			Job: job, VariantId: current.Id, Revision: revision, BaseApplication: managedBase, Image: fmt.Sprintf("%s:r%d", imageName, revision), Rank: request.Rank, RequestedBy: info.Actor.Username,
+			Job: job, VariantId: current.Id, Revision: revision, BaseApplication: managedBase, Image: fmt.Sprintf("%s:v%d", imageName, revision), Rank: request.Rank, RequestedBy: info.Actor.Username,
 		}, ProviderCallOpts{Username: util.OptValue(info.Actor.Username), Reason: util.OptValue("create application variant")})
 		if err != nil {
 			if request.TargetVariantId.Present {
@@ -853,6 +1028,12 @@ func initApplicationVariantRpc() {
 		variant, baseGroup := applicationVariantSnapshot(internal)
 		if !applicationVariantCanManage(info.Actor, variant) {
 			return util.Empty{}, util.HttpErr(http.StatusNotFound, "flavor not found")
+		}
+		if request.Version.Present {
+			if variant.State == orcapi.ApplicationVariantStateDeleted {
+				return util.Empty{}, util.HttpErr(http.StatusNotFound, "flavor not found")
+			}
+			return util.Empty{}, applicationVariantDeleteVersion(info, internal, variant, request.Version.Value)
 		}
 		internal.Mu.Lock()
 		wasDeleted := internal.Value.State == orcapi.ApplicationVariantStateDeleted

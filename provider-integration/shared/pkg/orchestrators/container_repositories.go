@@ -216,6 +216,7 @@ type ContainerRepositoriesProviderDeleteImageRequest struct {
 	ResolvedRepository ContainerRepository `json:"resolvedRepository"`
 	Repository         string              `json:"repository"`
 	Tag                string              `json:"tag"`
+	Image              string              `json:"image"`
 }
 
 var ContainerRepositoriesProviderDeleteImage = rpc.Call[fnd.BulkRequest[ContainerRepositoriesProviderDeleteImageRequest], fnd.BulkResponse[util.Empty]]{

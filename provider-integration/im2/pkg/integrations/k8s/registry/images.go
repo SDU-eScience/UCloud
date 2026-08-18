@@ -345,29 +345,65 @@ func imagesDescribeManifest(
 }
 
 func imagesDelete(request orc.ContainerRepositoriesProviderDeleteImageRequest) *util.HttpError {
-	root := request.ResolvedRepository.Specification.Name
-	if !repositoryBelongsToRoot(root, request.Repository) || strings.TrimSpace(request.Tag) == "" {
+	if request.Image != "" {
+		return imagesDeleteReference(request.Image)
+	}
+	return imagesDeleteTag(request.ResolvedRepository, request.Repository, request.Tag, false)
+}
+
+func imagesDeleteTag(resolvedRepository orc.ContainerRepository, repositoryName, tag string, missingOkay bool) *util.HttpError {
+	root := resolvedRepository.Specification.Name
+	if !repositoryBelongsToRoot(root, repositoryName) || strings.TrimSpace(tag) == "" {
 		return util.HttpErr(http.StatusBadRequest, "invalid container image")
 	}
 
-	named, err := reference.WithName(request.Repository)
+	named, err := reference.WithName(repositoryName)
 	if err != nil {
 		return util.HttpErr(http.StatusBadRequest, "invalid container image")
 	}
 	repository, err := registryAccounting.namespace.Repository(context.Background(), named)
 	if err != nil {
+		if missingOkay {
+			return nil
+		}
 		return util.HttpErr(http.StatusNotFound, "container image not found")
 	}
 	ctx := context.Background()
 	tags := repository.Tags(ctx)
-	if _, err = tags.Get(ctx, request.Tag); err != nil {
+	if _, err = tags.Get(ctx, tag); err != nil {
+		if missingOkay {
+			return nil
+		}
 		return util.HttpErr(http.StatusNotFound, "container image not found")
 	}
-	if err = tags.Untag(ctx, request.Tag); err != nil {
-		log.Warn("Unable to delete container image %s:%s: %v", request.Repository, request.Tag, err)
+	if err = tags.Untag(ctx, tag); err != nil {
+		log.Warn("Unable to delete container image %s:%s: %v", repositoryName, tag, err)
 		return util.HttpErr(http.StatusInternalServerError, "unable to delete container image")
 	}
 	return nil
+}
+
+func imagesDeleteReference(image string) *util.HttpError {
+	server, err := url.Parse(Server())
+	if err != nil || server.Host == "" {
+		return util.ServerHttpError("invalid registry configuration")
+	}
+	prefix := server.Host + "/"
+	if !strings.HasPrefix(image, prefix) {
+		return util.HttpErr(http.StatusBadRequest, "image is not hosted by this provider")
+	}
+	referenceText := strings.TrimPrefix(image, prefix)
+	lastSlash := strings.LastIndex(referenceText, "/")
+	tagIndex := strings.LastIndex(referenceText, ":")
+	if tagIndex <= lastSlash {
+		return util.HttpErr(http.StatusBadRequest, "container image must include a tag")
+	}
+	repositoryName := referenceText[:tagIndex]
+	repository, ok := controller.ContainerRepositoryRetrieveByRepository(repositoryName)
+	if !ok {
+		return nil
+	}
+	return imagesDeleteTag(repository, repositoryName, referenceText[tagIndex+1:], true)
 }
 
 func imagesIsLayerMediaType(mediaType string) bool {

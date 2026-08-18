@@ -71,7 +71,8 @@ var ApplicationVariantsBrowse = rpc.Call[ApplicationVariantBrowseRequest, fnd.Pa
 }
 
 type FindApplicationVariant struct {
-	Id int64 `json:"id"`
+	Id      int64               `json:"id"`
+	Version util.Option[string] `json:"version"`
 }
 
 var ApplicationVariantsRetrieve = rpc.Call[FindApplicationVariant, ApplicationVariant]{
