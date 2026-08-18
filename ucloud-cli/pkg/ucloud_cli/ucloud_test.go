@@ -1,10 +1,12 @@
 package ucloud_cli
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"ucloud.dk/ucloud_cli/pkg/command"
+	"ucloud.dk/ucloud_cli/pkg/shared"
 )
 
 func TestComputeProductCommand(t *testing.T) {
@@ -37,6 +39,40 @@ func TestConnectCommand(t *testing.T) {
 	cmd, _ := Parse(input)
 	assert.NotNil(t, cmd)
 	err := cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestWorkspaceListCommand(t *testing.T) {
+	input := []string{"workspace", "list"}
+	cmd, _ := Parse(input)
+	assert.NotNil(t, cmd)
+	err := cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestWorkspaceUseCommand(t *testing.T) {
+	input := []string{"workspace", "use"}
+	cmd, _ := Parse(input)
+	assert.NotNil(t, cmd)
+	err := cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestReadConfig(t *testing.T) {
+	_, err := shared.ReadConfig()
+	assert.NoError(t, err)
+	homeDir, err := os.UserHomeDir()
+	assert.NoError(t, err)
+	expectedPath := homeDir + "/.config/ucloud/config.yaml"
+	assert.Equal(t, shared.GetConfigPath(), expectedPath)
+}
+
+func TestWorkspaceList(t *testing.T) {
+	input := []string{"workspace", "list"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
 	assert.NoError(t, err)
 }
 

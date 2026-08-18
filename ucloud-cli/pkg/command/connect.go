@@ -7,14 +7,11 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"os"
 	"os/exec"
-	"path/filepath"
 	"runtime"
 	"strings"
 
 	anyascii "github.com/anyascii/go"
-	"gopkg.in/yaml.v3"
 	"ucloud.dk/ucloud_cli/pkg/shared"
 )
 
@@ -76,6 +73,10 @@ func cliAuth(w http.ResponseWriter, r *http.Request) error {
 		return fmt.Errorf("no token received")
 	}
 	return saveConfig(token, projectId, projectTitle)
+}
+
+func startServer(ln *net.Listener, authDone chan<- error) error {
+	return nil
 }
 
 func startAuthServer(ready chan<- string, authDone chan<- error) error {
@@ -146,55 +147,9 @@ func repositoryProjectName(title string) string {
 }
 
 func saveConfig(token string, projectId string, projectTitle string) error {
-	home, err := os.UserHomeDir()
+	cfg, err := shared.ReadConfig()
 	if err != nil {
 		return err
-	}
-
-	dir := filepath.Join(home, ".config", "ucloud")
-	path := filepath.Join(dir, "config.yaml")
-
-	// Make sure ~/.config/ucloud exists.
-	if err := os.MkdirAll(dir, 0700); err != nil {
-		return err
-	}
-
-	var cfg shared.Config
-
-	data, err := os.ReadFile(path)
-	if err != nil {
-		if !os.IsNotExist(err) {
-			return err
-		}
-
-		// Config doesn't exist yet, create an empty one.
-		data = []byte{}
-	}
-
-	// Empty config is valid.
-	if len(data) > 0 {
-		if err := yaml.Unmarshal(data, &cfg); err != nil {
-			return err
-		}
-	}
-
-	// Make sure the workspace map exists.
-	if cfg.Workspaces == nil {
-		cfg.Workspaces = make(map[string]shared.Workspace)
-	}
-
-	if cfg.Environments == nil {
-		cfg.Environments = make(map[string]shared.Environment)
-		cfg.Environments["ucloud"] = shared.Environment{
-			URL: "https://cloud.sdu.dk",
-		}
-	}
-	// Defaults
-
-	cfg.DefaultEnvironment = "ucloud"
-	cfg.Defaults = shared.Defaults{
-		Output:       "table",
-		ItemsPerPage: 100,
 	}
 
 	cfg.CurrentWorkspace = repositoryProjectName(projectTitle)
@@ -206,14 +161,7 @@ func saveConfig(token string, projectId string, projectTitle string) error {
 	workspace.Environment = cfg.DefaultEnvironment
 
 	cfg.Workspaces[cfg.CurrentWorkspace] = workspace
-
-	data, err = yaml.Marshal(&cfg)
-	if err != nil {
-		return err
-	}
-	fmt.Println("Saving config to:", path)
-
-	return os.WriteFile(path, data, 0600)
+	return shared.SaveConfig(cfg)
 }
 
 func performConnection(dev bool) error {
