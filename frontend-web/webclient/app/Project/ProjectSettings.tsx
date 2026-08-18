@@ -717,7 +717,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
 
             {isDataSteward(status.myRole) ?
                 <SettingsSection id="project-policies" title="Project policies">
-                    <ProjectPolicies />
+                    <PolicySchemas />
                 </SettingsSection> : null}
 
             <SettingsSection id="project-membership" title="Project membership" mb={0}>
@@ -838,38 +838,48 @@ interface Specification {
     values: {enabled: boolean} & Record<string, any>;
 }
 
-function PolicySchemas({schemas}: {schemas: Record<string, Policy>}) {
-    const updateRef = React.useRef<Record<string, Specification>>({});
-    React.useEffect(() => {
-        for (const key of Object.keys(schemas)) {
-            if (schemas[key].specification){
-                updateRef.current[key] = schemas[key].specification;
-            }
-        }
-    }, [schemas]);
-
-    const submitChanges = React.useCallback((updatedPolicies: Record<PolicyName, Specification>) => {
-        callAPI(PolicyAPI.updatePolicies({updatedPolicies}));
-        updateRef.current = {};
-    }, []);
+function PolicySchemas(): React.ReactNode {
 
     const projectId = useProjectId();
-    const togglePolicy = React.useCallback((schemaName: PolicyName, enabled: boolean) => {
-        if (!updateRef.current[schemaName]) {
-            updateRef.current[schemaName] = {
-                project: projectId!,
-                schema: schemaName,
-                values: {
-                    enabled
-                }
-            }
-        } else {
-            updateRef.current[schemaName].values.enabled = enabled;
+    const [schemas, setSchemas] = useState<Record<string, Policy>>({})
+    React.useEffect(() => {
+        if (projectId) {
+            callAPI(PolicyAPI.retrievePolicies({projectId})).then(setSchemas);
         }
     }, [projectId]);
 
+    const submitChanges = React.useCallback((updatedPolicies: Record<PolicyName, Specification>) => {
+        callAPI(PolicyAPI.updatePolicies({updatedPolicies}));
+    }, []);
+
+    const togglePolicy = React.useCallback((schemaName: PolicyName, enabled: boolean) => {
+        setSchemas(sc => {
+            if (!sc[schemaName].specification || !enabled) {
+                sc[schemaName].specification = {
+                    project: projectId!,
+                    schema: schemaName,
+                    values: {
+                        enabled
+                    }
+                }
+            } else {
+                sc[schemaName].specification.values.enabled = enabled;
+            }
+            callAPI(PolicyAPI.updatePolicies({updatedPolicies: {[schemaName]: sc[schemaName].specification} as Record<PolicyName, Specification>}));
+            return { ...sc };
+        });
+    }, [projectId]);
+
     const updatePolicyRule = React.useCallback((schemaName: PolicyName, rule: string, value: any) => {
-        updateRef.current[schemaName].values[rule] = value;
+        setSchemas(sc => {
+            if (!sc[schemaName].specification) {
+                console.warn("Expected specification")
+                return sc;
+            }
+            sc[schemaName].specification!.values[rule] = value;
+            callAPI(PolicyAPI.updatePolicies({ updatedPolicies: { [schemaName]: sc[schemaName].specification } as Record<PolicyName, Specification> }));
+            return { ...sc };
+        })
     }, []);
 
     return <Box>{
@@ -877,7 +887,6 @@ function PolicySchemas({schemas}: {schemas: Record<string, Policy>}) {
             const policy = schemas[key];
             return <PolicySchemaEntry key={key} togglePolicy={togglePolicy} policy={policy} updatePolicyRule={updatePolicyRule} />
         })}
-        <Button ml="auto" onClick={() => submitChanges(updateRef.current)}>Save changes</Button>
     </Box>;
 }
 
@@ -901,13 +910,13 @@ function PolicySchemaEntry({policy, togglePolicy, updatePolicyRule}: { policy: P
     </Box>
 }
 
-function PolicyConfiguration({policy, updatePolicyRule}: {policy: Policy; updatePolicyRule: (policyName: PolicyName, rule: string, value: any) => void}): React.ReactNode {
+function PolicyConfiguration({policy, updatePolicyRule}: { policy: Policy; updatePolicyRule: (policyName: PolicyName, rule: string, value: any) => void}): React.ReactNode {
     switch (policy.schema.name) {
         case "RestrictApplications": {
             const [searchApps, setSearchApps] = useState<DataListItem[]>([]);
             const ref = useRef<HTMLInputElement | null>(null);
 
-            const values = policy.specification?.values as Partial<{ applications: string[] }> | undefined;
+            const values = policy.specification?.values as Partial<{applications: string[]}> | undefined;
             const [allowedApps, setAllowedApps] = useState(new Set<string>(values?.applications ?? []));
 
             const timeoutId = useRef(-1);
@@ -915,10 +924,10 @@ function PolicyConfiguration({policy, updatePolicyRule}: {policy: Policy; update
 
             const {applications} = policy.schema.configuration;
             return <ConfigurationEntry entry={applications}>
-                {allowedApps.size === 0 ? "No application allowed" : [...allowedApps].map(it => <LabelTag label={it} onClick={() => {
+                {allowedApps.size === 0 ? "No application allowed" : [...allowedApps].map(it => <LabelTag key={it} label={it} onClick={() => {
                     allowedApps.delete(it);
                     setAllowedApps(new Set([...allowedApps]));
-                    updatePolicyRule(policy.schema.name, applications.title, [...allowedApps]);
+                    updatePolicyRule(policy.schema.name, "applications", [...allowedApps]);
                 }} />)}
                 <NewDataList
                     id={"allowed-apps"}
@@ -953,7 +962,7 @@ function PolicyConfiguration({policy, updatePolicyRule}: {policy: Policy; update
                     onSelect={it => {
                         const newAllowedApps = new Set([it.value, ...allowedApps]);
                         setAllowedApps(newAllowedApps);
-                        updatePolicyRule(policy.schema.name, applications.title, [...newAllowedApps]);
+                        updatePolicyRule(policy.schema.name, "applications", [...newAllowedApps]);
                         (document.getElementById("allowed-apps") as HTMLInputElement).value = "";
                     }}
                     RenderRow={({item}) => (<AppRow appName={item.value} />)}
@@ -978,7 +987,7 @@ function PolicyConfiguration({policy, updatePolicyRule}: {policy: Policy; update
             const [allowedApps, setAllowedApps] = useState(new Set<string>(values?.allowList));
 
             return <ConfigurationEntry entry={allowList}>
-                {allowedApps.size === 0 ? "No integrated app allowed" : [...allowedApps].map(it => <LabelTag label={it} onClick={() => {
+                {allowedApps.size === 0 ? "No integrated app allowed" : [...allowedApps].map(it => <LabelTag key={it} label={it} onClick={() => {
                     allowedApps.delete(it);
                     setAllowedApps(new Set([...allowedApps]));
                     updatePolicyRule(policy.schema.name, "allowList", [...allowedApps]);
@@ -1004,13 +1013,15 @@ function PolicyConfiguration({policy, updatePolicyRule}: {policy: Policy; update
             const values = policy.specification?.values as Partial<{ allowedSubnets: string }> | undefined;
             const {allowedSubnets} = policy.schema.configuration;
             return <ConfigurationEntry entry={allowedSubnets}>
-                <Input defaultValue={values?.allowedSubnets} type="text" onChange={e => {
-                    updatePolicyRule(policy.schema.name, "allowedSubnets", e.target.value);
+                <Input pattern={cidrRegex.source} placeholder="Enter a CIDR, e.g. '10.0.0.1/24'" defaultValue={values?.allowedSubnets} type="text" onChange={e => {
+                    if (e.target.value && !e.target.validity.patternMismatch) {
+                        updatePolicyRule(policy.schema.name, "allowedSubnets", e.target.value);
+                    }
                 }} />
             </ConfigurationEntry>;
         }
         case "RestrictOrganizationMembers": {
-            const {organizations} = policy.schema.configuration;
+            const { organizations } = policy.schema.configuration;
             const values = policy.specification?.values as Partial<{ organizations: string[] }> | undefined;
             const [allowedOrgs, setAllowedOrgs] = useState<Set<string>>(new Set(values?.organizations));
             const ref = useRef<HTMLInputElement>(null);
@@ -1020,7 +1031,7 @@ function PolicyConfiguration({policy, updatePolicyRule}: {policy: Policy; update
                 tags: "",
             })), []);
             return <ConfigurationEntry entry={organizations}>
-                {allowedOrgs.size === 0 ? "No orgs allowed" : [...allowedOrgs].map(it => <LabelTag onClick={() => {
+                {allowedOrgs.size === 0 ? "No orgs allowed" : [...allowedOrgs].map(it => <LabelTag key={it} onClick={() => {
                     allowedOrgs.delete(it);
                     setAllowedOrgs(new Set([...allowedOrgs]));
                     updatePolicyRule(policy.schema.name, "organizations", [...allowedOrgs]);
@@ -1063,7 +1074,7 @@ function PolicyConfiguration({policy, updatePolicyRule}: {policy: Policy; update
             }, [state.providers.length]);
 
             return <ConfigurationEntry entry={allowedProviders}>
-                {providerSet.size === 0 ? "No providers allowed" : [...providerSet].map(it => <LabelTag onClick={() => {
+                {providerSet.size === 0 ? "No providers allowed" : [...providerSet].map(it => <LabelTag key={it} onClick={() => {
                     providerSet.delete(it);
                     setProviderSet(new Set([...providerSet]));
                     updatePolicyRule(policy.schema.name, "organizations", [...providerSet]);
@@ -1088,13 +1099,20 @@ function PolicyConfiguration({policy, updatePolicyRule}: {policy: Policy; update
             const values = policy.specification?.values as Partial<{allowedSubnets: string}> | undefined;
             const {allowedSubnets} = policy.schema.configuration;
             return <ConfigurationEntry entry={allowedSubnets}>
-                <Input type="text" placeholder="Enter a CIDR, e.g. '10.0.0.1/24'" defaultValue={values?.allowedSubnets} onChange={e => {
-                    updatePolicyRule(policy.schema.name, "allowedSubnets", e.target.value);
+                <Input type="text" pattern={cidrRegex.source} placeholder="Enter a CIDR, e.g. '10.0.0.1/24'" defaultValue={values?.allowedSubnets} onChange={e => {
+                    if (e.target.value && !e.target.validity.patternMismatch) {
+                        updatePolicyRule(policy.schema.name, "allowedSubnets", e.target.value);
+                    }
                 }} />
             </ConfigurationEntry>;
         }
     }
 }
+
+const u8Range = /(0|1([0-9]{0,2})|[3-9][0-9]{0,1}|2[0-9]{0,1}|2[0-4][0-9]|25[0-5])/;
+const ipRange = new RegExp(`${u8Range.source}((\.${u8Range.source}){3})`);
+const subnet = /\/(3[0-2]|[1-9]|2[1-9])/;
+const cidrRegex = new RegExp(`^${ipRange.source}${subnet.source}$`);
 
 function LabelTag({onClick, label}: {onClick(): void; label: string;}): React.ReactNode {
     return <Tag
@@ -1104,7 +1122,7 @@ function LabelTag({onClick, label}: {onClick(): void; label: string;}): React.Re
     />
 }
 
-function AppRow({appName}: {appName: string}) {
+function AppRow({appName}: {appName: string}): React.ReactNode {
     return <Flex gap="8px" my="auto">
         <Box my="auto"><SafeLogo name={appName} type={"APPLICATION"} size={"18px"} /></Box>
         <Text my="auto">{appName}</Text>
@@ -1143,19 +1161,6 @@ const PolicyAPI = new class {
         return apiUpdate(request, this.baseContext, "");
     }
 }();
-
-function ProjectPolicies() {
-    const projectId = useProjectId();
-    const [schemas, setSchemas] = useState<Record<string, Policy>>({})
-    React.useEffect(() => {
-        if (projectId) {
-            callAPI(PolicyAPI.retrievePolicies({projectId})).then(setSchemas);
-        }
-    }, [projectId]);
-
-    return <PolicySchemas schemas={schemas} />;
-}
-
 
 interface ChangeProjectTitleProps {
     projectId: string;
