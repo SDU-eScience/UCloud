@@ -1,6 +1,7 @@
 import * as React from "react";
-import {Box, Button, Checkbox, Flex, Input, Label, Select, Text} from "@/ui-components";
+import {Box, Button, Flex, Input, Label, Select, Text} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
+import {Toggle} from "@/ui-components/Toggle";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {slimModalStyle} from "@/Utilities/ModalUtilities";
 import {BackgroundTask, taskStore} from "@/Services/BackgroundTasks/BackgroundTask";
@@ -132,7 +133,7 @@ function CreateApplicationVariant({job, submit}: Props): React.ReactNode {
             <Input
                 autoFocus
                 value={title}
-                placeholder="For example, RStudio with course packages"
+                placeholder="RStudio with course packages"
                 onChange={event => {
                     setTitle(event.target.value);
                     setTarget(null);
@@ -153,19 +154,21 @@ function CreateApplicationVariant({job, submit}: Props): React.ReactNode {
             </Select>
         </Label>}
 
-        <Box>
-            <Label>
-                <Checkbox
+        <Flex gap="24px" alignItems="start">
+            <Box flexGrow={1} minWidth={0} py="6px">
+                <Label>Available to all project members</Label>
+                <Text color="textSecondary" mt="3px" fontSize="13px">
+                    If disabled, only you can run this flavor. Project admins can still manage it.
+                </Text>
+            </Box>
+            <Box flexShrink={0} pt="12px">
+                <Toggle
                     checked={publishedToProject}
                     disabled={target !== null}
-                    onChange={event => setPublishedToProject(event.target.checked)}
+                    onChange={checked => setPublishedToProject(!checked)}
                 />
-                Available to all project members
-            </Label>
-            <Text color="textSecondary" mt="6px">
-                If disabled, only you can run this flavor. Project administrators can still manage it.
-            </Text>
-        </Box>
+            </Box>
+        </Flex>
 
         {confirmTarget ? <Box p="12px" borderRadius="6px" background="var(--warningMain)" color="warningContrast">
             Push a new version to <b>{confirmTarget.title}</b>? The existing versions will remain available.
@@ -176,9 +179,7 @@ function CreateApplicationVariant({job, submit}: Props): React.ReactNode {
         </Box> : null}
         {error ? <Text color="errorMain">{error}</Text> : null}
 
-        <Box />
-
-        <Flex justifyContent="end" px="20px" py="12px" margin="-20px" background="var(--dialogToolbar)" gap="8px">
+        <Flex justifyContent="end" px="20px" py="12px" margin="0 -20px -20px" background="var(--dialogToolbar)" gap="8px">
             <Button type="button" color="errorMain" disabled={loading} onClick={() => dialogStore.failure()}>
                 Cancel
             </Button>
