@@ -179,6 +179,106 @@ func policiesUpdate(actor rpc.Actor, request fndapi.PoliciesUpdateRequest) (util
 		}
 	}
 
+	// Validate Specification Values
+	for _, specification := range request.UpdatedPolicies {
+		switch specification.GetSpecificationName() {
+		case fndapi.RestrictApplications:
+			{
+				_, ok := specification.GetValues().(fndapi.RestrictApplicationsValues)
+				if !ok {
+					return util.Empty{}, util.HttpErr(http.StatusBadRequest, "Malformed policy specification (Applications)")
+				}
+				break
+			}
+		case fndapi.RestrictCutAndPaste:
+			{
+				_, ok := specification.GetValues().(fndapi.RestrictCutAndPasteValues)
+				if !ok {
+					return util.Empty{}, util.HttpErr(http.StatusBadRequest, "Malformed policy specification (Cut and Paste)")
+				}
+				break
+			}
+		case fndapi.RestrictDownloads:
+			{
+				_, ok := specification.GetValues().(fndapi.RestrictDownloadsValues)
+				if !ok {
+					return util.Empty{}, util.HttpErr(http.StatusBadRequest, "Malformed policy specification (Downloads)")
+				}
+				break
+			}
+		case fndapi.RestrictIntegratedApplications:
+			{
+				_, ok := specification.GetValues().(fndapi.RestrictIntegratedApplicationsValues)
+				if !ok {
+					return util.Empty{}, util.HttpErr(http.StatusBadRequest, "Malformed policy specification (Integrated Applications)")
+				}
+				break
+			}
+		case fndapi.RestrictInternetAccess:
+			{
+				values, ok := specification.GetValues().(fndapi.RestrictInternetAccessValues)
+				if !ok {
+					return util.Empty{}, util.HttpErr(http.StatusBadRequest, "Malformed policy specification (Internet Access)")
+				}
+				subnet := values.AllowedSubnets
+				_, _, err := net.ParseCIDR(subnet)
+				if err != nil {
+					return util.Empty{}, util.HttpErr(http.StatusBadRequest, "Malformed policy specification (Internet Access, CIDR)")
+				}
+				break
+			}
+		case fndapi.RestrictOrganizationMembers:
+			{
+				_, ok := specification.GetValues().(fndapi.RestrictOrganizationMembersValues)
+				if !ok {
+					return util.Empty{}, util.HttpErr(http.StatusBadRequest, "Malformed policy specification (Organization Members)")
+				}
+				break
+			}
+		case fndapi.RestrictProviderFileTransfers:
+			{
+				_, ok := specification.GetValues().(fndapi.RestrictProviderFileTransfersValues)
+				if !ok {
+					return util.Empty{}, util.HttpErr(http.StatusBadRequest, "Malformed policy specification (Provider Transfer)")
+				}
+				break
+			}
+		case fndapi.RestrictPublicIPs:
+			{
+				_, ok := specification.GetValues().(fndapi.RestrictPublicIPsValues)
+				if !ok {
+					return util.Empty{}, util.HttpErr(http.StatusBadRequest, "Malformed policy specification (Public IPs)")
+				}
+				break
+			}
+		case fndapi.RestrictPublicLinks:
+			{
+				_, ok := specification.GetValues().(fndapi.RestrictPublicLinksValues)
+				if !ok {
+					return util.Empty{}, util.HttpErr(http.StatusBadRequest, "Malformed policy specification (Public Links)")
+				}
+				break
+			}
+		case fndapi.RestrictSourceIPRange:
+			{
+				values, ok := specification.GetValues().(fndapi.RestrictSourceIPRangeValues)
+				if !ok {
+					return util.Empty{}, util.HttpErr(http.StatusBadRequest, "Malformed policy specification (Source IP Range)")
+				}
+				subnet := values.AllowedSubnets
+				_, _, err := net.ParseCIDR(subnet)
+				if err != nil {
+					return util.Empty{}, util.HttpErr(http.StatusBadRequest, "Malformed policy specification (Source IP Range, CIDR)")
+				}
+				break
+			}
+		default:
+			{
+				return util.Empty{}, util.HttpErr(http.StatusBadRequest, "Unknown policy")
+			}
+		}
+	}
+
 	db.NewTx0(func(tx *db.Transaction) {
 		b := db.BatchNew(tx)
 		for _, specification := range request.UpdatedPolicies {
