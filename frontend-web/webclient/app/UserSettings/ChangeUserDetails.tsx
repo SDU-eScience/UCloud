@@ -18,7 +18,7 @@ import {classConcat, injectStyle, injectStyleSimple} from "@/Unstyled";
 import {clamp} from "@/UtilityFunctions";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {SelectorDialog} from "@/Products/Selector";
-import {SettingsSection} from "./SettingsComponents";
+import {SettingsSection} from "@/ui-components/SettingsComponents";
 import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
 
 interface UserDetailsState {

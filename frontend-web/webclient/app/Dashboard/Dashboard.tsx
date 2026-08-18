@@ -240,7 +240,7 @@ function DashboardResources({wallets}: {
 
     const displayWallets = React.useMemo(() => {
         const mapped = wallets.data.items.filter(it => !it.paysFor.freeToUse && it.quota > 0);
-        const tree = Accounting.buildAllocationDisplayTree(mapped).yourAllocations;
+        const tree = Accounting.buildYourAllocations(mapped);
 
         const providers: string[] = [];
         for (const node of Object.values(tree)) {

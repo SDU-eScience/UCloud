@@ -163,6 +163,10 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
                 icon: "check",
                 color: "successMain",
                 confirm: true,
+                confirmationText: selected => selected.length === 1 ?
+                    "Are you sure you want to accept this share?" :
+                    `Are you sure you want to accept these ${selected.length} shares?`,
+                confirmationButtonText: "Accept",
                 primary: true,
                 enabled: (selected, cb) => {
                     return selected.length > 0 && selected.every(share =>
@@ -184,6 +188,10 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
                 icon: "close",
                 color: "errorMain",
                 confirm: true,
+                confirmationText: selected => selected.length === 1 ?
+                    "Are you sure you want to decline this share?" :
+                    `Are you sure you want to decline these ${selected.length} shares?`,
+                confirmationButtonText: "Decline",
                 primary: true,
                 enabled: (selected, cb) => {
                     return selected.length > 0 && selected.every(share =>
@@ -204,6 +212,10 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
                 icon: "heroTrash",
                 color: "errorMain",
                 confirm: true,
+                confirmationText: selected => selected.length === 1 ?
+                    "Are you sure you want to remove this share?" :
+                    `Are you sure you want to remove these ${selected.length} shares?`,
+                confirmationButtonText: "Remove",
                 enabled: (selected, cb) => {
                     return selected.length > 0 && selected.every(share =>
                         share.owner.createdBy !== Client.username && share.status.state === "APPROVED"

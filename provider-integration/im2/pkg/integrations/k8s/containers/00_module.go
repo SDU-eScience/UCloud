@@ -359,22 +359,24 @@ func terminate(request controller.JobTerminateRequest) *util.HttpError {
 	// -----------------------------------------------------------------------------------------------------------------
 	// NOTE(Dan): Helper resources (e.g. Service) have a owner reference on the pod. For this reason, we do not need to
 	// delete this directly.
-	for rank := 0; rank < request.Job.Specification.Replicas; rank++ {
-		podName := idAndRankToPodName(request.Job.Id, rank)
-		pod, ok := shared.JobPods.Retrieve(podName)
+	if !request.SkipResourceDeletion {
+		for rank := 0; rank < request.Job.Specification.Replicas; rank++ {
+			podName := idAndRankToPodName(request.Job.Id, rank)
+			pod, ok := shared.JobPods.Retrieve(podName)
 
-		// NOTE(Dan): Do not waste time on pods that we know are not in the system. The K8s API is really slow and this
-		// can waste a lot of time if someone attempts to schedule a 1 million node job (which we cannot possibly host
-		// anyway).
-		if ok && pod.DeletionTimestamp == nil {
-			ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(10*time.Second))
-			// NOTE(Dan): JobUpdateBatch and monitoring logic will aggressively get rid of pods that don't belong in
-			// the namespace and as such we don't have to worry about failures here.
-			_ = K8sClient.CoreV1().Pods(Namespace).Delete(ctx, podName, meta.DeleteOptions{
-				GracePeriodSeconds: util.Pointer[int64](1),
-			})
+			// NOTE(Dan): Do not waste time on pods that we know are not in the system. The K8s API is really slow and this
+			// can waste a lot of time if someone attempts to schedule a 1 million node job (which we cannot possibly host
+			// anyway).
+			if ok && pod.DeletionTimestamp == nil {
+				ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(10*time.Second))
+				// NOTE(Dan): JobUpdateBatch and monitoring logic will aggressively get rid of pods that don't belong in
+				// the namespace and as such we don't have to worry about failures here.
+				_ = K8sClient.CoreV1().Pods(Namespace).Delete(ctx, podName, meta.DeleteOptions{
+					GracePeriodSeconds: util.Pointer[int64](1),
+				})
 
-			cancel()
+				cancel()
+			}
 		}
 	}
 

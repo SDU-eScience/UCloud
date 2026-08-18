@@ -13,11 +13,13 @@ import (
 	"golang.org/x/sys/unix"
 	"gopkg.in/yaml.v3"
 	core "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/integrations/k8s/filesystem"
 	"ucloud.dk/pkg/integrations/k8s/shared"
 	"ucloud.dk/pkg/ucviz"
+	"ucloud.dk/shared/pkg/log"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -34,10 +36,11 @@ type knownPodReplica struct {
 	node  string
 }
 
-// The informer can remove a Pod before its terminal status reaches us. Remembering
-// observed replicas lets the Kubernetes integration report that case as a failure
-// without changing the shared unknown-state behavior used by Slurm.
+// Keep observed replica details while a missing Pod passes the external-deletion checks.
 var knownPodReplicas = map[string]knownPodReplica{}
+var missingPodSince = map[string]time.Time{}
+
+const missingPodGracePeriod = 5 * time.Minute
 
 func Monitor(tracker shared.JobTracker, jobs map[string]*orc.Job) {
 	allPods := shared.JobPods.List()
@@ -52,6 +55,11 @@ func Monitor(tracker shared.JobTracker, jobs map[string]*orc.Job) {
 
 	activeIApps := controller.IAppRetrieveAllByJobId()
 	iappsHandled := map[string]util.Empty{}
+	for _, job := range jobs {
+		if _, isIApp := activeIApps[job.Id]; !isIApp {
+			tracker.PreserveState(job.Id)
+		}
+	}
 	for _, handler := range IApps {
 		beforeMonitor := handler.BeforeMonitor
 		if beforeMonitor != nil {
@@ -71,7 +79,10 @@ func Monitor(tracker shared.JobTracker, jobs map[string]*orc.Job) {
 		}
 		replicaKey := fmt.Sprintf("%s/%d", idAndRank.First, idAndRank.Second)
 		knownPodReplicas[replicaKey] = knownPodReplica{jobID: idAndRank.First, rank: idAndRank.Second, node: pod.Spec.NodeName}
-		seenReplicas[replicaKey] = util.Empty{}
+		if pod.DeletionTimestamp == nil {
+			seenReplicas[replicaKey] = util.Empty{}
+			delete(missingPodSince, replicaKey)
+		}
 
 		job, ok := jobs[idAndRank.First]
 		if !ok {
@@ -254,36 +265,84 @@ func Monitor(tracker shared.JobTracker, jobs map[string]*orc.Job) {
 		}
 	}
 
-	for key, replica := range knownPodReplicas {
-		if _, seen := seenReplicas[key]; seen {
+	expectedReplicas := map[string]util.Empty{}
+	for _, job := range jobs {
+		if _, isIApp := activeIApps[job.Id]; isIApp {
 			continue
 		}
-		job, active := jobs[replica.jobID]
-		if !active {
+
+		confirmedRank := -1
+		for rank := 0; rank < job.Specification.Replicas; rank++ {
+			key := fmt.Sprintf("%s/%d", job.Id, rank)
+			expectedReplicas[key] = util.Empty{}
+			if _, seen := seenReplicas[key]; seen {
+				continue
+			}
+			if job.Status.State == orc.JobStateInQueue {
+				if _, observedBefore := knownPodReplicas[key]; !observedBefore {
+					continue
+				}
+			}
+
+			missingSince, missingBefore := missingPodSince[key]
+			if !missingBefore {
+				missingPodSince[key] = time.Now()
+				continue
+			}
+			if time.Since(missingSince) < missingPodGracePeriod {
+				continue
+			}
+
+			podName := idAndRankToPodName(job.Id, rank)
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			_, err := K8sClient.CoreV1().Pods(Namespace).Get(ctx, podName, meta.GetOptions{})
+			cancel()
+			delete(missingPodSince, key)
+			if k8serrors.IsNotFound(err) {
+				confirmedRank = rank
+				break
+			}
+			if err != nil {
+				log.Info("Failed to confirm missing pod %s: %v", podName, err)
+			}
+		}
+
+		if confirmedRank >= 0 {
+			for rank := 0; rank < job.Specification.Replicas; rank++ {
+				key := fmt.Sprintf("%s/%d", job.Id, rank)
+				if rank == confirmedRank {
+					tracker.TrackState(shared.JobReplicaState{
+						Id:    job.Id,
+						Rank:  rank,
+						State: orc.JobStateSuccess,
+					})
+				} else if _, seen := seenReplicas[key]; !seen {
+					tracker.TrackState(shared.JobReplicaState{
+						Id:    job.Id,
+						Rank:  rank,
+						State: job.Status.State,
+					})
+				}
+				delete(missingPodSince, key)
+			}
+			tracker.RequestCleanupWithoutResourceDeletion(job.Id)
+		}
+	}
+
+	for key := range missingPodSince {
+		if _, expected := expectedReplicas[key]; !expected {
+			delete(missingPodSince, key)
+		}
+	}
+	for key, replica := range knownPodReplicas {
+		if _, active := jobs[replica.jobID]; !active {
 			delete(knownPodReplicas, key)
 			continue
 		}
 		if _, isIApp := activeIApps[replica.jobID]; isIApp {
-			// Integrated applications intentionally replace Pods while reconciling.
 			delete(knownPodReplicas, key)
-			continue
+			delete(missingPodSince, key)
 		}
-
-		state := orc.JobStateFailure
-		status := "Job has failed for an unknown reason."
-		if job.Status.ExpiresAt.Present && time.Now().After(job.Status.ExpiresAt.Value.Time()) {
-			state = orc.JobStateExpired
-			status = "Job has expired."
-		}
-		if job.Specification.Replicas > 1 {
-			status = fmt.Sprintf("Rank %d: %s", replica.rank, status)
-		}
-		missingState := shared.JobReplicaState{Id: replica.jobID, Rank: replica.rank, State: state, Status: util.OptValue(status)}
-		if replica.node != "" {
-			missingState.Node = util.OptValue(replica.node)
-		}
-		tracker.TrackState(missingState)
-		delete(knownPodReplicas, key)
 	}
 
 	for jobId, iapp := range activeIApps {

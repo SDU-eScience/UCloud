@@ -101,6 +101,8 @@ const compute = {
 
 const login = {
     login: () => "/login",
+    loginExternal: () => "/login/external",
+    loginExternalWayf: () => "/login/external/wayf",
     loginSuccess: () => "/loginSuccess",
     loginWayf: () => "/login/wayf",
 };

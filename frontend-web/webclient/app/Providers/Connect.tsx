@@ -83,6 +83,8 @@ export const Connect: React.FunctionComponent<{ embedded?: boolean }> = props =>
                                             color: "errorMain",
                                             text: "Unlink",
                                             icon: "close",
+                                            confirmationText: "Are you sure you want to unlink this provider?",
+                                            confirmationButtonText: "Unlink",
                                             enabled: () => {
                                                 // TODO(Dan): Generalize this for more providers
                                                 return it.providerTitle !== "ucloud" && it.providerTitle !== "aau";

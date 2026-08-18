@@ -1431,6 +1431,8 @@ function ThreadListNode({
                 icon: "heroTrash",
                 color: "errorMain",
                 confirm: true,
+                confirmationText: "Are you sure you want to delete this thread?",
+                confirmationButtonText: "Delete",
                 shortcut: ShortcutKey.Backspace,
                 enabled: () => true,
                 onClick: () =>

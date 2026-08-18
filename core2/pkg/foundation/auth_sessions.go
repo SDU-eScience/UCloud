@@ -6,11 +6,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/rand"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
 
+	cfg "ucloud.dk/core/pkg/config"
 	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/rpc"
@@ -154,28 +156,69 @@ const (
 	SessionLoginMfaComplete SessionLoginFlag = 1 << iota
 )
 
-func SessionLoginResponse(r *http.Request, w http.ResponseWriter, session fndapi.AuthenticationTokens, flags SessionLoginFlag) {
+type authLoginService struct {
+	Name     string
+	External bool
+}
+
+func authLoginServiceResolve(name string) (authLoginService, bool) {
+	switch name {
+	case "web", "dev-web":
+		return authLoginService{Name: name}, true
+	case "test":
+		if authExternalLoginEnabled() {
+			return authLoginService{Name: name, External: true}, true
+		}
+	}
+
+	return authLoginService{}, false
+}
+
+func authExternalLoginEnabled() bool {
+	host := cfg.Configuration.SelfPublic.Address
+	if parsedHost, _, err := net.SplitHostPort(host); err == nil {
+		host = parsedHost
+	}
+
+	switch host {
+	case "localhost", "127.0.0.1", "ucloud.localhost.direct", "dev.cloud.sdu.dk", "sandbox.dev.cloud.sdu.dk":
+		return true
+	default:
+		return false
+	}
+}
+
+func SessionLoginResponse(r *http.Request, w http.ResponseWriter, session fndapi.AuthenticationTokens, service authLoginService, flags SessionLoginFlag) {
 	respondWithJson := strings.Contains(r.Header.Get("Accept"), "application/json")
 	scheme := getScheme(r)
 	secureScheme := scheme == "https"
+	if service.External {
+		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set("Pragma", "no-cache")
+	}
 
 	respondViaCookieRedirect := func(response any) {
 		responseJson, _ := json.Marshal(response)
 		encoded := url.QueryEscape(string(responseJson))
+		storageKey := "authState"
 
 		// NOTE(Dan): Using a 301 redirect causes Apple browsers (at least Safari likely more) to ignore the cookie.
 		// Using a redirect via HTML works.
 		// NOTE(Dan): The WAYF name is mostly for legacy reasons. It doesn't really mean anything in this context.
 		endpoint := fmt.Sprintf("%s://%s/app/login/wayf", scheme, r.Host)
+		if service.External {
+			endpoint = fmt.Sprintf("%s://%s/app/login/external/wayf?service=%s", scheme, r.Host, url.QueryEscape(service.Name))
+			storageKey = "externalAuthState"
+		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(fmt.Sprintf(string(authRedirectPage), endpoint, endpoint, encoded)))
+		_, _ = w.Write([]byte(fmt.Sprintf(string(authRedirectPage), endpoint, endpoint, storageKey, encoded)))
 	}
 
 	mfaChallenge := ""
 	mfaRequired := false
 	if flags&SessionLoginMfaComplete == 0 {
-		mfaChallenge, mfaRequired = MfaCreateChallenge(session.Username)
+		mfaChallenge, mfaRequired = MfaCreateChallenge(session.Username, service)
 		mfaRequired = mfaRequired && MfaIsConnectedEx(session.Username)
 	}
 
@@ -188,17 +231,19 @@ func SessionLoginResponse(r *http.Request, w http.ResponseWriter, session fndapi
 			respondViaCookieRedirect(response)
 		}
 	} else {
-		http.SetCookie(w, &http.Cookie{
-			Name:     "refreshToken",
-			Value:    session.RefreshToken,
-			Secure:   secureScheme,
-			HttpOnly: true,
-			Expires:  session.ExpiresAt.Time(),
-			Path:     "/",
-			SameSite: http.SameSiteStrictMode,
-		})
+		if !service.External {
+			http.SetCookie(w, &http.Cookie{
+				Name:     "refreshToken",
+				Value:    session.RefreshToken,
+				Secure:   secureScheme,
+				HttpOnly: true,
+				Expires:  session.ExpiresAt.Time(),
+				Path:     "/",
+				SameSite: http.SameSiteStrictMode,
+			})
 
-		session.RefreshToken = ""
+			session.RefreshToken = ""
+		}
 
 		if respondWithJson {
 			w.Header().Set("Access-Control-Allow-Credentials", "true")

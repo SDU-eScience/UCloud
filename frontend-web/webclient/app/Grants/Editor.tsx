@@ -17,7 +17,7 @@ import AppRoutes from "@/Routes";
 import {PageV2} from "@/UCloud";
 import {classConcat, injectStyle, makeClassName} from "@/Unstyled";
 import {createRecordFromArray, deepCopy} from "@/Utilities/CollectionUtilities";
-import {addMonthsToDate, dateToString} from "@/Utilities/DateUtilities";
+import {dateToString} from "@/Utilities/DateUtilities";
 import {fetchAll} from "@/Utilities/PageUtilities";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {getQueryParam} from "@/Utilities/URIUtilities";
@@ -55,7 +55,7 @@ interface EditorState {
 
     durationWarning?: string;
 
-    allocationPeriod: {start: {month: number, year: number}, durationInMonths: number};
+    allocationPeriod: AllocationPeriod;
     principalInvestigator: string;
     loadedProjects: {id: string | null; title: string;}[];
 
@@ -137,6 +137,13 @@ interface ResourceCategory {
         message: string;
     };
 }
+
+interface AllocationPeriod {
+    start: number;
+    end: number;
+    durationInMonths?: number;
+}
+
 export const DefaultTemplateRevision = -1;
 
 const defaultState: EditorState = {
@@ -144,13 +151,7 @@ const defaultState: EditorState = {
     allocators: [],
     resources: {},
     unrequestedAllocators: new Set<string>(),
-    allocationPeriod: {
-        start: {
-            month: new Date().getMonth(),
-            year: new Date().getFullYear(),
-        },
-        durationInMonths: 3
-    },
+    allocationPeriod: createAllocationPeriodFromDuration(startOfCurrentMonth(), 3),
     possibleTransfers: [],
     createApplicationForms: [],
     outdatedFields: [],
@@ -175,8 +176,7 @@ type EditorAction =
         piUsernameHint: string
     }
     | {type: "AllocatorsLoaded", allocators: Grants.GrantGiver[], recipientType?: Grants.Recipient["type"]}
-    | {type: "DurationUpdated", month?: number, year?: number, duration?: number}
-    | {type: "DurationWarning", durationWarning: string}
+    | {type: "DurationUpdated", start?: number, end?: number, duration?: number | null}
     | {type: "AllocatorChecked", isChecked: boolean, allocatorId: string}
     | {
         type: "BalanceUpdated",
@@ -404,23 +404,12 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             };
 
             const start = new Date(Math.max(timestampUnixMs(), action.start));
-            const end = new Date(action.end + 1000);
-
-            const minimumDurationInMonths = 1;
+            const end = new Date(action.end);
+            const allocationPeriod = normalizeAllocationPeriod(start.getTime(), end.getTime());
 
             const newState: EditorState = {
                 ...state,
-                allocationPeriod: {
-                    start: {
-                        month: start.getUTCMonth(),
-                        year: start.getUTCFullYear()
-                    },
-                    durationInMonths: Math.max(
-                        minimumDurationInMonths,
-                        ((end.getUTCFullYear() - start.getUTCFullYear()) * 12) +
-                        (end.getUTCMonth() - start.getUTCMonth()),
-                    )
-                },
+                allocationPeriod,
                 stateDuringEdit: {
                     id: GRANT_GIVER_INITIATED_ID,
                     activeRevision: 0,
@@ -451,12 +440,8 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                             subAllocator: false,
                         },
                         allocationPeriod: {
-                            start: start.getTime(),
-                            end: addMonthsToDate(start, Math.max(
-                                minimumDurationInMonths,
-                                ((end.getUTCFullYear() - start.getUTCFullYear()) * 12) +
-                                (end.getUTCMonth() - start.getUTCMonth())
-                            )).getTime()
+                            start: allocationPeriod.start,
+                            end: allocationPeriod.end,
                         }
                     }
                 }
@@ -473,24 +458,16 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
         // an input field or checking off a checkbox.
 
         case "DurationUpdated": {
+            const allocationPeriod = normalizeAllocationPeriod(
+                action.start ?? state.allocationPeriod.start,
+                action.end ?? state.allocationPeriod.end,
+                action.duration,
+            );
             return {
                 ...state,
-                allocationPeriod: {
-                    start: {
-                        month: action.month ?? state.allocationPeriod.start.month,
-                        year: action.year ?? state.allocationPeriod.start.year,
-                    },
-                    durationInMonths: action.duration ?? state.allocationPeriod.durationInMonths,
-                },
-                durationWarning: undefined
+                allocationPeriod,
+                durationWarning: getExpirationWarning({end: allocationPeriod.end})
             };
-        }
-
-        case "DurationWarning": {
-            return {
-                ...state,
-                durationWarning: action.durationWarning
-            }
         }
 
         case "AnswerFormUpdated": {
@@ -846,14 +823,8 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
 
         let endDate = new Date(Date.now() + 1000);
         if (doc.allocationPeriod?.end != null) {
-            endDate = new Date(new Date(doc.allocationPeriod.end ?? Date.now()).getTime() + 1000);
+            endDate = new Date(doc.allocationPeriod.end);
         }
-        // Off by one second in some cases, let's just adjust slightly here.
-
-        const startYear = Math.max(2019, startDate.getUTCFullYear());
-        const startMonth = startDate.getUTCMonth();
-        const normalizedStart = (startDate.getUTCFullYear() * 12) + (startDate.getUTCMonth() + 1);
-        const normalizedEnd = (endDate.getUTCFullYear() * 12) + (endDate.getUTCMonth() + 1);
 
         let projectPi = state.stateDuringEdit.recipientInfo.piUsername;
         if (projectPi === "") {
@@ -883,16 +854,16 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             allocators: newAllocators,
             resources: newResources,
             createApplicationForms: loadedAnswerForms,
-            allocationPeriod: state.stateDuringEdit.id === GRANT_GIVER_INITIATED_ID ? state.allocationPeriod : {
-                start: {
-                    month: startMonth,
-                    year: startYear,
-                },
-                durationInMonths: normalizedEnd - normalizedStart,
-            },
+            allocationPeriod: state.stateDuringEdit.id === GRANT_GIVER_INITIATED_ID
+                ? state.allocationPeriod
+                : normalizeAllocationPeriod(startDate.getTime(), endDate.getTime()),
             principalInvestigator: projectPi,
             stateDuringEdit: newEditState,
-            durationWarning: getExpirationWarning({year: startYear, month: startMonth, duration: normalizedEnd - normalizedStart}),
+            durationWarning: getExpirationWarning({
+                end: state.stateDuringEdit.id === GRANT_GIVER_INITIATED_ID
+                    ? state.allocationPeriod.end
+                    : normalizeAllocationPeriod(startDate.getTime(), endDate.getTime()).end,
+            }),
         };
     }
 }
@@ -1571,31 +1542,27 @@ export function Editor(): React.ReactNode {
         dispatchEvent({type: "AnswerFormUpdated", allocatorId, fieldIdx, answer});
     },[dispatchEvent]);
 
-    const onStartUpdated = useCallback<React.FormEventHandler>(ev => {
-        const select = ev.target as HTMLSelectElement;
-        const valSplit = select.value.split("/");
-        const [month, year] = valSplit.map(it => parseInt(it));
-        if (isNaN(month) || isNaN(year)) return;
+    const onStartDateUpdated = useCallback<React.FormEventHandler>(ev => {
+        const date = dateInputToTimestamp((ev.target as HTMLInputElement).value);
+        if (date === undefined) return;
+        dispatchEvent({type: "DurationUpdated", start: date, duration: null});
+    }, [dispatchEvent]);
 
-        dispatchEvent({type: "DurationUpdated", year, month});
-        handleDurationWarning({year, month});
+    const onEndDateUpdated = useCallback<React.FormEventHandler>(ev => {
+        const date = dateInputToTimestamp((ev.target as HTMLInputElement).value, true);
+        if (date === undefined) return;
+        dispatchEvent({type: "DurationUpdated", end: date, duration: null});
     }, [dispatchEvent]);
 
     const onDurationUpdated = useCallback<React.FormEventHandler>(ev => {
         const select = ev.target as HTMLSelectElement;
+        if (select.value === "custom") {
+            dispatchEvent({type: "DurationUpdated", duration: null});
+            return;
+        }
         const duration = parseInt(select.value);
         if (isNaN(duration)) return;
         dispatchEvent({type: "DurationUpdated", duration});
-
-        const {month, year} = getStartOfDuration();
-        handleDurationWarning({year, month});
-    }, [dispatchEvent]);
-
-    const handleDurationWarning = useCallback(({year, month, duration}: {year: number, month: number, duration?: number}) => {
-        const warning = getExpirationWarning({year, month, duration});
-        if (warning) {
-            dispatchEvent({type: "DurationWarning", durationWarning: warning});
-        }
     }, [dispatchEvent]);
 
     const onUnlock = useCallback(() => {
@@ -1646,6 +1613,11 @@ export function Editor(): React.ReactNode {
         if (!state.stateDuringCreate) return;
         if (state.loading) return;
         if (!applicationFormExists(state)) return;
+        const periodError = getAllocationPeriodError(state.allocationPeriod);
+        if (periodError) {
+            sendFailureNotification(periodError);
+            return;
+        }
         const checked = state.allocators.filter(it => it.checked);
         if (checked.length === 0) return;
         state.unrequestedAllocators = new Set<string>(); // reset
@@ -1713,6 +1685,11 @@ export function Editor(): React.ReactNode {
         }
         if (!state.stateDuringEdit) return;
         if (state.loading) return;
+        const periodError = getAllocationPeriodError(state.allocationPeriod);
+        if (periodError) {
+            sendFailureNotification(periodError);
+            return false;
+        }
 
         const editState = state.stateDuringEdit;
         const currentDoc = editState.document;
@@ -1899,7 +1876,7 @@ export function Editor(): React.ReactNode {
     // Short-hands used in the user-interface
     // -----------------------------------------------------------------------------------------------------------------
     const isGrantGiverInitiated = state.stateDuringEdit?.id === GRANT_GIVER_INITIATED_ID;
-    const monthOptions = stateToMonthOptions(state);
+    const isCustomAllocationPeriod = state.allocationPeriod.durationInMonths === undefined;
     const anyChecked = state.allocators.some(it => it.checked);
     const newestRevision = state.stateDuringEdit?.newestRevision;
     const activeRevision = state.stateDuringEdit?.activeRevision;
@@ -2084,39 +2061,51 @@ export function Editor(): React.ReactNode {
                                 description={<></>}
                             >
                                 <label>
-                                    When should the allocation start?
-                                    <Select
-                                        data-duration-start
-                                        value={state.allocationPeriod.start.month + "/" + state.allocationPeriod.start.year}
-                                        onChange={onStartUpdated}
-                                        disabled={state.locked || isClosed}
-                                    >
-                                        {monthOptions.map(it => <option value={it.key} key={it.key}>{it.text}</option>)}
-                                    </Select>
-                                </label>
-
-                                <label>
-                                    For how many months should the allocation last?
+                                    Duration
                                     <Select
                                         data-duration-months
-                                        value={state.allocationPeriod.durationInMonths}
+                                        value={state.allocationPeriod.durationInMonths ?? "custom"}
                                         onChange={onDurationUpdated}
                                         disabled={state.locked || isClosed}
                                     >
-                                        <option value="1">1 months</option>
-                                        <option value="3">3 months</option>
-                                        <option value="6">6 months</option>
-                                        <option value="12">12 months</option>
-                                        <option value="24">24 months</option>
-
-                                        {!Client.userIsAdmin ? null : (
-                                            [3, 4, 5, 6, 7, 8, 9, 10].map(years =>
-                                                <option key={years} value={`${years * 12}`}>{years} years</option>
-                                            )
-                                        )}
+                                        <option value="custom">Custom</option>
+                                        <option value="1">1 month (from now)</option>
+                                        <option value="3">3 months (from now)</option>
+                                        <option value="6">6 months (from now)</option>
+                                        <option value="12">12 months (from now)</option>
+                                        <option value="24">24 months (from now)</option>
                                     </Select>
                                 </label>
-                                <Warning warning={state.durationWarning} />
+                                {isCustomAllocationPeriod && <>
+                                    <label>
+                                        Start date
+                                        <Input
+                                            id={FormIds.startDate}
+                                            data-duration-start
+                                            type="date"
+                                            value={timestampToDateInput(state.allocationPeriod.start)}
+                                            onChange={onStartDateUpdated}
+                                            max={timestampToDateInput(state.allocationPeriod.end)}
+                                            required
+                                            disabled={state.locked || isClosed}
+                                        />
+                                    </label>
+
+                                    <label>
+                                        End date
+                                        <Input
+                                            id={FormIds.endDate}
+                                            data-duration-end
+                                            type="date"
+                                            value={timestampToDateInput(state.allocationPeriod.end)}
+                                            onChange={onEndDateUpdated}
+                                            min={timestampToDateInput(state.allocationPeriod.start)}
+                                            required
+                                            disabled={state.locked || isClosed}
+                                        />
+                                    </label>
+                                </>}
+                                <Warning warning={getAllocationPeriodError(state.allocationPeriod) ?? state.durationWarning} />
                             </FormField>
 
                             {state.stateDuringEdit && <>
@@ -3045,76 +3034,80 @@ function stateToCreationRecipient(state: EditorState): Grants.Doc["recipient"] |
 }
 
 function stateToAllocationPeriod(state: EditorState): [number, number] {
-    const start = new Date();
-    start.setUTCFullYear(state.allocationPeriod.start.year, state.allocationPeriod.start.month, 1);
-    start.setUTCHours(0, 0, 0, 0);
-
-    const end = new Date(start.getTime());
-    end.setUTCMonth(end.getUTCMonth() + state.allocationPeriod.durationInMonths);
-    end.setUTCHours(0, 0, 0, 0);
-    end.setUTCSeconds(0, -1);
-
-    return [start.getTime(), end.getTime()];
+    return [state.allocationPeriod.start, state.allocationPeriod.end];
 }
 
-const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October",
-    "November", "December"];
+function startOfCurrentMonth(): number {
+    const now = new Date();
+    return Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1);
+}
 
-function stateToMonthOptions(state: EditorState): {key: string, text: string}[] {
-    const result: {key: string, text: string, time: number}[] = [];
+function createAllocationPeriodFromDuration(start: number, durationInMonths: number): AllocationPeriod {
+    const startDate = new Date(start);
+    const end = Date.UTC(
+        startDate.getUTCFullYear(),
+        startDate.getUTCMonth() + durationInMonths,
+        startDate.getUTCDate(),
+    ) - 1;
+    return {start, end, durationInMonths};
+}
 
-    function insertIfUnique(date: Date) {
-        const today = new Date();
-        const month = monthNames[date.getMonth()];
-        const key = `${date.getMonth()}/${date.getFullYear()}`;
-        if (result.some(it => it.key === key)) return;
+function normalizeAllocationPeriod(start: number, end: number, durationInMonths?: number | null): AllocationPeriod {
+    const startDate = new Date(start);
+    const normalizedStart = Date.UTC(
+        startDate.getUTCFullYear(),
+        startDate.getUTCMonth(),
+        startDate.getUTCDate(),
+    );
 
-        if (today.getUTCFullYear() === date.getUTCFullYear() && today.getUTCMonth() === date.getUTCMonth()) {
-            result.push({key, text: `Immediately`, time: date.getTime()});
-        } else {
-            result.push({key, text: `${month} ${date.getFullYear()}`, time: date.getTime()});
-        }
+    if (durationInMonths !== undefined && durationInMonths !== null) {
+        return createAllocationPeriodFromDuration(normalizedStart, durationInMonths);
     }
 
-    const date = new Date();
-    date.setDate(1);
+    const endDate = new Date(end);
+    const normalizedEnd = Date.UTC(
+        endDate.getUTCFullYear(),
+        endDate.getUTCMonth(),
+        endDate.getUTCDate() + 1,
+    ) - 1;
+    const period = {start: normalizedStart, end: normalizedEnd};
+    const preset = durationInMonths === null ? undefined : [1, 3, 6, 12]
+        .find(months => createAllocationPeriodFromDuration(normalizedStart, months).end === normalizedEnd);
+    return {...period, durationInMonths: preset};
+}
 
-    for (let i = 0; i < 12; i++) {
-        insertIfUnique(date);
-        const currentMonth = date.getMonth();
-        date.setMonth((currentMonth + 1) % 12);
-        if (currentMonth === 11) date.setFullYear(date.getFullYear() + 1);
+function getAllocationPeriodError(period: AllocationPeriod): string | undefined {
+    if (!Number.isFinite(period.start) || !Number.isFinite(period.end) || period.end < period.start) {
+        return "End date must be on or after the start date.";
     }
+    return undefined;
+}
 
-    date.setUTCFullYear(state.allocationPeriod.start.year, state.allocationPeriod.start.month);
-    date.setUTCMonth(date.getUTCMonth() - 6);
-    for (let i = 0; i < 12; i++) {
-        insertIfUnique(date);
-        const currentMonth = date.getMonth();
-        date.setMonth((currentMonth + 1) % 12);
-        if (currentMonth === 11) date.setFullYear(date.getFullYear() + 1);
+function timestampToDateInput(timestamp: number): string {
+    const date = new Date(timestamp);
+    const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+    const day = String(date.getUTCDate()).padStart(2, "0");
+    return `${date.getUTCFullYear()}-${month}-${day}`;
+}
+
+function dateInputToTimestamp(value: string, endOfDay = false): number | undefined {
+    const parts = value.split("-").map(Number);
+    if (parts.length !== 3 || parts.some(it => !Number.isInteger(it))) return undefined;
+    const [year, month, day] = parts;
+    const timestamp = endOfDay
+        ? Date.UTC(year, month - 1, day + 1) - 1
+        : Date.UTC(year, month - 1, day);
+    const date = new Date(timestamp);
+    if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) {
+        return undefined;
     }
-
-    result.sort((a, b) => a.time - b.time);
-
-    return result;
+    return timestamp;
 }
 
-function getStartOfDuration(): {month: number, year: number} {
-    const [month, year] = document.querySelector<HTMLSelectElement>("select[data-duration-start]")?.value.split("/") ?? [];
-    return {month: parseInt(month), year: parseInt(year)};
-}
-
-function getMonthDuration(): number {
-    const months = parseInt(document.querySelector<HTMLSelectElement>("select[data-duration-months]")?.value ?? "12");
-    return !isNaN(months) ? months : 12;
-}
-
-function getExpirationWarning({year, month, duration}: {year: number, month: number, duration?: number}): string | undefined {
-    const monthDuration = duration ?? getMonthDuration();
+function getExpirationWarning({end}: {end: number}): string | undefined {
     const now = new Date();
 
-    const endDate = new Date(year, month + monthDuration);
+    const endDate = new Date(end);
     const aWeekBefore = subDays(now, 7);
     const isLessThanAWeekLeft = isWithinInterval(endDate, interval(aWeekBefore, now));
     if (isLessThanAWeekLeft) {

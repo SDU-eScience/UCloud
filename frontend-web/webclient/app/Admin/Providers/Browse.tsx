@@ -154,7 +154,9 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<Provider>}): React.R
                 browser.on("fetchOperations", () => {
                     const entries = browser.findSelectedEntries();
                     const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as any;
-                    return ProvidersApi.retrieveOperations().filter(op => op.enabled(entries, callbacks, entries));
+                    const actions = ProvidersApi.retrieveActions();
+                    if (!Array.isArray(actions)) return actions;
+                    return actions.filter(op => op.enabled(entries, callbacks, entries));
                 });
                 browser.on("generateBreadcrumbs", () => {
                     return [{title: "Providers", absolutePath: ""}]

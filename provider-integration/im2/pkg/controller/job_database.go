@@ -368,6 +368,15 @@ func (b *JobUpdateBatch) TrackState(jobId string, state orc.JobState, status uti
 	return false
 }
 
+func (b *JobUpdateBatch) PreserveState(jobId string) {
+	activeJobsMutex.RLock()
+	job, ok := activeJobs[jobId]
+	if ok {
+		b.trackedDirtyStates[jobId] = job.Status.State
+	}
+	activeJobsMutex.RUnlock()
+}
+
 func (b *JobUpdateBatch) TrackAssignedNodes(jobId string, nodes []string) {
 	newNodes, _ := b.trackedNodeAllocation[jobId]
 	for _, node := range nodes {

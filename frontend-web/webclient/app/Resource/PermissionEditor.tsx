@@ -8,10 +8,10 @@ import {TextSpan} from "@/ui-components/Text";
 import {Link} from "react-router-dom";
 import {
     AclEntity,
+    AnyResourceApi,
     Permission,
     Resource,
     ResourceAclEntry,
-    ResourceApi,
     ResourceSpecification,
 } from "@/UCloud/ResourceApi";
 import {useProjectId} from "@/Project/Api";
@@ -24,7 +24,7 @@ import {Product} from "@/Accounting";
 interface ResourcePermissionEditorProps<Res extends Resource, Prod extends Product, Spec extends ResourceSpecification> {
     reload: () => void;
     entity: Res;
-    api: ResourceApi<Res, Prod, Spec>;
+    api: AnyResourceApi<Res, Prod, Spec>;
     showMissingPermissionHelp?: boolean;
     noPermissionsWarning?: string;
 }

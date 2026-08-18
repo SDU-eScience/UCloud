@@ -579,6 +579,8 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                     const operations: Operation<OutgoingShareGroup | OutgoingShareGroupPreview, ResourceBrowseCallbacks<Share, Product>>[] = [{
                         text: "Delete",
                         confirm: true,
+                        confirmationText: "Are you sure you want to delete this share?",
+                        confirmationButtonText: "Delete",
                         icon: "trash",
                         enabled(selected) {
                             return (selected.length !== 0) && isViewingShareGroupPreview(selected[0]);
@@ -599,6 +601,8 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                     {
                         text: "Delete share",
                         confirm: true,
+                        confirmationText: "Are you sure you want to delete all invitations for this share?",
+                        confirmationButtonText: "Delete",
                         icon: "trash",
                         enabled(selected) {
                             return (selected.length !== 0) && !isViewingShareGroupPreview(selected[0]);

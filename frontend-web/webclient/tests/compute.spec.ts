@@ -58,7 +58,7 @@ TestContexts.map((ctx) => {
 
             await Runs.terminateViewedRun(page);
 
-            await page.getByText("Run application again").hover();
+            await page.getByText("Run again").hover();
         });
 
         const AppNameThatIsExpectedToBePresentButWeWillNotRun = "Terminal";
@@ -300,14 +300,14 @@ echo "${BashScriptStringContent}"
 
             await Drive.goToDrives(userPage);
             if (ctx === "Personal Workspace") {
-                await userPage.locator('div[data-disabled="false"]', {hasText: "Create drive"}).waitFor();
+                await userPage.getByRole("button", {name: "Create drive", disabled: false}).waitFor();
             }
             await File.triggerStorageScan(userPage, driveName);
             await Runs.goToRuns(userPage);
             await Components.projectSwitcher(userPage, "hover");
             await Applications.actionByRowTitle(userPage, jobName, "click");
             await NetworkCalls.awaitResponse(userPage, "**/api/jobs/retrieve?id=**", async () => {
-                await userPage.getByText("Run application again").click();
+                await userPage.getByText("Run again").click();
             });
             await userPage.getByText("No machine type selected").waitFor({state: "hidden"});
             await Runs.setJobTitle(userPage, "")

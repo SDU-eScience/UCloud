@@ -8,8 +8,8 @@ import {
     stopPropagation
 } from "@/UtilityFunctions";
 import {WorkflowSpecification} from "@/Applications/Workflows/index";
-import {Box, Button, Flex, Icon, Input, Label} from "@/ui-components";
-import {TooltipV2} from "@/ui-components/Tooltip";
+import {Box, Button, Flex, Input, Label} from "@/ui-components";
+import {IconButton} from "@/ui-components/IconButton";
 import {callAPI} from "@/Authentication/DataHook";
 import * as WorkflowApi from ".";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
@@ -221,101 +221,87 @@ const WorkflowEditor: React.FunctionComponent<{
         readOnly={false}
         toolbarBeforeSettings={<>
             {!error ? null :
-                <TooltipV2>
-                    <ClickableDropdown
-                        trigger={
-                            <Icon
-                                name={"heroExclamationTriangle"}
-                                size={"20px"}
-                                cursor={"pointer"}
-                                color={"errorMain"}
-                                mt={"4px"}
-                            />
-                        }
-                        colorOnHover={false}
-                        useMousePositioning
-                        width={300}
-                        height={300}
-                        paddingControlledByContent
+                <ClickableDropdown
+                    trigger={<IconButton compact tooltip="Show workflow error" onClick={() => {}} icon="heroExclamationTriangle" color="errorMain" />}
+                    colorOnHover={false}
+                    useMousePositioning
+                    width={300}
+                    height={300}
+                    paddingControlledByContent
+                >
+                    <div
+                        style={{
+                            cursor: "default",
+                            maxWidth: "100%",
+                            whiteSpace: "normal",
+                            padding: "16px"
+                        }}
                     >
-                        <div
-                            style={{
-                                cursor: "default",
-                                maxWidth: "100%",
-                                whiteSpace: "normal",
-                                padding: "16px"
-                            }}
-                        >
-                            <pre style={{fontFamily: "unset"}}>{error}</pre>
-                        </div>
-                    </ClickableDropdown>
-                </TooltipV2>
+                        <pre style={{fontFamily: "unset"}}>{error}</pre>
+                    </div>
+                </ClickableDropdown>
             }
         </>}
         toolbar={<>
-            <TooltipV2 tooltip={"Save copy"} contentWidth={100}>
-                <Icon name={"floppyDisk"} size={"20px"} cursor={"pointer"} onClick={() => setIsSaving(true)} />
-                {!isSaving ? null :
-                    <div onMouseMove={stopPropagation} style={{
-                        position: "absolute",
-                        right: 20,
-                        top: 44,
-                        width: 300,
-                        padding: 16,
-                        borderRadius: 8,
-                        backgroundColor: "var(--backgroundCard)",
-                        boxShadow: "var(--defaultShadow)",
-                        zIndex: 1000000000,
+            <IconButton compact tooltip="Save copy" onClick={() => setIsSaving(true)} icon="floppyDisk" />
+            {!isSaving ? null :
+                <div onMouseMove={stopPropagation} style={{
+                    position: "absolute",
+                    right: 20,
+                    top: 44,
+                    width: 300,
+                    padding: 16,
+                    borderRadius: 8,
+                    backgroundColor: "var(--backgroundCard)",
+                    boxShadow: "var(--defaultShadow)",
+                    zIndex: 1000000000,
+                }}>
+                    <form onSubmit={onSaveCopy} onBlur={(ev) => {
+                        if (!savingRef.current) setIsSaving(false);
                     }}>
-                        <form onSubmit={onSaveCopy} onBlur={(ev) => {
-                            if (!savingRef.current) setIsSaving(false);
-                        }}>
-                            <Label>
-                                What should we call this script?
-                                <Input
-                                    name={"name"}
-                                    onKeyDown={saveKeyDown}
-                                    placeholder={"My script"}
-                                    defaultValue={currentPath ?? ""}
-                                    autoFocus
-                                />
-                            </Label>
-                            <Flex gap={"8px"} mt={"8px"}>
-                                <Box flexGrow={1} />
-                                <Button color={"errorMain"} type={"button"}
-                                    onClick={() => setIsSaving(false)}>Cancel</Button>
-                                <Button color={"successMain"} type={"submit"}
-                                    onMouseDown={() => savingRef.current = true}>Save</Button>
-                            </Flex>
-                        </form>
-                    </div>
-                }
-                {!isOverwriting ? null :
-                    <div onMouseMove={stopPropagation} style={{
-                        position: "absolute",
-                        right: 20,
-                        top: 44,
-                        width: 300,
-                        padding: 16,
-                        borderRadius: 8,
-                        backgroundColor: "var(--backgroundCard)",
-                        boxShadow: "var(--defaultShadow)",
-                        zIndex: 1000000000,
-                    }}>
-                        This script already exists, do you want to overwrite it?
+                        <Label>
+                            What should we call this script?
+                            <Input
+                                name={"name"}
+                                onKeyDown={saveKeyDown}
+                                placeholder={"My script"}
+                                defaultValue={currentPath ?? ""}
+                                autoFocus
+                            />
+                        </Label>
                         <Flex gap={"8px"} mt={"8px"}>
                             <Box flexGrow={1} />
                             <Button color={"errorMain"} type={"button"}
-                                onClick={() => setIsOverwriting(null)}>No</Button>
-                            <Button color={"successMain"} onMouseDown={() => savingRef.current = true}
-                                onClick={saveOverwritten}>Yes</Button>
+                                onClick={() => setIsSaving(false)}>Cancel</Button>
+                            <Button color={"successMain"} type={"submit"}
+                                onMouseDown={() => savingRef.current = true}>Save</Button>
                         </Flex>
-                    </div>
-                }
-            </TooltipV2>
-            <TooltipV2 tooltip={"Use"} contentWidth={100}>
-                <Icon name={"heroPlay"} color={"successMain"} size={"20px"} cursor={"pointer"} onClick={onUse} />
-            </TooltipV2>
+                    </form>
+                </div>
+            }
+            {!isOverwriting ? null :
+                <div onMouseMove={stopPropagation} style={{
+                    position: "absolute",
+                    right: 20,
+                    top: 44,
+                    width: 300,
+                    padding: 16,
+                    borderRadius: 8,
+                    backgroundColor: "var(--backgroundCard)",
+                    boxShadow: "var(--defaultShadow)",
+                    zIndex: 1000000000,
+                }}>
+                    This script already exists, do you want to overwrite it?
+                    <Flex gap={"8px"} mt={"8px"}>
+                        <Box flexGrow={1} />
+                        <Button color={"errorMain"} type={"button"}
+                            onClick={() => setIsOverwriting(null)}>No</Button>
+                        <Button color={"successMain"} onMouseDown={() => savingRef.current = true}
+                            onClick={saveOverwritten}>Yes</Button>
+                    </Flex>
+                </div>
+            }
+            <IconButton compact tooltip="Use" onClick={onUse} icon="heroPlay" color="successMain" />
         </>}
     />;
 };

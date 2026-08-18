@@ -29,7 +29,7 @@ import {useNavigate} from "react-router-dom";
 import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
 import {useDispatch} from "react-redux";
 import AppRoutes from "@/Routes";
-import {Operation} from "@/ui-components/Operation";
+import {appendOperationsToActions, Operation} from "@/ui-components/Operation";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {jobCache} from "./View";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
@@ -380,7 +380,11 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                 browser.on("fetchOperations", () => {
                     const entries = browser.findSelectedEntries();
                     const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as any;
-                    return JobsApi.retrieveOperations().filter(op => op.enabled(entries, callbacks, entries)).concat(opts?.operations ?? []);
+                    const actions = JobsApi.retrieveActions();
+                    if (!Array.isArray(actions)) {
+                        return appendOperationsToActions(actions, opts?.operations ?? [], entries);
+                    }
+                    return actions.filter(op => op.enabled(entries, callbacks, entries)).concat(opts?.operations ?? []);
                 });
                 browser.on("generateBreadcrumbs", () => {
                     if (opts?.omitBreadcrumbs) return [];

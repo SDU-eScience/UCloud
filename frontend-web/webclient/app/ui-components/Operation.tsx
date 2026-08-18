@@ -1,15 +1,14 @@
 import {IconName} from "@/ui-components/Icon";
-import {Box, Button, Flex, Icon, Tooltip} from "@/ui-components/index";
-import {PropsWithChildren, useCallback, useRef, useState} from "react";
+import {Box, Button, Flex, Icon} from "@/ui-components/index";
+import {PropsWithChildren} from "react";
 import * as React from "react";
 import {TextSpan} from "@/ui-components/Text";
-import ClickableDropdown, {ClickableDropdownProps} from "@/ui-components/ClickableDropdown";
-import {doNothing, preventDefault, stopPropagation} from "@/UtilityFunctions";
-import Grid from "@/ui-components/Grid";
+import {doNothing, stopPropagation} from "@/UtilityFunctions";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {ThemeColor} from "@/ui-components/theme";
 import * as Heading from "@/ui-components/Heading";
 import {injectStyle} from "@/Unstyled";
+import {ActionAppearance, ActionBar, ActionEntry, ActionItem, ActionMenu, ResourceBrowserActions} from "@/ui-components/Actions";
 
 type OperationComponentType = typeof Box | typeof Button | typeof Flex |
     typeof ConfirmationButton;
@@ -63,7 +62,7 @@ export interface Operation<T, R = undefined> {
     text: string | ((selected: T[], extra: R) => string);
     onClick: (selected: T[], extra: R, all?: T[]) => void;
     enabled: (selected: T[], extra: R, all?: T[]) => OperationEnabled;
-    shortcut: ShortcutKey;
+    shortcut?: ShortcutKey;
     icon?: IconName;
     iconRotation?: number;
     color?: ThemeColor;
@@ -73,6 +72,8 @@ export interface Operation<T, R = undefined> {
     operationType?: (location: OperationLocation, allOperations: Operation<T, R>[]) => OperationComponentType;
     primary?: boolean;
     confirm?: boolean;
+    confirmationText?: string | ((selected: T[], callbacks: R) => string);
+    confirmationButtonText?: string | ((selected: T[], callbacks: R) => string);
     tag?: string;
     splitButtonGroupId?: string
 }
@@ -95,72 +96,7 @@ export function defaultOperationType<T, Extra>(
     }
 }
 
-function OperationComponent<T, Extra>({As, op, selected, all, extra, reasonDisabled, location, onAction, text}: {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    As: React.ComponentType<any>;
-    op: Operation<T, Extra>;
-    extra: Extra;
-    selected: T[];
-    all?: T[];
-    reasonDisabled?: string;
-    location: OperationLocation;
-    onAction: () => void;
-    text: string;
-    idx: number;
-}): React.ReactNode {
-    const onClick = useCallback((e?: React.SyntheticEvent) => {
-        if (op.primary === true) e?.stopPropagation();
-        if (reasonDisabled !== undefined) return;
-        op.onClick(selected, extra, all);
-        onAction();
-    }, [op, selected, extra, reasonDisabled, onAction]);
-
-    // eslint-disable-next-line
-    const extraProps: Record<string, any> = {};
-
-    if (As === ConfirmationButton) {
-        extraProps["onAction"] = onClick;
-        extraProps["asSquare"] = !op.primary || location === "SIDEBAR";
-        extraProps["actionText"] = text;
-        extraProps["hoverColor"] = op.hoverColor;
-        if (op.primary && location === "IN_ROW") {
-            extraProps["align"] = "center";
-            extraProps["fontSize"] = "14px";
-            extraProps["mx"] = "12px";
-        } else {
-            extraProps["align"] = "left";
-            extraProps["fontSize"] = "large";
-            extraProps["ml"] = "-16px";
-            extraProps["width"] = "calc(100% + 32px)";
-        }
-    }
-
-    const component = <As
-        cursor="pointer"
-        color={reasonDisabled === undefined ? op.color : "textSecondary"}
-        alignItems="center"
-        onClick={onClick}
-        data-tag={`${text.replace(/\./g, "").replace(/ /g, "_")}-action`}
-        disabled={reasonDisabled !== undefined}
-        fullWidth={!op.primary || location !== "TOPBAR"}
-        height={"38px"}
-        icon={op.icon}
-        {...extraProps}
-    >
-        {As === ConfirmationButton ? null : <>
-            {op.icon ? <Icon size={20} mr="1em" name={op.icon} rotation={op.iconRotation} /> : null}
-            <span>{text}</span>
-        </>}
-    </As>;
-
-    if (reasonDisabled === undefined) {
-        return component;
-    }
-
-    return <Tooltip trigger={component}>{reasonDisabled}</Tooltip>;
-};
-
-interface OperationProps<EntityType, Extras = undefined> {
+export interface OperationProps<EntityType, Extras = undefined> {
     topbarIcon?: IconName;
     location: OperationLocation;
     operations: Operation<EntityType, Extras>[];
@@ -180,167 +116,153 @@ interface OperationProps<EntityType, Extras = undefined> {
 
 type OperationsType = <EntityType, Extras = undefined>(props: PropsWithChildren<OperationProps<EntityType, Extras>>, context?: any) => React.ReactNode;
 
-export const Operations: OperationsType = props => {
-    const closeDropdownRef = useRef<() => void>(doNothing);
-    const closeDropdown = () => closeDropdownRef.current();
-
-    const [, forceRender] = useState(0);
-    const dropdownOpenFn = useRef<(left: number, top: number) => void>(doNothing);
-    const open = useCallback((left: number, top: number) => {
-        if (props.forceEvaluationOnOpen) {
-            forceRender(p => p + 1);
-        }
-
-        dropdownOpenFn.current(left, top);
-    }, []);
-    if (props.openFnRef) props.openFnRef.current = open;
-
-    if (props.location === "IN_ROW") {
-        // Don't render anything if we are in row and we have selected something
-        const WIDTH = "47px";
-        if (!props.row) return <Box width={WIDTH} />;
-        if (props.selected.length > 0 && !props.selected.includes(props.row)) return <Box width={WIDTH} />;
-    }
-
-    const selected = props.location === "IN_ROW" && props.selected.length === 0 ? [props.row!] : props.selected;
-
-    const entityNamePlural = props.entityNamePlural ?? props.entityNameSingular + "s";
-
-    const operations: {elem: React.ReactNode, priority: number, primary: boolean}[] = props.operations
-        .filter(op => op.enabled(selected, props.extra, props.all) !== false)
-        .map((op, idx) => {
-            const enabled = op.enabled(selected, props.extra, props.all);
-            let reasonDisabled: string | undefined = undefined;
-            if (typeof enabled === "string") {
-                reasonDisabled = enabled;
-            }
-            if (enabled === false) return null;
-
-            const text = typeof op.text === "string" ? op.text : op.text(selected, props.extra);
-            const opTypeFn = op.operationType ?? ((a, b) => defaultOperationType(a, b, op));
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const As = opTypeFn(props.location, props.operations) as React.ComponentType<any>;
-            const elem = <OperationComponent key={text} As={As} op={op} extra={props.extra} selected={selected}
-                reasonDisabled={reasonDisabled} location={props.location} all={props.all} idx={idx}
-                onAction={closeDropdown} text={text} />;
-            const priority = As === Button ? 0 : As === Box ? 2 : 2;
-            return {elem, priority, primary: op.primary === true};
-        })
-        .filter(op => op !== null)
-        .map(op => op!);
-
-    if (!(selected.length === 0 || props.operations.length === 1) && props.location === "SIDEBAR") {
-        if (props.showSelectedCount ?? true) {
-            operations.push({
-                elem: <div key={"selected"}>
-                    <TextSpan bold>
-                        {selected.length}
-                        {" "}
-                        {selected.length === 1 ? props.entityNameSingular : entityNamePlural}
-                        {" "}
-                        selected
-                    </TextSpan>
-                </div>,
-                priority: 1,
-                primary: false
-            });
-        }
-    }
-
-    const content = operations
-        .filter(it => !it.primary)
-        .sort((a, b) => a.priority - b.priority)
-        .map(it => it.elem);
-
-    const primaryContent = operations.filter(it => it.primary).map(it => it.elem);
-
-    const dropdownProps: ClickableDropdownProps<unknown> = {
-        width: "220px",
-        keepOpenOnClick: true,
-        useMousePositioning: true,
-        closeFnRef: closeDropdownRef,
-        openFnRef: dropdownOpenFn,
-        trigger: (
-            props.hidden ? null :
-                (props.location === "IN_ROW" && [0, 1].includes(props.selected.length))
-                    || props.location === "TOPBAR" ?
-                    <Icon
-                        onClick={preventDefault}
-                        ml={"5px"}
-                        mr={"10px"}
-                        name={"ellipsis"}
-                        size={"1em"}
-                        rotation={90}
-                        data-tag={props.dropdownTag}
-                    /> : <Box ml="29px" />
-        )
+export function operationsToActions<T, C>(operations: Operation<T, C>[], all?: T[]): {
+    actions: ActionEntry<T, C>[];
+    appearance: (action: ActionItem<T, C>) => ActionAppearance | undefined;
+} {
+    const appearance = new Map<ActionItem<T, C>, ActionAppearance>();
+    const convert = (operation: Operation<T, C>): ActionItem<T, C> => {
+        const action: ActionItem<T, C> = {
+            text: operation.text,
+            enabled: (selected, callbacks) => operation.enabled(selected, callbacks, all),
+            onClick: (selected, callbacks) => operation.onClick(selected, callbacks, all),
+            icon: operation.icon,
+            destructive: operation.confirm,
+            confirmationText: operation.confirmationText,
+            confirmationButtonText: operation.confirmationButtonText,
+            tag: operation.tag,
+            shortcut: operation.shortcut,
+        };
+        appearance.set(action, {
+            color: operation.color,
+            iconRotation: operation.iconRotation,
+            iconSize: 20,
+            iconSpacing: "1em",
+            primary: operation.primary,
+        });
+        return action;
     };
 
-    if (props.hidden === true) {
-        return <ClickableDropdown {...dropdownProps}>
-            {content}
-        </ClickableDropdown>
-    } else {
-        switch (props.location) {
-            case "IN_ROW":
-                return <>
-                    <div onClick={stopPropagation} className={InRowPrimaryButtonsClass}>{primaryContent}</div>
-                    <Box mr={"10px"} />
-                    {content.length === 0 ? <Box ml={"29px"} /> :
-                        <Flex alignItems={"center"} justifyContent={"center"}>
-                            <ClickableDropdown {...dropdownProps}>
-                                {content}
-                            </ClickableDropdown>
-                        </Flex>
-                    }
-                </>;
-
-            case "SIDEBAR":
-                if (content.length === 0 && primaryContent.length === 0) return null;
-                return (
-                    <Grid gridTemplateColumns={"1 fr"} gridGap={"8px"} my={"8px"}>
-                        {primaryContent}
-                        {content}
-                    </Grid>
-                );
-
-            case "TOPBAR":
-                return <>
-                    <Flex alignItems={"center"}>
-                        {props.displayTitle === false ? null :
-                            <Heading.h3 flexGrow={1}>
-                                {props.topbarIcon ?
-                                    <Icon
-                                        name={props.topbarIcon}
-                                        m={8}
-                                        ml={0}
-                                        size="20"
-                                        color={"iconColor2"}
-                                    /> :
-                                    null
-                                }
-                                {entityNamePlural}
-                                {" "}
-                                {props.selected.length === 0 ? null :
-                                    <TextSpan color={"textSecondary"}
-                                        fontSize={"80%"}>{props.selected.length} selected</TextSpan>
-                                }
-                            </Heading.h3>
-                        }
-                        {primaryContent}
-                        <Box mr={"10px"} />
-                        {content.length === 0 ? <Box ml={"30px"} /> :
-                            <Flex alignItems={"center"} justifyContent={"center"}>
-                                <ClickableDropdown {...dropdownProps}>
-                                    {content}
-                                </ClickableDropdown>
-                            </Flex>
-                        }
-                        <Box mr={"8px"} />
-                    </Flex>
-                </>;
+    const actions: ActionEntry<T, C>[] = [];
+    const handledGroups = new Set<string>();
+    for (const operation of operations) {
+        if (!operation.splitButtonGroupId) {
+            actions.push(convert(operation));
+            continue;
         }
+        if (handledGroups.has(operation.splitButtonGroupId)) continue;
+        handledGroups.add(operation.splitButtonGroupId);
+        const group = operations.filter(candidate => candidate.splitButtonGroupId === operation.splitButtonGroupId);
+        const [first, ...rest] = group;
+        const parent = convert(first);
+        parent.children = rest.map(convert);
+        actions.push(parent);
     }
+
+    return {actions, appearance: action => appearance.get(action)};
+}
+
+export function appendOperationsToActions<T, LegacyCallbacks, C extends LegacyCallbacks>(
+    source: ResourceBrowserActions<T, C>,
+    operations: Operation<T, LegacyCallbacks>[],
+    all?: T[],
+): ResourceBrowserActions<T, C> {
+    if (!operations.length) return source;
+    const additions = operationsToActions(operations, all).actions as ActionEntry<T, C>[];
+    const topbar = source.topbar ?? source.contextMenu ?? [];
+    const contextMenu = source.contextMenu ?? source.topbar ?? [];
+    return {
+        topbar: [...topbar, ...additions],
+        contextMenu: [...contextMenu, ...additions],
+        appearance: source.appearance,
+        topbarMaxVisible: source.topbarMaxVisible,
+    };
+}
+
+function NewOperations<EntityType, Extras>(props: PropsWithChildren<OperationProps<EntityType, Extras>>): React.ReactNode {
+    const adapted = operationsToActions(props.operations, props.all);
+    if (props.location === "IN_ROW") {
+        const width = "47px";
+        if (!props.hidden && !props.row) return <Box width={width} />;
+        if (!props.hidden && props.selected.length > 0 && !props.selected.includes(props.row!)) return <Box width={width} />;
+        if (!props.hidden && props.selected.length > 1) return <Box width={width} />;
+        const selected = props.selected.length === 0 && props.row ? [props.row] : props.selected;
+        if (props.hidden) return <ActionMenu
+                actions={adapted.actions}
+                selected={selected}
+                callbacks={props.extra}
+                appearance={adapted.appearance}
+                dropdownTag={props.dropdownTag}
+                openFnRef={props.openFnRef}
+                trigger={null}
+            />;
+
+        const primary = adapted.actions.filter(entry => entry !== "divider" && adapted.appearance(entry)?.primary);
+        const overflow = adapted.actions.filter(entry => entry === "divider" || !adapted.appearance(entry)?.primary);
+        return <>
+            <div onClick={stopPropagation} className={InRowPrimaryButtonsClass}>
+                <ActionBar
+                    actions={primary}
+                    selected={selected}
+                    callbacks={props.extra}
+                    appearance={adapted.appearance}
+                    compact
+                    enableShortcuts={false}
+                />
+            </div>
+            <Box mr="10px" />
+            {overflow.length ? <ActionMenu
+                actions={overflow}
+                selected={selected}
+                callbacks={props.extra}
+                appearance={adapted.appearance}
+                dropdownTag={props.dropdownTag}
+                openFnRef={props.openFnRef}
+            /> : <Box ml="29px" />}
+        </>;
+    }
+
+    const entityNamePlural = props.entityNamePlural ?? props.entityNameSingular + "s";
+    const primary: ActionEntry<EntityType, Extras>[] = [];
+    const overflow: ActionEntry<EntityType, Extras>[] = [];
+    for (const entry of adapted.actions) {
+        if (entry !== "divider" && adapted.appearance(entry)?.primary) primary.push(entry);
+        else overflow.push(entry);
+    }
+    if (overflow.length) {
+        const overflowAction: ActionItem<EntityType, Extras> = {
+            text: "",
+            icon: "ellipsis",
+            enabled: () => true,
+            onClick: doNothing,
+            children: overflow,
+        };
+        const originalAppearance = adapted.appearance;
+        adapted.appearance = action => action === overflowAction ? {groupOnly: true, iconRotation: 90} : originalAppearance(action);
+        primary.push(overflowAction);
+    }
+
+    return <Flex alignItems="center">
+        {props.displayTitle === false ? null : <Heading.h3 flexGrow={1}>
+            {props.topbarIcon ? <Icon name={props.topbarIcon} m={8} ml={0} size="20" color="iconColor2" /> : null}
+            {entityNamePlural}{" "}
+            {props.selected.length === 0 ? null : <TextSpan color="textSecondary" fontSize="80%">
+                {props.selected.length} selected
+            </TextSpan>}
+        </Heading.h3>}
+        <ActionBar
+            actions={primary}
+            selected={props.selected}
+            callbacks={props.extra}
+            appearance={adapted.appearance}
+            dropdownTag={props.dropdownTag}
+        />
+        <Box mr="8px" />
+    </Flex>;
+}
+
+export const Operations: OperationsType = props => {
+    return <NewOperations {...props} />;
 };
 
 const InRowPrimaryButtonsClass = injectStyle("in-row-primary-buttons", k => `

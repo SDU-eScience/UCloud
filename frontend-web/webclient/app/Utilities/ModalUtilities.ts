@@ -56,15 +56,16 @@ export const slimModalStyle: ReactModal.Styles = {
 export const defaultModalStyle: ReactModal.Styles = {
     content: {
         borderRadius: "6px",
-        width: "900px",
-        minHeight: "200px",
-        maxHeight: "80vh",
-        maxWidth: "calc(100vw - 10px)",
+        width: "min(900px, calc(100vw - 20px))",
+        minHeight: "min(200px, calc(100vh - 20px))",
+        maxHeight: "calc(100vh - 20px)",
         position: "fixed",
-        top: "10vh",
-        left: `calc(50vw - 450px)`,
+        top: "max(10px, 10vh)",
+        left: "50%",
+        transform: "translateX(-50%)",
         outline: "none",
         overflow: "auto",
+        boxSizing: "border-box",
     },
     overlay: {
         backgroundColor: "var(--modalShadow)",

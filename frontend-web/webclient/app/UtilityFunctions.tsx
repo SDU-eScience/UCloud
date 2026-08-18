@@ -214,11 +214,13 @@ export function extensionType(ext: string): ExtensionType {
         case "wmv":
             return "video";
         case "gz":
+        case "xz":
         case "zip":
         case "tar":
         case "tgz":
         case "tbz":
         case "bz2":
+        case "7z":
             return "archive";
         case "dat":
             return "binary";
@@ -454,6 +456,8 @@ export function useFrameHidden(): boolean {
     return [
         "/app/login",
         "/app/login/wayf",
+        "/app/login/external",
+        "/app/login/external/wayf",
         "/app/applications/shell/",
         "/app/applications/web/",
         "/app/applications/vnc/",
@@ -653,6 +657,16 @@ export function chunkedString(text: string, chunkSize: number, leftToRight: bool
 export const isLikelyMac = navigator["userAgentData"]?.["platform"] === "macOS" ||
     navigator["platform"]?.toLocaleLowerCase().includes("mac") ||
     navigator["userAgent"]?.toLocaleLowerCase().includes("macintosh");
+
+export type KeyboardShortcutModifier = "ctrl" | "alt";
+
+export function createKeyboardShortcut(key: string, modifiers: KeyboardShortcutModifier[] = []): string {
+    const normalizedModifiers = modifiers.map(modifier => {
+        if (modifier === "ctrl") return isLikelyMac ? "⌘" : "Ctrl";
+        return isLikelyMac ? "⌥" : "Alt";
+    });
+    return [...normalizedModifiers, key].join(" + ");
+}
 
 export function deepEquals(a: any, b: any): boolean {
     if (a === b) return true;

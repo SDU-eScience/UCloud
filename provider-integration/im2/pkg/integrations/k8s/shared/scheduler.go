@@ -23,7 +23,9 @@ type JobReplicaState struct {
 type JobTracker interface {
 	AddUpdate(id string, update orc.JobUpdate)
 	TrackState(state JobReplicaState) bool
+	PreserveState(id string)
 	RequestCleanup(id string)
+	RequestCleanupWithoutResourceDeletion(id string)
 }
 
 var scheduleLock = sync.Mutex{}

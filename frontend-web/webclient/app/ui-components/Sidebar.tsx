@@ -800,16 +800,12 @@ const ResourceSubLinksEntries: LinkInfo[] = [
     }
 ];
 
-if (hasFeature(Feature.NEW_VM_UI)) {
-    ResourceSubLinksEntries.push(
-        {
-            to: AppRoutes.resources.privateNetworks(),
-            text: "Private networks",
-            icon: "heroCloud",
-            tab: SidebarTabId.RESOURCES,
-        }
-    );
-}
+ResourceSubLinksEntries.push({
+    to: AppRoutes.resources.privateNetworks(),
+    text: "Private networks",
+    icon: "heroCloud",
+    tab: SidebarTabId.RESOURCES,
+});
 
 function ProjectSubLinks({canApply, isPersonalWorkspace, projectId}: {
     canApply: boolean;

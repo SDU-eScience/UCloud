@@ -42,6 +42,7 @@ import UcxView, {UcxFunctionRegistry} from "@/UCX/UcxView";
 import {Value, ValueKind, valueToPlain} from "@/UCX/protocol";
 import {ServiceProviderSelector} from "@/Applications/ApiTokens/Add";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
+import {SettingsAction} from "@/ui-components/SettingsComponents";
 
 // UI state management
 // ================================================================================
@@ -668,33 +669,22 @@ function SyncthingSettings(props: {
         <div className="sync-section-header">
             <h2>Settings</h2>
         </div>
-        <div className="sync-server-actions">
-            <Flex width={"100%"} flexWrap={"wrap"} gap={"16px"} alignItems="end">
-                <Box flexGrow={1}>
-                    <div><strong>Service provider</strong></div>
-                    <Box color={"textSecondary"} maxWidth={"50ch"}>
-                        Choose where Syncthing runs. Only folders hosted by this provider can be synchronized.
-                    </Box>
-                </Box>
-                <ProviderSelector provider={props.provider} providers={props.providers}
-                    onProviderChanged={props.onProviderChanged} />
-            </Flex>
-        </div>
-        <div className="sync-server-actions">
-            <Flex width={"100%"} flexWrap={"wrap"} gap={"16px"}>
-                <Box flexGrow={1}>
-                    <div><strong>Factory reset</strong></div>
-                    <Box color={"textSecondary"} maxWidth={"50ch"}>
-                        Having issues? Try a factory reset.
-                        No data will be deleted, but you will have to redo the setup.
-                    </Box>
-                </Box>
-                <Button color="errorMain" onClick={requestFactoryReset} alignSelf={"end"} flexShrink={0}
-                    disabled={!props.productId}>
-                    <Icon name="heroTrash" size={15} mr="6px" color="errorContrast"/> Factory reset
-                </Button>
-            </Flex>
-        </div>
+        <SettingsAction
+            title="Service provider"
+            description="Choose where Syncthing runs. Only folders hosted by this provider can be synchronized."
+            action={<ProviderSelector
+                provider={props.provider}
+                providers={props.providers}
+                onProviderChanged={props.onProviderChanged}
+            />}
+        />
+        <SettingsAction
+            title="Factory reset"
+            description="Having issues? Try a factory reset. No data will be deleted, but you will have to redo the setup."
+            action={<Button color="errorMain" onClick={requestFactoryReset} disabled={!props.productId}>
+                <Icon name="heroTrash" size={15} mr="6px" color="errorContrast"/> Factory reset
+            </Button>}
+        />
     </section>;
 }
 

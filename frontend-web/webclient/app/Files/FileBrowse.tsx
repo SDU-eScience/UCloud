@@ -24,12 +24,13 @@ import {
 } from "@/ui-components/ResourceBrowser";
 import FilesApi, {
     addFileSensitivityDialog,
-    ExtraFileCallbacks,
+    FileBrowseCallbacks,
     FileSensitivityNamespace,
     FileSensitivityVersion,
     initEmptyFileUpload,
     isReadonly,
     isSensitivitySupported,
+    showFileProperties,
 } from "@/UCloud/FilesApi";
 import {fileName, getParentPath, pathComponents, resolvePath, sizeToString} from "@/Utilities/FileUtilities";
 import {AsyncCache} from "@/Utilities/AsyncCache";
@@ -57,10 +58,10 @@ import MetadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/Meta
 import {bulkRequestOf} from "@/UtilityFunctions";
 import metadataDocumentApi, {FileMetadataDocument, FileMetadataDocumentOrDeleted, FileMetadataHistory} from "@/UCloud/MetadataDocumentApi";
 
-import {ResourceBrowseCallbacks, ResourceOwner, ResourcePermissions, ResourceSpecification, SupportByProvider} from "@/UCloud/ResourceApi";
+import {ResourceOwner, ResourcePermissions, SupportByProvider} from "@/UCloud/ResourceApi";
 import {Client, WSFactory} from "@/Authentication/HttpClientInstance";
 import ProductReference = accounting.ProductReference;
-import {Operation} from "@/ui-components/Operation";
+import {appendOperationsToActions, Operation} from "@/ui-components/Operation";
 import {visualizeWhitespaces} from "@/Utilities/TextUtilities";
 import {usePage} from "@/Navigation/Redux";
 import AppRoutes from "@/Routes";
@@ -82,6 +83,7 @@ import {createPortal} from "react-dom";
 import {FileBrowserStatusBar, FileBrowserStatusData} from "./FileBrowserStatusBar";
 import {fetchAll} from "@/Utilities/PageUtilities";
 import {Feature, hasFeature} from "@/Features";
+import {terminalSetPageContext} from "@/Terminal/State";
 
 export enum SensitivityLevel {
     "INHERIT" = "Inherit",
@@ -131,7 +133,7 @@ interface AdditionalResourceBrowserOpts {
     initialPath?: string;
     managesLocalProject?: boolean; // TODO(Jonas): Having both managesLocalProject and initialProject might not be for the best.
     initialProject?: string;
-    additionalOperations?: Operation<UFile, ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks>[];
+    additionalOperations?: Operation<UFile, FileBrowseCallbacks>[];
 }
 let lastActiveProject: string | undefined = "";
 type SortById = "PATH" | "MODIFIED_AT" | "SIZE";
@@ -154,6 +156,13 @@ function FileBrowse({
     if (!opts?.embedded && !opts?.isModal) {
         usePage("Files", SidebarTabId.FILES);
     }
+
+    useEffect(() => {
+        if (opts?.embedded || opts?.isModal) return;
+        return () => {
+            dispatch(terminalSetPageContext(null));
+        };
+    }, [dispatch, opts?.embedded, opts?.isModal]);
 
     const [providerRestriction, setProviderRestriction] = React.useState<string | null>(null);
     const [statusBarTarget, setStatusBarTarget] = React.useState<HTMLElement | null>(null);
@@ -805,12 +814,15 @@ function FileBrowse({
                     }
 
                     const selected = browser.findSelectedEntries();
-                    const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks;
-                    const enabledOperations = FilesApi.retrieveOperations().filter(op => op.enabled(selected, callbacks, selected));
+                    const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as FileBrowseCallbacks;
+                    const actions = FilesApi.retrieveActions();
+                    if (!Array.isArray(actions)) {
+                        return appendOperationsToActions(actions, opts?.additionalOperations ?? [], selected);
+                    }
+                    const enabledOperations = actions.filter(op => op.enabled(selected, callbacks, selected));
                     if (opts?.additionalOperations) {
                         (opts.additionalOperations).forEach(op => {
-                            // FIXME(Jonas): Casting here is not ideal
-                            if (op.enabled(selected, callbacks, selected)) enabledOperations.push(op as unknown as Operation<UFile, ResourceBrowseCallbacks<UFile, ProductStorage, ResourceSpecification>>);
+                            if (op.enabled(selected, callbacks, selected)) enabledOperations.push(op);
                         })
                     }
                     return groupOperations(enabledOperations);
@@ -830,7 +842,7 @@ function FileBrowse({
                     const supportByProvider: SupportByProvider = {productsByProvider: {}};
                     supportByProvider.productsByProvider[collection.specification.product.provider] = [collection.status.resolvedSupport!];
 
-                    const callbacks: ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks = {
+                    const callbacks: FileBrowseCallbacks = {
                         supportByProvider,
                         collection: collection,
                         isSearch,
@@ -841,6 +853,12 @@ function FileBrowse({
                         isWorkspaceAdmin: checkIsWorkspaceAdmin(),
                         navigate: to => navigate(to),
                         reload: () => browser.refresh(),
+                        reloadCurrentFolderIfUnpaginated: path => {
+                            const files = browser.cachedData[path];
+                            if (browser.root.isConnected && browser.currentPath === path && files && files.length < 250) {
+                                browser.refresh();
+                            }
+                        },
                         syncthingConfig,
                         setSynchronization(files: UFile[], shouldAdd: boolean): void {
                             if (!syncthingConfig) return;
@@ -874,6 +892,24 @@ function FileBrowse({
                                 defaultErrorHandler(e);
                             });
                         },
+                        openFile(file: UFile, newWindow: boolean): void {
+                            if (newWindow) {
+                                const target = file.status.type === "FILE" ?
+                                    AppRoutes.files.preview(file.id) : AppRoutes.files.path(file.id);
+                                window.open("/app" + target, "_blank", "noopener,noreferrer");
+                            } else {
+                                browser.open(file.id, false, file);
+                            }
+                        },
+                        copyToClipboard(files: UFile[], cut: boolean): void {
+                            browser.copyToClipboard(files, cut);
+                        },
+                        canPasteFromClipboard(): boolean {
+                            return browser.canPasteFromClipboard();
+                        },
+                        pasteFromClipboard(): void {
+                            browser.pasteFromClipboard();
+                        },
                         startFolderCreation(): void {
                             showCreateDirectory();
                         },
@@ -886,7 +922,7 @@ function FileBrowse({
                             startRenaming(resource.id);
                         },
                         viewProperties(res: UFile): void {
-                            navigate(AppRoutes.resource.properties(FilesApi.routingNamespace, res.id))
+                            showFileProperties(res);
                         },
                         commandLoading: false,
                         invokeCommand: call => callAPI(call),
@@ -1397,6 +1433,12 @@ function FileBrowse({
                                 ...opts?.additionalFilters
                             })
                         )).then(collection => {
+                            if (!didUnmount.current && !opts?.embedded && !opts?.isModal && browser.currentPath === newPath) {
+                                dispatch(terminalSetPageContext({
+                                    folder: newPath,
+                                    providerId: collection.specification.product.provider,
+                                }));
+                            }
                             loadStatus(newPath, collection);
                             if (!opts?.embedded) {
                                 const collection = collectionCache.retrieveFromCacheOnly(collectionId);

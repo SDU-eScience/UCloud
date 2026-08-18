@@ -236,7 +236,9 @@ export function NetworkIPBrowse({
                     const entries = browser.findSelectedEntries();
                     const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as ResourceBrowseCallbacks<NetworkIP, ProductNetworkIP>;
 
-                    const operations = NetworkIPApi.retrieveOperations();
+                    const actions = NetworkIPApi.retrieveActions();
+                    if (!Array.isArray(actions)) return actions;
+                    const operations = actions;
                     const create = operations.find(it => it.tag === CREATE_TAG);
                     if (create) {
                         create.enabled = () => true;

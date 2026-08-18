@@ -17,15 +17,16 @@ const style = injectStyle("vm-icon-button", k => `
         justify-content: center;
         cursor: pointer;
         transition: background-color 120ms ease, opacity 120ms ease;
-        --icon-button-hover: var(--secondaryMain);
-    }
-    
-    html.dark ${k} {
-        --icon-button-hover: #30343a;
+        --icon-button-hover: var(--rowActive);
     }
 
     ${k}:hover {
         background: var(--icon-button-hover);
+    }
+
+    ${k}[data-compact="true"] {
+        width: 28px;
+        height: 32px;
     }
 
     ${k}:focus-visible {
@@ -40,10 +41,19 @@ export const IconButton: React.FunctionComponent<{
     icon: IconName;
     color?: ThemeColor;
     noDefaultFill?: boolean;
+    ariaExpanded?: boolean;
+    compact?: boolean;
+    hoverColor?: ThemeColor | `#${string}`;
 }> = props => {
     const color = props.color ?? "textSecondary";
+    const hoverColor = props.hoverColor === undefined ? undefined :
+        props.hoverColor.startsWith("#") ? props.hoverColor : `var(--${props.hoverColor})`;
     return <TooltipV2 tooltip={props.tooltip}>
-        <button type="button" className={style} onClick={props.onClick}>
+        <button type="button" className={style} onClick={props.onClick}
+            aria-label={typeof props.tooltip === "string" ? props.tooltip : undefined}
+            aria-expanded={props.ariaExpanded}
+            data-compact={props.compact}
+            style={hoverColor ? {"--icon-button-hover": hoverColor} as React.CSSProperties : undefined}>
             <Icon name={props.icon} color={color} noDefaultFill={props.noDefaultFill} />
         </button>
     </TooltipV2>
