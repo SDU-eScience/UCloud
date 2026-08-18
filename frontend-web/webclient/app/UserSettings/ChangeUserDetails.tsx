@@ -476,6 +476,7 @@ function NewDataList({items, onSelect, title, disabled, placeholder, isFreetext,
                     cursor={isFreetext ? "text" : "pointer"}
                     data-is-freetext={isFreetext}
                     className={DataListInput}
+                    title={ref.current?.value}
                     disabled={disabled}
                     onFocus={() => setOpen(true)}
                     // Note(Jonas): If already focused, but closed and user clicks again
@@ -555,7 +556,7 @@ function NewDataList({items, onSelect, title, disabled, placeholder, isFreetext,
     }
 }
 
-const ChevronPlacement = injectStyleSimple("chevron-placement", `    
+const ChevronPlacement = injectStyleSimple("chevron-placement", `
     cursor: pointer;
     position: relative;
     width: 0px;
