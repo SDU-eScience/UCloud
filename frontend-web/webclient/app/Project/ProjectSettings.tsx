@@ -1013,8 +1013,8 @@ function PolicyConfiguration({policy, updatePolicyRule}: { policy: Policy; updat
             const values = policy.specification?.values as Partial<{ allowedSubnets: string }> | undefined;
             const {allowedSubnets} = policy.schema.configuration;
             return <ConfigurationEntry entry={allowedSubnets}>
-                <Input pattern={cidrRegex.source} placeholder="Enter a CIDR, e.g. '10.0.0.1/24'" defaultValue={values?.allowedSubnets} type="text" onChange={e => {
-                    if (e.target.value && !e.target.validity.patternMismatch) {
+                <Input pattern={cidrRegexOrEmpty.source} placeholder="Enter a CIDR, e.g. '10.0.0.1/24'" defaultValue={values?.allowedSubnets} type="text" onChange={e => {
+                    if (!e.target.validity.patternMismatch) {
                         updatePolicyRule(policy.schema.name, "allowedSubnets", e.target.value);
                     }
                 }} />
@@ -1099,8 +1099,8 @@ function PolicyConfiguration({policy, updatePolicyRule}: { policy: Policy; updat
             const values = policy.specification?.values as Partial<{allowedSubnets: string}> | undefined;
             const {allowedSubnets} = policy.schema.configuration;
             return <ConfigurationEntry entry={allowedSubnets}>
-                <Input type="text" pattern={cidrRegex.source} placeholder="Enter a CIDR, e.g. '10.0.0.1/24'" defaultValue={values?.allowedSubnets} onChange={e => {
-                    if (e.target.value && !e.target.validity.patternMismatch) {
+                <Input type="text" pattern={cidrRegexOrEmpty.source} placeholder="Enter a CIDR, e.g. '10.0.0.1/24'" defaultValue={values?.allowedSubnets} onChange={e => {
+                    if (!e.target.validity.patternMismatch) {
                         updatePolicyRule(policy.schema.name, "allowedSubnets", e.target.value);
                     }
                 }} />
@@ -1112,7 +1112,7 @@ function PolicyConfiguration({policy, updatePolicyRule}: { policy: Policy; updat
 const u8Range = /(0|1(\d{0,2})|[3-9]\d{0,1}|2\d{0,1}|2[0-4]\d|25[0-5])/;
 const ipRange = new RegExp(`${u8Range.source}((\.${u8Range.source}){3})`);
 const subnet = /\/(3[0-2]|[1-9]|2[1-9])/;
-const cidrRegex = new RegExp(`^${ipRange.source}${subnet.source}$`);
+const cidrRegexOrEmpty = new RegExp(`^${ipRange.source}${subnet.source}|$`);
 
 function LabelTag({onClick, label}: {onClick(): void; label: string;}): React.ReactNode {
     return <Tag
