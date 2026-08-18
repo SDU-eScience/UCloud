@@ -491,7 +491,7 @@ func (r *PoliciesUpdateRequest) UnmarshalJSON(data []byte) error {
 			return fmt.Errorf("unknown policy schema %q", metadata.Schema)
 		}
 		specification, err := decoder(rawPolicy)
-		fmt.Printf("specification: %v\n", specification)
+
 		if err != nil {
 			return fmt.Errorf("failed to decode %s policy: %w", policyName, err)
 		}

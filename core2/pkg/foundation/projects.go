@@ -1439,24 +1439,19 @@ func ProjectAcceptInviteLink(actor rpc.Actor, token string) (fndapi.ProjectInvit
 		return fndapi.ProjectInviteLinkInfo{}, err
 	}
 
-	projectPolicies.Mu.Lock()
-	projectRestrictions, hasRestrictions := projectPolicies.PoliciesByProject[linkInfo.Project.Id]
-	projectPolicies.Mu.Unlock()
+	restricted, allowedOrgs, err := projectMemberOrganizationRestriction(linkInfo.Project.Id)
 
-	if hasRestrictions {
-		policy, restrictingMemberOrgs := projectRestrictions.ConfiguredPolicies[fndapi.RestrictOrganizationMembers]
-		if restrictingMemberOrgs {
-			specification, ok := policy.GetValues().(fndapi.RestrictOrganizationMembersValues)
-			if !ok {
-				return fndapi.ProjectInviteLinkInfo{}, util.HttpErr(http.StatusNotFound, "Misconfigured Policy")
-			}
-			if specification.Enabled && slices.Contains(specification.Organizations, actor.OrgId) {
-				return fndapi.ProjectInviteLinkInfo{},
-					util.HttpErr(
-						http.StatusForbidden,
-						"Project does not allow your organization.",
-					)
-			}
+	if err != nil {
+		return fndapi.ProjectInviteLinkInfo{}, err
+	}
+
+	if restricted {
+		if !slices.Contains(allowedOrgs, actor.OrgId) {
+			return fndapi.ProjectInviteLinkInfo{},
+				util.HttpErr(
+					http.StatusForbidden,
+					"Project does not allow your organization.",
+				)
 		}
 	}
 
@@ -1654,7 +1649,7 @@ func ProjectCreateInvite(actor rpc.Actor, recipient string) *util.HttpError {
 			errorMessage := "Cannot invite user."
 
 			if len(allowedOrgs) == 0 {
-				errorMessage += " Invites disabled by project manager"
+				errorMessage += " Invites disabled by data manager"
 			} else {
 				errorMessage += " Only users from " +
 					strings.Join(allowedOrgs, ", ") +
@@ -1792,6 +1787,22 @@ func ProjectAcceptInvite(actor rpc.Actor, projectId string) *util.HttpError {
 	uinfo := projectRetrieveUserInfo(actor.Username)
 
 	pinfo, ok := projectRetrieveInternal(projectId)
+
+	restricted, allowedOrgs, err := projectMemberOrganizationRestriction(pinfo.Project.Id)
+
+	if err != nil {
+		return err
+	}
+
+	if restricted {
+		if !slices.Contains(allowedOrgs, actor.OrgId) {
+			return util.HttpErr(
+				http.StatusForbidden,
+				"Project does not allow your organization.",
+			)
+		}
+	}
+
 	if ok {
 		pinfo.Mu.Lock()
 		isMember := false

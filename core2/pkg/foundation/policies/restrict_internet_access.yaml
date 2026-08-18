@@ -19,12 +19,10 @@ configuration:
       List of destination subnets that workloads in the project are allowed
       to access.
       
-      ```
-        An empty list indicates that no outbound Internet access is allowed.
-      
-        Any additions to the list will allow workloads to access destinations
-        within the specified subnets.
-      
-        This configuration only affects outbound Internet connectivity from
-        workloads belonging to the project.
-      ```
+      An empty list indicates that no outbound Internet access is allowed.
+    
+      Any additions to the list will allow workloads to access destinations
+      within the specified subnets.
+    
+      This configuration only affects outbound Internet connectivity from
+      workloads belonging to the project.
