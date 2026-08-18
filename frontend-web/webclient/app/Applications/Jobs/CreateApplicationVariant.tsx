@@ -51,7 +51,7 @@ function CreateApplicationVariant({job, submit}: Props): React.ReactNode {
     const suggestions = (group.data?.status.applications ?? []).flatMap(app => {
         const variant = app.metadata.variant;
         return variant && variant.provider === job.specification.product.provider &&
-        (variant.createdBy === Client.username || checkIsWorkspaceAdmin()) ? [variant] : [];
+        (variant.createdBy === Client.username || (variant.publishedToProject && checkIsWorkspaceAdmin())) ? [variant] : [];
     });
     const matchingSuggestions = suggestions.filter(variant =>
         !title.trim() || variant.title.toLowerCase().includes(title.trim().toLowerCase())

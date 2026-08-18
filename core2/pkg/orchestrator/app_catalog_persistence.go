@@ -80,6 +80,23 @@ func appCatalogLoad() {
 			// fine even if it does a retry.
 			tx.NoDevResetThisIsNotAHackIPromise = true
 
+			// Remove failed initial reservations left by older server versions.
+			db.Exec(
+				tx,
+				`
+					delete from app_store.application_variants as v
+					where
+						state = 'FAILED'
+						and not exists (
+							select 1
+							from
+								app_store.application_variant_revisions r
+							where r.variant_id = v.id
+						)
+				`,
+				db.Params{},
+			)
+
 			reset()
 
 			b := db.BatchNew(tx)

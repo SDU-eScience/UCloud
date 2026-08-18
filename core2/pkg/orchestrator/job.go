@@ -2429,6 +2429,9 @@ func jobTransform(
 
 	{
 		app, ok := AppRetrieve(rpc.ActorSystem, info.Application.Name, info.Application.Version, AppDiscoveryAll, 0)
+		if !ok {
+			app, ok = AppRetrieve(rpc.ActorSystem, "unknown", "unknown", AppDiscoveryAll, 0)
+		}
 		if ok {
 			result.Status.ResolvedApplication.Set(app)
 		}

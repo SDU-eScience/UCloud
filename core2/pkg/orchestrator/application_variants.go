@@ -83,6 +83,19 @@ func applicationVariantCanManage(actor rpc.Actor, variant orcapi.ApplicationVari
 		actor.Membership[actor.Project.Value].Satisfies(rpc.ProjectRoleAdmin)
 }
 
+func applicationVariantCanPush(actor rpc.Actor, variant orcapi.ApplicationVariant) bool {
+	if actor.Username == rpc.ActorSystem.Username {
+		return true
+	}
+	if !applicationVariantInWorkspace(actor, variant) {
+		return false
+	}
+	if variant.PublishedToProject {
+		return applicationVariantCanManage(actor, variant)
+	}
+	return actor.Username == variant.CreatedBy
+}
+
 func applicationVariantInWorkspace(actor rpc.Actor, variant orcapi.ApplicationVariant) bool {
 	if actor.Username == rpc.ActorSystem.Username {
 		return true
@@ -296,10 +309,10 @@ func applicationVariantReserve(actor rpc.Actor, requested orcapi.NameAndVersion,
 		return nil, "", util.HttpErr(http.StatusInternalServerError, "application variant cache already contains the reserved ID")
 	}
 	if exists {
-		failure := "generated application name is already in use"
-		applicationVariantPersistFailure(created.Id, failure)
-		internal.Value.State = orcapi.ApplicationVariantStateFailed
-		internal.Value.Failure.Set(failure)
+		if !applicationVariantDeleteInitial(created.Id) {
+			return nil, "", util.HttpErr(http.StatusInternalServerError, "failed to remove application variant reservation")
+		}
+		return nil, "", util.HttpErr(http.StatusConflict, "generated application name is already in use; retry the request")
 	}
 	b.Mu.Lock()
 	if _, duplicate = b.ApplicationVariants[created.Id]; !duplicate {
@@ -308,9 +321,6 @@ func applicationVariantReserve(actor rpc.Actor, requested orcapi.NameAndVersion,
 	b.Mu.Unlock()
 	if duplicate {
 		return nil, "", util.HttpErr(http.StatusInternalServerError, "application variant cache already contains the reserved ID")
-	}
-	if exists {
-		return nil, "", util.HttpErr(http.StatusConflict, "generated application name is already in use; retry the request")
 	}
 	return internal, imageName, nil
 }
@@ -339,10 +349,44 @@ func applicationVariantPersistFailure(id int64, failure string) {
 	})
 }
 
+// The first revision is not stored until provider completion.
+// Failed initial reservations can therefore be removed safely.
+func applicationVariantDeleteInitial(id int64) bool {
+	_, deleted := db.NewTx2(func(tx *db.Transaction) (struct{ Id int64 }, bool) {
+		return db.Get[struct{ Id int64 }](
+			tx,
+			`
+				delete from app_store.application_variants
+				where
+					id = :id
+					and not exists (
+						select 1
+						from
+							app_store.application_variant_revisions r
+						where r.variant_id = :id
+					)
+				returning id
+			`,
+			db.Params{
+				"id": id,
+			},
+		)
+	})
+	return deleted
+}
+
 func applicationVariantSetFailure(id int64, failure string) {
 	if internal, ok := applicationVariantRetrieve(id); ok {
 		internal.Mu.Lock()
 		if internal.Value.RevisionId == 0 {
+			if applicationVariantDeleteInitial(id) {
+				baseGroup := internal.BaseGroup
+				internal.Value.State = orcapi.ApplicationVariantStateDeleted
+				internal.Value.Failure.Clear()
+				internal.Mu.Unlock()
+				applicationVariantCacheRemove(id, baseGroup)
+				return
+			}
 			applicationVariantPersistFailure(id, failure)
 			internal.Value.State = orcapi.ApplicationVariantStateFailed
 			internal.Value.Failure.Set(failure)
@@ -351,11 +395,14 @@ func applicationVariantSetFailure(id int64, failure string) {
 	}
 }
 
-func applicationVariantBeginPush(internal *internalApplicationVariant) (string, int64, bool) {
+func applicationVariantBeginPush(actor rpc.Actor, internal *internalApplicationVariant) (string, int64, bool, *util.HttpError) {
 	internal.Mu.Lock()
 	defer internal.Mu.Unlock()
+	if !applicationVariantCanPush(actor, internal.Value) {
+		return "", 0, false, util.HttpErr(http.StatusConflict, "only the original author can add versions to an unpublished flavor")
+	}
 	if internal.Value.State != orcapi.ApplicationVariantStateActive {
-		return "", 0, false
+		return "", 0, false, nil
 	}
 	_, updated := db.NewTx2(func(tx *db.Transaction) (struct{ Id int64 }, bool) {
 		return db.Get[struct{ Id int64 }](
@@ -375,9 +422,9 @@ func applicationVariantBeginPush(internal *internalApplicationVariant) (string, 
 		)
 	})
 	if !updated {
-		return "", 0, false
+		return "", 0, false, nil
 	}
-	return internal.ImageName, internal.RevisionCount + 1, true
+	return internal.ImageName, internal.RevisionCount + 1, true, nil
 }
 
 func applicationVariantCancelPush(internal *internalApplicationVariant) {
@@ -811,7 +858,11 @@ func initApplicationVariantRpc() {
 				return fndapi.Task{}, util.HttpErr(http.StatusBadRequest, "the flavor is not compatible with this job")
 			}
 			var pushStarted bool
-			imageName, revision, pushStarted = applicationVariantBeginPush(variant)
+			var pushErr *util.HttpError
+			imageName, revision, pushStarted, pushErr = applicationVariantBeginPush(info.Actor, variant)
+			if pushErr != nil {
+				return fndapi.Task{}, pushErr
+			}
 			if !pushStarted {
 				return fndapi.Task{}, util.HttpErr(http.StatusConflict, "a new flavor version is already being saved")
 			}
@@ -1139,4 +1190,12 @@ func applicationVariantCacheDelete(id int64, groupId AppGroupId) {
 		}
 		group.Mu.Unlock()
 	}
+}
+
+func applicationVariantCacheRemove(id int64, groupId AppGroupId) {
+	applicationVariantCacheDelete(id, groupId)
+	b := appBucket(fmt.Sprintf("variant-%d", id))
+	b.Mu.Lock()
+	delete(b.ApplicationVariants, id)
+	b.Mu.Unlock()
 }

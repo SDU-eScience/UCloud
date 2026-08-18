@@ -82,6 +82,7 @@ func RepositoryFindDefault(owner orc.ResourceOwner) (string, *util.HttpError) {
 			ProviderGeneratedId: util.OptValue(providerId),
 			Project:             owner.Project,
 			ProjectAllRead:      owner.Project.Present,
+			ProjectAllWrite:     owner.Project.Present,
 		}
 
 		response, err := orc.ContainerRepositoriesControlRegister.Invoke(fnd.BulkRequestOf(request))
