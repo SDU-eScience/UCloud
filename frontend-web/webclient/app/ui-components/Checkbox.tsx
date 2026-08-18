@@ -1,6 +1,6 @@
 import * as React from "react";
 import {Icon} from ".";
-import {injectStyle} from "@/Unstyled";
+import {injectStyle, unbox} from "@/Unstyled";
 
 interface CheckboxProps extends React.InputHTMLAttributes<HTMLInputElement> {
     disabled?: boolean;
@@ -11,7 +11,7 @@ function Checkbox({size = 20, disabled = false, ...props}: CheckboxProps): React
     const checkboxProps = {...props};
     delete checkboxProps["handleWrapperClick"];
     return (
-        <div className={CheckboxClass} data-disabled={!!disabled} onClick={props.handleWrapperClick}>
+        <div className={CheckboxClass} style={{...unbox(props), ...(props.style ?? {})}} data-disabled={!!disabled} onClick={props.handleWrapperClick}>
             <input type="checkbox" {...checkboxProps} />
             <Icon name="boxChecked" size={size} data-name="checked" />
             <Icon name="boxEmpty" size={size} data-name="empty" />

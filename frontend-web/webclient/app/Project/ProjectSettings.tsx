@@ -9,12 +9,13 @@ import {
     Checkbox,
     TextArea,
     DataList,
-    Icon,
-    Tooltip
+    Tooltip,
+    Markdown,
+    Icon
 } from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {addStandardDialog, ConfirmCancelButtons} from "@/UtilityComponents";
-import {callAPI, callAPIWithErrorHandler, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {apiRetrieve, apiUpdate, callAPI, callAPIWithErrorHandler, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {useNavigate} from "react-router-dom";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {MainContainer} from "@/ui-components/MainContainer";
@@ -33,7 +34,6 @@ import {ProjectLogo} from "@/Grants/ProjectLogo";
 import {HiddenInputField} from "@/ui-components/Input";
 import {IconButton} from "@/ui-components/IconButton";
 import {CopyButton} from "@/ui-components/CopyButton";
-import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {SimpleRichItem, SimpleRichSelect} from "@/ui-components/RichSelect";
 import {inSuccessRange} from "@/UtilityFunctions";
 import Table, {TableCell, TableHeaderCell, TableRow} from "@/ui-components/Table";
@@ -41,10 +41,21 @@ import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {ProjectSwitcher} from "./ProjectSwitcher";
 import WAYF from "@/Grants/wayf-idps.json";
 import {FlexClass} from "@/ui-components/Flex";
-import {OldProjectRole, isAdminOrPI} from ".";
+import {OldProjectRole, isAdminOrPI, isDataSteward} from ".";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import AppRoutes from "@/Routes";
-import {sendFailureNotification, sendInformationNotification, sendSuccessNotification} from "@/Notifications";
+import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
+import {search} from "@/Applications/AppStoreApi";
+import {Toggle} from "@/ui-components/Toggle";
+import {useDiscovery} from "@/Applications/Hooks";
+import {SafeLogo} from "@/Applications/AppToolLogo";
+import {NewDataList} from "@/UserSettings/ChangeUserDetails";
+import {DataListItem} from "@/UserSettings/types";
+import {Tag} from "@/Applications/Card";
+import {useUState } from "@/Utilities/UState";
+import {connectionState} from "@/Providers/ConnectionState";
+import {getProviderTitle, ProviderTitle} from "@/Providers/ProviderTitle";
+import {ProviderLogo} from "@/Providers/ProviderLogo";
 
 const wayfIdpsPairs = WAYF.wayfIdps.map(it => ({value: it, content: it}));
 
@@ -93,13 +104,13 @@ const ActionContainer = injectStyle("action-container", k => `
     ${k} {
         container-type: inline-size;
     }
-    
+
     ${k} label {
         font-weight: bold;
         display: block;
         margin-top: 16px;
     }
-    
+
     @container (min-width: 800px) {
         ${k} form label {
             width: 50%;
@@ -108,7 +119,7 @@ const ActionContainer = injectStyle("action-container", k => `
         ${k} form > .${FlexClass} {
             flex-direction: row;
         }
-    }     
+    }
 
     @container (max-width: 799px) {
         ${k} form label {
@@ -222,34 +233,34 @@ const MoveFieldControls: React.FunctionComponent<MoveFieldControlsProps> = ({
     setSettings,
 }) => {
     const move = useCallback((direction: "up" | "down") => {
-        setSettings(prev => {
-        const items = [...prev.templates.structured[projectType]];
+            setSettings(prev => {
+                const items = [...prev.templates.structured[projectType]];
 
-        const targetIdx =
-            direction === "up" ? idx - 1 : idx + 1;
+                const targetIdx =
+                    direction === "up" ? idx - 1 : idx + 1;
 
-        if (targetIdx < 0 || targetIdx >= items.length) {
-            return prev;
-        }
+                if (targetIdx < 0 || targetIdx >= items.length) {
+                    return prev;
+                }
 
-        [items[idx], items[targetIdx]] = [
-            items[targetIdx],
-            items[idx],
-        ];
+                [items[idx], items[targetIdx]] = [
+                    items[targetIdx],
+                    items[idx],
+                ];
 
-        return {
-            ...prev,
-            templates: {
-            ...prev.templates,
-            structured: {
-                ...prev.templates.structured,
-                [projectType]: items,
-            },
-            },
-        };
-        });
-    },
-    [idx, projectType, setSettings]
+                return {
+                    ...prev,
+                    templates: {
+                        ...prev.templates,
+                        structured: {
+                            ...prev.templates.structured,
+                            [projectType]: items,
+                        },
+                    },
+                };
+            });
+        },
+        [idx, projectType, setSettings]
     );
 
     return <Flex gap="4px">
@@ -344,9 +355,9 @@ const TemplateForm: React.FunctionComponent<TemplateFormProps> = ({
                     </Flex>
                     <br />
                     <Flex justifyContent={"space-between"}>
-                        <span style={{ display: "flex" }}>
+                        <span style={{display: "flex"}}>
                             <Label cursor="pointer" width="unset" fontSize={"12px"} marginTop={"5px"}>
-                                <Checkbox size={30} checked={field.optional} onChange={()=>updateFormField(idx, 'optional', !field.optional, projectType)}>
+                                <Checkbox size={30} checked={field.optional} onChange={() => updateFormField(idx, 'optional', !field.optional, projectType)}>
                                 </Checkbox>
                                 Optional
                             </Label>
@@ -360,7 +371,9 @@ const TemplateForm: React.FunctionComponent<TemplateFormProps> = ({
                             />
                         </Flex>
                     </Flex>
-                    { settings.templates.structured[projectType].length > idx + 1 ? <div><br/><hr style={{border:("solid 1px var(--secondaryDark)")}}/></div> : <></> }
+                    {settings.templates.structured[projectType].length > idx + 1 ? <div><br />
+                        <hr style={{border: ("solid 1px var(--secondaryDark)")}} />
+                    </div> : <></>}
                 </React.Fragment>
             })
         }
@@ -402,12 +415,12 @@ export const ProjectSettings: React.FunctionComponent = () => {
         templates: {
             type: "structured",
             structured: {
-                        personalProject: [createDefaultApplicationField()],
-                        existingProject: [createDefaultApplicationField()],
-                        newProject: [createDefaultApplicationField()],
-                        revisionNumber: -1
-                    },
-            }
+                personalProject: [createDefaultApplicationField()],
+                existingProject: [createDefaultApplicationField()],
+                newProject: [createDefaultApplicationField()],
+                revisionNumber: -1
+            },
+        }
     });
     const description = useRef<HTMLInputElement>(null);
     useEffect(() => {
@@ -567,6 +580,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
     const sections: SettingsNavSection[] = [
         {id: "project-information", label: "Project information"},
         ...(canManageProject ? [{id: "grant-applications", label: "Grant applications"}] : []),
+        ...(isDataSteward(status.myRole) ? [{id: "project-policies", label: "Project policies"}] : []),
         {id: "project-membership", label: "Project membership"},
     ];
 
@@ -603,103 +617,108 @@ export const ProjectSettings: React.FunctionComponent = () => {
             </SettingsSection>
 
             {canManageProject ? <SettingsSection
-                    id="grant-applications"
-                    title="Grant applications"
-                    description="Configure how applicants describe their project and who can submit applications."
-                >
-                    <form onSubmit={onSave}>
-                        <Box mb={24}>
-                            <UpdateProjectLogo />
-                        </Box>
-                        <Box mb={24}>
-                            <label style={{width: "100%"}}>
-                                Project description <br />
-                                <TextArea width="100%" rows={5} inputRef={description} />
-                            </label>
-                        </Box>
+                id="grant-applications"
+                title="Grant applications"
+                description="Configure how applicants describe their project and who can submit applications."
+            >
+                <form onSubmit={onSave}>
+                    <Box mb={24}>
+                        <UpdateProjectLogo />
+                    </Box>
+                    <Box mb={24}>
+                        <label style={{width: "100%"}}>
+                            Project description <br />
+                            <TextArea width="100%" rows={5} inputRef={description} />
+                        </label>
+                    </Box>
+                    <Box mb={12}>
+                        <Heading.h4 bold>Application form</Heading.h4>
+                        <Text color="textSecondary">
+                            Define the information applicants must provide for each type of project.
+                        </Text>
+                    </Box>
+                    <TabbedCard>
+                        <TabbedCardTab name="Personal projects" icon="heroUser">
+                            <TemplateForm
+                                projectType="personalProject"
+                                settings={settings}
+                                setSettings={setSettings}
+                                updateFormField={updateFormField}
+                                removeFormField={removeFormField}
+                                updateFormFieldLimits={updateFormFieldLimits}
+                            />
+                        </TabbedCardTab>
+                        <TabbedCardTab name="Existing projects" icon="heroUsers">
+                            <TemplateForm
+                                projectType="existingProject"
+                                settings={settings}
+                                setSettings={setSettings}
+                                updateFormField={updateFormField}
+                                removeFormField={removeFormField}
+                                updateFormFieldLimits={updateFormFieldLimits}
+                            />
+                        </TabbedCardTab>
+                        <TabbedCardTab name="New projects" icon="heroUserPlus">
+                            <TemplateForm
+                                projectType="newProject"
+                                settings={settings}
+                                setSettings={setSettings}
+                                updateFormField={updateFormField}
+                                removeFormField={removeFormField}
+                                updateFormFieldLimits={updateFormFieldLimits}
+                            />
+                        </TabbedCardTab>
+                    </TabbedCard>
+                    {settings.enabled && <Box mt={32}>
                         <Box mb={12}>
-                            <Heading.h4 bold>Application form</Heading.h4>
+                            <Heading.h4 bold>Application sources</Heading.h4>
                             <Text color="textSecondary">
-                                Define the information applicants must provide for each type of project.
+                                Choose who may apply and optionally exclude specific groups from submitting applications.
                             </Text>
                         </Box>
-                        <TabbedCard>
-                            <TabbedCardTab name="Personal projects" icon="heroUser">
-                                <TemplateForm
-                                    projectType="personalProject"
-                                    settings={settings}
-                                    setSettings={setSettings}
-                                    updateFormField={updateFormField}
-                                    removeFormField={removeFormField}
-                                    updateFormFieldLimits={updateFormFieldLimits}
-                                />
-                            </TabbedCardTab>
-                            <TabbedCardTab name="Existing projects" icon="heroUsers">
-                                <TemplateForm
-                                    projectType="existingProject"
-                                    settings={settings}
-                                    setSettings={setSettings}
-                                    updateFormField={updateFormField}
-                                    removeFormField={removeFormField}
-                                    updateFormFieldLimits={updateFormFieldLimits}
-                                />
-                            </TabbedCardTab>
-                            <TabbedCardTab name="New projects" icon="heroUserPlus">
-                                <TemplateForm
-                                    projectType="newProject"
-                                    settings={settings}
-                                    setSettings={setSettings}
-                                    updateFormField={updateFormField}
-                                    removeFormField={removeFormField}
-                                    updateFormFieldLimits={updateFormFieldLimits}
-                                />
-                            </TabbedCardTab>
-                        </TabbedCard>
-                        {settings.enabled && <Box mt={32}>
-                            <Box mb={12}>
-                                <Heading.h4 bold>Application sources</Heading.h4>
-                                <Text color="textSecondary">
-                                    Choose who may apply and optionally exclude specific groups from submitting applications.
+                        <div className={GrantSourcesClass}>
+                            <div className="grant-source-panel">
+                                <Heading.h5>Allow applications from</Heading.h5>
+                                <Text className="grant-source-description" color="textSecondary">
+                                    Applications are accepted from these sources.
                                 </Text>
-                            </Box>
-                            <div className={GrantSourcesClass}>
-                                <div className="grant-source-panel">
-                                    <Heading.h5>Allow applications from</Heading.h5>
-                                    <Text className="grant-source-description" color="textSecondary">
-                                        Applications are accepted from these sources.
-                                    </Text>
-                                    <UserCriteriaEditor
-                                        criteria={settings.allowRequestsFrom}
-                                        projectId={projectId}
-                                        onSubmit={onAllowAdd}
-                                        isExclusion={false}
-                                        onRemove={onAllowRemove}
-                                        showSubprojects={settings.enabled}
-                                    />
-                                </div>
-
-                                <div className="grant-source-panel">
-                                    <Heading.h5>Exclude applications from</Heading.h5>
-                                    <Text className="grant-source-description" color="textSecondary">
-                                        Matching sources are blocked even when otherwise allowed.
-                                    </Text>
-                                    <UserCriteriaEditor
-                                        criteria={settings.excludeRequestsFrom}
-                                        projectId={projectId}
-                                        onSubmit={onExcludeAdd}
-                                        isExclusion={true}
-                                        onRemove={onExcludeRemove}
-                                        showSubprojects={false}
-                                    />
-                                </div>
+                                <UserCriteriaEditor
+                                    criteria={settings.allowRequestsFrom}
+                                    projectId={projectId}
+                                    onSubmit={onAllowAdd}
+                                    isExclusion={false}
+                                    onRemove={onAllowRemove}
+                                    showSubprojects={settings.enabled}
+                                />
                             </div>
-                        </Box>}
 
-                        <Flex justifyContent={"center"} mt={32}>
-                            <Button type={"submit"} fullWidth>Save grant application settings</Button>
-                        </Flex>
-                    </form>
+                            <div className="grant-source-panel">
+                                <Heading.h5>Exclude applications from</Heading.h5>
+                                <Text className="grant-source-description" color="textSecondary">
+                                    Matching sources are blocked even when otherwise allowed.
+                                </Text>
+                                <UserCriteriaEditor
+                                    criteria={settings.excludeRequestsFrom}
+                                    projectId={projectId}
+                                    onSubmit={onExcludeAdd}
+                                    isExclusion={true}
+                                    onRemove={onExcludeRemove}
+                                    showSubprojects={false}
+                                />
+                            </div>
+                        </div>
+                    </Box>}
+
+                    <Flex justifyContent={"center"} mt={32}>
+                        <Button type={"submit"} fullWidth>Save grant application settings</Button>
+                    </Flex>
+                </form>
             </SettingsSection> : null}
+
+            {isDataSteward(status.myRole) ?
+                <SettingsSection id="project-policies" title="Project policies">
+                    <PolicySchemas />
+                </SettingsSection> : null}
 
             <SettingsSection id="project-membership" title="Project membership" mb={0}>
                 <LeaveProject
@@ -712,6 +731,436 @@ export const ProjectSettings: React.FunctionComponent = () => {
         </div>
     </SettingsPage>
 };
+
+
+type PolicyName =
+    | "RestrictApplications"
+    | "RestrictCutAndPaste"
+    | "RestrictDownloads"
+    | "RestrictIntegratedApplications"
+    | "RestrictInternetAccess"
+    | "RestrictOrganizationMembers"
+    | "RestrictProviderFileTransfers"
+    | "RestrictPublicIPs"
+    | "RestrictPublicLinks"
+    | "RestrictSourceIPRange";
+
+interface Policy {
+    schema: PolicySchema;
+    specification?: Specification;
+}
+
+interface PolicySchemaBase {
+    name: PolicyName;
+    title: string;
+    description: string;
+    configuration: Record<string, ConfigurationEntry>;
+}
+
+interface ConfigurationEntry {
+    title: string;
+    description: string;
+}
+
+interface RestrictApplications extends PolicySchemaBase {
+    name: "RestrictApplications";
+    configuration: {enabled: ConfigurationEntry; applications: ConfigurationEntry};
+}
+
+interface RestrictCutAndPaste extends PolicySchemaBase {
+    name: "RestrictCutAndPaste";
+    configuration: {enabled: ConfigurationEntry};
+}
+
+interface RestrictDownloads extends PolicySchemaBase {
+    name: "RestrictDownloads";
+    configuration: {enabled: ConfigurationEntry};
+}
+
+interface RestrictIntegratedApplications extends PolicySchemaBase {
+    name: "RestrictIntegratedApplications";
+    configuration: {enabled: ConfigurationEntry; allowList: ConfigurationEntry};
+}
+
+interface RestrictInternetAccess extends PolicySchemaBase {
+    name: "RestrictInternetAccess";
+    configuration: {enabled: ConfigurationEntry; allowedSubnets: ConfigurationEntry};
+}
+
+interface RestrictOrganizationMembers extends PolicySchemaBase {
+    name: "RestrictOrganizationMembers";
+    configuration: {enabled: ConfigurationEntry; organizations: ConfigurationEntry};
+}
+
+interface RestrictProviderFileTransfers extends PolicySchemaBase {
+    name: "RestrictProviderFileTransfers";
+    configuration: {enabled: ConfigurationEntry; allowedProviders: ConfigurationEntry};
+}
+
+interface RestrictPublicIPs extends PolicySchemaBase {
+    name: "RestrictPublicIPs";
+    configuration: {enabled: ConfigurationEntry};
+}
+
+interface RestrictPublicLinks extends PolicySchemaBase {
+    name: "RestrictPublicLinks";
+    configuration: {enabled: ConfigurationEntry};
+}
+
+interface RestrictSourceIPRange extends PolicySchemaBase {
+    name: "RestrictSourceIPRange";
+    configuration: {enabled: ConfigurationEntry; allowedSubnets: ConfigurationEntry};
+}
+
+type PolicySchema =
+    | RestrictApplications
+    | RestrictCutAndPaste
+    | RestrictDownloads
+    | RestrictIntegratedApplications
+    | RestrictInternetAccess
+    | RestrictOrganizationMembers
+    | RestrictProviderFileTransfers
+    | RestrictPublicIPs
+    | RestrictPublicLinks
+    | RestrictSourceIPRange
+
+interface RetrievePoliciesRequest {
+    projectId: string;
+}
+
+interface PoliciesUpdateRequest {
+    updatedPolicies: Record<PolicyName, Specification>;
+}
+
+interface Specification {
+    schema: PolicyName;
+    project: string;
+    values: {enabled: boolean} & Record<string, any>;
+}
+
+function PolicySchemas(): React.ReactNode {
+
+    const projectId = useProjectId();
+    const [schemas, setSchemas] = useState<Record<string, Policy>>({})
+    React.useEffect(() => {
+        if (projectId) {
+            callAPI(PolicyAPI.retrievePolicies({projectId})).then(setSchemas);
+        }
+    }, [projectId]);
+
+    const submitChanges = React.useCallback((updatedPolicies: Record<PolicyName, Specification>) => {
+        callAPI(PolicyAPI.updatePolicies({updatedPolicies}));
+    }, []);
+
+    const togglePolicy = React.useCallback((schemaName: PolicyName, enabled: boolean) => {
+        setSchemas(sc => {
+            if (!sc[schemaName].specification || !enabled) {
+                sc[schemaName].specification = {
+                    project: projectId!,
+                    schema: schemaName,
+                    values: {
+                        enabled
+                    }
+                }
+            } else {
+                sc[schemaName].specification.values.enabled = enabled;
+            }
+            callAPI(PolicyAPI.updatePolicies({updatedPolicies: {[schemaName]: sc[schemaName].specification} as Record<PolicyName, Specification>}));
+            return { ...sc };
+        });
+    }, [projectId]);
+
+    const updatePolicyRule = React.useCallback((schemaName: PolicyName, rule: string, value: any) => {
+        setSchemas(sc => {
+            if (!sc[schemaName].specification) {
+                console.warn("Expected specification")
+                return sc;
+            }
+            sc[schemaName].specification!.values[rule] = value;
+            callAPI(PolicyAPI.updatePolicies({ updatedPolicies: { [schemaName]: sc[schemaName].specification } as Record<PolicyName, Specification> }));
+            return { ...sc };
+        })
+    }, []);
+
+    return <Box>{
+        Object.keys(schemas).map(key => {
+            const policy = schemas[key];
+            return <PolicySchemaEntry key={key} togglePolicy={togglePolicy} policy={policy} updatePolicyRule={updatePolicyRule} />
+        })}
+    </Box>;
+}
+
+function PolicySchemaEntry({policy, togglePolicy, updatePolicyRule}: { policy: Policy; togglePolicy: (schemaName: PolicyName, enabled: boolean) => void; updatePolicyRule: (policyName: PolicyName, rule: string, value: any) => void }): React.ReactNode {
+    const [enabled, setEnabled] = React.useState(policy.specification?.values.enabled ?? false);
+
+    return <Box key={policy.schema.name} my="24px" pb="20px">
+        <Flex justifyContent={"space-between"}>
+            <b>{policy.schema.title}</b>
+                <Box mt="1px" mr="8px">
+                    <Toggle activeColor="primaryMain" checked={enabled} onChange={() => setEnabled(enabled => {
+                        togglePolicy(policy.schema.name, !enabled)
+                        return !enabled;
+                    })} height={18} />
+                </Box>
+        </Flex>
+        <Box mt="-10px" style={{color: "var(--textSecondary)"}}>
+            <Markdown>{policy.schema.description}</Markdown>
+        </Box>
+        {enabled ? <PolicyConfiguration updatePolicyRule={updatePolicyRule} policy={policy} /> : null}
+    </Box>
+}
+
+function PolicyConfiguration({policy, updatePolicyRule}: { policy: Policy; updatePolicyRule: (policyName: PolicyName, rule: string, value: any) => void}): React.ReactNode {
+    switch (policy.schema.name) {
+        case "RestrictApplications": {
+            const [searchApps, setSearchApps] = useState<DataListItem[]>([]);
+            const ref = useRef<HTMLInputElement | null>(null);
+
+            const values = policy.specification?.values as Partial<{applications: string[]}> | undefined;
+            const [allowedApps, setAllowedApps] = useState(new Set<string>(values?.applications ?? []));
+
+            const timeoutId = useRef(-1);
+            const [discovery] = useDiscovery();
+
+            const {applications} = policy.schema.configuration;
+            return <ConfigurationEntry entry={applications}>
+                {allowedApps.size === 0 ? "No application allowed" : [...allowedApps].map(it => <LabelTag key={it} label={it} onClick={() => {
+                    allowedApps.delete(it);
+                    setAllowedApps(new Set([...allowedApps]));
+                    updatePolicyRule(policy.schema.name, "applications", [...allowedApps]);
+                }} />)}
+                <NewDataList
+                    id={"allowed-apps"}
+                    items={searchApps}
+                    title={""}
+                    didUpdateQuery={(query) => {
+                        if (timeoutId.current !== -1) {
+                            window.clearTimeout(timeoutId.current);
+                        }
+
+                        if (query === "") {
+                            setSearchApps([]);
+                            return;
+                        }
+
+                        if (query.length < 3) return;
+
+                        timeoutId.current = window.setTimeout(() => {
+                            callAPI(search({
+                                query,
+                                discovery: discovery.discovery,
+                                itemsPerPage: 100,
+                            })).then(result => {
+                                setSearchApps(result.items.map(it => ({
+                                    key: it.metadata.name,
+                                    value: it.metadata.title,
+                                    tags: ""
+                                })))
+                            })
+                        }, 500);
+                    }}
+                    onSelect={it => {
+                        const newAllowedApps = new Set([it.key, ...allowedApps]);
+                        setAllowedApps(newAllowedApps);
+                        updatePolicyRule(policy.schema.name, "applications", [...newAllowedApps]);
+                        (document.getElementById("allowed-apps") as HTMLInputElement).value = "";
+                    }}
+                    RenderRow={({item}) => (<AppRow item={item} />)}
+                    placeholder={"Search by application name..."}
+                    ref={ref}
+                />
+            </ConfigurationEntry>;
+        }
+        case "RestrictCutAndPaste": {
+            // Only contains "enabled". Handled above
+            return null;
+        }
+        case "RestrictDownloads": {
+            // Only contains "enabled". Handled above
+            return null;
+        }
+        case "RestrictIntegratedApplications": {
+            const {allowList} = policy.schema.configuration;
+            const values = policy.specification?.values as Partial<{allowList: string[]}> | undefined
+            const ref = useRef<HTMLInputElement | null>(null);
+            const items: DataListItem[] = [{key: "syncthing", value: "syncthing", tags: ""}, {key: "terminal", value: "terminal", tags: ""}]
+            const [allowedApps, setAllowedApps] = useState(new Set<string>(values?.allowList));
+
+            return <ConfigurationEntry entry={allowList}>
+                {allowedApps.size === 0 ? "No integrated app allowed" : [...allowedApps].map(it => <LabelTag key={it} label={it} onClick={() => {
+                    allowedApps.delete(it);
+                    setAllowedApps(new Set([...allowedApps]));
+                    updatePolicyRule(policy.schema.name, "allowList", [...allowedApps]);
+                    (document.getElementById("allowed-integrated-apps") as HTMLInputElement).value = "";
+                }} />)}
+                <NewDataList
+                    id={"allowed-integrated-apps"}
+                    items={items}
+                    title={""}
+                    onSelect={it => {
+                        const newAllowedApps = new Set([it.value, ...allowedApps]);
+                        setAllowedApps(newAllowedApps);
+                        updatePolicyRule(policy.schema.name, "allowList", [...newAllowedApps]);
+                        (document.getElementById("allowed-integrated-apps") as HTMLInputElement).value = "";
+                    }}
+                    RenderRow={({item}) => (<AppRow item={item} />)}
+                    placeholder={"Integrated application name..."}
+                    ref={ref}
+                />
+            </ConfigurationEntry>;
+        }
+        case "RestrictInternetAccess": {
+            const values = policy.specification?.values as Partial<{ allowedSubnets: string }> | undefined;
+            const {allowedSubnets} = policy.schema.configuration;
+            return <ConfigurationEntry entry={allowedSubnets}>
+                <Input pattern={cidrRegexOrEmpty.source} placeholder="Enter a CIDR, e.g. '10.0.0.1/24'" defaultValue={values?.allowedSubnets} type="text" onChange={e => {
+                    if (!e.target.validity.patternMismatch) {
+                        updatePolicyRule(policy.schema.name, "allowedSubnets", e.target.value);
+                    }
+                }} />
+            </ConfigurationEntry>;
+        }
+        case "RestrictOrganizationMembers": {
+            const { organizations } = policy.schema.configuration;
+            const values = policy.specification?.values as Partial<{ organizations: string[] }> | undefined;
+            const [allowedOrgs, setAllowedOrgs] = useState<Set<string>>(new Set(values?.organizations));
+            const ref = useRef<HTMLInputElement>(null);
+            const items: DataListItem[] = React.useMemo(() => wayfIdpsPairs.map(it => ({
+                key: it.value,
+                value: it.content,
+                tags: "",
+            })), []);
+            return <ConfigurationEntry entry={organizations}>
+                {allowedOrgs.size === 0 ? "No orgs allowed" : [...allowedOrgs].map(it => <LabelTag key={it} onClick={() => {
+                    allowedOrgs.delete(it);
+                    setAllowedOrgs(new Set([...allowedOrgs]));
+                    updatePolicyRule(policy.schema.name, "organizations", [...allowedOrgs]);
+                }} label={it} />)}
+                <NewDataList
+                    id="org-members"
+                    onSelect={item => {
+                        allowedOrgs.add(item.key);
+                        setAllowedOrgs(new Set([...allowedOrgs]));
+                        updatePolicyRule(policy.schema.name, "organizations", [...allowedOrgs]);
+                        (document.getElementById("org-members") as HTMLInputElement).value = "";
+                    }}
+                    items={items}
+                    title={""}
+                    placeholder={"Enter organization name..."}
+                    ref={ref}
+                />
+            </ConfigurationEntry>;
+        }
+        case "RestrictProviderFileTransfers": {
+            const {allowedProviders} = policy.schema.configuration;
+            const values = policy.specification?.values as Partial<{ allowedProviders: string[] }> | undefined;
+            const ref = useRef<HTMLInputElement>(null)
+            const [providers, setProviders] = React.useState<DataListItem[]>([]);
+            const state = useUState(connectionState);
+            React.useEffect(() => {
+                state.fetch();
+            }, []);
+
+            // Note(Jonas): Stupied namigng
+            const [providerSet, setProviderSet] = useState<Set<string>>(new Set(values?.allowedProviders));
+
+            React.useEffect(() => {
+                setProviders(state.providers.map(it => ({
+                    key: it.provider,
+                    value: it.providerTitle,
+                    tags: it.provider + " " + it.providerTitle,
+                })))
+                // Note(Jonas): Length is used, as state.providers seems to change every render
+            }, [state.providers.length]);
+
+            return <ConfigurationEntry entry={allowedProviders}>
+                {providerSet.size === 0 ? "No providers allowed" : [...providerSet].map(it => <LabelTag key={it} onClick={() => {
+                    providerSet.delete(it);
+                    setProviderSet(new Set([...providerSet]));
+                    updatePolicyRule(policy.schema.name, "organizations", [...providerSet]);
+                }} label={getProviderTitle(it)} />)}
+                <NewDataList items={providers} id="allowed-providers" title={""} onSelect={provider => {
+                    const newProviderSet = new Set([...providerSet, provider.key]);
+                    setProviderSet(newProviderSet);
+                    updatePolicyRule(policy.schema.name, "allowedProviders", [...newProviderSet]);
+                    (document.getElementById("allowed-providers") as HTMLInputElement).value = "";
+                }} placeholder={"Search providers..."} ref={ref} RenderRow={({item}) => <ProviderRow providerTitle={item.value} />} />
+            </ConfigurationEntry>;
+        }
+        case "RestrictPublicIPs": {
+            // Only contains "enabled". Handled above
+            return null;
+        }
+        case "RestrictPublicLinks": {
+            // Only contains "enabled". Handled above
+            return null;
+        }
+        case "RestrictSourceIPRange": {
+            const values = policy.specification?.values as Partial<{allowedSubnets: string}> | undefined;
+            const {allowedSubnets} = policy.schema.configuration;
+            return <ConfigurationEntry entry={allowedSubnets}>
+                <Input type="text" pattern={cidrRegexOrEmpty.source} placeholder="Enter a CIDR, e.g. '10.0.0.1/24'" defaultValue={values?.allowedSubnets} onChange={e => {
+                    if (!e.target.validity.patternMismatch) {
+                        updatePolicyRule(policy.schema.name, "allowedSubnets", e.target.value);
+                    }
+                }} />
+            </ConfigurationEntry>;
+        }
+    }
+}
+
+const u8Range = /(0|1(\d{0,2})|[3-9]\d{0,1}|2\d{0,1}|2[0-4]\d|25[0-5])/;
+const ipRange = new RegExp(`${u8Range.source}((\.${u8Range.source}){3})`);
+const subnet = /\/(3[0-2]|[1-9]|2[1-9])/;
+const cidrRegexOrEmpty = new RegExp(`^${ipRange.source}${subnet.source}|$`);
+
+function LabelTag({onClick, label}: {onClick(): void; label: string;}): React.ReactNode {
+    return <Tag
+        label={
+            <Box>{label} <Icon cursor="pointer" size="12px" ml="5px" mt="-2px" name="close" onClick={onClick} /></Box>
+        }
+    />
+}
+
+function AppRow({item}: {item: DataListItem}): React.ReactNode {
+    return <Flex gap="8px" my="auto">
+        <Box my="auto"><SafeLogo name={item.key} type={"APPLICATION"} size={"18px"} /></Box>
+        <Text my="auto">{item.value}</Text>
+    </Flex>
+}
+
+function ProviderRow({providerTitle}: {providerTitle: string}): React.ReactNode {
+   return <Flex gap="8px" my="auto">
+       <Box my="auto"><ProviderLogo providerId={providerTitle} size={22}/></Box>
+       <Text my="auto"><ProviderTitle providerId={providerTitle}/></Text>
+   </Flex>
+}
+
+function ConfigurationEntry({entry, children}: {entry: ConfigurationEntry; children: React.ReactNode}): React.ReactNode {
+    return <Box mt="12px" borderLeft="1px solid var(--borderColor)" pl="24px" pt="12px" ml="24px">
+        <b style={{marginBottom: "8px"}}>
+            {entry.title}
+        </b>
+        <Box mt="-10px" style={{color: "var(--textSecondary)"}}>
+            <Markdown>
+                {entry.description}
+            </Markdown>
+        </Box>
+        {children}
+    </Box>
+}
+
+const PolicyAPI = new class {
+    baseContext = "/api/projects/v2/policies";
+
+    retrievePolicies(request: RetrievePoliciesRequest): APICallParameters<RetrievePoliciesRequest, Record<string, Policy>> {
+        return apiRetrieve(request, this.baseContext);
+    }
+
+    updatePolicies(request: PoliciesUpdateRequest): APICallParameters<PoliciesUpdateRequest, void> {
+        return apiUpdate(request, this.baseContext, "");
+    }
+}();
 
 interface ChangeProjectTitleProps {
     projectId: string;
@@ -1072,13 +1521,14 @@ const UserCriteriaRowEditor: React.FunctionComponent<{
     const inputRef = useRef<HTMLInputElement>(null);
     const onClick = useCallback((e) => {
         e.preventDefault();
+        if (!inputRef.current) return;
         switch (type.type) {
             case "email":
-                if (inputRef.current!.value.indexOf(".") === -1 || inputRef.current!.value.indexOf(" ") !== -1) {
+                if (inputRef.current.value.indexOf(".") === -1 || inputRef.current!.value.indexOf(" ") !== -1) {
                     sendFailureNotification("This does not look like a valid email domain. Try again.");
                     return;
                 }
-                if (inputRef.current!.value.indexOf("@") !== -1) {
+                if (inputRef.current.value.indexOf("@") !== -1) {
                     sendFailureNotification("Only the domain should be added. Example: 'sdu.dk'.");
                     return;
                 }
@@ -1137,9 +1587,12 @@ const UserCriteriaRowEditor: React.FunctionComponent<{
 
 function userCriteriaConstraint(criterion: Grants.UserCriteria): string {
     switch (criterion.type) {
-        case "wayf": return criterion.org;
-        case "email": return criterion.domain;
-        case "anyone": return "No constraint";
+        case "wayf":
+            return criterion.org;
+        case "email":
+            return criterion.domain;
+        case "anyone":
+            return "No constraint";
     }
 }
 

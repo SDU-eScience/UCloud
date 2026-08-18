@@ -1,0 +1,16 @@
+name: "RestrictOrganizationMembers"
+title: "Restrict members to organization"
+
+description: >
+  Ensures that all project members belong to the same organization. This does not remove existing project members that
+  are not a part of the organization.
+
+configuration:
+  enabled:
+    title: "Enabled"
+    description:  >
+      If enabled, invitations to users outside the specified organization are rejected.
+  organizations:
+    title: "Organizations"
+    description: >
+      The list of organizations which are allowed in the project.

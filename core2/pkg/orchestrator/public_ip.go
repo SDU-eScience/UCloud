@@ -50,6 +50,19 @@ func initPublicIps() {
 	})
 
 	orcapi.PublicIpsCreate.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.PublicIPSpecification]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
+		if info.Actor.Project.Present {
+			policies := policiesByProject(info.Actor.Project.String())
+
+			specification, ok := policies[fndapi.RestrictPublicIPs]
+			if ok && specification.IsEnabled() {
+				return fndapi.BulkResponse[fndapi.FindByStringId]{},
+					util.HttpErr(
+						http.StatusForbidden,
+						"Project does not allow public IPs.",
+					)
+			}
+		}
+
 		created, err := PublicIpCreate(info.Actor, request)
 		if err != nil {
 			return fndapi.BulkResponse[fndapi.FindByStringId]{}, err

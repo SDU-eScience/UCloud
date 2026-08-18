@@ -14,21 +14,6 @@ import {UtilityBar} from "@/Navigation/UtilityBar";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {AppCard2} from "@/Applications/Landing";
 import {useDiscovery} from "@/Applications/Hooks";
-import {injectStyle} from "@/Unstyled";
-
-const OverviewStyle = injectStyle("app-overview", k => `
-    ${k} {
-        margin: 0 auto;
-        padding-top: 16px;
-        padding-bottom: 16px;
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
-        max-width: 1100px;
-        min-width: 600px;
-        min-height: 100vh;
-    }
-`);
 
 const ApplicationsCategory: React.FunctionComponent = () => {
     const location = useLocation();

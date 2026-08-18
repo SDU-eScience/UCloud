@@ -330,12 +330,12 @@ export function ChangeOrganizationDetails(props: ChangeOrganizationDetailsProps)
         <SettingsSection id="organization" title="Additional user information" mb={16} showTitle={!props.embedded}>
             <Box width="100%">
                 {props.inModal ? <span>This can be filled out at a later time, but is required when applying for resources.</span> : null}
-                <NewDataList id="organization" ref={orgFullNameRef} disabled={!!Client.orgId} items={KnownOrgs} didUpdateQuery={setOrg} onSelect={({value}) => setOrg(value)} title={"Organization"} placeholder={`University of Southern Denmark”, “Aarhus University”`} />
+                <NewDataList id="organization" ref={orgFullNameRef} disabled={!!Client.orgId} items={KnownOrgs} didUpdateQuery={setOrg} onSelect={({value}) => setOrg(value)} title={"Organization"} placeholder={"Example: University of Southern Denmark”, “Aarhus University”"} />
                 <Department org={org} ref={departmentRef} />
-                <NewDataList ref={unitRef} title={"Unit"} isFreetext items={[]} placeholder={`“Section for Data Science and Statistics”, “Center for Humanities Computing”, “Design Lab”`} />
-                <NewDataList title="Position" placeholder="VIP/TAP/Student" items={SortedPositions} ref={positionRef} />
-                <NewDataList title={"Primary research field"} ref={researchFieldRef} items={ResearchFields} disabled={false} placeholder={ResearchFields[RFIndex].value} />
-                <NewDataList title={"Gender"} ref={genderFieldRef} items={Genders} disabled={false} placeholder="Prefer not to say" />
+                <NewDataList ref={unitRef} title={"Unit"} isFreetext items={[]} placeholder={"Example: “Section for Data Science and Statistics”, “Center for Humanities Computing”, “Design Lab”"} />
+                <NewDataList title="Position" placeholder="Example: VIP/TAP/Student" items={SortedPositions} ref={positionRef} />
+                <NewDataList title={"Primary research field"} ref={researchFieldRef} items={ResearchFields} disabled={false} placeholder={`Example: ${ResearchFields[RFIndex].value}`} />
+                <NewDataList title={"Gender"} ref={genderFieldRef} items={Genders} disabled={false} placeholder="Example: Prefer not to say" />
                 {props.getValues ? null : <Button onClick={onSubmit} mt="1em" type="button" color="successMain">Update information</Button>}
             </Box>
         </SettingsSection>
@@ -355,7 +355,7 @@ function Department(props: {org: string; ref: React.RefObject<HTMLInputElement |
             })
         });
     }, [orgInfo]);
-    return <NewDataList isFreetext={result.isFreetext} items={result.items} ref={props.ref} title={title} placeholder={`“Faculty of Engineering/Department of Software Engineering“`} />
+    return <NewDataList isFreetext={result.isFreetext} items={result.items} ref={props.ref} title={title} placeholder={`Example: “Faculty of Engineering/Department of Software Engineering“`} />
 }
 
 function dataListItem(key: string, value: string, tags: string, unselectable?: boolean): DataListItem {
@@ -364,10 +364,11 @@ function dataListItem(key: string, value: string, tags: string, unselectable?: b
     };
 }
 
-function NewDataList({items, onSelect, title, disabled, placeholder, isFreetext, ref, didUpdateQuery, id}: {
+export function NewDataList({items, onSelect, title, disabled, placeholder, RenderRow = ({item}) => <Truncate>{item.value}</Truncate>, isFreetext, ref, didUpdateQuery, id}: {
     id?: string;
     items: DataListItem[];
     onSelect?: (arg: DataListItem) => void;
+    RenderRow?: ({item}: {item: DataListItem}) => React.ReactNode;
     title: string;
     disabled?: boolean;
     placeholder: string;
@@ -465,13 +466,13 @@ function NewDataList({items, onSelect, title, disabled, placeholder, isFreetext,
 
     const hasUnselectable = React.useMemo(() => items.find(it => it.unselectable) != null, [items]);
 
-    return <Box mt="0.5em" pt="0.5em" >
+    return <Box mt={title ? "0.5em" : 0} pt={title ? "0.5em" : 0}>
         <Label>
             {title}
             <Flex>
                 <Input
                     id={id}
-                    placeholder={`Example: ${placeholder}`}
+                    placeholder={placeholder}
                     inputRef={ref}
                     cursor={isFreetext ? "text" : "pointer"}
                     data-is-freetext={isFreetext}
@@ -522,7 +523,8 @@ function NewDataList({items, onSelect, title, disabled, placeholder, isFreetext,
                 overflowY="scroll"
             >
                 {result.map((it, idx) =>
-                    <Truncate key={it.key}
+                    <Box
+                        key={it.key}
                         cursor={it.unselectable ? "not-allowed" : "pointer"}
                         className={DataListRowItem}
                         data-active={searchIndex === idx}
@@ -537,7 +539,9 @@ function NewDataList({items, onSelect, title, disabled, placeholder, isFreetext,
                             setOpen(false);
                             ref.current.value = it.value;
                             onSelect?.(it);
-                        }} height="32px">{it.value}</Truncate>)
+                        }} height="32px">
+                        <RenderRow item={it} />
+                    </Box>)
                 }
             </Box> : null}
     </Box>
@@ -555,7 +559,7 @@ function NewDataList({items, onSelect, title, disabled, placeholder, isFreetext,
     }
 }
 
-const ChevronPlacement = injectStyleSimple("chevron-placement", `    
+const ChevronPlacement = injectStyleSimple("chevron-placement", `
     cursor: pointer;
     position: relative;
     width: 0px;

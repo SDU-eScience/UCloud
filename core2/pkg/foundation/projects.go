@@ -1439,6 +1439,22 @@ func ProjectAcceptInviteLink(actor rpc.Actor, token string) (fndapi.ProjectInvit
 		return fndapi.ProjectInviteLinkInfo{}, err
 	}
 
+	restricted, allowedOrgs, err := projectMemberOrganizationRestriction(linkInfo.Project.Id)
+
+	if err != nil {
+		return fndapi.ProjectInviteLinkInfo{}, err
+	}
+
+	if restricted {
+		if !slices.Contains(allowedOrgs, actor.OrgId) {
+			return fndapi.ProjectInviteLinkInfo{},
+				util.HttpErr(
+					http.StatusForbidden,
+					"Project does not allow your organization.",
+				)
+		}
+	}
+
 	if linkInfo.IsMember {
 		return fndapi.ProjectInviteLinkInfo{}, util.HttpErr(http.StatusBadRequest, "You are already a member of this project!")
 	}
@@ -1576,6 +1592,33 @@ func ProjectBrowseInvites(actor rpc.Actor, request fndapi.ProjectBrowseInvitesRe
 	}
 }
 
+func projectMemberOrganizationRestriction(
+	projectID string,
+) (restricting bool, allowedOrgs []string, err *util.HttpError) {
+	projectPolicies.Mu.RLock()
+	defer projectPolicies.Mu.RUnlock()
+
+	policies, found := projectPolicies.PoliciesByProject[projectID]
+	if !found {
+		return false, nil, nil
+	}
+
+	specification, ok := policies.ConfiguredPolicies[fndapi.RestrictOrganizationMembers]
+	if !ok || !specification.IsEnabled() {
+		return false, nil, nil
+	}
+
+	policy, ok := specification.(*fndapi.RestrictOrganizationMembersSpecification)
+	if !ok {
+		return false, nil, util.HttpErr(
+			http.StatusInternalServerError,
+			"Misconfigured Policy",
+		)
+	}
+
+	return true, slices.Clone(policy.Values.Organizations), nil
+}
+
 func ProjectCreateInvite(actor rpc.Actor, recipient string) *util.HttpError {
 	_, info, err := projectRetrieve(actor, string(actor.Project.Value), projectFlagsAll,
 		fndapi.ProjectRoleAdmin)
@@ -1589,7 +1632,40 @@ func ProjectCreateInvite(actor rpc.Actor, recipient string) *util.HttpError {
 		return util.HttpErr(http.StatusBadRequest, "you cannot invite this user to the project")
 	}
 
+	restrictingProjectMemberOrganization := false
+	var allowedOrgs []string
+
+	if actor.Project.Present {
+		restrictingProjectMemberOrganization, allowedOrgs, err = projectMemberOrganizationRestriction(string(actor.Project.Value))
+		if err != nil {
+			return err
+		}
+	}
+
 	info.Mu.Lock()
+
+	if restrictingProjectMemberOrganization {
+		if !slices.Contains(allowedOrgs, recipientActor.OrgId) {
+			errorMessage := "Cannot invite user."
+
+			if len(allowedOrgs) == 0 {
+				errorMessage += " Invites disabled by data manager"
+			} else {
+				errorMessage += " Only users from " +
+					strings.Join(allowedOrgs, ", ") +
+					" allowed to be invited."
+			}
+
+			// Remove invite if already sent.
+			if _, found := info.InvitesSent[recipientActor.Username]; found {
+				delete(info.InvitesSent, recipientActor.Username)
+			}
+
+			info.Mu.Unlock()
+			return util.HttpErr(http.StatusForbidden, errorMessage)
+		}
+	}
+
 	alreadyAMember := false
 	for _, member := range info.Project.Status.Members {
 		if member.Username == recipient {
@@ -1608,14 +1684,10 @@ func ProjectCreateInvite(actor rpc.Actor, recipient string) *util.HttpError {
 		}
 	}
 	projectTitle := info.Project.Specification.Title
+
 	info.Mu.Unlock()
 
 	if !alreadyInvited && !alreadyAMember {
-		recipientInfo := projectRetrieveUserInfo(recipient)
-		recipientInfo.Mu.Lock()
-		recipientInfo.InvitedTo[string(actor.Project.Value)] = util.Empty{}
-		recipientInfo.Mu.Unlock()
-
 		db.NewTx0(func(tx *db.Transaction) {
 			db.Exec(
 				tx,
@@ -1631,6 +1703,11 @@ func ProjectCreateInvite(actor rpc.Actor, recipient string) *util.HttpError {
 				},
 			)
 		})
+
+		recipientInfo := projectRetrieveUserInfo(recipient)
+		recipientInfo.Mu.Lock()
+		recipientInfo.InvitedTo[string(actor.Project.Value)] = util.Empty{}
+		recipientInfo.Mu.Unlock()
 
 		_, err = fndapi.NotificationsCreate.Invoke(fndapi.NotificationsCreateRequest{
 			User: recipient,
@@ -1710,6 +1787,22 @@ func ProjectAcceptInvite(actor rpc.Actor, projectId string) *util.HttpError {
 	uinfo := projectRetrieveUserInfo(actor.Username)
 
 	pinfo, ok := projectRetrieveInternal(projectId)
+
+	restricted, allowedOrgs, err := projectMemberOrganizationRestriction(pinfo.Project.Id)
+
+	if err != nil {
+		return err
+	}
+
+	if restricted {
+		if !slices.Contains(allowedOrgs, actor.OrgId) {
+			return util.HttpErr(
+				http.StatusForbidden,
+				"Project does not allow your organization.",
+			)
+		}
+	}
+
 	if ok {
 		pinfo.Mu.Lock()
 		isMember := false

@@ -74,6 +74,43 @@ func initJobs() {
 			if reqItem.Application.Name == "syncthing" {
 				return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(http.StatusBadRequest, "this application cannot be started through this endpoint")
 			}
+			// Check if any policies that might be enabled
+			if len(reqItem.Resources) > 0 && info.Actor.Project.Present {
+				policies := policiesByProject(string(info.Actor.Project.Value))
+				for _, value := range reqItem.Resources {
+					// Public IPs
+					if value.Type == orcapi.AppParameterValueTypeNetwork {
+						specification, ok := policies[fndapi.RestrictPublicIPs]
+						if ok {
+							values, ok := specification.GetValues().(fndapi.RestrictPublicIPsValues)
+							if !ok {
+								return fndapi.BulkResponse[fndapi.FindByStringId]{},
+									util.HttpErr(http.StatusInternalServerError, "Malformed policy")
+							}
+							if values.Enabled {
+								return fndapi.BulkResponse[fndapi.FindByStringId]{},
+									util.HttpErr(http.StatusForbidden, "Project policies does not allow usage of public IPs")
+							}
+						}
+					}
+
+					// Public Links
+					if value.Type == orcapi.AppParameterValueTypeIngress {
+						specification, ok := policies[fndapi.RestrictPublicLinks]
+						if ok {
+							values, ok := specification.GetValues().(fndapi.RestrictPublicLinksValues)
+							if !ok {
+								return fndapi.BulkResponse[fndapi.FindByStringId]{},
+									util.HttpErr(http.StatusInternalServerError, "Malformed policy")
+							}
+							if values.Enabled {
+								return fndapi.BulkResponse[fndapi.FindByStringId]{},
+									util.HttpErr(http.StatusForbidden, "Project policies does not allow usage of public links")
+							}
+						}
+					}
+				}
+			}
 		}
 
 		created, err := JobCreate(info.Actor, request)
@@ -603,6 +640,29 @@ func initJobs() {
 	})
 
 	orcapi.JobsOpenTerminalInFolder.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.JobsOpenTerminalInFolderRequestItem]) (fndapi.BulkResponse[orcapi.OpenSessionWithProvider], *util.HttpError) {
+		if info.Actor.Project.Present {
+			policies := policiesByProject(string(info.Actor.Project.Value))
+			specification, ok := policies[fndapi.RestrictIntegratedApplications]
+			if ok {
+				values, ok := specification.GetValues().(fndapi.RestrictIntegratedApplicationsValues)
+				if !ok {
+					return fndapi.BulkResponse[orcapi.OpenSessionWithProvider]{},
+						util.HttpErr(
+							http.StatusForbidden,
+							"Malformed Policy.",
+						)
+				}
+
+				if values.Enabled && !slices.Contains(values.AllowList, "terminal") {
+					return fndapi.BulkResponse[orcapi.OpenSessionWithProvider]{},
+						util.HttpErr(
+							http.StatusForbidden,
+							"Integrated application is not allowed by project polices.",
+						)
+				}
+			}
+		}
+
 		updatesByProvider := map[string][]orcapi.JobsOpenTerminalInFolderRequestItem{}
 		indicesByProvider := map[string][]int{}
 
@@ -1401,6 +1461,21 @@ func jobsValidateForSubmission(actor rpc.Actor, spec *orcapi.JobSpecification) *
 	app, ok := AppRetrieve(actor, spec.Application.Name, spec.Application.Version, AppDiscoveryAll, 0)
 	if !ok {
 		return util.HttpErr(http.StatusBadRequest, "unknown application requested")
+	}
+
+	if actor.Project.Present {
+		policies := policiesByProject(string(actor.Project.Value))
+		if specification, ok := policies[fndapi.RestrictApplications]; ok {
+			values, ok := specification.GetValues().(fndapi.RestrictApplicationsValues)
+			if !ok {
+				return util.HttpErr(http.StatusForbidden, "Misconfigured Policy")
+			}
+			if values.Enabled {
+				if len(values.Applications) == 0 || !slices.Contains(values.Applications, app.Metadata.Name) {
+					return util.HttpErr(http.StatusForbidden, "Application is not allowed to run in this project context.")
+				}
+			}
+		}
 	}
 
 	support, ok := SupportByProduct[orcapi.JobSupport](jobType, spec.Product)
