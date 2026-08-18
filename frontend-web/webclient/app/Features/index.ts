@@ -1,15 +1,17 @@
 import {inDevEnvironment, onDevSite} from "@/UtilityFunctions";
 
 export enum Feature {
-    COMPONENT_STORED_CUT_COPY,
+    EXTERNAL_LOGIN_TEST,
 
     REORDER_APP_GROUP,
 
-    ALLOCATIONS_PAGE_IMPROVEMENTS,
+    STACKS,
 
-    NEW_VM_UI,
+    INFERENCE,
 
-    STACKS
+    INFERENCE_WORKSPACE,
+
+    FILE_BROWSER_STATUS_BAR,
 }
 
 enum Environment {
@@ -48,9 +50,10 @@ interface FeatureConfig {
 }
 
 const featureMap: Record<string, FeatureConfig> = {
-    "component-stored-cut-copy": {
-        feature: Feature.COMPONENT_STORED_CUT_COPY,
-        showWithoutFlag: allEnvironments,
+    "external-login-test": {
+        feature: Feature.EXTERNAL_LOGIN_TEST,
+        showWithoutFlag: allDevEnvironments,
+        showWithFlag: allDevEnvironments,
     },
 
     "reorder-app-group": {
@@ -58,21 +61,27 @@ const featureMap: Record<string, FeatureConfig> = {
         showWithoutFlag: allDevEnvironments,
         showWithFlag: allDevEnvironments,
     },
-
-    "allocations-improvements": {
-        feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
-        showWithFlag: allEnvironments,
-        showWithoutFlag: allEnvironments,
-    },
     
-    "new-vm-ui": {
-        feature: Feature.NEW_VM_UI,
-        showWithFlag: allEnvironments,
-        showWithoutFlag: allEnvironments,
-    },
-
     "stacks": {
         feature: Feature.STACKS,
+        showWithoutFlag: allDevEnvironments,
+        showWithFlag: allEnvironments,
+    },
+
+    "inference": {
+        feature: Feature.INFERENCE,
+        showWithoutFlag: [Environment.PUBLIC_DEV, Environment.LOCAL_DEV_STACK],
+        showWithFlag: allEnvironments,
+    },
+
+    "inference-workspace": {
+        feature: Feature.INFERENCE_WORKSPACE,
+        showWithoutFlag: allLocalEnvironments,
+        showWithFlag: allEnvironments,
+    },
+
+    "file-browser-status-bar": {
+        feature: Feature.FILE_BROWSER_STATUS_BAR,
         showWithoutFlag: allDevEnvironments,
         showWithFlag: allEnvironments,
     }

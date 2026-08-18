@@ -42,6 +42,7 @@ import StudioTopPicks from "@/Applications/Studio/TopPicksEditor";
 import UserCreation from "@/Admin/UserCreation";
 import UserSettings from "@/UserSettings/UserSettings";
 import Wayf from "@/Login/Wayf";
+import {ExternalLogin} from "@/Login/ExternalLogin";
 import Demo from "@/Playground/Demo";
 import LagTest from "@/Playground/LagTest";
 import Providers from "@/Admin/Providers/Browse";
@@ -59,7 +60,7 @@ import ResourceUsage from "@/Accounting/UsageCore2";
 import ResourceAllocations from "@/Accounting/Allocations";
 import Connection from "@/Providers/Connection";
 import PrivateNetworksRouter from "@/Applications/PrivateNetwork/Router";
-import InferencePlayground from "@/Inference/Playground";
+import InferenceRouter from "@/Inference/Router";
 
 import {Sidebar} from "@/ui-components/Sidebar";
 import Uploader from "@/Files/Uploader";
@@ -85,6 +86,7 @@ import {GrantApplicationBrowse} from "./Grants/GrantApplicationBrowse";
 import {IngoingSharesBrowse} from "@/Files/Shares";
 import {JobsRouter} from "@/Applications/Jobs/Router";
 import {DrivesRouter, FilesRouter} from "@/Files/Router";
+import FilesVisualization from "@/Files/Visualization";
 import LicenseRouter from "./Applications/Licenses";
 import PublicLinksRouter from "@/Applications/PublicLinks/Router";
 import SharesApi from "@/UCloud/SharesApi";
@@ -113,6 +115,8 @@ const Core = (): React.ReactNode => (
             <React.Suspense fallback={<MainContainer main={<div>Loading...</div>} />}>
                 <Routes>
                     <Route path={AppRoutes.login.login()} element={<LoginPage />} />
+                    <Route path={AppRoutes.login.loginExternal()} element={<ExternalLogin />} />
+                    <Route path={AppRoutes.login.loginExternalWayf()} element={<Wayf external />} />
                     <Route path={AppRoutes.login.loginSuccess()} element={<LoginSuccess />} />
                     <Route path={AppRoutes.login.loginWayf()} element={<Wayf />} />
                     <Route path={AppRoutes.dashboard.dashboardA()}
@@ -120,6 +124,7 @@ const Core = (): React.ReactNode => (
                     <Route path={AppRoutes.dashboard.dashboardB()}
                            element={React.createElement(requireAuth(Dashboard))} />
                     <Route path={"/drives/*"} element={React.createElement(requireAuth(DrivesRouter))} />
+                    <Route path={AppRoutes.files.visualize()} element={React.createElement(requireAuth(FilesVisualization))} />
                     <Route path="/files/*" element={React.createElement(requireAuth(FilesRouter))} />
 
                     <Route path={AppRoutes.users.registration()} element={<Registration />} />
@@ -176,8 +181,8 @@ const Core = (): React.ReactNode => (
                     {!inDevEnvironment() ? null : <Route path={"/playground/demo"} element={<Demo />} />}
                     {!inDevEnvironment() ? null : <Route path={"/playground/lag"} element={<LagTest />} />}
 
-                    <Route path={AppRoutes.inference.playground()}
-                           element={React.createElement(requireAuth(InferencePlayground))} />
+                    <Route path="/inference/*"
+                           element={React.createElement(requireAuth(InferenceRouter))} />
 
                     <Route path={AppRoutes.admin.userCreation()}
                            element={React.createElement(requireAuth(UserCreation))} />

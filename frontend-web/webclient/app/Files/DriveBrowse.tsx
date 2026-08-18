@@ -237,7 +237,9 @@ const DriveBrowse: React.FunctionComponent<{
                 browser.on("fetchOperations", () => {
                     const selected = browser.findSelectedEntries();
                     const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as unknown as any;
-                    const operations = FileCollectionsApi.retrieveOperations();
+                    const actions = FileCollectionsApi.retrieveActions();
+                    if (!Array.isArray(actions)) return actions;
+                    const operations = actions;
                     const create = operations.find(it => it.tag === CREATE_TAG);
                     if (create) {
                         create.onClick = () => {

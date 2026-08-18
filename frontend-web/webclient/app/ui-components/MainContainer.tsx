@@ -10,6 +10,7 @@ export interface MainContainerProps {
     additional?: React.ReactNode;
     header?: React.ReactNode;
     headerSize?: number;
+    headerAtTop?: boolean;
 }
 
 export const MAIN_CONTAINER_MAX_WIDTH = "1400px";
@@ -18,7 +19,8 @@ export function MainContainer({
     main,
     additional,
     header,
-    headerSize = 64
+    headerSize = 64,
+    headerAtTop = false
 }: MainContainerProps): React.ReactNode {
     const pad = 16; // padding unit
 
@@ -37,6 +39,8 @@ export function MainContainer({
                     zIndex={1}
                     height={headerSize}
                     bg="var(--backgroundDefault)"
+                    mt={headerAtTop ? -pad : undefined}
+                    mb={headerAtTop ? pad : undefined}
                 >
                     {header}
                 </Box>

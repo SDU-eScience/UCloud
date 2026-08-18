@@ -226,7 +226,8 @@ function ClickableDropdown<T>({
         const screenWidth = window.innerWidth;
 
         let x = parseInt((left ?? "0")?.toString().replace("px", ""));
-        if (isNaN(x)) x = 0;
+        const hasNumericX = !isNaN(x);
+        if (!hasNumericX) x = 0;
 
         let y = parseInt((top ?? dropdownRef.current?.getBoundingClientRect().y ?? "0")?.toString().replace("px", ""));
         if (isNaN(y)) y = 0;
@@ -237,8 +238,14 @@ function ClickableDropdown<T>({
             heightAsNumber = Math.max(props.height, heightAsNumber);
         }
 
-        if (x + widthAsNumber >= screenWidth) {
-            left = x - widthAsNumber;
+        if (hasNumericX && !isNaN(widthAsNumber)) {
+            if (x + widthAsNumber >= screenWidth) {
+                left = x - widthAsNumber;
+            }
+
+            if (x < 8) {
+                left = 8;
+            }
         }
 
         if (props.height) {
@@ -300,6 +307,8 @@ function extractLeftAlignedPosition(el: HTMLDivElement | null, width: string | n
     if (!el) return null;
     const rect = el.getBoundingClientRect();
     if (width === undefined || width === "100%") return rect.x + "px";
+    const widthAsNumber = typeof width === "number" ? width : parseInt(width.replace("px", ""));
+    if (!isNaN(widthAsNumber)) return `${rect.x + rect.width - widthAsNumber}px`;
     return `calc(${rect.x + rect.width}px - ${width})`;
 }
 

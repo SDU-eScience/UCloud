@@ -18,8 +18,18 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {UsageReport, usageReportRetrieve} from "@/Accounting/UsageCore2";
 import {timestampUnixMs} from "@/UtilityFunctions";
 import {produce} from "immer";
-import {Feature} from "@/Features";
+
 import {getProviderTitle, getShortProviderTitle} from "@/Providers/ProviderTitle";
+
+function startOfCurrentYear(): number {
+    const now = new Date();
+    return Date.UTC(now.getUTCFullYear(), 0, 1);
+}
+
+function endOfCurrentYear(): number {
+    const now = new Date();
+    return Date.UTC(now.getUTCFullYear() + 1, 0, 1) - 1;
+}
 
 const fuzzyMatcher = newFuzzyMatchFuse<{title: string}, "title">(["title"]);
 
@@ -32,6 +42,11 @@ export interface State extends Accounting.AllocationDisplayTree {
         managedProducts?: Record<string, Accounting.ProductCategoryV2[]>;
         gifts?: Gifts.GiftWithCriteria[];
         reports?: UsageReport[];
+    };
+
+    cache: {
+        projects: Accounting.AllocationDisplayTree["subAllocations"];
+        personalWorkspace?: Accounting.AllocationDisplayTree["subAllocations"];
     };
 
     searchQuery: string;
@@ -50,7 +65,9 @@ export interface State extends Accounting.AllocationDisplayTree {
     }
 
     rootAllocations?: {
-        year: number;
+        start: number;
+        end: number;
+        duration?: number | null;
         resources: Record<string, number>;
     }
 
@@ -74,7 +91,6 @@ export interface SubProjectFilter {
     options: SubProjectKeyValue[];
     selected?: string;
     enabled: boolean;
-    feature?: Feature;
 }
 
 // State reducer
@@ -87,7 +103,7 @@ export type UIAction =
     | {type: "GiftsLoaded", gifts: Gifts.GiftWithCriteria[]}
     | {type: "UpdateSearchQuery", newQuery: string}
     | {type: "SetEditing", recipientIdx: number, groupIdx: number, allocationIdx: number, isEditing: boolean}
-    | {type: "UpdateAllocation", allocationIdx: number, groupIdx: number, recipientIdx: number, newQuota: number, newStart: Date, newEnd: Date}
+    | {type: "UpdateAllocation", allocationId: number, wallets: Accounting.WalletV2[]}
     | {type: "UpdateGift", data: Partial<State["gifts"]>}
     | {type: "GiftCreated", gift: Gifts.GiftWithCriteria}
     | {type: "GiftDeleted", id: number}
@@ -244,33 +260,37 @@ function searchAndFilteringQueryMatches(recipient: AllocationDisplayTreeRecipien
 export function stateReducer(state: State, action: UIAction): State {
     switch (action.type) {
         case "SubProjectData": {
-            const newState = {
+            return rebuildTree({
                 ...state,
                 subprojectInfo: action.projects,
-            };
-            return rebuildTree(newState);
+            });
         }
 
         case "SortSubprojects": {
-            const newState = {
+            return rebuildTree({
                 ...state,
                 subprojectSortBy: action.sortBy,
                 subprojectSortByAscending: action.ascending,
-            };
-
-            return rebuildTree(newState);
+            });
         }
 
         case "WalletsLoaded": {
-            const newState = {
+            const subAllocations = Accounting.buildSubAllocations(action.wallets, state.viewOnlyProjects);
+
+            const yourAllocations = Accounting.buildYourAllocations(action.wallets);
+
+            return rebuildTree({
                 ...state,
+                yourAllocations,
+                subAllocations,
+                cache: {
+                    projects: subAllocations,
+                },
                 remoteData: {
                     ...state.remoteData,
                     wallets: action.wallets,
                 }
-            };
-
-            return rebuildTree(newState);
+            });
         }
 
         case "ManagedProvidersLoaded": {
@@ -281,7 +301,9 @@ export function stateReducer(state: State, action: UIAction): State {
                     managedProviders: action.providerIds,
                 },
                 rootAllocations: {
-                    year: new Date().getUTCFullYear(),
+                    start: startOfCurrentYear(),
+                    end: endOfCurrentYear(),
+                    duration: new Date().getUTCFullYear(),
                     resources: {},
                 },
             };
@@ -340,7 +362,9 @@ export function stateReducer(state: State, action: UIAction): State {
 
         case "UpdateRootAllocations": {
             const currentRoot = state.rootAllocations ?? {
-                year: new Date().getUTCFullYear(),
+                start: startOfCurrentYear(),
+                end: endOfCurrentYear(),
+                duration: new Date().getUTCFullYear(),
                 resources: {},
             };
             return {
@@ -360,7 +384,9 @@ export function stateReducer(state: State, action: UIAction): State {
             return {
                 ...state,
                 rootAllocations: {
-                    year: new Date().getUTCFullYear(),
+                    start: startOfCurrentYear(),
+                    end: endOfCurrentYear(),
+                    duration: new Date().getUTCFullYear(),
                     resources: {},
                 }
             };
@@ -436,7 +462,15 @@ export function stateReducer(state: State, action: UIAction): State {
         }
 
         case "ToggleViewOnlyProjects": {
-            return rebuildTree({...state, viewOnlyProjects: !state.viewOnlyProjects});
+            return rebuildTree(produce(state, draft => {
+                draft.viewOnlyProjects = !state.viewOnlyProjects;
+                if (draft.viewOnlyProjects) {
+                    draft.subAllocations = state.cache.projects;
+                } else {
+                    draft.subAllocations = state.cache.personalWorkspace ?? Accounting.buildSubAllocations(state.remoteData.wallets ?? [], draft.viewOnlyProjects);
+                    draft.cache.personalWorkspace = draft.subAllocations;
+                }
+            }));
         }
 
         case "SubProjectFilterSettingsLoad": {
@@ -456,38 +490,25 @@ export function stateReducer(state: State, action: UIAction): State {
         }
 
         case "UpdateAllocation": {
-            const recipient = getOrNull(state.subAllocations.recipients, action.recipientIdx);
-            if (!recipient) return state;
-            const group = getOrNull(recipient.groups, action.groupIdx);
-            if (!group) return state;
-            const allocation = getOrNull(group.allocations, action.allocationIdx);
-            if (!allocation) return state;
+            return rebuildTree(produce(state, draft => {
+                const updatedWallet = action.wallets.find(w =>
+                    w.children?.find(ag =>
+                        ag.group.allocations.find(a =>
+                            a.id === action.allocationId
+                        ) != null)
+                    != null);
 
-            const allocationId = allocation.allocationId;
-            const newWallets = deepCopy(state.remoteData.wallets);
-            const newState: State = {
-                ...state,
-                remoteData: {
-                    ...state.remoteData,
-                    wallets: newWallets,
-                },
-            };
-
-            outer: for (const wallet of (newState.remoteData.wallets ?? [])) {
-                const allChildren = wallet.children ?? [];
-                for (const childGroup of allChildren) {
-                    for (const alloc of childGroup.group.allocations) {
-                        if (alloc.id === allocationId) {
-                            alloc.quota = action.newQuota;
-                            alloc.startDate = action.newStart.getTime();
-                            alloc.endDate = action.newEnd.getTime();
-                            break outer;
-                        }
+                if (updatedWallet) {
+                    draft.remoteData.wallets = action.wallets;
+                    const subAllocations = Accounting.buildSubAllocations(action.wallets, state.viewOnlyProjects);
+                    if (state.viewOnlyProjects) {
+                        draft.cache.projects = subAllocations;
+                    } else {
+                        draft.cache.personalWorkspace = subAllocations;
                     }
+                    draft.subAllocations = subAllocations;
                 }
-            }
-
-            return rebuildTree(newState);
+            }));
         }
 
         case "UsageReportLoaded": {
@@ -511,7 +532,6 @@ export function stateReducer(state: State, action: UIAction): State {
     }
 
     function rebuildTree(state: State): State {
-        const newTree = Accounting.buildAllocationDisplayTree((state.remoteData.wallets ?? []));
 
         const providerOptions: SubProjectKeyValue[] = (() => {
             const providers = new Set<string>();
@@ -526,7 +546,7 @@ export function stateReducer(state: State, action: UIAction): State {
                 }
             }
 
-            for (const recipient of newTree.subAllocations.recipients) {
+            for (const recipient of state.subAllocations.recipients) {
                 for (const group of recipient.groups) {
                     providers.add(group.category.provider);
                 }
@@ -540,7 +560,7 @@ export function stateReducer(state: State, action: UIAction): State {
         const productOptions: SubProjectKeyValue[] = (() => {
             const result: SubProjectKeyValue[] = [];
 
-            for (const recipient of newTree.subAllocations.recipients) {
+            for (const recipient of state.subAllocations.recipients) {
                 for (const group of recipient.groups) {
                     let key = productCategoryKey(group.category);
                     if (!result.some(it => it.key === key)) {
@@ -636,7 +656,9 @@ export function stateReducer(state: State, action: UIAction): State {
             };
         }
 
-        newTree.subAllocations.recipients.sort((a, b) => {
+        const recipients = [...state.subAllocations.recipients];
+
+        recipients.sort((a, b) => {
             let naturalOrderResult = (() => {
                 switch (state.subprojectSortBy) {
                     case "usagePercentageCompute":
@@ -734,8 +756,8 @@ export function stateReducer(state: State, action: UIAction): State {
         };
 
         const filteredSubProjectIndices: number[] = [];
-        for (let i = 0; i < newTree.subAllocations.recipients.length; i++) {
-            const recipient = newTree.subAllocations.recipients[i];
+        for (let i = 0; i < state.subAllocations.recipients.length; i++) {
+            const recipient = state.subAllocations.recipients[i];
             if (searchAndFilteringQueryMatches(recipient, stateForFiltering, query)) {
                 filteredSubProjectIndices.push(i);
             }
@@ -743,8 +765,8 @@ export function stateReducer(state: State, action: UIAction): State {
 
         return {
             ...state,
-            yourAllocations: newTree.yourAllocations,
-            subAllocations: newTree.subAllocations,
+            yourAllocations: state.yourAllocations,
+            subAllocations: {recipients},
             filteredSubProjectIndices,
             subprojectFilters,
         };
@@ -758,6 +780,17 @@ export type UIEvent =
     | {type: "Init"}
     ;
 
+export async function loadWallets(filterChildrenByIdleTimeInDays?: number, filterType?: Accounting.ProductType) {
+    return await fetchAll(next =>
+        callAPI(Accounting.browseWalletsV2({
+            itemsPerPage: 250,
+            next,
+            includeChildren: true,
+            ...(filterChildrenByIdleTimeInDays !== undefined ? {filterChildrenByIdleTimeInDays} : {}),
+        }))
+    );
+}
+
 export function useEventReducer(didCancel: React.RefObject<boolean>, doDispatch: (action: UIAction) => void): (event: UIEvent) => unknown {
     return useCallback(async (event: UIEvent) => {
         function dispatch(ev: UIAction) {
@@ -765,22 +798,13 @@ export function useEventReducer(didCancel: React.RefObject<boolean>, doDispatch:
             doDispatch(ev);
         }
 
-        function loadWallets(filterChildrenByIdleTimeInDays?: number) {
-            fetchAll(next =>
-                callAPI(Accounting.browseWalletsV2({
-                    itemsPerPage: 250,
-                    next,
-                    includeChildren: true,
-                    ...(filterChildrenByIdleTimeInDays !== undefined ? {filterChildrenByIdleTimeInDays} : {}),
-                }))
-            ).then(wallets => {
-                dispatch({type: "WalletsLoaded", wallets});
-            });
-        }
+
 
         switch (event.type) {
             case "Init": {
-                loadWallets();
+                loadWallets().then(wallets => {
+                    dispatch({type: "WalletsLoaded", wallets});
+                });
 
                 fetchManagedProviders().then(providers => {
                     dispatch({type: "ManagedProvidersLoaded", providerIds: providers});
@@ -832,7 +856,9 @@ export function useEventReducer(didCancel: React.RefObject<boolean>, doDispatch:
 
                 const idleSetting = event.settings[SubProjectFilterSetting.IDLE_SUB_PROJECTS];
                 if (idleSetting?.enabled) {
-                    loadWallets(idleFilterToDays(idleSetting.selected));
+                    loadWallets(idleFilterToDays(idleSetting.selected)).then(wallets => {
+                        dispatch({type: "WalletsLoaded", wallets});
+                    });
                 }
                 break;
             }
@@ -842,7 +868,9 @@ export function useEventReducer(didCancel: React.RefObject<boolean>, doDispatch:
 
                 if (event.setting === SubProjectFilterSetting.IDLE_SUB_PROJECTS) {
                     const filterDays = event.enabled ? idleFilterToDays(event.newValue) : undefined;
-                    loadWallets(filterDays);
+                    loadWallets(filterDays).then(wallets => {
+                        dispatch({type: "WalletsLoaded", wallets});
+                    });
                 }
                 break;
             }
@@ -886,6 +914,9 @@ export function initialState(): State {
         subprojectSortByAscending: true,
         subprojectInfo: {},
         subprojectFilters: subProjectsDefaultSettings,
+        cache: {
+            projects: {recipients: []},
+        }
     };
 }
 
@@ -897,7 +928,6 @@ export const subProjectsDefaultSettings: Record<string, SubProjectFilter> = {
         options: ["1 month", "2 months", "3 months", "6 months"].map(it => ({key: it, title: it})),
         selected: undefined,
         enabled: false,
-        feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
     },
     [SubProjectFilterSetting.ALLOCATED_BY_PRODUCT_TYPE]: {
         setting: SubProjectFilterSetting.ALLOCATED_BY_PRODUCT_TYPE,
@@ -906,7 +936,6 @@ export const subProjectsDefaultSettings: Record<string, SubProjectFilter> = {
         options: productTypes.map(it => productTypeToName(it)).map(it => ({key: it, title: it})),
         selected: undefined,
         enabled: false,
-        feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
     },
     [SubProjectFilterSetting.ALLOCATED_BY_PRODUCT]: {
         setting: SubProjectFilterSetting.ALLOCATED_BY_PRODUCT,
@@ -915,7 +944,6 @@ export const subProjectsDefaultSettings: Record<string, SubProjectFilter> = {
         options: [],
         selected: undefined,
         enabled: false,
-        feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
     },
     [SubProjectFilterSetting.ALLOCATED_BY_PROVIDER]: {
         setting: SubProjectFilterSetting.ALLOCATED_BY_PROVIDER,
@@ -924,7 +952,6 @@ export const subProjectsDefaultSettings: Record<string, SubProjectFilter> = {
         options: [],
         selected: undefined,
         enabled: false,
-        feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
     },
     [SubProjectFilterSetting.EXPIRED_ALLOCATIONS]: {
         setting: SubProjectFilterSetting.EXPIRED_ALLOCATIONS,
@@ -938,7 +965,6 @@ export const subProjectsDefaultSettings: Record<string, SubProjectFilter> = {
         ].map(it => ({key: it, title: it})),
         selected: undefined,
         enabled: false,
-        feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
     },
     [SubProjectFilterSetting.PERSONAL_WORKSPACES]: {
         setting: SubProjectFilterSetting.PERSONAL_WORKSPACES,
@@ -957,7 +983,6 @@ export const subProjectsDefaultSettings: Record<string, SubProjectFilter> = {
         options: [],
         selected: undefined,
         enabled: false,
-        feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
     },
     */
 };

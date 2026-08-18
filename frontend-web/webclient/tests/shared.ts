@@ -84,6 +84,22 @@ export const User = {
         }
     },
 
+    async loginDirect(page: Page, user: {username: string; password: string;}): Promise<void> {
+        const service = "web";
+        const response = await page.request.post(`/auth/login?service=${service}`, {
+            headers: {Accept: "application/json", Origin: data.location_origin},
+            multipart: {service, username: user.username, password: user.password},
+        });
+        if (!response.ok()) throw new Error(`Login failed: ${response.status()} ${await response.text()}`);
+
+        const tokens: {accessToken: string; csrfToken: string} = await response.json();
+        await page.addInitScript(({accessToken, csrfToken}) => {
+            localStorage.setItem("accessToken", accessToken);
+            localStorage.setItem("csrfToken", csrfToken);
+        }, tokens);
+        await page.goto(ucloudUrl(""), {waitUntil: "domcontentloaded"});
+    },
+
 
     async logout(page: Page): Promise<void> {
         await Components.toggleUserMenu(page);
@@ -290,9 +306,8 @@ export const File = {
 
     async moveToTrash(page: Page, name: string): Promise<void> {
         await NetworkCalls.awaitResponse(page, "**/files/trash", async () => {
-            await this.actionByRowTitle(page, name, "click");
             await File.openOperationsDropsdown(page, name);
-            await Components.clickConfirmationButton(page, "Move to trash");
+            await Components.clickConfirmationButton(page, "Delete");
         });
     },
 
@@ -313,8 +328,7 @@ export const File = {
     },
 
     async openOperationsDropsdown(page: Page, file: string): Promise<void> {
-        await File.actionByRowTitle(page, file, "click");
-        await page.locator(".operation.in-header").last().click();
+        await File.actionByRowTitle(page, file, "rightclick");
     },
 
     async moveFileTo(page: Page, fileToMove: string, targetFolder: string): Promise<void> {
@@ -355,14 +369,14 @@ export const File = {
     async moveFileToTrash(page: Page, fileName: string): Promise<void> {
         await this.openOperationsDropsdown(page, fileName);
         await NetworkCalls.awaitResponse(page, "**/api/files/trash", async () => {
-            await Components.clickConfirmationButton(page, "Move to trash");
+            await Components.clickConfirmationButton(page, "Delete");
         });
     },
 
     async emptyTrash(page: Page): Promise<void> {
         await page.getByText("Empty Trash").click();
         await NetworkCalls.awaitResponse(page, "**/api/files/emptyTrash", async () => {
-            await page.getByRole("button", {name: "Empty trash"}).click();
+            await page.getByRole("dialog").getByRole("button", {name: "Empty trash", exact: true}).click();
         });
     },
 
@@ -443,8 +457,7 @@ export const File = {
 
     async _openShareModal(page: Page, foldername: string): Promise<void> {
         await this.openOperationsDropsdown(page, foldername);
-        await this.actionByRowTitle(page, foldername, "rightclick");
-        await page.getByText("Share").last().click();
+        await page.getByText("Share with...").last().click();
     },
 
     async triggerStorageScan(page: Page, driveName: string): Promise<void> {
@@ -522,7 +535,7 @@ export const Drive = {
 
     async create(page: Page, name: string): Promise<void> {
         await this.goToDrives(page);
-        await page.locator('div[data-disabled="false"]', {hasText: "Create drive"}).click();
+        await page.getByRole("button", {name: "Create drive", disabled: false}).click();
         await page.getByRole("textbox", {name: "Choose a name"}).fill(name);
 
         if (await page.getByRole("dialog").getByText("No product selected").isVisible()) {
@@ -531,7 +544,7 @@ export const Drive = {
         }
 
         await NetworkCalls.awaitResponse(page, "**/api/files/collections**", async () => {
-            await page.getByRole("button", {name: "Create", disabled: false}).click();
+            await page.getByRole("dialog").getByRole("button", {name: "Create", exact: true, disabled: false}).click();
         })
     },
 
@@ -583,7 +596,14 @@ export const Components = {
     },
 
     async clickConfirmationButton(page: Page, text: string, delay = 1500): Promise<void> {
-        await page.getByRole("button", {name: text}).click({delay});
+        const directButton = page.getByRole("button", {name: text}).filter({visible: true}).first();
+        if (await directButton.isVisible()) {
+            await directButton.click({delay});
+            return;
+        }
+
+        await page.getByText(text, {exact: true}).filter({visible: true}).last().click();
+        await page.getByRole("alertdialog").getByRole("button", {name: text, exact: true}).click();
     },
 
     async selectAvailableMachineType(page: Page): Promise<void> {
@@ -718,7 +738,7 @@ export const Runs = {
         await Components.projectSwitcher(page, "hover");
         await Applications.actionByRowTitle(page, jobName, "click");
         await NetworkCalls.awaitResponse(page, "**/api/jobs/retrieve?id=**", async () => {
-            await page.getByText("Run application again").click();
+            await page.getByText("Run again").click();
         })
         await page.getByText("No machine type selected").waitFor({state: "hidden"});
         await Runs.submitAndWaitForRunning(page);
@@ -737,7 +757,7 @@ export const Runs = {
         await NetworkCalls.awaitResponse(page, "**/jobs/terminate", async () => {
             await Components.clickConfirmationButton(page, "Stop application");
         });
-        await page.getByText("Run application again").waitFor();
+        await page.getByText("Run again").waitFor();
     },
 
     async setJobTitle(page: Page, name: string): Promise<void> {
@@ -785,7 +805,7 @@ export const Runs = {
         async addFolder(page: Page, driveName: string, folderName: string): Promise<void> {
             await page.getByRole("button", {name: "Add folder"}).click();
             await NetworkCalls.awaitResponse(page, "**/api/files/browse?**", async () => {
-                await page.getByRole("textbox", {name: "No directory selected"}).click();
+                await page.getByRole("textbox", {name: "Folder name"}).click();
             });
             await File.ensureDialogDriveActive(page, driveName);
             await Components.useDialogBrowserItem(page, folderName, "Use");
@@ -867,9 +887,8 @@ export const Resources = {
 
     async goTo(page: Page, resource: "Links" | "IP addresses" | "SSH keys" | "Licenses" | "Private networks") {
         await page.getByRole("link", {name: "Go to Resources"}).hover();
-        await page.waitForTimeout(300);
-        await page.getByText(resource).first().click();
-        await Components.projectSwitcher(page, "hover");
+        await page.getByRole("link", {name: resource, exact: true}).click();
+        await page.locator(`div[data-component="project-switcher"]`).first().waitFor();
     },
 
     PublicLinks: {
@@ -884,9 +903,8 @@ export const Resources = {
 
             const name = publicLinkName ?? this.newPublicLinkName();
 
-            await page.getByText("Create public link").click();
-            // Note(Jonas): nth(1) because we are skipping the hidden search field
-            await page.getByRole("textbox").nth(1).fill(name);
+            await page.getByRole("button", {name: /^Create public link/}).click();
+            await page.getByPlaceholder("my-link").fill(name);
 
             if (await page.getByRole("dialog").getByText("No product selected").isVisible()) {
                 await page.getByRole("dialog").getByText("No product selected").click();
@@ -894,13 +912,18 @@ export const Resources = {
             }
 
 
-            await page.getByRole("button", {name: "Create", disabled: false}).click();
+            await NetworkCalls.awaitResponse(page, "**/api/ingresses", async () => {
+                await page.getByRole("dialog").getByRole("button", {name: "Create", exact: true, disabled: false}).click();
+            });
+            await page.getByRole("dialog").waitFor({state: "hidden"});
             return name;
         },
 
         async delete(page: Page, name: string): Promise<void> {
             await Rows.actionByRowTitle(page, name, "click");
-            await Components.clickConfirmationButton(page, "Delete");
+            await NetworkCalls.awaitResponse(page, "**/api/ingresses", async () => {
+                await Components.clickConfirmationButton(page, "Delete");
+            });
         }
     },
 
@@ -910,7 +933,7 @@ export const Resources = {
                 await Resources.goTo(page, "IP addresses");
             });
 
-            await page.getByText("Create public IP").click();
+            await page.getByRole("button", {name: /^Create public IP/}).click();
 
             if (providerAndProducts.products_used_in_tests.public_ip == null) {
                 throw Error("Public IP is null in `IPs.createNew`. This should have been caught before.")
@@ -918,7 +941,7 @@ export const Resources = {
             await page.getByRole("dialog").getByText(providerAndProducts.products_used_in_tests.public_ip).waitFor();
             await this.fillPortRowInDialog(page);
             const result = await NetworkCalls.awaitResponse(page, "**/api/networkips", async () => {
-                await page.getByRole("button", {name: "create", disabled: false}).click();
+                await page.getByRole("dialog").getByRole("button", {name: "Create", exact: true, disabled: false}).click();
             });
             await page.getByRole("dialog").waitFor({state: "hidden"});
 
@@ -932,7 +955,7 @@ export const Resources = {
         async fillPortRowInDialog(page: Page): Promise<void> {
             await page.getByRole("dialog").locator("input").first().fill("123");
             await page.getByRole("dialog").locator("input").nth(1).fill("321");
-            await page.locator("td > button").click();
+            await page.getByRole("dialog").locator("td > button").click();
         },
 
         async delete(page: Page, name: string): Promise<void> {
@@ -952,7 +975,9 @@ export const Resources = {
 
         async delete(page: Page, name: string): Promise<void> {
             await Rows.actionByRowTitle(page, name, "click");
-            await Components.clickConfirmationButton(page, "Delete");
+            await NetworkCalls.awaitResponse(page, "**/api/ssh", async () => {
+                await Components.clickConfirmationButton(page, "Delete");
+            });
         },
 
         async createNew(page: Page): Promise<string> {
@@ -1013,7 +1038,7 @@ export const Resources = {
             }
 
 
-            await page.getByRole("button", {name: "Create"}).click();
+            await page.getByRole("dialog").getByRole("button", {name: "Create", exact: true}).click();
         },
 
         async delete(page: Page, name: string): Promise<void> {
@@ -1115,7 +1140,7 @@ export const Accounting = {
         },
 
         async setMonths(page: Page, months: number): Promise<void> {
-            await page.getByLabel("For how many months should the allocation last?").selectOption(`${months} months`);
+            await page.getByLabel("Duration").selectOption(`${months}`);
         },
 
         async toggleGrantGiver(page: Page, grantGiver: string): Promise<void> {
@@ -1175,8 +1200,9 @@ export const Admin = {
 async function _move(page: Page, oldName: string, newName: string) {
     await Rows.actionByRowTitle(page, oldName, "click");
     await page.getByText("Rename").click();
-    await page.getByRole("textbox").nth(1).fill(newName);
-    await page.getByRole("textbox").nth(1).press("Enter");
+    const renameField = page.locator("input.rename-field");
+    await renameField.fill(newName);
+    await renameField.press("Enter");
 }
 
 export function testCtx(args: string[]): {user: {username: string; password: string;}; projectName?: string;} {

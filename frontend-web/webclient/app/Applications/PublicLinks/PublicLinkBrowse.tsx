@@ -301,7 +301,9 @@ export function PublicLinkBrowse({
                 browser.on("fetchOperations", () => {
                     const entries = browser.findSelectedEntries();
                     const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn());
-                    const operations = PublicLinkApi.retrieveOperations();
+                    const actions = PublicLinkApi.retrieveActions();
+                    if (!Array.isArray(actions)) return actions;
+                    const operations = actions;
                     const create = operations.find(it => it.tag === CREATE_TAG);
                     if (create) {
                         create.enabled = () => true;
@@ -433,7 +435,9 @@ export function ProductSelectorWithPermissions<T extends Resource>({onCreate, du
     const project = useProject().fetch();
     const projectId = useProjectId();
 
-    const setProductAndSupport = React.useCallback(async (p: ProductV2) => {
+    const setProductAndSupport = React.useCallback(async (p: ProductV2 | null) => {
+        if (!p) return;
+
         setSelectedProduct(p);
 
         const availableProducts = await supportByProvider.retrieve(Client.projectId ?? "", () => retrieveSupportV2(PublicLinkApi));

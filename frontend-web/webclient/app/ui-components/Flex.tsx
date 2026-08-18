@@ -14,6 +14,7 @@ export type FlexCProps =
         className?: string;
         style?: CSSProperties;
         draggable?: boolean;
+        divRef?: React.RefObject<HTMLDivElement | null>;
     };
 
 export const FlexClass = injectStyleSimple("flex", `

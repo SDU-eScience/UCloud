@@ -76,6 +76,7 @@ import {AutomaticBranding} from "@/Applications/Branding/AutomaticBranding";
 import {BrandingResponse} from "@/UCloud/BrandingApi";
 import {Feature, hasFeature} from "@/Features";
 import {setAppFavorites} from "@/Applications/Redux/Reducer";
+import {useInferenceThreads} from "@/Inference/ThreadStore";
 
 const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
     ${k} {
@@ -219,20 +220,23 @@ interface SidebarMenuElements {
     predicate: (state: HookStore) => boolean;
 }
 
-const sideBarMenuElements: [
-    SidebarMenuElements,
-    SidebarMenuElements,
-    SidebarMenuElements,
-] = [{
-    items: [
-        {icon: "heroFolder", label: SidebarTabId.FILES, to: AppRoutes.files.drives()},
-        {icon: "heroUserGroup", label: SidebarTabId.PROJECT, to: AppRoutes.project.allocations()},
-        {icon: "heroSquaresPlus", label: SidebarTabId.RESOURCES, to: AppRoutes.resources.publicLinks()},
-        {icon: "heroShoppingBag", label: SidebarTabId.APPLICATIONS, to: AppRoutes.apps.landing()},
-        {icon: "heroServer", label: SidebarTabId.RUNS, to: AppRoutes.compute.jobs()}
-    ],
-    predicate: () => Client.isLoggedIn
-},
+const sideBarMenuElements: SidebarMenuElements[] = [
+    {
+        items: [
+            {icon: "heroFolder", label: SidebarTabId.FILES, to: AppRoutes.files.drives()},
+            {icon: "heroUserGroup", label: SidebarTabId.PROJECT, to: AppRoutes.project.allocations()},
+            {icon: "heroSquaresPlus", label: SidebarTabId.RESOURCES, to: AppRoutes.resources.publicLinks()},
+            {icon: "heroShoppingBag", label: SidebarTabId.APPLICATIONS, to: AppRoutes.apps.landing()},
+            {icon: "heroServer", label: SidebarTabId.RUNS, to: AppRoutes.compute.jobs()}
+        ],
+        predicate: () => Client.isLoggedIn
+    },
+    {
+        items: [
+            {icon:"heroSparkles", label: SidebarTabId.INFERENCE, to: AppRoutes.inference.models()},
+        ],
+        predicate: () => Client.isLoggedIn && hasFeature(Feature.INFERENCE)
+    },
     {
         items: [
             {icon: "heroBolt", label: SidebarTabId.ADMIN, to: AppRoutes.admin.userCreation()},
@@ -422,14 +426,24 @@ function allSidebarCommands(state: HookStore, navigate: NavigateFunction): Comma
 
 function sidebarSubEntries(canApply: boolean, isPersonalWorkspace: boolean, projectId: string | undefined): Record<SidebarTabId, LinkInfo[]> {
     return {
-        [SidebarTabId.FILES]: [{
-            to: AppRoutes.files.drives(),
-            text: "Drives",
-            icon: "ftFileSystem",
-            tab: SidebarTabId.FILES
-        }, ...(isPersonalWorkspace ? sharesLinksInfo : [])],
+        [SidebarTabId.FILES]: [
+            {
+                to: AppRoutes.syncthing.syncthing(),
+                text: "File synchronization",
+                icon: "heroArrowPath",
+                tab: SidebarTabId.FILES
+            },
+            {
+                to: AppRoutes.files.drives(),
+                text: "Drives",
+                icon: "ftFileSystem",
+                tab: SidebarTabId.FILES
+            },
+            ...(isPersonalWorkspace ? sharesLinksInfo : [])
+        ],
         [SidebarTabId.PROJECT]: projectSidebarSubLinks(canApply, isPersonalWorkspace, projectId),
         [SidebarTabId.RESOURCES]: ResourceSubLinksEntries,
+        [SidebarTabId.INFERENCE]: InferenceSubLinksEntries,
         [SidebarTabId.APPLICATIONS]: [],
         [SidebarTabId.RUNS]: ComputeSubLinksEntries,
         [SidebarTabId.ADMIN]: [],
@@ -734,6 +748,27 @@ function ResourceSubLinks(): React.ReactNode {
     return ResourceSubLinksEntries.map(it => <SidebarEntry key={it.text} {...it} />);
 }
 
+function InferenceSubLinks(): React.ReactNode {
+    return InferenceSubLinksEntries.map(it => <SidebarEntry key={it.text} {...it} />);
+}
+
+const InferenceSubLinksEntries: LinkInfo[] = [
+    {
+        to: AppRoutes.inference.models(),
+        text: "Models",
+        icon: "heroBuildingStorefront",
+        tab: SidebarTabId.INFERENCE,
+        defaultHidden: false,
+    },
+    {
+        to: AppRoutes.inference.playground(),
+        text: "Chat",
+        icon: "heroChatBubbleLeft",
+        tab: SidebarTabId.INFERENCE,
+        defaultHidden: false,
+    },
+];
+
 const ResourceSubLinksEntries: LinkInfo[] = [
     {
         to: AppRoutes.resources.publicLinks(),
@@ -767,16 +802,12 @@ const ResourceSubLinksEntries: LinkInfo[] = [
     }
 ];
 
-if (hasFeature(Feature.NEW_VM_UI)) {
-    ResourceSubLinksEntries.push(
-        {
-            to: AppRoutes.resources.privateNetworks(),
-            text: "Private networks",
-            icon: "heroCloud",
-            tab: SidebarTabId.RESOURCES,
-        }
-    );
-}
+ResourceSubLinksEntries.push({
+    to: AppRoutes.resources.privateNetworks(),
+    text: "Private networks",
+    icon: "heroCloud",
+    tab: SidebarTabId.RESOURCES,
+});
 
 function ProjectSubLinks({canApply, isPersonalWorkspace, projectId}: {
     canApply: boolean;
@@ -885,6 +916,7 @@ function SecondarySidebar({
 }: SecondarySidebarProps): React.ReactNode {
     const [drives, favoriteFiles] = useSidebarFilesPage();
     const recentRuns = useSidebarRunsPage();
+    const recentThreads = useInferenceThreads();
     const projectId = useProjectId();
     const lastHover = React.useRef(SidebarTabId.NONE);
     const isPersonalWorkspace = !projectId;
@@ -1135,6 +1167,15 @@ function SecondarySidebar({
                     <SidebarSectionHeader tab={SidebarTabId.FILES}>Shared files</SidebarSectionHeader>
                     <SidebarLinkColumn links={sharesLinksInfo} />
                 </> : null}
+
+                <SidebarSectionHeader tab={SidebarTabId.FILES} to={AppRoutes.syncthing.syncthing()}>Sync</SidebarSectionHeader>
+                <SidebarEntry
+                    to={AppRoutes.syncthing.syncthing()}
+                    text="File synchronization"
+                    icon="heroCloud"
+                    tab={SidebarTabId.FILES}
+                />
+
             </>}
 
             {active !== SidebarTabId.PROJECT ? null : <>
@@ -1145,6 +1186,20 @@ function SecondarySidebar({
             {active !== SidebarTabId.RESOURCES ? null : <>
                 <SidebarSectionEmptyHeader />
                 <ResourceSubLinks />
+            </>}
+
+            {active !== SidebarTabId.INFERENCE ? null : <>
+                <SidebarSectionEmptyHeader />
+                <InferenceSubLinks />
+                <SidebarSectionHeader tab={SidebarTabId.INFERENCE}>Recent chats</SidebarSectionHeader>
+                {recentThreads.length === 0 ? <SidebarEmpty>No chats yet</SidebarEmpty> : null}
+                {recentThreads.slice(0, 10).map(thread => <SidebarEntry
+                    key={thread.id}
+                    to={AppRoutes.inference.playground(undefined, thread.id)}
+                    text={thread.title || "New thread"}
+                    icon="heroChatBubbleLeft"
+                    tab={SidebarTabId.INFERENCE}
+                />)}
             </>}
 
             {/* Note(Jonas) Do it this way to ensure that the frontend doesn't fetch icons every time this is shown. */}

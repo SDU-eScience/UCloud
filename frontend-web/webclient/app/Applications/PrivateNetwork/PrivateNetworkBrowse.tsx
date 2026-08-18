@@ -80,7 +80,7 @@ export function PrivateNetworkBrowse({
     const browserRef = React.useRef<ResourceBrowser<PrivateNetwork> | null>(null);
     const dispatch = useDispatch();
     const navigate = useNavigate();
-    usePage("Private networks", SidebarTabId.RESOURCES);
+    if (!opts?.isModal) usePage("Private networks", SidebarTabId.RESOURCES);
     const [switcher, setSwitcherWorkaround] = React.useState<React.ReactNode>(<></>);
 
     React.useEffect(() => {
@@ -228,7 +228,9 @@ export function PrivateNetworkBrowse({
                     const entries = browser.findSelectedEntries();
                     const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as ResourceBrowseCallbacks<PrivateNetwork, Product>;
 
-                    const operations = PrivateNetworkApi.retrieveOperations();
+                    const actions = PrivateNetworkApi.retrieveActions();
+                    if (!Array.isArray(actions)) return actions;
+                    const operations = actions;
                     const create = operations.find(it => it.tag === CREATE_TAG);
                     if (create) {
                         create.enabled = () => true;

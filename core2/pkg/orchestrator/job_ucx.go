@@ -82,19 +82,23 @@ func initJobUcx() {
 				job.Specification.Labels = map[string]string{}
 			}
 
-			portLabel, ok := job.Specification.Labels[resourceLabelUcxPort]
-			if !ok {
+			port := 0
+			portLabel, hasPortLabel := job.Specification.Labels[resourceLabelUcxPort]
+			if !hasPortLabel && job.Specification.Application.Name != reservedSyncthingApplication {
 				log.Info("UCX job: This job has no UCX port associated with it")
 				return ucx.ProxyUpstreamSelection{
 					Allowed: false,
 				}
 			}
-			port, gerr := strconv.Atoi(portLabel)
-			if gerr != nil {
-				log.Info("UCX job: Malformed port label")
-				return ucx.ProxyUpstreamSelection{
-					Allowed: false,
+			if hasPortLabel {
+				parsedPort, gerr := strconv.Atoi(portLabel)
+				if gerr != nil {
+					log.Info("UCX job: Malformed port label")
+					return ucx.ProxyUpstreamSelection{
+						Allowed: false,
+					}
 				}
+				port = parsedPort
 			}
 
 			providerId := job.Specification.Product.Provider
@@ -133,7 +137,7 @@ func initJobUcx() {
 			state.job = job
 			state.AllowStackCreation = false
 			state.Stacks = map[string]util.Empty{}
-			stackId, ok := job.Specification.Labels[resourceLabelStackInstance]
+			stackId, ok := job.Specification.Labels[orcapi.ResourceLabelStackInstance]
 			if ok {
 				state.Stacks[stackId] = util.Empty{}
 			}
@@ -172,5 +176,6 @@ func initJobUcx() {
 }
 
 const (
-	resourceLabelUcxPort = "ucloud.dk/ucxport"
+	resourceLabelUcxPort         = "ucloud.dk/ucxport"
+	reservedSyncthingApplication = "syncthing"
 )

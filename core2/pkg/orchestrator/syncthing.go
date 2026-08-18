@@ -52,8 +52,17 @@ func initSyncthing() {
 	})
 
 	orcapi.SyncthingUpdateConfiguration.Handler(func(info rpc.RequestInfo, request orcapi.IAppUpdateConfigurationRequest[orcapi.SyncthingConfig]) (util.Empty, *util.HttpError) {
-		// NOTE(Dan): This used to do permission checks in the Core, but this is no longer required since the provider
-		// will do this instead.
+		paths := make([]string, 0, len(request.Config.Folders))
+		for _, folder := range request.Config.Folders {
+			paths = append(paths, folder.UCloudPath)
+		}
+		restricted, policyErr := MetadataCheckRestrictedPaths(info.Actor, paths)
+		if policyErr != nil {
+			return util.Empty{}, policyErr
+		}
+		if len(restricted) > 0 {
+			return util.Empty{}, util.UserHttpError("Sensitive or confidential folders cannot be synchronized: %s", restricted[0])
+		}
 
 		_, err := InvokeProvider(
 			request.Provider,

@@ -60,6 +60,7 @@ export function ReservationParameter({
             includeMaxBalance: true
         }));
     }, [projectId]);
+
     useEffect(() => {
         const s = new Set<string>();
         products.data.items.forEach(it => s.add(it.category.provider));
@@ -188,7 +189,6 @@ export function ReservationParameter({
         )}
 
         <div style={{paddingTop: "20px"}}>
-            <Label>Machine type <MandatoryField /></Label>
             <Machines machines={allMachines} loading={machineSupport.loading} support={support}
                 onMachineChange={setSelectedMachine} />
             {errors["product"] ? <TextP color={"errorMain"}>{errors["product"]}</TextP> : null}

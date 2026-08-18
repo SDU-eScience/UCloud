@@ -10,7 +10,6 @@ import {
     TextArea,
     DataList,
     Icon,
-    Card,
     Tooltip
 } from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
@@ -19,6 +18,8 @@ import {callAPI, callAPIWithErrorHandler, useCloudAPI, useCloudCommand} from "@/
 import {useNavigate} from "react-router-dom";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {MainContainer} from "@/ui-components/MainContainer";
+import {SettingsAction, SettingsNavSection, SettingsPage, SettingsSection} from "@/ui-components/SettingsComponents";
+import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
 import {usePage} from "@/Navigation/Redux";
 import {useCallback, useEffect, useRef, useState} from "react";
 import {buildQueryString} from "@/Utilities/URIUtilities";
@@ -27,15 +28,17 @@ import {bulkRequestOf, copyToClipboard} from "@/UtilityFunctions";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {useProject} from "./cache";
 import {injectStyle} from "@/Unstyled";
-import {Spacer} from "@/ui-components/Spacer";
 import * as Grants from "@/Grants";
 import {ProjectLogo} from "@/Grants/ProjectLogo";
 import {HiddenInputField} from "@/ui-components/Input";
+import {IconButton} from "@/ui-components/IconButton";
+import {CopyButton} from "@/ui-components/CopyButton";
+import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
+import {SimpleRichItem, SimpleRichSelect} from "@/ui-components/RichSelect";
 import {inSuccessRange} from "@/UtilityFunctions";
 import Table, {TableCell, TableHeaderCell, TableRow} from "@/ui-components/Table";
-import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
-import {ProjectSwitcher, projectTitleFromCache} from "./ProjectSwitcher";
+import {ProjectSwitcher} from "./ProjectSwitcher";
 import WAYF from "@/Grants/wayf-idps.json";
 import {FlexClass} from "@/ui-components/Flex";
 import {OldProjectRole, isAdminOrPI} from ".";
@@ -45,15 +48,50 @@ import {sendFailureNotification, sendInformationNotification, sendSuccessNotific
 
 const wayfIdpsPairs = WAYF.wayfIdps.map(it => ({value: it, content: it}));
 
+function createDefaultApplicationField(): Grants.FormField {
+    return {
+        name: "application",
+        title: "Application",
+        description: "Please describe why you are applying for resources.",
+        optional: false,
+        rows: 8,
+        maxLength: 240,
+    };
+}
+
+function ensureApplicationFields(settings: Grants.RequestSettings): Grants.RequestSettings {
+    const structured = settings.templates.structured;
+    return {
+        ...settings,
+        templates: {
+            ...settings.templates,
+            structured: {
+                ...structured,
+                personalProject: structured.personalProject.length === 0
+                    ? [createDefaultApplicationField()]
+                    : structured.personalProject,
+                existingProject: structured.existingProject.length === 0
+                    ? [createDefaultApplicationField()]
+                    : structured.existingProject,
+                newProject: structured.newProject.length === 0
+                    ? [createDefaultApplicationField()]
+                    : structured.newProject,
+            }
+        }
+    };
+}
+
+function toSnakeCase(value: string): string {
+    return value
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "_")
+        .replace(/^_+|_+$/g, "");
+}
+
 const ActionContainer = injectStyle("action-container", k => `
     ${k} {
-        margin-left: auto;
-        margin-right: auto;
         container-type: inline-size;
-    }
-
-    ${k} > * {  
-        margin-bottom: 16px;
     }
     
     ${k} label {
@@ -83,21 +121,85 @@ const ActionContainer = injectStyle("action-container", k => `
     }
 `);
 
-function ActionBox({children}: React.PropsWithChildren): React.ReactNode {
-    return <div className={ActionBoxClass}>
-        {children}
-    </div>
-}
-
-const ActionBoxClass = injectStyle("action-box", k => `
+const GrantSourcesClass = injectStyle("grant-sources", k => `
     ${k} {
+        display: grid;
+        gap: 16px;
+    }
+
+    ${k} > .grant-source-panel {
+        background: var(--backgroundCard);
+        border: 1px solid var(--borderColor);
+        border-radius: 10px;
         display: flex;
-        margin-bottom: 16px;
+        flex-direction: column;
+        min-width: 0;
+        padding: 16px;
+    }
+
+    ${k} .grant-source-description {
+        min-height: 42px;
+    }
+
+    @container (min-width: 760px) {
+        ${k} {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
     }
 `);
 
+const CriteriaEditorClass = injectStyle("criteria-editor", k => `
+    ${k} {
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+    }
+
+    ${k} .criteria-row {
+        align-items: center;
+        display: grid;
+        gap: 12px;
+        grid-template-columns: minmax(0, 1fr) auto;
+        min-height: 48px;
+        padding: 8px 0;
+    }
+
+    ${k} .criteria-row-copy {
+        min-width: 0;
+    }
+
+    ${k} .criteria-constraint,
+    ${k} .criteria-empty {
+        color: var(--textSecondary);
+        font-size: 0.9em;
+    }
+
+    ${k} .criteria-row-editor {
+        align-items: center;
+        border-top: 1px solid var(--borderColor);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 12px 0;
+    }
+
+    ${k} .criteria-editor-value {
+        flex: 1 1 220px;
+        min-width: 0;
+    }
+
+    ${k} .criteria-editor-type {
+        flex: 0 0 150px;
+    }
+
+    ${k} .criteria-editor-actions {
+        flex: 0 0 175px;
+        margin-left: auto;
+    }
+
+`);
+
 interface TemplateFormProps {
-    title: string;
     projectType: string;
     settings: Grants.RequestSettings;
     setSettings: React.Dispatch<React.SetStateAction<Grants.RequestSettings>>;
@@ -150,20 +252,21 @@ const MoveFieldControls: React.FunctionComponent<MoveFieldControlsProps> = ({
     [idx, projectType, setSettings]
     );
 
-    return <Flex>
-        {idx === 0 ? null : <Icon cursor="pointer" mr={10} size={20} name={"heroArrowUp"} onClick={() => {
-            move("up");
-
-        }}></Icon>}
-        {idx === numberOfFields - 1 ? null : <Icon cursor="pointer" size={20} name={"heroArrowDown"} onClick={() => {
-            move("down");
-
-        }}></Icon>}
+    return <Flex gap="4px">
+        {idx === 0 ? null : <IconButton
+            tooltip="Move field up"
+            icon="heroArrowUp"
+            onClick={() => move("up")}
+        />}
+        {idx === numberOfFields - 1 ? null : <IconButton
+            tooltip="Move field down"
+            icon="heroArrowDown"
+            onClick={() => move("down")}
+        />}
     </Flex>
 };
 
 const TemplateForm: React.FunctionComponent<TemplateFormProps> = ({
-    title,
     projectType: projectType,
     settings,
     setSettings,
@@ -171,32 +274,11 @@ const TemplateForm: React.FunctionComponent<TemplateFormProps> = ({
     removeFormField,
     updateFormFieldLimits,
 }) => {
-    return <Card>
-        <Flex justifyContent={"space-between"}>
-            <h3 style={{ fontWeight: "bold" }}>{title}</h3>
-            <Flex justifyContent={"flex-end"}>
-                <Button type={"button"} onClick={() => {
-                    setSettings(prev => ({
-                        ...prev,
-                        templates: {
-                            ...prev.templates,
-                            structured: {
-                                ...prev.templates.structured,
-                                [projectType]: [{
-                                    description: "", name: "", title: "", optional: false
-
-                                }, ...prev.templates.structured[projectType]]
-                            }
-                        }
-                    }));
-                }}>Add field</Button>
-            </Flex>
-        </Flex>
+    return <div>
         {
             settings.templates.structured[projectType].map((field: Grants.FormField, idx: number) => {
                 return <React.Fragment key={idx}>
-                    <br />
-                    <Flex justifyContent={"end"}>
+                    <Flex justifyContent={"end"} minHeight={"32px"}>
                         <MoveFieldControls
                             idx={idx}
                             numberOfFields={settings.templates.structured[projectType].length}
@@ -206,31 +288,57 @@ const TemplateForm: React.FunctionComponent<TemplateFormProps> = ({
                     </Flex>
                     <Flex gap="20px" justifyContent={"space-evenly"}>
                         <Label fontSize={12}>
+                            Title
+                            <Input
+                                required
+                                placeholder="Project summary"
+                                value={field.title}
+                                onChange={(e) => updateFormField(idx, 'title', e.target.value, projectType)}
+                            />
+                        </Label>
+                        <Label fontSize={12}>
                             Name
                             <Tooltip trigger={(
-                                <Input required value={field.name} onChange={(e) => updateFormField(idx, 'name', e.target.value, projectType)} >{field.name}</Input>
+                                <Input
+                                    required
+                                    placeholder="project_summary"
+                                    value={field.name}
+                                    onChange={(e) => updateFormField(idx, 'name', e.target.value, projectType)}
+                                />
                             )}>
                                 This identifier remains stable and is used to associate fields with grant applications.
                             </Tooltip>
-                        </Label>
-                        <Label fontSize={12}>
-                            Title
-                            <Input required value={field.title} onChange={(e) => updateFormField(idx, 'title', e.target.value, projectType)} >{field.title}</Input>
                         </Label>
                     </Flex>
                     <Flex gap="20px" justifyContent={"space-between"}>
                         <Label width={"100%"} fontSize={12}>
                             Description
-                            <TextArea width={"100%"} value={field.description} rows={5} onChange={(e) => updateFormField(idx, 'description', e.target.value, projectType)}>{field.description}</TextArea>
+                            <TextArea
+                                width={"100%"}
+                                value={field.description}
+                                rows={5}
+                                placeholder="Describe what the applicant should provide"
+                                onChange={(e) => updateFormField(idx, 'description', e.target.value, projectType)}
+                            />
                         </Label>
                         <Box width={150}>
                             <Label width={"100%"} fontSize={12}>
                                 Row limit
-                                <Input value={field.rows ?? ""} type="number" onChange={(e) => updateFormFieldLimits(idx, 'rows', e.target.value, projectType)}>{field.rows}</Input>
+                                <Input
+                                    value={field.rows ?? ""}
+                                    placeholder="1"
+                                    type="number"
+                                    onChange={(e) => updateFormFieldLimits(idx, 'rows', e.target.value, projectType)}
+                                />
                             </Label>
                             <Label width={"100%"} fontSize={12}>
                                 Max length
-                                <Input value={field.maxLength ?? ""} type="number" onChange={(e) => updateFormFieldLimits(idx, 'maxLength', e.target.value, projectType)}/>
+                                <Input
+                                    value={field.maxLength ?? ""}
+                                    placeholder="240"
+                                    type="number"
+                                    onChange={(e) => updateFormFieldLimits(idx, 'maxLength', e.target.value, projectType)}
+                                />
                             </Label>
                         </Box>
                     </Flex>
@@ -244,29 +352,38 @@ const TemplateForm: React.FunctionComponent<TemplateFormProps> = ({
                             </Label>
                         </span>
                         <Flex justifyContent={"flex-end"}>
-                            <Button mr={"12px"} color={"errorMain"} cursor={"pointer"} onClick={(e) => {
-                                e.preventDefault();
-                                const title = settings.templates.structured[projectType][idx].title;
-                                const description = settings.templates.structured[projectType][idx].description;
-                                if (title === "" && description === "") {
-                                    removeFormField(idx, projectType);
-                                    return;
-                                }
-                                addStandardDialog({
-                                    title: "Are you sure?",
-                                    message: `Are you sure want to delete this "${title === "" ? "Untitled" : title}" field?`,
-                                    onConfirm: async () => {
-                                        removeFormField(idx, projectType);
-                                    }
-                                })
-                            }} ><Icon mr={10} name="trash"/>Remove field</Button>
+                            <IconButton
+                                tooltip={"Remove field"}
+                                icon={"heroTrash"}
+                                color={"errorMain"}
+                                onClick={async () => removeFormField(idx, projectType)}
+                            />
                         </Flex>
                     </Flex>
                     { settings.templates.structured[projectType].length > idx + 1 ? <div><br/><hr style={{border:("solid 1px var(--secondaryDark)")}}/></div> : <></> }
                 </React.Fragment>
             })
         }
-    </Card>
+        <Button fullWidth mt={24} type={"button"} onClick={() => {
+            setSettings(prev => ({
+                ...prev,
+                templates: {
+                    ...prev.templates,
+                    structured: {
+                        ...prev.templates.structured,
+                        [projectType]: [...prev.templates.structured[projectType], {
+                            description: "",
+                            maxLength: 240,
+                            name: "",
+                            optional: false,
+                            rows: 1,
+                            title: ""
+                        }]
+                    }
+                }
+            }));
+        }}>Add field</Button>
+    </div>
 };
 
 export const ProjectSettings: React.FunctionComponent = () => {
@@ -285,9 +402,10 @@ export const ProjectSettings: React.FunctionComponent = () => {
         templates: {
             type: "structured",
             structured: {
-                        personalProject: [{description: "No template", name: "", optional: true, title: "No template"}],
-                        existingProject: [{description: "No template", name: "", optional: true, title: "No template"}],
-                        newProject: [{description: "No template", name: "", optional: true, title: "No template"}]
+                        personalProject: [createDefaultApplicationField()],
+                        existingProject: [createDefaultApplicationField()],
+                        newProject: [createDefaultApplicationField()],
+                        revisionNumber: -1
                     },
             }
     });
@@ -306,7 +424,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
                     }
                 );
 
-                if (!didUnmount.current) setSettings(res);
+                if (!didUnmount.current) setSettings(ensureApplicationFields(res));
             } catch (e) {
                 // Ignoring failure
             }
@@ -369,17 +487,32 @@ export const ProjectSettings: React.FunctionComponent = () => {
     }, []);
 
     const updateFormField = useCallback((idx: number, fieldName: string, value: any, projectType: string) => {
-        setSettings(prev => ({
-            ...prev,
-            templates: {
-                ...prev.templates,
-                structured: {
-                    ...prev.templates.structured,
-                    [projectType]: prev.templates.structured[projectType].map((f, i) => i === idx ? {...f, [fieldName]: value} : f
-                    )
+        setSettings(prev => {
+            const fields = prev.templates.structured[projectType].map((field, i) => {
+                if (i !== idx) return field;
+
+                const synchronized = field.name === toSnakeCase(field.title);
+                if (fieldName === "title" && synchronized) {
+                    return {...field, title: value, name: toSnakeCase(value)};
                 }
-            }
-        }));
+                if (fieldName === "name") {
+                    const name = toSnakeCase(value);
+                    return {...field, name};
+                }
+                return {...field, [fieldName]: value};
+            });
+
+            return {
+                ...prev,
+                templates: {
+                    ...prev.templates,
+                    structured: {
+                        ...prev.templates.structured,
+                        [projectType]: fields,
+                    }
+                }
+            };
+        });
     }, []);
 
     const removeFormField = useCallback((idx: number, projectType: string) => {
@@ -430,104 +563,111 @@ export const ProjectSettings: React.FunctionComponent = () => {
         />
     }
 
-    return <MainContainer
+    const canManageProject = isAdminOrPI(status.myRole);
+    const sections: SettingsNavSection[] = [
+        {id: "project-information", label: "Project information"},
+        ...(canManageProject ? [{id: "grant-applications", label: "Grant applications"}] : []),
+        {id: "project-membership", label: "Project membership"},
+    ];
+
+    return <SettingsPage
         key={project.id}
-        header={
-            <Spacer
-                left={<h3 className="title">Project settings</h3>}
-                right={<ProjectSwitcher />}
-            />
-        }
-        headerSize={64}
-        main={<div className={ActionContainer}>
-            {!isAdminOrPI(status.myRole) ? (<Card>
-                <LeaveProject
-                    onSuccess={() => navigate("/")}
+        title="Project settings"
+        titleActions={<ProjectSwitcher />}
+        sections={sections}
+    >
+        <div className={ActionContainer}>
+            <SettingsSection id="project-information" title="Project information">
+                <ChangeProjectTitle
+                    projectId={projectId}
                     projectTitle={project.specification.title}
+                    onSuccess={() => projectOps.reload()}
+                />
+
+                <Label>Project ID</Label>
+                <Flex alignItems="center">
+                    <Text color={"textSecondary"}>{projectId}</Text>
+                    <CopyButton
+                        tooltip="Copy project ID"
+                        onClick={() => {
+                            copyToClipboard(projectId);
+                        }}
+                    />
+                </Flex>
+
+                <SubprojectSettings
                     projectId={projectId}
                     projectRole={status.myRole!}
-                    showTitle
+                    setLoading={() => false}
                 />
-            </Card>) : <>
-                <Card>
-                    <Heading.h3>Project information</Heading.h3>
+            </SettingsSection>
 
-                    <ChangeProjectTitle
-                        projectId={projectId}
-                        projectTitle={project.specification.title}
-                        onSuccess={() => projectOps.reload()}
-                    />
-
-                    {Client.userIsAdmin ? <>
-                        <Label>Project ID (only visible to UCloud Admins)</Label>
-                        <Flex>
-                            <Text color={"textSecondary"}>{projectId}</Text>
-                            <Icon
-                                name="heroDocumentDuplicate"
-                                ml="10px"
-                                onClick={() => {
-                                    copyToClipboard(projectId);
-                                    sendInformationNotification("Copied project ID to clipboard!");
-                                }}
-                            />
-                        </Flex>
-                    </> : null}
-
-                    <SubprojectSettings
-                        projectId={projectId}
-                        projectRole={status.myRole!}
-                        setLoading={() => false}
-                    />
-
-                </Card>
-
-                <Card>
-                    <Heading.h3>Grant settings</Heading.h3>
-
+            {canManageProject ? <SettingsSection
+                    id="grant-applications"
+                    title="Grant applications"
+                    description="Configure how applicants describe their project and who can submit applications."
+                >
                     <form onSubmit={onSave}>
-                        <Card>
-                            <Flex justifyContent={"space-between"} gap="32px">
-                                <UpdateProjectLogo />
-                                <label>
-                                    Project description <br />
-                                    <TextArea width="100%" rows={5} inputRef={description} />
-                                </label>
-                            </Flex>
-                        </Card>
-                        <br />
-                        <TemplateForm
-                            title="Define application for personal projects"
-                            projectType="personalProject"
-                            settings={settings}
-                            setSettings={setSettings}
-                            updateFormField={updateFormField}
-                            removeFormField={removeFormField}
-                            updateFormFieldLimits={updateFormFieldLimits}
-                        />
-                        <br />
-                        <TemplateForm
-                            title="Define application for existing projects"
-                            projectType="existingProject"
-                            settings={settings}
-                            setSettings={setSettings}
-                            updateFormField={updateFormField}
-                            removeFormField={removeFormField}
-                            updateFormFieldLimits={updateFormFieldLimits}
-                        />
-                        <br />
-                        <TemplateForm
-                            title="Define application for new projects"
-                            projectType="newProject"
-                            settings={settings}
-                            setSettings={setSettings}
-                            updateFormField={updateFormField}
-                            removeFormField={removeFormField}
-                            updateFormFieldLimits={updateFormFieldLimits}
-                        />
-                        {settings.enabled && <>
-                            <Flex flexDirection={"row"} gap={"32px"}>
-                                <div>
-                                    <Label mb={16}>Allow applications from</Label>
+                        <Box mb={24}>
+                            <UpdateProjectLogo />
+                        </Box>
+                        <Box mb={24}>
+                            <label style={{width: "100%"}}>
+                                Project description <br />
+                                <TextArea width="100%" rows={5} inputRef={description} />
+                            </label>
+                        </Box>
+                        <Box mb={12}>
+                            <Heading.h4 bold>Application form</Heading.h4>
+                            <Text color="textSecondary">
+                                Define the information applicants must provide for each type of project.
+                            </Text>
+                        </Box>
+                        <TabbedCard>
+                            <TabbedCardTab name="Personal projects" icon="heroUser">
+                                <TemplateForm
+                                    projectType="personalProject"
+                                    settings={settings}
+                                    setSettings={setSettings}
+                                    updateFormField={updateFormField}
+                                    removeFormField={removeFormField}
+                                    updateFormFieldLimits={updateFormFieldLimits}
+                                />
+                            </TabbedCardTab>
+                            <TabbedCardTab name="Existing projects" icon="heroUsers">
+                                <TemplateForm
+                                    projectType="existingProject"
+                                    settings={settings}
+                                    setSettings={setSettings}
+                                    updateFormField={updateFormField}
+                                    removeFormField={removeFormField}
+                                    updateFormFieldLimits={updateFormFieldLimits}
+                                />
+                            </TabbedCardTab>
+                            <TabbedCardTab name="New projects" icon="heroUserPlus">
+                                <TemplateForm
+                                    projectType="newProject"
+                                    settings={settings}
+                                    setSettings={setSettings}
+                                    updateFormField={updateFormField}
+                                    removeFormField={removeFormField}
+                                    updateFormFieldLimits={updateFormFieldLimits}
+                                />
+                            </TabbedCardTab>
+                        </TabbedCard>
+                        {settings.enabled && <Box mt={32}>
+                            <Box mb={12}>
+                                <Heading.h4 bold>Application sources</Heading.h4>
+                                <Text color="textSecondary">
+                                    Choose who may apply and optionally exclude specific groups from submitting applications.
+                                </Text>
+                            </Box>
+                            <div className={GrantSourcesClass}>
+                                <div className="grant-source-panel">
+                                    <Heading.h5>Allow applications from</Heading.h5>
+                                    <Text className="grant-source-description" color="textSecondary">
+                                        Applications are accepted from these sources.
+                                    </Text>
                                     <UserCriteriaEditor
                                         criteria={settings.allowRequestsFrom}
                                         projectId={projectId}
@@ -538,8 +678,11 @@ export const ProjectSettings: React.FunctionComponent = () => {
                                     />
                                 </div>
 
-                                <div>
-                                    <label>Exclude applications from</label>
+                                <div className="grant-source-panel">
+                                    <Heading.h5>Exclude applications from</Heading.h5>
+                                    <Text className="grant-source-description" color="textSecondary">
+                                        Matching sources are blocked even when otherwise allowed.
+                                    </Text>
                                     <UserCriteriaEditor
                                         criteria={settings.excludeRequestsFrom}
                                         projectId={projectId}
@@ -549,26 +692,25 @@ export const ProjectSettings: React.FunctionComponent = () => {
                                         showSubprojects={false}
                                     />
                                 </div>
-                            </Flex>
-                        </>}
+                            </div>
+                        </Box>}
 
                         <Flex justifyContent={"center"} mt={32}>
-                            <Button type={"submit"} fullWidth>Save</Button>
+                            <Button type={"submit"} fullWidth>Save grant application settings</Button>
                         </Flex>
                     </form>
-                </Card>
+            </SettingsSection> : null}
 
-                <Card>
-                    <LeaveProject
-                        onSuccess={() => navigate("/")}
-                        projectTitle={project.specification.title}
-                        projectId={projectId}
-                        projectRole={status.myRole!}
-                    />
-                </Card>
-            </>}
-        </div>}
-    />
+            <SettingsSection id="project-membership" title="Project membership" mb={0}>
+                <LeaveProject
+                    onSuccess={() => navigate("/")}
+                    projectTitle={project.specification.title}
+                    projectId={projectId}
+                    projectRole={status.myRole!}
+                />
+            </SettingsSection>
+        </div>
+    </SettingsPage>
 };
 
 interface ChangeProjectTitleProps {
@@ -626,37 +768,28 @@ export function ChangeProjectTitle(props: ChangeProjectTitleProps): React.ReactN
                     sendFailureNotification("Renaming of project failed");
                 }
             }}>
-                <Flex flexGrow={1}>
-                    <Box width="100%">
-                        <label>
-                            Project Title
+                <label>Project title</label>
+                <div>
+                    <Flex gap="12px" alignItems="flex-start">
+                        <Box flexGrow={1}>
                             <Input
                                 required
-                                ml="2px"
+                                width="100%"
                                 type="text"
                                 inputRef={newProjectTitle}
                                 placeholder="New project title"
                                 autoComplete="off"
                                 onChange={() => {
-                                    if (newProjectTitle.current?.value !== props.projectTitle) {
-                                        setSaveDisabled(false);
-                                    } else {
-                                        setSaveDisabled(true);
-                                    }
+                                    setSaveDisabled(newProjectTitle.current?.value === props.projectTitle);
                                 }}
                                 disabled={!canRename.data.allowed}
                             />
-                        </label>
-                    </Box>
-                    <Button
-                        height="42px"
-                        width="72px"
-                        ml="12px"
-                        disabled={saveDisabled}
-                    >
-                        Save
-                    </Button>
-                </Flex>
+                        </Box>
+                        <Button type="submit" height="42px" width="160px" disabled={saveDisabled}>
+                            Save project title
+                        </Button>
+                    </Flex>
+                </div>
             </form>
         </Box>
     );
@@ -723,92 +856,69 @@ function SubprojectSettings(props: AllowRenamingProps): React.ReactNode {
         setAllowRenaming(getRenamingStatusForSubProject({projectId: props.projectId}));
     }, [props.projectId]);
 
-    return <>
-        {props.projectRole === OldProjectRole.USER ? null : (
-            <ActionBox>
-                <Box mt="8px" flexGrow={1}>
-                    <Label>
-                        <Checkbox
-                            size={24}
-                            checked={allowRenaming.data.allowed}
-                            onClick={() => toggleAndSet()}
-                            onChange={() => undefined}
-                        />
-                        Allow subprojects to rename
-                    </Label>
-                </Box>
-            </ActionBox>
-        )}
-    </>;
+    return props.projectRole === OldProjectRole.USER ? null : <Box mt="8px" flexGrow={1}>
+        <Label>
+            <Checkbox
+                size={24}
+                checked={allowRenaming.data.allowed}
+                onClick={() => toggleAndSet()}
+                onChange={() => undefined}
+            />
+            Allow subprojects to rename
+        </Label>
+    </Box>;
 }
 
 interface LeaveProjectProps {
     projectRole: OldProjectRole;
     projectId: string;
-    showTitle?: boolean;
     projectTitle: string;
     onSuccess: () => void;
 }
 
 export function LeaveProject(props: LeaveProjectProps): React.ReactNode {
-    return (
-        <ActionBox>
-            <Box flexGrow={1}>
-                <Heading.h3>Leave project {props.showTitle ? `"${projectTitleFromCache(Client.projectId)}"` : ""}</Heading.h3>
-                <Text>
-                    If you leave the project the following will happen:
+    const description = <>
+        <div>If you leave the project:</div>
+        <ul>
+            <li>All files and compute resources owned by the project become inaccessible to you</li>
+            <li>None of your files in the project will be deleted</li>
+            <li>Project administrators can recover files from your personal directory in the project</li>
+        </ul>
+        {props.projectRole !== OldProjectRole.PI ? null : <b>
+            You must transfer the principal investigator role to another member before leaving the project.
+        </b>}
+    </>;
 
-                    <ul>
-                        <li>
-                            All files and compute resources owned by the project become
-                            inaccessible to you
-                        </li>
-
-                        <li>
-                            None of your files in the project will be deleted
-                        </li>
-
-                        <li>
-                            Project administrators can recover files from your personal directory in
-                            the project
-                        </li>
-                    </ul>
-                </Text>
-
-                {props.projectRole !== OldProjectRole.PI ? null : (
-                    <Text>
-                        <b>You must transfer the principal investigator role to another member before
-                            leaving the project!</b>
-                    </Text>
-                )}
-            </Box>
-            <Flex>
-                <Button
-                    disabled={props.projectRole === OldProjectRole.PI}
-                    onClick={() => {
-                        addStandardDialog({
-                            title: "Are you sure?",
-                            message: `Are you sure you wish to leave ${props.projectTitle}?`,
-                            onConfirm: async () => {
-                                const success = await callAPIWithErrorHandler({
-                                    ...ProjectAPI.deleteMember(bulkRequestOf({username: Client.username!})),
-                                    projectOverride: props.projectId
-                                });
-                                if (success) {
-                                    props.onSuccess();
-                                    dialogStore.success();
-                                }
-                            },
-                            confirmText: "Leave project",
-                            addToFront: true
+    return <SettingsAction
+        title="Leave project"
+        description={description}
+        action={<Button
+            color="errorMain"
+            disabled={props.projectRole === OldProjectRole.PI}
+            onClick={() => {
+                addStandardDialog({
+                    title: "Leave project?",
+                    message: `Are you sure you wish to leave ${props.projectTitle}?`,
+                    onConfirm: async () => {
+                        const success = await callAPIWithErrorHandler({
+                            ...ProjectAPI.deleteMember(bulkRequestOf({username: Client.username!})),
+                            projectOverride: props.projectId
                         });
-                    }}
-                >
-                    Leave
-                </Button>
-            </Flex>
-        </ActionBox>
-    );
+                        if (success) {
+                            props.onSuccess();
+                            dialogStore.success();
+                        }
+                    },
+                    confirmText: "Leave project",
+                    confirmButtonColor: "errorMain",
+                    cancelButtonColor: "primaryMain",
+                    addToFront: true
+                });
+            }}
+        >
+            Leave project
+        </Button>}
+    />;
 }
 
 export function UpdateProjectLogo(): React.ReactNode {
@@ -869,74 +979,44 @@ const UserCriteriaEditor: React.FunctionComponent<{
     isExclusion: boolean;
 }> = props => {
     const [showRequestFromEditor, setShowRequestFromEditor] = useState<boolean>(false);
-    return <>
-        <Table mb={16}>
-            <thead>
-                <TableRow>
-                    <TableHeaderCell textAlign={"left"}>Type</TableHeaderCell>
-                    <TableHeaderCell textAlign={"left"}>Constraint</TableHeaderCell>
-                    <TableHeaderCell />
-                </TableRow>
-            </thead>
-            <tbody>
+    return <div className={CriteriaEditorClass}>
+        {!props.showSubprojects ? null : <div className="criteria-row">
+            <div className="criteria-row-copy">
+                <strong>Subprojects</strong>
+                <div className="criteria-constraint">All subprojects</div>
+            </div>
+        </div>}
 
-                {!props.showSubprojects ? null :
-                    <TableRow>
-                        <TableCell>Subprojects</TableCell>
-                        <TableCell>None</TableCell>
-                        <TableCell />
-                    </TableRow>
-                }
+        {!props.showSubprojects && props.criteria.length === 0 && !showRequestFromEditor ?
+            <div className="criteria-row">
+                <div className="criteria-empty">{props.isExclusion ? "No exclusions" : "No sources configured"}</div>
+            </div> : null}
 
-                {!props.showSubprojects && props.criteria.length === 0 && !showRequestFromEditor ? <>
-                    <TableRow>
-                        <TableCell>No one</TableCell>
-                        <TableCell>None</TableCell>
-                        <TableCell />
-                    </TableRow>
-                </> : null}
+        {props.criteria.map((criterion, idx) => <div className="criteria-row" key={keyFromCriteria(criterion)}>
+            <div className="criteria-row-copy">
+                <strong>{userCriteriaTypePrettifier(criterion.type)}</strong>
+                <div className="criteria-constraint">{userCriteriaConstraint(criterion)}</div>
+            </div>
+            <IconButton
+                tooltip="Remove source"
+                icon="heroTrash"
+                color="errorMain"
+                onClick={() => props.onRemove(idx, props.projectId)}
+            />
+        </div>)}
 
-                {props.criteria.map((it, idx) =>
-                    <TableRow key={keyFromCriteria(it)}>
-                        <TableCell textAlign={"left"}>{userCriteriaTypePrettifier(it.type)}</TableCell>
-                        <TableCell textAlign={"left"}>
-                            {it.type === "wayf" ? it.org : null}
-                            {it.type === "email" ? it.domain : null}
-                            {it.type === "anyone" ? "None" : null}
-                        </TableCell>
-                        <TableCell textAlign={"right"}>
-                            <Icon color={"errorMain"} name={"trash"} cursor={"pointer"} onClick={() => props.onRemove(idx, props.projectId)} />
-                        </TableCell>
-                    </TableRow>
-                )}
-
-                {showRequestFromEditor ?
-                    <UserCriteriaRowEditor
-                        onSubmit={(c) => {
-                            props.onSubmit(c, props.projectId);
-                            setShowRequestFromEditor(false);
-                        }}
-                        onCancel={() => setShowRequestFromEditor(false)}
-                        allowAnyone={!props.isExclusion && props.criteria.find(it => it.type === "anyone") === undefined}
-                        allowWayf={!props.isExclusion}
-                    /> :
-                    null
-                }
-
-            </tbody>
-        </Table>
-        <Flex justifyContent={"center"} mb={32}>
-            {!showRequestFromEditor ?
-                <Button
-                    type={"button"}
-                    onClick={() => setShowRequestFromEditor(true)}
-                >
-                    Add new row
-                </Button> :
-                null
-            }
-        </Flex>
-    </>;
+        {showRequestFromEditor ? <UserCriteriaRowEditor
+            onSubmit={(criterion) => {
+                props.onSubmit(criterion, props.projectId);
+                setShowRequestFromEditor(false);
+            }}
+            onCancel={() => setShowRequestFromEditor(false)}
+            allowAnyone={!props.isExclusion && props.criteria.find(it => it.type === "anyone") === undefined}
+            allowWayf={!props.isExclusion}
+        /> : <Button fullWidth mt={12} type="button" onClick={() => setShowRequestFromEditor(true)}>
+            {props.isExclusion ? "Add exclusion" : "Add application source"}
+        </Button>}
+    </div>;
 };
 
 
@@ -1019,48 +1099,48 @@ const UserCriteriaRowEditor: React.FunctionComponent<{
         }
     }, [props.onSubmit, type, selectedWayfOrg]);
 
-    const options: {text: string, value: string}[] = [];
+    const options: SimpleRichItem[] = [];
     if (props.allowAnyone) {
-        options.push({text: "Anyone", value: "anyone"});
+        options.push({key: "anyone", value: "Anyone"});
     }
 
-    options.push({text: "Email", value: "email"});
+    options.push({key: "email", value: "Email"});
 
     if (props.allowWayf) {
-        options.push({text: "WAYF", value: "wayf"});
+        options.push({key: "wayf", value: "WAYF"});
     }
 
-    return <TableRow>
-        <TableCell>
-            <ClickableDropdown
-                trigger={userCriteriaTypePrettifier(type.type)}
-                options={options}
-                onChange={t => setType({type: t} as Pick<Grants.UserCriteria, "type">)}
-                chevron
+    return <div className="criteria-row-editor">
+        <div className="criteria-editor-type">
+            <SimpleRichSelect
+                fullWidth
+                searchable={false}
+                items={options}
+                selected={options.find(option => option.key === type.type)}
+                onSelect={item => setType({type: item.key} as Pick<Grants.UserCriteria, "type">)}
             />
-        </TableCell>
-        <TableCell>
-            <div style={{minWidth: "350px"}}>
-                <Flex height={47}>
-                    {type.type !== "anyone" ? null : null}
-                    {type.type !== "email" ? null : <>
-                        <Input inputRef={inputRef} placeholder={"Email domain"} />
-                    </>}
-                    {type.type !== "wayf" ? null : <>
-                        {/* WAYF idps extracted from https://metadata.wayf.dk/idps.js*/}
-                        {/* curl https://metadata.wayf.dk/idps.js 2>/dev/null | jq 'to_entries[].value.schacHomeOrganization' | sort | uniq | xargs -I _ printf '"_",\n' */}
-                        <DataList
-                            options={wayfIdpsPairs}
-                            onSelect={(item) => setSelectedWayfOrg(item)}
-                            placeholder={"Type to search..."}
-                        />
-                    </>}
-                    <ConfirmCancelButtons height={"unset"} onConfirm={onClick} onCancel={props.onCancel} />
-                </Flex>
-            </div>
-        </TableCell>
-        <TableCell />
-    </TableRow>;
+        </div>
+        <div className="criteria-editor-value">
+            {type.type === "anyone" ? <Text color="textSecondary">Allow anyone to apply</Text> : null}
+            {type.type !== "email" ? null : <Input inputRef={inputRef} placeholder="Email domain" />}
+            {type.type !== "wayf" ? null : <DataList
+                options={wayfIdpsPairs}
+                onSelect={(item) => setSelectedWayfOrg(item)}
+                placeholder="Type to search..."
+            />}
+        </div>
+        <div className="criteria-editor-actions">
+            <ConfirmCancelButtons onConfirm={onClick} onCancel={props.onCancel} />
+        </div>
+    </div>;
+}
+
+function userCriteriaConstraint(criterion: Grants.UserCriteria): string {
+    switch (criterion.type) {
+        case "wayf": return criterion.org;
+        case "email": return criterion.domain;
+        case "anyone": return "No constraint";
+    }
 }
 
 function userCriteriaTypePrettifier(t: string): string {

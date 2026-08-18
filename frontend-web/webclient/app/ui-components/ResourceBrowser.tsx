@@ -1,4 +1,5 @@
-import {Operation, OperationEnabled, ShortcutKey} from "@/ui-components/Operation";
+import {Operation, operationsToActions, ShortcutKey} from "@/ui-components/Operation";
+import {ActionAppearance, ActionBar, ActionEntry, ActionItem, ActionMenu, ResourceBrowserActions} from "@/ui-components/Actions";
 import {IconName} from "@/ui-components/Icon";
 import {
     ThemeColor,
@@ -12,7 +13,6 @@ import {
     capitalized,
     createHTMLElements,
     doNothing,
-    inDevEnvironment,
     isLikelyMac,
     stopPropagation,
     stopPropagationAndPreventDefault,
@@ -28,7 +28,7 @@ import {PageV2} from "@/UCloud";
 import {injectStyle as unstyledInjectStyle} from "@/Unstyled";
 import {InputClass} from "./Input";
 import {getStartOfDay} from "@/Utilities/DateUtilities";
-import {createPortal} from "react-dom";
+import {createPortal, flushSync} from "react-dom";
 import {ProjectSwitcher, FilterInputClass, projectCache, fetchProjects} from "@/Project/ProjectSwitcher";
 import {addProjectListener, removeProjectListener} from "@/Project/ReduxState";
 import {ProductType, ProductV2} from "@/Accounting";
@@ -36,10 +36,9 @@ import ProviderInfo from "@/Assets/provider_info.json";
 import {ProductSelector} from "@/Products/Selector";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {divHtml, divText, image} from "@/Utilities/HTMLUtilities";
-import {ConfirmationButtonPlainHTML} from "./ConfirmationAction";
 import {HTMLTooltip} from "./Tooltip";
 import {ButtonClass} from "./Button";
-import {DELETE_TAG, ResourceIncludeFlags} from "@/UCloud/ResourceApi";
+import {CREATE_TAG, DELETE_TAG, PERMISSIONS_TAG, PROPERTIES_TAG, ResourceIncludeFlags} from "@/UCloud/ResourceApi";
 import {TruncateClass} from "./Truncate";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import Flex, {FlexClass} from "./Flex";
@@ -52,7 +51,7 @@ import {ASC, DESC, Filter, FilterCheckbox, FilterInput, FilterOption, FilterWith
 import {sendInformationNotification} from "@/Notifications";
 import {UFile} from "@/UCloud/UFile";
 import ReactClient from "react-dom/client";
-import {VmActionItem, VmActionSplitButton} from "@/Applications/Jobs/VmActionSplitButton";
+import type {Root} from "react-dom/client";
 
 const CLEAR_FILTER_VALUE = "\n\nCLEAR_FILTER\n\n";
 const UTILITY_COLOR: ThemeColor = "textPrimary";
@@ -145,6 +144,129 @@ export interface OperationGroup<T, R> {
     buttonStyle?: string
 }
 
+export type {ResourceBrowserActions} from "@/ui-components/Actions";
+
+function legacyBrowserOperationsToActions<T, C>(operations: OperationOrGroup<T, C>[], all: T[], flattenGroups = false): {
+    actions: ActionEntry<T, C>[];
+    appearance: (action: ActionItem<T, C>) => ActionAppearance | undefined;
+} {
+    const actions: ActionEntry<T, C>[] = [];
+    const appearances = new Map<ActionItem<T, C>, ActionAppearance>();
+    const addAdapted = (operationList: Operation<T, C>[]) => {
+        const result: ActionEntry<T, C>[] = [];
+        for (const operation of operationList) {
+            const adapted = operationsToActions([operation], all);
+            for (const entry of adapted.actions) {
+                if (entry !== "divider") {
+                    const value = adapted.appearance(entry);
+                    appearances.set(entry, {
+                        ...value,
+                        iconSize: 16,
+                        iconSpacing: "8px",
+                        groupOnly: "hackNotInTheContextMenu" in operation || value?.groupOnly,
+                    });
+                }
+                result.push(entry);
+            }
+        }
+        return result;
+    };
+
+    for (const entry of operations) {
+        if (isOperation(entry)) {
+            actions.push(...addAdapted([entry]));
+            continue;
+        }
+
+        const children = addAdapted(entry.operations);
+        if (flattenGroups) {
+            actions.push(...children);
+            continue;
+        }
+        if (entry.buttonStyle === "split" && children.length) {
+            const [first, ...rest] = children;
+            if (first !== "divider") {
+                first.children = rest;
+                appearances.set(first, {
+                    ...appearances.get(first),
+                    iconSize: 18,
+                });
+                actions.push(first);
+            }
+            continue;
+        }
+
+        const group: ActionItem<T, C> = {
+            text: entry.text,
+            icon: entry.icon,
+            shortcut: entry.shortcut,
+            enabled: () => true,
+            onClick: doNothing,
+            children,
+        };
+        appearances.set(group, {
+            color: entry.color,
+            iconRotation: entry.iconRotation,
+            iconSize: 16,
+            iconSpacing: "8px",
+            groupOnly: true,
+        });
+        actions.push(group);
+    }
+
+    return {actions, appearance: action => appearances.get(action)};
+}
+
+function organizeResourceContextMenu<T, C>(actions: ActionEntry<T, C>[]): ActionEntry<T, C>[] {
+    const general: ActionEntry<T, C>[] = [];
+    const sharing: ActionEntry<T, C>[] = [];
+    const modification: ActionEntry<T, C>[] = [];
+    const creation: ActionEntry<T, C>[] = [];
+    const properties: ActionEntry<T, C>[] = [];
+
+    for (const entry of actions) {
+        if (entry === "divider") continue;
+        const text = typeof entry.text === "string" ? entry.text : "";
+        entry.shortcut = undefined;
+
+        if (text === "Copy" || text.startsWith("Copy ")) {
+            entry.icon = "heroDocumentDuplicate";
+            entry.shortcut = {code: "KeyC", key: "C", modifier: "primary"};
+        }
+        if (text === "Download" || text.startsWith("Export ")) entry.icon = "heroArrowDownTray";
+        if (entry.tag === PROPERTIES_TAG || text === "Properties") {
+            entry.icon = undefined;
+            properties.push(entry);
+        } else if (entry.tag === CREATE_TAG || text.startsWith("Create ") || text === "Add SSH key") {
+            const enabled = entry.enabled;
+            entry.enabled = (selected, callbacks) => selected.length === 0 && enabled(selected, callbacks);
+            creation.push(entry);
+        } else if (entry.tag === PERMISSIONS_TAG || ["Permissions", "Share", "Invite", "Manage share"].includes(text)) {
+            entry.icon = "heroShare";
+            sharing.push(entry);
+        } else if (text === "Rename" || text === "Edit") {
+            entry.icon = "heroPencilSquare";
+            if (text === "Rename") entry.shortcut = {code: "F2", key: "F2"};
+            modification.push(entry);
+        } else if (entry.tag === DELETE_TAG || ["Delete", "Delete share", "Remove", "Revoke", "Stop"].includes(text) ||
+            (entry.destructive && text !== "Accept" && text !== "Decline")) {
+            entry.icon = "heroTrash";
+            entry.shortcut = {code: "Delete", key: "Delete"};
+            modification.push(entry);
+        } else {
+            general.push(entry);
+        }
+    }
+
+    const result: ActionEntry<T, C>[] = [];
+    for (const section of [general, sharing, modification, creation, properties]) {
+        if (!section.length) continue;
+        if (result.length) result.push("divider");
+        result.push(...section);
+    }
+    return result;
+}
+
 export enum SelectionMode {
     CLEAR,
     SINGLE,
@@ -203,7 +325,7 @@ interface ResourceBrowserListenerMap<T> {
 
     "renderEmptyPage": (reason: EmptyReason) => void;
 
-    "fetchOperations": () => OperationOrGroup<T, any>[];
+    "fetchOperations": () => OperationOrGroup<T, any>[] | ResourceBrowserActions<T, any>;
     "fetchOperationsCallback": () => unknown | null;
     "fetchBrowserFeatures": () => ControlDescription[] | undefined;
 
@@ -313,6 +435,11 @@ export class ResourceBrowser<T> {
     // Context menu
     private contextMenu: HTMLDivElement;
     private contextMenuHandlers: (() => void)[] = [];
+    private actionBarRoot?: Root;
+    private actionMenuRoot?: Root;
+    private actionMenuOpenRef = React.createRef<(left: number, top: number) => void>();
+    private actionMenuCloseRef = React.createRef<() => void>();
+    private reactActionMenuOpen = false;
 
     // Rename
     renameField: HTMLInputElement;
@@ -442,6 +569,7 @@ export class ResourceBrowser<T> {
         }
         this.renderRows();
         this.renderOperations();
+        this.dispatchMessage("rowSelectionUpdated", fn => fn());
     }
 
     public init(
@@ -532,6 +660,11 @@ export class ResourceBrowser<T> {
             providerReason: this.root.querySelector(".page-empty .provider-reason")!,
         };
 
+        this.actionBarRoot = ReactClient.createRoot(this.operations);
+        const actionMenuContainer = document.createElement("div");
+        this.root.appendChild(actionMenuContainer);
+        this.actionMenuRoot = ReactClient.createRoot(actionMenuContainer);
+
         if (this.opts.embedded) {
             this.root.style.height = "auto";
             this.emptyPageElement.container.style.marginTop = "0px";
@@ -556,6 +689,10 @@ export class ResourceBrowser<T> {
                 if (this.isModal) ResourceBrowser.isAnyModalOpen = false;
                 removeThemeListener(this.uniqueListenerId);
                 removeProjectListener(this.uniqueListenerId);
+                this.actionBarRoot?.unmount();
+                this.actionBarRoot = undefined;
+                this.actionMenuRoot?.unmount();
+                this.actionMenuRoot = undefined;
 
                 window.clearInterval(unmountInterval);
             }
@@ -759,7 +896,7 @@ export class ResourceBrowser<T> {
                 return;
             }
 
-            if (this.contextMenuHandlers.length) {
+            if (this.contextMenuHandlers.length || this.reactActionMenuOpen) {
                 this.closeContextMenu();
             }
 
@@ -780,7 +917,7 @@ export class ResourceBrowser<T> {
 
             attemptCloseRenameField(e);
 
-            if (this.contextMenuHandlers.length) this.closeContextMenu();
+            if (this.contextMenuHandlers.length || this.reactActionMenuOpen) this.closeContextMenu();
         });
 
         const clearEntryBelowCursor = () => {
@@ -1422,7 +1559,113 @@ export class ResourceBrowser<T> {
     }
 
     renderOperations() {
-        this.renderOperationsIn(false);
+        this.renderActionBar();
+    }
+
+    private fetchActions(location: "topbar" | "contextMenu"): null | {
+        actions: ActionEntry<T, any>[];
+        selected: T[];
+        callbacks: any;
+        appearance?: (action: ActionItem<T, any>) => ActionAppearance | undefined;
+        maxVisible?: number;
+    } {
+        const rawCallbacks = this.dispatchMessage("fetchOperationsCallback", fn => fn());
+        if (rawCallbacks === null) return null;
+
+        const page = this.cachedData[this.currentPath] ?? [];
+        const callbacks = typeof rawCallbacks === "object" && rawCallbacks !== null ?
+            {...rawCallbacks, all: page} : rawCallbacks;
+        const fetched = this.dispatchMessage("fetchOperations", fn => fn());
+        let actions: ActionEntry<T, any>[];
+        let appearance: ((action: ActionItem<T, any>) => ActionAppearance | undefined) | undefined;
+
+        if (Array.isArray(fetched)) {
+            const operations = [...fetched];
+            if (location === "topbar" && !this.isModal) {
+                const custom = this.dispatchMessage("fetchBrowserFeatures", fn => fn());
+                operations.unshift(controlsOperation<T>(this.features, custom));
+            }
+            const adapted = legacyBrowserOperationsToActions(operations, page, location === "contextMenu");
+            actions = location === "contextMenu" ? organizeResourceContextMenu(adapted.actions) : adapted.actions;
+            appearance = adapted.appearance;
+        } else {
+            actions = fetched[location] ?? fetched[location === "topbar" ? "contextMenu" : "topbar"] ?? [];
+            appearance = fetched.appearance;
+            if (location === "topbar" && !this.isModal) {
+                const custom = this.dispatchMessage("fetchBrowserFeatures", fn => fn());
+                const controls = legacyBrowserOperationsToActions([controlsOperation<T>(this.features, custom)], page);
+                const controlActions = controls.actions;
+                const previousAppearance = appearance;
+                appearance = action => controls.appearance(action) ?? previousAppearance?.(action);
+                actions = [...controlActions, ...actions];
+            }
+        }
+
+        return {
+            actions,
+            selected: this.findSelectedEntries(),
+            callbacks,
+            appearance,
+            maxVisible: location === "topbar" && !Array.isArray(fetched) ? fetched.topbarMaxVisible : undefined,
+        };
+    }
+
+    copyToClipboard(entries: T[], cut: boolean): void {
+        if (!this.features.supportsMove || !this.features.supportsCopy) return;
+        ResourceBrowser.clipboard[this.resourceName] = entries;
+        ResourceBrowser.clipboardIsCut[this.resourceName] = cut;
+        if (entries.length) {
+            const key = isLikelyMac ? "⌘" : "Ctrl + ";
+            sendInformationNotification(`${entries.length} copied to clipboard. Use ${key}V to insert.`);
+        }
+    }
+
+    canPasteFromClipboard(): boolean {
+        return !!this.features.supportsMove && !!this.features.supportsCopy &&
+            !!ResourceBrowser.clipboard[this.resourceName]?.length;
+    }
+
+    pasteFromClipboard(): void {
+        if (!this.canPasteFromClipboard()) return;
+        this.dispatchMessage(
+            ResourceBrowser.clipboardIsCut[this.resourceName] ? "move" : "copy",
+            fn => fn(ResourceBrowser.clipboard[this.resourceName] as T[], this.currentPath)
+        );
+        if (ResourceBrowser.clipboardIsCut[this.resourceName]) ResourceBrowser.clipboard[this.resourceName] = [];
+    }
+
+    private renderActionBar() {
+        const snapshot = this.fetchActions("topbar");
+        this.shortCuts = {} as Record<ShortcutKey, () => void>;
+        if (!snapshot || !snapshot.actions.length || !this.canConsumeResources) {
+            this.actionBarRoot?.render(null);
+            return;
+        }
+        this.actionBarRoot?.render(<ActionBar
+            actions={snapshot.actions}
+            selected={snapshot.selected}
+            callbacks={snapshot.callbacks}
+            appearance={snapshot.appearance}
+            hideShortcuts={ResourceBrowser.hideShortcuts}
+            maxVisible={snapshot.maxVisible}
+        />);
+    }
+
+    private openActionMenu(x: number, y: number) {
+        const snapshot = this.fetchActions("contextMenu");
+        if (!snapshot || !snapshot.actions.length || !this.canConsumeResources) return;
+        flushSync(() => this.actionMenuRoot?.render(<ActionMenu
+            actions={snapshot.actions}
+            selected={snapshot.selected}
+            callbacks={snapshot.callbacks}
+            appearance={snapshot.appearance}
+            trigger={null}
+            openFnRef={this.actionMenuOpenRef}
+            closeFnRef={this.actionMenuCloseRef}
+            onOpen={() => this.reactActionMenuOpen = true}
+            onClose={() => this.reactActionMenuOpen = false}
+        />));
+        this.actionMenuOpenRef.current?.(x, y);
     }
 
     private renderFiltersInContextMenu(filter: FilterWithOptions | MultiOptionFilter, x: number, y: number) {
@@ -1574,388 +1817,6 @@ export class ResourceBrowser<T> {
             });
 
             menuList.append(element);
-        }
-    }
-
-    private renderVmActionSplitButton(
-        opGroup: OperationGroup<T, unknown>,
-        selected: T[],
-        callbacks: unknown,
-        page: T[]
-    ): HTMLElement {
-        const container = document.createElement("div");
-        container.className = "operation";
-        container.style.display = "flex";
-
-        const root = ReactClient.createRoot(container);
-
-        const mainOp = opGroup.operations[0];
-        const rest = opGroup.operations.slice(1);
-
-        const enableResult: OperationEnabled = mainOp.enabled(selected, callbacks, page);
-        const isEnabled = enableResult === true;
-
-
-        const getText = (op): string => {
-            return typeof op.text === "string" ? op.text : op.text(selected, callbacks);
-        }
-        // Rest are menu items
-        const menuItems: VmActionItem[] = rest.map((childOp, idx) => ({
-            key: idx.toString(),
-            value: getText(childOp),
-            icon: childOp.icon ?? "questionSolid",
-            color: childOp.color ?? "textPrimary",
-            shortcut: childOp.shortcut,
-        }));
-        root.render(
-            <div onClick={stopPropagationAndPreventDefault}>
-                <VmActionSplitButton
-                    tone="none"
-                    disabled={!isEnabled}
-                    buttonColor={mainOp.color ?? "secondaryMain"}
-                    buttonText={getText(mainOp)}
-                    buttonIcon={mainOp.icon ?? "ellipsis"}
-                    menuItems={menuItems}
-                    shortcut={mainOp.shortcut}
-                    onSelectMenuItem={(item) => {
-                        const foundOp = rest[parseInt(item.key)];
-                        if (foundOp && foundOp.enabled(selected, callbacks, page) === true) {
-                            foundOp.onClick(selected, callbacks, page);
-                        }
-                    }}
-                    onButtonClick={() => {
-                        mainOp.onClick(selected, callbacks, page);
-                    }}
-                />
-            </div>
-        );
-
-        return container;
-    }
-
-
-    private renderOperationsIn(useContextMenu: boolean, contextOpts?: {
-        x: number,
-        y: number,
-    }) {
-        const callbacks = this.dispatchMessage("fetchOperationsCallback", fn => fn());
-        if (callbacks === null) return;
-
-        const operations = this.dispatchMessage("fetchOperations", fn => fn());
-
-        if (!useContextMenu && !this.isModal) {
-            const custom = this.dispatchMessage("fetchBrowserFeatures", f => f());
-            operations.unshift(controlsOperation(this.features, custom));
-        }
-
-        if (operations.length === 0 || !this.canConsumeResources) {
-            this.operations.innerHTML = "";
-            return;
-        }
-
-        if (!useContextMenu) {
-            this.shortCuts = {} as Record<ShortcutKey, () => void>;
-
-            printDuplicateShortcuts(operations);
-        }
-
-        const selected = this.findSelectedEntries();
-        const page = this.cachedData[this.currentPath] ?? [];
-
-        const renderOpIconAndText = (
-            op: OperationOrGroup<T, any>,
-            element: HTMLElement,
-            shortcut?: string,
-            inContextMenu?: boolean
-        ) => {
-            const isConfirmButton = isOperation(op) && op.confirm;
-            // Set the icon
-            const icon = image(placeholderImage, {height: 16, width: 16, alt: "Icon"});
-            let contrastColor = selectContrastColor(
-                op.color ??
-                (isConfirmButton ?
-                    "errorMain" :
-                    inContextMenu ? "backgroundDefault" :
-                        ("operations" in op ? "primaryMain" : "secondaryMain")
-                )
-            );
-
-            // Hack(Jonas): Very specific DriveBrowser fix, for Delete Drive coloring of Trash-icon.
-            // The `errorContrast` is white. So kinda works for Dark Theme, not for Light Theme.
-            if (inContextMenu && isOperation(op) && op.tag === DELETE_TAG && !op.confirm) contrastColor = op.color!;
-            ResourceBrowser.icons.renderIcon({
-                name: op.icon as IconName,
-                color: contrastColor,
-                color2: contrastColor,
-                width: 64,
-                height: 64,
-            }).then(url => icon.src = url);
-            if (op.iconRotation) {
-                icon.style.transform = `rotate(${op.iconRotation}deg)`;
-            }
-
-            // ...and the text
-            const operationText = typeof op.text === "string" ? op.text : op.text(selected, callbacks);
-
-            if (isConfirmButton) {
-                const opEnabled = op.enabled(selected, callbacks, page) === true;
-
-                const button = ConfirmationButtonPlainHTML(
-                    icon,
-                    operationText,
-                    () => {
-                        op.onClick(selected, callbacks);
-                        if (useContextMenu) this.closeContextMenu();
-                    },
-                    {
-                        asSquare: inContextMenu,
-                        color: op.color ?? "errorMain",
-                        hoverColor: undefined,
-                        disabled: !opEnabled
-                    }
-                );
-
-                // HACK(Jonas): Very hacky way to solve styling for confirmation button in the two different contexts.
-                if (inContextMenu) {
-                    element.style.height = "40px";
-                    button.style.height = "40px";
-                    button.style.width = "100%";
-                    button.querySelectorAll("button > div.ucloud-native-icons").forEach(it => {
-                        it["style"].marginLeft = "-6px";
-                        it["style"].marginTop = "-2px";
-                    });
-                    button.style.fontSize = "16px";
-                    button.querySelectorAll("button > div.icons").forEach(it => {
-                        it["style"].marginLeft = "-10px";
-                    });
-                    button.querySelector("button > ul")!["style"].marginLeft = "-60px";
-                } else {
-                    element.style.height = "35px";
-                    button.style.height = "35px";
-
-                    const textChildren = button.querySelectorAll("button > ul > li");
-                    textChildren.item(0)["style"].marginTop = "8px";
-
-                    button.querySelectorAll("button > div.ucloud-native-icons").forEach(it => {
-                        it["style"].marginLeft = "-6px";
-                        it["style"].marginTop = "-2px";
-                    });
-                    button.querySelectorAll("button > div.icons").forEach(it => {
-                        it["style"].marginTop = "0px";
-                        it["style"].marginLeft = "-8px";
-                    });
-                    button.querySelectorAll("button > ul").forEach(it => {
-                        it["style"]["marginTop"] = "-8px";
-                    });
-
-                    button.querySelectorAll("button > ul > li").forEach(it => {
-                        it["style"]["right"] = "unset";
-                    });
-                }
-
-                element.style.padding = "0";
-
-                element.append(button);
-                element.setAttribute("data-is-confirm", "true");
-                return;
-            }
-
-            {
-                element.append(icon);
-
-                if (!isOperation(op)) {
-                    if (op.backgroundColor) {
-                        element.style.setProperty("--bgColor", `var(--${op.backgroundColor})`);
-                        element.style.setProperty("--hoverColor", `var(--${selectHoverColor(op.backgroundColor)})`);
-                        element.style.color = `var(--${selectContrastColor(op.backgroundColor)})`;
-                    }
-                }
-            }
-
-            {
-                if (operationText) {
-                    element.append(operationText);
-                }
-                if (operationText && shortcut) {
-                    const shortcutItems = shortcut.split("+");
-                    for (const [index, item] of shortcutItems.entries()) {
-                        const shortcutElement = document.createElement("div");
-                        shortcutElement.className = ShortcutClass;
-                        if (!inContextMenu && ResourceBrowser.hideShortcuts) shortcutElement.classList.add("HideShortcuts");
-                        if (index === 0) shortcutElement.style.marginLeft = "auto";
-                        shortcutElement.innerText = item;
-                        element.append(shortcutElement);
-                    }
-                }
-            }
-        }
-
-        const renderOperationsInContextMenu = (
-            operations: OperationOrGroup<T, any>[],
-            posX: number,
-            posY: number,
-            counter: number = 1,
-            allowCreation: boolean = true
-        ): number => {
-            const menu = this.contextMenu;
-            if (allowCreation) {
-                let opCount = 0;
-                for (const op of operations) {
-                    if (!isOperation(op)) {
-                        opCount += op.operations.length;
-                    } else {
-                        opCount++;
-                    }
-                }
-                this.prepareContextMenu(posX, posY, opCount);
-            }
-
-            const menuList = allowCreation ? document.createElement("ul") : menu.querySelector("ul")!;
-            if (allowCreation) menu.append(menuList);
-            let shortcutNumber = counter;
-
-            const useShortcuts = !this.opts?.embedded && !this.opts?.selector;
-            for (const child of operations) {
-                if (child["hackNotInTheContextMenu"]) continue;
-                if (!isOperation(child)) {
-                    counter += renderOperationsInContextMenu(child.operations, posX, posY, shortcutNumber, false);
-                    shortcutNumber = counter + 1;
-                    continue;
-                }
-
-                const text = child.enabled(selected, callbacks, page);
-                const isDisabled = typeof text === "string";
-
-                const item = document.createElement("li");
-                const isConfirm = isOperation(child) && child.confirm;
-
-                if (isDisabled) {
-                    item.style.cursor = "not-allowed";
-                    item.style.filter = "opacity(25%)";
-                    const d = document.createElement("div");
-                    d.innerText = text;
-                    HTMLTooltip(item, d, {tooltipContentWidth: 450});
-                }
-
-                renderOpIconAndText(child, item, shortcutNumber <= 9 && useShortcuts && !isDisabled ? `${shortcutNumber}` : undefined, true);
-
-                const myIndex = shortcutNumber - 1;
-                this.contextMenuHandlers.push(() => {
-                    if (isDisabled) {
-                        // No action
-                    } else if (isConfirm) {
-                        // This case is handled inside the button.
-                    } else {
-                        child.onClick(selected, callbacks, page);
-                    }
-                });
-
-                shortcutNumber++;
-
-                item.addEventListener("mouseover", () => {
-                    this.findActiveContextMenuItem(true);
-                    this.selectContextMenuItem(myIndex);
-                });
-
-                item.addEventListener("click", ev => {
-                    ev.stopPropagation();
-                    this.findActiveContextMenuItem(true);
-                    this.selectContextMenuItem(myIndex);
-                    if (!isDisabled) {
-                        this.onContextMenuItemSelection();
-                    }
-                });
-
-                menuList.append(item);
-            }
-            return counter;
-        };
-
-        let opCount = 0;
-
-        const renderOperation = (
-            op: OperationOrGroup<T, unknown>
-        ): HTMLElement => {
-            const useShortcuts = !this.opts?.selector;
-            const element = document.createElement("div");
-            element.classList.add("operation");
-
-            if (op.text === "" && op.icon === "keyboardSolid") { // Note(Jonas): Edge case: Keyboard shortcuts button. 
-                element.style.width = "35px";
-            }
-
-            const isConfirmButton = isOperation(op) && op.confirm;
-            if (!isConfirmButton) {
-                element.classList.add(ButtonClass);
-
-                const color = op?.color ?? "secondaryMain";
-                element.style.setProperty("--bgColor", `var(--${color})`);
-                element.style.setProperty("--hoverColor", `var(--${selectHoverColor(color)})`);
-                element.style.color = `var(--${selectContrastColor(color)})`;
-            }
-            element.classList.add(!useContextMenu ? "in-header" : "in-context-menu");
-
-            const enabled = isOperation(op) ? op.enabled(selected, callbacks, page) : true;
-            const handleDisabled = !useContextMenu && typeof enabled === "string";
-
-            element.setAttribute("data-disabled", typeof enabled === "string" ? true.toString() : (!enabled).toString());
-            if (handleDisabled) {
-                const d = document.createElement("div");
-                d.innerText = enabled;
-                if (isOperation(op) && !op.confirm) {
-                    element.style.cursor = "not-allowed";
-                    element.style.filter = "opacity(25%)";
-                }
-                HTMLTooltip(element, d, {tooltipContentWidth: 230});
-            }
-
-            renderOpIconAndText(op, element, useShortcuts && op.shortcut ? `${ALT_KEY} + ${op.shortcut.replace("Key", "")}` : undefined);
-
-            {
-                // ...and the handlers
-                const handler = (ev?: Event) => {
-                    ev?.stopPropagation();
-                    if (!isOperation(op)) {
-                        const elementBounding = element.getBoundingClientRect();
-                        renderOperationsInContextMenu(
-                            op.operations,
-                            elementBounding.left,
-                            (elementBounding.top + elementBounding.height),
-                        );
-                    } else if (isOperation(op) && enabled === true) {
-                        if (this.contextMenuHandlers.length) this.closeContextMenu();
-                        op.onClick(selected, callbacks, page);
-                    }
-                };
-
-                element.addEventListener("click", handler);
-                if (!useContextMenu) {
-                    if (op.shortcut) {
-                        this.shortCuts[op.shortcut] = handler;
-                    }
-                    opCount++;
-                }
-            }
-
-            return element;
-        }
-
-        if (!useContextMenu) {
-            const target = this.operations;
-            target.innerHTML = "";
-            for (const op of operations) {
-                if ("buttonStyle" in op && op.buttonStyle === "split") {
-                    // Rendering SplitButton
-                    target.append(this.renderVmActionSplitButton(op, selected, callbacks, page));
-                }
-                else {
-                    target.append(renderOperation(op));
-                }
-            }
-        } else {
-            const posX = contextOpts?.x ?? 0;
-            const posY = contextOpts?.y ?? 0;
-            renderOperationsInContextMenu(operations, posX, posY);
         }
     }
 
@@ -2178,6 +2039,8 @@ export class ResourceBrowser<T> {
 
     // Context menu
     closeContextMenu() {
+        this.actionMenuCloseRef.current?.();
+        this.reactActionMenuOpen = false;
         this.contextMenuHandlers = [];
         this.contextMenu.style.removeProperty("transform");
         this.contextMenu.style.removeProperty("max-height");
@@ -2479,22 +2342,28 @@ export class ResourceBrowser<T> {
                 );
                 const baseFileIdx = parseInt(this.rows[0].container.getAttribute("data-idx")!);
 
-                const oldSelectedCount = this.isSelected.reduce((acc, entry) => acc + entry, 0);
-
+                let selectionChanged = false;
                 for (let i = 0; i < this.rows.length; i++) {
+                    const selectionIndex = i + baseFileIdx;
+                    if (selectionIndex < 0 || selectionIndex >= this.isSelected.length) continue;
+                    let selected = this.isSelected[selectionIndex];
                     if (i >= lowerOffset && i <= upperOffset) {
-                        this.isSelected[i + baseFileIdx] = 1;
+                        selected = 1;
                     } else {
                         // NOTE(Dan): When scrolling, then we should never turn anything off if scrolling has begun
                         // TODO(Dan): Maybe we should just move the scrolling region along with the scrolling?
-                        if (initialScrollTop === scrollStart) this.isSelected[i + baseFileIdx] = 0;
+                        if (initialScrollTop === scrollStart) selected = 0;
+                    }
+                    if (this.isSelected[selectionIndex] !== selected) {
+                        this.isSelected[selectionIndex] = selected;
+                        selectionChanged = true;
                     }
                 }
 
-                const newSelectedCount = this.isSelected.reduce((acc, entry) => acc + entry, 0)
-                if (oldSelectedCount !== newSelectedCount) {
+                if (selectionChanged) {
                     this.renderRows();
                     this.renderOperations();
+                    this.dispatchMessage("rowSelectionUpdated", fn => fn());
                 }
             };
 
@@ -2578,8 +2447,8 @@ export class ResourceBrowser<T> {
             this.renderRows();
         }
 
-        if (this.contextMenuHandlers.length) this.closeContextMenu();
-        this.renderOperationsIn(true, {x: event.clientX, y: event.clientY});
+        if (this.contextMenuHandlers.length || this.reactActionMenuOpen) this.closeContextMenu();
+        this.openActionMenu(event.clientX, event.clientY);
     }
 
     private onStarClicked(index: number) {
@@ -2710,14 +2579,7 @@ export class ResourceBrowser<T> {
                     } else {
                         if (this.contextMenuHandlers.length) return;
 
-                        const newClipboard = this.findSelectedEntries();
-                        ResourceBrowser.clipboard[this.resourceName] = newClipboard;
-                        ResourceBrowser.clipboardIsCut[this.resourceName] = ev.code === "KeyX";
-
-                        if (newClipboard.length) {
-                            const key = isLikelyMac ? "⌘" : "Ctrl + ";
-                            sendInformationNotification(`${newClipboard.length} copied to clipboard. Use ${key}V to insert.`);
-                        }
+                        this.copyToClipboard(this.findSelectedEntries(), ev.code === "KeyX");
                     }
                     break;
                 }
@@ -2727,14 +2589,7 @@ export class ResourceBrowser<T> {
                         didHandle = false;
                     } else {
                         if (this.contextMenuHandlers.length) return;
-                        if (ResourceBrowser.clipboard[this.resourceName]?.length) {
-                            this.dispatchMessage(
-                                ResourceBrowser.clipboardIsCut[this.resourceName] ? "move" : "copy",
-                                fn => fn(ResourceBrowser.clipboard[this.resourceName] as T[], this.currentPath)
-                            );
-
-                            if (ResourceBrowser.clipboardIsCut[this.resourceName]) ResourceBrowser.clipboard[this.resourceName] = [];
-                        }
+                        this.pasteFromClipboard();
                     }
                     break;
                 }
@@ -3003,24 +2858,38 @@ export class ResourceBrowser<T> {
         this.closeContextMenu();
     }
 
-    triggerOperation(predicate: (op: Operation<T, unknown>) => boolean): boolean {
-        const callbacks = this.dispatchMessage("fetchOperationsCallback", fn => fn());
-        if (callbacks === null) return false;
-        const ops = this.dispatchMessage("fetchOperations", fn => fn());
-        for (const op of ops) {
-            let toCheck: Operation<T, unknown>[] = [];
-            if (!isOperation(op)) {
-                toCheck = op.operations;
-            } else {
-                toCheck = [op];
-            }
+    triggerOperation(predicate: (op: {tag?: string}) => boolean): boolean {
+        const rawCallbacks = this.dispatchMessage("fetchOperationsCallback", fn => fn());
+        if (rawCallbacks === null) return false;
+        const page = this.cachedData[this.currentPath] ?? [];
+        const callbacks = typeof rawCallbacks === "object" ? {...rawCallbacks, all: page} : rawCallbacks;
+        const fetched = this.dispatchMessage("fetchOperations", fn => fn());
+        const selected = this.findSelectedEntries();
 
-            for (const child of toCheck) {
-                if (predicate(child)) {
-                    child.onClick(this.findSelectedEntries(), callbacks, this.cachedData[this.currentPath] ?? []);
-                    return true;
+        if (Array.isArray(fetched)) {
+            for (const entry of fetched) {
+                const operations = isOperation(entry) ? [entry] : entry.operations;
+                for (const operation of operations) {
+                    if (predicate(operation)) {
+                        operation.onClick(selected, callbacks, page);
+                        return true;
+                    }
                 }
             }
+            return false;
+        }
+
+        const triggerAction = (entry: ActionEntry<T, any>): boolean => {
+            if (entry === "divider") return false;
+            if (predicate(entry)) {
+                entry.onClick(selected, callbacks);
+                return true;
+            }
+            return entry.children?.some(triggerAction) ?? false;
+        };
+
+        for (const entry of fetched.contextMenu ?? fetched.topbar ?? []) {
+            if (triggerAction(entry)) return true;
         }
 
         return false;
@@ -3693,7 +3562,8 @@ export function resourceCreationWithProductSelector<T>(
         browser.renderRows();
     };
 
-    const onProductSelected = (product: ProductV2) => {
+    const onProductSelected = (product: ProductV2 | null) => {
+        if (!product) return;
         onSelect?.(product);
         if (["STORAGE", "INGRESS"].includes(type)) {
             selectedProduct = product;
@@ -3708,7 +3578,7 @@ export function resourceCreationWithProductSelector<T>(
                 },
                 ""
             );
-        } else if (["LICENSE", "NETWORK_IP"].includes(type)) {
+        } else if (["LICENSE", "INFERENCE", "NETWORK_IP"].includes(type)) {
             browser.removeEntryFromCurrentPage(it => it === dummyEntry);
             onCreate(product);
         } else if (type === "COMPUTE") {
@@ -3789,28 +3659,6 @@ export async function checkCanConsumeResources(
 
 // https://stackoverflow.com/a/13139830
 export const placeholderImage = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
-
-function printDuplicateShortcuts<T>(operations: OperationOrGroup<T, unknown>[]) {
-    if (!inDevEnvironment()) return;
-
-    const shortCuts = operations.map(it => {
-        if (isOperation(it)) {
-            return ({shortcut: it.shortcut, text: it.text.toString()})
-        } else {
-            return [{shortcut: it.shortcut, text: it.text.toString()}, it.operations.map(it => ({
-                shortcut: it.shortcut,
-                text: it.text.toString()
-            }))]
-        }
-    }).flat(5);
-    const entries: Record<string, string> = {};
-    for (const short of shortCuts) {
-        if (entries[short.shortcut ?? ""]) {
-            console.log(`Shortcut: ${short.shortcut} already reserved for ${entries[short.shortcut ?? ""]}, attempted to use for ${short.text}`);
-        }
-        entries[short.shortcut ?? ""] = short.text;
-    }
-}
 
 const ARROW_UP = "↑";
 const ARROW_DOWN = "↓";
@@ -3922,7 +3770,6 @@ export function controlsOperation<T>(features: ResourceBrowseFeatures, custom?: 
         icon: "keyboardSolid",
         onClick: () => dialogStore.addDialog(<ControlsDialog features={features} custom={custom} />, noopCall),
         enabled: (selected, cb) => !cb.isModal,
-        shortcut: ShortcutKey.Z,
         hackNotInTheContextMenu: true
     };
 }
@@ -3938,4 +3785,3 @@ export function favoriteRowIcon(row: ResourceBrowserRow) {
     }
     return favoriteIcon;
 }
-

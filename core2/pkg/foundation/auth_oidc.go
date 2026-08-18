@@ -3,6 +3,7 @@ package foundation
 import (
 	"fmt"
 	"net/http"
+	strings "strings"
 	"sync"
 	"time"
 
@@ -28,8 +29,9 @@ var oidcGlobals struct {
 }
 
 type oidcAuthSession struct {
-	State string
-	Nonce string
+	State   string
+	Nonce   string
+	Service authLoginService
 }
 
 func initAuthOidc() {
@@ -68,28 +70,41 @@ func initAuthOidc() {
 			}, nil
 		})
 
-		startLogin := func(info rpc.RequestInfo) (util.Empty, *util.HttpError) {
+		startLogin := func(info rpc.RequestInfo, serviceName string) (util.Empty, *util.HttpError) {
+			if serviceName == "" {
+				serviceName = "web"
+			}
+			service, ok := authLoginServiceResolve(serviceName)
+			if !ok {
+				return util.Empty{}, util.HttpErr(http.StatusBadRequest, "Unknown login service")
+			}
+
 			stateToken := util.RandomTokenNoTs(16)
 			nonce := util.RandomTokenNoTs(16)
 
 			g.Mu.Lock()
 			g.Sessions[stateToken] = oidcAuthSession{
-				State: stateToken,
-				Nonce: nonce,
+				State:   stateToken,
+				Nonce:   nonce,
+				Service: service,
 			}
 			g.Mu.Unlock()
 
-			redirectTo := g.Config.AuthCodeURL(stateToken, oidc.Nonce(nonce))
+			authCodeOptions := []oauth2.AuthCodeOption{oidc.Nonce(nonce)}
+			if service.External {
+				authCodeOptions = append(authCodeOptions, oauth2.SetAuthURLParam("prompt", "login"))
+			}
+			redirectTo := g.Config.AuthCodeURL(stateToken, authCodeOptions...)
 			http.Redirect(info.HttpWriter, info.HttpRequest, redirectTo, http.StatusFound)
 			return util.Empty{}, nil
 		}
 
-		fndapi.AuthStartLoginSamlLegacy.Handler(func(info rpc.RequestInfo, request util.Empty) (util.Empty, *util.HttpError) {
-			return startLogin(info)
+		fndapi.AuthStartLoginSamlLegacy.Handler(func(info rpc.RequestInfo, request fndapi.AuthStartLoginRequest) (util.Empty, *util.HttpError) {
+			return startLogin(info, request.Service)
 		})
 
-		fndapi.AuthStartLogin.Handler(func(info rpc.RequestInfo, request fndapi.FindByIntId) (util.Empty, *util.HttpError) {
-			return startLogin(info)
+		fndapi.AuthStartLogin.Handler(func(info rpc.RequestInfo, request fndapi.AuthStartLoginRequest) (util.Empty, *util.HttpError) {
+			return startLogin(info, request.Service)
 		})
 
 		fndapi.AuthOidcCallback.Handler(func(info rpc.RequestInfo, request fndapi.AuthOidcCallbackRequest) (util.Empty, *util.HttpError) {
@@ -155,10 +170,27 @@ func initAuthOidc() {
 			response := IdpResponse{
 				Idp:        1,
 				Identity:   claimJson.PreferredUsername,
-				FirstNames: util.OptValue(claimJson.FirstNames),
-				LastName:   util.OptValue(claimJson.LastName),
+				FirstNames: util.OptStringIfNotEmpty(claimJson.FirstNames),
+				LastName:   util.OptStringIfNotEmpty(claimJson.LastName),
 				OrgId:      util.OptStringIfNotEmpty(claimJson.HomeOrganization),
 				Email:      util.OptStringIfNotEmpty(claimJson.Email),
+			}
+
+			if !response.FirstNames.Present && claimJson.GivenName != "" {
+				response.FirstNames.Set(strings.Split(claimJson.GivenName, " ")[0])
+			}
+			if !response.LastName.Present && claimJson.GivenName != "" {
+				names := strings.Split(claimJson.GivenName, " ")
+				if len(names) > 1 {
+					response.LastName.Set(names[len(names)-1])
+				}
+			}
+
+			if !response.FirstNames.Present && response.Email.Present {
+				atIdx := strings.Index(response.Email.Value, "@")
+				if atIdx > 0 {
+					response.FirstNames.Set(response.Email.Value[:atIdx])
+				}
 			}
 
 			// TODO Clean this up
@@ -184,7 +216,7 @@ func initAuthOidc() {
 				return SessionCreate(info.HttpRequest, tx, principal)
 			})
 
-			SessionLoginResponse(info.HttpRequest, info.HttpWriter, toks, 0)
+			SessionLoginResponse(info.HttpRequest, info.HttpWriter, toks, session.Service, 0)
 			return util.Empty{}, nil
 		})
 	} else {
@@ -192,7 +224,7 @@ func initAuthOidc() {
 			return fndapi.BulkResponse[fndapi.IdentityProvider]{}, nil
 		})
 
-		fndapi.AuthStartLoginSamlLegacy.Handler(func(info rpc.RequestInfo, request util.Empty) (util.Empty, *util.HttpError) {
+		fndapi.AuthStartLoginSamlLegacy.Handler(func(info rpc.RequestInfo, request fndapi.AuthStartLoginRequest) (util.Empty, *util.HttpError) {
 			return util.Empty{}, util.HttpErr(http.StatusNotFound, "not configured")
 		})
 	}

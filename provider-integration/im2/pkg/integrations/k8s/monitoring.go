@@ -18,6 +18,8 @@ import (
 	"ucloud.dk/pkg/integrations/k8s/filesystem"
 	"ucloud.dk/pkg/integrations/k8s/kubevirt"
 	"ucloud.dk/pkg/integrations/k8s/shared"
+	db "ucloud.dk/shared/pkg/database"
+	"ucloud.dk/shared/pkg/rpc"
 
 	k8score "k8s.io/api/core/v1"
 	k8sresource "k8s.io/apimachinery/pkg/api/resource"
@@ -29,6 +31,7 @@ import (
 )
 
 var nextAccounting time.Time
+var nextMountReport time.Time
 
 // NOTE(Dan): This must only be used by code invoked from the goroutine in loopMonitoring. None of the code is
 // thread-safe.
@@ -73,6 +76,10 @@ type jobTracker struct {
 	jobs                 map[string]*orc.Job
 	gangs                map[string]jobGang
 	terminationRequested []string
+	cleanupWithoutDelete []string
+	nodeAssignments      map[string]map[string]util.Empty
+	nodeEvents           map[string]string
+	nodeEventJobs        map[string]map[string]util.Empty
 }
 
 var jobStateRankings = map[orc.JobState]int{
@@ -113,6 +120,27 @@ func (t *jobTracker) TrackState(state shared.JobReplicaState) bool {
 	if state.State == orc.JobStateRunning && state.Node.Present {
 		sched.RegisterRunningReplica(state.Id, state.Rank, shared.JobDimensions(job), state.Node.Value, nil,
 			timeAllocationOrDefault(job.Specification.TimeAllocation))
+	}
+	if state.Node.Present && state.State != orc.JobStateInQueue {
+		assigned := t.nodeAssignments[state.Node.Value]
+		if assigned == nil {
+			assigned = map[string]util.Empty{}
+			t.nodeAssignments[state.Node.Value] = assigned
+		}
+		assigned[state.Id] = util.Empty{}
+		if state.State.IsFinal() {
+			// Keep the node event as the terminal update's visible status. Otherwise
+			// Kubernetes' generic exit code overwrites the maintenance explanation.
+			if message, ok := t.takeNodeEvent(state.Node.Value, state.Id); ok {
+				state.Status = util.OptValue(message)
+			} else if lifecycle, ok := nodeLifecycles[state.Node.Value]; ok && lifecycle.cordoned &&
+				state.State == orc.JobStateFailure && state.Status.Present &&
+				strings.Contains(state.Status.Value, "exit code 255") {
+				// Kubernetes commonly reports a node shutdown as exit code 255. When
+				// we observed the node was cordoned, this is a maintenance interruption.
+				state.Status = util.OptValue("The node running this job was taken offline for maintenance. The job may have been terminated.")
+			}
+		}
 	}
 
 	gang.replicaState[state.Rank] = state
@@ -159,9 +187,42 @@ func (t *jobTracker) TrackState(state shared.JobReplicaState) bool {
 	return true
 }
 
+func (t *jobTracker) PreserveState(jobId string) {
+	t.batch.PreserveState(jobId)
+}
+
+func (t *jobTracker) takeNodeEvent(nodeName, jobID string) (string, bool) {
+	message, affected := t.nodeEvents[nodeName]
+	if !affected {
+		return "", false
+	}
+	warned := t.nodeEventJobs[nodeName]
+	if warned == nil {
+		warned = map[string]util.Empty{}
+		t.nodeEventJobs[nodeName] = warned
+	}
+	if _, sent := warned[jobID]; sent {
+		return "", false
+	}
+	warned[jobID] = util.Empty{}
+	return message, true
+}
+
+func (t *jobTracker) warnForNode(nodeName, jobID string) {
+	if message, ok := t.takeNodeEvent(nodeName, jobID); ok {
+		t.AddUpdate(jobID, orc.JobUpdate{Status: util.OptValue(message)})
+	}
+}
+
 func (t *jobTracker) RequestCleanup(jobId string) {
 	if !slices.Contains(t.terminationRequested, jobId) {
 		t.terminationRequested = append(t.terminationRequested, jobId)
+	}
+}
+
+func (t *jobTracker) RequestCleanupWithoutResourceDeletion(jobId string) {
+	if !slices.Contains(t.cleanupWithoutDelete, jobId) {
+		t.cleanupWithoutDelete = append(t.cleanupWithoutDelete, jobId)
 	}
 }
 
@@ -171,6 +232,39 @@ func timeAllocationOrDefault(alloc util.Option[orc.SimpleDuration]) orc.SimpleDu
 		Minutes: 0,
 		Seconds: 0,
 	})
+}
+
+func jobWithTransientApiServers(job *orc.Job, data any) *orc.Job {
+	transientJob, ok := data.(*orc.Job)
+	if !ok || transientJob == nil {
+		return job
+	}
+
+	var apiServers []orc.AppParameterValue
+	for _, resource := range transientJob.Specification.Resources {
+		if resource.Type != orc.AppParameterValueTypeApiServer {
+			continue
+		}
+
+		found := false
+		for _, existing := range job.Specification.Resources {
+			if existing.Equal(resource) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			apiServers = append(apiServers, resource)
+		}
+	}
+
+	if len(apiServers) == 0 {
+		return job
+	}
+
+	jobCopy := *job
+	jobCopy.Specification.Resources = append(slices.Clone(job.Specification.Resources), apiServers...)
+	return &jobCopy
 }
 
 func vmDetachLockedResources(job *orc.Job) (int, *util.HttpError) {
@@ -262,6 +356,149 @@ func initJobQueue() {
 
 var didNotifyUnableToSchedule = map[string]util.Empty{}
 
+type nodeLifecycle struct {
+	uid       string
+	cordoned  bool
+	available bool
+	present   bool
+	warned    bool
+}
+
+type nodeLifecycleEvent struct {
+	nodeName string
+	message  string
+}
+
+var nodeLifecycles = map[string]nodeLifecycle{}
+var nodeLifecyclesLoaded bool
+var nodeLifecycleDirty bool
+
+func loadNodeLifecycles() {
+	if nodeLifecyclesLoaded {
+		return
+	}
+	type row struct {
+		NodeName  string
+		NodeUid   string
+		Cordoned  bool
+		Available bool
+	}
+	for _, persisted := range db.NewTx(func(tx *db.Transaction) []row {
+		return db.Select[row](tx, "select node_name, node_uid, cordoned, available from k8s.node_lifecycles", db.Params{})
+	}) {
+		nodeLifecycles[persisted.NodeName] = nodeLifecycle{uid: persisted.NodeUid, cordoned: persisted.Cordoned, available: persisted.Available}
+	}
+	nodeLifecyclesLoaded = true
+}
+
+func persistNodeLifecycles() {
+	if !nodeLifecycleDirty {
+		return
+	}
+	db.NewTx0(func(tx *db.Transaction) {
+		for name, lifecycle := range nodeLifecycles {
+			db.Exec(tx, `
+				insert into k8s.node_lifecycles(node_name, node_uid, cordoned, available)
+				values (:node_name, :node_uid, :cordoned, :available)
+				on conflict (node_name) do update set
+					node_uid = excluded.node_uid,
+					cordoned = excluded.cordoned,
+					available = excluded.available,
+					cordon_changed_at = case when k8s.node_lifecycles.cordoned <> excluded.cordoned then now() else k8s.node_lifecycles.cordon_changed_at end,
+					availability_changed_at = case when k8s.node_lifecycles.available <> excluded.available then now() else k8s.node_lifecycles.availability_changed_at end,
+					maintenance_generation = case when not k8s.node_lifecycles.cordoned and excluded.cordoned then k8s.node_lifecycles.maintenance_generation + 1 else k8s.node_lifecycles.maintenance_generation end
+			`, db.Params{"node_name": name, "node_uid": lifecycle.uid, "cordoned": lifecycle.cordoned, "available": lifecycle.available})
+		}
+	})
+	nodeLifecycleDirty = false
+}
+
+func nodeAvailability(node *k8score.Node) bool {
+	for _, condition := range node.Status.Conditions {
+		if condition.Type == k8score.NodeReady {
+			return condition.Status == k8score.ConditionTrue
+		}
+	}
+	return false
+}
+
+// observeNodeLifecycles operates on the physical informer snapshot, before a node
+// can be expanded into several scheduler categories in development mode.
+func observeNodeLifecycles(nodeList []*k8score.Node) []nodeLifecycleEvent {
+	seen := map[string]util.Empty{}
+	var events []nodeLifecycleEvent
+	for _, node := range nodeList {
+		seen[node.Name] = util.Empty{}
+		uid := string(node.UID)
+		available := nodeAvailability(node)
+		previous, known := nodeLifecycles[node.Name]
+		if !known || previous.uid != uid {
+			nodeLifecycles[node.Name] = nodeLifecycle{uid: uid, cordoned: node.Spec.Unschedulable, available: available, present: true}
+			nodeLifecycleDirty = true
+			continue
+		}
+
+		current := previous
+		current.cordoned = node.Spec.Unschedulable
+		current.available = available
+		current.present = true
+		if !previous.cordoned && current.cordoned {
+			events = append(events, nodeLifecycleEvent{node.Name,
+				"The node running this job has been paused for maintenance. The job is still running, but it may be interrupted when the node is taken offline."})
+			current.warned = true
+		}
+		if previous.available && !current.available {
+			if previous.cordoned {
+				events = append(events, nodeLifecycleEvent{node.Name,
+					"The node running this job was taken offline for maintenance. The job may have been terminated."})
+			} else {
+				events = append(events, nodeLifecycleEvent{node.Name,
+					"The machine running this job is no longer available. The job may have been terminated."})
+			}
+			current.warned = true
+		}
+		if previous.cordoned && !current.cordoned && previous.warned {
+			events = append(events, nodeLifecycleEvent{node.Name, "The node running this job is available again."})
+			current.warned = false
+		} else if !previous.available && current.available && previous.warned {
+			events = append(events, nodeLifecycleEvent{node.Name, "The machine running this job is available again."})
+			current.warned = false
+		}
+		nodeLifecycles[node.Name] = current
+		if current != previous {
+			nodeLifecycleDirty = true
+		}
+	}
+
+	for name, previous := range nodeLifecycles {
+		if _, ok := seen[name]; ok || !previous.present {
+			continue
+		}
+		current := previous
+		current.present = false
+		current.available = false
+		if previous.available {
+			message := "The machine running this job is no longer available. The job may have been terminated."
+			if previous.cordoned {
+				message = "The node running this job was taken offline for maintenance. The job may have been terminated."
+			}
+			events = append(events, nodeLifecycleEvent{name, message})
+			current.warned = true
+		}
+		nodeLifecycles[name] = current
+		nodeLifecycleDirty = true
+	}
+	return events
+}
+
+func publishNodeLifecycleEvents(tracker *jobTracker, events []nodeLifecycleEvent) {
+	for _, event := range events {
+		for jobID := range tracker.nodeAssignments[event.nodeName] {
+			tracker.warnForNode(event.nodeName, jobID)
+		}
+	}
+}
+
 func loopMonitoring() {
 	timerTotal := util.NewTimer()
 	defer func() {
@@ -271,13 +508,17 @@ func loopMonitoring() {
 	timer := util.NewTimer()
 	now := time.Now()
 	nodeGroups := map[string]map[string]string{}
+	var nodeLifecycleEvents []nodeLifecycleEvent
 
 	// NOTE(Dan): Node monitoring must go before job monitoring such that the scheduler knows about the nodes before
 	// it knows about running replicas.
 	{
 		timer.Mark()
 
+		loadNodeLifecycles()
 		nodeList := nodes.List()
+		nodeLifecycleEvents = observeNodeLifecycles(nodeList)
+		persistNodeLifecycles()
 
 		if util.DevelopmentModeEnabled() && len(nodeList) == 1 {
 			baseNode := nodeList[0]
@@ -403,8 +644,14 @@ func loopMonitoring() {
 	timer.Mark()
 	activeJobs := controller.JobRetrieveAll()
 	tracker := &jobTracker{
-		batch: controller.JobUpdatesBegin(),
-		gangs: map[string]jobGang{},
+		batch:           controller.JobUpdatesBegin(),
+		gangs:           map[string]jobGang{},
+		nodeAssignments: map[string]map[string]util.Empty{},
+		nodeEvents:      map[string]string{},
+		nodeEventJobs:   map[string]map[string]util.Empty{},
+	}
+	for _, event := range nodeLifecycleEvents {
+		tracker.nodeEvents[event.nodeName] = event.message
 	}
 
 	tracker.jobs = activeJobs
@@ -425,12 +672,25 @@ func loopMonitoring() {
 	metricMonitoring.WithLabelValues("RemoveFromQueue").Observe(timer.Mark().Seconds())
 
 	timer.Mark()
-	containers.Monitor(tracker, activeJobs)
+	containerJobs := map[string]*orc.Job{}
+	for jobId, job := range activeJobs {
+		if backendIsContainers(job) {
+			containerJobs[jobId] = job
+		}
+	}
+	containers.Monitor(tracker, containerJobs)
 	metricMonitoring.WithLabelValues("ContainerMonitor").Observe(timer.Mark().Seconds())
 
 	timer.Mark()
-	kubevirt.Monitor(tracker, activeJobs)
+	kubevirtJobs := map[string]*orc.Job{}
+	for jobId, job := range activeJobs {
+		if backendIsKubevirt(job) {
+			kubevirtJobs[jobId] = job
+		}
+	}
+	kubevirt.Monitor(tracker, kubevirtJobs)
 	metricMonitoring.WithLabelValues("VirtualMachineMonitor").Observe(timer.Mark().Seconds())
+	publishNodeLifecycleEvents(tracker, nodeLifecycleEvents)
 
 	timer.Mark()
 	for _, sched := range schedulers {
@@ -485,8 +745,31 @@ func loopMonitoring() {
 						tracker.RequestCleanup(job.Id)
 					}
 				}
+
+				if now.After(nextMountReport) {
+					mounts, ok := shared.ResolveJobMounts(job)
+					if ok {
+						for _, mount := range mounts {
+							filesystem.ActivityRecord(
+								rpc.Actor{
+									Username: job.Owner.CreatedBy,
+								},
+								filesystem.ActivityEvent{
+									Kind:      filesystem.ActivityMount,
+									Operation: filesystem.ActivityOperationMount,
+									Targets:   []filesystem.ActivityTarget{{UCloudPath: mount.UCloudPath}},
+								},
+							)
+						}
+					}
+				}
 			}
 		}
+
+		if now.After(nextMountReport) {
+			nextMountReport = now.Add(30 * time.Minute)
+		}
+
 		metricMonitoring.WithLabelValues("CheckingLockState").Observe(timer.Mark().Seconds())
 
 		timer.Mark()
@@ -510,9 +793,24 @@ func loopMonitoring() {
 			}
 		}
 
+		for _, jobId := range tracker.cleanupWithoutDelete {
+			job, ok := controller.JobRetrieve(jobId)
+			if ok {
+				_ = terminate(controller.JobTerminateRequest{
+					Job:                  job,
+					IsCleanup:            true,
+					SkipResourceDeletion: true,
+				})
+			}
+		}
+
 		for _, jobId := range batchResults.TerminatedDueToUnknownState {
 			job, ok := controller.JobRetrieve(jobId)
 			if ok {
+				if backendIsKubevirt(job) {
+					log.Warn("Refusing unknown-state cleanup for virtual machine job %s", jobId)
+					continue
+				}
 				_ = terminate(controller.JobTerminateRequest{Job: job, IsCleanup: true})
 			}
 		}
@@ -694,7 +992,7 @@ func loopMonitoring() {
 			}
 
 			sched.RegisterJobInQueue(entry.Id, shared.JobDimensions(entry),
-				entry.Specification.Replicas, nil, entry.CreatedAt, timeAllocationOrDefault(entry.Specification.TimeAllocation))
+				entry.Specification.Replicas, entry, entry.CreatedAt, timeAllocationOrDefault(entry.Specification.TimeAllocation))
 
 			if !sched.JobInQueue(entry.Id) {
 				shared.RequestSchedule(entry)
@@ -723,6 +1021,7 @@ func loopMonitoring() {
 			if !ok {
 				continue
 			}
+			job = jobWithTransientApiServers(job, toSchedule.Data)
 			allScheduled = append(allScheduled, toSchedule)
 
 			var localMessages []controller.JobMessage = nil

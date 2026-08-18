@@ -28,6 +28,10 @@ func initFiles() {
 		return FilesRetrieve(info.Actor, request)
 	})
 
+	orcapi.FilesVisualize.Handler(func(info rpc.RequestInfo, request orcapi.FilesVisualizeRequest) (orcapi.FilesVisualizeResponse, *util.HttpError) {
+		return FilesVisualize(info.Actor, request)
+	})
+
 	orcapi.FilesMove.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.FilesSourceAndDestination]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
 		return FilesMove(info.Actor, request)
 	})
@@ -640,6 +644,28 @@ func FilesRetrieve(actor rpc.Actor, request orcapi.FilesRetrieveRequest) (orcapi
 
 	file := fileTransform(actor, drive, []orcapi.ProviderFile{resp})[0]
 	return file, nil
+}
+
+func FilesVisualize(actor rpc.Actor, request orcapi.FilesVisualizeRequest) (orcapi.FilesVisualizeResponse, *util.HttpError) {
+	drives, err := filesFetchDrives(actor, []string{request.Path}, orcapi.PermissionRead)
+	if err != nil {
+		return orcapi.FilesVisualizeResponse{}, err
+	}
+	driveID, _ := orcapi.DriveIdFromUCloudPath(request.Path)
+	drive := drives[driveID]
+	if !featureSupported(driveType, drive.Specification.Product, driveStatsVisualization) {
+		return orcapi.FilesVisualizeResponse{}, util.HttpErr(http.StatusNotFound, "storage visualization is not supported")
+	}
+
+	return InvokeProvider(
+		drive.Specification.Product.Provider,
+		orcapi.FilesProviderVisualize,
+		orcapi.FilesProviderVisualizeRequest{Path: request.Path, ResolvedCollection: drive},
+		ProviderCallOpts{
+			Username: util.OptValue(actor.Username),
+			Reason:   util.OptValue("visualize storage usage"),
+		},
+	)
 }
 
 func fileTransform(actor rpc.Actor, driveInfo orcapi.Drive, files []orcapi.ProviderFile) []orcapi.UFile {

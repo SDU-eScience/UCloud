@@ -62,12 +62,14 @@ export interface ApplicationMetadata {
 export interface ApplicationInvocationDescription {
     tool: ToolReference;
     invocation: InvocationParameter[];
+    ucx?: UcxDescription | null;
     parameters: ApplicationParameter[];
     outputFileGlobs: string[];
     applicationType: ("BATCH" | "VNC" | "WEB");
     vnc?: VncDescription;
     web?: WebDescription;
     ssh?: SshDescription;
+    inference?: InferenceDescription;
     container?: ContainerDescription;
     environment?: Record<string, InvocationParameter>;
     allowAdditionalMounts?: boolean;
@@ -78,6 +80,16 @@ export interface ApplicationInvocationDescription {
     allowPublicIp: boolean;
     fileExtensions: string[];
     licenseServers: string[];
+}
+
+export interface UcxDescription {
+    executable?: UcxExecutableDescription | null;
+}
+
+export interface UcxExecutableDescription {
+    manifestUrl: string;
+    publicKey: string;
+    binaryName: string;
 }
 
 export interface SimpleDuration {
@@ -321,6 +333,10 @@ export interface WebDescription {
 
 export interface SshDescription {
     mode: "DISABLED" | "OPTIONAL" | "MANDATORY";
+}
+
+export interface InferenceDescription {
+    mode: "NONE" | "OPTIONAL" | "MANDATORY";
 }
 
 export interface ContainerDescription {

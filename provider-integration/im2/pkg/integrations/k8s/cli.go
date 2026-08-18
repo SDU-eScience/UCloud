@@ -5,6 +5,7 @@ import (
 
 	"ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/integrations/k8s/filesystem"
+	"ucloud.dk/pkg/integrations/k8s/inference"
 )
 
 func HandleCliWithoutConfig(command string) bool {
@@ -31,7 +32,11 @@ func HandleCli(command string) {
 		controller.LicenseCli(os.Args[2:])
 	case "storage-scan":
 		StorageScanCli(os.Args[2:])
+	case "metadata":
+		filesystem.MetadataCli(os.Args[2:])
 	case "jobs":
 		HandleJobsCommand()
+	case "inference":
+		inference.InferenceCli(os.Args[2:])
 	}
 }

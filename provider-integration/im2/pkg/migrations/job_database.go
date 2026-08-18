@@ -65,3 +65,18 @@ func jobDatabaseV3() db.MigrationScript {
 		},
 	}
 }
+
+func jobDatabaseV4() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "jobDatabaseV4",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					alter table web_sessions add column tls boolean not null default false
+				`,
+				db.Params{},
+			)
+		},
+	}
+}

@@ -57,6 +57,7 @@ interface SubscribeParameters<T = any> {
     call: string;
     payload: T | null;
     handler: (message: WebsocketResponse) => void;
+    projectOverride?: string | null;
 }
 
 interface CallParameters<T = any> {
@@ -87,12 +88,13 @@ export class WebSocketConnection {
         closeScript(this);
     }
 
-    public async subscribe<T>({call, payload, handler}: SubscribeParameters<T>): Promise<void> {
+    public async subscribe<T>({call, payload, handler, projectOverride}: SubscribeParameters<T>): Promise<void> {
         const streamId = (this.nextStreamId++).toString();
         const bearer = this.settings.includeAuthentication !== false ?
             await this.client.receiveAccessTokenOrRefreshIt() : undefined;
         const username = this.client.activeUsername ?? "";
-        const projectId = this.client.projectId ?? null;
+        const hasProjectOverride = projectOverride !== undefined;
+        const projectId = hasProjectOverride ? projectOverride : this.client.projectId ?? null;
         const signedIntent = signIntentToCall(username, projectId, call) ?? undefined;
 
         return new Promise((resolve) => {
@@ -104,7 +106,7 @@ export class WebSocketConnection {
                 }
             });
 
-            const project = this.client.projectId;
+            const project = hasProjectOverride ? projectOverride ?? undefined : this.client.projectId;
 
             this.sendMessage({call, streamId, payload, project, bearer, signedIntent});
         });

@@ -424,6 +424,42 @@ func TestRequestScheduleQueueRetryDoesNotDuplicate(t *testing.T) {
 	}
 }
 
+func TestJobWithTransientApiServers(t *testing.T) {
+	apiServer := orc.AppParameterApiServer("Inference", "https://chat.example.com/v1", "uci-secret")
+	tracked := &orc.Job{
+		Specification: orc.JobSpecification{
+			Resources: []orc.AppParameterValue{
+				orc.AppParameterValueFile("/123/path", true),
+			},
+		},
+	}
+	transient := &orc.Job{
+		Specification: orc.JobSpecification{
+			Resources: []orc.AppParameterValue{
+				apiServer,
+			},
+		},
+	}
+
+	result := jobWithTransientApiServers(tracked, transient)
+
+	if len(result.Specification.Resources) != 2 {
+		t.Fatalf("expected transient api server to be restored, got %d resources", len(result.Specification.Resources))
+	}
+	if result.Specification.Resources[1].Type != orc.AppParameterValueTypeApiServer {
+		t.Fatalf("expected api server resource")
+	}
+	if len(tracked.Specification.Resources) != 1 {
+		t.Fatalf("tracked job was mutated")
+	}
+
+	tracked.Specification.Resources = append(tracked.Specification.Resources, apiServer)
+	result = jobWithTransientApiServers(tracked, transient)
+	if len(result.Specification.Resources) != 2 {
+		t.Fatalf("expected existing api server not to be duplicated, got %d resources", len(result.Specification.Resources))
+	}
+}
+
 func TestCpuStandardScenarioScheduling(t *testing.T) {
 	shared.ServiceConfig = &cfg.ServicesConfigurationKubernetes{}
 	shared.ServiceConfig.Compute.Machines = map[string]cfg.K8sMachineCategory{

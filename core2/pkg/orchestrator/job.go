@@ -70,6 +70,12 @@ func initJobs() {
 	go jobNotificationsLoopSendPending()
 
 	orcapi.JobsCreate.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.JobSpecification]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
+		for _, reqItem := range request.Items {
+			if reqItem.Application.Name == "syncthing" {
+				return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(http.StatusBadRequest, "this application cannot be started through this endpoint")
+			}
+		}
+
 		created, err := JobCreate(info.Actor, request)
 		if err != nil {
 			return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
@@ -177,7 +183,7 @@ func initJobs() {
 
 						if validatedResources.Present {
 							oldResources := job.Resources
-							job.Resources = validatedResources.Value
+							job.Resources = jobPersistableResources(validatedResources.Value)
 
 							for _, old := range oldResources {
 								found := false
@@ -267,11 +273,12 @@ func initJobs() {
 			}
 
 			spec := reqItem.Spec
+			persistedResources := jobPersistableResources(spec.Resources)
 
 			support, _ := SupportByProduct[orcapi.JobSupport](jobType, spec.Product)
 
 			encodedParams, _ := json.Marshal(spec.Parameters)
-			encodedResources, _ := json.Marshal(spec.Resources)
+			encodedResources, _ := json.Marshal(persistedResources)
 			encodedProduct, _ := json.Marshal(support.Product)
 			encodedSupport, _ := json.Marshal(support.ResolvedSupport)
 			encodedMachineType, _ := json.Marshal(map[string]any{
@@ -293,7 +300,7 @@ func initJobs() {
 					Name:           spec.Name,
 					Replicas:       spec.Replicas,
 					Parameters:     spec.Parameters,
-					Resources:      spec.Resources,
+					Resources:      persistedResources,
 					TimeAllocation: spec.TimeAllocation,
 					OpenedFile:     spec.OpenedFile,
 					SshEnabled:     spec.SshEnabled,
@@ -824,7 +831,8 @@ func JobCreate(actor rpc.Actor, request fndapi.BulkRequest[orcapi.JobSpecificati
 		}
 
 		encodedParams, _ := json.Marshal(spec.Parameters)
-		encodedResources, _ := json.Marshal(spec.Resources)
+		persistedResources := jobPersistableResources(spec.Resources)
+		encodedResources, _ := json.Marshal(persistedResources)
 		encodedProduct, _ := json.Marshal(support.Product)
 		encodedSupport, _ := json.Marshal(support.ResolvedSupport)
 		encodedMachineType, _ := json.Marshal(map[string]any{
@@ -858,7 +866,7 @@ func JobCreate(actor rpc.Actor, request fndapi.BulkRequest[orcapi.JobSpecificati
 			Hostname:       spec.Hostname,
 			Replicas:       spec.Replicas,
 			Parameters:     spec.Parameters,
-			Resources:      spec.Resources,
+			Resources:      persistedResources,
 			TimeAllocation: spec.TimeAllocation,
 			OpenedFile:     spec.OpenedFile,
 			SshEnabled:     spec.SshEnabled,
@@ -887,7 +895,7 @@ func JobCreate(actor rpc.Actor, request fndapi.BulkRequest[orcapi.JobSpecificati
 			Updates:   nil,
 		}
 
-		job, err := ResourceCreateThroughProvider(actor, jobType, spec.ResourceSpecification, extra, orcapi.JobsProviderCreate)
+		job, err := jobCreateThroughProvider(actor, spec, extra)
 		if err != nil {
 			return nil, err
 		}
@@ -896,7 +904,7 @@ func JobCreate(actor rpc.Actor, request fndapi.BulkRequest[orcapi.JobSpecificati
 			jobBindResource(job.Id, param)
 		}
 
-		for _, resc := range spec.Resources {
+		for _, resc := range persistedResources {
 			jobBindResource(job.Id, resc)
 		}
 
@@ -904,6 +912,58 @@ func JobCreate(actor rpc.Actor, request fndapi.BulkRequest[orcapi.JobSpecificati
 	}
 
 	return created, nil
+}
+
+func jobCreateThroughProvider(actor rpc.Actor, spec orcapi.JobSpecification, extra *internalJob) (orcapi.Job, *util.HttpError) {
+	var empty orcapi.Job
+
+	if !resourceSpecificationHasProduct(spec.ResourceSpecification) {
+		return empty, util.HttpErr(http.StatusBadRequest, "resource does not specify a product")
+	}
+
+	if err := ResourceValidateAllocation(actor, spec.ResourceSpecification.Product); err != nil {
+		return empty, err
+	}
+
+	id, job, err := ResourceCreate[orcapi.Job](actor, jobType, spec.ResourceSpecification, extra)
+	if err != nil {
+		return empty, err
+	}
+
+	providerJob := job
+	providerJob.Specification.Resources = spec.Resources // NOTE(Dan): Pass unfiltered resources to provider
+	resp, err := InvokeProvider(spec.ResourceSpecification.Product.Provider, orcapi.JobsProviderCreate, fndapi.BulkRequestOf(providerJob), ProviderCallOpts{
+		Username: util.OptValue(actor.Username),
+		Reason:   util.OptValue("Creating resource: " + jobType),
+	})
+
+	if err != nil {
+		ResourceDelete(actor, jobType, id)
+		return empty, err
+	}
+
+	providerId := ""
+	if len(resp.Responses) > 0 {
+		providerId = resp.Responses[0].Id
+	}
+	if providerId != "" {
+		ResourceSystemUpdate(jobType, id, func(r *resource, mapped orcapi.Job) {
+			r.ProviderId.Set(providerId)
+		})
+	}
+
+	ResourceConfirm(jobType, id)
+	return job, nil
+}
+
+func jobPersistableResources(resources []orcapi.AppParameterValue) []orcapi.AppParameterValue {
+	result := make([]orcapi.AppParameterValue, 0, len(resources))
+	for _, resource := range resources {
+		if resource.Type != orcapi.AppParameterValueTypeApiServer {
+			result = append(result, resource)
+		}
+	}
+	return result
 }
 
 func JobsRenameBulk(actor rpc.Actor, request fndapi.BulkRequest[orcapi.JobRenameRequest]) *util.HttpError {
@@ -1467,6 +1527,10 @@ func jobsValidateForSubmission(actor rpc.Actor, spec *orcapi.JobSpecification) *
 	}
 
 	for name, value := range spec.Parameters {
+		if value.Type == orcapi.AppParameterValueTypeApiServer {
+			return util.HttpErr(http.StatusBadRequest, "api_server values must be supplied as resources")
+		}
+
 		newValue := value
 		err := jobValidateValue(actor, &newValue, tool.Backend, support, util.OptNone[string]())
 		if err != nil {
@@ -1657,6 +1721,17 @@ func jobValidateValue(
 
 		if network.Status.ResolvedProduct.Value.Category.Provider != support.Product.Category.Provider {
 			return util.HttpErr(http.StatusForbidden, "you cannot use this network at this provider")
+		}
+
+	case orcapi.AppParameterValueTypeApiServer:
+		if err := util.ValidateStringE(&value.Server, "api server", 0); err != nil {
+			return err
+		}
+		if err := util.ValidateStringE(&value.Token, "api server token", util.StringValidationAllowLong); err != nil {
+			return err
+		}
+		if err := util.ValidateStringE(&value.TokenType, "api server token type", 0); err != nil {
+			return err
 		}
 	}
 
@@ -1914,14 +1989,26 @@ func jobLoadCachePopulate() {
 
 func jobLoadCachePopulateBucket(bucket int, rank int) []jobLoadRow {
 	return db.NewTx(func(tx *db.Transaction) []jobLoadRow {
-		rows := db.Select[jobLoadRow](
-			tx,
-			`
+		var rows []jobLoadRow
+		var lastResource int64
+		for {
+			batch := db.Select[jobLoadRow](
+				tx,
+				`
 				with
 					jobs as (
 						select j.*
 						from app_orchestrator.jobs j
 						where j.resource % cast(:concurrency as int8) = cast(:bucket as int8)
+							and j.resource > cast(:last_resource as int8)
+							and not exists (
+								select 1
+								from provider.resource_update u
+								where u.resource = j.resource
+								offset 10000
+							)
+						order by j.resource
+						limit 10000
 					),
 					inputs as (
 						select 
@@ -1986,12 +2073,21 @@ func jobLoadCachePopulateBucket(bucket int, rank int) []jobLoadRow {
 					join inputs i on i.resource = j.resource
 					join mounts m on m.resource = j.resource
 					join updates u on u.resource = j.resource
-			`,
-			db.Params{
-				"bucket":      int64(bucket),
-				"concurrency": int64(rank),
-			},
-		)
+				order by j.resource
+				`,
+				db.Params{
+					"bucket":        int64(bucket),
+					"concurrency":   int64(rank),
+					"last_resource": lastResource,
+				},
+			)
+			rows = append(rows, batch...)
+			if len(batch) < 10000 {
+				break
+			}
+			lastResource = batch[len(batch)-1].Resource
+			log.Info("%v: Job batch loaded.", bucket)
+		}
 		return rows
 	})
 }

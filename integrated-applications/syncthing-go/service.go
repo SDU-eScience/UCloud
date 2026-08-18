@@ -50,14 +50,13 @@ type UCloudSyncthingConfig struct {
 }
 
 type UCloudConfigService struct {
-	configFolder           string
-	apiKey                 string
-	deviceID               string
-	config                 UCloudSyncthingConfig
-	syncthingClient        *SyncthingClient
-	previouslyObservedFile string
-	logger                 *log.Logger
-	xmlConfig              SyncthingConfigXML
+	configFolder    string
+	apiKey          string
+	deviceID        string
+	config          UCloudSyncthingConfig
+	syncthingClient *SyncthingClient
+	logger          *log.Logger
+	xmlConfig       SyncthingConfigXML
 }
 
 func NewUCloudConfigService(configFolder string) (*UCloudConfigService, error) {
@@ -98,28 +97,32 @@ func (s *UCloudConfigService) Run() error {
 
 	deviceIDFile := filepath.Join(s.configFolder, "ucloud_device_id.txt")
 	if _, err := os.Stat(deviceIDFile); os.IsNotExist(err) {
-		os.WriteFile(deviceIDFile, []byte(s.deviceID), 0644)
+		if err := os.WriteFile(deviceIDFile, []byte(s.deviceID), 0644); err != nil {
+			return fmt.Errorf("failed to write UCloud device ID: %w", err)
+		}
+	} else if err != nil {
+		return fmt.Errorf("failed to inspect UCloud device ID: %w", err)
 	}
 
 	ucloudConfigFile := filepath.Join(s.configFolder, "ucloud_config.json")
-	s.processConfigChanges(ucloudConfigFile)
+	if err := s.processConfigChanges(ucloudConfigFile); err != nil {
+		return err
+	}
 
 	for {
 		time.Sleep(500 * time.Millisecond)
 	}
 }
 
-func (s *UCloudConfigService) processConfigChanges(configPath string) {
+func (s *UCloudConfigService) processConfigChanges(configPath string) error {
 	configBytes, err := os.ReadFile(configPath)
 	if err != nil {
-		s.logger.Printf("Unable to read config: %v", err)
-		return
+		return fmt.Errorf("unable to read UCloud config: %w", err)
 	}
 
 	var newConfig UCloudSyncthingConfig
 	if err := json.Unmarshal(configBytes, &newConfig); err != nil {
-		s.logger.Printf("Unable to parse config: %v", err)
-		return
+		return fmt.Errorf("unable to parse UCloud config: %w", err)
 	}
 
 	s.config = s.validate(newConfig)
@@ -223,6 +226,8 @@ func (s *UCloudConfigService) processConfigChanges(configPath string) {
 		err := s.syncthingClient.AddFolders(s.config.Folders, s.config.Devices)
 		return Empty{}, err
 	})
+
+	return nil
 }
 
 func (s *UCloudConfigService) validate(newConfig UCloudSyncthingConfig) UCloudSyncthingConfig {

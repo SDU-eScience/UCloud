@@ -30,11 +30,12 @@ import (
 	cfg "ucloud.dk/pkg/config"
 	ctrl "ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/integrations/k8s/filesystem"
+	introspection "ucloud.dk/pkg/integrations/k8s/job-introspection"
 	"ucloud.dk/pkg/integrations/k8s/shared"
-	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	orc "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -44,6 +45,11 @@ var Namespace string
 var Enabled = false
 
 const enableDefaultPassword = false
+
+type activityMount struct {
+	UCloudPath string
+	ReadOnly   bool
+}
 
 //go:embed ucloud-vmagent.service
 var vmAgentSystemdFile []byte
@@ -328,6 +334,43 @@ func vmiFsMutator() {
 				annotations = make(map[string]string)
 			}
 
+			if annotations["ucloud.dk/podLevelResources"] == "true" {
+				podResources := k8score.ResourceRequirements{
+					Limits:   k8score.ResourceList{},
+					Requests: k8score.ResourceList{},
+				}
+				for _, resourceName := range []k8score.ResourceName{k8score.ResourceCPU, k8score.ResourceMemory} {
+					if quantity, ok := vm.Spec.Template.Spec.Domain.Resources.Limits[resourceName]; ok {
+						podResources.Limits[resourceName] = quantity
+					}
+					if quantity, ok := vm.Spec.Template.Spec.Domain.Resources.Requests[resourceName]; ok {
+						podResources.Requests[resourceName] = quantity
+					}
+				}
+				ops = append(ops, jsonPatchOp{Op: "add", Path: "/spec/resources", Value: podResources})
+
+				removeContainerResources := func(containers []k8score.Container, path string) {
+					for containerIdx, container := range containers {
+						for _, resourceName := range []k8score.ResourceName{k8score.ResourceCPU, k8score.ResourceMemory} {
+							if _, ok := container.Resources.Limits[resourceName]; ok {
+								ops = append(ops, jsonPatchOp{
+									Op:   "remove",
+									Path: fmt.Sprintf("/spec/%s/%d/resources/limits/%s", path, containerIdx, resourceName),
+								})
+							}
+							if _, ok := container.Resources.Requests[resourceName]; ok {
+								ops = append(ops, jsonPatchOp{
+									Op:   "remove",
+									Path: fmt.Sprintf("/spec/%s/%d/resources/requests/%s", path, containerIdx, resourceName),
+								})
+							}
+						}
+					}
+				}
+				removeContainerResources(pod.Spec.Containers, "containers")
+				removeContainerResources(pod.Spec.InitContainers, "initContainers")
+			}
+
 			for cIdx, container := range pod.Spec.Containers {
 				if len(container.Command) == 1 && container.Command[0] == "/usr/libexec/virtiofsd" {
 					ops = append(ops, []jsonPatchOp{
@@ -340,6 +383,25 @@ func vmiFsMutator() {
 						// The following is needed to allow the alternative sandboxing mode that the virtiofs daemon will go into when running as root.
 						{Op: "remove", Path: fmt.Sprintf("/spec/containers/%d/securityContext/capabilities/drop", cIdx)},
 					}...)
+
+					for argIdx, arg := range container.Args {
+						if arg == "--cache=auto" {
+							ops = append(ops, jsonPatchOp{
+								Op:    "replace",
+								Path:  fmt.Sprintf("/spec/containers/%d/args/%d", cIdx, argIdx),
+								Value: "--cache=metadata",
+							})
+						}
+					}
+
+					if annotations["ucloud.dk/podLevelResources"] != "true" {
+						if _, ok := container.Resources.Limits[k8score.ResourceMemory]; ok {
+							ops = append(ops, jsonPatchOp{
+								Op:   "remove",
+								Path: fmt.Sprintf("/spec/containers/%d/resources/limits/%s", cIdx, k8score.ResourceMemory),
+							})
+						}
+					}
 				}
 
 				for mountIdx, mount := range container.VolumeMounts {
@@ -487,22 +549,32 @@ func follow(session *ctrl.FollowJobSession) {
 		return
 	}
 
+	workFolder := filepath.Join(jobFolder, "work")
 	logsFolder := filepath.Join(jobFolder, "logs")
+	logFolders := func() []string {
+		if info, err := os.Stat(logsFolder); err == nil && info.IsDir() {
+			return []string{logsFolder, workFolder}
+		}
+		return []string{workFolder, logsFolder}
+	}
 
 	trackFile := func(baseName string, file trackedLogFile) {
 		_, exists := logFiles[baseName]
 
 		if !exists {
-			stdout, ok1 := filesystem.OpenFile(filepath.Join(logsFolder, baseName), unix.O_RDONLY, 0)
-			if ok1 {
+			for _, folder := range logFolders() {
+				stdout, ok := filesystem.OpenFile(filepath.Join(folder, baseName), unix.O_RDONLY, 0)
+				if !ok {
+					continue
+				}
+
 				sinfo, err := stdout.Stat()
-				if err == nil {
-					if sinfo.Size() > 1024*256 {
-						_, _ = stdout.Seek(sinfo.Size()-1024*256, io.SeekStart)
-					}
+				if err == nil && sinfo.Size() > 1024*256 {
+					_, _ = stdout.Seek(sinfo.Size()-1024*256, io.SeekStart)
 				}
 				file.File = stdout
 				logFiles[baseName] = file
+				break
 			}
 		}
 	}
@@ -544,7 +616,6 @@ func follow(session *ctrl.FollowJobSession) {
 	}
 
 	readBuffer := make([]byte, 1024*4)
-	kvStatsPath := filepath.Join(logsFolder, ".ucmetrics-stats")
 	var kvStatsLastMtime int64
 	var kvStatsLastSize int64
 	kvStatsLastContent := ""
@@ -562,9 +633,13 @@ func follow(session *ctrl.FollowJobSession) {
 
 		trackAllFiles()
 		if !utilizationDataTracked {
-			path := filepath.Join(logsFolder, ".ucviz-utilization-data")
-			ring, err := util.FsRingOpen(path, utilSerializer)
-			if err == nil {
+			for _, folder := range logFolders() {
+				path := filepath.Join(folder, ".ucviz-utilization-data")
+				ring, err := util.FsRingOpen(path, utilSerializer)
+				if err != nil {
+					continue
+				}
+
 				ring.OnReset = func() {
 					select {
 					case utilizationResetChannel <- util.Empty{}:
@@ -579,6 +654,7 @@ func follow(session *ctrl.FollowJobSession) {
 					_ = ring.Follow(context.Background(), utilizationChannel, 256)
 					util.SilentClose(ring)
 				}()
+				break
 			}
 		}
 
@@ -602,9 +678,21 @@ func follow(session *ctrl.FollowJobSession) {
 			}
 		}
 
-		if finfo, err := os.Stat(kvStatsPath); err == nil {
-			currentMtime := finfo.ModTime().UnixNano()
-			currentSize := finfo.Size()
+		var kvStatsPath string
+		var kvStatsInfo os.FileInfo
+		for _, folder := range logFolders() {
+			candidatePath := filepath.Join(folder, ".ucmetrics-stats")
+			candidateInfo, err := os.Stat(candidatePath)
+			if err == nil {
+				kvStatsPath = candidatePath
+				kvStatsInfo = candidateInfo
+				break
+			}
+		}
+
+		if kvStatsInfo != nil {
+			currentMtime := kvStatsInfo.ModTime().UnixNano()
+			currentSize := kvStatsInfo.Size()
 			if currentMtime != kvStatsLastMtime || currentSize != kvStatsLastSize {
 				if f, ok := filesystem.OpenFile(kvStatsPath, unix.O_RDONLY, 0); ok {
 					data, readErr := io.ReadAll(f)
@@ -908,13 +996,17 @@ func terminate(request ctrl.JobTerminateRequest) *util.HttpError {
 	shared.ClearAssignedSshPort(request.Job)
 	shared.RemoveFromQueue(request.Job.Id)
 
-	name := vmName(request.Job.Id, 0)
-	err := KubevirtClient.VirtualMachine(Namespace).Delete(context.Background(), name, k8smeta.DeleteOptions{})
-	if err != nil && !k8serrors.IsNotFound(err) {
-		log.Info("Failed to delete VM: %v", err)
-		return util.ServerHttpError("Failed to delete VM")
+	if !request.SkipResourceDeletion {
+		name := vmName(request.Job.Id, 0)
+		err := KubevirtClient.VirtualMachine(Namespace).Delete(context.Background(), name, k8smeta.DeleteOptions{})
+		if err != nil && !k8serrors.IsNotFound(err) {
+			log.Info("Failed to delete VM: %v", err)
+			return util.ServerHttpError("Failed to delete VM")
+		}
 	}
-	diskCleanup(request.Job)
+	if !request.IsCleanup {
+		diskCleanup(request.Job)
+	}
 
 	if !request.IsCleanup {
 		job, ok := ctrl.JobRetrieve(request.Job.Id)
@@ -1020,6 +1112,7 @@ func openWebSession(job *orc.Job, sessionType orc.InteractiveSessionType, rank i
 					TargetDomain: ingress.Specification.Domain,
 					Flags:        flags,
 					IsPublic:     true,
+					TLS:          resource.TLS,
 				})
 			}
 		}
@@ -1183,7 +1276,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		},
 	}
 
-	if forwards, ok := job.Specification.Labels["ucloud.dk/serviceforwardstcp"]; ok {
+	if forwards, ok := job.Specification.Labels[orc.ResourceLabelServiceForwardTcp]; ok {
 		var ports []int
 		err := json.Unmarshal([]byte(forwards), &ports)
 		if err == nil {
@@ -1254,6 +1347,14 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		vm.Namespace = Namespace
 	} else {
 		vm = existingVm
+	}
+	if vm.Annotations == nil {
+		vm.Annotations = make(map[string]string)
+	}
+	if ServiceConfig.Compute.VirtualMachines.PodLevelResources {
+		vm.Annotations["ucloud.dk/podLevelResources"] = "true"
+	} else {
+		delete(vm.Annotations, "ucloud.dk/podLevelResources")
 	}
 
 	strategy := kvcore.RunStrategyAlways
@@ -1380,6 +1481,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		PersistentTag string
 	}
 	var unpreparedMounts []unpreparedMount
+	var activityMounts []activityMount
 	for _, param := range job.Specification.Resources {
 		if param.Type == orc.AppParameterValueTypeFile {
 			internalPath, ok, _ := filesystem.UCloudToInternal(param.Path)
@@ -1391,6 +1493,10 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 			if !ok {
 				continue
 			}
+			activityMounts = append(activityMounts, activityMount{
+				UCloudPath: param.Path,
+				ReadOnly:   param.ReadOnly,
+			})
 
 			unpreparedMounts = append(unpreparedMounts, unpreparedMount{
 				SubPath:    subpath,
@@ -1408,6 +1514,14 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		MountFolder:   "/opt",
 		PersistentTag: "ucloud-opt",
 	})
+	if ucxCacheMount := shared.UcxCacheMountForJob(job); ucxCacheMount.Present {
+		unpreparedMounts = append(unpreparedMounts, unpreparedMount{
+			SubPath:       ucxCacheMount.Value.SubPath,
+			ReadOnly:      true,
+			MountPath:     ucxCacheMount.Value.MountPath,
+			PersistentTag: "ucloud-ucx-cache",
+		})
+	}
 
 	jobFolder, herr := JobFolder(job)
 	if herr != nil {
@@ -1421,7 +1535,11 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 			return util.HttpErr(http.StatusInternalServerError, "internal error")
 		}
 
-		logsDir := filepath.Join(jobFolder, "logs")
+		logsDir := filepath.Join(jobFolder, "work")
+		legacyLogsDir := filepath.Join(jobFolder, "logs")
+		if info, statErr := os.Stat(legacyLogsDir); statErr == nil && info.IsDir() {
+			logsDir = legacyLogsDir
+		}
 		logsDirSubPath, ok := strings.CutPrefix(logsDir, filepath.Clean(ServiceConfig.FileSystem.MountPoint)+"/")
 		if !ok {
 			log.Warn("sub path to folder is invalid: %v %s", job.Id, err)
@@ -1443,23 +1561,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 
 			agentTok := util.SecureToken()
 			srvTok := util.SecureToken()
-			db.NewTx0(func(tx *db.Transaction) {
-				db.Exec(
-					tx,
-					`
-						insert into k8s.vmagents(job_id, agent_token, srv_token)
-						values (:job_id, :agent_token, :srv_token)
-						on conflict (job_id) do update set 
-						    agent_token = excluded.agent_token, 
-						    srv_token = excluded.srv_token
-					`,
-					db.Params{
-						"job_id":      job.Id,
-						"agent_token": agentTok,
-						"srv_token":   srvTok,
-					},
-				)
-			})
+			introspection.StoreToken(job.Id, agentTok, util.OptValue(srvTok))
 
 			writeConfFile := func(name string, data []byte, mode os.FileMode) *util.HttpError {
 				tokPath := filepath.Join(confDir, name)
@@ -1725,8 +1827,8 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 					err = herr.AsError()
 				} else if service != nil {
 					serviceAddr := service.Spec.ClusterIP
-					if serviceAddr != "" && job.Specification.Labels["ucloud.dk/serviceIpAddress"] != serviceAddr {
-						job.Specification.Labels["ucloud.dk/serviceIpAddress"] = serviceAddr
+					if serviceAddr != "" && job.Specification.Labels[orc.ResourceLabelServiceIpAddress] != serviceAddr {
+						job.Specification.Labels[orc.ResourceLabelServiceIpAddress] = serviceAddr
 						_, _ = orc.JobsControlUpdateLabels.Invoke(fndapi.BulkRequestOf(orc.JobsUpdateLabelsRequest{
 							Id:     job.Id,
 							Labels: job.Specification.Labels,
@@ -1781,7 +1883,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 
 				if herr == nil {
 					serviceAddr := baseService.Spec.ClusterIP
-					job.Specification.Labels["ucloud.dk/serviceIpAddress"] = serviceAddr
+					job.Specification.Labels[orc.ResourceLabelServiceIpAddress] = serviceAddr
 					_, _ = orc.JobsControlUpdateLabels.Invoke(fndapi.BulkRequestOf(orc.JobsUpdateLabelsRequest{
 						Id:     job.Id,
 						Labels: job.Specification.Labels,
@@ -1800,7 +1902,20 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		log.Warn("Failed to create VM: %v", err)
 		return util.HttpErr(http.StatusInternalServerError, "failed to create VM")
 	}
+	recordMountActivity(job, activityMounts)
 	return nil
+}
+
+func recordMountActivity(job *orc.Job, mounts []activityMount) {
+	actor := rpc.Actor{Username: job.Owner.CreatedBy}
+	for _, mount := range mounts {
+		filesystem.ActivityRecord(actor, filesystem.ActivityEvent{
+			Kind:      filesystem.ActivityMount,
+			Operation: filesystem.ActivityOperationMount,
+			ReadOnly:  mount.ReadOnly,
+			Targets:   []filesystem.ActivityTarget{{UCloudPath: mount.UCloudPath}},
+		})
+	}
 }
 
 const vmUpdateConflictRetries = 5

@@ -12,6 +12,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"ucloud.dk/pkg/gateway"
 	"ucloud.dk/pkg/ipc"
+	"ucloud.dk/pkg/ucxdelivery"
 
 	db "ucloud.dk/shared/pkg/database"
 	fnd "ucloud.dk/shared/pkg/foundation"
@@ -140,6 +141,7 @@ func InitJobDatabase() {
 func JobTrackNew(job orc.Job) {
 	timer := util.NewTimer()
 	// NOTE(Dan): The job is supposed to be copied into this function. Do not change it to accept a pointer.
+	job = jobForTracking(job)
 
 	// Automatically assign timestamps to all updates that do not have one.
 	timer.Mark()
@@ -164,6 +166,9 @@ func JobTrackNew(job orc.Job) {
 		metricTrackUpdateMemory.Observe(timer.Mark().Seconds())
 
 		jobTrackUpdateServer(&job)
+		if err := ucxdelivery.TrackJob(job); err != nil {
+			log.Warn("UCX delivery: failed to track job %s: %v", job.Id, err)
+		}
 
 		if refreshRoutes {
 			timer.Mark()
@@ -173,6 +178,30 @@ func JobTrackNew(job orc.Job) {
 	} else if RunsUserCode() {
 		_, _ = trackRequest.Invoke(trackRequestType{job.Id, job.ProviderGeneratedId})
 	}
+}
+
+func jobForTracking(job orc.Job) orc.Job {
+	if job.Status.State != orc.JobStateInQueue {
+		// NOTE(Dan): API servers are needed until it has started, after that we can delete them
+		job.Specification.Resources = appParameterValuesWithoutApiServers(job.Specification.Resources)
+	}
+
+	for i := range job.Updates {
+		if job.Updates[i].ResourceList.Present {
+			job.Updates[i].ResourceList.Value = appParameterValuesWithoutApiServers(job.Updates[i].ResourceList.Value)
+		}
+	}
+	return job
+}
+
+func appParameterValuesWithoutApiServers(values []orc.AppParameterValue) []orc.AppParameterValue {
+	result := make([]orc.AppParameterValue, 0, len(values))
+	for _, value := range values {
+		if value.Type != orc.AppParameterValueTypeApiServer {
+			result = append(result, value)
+		}
+	}
+	return result
 }
 
 func jobTrackUpdateServer(job *orc.Job) {
@@ -185,7 +214,8 @@ func jobTrackUpdateServer(job *orc.Job) {
 		job.Updates = truncatedJobs
 	}
 
-	jsonified, _ := json.Marshal(job)
+	tracked := jobForTracking(*job)
+	jsonified, _ := json.Marshal(tracked)
 	metricTrackDatabaseMarshal.Observe(timer.Mark().Seconds())
 
 	db.NewTx0(func(tx *db.Transaction) {
@@ -338,6 +368,15 @@ func (b *JobUpdateBatch) TrackState(jobId string, state orc.JobState, status uti
 	return false
 }
 
+func (b *JobUpdateBatch) PreserveState(jobId string) {
+	activeJobsMutex.RLock()
+	job, ok := activeJobs[jobId]
+	if ok {
+		b.trackedDirtyStates[jobId] = job.Status.State
+	}
+	activeJobsMutex.RUnlock()
+}
+
 func (b *JobUpdateBatch) TrackAssignedNodes(jobId string, nodes []string) {
 	newNodes, _ := b.trackedNodeAllocation[jobId]
 	for _, node := range nodes {
@@ -414,6 +453,11 @@ func (b *JobUpdateBatch) flush() {
 		if ok && expectationsMet {
 			if u.State.IsSet() {
 				job.Status.State = u.State.Get()
+
+				if job.Status.State != orc.JobStateInQueue {
+					// NOTE(Dan): API servers are needed until it has started, after that we can delete them
+					job.Specification.Resources = appParameterValuesWithoutApiServers(job.Specification.Resources)
+				}
 
 				if u.State.Get() == orc.JobStateRunning {
 					job.Status.StartedAt.Set(fnd.Timestamp(time.Now()))

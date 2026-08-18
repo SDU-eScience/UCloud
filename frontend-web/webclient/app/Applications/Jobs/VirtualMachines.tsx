@@ -32,7 +32,7 @@ import {PublicLinkBrowse} from "@/Applications/PublicLinks/PublicLinkBrowse";
 import {PrivateNetworkBrowse} from "@/Applications/PrivateNetwork/PrivateNetworkBrowse";
 import {NetworkIPBrowse} from "@/Applications/NetworkIP/NetworkIPBrowse";
 import {VirtualMachineRestartReminder} from "./VirtualMachineRestartReminder";
-import {VirtualMachineIconButton} from "@/Applications/Jobs/VirtualMachineIconButton";
+import {IconButton} from "@/ui-components/IconButton";
 import {HeroHeaderCard, HeroHeaderGrid, HeroMetric} from "@/Applications/Jobs/HeroHeader";
 import {PrimarySplitDropdownTrigger, VmActionItem, VmActionRow, VmActionSplitButton} from "@/Applications/Jobs/VmActionSplitButton";
 import PublicLinkApi, {PublicLink} from "@/UCloud/PublicLinkApi";
@@ -847,7 +847,7 @@ export const VirtualMachineStatus: React.FunctionComponent<{
                                     >
                                         {sshCommand ?? "Not announced by provider yet"}
                                     </code>
-                                    <VirtualMachineIconButton
+                                    <IconButton
                                         tooltip={"Copy to clipboard"}
                                         onClick={() => sshCommand ? copyToClipboard(sshCommand) : undefined}
                                         icon={"heroDocumentDuplicate"}
@@ -857,19 +857,19 @@ export const VirtualMachineStatus: React.FunctionComponent<{
                                 <dt>Public links</dt>
                                 <dd className={VmDetailRowWithAction}>
                                     <span>{accessIngresses.length > 0 ? accessIngresses.length : "None"}</span>
-                                    <VirtualMachineIconButton tooltip={"Manage"} onClick={openPublicLinksManager} icon={"heroWrenchScrewdriver"} />
+                                    <IconButton tooltip={"Manage"} onClick={openPublicLinksManager} icon={"heroWrenchScrewdriver"} />
                                 </dd>
 
                                 <dt>Public IPs</dt>
                                 <dd className={VmDetailRowWithAction}>
                                     <span>{accessPublicIps.length > 0 ? accessPublicIps.length : "None"}</span>
-                                    <VirtualMachineIconButton tooltip={"Manage"} onClick={openPublicIpsManager} icon={"heroWrenchScrewdriver"} />
+                                    <IconButton tooltip={"Manage"} onClick={openPublicIpsManager} icon={"heroWrenchScrewdriver"} />
                                 </dd>
 
                                 <dt>Connected networks</dt>
                                 <dd className={VmDetailRowWithAction}>
                                     <span>{accessPrivateNetworks.length > 0 ? accessPrivateNetworks.length : "None"}</span>
-                                    <VirtualMachineIconButton tooltip={"Manage"} onClick={openPrivateNetworksManager} icon={"heroWrenchScrewdriver"} />
+                                    <IconButton tooltip={"Manage"} onClick={openPrivateNetworksManager} icon={"heroWrenchScrewdriver"} />
                                 </dd>
                             </div>
                         </div>
@@ -1043,7 +1043,7 @@ const VmAccessResourceManagerDialog: React.FunctionComponent<{
             <div className={VmAccessManagerHeader}>
                 <Heading.h3>
                     <Flex gap={"8px"} alignItems={"center"}>
-                        <VirtualMachineIconButton tooltip={"Back"} onClick={onBackToManage} icon={"heroArrowLeft"} />
+                        <IconButton tooltip={"Back"} onClick={onBackToManage} icon={"heroArrowLeft"} />
                         {selectTitle}
                     </Flex>
                 </Heading.h3>
@@ -1065,7 +1065,7 @@ const VmAccessResourceManagerDialog: React.FunctionComponent<{
         <div className={VmAccessManagerHeader}>
             <Heading.h3>{title}</Heading.h3>
             <div className={VmAccessManagerControls}>
-                <VirtualMachineIconButton tooltip={"Attach resource"} onClick={onAddResource} icon={"heroPlus"} />
+                <IconButton tooltip={"Attach resource"} onClick={onAddResource} icon={"heroPlus"} />
             </div>
         </div>
 
@@ -1090,13 +1090,13 @@ const VmAccessResourceManagerDialog: React.FunctionComponent<{
                                 error={!inlineCreationIsValid}
                             />
                         </form>
-                        <VirtualMachineIconButton
+                        <IconButton
                             tooltip={"Confirm"}
                             onClick={onInlineCreationConfirm}
                             icon={"heroCheck"}
                             color={inlineCreationIsValid ? "successMain" : "textSecondary"}
                         />
-                        <VirtualMachineIconButton
+                        <IconButton
                             tooltip={"Cancel"}
                             onClick={closeInlineCreation}
                             icon={"heroMinus"}
@@ -1107,7 +1107,7 @@ const VmAccessResourceManagerDialog: React.FunctionComponent<{
                 {attached.map((resource, idx) => (
                     <Flex key={`${vmAccessResourceKey(resource)}-${idx}`} gap={"8px"}>
                         <Box flexGrow={1}>{labelForResource(resource)}</Box>
-                        <VirtualMachineIconButton
+                        <IconButton
                             tooltip={"Remove resource"}
                             onClick={() => onRemoveResource(resource)}
                             icon={"heroMinus"}

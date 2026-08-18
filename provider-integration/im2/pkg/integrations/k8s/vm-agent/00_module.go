@@ -15,6 +15,7 @@ import (
 	ws "github.com/gorilla/websocket"
 	introspection "ucloud.dk/pkg/integrations/k8s/job-introspection"
 	"ucloud.dk/shared/pkg/log"
+	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -122,7 +123,7 @@ func initStartup() {
 
 	err := ApplyMountOverrides(
 		context.Background(),
-		[]string{"/work", "/etc/ucloud", "/opt/ucloud"},
+		[]string{"/work", "/etc/ucloud", "/opt/ucloud", "/opt/ucloud-ucx"},
 		MountOverrideOptions{
 			TimeoutSec:   "1s",
 			LazyUnmount:  true,
@@ -165,7 +166,7 @@ func startInitializationScript() {
 			labels = map[string]string{}
 		}
 
-		initLabel, ok := labels["ucloud.dk/initscript"]
+		initLabel, ok := labels[orc.ResourceLabelInitScript]
 		if ok {
 			stdout, stderr, ok := util.RunCommand([]string{"sudo", "bash", initLabel})
 			if !ok {

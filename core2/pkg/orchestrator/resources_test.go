@@ -74,6 +74,19 @@ func initResourceTest(t *testing.T) {
 	}
 }
 
+func TestApiServerResourcesAreNotPersistable(t *testing.T) {
+	resources := []orcapi.AppParameterValue{
+		orcapi.AppParameterValueFile("/123/path", true),
+		orcapi.AppParameterApiServer("Inference", "https://example.com/v1", "uci-secret"),
+	}
+
+	filtered := jobPersistableResources(resources)
+
+	if assert.Equal(t, 1, len(filtered)) {
+		assert.Equal(t, orcapi.AppParameterValueTypeFile, filtered[0].Type)
+	}
+}
+
 func TestReadAndWritePath(t *testing.T) {
 	initResourceTest(t)
 
@@ -487,6 +500,29 @@ func TestResourceCreateAndUpdateLabels(t *testing.T) {
 	}
 }
 
+func TestResourceRemovesDeletedProjectGroupFromAcl(t *testing.T) {
+	initResourceTest(t)
+
+	owner := actor("owner", "project")
+	id, _, err := ResourceCreateEx[TestResource](
+		testResource,
+		orcapi.ResourceOwner{CreatedBy: owner.Username, Project: util.OptValue("project")},
+		[]orcapi.ResourceAclEntry{
+			{Entity: orcapi.AclEntityProjectGroup("project", "deleted-group")},
+			{Entity: orcapi.AclEntityProjectGroup("project", "remaining-group")},
+		},
+		orcapi.ResourceSpecification{},
+		util.OptNone[string](),
+		&TestResourceData{},
+		0,
+	)
+	assert.Nil(t, err)
+
+	resource := resourceGetBucket(testResource, id).Resources[id]
+	resourceRemoveGroupFromAcls("deleted-group")
+	assert.Equal(t, 2, len(resource.Acl))
+}
+
 func TestResourceBrowseFilterLabels(t *testing.T) {
 	initResourceTest(t)
 
@@ -504,9 +540,9 @@ func TestResourceBrowseFilterLabels(t *testing.T) {
 		}
 	}
 
-	create(map[string]string{"ucloud.dk/stackName": "alpha", "ucloud.dk/stackInstance": "1"})
-	create(map[string]string{"ucloud.dk/stackName": "alpha", "ucloud.dk/stackInstance": "2"})
-	create(map[string]string{"ucloud.dk/stackName": "beta", "ucloud.dk/stackInstance": "1"})
+	create(map[string]string{orcapi.ResourceLabelStackName: "alpha", orcapi.ResourceLabelStackInstance: "1"})
+	create(map[string]string{orcapi.ResourceLabelStackName: "alpha", orcapi.ResourceLabelStackInstance: "2"})
+	create(map[string]string{orcapi.ResourceLabelStackName: "beta", orcapi.ResourceLabelStackInstance: "1"})
 
 	browse := func(filter map[string]string) []TestResource {
 		page := ResourceBrowse(
@@ -521,15 +557,15 @@ func TestResourceBrowseFilterLabels(t *testing.T) {
 		return page.Items
 	}
 
-	items := browse(map[string]string{"ucloud.dk/stackName": "alpha"})
+	items := browse(map[string]string{orcapi.ResourceLabelStackName: "alpha"})
 	assert.Equal(t, 2, len(items))
 
-	items = browse(map[string]string{"ucloud.dk/stackInstance": "1"})
+	items = browse(map[string]string{orcapi.ResourceLabelStackInstance: "1"})
 	assert.Equal(t, 2, len(items))
 
-	items = browse(map[string]string{"ucloud.dk/stackName": "alpha", "ucloud.dk/stackInstance": "1"})
+	items = browse(map[string]string{orcapi.ResourceLabelStackName: "alpha", orcapi.ResourceLabelStackInstance: "1"})
 	assert.Equal(t, 1, len(items))
 
-	items = browse(map[string]string{"ucloud.dk/stackName": "gamma"})
+	items = browse(map[string]string{orcapi.ResourceLabelStackName: "gamma"})
 	assert.Equal(t, 0, len(items))
 }

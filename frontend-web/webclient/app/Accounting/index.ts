@@ -32,6 +32,8 @@ export function productAreaTitle(area: ProductArea): string {
             return "Public link";
         case "LICENSE":
             return "Application license";
+        case "INFERENCE":
+            return "Inference";
         case "NETWORK_IP":
             return "Public IP";
         case "PRIVATE_NETWORK":
@@ -52,7 +54,7 @@ export function updateAllocation(request: BulkRequest<UpdateAllocationRequestIte
     return apiUpdate(request, "/api/accounting", "allocation");
 }
 
-export type WalletOwner = { type: "user"; username: string } | { type: "project"; projectId: string; };
+export type WalletOwner = {type: "user"; username: string} | {type: "project"; projectId: string;};
 
 export function productCategoryEquals(a: ProductCategoryId, b: ProductCategoryId): boolean {
     return a.provider === b.provider && a.name === b.name;
@@ -64,8 +66,8 @@ export type ProductPriceUnit =
     "CREDITS_PER_MINUTE" | "CREDITS_PER_HOUR" | "CREDITS_PER_DAY" |
     "UNITS_PER_MINUTE" | "UNITS_PER_HOUR" | "UNITS_PER_DAY";
 
-export type ProductType = "STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP" | "PRIVATE_NETWORK";
-export type Type = "storage" | "compute" | "ingress" | "license" | "network_ip" | "private_network";
+export type ProductType = "STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "INFERENCE" | "NETWORK_IP" | "PRIVATE_NETWORK";
+export type Type = "storage" | "compute" | "ingress" | "license" | "inference" | "network_ip" | "private_network";
 
 export interface ProductMetadata {
     category: ProductCategoryId;
@@ -115,12 +117,17 @@ export interface ProductLicense extends ProductBase {
     tags?: string[];
 }
 
+export interface ProductInference extends ProductBase {
+    type: "inference";
+    productType: "INFERENCE";
+}
+
 export interface ProductNetworkIP extends ProductBase {
     type: "network_ip";
     productType: "NETWORK_IP";
 }
 
-export type Product = ProductStorage | ProductCompute | ProductIngress | ProductNetworkIP | ProductLicense;
+export type Product = ProductStorage | ProductCompute | ProductIngress | ProductNetworkIP | ProductLicense | ProductInference;
 
 export function productTypeToIcon(type: ProductType): IconName {
     switch (type) {
@@ -134,6 +141,8 @@ export function productTypeToIcon(type: ProductType): IconName {
             return "heroGlobeEuropeAfrica";
         case "LICENSE":
             return "heroDocumentCheck";
+        case "INFERENCE":
+            return "heroSparkles";
         case "PRIVATE_NETWORK":
             return "heroCloud";
     }
@@ -149,6 +158,8 @@ export function productTypeToName(type: ProductType): string {
             return "Public IP";
         case "LICENSE":
             return "License";
+        case "INFERENCE":
+            return "Inference";
         case "INGRESS":
             return "Public link";
         case "PRIVATE_NETWORK":
@@ -166,6 +177,8 @@ export function productTypeFromName(name: string): ProductType {
             return "NETWORK_IP";
         case "License":
             return "LICENSE";
+        case "Inference":
+            return "INFERENCE";
         case "Public link":
             return "INGRESS";
         default:
@@ -174,7 +187,7 @@ export function productTypeFromName(name: string): ProductType {
     }
 }
 
-export const productTypes: ProductType[] = ["COMPUTE", "STORAGE", "NETWORK_IP", "INGRESS", "LICENSE"];
+export const productTypes: ProductType[] = ["COMPUTE", "STORAGE", "NETWORK_IP", "INGRESS", "LICENSE", "INFERENCE"];
 
 export function addThousandSeparators(numberOrString: string | number): string {
     const numberAsString = typeof numberOrString === "string" ? numberOrString : numberOrString.toString(10);
@@ -296,8 +309,10 @@ export function categoryComparator(a: ProductCategoryV2, b: ProductCategoryV2): 
                 return 3;
             case "LICENSE":
                 return 4;
-            case "PRIVATE_NETWORK":
+            case "INFERENCE":
                 return 5;
+            case "PRIVATE_NETWORK":
+                return 6;
         }
     }
 
@@ -321,6 +336,7 @@ export type ProductV2 =
     | ProductV2Compute
     | ProductV2Ingress
     | ProductV2License
+    | ProductV2Inference
     | ProductV2NetworkIP
     | ProductV2PrivateNetwork
     ;
@@ -355,6 +371,10 @@ export interface ProductV2Ingress extends ProductV2Base {
 
 export interface ProductV2License extends ProductV2Base {
     type: "license";
+}
+
+export interface ProductV2Inference extends ProductV2Base {
+    type: "inference";
 }
 
 export interface ProductV2NetworkIP extends ProductV2Base {
@@ -429,8 +449,8 @@ export function guesstimateProductCategoryDescription(
     return hardcodedProductCategoryDescriptions[provider]?.[normalizedCategory] ?? "";
 }
 
-type BalanceAndCategory = { balance: number; category: ProductCategoryV2; }
-type CombinedBalance = { productType: ProductType, normalizedBalance: number, unit: string };
+type BalanceAndCategory = {balance: number; category: ProductCategoryV2;}
+type CombinedBalance = {productType: ProductType, normalizedBalance: number, unit: string};
 
 export function combineBalances(
     balances: BalanceAndCategory[]
@@ -718,6 +738,7 @@ export const ProductTypesByPriority: ProductType[] = [
     "NETWORK_IP",
     "INGRESS",
     "LICENSE",
+    "INFERENCE",
 ];
 
 export interface AllocationDisplayWallet {
@@ -844,41 +865,25 @@ function allocationNote(
     return undefined;
 }
 
-export function buildAllocationDisplayTree(allWallets: WalletV2[]): AllocationDisplayTree {
-    // NOTE(Dan): This function assumes that allWallets are owned by the same owner.
-
-    // NOTE(Dan): Detect Core2 server by looking for Core2 only fields.
-    const isCore2Response = allWallets.some(
-        w => w.allocationGroups.some(
-            ag => ag.group.allocations.some(
-                a => a.retiredQuota !== undefined
-            )
-        )
-    );
-
-
-    const relevantWallets = allWallets.filter(it => !it.paysFor.freeToUse);
-    const tree: AllocationDisplayTree = {
-        yourAllocations: {},
-        subAllocations: {
-            recipients: [],
-        }
-    };
-
-    let ownedByPersonalProviderProject = false;
-    if (allWallets.length > 0) {
-        const owner = allWallets[0].owner;
+function checkIsOwnedByPersonalProviderProject(wallets: WalletV2[]): boolean {
+    if (wallets.length > 0) {
+        const owner = wallets[0].owner;
         if (owner.type === "project") {
             const projectId = owner.projectId;
             let items = projectCache.retrieveFromCacheOnly("")?.items;
             const project = (items ?? []).find(it => it.id === projectId);
             if (project) {
-                ownedByPersonalProviderProject = project.status.personalProviderProjectFor != null;
+                if (project.status.personalProviderProjectFor != null) return true;
             }
         }
     }
+    return false;
+}
 
-    const yourAllocations = tree.yourAllocations;
+export function buildYourAllocations(allWallets: WalletV2[]): AllocationDisplayTree["yourAllocations"] {
+    const relevantWallets = allWallets.filter(it => !it.paysFor.freeToUse);
+    const ownedByPersonalProviderProject = checkIsOwnedByPersonalProviderProject(allWallets);
+    const yourAllocations: AllocationDisplayTree["yourAllocations"] = {};
     {
         const walletsByType = groupBy(relevantWallets, it => it.paysFor.productType);
         for (const [type, wallets] of Object.entries(walletsByType)) {
@@ -979,31 +984,21 @@ export function buildAllocationDisplayTree(allWallets: WalletV2[]): AllocationDi
 
                                 let quotaString = "";
                                 if (shouldShowRetiredAmount && note !== undefined) {
-                                    if (isCore2Response) {
-                                        const isCapacityBased = wallet.paysFor.accountingFrequency === "ONCE";
-                                        if (isCapacityBased) {
-                                            quotaString = balanceToString(
-                                                wallet.paysFor,
-                                                alloc.retiredQuota!,
-                                                {precision: 2}
-                                            );
-                                        } else {
-                                            quotaString += balanceToString(
-                                                wallet.paysFor,
-                                                alloc.quota,
-                                                {precision: 2}
-                                            );
-                                            quotaString += " / ";
-                                            quotaString += balanceToString(wallet.paysFor, alloc.retiredQuota!, {precision: 2});
-                                        }
+                                    const isCapacityBased = wallet.paysFor.accountingFrequency === "ONCE";
+                                    if (isCapacityBased) {
+                                        quotaString = balanceToString(
+                                            wallet.paysFor,
+                                            alloc.retiredQuota!,
+                                            {precision: 2}
+                                        );
                                     } else {
                                         quotaString += balanceToString(
                                             wallet.paysFor,
-                                            alloc.retiredUsage ?? 0,
+                                            alloc.quota,
                                             {precision: 2}
                                         );
                                         quotaString += " / ";
-                                        quotaString += balanceToString(wallet.paysFor, alloc.quota, {precision: 2});
+                                        quotaString += balanceToString(wallet.paysFor, alloc.retiredQuota!, {precision: 2});
                                     }
                                 } else {
                                     quotaString += balanceToString(wallet.paysFor, alloc.quota, {precision: 2});
@@ -1032,28 +1027,39 @@ export function buildAllocationDisplayTree(allWallets: WalletV2[]): AllocationDi
         }
     }
 
-    // Start building the sub-allocations UI
-    const subAllocations = tree.subAllocations;
 
-    const filteredSubAllocations: {
-        wallet: WalletV2,
-        childGroup: AllocationGroupWithChild
-    }[] = [];
+    for (const subtree of Object.values(yourAllocations)) {
+        for (const uq of subtree.usageAndQuota) {
+            updateUsageAndQuota(uq);
+        }
 
-    for (const wallet of relevantWallets) {
-        if (wallet.paysFor.freeToUse) continue;
-        const children = wallet.children ?? [];
-        for (const childGroup of children) {
-            filteredSubAllocations.push({wallet, childGroup});
+        for (const w of subtree.wallets) {
+            updateUsageAndQuota(w.usageAndQuota);
         }
     }
 
-    {
-        for (const {childGroup, wallet} of filteredSubAllocations) {
+
+    return yourAllocations;
+}
+
+// NOTE(Dan): This function assumes that allWallets are owned by the same owner.
+export function buildSubAllocations(allWallets: WalletV2[], onlyProjects: boolean): AllocationDisplayTree["subAllocations"] {
+    const subAllocations: AllocationDisplayTree["subAllocations"] = {recipients: []};
+    if (!allWallets) return subAllocations;
+
+    const relevantWallets = allWallets.filter(it => !it.paysFor.freeToUse);
+
+    const ownedByPersonalProviderProject = checkIsOwnedByPersonalProviderProject(allWallets);
+
+    // Start building the sub-allocations UI
+    for (const wallet of relevantWallets) {
+        for (const childGroup of wallet.children ?? []) {
             let allocOwner: WalletOwner;
             if (childGroup.child.projectId) {
+                if (!onlyProjects) continue;
                 allocOwner = {type: "project", projectId: childGroup.child.projectId};
             } else {
+                if (onlyProjects) continue;
                 allocOwner = {type: "user", username: childGroup.child.projectTitle};
             }
 
@@ -1075,35 +1081,16 @@ export function buildAllocationDisplayTree(allWallets: WalletV2[]): AllocationDi
 
             const shouldUseRetired = wallet.paysFor.accountingFrequency === "ONCE";
 
-            let combinedQuota = 0;
-            childGroup.group.allocations.forEach(alloc => {
-                if (allocationIsActive(alloc, new Date().getTime())) {
-                    combinedQuota += alloc.quota;
-                }
-            });
 
-            const maxUsable = combineBalances([{
-                balance: wallet.maxUsable,
-                category: wallet.paysFor
-            }]);
             const combinedRetired = childGroup.group.allocations.reduce((acc, val) => acc + (val.retiredUsage ?? 0), 0);
-            // Need to have total usage in case retired should be included in final result
-            let combinedUsage = childGroup.group.usage;
-            if (!shouldUseRetired) {
-                combinedUsage += combinedRetired;
-            }
+            const combinedQuota = childGroup.group.activeQuota!;
+            const combinedUsage = childGroup.group.activeUsage!;
 
-            if (isCore2Response) {
-                combinedQuota = childGroup.group.activeQuota!;
-                combinedUsage = childGroup.group.activeUsage!;
-            }
-
-            const localUsage = combineBalances([{balance: childGroup.group.usage, category: wallet.paysFor}]);
             const usage = combineBalances([{balance: combinedUsage, category: wallet.paysFor}]);
             const quota = combineBalances([{balance: combinedQuota, category: wallet.paysFor}]);
             const retiredAmount = combineBalances([{balance: combinedRetired, category: wallet.paysFor}]);
             let totalAllocated = 0;
-            const newGroup: AllocationDisplayTree["subAllocations"]["recipients"][0]["groups"][0] = {
+            const newGroup: AllocationDisplayTreeRecipient["groups"][0] = {
                 category: wallet.paysFor,
                 usageAndQuota: new UsageAndQuota({
                     usage: usage?.[0]?.normalizedBalance ?? 0,
@@ -1181,42 +1168,27 @@ export function buildAllocationDisplayTree(allWallets: WalletV2[]): AllocationDi
         }
     }
 
-    if (isCore2Response) {
-        // TODO(Dan): Clean up this code later when we are getting ready to make the switch. I am currently trying to
-        //   minimize the number of places these changes are visible.
-
-        const updateUsageAndQuota = (uq: UsageAndQuota) => {
-            uq.raw.retiredAmount = 0;
-            uq.raw.retiredAmountStillCounts = false;
-            uq.updateDisplay();
-        };
-
-        for (const subtree of Object.values(tree.yourAllocations)) {
-            for (const uq of subtree.usageAndQuota) {
-                updateUsageAndQuota(uq);
-            }
-
-            for (const w of subtree.wallets) {
-                updateUsageAndQuota(w.usageAndQuota);
-            }
+    for (const subtree of subAllocations.recipients) {
+        for (const uq of subtree.usageAndQuota) {
+            updateUsageAndQuota(uq);
         }
 
-        for (const subtree of tree.subAllocations.recipients) {
-            for (const uq of subtree.usageAndQuota) {
-                updateUsageAndQuota(uq);
-            }
-
-            for (const g of subtree.groups) {
-                updateUsageAndQuota(g.usageAndQuota);
-            }
+        for (const g of subtree.groups) {
+            updateUsageAndQuota(g.usageAndQuota);
         }
     }
 
-    return tree;
+    return subAllocations;
 }
 
+function updateUsageAndQuota(uq: UsageAndQuota) {
+    uq.raw.retiredAmount = 0;
+    uq.raw.retiredAmountStillCounts = false;
+    uq.updateDisplay();
+};
+
 export function explainWallet(wallet: WalletV2): AllocationDisplayWallet | null {
-    const tree = Object.values(buildAllocationDisplayTree([wallet]).yourAllocations);
+    const tree = Object.values(buildYourAllocations([wallet]));
     if (tree.length === 0) return null;
     const wallets = tree[0].wallets;
     if (wallets.length === 0) return null;
@@ -1226,7 +1198,7 @@ export function explainWallet(wallet: WalletV2): AllocationDisplayWallet | null 
 export function balanceToString(
     category: ProductCategoryV2,
     balance: number,
-    opts?: { precision?: number, removeUnitIfPossible?: boolean }
+    opts?: {precision?: number, removeUnitIfPossible?: boolean}
 ): string {
     const unit = explainUnit(category);
     const normalizedBalance = balance * unit.balanceFactor;
@@ -1245,8 +1217,8 @@ export function truncateValues(
     normalizedBalances: number[],
     isStorage: boolean,
     unit: string,
-    opts?: { removeUnitIfPossible?: boolean, referenceBalance?: number }
-): { truncated: number[]; attachedSuffix: string | null, unitToDisplay: string, canRemoveUnit: boolean } {
+    opts?: {removeUnitIfPossible?: boolean, referenceBalance?: number}
+): {truncated: number[]; attachedSuffix: string | null, unitToDisplay: string, canRemoveUnit: boolean} {
     let canRemoveUnit = opts?.removeUnitIfPossible ?? false;
     let balanceToDisplay = opts?.referenceBalance ?? Math.max(...normalizedBalances);
 
@@ -1350,7 +1322,7 @@ export function balanceToStringFromUnit(
     productType: ProductType | null,
     unit: string,
     normalizedBalance: number,
-    opts?: { precision?: number, removeUnitIfPossible?: boolean, referenceBalance?: number }
+    opts?: {precision?: number, removeUnitIfPossible?: boolean, referenceBalance?: number}
 ): string {
     const isStorage = productType === "STORAGE" || StandardStorageUnitsSi.indexOf(unit) !== -1 ||
         StandardStorageUnits.indexOf(unit) !== -1;
@@ -1374,11 +1346,11 @@ export function balanceToStringFromUnit(
     return builder;
 }
 
-export function normalizeFrequency(frequency: AccountingFrequency):string {
-    if (frequency === "PERIODIC_MINUTE") { return "minute(s)"}
-    if (frequency === "PERIODIC_HOUR") { return "hour(s)"}
-    if (frequency === "PERIODIC_DAY") { return "day(s)"}
-    if (frequency === "ONCE") { return ""}
+export function normalizeFrequency(frequency: AccountingFrequency): string {
+    if (frequency === "PERIODIC_MINUTE") {return "minute(s)"}
+    if (frequency === "PERIODIC_HOUR") {return "hour(s)"}
+    if (frequency === "PERIODIC_DAY") {return "day(s)"}
+    if (frequency === "ONCE") {return ""}
     return ""
 }
 
@@ -1545,6 +1517,6 @@ export function utcDate(ts: number): string {
     return `${d.getUTCDate().toString().padStart(2, '0')}/${(d.getUTCMonth() + 1).toString().padStart(2, '0')}/${d.getUTCFullYear()}`;
 }
 
-export function periodsOverlap(a: { start: number, end: number }, b: { start: number, end: number }): boolean {
+export function periodsOverlap(a: {start: number, end: number}, b: {start: number, end: number}): boolean {
     return a.start <= b.end && b.start <= a.end;
 }

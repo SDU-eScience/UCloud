@@ -1,6 +1,7 @@
 package containers
 
 import (
+	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -80,7 +81,7 @@ func prepareInvocationOnJobCreate(
 			jobFolder, pathMapperInternalToPod)
 	}
 
-	initScript, hasInitScript := job.Specification.Labels["ucloud.dk/initscript"]
+	initScript, hasInitScript := job.Specification.Labels[orc.ResourceLabelInitScript]
 
 	path := filepath.Join(jobFolder, fmt.Sprintf("job-%d.sh", rank))
 	jobFile, ok := filesystem.OpenFile(path, unix.O_WRONLY|unix.O_CREAT|unix.O_TRUNC, 0700)
@@ -141,6 +142,8 @@ func prepareInvocationOnJobCreate(
 		Value: job.Id,
 	})
 
+	appendInferenceServerEnvVars(container, job)
+
 	replicaNames := []string{
 		"UCLOUD_TASK_COUNT",
 		"VC_JOB_NUM",
@@ -177,6 +180,61 @@ func prepareInvocationOnJobCreate(
 			})
 		}
 	}
+}
+
+type inferenceServerEnvVar struct {
+	Server string `json:"server"`
+	Token  string `json:"token"`
+}
+
+func appendInferenceServerEnvVars(container *k8score.Container, job *orc.Job) {
+	if inferenceServers, ok := inferenceServersEnvValue(job); ok {
+		container.Env = append(container.Env, k8score.EnvVar{
+			Name:  "UCLOUD_INFERENCE_SERVERS",
+			Value: inferenceServers,
+		})
+	}
+	for idx, server := range inferenceServersFromJob(job) {
+		container.Env = append(container.Env,
+			k8score.EnvVar{
+				Name:  fmt.Sprintf("UCLOUD_INFERENCE_SERVER_BASE_%d", idx),
+				Value: server.Server,
+			},
+			k8score.EnvVar{
+				Name:  fmt.Sprintf("UCLOUD_INFERENCE_SERVER_TOKEN_%d", idx),
+				Value: server.Token,
+			},
+		)
+	}
+}
+
+func inferenceServersEnvValue(job *orc.Job) (string, bool) {
+	servers := inferenceServersFromJob(job)
+	if len(servers) == 0 {
+		return "", false
+	}
+
+	value, err := json.Marshal(servers)
+	if err != nil {
+		return "", false
+	}
+	return string(value), true
+}
+
+func inferenceServersFromJob(job *orc.Job) []inferenceServerEnvVar {
+	servers := []inferenceServerEnvVar{}
+	for _, resource := range job.Specification.Resources {
+		if resource.Type != orc.AppParameterValueTypeApiServer || resource.TokenType != "Inference" {
+			continue
+		}
+
+		servers = append(servers, inferenceServerEnvVar{
+			Server: resource.Server,
+			Token:  resource.Token,
+		})
+	}
+
+	return servers
 }
 
 func handleJinjaInvocation(

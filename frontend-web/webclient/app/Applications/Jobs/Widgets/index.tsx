@@ -194,24 +194,21 @@ export const Widget: React.FunctionComponent<WidgetProps & RootWidgetProps> = pr
 
     if (props.active !== false) {
         return <Box data-param-type={props.parameter.type} data-component={`app-parameter`}>
-            <Label htmlFor={`app-param-${parameter.name}`} style={{display: "block"}}>
+            <Box>
                 <Flex>
                     <Flex data-component={"param-title"}>
-                        {parameter.title}
+                        <WidgetLabel parameter={props.parameter} />
                         {parameter.optional ? null : <MandatoryField />}
                     </Flex>
                     {!parameter.optional || !props.onRemove ? null : (
-                        <>
-                            <Box ml="auto" />
-                            <Text color="errorMain" cursor="pointer" mb="4px" onClick={props.onRemove} selectable={false}
-                                data-component={"param-remove"} zIndex={1000}>
-                                Remove
-                                <Icon ml="6px" size={16} name="close" />
-                            </Text>
-                        </>
+                        <Text ml="auto" color="errorMain" cursor="pointer" mb="4px" onClick={props.onRemove} selectable={false}
+                            data-component={"param-remove"} zIndex={1000}>
+                            Remove
+                            <Icon ml="6px" size={16} name="close" />
+                        </Text>
                     )}
                 </Flex>
-            </Label>
+            </Box>
             {body}
             {error ? <TextP color={"errorMain"}>{error}</TextP> : null}
             <div className={MarkdownWrapper}>
@@ -256,6 +253,27 @@ const OptionalWidgetSearchWrapper = injectStyleSimple("optional-widget-search", 
     padding-bottom: 8px;
     overflow-y: auto;
 `);
+
+const DefaultParameterTitle: Record<string, string> = {
+    "input_file": "File name",
+    "input_directory": "Folder name",
+    "ingress": "Public link",
+    "network_ip": "Public IP",
+    "private_network": "Private network"
+};
+
+function WidgetLabel(props: {parameter: ApplicationParameter}): React.ReactNode {
+    switch (props.parameter.type) {
+        case "ingress":
+        case "input_directory":
+        case "input_file":
+        case "network_ip":
+        case "private_network":
+            const title = props.parameter.title ? props.parameter.title : DefaultParameterTitle[props.parameter.type];
+            return <Label htmlFor={widgetId(props.parameter) + "visual"}> {title}</Label >
+    }
+    return <Label htmlFor={widgetId(props.parameter)}>{props.parameter.title}</Label>
+}
 
 export function findElement<HTMLElement = HTMLInputElement>(param: {name: string}): HTMLElement | null {
     return document.getElementById(widgetId(param)) as HTMLElement | null;

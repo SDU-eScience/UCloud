@@ -1,7 +1,7 @@
 import * as Accounting from "@/Accounting";
 import {callAPI, callAPIWithErrorHandler} from "@/Authentication/DataHook";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {AvatarForUser, UserAvatar} from "@/AvataaarLib/UserAvatar";
+import {UserAvatar} from "@/AvataaarLib/UserAvatar";
 import {useAvatars} from "@/AvataaarLib/hook";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {ProjectLogo} from "@/Grants/ProjectLogo";
@@ -17,13 +17,13 @@ import AppRoutes from "@/Routes";
 import {PageV2} from "@/UCloud";
 import {classConcat, injectStyle, makeClassName} from "@/Unstyled";
 import {createRecordFromArray, deepCopy} from "@/Utilities/CollectionUtilities";
-import {addMonthsToDate, dateToString} from "@/Utilities/DateUtilities";
+import {dateToString} from "@/Utilities/DateUtilities";
 import {fetchAll} from "@/Utilities/PageUtilities";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {getQueryParam} from "@/Utilities/URIUtilities";
 import {addStandardInputDialog} from "@/UtilityComponents";
-import {errorMessageOrDefault, stopPropagation, timestampUnixMs} from "@/UtilityFunctions";
-import {Box, Button, Checkbox, ExternalLink, Flex, Icon, Input, Label, Select, TextArea} from "@/ui-components";
+import {deepEquals, errorMessageOrDefault, stopPropagation, timestampUnixMs} from "@/UtilityFunctions";
+import {Box, Button, Checkbox, ExternalLink, Flex, Heading, Icon, Input, Label, Select, TextArea} from "@/ui-components";
 import {BaseLinkClass} from "@/ui-components/BaseLink";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {IconName} from "@/ui-components/Icon";
@@ -55,14 +55,18 @@ interface EditorState {
 
     durationWarning?: string;
 
-    allocationPeriod: {start: {month: number, year: number}, durationInMonths: number};
+    allocationPeriod: AllocationPeriod;
     principalInvestigator: string;
     loadedProjects: {id: string | null; title: string;}[];
+
+    selectedProjectType: Grants.TemplateKey;
 
     stateDuringCreate?: {
         creatingWorkspace: boolean;
         reference?: string;
     };
+
+    unrequestedAllocators: Set<string>;
 
     stateDuringEdit?: {
         id: string;
@@ -94,20 +98,21 @@ interface EditorState {
     possibleTransfers: Allocators[];
     allocators: Allocators[];
 
-    createApplicationForms: Grants.FormField[];
+    createApplicationForms: Grants.AnswerForm[];
 
     // Used for the legacy way of displaying
     outdatedFields: Grants.AnswerFieldForm[];
-    applicationAnswers: Record<string, Grants.AnswerFieldForm>;
 
     resources: Record<string, ResourceCategory[]>;
 }
+
+type AnswerFormUpdateCallback = (allocatorId: string, fieldIdx: number, answer: string) => void;
 
 interface Allocators {
     id: string;
     title: string;
     description: string;
-    template: Grants.FormField[];
+    template: Grants.TemplateStructured;
     checked: boolean;
 }
 
@@ -133,29 +138,28 @@ interface ResourceCategory {
     };
 }
 
+interface AllocationPeriod {
+    start: number;
+    end: number;
+    durationInMonths?: number;
+}
+
+export const DefaultTemplateRevision = -1;
+
 const defaultState: EditorState = {
     locked: false,
     allocators: [],
     resources: {},
-    allocationPeriod: {
-        start: {
-            month: new Date().getMonth(),
-            year: new Date().getFullYear(),
-        },
-        durationInMonths: 12
-    },
+    unrequestedAllocators: new Set<string>(),
+    allocationPeriod: createAllocationPeriodFromDuration(startOfCurrentMonth(), 3),
     possibleTransfers: [],
     createApplicationForms: [],
-    applicationAnswers: {},
     outdatedFields: [],
     loading: false,
     principalInvestigator: Client.activeUsername ?? "",
     loadedProjects: [],
     fullScreenLoading: true,
-};
-
-interface OutdatedTextAreaProps {
-    field: Grants.AnswerFieldForm;
+    selectedProjectType: Grants.TemplateKey.NewProject, 
 };
 
 // State reducer
@@ -172,8 +176,7 @@ type EditorAction =
     piUsernameHint: string
 }
     | {type: "AllocatorsLoaded", allocators: Grants.GrantGiver[], recipientType?: Grants.Recipient["type"]}
-    | {type: "DurationUpdated", month?: number, year?: number, duration?: number}
-    | {type: "DurationWarning", durationWarning: string}
+    | {type: "DurationUpdated", start?: number, end?: number, duration?: number | null}
     | {type: "AllocatorChecked", isChecked: boolean, allocatorId: string}
     | {
     type: "BalanceUpdated",
@@ -185,7 +188,7 @@ type EditorAction =
     | {type: "SetIsCreating", stateDuringCreate?: EditorState["stateDuringCreate"]}
     | {type: "RecipientUpdated", isCreatingNewProject: boolean, reference?: string}
     | {type: "ProjectsReloaded", projects: {id: string | null, title: string}[]}
-    | {type: "ApplicationUpdated", answer: string, field: Grants.FormField}
+    | {type: "AnswerFormUpdated", allocatorId: string, fieldIdx: number, answer: string}
     | {type: "LoadingStateChange", isLoading: boolean}
     | {type: "ReferenceIdUpdated", newReferenceId: string, idx: number}
     | {type: "CleanupReferenceIds"}
@@ -198,6 +201,7 @@ type EditorAction =
     | {type: "UpdateFullScreenLoading", isLoading: boolean}
     | {type: "UpdateFullScreenError", error: string}
     | {type: "SetResourceError", provider: string, category: string, allocator: string, message: string}
+    | {type: "MissingResources", allocatorIds: Set<string>}
     | {type: "Reset"}
     ;
 
@@ -227,6 +231,13 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             };
         }
 
+        case "MissingResources": {
+            return  {
+                ...state,
+                unrequestedAllocators: action.allocatorIds
+            }
+        }
+
         // Initialization events
         // -------------------------------------------------------------------------------------------------------------
         // These events are usually triggered by a network response and often near the beginning. These are sometimes
@@ -241,30 +252,33 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
         //                     a new one).
 
         case "AllocatorsLoaded": {
-            const newAllocators: EditorState["allocators"] = state.allocators
+            let newAllocators: EditorState["allocators"] = state.allocators
                 .filter(it => action.allocators.some(other => it.id === other.id && it.title === other.title));
 
             const newResources: EditorState["resources"] = {...state.resources};
 
-            let templateKey: keyof Grants.TemplateStructured = "newProject";
+            let templateKey: Grants.TemplateKey = Grants.TemplateKey.NewProject;
 
-            function templateKeyFromRecipientType(type: Grants.Recipient["type"]): keyof Grants.TemplateStructured {
+            function templateKeyFromRecipientType(type: Grants.Recipient["type"]): Grants.TemplateKey {
                 switch (type) {
                     case "personalWorkspace":
-                        return "personalProject";
+                        return Grants.TemplateKey.PersonalProject
                     default:
-                        return type;
+                        return type as Grants.TemplateKey;
                 }
             }
 
             if (state.stateDuringCreate) {
-                state.applicationAnswers = {}; // Clearing previous forms
+                // Clearing previous state for form and allocators
+                state.createApplicationForms = []; 
+                state.allocators = [];
+
                 if (state.stateDuringCreate.creatingWorkspace) {
-                    templateKey = "newProject";
+                    templateKey = Grants.TemplateKey.NewProject;
                 } else if (state.stateDuringCreate.reference) {
-                    templateKey = "existingProject";
+                    templateKey = Grants.TemplateKey.ExistingProject;
                 } else {
-                    templateKey = "personalProject";
+                    templateKey = Grants.TemplateKey.PersonalProject;
                 }
             } else {
                 const recipient = action.recipientType ?? state.stateDuringEdit?.recipient.type;
@@ -274,19 +288,21 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                     console.warn("Unhandled recipient!", {action, state});
                 }
             }
+            state.selectedProjectType = templateKey as Grants.TemplateKey;
 
             let i = 0;
+            
+            // allocator is grantGiver
             for (const allocator of action.allocators) {
                 const existing = newAllocators.find(it => it.id === allocator.id);
-                const forms = allocator.templates.structured[templateKey];
-                const sameForm = existing?.template.every((val, i) => val === forms[i]);
+                const sameForm = deepEquals(existing?.template, allocator.templates.structured);
                 if (!existing) {
                     newAllocators.push({
                         id: allocator.id, title: allocator.title, description: allocator.description,
-                        template: forms, checked: false,
+                        template: allocator.templates.structured, checked: false,
                     });
                 } else if (!sameForm) {
-                    newAllocators[i] = {...existing, template: forms};
+                    newAllocators[i] = {...existing, template: allocator.templates.structured};
                 }
 
                 for (const category of allocator.categories) {
@@ -315,17 +331,15 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             for (const arr of Object.values(newResources)) {
                 arr.sort((a, b) => Accounting.categoryComparator(a.category, b.category));
             }
-
-            const forms = action.allocators
-                .filter(it => newAllocators.find(existing => existing.id === it.id)?.checked === true)
-                .flatMap(it => it.templates.structured[templateKey])
+            // Filter out yourself
+            newAllocators = newAllocators.filter(i => i.id !== state.stateDuringCreate?.reference);
 
             return {
                 ...state,
                 possibleTransfers: newAllocators,
                 allocators: newAllocators,
                 resources: newResources,
-                createApplicationForms: forms,
+                createApplicationForms: extractToAnswerForms(newAllocators, state.selectedProjectType)
             };
         }
 
@@ -390,23 +404,12 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             };
 
             const start = new Date(Math.max(timestampUnixMs(), action.start));
-            const end = new Date(action.end + 1000);
-
-            const minimumDurationInMonths = 1;
+            const end = new Date(action.end);
+            const allocationPeriod = normalizeAllocationPeriod(start.getTime(), end.getTime());
 
             const newState: EditorState = {
                 ...state,
-                allocationPeriod: {
-                    start: {
-                        month: start.getUTCMonth(),
-                        year: start.getUTCFullYear()
-                    },
-                    durationInMonths: Math.max(
-                        minimumDurationInMonths,
-                        ((end.getUTCFullYear() - start.getUTCFullYear()) * 12) +
-                        (end.getUTCMonth() - start.getUTCMonth()),
-                    )
-                },
+                allocationPeriod,
                 stateDuringEdit: {
                     id: GRANT_GIVER_INITIATED_ID,
                     activeRevision: 0,
@@ -431,16 +434,14 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                         referenceIds: [],
                         revisionComment: null,
                         form: {
-                            type: "plain_text",
+                            type: "structured",
                             text: "",
+                            answerForms: [],
+                            subAllocator: false,
                         },
                         allocationPeriod: {
-                            start: start.getTime(),
-                            end: addMonthsToDate(start, Math.max(
-                                minimumDurationInMonths,
-                                ((end.getUTCFullYear() - start.getUTCFullYear()) * 12) +
-                                (end.getUTCMonth() - start.getUTCMonth())
-                            )).getTime()
+                            start: allocationPeriod.start,
+                            end: allocationPeriod.end,
                         }
                     }
                 }
@@ -457,33 +458,42 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
         // an input field or checking off a checkbox.
 
         case "DurationUpdated": {
+            const allocationPeriod = normalizeAllocationPeriod(
+                action.start ?? state.allocationPeriod.start,
+                action.end ?? state.allocationPeriod.end,
+                action.duration,
+            );
             return {
                 ...state,
-                allocationPeriod: {
-                    start: {
-                        month: action.month ?? state.allocationPeriod.start.month,
-                        year: action.year ?? state.allocationPeriod.start.year,
-                    },
-                    durationInMonths: action.duration ?? state.allocationPeriod.durationInMonths,
-                },
-                durationWarning: undefined
+                allocationPeriod,
+                durationWarning: getExpirationWarning({end: allocationPeriod.end})
             };
         }
 
-        case "DurationWarning": {
-            return {
-                ...state,
-                durationWarning: action.durationWarning
+        case "AnswerFormUpdated": {
+          const answerForms = state.createApplicationForms.map(form => {
+            if (form.allocatorId !== action.allocatorId) {
+                return form;
             }
-        }
-
-        case "ApplicationUpdated": {
-            const newContents = {...state.applicationAnswers};
-            newContents[action.field.name] = {field: action.field, answer: action.answer};
 
             return {
-                ...state,
-                applicationAnswers: newContents,
+                ...form,
+                answerFields: form.answerFields.map((field, idx) =>
+                    idx !== action.fieldIdx
+                        ? field
+                        : {
+                            ...field,
+                            answer: action.answer
+                        }
+                    )
+                };
+            });
+
+
+            return {
+                ...state, 
+                createApplicationForms: answerForms
+                
             };
         }
 
@@ -508,12 +518,12 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                     return it;
                 }
             });
-            const forms = newAllocators.filter(it => it.checked).flatMap(it => it.template);
 
             return {
                 ...state,
+                unrequestedAllocators: new Set<string>(),
                 allocators: newAllocators,
-                createApplicationForms: forms,
+                createApplicationForms: extractToAnswerForms(newAllocators, state.selectedProjectType),
             }
         }
 
@@ -712,11 +722,12 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
     function loadRevision(state: EditorState): EditorState {
         if (!state.stateDuringEdit) return state;
         const newEditState = {...state.stateDuringEdit};
+        const previousAllocators = state.allocators;
+        state.allocators = []; // clearing previous allocators
 
         const doc = state.stateDuringEdit.document;
         const docText = doc.form.text;
-
-        const newAllocators = [...state.allocators]
+        const newAllocators = [...previousAllocators]
             .filter(allocator => {
                 return state.stateDuringEdit?.id === GRANT_GIVER_INITIATED_ID ||
                     doc.allocationRequests.some(it => it.grantGiver === allocator.id);
@@ -730,7 +741,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                     newAllocators.push({
                         title: breakdown.projectTitle,
                         id: breakdown.projectId,
-                        template: [],
+                        template: {personalProject:[], existingProject: [], newProject: [], revisionNumber: DefaultTemplateRevision},
                         description: "",
                         checked: true,
                     });
@@ -771,35 +782,39 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
         }
 
         const isGrantGiverInitiated = app && app.status.overallState == "APPROVED" && app.status.revisions.length === 1 && docText.startsWith(grantGiverInitiatedPrefix);
-
-        const forms = isGrantGiverInitiated ? [grantGiverInitiatedForm] : newAllocators.flatMap(it => it.template);
-        const newApplication = forms
-        var outdatedFields: Grants.AnswerFieldForm[] = [];
-        const newApplicationDocument: EditorState["applicationAnswers"] = {};
-
-        if (doc.form.type == "structured") {
-            if (doc.form.fields.length == 0) {
-                outdatedFields.push({
-                    answer: doc.form.text,
-                    field: {
-                        name: "",
-                        title: "",
-                        description: "",
-                        optional: true
-                    }
-
-                })
-            }
-            for (const userAnswer of doc.form.fields) {
-                if (userAnswer.field.name === "" && userAnswer.field.title) {
-                    userAnswer.field.name = userAnswer.field.title;
-                    newApplicationDocument[userAnswer.field.name] = userAnswer;
-                } else {
-                    newApplicationDocument[userAnswer.field.name] = userAnswer;
-                }
-            }
+        let loadedAnswerForms: Grants.AnswerForm[] = doc.form.answerForms;
+        if (state.stateDuringEdit.id === GRANT_GIVER_INITIATED_ID) {
+            loadedAnswerForms = newAllocators.map(allocator => ({
+                ...grantGiverInitiatedForm,
+                allocatorId: allocator.id,
+            }));
+        } else if (isGrantGiverInitiated) {
+            loadedAnswerForms = [grantGiverInitiatedForm];
         }
 
+        /********************************** Legacy handling for backwards compatibility **********************************************************/
+
+        // Legacy title-based lookup for form fields.
+        const allTheFields: Record<string, Grants.FormField> = Object.fromEntries(
+        newAllocators.flatMap(i => i.template[state.selectedProjectType].map(field => [field.title, field])));
+
+        for (const answerForm of loadedAnswerForms) {
+            if (answerForm.allocatorId !== "System" || answerForm.templateRevisionNumber === -42) {  
+                continue;
+            }
+            // If you are system and your revision number isn't -42
+            for(const answerField of answerForm.answerFields) {
+                const foundField: Grants.FormField | undefined = allTheFields[answerField.field.title];
+                if (!foundField) {
+                    continue;
+                }
+                answerField.field = foundField; // now we override with the found field
+            }
+            // TODO: Remove sentinel hack (-42) once plain_text is no longer in use.
+            // Currently used to signal "fields already resolved" in legacy flow.
+            answerForm.templateRevisionNumber = -42;
+        }
+        /****************************************************************************************************************************************/
 
         let startDate = new Date(Date.now())
         if (doc.allocationPeriod?.start != null) {
@@ -808,14 +823,8 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
 
         let endDate = new Date(Date.now() + 1000);
         if (doc.allocationPeriod?.end != null) {
-            endDate = new Date(new Date(doc.allocationPeriod.end ?? Date.now()).getTime() + 1000);
+            endDate = new Date(doc.allocationPeriod.end);
         }
-        // Off by one second in some cases, let's just adjust slightly here.
-
-        const startYear = Math.max(2019, startDate.getUTCFullYear());
-        const startMonth = startDate.getUTCMonth();
-        const normalizedStart = (startDate.getUTCFullYear() * 12) + (startDate.getUTCMonth() + 1);
-        const normalizedEnd = (endDate.getUTCFullYear() * 12) + (endDate.getUTCMonth() + 1);
 
         let projectPi = state.stateDuringEdit.recipientInfo.piUsername;
         if (projectPi === "") {
@@ -844,21 +853,38 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             ...state,
             allocators: newAllocators,
             resources: newResources,
-            createApplicationForms: newApplication,
-            outdatedFields: outdatedFields,
-            applicationAnswers: newApplicationDocument,
-            allocationPeriod: state.stateDuringEdit.id === GRANT_GIVER_INITIATED_ID ? state.allocationPeriod : {
-                start: {
-                    month: startMonth,
-                    year: startYear,
-                },
-                durationInMonths: normalizedEnd - normalizedStart,
-            },
+            createApplicationForms: loadedAnswerForms,
+            allocationPeriod: state.stateDuringEdit.id === GRANT_GIVER_INITIATED_ID
+                ? state.allocationPeriod
+                : normalizeAllocationPeriod(startDate.getTime(), endDate.getTime()),
             principalInvestigator: projectPi,
             stateDuringEdit: newEditState,
-            durationWarning: getExpirationWarning({year: startYear, month: startMonth, duration: normalizedEnd - normalizedStart}),
+            durationWarning: getExpirationWarning({
+                end: state.stateDuringEdit.id === GRANT_GIVER_INITIATED_ID
+                    ? state.allocationPeriod.end
+                    : normalizeAllocationPeriod(startDate.getTime(), endDate.getTime()).end,
+            }),
         };
     }
+}
+
+function extractToAnswerForms(allocators: Allocators[], templateKey: Exclude<keyof Grants.TemplateStructured, "revisionNumber">
+): Grants.AnswerForm[] {
+
+    const checkedAllocators = allocators.filter(i => i.checked);
+    const answerForms: Grants.AnswerForm[] = [];
+    for (const allocator of checkedAllocators) {
+        const fields: Grants.FormField[] = allocator.template[templateKey] ?? [];
+        const answerFields: Grants.AnswerFieldForm[] = fields.map((field) => ({ answer: "", field }))
+
+        answerForms.push({
+            allocatorId: allocator.id,
+            answerFields,
+            templateRevisionNumber: allocator.template.revisionNumber
+        });
+    }
+    return answerForms;
+
 }
 
 // State reducer middleware
@@ -990,9 +1016,10 @@ function useStateReducerMiddleware(
                             templates: {
                                 type: "structured",
                                 structured: {
-                                    newProject: [grantGiverInitiatedForm],
-                                    existingProject: [grantGiverInitiatedForm],
-                                    personalProject: [grantGiverInitiatedForm],
+                                    newProject: grantGiverInitiatedForm.answerFields.map(i => i.field),
+                                    existingProject: grantGiverInitiatedForm.answerFields.map(i => i.field),
+                                    personalProject: grantGiverInitiatedForm.answerFields.map(i => i.field),
+                                    revisionNumber: -1,
                                 },
                             }
                         }]
@@ -1512,43 +1539,31 @@ export function Editor(): React.ReactNode {
         dispatchEvent({type: "CleanupReferenceIds"});
     }, [dispatchEvent]);
 
-    const onApplicationChange = useCallback<React.FormEventHandler>(ev => {
-        if (!(ev.target instanceof HTMLTextAreaElement)) return;
-        const id = ev.target.id;
-        const newValue = ev.target.value;
-        const f = ev.target.dataset.field;
-        let field: Grants.FormField = {description: "", name: id, optional: false, title: ""};
-        if (f !== undefined) {
-            field = JSON.parse(f);
-        }
-        dispatchEvent({type: "ApplicationUpdated", answer: newValue, field});
+    const onAnswerFormChange = useCallback((allocatorId: string, fieldIdx: number, answer: string) => {
+        dispatchEvent({type: "AnswerFormUpdated", allocatorId, fieldIdx, answer});
+    },[dispatchEvent]);
+
+    const onStartDateUpdated = useCallback<React.FormEventHandler>(ev => {
+        const date = dateInputToTimestamp((ev.target as HTMLInputElement).value);
+        if (date === undefined) return;
+        dispatchEvent({type: "DurationUpdated", start: date, duration: null});
     }, [dispatchEvent]);
 
-    const onStartUpdated = useCallback<React.FormEventHandler>(ev => {
-        const select = ev.target as HTMLSelectElement;
-        const valSplit = select.value.split("/");
-        const [month, year] = valSplit.map(it => parseInt(it));
-        if (isNaN(month) || isNaN(year)) return;
-
-        dispatchEvent({type: "DurationUpdated", year, month});
-        handleDurationWarning({year, month});
+    const onEndDateUpdated = useCallback<React.FormEventHandler>(ev => {
+        const date = dateInputToTimestamp((ev.target as HTMLInputElement).value, true);
+        if (date === undefined) return;
+        dispatchEvent({type: "DurationUpdated", end: date, duration: null});
     }, [dispatchEvent]);
 
     const onDurationUpdated = useCallback<React.FormEventHandler>(ev => {
         const select = ev.target as HTMLSelectElement;
+        if (select.value === "custom") {
+            dispatchEvent({type: "DurationUpdated", duration: null});
+            return;
+        }
         const duration = parseInt(select.value);
         if (isNaN(duration)) return;
         dispatchEvent({type: "DurationUpdated", duration});
-
-        const {month, year} = getStartOfDuration();
-        handleDurationWarning({year, month});
-    }, [dispatchEvent]);
-
-    const handleDurationWarning = useCallback(({year, month, duration}: {year: number, month: number, duration?: number}) => {
-        const warning = getExpirationWarning({year, month, duration});
-        if (warning) {
-            dispatchEvent({type: "DurationWarning", durationWarning: warning});
-        }
     }, [dispatchEvent]);
 
     const onUnlock = useCallback(() => {
@@ -1569,9 +1584,29 @@ export function Editor(): React.ReactNode {
         if (state.stateDuringCreate !== undefined) {
             return state.createApplicationForms.length > 0;
         } else if (state.stateDuringEdit !== undefined) {
-            return Object.values(state.applicationAnswers).length > 0;
+            return state.createApplicationForms.length > 0;
         }
         return false;
+    }
+
+    const getUnrequestedAllocators = (state: EditorState): Set<string> => {
+        const hasAllocatedResources = new Set<string>();
+        const checkedAllocators: Allocators[] = state.allocators.filter(i => i.checked);
+        for (const alloc of checkedAllocators) {
+            const categories: ResourceCategory[] = Object.values(state.resources).flatMap(i => i);
+            for (const category of categories) {
+                if (category.totalBalanceRequested[alloc.id]){
+                    hasAllocatedResources.add(alloc.id);
+                }
+            }
+        }
+        let hasNoResources = new Set<string>();
+        for (const alloc of checkedAllocators) {
+            if (!hasAllocatedResources.has(alloc.id)) {
+                hasNoResources.add(alloc.id);
+            }
+        }
+        return hasNoResources;
     }
 
     const onSubmit = useCallback<React.FormEventHandler>(async ev => {
@@ -1579,19 +1614,32 @@ export function Editor(): React.ReactNode {
         if (!state.stateDuringCreate) return;
         if (state.loading) return;
         if (!applicationFormExists(state)) return;
+        const periodError = getAllocationPeriodError(state.allocationPeriod);
+        if (periodError) {
+            sendFailureNotification(periodError);
+            return;
+        }
         const checked = state.allocators.filter(it => it.checked);
         if (checked.length === 0) return;
+        state.unrequestedAllocators = new Set<string>(); // reset
+        let missingResources = getUnrequestedAllocators(state);
+        if (missingResources.size > 0) {
+            dispatchEvent({type: "MissingResources", allocatorIds: missingResources});
+            sendFailureNotification("You must request at least one resource for each selected grant giver.");
+            return;
+        }
 
         const [start, end] = stateToAllocationPeriod(state);
         const period: Grants.Period = {start, end};
 
+        const allocationRequests = stateToRequests(state);
         const doc: Grants.Doc = {
             recipient: stateToCreationRecipient(state)!,
             referenceIds: null,
             revisionComment: null,
-            form: stateToApplication(state),
+            form: createForm(state.createApplicationForms),
             parentProjectId: checked[0].id,
-            allocationRequests: stateToRequests(state),
+            allocationRequests,
             allocationPeriod: period
         };
 
@@ -1632,8 +1680,17 @@ export function Editor(): React.ReactNode {
     }, [dispatchEvent, state.stateDuringEdit?.id]);
 
     const onUpdate = useCallback(async (dry: boolean = false) => {
+        if (!formRef.current?.checkValidity()) {
+            formRef.current?.reportValidity();
+            return;
+        }
         if (!state.stateDuringEdit) return;
         if (state.loading) return;
+        const periodError = getAllocationPeriodError(state.allocationPeriod);
+        if (periodError) {
+            sendFailureNotification(periodError);
+            return false;
+        }
 
         const editState = state.stateDuringEdit;
         const currentDoc = editState.document;
@@ -1661,21 +1718,27 @@ export function Editor(): React.ReactNode {
         const [start, end] = stateToAllocationPeriod(state);
         const period: Grants.Period = {start, end};
 
+        // Filter out allocators and forms that have no resources
+        const unrequestedAllocators = getUnrequestedAllocators(state);
+        let allocationsRequested = stateToRequests(state)
+        allocationsRequested = allocationsRequested.filter(i => !unrequestedAllocators.has(i.grantGiver));
+        const updatedForms = state.createApplicationForms.filter(i => !unrequestedAllocators.has(i.allocatorId));
+
         const doc: Grants.Doc = {
             recipient: currentDoc.recipient,
             referenceIds: editState.referenceIds ? editState.referenceIds : null,
-            allocationRequests: stateToRequests(state),
-            form: stateToApplication(state),
+            allocationRequests: allocationsRequested,
+            form: createForm(updatedForms),
             parentProjectId: currentDoc.parentProjectId,
             allocationPeriod: period
         };
-        doc.form["fields"] = [...Object.values(state.applicationAnswers), ...state.outdatedFields];
+
         if (isGrantGiverInitiated) {
             doc.form.type = "grant_giver_initiated";
             doc.form["subAllocator"] = isForSubAllocator
         }
 
-        if (isGrantGiverInitiated && Object.values(state.applicationAnswers).length === 0) {
+        if (isGrantGiverInitiated && state.createApplicationForms.length === 0) {
             sendFailureNotification("Missing description (see application section)");
             return false;
         }
@@ -1690,6 +1753,7 @@ export function Editor(): React.ReactNode {
                 }));
 
                 if (result) {
+                    state.allocators = []; // clearing, since we are repopulating the list
                     if (isGrantGiverInitiated) {
                         navigate(AppRoutes.accounting.allocations());
                         return true;
@@ -1813,7 +1877,7 @@ export function Editor(): React.ReactNode {
     // Short-hands used in the user-interface
     // -----------------------------------------------------------------------------------------------------------------
     const isGrantGiverInitiated = state.stateDuringEdit?.id === GRANT_GIVER_INITIATED_ID;
-    const monthOptions = stateToMonthOptions(state);
+    const isCustomAllocationPeriod = state.allocationPeriod.durationInMonths === undefined;
     const anyChecked = state.allocators.some(it => it.checked);
     const newestRevision = state.stateDuringEdit?.newestRevision;
     const activeRevision = state.stateDuringEdit?.activeRevision;
@@ -1998,39 +2062,51 @@ export function Editor(): React.ReactNode {
                                 description={<></>}
                             >
                                 <label>
-                                    When should the allocation start?
-                                    <Select
-                                        data-duration-start
-                                        value={state.allocationPeriod.start.month + "/" + state.allocationPeriod.start.year}
-                                        onChange={onStartUpdated}
-                                        disabled={state.locked || isClosed}
-                                    >
-                                        {monthOptions.map(it => <option value={it.key} key={it.key}>{it.text}</option>)}
-                                    </Select>
-                                </label>
-
-                                <label>
-                                    For how many months should the allocation last?
+                                    Duration
                                     <Select
                                         data-duration-months
-                                        value={state.allocationPeriod.durationInMonths}
+                                        value={state.allocationPeriod.durationInMonths ?? "custom"}
                                         onChange={onDurationUpdated}
                                         disabled={state.locked || isClosed}
                                     >
-                                        <option value="1">1 months</option>
-                                        <option value="3">3 months</option>
-                                        <option value="6">6 months</option>
-                                        <option value="12">12 months</option>
-                                        <option value="24">24 months</option>
-
-                                        {!Client.userIsAdmin ? null : (
-                                            [3, 4, 5, 6, 7, 8, 9, 10].map(years =>
-                                                <option key={years} value={`${years * 12}`}>{years} years</option>
-                                            )
-                                        )}
+                                        <option value="custom">Custom</option>
+                                        <option value="1">1 month (from now)</option>
+                                        <option value="3">3 months (from now)</option>
+                                        <option value="6">6 months (from now)</option>
+                                        <option value="12">12 months (from now)</option>
+                                        <option value="24">24 months (from now)</option>
                                     </Select>
                                 </label>
-                                <Warning warning={state.durationWarning} />
+                                {isCustomAllocationPeriod && <>
+                                    <label>
+                                        Start date
+                                        <Input
+                                            id={FormIds.startDate}
+                                            data-duration-start
+                                            type="date"
+                                            value={timestampToDateInput(state.allocationPeriod.start)}
+                                            onChange={onStartDateUpdated}
+                                            max={timestampToDateInput(state.allocationPeriod.end)}
+                                            required
+                                            disabled={state.locked || isClosed}
+                                        />
+                                    </label>
+
+                                    <label>
+                                        End date
+                                        <Input
+                                            id={FormIds.endDate}
+                                            data-duration-end
+                                            type="date"
+                                            value={timestampToDateInput(state.allocationPeriod.end)}
+                                            onChange={onEndDateUpdated}
+                                            min={timestampToDateInput(state.allocationPeriod.start)}
+                                            required
+                                            disabled={state.locked || isClosed}
+                                        />
+                                    </label>
+                                </>}
+                                <Warning warning={getAllocationPeriodError(state.allocationPeriod) ?? state.durationWarning} />
                             </FormField>
 
                             {state.stateDuringEdit && <>
@@ -2204,20 +2280,20 @@ export function Editor(): React.ReactNode {
                                                     if (isViewingHistoricEntry) {
                                                         return <React.Fragment key={allocator.grantGiverId}>
                                                             <div className={"allocation-row"}>
-                                                                <label>
+                                                                <Label>
                                                                     {unit.name} requested
                                                                     {checkedAllocators.length > 1 &&
                                                                         <> from <ProjectTitleForNewCore id={allocator.grantGiverId} title={allocator.grantGiverTitle} /></>
                                                                     }
 
-                                                                    <Input
+                                                                    <Input error={state.unrequestedAllocators.has(allocator.grantGiverId)}
                                                                         id={`${providerId}/${category.category.name}/${allocator.grantGiverId}`}
                                                                         type={"number"} placeholder={"0"}
                                                                         onInput={onResourceInput}
                                                                         min={0}
                                                                         value={category.totalBalanceRequested[allocator.grantGiverId] ?? ""}
                                                                         disabled={state.locked || isClosed} />
-                                                                </label>
+                                                                </Label>
 
                                                                 {errorMessage && <div
                                                                     style={{color: "var(--errorMain)"}}>{errorMessage}</div>}
@@ -2228,18 +2304,18 @@ export function Editor(): React.ReactNode {
 
                                                         return <React.Fragment key={allocator.grantGiverId}>
                                                             <div className={"allocation-row"}>
-                                                                <label>
+                                                                <Label>
                                                                     {unit.name} requested
                                                                     {checkedAllocators.length > 1 && <> from <ProjectTitleForNewCore id={allocator!.grantGiverId} title={allocatorName} /></>}
 
-                                                                    <Input
+                                                                    <Input error={state.unrequestedAllocators.has(allocator.grantGiverId)}
                                                                         id={`${providerId}/${category.category.name}/${allocator.grantGiverId}`}
                                                                         type={"number"} placeholder={"0"}
                                                                         onInput={onResourceInput}
                                                                         min={0}
                                                                         value={category.totalBalanceRequested[allocator.grantGiverId] ?? ""}
                                                                         disabled={state.locked || isClosed} />
-                                                                </label>
+                                                                </Label>
 
                                                                 {errorMessage && <div
                                                                     style={{color: "var(--errorMain)"}}>{errorMessage}</div>}
@@ -2253,10 +2329,7 @@ export function Editor(): React.ReactNode {
                                 </React.Fragment>;
                             })}
 
-                            <h2 style={{fontWeight: "bold"}}>Application</h2>
-                            <br />
-                            <ApplicationForm closed={isClosed} editorState={state} event={onApplicationChange}></ApplicationForm>
-
+                            <AnswerFormsView state={state} forms={state.createApplicationForms} onChange={onAnswerFormChange}/>
                         </>}
                     </form>
                 </Box>
@@ -2264,95 +2337,59 @@ export function Editor(): React.ReactNode {
     />;
 };
 
-type ApplicationFormProps = {
-    editorState: EditorState,
-    closed: boolean | undefined,
-    event: React.FormEventHandler<Element>,
-};
-
-export function ApplicationForm({editorState: state, closed: isClosed, event: onApplicationChange}: ApplicationFormProps): React.ReactNode {
-
-    function OutdatedTextArea({field: answerField}: OutdatedTextAreaProps): React.ReactNode {
-
-        const handleCopy = async () => {
-            await navigator.clipboard.writeText(answerField.answer || "");
-            sendSuccessNotification("Copied!");
-        };
-
-        return (
-            <Box mb={10}>
-                <Flex>
-                    <Label>{answerField.field.title}</Label>
-                    <Tooltip trigger={(
-                        <TextArea
-                            readOnly
-                            style={{"cursor": "pointer"}}
-                            onClick={handleCopy}
-                            mr={10}
-                            value={answerField.answer}
-                            width="545px"
-                        />
-                    )}>
-                        Click to copy field to clipboard
-                    </Tooltip>
-                </Flex>
-            </Box>
-        );
-    }
-
-    const OutdatedApplicationDescription = <Box mb={20}>
-        <Label fontSize={16} mb={2} style={{fontWeight: "bold"}}>Outdated fields</Label>
-        <section style={{color: "var(--textSecondary)"}}>
-            <p style={{margin: 0}}>The project application form has changed since you last edited your submission. </p>
-            <p style={{margin: 0}}>Please review and update the affected fields.</p>
-        </section>
-    </Box>
-
-    const renderForm = (forms: Grants.FormField[]): React.ReactNode => (
+function AnswerFormsView({ state, forms, onChange }: { state: EditorState, forms: Grants.AnswerForm[]; onChange: AnswerFormUpdateCallback}) {
+    return (
         <div className="application-wrapper">
-            <div className="application">
-                {forms.map((val, idx) => (
-                    <FormField
-                        title={val.title}
-                        key={idx}
-                        id={val.name}
-                        description={val.description}
-                        mandatory={!val.optional}
-                    >
-                        <Box>
-                            <TextArea
-                                id={val.name}
-                                rows={val.rows}
-                                maxLength={val.maxLength}
-                                required={!val.optional}
-                                disabled={state.locked || isClosed}
-                                value={state.applicationAnswers[val.name]?.answer ?? ""}
-                                data-field={JSON.stringify(val)}
-                                onChange={onApplicationChange}
-                                placeholder=" "
-                            />
-                            {val.maxLength ? <Flex justifyContent={"flex-end"}>{state.applicationAnswers[val.name]?.answer.length ?? 0} / {val.maxLength} </Flex> : <></>}
-                        </Box>
+            {forms.map((form) =>  {
+                if (form.answerFields.length === 0) return null;
 
-                    </FormField>
+                return (<Box key={form.allocatorId}>
+                    <h3>
+                        <ProjectLogo projectId={form.allocatorId} size={`${25}px`} />
+                        <ProjectTitleForNewCore id={form.allocatorId}/>
+                    </h3>
+                    <hr style={{border:("solid 1px var(--secondaryDark)")}}/>
+                    <AnswerFormView 
+                        state={state}
+                        form={form}
+                        onChange={onChange}
+                    />
+                </Box>);
+            })}
+        </div>
+    );
+}
 
-                ))}
-            </div>
-
-            {state.outdatedFields.length > 0 && OutdatedApplicationDescription}
-
-            {state.outdatedFields.map((f) => (
-                <OutdatedTextArea key={f.field.name} field={f} />
+function AnswerFormView({state, form, onChange}: { state: EditorState; form: Grants.AnswerForm; onChange: AnswerFormUpdateCallback}) {
+    const overallState = state.stateDuringEdit?.overallState;
+    const isClosed =
+        state.stateDuringEdit &&
+        overallState !== Grants.State.IN_PROGRESS;
+    return (
+        <div className="application">
+            {form.answerFields.map((answerField, fieldIdx) => (
+                <FormField
+                    key={fieldIdx}
+                    title={answerField.field.title}
+                    id={answerField.field.name}
+                    description={answerField.field.description}
+                    mandatory={!answerField.field.optional}>
+                    <Box>
+                        <TextArea
+                            id={answerField.field.name}
+                            rows={answerField.field.rows}
+                            maxLength={answerField.field.maxLength}
+                            required={!answerField.field.optional}
+                            disabled={state.locked || isClosed}
+                            value={answerField.answer}
+                            onChange={(e) => onChange(form.allocatorId, fieldIdx, e.target.value)}
+                        />
+                        {answerField.field.maxLength ? <Flex justifyContent={"flex-end"}>{answerField.answer.length ?? 0} / {answerField.field.maxLength} </Flex> : <></>}
+                    </Box>
+                </FormField>
             ))}
         </div>
     );
-
-    if (state.outdatedFields.length > 0) {
-        // legacy rendering
-        return renderForm(state.createApplicationForms);
-    }
-
-    return state.stateDuringCreate ? renderForm(state.createApplicationForms) : renderForm(Object.values(state.applicationAnswers).map(i => i.field));
 }
 
 // Project transfer
@@ -2935,9 +2972,9 @@ const FormIds = {
 
 // Utility functions
 // =====================================================================================================================
-function stateToApplication(state: EditorState): Grants.Doc["form"] {
+function createForm(forms: Grants.AnswerForm[]): Grants.Doc["form"] {
     const isForSubAllocator = getQueryParam(location.search, "subAllocator") == "true";
-    return {type: "structured", text: "", fields: [...Object.values(state.applicationAnswers)], subAllocator: isForSubAllocator};
+    return {type: "structured", text: "", subAllocator: isForSubAllocator, answerForms: forms};
 }
 
 function stateToRequests(state: EditorState): Grants.Doc["allocationRequests"] {
@@ -2998,76 +3035,80 @@ function stateToCreationRecipient(state: EditorState): Grants.Doc["recipient"] |
 }
 
 function stateToAllocationPeriod(state: EditorState): [number, number] {
-    const start = new Date();
-    start.setUTCFullYear(state.allocationPeriod.start.year, state.allocationPeriod.start.month, 1);
-    start.setUTCHours(0, 0, 0, 0);
-
-    const end = new Date(start.getTime());
-    end.setUTCMonth(end.getUTCMonth() + state.allocationPeriod.durationInMonths);
-    end.setUTCHours(0, 0, 0, 0);
-    end.setUTCSeconds(0, -1);
-
-    return [start.getTime(), end.getTime()];
+    return [state.allocationPeriod.start, state.allocationPeriod.end];
 }
 
-const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October",
-    "November", "December"];
+function startOfCurrentMonth(): number {
+    const now = new Date();
+    return Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1);
+}
 
-function stateToMonthOptions(state: EditorState): {key: string, text: string}[] {
-    const result: {key: string, text: string, time: number}[] = [];
+function createAllocationPeriodFromDuration(start: number, durationInMonths: number): AllocationPeriod {
+    const startDate = new Date(start);
+    const end = Date.UTC(
+        startDate.getUTCFullYear(),
+        startDate.getUTCMonth() + durationInMonths,
+        startDate.getUTCDate(),
+    ) - 1;
+    return {start, end, durationInMonths};
+}
 
-    function insertIfUnique(date: Date) {
-        const today = new Date();
-        const month = monthNames[date.getMonth()];
-        const key = `${date.getMonth()}/${date.getFullYear()}`;
-        if (result.some(it => it.key === key)) return;
+function normalizeAllocationPeriod(start: number, end: number, durationInMonths?: number | null): AllocationPeriod {
+    const startDate = new Date(start);
+    const normalizedStart = Date.UTC(
+        startDate.getUTCFullYear(),
+        startDate.getUTCMonth(),
+        startDate.getUTCDate(),
+    );
 
-        if (today.getUTCFullYear() === date.getUTCFullYear() && today.getUTCMonth() === date.getUTCMonth()) {
-            result.push({key, text: `Immediately`, time: date.getTime()});
-        } else {
-            result.push({key, text: `${month} ${date.getFullYear()}`, time: date.getTime()});
-        }
+    if (durationInMonths !== undefined && durationInMonths !== null) {
+        return createAllocationPeriodFromDuration(normalizedStart, durationInMonths);
     }
 
-    const date = new Date();
-    date.setDate(1);
+    const endDate = new Date(end);
+    const normalizedEnd = Date.UTC(
+        endDate.getUTCFullYear(),
+        endDate.getUTCMonth(),
+        endDate.getUTCDate() + 1,
+    ) - 1;
+    const period = {start: normalizedStart, end: normalizedEnd};
+    const preset = durationInMonths === null ? undefined : [1, 3, 6, 12]
+        .find(months => createAllocationPeriodFromDuration(normalizedStart, months).end === normalizedEnd);
+    return {...period, durationInMonths: preset};
+}
 
-    for (let i = 0; i < 12; i++) {
-        insertIfUnique(date);
-        const currentMonth = date.getMonth();
-        date.setMonth((currentMonth + 1) % 12);
-        if (currentMonth === 11) date.setFullYear(date.getFullYear() + 1);
+function getAllocationPeriodError(period: AllocationPeriod): string | undefined {
+    if (!Number.isFinite(period.start) || !Number.isFinite(period.end) || period.end < period.start) {
+        return "End date must be on or after the start date.";
     }
+    return undefined;
+}
 
-    date.setUTCFullYear(state.allocationPeriod.start.year, state.allocationPeriod.start.month);
-    date.setUTCMonth(date.getUTCMonth() - 6);
-    for (let i = 0; i < 12; i++) {
-        insertIfUnique(date);
-        const currentMonth = date.getMonth();
-        date.setMonth((currentMonth + 1) % 12);
-        if (currentMonth === 11) date.setFullYear(date.getFullYear() + 1);
+function timestampToDateInput(timestamp: number): string {
+    const date = new Date(timestamp);
+    const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+    const day = String(date.getUTCDate()).padStart(2, "0");
+    return `${date.getUTCFullYear()}-${month}-${day}`;
+}
+
+function dateInputToTimestamp(value: string, endOfDay = false): number | undefined {
+    const parts = value.split("-").map(Number);
+    if (parts.length !== 3 || parts.some(it => !Number.isInteger(it))) return undefined;
+    const [year, month, day] = parts;
+    const timestamp = endOfDay
+        ? Date.UTC(year, month - 1, day + 1) - 1
+        : Date.UTC(year, month - 1, day);
+    const date = new Date(timestamp);
+    if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) {
+        return undefined;
     }
-
-    result.sort((a, b) => a.time - b.time);
-
-    return result;
+    return timestamp;
 }
 
-function getStartOfDuration(): {month: number, year: number} {
-    const [month, year] = document.querySelector<HTMLSelectElement>("select[data-duration-start]")?.value.split("/") ?? [];
-    return {month: parseInt(month), year: parseInt(year)};
-}
-
-function getMonthDuration(): number {
-    const months = parseInt(document.querySelector<HTMLSelectElement>("select[data-duration-months]")?.value ?? "12");
-    return !isNaN(months) ? months : 12;
-}
-
-function getExpirationWarning({year, month, duration}: {year: number, month: number, duration?: number}): string | undefined {
-    const monthDuration = duration ?? getMonthDuration();
+function getExpirationWarning({end}: {end: number}): string | undefined {
     const now = new Date();
 
-    const endDate = new Date(year, month + monthDuration);
+    const endDate = new Date(end);
     const aWeekBefore = subDays(now, 7);
     const isLessThanAWeekLeft = isWithinInterval(endDate, interval(aWeekBefore, now));
     if (isLessThanAWeekLeft) {
@@ -3087,13 +3128,20 @@ const grantGiverInitiatedTemplate = `${grantGiverInitiatedPrefix}
                     
 Describe the reason for creating this sub-allocation (max 4000 ch).`;
 
-const grantGiverInitiatedForm: Grants.FormField = {
-    description: "Describe the reason for creating this sub-allocation",
-    name: grantGiverInitiatedPrefix,
-    optional: false,
-    title: grantGiverInitiatedPrefix,
-    maxLength: 4000,
-    rows: 100
+const grantGiverInitiatedForm: Grants.AnswerForm = {
+    allocatorId: "",
+    answerFields: [{
+        answer: "",
+            field: {
+            description: "Describe the reason for creating this sub-allocation",
+            name: grantGiverInitiatedPrefix,
+            optional: false,
+            title: grantGiverInitiatedPrefix,
+            maxLength: 4000,
+            rows: 6
+        }
+    }],
+    templateRevisionNumber: -1,
 };
 
 export default Editor;

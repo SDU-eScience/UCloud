@@ -11,6 +11,7 @@ import (
 	endpoint "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
 	route "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	jwt "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/jwt_authn/v3"
+	tls "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/tls/v3"
 	matcher "github.com/envoyproxy/go-control-plane/envoy/type/matcher/v3"
 	"github.com/envoyproxy/go-control-plane/pkg/cache/types"
 	"github.com/envoyproxy/go-control-plane/pkg/cache/v3"
@@ -260,7 +261,7 @@ func createClusters(clusters map[string]*EnvoyCluster) []types.Resource {
 			dnsType = cluster.Cluster_STRICT_DNS
 		}
 
-		result = append(result, &cluster.Cluster{
+		newCluster := &cluster.Cluster{
 			Name: c.Name,
 			ConnectTimeout: &duration.Duration{
 				Nanos: 250_000_000,
@@ -291,7 +292,28 @@ func createClusters(clusters map[string]*EnvoyCluster) []types.Resource {
 					}},
 				}},
 			},
-		})
+		}
+
+		if c.TLS {
+			tlsConfig, err := anypb.New(&tls.UpstreamTlsContext{
+				CommonTlsContext: &tls.CommonTlsContext{
+					ValidationContextType: &tls.CommonTlsContext_ValidationContext{
+						ValidationContext: &tls.CertificateValidationContext{
+							TrustChainVerification: tls.CertificateValidationContext_ACCEPT_UNTRUSTED,
+						},
+					},
+				},
+			})
+			checkCfg(err)
+			newCluster.TransportSocket = &core.TransportSocket{
+				Name: "envoy.transport_sockets.tls",
+				ConfigType: &core.TransportSocket_TypedConfig{
+					TypedConfig: tlsConfig,
+				},
+			}
+		}
+
+		result = append(result, newCluster)
 	}
 	return result
 }

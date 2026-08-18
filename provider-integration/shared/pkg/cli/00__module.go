@@ -20,6 +20,54 @@ func IsListCommand(command string) bool {
 	}
 }
 
+func IsSearchCommand(command string) bool {
+	switch command {
+	case "s":
+		fallthrough
+	case "search":
+		return true
+	default:
+		return false
+	}
+}
+
+func IsCreateCommand(command string) bool {
+	switch command {
+	case "c":
+		fallthrough
+	case "create":
+		return true
+	default:
+		return false
+	}
+}
+
+func IsRenameCommand(command string) bool {
+	switch command {
+	case "rename":
+		return true
+	default:
+		return false
+	}
+}
+
+func IsProductsCommand(command string) bool {
+	switch command {
+	case "products":
+		return true
+	}
+	return false
+}
+
+func IsLabelUpdateCommand(command string) bool {
+	switch command {
+	case "labels":
+		return true
+	default:
+		return false
+	}
+}
+
 func IsAddCommand(command string) bool {
 	switch command {
 	case "add":

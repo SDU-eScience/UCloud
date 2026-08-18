@@ -50,6 +50,9 @@ export interface JobSpecification extends ResourceSpecification {
     sshEnabled?: boolean;
 }
 
+// IN_QUEUE: accepted but not executing. RUNNING: execution started. SUCCESS: exit code 0.
+// FAILURE: non-zero exit, signal, OOM, workload, or infrastructure failure. EXPIRED:
+// allocation elapsed. SUSPENDED: intentionally paused and may resume. CANCELING is transient.
 export type JobState = "IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED" | "SUSPENDED";
 export function isJobStateFinal(state: JobState): boolean {
     switch (state) {
@@ -308,6 +311,10 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
         const baseOperations = super.retrieveOperations();
         const deleteOperation = baseOperations.find(it => it.tag === DELETE_TAG)!;
         deleteOperation.text = "Stop";
+        deleteOperation.confirmationText = selected => selected.length === 1 ?
+            "Are you sure you want to stop this job?" :
+            `Are you sure you want to stop these ${selected.length} jobs?`;
+        deleteOperation.confirmationButtonText = "Stop";
         deleteOperation.onClick = async (selected, cb) => {
             await cb.invokeCommand(this.terminate(bulkRequestOf(...selected.map(it => ({id: it.id})))))
             cb.reload();
@@ -332,7 +339,7 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
             onClick: ([{specification, id}], cb) =>
                 cb.navigate(AppRoutes.jobs.create(specification.application.name, specification.application.version, id)),
             icon: "play",
-            text: "Run application again",
+            text: "Run again",
             shortcut: ShortcutKey.B
         }];
 

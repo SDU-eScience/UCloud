@@ -24,6 +24,7 @@ import {
     supportedProtocols,
     Upload,
     uploadCalculateSpeed,
+    uploadIsTerminal,
     UploadState,
     uploadStore,
     uploadTrackProgress,
@@ -608,12 +609,14 @@ async function startUploads(batch: Upload[], setLookForNewUploads: (b: boolean) 
                 processUpload(upload)
                     .then(() => {
                         upload.state = UploadState.DONE;
+                        uploadStore.notifyChanges();
                         setLookForNewUploads(true);
                     })
                     .catch(e => {
                         if (typeof e === "string") {
                             upload.error = e;
                             upload.state = UploadState.DONE;
+                            uploadStore.notifyChanges();
                         }
                     });
             }
@@ -623,6 +626,8 @@ async function startUploads(batch: Upload[], setLookForNewUploads: (b: boolean) 
                 actualUploads[i].state = UploadState.DONE;
                 actualUploads[i].error = errorMessage;
             }
+
+            uploadStore.notifyChanges();
 
             window.dispatchEvent(new CustomEvent<WriteFailure>(FileWriteFailure, {
                 detail: actualUploads.filter(it => it.error),
@@ -736,7 +741,7 @@ const Uploader: React.FunctionComponent = () => {
         e.stopImmediatePropagation();
         e.stopPropagation();
         e.preventDefault();
-        const {path, content} = e.detail;
+        const {path, content, notifyBackgroundTask} = e.detail;
         const allUploads: Upload[] = uploads;
         let didFetch = false;
         const packaged = toPackagedFile(path, content);
@@ -749,6 +754,7 @@ const Uploader: React.FunctionComponent = () => {
             filesDiscovered: 0,
             state: UploadState.PENDING,
             conflictPolicy: "REPLACE",
+            notifyBackgroundTask,
             targetPath: getParentPath(path),
             fileFetcher: async () => {
                 if (didFetch) return null;
@@ -1036,10 +1042,6 @@ export const TaskRowClass = injectStyle("uploader-row", k => `
     }
 `);
 
-
-export function uploadIsTerminal(upload: Upload): boolean {
-    return !upload.paused && (upload.terminationRequested || upload.error != null || upload.state === UploadState.DONE);
-}
 
 function uploadProgressText(progressInBytes: number, fileSizeInBytes: number): string {
     return `${sizeToString(progressInBytes)} / ${sizeToString(fileSizeInBytes)}`

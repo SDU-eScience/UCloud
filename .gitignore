@@ -165,3 +165,4 @@ syncfiles/
 frontend-web/webclient/tests/test_data.json
 frontend-web/webclient/tests/OTHER_test_data.json
 .use-ollama
+tmp/

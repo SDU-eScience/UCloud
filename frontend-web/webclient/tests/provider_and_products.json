@@ -11,10 +11,14 @@
             "public_ip": "public-ip"
         },
         "drive_provider": "IM2/K8s",
-        "machine_used_in_tests": "u1-standard-1",
+        "machine_used_in_tests": "u1-standard",
         "application_text_fields": {
-            "existing": [],
-            "new": []
+            "existing": [
+                "Application"
+            ],
+            "new": [
+                "Application"
+            ]
         }
     },
     {
@@ -28,7 +32,7 @@
             "private_network": "private-network",
             "public_ip": null
         },
-        "machine_used_in_tests": "standard-cpu-1",
+        "machine_used_in_tests": "standard-cpu",
         "drive_provider": "SDU/K8s",
         "application_text_fields": {
             "new": [
@@ -54,7 +58,7 @@
             "private_network": "private-network",
             "public_ip": null
         },
-        "machine_used_in_tests": "cpu-amd-zen5-1-vcpu",
+        "machine_used_in_tests": "cpu-amd-zen5",
         "drive_provider": "SDU/K8s",
         "application_text_fields": {
             "new": [

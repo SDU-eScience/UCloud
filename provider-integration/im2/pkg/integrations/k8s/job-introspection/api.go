@@ -47,3 +47,22 @@ var IntrospectNetworks = rpc.Call[IntrospectAuthRequest, IntrospectNetworksRespo
 	Roles:       rpc.RolesPublic,
 	Operation:   "networks",
 }
+
+type UcxPublishRequest struct {
+	Token         string `json:"token"`
+	AppName       string `json:"appName"`
+	AppVersion    string `json:"appVersion"`
+	ContainerPath string `json:"containerPath"`
+}
+
+type UcxPublishResponse struct {
+	UCloudPath string `json:"ucloudPath"`
+	BinaryName string `json:"binaryName"`
+}
+
+var UcxPublish = rpc.Call[UcxPublishRequest, UcxPublishResponse]{
+	BaseContext: baseContext,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesPublic,
+	Operation:   "ucxPublish",
+}

@@ -47,6 +47,7 @@ func Init() controller.JobsService {
 
 	initSyncthing()
 	initIntegratedTerminal()
+	initIntegratedInferenceSandbox()
 	shared.TerminalRegisterBackend(&terminalBackend{})
 
 	loadIApps()
@@ -78,6 +79,22 @@ func findPodByJobIdAndRank(jobId string, rank int) util.Option[*core.Pod] {
 }
 
 func ResolveUcxJobSessionUpstream(job *orc.Job, port int) (string, error) {
+	if port == 0 {
+		if job.Specification.Application.Name != syncthingAppName {
+			return "", fmt.Errorf("job does not support provider-resolved UCX ports")
+		}
+
+		pod := findPodByJobIdAndRank(job.Id, 0)
+		if !pod.Present {
+			return "", fmt.Errorf("could not find pod for Syncthing job")
+		}
+		version := util.OptMapGet(pod.Value.Annotations, AnnotationSyncthingUcxVersion)
+		if !version.Present || version.Value != syncthingUcxIntegrationVersion {
+			return "", fmt.Errorf("Syncthing pod does not provide the current UCX integration")
+		}
+		port = syncthingUcxPort
+	}
+
 	if port <= 0 || port > 65535 {
 		return "", fmt.Errorf("invalid port: %d", port)
 	}
@@ -342,22 +359,24 @@ func terminate(request controller.JobTerminateRequest) *util.HttpError {
 	// -----------------------------------------------------------------------------------------------------------------
 	// NOTE(Dan): Helper resources (e.g. Service) have a owner reference on the pod. For this reason, we do not need to
 	// delete this directly.
-	for rank := 0; rank < request.Job.Specification.Replicas; rank++ {
-		podName := idAndRankToPodName(request.Job.Id, rank)
-		pod, ok := shared.JobPods.Retrieve(podName)
+	if !request.SkipResourceDeletion {
+		for rank := 0; rank < request.Job.Specification.Replicas; rank++ {
+			podName := idAndRankToPodName(request.Job.Id, rank)
+			pod, ok := shared.JobPods.Retrieve(podName)
 
-		// NOTE(Dan): Do not waste time on pods that we know are not in the system. The K8s API is really slow and this
-		// can waste a lot of time if someone attempts to schedule a 1 million node job (which we cannot possibly host
-		// anyway).
-		if ok && pod.DeletionTimestamp == nil {
-			ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(10*time.Second))
-			// NOTE(Dan): JobUpdateBatch and monitoring logic will aggressively get rid of pods that don't belong in
-			// the namespace and as such we don't have to worry about failures here.
-			_ = K8sClient.CoreV1().Pods(Namespace).Delete(ctx, podName, meta.DeleteOptions{
-				GracePeriodSeconds: util.Pointer[int64](1),
-			})
+			// NOTE(Dan): Do not waste time on pods that we know are not in the system. The K8s API is really slow and this
+			// can waste a lot of time if someone attempts to schedule a 1 million node job (which we cannot possibly host
+			// anyway).
+			if ok && pod.DeletionTimestamp == nil {
+				ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(10*time.Second))
+				// NOTE(Dan): JobUpdateBatch and monitoring logic will aggressively get rid of pods that don't belong in
+				// the namespace and as such we don't have to worry about failures here.
+				_ = K8sClient.CoreV1().Pods(Namespace).Delete(ctx, podName, meta.DeleteOptions{
+					GracePeriodSeconds: util.Pointer[int64](1),
+				})
 
-			cancel()
+				cancel()
+			}
 		}
 	}
 
@@ -544,6 +563,7 @@ func openWebSession(job *orc.Job, sessionType orc.InteractiveSessionType, rank i
 			TargetDomain: ingress.TargetDomain,
 			Flags:        flags,
 			IsPublic:     ingress.IsPublic,
+			TLS:          ingress.TLS,
 		})
 	}
 
@@ -559,6 +579,7 @@ func serverFindIngress(job *orc.Job, rank int, suffix util.Option[string]) []con
 			result = append(result, controller.ConfiguredWebIngress{
 				IsPublic:     true,
 				TargetDomain: ingress.Specification.Domain,
+				TLS:          resource.TLS,
 			})
 		}
 	}

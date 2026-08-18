@@ -39,6 +39,7 @@ export interface FileCollectionSupport extends ProductSupport {
     stats: {
         sizeInBytes?: boolean;
         sizeIncludingChildrenInBytes?: boolean;
+        visualization?: boolean;
 
         modifiedAt?: boolean;
         createdAt?: boolean;
