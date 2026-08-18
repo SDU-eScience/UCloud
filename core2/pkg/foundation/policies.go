@@ -221,6 +221,10 @@ func policiesUpdate(actor rpc.Actor, request fndapi.PoliciesUpdateRequest) (util
 					return util.Empty{}, util.HttpErr(http.StatusBadRequest, "Malformed policy specification (Internet Access)")
 				}
 				subnet := values.AllowedSubnets
+				if len(subnet) == 0 {
+					// Empty is allowed and should be handled by the code as no one is allowed
+					break
+				}
 				_, _, err := net.ParseCIDR(subnet)
 				if err != nil {
 					return util.Empty{}, util.HttpErr(http.StatusBadRequest, "Malformed policy specification (Internet Access, CIDR)")
@@ -266,6 +270,10 @@ func policiesUpdate(actor rpc.Actor, request fndapi.PoliciesUpdateRequest) (util
 					return util.Empty{}, util.HttpErr(http.StatusBadRequest, "Malformed policy specification (Source IP Range)")
 				}
 				subnet := values.AllowedSubnets
+				if len(subnet) == 0 {
+					// Empty is allowed and should be handled by the code as no one is allowed
+					break
+				}
 				_, _, err := net.ParseCIDR(subnet)
 				if err != nil {
 					return util.Empty{}, util.HttpErr(http.StatusBadRequest, "Malformed policy specification (Source IP Range, CIDR)")
