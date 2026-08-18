@@ -57,6 +57,10 @@ func initApiTokens() {
 }
 
 func apiTokenProviderFor(permissions []orcapi.ApiTokenPermission) (ApiTokenProvider, *util.HttpError) {
+	if _, ok := orcapi.ApiTokenServiceFromPermissions(permissions); !ok {
+		return ApiTokenProvider{}, util.HttpErr(http.StatusBadRequest, "a service provider token must request exactly one service")
+	}
+
 	var firstErr *util.HttpError
 	for _, provider := range ApiTokens.Providers {
 		err := ApiTokenValidatePermissions(provider.Options, permissions)
@@ -75,6 +79,10 @@ func apiTokenProviderFor(permissions []orcapi.ApiTokenPermission) (ApiTokenProvi
 }
 
 func ApiTokenValidatePermissions(options orcapi.ApiTokenOptions, permissions []orcapi.ApiTokenPermission) *util.HttpError {
+	if _, ok := orcapi.ApiTokenServiceFromPermissions(permissions); !ok {
+		return util.HttpErr(http.StatusBadRequest, "a service provider token must request exactly one service")
+	}
+
 	permissionsByName := map[string]orcapi.ApiTokenPermissionSpecification{}
 	for _, option := range options.AvailablePermissions {
 		permissionsByName[option.Name] = option
@@ -94,6 +102,10 @@ func ApiTokenValidatePermissions(options orcapi.ApiTokenOptions, permissions []o
 }
 
 func ApiTokenCreate(kind string, server string, request orcapi.ApiToken) (orcapi.ApiTokenStatus, *util.HttpError) {
+	if _, ok := orcapi.ApiTokenServiceFromPermissions(request.Specification.RequestedPermissions); !ok {
+		return orcapi.ApiTokenStatus{}, util.HttpErr(http.StatusBadRequest, "a service provider token must request exactly one service")
+	}
+
 	if request.Specification.ExpiresAt.Time().Before(time.Now()) {
 		return orcapi.ApiTokenStatus{}, util.HttpErr(http.StatusBadRequest, "requested token has already expired")
 	}

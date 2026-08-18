@@ -99,6 +99,7 @@ func apiTokensContainerRepositoryOptions() orcapi.ApiTokenOptions {
 				Title: "Container repositories",
 				Description: "API token used to authenticate with container repositories. " +
 					"Access is limited by repository permissions and the token permissions.",
+				Context: orcapi.ApiTokenContextPersonal,
 				Actions: map[string]string{
 					"pull": "Pull images",
 					"push": "Push images",

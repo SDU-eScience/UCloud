@@ -63,6 +63,7 @@ func inferenceApiTokenOptions() orcapi.ApiTokenOptions {
 				Name:        "inference",
 				Title:       "Inference",
 				Description: "API token required for inference services",
+				Context:     orcapi.ApiTokenContextProject,
 				Actions: map[string]string{
 					"use": "Use",
 				},

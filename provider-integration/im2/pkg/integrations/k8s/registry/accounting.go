@@ -174,7 +174,7 @@ type accountingTagService struct {
 
 func (s *accountingTagService) Tag(ctx context.Context, tag string, descriptor v1.Descriptor) error {
 	repository, ok := controller.ContainerRepositoryRetrieveByRepository(s.repository)
-	if !ok || s.request == nil || s.request.owner != walletOwner(repository) {
+	if !ok || !registryRequestAllows(s.request, s.repository, "push") {
 		return ocid.ErrAccessDenied
 	}
 
@@ -191,6 +191,19 @@ func (s *accountingTagService) Tag(ctx context.Context, tag string, descriptor v
 	}
 	repositoryMarkDirty(owner)
 	return nil
+}
+
+func registryRequestAllows(request *requestState, repository, action string) bool {
+	if request == nil {
+		return false
+	}
+
+	for _, access := range request.access {
+		if access.Resource.Type == "repository" && access.Resource.Name == repository && access.Action == action {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *accountingTagService) Untag(ctx context.Context, tag string) error {
