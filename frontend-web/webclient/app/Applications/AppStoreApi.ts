@@ -605,7 +605,7 @@ export function updateApplicationVariant(request: {
     return apiUpdate(request, applicationVariantContext, "update");
 }
 
-export function deleteApplicationVariant(request: {id: number}): APICallParameters<unknown, unknown> {
+export function deleteApplicationVariant(request: {id: number; version?: string | null}): APICallParameters<unknown, unknown> {
     return apiDelete(request, applicationVariantContext);
 }
 

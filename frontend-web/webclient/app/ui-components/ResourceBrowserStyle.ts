@@ -138,6 +138,10 @@ export function injectResourceBrowserStyle(rowSize: number) {
             white-space: pre;
             align-items: center;
         }
+
+        ${BrowserClass.dot} header ul[data-no-slashes="false"] {
+            gap: 0;
+        }
         
         ${BrowserClass.dot} header[data-no-gap] ul {
             gap: 0;
@@ -192,6 +196,7 @@ export function injectResourceBrowserStyle(rowSize: number) {
             -webkit-user-select: none;
         }
         
+        ${BrowserClass.dot} header .location li:hover,
         ${BrowserClass.dot} header[has-location-bar] .location li:hover {
             cursor: pointer;
             text-decoration: underline;
@@ -219,7 +224,12 @@ export function injectResourceBrowserStyle(rowSize: number) {
         }
 
         ${BrowserClass.dot} header:not([has-location-bar]) > div.header-first-row > div.location {
+            flex-grow: 1;
             cursor: default;
+        }
+
+        ${BrowserClass.dot} header:not([has-location-bar]) .header-first-row .utility-spacer {
+            display: none;
         }
 
         ${BrowserClass.dot} header input.search-field {
@@ -263,6 +273,15 @@ export function injectResourceBrowserStyle(rowSize: number) {
         
         ${BrowserClass.dot} header > div > div > ul[data-no-slashes="true"] li::before {
             display: inline-block;
+            content: unset;
+            margin: 0;
+        }
+
+        ${BrowserClass.dot} header > div > div > ul[data-no-slashes="false"] li::before {
+            margin: 0 8px;
+        }
+
+        ${BrowserClass.dot} header > div > div > ul li:first-child::before {
             content: unset;
             margin: 0;
         }

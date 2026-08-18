@@ -181,6 +181,7 @@ export const ProductSelector: React.FunctionComponent<{
     }, [isCompute, props.products, props.onSelect, categorizedProducts, serviceProvider]);
 
     const {boxRef, ...rest} = useDialogSize(headers.length, isCompute ? "rightAligned" : "centered");
+    const machineTypeSliderRef = React.useRef<HTMLInputElement>(null);
 
     const arrowKeyIndex = React.useRef(-1);
     const itemWrapperRef = React.useRef<HTMLTableSectionElement>(null);
@@ -407,7 +408,8 @@ export const ProductSelector: React.FunctionComponent<{
         </div>
 
         {isCompute && selected ? <>
-            <div className={classConcat(SelectorBoxClass, props.slim === true ? "slim" : undefined)} style={{marginTop: "10px"}}>
+            <div className={classConcat(SelectorBoxClass, props.slim === true ? "slim" : undefined)} style={{marginTop: "10px"}}
+                onClickCapture={props.fieldNavigation ? () => machineTypeSliderRef.current?.focus() : undefined}>
                 <div className="selected">
                     <>
                         {props.slim !== true ?
@@ -441,6 +443,7 @@ export const ProductSelector: React.FunctionComponent<{
                     idx={selectedComputeCategory?.products.findIndex(prod => prod === selected) ?? -1}
                     support={props.support}
                     fieldNavigation={props.fieldNavigation}
+                    inputRef={machineTypeSliderRef}
                     onSelect={idx => {
                         if (!selectedComputeCategory) return;
                         props.onSelect(selectedComputeCategory.products[idx])
@@ -769,6 +772,7 @@ function MachineTypeSelectionSlider(props: {
     idx: number;
     support: ResolvedSupport[] | undefined;
     fieldNavigation?: boolean;
+    inputRef: React.RefObject<HTMLInputElement | null>;
 }): React.ReactNode {
 
     const dividerIndex: number = React.useMemo(() => {
@@ -797,6 +801,7 @@ function MachineTypeSelectionSlider(props: {
         <RangeInput value={props.idx} autoFocus={!props.fieldNavigation}
             data-navigation-field={props.fieldNavigation || undefined}
             dividerAt={dividerAt}
+            inputRef={props.inputRef}
             onChange={props.onSelect} min={0} max={props.selectedCategory.products.length - 1} markers={
             props.selectedCategory.products.map(p => computeV2ComponentCount(p))}
         />

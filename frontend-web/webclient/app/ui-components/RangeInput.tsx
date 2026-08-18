@@ -4,6 +4,7 @@ import {DataAttributes, injectStyle, unboxDataTags} from "@/Unstyled";
 type RangeInputProps = {
     value: number;
     autoFocus?: boolean;
+    inputRef?: React.RefObject<HTMLInputElement | null>;
     onChange: (value: number) => void;
     min?: number;
     max: number;
@@ -188,7 +189,7 @@ export default function RangeInput(props: RangeInputProps): React.ReactNode {
     };
 
     return <div ref={wrapperRef} className={MarkerWrapperStyle} style={style} data-pointer-active={pointerActive}>
-        <input {...unboxDataTags(props)} value={props.value} autoFocus={props.autoFocus}
+        <input ref={props.inputRef} {...unboxDataTags(props)} value={props.value} autoFocus={props.autoFocus}
             onPointerDown={event => {
                 const {bounds, thumbInset, usableWidth} = pointerMetrics(event.currentTarget);
                 event.currentTarget.setPointerCapture(event.pointerId);

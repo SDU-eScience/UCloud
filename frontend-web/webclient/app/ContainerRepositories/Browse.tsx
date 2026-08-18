@@ -68,7 +68,7 @@ const FEATURES: ResourceBrowseFeatures = {
     renderSpinnerWhenLoading: true,
     filters: false,
     sorting: true,
-    locationBar: true,
+    locationBar: false,
     breadcrumbTitles: true,
     projectSwitcher: true,
     showColumnTitles: true,
