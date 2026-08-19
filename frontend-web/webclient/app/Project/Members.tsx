@@ -142,6 +142,7 @@ function projectReducer(state: UIState, action: ProjectAction): UIState {
         }
 
         case "ChangeRole": {
+            // TODO(Jonas): If any user is datamanager and a new one is selected, demote original to USER.
             for (const member of project.status.members!) {
                 const change = action.changes.find(it => it.username === member.username);
                 if (!change) continue;
