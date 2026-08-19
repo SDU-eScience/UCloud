@@ -29,7 +29,7 @@ const landingStyle = injectStyle("landing-page", k => `
     ${k} {
         display: flex;
     }
-    
+
     ${k} {
         margin: 0 auto;
         display: flex;
@@ -38,12 +38,12 @@ const landingStyle = injectStyle("landing-page", k => `
         min-width: 600px;
         min-height: 100vh;
     }
-    
+
     ${k} h3 {
         font-size: 1.2rem;
         padding: 0.6rem 0;
     }
-    
+
     ${k} > h1 {
         font-size: 1.2rem;
         padding: 0.6rem 0;
@@ -203,7 +203,7 @@ const HeroStyle = injectStyle("hero", k => `
         height: 335px;
         width: 100%;
     }
-    
+
     ${k} > .carousel > .carouselImages {
         flex-grow: 1;
         position: relative;
@@ -212,7 +212,7 @@ const HeroStyle = injectStyle("hero", k => `
         overflow: hidden;
         cursor: pointer;
     }
-    
+
     @keyframes translateImage {
         0%   {transform: translateX(-100%);}
         100%   {transform: translateX(0);}
@@ -229,7 +229,7 @@ const HeroStyle = injectStyle("hero", k => `
         animation: translateImage 0.5s;
     }
 
-    
+
     ${k} > .carousel > .carouselText  {
         display: flex;
         flex-direction: column;
@@ -237,17 +237,17 @@ const HeroStyle = injectStyle("hero", k => `
         min-width: 400px;
         padding: 20px;
     }
-    
+
     ${k} > .carousel h1 {
         margin-top: 0;
         margin-bottom: 1rem;
     }
-    
+
     ${k} .indicators {
         position: absolute;
         bottom: 0;
         width: 300px;
-        left: calc(50% - 150px); 
+        left: calc(50% - 150px);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -255,7 +255,7 @@ const HeroStyle = injectStyle("hero", k => `
         gap: 8px;
         padding: 20px;
     }
-    
+
     ${k} .indicators > .indicator {
         background: var(--secondaryMain);
         width: 24px;
@@ -263,7 +263,7 @@ const HeroStyle = injectStyle("hero", k => `
         border-radius: 4px;
         cursor: pointer;
     }
-    
+
     ${k} .indicators > .indicator:hover,
     ${k} .indicators > .indicator.active {
         background: var(--secondaryDark);
@@ -408,22 +408,22 @@ const AppCard1Style = injectStyle("app-card-1", k => `
     ${k}:last-of-type {
         border-bottom: unset;
     }
-    
+
     ${k}.full-width {
         width: 100%;
     }
-    
+
     ${k} h2 {
         font-size: 1.0rem;
         font-weight: 500;
         margin: 0;
         margin-top: -0.3rem;
     }
-    
+
     ${k} .content {
         max-width: calc(100% - 50px);
     }
-    
+
     ${k} .description, ${k} .description p {
         white-space: nowrap;
         text-overflow: ellipsis;
@@ -432,11 +432,11 @@ const AppCard1Style = injectStyle("app-card-1", k => `
         color: var(--textSecondary);
         margin: 0;
     }
-    
+
     ${k} .description p:first-child {
         margin-top: 0;
     }
-    
+
     ${k} .description p:last-child {
         margin-bottom: 0;
     }
@@ -483,31 +483,31 @@ const AppCard2Style = injectStyle("app-card-2", k => `
         box-shadow: var(--defaultShadow);
         min-height: 70px;
     }
-    
+
     ${k}:hover {
         background: var(--backgroundCardHover);
     }
-    
+
     ${k} > *:first-child {
         border-top-right-radius: 0;
         border-bottom-right-radius: 0;
     }
-    
+
     ${k}.full-width {
         width: 100%;
     }
-    
+
     ${k} h2 {
         font-size: 1.0rem;
         margin: 0;
         margin-top: -0.3rem;
     }
-    
+
     ${k} .content {
         margin: 16px 0;
         max-width: calc(100% - 102px);
     }
-    
+
     ${k} .description, ${k} .description p {
         white-space: nowrap;
         text-overflow: ellipsis;
@@ -516,11 +516,11 @@ const AppCard2Style = injectStyle("app-card-2", k => `
         color: var(--textSecondary);
         margin: 0;
     }
-    
+
     ${k} .description p:first-child {
         margin-top: 0;
     }
-    
+
     ${k} .description p:last-child {
         margin-bottom: 0;
     }
@@ -552,21 +552,6 @@ export const AppCard2: React.FunctionComponent<{
     </ReactRouterLink>;
 };
 
-const AppCardGridStyle = injectStyle("app-card-grid", k => `
-    ${k} {
-        display: flex;
-        flex-direction: row;
-        column-gap: 32px;
-        row-gap: 10px;
-        flex-wrap: wrap;
-    }
-    
-    ${k} *:nth-child(3n+1):nth-last-child(-n+3),
-    ${k} *:nth-child(3n+1):nth-last-child(-n+3) ~ * {
-        --appCardBorderColor: transparent;
-    }
-`);
-
 const CategoryCardStyle = injectStyle("category-card", k => `
     ${k} {
         border-radius: 8px;
@@ -580,11 +565,11 @@ const CategoryCardStyle = injectStyle("category-card", k => `
         box-shadow: var(--defaultShadow);
         background: var(--primaryLight);
     }
-    
+
     ${k}:hover {
         background: var(--primaryMain);
     }
-    
+
     ${k} .logo-wrapper {
         position: absolute;
         top: -140px;
@@ -592,7 +577,7 @@ const CategoryCardStyle = injectStyle("category-card", k => `
         z-index: 0;
         transform: rotate(180deg);
     }
-    
+
     ${k} span {
         z-index: 1;
     }
@@ -604,20 +589,9 @@ const CategoryCard: React.FunctionComponent<{
     idx: number;
 }> = props => {
     const appCIdx = props.idx % appColors.length;
-    const appC = appColors[appCIdx][1];
-
-    const baseColor = tint(appC, 0.0);
-    const gradStart = tint(baseColor, 0.1);
-    const gradEndHover = shade(gradStart, 0.2);
-    const gradEnd = shade(gradStart, 0.3);
-
-    const style: CSSProperties = {};
-    style["--card-start"] = gradStart;
-    style["--card-end"] = gradEnd;
-    style["--card-end-hover"] = gradEndHover;
 
     return <ReactRouterLink to={AppRoutes.apps.category(props.id)}>
-        <div className={CategoryCardStyle} style={style}>
+        <div className={CategoryCardStyle}>
             <Relative>
                 <div className={"logo-wrapper"}>
                     <AppLogoRaw rot={60} color1Offset={1} color2Offset={2} appC={appCIdx} size={"130px"} />
@@ -638,15 +612,15 @@ const SpotlightDescription = injectStyle("spotlight-description", k => `
     html.light {
         --spotlightBlockquoteColor: var(--primaryMain);
     }
-    
+
     html.dark {
         --spotlightBlockquoteColor: var(--textPrimary);
     }
-    
+
     ${k} p:first-child {
         margin-top: 0;
     }
-    
+
     ${k} p:last-child {
         margin-bottom: 0;
     }
@@ -659,28 +633,28 @@ const TopPickCardGridStyle = injectStyle("top-pick-grid", k => `
         grid-template-rows: repeat(auto-fit, 115px);
         gap: 16px;
     }
-    
+
     ${k}:has(*:first-child:nth-last-child(n + 6)) {
         min-height: calc(115px * 2 + 16px);
     }
-    
+
     ${k} > *:first-child:nth-last-child(n + 6) {
         grid-row: span 2;
     }
-    
+
     ${k} > *:first-child:nth-last-child(n + 6) > * {
         height: calc(115px * 2 + 16px);
     }
-    
+
     ${k}.small > *:first-child {
         grid-row: span 1;
     }
-    
+
     ${k}.small > *:first-child > * {
         grid-row: span 1;
         height: 115px;
     }
-    
+
     ${k} > * {
         height: 115px;
     }
@@ -697,7 +671,7 @@ const TopPickCardStyle = injectStyle("top-pick", k => `
         align-items: center;
         background: var(--backgroundCard);
     }
-    
+
     ${k}:hover {
         background: var(--backgroundCardHover);
     }
