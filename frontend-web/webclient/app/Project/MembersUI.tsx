@@ -35,6 +35,7 @@ import {addStandardDialog} from "@/UtilityComponents";
 import {SimpleRichItem, SimpleRichSelect} from "@/ui-components/RichSelect";
 import BaseLink from "@/ui-components/BaseLink";
 import {sendInformationNotification} from "@/Notifications";
+import {Feature, hasFeature} from "@/Features";
 
 export const TwoColumnLayout = injectStyle("two-column-layout", k => `
     ${k} {
@@ -48,13 +49,13 @@ export const TwoColumnLayout = injectStyle("two-column-layout", k => `
     ${k} > * {
         flex-basis: 100%;
     }
-    
+
     @media screen and (max-width: 1200px) {
         ${k} {
             --newGroupButtonWidth: 111px;
         }
         ${k} > .left {
-        
+
         }
         ${k} > .right {
             margin-top: 32px;
@@ -62,7 +63,7 @@ export const TwoColumnLayout = injectStyle("two-column-layout", k => `
     }
 
     @media screen and (min-width: 1200px) {
-        
+
         ${k} > .left {
             border-right: 2px solid var(--borderColor, #f00);
             height: 100%;
@@ -681,6 +682,7 @@ const MemberCard: React.FunctionComponent<{
 
     const isUserAdminRole = role === OldProjectRole.ADMIN;
     const isUserUserRole = role === OldProjectRole.USER;
+    const isUserDataManagerRole = role === OldProjectRole.DATAMANAGER;
     const isUserPIRole = role === OldProjectRole.PI;
 
     return <ListRow
@@ -736,6 +738,10 @@ const MemberCard: React.FunctionComponent<{
                                     label={"Admin"}
                                     name={"Admin" + props.member.username}
                                     onChange={() => props.handleChangeRole(props.member.username, OldProjectRole.ADMIN)} /> : null}
+                                {hasFeature(Feature.DATAMANAGER_ROLE) ? <RadioTile fontSize={"6px"} checked={isUserDataManagerRole} height={35}
+                                    icon={"heroDocumentChartBar"}
+                                    label={"Datamanager"} name={"DataManager" + props.member.username}
+                                    onChange={() => props.handleChangeRole(props.member.username, OldProjectRole.DATAMANAGER)} /> : null}
                                 <RadioTile fontSize={"6px"} checked={isUserUserRole} height={35}
                                     icon={"heroUsers"}
                                     label={"User"} name={"User" + props.member.username}

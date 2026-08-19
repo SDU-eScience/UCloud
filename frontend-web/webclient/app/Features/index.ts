@@ -10,6 +10,8 @@ export enum Feature {
     INFERENCE_WORKSPACE,
 
     FILE_BROWSER_STATUS_BAR,
+
+    DATAMANAGER_ROLE,
 }
 
 enum Environment {
@@ -53,7 +55,7 @@ const featureMap: Record<string, FeatureConfig> = {
         showWithoutFlag: allDevEnvironments,
         showWithFlag: allDevEnvironments,
     },
-    
+
     "stacks": {
         feature: Feature.STACKS,
         showWithoutFlag: allDevEnvironments,
@@ -74,6 +76,12 @@ const featureMap: Record<string, FeatureConfig> = {
 
     "file-browser-status-bar": {
         feature: Feature.FILE_BROWSER_STATUS_BAR,
+        showWithoutFlag: allDevEnvironments,
+        showWithFlag: allEnvironments,
+    },
+
+    "data-manager-role": {
+        feature: Feature.DATAMANAGER_ROLE,
         showWithoutFlag: allDevEnvironments,
         showWithFlag: allEnvironments,
     }
