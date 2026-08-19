@@ -32,18 +32,18 @@ export const InputClass = injectStyle("input", k => `
         background-color: var(--backgroundDefault);
         margin: 0;
         border-width: 0px;
-        
+
         width: 100%;
         border-radius: 5px;
         padding: 7px 12px;
         height: 35px;
         border: 1px solid var(--borderColor);
     }
-    
+
     ${k}:disabled:hover {
         border: 1px solid var(--borderColor);
     }
-    
+
     ${k}:hover {
         border: 1px solid var(--borderColorHover);
     }
@@ -56,30 +56,30 @@ export const InputClass = injectStyle("input", k => `
     ${k}::placeholder {
         color: var(--textSecondary);
     }
-    
+
     ${k}[data-error="true"], ${k}:invalid:not(:placeholder-shown) {
         border-color: var(--errorMain, #f00);
     }
-    
+
     ${k}:disabled {
         background: var(--backgroundDisabled);
         color: var(--textDisabled);
     }
-    
+
     ${k}[data-hidden="true"] {
         display: none;
     }
-    
+
     ${k}[data-right-label="true"] {
         border-top-right-radius: 0;
         border-bottom-right-radius: 0;
     }
-    
+
     ${k}[data-left-label="true"] {
         border-top-left-radius: 0;
         border-bottom-left-radius: 0;
     }
-    
+
     ${k}[data-no-border="true"] {
         border-width: 0;
     }
@@ -109,6 +109,7 @@ const Input: React.FunctionComponent<InputProps & {as?: "input" | "textarea"; cu
     inputProps["min"] = props.min;
     inputProps["max"] = props.max;
     inputProps["maxLength"] = props.maxLength;
+    inputProps["title"] = props.title;
 
     inputProps["data-error"] = props.error === true;
     inputProps["data-left-label"] = props.leftLabel === true;
@@ -155,14 +156,14 @@ const InputLabelClass = injectStyle("input-label", k => `
         background-color: var(--backgroundDefault);
         border: 1px solid var(--borderColor);
     }
-    
+
     ${k}[data-left-label="true"] {
         border-top-right-radius: 0;
         border-bottom-right-radius: 0;
         border-right: 0;
         margin-right: 0;
     }
-    
+
     ${k}[data-right-label="true"] {
         border-top-left-radius: 0;
         border-bottom-left-radius: 0;

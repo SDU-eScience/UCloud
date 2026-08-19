@@ -9,7 +9,7 @@ import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {Box, Button, Flex, Icon, Input, Label, Link, RangeInput, Text, Tooltip} from "@/ui-components";
 import Table, {TableCell, TableRow} from "@/ui-components/Table";
 import {useUState} from "@/Utilities/UState";
-import {clamp, grantsLink, stopPropagation} from "@/UtilityFunctions";
+import {clamp, grantsLink, stopPropagation, usePortal} from "@/UtilityFunctions";
 import {ProductSupport, ResolvedSupport} from "@/UCloud/ResourceApi";
 import {explainMaintenance, maintenanceIconColor, shouldAllowMaintenanceAccess} from "@/Products/Maintenance";
 import {classConcat, injectStyle, injectStyleSimple} from "@/Unstyled";
@@ -80,26 +80,7 @@ export const ProductSelector: React.FunctionComponent<{
     loading?: boolean;
     onSelect: (product: ProductV2 | null) => void;
 }> = ({selected, ...props}) => {
-    const portalRef = React.useRef<HTMLDivElement | null>(null);
-    if (!portalRef.current) {
-        portalRef.current = document.createElement("div");
-    }
-
-    React.useEffect(() => {
-        const portal = portalRef.current;
-        if (!portal) return;
-
-        if (portal.parentNode !== document.body) {
-            document.body.appendChild(portal);
-        }
-
-        return () => {
-            if (portal.parentNode === document.body) {
-                document.body.removeChild(portal);
-            }
-        };
-    }, []);
-
+    const portal = usePortal();
     useUState(connectionState);
     const [filteredProducts, setFilteredProducts] = React.useState<ProductV2[]>([]);
     const type = props.products.length > 0 ? props.products[0].productType : props.type;
@@ -586,7 +567,7 @@ export const ProductSelector: React.FunctionComponent<{
                         </>
                     }
                 </div>,
-                portalRef.current!
+                portal
             )
         }
     </>;
@@ -867,7 +848,7 @@ export const SelectorBoxClass = injectStyle("selector-box", k => `
         top: 16px;
         right: 16px;
     }
-    
+
     ${k}.slim .provider-logo {
         position: unset;
         top: unset;
