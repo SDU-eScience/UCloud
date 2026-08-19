@@ -327,15 +327,14 @@ export function injectResourceBrowserStyle(rowSize: number) {
             width: calc(var(--rowWidth) - var(--stat1Width) - var(--stat2Width) - var(--stat3Width) - var(--stat4Width) - var(--favoriteWidth) - 32px);
             padding-right: 8px; /* So the title doesn't rub up against the second column */
         }
-        
+
         @media screen and (max-width: 860px) {
             ${BrowserClass.dot} .row .title {
-                width: calc(var(--rowWidth) - var(--stat1Width) - 38px - var(--favoriteWidth) - var(--favoriteWidth) - 16px);
+                width: calc(var(--rowWidth) - var(--stat1Width) - 38px - var(--favoriteWidth) - 16px);
             }
         }
-        
 
-        
+
         ${BrowserClass.dot} .stat-wrapper {
             width: calc(var(--stat1Width) + var(--stat2Width) + var(--stat3Width) + var(--stat4Width));
             justify-content: end;
