@@ -2,18 +2,26 @@ package shared
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	"gopkg.in/yaml.v3"
+	"ucloud.dk/shared/pkg/rpc"
 )
 
+const DEV_SERVER = "https://ucloud.localhost.direct"
+
 type Config struct {
-	CurrentWorkspace   string                 `yaml:"currentWorkspace"`
+	//Server   string `yaml:"server"`
+	Username string `yaml:"username"`
+	TokenRef string `yaml:"tokenRef,omitempty"`
+	//CurrentWorkspace   string                 `yaml:"currentWorkspace"`
 	DefaultEnvironment string                 `yaml:"defaultEnvironment"`
 	Environments       map[string]Environment `yaml:"environments"`
-	Workspaces         map[string]Workspace   `yaml:"workspaces"`
-	Defaults           Defaults               `yaml:"defaults"`
+	//Workspaces         map[string]Workspace   `yaml:"workspaces"`
+	Defaults Defaults `yaml:"defaults"`
 }
 
 type Environment struct {
@@ -21,10 +29,6 @@ type Environment struct {
 }
 
 type Workspace struct {
-	Title       string `yaml:"title"`
-	Environment string `yaml:"environment"`
-	Project     string `yaml:"project"`
-	TokenRef    string `yaml:"tokenRef,omitempty"`
 }
 
 type Defaults struct {
@@ -52,9 +56,6 @@ func ReadConfig() (*Config, error) {
 	var cfg Config
 
 	// Make sure the workspace map exists.
-	if cfg.Workspaces == nil {
-		cfg.Workspaces = make(map[string]Workspace)
-	}
 
 	if cfg.Environments == nil {
 		cfg.Environments = make(map[string]Environment)
@@ -63,7 +64,7 @@ func ReadConfig() (*Config, error) {
 		}
 	}
 
-	cfg.DefaultEnvironment = "ucloud"
+	//cfg.DefaultEnvironment = "ucloud"
 	cfg.Defaults = Defaults{
 		Output:       "table",
 		ItemsPerPage: 100,
@@ -94,4 +95,18 @@ func SaveConfig(cfg *Config) error {
 	fmt.Println("Saving config to:", GetConfigPath())
 
 	return os.WriteFile(GetConfigPath(), data, 0600)
+}
+
+func (cfg *Config) InitUCloudClient(dev bool) {
+	baseURL := cfg.Environments[cfg.DefaultEnvironment].URL
+	if dev {
+		baseURL = DEV_SERVER
+	}
+	rpc.DefaultClient = &rpc.Client{
+		RefreshToken: cfg.TokenRef,
+		BasePath:     baseURL,
+		Client: &http.Client{
+			Timeout: 10 * time.Second,
+		},
+	}
 }

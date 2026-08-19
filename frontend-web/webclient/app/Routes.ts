@@ -163,10 +163,6 @@ const supportAssist = {
 
 }
 
-const cliConnect = {
-    connect: () => "/connect"
-}
-
 const AppRoutes = {
     apps,
     appStudio,
@@ -189,7 +185,6 @@ const AppRoutes = {
     providers,
     files,
     supportAssist,
-    cliConnect,
     prefix: "/app",
 };
 

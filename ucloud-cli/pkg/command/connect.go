@@ -1,22 +1,21 @@
 package command
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"net/http"
-	"net/url"
 	"os/exec"
 	"runtime"
-	"strings"
+	"time"
 
-	anyascii "github.com/anyascii/go"
 	"ucloud.dk/ucloud_cli/pkg/shared"
 )
 
-const defaultServer = "https://cloud.sdu.dk"
-const devServer = "https://ucloud.localhost.direct"
+const PORT = ":59421"
+const UCLOUD_CLI_PATH = "/app/login/external?service=ucloud-cli"
 
 type ConnectCommand struct {
 	Token  string `flag:"token" usage:"Token"`
@@ -65,129 +64,127 @@ func successMessage() string {
 
 func cliAuth(w http.ResponseWriter, r *http.Request) error {
 	token := r.URL.Query().Get("token")
-	projectId := r.URL.Query().Get("projectId")
-	projectTitle := r.URL.Query().Get("projectTitle")
-
+	username := r.URL.Query().Get("username")
 	io.WriteString(w, successMessage())
+	// We flush to signal that the page is ready to be displayed.
+	if flusher, ok := w.(http.Flusher); ok {
+		flusher.Flush()
+	}
 	if token == "" {
 		return fmt.Errorf("no token received")
 	}
-	return saveConfig(token, projectId, projectTitle)
+
+	return saveConfig(token, username)
 }
 
-func startServer(ln *net.Listener, authDone chan<- error) error {
-	return nil
-}
+func startAuthServer(ready chan<- struct{}, authDone chan<- error) error {
+	mux := http.NewServeMux()
 
-func startAuthServer(ready chan<- string, authDone chan<- error) error {
-	http.HandleFunc("/", getRoot)
+	var server *http.Server
 
-	http.HandleFunc("/auth", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/", getRoot)
+	mux.HandleFunc("/auth", func(w http.ResponseWriter, r *http.Request) {
 		err := cliAuth(w, r)
-		authDone <- err
+
+		select {
+		case authDone <- err:
+		default:
+		}
+
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+
+			_ = server.Shutdown(ctx)
+		}()
 	})
 
-	ln, err := net.Listen("tcp4", ":0")
+	ln, err := net.Listen("tcp4", "127.0.0.1"+PORT)
 	if err != nil {
-		return err
+		return fmt.Errorf("start auth server: %w", err)
 	}
 	defer ln.Close()
 
-	port := ln.Addr().(*net.TCPAddr).Port
+	server = &http.Server{
+		Handler:           mux,
+		ReadHeaderTimeout: 5 * time.Second,
+	}
 
-	from := fmt.Sprintf("http://localhost:%d/auth", port)
+	ready <- struct{}{}
 
-	ready <- from
+	err = server.Serve(ln)
+	if err != nil && !errors.Is(err, http.ErrServerClosed) {
+		return fmt.Errorf("serve auth requests: %w", err)
+	}
 
-	return http.Serve(ln, nil)
+	return nil
 }
 
 func openBrowser(url string) error {
-	var err error
-
 	switch runtime.GOOS {
 	case "linux":
-		err = exec.Command("xdg-open", url).Start()
+		return exec.Command("xdg-open", url).Start()
 	case "windows":
-		err = exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
+		return exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
 	case "darwin":
-		err = exec.Command("open", url).Start()
+		return exec.Command("open", url).Start()
 	default:
-		err = fmt.Errorf("unsupported platform")
+		return fmt.Errorf("unsupported platform: %s", runtime.GOOS)
 	}
-	if err != nil {
-		log.Fatal(err)
-	}
-	return err
 }
 
-func repositoryProjectName(title string) string {
-	transliterated := strings.ToLower(anyascii.Transliterate(title))
-	var result strings.Builder
-	separator := false
-	for _, r := range transliterated {
-		if r >= 'a' && r <= 'z' || r >= '0' && r <= '9' {
-			if separator && result.Len() > 0 {
-				result.WriteByte('-')
-			}
-			result.WriteRune(r)
-			separator = false
-		} else {
-			separator = true
-		}
-	}
-	name := strings.Trim(result.String(), "-")
-	if name == "" {
-		name = "project"
-	}
-	if len(name) > 32 {
-		name = strings.TrimRight(name[:32], "-")
-	}
-	return name
-}
-
-func saveConfig(token string, projectId string, projectTitle string) error {
+func saveConfig(token string, username string) error {
 	cfg, err := shared.ReadConfig()
 	if err != nil {
 		return err
 	}
+	cfg.TokenRef = token
+	cfg.Username = username
 
-	cfg.CurrentWorkspace = repositoryProjectName(projectTitle)
-	cfg.Workspaces[cfg.CurrentWorkspace] = shared.Workspace{}
-	workspace := cfg.Workspaces[cfg.CurrentWorkspace]
-	workspace.TokenRef = token
-	workspace.Project = projectId
-	workspace.Title = projectTitle
-	workspace.Environment = cfg.DefaultEnvironment
-
-	cfg.Workspaces[cfg.CurrentWorkspace] = workspace
 	return shared.SaveConfig(cfg)
 }
 
 func performConnection(dev bool) error {
-	ready := make(chan string)
+	ready := make(chan struct{})
 	authDone := make(chan error, 1)
+	serverErr := make(chan error, 1)
+
+	cfg, err := shared.ReadConfig()
+	if err != nil {
+		return err
+
+	}
+	currentEnv := cfg.Environments[cfg.DefaultEnvironment]
+	baseURL := currentEnv.URL
+	if dev {
+		baseURL = shared.DEV_SERVER
+	}
 
 	go func() {
 		if err := startAuthServer(ready, authDone); err != nil {
-			fmt.Println("server:", err)
+			serverErr <- err
 		}
 	}()
 
-	from := <-ready
-
-	var connectionUrl string
-	if dev {
-		connectionUrl = devServer + "/app/connect?redirect=" +
-			url.QueryEscape(from)
-	} else {
-		connectionUrl = defaultServer + "/app/connect?redirect=" +
-			url.QueryEscape(from)
+	select {
+	case <-ready:
+	case err := <-serverErr:
+		return err
+	case <-time.After(5 * time.Second):
+		return fmt.Errorf("auth server did not become ready in time")
 	}
 
-	if err := openBrowser(connectionUrl); err != nil {
+	connectionURL := baseURL + UCLOUD_CLI_PATH
+	if err := openBrowser(connectionURL); err != nil {
 		return err
 	}
 
-	return <-authDone
+	select {
+	case err := <-authDone:
+		return err
+	case err := <-serverErr:
+		return err
+	case <-time.After(5 * time.Minute):
+		return fmt.Errorf("timed out waiting for authentication")
+	}
 }

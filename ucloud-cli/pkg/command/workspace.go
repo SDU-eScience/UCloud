@@ -2,9 +2,6 @@ package command
 
 import (
 	"fmt"
-
-	"ucloud.dk/ucloud_cli/pkg/shared"
-	"ucloud.dk/ucloud_cli/pkg/tui"
 )
 
 type WorkspaceListCommand struct{}
@@ -30,37 +27,9 @@ var WorkspaceCommands = map[string]CommandFunc{
 	"rename": func() Command { return &WorkspaceRenameCommand{} },
 }
 
-func (c WorkspaceListCommand) Execute() error {
-	cfg, err := shared.ReadConfig()
-	if err != nil {
-		return err
-	}
+func (c WorkspaceListCommand) Execute() error { return fmt.Errorf("workspace list not implemented") }
 
-	for key, workspace := range cfg.Workspaces {
-		fmt.Printf("%-15s  %s\n", key, workspace.Title)
-	}
-
-	return nil
-}
-
-func (c WorkspaceUseCommand) Execute() error {
-	cfg, err := shared.ReadConfig()
-	if err != nil {
-		return err
-	}
-	elems := make([]string, 0)
-	for key, val := range cfg.Workspaces {
-		elem := fmt.Sprintf("%s (%s)", key, val.Title)
-		elems = append(elems, elem)
-	}
-	model := tui.ListModel{
-		Items:    elems,
-		Selected: 0,
-	}
-	tui.List(&model)
-	fmt.Println("Selected workspace:", model.Selected)
-	return nil
-}
+func (c WorkspaceUseCommand) Execute() error { return fmt.Errorf("workspace use not implemented") }
 
 func (c WorkspaceGetCommand) Execute() error {
 	return fmt.Errorf("workspace get not implemented")

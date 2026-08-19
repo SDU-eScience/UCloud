@@ -101,7 +101,6 @@ import {useEffect} from "react";
 import {deinitNotifications, initTaskAndNotificationStream} from "@/Services/TaskAndNotificationStream";
 import {NotificationPopups} from "./Notifications/Popups";
 import {StacksRouter} from "@/Stacks";
-import CLIConnectPage, {CliAuth} from "./CliConnect/CLIConnectPage";
 
 const NotFound = (): React.ReactNode => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
 const JobsOnlyRouter = (): React.ReactNode => <JobsRouter />;
@@ -257,8 +256,6 @@ const Core = (): React.ReactNode => (
                             requireSla: false
                         }))}
                     />
-                    <Route path={AppRoutes.cliConnect.connect()}
-                           element={React.createElement(requireAuth(CLIConnectPage))} />
 
                     <Route path="*" element={<NotFound />} />
                 </Routes>

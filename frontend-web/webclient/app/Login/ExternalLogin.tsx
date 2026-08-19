@@ -25,13 +25,17 @@ interface ExternalLoginService {
 
 const externalLoginServices: ExternalLoginService[] = [
     {
-        id: "test",
-        title: "Test service",
+        id: "ucloud-cli",
+        title: "UCloud-cli service",
         description: "Send a new UCloud session to the development console.",
-        feature: Feature.EXTERNAL_LOGIN_TEST,
+        feature: Feature.EXTERNAL_LOGIN_UCLOUD_CLI,
         handle(response) {
-            // eslint-disable-next-line no-console
+            const redirectUrl = new URL("http://localhost:59421/auth");
+            redirectUrl.searchParams.set("username", response.username);
+            redirectUrl.searchParams.set("token", response.refreshToken);
             console.log("External login response", response);
+            window.location.href = redirectUrl.toString();
+            
         },
     },
 ];

@@ -1,7 +1,7 @@
 import {inDevEnvironment, onDevSite} from "@/UtilityFunctions";
 
 export enum Feature {
-    EXTERNAL_LOGIN_TEST,
+    EXTERNAL_LOGIN_UCLOUD_CLI,
 
     REORDER_APP_GROUP,
 
@@ -50,8 +50,8 @@ interface FeatureConfig {
 }
 
 const featureMap: Record<string, FeatureConfig> = {
-    "external-login-test": {
-        feature: Feature.EXTERNAL_LOGIN_TEST,
+    "external-login-ucloud-cli": {
+        feature: Feature.EXTERNAL_LOGIN_UCLOUD_CLI,
         showWithoutFlag: allDevEnvironments,
         showWithFlag: allDevEnvironments,
     },
