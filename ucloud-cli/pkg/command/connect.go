@@ -46,7 +46,8 @@ func successMessage() string {
 			margin: 0;
 		}
 		body {
-			display: block;
+			display: flex;
+			flex-direction: column;
 			align-items: center;
 			justify-content: center;
 			font-family: sans-serif;
