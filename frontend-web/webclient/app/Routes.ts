@@ -37,14 +37,12 @@ const resources = {
     publicLinks: () => "/public-links",
     licenses: () => "/licenses",
     sshKeys: () => "/ssh-keys",
-    sshKeysProperties: () => "/ssh-keys/properties",
     apiTokens: () => "/api-tokens",
     apiTokensCreate: () => "/api-tokens/create"
 }
 
 const project = {
     members: () => `/projects/members`,
-    usage: () => accounting.usage(),
     allocations: () => accounting.allocations(),
     settings: (page: string) => `/project/settings${page === "" ? "" : "/" + page}`,
     subprojects: () => accounting.allocations(),
@@ -85,7 +83,6 @@ const jobs = {
     list: () => `/jobs`,
     create: (name: string, version?: string, importId?: string) => buildQueryString(`/jobs/create`, {app: name, version, import: importId}),
     view: (jobId: string) => `/jobs/properties/${jobId}`,
-    results: () => `/applications/results`,
 };
 
 const stacks = {
@@ -159,7 +156,6 @@ const supportAssist = {
     job() {
         return this.base() + "/job"
     },
-
 }
 
 const AppRoutes = {
