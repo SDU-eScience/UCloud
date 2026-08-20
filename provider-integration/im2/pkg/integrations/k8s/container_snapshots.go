@@ -337,6 +337,8 @@ func runContainerSnapshotMonitor(name string, execution *containerSnapshotExecut
 			result.Err = containerSnapshotLogs(name)
 			if result.Err == "" {
 				result.Err = "helper job failed"
+				currentJson, _ := json.MarshalIndent(current, "", "  ")
+				log.Info("Failed job:\n%s", currentJson)
 			}
 			break
 		}
