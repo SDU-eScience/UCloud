@@ -591,7 +591,7 @@ export function DriveCreate({onCreate, onCancel, products}: CreationWithInputFie
     const project = useProject().fetch();
     const projectId = useProjectId();
 
-    const onSubmit = useCallback((e: React.FormEvent) => {
+    const onSubmit = useCallback((e: React.SubmitEvent) => {
         e.preventDefault();
         if (!product) return;
         onCreate(product, entryId, acl)
