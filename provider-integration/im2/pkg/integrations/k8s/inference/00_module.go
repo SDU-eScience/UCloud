@@ -63,11 +63,17 @@ func inferenceAcquire(owner apm.WalletOwner) (func(), *util.HttpError) {
 	ownerRef := owner.Reference()
 	inferenceAdmission.Lock()
 	defer inferenceAdmission.Unlock()
-	if inferenceAdmission.Total >= inferenceMaxConcurrent || inferenceAdmission.Owners[ownerRef] >= inferenceMaxConcurrentPerOwner {
+	if inferenceAdmission.Total >= inferenceMaxConcurrent {
+		metricInferenceRequestsRejected.WithLabelValues("global").Inc()
+		return nil, util.HttpErr(http.StatusTooManyRequests, "too many concurrent inference requests")
+	}
+	if inferenceAdmission.Owners[ownerRef] >= inferenceMaxConcurrentPerOwner {
+		metricInferenceRequestsRejected.WithLabelValues("owner").Inc()
 		return nil, util.HttpErr(http.StatusTooManyRequests, "too many concurrent inference requests")
 	}
 	inferenceAdmission.Total++
 	inferenceAdmission.Owners[ownerRef]++
+	metricInferenceRequestsInFlight.Inc()
 	return func() {
 		inferenceAdmission.Lock()
 		inferenceAdmission.Total--
@@ -75,6 +81,7 @@ func inferenceAcquire(owner apm.WalletOwner) (func(), *util.HttpError) {
 		if inferenceAdmission.Owners[ownerRef] == 0 {
 			delete(inferenceAdmission.Owners, ownerRef)
 		}
+		metricInferenceRequestsInFlight.Dec()
 		inferenceAdmission.Unlock()
 	}, nil
 }
@@ -133,7 +140,84 @@ var (
 		Namespace: "ucloud_im",
 		Subsystem: "inference",
 		Name:      "requests_total",
-		Help:      "Total inference requests by model.",
+		Help:      "Total inference requests with usage reported by model.",
+	}, []string{"model"})
+
+	metricInferenceTimeToFirstToken = promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "inference",
+		Name:      "time_to_first_token_seconds",
+		Help:      "Time from starting an inference stream to the first non-empty output delta by model.",
+	}, []string{"model"})
+
+	metricInferenceOutputTokensPerSecond = promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "inference",
+		Name:      "output_tokens_per_second",
+		Help:      "Output tokens per second from the first non-empty output delta until an inference stream completes by model.",
+	}, []string{"model"})
+
+	metricInferenceRequestDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "inference",
+		Name:      "request_duration_seconds",
+		Help:      "Inference request duration by model.",
+	}, []string{"model"})
+
+	metricInferenceRequestResults = promauto.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "inference",
+		Name:      "request_results_total",
+		Help:      "Inference request results by model and outcome.",
+	}, []string{"model", "outcome"})
+
+	metricInferenceRequestsInFlight = promauto.NewGauge(prometheus.GaugeOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "inference",
+		Name:      "requests_in_flight",
+		Help:      "Number of inference requests currently admitted for processing.",
+	})
+
+	metricInferenceRequestsRejected = promauto.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "inference",
+		Name:      "requests_rejected_total",
+		Help:      "Inference requests rejected by admission limit.",
+	}, []string{"reason"})
+
+	metricInferenceInputTokensPerRequest = promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "inference",
+		Name:      "input_tokens_per_request",
+		Help:      "Input tokens observed per chat or Responses request by model.",
+	}, []string{"model"})
+
+	metricInferenceOutputTokensPerRequest = promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "inference",
+		Name:      "output_tokens_per_request",
+		Help:      "Output tokens observed per chat or Responses request by model.",
+	}, []string{"model"})
+
+	metricInferenceCachedInputRatio = promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "inference",
+		Name:      "cached_input_ratio",
+		Help:      "Ratio of cached input tokens to total input tokens per chat or Responses request by model.",
+	}, []string{"model"})
+
+	metricInferenceTimeToLastToken = promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "inference",
+		Name:      "time_to_last_token_seconds",
+		Help:      "Time from starting an inference stream to its last observed output delta by model.",
+	}, []string{"model"})
+
+	metricInferenceOutputDeltaInterval = promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "inference",
+		Name:      "output_delta_interval_seconds",
+		Help:      "Time between non-empty output deltas in an inference stream by model.",
 	}, []string{"model"})
 )
 
@@ -1080,6 +1164,38 @@ func inferenceReportUsage(owner apm.WalletOwner, model InferenceModel, cachedTok
 	select {
 	case inferenceUsageWake <- struct{}{}:
 	default:
+	}
+}
+
+func inferenceReportChatStreamingMetrics(model string, startedAt time.Time, firstTokenAt time.Time, lastTokenAt time.Time, completedAt time.Time, outputTokens int) {
+	if firstTokenAt.IsZero() {
+		return
+	}
+
+	metricInferenceTimeToFirstToken.WithLabelValues(model).Observe(firstTokenAt.Sub(startedAt).Seconds())
+	metricInferenceTimeToLastToken.WithLabelValues(model).Observe(lastTokenAt.Sub(startedAt).Seconds())
+
+	if outputTokens <= 0 {
+		return
+	}
+	outputDuration := completedAt.Sub(firstTokenAt).Seconds()
+	if outputDuration <= 0 {
+		return
+	}
+	metricInferenceOutputTokensPerSecond.WithLabelValues(model).Observe(float64(outputTokens) / outputDuration)
+}
+
+func inferenceReportChatRequestMetrics(model string, outcome string, startedAt time.Time, completedAt time.Time) {
+	metricInferenceRequestDuration.WithLabelValues(model).Observe(completedAt.Sub(startedAt).Seconds())
+	metricInferenceRequestResults.WithLabelValues(model, outcome).Inc()
+}
+
+func inferenceReportChatUsageMetrics(model string, cachedTokens int, inputTokens int, outputTokens int) {
+	totalInputTokens := cachedTokens + inputTokens
+	metricInferenceInputTokensPerRequest.WithLabelValues(model).Observe(float64(totalInputTokens))
+	metricInferenceOutputTokensPerRequest.WithLabelValues(model).Observe(float64(outputTokens))
+	if totalInputTokens > 0 {
+		metricInferenceCachedInputRatio.WithLabelValues(model).Observe(float64(cachedTokens) / float64(totalInputTokens))
 	}
 }
 
