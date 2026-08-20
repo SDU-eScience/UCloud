@@ -1,46 +1,47 @@
 import * as React from "react";
 import Box from "@/ui-components/Box";
-import Flex from "@/ui-components/Flex";
 import Icon from "@/ui-components/Icon";
-import {ErrorWrapper} from "./Error";
+import {injectStyleSimple} from "@/Unstyled";
+import {IconButton} from "@/ui-components/IconButton";
 
 interface WarningProps {
     clearWarning?: () => void;
     warning?: string;
-    width?: string | number;
     children?: React.ReactNode
+    mb?: string;
 }
+
+const WarningClass = injectStyleSimple("warning", `
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 20px;
+    padding: 12px 16px;
+    border: 1px solid var(--warningMain);
+    border-radius: 10px;
+    background: var(--backgroundCard);
+    align-items: center;
+
+    & svg {
+        flex: 0 0 auto;
+        margin-top: 2px;
+    }
+`);
 
 const Warning: React.FunctionComponent<WarningProps> = props => {
     if (!props.warning && !props.children) return null;
 
-    function onClearWarning(e: React.MouseEvent<HTMLElement, MouseEvent>): void {
-        props.clearWarning!();
-        e.stopPropagation();
-    }
-
     return (
-        <ErrorWrapper
-            borderColor="warningMain"
-            width={props.width}
-        >
-            <Flex alignItems="center" color={"warningContrast"}>
-                <div>
-                    {props.warning}
-                    {props.children}
-                </div>
-                {!props.clearWarning ? null : (
-                    <Box ml="auto">
-                        <Icon
-                            size="1em"
-                            name="close"
-                            color="textPrimary"
-                            onClick={onClearWarning}
-                        />
-                    </Box>
-                )}
-            </Flex>
-        </ErrorWrapper>
+        <Box className={WarningClass} mb={props.mb}>
+            <Icon name="warning" size={20} color="warningMain" />
+            <div>{props.warning}</div>
+            {props.children}
+            {!props.clearWarning ? null : (
+                <Box ml={"auto"}>
+                    <IconButton icon={"heroXMark"} tooltip={"Dismiss"} onClick={props.clearWarning} />
+                </Box>
+            )}
+        </Box>
     );
 };
 

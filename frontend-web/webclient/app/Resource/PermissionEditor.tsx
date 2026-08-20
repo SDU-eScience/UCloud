@@ -1,6 +1,6 @@
 import * as React from "react";
 import {ShakingBox} from "@/UtilityComponents";
-import {Box, Button, Flex, RadioTile, RadioTilesContainer, Text, Truncate} from "@/ui-components/index";
+import {Box, Button, Flex, Label, RadioTile, RadioTilesContainer, Text, Truncate} from "@/ui-components/index";
 import {useCloudCommand} from "@/Authentication/DataHook";
 import {bulkRequestOf, doNothing} from "@/UtilityFunctions";
 import {useCallback, useEffect, useState} from "react";
@@ -20,6 +20,7 @@ import Spinner from "@/LoadingIcon/LoadingIcon";
 import {classConcat} from "@/Unstyled";
 import {Toggle} from "@/ui-components/Toggle";
 import {Product} from "@/Accounting";
+import {IconName} from "@/ui-components/Icon";
 
 interface ResourcePermissionEditorProps<Res extends Resource, Prod extends Product, Spec extends ResourceSpecification> {
     reload: () => void;
@@ -27,6 +28,11 @@ interface ResourcePermissionEditorProps<Res extends Resource, Prod extends Produ
     api: AnyResourceApi<Res, Prod, Spec>;
     showMissingPermissionHelp?: boolean;
     noPermissionsWarning?: string;
+    accessDescription?: React.ReactNode;
+    readLabel?: string;
+    readIcon?: IconName;
+    writeLabel?: string;
+    writeIcon?: IconName;
 }
 
 export function ResourcePermissionEditor<Res extends Resource, Prod extends Product, Spec extends ResourceSpecification>(
@@ -98,14 +104,28 @@ export function ResourcePermissionEditor<Res extends Resource, Prod extends Prod
         return <Spinner />;
     }
 
-    return <PermissionsTable
+    const permissions = <PermissionsTable
         acl={acl}
         updateAcl={updateAcl}
         warning={warning}
         anyGroupHasPermission={anyGroupHasPermission}
         showMissingPermissionHelp={props.showMissingPermissionHelp ?? true}
         title={api.title.toLocaleLowerCase()}
-    />
+        readLabel={props.readLabel}
+        readIcon={props.readIcon}
+        writeLabel={props.writeLabel}
+        writeIcon={props.writeIcon}
+    />;
+
+    if (!props.accessDescription) return permissions;
+
+    return <Box mb={"20px"}>
+        <Label>Choose access</Label>
+        <Box maxHeight="400px" overflowY="auto">
+            {props.accessDescription}
+            {permissions}
+        </Box>
+    </Box>;
 }
 
 
@@ -114,11 +134,27 @@ interface PermissionsProps {
     anyGroupHasPermission: boolean;
     showMissingPermissionHelp: boolean;
     replaceWriteWithUse?: boolean;
+    readLabel?: string;
+    readIcon?: IconName;
+    writeLabel?: string;
+    writeIcon?: IconName;
     title: string;
     acl: ResourceAclEntry[];
     updateAcl: (group: string, permission: Permission | null) => Promise<void>;
 }
-export function PermissionsTable({warning, anyGroupHasPermission, showMissingPermissionHelp, title, updateAcl, acl, replaceWriteWithUse}: PermissionsProps) {
+export function PermissionsTable({
+    warning,
+    anyGroupHasPermission,
+    showMissingPermissionHelp,
+    title,
+    updateAcl,
+    acl,
+    replaceWriteWithUse,
+    readLabel = "Read",
+    readIcon = "heroMagnifyingGlass",
+    writeLabel = "Write",
+    writeIcon = "heroPencil",
+}: PermissionsProps) {
     const projectId = useProjectId();
     const project = useProject();
     const groups = project.fetch().status.groups ?? [];
@@ -180,25 +216,25 @@ export function PermissionsTable({warning, anyGroupHasPermission, showMissingPer
                                 <RadioTile
                                     label={"None"}
                                     onChange={() => updateAcl(g, null)}
-                                    icon={"close"}
+                                    icon={"heroXMark"}
                                     name={summary.id}
                                     checked={permissions.length === 0}
                                     height={40}
                                     fontSize={"0.5em"}
                                 />
                                 <RadioTile
-                                    label={"Read"}
+                                    label={readLabel}
                                     onChange={() => updateAcl(g, "READ")}
-                                    icon={"search"}
+                                    icon={readIcon}
                                     name={summary.id}
                                     checked={permissions.indexOf("READ") !== -1 && permissions.length === 1}
                                     height={40}
                                     fontSize={"0.5em"}
                                 />
                                 <RadioTile
-                                    label={"Write"}
+                                    label={writeLabel}
                                     onChange={() => updateAcl(g, "EDIT")}
-                                    icon={"edit"}
+                                    icon={writeIcon}
                                     name={summary.id}
                                     checked={permissions.indexOf("EDIT") !== -1}
                                     height={40}

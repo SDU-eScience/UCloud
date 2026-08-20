@@ -1,30 +1,28 @@
 import * as React from "react";
-import {useCallback, useEffect, useMemo, useState} from "react";
-import {InvokeCommand, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {JSX, useCallback, useEffect, useMemo, useState} from "react";
+import {callAPI, InvokeCommand, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {useLocation, useNavigate} from "react-router-dom";
 import {MainContainer} from "@/ui-components/MainContainer";
-import {AppHeader} from "@/Applications/View";
+import {ApplicationSelector, AppHeader} from "@/Applications/View";
 import {
     Box,
     Button,
     Card,
-    ContainerForText,
     ExternalLink,
     Flex,
     Grid,
     Icon,
+    Input,
     Label,
     Link,
     Markdown,
     Select,
-    Tooltip
 } from "@/ui-components";
-import {findElement, OptionalWidgetSearch, setWidgetValues, validateWidgets, Widget} from "@/Applications/Jobs/Widgets";
+import {clearWidgetValue, FieldGroup, FieldRow, findElement, setWidgetValues, validateWidgets, Widget} from "@/Applications/Jobs/Widgets";
 import * as Heading from "@/ui-components/Heading";
 import {FolderResource, folderResourceAllowed} from "@/Applications/Jobs/Resources/Folders";
-import {IngressResource, ingressResourceAllowed} from "@/Applications/Jobs/Resources/Ingress";
+import {ingressResourceAllowed} from "@/Applications/Jobs/Resources/Ingress";
 import {peerResourceAllowed} from "@/Applications/Jobs/Resources/Peers";
-import {PrivateNetworkResource} from "@/Applications/Jobs/Resources/PrivateNetworks";
 import {createSpaceForLoadedResources, injectResources, ResourceHook, useResource} from "@/Applications/Jobs/Resources";
 import {
     awaitReservationMount,
@@ -35,26 +33,26 @@ import {
     validateReservation
 } from "@/Applications/Jobs/Widgets/Reservation";
 import {
-    doNothing,
     bulkRequestOf,
     displayErrorMessageOrDefault,
     extractErrorCode,
     prettierString,
+    createKeyboardShortcut,
+    isLikelyMac,
     useDidMount
 } from "@/UtilityFunctions";
 import {addStandardDialog, OverallocationLink, WalletWarning} from "@/UtilityComponents";
-import {ImportParameters} from "@/Applications/Jobs/Widgets/ImportParameters";
+import {ImportMessages, ImportMessage, ImportParameters} from "@/Applications/Jobs/Widgets/ImportParameters";
 import LoadingIcon from "@/LoadingIcon/LoadingIcon";
 import {usePage} from "@/Navigation/Redux";
-import {NetworkIPResource, networkIPResourceAllowed} from "@/Applications/Jobs/Resources/NetworkIPs";
+import {networkIPResourceAllowed} from "@/Applications/Jobs/Resources/NetworkIPs";
 import {getQueryParam} from "@/Utilities/URIUtilities";
 import {default as JobsApi, DynamicParameters, JobSpecification} from "@/UCloud/JobsApi";
 import {BulkResponse, compute, FindByStringId, mail} from "@/UCloud";
-import {explainWallet, priceToString, ProductV2, UNABLE_TO_USE_FULL_ALLOC_MESSAGE, WalletV2} from "@/Accounting";
+import {balanceToStringFromUnit, calculateProductCost, explainUnit, explainWallet, priceToString, ProductV2, UNABLE_TO_USE_FULL_ALLOC_MESSAGE, WalletV2} from "@/Accounting";
 import {SshWidget} from "@/Applications/Jobs/Widgets/Ssh";
 import {connectionState} from "@/Providers/ConnectionState";
 import {useUState} from "@/Utilities/UState";
-import {Spacer} from "@/ui-components/Spacer";
 import {injectStyle} from "@/Unstyled";
 import {UtilityBar} from "@/Navigation/UtilityBar";
 import {validateMachineReservation} from "@/Applications/Jobs/Widgets/Machines";
@@ -71,15 +69,46 @@ import {useDiscovery} from "@/Applications/Hooks";
 import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
 import {CreateUcxJob} from "@/Applications/Jobs/CreateUcx";
 import * as ApiTokens from "@/Applications/ApiTokens/api";
+import Warning from "@/ui-components/Warning";
+import {ShortcutClass} from "@/ui-components/ResourceBrowserStyle";
+import {CompactResourceRowsContent} from "@/Applications/Jobs/Resources/CompactResourceRows";
+import {stupidPluralize} from "@/Utilities/TextUtilities";
+import {
+    closeOpenDropdown,
+    FIELD_NAVIGATION_SELECTOR,
+    isDisabledNavigationTarget,
+    KeyboardNavigation,
+    SubmitShortcut,
+    useSubmitShortcut,
+} from "@/Applications/KeyboardNavigation";
 
 interface InsufficientFunds {
     why?: string;
     errorCode?: string;
 }
 
+function JobCardHeading({children, shortcut, shortcutsVisible, action}: React.PropsWithChildren<{
+    shortcut: string;
+    shortcutsVisible: boolean;
+    action?: React.ReactNode;
+}>): React.ReactNode {
+    return <Flex alignItems="center" gap="8px" mb={"16px"}>
+        <Heading.h4>{children}</Heading.h4>
+        {!shortcutsVisible ? null : (
+            <span className={ShortcutClass}>{createKeyboardShortcut(shortcut, ["ctrl", "alt"])}</span>
+        )}
+        {!action ? null : <Box ml="auto">{action}</Box>}
+    </Flex>;
+}
+
+function removeDisplayedUnit(value: string, unit: string): string {
+    const suffix = ` ${unit}`;
+    return value.endsWith(suffix) ? value.slice(0, -suffix.length) : value;
+}
+
 const EstimatesContainerClass = injectStyle("estimates-container", k => `
     ${k} {
-        margin-top: 20px;
+        margin-top: 0;
     }
     
     ${k} table {
@@ -92,8 +121,200 @@ const EstimatesContainerClass = injectStyle("estimates-container", k => `
     }
     
     ${k} td {
-        font-family: var(--monospace);
+        font-variant-numeric: tabular-nums;
         text-align: right;
+    }
+
+    ${k} .cost-unit {
+        color: var(--textSecondary);
+        font-size: 12px;
+        font-weight: 400;
+        text-align: right;
+        padding-right: 0;
+    }
+`);
+
+const JobCreateLayoutClass = injectStyle("job-create-layout", key => `
+    ${key} {
+        display: grid;
+        grid-template-areas: "main sidebar";
+        grid-template-columns: minmax(0, 1fr) 300px;
+        gap: 24px;
+        width: 100%;
+        align-items: start;
+    }
+
+    @media (max-width: 1000px) {
+        ${key} {
+            grid-template-areas: "sidebar" "main";
+            grid-template-columns: minmax(0, 1fr);
+            padding-bottom: 96px;
+        }
+    }
+`);
+
+const JobCreateMainClass = injectStyle("job-create-main", key => `
+    ${key} {
+        grid-area: main;
+        min-width: 0;
+    }
+`);
+
+const JobCreateHeaderClass = injectStyle("job-create-header", key => `
+    ${key} {
+        display: flex;
+        margin: 32px 50px 24px;
+    }
+
+    @media (max-width: 600px) {
+        ${key} {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr);
+            gap: 16px;
+            margin: 24px 16px 24px;
+        }
+
+        ${key} .job-create-header-spacer {
+            display: none;
+        }
+    }
+`);
+
+const JobCreateHeaderActionsClass = injectStyle("job-create-header-actions", key => `
+    ${key} {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 8px;
+        min-width: 0;
+    }
+
+    @media (max-width: 600px) {
+        ${key} {
+            align-items: stretch;
+            width: 100%;
+        }
+
+        ${key} .job-create-documentation {
+            display: none;
+        }
+    }
+`);
+
+const KeyboardNavigationGuideClass = injectStyle("keyboard-navigation-guide", key => `
+    ${key} {
+        color: var(--textSecondary);
+        font-size: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        margin-top: 24px;
+    }
+
+    ${key} .keyboard-navigation-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 12px;
+    }
+
+    ${key} .keyboard-navigation-action {
+        text-align: right;
+    }
+
+    @media (max-width: 1000px) {
+        ${key} {
+            display: none;
+        }
+    }
+`);
+
+const JobCreateContentClass = injectStyle("job-create-content", key => `
+    ${key} {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin: 0 50px;
+    }
+
+    @media (max-width: 600px) {
+        ${key} {
+            margin: 0 16px;
+        }
+    }
+`);
+
+const JobSubmissionSidebarClass = injectStyle("job-submission-sidebar", key => `
+    ${key} {
+        grid-area: sidebar;
+        position: sticky;
+        top: 20px;
+        min-width: 0;
+    }
+
+    @media (max-width: 1000px) {
+        ${key} {
+            position: static;
+        }
+    }
+`);
+
+const JobSubmissionSecondaryClass = injectStyle("job-submission-secondary", key => `
+    ${key} > *:first-child {
+        width: 100%;
+    }
+`);
+
+const JobSubmissionSummaryClass = injectStyle("job-submission-summary", key => `
+    ${key} {
+        border-top: 1px solid var(--borderColor);
+        margin-top: 20px;
+        padding-top: 16px;
+    }
+
+    @media (max-width: 1000px) {
+        ${key} {
+            position: fixed;
+            left: calc(var(--sidebarBlockWidth, var(--sidebarWidth)) + 16px);
+            right: 16px;
+            bottom: 16px;
+            z-index: 1000;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 16px;
+            align-items: center;
+            margin: 0;
+            padding: 12px 16px;
+            border: 1px solid var(--borderColor);
+            border-radius: 8px;
+            background: var(--backgroundDefault);
+            box-shadow: var(--defaultShadow);
+        }
+
+        ${key} .desktop-cost-row {
+            display: none;
+        }
+    }
+`);
+
+const JobSubmitButtonClass = injectStyle("job-submit-button", key => `
+    ${key} {
+        margin-top: 24px;
+    }
+
+    ${key} button {
+        width: 100%;
+    }
+
+    @media (max-width: 1000px) {
+        ${key} {
+            margin-top: 0;
+        }
+
+        ${key} button {
+            width: auto;
+            white-space: nowrap;
+        }
     }
 `);
 
@@ -103,6 +324,18 @@ const initialState: UserDetailsState = {
     settings: defaultEmailSettings
 };
 
+function filterUnsetOptionalParameters(
+    parameters: ApplicationParameter[],
+    values: Record<string, compute.AppParameterValue>,
+    activeOptionalParameters: string[],
+): Record<string, compute.AppParameterValue> {
+    const active = new Set(activeOptionalParameters);
+    return Object.fromEntries(Object.entries(values).filter(([name]) => {
+        const parameter = parameters.find(it => it.name === name);
+        return parameter?.optional !== true || active.has(name);
+    }));
+}
+
 function getLicense(app: Application): string | undefined {
     return app.invocation.tool.tool?.description.license
 }
@@ -110,6 +343,7 @@ function getLicense(app: Application): string | undefined {
 export const Create: React.FunctionComponent = () => {
     const [emailNotifications, setEmailNotifications] = React.useState<UserDetailsState>(initialState);
     const [jobEmailNotifications, setJobEmailNotifications] = useState<"never" | "start" | "ends" | "start_or_ends">("never");
+    const [shortcutsVisible, setShortcutsVisible] = useState(false);
     const navigate = useNavigate();
     const location = useLocation();
     const appName = getQueryParam(location.search, "app");
@@ -127,6 +361,7 @@ export const Create: React.FunctionComponent = () => {
         {noop: true},
         null
     );
+    const [flavors, setFlavors] = useState<Application[]>([]);
     const [injectedParameters, fetchInjectedParameters] = useCloudAPI<DynamicParameters | null>(
         {noop: true},
         null
@@ -136,6 +371,7 @@ export const Create: React.FunctionComponent = () => {
         {productsByProvider: {}}
     );
     const [workflowInjectedParameters, setWorkflowInjectParameters] = useState<ApplicationParameter[]>([]);
+    const [dynamicParametersLoadedFor, setDynamicParametersLoadedFor] = useState<string | null>(null);
 
     const application = applicationResp?.data?.status?.applications?.find(it => it.metadata.name === appName);
 
@@ -168,7 +404,31 @@ export const Create: React.FunctionComponent = () => {
         if (wallet === null) return null;
         return explainWallet(wallet);
     }, [estimatedCost.wallet]);
+    const costUnit = displayWallet?.usageAndQuota.raw.unit ??
+        (estimatedCost.product ? explainUnit(estimatedCost.product.category).name : "");
     const [discovery] = useDiscovery();
+
+    useEffect(() => {
+        setFlavors(applicationResp?.data?.status?.applications ?? []);
+    }, [applicationResp?.data]);
+
+    const reloadFlavors = useCallback(async () => {
+        const group = await callAPI(AppStore.findGroupByApplication({
+            appName,
+            appVersion: appVersion ?? undefined,
+            flags: {
+                includeApplications: true,
+                includeInvocation: true,
+                includeStars: true,
+                includeVersions: true,
+            },
+            ...discovery,
+        }));
+        const updatedFlavors = group.status.applications ?? [];
+        setFlavors(updatedFlavors);
+        return updatedFlavors;
+    }, [appName, appVersion, discovery]);
+
     const dnsHostnameSeed = React.useRef((Math.floor(Math.random() * 9000) + 1000).toString());
     const [jobName, setJobName] = useState("");
     const [dnsHostname, setDnsHostname] = useState("");
@@ -258,6 +518,8 @@ export const Create: React.FunctionComponent = () => {
     const [reservationErrors, setReservationErrors] = useState<ReservationErrors>({});
 
     const [importDialogOpen, setImportDialogOpen] = useState(false);
+    const [importMessages, setImportMessages] = useState<ImportMessage[]>([]);
+    const closeImportDialog = useCallback(() => setImportDialogOpen(false), []);
 
     const retrieveEmailNotificationSettings = useCallback(async () => {
         const emailSettings = await invokeCommand(
@@ -332,47 +594,13 @@ export const Create: React.FunctionComponent = () => {
 
     useUState(connectionState);
 
-    /* Note(Jonas): While this is a pretty weird data-type, I don't think we every need to store more than one,
-        which is why I'm not using a Record<string, T>  */
-    const appParams = React.useRef<[groupId: number, Partial<JobSpecification>]>([-1, {}]);
+    const appParams = React.useRef<{siteVersion: 3; request: Partial<JobSpecification>} | null>(null);
     // NOTE(Jonas): Not entirely sure a ref is strictly needed, but should be more consistent.
     const sshEnabledRef = React.useRef(false);
     sshEnabledRef.current = sshEnabled;
     useEffect(() => {
         if (appName === "syncthing" && !localStorage.getItem("syncthingRedirect")) {
             navigate("/drives");
-        }
-
-        if (application?.metadata.groupId) {
-            const reservationOptions = getReservationValues();
-
-            const {values} = validateWidgets(parameters);
-            const foldersResources = validateWidgets(folders.params);
-            // TODO(Jonas): This should preferably not validate, but just get the values (e.g. one field could be missing)
-            const peersResources = validateWidgets(peers.params);
-            const networkResources = validateWidgets(networks.params);
-            const ingressResources = validateWidgets(ingress.params);
-            const privateNetworkResources = validateWidgets(privateNetworks.params);
-            for (const err of [
-                ...Object.values(foldersResources.errors).map(it => "Folders: " + it),
-                ...Object.values(peersResources.errors).map(it => "Connected jobs: " + it),
-                ...Object.values(networkResources.errors).map(it => "IPs: " + it),
-                ...Object.values(ingressResources.errors).map(it => "Public link: " + it),
-                ...Object.values(privateNetworkResources.errors).map(it => "Private network: " + it)
-            ]) {
-                sendFailureNotification(err);
-            }
-
-            appParams.current = [application.metadata.groupId, {
-                ...reservationOptions,
-                parameters: values,
-                resources: Object.values(foldersResources.values)
-                    .concat(Object.values(peersResources.values))
-                    .concat(Object.values(ingressResources.values))
-                    .concat(Object.values(networkResources.values))
-                    .concat(Object.values(privateNetworkResources.values)),
-                sshEnabled: sshEnabledRef.current
-            }];
         }
 
         fetchApplication(
@@ -392,20 +620,21 @@ export const Create: React.FunctionComponent = () => {
 
     useEffect(() => {
         if (!application) return;
+        const applicationKey = `${application.metadata.name}:${application.metadata.version}`;
         fetchInjectedParameters(JobsApi.requestDynamicParameters({
             application: {name: application.metadata.name, version: application.metadata.version}
-        })).then(() => setTimeout(() => {
-            try {
-                const groupId = application.metadata.groupId;
-                const [storedGroupId, jobSpec] = appParams.current;
-                if (storedGroupId === groupId) {
-                    onLoadParameters(jobSpec);
-                }
-            } catch (e) {
-                console.warn(e);
-            }
-        }, 0));
+        })).then(() => {
+            setDynamicParametersLoadedFor(applicationKey);
+        });
     }, [application]);
+
+    const canImportParameters = application != null &&
+        dynamicParametersLoadedFor === `${application.metadata.name}:${application.metadata.version}` &&
+        injectedParameters.data !== null;
+
+    useEffect(() => {
+        if (!canImportParameters) setImportMessages([]);
+    }, [canImportParameters]);
 
     const parameters = useMemo(() => {
         let injected: ApplicationParameter[] = [];
@@ -441,6 +670,43 @@ export const Create: React.FunctionComponent = () => {
         const fromApp = application?.invocation?.parameters ?? [];
         return [...injected, ...fromApp, ...workflowInjectedParameters];
     }, [application, injectedParameters, workflowInjectedParameters, estimatedCost.product]);
+
+    const saveParameters = () => {
+        if (!application) return;
+
+        const reservationOptions = getReservationValues();
+        const {values} = validateWidgets(parameters);
+        const parameterValues = filterUnsetOptionalParameters(parameters, values, activeOptParams);
+        const foldersResources = validateWidgets(folders.params);
+        // TODO(Jonas): This should preferably not validate, but just get the values (e.g. one field could be missing)
+        const peersResources = validateWidgets(peers.params);
+        const networkResources = validateWidgets(networks.params);
+        const ingressResources = validateWidgets(ingress.params);
+        const privateNetworkResources = validateWidgets(privateNetworks.params);
+        for (const err of [
+            ...Object.values(foldersResources.errors).map(it => "Folders: " + it),
+            ...Object.values(peersResources.errors).map(it => "Connected jobs: " + it),
+            ...Object.values(networkResources.errors).map(it => "IPs: " + it),
+            ...Object.values(ingressResources.errors).map(it => "Public link: " + it),
+            ...Object.values(privateNetworkResources.errors).map(it => "Private network: " + it)
+        ]) {
+            sendFailureNotification(err);
+        }
+
+        appParams.current = {
+            siteVersion: 3,
+            request: {
+                ...reservationOptions,
+                parameters: parameterValues,
+                resources: Object.values(foldersResources.values)
+                    .concat(Object.values(peersResources.values))
+                    .concat(Object.values(ingressResources.values))
+                    .concat(Object.values(networkResources.values))
+                    .concat(Object.values(privateNetworkResources.values)),
+                sshEnabled: sshEnabledRef.current
+            }
+        };
+    };
 
 
     React.useEffect(() => {
@@ -514,7 +780,7 @@ export const Create: React.FunctionComponent = () => {
         // Note(Jonas) Pt. II: The actual injection of resources should happen after the function terminates, as React will re-render the component,
         // and only then will the required input-fields be present. The setTimeout-callback will then be called to fill in the newly created input-fields.
         if (folderResourceAllowed(application)) {
-            const newSpace = createSpaceForLoadedResources(folders, resources, "file");
+            const newSpace = createSpaceForLoadedResources(folders, resources, "file", true);
             setTimeout(() => injectResources(newSpace, resources, "file"), 0);
         }
         if (peerResourceAllowed(application)) {
@@ -522,14 +788,14 @@ export const Create: React.FunctionComponent = () => {
             setTimeout(() => injectResources(newSpace, resources, "peer"), 0);
         }
         if (ingressResourceAllowed(application, bindLinkToPort)) {
-            const newSpace = createSpaceForLoadedResources(ingress, resources, "ingress");
+            const newSpace = createSpaceForLoadedResources(ingress, resources, "ingress", true);
             setTimeout(() => injectResources(newSpace, resources, "ingress"), 0);
         }
         if (networkIPResourceAllowed(application)) {
-            const newSpace = createSpaceForLoadedResources(networks, resources, "network");
+            const newSpace = createSpaceForLoadedResources(networks, resources, "network", true);
             setTimeout(() => injectResources(newSpace, resources, "network"), 0);
         }
-        const newSpace = createSpaceForLoadedResources(privateNetworks, resources, "private_network");
+        const newSpace = createSpaceForLoadedResources(privateNetworks, resources, "private_network", true);
         setTimeout(() => injectResources(newSpace, resources, "private_network"), 0);
 
         folders.setErrors({});
@@ -553,7 +819,7 @@ export const Create: React.FunctionComponent = () => {
             if (newCount > 0) {
                 setReloadHack({importFrom: reloadHack.importFrom, count: newCount});
             } else {
-                appParams.current = [-1, {}];
+                appParams.current = null;
             }
         }
     }, [onLoadParameters, reloadHack]);
@@ -562,6 +828,7 @@ export const Create: React.FunctionComponent = () => {
         if (!application) return;
 
         const {errors, values} = validateWidgets(parameters!);
+        const parameterValues = filterUnsetOptionalParameters(parameters!, values, activeOptParams);
         setErrors(errors)
 
         const reservationValidation = validateReservation();
@@ -586,6 +853,7 @@ export const Create: React.FunctionComponent = () => {
             reservationValidation.options !== undefined &&
             Object.keys(foldersValidation.errors).length === 0 &&
             Object.keys(peersValidation.errors).length === 0 &&
+            Object.keys(networkValidation.errors).length === 0 &&
             Object.keys(ingressValidation.errors).length === 0 &&
             Object.keys(privateNetworkValidation.errors).length === 0
         ) {
@@ -598,7 +866,7 @@ export const Create: React.FunctionComponent = () => {
             const request: JobSpecification = {
                 ...reservationValidation.options,
                 application: application?.metadata,
-                parameters: values,
+                parameters: parameterValues,
                 resources: Object.values(foldersValidation.values)
                     .concat(Object.values(peersValidation.values))
                     .concat(Object.values(ingressValidation.values))
@@ -645,7 +913,76 @@ export const Create: React.FunctionComponent = () => {
                 }
             }
         }
-    }, [application, folders, peers, ingress, networks, privateNetworks, navigate, hasCustomDnsHostname, dnsHostname]);
+    }, [application, folders, peers, ingress, networks, privateNetworks, navigate, hasCustomDnsHostname, dnsHostname,
+        parameters, activeOptParams]);
+
+    const isMissingConnection = estimatedCost.product != null &&
+        connectionState.canConnectToProvider(estimatedCost.product.category.provider);
+    const errorCount = countMandatoryAndOptionalErrors(parameters.filter(it =>
+        PARAMETER_TYPE_FILTER.includes(it.type)
+    ).map(it => it.name), errors) + countErrors(folders.errors, ingress.errors, networks.errors, peers.errors, privateNetworks.errors);
+    const anyError = errorCount > 0;
+
+    useSubmitShortcut(() => submitJob(false), anyError || isLoading || !sshValid || isMissingConnection);
+
+    useEffect(() => {
+        const cardIds: Record<string, string> = {
+            KeyJ: "job-card-information",
+            KeyS: "job-card-storage",
+            KeyT: "job-card-script",
+            KeyI: "job-card-readme",
+            KeyM: "job-card-modules",
+            KeyC: "job-card-connectivity",
+            KeyP: "job-card-parameters",
+        };
+        const primaryPressed = (event: KeyboardEvent) => isLikelyMac ? event.metaKey : event.ctrlKey;
+        const focusCard = (id: string) => {
+            const card = document.getElementById(id);
+            if (!card) return;
+            if (document.activeElement instanceof HTMLElement) closeOpenDropdown(document.activeElement);
+            const navigationTargets = Array.from(card.querySelectorAll<HTMLElement>(FIELD_NAVIGATION_SELECTOR))
+                .filter(element => !isDisabledNavigationTarget(element));
+            const focusTarget = navigationTargets.find(element => element.hasAttribute("data-card-first-field")) ??
+                navigationTargets[0];
+            card.scrollIntoView({block: "nearest"});
+            focusTarget?.focus();
+        };
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (document.querySelector(".ReactModal__Overlay")) return;
+            if (event.defaultPrevented) return;
+            if ((event.key === "ArrowUp" || event.key === "ArrowDown") &&
+                !event.metaKey && !event.ctrlKey && !event.altKey &&
+                !document.activeElement?.closest(FIELD_NAVIGATION_SELECTOR)) {
+                const focusTarget = Array.from(document.querySelectorAll<HTMLElement>(FIELD_NAVIGATION_SELECTOR))
+                    .find(element => element.offsetParent !== null && !isDisabledNavigationTarget(element));
+                if (focusTarget) {
+                    event.preventDefault();
+                    focusTarget.focus();
+                    focusTarget.scrollIntoView({block: "nearest"});
+                }
+                return;
+            }
+            if (!event.altKey || !primaryPressed(event)) return;
+            setShortcutsVisible(true);
+            const cardId = cardIds[event.code];
+            if (!cardId) return;
+            event.preventDefault();
+            focusCard(cardId);
+        };
+        const onModifierChange = (event: KeyboardEvent) => {
+            setShortcutsVisible(event.altKey && primaryPressed(event));
+        };
+        const hideShortcuts = () => setShortcutsVisible(false);
+
+        document.addEventListener("keydown", onKeyDown);
+        document.addEventListener("keyup", onModifierChange);
+        window.addEventListener("blur", hideShortcuts);
+        return () => {
+            document.removeEventListener("keydown", onKeyDown);
+            document.removeEventListener("keyup", onModifierChange);
+            window.removeEventListener("blur", hideShortcuts);
+        };
+    }, [anyError, isLoading, isMissingConnection, sshValid, submitJob]);
 
     if (applicationResp.loading || isInitialMount) return <MainContainer main={<LoadingIcon size={36} />} />;
 
@@ -661,8 +998,8 @@ export const Create: React.FunctionComponent = () => {
         return <CreateUcxJob application={application} appGroup={applicationResp?.data ?? null} />;
     }
 
-    let mandatoryWorkflow = parameters.filter(it => !it.optional && it.type === "workflow");
-    if (mandatoryWorkflow.length > 1) mandatoryWorkflow = [mandatoryWorkflow[0]];
+    let workflowParams = parameters.filter(it => it.type === "workflow");
+    if (workflowParams.length > 1) workflowParams = [workflowParams[0]];
 
     let modulesParam = parameters.filter(it => it.type === "modules");
     if (modulesParam.length > 0) modulesParam = [modulesParam[0]];
@@ -673,184 +1010,165 @@ export const Create: React.FunctionComponent = () => {
         !it.optional && it.type !== "workflow" && it.type !== "modules" && it.type !== "readme"
     );
 
-    const activeParameters = parameters.filter(it =>
-        it.optional && activeOptParams.indexOf(it.name) !== -1 && it.type !== "readme"
-    )
-
-    const inactiveParameters = parameters.filter(it =>
-        !(!it.optional || activeOptParams.indexOf(it.name) !== -1) && it.type !== "readme"
+    const optionalParameters = parameters.filter(it =>
+        it.optional && it.type !== "workflow" && it.type !== "modules" && it.type !== "readme"
     );
-
-    const isMissingConnection = estimatedCost.product != null &&
-        connectionState.canConnectToProvider(estimatedCost.product.category.provider);
-
-    const errorCount = countMandatoryAndOptionalErrors(parameters.filter(it =>
-        PARAMETER_TYPE_FILTER.includes(it.type)
-    ).map(it => it.name), errors) + countErrors(folders.errors, ingress.errors, networks.errors, peers.errors, privateNetworks.errors);
-    const anyError = errorCount > 0;
 
     const appGroup = applicationResp?.data;
     const license = getLicense(application);
+    const hasParameters = mandatoryParameters.length + optionalParameters.length > 0;
+    const sshMode = application.invocation.ssh?.mode ?? "DISABLED";
+    const hasConnectivity = sshMode !== "DISABLED" ||
+        ingressResourceAllowed(application, bindLinkToPort) || peerResourceAllowed(application) ||
+        networkIPResourceAllowed(application);
+    const connectivityEnabled = sshEnabled || ingress.params.length > 1 || privateNetworks.params.length > 1 ||
+        networks.params.length > 1;
+    const sectionShortcuts = [{shortcut: "J", label: "Jump to job information"}];
+    if (folderResourceAllowed(application)) sectionShortcuts.push({shortcut: "S", label: "Jump to storage"});
+    if (workflowParams.length > 0) sectionShortcuts.push({shortcut: "T", label: "Jump to script"});
+    if (readmeParams.length > 0) sectionShortcuts.push({shortcut: "I", label: "Jump to information"});
+    if (modulesParam.length > 0) sectionShortcuts.push({shortcut: "M", label: "Jump to modules"});
+    if (hasConnectivity) sectionShortcuts.push({shortcut: "C", label: "Jump to connectivity"});
+    if (hasParameters) sectionShortcuts.push({shortcut: "P", label: "Jump to parameters"});
+
+    const walletUsage = displayWallet == null ? 0 : Math.max(0,
+        displayWallet.usageAndQuota.raw.usage -
+        (displayWallet.usageAndQuota.raw.retiredAmountStillCounts ? 0 : displayWallet.usageAndQuota.raw.retiredAmount)
+    );
+    const costDisplayValues = [
+        estimatedCost.product == null || estimatedCost.product.category.freeToUse ? 0 : calculateProductCost(
+            estimatedCost.product,
+            estimatedCost.numberOfNodes,
+            estimatedCost.durationInMinutes,
+        ),
+        displayWallet == null ? 0 : displayWallet.usageAndQuota.raw.quota - walletUsage,
+        displayWallet?.usageAndQuota.display.displayOverallocationWarning ? displayWallet.usageAndQuota.raw.maxUsable : 0,
+    ].map(Math.abs).filter(value => value > 0);
+    const costDisplayReference = costDisplayValues.length === 0 ? undefined : Math.min(...costDisplayValues);
+    const formatWalletBalance = (balance: number) => balanceToStringFromUnit(
+        displayWallet!.usageAndQuota.raw.type,
+        costUnit,
+        balance,
+        {precision: 2, referenceBalance: costDisplayReference},
+    );
+
+
+    let submitControl: JSX.Element;
+    {
+        const buttonControl = <>
+            <Button type="button" color="successMain" disabled={anyError} onClick={() => submitJob(false)}>
+                <Icon name="heroPlay" mr={8} />
+                <span>Submit</span>
+                <SubmitShortcut />
+            </Button>
+        </>;
+
+        if (anyError) {
+            submitControl = <TooltipV2 tooltip={`${errorCount} parameter ${stupidPluralize(errorCount, "error")} to resolve before submitting.`}>
+                {buttonControl}
+            </TooltipV2>
+        } else {
+            submitControl = buttonControl;
+        }
+    }
 
     return <MainContainer
         main={
             <>
-                <Flex mx="50px" mt="32px">
+                <div className={JobCreateHeaderClass}>
                     <AppHeader
                         title={appGroup?.specification?.title ?? application.metadata.title}
                         application={application}
-                        flavors={appGroup?.status?.applications ?? []}
+                        flavors={flavors}
                         allVersions={application.versions ?? []}
+                        showSelectors={false}
+                        responsiveDescription
+                        description={<div className={MarkdownWrapper}>
+                            <Markdown unwrapDisallowed disallowedElements={["image", "heading"]}>
+                                {application.metadata.description}
+                            </Markdown>
+                        </div>}
                     />
-                    <Box flexGrow={1} />
+                    <Box className="job-create-header-spacer" flexGrow={1} />
 
-                    <Flex height={"35px"} alignItems={"center"} gap={"18px"}>
-                        {!application.metadata.website ? null : (
-                            <ExternalLink href={application.metadata.website}>
-                                <Button>
-                                    <Icon name="heroArrowTopRightOnSquare" color="primaryContrast" />
-                                    <div>Documentation</div>
-                                </Button>
-                            </ExternalLink>
-                        )}
-                        {license ? <TooltipV2 tooltip={`License: ${license}`}><Icon size="24" name="fileSignatureSolid" /></TooltipV2> : null}
-                        <UtilityBar />
-                    </Flex>
-                </Flex>
-                <ContainerForText>
-                    <Grid gridTemplateColumns={"1fr"} gap={"24px"} width={"100%"} mb={"24px"} mt={"24px"}>
+                    <div className={JobCreateHeaderActionsClass}>
+                        <UtilityBar responsive leading={<>
+                            {!application.metadata.website ? null : (
+                                <ExternalLink className="job-create-documentation" href={application.metadata.website}>
+                                    <Button>
+                                        <Icon name="heroArrowTopRightOnSquare" color="primaryContrast" />
+                                        <div>Documentation</div>
+                                    </Button>
+                                </ExternalLink>
+                            )}
+                            {license ? <TooltipV2 tooltip={`License: ${license}`}><Icon size="24" name="fileSignatureSolid" /></TooltipV2> : null}
+                        </>} />
+                    </div>
+                </div>
+                <div className={JobCreateContentClass}>
+                    <div className={JobCreateLayoutClass}>
+                    <KeyboardNavigation className={JobCreateMainClass} horizontalSelector="[data-job-info-field]">
+                    <Grid gridTemplateColumns="1fr" gap="24px" width="100%" mb="24px">
                         {insufficientFunds ? <WalletWarning errorCode={insufficientFunds.errorCode} /> : null}
-                        {isMissingConnection ?
-                            <Box mt={32}>
-                                <Link to={"/providers/connect"}>
-                                    <Icon name="warning" color="warningMain" mx={8} />
-                                    Connection required!
-                                </Link>
-                            </Box> :
-                            <Spacer
-                                left={<Flex maxWidth="800px" flexDirection={"column"}>
-                                    <div className={MarkdownWrapper}>
-                                        <Markdown
-                                            unwrapDisallowed
-                                            disallowedElements={[
-                                                "image",
-                                                "heading"
-                                            ]}
-                                        >
-                                            {application.metadata.description}
-                                        </Markdown>
-                                    </div>
-
-                                    <Box flexGrow={1} />
-
-                                    <Label mt={"16px"}>
-                                        E-mail notification settings
-                                        <Select width={"300px"} onChange={onChangeJobEmailNotification} name={"job-email-notifications"}>
-                                            <option value="never" selected={jobEmailNotifications === "never"}>Do not notify me</option>
-                                            <option value="start_or_ends" selected={jobEmailNotifications === "start_or_ends"}>Notify me when a job starts or stops</option>
-                                        </Select>
-                                    </Label>
-                                </Flex>}
-                                right={
-                                    <div>
-                                        <Flex>
-                                            <ImportParameters application={application} onImport={onLoadParameters}
-                                                importDialogOpen={importDialogOpen}
-                                                setImportDialogOpen={setImportDialogOpen}
-                                                onImportDialogClose={() => setImportDialogOpen(false)} />
-
-                                            {anyError ?
-                                                <Tooltip trigger={
-                                                    <Button ml={"10px"} type="button" color={"successMain"} disabled>
-                                                        <Icon name="heroPlay" mr={8} />
-                                                        Submit
-                                                    </Button>
-                                                }>
-                                                    {errorCount} parameter error{errorCount > 1 ? "s" : ""} to resolve
-                                                    before submitting.
-                                                </Tooltip>
-                                                :
-                                                <Button
-                                                    color={"successMain"}
-                                                    type={"button"}
-                                                    ml={"10px"}
-                                                    disabled={isLoading || !sshValid || isMissingConnection}
-                                                    onClick={() => submitJob(false)}
-                                                >
-                                                    <Icon name="heroPlay" mr={8} />
-                                                    Submit
-                                                </Button>
-                                            }
-                                        </Flex>
-
-                                        <div className={EstimatesContainerClass}>
-                                            <table>
-                                                <tbody>
-                                                    <tr>
-                                                        <th>Estimated cost</th>
-                                                        <td>
-                                                            {!estimatedCost.product ?
-                                                                "-" :
-                                                                priceToString(
-                                                                    estimatedCost.product,
-                                                                    estimatedCost.numberOfNodes,
-                                                                    estimatedCost.durationInMinutes,
-                                                                    {showSuffix: false}
-                                                                )
-                                                            }
-                                                        </td>
-                                                    </tr>
-                                                    <tr>
-                                                        <th>Current balance</th>
-                                                        <td>
-                                                            {displayWallet === null ?
-                                                                "-" :
-                                                                displayWallet.usageAndQuota.display.currentBalance
-                                                            }
-                                                        </td>
-                                                    </tr>
-                                                    {displayWallet === null || !displayWallet.usageAndQuota.display.displayOverallocationWarning ? null :
-                                                        <tr>
-                                                            <th>Usable balance</th>
-                                                            <td>
-                                                                <OverallocationLink>
-                                                                    <TooltipV2 tooltip={UNABLE_TO_USE_FULL_ALLOC_MESSAGE}>
-                                                                        <Icon name={"heroExclamationTriangle"} color={"warningMain"} />
-                                                                        {displayWallet.usageAndQuota.display.maxUsableBalance}
-                                                                    </TooltipV2>
-                                                                </OverallocationLink>
-                                                            </td>
-                                                        </tr>
-                                                    }
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </div>
-                                }
-                            />
-                        }
-                        <Card pt="25px">
-                            <ReservationParameter
-                                application={application}
-                                errors={reservationErrors}
-                                onJobNameChange={setJobName}
-                                onEstimatedCostChange={(durationInMinutes, numberOfNodes, wallet, product) =>
-                                    setEstimatedCost({durationInMinutes, wallet, numberOfNodes, product})}
-                            />
+                        {!isMissingConnection ? null : <Box mt={32}>
+                            <Link to="/providers/connect">
+                                <Icon name="warning" color="warningMain" mx={8} />
+                                Connection required!
+                            </Link>
+                        </Box>}
+                        <Card id="job-card-information">
+                            <JobCardHeading shortcut="J" shortcutsVisible={shortcutsVisible} action={
+                                !canImportParameters ? null :
+                                <ImportParameters application={application} dynamicParameters={injectedParameters.data}
+                                    onImport={onLoadParameters}
+                                    automaticImport={appParams.current}
+                                    importDialogOpen={importDialogOpen}
+                                    setImportDialogOpen={setImportDialogOpen}
+                                    onMessagesChange={setImportMessages}
+                                    onImportDialogClose={closeImportDialog} />
+                            }>
+                                Job information
+                            </JobCardHeading>
+                            <div>
+                                {!canImportParameters ? null : <ImportMessages messages={importMessages} onClear={() => setImportMessages([])} />}
+                                <Box mt="16px" mb="20px">
+                                    <ApplicationSelector
+                                        application={application}
+                                        flavors={flavors}
+                                        allVersions={application.versions ?? []}
+                                        showLabels
+                                        jobCreateLayout
+                                        fieldNavigation
+                                        autoFocusFlavor
+                                        reloadFlavors={reloadFlavors}
+                                        onApplicationChange={saveParameters}
+                                    />
+                                </Box>
+                                <ReservationParameter
+                                    application={application}
+                                    errors={reservationErrors}
+                                    onJobNameChange={setJobName}
+                                    fieldNavigation
+                                    onEstimatedCostChange={(durationInMinutes, numberOfNodes, wallet, product) =>
+                                        setEstimatedCost({durationInMinutes, wallet, numberOfNodes, product})}
+                                />
+                            </div>
                         </Card>
 
                         <div data-last-used-file-path="" hidden />
                         <FolderResource
                             {...folders}
                             application={application}
+                            cardId="job-card-storage"
+                            heading={<JobCardHeading shortcut="S" shortcutsVisible={shortcutsVisible}>Storage</JobCardHeading>}
                         />
 
                         {/*Workflow*/}
-                        {mandatoryWorkflow.length === 0 ? null : (
-                            <Card>
-                                <Heading.h4>Script</Heading.h4>
-                                <Grid gridTemplateColumns={"1fr"} gap={"16px"} mt={"16px"}>
-                                    {mandatoryWorkflow.map(param => (
+                        {workflowParams.length === 0 ? null : (
+                            <Card id="job-card-script">
+                                <JobCardHeading shortcut="T" shortcutsVisible={shortcutsVisible}>Script</JobCardHeading>
+                                <Grid gridTemplateColumns={"1fr"} gap={"16px"}>
+                                    {workflowParams.map(param => (
                                         <Widget key={param.name} parameter={param} errors={errors} provider={provider}
                                             injectWorkflowParameters={setWorkflowInjectParameters}
                                             setErrors={setErrors} active application={application} bindLinkToPort={bindLinkToPort} />
@@ -861,14 +1179,14 @@ export const Create: React.FunctionComponent = () => {
 
                         {/*Readme*/}
                         {readmeParams.length === 0 ? null : (
-                            <Card backgroundColor={"var(--warningMain)"} color={"warningContrast"}>
-                                <Heading.h4>
+                            <Card id="job-card-readme" backgroundColor="var(--warningMain)" color="warningContrast">
+                                <JobCardHeading shortcut="I" shortcutsVisible={shortcutsVisible}>
                                     {estimatedCost.product == null ?
                                         "Information" :
                                         `Information from ${getProviderTitle(estimatedCost.product.category.provider)}`
                                     }
-                                </Heading.h4>
-                                <Grid gridTemplateColumns={"1fr"} gap={"16px"} mt={"16px"}>
+                                </JobCardHeading>
+                                <Grid gridTemplateColumns={"1fr"} gap={"16px"}>
                                     {readmeParams.map(param => (
                                         <Widget key={param.name} parameter={param} errors={errors} provider={provider}
                                             injectWorkflowParameters={setWorkflowInjectParameters}
@@ -880,9 +1198,9 @@ export const Create: React.FunctionComponent = () => {
 
                         {/*Modules*/}
                         {modulesParam.length === 0 ? null : (
-                            <Card>
-                                <Heading.h4>Modules</Heading.h4>
-                                <Grid gridTemplateColumns={"1fr"} gap={"16px"} mt={"16px"}>
+                            <Card id="job-card-modules">
+                                <JobCardHeading shortcut="M" shortcutsVisible={shortcutsVisible}>Modules</JobCardHeading>
+                                <Grid gridTemplateColumns={"1fr"} gap={"16px"}>
                                     {modulesParam.map(param => (
                                         <Widget key={param.name} parameter={param} errors={errors} provider={provider}
                                             injectWorkflowParameters={setWorkflowInjectParameters}
@@ -892,86 +1210,173 @@ export const Create: React.FunctionComponent = () => {
                             </Card>
                         )}
 
+                        {!hasConnectivity ? null : <Card id="job-card-connectivity">
+                            <JobCardHeading shortcut="C" shortcutsVisible={shortcutsVisible}>Connectivity</JobCardHeading>
+                            {!connectivityEnabled ? null : <Box mt="16px">
+                                <Warning>
+                                    Options in this section can make your job publicly accessible. Secure you job accordingly.
+                                </Warning>
+                            </Box>}
+                            <Box mt="16px">
+                                <FieldGroup>
+                                    {sshMode === "DISABLED" ? null : <>
+                                        <SshWidget embedded fieldRow application={application} onSshStatusChanged={setSshEnabled}
+                                            onSshKeysValid={setSshValid} initialEnabledStatus={initialSshEnabled} />
+                                    </>}
+                                    {!ingressResourceAllowed(application, bindLinkToPort) ? null : <>
+                                        <CompactResourceRowsContent singularLabel="Public link" {...ingress}
+                                            firstRowDescription="Public links make your job accessible through a web browser. Anyone with the link can access your application."
+                                            application={application} bindLinkToPort={bindLinkToPort} />
+                                    </>}
+                                    {!peerResourceAllowed(application) ? null : <>
+                                        {privateNetworks.params.length <= 1 ? null : (
+                                            <FieldRow
+                                                title="Hostname"
+                                                description="Your job will be identified by this name within the network."
+                                                control={<Input value={dnsHostname} onChange={onDnsHostnameChange} />}
+                                                bold={dnsHostname.length > 0}
+                                            />
+                                        )}
+                                        <CompactResourceRowsContent singularLabel="Private network" {...privateNetworks}
+                                            firstRowDescription="Connect this job to a network of other jobs."
+                                            application={application} />
+                                    </>}
+                                    {!networkIPResourceAllowed(application) ? null : <>
+                                        <CompactResourceRowsContent singularLabel="Public IP" {...networks}
+                                            firstRowDescription="Make your job reachable from the Internet."
+                                            application={application} />
+                                    </>}
+                                </FieldGroup>
+                            </Box>
+                        </Card>}
+
                         {/* Parameters */}
-                        {mandatoryParameters.length === 0 ? null : (
-                            <Card>
-                                <Heading.h4>Mandatory Parameters</Heading.h4>
-                                <Grid gridTemplateColumns={"1fr"} gap={"16px"} mt={"16px"}>
-                                    {mandatoryParameters.map(param => (
-                                        <Widget key={param.name} parameter={param} errors={errors} provider={provider}
-                                            injectWorkflowParameters={setWorkflowInjectParameters}
-                                            setErrors={setErrors} active application={application} bindLinkToPort={bindLinkToPort} />
-                                    ))}
-                                </Grid>
+                        {!hasParameters ? null : (
+                            <Card id="job-card-parameters">
+                                <JobCardHeading shortcut="P" shortcutsVisible={shortcutsVisible}>Parameters</JobCardHeading>
+                                <Box mt="16px">
+                                    <FieldGroup>
+                                        {[...mandatoryParameters, ...optionalParameters].map(param => (
+                                            <Widget
+                                                key={param.name}
+                                                fieldGroup
+                                                selected={!param.optional || activeOptParams.includes(param.name)}
+                                                parameter={param}
+                                                errors={errors}
+                                                provider={provider}
+                                                injectWorkflowParameters={setWorkflowInjectParameters}
+                                                setErrors={setErrors}
+                                                application={application}
+                                                bindLinkToPort={bindLinkToPort}
+                                                onValueChange={() => setActiveOptParams(current =>
+                                                    current.includes(param.name) ? current : [...current, param.name]
+                                                )}
+                                                onSelectedChange={selected => setActiveOptParams(current => selected ?
+                                                    (current.includes(param.name) ? current : [...current, param.name]) :
+                                                    current.filter(name => name !== param.name)
+                                                )}
+                                                onClear={!param.optional ? undefined : () => {
+                                                    clearWidgetValue(param);
+                                                    setActiveOptParams(current => current.filter(name => name !== param.name));
+                                                    setErrors(current => {
+                                                        if (!current[param.name]) return current;
+                                                        const next = {...current};
+                                                        delete next[param.name];
+                                                        return next;
+                                                    });
+                                                }}
+                                            />
+                                        ))}
+                                    </FieldGroup>
+                                </Box>
                             </Card>
                         )}
-                        {activeParameters.length === 0 ? null : (
-                            <Card>
-                                <Heading.h4>Additional Parameters</Heading.h4>
-                                <Grid gridTemplateColumns={"1fr"} gap={"16px"} mt={"16px"}>
-                                    {activeParameters.map(param => (
-                                        <Widget
-                                            key={param.name} parameter={param} errors={errors} provider={provider}
-                                            injectWorkflowParameters={setWorkflowInjectParameters}
-                                            setErrors={setErrors}
-                                            active
-                                            application={application}
-                                            bindLinkToPort={bindLinkToPort}
-                                            onRemove={() => {
-                                                if (errors[param.name]) {
-                                                    delete errors[param.name];
-                                                    setErrors({...errors});
-                                                }
-                                                setActiveOptParams(activeOptParams.filter(it => it !== param.name));
-                                            }}
-                                        />
-                                    ))}
-                                </Grid>
-                            </Card>
-                        )}
-                        {inactiveParameters.length === 0 ? null : (
-                            <Card>
-                                <OptionalWidgetSearch pool={inactiveParameters} mapper={param => (
-                                    <Widget key={param.name} parameter={param} errors={errors} provider={provider}
-                                        setErrors={setErrors}
-                                        active={false}
-                                        application={application}
-                                        bindLinkToPort={bindLinkToPort}
-                                        onActivate={() => {
-                                            setActiveOptParams([...activeOptParams, param.name]);
-                                        }}
-                                        injectWorkflowParameters={setWorkflowInjectParameters}
-                                    />
-                                )} />
-                            </Card>
-                        )}
-
-                        {/* SSH */}
-                        <SshWidget application={application} onSshStatusChanged={setSshEnabled}
-                            onSshKeysValid={setSshValid} initialEnabledStatus={initialSshEnabled} />
-
-                        {/* Resources */}
-
-                        <IngressResource
-                            {...ingress}
-                            application={application}
-                            bindLinkToPort={bindLinkToPort}
-                        />
-
-                        <PrivateNetworkResource
-                            {...privateNetworks}
-                            application={application}
-                            dnsHostname={dnsHostname}
-                            onDnsHostnameChange={onDnsHostnameChange}
-                        />
-
-                        <NetworkIPResource
-                            {...networks}
-                            application={application}
-                        />
 
                     </Grid>
-                </ContainerForText>
+                    </KeyboardNavigation>
+                    <aside className={JobSubmissionSidebarClass}>
+                        <Card>
+                            <div className={JobSubmissionSecondaryClass}>
+                                <Label>
+                                    E-mail notification settings
+                                    <Select width="100%" value={jobEmailNotifications} onChange={onChangeJobEmailNotification} name="job-email-notifications">
+                                        <option value="never">Do not notify me</option>
+                                        <option value="start_or_ends">Notify me when a job starts or stops</option>
+                                    </Select>
+                                </Label>
+                            </div>
+                            <div className={JobSubmissionSummaryClass}>
+                                <div className={EstimatesContainerClass}>
+                                    <table>
+                                        {!costUnit ? null : <thead>
+                                            <tr>
+                                                <th />
+                                                <th className="cost-unit">{costUnit}</th>
+                                            </tr>
+                                        </thead>}
+                                        <tbody>
+                                            <tr>
+                                                <th>Est. cost</th>
+                                                <td>
+                                                    {!estimatedCost.product ? "-" : removeDisplayedUnit(priceToString(
+                                                        estimatedCost.product,
+                                                        estimatedCost.numberOfNodes,
+                                                        estimatedCost.durationInMinutes,
+                                                        {showSuffix: false, display: {precision: 2, referenceBalance: costDisplayReference}}
+                                                    ), explainUnit(estimatedCost.product.category).name)}
+                                                </td>
+                                            </tr>
+                                            <tr className="desktop-cost-row">
+                                                <th>Balance</th>
+                                                <td>{displayWallet === null ? "-" : removeDisplayedUnit(
+                                                    formatWalletBalance(displayWallet.usageAndQuota.raw.quota - walletUsage),
+                                                    costUnit
+                                                )}</td>
+                                            </tr>
+                                            {displayWallet === null || !displayWallet.usageAndQuota.display.displayOverallocationWarning ? null :
+                                                <tr className="desktop-cost-row">
+                                                    <th>Usable balance</th>
+                                                    <td>
+                                                        <OverallocationLink>
+                                                            <TooltipV2 tooltip={UNABLE_TO_USE_FULL_ALLOC_MESSAGE}>
+                                                                <Icon name="heroExclamationTriangle" color="warningMain" />
+                                                                {removeDisplayedUnit(
+                                                                    formatWalletBalance(displayWallet.usageAndQuota.raw.maxUsable),
+                                                                    costUnit
+                                                                )}
+                                                            </TooltipV2>
+                                                        </OverallocationLink>
+                                                    </td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div className={JobSubmitButtonClass}>
+                                    {submitControl}
+                                </div>
+                            </div>
+                        </Card>
+                        <div className={KeyboardNavigationGuideClass}>
+                            <div className="keyboard-navigation-row">
+                                <Flex gap={"4px"}>
+                                    <span className={ShortcutClass}>↑</span>
+                                    <span className={ShortcutClass}>↓</span>
+                                    <span className={ShortcutClass}>←</span>
+                                    <span className={ShortcutClass}>→</span>
+                                </Flex>
+                                <span className="keyboard-navigation-action">Move between fields</span>
+                            </div>
+                            {sectionShortcuts.map(({shortcut, label}) => (
+                                <div key={shortcut} className="keyboard-navigation-row">
+                                    <span className={ShortcutClass}>{createKeyboardShortcut(shortcut, ["ctrl", "alt"])}</span>
+                                    <span className="keyboard-navigation-action">{label}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </aside>
+                    </div>
+                </div>
             </>}
     />;
 }

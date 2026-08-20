@@ -2070,11 +2070,11 @@ export function Editor(): React.ReactNode {
                                         disabled={state.locked || isClosed}
                                     >
                                         <option value="custom">Custom</option>
-                                        <option value="1">1 month (from now)</option>
-                                        <option value="3">3 months (from now)</option>
-                                        <option value="6">6 months (from now)</option>
-                                        <option value="12">12 months (from now)</option>
-                                        <option value="24">24 months (from now)</option>
+                                        <option value="1">1 month</option>
+                                        <option value="3">3 months</option>
+                                        <option value="6">6 months</option>
+                                        <option value="12">12 months</option>
+                                        <option value="24">24 months</option>
                                     </Select>
                                 </label>
                                 {isCustomAllocationPeriod && <>

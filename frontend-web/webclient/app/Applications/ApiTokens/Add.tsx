@@ -1,28 +1,170 @@
 import * as React from "react";
 import {callAPI, useCloudAPI} from "@/Authentication/DataHook";
-import {Box, Button, Image, Divider, Flex, Icon, Input, MainContainer, Select, Link} from "@/ui-components";
+import {Box, Button, Image, Divider, Flex, Icon, Input, MainContainer, Link, Select, TextArea} from "@/ui-components";
 import * as Api from "./api";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
-import {PeriodStyle} from "@/Accounting/Usage";
 import {addDays, addMonths, formatDistanceToNow, startOfToday} from "date-fns";
-import {injectStyle, makeClassName} from "@/Unstyled";
-import {GenericTextArea, GenericTextField, MandatoryField} from "@/UtilityComponents";
+import {DataAttributes, injectStyle} from "@/Unstyled";
+import {MandatoryField} from "@/UtilityComponents";
+import {FieldGroup, FieldRow} from "@/Applications/Jobs/Widgets";
 import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {ProviderLogo, ProviderLogoWrapper} from "@/Providers/ProviderLogo";
-import {RichSelect, RichSelectProps} from "@/ui-components/RichSelect";
+import {RichSelect, RichSelectProps, SimpleRichSelect} from "@/ui-components/RichSelect";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {ProjectSwitcher} from "@/Project/ProjectSwitcher";
-import {displayErrorMessageOrDefault, doNothing} from "@/UtilityFunctions";
+import {copyToClipboard, displayErrorMessageOrDefault, doNothing} from "@/UtilityFunctions";
 import {ApiToken, ApiTokenStatus} from "./api";
 import * as Heading from "@/ui-components/Heading";
+import {CopyButton} from "@/ui-components/CopyButton";
+import Warning from "@/ui-components/Warning";
+import {DocumentTypography} from "@/ui-components/Markdown";
 import AppRoutes from "@/Routes";
 import Routes from "@/Routes";
 import {getStoredProject} from "@/Project/ReduxState";
 import {sendFailureNotification} from "@/Notifications";
+import {KeyboardNavigation, SubmitShortcut, useSubmitShortcut} from "@/Applications/KeyboardNavigation";
 
 const API_TOKEN_TITLE_KEY = "api-title";
 const API_TOKEN_DESCRIPTION_KEY = "api-description";
+
+const ApiTokenCreateHeaderClass = injectStyle("api-token-create-header", key => `
+    ${key} {
+        display: flex;
+        margin: 32px 50px 24px;
+    }
+
+    @media (max-width: 600px) {
+        ${key} {
+            margin: 24px 16px;
+        }
+    }
+`);
+
+const ApiTokenCreateContentClass = injectStyle("api-token-create-content", key => `
+    ${key} {
+        display: flex;
+        flex-direction: column;
+        max-width: 960px;
+        margin: 0 50px;
+    }
+
+    @media (max-width: 600px) {
+        ${key} {
+            margin: 0 16px;
+        }
+    }
+`);
+
+const ApiTokenResultClass = injectStyle("api-token-result", key => `
+    ${key} {
+        max-width: 760px;
+        margin: 32px 50px;
+    }
+
+    ${key} .value {
+        display: grid;
+        grid-template-columns: 120px minmax(0, 1fr) auto;
+        gap: 8px;
+        align-items: center;
+        padding: 12px 0;
+    }
+
+    ${key} code {
+        min-width: 0;
+        overflow-wrap: anywhere;
+    }
+
+    @media (max-width: 600px) {
+        ${key} {
+            margin: 24px 16px;
+        }
+
+        ${key} .value {
+            grid-template-columns: minmax(0, 1fr) auto;
+        }
+
+        ${key} .value > :first-child {
+            grid-column: 1 / -1;
+        }
+    }
+`);
+
+const ApiTokenSubmitClass = injectStyle("api-token-submit", key => `
+    ${key} {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 8px;
+        margin: 24px 0 48px;
+    }
+
+    @media (max-width: 600px) {
+        ${key} {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        ${key} > div:first-child {
+            margin-right: 0 !important;
+        }
+
+        ${key} > a, ${key} > button {
+            width: 100%;
+        }
+    }
+`);
+
+const ApiTokenFullWidthSelectorClass = injectStyle("api-token-full-width-selector", key => `
+    ${key} {
+        width: 100%;
+    }
+`);
+
+const ApiTokenProjectSelectorClass = injectStyle("api-token-project-selector", key => `
+    ${key},
+    ${key} [data-component="project-switcher"],
+    ${key} [data-component="project-switcher"] > [data-tag="dropdown"],
+    ${key} [data-dropdown-trigger],
+    ${key} [data-dropdown-trigger] > div {
+        width: 100%;
+    }
+
+    ${key} [data-dropdown-trigger] > div {
+        justify-content: space-between;
+    }
+`);
+
+const ApiTokenExpirationSelectorClass = injectStyle("api-token-expiration-selector", key => `
+    ${key} {
+        position: relative;
+        border: 1px solid var(--borderColor);
+        border-radius: 5px;
+        display: flex;
+        width: 100%;
+        height: 33.5px;
+    }
+
+    ${key}:hover {
+        border-color: var(--borderColorHover);
+    }
+
+    ${key} > div:first-child {
+        display: flex;
+        align-items: center;
+        flex-grow: 1;
+        width: auto !important;
+        height: 31.5px;
+        padding-left: 8px;
+    }
+
+    ${key} > svg {
+        position: absolute;
+        bottom: 8px;
+        right: 12px;
+        height: 16px;
+    }
+`);
 
 function Add() {
     usePage("Create API token", SidebarTabId.RESOURCES);
@@ -35,13 +177,13 @@ function Add() {
     const optionsData = options.data.byProvider;
     const serviceProviders = Object.keys(optionsData);
     const [projectId, setProjectId] = React.useState<string | undefined>(getStoredProject() ?? undefined);
-    const [activePermissions, setActivePermissions] = React.useState(new Set<string>());
+    const [activePermissions, setActivePermissions] = React.useState(new Map<string, Set<string>>());
     const [tokenStatus, setTokenStatus] = React.useState<ApiTokenStatus | null>(null);
 
     const mappedServiceProviders = serviceProviders.map(it => ({key: it}));
 
     const availablePermissions = optionsData[serviceProvider]?.availablePermissions ?? [];
-
+    const selectedService = availablePermissions.find(it => activePermissions.has(it.name));
 
     const submit = React.useCallback(async () => {
         const titleElement = document.getElementById(API_TOKEN_TITLE_KEY) as HTMLInputElement;
@@ -52,11 +194,10 @@ function Add() {
 
         const requestedPermissions: Api.ApiTokenPermission[] = [];
 
-        for (const permission of activePermissions) {
-            requestedPermissions.push({
-                name: permission,
-                action: (document.querySelector(`[data-permission=${permission}]`) as HTMLSelectElement).value
-            });
+        for (const [permission, actions] of activePermissions) {
+            for (const action of actions) {
+                requestedPermissions.push({name: permission, action});
+            }
         }
 
         if (!title) {
@@ -76,6 +217,14 @@ function Add() {
         }
 
         const provider = serviceProvider === "" ? null : serviceProvider;
+        const projectOverride = provider == null
+            ? projectId ?? ""
+            : selectedService?.context === "personal" ? "" : undefined;
+
+        if (provider != null && requestedPermissions.length === 0) {
+            sendFailureNotification("Select one service and at least one action");
+            return;
+        }
 
         try {
             const result = await callAPI<ApiToken>({
@@ -91,184 +240,184 @@ function Add() {
                         provider: ""
                     },
                 }),
-                projectOverride: provider == null ? projectId ?? "" : undefined
+                projectOverride
             });
 
             setTokenStatus(result.status);
         } catch (err) {
             displayErrorMessageOrDefault(err, "Failed to generate token.")
         }
-    }, [serviceProvider, activePermissions, date, projectId]);
+    }, [serviceProvider, activePermissions, date, projectId, selectedService]);
+
+    useSubmitShortcut(submit, tokenStatus != null);
 
     let main: React.ReactNode = null;
 
     if (tokenStatus != null) {
-        main = <Flex alignItems={"center"} justifyContent={"center"}>
-            <Box flexBasis={500}>
-                <Heading.h3>API token created</Heading.h3>
-                <Box><b>Server: </b> <code>{tokenStatus.server}</code></Box>
-                <Box><b>Token: </b> <code>{tokenStatus.token}</code></Box>
-                <br />
-                <Box>You must save the token now, as it will not be available after exiting this screen.</Box>
-                <br />
-                <Link to={AppRoutes.resources.apiTokens()}><Button>Back to overview</Button></Link>
-            </Box>
-        </Flex>;
+        main = <DocumentTypography>
+            <div className={ApiTokenResultClass}>
+                <Heading.h1>API token created</Heading.h1>
+                <p>Copy the values below and store them in a secure location.</p>
+                <Warning warning="This token will have to be copied now. It will not be shown again." />
+                <div className="value">
+                    <b>Server</b>
+                    <code>{tokenStatus.server}</code>
+                    <CopyButton tooltip="Copy server" onClick={() => copyToClipboard(tokenStatus.server)} />
+                </div>
+                <div className="value">
+                    <b>Token</b>
+                    <code>{tokenStatus.token}</code>
+                    <CopyButton tooltip="Copy token" onClick={() => copyToClipboard(tokenStatus.token ?? "")} />
+                </div>
+                <Box mt={24}>
+                    <Link to={AppRoutes.resources.apiTokens()}><Button>Back to overview</Button></Link>
+                </Box>
+            </div>
+        </DocumentTypography>;
     } else {
-        main = <div style={{display: "grid", gap: "18px"}}>
-            <Heading.h2>New API token</Heading.h2>
-            <div>
-                Here you can create API tokens which can be used for direct API access to the UCloud platform and
-                specific services at supported service providers. The token will be scoped and owned by a specific
-                workspace/project when a token is created for the UCloud platform.
-            </div>
-
-            <div>
-                <GenericTextField name={API_TOKEN_TITLE_KEY} title={"Title"} optional={false}
-                    placeholder={"My API token"} />
-                <GenericTextArea name={API_TOKEN_DESCRIPTION_KEY} title={"Description"} optional={true}
-                    placeholder={"This token is used in one of my scripts."} />
-            </div>
-            <Flex>
-                <ServiceProviderSelector serviceProvider={serviceProvider} serviceProviders={mappedServiceProviders} onSelect={el => {
-                    setServiceProvider(el.key);
-                    setActivePermissions(new Set());
-                }} />
-                {serviceProvider !== "" ? null :
-                    <div style={{gap: 0}}>
-                        Available for <MandatoryField />
-                        <ProjectSwitcher managed={{
-                            initialProject: projectId,
-                            setLocalProject: setProjectId
-                        }} />
-                    </div>
-                }
-            </Flex>
-            <div>
-                Expiration <MandatoryField />
+        main = <DocumentTypography>
+            <div className={ApiTokenCreateHeaderClass}>
                 <div>
-                    <ExpirationSelector date={date} onChange={setDate} />
+                    <Heading.h2>New API token</Heading.h2>
+                    <div style={{maxWidth: "960px", color: "var(--textSecondary)"}}>
+                        Create a token for UCloud or one service at a supported provider. Service-provider tokens
+                        contain one service and may include multiple actions for that service.
+                    </div>
                 </div>
             </div>
-            {serviceProviders.length == 0 || availablePermissions.length === 0 ? null : <div>
-                Token permissions
-                <div className={PermissionWindow} data-has-active={activePermissions.size > 0}>
-                    <div className="header">
-                        <div>{activePermissions.size} permission(s)</div>
-                        <Box ml="auto" width="135px">
-                            <ClickableDropdown
-                                trigger={"Add permissions"}
-                                chevron
-                                fullWidth
+            <KeyboardNavigation>
+            <div className={ApiTokenCreateContentClass}>
+                <FieldGroup>
+                    <FieldRow
+                        title="Title"
+                        description={"The title is shown on the overview page to identify the token."}
+                        required
+                        control={<Input id={API_TOKEN_TITLE_KEY} width="100%" placeholder="My API token" />}
+                    />
+                    <FieldRow
+                        title="Description"
+                        description="Optional details about how this token is used."
+                        control={<TextArea id={API_TOKEN_DESCRIPTION_KEY} width="100%" rows={5}
+                            placeholder="This token is used in one of my scripts." />}
+                    />
+                    <FieldRow
+                        title="Expiration"
+                        description="The token stops working after this date."
+                        required
+                        control={<ExpirationSelector date={date} onChange={setDate} fullWidth />}
+                    />
+                </FieldGroup>
+
+                <FieldGroup>
+                    <FieldRow
+                        title="Service provider"
+                        description="Choose UCloud or a connected service provider."
+                        required
+                        control={<ServiceProviderSelector serviceProvider={serviceProvider}
+                            serviceProviders={mappedServiceProviders} showLabel={false} reserveLabelSpace={false} onSelect={el => {
+                                setServiceProvider(el.key);
+                                setActivePermissions(new Map());
+                            }} />}
+                    />
+                    {serviceProvider !== "" ? null :
+                        <FieldRow
+                            title="Available for"
+                            description="Choose the project scope for this UCloud token."
+                            required
+                            control={<div className={ApiTokenProjectSelectorClass}>
+                                 <ProjectSwitcher managed={{
+                                     initialProject: projectId,
+                                     setLocalProject: setProjectId
+                                }} focusable />
+                            </div>}
+                        />
+                    }
+                    {serviceProviders.length === 0 || availablePermissions.length === 0 ? null :
+                        <FieldRow
+                            title="Service"
+                            description={selectedService == null
+                                ? "Choose the service that this token can access."
+                                : selectedService.description}
+                            required
+                            onClear={selectedService == null ? undefined : () => setActivePermissions(new Map())}
+                            control={<div className={ApiTokenFullWidthSelectorClass}>
+                                <RichSelect
+                                    fullWidth
+                                    items={availablePermissions}
+                                    keys={["title"]}
+                                    selected={selectedService}
+                                    RenderSelected={p => p.element == null ? <Flex height={"31.5px"} alignItems="center" pl={"8px"}>
+                                        Select service
+                                    </Flex> : <Permission {...p.element} dataProps={p.dataProps} onClick={p.onSelect} />}
+                                    RenderRow={p => p.element == null ? null : <Permission
+                                        {...p.element}
+                                        dataProps={p.dataProps}
+                                        onClick={p.onSelect}
+                                    />}
+                                    onSelect={p => {
+                                        const firstAction = Object.keys(p.actions)[0];
+                                        setActivePermissions(new Map([
+                                            [p.name, firstAction == null ? new Set() : new Set([firstAction])]
+                                        ]));
+                                    }}
+                                    elementHeight={38}
+                                    chevronPlacement={{position: "absolute", bottom: "8px", right: "12px", height: "16px"}}
+                                />
+                            </div>}
+                        />
+                    }
+                    {selectedService == null ? null : Object.entries(selectedService.actions).map(([action, actionTitle]) =>
+                        <FieldRow
+                            key={action}
+                            title={actionTitle}
+                            control={<Select
+                                value={activePermissions.get(selectedService.name)?.has(action) ? "yes" : "no"}
+                                onChange={event => {
+                                    const enabled = event.target.value === "yes";
+                                    setActivePermissions(current => {
+                                        const next = new Map(current);
+                                        const selectedActions = new Set(next.get(selectedService.name) ?? []);
+                                        if (enabled) {
+                                            selectedActions.add(action);
+                                        } else {
+                                            selectedActions.delete(action);
+                                        }
+                                        next.set(selectedService.name, selectedActions);
+                                        return next;
+                                    });
+                                }}
                             >
-                                {availablePermissions.map(p => <Permission onClick={() => {
-                                    if (activePermissions.has(p.name)) {
-                                        return;
-                                    } else {
-                                        return setActivePermissions(set => new Set([...set, p.name]))
-                                    }
-                                }} {...p} />)}
-                            </ClickableDropdown>
-                        </Box>
-                    </div>
-                    {activePermissions.size > 0 ? <Divider m={"0px"} /> : null}
-                    <div style={{maxHeight: "400px", overflowY: "auto"}}>
-                        {[...activePermissions].map(p =>
-                            <ActivePermissions clearPermission={() => {
-                                setActivePermissions(permissions => {
-                                    permissions.delete(p);
-                                    return new Set([...permissions]);
-                                })
-                            }} permission={p} availablePermissions={availablePermissions} />
-                        )}
-                    </div>
+                                <option value="yes">Yes</option>
+                                <option value="no">No</option>
+                            </Select>}
+                        />
+                    )}
+                </FieldGroup>
+
+                <div className={ApiTokenSubmitClass}>
+                    <Link to={Routes.resources.apiTokens()}>
+                        <Button onClick={doNothing} color={"secondaryMain"}>Cancel</Button>
+                    </Link>
+                    <Button onClick={submit} color={"successMain"}>Generate token<SubmitShortcut /></Button>
                 </div>
-            </div>}
-            <Flex gap={"8px"}>
-                <Button onClick={submit} color={"successMain"}>Generate token</Button>
-                <Link to={Routes.resources.apiTokens()}>
-                    <Button onClick={doNothing} color={"secondaryMain"}>Cancel</Button>
-                </Link>
-            </Flex>
-        </div>;
+            </div>
+            </KeyboardNavigation>
+        </DocumentTypography>;
     }
 
     return <MainContainer main={main} />;
 }
 
-const ActivePermissionClass = makeClassName("active-permission");
-const ActivePermissionDescription = makeClassName("description");
-const ActivePermissionTitle = makeClassName("title");
-const PermissionWindow = injectStyle("permission-window", cl => `
-    ${cl} {
-        border-radius: 10px;
-        border: var(--defaultCardBorder);
-        color: var(--textPrimary);
-    }
-
-    ${cl} > div.header {
-        display: flex;
-        padding: 16px;
-        background-color: var(--dialogToolbar);
-        border-radius: 10px;
-    }
-
-    ${cl}[data-has-active=true] div.header {
-        border-bottom-left-radius: 0px;
-        border-bottom-right-radius: 0px;
-    }
-
-    ${cl} ${ActivePermissionClass.dot} {
-        padding: 20px;
-    }
-
-    ${cl} ${ActivePermissionClass.dot} ${ActivePermissionTitle.dot} {
-        font-size: 18px;
-    }
-
-    ${cl} ${ActivePermissionClass.dot} ${ActivePermissionDescription.dot} {
-        color: var(--textSecondary);
-        font-size: 14px;
-    }
-`);
-
-function ActivePermissions(props: {
-    clearPermission(): void;
-    permission: string;
-    availablePermissions: Api.ApiTokenPermissionSpecification[]
-}): React.ReactNode {
-    const permissionSpecification = props.availablePermissions.find(it => it.name === props.permission);
-    if (!permissionSpecification) return null;
-
-    const actionKeys = Object.keys(permissionSpecification.actions);
-
-    return <Flex className={ActivePermissionClass.class}>
-        <div>
-            <div className={ActivePermissionTitle.class}>
-                {permissionSpecification.title}
-            </div>
-            <div className={ActivePermissionDescription.class}>
-                {permissionSpecification.description}
-            </div>
-        </div>
-        <Flex ml="auto" my="auto" height="35px">
-            <Select ml="auto" width="180px" data-permission={props.permission}>
-                {actionKeys.map(key => {
-                    const value = permissionSpecification.actions[key];
-                    return <option value={key}>{value}</option>
-                })}
-            </Select>
-            <Icon onClick={props.clearPermission} cursor="pointer" name="close" mt="auto" ml="12px" mb="10px" />
-        </Flex>
-    </Flex>
-}
-
-
 function Permission(props: Api.ApiTokenPermissionSpecification & {
     onClick(): void;
+    dataProps?: Record<string, string>;
 }): React.ReactNode {
-    return <Flex key={props.name} onClick={props.onClick} height={"32px"} alignItems={"center"} gap={"8px"}>
+    const height = props.dataProps == null ? "31.5px" : "38px";
+    return <Flex {...props.dataProps} onClick={props.onClick} height={height} alignItems={"center"} gap={"8px"} pl={"8px"}>
         <b>{props.title}</b>
+        <span style={{fontSize: "12px"}}>
+            ({props.context === "personal" ? "All projects" : "Current project"})
+        </span>
     </Flex>
 }
 
@@ -301,6 +450,8 @@ export function ServiceProviderSelector({
     renderRow = ServiceProviderItem,
     renderSelectedRow = ServiceProviderItem,
     showLabel = true,
+    reserveLabelSpace = true,
+    ...dataAttributes
 }: {
     onSelect: (el: {key: string}) => void;
     serviceProvider: string;
@@ -308,9 +459,10 @@ export function ServiceProviderSelector({
     renderRow?: (props: RichSelectProps<{key: string}>) => React.ReactNode
     renderSelectedRow?: (props: RichSelectProps<{key: string}>) => React.ReactNode
     showLabel?: boolean;
-}) {
+    reserveLabelSpace?: boolean;
+} & DataAttributes) {
     return <div className={ServiceProviderSelectorStyle} data-has-service-provider={!!serviceProvider}>
-        {showLabel ? <>Service provider <MandatoryField /></> : <Box width={"300px"} />}
+        {showLabel ? <>Service provider <MandatoryField /></> : reserveLabelSpace ? <Box width={"300px"} /> : null}
         <RichSelect
             fullWidth
             elementHeight={38}
@@ -318,6 +470,7 @@ export function ServiceProviderSelector({
             selected={({key: serviceProvider})}
             items={serviceProviders}
             keys={["key"]}
+            {...dataAttributes}
             RenderRow={renderRow}
             onSelect={onSelect}>
         </RichSelect>
@@ -349,7 +502,12 @@ export function formatTs(ts: number): string {
     }
 }
 
-function ExpirationSelector(props: {date: Date | null; onChange(d: Date): void}): React.ReactNode {
+function formatDateInput(date: Date): string {
+    return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, "0")}-${date.getDate().toString().padStart(2, "0")}`;
+}
+
+function ExpirationSelector(props: {date: Date | null; onChange(d: Date): void; fullWidth?: boolean}): React.ReactNode {
+    const closeFn = React.useRef<() => void>(() => undefined);
 
     const onRelativeUpdated = React.useCallback((ev: React.SyntheticEvent) => {
         let today = new Date();
@@ -388,36 +546,49 @@ function ExpirationSelector(props: {date: Date | null; onChange(d: Date): void})
         colorOnHover={false}
         paddingControlledByContent
         noYPadding={true}
+        fullWidth={props.fullWidth}
+        contentWidth="max-content"
         trigger={
-            <div className={PeriodStyle}>
-                <div style={{width: "182px"}}>{props.date == null ? null : formatTs(props.date.getTime())}</div>
-                <Icon name="heroChevronDown" size="14px" ml="4px" mt="4px" />
+            <div className={ApiTokenExpirationSelectorClass}>
+                <div>{props.date == null ? null : formatTs(props.date.getTime())}</div>
+                <Icon name="heroChevronDown" />
             </div>
         }
+        arrowkeyNavigationKey="data-active"
+        hoverColor="rowHover"
+        focusable
+        closeFnRef={closeFn}
+        onSelect={element => {
+            if (element?.hasAttribute("data-custom-date")) {
+                closeFn.current();
+                return;
+            }
+            if (element instanceof HTMLElement) element.click();
+        }}
     >
         <div className={DateSelector}>
-            <div onClick={e => e.stopPropagation()}>
+            <div onClick={e => e.stopPropagation()} data-active="false" data-custom-date="true">
                 <b>Specific date</b>
-                <Input pl="8px" pr="8px" className={"start"} onChange={onChange} type={"date"}
-                    value={props.date == null ? undefined : formatTs(props.date.getTime())} />
+                <Input autoFocus pl="8px" pr="8px" className={"start"} onChange={onChange} type={"date"}
+                    value={props.date == null ? undefined : formatDateInput(props.date)} />
             </div>
             <Divider />
             <div>
                 <b>Relative date</b>
 
-                <div onClick={onRelativeUpdated} className={"relative"} data-relative-unit={"day"}
+                <div onClick={onRelativeUpdated} className={"relative"} data-active="false" data-relative-unit={"day"}
                     data-unit={"7"}>7 days from today
                 </div>
-                <div onClick={onRelativeUpdated} className={"relative"} data-relative-unit={"day"}
+                <div onClick={onRelativeUpdated} className={"relative"} data-active="false" data-relative-unit={"day"}
                     data-unit={"30"}>30 days from today
                 </div>
-                <div onClick={onRelativeUpdated} className={"relative"} data-relative-unit={"day"}
+                <div onClick={onRelativeUpdated} className={"relative"} data-active="false" data-relative-unit={"day"}
                     data-unit={"90"}>90 days from today
                 </div>
-                <div onClick={onRelativeUpdated} className={"relative"} data-relative-unit={"month"}
+                <div onClick={onRelativeUpdated} className={"relative"} data-active="false" data-relative-unit={"month"}
                     data-unit={"6"}>6 months from today
                 </div>
-                <div onClick={onRelativeUpdated} className={"relative"} data-relative-unit={"month"}
+                <div onClick={onRelativeUpdated} className={"relative"} data-active="false" data-relative-unit={"month"}
                     data-unit={"12"}>12 months from today
                 </div>
             </div>
@@ -443,16 +614,15 @@ const DateSelector = injectStyle("date-selector", cl => `
 
     ${cl} > div:nth-child(3) {
         padding-top: 0px;
-        gap: 8px;
+        gap: 0;
         display: grid;
     }
 
     ${cl} > div:nth-child(3) > div {
-        flex-grow: 1;
+        height: 38px;
         display: flex;
-        flex-direction: column;
-        padding: 8px;
-        padding-left: 16px;
+        align-items: center;
+        padding: 0 8px;
     }
 
     ${cl} > div:nth-child(3) > div:hover {

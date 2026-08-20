@@ -690,6 +690,31 @@ func ResourceBrowse[T any](
 	filter func(item T) bool,
 	sortComparator ResourceSortByFn[T],
 ) fndapi.PageV2[T] {
+	return resourceBrowse(actor, typeName, next, itemsPerPage, flags, filter, sortComparator, false)
+}
+
+func ResourceBrowseIncludingPersonal[T any](
+	actor rpc.Actor,
+	typeName string,
+	next util.Option[string],
+	itemsPerPage int,
+	flags orcapi.ResourceFlags,
+	filter func(item T) bool,
+	sortComparator ResourceSortByFn[T],
+) fndapi.PageV2[T] {
+	return resourceBrowse(actor, typeName, next, itemsPerPage, flags, filter, sortComparator, true)
+}
+
+func resourceBrowse[T any](
+	actor rpc.Actor,
+	typeName string,
+	next util.Option[string],
+	itemsPerPage int,
+	flags orcapi.ResourceFlags,
+	filter func(item T) bool,
+	sortComparator ResourceSortByFn[T],
+	includePersonal bool,
+) fndapi.PageV2[T] {
 	providerId, isProvider := strings.CutPrefix(actor.Username, fndapi.ProviderSubjectPrefix)
 	if flags.FilterProviderIds.Present {
 		providerGenIds := strings.Split(flags.FilterProviderIds.Value, ",")
@@ -722,23 +747,34 @@ func ResourceBrowse[T any](
 		t := util.NewTimer()
 
 		g := resourceGetGlobals(typeName)
-		ref := actor.Username
+		refs := []string{actor.Username}
 		if actor.Project.Present {
-			ref = string(actor.Project.Value)
-		}
-
-		idxBucket := resourceGetAndLoadIndex(typeName, ref)
-		resourceBrowseDuration.WithLabelValues(typeName, "index").Observe(t.Mark().Seconds())
-
-		idxBucket.Mu.RLock()
-		idx := append([]ResourceId(nil), idxBucket.ByOwner[ref]...) // deep copy under lock
-
-		if len(flags.FilterLabels) > 0 {
-			filtered, ok := resourceFilterByIndexedLabelsLocked(idxBucket, ref, idx, flags.FilterLabels)
-			if ok {
-				idx = filtered
+			refs[0] = string(actor.Project.Value)
+			if includePersonal {
+				refs = append(refs, actor.Username)
 			}
 		}
+
+		var idx []ResourceId
+		for _, ref := range refs {
+			idxBucket := resourceGetAndLoadIndex(typeName, ref)
+			resourceBrowseDuration.WithLabelValues(typeName, "index").Observe(t.Mark().Seconds())
+
+			idxBucket.Mu.RLock()
+			ownerIdx := append([]ResourceId(nil), idxBucket.ByOwner[ref]...) // deep copy under lock
+
+			if len(flags.FilterLabels) > 0 {
+				filtered, ok := resourceFilterByIndexedLabelsLocked(idxBucket, ref, ownerIdx, flags.FilterLabels)
+				if ok {
+					ownerIdx = filtered
+				}
+			}
+			idxBucket.Mu.RUnlock()
+
+			idx = append(idx, ownerIdx...)
+		}
+		slices.Sort(idx)
+		idx = slices.Compact(idx)
 
 		if len(idx) > 10_000 {
 			// NOTE(Dan): We refuse to run anything but the default sort if there are too many expected results.
@@ -755,7 +791,6 @@ func ResourceBrowse[T any](
 			}
 		}
 
-		idxBucket.Mu.RUnlock()
 		resourceBrowseDuration.WithLabelValues(typeName, "prepare_prefetch").Observe(t.Mark().Seconds())
 
 		var items []T
@@ -779,7 +814,9 @@ func ResourceBrowse[T any](
 			// workspace filtering here to ensure we only see the correct resources.
 			if ok && !isProvider {
 				if actor.Project.Present {
-					if string(actor.Project.GetOrDefault("")) != resc.Owner.Project.Value {
+					isCurrentProject := resc.Owner.Project.Present && string(actor.Project.Value) == resc.Owner.Project.Value
+					isPersonal := includePersonal && !resc.Owner.Project.Present && resc.Owner.CreatedBy == actor.Username
+					if !isCurrentProject && !isPersonal {
 						continue
 					}
 				} else {

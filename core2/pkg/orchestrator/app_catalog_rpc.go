@@ -21,6 +21,7 @@ import (
 // moved here to make the main file read a bit easier.
 
 func appCatalogInitRpc() {
+	initApplicationVariantRpc()
 	orcapi.AppsRetrieveLandingPage.Handler(func(info rpc.RequestInfo, request orcapi.AppCatalogRetrieveLandingPageRequest) (orcapi.AppCatalogRetrieveLandingPageResponse, *util.HttpError) {
 		return AppCatalogRetrieveLandingPage(info.Actor, request)
 	})

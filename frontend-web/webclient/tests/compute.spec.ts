@@ -162,7 +162,6 @@ echo "${BashScriptStringContent}"
                 await Applications.goToApplications(page);
                 await Applications.openAppBySearch(page, AppNames.TestApplication);
                 // Optional parameter to be used
-                await Runs.activateOptionalParameter(page, "Initialization script");
                 await NetworkCalls.awaitResponse(page, "**/api/files/browse**", async () => {
                     await page.getByRole("textbox", {name: "Initialization script"}).click();
                 });
@@ -232,10 +231,9 @@ echo "${BashScriptStringContent}"
             const jobName = Runs.newJobName();
             const jobNetworkId1 = Resources.PrivateNetworks.newJobNetworkName();
             const term1 = await Applications.runAppAndOpenTerminalWithTerminalPage(page, AppNames.TestApplication, 2, async p => {
-                await p.getByText("Connect network").first().click();
-                await p.getByRole("textbox", {name: "Hostname"}).fill(jobNetworkId1);
-                await p.getByPlaceholder("No private network selected").click();
+                await p.getByRole("textbox", {name: "Private network #1"}).click();
                 await p.getByRole("dialog").locator(".row", {hasText: networkName}).getByRole("button", {name: "Use"}).click();
+                await p.locator("[data-field-row]", {hasText: "Hostname"}).getByRole("textbox").fill(jobNetworkId1);
             }, jobName);
 
 
@@ -243,10 +241,9 @@ echo "${BashScriptStringContent}"
             const jobNetworkId2 = Resources.PrivateNetworks.newJobNetworkName();
             await User.toLoginPage(otherPage); // Should redirect to dashboard, as this is already logged in.
             const term2 = await Applications.runAppAndOpenTerminalWithTerminalPage(otherPage, AppNames.TestApplication, 2, async p => {
-                await p.getByText("Connect network").first().click();
-                await p.getByRole("textbox", {name: "Hostname"}).fill(jobNetworkId2);
-                await p.getByPlaceholder("No private network selected").click();
+                await p.getByRole("textbox", {name: "Private network #1"}).click();
                 await p.getByRole("dialog").locator(".row", {hasText: networkName}).getByRole("button", {name: "Use"}).click();
+                await p.locator("[data-field-row]", {hasText: "Hostname"}).getByRole("textbox").fill(jobNetworkId2);
             }, jobName);
 
             await Terminal.enterCmd(term1, `apt install busybox && echo "setup done!"`);

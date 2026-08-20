@@ -70,6 +70,12 @@ export const InputClass = injectStyle("input", k => `
         display: none;
     }
 
+    ${k}[data-field-activator] {
+        caret-color: transparent;
+        user-select: none;
+        -webkit-user-select: none;
+    }
+    
     ${k}[data-right-label="true"] {
         border-top-right-radius: 0;
         border-bottom-right-radius: 0;

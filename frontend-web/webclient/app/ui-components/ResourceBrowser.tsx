@@ -1,5 +1,5 @@
 import {Operation, operationsToActions, ShortcutKey} from "@/ui-components/Operation";
-import {ActionAppearance, ActionBar, ActionEntry, ActionItem, ActionMenu, ResourceBrowserActions} from "@/ui-components/Actions";
+import {ActionAppearance, ActionBar, ActionEntry, ActionItem, ActionMenu, hasAvailableActions, ResourceBrowserActions} from "@/ui-components/Actions";
 import {IconName} from "@/ui-components/Icon";
 import {
     ThemeColor,
@@ -40,7 +40,6 @@ import {HTMLTooltip} from "./Tooltip";
 import {ButtonClass} from "./Button";
 import {CREATE_TAG, DELETE_TAG, PERMISSIONS_TAG, PROPERTIES_TAG, ResourceIncludeFlags} from "@/UCloud/ResourceApi";
 import {TruncateClass} from "./Truncate";
-import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import Flex, {FlexClass} from "./Flex";
 import * as Heading from "@/ui-components/Heading";
 import {dialogStore} from "@/Dialog/DialogStore";
@@ -310,6 +309,7 @@ interface ResourceBrowserListenerMap<T> {
     // skipOpen is called pre-navigation/calling "open". If it returns `true`, calling open is skipped.
     "skipOpen": (oldPath: string, path: string, resource?: T) => boolean;
     "open": (oldPath: string, path: string, resource?: T) => void;
+    "refresh": () => void;
     "wantToFetchNextPage": (path: string) => Promise<void>;
     "search": (query: string) => void;
     "searchHidden": () => void;
@@ -343,6 +343,7 @@ interface ResourceBrowserListenerMap<T> {
 
     "sort": (page: T[]) => void;
     "fetchFilters": () => Filter[];
+    "renderUtilityControls": (container: HTMLElement) => void;
 }
 
 interface ResourceBrowserRow {
@@ -399,10 +400,12 @@ export class ResourceBrowser<T> {
     sessionFilters: HTMLElement;
     public header: HTMLElement;
     public breadcrumbs: HTMLUListElement;
+    private utilityControls: HTMLDivElement;
     private scrolling: HTMLDivElement;
     private entryDragIndicator: HTMLDivElement;
     entryDragIndicatorContent: HTMLDivElement;
     private dragIndicator: HTMLDivElement;
+    private dragOverlay: HTMLDivElement;
     private rows: ResourceBrowserRow[] = [];
 
     // Selection state
@@ -523,7 +526,17 @@ export class ResourceBrowser<T> {
     };
 
     public static isAnyModalOpen = false;
+    private static selectionBrowsers: ResourceBrowser<any>[] = [];
     private readonly isModal: boolean;
+
+    private static activeSelectionBrowser(): ResourceBrowser<any> | undefined {
+        ResourceBrowser.selectionBrowsers = ResourceBrowser.selectionBrowsers.filter(browser => browser.root.isConnected);
+        const modal = ResourceBrowser.selectionBrowsers.findLast(browser => browser.isModal);
+        if (modal) return modal;
+        const focused = document.activeElement;
+        return ResourceBrowser.selectionBrowsers.findLast(browser => focused != null && browser.root.contains(focused)) ??
+            ResourceBrowser.selectionBrowsers.at(-1);
+    }
 
     static hideShortcuts = localStorage.getItem("hide-shortcuts") === "true";
 
@@ -539,6 +552,7 @@ export class ResourceBrowser<T> {
     public opts: {
         embedded?: EmbeddedSettings;
         selector: boolean;
+        selection?: Selection<T>;
         columnTitles: ColumnTitleList;
     };
     // Note(Jonas): To use for project change listening.
@@ -555,11 +569,13 @@ export class ResourceBrowser<T> {
         this.opts = {
             embedded: opts?.embedded,
             selector: !!opts?.selection,
+            selection: opts?.selection,
             columnTitles: [{name: ""}, {name: "", columnWidth: 20}, {name: "", columnWidth: 20}, {name: "", columnWidth: 20}, {
                 name: "",
                 columnWidth: 20
             }]
         }
+        if (opts?.selection) ResourceBrowser.selectionBrowsers.push(this);
     };
 
     private clearSelected() {
@@ -570,6 +586,12 @@ export class ResourceBrowser<T> {
         this.renderRows();
         this.renderOperations();
         this.dispatchMessage("rowSelectionUpdated", fn => fn());
+    }
+
+    public clearSelection(): boolean {
+        if (!this.isSelected.some(selected => selected !== 0)) return false;
+        this.clearSelected();
+        return true;
     }
 
     public init(
@@ -590,6 +612,7 @@ export class ResourceBrowser<T> {
         // Mount primary UI and stylesheets
         const browserClass = injectResourceBrowserStyle(ResourceBrowser.rowSize);
         this.root.classList.add(browserClass.class);
+        this.root.style.position = "relative";
         this.root.innerHTML = `
             <header>
                 <div class="header-first-row">
@@ -597,9 +620,10 @@ export class ResourceBrowser<T> {
                         <ul></ul>
                         <input class="location-bar">
                     </div>
-                    <div style="flex-grow: 1;"></div>
+                    <div class="utility-spacer"></div>
                     <div class="search-field-wrapper"><input class="${InputClass} search-field" data-hidden></div>
                     <img alt="search" class="search-icon">
+                    <div class="utility-controls"></div>
                     <img alt="refresh" class="refresh-icon">
                 </div>
                 <div class="allocations"></div>
@@ -644,11 +668,18 @@ export class ResourceBrowser<T> {
         this.dragIndicator = this.root.querySelector<HTMLDivElement>(".drag-indicator")!;
         this.entryDragIndicator = this.root.querySelector<HTMLDivElement>(".file-drag-indicator")!;
         this.entryDragIndicatorContent = this.root.querySelector<HTMLDivElement>(".file-drag-indicator-content")!;
+        // Keep fixed overlays in the viewport coordinate system, even when the browser is inside a transformed modal.
+        this.dragOverlay = document.createElement("div");
+        this.dragOverlay.classList.add(browserClass.class);
+        this.dragOverlay.style.display = "contents";
+        this.dragOverlay.append(this.entryDragIndicatorContent, this.entryDragIndicator, this.dragIndicator);
+        document.body.appendChild(this.dragOverlay);
         this.contextMenu = this.root.querySelector<HTMLDivElement>(".context-menu")!;
         this.scrolling = this.root.querySelector<HTMLDivElement>(".scrolling")!;
         this.renameField = this.root.querySelector<HTMLInputElement>(".rename-field")!;
         this.locationBar = this.root.querySelector<HTMLInputElement>(".location-bar")!;
         this.header = this.root.querySelector("header")!; // Add UtilityBar
+        this.utilityControls = this.root.querySelector<HTMLDivElement>(".utility-controls")!;
         this.filters = this.root.querySelector<HTMLDivElement>(".filters")!;
         this.sessionFilters = this.root.querySelector<HTMLDivElement>(".session-filters")!;
         this.rightFilters = this.root.querySelector<HTMLDivElement>(".right-sort-filters")!;
@@ -672,14 +703,8 @@ export class ResourceBrowser<T> {
         }
 
         if (this.isModal) {
-            this.root.style.maxHeight = `calc(${largeModalStyle.content?.maxHeight} - 64px)`;
             this.root.style.overflowY = "hidden";
             this.scrolling.style.overflowY = "auto";
-
-            const location = this.root.querySelector(".location");
-            if (location) {
-                location.setAttribute("in-modal", "");
-            }
         }
 
 
@@ -693,6 +718,7 @@ export class ResourceBrowser<T> {
                 this.actionBarRoot = undefined;
                 this.actionMenuRoot?.unmount();
                 this.actionMenuRoot = undefined;
+                this.dragOverlay.remove();
 
                 window.clearInterval(unmountInterval);
             }
@@ -827,6 +853,7 @@ export class ResourceBrowser<T> {
                 icon.addEventListener("transitionend", evListener);
                 icon.style.transform = "rotate(405deg)";
             });
+            this.renderUtilityControls();
         }
 
         if (!this.opts.embedded?.disableKeyhandlers) {
@@ -880,6 +907,23 @@ export class ResourceBrowser<T> {
                 }
             };
             document.addEventListener("keydown", keyDownListener);
+        }
+
+        if (this.opts.selection) {
+            const useShortcutListener = (event: KeyboardEvent) => {
+                if (!this.root.isConnected) {
+                    document.removeEventListener("keydown", useShortcutListener, true);
+                    return;
+                }
+                if (ResourceBrowser.activeSelectionBrowser() !== this || event.code !== "Enter" || !event.altKey ||
+                    event.ctrlKey || event.metaKey) return;
+                const selected = this.findSelectedEntries();
+                if (selected.length !== 1 || this.opts.selection?.show(selected[0]) !== true) return;
+                event.preventDefault();
+                event.stopImmediatePropagation();
+                this.opts.selection.onClick(selected[0]);
+            };
+            document.addEventListener("keydown", useShortcutListener, true);
         }
 
         const attemptCloseRenameField = (ev: MouseEvent) => {
@@ -1031,6 +1075,16 @@ export class ResourceBrowser<T> {
             return;
         }
 
+        if (this.isModal) {
+            const modal = this.root.closest<HTMLElement>(".ReactModal__Content");
+            if (modal) {
+                const modalStyle = window.getComputedStyle(modal);
+                const modalBottom = modal.getBoundingClientRect().bottom - parseFloat(modalStyle.paddingBottom || "0");
+                const availableHeight = Math.max(0, modalBottom - this.root.getBoundingClientRect().top);
+                this.root.style.maxHeight = `${availableHeight}px`;
+            }
+        }
+
         const parent = this.scrolling.parentElement!;
         const rect = parent.getBoundingClientRect();
 
@@ -1051,6 +1105,7 @@ export class ResourceBrowser<T> {
     public canConsumeResources = true;
 
     refresh() {
+        this.dispatchMessage("refresh", fn => fn());
         this.open(this.currentPath, true);
     }
 
@@ -1342,7 +1397,7 @@ export class ResourceBrowser<T> {
         if (!selection.show || show === true || typeof show === "string") {
             const disabled = typeof show === "string";
             const button = document.createElement("button");
-            button.innerText = selection.text;
+            button.innerText = this.opts.embedded ? "Use" : selection.text;
             button.className = ButtonClass;
             button.style.height = opts?.height ?? "32px";
             button.style.width = opts?.width ?? "96px";
@@ -1448,6 +1503,12 @@ export class ResourceBrowser<T> {
                 height: 64
             }).then(url => searchIcon.src = url);
         }
+        this.renderUtilityControls();
+    }
+
+    private renderUtilityControls() {
+        this.utilityControls.replaceChildren();
+        this.dispatchMessage("renderUtilityControls", fn => fn(this.utilityControls));
     }
 
     renderBreadcrumbs() {
@@ -1601,6 +1662,22 @@ export class ResourceBrowser<T> {
             }
         }
 
+        const selection = this.opts.selection;
+        if (selection) {
+            const actionText = this.opts.embedded ? "Use" : selection.text;
+            const useAction: ActionItem<T, any> = {
+                text: actionText,
+                icon: "check",
+                shortcut: ShortcutKey.Enter,
+                enabled: selected => selected.length === 1 ? selection.show(selected[0]) : false,
+                onClick: selected => selection.onClick(selected[0]),
+            };
+            actions = [useAction, ...actions.filter(action =>
+                action === "divider" || typeof action.text !== "string" ||
+                    (action.text !== actionText && action.text !== "Use")
+            )];
+        }
+
         return {
             actions,
             selected: this.findSelectedEntries(),
@@ -1637,8 +1714,9 @@ export class ResourceBrowser<T> {
     private renderActionBar() {
         const snapshot = this.fetchActions("topbar");
         this.shortCuts = {} as Record<ShortcutKey, () => void>;
-        if (!snapshot || !snapshot.actions.length || !this.canConsumeResources) {
-            this.actionBarRoot?.render(null);
+        const hasActions = snapshot && hasAvailableActions(snapshot.actions, snapshot.selected, snapshot.callbacks);
+        if (!snapshot || !hasActions || !this.canConsumeResources) {
+            this.actionBarRoot?.render(<div className="operations-empty">No actions available</div>);
             return;
         }
         this.actionBarRoot?.render(<ActionBar
@@ -1648,6 +1726,7 @@ export class ResourceBrowser<T> {
             appearance={snapshot.appearance}
             hideShortcuts={ResourceBrowser.hideShortcuts}
             maxVisible={snapshot.maxVisible}
+            enableShortcuts={!this.opts.selection || this.opts.selector}
         />);
     }
 
@@ -1822,7 +1901,7 @@ export class ResourceBrowser<T> {
 
     clearFilters() {
         const filtersToKeep = this.dispatchMessage("fetchFilters", fn => fn())
-            .filter(it => it.type === "input").map((it: FilterInput) => it.key);
+            .flatMap(filter => filter.type === "multi-option" ? filter.keys : [filter.key]);
         for (const key of Object.keys(this.browseFilters)) {
             if (!filtersToKeep.includes(key)) delete this.browseFilters[key];
         }
@@ -2397,6 +2476,10 @@ export class ResourceBrowser<T> {
     private onRowClicked(index: number, event: MouseEvent) {
         if (timestampUnixMs() < this.ignoreRowClicksUntil) return;
         if (index < 0 || index >= this.rows.length) return;
+        if (this.opts.selection) {
+            ResourceBrowser.selectionBrowsers = ResourceBrowser.selectionBrowsers.filter(browser => browser !== this);
+            ResourceBrowser.selectionBrowsers.push(this);
+        }
         const row = this.rows[index];
         const entryIdxS = row.container.getAttribute("data-idx");
         const entryIdx = entryIdxS ? parseInt(entryIdxS) : undefined;
@@ -2972,6 +3055,7 @@ export class ResourceBrowser<T> {
 
     private defaultHandlers: Partial<ResourceBrowserListenerMap<T>> = {
         open: doNothing,
+        refresh: doNothing,
         skipOpen: () => false,
         rowSelectionUpdated: doNothing,
         mount: doNothing,
@@ -2990,6 +3074,7 @@ export class ResourceBrowser<T> {
             return this.defaultEmptyPage(this.resourceName, e, {});
         },
         fetchFilters: () => [],
+        renderUtilityControls: doNothing,
 
         renderLocationBar: prompt => {
             return {rendered: prompt, normalized: prompt};
@@ -3288,12 +3373,17 @@ export class ResourceBrowser<T> {
     }
 
     private prepareEmptyContainer() {
-        const containerTop = this.scrollingContainerTop;
-        const containerLeft = this.scrollingContainerLeft;
-        const containerHeight = this.scrollingContainerHeight;
-        const containerWidth = this.scrollingContainerWidth;
+        // Modal layout can settle after the cached browser dimensions are measured.
+        const container = this.scrolling.parentElement!;
+        const containerBounds = container.getBoundingClientRect();
+        const rootBounds = this.root.getBoundingClientRect();
+        const containerTop = containerBounds.top - rootBounds.top;
+        const containerLeft = containerBounds.left - rootBounds.left;
+        const containerHeight = containerBounds.height;
+        const containerWidth = containerBounds.width;
         const e = this.emptyPageElement;
         e.container.style.display = "flex";
+        e.container.style.position = "absolute";
         e.graphic.innerHTML = "";
         e.reason.innerHTML = "";
         e.providerReason.innerHTML = "";

@@ -675,7 +675,10 @@ export function createKeyboardShortcut(key: string, modifiers: KeyboardShortcutM
         if (modifier === "ctrl") return isLikelyMac ? "⌘" : "Ctrl";
         return isLikelyMac ? "⌥" : "Alt";
     });
-    return [...normalizedModifiers, key].join(" + ");
+    const modifierSeparator = isLikelyMac ? "" : " + ";
+    const modifierText = normalizedModifiers.join(modifierSeparator);
+    const modifierSpacer = isLikelyMac ? " " : " + ";
+    return modifierText + modifierSpacer + key;
 }
 
 export function deepEquals(a: any, b: any): boolean {

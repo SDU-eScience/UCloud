@@ -1402,6 +1402,18 @@ func jobsValidateForSubmission(actor rpc.Actor, spec *orcapi.JobSpecification) *
 	if !ok {
 		return util.HttpErr(http.StatusBadRequest, "unknown application requested")
 	}
+	if app.Metadata.Variant.Present {
+		variant := app.Metadata.Variant.Value
+		if variant.State != orcapi.ApplicationVariantStateActive {
+			return util.HttpErr(http.StatusBadRequest, "the flavor is no longer active")
+		}
+		if spec.Product.Provider != variant.Provider {
+			return util.HttpErr(http.StatusBadRequest, "the flavor is not available at this provider")
+		}
+		if _, validateErr := applicationVariantValidateImage(actor, variant.Provider, variant.ImageDigest, false); validateErr != nil {
+			return util.HttpErr(http.StatusBadRequest, "the flavor image is no longer available; delete or update the flavor")
+		}
+	}
 
 	support, ok := SupportByProduct[orcapi.JobSupport](jobType, spec.Product)
 	if !ok {
@@ -2437,8 +2449,13 @@ func jobTransform(
 	}
 
 	{
-		app, _ := AppRetrieve(rpc.ActorSystem, info.Application.Name, info.Application.Version, AppDiscoveryAll, 0)
-		result.Status.ResolvedApplication.Set(app)
+		app, ok := AppRetrieve(rpc.ActorSystem, info.Application.Name, info.Application.Version, AppDiscoveryAll, 0)
+		if !ok {
+			app, ok = AppRetrieve(rpc.ActorSystem, "unknown", "unknown", AppDiscoveryAll, 0)
+		}
+		if ok {
+			result.Status.ResolvedApplication.Set(app)
+		}
 	}
 
 	return result

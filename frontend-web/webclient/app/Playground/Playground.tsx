@@ -16,6 +16,7 @@ import {WidgetColorIntensity, WidgetWindow} from "@/Applications/Jobs/JobViz"
 import {addOrgInfoModalIfNotFilled, ChangeOrganizationDetails} from "@/UserSettings/ChangeUserDetails";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {injectStyle} from "@/Unstyled";
+import {ProductSelectorPlayground} from "@/Products/Selector";
 
 const iconsNames = Object.keys(icons) as IconName[];
 
@@ -197,6 +198,10 @@ const Playground: React.FunctionComponent = () => {
             <RangeInput value={value} onChange={setValue} max={FAKE_MACHINES.length - 1} markers={FAKE_MACHINES} />
             <RangeInput value={value} onChange={setValue} max={FAKE_MACHINES2.length - 1} markers={FAKE_MACHINES2} />
             <RangeInput value={value} onChange={setValue} max={FAKE_MACHINES3.length - 1} markers={FAKE_MACHINES3} />
+
+            <Box my="32px" maxWidth="900px">
+                <ProductSelectorPlayground />
+            </Box>
 
             <ChangeOrganizationDetails getValues={getValuesRef} />
             <Button onClick={foo}>View extracted contents</Button>
@@ -458,4 +463,3 @@ function PaletteColors(): React.ReactNode {
 }
 
 export default Playground;
-

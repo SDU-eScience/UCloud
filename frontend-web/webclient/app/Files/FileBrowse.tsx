@@ -17,10 +17,11 @@ import {
     ColumnTitleList,
     SelectionMode,
     checkCanConsumeResources,
+    getFilterStorageValue,
     favoriteRowIcon,
     ResourceBrowseHeaderControls,
     createProjectSwitcherPortal,
-    OperationGroup,
+    setFilterStorageValue,
 } from "@/ui-components/ResourceBrowser";
 import FilesApi, {
     addFileSensitivityDialog,
@@ -37,6 +38,7 @@ import {AsyncCache} from "@/Utilities/AsyncCache";
 import {api as FileCollectionsApi, FileCollection} from "@/UCloud/FileCollectionsApi";
 import {
     createHTMLElements,
+    createKeyboardShortcut,
     defaultErrorHandler,
     displayErrorMessageOrDefault,
     doNothing,
@@ -65,11 +67,10 @@ import {appendOperationsToActions, Operation} from "@/ui-components/Operation";
 import {visualizeWhitespaces} from "@/Utilities/TextUtilities";
 import {usePage} from "@/Navigation/Redux";
 import AppRoutes from "@/Routes";
-import {divHtml, image} from "@/Utilities/HTMLUtilities";
+import {divHtml, divText, image} from "@/Utilities/HTMLUtilities";
 import * as Sync from "@/Syncthing/api";
 import {associateBy, deepCopy} from "@/Utilities/CollectionUtilities";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
-import {TruncateClass} from "@/ui-components/Truncate";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {FilesMoveRequestItem, UFile, UFileIncludeFlags} from "@/UCloud/UFile";
 import {sidebarFavoriteCache} from "./FavoriteCache";
@@ -84,6 +85,11 @@ import {FileBrowserStatusBar, FileBrowserStatusData} from "./FileBrowserStatusBa
 import {fetchAll} from "@/Utilities/PageUtilities";
 import {Feature, hasFeature} from "@/Features";
 import {terminalSetPageContext} from "@/Terminal/State";
+import {FileTree} from "./FileTree";
+import {injectStyle} from "@/Unstyled";
+import {ActionEntry, ResourceBrowserActions} from "@/ui-components/Actions";
+import {VirtualizedTreeApi} from "@/ui-components/VirtualizedTree";
+import {ShortcutClass} from "@/ui-components/ResourceBrowserStyle";
 
 export enum SensitivityLevel {
     "INHERIT" = "Inherit",
@@ -138,6 +144,7 @@ interface AdditionalResourceBrowserOpts {
 let lastActiveProject: string | undefined = "";
 type SortById = "PATH" | "MODIFIED_AT" | "SIZE";
 const rowTitles: ColumnTitleList<SortById> = [{name: "Name", sortById: "PATH"}, {name: "", columnWidth: 32}, {name: "Modified at", sortById: "MODIFIED_AT", columnWidth: 160}, {name: "Size", sortById: "SIZE", columnWidth: 100}];
+const selectorRowTitles: ColumnTitleList<SortById> = [{name: "Name", sortById: "PATH"}, {name: "", columnWidth: 32}, {name: "Modified at", sortById: "MODIFIED_AT", columnWidth: 160}, {name: "Select", columnWidth: 100}];
 
 const RESOURCE_NAME = "File";
 function FileBrowse({
@@ -150,6 +157,7 @@ function FileBrowse({
     const navigate = useNavigate();
     const location = useLocation();
     const mountRef = useRef<HTMLDivElement | null>(null);
+    const selectorTree = useRef<VirtualizedTreeApi | null>(null);
     const browserRef = useRef<ResourceBrowser<UFile> | null>(null);
     const openTriggeredByPath = useRef<string | null>(null);
     const dispatch = useDispatch();
@@ -188,7 +196,9 @@ function FileBrowse({
     }, []);
 
     const isSelector = !!opts?.selection;
+    const compactFilters = !!opts?.embedded || isSelector;
     const selectorPathRef = useRef(opts?.initialPath ?? "/");
+    const [selectorActivePath, setSelectorActivePath] = React.useState(opts?.initialPath ?? "");
     const activeProject = useRef(opts?.initialProject ?? Client.projectId);
 
     function callAPI<T>(parameters: APICallParameters<unknown, T>): Promise<T> {
@@ -201,7 +211,8 @@ function FileBrowse({
     const features: ResourceBrowseFeatures = {
         ...FEATURES,
         search: !opts?.isModal,
-        filters: !opts?.embedded?.hideFilters,
+        filters: !compactFilters && !opts?.embedded?.hideFilters,
+        projectSwitcher: !isSelector,
     }
 
     const didUnmount = useDidUnmount();
@@ -224,7 +235,11 @@ function FileBrowse({
         if (mount && !browserRef.current) {
             const resourceBrowser = new ResourceBrowser<UFile>(mount, RESOURCE_NAME, opts);
             resourceBrowser.init(browserRef, features, undefined, browser => {
-                browser.setColumns(rowTitles);
+                browser.setColumns(isSelector ? selectorRowTitles : rowTitles);
+                if (isSelector) browser.root.style.height = "100%";
+                if (compactFilters) {
+                    browser.on("renderUtilityControls", container => renderHiddenFilesToggle(container, browser));
+                }
 
                 const updateStatusSelection = () => setStatusBarData(current => current == null ? null : {
                     ...current,
@@ -817,7 +832,8 @@ function FileBrowse({
                     const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as FileBrowseCallbacks;
                     const actions = FilesApi.retrieveActions();
                     if (!Array.isArray(actions)) {
-                        return appendOperationsToActions(actions, opts?.additionalOperations ?? [], selected);
+                        const result = appendOperationsToActions(actions, opts?.additionalOperations ?? [], selected);
+                        return isSelector ? selectorActions(result) : result;
                     }
                     const enabledOperations = actions.filter(op => op.enabled(selected, callbacks, selected));
                     if (opts?.additionalOperations) {
@@ -1197,26 +1213,6 @@ function FileBrowse({
                         pIcon.replaceChildren(icon);
                     }
 
-                    if (browser.opts.embedded || browser.opts.selector) {
-                        if (!browser.header.querySelector("div.header-first-row > div.drive-icon-dropdown")) {
-                            const [driveIcon, setDriveIcon] = ResourceBrowser.defaultIconRenderer();
-                            driveIcon.className = "drive-icon-dropdown";
-                            driveIcon.style.cursor = "pointer";
-                            driveIcon.style.minWidth = "18px";
-                            driveIcon.style.width = "18px";
-                            const url = browser.header.querySelector("div.header-first-row");
-                            url?.prepend(driveIcon);
-                            browser.header.setAttribute("shows-dropdown", "");
-
-                            ResourceBrowser.icons.renderIcon({name: "heroChevronDown", color: "textPrimary", color2: "textPrimary", height: 32, width: 32}).then(setDriveIcon);
-                            driveIcon.onclick = e => {
-                                e.stopImmediatePropagation();
-                                const rect = driveIcon.getBoundingClientRect();
-                                temporaryDriveDropdownFunction(browser, rect.x, rect.y + rect.height);
-                            }
-                        }
-                    }
-
                     return result;
                 });
 
@@ -1398,6 +1394,7 @@ function FileBrowse({
                     }
 
                     if (newPath !== SEARCH) lastActiveFilePath = newPath;
+                    if (isSelector) setSelectorActivePath(newPath);
                     setStatusBarData(null);
 
                     if (openTriggeredByPath.current === newPath) {
@@ -1693,7 +1690,9 @@ function FileBrowse({
             b.renameField.style.left = "74px";
         }
 
-        addProjectSwitcherInPortal(browserRef, setSwitcherWorkaround, setLocalProject ? {setLocalProject, initialProject: activeProject.current} : undefined);
+        if (!isSelector) {
+            addProjectSwitcherInPortal(browserRef, setSwitcherWorkaround, setLocalProject ? {setLocalProject, initialProject: activeProject.current} : undefined);
+        }
     }, []);
 
     const setLocalProject = opts?.managesLocalProject ? async (projectId?: string) => {
@@ -1704,6 +1703,46 @@ function FileBrowse({
         activeProject.current = projectId;
         clearAndFetchCollections();
     } : undefined;
+
+    const openFromSidebar = React.useCallback(async (path: string, projectId?: string) => {
+        const b = browserRef.current;
+        if (!b) return;
+        if (activeProject.current !== projectId) {
+            activeProject.current = projectId;
+            collectionCacheForCompletion.invalidateAll();
+            b.cachedData = {};
+            b.cachedNext = {};
+            b.emptyReasons = {};
+            b.canConsumeResources = await checkCanConsumeResources(projectId ?? null, {api: FilesApi});
+        }
+        selectorPathRef.current = path;
+        setSelectorActivePath(path);
+        b.open(path);
+    }, []);
+
+    React.useEffect(() => {
+        if (!isSelector) return;
+        const listener = (event: KeyboardEvent) => {
+            if (event.key === "Escape" && browserRef.current?.clearSelection()) {
+                event.preventDefault();
+                event.stopImmediatePropagation();
+                return;
+            }
+            if (!event.altKey || (!event.ctrlKey && !event.metaKey) || event.shiftKey) return;
+            if (event.code === "Digit1") {
+                event.preventDefault();
+                event.stopPropagation();
+                selectorTree.current?.activate();
+            } else if (event.code === "Digit2") {
+                event.preventDefault();
+                event.stopPropagation();
+                selectorTree.current?.deactivate();
+                mountRef.current?.focus({preventScroll: true});
+            }
+        };
+        window.addEventListener("keydown", listener, true);
+        return () => window.removeEventListener("keydown", listener, true);
+    }, [isSelector]);
 
     useLayoutEffect(() => {
         const b = browserRef.current;
@@ -1718,7 +1757,7 @@ function FileBrowse({
                     b.open(selectorPathRef.current);
                 }
 
-                b.canConsumeResources = await checkCanConsumeResources(Client.projectId ?? null, {api: FilesApi});
+                b.canConsumeResources = await checkCanConsumeResources(activeProject.current ?? null, {api: FilesApi});
             })();
         } else {
             const path = getQueryParamOrElse(location.search, "path", "");
@@ -1737,8 +1776,37 @@ function FileBrowse({
 
     return <MainContainer
         main={<>
-            <div ref={mountRef} />
-            {headerControls?.projectSwitcherTarget
+            <div className={isSelector ? FileSelectorLayoutClass : undefined}>
+                {isSelector ? <>
+                    <div className="selector-content">
+                        <FileTree
+                            basePath="/"
+                            tree={selectorTree}
+                            initialPath={opts?.initialPath}
+                            initialProject={opts?.initialProject}
+                            additionalFilters={opts?.additionalFilters}
+                            selectedPath={selectorActivePath}
+                            includeFiles={false}
+                            onActivated={openFromSidebar}
+                            onKeyboardActivate={() => {
+                                selectorTree.current?.deactivate();
+                                mountRef.current?.focus({preventScroll: true});
+                            }}
+                        />
+
+                        <div
+                            ref={mountRef}
+                            className="selector-browser"
+                            tabIndex={-1}
+                        />
+                    </div>
+                    <FileSelectorKeyboardGuide />
+                </> : (
+                    <div ref={mountRef} />
+                )}
+            </div>
+
+            {!isSelector && headerControls?.projectSwitcherTarget
                 ? createProjectSwitcherPortal(
                     headerControls.projectSwitcherTarget,
                     setLocalProject ? {setLocalProject, initialProject: activeProject.current} : undefined,
@@ -1774,12 +1842,183 @@ function FileBrowse({
 
 export default FileBrowse;
 
-function matchesFilter(filter: string, collection: FileCollection): boolean {
-    if (!filter) return true;
-    const lCFilter = filter.toLocaleLowerCase();
-    const title = collection.specification.title.toLocaleLowerCase();
-    const id = collection.id;
-    return title.toLocaleLowerCase().includes(lCFilter) || id.includes(lCFilter);
+function selectorActions<T, C>(actions: ResourceBrowserActions<T, C>): ResourceBrowserActions<T, C> {
+    // TODO(Dan): Lazy hack to clean up the actions.
+
+    const allowed = new Set(["Use this folder", "Upload files", "New folder", "New file", "Create folder", "Create file"]);
+    const filter = (entries: ActionEntry<T, C>[]): ActionEntry<T, C>[] => entries.filter(entry =>
+        entry !== "divider" && typeof entry.text === "string" && allowed.has(entry.text)
+    );
+    return {
+        ...actions,
+        topbar: filter(actions.topbar ?? []),
+        contextMenu: filter(actions.contextMenu ?? []),
+    };
+}
+
+const FileSelectorLayoutClass = injectStyle("file-selector-layout", k => `
+    ${k} {
+        display: flex;
+        flex-direction: column;
+        width: calc(100% + 16px);
+        height: calc(90vh - 16px);
+        min-height: 336px;
+        margin-left: -16px;
+    }
+
+    ${k} > .selector-content {
+        display: flex;
+        flex: 1 1 auto;
+        min-height: 0;
+        gap: 12px;
+    }
+
+    ${k} .selector-browser {
+        flex: 1;
+        min-width: 0;
+        height: 100%;
+        outline: none;
+    }
+`);
+
+function FileSelectorKeyboardGuide(): React.ReactNode {
+    return <div className={FileSelectorKeyboardGuideClass}>
+        <div className="keyboard-navigation-row">
+            <span className={ShortcutClass}>{createKeyboardShortcut("1", ["ctrl", "alt"])}</span>
+            <span className="keyboard-navigation-action">Focus sidebar</span>
+        </div>
+        <div className="keyboard-navigation-row">
+            <span className={ShortcutClass}>{createKeyboardShortcut("2", ["ctrl", "alt"])}</span>
+            <span className="keyboard-navigation-action">Focus files</span>
+        </div>
+        <div className="keyboard-navigation-row">
+            <div className="keyboard-navigation-keys">
+                <span className={ShortcutClass}>↑</span>
+                <span className={ShortcutClass}>↓</span>
+                <span className={ShortcutClass}>←</span>
+                <span className={ShortcutClass}>→</span>
+            </div>
+            <span className="keyboard-navigation-action">Navigate files</span>
+        </div>
+        <div className="keyboard-navigation-row">
+            <span className={ShortcutClass}>{createKeyboardShortcut("Enter", ["alt"])}</span>
+            <span className="keyboard-navigation-action">Select</span>
+        </div>
+    </div>;
+}
+
+const FileSelectorKeyboardGuideClass = injectStyle("file-selector-keyboard-guide", key => `
+    ${key} {
+        color: var(--textSecondary);
+        font-size: 12px;
+        display: flex;
+        width: calc(100% + 16px);
+        box-sizing: border-box;
+        padding: 12px;
+        border-top: 1px solid var(--borderColor);
+    }
+
+    ${key} .keyboard-navigation-row {
+        display: flex;
+        flex: 1 1 0;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        min-width: 0;
+        padding: 0 12px;
+    }
+
+    ${key} .keyboard-navigation-row + .keyboard-navigation-row {
+        border-left: 1px solid var(--borderColor);
+    }
+
+    ${key} .keyboard-navigation-keys {
+        display: flex;
+        gap: 4px;
+    }
+
+    ${key} .keyboard-navigation-action {
+        white-space: nowrap;
+    }
+
+    @media (max-width: 1000px) {
+        ${key} {
+            display: none;
+        }
+    }
+`);
+
+const HiddenFilesToggleClass = injectStyle("hidden-files-toggle", k => `
+    ${k} {
+        width: 24px;
+        height: 24px;
+        margin-left: 16px;
+        padding: 0;
+        border: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: transparent;
+        cursor: pointer;
+    }
+
+    ${k} img {
+        width: 24px;
+        height: 24px;
+        margin: 0 !important;
+    }
+`);
+
+function renderHiddenFilesToggle(container: HTMLElement, browser: ResourceBrowser<UFile>): void {
+    const key = "showHiddenFiles";
+    let showHiddenFiles = getFilterStorageValue(RESOURCE_NAME, key) === "true";
+    const wrapper = document.createElement("button");
+    const icon = document.createElement("img");
+    const tooltip = divText("");
+    wrapper.type = "button";
+    wrapper.className = HiddenFilesToggleClass;
+    wrapper.appendChild(icon);
+    HTMLTooltip(wrapper, tooltip);
+
+    const render = () => {
+        wrapper.setAttribute("aria-pressed", showHiddenFiles.toString());
+        wrapper.setAttribute("aria-label", showHiddenFiles ? "Hide hidden files" : "Show hidden files");
+        tooltip.innerText = showHiddenFiles ?
+            "Hidden files are currently shown. Click to hide them." :
+            "Hidden files are currently hidden. Click to show them.";
+        const expectedState = showHiddenFiles.toString();
+        wrapper.dataset.showHiddenFiles = expectedState;
+        ResourceBrowser.icons.renderIcon({
+            name: showHiddenFiles ? "heroEye" : "heroEyeSlash",
+            color: "textPrimary",
+            color2: "textPrimary",
+            width: 64,
+            height: 64,
+        }).then(url => {
+            if (wrapper.dataset.showHiddenFiles === expectedState) icon.src = url;
+        });
+    };
+
+    const updateFilter = () => {
+        if (showHiddenFiles) browser.browseFilters[key] = "true";
+        else delete browser.browseFilters[key];
+    };
+    updateFilter();
+    render();
+
+    const toggleHiddenFiles = () => {
+        showHiddenFiles = !showHiddenFiles;
+        setFilterStorageValue(RESOURCE_NAME, key, showHiddenFiles.toString());
+        updateFilter();
+        render();
+        browser.open(browser.currentPath, true);
+    };
+    wrapper.onclick = event => {
+        event.preventDefault();
+        event.stopPropagation();
+        toggleHiddenFiles();
+    };
+    container.appendChild(wrapper);
 }
 
 function folderNote(
@@ -1815,55 +2054,6 @@ function folderNote(
     setIconStyling(noteIcon);
     iconWrapper.appendChild(noteIcon);
     ResourceBrowser.icons.renderIcon({name: iconName, color: "fixedWhite", color2: "fixedWhite", width: 30, height: 30}).then(setNoteIcon);
-}
-
-// Note(Jonas): Temporary as there should be a better solution, not because the element is temporary
-function temporaryDriveDropdownFunction(browser: ResourceBrowser<UFile>, posX: number, posY: number): void {
-    const filteredCollections = collectionCacheForCompletion.retrieveFromCacheOnly("") ?? [];
-
-    function generateElements(filter?: string): HTMLLIElement[] {
-        const result = filteredCollections.filter(it => matchesFilter(filter ?? "", it)).map(collection => {
-            const wrapper = document.createElement("li");
-            const pIcon = providerIcon(collection.specification.product.provider, {width: "30px", height: "30px", fontSize: "22px"});
-            wrapper.append(pIcon);
-            const span = document.createElement("span");
-            wrapper.append(span);
-            span.innerText = `${collection.specification.title} (${collection.id})`;
-            span.className = TruncateClass;
-            return wrapper;
-        });
-        if (result.length !== 0) return result;
-
-        return [createHTMLElements<HTMLLIElement>({
-            tagType: "li",
-            children: [],
-            innerText: "No results found",
-            style: {pointerEvents: "none"}
-        })];
-    }
-
-    function generateHandlers(filter: string): (() => void)[] {
-        return filteredCollections.filter(it => matchesFilter(filter, it)).map(collection => {
-            return () => {
-                if (collection.id !== browser.currentPath.split("/").filter(it => it)[0]) {
-                    browser.open(`/${collection.id}`);
-                }
-                browser.closeContextMenu();
-            }
-        });
-    }
-
-    const ROW_HEIGHT = 46;
-    const maxHeight = ROW_HEIGHT * 10 + ROW_HEIGHT / 2;
-
-    const onKeyUp = function onKeyUp(filter: string) {
-        const elements = generateElements(filter);
-        browser.setToContextMenuEntries(elements, generateHandlers(filter), true, maxHeight);
-    }
-
-    browser.prepareContextMenu(posX, posY, filteredCollections.length, maxHeight);
-    browser.addContextMenuSearchField(onKeyUp);
-    browser.setToContextMenuEntries(generateElements(undefined), generateHandlers(""), true, maxHeight);
 }
 
 function setIconStyling(icon: HTMLDivElement) {

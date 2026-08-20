@@ -306,6 +306,7 @@ export const WorkflowParameter: React.FunctionComponent<WorkflowProps> = props =
         <Flex gap={"8px"} alignItems={"center"}>
             <Box flexGrow={1}>
                 <RichSelect
+                    data-navigation-field
                     items={workflows}
                     keys={["searchString"]}
                     RenderRow={WorkflowSelectedRow}

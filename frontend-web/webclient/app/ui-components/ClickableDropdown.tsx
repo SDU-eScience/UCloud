@@ -8,8 +8,9 @@ import {PropsWithChildren, useCallback, useEffect, useMemo, useRef, useState} fr
 import {FlexClass} from "./Flex";
 import {clamp} from "@/UtilityFunctions";
 import {ThemeColor} from "@/ui-components/theme";
+import {DataAttributes, unboxDataTags} from "@/Unstyled";
 
-export interface ClickableDropdownProps<T> {
+export type ClickableDropdownProps<T> = {
     trigger: React.ReactNode;
     options?: {text: string; value: T}[];
 
@@ -22,6 +23,7 @@ export interface ClickableDropdownProps<T> {
 
     fullWidth?: boolean;
     height?: number;
+    contentWidth?: string | number;
     rightAligned?: boolean;
     width?: string | number;
     minWidth?: string;
@@ -60,14 +62,22 @@ export interface ClickableDropdownProps<T> {
     closeFnRef?: React.RefObject<() => void>;
     openFnRef?: React.RefObject<(left: number, top: number) => void>;
     onKeyDown?: (ev: KeyboardEvent) => boolean | void;
-}
+    focusable?: boolean;
+    autoFocus?: boolean;
+} & DataAttributes;
 
 const dropdownPortal = "dropdown-portal";
+export const DROPDOWN_OPENED_EVENT = "ucloud:dropdown-opened";
+
+export function announceDropdownOpen(sourceId: string): void {
+    window.dispatchEvent(new CustomEvent<string>(DROPDOWN_OPENED_EVENT, {detail: sourceId}));
+}
 
 function ClickableDropdown<T>({
     keepOpenOnClick, onChange, onOpeningTriggerClick, ...props
 }: PropsWithChildren<ClickableDropdownProps<T>>): React.ReactNode {
     const dropdownRef = useRef<HTMLDivElement>(null);
+    const instanceIdRef = useRef(`dropdown-${Math.random().toString(36).slice(2)}`);
     const [open, setOpen] = useState(props.open ?? false);
     const [location, setLocation] = useState<[number, number]>([0, 0]);
     const isControlled = useMemo(() => props.open !== undefined, []);
@@ -89,6 +99,18 @@ function ClickableDropdown<T>({
         }
     }, [props.open]);
 
+    useEffect(() => {
+        if (!props.autoFocus) return;
+        const frame = window.requestAnimationFrame(() => dropdownRef.current?.focus());
+        return () => window.cancelAnimationFrame(frame);
+    }, [props.autoFocus]);
+
+    const focusAfterSelect = useCallback(() => {
+        window.requestAnimationFrame(() => {
+            if (dropdownRef.current?.isConnected) dropdownRef.current.focus();
+        });
+    }, []);
+
     const close = useCallback(() => {
         if (isControlled && props.onClose) props.onClose();
         else if (!isControlled) setOpen(false);
@@ -96,9 +118,18 @@ function ClickableDropdown<T>({
     if (props.closeFnRef) props.closeFnRef.current = close;
 
     const doOpen = useCallback(() => {
+        announceDropdownOpen(instanceIdRef.current);
         onOpeningTriggerClick?.();
         if (!isControlled) setOpen(true);
     }, [onOpeningTriggerClick]);
+
+    useEffect(() => {
+        const onDropdownOpened = (event: Event) => {
+            if (open && (event as CustomEvent<string>).detail !== instanceIdRef.current) close();
+        };
+        window.addEventListener(DROPDOWN_OPENED_EVENT, onDropdownOpened);
+        return () => window.removeEventListener(DROPDOWN_OPENED_EVENT, onDropdownOpened);
+    }, [close, open]);
 
     const forceOpen = useCallback((left: number, top: number) => {
         setLocation([left, top]);
@@ -136,6 +167,7 @@ function ClickableDropdown<T>({
         if (props.arrowkeyNavigationKey) {
             const navigationKey = props.arrowkeyNavigationKey ?? "data-active";
             _onKeyDown(event, divRef, counter, navigationKey, props.hoverColor ?? "primaryLight", props.onSelect)
+            if (event.key === "Enter") focusAfterSelect();
         }
 
         if (event.key === "Escape" && open) {
@@ -143,7 +175,7 @@ function ClickableDropdown<T>({
         } else {
             props.onKeyDown?.(event)
         }
-    }, [open]);
+    }, [open, focusAfterSelect]);
 
     useEffect(() => {
         counter.current = -1;
@@ -267,20 +299,42 @@ function ClickableDropdown<T>({
         left={left}
         fixed={props.rightAligned || props.useMousePositioning}
         maxHeight={`${props.height}px`}
-        width={width}
+        width={props.contentWidth ?? width}
         hover={false}
         visible={open}
         onClick={e => {
             e.stopPropagation();
-            if (!keepOpenOnClick) close();
+            if (!keepOpenOnClick) {
+                close();
+                focusAfterSelect();
+            }
         }}
     >
         {children}
     </DropdownContent>;
 
     return (
-        <Dropdown data-tag="dropdown" divRef={dropdownRef} fullWidth={props.fullWidth}>
+        <Dropdown
+            {...unboxDataTags(props)}
+            data-tag="dropdown"
+            divRef={dropdownRef}
+            fullWidth={props.fullWidth}
+            tabIndex={props.focusable ? 0 : undefined}
+            role={props.focusable ? "button" : undefined}
+            ariaExpanded={props.focusable ? open : undefined}
+            autoFocus={props.autoFocus}
+            onKeyDown={event => {
+                if (!props.focusable || event.target !== event.currentTarget) return;
+                if (event.key !== "Enter" && event.key !== " ") return;
+                if (event.metaKey || event.ctrlKey || event.altKey) return;
+                event.preventDefault();
+                event.stopPropagation();
+                if (open) close();
+                else doOpen();
+            }}
+        >
             <Text.TextSpan
+                data-dropdown-trigger=""
                 cursor="pointer"
                 className={FlexClass}
                 onClick={e => {
@@ -323,6 +377,7 @@ function _onKeyDown(
     hoverColor: ThemeColor,
     onSelect?: ((el: Element | undefined) => void),
 ) {
+    if (e.key === "Enter" && e.altKey && (e.metaKey || e.ctrlKey)) return;
     if (!wrapper.current) return;
     const isUp = e.key === "ArrowUp";
     const isDown = e.key === "ArrowDown";

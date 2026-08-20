@@ -55,7 +55,6 @@ interface CommonActionProps<T, C> {
     actions: ActionEntry<T, C>[];
     selected: T[];
     callbacks: C;
-    dropdownTag?: string;
     appearance?: (action: ActionItem<T, C>) => ActionAppearance | undefined;
 }
 
@@ -342,6 +341,10 @@ function evaluateActions<T, C>(actions: ActionEntry<T, C>[], selected: T[], call
     }
     if (result[result.length - 1] === "divider") result.pop();
     return result;
+}
+
+export function hasAvailableActions<T, C>(actions: ActionEntry<T, C>[], selected: T[], callbacks: C): boolean {
+    return evaluateActions(actions, selected, callbacks).some(entry => entry !== "divider");
 }
 
 function firstEnabledIndex<T, C>(entries: EvaluatedEntry<T, C>[]): number {
@@ -692,7 +695,7 @@ export function ActionMenu<T, C>(props: ActionMenuProps<T, C>): React.ReactNode 
     }, [levels, confirmation, activate, close, openSubmenu, setActive]);
 
     const trigger = props.trigger === undefined ?
-        <Icon name="ellipsis" rotation={90} size="1em" data-tag={props.dropdownTag} /> : props.trigger;
+        <Icon name="ellipsis" rotation={90} size="1em" /> : props.trigger;
     const portal = levels.length ? ReactDOM.createPortal(<>
         {confirmation ? <div
             className={`${ActionMenuClass} ${ConfirmationPanelClass}`}
@@ -747,7 +750,6 @@ export function ActionMenu<T, C>(props: ActionMenuProps<T, C>): React.ReactNode 
         {trigger === null ? null : <div
             className={ActionMenuTriggerClass}
             ref={triggerRef}
-            data-tag={props.dropdownTag}
             role="button"
             tabIndex={0}
             onClick={event => {
@@ -906,7 +908,6 @@ export function ActionBar<T, C>(props: ActionBarProps<T, C>): React.ReactNode {
                     appearance={adjustedProps.appearance}
                     confirmationMode="panel"
                     disabled={entry.enabled !== true}
-                    dropdownTag={props.dropdownTag}
                     trigger={typeof entry.enabled === "string" ? <TooltipV2
                         tooltip={entry.enabled}
                         contentWidth={260}
@@ -925,7 +926,6 @@ export function ActionBar<T, C>(props: ActionBarProps<T, C>): React.ReactNode {
                     appearance={props.appearance}
                     confirmationMode="hold"
                     disabled={entry.enabled !== true}
-                    dropdownTag={props.dropdownTag}
                     trigger={<span className={SplitDropdownTriggerClass} data-disabled={entry.enabled !== true}>
                         <Icon name="heroChevronDown" size={16} />
                     </span>}

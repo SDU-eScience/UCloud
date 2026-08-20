@@ -36,10 +36,9 @@ export const GenericTextParameter: React.FunctionComponent<GenericTextProps> = p
         placeholder = "Number (example 12.34)"
     }
 
-    // NOTE(Brian): This is a bit hacky. The defaultValue is not actually sent as a parameter on submit.
-    // If changed, the correct value should be sent as a parameter, and otherwise the backend will
-    // handle the defaultValue.
-    const defaultValue = readGenericDefaultValue(props.parameter.defaultValue);
+    const configuredDefault = readGenericDefaultValue(props.parameter.defaultValue);
+    const defaultValue = props.parameter.optional ? undefined : configuredDefault;
+    if (props.parameter.optional && configuredDefault !== undefined) placeholder = configuredDefault.toString();
 
     const error = props.errors[props.parameter.name] != null;
 
@@ -50,13 +49,10 @@ export const GenericTextParameter: React.FunctionComponent<GenericTextProps> = p
         error={error}
     />;
 
-    // NOTE(Brian): The use of input fields of type "number" have previously been removed for
-    // some reason. I have re-added them here, since we don't remember the exact reason for the removal.
-    // If they misbehave we can simply remove the following section.
     if (props.parameter.type === "integer") {
         elem = <Input
             id={widgetId(props.parameter)}
-            type={"number"}
+            type="number"
             defaultValue={defaultValue}
             min={props.parameter.min}
             max={props.parameter.max}
@@ -67,7 +63,7 @@ export const GenericTextParameter: React.FunctionComponent<GenericTextProps> = p
     } else if (props.parameter.type === "floating_point") {
         elem = <Input
             id={widgetId(props.parameter)}
-            type={"number"}
+            type="number"
             defaultValue={defaultValue}
             min={props.parameter.min}
             max={props.parameter.max}
@@ -83,9 +79,12 @@ export const GenericTextParameter: React.FunctionComponent<GenericTextProps> = p
 
 export const GenericTextAreaAppParameter: React.FunctionComponent<GenericTextProps> = props => {
     let placeholder = "File content";
+    const configuredDefault = readGenericDefaultValue(props.parameter.defaultValue);
+    if (props.parameter.optional && configuredDefault !== undefined) placeholder = configuredDefault.toString();
     const error = props.errors[props.parameter.name] != null;
     return <TextArea
         id={widgetId(props.parameter)}
+        defaultValue={props.parameter.optional ? undefined : configuredDefault}
         placeholder={placeholder}
         resize="vertical"
         width="100%"

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"time"
@@ -172,7 +173,9 @@ func Launch() {
 			}
 		}
 	case "test":
-		TestsRun("user", "mypassword")
+		TestsRun("user", "mypassword", os.Args[2:], false)
+	case "test-ui":
+		TestsRun("user", "mypassword", os.Args[2:], true)
 	}
 }
 
@@ -360,11 +363,23 @@ func SetTerminalTitle(title string) {
 	fmt.Printf("\x1b]0;%s\x07", title)
 }
 
-func TestsRun(adminUser, adminPass string) {
+func TestsRun(adminUser, adminPass string, testArgs []string, ui bool) {
 	serviceToken := rpc.DefaultClient.RefreshToken
 	defer func() {
 		RpcClientConfigure(serviceToken)
 	}()
+
+	userDataPath, manuallyConfiguredUsers := os.LookupEnv("UCLOUD_PLAYWRIGHT_USER_DATA")
+	if !manuallyConfiguredUsers {
+		userDataPath = filepath.Join(ComposeDir, "playwright-users.json")
+		testInfoPath := filepath.Join(RepoRoot, "frontend-web/webclient/tests/test_data.json")
+		if _, userDataErr := os.Stat(userDataPath); userDataErr == nil {
+			if _, testInfoErr := os.Stat(testInfoPath); testInfoErr == nil {
+				PlaywrightRun(testArgs, ui, userDataPath, false)
+				return
+			}
+		}
+	}
 
 	var adminActor rpc.CorePrincipalBaseClaims
 	LogOutputRunWork("Looking up admin user", func(ch chan string) error {
@@ -707,16 +722,53 @@ func TestsRun(adminUser, adminPass string) {
 		return nil
 	})
 
-	StreamingExecute("Preparing tests", []string{"npx", "playwright", "install", "--with-deps"}, ExecuteOptions{
-		WorkingDir: util.OptValue(filepath.Join(RepoRoot, "frontend-web/webclient")),
-	})
+	PlaywrightRun(testArgs, ui, userDataPath, !manuallyConfiguredUsers)
+}
 
-	testCommand := []string{"npx", "playwright", "test", "--ui"}
-	if !HasPty {
-		testCommand = []string{"npx", "playwright", "test"}
+func PlaywrightRun(testArgs []string, ui bool, userDataPath string, prepareUsers bool) {
+	workingDir := util.OptValue(filepath.Join(RepoRoot, "frontend-web/webclient"))
+	installCommand := []string{"npx", "playwright", "install"}
+	if !isFedoraLinux() {
+		installCommand = append(installCommand, "--with-deps")
+	}
+	StreamingExecute("Preparing tests", installCommand, ExecuteOptions{WorkingDir: workingDir})
+
+	testEnvironment := append(os.Environ(), "UCLOUD_PLAYWRIGHT_USER_DATA="+userDataPath)
+	if prepareUsers {
+		StreamingExecute("Preparing Playwright users", []string{
+			"npx", "playwright", "test", "--project=setup",
+		}, ExecuteOptions{
+			WorkingDir:  workingDir,
+			Environment: append(testEnvironment, "UCLOUD_PLAYWRIGHT_PREPARE_USERS=1"),
+		})
+	}
+
+	testCommand := append([]string{"npx", "playwright", "test"}, testArgs...)
+	if ui {
+		testCommand = append(testCommand, "--ui")
 	}
 
 	StreamingExecute("Running tests", testCommand, ExecuteOptions{
-		WorkingDir: util.OptValue(filepath.Join(RepoRoot, "frontend-web/webclient")),
+		WorkingDir:  workingDir,
+		Environment: testEnvironment,
 	})
+}
+
+func isFedoraLinux() bool {
+	if runtime.GOOS != "linux" {
+		return false
+	}
+
+	osRelease, err := os.ReadFile("/etc/os-release")
+	if err != nil {
+		return false
+	}
+
+	for _, line := range strings.Split(string(osRelease), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "ID=fedora" || line == `ID="fedora"` {
+			return true
+		}
+	}
+	return false
 }

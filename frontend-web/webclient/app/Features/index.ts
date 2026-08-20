@@ -12,6 +12,8 @@ export enum Feature {
     INFERENCE_WORKSPACE,
 
     FILE_BROWSER_STATUS_BAR,
+
+    CONTAINER_REPOSITORIES,
 }
 
 enum Environment {
@@ -61,7 +63,7 @@ const featureMap: Record<string, FeatureConfig> = {
         showWithoutFlag: allDevEnvironments,
         showWithFlag: allDevEnvironments,
     },
-    
+
     "stacks": {
         feature: Feature.STACKS,
         showWithoutFlag: allDevEnvironments,
@@ -82,6 +84,12 @@ const featureMap: Record<string, FeatureConfig> = {
 
     "file-browser-status-bar": {
         feature: Feature.FILE_BROWSER_STATUS_BAR,
+        showWithoutFlag: allDevEnvironments,
+        showWithFlag: allEnvironments,
+    },
+
+    "container-repositories": {
+        feature: Feature.CONTAINER_REPOSITORIES,
         showWithoutFlag: allDevEnvironments,
         showWithFlag: allEnvironments,
     }

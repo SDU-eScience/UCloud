@@ -59,7 +59,7 @@ interface Status {
     title: string;
     body?: string;
     progress: string;
-    progressPercentage: number;
+    progressPercentage?: number;
 }
 
 interface Specification {
@@ -76,6 +76,13 @@ export interface BackgroundTask {
     status: Status;
     specification: Specification;
     icon?: IconName;
+    meta?: {
+        jobId?: string;
+        application?: {
+            name?: string;
+            version?: string;
+        };
+    };
 }
 
 export const taskStore = new class extends ExternalStoreBase {
@@ -139,13 +146,21 @@ const DEFAULT_ICON: IconName = "heroRectangleStack";
 function TaskItem({task}: {task: BackgroundTask;}): React.JSX.Element {
     const isFinished = TaskOperations.isTaskTerminal(task);
     const isPaused = task.status.state === TaskState.SUSPENDED;
+    const navigate = useNavigate();
+    const application = task.meta?.application;
+    const target = task.status.state === TaskState.SUCCESS && application?.name && application.version ?
+        AppRoutes.jobs.create(application.name, application.version) :
+        task.meta?.jobId ? AppRoutes.jobs.view(task.meta.jobId) : undefined;
 
     let pauseOrResume: React.ReactNode;
     if (task.specification.canPause) {
         if (task.status.state === TaskState.SUSPENDED) {
             pauseOrResume = (
                 <Icon
-                    onClick={() => callAPI(TaskOperations.calls.pauseOrCancel(task.taskId, TaskState.RUNNING))}
+                    onClick={event => {
+                        event.stopPropagation();
+                        void callAPI(TaskOperations.calls.pauseOrCancel(task.taskId, TaskState.RUNNING));
+                    }}
                     cursor="pointer"
                     name="play"
                     color="primaryMain"
@@ -154,7 +169,10 @@ function TaskItem({task}: {task: BackgroundTask;}): React.JSX.Element {
         } else {
             pauseOrResume = (
                 <Icon
-                    onClick={() => callAPI(TaskOperations.calls.pauseOrCancel(task.taskId, TaskState.SUSPENDED))}
+                    onClick={event => {
+                        event.stopPropagation();
+                        void callAPI(TaskOperations.calls.pauseOrCancel(task.taskId, TaskState.SUSPENDED));
+                    }}
                     cursor="pointer"
                     name="pauseSolid"
                     color="primaryMain"
@@ -168,19 +186,25 @@ function TaskItem({task}: {task: BackgroundTask;}): React.JSX.Element {
     if (isFinished) {
         resumeOrCancel = (
             <TooltipV2 tooltip="Clear task" contentWidth={100}>
-                <Icon name="close" cursor="pointer" onClick={() => taskStore.removeFinishedTask(task)} />
+                <Icon name="close" cursor="pointer" onClick={event => {
+                    event.stopPropagation();
+                    taskStore.removeFinishedTask(task);
+                }} />
             </TooltipV2>
         );
     } else {
         if (task.specification.canCancel) {
             resumeOrCancel = (
-                <Icon name="close" cursor="pointer" ml="8px" color="errorMain" onClick={() => promptCancel(task)} />);
+                <Icon name="close" cursor="pointer" ml="8px" color="errorMain" onClick={event => {
+                    event.stopPropagation();
+                    promptCancel(task);
+                }} />);
         }
     }
 
     const icon = task.icon && iconNames.indexOf(task.icon) !== -1 ? task.icon : DEFAULT_ICON;
 
-    return <TaskRow
+    const row = <TaskRow
         icon={<Icon name={icon} size={16} />}
         title={task.status.title}
         body={task.status.body}
@@ -192,10 +216,12 @@ function TaskItem({task}: {task: BackgroundTask;}): React.JSX.Element {
             indeterminate: TaskOperations.isIndeterminate(task),
             stopped: isFinished,
             limit: 100,
-            progress: task.status.progressPercentage,
+            progress: task.status.progressPercentage ?? 0,
         }}
         removeOrCancel={resumeOrCancel}
-    />
+    />;
+
+    return target ? <div style={{cursor: "pointer"}} onClick={() => navigate(target)}>{row}</div> : row;
 }
 
 function JobTaskItem({task, openJob}: {task: JobBackgroundTask; openJob: (task: JobBackgroundTask) => void;}): React.JSX.Element {
@@ -552,7 +578,7 @@ const StaticCircle = injectStyle(`static-circle`, k => `
 const baseContext = "tasks";
 export const TaskOperations = new class {
     public isIndeterminate(task: BackgroundTask): boolean {
-        return task.status.progressPercentage < 0;
+        return task.status.progressPercentage == null || task.status.progressPercentage < 0;
     }
 
 

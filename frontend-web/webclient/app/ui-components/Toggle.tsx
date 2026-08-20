@@ -11,6 +11,7 @@ interface ToggleProps {
     circleColor?: ThemeColor;
     height?: number;
     colorAnimationDisabled?: boolean;
+    disabled?: boolean;
 }
 
 const DEFAULT_TOGGLE_HEIGHT = 26;
@@ -21,7 +22,8 @@ export const Toggle: React.FC<ToggleProps> = ({
     activeColor = "successMain",
     inactiveColor = "textSecondary",
     circleColor = "fixedWhite",
-    colorAnimationDisabled = false
+    colorAnimationDisabled = false,
+    disabled = false,
 }) => {
     const checkedRef = useRef(checked);
     useEffect(() => {
@@ -29,10 +31,11 @@ export const Toggle: React.FC<ToggleProps> = ({
     }, [checked]);
 
     const handler = useCallback((e: React.SyntheticEvent) => {
+        if (disabled) return;
         e.stopPropagation();
         e.preventDefault();
         onChange(checkedRef.current);
-    }, [onChange]);
+    }, [disabled, onChange]);
 
     const style: React.CSSProperties = {};
     style["--inactiveColor"] = `var(--${inactiveColor})`;
@@ -43,9 +46,16 @@ export const Toggle: React.FC<ToggleProps> = ({
 
     return <div
         onClick={handler}
+        onKeyDown={event => {
+            if ((event.key === "Enter" || event.key === " ") && !event.metaKey && !event.ctrlKey && !event.altKey) handler(event);
+        }}
+        role="switch"
+        aria-checked={checked}
+        aria-disabled={disabled}
+        tabIndex={disabled ? -1 : 0}
         style={style}
         data-is-active={checked}
-        className={classConcat(ToggleWrapperClass, colorAnimationDisabled ? "color-anim-disabled" : undefined)}
+        className={classConcat(ToggleWrapperClass, colorAnimationDisabled ? "color-anim-disabled" : undefined, disabled ? "disabled" : undefined)}
     >
         <div />
     </div>
@@ -72,6 +82,11 @@ const ToggleWrapperClass = injectStyle("toggle-wrapper", k => `
     ${k}[data-is-active="true"] {
         background-color: var(--activeColor);
         padding-left: calc(21px * var(--scale));
+    }
+
+    ${k}.disabled {
+        cursor: not-allowed;
+        opacity: 0.5;
     }
 
     ${k} > div {

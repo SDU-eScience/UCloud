@@ -102,8 +102,24 @@ export function injectResourceBrowserStyle(rowSize: number) {
             margin-left: 16px;
         }
 
+        ${BrowserClass.dot} header .utility-controls:not(:empty) + .refresh-icon {
+            margin-left: 16px;
+        }
+
         ${BrowserClass.dot} header .header-first-row .location-bar {
             flex-grow: 1;
+        }
+
+        ${BrowserClass.dot} header .header-first-row .location {
+            min-width: 0;
+        }
+
+        ${BrowserClass.dot} header .header-first-row .utility-spacer {
+            flex-grow: 1;
+        }
+
+        ${BrowserClass.dot} header[has-location-bar] .header-first-row .utility-spacer {
+            display: none;
         }
 
         .header-first-row .search-icon[data-shown] {
@@ -121,6 +137,10 @@ export function injectResourceBrowserStyle(rowSize: number) {
             height: 35px;
             white-space: pre;
             align-items: center;
+        }
+
+        ${BrowserClass.dot} header ul[data-no-slashes="false"] {
+            gap: 0;
         }
         
         ${BrowserClass.dot} header[data-no-gap] ul {
@@ -176,6 +196,7 @@ export function injectResourceBrowserStyle(rowSize: number) {
             -webkit-user-select: none;
         }
         
+        ${BrowserClass.dot} header .location li:hover,
         ${BrowserClass.dot} header[has-location-bar] .location li:hover {
             cursor: pointer;
             text-decoration: underline;
@@ -192,11 +213,6 @@ export function injectResourceBrowserStyle(rowSize: number) {
             transition: margin-right 0.2s;
         }
 
-        ${BrowserClass.dot} header[has-location-bar] .location[in-modal] {
-            max-width: 480px;
-            overflow-x: clip;
-        }
-        
         ${BrowserClass.dot} header[has-location-bar] .location input {
             outline: none;
             border: 0;
@@ -208,7 +224,12 @@ export function injectResourceBrowserStyle(rowSize: number) {
         }
 
         ${BrowserClass.dot} header:not([has-location-bar]) > div.header-first-row > div.location {
+            flex-grow: 1;
             cursor: default;
+        }
+
+        ${BrowserClass.dot} header:not([has-location-bar]) .header-first-row .utility-spacer {
+            display: none;
         }
 
         ${BrowserClass.dot} header input.search-field {
@@ -252,6 +273,15 @@ export function injectResourceBrowserStyle(rowSize: number) {
         
         ${BrowserClass.dot} header > div > div > ul[data-no-slashes="true"] li::before {
             display: inline-block;
+            content: unset;
+            margin: 0;
+        }
+
+        ${BrowserClass.dot} header > div > div > ul[data-no-slashes="false"] li::before {
+            margin: 0 8px;
+        }
+
+        ${BrowserClass.dot} header > div > div > ul li:first-child::before {
             content: unset;
             margin: 0;
         }
@@ -422,6 +452,14 @@ export function injectResourceBrowserStyle(rowSize: number) {
             gap: 8px;
         }
 
+        ${BrowserClass.dot} .operations-empty {
+            display: flex;
+            align-items: center;
+            height: 35px;
+            color: var(--textSecondary);
+            font-style: italic;
+        }
+
         ${BrowserClass.dot} .context-menu {
             position: fixed;
             z-index: 10000;
@@ -491,7 +529,7 @@ export function injectResourceBrowserStyle(rowSize: number) {
             outline: 0;
             color: var(--textPrimary);
             z-index: 1;
-            left: 12px;
+            left: 8px;
         }
 
         @media screen and (max-width: 860px) {
@@ -555,8 +593,11 @@ export const ShortcutClass = injectStyle("shortcut", k => `
         min-width: 18px;
         height: 18px;
         display: flex;
+        flex: 0 0 auto;
         align-items: center;
         justify-content: center;
+        width: max-content;
+        white-space: nowrap;
         user-select: none;
         -webkit-user-select: none;
         padding: 0 5px;

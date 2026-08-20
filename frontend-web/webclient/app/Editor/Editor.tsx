@@ -592,11 +592,7 @@ export const Editor: React.FunctionComponent<{
     }, [props.apiRef, state.currentPath]);
 
     const didUnmount = useDidUnmount();
-    const directoryCache = useRef(new AsyncCache<VirtualFile[]>());
-
-    useEffect(() => {
-        directoryCache.current.invalidateAll();
-    }, [props.vfs]);
+    const reloadTree = useRef<((path: string) => Promise<void>) | null>(null);
 
     const reloadBuffer = useCallback((name: string, content: string, syntax: string) => {
         const editor = editorRef.current;
@@ -764,18 +760,15 @@ export const Editor: React.FunctionComponent<{
         }
     }, [props.onOpenFile]);
 
-    const loadDirectory = useCallback((folder: string, invalidate = false): Promise<VirtualFile[]> => {
-        if (invalidate) directoryCache.current.invalidate(folder);
-        return directoryCache.current.retrieve(folder, async () => {
-            const files = await props.vfs.listFiles(folder);
-            if (!didUnmount.current) dispatch({type: "EditorActionFilesLoaded", path: folder, files});
-            return files;
-        });
+    const loadDirectory = useCallback(async (folder: string): Promise<VirtualFile[]> => {
+        const files = await props.vfs.listFiles(folder);
+        if (!didUnmount.current) dispatch({type: "EditorActionFilesLoaded", path: folder, files});
+        return files;
     }, [props.vfs]);
 
     const invalidateTree = useCallback(async (folder: string): Promise<void> => {
-        await loadDirectory(folder, true);
-    }, [loadDirectory]);
+        await reloadTree.current?.(folder);
+    }, []);
 
     const onFileSaved = React.useCallback((path: string): RevertSaveFunction => {
         const model = getModelFromEditor(path);
@@ -1030,10 +1023,6 @@ export const Editor: React.FunctionComponent<{
         return () => window.removeEventListener("keydown", listener, true);
     }, [sidebarOpen]);
 
-    const onDirectoryPrefetch = useCallback((file: VirtualFile) => {
-        void loadDirectory(file.absolutePath).catch(noopCall);
-    }, [loadDirectory]);
-
     const toggleSettings = useCallback(() => {
         saveBufferIfNeeded().then(() => {
             setTabs(tabs => {
@@ -1238,15 +1227,16 @@ export const Editor: React.FunctionComponent<{
 
     return <div ref={editorRoot} className={EditorClass} onKeyDown={onKeyDown}>
         <FileTree
+            basePath={props.initialFolderPath}
             tree={tree}
             onFileActivated={file => openTab(file.absolutePath)}
-            onDirectoryPrefetch={onDirectoryPrefetch}
-            root={state.sidebar.root}
+            loadEntries={loadDirectory}
+            reloadRef={reloadTree}
             width="250px"
             canResize
             visible={sidebarOpen}
-            initialFolder={props.initialFolderPath}
             initialFilePath={props.initialFilePath}
+            selectedPath={state.currentPath}
             fileHeaderOperations={props.fileHeaderOperations}
             actions={props.actions}
             renamingFile={props.renamingFile}
