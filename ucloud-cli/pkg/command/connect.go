@@ -64,8 +64,18 @@ func cliAuth(w http.ResponseWriter, r *http.Request) error {
 
 	return saveConfig(token, username)
 }
+func shutdownServer(server *http.Server) {
+	if server == nil {
+		return
+	}
 
-func startAuthServer(ready chan<- struct{}, authDone chan<- error) error {
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	_ = server.Shutdown(shutdownCtx)
+}
+
+func startAuthServer(authServerCtx context.Context, ready chan<- struct{}, authDone chan<- error) error {
 	mux := http.NewServeMux()
 
 	var server *http.Server
@@ -84,11 +94,8 @@ func startAuthServer(ready chan<- struct{}, authDone chan<- error) error {
 			case authDone <- err:
 			default:
 			}
+			shutdownServer(server)
 
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-
-			_ = server.Shutdown(ctx)
 		}()
 	})
 
@@ -102,6 +109,12 @@ func startAuthServer(ready chan<- struct{}, authDone chan<- error) error {
 		Handler:           mux,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
+
+	// Shut down the server when the context is canceled.
+	go func() {
+		<-authServerCtx.Done()
+		shutdownServer(server)
+	}()
 
 	ready <- util.Empty{}
 
@@ -142,6 +155,9 @@ func performConnection(dev bool) error {
 	authDone := make(chan error, 1)
 	serverErr := make(chan error, 1)
 
+	authServerCtx, cancelServer := context.WithCancel(context.Background())
+	defer cancelServer()
+
 	cfg, err := shared.ReadConfig()
 	if err != nil {
 		return err
@@ -154,7 +170,7 @@ func performConnection(dev bool) error {
 	}
 
 	go func() {
-		if err := startAuthServer(ready, authDone); err != nil {
+		if err := startAuthServer(authServerCtx, ready, authDone); err != nil {
 			serverErr <- err
 		}
 	}()
