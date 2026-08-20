@@ -26,8 +26,8 @@ interface ExternalLoginService {
 const externalLoginServices: ExternalLoginService[] = [
     {
         id: "ucloud-cli",
-        title: "UCloud-cli service",
-        description: "Send a new UCloud session to the development console.",
+        title: "UCloud",
+        description: "Performing ucloud-cli connection procedure.",
         feature: Feature.EXTERNAL_LOGIN_UCLOUD_CLI,
         handle(response) {
             const redirectUrl = new URL("http://localhost:59421/auth");
@@ -71,7 +71,6 @@ export function ExternalLogin({initialState}: {initialState?: any}): React.React
     return <ExternalLoginPanel>
         <Text fontSize={24} fontWeight={600}>Connect to {service.title}?</Text>
         <Text mt={12}>{service.description}</Text>
-        <Text mt={12}>The service will receive a token that can access UCloud as you.</Text>
         <Flex gap={"12px"} mt={24} justifyContent="flex-end">
             <Button color="secondaryMain" onClick={() => window.location.assign("/app/login")}>Cancel</Button>
             <Button color="primaryMain" onClick={() => {
