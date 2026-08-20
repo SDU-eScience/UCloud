@@ -11,12 +11,14 @@ import (
 	"runtime"
 	"time"
 
+	"ucloud.dk/shared/pkg/util"
 	"ucloud.dk/ucloud_cli/pkg/shared"
+	"ucloud.dk/ucloud_cli/pkg/web/connect"
 )
 
 const (
-	Port = ":59421"
-	UCloudCliPath  = "/app/login/external?service=ucloud-cli"
+	Port          = ":59421"
+	UCloudCliPath = "/app/login/external?service=ucloud-cli"
 )
 
 type ConnectCommand struct {
@@ -33,42 +35,25 @@ func (c *ConnectCommand) Execute() error {
 	return performConnection(c.Dev)
 }
 
-func getRoot(w http.ResponseWriter, r *http.Request) {
-	io.WriteString(w, "UCloud-CLI server is running!")
-}
+func successPage() (string, error) {
+	content, err := connect.ConnectSuccessHTML()
+	if err != nil {
+		return "", err
+	}
 
-func successMessage() string {
-	return `
-	<!DOCTYPE html>
-	<html>
-		<head>
-		<style>
-		html, body {
-			height: 100%;
-			margin: 0;
-		}
-		body {
-			display: flex;
-			flex-direction: column;
-			align-items: center;
-			justify-content: center;
-			font-family: sans-serif;
-			text-align: center;
-		}
-		</style>
-		</head>
-		<body>
-			<h1>Successfully connected to UCloud.</h1>
-			<p>You can now close this window.</p>
-		</body>
-	</html>
-`
+	return string(content), nil
 }
-
 func cliAuth(w http.ResponseWriter, r *http.Request) error {
 	token := r.URL.Query().Get("token")
 	username := r.URL.Query().Get("username")
-	io.WriteString(w, successMessage())
+	page, err := successPage()
+	if err != nil {
+		return err
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_, err = io.WriteString(w, page)
+
 	// We flush to signal that the page is ready to be displayed.
 	if flusher, ok := w.(http.Flusher); ok {
 		flusher.Flush()
@@ -85,16 +70,21 @@ func startAuthServer(ready chan<- struct{}, authDone chan<- error) error {
 
 	var server *http.Server
 
-	mux.HandleFunc("/", getRoot)
+	assetsHandler := connect.ConnectAssetsHandler()
+
+	mux.Handle("/assets/", http.StripPrefix("/assets/", assetsHandler))
 	mux.HandleFunc("/auth", func(w http.ResponseWriter, r *http.Request) {
 		err := cliAuth(w, r)
 
-		select {
-		case authDone <- err:
-		default:
-		}
-
 		go func() {
+			// Keep the local server alive briefly so the browser can fetch assets.
+			time.Sleep(2 * time.Second)
+
+			select {
+			case authDone <- err:
+			default:
+			}
+
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 
@@ -102,7 +92,7 @@ func startAuthServer(ready chan<- struct{}, authDone chan<- error) error {
 		}()
 	})
 
-	ln, err := net.Listen("tcp4", "127.0.0.1"+PORT)
+	ln, err := net.Listen("tcp4", "127.0.0.1"+Port)
 	if err != nil {
 		return fmt.Errorf("start auth server: %w", err)
 	}
@@ -113,7 +103,7 @@ func startAuthServer(ready chan<- struct{}, authDone chan<- error) error {
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
-	ready <- struct{}{}
+	ready <- util.Empty{}
 
 	err = server.Serve(ln)
 	if err != nil && !errors.Is(err, http.ErrServerClosed) {
@@ -160,7 +150,7 @@ func performConnection(dev bool) error {
 	currentEnv := cfg.Environments[cfg.DefaultEnvironment]
 	baseURL := currentEnv.URL
 	if dev {
-		baseURL = shared.DEV_SERVER
+		baseURL = shared.DevServer
 	}
 
 	go func() {
@@ -177,7 +167,7 @@ func performConnection(dev bool) error {
 		return fmt.Errorf("auth server did not become ready in time")
 	}
 
-	connectionURL := baseURL + UCLOUD_CLI_PATH
+	connectionURL := baseURL + UCloudCliPath
 	if err := openBrowser(connectionURL); err != nil {
 		return err
 	}

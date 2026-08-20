@@ -1,7 +1,6 @@
 package shared
 
 import (
-	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -11,7 +10,7 @@ import (
 	"ucloud.dk/shared/pkg/rpc"
 )
 
-const DEV_SERVER = "https://ucloud.localhost.direct"
+const DevServer = "https://ucloud.localhost.direct"
 
 type Config struct {
 	//Server   string `yaml:"server"`
@@ -48,23 +47,20 @@ func GetConfigPath() string {
 
 func ReadConfig() (*Config, error) {
 
-	// Make sure ~/.config/ucloud exists.
+	// Ensuring the config directory exists.
 	if err := os.MkdirAll(GetUCloudDir(), 0700); err != nil {
 		return nil, err
 	}
-
 	var cfg Config
-
 	// Make sure the workspace map exists.
-
 	if cfg.Environments == nil {
+		cfg.DefaultEnvironment = "ucloud"
 		cfg.Environments = make(map[string]Environment)
 		cfg.Environments["ucloud"] = Environment{
 			URL: "https://cloud.sdu.dk",
 		}
 	}
 
-	//cfg.DefaultEnvironment = "ucloud"
 	cfg.Defaults = Defaults{
 		Output:       "table",
 		ItemsPerPage: 100,
@@ -87,20 +83,52 @@ func ReadConfig() (*Config, error) {
 	return &cfg, nil
 }
 
+func writeFileAtomically(path string, data []byte, perm os.FileMode) error {
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		return err
+	}
+
+	// Write to a temporary file first, then atomically replace the target file.
+	tmpFile, err := os.CreateTemp(dir, filepath.Base(path)+".*.tmp")
+	if err != nil {
+		return err
+	}
+	tmpPath := tmpFile.Name()
+
+	defer func() {
+		_ = os.Remove(tmpPath)
+	}()
+
+	if _, err := tmpFile.Write(data); err != nil {
+		_ = tmpFile.Close()
+		return err
+	}
+
+	if err := tmpFile.Chmod(perm); err != nil {
+		_ = tmpFile.Close()
+		return err
+	}
+
+	if err := tmpFile.Close(); err != nil {
+		return err
+	}
+
+	return os.Rename(tmpPath, path)
+}
+
 func SaveConfig(cfg *Config) error {
 	data, err := yaml.Marshal(&cfg)
 	if err != nil {
 		return err
 	}
-	fmt.Println("Saving config to:", GetConfigPath())
-
-	return os.WriteFile(GetConfigPath(), data, 0600)
+	return writeFileAtomically(GetConfigPath(), data, 0600)
 }
 
 func (cfg *Config) InitUCloudClient(dev bool) {
 	baseURL := cfg.Environments[cfg.DefaultEnvironment].URL
 	if dev {
-		baseURL = DEV_SERVER
+		baseURL = DevServer
 	}
 	rpc.DefaultClient = &rpc.Client{
 		RefreshToken: cfg.TokenRef,
