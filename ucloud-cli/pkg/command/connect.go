@@ -14,8 +14,10 @@ import (
 	"ucloud.dk/ucloud_cli/pkg/shared"
 )
 
-const PORT = ":59421"
-const UCLOUD_CLI_PATH = "/app/login/external?service=ucloud-cli"
+const (
+	Port = ":59421"
+	UCloudCliPath  = "/app/login/external?service=ucloud-cli"
+)
 
 type ConnectCommand struct {
 	Token  string `flag:"token" usage:"Token"`
