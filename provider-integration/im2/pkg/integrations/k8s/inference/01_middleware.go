@@ -685,20 +685,44 @@ func inferenceChatStreamingResponseFromRaw(raw []byte, modelName string, usageSe
 	}, usageSeen, true, usagePresent
 }
 
+func inferenceChatDeltaHasOutput(delta InferenceChatDelta) bool {
+	if delta.Content != "" || delta.Reasoning != "" {
+		return true
+	}
+	for _, toolCall := range delta.ToolCalls {
+		if toolCall.Id != "" || toolCall.Type != "" || toolCall.Function != nil {
+			return true
+		}
+	}
+	return false
+}
+
 func InferenceChat(ctx context.Context, owner apm.WalletOwner, history InferenceChatRequest) (InferenceChatResponse, *util.HttpError) {
+	requestStartedAt := time.Now()
+	requestModel := "unknown"
+	requestOutcome := "error"
+	defer func() {
+		inferenceReportChatRequestMetrics(requestModel, requestOutcome, requestStartedAt, time.Now())
+	}()
+
 	if inferenceIsLocked(owner) {
+		requestOutcome = "payment_required"
 		return InferenceChatResponse{}, util.HttpErr(http.StatusPaymentRequired, "payment required")
 	}
 
 	model, httpErr := inferenceResolveModelForOwner(owner, history.Model)
 	if httpErr != nil {
+		requestOutcome = "client_error"
 		return InferenceChatResponse{}, httpErr
 	}
+	requestModel = model.Name
 	if httpErr := inferenceValidateChatRequest(history, model); httpErr != nil {
+		requestOutcome = "client_error"
 		return InferenceChatResponse{}, httpErr
 	}
 	release, httpErr := inferenceAcquire(owner)
 	if httpErr != nil {
+		requestOutcome = "admission_rejected"
 		return InferenceChatResponse{}, httpErr
 	}
 	defer release()
@@ -706,14 +730,17 @@ func InferenceChat(ctx context.Context, owner apm.WalletOwner, history Inference
 
 	body, err := json.Marshal(history)
 	if err != nil {
+		requestOutcome = "client_error"
 		return InferenceChatResponse{}, util.HttpErr(http.StatusBadRequest, "invalid request")
 	}
 	if len(body) > inferenceMaxJSONRequestBytes {
+		requestOutcome = "client_error"
 		return InferenceChatResponse{}, util.HttpErr(http.StatusRequestEntityTooLarge, "request body too large")
 	}
 
 	respBody, httpErr := inferenceBackendJSONRequest(ctx, model.Endpoint.BasePath, http.MethodPost, "/chat/completions", body, "application/json")
 	if httpErr != nil {
+		requestOutcome = "upstream_error"
 		return InferenceChatResponse{}, httpErr
 	}
 
@@ -726,9 +753,11 @@ func InferenceChat(ctx context.Context, owner apm.WalletOwner, history Inference
 		Usage   util.Option[InferenceChatUsage] `json:"usage"`
 	}
 	if err := json.Unmarshal(respBody, &resp); err != nil {
+		requestOutcome = "upstream_error"
 		return InferenceChatResponse{}, util.HttpErr(http.StatusBadGateway, "invalid response")
 	}
 	if resp.Usage.Present && !inferenceChatUsageValid(resp.Usage.Value) {
+		requestOutcome = "upstream_error"
 		return InferenceChatResponse{}, util.HttpErr(http.StatusBadGateway, "invalid usage from upstream")
 	}
 	if !resp.Usage.Present {
@@ -738,9 +767,14 @@ func InferenceChat(ctx context.Context, owner apm.WalletOwner, history Inference
 	usage := inferenceChatUsage(resp.Usage)
 	if resp.Usage.Present {
 		cachedTokens, inputTokens, outputTokens := inferenceChatUsageComponents(usage)
+		inferenceReportChatUsageMetrics(model.Name, cachedTokens, inputTokens, outputTokens)
 		inferenceReportUsage(owner, model, cachedTokens, inputTokens, outputTokens)
 	}
 
+	requestOutcome = "success"
+	if !resp.Usage.Present {
+		requestOutcome = "success_missing_usage"
+	}
 	return InferenceChatResponse{
 		Id:      resp.Id,
 		Object:  resp.Object,
@@ -752,25 +786,32 @@ func InferenceChat(ctx context.Context, owner apm.WalletOwner, history Inference
 }
 
 func InferenceChatStreaming(ctx context.Context, owner apm.WalletOwner, history InferenceChatRequest) (chan InferenceChatStreamingResponse, *util.HttpError) {
+	requestStartedAt := time.Now()
+	requestModel := "unknown"
 	ch := make(chan InferenceChatStreamingResponse)
 
 	if inferenceIsLocked(owner) {
 		close(ch)
+		inferenceReportChatRequestMetrics(requestModel, "payment_required", requestStartedAt, time.Now())
 		return ch, util.HttpErr(http.StatusPaymentRequired, "payment required")
 	}
 
 	model, httpErr := inferenceResolveModelForOwner(owner, history.Model)
 	if httpErr != nil {
 		close(ch)
+		inferenceReportChatRequestMetrics(requestModel, "client_error", requestStartedAt, time.Now())
 		return ch, httpErr
 	}
+	requestModel = model.Name
 	if httpErr := inferenceValidateChatRequest(history, model); httpErr != nil {
 		close(ch)
+		inferenceReportChatRequestMetrics(requestModel, "client_error", requestStartedAt, time.Now())
 		return ch, httpErr
 	}
 	release, httpErr := inferenceAcquire(owner)
 	if httpErr != nil {
 		close(ch)
+		inferenceReportChatRequestMetrics(requestModel, "admission_rejected", requestStartedAt, time.Now())
 		return ch, httpErr
 	}
 	history.Model = model.Endpoint.BackendModelName
@@ -778,6 +819,10 @@ func InferenceChatStreaming(ctx context.Context, owner apm.WalletOwner, history 
 	go func() {
 		defer close(ch)
 		defer release()
+		streamOutcome := "error"
+		defer func() {
+			inferenceReportChatRequestMetrics(requestModel, streamOutcome, requestStartedAt, time.Now())
+		}()
 
 		history.Stream = true
 		if !history.StreamOptions.Present {
@@ -793,10 +838,38 @@ func InferenceChatStreaming(ctx context.Context, owner apm.WalletOwner, history 
 		if len(body) > inferenceMaxJSONRequestBytes {
 			return
 		}
+
+		streamStartedAt := time.Now()
+		firstTokenAt := time.Time{}
+		lastOutputAt := time.Time{}
+		recordOutputDelta := func(resp InferenceChatStreamingResponse) {
+			hasOutput := false
+			for _, choice := range resp.Choices {
+				if inferenceChatDeltaHasOutput(choice.Delta) {
+					hasOutput = true
+					break
+				}
+			}
+			if !hasOutput {
+				return
+			}
+
+			now := time.Now()
+			if firstTokenAt.IsZero() {
+				firstTokenAt = now
+			} else if !lastOutputAt.IsZero() {
+				metricInferenceOutputDeltaInterval.WithLabelValues(model.Name).Observe(now.Sub(lastOutputAt).Seconds())
+			}
+			lastOutputAt = now
+		}
+		reportMetrics := func(completedAt time.Time) {
+			inferenceReportChatStreamingMetrics(model.Name, streamStartedAt, firstTokenAt, lastOutputAt, completedAt, usageSeen.CompletionTokens)
+		}
 		if inferenceChatReplayUpstreamOutputPath != "" {
 			chunks, err := inferenceChatReadUpstreamReplay(inferenceChatReplayUpstreamOutputPath)
 			if err != nil {
 				log.Info("Inference upstream replay read failed: path=%s err=%v", inferenceChatReplayUpstreamOutputPath, err)
+				streamOutcome = "upstream_error"
 				return
 			}
 			log.Info("Inference upstream replay loaded: path=%s chunks=%d", inferenceChatReplayUpstreamOutputPath, len(chunks))
@@ -807,10 +880,15 @@ func InferenceChatStreaming(ctx context.Context, owner apm.WalletOwner, history 
 					continue
 				}
 				usageSeen = usage
+				recordOutputDelta(resp)
 				if !inferenceSend(ctx, ch, resp) {
+					reportMetrics(time.Now())
+					streamOutcome = "client_cancelled"
 					return
 				}
 			}
+			reportMetrics(time.Now())
+			streamOutcome = "success"
 			return
 		}
 
@@ -818,39 +896,74 @@ func InferenceChatStreaming(ctx context.Context, owner apm.WalletOwner, history 
 		defer cancel()
 		resp, httpErr := inferenceBackendStreamRequest(streamCtx, model.Endpoint.BasePath, "/chat/completions", body)
 		if httpErr != nil {
+			streamOutcome = "upstream_error"
 			return
 		}
 		defer util.SilentClose(resp.Body)
 
 		capturedChunks := []json.RawMessage{}
 		usagePresent := false
+		streamCompleted := false
+		streamSendFailed := false
 		readErr := inferenceReadSSE(streamCtx, resp.Body, touch, func(event []byte) bool {
 			raw := strings.TrimSpace(string(event))
-			if raw == "" || raw == "data: [DONE]" {
+			if raw == "" {
+				return true
+			}
+			if raw == "data: [DONE]" {
+				streamCompleted = true
 				return true
 			}
 
 			raw = inferenceSSEDataPayload(raw)
-			if raw == "" || raw == "[DONE]" {
+			if raw == "" {
+				return true
+			}
+			if raw == "[DONE]" {
+				streamCompleted = true
 				return true
 			}
 			if resp, usage, ok, chunkUsagePresent := inferenceChatStreamingResponseFromRaw([]byte(raw), model.Name, usageSeen); ok {
 				capturedChunks = append(capturedChunks, append(json.RawMessage(nil), raw...))
 				usageSeen = usage
 				usagePresent = usagePresent || chunkUsagePresent
-				return inferenceSend(streamCtx, ch, resp)
+				recordOutputDelta(resp)
+				if !inferenceSend(streamCtx, ch, resp) {
+					streamSendFailed = true
+					return false
+				}
+				return true
 			}
 			return true
 		})
 		if readErr != nil && streamCtx.Err() == nil {
 			log.Warn("Inference upstream chat stream failed: model=%s err=%v", model.Name, readErr)
 		}
+		streamCompletedAt := time.Now()
+		if ctx.Err() != nil {
+			streamOutcome = "client_cancelled"
+		} else if streamCtx.Err() != nil {
+			streamOutcome = "stream_timeout"
+		} else if readErr != nil {
+			streamOutcome = "upstream_error"
+		} else if streamSendFailed {
+			streamOutcome = "stream_timeout"
+		} else if !streamCompleted {
+			streamOutcome = "incomplete"
+		} else {
+			streamOutcome = "success"
+			if !usagePresent {
+				streamOutcome = "success_missing_usage"
+			}
+		}
 		if usagePresent {
 			cachedTokens, inputTokens, outputTokens := inferenceChatUsageComponents(usageSeen)
+			inferenceReportChatUsageMetrics(model.Name, cachedTokens, inputTokens, outputTokens)
 			inferenceReportUsage(owner, model, cachedTokens, inputTokens, outputTokens)
 		} else if streamCtx.Err() == nil {
 			inferenceWarnMissingUsage("chat-stream", model.Name)
 		}
+		reportMetrics(streamCompletedAt)
 		inferenceChatWriteUpstreamCapture(body, capturedChunks)
 	}()
 
