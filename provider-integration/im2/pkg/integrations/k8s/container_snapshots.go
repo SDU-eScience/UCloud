@@ -183,6 +183,7 @@ func startContainerSnapshotEx(jobId, image string, rank int, variantId int64, ta
 						Image:           shared.ServiceConfig.Registry.Snapshot.HelperImage,
 						ImagePullPolicy: core.PullIfNotPresent,
 						Command:         []string{"/bin/sh", "-c"},
+						SecurityContext: &core.SecurityContext{SELinuxOptions: &core.SELinuxOptions{Type: "spc_t"}},
 						Args: []string{`timeout "$SNAPSHOT_DEADLINE" /bin/sh -c '
 set -e
 printf %s "$REGISTRY_TOKEN" | nerdctl --address "$CONTAINERD_ADDRESS" --namespace "$CONTAINERD_NAMESPACE" $NERDCTL_REGISTRY_FLAGS login --username ucloud --password-stdin "$REGISTRY_SERVER"
