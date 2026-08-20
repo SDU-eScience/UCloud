@@ -178,6 +178,7 @@ export function PermissionsTable({warning, anyGroupHasPermission, showMissingPer
                             </> :
                             <RadioTilesContainer data-component={"permission-container"}>
                                 <RadioTile
+                                    id={"None" + summary.id}
                                     label={"None"}
                                     onChange={() => updateAcl(g, null)}
                                     icon={"close"}
@@ -187,6 +188,7 @@ export function PermissionsTable({warning, anyGroupHasPermission, showMissingPer
                                     fontSize={"0.5em"}
                                 />
                                 <RadioTile
+                                    id={"Read" + summary.id}
                                     label={"Read"}
                                     onChange={() => updateAcl(g, "READ")}
                                     icon={"search"}
@@ -196,6 +198,7 @@ export function PermissionsTable({warning, anyGroupHasPermission, showMissingPer
                                     fontSize={"0.5em"}
                                 />
                                 <RadioTile
+                                    id={"Write" + summary.id}
                                     label={"Write"}
                                     onChange={() => updateAcl(g, "EDIT")}
                                     icon={"edit"}
@@ -206,7 +209,6 @@ export function PermissionsTable({warning, anyGroupHasPermission, showMissingPer
                                 />
                             </RadioTilesContainer>
                         }
-
                     </Flex>
                 );
             })}

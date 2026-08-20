@@ -20,7 +20,7 @@ function RadioTilesContainer(props: React.PropsWithChildren<BoxProps>): React.Re
 }
 
 function RadioTile({labeled = true, ...props}: RadioTileProps): React.ReactNode {
-    const {height, label, icon, checked, disabled, fontSize, onChange, name} = props;
+    const {height, label, icon, checked, disabled, fontSize, onChange, name, id} = props;
 
     return (
         <div
@@ -32,7 +32,7 @@ function RadioTile({labeled = true, ...props}: RadioTileProps): React.ReactNode 
             <input
                 type="radio"
                 name={name}
-                id={label}
+                id={id}
                 value={label}
                 checked={checked}
                 disabled={disabled}
@@ -53,6 +53,7 @@ interface RadioTileProps extends RadioTileWrapProps, FontSizeProps {
     label: string;
     icon: IconName;
     name: string;
+    id: string;
     labeled?: boolean;
     onChange: (value: React.ChangeEvent<HTMLInputElement>) => void;
 }
@@ -69,9 +70,9 @@ const RadioTileClass = injectStyle("radio-tile", k => `
     ${k} {
         position: relative;
     }
-    
+
     ${k}[data-disabled="false"]:hover > .${RadioTileIconClass} {
-        color: var(--primaryMain, #f00); 
+        color: var(--primaryMain, #f00);
         border: 1px solid var(--primaryMain, #f00);
     }
 
@@ -79,7 +80,7 @@ const RadioTileClass = injectStyle("radio-tile", k => `
         color: var(--textPrimary);
         border: 0;
     }
-    
+
     ${k} input {
         opacity: 0;
         position: absolute;
@@ -94,22 +95,22 @@ const RadioTileClass = injectStyle("radio-tile", k => `
     ${k}[data-disabled="true"] input {
         cursor: default;
     }
-    
+
     ${k} input:checked + .${RadioTileIconClass} {
         background-color: var(--primaryMain, #f00);
         border: 0px solid var(--borderColor);
         color: var(--primaryContrast);
-    }   
-    
+    }
+
     ${k} label {
         text-align: center;
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 1px;
         line-height: 1;
-        padding-top: 0.1rem;   
+        padding-top: 0.1rem;
     }
-    
+
     ${k} .${RadioTileIconClass} {
         display: flex;
         flex-direction: column;

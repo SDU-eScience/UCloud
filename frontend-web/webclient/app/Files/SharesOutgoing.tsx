@@ -58,56 +58,63 @@ let RIGHTS_TOGGLE_ICON_CACHE: {
     REJECTED: null,
 }
 
-new ReactStaticRenderer(() =>
-    <RadioTilesContainer height={48} onClick={stopPropagation}>
-        <RadioTile
-            label={"Read"}
-            onChange={noopCall}
-            icon={"search"}
-            name={"READ"}
-            checked
-            height={40}
-            fontSize={"0.5em"}
-        />
-        <RadioTile
-            label={"Edit"}
-            onChange={noopCall}
-            icon={"edit"}
-            name={"EDIT"}
-            checked={false}
-            height={40}
-            fontSize={"0.5em"}
-        />
-    </RadioTilesContainer>
-).promise.then(it => RIGHTS_TOGGLE_ICON_CACHE.ENABLED_READ = it);
-
-new ReactStaticRenderer(() =>
-    <RadioTilesContainer height={48} onClick={stopPropagation}>
-        <RadioTile
-            label={"Read"}
-            onChange={noopCall}
-            icon={"search"}
-            name={"READ"}
-            checked={false}
-            height={40}
-            fontSize={"0.5em"}
-        />
-        <RadioTile
-            label={"Edit"}
-            onChange={noopCall}
-            icon={"edit"}
-            name={"EDIT"}
-            checked
-            height={40}
-            fontSize={"0.5em"}
-        />
-    </RadioTilesContainer>
-).promise.then(it => RIGHTS_TOGGLE_ICON_CACHE.ENABLED_EDIT = it);
-
 new ReactStaticRenderer(() => {
-    const foo = Math.random();
+    const foo = Math.random().toString();
     return <RadioTilesContainer height={48} onClick={stopPropagation}>
         <RadioTile
+            id={foo + "Read"}
+            label={"Read"}
+            onChange={noopCall}
+            icon={"search"}
+            name={"READ"}
+            checked
+            height={40}
+            fontSize={"0.5em"}
+        />
+        <RadioTile
+            id={foo + "Edit"}
+            label={"Edit"}
+            onChange={noopCall}
+            icon={"edit"}
+            name={"EDIT"}
+            checked={false}
+            height={40}
+            fontSize={"0.5em"}
+        />
+    </RadioTilesContainer>
+}).promise.then(it => RIGHTS_TOGGLE_ICON_CACHE.ENABLED_READ = it);
+
+new ReactStaticRenderer(() => {
+    const foo = Math.random().toString();
+    return <RadioTilesContainer height={48} onClick={stopPropagation}>
+        <RadioTile
+            id={foo + "Read"}
+            label={"Read"}
+            onChange={noopCall}
+            icon={"search"}
+            name={"READ"}
+            checked={false}
+            height={40}
+            fontSize={"0.5em"}
+        />
+        <RadioTile
+            id={foo + "Edit"}
+            label={"Edit"}
+            onChange={noopCall}
+            icon={"edit"}
+            name={"EDIT"}
+            checked
+            height={40}
+            fontSize={"0.5em"}
+        />
+    </RadioTilesContainer>
+}).promise.then(it => RIGHTS_TOGGLE_ICON_CACHE.ENABLED_EDIT = it);
+
+new ReactStaticRenderer(() => {
+    const foo = Math.random().toString();
+    return <RadioTilesContainer height={48} onClick={stopPropagation}>
+        <RadioTile
+            id={foo + "READ"}
             disabled
             label={"Read"}
             onChange={noopCall}
@@ -118,6 +125,7 @@ new ReactStaticRenderer(() => {
             fontSize={"0.5em"}
         />
         <RadioTile
+            id={foo + "EDIT"}
             disabled
             label={"Edit"}
             onChange={noopCall}
