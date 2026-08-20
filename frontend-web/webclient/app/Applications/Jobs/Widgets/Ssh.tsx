@@ -6,7 +6,6 @@ import * as Heading from "@/ui-components/Heading";
 import SshKeyApi, {SSHKey} from "@/UCloud/SshKeyApi";
 import {Card, Checkbox, Label, Link} from "@/ui-components";
 import Warning from "@/ui-components/Warning";
-import {Feature, hasFeature} from "@/Features";
 import {emptyPageV2} from "@/Utilities/PageUtilities";
 import {Application} from "@/Applications/AppStoreApi";
 
@@ -39,7 +38,7 @@ export const SshWidget: React.FunctionComponent<{
 
         {sshMode !== "MANDATORY" ? null : <>
             <p>
-                This application has been configured to use SSH. 
+                This application has been configured to use SSH.
             </p>
 
             {hasAnyKeys ? null : <>

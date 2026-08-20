@@ -53,7 +53,6 @@ import ProviderOverview from "@/Providers/Overview";
 import ProviderDetailed from "@/Providers/Detailed";
 import NetworkIPsRouter from "@/Applications/NetworkIP/Router";
 import SyncthingOverview from "@/Syncthing/Overview";
-import SshKeyCreate from "@/Applications/SshKeys/Add";
 import ApiTokenCreate from "@/Applications/ApiTokens/Add";
 import GrantEditor from "@/Grants/Editor";
 import ResourceUsage from "@/Accounting/UsageCore2";
@@ -161,8 +160,6 @@ const Core = (): React.ReactNode => (
                     <Route path="/private-networks/*" element={React.createElement(requireAuth(PrivateNetworksRouter))} />
 
                     <Route path={AppRoutes.resources.sshKeys()} element={React.createElement(requireAuth(SSHKeyBrowse))} />
-                    <Route path={AppRoutes.resources.sshKeysCreate()} element={React.createElement(requireAuth(SshKeyCreate))} />
-
                     <Route path={AppRoutes.resources.apiTokens()} element={React.createElement(requireAuth(ApiTokenBrowse))} />
                     <Route path={AppRoutes.resources.apiTokensCreate()} element={React.createElement(requireAuth(ApiTokenCreate))} />
 
