@@ -7,8 +7,8 @@ use.
 ## 21-08-26
 
 ```
-SDU-Bitten/K8s @ 2026.4.22
-SDU-Odense/K8s @ 2026.4.22
+SDU-Bitten/K8s @ 2026.4.24
+SDU-Odense/K8s @ 2026.4.24
 UCloud/Core @ 2026.4.22
 ```
 
