@@ -186,26 +186,41 @@ func bindCommand(args []string, cmd any) error {
 
 func Parse(commands []string) (com.Command, error) {
 	if len(commands) == 0 {
-		return nil, fmt.Errorf("no mainCommand")
+		return nil, fmt.Errorf("No command specified.")
 	}
 
-	commands, mainCommand := Consume(commands)
-	subCommand := Peek(commands)
+	var subCommand string
+	mainCommand := commands[0]
+	if len(commands) > 1 {
+		subCommand = commands[1] // secondary positional
+	}
 
 	commandParsers := registerCommandParser()
 
 	parserRoute, ok := commandParsers[mainCommand]
+
 	if !ok {
-		return nil, fmt.Errorf("mainCommand %s not found", mainCommand)
+		return nil, fmt.Errorf("unknown command %s", mainCommand)
 	}
 
-	createFunc, ok := parserRoute[subCommand]
-	if !ok {
-		return nil, fmt.Errorf("subcommand %s not found", subCommand)
-	}
-	cmd := createFunc()
+	var cmd com.Command
+	var createFunc com.CommandFunc
 
-	commands, _ = Consume(commands)
+	sliceCount := 1 // Used to remove the found commands
+	createFunc, ok = parserRoute[subCommand]
+	if !ok {
+		// No subcommand is found, then there is only 1 command
+		createFunc, ok = parserRoute[mainCommand]
+		if !ok {
+			return nil, fmt.Errorf("command %s not found", mainCommand)
+		}
+	} else {
+		sliceCount = 2
+	}
+
+	commands = commands[sliceCount:]
+
+	cmd = createFunc()
 
 	err := bindCommand(commands, cmd)
 
