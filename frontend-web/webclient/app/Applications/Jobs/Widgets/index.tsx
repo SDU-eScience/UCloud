@@ -104,6 +104,13 @@ export interface WidgetProps {
     // NOTE(Dan): This can only be done by the workflow parameter (of which there should only be at most one)
     injectWorkflowParameters: (parameters: ApplicationParameter[]) => void;
     onValueChange?: () => void;
+
+    // HACK(Dan): If more of these are needed, consider adding a proper "attachment" abstraction.
+    initScriptCache?: {
+        parameter: ApplicationParameter;
+        enabled: boolean;
+        onChange: (enabled: boolean) => void;
+    };
 }
 
 interface RootWidgetProps {
@@ -427,7 +434,7 @@ const FieldControlClass = injectStyleSimple("job-field-control", `
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 8px;
     align-content: center;
-    align-items: center;
+    align-items: start;
     min-width: 0;
     padding: 10px 0;
 `);

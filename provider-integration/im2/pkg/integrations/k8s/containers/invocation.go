@@ -27,6 +27,10 @@ func prepareInvocationOnJobCreate(
 
 	invocationParameters := app.Invocation.Invocation
 	parametersAndValues := controller.JobFindParamAndValues(job, &app.Invocation, requestDynamicParameters(job.Owner, app))
+	if InitScriptImagesConsumesScript(job.Id) {
+		delete(parametersAndValues, "initScript")
+		delete(parametersAndValues, "ucCacheInitScript")
+	}
 	environment := app.Invocation.Environment
 
 	ucloudToPod := func(ucloudPath string) string {

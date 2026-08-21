@@ -54,10 +54,39 @@ type containerSnapshotExecution struct {
 	Done chan containerSnapshotResult
 }
 
+type containerSnapshotOperationRequest struct {
+	Name          string
+	NodeName      string
+	ContainerId   string
+	Destination   string
+	Owner         orc.ResourceOwner
+	Deadline      int
+	Labels        map[string]string
+	Annotations   map[string]string
+	AllowExisting bool
+}
+
+type containerSnapshotOperationResult struct {
+	Image string
+	Logs  []byte
+	Job   *batch.Job
+	Err   string
+}
+
+type containerSnapshotOperationExecution struct {
+	Done    chan containerSnapshotOperationResult
+	Cleanup chan struct{}
+}
+
 var containerSnapshotExecutions = struct {
 	sync.Mutex
 	Items map[string]*containerSnapshotExecution
 }{Items: map[string]*containerSnapshotExecution{}}
+
+var containerSnapshotOperationExecutions = struct {
+	sync.Mutex
+	Items map[string]*containerSnapshotOperationExecution
+}{Items: map[string]*containerSnapshotOperationExecution{}}
 
 var containerSnapshotReservations = struct {
 	sync.Mutex
@@ -70,17 +99,255 @@ func releaseContainerSnapshotReservation(name string) {
 	containerSnapshotReservations.Unlock()
 }
 
-func initContainerSnapshots() {
-	jobs, err := shared.K8sClient.BatchV1().Jobs(shared.ServiceConfig.Compute.TaskNamespace).List(
-		context.Background(),
-		meta.ListOptions{LabelSelector: labels.Set{containerSnapshotLabel: "true"}.AsSelector().String()},
-	)
-	if err != nil {
-		log.Warn("Container snapshots: failed to recover helper jobs: %v", err)
-		return
+func containerSnapshotOperationDestination(path string) (string, *util.HttpError) {
+	server, err := url.Parse(registry.Server())
+	if err != nil || server.Host == "" {
+		return "", util.ServerHttpError("invalid registry server configuration")
 	}
-	for i := range jobs.Items {
-		monitorContainerSnapshot(jobs.Items[i].Name)
+	return server.Host + "/" + strings.TrimPrefix(path, "/"), nil
+}
+
+// Shared snapshot operation
+// ---------------------------------------------------------------------------------------------------------------------
+// Both snapshot use-cases publish a running container through the same node-local helper. This operation owns the
+// short-lived token, helper job, status polling, failure logs, and cleanup. Callers own validation and result handling.
+
+func containerSnapshotOperationStart(request containerSnapshotOperationRequest) (*containerSnapshotOperationExecution, *util.HttpError) {
+	if _, value, found := strings.Cut(request.ContainerId, "://"); found {
+		request.ContainerId = value
+	}
+	if request.Name == "" || request.NodeName == "" || request.ContainerId == "" || request.Destination == "" {
+		return nil, util.ServerHttpError("invalid container snapshot request")
+	}
+	if request.Deadline <= 0 {
+		return nil, util.ServerHttpError("invalid container snapshot deadline")
+	}
+	server, err := url.Parse(registry.Server())
+	if err != nil || server.Host == "" {
+		return nil, util.ServerHttpError("invalid registry server configuration")
+	}
+	if util.DevelopmentModeEnabled() && shared.ProviderHostname == "" {
+		return nil, util.ServerHttpError("provider service IP is not available")
+	}
+
+	containerSnapshotOperationExecutions.Lock()
+	existingExecution := containerSnapshotOperationExecutions.Items[request.Name]
+	containerSnapshotOperationExecutions.Unlock()
+	if existingExecution != nil {
+		if request.AllowExisting {
+			return existingExecution, nil
+		}
+		return nil, util.HttpErr(http.StatusConflict, "a snapshot is already running for this job")
+	}
+
+	token, herr := registry.ApiTokensCreateForSnapshot(request.Owner, time.Hour)
+	if herr != nil {
+		return nil, herr
+	}
+	labels := make(map[string]string, len(request.Labels))
+	for key, value := range request.Labels {
+		labels[key] = value
+	}
+	annotations := make(map[string]string, len(request.Annotations)+2)
+	for key, value := range request.Annotations {
+		annotations[key] = value
+	}
+	annotations[containerSnapshotImageAnnotation] = request.Destination
+	annotations[containerSnapshotTokenAnnotation] = token.Id
+
+	backoffLimit := int32(0)
+	helper := &batch.Job{
+		ObjectMeta: meta.ObjectMeta{
+			Name:        request.Name,
+			Namespace:   shared.ServiceConfig.Compute.TaskNamespace,
+			Labels:      labels,
+			Annotations: annotations,
+		},
+		Spec: batch.JobSpec{
+			BackoffLimit:          &backoffLimit,
+			ActiveDeadlineSeconds: util.Pointer(int64(request.Deadline)),
+			Template: core.PodTemplateSpec{
+				Spec: core.PodSpec{
+					AutomountServiceAccountToken: util.Pointer(false),
+					EnableServiceLinks:           util.Pointer(false),
+					NodeName:                     request.NodeName,
+					RestartPolicy:                core.RestartPolicyNever,
+					Volumes: []core.Volume{{
+						Name: "containerd-socket",
+						VolumeSource: core.VolumeSource{HostPath: &core.HostPathVolumeSource{
+							Path: shared.ServiceConfig.Registry.Snapshot.ContainerdSocket,
+							Type: util.Pointer(core.HostPathSocket),
+						}},
+					}},
+					Containers: []core.Container{{
+						Name:            "snapshot",
+						Image:           shared.ServiceConfig.Registry.Snapshot.HelperImage,
+						ImagePullPolicy: core.PullIfNotPresent,
+						Command:         []string{"/bin/sh", "-c"},
+						SecurityContext: &core.SecurityContext{SELinuxOptions: &core.SELinuxOptions{Type: "spc_t"}},
+						Args: []string{`timeout "$SNAPSHOT_DEADLINE" /bin/sh -c '
+set -e
+printf %s "$REGISTRY_TOKEN" | nerdctl --address "$CONTAINERD_ADDRESS" --namespace "$CONTAINERD_NAMESPACE" $NERDCTL_REGISTRY_FLAGS login --username ucloud --password-stdin "$REGISTRY_SERVER"
+nerdctl --address "$CONTAINERD_ADDRESS" --namespace "$CONTAINERD_NAMESPACE" commit --pause=true --compression=gzip "$CONTAINER_ID" "$DESTINATION_IMAGE"
+cleanup() { nerdctl --address "$CONTAINERD_ADDRESS" --namespace "$CONTAINERD_NAMESPACE" image rm "$DESTINATION_IMAGE" >/dev/null 2>&1 || true; }
+trap cleanup EXIT
+nerdctl --address "$CONTAINERD_ADDRESS" --namespace "$CONTAINERD_NAMESPACE" $NERDCTL_REGISTRY_FLAGS push "$DESTINATION_IMAGE"
+'`},
+						Env: []core.EnvVar{
+							{Name: "CONTAINER_ID", Value: request.ContainerId},
+							{Name: "DESTINATION_IMAGE", Value: request.Destination},
+							{Name: "REGISTRY_SERVER", Value: server.Host},
+							{Name: "REGISTRY_TOKEN", Value: token.Secret},
+							{Name: "CONTAINERD_ADDRESS", Value: shared.ServiceConfig.Registry.Snapshot.ContainerdSocket},
+							{Name: "CONTAINERD_NAMESPACE", Value: shared.ServiceConfig.Registry.Snapshot.ContainerdNamespace},
+							{Name: "SNAPSHOT_DEADLINE", Value: strconv.Itoa(request.Deadline)},
+						},
+						VolumeMounts: []core.VolumeMount{{
+							Name:      "containerd-socket",
+							MountPath: shared.ServiceConfig.Registry.Snapshot.ContainerdSocket,
+						}},
+					}},
+				},
+			},
+		},
+	}
+	if util.DevelopmentModeEnabled() {
+		helper.Spec.Template.Spec.HostAliases = []core.HostAlias{{
+			IP: shared.ProviderHostname, Hostnames: []string{shared.ServiceConfig.Registry.Host},
+		}}
+		helper.Spec.Template.Spec.Containers[0].Env = append(
+			helper.Spec.Template.Spec.Containers[0].Env,
+			core.EnvVar{Name: "NERDCTL_REGISTRY_FLAGS", Value: "--insecure-registry"},
+		)
+	}
+
+	_, err = shared.K8sClient.BatchV1().Jobs(shared.ServiceConfig.Compute.TaskNamespace).Create(
+		context.Background(),
+		helper,
+		meta.CreateOptions{},
+	)
+	if apierrors.IsAlreadyExists(err) && request.AllowExisting {
+		registry.ApiTokensRevoke(token.Id)
+		return containerSnapshotOperationMonitor(request.Name), nil
+	}
+	if apierrors.IsAlreadyExists(err) {
+		registry.ApiTokensRevoke(token.Id)
+		return nil, util.HttpErr(http.StatusConflict, "a snapshot is already running for this job")
+	}
+	if err != nil {
+		registry.ApiTokensRevoke(token.Id)
+		return nil, util.HttpErrorFromErr(err)
+	}
+	return containerSnapshotOperationMonitor(request.Name), nil
+}
+
+func containerSnapshotOperationMonitor(name string) *containerSnapshotOperationExecution {
+	containerSnapshotOperationExecutions.Lock()
+	if existing := containerSnapshotOperationExecutions.Items[name]; existing != nil {
+		containerSnapshotOperationExecutions.Unlock()
+		return existing
+	}
+	execution := &containerSnapshotOperationExecution{
+		Done:    make(chan containerSnapshotOperationResult, 1),
+		Cleanup: make(chan struct{}),
+	}
+	containerSnapshotOperationExecutions.Items[name] = execution
+	containerSnapshotOperationExecutions.Unlock()
+
+	go func() {
+		result := containerSnapshotOperationResult{}
+		observed := false
+		for util.IsAlive {
+			current, present := shared.BatchBackgroundJobs.Retrieve(shared.ServiceConfig.Compute.TaskNamespace + "/" + name)
+			if !present {
+				if observed {
+					result.Err = "helper job disappeared"
+					break
+				}
+				time.Sleep(2 * time.Second)
+				continue
+			}
+			observed = true
+			result.Job = current
+			result.Image = current.Annotations[containerSnapshotImageAnnotation]
+			if current.Status.Succeeded > 0 {
+				break
+			}
+			failed := current.Status.Failed > 0
+			for _, condition := range current.Status.Conditions {
+				failed = failed || condition.Type == batch.JobFailed && condition.Status == core.ConditionTrue
+			}
+			if failed {
+				result.Logs = containerSnapshotOperationLogs(name)
+				result.Err = "helper job failed"
+				if len(result.Logs) == 0 {
+					currentJson, _ := json.MarshalIndent(current, "", "  ")
+					log.Info("Failed job:\n%s", currentJson)
+				}
+				break
+			}
+			time.Sleep(2 * time.Second)
+		}
+		if result.Err == "" && (result.Job == nil || result.Job.Status.Succeeded == 0) {
+			result.Err = "provider is shutting down"
+		}
+
+		execution.Done <- result
+		close(execution.Done)
+		<-execution.Cleanup
+
+		if current, present := shared.BatchBackgroundJobs.Retrieve(shared.ServiceConfig.Compute.TaskNamespace + "/" + name); present {
+			result.Job = current
+		}
+		if result.Job != nil {
+			registry.ApiTokensRevoke(result.Job.Annotations[containerSnapshotTokenAnnotation])
+		}
+		if util.IsAlive {
+			for {
+				propagation := meta.DeletePropagationBackground
+				deleteErr := shared.K8sClient.BatchV1().Jobs(shared.ServiceConfig.Compute.TaskNamespace).Delete(
+					context.Background(),
+					name,
+					meta.DeleteOptions{PropagationPolicy: &propagation},
+				)
+				if deleteErr == nil || apierrors.IsNotFound(deleteErr) {
+					break
+				}
+				time.Sleep(2 * time.Second)
+			}
+		}
+
+		containerSnapshotOperationExecutions.Lock()
+		delete(containerSnapshotOperationExecutions.Items, name)
+		containerSnapshotOperationExecutions.Unlock()
+	}()
+	return execution
+}
+
+func containerSnapshotOperationLogs(name string) []byte {
+	pods, err := shared.K8sClient.CoreV1().Pods(shared.ServiceConfig.Compute.TaskNamespace).List(
+		context.Background(),
+		meta.ListOptions{LabelSelector: labels.Set{"job-name": name}.AsSelector().String()},
+	)
+	if err != nil || len(pods.Items) == 0 {
+		return nil
+	}
+	stream, err := shared.K8sClient.CoreV1().Pods(shared.ServiceConfig.Compute.TaskNamespace).
+		GetLogs(pods.Items[0].Name, &core.PodLogOptions{Container: "snapshot", TailLines: util.Pointer(int64(1000))}).
+		Stream(context.Background())
+	if err != nil {
+		return nil
+	}
+	defer util.SilentClose(stream)
+	data, _ := io.ReadAll(io.LimitReader(stream, 1024*1024))
+	return data
+}
+
+func initContainerSnapshots() {
+	for _, job := range shared.BatchBackgroundJobs.List() {
+		if job.Labels[containerSnapshotLabel] == "true" {
+			monitorContainerSnapshot(job.Name)
+		}
 	}
 }
 
@@ -137,94 +404,22 @@ func startContainerSnapshotEx(jobId, image string, rank int, variantId int64, ta
 	if herr != nil {
 		return "", herr
 	}
-	registryServer := registry.Server()
-	parsedServer, parseErr := url.Parse(registryServer)
-	if parseErr != nil || parsedServer.Host == "" {
-		return "", util.ServerHttpError("invalid registry server configuration")
+	destination, herr := containerSnapshotOperationDestination(repository + "/" + image)
+	if herr != nil {
+		return "", herr
 	}
-	destination := parsedServer.Host + "/" + repository + "/" + image
 	if util.DevelopmentModeEnabled() && shared.ProviderHostname == "" {
 		return "", util.ServerHttpError("provider service IP is not available")
 	}
-	var token registry.SnapshotToken
 	name := fmt.Sprintf("snapshot-%s", job.Id)
 	deadline := shared.ServiceConfig.Registry.Snapshot.DeadlineSeconds
-	backoffLimit := int32(0)
-	helpJob := &batch.Job{
-		ObjectMeta: meta.ObjectMeta{
-			Name:      name,
-			Namespace: shared.ServiceConfig.Compute.TaskNamespace,
-			Labels: map[string]string{
-				containerSnapshotLabel:    "true",
-				containerSnapshotJobLabel: job.Id,
-			},
-			Annotations: map[string]string{
-				containerSnapshotImageAnnotation: destination,
-			},
-		},
-		Spec: batch.JobSpec{
-			BackoffLimit:          &backoffLimit,
-			ActiveDeadlineSeconds: util.Pointer(int64(deadline)),
-			Template: core.PodTemplateSpec{
-				Spec: core.PodSpec{
-					AutomountServiceAccountToken: util.Pointer(false),
-					EnableServiceLinks:           util.Pointer(false),
-					NodeName:                     pod.Spec.NodeName,
-					RestartPolicy:                core.RestartPolicyNever,
-					Volumes: []core.Volume{{
-						Name: "containerd-socket",
-						VolumeSource: core.VolumeSource{HostPath: &core.HostPathVolumeSource{
-							Path: shared.ServiceConfig.Registry.Snapshot.ContainerdSocket,
-							Type: util.Pointer(core.HostPathSocket),
-						}},
-					}},
-					Containers: []core.Container{{
-						Name:            "snapshot",
-						Image:           shared.ServiceConfig.Registry.Snapshot.HelperImage,
-						ImagePullPolicy: core.PullIfNotPresent,
-						Command:         []string{"/bin/sh", "-c"},
-						SecurityContext: &core.SecurityContext{SELinuxOptions: &core.SELinuxOptions{Type: "spc_t"}},
-						Args: []string{`timeout "$SNAPSHOT_DEADLINE" /bin/sh -c '
-set -e
-printf %s "$REGISTRY_TOKEN" | nerdctl --address "$CONTAINERD_ADDRESS" --namespace "$CONTAINERD_NAMESPACE" $NERDCTL_REGISTRY_FLAGS login --username ucloud --password-stdin "$REGISTRY_SERVER"
-nerdctl --address "$CONTAINERD_ADDRESS" --namespace "$CONTAINERD_NAMESPACE" commit --pause=true --compression=gzip "$CONTAINER_ID" "$DESTINATION_IMAGE"
-cleanup() { nerdctl --address "$CONTAINERD_ADDRESS" --namespace "$CONTAINERD_NAMESPACE" image rm "$DESTINATION_IMAGE" >/dev/null 2>&1 || true; }
-trap cleanup EXIT
-nerdctl --address "$CONTAINERD_ADDRESS" --namespace "$CONTAINERD_NAMESPACE" $NERDCTL_REGISTRY_FLAGS push "$DESTINATION_IMAGE"
-'`},
-						Env: []core.EnvVar{
-							{Name: "CONTAINER_ID", Value: containerId},
-							{Name: "DESTINATION_IMAGE", Value: destination},
-							{Name: "REGISTRY_SERVER", Value: parsedServer.Host},
-							{Name: "REGISTRY_TOKEN"},
-							{Name: "CONTAINERD_ADDRESS", Value: shared.ServiceConfig.Registry.Snapshot.ContainerdSocket},
-							{Name: "CONTAINERD_NAMESPACE", Value: shared.ServiceConfig.Registry.Snapshot.ContainerdNamespace},
-							{Name: "SNAPSHOT_DEADLINE", Value: strconv.Itoa(deadline)},
-						},
-						VolumeMounts: []core.VolumeMount{{
-							Name:      "containerd-socket",
-							MountPath: shared.ServiceConfig.Registry.Snapshot.ContainerdSocket,
-						}},
-					}},
-				},
-			},
-		},
-	}
+	annotations := map[string]string{}
 	if variantId > 0 {
-		helpJob.Annotations[containerSnapshotVariantAnnotation] = strconv.FormatInt(variantId, 10)
-		helpJob.Annotations[containerSnapshotTaskAnnotation] = strconv.Itoa(taskId)
-		helpJob.Annotations[containerSnapshotBaseNameAnnotation] = baseApplication.Name
-		helpJob.Annotations[containerSnapshotBaseVersionAnnotation] = baseApplication.Version
-		helpJob.Annotations[containerSnapshotRequestedByAnnotation] = requestedBy
-	}
-	if util.DevelopmentModeEnabled() {
-		helpJob.Spec.Template.Spec.HostAliases = []core.HostAlias{{
-			IP: shared.ProviderHostname, Hostnames: []string{shared.ServiceConfig.Registry.Host},
-		}}
-		helpJob.Spec.Template.Spec.Containers[0].Env = append(
-			helpJob.Spec.Template.Spec.Containers[0].Env,
-			core.EnvVar{Name: "NERDCTL_REGISTRY_FLAGS", Value: "--insecure-registry"},
-		)
+		annotations[containerSnapshotVariantAnnotation] = strconv.FormatInt(variantId, 10)
+		annotations[containerSnapshotTaskAnnotation] = strconv.Itoa(taskId)
+		annotations[containerSnapshotBaseNameAnnotation] = baseApplication.Name
+		annotations[containerSnapshotBaseVersionAnnotation] = baseApplication.Version
+		annotations[containerSnapshotRequestedByAnnotation] = requestedBy
 	}
 
 	activeSnapshots := shared.BatchBackgroundJobs.List()
@@ -255,27 +450,22 @@ nerdctl --address "$CONTAINERD_ADDRESS" --namespace "$CONTAINERD_NAMESPACE" $NER
 		releaseContainerSnapshotReservation(name)
 		return "", util.HttpErr(http.StatusConflict, "job replica is no longer available")
 	}
-	token, herr = registry.ApiTokensCreateForSnapshot(job.Owner, time.Hour)
+	_, herr = containerSnapshotOperationStart(containerSnapshotOperationRequest{
+		Name:        name,
+		NodeName:    currentPod.Spec.NodeName,
+		ContainerId: containerId,
+		Destination: destination,
+		Owner:       job.Owner,
+		Deadline:    deadline,
+		Labels: map[string]string{
+			containerSnapshotLabel:    "true",
+			containerSnapshotJobLabel: job.Id,
+		},
+		Annotations: annotations,
+	})
 	if herr != nil {
 		releaseContainerSnapshotReservation(name)
 		return "", herr
-	}
-	helpJob.Annotations[containerSnapshotTokenAnnotation] = token.Id
-	for idx := range helpJob.Spec.Template.Spec.Containers[0].Env {
-		if helpJob.Spec.Template.Spec.Containers[0].Env[idx].Name == "REGISTRY_TOKEN" {
-			helpJob.Spec.Template.Spec.Containers[0].Env[idx].Value = token.Secret
-		}
-	}
-	_, kerr := shared.K8sClient.BatchV1().Jobs(shared.ServiceConfig.Compute.TaskNamespace).Create(context.Background(), helpJob, meta.CreateOptions{})
-	if apierrors.IsAlreadyExists(kerr) {
-		releaseContainerSnapshotReservation(name)
-		registry.ApiTokensRevoke(token.Id)
-		return "", util.HttpErr(http.StatusConflict, "a snapshot is already running for this job")
-	}
-	if kerr != nil {
-		releaseContainerSnapshotReservation(name)
-		registry.ApiTokensRevoke(token.Id)
-		return "", util.HttpErrorFromErr(kerr)
 	}
 	message := "Saving the container. Your job is paused while this finishes. This usually takes a few minutes."
 	if variantId > 0 {
@@ -312,39 +502,17 @@ func monitorContainerSnapshot(name string) *containerSnapshotExecution {
 }
 
 func runContainerSnapshotMonitor(name string, execution *containerSnapshotExecution) {
-	result := containerSnapshotResult{}
-	namespace := shared.ServiceConfig.Compute.TaskNamespace
-	var snapshotJob *batch.Job
-	for {
-		current, err := shared.K8sClient.BatchV1().Jobs(namespace).Get(context.Background(), name, meta.GetOptions{})
-		if err != nil {
-			if apierrors.IsNotFound(err) {
-				result.Err = "helper job disappeared"
-				break
-			}
-			time.Sleep(2 * time.Second)
-			continue
+	operation := containerSnapshotOperationMonitor(name)
+	operationResult := <-operation.Done
+	result := containerSnapshotResult{Image: operationResult.Image, Err: operationResult.Err}
+	if len(operationResult.Logs) > 0 {
+		logs := operationResult.Logs
+		if len(logs) > 4000 {
+			logs = logs[len(logs)-4000:]
 		}
-		snapshotJob = current
-		result.Image = current.Annotations[containerSnapshotImageAnnotation]
-		if current.Status.Succeeded > 0 {
-			break
-		}
-		failed := current.Status.Failed > 0
-		for _, condition := range current.Status.Conditions {
-			failed = failed || condition.Type == batch.JobFailed && condition.Status == core.ConditionTrue
-		}
-		if failed {
-			result.Err = containerSnapshotLogs(name)
-			if result.Err == "" {
-				result.Err = "helper job failed"
-				currentJson, _ := json.MarshalIndent(current, "", "  ")
-				log.Info("Failed job:\n%s", currentJson)
-			}
-			break
-		}
-		time.Sleep(2 * time.Second)
+		result.Err = strings.TrimSpace(string(logs))
 	}
+	snapshotJob := operationResult.Job
 
 	jobId := ""
 	stopRequested := false
@@ -416,31 +584,18 @@ func runContainerSnapshotMonitor(name string, execution *containerSnapshotExecut
 		}
 	}
 
-	for {
-		containerSnapshotExecutions.Lock()
-		if current, err := shared.K8sClient.BatchV1().Jobs(namespace).Get(context.Background(), name, meta.GetOptions{}); err == nil {
-			snapshotJob = current
-		}
-		if snapshotJob != nil {
-			jobId = snapshotJob.Labels[containerSnapshotJobLabel]
-			stopRequested = snapshotJob.Annotations[containerSnapshotStopAnnotation] == "true"
-			cleanupRequested = snapshotJob.Annotations[containerSnapshotCleanupAnnotation] == "true"
-		}
-		propagation := meta.DeletePropagationBackground
-		err := shared.K8sClient.BatchV1().Jobs(namespace).Delete(
-			context.Background(), name, meta.DeleteOptions{PropagationPolicy: &propagation},
-		)
-		if err == nil || apierrors.IsNotFound(err) {
-			delete(containerSnapshotExecutions.Items, name)
-			containerSnapshotExecutions.Unlock()
-			break
-		}
-		containerSnapshotExecutions.Unlock()
-		time.Sleep(2 * time.Second)
+	if current, present := shared.BatchBackgroundJobs.Retrieve(shared.ServiceConfig.Compute.TaskNamespace + "/" + name); present {
+		snapshotJob = current
 	}
 	if snapshotJob != nil {
-		registry.ApiTokensRevoke(snapshotJob.Annotations[containerSnapshotTokenAnnotation])
+		jobId = snapshotJob.Labels[containerSnapshotJobLabel]
+		stopRequested = snapshotJob.Annotations[containerSnapshotStopAnnotation] == "true"
+		cleanupRequested = snapshotJob.Annotations[containerSnapshotCleanupAnnotation] == "true"
 	}
+	close(operation.Cleanup)
+	containerSnapshotExecutions.Lock()
+	delete(containerSnapshotExecutions.Items, name)
+	containerSnapshotExecutions.Unlock()
 	releaseContainerSnapshotReservation(name)
 
 	if jobId != "" {
@@ -471,24 +626,6 @@ func snapshotJobAnnotation(job *batch.Job, key string) string {
 		return ""
 	}
 	return job.Annotations[key]
-}
-
-func containerSnapshotLogs(name string) string {
-	pods, err := shared.K8sClient.CoreV1().Pods(shared.ServiceConfig.Compute.TaskNamespace).List(
-		context.Background(), meta.ListOptions{LabelSelector: labels.Set{"job-name": name}.AsSelector().String()},
-	)
-	if err != nil || len(pods.Items) == 0 {
-		return ""
-	}
-	stream, err := shared.K8sClient.CoreV1().Pods(shared.ServiceConfig.Compute.TaskNamespace).
-		GetLogs(pods.Items[0].Name, &core.PodLogOptions{Container: "snapshot", TailLines: util.Pointer(int64(50))}).
-		Stream(context.Background())
-	if err != nil {
-		return ""
-	}
-	defer util.SilentClose(stream)
-	data, _ := io.ReadAll(io.LimitReader(stream, 4000))
-	return strings.TrimSpace(string(data))
 }
 
 func delayTerminationForContainerSnapshot(request controller.JobTerminateRequest) (bool, *util.HttpError) {

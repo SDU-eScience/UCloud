@@ -515,6 +515,7 @@ export const Create: React.FunctionComponent = () => {
         (name) => ({type: "private_network", description: "", title: "", optional: true, name}));
 
     const [activeOptParams, setActiveOptParams] = useState<string[]>([]);
+    const [cacheInitScript, setCacheInitScript] = useState(false);
     const [reservationErrors, setReservationErrors] = useState<ReservationErrors>({});
 
     const [importDialogOpen, setImportDialogOpen] = useState(false);
@@ -724,6 +725,8 @@ export const Create: React.FunctionComponent = () => {
     const doLoadParameters = useCallback(async (importedJob: Partial<JobSpecification>, initialImport?: boolean) => {
         if (application == null) return;
         const values = importedJob.parameters ?? {};
+        const importedCacheSetting = values.ucCacheInitScript;
+        setCacheInitScript(importedCacheSetting?.type === "boolean" && importedCacheSetting.value === true);
         const resources = importedJob.resources ?? [];
 
         if (initialImport) {
@@ -1006,11 +1009,17 @@ export const Create: React.FunctionComponent = () => {
 
     let readmeParams = parameters.filter(it => it.type === "readme");
 
-    const mandatoryParameters = parameters.filter(it =>
+    const applicationDefinesCacheParameter = (application.invocation.parameters ?? []).some(it => it.name === "ucCacheInitScript");
+    const cacheInitScriptParameter = applicationDefinesCacheParameter ? undefined : parameters.find(it =>
+        it.name === "ucCacheInitScript" && it.type === "boolean"
+    );
+    const displayedParameters = parameters.filter(it => it !== cacheInitScriptParameter);
+
+    const mandatoryParameters = displayedParameters.filter(it =>
         !it.optional && it.type !== "workflow" && it.type !== "modules" && it.type !== "readme"
     );
 
-    const optionalParameters = parameters.filter(it =>
+    const optionalParameters = displayedParameters.filter(it =>
         it.optional && it.type !== "workflow" && it.type !== "modules" && it.type !== "readme"
     );
 
@@ -1268,6 +1277,17 @@ export const Create: React.FunctionComponent = () => {
                                                 setErrors={setErrors}
                                                 application={application}
                                                 bindLinkToPort={bindLinkToPort}
+                                                initScriptCache={param.name !== "initScript" || !cacheInitScriptParameter ? undefined : {
+                                                    parameter: cacheInitScriptParameter,
+                                                    enabled: cacheInitScript,
+                                                    onChange: enabled => {
+                                                        setCacheInitScript(enabled);
+                                                        setActiveOptParams(current => enabled ?
+                                                            (current.includes(cacheInitScriptParameter.name) ? current : [...current, cacheInitScriptParameter.name]) :
+                                                            current.filter(name => name !== cacheInitScriptParameter.name)
+                                                        );
+                                                    }
+                                                }}
                                                 onValueChange={() => setActiveOptParams(current =>
                                                     current.includes(param.name) ? current : [...current, param.name]
                                                 )}
@@ -1278,6 +1298,10 @@ export const Create: React.FunctionComponent = () => {
                                                 onClear={!param.optional ? undefined : () => {
                                                     clearWidgetValue(param);
                                                     setActiveOptParams(current => current.filter(name => name !== param.name));
+                                                    if (param.name === "initScript" && cacheInitScriptParameter) {
+                                                        setCacheInitScript(false);
+                                                        setActiveOptParams(current => current.filter(name => name !== cacheInitScriptParameter.name));
+                                                    }
                                                     setErrors(current => {
                                                         if (!current[param.name]) return current;
                                                         const next = {...current};

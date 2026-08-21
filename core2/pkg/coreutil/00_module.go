@@ -5,10 +5,10 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"os"
 	"slices"
 	"strings"
 	"time"
-    "os"
 
 	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
@@ -31,22 +31,23 @@ import (
 // same functionality in the code, but this was deemed unnecessary.
 func ProjectRetrieveFromDatabase(tx *db.Transaction, id string) (fndapi.Project, bool) {
 	projectInfo, ok := db.Get[struct {
-		Id                   string
-		CreatedAt            time.Time
-		ModifiedAt           time.Time
-		Title                string
-		Archived             bool
-		Parent               sql.NullString
-		SubProjectsCanRename bool
-		Pid                  int
-		ProviderProjectFor   sql.NullString
-		CanConsumeResources  bool
+		Id                             string
+		CreatedAt                      time.Time
+		ModifiedAt                     time.Time
+		Title                          string
+		Archived                       bool
+		Parent                         sql.NullString
+		SubProjectsCanRename           bool
+		InitScriptImageCacheLimitBytes int64
+		Pid                            int
+		ProviderProjectFor             sql.NullString
+		CanConsumeResources            bool
 	}](
 		tx,
 		`
 			select
 				id, created_at, modified_at, title, archived, parent, subprojects_renameable as sub_projects_can_rename,
-				pid, provider_project_for, can_consume_resources
+				pid, provider_project_for, can_consume_resources, init_script_image_cache_limit_bytes
 			from
 				project.projects
 			where
@@ -79,6 +80,7 @@ func ProjectRetrieveFromDatabase(tx *db.Transaction, id string) (fndapi.Project,
 	}
 
 	p.Status.Settings.SubProjects.AllowRenaming = projectInfo.SubProjectsCanRename
+	p.Status.Settings.InitScriptImageCacheLimitBytes = projectInfo.InitScriptImageCacheLimitBytes
 
 	projectMembers := db.Select[struct {
 		Username string

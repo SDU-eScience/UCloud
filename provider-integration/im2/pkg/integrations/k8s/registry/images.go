@@ -94,6 +94,71 @@ func ImagesValidateVariant(owner orc.ResourceOwner, image string, requireProject
 	return orc.ApplicationVariantValidateImageResponse{Image: image, ImageDigest: digestImage}, nil
 }
 
+func InitScriptImagesResolve(owner orc.ResourceOwner, repositoryName, tag string) (string, int64, *util.HttpError) {
+	rootRepository, ok := controller.ContainerRepositoryRetrieveByRepository(repositoryName)
+	if !ok || !controller.ResourceCanUse(owner, rootRepository.Owner, rootRepository.Permissions, true) {
+		return "", 0, util.HttpErr(http.StatusForbidden, "container image repository is not available")
+	}
+	named, err := reference.WithName(repositoryName)
+	if err != nil {
+		return "", 0, util.HttpErr(http.StatusBadRequest, "invalid container image repository")
+	}
+	repository, err := registryAccounting.namespace.Repository(context.Background(), named)
+	if err != nil {
+		return "", 0, util.HttpErr(http.StatusNotFound, "container image not found")
+	}
+	descriptor, err := repository.Tags(context.Background()).Get(context.Background(), tag)
+	if err != nil {
+		return "", 0, util.HttpErr(http.StatusNotFound, "container image not found")
+	}
+	image, err := imagesDescribe(context.Background(), repository, repositoryName, tag, descriptor)
+	if err != nil {
+		return "", 0, util.HttpErrorFromErr(err)
+	}
+	server, err := url.Parse(Server())
+	if err != nil || server.Host == "" {
+		return "", 0, util.ServerHttpError("invalid registry configuration")
+	}
+	return server.Host + "/" + repositoryName + "@" + descriptor.Digest.String(), image.SizeInBytes, nil
+}
+
+func InitScriptImagesUsage(repositoryName string, tags []string) (int64, *util.HttpError) {
+	named, err := reference.WithName(repositoryName)
+	if err != nil {
+		return 0, util.HttpErr(http.StatusBadRequest, "invalid container image repository")
+	}
+	repository, err := registryAccounting.namespace.Repository(context.Background(), named)
+	if err != nil {
+		return 0, nil
+	}
+	ctx := context.Background()
+	seen := map[digest.Digest]bool{}
+	layers := map[digest.Digest]*imageLayer{}
+	total := int64(0)
+	for _, tag := range tags {
+		descriptor, tagErr := repository.Tags(ctx).Get(ctx, tag)
+		if tagErr != nil {
+			continue
+		}
+		if _, walkErr := imagesDescribeManifest(ctx, repository, descriptor.Digest, "", seen, layers, &total); walkErr != nil {
+			return 0, util.HttpErrorFromErr(walkErr)
+		}
+	}
+	return total, nil
+}
+
+func InitScriptImagesDelete(owner orc.ResourceOwner, repositoryName, tag string) *util.HttpError {
+	rootRepository, ok := controller.ContainerRepositoryRetrieveByRepository(repositoryName)
+	if !ok || !controller.ResourceCanUse(owner, rootRepository.Owner, rootRepository.Permissions, true) {
+		return util.HttpErr(http.StatusForbidden, "container image repository is not available")
+	}
+	if err := imagesDeleteTag(rootRepository, repositoryName, tag, true); err != nil {
+		return err
+	}
+	repositoryMarkDirty(walletOwner(rootRepository))
+	return nil
+}
+
 type imageLayer struct {
 	descriptor v1.Descriptor
 	platforms  map[string]bool

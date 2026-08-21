@@ -209,6 +209,9 @@ func initProjects() {
 		}
 		return util.Empty{}, ProjectUpdateSubProjectRenamingSettings(info.Actor, request)
 	})
+	fndapi.ProjectUpdateSettings.Handler(func(info rpc.RequestInfo, request fndapi.ProjectUpdateSettingsRequest) (util.Empty, *util.HttpError) {
+		return util.Empty{}, ProjectUpdateSettings(info.Actor, request)
+	})
 
 	fndapi.ProjectRetrieveSubProjectRenamingSetting.Handler(func(info rpc.RequestInfo, request util.Empty) (fndapi.ProjectRetrieveSubProjectRenamingResponse, *util.HttpError) {
 		return ProjectRetrieveSubProjectRenaming(info.Actor)
@@ -1868,6 +1871,33 @@ func ProjectUpdateSubProjectRenamingSettings(actor rpc.Actor, request fndapi.Pro
 		)
 	})
 	iProject.Project.Status.Settings.SubProjects.AllowRenaming = !iProject.Project.Status.Settings.SubProjects.AllowRenaming
+	iProject.Mu.Unlock()
+	return nil
+}
+
+func ProjectUpdateSettings(actor rpc.Actor, request fndapi.ProjectUpdateSettingsRequest) *util.HttpError {
+	if !actor.Project.Present {
+		return util.HttpErr(http.StatusBadRequest, "This request requires an active project")
+	}
+	if request.InitScriptImageCacheLimitBytes < 0 {
+		return util.HttpErr(http.StatusBadRequest, "Cache limit must not be negative")
+	}
+
+	projectId := string(actor.Project.Value)
+	_, iProject, err := projectRetrieve(actor, projectId, projectFlagsAll, fndapi.ProjectRoleAdmin)
+	if err != nil {
+		return err
+	}
+
+	iProject.Mu.Lock()
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(tx, `
+			update project.projects
+			set init_script_image_cache_limit_bytes = :limit, modified_at = now()
+			where id = :project
+		`, db.Params{"limit": request.InitScriptImageCacheLimitBytes, "project": projectId})
+	})
+	iProject.Project.Status.Settings.InitScriptImageCacheLimitBytes = request.InitScriptImageCacheLimitBytes
 	iProject.Mu.Unlock()
 	return nil
 }
