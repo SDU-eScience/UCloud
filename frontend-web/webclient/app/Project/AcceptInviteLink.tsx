@@ -12,10 +12,14 @@ import Spinner from "@/LoadingIcon/LoadingIcon";
 import {injectStyleSimple} from "@/Unstyled";
 import AppRoutes from "@/Routes";
 import {addOrgInfoModalIfNotFilled} from "@/UserSettings/ChangeUserDetails";
+import {usePage} from "@/Navigation/Redux";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 export const AcceptInviteLink: React.FunctionComponent = () => {
     const navigate = useNavigate();
     const dispatch = useDispatch();
+
+    usePage("Project invite", SidebarTabId.NONE);
 
     const locationParams = useParams<{id: string;}>();
     let token = locationParams.id ? decodeURIComponent(locationParams.id) : undefined;
@@ -53,8 +57,8 @@ export const AcceptInviteLink: React.FunctionComponent = () => {
                     <Heading.h3>Invitation link has expired</Heading.h3>
                     Contact the relevant PI or admin of the project to get a new link.
                 </div> : <div className={AcceptProjectLinkContainer}>
-                    <Heading.h3>You have been invited to join {linkInfo.data?.project.specification.title}</Heading.h3>
-                    <Flex mt="15px" width="300px" mx="auto">
+                    <Heading.h3>You have been invited to join {"linkInfo.data?.project.specification.title"}</Heading.h3>
+                    <Flex mt="15px" width="300px" mx="auto" justifyContent={"center"}>
                         <Button
                             color="successMain"
                             mr="10px"
