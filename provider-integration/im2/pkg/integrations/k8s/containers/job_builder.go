@@ -161,6 +161,10 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	if userContainer.Image == "" {
 		userContainer.Image = tool.Description.Container
 	}
+	cachedImage, hasCachedImage := InitScriptImagesFindImage(job.Id)
+	if hasCachedImage {
+		userContainer.Image = cachedImage
+	}
 
 	if jobAuditLogIsEnabled(&resolvedApplication.Invocation) {
 		jobAuditLogSetup(job, rank, spec, userContainer, "48291")
@@ -492,7 +496,13 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	}
 
 	addSnapshotExcludedMounts(pod, userContainer)
-	if resolvedApplication.Metadata.Variant.Present {
+	if hasCachedImage {
+		variantPullSecret, variantPullTokenId, herr = createApplicationVariantPullSecret(job.Owner, namespace, podName)
+		if herr != nil {
+			return herr
+		}
+		pod.Spec.ImagePullSecrets = append(pod.Spec.ImagePullSecrets, core.LocalObjectReference{Name: variantPullSecret.Name})
+	} else if resolvedApplication.Metadata.Variant.Present {
 		if _, validationErr := registry.ImagesValidateVariant(job.Owner, resolvedApplication.Metadata.Variant.Value.ImageDigest, false); validationErr != nil {
 			return util.HttpErr(http.StatusBadRequest, "flavor image is no longer available")
 		}

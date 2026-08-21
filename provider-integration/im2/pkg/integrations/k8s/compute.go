@@ -32,6 +32,8 @@ var containerCpu controller.JobsService
 var virtCpu controller.JobsService
 
 func InitCompute() controller.JobsService {
+	containers.InitScriptImagesFindImage = initScriptImagesImageForJob
+	containers.InitScriptImagesConsumesScript = initScriptImagesConsumesInitScript
 	containerCpu = containers.Init()
 	virtCpu = kubevirt.Init()
 
@@ -84,6 +86,7 @@ var monitoringHealthCounter = atomic.Int64{}
 func InitComputeLater() {
 	controller.IAppReconfigureAll()
 	containers.StartSyncthingPolicyReconciler()
+	initScriptImagesStartMaintenance()
 
 	initJobQueue()
 
@@ -383,12 +386,19 @@ func submit(job orc.Job) (util.Option[string], *util.HttpError) {
 		return util.OptNone[string](), util.UserHttpError("This project is not allowed to use virtual machines")
 	}
 
-	shared.RequestSchedule(&job)
 	controller.JobTrackNew(job)
+	delayed, herr := initScriptImagesPrepare(&job, false)
+	if herr != nil {
+		return util.OptNone[string](), herr
+	}
+	if !delayed {
+		shared.RequestSchedule(&job)
+	}
 	return util.OptNone[string](), nil
 }
 
 func terminate(request controller.JobTerminateRequest) *util.HttpError {
+	initScriptImagesCancel(request.Job.Id)
 	containerSnapshotExecutions.Lock()
 	delayed, err := delayTerminationForContainerSnapshot(request)
 	containerSnapshotExecutions.Unlock()

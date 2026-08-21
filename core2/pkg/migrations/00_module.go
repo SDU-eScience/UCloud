@@ -41,4 +41,5 @@ func Init() {
 	db.AddMigration(containerRepositoriesV1())
 	db.AddMigration(applicationVariantsV1())
 	db.AddMigration(tasksV1())
+	db.AddMigration(projectsV6())
 }

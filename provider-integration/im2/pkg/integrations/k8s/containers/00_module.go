@@ -34,6 +34,9 @@ var ServiceConfig *config.ServicesConfigurationKubernetes
 var Namespace string
 var ExecCodec runtime.ParameterCodec
 
+var InitScriptImagesFindImage func(jobId string) (string, bool)
+var InitScriptImagesConsumesScript func(jobId string) bool
+
 func Init() controller.JobsService {
 	// Create a number of aliases for use in this package. These are all static by the time this function is called.
 	K8sConfig = shared.K8sConfig
@@ -464,6 +467,28 @@ func terminate(request controller.JobTerminateRequest) *util.HttpError {
 }
 
 func requestDynamicParameters(owner orc.ResourceOwner, app *orc.Application) []orc.ApplicationParameter {
+	result := make([]orc.ApplicationParameter, 0, 2)
+	if shared.ServiceConfig.Registry.Enabled {
+		hasInitScript := false
+		hasCacheParameter := false
+		for _, candidate := range app.Invocation.Parameters {
+			hasInitScript = hasInitScript || candidate.Name == "initScript" && candidate.Type == orc.ApplicationParameterTypeInputFile
+			hasCacheParameter = hasCacheParameter || candidate.Name == "ucCacheInitScript"
+		}
+		if hasInitScript && !hasCacheParameter {
+			cacheParam := orc.ApplicationParameterBoolean(
+				"ucCacheInitScript",
+				true,
+				"Cache installed dependencies",
+				"Run the initialization script once and reuse the resulting container environment.",
+				"true",
+				"false",
+			)
+			cacheParam.DefaultValue = json.RawMessage(`false`)
+			result = append(result, cacheParam)
+		}
+	}
+
 	param := orc.ApplicationParameterEnumeration(
 		"ucMetricSampleRate",
 		true,
@@ -485,7 +510,7 @@ func requestDynamicParameters(owner orc.ResourceOwner, app *orc.Application) []o
 
 	param.DefaultValue = json.RawMessage(`"250ms"`)
 
-	return []orc.ApplicationParameter{param}
+	return append(result, param)
 }
 
 func openWebSession(job *orc.Job, sessionType orc.InteractiveSessionType, rank int, target util.Option[string]) (controller.ConfiguredWebSessionResult, *util.HttpError) {
