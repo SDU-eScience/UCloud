@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -51,6 +52,7 @@ type JobUpdateBatch struct {
 	entries               []orc.ResourceUpdateAndId[orc.JobUpdate]
 	trackedDirtyStates    map[string]orc.JobState
 	trackedNodeAllocation map[string][]string
+	skipRejectedJobs      bool
 	failed                bool
 	results               JobUpdateBatchResults
 }
@@ -328,7 +330,12 @@ func JobUpdatesBegin() *JobUpdateBatch {
 	return &JobUpdateBatch{
 		trackedDirtyStates:    make(map[string]orc.JobState),
 		trackedNodeAllocation: make(map[string][]string),
+		skipRejectedJobs:      true,
 	}
+}
+
+func (b *JobUpdateBatch) FailOnRejectedJobs() {
+	b.skipRejectedJobs = false
 }
 
 func (b *JobUpdateBatch) AddUpdate(update orc.ResourceUpdateAndId[orc.JobUpdate]) {
@@ -430,10 +437,45 @@ func (b *JobUpdateBatch) flush() {
 		return
 	}
 
-	if err := JobSendUpdates(b.entries); err != nil {
-		b.failed = true
-		log.Warn("Failed to flush updated jobs: %v", err)
-		return
+	for {
+		err := JobSendUpdates(b.entries)
+		if err == nil {
+			break
+		}
+
+		rejectedJobId, rejected := rejectedJobIdFromError(err)
+		if !b.skipRejectedJobs || !rejected {
+			b.failed = true
+			log.Warn("Failed to flush updated jobs: %v", err)
+			return
+		}
+
+		entryCount := len(b.entries)
+		b.entries = slices.DeleteFunc(b.entries, func(entry orc.ResourceUpdateAndId[orc.JobUpdate]) bool {
+			return entry.Id == rejectedJobId
+		})
+		if len(b.entries) == entryCount {
+			b.failed = true
+			log.Warn("Failed to flush updated jobs: rejection named unknown job %v", rejectedJobId)
+			return
+		}
+		b.results.TerminatedDueToUnknownState = slices.DeleteFunc(b.results.TerminatedDueToUnknownState, func(id string) bool {
+			return id == rejectedJobId
+		})
+		b.results.NormalStart = slices.DeleteFunc(b.results.NormalStart, func(id string) bool {
+			return id == rejectedJobId
+		})
+		b.results.NormalTermination = slices.DeleteFunc(b.results.NormalTermination, func(id string) bool {
+			return id == rejectedJobId
+		})
+		b.results.NormalSuspension = slices.DeleteFunc(b.results.NormalSuspension, func(id string) bool {
+			return id == rejectedJobId
+		})
+
+		log.Warn("Skipping job %v rejected from job update batch", rejectedJobId)
+		if len(b.entries) == 0 {
+			return
+		}
 	}
 
 	var nodeAllocJobIds []string
@@ -556,6 +598,20 @@ func (b *JobUpdateBatch) flush() {
 	}
 
 	b.entries = b.entries[:0]
+}
+
+func rejectedJobIdFromError(err *util.HttpError) (string, bool) {
+	if err.StatusCode != http.StatusNotFound {
+		return "", false
+	}
+
+	const prefix = "Not found or permission denied ("
+	if !strings.HasPrefix(err.Why, prefix) || !strings.HasSuffix(err.Why, ")") {
+		return "", false
+	}
+
+	id := strings.TrimSuffix(strings.TrimPrefix(err.Why, prefix), ")")
+	return id, id != ""
 }
 
 func jobResetMissingConfirmations(entries []orc.ResourceUpdateAndId[orc.JobUpdate]) {

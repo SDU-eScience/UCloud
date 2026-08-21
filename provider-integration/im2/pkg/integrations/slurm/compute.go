@@ -275,6 +275,7 @@ func loopComputeMonitoring() {
 
 	activeJobs := controller.JobRetrieveAll()
 	batch := controller.JobUpdatesBegin()
+	batch.FailOnRejectedJobs()
 
 	jobsBySlurmId := make(map[int]string)
 	for jobId, job := range activeJobs {
