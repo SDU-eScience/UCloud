@@ -218,24 +218,24 @@ func (c *Client) UserDelete(name string) bool {
 	return ok
 }
 
-func (c *Client) JobQuery(id int) *Job {
+func (c *Client) JobQuery(id int) (*Job, bool) {
 	if id <= 0 {
-		return nil
+		return nil, false
 	}
 
 	cmd := []string{"sacct", "-XPj", fmt.Sprint(id), "-o", "jobid,state,user,account,jobname,partition,elapsed,timelimit,alloctres,qos,nodelist"}
 	stdout, _, ok := util.RunCommand(cmd)
 	if !ok {
-		return nil
+		return nil, false
 	}
 
 	job := &Job{}
 	unmarshal(stdout, job)
 	if job.JobID > 0 {
-		return job
+		return job, true
 	}
 
-	return nil
+	return nil, true
 }
 
 func (c *Client) JobList() []Job {

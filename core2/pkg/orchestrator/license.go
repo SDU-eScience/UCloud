@@ -147,6 +147,14 @@ func initLicenses() {
 	})
 
 	orcapi.LicensesControlAddUpdate.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ResourceUpdateAndId[orcapi.LicenseUpdate]]) (util.Empty, *util.HttpError) {
+		ids := make([]string, 0, len(request.Items))
+		for _, item := range request.Items {
+			ids = append(ids, item.Id)
+		}
+		if err := ResourceValidateProviderBatch(info.Actor, licenseType, ids); err != nil {
+			return util.Empty{}, err
+		}
+
 		for _, item := range request.Items {
 			ok := ResourceUpdate(
 				info.Actor,
