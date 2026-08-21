@@ -389,7 +389,7 @@ func vmiFsMutator() {
 							ops = append(ops, jsonPatchOp{
 								Op:    "replace",
 								Path:  fmt.Sprintf("/spec/containers/%d/args/%d", cIdx, argIdx),
-								Value: "--cache=none",
+								Value: "--cache=never",
 							})
 						}
 					}
