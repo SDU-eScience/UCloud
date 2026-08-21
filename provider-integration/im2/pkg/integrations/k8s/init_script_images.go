@@ -703,19 +703,27 @@ func initScriptImagesRunMonitor(jobId string) {
 			continue
 		}
 		observed = true
-		if job.Status.Ready != nil && *job.Status.Ready > 0 {
-			pods := initScriptImagesPodsForJob(name)
-			if len(pods) == 0 {
-				initScriptImagesMarkPreparationFailed(entry, "Image preparation pod disappeared", nil)
-				return
-			}
-			preparationPod = &pods[0]
-			break
-		}
 		if initScriptImagesKubernetesJobFailed(job) {
 			logs := initScriptImagesLogsForJob(name, initScriptImagesPreparationContainer)
 			initScriptImagesMarkPreparationFailed(entry, "Initialization script failed", logs)
 			return
+		}
+		for _, pod := range shared.BatchBackgroundPods.List() {
+			if pod.Labels["job-name"] != name && pod.Labels["batch.kubernetes.io/job-name"] != name {
+				continue
+			}
+			for _, status := range pod.Status.ContainerStatuses {
+				if status.Name == initScriptImagesPreparationContainer && status.Ready && status.State.Running != nil {
+					preparationPod = pod
+					break
+				}
+			}
+			if preparationPod != nil {
+				break
+			}
+		}
+		if preparationPod != nil {
+			break
 		}
 		time.Sleep(2 * time.Second)
 	}
@@ -1321,19 +1329,19 @@ func initScriptImagesCleanupPreparation(jobId string) {
 	initScriptImagesDeleteSecret(initScriptImagesPreparationSecretName(jobId))
 }
 
-func initScriptImagesPodsForJob(name string) []core.Pod {
+func initScriptImagesPodsForJob(name string) ([]core.Pod, error) {
 	pods, err := shared.K8sClient.CoreV1().Pods(shared.ServiceConfig.Compute.TaskNamespace).List(
 		context.Background(), meta.ListOptions{LabelSelector: labels.Set{"job-name": name}.AsSelector().String()},
 	)
 	if err != nil {
-		return nil
+		return nil, err
 	}
-	return pods.Items
+	return pods.Items, nil
 }
 
 func initScriptImagesLogsForJob(name, container string) []byte {
-	pods := initScriptImagesPodsForJob(name)
-	if len(pods) == 0 {
+	pods, err := initScriptImagesPodsForJob(name)
+	if err != nil || len(pods) == 0 {
 		return nil
 	}
 	stream, err := shared.K8sClient.CoreV1().Pods(shared.ServiceConfig.Compute.TaskNamespace).
