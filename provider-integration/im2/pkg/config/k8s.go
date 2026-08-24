@@ -132,6 +132,7 @@ type KubernetesSyncthingConfiguration struct {
 
 type KubernetesInferenceConfiguration struct {
 	Enabled             bool
+	Authority           string
 	Provider            KubernetesInferenceProvider
 	BackendServer       string
 	DevelopmentProvider string
@@ -416,6 +417,7 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 	if inferenceNode != nil {
 		cfg.Compute.Inference.Enabled = cfgutil.RequireChildBool(filePath, inferenceNode, "enabled", &success)
 		if cfg.Compute.Inference.Enabled {
+			cfg.Compute.Inference.Authority = cfgutil.OptionalChildText(filePath, inferenceNode, "authority", &success)
 			provider := KubernetesInferenceProvider(cfgutil.OptionalChildText(filePath, inferenceNode, "provider", &success))
 			if provider == "" {
 				provider = KubernetesInferenceProviderDevelopment
@@ -641,6 +643,9 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 			cfg.Compute.Web.Prefix = cfgutil.RequireChildText(filePath, webNode, "prefix", &success)
 			cfg.Compute.Web.Suffix = cfgutil.RequireChildText(filePath, webNode, "suffix", &success)
 		}
+	}
+	if cfg.Compute.Inference.Enabled && cfg.Compute.Inference.Authority == "" {
+		cfg.Compute.Inference.Authority = fmt.Sprintf("chat%s", cfg.Compute.Web.Suffix)
 	}
 
 	ipNode, _ := cfgutil.GetChildOrNil(filePath, computeNode, "publicIps")
