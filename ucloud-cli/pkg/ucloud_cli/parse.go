@@ -9,20 +9,6 @@ import (
 	com "ucloud.dk/ucloud_cli/pkg/command"
 )
 
-func Peek(args []string) string {
-	if len(args) == 0 {
-		return ""
-	}
-	return args[0]
-}
-
-func Consume(args []string) ([]string, string) {
-	if len(args) == 0 {
-		return []string{}, ""
-	}
-	return args[1:], args[0]
-}
-
 func registerCommandParser() map[string]map[string]com.CommandFunc {
 	registry := map[string]map[string]com.CommandFunc{}
 	registry["app"] = com.AppCommands
