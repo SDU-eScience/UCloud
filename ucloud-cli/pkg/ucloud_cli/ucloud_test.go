@@ -70,6 +70,7 @@ func TestReadConfig(t *testing.T) {
 func TestWorkspaceList(t *testing.T) {
 	input := []string{"workspace", "list", "--dev"}
 	cmd, err := Parse(input)
+	assert.True(t, cmd.(*command.WorkspaceListCommand).Dev)
 	assert.NoError(t, err)
 	assert.NotNil(t, cmd)
 	err = cmd.Execute()
@@ -77,10 +78,13 @@ func TestWorkspaceList(t *testing.T) {
 }
 
 func TestWorkspaceGet(t *testing.T) {
-	input := []string{"workspace", "get", "myworkspace", "--dev"}
+	input := []string{"workspace", "get", "wsaf", "--dev"}
 	cmd, err := Parse(input)
+	assert.True(t, cmd.(*command.WorkspaceGetCommand).Dev)
 	assert.NoError(t, err)
 	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
 }
 
 func TestWorkspaceGetMissingName(t *testing.T) {

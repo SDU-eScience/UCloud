@@ -34,15 +34,28 @@ var WorkspaceCommands = map[string]CommandFunc{
 	"rename": func() Command { return &WorkspaceRenameCommand{} },
 }
 
-func (c WorkspaceListCommand) Execute() error {
-
-	shared.InitializeUCloudClient(c.Dev)
+func retrieveWorkspaces() (map[string]fndapi.Project, error) {
 	result, httpErr := fndapi.ProjectBrowse.Invoke(fndapi.ProjectBrowseRequest{})
 	if httpErr.AsError() != nil {
-		return fmt.Errorf("failed to list workspaces: %s", httpErr.Why)
+		return map[string]fndapi.Project{}, fmt.Errorf("failed to list workspaces: %s", httpErr.Why)
 	}
+	workspaces := make(map[string]fndapi.Project)
 	for _, workspace := range result.Items {
-		fmt.Println(workspace.Specification.Title)
+		repoName := shared.RepositoryProjectName(workspace.Specification.Title)
+		workspaces[repoName] = workspace
+
+	}
+	return workspaces, nil
+}
+
+func (c WorkspaceListCommand) Execute() error {
+	shared.InitializeUCloudClient(c.Dev)
+	workspaces, err := retrieveWorkspaces()
+	if err != nil {
+		return err
+	}
+	for key := range workspaces {
+		fmt.Println(key)
 	}
 	return nil
 }
@@ -53,13 +66,17 @@ func (c WorkspaceUseCommand) Execute() error {
 
 func (c WorkspaceGetCommand) Execute() error {
 	shared.InitializeUCloudClient(c.Dev)
-	proj, httpErr := fndapi.ProjectRetrieve.Invoke(fndapi.ProjectRetrieveRequest{
-		Id: c.Name,
-	})
-	if httpErr.AsError() != nil {
-		return fmt.Errorf("failed to get workspace: %s", httpErr.Why)
+	workspaces, err := retrieveWorkspaces()
+	if err != nil {
+		return err
 	}
-	fmt.Println(proj.Specification.Title)
+	found, ok := workspaces[c.Name]
+	if !ok {
+		return fmt.Errorf("workspace %s not found", c.Name)
+	}
+	fmt.Println(found.Specification.Title)
+	fmt.Println(found)
+
 	return nil
 }
 

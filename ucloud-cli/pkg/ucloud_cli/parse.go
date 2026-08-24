@@ -168,7 +168,7 @@ func bindCommand(args []string, cmd any) error {
 	}
 
 	// Parse args
-	err := fs.Parse(args)
+	err := fs.Parse(args[pos:])
 	if err != nil {
 		return err
 	}
