@@ -422,7 +422,7 @@ func Init() {
 	controller.ProductsRegister([]apm.ProductV2{inferenceGlobals.Product})
 	go inferenceUsageFlushLoop()
 
-	authority := fmt.Sprintf("chat%s", shared.ServiceConfig.Compute.Web.Suffix) // TODO Change for prod
+	authority := shared.ServiceConfig.Compute.Inference.Authority
 	AttachmentInit()
 	gateway.SendMessage(gateway.ConfigurationMessage{
 		RouteUp: &gateway.EnvoyRoute{
@@ -1293,7 +1293,7 @@ func inferenceServerBase() string {
 		scheme = "https"
 	}
 
-	return fmt.Sprintf("%s://chat%s/v1", scheme, shared.ServiceConfig.Compute.Web.Suffix)
+	return fmt.Sprintf("%s://%s/v1", scheme, shared.ServiceConfig.Compute.Inference.Authority)
 }
 
 func inferencePageToOrc(page *InferenceModelPage) *orcapi.InferenceModelPage {

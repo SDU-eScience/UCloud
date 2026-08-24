@@ -44,6 +44,7 @@ export const Shell: React.FunctionComponent = () => {
     const sessionWithProvider = sessionResp.data.responses.length > 0 ? sessionResp.data.responses[0] : null;
     return <ShellWithSession
         sessionWithProvider={sessionWithProvider}
+        autofit={true}
         connectionError={sessionResp.error?.why}
         reconnect={doReconnect}
         maxReconnectAttempts={JOB_RECONNECT_ATTEMPTS}
