@@ -125,7 +125,7 @@ func SaveConfig(cfg *Config) error {
 	return writeFileAtomically(GetConfigPath(), data, 0600)
 }
 
-func (cfg *Config) InitUCloudClient(dev bool) {
+func (cfg *Config) initUCloudClient(dev bool) {
 	baseURL := cfg.Environments[cfg.DefaultEnvironment].URL
 	if dev {
 		baseURL = DevServer
@@ -137,4 +137,12 @@ func (cfg *Config) InitUCloudClient(dev bool) {
 			Timeout: 10 * time.Second,
 		},
 	}
+}
+
+func InitializeUCloudClient(dev bool) {
+	cfg, err := ReadConfig()
+	if err != nil {
+		panic(err)
+	}
+	cfg.initUCloudClient(dev)
 }

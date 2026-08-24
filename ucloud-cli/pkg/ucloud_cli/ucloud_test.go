@@ -68,12 +68,27 @@ func TestReadConfig(t *testing.T) {
 }
 
 func TestWorkspaceList(t *testing.T) {
-	input := []string{"workspace", "list"}
+	input := []string{"workspace", "list", "--dev"}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
 	assert.NotNil(t, cmd)
 	err = cmd.Execute()
 	assert.NoError(t, err)
+}
+
+func TestWorkspaceGet(t *testing.T) {
+	input := []string{"workspace", "get", "myworkspace", "--dev"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+}
+
+func TestWorkspaceGetMissingName(t *testing.T) {
+	input := []string{"workspace", "get", "--dev"}
+	cmd, err := Parse(input)
+	// expects error, since we are missing name
+	assert.Error(t, err)
+	assert.Nil(t, cmd)
 }
 
 func TestJobCreateParams(t *testing.T) {
