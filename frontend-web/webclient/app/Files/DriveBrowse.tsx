@@ -33,7 +33,7 @@ import AppRoutes from "@/Routes";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
-import {addProjectListener} from "@/Project/ReduxState";
+import {addProjectListener, getStoredProject} from "@/Project/ReduxState";
 import {getShortProviderTitle} from "@/Providers/ProviderTitle";
 import {useProject} from "@/Project/cache";
 import {isAdminOrPI} from "@/Project";
@@ -72,7 +72,9 @@ const FEATURES: ResourceBrowseFeatures = {
     renderSpinnerWhenLoading: true,
     breadcrumbsSeparatedBySlashes: false,
     search: true,
-    filters: true,
+    // Note(Jonas): This feature is modified on project-change.
+    // Initial value is based on having an active project context.
+    filters: !!getStoredProject(),
     sorting: true,
     projectSwitcher: true,
     showColumnTitles: true,
@@ -133,7 +135,6 @@ const DriveBrowse: React.FunctionComponent<{
                     fetchSupport(p ?? undefined);
                     browser.reevaluateSize();
                     browser.rerender();
-
                 });
 
                 connectionState.fetch();
