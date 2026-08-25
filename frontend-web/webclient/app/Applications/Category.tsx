@@ -57,7 +57,7 @@ const ApplicationsCategory: React.FunctionComponent = () => {
                     </Flex>
                     {categoryState.loading ? <HexSpin size={128} />:
                             groups.length !== 0 ? null :
-                                <NoResultsBody title={`No applications found category`} children={undefined} />}
+                                <NoResultsBody title={"No applications found in category"} />}
                     <AppGrid>
                         {groups.map(section =>
                             <AppCard2
