@@ -222,27 +222,26 @@ export function PublicLinkBrowse({
                     }
                 });
 
-                browser.on("renderTitle", (link, title, row) => {
+                browser.on("renderRow", (link, row, dims) => {
                     const {provider} = link.specification.product;
 
                     if (provider) {
                         const icon = providerIcon(link.specification.product.provider);
                         icon.style.marginRight = "8px";
-                        title.append(icon);
-                        title.append(ResourceBrowser.defaultTitleRenderer(link.specification.domain, row));
+                        row.title.append(icon);
+                        row.title.append(ResourceBrowser.defaultTitleRenderer(link.specification.domain, row));
                     }
-                });
 
-                browser.on("renderStat3", (link, stat) => {
                     if (link.status.boundTo.length === 1) {
                         const [boundTo] = link.status.boundTo;
-                        stat.innerText = boundTo;
+                        row.stat3.innerText = boundTo;
                     }
+
 
                     if (opts?.selection) {
                         const button = browser.defaultButtonRenderer(opts.selection, link);
                         if (button) {
-                            stat.replaceChildren(button);
+                            row.stat3.replaceChildren(button);
                         }
                     }
                 });

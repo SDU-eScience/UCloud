@@ -352,13 +352,13 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                     browser.rerender();
                 });
 
-                browser.on("renderTitle", (share, title, row) => {
+                browser.on("renderRow", (share, row, dims) => {
                     if (isViewingShareGroupPreview(share)) {
-                        SimpleAvatarComponentCache.appendTo(title, share.sharedWith, "Shared with " + share);
+                        SimpleAvatarComponentCache.appendTo(row.title, share.sharedWith, "Shared with " + share);
                     } else {
                         const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
 
-                        title.append(icon);
+                        row.title.append(icon);
                         ResourceBrowser.icons.renderIcon({
                             name: "ftSharesFolder",
                             color: "FtFolderColor",
@@ -368,31 +368,30 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                         }).then(setIcon);
                     }
 
+                    const isShareDeleted = isDeleted(share);
+
                     // Row title
                     if (isViewingShareGroupPreview(share)) {
-                        title.append(ResourceBrowser.defaultTitleRenderer(share.sharedWith, row));
+                        row.title.append(ResourceBrowser.defaultTitleRenderer(share.sharedWith, row));
                     } else {
                         const node = ResourceBrowser.defaultTitleRenderer(share.sourceFilePath, row);
-                        title.append(node);
+                        row.title.append(node);
                         prettyFilePath(share.sourceFilePath).then(title => {
                             node.innerText = title;
                             node.title = title;
                         });
                     }
 
-                });
-
-                browser.on("renderStat1", (share, stat) => {
                     // Row stat1
-                    if (isDeleted(share)) {
+                    if (isShareDeleted) {
                         const deletedTextNode = document.createElement("span");
                         deletedTextNode.innerText = "File deleted";
                         deletedTextNode.style.marginLeft = "8px";
-                        stat.append(deletedTextNode);
+                        row.stat1.append(deletedTextNode);
                     } else if (isViewingShareGroupPreview(share)) {
                         const isEdit = share.permissions.some(it => it === "EDIT");
                         const radioTilesContainerWrapper = document.createElement("div");
-                        stat.append(radioTilesContainerWrapper);
+                        row.stat1.append(radioTilesContainerWrapper);
                         const isRejected = share.state === "REJECTED";
                         if (isRejected) {
                             const rejectedIcon = RIGHTS_TOGGLE_ICON_CACHE.REJECTED;
@@ -405,9 +404,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                                 const readTile = tiles.item(0) as HTMLInputElement;
                                 const editTile = tiles.item(1) as HTMLInputElement;
                                 if (readTile && editTile) {
-                                    readTile.id = "Read" + share.shareId;
-                                    editTile.id = "Edit" + share.shareId;
-                                    readTile.name = editTile.name = share.shareId;
+                                    readTile.id = editTile.id = readTile.name = editTile.name = share.shareId;
                                     readTile["onclick"] = editTile["onclick"] = e => e.stopPropagation();
                                     readTile["onchange"] = () => {
                                         if (share.permissions.includes("EDIT")) {
@@ -427,10 +424,9 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                             }
                         }
                     }
-                });
 
-                browser.on("renderStat2", (share, stat) => {
-                    if (!isViewingShareGroupPreview(share) && isDeleted(share)) {
+                    // Row stat2
+                    if (!isViewingShareGroupPreview(share) && isShareDeleted) {
                         const button = document.createElement("button");
                         button.innerText = "Remove share";
                         button.className = ButtonClass;
@@ -448,22 +444,22 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                             );
                             browser.renderRows();
                             try {
-                                callAPI(SharesApi.remove(bulkRequestOf(...share.sharePreview.map(sg => ({ id: sg.shareId })))));
+                                callAPI(SharesApi.remove(bulkRequestOf(...share.sharePreview.map(sg => ({id: sg.shareId})))));
                             } catch (e) {
                                 displayErrorMessageOrDefault(e, "Failed to remove invalid share");
                                 browser.registerPage(arrayToPage(oldPage), "/", true);
                                 browser.renderRows();
                             }
                         }
-                        stat.replaceChildren(button);
+                        row.stat2.replaceChildren(button);
                     } else {
                         const [stateIcon, setStateIcon] = ResourceBrowser.defaultIconRenderer();
                         stateIcon.style.marginTop = stateIcon.style.marginBottom = "auto";
                         stateIcon.style.marginRight = "4px";
                         stateIcon.style.width = "24px";
                         stateIcon.style.height = "24px";
-                        stat.appendChild(stateIcon);
-                        const text = createHTMLElements({ tagType: "div", style: { marginTop: "auto", marginBottom: "auto" } });
+                        row.stat2.appendChild(stateIcon);
+                        const text = createHTMLElements({tagType: "div", style: {marginTop: "auto", marginBottom: "auto"}});
                         let state: ShareState;
 
                         if (isViewingShareGroupPreview(share)) {
@@ -487,7 +483,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                             }
                         }
 
-                        stat.append(text);
+                        row.stat2.append(text);
                         ResourceBrowser.icons.renderIcon({
                             ...StateIconAndColor[state],
                             color2: "iconColor2",
@@ -498,9 +494,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                         stateIcon.style.width = "24px";
                         stateIcon.style.height = "24px";
                     }
-                });
 
-                browser.on("renderStat3", (share, stat) => {
                     // Note(Jonas): To any future reader (as opposed to past reader?) the avatarWrapper is to ensure that
                     // the re-render doesn't happen multiple times, when re-rendering. The avatarWrapper can be dead,
                     // so attaching doesn't do anything, instead of risking the promise resolving after a second re-render,
@@ -512,7 +506,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                             className: FlexClass,
                             style: {marginRight: "26px"}
                         });
-                        stat.append(flexWrapper);
+                        row.stat3.append(flexWrapper);
 
                         sharedWithAvatars.forEach(s => {
                             SimpleAvatarComponentCache.appendTo(flexWrapper, s.sharedWith, `Shared with ${s.sharedWith}`, {marginRight: "-26px"});

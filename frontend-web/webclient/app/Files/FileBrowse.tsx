@@ -994,18 +994,18 @@ function FileBrowse({
                     return renderFileIconFromProperties(ext4, file.status.type === "DIRECTORY", file.status.icon);
                 };
 
-                browser.on("renderTitle", (file, titleStat, row) => {
+                browser.on("renderRow", (file, row, containerWidth) => {
                     row.container.setAttribute("data-file", file.id);
 
                     const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
-                    titleStat.append(icon);
+                    row.title.append(icon);
 
                     if (syncthingConfig?.folders?.find(it => it.ucloudPath === file.id) != null) {
                         folderNote(icon, "Synchronized with Syncthing", "60px", "12px", 230, "check");
                     }
 
                     const title = ResourceBrowser.defaultTitleRenderer(fileName(file.id), row);
-                    titleStat.append(title);
+                    row.title.append(title);
 
                     if (isReadonly(file.permissions.myself)) {
                         folderNote(icon, "Read-only", "60px", "34px", 108, "heroInformationCircle");
@@ -1016,12 +1016,31 @@ function FileBrowse({
                         folderNote(icon, "This file is shared with other users", "30px", "34px", 250, "heroShare", () => navigate(AppRoutes.shares.sharedByMeFile(share.sourceFilePath)))
                     }
 
-                    const isOutOfDate = () => row.container.getAttribute("data-file") !== file.id;
+                    const modifiedAt = file.status.modifiedAt ?? file.status.accessedAt ?? timestampUnixMs();
+                    row.stat2.replaceChildren(createHTMLElements({
+                        tagType: "div",
+                        style: {marginTop: "auto", marginBottom: "auto"},
+                        innerText: opts?.selection ?
+                            dateToDateStringOrTime(modifiedAt) :
+                            row.stat2.innerText = dateToString(modifiedAt)
+                    }));
 
-                    renderFileIcon(file).then(url => {
-                        if (isOutOfDate()) return;
-                        setIcon(url);
-                    });
+                    if (opts?.selection && !file.id.endsWith(fakeFileName) /* Note(Jonas): Disallow using folder being created */) {
+                        const button = browser.defaultButtonRenderer(opts.selection, file);
+                        if (button) {
+                            row.stat3.replaceChildren(button);
+                        }
+                    } else {
+                        if (file.status.sizeIncludingChildrenInBytes != null || file.status.type !== "DIRECTORY") {
+                            row.stat3.replaceChildren(createHTMLElements({
+                                tagType: "div",
+                                style: {marginTop: "auto", marginBottom: "auto"},
+                                innerText: sizeToString(file.status.sizeIncludingChildrenInBytes ?? file.status.sizeInBytes ?? null)
+                            }));
+                        }
+                    }
+
+                    const isOutOfDate = () => row.container.getAttribute("data-file") !== file.id;
 
                     const favoriteIcon = favoriteRowIcon(row);
 
@@ -1042,14 +1061,10 @@ function FileBrowse({
 
                         favoriteIcon.src = icon;
                     });
-                });
-
-                browser.on("renderStat1", (file, stat, row) => {
-                    const isOutOfDate = () => row.container.getAttribute("data-file") !== file.id;
 
                     findSensitivity(file).then(sensitivity => {
                         if (isOutOfDate()) return;
-                        stat.innerHTML = ""; // NOTE(Dan): Clear the container regardless
+                        row.stat1.innerHTML = ""; // NOTE(Dan): Clear the container regardless
                         if (!sensitivity) return;
 
                         const badge = divHtml("");
@@ -1062,36 +1077,13 @@ function FileBrowse({
                         });
 
                         HTMLTooltip(badge, divHtml("File's sensitivity is " + sensitivity.toString().toLocaleLowerCase()));
-                        stat.append(badge);
+                        row.stat1.append(badge);
                     });
-                });
 
-                browser.on("renderStat2", (file, stat) => {
-                    const modifiedAt = file.status.modifiedAt ?? file.status.accessedAt ?? timestampUnixMs();
-                    stat.replaceChildren(createHTMLElements({
-                        tagType: "div",
-                        style: {marginTop: "auto", marginBottom: "auto"},
-                        innerText: opts?.selection ?
-                            dateToDateStringOrTime(modifiedAt) :
-                            stat.innerText = dateToString(modifiedAt)
-                    }));
-                });
-
-                browser.on("renderStat3", (file, stat) => {
-                    if (opts?.selection && !file.id.endsWith(fakeFileName) /* Note(Jonas): Disallow using folder being created */) {
-                        const button = browser.defaultButtonRenderer(opts.selection, file);
-                        if (button) {
-                            stat.replaceChildren(button);
-                        }
-                    } else {
-                        if (file.status.sizeIncludingChildrenInBytes != null || file.status.type !== "DIRECTORY") {
-                            stat.replaceChildren(createHTMLElements({
-                                tagType: "div",
-                                style: { marginTop: "auto", marginBottom: "auto" },
-                                innerText: sizeToString(file.status.sizeIncludingChildrenInBytes ?? file.status.sizeInBytes ?? null)
-                            }));
-                        }
-                    }
+                    renderFileIcon(file).then(url => {
+                        if (isOutOfDate()) return;
+                        setIcon(url);
+                    });
                 });
 
                 ResourceBrowser.icons.renderIcon({

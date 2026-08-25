@@ -155,13 +155,13 @@ export function OpenWithBrowser({opts, file}: {file: UFile, opts?: ResourceBrows
 
                 browser.setEmptyIcon("play");
 
-                browser.on("renderTitle", (entry, title, row) => {
+                browser.on("renderRow", (entry, row, dimensions) => {
                     const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
                     icon.style.minWidth = "20px"
                     icon.style.minHeight = "20px"
-                    title.append(icon);
+                    row.title.append(icon);
 
-                    title.append(ResourceBrowser.defaultTitleRenderer(entry.metadata.title, row));
+                    row.title.append(ResourceBrowser.defaultTitleRenderer(entry.metadata.title, row));
 
                     setIcon(AppStore.retrieveAppLogo({
                         name: entry.metadata.name,
@@ -169,9 +169,7 @@ export function OpenWithBrowser({opts, file}: {file: UFile, opts?: ResourceBrows
                         includeText: false,
                         placeTextUnderLogo: false,
                     }));
-                });
 
-                browser.on("renderStat3", (entry, stat) => {
                     const button = browser.defaultButtonRenderer({
                         onClick: async () => {
                             try {
@@ -194,9 +192,8 @@ export function OpenWithBrowser({opts, file}: {file: UFile, opts?: ResourceBrows
                         show: () => true,
                         text: "Launch"
                     }, entry);
-
                     if (button) {
-                        stat.replaceChildren(button);
+                        row.stat3.replaceChildren(button);
                     }
                 });
 

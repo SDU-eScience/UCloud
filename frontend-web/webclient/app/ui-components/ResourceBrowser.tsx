@@ -303,11 +303,7 @@ interface ResourceBrowserListenerMap<T> {
     "unhandledShortcut": (ev: KeyboardEvent) => void;
 
     "startRenderPage": () => void;
-    "renderTitle": (entry: T, title: HTMLElement, row: ResourceBrowserRow, dimensions: RenderDimensions) => void;
-    "renderStat1": (entry: T, stat: HTMLElement, row: ResourceBrowserRow, dimensions: RenderDimensions) => void;
-    "renderStat2": (entry: T, stat: HTMLElement, row: ResourceBrowserRow, dimensions: RenderDimensions) => void;
-    "renderStat3": (entry: T, stat: HTMLElement, row: ResourceBrowserRow, dimensions: RenderDimensions) => void;
-    "renderStat4": (entry: T, stat: HTMLElement, row: ResourceBrowserRow, dimensions: RenderDimensions) => void;
+    "renderRow": (entry: T, row: ResourceBrowserRow, dimensions: RenderDimensions) => void;
     "endRenderPage": () => void;
 
     // skipOpen is called pre-navigation/calling "open". If it returns `true`, calling open is skipped.
@@ -1227,54 +1223,8 @@ export class ResourceBrowser<T> {
 
             const x = this.scrollingContainerLeft + relativeX;
             const y = this.scrollingContainerTop + relativeY - firstVisiblePixel;
-
-            this.dispatchMessage("renderTitle", fn => fn(
+            this.dispatchMessage("renderRow", fn => fn(
                 entry,
-                row.title,
-                row,
-                {
-                    width: containerWidth,
-                    height: ResourceBrowser.rowSize,
-                    x, y
-                }
-            ));
-
-            this.dispatchMessage("renderStat1", fn => fn(
-                entry,
-                row.stat1,
-                row,
-                {
-                    width: containerWidth,
-                    height: ResourceBrowser.rowSize,
-                    x, y
-                }
-            ));
-
-            this.dispatchMessage("renderStat2", fn => fn(
-                entry,
-                row.stat2,
-                row,
-                {
-                    width: containerWidth,
-                    height: ResourceBrowser.rowSize,
-                    x, y
-                }
-            ));
-
-            this.dispatchMessage("renderStat3", fn => fn(
-                entry,
-                row.stat3,
-                row,
-                {
-                    width: containerWidth,
-                    height: ResourceBrowser.rowSize,
-                    x, y
-                }
-            ));
-
-            this.dispatchMessage("renderStat4", fn => fn(
-                entry,
-                row.stat4,
                 row,
                 {
                     width: containerWidth,
@@ -3031,10 +2981,6 @@ export class ResourceBrowser<T> {
         endRenderPage: doNothing,
         beforeShortcut: doNothing,
         unhandledShortcut: doNothing,
-        renderStat1: doNothing,
-        renderStat2: doNothing,
-        renderStat3: doNothing,
-        renderStat4: doNothing,
         pathToEntry: () => "",
         generateBreadcrumbs: () => [],
         wantToFetchNextPage: async () => {},
@@ -3582,7 +3528,7 @@ export function resourceCreationWithProductSelector<T>(
         ResourceBrowser.resetTitleComponent(productSelector);
     });
 
-    browser.on("renderTitle", (entry, _, __, dims) => {
+    browser.on("renderRow", (entry, row, dims) => {
         if (entry !== dummyEntry) return;
         if (selectedProduct !== null) return;
         dims.x -= 52;

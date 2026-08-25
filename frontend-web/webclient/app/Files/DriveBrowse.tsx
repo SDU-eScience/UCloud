@@ -390,11 +390,11 @@ const DriveBrowse: React.FunctionComponent<{
 
                 // Rendering of rows and empty pages
                 // =========================================================================================================
-                browser.on("renderTitle", (drive, title, row) => {
+                browser.on("renderRow", (drive, row, dims) => {
                     if (drive.specification.product.provider) {
                         if (isShare(drive)) {
                             const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
-                            title.append(icon);
+                            row.title.append(icon);
                             ResourceBrowser.icons.renderIcon({
                                 name: "ftSharesFolder",
                                 color: "FtFolderColor",
@@ -406,29 +406,22 @@ const DriveBrowse: React.FunctionComponent<{
                         } else {
                             const pIcon = providerIcon(drive.specification.product.provider);
                             pIcon.style.marginRight = "8px";
-                            title.append(pIcon);
+                            row.title.append(pIcon);
                         }
                     }
 
-                    const rowTitle = ResourceBrowser.defaultTitleRenderer(drive.specification.title, row)
-                    title.append(rowTitle);
-                });
-
-                browser.on("renderStat1", (drive, stat)  => {
-                    stat.innerText = getShortProviderTitle(drive.specification.product.provider);
-                });
-
-                browser.on("renderStat2", (drive, stat, row) => {
+                    const title = ResourceBrowser.defaultTitleRenderer(drive.specification.title, row)
+                    row.title.append(title);
+                    row.stat1.innerText = getShortProviderTitle(drive.specification.product.provider);
                     if (drive.owner.createdBy !== "_ucloud") {
                         const createdByElement = ResourceBrowser.defaultTitleRenderer(drive.owner.createdBy, row);
                         createdByElement.style.maxWidth = `calc(var(--stat2Width) - 20px)`;
-                        stat.append(createdByElement);
+                        row.stat2.append(createdByElement);
                     }
+
+                    row.stat3.innerText = dateToString(drive.createdAt ?? timestampUnixMs());
                 });
 
-                browser.on("renderStat3", (drive, stat) => {
-                    stat.innerText = dateToString(drive.createdAt ?? timestampUnixMs());
-                });
 
                 browser.setEmptyIcon("ftFileSystem");
 
