@@ -1,6 +1,6 @@
 import {ProductNetworkIP, productTypeToIcon, ProductV2, ProductV2NetworkIP} from "@/Accounting";
 import {callAPI} from "@/Authentication/DataHook";
-import {bulkRequestOf, displayErrorMessageOrDefault, extractErrorMessage, stopPropagation} from "@/UtilityFunctions";
+import {bulkRequestOf, displayErrorMessageOrDefault, extractErrorMessage} from "@/UtilityFunctions";
 import MainContainer from "@/ui-components/MainContainer";
 import {usePage} from "@/Navigation/Redux";
 import AppRoutes from "@/Routes";
@@ -166,20 +166,22 @@ export function NetworkIPBrowse({
                     }
                 ]);
 
-                browser.on("renderRow", (ip, row, dims) => {
+                browser.on("renderTitle", (ip, title, row) => {
                     if (ip.id !== DUMMY_ENTRY_ID) {
                         const icon = providerIcon(ip.specification.product.provider);
                         icon.style.marginRight = "8px";
-                        row.title.append(icon);
-                        row.title.append(ResourceBrowser.defaultTitleRenderer(ip.status.ipAddress ?? ip.id, row));
+                        title.append(icon);
+                        title.append(ResourceBrowser.defaultTitleRenderer(ip.status.ipAddress ?? ip.id, row));
                     }
+                });
 
+                browser.on("renderStat3", (ip, stat) => {
                     if (opts?.selection) {
                         const useButton = browser.defaultButtonRenderer(opts.selection, ip);
-                        if (useButton) row.stat3.append(useButton);
+                        if (useButton) stat.append(useButton);
                     } else if (ip.status.boundTo.length === 1) {
                         const [boundTo] = ip.status.boundTo;
-                        row.stat3.innerText = boundTo;
+                        stat.innerText = boundTo;
                     }
                 });
 

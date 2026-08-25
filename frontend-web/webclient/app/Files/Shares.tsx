@@ -503,9 +503,9 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                     SimpleAvatarComponentCache.fetchMissingAvatars();
                 });
 
-                browser.on("renderRow", (share, row, dims) => {
+                browser.on("renderTitle", (share, title, row) => {
                     const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
-                    row.title.append(icon);
+                    title.append(icon);
                     ResourceBrowser.icons.renderIcon({
                         name: "ftSharesFolder",
                         color: "FtFolderColor",
@@ -515,7 +515,7 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                     }).then(setIcon);
 
                     // Row title
-                    row.title.append(
+                    title.append(
                         ResourceBrowser.defaultTitleRenderer(
                             share.owner.createdBy !== Client.username ?
                                 fileName(share.specification.sourceFilePath) :
@@ -523,12 +523,12 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                             row
                         )
                     );
+                });
 
+                browser.on("renderStat1", (share, stat) => {
                     const pendingSharedWithMe = share.owner.createdBy !== Client.username && share.status.state === "PENDING";
-
-                    // Row stat1
                     const wrapper = divHtml("");
-                    row.stat1.append(wrapper);
+                    stat.append(wrapper);
                     wrapper.className = FlexClass;
                     wrapper.style.marginTop = wrapper.style.marginBottom = "auto"
 
@@ -547,31 +547,31 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                         const group = createHTMLElements<HTMLDivElement>({
                             tagType: "div",
                             className: ButtonGroupClass,
-                            style: {marginTop: "auto", marginBottom: "auto", marginLeft: "12px"},
+                            style: { marginTop: "auto", marginBottom: "auto", marginLeft: "12px" },
                         });
                         wrapper.append(group);
                         group.appendChild(browser.defaultButtonRenderer({
                             onClick: async () => {
-                                await callAPI(SharesApi.approve(bulkRequestOf({id: share.id})));
+                                await callAPI(SharesApi.approve(bulkRequestOf({ id: share.id })));
                                 browser.refresh();
                             },
                             show() {
                                 return true;
                             },
                             text: "Accept"
-                        }, share, {color: "successMain", width: "72px"})!);
+                        }, share, { color: "successMain", width: "72px" })!);
                         group.appendChild(browser.defaultButtonRenderer({
                             onClick: async () => {
-                                await callAPI(SharesApi.reject(bulkRequestOf({id: share.id})))
+                                await callAPI(SharesApi.reject(bulkRequestOf({ id: share.id })))
                                 browser.refresh();
                             },
                             show() {
                                 return true;
                             },
                             text: "Decline"
-                        }, share, {color: "errorMain", width: "72px"})!);
+                        }, share, { color: "errorMain", width: "72px" })!);
                     } else {
-                        const {state} = share.status;
+                        const { state } = share.status;
                         const [stateIcon, setStateIcon] = ResourceBrowser.defaultIconRenderer();
                         stateIcon.style.marginTop = stateIcon.style.marginBottom = "auto";
                         wrapper.appendChild(stateIcon);
@@ -585,16 +585,18 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                         stateIcon.style.width = "24px";
                         stateIcon.style.height = "24px";
                     }
+                });
 
-                    // Row stat2
-                    row.stat2.appendChild(createHTMLElements({
+                browser.on("renderStat2", (share, stat) => {
+                    stat.appendChild(createHTMLElements({
                         tagType: "div",
-                        style: {marginTop: "auto", marginBottom: "auto"},
+                        style: { marginTop: "auto", marginBottom: "auto" },
                         innerText: dateToString(share.createdAt ?? timestampUnixMs())
                     }));
+                });
 
-                    // Row stat3
-                    SimpleAvatarComponentCache.appendTo(row.stat3, share.owner.createdBy, `Shared by ${share.owner.createdBy}`);
+                browser.on("renderStat3", (share, stat) => {
+                    SimpleAvatarComponentCache.appendTo(stat, share.owner.createdBy, `Shared by ${share.owner.createdBy}`);
                 });
 
                 browser.setEmptyIcon("heroShare");

@@ -11,7 +11,7 @@ import {Box, Button, Divider, Input, Text} from "@/ui-components";
 import {useDispatch} from "react-redux";
 import {useNavigate} from "react-router-dom";
 
-import {callAPI} from "@/Authentication/DataHook";
+import {callAPI, noopCall} from "@/Authentication/DataHook";
 import {usePage} from "@/Navigation/Redux";
 import AppRoutes from "@/Routes";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
@@ -92,9 +92,9 @@ export default function StacksBrowse(): React.ReactNode {
                     browser.registerPage(result, path, false);
                 });
 
-                browser.on("renderRow", (stack, row) => {
+                browser.on("renderTitle", (stack, title, row) => {
                     const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
-                    row.title.append(icon);
+                    title.append(icon);
                     const logoUrl = stackLogoUrl(stack.type ?? "");
                     if (logoUrl) {
                         setIcon(logoUrl);
@@ -108,16 +108,21 @@ export default function StacksBrowse(): React.ReactNode {
                         }).then(setIcon);
                     }
 
-                    row.title.append(ResourceBrowser.defaultTitleRenderer(stack.id, row));
+                    title.append(ResourceBrowser.defaultTitleRenderer(stack.id, row));
+                });
+
+                browser.on("renderStat1", (stack, stat) => {
                     /* Note(Jonas), FIXME: I don't know what `stack.name` should be referring to. */
-                    row.stat1.textContent = stack.type ?? stack["name"] ?? "Unknown";
-                    row.stat2.textContent = dateToString(stack.createdAt);
+                    stat.textContent = stack.type ?? stack["name"] ?? "Unknown";
+                });
+
+                browser.on("renderStat2", (stack, stat) => {
+                    stat.textContent = dateToString(stack.createdAt);
                 });
 
                 browser.on("pathToEntry", stack => stack.id);
                 browser.on("generateBreadcrumbs", () => [{title: "Stacks", absolutePath: ""}]);
-                browser.on("unhandledShortcut", () => {
-                });
+                browser.on("unhandledShortcut", () => noopCall);
                 browser.setEmptyIcon("heroServerStack");
 
                 browser.on("fetchOperationsCallback", () => ({

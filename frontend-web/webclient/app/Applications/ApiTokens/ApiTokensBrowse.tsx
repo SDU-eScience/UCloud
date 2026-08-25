@@ -7,7 +7,7 @@ import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {usePage} from "@/Navigation/Redux";
 import * as Api from "./api";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
-import {callAPI} from "@/Authentication/DataHook";
+import {callAPI, noopCall} from "@/Authentication/DataHook";
 import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {StandardCallbacks} from "@/ui-components/Browse";
 import AppRoutes from "@/Routes";
@@ -79,16 +79,18 @@ export function ApiTokenBrowse(props: {opts?: ResourceBrowserOpts<Api.ApiToken>}
                     browser.registerPage(result, path, false);
                 });
 
-                browser.on("renderRow", (token, row, dims) => {
+                browser.on("renderTitle", (token, title, row) => {
                     const isUCloudCore = !token.specification.provider;
                     const pIcon = providerIcon(token.specification.provider ?? "", undefined, isUCloudCore ? "ucloud.png" : undefined);
                     pIcon.style.marginRight = "8px";
-                    row.title.append(pIcon);
+                    title.append(pIcon);
 
-                    row.title.append(ResourceBrowser.defaultTitleRenderer(token.specification.title, row));
+                    title.append(ResourceBrowser.defaultTitleRenderer(token.specification.title, row));
+                });
 
-                    row.stat1.style.justifyContent = "left";
-                    SimpleAvatarComponentCache.appendTo(row.stat1, token.owner.createdBy, `Created by ${token.owner.createdBy}`).then(wrapper => {
+                browser.on("renderStat1", (token, stat) => {
+                    stat.style.justifyContent = "left";
+                    SimpleAvatarComponentCache.appendTo(stat, token.owner.createdBy, `Created by ${token.owner.createdBy}`).then(wrapper => {
                         const div = divText(token.owner.createdBy);
                         div.style.marginTop = div.style.marginBottom = "auto";
                         div.classList.add(TruncateClass);
@@ -97,15 +99,19 @@ export function ApiTokenBrowse(props: {opts?: ResourceBrowserOpts<Api.ApiToken>}
                         wrapper.append(div);
                         wrapper.style.display = "flex";
                     });
+                });
 
-                    row.stat2.append(formatTs(token.specification.expiresAt));
+                browser.on("renderStat2", (token, stat) => {
+                    stat.append(formatTs(token.specification.expiresAt));
+                })
 
+                browser.on("renderStat3", (token, stat) => {
                     const serverUrl = token.status.server?.trim() || "Not available";
                     const serverElement = divText(serverUrl);
                     serverElement.classList.add(TruncateClass);
                     serverElement.title = serverUrl;
-                    row.stat3.append(serverElement);
-                    row.stat3.style.marginTop = row.stat3.style.marginBottom = "auto"
+                    stat.append(serverElement);
+                    stat.style.marginTop = stat.style.marginBottom = "auto"
                 });
 
                 browser.on("endRenderPage", () => {

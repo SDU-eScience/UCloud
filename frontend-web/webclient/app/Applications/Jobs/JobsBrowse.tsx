@@ -204,22 +204,31 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                     browser.rerender();
                 });
 
-                browser.on("renderRow", (job, row, dims) => {
+                browser.on("renderTitle", (job, title, row) => {
                     const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
                     icon.style.minWidth = "20px"
                     icon.style.minHeight = "20px"
-                    row.title.append(icon);
+                    title.append(icon);
 
-                    row.title.append(ResourceBrowser.defaultTitleRenderer(job.specification.name ?? job.id, row));
+                    title.append(ResourceBrowser.defaultTitleRenderer(job.specification.name ?? job.id, row));
+                    setIcon(AppStore.retrieveAppLogo({
+                        name: job.specification.application.name,
+                        darkMode: !isLightThemeStored(),
+                        includeText: false,
+                        placeTextUnderLogo: false,
+                    }));
+                });
+
+                browser.on("renderStat1", (job, stat) => {
                     if (!simpleView) {
                         if (job.owner.createdBy === "_ucloud") {
-                            row.stat1.innerHTML = "";
+                            stat.innerHTML = "";
                             const elem = document.createElement("i");
                             elem.innerText = "Unknown";
-                            row.stat1.append(elem);
+                            stat.append(elem);
                         } else {
-                            row.stat1.style.justifyContent = "left";
-                            SimpleAvatarComponentCache.appendTo(row.stat1, job.owner.createdBy, `Started by ${job.owner.createdBy}`).then(wrapper => {
+                            stat.style.justifyContent = "left";
+                            SimpleAvatarComponentCache.appendTo(stat, job.owner.createdBy, `Started by ${job.owner.createdBy}`).then(wrapper => {
                                 const div = divText(job.owner.createdBy);
                                 div.style.marginTop = div.style.marginBottom = "auto";
                                 div.classList.add(TruncateClass);
@@ -229,23 +238,29 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                                 wrapper.style.display = "flex";
                             });
                         }
-                        row.stat2.innerText = dateToString(job.createdAt ?? timestampUnixMs());
-                    } else {
-                        row.stat2.innerText = dateToDateStringOrTime(job.createdAt ?? timestampUnixMs());
                     }
+                });
 
-                    // Time left in stat3
+                browser.on("renderStat2", (job, stat) => {
+                    if (!simpleView) {
+                        stat.innerText = dateToString(job.createdAt ?? timestampUnixMs());
+                    } else {
+                        stat.innerText = dateToDateStringOrTime(job.createdAt ?? timestampUnixMs());
+                    }
+                });
+
+                browser.on("renderStat3", (job, stat) => {
                     if (!simpleView) {
                         switch (job.status.state) {
                             case "IN_QUEUE": {
-                                row.stat3.innerText = "In queue..."
+                                stat.innerText = "In queue..."
                                 break;
                             }
 
                             case "RUNNING": {
                                 const now = timestampUnixMs();
                                 if (!job.status.expiresAt) {
-                                    row.stat3.innerText = "No expiry";
+                                    stat.innerText = "No expiry";
                                 } else {
                                     const timeLeft = (job.status.expiresAt ?? 0) - now;
                                     if (timeLeft > 0) {
@@ -253,43 +268,38 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                                         const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
                                         if (hours > 24) {
                                             const days = Math.floor(hours / 24);
-                                            row.stat3.innerText = `${days}d ${hours % 24}h`;
+                                            stat.innerText = `${days}d ${hours % 24}h`;
                                         } else if (hours > 0) {
-                                            row.stat3.innerText = `${hours}h ${minutes}m`;
+                                            stat.innerText = `${hours}h ${minutes}m`;
                                         } else {
-                                            row.stat3.innerText = `${minutes}m`;
+                                            stat.innerText = `${minutes}m`;
                                         }
                                     } else {
-                                        row.stat3.innerText = "Expired";
+                                        stat.innerText = "Expired";
                                     }
                                 }
                                 break;
                             }
 
                             case "EXPIRED": {
-                                row.stat3.innerText = "Expired"
+                                stat.innerText = "Expired"
                                 break;
                             }
 
                             case "FAILURE":
                             case "SUCCESS": {
-                                row.stat3.innerText = "Completed"
+                                stat.innerText = "Completed"
                                 break;
                             }
                         }
                     }
+                });
 
-                    setIcon(AppStore.retrieveAppLogo({
-                        name: job.specification.application.name,
-                        darkMode: !isLightThemeStored(),
-                        includeText: false,
-                        placeTextUnderLogo: false,
-                    }));
-
+                browser.on("renderStat4", (job, stat) => {
                     if (opts?.selection) {
                         const button = browser.defaultButtonRenderer(opts.selection, job);
                         if (button) {
-                            row.stat4.replaceChildren(button);
+                            stat.replaceChildren(button);
                         }
                     } else {
                         const [status, setStatus] = ResourceBrowser.defaultIconRenderer();
@@ -305,7 +315,7 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                         status.style.width = "24px";
                         status.style.height = "24px";
                         status.style.marginTop = status.style.marginBottom = "auto";
-                        row.stat4.append(status);
+                        stat.append(status);
                     }
                 });
 
@@ -579,7 +589,7 @@ function UserRow({username, setMember, avatar, size = "24px"}: {username: string
 
 const HoverClass = injectStyle("hover-color", k => `
     ${k}:hover {
-        background: var(--rowHover); 
+        background: var(--rowHover);
     }
 `);
 

@@ -90,11 +90,16 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<Provider>}): React.R
 
                 browser.on("fetchFilters", () => []);
 
-                browser.on("renderRow", (provider, row, dims) => {
-                    row.title.append(ResourceBrowser.defaultTitleRenderer(provider.specification.domain, row));
+                browser.on("renderTitle", (provider, title, row) => {
+                    title.append(ResourceBrowser.defaultTitleRenderer(provider.specification.domain, row));
+                });
 
-                    row.stat1.innerText = provider.owner.createdBy;
-                    row.stat2.innerText = dateToString(provider.createdAt ?? timestampUnixMs());
+                browser.on("renderStat1", (provider, stat) => {
+                    stat.innerText = provider.owner.createdBy;
+                });
+
+                browser.on("renderStat2", (provider, stat) => {
+                    stat.innerText = dateToString(provider.createdAt ?? timestampUnixMs());
                 });
 
                 browser.setEmptyIcon("play");

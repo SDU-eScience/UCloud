@@ -71,13 +71,17 @@ export function SSHKeyBrowse(props: {opts?: ResourceBrowserOpts<SSHKey>}): React
                     browser.registerPage(result, path, false);
                 });
 
-                browser.on("renderRow", (key, row, dims) => {
+                browser.on("renderTitle", (key, title, row) => {
                     const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
-                    row.title.append(icon)
-
-                    row.title.append(ResourceBrowser.defaultTitleRenderer(key.specification.title, row));
-
-                    ResourceBrowser.icons.renderIcon({name: "heroKey", color: "textPrimary", color2: "textPrimary", height: 64, width: 64}).then(setIcon);
+                    title.append(icon);
+                    title.append(ResourceBrowser.defaultTitleRenderer(key.specification.title, row));
+                    ResourceBrowser.icons.renderIcon({
+                        name: "heroKey",
+                        color: "textPrimary",
+                        color2: "textPrimary",
+                        height: 64,
+                        width: 64
+                    }).then(setIcon);
                 });
 
                 // We don't want it to capitalize the resource name
