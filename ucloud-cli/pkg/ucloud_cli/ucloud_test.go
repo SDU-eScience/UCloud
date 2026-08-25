@@ -76,6 +76,27 @@ func TestWorkspaceUse(t *testing.T) {
 	err = cmd.Execute()
 	assert.NoError(t, err)
 }
+
+func TestWorkspaceRename(t *testing.T) {
+	input := []string{"workspace", "rename", "juju", "muju", "--dev"}
+	cmd, err := Parse(input)
+	assert.True(t, cmd.(*command.WorkspaceRenameCommand).Dev)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestWorkspaceRenameBack(t *testing.T) {
+	input := []string{"workspace", "rename", "muju", "juju", "--dev"}
+	cmd, err := Parse(input)
+	assert.True(t, cmd.(*command.WorkspaceRenameCommand).Dev)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
 func TestWorkspaceList(t *testing.T) {
 	input := []string{"workspace", "list", "--dev"}
 	cmd, err := Parse(input)
@@ -130,16 +151,6 @@ func TestPublicLinkCreate(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, cmd)
 	assert.NotEmpty(t, concrete.Name)
-}
-
-func TestWorkplaceRename(t *testing.T) {
-	input := []string{"workspace", "rename", "foo", "bar"}
-	cmd, err := Parse(input)
-	concrete := cmd.(*command.WorkspaceRenameCommand)
-	assert.NoError(t, err)
-	assert.NotNil(t, cmd)
-	assert.Equal(t, concrete.FromName, "foo")
-	assert.Equal(t, concrete.ToName, "bar")
 }
 
 func TestEnviromentAdd(t *testing.T) {

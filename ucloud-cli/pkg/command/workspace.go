@@ -23,6 +23,7 @@ type WorkspaceGetCommand struct {
 type WorkspaceRenameCommand struct {
 	FromName string `positional:"from" usage:"Workspace name" required:"true"`
 	ToName   string `positional:"to" usage:"Workspace name" required:"true"`
+	Dev      bool   `flag:"dev" usage:"Dev mode"`
 }
 
 var WorkspaceCommands = map[string]CommandFunc{
@@ -153,5 +154,36 @@ func (c WorkspaceGetCommand) Execute() error {
 }
 
 func (c WorkspaceRenameCommand) Execute() error {
-	return fmt.Errorf("workspace rename not implemented")
+	shared.InitializeUCloudClient(c.Dev)
+	workspaces, err := retrieveWorkspaces()
+	if err != nil {
+		return err
+	}
+	w, ok := workspaces[c.FromName]
+	if !ok {
+		return fmt.Errorf("workspace %s not found", c.FromName)
+	}
+
+	requestBulk := fndapi.BulkRequest[fndapi.ProjectRenameRequest]{
+		Items: []fndapi.ProjectRenameRequest{
+			{
+				Id:       w.Id,
+				NewTitle: c.ToName,
+			},
+		},
+	}
+	_, httpErr := fndapi.ProjectRename.Invoke(requestBulk)
+
+	if httpErr.AsError() != nil {
+		return fmt.Errorf("failed to rename project: %s", httpErr.Why)
+	}
+	t := termio.Table{}
+	fmt.Println("Workspace successfully renamed")
+	t.AppendHeader("From")
+	t.AppendHeader("To")
+	t.Cell("%v", c.FromName)
+	t.Cell("%v", c.ToName)
+	t.Print()
+
+	return nil
 }
