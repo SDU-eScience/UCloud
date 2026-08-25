@@ -390,8 +390,9 @@ function clampRootPosition(x: number, y: number, entryCount: number): [number, n
     const margin = 8;
     const width = Math.min(240, window.innerWidth - margin * 2);
     const height = Math.min(entryCount * 30 + 8, window.innerHeight - margin * 2);
+    const left = x - width;
     return [
-        Math.max(margin, Math.min(x, window.innerWidth - width - margin)),
+        Math.max(margin, Math.min(left, window.innerWidth - width - margin)),
         Math.max(margin, Math.min(y, window.innerHeight - height - margin)),
     ];
 }

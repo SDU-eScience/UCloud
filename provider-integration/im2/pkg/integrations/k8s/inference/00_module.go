@@ -53,6 +53,7 @@ type inferenceUsageRow struct {
 	Owner         string
 	Scope         string
 	Usage         int64
+	Remainder     int
 	ReportedUsage int64
 }
 
@@ -405,15 +406,15 @@ func Init() {
 			Provider:    cfg.Provider.Id,
 			ProductType: apm.ProductTypeInference,
 			AccountingUnit: apm.AccountingUnit{
-				Name:       "Token",
-				NamePlural: "Tokens",
+				Name:       "Credit",
+				NamePlural: "Credits",
 			},
 			AccountingFrequency: apm.AccountingFrequencyOnce,
 			FreeToUse:           false,
 			AllowSubAllocations: true,
 		},
 		Name:                      "inference",
-		Description:               "Inference tokens",
+		Description:               "Inference credits",
 		ProductType:               apm.ProductTypeInference,
 		Price:                     1,
 		HiddenInGrantApplications: false,
@@ -422,7 +423,7 @@ func Init() {
 	controller.ProductsRegister([]apm.ProductV2{inferenceGlobals.Product})
 	go inferenceUsageFlushLoop()
 
-	authority := fmt.Sprintf("chat%s", shared.ServiceConfig.Compute.Web.Suffix) // TODO Change for prod
+	authority := shared.ServiceConfig.Compute.Inference.Authority
 	AttachmentInit()
 	gateway.SendMessage(gateway.ConfigurationMessage{
 		RouteUp: &gateway.EnvoyRoute{
@@ -1130,35 +1131,78 @@ func inferenceReportUsage(owner apm.WalletOwner, model InferenceModel, cachedTok
 		outputTokens = 0
 	}
 
-	usageNonNormalized := inferenceUsageMultiply(cachedTokens, model.PriceMultiplier.CachedInput)
-	usageNonNormalized = inferenceUsageAdd(usageNonNormalized, inferenceUsageMultiply(inputTokens, model.PriceMultiplier.Input))
-	usageNonNormalized = inferenceUsageAdd(usageNonNormalized, inferenceUsageMultiply(outputTokens, model.PriceMultiplier.Output))
-	usage := inferenceNormalizeUsage(usageNonNormalized)
+	weightedUsage := inferenceUsageMultiply(cachedTokens, model.PriceMultiplier.CachedInput)
+	weightedUsage = inferenceUsageAdd(weightedUsage, inferenceUsageMultiply(inputTokens, model.PriceMultiplier.Input))
+	weightedUsage = inferenceUsageAdd(weightedUsage, inferenceUsageMultiply(outputTokens, model.PriceMultiplier.Output))
+	usage := weightedUsage / 1000
+	remainder := weightedUsage % 1000
 
 	metricInferenceCachedInputTokens.WithLabelValues(model.Name).Add(float64(cachedTokens))
 	metricInferenceInputTokens.WithLabelValues(model.Name).Add(float64(inputTokens))
 	metricInferenceOutputTokens.WithLabelValues(model.Name).Add(float64(outputTokens))
 	metricInferenceRequests.WithLabelValues(model.Name).Inc()
 
-	if usage == 0 {
-		return
-	}
-
 	scope := fmt.Sprintf("inference-%s-%s-%s", inferenceGlobals.Product.Category.Provider, inferenceGlobals.Product.Category.Name, util.SecureToken())
 	db.NewTx0(func(tx *db.Transaction) {
 		db.Exec(
 			tx,
 			`
-				insert into inference_usage(owner, scope, usage)
-				values (:owner, :scope, :usage)
-				on conflict (owner) do update set
-					usage = case
-						when inference_usage.usage > 9223372036854775807 - excluded.usage then 9223372036854775807
-						else inference_usage.usage + excluded.usage
-					end,
+				insert into inference_usage_by_model(
+					owner,
+					model,
+					usage_day,
+					cached_input_tokens,
+					input_tokens,
+					output_tokens
+				)
+				values (
+					:owner,
+					:model,
+					cast((now() at time zone 'utc') as date),
+					:cached_input_tokens,
+					:input_tokens,
+					:output_tokens
+				)
+				on conflict (owner, model, usage_day) do update set
+					cached_input_tokens = cast((
+						cast(inference_usage_by_model.cached_input_tokens as numeric) + excluded.cached_input_tokens
+					) as bigint),
+					input_tokens = cast((
+						cast(inference_usage_by_model.input_tokens as numeric) + excluded.input_tokens
+					) as bigint),
+					output_tokens = cast((
+						cast(inference_usage_by_model.output_tokens as numeric) + excluded.output_tokens
+					) as bigint),
 					updated_at = now()
 			`,
-			db.Params{"owner": owner.Reference(), "scope": scope, "usage": usage},
+			db.Params{
+				"owner":               owner.Reference(),
+				"model":               model.Name,
+				"cached_input_tokens": int64(cachedTokens),
+				"input_tokens":        int64(inputTokens),
+				"output_tokens":       int64(outputTokens),
+			},
+		)
+		db.Exec(
+			tx,
+			`
+				insert into inference_usage(owner, scope, usage, remainder)
+				values (:owner, :scope, :usage, :remainder)
+				on conflict (owner) do update set
+					usage = cast((
+						cast(inference_usage.usage as numeric)
+							+ excluded.usage
+							+ (inference_usage.remainder + excluded.remainder) / 1000
+					) as bigint),
+					remainder = (inference_usage.remainder + excluded.remainder) % 1000,
+					updated_at = now()
+			`,
+			db.Params{
+				"owner":     owner.Reference(),
+				"scope":     scope,
+				"usage":     usage,
+				"remainder": remainder,
+			},
 		)
 	})
 	select {
@@ -1217,17 +1261,6 @@ func inferenceUsageAdd(a int64, b int64) int64 {
 	return a + b
 }
 
-func inferenceNormalizeUsage(usage int64) int64 {
-	if usage <= 0 {
-		return 0
-	}
-	result := usage / 1000
-	if usage%1000 != 0 {
-		result++
-	}
-	return result
-}
-
 func inferenceUsageFlushLoop() {
 	inferenceFlushUsage()
 	ticker := time.NewTicker(10 * time.Second)
@@ -1248,7 +1281,18 @@ func inferenceFlushUsage() {
 	rows := db.NewTx(func(tx *db.Transaction) []inferenceUsageRow {
 		return db.Select[inferenceUsageRow](
 			tx,
-			`select owner, scope, usage, reported_usage from inference_usage where usage > reported_usage order by owner`,
+			`
+				select
+					owner,
+					scope,
+					usage + 1 as usage,
+					remainder,
+					reported_usage
+				from inference_usage
+				where
+					usage + 1 > reported_usage
+				order by owner
+			`,
 			db.Params{},
 		)
 	})
@@ -1278,7 +1322,10 @@ func inferenceFlushUsage() {
 			db.Exec(
 				tx,
 				`update inference_usage set reported_usage = greatest(reported_usage, :usage) where owner = :owner`,
-				db.Params{"owner": row.Owner, "usage": row.Usage},
+				db.Params{
+					"owner": row.Owner,
+					"usage": row.Usage,
+				},
 			)
 		})
 	}
@@ -1293,7 +1340,7 @@ func inferenceServerBase() string {
 		scheme = "https"
 	}
 
-	return fmt.Sprintf("%s://chat%s/v1", scheme, shared.ServiceConfig.Compute.Web.Suffix)
+	return fmt.Sprintf("%s://%s/v1", scheme, shared.ServiceConfig.Compute.Inference.Authority)
 }
 
 func inferencePageToOrc(page *InferenceModelPage) *orcapi.InferenceModelPage {

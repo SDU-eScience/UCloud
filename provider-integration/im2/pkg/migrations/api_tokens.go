@@ -25,17 +25,7 @@ func apiTokensV1() db.MigrationScript {
 
 			db.Exec(
 				tx,
-				`
-					insert into api_tokens(token_id, token_type, owner, permissions, token_hash, token_salt, expires_at, last_used_at)
-					select token_id, 'inference', owner, '[{"name":"inference","action":"use"}]'::jsonb, token_hash, token_salt, expires_at, last_used_at
-					from inference_api_keys
-				`,
-				db.Params{},
-			)
-
-			db.Exec(
-				tx,
-				`drop table inference_api_keys`,
+				`drop table if exists inference_api_keys`,
 				db.Params{},
 			)
 		},
