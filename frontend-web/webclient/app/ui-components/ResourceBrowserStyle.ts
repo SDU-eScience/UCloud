@@ -336,7 +336,7 @@ export function injectResourceBrowserStyle(rowSize: number) {
             padding-right: 8px; /* So the title doesn't rub up against the second column */
         }
 
-        @media screen and (max-width: 860px) {
+        @container (max-width: 860px) {
             ${BrowserClass.dot} .row .title {
                 width: calc(var(--rowWidth) - var(--stat1Width) - 38px - var(--favoriteWidth) - 16px);
             }
@@ -350,7 +350,7 @@ export function injectResourceBrowserStyle(rowSize: number) {
             gap: 8px;
         }
 
-        @media screen and (max-width: 860px) {
+        @container (max-width: 860px) {
             ${BrowserClass.dot} .stat-wrapper {
                 width: calc(var(--stat1Width));
             }
@@ -363,7 +363,7 @@ export function injectResourceBrowserStyle(rowSize: number) {
             width: 0;
         }
 
-        @media screen and (min-width: 860px) {
+        @container (min-width: 860px) {
             ${BrowserClass.dot} .row .stat1,
             ${BrowserClass.dot} .row .stat2,
             ${BrowserClass.dot} .row .stat3 {
@@ -394,7 +394,7 @@ export function injectResourceBrowserStyle(rowSize: number) {
             }
         }
 
-        @media screen and (max-width: 860px) {
+        @container (max-width: 860px) {
             ${BrowserClass.dot} .row .stat1 {
                 margin-left: auto;
             }
@@ -464,8 +464,8 @@ export function injectResourceBrowserStyle(rowSize: number) {
         ${BrowserClass.dot} .${ShortcutClass} {
             font-family: var(--sansSerif);
         }
-        
-        @media screen and (max-width: 800px) {
+
+        @container (max-width: 800px) {
             ${BrowserClass.dot} .${ShortcutClass}, ${BrowserClass.dot} .ShortCutPlusSymbol {
                 display: none;
             }
@@ -501,7 +501,7 @@ export function injectResourceBrowserStyle(rowSize: number) {
             left: 12px;
         }
 
-        @media screen and (max-width: 860px) {
+        @container (max-width: 860px) {
             ${BrowserClass.dot} .rename-field {
                 width: calc(var(--rowWidth) - var(--stat1Width) - var(--favoriteWidth) - 118px);
             }
