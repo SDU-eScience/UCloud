@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"sync"
 	"time"
 
@@ -154,6 +155,8 @@ func providerClient(providerId string) (*rpc.Client, bool) {
 	})
 }
 
+var providersToSkip = []string{"aau", "lumi-sdu", "aau-k8", "hippo", "sophia"} // HACK(Dan): Need something better
+
 func InvokeProvider[Req any, Resp any](
 	provider string,
 	call rpc.Call[Req, Resp],
@@ -162,6 +165,10 @@ func InvokeProvider[Req any, Resp any](
 ) (Resp, *util.HttpError) {
 	var resp Resp
 	var err *util.HttpError
+
+	if slices.Contains(providersToSkip, provider) {
+		return resp, util.HttpErr(http.StatusServiceUnavailable, "service provider has been skipped")
+	}
 
 	client, ok := providerClient(provider)
 	if !ok {
