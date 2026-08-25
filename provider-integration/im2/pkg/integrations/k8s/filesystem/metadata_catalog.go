@@ -588,10 +588,12 @@ func metadataScanAndPublish(ctx context.Context, scanPath, driveRoot, databasePa
 	}()
 
 	// NOTE(Dan): The process may have stopped after publishing an earlier PATH replacement but before updating its
-	// ancestors or NAME entries. Recover that work before calculating another delta, otherwise a later scan could make
-	// the incomplete update impossible to distinguish from a completed one.
-	if err = metadataRecoverPendingAggregate(db); err != nil {
-		return err
+	// ancestors or NAME entries. Recover that work before calculating another subtree delta. A root scan replaces the
+	// complete PATH keyspace and has no ancestors, so its journal safely supersedes an older pending aggregate update.
+	if len(components) != 0 {
+		if err = metadataRecoverPendingAggregate(db); err != nil {
+			return err
+		}
 	}
 	if err = metadataRecoverPendingNameIndex(db); err != nil {
 		return err
