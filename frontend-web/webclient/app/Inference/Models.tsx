@@ -742,7 +742,7 @@ function CatalogFilterButton(props: React.PropsWithChildren<{active: boolean; on
 }
 
 function ProviderFilterTrigger(props: {selectedProviders: string[]; providerOptions: ModelProviderOption[]}): React.ReactNode {
-    let label = "All providers";
+    let label = "All model providers";
     if (props.selectedProviders.length === 1) {
         label = props.selectedProviders[0];
     } else if (props.selectedProviders.length > 1) {
