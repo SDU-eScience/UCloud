@@ -67,6 +67,15 @@ func TestReadConfig(t *testing.T) {
 	assert.Equal(t, shared.GetConfigPath(), expectedPath)
 }
 
+func TestWorkspaceUse(t *testing.T) {
+	input := []string{"workspace", "use", "wsaf", "--dev"}
+	cmd, err := Parse(input)
+	assert.True(t, cmd.(*command.WorkspaceUseCommand).Dev)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
 func TestWorkspaceList(t *testing.T) {
 	input := []string{"workspace", "list", "--dev"}
 	cmd, err := Parse(input)

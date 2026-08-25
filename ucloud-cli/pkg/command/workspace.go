@@ -13,15 +13,12 @@ type WorkspaceListCommand struct {
 	Dev bool `flag:"dev" usage:"Dev mode"`
 }
 type WorkspaceUseCommand struct {
-	Name string `positional:"name" usage:"Workspace name"`
+	Name string `positional:"name" usage:"Workspace name" required:"true"`
 	Dev  bool   `flag:"dev" usage:"Dev mode"`
 }
 type WorkspaceGetCommand struct {
 	Name string `positional:"name" usage:"Workspace name" required:"true"`
 	Dev  bool   `flag:"dev" usage:"Dev mode"`
-}
-type WorkspaceDeleteCommand struct {
-	Name string `positional:"name" usage:"Workspace name"`
 }
 type WorkspaceRenameCommand struct {
 	FromName string `positional:"from" usage:"Workspace name" required:"true"`
@@ -32,7 +29,6 @@ var WorkspaceCommands = map[string]CommandFunc{
 	"list":   func() Command { return &WorkspaceListCommand{} },
 	"use":    func() Command { return &WorkspaceUseCommand{} },
 	"get":    func() Command { return &WorkspaceGetCommand{} },
-	"delete": func() Command { return &WorkspaceDeleteCommand{} },
 	"rename": func() Command { return &WorkspaceRenameCommand{} },
 }
 
@@ -73,8 +69,41 @@ func (c WorkspaceListCommand) Execute() error {
 	return nil
 }
 
+func checkIfWorkspaceExists(name string) bool {
+	workspaces, err := retrieveWorkspaces()
+	if err != nil {
+		return false
+	}
+	_, ok := workspaces[name]
+	return ok
+}
+
+func checkIfEnviromentExists(name string) bool {
+	cfg, err := shared.ReadConfig()
+	if err != nil {
+		return false
+	}
+	_, ok := cfg.Environments[name]
+	return ok
+}
+
 func (c WorkspaceUseCommand) Execute() error {
-	return fmt.Errorf("workspace use not implemented")
+	shared.InitializeUCloudClient(c.Dev)
+	ok := checkIfWorkspaceExists(c.Name)
+	if !ok {
+		return fmt.Errorf("you don't have this %s workspace", c.Name)
+	}
+
+	cfg, err := shared.UpdateConfig(&shared.Config{
+		CurrentWorkspace: c.Name,
+	})
+	if err != nil {
+		return err
+	}
+	fmt.Println("Workspace updated to ", c.Name)
+	shared.PrintConfig(cfg)
+	return nil
+
 }
 
 func (c WorkspaceGetCommand) Execute() error {
@@ -121,10 +150,6 @@ func (c WorkspaceGetCommand) Execute() error {
 	t.Print()
 
 	return nil
-}
-
-func (c WorkspaceDeleteCommand) Execute() error {
-	return fmt.Errorf("workspace delete not implemented")
 }
 
 func (c WorkspaceRenameCommand) Execute() error {

@@ -147,7 +147,8 @@ func saveConfig(token string, username string) error {
 	cfg.TokenRef = token
 	cfg.Username = username
 
-	return shared.SaveConfig(cfg)
+	_, saveErr := shared.SaveConfig(cfg)
+	return saveErr
 }
 
 func performConnection(dev bool) error {
