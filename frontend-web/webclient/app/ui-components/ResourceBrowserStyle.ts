@@ -2,9 +2,17 @@ import {injectStyle, makeClassName} from "@/Unstyled";
 
 let didInject = false;
 
+export enum BrowserSize {
+    LARGE = 1080,
+    MEDIUM = 860,
+    SMALL = 600,
+    TINY = 460,
+}
+
 const BrowserClass = makeClassName("browser");
 export function injectResourceBrowserStyle(rowSize: number) {
     if (!didInject) injectStyle("ignored", () => `
+
         body[data-cursor=not-allowed] * {
             cursor: not-allowed !important;
         }
@@ -12,7 +20,7 @@ export function injectResourceBrowserStyle(rowSize: number) {
         body[data-cursor=grabbing] * {
             cursor: grabbing !important;
         }
-        
+
         body[data-no-select=true] * {
             user-select: none;
             -webkit-user-select: none;
@@ -39,14 +47,14 @@ export function injectResourceBrowserStyle(rowSize: number) {
             user-select: none;
             -webkit-user-select: none;
         }
-        
+
         ${BrowserClass.dot} .file-drag-indicator-content {
             z-index: 10001;
             width: 400px;
             margin: 16px;
             white-space: pre;
         }
-        
+
         ${BrowserClass.dot} .favorite > img {
             display: none;
         }
@@ -60,8 +68,8 @@ export function injectResourceBrowserStyle(rowSize: number) {
             display: block;
         }
 
-        ${BrowserClass.dot} header[data-has-filters] .filters, 
-        ${BrowserClass.dot} header[data-has-filters] .session-filters, 
+        ${BrowserClass.dot} header[data-has-filters] .filters,
+        ${BrowserClass.dot} header[data-has-filters] .session-filters,
         ${BrowserClass.dot} header[data-has-filters] .right-sort-filters {
             display: flex;
             margin-top: 12px;
@@ -78,7 +86,7 @@ export function injectResourceBrowserStyle(rowSize: number) {
             overflow: hidden;
             border-radius: 6px;
         }
-     
+
         ${BrowserClass.dot} .file-drag-indicator.animate {
         }
 
@@ -122,7 +130,7 @@ export function injectResourceBrowserStyle(rowSize: number) {
             white-space: pre;
             align-items: center;
         }
-        
+
         ${BrowserClass.dot} header[data-no-gap] ul {
             gap: 0;
         }
@@ -137,7 +145,7 @@ export function injectResourceBrowserStyle(rowSize: number) {
             flex-shrink: 0;
             overflow: hidden;
         }
-        
+
         ${BrowserClass.dot} header[data-has-filters], ${BrowserClass.dot} header[data-has-allocations] {
             height: 136px;
         }
@@ -170,17 +178,17 @@ export function injectResourceBrowserStyle(rowSize: number) {
         ${BrowserClass.dot} header[has-location-bar] .location:focus-within {
             border-color: var(--primaryMain);
         }
-        
+
         ${BrowserClass.dot} header[has-location-bar] .location li:hover {
             user-select: none;
             -webkit-user-select: none;
         }
-        
+
         ${BrowserClass.dot} header[has-location-bar] .location li:hover {
             cursor: pointer;
             text-decoration: underline;
         }
-        
+
         ${BrowserClass.dot} header[has-location-bar] .location {
             flex-grow: 1;
             border: 1px solid var(--borderColor);
@@ -196,7 +204,7 @@ export function injectResourceBrowserStyle(rowSize: number) {
             max-width: 480px;
             overflow-x: clip;
         }
-        
+
         ${BrowserClass.dot} header[has-location-bar] .location input {
             outline: none;
             border: 0;
@@ -232,7 +240,7 @@ export function injectResourceBrowserStyle(rowSize: number) {
         ${BrowserClass.dot} header .search-field-wrapper:has(> input.search-field[data-hidden]) {
             width: 0;
         }
-        
+
         /* If not hidden, make of for the relative position */
         ${BrowserClass.dot} header .search-field-wrapper:not(:has(> input.search-field[data-hidden])) {
             margin-left: -46px;
@@ -241,7 +249,7 @@ export function injectResourceBrowserStyle(rowSize: number) {
         ${BrowserClass.dot} header .search-field-wrapper > input.search-field[data-hidden] {
             border: none;
         }
-                    
+
         ${BrowserClass.dot} header > div > div > ul {
             margin-top: 0px;
         }
@@ -249,7 +257,7 @@ export function injectResourceBrowserStyle(rowSize: number) {
         ${BrowserClass.dot} header[has-location-bar] > div > div > ul {
             margin-left: 7px;
         }
-        
+
         ${BrowserClass.dot} header > div > div > ul[data-no-slashes="true"] li::before {
             display: inline-block;
             content: unset;
@@ -288,7 +296,7 @@ export function injectResourceBrowserStyle(rowSize: number) {
         ${BrowserClass.dot} .row:first-of-type {
             border-top: 0px;
         }
-        
+
         ${BrowserClass.dot} .rows-title {
             max-height: 40px;
             height: 40px;
@@ -302,7 +310,7 @@ export function injectResourceBrowserStyle(rowSize: number) {
             border-bottom: 1.5px solid var(--borderColor);
             border-top: 0;
         }
-        
+
         body[data-cursor=grabbing] ${BrowserClass.dot} .row:hover {
             background-color: var(--rowHover);
         }
@@ -312,13 +320,13 @@ export function injectResourceBrowserStyle(rowSize: number) {
         }
 
         ${BrowserClass.dot} .row[data-selected="true"] {
-            /* NOTE(Dan): We only have an active state, as a result we just use the hover variable. As the active 
+            /* NOTE(Dan): We only have an active state, as a result we just use the hover variable. As the active
                variable is intended for differentiation between the two. This is consistent with how it is used in
                the Tree component */
-            background: var(--rowHover); 
+            background: var(--rowHover);
         }
 
-        ${BrowserClass.dot} .row .title{
+        ${BrowserClass.dot} .row .title {
             display: flex;
             align-items: center;
 
@@ -369,7 +377,7 @@ export function injectResourceBrowserStyle(rowSize: number) {
             ${BrowserClass.dot} .row .stat1 {
                 width: var(--stat1Width);
             }
-            
+
             ${BrowserClass.dot} .row .stat2 {
                 width: var(--stat2Width);
             }
@@ -452,7 +460,7 @@ export function injectResourceBrowserStyle(rowSize: number) {
             align-items: center;
             gap: 8px;
         }
-        
+
         ${BrowserClass.dot} .${ShortcutClass} {
             font-family: var(--sansSerif);
         }
@@ -472,14 +480,14 @@ export function injectResourceBrowserStyle(rowSize: number) {
             border-top-left-radius: 8px;
             border-top-right-radius: 8px;
         }
-        
+
         ${BrowserClass.dot} .context-menu > ul > *:last-child,
          ${BrowserClass.dot} .context-menu > ul > li:last-child,
          ${BrowserClass.dot} .context-menu > ul > li:last-child > button {
             border-bottom-left-radius: 8px;
             border-bottom-right-radius: 8px;
         }
-        
+
         ${BrowserClass.dot} .rename-field {
             display: none;
             position: absolute;
@@ -511,7 +519,7 @@ export function injectResourceBrowserStyle(rowSize: number) {
             gap: 16px;
             text-align: center;
         }
-        
+
         ${BrowserClass.dot} .page-empty .graphic {
             background: var(--primaryMain);
             min-height: 100px;
@@ -521,7 +529,7 @@ export function injectResourceBrowserStyle(rowSize: number) {
             align-items: center;
             justify-content: center;
         }
-        
+
         ${BrowserClass.dot} .page-empty .provider-reason {
             font-style: italic;
         }
@@ -529,11 +537,11 @@ export function injectResourceBrowserStyle(rowSize: number) {
         ${BrowserClass.dot} div > div.right-sort-filters {
             margin-left: auto;
         }
-        
+
         ${BrowserClass.dot} .refresh-icon {
             transition: transform 0.5s;
         }
-        
+
         ${BrowserClass.dot} .refresh-icon:hover {
             transform: rotate(45deg);
         }
@@ -560,12 +568,12 @@ export const ShortcutClass = injectStyle("shortcut", k => `
         -webkit-user-select: none;
         padding: 0 5px;
     }
-    
+
     html.light ${k} {
         --shortcutBackground: var(--backgroundDefault);
         --shortcutBorderColor: var(--gray-70);
     }
-    
+
     html.dark ${k} {
         --shortcutBackground: var(--backgroundDefault);
         --shortcutBorderColor: var(--gray-60);

@@ -55,7 +55,7 @@ export const SecondarySplitDropdownTrigger = injectStyle("secondary-split-dropdo
         padding: 6px;
         border-top-left-radius: 0;
         border-bottom-left-radius: 0;
-        border-left 1px;
+        border-left: 1px;
         cursor: pointer;
     }
 

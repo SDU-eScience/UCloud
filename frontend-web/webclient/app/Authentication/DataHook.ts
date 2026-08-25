@@ -298,7 +298,7 @@ export function useCloudAPI<T, Parameters = any>(
     const initialCall = useRef(true);
 
     const [state, dispatch] = useReducer(dataFetchReducer, {
-        loading: false,
+        loading: true,
         error: undefined,
         data: dataInitial
     });

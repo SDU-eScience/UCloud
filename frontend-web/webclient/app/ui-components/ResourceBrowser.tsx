@@ -46,7 +46,7 @@ import * as Heading from "@/ui-components/Heading";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {isAdminOrPI} from "@/Project";
 import {noopCall} from "@/Authentication/DataHook";
-import {injectResourceBrowserStyle, ShortcutClass} from "./ResourceBrowserStyle";
+import {BrowserSize, injectResourceBrowserStyle, ShortcutClass} from "./ResourceBrowserStyle";
 import {ASC, DESC, Filter, FilterCheckbox, FilterInput, FilterOption, FilterWithOptions, MultiOption, MultiOptionFilter, SORT_BY, SORT_DIRECTION} from "./ResourceBrowserFilters";
 import {sendInformationNotification} from "@/Notifications";
 import ReactClient from "react-dom/client";
@@ -303,11 +303,11 @@ interface ResourceBrowserListenerMap<T> {
     "unhandledShortcut": (ev: KeyboardEvent) => void;
 
     "startRenderPage": () => void;
-    "renderTitle": (entry: T, title: HTMLElement, row: ResourceBrowserRow, dimensions: RenderDimensions) => void;
-    "renderStat1": (entry: T, stat: HTMLElement, row: ResourceBrowserRow, dimensions: RenderDimensions) => void;
-    "renderStat2": (entry: T, stat: HTMLElement, row: ResourceBrowserRow, dimensions: RenderDimensions) => void;
-    "renderStat3": (entry: T, stat: HTMLElement, row: ResourceBrowserRow, dimensions: RenderDimensions) => void;
-    "renderStat4": (entry: T, stat: HTMLElement, row: ResourceBrowserRow, dimensions: RenderDimensions) => void;
+    "renderTitle": (entry: T, title: HTMLElement, row: ResourceBrowserRow, size: BrowserSize, dims: RenderDimensions) => void;
+    "renderStat1": (entry: T, stat: HTMLElement, row: ResourceBrowserRow, size: BrowserSize) => void;
+    "renderStat2": (entry: T, stat: HTMLElement, row: ResourceBrowserRow, size: BrowserSize) => void;
+    "renderStat3": (entry: T, stat: HTMLElement, row: ResourceBrowserRow, size: BrowserSize) => void;
+    "renderStat4": (entry: T, stat: HTMLElement, row: ResourceBrowserRow, size: BrowserSize) => void;
     "endRenderPage": () => void;
 
     // skipOpen is called pre-navigation/calling "open". If it returns `true`, calling open is skipped.
@@ -318,8 +318,6 @@ interface ResourceBrowserListenerMap<T> {
     "searchHidden": () => void;
 
     "useFolder": () => void;
-    // UNUSED?
-    "useEntry": (entry: T) => void;
 
     "copy": (entries: T[], target: string) => void;
     "move": (entries: T[], target: string) => void;
@@ -1228,60 +1226,26 @@ export class ResourceBrowser<T> {
             const x = this.scrollingContainerLeft + relativeX;
             const y = this.scrollingContainerTop + relativeY - firstVisiblePixel;
 
-            this.dispatchMessage("renderTitle", fn => fn(
-                entry,
-                row.title,
-                row,
-                {
-                    width: containerWidth,
-                    height: ResourceBrowser.rowSize,
-                    x, y
-                }
-            ));
+            const browserSize = browserSizeFromWidth(this.scrollingContainerWidth);
+            console.log(BrowserSize[browserSize], this.scrollingContainerWidth);
 
-            this.dispatchMessage("renderStat1", fn => fn(
-                entry,
-                row.stat1,
-                row,
-                {
-                    width: containerWidth,
-                    height: ResourceBrowser.rowSize,
-                    x, y
-                }
-            ));
+            this.dispatchMessage("renderTitle", fn => fn(entry, row.title, row, browserSize, {
+                width: containerWidth,
+                height: ResourceBrowser.rowSize,
+                x, y
+            }));
 
-            this.dispatchMessage("renderStat2", fn => fn(
-                entry,
-                row.stat2,
-                row,
-                {
-                    width: containerWidth,
-                    height: ResourceBrowser.rowSize,
-                    x, y
-                }
-            ));
+            this.dispatchMessage("renderStat1", fn => fn(entry, row.stat1, row, browserSize));
 
-            this.dispatchMessage("renderStat3", fn => fn(
-                entry,
-                row.stat3,
-                row,
-                {
-                    width: containerWidth,
-                    height: ResourceBrowser.rowSize,
-                    x, y
+            if (browserSize >= BrowserSize.SMALL) {
+                this.dispatchMessage("renderStat2", fn => fn(entry, row.stat2, row, browserSize));
+                if (browserSize >= BrowserSize.MEDIUM) {
+                    this.dispatchMessage("renderStat3", fn => fn(entry, row.stat3, row, browserSize));
+                    if (browserSize >= BrowserSize.LARGE) {
+                        this.dispatchMessage("renderStat4", fn => fn(entry, row.stat4, row, browserSize));
+                    }
                 }
-            ));
-
-            this.dispatchMessage("renderStat4", fn => fn(
-                entry,
-                row.stat4,
-                row,
-                {
-                    width: containerWidth,
-                    height: ResourceBrowser.rowSize,
-                    x, y
-                }
-            ));
+            }
         }
         this.dispatchMessage("endRenderPage", fn => fn());
 
@@ -3582,7 +3546,7 @@ export function resourceCreationWithProductSelector<T>(
         ResourceBrowser.resetTitleComponent(productSelector);
     });
 
-    browser.on("renderTitle", (entry, _, __, dims) => {
+    browser.on("renderTitle", (entry, _, __, ___, dims) => {
         if (entry !== dummyEntry) return;
         if (selectedProduct !== null) return;
         dims.x -= 52;
@@ -3813,6 +3777,13 @@ function ControlsDialog({features, custom}: {features: ResourceBrowseFeatures, c
             </tbody>
         </table>
     </div>
+}
+
+function browserSizeFromWidth(width: number): BrowserSize {
+    if (width >= BrowserSize.LARGE) return BrowserSize.LARGE;
+    if (width >= BrowserSize.MEDIUM) return BrowserSize.MEDIUM;
+    if (width >= BrowserSize.SMALL) return BrowserSize.SMALL;
+    return BrowserSize.TINY;
 }
 
 export function controlsOperation<T>(features: ResourceBrowseFeatures, custom?: ControlDescription[]): Operation<T, {

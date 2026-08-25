@@ -52,6 +52,7 @@ import {divText} from "@/Utilities/HTMLUtilities";
 import {TruncateClass} from "@/ui-components/Truncate";
 import {sendFailureNotification} from "@/Notifications";
 import {ProductCompute} from "@/Accounting";
+import { BrowserSize } from "@/ui-components/ResourceBrowserStyle";
 
 const defaultRetrieveFlags: {itemsPerPage: number} = {
     itemsPerPage: 250,
@@ -219,7 +220,12 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                     }));
                 });
 
-                browser.on("renderStat1", (job, stat) => {
+                browser.on("renderStat1", (job, stat, row, size) => {
+                    if (size === BrowserSize.SMALL || size === BrowserSize.TINY) {
+                        browser.dispatchMessage("renderStat3", fn => fn(job, stat, row, size));
+                        return;
+                    }
+
                     if (!simpleView) {
                         if (job.owner.createdBy === "_ucloud") {
                             stat.innerHTML = "";
