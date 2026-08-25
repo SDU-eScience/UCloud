@@ -119,8 +119,6 @@ func waitForIntervalOrShutdown(ctx context.Context, interval time.Duration) bool
 func initStartup() {
 	_, _, _ = util.RunCommand([]string{"sudo", "ln", "-s", "/opt/ucloud/ucloud-job-introspection", "/usr/bin/ucloud"})
 
-	driveSynchronizeWithFstab()
-
 	err := ApplyMountOverrides(
 		context.Background(),
 		[]string{"/work", "/etc/ucloud", "/opt/ucloud", "/opt/ucloud-ucx"},
@@ -133,6 +131,8 @@ func initStartup() {
 	if err != nil {
 		log.Info("Failed to apply systemd mount overrides: %s", err)
 	}
+
+	driveSynchronizeWithFstab()
 
 	startInitializationScript() // NOTE(Dan): Needs to run after mounts
 }

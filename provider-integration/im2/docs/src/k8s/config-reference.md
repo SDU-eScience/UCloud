@@ -229,6 +229,7 @@ services:
 
     inference:
       enabled: true
+      authority: "ai.example.org"
       provider: development
       development:
         provider: localai

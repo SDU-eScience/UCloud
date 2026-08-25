@@ -20,6 +20,7 @@ import AppRoutes from "@/Routes";
 import Routes from "@/Routes";
 import {getStoredProject} from "@/Project/ReduxState";
 import {sendFailureNotification} from "@/Notifications";
+import {useState} from "react";
 
 const API_TOKEN_TITLE_KEY = "api-title";
 const API_TOKEN_DESCRIPTION_KEY = "api-description";
@@ -41,62 +42,68 @@ function Add() {
     const mappedServiceProviders = serviceProviders.map(it => ({key: it}));
 
     const availablePermissions = optionsData[serviceProvider]?.availablePermissions ?? [];
+    const [loading, setLoading] = useState(false);
 
 
     const submit = React.useCallback(async () => {
-        const titleElement = document.getElementById(API_TOKEN_TITLE_KEY) as HTMLInputElement;
-        const title = titleElement.value.replace(/^\.+/, "");
-        titleElement.value = title;
-        const descriptionElement = document.getElementById(API_TOKEN_DESCRIPTION_KEY) as HTMLInputElement;
-        const description = descriptionElement.value;
-
-        const requestedPermissions: Api.ApiTokenPermission[] = [];
-
-        for (const permission of activePermissions) {
-            requestedPermissions.push({
-                name: permission,
-                action: (document.querySelector(`[data-permission=${permission}]`) as HTMLSelectElement).value
-            });
-        }
-
-        if (!title) {
-            titleElement.setAttribute("data-error", "true");
-            sendFailureNotification("Title is required");
-            return;
-        }
-
-        if (date == null) {
-            sendFailureNotification("Expiration date cannot be empty");
-            return;
-        }
-
-        if (date.getTime() < new Date().getTime()) {
-            sendFailureNotification("Expiration date cannot be in the past");
-            return;
-        }
-
-        const provider = serviceProvider === "" ? null : serviceProvider;
-
         try {
-            const result = await callAPI<ApiToken>({
-                ...Api.create({
-                    title,
-                    description,
-                    requestedPermissions,
-                    expiresAt: date.getTime(),
-                    provider: provider,
-                    product: {
-                        category: "",
-                        id: "",
-                        provider: ""
-                    },
-                }),
-                projectOverride: provider == null ? projectId ?? "" : undefined
-            });
+            setLoading(true);
+            const titleElement = document.getElementById(API_TOKEN_TITLE_KEY) as HTMLInputElement;
+            const title = titleElement.value.replace(/^\.+/, "");
+            titleElement.value = title;
+            const descriptionElement = document.getElementById(API_TOKEN_DESCRIPTION_KEY) as HTMLInputElement;
+            const description = descriptionElement.value;
 
-            setTokenStatus(result.status);
-        } catch (err) {
-            displayErrorMessageOrDefault(err, "Failed to generate token.")
+            const requestedPermissions: Api.ApiTokenPermission[] = [];
+
+            for (const permission of activePermissions) {
+                requestedPermissions.push({
+                    name: permission,
+                    action: (document.querySelector(`[data-permission=${permission}]`) as HTMLSelectElement).value
+                });
+            }
+
+            if (!title) {
+                titleElement.setAttribute("data-error", "true");
+                sendFailureNotification("Title is required");
+                return;
+            }
+
+            if (date == null) {
+                sendFailureNotification("Expiration date cannot be empty");
+                return;
+            }
+
+            if (date.getTime() < new Date().getTime()) {
+                sendFailureNotification("Expiration date cannot be in the past");
+                return;
+            }
+
+            const provider = serviceProvider === "" ? null : serviceProvider;
+
+            try {
+                const result = await callAPI<ApiToken>({
+                    ...Api.create({
+                        title,
+                        description,
+                        requestedPermissions,
+                        expiresAt: date.getTime(),
+                        provider: provider,
+                        product: {
+                            category: "",
+                            id: "",
+                            provider: ""
+                        },
+                    }),
+                    projectOverride: provider == null ? projectId ?? "" : undefined
+                });
+
+                setTokenStatus(result.status);
+            } catch (err) {
+                displayErrorMessageOrDefault(err, "Failed to generate token.")
+            }
+        } finally {
+            setLoading(false);
         }
     }, [serviceProvider, activePermissions, date, projectId]);
 
@@ -185,7 +192,7 @@ function Add() {
                 </div>
             </div>}
             <Flex gap={"8px"}>
-                <Button onClick={submit} color={"successMain"}>Generate token</Button>
+                <Button onClick={submit} color={"successMain"} disabled={loading}>Generate token</Button>
                 <Link to={Routes.resources.apiTokens()}>
                     <Button onClick={doNothing} color={"secondaryMain"}>Cancel</Button>
                 </Link>

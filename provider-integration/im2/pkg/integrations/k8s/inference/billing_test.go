@@ -64,15 +64,16 @@ func TestInferenceUsesReportedUsage(t *testing.T) {
 	}
 }
 
-func TestInferenceUsageArithmeticRoundsUpAndSaturates(t *testing.T) {
+func TestInferenceUsageArithmeticSplitsAndSaturates(t *testing.T) {
 	if got := inferenceUsageMultiply(1, 1999); got != 1999 {
 		t.Fatalf("unexpected multiplication result: %d", got)
 	}
 	if got := inferenceUsageAdd(inferenceUsageMultiply(int(^uint(0)>>1), int(^uint(0)>>1)), 1); got <= 0 {
 		t.Fatalf("expected saturated positive result, got %d", got)
 	}
-	if got := inferenceNormalizeUsage(1999); got != 2 {
-		t.Fatalf("expected ceiling normalization to produce 2, got %d", got)
+	weighted := int64(1999)
+	if usage, remainder := weighted/1000, weighted%1000; usage != 1 || remainder != 999 {
+		t.Fatalf("expected 1 whole token and a remainder of 999, got %d and %d", usage, remainder)
 	}
 }
 

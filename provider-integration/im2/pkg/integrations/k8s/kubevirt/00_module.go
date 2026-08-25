@@ -385,11 +385,11 @@ func vmiFsMutator() {
 					}...)
 
 					for argIdx, arg := range container.Args {
-						if arg == "--cache=auto" {
+						if arg == "--cache=auto" || arg == "--cache=metadata" {
 							ops = append(ops, jsonPatchOp{
 								Op:    "replace",
 								Path:  fmt.Sprintf("/spec/containers/%d/args/%d", cIdx, argIdx),
-								Value: "--cache=metadata",
+								Value: "--cache=never",
 							})
 						}
 					}
