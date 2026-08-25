@@ -179,6 +179,7 @@ function Add() {
     const [projectId, setProjectId] = React.useState<string | undefined>(getStoredProject() ?? undefined);
     const [activePermissions, setActivePermissions] = React.useState(new Map<string, Set<string>>());
     const [tokenStatus, setTokenStatus] = React.useState<ApiTokenStatus | null>(null);
+    const [loading, setLoading] = React.useState(false);
 
     const mappedServiceProviders = serviceProviders.map(it => ({key: it}));
 
@@ -226,6 +227,7 @@ function Add() {
             return;
         }
 
+        setLoading(true);
         try {
             const result = await callAPI<ApiToken>({
                 ...Api.create({
@@ -246,10 +248,12 @@ function Add() {
             setTokenStatus(result.status);
         } catch (err) {
             displayErrorMessageOrDefault(err, "Failed to generate token.")
+        } finally {
+            setLoading(false);
         }
     }, [serviceProvider, activePermissions, date, projectId, selectedService]);
 
-    useSubmitShortcut(submit, tokenStatus != null);
+    useSubmitShortcut(submit, tokenStatus != null || loading);
 
     let main: React.ReactNode = null;
 
@@ -398,7 +402,7 @@ function Add() {
                     <Link to={Routes.resources.apiTokens()}>
                         <Button onClick={doNothing} color={"secondaryMain"}>Cancel</Button>
                     </Link>
-                    <Button onClick={submit} color={"successMain"}>Generate token<SubmitShortcut /></Button>
+                    <Button onClick={submit} color={"successMain"} disabled={loading}>Generate token<SubmitShortcut /></Button>
                 </div>
             </div>
             </KeyboardNavigation>
