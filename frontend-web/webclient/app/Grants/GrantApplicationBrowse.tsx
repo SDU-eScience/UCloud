@@ -10,7 +10,7 @@ import * as React from "react";
 import {useDispatch} from "react-redux";
 import {useLocation, useNavigate} from "react-router-dom";
 import {usePage} from "@/Navigation/Redux";
-import {callAPI} from "@/Authentication/DataHook";
+import {callAPI, noopCall} from "@/Authentication/DataHook";
 import MainContainer from "@/ui-components/MainContainer";
 import AppRoutes from "@/Routes";
 import {IconName} from "@/ui-components/Icon";
@@ -142,7 +142,7 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                     browser.registerPage(result, path, false);
                 });
 
-                browser.on("renderRow", (app, row, dims) => {
+                browser.on("renderTitle", (app, title, row) => {
                     const stateIconAndColor = stateToIconAndColor(app.status.overallState);
                     const statusIconName = stateIconAndColor.icon;
                     const statusIconColor = stateIconAndColor.color;
@@ -159,7 +159,7 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
 
                     status.style.width = "24px";
                     status.style.height = "24px";
-                    row.title.append(status);
+                    title.append(status);
 
                     let subtitle: string = "";
                     let grantTitle = app.createdBy;
@@ -188,7 +188,7 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
 
                     let combinedTitle = `${app.id}: ${grantTitle}`;
 
-                    row.title.append(ResourceBrowser.defaultTitleRenderer(combinedTitle, row));
+                    title.append(ResourceBrowser.defaultTitleRenderer(combinedTitle, row));
 
                     if (opts?.both) {
                         const currentRevision = app.status.revisions.at(0);
@@ -200,20 +200,15 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                                     style: {color: "var(--textSecondary)"},
                                 });
                                 text.innerText = " (ingoing)";
-                                row.title.append(text);
+                                title.append(text);
                             }
                         }
                     }
-                    row.stat2.innerText = dateToString(app.currentRevision.createdAt);
+                });
 
-                    if (!simpleView) {
-                        row.stat2.innerText = dateToString(app.currentRevision.createdAt ?? timestampUnixMs());
-                    } else {
-                        row.stat2.innerText = dateToDateStringOrTime(app.currentRevision.createdAt ?? timestampUnixMs());
-                    }
-
-                    row.stat1.style.justifyContent = "left";
-                    SimpleAvatarComponentCache.appendTo(row.stat1, app.createdBy, `Created by ${app.createdBy}`).then(wrapper => {
+                browser.on("renderStat1", (app, stat) => {
+                    stat.style.justifyContent = "left";
+                    SimpleAvatarComponentCache.appendTo(stat, app.createdBy, `Created by ${app.createdBy}`).then(wrapper => {
                         if (!simpleView) {
                             const div = divText(app.createdBy);
                             div.style.marginTop = div.style.marginBottom = "auto";
@@ -224,7 +219,19 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                             wrapper.style.display = "flex";
                         }
                     });
+                });
 
+                browser.on("renderStat2", (app, stat) => {
+                    stat.innerText = dateToString(app.currentRevision.createdAt);
+
+                    if (!simpleView) {
+                        stat.innerText = dateToString(app.currentRevision.createdAt ?? timestampUnixMs());
+                    } else {
+                        stat.innerText = dateToDateStringOrTime(app.currentRevision.createdAt ?? timestampUnixMs());
+                    }
+                });
+
+                browser.on("renderStat3", (app, stat) => {
                     if (!simpleView) {
                         const div = divText(app.status.comments.length.toString());
                         div.style.display = "flex";
@@ -242,7 +249,7 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                         }
                         div.append(circle);
 
-                        row.stat3.append(div);
+                        stat.append(div);
                     }
                 });
 

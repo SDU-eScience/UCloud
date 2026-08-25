@@ -103,18 +103,17 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<ProjectInvite> & Set
 
                 browser.on("fetchFilters", () => []);
 
-                browser.on("renderRow", (invite, row, dims) => {
-                    row.title.append(ResourceBrowser.defaultTitleRenderer(invite.projectTitle, row));
-                    SimpleAvatarComponentCache.appendTo(row.stat3, invite.invitedBy, `Invited by ${invite.invitedBy}`);
+                browser.on("renderTitle", (invite, title, row) => {
+                    title.append(ResourceBrowser.defaultTitleRenderer(invite.projectTitle, row));
+                });
 
-                    row.stat2.innerText = format(invite.createdAt, "hh:mm dd/MM/yyyy");
-                    row.stat2.style.marginTop = row.stat2.style.marginBottom = "auto";
+                browser.on("renderStat1", (invite, stat) => {
                     const group = createHTMLElements<HTMLDivElement>({
                         tagType: "div",
                         className: ButtonGroupClass,
                         style: {marginTop: "auto", marginBottom: "auto"}
                     });
-                    row.stat1.append(group);
+                    stat.append(group);
                     group.appendChild(browser.defaultButtonRenderer({
                         onClick: async () => {
                             await callAPI(api.acceptInvite(bulkRequestOf({project: invite.invitedTo})))
@@ -135,6 +134,15 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<ProjectInvite> & Set
                         },
                         text: "Decline"
                     }, invite, {color: "errorMain", width: "72px"})!);
+                });
+
+                browser.on("renderStat2", (invite, stat) => {
+                    stat.innerText = format(invite.createdAt, "hh:mm dd/MM/yyyy");
+                    stat.style.marginTop = stat.style.marginBottom = "auto";
+                });
+
+                browser.on("renderStat3", (invite, stat) => {
+                    SimpleAvatarComponentCache.appendTo(stat, invite.invitedBy, `Invited by ${invite.invitedBy}`);
                 });
 
                 browser.setEmptyIcon("play");

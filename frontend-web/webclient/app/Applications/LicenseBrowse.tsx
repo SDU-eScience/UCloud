@@ -1,4 +1,4 @@
-import {callAPI} from "@/Authentication/DataHook";
+import {callAPI, noopCall} from "@/Authentication/DataHook";
 import MainContainer from "@/ui-components/MainContainer";
 import {usePage} from "@/Navigation/Redux";
 import {
@@ -153,24 +153,26 @@ export function LicenseBrowse({
                     setFilterStorageValue(browser.resourceName, "status", "READY");
                 }
 
-                browser.on("renderRow", (license, row, dims) => {
-                    const {provider} = license.specification.product;
+                browser.on("renderTitle", (license, title, row) => {
+                    const { provider } = license.specification.product;
                     if (provider) {
                         const icon = providerIcon(license.specification.product.provider);
                         icon.style.marginRight = "8px";
-                        row.title.append(icon);
+                        title.append(icon);
                     }
 
                     if (license.id !== DUMMY_ENTRY_ID) {
-                        const {product} = license.specification;
-                        const title = `${product.id}${(license.id ? ` (${license.id})` : "")}`;
-                        row.title.append(ResourceBrowser.defaultTitleRenderer(title, row));
+                        const { product } = license.specification;
+                        const titleContent = `${product.id}${(license.id ? ` (${license.id})` : "")}`;
+                        title.append(ResourceBrowser.defaultTitleRenderer(titleContent, row));
                     }
+                });
 
+                browser.on("renderStat3", (license, stat) => {
                     if (opts?.selection) {
                         const button = browser.defaultButtonRenderer(opts.selection, license);
                         if (button) {
-                            row.stat3.replaceChildren(button);
+                            stat.replaceChildren(button);
                         }
                     }
                 });
@@ -275,8 +277,8 @@ export function LicenseBrowse({
                                     )).responses[0] as unknown as FindByStringId;
 
                                     /* Note(Jonas): I can't find the creation function in the backend,
-                                       but either I'm sending it in the wrong way, or permissions are ignored when creating them initially.  
-                                       
+                                       but either I'm sending it in the wrong way, or permissions are ignored when creating them initially.
+
                                        Seems to be ignored in the backend.
                                     */
                                     if (response) {

@@ -142,14 +142,13 @@ function FavoriteBrowse({selection, navigateToFolder}: {
                     return renderFileIconFromProperties(ext4, isDirectory || isLikelyDirectory(filePath), fileInfo?.status.icon);
                 };
 
-                browser.on("renderRow", (fav, row, containerWidth) => {
-                    const fileInfo = sidebarFavoriteCache.fileInfoIfPresent(fav.path);
+                browser.on("renderTitle", (fav, title, row) => {
                     const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
                     renderFileIcon(fav.path).then(setIcon)
-                    row.title.append(icon);
+                    title.append(icon);
 
-                    const title = ResourceBrowser.defaultTitleRenderer(fileName(fav.path), row);
-                    row.title.append(title);
+                    const titleContent = ResourceBrowser.defaultTitleRenderer(fileName(fav.path), row);
+                    title.append(titleContent);
 
                     const favoriteIcon = favoriteRowIcon(row);
 
@@ -162,10 +161,13 @@ function FavoriteBrowse({selection, navigateToFolder}: {
                     }).then(icon => favoriteIcon.src = icon);
 
                     row.star.setAttribute("data-favorite", "true");
+                });
 
+                browser.on("renderStat3", (fav, stat) => {
+                    const fileInfo = sidebarFavoriteCache.fileInfoIfPresent(fav.path);
                     const button = browser.defaultButtonRenderer(selection, fileInfo ?? fav);
                     if (button) {
-                        row.stat3.append(button);
+                        stat.append(button);
                     }
                 });
 
