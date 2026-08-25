@@ -3,7 +3,9 @@ package command
 import (
 	"fmt"
 
+	"ucloud.dk/shared/pkg/cli"
 	fndapi "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/termio"
 	"ucloud.dk/ucloud_cli/pkg/shared"
 )
 
@@ -54,9 +56,20 @@ func (c WorkspaceListCommand) Execute() error {
 	if err != nil {
 		return err
 	}
-	for key := range workspaces {
-		fmt.Println(key)
+	t := termio.Table{}
+	t.AppendHeader("Workspaces")
+	t.AppendHeader("Id")
+	t.AppendHeader("Parent")
+	t.AppendHeader("CanConsumeResources")
+	t.AppendHeader("CreatedAt")
+	for key, v := range workspaces {
+		t.Cell("%v", key)
+		t.Cell("%v", v.Id)
+		t.Cell("%v", v.Specification.Parent.GetOrDefault(""))
+		t.Cell("%v", v.Specification.CanConsumeResources)
+		t.Cell("%v", cli.FormatTime(v.CreatedAt))
 	}
+	t.Print()
 	return nil
 }
 
@@ -74,8 +87,38 @@ func (c WorkspaceGetCommand) Execute() error {
 	if !ok {
 		return fmt.Errorf("workspace %s not found", c.Name)
 	}
-	fmt.Println(found.Specification.Title)
-	fmt.Println(found)
+	t := termio.Table{}
+
+	t.AppendHeader("Workspace")
+	t.AppendHeader("Id")
+	t.AppendHeader("Parent")
+	t.AppendHeader("CreatedAt")
+	t.AppendHeader("CanConsumeResources")
+	t.Cell("%v", c.Name)
+	t.Cell("%v", found.Id)
+	t.Cell("%v", found.Specification.Parent.GetOrDefault(""))
+	t.Cell("%v", found.Specification.CanConsumeResources)
+	t.Cell("%v", cli.FormatTime(found.CreatedAt))
+	t.Print()
+
+	t = termio.Table{}
+	if len(found.Status.Members) == 0 {
+		fmt.Println("Has members")
+		return nil
+	}
+	fmt.Println("Members:")
+
+	t.AppendHeader("Username")
+	t.AppendHeader("Email")
+	t.AppendHeader("Role")
+
+	for _, m := range found.Status.Members {
+		t.Cell("%v", m.Username)
+		t.Cell("%v", m.Email)
+		t.Cell("%v", m.Role)
+	}
+
+	t.Print()
 
 	return nil
 }
