@@ -503,7 +503,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		}
 		pod.Spec.ImagePullSecrets = append(pod.Spec.ImagePullSecrets, core.LocalObjectReference{Name: variantPullSecret.Name})
 	} else if resolvedApplication.Metadata.Variant.Present {
-		if _, validationErr := registry.ImagesValidateVariant(job.Owner, resolvedApplication.Metadata.Variant.Value.ImageDigest, false); validationErr != nil {
+		if _, validationErr := registry.ImagesValidateVariant(job.Owner, resolvedApplication.Metadata.Variant.Value.ImageDigest, false, false); validationErr != nil {
 			return util.HttpErr(http.StatusBadRequest, "flavor image is no longer available")
 		}
 		variantPullSecret, variantPullTokenId, herr = createApplicationVariantPullSecret(job.Owner, namespace, podName)

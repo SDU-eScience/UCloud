@@ -1,38 +1,39 @@
-package orchestrator
+package orchestrators
 
 import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"slices"
+	"strings"
 	"time"
 
 	"gopkg.in/yaml.v3"
 	fndapi "ucloud.dk/shared/pkg/foundation"
-	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
 )
 
 type A2Yaml struct {
-	Name            string                             `yaml:"name"`
-	Version         string                             `yaml:"version"`
-	Software        A2Software                         `yaml:"software"`
-	Title           util.Option[string]                `yaml:"title"`
-	Description     util.Option[string]                `yaml:"description"`
-	License         util.Option[string]                `yaml:"license"`
-	Documentation   util.Option[string]                `yaml:"documentation"`
-	Features        util.Option[A2Features]            `yaml:"features"`
-	Modules         util.Option[A2Module]              `yaml:"modules"`
-	Parameters      map[string]A2Parameter             `yaml:"parameters"`
-	ParametersOrder []string                           `yaml:"-"` // needed to preserve YAML declaration order
-	Sbatch          map[string]string                  `yaml:"sbatch"`
-	Invocation      string                             `yaml:"invocation"`
-	Ucx             util.Option[orcapi.UcxDescription] `yaml:"ucx"`
-	Environment     map[string]string                  `yaml:"environment"`
-	Web             util.Option[A2Web]                 `yaml:"web"`
-	Vnc             util.Option[A2Vnc]                 `yaml:"vnc"`
-	Ssh             util.Option[A2Ssh]                 `yaml:"ssh"`
-	Inference       util.Option[A2Inference]           `yaml:"inference"`
-	Extensions      []string                           `yaml:"extensions"`
+	Name            string                      `yaml:"name"`
+	Version         string                      `yaml:"version"`
+	Software        A2Software                  `yaml:"software"`
+	Title           util.Option[string]         `yaml:"title"`
+	Description     util.Option[string]         `yaml:"description"`
+	License         util.Option[string]         `yaml:"license"`
+	Documentation   util.Option[string]         `yaml:"documentation"`
+	Features        util.Option[A2Features]     `yaml:"features"`
+	Modules         util.Option[A2Module]       `yaml:"modules"`
+	Parameters      map[string]A2Parameter      `yaml:"parameters"`
+	ParametersOrder []string                    `yaml:"-"` // needed to preserve YAML declaration order
+	Sbatch          map[string]string           `yaml:"sbatch"`
+	Invocation      string                      `yaml:"invocation"`
+	Ucx             util.Option[UcxDescription] `yaml:"ucx"`
+	Environment     map[string]string           `yaml:"environment"`
+	Web             util.Option[A2Web]          `yaml:"web"`
+	Vnc             util.Option[A2Vnc]          `yaml:"vnc"`
+	Ssh             util.Option[A2Ssh]          `yaml:"ssh"`
+	Inference       util.Option[A2Inference]    `yaml:"inference"`
+	Extensions      []string                    `yaml:"extensions"`
 }
 
 type A2SoftwareKind string
@@ -60,12 +61,12 @@ type A2Software struct {
 }
 
 type A2NativeSoftware struct {
-	Load []A2ApplicationToLoad `yaml:"load"`
+	Load []A2ApplicationToLoad `json:"load" yaml:"load"`
 }
 
 type A2ApplicationToLoad struct {
-	Name    string `yaml:"name"`
-	Version string `yaml:"version"`
+	Name    string `json:"name" yaml:"name"`
+	Version string `json:"version" yaml:"version"`
 }
 
 type A2ContainerSoftware struct {
@@ -73,11 +74,11 @@ type A2ContainerSoftware struct {
 }
 
 type A2VirtualMachineSoftware struct {
-	Image string `yaml:"image"`
+	Image string `json:"image" yaml:"image"`
 }
 
 type A2UcxSoftware struct {
-	Image string `yaml:"image"`
+	Image string `json:"image" yaml:"image"`
 }
 
 func (s *A2Software) UnmarshalYAML(n *yaml.Node) error {
@@ -126,6 +127,99 @@ func (s *A2Software) UnmarshalYAML(n *yaml.Node) error {
 	}
 }
 
+func (s *A2Software) UnmarshalJSON(data []byte) error {
+	var kind struct {
+		Type string `json:"type"`
+	}
+	if err := json.Unmarshal(data, &kind); err != nil {
+		return err
+	}
+	switch kind.Type {
+	case "Native":
+		var value A2NativeSoftware
+		if err := json.Unmarshal(data, &value); err != nil {
+			return err
+		}
+		s.Type, s.Native = A2SoftwareNative, &value
+	case "Container":
+		var value A2ContainerSoftware
+		if err := json.Unmarshal(data, &value); err != nil {
+			return err
+		}
+		s.Type, s.Container = A2SoftwareContainer, &value
+	case "VirtualMachine":
+		var value A2VirtualMachineSoftware
+		if err := json.Unmarshal(data, &value); err != nil {
+			return err
+		}
+		s.Type, s.VirtualMachine = A2SoftwareVirtualMachine, &value
+	case "UCX":
+		var value A2UcxSoftware
+		if err := json.Unmarshal(data, &value); err != nil {
+			return err
+		}
+		s.Type, s.Ucx = A2SoftwareUcx, &value
+	default:
+		return fmt.Errorf("unknown software type: %q", kind.Type)
+	}
+	return nil
+}
+
+func a2MarshalTagged(kind string, payload any) ([]byte, error) {
+	value := map[string]any{"type": kind}
+	if payload != nil {
+		raw, err := json.Marshal(payload)
+		if err != nil {
+			return nil, err
+		}
+		if err = json.Unmarshal(raw, &value); err != nil {
+			return nil, err
+		}
+		value["type"] = kind
+	}
+	return json.Marshal(value)
+}
+
+func a2MarshalTaggedYaml(kind string, payload any) (any, error) {
+	raw, err := a2MarshalTagged(kind, payload)
+	if err != nil {
+		return nil, err
+	}
+	var value map[string]any
+	err = json.Unmarshal(raw, &value)
+	return value, err
+}
+
+func (s A2Software) MarshalJSON() ([]byte, error) {
+	switch s.Type {
+	case A2SoftwareNative:
+		return a2MarshalTagged(string(s.Type), s.Native)
+	case A2SoftwareContainer:
+		return a2MarshalTagged(string(s.Type), s.Container)
+	case A2SoftwareVirtualMachine:
+		return a2MarshalTagged(string(s.Type), s.VirtualMachine)
+	case A2SoftwareUcx:
+		return a2MarshalTagged(string(s.Type), s.Ucx)
+	default:
+		return a2MarshalTagged(string(s.Type), nil)
+	}
+}
+
+func (s A2Software) MarshalYAML() (any, error) {
+	switch s.Type {
+	case A2SoftwareNative:
+		return a2MarshalTaggedYaml(string(s.Type), s.Native)
+	case A2SoftwareContainer:
+		return a2MarshalTaggedYaml(string(s.Type), s.Container)
+	case A2SoftwareVirtualMachine:
+		return a2MarshalTaggedYaml(string(s.Type), s.VirtualMachine)
+	case A2SoftwareUcx:
+		return a2MarshalTaggedYaml(string(s.Type), s.Ucx)
+	default:
+		return a2MarshalTaggedYaml(string(s.Type), nil)
+	}
+}
+
 type A2Parameter struct {
 	Type          string            `yaml:"type"`
 	File          *A2ParamFile      `yaml:"-"`
@@ -143,9 +237,9 @@ type A2Parameter struct {
 }
 
 type A2ParamBase struct {
-	Title       string `yaml:"title"`
-	Description string `yaml:"description"`
-	Optional    bool   `yaml:"optional"`
+	Title       string `json:"title" yaml:"title"`
+	Description string `json:"description" yaml:"description"`
+	Optional    bool   `json:"optional" yaml:"optional"`
 }
 
 type A2ParamFile struct {
@@ -170,52 +264,52 @@ type A2ParamPublicIp struct {
 
 type A2ParamInt struct {
 	A2ParamBase  `yaml:",inline"`
-	DefaultValue util.Option[int64] `yaml:"defaultValue"`
-	Min          util.Option[int64] `yaml:"min"`
-	Max          util.Option[int64] `yaml:"max"`
-	Step         util.Option[int64] `yaml:"step"`
+	DefaultValue util.Option[int64] `json:"defaultValue" yaml:"defaultValue"`
+	Min          util.Option[int64] `json:"min" yaml:"min"`
+	Max          util.Option[int64] `json:"max" yaml:"max"`
+	Step         util.Option[int64] `json:"step" yaml:"step"`
 }
 
 type A2ParamFloat struct {
 	A2ParamBase  `yaml:",inline"`
-	DefaultValue util.Option[float64] `yaml:"defaultValue"`
-	Min          util.Option[float64] `yaml:"min"`
-	Max          util.Option[float64] `yaml:"max"`
-	Step         util.Option[float64] `yaml:"step"`
+	DefaultValue util.Option[float64] `json:"defaultValue" yaml:"defaultValue"`
+	Min          util.Option[float64] `json:"min" yaml:"min"`
+	Max          util.Option[float64] `json:"max" yaml:"max"`
+	Step         util.Option[float64] `json:"step" yaml:"step"`
 }
 
 type A2ParamBool struct {
 	A2ParamBase  `yaml:",inline"`
-	DefaultValue util.Option[bool] `yaml:"defaultValue"`
+	DefaultValue util.Option[bool] `json:"defaultValue" yaml:"defaultValue"`
 }
 
 type A2ParamText struct {
 	A2ParamBase  `yaml:",inline"`
-	DefaultValue util.Option[string] `yaml:"defaultValue"`
+	DefaultValue util.Option[string] `json:"defaultValue" yaml:"defaultValue"`
 }
 
 type A2ParamTextArea struct {
 	A2ParamBase  `yaml:",inline"`
-	DefaultValue util.Option[string] `yaml:"defaultValue"`
+	DefaultValue util.Option[string] `json:"defaultValue" yaml:"defaultValue"`
 }
 
 type A2EnumOption struct {
-	Title string `yaml:"title"`
-	Value string `yaml:"value"`
+	Title string `json:"title" yaml:"title"`
+	Value string `json:"value" yaml:"value"`
 }
 
 type A2ParamEnum struct {
 	A2ParamBase  `yaml:",inline"`
-	DefaultValue util.Option[string] `yaml:"defaultValue"` // references the value
-	Options      []A2EnumOption      `yaml:"options"`
+	DefaultValue util.Option[string] `json:"defaultValue" yaml:"defaultValue"` // references the value
+	Options      []A2EnumOption      `json:"options" yaml:"options"`
 }
 
 type A2ParamWorkflow struct {
 	A2ParamBase `yaml:",inline"`
-	Init        util.Option[string]    `yaml:"init"`
-	Job         util.Option[string]    `yaml:"job"`
-	Readme      util.Option[string]    `yaml:"readme"`
-	Parameters  map[string]A2Parameter `yaml:"parameters"`
+	Init        util.Option[string]    `json:"init" yaml:"init"`
+	Job         util.Option[string]    `json:"job" yaml:"job"`
+	Readme      util.Option[string]    `json:"readme" yaml:"readme"`
+	Parameters  map[string]A2Parameter `json:"parameters" yaml:"parameters"`
 }
 
 func (p *A2ParamWorkflow) UnmarshalYAML(n *yaml.Node) error {
@@ -335,28 +429,117 @@ func (p *A2Parameter) UnmarshalYAML(n *yaml.Node) error {
 	return nil
 }
 
+func (p *A2Parameter) UnmarshalJSON(data []byte) error {
+	var kind struct {
+		Type string `json:"type"`
+	}
+	if err := json.Unmarshal(data, &kind); err != nil {
+		return err
+	}
+	p.Type = kind.Type
+	switch kind.Type {
+	case "File":
+		p.File = &A2ParamFile{}
+		return json.Unmarshal(data, p.File)
+	case "Directory":
+		p.Directory = &A2ParamDirectory{}
+		return json.Unmarshal(data, p.Directory)
+	case "License":
+		p.License = &A2ParamLicense{}
+		return json.Unmarshal(data, p.License)
+	case "Job":
+		p.Job = &A2ParamJob{}
+		return json.Unmarshal(data, p.Job)
+	case "PublicIP":
+		p.PublicIP = &A2ParamPublicIp{}
+		return json.Unmarshal(data, p.PublicIP)
+	case "Integer":
+		p.Integer = &A2ParamInt{}
+		return json.Unmarshal(data, p.Integer)
+	case "FloatingPoint":
+		p.FloatingPoint = &A2ParamFloat{}
+		return json.Unmarshal(data, p.FloatingPoint)
+	case "Boolean":
+		p.Boolean = &A2ParamBool{}
+		return json.Unmarshal(data, p.Boolean)
+	case "Text":
+		p.Text = &A2ParamText{}
+		return json.Unmarshal(data, p.Text)
+	case "TextArea":
+		p.TextArea = &A2ParamTextArea{}
+		return json.Unmarshal(data, p.TextArea)
+	case "Enumeration":
+		p.Enumeration = &A2ParamEnum{}
+		return json.Unmarshal(data, p.Enumeration)
+	case "Workflow":
+		p.Workflow = &A2ParamWorkflow{}
+		return json.Unmarshal(data, p.Workflow)
+	default:
+		return fmt.Errorf("unknown parameter type: %q", kind.Type)
+	}
+}
+
+func (p A2Parameter) payload() any {
+	switch p.Type {
+	case "File":
+		return p.File
+	case "Directory":
+		return p.Directory
+	case "License":
+		return p.License
+	case "Job":
+		return p.Job
+	case "PublicIP":
+		return p.PublicIP
+	case "Integer":
+		return p.Integer
+	case "FloatingPoint":
+		return p.FloatingPoint
+	case "Boolean":
+		return p.Boolean
+	case "Text":
+		return p.Text
+	case "TextArea":
+		return p.TextArea
+	case "Enumeration":
+		return p.Enumeration
+	case "Workflow":
+		return p.Workflow
+	default:
+		return nil
+	}
+}
+
+func (p A2Parameter) MarshalJSON() ([]byte, error) {
+	return a2MarshalTagged(p.Type, p.payload())
+}
+
+func (p A2Parameter) MarshalYAML() (any, error) {
+	return a2MarshalTaggedYaml(p.Type, p.payload())
+}
+
 type A2Features struct {
-	MultiNode   bool              `yaml:"multiNode"`
-	Links       util.Option[bool] `yaml:"links"`
-	IPAddresses util.Option[bool] `yaml:"ipAddresses"`
-	Folders     util.Option[bool] `yaml:"folders"`
-	JobLinking  util.Option[bool] `yaml:"jobLinking"`
-	JobAuditLog util.Option[bool] `yaml:"jobAuditLog"`
+	MultiNode   bool              `json:"multiNode" yaml:"multiNode"`
+	Links       util.Option[bool] `json:"links" yaml:"links"`
+	IPAddresses util.Option[bool] `json:"ipAddresses" yaml:"ipAddresses"`
+	Folders     util.Option[bool] `json:"folders" yaml:"folders"`
+	JobLinking  util.Option[bool] `json:"jobLinking" yaml:"jobLinking"`
+	JobAuditLog util.Option[bool] `json:"jobAuditLog" yaml:"jobAuditLog"`
 }
 
 type A2Web struct {
-	Enabled bool             `yaml:"enabled"`
-	Port    util.Option[int] `yaml:"port"`
+	Enabled bool             `json:"enabled" yaml:"enabled"`
+	Port    util.Option[int] `json:"port" yaml:"port"`
 }
 
 type A2Vnc struct {
-	Enabled  bool                `yaml:"enabled"`
-	Port     util.Option[int]    `yaml:"port"`
-	Password util.Option[string] `yaml:"password"`
+	Enabled  bool                `json:"enabled" yaml:"enabled"`
+	Port     util.Option[int]    `json:"port" yaml:"port"`
+	Password util.Option[string] `json:"password" yaml:"password"`
 }
 
 type A2Ssh struct {
-	Mode A2SshMode `yaml:"mode"`
+	Mode A2SshMode `json:"mode" yaml:"mode"`
 }
 
 type A2SshMode string
@@ -374,7 +557,7 @@ var A2SshModeOptions = []A2SshMode{
 }
 
 type A2Inference struct {
-	Mode A2InferenceMode `yaml:"mode"`
+	Mode A2InferenceMode `json:"mode" yaml:"mode"`
 }
 
 type A2InferenceMode string
@@ -392,8 +575,8 @@ var A2InferenceModeOptions = []A2InferenceMode{
 }
 
 type A2Module struct {
-	MountPath string   `yaml:"mountPath"`
-	Optional  []string `yaml:"optional"`
+	MountPath string   `json:"mountPath" yaml:"mountPath"`
+	Optional  []string `json:"optional" yaml:"optional"`
 }
 
 func (y *A2Yaml) UnmarshalYAML(n *yaml.Node) error {
@@ -435,13 +618,28 @@ func (y *A2Yaml) UnmarshalYAML(n *yaml.Node) error {
 	return nil
 }
 
-func (y *A2Yaml) Normalize() (orcapi.Application, *util.HttpError) {
+func (y *A2Yaml) UnmarshalJSON(data []byte) error {
+	type alias A2Yaml
+	var value alias
+	if err := json.Unmarshal(data, &value); err != nil {
+		return err
+	}
+	value.ParametersOrder = make([]string, 0, len(value.Parameters))
+	for name := range value.Parameters {
+		value.ParametersOrder = append(value.ParametersOrder, name)
+	}
+	slices.Sort(value.ParametersOrder)
+	*y = A2Yaml(value)
+	return nil
+}
+
+func (y *A2Yaml) Normalize() (Application, *util.HttpError) {
 	var err *util.HttpError
-	var mappedParameters []orcapi.ApplicationParameter
-	mappedEnvironment := map[string]orcapi.InvocationParameter{}
-	mappedSbatch := map[string]orcapi.InvocationParameter{}
-	mappedAppType := orcapi.ApplicationTypeBatch
-	mappedModules := util.OptNone[orcapi.ModulesSection]()
+	var mappedParameters []ApplicationParameter
+	mappedEnvironment := map[string]InvocationParameter{}
+	mappedSbatch := map[string]InvocationParameter{}
+	mappedAppType := ApplicationTypeBatch
+	mappedModules := util.OptNone[ModulesSection]()
 
 	util.ValidateString(&y.Name, "name", 0, &err)
 	util.ValidateString(&y.Version, "version", 0, &err)
@@ -459,13 +657,13 @@ func (y *A2Yaml) Normalize() (orcapi.Application, *util.HttpError) {
 		util.ValidateString(&y.Extensions[i], fmt.Sprintf("extensions[%d]", i), 0, &err)
 	}
 
-	mappedTool := orcapi.ToolDescription{
-		Info: orcapi.NameAndVersion{
+	mappedTool := ToolDescription{
+		Info: NameAndVersion{
 			Name:    y.Name,
 			Version: y.Version,
 		},
 		DefaultNumberOfNodes:  1,
-		DefaultTimeAllocation: orcapi.SimpleDuration{Hours: 1},
+		DefaultTimeAllocation: SimpleDuration{Hours: 1},
 		RequiredModules:       nil,
 		Authors:               []string{"UCloud"},
 		Title:                 y.Title.GetOrDefault(y.Name),
@@ -474,7 +672,7 @@ func (y *A2Yaml) Normalize() (orcapi.Application, *util.HttpError) {
 	util.ValidateEnum(&y.Software.Type, A2SoftwareKinds, "software.type", &err)
 	switch y.Software.Type {
 	case A2SoftwareContainer:
-		mappedTool.Backend = orcapi.ToolBackendDocker
+		mappedTool.Backend = ToolBackendDocker
 
 		if y.Software.Container == nil {
 			err = util.MergeHttpErr(err, util.HttpErr(
@@ -489,7 +687,7 @@ func (y *A2Yaml) Normalize() (orcapi.Application, *util.HttpError) {
 		}
 
 	case A2SoftwareVirtualMachine:
-		mappedTool.Backend = orcapi.ToolBackendVirtualMachine
+		mappedTool.Backend = ToolBackendVirtualMachine
 
 		if y.Software.VirtualMachine == nil {
 			err = util.MergeHttpErr(err, util.HttpErr(
@@ -504,7 +702,7 @@ func (y *A2Yaml) Normalize() (orcapi.Application, *util.HttpError) {
 		}
 
 	case A2SoftwareNative:
-		mappedTool.Backend = orcapi.ToolBackendNative
+		mappedTool.Backend = ToolBackendNative
 
 		if y.Software.Native == nil {
 			err = util.MergeHttpErr(err, util.HttpErr(
@@ -512,8 +710,8 @@ func (y *A2Yaml) Normalize() (orcapi.Application, *util.HttpError) {
 				"missing native information in 'software'",
 			))
 		} else {
-			instr := orcapi.ToolLoadInstructions{
-				Type: orcapi.ToolLoadInstructionsNative,
+			instr := ToolLoadInstructions{
+				Type: ToolLoadInstructionsNative,
 			}
 
 			modulesToLoad := y.Software.Native.Load
@@ -522,7 +720,7 @@ func (y *A2Yaml) Normalize() (orcapi.Application, *util.HttpError) {
 				util.ValidateString(&mod.Name, fmt.Sprintf("software.load[%d].name", i), 0, &err)
 				util.ValidateString(&mod.Version, fmt.Sprintf("software.load[%d].version", i), 0, &err)
 
-				instr.Applications = append(instr.Applications, orcapi.NativeApplication{
+				instr.Applications = append(instr.Applications, NativeApplication{
 					Name:    mod.Name,
 					Version: mod.Version,
 				})
@@ -532,7 +730,7 @@ func (y *A2Yaml) Normalize() (orcapi.Application, *util.HttpError) {
 		}
 
 	case A2SoftwareUcx:
-		mappedTool.Backend = orcapi.ToolBackendUcx
+		mappedTool.Backend = ToolBackendUcx
 		if y.Software.Ucx == nil {
 			err = util.MergeHttpErr(err, util.HttpErr(
 				http.StatusBadRequest,
@@ -548,7 +746,7 @@ func (y *A2Yaml) Normalize() (orcapi.Application, *util.HttpError) {
 
 	for _, paramName := range y.ParametersOrder {
 		param := y.Parameters[paramName]
-		mapped := orcapi.ApplicationParameter{
+		mapped := ApplicationParameter{
 			Name: paramName,
 		}
 
@@ -558,22 +756,22 @@ func (y *A2Yaml) Normalize() (orcapi.Application, *util.HttpError) {
 
 		if param.File != nil {
 			base = param.File.A2ParamBase
-			mapped.Type = orcapi.ApplicationParameterTypeInputFile
+			mapped.Type = ApplicationParameterTypeInputFile
 		} else if param.Directory != nil {
 			base = param.Directory.A2ParamBase
-			mapped.Type = orcapi.ApplicationParameterTypeInputDirectory
+			mapped.Type = ApplicationParameterTypeInputDirectory
 		} else if param.License != nil {
 			base = param.License.A2ParamBase
-			mapped.Type = orcapi.ApplicationParameterTypeLicenseServer
+			mapped.Type = ApplicationParameterTypeLicenseServer
 		} else if param.Job != nil {
 			base = param.Job.A2ParamBase
-			mapped.Type = orcapi.ApplicationParameterTypePeer
+			mapped.Type = ApplicationParameterTypePeer
 		} else if param.PublicIP != nil {
 			base = param.PublicIP.A2ParamBase
-			mapped.Type = orcapi.ApplicationParameterTypeNetworkIp
+			mapped.Type = ApplicationParameterTypeNetworkIp
 		} else if param.Integer != nil {
 			base = param.Integer.A2ParamBase
-			mapped.Type = orcapi.ApplicationParameterTypeInteger
+			mapped.Type = ApplicationParameterTypeInteger
 
 			i := param.Integer
 
@@ -608,7 +806,7 @@ func (y *A2Yaml) Normalize() (orcapi.Application, *util.HttpError) {
 			}
 		} else if param.FloatingPoint != nil {
 			base = param.FloatingPoint.A2ParamBase
-			mapped.Type = orcapi.ApplicationParameterTypeFloatingPoint
+			mapped.Type = ApplicationParameterTypeFloatingPoint
 
 			f := param.FloatingPoint
 
@@ -643,7 +841,7 @@ func (y *A2Yaml) Normalize() (orcapi.Application, *util.HttpError) {
 			}
 		} else if param.Boolean != nil {
 			base = param.Boolean.A2ParamBase
-			mapped.Type = orcapi.ApplicationParameterTypeBoolean
+			mapped.Type = ApplicationParameterTypeBoolean
 			mapped.TrueValue = "true"
 			mapped.FalseValue = "false"
 
@@ -652,21 +850,21 @@ func (y *A2Yaml) Normalize() (orcapi.Application, *util.HttpError) {
 			}
 		} else if param.Text != nil {
 			base = param.Text.A2ParamBase
-			mapped.Type = orcapi.ApplicationParameterTypeText
+			mapped.Type = ApplicationParameterTypeText
 
 			if param.Text.DefaultValue.Present {
 				mapped.DefaultValue = marshalJson(param.Text.DefaultValue.Value)
 			}
 		} else if param.TextArea != nil {
 			base = param.TextArea.A2ParamBase
-			mapped.Type = orcapi.ApplicationParameterTypeTextArea
+			mapped.Type = ApplicationParameterTypeTextArea
 
 			if param.TextArea.DefaultValue.Present {
 				mapped.DefaultValue = marshalJson(param.TextArea.DefaultValue.Value)
 			}
 		} else if param.Enumeration != nil {
 			base = param.Enumeration.A2ParamBase
-			mapped.Type = orcapi.ApplicationParameterTypeEnumeration
+			mapped.Type = ApplicationParameterTypeEnumeration
 
 			e := param.Enumeration
 
@@ -696,14 +894,14 @@ func (y *A2Yaml) Normalize() (orcapi.Application, *util.HttpError) {
 				util.ValidateString(&opt.Title, fmt.Sprintf("%s.options[%v].title", paramName, i), 0, &err)
 				util.ValidateString(&opt.Value, fmt.Sprintf("%s.options[%v].value", paramName, i), 0, &err)
 
-				mapped.Options = append(mapped.Options, orcapi.EnumOption{
+				mapped.Options = append(mapped.Options, EnumOption{
 					Name:  opt.Title,
 					Value: opt.Value,
 				})
 			}
 		} else if param.Workflow != nil {
 			base = param.Workflow.A2ParamBase
-			mapped.Type = orcapi.ApplicationParameterTypeWorkflow
+			mapped.Type = ApplicationParameterTypeWorkflow
 		}
 
 		util.ValidateString(&base.Title, paramName, 0, &err)
@@ -721,9 +919,9 @@ func (y *A2Yaml) Normalize() (orcapi.Application, *util.HttpError) {
 		util.ValidateString(&name, fmt.Sprintf("environment.%s (key)", name), 0, &err)
 		util.ValidateString(&value, fmt.Sprintf("environment.%s (value)", name), 0, &err)
 
-		mappedEnvironment[name] = orcapi.InvocationParameter{
-			Type:                    orcapi.InvocationParameterTypeWord,
-			InvocationParameterWord: orcapi.InvocationParameterWord{Word: value},
+		mappedEnvironment[name] = InvocationParameter{
+			Type:                    InvocationParameterTypeWord,
+			InvocationParameterWord: InvocationParameterWord{Word: value},
 		}
 	}
 
@@ -731,15 +929,15 @@ func (y *A2Yaml) Normalize() (orcapi.Application, *util.HttpError) {
 		util.ValidateString(&name, fmt.Sprintf("sbatch.%s (key)", name), 0, &err)
 		util.ValidateString(&value, fmt.Sprintf("sbatch.%s (value)", name), 0, &err)
 
-		mappedSbatch[name] = orcapi.InvocationParameter{
-			Type:                    orcapi.InvocationParameterTypeWord,
-			InvocationParameterWord: orcapi.InvocationParameterWord{Word: value},
+		mappedSbatch[name] = InvocationParameter{
+			Type:                    InvocationParameterTypeWord,
+			InvocationParameterWord: InvocationParameterWord{Word: value},
 		}
 	}
 
 	if y.Modules.Present {
 		mods := y.Modules.Value
-		mappedModules.Set(orcapi.ModulesSection{
+		mappedModules.Set(ModulesSection{
 			MountPath: mods.MountPath,
 			Optional:  mods.Optional,
 		})
@@ -747,7 +945,7 @@ func (y *A2Yaml) Normalize() (orcapi.Application, *util.HttpError) {
 
 	if y.Vnc.Present {
 		if y.Vnc.Value.Enabled {
-			mappedAppType = orcapi.ApplicationTypeVnc
+			mappedAppType = ApplicationTypeVnc
 			p := y.Vnc.Value.Port
 			if p.Present {
 				if p.Value <= 0 {
@@ -768,7 +966,7 @@ func (y *A2Yaml) Normalize() (orcapi.Application, *util.HttpError) {
 	}
 
 	if y.Web.Present {
-		mappedAppType = orcapi.ApplicationTypeWeb
+		mappedAppType = ApplicationTypeWeb
 
 		p := y.Web.Value.Port
 		if p.Present {
@@ -796,17 +994,17 @@ func (y *A2Yaml) Normalize() (orcapi.Application, *util.HttpError) {
 	if y.Inference.Present {
 		util.ValidateEnum(&y.Inference.Value.Mode, A2InferenceModeOptions, "inference.mode", &err)
 	}
-	if validationErr := validateUcxExecutableMetadataSection(y.Ucx, "ucx.executable"); validationErr != nil {
+	if validationErr := ValidateUcxExecutableMetadataSection(y.Ucx, "ucx.executable"); validationErr != nil {
 		err = util.MergeHttpErr(err, validationErr)
 	}
 
 	if err != nil {
-		return orcapi.Application{}, err
+		return Application{}, err
 	} else {
-		return orcapi.Application{
-			WithAppMetadata: orcapi.WithAppMetadata{
-				Metadata: orcapi.ApplicationMetadata{
-					NameAndVersion: orcapi.NameAndVersion{
+		return Application{
+			WithAppMetadata: WithAppMetadata{
+				Metadata: ApplicationMetadata{
+					NameAndVersion: NameAndVersion{
 						Name:    y.Name,
 						Version: y.Version,
 					},
@@ -818,18 +1016,18 @@ func (y *A2Yaml) Normalize() (orcapi.Application, *util.HttpError) {
 					CreatedAt:   fndapi.Timestamp(time.Now()),
 				},
 			},
-			WithAppInvocation: orcapi.WithAppInvocation{
-				Invocation: orcapi.ApplicationInvocationDescription{
+			WithAppInvocation: WithAppInvocation{
+				Invocation: ApplicationInvocationDescription{
 					OutputFileGlobs: []string{"*"},
 					ApplicationType: mappedAppType,
 					Ucx:             y.Ucx,
 
-					Tool: orcapi.ToolReference{
-						NameAndVersion: orcapi.NameAndVersion{
+					Tool: ToolReference{
+						NameAndVersion: NameAndVersion{
 							Name:    y.Name,
 							Version: y.Version,
 						},
-						Tool: util.OptValue[orcapi.Tool](orcapi.Tool{
+						Tool: util.OptValue[Tool](Tool{
 							Owner:       "UCloud",
 							CreatedAt:   fndapi.Timestamp(time.Now()),
 							ModifiedAt:  fndapi.Timestamp(time.Now()),
@@ -839,53 +1037,53 @@ func (y *A2Yaml) Normalize() (orcapi.Application, *util.HttpError) {
 
 					Parameters: util.NonNilSlice(mappedParameters),
 
-					Invocation: []orcapi.InvocationParameter{
+					Invocation: []InvocationParameter{
 						{
-							Type: orcapi.InvocationParameterTypeJinja,
-							InvocationParameterJinja: orcapi.InvocationParameterJinja{
+							Type: InvocationParameterTypeJinja,
+							InvocationParameterJinja: InvocationParameterJinja{
 								Template: y.Invocation,
 							},
 						},
 					},
 
-					Vnc: util.OptMap(y.Vnc, func(value A2Vnc) orcapi.VncDescription {
-						return orcapi.VncDescription{
+					Vnc: util.OptMap(y.Vnc, func(value A2Vnc) VncDescription {
+						return VncDescription{
 							Password: value.Password.GetOrDefault(""),
 							Port:     uint16(value.Port.Value),
 						}
 					}),
 
-					Web: util.OptMap(y.Web, func(value A2Web) orcapi.WebDescription {
-						return orcapi.WebDescription{Port: uint16(value.Port.GetOrDefault(80))}
+					Web: util.OptMap(y.Web, func(value A2Web) WebDescription {
+						return WebDescription{Port: uint16(value.Port.GetOrDefault(80))}
 					}),
 
-					Ssh: util.OptMap(y.Ssh, func(value A2Ssh) orcapi.SshDescription {
-						res := orcapi.SshDescription{}
+					Ssh: util.OptMap(y.Ssh, func(value A2Ssh) SshDescription {
+						res := SshDescription{}
 						switch value.Mode {
 						case A2SshModeDisabled:
-							res.Mode = orcapi.SshModeDisabled
+							res.Mode = SshModeDisabled
 						case A2SshModeOptional:
-							res.Mode = orcapi.SshModeOptional
+							res.Mode = SshModeOptional
 						case A2SshModeMandatory:
-							res.Mode = orcapi.SshModeMandatory
+							res.Mode = SshModeMandatory
 						}
 						return res
 					}),
 
-					Inference: util.OptMap(y.Inference, func(value A2Inference) orcapi.InferenceDescription {
-						res := orcapi.InferenceDescription{}
+					Inference: util.OptMap(y.Inference, func(value A2Inference) InferenceDescription {
+						res := InferenceDescription{}
 						switch value.Mode {
 						case A2InferenceModeNone:
-							res.Mode = orcapi.InferenceModeNone
+							res.Mode = InferenceModeNone
 						case A2InferenceModeOptional:
-							res.Mode = orcapi.InferenceModeOptional
+							res.Mode = InferenceModeOptional
 						case A2InferenceModeMandatory:
-							res.Mode = orcapi.InferenceModeMandatory
+							res.Mode = InferenceModeMandatory
 						}
 						return res
 					}),
 
-					Container: orcapi.ContainerDescription{
+					Container: ContainerDescription{
 						ChangeWorkingDirectory: true,
 						RunAsRoot:              true,
 						RunAsRealUser:          false,
@@ -911,4 +1109,57 @@ func (y *A2Yaml) Normalize() (orcapi.Application, *util.HttpError) {
 func marshalJson(value any) []byte {
 	b, _ := json.Marshal(value)
 	return b
+}
+
+func ValidateUcxExecutableMetadata(invocation *ApplicationInvocationDescription) *util.HttpError {
+	return ValidateUcxExecutableMetadataSection(invocation.Ucx, "invocation.ucx.executable")
+}
+
+func ValidateUcxExecutableMetadataSection(ucx util.Option[UcxDescription], path string) *util.HttpError {
+	if !ucx.Present || !ucx.Value.Executable.Present {
+		return nil
+	}
+
+	executable := ucx.Value.Executable.Value
+	if strings.TrimSpace(executable.ManifestUrl) == "" {
+		return util.HttpErr(http.StatusBadRequest, "%s.manifestUrl is required", path)
+	}
+	if strings.HasPrefix(executable.ManifestUrl, "builtin://") {
+		if _, ok := BuiltinUcxExecutableName(executable.ManifestUrl); !ok {
+			return util.HttpErr(http.StatusBadRequest, "%s.manifestUrl must contain a valid built-in executable name", path)
+		}
+		return nil
+	}
+	if !strings.HasPrefix(executable.ManifestUrl, "https://") {
+		return util.HttpErr(http.StatusBadRequest, "%s.manifestUrl must be an HTTPS URL", path)
+	}
+	if strings.TrimSpace(executable.PublicKey) == "" {
+		return util.HttpErr(http.StatusBadRequest, "%s.publicKey is required", path)
+	}
+	if !strings.HasPrefix(executable.PublicKey, "ed25519:") {
+		return util.HttpErr(http.StatusBadRequest, "%s.publicKey must use the ed25519: prefix", path)
+	}
+	if strings.TrimSpace(executable.BinaryName) == "" {
+		return util.HttpErr(http.StatusBadRequest, "%s.binaryName is required", path)
+	}
+
+	return nil
+}
+
+func BuiltinUcxExecutableName(manifestUrl string) (string, bool) {
+	const prefix = "builtin://"
+	if !strings.HasPrefix(manifestUrl, prefix) {
+		return "", false
+	}
+
+	name := strings.TrimPrefix(manifestUrl, prefix)
+	if name == "" || name == "." || name == ".." {
+		return "", false
+	}
+	for _, ch := range name {
+		if (ch < 'a' || ch > 'z') && (ch < 'A' || ch > 'Z') && (ch < '0' || ch > '9') && ch != '-' && ch != '_' && ch != '.' {
+			return "", false
+		}
+	}
+	return name, true
 }

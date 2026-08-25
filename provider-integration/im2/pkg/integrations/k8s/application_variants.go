@@ -14,7 +14,7 @@ import (
 
 func initApplicationVariants() {
 	orc.ApplicationVariantsProviderValidateImage.Handler(func(info rpc.RequestInfo, request orc.ApplicationVariantValidateImageRequest) (orc.ApplicationVariantValidateImageResponse, *util.HttpError) {
-		return registry.ImagesValidateVariant(request.Owner, request.Image, request.RequireProjectAccess)
+		return registry.ImagesValidateVariant(request.Owner, request.Image, request.RequireProjectAccess, request.RequireWorkspaceOwner)
 	})
 
 	orc.JobsProviderCreateApplicationVariant.Handler(func(info rpc.RequestInfo, request orc.JobsProviderCreateApplicationVariantRequest) (fnd.Task, *util.HttpError) {

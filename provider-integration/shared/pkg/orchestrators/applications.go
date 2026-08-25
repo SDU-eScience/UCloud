@@ -130,7 +130,8 @@ type ApplicationSummaryWithFavorite struct {
 }
 
 type ApplicationGroupMetadata struct {
-	Id int `json:"id"`
+	Id     int           `json:"id"`
+	Origin CatalogOrigin `json:"origin"`
 }
 
 type ColorReplacements struct {
@@ -163,15 +164,17 @@ type ApplicationSummary struct {
 
 type ApplicationMetadata struct {
 	NameAndVersion
-	Authors     []string                        `json:"authors" yaml:"authors"`
-	Title       string                          `json:"title" yaml:"title"`
-	Description string                          `json:"description" yaml:"description"`
-	Website     string                          `json:"website" yaml:"website"`
-	Public      bool                            `json:"public" yaml:"public"`
-	FlavorName  util.Option[string]             `json:"flavorName" yaml:"flavorName"`
-	Group       ApplicationGroup                `json:"group" yaml:"group"`
-	CreatedAt   fnd.Timestamp                   `json:"createdAt" yaml:"createdAt"`
-	Variant     util.Option[ApplicationVariant] `json:"variant" yaml:"variant"`
+	Authors            []string                        `json:"authors" yaml:"authors"`
+	Title              string                          `json:"title" yaml:"title"`
+	Description        string                          `json:"description" yaml:"description"`
+	Website            string                          `json:"website" yaml:"website"`
+	Public             bool                            `json:"public" yaml:"public"`
+	FlavorName         util.Option[string]             `json:"flavorName" yaml:"flavorName"`
+	Group              ApplicationGroup                `json:"group" yaml:"group"`
+	CreatedAt          fnd.Timestamp                   `json:"createdAt" yaml:"createdAt"`
+	Variant            util.Option[ApplicationVariant] `json:"variant" yaml:"variant"`
+	Origin             CatalogOrigin                   `json:"origin" yaml:"origin"`
+	PublishedToProject util.Option[bool]               `json:"publishedToProject" yaml:"publishedToProject"`
 }
 
 type ApplicationInvocationDescription struct {

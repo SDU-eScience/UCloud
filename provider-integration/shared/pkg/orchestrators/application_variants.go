@@ -88,9 +88,10 @@ var ApplicationVariantsDelete = rpc.Call[FindApplicationVariant, util.Empty]{
 }
 
 type ApplicationVariantValidateImageRequest struct {
-	Owner                ResourceOwner `json:"owner"`
-	Image                string        `json:"image"`
-	RequireProjectAccess bool          `json:"requireProjectAccess"`
+	Owner                 ResourceOwner `json:"owner"`
+	Image                 string        `json:"image"`
+	RequireProjectAccess  bool          `json:"requireProjectAccess"`
+	RequireWorkspaceOwner bool          `json:"requireWorkspaceOwner"`
 }
 
 type ApplicationVariantValidateImageResponse struct {

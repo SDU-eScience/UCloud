@@ -1,11 +1,13 @@
 package orchestrators
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"strconv"
 
+	"gopkg.in/yaml.v3"
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
@@ -20,6 +22,13 @@ const (
 	CatalogDiscoveryModeAll       CatalogDiscoveryMode = "ALL"
 	CatalogDiscoveryModeAvailable CatalogDiscoveryMode = "AVAILABLE"
 	CatalogDiscoveryModeSelected  CatalogDiscoveryMode = "SELECTED"
+)
+
+type CatalogOrigin string
+
+const (
+	CatalogOriginUCloud CatalogOrigin = "UCLOUD"
+	CatalogOriginCustom CatalogOrigin = "CUSTOM"
 )
 
 type TopPick struct {
@@ -59,8 +68,9 @@ type ApplicationCategory struct {
 }
 
 type AppCategoryMetadata struct {
-	Id       int `json:"id"`
-	Priority int `json:"priority"`
+	Id       int           `json:"id"`
+	Priority int           `json:"priority"`
+	Origin   CatalogOrigin `json:"origin"`
 }
 
 type AppCategorySpecification struct {
@@ -837,4 +847,223 @@ var AppsExport = rpc.Call[util.Empty, []byte]{
 	CustomClientHandler: func(self *rpc.Call[util.Empty, []byte], client *rpc.Client, request util.Empty) ([]byte, *util.HttpError) {
 		panic("client not implemented")
 	},
+}
+
+// Custom applications
+// =====================================================================================================================
+
+type AppCatalogCustomResourceKind string
+
+const (
+	AppCatalogCustomResourceKindManaged AppCatalogCustomResourceKind = "Managed"
+	AppCatalogCustomResourceKindCustom  AppCatalogCustomResourceKind = "Custom"
+)
+
+type AppCatalogCustomGroupSpecification struct {
+	Title       string `json:"title"`
+	Description string `json:"description"`
+}
+
+type AppCatalogCustomGroup struct {
+	Id            int                                `json:"id"`
+	CreatedAt     fnd.Timestamp                      `json:"createdAt"`
+	Owner         ResourceOwner                      `json:"owner"`
+	BackedBy      util.Option[int]                   `json:"backedBy"`
+	Specification AppCatalogCustomGroupSpecification `json:"specification"`
+}
+
+type AppCatalogCreateCustomGroupRequest struct {
+	Kind          AppCatalogCustomResourceKind                    `json:"kind"`
+	Id            util.Option[int]                                `json:"id,omitempty"`
+	Specification util.Option[AppCatalogCustomGroupSpecification] `json:"specification,omitempty"`
+}
+
+type AppCatalogBrowseCustomGroupsRequest struct {
+	ItemsPerPage int                 `json:"itemsPerPage,omitempty"`
+	Next         util.Option[string] `json:"next,omitempty"`
+}
+
+var AppsCreateCustomGroup = rpc.Call[AppCatalogCreateCustomGroupRequest, fnd.FindByIntId]{
+	BaseContext: appCatalogNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "createCustomGroup",
+}
+
+var AppsRetrieveCustomGroup = rpc.Call[fnd.FindByIntId, AppCatalogCustomGroup]{
+	BaseContext: appCatalogNamespace,
+	Convention:  rpc.ConventionRetrieve,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "customGroup",
+}
+
+var AppsBrowseCustomGroups = rpc.Call[AppCatalogBrowseCustomGroupsRequest, fnd.PageV2[AppCatalogCustomGroup]]{
+	BaseContext: appCatalogNamespace,
+	Convention:  rpc.ConventionBrowse,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "customGroups",
+}
+
+var AppsDeleteCustomGroup = rpc.Call[fnd.FindByIntId, util.Empty]{
+	BaseContext: appCatalogNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "deleteCustomGroup",
+}
+
+type AppCatalogCustomCategorySpecification struct {
+	Title       string `json:"title"`
+	Description string `json:"description"`
+}
+
+type AppCatalogCustomCategory struct {
+	Id            int                                   `json:"id"`
+	CreatedAt     fnd.Timestamp                         `json:"createdAt"`
+	Owner         ResourceOwner                         `json:"owner"`
+	BackedBy      util.Option[int]                      `json:"backedBy"`
+	Specification AppCatalogCustomCategorySpecification `json:"specification"`
+	Permissions   ResourcePermissions                   `json:"permissions"`
+}
+
+type AppCatalogCreateCustomCategoryRequest struct {
+	Kind          AppCatalogCustomResourceKind                       `json:"kind"`
+	Id            util.Option[int]                                   `json:"id,omitempty"`
+	Specification util.Option[AppCatalogCustomCategorySpecification] `json:"specification,omitempty"`
+	Acl           []ResourceAclEntry                                 `json:"acl,omitempty"`
+}
+
+type AppCatalogBrowseCustomCategoriesRequest struct {
+	ItemsPerPage int                 `json:"itemsPerPage,omitempty"`
+	Next         util.Option[string] `json:"next,omitempty"`
+}
+
+var AppsCreateCustomCategory = rpc.Call[AppCatalogCreateCustomCategoryRequest, fnd.FindByIntId]{
+	BaseContext: appCatalogNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "createCustomCategory",
+}
+
+var AppsRetrieveCustomCategory = rpc.Call[fnd.FindByIntId, AppCatalogCustomCategory]{
+	BaseContext: appCatalogNamespace,
+	Convention:  rpc.ConventionRetrieve,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "customCategory",
+}
+
+var AppsBrowseCustomCategories = rpc.Call[AppCatalogBrowseCustomCategoriesRequest, fnd.PageV2[AppCatalogCustomCategory]]{
+	BaseContext: appCatalogNamespace,
+	Convention:  rpc.ConventionBrowse,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "customCategories",
+}
+
+var AppsDeleteCustomCategory = rpc.Call[fnd.FindByIntId, util.Empty]{
+	BaseContext: appCatalogNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "deleteCustomCategory",
+}
+
+var AppsUpdateCustomCategoryAcl = rpc.Call[UpdatedAcl, util.Empty]{
+	BaseContext: appCatalogNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "updateCustomCategoryAcl",
+}
+
+type AppCatalogCreateCustomApplicationRequest struct {
+	A2Yaml
+	ServiceProvider    string `json:"serviceProvider" yaml:"serviceProvider"`
+	PublishedToProject bool   `json:"publishedToProject" yaml:"publishedToProject"`
+	FlavorName         string `json:"flavorName" yaml:"flavorName"`
+	GroupId            int    `json:"groupId" yaml:"groupId"`
+	CategoryId         int    `json:"categoryId" yaml:"categoryId"`
+}
+
+func (r *AppCatalogCreateCustomApplicationRequest) UnmarshalJSON(data []byte) error {
+	var application A2Yaml
+	if err := json.Unmarshal(data, &application); err != nil {
+		return err
+	}
+	var metadata struct {
+		ServiceProvider    string `json:"serviceProvider"`
+		PublishedToProject bool   `json:"publishedToProject"`
+		FlavorName         string `json:"flavorName"`
+		GroupId            int    `json:"groupId"`
+		CategoryId         int    `json:"categoryId"`
+	}
+	if err := json.Unmarshal(data, &metadata); err != nil {
+		return err
+	}
+	*r = AppCatalogCreateCustomApplicationRequest{
+		A2Yaml:             application,
+		ServiceProvider:    metadata.ServiceProvider,
+		PublishedToProject: metadata.PublishedToProject,
+		FlavorName:         metadata.FlavorName,
+		GroupId:            metadata.GroupId,
+		CategoryId:         metadata.CategoryId,
+	}
+	return nil
+}
+
+func (r *AppCatalogCreateCustomApplicationRequest) UnmarshalYAML(node *yaml.Node) error {
+	var application A2Yaml
+	if err := node.Decode(&application); err != nil {
+		return err
+	}
+	var metadata struct {
+		ServiceProvider    string `yaml:"serviceProvider"`
+		PublishedToProject bool   `yaml:"publishedToProject"`
+		FlavorName         string `yaml:"flavorName"`
+		GroupId            int    `yaml:"groupId"`
+		CategoryId         int    `yaml:"categoryId"`
+	}
+	if err := node.Decode(&metadata); err != nil {
+		return err
+	}
+	*r = AppCatalogCreateCustomApplicationRequest{
+		A2Yaml:             application,
+		ServiceProvider:    metadata.ServiceProvider,
+		PublishedToProject: metadata.PublishedToProject,
+		FlavorName:         metadata.FlavorName,
+		GroupId:            metadata.GroupId,
+		CategoryId:         metadata.CategoryId,
+	}
+	return nil
+}
+
+type AppCatalogCustomApplicationReference struct {
+	NameAndVersion
+	ServiceProvider string `json:"serviceProvider"`
+}
+
+type AppCatalogUpdateCustomApplicationRequest struct {
+	AppCatalogCustomApplicationReference
+	PublishedToProject bool `json:"publishedToProject"`
+}
+
+type AppCatalogDeleteCustomApplicationRequest struct {
+	AppCatalogCustomApplicationReference
+}
+
+var AppsCreateCustom = rpc.Call[AppCatalogCreateCustomApplicationRequest, util.Empty]{
+	BaseContext: appCatalogNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "createCustom",
+}
+
+var AppsUpdateCustom = rpc.Call[AppCatalogUpdateCustomApplicationRequest, util.Empty]{
+	BaseContext: appCatalogNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "updateCustom",
+}
+
+var AppsDeleteCustom = rpc.Call[AppCatalogDeleteCustomApplicationRequest, util.Empty]{
+	BaseContext: appCatalogNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "deleteCustom",
 }

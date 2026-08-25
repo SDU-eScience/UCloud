@@ -115,6 +115,9 @@ func applicationVariantBase(actor rpc.Actor, requested orcapi.NameAndVersion) (o
 	if !ok || !base.Invocation.Tool.Tool.Present {
 		return orcapi.Application{}, orcapi.NameAndVersion{}, 0, util.HttpErr(http.StatusBadRequest, "unknown base application")
 	}
+	if base.Metadata.Origin != orcapi.CatalogOriginUCloud {
+		return orcapi.Application{}, orcapi.NameAndVersion{}, 0, util.HttpErr(http.StatusBadRequest, "the base application must be UCloud managed")
+	}
 	if base.Invocation.Tool.Tool.Value.Description.Backend != orcapi.ToolBackendDocker {
 		return orcapi.Application{}, orcapi.NameAndVersion{}, 0, util.HttpErr(http.StatusBadRequest, "only container applications can have variants")
 	}
@@ -130,6 +133,13 @@ func applicationVariantBase(actor rpc.Actor, requested orcapi.NameAndVersion) (o
 }
 
 func applicationVariantTitleAvailable(workspace string, group AppGroupId, title string, except int64) bool {
+	if !appCustomFlavorAvailableForVariant(workspace, group, title) {
+		return false
+	}
+	return applicationVariantTitleAvailableOnly(workspace, group, title, except)
+}
+
+func applicationVariantTitleAvailableOnly(workspace string, group AppGroupId, title string, except int64) bool {
 	for i := range appCatalogGlobals.Buckets {
 		b := &appCatalogGlobals.Buckets[i]
 		b.Mu.RLock()
@@ -541,6 +551,7 @@ func applicationVariantBuildApplication(base orcapi.Application, variant orcapi.
 	result.Metadata.CreatedAt = fndapi.Timestamp(createdAt)
 	result.Metadata.FlavorName.Set(variant.Title)
 	result.Metadata.Public = false
+	result.Metadata.Origin = orcapi.CatalogOriginCustom
 	result.Metadata.Variant.Set(variant)
 	result.Metadata.Authors = []string{variant.CreatedBy}
 	result.Favorite.Clear()
@@ -801,16 +812,25 @@ func applicationVariantDeleteVersion(
 	return nil
 }
 
-func applicationVariantValidateImage(actor rpc.Actor, provider, image string, requireProjectAccess bool) (orcapi.ApplicationVariantValidateImageResponse, *util.HttpError) {
+func applicationVariantValidateImage(actor rpc.Actor, provider, image string, requireProjectAccess, requireWorkspaceOwner bool) (orcapi.ApplicationVariantValidateImageResponse, *util.HttpError) {
 	owner := orcapi.ResourceOwner{CreatedBy: actor.Username}
 	if actor.Project.Present {
 		owner.Project.Set(string(actor.Project.Value))
 	}
-	return InvokeProvider(provider, orcapi.ApplicationVariantsProviderValidateImage, orcapi.ApplicationVariantValidateImageRequest{
-		Owner: owner, Image: image, RequireProjectAccess: requireProjectAccess,
-	}, ProviderCallOpts{
-		Username: util.OptValue(actor.Username), Reason: util.OptValue("validate application variant image"),
-	})
+	return InvokeProvider(
+		provider,
+		orcapi.ApplicationVariantsProviderValidateImage,
+		orcapi.ApplicationVariantValidateImageRequest{
+			Owner:                 owner,
+			Image:                 image,
+			RequireProjectAccess:  requireProjectAccess,
+			RequireWorkspaceOwner: requireWorkspaceOwner,
+		},
+		ProviderCallOpts{
+			Username: util.OptValue(actor.Username),
+			Reason:   util.OptValue("validate application variant image"),
+		},
+	)
 }
 
 func initApplicationVariantRpc() {
@@ -894,7 +914,7 @@ func initApplicationVariantRpc() {
 			return orcapi.ApplicationVariant{}, err
 		}
 		_ = base
-		validated, err := applicationVariantValidateImage(info.Actor, request.Provider, request.Image, request.PublishedToProject)
+		validated, err := applicationVariantValidateImage(info.Actor, request.Provider, request.Image, request.PublishedToProject, false)
 		if err != nil {
 			return orcapi.ApplicationVariant{}, err
 		}
@@ -984,13 +1004,13 @@ func initApplicationVariantRpc() {
 		}
 		validatedImage := util.OptNone[orcapi.ApplicationVariantValidateImageResponse]()
 		if request.Image.Present {
-			validated, err := applicationVariantValidateImage(info.Actor, variant.Provider, request.Image.Value, variant.PublishedToProject)
+			validated, err := applicationVariantValidateImage(info.Actor, variant.Provider, request.Image.Value, variant.PublishedToProject, false)
 			if err != nil {
 				return orcapi.ApplicationVariant{}, err
 			}
 			validatedImage.Set(validated)
 		} else if request.PublishedToProject.Present && request.PublishedToProject.Value {
-			if _, err := applicationVariantValidateImage(info.Actor, variant.Provider, variant.ImageDigest, true); err != nil {
+			if _, err := applicationVariantValidateImage(info.Actor, variant.Provider, variant.ImageDigest, true, false); err != nil {
 				return orcapi.ApplicationVariant{}, util.HttpErr(http.StatusBadRequest, "the image is not available to all project members")
 			}
 		}

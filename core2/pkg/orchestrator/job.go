@@ -51,6 +51,32 @@ var jobLoadCache = struct {
 	Jobs  map[ResourceId]*internalJob
 }{}
 
+func jobRewriteApplicationInCache(ids []ResourceId, application orcapi.NameAndVersion) {
+	jobLoadCache.Mu.Lock()
+	for !jobLoadCache.Ready {
+		jobLoadCache.Cond.Wait()
+	}
+	for _, id := range ids {
+		if job := jobLoadCache.Jobs[id]; job != nil {
+			job.Application = application
+		}
+	}
+	jobLoadCache.Mu.Unlock()
+	for _, id := range ids {
+		ResourceUpdate[any](
+			rpc.ActorSystem,
+			jobType,
+			id,
+			orcapi.PermissionAdmin,
+			func(r *resource, mapped any) {
+				job := r.Extra.(*internalJob)
+				job.Application = application
+				job.ChangeFlags |= internalJobPartialChange | internalJobChangeMetadata
+			},
+		)
+	}
+}
+
 func initJobs() {
 	InitResourceType(
 		jobType,
@@ -1406,7 +1432,7 @@ func jobsFollow(conn *ws.Conn) {
 func jobsValidateForSubmission(actor rpc.Actor, spec *orcapi.JobSpecification) *util.HttpError {
 	var err *util.HttpError
 
-	app, ok := AppRetrieve(actor, spec.Application.Name, spec.Application.Version, AppDiscoveryAll, 0)
+	app, ok := AppRetrieve(actor, spec.Application.Name, spec.Application.Version, AppDiscovery{Mode: orcapi.CatalogDiscoveryModeSelected, Selected: util.OptValue(spec.Product.Provider)}, 0)
 	if !ok {
 		return util.HttpErr(http.StatusBadRequest, "unknown application requested")
 	}
@@ -1418,9 +1444,20 @@ func jobsValidateForSubmission(actor rpc.Actor, spec *orcapi.JobSpecification) *
 		if spec.Product.Provider != variant.Provider {
 			return util.HttpErr(http.StatusBadRequest, "the flavor is not available at this provider")
 		}
-		if _, validateErr := applicationVariantValidateImage(actor, variant.Provider, variant.ImageDigest, false); validateErr != nil {
+		if _, validateErr := applicationVariantValidateImage(actor, variant.Provider, variant.ImageDigest, false, false); validateErr != nil {
 			return util.HttpErr(http.StatusBadRequest, "the flavor image is no longer available; delete or update the flavor")
 		}
+	}
+	if app.Metadata.Origin == orcapi.CatalogOriginCustom && !app.Metadata.Variant.Present {
+		custom, customOk := appCustomRetrieveApplication(actor, spec.Application.Name, spec.Application.Version, spec.Product.Provider, AppDiscoveryAll, 0)
+		if !customOk || !custom.Invocation.Tool.Tool.Present {
+			return util.HttpErr(http.StatusBadRequest, "the custom application is not available at this provider")
+		}
+		image := custom.Invocation.Tool.Tool.Value.Description.Image
+		if validateErr := appCustomValidateStoredImage(actor, spec.Product.Provider, image); validateErr != nil {
+			return util.HttpErr(http.StatusBadRequest, "the custom application image is no longer available")
+		}
+		app = custom
 	}
 
 	support, ok := SupportByProduct[orcapi.JobSupport](jobType, spec.Product)
@@ -2457,7 +2494,19 @@ func jobTransform(
 	}
 
 	{
-		app, ok := AppRetrieve(rpc.ActorSystem, info.Application.Name, info.Application.Version, AppDiscoveryAll, 0)
+		var app orcapi.Application
+		var ok bool
+		if strings.HasPrefix(info.Application.Name, "custom-") && resourceSpecificationHasProduct(specification) {
+			workspace := r.Owner.Project.GetOrDefault(r.Owner.CreatedBy)
+			app, ok = appCustomRetrieveApplicationForWorkspace(
+				workspace,
+				info.Application.Name,
+				info.Application.Version,
+				specification.Product.Provider,
+			)
+		} else {
+			app, ok = AppRetrieve(rpc.ActorSystem, info.Application.Name, info.Application.Version, AppDiscoveryAll, 0)
+		}
 		if !ok {
 			app, ok = AppRetrieve(rpc.ActorSystem, "unknown", "unknown", AppDiscoveryAll, 0)
 		}

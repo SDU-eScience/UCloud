@@ -42,4 +42,5 @@ func Init() {
 	db.AddMigration(applicationVariantsV1())
 	db.AddMigration(tasksV1())
 	db.AddMigration(projectsV6())
+	db.AddMigration(customApplicationsV1())
 }

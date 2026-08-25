@@ -528,7 +528,7 @@ func runContainerSnapshotMonitor(name string, execution *containerSnapshotExecut
 	if variantId > 0 && taskId > 0 {
 		if result.Err == "" {
 			if job, ok := controller.JobRetrieve(jobId); ok {
-				validated, validationErr := registry.ImagesValidateVariant(job.Owner, result.Image, job.Owner.Project.Present)
+				validated, validationErr := registry.ImagesValidateVariant(job.Owner, result.Image, job.Owner.Project.Present, false)
 				if validationErr != nil {
 					result.Err = validationErr.Why
 				} else {

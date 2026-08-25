@@ -22,7 +22,7 @@ import (
 	"ucloud.dk/shared/pkg/util"
 )
 
-func ImagesValidateVariant(owner orc.ResourceOwner, image string, requireProjectAccess bool) (orc.ApplicationVariantValidateImageResponse, *util.HttpError) {
+func ImagesValidateVariant(owner orc.ResourceOwner, image string, requireProjectAccess, requireWorkspaceOwner bool) (orc.ApplicationVariantValidateImageResponse, *util.HttpError) {
 	server, err := url.Parse(Server())
 	if err != nil || server.Host == "" {
 		return orc.ApplicationVariantValidateImageResponse{}, util.ServerHttpError("invalid registry configuration")
@@ -45,6 +45,16 @@ func ImagesValidateVariant(owner orc.ResourceOwner, image string, requireProject
 	}
 	if !controller.ResourceCanUse(owner, repositoryResource.Owner, repositoryResource.Permissions, true) {
 		return orc.ApplicationVariantValidateImageResponse{}, util.HttpErr(http.StatusForbidden, "container image is not readable")
+	}
+	if requireWorkspaceOwner {
+		ownedByWorkspace := owner.Project.Present && repositoryResource.Owner.Project.Present &&
+			owner.Project.Value == repositoryResource.Owner.Project.Value
+		if !owner.Project.Present {
+			ownedByWorkspace = !repositoryResource.Owner.Project.Present && repositoryResource.Owner.CreatedBy == owner.CreatedBy
+		}
+		if !ownedByWorkspace {
+			return orc.ApplicationVariantValidateImageResponse{}, util.HttpErr(http.StatusForbidden, "container image repository is not owned by the workspace")
+		}
 	}
 	if requireProjectAccess {
 		if !owner.Project.Present {
