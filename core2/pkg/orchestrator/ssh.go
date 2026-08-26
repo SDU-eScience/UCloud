@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"fmt"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -55,16 +56,59 @@ func initSsh() {
 func SshKeyCreate(actor rpc.Actor, keys []orcapi.SshKeySpecification) ([]fndapi.FindByStringId, *util.HttpError) {
 	for _, key := range keys {
 		key.Key = strings.TrimSpace(key.Key)
-		anyOk := false
-		for _, validPrefix := range validPrefixes {
-			if strings.HasPrefix(key.Key, validPrefix) {
-				anyOk = true
-				break
-			}
+
+		// Not empty key
+		if key.Key == "" {
+			return nil, util.HttpErr(
+				http.StatusBadRequest,
+				"Key cannot be blank",
+			)
 		}
 
-		if !anyOk {
-			return nil, util.HttpErr(http.StatusBadRequest, "Not a valid ssh key")
+		// Checking that key contains more than just the prefix
+		sshParts := strings.Fields(key.Key)
+
+		if len(sshParts) < 2 {
+			return nil, util.HttpErr(
+				http.StatusBadRequest,
+				"Not a valid SSH key (Missing key)",
+			)
+		}
+
+		// Checking prefix of ssh key is a valid prefix
+		if !slices.Contains(validPrefixes, sshParts[0]) {
+			return nil, util.HttpErr(
+				http.StatusBadRequest,
+				"Not a supported SSH key",
+			)
+		}
+
+		// Checking if title already exists
+		exists := db.NewTx(func(tx *db.Transaction) bool {
+			row, _ := db.Get[struct {
+				Exists bool
+			}](
+				tx,
+				`
+				select exists (
+					select 1 
+					from app_orchestrator.ssh_keys 
+					where owner = :owner 
+					  and title = :title
+				) as exists
+				`,
+				db.Params{
+					"owner": actor.Username,
+					"title": key.Title,
+				},
+			)
+			return row.Exists
+		})
+		if exists {
+			return nil, util.HttpErr(
+				http.StatusBadRequest,
+				fmt.Sprintf("You already have a SSH key with the title: %v", key.Title),
+			)
 		}
 	}
 
