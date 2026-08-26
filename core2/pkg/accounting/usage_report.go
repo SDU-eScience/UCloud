@@ -618,7 +618,7 @@ func usageCollapseReports(reports []internalUsageReport) internalUsageReport {
 
 		for _, item := range report.UsageOverTime.Absolute {
 			allTimestamps[item.Timestamp] = util.Empty{}
-			absoluteUseByTimestamp[item.Timestamp] = absoluteUseByTimestamp[item.Timestamp] + item.Usage
+			absoluteUseByTimestamp[item.Timestamp] = item.Usage
 			if item.UtilizationPercent100 != 0 {
 				absoluteQuotaByTimestamp[item.Timestamp] = absoluteQuotaByTimestamp[item.Timestamp] +
 					int64((float64(item.Usage)/item.UtilizationPercent100)*100.0)

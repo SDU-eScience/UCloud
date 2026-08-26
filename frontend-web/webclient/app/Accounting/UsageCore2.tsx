@@ -764,7 +764,7 @@ const UsagePage: React.FunctionComponent = () => {
                         <h3 style={{margin: 0}}>Usage breakdown</h3>
 
                         <TooltipV2
-                            tooltip="Shows the absolute usage for each project at the latest available point in the selected period."
+                            tooltip="Shows the absolute usage for each project at the latest time in the selected period."
                             side="right"
                         >
                             <Icon name={"heroInformationCircle"} />
