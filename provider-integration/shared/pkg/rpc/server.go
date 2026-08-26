@@ -3,12 +3,15 @@ package rpc
 import (
 	"encoding/json"
 	"io"
+	"mime"
 	"net/http"
 	"net/url"
 	"reflect"
 	"strconv"
 	"strings"
 	"unicode"
+
+	"gopkg.in/yaml.v3"
 
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/util"
@@ -146,7 +149,24 @@ func ParseRequestFromBody[Req any](w http.ResponseWriter, r *http.Request) (Req,
 		return request, util.HttpErr(http.StatusBadRequest, "Could not read request body")
 	}
 
-	err = json.Unmarshal(body, &request)
+	mediaType, _, mediaTypeErr := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	mediaType = strings.ToLower(mediaType)
+	isYaml := mediaTypeErr == nil && (mediaType == "application/yaml" ||
+		mediaType == "application/x-yaml" ||
+		mediaType == "text/yaml" ||
+		mediaType == "text/x-yaml" ||
+		strings.HasSuffix(mediaType, "+yaml"))
+
+	if isYaml {
+		var yamlRequest any
+		err = yaml.Unmarshal(body, &yamlRequest)
+		if err == nil {
+			body, err = json.Marshal(yamlRequest)
+		}
+	}
+	if err == nil {
+		err = json.Unmarshal(body, &request)
+	}
 	if err != nil {
 		if _, isEmpty := any(&request).(util.EmptyMarker); isEmpty {
 			return request, nil
