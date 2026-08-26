@@ -254,7 +254,7 @@ const DocumentTypographyClass = injectStyle("document-typography", k => `
         margin-bottom: 0;
     }
 
-    ${k} code {
+    ${k} :not(pre) > code {
         white-space: break-spaces;
         background: var(--playground-active);
         border-radius: 6px;
