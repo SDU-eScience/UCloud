@@ -331,75 +331,126 @@ export function injectResourceBrowserStyle(rowSize: number) {
             align-items: center;
 
             white-space: pre;
-                                                                                                                    /* v favoriteIcon-width */
-            width: calc(var(--rowWidth) - var(--stat1Width) - var(--stat2Width) - var(--stat3Width) - var(--stat4Width) - var(--favoriteWidth) - 32px);
             padding-right: 8px; /* So the title doesn't rub up against the second column */
         }
 
-        @container (max-width: 860px) {
-            ${BrowserClass.dot} .row .title {
-                width: calc(var(--rowWidth) - var(--stat1Width) - 38px - var(--favoriteWidth) - 16px);
-            }
-        }
-
-
         ${BrowserClass.dot} .stat-wrapper {
-            width: calc(var(--stat1Width) + var(--stat2Width) + var(--stat3Width) + var(--stat4Width));
             justify-content: end;
             display: flex;
             gap: 8px;
         }
 
-        @container (max-width: 860px) {
-            ${BrowserClass.dot} .stat-wrapper {
-                width: calc(var(--stat1Width));
-            }
+        ${BrowserClass.dot} .row .stat1 {
+            width: var(--stat1Width);
         }
 
+        ${BrowserClass.dot} .row .stat2 {
+            width: var(--stat2Width);
+        }
+
+        ${BrowserClass.dot} .row .stat3 {
+            width: var(--stat3Width);
+        }
+
+        ${BrowserClass.dot} .row .stat4 {
+            width: var(--stat4Width);
+        }
+
+        ${BrowserClass.dot} .row .stat1,
         ${BrowserClass.dot} .row .stat2,
         ${BrowserClass.dot} .row .stat3,
-        ${BrowserClass.dot} .row .stat4  {
-            display: none;
-            width: 0;
+        ${BrowserClass.dot} .row .stat4 {
+            display: flex;
+            justify-content: center;
+            margin-top: auto;
+            margin-bottom: auto;
+            text-align: center;
         }
 
-        @container (min-width: 860px) {
-            ${BrowserClass.dot} .row .stat1,
-            ${BrowserClass.dot} .row .stat2,
-            ${BrowserClass.dot} .row .stat3 {
-                display: flex;
-                justify-content: center;
-                margin-top: auto;
-                margin-bottom: auto;
-                text-align: center;
+        /* BrowserSize.TINY */
+        @container (width < ${BrowserSize.SMALL}px) {
+            ${BrowserClass.dot} .row .title {
+                width: calc(var(--rowWidth) - var(--stat1Width) - 38px - var(--favoriteWidth) - 16px);
             }
 
-            ${BrowserClass.dot} .row .stat1 {
+            ${BrowserClass.dot} .stat-wrapper {
                 width: var(--stat1Width);
             }
 
+            ${BrowserClass.dot} .row .stat1 {
+                display: flex;
+                justify-content: end;
+                text-align: end;
+            }
+
+            ${BrowserClass.dot} .row .stat2,
+            ${BrowserClass.dot} .row .stat3,
+            ${BrowserClass.dot} .row .stat4  {
+                display: none;
+                width: 0;
+            }
+        }
+
+        /* BrowserSize.SMALL */
+        @container (${BrowserSize.SMALL}px < width < ${BrowserSize.MEDIUM}px) {
+            ${BrowserClass.dot} .row .title {
+                width: calc(var(--rowWidth) - var(--stat1Width) - var(--stat2Width) - 38px - var(--favoriteWidth) - 16px);
+            }
+
+            ${BrowserClass.dot} .stat-wrapper {
+                width: calc(var(--stat1Width) + var(--stat2Width));
+            }
+
             ${BrowserClass.dot} .row .stat2 {
-                width: var(--stat2Width);
+                display: flex;
+                justify-content: end;
+                text-align: end;
+            }
+
+            ${BrowserClass.dot} .row .stat3,
+            ${BrowserClass.dot} .row .stat4  {
+                display: none;
+                width: 0;
+            }
+        }
+        /* BrowserSize.MEDIUM */
+        @container (${BrowserSize.MEDIUM}px < width < ${BrowserSize.LARGE}px) {
+            ${BrowserClass.dot} .row .title {
+                width: calc(var(--rowWidth) - var(--stat1Width) - var(--stat2Width) - var(--stat3Width) - 38px - var(--favoriteWidth) - 16px);
+            }
+
+            ${BrowserClass.dot} .stat-wrapper {
+                width: calc(var(--stat1Width) + var(--stat2Width) + var(--stat3Width));
             }
 
             ${BrowserClass.dot} .row .stat3 {
-                width: var(--stat3Width);
+                display: flex;
+                justify-content: end;
+                text-align: end;
+            }
+
+            ${BrowserClass.dot} .row .stat4  {
+                display: none;
+                width: 0;
+            }
+        }
+
+        /* BrowserSize.LARGE */
+        @container (${BrowserSize.LARGE}px < width) {
+            ${BrowserClass.dot} .row .title {
+                width: calc(var(--rowWidth) - var(--stat1Width) - var(--stat2Width) - var(--stat3Width) - var(--stat4Width) - 38px - var(--favoriteWidth) - 16px);
+            }
+
+            ${BrowserClass.dot} .stat-wrapper {
+                width: calc(var(--stat1Width) + var(--stat2Width) + var(--stat3Width) + var(--stat4Width));
             }
 
             ${BrowserClass.dot} .row .stat4 {
                 display: flex;
                 justify-content: end;
                 text-align: end;
-                width: var(--stat4Width);
             }
         }
-
-        @container (max-width: 860px) {
-            ${BrowserClass.dot} .row .stat1 {
-                margin-left: auto;
-            }
-        }
-
 
         ${BrowserClass.dot} .sensitivity-badge {
             height: 2em;
@@ -491,6 +542,7 @@ export function injectResourceBrowserStyle(rowSize: number) {
         ${BrowserClass.dot} .rename-field {
             display: none;
             position: absolute;
+            /* TODO(Jonas): Should also have different sizes depending on container width */
             width: calc(var(--rowWidth) - var(--stat1Width) - var(--stat2Width) - var(--stat3Width) - var(--stat4Width) - var(--favoriteWidth) - 92px);
             background-color: var(--backgroundDefault);
             border-radius: 5px;
