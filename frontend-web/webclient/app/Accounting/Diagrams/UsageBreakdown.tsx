@@ -28,33 +28,33 @@ export function useBreakdownChart(
     childColors: Map<string, string>,
 ): BreakdownChart {
     const tableRows = useMemo(() => {
-
         if (!openReport) return [];
 
-        const domainSet: Record<string, number> = {};
+        const latestByChild = new Map<
+            string,
+            {timestamp: number; usage: number}
+        >();
 
-        for (const point of openReport.usageOverTime.delta) {
-            const key = point.child ?? "";
+        for (const point of openReport.usageOverTime.childrenAbsolute) {
+            const child = point.child ?? "";
+            const existing = latestByChild.get(child);
 
-            domainSet[key] =
-                (domainSet[key] ?? 0) + point.change;
+            if (!existing || point.timestamp > existing.timestamp) {
+                latestByChild.set(child, {
+                    timestamp: point.timestamp,
+                    usage: point.usage,
+                });
+            }
         }
 
-
-        const domain = Object.keys(domainSet).sort((a, b) =>
-            domainSet[b] - domainSet[a]
-        );
-
-        const color = (child: string) =>
-            childColors.get(child) ?? "#ccc";
-
-        return domain.map(child => ({
-            child,
-            color: color(child),
-            value: domainSet[child],
-        }));
-
-    }, [openReport, chartWidth, chartHeight, labelFormatter]);
+        return [...latestByChild.entries()]
+            .sort(([, a], [, b]) => b.usage - a.usage)
+            .map(([child, point]) => ({
+                child,
+                color: childColors.get(child) ?? "#ccc",
+                value: point.usage,
+            }));
+    }, [openReport, childColors]);
 
     const chart = useD3(node => {
         // Data validation and initial setup
@@ -62,34 +62,24 @@ export function useBreakdownChart(
         const r = openReport;
         if (r == null) return;
 
-        const data = r.usageOverTime.delta;
+        const data = r.usageOverTime.childrenAbsolute;
         if (data.length === 0) return;
 
         // Data processing
         // -------------------------------------------------------------------------------------------------------------
-        const domainSet: Record<string, number> = {};
-        for (const point of data) {
-            domainSet[point.child ?? ""] = (domainSet[point.child ?? ""] ?? 0) + point.change;
-        }
+        const dataSet: [string, number][] = tableRows.map(row => [
+            row.child,
+            row.value,
+        ]);
 
-        const domain = Object.keys(domainSet).sort((a, b) => {
-            if (domainSet[a] > domainSet[b]) {
-                return -1;
-            } else if (domainSet[a] < domainSet[b]) {
-                return 1;
-            } else {
-                return 0;
-            }
-        });
-        const dataSet: [string, number][] = Object.entries(domainSet);
+        const domain = tableRows.map(row => row.child);
 
         // Color scheme
         // -------------------------------------------------------------------------------------------------------------
 
-        const color = scaleOrdinal<string>()
-            .domain(domain)
-            .range(colorNames)
-            .unknown("#ccc");
+        const color = (child: string) =>
+            childColors.get(child) ?? "#ccc";
+
         const contrastColor = scaleOrdinal<string>()
             .domain(domain)
             .range(contrastColorNames)
@@ -100,7 +90,7 @@ export function useBreakdownChart(
         const outerRadius = Math.min(chartWidth, chartHeight) / 2 - 1;
         const pieGenerator = pie<[string, number]>().sort(null).value(d => d[1]);
         const arcGenerator = arc<PieArcDatum<[string, number]>>().innerRadius(0).outerRadius(outerRadius);
-        const labelRadius = outerRadius * 0.8;
+        const labelRadius = outerRadius * 0.65;
         const arcLabelGenerator = arc<PieArcDatum<[string, number]>>().innerRadius(labelRadius).outerRadius(labelRadius);
 
         const arcs = pieGenerator(dataSet);
@@ -148,17 +138,35 @@ export function useBreakdownChart(
             element.onmouseleave = tooltipEvents.leaveListener;
         })
 
-        svg.append("g")
-            .attr("text-anchor", "middle")
-            .selectAll()
+        const labelGroup = svg.append("g")
+            .attr("text-anchor", "middle");
+
+        const labels = labelGroup
+            .selectAll<SVGTextElement, PieArcDatum<[string, number]>>("text")
             .data(arcs)
             .join("text")
             .attr("fill", d => contrastColor(d.data[0]))
             .attr("transform", d => `translate(${arcLabelGenerator.centroid(d)})`)
-            .call(text => text.filter(d => (d.endAngle - d.startAngle) > 0.10).append("tspan")
-                .attr("x", 0)
-                .attr("y", "0.7em")
-                .text(d => valueFormatter(d.data[1])));
+            .append("tspan")
+            .attr("x", 0)
+            .attr("y", "0.7em")
+            .text(d => valueFormatter(d.data[1]));
+
+        labels.each(function (d) {
+            const text = this;
+            const textWidth = text.getComputedTextLength();
+
+            const sliceAngle = d.endAngle - d.startAngle;
+            const requiredAngle = textWidth / labelRadius;
+
+            // Extra angular padding around the label.
+            const padding = 0.10;
+
+            if (sliceAngle < requiredAngle + padding) {
+                select(text.parentElement).remove();
+            }
+        });
+
     }, [openReport, chartWidth, chartHeight, labelFormatter]);
 
     // noinspection UnnecessaryLocalVariableJS

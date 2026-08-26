@@ -758,9 +758,18 @@ const UsagePage: React.FunctionComponent = () => {
             </Flex>
 
 
-            {r.unitAndFrequency.frequency == "ONCE" || r.subProjectHealth.subProjectCount === 0 || breakdownChart.table.length === 0 ? null :
+            {r.subProjectHealth.subProjectCount === 0 || breakdownChart.table.length === 0 ? null :
                 <Card>
-                    <h3>Usage breakdown</h3>
+                    <Flex alignItems="center" gap="6px">
+                        <h3 style={{margin: 0}}>Usage breakdown</h3>
+
+                        <TooltipV2
+                            tooltip="Shows the absolute usage for each project at the latest available point in the selected period."
+                            side="right"
+                        >
+                            <Icon name={"heroInformationCircle"} />
+                        </TooltipV2>
+                    </Flex>
                     <Flex flexWrap={"wrap"} gap={"16px"}>
                         <svg ref={breakdownChart.chartRef} width={breakdownChartWidth} height={breakdownChartHeight}
                              style={{flexShrink: 0, flexBasis: breakdownChartWidth}} />
