@@ -27,13 +27,6 @@ func TestComputeCLI(t *testing.T) {
 	assert.Nil(t, cmd)
 }
 
-func TestEnvironmentList(t *testing.T) {
-	input := []string{"environment", "list"}
-	cmd, err := Parse(input)
-	assert.NoError(t, err)
-	assert.NotNil(t, cmd)
-}
-
 func TestConnectCommand(t *testing.T) {
 	input := []string{"connect", "--dev"}
 	cmd, _ := Parse(input)
@@ -125,6 +118,42 @@ func TestWorkspaceGetMissingName(t *testing.T) {
 	assert.Nil(t, cmd)
 }
 
+func TestEnvironmentUse(t *testing.T) {
+	input := []string{"environment", "use", "ucloud"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestEnvironmentAdd(t *testing.T) {
+	input := []string{"environment", "add", "foo", "www.bar.com"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestEnvironmentRemove(t *testing.T) {
+	input := []string{"environment", "remove", "foo"}
+	cmd, err := Parse(input)
+	concrete := cmd.(*command.EnvironmentRemoveCommand)
+	assert.NoError(t, err)
+	assert.Equal(t, concrete.Name, "foo")
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestEnvironmentList(t *testing.T) {
+	input := []string{"environment", "list"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
 func TestJobCreateParams(t *testing.T) {
 	input := []string{"job", "create", "--param", "image=ubuntu", "--param", "cpu=1", "--param", "memory=1024"}
 	cmd, err := Parse(input)
@@ -151,13 +180,4 @@ func TestPublicLinkCreate(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, cmd)
 	assert.NotEmpty(t, concrete.Name)
-}
-
-func TestEnviromentAdd(t *testing.T) {
-	input := []string{"environment", "add", "foo", "bar"}
-	cmd, err := Parse(input)
-	concrete := cmd.(*command.EnvironmentAddCommand)
-	assert.NoError(t, err)
-	assert.Equal(t, concrete.Name, "foo")
-	assert.Equal(t, concrete.Value, "bar")
 }
