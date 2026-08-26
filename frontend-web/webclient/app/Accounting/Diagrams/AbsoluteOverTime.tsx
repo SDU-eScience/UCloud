@@ -23,6 +23,7 @@ export function useAbsoluteOverTimeChart(
     chartHeight: number,
     unit: FrontendAccountingUnit | null,
     childToLabel: (child: string | null) => string,
+    childColors: Map<string, string>,
 ): AbsoluteOverTimeChart {
     const [childrenLabels, setChildrenLabels] = useState<ChartLabel[]>([]);
 
@@ -114,13 +115,11 @@ export function useAbsoluteOverTimeChart(
 
         // Color scheme
         // -------------------------------------------------------------------------------------------------------------
-        const color = scaleOrdinal<string>()
-            .domain(domain)
-            .range(colorNames)
-            .unknown("#ccc");
+        const color = (child: string) =>
+            childColors.get(child) ?? "#ccc";
 
         setChildrenLabels(domain.map(d => {
-            return {child: d, color: color(d ?? "")};
+            return {child: d, color: color(d)};
         }));
 
         // Tooltips
@@ -181,7 +180,7 @@ export function useAbsoluteOverTimeChart(
                             usage * unitNormalizationFactor
                         )
                     );
-                    
+
                     container.append(node);
                 }
 

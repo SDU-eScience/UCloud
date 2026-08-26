@@ -31,6 +31,7 @@ import {getStartOfDay} from "@/Utilities/DateUtilities";
 import {exportUsage} from "@/Accounting/Usage";
 import {useUsageOverTimeChart} from "@/Accounting/Diagrams/UsageOverTime";
 import {useAbsoluteOverTimeChart} from "@/Accounting/Diagrams/AbsoluteOverTime";
+import {makeColorMap} from "@/Accounting/Diagrams";
 
 export interface UsageRetrieveRequest {
     start: number;
@@ -287,10 +288,19 @@ const UsagePage: React.FunctionComponent = () => {
         if (r === undefined) return [];
 
         const projectIds: Record<string, true> = {};
-        for (const dataPoint of r.usageOverTime.delta) {
-            if (dataPoint.child !== null && looksLikeUUID(dataPoint.child)) {
-                projectIds[dataPoint.child] = true;
+
+        const addProjectId = (child: string | null) => {
+            if (child !== null && looksLikeUUID(child)) {
+                projectIds[child] = true;
             }
+        };
+
+        for (const dataPoint of r.usageOverTime.delta) {
+            addProjectId(dataPoint.child);
+        }
+
+        for (const dataPoint of r.usageOverTime.childrenAbsolute) {
+            addProjectId(dataPoint.child);
         }
 
         return Object.keys(projectIds);
@@ -313,6 +323,27 @@ const UsagePage: React.FunctionComponent = () => {
 
         return child;
     }, [childProjectInfo]);
+
+    const childColors = useMemo(() => {
+        const r = state.openReport;
+        if (r == null) return new Map<string, string>();
+
+        const children = new Set<string>();
+
+        for (const p of r.usageOverTime.delta) {
+            if (p.child != null) {
+                children.add(p.child);
+            }
+        }
+
+        for (const p of r.usageOverTime.childrenAbsolute) {
+            if (p.child != null) {
+                children.add(p.child);
+            }
+        }
+
+        return makeColorMap([...children].sort());
+    }, [state.openReport]);
 
     const unit = useMemo(() => {
         const r = state.openReport;
@@ -340,11 +371,11 @@ const UsagePage: React.FunctionComponent = () => {
     }, [state.openReport]);
 
     const utilizationOverTime = useUtilizationOverTimeChart(state.openReport, utilizationChartWidth, utilizationChartHeight, unit);
-    const deltaOverTime = useDeltaOverTimeChart(state.openReport, deltaChartWidth, chartHeight(deltaChartWidth), unit, childToLabel);
-    const absoluteOverTime = useAbsoluteOverTimeChart(state.openReport, deltaChartWidth, chartHeight(deltaChartWidth), unit, childToLabel);
+    const deltaOverTime = useDeltaOverTimeChart(state.openReport, deltaChartWidth, chartHeight(deltaChartWidth), unit, childToLabel, childColors);
+    const absoluteOverTime = useAbsoluteOverTimeChart(state.openReport, deltaChartWidth, chartHeight(deltaChartWidth), unit, childToLabel, childColors);
 
     const breakdownChart = useBreakdownChart(state.openReport, breakdownChartWidth,
-        breakdownChartHeight, childToLabel, valueFormatter);
+        breakdownChartHeight, childToLabel, valueFormatter, childColors);
 
     const usageOverTime = useUsageOverTimeChart(state.openReport, usageChartWidth, usageChartHeight, unit, childToLabel);
 
@@ -727,7 +758,7 @@ const UsagePage: React.FunctionComponent = () => {
             </Flex>
 
 
-            {r.subProjectHealth.subProjectCount === 0 || breakdownChart.table.length === 0 ? null :
+            {r.unitAndFrequency.frequency == "ONCE" || r.subProjectHealth.subProjectCount === 0 || breakdownChart.table.length === 0 ? null :
                 <Card>
                     <h3>Usage breakdown</h3>
                     <Flex flexWrap={"wrap"} gap={"16px"}>

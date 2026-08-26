@@ -401,7 +401,7 @@ func initUsageReports() {
 								report.Title = "GB"
 								report.UnitAndFrequency = accapi.AccountingUnitAndFrequency{
 									Unit:      w.PaysFor.AccountingUnit,
-									Frequency: accapi.AccountingFrequencyPeriodicDay,
+									Frequency: accapi.AccountingFrequencyOnce,
 								}
 							}
 						} else {
@@ -1377,12 +1377,12 @@ func lUsageSampleWallet(now time.Time, cmp internalSnapshotComparison, b *db.Bat
 		parentReport.SubProjectHealth.SubProjectCount++
 
 		parentReport.UsageOverTime.ChildrenAbsolute = append(
-					parentReport.UsageOverTime.ChildrenAbsolute,
-					internalUsageOverTimeAbsoluteChildrenDataPoint{
-						Timestamp: now,
-						Usage:     currWallet.TotalUsage,
-						Child:     util.OptValue(currWallet.Id),
-					})
+			parentReport.UsageOverTime.ChildrenAbsolute,
+			internalUsageOverTimeAbsoluteChildrenDataPoint{
+				Timestamp: now,
+				Usage:     currWallet.TotalUsage,
+				Child:     util.OptValue(currWallet.Id),
+			})
 		parentReport.Dirty = true
 
 		if delta != 0 {
@@ -1405,7 +1405,7 @@ func lUsageSampleWallet(now time.Time, cmp internalSnapshotComparison, b *db.Bat
 		case internalGroupHealthUnderUtilized:
 			parentReport.SubProjectHealth.UnderUtilized++
 		case internalGroupHealthAtRisk:
-				parentReport.SubProjectHealth.AtRisk++
+			parentReport.SubProjectHealth.AtRisk++
 		}
 	}
 

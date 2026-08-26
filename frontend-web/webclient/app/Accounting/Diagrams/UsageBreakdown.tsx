@@ -25,6 +25,7 @@ export function useBreakdownChart(
     chartHeight: number,
     labelFormatter: (child: string | null) => string,
     valueFormatter: (value: number) => string,
+    childColors: Map<string, string>,
 ): BreakdownChart {
     const tableRows = useMemo(() => {
 
@@ -44,12 +45,8 @@ export function useBreakdownChart(
             domainSet[b] - domainSet[a]
         );
 
-
-        const color = scaleOrdinal<string>()
-            .domain(domain)
-            .range(colorNames)
-            .unknown("#ccc");
-
+        const color = (child: string) =>
+            childColors.get(child) ?? "#ccc";
 
         return domain.map(child => ({
             child,
