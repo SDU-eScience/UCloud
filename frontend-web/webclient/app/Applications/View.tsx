@@ -152,7 +152,7 @@ export const ApplicationSelector: React.FunctionComponent<{
                 fullWidth
                 matchTriggerWidth={false}
                 dropdownWidth="min(380px, calc(100vw - 40px))"
-                elementHeight={37}
+                elementHeight={40}
                 groupBy={item => item.group}
                 showSearchField
                 focusable={props.fieldNavigation}
@@ -160,7 +160,7 @@ export const ApplicationSelector: React.FunctionComponent<{
                 data-job-info-field={props.fieldNavigation ? "flavor" : undefined}
                 data-card-first-field={props.fieldNavigation || undefined}
                 chevronPlacement={caretPlacement}
-                RenderRow={p => <Flex p="8px" alignItems="center" onClick={p.onSelect} {...p.dataProps}>
+                RenderRow={p => <Flex p="8px 12px 8px 8px" alignItems="center" onClick={p.onSelect} {...p.dataProps}>
                     <Truncate title={p.element?.searchKey}>{p.element?.searchKey}</Truncate>
                     <Text ml="auto" color="textSecondary" fontSize="12px">Latest: {p.element?.latestVersion}</Text>
                 </Flex>}
