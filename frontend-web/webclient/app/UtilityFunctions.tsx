@@ -1,4 +1,4 @@
-import {useEffect, useState} from "react";
+import {useEffect, useRef, useState} from "react";
 import CONF from "../site.config.json";
 import {UPLOAD_LOCALSTORAGE_PREFIX} from "@/Files/ChunkedFileReader";
 import {BulkRequest, BulkResponse, PageV2} from "./UCloud";
@@ -695,4 +695,28 @@ export function getOrNull<T>(array: T[], index: number): T | null {
     if (index < 0) return null;
     if (index >= array.length) return null;
     return array[index];
+}
+
+export function usePortal() {
+    const portalRef = useRef<HTMLDivElement | null>(null);
+    if (!portalRef.current) {
+        portalRef.current = document.createElement("div");
+    }
+
+    useEffect(() => {
+        const portal = portalRef.current;
+        if (!portal) return;
+
+        if (portal.parentNode !== document.body) {
+            document.body.appendChild(portal);
+        }
+
+        return () => {
+            if (portal.parentNode === document.body) {
+                document.body.removeChild(portal);
+            }
+        };
+    }, []);
+
+    return portalRef.current;
 }

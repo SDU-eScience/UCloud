@@ -53,6 +53,7 @@ type inferenceUsageRow struct {
 	Owner         string
 	Scope         string
 	Usage         int64
+	Remainder     int
 	ReportedUsage int64
 }
 
@@ -63,11 +64,17 @@ func inferenceAcquire(owner apm.WalletOwner) (func(), *util.HttpError) {
 	ownerRef := owner.Reference()
 	inferenceAdmission.Lock()
 	defer inferenceAdmission.Unlock()
-	if inferenceAdmission.Total >= inferenceMaxConcurrent || inferenceAdmission.Owners[ownerRef] >= inferenceMaxConcurrentPerOwner {
+	if inferenceAdmission.Total >= inferenceMaxConcurrent {
+		metricInferenceRequestsRejected.WithLabelValues("global").Inc()
+		return nil, util.HttpErr(http.StatusTooManyRequests, "too many concurrent inference requests")
+	}
+	if inferenceAdmission.Owners[ownerRef] >= inferenceMaxConcurrentPerOwner {
+		metricInferenceRequestsRejected.WithLabelValues("owner").Inc()
 		return nil, util.HttpErr(http.StatusTooManyRequests, "too many concurrent inference requests")
 	}
 	inferenceAdmission.Total++
 	inferenceAdmission.Owners[ownerRef]++
+	metricInferenceRequestsInFlight.Inc()
 	return func() {
 		inferenceAdmission.Lock()
 		inferenceAdmission.Total--
@@ -75,6 +82,7 @@ func inferenceAcquire(owner apm.WalletOwner) (func(), *util.HttpError) {
 		if inferenceAdmission.Owners[ownerRef] == 0 {
 			delete(inferenceAdmission.Owners, ownerRef)
 		}
+		metricInferenceRequestsInFlight.Dec()
 		inferenceAdmission.Unlock()
 	}, nil
 }
@@ -133,7 +141,84 @@ var (
 		Namespace: "ucloud_im",
 		Subsystem: "inference",
 		Name:      "requests_total",
-		Help:      "Total inference requests by model.",
+		Help:      "Total inference requests with usage reported by model.",
+	}, []string{"model"})
+
+	metricInferenceTimeToFirstToken = promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "inference",
+		Name:      "time_to_first_token_seconds",
+		Help:      "Time from starting an inference stream to the first non-empty output delta by model.",
+	}, []string{"model"})
+
+	metricInferenceOutputTokensPerSecond = promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "inference",
+		Name:      "output_tokens_per_second",
+		Help:      "Output tokens per second from the first non-empty output delta until an inference stream completes by model.",
+	}, []string{"model"})
+
+	metricInferenceRequestDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "inference",
+		Name:      "request_duration_seconds",
+		Help:      "Inference request duration by model.",
+	}, []string{"model"})
+
+	metricInferenceRequestResults = promauto.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "inference",
+		Name:      "request_results_total",
+		Help:      "Inference request results by model and outcome.",
+	}, []string{"model", "outcome"})
+
+	metricInferenceRequestsInFlight = promauto.NewGauge(prometheus.GaugeOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "inference",
+		Name:      "requests_in_flight",
+		Help:      "Number of inference requests currently admitted for processing.",
+	})
+
+	metricInferenceRequestsRejected = promauto.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "inference",
+		Name:      "requests_rejected_total",
+		Help:      "Inference requests rejected by admission limit.",
+	}, []string{"reason"})
+
+	metricInferenceInputTokensPerRequest = promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "inference",
+		Name:      "input_tokens_per_request",
+		Help:      "Input tokens observed per chat or Responses request by model.",
+	}, []string{"model"})
+
+	metricInferenceOutputTokensPerRequest = promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "inference",
+		Name:      "output_tokens_per_request",
+		Help:      "Output tokens observed per chat or Responses request by model.",
+	}, []string{"model"})
+
+	metricInferenceCachedInputRatio = promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "inference",
+		Name:      "cached_input_ratio",
+		Help:      "Ratio of cached input tokens to total input tokens per chat or Responses request by model.",
+	}, []string{"model"})
+
+	metricInferenceTimeToLastToken = promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "inference",
+		Name:      "time_to_last_token_seconds",
+		Help:      "Time from starting an inference stream to its last observed output delta by model.",
+	}, []string{"model"})
+
+	metricInferenceOutputDeltaInterval = promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "inference",
+		Name:      "output_delta_interval_seconds",
+		Help:      "Time between non-empty output deltas in an inference stream by model.",
 	}, []string{"model"})
 )
 
@@ -321,15 +406,15 @@ func Init() {
 			Provider:    cfg.Provider.Id,
 			ProductType: apm.ProductTypeInference,
 			AccountingUnit: apm.AccountingUnit{
-				Name:       "Token",
-				NamePlural: "Tokens",
+				Name:       "Credit",
+				NamePlural: "Credits",
 			},
 			AccountingFrequency: apm.AccountingFrequencyOnce,
 			FreeToUse:           false,
 			AllowSubAllocations: true,
 		},
 		Name:                      "inference",
-		Description:               "Inference tokens",
+		Description:               "Inference credits",
 		ProductType:               apm.ProductTypeInference,
 		Price:                     1,
 		HiddenInGrantApplications: false,
@@ -338,7 +423,7 @@ func Init() {
 	controller.ProductsRegister([]apm.ProductV2{inferenceGlobals.Product})
 	go inferenceUsageFlushLoop()
 
-	authority := fmt.Sprintf("chat%s", shared.ServiceConfig.Compute.Web.Suffix) // TODO Change for prod
+	authority := shared.ServiceConfig.Compute.Inference.Authority
 	AttachmentInit()
 	gateway.SendMessage(gateway.ConfigurationMessage{
 		RouteUp: &gateway.EnvoyRoute{
@@ -1046,40 +1131,115 @@ func inferenceReportUsage(owner apm.WalletOwner, model InferenceModel, cachedTok
 		outputTokens = 0
 	}
 
-	usageNonNormalized := inferenceUsageMultiply(cachedTokens, model.PriceMultiplier.CachedInput)
-	usageNonNormalized = inferenceUsageAdd(usageNonNormalized, inferenceUsageMultiply(inputTokens, model.PriceMultiplier.Input))
-	usageNonNormalized = inferenceUsageAdd(usageNonNormalized, inferenceUsageMultiply(outputTokens, model.PriceMultiplier.Output))
-	usage := inferenceNormalizeUsage(usageNonNormalized)
+	weightedUsage := inferenceUsageMultiply(cachedTokens, model.PriceMultiplier.CachedInput)
+	weightedUsage = inferenceUsageAdd(weightedUsage, inferenceUsageMultiply(inputTokens, model.PriceMultiplier.Input))
+	weightedUsage = inferenceUsageAdd(weightedUsage, inferenceUsageMultiply(outputTokens, model.PriceMultiplier.Output))
+	usage := weightedUsage / 1000
+	remainder := weightedUsage % 1000
 
 	metricInferenceCachedInputTokens.WithLabelValues(model.Name).Add(float64(cachedTokens))
 	metricInferenceInputTokens.WithLabelValues(model.Name).Add(float64(inputTokens))
 	metricInferenceOutputTokens.WithLabelValues(model.Name).Add(float64(outputTokens))
 	metricInferenceRequests.WithLabelValues(model.Name).Inc()
 
-	if usage == 0 {
-		return
-	}
-
 	scope := fmt.Sprintf("inference-%s-%s-%s", inferenceGlobals.Product.Category.Provider, inferenceGlobals.Product.Category.Name, util.SecureToken())
 	db.NewTx0(func(tx *db.Transaction) {
 		db.Exec(
 			tx,
 			`
-				insert into inference_usage(owner, scope, usage)
-				values (:owner, :scope, :usage)
-				on conflict (owner) do update set
-					usage = case
-						when inference_usage.usage > 9223372036854775807 - excluded.usage then 9223372036854775807
-						else inference_usage.usage + excluded.usage
-					end,
+				insert into inference_usage_by_model(
+					owner,
+					model,
+					usage_day,
+					cached_input_tokens,
+					input_tokens,
+					output_tokens
+				)
+				values (
+					:owner,
+					:model,
+					cast((now() at time zone 'utc') as date),
+					:cached_input_tokens,
+					:input_tokens,
+					:output_tokens
+				)
+				on conflict (owner, model, usage_day) do update set
+					cached_input_tokens = cast((
+						cast(inference_usage_by_model.cached_input_tokens as numeric) + excluded.cached_input_tokens
+					) as bigint),
+					input_tokens = cast((
+						cast(inference_usage_by_model.input_tokens as numeric) + excluded.input_tokens
+					) as bigint),
+					output_tokens = cast((
+						cast(inference_usage_by_model.output_tokens as numeric) + excluded.output_tokens
+					) as bigint),
 					updated_at = now()
 			`,
-			db.Params{"owner": owner.Reference(), "scope": scope, "usage": usage},
+			db.Params{
+				"owner":               owner.Reference(),
+				"model":               model.Name,
+				"cached_input_tokens": int64(cachedTokens),
+				"input_tokens":        int64(inputTokens),
+				"output_tokens":       int64(outputTokens),
+			},
+		)
+		db.Exec(
+			tx,
+			`
+				insert into inference_usage(owner, scope, usage, remainder)
+				values (:owner, :scope, :usage, :remainder)
+				on conflict (owner) do update set
+					usage = cast((
+						cast(inference_usage.usage as numeric)
+							+ excluded.usage
+							+ (inference_usage.remainder + excluded.remainder) / 1000
+					) as bigint),
+					remainder = (inference_usage.remainder + excluded.remainder) % 1000,
+					updated_at = now()
+			`,
+			db.Params{
+				"owner":     owner.Reference(),
+				"scope":     scope,
+				"usage":     usage,
+				"remainder": remainder,
+			},
 		)
 	})
 	select {
 	case inferenceUsageWake <- struct{}{}:
 	default:
+	}
+}
+
+func inferenceReportChatStreamingMetrics(model string, startedAt time.Time, firstTokenAt time.Time, lastTokenAt time.Time, completedAt time.Time, outputTokens int) {
+	if firstTokenAt.IsZero() {
+		return
+	}
+
+	metricInferenceTimeToFirstToken.WithLabelValues(model).Observe(firstTokenAt.Sub(startedAt).Seconds())
+	metricInferenceTimeToLastToken.WithLabelValues(model).Observe(lastTokenAt.Sub(startedAt).Seconds())
+
+	if outputTokens <= 0 {
+		return
+	}
+	outputDuration := completedAt.Sub(firstTokenAt).Seconds()
+	if outputDuration <= 0 {
+		return
+	}
+	metricInferenceOutputTokensPerSecond.WithLabelValues(model).Observe(float64(outputTokens) / outputDuration)
+}
+
+func inferenceReportChatRequestMetrics(model string, outcome string, startedAt time.Time, completedAt time.Time) {
+	metricInferenceRequestDuration.WithLabelValues(model).Observe(completedAt.Sub(startedAt).Seconds())
+	metricInferenceRequestResults.WithLabelValues(model, outcome).Inc()
+}
+
+func inferenceReportChatUsageMetrics(model string, cachedTokens int, inputTokens int, outputTokens int) {
+	totalInputTokens := cachedTokens + inputTokens
+	metricInferenceInputTokensPerRequest.WithLabelValues(model).Observe(float64(totalInputTokens))
+	metricInferenceOutputTokensPerRequest.WithLabelValues(model).Observe(float64(outputTokens))
+	if totalInputTokens > 0 {
+		metricInferenceCachedInputRatio.WithLabelValues(model).Observe(float64(cachedTokens) / float64(totalInputTokens))
 	}
 }
 
@@ -1099,17 +1259,6 @@ func inferenceUsageAdd(a int64, b int64) int64 {
 		return math.MaxInt64
 	}
 	return a + b
-}
-
-func inferenceNormalizeUsage(usage int64) int64 {
-	if usage <= 0 {
-		return 0
-	}
-	result := usage / 1000
-	if usage%1000 != 0 {
-		result++
-	}
-	return result
 }
 
 func inferenceUsageFlushLoop() {
@@ -1132,7 +1281,18 @@ func inferenceFlushUsage() {
 	rows := db.NewTx(func(tx *db.Transaction) []inferenceUsageRow {
 		return db.Select[inferenceUsageRow](
 			tx,
-			`select owner, scope, usage, reported_usage from inference_usage where usage > reported_usage order by owner`,
+			`
+				select
+					owner,
+					scope,
+					usage + 1 as usage,
+					remainder,
+					reported_usage
+				from inference_usage
+				where
+					usage + 1 > reported_usage
+				order by owner
+			`,
 			db.Params{},
 		)
 	})
@@ -1162,7 +1322,10 @@ func inferenceFlushUsage() {
 			db.Exec(
 				tx,
 				`update inference_usage set reported_usage = greatest(reported_usage, :usage) where owner = :owner`,
-				db.Params{"owner": row.Owner, "usage": row.Usage},
+				db.Params{
+					"owner": row.Owner,
+					"usage": row.Usage,
+				},
 			)
 		})
 	}
@@ -1177,7 +1340,7 @@ func inferenceServerBase() string {
 		scheme = "https"
 	}
 
-	return fmt.Sprintf("%s://chat%s/v1", scheme, shared.ServiceConfig.Compute.Web.Suffix)
+	return fmt.Sprintf("%s://%s/v1", scheme, shared.ServiceConfig.Compute.Inference.Authority)
 }
 
 func inferencePageToOrc(page *InferenceModelPage) *orcapi.InferenceModelPage {

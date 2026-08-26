@@ -80,44 +80,6 @@ const pageStyle = injectStyle("inference-models-page", k => `
         height: 435px;
     }
 
-    ${k} .hero::before,
-    ${k} .hero::after {
-        content: "";
-        inset: auto -12% -42% auto;
-        opacity: 0;
-        pointer-events: none;
-        position: absolute;
-        transition: opacity 420ms ease, transform 520ms ease;
-        z-index: 0;
-    }
-
-    ${k} .hero::before {
-        background: radial-gradient(circle, rgba(64, 147, 255, 0.24) 0%, rgba(91, 198, 255, 0.12) 34%, rgba(91, 198, 255, 0) 68%);
-        filter: blur(10px);
-        height: min(54vw, 620px);
-        transform: translate3d(24px, 18px, 0) scale(0.92);
-        width: min(54vw, 620px);
-    }
-
-    ${k} .hero::after {
-        background: linear-gradient(110deg, rgba(255, 255, 255, 0) 8%, rgba(133, 211, 255, 0.12) 45%, rgba(255, 255, 255, 0) 74%);
-        height: 100%;
-        inset: 0;
-        transform: translateX(-18%);
-    }
-
-    ${k} .hero:hover::before,
-    ${k} .hero:focus-within::before {
-        opacity: 1;
-        transform: translate3d(0, 0, 0) scale(1);
-    }
-
-    ${k} .hero:hover::after,
-    ${k} .hero:focus-within::after {
-        opacity: 1;
-        transform: translateX(0);
-    }
-
     ${k} .hero-top {
         display: flex;
         justify-content: flex-end;
@@ -149,8 +111,6 @@ const pageStyle = injectStyle("inference-models-page", k => `
     }
 
     @media (prefers-reduced-motion: reduce) {
-        ${k} .hero::before,
-        ${k} .hero::after,
         ${k} .hero-icon {
             transition: none;
         }
@@ -782,7 +742,7 @@ function CatalogFilterButton(props: React.PropsWithChildren<{active: boolean; on
 }
 
 function ProviderFilterTrigger(props: {selectedProviders: string[]; providerOptions: ModelProviderOption[]}): React.ReactNode {
-    let label = "All providers";
+    let label = "All model providers";
     if (props.selectedProviders.length === 1) {
         label = props.selectedProviders[0];
     } else if (props.selectedProviders.length > 1) {

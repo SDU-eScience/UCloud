@@ -385,11 +385,11 @@ func vmiFsMutator() {
 					}...)
 
 					for argIdx, arg := range container.Args {
-						if arg == "--cache=auto" {
+						if arg == "--cache=auto" || arg == "--cache=metadata" {
 							ops = append(ops, jsonPatchOp{
 								Op:    "replace",
 								Path:  fmt.Sprintf("/spec/containers/%d/args/%d", cIdx, argIdx),
-								Value: "--cache=metadata",
+								Value: "--cache=never",
 							})
 						}
 					}
@@ -1021,13 +1021,11 @@ func terminate(request ctrl.JobTerminateRequest) *util.HttpError {
 		})
 		ctrl.JobTrackNew(copied)
 
-		_, _ = orc.JobsControlAddUpdate.Invoke(fndapi.BulkRequest[orc.ResourceUpdateAndId[orc.JobUpdate]]{
-			Items: []orc.ResourceUpdateAndId[orc.JobUpdate]{
-				{
-					Id: job.Id,
-					Update: orc.JobUpdate{
-						State: util.OptValue(orc.JobStateSuccess),
-					},
+		_ = ctrl.JobSendUpdates([]orc.ResourceUpdateAndId[orc.JobUpdate]{
+			{
+				Id: job.Id,
+				Update: orc.JobUpdate{
+					State: util.OptValue(orc.JobStateSuccess),
 				},
 			},
 		})
