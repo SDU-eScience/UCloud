@@ -149,6 +149,7 @@ var (
 		Subsystem: "inference",
 		Name:      "time_to_first_token_seconds",
 		Help:      "Time from starting an inference stream to the first non-empty output delta by model.",
+		Buckets:   prometheus.ExponentialBuckets(0.005, 2, 18),
 	}, []string{"model"})
 
 	metricInferenceOutputTokensPerSecond = promauto.NewHistogramVec(prometheus.HistogramOpts{
@@ -156,6 +157,7 @@ var (
 		Subsystem: "inference",
 		Name:      "output_tokens_per_second",
 		Help:      "Output tokens per second from the first non-empty output delta until an inference stream completes by model.",
+		Buckets:   prometheus.ExponentialBuckets(1, 2, 20),
 	}, []string{"model"})
 
 	metricInferenceRequestDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
@@ -163,6 +165,7 @@ var (
 		Subsystem: "inference",
 		Name:      "request_duration_seconds",
 		Help:      "Inference request duration by model.",
+		Buckets:   prometheus.ExponentialBuckets(0.005, 2, 18),
 	}, []string{"model"})
 
 	metricInferenceRequestResults = promauto.NewCounterVec(prometheus.CounterOpts{
@@ -191,6 +194,7 @@ var (
 		Subsystem: "inference",
 		Name:      "input_tokens_per_request",
 		Help:      "Input tokens observed per chat or Responses request by model.",
+		Buckets:   prometheus.ExponentialBuckets(1, 2, 20),
 	}, []string{"model"})
 
 	metricInferenceOutputTokensPerRequest = promauto.NewHistogramVec(prometheus.HistogramOpts{
@@ -198,6 +202,7 @@ var (
 		Subsystem: "inference",
 		Name:      "output_tokens_per_request",
 		Help:      "Output tokens observed per chat or Responses request by model.",
+		Buckets:   prometheus.ExponentialBuckets(1, 2, 20),
 	}, []string{"model"})
 
 	metricInferenceCachedInputRatio = promauto.NewHistogramVec(prometheus.HistogramOpts{
@@ -205,6 +210,7 @@ var (
 		Subsystem: "inference",
 		Name:      "cached_input_ratio",
 		Help:      "Ratio of cached input tokens to total input tokens per chat or Responses request by model.",
+		Buckets:   []float64{0, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.97, 0.98, 0.99, 0.995, 0.9975, 0.999, 0.9995, 1},
 	}, []string{"model"})
 
 	metricInferenceTimeToLastToken = promauto.NewHistogramVec(prometheus.HistogramOpts{
@@ -212,6 +218,7 @@ var (
 		Subsystem: "inference",
 		Name:      "time_to_last_token_seconds",
 		Help:      "Time from starting an inference stream to its last observed output delta by model.",
+		Buckets:   prometheus.ExponentialBuckets(0.005, 2, 18),
 	}, []string{"model"})
 
 	metricInferenceOutputDeltaInterval = promauto.NewHistogramVec(prometheus.HistogramOpts{
@@ -219,6 +226,7 @@ var (
 		Subsystem: "inference",
 		Name:      "output_delta_interval_seconds",
 		Help:      "Time between non-empty output deltas in an inference stream by model.",
+		Buckets:   prometheus.ExponentialBuckets(0.001, 2, 17),
 	}, []string{"model"})
 )
 
