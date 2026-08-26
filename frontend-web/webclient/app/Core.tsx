@@ -12,6 +12,7 @@ import ApplicationsOverview from "./Applications/Category";
 import ApplicationsLanding from "./Applications/Landing";
 import ApplicationsGroup from "@/Applications/Group";
 import ApplicationSearch from "@/Applications/Search";
+import ApplicationCreator from "@/Applications/Creator/Create";
 import AvataaarModification from "@/UserSettings/Avataaar";
 import Dashboard from "@/Dashboard/Dashboard";
 import DetailedNews from "@/NewsPost/DetailedNews";
@@ -149,6 +150,11 @@ const Core = (): React.ReactNode => (
                     <Route path={AppRoutes.apps.category()}
                            element={React.createElement(requireAuth(ApplicationsOverview))} />
                     <Route path={AppRoutes.apps.search()} element={React.createElement(requireAuth(ApplicationSearch))} />
+
+                    {!inDevEnvironment() ? null : (
+                        <Route path={AppRoutes.apps.creator()}
+                               element={React.createElement(requireAuth(ApplicationCreator))} />
+                    )}
 
                     <Route path={`${AppRoutes.compute.jobs()}/*`}
                            element={React.createElement(requireAuth(JobsOnlyRouter))} />

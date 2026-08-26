@@ -1801,7 +1801,7 @@ function toIconPath(language: string): string {
     return "/Images/file-icons/" + lang + ".svg";
 }
 
-const jinja2monarchTokens = {
+export const jinja2monarchTokens = {
     tokenizer: {
         root: [
             // Jinja2 variable tags: {{ variable }}

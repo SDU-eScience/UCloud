@@ -63,6 +63,7 @@ const apps = {
     shell: (jobId: string, rank: string) => `/applications/shell/${jobId}/${rank}`,
     web: (jobId: string, rank: string) => `/applications/web/${jobId}/${rank}`,
     vnc: (jobId: string, rank: string) => `/applications/vnc/${jobId}/${rank}`,
+    creator: (kind?: string) => buildQueryString(`/applications/creator`, {kind}),
 };
 
 const appStudio = {
