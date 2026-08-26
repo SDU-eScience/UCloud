@@ -20,6 +20,7 @@ import {MarkdownDocument} from "@/ui-components/Markdown";
 
 const fallbackDocs = "https://docs.cloud.sdu.dk";
 const capabilities: InferenceCapability[] = ["TextGeneration", "TextToImage", "SpeechToText", "Vision", "VideoVision", "Audio"];
+type PriceMultiplierText = {cachedInput: string; input: string; output: string};
 
 export default function ModelPage(): React.ReactNode {
     const [params] = useSearchParams();
@@ -36,6 +37,7 @@ export default function ModelPage(): React.ReactNode {
     const [draft, setDraft] = React.useState<InferenceModel | null>(null);
     const [savingModel, setSavingModel] = React.useState(false);
     const [savingBenchmarks, setSavingBenchmarks] = React.useState(false);
+    const [priceMultiplierText, setPriceMultiplierText] = React.useState<PriceMultiplierText>({cachedInput: "", input: "", output: ""});
 
     const model = models.find(it => it.name === modelName);
     usePage(model?.title ?? "Inference model", SidebarTabId.INFERENCE);
@@ -63,24 +65,33 @@ export default function ModelPage(): React.ReactNode {
     React.useEffect(() => {
         if (!editing || !model) return;
         setDraft(normalizeEditableModel(model));
+        setPriceMultiplierText(editablePriceMultipliers(model));
     }, [editing, model?.name]);
 
     const startEdit = () => {
         if (!model) return;
         setDraft(normalizeEditableModel(model));
+        setPriceMultiplierText(editablePriceMultipliers(model));
         setEditing(true);
     };
 
     const saveModel = () => {
         if (!draft || !model) return;
+        const priceMultiplier = parsePriceMultipliers(priceMultiplierText);
+        if (!priceMultiplier) {
+            setError("Price multipliers must be non-negative decimal values with at most three decimal places.");
+            return;
+        }
+
+        const updatedDraft = {...draft, priceMultiplier};
         setSavingModel(true);
         setError("");
-        void callAPI(updateModel({providerId: null, oldName: model.name, model: draft}))
+        void callAPI(updateModel({providerId: null, oldName: model.name, model: updatedDraft}))
             .then(() => {
                 setSavingModel(false);
                 setEditing(false);
                 refresh();
-                if (draft.name !== model.name) navigate(AppRoutes.inference.model(draft.name));
+                if (updatedDraft.name !== model.name) navigate(AppRoutes.inference.model(updatedDraft.name));
             })
             .catch(err => {
                 setSavingModel(false);
@@ -121,6 +132,8 @@ export default function ModelPage(): React.ReactNode {
                 onSaveModel={saveModel}
                 onSaveBenchmarks={saveBenchmarks}
                 setModel={model => setDraft(model)}
+                priceMultiplierText={priceMultiplierText}
+                setPriceMultiplierText={setPriceMultiplierText}
             />
         </>;
     }
@@ -264,6 +277,8 @@ function ModelPageContent(props: {
     onSaveModel: () => void;
     onSaveBenchmarks: () => void;
     setModel: (model: InferenceModel) => void;
+    priceMultiplierText: PriceMultiplierText;
+    setPriceMultiplierText: (value: PriceMultiplierText) => void;
 }): React.ReactNode {
     const {model, models, benchmarks, providerId, server} = props;
     const page = model.page;
@@ -325,7 +340,7 @@ function ModelPageContent(props: {
 
             <Section>
                 <hr className="model-sidebar-separator" />
-                {props.editing ? <ModelSettingsEditor model={model} models={models} setModel={updateModel} /> : <Datasheet model={model} />}
+                {props.editing ? <ModelSettingsEditor model={model} models={models} setModel={updateModel} priceMultiplierText={props.priceMultiplierText} setPriceMultiplierText={props.setPriceMultiplierText} /> : <Datasheet model={model} />}
 
                 {props.editing ? null : <Flex gap="12px" flexWrap="wrap" flexDirection={"column"}>
                     <Link to={AppRoutes.inference.playground(model.name)}>
@@ -425,6 +440,30 @@ function formatMultiplier(value: number): string {
     return `${value / 1000}x`;
 }
 
+function editablePriceMultipliers(model: InferenceModel): PriceMultiplierText {
+    return {
+        cachedInput: String(model.priceMultiplier.cachedInput / 1000),
+        input: String(model.priceMultiplier.input / 1000),
+        output: String(model.priceMultiplier.output / 1000),
+    };
+}
+
+function parsePriceMultiplier(value: string): number | null {
+    const match = /^(\d+)(?:\.(\d{1,3}))?$/.exec(value);
+    if (!match) return null;
+
+    const result = Number(`${match[1]}${(match[2] ?? "").padEnd(3, "0")}`);
+    return Number.isSafeInteger(result) ? result : null;
+}
+
+function parsePriceMultipliers(values: PriceMultiplierText): InferenceModel["priceMultiplier"] | null {
+    const cachedInput = parsePriceMultiplier(values.cachedInput);
+    const input = parsePriceMultiplier(values.input);
+    const output = parsePriceMultiplier(values.output);
+    if (cachedInput === null || input === null || output === null) return null;
+    return {cachedInput, input, output};
+}
+
 function normalizeEditableModel(model: InferenceModel): InferenceModel {
     const defaults = defaultModelPage();
     return {
@@ -471,7 +510,13 @@ function updateDatasheet(model: InferenceModel, setModel: (model: InferenceModel
     setModel({...model, page: {...page, datasheet}});
 }
 
-function ModelSettingsEditor(props: {model: InferenceModel; models: InferenceModel[]; setModel: (model: InferenceModel) => void;}): React.ReactNode {
+function ModelSettingsEditor(props: {
+    model: InferenceModel;
+    models: InferenceModel[];
+    setModel: (model: InferenceModel) => void;
+    priceMultiplierText: PriceMultiplierText;
+    setPriceMultiplierText: (value: PriceMultiplierText) => void;
+}): React.ReactNode {
     const {model, setModel} = props;
     const defaults = defaultModelPage();
     const page = {...defaults, ...model.page};
@@ -489,9 +534,9 @@ function ModelSettingsEditor(props: {model: InferenceModel; models: InferenceMod
         <label>Parameters<Input value={datasheet.parameters ?? ""} onChange={ev => updateDatasheet(model, setModel, {...datasheet, parameters: ev.currentTarget.value})} /></label>
         <label>Activated parameters<Input value={datasheet.activatedParameters ?? ""} onChange={ev => updateDatasheet(model, setModel, {...datasheet, activatedParameters: ev.currentTarget.value})} /></label>
         <label>Quantization<Input value={datasheet.quantization ?? ""} onChange={ev => updateDatasheet(model, setModel, {...datasheet, quantization: ev.currentTarget.value})} /></label>
-        <label>Cached multiplier<Input type="number" value={model.priceMultiplier.cachedInput} onChange={ev => setModel({...model, priceMultiplier: {...model.priceMultiplier, cachedInput: parseInt(ev.currentTarget.value || "0")}})} /></label>
-        <label>Input multiplier<Input type="number" value={model.priceMultiplier.input} onChange={ev => setModel({...model, priceMultiplier: {...model.priceMultiplier, input: parseInt(ev.currentTarget.value || "0")}})} /></label>
-        <label>Output multiplier<Input type="number" value={model.priceMultiplier.output} onChange={ev => setModel({...model, priceMultiplier: {...model.priceMultiplier, output: parseInt(ev.currentTarget.value || "0")}})} /></label>
+        <label>Cached multiplier<Input type="number" step="0.001" min="0" value={props.priceMultiplierText.cachedInput} error={parsePriceMultiplier(props.priceMultiplierText.cachedInput) === null} onChange={ev => props.setPriceMultiplierText({...props.priceMultiplierText, cachedInput: ev.currentTarget.value})} /></label>
+        <label>Input multiplier<Input type="number" step="0.001" min="0" value={props.priceMultiplierText.input} error={parsePriceMultiplier(props.priceMultiplierText.input) === null} onChange={ev => props.setPriceMultiplierText({...props.priceMultiplierText, input: ev.currentTarget.value})} /></label>
+        <label>Output multiplier<Input type="number" step="0.001" min="0" value={props.priceMultiplierText.output} error={parsePriceMultiplier(props.priceMultiplierText.output) === null} onChange={ev => props.setPriceMultiplierText({...props.priceMultiplierText, output: ev.currentTarget.value})} /></label>
         <label>Temperature<Input type="number" step="0.1" min="0" max="2" value={model.chatSettings.temperature} onChange={ev => setModel({...model, chatSettings: {...model.chatSettings, temperature: parseFloat(ev.currentTarget.value || "0")}})} /></label>
         <label>Top P<Input type="number" step="0.1" min="0" max="1" value={model.chatSettings.topP} onChange={ev => setModel({...model, chatSettings: {...model.chatSettings, topP: parseFloat(ev.currentTarget.value || "0")}})} /></label>
         <label>Max completion tokens<Input type="number" min="1" value={model.chatSettings.maxCompletionTokens} onChange={ev => setModel({...model, chatSettings: {...model.chatSettings, maxCompletionTokens: parseInt(ev.currentTarget.value || "0")}})} /></label>

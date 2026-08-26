@@ -1,6 +1,8 @@
 package command
 
-import "fmt"
+import (
+	"fmt"
+)
 
 type WorkspaceListCommand struct{}
 type WorkspaceUseCommand struct {
@@ -25,13 +27,9 @@ var WorkspaceCommands = map[string]CommandFunc{
 	"rename": func() Command { return &WorkspaceRenameCommand{} },
 }
 
-func (c WorkspaceListCommand) Execute() error {
-	return fmt.Errorf("workspace list not implemented")
-}
+func (c WorkspaceListCommand) Execute() error { return fmt.Errorf("workspace list not implemented") }
 
-func (c WorkspaceUseCommand) Execute() error {
-	return fmt.Errorf("workspace use not implemented")
-}
+func (c WorkspaceUseCommand) Execute() error { return fmt.Errorf("workspace use not implemented") }
 
 func (c WorkspaceGetCommand) Execute() error {
 	return fmt.Errorf("workspace get not implemented")
