@@ -101,9 +101,9 @@ export function NetworkIPBrowse({
             new ResourceBrowser<NetworkIP>(mount, "Public IPs", opts).init(browserRef, FEATURES, "", browser => {
                 browser.setColumns([
                     {name: "IP address"},
-                    {name: "", columnWidth: 0},
-                    {name: "", columnWidth: 0},
                     {name: "In use with", columnWidth: 250},
+                    {name: "", columnWidth: 0},
+                    {name: "", columnWidth: 0},
                 ]);
 
                 supportByProvider.retrieve(Client.projectId ?? "", () => retrieveSupportV2(NetworkIPApi));

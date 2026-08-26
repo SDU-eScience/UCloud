@@ -97,10 +97,10 @@ export function PrivateNetworkBrowse({
         if (mount && !browserRef.current) {
             new ResourceBrowser<PrivateNetwork>(mount, "Private networks", opts).init(browserRef, FEATURES, "", browser => {
                 browser.setColumns([
-                    { name: "Name" },
-                    { name: "Subdomain", columnWidth: 220 },
-                    { name: "", columnWidth: 0 },
-                    { name: "", columnWidth: 0 },
+                    {name: "Name"},
+                    {name: "Subdomain", columnWidth: 220},
+                    {name: "", columnWidth: 0},
+                    {name: "", columnWidth: 0},
                 ]);
 
                 const dummyEntry: PrivateNetwork = {
