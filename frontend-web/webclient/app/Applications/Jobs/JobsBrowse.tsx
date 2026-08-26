@@ -53,6 +53,7 @@ import {TruncateClass} from "@/ui-components/Truncate";
 import {sendFailureNotification} from "@/Notifications";
 import {ProductCompute} from "@/Accounting";
 import { BrowserSize } from "@/ui-components/ResourceBrowserStyle";
+import { i } from "../../../playwright-report/trace/assets/defaultSettingsView-BNmKHKpQ";
 
 const defaultRetrieveFlags: {itemsPerPage: number} = {
     itemsPerPage: 250,
@@ -70,8 +71,6 @@ const FEATURES: ResourceBrowseFeatures = {
 };
 
 const columnTitles: ColumnTitleList = [{name: "Job name"}, {name: "Created by", sortById: "createdBy", columnWidth: 250}, {name: "Created at", sortById: "createdAt", columnWidth: 160}, {name: "Time left", sortById: "timeLeft", columnWidth: 160}, {name: "State", columnWidth: 75}];
-const simpleViewColumnTitles: ColumnTitleList = [{name: ""}, {name: "", sortById: "", columnWidth: 0}, {name: "", sortById: "", columnWidth: 160}, {name: "", sortById: "", columnWidth: 0}, {name: "State", columnWidth: 28}];
-
 
 const RESOURCE_NAME = "JOBS";
 function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?: boolean; operations?: Operation<Job, ResourceBrowseCallbacks<Job, ProductCompute>>[]; jobTypeFilter?: JobTypeFilter}}): React.ReactNode {
@@ -111,8 +110,6 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
 
     const dateRanges = dateRangeFilters("Created");
 
-    const simpleView = !!(opts?.embedded && !opts.isModal) || opts?.selection !== undefined;
-
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
@@ -120,13 +117,7 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                 // Removed stored filters that shouldn't persist.
                 dateRanges.keys.forEach(it => clearFilterStorageValue(browser.resourceName, it));
 
-                if (opts?.selection) {
-                    const withUseRowTitles: ColumnTitleList = JSON.parse(JSON.stringify(simpleViewColumnTitles));
-                    withUseRowTitles[3].columnWidth = 100;
-                    browser.setColumns(withUseRowTitles)
-                } else {
-                    browser.setColumns(simpleView ? simpleViewColumnTitles : columnTitles);
-                }
+                browser.setColumns(columnTitles);
 
                 const flags = {
                     ...defaultRetrieveFlags,
@@ -221,12 +212,15 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                 });
 
                 browser.on("renderStat1", (job, stat, row, size) => {
-                    if (size === BrowserSize.SMALL || size === BrowserSize.TINY) {
+                    if (size === BrowserSize.TINY) {
+                        browser.dispatchMessage("renderStat4", fn => fn(job, stat, row, size));
+                        return;
+                    }
+                    if (size === BrowserSize.SMALL) {
                         browser.dispatchMessage("renderStat3", fn => fn(job, stat, row, size));
                         return;
                     }
 
-                    if (!simpleView) {
                         if (job.owner.createdBy === "_ucloud") {
                             stat.innerHTML = "";
                             const elem = document.createElement("i");
@@ -244,59 +238,52 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                                 wrapper.style.display = "flex";
                             });
                         }
-                    }
                 });
 
                 browser.on("renderStat2", (job, stat) => {
-                    if (!simpleView) {
-                        stat.innerText = dateToString(job.createdAt ?? timestampUnixMs());
-                    } else {
-                        stat.innerText = dateToDateStringOrTime(job.createdAt ?? timestampUnixMs());
-                    }
+                    stat.innerText  = dateToDateStringOrTime(job.createdAt ?? timestampUnixMs());
                 });
 
-                browser.on("renderStat3", (job, stat) => {
-                    if (!simpleView) {
-                        switch (job.status.state) {
-                            case "IN_QUEUE": {
-                                stat.innerText = "In queue..."
-                                break;
-                            }
+                browser.on("renderStat3", (job, stat, row, size) => {
+                    switch (job.status.state) {
+                        case "IN_QUEUE": {
+                            stat.innerText = "In queue..."
+                            break;
+                        }
 
-                            case "RUNNING": {
-                                const now = timestampUnixMs();
-                                if (!job.status.expiresAt) {
-                                    stat.innerText = "No expiry";
-                                } else {
-                                    const timeLeft = (job.status.expiresAt ?? 0) - now;
-                                    if (timeLeft > 0) {
-                                        const hours = Math.floor(timeLeft / (1000 * 60 * 60));
-                                        const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
-                                        if (hours > 24) {
-                                            const days = Math.floor(hours / 24);
-                                            stat.innerText = `${days}d ${hours % 24}h`;
-                                        } else if (hours > 0) {
-                                            stat.innerText = `${hours}h ${minutes}m`;
-                                        } else {
-                                            stat.innerText = `${minutes}m`;
-                                        }
+                        case "RUNNING": {
+                            const now = timestampUnixMs();
+                            if (!job.status.expiresAt) {
+                                stat.innerText = "No expiry";
+                            } else {
+                                const timeLeft = (job.status.expiresAt ?? 0) - now;
+                                if (timeLeft > 0) {
+                                    const hours = Math.floor(timeLeft / (1000 * 60 * 60));
+                                    const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+                                    if (hours > 24) {
+                                        const days = Math.floor(hours / 24);
+                                        stat.innerText = `${days}d ${hours % 24}h`;
+                                    } else if (hours > 0) {
+                                        stat.innerText = `${hours}h ${minutes}m`;
                                     } else {
-                                        stat.innerText = "Expired";
+                                        stat.innerText = `${minutes}m`;
                                     }
+                                } else {
+                                    stat.innerText = "Expired";
                                 }
-                                break;
                             }
+                            break;
+                        }
 
-                            case "EXPIRED": {
-                                stat.innerText = "Expired"
-                                break;
-                            }
+                        case "EXPIRED": {
+                            stat.innerText = "Expired"
+                            break;
+                        }
 
-                            case "FAILURE":
-                            case "SUCCESS": {
-                                stat.innerText = "Completed"
-                                break;
-                            }
+                        case "FAILURE":
+                        case "SUCCESS": {
+                            stat.innerText = "Completed"
+                            break;
                         }
                     }
                 });

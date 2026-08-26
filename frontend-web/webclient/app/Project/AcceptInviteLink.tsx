@@ -7,7 +7,6 @@ import api, {AcceptInviteLinkResponse, RetrieveInviteLinkInfoResponse} from "./A
 import * as Heading from "@/ui-components/Heading";
 import {dispatchSetProjectAction} from "./ReduxState";
 import {Box, Button, Flex, Text} from "@/ui-components";
-import MainContainer from "@/ui-components/MainContainer";
 import Spinner from "@/LoadingIcon/LoadingIcon";
 import AppRoutes from "@/Routes";
 import {addOrgInfoModalIfNotFilled} from "@/UserSettings/ChangeUserDetails";
