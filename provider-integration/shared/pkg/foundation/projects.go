@@ -137,9 +137,11 @@ type ProjectInviteLink struct {
 }
 
 type ProjectInviteLinkInfo struct {
-	Token    string  `json:"token"`
-	IsMember bool    `json:"isMember"`
-	Project  Project `json:"project"`
+	Token          string      `json:"token"`
+	IsMember       bool        `json:"isMember"`
+	Project        Project     `json:"project"`
+	Expires        Timestamp   `json:"expires"`
+	RoleAssignment ProjectRole `json:"roleAssignment"`
 }
 
 type ProjectRetrieveRequest struct {

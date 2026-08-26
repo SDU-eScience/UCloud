@@ -1427,9 +1427,11 @@ func ProjectRetrieveInviteLink(actor rpc.Actor, token string) (fndapi.ProjectInv
 	isMember := projectFlags&projectResultIsMember != 0
 
 	return fndapi.ProjectInviteLinkInfo{
-		Token:    token,
-		IsMember: isMember,
-		Project:  project,
+		Token:          token,
+		IsMember:       isMember,
+		Project:        project,
+		Expires:        link.Expires,
+		RoleAssignment: ilink.Link.RoleAssignment,
 	}, link, nil
 }
 
