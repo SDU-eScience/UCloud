@@ -7,7 +7,7 @@
 // the same value. Deletion removes the id. Reorder changes only parametersOrder.
 //
 // On rename, exact static references in the invocation are rewritten. On delete, references remain
-// unchanged; the validator reports them as errors.
+// unchanged because there is no safe replacement value.
 
 import {A2Yaml, A2Parameter, A2EnumOption} from "@/Applications/Creator/A2";
 import {CreatorDraft, CreatorCustomMeta, creatorStableId, emptyValidationState} from "@/Applications/Creator/Draft";

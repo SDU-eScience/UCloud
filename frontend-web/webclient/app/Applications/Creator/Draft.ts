@@ -40,21 +40,29 @@ let creatorStableIdCounter = 1;
 // -------------------------------------------------------------------------------------------------------------------
 
 export type CreatorOperationKind = "newManaged" | "newCustom" | "newVersion" | "fork";
+export type CreatorApplicationKind = "managed" | "custom";
 
 export interface CreatorOperationContext {
     operation: CreatorOperationKind;
+    applicationKind: CreatorApplicationKind;
+    // The workspace captured by the entry point. Personal workspaces use the stable value "personal".
+    workspace: string;
     // The existing application name. Set for newVersion and fork.
     existingName?: string;
     // The existing application version. Set for newVersion.
     existingVersion?: string;
     // The provider to use for custom applications. Set for newCustom and fork.
     provider?: string;
+    // The category selected by a custom-category entry point.
+    initialCategory?: string;
+    // The source page used when loading or authorization fails.
+    returnTo?: string;
     // Development-only template selection. Normal routes omit this and use backend source loading.
     developmentTemplate?: boolean;
 }
 
 export function creatorIsCustom(context: CreatorOperationContext): boolean {
-    return context.operation === "newCustom" || context.operation === "fork";
+    return context.applicationKind === "custom";
 }
 
 export function creatorIsEditableName(context: CreatorOperationContext): boolean {
@@ -62,7 +70,7 @@ export function creatorIsEditableName(context: CreatorOperationContext): boolean
 }
 
 export function creatorIsEditableVersion(context: CreatorOperationContext): boolean {
-    return context.operation !== "newVersion";
+    return true;
 }
 
 // Selection

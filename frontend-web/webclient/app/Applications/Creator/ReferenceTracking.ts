@@ -1,9 +1,8 @@
 // Invocation reference tracking
 // =====================================================================================================================
 // On rename, the editor updates exact static references to the old parameter name in the Jinja
-// invocation template. It does not rewrite dynamic expressions. On delete, the references remain
-// unchanged. The validator reports unresolved references as blocking errors because there is no
-// replacement value.
+// invocation template. It does not rewrite dynamic expressions. On delete, references remain
+// unchanged because there is no safe replacement value.
 //
 // The rewrite covers the `invocation` field only. A static reference is a Jinja variable tag that
 // contains exactly the old name, with optional whitespace inside the braces. Examples:

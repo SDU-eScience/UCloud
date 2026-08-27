@@ -70,7 +70,7 @@ type A2ApplicationToLoad struct {
 }
 
 type A2ContainerSoftware struct {
-	Image string `yaml:"image"`
+	Image string `json:"image" yaml:"image"`
 }
 
 type A2VirtualMachineSoftware struct {

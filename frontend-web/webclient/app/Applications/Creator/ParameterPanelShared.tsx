@@ -88,10 +88,6 @@ export const PanelSectionClass = injectStyle("creator-panel-section-shared", k =
         user-select: none;
     }
 
-    ${k} > .panel-section-header > .panel-section-title:hover {
-        color: var(--textSecondary);
-    }
-
     ${k} > .panel-section-body {
         display: flex;
         flex-direction: column;

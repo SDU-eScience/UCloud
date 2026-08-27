@@ -151,10 +151,8 @@ const Core = (): React.ReactNode => (
                            element={React.createElement(requireAuth(ApplicationsOverview))} />
                     <Route path={AppRoutes.apps.search()} element={React.createElement(requireAuth(ApplicationSearch))} />
 
-                    {!inDevEnvironment() ? null : (
-                        <Route path={AppRoutes.apps.creator()}
-                               element={React.createElement(requireAuth(ApplicationCreator))} />
-                    )}
+                    <Route path={AppRoutes.apps.creator()}
+                           element={React.createElement(requireAuth(ApplicationCreator))} />
 
                     <Route path={`${AppRoutes.compute.jobs()}/*`}
                            element={React.createElement(requireAuth(JobsOnlyRouter))} />

@@ -55,6 +55,17 @@ const syncthing = {
     syncthing: () => "/syncthing"
 }
 
+export interface ApplicationCreatorRoute {
+    operation: "newManaged" | "newCustom" | "newVersion";
+    applicationKind: "managed" | "custom";
+    workspace: string;
+    name?: string;
+    version?: string;
+    provider?: string;
+    category?: number;
+    returnTo?: string;
+}
+
 const apps = {
     landing: () => "/applications",
     category: (categoryId?: number) => buildQueryString(`/applications/category`, {categoryId}),
@@ -63,7 +74,7 @@ const apps = {
     shell: (jobId: string, rank: string) => `/applications/shell/${jobId}/${rank}`,
     web: (jobId: string, rank: string) => `/applications/web/${jobId}/${rank}`,
     vnc: (jobId: string, rank: string) => `/applications/vnc/${jobId}/${rank}`,
-    creator: (kind?: string) => buildQueryString(`/applications/creator`, {kind}),
+    creator: (context?: ApplicationCreatorRoute) => buildQueryString(`/applications/creator`, context ?? {}),
 };
 
 const appStudio = {

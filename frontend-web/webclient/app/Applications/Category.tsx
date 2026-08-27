@@ -1,9 +1,9 @@
 import * as React from "react";
 import {useCallback, useEffect} from "react";
-import {Box, Flex, Grid, MainContainer} from "@/ui-components";
+import {Box, Button, Flex, Grid, MainContainer} from "@/ui-components";
 import {usePage} from "@/Navigation/Redux";
-import {useCloudAPI} from "@/Authentication/DataHook";
-import {useLocation} from "react-router-dom";
+import {callAPI, useCloudAPI} from "@/Authentication/DataHook";
+import {useLocation, useNavigate} from "react-router-dom";
 import {useAppSearch} from "./Search";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import * as AppStore from "@/Applications/AppStoreApi";
@@ -15,6 +15,9 @@ import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {AppCard2} from "@/Applications/Landing";
 import {useDiscovery} from "@/Applications/Hooks";
 import {injectStyle} from "@/Unstyled";
+import {useProjectId} from "@/Project/Api";
+import AppRoutes from "@/Routes";
+import {fetchAll} from "@/Utilities/PageUtilities";
 
 const OverviewStyle = injectStyle("app-overview", k => `
     ${k} {
@@ -32,6 +35,8 @@ const OverviewStyle = injectStyle("app-overview", k => `
 
 const ApplicationsCategory: React.FunctionComponent = () => {
     const location = useLocation();
+    const navigate = useNavigate();
+    const projectId = useProjectId();
     const idParam = getQueryParam(location.search, "categoryId");
     const id = parseInt(idParam ?? "-1");
 
@@ -39,18 +44,48 @@ const ApplicationsCategory: React.FunctionComponent = () => {
     const [categoryState, fetchCategory] = useCloudAPI(AppStore.retrieveCategory({id, ...discovery}), null);
     const category = categoryState.data;
     const groups = category?.status?.groups ?? [];
+    const [editableCategory, setEditableCategory] = React.useState<AppStore.AppCatalogCustomCategory | null>(null);
+    const [hasCustomGroup, setHasCustomGroup] = React.useState(false);
+    const [accessRevision, setAccessRevision] = React.useState(0);
 
     const refresh = useCallback(() => {
         fetchCategory(AppStore.retrieveCategory({id, ...discovery})).then(doNothing);
-    }, [id]);
+    }, [id, discovery]);
 
     useEffect(() => {
         refresh();
     }, [refresh]);
 
+    useEffect(() => {
+        let cancelled = false;
+        setEditableCategory(null);
+        setHasCustomGroup(false);
+        Promise.all([
+            fetchAll(next => callAPI(AppStore.browseCustomCategories({itemsPerPage: 250, next}))),
+            callAPI(AppStore.browseCustomGroups({itemsPerPage: 1})),
+        ]).then(([categories, customGroups]) => {
+            if (cancelled) return;
+            const matchingCategory = categories.find(item => item.id === id || item.backedBy === id);
+            const canEdit = matchingCategory?.permissions.myself.includes("EDIT") === true;
+            setEditableCategory(canEdit ? matchingCategory ?? null : null);
+            setHasCustomGroup(customGroups.items.length > 0);
+        }).catch(() => {
+            if (cancelled) return;
+            setEditableCategory(null);
+            setHasCustomGroup(false);
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, [id, projectId, accessRevision]);
+
     const title = category?.specification?.title ?? "Applications";
     usePage(title, SidebarTabId.APPLICATIONS);
-    useSetRefreshFunction(refresh);
+    const refreshAll = useCallback(() => {
+        refresh();
+        setAccessRevision(revision => revision + 1);
+    }, [refresh]);
+    useSetRefreshFunction(refreshAll);
     const appSearch = useAppSearch();
 
     return (
@@ -60,7 +95,19 @@ const ApplicationsCategory: React.FunctionComponent = () => {
                     <Flex mb="16px" alignItems={"center"}>
                         <h3 className="title">{title}</h3>
                         <Box ml="auto" />
-                        <UtilityBar onSearch={appSearch} />
+                        <UtilityBar onSearch={appSearch} leading={
+                            !editableCategory || !hasCustomGroup ? null : (
+                                <Button height="25px" onClick={() => navigate(AppRoutes.apps.creator({
+                                    operation: "newCustom",
+                                    applicationKind: "custom",
+                                    workspace: projectId ?? "personal",
+                                    category: editableCategory.id,
+                                    returnTo: location.pathname + location.search,
+                                }))}>
+                                    Create application
+                                </Button>
+                            )
+                        } />
                     </Flex>
 
                     <AppGrid>

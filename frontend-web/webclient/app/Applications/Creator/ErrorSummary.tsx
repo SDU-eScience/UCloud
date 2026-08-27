@@ -40,47 +40,61 @@ export function ErrorSummary(props: ErrorSummaryProps): React.ReactNode {
         : extraErrors.length > 0
             ? "Preview could not be rendered."
             : "Fix the following errors before continuing.";
+    const warningKey = [
+        props.validating ? "validating" : "",
+        ...parseErrors.map(formatParseError),
+        ...validationErrors.map(error => error.message),
+        ...extraErrors.map(error => `${error.code ?? ""}:${error.message}`),
+    ].join("\u0000");
+    const [dismissedWarningKey, setDismissedWarningKey] = React.useState<string | null>(null);
+
+    React.useEffect(() => {
+        setDismissedWarningKey(null);
+    }, [warningKey]);
 
     if (parseErrors.length === 0 && validationErrors.length === 0 && extraErrors.length === 0 && !props.validating) return null;
+    if (dismissedWarningKey === warningKey) return null;
 
     return (
-        <Warning mb="16px" warning={warning}>
-            <div id="creator-error-summary">
-                <ul className={ErrorListClass}>
-                    {parseErrors.map((e, i) => (
-                        <ErrorSummaryItem
-                            key={`p${i}`}
-                            message={formatParseError(e)}
-                            onClick={() => props.onJumpToSourceLine(e.line, e.column)}
-                            kind="parse"
-                        />
-                    ))}
-                    {validationErrors.map((e, i) => (
-                        <ErrorSummaryItem
-                            key={`v${i}`}
-                            message={e.message}
-                            onClick={() => props.onFocusParameter(e)}
-                            kind="validation"
-                        />
-                    ))}
-                    {extraErrors.map((e, i) => (
-                        <ErrorSummaryItem
-                            key={`x${i}`}
-                            message={e.message}
-                            onClick={() => props.onFocusParameter(e)}
-                            kind="validation"
-                        />
-                    ))}
-                </ul>
-                {extraErrors.some(error => error.code === "RATE_LIMITED") && props.rateLimit ? (
-                    <Text fontSize={12} color="textSecondary" mt="8px">
-                        {props.rateLimit.retryAt
-                            ? `Try again after ${formatRetryAt(props.rateLimit.retryAt)}.`
-                            : `No requests remain in the current limit window (${props.rateLimit.remaining} remaining).`}
-                    </Text>
-                ) : null}
-            </div>
-        </Warning>
+        <div className={ErrorSummaryClass}>
+            <Warning mb="16px" warning={warning} clearWarning={() => setDismissedWarningKey(warningKey)}>
+                <div id="creator-error-summary">
+                    <ul className={ErrorListClass}>
+                        {parseErrors.map((e, i) => (
+                            <ErrorSummaryItem
+                                key={`p${i}`}
+                                message={formatParseError(e)}
+                                onClick={() => props.onJumpToSourceLine(e.line, e.column)}
+                                kind="parse"
+                            />
+                        ))}
+                        {validationErrors.map((e, i) => (
+                            <ErrorSummaryItem
+                                key={`v${i}`}
+                                message={e.message}
+                                onClick={() => props.onFocusParameter(e)}
+                                kind="validation"
+                            />
+                        ))}
+                        {extraErrors.map((e, i) => (
+                            <ErrorSummaryItem
+                                key={`x${i}`}
+                                message={e.message}
+                                onClick={() => props.onFocusParameter(e)}
+                                kind="validation"
+                            />
+                        ))}
+                    </ul>
+                    {extraErrors.some(error => error.code === "RATE_LIMITED") && props.rateLimit ? (
+                        <Text fontSize={12} color="textSecondary" mt="8px">
+                            {props.rateLimit.retryAt
+                                ? `Try again after ${formatRetryAt(props.rateLimit.retryAt)}.`
+                                : `No requests remain in the current limit window (${props.rateLimit.remaining} remaining).`}
+                        </Text>
+                    ) : null}
+                </div>
+            </Warning>
+        </div>
     );
 }
 
@@ -112,6 +126,14 @@ const ErrorListClass = injectStyle("creator-error-list", k => `
         margin: 0;
         padding: 0;
         list-style: none;
+    }
+`);
+
+const ErrorSummaryClass = injectStyle("creator-error-summary", k => `
+    ${k} {
+        width: 100%;
+        max-width: 944px;
+        box-sizing: border-box;
     }
 `);
 

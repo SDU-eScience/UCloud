@@ -9,7 +9,7 @@
 //
 // - render: A2 parameters → runtime display props → WidgetFieldRow
 // - selection: click or keyboard; the selected row has a clear outline and drag handle
-// - reorder: pointer drag on the handle, or Alt+ArrowUp/ArrowDown on a selected row
+// - reorder: pointer drag anywhere on the row, or Alt+ArrowUp/ArrowDown on a selected row
 // - workflow: YAML-only rows that can be reordered or deleted but not visually edited
 //
 // Editor state lives in the draft. The card calls draft operations on each interaction. It never
@@ -18,10 +18,9 @@
 import * as React from "react";
 import {useCallback, useEffect, useLayoutEffect, useRef, useState} from "react";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
-import {Box, Flex, Icon, Text} from "@/ui-components";
-import {IconButton} from "@/ui-components/IconButton";
+import {Icon, Text} from "@/ui-components";
 import {Application} from "@/Applications/AppStoreApi";
-import {FieldGroup, Widget} from "@/Applications/Jobs/Widgets/index";
+import {FieldGroup, FieldRow, Widget} from "@/Applications/Jobs/Widgets/index";
 import {A2Yaml, A2Parameter} from "@/Applications/Creator/A2";
 import {CreatorDraft} from "@/Applications/Creator/Draft";
 import {a2ToRuntimeParameter} from "@/Applications/Creator/ParameterConversion";
@@ -249,50 +248,6 @@ function ParameterRow(props: ParameterRowProps): React.ReactNode {
     const isDraggingThis = dragFromIndex != null && dragFromIndex === index;
     const isDropTarget = dragFromIndex != null && dragToIndex != null && dragToIndex === index && dragToIndex !== dragFromIndex;
 
-    // Workflow rows are YAML-only. They can be reordered and deleted (via the parameter panel),
-    // but their content is edited in YAML. The row gives a direct action to open the relevant YAML
-    // section so the user lands on the parameter key.
-    if (param.type === "Workflow") {
-        return (
-            <div
-                ref={rowRef}
-                className={WorkflowRowClass}
-                data-selected={selected}
-                data-dragging={isDraggingThis || undefined}
-                data-drop-target={isDropTarget || undefined}
-                data-row-id={props.id}
-                onClick={props.onSelect}
-                onKeyDown={onKeyDown}
-                tabIndex={0}
-                style={isDraggingThis ? {transform: `translateY(${dragOffset}px)`} : undefined}
-            >
-                <DragHandle onPointerDown={onHandlePointerDown} visible={selected} centerOffset={28} />
-                <div className={WorkflowRowBodyClass}>
-                    <Flex alignItems="center" gap="8px">
-                        <Icon name="heroCodeBracket" size={16} color="textSecondary" />
-                        <Text fontWeight={600}>{param.title || name}</Text>
-                        <Text fontSize={11} color="textSecondary">Workflow (YAML-only)</Text>
-                        <Box
-                            ml="auto"
-                            onClick={e => e.stopPropagation()}
-                        >
-                            <IconButton
-                                icon="heroCodeBracket"
-                                tooltip="Open in YAML"
-                                compact
-                                onClick={() => props.onOpenWorkflowYaml(name)}
-                            />
-                        </Box>
-                    </Flex>
-                    <Text fontSize={12} color="textSecondary" mt="4px">
-                        Edit the workflow content in the YAML view.
-                    </Text>
-                </div>
-            </div>
-        );
-    }
-
-    // Standard parameter: render with the Widget control for visual fidelity.
     const runtimeParam = a2ToRuntimeParameter(name, param);
     const app = fakeApplication(draft.application);
     const bodyRef = useRef<HTMLDivElement>(null);
@@ -301,9 +256,8 @@ function ParameterRow(props: ParameterRowProps): React.ReactNode {
     useLayoutEffect(() => {
         const body = bodyRef.current;
         if (!body) return;
-        // The Widget renders a FieldRow (data-field-row). Its first child is the
-        // description column (title + optional markdown description). We center the
-        // drag handle on that block, not on the entire row.
+        // The Widget renders a FieldRow (data-field-row). Its first child is the description column
+        // (title + optional markdown description). Center the drag handle on that block.
         const fieldRow = body.querySelector<HTMLElement>("[data-field-row]");
         if (!fieldRow) return;
         const desc = fieldRow.firstElementChild as HTMLElement | null;
@@ -313,6 +267,50 @@ function ParameterRow(props: ParameterRowProps): React.ReactNode {
         setHandleOffset(rect.top - bodyRect.top + rect.height / 2);
     }, [param.title, param.description]);
 
+    // Workflow rows are YAML-only. Keep the same field-row layout as the other parameters while
+    // showing the YAML-only note in the control column.
+    if (param.type === "Workflow") {
+        return (
+            <div
+                ref={rowRef}
+                className={ParameterRowWrapperClass}
+                data-selected={selected}
+                data-dragging={isDraggingThis || undefined}
+                data-drop-target={isDropTarget || undefined}
+                data-row-id={props.id}
+                onClick={props.onSelect}
+                onPointerDown={onHandlePointerDown}
+                onKeyDown={onKeyDown}
+                tabIndex={0}
+                style={isDraggingThis ? {transform: `translateY(${dragOffset}px)`} : undefined}
+            >
+                <DragHandle onPointerDown={onHandlePointerDown} visible={selected} centerOffset={handleOffset} />
+                <div ref={bodyRef} className={ParameterRowBodyClass}>
+                    <FieldRow
+                        title={param.title || name}
+                        description={param.description}
+                        control={
+                            <button
+                                type="button"
+                                className={WorkflowYamlButtonClass}
+                                onPointerDown={e => e.stopPropagation()}
+                                onClick={e => {
+                                    e.stopPropagation();
+                                    props.onOpenWorkflowYaml(name);
+                                }}
+                            >
+                                Workflow (YAML-only)
+                            </button>
+                        }
+                        required={!param.optional}
+                        parameterType="workflow"
+                    />
+                </div>
+            </div>
+        );
+    }
+
+    // Standard parameter: render with the Widget control for visual fidelity.
     return (
         <div
             ref={rowRef}
@@ -322,6 +320,7 @@ function ParameterRow(props: ParameterRowProps): React.ReactNode {
             data-drop-target={isDropTarget || undefined}
             data-row-id={props.id}
             onClick={props.onSelect}
+            onPointerDown={onHandlePointerDown}
             onKeyDown={onKeyDown}
             tabIndex={0}
             style={isDraggingThis ? {transform: `translateY(${dragOffset}px)`} : undefined}
@@ -370,6 +369,8 @@ function DragHandle(props: {
 const ParameterListClass = injectStyle("creator-parameter-list", k => `
     ${k} {
         margin-top: 8px;
+        user-select: none;
+        -webkit-user-select: none;
     }
 `);
 
@@ -382,7 +383,10 @@ const ParameterRowWrapperClass = injectStyle("creator-parameter-row", k => `
         border: 2px solid transparent;
         border-radius: 6px;
         padding: 2px;
-        cursor: pointer;
+        cursor: grab;
+        touch-action: none;
+        user-select: none;
+        -webkit-user-select: none;
         transition: border-color 0.15s ease, opacity 0.15s ease;
     }
 
@@ -409,6 +413,10 @@ const ParameterRowWrapperClass = injectStyle("creator-parameter-row", k => `
 
     ${k}:focus:not([data-selected="true"]) {
         border-color: var(--borderColorHover, var(--textSecondary));
+    }
+
+    ${k}:active {
+        cursor: grabbing;
     }
 `);
 
@@ -418,46 +426,24 @@ const ParameterRowBodyClass = injectStyleSimple("creator-parameter-row-body", `
     pointer-events: none;
 `);
 
-const WorkflowRowClass = injectStyle("creator-workflow-row", k => `
+const WorkflowYamlButtonClass = injectStyle("creator-workflow-yaml-button", k => `
     ${k} {
-        display: grid;
-        grid-template-columns: auto 1fr;
-        column-gap: 0;
-        border: 2px solid transparent;
-        border-radius: 6px;
-        padding: 8px 12px;
+        pointer-events: auto;
+        border: 0;
+        padding: 0;
+        color: var(--textSecondary);
+        background: transparent;
         cursor: pointer;
-        transition: border-color 0.15s ease, opacity 0.15s ease;
+        font: inherit;
+        text-align: left;
+        user-select: none;
+        -webkit-user-select: none;
     }
 
-    ${k}[data-selected="true"] {
-        border-color: var(--primaryMain);
+    ${k}:hover {
+        color: var(--textPrimary);
+        text-decoration: underline;
     }
-
-    ${k}[data-drop-target] {
-        opacity: 0.4;
-        border-color: var(--primaryMain);
-        border-style: dashed;
-    }
-
-    ${k}[data-dragging] {
-        position: relative;
-        z-index: 10;
-        opacity: 1;
-        background: var(--backgroundCard);
-    }
-
-    ${k}:focus {
-        outline: none;
-    }
-
-    ${k}:focus:not([data-selected="true"]) {
-        border-color: var(--borderColorHover, var(--textSecondary));
-    }
-`);
-
-const WorkflowRowBodyClass = injectStyleSimple("creator-workflow-row-body", `
-    min-width: 0;
 `);
 
 const DragHandleClass = injectStyle("creator-drag-handle", k => `

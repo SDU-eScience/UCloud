@@ -2,7 +2,7 @@
 // =====================================================================================================================
 // The editor runs this local validation when preview or save is requested. It does not call
 // backend validation. The validation covers: empty names, duplicate names, numeric ranges, enumeration
-// option duplicates, enumeration defaults, and unresolved invocation references.
+// option duplicates, and enumeration defaults.
 //
 // The validation returns a list of errors. Each error has a parameter name (or null for a
 // global error) and a message. The editor shows field errors in the parameter panel and summary
@@ -11,7 +11,7 @@
 import {A2Yaml} from "@/Applications/Creator/A2";
 import {CreatorValidationError, CreatorValidationState} from "@/Applications/Creator/Draft";
 
-// Validate the full application. Returns errors for all parameters and references.
+// Validate the full application. Returns errors for all parameters.
 export function validateApplicationLocal(application: A2Yaml): CreatorValidationState {
     const errors: CreatorValidationError[] = [];
 
@@ -45,12 +45,6 @@ export function validateApplicationLocal(application: A2Yaml): CreatorValidation
                 break;
         }
     }
-
-    // Reference validation: invocation references must point to existing parameters. The valid
-    // name set excludes empty names. After a delete, the old references remain in the invocation
-    // text and are reported as unresolved.
-    const validNames = new Set(names.filter(n => n && n.trim() !== ""));
-    validateInvocationReferences(application, validNames, errors);
 
     return {errors};
 }
@@ -100,31 +94,6 @@ function validateEnumeration(
         errors.push({
             parameterName: name,
             message: "Default value is not present in the option list.",
-        });
-    }
-}
-
-// Check the invocation for Jinja variable references that do not match any parameter name.
-function validateInvocationReferences(
-    application: A2Yaml,
-    validNames: Set<string>,
-    errors: CreatorValidationError[],
-): void {
-    const invocation = application.invocation ?? "";
-    // Extract all bare variable names from {{ var }} tags. We do not parse dynamic expressions.
-    const refPattern = /\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}/g;
-    let match: RegExpExecArray | null;
-    const unresolved = new Set<string>();
-    while ((match = refPattern.exec(invocation)) !== null) {
-        const ref = match[1];
-        if (!validNames.has(ref)) {
-            unresolved.add(ref);
-        }
-    }
-    for (const ref of unresolved) {
-        errors.push({
-            parameterName: null,
-            message: `Unresolved invocation reference: "{{ ${ref} }}".`,
         });
     }
 }

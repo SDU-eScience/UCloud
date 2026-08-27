@@ -18,11 +18,11 @@
 
 import * as React from "react";
 import {useCallback, useEffect, useRef, useState} from "react";
-import {Button, Input, Label, Select, Text} from "@/ui-components";
+import {Input, Label, Select, Text} from "@/ui-components";
 import Icon from "@/ui-components/Icon";
 import {IconButton} from "@/ui-components/IconButton";
+import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {injectStyle} from "@/Unstyled";
-import {addStandardDialog} from "@/UtilityComponents";
 import {A2Parameter, A2EnumOption} from "@/Applications/Creator/A2";
 import {CreatorDraft, CreatorValidationError} from "@/Applications/Creator/Draft";
 import {nameForId} from "@/Applications/Creator/DraftOperations";
@@ -87,24 +87,12 @@ export function ParameterPanel(props: ParameterPanelProps): React.ReactNode {
                 ) : null}
 
                 <PanelSection title="Danger zone">
-                    <Button
-                        type="button"
+                    <ConfirmationButton
+                        actionText="Delete parameter"
                         color="errorMain"
-                        onClick={() => {
-                            addStandardDialog({
-                                title: "Delete parameter",
-                                message: `Delete "${name}"? References in the invocation will remain and must be resolved manually.`,
-                                confirmText: "Delete",
-                                cancelText: "Cancel",
-                                cancelButtonColor: "errorMain",
-                                confirmButtonColor: "errorMain",
-                                onConfirm: () => props.onDelete(name),
-                            });
-                        }}
-                    >
-                        <Icon name="heroTrash" mr={6} size={16} />
-                        Delete parameter
-                    </Button>
+                        icon="heroTrash"
+                        onAction={async () => props.onDelete(name)}
+                    />
                 </PanelSection>
             </ParameterHeaderSection>
         </div>

@@ -6,10 +6,8 @@
 // The first version enables the existing Jinja syntax highlighting. It does not include variable
 // auto-completion or inline documentation; those are a later phase.
 //
-// Local validation errors that name a parameter (for example unresolved invocation references)
-// appear in the page error summary (ErrorSummary) and in the parameter panel, not as inline
-// markers in this editor. Invocation syntax validation that the backend performs is a later
-// phase. The compact editor inherits the user's editor settings (font size, vim, word wrap)
+// Invocation validation errors appear in the page error summary rather than as inline markers in
+// this editor. The compact editor inherits the user's editor settings (font size, vim, word wrap)
 // from the same localStorage store as the file editor.
 //
 // The card is read-only when the source text is invalid, matching the visual read-only rule:

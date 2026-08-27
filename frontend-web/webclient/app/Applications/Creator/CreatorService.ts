@@ -19,16 +19,25 @@ import {
 import {applicationToSourceText, parseSourceText} from "@/Applications/Creator/SourceParser";
 import {templateApplicationForContext, templateCustomMetaForContext} from "@/Applications/Creator/Templates";
 import {A2Yaml} from "@/Applications/Creator/A2";
+import {fetchAll} from "@/Utilities/PageUtilities";
 
 export const creatorService: CreatorService = {
     async loadSource(context) {
-        if (context.developmentTemplate || !context.existingName || !context.existingVersion) {
+        const createsBlankDraft = context.operation === "newManaged" || context.operation === "newCustom";
+        if (context.developmentTemplate || createsBlankDraft) {
             const application = templateApplicationForContext(context);
             return {
                 application,
                 sourceText: sourceTextForApplication(application),
                 customMeta: templateCustomMetaForContext(context),
             };
+        }
+
+        if (!context.existingName || !context.existingVersion) {
+            throw new Error("The source application name and version are required.");
+        }
+        if (creatorIsCustom(context) && !context.provider) {
+            throw new Error("The source service provider is required.");
         }
 
         const response = await callAPI(AppStore.retrieveEditorSource({
@@ -86,12 +95,12 @@ export const creatorService: CreatorService = {
 
     async loadCustomPlacement() {
         const [groups, categories] = await Promise.all([
-            callAPI(AppStore.browseCustomGroups({itemsPerPage: 250})),
-            callAPI(AppStore.browseCustomCategories({itemsPerPage: 250})),
+            fetchAll(next => callAPI(AppStore.browseCustomGroups({itemsPerPage: 250, next}))),
+            fetchAll(next => callAPI(AppStore.browseCustomCategories({itemsPerPage: 250, next}))),
         ]);
         return {
-            groups: groups.items,
-            categories: categories.items,
+            groups,
+            categories: categories.filter(category => category.permissions.myself.includes("EDIT")),
         };
     },
 

@@ -28,7 +28,10 @@ import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {getQueryParam} from "@/Utilities/URIUtilities";
 import {addStandardDialog} from "@/UtilityComponents";
+import {inDevEnvironment} from "@/UtilityFunctions";
 import LoadingIcon from "@/LoadingIcon/LoadingIcon";
+import {Client} from "@/Authentication/HttpClientInstance";
+import {useProjectId} from "@/Project/Api";
 import {
     CreatorDraft,
     CreatorOperationContext,
@@ -258,12 +261,14 @@ export type CreatorTemplateKind = "blankCustom" | "blankManaged" | "fullTemplate
 function contextFromKind(kind: CreatorTemplateKind): CreatorOperationContext {
     switch (kind) {
         case "blankCustom":
-            return {operation: "newCustom", provider: "aalborg"};
+            return {operation: "newCustom", applicationKind: "custom", workspace: "personal", provider: "aalborg", developmentTemplate: true};
         case "blankManaged":
-            return {operation: "newManaged"};
+            return {operation: "newManaged", applicationKind: "managed", workspace: "personal", developmentTemplate: true};
         case "fullTemplate":
             return {
                 operation: "newVersion",
+                applicationKind: "managed",
+                workspace: "personal",
                 existingName: "example-app",
                 existingVersion: "1.0",
                 developmentTemplate: true,
@@ -271,17 +276,48 @@ function contextFromKind(kind: CreatorTemplateKind): CreatorOperationContext {
     }
 }
 
-function contextFromLocation(search: string, kind: CreatorTemplateKind): CreatorOperationContext {
+function contextFromLocation(search: string, kind: CreatorTemplateKind): {context: CreatorOperationContext; error: string | null} {
     const operation = getQueryParam(search, "operation");
-    if (operation === "newManaged" || operation === "newCustom" || operation === "newVersion" || operation === "fork") {
-        return {
-            operation,
-            existingName: getQueryParam(search, "name") ?? undefined,
-            existingVersion: getQueryParam(search, "version") ?? undefined,
-            provider: getQueryParam(search, "provider") ?? undefined,
-        };
+    if (!operation && inDevEnvironment() && getQueryParam(search, "kind")) {
+        return {context: contextFromKind(kind), error: null};
     }
-    return contextFromKind(kind);
+
+    const applicationKind = getQueryParam(search, "applicationKind");
+    const workspace = getQueryParam(search, "workspace");
+    const fallback = contextFromKind("blankManaged");
+    if (operation !== "newManaged" && operation !== "newCustom" && operation !== "newVersion") {
+        return {context: fallback, error: "The creator operation is missing or invalid."};
+    }
+    if (applicationKind !== "managed" && applicationKind !== "custom") {
+        return {context: fallback, error: "The application kind is missing or invalid."};
+    }
+    if (!workspace) {
+        return {context: fallback, error: "The target workspace is missing."};
+    }
+    if ((operation === "newManaged" && applicationKind !== "managed") || (operation === "newCustom" && applicationKind !== "custom")) {
+        return {context: fallback, error: "The creator operation does not match the application kind."};
+    }
+
+    const context: CreatorOperationContext = {
+        operation,
+        applicationKind,
+        workspace,
+        existingName: getQueryParam(search, "name") ?? undefined,
+        existingVersion: getQueryParam(search, "version") ?? undefined,
+        provider: getQueryParam(search, "provider") ?? undefined,
+        initialCategory: getQueryParam(search, "category") ?? undefined,
+        returnTo: getQueryParam(search, "returnTo") ?? undefined,
+    };
+    if (operation === "newCustom" && !context.initialCategory) {
+        return {context, error: "A custom application category is required."};
+    }
+    if (operation === "newVersion" && (!context.existingName || !context.existingVersion)) {
+        return {context, error: "The source application name and version are required."};
+    }
+    if (operation === "newVersion" && applicationKind === "custom" && !context.provider) {
+        return {context, error: "The source service provider is required."};
+    }
+    return {context, error: null};
 }
 
 function kindFromQuery(search: string): CreatorTemplateKind {
@@ -301,12 +337,21 @@ function kindFromQuery(search: string): CreatorTemplateKind {
 
 export const Create: React.FunctionComponent = () => {
     const location = useLocation();
+    const projectId = useProjectId();
     const kind = kindFromQuery(location.search);
-    const context = contextFromLocation(location.search, kind);
+    const parsedContext = contextFromLocation(location.search, kind);
+    const context = parsedContext.context;
+    const activeWorkspace = projectId ?? "personal";
+    const contextError = parsedContext.error ?? (
+        !context.developmentTemplate && context.workspace !== activeWorkspace
+            ? "The active workspace no longer matches this application draft. Return to the source page and open it again."
+            : null
+    );
     const navigate = useNavigate();
 
     const [draft, setDraft] = useState<CreatorDraft | null>(null);
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState<string | null>(null);
     const [serverValidation, setServerValidation] = useState<CreatorValidationResponse>({errors: []});
     const [serverValidationRevision, setServerValidationRevision] = useState<number | null>(null);
     const [serverValidating, setServerValidating] = useState(false);
@@ -326,6 +371,7 @@ export const Create: React.FunctionComponent = () => {
     const [customCategories, setCustomCategories] = useState<AppStore.AppCatalogCustomCategory[]>([]);
     const validationRequestId = useRef(0);
     const draftRevisionRef = useRef(0);
+    const draftRef = useRef<CreatorDraft | null>(null);
     const lastPreviewJobRef = useRef<JobSpecification | null>(null);
 
     // Resizable panel state. The width drives a CSS variable so the DOM updates without
@@ -348,10 +394,57 @@ export const Create: React.FunctionComponent = () => {
     // clean; a fork or new-version operation is never reconstructed from normalized metadata.
     useEffect(() => {
         let cancelled = false;
+        if (contextError) {
+            setLoading(false);
+            setLoadError(contextError);
+            return;
+        }
+        if (context.applicationKind === "managed" && !Client.userIsAdmin) {
+            setLoading(false);
+            setDraft(null);
+            setLoadError("Only UCloud administrators can create managed applications.");
+            return;
+        }
+        const currentDraft = draftRef.current;
+        if (currentDraft?.dirty && creatorContextKey(currentDraft.context) === creatorContextKey(context)) {
+            setLoading(false);
+            setLoadError(null);
+            return;
+        }
         setLoading(true);
-        creatorService.loadSource(context).then(({application, sourceText, customMeta}) => {
+        setLoadError(null);
+        const customContext = creatorIsCustom(context);
+        Promise.all([
+            creatorService.loadSource(context),
+            customContext ? creatorService.loadCustomPlacement() : Promise.resolve({groups: [], categories: []}),
+            customContext ? creatorService.loadCustomEligibility() : Promise.resolve(null),
+        ]).then(([source, placement, eligibility]) => {
             if (cancelled) return;
-            setDraft(creatorInitialDraft(application, sourceText, context, customMeta));
+            if (customContext && placement.groups.length === 0) {
+                throw new Error("Create a custom application group in this workspace before creating an application.");
+            }
+            const categoryId = source.customMeta?.category ?? context.initialCategory;
+            const categoryIsEditable = categoryId != null && placement.categories.some(category => String(category.id) === categoryId);
+            if (customContext && !categoryIsEditable) {
+                throw new Error("You no longer have edit permission on the selected category.");
+            }
+            let customMeta = source.customMeta;
+            if (customMeta != null) {
+                const firstEligibleProvider = eligibility?.providers.find(provider => provider.eligible)?.provider;
+                const firstProvider = firstEligibleProvider ?? eligibility?.providers[0]?.provider ?? "";
+                customMeta = {
+                    ...customMeta,
+                    provider: context.operation === "newCustom" ? customMeta.provider || firstProvider : customMeta.provider,
+                    group: context.operation === "newCustom" ? customMeta.group || String(placement.groups[0]?.id ?? "") : customMeta.group,
+                    category: categoryId ?? customMeta.category,
+                    canPublish: eligibility?.canPublish ?? false,
+                    publishedToProject: eligibility?.canPublish === true && customMeta.publishedToProject,
+                };
+            }
+            setDraft(creatorInitialDraft(source.application, source.sourceText, context, customMeta));
+            setCustomGroups(placement.groups);
+            setCustomCategories(placement.categories);
+            setCustomEligibility(eligibility);
             setServerValidation({errors: []});
             setServerValidationRevision(null);
             setPreviewApplication(null);
@@ -364,15 +457,16 @@ export const Create: React.FunctionComponent = () => {
             lastPreviewJobRef.current = null;
             setInvocationTab("invocation");
             setLoading(false);
-        }).catch(() => {
+        }).catch(error => {
             if (cancelled) return;
             setLoading(false);
             setDraft(null);
+            setLoadError(creatorLoadError(error));
         });
         return () => {
             cancelled = true;
         };
-    }, [context.operation, context.existingName, context.existingVersion, context.provider, context.developmentTemplate]);
+    }, [context.operation, context.applicationKind, context.workspace, context.existingName, context.existingVersion, context.provider, context.initialCategory, context.developmentTemplate, contextError]);
 
     useEffect(() => {
         if (draft?.view !== "editor" || invocationTab !== "preview" || previewScript == null) return;
@@ -381,53 +475,9 @@ export const Create: React.FunctionComponent = () => {
         });
     }, [draft?.view, invocationTab, previewScript]);
 
-    useEffect(() => {
-        if (!creatorIsCustom(context)) {
-            setCustomEligibility(null);
-            return;
-        }
-        let cancelled = false;
-        void creatorService.loadCustomEligibility().then(result => {
-            if (cancelled) return;
-            setCustomEligibility(result);
-            setDraft(current => {
-                if (!current?.customMeta) return current;
-                return {
-                    ...current,
-                    customMeta: {...current.customMeta, canPublish: result.canPublish},
-                };
-            });
-        }).catch(() => {
-            if (!cancelled) setCustomEligibility(null);
-        });
-        return () => {
-            cancelled = true;
-        };
-    }, [context.operation, context.existingName, context.existingVersion, context.provider]);
-
-    useEffect(() => {
-        if (!creatorIsCustom(context)) {
-            setCustomGroups([]);
-            setCustomCategories([]);
-            return;
-        }
-        let cancelled = false;
-        creatorService.loadCustomPlacement().then(({groups, categories}) => {
-            if (cancelled) return;
-            setCustomGroups(groups);
-            setCustomCategories(categories);
-        }).catch(() => {
-            if (cancelled) return;
-            setCustomGroups([]);
-            setCustomCategories([]);
-        });
-        return () => {
-            cancelled = true;
-        };
-    }, [context.operation, context.existingName, context.existingVersion, context.provider]);
-
     // Theme name for the embedded Monaco editors. Matches the file editor's selector.
     const themeName = useSelector((red: ReduxObject) => red.sidebar.theme);
+    draftRef.current = draft;
     if (draft) draftRevisionRef.current = draft.revision;
 
     // YAML source parse cycle
@@ -1134,13 +1184,28 @@ export const Create: React.FunctionComponent = () => {
         return e;
     }, {capture: true});
 
-    if (loading || draft === null) {
+    if (loading) {
         return (
             <div className={CreatorShellClass}>
                 <div className={CreatorMainIslandClass}>
                     <div className={CreatorMainBodyClass}>
                         <LoadingIcon size={36} />
                     </div>
+                </div>
+            </div>
+        );
+    }
+
+    if (loadError || contextError || draft === null) {
+        const returnTo = context.returnTo?.startsWith("/") ? context.returnTo : AppRoutes.apps.landing();
+        return (
+            <div className={CreatorShellClass}>
+                <div className={CreatorMainIslandClass}>
+                    <Flex height="100%" alignItems="center" justifyContent="center" flexDirection="column" gap="16px" p="32px">
+                        <Text fontSize={20} fontWeight={600}>Application creator unavailable</Text>
+                        <Text color="textSecondary" textAlign="center">{loadError ?? contextError ?? "The application draft could not be loaded."}</Text>
+                        <Button onClick={() => navigate(returnTo)}>Back</Button>
+                    </Flex>
                 </div>
             </div>
         );
@@ -1202,6 +1267,11 @@ export const Create: React.FunctionComponent = () => {
                     </Flex>
                 </div>
                 <div className={CreatorMainBodyClass} style={(draft.view === "yaml" || draft.view === "invocation") ? {display: "flex", flexDirection: "column", overflowY: "hidden"} as React.CSSProperties : undefined}>
+                    {!creatorIsCustom(context) || customEligibility?.providers.some(provider => provider.eligible) ? null : (
+                        <Box m="12px" mb="0" p="12px" borderRadius="6px" background="color-mix(in srgb, var(--warningMain) 12%, transparent)">
+                            <Text color="warningMain">No provider in this workspace currently meets the custom container and allocation requirements. You can edit the draft, but preview and save will remain unavailable until a provider is eligible.</Text>
+                        </Box>
+                    )}
                     <CreatorMainContent
                         draft={visibleDraft}
                         readOnly={draft.sourceTextInvalid}
@@ -1469,11 +1539,22 @@ function PreviewScriptViewer(props: {
     rerunning: boolean;
 }): React.ReactNode {
     const requiresPreviewValues = props.errors.some(error => error.code === "PREVIEW_RESOURCE_REQUIRED");
+    const errorKey = props.errors.map(error => `${error.code ?? ""}:${error.message}`).join("\u0000");
+    const [dismissedErrorKey, setDismissedErrorKey] = useState<string | null>(null);
+
+    useEffect(() => {
+        setDismissedErrorKey(null);
+    }, [errorKey]);
+
+    const showErrors = props.errors.length > 0 && dismissedErrorKey !== errorKey;
     return (
         <div className={PreviewScriptClass}>
             <div className={PreviewScriptCodeClass}>
-                {props.errors.length > 0 ? (
-                    <Warning warning="Preview could not be rendered.">
+                {showErrors ? (
+                    <Warning
+                        warning="Preview could not be rendered."
+                        clearWarning={() => setDismissedErrorKey(errorKey)}
+                    >
                         <ul className={PreviewErrorListClass}>
                             {props.errors.map((error, index) => <li key={index}>{error.message}</li>)}
                         </ul>
@@ -1642,11 +1723,11 @@ const PreviewScriptCodeClass = injectStyle("creator-preview-script-code", k => `
         overflow: auto;
     }
 
-    ${k} > div {
+    ${k} > div:has(> pre) {
         height: 100%;
     }
 
-    ${k} > div > pre {
+    ${k} > div:has(> pre) > pre {
         height: 100%;
         box-sizing: border-box;
     }
@@ -1823,6 +1904,22 @@ function creatorRequestError(error: unknown, code = "REQUEST_FAILED"): CreatorVa
         parameterName: null,
         message: message.replace(/\bcustom-/g, ""),
     };
+}
+
+function creatorLoadError(error: unknown): string {
+    return creatorRequestError(error).message;
+}
+
+function creatorContextKey(context: CreatorOperationContext): string {
+    return [
+        context.operation,
+        context.applicationKind,
+        context.workspace,
+        context.existingName ?? "",
+        context.existingVersion ?? "",
+        context.provider ?? "",
+        context.initialCategory ?? "",
+    ].join("\n");
 }
 
 export default Create;

@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -641,24 +640,8 @@ func appEditorSourceFromApplication(app orcapi.Application) string {
 			Mode: mode,
 		})
 	}
-	serialized := appEditorMarshalSource(source)
-	var roundTrip orcapi.A2Yaml
-	if yaml.Unmarshal([]byte(serialized), &roundTrip) != nil {
-		return ""
-	}
-	normalized, err := roundTrip.Normalize()
-	if err != nil || !normalized.Invocation.Tool.Tool.Present {
-		return ""
-	}
-	normalizedTool := &normalized.Invocation.Tool.Tool.Value
-	originalTool := invocation.Tool.Tool.Value
-	normalizedTool.Owner = originalTool.Owner
-	normalizedTool.CreatedAt = originalTool.CreatedAt
-	normalizedTool.ModifiedAt = originalTool.ModifiedAt
-	if !reflect.DeepEqual(normalized.Invocation, app.Invocation) {
-		return ""
-	}
-	return serialized
+
+	return appEditorMarshalSource(source)
 }
 
 func appEditorParameterFromApplication(parameter orcapi.ApplicationParameter) (orcapi.A2Parameter, bool) {

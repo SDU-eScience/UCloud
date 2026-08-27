@@ -59,6 +59,8 @@ export interface ApplicationMetadata {
     flavorName?: string;
     groupId?: number | null;
     variant?: ApplicationVariant;
+    origin?: "UCLOUD" | "CUSTOM";
+    publishedToProject?: boolean;
 }
 
 export interface ApplicationVariant {
@@ -564,6 +566,9 @@ export interface AppEditorRenderResponse {
 
 export interface AppCatalogCustomGroup {
     id: number;
+    createdAt: number;
+    owner: ResourceOwner;
+    backedBy?: number;
     specification: {
         title: string;
         description: string;
@@ -572,10 +577,32 @@ export interface AppCatalogCustomGroup {
 
 export interface AppCatalogCustomCategory {
     id: number;
+    createdAt: number;
+    owner: ResourceOwner;
+    backedBy?: number;
     specification: {
         title: string;
         description: string;
     };
+    permissions: ResourcePermissions;
+}
+
+export interface ResourceOwner {
+    createdBy: string;
+    project?: string;
+}
+
+export interface ResourcePermissions {
+    myself: Array<"READ" | "EDIT" | "ADMIN" | "PROVIDER">;
+    others: Array<{
+        entity: {
+            type?: string;
+            projectId?: string;
+            group?: string;
+            username?: string;
+        };
+        permissions: Array<"READ" | "EDIT" | "ADMIN" | "PROVIDER">;
+    }>;
 }
 
 export function retrieveEditorSource(request: AppEditorRetrieveSourceRequest): APICallParameters<unknown, AppEditorRetrieveSourceResponse> {

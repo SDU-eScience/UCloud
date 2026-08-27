@@ -82,6 +82,8 @@ import {
     SubmitShortcut,
     useSubmitShortcut,
 } from "@/Applications/KeyboardNavigation";
+import {useProjectId} from "@/Project/Api";
+import AppRoutes from "@/Routes";
 
 interface InsufficientFunds {
     why?: string;
@@ -358,6 +360,7 @@ export const Create: React.FunctionComponent<JobCreateProps> = props => {
     const navigate = useNavigate();
     const location = useLocation();
     const previewMode = props.previewMode === true;
+    const projectId = useProjectId();
     const appName = props.previewApplication?.metadata.name ?? getQueryParam(location.search, "app");
     const appVersion = getQueryParam(location.search, "version") ?? props.previewApplication?.metadata.version;
 
@@ -388,6 +391,7 @@ export const Create: React.FunctionComponent<JobCreateProps> = props => {
     const previewParameterTypes = React.useRef<Record<string, ApplicationParameter["type"]> | null>(null);
 
     const application = props.previewApplication ?? applicationResp?.data?.status?.applications?.find(it => it.metadata.name === appName);
+    const [canEditCustomVersion, setCanEditCustomVersion] = useState(false);
 
     if (application) {
         usePage(`${application.metadata.title} ${application.metadata.version ?? ""}`, SidebarTabId.APPLICATIONS);
@@ -425,6 +429,29 @@ export const Create: React.FunctionComponent<JobCreateProps> = props => {
     useEffect(() => {
         setFlavors(applicationResp?.data?.status?.applications ?? []);
     }, [applicationResp?.data]);
+
+    useEffect(() => {
+        setCanEditCustomVersion(false);
+        if (previewMode || application?.metadata.origin !== "CUSTOM") return;
+        const provider = application.invocation.tool.tool?.description.supportedProviders?.[0];
+        if (!provider) return;
+
+        let cancelled = false;
+        callAPI(AppStore.retrieveEditorSource({
+            kind: "CUSTOM",
+            name: application.metadata.name.replace(/^custom-/, ""),
+            version: application.metadata.version,
+            serviceProvider: provider,
+            intent: "EDIT",
+        })).then(() => {
+            if (!cancelled) setCanEditCustomVersion(true);
+        }).catch(() => {
+            if (!cancelled) setCanEditCustomVersion(false);
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, [application?.metadata.name, application?.metadata.version, application?.metadata.origin, projectId, previewMode]);
 
     const reloadFlavors = useCallback(async () => {
         const group = await callAPI(AppStore.findGroupByApplication({
@@ -1161,6 +1188,23 @@ export const Create: React.FunctionComponent<JobCreateProps> = props => {
 
                     <div className={JobCreateHeaderActionsClass}>
                         <UtilityBar responsive leading={<>
+                            {!canEditCustomVersion ? null : (
+                                <Button height="25px" onClick={() => {
+                                    const provider = application.invocation.tool.tool?.description.supportedProviders?.[0];
+                                    if (!provider) return;
+                                    navigate(AppRoutes.apps.creator({
+                                        operation: "newVersion",
+                                        applicationKind: "custom",
+                                        workspace: projectId ?? "personal",
+                                        name: application.metadata.name.replace(/^custom-/, ""),
+                                        version: application.metadata.version,
+                                        provider,
+                                        returnTo: location.pathname + location.search,
+                                    }));
+                                }}>
+                                    Create new version
+                                </Button>
+                            )}
                             {!application.metadata.website ? null : (
                                 <ExternalLink className="job-create-documentation" href={application.metadata.website}>
                                     <Button>

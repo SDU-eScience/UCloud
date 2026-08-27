@@ -16,6 +16,7 @@ import {
     CreatorCustomMeta,
     emptyValidationState,
     CreatorValidationResponse,
+    creatorIsCustom,
     CreatorRenderResponse,
 } from "@/Applications/Creator/Draft";
 // Parse and serialization live in SourceParser.ts so the YAML editor and the template service
