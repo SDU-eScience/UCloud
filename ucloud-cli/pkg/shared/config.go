@@ -8,15 +8,16 @@ import (
 
 	"gopkg.in/yaml.v3"
 	"ucloud.dk/shared/pkg/rpc"
+	"ucloud.dk/shared/pkg/termio"
 )
 
 const DevServer = "https://ucloud.localhost.direct"
 
 type Config struct {
 	//Server   string `yaml:"server"`
-	Username string `yaml:"username"`
-	TokenRef string `yaml:"tokenRef,omitempty"`
-	//CurrentWorkspace   string                 `yaml:"currentWorkspace"`
+	Username           string                 `yaml:"username"`
+	TokenRef           string                 `yaml:"tokenRef,omitempty"`
+	CurrentWorkspace   string                 `yaml:"currentWorkspace"`
 	DefaultEnvironment string                 `yaml:"defaultEnvironment"`
 	Environments       map[string]Environment `yaml:"environments"`
 	//Workspaces         map[string]Workspace   `yaml:"workspaces"`
@@ -117,15 +118,33 @@ func writeFileAtomically(path string, data []byte, perm os.FileMode) error {
 	return os.Rename(tmpPath, path)
 }
 
-func SaveConfig(cfg *Config) error {
+func SaveConfig(cfg *Config) (*Config, error) {
 	data, err := yaml.Marshal(&cfg)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return writeFileAtomically(GetConfigPath(), data, 0600)
+	return cfg, writeFileAtomically(GetConfigPath(), data, 0600)
+}
+func selectChange(first string, second string) string {
+	if first != second && second != "" {
+		return second
+	}
+	return first
 }
 
-func (cfg *Config) InitUCloudClient(dev bool) {
+func UpdateConfig(config *Config) (*Config, error) {
+	cfg, err := ReadConfig()
+	if err != nil {
+		return nil, err
+	}
+	cfg.Username = selectChange(cfg.Username, config.Username)
+	cfg.CurrentWorkspace = selectChange(cfg.CurrentWorkspace, config.CurrentWorkspace)
+	cfg.DefaultEnvironment = selectChange(cfg.DefaultEnvironment, config.DefaultEnvironment)
+	cfg.TokenRef = selectChange(cfg.TokenRef, config.TokenRef)
+	return SaveConfig(cfg)
+}
+
+func (cfg *Config) initUCloudClient(dev bool) {
 	baseURL := cfg.Environments[cfg.DefaultEnvironment].URL
 	if dev {
 		baseURL = DevServer
@@ -137,4 +156,25 @@ func (cfg *Config) InitUCloudClient(dev bool) {
 			Timeout: 10 * time.Second,
 		},
 	}
+}
+
+func InitializeUCloudClient(dev bool) {
+	cfg, err := ReadConfig()
+	if err != nil {
+		panic(err)
+	}
+	cfg.initUCloudClient(dev)
+}
+
+func PrintConfig(cfg *Config) {
+	t := termio.Table{}
+	t.AppendHeader("Username")
+	t.AppendHeader("TokenRef")
+	t.AppendHeader("CurrentWorkspace")
+	t.AppendHeader("DefaultEnvironment")
+	t.Cell("%v", cfg.Username)
+	t.Cell("%v", cfg.TokenRef)
+	t.Cell("%v", cfg.CurrentWorkspace)
+	t.Cell("%v", cfg.DefaultEnvironment)
+	t.Print()
 }
