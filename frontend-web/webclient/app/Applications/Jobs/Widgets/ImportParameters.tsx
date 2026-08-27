@@ -17,7 +17,7 @@ import {dialogStore} from "@/Dialog/DialogStore";
 import {api as FilesApi, normalizeDownloadEndpoint} from "@/UCloud/FilesApi";
 import {getQueryParam} from "@/Utilities/URIUtilities";
 import JobBrowse from "../JobsBrowse";
-import FileBrowse from "@/Files/FileBrowse";
+import FileBrowse, { FakeFileName } from "@/Files/FileBrowse";
 import {CardClass} from "@/ui-components/Card";
 import {ShortcutKey} from "@/ui-components/Operation";
 import {FilesCreateDownloadResponseItem, UFile} from "@/UCloud/UFile";
@@ -195,7 +195,7 @@ export function ImportParameters({application, onImport, importDialogOpen, onImp
                                             fetchAndImportParameters(res);
                                             dialogStore.success();
                                         },
-                                        show: res => res.status.type === "FILE" && res.id.endsWith(".json")
+                                        show: res => res.id !== FakeFileName && res.status.type === "FILE" && res.id.endsWith(".json")
                                     }
                                 }}
                             />,

@@ -64,7 +64,7 @@ import {Link, useParams} from "react-router-dom";
 import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {addShareModal} from "@/Files/Shares";
-import FileBrowse from "@/Files/FileBrowse";
+import FileBrowse, { FakeFileName } from "@/Files/FileBrowse";
 import {classConcat, injectStyle, injectStyleSimple} from "@/Unstyled";
 import {filetypeinfo as fileType} from "magic-bytes.js";
 import {PREVIEW_MAX_SIZE} from "../../site.config.json";
@@ -787,6 +787,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                             selection: {
                                 text: "Transfer",
                                 show(res) {
+                                    if (res.id === FakeFileName) return false;
                                     return res.status.type === "DIRECTORY" &&
                                         (
                                             res.specification.product.provider !== selected[0].specification.product.provider ||
@@ -1149,7 +1150,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
 
     fileSelectorModalStyle = largeModalStyle;
 
-    // -- Shared file operations -- 
+    // -- Shared file operations --
     // TODO(Dan): We should probably add a feature flag for file types
     public async download(ids: string[]) {
         if (ids.length > 1) {
@@ -1175,7 +1176,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 isModal: true, managesLocalProject: true, selection: {
                     text: "Copy to",
                     show(res) {
-                        return res.status.type === "DIRECTORY"
+                        return res.status.type === "DIRECTORY" && res.id !== FakeFileName;
                     },
                     onClick: async (res) => {
                         const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
@@ -1218,6 +1219,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 isModal: true, managesLocalProject: true, selection: {
                     text: "Move to",
                     show(res) {
+                        if (res.id === FakeFileName) return false;
                         return res.status.type === "DIRECTORY"
                     },
                     onClick: async (res) => {

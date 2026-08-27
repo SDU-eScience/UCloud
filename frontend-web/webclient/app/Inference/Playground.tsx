@@ -33,6 +33,7 @@ import {prettyFilePath} from "@/Files/FilePath";
 import CodeSnippet from "@/ui-components/CodeSnippet";
 import {IconName} from "@/ui-components/Icon";
 import {inferenceThreadStore} from "./ThreadStore";
+import { FakeFileName } from "@/Files/FileBrowse";
 
 type PlaygroundSession = {
     connectTo: string;
@@ -556,7 +557,7 @@ const PlaygroundWorkspaceClass = injectStyle("inference-playground-workspace", k
     ${k} .playground-sidebar-footer {
         flex-shrink: 0;
     }
-    
+
     ${k} .playground-sidebar-footer {
         display: flex;
         gap: 16px;
@@ -1872,7 +1873,7 @@ function WorkspaceSelector({model, fn, connected}: {model: Record<string, Value>
 				import("@/UCloud/FilesApi"),
 				import("@/Files/FavoriteSelect"),
 			]);
-			const isFolderAllowed = (file: UFile): boolean | string => file.status.type === "DIRECTORY";
+			const isFolderAllowed = (file: UFile): boolean | string => file.status.type === "DIRECTORY" && file.id !== FakeFileName;
 			const onSelectFolder = (file: UFile) => {
 				const target = removeTrailingSlash(file.id);
 				fn.sendModelInput("workspace.path", {kind: ValueKind.String, string: target}, "workspace.path");

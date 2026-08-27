@@ -5,13 +5,12 @@ import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
 import {injectStyle} from "@/Unstyled";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {api as FilesApi} from "@/UCloud/FilesApi";
-import FileBrowse from "@/Files/FileBrowse";
+import FileBrowse, { FakeFileName } from "@/Files/FileBrowse";
 import {Selection} from "@/ui-components/ResourceBrowser";
 import {doNothing, removeTrailingSlash} from "@/UtilityFunctions";
 import {UFile} from "@/UCloud/UFile";
 import {compute} from "@/UCloud";
 import {usePrettyFilePath} from "@/Files/FilePath";
-import {TooltipV2} from "@/ui-components/Tooltip";
 import {VirtualMachineRestartReminder} from "./VirtualMachineRestartReminder";
 import {IconButton} from "@/ui-components/IconButton";
 
@@ -71,6 +70,8 @@ export const VirtualMachineFolders: React.FunctionComponent<{
         const normalize = (path: string) => removeTrailingSlash(path);
 
         const showFolder = (file: UFile): boolean | string => {
+            if (file.id === FakeFileName) return false;
+
             if (file.status.type !== "DIRECTORY") {
                 return "Only directories can be attached";
             }

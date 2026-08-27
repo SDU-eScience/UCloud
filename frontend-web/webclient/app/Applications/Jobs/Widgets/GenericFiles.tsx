@@ -11,7 +11,7 @@ import {prettyFilePath} from "@/Files/FilePath";
 import {FolderResourceNS} from "../Resources";
 import {getProviderField, providerMismatchError} from "../Create";
 import {injectStyleSimple} from "@/Unstyled";
-import FileBrowse from "@/Files/FileBrowse";
+import FileBrowse, { FakeFileName } from "@/Files/FileBrowse";
 import {ApplicationParameterNS} from "@/Applications/AppStoreApi";
 import {fileFavoriteSelection, folderFavoriteSelection} from "@/Files/FavoriteSelect";
 import {UFile} from "@/UCloud/UFile";
@@ -75,6 +75,7 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
         }
 
         function providerRestriction(file: UFile): boolean | string {
+            if (file.id === FakeFileName) return false;
             const fileProvider = file.specification.product.provider;
             const isCorrectlyDir = isDirectoryInput && file.status.type === "DIRECTORY";
             const isCorrectlyFile = !isDirectoryInput && file.status.type === "FILE";

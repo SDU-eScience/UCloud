@@ -138,6 +138,7 @@ let lastActiveProject: string | undefined = "";
 type SortById = "PATH" | "MODIFIED_AT" | "SIZE";
 const rowTitles: ColumnTitleList<SortById> = [{name: "Name", sortById: "PATH"}, {name: "", columnWidth: 32}, {name: "Modified at", sortById: "MODIFIED_AT", columnWidth: 160}, {name: "Size", sortById: "SIZE", columnWidth: 100}];
 
+export const FakeFileName = ".00000000000000000000$NEW_DIR";
 const RESOURCE_NAME = "File";
 function FileBrowse({opts, headerControls}: {
     opts?: ResourceBrowserOpts<UFile> & AdditionalResourceBrowserOpts;
@@ -626,12 +627,11 @@ function FileBrowse({opts, headerControls}: {
                 };
 
                 let shouldRemoveFakeDirectory = true;
-                const fakeFileName = ".00000000000000000000$NEW_DIR"
                 const showCreateDirectory = () => {
-                    const fakePath = resolvePath(browser.currentPath) + "/" + fakeFileName.split("/")[0];
+                    const fakePath = resolvePath(browser.currentPath) + "/" + FakeFileName.split("/")[0];
                     browser.removeEntryFromCurrentPage(it => it.id === fakePath);
                     shouldRemoveFakeDirectory = false;
-                    insertFakeEntry(fakeFileName, {type: "DIRECTORY"});
+                    insertFakeEntry(FakeFileName, {type: "DIRECTORY"});
                     const idx = browser.findVirtualRowIndex(it => it.id === fakePath);
                     if (idx !== null) browser.ensureRowIsVisible(idx, true);
 
@@ -665,10 +665,10 @@ function FileBrowse({opts, headerControls}: {
                 };
 
                 const showCreateFile = () => {
-                    const fakePath = resolvePath(browser.currentPath) + "/" + fakeFileName.split("/")[0];
+                    const fakePath = resolvePath(browser.currentPath) + "/" + FakeFileName.split("/")[0];
                     browser.removeEntryFromCurrentPage(it => it.id === fakePath);
                     shouldRemoveFakeDirectory = false;
-                    insertFakeEntry(fakeFileName, {type: "FILE"});
+                    insertFakeEntry(FakeFileName, {type: "FILE"});
                     const idx = browser.findVirtualRowIndex(it => it.id === fakePath);
                     if (idx !== null) browser.ensureRowIsVisible(idx, true);
 
@@ -927,7 +927,7 @@ function FileBrowse({opts, headerControls}: {
                         onSelectRestriction: opts?.selection?.show ? file => {
                             const restriction = opts.selection!.show!(file);
                             if (typeof restriction === "string") return false;
-                            return restriction && !file.id.endsWith(fakeFileName);
+                            return restriction && !file.id.endsWith(FakeFileName);
                         } : undefined,
                         onSelect: opts?.selection?.onClick,
                     };
@@ -1386,7 +1386,7 @@ function FileBrowse({opts, headerControls}: {
                     return promise;
                 };
 
-                browser.on("skipOpen", (oldPath, newPath, resource) => resource?.id === fakeFileName);
+                browser.on("skipOpen", (oldPath, newPath, resource) => resource?.id === FakeFileName);
                 browser.on("open", (oldPath, newPath, resource) => {
                     if (resource?.status.type === "FILE") {
                         if (opts?.selection) {
