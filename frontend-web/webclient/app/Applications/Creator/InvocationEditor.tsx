@@ -19,9 +19,10 @@
 import * as React from "react";
 import {useEffect, useLayoutEffect, useRef} from "react";
 import {editor} from "monaco-editor";
-import {injectStyle} from "@/Unstyled";
-import {Box, Flex, Text} from "@/ui-components";
+import {classConcat, injectStyle} from "@/Unstyled";
+import {Text} from "@/ui-components";
 import {IconButton} from "@/ui-components/IconButton";
+import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
 import {
     creatorEditorOptions,
     ensureJinja2Language,
@@ -33,6 +34,9 @@ import IStandaloneCodeEditor = editor.IStandaloneCodeEditor;
 
 // Fixed editor height in card mode. Tall enough for a typical invocation template without resizing.
 const DEFAULT_HEIGHT = 500;
+const INVOCATION_CARD_HEIGHT = DEFAULT_HEIGHT + 120;
+
+export type InvocationTab = "invocation" | "preview";
 
 export interface InvocationEditorProps {
     // The current invocation text from the draft.
@@ -43,10 +47,16 @@ export interface InvocationEditorProps {
     themeName?: string;
     // Called with the new invocation text on every content change.
     onChange: (text: string) => void;
-    // When true, the editor fills all available space and the card drops its card styling.
+    // When true, the editor fills all available space while retaining the card styling.
     maximized: boolean;
     // Toggles maximized state.
     onToggleMaximized: () => void;
+    // The active tab in the invocation card.
+    activeTab: InvocationTab;
+    // Called when the active tab changes.
+    onTabChange: (tab: InvocationTab) => void;
+    // The generated invocation preview or its empty state.
+    preview: React.ReactNode;
 }
 
 export function InvocationEditor(props: InvocationEditorProps): React.ReactNode {
@@ -131,31 +141,41 @@ export function InvocationEditor(props: InvocationEditorProps): React.ReactNode 
         const ed = editorRef.current;
         if (!ed) return;
         ed.layout();
-    }, [props.maximized]);
+    }, [props.maximized, props.activeTab]);
 
     return (
-        <div className={props.maximized ? InvocationMaximizedClass : CreatorCardIslandClass} id="creator-card-invocation">
-            <Flex alignItems="center" gap="8px" mb="16px">
-                <Text fontWeight="normal" fontSize="16px">Invocation</Text>
-                {props.readOnly ? (
-                    <Text fontSize={12} color="textSecondary" ml="8px">
-                        Read-only while YAML source is invalid.
-                    </Text>
-                ) : null}
-                <Box ml="auto">
-                    <IconButton
-                        icon={props.maximized ? "heroArrowsPointingIn" : "heroArrowsPointingOut"}
-                        tooltip={props.maximized ? "Minimize" : "Maximize"}
-                        onClick={props.onToggleMaximized}
+        <TabbedCard
+            id="creator-card-invocation"
+            className={classConcat(InvocationCardClass, props.maximized ? InvocationMaximizedClass : undefined)}
+            style={props.maximized ? {flex: "1 1 auto", minHeight: 0} : {height: `${INVOCATION_CARD_HEIGHT}px`}}
+            activeIndex={props.activeTab === "preview" ? 1 : 0}
+            onTabChange={idx => props.onTabChange(idx === 1 ? "preview" : "invocation")}
+            rightControls={
+                <IconButton
+                    icon={props.maximized ? "heroArrowsPointingIn" : "heroArrowsPointingOut"}
+                    tooltip={props.maximized ? "Minimize" : "Maximize"}
+                    onClick={props.onToggleMaximized}
+                />
+            }
+        >
+            <TabbedCardTab name="Invocation" icon="heroCodeBracket">
+                <div className={InvocationTabClass}>
+                    {props.readOnly ? (
+                        <Text fontSize={12} color="textSecondary" mb="8px">
+                            Read-only while YAML source is invalid.
+                        </Text>
+                    ) : null}
+                    <div
+                        className={InvocationEditorHostClass}
+                        ref={containerRef}
+                        style={{flex: "1 1 auto", minHeight: 0}}
                     />
-                </Box>
-            </Flex>
-            <div
-                className={InvocationEditorHostClass}
-                ref={containerRef}
-                style={props.maximized ? {flex: "1 1 auto", minHeight: 0} : {height: `${DEFAULT_HEIGHT}px`}}
-            />
-        </div>
+                </div>
+            </TabbedCardTab>
+            <TabbedCardTab name="Preview" icon="heroEye">
+                {props.preview}
+            </TabbedCardTab>
+        </TabbedCard>
     );
 }
 
@@ -172,32 +192,44 @@ const InvocationEditorHostClass = injectStyle("creator-invocation-editor-host", 
     }
 `);
 
-// Maximized layout: no card, fills the content area like the YAML view. The heading stays but the
-// editor host flexes to fill all remaining vertical space.
+// The invocation card keeps the same card treatment in both tabs. Maximized mode only changes the
+// card's flex behavior so the editor can fill the creator content island.
+const InvocationCardClass = injectStyle("creator-invocation-card", k => `
+    ${k} {
+        max-width: 944px;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+    }
+
+    ${k} > div {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        flex: 1 1 auto;
+    }
+
+    ${k} > div > [data-tab-name] {
+        min-height: 0;
+        flex: 1 1 auto;
+    }
+`);
+
 const InvocationMaximizedClass = injectStyle("creator-invocation-maximized", k => `
     ${k} {
         display: flex;
         flex-direction: column;
         min-height: 0;
         flex: 1 1 auto;
+        height: 100%;
     }
 `);
 
-// Self-contained card island styling. See YamlEditor.tsx for the same pattern; we duplicate the
-// small block to avoid a cross-file CSS class import that could create a module cycle.
-const CreatorCardIslandClass = injectStyle("creator-card-island-invocation", k => `
+const InvocationTabClass = injectStyle("creator-invocation-tab", k => `
     ${k} {
-        max-width: 944px;
-        background: var(--backgroundCard);
-        box-shadow: var(--defaultShadow);
-        border: var(--defaultCardBorder);
-        border-radius: 10px;
-        padding: 20px;
-        box-sizing: border-box;
-    }
-    @media (max-width: 600px) {
-        ${k} {
-            padding: 16px;
-        }
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        height: 100%;
     }
 `);

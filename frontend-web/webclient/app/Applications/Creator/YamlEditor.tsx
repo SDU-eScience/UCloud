@@ -25,10 +25,9 @@
 // `yamlFocusKey`; this editor reacts to it by searching the model for the key and scrolling to it.
 
 import * as React from "react";
-import {useEffect, useLayoutEffect, useRef, useState} from "react";
+import {useEffect, useLayoutEffect, useRef} from "react";
 import {editor} from "monaco-editor";
 import {injectStyle} from "@/Unstyled";
-import {Text} from "@/ui-components";
 import {
     creatorEditorOptions,
     ensureJinja2Language,
@@ -48,8 +47,7 @@ export interface YamlEditorProps {
     // The current source text. The editor model is initialized from this and updated when the
     // parent replaces the text (for example after a visual change serializes canonical YAML).
     sourceText: string;
-    // True when the last parse failed. The editor is editable either way; this controls the
-    // banner shown above it and is used to color the error list.
+    // True when the last parse failed. The parent uses this to disable visual editing and actions.
     sourceTextInvalid: boolean;
     // Parse errors from the last parse, with line/column. Placed as Monaco markers.
     parseErrors: CreatorSourceParseError[];
@@ -94,8 +92,6 @@ export function YamlEditor(props: YamlEditorProps): React.ReactNode {
     // so identity is stable across renders, but the ref makes the dependency explicit.
     const propsRef = useRef(props);
     propsRef.current = props;
-
-    const [bannerText, setBannerText] = useState<string | null>(null);
 
     // Layout effect: create the editor and model once Monaco is available.
     useLayoutEffect(() => {
@@ -179,7 +175,7 @@ export function YamlEditor(props: YamlEditorProps): React.ReactNode {
         m.editor.setTheme(props.themeName === "light" ? "light" : "ucloud-dark");
     }, [monaco, props.themeName]);
 
-    // Place parse errors as Monaco markers on the model and keep the banner in sync.
+    // Place parse errors as Monaco markers on the model.
     useEffect(() => {
         const m = monaco;
         const model = modelRef.current;
@@ -195,13 +191,6 @@ export function YamlEditor(props: YamlEditorProps): React.ReactNode {
         }));
         m.editor.setModelMarkers(model, "creator-yaml", markers);
 
-        if (props.sourceTextInvalid) {
-            setBannerText(props.parseErrors.length > 0
-                ? `${props.parseErrors.length} parse error${props.parseErrors.length === 1 ? "" : "s"}. Fix the YAML to re-enable visual editing.`
-                : "The source text is invalid. Fix the YAML to re-enable visual editing.");
-        } else {
-            setBannerText(null);
-        }
     }, [monaco, props.parseErrors, props.sourceTextInvalid]);
 
     // Debounced parse. We start/restart a timer whenever the source text changes (the parent
@@ -265,16 +254,7 @@ export function YamlEditor(props: YamlEditorProps): React.ReactNode {
         propsRef.current.onLineFocusApplied();
     }, [props.focusLine, props.focusColumn]);
 
-    return (
-        <>
-            {bannerText ? (
-                <div className={YamlBannerClass} role="status">
-                    <Text fontSize={13} color="errorMain">{bannerText}</Text>
-                </div>
-            ) : null}
-            <div className={YamlEditorHostClass} ref={containerRef} />
-        </>
-    );
+    return <div className={YamlEditorHostClass} ref={containerRef} />;
 }
 
 function escapeRegExp(s: string): string {
@@ -294,16 +274,5 @@ const YamlEditorHostClass = injectStyle("creator-yaml-editor-host", k => `
         border-radius: 6px;
         overflow: hidden;
         border: 1px solid var(--borderColor);
-    }
-`);
-
-const YamlBannerClass = injectStyle("creator-yaml-banner", k => `
-    ${k} {
-        flex-shrink: 0;
-        padding: 8px 12px;
-        margin-bottom: 0;
-        background: color-mix(in srgb, var(--errorMain) 12%, transparent);
-        border: 1px solid color-mix(in srgb, var(--errorMain) 35%, var(--borderColor));
-        border-radius: 6px;
     }
 `);

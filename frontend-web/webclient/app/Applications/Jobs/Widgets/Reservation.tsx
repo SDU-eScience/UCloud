@@ -29,6 +29,7 @@ export function ReservationParameter({
     additionalNameInput,
     onJobNameChange,
     fieldNavigation,
+    onAvailableMachinesChange,
 }: React.PropsWithChildren<{
     application: Application;
     errors: ReservationErrors;
@@ -37,6 +38,7 @@ export function ReservationParameter({
     additionalNameInput?: React.ReactNode;
     onJobNameChange?: (name: string) => void;
     fieldNavigation?: boolean;
+    onAvailableMachinesChange?: (machines: ProductV2Compute[]) => void;
 }>): React.ReactNode {
     // Estimated cost
     const [selectedMachine, setSelectedMachine] = useState<ProductV2Compute | null>(null);
@@ -74,7 +76,16 @@ export function ReservationParameter({
         }
     }, [products]);
 
-    const allMachines = findRelevantMachinesForApplication(application, machineSupport.data, products.data.items, wallets.data.items);
+    const allMachines = useMemo(() => findRelevantMachinesForApplication(
+        application,
+        machineSupport.data,
+        products.data.items,
+        wallets.data.items,
+    ), [application, machineSupport.data, products.data.items, wallets.data.items]);
+
+    useEffect(() => {
+        onAvailableMachinesChange?.(allMachines);
+    }, [allMachines, onAvailableMachinesChange]);
     const support = useMemo(() => {
         const items: ResolvedSupport[] = [];
         let productsByProvider = machineSupport.data.productsByProvider;

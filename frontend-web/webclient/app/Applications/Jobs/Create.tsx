@@ -49,7 +49,7 @@ import {networkIPResourceAllowed} from "@/Applications/Jobs/Resources/NetworkIPs
 import {getQueryParam} from "@/Utilities/URIUtilities";
 import {default as JobsApi, DynamicParameters, JobSpecification} from "@/UCloud/JobsApi";
 import {BulkResponse, compute, FindByStringId, mail} from "@/UCloud";
-import {balanceToStringFromUnit, calculateProductCost, explainUnit, explainWallet, priceToString, ProductV2, UNABLE_TO_USE_FULL_ALLOC_MESSAGE, WalletV2} from "@/Accounting";
+import {balanceToStringFromUnit, calculateProductCost, explainUnit, explainWallet, priceToString, ProductV2, ProductV2Compute, UNABLE_TO_USE_FULL_ALLOC_MESSAGE, WalletV2} from "@/Accounting";
 import {SshWidget} from "@/Applications/Jobs/Widgets/Ssh";
 import {connectionState} from "@/Providers/ConnectionState";
 import {useUState} from "@/Utilities/UState";
@@ -73,6 +73,7 @@ import Warning from "@/ui-components/Warning";
 import {ShortcutClass} from "@/ui-components/ResourceBrowserStyle";
 import {CompactResourceRowsContent} from "@/Applications/Jobs/Resources/CompactResourceRows";
 import {stupidPluralize} from "@/Utilities/TextUtilities";
+import {UcxSpinner} from "@/UCX/UcxView";
 import {
     closeOpenDropdown,
     FIELD_NAVIGATION_SELECTOR,
@@ -340,16 +341,28 @@ function getLicense(app: Application): string | undefined {
     return app.invocation.tool.tool?.description.license
 }
 
-export const Create: React.FunctionComponent = () => {
+export interface JobCreateProps {
+    previewApplication?: Application;
+    previewMode?: boolean;
+    previewRendering?: boolean;
+    onPreviewScript?: (request: JobSpecification) => Promise<void>;
+    onPreviewParametersChange?: (parameters: ApplicationParameter[]) => void;
+    onPreviewMachinesChange?: (machines: ProductV2Compute[]) => void;
+    onPreviewDataReady?: (ready: boolean) => void;
+}
+
+export const Create: React.FunctionComponent<JobCreateProps> = props => {
     const [emailNotifications, setEmailNotifications] = React.useState<UserDetailsState>(initialState);
     const [jobEmailNotifications, setJobEmailNotifications] = useState<"never" | "start" | "ends" | "start_or_ends">("never");
     const [shortcutsVisible, setShortcutsVisible] = useState(false);
     const navigate = useNavigate();
     const location = useLocation();
-    const appName = getQueryParam(location.search, "app");
-    const appVersion = getQueryParam(location.search, "version");
+    const previewMode = props.previewMode === true;
+    const appName = props.previewApplication?.metadata.name ?? getQueryParam(location.search, "app");
+    const appVersion = getQueryParam(location.search, "version") ?? props.previewApplication?.metadata.version;
 
     if (!appName) {
+        if (previewMode) return null;
         // Note: This is incorrect use of hooks, but this case should be unreachable
         navigate("/");
         return null;
@@ -372,8 +385,9 @@ export const Create: React.FunctionComponent = () => {
     );
     const [workflowInjectedParameters, setWorkflowInjectParameters] = useState<ApplicationParameter[]>([]);
     const [dynamicParametersLoadedFor, setDynamicParametersLoadedFor] = useState<string | null>(null);
+    const previewParameterTypes = React.useRef<Record<string, ApplicationParameter["type"]> | null>(null);
 
-    const application = applicationResp?.data?.status?.applications?.find(it => it.metadata.name === appName);
+    const application = props.previewApplication ?? applicationResp?.data?.status?.applications?.find(it => it.metadata.name === appName);
 
     if (application) {
         usePage(`${application.metadata.title} ${application.metadata.version ?? ""}`, SidebarTabId.APPLICATIONS);
@@ -549,8 +563,9 @@ export const Create: React.FunctionComponent = () => {
     }, [emailNotifications]);
 
     useEffect(() => {
+        if (previewMode) return;
         retrieveEmailNotificationSettings();
-    }, []);
+    }, [previewMode, retrieveEmailNotificationSettings]);
 
     const onChangeJobEmailNotification = useCallback(async (ev: React.SyntheticEvent) => {
         ev.stopPropagation();
@@ -600,6 +615,7 @@ export const Create: React.FunctionComponent = () => {
     const sshEnabledRef = React.useRef(false);
     sshEnabledRef.current = sshEnabled;
     useEffect(() => {
+        if (previewMode) return;
         if (appName === "syncthing" && !localStorage.getItem("syncthingRedirect")) {
             navigate("/drives");
         }
@@ -617,7 +633,7 @@ export const Create: React.FunctionComponent = () => {
                 ...discovery,
             })
         );
-    }, [appName, appVersion, discovery]);
+    }, [appName, appVersion, discovery, previewMode]);
 
     useEffect(() => {
         if (!application) return;
@@ -627,15 +643,39 @@ export const Create: React.FunctionComponent = () => {
         })).then(() => {
             setDynamicParametersLoadedFor(applicationKey);
         });
-    }, [application]);
+    }, [application, previewMode]);
 
-    const canImportParameters = application != null &&
-        dynamicParametersLoadedFor === `${application.metadata.name}:${application.metadata.version}` &&
-        injectedParameters.data !== null;
+    useEffect(() => {
+        if (!previewMode || !application) return;
+        const nextParameters = Object.fromEntries(
+            (application.invocation.parameters ?? []).map(parameter => [parameter.name, parameter.type]),
+        );
+        const previousParameters = previewParameterTypes.current;
+        if (previousParameters) {
+            const resetParameters = Object.keys(previousParameters).filter(name =>
+                nextParameters[name] === undefined || nextParameters[name] !== previousParameters[name],
+            );
+            if (resetParameters.length > 0) {
+                for (const parameter of application.invocation.parameters ?? []) {
+                    if (resetParameters.includes(parameter.name)) clearWidgetValue(parameter);
+                }
+            }
+        }
+        previewParameterTypes.current = nextParameters;
+    }, [application, previewMode]);
+
+    const dynamicParametersLoaded = application != null &&
+        dynamicParametersLoadedFor === `${application.metadata.name}:${application.metadata.version}`;
+    const canImportParameters = dynamicParametersLoaded && injectedParameters.data !== null;
 
     useEffect(() => {
         if (!canImportParameters) setImportMessages([]);
     }, [canImportParameters]);
+
+    useEffect(() => {
+        if (!previewMode) return;
+        props.onPreviewDataReady?.(dynamicParametersLoaded);
+    }, [dynamicParametersLoaded, previewMode, props.onPreviewDataReady]);
 
     const parameters = useMemo(() => {
         let injected: ApplicationParameter[] = [];
@@ -671,6 +711,11 @@ export const Create: React.FunctionComponent = () => {
         const fromApp = application?.invocation?.parameters ?? [];
         return [...injected, ...fromApp, ...workflowInjectedParameters];
     }, [application, injectedParameters, workflowInjectedParameters, estimatedCost.product]);
+
+    useEffect(() => {
+        if (!previewMode) return;
+        props.onPreviewParametersChange?.(parameters);
+    }, [parameters, previewMode, props.onPreviewParametersChange]);
 
     const saveParameters = () => {
         if (!application) return;
@@ -881,6 +926,10 @@ export const Create: React.FunctionComponent = () => {
             };
 
             try {
+                if (previewMode) {
+                    await props.onPreviewScript?.(request);
+                    return;
+                }
                 request.resources = (request.resources ?? []).concat(await createInferenceApiServerResources(application, invokeCommand));
 
                 const response = await invokeCommand<BulkResponse<FindByStringId | null>>(
@@ -917,7 +966,7 @@ export const Create: React.FunctionComponent = () => {
             }
         }
     }, [application, folders, peers, ingress, networks, privateNetworks, navigate, hasCustomDnsHostname, dnsHostname,
-        parameters, activeOptParams]);
+        parameters, activeOptParams, previewMode, props.onPreviewScript]);
 
     const isMissingConnection = estimatedCost.product != null &&
         connectionState.canConnectToProvider(estimatedCost.product.category.provider);
@@ -987,7 +1036,9 @@ export const Create: React.FunctionComponent = () => {
         };
     }, [anyError, isLoading, isMissingConnection, sshValid, submitJob]);
 
-    if (applicationResp.loading || isInitialMount) return <MainContainer main={<LoadingIcon size={36} />} />;
+    if ((!previewMode && applicationResp.loading) || (!previewMode && isInitialMount)) {
+        return <MainContainer main={<LoadingIcon size={36} />} />;
+    }
 
     if (application == null) {
         return (
@@ -1065,10 +1116,19 @@ export const Create: React.FunctionComponent = () => {
     let submitControl: JSX.Element;
     {
         const buttonControl = <>
-            <Button type="button" color="successMain" disabled={anyError} onClick={() => submitJob(false)}>
-                <Icon name="heroPlay" mr={8} />
-                <span>Submit</span>
-                <SubmitShortcut />
+            <Button
+                type="button"
+                color="successMain"
+                disabled={previewMode
+                    ? anyError || isLoading || !sshValid || isMissingConnection || props.previewRendering === true
+                    : anyError}
+                onClick={() => void submitJob(false)}
+            >
+                {previewMode && props.previewRendering ? <UcxSpinner size={16} color="white" margin="0 8px 0 0" /> : (
+                    <Icon name={previewMode ? "heroEye" : "heroPlay"} mr={8} />
+                )}
+                <span>{previewMode ? "Preview script" : "Submit"}</span>
+                {previewMode ? null : <SubmitShortcut />}
             </Button>
         </>;
 
@@ -1081,8 +1141,7 @@ export const Create: React.FunctionComponent = () => {
         }
     }
 
-    return <MainContainer
-        main={
+    const jobForm = (
             <>
                 <div className={JobCreateHeaderClass}>
                     <AppHeader
@@ -1140,19 +1199,21 @@ export const Create: React.FunctionComponent = () => {
                             </JobCardHeading>
                             <div>
                                 {!canImportParameters ? null : <ImportMessages messages={importMessages} onClear={() => setImportMessages([])} />}
-                                <Box mt="16px" mb="20px">
-                                    <ApplicationSelector
-                                        application={application}
-                                        flavors={flavors}
-                                        allVersions={application.versions ?? []}
-                                        showLabels
-                                        jobCreateLayout
-                                        fieldNavigation
-                                        autoFocusFlavor
-                                        reloadFlavors={reloadFlavors}
-                                        onApplicationChange={saveParameters}
-                                    />
-                                </Box>
+                                {previewMode ? null : (
+                                    <Box mt="16px" mb="20px">
+                                        <ApplicationSelector
+                                            application={application}
+                                            flavors={flavors}
+                                            allVersions={application.versions ?? []}
+                                            showLabels
+                                            jobCreateLayout
+                                            fieldNavigation
+                                            autoFocusFlavor
+                                            reloadFlavors={reloadFlavors}
+                                            onApplicationChange={saveParameters}
+                                        />
+                                    </Box>
+                                )}
                                 <ReservationParameter
                                     application={application}
                                     errors={reservationErrors}
@@ -1160,6 +1221,7 @@ export const Create: React.FunctionComponent = () => {
                                     fieldNavigation
                                     onEstimatedCostChange={(durationInMinutes, numberOfNodes, wallet, product) =>
                                         setEstimatedCost({durationInMinutes, wallet, numberOfNodes, product})}
+                                    onAvailableMachinesChange={props.onPreviewMachinesChange}
                                 />
                             </div>
                         </Card>
@@ -1320,16 +1382,18 @@ export const Create: React.FunctionComponent = () => {
                     </KeyboardNavigation>
                     <aside className={JobSubmissionSidebarClass}>
                         <Card>
-                            <div className={JobSubmissionSecondaryClass}>
-                                <Label>
-                                    E-mail notification settings
-                                    <Select width="100%" value={jobEmailNotifications} onChange={onChangeJobEmailNotification} name="job-email-notifications">
-                                        <option value="never">Do not notify me</option>
-                                        <option value="start_or_ends">Notify me when a job starts or stops</option>
-                                    </Select>
-                                </Label>
-                            </div>
-                            <div className={JobSubmissionSummaryClass}>
+                            {previewMode ? null : (
+                                <div className={JobSubmissionSecondaryClass}>
+                                    <Label>
+                                        E-mail notification settings
+                                        <Select width="100%" value={jobEmailNotifications} onChange={onChangeJobEmailNotification} name="job-email-notifications">
+                                            <option value="never">Do not notify me</option>
+                                            <option value="start_or_ends">Notify me when a job starts or stops</option>
+                                        </Select>
+                                    </Label>
+                                </div>
+                            )}
+                             <div className={JobSubmissionSummaryClass} style={previewMode ? {borderTop: "none", marginTop: 0, paddingTop: 0} : undefined}>
                                 <div className={EstimatesContainerClass}>
                                     <table>
                                         {!costUnit ? null : <thead>
@@ -1401,8 +1465,9 @@ export const Create: React.FunctionComponent = () => {
                     </aside>
                     </div>
                 </div>
-            </>}
-    />;
+            </>);
+
+    return <MainContainer main={jobForm} />;
 }
 
 function getParameterName(param: Pick<ApplicationParameter, "type" | "name">): string {

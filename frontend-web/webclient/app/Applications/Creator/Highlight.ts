@@ -17,7 +17,7 @@ export type CreatorHighlightTarget =
     | "feature-ipAddresses"
     | "feature-jobLinking"
     | "feature-ssh"
-    // SSH lives in the Connectivity section, not in the Runtime features section.
+    // SSH lives in the Connectivity section, not in the features section.
 
 // Trigger the highlight for a metadata target. Scrolls the element into view and applies the
 // `creator-highlight-active` class to play the pulse-glow animation defined in the CSS.

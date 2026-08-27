@@ -10,10 +10,8 @@
 // unchanged; the validator reports them as errors.
 
 import {A2Yaml, A2Parameter, A2EnumOption} from "@/Applications/Creator/A2";
-import {CreatorDraft, CreatorCustomMeta} from "@/Applications/Creator/Draft";
-import {creatorStableId} from "@/Applications/Creator/Draft";
+import {CreatorDraft, CreatorCustomMeta, creatorStableId, emptyValidationState} from "@/Applications/Creator/Draft";
 import {rewriteInvocationReferences} from "@/Applications/Creator/ReferenceTracking";
-import {validateApplicationLocal} from "@/Applications/Creator/ParameterValidation";
 import {createWidgetParameter, uniqueWidgetName, A2WidgetType} from "@/Applications/Creator/WidgetDefaults";
 
 // Update a common (base) field on a parameter.
@@ -31,7 +29,7 @@ export function draftUpdateBase(
             [parameterName]: {...param, ...patch},
         },
     };
-    return withValidation({...draft, application});
+    return clearValidation({...draft, application});
 }
 
 // Rename a parameter. Rewrites exact static invocation references from old to new. If the new
@@ -82,7 +80,7 @@ export function draftRenameParameter(
         invocation,
     };
 
-    return withValidation({
+    return clearValidation({
         ...draft,
         application,
         parameterIds,
@@ -122,7 +120,7 @@ export function draftDeleteParameter(
         ? {parameterId: null, parameterName: null}
         : draft.selection;
 
-    return withValidation({
+    return clearValidation({
         ...draft,
         application,
         parameterIds,
@@ -139,8 +137,8 @@ export function draftReorderParameters(
         ...draft.application,
         parametersOrder: newOrder,
     };
-    // Reorder validation does not change field validity, but we recompute to keep state fresh.
-    return withValidation({...draft, application});
+    // Reordering is an edit, so clear any validation result from an earlier preview or save.
+    return clearValidation({...draft, application});
 }
 
 // Append a new parameter of the given widget type. Generates a unique name, assigns a stable id,
@@ -167,7 +165,7 @@ export function draftAddParameter(
         parametersOrder,
     };
     const newId = parameterIds[name];
-    return withValidation({
+    return clearValidation({
         ...draft,
         application,
         parameterIds,
@@ -192,7 +190,7 @@ export function draftUpdateDefaultValue(
             [parameterName]: updated,
         },
     };
-    return withValidation({...draft, application});
+    return clearValidation({...draft, application});
 }
 
 // Update numeric fields (min, max, step, defaultValue) on an Integer or FloatingPoint parameter.
@@ -215,7 +213,7 @@ export function draftUpdateNumericField(
             [parameterName]: updated,
         },
     };
-    return withValidation({...draft, application});
+    return clearValidation({...draft, application});
 }
 
 // Update an enumeration parameter. Replaces the full option list and/or default value.
@@ -241,7 +239,7 @@ export function draftUpdateEnumeration(
             [parameterName]: updated,
         },
     };
-    return withValidation({...draft, application});
+    return clearValidation({...draft, application});
 }
 
 // Set the selection to a parameter by stable id. Returns the draft with the selection updated. If
@@ -263,7 +261,7 @@ export function draftSelectParameter(draft: CreatorDraft, parameterId: string | 
 // Metadata operations
 // -------------------------------------------------------------------------------------------------------------------
 // These functions update metadata fields on the A2Yaml or the customMeta. They follow the same
-// pattern as the parameter operations: take the draft, apply the change, recompute validation.
+// pattern as the parameter operations: take the draft and clear validation after the change.
 
 // Update simple scalar metadata fields on the A2Yaml.
 export function draftUpdateMetadata(
@@ -271,74 +269,74 @@ export function draftUpdateMetadata(
     patch: Partial<Pick<A2Yaml, "title" | "description" | "license" | "documentation" | "invocation">>,
 ): CreatorDraft {
     const application: A2Yaml = {...draft.application, ...patch};
-    return withValidation({...draft, application});
+    return clearValidation({...draft, application});
 }
 
 // Update the software configuration. Managed applications can change the kind; custom
 // applications always use Container.
 export function draftUpdateSoftware(draft: CreatorDraft, software: A2Yaml["software"]): CreatorDraft {
     const application: A2Yaml = {...draft.application, software};
-    return withValidation({...draft, application});
+    return clearValidation({...draft, application});
 }
 
 // Update the features block. Missing fields default to false.
 export function draftUpdateFeatures(draft: CreatorDraft, features: A2Yaml["features"]): CreatorDraft {
     const application: A2Yaml = {...draft.application, features};
-    return withValidation({...draft, application});
+    return clearValidation({...draft, application});
 }
 
 // Update the web block.
 export function draftUpdateWeb(draft: CreatorDraft, web: A2Yaml["web"]): CreatorDraft {
     const application: A2Yaml = {...draft.application, web};
-    return withValidation({...draft, application});
+    return clearValidation({...draft, application});
 }
 
 // Update the vnc block.
 export function draftUpdateVnc(draft: CreatorDraft, vnc: A2Yaml["vnc"]): CreatorDraft {
     const application: A2Yaml = {...draft.application, vnc};
-    return withValidation({...draft, application});
+    return clearValidation({...draft, application});
 }
 
 // Update the ssh block.
 export function draftUpdateSsh(draft: CreatorDraft, ssh: A2Yaml["ssh"]): CreatorDraft {
     const application: A2Yaml = {...draft.application, ssh};
-    return withValidation({...draft, application});
+    return clearValidation({...draft, application});
 }
 
 // Update the inference block.
 export function draftUpdateInference(draft: CreatorDraft, inference: A2Yaml["inference"]): CreatorDraft {
     const application: A2Yaml = {...draft.application, inference};
-    return withValidation({...draft, application});
+    return clearValidation({...draft, application});
 }
 
 // Update the modules block (managed only).
 export function draftUpdateModules(draft: CreatorDraft, modules: A2Yaml["modules"]): CreatorDraft {
     const application: A2Yaml = {...draft.application, modules};
-    return withValidation({...draft, application});
+    return clearValidation({...draft, application});
 }
 
 // Update the ucx block (managed only).
 export function draftUpdateUcx(draft: CreatorDraft, ucx: A2Yaml["ucx"]): CreatorDraft {
     const application: A2Yaml = {...draft.application, ucx};
-    return withValidation({...draft, application});
+    return clearValidation({...draft, application});
 }
 
 // Update the extensions list (managed only).
 export function draftUpdateExtensions(draft: CreatorDraft, extensions: string[]): CreatorDraft {
     const application: A2Yaml = {...draft.application, extensions};
-    return withValidation({...draft, application});
+    return clearValidation({...draft, application});
 }
 
 // Replace the full environment map (ordered key-value pairs).
 export function draftUpdateEnvironment(draft: CreatorDraft, environment: Record<string, string>): CreatorDraft {
     const application: A2Yaml = {...draft.application, environment};
-    return withValidation({...draft, application});
+    return clearValidation({...draft, application});
 }
 
 // Replace the full sbatch map (ordered key-value pairs).
 export function draftUpdateSbatch(draft: CreatorDraft, sbatch: Record<string, string>): CreatorDraft {
     const application: A2Yaml = {...draft.application, sbatch};
-    return withValidation({...draft, application});
+    return clearValidation({...draft, application});
 }
 
 // Update the custom-only metadata (provider, category, group, flavor, publication). Only used
@@ -349,14 +347,15 @@ export function draftUpdateCustomMeta(
 ): CreatorDraft {
     if (!draft.customMeta) return draft;
     const customMeta = {...draft.customMeta, ...patch};
-    return {...draft, customMeta};
+    return {...draft, customMeta, validation: emptyValidationState()};
 }
 
-// Helper: recompute validation state from the application.
-function withValidation(draft: CreatorDraft): CreatorDraft {
+// Editing clears the result of the last action-triggered validation. The next preview or save
+// validates the current draft again.
+function clearValidation(draft: CreatorDraft): CreatorDraft {
     return {
         ...draft,
-        validation: validateApplicationLocal(draft.application),
+        validation: emptyValidationState(),
     };
 }
 

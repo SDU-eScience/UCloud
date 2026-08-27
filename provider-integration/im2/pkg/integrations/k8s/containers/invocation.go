@@ -17,6 +17,7 @@ import (
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/integrations/k8s/filesystem"
+	"ucloud.dk/pkg/integrations/k8s/shared"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -511,6 +512,9 @@ func containersRenderJinjaInvocationInPod(jobId, template string, parametersYaml
 			RestartPolicy:                k8score.RestartPolicyNever,
 			ActiveDeadlineSeconds:        util.Pointer[int64](20),
 			AutomountServiceAccountToken: util.BoolPointer(false),
+			SecurityContext: &k8score.PodSecurityContext{
+				FSGroup: util.Pointer[int64](filesystem.DefaultUid),
+			},
 			Volumes: []k8score.Volume{
 				{
 					Name: "input",
@@ -519,6 +523,14 @@ func containersRenderJinjaInvocationInPod(jobId, template string, parametersYaml
 							LocalObjectReference: k8score.LocalObjectReference{
 								Name: podName,
 							},
+						},
+					},
+				},
+				{
+					Name: "ucloud-filesystem",
+					VolumeSource: k8score.VolumeSource{
+						PersistentVolumeClaim: &k8score.PersistentVolumeClaimVolumeSource{
+							ClaimName: ServiceConfig.FileSystem.ClaimName,
 						},
 					},
 				},
@@ -536,7 +548,7 @@ func containersRenderJinjaInvocationInPod(jobId, template string, parametersYaml
 					Command: []string{
 						"sh",
 						"-c",
-						"ucloud script-gen /input/template.j2 /input/params.yaml /tmp/output.sh && cat /tmp/output.sh",
+						"/opt/ucloud/ucloud script-gen /input/template.j2 /input/params.yaml /tmp/output.sh && cat /tmp/output.sh",
 					},
 					VolumeMounts: []k8score.VolumeMount{
 						{
@@ -547,6 +559,12 @@ func containersRenderJinjaInvocationInPod(jobId, template string, parametersYaml
 						{
 							Name:      "tmp",
 							MountPath: "/tmp",
+						},
+						{
+							Name:      "ucloud-filesystem",
+							MountPath: "/opt/ucloud",
+							SubPath:   shared.ExecutablesDir,
+							ReadOnly:  true,
 						},
 					},
 					Resources: k8score.ResourceRequirements{
@@ -560,10 +578,10 @@ func containersRenderJinjaInvocationInPod(jobId, template string, parametersYaml
 						},
 					},
 					SecurityContext: &k8score.SecurityContext{
-						RunAsNonRoot:             util.BoolPointer(true),
-						RunAsUser:                util.Pointer[int64](filesystem.DefaultUid),
-						AllowPrivilegeEscalation: util.BoolPointer(false),
-						ReadOnlyRootFilesystem:   util.BoolPointer(true),
+						RunAsNonRoot:             util.BoolPointer(false),
+						RunAsUser:                util.Pointer[int64](0),
+						AllowPrivilegeEscalation: util.BoolPointer(true),
+						ReadOnlyRootFilesystem:   util.BoolPointer(false),
 						Capabilities: &k8score.Capabilities{
 							Drop: []k8score.Capability{"ALL"},
 						},
@@ -655,13 +673,40 @@ func containersRenderJinjaInvocationInPod(jobId, template string, parametersYaml
 		return "", util.HttpErr(http.StatusBadGateway, "Could not read invocation sandbox output")
 	}
 
-	// Reject failed rendering even if the pod log request succeeded.
+	// Reject failed rendering even if the pod log request succeeded. Include the log output because
+	// script-gen uses its process exit code to report template failures, and the exit code alone is
+	// not actionable to the editor user.
 	currentPod, _ := K8sClient.CoreV1().Pods(Namespace).Get(ctx, podName, meta.GetOptions{})
-	if currentPod != nil && currentPod.Status.Phase != k8score.PodSucceeded {
-		return "", util.HttpErr(http.StatusBadRequest, "Invocation rendering failed")
-	}
-	if strings.Contains(string(scriptOutput), "Failure during generation of script:") {
-		return "", util.HttpErr(http.StatusBadRequest, "Invocation rendering failed")
+	podFailed := currentPod != nil && currentPod.Status.Phase != k8score.PodSucceeded
+	scriptGenerationFailed := strings.Contains(string(scriptOutput), "Failure during generation of script:")
+	if podFailed || scriptGenerationFailed {
+		failureDetails := strings.TrimSpace(string(scriptOutput))
+		if currentPod != nil {
+			for _, status := range currentPod.Status.ContainerStatuses {
+				if status.Name != "render" || status.State.Terminated == nil {
+					continue
+				}
+				termination := fmt.Sprintf("container exited with code %d", status.State.Terminated.ExitCode)
+				if status.State.Terminated.Reason != "" {
+					termination += fmt.Sprintf(" (%s)", status.State.Terminated.Reason)
+				}
+				if status.State.Terminated.Message != "" {
+					termination += fmt.Sprintf(": %s", status.State.Terminated.Message)
+				}
+				if failureDetails == "" {
+					failureDetails = termination
+				} else {
+					failureDetails += "\n" + termination
+				}
+			}
+		}
+		if failureDetails == "" {
+			failureDetails = "The invocation sandbox exited without producing an error message."
+		}
+		if len(failureDetails) > 8*1024 {
+			failureDetails = failureDetails[:8*1024] + "\n[output truncated]"
+		}
+		return "", util.HttpErr(http.StatusBadRequest, "Invocation rendering failed: %s", failureDetails)
 	}
 	return string(scriptOutput), nil
 }

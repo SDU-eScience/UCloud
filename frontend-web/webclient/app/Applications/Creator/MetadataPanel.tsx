@@ -22,6 +22,11 @@ import {A2Yaml, A2Software, A2Features, A2SshMode, A2Inference, A2ApplicationToL
 import {CreatorDraft, CreatorCustomMeta, creatorIsCustom, creatorIsEditableName, creatorIsEditableVersion} from "@/Applications/Creator/Draft";
 import {PanelSection, ToggleRow} from "@/Applications/Creator/ParameterPanelShared";
 import {WIDGET_DRAWER_ITEMS, WidgetDrawerGroup} from "@/Applications/Creator/WidgetDefaults";
+import type {
+    AppCatalogCustomCategory,
+    AppCatalogCustomGroup,
+    AppEditorCustomEligibilityResponse,
+} from "@/Applications/AppStoreApi";
 
 export interface MetadataPanelProps {
     draft: CreatorDraft;
@@ -44,6 +49,9 @@ export interface MetadataPanelProps {
     onUpdateSbatch: (sbatch: Record<string, string>) => void;
     onUpdateCustomMeta: (patch: Partial<CreatorCustomMeta>) => void;
     onAddParameter: (type: import("@/Applications/Creator/WidgetDefaults").A2WidgetType) => void;
+    customEligibility?: AppEditorCustomEligibilityResponse | null;
+    customGroups?: AppCatalogCustomGroup[];
+    customCategories?: AppCatalogCustomCategory[];
 }
 
 export function MetadataPanel(props: MetadataPanelProps): React.ReactNode {
@@ -98,11 +106,14 @@ export function MetadataPanel(props: MetadataPanelProps): React.ReactNode {
             <GroupFlavorSection
                 draft={draft}
                 onUpdateCustomMeta={props.onUpdateCustomMeta}
+                groups={props.customGroups}
             />
             {isCustom ? (
                 <CustomFieldsSection
                     draft={draft}
                     onUpdateCustomMeta={props.onUpdateCustomMeta}
+                    eligibility={props.customEligibility}
+                    categories={props.customCategories}
                 />
             ) : (
                 <ManagedFieldsSection
@@ -144,6 +155,7 @@ function IdentitySection(props: {
                     onChange={e => props.onNameChange(e.target.value)}
                     disabled={!props.editableName}
                     placeholder="application-name"
+                    data-creator-field="name"
                 />
             </Label>
             <Label className="panel-field">
@@ -154,6 +166,7 @@ function IdentitySection(props: {
                     onChange={e => props.onVersionChange(e.target.value)}
                     disabled={!props.editableVersion}
                     placeholder="1.0.0"
+                    data-creator-field="version"
                 />
             </Label>
         </PanelSection>
@@ -177,6 +190,7 @@ function PresentationSection(props: {
                     value={application.title ?? ""}
                     onChange={e => props.onUpdateMetadata({title: e.target.value})}
                     placeholder="My application"
+                    data-creator-field="title"
                 />
             </Label>
             <Label className="panel-field">
@@ -187,6 +201,7 @@ function PresentationSection(props: {
                     value={application.description ?? ""}
                     onChange={e => props.onUpdateMetadata({description: e.target.value})}
                     placeholder="A short description shown to users."
+                    data-creator-field="description"
                 />
             </Label>
             <Label className="panel-field">
@@ -196,6 +211,7 @@ function PresentationSection(props: {
                     value={application.license ?? ""}
                     onChange={e => props.onUpdateMetadata({license: e.target.value})}
                     placeholder="Apache-2.0"
+                    data-creator-field="license"
                 />
             </Label>
             <Label className="panel-field">
@@ -235,6 +251,7 @@ function SoftwareSection(props: {
                         value={image}
                         onChange={e => props.onUpdateSoftware({type: "Container", image: e.target.value})}
                         placeholder="dreg.cloud.sdu.dk/image:tag"
+                        data-creator-field="software.image"
                     />
                 </Label>
             </PanelSection>
@@ -278,6 +295,7 @@ function renderSoftwareFields(
                         value={software.image}
                         onChange={e => onUpdate({type: "Container", image: e.target.value})}
                         placeholder="dreg.cloud.sdu.dk/image:tag"
+                        data-creator-field="software.image"
                     />
                 </Label>
             );
@@ -342,7 +360,7 @@ function softwareForKind(kind: A2Software["type"], current: A2Software): A2Softw
     return {type: "UCX", image};
 }
 
-// Runtime features
+// Features
 // -------------------------------------------------------------------------------------------------------------------
 
 function RuntimeFeaturesSection(props: {
@@ -355,7 +373,7 @@ function RuntimeFeaturesSection(props: {
         props.onUpdateFeatures(updated);
     };
     return (
-        <PanelSection title="Runtime features">
+        <PanelSection title="Features">
             <FeatureToggle label="Folders" value={features.folders ?? false} onChange={() => toggle("folders")} id="feature-folders" />
             <FeatureToggle label="Links" value={features.links ?? false} onChange={() => toggle("links")} id="feature-links" />
             <FeatureToggle label="Job linking" value={features.jobLinking ?? false} onChange={() => toggle("jobLinking")} id="feature-jobLinking" />
@@ -682,9 +700,11 @@ function keyValueFromEntries(entries: [string, string][]): {result: Record<strin
 function GroupFlavorSection(props: {
     draft: CreatorDraft;
     onUpdateCustomMeta: (patch: Partial<CreatorCustomMeta>) => void;
+    groups?: AppCatalogCustomGroup[];
 }): React.ReactNode {
     const {draft} = props;
-    if (!draft.customMeta) {
+    const meta = draft.customMeta;
+    if (!meta) {
         // Managed applications do not have custom group or flavor. Show nothing.
         return null;
     }
@@ -694,19 +714,39 @@ function GroupFlavorSection(props: {
                 <span className="panel-field-label">Flavor</span>
                 <Input
                     className={PanelInputClass}
-                    value={draft.customMeta.flavor}
+                    value={meta.flavor}
                     onChange={e => props.onUpdateCustomMeta({flavor: e.target.value})}
                     placeholder="The flavor name for this application"
+                    data-creator-field="custom.flavorName"
                 />
             </Label>
             <Label className="panel-field">
                 <span className="panel-field-label">Group</span>
-                <Input
-                    className={PanelInputClass}
-                    value={draft.customMeta.group}
-                    onChange={e => props.onUpdateCustomMeta({group: e.target.value})}
-                    placeholder="The custom group id"
-                />
+                {props.groups?.length ? (
+                    <Select
+                        className={PanelInputClass}
+                        value={meta.group}
+                        onChange={e => props.onUpdateCustomMeta({group: e.target.value})}
+                        data-creator-field="custom.groupId"
+                    >
+                        {meta.group && !props.groups.some(item => String(item.id) === meta.group) ? (
+                            <option value={meta.group}>{meta.group}</option>
+                        ) : null}
+                        {props.groups.map(item => (
+                            <option key={item.id} value={String(item.id)}>
+                                {item.specification.title}
+                            </option>
+                        ))}
+                    </Select>
+                ) : (
+                    <Input
+                        className={PanelInputClass}
+                        value={meta.group}
+                        onChange={e => props.onUpdateCustomMeta({group: e.target.value})}
+                        placeholder="The custom group id"
+                        data-creator-field="custom.groupId"
+                    />
+                )}
             </Label>
         </PanelSection>
     );
@@ -718,6 +758,8 @@ function GroupFlavorSection(props: {
 function CustomFieldsSection(props: {
     draft: CreatorDraft;
     onUpdateCustomMeta: (patch: Partial<CreatorCustomMeta>) => void;
+    eligibility?: AppEditorCustomEligibilityResponse | null;
+    categories?: AppCatalogCustomCategory[];
 }): React.ReactNode {
     const {draft} = props;
     const meta = draft.customMeta;
@@ -728,21 +770,58 @@ function CustomFieldsSection(props: {
             <PanelSection title="Provider and category">
                 <Label className="panel-field">
                     <span className="panel-field-label">Provider</span>
-                    <Input
-                        className={PanelInputClass}
-                        value={meta.provider}
-                        onChange={e => props.onUpdateCustomMeta({provider: e.target.value})}
-                        placeholder="The service provider id"
-                    />
+                    {props.eligibility?.providers.length ? (
+                        <Select
+                            className={PanelInputClass}
+                            value={meta.provider}
+                            onChange={e => props.onUpdateCustomMeta({provider: e.target.value})}
+                            data-creator-field="custom.serviceProvider"
+                        >
+                            {meta.provider && !props.eligibility.providers.some(item => item.provider === meta.provider) ? (
+                                <option value={meta.provider}>{meta.provider}</option>
+                            ) : null}
+                            {props.eligibility.providers.map(item => (
+                                <option key={item.provider} value={item.provider}>
+                                    {item.provider}{item.eligible ? "" : " (not eligible)"}
+                                </option>
+                            ))}
+                        </Select>
+                    ) : (
+                        <Input
+                            className={PanelInputClass}
+                            value={meta.provider}
+                            onChange={e => props.onUpdateCustomMeta({provider: e.target.value})}
+                            placeholder="The service provider id"
+                        />
+                    )}
                 </Label>
                 <Label className="panel-field">
                     <span className="panel-field-label">Category</span>
-                    <Input
-                        className={PanelInputClass}
-                        value={meta.category}
-                        onChange={e => props.onUpdateCustomMeta({category: e.target.value})}
-                        placeholder="The custom category id"
-                    />
+                    {props.categories?.length ? (
+                        <Select
+                            className={PanelInputClass}
+                            value={meta.category}
+                            onChange={e => props.onUpdateCustomMeta({category: e.target.value})}
+                            data-creator-field="custom.categoryId"
+                        >
+                            {meta.category && !props.categories.some(item => String(item.id) === meta.category) ? (
+                                <option value={meta.category}>{meta.category}</option>
+                            ) : null}
+                            {props.categories.map(item => (
+                                <option key={item.id} value={String(item.id)}>
+                                    {item.specification.title}
+                                </option>
+                            ))}
+                        </Select>
+                    ) : (
+                        <Input
+                            className={PanelInputClass}
+                            value={meta.category}
+                            onChange={e => props.onUpdateCustomMeta({category: e.target.value})}
+                            placeholder="The custom category id"
+                            data-creator-field="custom.categoryId"
+                        />
+                    )}
                 </Label>
             </PanelSection>
             <PanelSection title="Publication">
@@ -750,6 +829,8 @@ function CustomFieldsSection(props: {
                     label="Publish to project"
                     checked={meta.publishedToProject}
                     onChange={() => props.onUpdateCustomMeta({publishedToProject: !meta.publishedToProject})}
+                    disabled={!meta.canPublish}
+                    id="custom-published-to-project"
                 />
                 {!meta.canPublish ? (
                     <Text fontSize={12} color="textSecondary" mt="4px">

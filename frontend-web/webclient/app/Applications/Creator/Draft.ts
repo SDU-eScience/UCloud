@@ -2,8 +2,7 @@
 // =====================================================================================================================
 // The creator editor owns one local draft. The draft holds the A2 application data, the source
 // text it was built from, dirty state, the current selection, validation state, and the last
-// valid parsed model. The service boundary is a small interface that template implementations can
-// satisfy now and real operations can satisfy in milestone 5.
+// valid parsed model. The service boundary is shared by development templates and backend operations.
 //
 // These are the core concepts:
 //
@@ -15,6 +14,13 @@
 
 import {A2Yaml} from "@/Applications/Creator/A2";
 import {CreatorSourceParseError} from "@/Applications/Creator/SourceParser";
+import type {
+    AppCatalogCustomCategory,
+    AppCatalogCustomGroup,
+    AppEditorCustomEligibilityResponse,
+    Application,
+} from "@/Applications/AppStoreApi";
+import type {JobSpecification} from "@/UCloud/JobsApi";
 
 // Stable row identity
 // -------------------------------------------------------------------------------------------------------------------
@@ -43,6 +49,8 @@ export interface CreatorOperationContext {
     existingVersion?: string;
     // The provider to use for custom applications. Set for newCustom and fork.
     provider?: string;
+    // Development-only template selection. Normal routes omit this and use backend source loading.
+    developmentTemplate?: boolean;
 }
 
 export function creatorIsCustom(context: CreatorOperationContext): boolean {
@@ -73,8 +81,8 @@ export interface CreatorSelection {
 
 // Validation
 // -------------------------------------------------------------------------------------------------------------------
-// Validation runs after each stable edit and before preview or save. In milestone 1 the
-// validation state is a placeholder. Later milestones fill it with real errors.
+// Validation runs only when the user requests a preview or save. The service returns backend
+// errors separately so stale responses cannot overwrite a newer draft revision.
 
 export interface CreatorValidationState {
     errors: CreatorValidationError[];
@@ -84,6 +92,10 @@ export interface CreatorValidationError {
     // The parameter name this error relates to, or null for application metadata.
     parameterName: string | null;
     message: string;
+    // Backend errors can identify a visual field and a source location.
+    code?: string;
+    path?: string;
+    location?: {line: number; column: number};
 }
 
 export function emptyValidationState(): CreatorValidationState {
@@ -141,6 +153,9 @@ export interface CreatorDraft {
     // "Open in YAML" action so the user lands on the relevant section. Cleared after the editor
     // applies the focus. Null when no focus is pending.
     yamlFocusKey: string | null;
+    // Monotonically increasing revision for edits to the application or source text. Server
+    // validation and preview results are accepted only for the revision they were requested for.
+    revision: number;
 }
 
 // Custom application metadata carried outside the A2 YAML. Managed applications do not use this;
@@ -148,9 +163,9 @@ export interface CreatorDraft {
 export interface CreatorCustomMeta {
     // The service provider id for the container.
     provider: string;
-    // The custom category id. Templates supply a placeholder; real loading comes in milestone 5.
+    // The custom category id. The editor loads available choices from the backend.
     category: string;
-    // The custom group id. Templates supply a placeholder; real loading comes in milestone 5.
+    // The custom group id. The editor loads available choices from the backend.
     group: string;
     // The flavor name.
     flavor: string;
@@ -158,6 +173,32 @@ export interface CreatorCustomMeta {
     publishedToProject: boolean;
     // True when the editor can offer publication. False in a personal workspace.
     canPublish: boolean;
+}
+
+export interface CreatorValidationRequest {
+    kind: "MANAGED" | "CUSTOM";
+    source: string;
+    custom?: CreatorCustomMeta;
+}
+
+export interface CreatorValidationResponse {
+    application?: Application;
+    errors: CreatorValidationError[];
+}
+
+export interface CreatorRenderRequest {
+    validation: CreatorValidationRequest;
+    job: JobSpecification;
+}
+
+export interface CreatorRenderResponse {
+    script?: string;
+    errors: CreatorValidationError[];
+    rateLimit: {
+        limit: number;
+        remaining: number;
+        retryAt?: number | string;
+    };
 }
 
 export type CreatorView = "editor" | "yaml" | "invocation" | "preview";
@@ -187,23 +228,27 @@ export function creatorInitialDraft(
         parseErrors: [],
         sourceNormalized: false,
         yamlFocusKey: null,
+        revision: 0,
     };
 }
 
 // Creator service boundary
 // -------------------------------------------------------------------------------------------------------------------
-// The editor calls these operations through a small interface. Template implementations satisfy
-// them now; milestone 5 replaces them with real backend calls.
+// The editor calls these operations through a small interface so backend policy stays out of the UI.
 
 export interface CreatorService {
     // Load the A2 source for the given operation. Returns the source text, the last valid parsed
-    // model, and the custom-only metadata (null for managed applications). Templates supply
-    // placeholders; milestone 5 replaces them with real backend calls.
+    // model, and the custom-only metadata (null for managed applications).
     loadSource(context: CreatorOperationContext): Promise<{application: A2Yaml; sourceText: string; customMeta: CreatorCustomMeta | null}>;
-    // Validate a draft without creating an application. Placeholder in milestone 1.
-    validate(application: A2Yaml): Promise<CreatorValidationState>;
-    // Create a new application version from the complete source. Placeholder in milestone 1.
-    save(application: A2Yaml, sourceText: string, context: CreatorOperationContext): Promise<void>;
+    // Validate a draft without creating an application.
+    validate(request: CreatorValidationRequest): Promise<CreatorValidationResponse>;
+    // Render a temporary job invocation through the selected provider.
+    renderInvocation(request: CreatorRenderRequest): Promise<CreatorRenderResponse>;
+    // Load custom placement choices and provider/publication eligibility.
+    loadCustomEligibility(): Promise<AppEditorCustomEligibilityResponse>;
+    loadCustomPlacement(): Promise<{groups: AppCatalogCustomGroup[]; categories: AppCatalogCustomCategory[]}>;
+    // Create a new application version from the complete source.
+    save(application: A2Yaml, sourceText: string, context: CreatorOperationContext, customMeta: CreatorCustomMeta | null): Promise<void>;
 }
 
 // The template service is defined in Templates.ts.

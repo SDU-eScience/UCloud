@@ -75,7 +75,7 @@ const ucxSpinnerFrames = [
     " ⠁ ", " ⠂ ", " ⠄ ", " ⡀ ", " ⢀ ", " ⠠ ", " ⠐ ", " ⠈ ",
 ];
 
-export function UcxSpinner({size = 32, margin}: {size?: number; margin?: string}): React.ReactNode {
+export function UcxSpinner({size = 32, margin, color}: {size?: number; margin?: string; color?: string}): React.ReactNode {
     const [frame, setFrame] = useState(0);
 
     useEffect(() => {
@@ -86,7 +86,7 @@ export function UcxSpinner({size = 32, margin}: {size?: number; margin?: string}
     }, []);
 
     const lightMode = useIsLightThemeStored();
-    const color = lightMode ? "var(--primaryMain)" : "var(--foreground)";
+    const spinnerColor = color ?? (lightMode ? "var(--primaryMain)" : "var(--foreground)");
 
     return <span
         data-tag="loading-spinner"
@@ -99,7 +99,7 @@ export function UcxSpinner({size = 32, margin}: {size?: number; margin?: string}
             display: "inline-flex",
             alignItems: "center",
             justifyContent: "center",
-            color: color,
+            color: spinnerColor,
             fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
             fontSize: Math.max(12, Math.round(size * 0.72)),
             lineHeight: 1,

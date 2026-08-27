@@ -22,6 +22,7 @@ export const AppToolLogo: React.FunctionComponent<AppToolLogoProps> = props => {
     const [dataUrl, setDataUrl] = useState<string | null | "loading">("loading");
     useEffect(() => {
         let didCancel = false;
+        setDataUrl("loading");
         /* NOTE(jonas): `props.name` is sometimes an empty string, why? */
         if (!props.name) return;
         if (props.type === "TOOL") {
@@ -51,7 +52,17 @@ export const AppToolLogo: React.FunctionComponent<AppToolLogoProps> = props => {
         };
     }, [props.name, isLight, props.cacheBust]);
 
-    if (dataUrl == null) return null;
+    if (dataUrl == null || dataUrl === "loading") {
+        const hash = hashF(props.name);
+        const rotations = [0, 15, 30];
+        return <AppLogoRaw
+            rot={rotations[(hash >>> 10) % rotations.length]}
+            color1Offset={(hash >>> 30) & 3}
+            color2Offset={(hash >>> 20) & 3}
+            appC={appColor(hash)}
+            size={size}
+        />;
+    }
     return <img
         src={dataUrl}
         alt={"Logo"}

@@ -20,7 +20,6 @@ const WarningClass = injectStyleSimple("warning", `
     border: 1px solid var(--warningMain);
     border-radius: 10px;
     background: var(--backgroundCard);
-    align-items: center;
 
     & svg {
         flex: 0 0 auto;
@@ -34,8 +33,10 @@ const Warning: React.FunctionComponent<WarningProps> = props => {
     return (
         <Box className={WarningClass} mb={props.mb}>
             <Icon name="warning" size={20} color="warningMain" />
-            <div>{props.warning}</div>
-            {props.children}
+            <div className={WarningContentClass}>
+                {props.warning ? <div>{props.warning}</div> : null}
+                {props.children}
+            </div>
             {!props.clearWarning ? null : (
                 <Box ml={"auto"}>
                     <IconButton icon={"heroXMark"} tooltip={"Dismiss"} onClick={props.clearWarning} />
@@ -45,5 +46,9 @@ const Warning: React.FunctionComponent<WarningProps> = props => {
     );
 };
 
-export default Warning;
+const WarningContentClass = injectStyleSimple("warning-content", `
+    min-width: 0;
+    flex: 1 1 auto;
+`);
 
+export default Warning;

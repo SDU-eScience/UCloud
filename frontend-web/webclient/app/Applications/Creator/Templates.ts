@@ -1,15 +1,13 @@
 // Creator templates
 // =====================================================================================================================
-// Milestone 1 uses templates only. The templates provide valid minimum A2 values for the three
-// operation kinds the developer can open directly: a blank custom application, a blank managed
-// application, and an application with each supported standard parameter type.
+// These templates provide valid minimum A2 values for the explicit development entry points: a
+// blank custom application, a blank managed application, and a full parameter example.
 //
-// The template service also satisfies the CreatorService boundary so the editor does not call new
-// backend operations in milestone 1.
+// The template service also satisfies the CreatorService boundary for focused development work.
 //
 // The `custom-` name prefix is an internal storage detail. The interface never displays it.
 // Users enter and see only the logical application name. The blank custom template uses an empty
-// name; source retrieval in milestone 5 will strip the prefix before returning the draft.
+// name; backend source retrieval strips the prefix before returning the draft.
 
 import {A2Yaml} from "@/Applications/Creator/A2";
 import {
@@ -17,6 +15,8 @@ import {
     CreatorService,
     CreatorCustomMeta,
     emptyValidationState,
+    CreatorValidationResponse,
+    CreatorRenderResponse,
 } from "@/Applications/Creator/Draft";
 // Parse and serialization live in SourceParser.ts so the YAML editor and the template service
 // share one implementation. This module only keeps the template constructors.
@@ -185,8 +185,8 @@ export {applicationToSourceText, parseSourceText};
 // Custom application metadata template
 // -------------------------------------------------------------------------------------------------------------------
 // Provider, category, group, flavor, and publication are not part of the A2 YAML. Templates supply
-// placeholder values until real loading arrives in milestone 5. Publication is unavailable in a
-// personal workspace; the templates default to personal so publication stays false.
+// placeholder values for focused development work. Publication is unavailable in a personal
+// workspace; the templates default to personal so publication stays false.
 
 export function templateCustomMeta(provider: string): CreatorCustomMeta {
     return {
@@ -238,11 +238,23 @@ export const templateService: CreatorService = {
         };
     },
 
-    async validate(_application) {
-        return emptyValidationState();
+    async validate(_request): Promise<CreatorValidationResponse> {
+        return {errors: emptyValidationState().errors};
     },
 
-    async save(_application, _sourceText, _context) {
-        // Placeholder. Save is out of scope for milestone 1.
+    async renderInvocation(_request): Promise<CreatorRenderResponse> {
+        return {errors: [], rateLimit: {limit: 0, remaining: 0}};
+    },
+
+    async loadCustomEligibility() {
+        return {providers: [], canPublish: false};
+    },
+
+    async loadCustomPlacement() {
+        return {groups: [], categories: []};
+    },
+
+    async save(_application, _sourceText, _context, _customMeta) {
+        // Placeholder for focused development templates.
     },
 };

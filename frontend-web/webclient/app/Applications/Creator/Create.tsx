@@ -2,9 +2,8 @@
 // =====================================================================================================================
 // This page implements the editor shell for the custom application creator. It owns one local
 // draft, renders a full-viewport two-island layout, and connects the dirty-state and navigation
-// protection. Milestone 1 uses templates only. All service calls go through the CreatorService
-// boundary so template implementations can satisfy them now and real operations can satisfy
-// them in milestone 5.
+// protection. All backend operations go through the CreatorService boundary; development-only
+// templates remain available for the explicit template showcase routes.
 //
 // The shell fills the entire content viewport like the file editor (Editor/Editor.tsx). It splits
 // the space between a main island (content + header) and a properties island (right sidebar).
@@ -17,9 +16,11 @@
 
 import * as React from "react";
 import {useCallback, useEffect, useRef, useState} from "react";
-import {useLocation, useBeforeUnload} from "react-router-dom";
+import {useLocation, useNavigate, useBeforeUnload} from "react-router-dom";
 import {useSelector} from "react-redux";
 import {Box, Button, Flex, Grid, Text} from "@/ui-components";
+import CodeSnippet from "@/ui-components/CodeSnippet";
+import Warning from "@/ui-components/Warning";
 import {IconButton} from "@/ui-components/IconButton";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {injectStyle} from "@/Unstyled";
@@ -33,10 +34,19 @@ import {
     CreatorOperationContext,
     CreatorView,
     CreatorCustomMeta,
+    CreatorValidationError,
     creatorInitialDraft,
     creatorStableId,
+    creatorIsCustom,
+    emptyValidationState, CreatorValidationRequest, CreatorValidationResponse,
 } from "@/Applications/Creator/Draft";
-import {templateService} from "@/Applications/Creator/Templates";
+import {
+    creatorInternalName,
+    creatorLogicalName,
+    creatorService,
+    creatorSourceForEditor,
+} from "@/Applications/Creator/CreatorService";
+import * as AppStore from "@/Applications/AppStoreApi";
 import {
     applicationToSourceText,
     parseSourceText,
@@ -47,7 +57,7 @@ import {ParameterPanel} from "@/Applications/Creator/ParameterPanel";
 import {MetadataPanel} from "@/Applications/Creator/MetadataPanel";
 import {FeatureCards} from "@/Applications/Creator/FeatureCards";
 import {YamlEditor} from "@/Applications/Creator/YamlEditor";
-import {InvocationEditor} from "@/Applications/Creator/InvocationEditor";
+import {InvocationEditor, InvocationTab} from "@/Applications/Creator/InvocationEditor";
 import {ErrorSummary} from "@/Applications/Creator/ErrorSummary";
 import {CreatorHighlightTarget, creatorHighlightTarget} from "@/Applications/Creator/Highlight";
 import {
@@ -76,6 +86,14 @@ import {
 } from "@/Applications/Creator/DraftOperations";
 import {A2Parameter, A2EnumOption, A2Yaml, A2Software} from "@/Applications/Creator/A2";
 import {A2WidgetType} from "@/Applications/Creator/WidgetDefaults";
+import {validateApplicationLocal} from "@/Applications/Creator/ParameterValidation";
+import {Application, ApplicationParameter} from "@/Applications/AppStoreApi";
+import {ProductV2Compute} from "@/Accounting";
+import {compute} from "@/UCloud";
+import {JobSpecification} from "@/UCloud/JobsApi";
+import JobCreate from "@/Applications/Jobs/Create";
+import AppRoutes from "@/Routes";
+import {UcxSpinner} from "@/UCX/UcxView";
 
 // Shell layout
 // -------------------------------------------------------------------------------------------------------------------
@@ -244,8 +262,26 @@ function contextFromKind(kind: CreatorTemplateKind): CreatorOperationContext {
         case "blankManaged":
             return {operation: "newManaged"};
         case "fullTemplate":
-            return {operation: "newVersion", existingName: "example-app", existingVersion: "1.0"};
+            return {
+                operation: "newVersion",
+                existingName: "example-app",
+                existingVersion: "1.0",
+                developmentTemplate: true,
+            };
     }
+}
+
+function contextFromLocation(search: string, kind: CreatorTemplateKind): CreatorOperationContext {
+    const operation = getQueryParam(search, "operation");
+    if (operation === "newManaged" || operation === "newCustom" || operation === "newVersion" || operation === "fork") {
+        return {
+            operation,
+            existingName: getQueryParam(search, "name") ?? undefined,
+            existingVersion: getQueryParam(search, "version") ?? undefined,
+            provider: getQueryParam(search, "provider") ?? undefined,
+        };
+    }
+    return contextFromKind(kind);
 }
 
 function kindFromQuery(search: string): CreatorTemplateKind {
@@ -266,9 +302,31 @@ function kindFromQuery(search: string): CreatorTemplateKind {
 export const Create: React.FunctionComponent = () => {
     const location = useLocation();
     const kind = kindFromQuery(location.search);
+    const context = contextFromLocation(location.search, kind);
+    const navigate = useNavigate();
 
     const [draft, setDraft] = useState<CreatorDraft | null>(null);
     const [loading, setLoading] = useState(true);
+    const [serverValidation, setServerValidation] = useState<CreatorValidationResponse>({errors: []});
+    const [serverValidationRevision, setServerValidationRevision] = useState<number | null>(null);
+    const [serverValidating, setServerValidating] = useState(false);
+    const [previewApplication, setPreviewApplication] = useState<Application | null>(null);
+    const [previewScript, setPreviewScript] = useState<string | null>(null);
+    const [previewErrors, setPreviewErrors] = useState<CreatorValidationError[]>([]);
+    const [previewRateLimit, setPreviewRateLimit] = useState<{remaining: number; retryAt?: number | string} | null>(null);
+    const [previewRendering, setPreviewRendering] = useState(false);
+    const [previewQueued, setPreviewQueued] = useState(false);
+    const [previewParameters, setPreviewParameters] = useState<ApplicationParameter[]>([]);
+    const [previewMachines, setPreviewMachines] = useState<ProductV2Compute[]>([]);
+    const [previewDataReady, setPreviewDataReady] = useState(false);
+    const [invocationTab, setInvocationTab] = useState<InvocationTab>("invocation");
+    const [saveLoading, setSaveLoading] = useState(false);
+    const [customEligibility, setCustomEligibility] = useState<AppStore.AppEditorCustomEligibilityResponse | null>(null);
+    const [customGroups, setCustomGroups] = useState<AppStore.AppCatalogCustomGroup[]>([]);
+    const [customCategories, setCustomCategories] = useState<AppStore.AppCatalogCustomCategory[]>([]);
+    const validationRequestId = useRef(0);
+    const draftRevisionRef = useRef(0);
+    const lastPreviewJobRef = useRef<JobSpecification | null>(null);
 
     // Resizable panel state. The width drives a CSS variable so the DOM updates without
     // re-rendering the component tree.
@@ -286,24 +344,91 @@ export const Create: React.FunctionComponent = () => {
         };
     }, []);
 
-    // Load the template when the kind changes. The template service returns the A2 model and
-    // source text. The draft starts clean.
+    // Load blank defaults or canonical source through the service boundary. The draft starts
+    // clean; a fork or new-version operation is never reconstructed from normalized metadata.
     useEffect(() => {
         let cancelled = false;
         setLoading(true);
-        const context = contextFromKind(kind);
-        templateService.loadSource(context).then(({application, sourceText, customMeta}) => {
+        creatorService.loadSource(context).then(({application, sourceText, customMeta}) => {
             if (cancelled) return;
             setDraft(creatorInitialDraft(application, sourceText, context, customMeta));
+            setServerValidation({errors: []});
+            setServerValidationRevision(null);
+            setPreviewApplication(null);
+            setPreviewScript(null);
+            setPreviewErrors([]);
+            setPreviewQueued(false);
+            setPreviewParameters([]);
+            setPreviewMachines([]);
+            setPreviewDataReady(false);
+            lastPreviewJobRef.current = null;
+            setInvocationTab("invocation");
             setLoading(false);
+        }).catch(() => {
+            if (cancelled) return;
+            setLoading(false);
+            setDraft(null);
         });
         return () => {
             cancelled = true;
         };
-    }, [kind]);
+    }, [context.operation, context.existingName, context.existingVersion, context.provider, context.developmentTemplate]);
+
+    useEffect(() => {
+        if (draft?.view !== "editor" || invocationTab !== "preview" || previewScript == null) return;
+        window.requestAnimationFrame(() => {
+            document.getElementById("creator-card-invocation")?.scrollIntoView({block: "nearest"});
+        });
+    }, [draft?.view, invocationTab, previewScript]);
+
+    useEffect(() => {
+        if (!creatorIsCustom(context)) {
+            setCustomEligibility(null);
+            return;
+        }
+        let cancelled = false;
+        void creatorService.loadCustomEligibility().then(result => {
+            if (cancelled) return;
+            setCustomEligibility(result);
+            setDraft(current => {
+                if (!current?.customMeta) return current;
+                return {
+                    ...current,
+                    customMeta: {...current.customMeta, canPublish: result.canPublish},
+                };
+            });
+        }).catch(() => {
+            if (!cancelled) setCustomEligibility(null);
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, [context.operation, context.existingName, context.existingVersion, context.provider]);
+
+    useEffect(() => {
+        if (!creatorIsCustom(context)) {
+            setCustomGroups([]);
+            setCustomCategories([]);
+            return;
+        }
+        let cancelled = false;
+        creatorService.loadCustomPlacement().then(({groups, categories}) => {
+            if (cancelled) return;
+            setCustomGroups(groups);
+            setCustomCategories(categories);
+        }).catch(() => {
+            if (cancelled) return;
+            setCustomGroups([]);
+            setCustomCategories([]);
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, [context.operation, context.existingName, context.existingVersion, context.provider]);
 
     // Theme name for the embedded Monaco editors. Matches the file editor's selector.
     const themeName = useSelector((red: ReduxObject) => red.sidebar.theme);
+    if (draft) draftRevisionRef.current = draft.revision;
 
     // YAML source parse cycle
     // -----------------------------------------------------------------------------------------------------------------
@@ -323,7 +448,9 @@ export const Create: React.FunctionComponent = () => {
     const runParse = useCallback(() => {
         setDraft(current => {
             if (!current) return current;
-            const text = current.sourceText;
+            const text = creatorIsCustom(current.context)
+                ? creatorSourceForEditor(current.sourceText)
+                : current.sourceText;
             const result = parseSourceText(text);
             if (result.ok) {
                 // The parsed application replaces the structured model. parameterIds are
@@ -337,13 +464,18 @@ export const Create: React.FunctionComponent = () => {
                 }
                 // Do not mark dirty here: a parse refreshes the model, it is not an edit. The
                 // text-change handler already marked the draft dirty when the user typed.
+                const application = creatorIsCustom(current.context)
+                    ? {...result.application, name: creatorLogicalName(result.application.name)}
+                    : result.application;
                 return {
                     ...current,
-                    application: result.application,
-                    lastValidApplication: result.application,
+                    application,
+                    lastValidApplication: application,
                     sourceTextInvalid: false,
                     parseErrors: [],
                     parameterIds,
+                    sourceText: text,
+                    validation: emptyValidationState(),
                 };
             }
             // On failure we keep the source text and do not touch `dirty` either: the text change
@@ -351,19 +483,27 @@ export const Create: React.FunctionComponent = () => {
             return {
                 ...current,
                 sourceTextInvalid: true,
-                parseErrors: result.errors,
-            };
+                    parseErrors: result.errors,
+                    validation: emptyValidationState(),
+                };
         });
     }, []);
 
     // YamlEditor reports each content change. We store the text and mark the draft dirty. The
-    // delayed parse runs in the editor's own debounce effect (onParseTick). Parse errors are not
-    // cleared here: they stay visible until the next parse runs and either clears them or
-    // replaces them with new ones.
+    // delayed parse runs in the editor's own debounce effect (onParseTick). Action-triggered
+    // validation errors are cleared because they no longer describe the current source.
     const onSourceTextChange = useCallback((text: string) => {
         setDraft(current => {
             if (!current) return current;
-            return {...current, sourceText: text, dirty: true};
+            const sourceText = creatorIsCustom(current.context) ? creatorSourceForEditor(text) : text;
+            if (current.sourceText === sourceText) return current;
+            return {
+                ...current,
+                sourceText,
+                dirty: true,
+                revision: current.revision + 1,
+                validation: emptyValidationState(),
+            };
         });
     }, []);
 
@@ -376,6 +516,73 @@ export const Create: React.FunctionComponent = () => {
     const onSourceBlur = useCallback(() => {
         runParse();
     }, [runParse]);
+
+    const validateDraft = useCallback(async (current: CreatorDraft): Promise<CreatorValidationResponse | null> => {
+        const parsed = parseSourceText(current.sourceText);
+        if (!parsed.ok) {
+            setDraft(previous => {
+                if (!previous || previous.sourceText !== current.sourceText) return previous;
+                return {
+                    ...previous,
+                    sourceTextInvalid: true,
+                    parseErrors: parsed.errors,
+                    validation: emptyValidationState(),
+                };
+            });
+            return null;
+        }
+
+        const application = creatorIsCustom(current.context)
+            ? {...parsed.application, name: creatorLogicalName(parsed.application.name)}
+            : parsed.application;
+        const localValidation = validateApplicationLocal(application);
+        setDraft(previous => {
+            if (!previous || previous.sourceText !== current.sourceText) return previous;
+            return {
+                ...previous,
+                application,
+                lastValidApplication: application,
+                sourceTextInvalid: false,
+                parseErrors: [],
+                validation: localValidation,
+            };
+        });
+
+        const revision = current.revision;
+        const requestId = validationRequestId.current + 1;
+        validationRequestId.current = requestId;
+        setServerValidationRevision(revision);
+        setServerValidation({errors: []});
+        setServerValidating(true);
+        try {
+            const response = await creatorService.validate(creatorValidationRequest(current));
+            if (draftRevisionRef.current !== revision || validationRequestId.current !== requestId) {
+                if (validationRequestId.current === requestId) setServerValidating(false);
+                return null;
+            }
+            const normalizedResponse = {
+                ...response,
+                errors: response.errors.map(creatorMapValidationError),
+            };
+            setServerValidation(normalizedResponse);
+            setServerValidationRevision(revision);
+            setServerValidating(false);
+            return {
+                ...normalizedResponse,
+                errors: [...localValidation.errors, ...normalizedResponse.errors],
+            };
+        } catch (error) {
+            if (draftRevisionRef.current !== revision || validationRequestId.current !== requestId) {
+                if (validationRequestId.current === requestId) setServerValidating(false);
+                return null;
+            }
+            const requestError = creatorRequestError(error);
+            setServerValidation({errors: [requestError]});
+            setServerValidationRevision(revision);
+            setServerValidating(false);
+            return {errors: [requestError]};
+        }
+    }, []);
 
     // Workflow rows set `yamlFocusKey` to ask the YAML editor to jump to a parameter key. We
     // also switch to the YAML view so the editor is visible. The editor clears the key after it
@@ -418,10 +625,16 @@ export const Create: React.FunctionComponent = () => {
         setFocusColumn(0);
     }, []);
 
-    const onFocusErrorParameter = useCallback((parameterName: string | null) => {
+    const onFocusErrorParameter = useCallback((error: CreatorValidationError) => {
+        if (error.location) {
+            setFocusLine(error.location.line);
+            setFocusColumn(error.location.column);
+            setDraft(current => current ? {...current, view: "yaml"} : current);
+            return;
+        }
         setDraft(current => {
             if (!current) return current;
-            if (!parameterName) {
+            if (!error.parameterName) {
                 // Global error: ensure we are in the editor view and no parameter selected.
                 return {
                     ...current,
@@ -430,13 +643,20 @@ export const Create: React.FunctionComponent = () => {
                 };
             }
             // Select the named parameter so the panel shows the relevant field.
-            const id = current.parameterIds[parameterName] ?? null;
+            const id = current.parameterIds[error.parameterName] ?? null;
             return {
                 ...current,
                 view: "editor",
-                selection: {parameterId: id, parameterName},
+                selection: {parameterId: id, parameterName: error.parameterName},
             };
         });
+        if (error.path) {
+            window.setTimeout(() => {
+                const field = document.querySelector<HTMLElement>(`[data-creator-field="${error.path}"]`);
+                field?.scrollIntoView({block: "center"});
+                field?.focus();
+            }, 0);
+        }
     }, []);
 
 
@@ -463,18 +683,28 @@ export const Create: React.FunctionComponent = () => {
             if (current.sourceTextInvalid) {
                 return current;
             }
-            // If the source was already normalized for this loaded draft, apply the change
-            // directly. The serialized canonical YAML will be written back when the user switches
-            // to the YAML view.
+            const applyVisualChange = (draft: CreatorDraft): CreatorDraft => {
+                const updated = updater(draft);
+                return {
+                    ...updated,
+                    sourceText: applicationToSourceText(updated.application),
+                    sourceNormalized: true,
+                    dirty: true,
+                    revision: draft.revision + 1,
+                };
+            };
+
+            // Visual changes always serialize the complete model. This keeps validation and save
+            // requests on the same source as the controls, while YAML edits retain their exact text.
             if (current.sourceNormalized) {
-                return {...updater(current), dirty: true};
+                return applyVisualChange(current);
             }
             // The source has not been normalized yet. If the source text matches the canonical
             // serialization of the current model, there is nothing to warn about: normalizing
             // would not change the text. Apply directly and mark normalized so we never check
             // again for this draft.
             if (current.sourceText === applicationToSourceText(current.application)) {
-                return {...updater(current), dirty: true, sourceNormalized: true};
+                return applyVisualChange(current);
             }
             // The source differs. We must ask before the first visual change replaces it with
             // canonical YAML. Queue the updater and show the dialog once.
@@ -502,7 +732,14 @@ export const Create: React.FunctionComponent = () => {
                     if (!pending) return;
                     setDraft(d => {
                         if (!d) return d;
-                        return {...pending(d), dirty: true, sourceNormalized: true};
+                        const updated = pending(d);
+                        return {
+                            ...updated,
+                            sourceText: applicationToSourceText(updated.application),
+                            dirty: true,
+                            sourceNormalized: true,
+                            revision: d.revision + 1,
+                        };
                     });
                 },
                 onCancel: () => {
@@ -528,8 +765,8 @@ export const Create: React.FunctionComponent = () => {
             ...d,
             application: {
                 ...d.application,
-                name,
-                title: d.application.title || name,
+                name: creatorIsCustom(d.context) ? creatorLogicalName(name) : name,
+                title: d.application.title || (creatorIsCustom(d.context) ? creatorLogicalName(name) : name),
             },
         }));
     }, [updateApplication]);
@@ -546,6 +783,13 @@ export const Create: React.FunctionComponent = () => {
     const onSelectParameter = useCallback((parameterId: string | null) => {
         updateSelection(d => draftSelectParameter(d, parameterId));
     }, [updateSelection]);
+
+    const onMainIslandPointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+        if (draft?.view !== "editor" || draft.selection.parameterId == null) return;
+        const target = event.target;
+        if (target instanceof Element && target.closest("[data-row-id], #creator-error-summary")) return;
+        onSelectParameter(null);
+    }, [draft?.selection.parameterId, draft?.view, onSelectParameter]);
 
     // Feature highlight. When the user clicks a feature card or sub-section in the content area,
     // deselect any selected parameter so the metadata panel becomes visible, then scroll to and
@@ -609,8 +853,8 @@ export const Create: React.FunctionComponent = () => {
         updateApplication(d => draftUpdateMetadata(d, patch));
     }, [updateApplication]);
 
-    // Invocation editor changes. The compact Monaco editor fires on each keystroke. We reuse
-    // the metadata update path; local validation is cheap and keeps the reference errors fresh.
+    // Invocation editor changes. The compact Monaco editor fires on each keystroke. Validation is
+    // deferred until the user requests a preview or save.
     const onUpdateInvocation = useCallback((invocation: string) => {
         updateApplication(d => draftUpdateMetadata(d, {invocation}));
     }, [updateApplication]);
@@ -723,12 +967,129 @@ export const Create: React.FunctionComponent = () => {
         });
     }, []);
 
-    // Save. Runs the parse so the model and source are current, then defers to milestone 5.
-    const onSave = useCallback(() => {
-        runParse();
-        // Save is out of scope for milestone 4. The button is disabled until backend support
-        // arrives in milestone 5.
-    }, [runParse]);
+    const onPreview = useCallback(async () => {
+        if (!draft || previewRendering) return;
+        if (draft.view === "preview") {
+            setDraft(previous => previous ? {...previous, view: "editor"} : previous);
+            return;
+        }
+        if (draft.sourceTextInvalid) return;
+        const current = draft;
+        const response = await validateDraft(current);
+        if (!response || draftRevisionRef.current !== current.revision) return;
+        if (response.errors.length > 0 || !response.application) {
+            setDraft(previous => previous ? {...previous, view: "editor"} : previous);
+            return;
+        }
+        setPreviewApplication(response.application);
+        setPreviewScript(null);
+        setPreviewErrors([]);
+        setPreviewRateLimit(null);
+        setPreviewDataReady(false);
+        setPreviewQueued(false);
+        setDraft(previous => previous ? {...previous, view: "preview"} : previous);
+    }, [draft, previewRendering, validateDraft]);
+
+    const onOpenPreviewPanel = useCallback(() => {
+        setDraft(previous => previous ? {...previous, view: "preview"} : previous);
+    }, []);
+
+    const onSave = useCallback(async () => {
+        if (!draft || saveLoading || draft.sourceTextInvalid) return;
+        const current = draft;
+        const response = await validateDraft(current);
+        if (!response || draftRevisionRef.current !== current.revision) return;
+        if (response.errors.length > 0) {
+            setDraft(previous => previous ? {...previous, view: "editor"} : previous);
+            return;
+        }
+
+        setSaveLoading(true);
+        try {
+            await creatorService.save(
+                current.application,
+                current.sourceText,
+                current.context,
+                current.customMeta,
+            );
+            if (draftRevisionRef.current !== current.revision) return;
+            setDraft(previous => previous ? {...previous, dirty: false} : previous);
+            const savedName = creatorIsCustom(current.context)
+                ? creatorInternalName(current.application.name)
+                : current.application.name;
+            navigate(AppRoutes.jobs.create(savedName, current.application.version));
+        } catch (error) {
+            const saveError = creatorRequestError(error, "SAVE_FAILED");
+            setServerValidation({errors: [saveError]});
+            setServerValidationRevision(current.revision);
+        } finally {
+            setSaveLoading(false);
+        }
+    }, [draft, saveLoading, validateDraft, navigate]);
+
+    const renderPreview = useCallback(async (job: JobSpecification, current: CreatorDraft) => {
+        if (!previewApplication || previewRendering) return;
+        if (draftRevisionRef.current !== current.revision) return;
+        lastPreviewJobRef.current = job;
+        setPreviewRendering(true);
+        setPreviewErrors([]);
+        try {
+            const response = await creatorService.renderInvocation({
+                validation: creatorValidationRequest(current),
+                job,
+            });
+            if (draftRevisionRef.current !== current.revision) return;
+            setPreviewRateLimit(response.rateLimit);
+            setPreviewErrors(response.errors);
+            const script = response.errors.length === 0 ? response.script ?? null : null;
+            setPreviewScript(script);
+            if (script !== null) {
+                setInvocationTab("preview");
+                setDraft(previous => previous ? {...previous, view: "editor"} : previous);
+            }
+        } catch (error) {
+            if (draftRevisionRef.current !== current.revision) return;
+            setPreviewErrors([creatorRequestError(error, "PROVIDER_RENDER_FAILED")]);
+        } finally {
+            setPreviewRendering(false);
+        }
+    }, [previewApplication, previewRendering]);
+
+    const onPreviewScript = useCallback(async (job: JobSpecification) => {
+        if (!draft) return;
+        await renderPreview(job, draft);
+    }, [draft, renderPreview]);
+
+    const onRerunPreview = useCallback(async () => {
+        if (!draft || previewRendering || previewQueued) return;
+        setPreviewQueued(true);
+
+        if (!previewApplication) {
+            const response = await validateDraft(draft);
+            if (!response || draftRevisionRef.current !== draft.revision || response.errors.length > 0 || !response.application) {
+                setPreviewQueued(false);
+                return;
+            }
+            setPreviewApplication(response.application);
+        }
+    }, [draft, previewApplication, previewQueued, previewRendering, validateDraft]);
+
+    useEffect(() => {
+        if (!previewQueued || !draft || !previewApplication || !previewDataReady || previewMachines.length === 0) return;
+        setPreviewQueued(false);
+        const previousJob = lastPreviewJobRef.current;
+        const smallestMachine = creatorSmallestPreviewMachine(previewMachines);
+        if (!smallestMachine) return;
+        const baseJob = previousJob ?? creatorPreviewBaseJob(previewApplication, smallestMachine);
+        const job = creatorPreviewJobWithDefaults(baseJob, previewParameters, previewMachines);
+        const requiredResourceErrors = creatorPreviewRequiredResourceErrors(job, previewParameters);
+        if (requiredResourceErrors.length > 0) {
+            setPreviewScript(null);
+            setPreviewErrors(requiredResourceErrors);
+            return;
+        }
+        void renderPreview(job, draft);
+    }, [draft, previewApplication, previewDataReady, previewMachines, previewParameters, previewQueued, renderPreview]);
 
     // Resizer. Follows the same pointer-event pattern as the file editor FileTree. The handle
     // is on the left edge of the panel (the left = panel's left edge from screen). Dragging right
@@ -785,21 +1146,33 @@ export const Create: React.FunctionComponent = () => {
         );
     }
 
-    // Save and preview are disabled when the source text is invalid. Save itself remains a
-    // placeholder until backend support arrives in milestone 5; it is left disabled here because
-    // the create-version operation does not exist yet.
-    const saveDisabled = draft.sourceTextInvalid || true;
+    const currentServerErrors = serverValidationRevision === draft.revision
+        ? serverValidation.errors
+        : [];
+    const visibleDraft: CreatorDraft = currentServerErrors.length === 0
+        ? draft
+        : {
+            ...draft,
+            validation: {
+                errors: [...draft.validation.errors, ...currentServerErrors],
+            },
+        };
+
+    // Parse errors disable both actions. Semantic validation is requested only by preview or save.
+    const saveDisabled = draft.sourceTextInvalid || saveLoading;
     const previewDisabled = draft.sourceTextInvalid;
     const saveTooltip = draft.sourceTextInvalid
         ? "Fix the YAML source before saving"
-        : "Save is a placeholder in this milestone";
-    const previewTooltip = previewDisabled
+        : saveLoading ? "Saving application" : "Save application version";
+    const previewTooltip = draft.view === "preview"
+        ? "Back to editor"
+        : previewDisabled
         ? "Fix the YAML source before previewing"
-        : "Preview is a placeholder in this milestone";
+        : previewRendering ? "Rendering preview" : "Preview job creation";
 
     return (
         <div className={CreatorShellClass}>
-            <div className={CreatorMainIslandClass}>
+            <div className={CreatorMainIslandClass} onPointerDown={onMainIslandPointerDown}>
                 <div className={CreatorMainHeaderClass}>
                     <EditorHeader draft={draft} />
                     <Box flexGrow={1} />
@@ -813,7 +1186,7 @@ export const Create: React.FunctionComponent = () => {
                         <IconButton
                             icon="heroEye"
                             tooltip={previewTooltip}
-                            onClick={() => { if (!previewDisabled) onViewChange("preview"); }}
+                            onClick={() => { if (!previewDisabled) void onPreview(); }}
                             color={draft.view === "preview" ? "primaryMain" : "textSecondary"}
                         />
                         <TooltipV2 tooltip={saveTooltip}>
@@ -821,7 +1194,7 @@ export const Create: React.FunctionComponent = () => {
                                 type="button"
                                 color="successMain"
                                 disabled={saveDisabled}
-                                onClick={onSave}
+                                onClick={() => void onSave()}
                             >
                                 Save
                             </Button>
@@ -830,7 +1203,7 @@ export const Create: React.FunctionComponent = () => {
                 </div>
                 <div className={CreatorMainBodyClass} style={(draft.view === "yaml" || draft.view === "invocation") ? {display: "flex", flexDirection: "column", overflowY: "hidden"} as React.CSSProperties : undefined}>
                     <CreatorMainContent
-                        draft={draft}
+                        draft={visibleDraft}
                         readOnly={draft.sourceTextInvalid}
                         themeName={themeName}
                         focusLine={focusLine}
@@ -848,10 +1221,25 @@ export const Create: React.FunctionComponent = () => {
                         onJumpToSourceLine={onJumpToSourceLine}
                         onFocusErrorParameter={onFocusErrorParameter}
                         onToggleInvocation={onToggleInvocation}
+                        invocationTab={invocationTab}
+                        onInvocationTabChange={setInvocationTab}
+                        previewApplication={previewApplication}
+                        previewScript={previewScript}
+                        previewErrors={previewErrors}
+                        previewRateLimit={previewRateLimit}
+                        previewRendering={previewRendering}
+                        previewQueued={previewQueued}
+                        validating={serverValidating && serverValidationRevision === draft.revision}
+                        onPreviewScript={onPreviewScript}
+                        onRerunPreview={onRerunPreview}
+                        onOpenPreviewPanel={onOpenPreviewPanel}
+                        onPreviewParametersChange={setPreviewParameters}
+                        onPreviewMachinesChange={setPreviewMachines}
+                        onPreviewDataReady={setPreviewDataReady}
                     />
                 </div>
             </div>
-            {draft.view !== "yaml" && draft.view !== "invocation" ? (
+            {draft.view !== "yaml" && draft.view !== "invocation" && draft.view !== "preview" ? (
                 <div
                     ref={panelRef}
                     className={CreatorPanelIslandClass}
@@ -860,7 +1248,7 @@ export const Create: React.FunctionComponent = () => {
                     <div className="panel-resizer" onPointerDown={onResizeStart} />
                     <div className={CreatorPanelBodyClass}>
                         <CreatorPanel
-                            draft={draft}
+                            draft={visibleDraft}
                             readOnly={draft.sourceTextInvalid}
                             onNameChange={onNameChange}
                             onVersionChange={onVersionChange}
@@ -885,6 +1273,9 @@ export const Create: React.FunctionComponent = () => {
                             onUpdateSbatch={onUpdateSbatch}
                             onUpdateCustomMeta={onUpdateCustomMeta}
                             onAddParameter={onAddParameter}
+                            customEligibility={customEligibility}
+                            customGroups={customGroups}
+                            customCategories={customCategories}
                         />
                     </div>
                 </div>
@@ -896,7 +1287,7 @@ export const Create: React.FunctionComponent = () => {
 // Main content area
 // -------------------------------------------------------------------------------------------------------------------
 // The content area holds the error summary, the Parameters card, the Invocation card, and (in
-// the YAML view) the full source editor. Preview remains a placeholder for milestone 5.
+// the YAML view) the full source editor. Preview embeds the job form and provider rendering flow.
 
 function CreatorMainContent(props: {
     draft: CreatorDraft;
@@ -915,22 +1306,92 @@ function CreatorMainContent(props: {
     onYamlLineFocusApplied: () => void;
     onInvocationChange: (text: string) => void;
     onJumpToSourceLine: (line: number, column: number) => void;
-    onFocusErrorParameter: (parameterName: string | null) => void;
+    onFocusErrorParameter: (error: CreatorValidationError) => void;
     onToggleInvocation: () => void;
+    invocationTab: InvocationTab;
+    onInvocationTabChange: (tab: InvocationTab) => void;
+    previewApplication: Application | null;
+    previewScript: string | null;
+    previewErrors: CreatorValidationError[];
+    previewRateLimit: {remaining: number; retryAt?: number | string} | null;
+    previewRendering: boolean;
+    previewQueued: boolean;
+    validating: boolean;
+    onPreviewScript: (job: JobSpecification) => Promise<void>;
+    onRerunPreview: () => Promise<void>;
+    onOpenPreviewPanel: () => void;
+    onPreviewParametersChange: (parameters: ApplicationParameter[]) => void;
+    onPreviewMachinesChange: (machines: ProductV2Compute[]) => void;
+    onPreviewDataReady: (ready: boolean) => void;
 }): React.ReactNode {
     const {draft} = props;
 
-    // The error summary appears at the top in every view. Parse errors and validation errors are
-    // merged. Clicking a parse error switches to the YAML view and asks the YamlEditor to scroll
-    // to the line via the focusLine prop. Clicking a semantic error selects the named parameter.
-    if (draft.view === "yaml") {
-        return (
-            <div className={CreatorMainContentYamlClass}>
-                <ErrorSummary
-                    draft={draft}
-                    onJumpToSourceLine={props.onJumpToSourceLine}
-                    onFocusParameter={props.onFocusErrorParameter}
-                />
+    const invocationPreview = <PreviewScriptViewer
+        script={props.previewScript}
+        errors={props.previewErrors}
+        onRerun={props.onRerunPreview}
+        onOpenPreviewPanel={props.onOpenPreviewPanel}
+        rerunning={props.previewRendering || props.previewQueued}
+    />;
+
+    const renderInvocationEditor = (maximized: boolean) => (
+        <InvocationEditor
+            invocation={draft.application.invocation}
+            readOnly={props.readOnly}
+            themeName={props.themeName}
+            onChange={props.onInvocationChange}
+            maximized={maximized}
+            onToggleMaximized={props.onToggleInvocation}
+            activeTab={props.invocationTab}
+            onTabChange={props.onInvocationTabChange}
+            preview={invocationPreview}
+        />
+    );
+
+    // Keep all view surfaces mounted. In particular, the job form owns temporary widget state;
+    // hiding it instead of unmounting it preserves preview values when the user returns to edit.
+    const previewSurface = (
+        <div className={CreatorPreviewClass} hidden={draft.view !== "preview"} style={draft.view !== "preview" ? {display: "none"} : undefined}>
+            {props.previewApplication == null ? (
+                <Text color="textSecondary">The application must pass validation before it can be previewed.</Text>
+            ) : (
+                <>
+                    <div hidden={props.previewScript != null} className={PreviewJobFormClass}>
+                        <JobCreate
+                            previewApplication={props.previewApplication}
+                            previewMode
+                            previewRendering={props.previewRendering}
+                            onPreviewScript={props.onPreviewScript}
+                            onPreviewParametersChange={props.onPreviewParametersChange}
+                            onPreviewMachinesChange={props.onPreviewMachinesChange}
+                            onPreviewDataReady={props.onPreviewDataReady}
+                        />
+                    </div>
+                    {props.previewScript != null ? (
+                        <PreviewScriptViewer
+                            script={props.previewScript}
+                            errors={props.previewErrors}
+                            onRerun={props.onRerunPreview}
+                            onOpenPreviewPanel={props.onOpenPreviewPanel}
+                            rerunning={props.previewRendering || props.previewQueued}
+                        />
+                    ) : null}
+                </>
+            )}
+        </div>
+    );
+
+    return (
+        <>
+            <ErrorSummary
+                draft={draft}
+                onJumpToSourceLine={props.onJumpToSourceLine}
+                onFocusParameter={props.onFocusErrorParameter}
+                validating={props.validating}
+                extraErrors={props.previewErrors}
+                rateLimit={props.previewRateLimit}
+            />
+            {draft.view === "yaml" ? <div className={CreatorMainContentYamlClass}>
                 <YamlEditor
                     sourceText={draft.sourceText}
                     sourceTextInvalid={draft.sourceTextInvalid}
@@ -946,41 +1407,13 @@ function CreatorMainContent(props: {
                     onFocusApplied={props.onYamlFocusApplied}
                     onLineFocusApplied={props.onYamlLineFocusApplied}
                 />
-            </div>
-        );
-    }
-
-    if (draft.view === "invocation") {
-        return (
-            <div className={CreatorMainContentYamlClass}>
-                <ErrorSummary
-                    draft={draft}
-                    onJumpToSourceLine={props.onJumpToSourceLine}
-                    onFocusParameter={props.onFocusErrorParameter}
-                />
-                <InvocationEditor
-                    invocation={draft.application.invocation}
-                    readOnly={props.readOnly}
-                    themeName={props.themeName}
-                    onChange={props.onInvocationChange}
-                    maximized={true}
-                    onToggleMaximized={props.onToggleInvocation}
-                />
-            </div>
-        );
-    }
-
-    return (
-        <Grid gridTemplateColumns="1fr" gap="24px" width="100%">
-            <ErrorSummary
-                draft={draft}
-                onJumpToSourceLine={props.onJumpToSourceLine}
-                onFocusParameter={props.onFocusErrorParameter}
-            />
-            {draft.view === "preview" ? <PreviewPlaceholder /> : null}
-            {draft.view === "editor" ? (
-                <>
-                    {draft.sourceTextInvalid ? <InvalidSourceBanner /> : null}
+            </div> : null}
+            {draft.view === "invocation" ? <div className={CreatorMainContentYamlClass}>
+                {renderInvocationEditor(true)}
+            </div> : null}
+            {previewSurface}
+            {draft.view === "editor" ? <div>
+                <Grid gridTemplateColumns="1fr" gap="24px" width="100%">
                     <FeatureCards draft={draft} onHighlight={props.onFeatureHighlight} />
                     <div className={CreatorCardIslandClass} id="creator-card-parameters">
                         <CreatorCardHeading>Parameters</CreatorCardHeading>
@@ -991,17 +1424,10 @@ function CreatorMainContent(props: {
                             onOpenWorkflowYaml={props.onOpenWorkflowYaml}
                         />
                     </div>
-                    <InvocationEditor
-                        invocation={draft.application.invocation}
-                        readOnly={props.readOnly}
-                        themeName={props.themeName}
-                        onChange={props.onInvocationChange}
-                        maximized={false}
-                        onToggleMaximized={props.onToggleInvocation}
-                    />
-                </>
-            ) : null}
-        </Grid>
+                    {renderInvocationEditor(false)}
+                </Grid>
+            </div> : null}
+        </>
     );
 }
 
@@ -1017,19 +1443,6 @@ const CreatorMainContentYamlClass = injectStyle("creator-main-content-yaml", k =
         gap: 16px;
     }
 `);
-
-// Banner shown above the visual editor when the YAML source is invalid. Explains that visual
-// editing is read-only until the source is fixed, matching the root design.
-function InvalidSourceBanner(): React.ReactNode {
-    return (
-        <div className={InvalidSourceBannerClass} role="status">
-            <Text fontSize={13} color="errorMain">
-                The YAML source is invalid. Visual editing is read-only. Switch to the YAML view to
-                fix the source.
-            </Text>
-        </div>
-    );
-}
 
 const CreatorCardIslandClass = injectStyle("creator-card-island", k => `
     ${k} {
@@ -1048,24 +1461,217 @@ const CreatorCardIslandClass = injectStyle("creator-card-island", k => `
     }
 `);
 
-function PreviewPlaceholder(): React.ReactNode {
+function PreviewScriptViewer(props: {
+    script: string | null;
+    errors: CreatorValidationError[];
+    onRerun: () => Promise<void>;
+    onOpenPreviewPanel: () => void;
+    rerunning: boolean;
+}): React.ReactNode {
+    const requiresPreviewValues = props.errors.some(error => error.code === "PREVIEW_RESOURCE_REQUIRED");
     return (
-        <div className={CreatorCardIslandClass}>
-            <CreatorCardHeading>Preview</CreatorCardHeading>
-            <Text color="textSecondary">
-                The full job preview is a placeholder in this milestone.
-            </Text>
+        <div className={PreviewScriptClass}>
+            <div className={PreviewScriptCodeClass}>
+                {props.errors.length > 0 ? (
+                    <Warning warning="Preview could not be rendered.">
+                        <ul className={PreviewErrorListClass}>
+                            {props.errors.map((error, index) => <li key={index}>{error.message}</li>)}
+                        </ul>
+                        {requiresPreviewValues ? (
+                            <button type="button" className={PreviewErrorLinkClass} onClick={props.onOpenPreviewPanel}>
+                                Open preview panel
+                            </button>
+                        ) : null}
+                    </Warning>
+                ) : props.script == null ? (
+                    <Text color="textSecondary">
+                        Generate a preview to see the rendered invocation here.
+                    </Text>
+                ) : <CodeSnippet lang="bash">{props.script}</CodeSnippet>}
+            </div>
+            <Button
+                type="button"
+                color="successMain"
+                disabled={props.rerunning}
+                onClick={() => void props.onRerun()}
+            >
+                {props.rerunning ? <UcxSpinner size={16} color="white" margin="0 8px 0 0" /> : null}
+                {props.script == null ? "Preview script" : "Run again"}
+            </Button>
         </div>
     );
 }
 
-const InvalidSourceBannerClass = injectStyle("creator-invalid-source-banner", k => `
+function creatorPreviewJobWithDefaults(
+    job: JobSpecification,
+    parameters: ApplicationParameter[],
+    machines: ProductV2Compute[],
+): JobSpecification {
+    const values = {...job.parameters};
+    for (const parameter of parameters) {
+        if (parameter.optional || values[parameter.name] !== undefined) continue;
+        const value = creatorPreviewDefaultValue(parameter);
+        if (value !== undefined) values[parameter.name] = value;
+    }
+
+    const smallestMachine = creatorSmallestPreviewMachine(machines);
+
+    return {
+        ...job,
+        product: smallestMachine == null ? job.product : creatorPreviewProductRef(smallestMachine),
+        parameters: values,
+    };
+}
+
+function creatorPreviewBaseJob(application: Application, machine: ProductV2Compute): JobSpecification {
+    return {
+        application: {
+            name: application.metadata.name,
+            version: application.metadata.version,
+        },
+        product: creatorPreviewProductRef(machine),
+        name: "preview",
+        replicas: 1,
+        allowDuplicateJob: true,
+        parameters: {},
+        resources: [],
+        timeAllocation: {hours: 1, minutes: 0, seconds: 0},
+    };
+}
+
+function creatorSmallestPreviewMachine(machines: ProductV2Compute[]): ProductV2Compute | null {
+    return machines.reduce<ProductV2Compute | null>((smallest, machine) => {
+        if (smallest == null) return machine;
+        return (machine.cpu ?? Number.POSITIVE_INFINITY) < (smallest.cpu ?? Number.POSITIVE_INFINITY)
+            ? machine
+            : smallest;
+    }, null);
+}
+
+function creatorPreviewProductRef(machine: ProductV2Compute): JobSpecification["product"] {
+    return {
+        provider: machine.category.provider,
+        category: machine.category.name,
+        id: machine.name,
+    };
+}
+
+function creatorPreviewDefaultValue(parameter: ApplicationParameter): compute.AppParameterValue | undefined {
+    switch (parameter.type) {
+        case "text":
+        case "textarea":
+            return {type: "text", value: parameter.name};
+        case "boolean":
+            return {type: "boolean", value: true};
+        case "integer":
+            return {type: "integer", value: 1234};
+        case "floating_point":
+            return {type: "floating_point", value: 12.34};
+        case "enumeration":
+            return parameter.options.length === 0 ? undefined : {type: "text", value: parameter.options[0].value};
+        default:
+            return undefined;
+    }
+}
+
+function creatorPreviewRequiredResourceErrors(
+    job: JobSpecification,
+    parameters: ApplicationParameter[],
+): CreatorValidationError[] {
+    const errors: CreatorValidationError[] = [];
+    for (const parameter of parameters) {
+        if (parameter.optional || !creatorPreviewRequiresResource(parameter)) continue;
+        if (job.parameters[parameter.name] !== undefined) continue;
+        errors.push({
+            code: "PREVIEW_RESOURCE_REQUIRED",
+            parameterName: parameter.name,
+            message: `Set a value for "${parameter.title || parameter.name}" in the preview panel.`,
+        });
+    }
+    return errors;
+}
+
+function creatorPreviewRequiresResource(parameter: ApplicationParameter): boolean {
+    switch (parameter.type) {
+        case "input_file":
+        case "input_directory":
+        case "peer":
+        case "ingress":
+        case "license_server":
+        case "network_ip":
+        case "private_network":
+            return true;
+        default:
+            return false;
+    }
+}
+
+const CreatorPreviewClass = injectStyle("creator-preview", k => `
     ${k} {
+        min-width: 0;
+    }
+`);
+
+const PreviewJobFormClass = injectStyle("creator-preview-job-form", k => `
+    ${k} {
+        min-width: 0;
+    }
+`);
+
+const PreviewScriptClass = injectStyle("creator-preview-script", k => `
+    ${k} {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
         max-width: 944px;
-        padding: 8px 12px;
-        background: color-mix(in srgb, var(--errorMain) 12%, transparent);
-        border: 1px solid color-mix(in srgb, var(--errorMain) 35%, var(--borderColor));
-        border-radius: 6px;
+        min-width: 0;
+        height: 100%;
+        min-height: 0;
+    }
+
+    ${k} > button {
+        flex-shrink: 0;
+        align-self: flex-start;
+    }
+`);
+
+const PreviewScriptCodeClass = injectStyle("creator-preview-script-code", k => `
+    ${k} {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow: auto;
+    }
+
+    ${k} > div {
+        height: 100%;
+    }
+
+    ${k} > div > pre {
+        height: 100%;
+        box-sizing: border-box;
+    }
+`);
+
+const PreviewErrorListClass = injectStyle("creator-preview-error-list", k => `
+    ${k} {
+        margin: 0 0 8px;
+        padding-left: 20px;
+    }
+`);
+
+const PreviewErrorLinkClass = injectStyle("creator-preview-error-link", k => `
+    ${k} {
+        border: 0;
+        padding: 0;
+        background: transparent;
+        color: var(--linkColor);
+        cursor: pointer;
+        font: inherit;
+    }
+
+    ${k}:hover {
+        color: var(--linkColorHover);
+        text-decoration: underline;
     }
 `);
 
@@ -1101,6 +1707,9 @@ function CreatorPanel(props: {
     onUpdateSbatch: (sbatch: Record<string, string>) => void;
     onUpdateCustomMeta: (patch: Partial<CreatorCustomMeta>) => void;
     onAddParameter: (type: A2WidgetType) => void;
+    customEligibility: AppStore.AppEditorCustomEligibilityResponse | null;
+    customGroups: AppStore.AppCatalogCustomGroup[];
+    customCategories: AppStore.AppCatalogCustomCategory[];
 }): React.ReactNode {
     const {draft} = props;
     const {selection} = draft;
@@ -1154,6 +1763,9 @@ function CreatorPanel(props: {
                     onUpdateSbatch={props.onUpdateSbatch}
                     onUpdateCustomMeta={props.onUpdateCustomMeta}
                     onAddParameter={props.onAddParameter}
+                    customEligibility={props.customEligibility}
+                    customGroups={props.customGroups}
+                    customCategories={props.customCategories}
                 />
             </div>
             {!showingMetadata ? (
@@ -1183,6 +1795,34 @@ function CreatorCardHeading(props: React.PropsWithChildren<{action?: React.React
             {!props.action ? null : <Box ml="auto">{props.action}</Box>}
         </Flex>
     );
+}
+
+function creatorValidationRequest(draft: CreatorDraft): CreatorValidationRequest {
+    return {
+        kind: creatorIsCustom(draft.context) ? "CUSTOM" : "MANAGED",
+        source: draft.sourceText,
+        custom: draft.customMeta ?? undefined,
+    };
+}
+
+function creatorMapValidationError(error: CreatorValidationError): CreatorValidationError {
+    const path = error.path ?? "";
+    const parameterMatch = path.match(/^parameters\.([^.[\]]+)/);
+    return {
+        ...error,
+        parameterName: error.parameterName ?? parameterMatch?.[1] ?? null,
+        message: error.message.replace(/\bcustom-/g, ""),
+    };
+}
+
+function creatorRequestError(error: unknown, code = "REQUEST_FAILED"): CreatorValidationError {
+    const value = error as {response?: {why?: string}; message?: string} | null;
+    const message = value?.response?.why ?? value?.message ?? "The server request failed.";
+    return {
+        code,
+        parameterName: null,
+        message: message.replace(/\bcustom-/g, ""),
+    };
 }
 
 export default Create;

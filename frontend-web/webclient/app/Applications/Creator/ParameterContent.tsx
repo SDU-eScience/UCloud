@@ -258,12 +258,13 @@ function ParameterRow(props: ParameterRowProps): React.ReactNode {
                 ref={rowRef}
                 className={WorkflowRowClass}
                 data-selected={selected}
+                data-dragging={isDraggingThis || undefined}
                 data-drop-target={isDropTarget || undefined}
                 data-row-id={props.id}
                 onClick={props.onSelect}
                 onKeyDown={onKeyDown}
                 tabIndex={0}
-                style={isDraggingThis ? {transform: `translateY(${dragOffset}px)`, zIndex: 10, opacity: 0.8} : undefined}
+                style={isDraggingThis ? {transform: `translateY(${dragOffset}px)`} : undefined}
             >
                 <DragHandle onPointerDown={onHandlePointerDown} visible={selected} centerOffset={28} />
                 <div className={WorkflowRowBodyClass}>
@@ -317,12 +318,13 @@ function ParameterRow(props: ParameterRowProps): React.ReactNode {
             ref={rowRef}
             className={ParameterRowWrapperClass}
             data-selected={selected}
+            data-dragging={isDraggingThis || undefined}
             data-drop-target={isDropTarget || undefined}
             data-row-id={props.id}
             onClick={props.onSelect}
             onKeyDown={onKeyDown}
             tabIndex={0}
-            style={isDraggingThis ? {transform: `translateY(${dragOffset}px)`, zIndex: 10, opacity: 0.8} : undefined}
+            style={isDraggingThis ? {transform: `translateY(${dragOffset}px)`} : undefined}
         >
             <DragHandle onPointerDown={onHandlePointerDown} visible={selected} centerOffset={handleOffset} />
             <div ref={bodyRef} className={ParameterRowBodyClass}>
@@ -375,7 +377,7 @@ const ParameterRowWrapperClass = injectStyle("creator-parameter-row", k => `
     ${k} {
         display: grid;
         grid-template-columns: auto 1fr;
-        gap: 12px;
+        column-gap: 0;
         align-items: start;
         border: 2px solid transparent;
         border-radius: 6px;
@@ -390,6 +392,15 @@ const ParameterRowWrapperClass = injectStyle("creator-parameter-row", k => `
 
     ${k}[data-drop-target] {
         opacity: 0.4;
+        border-color: var(--primaryMain);
+        border-style: dashed;
+    }
+
+    ${k}[data-dragging] {
+        position: relative;
+        z-index: 10;
+        opacity: 1;
+        background: var(--backgroundCard);
     }
 
     ${k}:focus {
@@ -411,7 +422,7 @@ const WorkflowRowClass = injectStyle("creator-workflow-row", k => `
     ${k} {
         display: grid;
         grid-template-columns: auto 1fr;
-        gap: 12px;
+        column-gap: 0;
         border: 2px solid transparent;
         border-radius: 6px;
         padding: 8px 12px;
@@ -425,6 +436,15 @@ const WorkflowRowClass = injectStyle("creator-workflow-row", k => `
 
     ${k}[data-drop-target] {
         opacity: 0.4;
+        border-color: var(--primaryMain);
+        border-style: dashed;
+    }
+
+    ${k}[data-dragging] {
+        position: relative;
+        z-index: 10;
+        opacity: 1;
+        background: var(--backgroundCard);
     }
 
     ${k}:focus {
@@ -444,19 +464,21 @@ const DragHandleClass = injectStyle("creator-drag-handle", k => `
     ${k} {
         width: 0;
         min-width: 0;
+        margin-right: 0;
         overflow: hidden;
         display: flex;
         align-items: flex-start;
         justify-content: center;
         cursor: grab;
         opacity: 0;
-        transition: width 0.15s ease, opacity 0.15s ease;
+        transition: width 0.15s ease, margin-right 0.15s ease, opacity 0.15s ease;
         touch-action: none;
         user-select: none;
     }
 
     ${k}[data-visible="true"] {
         width: 24px;
+        margin-right: 12px;
         opacity: 1;
     }
 

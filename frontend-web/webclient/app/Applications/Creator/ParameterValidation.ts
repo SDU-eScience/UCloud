@@ -1,7 +1,7 @@
 // Local parameter validation
 // =====================================================================================================================
-// The editor runs local field validation after each stable edit. It does not call backend
-// validation. The validation covers: empty names, duplicate names, numeric ranges, enumeration
+// The editor runs this local validation when preview or save is requested. It does not call
+// backend validation. The validation covers: empty names, duplicate names, numeric ranges, enumeration
 // option duplicates, enumeration defaults, and unresolved invocation references.
 //
 // The validation returns a list of errors. Each error has a parameter name (or null for a
