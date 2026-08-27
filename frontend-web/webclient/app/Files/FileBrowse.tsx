@@ -20,7 +20,6 @@ import {
     favoriteRowIcon,
     ResourceBrowseHeaderControls,
     createProjectSwitcherPortal,
-    OperationGroup,
 } from "@/ui-components/ResourceBrowser";
 import FilesApi, {
     addFileSensitivityDialog,
@@ -140,10 +139,7 @@ type SortById = "PATH" | "MODIFIED_AT" | "SIZE";
 const rowTitles: ColumnTitleList<SortById> = [{name: "Name", sortById: "PATH"}, {name: "", columnWidth: 32}, {name: "Modified at", sortById: "MODIFIED_AT", columnWidth: 160}, {name: "Size", sortById: "SIZE", columnWidth: 100}];
 
 const RESOURCE_NAME = "File";
-function FileBrowse({
-    opts,
-    headerControls,
-}: {
+function FileBrowse({opts, headerControls}: {
     opts?: ResourceBrowserOpts<UFile> & AdditionalResourceBrowserOpts;
     headerControls?: ResourceBrowseHeaderControls;
 }): React.ReactNode {
@@ -1078,19 +1074,19 @@ function FileBrowse({
                 });
 
                 browser.on("renderStat3", (file, stat) => {
-                    if (opts?.selection && !file.id.endsWith(fakeFileName) /* Note(Jonas): Disallow using folder being created */) {
-                        const button = browser.defaultButtonRenderer(opts.selection, file);
-                        if (button) {
-                            stat.replaceChildren(button);
-                        }
-                    } else {
-                        if (file.status.sizeIncludingChildrenInBytes != null || file.status.type !== "DIRECTORY") {
-                            stat.replaceChildren(createHTMLElements({
-                                tagType: "div",
-                                style: { marginTop: "auto", marginBottom: "auto" },
-                                innerText: sizeToString(file.status.sizeIncludingChildrenInBytes ?? file.status.sizeInBytes ?? null)
-                            }));
-                        }
+                    // TODO(Jonas): Handle fakeFileName in `show`-function
+                    // if (opts?.selection && !file.id.endsWith(fakeFileName) /* Note(Jonas): Disallow using folder being created */) {
+                    //     const button = browser.defaultButtonRenderer(opts.selection, file);
+                    //     if (button) {
+                    //         stat.replaceChildren(button);
+                    //     }
+                    // } else {
+                    if (file.status.sizeIncludingChildrenInBytes != null || file.status.type !== "DIRECTORY") {
+                        stat.replaceChildren(createHTMLElements({
+                            tagType: "div",
+                            style: { marginTop: "auto", marginBottom: "auto" },
+                            innerText: sizeToString(file.status.sizeIncludingChildrenInBytes ?? file.status.sizeInBytes ?? null)
+                        }));
                     }
                 });
 

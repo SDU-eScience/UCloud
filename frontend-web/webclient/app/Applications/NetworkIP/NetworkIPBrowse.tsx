@@ -175,11 +175,8 @@ export function NetworkIPBrowse({
                     }
                 });
 
-                browser.on("renderStat3", (ip, stat) => {
-                    if (opts?.selection) {
-                        const useButton = browser.defaultButtonRenderer(opts.selection, ip);
-                        if (useButton) stat.append(useButton);
-                    } else if (ip.status.boundTo.length === 1) {
+                browser.on("renderStat4", (ip, stat) => {
+                    if (ip.status.boundTo.length === 1) {
                         const [boundTo] = ip.status.boundTo;
                         stat.innerText = boundTo;
                     }

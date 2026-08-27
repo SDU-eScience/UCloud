@@ -2,7 +2,7 @@ import {injectStyle, makeClassName} from "@/Unstyled";
 
 let didInject = false;
 
-export enum BrowserSize {
+export enum ContainerSize {
     LARGE = 1080,
     MEDIUM = 860,
     SMALL = 600,
@@ -367,8 +367,8 @@ export function injectResourceBrowserStyle(rowSize: number) {
             text-align: center;
         }
 
-        /* BrowserSize.TINY */
-        @container (width < ${BrowserSize.SMALL}px) {
+        /* ContainerSize.TINY */
+        @container (width < ${ContainerSize.SMALL}px) {
             ${BrowserClass.dot} .row .title {
                 width: calc(var(--rowWidth) - var(--stat1Width) - 38px - var(--favoriteWidth) - 16px);
             }
@@ -391,8 +391,8 @@ export function injectResourceBrowserStyle(rowSize: number) {
             }
         }
 
-        /* BrowserSize.SMALL */
-        @container (${BrowserSize.SMALL}px < width < ${BrowserSize.MEDIUM}px) {
+        /* ContainerSize.SMALL */
+        @container (${ContainerSize.SMALL}px <= width < ${ContainerSize.MEDIUM}px) {
             ${BrowserClass.dot} .row .title {
                 width: calc(var(--rowWidth) - var(--stat1Width) - var(--stat2Width) - 38px - var(--favoriteWidth) - 16px);
             }
@@ -413,8 +413,8 @@ export function injectResourceBrowserStyle(rowSize: number) {
                 width: 0;
             }
         }
-        /* BrowserSize.MEDIUM */
-        @container (${BrowserSize.MEDIUM}px < width < ${BrowserSize.LARGE}px) {
+        /* ContainerSize.MEDIUM */
+        @container (${ContainerSize.MEDIUM}px <= width < ${ContainerSize.LARGE}px) {
             ${BrowserClass.dot} .row .title {
                 width: calc(var(--rowWidth) - var(--stat1Width) - var(--stat2Width) - var(--stat3Width) - 38px - var(--favoriteWidth) - 16px);
             }
@@ -435,8 +435,8 @@ export function injectResourceBrowserStyle(rowSize: number) {
             }
         }
 
-        /* BrowserSize.LARGE */
-        @container (${BrowserSize.LARGE}px < width) {
+        /* ContainerSize.LARGE */
+        @container (${ContainerSize.LARGE}px <= width) {
             ${BrowserClass.dot} .row .title {
                 width: calc(var(--rowWidth) - var(--stat1Width) - var(--stat2Width) - var(--stat3Width) - var(--stat4Width) - 38px - var(--favoriteWidth) - 16px);
             }

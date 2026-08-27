@@ -221,6 +221,7 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                     });
                 });
 
+                // TODO(Jonas): Kill simpleView var
                 browser.on("renderStat2", (app, stat) => {
                     stat.innerText = dateToString(app.currentRevision.createdAt);
 

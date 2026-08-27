@@ -168,15 +168,6 @@ export function PrivateNetworkBrowse({
                     stat.textContent = network.specification.subdomain;
                 })
 
-                browser.on("renderStat2", (network, stat) => {
-                    if (opts?.selection) {
-                        const useButton = browser.defaultButtonRenderer(opts.selection, network);
-                        if (useButton) {
-                            stat.append(useButton);
-                        }
-                    }
-                });
-
                 browser.on("generateBreadcrumbs", () => [{title: browser.resourceName, absolutePath: ""}]);
                 browser.on("renderEmptyPage", reason => {
                     const e = browser.emptyPageElement;

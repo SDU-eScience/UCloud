@@ -154,7 +154,7 @@ export function LicenseBrowse({
                 }
 
                 browser.on("renderTitle", (license, title, row) => {
-                    const { provider } = license.specification.product;
+                    const {provider} = license.specification.product;
                     if (provider) {
                         const icon = providerIcon(license.specification.product.provider);
                         icon.style.marginRight = "8px";
@@ -165,15 +165,6 @@ export function LicenseBrowse({
                         const { product } = license.specification;
                         const titleContent = `${product.id}${(license.id ? ` (${license.id})` : "")}`;
                         title.append(ResourceBrowser.defaultTitleRenderer(titleContent, row));
-                    }
-                });
-
-                browser.on("renderStat3", (license, stat) => {
-                    if (opts?.selection) {
-                        const button = browser.defaultButtonRenderer(opts.selection, license);
-                        if (button) {
-                            stat.replaceChildren(button);
-                        }
                     }
                 });
 

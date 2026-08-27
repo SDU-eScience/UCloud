@@ -46,7 +46,7 @@ import * as Heading from "@/ui-components/Heading";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {isAdminOrPI} from "@/Project";
 import {noopCall} from "@/Authentication/DataHook";
-import {BrowserSize, injectResourceBrowserStyle, ShortcutClass} from "./ResourceBrowserStyle";
+import {ContainerSize, injectResourceBrowserStyle, ShortcutClass} from "./ResourceBrowserStyle";
 import {ASC, DESC, Filter, FilterCheckbox, FilterInput, FilterOption, FilterWithOptions, MultiOption, MultiOptionFilter, SORT_BY, SORT_DIRECTION} from "./ResourceBrowserFilters";
 import {sendInformationNotification} from "@/Notifications";
 import ReactClient from "react-dom/client";
@@ -303,11 +303,11 @@ interface ResourceBrowserListenerMap<T> {
     "unhandledShortcut": (ev: KeyboardEvent) => void;
 
     "startRenderPage": () => void;
-    "renderTitle": (entry: T, title: HTMLElement, row: ResourceBrowserRow, size: BrowserSize, dims: RenderDimensions) => void;
-    "renderStat1": (entry: T, stat: HTMLElement, row: ResourceBrowserRow, size: BrowserSize) => void;
-    "renderStat2": (entry: T, stat: HTMLElement, row: ResourceBrowserRow, size: BrowserSize) => void;
-    "renderStat3": (entry: T, stat: HTMLElement, row: ResourceBrowserRow, size: BrowserSize) => void;
-    "renderStat4": (entry: T, stat: HTMLElement, row: ResourceBrowserRow, size: BrowserSize) => void;
+    "renderTitle": (entry: T, title: HTMLElement, row: ResourceBrowserRow, size: ContainerSize, dims: RenderDimensions) => void;
+    "renderStat1": (entry: T, stat: HTMLElement, row: ResourceBrowserRow, size: ContainerSize) => void;
+    "renderStat2": (entry: T, stat: HTMLElement, row: ResourceBrowserRow, size: ContainerSize) => void;
+    "renderStat3": (entry: T, stat: HTMLElement, row: ResourceBrowserRow, size: ContainerSize) => void;
+    "renderStat4": (entry: T, stat: HTMLElement, row: ResourceBrowserRow, size: ContainerSize) => void;
     "endRenderPage": () => void;
 
     // skipOpen is called pre-navigation/calling "open". If it returns `true`, calling open is skipped.
@@ -540,6 +540,7 @@ export class ResourceBrowser<T> {
     public opts: {
         embedded?: EmbeddedSettings;
         selector: boolean;
+        selection?: Selection<T> | undefined
         columnTitles: ColumnTitleList;
     };
     // Note(Jonas): To use for project change listening.
@@ -555,6 +556,7 @@ export class ResourceBrowser<T> {
         ResourceBrowser.isAnyModalOpen = ResourceBrowser.isAnyModalOpen || this.isModal;
         this.opts = {
             embedded: opts?.embedded,
+            selection: opts?.selection,
             selector: !!opts?.selection,
             columnTitles: [{name: ""}, {name: "", columnWidth: 20}, {name: "", columnWidth: 20}, {name: "", columnWidth: 20}, {
                 name: "",
@@ -1223,28 +1225,47 @@ export class ResourceBrowser<T> {
             row.container.setAttribute("data-selected", (this.isSelected[i] !== 0).toString());
             row.container.classList.remove("hidden");
 
+            const containerSize = containerSizeFromWidth(row.container.getBoundingClientRect().width);
+
             const x = this.scrollingContainerLeft + relativeX;
             const y = this.scrollingContainerTop + relativeY - firstVisiblePixel;
 
-            const browserSize = browserSizeFromWidth(this.scrollingContainerWidth);
-            console.log(BrowserSize[browserSize], this.scrollingContainerWidth);
-
-            this.dispatchMessage("renderTitle", fn => fn(entry, row.title, row, browserSize, {
+            this.dispatchMessage("renderTitle", fn => fn(entry, row.title, row, containerSize, {
                 width: containerWidth,
                 height: ResourceBrowser.rowSize,
                 x, y
             }));
 
-            this.dispatchMessage("renderStat1", fn => fn(entry, row.stat1, row, browserSize));
+            this.dispatchMessage("renderStat1", fn => fn(entry, row.stat1, row, containerSize));
 
-            if (browserSize >= BrowserSize.SMALL) {
-                this.dispatchMessage("renderStat2", fn => fn(entry, row.stat2, row, browserSize));
-                if (browserSize >= BrowserSize.MEDIUM) {
-                    this.dispatchMessage("renderStat3", fn => fn(entry, row.stat3, row, browserSize));
-                    if (browserSize >= BrowserSize.LARGE) {
-                        this.dispatchMessage("renderStat4", fn => fn(entry, row.stat4, row, browserSize));
+            if (containerSize >= ContainerSize.SMALL) {
+                this.dispatchMessage("renderStat2", fn => fn(entry, row.stat2, row, containerSize));
+                if (containerSize >= ContainerSize.MEDIUM) {
+                    this.dispatchMessage("renderStat3", fn => fn(entry, row.stat3, row, containerSize));
+                    if (containerSize >= ContainerSize.LARGE) {
+                        this.dispatchMessage("renderStat4", fn => fn(entry, row.stat4, row, containerSize));
                     }
                 }
+            }
+
+            if (this.opts.selection) {
+                let stat: HTMLElement;
+                switch (containerSize) {
+                    case ContainerSize.TINY:
+                        stat = row.stat1;
+                        break;
+                    case ContainerSize.SMALL:
+                        stat = row.stat2;
+                        break;
+                    case ContainerSize.MEDIUM:
+                        stat = row.stat3;
+                        break;
+                    case ContainerSize.LARGE:
+                        stat = row.stat4;
+                        break;
+                }
+                const button = this.defaultButtonRenderer(this.opts.selection, entry);
+                if (button) stat.replaceChildren(button);
             }
         }
         this.dispatchMessage("endRenderPage", fn => fn());
@@ -1395,7 +1416,7 @@ export class ResourceBrowser<T> {
             }
             return button;
         }
-        return null
+        return null;
     }
 
     renderDefaultRow(row: ResourceBrowserRow, title: string, opts?: {color?: ThemeColor; color2?: ThemeColor;}): {
@@ -3387,6 +3408,7 @@ export class ResourceBrowser<T> {
         }
         const titleRow = this.root.querySelector(".row.rows-title");
         if (!titleRow) return;
+        // TODO(Jonas): Handle this differently
         this.setTitleAndHandlers(titleRow.querySelector(".title")!, titles[0], "right");
         this.setTitleAndHandlers(titleRow.querySelector(".stat1")!, titles[1], "left");
         this.setTitleAndHandlers(titleRow.querySelector(".stat2")!, titles[2], "left");
@@ -3779,11 +3801,12 @@ function ControlsDialog({features, custom}: {features: ResourceBrowseFeatures, c
     </div>
 }
 
-function browserSizeFromWidth(width: number): BrowserSize {
-    if (width >= BrowserSize.LARGE) return BrowserSize.LARGE;
-    if (width >= BrowserSize.MEDIUM) return BrowserSize.MEDIUM;
-    if (width >= BrowserSize.SMALL) return BrowserSize.SMALL;
-    return BrowserSize.TINY;
+const ROW_PADDING_PX = 16;
+function containerSizeFromWidth(width: number): ContainerSize {
+    if (width - ROW_PADDING_PX >= ContainerSize.LARGE) return ContainerSize.LARGE;
+    if (width - ROW_PADDING_PX >= ContainerSize.MEDIUM) return ContainerSize.MEDIUM;
+    if (width - ROW_PADDING_PX >= ContainerSize.SMALL) return ContainerSize.SMALL;
+    return ContainerSize.TINY;
 }
 
 export function controlsOperation<T>(features: ResourceBrowseFeatures, custom?: ControlDescription[]): Operation<T, {

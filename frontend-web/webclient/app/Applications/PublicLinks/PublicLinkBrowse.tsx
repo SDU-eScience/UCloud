@@ -238,13 +238,6 @@ export function PublicLinkBrowse({
                         const [boundTo] = link.status.boundTo;
                         stat.innerText = boundTo;
                     }
-
-                    if (opts?.selection) {
-                        const button = browser.defaultButtonRenderer(opts.selection, link);
-                        if (button) {
-                            stat.replaceChildren(button);
-                        }
-                    }
                 });
 
                 browser.on("generateBreadcrumbs", () => browser.defaultBreadcrumbs());

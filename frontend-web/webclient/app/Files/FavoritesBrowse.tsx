@@ -163,13 +163,15 @@ function FavoriteBrowse({selection, navigateToFolder}: {
                     row.star.setAttribute("data-favorite", "true");
                 });
 
-                browser.on("renderStat3", (fav, stat) => {
+                function appendSelectButton(fav: FileMetadataAttached, stat: HTMLElement) {
                     const fileInfo = sidebarFavoriteCache.fileInfoIfPresent(fav.path);
                     const button = browser.defaultButtonRenderer(selection, fileInfo ?? fav);
                     if (button) {
                         stat.append(button);
                     }
-                });
+                }
+
+                browser.on("renderStat1", appendSelectButton);
 
                 ResourceBrowser.icons.renderIcon({
                     name: "ftFolder",

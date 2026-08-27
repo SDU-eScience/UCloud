@@ -52,8 +52,7 @@ import {divText} from "@/Utilities/HTMLUtilities";
 import {TruncateClass} from "@/ui-components/Truncate";
 import {sendFailureNotification} from "@/Notifications";
 import {ProductCompute} from "@/Accounting";
-import { BrowserSize } from "@/ui-components/ResourceBrowserStyle";
-import { i } from "../../../playwright-report/trace/assets/defaultSettingsView-BNmKHKpQ";
+import {ContainerSize} from "@/ui-components/ResourceBrowserStyle";
 
 const defaultRetrieveFlags: {itemsPerPage: number} = {
     itemsPerPage: 250,
@@ -211,40 +210,45 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                     }));
                 });
 
+                function renderCreatedBy(job: Job, stat: HTMLElement) {
+                    if (job.owner.createdBy === "_ucloud") {
+                        stat.innerHTML = "";
+                        const elem = document.createElement("i");
+                        elem.innerText = "Unknown";
+                        stat.append(elem);
+                    } else {
+                        stat.style.justifyContent = "left";
+                        SimpleAvatarComponentCache.appendTo(stat, job.owner.createdBy, `Started by ${job.owner.createdBy}`).then(wrapper => {
+                            const div = divText(job.owner.createdBy);
+                            div.style.marginTop = div.style.marginBottom = "auto";
+                            div.classList.add(TruncateClass);
+                            div.style.maxWidth = "150px";
+                            div.style.marginLeft = "12px";
+                            wrapper.append(div);
+                            wrapper.style.display = "flex";
+                        });
+                    }
+                }
+
                 browser.on("renderStat1", (job, stat, row, size) => {
-                    if (size === BrowserSize.TINY) {
-                        browser.dispatchMessage("renderStat4", fn => fn(job, stat, row, size));
-                        return;
+                    if (size === ContainerSize.TINY) {
+                        renderJobStateIcon(job, stat);
+                    } else if (size === ContainerSize.SMALL) {
+                        renderJobStateText(job, stat);
+                    } else if (size === ContainerSize.MEDIUM) {
+                        renderJobStateIcon(job, stat);
+                    } else {
+                        renderCreatedBy(job, stat);
                     }
-                    if (size === BrowserSize.SMALL) {
-                        browser.dispatchMessage("renderStat3", fn => fn(job, stat, row, size));
-                        return;
-                    }
-
-                        if (job.owner.createdBy === "_ucloud") {
-                            stat.innerHTML = "";
-                            const elem = document.createElement("i");
-                            elem.innerText = "Unknown";
-                            stat.append(elem);
-                        } else {
-                            stat.style.justifyContent = "left";
-                            SimpleAvatarComponentCache.appendTo(stat, job.owner.createdBy, `Started by ${job.owner.createdBy}`).then(wrapper => {
-                                const div = divText(job.owner.createdBy);
-                                div.style.marginTop = div.style.marginBottom = "auto";
-                                div.classList.add(TruncateClass);
-                                div.style.maxWidth = "150px";
-                                div.style.marginLeft = "12px";
-                                wrapper.append(div);
-                                wrapper.style.display = "flex";
-                            });
-                        }
                 });
 
-                browser.on("renderStat2", (job, stat) => {
-                    stat.innerText  = dateToDateStringOrTime(job.createdAt ?? timestampUnixMs());
-                });
+                function renderCreationText(job: Job, stat: HTMLElement) {
+                   stat.innerText  = dateToDateStringOrTime(job.createdAt ?? timestampUnixMs());
+                }
 
-                browser.on("renderStat3", (job, stat, row, size) => {
+                browser.on("renderStat2", renderCreationText);
+
+                function renderJobStateText(job: Job, stat: HTMLElement) {
                     switch (job.status.state) {
                         case "IN_QUEUE": {
                             stat.innerText = "In queue..."
@@ -286,31 +290,28 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                             break;
                         }
                     }
-                });
+                }
 
-                browser.on("renderStat4", (job, stat) => {
-                    if (opts?.selection) {
-                        const button = browser.defaultButtonRenderer(opts.selection, job);
-                        if (button) {
-                            stat.replaceChildren(button);
-                        }
-                    } else {
-                        const [status, setStatus] = ResourceBrowser.defaultIconRenderer();
-                        const [statusIconName, statusIconColor] = JOB_STATE_AND_ICON_COLOR_MAP[job.status.state];
-                        ResourceBrowser.icons.renderIcon({
-                            name: statusIconName,
-                            width: 32,
-                            height: 32,
-                            color: statusIconColor,
-                            color2: statusIconColor
-                        }).then(setStatus);
-                        status.style.margin = "0";
-                        status.style.width = "24px";
-                        status.style.height = "24px";
-                        status.style.marginTop = status.style.marginBottom = "auto";
-                        stat.append(status);
-                    }
-                });
+                browser.on("renderStat3", renderJobStateText);
+
+                function renderJobStateIcon(job: Job, stat: HTMLElement) {
+                    const [status, setStatus] = ResourceBrowser.defaultIconRenderer();
+                    const [statusIconName, statusIconColor] = JOB_STATE_AND_ICON_COLOR_MAP[job.status.state];
+                    ResourceBrowser.icons.renderIcon({
+                        name: statusIconName,
+                        width: 32,
+                        height: 32,
+                        color: statusIconColor,
+                        color2: statusIconColor
+                    }).then(setStatus);
+                    status.style.margin = "0";
+                    status.style.width = "24px";
+                    status.style.height = "24px";
+                    status.style.marginTop = status.style.marginBottom = "auto";
+                    stat.append(status);
+                }
+
+                browser.on("renderStat4", renderJobStateIcon);
 
                 const startRenaming = (resource: Job) => {
                     browser.showRenameField(

@@ -17,6 +17,7 @@ import {divText} from "@/Utilities/HTMLUtilities";
 import {TruncateClass} from "@/ui-components/Truncate";
 import {copyToClipboard} from "@/UtilityFunctions";
 import {sendInformationNotification} from "@/Notifications";
+import {ContainerSize} from "@/ui-components/ResourceBrowserStyle";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -88,7 +89,7 @@ export function ApiTokenBrowse(props: {opts?: ResourceBrowserOpts<Api.ApiToken>}
                     title.append(ResourceBrowser.defaultTitleRenderer(token.specification.title, row));
                 });
 
-                browser.on("renderStat1", (token, stat) => {
+                function renderAvatar(token: Api.ApiToken, stat: HTMLElement) {
                     stat.style.justifyContent = "left";
                     SimpleAvatarComponentCache.appendTo(stat, token.owner.createdBy, `Created by ${token.owner.createdBy}`).then(wrapper => {
                         const div = divText(token.owner.createdBy);
@@ -99,20 +100,40 @@ export function ApiTokenBrowse(props: {opts?: ResourceBrowserOpts<Api.ApiToken>}
                         wrapper.append(div);
                         wrapper.style.display = "flex";
                     });
+                }
+
+                browser.on("renderStat1", (token, stat, _, size) => {
+                    if (size == ContainerSize.TINY) {
+                        renderServerUrl(token, stat);
+                    } else if (size == ContainerSize.SMALL) {
+                        renderExpiration(token, stat);
+                    } else {
+                        renderAvatar(token, stat);
+                    }
                 });
 
-                browser.on("renderStat2", (token, stat) => {
+                function renderExpiration(token: Api.ApiToken, stat: HTMLElement) {
                     stat.append(formatTs(token.specification.expiresAt));
-                })
+                }
 
-                browser.on("renderStat3", (token, stat) => {
+                browser.on("renderStat2", (token, stat, _, size) => {
+                    if (size <= ContainerSize.SMALL) {
+                        renderServerUrl(token, stat);
+                    } else {
+                        renderExpiration(token, stat);
+                    }
+                });
+
+                function renderServerUrl(token: Api.ApiToken, stat: HTMLElement) {
                     const serverUrl = token.status.server?.trim() || "Not available";
                     const serverElement = divText(serverUrl);
                     serverElement.classList.add(TruncateClass);
                     serverElement.title = serverUrl;
                     stat.append(serverElement);
                     stat.style.marginTop = stat.style.marginBottom = "auto"
-                });
+                }
+
+                browser.on("renderStat3", renderServerUrl);
 
                 browser.on("endRenderPage", () => {
                     SimpleAvatarComponentCache.fetchMissingAvatars();
