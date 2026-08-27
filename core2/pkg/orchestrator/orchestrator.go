@@ -24,6 +24,7 @@ import (
 type ProviderCallOpts struct {
 	Username util.Option[string]
 	Reason   util.Option[string]
+	Timeout  util.Option[time.Duration]
 }
 
 var providerClients = util.NewCache[string, *rpc.Client](24 * time.Hour * 365 * 100)
@@ -166,6 +167,17 @@ func InvokeProvider[Req any, Resp any](
 	client, ok := providerClient(provider)
 	if !ok {
 		return resp, util.HttpErr(http.StatusServiceUnavailable, "service provider is unavailable")
+	}
+	if opts.Timeout.Present && client.Client != nil && client.Client.Timeout != opts.Timeout.Value {
+		httpClientCopy := *client.Client
+		httpClientCopy.Timeout = opts.Timeout.Value
+		client = &rpc.Client{
+			RefreshToken:    client.RefreshToken,
+			AccessToken:     client.AccessToken,
+			BasePath:        client.BasePath,
+			Client:          &httpClientCopy,
+			CoreForProvider: client.CoreForProvider,
+		}
 	}
 
 	headers := http.Header{}

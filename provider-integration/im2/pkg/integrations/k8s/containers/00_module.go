@@ -64,6 +64,7 @@ func Init() controller.JobsService {
 		HandleShell:              handleShell,
 		OpenWebSession:           openWebSession,
 		RequestDynamicParameters: requestDynamicParameters,
+		RenderInvocation:         containersRenderInvocation,
 	}
 }
 

@@ -382,6 +382,132 @@ var AppsRetrieveStudioApplication = rpc.Call[AppCatalogRetrieveStudioApplication
 	Operation:   "studioApplication",
 }
 
+// Application editor
+// =====================================================================================================================
+
+type AppEditorApplicationKind string
+
+const (
+	AppEditorApplicationKindManaged AppEditorApplicationKind = "MANAGED"
+	AppEditorApplicationKindCustom  AppEditorApplicationKind = "CUSTOM"
+)
+
+type AppEditorSourceIntent string
+
+const (
+	AppEditorSourceIntentEdit AppEditorSourceIntent = "EDIT"
+	AppEditorSourceIntentFork AppEditorSourceIntent = "FORK"
+)
+
+type AppEditorSourceLocation struct {
+	Line   int `json:"line"`
+	Column int `json:"column"`
+}
+
+type AppEditorValidationError struct {
+	Code     string                               `json:"code"`
+	Path     string                               `json:"path"`
+	Message  string                               `json:"message"`
+	Location util.Option[AppEditorSourceLocation] `json:"location,omitempty"`
+}
+
+type AppEditorCustomMetadata struct {
+	ServiceProvider    string `json:"serviceProvider"`
+	PublishedToProject bool   `json:"publishedToProject"`
+	FlavorName         string `json:"flavorName"`
+	GroupId            int    `json:"groupId"`
+	CategoryId         int    `json:"categoryId"`
+}
+
+type AppEditorRetrieveSourceRequest struct {
+	Kind            AppEditorApplicationKind `json:"kind"`
+	Name            string                   `json:"name"`
+	Version         string                   `json:"version"`
+	ServiceProvider util.Option[string]      `json:"serviceProvider,omitempty"`
+	Intent          AppEditorSourceIntent    `json:"intent"`
+}
+
+type AppEditorRetrieveSourceResponse struct {
+	Kind   AppEditorApplicationKind             `json:"kind"`
+	Source string                               `json:"source"`
+	Custom util.Option[AppEditorCustomMetadata] `json:"custom,omitempty"`
+}
+
+type AppEditorValidateRequest struct {
+	Kind   AppEditorApplicationKind             `json:"kind"`
+	Source string                               `json:"source"`
+	Custom util.Option[AppEditorCustomMetadata] `json:"custom,omitempty"`
+}
+
+type AppEditorValidateResponse struct {
+	Application util.Option[Application]   `json:"application,omitempty"`
+	Errors      []AppEditorValidationError `json:"errors"`
+}
+
+type AppEditorEligibilityRequirement struct {
+	Eligible bool   `json:"eligible"`
+	Message  string `json:"message"`
+}
+
+type AppEditorProviderEligibility struct {
+	Provider          string                          `json:"provider"`
+	ContainerSupport  AppEditorEligibilityRequirement `json:"containerSupport"`
+	RegistrySupport   AppEditorEligibilityRequirement `json:"registrySupport"`
+	ComputeAllocation AppEditorEligibilityRequirement `json:"computeAllocation"`
+	StorageAllocation AppEditorEligibilityRequirement `json:"storageAllocation"`
+	Eligible          bool                            `json:"eligible"`
+}
+
+type AppEditorCustomEligibilityResponse struct {
+	Providers  []AppEditorProviderEligibility `json:"providers"`
+	CanPublish bool                           `json:"canPublish"`
+}
+
+type AppEditorRenderRequest struct {
+	Validation AppEditorValidateRequest `json:"validation"`
+	Job        JobSpecification         `json:"job"`
+}
+
+type AppEditorRateLimit struct {
+	Limit     int                        `json:"limit"`
+	Remaining int                        `json:"remaining"`
+	RetryAt   util.Option[fnd.Timestamp] `json:"retryAt,omitempty"`
+}
+
+type AppEditorRenderResponse struct {
+	Script    util.Option[string]        `json:"script,omitempty"`
+	Errors    []AppEditorValidationError `json:"errors"`
+	RateLimit AppEditorRateLimit         `json:"rateLimit"`
+}
+
+var AppsEditorRetrieveSource = rpc.Call[AppEditorRetrieveSourceRequest, AppEditorRetrieveSourceResponse]{
+	BaseContext: appCatalogNamespace,
+	Convention:  rpc.ConventionRetrieve,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "editorSource",
+}
+
+var AppsEditorValidate = rpc.Call[AppEditorValidateRequest, AppEditorValidateResponse]{
+	BaseContext: appCatalogNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "editorValidate",
+}
+
+var AppsEditorEligibility = rpc.Call[util.Empty, AppEditorCustomEligibilityResponse]{
+	BaseContext: appCatalogNamespace,
+	Convention:  rpc.ConventionRetrieve,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "editorEligibility",
+}
+
+var AppsEditorRenderInvocation = rpc.Call[AppEditorRenderRequest, AppEditorRenderResponse]{
+	BaseContext: appCatalogNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "editorRenderInvocation",
+}
+
 // Group management
 // =====================================================================================================================
 

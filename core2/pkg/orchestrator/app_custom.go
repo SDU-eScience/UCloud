@@ -943,14 +943,14 @@ func appCustomUpdateCategoryAcl(actor rpc.Actor, request orcapi.UpdatedAcl) *uti
 // custom-origin flavor namespace before the final database insert and cache update. Retrieval applies workspace,
 // category, publication, and discovery checks. Update changes publication only; application YAML remains immutable.
 
-func appCustomHasProviderAllocations(actor rpc.Actor, provider string) bool {
+func appCustomActorHasProviderAllocations(actor rpc.Actor, provider string) (compute bool, storage bool) {
 	owner := accapi.WalletOwnerUser(actor.Username)
 	if actor.Project.Present {
 		owner = accapi.WalletOwnerProject(string(actor.Project.Value))
 	}
 	response, err := accapi.WalletsBrowseInternal.Invoke(accapi.WalletsBrowseInternalRequest{Owner: owner})
 	if err != nil {
-		return false
+		return false, false
 	}
 	found := map[accapi.ProductType]bool{}
 	for _, wallet := range response.Wallets {
@@ -965,10 +965,10 @@ func appCustomHasProviderAllocations(actor rpc.Actor, provider string) bool {
 			}
 		}
 	}
-	return found[accapi.ProductTypeCompute] && found[accapi.ProductTypeStorage]
+	return found[accapi.ProductTypeCompute], found[accapi.ProductTypeStorage]
 }
 
-func appCustomProviderHasSupport(provider string) bool {
+func appCustomProviderHasSupportForDockerAndRegistry(provider string) (bool, bool) {
 	docker := false
 	for _, product := range SupportRetrieveProducts[orcapi.JobSupport](jobType).ProductsByProvider[provider] {
 		docker = docker || product.Support.Docker.Enabled
@@ -977,6 +977,16 @@ func appCustomProviderHasSupport(provider string) bool {
 	for _, product := range SupportRetrieveProducts[orcapi.FSSupport](driveType).ProductsByProvider[provider] {
 		registry = registry || product.Support.ContainerRepositories.Enabled
 	}
+	return docker, registry
+}
+
+func appCustomHasProviderAllocations(actor rpc.Actor, provider string) bool {
+	compute, storage := appCustomActorHasProviderAllocations(actor, provider)
+	return compute && storage
+}
+
+func appCustomProviderHasSupport(provider string) bool {
+	docker, registry := appCustomProviderHasSupportForDockerAndRegistry(provider)
 	return docker && registry
 }
 
@@ -1041,12 +1051,15 @@ func appCustomFlavorAvailableForVariant(workspace string, group AppGroupId, flav
 	return true
 }
 
+func appCustomNormalizeFlavorName(flavorName *string) *util.HttpError {
+	return util.ValidateStringE(flavorName, "flavorName", 0)
+}
+
 func appCustomCreateApplication(actor rpc.Actor, request orcapi.AppCatalogCreateCustomApplicationRequest) *util.HttpError {
 	if !strings.HasPrefix(request.Name, "custom-") {
-		return util.HttpErr(http.StatusBadRequest, "application names must start with custom-")
+		request.Name = "custom-" + request.Name
 	}
-	request.FlavorName = strings.TrimSpace(request.FlavorName)
-	if err := util.ValidateStringE(&request.FlavorName, "flavorName", 0); err != nil {
+	if err := appCustomNormalizeFlavorName(&request.FlavorName); err != nil {
 		return err
 	}
 	if !actor.Project.Present && request.PublishedToProject {

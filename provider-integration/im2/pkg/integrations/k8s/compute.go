@@ -47,6 +47,7 @@ func InitCompute() controller.JobsService {
 		HandleShell:              handleShell,
 		OpenWebSession:           openWebSession,
 		RequestDynamicParameters: requestDynamicParameters,
+		RenderInvocation:         renderInvocation,
 		Suspend:                  suspend,
 		Unsuspend:                unsuspend,
 		HandleBuiltInVnc:         handleBuiltInVnc,
@@ -77,6 +78,14 @@ func InitCompute() controller.JobsService {
 			RetrieveProducts: shared.PrivateNetworkRetrieveProducts,
 		},
 	}
+}
+
+func renderInvocation(job *orc.Job) (string, *util.HttpError) {
+	service := backend(job)
+	if service == nil || service.RenderInvocation == nil {
+		return "", util.HttpErr(http.StatusBadRequest, "Invocation preview is not supported for this application")
+	}
+	return service.RenderInvocation(job)
 }
 
 var nodes *shared.K8sResourceTracker[*k8score.Node]

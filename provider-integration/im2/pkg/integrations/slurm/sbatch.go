@@ -741,7 +741,7 @@ func CreateSBatchFile(job *orc.Job, jobFolder string, accountName string) SBatch
 		if err != nil {
 			log.Warn("Jinja generation failure for %s %s",
 				job.Specification.Application.Name, job.Specification.Application.Version)
-			cli = "# Failure during generation of invocation: " + err.Error()
+			return SBatchResult{Error: err}
 		} else {
 			cli = output
 		}

@@ -834,6 +834,21 @@ var JobsProviderRequestDynamicParameters = rpc.Call[JobsProviderRequestDynamicPa
 	Operation:   "requestDynamicParameters",
 }
 
+type JobsProviderRenderInvocationRequest struct {
+	Job Job `json:"job"`
+}
+
+type JobsProviderRenderInvocationResponse struct {
+	Script string `json:"script"`
+}
+
+var JobsProviderRenderInvocation = rpc.Call[JobsProviderRenderInvocationRequest, JobsProviderRenderInvocationResponse]{
+	BaseContext: jobProviderNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesPrivileged,
+	Operation:   "renderInvocation",
+}
+
 type JobsProviderCreateApplicationVariantRequest struct {
 	Job             Job            `json:"job"`
 	VariantId       int64          `json:"variantId"`

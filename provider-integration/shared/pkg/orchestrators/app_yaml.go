@@ -579,9 +579,144 @@ type A2Module struct {
 	Optional  []string `json:"optional" yaml:"optional"`
 }
 
+func a2YamlMappingValue(node *yaml.Node, key string) *yaml.Node {
+	if node == nil || node.Kind != yaml.MappingNode {
+		return nil
+	}
+	for i := 0; i+1 < len(node.Content); i += 2 {
+		if node.Content[i].Value == key {
+			return node.Content[i+1]
+		}
+	}
+	return nil
+}
+
+func a2YamlValidateFields(node *yaml.Node, path string, allowed ...string) error {
+	if node == nil || node.Kind != yaml.MappingNode {
+		return nil
+	}
+	for i := 0; i+1 < len(node.Content); i += 2 {
+		name := node.Content[i].Value
+		if slices.Contains(allowed, name) {
+			continue
+		}
+		if path == "" {
+			return fmt.Errorf("unknown field %q", name)
+		}
+		return fmt.Errorf("unknown field %q", path+"."+name)
+	}
+	return nil
+}
+
+func a2YamlValidateParameterFields(node *yaml.Node, path string) error {
+	typeNode := a2YamlMappingValue(node, "type")
+	if typeNode == nil {
+		return a2YamlValidateFields(node, path, "type", "title", "description", "optional")
+	}
+	base := []string{"type", "title", "description", "optional"}
+	switch typeNode.Value {
+	case "Integer", "FloatingPoint":
+		base = append(base, "defaultValue", "min", "max", "step")
+	case "Boolean", "Text", "TextArea":
+		base = append(base, "defaultValue")
+	case "Enumeration":
+		base = append(base, "defaultValue", "options")
+	case "Workflow":
+		base = append(base, "init", "job", "readme", "parameters")
+	}
+	if err := a2YamlValidateFields(node, path, base...); err != nil {
+		return err
+	}
+	if typeNode.Value == "Enumeration" {
+		options := a2YamlMappingValue(node, "options")
+		if options != nil && options.Kind == yaml.SequenceNode {
+			for i, option := range options.Content {
+				if err := a2YamlValidateFields(option, fmt.Sprintf("%s.options[%d]", path, i), "title", "value"); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	if typeNode.Value == "Workflow" {
+		parameters := a2YamlMappingValue(node, "parameters")
+		if parameters != nil && parameters.Kind == yaml.MappingNode {
+			for i := 0; i+1 < len(parameters.Content); i += 2 {
+				name := parameters.Content[i].Value
+				if err := a2YamlValidateParameterFields(parameters.Content[i+1], path+".parameters."+name); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func a2YamlValidateDocumentFields(node *yaml.Node) error {
+	if err := a2YamlValidateFields(
+		node,
+		"",
+		"application", "name", "version", "software", "title", "description", "license", "documentation",
+		"features", "modules", "parameters", "sbatch", "invocation", "ucx", "environment", "web", "vnc", "ssh",
+		"inference", "extensions",
+	); err != nil {
+		return err
+	}
+
+	software := a2YamlMappingValue(node, "software")
+	softwareType := a2YamlMappingValue(software, "type")
+	if softwareType != nil && softwareType.Value == "Native" {
+		if err := a2YamlValidateFields(software, "software", "type", "load"); err != nil {
+			return err
+		}
+		load := a2YamlMappingValue(software, "load")
+		if load != nil && load.Kind == yaml.SequenceNode {
+			for i, application := range load.Content {
+				if err := a2YamlValidateFields(application, fmt.Sprintf("software.load[%d]", i), "name", "version"); err != nil {
+					return err
+				}
+			}
+		}
+	} else if err := a2YamlValidateFields(software, "software", "type", "image"); err != nil {
+		return err
+	}
+
+	parameters := a2YamlMappingValue(node, "parameters")
+	if parameters != nil && parameters.Kind == yaml.MappingNode {
+		for i := 0; i+1 < len(parameters.Content); i += 2 {
+			name := parameters.Content[i].Value
+			if err := a2YamlValidateParameterFields(parameters.Content[i+1], "parameters."+name); err != nil {
+				return err
+			}
+		}
+	}
+
+	sections := []struct {
+		Name   string
+		Fields []string
+	}{
+		{Name: "features", Fields: []string{"multiNode", "links", "ipAddresses", "folders", "jobLinking", "jobAuditLog"}},
+		{Name: "modules", Fields: []string{"mountPath", "optional"}},
+		{Name: "web", Fields: []string{"enabled", "port"}},
+		{Name: "vnc", Fields: []string{"enabled", "port", "password"}},
+		{Name: "ssh", Fields: []string{"mode"}},
+		{Name: "inference", Fields: []string{"mode"}},
+		{Name: "ucx", Fields: []string{"executable"}},
+	}
+	for _, section := range sections {
+		if err := a2YamlValidateFields(a2YamlMappingValue(node, section.Name), section.Name, section.Fields...); err != nil {
+			return err
+		}
+	}
+	executable := a2YamlMappingValue(a2YamlMappingValue(node, "ucx"), "executable")
+	return a2YamlValidateFields(executable, "ucx.executable", "manifestUrl", "publicKey", "binaryName")
+}
+
 func (y *A2Yaml) UnmarshalYAML(n *yaml.Node) error {
 	type alias A2Yaml
 	var a alias
+	if err := a2YamlValidateDocumentFields(n); err != nil {
+		return err
+	}
 
 	// Decode normally first
 	if err := n.Decode(&a); err != nil {
@@ -653,6 +788,15 @@ func (y *A2Yaml) Normalize() (Application, *util.HttpError) {
 	if y.Documentation.Present {
 		util.ValidateString(&y.Documentation.Value, "documentation", 0, &err)
 	}
+	if y.License.Present {
+		util.ValidateString(&y.License.Value, "license", 0, &err)
+	}
+	util.ValidateString(
+		&y.Invocation,
+		"invocation",
+		util.StringValidationAllowMultiline|util.StringValidationAllowLong,
+		&err,
+	)
 	for i := 0; i < len(y.Extensions); i++ {
 		util.ValidateString(&y.Extensions[i], fmt.Sprintf("extensions[%d]", i), 0, &err)
 	}
@@ -668,6 +812,7 @@ func (y *A2Yaml) Normalize() (Application, *util.HttpError) {
 		Authors:               []string{"UCloud"},
 		Title:                 y.Title.GetOrDefault(y.Name),
 		Description:           y.Description.GetOrDefault(""),
+		License:               y.License.GetOrDefault(""),
 	}
 	util.ValidateEnum(&y.Software.Type, A2SoftwareKinds, "software.type", &err)
 	switch y.Software.Type {
@@ -746,11 +891,10 @@ func (y *A2Yaml) Normalize() (Application, *util.HttpError) {
 
 	for _, paramName := range y.ParametersOrder {
 		param := y.Parameters[paramName]
+		util.ValidateString(&paramName, fmt.Sprintf("parameters.%s", paramName), 0, &err)
 		mapped := ApplicationParameter{
 			Name: paramName,
 		}
-
-		util.ValidateString(&paramName, fmt.Sprintf("parameters.%s", paramName), 0, &err)
 
 		var base A2ParamBase
 
@@ -786,6 +930,13 @@ func (y *A2Yaml) Normalize() (Application, *util.HttpError) {
 					paramName,
 				))
 			}
+			if i.DefaultValue.Present && i.Max.Present && i.DefaultValue.Value > i.Max.Value {
+				err = util.MergeHttpErr(err, util.HttpErr(
+					http.StatusBadRequest,
+					"%s default value must not exceed the maximum value",
+					paramName,
+				))
+			}
 
 			if i.Min.Present && i.Max.Present {
 				if i.Min.Value > i.Max.Value {
@@ -804,6 +955,15 @@ func (y *A2Yaml) Normalize() (Application, *util.HttpError) {
 					paramName,
 				))
 			}
+			if i.Min.Present {
+				mapped.MinValue = i.Min.Value
+			}
+			if i.Max.Present {
+				mapped.MaxValue = i.Max.Value
+			}
+			if i.Step.Present {
+				mapped.Step = i.Step.Value
+			}
 		} else if param.FloatingPoint != nil {
 			base = param.FloatingPoint.A2ParamBase
 			mapped.Type = ApplicationParameterTypeFloatingPoint
@@ -818,6 +978,13 @@ func (y *A2Yaml) Normalize() (Application, *util.HttpError) {
 				err = util.MergeHttpErr(err, util.HttpErr(
 					http.StatusBadRequest,
 					"%s default value must not be lower than the minimum value",
+					paramName,
+				))
+			}
+			if f.DefaultValue.Present && f.Max.Present && f.DefaultValue.Value > f.Max.Value {
+				err = util.MergeHttpErr(err, util.HttpErr(
+					http.StatusBadRequest,
+					"%s default value must not exceed the maximum value",
 					paramName,
 				))
 			}
@@ -838,6 +1005,15 @@ func (y *A2Yaml) Normalize() (Application, *util.HttpError) {
 					"%s step value must be > 0",
 					paramName,
 				))
+			}
+			if f.Min.Present {
+				mapped.MinValue = f.Min.Value
+			}
+			if f.Max.Present {
+				mapped.MaxValue = f.Max.Value
+			}
+			if f.Step.Present {
+				mapped.Step = f.Step.Value
 			}
 		} else if param.Boolean != nil {
 			base = param.Boolean.A2ParamBase
@@ -902,6 +1078,16 @@ func (y *A2Yaml) Normalize() (Application, *util.HttpError) {
 		} else if param.Workflow != nil {
 			base = param.Workflow.A2ParamBase
 			mapped.Type = ApplicationParameterTypeWorkflow
+			workflow := param.Workflow
+			hasWorkflowConfiguration := workflow.Init.Present || workflow.Job.Present || workflow.Readme.Present ||
+				len(workflow.Parameters) != 0
+			if hasWorkflowConfiguration {
+				err = util.MergeHttpErr(err, util.HttpErr(
+					http.StatusBadRequest,
+					"parameters.%s workflow configuration is not supported",
+					paramName,
+				))
+			}
 		}
 
 		util.ValidateString(&base.Title, paramName, 0, &err)
@@ -915,9 +1101,20 @@ func (y *A2Yaml) Normalize() (Application, *util.HttpError) {
 		mappedParameters = append(mappedParameters, mapped)
 	}
 
-	for name, value := range y.Environment {
+	environmentNames := make([]string, 0, len(y.Environment))
+	for name := range y.Environment {
+		environmentNames = append(environmentNames, name)
+	}
+	slices.Sort(environmentNames)
+	seenEnvironmentNames := map[string]bool{}
+	for _, name := range environmentNames {
+		value := y.Environment[name]
 		util.ValidateString(&name, fmt.Sprintf("environment.%s (key)", name), 0, &err)
 		util.ValidateString(&value, fmt.Sprintf("environment.%s (value)", name), 0, &err)
+		if seenEnvironmentNames[name] {
+			err = util.MergeHttpErr(err, util.HttpErr(http.StatusBadRequest, "duplicate environment key after trimming: %s", name))
+		}
+		seenEnvironmentNames[name] = true
 
 		mappedEnvironment[name] = InvocationParameter{
 			Type:                    InvocationParameterTypeWord,
@@ -925,9 +1122,20 @@ func (y *A2Yaml) Normalize() (Application, *util.HttpError) {
 		}
 	}
 
-	for name, value := range y.Sbatch {
+	sbatchNames := make([]string, 0, len(y.Sbatch))
+	for name := range y.Sbatch {
+		sbatchNames = append(sbatchNames, name)
+	}
+	slices.Sort(sbatchNames)
+	seenSbatchNames := map[string]bool{}
+	for _, name := range sbatchNames {
+		value := y.Sbatch[name]
 		util.ValidateString(&name, fmt.Sprintf("sbatch.%s (key)", name), 0, &err)
 		util.ValidateString(&value, fmt.Sprintf("sbatch.%s (value)", name), 0, &err)
+		if seenSbatchNames[name] {
+			err = util.MergeHttpErr(err, util.HttpErr(http.StatusBadRequest, "duplicate sbatch key after trimming: %s", name))
+		}
+		seenSbatchNames[name] = true
 
 		mappedSbatch[name] = InvocationParameter{
 			Type:                    InvocationParameterTypeWord,
@@ -947,7 +1155,12 @@ func (y *A2Yaml) Normalize() (Application, *util.HttpError) {
 		if y.Vnc.Value.Enabled {
 			mappedAppType = ApplicationTypeVnc
 			p := y.Vnc.Value.Port
-			if p.Present {
+			if !p.Present {
+				err = util.MergeHttpErr(err, util.HttpErr(
+					http.StatusBadRequest,
+					"vnc.port is required when VNC is enabled",
+				))
+			} else {
 				if p.Value <= 0 {
 					err = util.MergeHttpErr(err, util.HttpErr(
 						http.StatusBadRequest,
@@ -966,24 +1179,24 @@ func (y *A2Yaml) Normalize() (Application, *util.HttpError) {
 	}
 
 	if y.Web.Present {
-		mappedAppType = ApplicationTypeWeb
+		if y.Web.Value.Enabled {
+			mappedAppType = ApplicationTypeWeb
 
-		p := y.Web.Value.Port
-		if p.Present {
-			if p.Value <= 0 {
-				err = util.MergeHttpErr(err, util.HttpErr(
-					http.StatusBadRequest,
-					"web.port must not be <= 0",
-				))
-			} else if p.Value >= 1024*64 {
-				err = util.MergeHttpErr(err, util.HttpErr(
-					http.StatusBadRequest,
-					"web.port must be < 65536",
-				))
+			p := y.Web.Value.Port
+			if p.Present {
+				if p.Value <= 0 {
+					err = util.MergeHttpErr(err, util.HttpErr(
+						http.StatusBadRequest,
+						"web.port must not be <= 0",
+					))
+				} else if p.Value >= 1024*64 {
+					err = util.MergeHttpErr(err, util.HttpErr(
+						http.StatusBadRequest,
+						"web.port must be < 65536",
+					))
+				}
 			}
-		}
-
-		if !y.Web.Value.Enabled {
+		} else {
 			y.Web.Clear()
 		}
 	}

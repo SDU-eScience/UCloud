@@ -1430,8 +1430,6 @@ func jobsFollow(conn *ws.Conn) {
 }
 
 func jobsValidateForSubmission(actor rpc.Actor, spec *orcapi.JobSpecification) *util.HttpError {
-	var err *util.HttpError
-
 	app, ok := AppRetrieve(actor, spec.Application.Name, spec.Application.Version, AppDiscovery{Mode: orcapi.CatalogDiscoveryModeSelected, Selected: util.OptValue(spec.Product.Provider)}, 0)
 	if !ok {
 		return util.HttpErr(http.StatusBadRequest, "unknown application requested")
@@ -1459,7 +1457,11 @@ func jobsValidateForSubmission(actor rpc.Actor, spec *orcapi.JobSpecification) *
 		}
 		app = custom
 	}
+	return jobsValidateWithApplication(actor, spec, app)
+}
 
+func jobsValidateWithApplication(actor rpc.Actor, spec *orcapi.JobSpecification, app orcapi.Application) *util.HttpError {
+	var err *util.HttpError
 	support, ok := SupportByProduct[orcapi.JobSupport](jobType, spec.Product)
 	if !ok {
 		return util.HttpErr(http.StatusBadRequest, "bad machine type requested")

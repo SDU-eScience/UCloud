@@ -388,6 +388,22 @@ func appCatalogInitRpc() {
 		return orcapi.AppCatalogRetrieveStudioApplicationResponse{Versions: versions}, err
 	})
 
+	orcapi.AppsEditorRetrieveSource.Handler(func(info rpc.RequestInfo, request orcapi.AppEditorRetrieveSourceRequest) (orcapi.AppEditorRetrieveSourceResponse, *util.HttpError) {
+		return appEditorRetrieveSource(info.Actor, request)
+	})
+
+	orcapi.AppsEditorValidate.Handler(func(info rpc.RequestInfo, request orcapi.AppEditorValidateRequest) (orcapi.AppEditorValidateResponse, *util.HttpError) {
+		return appEditorValidate(info.Actor, request), nil
+	})
+
+	orcapi.AppsEditorEligibility.Handler(func(info rpc.RequestInfo, request util.Empty) (orcapi.AppEditorCustomEligibilityResponse, *util.HttpError) {
+		return appEditorEligibility(info.Actor), nil
+	})
+
+	orcapi.AppsEditorRenderInvocation.Handler(func(info rpc.RequestInfo, request orcapi.AppEditorRenderRequest) (orcapi.AppEditorRenderResponse, *util.HttpError) {
+		return appEditorRender(info.Actor, request)
+	})
+
 	orcapi.AppsCreateGroup.Handler(func(info rpc.RequestInfo, request orcapi.ApplicationGroupSpecification) (fndapi.FindByIntId, *util.HttpError) {
 		id, err := AppStudioCreateGroup(request)
 		return fndapi.FindByIntId{Id: int(id)}, err

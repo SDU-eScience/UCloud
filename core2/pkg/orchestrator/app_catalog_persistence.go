@@ -118,13 +118,14 @@ func appCatalogLoad() {
 				IsPublic    bool
 				GroupId     sql.NullInt64
 				ModifiedAt  time.Time
+				Source      sql.NullString
 			}](
 				b,
 				`
 					select 
 						name, version, application, created_at, 
 						application as invocation, tool_name, tool_version,
-						title, description, website, flavor_name, is_public, group_id, modified_at
+						title, description, website, flavor_name, is_public, group_id, modified_at, source_application as source
 					from
 						app_store.applications
 					order by name, created_at
@@ -374,6 +375,7 @@ func appCatalogLoad() {
 							FlavorName:        util.SqlNullStringToOpt(app.FlavorName),
 							Public:            app.IsPublic,
 							ModifiedAt:        app.ModifiedAt,
+							Source:            util.SqlNullStringToOpt(app.Source).GetOrDefault(""),
 						}
 						if app.GroupId.Valid {
 							i.Group.Set(AppGroupId(app.GroupId.Int64))
@@ -1309,9 +1311,9 @@ func appPersistApplication(app *internalApplication) {
 			tx,
 			`
 				insert into app_store.applications
-					(name, version, application, created_at, modified_at, original_document, owner, 
+					(name, version, application, created_at, modified_at, original_document, source_application, owner, 
 						tool_name, tool_version, authors, title, description, website, group_id, flavor_name, is_public) 
-				values (:name, :version, :app, :created_at, :modified_at, '{}', '_ucloud', 
+				values (:name, :version, :app, :created_at, :modified_at, '{}', nullif(:source, ''), '_ucloud', 
 					:tool_name, :tool_version, '["Unknown"]', :title, :description, :website, 
 					cast(case when :group_id = 0 then null else :group_id end as int), :flavor_name, :is_public)
 		    `,
@@ -1321,6 +1323,7 @@ func appPersistApplication(app *internalApplication) {
 				"app":          string(appJson),
 				"created_at":   app.CreatedAt,
 				"modified_at":  app.ModifiedAt,
+				"source":       app.Source,
 				"tool_name":    app.Invocation.Tool.Name,
 				"tool_version": app.Invocation.Tool.Version,
 				"title":        app.Title,

@@ -187,6 +187,7 @@ type internalApplication struct {
 
 	Invocation orcapi.ApplicationInvocationDescription
 	Tool       orcapi.NameAndVersion
+	Source     string
 
 	// Mutable metadata
 	// -----------------------
@@ -2016,6 +2017,10 @@ func AppStudioUpdateCarrouselSlideImage(index int, imageBytes []byte) *util.Http
 }
 
 func AppStudioCreateApplication(app *orcapi.Application) *util.HttpError {
+	return AppStudioCreateApplicationFromSource(app, "")
+}
+
+func AppStudioCreateApplicationFromSource(app *orcapi.Application, source string) *util.HttpError {
 	// NOTE(Dan): This function assumes that the application has already gone through validation and normalization.
 	// It should have, given that this is not the endpoint for uploading YAML from the end-user.
 
@@ -2065,6 +2070,7 @@ func AppStudioCreateApplication(app *orcapi.Application) *util.HttpError {
 				CreatedAt:         time.Now(),
 				Invocation:        app.Invocation,
 				Tool:              app.Invocation.Tool.NameAndVersion,
+				Source:            source,
 				Title:             app.Metadata.Title,
 				Description:       app.Metadata.Description,
 				DocumentationSite: util.OptStringIfNotEmpty(app.Metadata.Website),
@@ -2177,7 +2183,7 @@ func AppStudioUploadApp(data []byte) *util.HttpError {
 			}
 		}
 
-		return AppStudioCreateApplication(&app)
+		return AppStudioCreateApplicationFromSource(&app, string(data))
 	} else {
 		return util.HttpErr(http.StatusBadRequest, "invalid application version specified, must be either v1 or v2")
 	}

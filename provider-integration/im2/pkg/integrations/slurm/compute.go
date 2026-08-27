@@ -109,7 +109,44 @@ func InitCompute() controller.JobsService {
 		HandleShell:              handleShell,
 		OpenWebSession:           openWebSession,
 		RequestDynamicParameters: requestDynamicParameters,
+		RenderInvocation:         renderInvocation,
 	}
+}
+
+func resolveJobRenderContext(job *orc.Job) (string, string, *util.HttpError) {
+	baseJobFolder, ok := FindJobFolder(orc.ResourceOwnerToWalletOwner(job.Resource))
+	if !ok {
+		return "", "", util.HttpErr(http.StatusInternalServerError, "Unable to resolve job folder")
+	}
+	jobCfg := SlurmJobConfiguration{
+		Owner: orc.ResourceOwnerToWalletOwner(job.Resource), EstimatedProduct: job.Specification.Product,
+		EstimatedNodeCount: job.Specification.Replicas, Job: util.OptValue(job),
+	}
+	accounts := AccountMapper.UCloudConfigurationFindSlurmAccount(jobCfg)
+	if len(accounts) != 1 {
+		return "", "", util.HttpErr(http.StatusInternalServerError, "Ambiguous number of accounts")
+	}
+	return filepath.Join(baseJobFolder, job.Id), accounts[0], nil
+}
+
+func renderInvocation(job *orc.Job) (string, *util.HttpError) {
+	jobFolder, account, err := resolveJobRenderContext(job)
+	if err != nil {
+		return "", err
+	}
+	result := CreateSBatchFile(job, jobFolder, account)
+	if result.Error != nil {
+		return "", util.HttpErrorFromErr(result.Error)
+	}
+	content := result.Content
+	application := &job.Status.ResolvedApplication.Value.Invocation
+	for _, parameterAndValue := range controller.JobFindParamAndValues(job, application, nil) {
+		if parameterAndValue.Parameter.Type == orc.ApplicationParameterTypeLicenseServer {
+			secret := controller.LicenseBuildParameter(parameterAndValue.Value.Id)
+			content = strings.ReplaceAll(content, secret, "<redacted>")
+		}
+	}
+	return content, nil
 }
 
 func requestDynamicParameters(owner orc.ResourceOwner, app *orc.Application) []orc.ApplicationParameter {
@@ -511,42 +548,16 @@ func parseJobProviderId(providerId string) (parsedProviderJobId, bool) {
 }
 
 func submitJob(job orc.Job) (util.Option[string], *util.HttpError) {
-	baseJobFolder, ok := FindJobFolder(orc.ResourceOwnerToWalletOwner(job.Resource))
-
-	if !ok {
-		return util.OptNone[string](), &util.HttpError{
-			StatusCode: http.StatusInternalServerError,
-			Why:        "Unable to create job folder. File permission error?",
-		}
+	jobFolder, accountName, contextErr := resolveJobRenderContext(&job)
+	if contextErr != nil {
+		return util.OptNone[string](), contextErr
 	}
-	jobFolder := filepath.Join(baseJobFolder, job.Id)
 	err := os.Mkdir(jobFolder, 0770)
 	if err != nil {
 		return util.OptNone[string](), &util.HttpError{
 			StatusCode: http.StatusInternalServerError,
 			Why:        "Unable to create job folder. File permission error?",
 		}
-	}
-
-	accountName := ""
-	{
-		jobCfg := SlurmJobConfiguration{
-			Owner:              orc.ResourceOwnerToWalletOwner(job.Resource),
-			EstimatedProduct:   job.Specification.Product,
-			EstimatedNodeCount: job.Specification.Replicas,
-			Job:                util.OptValue(&job),
-		}
-
-		accounts := AccountMapper.UCloudConfigurationFindSlurmAccount(jobCfg)
-
-		if len(accounts) != 1 {
-			return util.OptNone[string](), &util.HttpError{
-				StatusCode: http.StatusInternalServerError,
-				Why:        "Ambiguous number of accounts",
-			}
-		}
-
-		accountName = accounts[0]
 	}
 
 	sbatchResult := CreateSBatchFile(&job, jobFolder, accountName)
