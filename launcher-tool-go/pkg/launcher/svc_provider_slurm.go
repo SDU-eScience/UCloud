@@ -218,7 +218,7 @@ func ProviderSlurm() {
 		data := AddVolume(postgres, "data")
 
 		AddService(postgres, DockerComposeService{
-			Image:       "postgres:15.0",
+			Image:       "postgres:17.0",
 			Hostname:    "slurm-postgres",
 			Restart:     "always",
 			Environment: []string{"POSTGRES_PASSWORD=postgrespassword"},

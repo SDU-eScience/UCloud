@@ -11,7 +11,7 @@ func ServiceFrontend() {
 	}
 
 	AddService(service, DockerComposeService{
-		Image:      "node:22.21.0",
+		Image:      "node:24.19.0",
 		Hostname:   "frontend",
 		Restart:    "always",
 		WorkingDir: "/opt/ucloud",
