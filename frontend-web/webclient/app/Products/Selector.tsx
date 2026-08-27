@@ -12,7 +12,7 @@ import {useUState} from "@/Utilities/UState";
 import {clamp, grantsLink, stopPropagation, usePortal} from "@/UtilityFunctions";
 import {ProductSupport, ResolvedSupport} from "@/UCloud/ResourceApi";
 import {explainMaintenance, maintenanceIconColor, shouldAllowMaintenanceAccess} from "@/Products/Maintenance";
-import {classConcat, injectStyle, injectStyleSimple} from "@/Unstyled";
+import {classConcat, injectStyle} from "@/Unstyled";
 import {MandatoryField, NoResultsBody} from "@/UtilityComponents";
 import {ComputeSupport, JobQueueStatus} from "@/UCloud/JobsApi";
 import {ThemeColor} from "@/ui-components/theme";
@@ -99,7 +99,7 @@ export const ProductSelector: React.FunctionComponent<{
         if (type === "COMPUTE") {
             result.push({name: "Type", width: "80px"}, {name: "Machine type", width: "180px"}, {name: "Description"}, {name: "Status", width: "120px"});
         } else {
-            result.push({name: "Name"}, {name: "Price"}, {name: "Provider", width: "250px"});
+            result.push({name: "Name"}, {name: "Price", width: "20%"}, {name: "Provider"});
         }
         return result;
     }, [type]);

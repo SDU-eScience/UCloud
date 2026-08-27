@@ -8,27 +8,14 @@ import {useAppSearch} from "./Search";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import * as AppStore from "@/Applications/AppStoreApi";
 import {getQueryParam} from "@/Utilities/URIUtilities";
-import {doNothing} from "@/UtilityFunctions";
+import {displayErrorMessageOrDefault, doNothing} from "@/UtilityFunctions";
 import {Gradient, GradientWithPolygons} from "@/ui-components/GradientBackground";
 import {UtilityBar} from "@/Navigation/UtilityBar";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {AppCard2} from "@/Applications/Landing";
 import {useDiscovery} from "@/Applications/Hooks";
-import {injectStyle} from "@/Unstyled";
-
-const OverviewStyle = injectStyle("app-overview", k => `
-    ${k} {
-        margin: 0 auto;
-        padding-top: 16px;
-        padding-bottom: 16px;
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
-        max-width: 1100px;
-        min-width: 600px;
-        min-height: 100vh;
-    }
-`);
+import HexSpin from "@/LoadingIcon/LoadingIcon";
+import {NoResultsBody} from "@/UtilityComponents";
 
 const ApplicationsCategory: React.FunctionComponent = () => {
     const location = useLocation();
@@ -36,7 +23,7 @@ const ApplicationsCategory: React.FunctionComponent = () => {
     const id = parseInt(idParam ?? "-1");
 
     const [discovery] = useDiscovery();
-    const [categoryState, fetchCategory] = useCloudAPI(AppStore.retrieveCategory({id, ...discovery}), null);
+    const [categoryState, fetchCategory] = useCloudAPI<AppStore.ApplicationCategory | null>({noop: true}, null);
     const category = categoryState.data;
     const groups = category?.status?.groups ?? [];
 
@@ -47,6 +34,12 @@ const ApplicationsCategory: React.FunctionComponent = () => {
     useEffect(() => {
         refresh();
     }, [refresh]);
+
+    useEffect(() => {
+        if (categoryState.error) {
+             displayErrorMessageOrDefault(categoryState.error.why, "Failed to fetch category");
+        }
+    }, [categoryState.error])
 
     const title = category?.specification?.title ?? "Applications";
     usePage(title, SidebarTabId.APPLICATIONS);
@@ -62,7 +55,9 @@ const ApplicationsCategory: React.FunctionComponent = () => {
                         <Box ml="auto" />
                         <UtilityBar onSearch={appSearch} />
                     </Flex>
-
+                    {categoryState.loading ? <HexSpin size={128} />:
+                            groups.length !== 0 ? null :
+                                <NoResultsBody title={"No applications found in category"} />}
                     <AppGrid>
                         {groups.map(section =>
                             <AppCard2

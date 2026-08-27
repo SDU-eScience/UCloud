@@ -58,71 +58,76 @@ let RIGHTS_TOGGLE_ICON_CACHE: {
     REJECTED: null,
 }
 
-new ReactStaticRenderer(() =>
-    <RadioTilesContainer height={48} onClick={stopPropagation}>
-        <RadioTile
-            label={"Read"}
-            onChange={noopCall}
-            icon={"search"}
-            name={"READ"}
-            checked
-            height={40}
-            fontSize={"0.5em"}
-        />
-        <RadioTile
-            label={"Edit"}
-            onChange={noopCall}
-            icon={"edit"}
-            name={"EDIT"}
-            checked={false}
-            height={40}
-            fontSize={"0.5em"}
-        />
-    </RadioTilesContainer>
-).promise.then(it => RIGHTS_TOGGLE_ICON_CACHE.ENABLED_READ = it);
-
-new ReactStaticRenderer(() =>
-    <RadioTilesContainer height={48} onClick={stopPropagation}>
-        <RadioTile
-            label={"Read"}
-            onChange={noopCall}
-            icon={"search"}
-            name={"READ"}
-            checked={false}
-            height={40}
-            fontSize={"0.5em"}
-        />
-        <RadioTile
-            label={"Edit"}
-            onChange={noopCall}
-            icon={"edit"}
-            name={"EDIT"}
-            checked
-            height={40}
-            fontSize={"0.5em"}
-        />
-    </RadioTilesContainer>
-).promise.then(it => RIGHTS_TOGGLE_ICON_CACHE.ENABLED_EDIT = it);
-
 new ReactStaticRenderer(() => {
-    const foo = Math.random();
     return <RadioTilesContainer height={48} onClick={stopPropagation}>
         <RadioTile
-            disabled
+            id={"Read"}
             label={"Read"}
             onChange={noopCall}
             icon={"search"}
-            name={foo.toString()}
+            name={"READ"}
+            checked
+            height={40}
+            fontSize={"0.5em"}
+        />
+        <RadioTile
+            id={"Edit"}
+            label={"Edit"}
+            onChange={noopCall}
+            icon={"edit"}
+            name={"EDIT"}
+            checked={false}
+            height={40}
+            fontSize={"0.5em"}
+        />
+    </RadioTilesContainer>
+}).promise.then(it => RIGHTS_TOGGLE_ICON_CACHE.ENABLED_READ = it);
+
+new ReactStaticRenderer(() => {
+    return <RadioTilesContainer height={48} onClick={stopPropagation}>
+        <RadioTile
+            id={"Read"}
+            label={"Read"}
+            onChange={noopCall}
+            icon={"search"}
+            name={"READ"}
             checked={false}
             height={40}
             fontSize={"0.5em"}
         />
         <RadioTile
+            id={"Edit"}
+            label={"Edit"}
+            onChange={noopCall}
+            icon={"edit"}
+            name={"EDIT"}
+            checked
+            height={40}
+            fontSize={"0.5em"}
+        />
+    </RadioTilesContainer>
+}).promise.then(it => RIGHTS_TOGGLE_ICON_CACHE.ENABLED_EDIT = it);
+
+new ReactStaticRenderer(() => {
+    return <RadioTilesContainer height={48} onClick={stopPropagation}>
+        <RadioTile
+            id={"READ"}
+            disabled
+            label={"Read"}
+            onChange={noopCall}
+            icon={"search"}
+            name={"Read"}
+            checked={false}
+            height={40}
+            fontSize={"0.5em"}
+        />
+        <RadioTile
+            id={"EDIT"}
             disabled
             label={"Edit"}
             onChange={noopCall}
             icon={"edit"}
-            name={foo.toString()}
+            name={"Edit"}
             checked={false}
             height={40}
             fontSize={"0.5em"}
@@ -396,7 +401,9 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                                 const readTile = tiles.item(0) as HTMLInputElement;
                                 const editTile = tiles.item(1) as HTMLInputElement;
                                 if (readTile && editTile) {
-                                    readTile.id = editTile.id = readTile.name = editTile.name = share.shareId;
+                                    readTile.id = "Read" + share.shareId;
+                                    editTile.id = "Edit" + share.shareId;
+                                    readTile.name = editTile.name = share.shareId;
                                     readTile["onclick"] = editTile["onclick"] = e => e.stopPropagation();
                                     readTile["onchange"] = () => {
                                         if (share.permissions.includes("EDIT")) {

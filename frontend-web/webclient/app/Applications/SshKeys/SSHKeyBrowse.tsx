@@ -1,13 +1,16 @@
 import {callAPI} from "@/Authentication/DataHook";
 import MainContainer from "@/ui-components/MainContainer";
 import {usePage} from "@/Navigation/Redux";
-import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, addProjectSwitcherInPortal} from "@/ui-components/ResourceBrowser";
+import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, SelectionMode, addProjectSwitcherInPortal} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {useDispatch} from "react-redux";
 import {useNavigate} from "react-router-dom";
 import SshKeyApi, {SSHKey} from "@/UCloud/SshKeyApi";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {dialogStore} from "@/Dialog/DialogStore";
+import {slimModalStyle} from "@/Utilities/ModalUtilities";
+import SshKeysCreate from "./Add";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -114,6 +117,25 @@ export function SSHKeyBrowse(props: {opts?: ResourceBrowserOpts<SSHKey>}): React
                     navigate,
                     isCreating: false,
                     api: {isCoreResource: true},
+                    onAddStart: () => dialogStore.addDialog(<SshKeysCreate onAdded={async ({responses}) => {
+                        const result = await Promise.all(
+                            responses.map(it => callAPI<SSHKey>(SshKeyApi.retrieve({id: it.id})))
+                        );
+
+                        for (const sshKey of result) {
+                            browser.insertEntryIntoCurrentPage(sshKey);
+                        }
+
+                        browser.renderRows();
+
+                        for (const [index, sshKey] of result.entries()) {
+                            const idx = browser.findVirtualRowIndex(it => it === sshKey);
+                            if (idx != null) {
+                                browser.select(idx, SelectionMode.ADDITIVE_SINGLE, index === result.length - 1);
+                                browser.ensureRowIsVisible(idx, false);
+                            }
+                        }
+                    }} />, () => {}, undefined, slimModalStyle),
                     invokeCommand: callAPI,
                     reload: () => browser.refresh()
                 }));
