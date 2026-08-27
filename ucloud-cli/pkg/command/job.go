@@ -8,6 +8,8 @@ type JobGetCommand struct {
 	JobID string `positional:"job-id" usage:"Job ID"`
 }
 
+type JobListCommand struct {
+}
 type JobCreateCommand struct {
 	Application string            `flag:"app" usage:"Application name"`
 	Product     string            `flag:"prod" usage:"Product name"`
@@ -87,6 +89,7 @@ var JobCommands = map[string]CommandFunc{
 	"search":    func() Command { return &JobSearchCommand{} },
 	"suspend":   func() Command { return &JobSuspendCommand{} },
 	"extend":    func() Command { return &JobExtendCommand{} },
+	"list":      func() Command { return &JobListCommand{} },
 	"get":       func() Command { return &JobGetCommand{} },
 	"create":    func() Command { return &JobCreateCommand{} },
 	"delete":    func() Command { return &JobDeleteCommand{} },
@@ -121,6 +124,10 @@ func (c JobExtendCommand) Execute() error {
 
 func (c JobGetCommand) Execute() error {
 	return fmt.Errorf("job get not implemented")
+}
+
+func (c JobListCommand) Execute() error {
+	return fmt.Errorf("job list not implemented")
 }
 
 func (c JobCreateCommand) Execute() error {
