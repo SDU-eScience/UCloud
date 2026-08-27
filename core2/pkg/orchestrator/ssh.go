@@ -1,6 +1,7 @@
 package orchestrator
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"slices"
@@ -8,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"ucloud.dk/core/pkg/coreutil"
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database"
@@ -54,6 +56,8 @@ func initSsh() {
 }
 
 func SshKeyCreate(actor rpc.Actor, keys []orcapi.SshKeySpecification) ([]fndapi.FindByStringId, *util.HttpError) {
+	seen := map[string]util.Empty{}
+
 	for _, key := range keys {
 		key.Key = strings.TrimSpace(key.Key)
 
@@ -83,37 +87,22 @@ func SshKeyCreate(actor rpc.Actor, keys []orcapi.SshKeySpecification) ([]fndapi.
 			)
 		}
 
-		// Checking if title already exists
-		exists := db.NewTx(func(tx *db.Transaction) bool {
-			row, _ := db.Get[struct {
-				Exists bool
-			}](
-				tx,
-				`
-				select exists (
-					select 1 
-					from app_orchestrator.ssh_keys 
-					where owner = :owner 
-					  and title = :title
-				) as exists
-				`,
-				db.Params{
-					"owner": actor.Username,
-					"title": key.Title,
-				},
-			)
-			return row.Exists
-		})
-		if exists {
+		//Checking if the request contains same title keys
+		normalized := strings.ToLower(key.Title)
+
+		if _, ok := seen[normalized]; ok {
 			return nil, util.HttpErr(
 				http.StatusBadRequest,
-				fmt.Sprintf("You already have a SSH key with the title: %v", key.Title),
+				fmt.Sprintf("Duplicate SSH key title: %v", key.Title),
 			)
 		}
+
+		seen[normalized] = util.Empty{}
+
 	}
 
 	now := time.Now()
-	result := db.NewTx(func(tx *db.Transaction) []fndapi.FindByStringId {
+	result, httpErr := db.NewTx2(func(tx *db.Transaction) ([]fndapi.FindByStringId, *util.HttpError) {
 		b := db.BatchNew(tx)
 
 		var ids []*util.Option[struct{ Id int }]
@@ -124,10 +113,12 @@ func SshKeyCreate(actor rpc.Actor, keys []orcapi.SshKeySpecification) ([]fndapi.
 			row := db.BatchGet[struct{ Id int }](
 				b,
 				`
-					insert into app_orchestrator.ssh_keys(owner, created_at, title, key)
-					values (:owner, :created_at, :title, :key)
-					returning id
-				`,
+                insert into app_orchestrator.ssh_keys(
+                    owner, created_at, title, key
+                )
+                values (:owner, :created_at, :title, :key)
+                returning id
+            `,
 				db.Params{
 					"owner":      actor.Username,
 					"created_at": now,
@@ -137,15 +128,44 @@ func SshKeyCreate(actor rpc.Actor, keys []orcapi.SshKeySpecification) ([]fndapi.
 			)
 			ids = append(ids, row)
 		}
+
 		db.BatchSend(b)
+
+		if err := tx.PeekError(); err != nil {
+			var pgErr *pgconn.PgError
+
+			if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+				tx.ConsumeError()
+
+				return nil, util.HttpErr(
+					http.StatusBadRequest,
+					"You already have a SSH key with this title",
+				)
+			}
+
+			tx.ConsumeError()
+			return nil, util.HttpErr(
+				http.StatusInternalServerError,
+				"Failed to create SSH key",
+			)
+		}
+
 		var results []fndapi.FindByStringId
 		for _, id := range ids {
 			if id.Present {
-				results = append(results, fndapi.FindByStringId{Id: strconv.Itoa(id.Value.Id)})
+				results = append(results, fndapi.FindByStringId{
+					Id: strconv.Itoa(id.Value.Id),
+				})
 			}
 		}
-		return results
+
+		return results, nil
 	})
+
+	if httpErr != nil {
+		return nil, httpErr
+	}
+
 	sshKeyNotifyProviders(actor)
 
 	return result, nil
