@@ -8,7 +8,6 @@ import (
 
 type EnvironmentUseCommand struct {
 	Name string `positional:"name" usage:"Environment name"`
-	Dev  bool   `flag:"dev" usage:"Dev mode"`
 }
 type EnvironmentListCommand struct {
 }
@@ -50,7 +49,6 @@ func (c EnvironmentUseCommand) Execute() error {
 		return updateErr
 	}
 	shared.PrintConfig(updateCfg)
-	fmt.Println("Environment updated to ", c.Name)
 	return nil
 }
 func (c EnvironmentListCommand) Execute() error {
@@ -71,7 +69,7 @@ func (c EnvironmentAddCommand) Execute() error {
 	_, ok := cfg.Environments[c.Name]
 	if ok {
 		// updating the env if it already exists
-		fmt.Println("Updating environment URL ", c.URL)
+		fmt.Printf("Updated environment of %s to %s \n", c.Name, c.URL)
 		cfg.Environments[c.Name] = shared.Environment{
 			URL: c.URL,
 		}
@@ -87,7 +85,6 @@ func (c EnvironmentAddCommand) Execute() error {
 	if updateErr != nil {
 		return updateErr
 	}
-	fmt.Println("Environment updated to ", c.Name)
 	shared.PrintEnvironments(updateCfg)
 	return nil
 }

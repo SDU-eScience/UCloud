@@ -28,7 +28,7 @@ func TestComputeCLI(t *testing.T) {
 }
 
 func TestConnectCommand(t *testing.T) {
-	input := []string{"connect", "--dev"}
+	input := []string{"connect"}
 	cmd, _ := Parse(input)
 	assert.NotNil(t, cmd)
 	err := cmd.Execute()
@@ -61,9 +61,8 @@ func TestReadConfig(t *testing.T) {
 }
 
 func TestWorkspaceUse(t *testing.T) {
-	input := []string{"workspace", "use", "wsaf", "--dev"}
+	input := []string{"workspace", "use", "wsaf"}
 	cmd, err := Parse(input)
-	assert.True(t, cmd.(*command.WorkspaceUseCommand).Dev)
 	assert.NoError(t, err)
 	assert.NotNil(t, cmd)
 	err = cmd.Execute()
@@ -71,9 +70,8 @@ func TestWorkspaceUse(t *testing.T) {
 }
 
 func TestWorkspaceRename(t *testing.T) {
-	input := []string{"workspace", "rename", "juju", "muju", "--dev"}
+	input := []string{"workspace", "rename", "juju", "muju"}
 	cmd, err := Parse(input)
-	assert.True(t, cmd.(*command.WorkspaceRenameCommand).Dev)
 	assert.NoError(t, err)
 	assert.NotNil(t, cmd)
 	err = cmd.Execute()
@@ -81,9 +79,8 @@ func TestWorkspaceRename(t *testing.T) {
 }
 
 func TestWorkspaceRenameBack(t *testing.T) {
-	input := []string{"workspace", "rename", "muju", "juju", "--dev"}
+	input := []string{"workspace", "rename", "muju", "juju"}
 	cmd, err := Parse(input)
-	assert.True(t, cmd.(*command.WorkspaceRenameCommand).Dev)
 	assert.NoError(t, err)
 	assert.NotNil(t, cmd)
 	err = cmd.Execute()
@@ -91,9 +88,8 @@ func TestWorkspaceRenameBack(t *testing.T) {
 }
 
 func TestWorkspaceList(t *testing.T) {
-	input := []string{"workspace", "list", "--dev"}
+	input := []string{"workspace", "list"}
 	cmd, err := Parse(input)
-	assert.True(t, cmd.(*command.WorkspaceListCommand).Dev)
 	assert.NoError(t, err)
 	assert.NotNil(t, cmd)
 	err = cmd.Execute()
@@ -101,9 +97,8 @@ func TestWorkspaceList(t *testing.T) {
 }
 
 func TestWorkspaceGet(t *testing.T) {
-	input := []string{"workspace", "get", "wsaf", "--dev"}
+	input := []string{"workspace", "get", "wsaf"}
 	cmd, err := Parse(input)
-	assert.True(t, cmd.(*command.WorkspaceGetCommand).Dev)
 	assert.NoError(t, err)
 	assert.NotNil(t, cmd)
 	err = cmd.Execute()
@@ -111,7 +106,7 @@ func TestWorkspaceGet(t *testing.T) {
 }
 
 func TestWorkspaceGetMissingName(t *testing.T) {
-	input := []string{"workspace", "get", "--dev"}
+	input := []string{"workspace", "get"}
 	cmd, err := Parse(input)
 	// expects error, since we are missing name
 	assert.Error(t, err)
@@ -127,7 +122,7 @@ func TestEnvironmentUse(t *testing.T) {
 }
 
 func TestEnvironmentAdd(t *testing.T) {
-	input := []string{"environment", "add", "foo", "www.bar.com"}
+	input := []string{"environment", "add", "foo", "--url", "www.bar.com"}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
 	assert.NotNil(t, cmd)

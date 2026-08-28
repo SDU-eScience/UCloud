@@ -10,20 +10,16 @@ import (
 )
 
 type WorkspaceListCommand struct {
-	Dev bool `flag:"dev" usage:"Dev mode"`
 }
 type WorkspaceUseCommand struct {
 	Name string `positional:"name" usage:"Workspace name" required:"true"`
-	Dev  bool   `flag:"dev" usage:"Dev mode"`
 }
 type WorkspaceGetCommand struct {
 	Name string `positional:"name" usage:"Workspace name" required:"true"`
-	Dev  bool   `flag:"dev" usage:"Dev mode"`
 }
 type WorkspaceRenameCommand struct {
 	FromName string `positional:"from" usage:"Workspace name" required:"true"`
 	ToName   string `positional:"to" usage:"Workspace name" required:"true"`
-	Dev      bool   `flag:"dev" usage:"Dev mode"`
 }
 
 var WorkspaceCommands = map[string]CommandFunc{
