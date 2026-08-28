@@ -94,12 +94,15 @@ func (c EnvironmentRemoveCommand) Execute() error {
 	if err != nil {
 		return err
 	}
+	if _, ok := cfg.Environments[c.Name]; !ok {
+		return fmt.Errorf("environment %s was not found", c.Name)
+	}
 	delete(cfg.Environments, c.Name)
 	updateCfg, updateErr := shared.UpdateConfig(cfg)
 	if updateErr != nil {
 		return updateErr
 	}
-	fmt.Println("Environment removed ", c.Name)
+	fmt.Printf("Environment %s has been removed\n", c.Name)
 	shared.PrintEnvironments(updateCfg)
 	return nil
 }

@@ -12,17 +12,13 @@ import (
 	"ucloud.dk/shared/pkg/termio"
 )
 
-const DevServer = "https://ucloud.localhost.direct"
-
 type Config struct {
-	//Server   string `yaml:"server"`
 	Username           string                 `yaml:"username"`
 	TokenRef           string                 `yaml:"tokenRef,omitempty"`
 	CurrentWorkspace   string                 `yaml:"currentWorkspace"`
 	DefaultEnvironment string                 `yaml:"defaultEnvironment"`
 	Environments       map[string]Environment `yaml:"environments"`
-	//Workspaces         map[string]Workspace   `yaml:"workspaces"`
-	Defaults Defaults `yaml:"defaults"`
+	Defaults           Defaults               `yaml:"defaults"`
 }
 
 type Environment struct {

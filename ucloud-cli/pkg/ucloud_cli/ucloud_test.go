@@ -113,6 +113,26 @@ func TestWorkspaceGetMissingName(t *testing.T) {
 	assert.Nil(t, cmd)
 }
 
+// Add dev environment to test locally
+func TestEnvironmentAddDev(t *testing.T) {
+	devServerUrl := "https://ucloud.localhost.direct"
+	input := []string{"environment", "add", "dev", "--url", devServerUrl}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	cmd.Execute()
+	assert.NoError(t, err)
+}
+
+// Use dev environment to test locally
+func TestEnvironmentUseDev(t *testing.T) {
+	input := []string{"environment", "use", "dev"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
 func TestEnvironmentUse(t *testing.T) {
 	input := []string{"environment", "use", "ucloud"}
 	cmd, err := Parse(input)
