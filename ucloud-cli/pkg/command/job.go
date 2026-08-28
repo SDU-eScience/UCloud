@@ -2,6 +2,11 @@ package command
 
 import (
 	"fmt"
+
+	"ucloud.dk/shared/pkg/cli"
+	orcapi "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/termio"
+	"ucloud.dk/ucloud_cli/pkg/shared"
 )
 
 type JobGetCommand struct {
@@ -9,6 +14,7 @@ type JobGetCommand struct {
 }
 
 type JobListCommand struct {
+	Workspace string `flag:"workspace" usage:"Workspace to list jobs for"`
 }
 type JobCreateCommand struct {
 	Application string            `flag:"app" usage:"Application name"`
@@ -106,6 +112,39 @@ var JobCommands = map[string]CommandFunc{
 	"logs":  func() Command { return &JobLogsCommand{} },
 }
 
+func retrieveJobs() (map[string]orcapi.Job, error) {
+	result, httpErr := orcapi.JobsBrowse.Invoke(orcapi.JobsBrowseRequest{})
+	if httpErr.AsError() != nil {
+		return map[string]orcapi.Job{}, fmt.Errorf("failed to list jobs: %s", httpErr.Why)
+	}
+	jobs := make(map[string]orcapi.Job)
+	for _, job := range result.Items {
+		repoName := job.Specification.Name
+		jobs[repoName] = job
+
+	}
+	return jobs, nil
+}
+
+func printJobs(workspace string, jobs map[string]orcapi.Job) {
+	fmt.Printf("Jobs of %s:\n", workspace)
+	t := termio.Table{}
+	t.AppendHeader("JobId")
+	t.AppendHeader("JobName")
+	t.AppendHeader("JobStatus")
+	t.AppendHeader("Owner")
+	t.AppendHeader("JobStartTime")
+
+	for _, job := range jobs {
+		t.Cell(job.Id)
+		t.Cell("%v", job.Specification.Name)
+		t.Cell("%v", job.Status.State)
+		t.Cell("%v", job.Owner.Project.GetOrDefault(""))
+		t.Cell("%v", cli.FormatTime(job.CreatedAt))
+	}
+	t.Print()
+}
+
 func (c JobRenameCommand) Execute() error {
 	return fmt.Errorf("job rename not implemented")
 }
@@ -127,7 +166,40 @@ func (c JobGetCommand) Execute() error {
 }
 
 func (c JobListCommand) Execute() error {
-	return fmt.Errorf("job list not implemented")
+	cfg, err := shared.ReadConfig()
+	if err != nil {
+		panic(err)
+	}
+	cfg.InitUCloudClient()
+	currentWs := c.Workspace
+	if c.Workspace != "" {
+		// lookup workspace
+		if cfg.CurrentWorkspace.Present {
+			// if workspace input is the same as current
+			if cfg.CurrentWorkspace.Value.Name == c.Workspace {
+				shared.SetActiveWorkspace(cfg.CurrentWorkspace.Value.Id)
+			}
+		} else {
+			ws, err := findWorkspace(c.Workspace)
+			if err != nil {
+				return err
+			}
+			shared.SetActiveWorkspace(ws.Id)
+		}
+	} else {
+		if !cfg.CurrentWorkspace.Present {
+			return fmt.Errorf("this command requires a workspace, either by specifying a workspace with --workspace or ucloud workspace use <workspace>")
+		}
+		currentWs = cfg.CurrentWorkspace.Value.Name
+		shared.SetActiveWorkspace(cfg.CurrentWorkspace.Value.Id)
+	}
+
+	jobs, err := retrieveJobs()
+	if err != nil {
+		return err
+	}
+	printJobs(currentWs, jobs)
+	return nil
 }
 
 func (c JobCreateCommand) Execute() error {

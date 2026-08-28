@@ -61,7 +61,7 @@ func TestReadConfig(t *testing.T) {
 }
 
 func TestWorkspaceUse(t *testing.T) {
-	input := []string{"workspace", "use", "wsaf"}
+	input := []string{"workspace", "use", "testmain"}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
 	assert.NotNil(t, cmd)
@@ -195,4 +195,13 @@ func TestPublicLinkCreate(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, cmd)
 	assert.NotEmpty(t, concrete.Name)
+}
+
+func TestJobList(t *testing.T) {
+	input := []string{"job", "list", "--workspace", "testmain"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
 }

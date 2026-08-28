@@ -1,11 +1,13 @@
 package command
 
 import (
+	"errors"
 	"fmt"
 
 	"ucloud.dk/shared/pkg/cli"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/termio"
+	"ucloud.dk/shared/pkg/util"
 	"ucloud.dk/ucloud_cli/pkg/shared"
 )
 
@@ -66,13 +68,19 @@ func (c WorkspaceListCommand) Execute() error {
 	return nil
 }
 
-func checkIfWorkspaceExists(name string) bool {
+func findWorkspace(name string) (*shared.Workspace, error) {
 	workspaces, err := retrieveWorkspaces()
 	if err != nil {
-		return false
+		return nil, err
 	}
-	_, ok := workspaces[name]
-	return ok
+	proj, ok := workspaces[name]
+	if !ok {
+		return nil, errors.New(fmt.Sprintf("Workspace %s does not exist", name))
+	}
+	return &shared.Workspace{
+		Id:   proj.Id,
+		Name: name,
+	}, nil
 }
 
 func checkIfEnviromentExists(name string) bool {
@@ -86,13 +94,12 @@ func checkIfEnviromentExists(name string) bool {
 
 func (c WorkspaceUseCommand) Execute() error {
 	shared.InitializeUCloudClient()
-	ok := checkIfWorkspaceExists(c.Name)
-	if !ok {
-		return fmt.Errorf("you don't have this %s workspace", c.Name)
+	ws, err := findWorkspace(c.Name)
+	if err != nil {
+		return err
 	}
-
 	cfg, err := shared.UpdateConfig(&shared.Config{
-		CurrentWorkspace: c.Name,
+		CurrentWorkspace: util.OptValue(*ws),
 	})
 	if err != nil {
 		return err

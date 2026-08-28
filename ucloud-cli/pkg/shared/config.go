@@ -10,12 +10,13 @@ import (
 	"gopkg.in/yaml.v3"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/termio"
+	"ucloud.dk/shared/pkg/util"
 )
 
 type Config struct {
 	Username           string                 `yaml:"username"`
 	TokenRef           string                 `yaml:"tokenRef,omitempty"`
-	CurrentWorkspace   string                 `yaml:"currentWorkspace"`
+	CurrentWorkspace   util.Option[Workspace] `yaml:"currentWorkspace"`
 	DefaultEnvironment string                 `yaml:"defaultEnvironment"`
 	Environments       map[string]Environment `yaml:"environments"`
 	Defaults           Defaults               `yaml:"defaults"`
@@ -26,6 +27,8 @@ type Environment struct {
 }
 
 type Workspace struct {
+	Id   string `yaml:"Id"`
+	Name string `yaml:"name"`
 }
 
 type Defaults struct {
@@ -135,7 +138,9 @@ func UpdateConfig(config *Config) (*Config, error) {
 		return nil, err
 	}
 	cfg.Username = selectChange(cfg.Username, config.Username)
-	cfg.CurrentWorkspace = selectChange(cfg.CurrentWorkspace, config.CurrentWorkspace)
+	if cfg.CurrentWorkspace != config.CurrentWorkspace {
+		cfg.CurrentWorkspace = config.CurrentWorkspace
+	}
 	cfg.DefaultEnvironment = selectChange(cfg.DefaultEnvironment, config.DefaultEnvironment)
 	cfg.TokenRef = selectChange(cfg.TokenRef, config.TokenRef)
 	if config.Environments != nil && !maps.Equal(cfg.Environments, config.Environments) {
@@ -155,12 +160,20 @@ func (cfg *Config) initUCloudClient() {
 	}
 }
 
+func SetActiveWorkspace(projectId string) {
+	//rpc.DefaultClient.ProjectId = util.OptValue(projectId)
+}
+
+func (cfg *Config) InitUCloudClient() {
+	cfg.initUCloudClient()
+}
+
 func InitializeUCloudClient() {
 	cfg, err := ReadConfig()
 	if err != nil {
 		panic(err)
 	}
-	cfg.initUCloudClient()
+	cfg.InitUCloudClient()
 }
 
 func PrintConfig(cfg *Config) {
