@@ -99,11 +99,10 @@ export function useDeltaOverTimeChart(
                         ?.get(key) ?? [];
 
                 return entries.reduce(
-                    (sum, d) => sum + d.change,
+                    (sum, d) => sum + Math.max(0, d.change),
                     0
                 );
             });
-
 
         const negativeStack = stack<number>()
             .keys(keys)
@@ -114,7 +113,7 @@ export function useDeltaOverTimeChart(
                         ?.get(key) ?? [];
 
                 return entries.reduce(
-                    (sum, d) => sum + d.change,
+                    (sum, d) => sum + Math.min(0, d.change),
                     0
                 );
             });

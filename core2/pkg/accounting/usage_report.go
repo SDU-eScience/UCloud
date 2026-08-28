@@ -323,7 +323,6 @@ func initUsageReports() {
 
 			var reports []accapi.UsageReport
 			for _, w := range wallets {
-				fmt.Printf("wallet: %v\n", w)
 				productType := w.PaysFor.ProductType
 				if productType != accapi.ProductTypeCompute && productType != accapi.ProductTypeStorage {
 					continue
@@ -336,9 +335,6 @@ func initUsageReports() {
 				endTime := fndapi.TimeFromUnixMilli(request.End).Time()
 
 				historicReports := usageRetrieveHistoricReports(startTime, endTime, walletId)
-				for _, report := range historicReports {
-					fmt.Printf("report: %v \n", report)
-				}
 				{
 					// Per-category report
 					// -----------------------------------------------------------------------------------------------------
@@ -521,7 +517,6 @@ func usageRetrieveHistoricReports(from time.Time, until time.Time, wallet AccWal
 }
 
 func usageCollapseReports(reports []internalUsageReport) internalUsageReport {
-	fmt.Printf("Collapsing reports: \n")
 	if len(reports) == 0 {
 		return internalUsageReport{}
 	}
@@ -571,7 +566,6 @@ func usageCollapseReports(reports []internalUsageReport) internalUsageReport {
 	absoluteQuotaByTimestamp := map[time.Time]int64{}
 
 	for _, report := range reports {
-		fmt.Printf("report being processed: %v\n", report)
 		// Absolute child usage
 		for _, item := range report.UsageOverTime.ChildrenAbsolute {
 			if !item.Child.Present {
@@ -1383,7 +1377,7 @@ func lUsageSampleWallet(now time.Time, cmp internalSnapshotComparison, b *db.Bat
 			parentReport.UsageOverTime.ChildrenAbsolute,
 			internalUsageOverTimeAbsoluteChildrenDataPoint{
 				Timestamp: now,
-				Usage:     currWallet.TotalUsage,
+				Usage:     usage,
 				Child:     util.OptValue(currWallet.Id),
 			})
 		parentReport.Dirty = true

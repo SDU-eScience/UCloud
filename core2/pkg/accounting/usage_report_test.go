@@ -33,14 +33,14 @@ func TestUsageGenSimulation(t *testing.T) {
 	checkpointCalls := 0
 
 	api := UsageGenApi{
-		AllocateEx: func(now, start, end int, quota int64, recipientRef, parentRef string) {
+		AllocateEx: func(product UsageGenProduct, now, start, end int, quota int64, recipientRef, parentRef string) {
 			allocateCalls++
 			if parentRef == "" {
 				roots = util.AppendUnique(roots, recipientRef)
 			}
 			e.AllocateEx(now, start, end, quota, recipientRef, parentRef)
 		},
-		ReportDelta: func(now int, ownerRef string, usage int64) {
+		ReportDelta: func(product UsageGenProduct, now int, ownerRef string, usage int64) {
 			reportCalls++
 			reported += usage
 			e.ReportDelta(now, ownerRef, usage)
