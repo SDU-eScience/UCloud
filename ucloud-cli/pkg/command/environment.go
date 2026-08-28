@@ -14,8 +14,7 @@ type EnvironmentListCommand struct {
 }
 type EnvironmentAddCommand struct {
 	Name string `positional:"name" usage:"Environment name" required:"true"`
-	URL  string `positional:"url" usage:"Environment url" required:"true"`
-	Dev  bool   `flag:"dev" usage:"Dev mode"`
+	URL  string `flag:"url" usage:"Environment URL"`
 }
 
 type EnvironmentRemoveCommand struct {

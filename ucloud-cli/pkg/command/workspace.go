@@ -48,7 +48,7 @@ func retrieveWorkspaces() (map[string]fndapi.Project, error) {
 }
 
 func (c WorkspaceListCommand) Execute() error {
-	shared.InitializeUCloudClient(c.Dev)
+	shared.InitializeUCloudClient()
 	workspaces, err := retrieveWorkspaces()
 	if err != nil {
 		return err
@@ -89,7 +89,7 @@ func checkIfEnviromentExists(name string) bool {
 }
 
 func (c WorkspaceUseCommand) Execute() error {
-	shared.InitializeUCloudClient(c.Dev)
+	shared.InitializeUCloudClient()
 	ok := checkIfWorkspaceExists(c.Name)
 	if !ok {
 		return fmt.Errorf("you don't have this %s workspace", c.Name)
@@ -108,7 +108,7 @@ func (c WorkspaceUseCommand) Execute() error {
 }
 
 func (c WorkspaceGetCommand) Execute() error {
-	shared.InitializeUCloudClient(c.Dev)
+	shared.InitializeUCloudClient()
 	workspaces, err := retrieveWorkspaces()
 	if err != nil {
 		return err
@@ -154,7 +154,7 @@ func (c WorkspaceGetCommand) Execute() error {
 }
 
 func (c WorkspaceRenameCommand) Execute() error {
-	shared.InitializeUCloudClient(c.Dev)
+	shared.InitializeUCloudClient()
 	workspaces, err := retrieveWorkspaces()
 	if err != nil {
 		return err

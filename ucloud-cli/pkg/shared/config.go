@@ -148,11 +148,8 @@ func UpdateConfig(config *Config) (*Config, error) {
 	return SaveConfig(cfg)
 }
 
-func (cfg *Config) initUCloudClient(dev bool) {
+func (cfg *Config) initUCloudClient() {
 	baseURL := cfg.Environments[cfg.DefaultEnvironment].URL
-	if dev {
-		baseURL = DevServer
-	}
 	rpc.DefaultClient = &rpc.Client{
 		RefreshToken: cfg.TokenRef,
 		BasePath:     baseURL,
@@ -162,12 +159,12 @@ func (cfg *Config) initUCloudClient(dev bool) {
 	}
 }
 
-func InitializeUCloudClient(dev bool) {
+func InitializeUCloudClient() {
 	cfg, err := ReadConfig()
 	if err != nil {
 		panic(err)
 	}
-	cfg.initUCloudClient(dev)
+	cfg.initUCloudClient()
 }
 
 func PrintConfig(cfg *Config) {
