@@ -1,6 +1,6 @@
 import {ProductNetworkIP, productTypeToIcon, ProductV2, ProductV2NetworkIP} from "@/Accounting";
 import {callAPI} from "@/Authentication/DataHook";
-import {bulkRequestOf, displayErrorMessageOrDefault, extractErrorMessage, stopPropagation} from "@/UtilityFunctions";
+import {bulkRequestOf, displayErrorMessageOrDefault, extractErrorMessage} from "@/UtilityFunctions";
 import MainContainer from "@/ui-components/MainContainer";
 import {usePage} from "@/Navigation/Redux";
 import AppRoutes from "@/Routes";

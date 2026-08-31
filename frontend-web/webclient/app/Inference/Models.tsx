@@ -46,7 +46,7 @@ const pageStyle = injectStyle("inference-models-page", k => `
         background: var(--backgroundCard);
         border-top: 5px solid rgba(148, 163, 184, 0.18);
     }
-    
+
     ${k} .panel-solid,
     ${k} .panel-accent {
         padding: 150px 16px;
@@ -269,7 +269,7 @@ const pageStyle = injectStyle("inference-models-page", k => `
 
     ${k} .model-results {
         max-height: calc(4 * 250px + 3 * 14px);
-        overflow-y: auto;
+        overflow-y: scroll;
         padding-right: 4px;
     }
 
@@ -365,7 +365,7 @@ const pageStyle = injectStyle("inference-models-page", k => `
         gap: 8px;
         grid-template-columns: repeat(3, minmax(0, 1fr));
     }
-    
+
     ${k} .model-spec-section {
         border-top: 1px solid var(--borderColor);
         padding-top: 16px;
