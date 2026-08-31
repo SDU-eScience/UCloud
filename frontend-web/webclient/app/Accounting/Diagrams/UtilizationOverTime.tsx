@@ -8,7 +8,7 @@ import {UsageReport, UsageReportAbsoluteDataPoint} from "@/Accounting/UsageCore2
 import React, {useId, useMemo, useState} from "react";
 import {colorNames} from "@/Accounting/Diagrams/index";
 import {axisRight, Selection} from "d3";
-import {balanceToStringFromUnit, FrontendAccountingUnit} from "@/Accounting";
+import {balanceToStringFromUnit, FrontendAccountingUnit, isCreditUnit} from "@/Accounting";
 import {HTMLTooltipEx} from "@/ui-components/Tooltip";
 
 export interface UtilizationOverTimeTableRow {
@@ -232,9 +232,16 @@ export function useUtilizationOverTimeChart(
         const utilTicks = utilizationYScale.ticks(5);
         const usageTicks = utilTicks.map(utilToUsage);
 
+        const usageAxis = axisLeft(usageYScale).tickValues(usageTicks);
+        if (isCreditUnit(unitName)) {
+            usageAxis.tickFormat(value => balanceToStringFromUnit(null, unitName, Number(value), {removeUnitIfPossible: true}));
+        } else {
+            usageAxis.ticks(5, "s");
+        }
+
         const usageYAxis = svg.append("g")
             .attr("transform", `translate(${margin.left}, ${margin.top})`)
-            .call(axisLeft(usageYScale).tickValues(usageTicks).ticks(5, "s"));
+            .call(usageAxis);
 
         usageYAxis.select(".tick:last-of-type text")
             .clone()

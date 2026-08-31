@@ -53,7 +53,7 @@ type inferenceUsageRow struct {
 	Owner         string
 	Scope         string
 	Usage         int64
-	Remainder     int
+	Remainder     int64
 	ReportedUsage int64
 }
 
@@ -298,10 +298,10 @@ func Init() {
 					}
 					return capabilities
 				}(),
-				PriceMultiplier: orcapi.InferencePricing{
-					CachedInput: model.PriceMultiplier.CachedInput,
-					Input:       model.PriceMultiplier.Input,
-					Output:      model.PriceMultiplier.Output,
+				PricePerMillion: orcapi.InferencePricing{
+					CachedInput: model.PricePerMillion.CachedInput,
+					Input:       model.PricePerMillion.Input,
+					Output:      model.PricePerMillion.Output,
 				},
 				Endpoint: orcapi.InferenceEndpoint{
 					BasePath:         model.Endpoint.BasePath,
@@ -358,10 +358,10 @@ func Init() {
 				}
 				return capabilities
 			}(),
-			PriceMultiplier: InferencePricing{
-				CachedInput: request.Model.PriceMultiplier.CachedInput,
-				Input:       request.Model.PriceMultiplier.Input,
-				Output:      request.Model.PriceMultiplier.Output,
+			PricePerMillion: InferencePricing{
+				CachedInput: request.Model.PricePerMillion.CachedInput,
+				Input:       request.Model.PricePerMillion.Input,
+				Output:      request.Model.PricePerMillion.Output,
 			},
 			Endpoint: InferenceEndpoint{
 				BasePath:         request.Model.Endpoint.BasePath,
@@ -414,8 +414,10 @@ func Init() {
 			Provider:    cfg.Provider.Id,
 			ProductType: apm.ProductTypeInference,
 			AccountingUnit: apm.AccountingUnit{
-				Name:       "Credit",
-				NamePlural: "Credits",
+				Name:                   "Credit",
+				NamePlural:             "Credits",
+				FloatingPoint:          true,
+				DisplayFrequencySuffix: false,
 			},
 			AccountingFrequency: apm.AccountingFrequencyOnce,
 			FreeToUse:           false,
@@ -446,7 +448,7 @@ func Init() {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		owner, httpErr := inferenceAuthenticateRequest(r)
+		owner, _, httpErr := inferenceAuthenticateRequest(r)
 		if httpErr != nil {
 			http.Error(w, httpErr.Why, httpErr.StatusCode)
 			return
@@ -460,7 +462,7 @@ func Init() {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		owner, httpErr := inferenceAuthenticateRequest(r)
+		owner, _, httpErr := inferenceAuthenticateRequest(r)
 		if httpErr != nil {
 			http.Error(w, httpErr.Why, httpErr.StatusCode)
 			return
@@ -478,7 +480,7 @@ func Init() {
 			http.Error(w, "request body too large", http.StatusRequestEntityTooLarge)
 			return
 		}
-		apiKeyOwner, httpErr := inferenceAuthenticateRequest(r)
+		apiKeyOwner, _, httpErr := inferenceAuthenticateRequest(r)
 		if httpErr != nil {
 			http.Error(w, httpErr.Why, httpErr.StatusCode)
 			return
@@ -544,9 +546,13 @@ func Init() {
 			http.Error(w, "request body too large", http.StatusRequestEntityTooLarge)
 			return
 		}
-		apiKeyOwner, httpErr := inferenceAuthenticateRequest(r)
+		apiKeyOwner, createdBy, httpErr := inferenceAuthenticateRequest(r)
 		if httpErr != nil {
 			http.Error(w, httpErr.Why, httpErr.StatusCode)
+			return
+		}
+		if createdBy == "" {
+			http.Error(w, "token has no associated user", http.StatusForbidden)
 			return
 		}
 		var request OaiResponseCreateRequest
@@ -557,7 +563,7 @@ func Init() {
 		defer cancel()
 
 		if request.Stream {
-			events, httpErr := InferenceResponseCreateStreaming(ctx, apiKeyOwner, request)
+			events, httpErr := InferenceResponseCreateStreaming(ctx, apiKeyOwner, createdBy, request)
 			if httpErr != nil {
 				http.Error(w, httpErr.Why, httpErr.StatusCode)
 				return
@@ -589,7 +595,7 @@ func Init() {
 			return
 		}
 
-		resp, httpErr := InferenceResponseCreate(ctx, apiKeyOwner, request)
+		resp, httpErr := InferenceResponseCreate(ctx, apiKeyOwner, createdBy, request)
 		if httpErr != nil {
 			http.Error(w, httpErr.Why, httpErr.StatusCode)
 			return
@@ -606,9 +612,13 @@ func Init() {
 	})
 
 	controller.Mux.HandleFunc(authority+"/v1/responses/", func(w http.ResponseWriter, r *http.Request) {
-		apiKeyOwner, httpErr := inferenceAuthenticateRequest(r)
+		apiKeyOwner, createdBy, httpErr := inferenceAuthenticateRequest(r)
 		if httpErr != nil {
 			http.Error(w, httpErr.Why, httpErr.StatusCode)
+			return
+		}
+		if createdBy == "" {
+			http.Error(w, "token has no associated user", http.StatusForbidden)
 			return
 		}
 
@@ -626,7 +636,7 @@ func Init() {
 			}
 			id := strings.TrimSuffix(path, "/cancel")
 			id = strings.Trim(id, "/")
-			resp, httpErr := InferenceResponseCancel(apiKeyOwner, id)
+			resp, httpErr := InferenceResponseCancel(apiKeyOwner, createdBy, id)
 			if httpErr != nil {
 				http.Error(w, httpErr.Why, httpErr.StatusCode)
 				return
@@ -640,7 +650,7 @@ func Init() {
 
 		switch r.Method {
 		case http.MethodGet:
-			resp, httpErr := InferenceResponsePoll(apiKeyOwner, path)
+			resp, httpErr := InferenceResponsePoll(apiKeyOwner, createdBy, path)
 			if httpErr != nil {
 				http.Error(w, httpErr.Why, httpErr.StatusCode)
 				return
@@ -650,7 +660,7 @@ func Init() {
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write(respData)
 		case http.MethodDelete:
-			resp, httpErr := InferenceResponseDelete(apiKeyOwner, path)
+			resp, httpErr := InferenceResponseDelete(apiKeyOwner, createdBy, path)
 			if httpErr != nil {
 				http.Error(w, httpErr.Why, httpErr.StatusCode)
 				return
@@ -659,6 +669,50 @@ func Init() {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write(respData)
+		default:
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
+
+	controller.Mux.HandleFunc(authority+"/v1/conversations/", func(w http.ResponseWriter, r *http.Request) {
+		apiKeyOwner, createdBy, httpErr := inferenceAuthenticateRequest(r)
+		if httpErr != nil {
+			http.Error(w, httpErr.Why, httpErr.StatusCode)
+			return
+		}
+		if createdBy == "" {
+			http.Error(w, "token has no associated user", http.StatusForbidden)
+			return
+		}
+
+		id := strings.TrimPrefix(r.URL.Path, "/v1/conversations/")
+		id = strings.Trim(id, "/")
+		if id == "" {
+			http.Error(w, "conversation not found", http.StatusNotFound)
+			return
+		}
+
+		switch r.Method {
+		case http.MethodGet:
+			conversation, httpErr := InferenceConversationRetrieve(apiKeyOwner, createdBy, id)
+			if httpErr != nil {
+				http.Error(w, httpErr.Why, httpErr.StatusCode)
+				return
+			}
+			conversationData, _ := json.Marshal(conversation)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(conversationData)
+		case http.MethodDelete:
+			result, httpErr := InferenceConversationDelete(apiKeyOwner, createdBy, id)
+			if httpErr != nil {
+				http.Error(w, httpErr.Why, httpErr.StatusCode)
+				return
+			}
+			resultData, _ := json.Marshal(result)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(resultData)
 		default:
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		}
@@ -673,7 +727,7 @@ func Init() {
 			http.Error(w, "request body too large", http.StatusRequestEntityTooLarge)
 			return
 		}
-		apiKeyOwner, httpErr := inferenceAuthenticateRequest(r)
+		apiKeyOwner, _, httpErr := inferenceAuthenticateRequest(r)
 		if httpErr != nil {
 			http.Error(w, httpErr.Why, httpErr.StatusCode)
 			return
@@ -745,7 +799,7 @@ func Init() {
 			http.Error(w, "request body too large", http.StatusRequestEntityTooLarge)
 			return
 		}
-		apiKeyOwner, httpErr := inferenceAuthenticateRequest(r)
+		apiKeyOwner, _, httpErr := inferenceAuthenticateRequest(r)
 		if httpErr != nil {
 			http.Error(w, httpErr.Why, httpErr.StatusCode)
 			return
@@ -807,11 +861,11 @@ func inferenceIsAdminOwner(owner orcapi.ResourceOwner) bool {
 	return slices.Contains(shared.ServiceConfig.Compute.Inference.Access.Administrators, owner.Project.Value)
 }
 
-func inferenceAuthenticateRequest(r *http.Request) (apm.WalletOwner, *util.HttpError) {
+func inferenceAuthenticateRequest(r *http.Request) (apm.WalletOwner, string, *util.HttpError) {
 	authHeader := r.Header.Get("Authorization")
 	apiKey, ok := strings.CutPrefix(authHeader, "Bearer ")
 	if !ok || apiKey == "" {
-		return apm.WalletOwner{}, util.HttpErr(http.StatusForbidden, "invalid key")
+		return apm.WalletOwner{}, "", util.HttpErr(http.StatusForbidden, "invalid key")
 	}
 	return inferenceApiKeyValidate(apiKey)
 }
@@ -948,10 +1002,10 @@ func inferenceDiscoverModelsFromEndpoint(base string, availableTo []string, disa
 			Title:          name,
 			TitleModelName: name,
 			Capabilities:   []InferenceCapability{InferenceTextGeneration},
-			PriceMultiplier: InferencePricing{
-				CachedInput: 1000,
-				Input:       1000,
-				Output:      1000,
+			PricePerMillion: InferencePricing{
+				CachedInput: InferencePriceScale,
+				Input:       InferencePriceScale,
+				Output:      InferencePriceScale,
 			},
 			Endpoint: InferenceEndpoint{
 				BasePath:         base,
@@ -1139,11 +1193,11 @@ func inferenceReportUsage(owner apm.WalletOwner, model InferenceModel, cachedTok
 		outputTokens = 0
 	}
 
-	weightedUsage := inferenceUsageMultiply(cachedTokens, model.PriceMultiplier.CachedInput)
-	weightedUsage = inferenceUsageAdd(weightedUsage, inferenceUsageMultiply(inputTokens, model.PriceMultiplier.Input))
-	weightedUsage = inferenceUsageAdd(weightedUsage, inferenceUsageMultiply(outputTokens, model.PriceMultiplier.Output))
-	usage := weightedUsage / 1000
-	remainder := weightedUsage % 1000
+	weightedUsage := inferenceUsageMultiply(cachedTokens, model.PricePerMillion.CachedInput)
+	weightedUsage = inferenceUsageAdd(weightedUsage, inferenceUsageMultiply(inputTokens, model.PricePerMillion.Input))
+	weightedUsage = inferenceUsageAdd(weightedUsage, inferenceUsageMultiply(outputTokens, model.PricePerMillion.Output))
+	usage := weightedUsage / InferencePriceScale
+	remainder := weightedUsage % InferencePriceScale
 
 	metricInferenceCachedInputTokens.WithLabelValues(model.Name).Add(float64(cachedTokens))
 	metricInferenceInputTokens.WithLabelValues(model.Name).Add(float64(inputTokens))
@@ -1200,9 +1254,9 @@ func inferenceReportUsage(owner apm.WalletOwner, model InferenceModel, cachedTok
 					usage = cast((
 						cast(inference_usage.usage as numeric)
 							+ excluded.usage
-							+ (inference_usage.remainder + excluded.remainder) / 1000
+							+ (inference_usage.remainder + excluded.remainder) / 1000000
 					) as bigint),
-					remainder = (inference_usage.remainder + excluded.remainder) % 1000,
+					remainder = (inference_usage.remainder + excluded.remainder) % 1000000,
 					updated_at = now()
 			`,
 			db.Params{
@@ -1251,11 +1305,11 @@ func inferenceReportChatUsageMetrics(model string, cachedTokens int, inputTokens
 	}
 }
 
-func inferenceUsageMultiply(tokens int, multiplier int) int64 {
-	if tokens <= 0 || multiplier <= 0 {
+func inferenceUsageMultiply(tokens int, encodedPrice int64) int64 {
+	if tokens <= 0 || encodedPrice <= 0 {
 		return 0
 	}
-	high, low := bits.Mul64(uint64(tokens), uint64(multiplier))
+	high, low := bits.Mul64(uint64(tokens), uint64(encodedPrice))
 	if high != 0 || low > math.MaxInt64 {
 		return math.MaxInt64
 	}
@@ -1293,12 +1347,12 @@ func inferenceFlushUsage() {
 				select
 					owner,
 					scope,
-					usage + 1 as usage,
+					usage,
 					remainder,
 					reported_usage
 				from inference_usage
 				where
-					usage + 1 > reported_usage
+					usage > reported_usage
 				order by owner
 			`,
 			db.Params{},

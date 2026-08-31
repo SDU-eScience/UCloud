@@ -219,6 +219,11 @@ export function addThousandSeparators(numberOrString: string | number): string {
     return result;
 }
 
+export function isCreditUnit(unit: string): boolean {
+    const normalized = unit.toLowerCase();
+    return normalized === "credit" || normalized === "credits";
+}
+
 // Version 2 API
 // =====================================================================================================================
 const baseContextV2 = "/api/accounting/v2";
@@ -579,7 +584,7 @@ export function priceToString(product: ProductV2, numberOfUnits: number, duratio
         return `${numerator} / ${fraction.denominator} ${unit.name}${frequencySuffix}`;
     }
 
-    let withoutSuffix = balanceToStringFromUnit(product.category.productType, unit.name, totalPrice, opts?.display);
+    let withoutSuffix = balanceToStringFromUnit(product.category.productType, unit.name, totalPrice, {...opts?.display, isPrice: true});
     if (unit.desiredFrequency !== "ONCE" && opts?.showSuffix !== false) {
         return withoutSuffix + "/" + frequencyToSuffix(unit.desiredFrequency, false);
     } else {
@@ -828,6 +833,27 @@ export function normalizePeriodForComparison(period: Period): Period {
     return {start: Math.floor(period.start / 1000) * 1000, end: Math.floor(period.end / 1000) * 1000};
 }
 
+export function allocationIsVisible(
+    alloc: Allocation,
+    now: number,
+): boolean {
+    const threeMonthsAgo = new Date(now);
+    threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+
+    // Show active and future allocations, plus allocations
+    // that ended within the last 6 months.
+    return alloc.endDate >= threeMonthsAgo.getTime();
+}
+
+export function walletHasVisibleAllocations(
+    wallet: WalletV2,
+    now: number,
+): boolean {
+    return wallet.allocationGroups.some(({group}) =>
+        group.allocations.some(alloc => allocationIsVisible(alloc, now))
+    );
+}
+
 export function allocationIsActive(
     alloc: Allocation,
     now: number,
@@ -889,9 +915,15 @@ function checkIsOwnedByPersonalProviderProject(wallets: WalletV2[]): boolean {
 }
 
 export function buildYourAllocations(allWallets: WalletV2[]): AllocationDisplayTree["yourAllocations"] {
-    const relevantWallets = allWallets.filter(it => !it.paysFor.freeToUse);
+    const now = timestampUnixMs();
+
+    const relevantWallets = allWallets
+        .filter(it => !it.paysFor.freeToUse)
+        .filter(wallet => walletHasVisibleAllocations(wallet, now));
+
     const ownedByPersonalProviderProject = checkIsOwnedByPersonalProviderProject(allWallets);
     const yourAllocations: AllocationDisplayTree["yourAllocations"] = {};
+
     {
         const walletsByType = groupBy(relevantWallets, it => it.paysFor.productType);
         for (const [type, wallets] of Object.entries(walletsByType)) {
@@ -967,7 +999,12 @@ export function buildYourAllocations(allWallets: WalletV2[]): AllocationDisplayT
 
                 const retiredAmount = combineBalances([{balance: totalRetired, category: wallet.paysFor}])
                 const shouldUseRetired = wallet.paysFor.accountingFrequency === "ONCE";
-                if ((quota?.[0]?.normalizedBalance ?? 0) !== 0) {
+
+                const visibleAllocations = wallet.allocationGroups.flatMap(({group}) =>
+                    group.allocations.filter(alloc => allocationIsVisible(alloc, now))
+                );
+
+                if (visibleAllocations?.length > 0) {
                     entry.wallets.push({
                         category: wallet.paysFor,
 
@@ -984,49 +1021,47 @@ export function buildYourAllocations(allWallets: WalletV2[]): AllocationDisplayT
 
                         totalAllocated: wallet.totalAllocated,
 
-                        allocations: wallet.allocationGroups.flatMap(({group}) => {
+                        allocations: visibleAllocations.map(alloc => {
                             const shouldShowRetiredAmount = wallet.paysFor.accountingFrequency !== "ONCE";
 
-                            return group.allocations.map(alloc => {
-                                const note = allocationNote(alloc);
+                            const note = allocationNote(alloc);
 
-                                let quotaString = "";
-                                if (shouldShowRetiredAmount && note !== undefined) {
-                                    const isCapacityBased = wallet.paysFor.accountingFrequency === "ONCE";
-                                    if (isCapacityBased) {
-                                        quotaString = balanceToString(
-                                            wallet.paysFor,
-                                            alloc.retiredQuota!,
-                                            {precision: 2}
-                                        );
-                                    } else {
-                                        quotaString += balanceToString(
-                                            wallet.paysFor,
-                                            alloc.quota,
-                                            {precision: 2}
-                                        );
-                                        quotaString += " / ";
-                                        quotaString += balanceToString(wallet.paysFor, alloc.retiredQuota!, {precision: 2});
-                                    }
+                            let quotaString = "";
+                            if (shouldShowRetiredAmount && note !== undefined) {
+                                const isCapacityBased = wallet.paysFor.accountingFrequency === "ONCE";
+                                if (isCapacityBased) {
+                                    quotaString = balanceToString(
+                                        wallet.paysFor,
+                                        alloc.retiredQuota!,
+                                        {precision: 2}
+                                    );
                                 } else {
-                                    quotaString += balanceToString(wallet.paysFor, alloc.quota, {precision: 2});
+                                    quotaString += balanceToString(
+                                        wallet.paysFor,
+                                        alloc.quota,
+                                        {precision: 2}
+                                    );
+                                    quotaString += " / ";
+                                    quotaString += balanceToString(wallet.paysFor, alloc.retiredQuota!, {precision: 2});
                                 }
+                            } else {
+                                quotaString += balanceToString(wallet.paysFor, alloc.quota, {precision: 2});
+                            }
 
-                                return ({
-                                    id: alloc.id,
-                                    grantedIn: alloc.grantedIn ?? undefined,
-                                    note,
-                                    start: alloc.startDate,
-                                    end: alloc.endDate ?? NO_EXPIRATION_FALLBACK,
-                                    raw: {
-                                        quota: alloc.quota,
-                                        retiredAmount: alloc.retiredUsage ?? 0,
-                                        shouldShowRetiredAmount,
-                                    },
-                                    display: {
-                                        quota: quotaString,
-                                    },
-                                });
+                            return ({
+                                id: alloc.id,
+                                grantedIn: alloc.grantedIn ?? undefined,
+                                note,
+                                start: alloc.startDate,
+                                end: alloc.endDate ?? NO_EXPIRATION_FALLBACK,
+                                raw: {
+                                    quota: alloc.quota,
+                                    retiredAmount: alloc.retiredUsage ?? 0,
+                                    shouldShowRetiredAmount,
+                                },
+                                display: {
+                                    quota: quotaString,
+                                },
                             });
                         }),
                     });
@@ -1206,7 +1241,7 @@ export function explainWallet(wallet: WalletV2): AllocationDisplayWallet | null 
 export function balanceToString(
     category: ProductCategoryV2,
     balance: number,
-    opts?: {precision?: number, removeUnitIfPossible?: boolean}
+    opts?: {precision?: number, removeUnitIfPossible?: boolean, isPrice?: boolean}
 ): string {
     const unit = explainUnit(category);
     const normalizedBalance = balance * unit.balanceFactor;
@@ -1218,7 +1253,8 @@ export function normalizedBalanceToRaw(
     normalizedBalance: number,
 ): number {
     const unit = explainUnit(category);
-    return normalizedBalance * unit.invBalanceFactor;
+    const rawBalance = normalizedBalance * unit.invBalanceFactor;
+    return isCreditUnit(unit.name) ? Math.round(rawBalance) : rawBalance;
 }
 
 export function truncateValues(
@@ -1251,7 +1287,7 @@ export function truncateValues(
         }
 
         unitToDisplay = array[idx];
-    } else {
+    } else if (!isCreditUnit(unitToDisplay)) {
         let threshold = 1000;
         if (ProbablyCurrencies.indexOf(unitToDisplay) !== -1) threshold = 1000000;
 
@@ -1286,8 +1322,9 @@ export function formatUsage(usage: number, productType: ProductType | null, unit
 
     const [truncatedUsage] = truncated;
 
-    let result = fmt(truncatedUsage);
-    result += `${attachedSuffix} `;
+    let result = fmtBalance(truncatedUsage, unit);
+    if (attachedSuffix) result += attachedSuffix;
+    result += " ";
     result += `${unitToDisplay}`;
 
     return result;
@@ -1305,13 +1342,13 @@ export function formatUsageAndQuota(usage: number, quota: number, isStorage: boo
     } = truncateValues([usage, quota], isStorage, unit, opts);
     const [truncatedUsage, truncatedQuota] = truncated;
 
-    let usageAndQuota = fmt(truncatedUsage, opts?.precision);
+    let usageAndQuota = fmtBalance(truncatedUsage, unit, opts?.precision);
     if (attachedSuffix) usageAndQuota += `${attachedSuffix}`;
     if (isStorage) {
         usageAndQuota += ` ${unitToDisplay}`;
     }
     usageAndQuota += " / ";
-    usageAndQuota += fmt(truncatedQuota, opts?.precision);
+    usageAndQuota += fmtBalance(truncatedQuota, unit, opts?.precision);
     if (attachedSuffix) usageAndQuota += `${attachedSuffix}`;
     usageAndQuota += " ";
 
@@ -1326,11 +1363,20 @@ function fmt(val: number, precision: number = 1): string {
     return addThousandSeparators(removeSuffix(val.toFixed(precision), ".0"))
 }
 
+function fmtBalance(val: number, unit: string, precision?: number, isPrice = false): string {
+    if (!isCreditUnit(unit)) return fmt(val, precision);
+
+    const maxPrecision = isPrice ? 6 : 3;
+    const precisionToUse = isPrice ? Math.min(precision ?? maxPrecision, maxPrecision) : maxPrecision;
+    const text = val.toFixed(precisionToUse).replace(/(\.\d*?)0+$/, "$1").replace(/\.$/, "");
+    return addThousandSeparators(text);
+}
+
 export function balanceToStringFromUnit(
     productType: ProductType | null,
     unit: string,
     normalizedBalance: number,
-    opts?: {precision?: number, removeUnitIfPossible?: boolean, referenceBalance?: number}
+    opts?: {precision?: number, removeUnitIfPossible?: boolean, referenceBalance?: number, isPrice?: boolean}
 ): string {
     const isStorage = productType === "STORAGE" || StandardStorageUnitsSi.indexOf(unit) !== -1 ||
         StandardStorageUnits.indexOf(unit) !== -1;
@@ -1345,7 +1391,7 @@ export function balanceToStringFromUnit(
     const [balanceToDisplay] = truncated;
 
     let builder = "";
-    builder += fmt(balanceToDisplay, opts?.precision);
+    builder += fmtBalance(balanceToDisplay, unit, opts?.precision, opts?.isPrice);
     if (attachedSuffix) builder += attachedSuffix;
     if (!canRemoveUnit) {
         builder += " ";
@@ -1355,10 +1401,18 @@ export function balanceToStringFromUnit(
 }
 
 export function normalizeFrequency(frequency: AccountingFrequency): string {
-    if (frequency === "PERIODIC_MINUTE") {return "minute(s)"}
-    if (frequency === "PERIODIC_HOUR") {return "hour(s)"}
-    if (frequency === "PERIODIC_DAY") {return "day(s)"}
-    if (frequency === "ONCE") {return ""}
+    if (frequency === "PERIODIC_MINUTE") {
+        return "minute(s)"
+    }
+    if (frequency === "PERIODIC_HOUR") {
+        return "hour(s)"
+    }
+    if (frequency === "PERIODIC_DAY") {
+        return "day(s)"
+    }
+    if (frequency === "ONCE") {
+        return ""
+    }
     return ""
 }
 

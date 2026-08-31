@@ -8,7 +8,7 @@ import {useAppSearch} from "./Search";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import * as AppStore from "@/Applications/AppStoreApi";
 import {getQueryParam} from "@/Utilities/URIUtilities";
-import {doNothing, extractErrorMessage} from "@/UtilityFunctions";
+import {displayErrorMessageOrDefault, doNothing, extractErrorMessage} from "@/UtilityFunctions";
 import {Gradient, GradientWithPolygons} from "@/ui-components/GradientBackground";
 import {UtilityBar} from "@/Navigation/UtilityBar";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
@@ -68,6 +68,12 @@ const ApplicationsCategory: React.FunctionComponent = () => {
     useEffect(() => {
         refresh();
     }, [refresh]);
+
+    useEffect(() => {
+        if (categoryState.error) {
+            displayErrorMessageOrDefault(categoryState.error.why, "Failed to fetch category");
+        }
+    }, [categoryState.error])
 
     useEffect(() => {
         let cancelled = false;

@@ -804,7 +804,7 @@ function FileBrowse({
                         });
 
                         let i = 0;
-                        // A max of 4 buttons for the view else we collapse them 
+                        // A max of 4 buttons for the view else we collapse them
                         for (; i < restOperations.length && result.length < 4; i++) {
                             const op = restOperations[i];
                             result.push(op);
@@ -1029,7 +1029,7 @@ function FileBrowse({
 
                     const share = shares[file.id];
                     if (share) {
-                        folderNote(icon, "This files is shared with other users", "30px", "34px", 250, "heroShare", () => navigate(AppRoutes.shares.sharedByMeFile(share.sourceFilePath)))
+                        folderNote(icon, "This file is shared with other users", "30px", "34px", 250, "heroShare", () => navigate(AppRoutes.shares.sharedByMeFile(share.sourceFilePath)))
                     }
 
                     const modifiedAt = file.status.modifiedAt ?? file.status.accessedAt ?? timestampUnixMs();

@@ -79,10 +79,6 @@ func apiTokenProviderFor(permissions []orcapi.ApiTokenPermission) (ApiTokenProvi
 }
 
 func ApiTokenValidatePermissions(options orcapi.ApiTokenOptions, permissions []orcapi.ApiTokenPermission) *util.HttpError {
-	if _, ok := orcapi.ApiTokenServiceFromPermissions(permissions); !ok {
-		return util.HttpErr(http.StatusBadRequest, "a service provider token must request exactly one service")
-	}
-
 	permissionsByName := map[string]orcapi.ApiTokenPermissionSpecification{}
 	for _, option := range options.AvailablePermissions {
 		permissionsByName[option.Name] = option
@@ -102,10 +98,6 @@ func ApiTokenValidatePermissions(options orcapi.ApiTokenOptions, permissions []o
 }
 
 func ApiTokenCreate(kind string, server string, request orcapi.ApiToken) (orcapi.ApiTokenStatus, *util.HttpError) {
-	if _, ok := orcapi.ApiTokenServiceFromPermissions(request.Specification.RequestedPermissions); !ok {
-		return orcapi.ApiTokenStatus{}, util.HttpErr(http.StatusBadRequest, "a service provider token must request exactly one service")
-	}
-
 	if request.Specification.ExpiresAt.Time().Before(time.Now()) {
 		return orcapi.ApiTokenStatus{}, util.HttpErr(http.StatusBadRequest, "requested token has already expired")
 	}
@@ -118,27 +110,27 @@ func ApiTokenCreate(kind string, server string, request orcapi.ApiToken) (orcapi
 		db.Exec(
 			tx,
 			`
-				insert into api_tokens(token_id, token_type, owner, created_by, permissions, token_hash, token_salt, expires_at)
-				values (:token_id, :token_type, :owner, :created_by, cast(:permissions as jsonb), :token_hash, :token_salt, :expires_at)
+				insert into api_tokens(token_id, token_type, owner, permissions, token_hash, token_salt, expires_at, created_by)
+				values (:token_id, :token_type, :owner, cast(:permissions as jsonb), :token_hash, :token_salt, :expires_at, :created_by)
 				on conflict (token_id) do update
 				set
 					token_type = excluded.token_type,
 					owner = excluded.owner,
-					created_by = excluded.created_by,
 					permissions = excluded.permissions,
 					token_hash = excluded.token_hash,
 					token_salt = excluded.token_salt,
-					expires_at = excluded.expires_at
+					expires_at = excluded.expires_at,
+					created_by = excluded.created_by
 			`,
 			db.Params{
 				"token_id":    request.Id,
 				"token_type":  kind,
 				"owner":       request.Owner.Project.GetOrDefault(request.Owner.CreatedBy),
-				"created_by":  request.Owner.CreatedBy,
 				"permissions": string(permissions),
 				"token_hash":  hashedToken.HashedPassword,
 				"token_salt":  hashedToken.Salt,
 				"expires_at":  request.Specification.ExpiresAt.Time(),
+				"created_by":  request.Owner.CreatedBy,
 			},
 		)
 	})
@@ -154,6 +146,15 @@ type apiTokenAuthentication struct {
 	Permissions []orcapi.ApiTokenPermission
 }
 
+var apiTokensCache = util.NewCache[string, apiTokenAuthentication](5 * time.Minute)
+var apiTokenIdToCacheKey = util.NewCache[string, string](5 * time.Minute)
+
+type ApiTokenAuthentication struct {
+	Owner       apm.WalletOwner
+	CreatedBy   string
+	Permissions []orcapi.ApiTokenPermission
+}
+
 type ApiTokenIdentity struct {
 	TokenId     string
 	Owner       apm.WalletOwner
@@ -161,25 +162,40 @@ type ApiTokenIdentity struct {
 	Permissions []orcapi.ApiTokenPermission
 }
 
-var apiTokensCache = util.NewCache[string, apiTokenAuthentication](5 * time.Minute)
-var apiTokenIdToCacheKey = util.NewCache[string, string](5 * time.Minute)
-
-func ApiTokenValidate(kind string, key string) (apm.WalletOwner, []orcapi.ApiTokenPermission, *util.HttpError) {
-	identity, err := ApiTokenValidateWithIdentity(kind, key)
-	return identity.Owner, identity.Permissions, err
-}
-
 func ApiTokenValidateWithIdentity(kind string, key string) (ApiTokenIdentity, *util.HttpError) {
-	tokenId, secret, ok := apiTokenParse(key)
+	tokenId, _, ok := apiTokenParse(key)
 	if !ok {
 		return ApiTokenIdentity{}, util.HttpErr(http.StatusForbidden, "invalid key")
+	}
+
+	authentication, err := ApiTokenValidate(kind, key)
+	if err != nil {
+		return ApiTokenIdentity{}, err
+	}
+
+	username := authentication.CreatedBy
+	if username == "" {
+		username = authentication.Owner.Username
+	}
+	return ApiTokenIdentity{
+		TokenId:     tokenId,
+		Owner:       authentication.Owner,
+		Username:    username,
+		Permissions: authentication.Permissions,
+	}, nil
+}
+
+func ApiTokenValidate(kind string, key string) (ApiTokenAuthentication, *util.HttpError) {
+	tokenId, secret, ok := apiTokenParse(key)
+	if !ok {
+		return ApiTokenAuthentication{}, util.HttpErr(http.StatusForbidden, "invalid key")
 	}
 
 	cacheKey := kind + "\x1f" + key
 	authentication, ok := apiTokensCache.Get(cacheKey, func() (apiTokenAuthentication, error) {
 		type rowType struct {
 			Owner       string
-			CreatedBy   sql.NullString
+			CreatedBy   sql.Null[string]
 			Permissions json.RawMessage
 			TokenHash   []byte
 			TokenSalt   []byte
@@ -219,28 +235,19 @@ func ApiTokenValidateWithIdentity(kind string, key string) (ApiTokenIdentity, *u
 			)
 		})
 
-		return apiTokenAuthentication{Owner: row.Owner, CreatedBy: row.CreatedBy.String, Permissions: permissions}, nil
+		return apiTokenAuthentication{Owner: row.Owner, CreatedBy: row.CreatedBy.V, Permissions: permissions}, nil
 	})
 
 	if !ok {
-		return ApiTokenIdentity{}, util.HttpErr(http.StatusForbidden, "invalid key")
+		return ApiTokenAuthentication{}, util.HttpErr(http.StatusForbidden, "invalid key")
 	}
 
 	apiTokenIdToCacheKey.Set(tokenId, cacheKey)
 	owner := apm.WalletOwnerFromReference(authentication.Owner)
 	if authentication.Owner == "" || (owner.Username == "" && owner.ProjectId == "") {
-		return ApiTokenIdentity{}, util.HttpErr(http.StatusForbidden, "invalid key")
+		return ApiTokenAuthentication{}, util.HttpErr(http.StatusForbidden, "invalid key")
 	}
-	username := authentication.CreatedBy
-	if username == "" {
-		username = owner.Username
-	}
-	return ApiTokenIdentity{
-		TokenId:     tokenId,
-		Owner:       owner,
-		Username:    username,
-		Permissions: authentication.Permissions,
-	}, nil
+	return ApiTokenAuthentication{Owner: owner, CreatedBy: authentication.CreatedBy, Permissions: authentication.Permissions}, nil
 }
 
 func apiTokenParse(raw string) (tokenId string, secret string, ok bool) {
