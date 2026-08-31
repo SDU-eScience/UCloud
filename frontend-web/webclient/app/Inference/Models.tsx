@@ -268,8 +268,6 @@ const pageStyle = injectStyle("inference-models-page", k => `
     }
 
     ${k} .model-results {
-        max-height: calc(4 * 250px + 3 * 14px);
-        overflow-y: auto;
         padding-right: 4px;
     }
 
