@@ -555,7 +555,7 @@ func Init() {
 		defer cancel()
 
 		if request.Stream {
-			events, httpErr := InferenceResponseCreateStreaming(ctx, apiKeyOwner, request)
+			events, httpErr := InferenceResponseCreateStreaming(ctx, apiKeyOwner, createdBy, request)
 			if httpErr != nil {
 				http.Error(w, httpErr.Why, httpErr.StatusCode)
 				return
@@ -587,7 +587,7 @@ func Init() {
 			return
 		}
 
-		resp, httpErr := InferenceResponseCreate(ctx, apiKeyOwner, request)
+		resp, httpErr := InferenceResponseCreate(ctx, apiKeyOwner, createdBy, request)
 		if httpErr != nil {
 			http.Error(w, httpErr.Why, httpErr.StatusCode)
 			return
@@ -628,7 +628,7 @@ func Init() {
 			}
 			id := strings.TrimSuffix(path, "/cancel")
 			id = strings.Trim(id, "/")
-			resp, httpErr := InferenceResponseCancel(apiKeyOwner, id)
+			resp, httpErr := InferenceResponseCancel(apiKeyOwner, createdBy, id)
 			if httpErr != nil {
 				http.Error(w, httpErr.Why, httpErr.StatusCode)
 				return
@@ -642,7 +642,7 @@ func Init() {
 
 		switch r.Method {
 		case http.MethodGet:
-			resp, httpErr := InferenceResponsePoll(apiKeyOwner, path)
+			resp, httpErr := InferenceResponsePoll(apiKeyOwner, createdBy, path)
 			if httpErr != nil {
 				http.Error(w, httpErr.Why, httpErr.StatusCode)
 				return
@@ -652,7 +652,7 @@ func Init() {
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write(respData)
 		case http.MethodDelete:
-			resp, httpErr := InferenceResponseDelete(apiKeyOwner, path)
+			resp, httpErr := InferenceResponseDelete(apiKeyOwner, createdBy, path)
 			if httpErr != nil {
 				http.Error(w, httpErr.Why, httpErr.StatusCode)
 				return

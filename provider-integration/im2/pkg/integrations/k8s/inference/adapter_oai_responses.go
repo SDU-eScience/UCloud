@@ -41,6 +41,7 @@ type OaiResponseCreateRequest struct {
 	ParallelToolCalls util.Option[bool]          `json:"parallel_tool_calls,omitempty"`
 	Reasoning         OaiResponseReasoningConfig `json:"reasoning,omitempty"`
 	Stream            bool                       `json:"stream,omitempty"`
+	Store             util.Option[bool]          `json:"store,omitempty"`
 	Temperature       util.Option[float64]       `json:"temperature,omitempty"`
 	Text              OaiResponseTextConfig      `json:"text,omitempty"`
 	ToolChoice        json.RawMessage            `json:"tool_choice,omitempty"`
@@ -275,9 +276,12 @@ type OaiResponseDeleteResponse struct {
 	Deleted bool   `json:"deleted"`
 }
 
-func InferenceResponseCreate(ctx context.Context, owner apm.WalletOwner, request OaiResponseCreateRequest) (OaiResponse, *util.HttpError) {
+func InferenceResponseCreate(ctx context.Context, owner apm.WalletOwner, username string, request OaiResponseCreateRequest) (OaiResponse, *util.HttpError) {
 	if httpErr := inferenceResponseValidateRequest(request); httpErr != nil {
 		return OaiResponse{}, httpErr
+	}
+	if username == "" {
+		return OaiResponse{}, util.HttpErr(http.StatusForbidden, "token has no associated user")
 	}
 
 	id := inferenceResponseNewId("resp")
@@ -286,20 +290,22 @@ func InferenceResponseCreate(ctx context.Context, owner apm.WalletOwner, request
 		queued := inferenceResponseBase(id, createdAt, request)
 		queued.Status = "queued"
 		queued.Background = true
-		inferenceResponseStoreSet(owner, queued)
+		if httpErr := inferenceResponseStoreSet(owner, username, queued, nil); httpErr != nil {
+			return OaiResponse{}, httpErr
+		}
 
 		go func() {
 			backgroundCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), inferenceRequestTimeout)
 			defer cancel()
 			inProgress := queued
 			inProgress.Status = "in_progress"
-			inferenceResponseStoreSet(owner, inProgress)
+			_ = inferenceResponseStoreSet(owner, username, inProgress, nil)
 
 			chatRequest, httpErr := inferenceResponseChatRequest(request)
 			if httpErr != nil {
 				failed := inferenceResponseFailed(id, createdAt, request, httpErr.Why)
 				failed.Background = true
-				inferenceResponseStoreSet(owner, failed)
+				_ = inferenceResponseStoreSet(owner, username, failed, nil)
 				return
 			}
 
@@ -307,13 +313,14 @@ func InferenceResponseCreate(ctx context.Context, owner apm.WalletOwner, request
 			if httpErr != nil {
 				failed := inferenceResponseFailed(id, createdAt, request, httpErr.Why)
 				failed.Background = true
-				inferenceResponseStoreSet(owner, failed)
+				_ = inferenceResponseStoreSet(owner, username, failed, nil)
 				return
 			}
 
 			resp := inferenceResponseFromChat(id, request, chatResponse)
 			resp.Background = true
-			inferenceResponseStoreSet(owner, resp)
+			conversation := inferenceResponseConversationFromTurn(request, resp)
+			_ = inferenceResponseStoreSet(owner, username, resp, conversation)
 		}()
 
 		return queued, nil
@@ -330,15 +337,22 @@ func InferenceResponseCreate(ctx context.Context, owner apm.WalletOwner, request
 	}
 
 	resp := inferenceResponseFromChat(id, request, chatResponse)
-	inferenceResponseStoreSet(owner, resp)
+	conversation := inferenceResponseConversationFromTurn(request, resp)
+	if httpErr := inferenceResponseStoreSet(owner, username, resp, conversation); httpErr != nil {
+		return OaiResponse{}, httpErr
+	}
 	return resp, nil
 }
 
-func InferenceResponseCreateStreaming(ctx context.Context, owner apm.WalletOwner, request OaiResponseCreateRequest) (chan OaiResponseStreamEvent, *util.HttpError) {
+func InferenceResponseCreateStreaming(ctx context.Context, owner apm.WalletOwner, username string, request OaiResponseCreateRequest) (chan OaiResponseStreamEvent, *util.HttpError) {
 	ch := make(chan OaiResponseStreamEvent)
 	if httpErr := inferenceResponseValidateRequest(request); httpErr != nil {
 		close(ch)
 		return ch, httpErr
+	}
+	if username == "" {
+		close(ch)
+		return ch, util.HttpErr(http.StatusForbidden, "token has no associated user")
 	}
 
 	chatRequest, httpErr := inferenceResponseChatRequest(request)
@@ -564,7 +578,12 @@ func InferenceResponseCreateStreaming(ctx context.Context, owner apm.WalletOwner
 			resp.Output[toolCall.OutputIndex] = toolCall.ResponseItem("completed")
 		}
 		resp.Usage = inferenceResponseUsage(usage, reasoning.String())
-		inferenceResponseStoreSet(owner, resp)
+		conversation := inferenceResponseConversationFromTurn(request, resp)
+		if err := inferenceResponseStoreSet(owner, username, resp, conversation); err != nil {
+			failed := inferenceResponseFailed(resp.Id, createdAt, request, err.Why)
+			ch <- OaiResponseStreamEvent{Type: "response.failed", Response: &failed}
+			return
+		}
 		ch <- OaiResponseStreamEvent{Type: "response.completed", Response: &resp}
 	}()
 
@@ -854,23 +873,24 @@ func inferenceResponseLocalShellAction(arguments string) OaiResponseLocalShellAc
 	return OaiResponseLocalShellAction{Type: "exec", Command: parsed.Command, Env: parsed.Env, TimeoutMs: parsed.TimeoutMs, User: parsed.User, WorkingDirectory: parsed.WorkingDirectory}
 }
 
-func InferenceResponsePoll(owner apm.WalletOwner, id string) (OaiResponse, *util.HttpError) {
-	resp, ok := inferenceResponseStoreGet(owner, id)
+func InferenceResponsePoll(owner apm.WalletOwner, username string, id string) (OaiResponse, *util.HttpError) {
+	resp, ok := inferenceResponseStoreGet(owner, username, id)
 	if !ok {
 		return OaiResponse{}, util.HttpErr(http.StatusNotFound, "response not found")
 	}
 	return resp, nil
 }
 
-func InferenceResponseCancel(owner apm.WalletOwner, id string) (OaiResponse, *util.HttpError) {
-	return InferenceResponsePoll(owner, id)
+func InferenceResponseCancel(owner apm.WalletOwner, username string, id string) (OaiResponse, *util.HttpError) {
+	return InferenceResponsePoll(owner, username, id)
 }
 
-func InferenceResponseDelete(owner apm.WalletOwner, id string) (OaiResponseDeleteResponse, *util.HttpError) {
-	if _, ok := inferenceResponseStoreGet(owner, id); !ok {
+func InferenceResponseDelete(owner apm.WalletOwner, username string, id string) (OaiResponseDeleteResponse, *util.HttpError) {
+	if _, ok := inferenceResponseStoreGet(owner, username, id); !ok {
 		return OaiResponseDeleteResponse{}, util.HttpErr(http.StatusNotFound, "response not found")
 	}
-	inferenceResponseStoreDelete(id)
+	inferenceResponseStoreMemoryEvict(id)
+	inferenceResponseStoreDelete(owner, username, id)
 	return OaiResponseDeleteResponse{Id: id, Object: "response", Deleted: true}, nil
 }
 
@@ -1632,7 +1652,7 @@ func inferenceResponseBase(id string, createdAt int64, request OaiResponseCreate
 		ParallelToolCalls:  request.ParallelToolCalls.GetOrDefault(true),
 		PreviousResponseID: nil,
 		Reasoning:          OaiResponseReasoningReturn{Effort: request.Reasoning.Effort.GetPtrOrNil(), Summary: nil},
-		Store:              true,
+		Store:              request.Store.GetOrDefault(true),
 		Temperature:        request.Temperature.GetOrDefault(1),
 		Text:               OaiResponseTextReturn{Format: format},
 		ToolChoice:         toolChoice,
@@ -1683,9 +1703,8 @@ func inferenceResponseNewId(prefix string) string {
 	return fmt.Sprintf("%s_%s", prefix, util.SecureToken())
 }
 
-func inferenceResponseStoreSet(owner apm.WalletOwner, response OaiResponse) {
+func inferenceResponseStoreSet(owner apm.WalletOwner, username string, response OaiResponse, conversation *inferencePersistedConversation) *util.HttpError {
 	inferenceResponseGlobals.Mu.Lock()
-	defer inferenceResponseGlobals.Mu.Unlock()
 	inferenceResponseStoreCleanLocked()
 	ownerRef := owner.Reference()
 	oldestOwnerId := ""
@@ -1714,23 +1733,81 @@ func inferenceResponseStoreSet(owner apm.WalletOwner, response OaiResponse) {
 		}
 	}
 	inferenceResponseGlobals.Responses[response.Id] = inferenceStoredResponse{Response: response, Owner: ownerRef, CreatedAt: time.Now()}
+	inferenceResponseGlobals.Mu.Unlock()
+
+	if username == "" {
+		// Required, but for some reason got here without it. Let's just reject it completely.
+		return nil
+	}
+
+	if conversation != nil {
+		if err := inferenceResponseStoreConversationWrite(owner, username, *conversation); err != nil {
+			return err
+		}
+	}
+
+	if response.Store {
+		record := inferencePersistedResponse{
+			Version:      1,
+			Id:           response.Id,
+			Owner:        owner.Reference(),
+			Conversation: conversationIdOf(conversation),
+			ContextAfter: contextAfterOf(conversation),
+			Response:     response,
+		}
+		if err := inferenceResponseStoreWrite(owner, username, record); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
-func inferenceResponseStoreGet(owner apm.WalletOwner, id string) (OaiResponse, bool) {
+func conversationIdOf(conversation *inferencePersistedConversation) string {
+	if conversation == nil {
+		return ""
+	}
+	return conversation.Id
+}
+
+func contextAfterOf(conversation *inferencePersistedConversation) int {
+	if conversation == nil {
+		return 0
+	}
+	return len(conversation.Items)
+}
+
+func inferenceResponseStoreGet(owner apm.WalletOwner, username string, responseId string) (OaiResponse, bool) {
 	inferenceResponseGlobals.Mu.RLock()
-	stored, ok := inferenceResponseGlobals.Responses[id]
+	stored, ok := inferenceResponseGlobals.Responses[responseId]
 	inferenceResponseGlobals.Mu.RUnlock()
+
 	if !ok || stored.Owner != owner.Reference() {
+		ok = false
+	}
+	if ok && time.Since(stored.CreatedAt) > inferenceResponseStoreTTL {
+		inferenceResponseStoreMemoryEvict(responseId)
+		ok = false
+	}
+	if ok {
+		return stored.Response, true
+	}
+
+	record, ok := inferenceResponseStoreRead(owner, username, responseId)
+	if !ok {
 		return OaiResponse{}, false
 	}
-	if time.Since(stored.CreatedAt) > inferenceResponseStoreTTL {
-		inferenceResponseStoreDelete(id)
-		return OaiResponse{}, false
+
+	inferenceResponseGlobals.Mu.Lock()
+	inferenceResponseGlobals.Responses[record.Id] = inferenceStoredResponse{
+		Response:  record.Response,
+		Owner:     owner.Reference(),
+		CreatedAt: time.Now(),
 	}
-	return stored.Response, true
+	inferenceResponseGlobals.Mu.Unlock()
+	return record.Response, true
 }
 
-func inferenceResponseStoreDelete(id string) {
+func inferenceResponseStoreMemoryEvict(id string) {
 	inferenceResponseGlobals.Mu.Lock()
 	delete(inferenceResponseGlobals.Responses, id)
 	inferenceResponseGlobals.Mu.Unlock()

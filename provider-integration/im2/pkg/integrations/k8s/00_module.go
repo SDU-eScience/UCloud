@@ -58,6 +58,10 @@ func Init(config *cfg.ServicesConfigurationKubernetes) {
 	controller.Jobs = InitCompute()
 	controller.UcxApplications = initAppUcx()
 
+	filesystem.DriveScanListener = func(drive *orc.Drive, internalPath string) {
+		inference.InferenceDriveScanned(drive, internalPath)
+	}
+
 	controller.IdentityManagement.HandleProjectNotification = func(updated *controller.EventProjectUpdated) bool {
 		ok := true
 		for _, member := range updated.MembersAddedToProject {

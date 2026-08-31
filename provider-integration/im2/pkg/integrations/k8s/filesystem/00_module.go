@@ -35,6 +35,8 @@ var storageSupport []orc.FSSupport
 
 var browseCache *lru.LRU[string, []cachedDirEntry]
 
+var DriveScanListener func(drive *orc.Drive, internalPath string)
+
 const SensitivityXattr string = "user.sensitivity"
 
 type cachedDirEntry struct {

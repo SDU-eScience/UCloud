@@ -104,15 +104,15 @@ func TestInferenceStoredResponseIsOwnerBound(t *testing.T) {
 	owner := apm.WalletOwnerUser("alice")
 	other := apm.WalletOwnerUser("bob")
 	response := OaiResponse{Id: "resp-secret"}
-	inferenceResponseStoreSet(owner, response)
+	inferenceResponseStoreSet(owner, "", response, nil)
 
-	if _, ok := inferenceResponseStoreGet(owner, response.Id); !ok {
+	if _, ok := inferenceResponseStoreGet(owner, "", response.Id); !ok {
 		t.Fatal("owner could not retrieve stored response")
 	}
-	if _, ok := inferenceResponseStoreGet(other, response.Id); ok {
+	if _, ok := inferenceResponseStoreGet(other, "", response.Id); ok {
 		t.Fatal("different owner retrieved stored response")
 	}
-	if _, ok := inferenceResponseStoreGet(owner, response.Id); !ok {
+	if _, ok := inferenceResponseStoreGet(owner, "", response.Id); !ok {
 		t.Fatal("different owner lookup removed stored response")
 	}
 }
