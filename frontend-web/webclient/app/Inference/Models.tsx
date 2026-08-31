@@ -16,8 +16,10 @@ import {SingleLineMarkdown} from "@/ui-components/Markdown";
 import HeroImage from "@/Assets/Images/inference/ucloud-ai-logo.png";
 import {RichSelect} from "@/ui-components/RichSelect";
 import {useIsLightThemeStored} from "@/ui-components/theme";
+import {expandAndPrettifyString} from "@/UtilityFunctions";
 
 const capabilities: InferenceCapability[] = ["TextGeneration", "TextToImage", "SpeechToText"];
+const prettierCapabilities = capabilities.map(expandAndPrettifyString);
 
 const pageStyle = injectStyle("inference-models-page", k => `
     ${k} {
@@ -620,8 +622,8 @@ export default function Models(): React.ReactNode {
                 <Flex alignItems="center" mb={8}>
                     <Flex gap={"4px"} overflowY="scroll">
                         <CatalogFilterButton active={capabilityFilter === "All"} onClick={() => setCapabilityFilter("All")}>All</CatalogFilterButton>
-                        {capabilities.map(capability => <CatalogFilterButton key={capability} active={capabilityFilter === capability} onClick={() => setCapabilityFilter(capability)}>
-                            {capability}
+                        {capabilities.map((capability, index) => <CatalogFilterButton key={capability} active={capabilityFilter === capability} onClick={() => setCapabilityFilter(capability)}>
+                            {prettierCapabilities[index]}
                         </CatalogFilterButton>)}
                     </Flex>
 

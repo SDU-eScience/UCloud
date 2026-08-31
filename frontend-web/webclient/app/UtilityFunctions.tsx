@@ -266,7 +266,30 @@ export function ifPresent<T>(f: T | undefined, handler: (f: T) => void): void {
  * Capitalizes the input string and replaces _ (underscores) with whitespace.
  * @param str input string.
  */
-export const prettierString = (str: string): string => capitalized(str).replace(/_/g, " ");
+export function prettierString(str: string): string {
+    return capitalized(str).replace(/_/g, " ");
+}
+
+/**
+ *
+ * @param str input string
+ * @returns string where every capitalized letter is preceeded by a space, expect the first letter
+*/
+function insertWhitespace(str: String): string {
+    let result = "";
+    for (const letter of str) {
+        if (letter < 'a') {
+            result += " ";
+        }
+        result += letter;
+    }
+    return result.trim();
+}
+
+const WordsToLowerCase = ["To", "With", "From"];
+export function expandAndPrettifyString(str: string) {
+    return insertWhitespace(str).split(" ").map(it => WordsToLowerCase.includes(it) ? it.toLocaleLowerCase() : it).join(" ");
+}
 
 export function extractErrorCode(e: unknown): number {
     if (typeof e === "object") {

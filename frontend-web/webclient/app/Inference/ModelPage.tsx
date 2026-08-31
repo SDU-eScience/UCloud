@@ -6,7 +6,7 @@ import AppRoutes from "@/Routes";
 import {Box, Button, Card, ExternalLink, Flex, Input, Link, Select, Text, TextArea} from "@/ui-components";
 import {MainContainer, MAIN_CONTAINER_MAX_WIDTH} from "@/ui-components/MainContainer";
 import Table, {TableHeader, TableRow} from "@/ui-components/Table";
-import {copyToClipboard} from "@/UtilityFunctions";
+import {copyToClipboard, expandAndPrettifyString} from "@/UtilityFunctions";
 import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {InferenceBenchmark, InferenceCapability, InferenceModel, listModels, updateBenchmarks, updateModel} from "./api";
@@ -20,6 +20,8 @@ import {MarkdownDocument} from "@/ui-components/Markdown";
 
 const fallbackDocs = "https://docs.cloud.sdu.dk";
 const capabilities: InferenceCapability[] = ["TextGeneration", "TextToImage", "SpeechToText", "Vision", "VideoVision", "Audio"];
+const prettierCapabilities = capabilities.map(expandAndPrettifyString);
+
 type PriceMultiplierText = {cachedInput: string; input: string; output: string};
 
 export default function ModelPage(): React.ReactNode {
@@ -254,7 +256,7 @@ const PageStyle = injectStyle("model-page", k => `
             gap: 0;
         }
     }
-     
+
     html.dark ${k} {
         --model-hero: var(--blue-80);
         --model-hero-border: var(--blue-90);
@@ -544,7 +546,7 @@ function ModelSettingsEditor(props: {
         <label style={{display: "flex", gap: 6, alignItems: "center"}}><input type="checkbox" checked={model.chatSettings.disableTools} onChange={ev => setModel({...model, chatSettings: {...model.chatSettings, disableTools: ev.currentTarget.checked}})} />Disable chat tools</label>
         <Box>
             <Text fontWeight={600}>Capabilities</Text>
-            <Flex gap="12px" flexWrap="wrap" mt={8}>{capabilities.map(capability => <label key={capability} style={{display: "flex", gap: 6, alignItems: "center"}}><input type="checkbox" checked={model.capabilities.includes(capability)} onChange={ev => setModel({...model, capabilities: ev.currentTarget.checked ? [...model.capabilities, capability] : model.capabilities.filter(it => it !== capability)})} />{capability}</label>)}</Flex>
+            <Flex gap="12px" flexWrap="wrap" mt={8}>{capabilities.map((capability, index) => <label key={capability} style={{display: "flex", gap: 6, alignItems: "center"}}><input type="checkbox" checked={model.capabilities.includes(capability)} onChange={ev => setModel({...model, capabilities: ev.currentTarget.checked ? [...model.capabilities, capability] : model.capabilities.filter(it => it !== capability)})} />{prettierCapabilities[index]}</label>)}</Flex>
         </Box>
     </Box>;
 }
