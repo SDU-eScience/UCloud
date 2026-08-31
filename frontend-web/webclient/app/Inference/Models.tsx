@@ -46,7 +46,7 @@ const pageStyle = injectStyle("inference-models-page", k => `
         background: var(--backgroundCard);
         border-top: 5px solid rgba(148, 163, 184, 0.18);
     }
-    
+
     ${k} .panel-solid,
     ${k} .panel-accent {
         padding: 150px 16px;
@@ -365,7 +365,7 @@ const pageStyle = injectStyle("inference-models-page", k => `
         gap: 8px;
         grid-template-columns: repeat(3, minmax(0, 1fr));
     }
-    
+
     ${k} .model-spec-section {
         border-top: 1px solid var(--borderColor);
         padding-top: 16px;
@@ -619,8 +619,8 @@ export default function Models(): React.ReactNode {
 
         <section id="model-catalog" className="panel panel-muted">
             <div className="panel-inner">
-                <Flex alignItems={"center"} mb={8}>
-                    <Flex gap={"4px"}>
+                <Flex alignItems="center" mb={8}>
+                    <Flex gap={"4px"} overflowY="scroll">
                         <CatalogFilterButton active={capabilityFilter === "All"} onClick={() => setCapabilityFilter("All")}>All</CatalogFilterButton>
                         {capabilities.map(capability => <CatalogFilterButton key={capability} active={capabilityFilter === capability} onClick={() => setCapabilityFilter(capability)}>
                             {capability}
