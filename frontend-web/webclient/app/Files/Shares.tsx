@@ -55,6 +55,7 @@ import {defaultAvatar} from "@/AvataaarLib";
 import {SvgCache} from "@/Utilities/SvgCache";
 import {sendInformationNotification} from "@/Notifications";
 import {Product} from "@/Accounting";
+import { ContainerSize } from "@/ui-components/ResourceBrowserStyle";
 
 export const sharesLinksInfo: LinkInfo[] = [
     {text: "Shared with me", to: AppRoutes.shares.sharedWithMe(), icon: "share", tab: SidebarTabId.FILES, defaultHidden: true},
@@ -449,7 +450,9 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                 // Removed stored filters that shouldn't persist.
                 dateRanges.keys.forEach(it => clearFilterStorageValue(browser.resourceName, it));
 
-                browser.setColumns([{name: "Filename"}, {name: "Share state", columnWidth: 200}, {name: "Last updated", columnWidth: 160}, {name: "Shared by", columnWidth: 90}]);
+                browser.setColumns({
+                    [ContainerSize.LARGE]: [{ name: "Filename" }, { name: "Share state", columnWidth: 200 }, { name: "Last updated", columnWidth: 160 }, { name: "Shared by", columnWidth: 90 }]
+                });
 
                 browser.on("skipOpen", (oldPath, path, share) => Client.username !== share?.owner.createdBy && share?.status.state === "PENDING");
                 browser.on("open", (oldPath, newPath, resource) => {

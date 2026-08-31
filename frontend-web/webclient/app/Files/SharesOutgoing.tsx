@@ -28,6 +28,7 @@ import {FlexClass} from "@/ui-components/Flex";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {sendFailureNotification} from "@/Notifications";
 import {Product} from "@/Accounting";
+import { ContainerSize } from "@/ui-components/ResourceBrowserStyle";
 
 enum ShareValidateState {
     NOT_VALIDATED,
@@ -228,9 +229,9 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
 
                 browser.on("open", (oldPath, newPath, resource) => {
                     if (newPath !== "/") {
-                        browser.setColumns([{name: "Shared with"}, {name: "Share rights", columnWidth: 150}, {name: "State", columnWidth: 150}, {name: "", columnWidth: 50}]);
+                        browser.setColumns({[ContainerSize.LARGE]: [{name: "Shared with"}, {name: "Share rights", columnWidth: 150}, {name: "State", columnWidth: 150}, {name: "", columnWidth: 50}]});
                     } else {
-                        browser.setColumns([{name: "Filename"}, {name: "", columnWidth: 150}, {name: "Permissions", columnWidth: 150}, {name: "Shared with", columnWidth: 150}])
+                        browser.setColumns({[ContainerSize.LARGE]: [{name: "Filename"}, {name: "", columnWidth: 150}, {name: "Permissions", columnWidth: 150}, {name: "Shared with", columnWidth: 150}]})
                     }
                     if (resource && isViewingShareGroupPreview(resource)) {
                         // navigate to share

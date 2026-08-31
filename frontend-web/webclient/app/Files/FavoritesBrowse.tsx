@@ -31,6 +31,7 @@ import {FileIconHint} from ".";
 import {ShortcutKey} from "@/ui-components/Operation";
 import {getLastActivePath} from "@/Applications/Jobs/Widgets/GenericFiles";
 import {sendFailureNotification} from "@/Notifications";
+import { ContainerSize } from "@/ui-components/ResourceBrowserStyle";
 
 const FEATURES: ResourceBrowseFeatures = {
     dragToSelect: true,
@@ -42,9 +43,8 @@ const FEATURES: ResourceBrowseFeatures = {
 }
 
 type SortById = "PATH" | "MODIFIED_AT" | "SIZE";
-const rowTitles: ColumnTitleList<SortById> = [{name: "Name"}, {name: "", columnWidth: 32}, {name: "", columnWidth: 0}, {name: "", columnWidth: 0}];
 
-function FavoriteBrowse({selection, navigateToFolder}: {
+function FavoriteBrowse({ selection, navigateToFolder }: {
     navigateToFolder: (path: string, projectId?: string) => void;
     selection: Selection<FileMetadataAttached | UFile>;
 }): React.ReactNode {
@@ -69,7 +69,9 @@ function FavoriteBrowse({selection, navigateToFolder}: {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<FileMetadataAttached>(mount, "Favorites", {isModal: true}).init(browserRef, FEATURES, "/", browser => {
-                browser.setColumns(rowTitles);
+                browser.setColumns({
+                    [ContainerSize.LARGE]: [{ name: "Name" }, { name: "", columnWidth: 32 }, { name: "", columnWidth: 0 }, { name: "", columnWidth: 0 }]
+                });
 
                 browser.on("fetchFilters", () => []);
 

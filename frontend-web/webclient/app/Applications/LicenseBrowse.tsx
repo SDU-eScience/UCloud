@@ -32,6 +32,7 @@ import {dialogStore} from "@/Dialog/DialogStore";
 import {ProductSelectorWithPermissions} from "./PublicLinks/PublicLinkBrowse";
 import {slimModalStyle} from "@/Utilities/ModalUtilities";
 import {sendFailureNotification} from "@/Notifications";
+import { ContainerSize } from "@/ui-components/ResourceBrowserStyle";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -90,7 +91,7 @@ export function LicenseBrowse({
             new ResourceBrowser<License>(mount, "Licenses", opts).init(browserRef, FEATURES, "", browser => {
                 let startCreation = doNothing;
 
-                browser.setColumns([{name: "License id"}, {name: "", columnWidth: 0}, {name: "", columnWidth: 0}, {name: "", columnWidth: 80}]);
+                browser.setColumns({[ContainerSize.LARGE]:[{name: "License id"}, {name: "", columnWidth: 0}, {name: "", columnWidth: 0}, {name: "", columnWidth: 80}]});
 
                 supportByProvider.retrieve(Client.projectId ?? "", () => retrieveSupportV2(LicenseApi));
                 addProjectListener(PROJECT_CHANGE_LISTENER_ID, p => {

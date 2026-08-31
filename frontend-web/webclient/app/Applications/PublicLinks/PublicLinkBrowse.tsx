@@ -54,6 +54,7 @@ import {getShortProviderTitle} from "@/Providers/ProviderTitle";
 import {useEffect} from "react";
 import {useProjectId} from "@/Project/Api";
 import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
+import { ContainerSize } from "@/ui-components/ResourceBrowserStyle";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -106,12 +107,12 @@ export function PublicLinkBrowse({
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<PublicLink>(mount, RESOURCE_NAME, opts).init(browserRef, FEATURES, "", browser => {
-                browser.setColumns([
+                browser.setColumns({[ContainerSize.LARGE]: [
                     {name: "Domain"},
                     {name: "In use with", columnWidth: 250},
                     {name: "", columnWidth: 0},
                     {name: "", columnWidth: 0},
-                ]);
+                ]});
 
                 supportByProvider.retrieve(Client.projectId ?? "", () => retrieveSupportV2(PublicLinkApi));
                 addProjectListener(PROJECT_CHANGE_LISTENER_ID, p => {

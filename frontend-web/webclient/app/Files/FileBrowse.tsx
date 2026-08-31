@@ -20,6 +20,7 @@ import {
     favoriteRowIcon,
     ResourceBrowseHeaderControls,
     createProjectSwitcherPortal,
+    ColumnTitleGroup,
 } from "@/ui-components/ResourceBrowser";
 import FilesApi, {
     addFileSensitivityDialog,
@@ -83,6 +84,7 @@ import {FileBrowserStatusBar, FileBrowserStatusData} from "./FileBrowserStatusBa
 import {fetchAll} from "@/Utilities/PageUtilities";
 import {Feature, hasFeature} from "@/Features";
 import {terminalSetPageContext} from "@/Terminal/State";
+import { ContainerSize } from "@/ui-components/ResourceBrowserStyle";
 
 export enum SensitivityLevel {
     "INHERIT" = "Inherit",
@@ -136,7 +138,9 @@ interface AdditionalResourceBrowserOpts {
 }
 let lastActiveProject: string | undefined = "";
 type SortById = "PATH" | "MODIFIED_AT" | "SIZE";
-const rowTitles: ColumnTitleList<SortById> = [{name: "Name", sortById: "PATH"}, {name: "", columnWidth: 32}, {name: "Modified at", sortById: "MODIFIED_AT", columnWidth: 160}, {name: "Size", sortById: "SIZE", columnWidth: 100}];
+const rowTitles: ColumnTitleGroup<SortById> = {
+    [ContainerSize.LARGE]:[{ name: "Name", sortById: "PATH" }, { name: "", columnWidth: 32 }, { name: "Modified at", sortById: "MODIFIED_AT", columnWidth: 160 }, { name: "Size", sortById: "SIZE", columnWidth: 100 }]
+};
 
 export const FakeFileName = ".00000000000000000000$NEW_DIR";
 const RESOURCE_NAME = "File";
@@ -219,7 +223,7 @@ function FileBrowse({opts, headerControls}: {
         let shares: Record<string, OutgoingShareGroup> = {};
         let initialFetchDone = false;
         if (mount && !browserRef.current) {
-            const resourceBrowser = new ResourceBrowser<UFile>(mount, RESOURCE_NAME, opts);
+            const resourceBrowser = new ResourceBrowser<UFile>(mount, RESOURCE_NAME, {...opts});
             resourceBrowser.init(browserRef, features, undefined, browser => {
                 browser.setColumns(rowTitles);
 

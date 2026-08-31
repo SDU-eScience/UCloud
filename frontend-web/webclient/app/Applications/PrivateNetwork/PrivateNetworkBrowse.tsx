@@ -46,6 +46,7 @@ import {getShortProviderTitle} from "@/Providers/ProviderTitle";
 import ProductReference = accounting.ProductReference;
 import {useEffect} from "react";
 import {sendFailureNotification} from "@/Notifications";
+import { ContainerSize } from "@/ui-components/ResourceBrowserStyle";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -96,12 +97,12 @@ export function PrivateNetworkBrowse({
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<PrivateNetwork>(mount, "Private networks", opts).init(browserRef, FEATURES, "", browser => {
-                browser.setColumns([
+                browser.setColumns({[ContainerSize.LARGE]: [
                     {name: "Name"},
                     {name: "Subdomain", columnWidth: 220},
                     {name: "", columnWidth: 0},
                     {name: "", columnWidth: 0},
-                ]);
+                ]});
 
                 const dummyEntry: PrivateNetwork = {
                     id: DUMMY_ENTRY_ID,

@@ -50,6 +50,7 @@ import {connectionState} from "@/Providers/ConnectionState";
 import {useProjectId} from "@/Project/Api";
 import {sendFailureNotification} from "@/Notifications";
 import {DriveChange} from "@/ui-components/Sidebar";
+import { ContainerSize } from "@/ui-components/ResourceBrowserStyle";
 
 const collectionsOnOpen = new AsyncCache<PageV2<FileCollection>>({globalTtl: 500});
 const supportByProvider = new AsyncCache<SupportByProviderV2<ProductV2Storage, FileCollectionSupport>>({
@@ -140,12 +141,12 @@ const DriveBrowse: React.FunctionComponent<{
                 connectionState.fetch();
 
 
-                browser.setColumns([
+                browser.setColumns({[ContainerSize.LARGE]: [
                     {name: "Drive name", sortById: "title"},
                     {name: "Provider", columnWidth: 100},
                     {name: "Created by", sortById: "createdBy", columnWidth: 250},
                     {name: "Created at", sortById: "createdAt", columnWidth: 160},
-                ]);
+                ]});
 
                 // Load products and initialize dependencies
                 // =========================================================================================================

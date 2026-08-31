@@ -49,6 +49,7 @@ import {useProject} from "@/Project/cache";
 import Routes from "@/Routes";
 import {useProjectId} from "@/Project/Api";
 import {sendFailureNotification} from "@/Notifications";
+import { ContainerSize } from "@/ui-components/ResourceBrowserStyle";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -99,12 +100,12 @@ export function NetworkIPBrowse({
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<NetworkIP>(mount, "Public IPs", opts).init(browserRef, FEATURES, "", browser => {
-                browser.setColumns([
+                browser.setColumns({[ContainerSize.LARGE]: [
                     {name: "IP address"},
                     {name: "In use with", columnWidth: 250},
                     {name: "", columnWidth: 0},
                     {name: "", columnWidth: 0},
-                ]);
+                ]});
 
                 supportByProvider.retrieve(Client.projectId ?? "", () => retrieveSupportV2(NetworkIPApi));
                 addProjectListener(PROJECT_CHANGE_LISTENER_ID, p => {

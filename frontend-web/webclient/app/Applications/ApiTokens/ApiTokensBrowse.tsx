@@ -7,7 +7,7 @@ import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {usePage} from "@/Navigation/Redux";
 import * as Api from "./api";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
-import {callAPI, noopCall} from "@/Authentication/DataHook";
+import {callAPI} from "@/Authentication/DataHook";
 import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {StandardCallbacks} from "@/ui-components/Browse";
 import AppRoutes from "@/Routes";
@@ -45,7 +45,7 @@ export function ApiTokenBrowse(props: {opts?: ResourceBrowserOpts<Api.ApiToken>}
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<Api.ApiToken>(mount, "API tokens", props.opts).init(browserRef, FEATURES, "", browser => {
-                browser.setColumns([{name: "Title"}, {name: "Created by", columnWidth: 200}, {name: "Expires at", columnWidth: 200}, {name: "Server URL", columnWidth: 320}]);
+                browser.setColumns({[ContainerSize.LARGE]: [{name: "Title"}, {name: "Created by", columnWidth: 200}, {name: "Expires at", columnWidth: 200}, {name: "Server URL", columnWidth: 320}]});
 
                 browser.on("skipOpen", (oldPath, path, resource) => resource != null);
 

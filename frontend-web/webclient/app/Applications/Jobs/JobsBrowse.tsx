@@ -21,6 +21,9 @@ import {
     ResourceBrowserOpts,
     ColumnTitleList,
     checkCanConsumeResources,
+    ColumnTitleGroup,
+    ColumnTitle,
+    columnTitle,
 } from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import Icon, {IconName} from "@/ui-components/Icon";
@@ -69,7 +72,28 @@ const FEATURES: ResourceBrowseFeatures = {
     showColumnTitles: true,
 };
 
-const columnTitles: ColumnTitleList = [{name: "Job name"}, {name: "Created by", sortById: "createdBy", columnWidth: 250}, {name: "Created at", sortById: "createdAt", columnWidth: 160}, {name: "Time left", sortById: "timeLeft", columnWidth: 160}, {name: "State", columnWidth: 75}];
+const Title: Omit<ColumnTitle, "columnWidth"> = { name: "Job name" };
+
+// Stat1
+// if (size === ContainerSize.TINY) {
+//     renderJobStateIcon(job, stat);
+// } else if (size === ContainerSize.SMALL) {
+//     renderJobStateText(job, stat);
+// } else if (size === ContainerSize.MEDIUM) {
+//     renderJobStateIcon(job, stat);
+// } else {
+//     renderCreatedBy(job, stat);
+// }
+//
+const Empty: ColumnTitle = {name: "", columnWidth: 0}
+
+const columnTitles: ColumnTitleGroup = {
+    [ContainerSize.LARGE]: [Title, columnTitle("Created by", 250), columnTitle("Created at", 160, "createdAt"), columnTitle("Time left", 160, "timeLeft"), columnTitle("State", 75)],
+    [ContainerSize.MEDIUM]: [Title, columnTitle("Created by", 250), columnTitle("Created at", 160, "createdAt"), columnTitle("Time left", 160, "timeLeft"), columnTitle("State", 75)],
+    [ContainerSize.SMALL]: [Title, columnTitle("State", 75),  columnTitle("Time left", 160, "timeLeft"), Empty, Empty],
+    [ContainerSize.TINY]: [Title, columnTitle("State", 75), Empty, Empty, Empty],
+};
+    //        name: "Created by", sortById: "createdBy", columnWidth: 250}, { name: "Created at", sortById: "createdAt", columnWidth: 160}, { name: "Time left", sortById: "timeLeft", columnWidth: 160}, { name: "State", columnWidth: 75}
 
 const RESOURCE_NAME = "JOBS";
 function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?: boolean; operations?: Operation<Job, ResourceBrowseCallbacks<Job, ProductCompute>>[]; jobTypeFilter?: JobTypeFilter}}): React.ReactNode {
@@ -243,7 +267,7 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                 });
 
                 function renderCreationText(job: Job, stat: HTMLElement) {
-                   stat.innerText  = dateToDateStringOrTime(job.createdAt ?? timestampUnixMs());
+                   stat.innerText = dateToDateStringOrTime(job.createdAt ?? timestampUnixMs());
                 }
 
                 browser.on("renderStat2", renderCreationText);

@@ -27,6 +27,7 @@ import {SimpleAvatarComponentCache} from "@/Files/Shares";
 import {avatarState} from "@/AvataaarLib/hook";
 import {TruncateClass} from "@/ui-components/Truncate";
 import {HTMLTooltip} from "@/ui-components/Tooltip";
+import { ContainerSize } from "@/ui-components/ResourceBrowserStyle";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -78,14 +79,6 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<Grants.Application>(mount, "Grants Application", opts).init(browserRef, features, "", browser => {
-                const simpleView = !!(opts?.embedded && !opts.isModal);
-                const columns: ColumnTitleList = [{name: "Application"}, {name: "Submitted by", columnWidth: 220}, {name: "Last updated", columnWidth: 200}, {name: "Comments", columnWidth: 150}]
-                if (simpleView) {
-                    columns[1].columnWidth = 50;
-                    columns[2].columnWidth = 120;
-                    columns[3].columnWidth = 0;
-                }
-
                 function fetchGrants(newPath: string = "/") {
                     callAPI(Grants.browse({
                         query: browser.searchQuery,
@@ -100,7 +93,11 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                     })
                 }
 
-                browser.setColumns(columns);
+                browser.setColumns({
+                    [ContainerSize.LARGE]: [{ name: "Application" }, { name: "Submitted by", columnWidth: 220 }, { name: "Last updated", columnWidth: 200 }, { name: "Comments", columnWidth: 150 }],
+                    [ContainerSize.SMALL]: [{ name: "Application" }, { name: "Submitted by", columnWidth: 220 }, { name: "Last updated", columnWidth: 200 }, {name: "", columnWidth: 0}],
+                    [ContainerSize.TINY]: [{ name: "Application" }, { name: "Submitted by", columnWidth: 220 }, { name: "", columnWidth: 0 }, {name: "", columnWidth: 0}],
+                });
                 browser.on("open", (_, newPath, resource) => {
                     if (resource) {
                         navigate(AppRoutes.grants.editor(resource.id));
@@ -209,23 +206,20 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                 browser.on("renderStat1", (app, stat) => {
                     stat.style.justifyContent = "left";
                     SimpleAvatarComponentCache.appendTo(stat, app.createdBy, `Created by ${app.createdBy}`).then(wrapper => {
-                        if (!simpleView) {
-                            const div = divText(app.createdBy);
-                            div.style.marginTop = div.style.marginBottom = "auto";
-                            div.classList.add(TruncateClass);
-                            div.style.maxWidth = "150px";
-                            div.style.marginLeft = "12px";
-                            wrapper.append(div);
-                            wrapper.style.display = "flex";
-                        }
+                        const div = divText(app.createdBy);
+                        div.style.marginTop = div.style.marginBottom = "auto";
+                        div.classList.add(TruncateClass);
+                        div.style.maxWidth = "150px";
+                        div.style.marginLeft = "12px";
+                        wrapper.append(div);
+                        wrapper.style.display = "flex";
                     });
                 });
 
                 // TODO(Jonas): Kill simpleView var
-                browser.on("renderStat2", (app, stat) => {
+                browser.on("renderStat2", (app, stat, row, size) => {
                     stat.innerText = dateToString(app.currentRevision.createdAt);
-
-                    if (!simpleView) {
+                    if (size >= ContainerSize.MEDIUM) {
                         stat.innerText = dateToString(app.currentRevision.createdAt ?? timestampUnixMs());
                     } else {
                         stat.innerText = dateToDateStringOrTime(app.currentRevision.createdAt ?? timestampUnixMs());
@@ -233,25 +227,23 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                 });
 
                 browser.on("renderStat3", (app, stat) => {
-                    if (!simpleView) {
-                        const div = divText(app.status.comments.length.toString());
-                        div.style.display = "flex";
-                        div.style.gap = "4px";
-                        div.style.marginTop = div.style.marginBottom = "auto";
-                        div.style.alignItems = "center";
+                    const div = divText(app.status.comments.length.toString());
+                    div.style.display = "flex";
+                    div.style.gap = "4px";
+                    div.style.marginTop = div.style.marginBottom = "auto";
+                    div.style.alignItems = "center";
 
-                        const circle = document.createElement("div");
-                        circle.style.width = "8px";
-                        circle.style.height = "8px";
-                        circle.style.borderRadius = "8px";
-                        circle.style.backgroundColor = app.status.hasUnreadComments ? "var(--successLight)" : "transparent";
-                        if (app.status.hasUnreadComments) {
-                            div.append(HTMLTooltip(circle, divText("You have unread comments")));
-                        }
-                        div.append(circle);
-
-                        stat.append(div);
+                    const circle = document.createElement("div");
+                    circle.style.width = "8px";
+                    circle.style.height = "8px";
+                    circle.style.borderRadius = "8px";
+                    circle.style.backgroundColor = app.status.hasUnreadComments ? "var(--successLight)" : "transparent";
+                    if (app.status.hasUnreadComments) {
+                        div.append(HTMLTooltip(circle, divText("You have unread comments")));
                     }
+                    div.append(circle);
+
+                    stat.append(div);
                 });
 
                 browser.on("endRenderPage", () => {
