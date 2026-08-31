@@ -7,12 +7,16 @@
 // language, but it does so inline on its own mount. The creator editors must not assume the file
 // editor is mounted, and must not register the language twice.
 //
-// This module owns three small guarantees:
+// This module owns these guarantees:
 //
 // - `ensureJinja2Language(monaco)` registers the jinja2 language and its Monarch tokenizer at most
 //   once per Monaco instance. The tokenizer is the same one the file editor uses; we export it
 //   from Editor.tsx so the visual experience is identical.
-// - `ensureUcloudDarkTheme(monaco)` defines the theme at most once per Monaco instance.
+// - `ensureBashJinjaLanguage(monaco)` registers the bash-jinja language at most once per Monaco
+//   instance.
+// - `ensureUcloudDarkTheme(monaco)` defines the theme, re-applying it on each call. The file
+//   editor defines the same theme name with empty rules, so re-applying keeps these token colors
+//   alive after a file editor mount.
 // - `creatorEditorOptions()` reads the same localStorage settings the file editor uses so the
 //   embedded editors inherit the user's font size, weight, word wrap, and vim preference.
 //
@@ -26,6 +30,11 @@
 // `jinja2monarchTokens`. We import it so the creator reuses the exact same tokenizer the file
 // editor uses, instead of redefining it.
 
+import {
+    bashJinjaLanguageConfiguration,
+    bashJinjaLanguageId,
+    bashJinjaMonarchTokens,
+} from "@/Applications/Creator/InvocationLanguage";
 import {jinja2monarchTokens} from "@/Editor/Editor";
 
 // Language and theme registration guards
@@ -35,7 +44,7 @@ import {jinja2monarchTokens} from "@/Editor/Editor";
 // module is re-evaluated.
 
 let jinja2Registered = false;
-let themeDefined = false;
+let bashJinjaRegistered = false;
 
 // Register the jinja2 language with Monaco at most once. Safe to call from every editor mount.
 export function ensureJinja2Language(monaco: any): void {
@@ -48,14 +57,36 @@ export function ensureJinja2Language(monaco: any): void {
     monaco.languages.setMonarchTokensProvider("jinja2", jinja2monarchTokens);
 }
 
-// Define the ucloud-dark theme at most once. The theme matches the file editor's definition.
+// Register the bash-jinja language (bash with Jinja tags) used by the invocation editor.
+export function ensureBashJinjaLanguage(monaco: any): void {
+    if (bashJinjaRegistered) return;
+    bashJinjaRegistered = true;
+    if (monaco.languages.getLanguages().some((l: any) => l.id === bashJinjaLanguageId)) return;
+    monaco.languages.register({id: bashJinjaLanguageId});
+    monaco.languages.setMonarchTokensProvider(bashJinjaLanguageId, bashJinjaMonarchTokens as any);
+    monaco.languages.setLanguageConfiguration(bashJinjaLanguageId, bashJinjaLanguageConfiguration);
+}
+
+// Define the ucloud-dark theme. The theme data matches the file editor's definition plus token
+// colors for the bash-jinja language. Re-applied on every call: the file editor (Editor.tsx)
+// defines the same theme name with empty rules on its mounts, which would otherwise wipe these
+// token colors until the next full page load.
 export function ensureUcloudDarkTheme(monaco: any): void {
-    if (themeDefined) return;
-    themeDefined = true;
     monaco.editor.defineTheme("ucloud-dark", {
         base: "vs-dark",
         inherit: true,
-        rules: [],
+        rules: [
+            // Jinja (bash-jinja language). Colors follow the file editor's jinja2 feel: tags in
+            // orange, names in light blue, strings in the same soft blue as bash strings.
+            {token: "delimiter.bracket.jinja2", foreground: "F97316"},
+            {token: "keyword.jinja2", foreground: "F97316"},
+            {token: "comment.jinja2", foreground: "6A9955", fontStyle: "italic"},
+            {token: "variable.name.jinja2", foreground: "9CDCFE"},
+            {token: "string.jinja2", foreground: "CE9178"},
+            {token: "number.jinja2", foreground: "B5CEA8"},
+            {token: "number.float.jinja2", foreground: "B5CEA8"},
+            {token: "operator.jinja2", foreground: "D4D4D4"},
+        ],
         colors: {
             "editor.background": "#21262D",
         },

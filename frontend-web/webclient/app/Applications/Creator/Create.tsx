@@ -15,7 +15,7 @@
 // similarly to Figma's properties panel.
 
 import * as React from "react";
-import {useCallback, useEffect, useRef, useState} from "react";
+import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {useLocation, useNavigate, useBeforeUnload} from "react-router-dom";
 import {useSelector} from "react-redux";
 import {Box, Button, Flex, Grid, Text} from "@/ui-components";
@@ -1161,23 +1161,25 @@ export const Create: React.FunctionComponent = () => {
     }, [previewApplication, previewRendering]);
 
     const onPreviewScript = useCallback(async (job: JobSpecification) => {
-        if (!draft) return;
-        await renderPreview(job, draft);
-    }, [draft, renderPreview]);
+        const current = draftRef.current;
+        if (!current) return;
+        await renderPreview(job, current);
+    }, [renderPreview]);
 
     const onRerunPreview = useCallback(async () => {
-        if (!draft || previewRendering || previewQueued) return;
+        const current = draftRef.current;
+        if (!current || previewRendering || previewQueued) return;
         setPreviewQueued(true);
 
         if (!previewApplication) {
-            const response = await validateDraft(draft);
-            if (!response || draftRevisionRef.current !== draft.revision || response.errors.length > 0 || !response.application) {
+            const response = await validateDraft(current);
+            if (!response || draftRevisionRef.current !== current.revision || response.errors.length > 0 || !response.application) {
                 setPreviewQueued(false);
                 return;
             }
             setPreviewApplication(response.application);
         }
-    }, [draft, previewApplication, previewQueued, previewRendering, validateDraft]);
+    }, [previewApplication, previewQueued, previewRendering, validateDraft]);
 
     useEffect(() => {
         if (!previewQueued || !draft || !previewApplication || !previewDataReady || previewMachines.length === 0) return;
@@ -1452,17 +1454,42 @@ function CreatorMainContent(props: {
 }): React.ReactNode {
     const {draft} = props;
 
-    const invocationPreview = <PreviewScriptViewer
-        script={props.previewScript}
-        errors={props.previewErrors}
-        onRerun={props.onRerunPreview}
-        onOpenPreviewPanel={props.onOpenPreviewPanel}
-        rerunning={props.previewRendering || props.previewQueued}
-    />;
+    // The parameters list must keep a stable identity across renders that do not touch the
+    // parameters (for example every keystroke in the invocation editor). The InvocationEditor
+    // uses it as an effect dependency; a fresh array per render would re-run the lint on every
+    // keystroke and defeat its debounce.
+    const invocationParameters = React.useMemo(
+        () => draft.application.parametersOrder.flatMap(name => {
+            const param = draft.application.parameters[name];
+            return param ? [{name, param}] : [];
+        }),
+        [draft.application.parametersOrder, draft.application.parameters],
+    );
+
+    // Memoized for the same reason as previewSurface: this node is passed as a prop into
+    // InvocationEditor and must not change identity on invocation keystrokes, or the preview tab
+    // subtree would re-render behind the invocation tab.
+    const invocationPreview = useMemo(() => (
+        <PreviewScriptViewer
+            script={props.previewScript}
+            errors={props.previewErrors}
+            onRerun={props.onRerunPreview}
+            onOpenPreviewPanel={props.onOpenPreviewPanel}
+            rerunning={props.previewRendering || props.previewQueued}
+        />
+    ), [
+        props.previewScript,
+        props.previewErrors,
+        props.onRerunPreview,
+        props.onOpenPreviewPanel,
+        props.previewRendering,
+        props.previewQueued,
+    ]);
 
     const renderInvocationEditor = (maximized: boolean) => (
         <InvocationEditor
             invocation={draft.application.invocation}
+            parameters={invocationParameters}
             readOnly={props.readOnly}
             themeName={props.themeName}
             onChange={props.onInvocationChange}
@@ -1476,7 +1503,10 @@ function CreatorMainContent(props: {
 
     // Keep all view surfaces mounted. In particular, the job form owns temporary widget state;
     // hiding it instead of unmounting it preserves preview values when the user returns to edit.
-    const previewSurface = (
+    // Memoized: this subtree is expensive (a full JobCreate form) and its inputs change only on
+    // preview actions, not on draft edits like invocation keystrokes. All callback props are
+    // stable useCallback identities or state setters.
+    const previewSurface = useMemo(() => (
         <div className={CreatorPreviewClass} hidden={draft.view !== "preview"} style={draft.view !== "preview" ? {display: "none"} : undefined}>
             {props.previewApplication == null ? (
                 <Text color="textSecondary">The application must pass validation before it can be previewed.</Text>
@@ -1505,7 +1535,20 @@ function CreatorMainContent(props: {
                 </>
             )}
         </div>
-    );
+    ), [
+        draft.view,
+        props.previewApplication,
+        props.previewScript,
+        props.previewErrors,
+        props.previewRendering,
+        props.previewQueued,
+        props.onPreviewScript,
+        props.onRerunPreview,
+        props.onOpenPreviewPanel,
+        props.onPreviewParametersChange,
+        props.onPreviewMachinesChange,
+        props.onPreviewDataReady,
+    ]);
 
     return (
         <>
