@@ -13,10 +13,10 @@ import (
 	"ucloud.dk/shared/pkg/util"
 )
 
-var usageGenTimeBased = accapi.ProductV2{
+var usageGenTimeBasedCPUOne = accapi.ProductV2{
 	Type: accapi.ProductTypeCCompute,
 	Category: accapi.ProductCategory{
-		Name:        "cpu",
+		Name:        "cpu-zen-4",
 		Provider:    "usagegen",
 		ProductType: accapi.ProductTypeCompute,
 		AccountingUnit: accapi.AccountingUnit{
@@ -29,8 +29,33 @@ var usageGenTimeBased = accapi.ProductV2{
 		FreeToUse:           false,
 		AllowSubAllocations: true,
 	},
-	Name:                      "cpu",
-	Description:               "CPU product for usage gen",
+	Name:                      "cpu-zen-4",
+	Description:               "CPUOne product for usage gen ",
+	ProductType:               accapi.ProductTypeCompute,
+	Price:                     1,
+	HiddenInGrantApplications: true,
+	Cpu:                       1,
+	MemoryInGigs:              1,
+}
+
+var usageGenTimeBasedCPUTwo = accapi.ProductV2{
+	Type: accapi.ProductTypeCCompute,
+	Category: accapi.ProductCategory{
+		Name:        "dual-core",
+		Provider:    "usagegen",
+		ProductType: accapi.ProductTypeCompute,
+		AccountingUnit: accapi.AccountingUnit{
+			Name:                   "Core",
+			NamePlural:             "Core",
+			FloatingPoint:          false,
+			DisplayFrequencySuffix: true,
+		},
+		AccountingFrequency: accapi.AccountingFrequencyPeriodicMinute,
+		FreeToUse:           false,
+		AllowSubAllocations: true,
+	},
+	Name:                      "dual-core",
+	Description:               "CPUTwo product for usage gen",
 	ProductType:               accapi.ProductTypeCompute,
 	Price:                     1,
 	HiddenInGrantApplications: true,
@@ -59,7 +84,8 @@ var usageGenCapacityBased = accapi.ProductV2{
 }
 
 var usageGenProducts = []accapi.ProductV2{
-	usageGenTimeBased,
+	usageGenTimeBasedCPUOne,
+	usageGenTimeBasedCPUTwo,
 	usageGenCapacityBased,
 }
 
@@ -107,7 +133,7 @@ func usageGenReal(actor rpc.Actor, request accapi.UsageGenConfig) *util.HttpErro
 		return util.HttpErr(http.StatusInternalServerError, "could not create root project: %s", err)
 	}
 
-	providerId := rpc.ProviderId(usageGenTimeBased.Category.Provider)
+	providerId := rpc.ProviderId(usageGenTimeBasedCPUOne.Category.Provider)
 
 	providerActor := actor
 	providerActor.Project = util.OptValue(rpc.ProjectId(rootProject.Id))
@@ -156,8 +182,11 @@ func usageGenReal(actor rpc.Actor, request accapi.UsageGenConfig) *util.HttpErro
 			var category accapi.ProductCategory
 
 			switch product {
-			case UsageGenProductCPU:
-				category = usageGenTimeBased.Category
+			case UsageGenProductCPUOne:
+				category = usageGenTimeBasedCPUOne.Category
+
+			case UsageGenProductCPUTwo:
+				category = usageGenTimeBasedCPUTwo.Category
 
 			case UsageGenProductStorage:
 				category = usageGenCapacityBased.Category
@@ -236,8 +265,11 @@ func usageGenReal(actor rpc.Actor, request accapi.UsageGenConfig) *util.HttpErro
 			var category accapi.ProductCategory
 
 			switch product {
-			case UsageGenProductCPU:
-				category = usageGenTimeBased.Category
+			case UsageGenProductCPUOne:
+				category = usageGenTimeBasedCPUOne.Category
+
+			case UsageGenProductCPUTwo:
+				category = usageGenTimeBasedCPUTwo.Category
 
 			case UsageGenProductStorage:
 				category = usageGenCapacityBased.Category
@@ -281,15 +313,19 @@ func usageGenReal(actor rpc.Actor, request accapi.UsageGenConfig) *util.HttpErro
 			nowTime := tm(now)
 
 			accountingProcessTasksNow(nowTime, func(bucket *internalBucket) bool {
-				return (bucket.Category.Name == usageGenTimeBased.Category.Name &&
-					bucket.Category.Provider == usageGenTimeBased.Category.Provider) ||
+				return (bucket.Category.Name == usageGenTimeBasedCPUOne.Category.Name &&
+					bucket.Category.Provider == usageGenTimeBasedCPUOne.Category.Provider) ||
+					(bucket.Category.Name == usageGenTimeBasedCPUTwo.Category.Name &&
+					bucket.Category.Provider == usageGenTimeBasedCPUTwo.Category.Provider) ||
 					(bucket.Category.Name == usageGenCapacityBased.Category.Name &&
 						bucket.Category.Provider == usageGenCapacityBased.Category.Provider)
 			})
 
 			usageSampleEx(nowTime, func(cat accapi.ProductCategory) bool {
-				return (cat.Name == usageGenTimeBased.Category.Name &&
-					cat.Provider == usageGenTimeBased.Category.Provider) ||
+				return (cat.Name == usageGenTimeBasedCPUOne.Category.Name &&
+					cat.Provider == usageGenTimeBasedCPUOne.Category.Provider) ||
+					(cat.Name == usageGenTimeBasedCPUTwo.Category.Name &&
+					cat.Provider == usageGenTimeBasedCPUTwo.Category.Provider) ||
 					(cat.Name == usageGenCapacityBased.Category.Name &&
 						cat.Provider == usageGenCapacityBased.Category.Provider)
 			})

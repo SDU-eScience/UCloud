@@ -13,7 +13,8 @@ import (
 type UsageGenProduct int
 
 const (
-	UsageGenProductCPU UsageGenProduct = iota
+	UsageGenProductCPUOne UsageGenProduct = iota
+	UsageGenProductCPUTwo
 	UsageGenProductStorage
 )
 
@@ -35,9 +36,13 @@ type UsageGenProject struct {
 	Parent string
 	Title  string
 
-	CPUUsage  int64
-	CPUUsage2 int64
-	CPUQuota  int64
+	CPUGeneratedOne int64
+	CPUReportedOne  int64
+
+	CPUGeneratedTwo int64
+	CPUReportedTwo  int64
+
+	CPUQuota int64
 
 	StorageUsage  int64
 	StorageUsage2 int64
@@ -143,12 +148,19 @@ func usageGenGenerateStorage(
 	for _, minute := range minutes {
 		var delta int64
 
-		if currentUsage == 0 {
+		switch project.StorageTrend {
+		case storageGrowing:
 			delta = storageGrowthDelta(g, quota)
-		} else if g.Rng.Float64() < 0.55 {
-			delta = storageGrowthDelta(g, quota)
-		} else {
+
+		case storageShrinking:
 			delta = -storageReleaseDelta(g, currentUsage)
+
+		case storageStable:
+			if g.Rng.Float64() < 0.5 {
+				delta = storageGrowthDelta(g, quota) / 4
+			} else {
+				delta = -storageReleaseDelta(g, currentUsage) / 4
+			}
 		}
 
 		if currentUsage+delta < 0 {
@@ -172,6 +184,72 @@ type usageGenJob struct {
 	CoreCount   int
 }
 
+func usageGenRandomJob(
+	g *usageGenerator,
+	minutesRemaining int64,
+	isWeekend bool,
+) usageGenJob {
+	coreCountsToSample := []int{
+		1,
+		2, 2, 2, 2, 2, 2, 2,
+		4, 4, 4, 4, 4, 4, 4, 4, 4,
+		8,
+		16,
+		32, 32, 32, 32, 32, 32, 32,
+		64, 64, 64, 64, 64, 64, 64,
+		128,
+		256,
+		512,
+		1024,
+	}
+
+	coreCount := coreCountsToSample[g.Rng.Intn(len(coreCountsToSample))]
+
+	var durationMinutes int
+
+	u := g.Rng.Float64()
+	if u < 0.8 {
+		durationMinutes = 30 + g.Rng.Intn(450)
+	} else if u < 0.99 {
+		durationMinutes = 240 + g.Rng.Intn(720)
+	} else {
+		durationMinutes = 960 + g.Rng.Intn(240)
+	}
+
+	if isWeekend {
+		durationMinutes = int(float64(durationMinutes) * 0.6)
+	}
+
+	if minutesRemaining < int64(durationMinutes*coreCount) {
+		durationMinutes = int(minutesRemaining) / coreCount
+	}
+
+	if durationMinutes <= 0 {
+		return usageGenJob{}
+	}
+
+	startOfDay := 0
+
+	u = g.Rng.Float64()
+	if u < 0.45 {
+		startOfDay = 9*60 + g.Rng.Intn(60)
+	} else if u < 0.9 {
+		startOfDay = 13*60 + g.Rng.Intn(60)
+	} else {
+		startOfDay = g.Rng.Intn(1440)
+	}
+
+	if startOfDay+durationMinutes > 1440 {
+		startOfDay = 1440 - durationMinutes
+	}
+
+	return usageGenJob{
+		StartMinute: startOfDay,
+		EndMinute:   startOfDay + durationMinutes,
+		CoreCount:   coreCount,
+	}
+}
+
 func UsageGenGenerate(api UsageGenApi, cfg accapi.UsageGenConfig) *UsageGenProject {
 	g := &usageGenerator{
 		Api: api,
@@ -185,7 +263,8 @@ func UsageGenGenerate(api UsageGenApi, cfg accapi.UsageGenConfig) *UsageGenProje
 		},
 	}
 
-	g.Api.AllocateEx(UsageGenProductCPU, 0, 0, 1440*cfg.Days, g.Root.CPUQuota, g.Root.Title, g.Root.Parent)
+	g.Api.AllocateEx(UsageGenProductCPUOne, 0, 0, 1440*cfg.Days, g.Root.CPUQuota, g.Root.Title, g.Root.Parent)
+	g.Api.AllocateEx(UsageGenProductCPUTwo, 0, 0, 1440*cfg.Days, g.Root.CPUQuota, g.Root.Title, g.Root.Parent)
 
 	storageRootQuota := int64(100_000)
 
@@ -260,73 +339,59 @@ func UsageGenGenerate(api UsageGenApi, cfg accapi.UsageGenConfig) *UsageGenProje
 			}
 		}
 
-		activeJobsPerProject := map[string][]usageGenJob{}
+		activeJobsPerProjectOne := map[string][]usageGenJob{}
+		activeJobsPerProjectTwo := map[string][]usageGenJob{}
 		for _, project := range activeProjectsToday {
 			minutesRemainingOverall := project.CPUQuota
+
 			if len(project.Children) > 0 {
 				minutesRemainingOverall /= 2
 			}
 
-			minutesRemainingOverall -= project.CPUUsage
+			minutesRemainingOverall -= project.CPUGeneratedOne
 
-			if minutesRemainingOverall <= 0 {
-				continue
+			if minutesRemainingOverall > 0 {
+				jobsToday := 1 + g.Rng.Intn(4)
+
+				for i := 0; i < jobsToday; i++ {
+					job := usageGenRandomJob(g, minutesRemainingOverall, isWeekend)
+
+					if job.EndMinute > job.StartMinute {
+						usage := int64(job.EndMinute-job.StartMinute) * int64(job.CoreCount)
+
+						project.CPUGeneratedOne += usage
+						activeJobsPerProjectOne[project.Title] =
+							append(activeJobsPerProjectOne[project.Title], job)
+
+						jobsCreated++
+					}
+				}
 			}
 
-			jobsToday := 1 + g.Rng.Intn(4)
-			for i := 0; i < jobsToday; i++ {
-				coreCountsToSample := []int{1, 2, 2, 2, 2, 2, 2, 2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 8, 16, 32, 32, 32,
-					32, 32, 32, 32, 64, 64, 64, 64, 64, 64, 64, 64, 128, 256, 512, 1024}
+			// Generate an independent set of jobs for CPU Two.
+			minutesRemainingOverall = project.CPUQuota
 
-				durationMinutes := 0
-				coreCount := coreCountsToSample[g.Rng.Intn(len(coreCountsToSample))]
+			if len(project.Children) > 0 {
+				minutesRemainingOverall /= 2
+			}
 
-				{
-					u := g.Rng.Float64()
-					if u < 0.8 {
-						durationMinutes = 30 + g.Rng.Intn(450) // 0.5 hours to 8 hours
-					} else if u < 0.99 {
-						durationMinutes = 240 + g.Rng.Intn(720) // 4 hours to 16 hours
-					} else {
-						durationMinutes = 960 + g.Rng.Intn(240) // 16 hours to 20 hours
+			minutesRemainingOverall -= project.CPUGeneratedTwo
+
+			if minutesRemainingOverall > 0 {
+				jobsToday := 1 + g.Rng.Intn(4)
+
+				for i := 0; i < jobsToday; i++ {
+					job := usageGenRandomJob(g, minutesRemainingOverall, isWeekend)
+
+					if job.EndMinute > job.StartMinute {
+						usage := int64(job.EndMinute-job.StartMinute) * int64(job.CoreCount)
+
+						project.CPUGeneratedTwo += usage
+						activeJobsPerProjectTwo[project.Title] =
+							append(activeJobsPerProjectTwo[project.Title], job)
+
+						jobsCreated++
 					}
-				}
-
-				if isWeekend {
-					durationMinutes = int(float64(durationMinutes) * 0.6)
-				}
-
-				if int(minutesRemainingOverall) < durationMinutes*coreCount {
-					durationMinutes = int(minutesRemainingOverall) / coreCount
-				}
-
-				if durationMinutes > 0 {
-					startOfDay := 0
-					{
-						u := g.Rng.Float64()
-						if u < 0.45 {
-							// Peak at 09:00-10:00
-							startOfDay = 9*60 + g.Rng.Intn(60)
-						} else if u < 0.9 {
-							// Peak at 13:00-14:00
-							startOfDay = 13*60 + g.Rng.Intn(60)
-						} else {
-							// Random throughout the day
-							startOfDay = g.Rng.Intn(1440)
-						}
-					}
-
-					if startOfDay+durationMinutes > 1440 {
-						startOfDay = 1440 - durationMinutes
-					}
-
-					project.CPUUsage += int64(durationMinutes * coreCount)
-					activeJobsPerProject[project.Title] = append(activeJobsPerProject[project.Title], usageGenJob{
-						StartMinute: startOfDay,
-						EndMinute:   startOfDay + durationMinutes,
-						CoreCount:   coreCount,
-					})
-					jobsCreated++
 				}
 			}
 		}
@@ -352,29 +417,44 @@ func UsageGenGenerate(api UsageGenApi, cfg accapi.UsageGenConfig) *UsageGenProje
 			minuteStep = 5
 		}
 
+		checkpointInterval := cfg.CheckpointInterval
+		if checkpointInterval == 0 {
+			checkpointInterval = 60 // whatever default makes sense
+		}
+
 		for minute := startOfDay; minute <= endOfDay; minute += minuteStep {
 			minuteOfDay := minute - startOfDay
 
 			for _, project := range activeProjectsToday {
-				myJobs := activeJobsPerProject[project.Title]
+				myJobs := activeJobsPerProjectOne[project.Title]
 				for _, job := range myJobs {
 					tickStart := minuteOfDay
 					tickEnd := minuteOfDay + minuteStep
 
-					overlapStart := tickStart
-					if job.StartMinute > overlapStart {
-						overlapStart = job.StartMinute
-					}
-					overlapEnd := tickEnd
-					if job.EndMinute < overlapEnd {
-						overlapEnd = job.EndMinute
-					}
+					overlapStart := max(job.StartMinute, tickStart)
+					overlapEnd := min(job.EndMinute, tickEnd)
 
 					if overlapEnd > overlapStart {
 						slice := overlapEnd - overlapStart
 						usageInPeriod := int64(slice * job.CoreCount)
-						project.CPUUsage2 += usageInPeriod
-						api.ReportDelta(UsageGenProductCPU, minute, project.Title, usageInPeriod)
+						project.CPUReportedOne += usageInPeriod
+						api.ReportDelta(UsageGenProductCPUOne, minute, project.Title, usageInPeriod)
+					}
+				}
+
+				myJobs = activeJobsPerProjectTwo[project.Title]
+				for _, job := range myJobs {
+					tickStart := minuteOfDay
+					tickEnd := minuteOfDay + minuteStep
+
+					overlapStart := max(job.StartMinute, tickStart)
+					overlapEnd := min(job.EndMinute, tickEnd)
+
+					if overlapEnd > overlapStart {
+						slice := overlapEnd - overlapStart
+						usageInPeriod := int64(slice * job.CoreCount)
+						project.CPUReportedTwo += usageInPeriod
+						api.ReportDelta(UsageGenProductCPUTwo, minute, project.Title, usageInPeriod)
 					}
 				}
 
@@ -468,7 +548,17 @@ func usageGenAllocateProjects(g *usageGenerator, parent *UsageGenProject, breadt
 				end := (1440 * (currentDay + count)) - 1
 
 				g.Api.AllocateEx(
-					UsageGenProductCPU,
+					UsageGenProductCPUOne,
+					start,
+					start,
+					end,
+					child.CPUQuota,
+					child.Title,
+					child.Parent,
+				)
+
+				g.Api.AllocateEx(
+					UsageGenProductCPUTwo,
 					start,
 					start,
 					end,
@@ -492,7 +582,17 @@ func usageGenAllocateProjects(g *usageGenerator, parent *UsageGenProject, breadt
 			}
 		} else {
 			g.Api.AllocateEx(
-				UsageGenProductCPU,
+				UsageGenProductCPUOne,
+				0,
+				0,
+				1440*g.Cfg.Days,
+				child.CPUQuota,
+				child.Title,
+				child.Parent,
+			)
+
+			g.Api.AllocateEx(
+				UsageGenProductCPUTwo,
 				0,
 				0,
 				1440*g.Cfg.Days,
