@@ -276,8 +276,8 @@ func inferenceResponseStoreDelete(owner apm.WalletOwner, username string, respon
 	}
 }
 
-func inferenceResponseStoreInputItems(request OaiResponseCreateRequest) []json.RawMessage {
-	raw := request.Input
+func inferenceResponseStoreInputItems(input json.RawMessage) []json.RawMessage {
+	raw := input
 	if len(raw) == 0 || string(raw) == "null" {
 		return nil
 	}
@@ -303,10 +303,10 @@ func inferenceResponseStoreInputItems(request OaiResponseCreateRequest) []json.R
 	return []json.RawMessage{raw}
 }
 
-func inferenceResponseConversationFromTurn(request OaiResponseCreateRequest, response OaiResponse) *inferencePersistedConversation {
+func inferenceResponseConversationFromTurn(input json.RawMessage, response OaiResponse, conversationId string) *inferencePersistedConversation {
 	now := time.Now().Unix()
-	items := make([]json.RawMessage, 0, len(request.Input)+len(response.Output))
-	items = append(items, inferenceResponseStoreInputItems(request)...)
+	items := make([]json.RawMessage, 0, len(input)+len(response.Output))
+	items = append(items, inferenceResponseStoreInputItems(input)...)
 	for _, output := range response.Output {
 		if encoded, err := json.Marshal(output); err == nil {
 			items = append(items, encoded)
@@ -315,7 +315,7 @@ func inferenceResponseConversationFromTurn(request OaiResponseCreateRequest, res
 
 	return &inferencePersistedConversation{
 		Version:   1,
-		Id:        inferenceResponseNewId("conv"),
+		Id:        conversationId,
 		CreatedAt: now,
 		UpdatedAt: now,
 		Items:     items,
